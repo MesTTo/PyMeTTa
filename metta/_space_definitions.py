@@ -738,6 +738,17 @@ def _install_define_locked(space: Any, fn: Callable[..., Any], name: str | None 
         defined_name=partial(_installed_callable_name, space),
         call_parameters=partial(call_parameter_names, space),
     )
+    # The equations lean on these shipped libraries (a dict literal needs
+    # lib_dict's vocabulary); import! is idempotent per space, so the
+    # dependency lands with the definition rather than ambiently.
+    if compiled.libraries:
+        from ._library import (  # noqa: PLC0415  -- the library namespace imports this module's package lazily
+            import_library,
+            lib,
+        )
+
+        for library_name in sorted(compiled.libraries):
+            import_library(space, getattr(lib, library_name))
     params, patterns = compiled.params, compiled.patterns
     # Clause stacking is per (space, name), process-wide: equations live
     # in the space, not in whichever MeTTa instance happened to add them.

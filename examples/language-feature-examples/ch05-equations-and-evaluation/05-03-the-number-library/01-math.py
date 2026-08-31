@@ -50,9 +50,12 @@ def twin(m):
     )
     tan, atan = m.fn.tan_math, m.fn.atan_math
 
-    # Mixed integer/float equality compares numeric VALUES.
-    assert equal(1, 1.0) == [True]
-    assert unequal(1.0, 1) == [False]
+    # The engine's == is exact across numeric KINDS: an integer and a
+    # float are different atoms even at the same value. Python's own
+    # value-comparing == is the compiled bodies' py-eq, not this head.
+    # !(test (== 1 1.0) False)
+    assert equal(1, 1.0) == [False]
+    assert unequal(1.0, 1) == [True]
 
     # Division and remainder by zero answer contained error atoms, and an
     # error is an ordinary ANSWER: the answer list holds it where a scalar
@@ -75,9 +78,14 @@ def twin(m):
         S.Error(fn.sqrt_math(ground("s")), S.BadArgType(1, S.Number, S.String))
     ]
 
-    assert power(2, 3) == [8.0]
+    assert power(2, 3) == [8]
     assert isnan(fn.sqrt_math(-1)) == [True]
-    assert isinf(fn.pow_math(0, -1)) == [True]
+    # Integer zero to a negative power is exact division by zero, Error
+    # data; the FLOAT form rides binary64 to an infinity.
+    # !(test (pow-math 0 -1) (noeval (Error (pow-math 0 -1) DivisionByZero)))
+    # !(test (isinf-math (pow-math 0.0 -1.0)) True)
+    assert power(0, -1) == [S.Error(fn.pow_math(0, -1), S.DivisionByZero)]
+    assert isinf(fn.pow_math(0.0, -1.0)) == [True]
     # An integer exponent is bounded to signed i32; a float one is not.
     assert power(2, 2147483648) == [
         S.Error(
@@ -85,7 +93,9 @@ def twin(m):
             ground("power argument is too big, try using float value"),
         )
     ]
-    assert power(1, 2147483648.0) == [1.0]
+    # SWI's own 1 ** big-float is the integer 1, kind-preserved.
+    # !(test (pow-math 1 2147483648.0) 1)
+    assert power(1, 2147483648.0) == [1]
 
     # Real-valued operations promote integer operands to Float.
     assert sqrt(9) == [3.0]
@@ -173,4 +183,13 @@ def twin(m):
 #: and the scheduler, context-callback and exact-memo lifecycle clauses
 #: move compiled-image layout by tens, the class this file's chain
 #: documents [measured: min-of-3 serial fresh processes; command=python extensions/python/tools/twin_coverage.py --measure --rounds 3; fixture=merged p14-audit-async composed tree with engine/reader.so; commit=5059173b1767600ce4df0f6b7841d88116ee62d3].
-BUDGET = 8578
+#: RE-PINNED 2026-09-01, 8578 to 9916 (+1338), the compiled-language batch:
+#: try/raise on the error algebra, dict-space literals with lib_dict auto-
+#: import, the exact-integer operator family as engine builtins (bit-
+#: and/or/xor/not, floor-div, five registration rows moving clause indexing),
+#: the implicit-island fallback, the except/error-payload runtime ops replacing
+#: seven py- bridges, the variadic door family (transfer, batched remove and
+#: eval), the -= drain-law repair, and fourteen twins healed to the arbiter
+#: [measured 2026-09-01: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 9916

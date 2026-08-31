@@ -74,7 +74,8 @@ TIMEOUT = 300
 
 def skips() -> dict[str, str]:
     """The declared skips, path to reason. One definition, read by every
-    runner, because two copies matching on basename already disagreed."""
+    runner, because two copies matching on basename already disagreed.
+    """
     out: dict[str, str] = {}
     for line in SKIPS.read_text().splitlines():
         stripped = line.strip()
@@ -109,7 +110,8 @@ FAILED = "ANSWER-ERROR "
 @dataclass(frozen=True, slots=True)
 class Outcome:
     """What one configuration made of one example: one written answer group
-    per runnable form, in source order, or the error that stopped it."""
+    per runnable form, in source order, or the error that stopped it.
+    """
 
     groups: list[str]
     error: str | None
@@ -154,7 +156,8 @@ def _run(
 
 def run_engine(path: Path, root: Path = REPO) -> Outcome:
     """The engine alone, read through the emitter that already exists for
-    exactly this: one answer GROUP per runnable form on a marker line."""
+    exactly this: one answer GROUP per runnable form on a marker line.
+    """
     return _run(
         [
             "swipl", "--stack_limit=8g", "-q",
@@ -200,7 +203,8 @@ def _value(written: str):
     """One written group as a VALUE, so a difference in spelling is not
     reported as a difference in answer: boolean source aliases parse to the
     same Grounded value. An unparsable group compares as its own text, which keeps
-    malformed output visible instead of collapsing it to equal."""
+    malformed output visible instead of collapsing it to equal.
+    """
     from metta.atoms import parse
 
     try:

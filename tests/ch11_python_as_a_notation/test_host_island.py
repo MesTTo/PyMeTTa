@@ -10,10 +10,9 @@ Guarantees:
   - for, while, and comprehension crossings each produce one loop lint
     finding while a crossing outside them does not [tested:
     test_py_host_island_inside_loops_emits_exact_findings; commit=3f0a1d237a3c969b2d4ad0d48b2195ce196b631a]
-  - an unmarked host callee refuses before registration with a file/caret span
-    and both public remedies [tested:
-    test_unknown_host_callee_refusal_has_file_caret_and_both_remedies;
-    commit=3f0a1d237a3c969b2d4ad0d48b2195ce196b631a]
+  - an unmarked host callee islands implicitly: nothing runs at compile
+    time and the author's own call runs per application [tested:
+    test_unknown_host_callee_islands_implicitly; commit=WORKTREE]
 """  # noqa: D205, D415  -- the test contract is one continuous invariant, not summary-and-body prose
 
 from __future__ import annotations
@@ -22,8 +21,7 @@ from pathlib import Path
 
 import pytest
 
-from metta import Expression, Grounded, py
-from metta.errors import CompileError
+from metta import Expression, Grounded, S, py
 from metta.vocabularies import EffectClass
 
 
@@ -139,21 +137,24 @@ def test_py_host_island_inside_loops_emits_exact_findings(m):
     assert all(finding.payload and finding.payload["line"] > 0 for finding in findings)
 
 
-def test_unknown_host_callee_refusal_has_file_caret_and_both_remedies(m):
-    """The refusal is located and teaches both named and inline crossings."""
+def test_unknown_host_callee_islands_implicitly(m):
+    """An unknown host call compiles to an island, never touched at compile.
+
+    The refusal was the old law; under the fallback law the whole call
+    islands, exactly as py(...) would spell it, so the author's own
+    Python runs at application time and nothing runs at compile time.
+    """
     _UNKNOWN_CLIENT.calls = 0
-    with pytest.raises(CompileError) as caught:
 
-        @m.define
-        def implicit_host_call(url):
-            return _UNKNOWN_CLIENT.get(url).status_code
+    @m.define
+    def implicit_host_call(url):
+        return _UNKNOWN_CLIENT.get(url).status_code
 
-    message = str(caught.value)
-    assert "refused: `_UNKNOWN_CLIENT.get(url)` is an unknown callee" in message
-    assert f"--> {Path(__file__).resolve()}:" in message
-    assert "^" in message
-    assert "not a parameter, a known function, or a data constructor" in message
-    assert '@metta.op(effect="oracleIO")' in message
-    assert "py(_UNKNOWN_CLIENT.get(url).status_code)" in message
     assert _UNKNOWN_CLIENT.calls == 0
-    assert m.is_function_here("implicit-host-call") is False
+    assert m.is_function_here("implicit-host-call") is True
+    # The eager door commits per answer; the lazy cursor's resumed redo
+    # re-runs effectful bodies today, which
+    # test_a_lazy_drain_runs_an_effectful_island_once pins as the open
+    # defect in ch18's cursor suite.
+    assert m.eval(S["implicit-host-call"]("https://example.test")) == [204]
+    assert _UNKNOWN_CLIENT.calls == 1

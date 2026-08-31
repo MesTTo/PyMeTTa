@@ -1,9 +1,12 @@
 """Purpose: the runtime-backed operations compiled Python lowers to when no
 engine function carries the exact Python semantics: truthiness, equality,
-text building, membership, banker's rounding, range and slicing. Each one
-is the Python behavior itself, so the compiled equations and the Python
-twin cannot disagree; a Defined lists the ones it leans on as runtime_ops,
-so the dependency on this runtime is visible rather than ambient.
+text building, membership, banker's rounding, range, slicing, and the
+mettafied exception vocabulary behind a compiled try — `except`, the
+class-lattice test over MRO names, and `error-payload`, the live instance
+an error atom carries or describes. Each one is the Python behavior
+itself, so the compiled equations and the Python twin cannot disagree; a
+Defined lists the ones it leans on as runtime_ops, so the dependency on
+this runtime is visible rather than ambient.
 Guarantees:
   - runtime operations receive evaluated Atom wrappers through matchable
     `(arguments name atoms)` policies instead of a boolean registration flag
@@ -26,6 +29,8 @@ Open Obligations:
 
 from __future__ import annotations
 
+import builtins
+import functools
 from collections.abc import Callable
 from typing import Any
 
@@ -48,10 +53,183 @@ NAMES = (
     "py-range",
     "py-at",
     "py-slice",
+    "py-global-read",
+    "py-global-write",
+    "except",
+    "error-payload",
 )
 
 # The compiler's spelling for an absent slice bound; never user-visible.
 _NO_BOUND = Symbol("py-no-bound")
+
+# What a reified engine error means in Python's exception lattice. The
+# functor rows are SWI's ISO error terms as `catch` reifies them,
+# (Error (type_error ...) context); the symbol rows are the engine's own
+# error-data reasons from the he algebra, (Error culprit BadType). A
+# compiled `except ZeroDivisionError` must catch the engine's zero divide
+# exactly as Python's would, and `except Exception` catches every error.
+_ENGINE_ERROR_FUNCTORS: dict[str, type[BaseException]] = {
+    "type_error": TypeError,
+    "domain_error": ValueError,
+    "existence_error": NameError,
+    "instantiation_error": TypeError,
+    "resource_error": RecursionError,
+    "representation_error": OverflowError,
+    "permission_error": PermissionError,
+    "syntax_error": SyntaxError,
+}
+
+_ENGINE_ERROR_SYMBOLS: dict[str, type[BaseException]] = {
+    "BadType": TypeError,
+    "BadArgType": TypeError,
+    "AssertionError": AssertionError,
+    "DivisionByZero": ZeroDivisionError,
+    "zero_divisor": ZeroDivisionError,
+}
+
+
+def _named_exception(name: str) -> type[BaseException] | str:
+    """A class for an exception NAME: the explicit map, then the builtin
+    exception zoo, then the bare name itself, which py-except-match
+    compares against the arm's own class names, so a custom class raised
+    across a host crossing is still caught by the arm that spells it.
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+    mapped = _ENGINE_ERROR_SYMBOLS.get(name)
+    if mapped is not None:
+        return mapped
+    built = getattr(builtins, name, None)
+    if isinstance(built, type) and issubclass(built, BaseException):
+        return built
+    return name
+
+
+def _functor_class(
+    head: str, child: Expression
+) -> type[BaseException] | str | None:
+    """The exception a classifiable error functor names, else None.
+
+    evaluation_error reads its reason parts and python_error its reified
+    class name; then the engine functor map; then constructor data, where
+    a capitalized head IS the kind: a compiled raise produces the term
+    (ValueError "why"), and an unresolvable capitalized head matches arms
+    by its name. `Error` itself is the algebra's wrapper, never a kind: a
+    strict position rewraps an error it meets (BadArgType around a
+    DivisionByZero), and the caller's recursion finds the ORIGINAL, which
+    is the one Python would propagate.
+    """
+    if head == "evaluation_error":
+        parts = child.children[1:]
+        if any(isinstance(part, Symbol) and part.name == "zero_divisor" for part in parts):
+            return ZeroDivisionError
+        return ArithmeticError
+    if head == "python_error":
+        for part in child.children[1:]:
+            if isinstance(part, Symbol):
+                return _named_exception(part.name)
+        return None
+    mapped = _ENGINE_ERROR_FUNCTORS.get(head)
+    if mapped is not None:
+        return mapped
+    if head[:1].isupper() and head != "Error":
+        return _named_exception(head)
+    return None
+
+
+def _error_class(error: Any) -> BaseException | type[BaseException] | str | None:
+    """The Python exception an (Error ...) atom stands for, if any.
+
+    An error atom carries its classifiable part in no fixed slot: the he
+    algebra writes (Error culprit reason), catch reifies a host exception
+    as (Error type context), a host crossing reifies as
+    (python_error Name message), and a compiled `raise` produces the
+    grounded instance itself. Scanning the children finds whichever
+    arrived: a live BaseException wins, then an error functor, then a
+    reason symbol. Nothing classifiable means the payload is MeTTa's own
+    data, which only the Exception and BaseException arms may catch.
+    """
+    if not isinstance(error, Expression):
+        return None
+    for child in error.children[1:]:
+        if isinstance(child, Grounded) and isinstance(child.value, BaseException):
+            return child.value
+        if isinstance(child, Expression) and child.children:
+            head = child.children[0]
+            if isinstance(head, Symbol):
+                named = _functor_class(head.name, child)
+                if named is not None:
+                    return named
+            nested = _error_class(child)
+            if nested is not None:
+                return nested
+        if isinstance(child, Symbol):
+            mapped = _ENGINE_ERROR_SYMBOLS.get(child.name)
+            if mapped is not None:
+                return mapped
+    return None
+
+
+def _described_exception(error: Any) -> tuple[str | None, str | None]:
+    """The (name, message) an error atom describes without carrying: a
+    (python_error Name "message") reification, or raised constructor data
+    (ValueError "why").
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+    if not isinstance(error, Expression):
+        return None, None
+    for child in error.children[1:]:
+        if isinstance(child, Expression) and child.children:
+            head = child.children[0]
+            if isinstance(head, Symbol) and (
+                head.name == "python_error" or head.name[:1].isupper()
+            ):
+                name = (
+                    head.name
+                    if head.name != "python_error"
+                    else next(
+                        (
+                            part.name
+                            for part in child.children[1:]
+                            if isinstance(part, Symbol)
+                        ),
+                        None,
+                    )
+                )
+                message = next(
+                    (
+                        part.value
+                        for part in child.children[1:]
+                        if isinstance(part, Grounded) and isinstance(part.value, str)
+                    ),
+                    None,
+                )
+                if name is not None:
+                    return name, message
+            nested = _described_exception(child)
+            if nested[0] is not None:
+                return nested
+    return None, None
+
+
+def _error_instance(error: Any) -> BaseException | None:
+    """The live exception an error atom carries or describes, if any.
+
+    A grounded instance answers itself; a described one reconstructs
+    Name(message) when the name resolves to a class, so a handler's
+    ``as e`` holds something whose str() reads as Python's would. An
+    atom describing nothing stays an atom.
+    """
+    kind = _error_class(error)
+    if isinstance(kind, BaseException):
+        return kind
+    name, message = _described_exception(error)
+    resolved: type[BaseException] | str | None = (
+        _named_exception(name) if name is not None else kind
+    )
+    if not isinstance(resolved, type):
+        return None
+    try:
+        return resolved(message) if message is not None else resolved()
+    except Exception:  # noqa: BLE001  -- a custom constructor signature refuses reconstruction; the atom stands
+        return None
 
 
 def pythonic(value: Any) -> Any:
@@ -64,6 +242,40 @@ def pythonic(value: Any) -> Any:
     if isinstance(value, Expression):
         return tuple(pythonic(c) for c in value)
     return value
+
+
+def _carried_error(operands: tuple[Any, ...]) -> Expression | None:
+    """The first (Error ...) operand, which the operation must pass through.
+
+    The engine's own strict positions propagate error data railway-style: an
+    Error operand refuses onward rather than computing. The prelude's
+    boolean, arithmetic and container operations are the strict positions of
+    compiled Python, so they follow the same law; without it, an error
+    reaching a compiled `if` test would read as a truthy tuple and take a
+    branch Python's own raise would have skipped. The text operations stay
+    exempt: printing an error a handler holds is legitimate consumption.
+    """
+    for operand in operands:
+        if (
+            isinstance(operand, Expression)
+            and operand.children
+            and operand.children[0] == Symbol("Error")
+        ):
+            return operand
+    return None
+
+
+def _railway(operation: Callable[..., Any]) -> Callable[..., Any]:
+    # functools.wraps carries the original signature through __wrapped__,
+    # which is what the registrar's arity reader inspects.
+    @functools.wraps(operation)
+    def carried(*operands: Any) -> Any:
+        error = _carried_error(operands)
+        if error is not None:
+            return error
+        return operation(*operands)
+
+    return carried
 
 
 def install(runtime) -> None:
@@ -143,24 +355,83 @@ def install(runtime) -> None:
             return Expression(list(sequence.children[lower:upper]))
         return _subscript(pythonic(sequence), slice(lower, upper), "slice")
 
+    # A declared-global read against the definition module's own dict. The
+    # dict crossed as a grounded reference when the function compiled, so
+    # this reads the live module whichever Python context the engine's
+    # callbacks run in; an island's globals() can be a replica there. A
+    # missing name raises Python's own NameError. Comments, not docstrings:
+    # helper prose must not become an @doc atom in every program space.
+    def py_global_read(store, key):
+        bindings = pythonic(store)
+        name = pythonic(key)
+        try:
+            return bindings[name]
+        except KeyError:
+            msg = f"name {name!r} is not defined"
+            raise NameError(msg) from None
+
+    def py_global_write(store, key, value):
+        pythonic(store)[pythonic(key)] = pythonic(value)
+        return True
+
+    # `(except $err Kind)`: the mettafied class test, on NAMES. The arm's
+    # classinfo is the class's own name as a symbol (or an expression of
+    # them), so the equation is data; the lattice is walked by MRO NAMES,
+    # so a custom hierarchy matches exactly as Python's isinstance would,
+    # without the class object crossing.
+    def except_matches(error, classinfo):
+        names = classinfo
+        if isinstance(names, Expression):
+            wanted = [child.name for child in names.children if isinstance(child, Symbol)]
+        elif isinstance(names, Symbol):
+            wanted = [names.name]
+        else:
+            wanted = [str(pythonic(names))]
+        kind = _error_class(error)
+        lattice: tuple[str, ...]
+        if isinstance(kind, BaseException):
+            lattice = tuple(cls.__name__ for cls in type(kind).__mro__)
+        elif isinstance(kind, type):
+            lattice = tuple(cls.__name__ for cls in kind.__mro__)
+        elif isinstance(kind, str):
+            resolved = getattr(builtins, kind, None)
+            if isinstance(resolved, type) and issubclass(resolved, BaseException):
+                lattice = tuple(cls.__name__ for cls in resolved.__mro__)
+            else:
+                lattice = (kind, "Exception", "BaseException")
+        else:
+            # MeTTa's own thrown data classifies as an error, nothing more.
+            lattice = ("Exception", "BaseException")
+        return any(name in lattice for name in wanted)
+
+    def error_payload(error):
+        instance = _error_instance(error)
+        return error if instance is None else instance
+
     # register is typed as the identity it is, so the table has to say its
     # element type or a checker picks the first function's signature and
     # rejects the other eleven for not having it. A list rather than a tuple
     # because ty keeps a tuple literal's precise heterogeneous type and
     # ignores the declaration; the list form both checkers honour.
+    # The strict rows carry the railway guard; the text rows and the
+    # except family consume error atoms deliberately and stay bare.
     prelude: list[tuple[Callable[..., Any], str, list[int] | None]] = [
-        (py_truthy, "py-truthy", None),
-        (py_eq, "py-eq", None),
+        (_railway(py_truthy), "py-truthy", None),
+        (_railway(py_eq), "py-eq", None),
         (py_str, "py-str", None),
         (py_repr, "py-repr", None),
         (py_format, "py-format", None),
         (py_str_join, "py-str-join", None),
-        (py_in, "py-in", None),
-        (py_len, "py-len", None),
-        (py_round, "py-round", None),
-        (py_range, "py-range", [1, 2, 3]),
-        (py_at, "py-at", None),
-        (py_slice, "py-slice", None),
+        (_railway(py_in), "py-in", None),
+        (_railway(py_len), "py-len", None),
+        (_railway(py_round), "py-round", None),
+        (_railway(py_range), "py-range", [1, 2, 3]),
+        (_railway(py_at), "py-at", None),
+        (_railway(py_slice), "py-slice", None),
+        (py_global_read, "py-global-read", None),
+        (py_global_write, "py-global-write", None),
+        (except_matches, "except", None),
+        (error_payload, "error-payload", None),
     ]
     for fn, name, arities in prelude:
         _ops_module.register(

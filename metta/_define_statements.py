@@ -166,14 +166,19 @@ def _space_valued(value: Atom) -> bool:
     """Whether a compiled binding value is a SPACE.
 
     A handle, or a term whose head mints or reads one; decides whether +=
-    on the bound name means the write door or arithmetic.
+    on the bound name means the write door or arithmetic. A dict-space IS
+    a space, so every space door works on a dict local too.
     """
     if isinstance(value, Handle):
         return True
     if isinstance(value, Expression) and value.children:
         head = value.children[0]
-        # policy-inventory-exempt: mechanism-internal; reason=the two heads that mint or read a space in a compiled binding decide the += write-door reading and are not a value vocabulary; evidence=extensions/python/metta/_define_statements.py:_space_valued
-        return isinstance(head, Symbol) and head.name in {"context-space", "new-space"}
+        # policy-inventory-exempt: mechanism-internal; reason=the three heads that mint or read a space in a compiled binding decide the += write-door reading and are not a value vocabulary; evidence=extensions/python/metta/_define_statements.py:_space_valued
+        return isinstance(head, Symbol) and head.name in {
+            "context-space",
+            "new-space",
+            "dict-space",
+        }
     return False
 
 
@@ -225,6 +230,35 @@ class StatementCompilerMixin(CompilerContext):
         if isinstance(head, (ast.If, ast.While, ast.For, ast.FunctionDef, ast.Match, ast.With)):
             return self._compound_statement(head, rest)
 
+        if isinstance(head, ast.Raise):
+            return self._raise_statement(head, rest)
+
+        if isinstance(head, ast.Try):
+            return self._try_statement(head, rest)
+
+        if isinstance(head, ast.TypeAlias):
+            return self._type_alias_statement(head, rest)
+
+        if isinstance(head, (ast.Global, ast.Nonlocal)):
+            return self._scope_pragma_statement(head, rest)
+
+        if isinstance(head, ast.ClassDef):
+            msg = (
+                f"a class defined inside a compiled body would mint a new "
+                f"class per application; classes are declarations here, so "
+                f"define {head.name!r} at module level and register it with "
+                f"@space.define"
+            )
+            raise CompileError(msg, construct="class", line=head.lineno)
+
+        if isinstance(head, ast.TryStar):
+            msg = (
+                "except* groups exceptions across concurrent tasks, which a "
+                "compiled equation does not stage; catch the members with a "
+                "plain try/except"
+            )
+            raise CompileError(msg, construct="except*", line=head.lineno)
+
         if isinstance(head, (ast.Break, ast.Continue)):
             msg = (
                 f"`{type(head).__name__.lower()}` has no equation here; fold "
@@ -238,8 +272,9 @@ class StatementCompilerMixin(CompilerContext):
 
         msg = (
             f"{type(head).__name__} has no MeTTa equivalent in the compiled "
-            f"subset, which covers expressions, assignment, if/else, return, "
-            f"yield, lambda and comprehensions"
+            f"subset, which covers expressions, assignment, if/else, match, "
+            f"try/except, raise, loops, return, yield, lambda and "
+            f"comprehensions"
         )
         raise CompileError(
             msg,
@@ -291,6 +326,626 @@ class StatementCompilerMixin(CompilerContext):
             [Symbol("if"), self._truthy(node.test), continuation, failure]
         )
 
+    def _raise_statement(self, node: ast.Raise, rest: list[ast.stmt]) -> Atom:
+        """`raise` produces an error through the prelude's throw.
+
+        A produced error finishes the enclosing call and travels exactly as
+        an engine-raised one, so `raise` closes its branch the way `return`
+        does. A raised class call islands into the live exception instance,
+        so what an outer `except ... as e` binds is the object Python would
+        have bound. A bare `raise` re-throws the error atom of the
+        innermost enclosing except arm, and refuses elsewhere with
+        Python's own no-active-exception rule.
+        """
+        if rest:
+            msg = "statements after `raise` are unreachable and have no equation"
+            raise CompileError(msg, construct="raise", line=rest[0].lineno)
+        if node.exc is None:
+            key = self.handler_error
+            if key is None or key not in self.scope:
+                msg = (
+                    "a bare `raise` re-raises only inside an except arm; "
+                    "there is no active exception here (Python's own rule)"
+                )
+                raise CompileError(msg, construct="raise", line=node.lineno)
+            return Expression([Symbol("throw"), Variable(self.scope[key])])
+        payload = self.expression(node.exc)
+        if node.cause is not None:
+            # `raise X from C` carries its cause STRUCTURALLY: the term
+            # says what caused what, the mettafied reading of __cause__,
+            # and except arms classify through the wrapper.
+            if isinstance(node.cause, ast.Constant) and node.cause.value is None:
+                cause: Atom = Grounded(None)
+            else:
+                cause = self.expression(node.cause)
+            payload = Expression([Symbol("caused-by"), payload, cause])
+        return Expression([Symbol("throw"), payload])
+
+    def _try_statement(self, node: ast.Try, rest: list[ast.stmt]) -> Atom:
+        """Python's try, carried by the engine's own error algebra.
+
+        The body runs under `catch`, which reifies a host exception and
+        passes any other value through, so one binding sees both error
+        lanes: a produced error is already an (Error ...) answer, data is
+        itself. `if-error` splits the lanes. Each `except` arm asks
+        py-except-match against Python's own class lattice; an unmatched
+        error re-throws; a matched arm binds `as` through
+        py-except-payload, so a raised instance is what the handler holds.
+        Success falls through a serialed tag tuple carrying the body's
+        bindings to the continuation (blocks-as-functions, as the loops
+        compile), which is also what lets a `return` inside the body pass
+        untagged through the case fallback, exactly as Python returns past
+        the rest of the function. `finally` wraps the whole dispatch in a
+        second catch under the same tag discipline, so it runs on success,
+        on a matched arm, on an unmatched error, on a return, and on an
+        error a handler itself produced.
+        """
+        k_params = self._try_carried_names(node, rest)
+        continue_to = self._try_continuation(node, rest, k_params)
+        # A finally block's bindings are definite (the effect lane is
+        # linear), so they override at the exit and the tag need not carry
+        # them; every other carried name rides the tag tuple.
+        fin_stores: set[str] = set()
+        for piece in node.finalbody:
+            for sub in ast.walk(piece):
+                if isinstance(sub, ast.Name) and isinstance(sub.ctx, ast.Store):
+                    fin_stores.add(sub.id)
+        tag_params = [name for name in k_params if name not in fin_stores]
+        tag = f"{self.name}--try-ok-{next_aux_serial()}"
+        fell_through = [False]
+
+        def tagged(compiler: CompilerContext) -> Expression:
+            fell_through[0] = True
+            return Expression(
+                [
+                    Symbol(tag),
+                    *self._carried_variables(compiler, tag_params, node.lineno),
+                ]
+            )
+
+        # With a finally, no path continues directly: success and handler
+        # arms settle into the tag, and the continuation runs at the EXIT,
+        # after the finally, which is Python's own order.
+        settled = tagged if node.finalbody else continue_to
+
+        body_compiler = self._fork()
+        body_compiler.closer = tagged
+        body_compiler.closer_names = tag_params.copy()
+        # Bindings inside the body trap error data and produce it, so an
+        # assignment whose right side errors aborts to the arms exactly as
+        # Python's raise would (see CompilerContext.in_try_body).
+        body_compiler.in_try_body = True
+        body = body_compiler.block(node.body)
+
+        result_name = self._temp("try-result")
+        result = Variable(result_name)
+
+        success: Atom
+        if fell_through[0]:
+            success = self._try_success_arm(node, tag_params, tag, result, settled)
+        elif node.orelse:
+            # else runs only when the body falls through, and this body
+            # closes every path, the unreachable-arm rule match uses.
+            msg = "an else arm after a try whose body always closes is unreachable"
+            raise CompileError(msg, construct="try", line=node.orelse[0].lineno)
+        else:
+            # Every body path returned or raised: a non-error value IS the
+            # answer, passing through exactly as Python returns past the
+            # rest of the function.
+            success = result
+        handlers = self._try_handler_chain(
+            node, tag_params, result_name, result, settled
+        )
+        dispatch = Expression([Symbol("if-error"), result, handlers, success])
+        caught = Expression([Symbol("catch"), body])
+        if not node.finalbody:
+            return Expression(
+                [
+                    Symbol("let*"),
+                    Expression([Expression([result, caught])]),
+                    dispatch,
+                ]
+            )
+        return self._try_finally(
+            node,
+            tag_params=tag_params,
+            tag=tag,
+            result=result,
+            caught=caught,
+            dispatch=dispatch,
+            continue_to=continue_to,
+            fell=fell_through[0],
+        )
+
+    def _try_carried_names(self, node: ast.Try, rest: list[ast.stmt]) -> list[str]:
+        """The names the continuation needs: what the rest or the enclosing
+        closer reads, restricted to names either already in scope or bound
+        somewhere inside the try, in first-read order.
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+        def stores(pieces: tuple[ast.AST, ...]) -> set[str]:
+            found: set[str] = set()
+            for piece in pieces:
+                for sub in ast.walk(piece):
+                    if isinstance(sub, ast.Name) and isinstance(sub.ctx, ast.Store):
+                        found.add(sub.id)
+            return found
+
+        body_stored = stores(tuple(node.body))
+        stored = body_stored | stores(
+            (*node.handlers, *node.orelse, *node.finalbody)
+        )
+        carried: list[str] = []
+
+        def collect(pieces: list[ast.stmt], bound: set[str]) -> None:
+            for statement in pieces:
+                for sub in ast.walk(statement):
+                    if (
+                        isinstance(sub, ast.Name)
+                        and isinstance(sub.ctx, ast.Load)
+                        and (sub.id in self.scope or sub.id in bound)
+                        and sub.id not in carried
+                    ):
+                        carried.append(sub.id)
+
+        # The else arm runs in the success destructure, so what it reads
+        # of the BODY's bindings must ride the tag; its own bindings are
+        # its own. The rest may read any arm's bindings.
+        collect(node.orelse, body_stored)
+        collect(rest, stored)
+        for name in self.closer_names:
+            if name in self.scope and name not in carried:
+                carried.append(name)
+        return carried
+
+    def _carried_variables(
+        self, compiler: CompilerContext, k_params: list[str], line: int | None
+    ) -> list[Atom]:
+        variables: list[Atom] = []
+        for name in k_params:
+            variable = compiler.scope.get(name)
+            if variable is None:
+                msg = (
+                    f"{name!r} is read after the try but is not bound on "
+                    f"every path reaching that read (Python's own "
+                    f"possibly-unbound rule); bind it before the try or in "
+                    f"every arm"
+                )
+                raise CompileError(msg, construct="try", line=line)
+            variables.append(Variable(variable))
+        return variables
+
+    def _try_continuation(
+        self, node: ast.Try, rest: list[ast.stmt], k_params: list[str]
+    ) -> Callable[[CompilerContext], Atom]:
+        """What a successful or handled path continues INTO: the lifted
+        rest as its own equation, the enclosing closer, or a refusal that
+        fires only if some path actually falls through.
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+        if rest:
+            helper = f"{self.name}--after-try-{next_aux_serial()}"
+            equation_compiler = self._equation_compiler(k_params)
+            equation_compiler.closer = self.closer
+            equation_compiler.closer_names = self.closer_names.copy()
+            head = Expression([Symbol(helper), *(Variable(n) for n in k_params)])
+            self.aux.append(
+                Expression([Symbol("="), head, equation_compiler.block(rest)])
+            )
+
+            def continue_to(compiler: CompilerContext) -> Atom:
+                return Expression(
+                    [
+                        Symbol(helper),
+                        *self._carried_variables(compiler, k_params, node.lineno),
+                    ]
+                )
+
+            return continue_to
+        if self.closer is not None:
+            return self.closer
+
+        def refuse(compiler: CompilerContext) -> Atom:
+            del compiler
+            msg = (
+                f"{self.name} falls through its try with nothing after it; "
+                f"return in the body or the else arm, or continue the block"
+            )
+            raise CompileError(msg, construct="try", line=node.lineno)
+
+        return refuse
+
+    def _try_success_arm(
+        self,
+        node: ast.Try,
+        tag_params: list[str],
+        tag: str,
+        result: Variable,
+        settled: Callable[[CompilerContext], Atom],
+    ) -> Expression:
+        arm_compiler = self._fork()
+        pattern = Expression(
+            [Symbol(tag), *(Variable(arm_compiler._bind(n)) for n in tag_params)]
+        )
+        if node.orelse:
+            # else compiles OUTSIDE the catch: an exception it raises is
+            # not this try's to handle, exactly Python's rule; under a
+            # finally it re-settles into the tag with its own bindings.
+            arm_compiler.closer = settled
+            arm_compiler.closer_names = tag_params.copy()
+            arm = arm_compiler.block(node.orelse)
+        else:
+            arm = settled(arm_compiler)
+        passthrough = Variable(self._temp("try-value"))
+        return Expression(
+            [
+                Symbol("case"),
+                result,
+                Expression(
+                    [
+                        Expression([pattern, arm]),
+                        Expression([passthrough, passthrough]),
+                    ]
+                ),
+            ]
+        )
+
+    def _try_handler_chain(
+        self,
+        node: ast.Try,
+        tag_params: list[str],
+        result_name: str,
+        result: Variable,
+        settled: Callable[[CompilerContext], Atom],
+    ) -> Atom:
+        chain: Atom = Expression([Symbol("throw"), result])
+        for handler in reversed(node.handlers):
+            handler_compiler = self._fork()
+            error_key = f"except-error-{next_aux_serial()}"
+            handler_compiler.handler_error = error_key
+            handler_compiler.scope[error_key] = result_name
+            handler_compiler.closer = settled
+            handler_compiler.closer_names = [*tag_params, error_key]
+            if handler.name is not None:
+                bound = handler_compiler._bind(handler.name)
+                self.runtime_ops.add("error-payload")
+                arm: Atom = Expression(
+                    [
+                        Symbol("let"),
+                        Variable(bound),
+                        Expression([Symbol("error-payload"), result]),
+                        handler_compiler.block(handler.body),
+                    ]
+                )
+            else:
+                arm = handler_compiler.block(handler.body)
+            if handler.type is None:
+                chain = arm
+                continue
+            self.runtime_ops.add("except")
+            test = Expression(
+                [
+                    Symbol("except"),
+                    result,
+                    self._except_classinfo(handler.type),
+                ]
+            )
+            chain = Expression([Symbol("if"), test, arm, chain])
+        return chain
+
+    def _except_classinfo(self, node: ast.expr) -> Atom:
+        """The exception kind an except arm names, METTAFIED: the class's
+        own name as a symbol, or an expression of them for a tuple arm, so
+        the equation is data with no opaque type in it. The arm's spelling
+        is validated against a live class at compile time, and the runtime
+        match walks the instance's own MRO names, so custom hierarchies
+        keep Python's lattice.
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+        if isinstance(node, ast.Tuple):
+            return Expression(
+                [
+                    Symbol(self._except_class_value(element).__name__)
+                    for element in node.elts
+                ]
+            )
+        return Symbol(self._except_class_value(node).__name__)
+
+    def _except_class_value(self, node: ast.expr) -> type:
+        value: object = None
+        if isinstance(node, ast.Name):
+            value = self.host_value(node.id)
+            if not isinstance(value, type):
+                value = self._builtins.get(node.id)
+        elif isinstance(node, ast.Attribute) and isinstance(node.value, ast.Name):
+            owner = self.host_value(node.value.id)
+            value = getattr(owner, node.attr, None)
+        if isinstance(value, type) and issubclass(value, BaseException):
+            return value
+        msg = (
+            f"except {ast.unparse(node)} does not name an exception class "
+            f"this function can see; catching classes that do not inherit "
+            f"from BaseException is not allowed (Python's own rule)"
+        )
+        raise CompileError(msg, construct="except", line=node.lineno)
+
+    def _try_finally(
+        self,
+        node: ast.Try,
+        *,
+        tag_params: list[str],
+        tag: str,
+        result: Variable,
+        caught: Expression,
+        dispatch: Atom,
+        continue_to: Callable[[CompilerContext], Atom],
+        fell: bool,
+    ) -> Expression:
+        """finally, in Python's own order: settle, run it, then exit.
+
+        The dispatch settles into a done-tag under a second catch, the
+        finally's effects run, and only then the exit reads the outcome:
+        an escaped error re-throws AFTER the finally ran, a return value
+        passes through, and a fall-through destructures the ok-tag and
+        continues — with the finally's own definite bindings overriding
+        the carried ones, since Python runs them later.
+        """
+        done = f"{self.name}--try-done-{next_aux_serial()}"
+        value = Variable(self._temp("try-outcome"))
+        wrapped = Expression(
+            [
+                Symbol("catch"),
+                Expression(
+                    [Symbol("let"), value, dispatch, Expression([Symbol(done), value])]
+                ),
+            ]
+        )
+        settled = Variable(self._temp("try-settled"))
+        unwrapped = Variable(self._temp("try-unwrapped"))
+        escaped = Variable(self._temp("try-escaped"))
+        returned = Variable(self._temp("try-returned"))
+
+        def after_finally(compiler: CompilerContext) -> Atom:
+            # Built AFTER the finally's bindings joined the compiler's
+            # scope, so the continuation reads them as overrides. A body
+            # whose every path closed can never settle into the ok tag,
+            # so the outcome passes straight through then.
+            if fell:
+                exit_arm = compiler._fork()
+                ok_pattern = Expression(
+                    [Symbol(tag), *(Variable(exit_arm._bind(n)) for n in tag_params)]
+                )
+                inner_exit: Atom = Expression(
+                    [
+                        Symbol("case"),
+                        unwrapped,
+                        Expression(
+                            [
+                                Expression([ok_pattern, continue_to(exit_arm)]),
+                                Expression([returned, returned]),
+                            ]
+                        ),
+                    ]
+                )
+            else:
+                inner_exit = unwrapped
+            return Expression(
+                [
+                    Symbol("case"),
+                    settled,
+                    Expression(
+                        [
+                            Expression(
+                                [Expression([Symbol(done), unwrapped]), inner_exit]
+                            ),
+                            Expression(
+                                [escaped, Expression([Symbol("throw"), escaped])]
+                            ),
+                        ]
+                    ),
+                ]
+            )
+
+        self._refuse_stale_finally_reads(node)
+        fin_compiler = self._fork()
+        fin = fin_compiler._effect_block(node.finalbody, after_finally)
+        return Expression(
+            [
+                Symbol("let*"),
+                Expression(
+                    [
+                        Expression([result, caught]),
+                        Expression([settled, wrapped]),
+                    ]
+                ),
+                fin,
+            ]
+        )
+
+    def _refuse_stale_finally_reads(self, node: ast.Try) -> None:
+        """A finally reading a name the try rebinds would read the PRE-try
+        binding here, since the arms' scopes have settled by the time it
+        runs; that silent staleness refuses loudly instead. Reading a name
+        the finally itself bound first stays lawful, and so does every
+        name the try leaves alone.
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+        rebound: set[str] = set()
+        for piece in (*node.body, *node.handlers, *node.orelse):
+            for sub in ast.walk(piece):
+                if isinstance(sub, ast.Name) and isinstance(sub.ctx, ast.Store):
+                    rebound.add(sub.id)
+        fin_bound: set[str] = set()
+        for statement in node.finalbody:
+            # A statement's reads happen before its own bindings land, so
+            # `x = x + 1` reads first: loads check before stores register.
+            for sub in ast.walk(statement):
+                if (
+                    isinstance(sub, ast.Name)
+                    and isinstance(sub.ctx, ast.Load)
+                    and sub.id in rebound
+                    and sub.id not in fin_bound
+                ):
+                    msg = (
+                        f"finally reads {sub.id!r}, which the try rebinds; "
+                        f"the settled binding is not visible here, so read "
+                        f"it after the try, or bind what finally needs "
+                        f"before the try"
+                    )
+                    raise CompileError(msg, construct="finally", line=sub.lineno)
+            for sub in ast.walk(statement):
+                if isinstance(sub, ast.Name) and isinstance(sub.ctx, ast.Store):
+                    fin_bound.add(sub.id)
+
+    def _effect_block(
+        self,
+        statements: list[ast.stmt],
+        continuation: Callable[[CompilerContext], Atom],
+    ) -> Atom:
+        """Statements run for their effect, sequenced before a continuation.
+
+        The finally lane: expressions bind to a discard, bindings stay
+        local until the continuation thunk reads them, and a raise
+        replaces the in-flight outcome, which is Python's own (notorious)
+        finally semantics. A `return` here would swallow the outcome
+        silently and keeps a refusal.
+        """
+        statements = [s for s in statements if not _is_docstring(s)]
+        if not statements:
+            return continuation(self)
+        head, rest = statements[0], statements[1:]
+        if isinstance(head, ast.Return):
+            msg = (
+                "`return` inside finally would swallow the try's outcome "
+                "silently; return after the try instead"
+            )
+            raise CompileError(msg, construct="finally", line=head.lineno)
+        if isinstance(head, ast.Raise):
+            return self._raise_statement(head, rest)
+        if isinstance(head, ast.Expr):
+            # The probe READS the effect's answer, keeping it live (a
+            # binding nothing reads is eliminable) and producing a failure
+            # instead of burying it, Python's own finally-error rule.
+            effect = Variable(self._temp("effect"))
+            return Expression(
+                [
+                    Symbol("let*"),
+                    Expression([Expression([effect, self.expression(head.value)])]),
+                    Expression(
+                        [
+                            Symbol("if-error"),
+                            effect,
+                            Expression([Symbol("throw"), effect]),
+                            self._effect_block(rest, continuation),
+                        ]
+                    ),
+                ]
+            )
+        if isinstance(head, (ast.Assign, ast.AnnAssign, ast.AugAssign)):
+            pattern, bound = self._binding(head)
+            return Expression(
+                [
+                    Symbol("let*"),
+                    Expression([Expression([pattern, bound])]),
+                    self._effect_block(rest, continuation),
+                ]
+            )
+        msg = (
+            f"{type(head).__name__} has no place in a compiled finally, "
+            f"which sequences expressions, bindings and raise"
+        )
+        raise CompileError(msg, construct="finally", line=head.lineno)
+
+    def _type_alias_statement(self, node: ast.TypeAlias, rest: list[ast.stmt]) -> Atom:
+        """`type X = T` is a rewrite rule, exactly as it reads.
+
+        The alias becomes equations on its own name, one per type
+        alternative, stored with the definition's other auxiliary
+        equations; a union alias is several clauses, MeTTa's own
+        nondeterministic rewrite. Annotations after it mention the name
+        symbolically and the engine rewrites it. A parametric alias would
+        need type variables the local annotation resolver cannot carry,
+        so it names the general door instead.
+        """
+        if node.type_params:
+            msg = (
+                "a parametric `type` alias has no local lowering; write its "
+                "equations with equation() on the alias name instead"
+            )
+            raise CompileError(msg, construct="type alias", line=node.lineno)
+        name = node.name.id
+        alternatives = self.annotation_alternatives(node.value)
+        for alternative in alternatives:
+            self.aux.append(Expression([Symbol("="), Symbol(name), alternative]))
+        self.type_aliases[name] = alternatives
+        return self.block(rest)
+
+    def _scope_pragma_statement(
+        self, node: ast.Global | ast.Nonlocal, rest: list[ast.stmt]
+    ) -> Atom:
+        """`global` is a pragma: its names read and write the live module.
+
+        Reads already island against the live binding; the declaration
+        makes assignment island too, writing globals() at application
+        time in binding order. `nonlocal` rebinds an enclosing function
+        frame, which a stored equation outlives, so it keeps a refusal.
+        """
+        if isinstance(node, ast.Nonlocal):
+            msg = (
+                "`nonlocal` rebinds an enclosing function frame, which a "
+                "stored equation outlives; lift the state into a State "
+                "cell or a space"
+            )
+            raise CompileError(msg, construct="nonlocal", line=node.lineno)
+        self.pragma_globals.update(node.names)
+        return self.block(rest)
+
+    def _global_write(
+        self,
+        name: str,
+        value_node: ast.expr,
+        head: ast.stmt,
+        rest: list[ast.stmt],
+    ) -> Expression:
+        """One declared-global assignment: bind the compiled value, then
+        island the write so globals() moves at application time.
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+        if self.function is None:
+            msg = "a global write has no source function"
+            raise CompileError(msg, construct="global", line=head.lineno)
+        holder = f"_global_write_{next_aux_serial()}"
+        bound = Variable(self._bind(holder))
+        # The write crosses through the ops lane with the module dict
+        # grounded BY REFERENCE at compile time: an island's globals() can
+        # be a replica in the engine's callback context, while a grounded
+        # reference reaches the live module wherever the op runs. The
+        # error probe keeps the effect live and produces a host failure.
+        self.runtime_ops.add("py-global-write")
+        write = Expression(
+            [
+                Symbol("py-global-write"),
+                Grounded(self.function.__globals__),
+                Grounded(name),
+                bound,
+            ]
+        )
+        written = Variable(self._temp("global-written"))
+        return Expression(
+            [
+                Symbol("let*"),
+                Expression(
+                    [
+                        Expression([bound, self.expression(value_node)]),
+                        Expression([written, write]),
+                    ]
+                ),
+                Expression(
+                    [
+                        Symbol("if-error"),
+                        written,
+                        Expression([Symbol("throw"), written]),
+                        self.block(rest),
+                    ]
+                ),
+            ]
+        )
+
     def _delete_statement(self, node: ast.Delete, rest: list[ast.stmt]) -> Atom:
         """Sequence each pattern deletion before the block's continuation."""
         continuation = self.block(rest)
@@ -313,6 +968,21 @@ class StatementCompilerMixin(CompilerContext):
                 msg,
                 construct="delete",
                 line=getattr(target, "lineno", None),
+            )
+        if (
+            isinstance(target.value, ast.Name)
+            and target.value.id in self.dict_locals
+        ):
+            # del d[k] on a dict local is lib_dict's remove: exact on the
+            # key's pair, and an absent key is an ordinary answer rather
+            # than a failure, the library's own stated semantics.
+            self.libraries.add("dict")
+            return Expression(
+                [
+                    Symbol("dict-remove"),
+                    Variable(self.scope[target.value.id]),
+                    self.expression(target.slice),
+                ]
             )
 
         space = Variable(self._temp("delete-space"))
@@ -427,18 +1097,43 @@ class StatementCompilerMixin(CompilerContext):
                 self.space_locals.add(target)
             else:
                 self.space_locals.discard(target)
+            dictish = self._dict_atom(value) or (
+                isinstance(walrus.value, ast.Name)
+                and walrus.value.id in self.dict_locals
+            )
+            if dictish:
+                self.dict_locals.add(target)
+            else:
+                self.dict_locals.discard(target)
             variable = Variable(self._bind(target))
             pairs.append(Expression([variable, value]))
             _replace_walrus(head, walrus, target)
-        return Expression(
-            [Symbol("let*"), Expression(pairs), self.block([head, *rest])]
-        )
+        continuation = self.block([head, *rest])
+        if self.in_try_body:
+            for pair in reversed(pairs):
+                bound = pair.children[0]
+                continuation = Expression(
+                    [
+                        Symbol("if-error"),
+                        bound,
+                        Expression([Symbol("throw"), bound]),
+                        continuation,
+                    ]
+                )
+        return Expression([Symbol("let*"), Expression(pairs), continuation])
 
     def _bound_block(
         self,
         head: ast.Assign | ast.AnnAssign | ast.AugAssign,
         rest: list[ast.stmt],
     ) -> Expression:
+        pragma_target = self._pragma_write_target(head)
+        if pragma_target is not None:
+            name, value_node = pragma_target
+            return self._global_write(name, value_node, head, rest)
+        dict_write = self._dict_write(head, rest)
+        if dict_write is not None:
+            return dict_write
         if (
             isinstance(head, ast.AugAssign)
             and isinstance(head.target, ast.Name)
@@ -451,7 +1146,118 @@ class StatementCompilerMixin(CompilerContext):
                 raise AssertionError(msg)
             return removal
         pattern, value = self._binding(head)
-        return Expression([Symbol("let*"), Expression([Expression([pattern, value])]), self.block(rest)])
+        continuation = self.block(rest)
+        if self.in_try_body:
+            # Inside a try body, a binding whose right side answered error
+            # data produces it, so the arms see what Python's raise would
+            # have thrown instead of the tag carrying the error out.
+            if isinstance(pattern, Variable):
+                rows = Expression([Expression([pattern, value])])
+                probe: Atom = pattern
+            else:
+                held = Variable(self._temp("try-bound"))
+                rows = Expression(
+                    [Expression([held, value]), Expression([pattern, held])]
+                )
+                probe = held
+            trapped = Expression(
+                [
+                    Symbol("if-error"),
+                    probe,
+                    Expression([Symbol("throw"), probe]),
+                    continuation,
+                ]
+            )
+            return Expression([Symbol("let*"), rows, trapped])
+        return Expression(
+            [Symbol("let*"), Expression([Expression([pattern, value])]), continuation]
+        )
+
+    def _dict_write(
+        self,
+        head: ast.Assign | ast.AnnAssign | ast.AugAssign,
+        rest: list[ast.stmt],
+    ) -> Expression | None:
+        """``d[k] = v`` on a dict local is lib_dict's put: replace-or-insert.
+
+        The augmented form desugars through get-value, so ``d[k] += 1``
+        reads the pair and puts the sum; an absent key answers nothing and
+        the emptiness propagates, the library's own absence semantics.
+        """
+        value_node: ast.expr | None
+        if isinstance(head, ast.Assign):
+            if len(head.targets) != 1:
+                return None
+            target: ast.expr = head.targets[0]
+            value_node = head.value
+        else:
+            target = head.target
+            value_node = head.value
+        if value_node is None:
+            return None
+        if not (
+            isinstance(target, ast.Subscript)
+            and isinstance(target.value, ast.Name)
+            and target.value.id in self.dict_locals
+            and not isinstance(target.slice, ast.Slice)
+        ):
+            return None
+        holder = Variable(self.scope[target.value.id])
+        key = self.expression(target.slice)
+        if isinstance(head, ast.AugAssign):
+            self.libraries.add("dict")
+            read = Expression([Symbol("get-value"), holder, key])
+            value = self._binop_atom(
+                head.op, read, self.expression(value_node), head.lineno
+            )
+        else:
+            value = self.expression(value_node)
+        self.libraries.add("dict")
+        discard = Variable(self._bind("_"))
+        write = Expression([Symbol("dict-put"), holder, key, value])
+        return Expression(
+            [
+                Symbol("let*"),
+                Expression([Expression([discard, write])]),
+                self.block(rest),
+            ]
+        )
+
+    def _pragma_write_target(
+        self, head: ast.Assign | ast.AnnAssign | ast.AugAssign
+    ) -> tuple[str, ast.expr] | None:
+        """A declared-global assignment's name and value expression.
+
+        An augmented assignment desugars to a read-then-write of the live
+        global, whose read islands like any other global read, so
+        `count += 1` under `global count` moves the module's own binding.
+        """
+        value: ast.expr | None
+        if isinstance(head, ast.Assign):
+            if len(head.targets) != 1 or not isinstance(head.targets[0], ast.Name):
+                return None
+            target = head.targets[0].id
+            value = head.value
+        elif isinstance(head.target, ast.Name):
+            target = head.target.id
+            value = head.value
+        else:
+            return None
+        if target not in self.pragma_globals or value is None:
+            return None
+        if isinstance(head, ast.AugAssign):
+            value = ast.copy_location(
+                ast.BinOp(
+                    left=ast.copy_location(
+                        ast.Name(id=target, ctx=ast.Load()), head
+                    ),
+                    op=head.op,
+                    right=head.value,
+                ),
+                head,
+            )
+            ast.fix_missing_locations(value)
+        return target, value
 
     def _space_augmented_removal(
         self, head: ast.AugAssign, continuation: Atom
@@ -724,6 +1530,14 @@ class StatementCompilerMixin(CompilerContext):
                 self.space_locals.add(target)
             else:
                 self.space_locals.discard(target)
+            dictish = self._dict_atom(value) or (
+                isinstance(head.value, ast.Name)
+                and head.value.id in self.dict_locals
+            )
+            if dictish:
+                self.dict_locals.add(target)
+            else:
+                self.dict_locals.discard(target)
         variable: Atom = Variable(self._bind(target))
         if isinstance(head, ast.AnnAssign):
             claim = Expression([Symbol(":"), variable, self.annotation_atom(head.annotation)])
@@ -844,9 +1658,23 @@ class StatementCompilerMixin(CompilerContext):
                 line=head.lineno,
             )
 
+        if isinstance(head, ast.Raise):
+            # Answers yielded before the raise stay delivered and the raise
+            # branch answers its produced error, Python's own generator
+            # order.
+            return [self._raise_statement(head, rest)]
+
+        if isinstance(head, ast.Try):
+            msg = (
+                "try around a yield interleaves answers with catching, "
+                "which a compiled superposition does not stage; move the "
+                "try into a helper the yield calls"
+            )
+            raise CompileError(msg, construct="try", line=head.lineno)
+
         msg = (
             f"{type(head).__name__} has no place in a compiled generator, "
-            f"which covers yield, assignment and if/else"
+            f"which covers yield, assignment, if/else and raise"
         )
         raise CompileError(
             msg,
@@ -899,14 +1727,41 @@ class StatementCompilerMixin(CompilerContext):
         return [Expression([Symbol("let*"), Expression([Expression([pattern, value])]), tail])]
 
     def _yield_if(self, head: ast.If, rest: list[ast.stmt]) -> list[Atom]:
-        then = _superpose(self._fork().yield_answers(head.body))
+        # A raising branch CLOSES the generator, so the statements after
+        # the if belong only to the branches that fall through, which is
+        # Python's own order: yields before a raise stay delivered and
+        # nothing after it runs.
+        then_closes = bool(head.body) and isinstance(head.body[-1], ast.Raise)
+        else_closes = bool(head.orelse) and isinstance(head.orelse[-1], ast.Raise)
+        if not then_closes and not else_closes:
+            then = _superpose(self._fork().yield_answers(head.body))
+            otherwise = (
+                _superpose(self._fork().yield_answers(head.orelse))
+                if head.orelse
+                else Expression([Symbol("empty")])
+            )
+            chooser = Expression(
+                [Symbol("if"), self._truthy(head.test), then, otherwise]
+            )
+            return [chooser, *self._yield_tail(rest)]
+        if then_closes and else_closes and rest:
+            msg = "statements after an if whose branches both raise are unreachable"
+            raise CompileError(msg, construct="if", line=rest[0].lineno)
+        then_band = head.body if then_closes else [*head.body, *rest]
+        else_band = (
+            [*head.orelse, *rest]
+            if then_closes and not else_closes
+            else head.orelse or rest
+        )
+        then = _superpose(self._fork().yield_answers(then_band))
         otherwise = (
-            _superpose(self._fork().yield_answers(head.orelse))
-            if head.orelse
+            _superpose(self._fork().yield_answers(else_band))
+            if else_band
             else Expression([Symbol("empty")])
         )
-        chooser = Expression([Symbol("if"), self._truthy(head.test), then, otherwise])
-        return [chooser, *self._yield_tail(rest)]
+        return [
+            Expression([Symbol("if"), self._truthy(head.test), then, otherwise])
+        ]
 
     def _yield_for(self, head: ast.For, rest: list[ast.stmt]) -> list[Atom]:
         # `for x in e: <yields>` is iteration as nondeterminism: bind x to
@@ -959,6 +1814,16 @@ class _StatementPattern:
         self.as_variables: list[Variable] = []
 
     def pattern(self, node: ast.pattern) -> Atom:
+        # Structural position: the host-island fallback is off while a case
+        # pattern compiles, exactly as in match-call patterns.
+        prior = self.compiler._in_pattern
+        self.compiler._in_pattern = True
+        try:
+            return self._case_pattern(node)
+        finally:
+            self.compiler._in_pattern = prior
+
+    def _case_pattern(self, node: ast.pattern) -> Atom:
         if isinstance(node, ast.MatchValue):
             return self.compiler.expression(node.value)
         if isinstance(node, ast.MatchSingleton):

@@ -277,14 +277,30 @@ def test_gallery_program_one_compiles_and_runs(m):
 
 
 def test_rejected_attributes_never_execute_host_objects(m):
-    """Static AST classification rejects a host attribute before touching it."""
-    _HostTrap.reads = 0
-    with pytest.raises(CompileError, match=r"attribute|plain name"):
-        m.define(_host_attribute_call)
-    assert _HostTrap.reads == 0
+    """Static AST classification never touches a host attribute at compile.
 
-    with pytest.raises(CompileError, match=r"shadows|plain name|attribute"):
-        m.define(_shadowed_builder)
+    The law survives the fallback ruling: a host attribute call now
+    compiles to an island instead of refusing, and the island still reads
+    nothing until the equation is applied.
+    """
+    _HostTrap.reads = 0
+    islanded = m.define(_host_attribute_call)
+    assert _HostTrap.reads == 0
+    # The application fails host-side (the trap has no .call); the failure
+    # arrives as an Error answer or as the crossing's own raise, and either
+    # way the host was first touched at application time, never at compile.
+    try:
+        answered: object = m.eval(S[islanded.name](1))
+    except Exception as crossing:
+        answered = crossing
+    assert _HostTrap.reads > 0
+    assert "Error" in f"{type(answered).__name__} {answered}"
+
+    # A parameter shadowing a builder makes fn.car_atom ATTRIBUTE access
+    # on the argument, and under the fallback law that islands: Python's
+    # own meaning of the shadowed name, reached at application time.
+    shadowed = m.define(_shadowed_builder)
+    assert shadowed.name == "-shadowed-builder"
 
     with pytest.raises(CompileError, match="no target function"):
         m.define(_unknown_fn_member)

@@ -59,6 +59,7 @@ class _HostIsland:
         path: str,
         first_line: int,
         in_loop: bool,
+        marked: bool = True,
     ) -> None:
         body = copy.deepcopy(expression)
         tree = ast.fix_missing_locations(ast.Expression(body=body))
@@ -70,7 +71,10 @@ class _HostIsland:
             zip(fn.__code__.co_freevars, fn.__closure__ or (), strict=True)
         )
         self.runtime_names = runtime_names
-        self.source = f"py({ast.get_source_segment(source, expression) or ast.unparse(expression)})"
+        spelled = ast.get_source_segment(source, expression) or ast.unparse(expression)
+        # An implicit island keeps the author's own spelling: wrapping it in
+        # py(...) would show source the author never wrote in lint findings.
+        self.source = f"py({spelled})" if marked else spelled
         self.path = path
         self.line = first_line + expression.lineno - 1
         self.in_loop = in_loop
@@ -89,8 +93,9 @@ class _HostIsland:
             except ValueError:
                 continue
         locals_.update(zip(self.runtime_names, values, strict=True))
-        # Evaluating arbitrary host syntax is the explicit purpose of py(...):
-        # the unmarked compiler path continues to refuse it statically. The
+        # Evaluating arbitrary host syntax is the explicit purpose of an
+        # island, marked or implicit; either way nothing here ran at
+        # compile time. The
         # code object was compiled from the marker's own source span inside
         # the user's own function, so it is their expression running in their
         # process, not input crossing a boundary. ast.literal_eval cannot

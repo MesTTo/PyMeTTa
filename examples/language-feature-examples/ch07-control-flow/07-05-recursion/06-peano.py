@@ -151,4 +151,13 @@ def twin(m):
 #: --measure --rounds 3 ../../examples/<this example>;
 #: fixture=engine/reader.so and the MORK artefact present;
 #: commit=58d0332489da668251edcd52ccc5cb42ba2e57bb].
-BUDGET = 2031806
+#: RE-PINNED 2026-09-01, 2031806 to 1745696 (-286110), the compiled-language
+#: batch: try/raise on the error algebra, dict-space literals with lib_dict
+#: auto-import, the exact-integer operator family as engine builtins (bit-
+#: and/or/xor/not, floor-div, five registration rows moving clause indexing),
+#: the implicit-island fallback, the except/error-payload runtime ops replacing
+#: seven py- bridges, the variadic door family (transfer, batched remove and
+#: eval), the -= drain-law repair, and fourteen twins healed to the arbiter
+#: [measured 2026-09-01: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 1745696

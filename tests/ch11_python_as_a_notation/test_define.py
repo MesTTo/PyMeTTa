@@ -421,7 +421,6 @@ def test_constructor_convention_capitalized_names(m):  # noqa: D103  -- pytest d
     [
         ("def f(x):\n    while x > 0:\n        break\n    return x", "test"),
         ("def f(x):\n    y = x @ x\n    return y", "matmul"),
-        ("def f(x):\n    return {1: x}", "dict"),
         ("def f(x, w):\n    return f'{x:{w}}'", "f-string"),
         ("def f(x):\n    return unknown_lowercase(x)", "not a parameter"),
         ("def f(x, y=[]):\n    return x", "literal"),
@@ -746,14 +745,18 @@ def test_fstrings_str_round_range_slices(m):  # noqa: D103  -- pytest discovers 
     assert "py-str-join" in dlabel.runtime_ops
 
 
-def test_host_bindings_refuse_the_constructor_reading(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    with pytest.raises(CompileError) as caught:
+def test_host_bindings_read_as_implicit_islands(m):
+    """A capitalized module binding is not data: it reads the live value.
 
-        @m.define
-        def dthreshold(x):
-            return x + Threshold
+    Refusing it was the old law; under the fallback law the name islands,
+    so the equation reads the module's binding at application time and a
+    rebind is visible on the next call.
+    """
+    @m.define
+    def dthreshold(x):
+        return x + Threshold
 
-    assert "module binding" in str(caught.value)
+    assert list(dthreshold(4)) == [9]
 
 
 Threshold = 5

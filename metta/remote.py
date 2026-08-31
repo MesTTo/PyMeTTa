@@ -559,7 +559,16 @@ class RemoteSpace(SpaceProvider):
         for wire in answer["atoms"]:
             yield _atom_from_wire(wire)
 
-    def add(self, atom: Atom) -> None:  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
+    def add(self, atom: Atom) -> None:
+        """Store one atom on the serving side.
+
+        A transport TIMEOUT means UNKNOWN, not failed: the server may
+        still be processing the request when the client stops waiting, so
+        a mutation behind a timeout can have committed. Exactly-once
+        delivery needs idempotency keys and server-side deduplication,
+        which the remote protocol does not carry yet; until it does,
+        re-checking with a read is the caller's disambiguation.
+        """
         self._transport("add", {"space": self._space, "atom": atom.to_wire()})
 
     def add_many(self, atoms: list[Atom]) -> None:

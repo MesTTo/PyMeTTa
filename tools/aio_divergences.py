@@ -72,6 +72,7 @@ PRIVATE_TARGET: dict[str, str] = {"one": "_one", "first": "_first"}
 #: `speculative()`.
 MODULE_DOORS: tuple[tuple[str, str], ...] = (
     ("run", "run"),
+    ("load", "load"),
     ("match", "match"),
     ("add", "add"),
     ("remove", "remove"),

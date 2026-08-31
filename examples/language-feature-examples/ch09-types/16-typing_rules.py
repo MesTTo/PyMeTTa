@@ -131,4 +131,9 @@ def twin(m):
 #: extensions/python/tools/twin_coverage.py --measure --rounds 3;
 #: fixture=tabling-seam merged tree with engine/reader.so;
 #: commit=694c12f70da25a28ffe22f9209f1d75d56921f93].
-BUDGET = 6850
+#: RE-PINNED 2026-09-01, 6850 to 7362 (+512), the compiled-language batch:
+#: try/raise/dict/set/global/type-alias compilation, engine bit family
+#: builtins, prelude except/error-payload ops, variadic doors, twin heals
+#: [measured 2026-09-01: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 7362

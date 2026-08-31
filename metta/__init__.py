@@ -96,13 +96,25 @@ if TYPE_CHECKING:
     from collections.abc import Iterable as _Iterable
     from typing import Literal as _Literal
 
-    from ._space import _P, _R
+    # The static faces of _LAZY_ATTRIBUTES below, name for name: the lazy
+    # __getattr__ keeps `import metta` narrow at runtime, and without these
+    # a checker types every root export Any, py.typed notwithstanding.
+    from ._rules import equation, rules
+    from ._space import _P, _R, MeTTa, Space
     from ._space_execution import ScopedExecution as _ScopedExecution
     from ._space_objects import ScopedLimits as _ScopedLimits
     from ._space_objects import _StatsBlock
+    from ._state import State
+    from .algebra import counting, prob, prov, ranked, tropical
+    from .answer import Answer, Bindings
+    from .define import Defined
     from .define import Defined as _Defined
     from .define import PrologBacked as _PrologBacked
+    from .foreign import SpaceProvider
+    from .manifest import boot
+    from .parallel import channel, every, par_map, race, spawn
     from .results import Answers as _Answers
+    from .spaces import view
     from .vocabularies import EffectClass as _EffectClass
 
 from ._config import Config, config
@@ -378,6 +390,44 @@ def run(
     return engine().self.run(source, timeout=timeout, inferences=inferences)
 
 
+def load(
+    path: str | _os.PathLike[str],
+    *,
+    timeout: float | None = None,
+    inferences: int | None = None,
+) -> list[list[Atom]]:
+    """Add a text program or trusted fast cache to this space.
+
+    This is a consult, so it always loads and what it loads REPLACES
+    what the same file put in this space before. Edit the file, load it
+    again, and the space holds the new definitions and not both; the
+    engine says on stderr which file it replaced and how many atoms
+    went. Atoms from other sources, and ones you added yourself, stay.
+    A load that raises leaves the previous definitions standing, so a
+    broken edit costs nothing but the error.
+
+    `!(import! &self path)` is the other door and loads a file that is
+    new or edited, skipping one that is neither. The two agree on what
+    a reload means and differ only in whether an unchanged file runs
+    again, which is SWI's consult/1 against its if(changed).
+
+    A .gz path is detected and read through the decompressed bytes.
+
+    `timeout` (seconds) and `inferences` (engine steps) bound the load
+    with the engine's own guards, raising TimeLimitError or
+    InferenceLimitError. A load is all or nothing: a stop takes back
+    everything the file had put in a space, the same way a load that
+    fails on a bad form does, because a file the space holds half of is
+    not a file it can replace later. run() is the entry point that
+    keeps finished work when a bound stops it. This is the one most
+    likely to be handed code the caller did not write, since a file can
+    carry `!` directives and an import graph, so it takes the same pair
+    its siblings take.
+    Runs against the default context's self space.
+    """
+    return engine().self.load(path, timeout=timeout, inferences=inferences)
+
+
 def match(
     *patterns: _Any,
     where: _Any | None = None,
@@ -456,9 +506,14 @@ def add(*atoms: _Any) -> None:
     return engine().self.add(*atoms)
 
 
-def remove(atom: _Any) -> bool:
+def remove(atom: _Any, *more: _Any) -> bool | int:
     """Remove ONE unifying occurrence and say whether one was there,
     which is Python's own `list.remove` grain.
+
+    Variadic like `add` and `transfer`: several atoms ride one engine
+    crossing inside one transaction, and the answer counts the found,
+    so the one-atom call still reads as the truth value it always
+    was.
 
     The MeTTa door is coarser and deliberately so: `remove-atom`, and
     therefore `space -= atom`, drains EVERY unifying occurrence and
@@ -474,23 +529,50 @@ def remove(atom: _Any) -> bool:
     and their compiled clauses included.
     Runs against the default context's self space.
     """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
-    return engine().self.remove(atom)
+    return engine().self.remove(atom, *more)
 
 
+@_overload
 def eval(  # noqa: A001 -- eval is the ruled public verb
     target: _Any,
     *,
+    timeout: float | None = ...,
+    inferences: int | None = ...,
+    under: _Any = ...,
+    theory: _Any | None = ...,
+    interpreter: _Any | None = ...,
+) -> list[Atom | Undefined]: ...
+@_overload
+def eval(  # noqa: A001 -- eval is the ruled public verb
+    target: _Any,
+    second: _Any,
+    /,
+    *more: _Any,
+    timeout: float | None = ...,
+    inferences: int | None = ...,
+    under: _Any = ...,
+    theory: _Any | None = ...,
+    interpreter: _Any | None = ...,
+) -> list[list[Atom | Undefined]]: ...
+def eval(  # noqa: A001 -- eval is the ruled public verb
+    target: _Any,
+    *more: _Any,
     timeout: float | None = None,
     inferences: int | None = None,
     under: _Any = _UNSET,
     theory: _Any | None = None,
     interpreter: _Any | None = None,
-) -> list[Atom | Undefined]:
+) -> list[Atom | Undefined] | list[list[Atom | Undefined]]:
     """Evaluate a term, returning every answer.
 
     This is what !(...) runs, minus the printing: the engine's
     translate_expr over the term, then its goals. Nondeterminism means
     the list can hold any number of answers, including none.
+
+    Variadic, and that is how evaluation BATCHES: several terms ride
+    one engine crossing and the answer is one group per term in call
+    order, run()'s own grouping carried to the term door. One term
+    keeps its flat list, so the scalar reading never changes shape.
 
     Every answer carries its truth: an answer that is undefined under
     Well Founded Semantics (a tabled loop through tnot, reachable via
@@ -528,7 +610,7 @@ def eval(  # noqa: A001 -- eval is the ruled public verb
     Runs against the default context's self space.
     """
     return engine().self.eval(
-        target, timeout=timeout, inferences=inferences, under=under, theory=theory, interpreter=interpreter
+        target, *more, timeout=timeout, inferences=inferences, under=under, theory=theory, interpreter=interpreter
     )
 
 

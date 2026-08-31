@@ -117,4 +117,9 @@ def twin(m):
 #: [measured 2026-08-25 through tools/twin_coverage.py
 #: examples/ch11-python-as-a-notation/05-py_numpy.metta; provisional on the merged tree,
 #: the final release measure re-prices].
-BUDGET = 3932
+#: RE-PINNED 2026-09-01, 3932 to 4404 (+472), the compiled-language batch:
+#: try/raise/dict/set/global/type-alias compilation, engine bit family
+#: builtins, prelude except/error-payload ops, variadic doors, twin heals
+#: [measured 2026-09-01: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 4404

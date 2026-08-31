@@ -167,4 +167,16 @@ RUNG = (
 #: --measure --rounds 3 ../../examples/<this example>;
 #: fixture=engine/reader.so and the MORK artefact present;
 #: commit=58d0332489da668251edcd52ccc5cb42ba2e57bb].
-BUDGET = 50677615
+#: RE-PINNED 2026-09-01, 50677615 to 39625150 (-11052465), one corpus pricing
+#: pass on the merged tree for the 2026-08-27..09-01 engine span
+#: (8e75816d..f0744f86), whose four mechanisms are decomposed per lane in
+#: benchmarks/baseline.json and ai-parametricity-audit.md passes 10-16: the
+#: seam-offer routing and its one-wrap fold (net +8 inferences per evaluation),
+#: the strict-scope removal leaving the eval path, the doubling cursor chunk
+#: (~3 engine-side inferences per answer replacing per-answer crossings; drains
+#: halve on CPU), and the aligned-path work; thirteen twins additionally carry
+#: the idiom sweep's local deltas tabulated in the twin-idioms notes, none
+#: above 347 [measured 2026-09-01: min-of-3 serial fresh processes;
+#: command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+BUDGET = 39625150

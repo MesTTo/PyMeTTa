@@ -1810,6 +1810,60 @@ metta_py_remove(Space, Tagged, Removed) :-
     metta_host_remove_reported(Space, Term, Verdict),
     metta_py_encode(Verdict, Removed).
 
+%One crossing MOVES a batch: each wire removes one reported occurrence from
+%the source and, when found, lands in the target, all inside one engine
+%transaction, so a mid-move failure rolls every side back and an atom is
+%never lost between spaces. The count answers how many moved; an absent
+%member moves nothing and counts nothing, the found-reporting grain of the
+%one-occurrence remove door.
+metta_py_transfer(From, To, Wires, Count) :-
+    metta_transaction(metta_py_transfer_each(Wires, From, To, 0, Count)).
+
+metta_py_transfer_each([], _, _, Count, Count).
+metta_py_transfer_each([Wire|Wires], From, To, Count0, Count) :-
+    metta_py_decode_shared(Wire, Term, _),
+    metta_host_remove_reported(From, Term, Verdict),
+    (   Verdict == true
+    ->  'add-atom'(To, Term, _),
+        Count1 is Count0 + 1
+    ;   Count1 = Count0
+    ),
+    metta_py_transfer_each(Wires, From, To, Count1, Count).
+
+%One crossing evaluates a BATCH of targets, answering one encoded group per
+%target in order: run()'s own grouping carried to the eval door, which is
+%how evaluation batches. The using form applies ONE binding scope to every
+%target, the call-level reading a bind() block already has.
+metta_py_eval_many_all(Space, Targets, Groups) :-
+    findall(Group,
+            ( member(Tagged, Targets),
+              findall(E, metta_py_eval(Space, Tagged, E), Group) ),
+            Groups).
+
+metta_py_eval_many_using_all(Space, Targets, Pairs, Groups) :-
+    findall(Group,
+            ( member(Tagged, Targets),
+              metta_py_eval_using_all(Space, Tagged, Pairs, Group) ),
+            Groups).
+
+%One crossing REMOVES a batch, one reported occurrence each, inside one
+%transaction; the count answers how many were found, remove's own grain.
+metta_py_remove_many(Space, Wires, Count) :-
+    metta_transaction(metta_py_remove_each(Wires, Space, 0, Count)).
+
+metta_py_remove_each([], _, Count, Count).
+metta_py_remove_each([Wire|Wires], Space, Count0, Count) :-
+    metta_py_decode_shared(Wire, Term, _),
+    metta_host_remove_reported(Space, Term, Verdict),
+    ( Verdict == true -> Count1 is Count0 + 1 ; Count1 = Count0 ),
+    metta_py_remove_each(Wires, Space, Count1, Count).
+
+%The -= door's own grain: remove-atom drains EVERY unifying occurrence,
+%upstream's law, and answers true either way.
+metta_py_drain(Space, Wire) :-
+    metta_py_decode_shared(Wire, Term, _),
+    'remove-atom'(Space, Term, _).
+
 metta_py_atoms(Space, Encoded) :-
     findall(E, ('get-atoms'(Space, P), metta_py_encode(P, E)), Encoded).
 
@@ -2504,26 +2558,40 @@ metta_py_encode_truth(Out, Delays, Encoded) :-
 %Every head translate_expr treats structurally (its HV == chain and the
 %stream rewrites): these must always take the translator, whatever their
 %arguments look like.
-metta_py_special('add-atom').     metta_py_special('and-then').
-metta_py_special(call).           metta_py_special(case).
-metta_py_special(catch).          metta_py_special(chain).
-metta_py_special(collapse).       metta_py_special(cut).
-metta_py_special(eval).           metta_py_special('filter-atom').
-metta_py_special(foldall).        metta_py_special('foldl-atom').
-metta_py_special(forall).         metta_py_special(hyperpose).
-metta_py_special(if).             metta_py_special(let).
-metta_py_special('let*').         metta_py_special('map-atom').
-metta_py_special(match).          metta_py_special(once).
-metta_py_special('or-else').      metta_py_special(prog1).
-metta_py_special(progn).          metta_py_special(quote).
-metta_py_special(reduce).         metta_py_special('remove-atom').
-metta_py_special(sealed).         metta_py_special(superpose).
-metta_py_special(test).           metta_py_special(transaction).
-metta_py_special(translatePredicate).
-metta_py_special(with_mutex).     metta_py_special('trace!').
-metta_py_special(unique).         metta_py_special('alpha-unique').
-metta_py_special(union).          metta_py_special(intersection).
-metta_py_special(subtraction).
+%The translator's own registry, MATERIALIZED at load. The hand table this
+%replaces lagged the engine: 'not-provable' gained a translate_special_dl
+%clause and a bare same-name predicate, the stale table let the direct path
+%claim the predicate, and the Python eval door answered [] where the
+%engine's own directive answered True [measured 2026-09-01,
+%examples/ch22-.../03-constructive_negation]. Consulting the registry per
+%ask fixed that but taxed every eval crossing +2 inferences (+4,002 on the
+%2,000-operation eval-arith lane, +4,000 on op-encoded), so the rows are
+%asserted once here from metta_special_form_head/1, the enumerable face
+%published for exactly this kind of reader: the ask stays one indexed
+%lookup at the hand table's own cost (both lanes back on their pins under
+%a plant/restore control [measured 2026-09-01]), and a form added to the
+%engine's table is covered at the next boot, which is the table's own
+%grain because translate_special_dl/5 is static engine source. The second
+%forall is the RESIDUE the registry does not carry: rewrites owned by
+%other dispatchers (the and-then/or-else pair and the stream set), and the
+%trace! directive form. The findall completes the whole enumeration, the
+%fallible part, before the retractall, so a reconsult swaps the set
+%exactly (a form removed from the engine source leaves on the same
+%reload that would have added one) and a failed enumeration leaves the
+%previous set standing rather than an empty one. The current_predicate
+%guard keeps the shim's engine-free consult (shim.plt's contract) loading
+%clean: without the engine only the residue rows exist, and nothing
+%engine-free can reach a special form anyway.
+:- dynamic metta_py_special/1.
+:- findall(F,
+           ( current_predicate(translator:metta_special_form_head/1),
+             translator:metta_special_form_head(F)
+% policy-inventory-exempt: mechanism-internal; reason=the residue rows are the dispatch table's own content, heads owned by other rewrite dispatchers, not an operator choice; evidence=examples/ch06-many-answers/09-streamops.metta:1
+           ; member(F, ['and-then', 'or-else', 'trace!', unique,
+                        'alpha-unique', union, intersection, subtraction]) ),
+           Forms),
+   retractall(metta_py_special(_)),
+   forall(member(F, Forms), assertz(metta_py_special(F))).
 
 %The resolved goal, for every caller that wants one. Resolution goes through
 %the engine's OWN resolve_dispatch so a compiled call site and this one make
@@ -2984,6 +3052,16 @@ metta_py_dispatch_eq(Left, Right, Result) :-
     number(Left), number(Right),
     !,
     ( Left =:= Right -> Result = true ; Result = false ).
+%The railway rows, the same law the host table's guard carries: a compiled
+%strict position propagates error DATA instead of computing over it, so a
+%comparison meeting an (Error ...) answers the error rather than reading
+%it as an expression. The native lanes decide without crossing, so they
+%need their own rows; they sit after the number clause, which cannot meet
+%an error, so the compiled loop case pays nothing.
+metta_py_dispatch_eq(Left, _Right, Left) :-
+    nonvar(Left), Left = ['Error'|_], !.
+metta_py_dispatch_eq(_Left, Right, Right) :-
+    nonvar(Right), Right = ['Error'|_], !.
 metta_py_dispatch_eq(Left, Right, Result) :-
     metta_py_native_eq(Left, Right, Result),
     !.
@@ -2994,6 +3072,8 @@ metta_py_dispatch_truthy(Value, Result) :-
     number(Value),
     !,
     ( Value =:= 0 -> Result = false ; Result = true ).
+metta_py_dispatch_truthy(Value, Value) :-
+    nonvar(Value), Value = ['Error'|_], !.
 metta_py_dispatch_truthy(Value, Result) :-
     metta_py_native_truthy(Value, Result),
     !.

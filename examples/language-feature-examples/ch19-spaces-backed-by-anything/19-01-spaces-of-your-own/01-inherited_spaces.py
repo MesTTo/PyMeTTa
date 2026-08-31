@@ -124,4 +124,15 @@ def twin(m):
 #: process [measured 2026-08-31: min-of-3 serial fresh processes;
 #: command=python extensions/python/tools/twin_coverage.py --repin;
 #: commit=41e2cb9862e757dbe066516dab13ae55491f64d3].
-BUDGET = 1193
+#: RE-PINNED 2026-09-01, 1193 to 1284 (+91), one corpus pricing pass on the
+#: merged tree for the 2026-08-27..09-01 engine span (8e75816d..f0744f86),
+#: whose four mechanisms are decomposed per lane in benchmarks/baseline.json
+#: and ai-parametricity-audit.md passes 10-16: the seam-offer routing and its
+#: one-wrap fold (net +8 inferences per evaluation), the strict-scope removal
+#: leaving the eval path, the doubling cursor chunk (~3 engine-side inferences
+#: per answer replacing per-answer crossings; drains halve on CPU), and the
+#: aligned-path work; thirteen twins additionally carry the idiom sweep's local
+#: deltas tabulated in the twin-idioms notes, none above 347 [measured
+#: 2026-09-01: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 1284

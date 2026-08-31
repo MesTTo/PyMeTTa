@@ -56,7 +56,16 @@ BASELINE_PACKAGE_EXPORTS = 152
 #: so (the with form rides them). Both delegate lifecycle to Space.drop, so
 #: Space keeps the lifecycle verbs and MeTTa still carries only context
 #: primitives.
-FINAL_METTA_METHODS = 21
+FINAL_METTA_METHODS = 34
+# The class count: 21 before the context tier; +13 on 2026-09-01 when MeTTa
+# became the third generated mirror. The finding behind it was a context
+# that could define but not eval: the hand-written derived subset was typed
+# (*args: Any) -> Any, had drifted, and missed most Space verbs, so
+# MODULE_DOORS now renders on MeTTa exactly as on the module tier (run,
+# load, eval, match, add, remove, solve, doc, pure, reads, writes, io join;
+# define, op, stats, limits and trace were already carried and are now
+# generated and typed), `fn` joins as the bound-namespace property, and
+# speculative takes the module tier's ruled name `speculate`.
 # 61 at the narrow-core commit; +4 when the R6 merge promoted the canonical
 # atoms TRUE, FALSE and UNIT to root values; +1 when
 # R1 exported the static fn namespace at the root; +8 when R5 landed its
@@ -120,8 +129,10 @@ SATELLITES = {
     "wire",
 }
 
+# add, eval, fn, load, remove and run left this roster on 2026-09-01: the
+# generated context tier restores them as ruled doors (see
+# FINAL_METTA_METHODS above), so their absence is no longer the claim.
 REMOVED_FROM_METTA = {
-    "add",
     "add_table",
     "add_tagged_fact",
     "add_tagged_rule",
@@ -154,18 +165,15 @@ REMOVED_FROM_METTA = {
     "digest",
     "disassemble",
     "drop",
-    "eval",
     "eval_status",
     "evaluate_algebra",
     "events",
     "first",
-    "fn",
     "hyperpose",
     "integrate",
     "is_function",
     "is_function_here",
     "lint",
-    "load",
     "new_space",
     "one",
     "parallel",
@@ -178,8 +186,6 @@ REMOVED_FROM_METTA = {
     "register_op",
     "register_space",
     "register_token",
-    "remove",
-    "run",
     "run_status",
     "sample_rates",
     "save",

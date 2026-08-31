@@ -557,4 +557,13 @@ def twin(m):
 #: the corpus absorbed the same move inside its allowance
 #: [measured 2026-08-31: 2429 on three consecutive runs, 0.0000% spread;
 #: command=pytest test_twin_coverage.py -k 01-identity; commit=4a5325f86c83a301673099e0f6281cae0ec6595c].
-BUDGET = 2429
+#: RE-PINNED 2026-09-01, 2429 to 2435 (+6), the compiled-language batch:
+#: try/raise on the error algebra, dict-space literals with lib_dict auto-
+#: import, the exact-integer operator family as engine builtins (bit-
+#: and/or/xor/not, floor-div, five registration rows moving clause indexing),
+#: the implicit-island fallback, the except/error-payload runtime ops replacing
+#: seven py- bridges, the variadic door family (transfer, batched remove and
+#: eval), the -= drain-law repair, and fourteen twins healed to the arbiter
+#: [measured 2026-09-01: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 2435

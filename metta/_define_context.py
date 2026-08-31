@@ -63,6 +63,59 @@ class CompilerContext:
     pyname: str
     _builtins: dict[str, Any]
     builders: frozenset[str]
+    # True while a pattern scope compiles through this compiler: patterns
+    # are structural, so the host-island fallback stays out of them and the
+    # loud refusals keep their ground there. Set and restored by the two
+    # pattern scopes, never by forks.
+    _in_pattern: bool = False
+    # The scope key holding the innermost except arm's error atom, or None
+    # outside every arm; a bare `raise` re-throws through it. Lexical, so
+    # forks and nested equation compilers inherit it.
+    handler_error: str | None = None
+    # True while compiling lexically inside a try BODY: a binding there
+    # traps error data and produces it, so `total = 10 // x` aborts to the
+    # arms exactly as Python's raise would, instead of binding an (Error
+    # ...) atom that rides out through the success tag. Elsewhere bindings
+    # stay bare and the railway carries errors to the answer.
+    in_try_body: bool = False
+    # `type X = ...` aliases in this definition, each mapping to its type
+    # alternatives: a single-type alias inlines at annotation sites (the
+    # in-place claim checker reads atoms, not rewrites) while its equation
+    # still gives the NAME meaning in the space; a union alias stays
+    # symbolic. Shared across every compiler of the definition, like aux.
+    type_aliases: dict[str, list[Atom]]
+    # Names a `global` pragma declared: their reads island against the
+    # live module and their assignments island a globals() write. Shared
+    # across every compiler of the definition.
+    pragma_globals: set[str]
+    # Library aliases the compiled equations lean on (a dict literal needs
+    # lib_dict's vocabulary); shared like aux, imported at installation.
+    libraries: set[str]
+    # Local names currently bound to a dict-space, copied per fork like
+    # space_locals: subscripts read get-value, membership asks dict-has,
+    # subscript assignment is dict-put and del is dict-remove.
+    dict_locals: set[str]
+
+    def annotation_alternatives(self, node: ast.expr) -> list[Atom]:
+        raise NotImplementedError
+
+    def _binop_atom(
+        self, op: ast.operator, left: Atom, right: Atom, line: int | None
+    ) -> Atom:
+        raise NotImplementedError
+
+    def _dict_atom(self, atom: Atom) -> bool:
+        raise NotImplementedError
+
+    def _implicit_island(self, node: ast.expr) -> Atom:
+        raise NotImplementedError
+
+    def _effect_block(
+        self,
+        statements: list[ast.stmt],
+        continuation: Callable[[CompilerContext], Atom],
+    ) -> Atom:
+        raise NotImplementedError
     host: Callable[[str], bool]
     host_value: Callable[[str], Any]
     runtime_ops: set[str]

@@ -114,7 +114,7 @@ from .atoms import (
     _map_atoms,
     _variables,
 )
-from .errors import CompileError
+from .errors import CompileError, with_coordinates
 from .results import Answers
 from .vocabularies import EffectClass
 
@@ -160,8 +160,15 @@ def _function_namespace(fn: types.FunctionType) -> dict[str, Any]:
     return {**_builtins_namespace(), **fn.__globals__, **nonlocals, **type_params}
 
 
-def _annotation_resolver(fn: types.FunctionType) -> Callable[[ast.expr], Atom]:
-    """Resolve local annotation syntax without executing arbitrary source."""
+def _annotation_resolver(
+    fn: types.FunctionType,
+) -> tuple[Callable[[ast.expr], Atom], Callable[[ast.expr], list[Atom]]]:
+    """Resolve local annotation syntax without executing arbitrary source.
+
+    Two readers over one resolver: the single-type reader every in-place
+    claim uses, and the alternatives reader a `type` alias uses to write
+    one equation per union member.
+    """
     namespace = _function_namespace(fn)
 
     def resolve(node: ast.expr) -> Any:
@@ -259,7 +266,10 @@ def _annotation_resolver(fn: types.FunctionType) -> Callable[[ast.expr], Atom]:
             )
         return alternatives[0]
 
-    return to_atom
+    def to_alternatives(node: ast.expr) -> list[Atom]:
+        return type_atoms_for(resolve(node))
+
+    return to_atom, to_alternatives
 
 
 def _initial_scope(params: list[str] | dict[str, str]) -> dict[str, str]:
@@ -489,6 +499,7 @@ class Compiled(NamedTuple):
     runtime_ops: frozenset[str]
     hazards: frozenset[str]
     facts: DefinitionFacts
+    libraries: frozenset[str] = frozenset()
 
 
 def _is_flat_yield_sequence(statements: list[ast.stmt]) -> bool:
@@ -570,92 +581,105 @@ def compile_function(
             line=definition.lineno,
         )
 
-    params, patterns = _parameters(definition)
-    # A literal-patterned position is fixed by the head, so it is not a
-    # variable in the body's scope; naming it there would shadow the match.
-    scope = [p for p in params if p not in patterns]
-    namespace = _function_namespace(fn)
-    closure_names = set(fn.__code__.co_freevars)
-    closure_values: dict[str, Any] = {}
-    for identifier, cell in zip(fn.__code__.co_freevars, fn.__closure__ or (), strict=True):
-        try:
-            closure_values[identifier] = cell.cell_contents
-        except ValueError:
-            continue
-    host_values = fn.__globals__ | closure_values
-    builders = frozenset(
-        identifier
-        for identifier, expected in {"S": S, "V": V, "fn": fn_namespace}.items()
-        if host_values.get(identifier) is expected
-    )
-
-    def host(identifier: str) -> bool:
-        return identifier in host_values or identifier in closure_names
-
-    def host_value(identifier: str) -> Any:
-        return namespace.get(identifier, _MISSING_HOST)
-
     source_path = inspect.getsourcefile(fn) or inspect.getfile(fn)
     if not (source_path.startswith("<") and source_path.endswith(">")):
         source_path = str(Path(source_path).resolve())
 
-    annotation_resolver = _annotation_resolver(fn)
+    try:
+        params, patterns = _parameters(definition)
+        # A literal-patterned position is fixed by the head, so it is not a
+        # variable in the body's scope; naming it there would shadow the match.
+        scope = [p for p in params if p not in patterns]
+        namespace = _function_namespace(fn)
+        closure_names = set(fn.__code__.co_freevars)
+        closure_values: dict[str, Any] = {}
+        for identifier, cell in zip(fn.__code__.co_freevars, fn.__closure__ or (), strict=True):
+            try:
+                closure_values[identifier] = cell.cell_contents
+            except ValueError:
+                continue
+        host_values = fn.__globals__ | closure_values
+        builders = frozenset(
+            identifier
+            for identifier, expected in {"S": S, "V": V, "fn": fn_namespace}.items()
+            if host_values.get(identifier) is expected
+        )
 
-    def annotation_names_space(annotation: ast.expr) -> bool:
-        # This eager probe only decides whether a parameter is a space
-        # handle. A STRUCTURED annotation the resolver cannot name (a
-        # subscripted domain builder, a spelling outside the typing
-        # whitelist) is simply not one; the strict refusal still runs
-        # wherever the annotation is consumed as a type. A bare NAME that
-        # resolves nowhere keeps the loud refusal: `target: Space` with the
-        # import missing must not silently turn the body's removal
-        # statements into arithmetic
-        # [tested: test_an_unresolvable_annotation_is_not_a_space_parameter].
-        try:
-            return annotation_resolver(annotation) == Symbol("SpaceType")
-        except CompileError:
-            if isinstance(annotation, ast.Name):
-                raise
-            return False
+        def host(identifier: str) -> bool:
+            return identifier in host_values or identifier in closure_names
 
-    space_parameters = {
-        argument.arg
-        for argument in definition.args.args
-        if argument.annotation is not None
-        and annotation_names_space(argument.annotation)
-    }
-    compiler = _Compiler(
-        metta_name or fn.__name__,
-        scope,
-        known,
-        nondet=nondet,
-        returns_bool=returns_bool,
-        pyname=fn.__name__,
-        host=host,
-        builders=builders,
-        host_value=host_value,
-        defined_name=defined_name,
-        annotation_resolver=annotation_resolver,
-        function=fn,
-        source=source,
-        source_path=source_path,
-        first_line=first_line,
-        call_parameters=call_parameters,
-        signature_params=tuple(params),
-        space_locals=space_parameters,
-    )
-    generator = _is_generator(definition)
-    body: Atom
-    if generator:
-        # A generator is nondeterminism: each yield is one answer, which is
-        # exactly what superpose spells; branches contribute their own
-        # superpositions and evaluation flattens them.
-        answers = compiler.yield_answers(definition.body)
-        body = _superpose(answers)
-        equation_bodies = tuple(answers) if _is_flat_yield_sequence(definition.body) else (body,)
-    else:
-        body = compiler.block(definition.body)
-        equation_bodies = (body,)
+        def host_value(identifier: str) -> Any:
+            return namespace.get(identifier, _MISSING_HOST)
+
+        annotation_resolver, annotation_alternatives = _annotation_resolver(fn)
+
+        def annotation_names_space(annotation: ast.expr) -> bool:
+            # This eager probe only decides whether a parameter is a space
+            # handle. A STRUCTURED annotation the resolver cannot name (a
+            # subscripted domain builder, a spelling outside the typing
+            # whitelist) is simply not one; the strict refusal still runs
+            # wherever the annotation is consumed as a type. A bare NAME that
+            # resolves nowhere keeps the loud refusal: `target: Space` with the
+            # import missing must not silently turn the body's removal
+            # statements into arithmetic
+            # [tested: test_an_unresolvable_annotation_is_not_a_space_parameter].
+            try:
+                return annotation_resolver(annotation) == Symbol("SpaceType")
+            except CompileError:
+                if isinstance(annotation, ast.Name):
+                    raise
+                return False
+
+        space_parameters = {
+            argument.arg
+            for argument in definition.args.args
+            if argument.annotation is not None
+            and annotation_names_space(argument.annotation)
+        }
+        compiler = _Compiler(
+            metta_name or fn.__name__,
+            scope,
+            known,
+            nondet=nondet,
+            returns_bool=returns_bool,
+            pyname=fn.__name__,
+            host=host,
+            builders=builders,
+            host_value=host_value,
+            defined_name=defined_name,
+            annotation_resolver=annotation_resolver,
+            function=fn,
+            source=source,
+            source_path=source_path,
+            first_line=first_line,
+            call_parameters=call_parameters,
+            signature_params=tuple(params),
+            space_locals=space_parameters,
+            annotation_alternatives=annotation_alternatives,
+        )
+        generator = _is_generator(definition)
+        body: Atom
+        if generator:
+            # A generator is nondeterminism: each yield is one answer, which is
+            # exactly what superpose spells; branches contribute their own
+            # superpositions and evaluation flattens them.
+            answers = compiler.yield_answers(definition.body)
+            body = _superpose(answers)
+            equation_bodies = tuple(answers) if _is_flat_yield_sequence(definition.body) else (body,)
+        else:
+            body = compiler.block(definition.body)
+            equation_bodies = (body,)
+    except CompileError as refusal:
+        # Statement walls raise with the function-relative line alone;
+        # the caret block is derived once here from the held source
+        # rather than threaded through every raise site.
+        raise with_coordinates(
+            refusal,
+            source=source,
+            first_line=first_line,
+            path=source_path,
+            function=fn.__name__,
+        ) from refusal.__cause__
     facts = derive_definition_facts(
         fn,
         definition,
@@ -682,6 +706,7 @@ def compile_function(
         frozenset(compiler.runtime_ops),
         frozenset(compiler.hazards),
         facts,
+        frozenset(compiler.libraries),
     )
 
 
@@ -765,12 +790,19 @@ class _Compiler(
         runtime_ops: set[str] | None = None,
         hazards: set[str] | None = None,
         annotation_resolver: Callable[[ast.expr], Atom] | None = None,
+        annotation_alternatives: Callable[[ast.expr], list[Atom]] | None = None,
         space_locals: set[str] | None = None,
         function: types.FunctionType | None = None,
         source: str = "",
         source_path: str = "<unknown>",
         first_line: int = 1,
         loop_depth: int = 0,
+        handler_error: str | None = None,
+        in_try_body: bool = False,
+        type_aliases: dict[str, list[Atom]] | None = None,
+        pragma_globals: set[str] | None = None,
+        libraries: set[str] | None = None,
+        dict_locals: set[str] | None = None,
     ):
         self.name = name
         # The Python spelling of the definition's own name, for recursion
@@ -819,11 +851,23 @@ class _Compiler(
         # mentions them, or the enclosing recursion loses its state.
         self.closer_names: list[str] = []
         self._annotation_resolver = annotation_resolver
+        self._annotation_alternatives = annotation_alternatives
         self.function = function
         self.source = source
         self.source_path = source_path
         self.first_line = first_line
         self.loop_depth = loop_depth
+        # The innermost enclosing except arm's error key (lexical), the
+        # definition's `type` aliases, and its `global` pragma names; the
+        # last two are shared across every compiler of the definition.
+        self.handler_error = handler_error
+        self.in_try_body = in_try_body
+        self.type_aliases: dict[str, list[Atom]] = _provided(type_aliases, {})
+        self.pragma_globals: set[str] = _provided(pragma_globals, set())
+        # Library aliases the equations lean on, definition-shared; and the
+        # locals holding a dict-space, forked like space_locals.
+        self.libraries: set[str] = _provided(libraries, set())
+        self.dict_locals: set[str] = _provided(dict_locals, set())
         # Local names currently bound to a SPACE value: (context-space),
         # (new-space ...) or a closure handle. += and -= on one of these
         # are the write doors, never arithmetic; forks copy the set the
@@ -831,6 +875,14 @@ class _Compiler(
         self.space_locals: set[str] = _provided(space_locals, set())
 
     def annotation_atom(self, node: ast.expr) -> Atom:
+        if isinstance(node, ast.Name) and node.id in self.type_aliases:
+            # A single-type alias inlines its atom, since the in-place
+            # claim checker reads atoms rather than rewriting; a union
+            # alias stays the symbol its equations define.
+            alternatives = self.type_aliases[node.id]
+            if len(alternatives) == 1:
+                return alternatives[0]
+            return Symbol(node.id)
         if self._annotation_resolver is None:
             msg = "this compiler has no local annotation namespace"
             raise CompileError(
@@ -839,6 +891,16 @@ class _Compiler(
                 line=node.lineno,
             )
         return self._annotation_resolver(node)
+
+    def annotation_alternatives(self, node: ast.expr) -> list[Atom]:
+        if self._annotation_alternatives is None:
+            msg = "this compiler has no local annotation namespace"
+            raise CompileError(
+                msg,
+                construct="annotation",
+                line=node.lineno,
+            )
+        return self._annotation_alternatives(node)
 
     def nondet(self, called: str) -> bool:
         lifted = self.lifted.get(called)
@@ -919,6 +981,7 @@ class _Compiler(
         used: set[str] | None,
         closer: Callable[[_Compiler], Atom] | None,
         space_locals: set[str] | None = None,
+        dict_locals: set[str] | None = None,
     ) -> _Compiler:
         """Propagate shared definition context into every compiler child."""
         return _Compiler(
@@ -941,12 +1004,21 @@ class _Compiler(
             runtime_ops=self.runtime_ops,
             hazards=self.hazards,
             annotation_resolver=self._annotation_resolver,
+            annotation_alternatives=self._annotation_alternatives,
             space_locals=space_locals,
             function=self.function,
             source=self.source,
             source_path=self.source_path,
             first_line=self.first_line,
             loop_depth=self.loop_depth,
+            handler_error=self.handler_error,
+            in_try_body=self.in_try_body,
+            type_aliases=self.type_aliases,
+            pragma_globals=self.pragma_globals,
+            libraries=self.libraries,
+            dict_locals=dict_locals
+            if dict_locals is not None
+            else self.dict_locals.copy(),
         )
 
     def _iteration(self, iter_node: ast.expr, var: str, body: Atom) -> Expression:

@@ -57,9 +57,10 @@ def twin(m):
     both = S.unify(S.f(V.x, S.b), S.f(S.a, V.y), S.pair(V.x, V.y), S.nope)
     assert m.eval(both) == [S.pair(S.a, S.b)]
 
-    # The occurs check rejects a cyclic binding.
-    # !(test (unify $x (f $x) cyclic sound) sound)
-    assert m.eval(S.unify(V.x, S.f(V.x), S.cyclic, S.sound)) == [S.sound]
+    # Rational trees: $x unifies with (f $x) with no occurs check, the
+    # engine's own (PeTTa-aligned) reading, so the THEN branch answers.
+    # !(test (unify $x (f $x) cyclic sound) cyclic)
+    assert m.eval(S.unify(V.x, S.f(V.x), S.cyclic, S.sound)) == [S.cyclic]
 
     @m.define
     def then_probe():
@@ -166,4 +167,13 @@ def twin(m):
 #: and the scheduler, context-callback and exact-memo lifecycle clauses
 #: move compiled-image layout by tens, the class this file's chain
 #: documents [measured: min-of-3 serial fresh processes; command=python extensions/python/tools/twin_coverage.py --measure --rounds 3; fixture=merged p14-audit-async composed tree with engine/reader.so; commit=5059173b1767600ce4df0f6b7841d88116ee62d3].
-BUDGET = 13917
+#: RE-PINNED 2026-09-01, 13917 to 10550 (-3367), the compiled-language batch:
+#: try/raise on the error algebra, dict-space literals with lib_dict auto-
+#: import, the exact-integer operator family as engine builtins (bit-
+#: and/or/xor/not, floor-div, five registration rows moving clause indexing),
+#: the implicit-island fallback, the except/error-payload runtime ops replacing
+#: seven py- bridges, the variadic door family (transfer, batched remove and
+#: eval), the -= drain-law repair, and fourteen twins healed to the arbiter
+#: [measured 2026-09-01: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 10550

@@ -85,10 +85,10 @@ def twin(m):
     assert m[S.tx_rolled(V.x)].x == []
 
     # A body that succeeds keeps its writes. The transaction answers whatever
-    # its body did, and add-atom answers the unit value.
-    # !(test (collapse (transaction (add-atom &self (tx-kept a)))) (()))
+    # its body did, and add-atom answers `true`, the effect family's answer.
+    # !(test (collapse (transaction (add-atom &self (tx-kept a)))) (true))
     keeps = S.add_atom(m, S.tx_kept(S.a))  # rung: the same, for the committing case
-    assert m.transaction(keeps) == [Expression(())]
+    assert m.transaction(keeps) == [True]
     # !(test (collapse (match &self (tx-kept $x) $x)) (a))
     assert m[S.tx_kept(V.x)].x == [S.a]
 
@@ -108,9 +108,9 @@ def twin(m):
     assert m.transaction(S.tx_three()) == [1, 2, 3]
     # !(test (collapse (transaction (superpose ((add-atom &self (tx-each 1))
     #                                           (add-atom &self (tx-each 2))))))
-    #        (() ()))
+    #        (true true))
     each = S.superpose((S.add_atom(m, S.tx_each(1)), S.add_atom(m, S.tx_each(2))))  # rung: two writes inside one transaction, and a write is a statement over a handle
-    assert m.transaction(each) == [Expression(()), Expression(())]
+    assert m.transaction(each) == [True, True]
     # !(test (collapse (match &self (tx-each $x) $x)) (1 2))
     assert m[S.tx_each(V.x)].x == [1, 2]
 
@@ -174,7 +174,7 @@ def twin(m):
     # Runs its branches concurrently, so `once` over an expensive branch and a
     # cheap one answers as soon as the cheap one is done.
     # !(test (once (hyperpose ((spin 3000000) (spin 3)))) done)
-    branches = S.parallel((S.spin(3_000_000), S.spin(3)))
+    branches = S.hyperpose((S.spin(3_000_000), S.spin(3)))
     assert m.answers(branches).first(default=UNIT) == S.done
     #
     # Both branches ran and both answers came back, which is what collapsing
@@ -254,4 +254,9 @@ def twin(m):
 #: and the scheduler, context-callback and exact-memo lifecycle clauses
 #: move compiled-image layout by tens, the class this file's chain
 #: documents [measured: min-of-3 serial fresh processes; command=python extensions/python/tools/twin_coverage.py --measure --rounds 3; fixture=merged p14-audit-async composed tree with engine/reader.so; commit=5059173b1767600ce4df0f6b7841d88116ee62d3].
-BUDGET = 31676
+#: RE-PINNED 2026-09-01, 31676 to 28216 (-3460), the compiled-language batch:
+#: try/raise/dict/set/global/type-alias compilation, engine bit family
+#: builtins, prelude except/error-payload ops, variadic doors, twin heals
+#: [measured 2026-09-01: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 28216

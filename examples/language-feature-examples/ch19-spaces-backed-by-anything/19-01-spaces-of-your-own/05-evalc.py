@@ -37,7 +37,7 @@ from metta.errors import MettaOperationError
 
 def twin(m):
     """Give one name two meanings, one per space, and ask each of them."""
-    metric = metta.space(S.metric)
+    metric = metta.space(S.metric, inherits=m)
 
     @metric.define
     def distance(x):
@@ -150,4 +150,9 @@ def twin(m):
 #: and the scheduler, context-callback and exact-memo lifecycle clauses
 #: move compiled-image layout by tens, the class this file's chain
 #: documents [measured: min-of-3 serial fresh processes; command=python extensions/python/tools/twin_coverage.py --measure --rounds 3; fixture=merged p14-audit-async composed tree with engine/reader.so; commit=5059173b1767600ce4df0f6b7841d88116ee62d3].
-BUDGET = 9700
+#: RE-PINNED 2026-09-01, 9700 to 9378 (-322), the compiled-language batch:
+#: try/raise/dict/set/global/type-alias compilation, engine bit family
+#: builtins, prelude except/error-payload ops, variadic doors, twin heals
+#: [measured 2026-09-01: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 9378

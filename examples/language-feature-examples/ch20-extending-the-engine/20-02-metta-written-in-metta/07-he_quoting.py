@@ -28,7 +28,11 @@ def twin(m):
 
     sum_ = G(1) + 2
     quoted = S.quote(sum_)
-    assert m.eval(quoted) == [quoted]
+    # Quote is an EVALUATION BARRIER, not a data constructor: the answer is
+    # the protected term itself, unevaluated, with the wrapper dissolved at
+    # the boundary [source: engine/translator/special_forms.pl, the quote
+    # barrier; upstream PeTTa 8355e945].
+    assert m.eval(quoted) == [sum_]
 
     assert m.answers(sum_) == [3]
     assert m.fn.unquote(quoted) == [3]
@@ -94,4 +98,9 @@ def twin(m):
 #: and deprecation apply-seam fixes recovering their shares; the
 #: remainder is compiled-image layout, the class this file's own chain
 #: documents [measured: min-of-3 serial fresh processes; command=python extensions/python/tools/twin_coverage.py --measure --rounds 3; fixture=p14-integration open-tail-index pricing tree with engine/reader.so; commit=5ca9ef775933e349f8dc3ec64ec3cb85273a5a00].
-BUDGET = 2985
+#: RE-PINNED 2026-09-01, 2985 to 3318 (+333), the compiled-language batch:
+#: try/raise/dict/set/global/type-alias compilation, engine bit family
+#: builtins, prelude except/error-payload ops, variadic doors, twin heals
+#: [measured 2026-09-01: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 3318

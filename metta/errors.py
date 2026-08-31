@@ -25,10 +25,12 @@ Guarantees:
     machine-readable ground [tested:
     test_an_uncovered_world_refuses_before_creating_scratch_or_running_the_operation;
     commit=173eeed021beb360b5e5f9f8461889e27190affc]
-  - CompileError can render a source path, function, line and exact caret span
-    while retaining its machine-readable construct and coordinates [tested:
-    test_unknown_host_callee_refusal_has_file_caret_and_both_remedies;
-    commit=3f0a1d237a3c969b2d4ad0d48b2195ce196b631a]
+  - CompileError renders a source path, function, line and exact caret span
+    while retaining its machine-readable construct and coordinates, and
+    with_coordinates derives that block for a statement wall raised with the
+    line alone, the caret gutter width-matched to the number gutter [tested:
+    test_a_refusal_renders_the_file_line_function_and_exact_caret;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -37,6 +39,7 @@ Open Obligations:
 
 from __future__ import annotations
 
+import ast
 from dataclasses import dataclass
 
 __all__ = [
@@ -104,6 +107,11 @@ _COMPILE_REFERENCE_BY_CONSTRUCT = (
     (("comparison", "boolean"), "Python Language Reference section 6.10-6.11, Comparisons and Boolean operations"),
     (("arithmetic", "floor", "binary", "reduce"), "Python Language Reference section 6.7, Binary arithmetic operations"),
     (("name", "ambiguous"), "Python Language Reference section 4.2, Naming and binding"),
+    (("raise",), "Python Language Reference section 7.8, The raise statement"),
+    (("try", "except", "finally"), "Python Language Reference section 8.4, The try statement"),
+    (("global", "nonlocal"), "Python Language Reference section 7.12-7.13, The global and nonlocal statements"),
+    (("type alias",), "Python Language Reference section 7.15, The type statement"),
+    (("class",), "Python Language Reference section 8.7, Class definitions"),
 )
 
 
@@ -382,13 +390,15 @@ class CompileError(MettaError):
             caret = " " * start + "^" * (stop - start)
             if annotation is not None:
                 caret += f" {annotation}"
+            number = f"{line:>3}"
+            gutter = " " * len(number)
             rendered = "\n".join(
                 [
                     headline,
                     place,
-                    "   |",
-                    f"{line:>3} | {source_line.rstrip()}",
-                    f"   | {caret}",
+                    f"{gutter} |",
+                    f"{number} | {source_line.rstrip()}",
+                    f"{gutter} | {caret}",
                     *detail,
                 ]
             )
@@ -396,11 +406,93 @@ class CompileError(MettaError):
             where = f" (line {line})" if line is not None else ""
             rendered = f"{message}{where}"
         super().__init__(rendered, ground=ground or _compile_ground(construct))
+        self.message = message
         self.construct = construct
         self.line = line
         self.path = path
+        self.source_line = source_line
         self.column = column
         self.end_column = end_column
+        self.function = function
+        self.annotation = annotation
+
+
+def character_column(line: str, byte_column: int) -> int:
+    """Translate Python AST's UTF-8 byte offset into a display column."""
+    return len(line.encode("utf-8")[:byte_column].decode("utf-8"))
+
+
+def _statement_span(source: str, line: int) -> tuple[int, int] | None:
+    """The first statement's exact span on a 1-based line of SOURCE.
+
+    Statement walls raise with the line alone, so the span is recovered
+    here from the tree rather than threaded through every raise site. A
+    line holding no statement head (a bare clause keyword) answers None
+    and the caller falls back to the text span.
+    """
+    try:
+        tree = ast.parse(source)
+    except SyntaxError:
+        return None
+    for node in ast.walk(tree):
+        if isinstance(node, ast.stmt) and node.lineno == line:
+            end = (
+                node.end_col_offset
+                if node.end_lineno == node.lineno and node.end_col_offset is not None
+                else None
+            )
+            return node.col_offset, end if end is not None else -1
+    return None
+
+
+def with_coordinates(
+    error: CompileError,
+    *,
+    source: str,
+    first_line: int,
+    path: str,
+    function: str,
+) -> CompileError:
+    """The same refusal, carrying the caret block a statement wall omits.
+
+    Expression walls build their coordinates where the node is in hand;
+    a statement wall raises with the function-relative line alone, and
+    this boundary derives the rest from the compiler's own held source:
+    the absolute line, the source line, and the exact statement span read
+    back out of the tree (the head line of a multi-line statement, the
+    way rustc points a primary span). Already-placed errors and errors
+    without a line pass through untouched.
+    """
+    if error.path is not None or error.line is None:
+        return error
+    lines = source.splitlines()
+    if not 0 < error.line <= len(lines):
+        return error
+    source_line = lines[error.line - 1]
+    span = _statement_span(source, error.line)
+    if span is not None:
+        start = character_column(source_line, span[0])
+        stop = (
+            character_column(source_line, span[1])
+            if span[1] >= 0
+            else len(source_line.rstrip())
+        )
+    else:
+        stripped = source_line.rstrip()
+        start = len(stripped) - len(stripped.lstrip())
+        stop = len(stripped)
+    return CompileError(
+        error.message,
+        construct=error.construct,
+        line=first_line + error.line - 1,
+        ground=error.ground,
+        path=path,
+        source_line=source_line,
+        column=start,
+        end_column=max(stop, start + 1),
+        function=function,
+        annotation=error.annotation,
+    )
 
 
 class TransportFailure(MettaError):  # noqa: N818  -- the exception name is a domain outcome in the public protocol, not an implementation error suffix

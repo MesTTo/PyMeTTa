@@ -51,8 +51,9 @@ def twin(m):
 
     inner = S.fib(S.myfunc())
     assert m.answers(S.fib_call(S.call_fib())) == [S.fib_call(5)]
-    # quote keeps its wrapper AND the term under it, unreduced.
-    assert m.answers(S.fib_quote(S.quote_fib())) == [S.fib_quote(S.quote(inner))]
+    # The quote BARRIER dissolves and hands over its payload unevaluated,
+    # (myfunc) included.
+    assert m.answers(S.fib_quote(S.quote_fib())) == [S.fib_quote(inner)]
     assert m.answers(S.fib_eval(S.eval_fib())) == [S.fib_eval(5)]
     assert m.answers(S.fib_reduce(S.reduce_fib())) == [S.fib_reduce(5)]
 
@@ -113,4 +114,9 @@ def twin(m):
 #: extensions/python/tools/twin_coverage.py --measure --rounds 3;
 #: fixture=tabling-seam merged tree with engine/reader.so;
 #: commit=694c12f70da25a28ffe22f9209f1d75d56921f93].
-BUDGET = 52859
+#: RE-PINNED 2026-09-01, 52859 to 38665 (-14194), the compiled-language batch:
+#: try/raise/dict/set/global/type-alias compilation, engine bit family
+#: builtins, prelude except/error-payload ops, variadic doors, twin heals
+#: [measured 2026-09-01: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 38665

@@ -178,4 +178,9 @@ def twin(m):
 #: and 13 further inferences at every later position. The walk is
 #: first-order now, at 4.0 inferences per position against 17.0.
 #: [measured: two independent full-lane rounds on this tree agreeing exactly, against one on the unchanged tree and one on the same tree plus an inert never-called clause; command=python extensions/python/tools/twin_coverage.py; fixture=p14-specializer-tax off 694c12f7 with engine/reader.so and the MORK backend; commit=7e7cac85fee08c117032b2efa5a58a40f3b21365].
-BUDGET = 189785398
+#: RE-PINNED 2026-09-01, 189785398 to 37300388 (-152485010), the compiled-
+#: language batch: try/raise/dict/set/global/type-alias compilation, engine bit
+#: family builtins, prelude except/error-payload ops, variadic doors, twin
+#: heals [measured 2026-09-01: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 37300388

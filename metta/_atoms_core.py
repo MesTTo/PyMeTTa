@@ -510,6 +510,16 @@ class Atom:
     def ne(self, other: Any) -> Expression:
         return _expression_atoms((Symbol("not"), self.eq(other)))
 
+    def alpha(self, other: Any) -> Expression:
+        """The alpha-equality TERM, (=alpha self other); alpha_eq answers now.
+
+        The nearest-relative spelling of the head whose `=` marker Python
+        cannot carry, exactly as eq() spells ==; compiled bodies write the
+        same test as a bare alpha(x, y) call, and fn["=alpha"] stays the
+        exact door.
+        """
+        return self._build("=alpha", other)
+
     # Ordering, for the same reason eq() exists and by the same construction.
     # The rich-comparison operators cannot carry these: `<` between two atoms
     # is already engine sort order, which is what sorted() needs, so `V.age >=
@@ -562,17 +572,20 @@ class Atom:
 
         return _alpha_eq(self, other)
 
-    def unify(self, other: Atom) -> Mapping[Atom, Atom] | None:
-        """Unify with another atom, returning bindings or ``None``.
+    def unify(self, other: Atom, *more: Atom) -> Mapping[Atom, Atom] | None:
+        """Unify with the others, returning bindings or ``None``.
 
-        The keys are the VARIABLES themselves, which is the currency
-        :meth:`subs` accepts, so ``template.subs(pattern.unify(fact))``
-        is the round trip. They were plain names once, and a name cannot say
-        whether it means a variable or a symbol in a language that has both.
+        Variadic means SIMULTANEOUS: every operand must agree under ONE
+        substitution, folded through one shared binding store, so several
+        rule heads unify at once the way two always did. The keys are the
+        VARIABLES themselves, which is the currency :meth:`subs` accepts,
+        so ``template.subs(pattern.unify(fact))`` is the round trip. They
+        were plain names once, and a name cannot say whether it means a
+        variable or a symbol in a language that has both.
         """
         from .atoms import unify  # noqa: PLC0415  -- atoms owns unification
 
-        return unify(self, other)
+        return unify(self, other, *more)
 
     def subs(self, bindings: Mapping[Atom, Any] | Any) -> Atom:
         """Replace each atom the bindings name, everywhere it occurs.

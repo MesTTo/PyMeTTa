@@ -15,7 +15,7 @@ different types, which `==` refuses by name. Both references refuse the `==`
 spelling too, hyperon and the mechanised interpreter alike.
 """
 
-from metta import S, arrow, fn, typed
+from metta import S, arrow, typed
 
 
 def twin(m):
@@ -27,9 +27,9 @@ def twin(m):
     @m.define
     def f(a):
         """(= (f $a) (if (=alpha $a T1in) T1out (if (=alpha $a T2in) T2out Tdefault)))."""
-        if fn["=alpha"](a, S.T1in):
+        if alpha(a, S.T1in):  # noqa: F821  -- the compiled vocabulary's own name
             return S.T1out
-        if fn["=alpha"](a, S.T2in):
+        if alpha(a, S.T2in):  # noqa: F821  -- the compiled vocabulary's own name
             return S.T2out
         return S.Tdefault
 
@@ -49,14 +49,14 @@ def twin(m):
     # !(test (f T2in) T2out)
     assert f(S.T2in) == [S.T2out]
 
-    # (: T3in Type1) — and the arbiter (LeaTTa 9ea9f9d) selects the Type2
-    # result path and answers Tdefault, the conformance-2 rewrite of this
-    # example's own row; the old no-answer pin went with it, and the flat
-    # call runs the same output-typed dispatch the engine's form runs, so
-    # the collapse wrapper this line once needed is gone too.
-    # !(test (f T3in) Tdefault)
+    # (: T3in Type1) — NOTHING, because a declared result is CHECKED like
+    # any argument: T3in is a Type1, so only the (-> Type1 Type1) branch
+    # admits it, and that branch's own result check then rejects Tdefault,
+    # which is a Type2. The (-> Type2 Type2) branch never runs because its
+    # argument check refuses T3in. The .metta says this in the same words.
+    # !(test (f T3in) ())
     m += typed(S.T3in, S.Type1)
-    assert f(S.T3in) == [S.Tdefault]
+    assert f(S.T3in) == []
 
     # Declare T3in a Type2 as well and the Type2 signature admits it.
     # (: T3in Type2)
@@ -125,4 +125,20 @@ def twin(m):
 #: and the scheduler, context-callback and exact-memo lifecycle clauses
 #: move compiled-image layout by tens, the class this file's chain
 #: documents [measured: min-of-3 serial fresh processes; command=python extensions/python/tools/twin_coverage.py --measure --rounds 3; fixture=merged p14-audit-async composed tree with engine/reader.so; commit=5059173b1767600ce4df0f6b7841d88116ee62d3].
-BUDGET = 13918
+#: RE-PINNED 2026-09-01, 13918 to 9432 (-4486), one corpus pricing pass on the
+#: merged tree for the 2026-08-27..09-01 engine span (8e75816d..f0744f86),
+#: whose four mechanisms are decomposed per lane in benchmarks/baseline.json
+#: and ai-parametricity-audit.md passes 10-16: the seam-offer routing and its
+#: one-wrap fold (net +8 inferences per evaluation), the strict-scope removal
+#: leaving the eval path, the doubling cursor chunk (~3 engine-side inferences
+#: per answer replacing per-answer crossings; drains halve on CPU), and the
+#: aligned-path work; thirteen twins additionally carry the idiom sweep's local
+#: deltas tabulated in the twin-idioms notes, none above 347 [measured
+#: 2026-09-01: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+#: RE-PINNED 2026-09-01, 9432 to 9441 (+9), the compiled-language batch:
+#: try/raise/dict/set/global/type-alias compilation, engine bit family
+#: builtins, prelude except/error-payload ops, variadic doors, twin heals
+#: [measured 2026-09-01: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 9441

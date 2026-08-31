@@ -76,19 +76,62 @@ def test_an_ordinary_expression_remains_truthy():
     assert bool(S.Record(S.value)) is True
 
 
+def test_a_refusal_renders_the_file_line_function_and_exact_caret(m):
+    """CompileError renders path, function, line and a caret over the construct.
+
+    This is errors.py's rendering guarantee, witnessed through a wall that
+    still stands (the bare `raise`), since the unknown-call refusal that
+    used to carry it compiles as an island now. The caret's columns are
+    checked against the source line itself, so "exact span" is measured
+    rather than asserted.
+    """
+    with pytest.raises(CompileError) as caught:
+        @m.define(name="refusal-caret-span")
+        def caret_scene(value):  # noqa: ARG001  -- the refused scenario needs a parameter and never runs
+            raise  # noqa: PLE0704  -- Python's own rule is the scenario under test
+
+    rendered = str(caught.value)
+    lines = rendered.splitlines()
+    place = next(line for line in lines if line.startswith("  --> "))
+    assert "test_refusal_grounds.py" in place
+    assert " in caret_scene " in place
+    source_row = next(line for line in lines if line.lstrip().startswith(tuple("0123456789")))
+    caret_row = lines[lines.index(source_row) + 1]
+    prefix = source_row.index("| ") + 2
+    body = source_row[prefix:]
+    span = caret_row[prefix:]
+    assert body[body.index("raise") :].startswith("raise")
+    assert span[body.index("raise") : body.index("raise") + len("raise")] == "^" * len("raise")
+
+
 def test_compile_refusals_derive_a_python_reference_ground(m):
-    """The central constructor grounds both unknown calls and arithmetic fences."""
-    with pytest.raises(CompileError) as unknown:
-        @m.define(name="refusal-ground-unknown")
-        def unknown_call(value):
-            return unregistered_host_call(value)  # noqa: F821 -- refused scenario
+    """Surviving refusals cite Python's own statements as their ground.
 
-    with pytest.raises(CompileError) as floor:
-        @m.define(name="refusal-ground-floor")
-        def floor_division(left, right):
-            return left // right
+    The unknown-call and floor-division arms this test carried are
+    compiled forms now (the island fallback and the engine's floor-div),
+    so the grounds live where genuine walls remain: a bare `raise` with no
+    active exception, and `nonlocal`, whose enclosing frame no stored
+    equation outlives.
+    """
+    with pytest.raises(CompileError) as bare:
+        @m.define(name="refusal-ground-bare-raise")
+        def bare_raise(value):  # noqa: ARG001  -- the refused scenario needs a parameter and never runs
+            raise  # noqa: PLE0704  -- Python's own rule is the scenario under test
 
-    _assert_python_ground(unknown.value, "6")
-    _assert_python_ground(floor.value, "6.7")
-    assert "unregistered_host_call" in str(unknown.value)
-    assert "floor_math(a / b)" in str(floor.value)
+    def enclosing():
+        cell = 0
+        with pytest.raises(CompileError) as caught:
+            @m.define(name="refusal-ground-nonlocal")
+            def nonlocal_write(value):
+                nonlocal cell
+                cell = value
+                return value
+        del cell
+        return caught
+
+    frame = enclosing()
+
+    _assert_python_ground(bare.value, "7.8")
+    _assert_python_ground(frame.value, "7.12-7.13")
+    assert "no active exception" in str(bare.value)
+    assert "enclosing function frame" in str(frame.value)

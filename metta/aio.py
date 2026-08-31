@@ -808,13 +808,13 @@ class AsyncMeTTa:
     async def eval(
         self,
         target: Any,
-        *,
+        *more: Any,
         timeout: float | None = None,
         inferences: int | None = None,
         under: Any = _UNSET,
         theory: Any | None = None,
         interpreter: Any | None = None,
-    ) -> list[Atom]:
+    ) -> list[Atom] | list[list[Atom]]:
         """Evaluate a term and return every answer.
 
         `under`, `theory` and `interpreter` are the synchronous eval()'s, and
@@ -828,6 +828,7 @@ class AsyncMeTTa:
         return await self.call(
             lambda m: m.eval(
                 target,
+                *more,
                 timeout=timeout,
                 inferences=inferences,
                 under=_UNSET if carrier is None else carrier,
@@ -987,7 +988,7 @@ class AsyncMeTTa:
         async caller installing `prime?` or an authored underscore had no
         door for it while the synchronous define did [measured 2026-08-31].
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
-        if fn is not None:
+        if fn is not None and prolog is None:
             # accessors= and methods= carry for every shape, their defaults
             # being what the plain call already meant.
             return await self.call(
@@ -999,7 +1000,14 @@ class AsyncMeTTa:
             msg = "define takes a function or prolog= source"
             raise TypeError(msg)
         source = prolog
-        return await self.call(lambda m: m.define(prolog=source))
+        if fn is not None:
+            # The sync door's prolog= form is a decorator whose Python stays
+            # the reference twin; both pieces forward, nothing silently
+            # drops.
+            return await self.call(
+                lambda m: m.define(prolog=source, name=name)(fn)
+            )
+        return await self.call(lambda m: m.define(prolog=source, name=name))
 
     def limits(
         self,
@@ -1417,9 +1425,14 @@ class AsyncMeTTa:
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         return await self.call(lambda m: m.add(*atoms))
 
-    async def remove(self, atom: Any) -> bool:
+    async def remove(self, atom: Any, *more: Any) -> bool | int:
         """Remove ONE unifying occurrence and say whether one was there,
         which is Python's own `list.remove` grain.
+
+        Variadic like `add` and `transfer`: several atoms ride one engine
+        crossing inside one transaction, and the answer counts the found,
+        so the one-atom call still reads as the truth value it always
+        was.
 
         The MeTTa door is coarser and deliberately so: `remove-atom`, and
         therefore `space -= atom`, drains EVERY unifying occurrence and
@@ -1434,7 +1447,22 @@ class AsyncMeTTa:
         gives it, each atom leaving through its own proper path, equations
         and their compiled clauses included.
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
-        return await self.call(lambda m: m.remove(atom))
+        return await self.call(lambda m: m.remove(atom, *more))
+
+    async def transfer(self, *atoms: Any, to: Space) -> int:
+        """Move ONE unifying occurrence of each atom into another space.
+
+        Variadic and atomic: however many atoms ride the call, one engine
+        transaction moves them in one crossing, so a mid-move failure
+        rolls every side back and nothing is lost between the spaces. The
+        answer counts the moved; an absent atom moves nothing and counts
+        nothing, which is ``remove``'s own found-reporting grain, so the
+        one-atom call still reads as a truth value. The longhand stays
+        reachable: a :meth:`transaction` around ``remove`` and ``add``
+        says the same thing one atom at a time. :meth:`take` is the
+        WAITING kin for a pattern.
+        """
+        return await self.call(lambda m: m.transfer(*atoms, to=to))
 
     async def atoms(self) -> list[Atom]:
         """Every stored atom in this space."""

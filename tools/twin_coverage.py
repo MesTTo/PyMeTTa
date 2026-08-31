@@ -2260,11 +2260,37 @@ def main() -> int:
     if arguments.repin:
         today = datetime.date.today().isoformat()
         moved = 0
+        unmeasured: list[str] = []
         for example in examples:
             twin = twin_for(example)
-            cost = min(run_twin(twin).cost or 0 for _ in range(arguments.rounds))
+            # A crashed twin answers cost=None, and `or 0` used to collide
+            # that failure with the integer 0 and WRITE it as a price: one
+            # partial corpus pass pinned a healthy twin to 0 that way. A
+            # failure is reported and skipped; it is never a measurement.
+            samples = [run_twin(twin).cost for _ in range(arguments.rounds)]
+            if any(sample is None for sample in samples):
+                unmeasured.append(str(twin.relative_to(REPO)))
+                print(
+                    f"{twin.relative_to(REPO)}: failed to measure "
+                    f"({samples.count(None)} of {arguments.rounds} runs "
+                    f"produced no cost); pin left untouched",
+                    file=sys.stderr,
+                )
+                continue
+            cost = min(samples)
             budget = budget_of(twin)
-            if isinstance(budget, int) and abs(cost - budget) <= TOLERANCE:
+            if not isinstance(budget, int) or isinstance(budget, bool):
+                # An empirical envelope is a claim about a protocol's spread;
+                # a point pass has nothing to write into one, and aborting the
+                # whole corpus on the first envelope is how two runs looked
+                # like crashes. Its own protocol is --observe.
+                print(
+                    f"{twin.relative_to(REPO)}: envelope budget, point "
+                    f"re-pin does not apply; widen with --observe",
+                    file=sys.stderr,
+                )
+                continue
+            if abs(cost - budget) <= TOLERANCE:
                 continue
             source = twin.read_text(encoding="utf-8")
             try:
@@ -2279,18 +2305,33 @@ def main() -> int:
                     encoding="utf-8",
                 )
             except ValueError as error:
+                unmeasured.append(str(twin.relative_to(REPO)))
                 print(f"{twin.relative_to(REPO)}: {error}", file=sys.stderr)
-                return 2
+                continue
             print(f"{twin.relative_to(REPO)}: {budget} -> {cost}")
             moved += 1
         print(f"re-pinned {moved} of {len(examples)} twins")
+        if unmeasured:
+            print(
+                f"{len(unmeasured)} twin(s) failed to measure and keep their "
+                f"pins; a half-priced corpus is a finding, not a result",
+                file=sys.stderr,
+            )
+            return 2
         return 0
 
     if arguments.measure:
         for example in examples:
             twin = twin_for(example)
-            left = min(run_example(example).cost or 0 for _ in range(arguments.rounds))
-            right = min(run_twin(twin).cost or 0 for _ in range(arguments.rounds))
+            lefts = [run_example(example).cost for _ in range(arguments.rounds)]
+            rights = [run_twin(twin).cost for _ in range(arguments.rounds)]
+            if any(v is None for v in (*lefts, *rights)):
+                print(
+                    f"{example.relative_to(REPO)}: failed to measure "
+                    f"(example {lefts!r}, twin {rights!r})"
+                )
+                continue
+            left, right = min(lefts), min(rights)
             share = right / left if left else 0.0
             print(f"{example.relative_to(REPO)} metta={left} twin={right} ratio={share:.4f}")
         return 0

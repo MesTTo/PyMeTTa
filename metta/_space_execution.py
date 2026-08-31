@@ -412,6 +412,59 @@ def evaluate(
     return [_from_wire(wire) for wire in wires]
 
 
+def evaluate_many(
+    rt: Runtime,
+    space: str,
+    targets: tuple[Any, ...],
+    timeout: float | None,
+    inferences: int | None,
+    *,
+    using: dict[str, Any] | None = None,
+) -> list[list[Atom | Undefined]]:
+    """Evaluate several targets in ONE crossing, one answer group each.
+
+    The batch is how evaluation amortises the boundary the way add's
+    batch amortises writes: run()'s own grouping carried to the eval
+    door. One bind scope applies to every target, limits bound the whole
+    crossing, and a capture scope collects once, all exactly as the
+    single door's wrappers behave.
+    """
+    predicate = "metta_py_eval_many_all"
+    encoded = [
+        target if isinstance(target, str) else _to_atom(target).to_wire()
+        for target in targets
+    ]
+    inputs: list[Any] = [space, encoded]
+    if using:
+        predicate = "metta_py_eval_many_using_all"
+        inputs.append(
+            [[name, _encode(value).to_wire()] for name, value in using.items()]
+        )
+    limits = _limits(timeout, inferences)
+    modes = _SCOPED_EXECUTION.get()
+    atomic = "atomic" in modes
+    speculative = "speculative" in modes
+    captured = _CAPTURED_OUTPUT.get()
+    if limits is captured is None and not (atomic or speculative):
+        groups = rt.apply_must(predicate, *inputs)
+    else:
+        output = _controlled_run(
+            rt,
+            predicate,
+            inputs,
+            limits,
+            capture=captured is not None,
+            atomic=atomic,
+            speculative=speculative,
+        )
+        if captured is not None:
+            groups, text = output
+            captured._append(str(text))
+        else:
+            groups = output
+    return [[_from_wire(wire) for wire in group] for group in groups]
+
+
 def _count_inputs(
     space: str,
     target: Any,

@@ -41,17 +41,17 @@ Guarantees:
     engine cell handle and ``get-state`` rather than host attribute access
     [tested: test_compiled_state_properties_round_trip_through_engine_heads;
     commit=3ded7552797b66d78e666141eb51f3bc14686bd2]
-  - exact ``py(expr)`` marker calls lower to application-time grounded host
-    islands, while unmarked unknown host calls refuse with a file/caret span
-    and both public remedies [tested:
-    test_py_host_island_executes_per_engine_application,
-    test_unknown_host_callee_refusal_has_file_caret_and_both_remedies;
-    commit=3f0a1d237a3c969b2d4ad0d48b2195ce196b631a]
+  - exact ``py(expr)`` marker calls and unmarked host expressions lower to
+    the same application-time grounded islands, with nothing executed at
+    compile time and the loud refusal kept for names that resolve nowhere
+    [tested: test_py_host_island_executes_per_engine_application,
+    test_unknown_host_callee_islands_implicitly; commit=WORKTREE]
   - keyword-bearing calls whose parameter names are known lower to positional
-    applications, while unknown heads refuse with a positional remedy [tested:
-    test_known_call_site_keywords_bind_to_positional_metta_arguments,
+    applications; a host callee keeps its keywords by islanding whole, and an
+    engine head with unknown keywords still refuses toward the positional
+    spelling [tested: test_known_call_site_keywords_bind_to_positional_metta_arguments,
     test_unknown_symbol_keywords_refuse_with_the_positional_remedy;
-    commit=c2ad5892fbfdd690dd7e9b507e76e87d7d1376d1]
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -81,7 +81,7 @@ from ._name_mapping import (
 )
 from ._state import State
 from .atoms import Atom, Expression, Grounded, Handle, Symbol, Variable
-from .errors import CompileError
+from .errors import CompileError, character_column
 
 # Python operator to the MeTTa function the engine registers for it. Every
 # entry is a name engine/metta.pl puts through register_fun/1, and every mapping
@@ -108,17 +108,23 @@ _COMPARE = {
 }
 
 # What to write instead, where the engine could half-express the construct.
-_INSTEAD = {
-    ast.FloorDiv: "write floor_math(a / b): mapping // directly would return "
-    "an integer where Python returns a float, and the Python twin has to "
-    "agree on every input",
+_INSTEAD: dict[type[ast.AST], str] = {
     ast.MatMult: "register a matrix multiply with @m.op, or use pettorch's matmul",
-    ast.BitAnd: "use `and` on booleans; MeTTa has no bitwise operators",
-    ast.BitOr: "use `or` on booleans; MeTTa has no bitwise operators",
-    ast.BitXor: "MeTTa has no bitwise operators",
-    ast.LShift: "MeTTa has no bitwise operators",
-    ast.RShift: "MeTTa has no bitwise operators",
-    ast.Invert: "MeTTa has no bitwise operators; `not` negates a boolean",
+}
+
+# The engine's own exact integer family carries Python's bitwise operators
+# and floored division: bit-and, bit-or, bit-xor and the shifts are
+# Clojure's spellings beside the engine's existing bit-shift pair, and
+# floor-div is SWI's div, which IS Python's floored quotient. These are
+# engine heads, not runtime bridges, so the compiled form pays no host
+# crossing.
+_BRIDGED_BINOPS = {
+    ast.BitAnd: "bit-and",
+    ast.BitOr: "bit-or",
+    ast.BitXor: "bit-xor",
+    ast.LShift: "bit-shift-left",
+    ast.RShift: "bit-shift-right",
+    ast.FloorDiv: "floor-div",
 }
 
 # Names with special meaning inside a compiled body. `match` runs a pattern
@@ -217,16 +223,40 @@ class ExpressionCompilerMixin(CompilerContext):
         known = self._known_symbol(node.id)
         if known is not None:
             return known
+        if (
+            node.id in self.pragma_globals
+            and not self._in_pattern
+            and self.function is not None
+        ):
+            # A declared global reads through the ops lane against the
+            # module dict grounded by reference, the write's own channel,
+            # so reads and writes meet the same live binding; a missing
+            # name raises Python's own NameError at application time.
+            self.runtime_ops.add("py-global-read")
+            return Expression(
+                [
+                    Symbol("py-global-read"),
+                    Grounded(self.function.__globals__),
+                    Grounded(node.id),
+                ]
+            )
+        if self.host(node.id) and not self._in_pattern:
+            # A held host value reads as an implicit island: the equation
+            # carries the author's own name, evaluated at application time
+            # against the live binding, exactly as py(name) would spell
+            # it. A pattern position stays structural and keeps its
+            # refusal.
+            return self._implicit_island(node)
         if node.id[:1].isupper():
             return self._constructor_symbol(node)
         msg = (
             f"{node.id!r} is not a parameter of {self.name}, not a function "
-            f"the engine knows, and not a capitalized data constructor. "
-            f"A compiled body is pure atoms; closing over a host value would "
-            f"pin it to this process. Define {node.id!r} first, pass it as an "
-            f"argument, use fn.{node.id} for a catalog function, or S.{node.id} "
-            f"for data. Bare calls ask for {node.id!r} and then "
-            f"{attribute_name(node.id)!r}; neither exists here."
+            f"the engine knows, not a capitalized data constructor, and not "
+            f"a host binding this function can see. Define {node.id!r} "
+            f"first, pass it as an argument, use fn.{node.id} for a catalog "
+            f"function, or S.{node.id} for data. Bare calls ask for "
+            f"{node.id!r} and then {attribute_name(node.id)!r}; neither "
+            f"exists here."
         )
         raise CompileError(
             msg,
@@ -344,15 +374,22 @@ class ExpressionCompilerMixin(CompilerContext):
         state_cell = self._state_cell(node)
         if state_cell is not None:
             return Expression([Symbol("get-state"), state_cell])
-        host_call = next(
-            (candidate for candidate in ast.walk(node) if isinstance(candidate, ast.Call)),
-            None,
-        )
-        if host_call is not None and not self._call_target_is_known(host_call.func):
-            raise self._unknown_host_callee(node, host_call)
+        root: ast.expr = node
+        while isinstance(root, (ast.Attribute, ast.Subscript, ast.Call)):
+            root = root.func if isinstance(root, ast.Call) else root.value
+        if (
+            isinstance(root, ast.Name)
+            and (root.id in self.scope or self.host(root.id))
+            and not self._in_pattern
+        ):
+            # Attribute access on a compiled local or a host binding is host
+            # behavior the author wrote: it islands whole, running against
+            # the application-time value, method calls included.
+            return self._implicit_island(node)
         msg = (
-            f"{ast.unparse(node)!r} is host attribute access, not a compiled "
-            "atom. Use S, V, or fn without shadowing, or register a plain-name operation."
+            f"{ast.unparse(node)!r} is host attribute access on a name this "
+            "function cannot see. Use S, V, or fn without shadowing, or "
+            "register a plain-name operation."
         )
         raise CompileError(msg, construct="attribute", line=node.lineno)
 
@@ -388,23 +425,39 @@ class ExpressionCompilerMixin(CompilerContext):
         return Symbol(node.id)
 
     def _x_BinOp(self, node: ast.BinOp) -> Atom:  # noqa: N802  -- the suffix mirrors ast node class names used by the translator's dynamic dispatch
-        if isinstance(node.op, ast.Div):
+        return self._binop_atom(
+            node.op,
+            self.expression(node.left),
+            self.expression(node.right),
+            node.lineno,
+        )
+
+    def _binop_atom(
+        self, op: ast.operator, left: Atom, right: Atom, line: int | None
+    ) -> Atom:
+        """One binary operation over already-compiled operands, so the
+        augmented-assignment desugars share the exact operator lowering.
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+        if isinstance(op, ast.Div):
             # Coercing the left side keeps an exact integer quotient a float,
             # which is what Python's / answers: 6 / 2 is 3.0, never 3.
-            left = Expression([Symbol("*"), Grounded(1.0), self.expression(node.left)])
-            return Expression([Symbol("/"), left, self.expression(node.right)])
-        op = _BINOPS.get(type(node.op))
-        if op is None:
+            coerced = Expression([Symbol("*"), Grounded(1.0), left])
+            return Expression([Symbol("/"), coerced, right])
+        bridged = _BRIDGED_BINOPS.get(type(op))
+        if bridged is not None:
+            return Expression([Symbol(bridged), left, right])
+        head = _BINOPS.get(type(op))
+        if head is None:
             msg = (
-                f"the operator {type(node.op).__name__} has no MeTTa function. "
-                f"{_INSTEAD.get(type(node.op), 'Register an operation with @m.op for it')}"
+                f"the operator {type(op).__name__} has no MeTTa function. "
+                f"{_INSTEAD.get(type(op), 'Register an operation with @m.op for it')}"
             )
             raise CompileError(
                 msg,
-                construct=type(node.op).__name__,
-                line=node.lineno,
+                construct=type(op).__name__,
+                line=line,
             )
-        return Expression([Symbol(op), self.expression(node.left), self.expression(node.right)])
+        return Expression([Symbol(head), left, right])
 
     def _x_UnaryOp(self, node: ast.UnaryOp) -> Atom:  # noqa: N802  -- the suffix mirrors ast node class names used by the translator's dynamic dispatch
         if isinstance(node.op, ast.USub):
@@ -417,6 +470,10 @@ class ExpressionCompilerMixin(CompilerContext):
             return Expression([Symbol("not"), self._truthy(node.operand)])
         if isinstance(node.op, ast.UAdd):
             return self.expression(node.operand)
+        if isinstance(node.op, ast.Invert):
+            # ~x is the engine's bit-not, the family's own complement;
+            # `not` stays the boolean negation.
+            return Expression([Symbol("bit-not"), self.expression(node.operand)])
         msg = (
             f"the unary operator {type(node.op).__name__} has no MeTTa "
             f"function. {_INSTEAD.get(type(node.op), '')}"
@@ -487,9 +544,17 @@ class ExpressionCompilerMixin(CompilerContext):
             self.runtime_ops.add("py-eq")
             return Expression([Symbol("not"), Expression([Symbol("py-eq"), left, right])])
         if isinstance(op_node, ast.In):
+            if self._dict_atom(right):
+                self.libraries.add("dict")
+                return Expression([Symbol("dict-has"), right, left])
             self.runtime_ops.add("py-in")
             return Expression([Symbol("py-in"), left, right])
         if isinstance(op_node, ast.NotIn):
+            if self._dict_atom(right):
+                self.libraries.add("dict")
+                return Expression(
+                    [Symbol("not"), Expression([Symbol("dict-has"), right, left])]
+                )
             self.runtime_ops.add("py-in")
             return Expression([Symbol("not"), Expression([Symbol("py-in"), left, right])])
         op = _COMPARE.get(type(op_node))
@@ -554,14 +619,7 @@ class ExpressionCompilerMixin(CompilerContext):
         answers with a left union-atom fold, so the elements arrive in
         Python's own order.
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
-        for gen in node.generators:
-            if gen.is_async:
-                msg = "an async comprehension has no equation"
-                raise CompileError(
-                    msg,
-                    construct="comprehension",
-                    line=node.lineno,
-                )
+        self._refuse_async_generators(node.generators, node.lineno)
         return self._comprehension(node.generators, node.elt, node.lineno)
 
     def _comprehension(self, generators: list[ast.comprehension], elt: ast.expr, line: int) -> Atom:
@@ -595,6 +653,38 @@ class ExpressionCompilerMixin(CompilerContext):
             ],
         )
 
+    def _x_DictComp(self, node: ast.DictComp) -> Atom:  # noqa: N802  -- the suffix mirrors ast node class names used by the translator's dynamic dispatch
+        """{k: v for ...} is the dict story's own lowering target: the
+        comprehension builds the expression of (key value) pairs and
+        dict-space reads it back, exactly as test_dict_story pins.
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+        self._refuse_async_generators(node.generators, node.lineno)
+        pair = ast.copy_location(
+            ast.Tuple(elts=[node.key, node.value], ctx=ast.Load()), node
+        )
+        ast.fix_missing_locations(pair)
+        return self._dict_space(self._comprehension(node.generators, pair, node.lineno))
+
+    def _x_SetComp(self, node: ast.SetComp) -> Atom:  # noqa: N802  -- the suffix mirrors ast node class names used by the translator's dynamic dispatch
+        """{e for ...} is the dict comprehension to True, Python's kinship."""
+        self._refuse_async_generators(node.generators, node.lineno)
+        pair = ast.copy_location(
+            ast.Tuple(
+                elts=[node.elt, ast.Constant(value=True)], ctx=ast.Load()
+            ),
+            node,
+        )
+        ast.fix_missing_locations(pair)
+        return self._dict_space(self._comprehension(node.generators, pair, node.lineno))
+
+    def _refuse_async_generators(
+        self, generators: list[ast.comprehension], line: int
+    ) -> None:
+        for gen in generators:
+            if gen.is_async:
+                msg = "an async comprehension has no equation"
+                raise CompileError(msg, construct="comprehension", line=line)
+
     def _x_GeneratorExp(self, node: ast.GeneratorExp) -> Atom:  # noqa: N802  -- the suffix mirrors ast node class names used by the translator's dynamic dispatch
         msg = (
             "a generator expression is lazy Python; write a list "
@@ -621,12 +711,21 @@ class ExpressionCompilerMixin(CompilerContext):
         if mentioned is not None:
             return Expression([mentioned, *(self.expression(a) for a in node.args)])
         if isinstance(node.func, ast.Attribute):
+            dict_method = self._dict_method_call(node)
+            if dict_method is not None:
+                return dict_method
             return self._mentioned_attribute_call(node)
         func = self._plain_call_name(node)
         if func.id == "match":
             return self._match_call(node)
         if func.id == "unify":
             return Expression([Symbol("unify"), *self._args(node, 4, "unify")])
+        if func.id == "alpha" and func.id not in self.scope:
+            # =alpha's nearest-relative spelling: `=` sits outside Python's
+            # identifier grammar, so the bare name drops the marker the way
+            # eq() does for ==. fn["=alpha"] stays the exact door, and
+            # Atom.alpha() builds the same term on the atom tier.
+            return Expression([Symbol("=alpha"), *self._args(node, 2, "alpha")])
         if func.id == "superpose":
             # superpose(a, b, c): one expression holding the alternatives.
             return Expression(
@@ -638,6 +737,8 @@ class ExpressionCompilerMixin(CompilerContext):
         # bridge to the engine functions that mean the same thing.
         if func.id in _PYBUILTIN_CALLS and func.id not in self.scope:
             return _PYBUILTIN_CALLS[func.id](self, node)
+        if self._islands_implicitly(func.id):
+            return self._implicit_island(node)
         try:
             callee = self._x_Name(func)
         except CompileError as error:
@@ -654,29 +755,25 @@ class ExpressionCompilerMixin(CompilerContext):
             and self.host_value(node.id) is _py_marker
         )
 
-    def _call_target_is_known(self, node: ast.expr) -> bool:
-        """Whether call lowering already assigns this target engine meaning."""
-        if self._is_host_island_marker(node) or self._is_functools_reduce(node):
-            return True
-        if isinstance(node, ast.Name):
-            return (
-                node.id in self.scope
-                or node.id in _MAGIC
-                or node.id in self.lifted
-                or node.id in _PYBUILTIN_CALLS
-                or node.id[:1].isupper()
-                or self._resolved_name(node.id) is not None
-            )
-        if not (
-            isinstance(node, ast.Attribute)
-            and isinstance(node.value, ast.Name)
-            and node.value.id not in self.scope
-        ):
+    def _islands_implicitly(self, name: str) -> bool:
+        """Whether a call to NAME is the fallback law's implicit island.
+
+        A host or builtin callable with no engine meaning runs the
+        author's own Python at application time, so int(x) is Python's
+        int. Exact catalog names still win, and an exception class stays
+        OUT of this lane: ValueError("why") METTAFIES through the
+        constructor path into the (ValueError "why") term, matched by
+        except arms on its own name.
+        """
+        if name in self.scope or name in _MAGIC:
             return False
-        owner = self.host_value(node.value.id)
-        return isinstance(owner, types.ModuleType) and callable_mention(
-            vars(owner).get(node.attr)
-        ) is not None
+        if not (self.host(name) or name in self._builtins):
+            return False
+        return self._resolved_name(name) is None and not self._builtin_exception(name)
+
+    def _builtin_exception(self, name: str) -> bool:
+        value = self._builtins.get(name)
+        return isinstance(value, type) and issubclass(value, BaseException)
 
     def _host_island_call(self, node: ast.Call) -> Atom:
         """Compile the enclosed Python expression without executing it now."""
@@ -687,10 +784,25 @@ class ExpressionCompilerMixin(CompilerContext):
                 construct="py host island",
                 line=node.lineno,
             )
+        return self._island(node.args[0], marked=True)
+
+    def _implicit_island(self, node: ast.expr) -> Atom:
+        """A host expression islanded without a marker, the fallback lane.
+
+        Anything the vocabulary does not lower natively runs as the
+        author's own Python at application time, exactly as if they had
+        written py(...) around it: an unknown host call, a host attribute
+        read, a container literal. The equation still shows the island as
+        an applicable grounded atom, so nothing is hidden from the space,
+        and the lint layer records the same source span and loop context
+        the explicit marker records.
+        """
+        return self._island(node, marked=False)
+
+    def _island(self, expression: ast.expr, *, marked: bool) -> Atom:
         if self.function is None:
-            msg = "a py(...) island has no source function"
+            msg = "a host island has no source function"
             raise RuntimeError(msg)
-        expression = node.args[0]
         runtime_names = tuple(
             dict.fromkeys(
                 candidate.id
@@ -708,15 +820,11 @@ class ExpressionCompilerMixin(CompilerContext):
             path=self.source_path,
             first_line=self.first_line,
             in_loop=self.loop_depth > 0,
+            marked=marked,
         )
         return Expression(
             [Grounded(island), *(Variable(self.scope[name]) for name in runtime_names)]
         )
-
-    @staticmethod
-    def _character_column(line: str, byte_column: int) -> int:
-        """Translate Python AST's UTF-8 byte offset into a display column."""
-        return len(line.encode("utf-8")[:byte_column].decode("utf-8"))
 
     def _unknown_host_callee(
         self,
@@ -739,13 +847,13 @@ class ExpressionCompilerMixin(CompilerContext):
         )
         lines = self.source.splitlines()
         source_line = lines[call.lineno - 1] if 0 < call.lineno <= len(lines) else ""
-        start = self._character_column(source_line, call.col_offset)
+        start = character_column(source_line, call.col_offset)
         end_offset = (
             call.end_col_offset
             if call.end_lineno == call.lineno and call.end_col_offset is not None
             else len(source_line.encode("utf-8"))
         )
-        end = self._character_column(source_line, end_offset)
+        end = character_column(source_line, end_offset)
         return CompileError(
             message,
             construct="unknown callee",
@@ -784,6 +892,16 @@ class ExpressionCompilerMixin(CompilerContext):
                     parameters = self.call_parameters(mentioned.name, total)
 
         if parameters is None or callee is None:
+            root: ast.expr = node.func
+            while isinstance(root, (ast.Attribute, ast.Subscript)):
+                root = root.value
+            if isinstance(root, ast.Name) and (
+                root.id in self.scope or self.host(root.id)
+            ):
+                # A host call keeps its keywords by islanding whole: the
+                # author's own call runs at application time, and Python
+                # itself places the keywords.
+                return self._implicit_island(node)
             refusal = refuse_unknown_keywords(
                 display, tuple(keyword.arg for keyword in node.keywords if keyword.arg)
             )
@@ -904,29 +1022,33 @@ class ExpressionCompilerMixin(CompilerContext):
         return Symbol(mention) if mention is not None else self.expression(node)
 
     def _mentioned_attribute_call(self, node: ast.Call) -> Atom:
-        """Lower a standard callable reached through its actual host module."""
-        if node.keywords:
-            msg = "a standard callable in a compiled body takes positional arguments"
-            raise CompileError(msg, construct="keyword argument", line=node.lineno)
-        if not isinstance(node.func, ast.Attribute):
-            raise self._attribute_call_error(node)
-        owner_node = node.func.value
-        if not isinstance(owner_node, ast.Name):
-            raise self._attribute_call_error(node)
-        owner = self.host_value(owner_node.id)
-        if not isinstance(owner, types.ModuleType):
-            raise self._attribute_call_error(node)
-        value = vars(owner).get(node.func.attr)
-        mention = callable_mention(value)
-        if mention is None:
-            raise self._attribute_call_error(node)
-        arities = callable_arities(value)
-        if arities is None or len(node.args) not in arities:
-            expected = " or ".join(str(arity) for arity in arities or ())
-            msg = f"{owner_node.id}.{node.func.attr}() compiles with {expected} argument(s)"
-            raise CompileError(msg, construct="call", line=node.lineno)
-        arguments = [self.expression(argument) for argument in node.args]
-        return self._adapt_mentioned_call(value, mention, arguments)
+        """Lower a standard callable reached through its actual host module.
+
+        Anything outside the standard-mention table is host behavior the
+        author wrote and islands whole: a third-party call, keywords, a
+        chained owner, an arity the mention cannot carry. The island runs
+        the exact call at application time, so Python's own errors arrive
+        where Python would raise them.
+        """
+        func = node.func
+        if not node.keywords and isinstance(func, ast.Attribute):
+            root = func.value
+            if isinstance(root, ast.Name):
+                owner = self.host_value(root.id)
+                if isinstance(owner, types.ModuleType):
+                    value = vars(owner).get(func.attr)
+                    mention = callable_mention(value)
+                    arities = callable_arities(value)
+                    if (
+                        mention is not None
+                        and arities is not None
+                        and len(node.args) in arities
+                    ):
+                        arguments = [
+                            self.expression(argument) for argument in node.args
+                        ]
+                        return self._adapt_mentioned_call(value, mention, arguments)
+        return self._implicit_island(node)
 
     def _adapt_mentioned_call(
         self, value: object, mention: str, arguments: list[Atom]
@@ -946,9 +1068,6 @@ class ExpressionCompilerMixin(CompilerContext):
         elif value is operator.truediv:
             arguments[0] = Expression([Symbol("*"), Grounded(1.0), arguments[0]])
         return Expression([Symbol(mention), *arguments])
-
-    def _attribute_call_error(self, node: ast.Call) -> CompileError:
-        return self._unknown_host_callee(node, node)
 
     def _plain_call_name(self, node: ast.Call) -> ast.Name:
         if node.keywords:
@@ -996,9 +1115,13 @@ class ExpressionCompilerMixin(CompilerContext):
         return [self.expression(a) for a in node.args]
 
     def _py_len(self, node: ast.Call) -> Atom:
+        (xs,) = self._args(node, 1, "len")
+        if self._dict_atom(xs):
+            # len of a dict-space is lib_dict's own size.
+            self.libraries.add("dict")
+            return Expression([Symbol("dict-size"), xs])
         # py-len is Python's len: expressions AND strings, since which one
         # arrives is a runtime fact.
-        (xs,) = self._args(node, 1, "len")
         self.runtime_ops.add("py-len")
         return Expression([Symbol("py-len"), xs])
 
@@ -1082,11 +1205,31 @@ class ExpressionCompilerMixin(CompilerContext):
         self.runtime_ops.add("py-range")
         return Expression([Symbol("py-range"), *args])
 
+    def _dict_atom(self, atom: Atom) -> bool:
+        """Whether a compiled operand holds a dict-space."""
+        if isinstance(atom, Expression) and atom.children:
+            head = atom.children[0]
+            return isinstance(head, Symbol) and head.name == "dict-space"
+        if isinstance(atom, Variable):
+            return any(
+                python_name in self.dict_locals
+                for python_name, variable in self.scope.items()
+                if variable == atom.name
+            )
+        return False
+
     def _x_Subscript(self, node: ast.Subscript) -> Atom:  # noqa: N802  -- the suffix mirrors ast node class names used by the translator's dynamic dispatch
         mention = self._mention(node)
         if mention is not None:
             return mention
         source = self.expression(node.value)
+        if not isinstance(node.slice, ast.Slice) and self._dict_atom(source):
+            # The get on a dict-space is lib_dict's own: the matching pair
+            # releases its value, and a missing key answers nothing.
+            self.libraries.add("dict")
+            return Expression(
+                [Symbol("get-value"), source, self.expression(node.slice)]
+            )
         if isinstance(node.slice, ast.Slice):
             if node.slice.step is not None:
                 msg = (
@@ -1168,16 +1311,75 @@ class ExpressionCompilerMixin(CompilerContext):
         return Expression([self.expression(e) for e in node.elts])
 
     def _x_Dict(self, node: ast.Dict) -> Atom:  # noqa: N802  -- the suffix mirrors ast node class names used by the translator's dynamic dispatch
-        msg = (
-            "a dict literal has no MeTTa form; carry one whole with "
-            "metta.ground(...) through an operation, or spell the pairs as an "
-            "expression of (key value) pairs"
+        """A literal mapping METTAFIES: a dict is a SPACE of (key value) atoms.
+
+        lib_dict's own decision, measured against the opaque handle, the
+        live view, and a native type in its header: the literal lowers to
+        ``(dict-space ((k v) ...))``, a lookup is get-value, membership is
+        dict-has, and every space operation works on it. The image is a
+        SNAPSHOT of a mutable value, as the library states; a dict the
+        Python side keeps mutating crosses as ``py({...})``, the handle
+        image, or through ``view``. Duplicate literal keys keep the last
+        pair, Python's own rule, and a ``**spread`` is host behavior that
+        islands whole.
+        """
+        pairs: dict[Atom, Atom] = {}
+        for key_node, value_node in zip(node.keys, node.values, strict=True):
+            if key_node is None:
+                return self._implicit_island(node)
+            pairs[self.expression(key_node)] = self.expression(value_node)
+        return self._dict_space(
+            Expression([Expression([key, value]) for key, value in pairs.items()])
         )
-        raise CompileError(
-            msg,
-            construct="dict",
-            line=node.lineno,
+
+    def _x_Set(self, node: ast.Set) -> Atom:  # noqa: N802  -- the suffix mirrors ast node class names used by the translator's dynamic dispatch
+        """A literal set is a dict to True, Python's own kinship."""
+        members: dict[Atom, Atom] = {
+            self.expression(element): Grounded(True)  # noqa: FBT003  -- the boolean literal is atom data at this site, not a behavior switch
+            for element in node.elts
+        }
+        return self._dict_space(
+            Expression(
+                [Expression([member, truth]) for member, truth in members.items()]
+            )
         )
+
+    def _dict_space(self, pairs: Atom) -> Expression:
+        """One dict-space call, with the library dependency recorded."""
+        self.libraries.add("dict")
+        return Expression([Symbol("dict-space"), pairs])
+
+    # A dict-local's Python methods, on lib_dict's own vocabulary: views
+    # answer one element per solution the way get-atoms does, and .get is
+    # get-value's own empty-on-absence contract.
+    _DICT_METHODS = {  # noqa: RUF012  -- class-level constant table, never mutated
+        "keys": "get-keys",
+        "values": "dict-values",
+        "items": "dict-pairs",
+    }
+
+    def _dict_method_call(self, node: ast.Call) -> Atom | None:
+        func = node.func
+        if not isinstance(func, ast.Attribute):
+            return None
+        owner = func.value
+        if not (
+            isinstance(owner, ast.Name)
+            and owner.id in self.dict_locals
+            and owner.id in self.scope
+            and not node.keywords
+        ):
+            return None
+        holder = Variable(self.scope[owner.id])
+        if func.attr in self._DICT_METHODS and not node.args:
+            self.libraries.add("dict")
+            return Expression([Symbol(self._DICT_METHODS[func.attr]), holder])
+        if func.attr == "get" and len(node.args) == 1:
+            self.libraries.add("dict")
+            return Expression(
+                [Symbol("get-value"), holder, self.expression(node.args[0])]
+            )
+        return None
 
     def _x_JoinedStr(self, node: ast.JoinedStr) -> Atom:  # noqa: N802  -- the suffix mirrors ast node class names used by the translator's dynamic dispatch
         """An f-string joins its parts through the prelude: literal text as
@@ -1235,6 +1437,17 @@ class _PatternScope:
         self.bound: list[str] = []
 
     def expression(self, node: ast.expr) -> Atom:
+        # A pattern is structural: while one compiles, the host-island
+        # fallback is off, so a host name here keeps its loud refusal
+        # instead of burying a grounded island in a match position.
+        prior = self.outer._in_pattern
+        self.outer._in_pattern = True
+        try:
+            return self._pattern_expression(node)
+        finally:
+            self.outer._in_pattern = prior
+
+    def _pattern_expression(self, node: ast.expr) -> Atom:
         mention = self.outer._mention(node)
         if mention is not None:
             if (

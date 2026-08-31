@@ -916,10 +916,11 @@ def test_the_write_door_reads_each_dataframe_row_as_one_atom(m):
     assert len(m) == 2
 
 
-def test_empty_expression_remove_is_refused_loudly(m):
-    """The remove pattern guard stays narrower than the repaired write door."""
-    with pytest.raises(TypeError, match="non-empty expression"):
-        m.remove(Expression())
+def test_empty_expression_remove_is_symmetric_with_add(m):
+    """What add accepts, remove takes back: the doors carry one shape law."""
+    m.add(Expression())
+    assert m.remove(Expression()) is True
+    assert m.remove(Expression()) is False
 
 
 def test_a_bare_runnable_atom_answers_a_group(m):

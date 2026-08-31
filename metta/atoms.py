@@ -462,14 +462,18 @@ def substitute(atom: Any, bindings: Mapping[str, Atom]) -> Atom:
     )
 
 
-def unify(left: Any, right: Any) -> Mapping[Atom, Atom] | None:
-    """Unify two atoms symmetrically, returning bindings or ``None``.
+def unify(left: Any, right: Any, *more: Any) -> Mapping[Atom, Atom] | None:
+    """Unify atoms symmetrically, returning bindings or ``None``.
 
-    Variables in either operand bind. The returned substitution is normalized,
-    so a chain such as ``x = y, y = a`` reports both names bound to ``a``.
-    Anonymous ``_`` occurrences remain fresh and bind nothing. This host
-    matcher retains its historical no-occurs-check behavior; four-argument
-    conditional unification is the engine form exposed by ``metta.unify``.
+    Variables in any operand bind. Variadic means SIMULTANEOUS: every
+    operand must agree under one substitution, folded through one shared
+    binding store, so three rule heads unify at once the way two always
+    did, and the pairwise call is the 2-ary case of the same signature.
+    The returned substitution is normalized, so a chain such as
+    ``x = y, y = a`` reports both names bound to ``a``. Anonymous ``_``
+    occurrences remain fresh and bind nothing. This host matcher retains
+    its historical no-occurs-check behavior; four-argument conditional
+    unification is the engine form exposed by ``metta.unify``.
 
     Keyed by the VARIABLES themselves, which is what ``Atom.subs`` accepts, so
     a substitution this produces is one the library can apply. A bare name
@@ -477,8 +481,12 @@ def unify(left: Any, right: Any) -> Mapping[Atom, Atom] | None:
     both: ``bind({"x": 5})`` at the evaluation doors means the SYMBOL x.
     """
     bindings: dict[str, Atom] = {}
-    if not _unify_symmetric(_encode(left), _encode(right), bindings):
+    anchor = _encode(left)
+    if not _unify_symmetric(anchor, _encode(right), bindings):
         return None
+    for operand in more:
+        if not _unify_symmetric(anchor, _encode(operand), bindings):
+            return None
     resolved: dict[str, Atom] = {}
     normalized: dict[Atom, Atom] = {}
     for name, value in bindings.items():

@@ -57,10 +57,15 @@ RUFF_FAMILY_BURN_DOWN = {
     # named-constant convention (`TRUE, FALSE = ground(value=True), ...`) is used
     # where the value is reused rather than asked about once.
     "FBT": 67,
-    "N": 35,
+    # 35 -> 37 with the compiled dict story: _x_Set and _x_DictComp join the
+    # _x_<Node> translator-dispatch family, whose suffix mirrors ast class
+    # names by contract.
+    "N": 37,
     # 8 -> 10 for metta.strategies: `id` and `all` must be the exact public
     # strategy atoms, while each line carries the narrow A001 explanation.
-    "A": 10,
+    # 10 -> 12 with the compiled-statement scenarios: two refused-or-compiled
+    # probes carry parameters their bodies deliberately ignore.
+    "A": 12,
     # 2112 -> 2114 at the p12-space-model merge: its two new test modules
     # carry the repository's obligation-header docstring convention, whose
     # Purpose/Guarantees block is a deliberate per-line D205 suppression.
@@ -124,7 +129,10 @@ RUFF_FAMILY_BURN_DOWN = {
     # module: every new site is the D103 test-function suppression or the
     # D205 one-invariant module form, the two priced idioms. Measured
     # after the last edit.
-    "D": 2179,
+    # 2179 -> 2191 with the generated context tier: MeTTa's doors carry
+    # Space's docstrings verbatim, D205 trailers included, once per door.
+    # 2191 -> 2192 with the walrus twin's continuous-invariant header.
+    "D": 2192,
     # 145, from 139 before the idiomatic twin corpus. Every one of the six new
     # sites is a `twin(m)` whose example needs no engine, because the form it
     # demonstrates is native Python (destructuring, `len`, `max`), or a
@@ -142,8 +150,12 @@ RUFF_FAMILY_BURN_DOWN = {
     # and stream closures over one decoded target and policy context, the
     # shape fix 17's engine-side len and fix 8's suspended producer share.
     "C90": 26,
-    "TRY": 23,
-    "EM": 0,
+    # 23 -> 24 with the bare-reraise scenario, whose useless-looking
+    # try/except IS the construct under test.
+    "TRY": 24,
+    # 0 -> 3 with the compiled raise scenarios: the raised literals are the
+    # constructs under test, not messages to extract.
+    "EM": 3,
 }
 
 FILE_OR_RANGE_SUPPRESSION = re.compile(r"(?i)^#\s*(?:ruff|flake8)\s*:\s*(?:noqa|disable|enable)\b")

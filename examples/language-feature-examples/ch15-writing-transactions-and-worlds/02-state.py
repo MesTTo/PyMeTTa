@@ -46,8 +46,13 @@ def twin(m):
     state = State(S.rest, space=m)
     assert state.value == S.rest
 
-    # The write composes with the read, in the engine, for the reason above.
-    assert m.answers(fn.get_state(fn.change_state(state, S.active))) == [S.active]   # rung: no Python expression writes an attribute
+    # change-state! runs for an EFFECT and answers `true` like the rest of
+    # its family, so a write and a read are two steps: composing them
+    # would hand get-state the boolean.
+    # !(test (change-state! state active) true)
+    # !(test (get-state state) active)
+    assert m.answers(fn.change_state(state, S.active)) == [True]
+    assert m.answers(fn.get_state(state)) == [S.active]
     # And the name still denotes the same cell, so the handle reads it too.
     assert state.value == S.active
 
@@ -106,4 +111,9 @@ def twin(m):
 #: and deprecation apply-seam fixes recovering their shares; the
 #: remainder is compiled-image layout, the class this file's own chain
 #: documents [measured: min-of-3 serial fresh processes; command=python extensions/python/tools/twin_coverage.py --measure --rounds 3; fixture=p14-integration open-tail-index pricing tree with engine/reader.so; commit=5ca9ef775933e349f8dc3ec64ec3cb85273a5a00].
-BUDGET = 2979
+#: RE-PINNED 2026-09-01, 2979 to 2947 (-32), the compiled-language batch:
+#: try/raise/dict/set/global/type-alias compilation, engine bit family
+#: builtins, prelude except/error-payload ops, variadic doors, twin heals
+#: [measured 2026-09-01: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 2947

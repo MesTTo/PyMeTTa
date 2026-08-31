@@ -23,7 +23,7 @@ answered the head it had just invented. Each of those claims names its own
 operation, because the refusal belongs to that operation.
 """
 
-from metta import Expression, S, V, ground
+from metta import UNIT, Expression, S, V
 
 
 def twin(m):
@@ -63,12 +63,10 @@ def twin(m):
     assert m.fn.alpha_unique_atom(5) == [nothing]
     assert m.fn.intersection_atom(5, S.a()) == [nothing]
 
-    # Two answer an Error that QUOTES the call, so each head is built as data
-    # to say what the answer must contain. An error stays data while it is
-    # iterated, and the scalar door would raise it instead.
-    not_expression = ground("Atom is not an ExpressionAtom")
-    assert m.fn.min_atom(5) == [S.Error(S.min_atom(5), not_expression)]
-    assert m.fn.max_atom(5) == [S.Error(S.max_atom(5), not_expression)]
+    # A non-expression operand answers UNIT, the empty expression itself.
+    # !(test (min-atom 5) ())
+    assert m.fn.min_atom(5) == [UNIT]
+    assert m.fn.max_atom(5) == [UNIT]
 
     # An unbound variable is a program error, and every guarded position
     # refuses it by name rather than solving for it.
@@ -141,4 +139,13 @@ def twin(m):
 #: and deprecation apply-seam fixes recovering their shares; the
 #: remainder is compiled-image layout, the class this file's own chain
 #: documents [measured: min-of-3 serial fresh processes; command=python extensions/python/tools/twin_coverage.py --measure --rounds 3; fixture=p14-integration open-tail-index pricing tree with engine/reader.so; commit=5ca9ef775933e349f8dc3ec64ec3cb85273a5a00].
-BUDGET = 24000
+#: RE-PINNED 2026-09-01, 24000 to 48677 (+24677), the compiled-language batch:
+#: try/raise on the error algebra, dict-space literals with lib_dict auto-
+#: import, the exact-integer operator family as engine builtins (bit-
+#: and/or/xor/not, floor-div, five registration rows moving clause indexing),
+#: the implicit-island fallback, the except/error-payload runtime ops replacing
+#: seven py- bridges, the variadic door family (transfer, batched remove and
+#: eval), the -= drain-law repair, and fourteen twins healed to the arbiter
+#: [measured 2026-09-01: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 48677

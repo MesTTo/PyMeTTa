@@ -47,7 +47,8 @@ beside its definitions."""
 def _forms(source: str) -> list[tuple]:
     """Every form in the source with its line, read and never run: the
     engine door the boot manifest reads through, which is what lets a
-    library whose backend is absent still document itself."""
+    library whose backend is absent still document itself.
+    """
     return [
         (parse(form.text), form.line)
         for form in positioned_forms(source)
@@ -72,7 +73,8 @@ def _named(atom) -> str | None:
 
 def _text(atom) -> str:
     """The prose inside a doc part: a string value decodes, anything else
-    renders as written."""
+    renders as written.
+    """
     if isinstance(atom, Grounded) and isinstance(atom.value, str):
         return atom.value
     return str(atom)
@@ -80,7 +82,8 @@ def _text(atom) -> str:
 
 def _entry(doc: Expression, declared: dict[str, str], where: str) -> list[str]:
     """One @doc atom as markdown: heading, source line, declared type,
-    description, parameters, and return, parts absent when unwritten."""
+    description, parameters, and return, parts absent when unwritten.
+    """
     name = doc.children[1]
     lines = [f"### `{name}`", "", f"*{where}*", ""]
     if str(name) in declared:

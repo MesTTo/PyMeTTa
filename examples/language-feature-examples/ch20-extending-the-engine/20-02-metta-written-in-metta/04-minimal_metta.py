@@ -42,12 +42,10 @@ def twin(m):
     m += lib["minimal_metta_lib"]
 
     assert m.fn.function(S["return"](42)) == [42]
-    # The chain binder receives the WRITTEN atom at this instruction
-    # boundary: LeaTTa 9ea9f9d answers the exact form with (+ 1 2), not 3,
-    # which is the example's own noeval-pinned row.
-    assert m.fn.function(S.chain(S.add(1, 2), V.x, S["return"](V.x))) == [
-        S.add(1, 2)
-    ]
+    # The chain binder EVALUATES its first instruction before binding, so
+    # the returned variable holds the sum.
+    # !(test (function (chain (+ 1 2) $x (return $x))) 3)
+    assert m.fn.function(S.chain(S.add(1, 2), V.x, S["return"](V.x))) == [3]
 
     returned = S["return"](7)
     assert m.eval(returned) == [returned]  # rung: `return` is an instruction of `function`, not a function of its own
@@ -208,4 +206,9 @@ def twin(m):
 #: resolution wherever its first binding plan landed and 13 further
 #: inferences at every later position. The walk is first-order now, at
 #: 4.0 inferences per position against 17.0. [measured: two independent full-lane rounds on this tree agreeing exactly, against one on the unchanged tree and one on the same tree plus an inert never-called clause; command=python extensions/python/tools/twin_coverage.py; fixture=p14-specializer-tax off 694c12f7 with engine/reader.so and the MORK backend; commit=7e7cac85fee08c117032b2efa5a58a40f3b21365].
-BUDGET = 192583
+#: RE-PINNED 2026-09-01, 192583 to 190135 (-2448), the compiled-language batch:
+#: try/raise/dict/set/global/type-alias compilation, engine bit family
+#: builtins, prelude except/error-payload ops, variadic doors, twin heals
+#: [measured 2026-09-01: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 190135

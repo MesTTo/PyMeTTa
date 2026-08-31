@@ -36,7 +36,7 @@ Open Obligations:
 
 import time
 
-from metta import Expression, S, V, channel, lib, par_map, race, spawn
+from metta import Expression, S, V, channel, lib, race, spawn
 
 
 def twin(m):
@@ -65,8 +65,10 @@ def twin(m):
         return x
 
     # par-map preserves the input list's order however the elements finish.
-    assert list(par_map(S.inc, (1, 2, 3, 4))) == [2, 3, 4, 5]
-    assert list(par_map(S.inc, ())) == []
+    # The BOUND namespace evaluates in this space, where inc lives; the
+    # module-level par_map is the default context's verb.
+    assert m.fn.par_map(S.inc, Expression((1, 2, 3, 4))) == [Expression((2, 3, 4, 5))]
+    assert m.fn.par_map(S.inc, Expression(())) == [Expression(())]
     assert m.fn.par_filter(S["big?"], (1, 2, 3, 4, 5)) == [Expression((3, 4, 5))]
     assert m.fn.par_forall(S["big?"], (3, 4, 5)) == [True]
     assert m.fn.par_forall(S["big?"], (1, 4, 5)) == [False]
@@ -76,34 +78,37 @@ def twin(m):
     assert m.fn.par_any(S["big?"], (1, 2, 9)) == [True]
     assert m.fn.par_any(S["big?"], (1, 2)) == [False]
 
-    # The fast branch wins and the slow one is stopped, so this returns without
-    # waiting for (slow 1). A branch that fails drops out rather than ending
-    # the race.
-    assert race(S.slow(1), S.inc(41)) == 42
-    assert race(S.superpose(()), S.inc(41)) == 42
+    # The module-level parallel verbs read the AMBIENT space, and entering
+    # a space scopes it, so the block below runs where inc and slow live.
+    with m:
+        # The fast branch wins and the slow one is stopped, so this returns
+        # without waiting for (slow 1). A branch that fails drops out rather
+        # than ending the race.
+        assert race(S.slow(1), S.inc(41)) == 42
+        assert race(S.superpose(()), S.inc(41)) == 42
 
-    # A future evaluates on its own thread; wait() waits for it. Two of them
-    # overlap, which is the whole point.
-    assert list(spawn(S.inc(41)).wait()) == [42]
+        # A future evaluates on its own thread; wait() waits for it. Two of
+        # them overlap, which is the whole point.
+        assert list(spawn(S.inc(41)).wait()) == [42]
 
-    first, second = spawn(S.slow(1)), spawn(S.slow(2))
-    assert first.wait().one() + second.wait().one() == 3
+        first, second = spawn(S.slow(1)), spawn(S.slow(2))
+        assert first.wait().one() + second.wait().one() == 3
 
-    # Waiting twice answers the same thing without waiting again.
-    twice = spawn(S.inc(1))
-    twice.wait()
-    assert list(twice.wait()) == [2]
+        # Waiting twice answers the same thing without waiting again.
+        twice = spawn(S.inc(1))
+        twice.wait()
+        assert list(twice.wait()) == [2]
 
-    # A future IS a space, so it holds the expression's whole ANSWER SET rather
-    # than just the first answer.
-    assert list(spawn(S.superpose((1, 2, 3))).wait()) == [1, 2, 3]
-    assert list(spawn(S.superpose(())).wait()) == []
-    assert m.fn.is_space(spawn(S.inc(1))) == [True]
+        # A future IS a space, so it holds the expression's whole ANSWER SET
+        # rather than just the first answer.
+        assert list(spawn(S.superpose((1, 2, 3))).wait()) == [1, 2, 3]
+        assert list(spawn(S.superpose(())).wait()) == []
+        assert m.fn.is_space(spawn(S.inc(1))) == [True]
 
-    # Being a space, it reads back with the ordinary space operations too.
-    settled_future = spawn(S.inc(41))
-    settled_future.wait()
-    assert list(settled_future) == [42]
+        # Being a space, it reads back with the ordinary space operations too.
+        settled_future = spawn(S.inc(41))
+        settled_future.wait()
+        assert list(settled_future) == [42]
 
     # Timers are futures that start later, so (after ...) is setTimeout and
     # there is no separate clearTimeout: the same cancel that stops a spawn

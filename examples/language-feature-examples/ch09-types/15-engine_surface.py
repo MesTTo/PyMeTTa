@@ -47,9 +47,9 @@ def twin(m):
     # !(test (get-type car-atom) (-> Expression %Undefined%)), and four more
     assert m.type(fn.car_atom) == arrow(Expression, Any)
     assert m.type(fn.cdr_atom) == arrow(Expression, Expression)
-    assert m.type(fn.cons_atom) == arrow(Atom, Expression, Atom)
+    assert m.type(fn.cons_atom) == arrow(Any, Any, Atom)
     assert m.type(fn.size_atom) == arrow(Expression, int)
-    assert m.type(fn.index_atom) == arrow(Expression, int, Atom)
+    assert m.type(fn.index_atom) == arrow(Any, int, Atom)
 
     # MeTTa's own, with no dump entry to take.
     # !(test (get-type sort-atom) (-> %Undefined% Expression)), and three more
@@ -62,7 +62,9 @@ def twin(m):
     # !(test (get-type new-state) (-> $t (StateMonad $t))), and four more
     cell = S.StateMonad
     assert m.type(fn.new_state).alpha_eq(arrow(V.t, cell(V.t)))
-    assert m.type(fn.change_state).alpha_eq(arrow(cell(V.t), V.t, cell(V.t)))
+    # change-state! answers true, the effect family's own signature.
+    # !(test (get-type change-state!) (-> (StateMonad $t) $t Bool))
+    assert m.type(fn.change_state).alpha_eq(arrow(cell(V.t), V.t, bool))
     assert m.type(fn.get_state).alpha_eq(arrow(cell(V.t), V.t))
     assert m.type(fn.new_state(5)) == cell(S.Number)
     assert m.type(fn.new_state(ground("hi"))) == cell(S.String)
@@ -131,4 +133,9 @@ def twin(m):
 #: and deprecation apply-seam fixes recovering their shares; the
 #: remainder is compiled-image layout, the class this file's own chain
 #: documents [measured: min-of-3 serial fresh processes; command=python extensions/python/tools/twin_coverage.py --measure --rounds 3; fixture=p14-integration open-tail-index pricing tree with engine/reader.so; commit=5ca9ef775933e349f8dc3ec64ec3cb85273a5a00].
-BUDGET = 14121
+#: RE-PINNED 2026-09-01, 14121 to 17410 (+3289), the compiled-language batch:
+#: try/raise/dict/set/global/type-alias compilation, engine bit family
+#: builtins, prelude except/error-payload ops, variadic doors, twin heals
+#: [measured 2026-09-01: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 17410

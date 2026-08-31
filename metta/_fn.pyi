@@ -53,8 +53,12 @@ class _FunctionNamespace:
     atomically: Symbol
     bind: Symbol
     "bind!: (-> Symbol %Undefined% (->))\n\nA Python name binding. `space = metta.space(...)` is exactly what a token binding was for, and Python's own scoping rules then apply."
+    bit_and: Symbol
+    bit_not: Symbol
+    bit_or: Symbol
     bit_shift_left: Symbol
     bit_shift_right: Symbol
+    bit_xor: Symbol
     call: Symbol
     car_atom: Symbol
     "car-atom: (-> Expression %Undefined%)\n\nIndexing. An expression is a sequence in Python, so its head is `e[0]`."
@@ -95,6 +99,7 @@ class _FunctionNamespace:
     empty: Symbol
     eq: Symbol
     "==: (-> $t $t Bool)\n\nPython's own operator, and atoms compare structurally under it."
+    error_payload: Symbol
     eval: Symbol
     "eval: (-> Atom Atom)\n\nONE step. `m.eval(term)` is the same one step and answers every result, and `space.eval(term)` is `evalc`, the same step in a named space."
     evalc: Symbol
@@ -107,6 +112,7 @@ class _FunctionNamespace:
     "filter-atom: (-> Expression Variable Atom Expression)\nfilter-atom: (-> Expression Expression Expression)\n\nA comprehension with an `if`, or `filter`."
     first: Symbol
     first_from_pair: Symbol
+    floor_div: Symbol
     floor_math: Symbol
     "floor-math: (-> Number Number)\n\n`math.floor`, the same integer-against-float difference as `ceil-math`."
     foldall: Symbol
@@ -242,6 +248,8 @@ class _FunctionNamespace:
     py_dot: Symbol
     py_eq: Symbol
     py_format: Symbol
+    py_global_read: Symbol
+    py_global_write: Symbol
     py_in: Symbol
     py_iter: Symbol
     py_len: Symbol

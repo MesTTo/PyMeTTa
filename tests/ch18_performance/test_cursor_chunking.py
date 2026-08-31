@@ -36,6 +36,8 @@ from __future__ import annotations
 
 from itertools import islice
 
+import pytest
+
 from metta import Grounded, S, V, _space_objects
 
 
@@ -228,3 +230,34 @@ def test_the_evaluation_cursor_chunks_too(metta, monkeypatch):
         f"{len(pulls)} pulls for one answer: normal use is paying for the chunk"
     )
 
+
+
+@pytest.mark.xfail(
+    reason=(
+        "the eval cursor's engine goal retains a choicepoint, so resuming for"
+        " the second chunk REDOES an effectful body: two executions and the"
+        " second value delivered. Eager eval and the trace door both run it"
+        " once, and metta_host_goal_repeatable already guards the COUNT door"
+        " (shim.pl metta_py_eval_count_if_repeatable), so the fix belongs in"
+        " the cursor goal's determinism, not in a new guard"
+    ),
+    strict=True,
+)
+def test_a_lazy_drain_runs_an_effectful_island_once():
+    """One application must execute a compiled effectful body exactly once."""
+    from metta import MeTTa, py
+
+    m = MeTTa().self
+    hits = {"n": 0}
+
+    def poke():
+        hits["n"] += 1
+        return hits["n"]
+
+    @m.define
+    def lazy_effect_probe(x):
+        return py(poke() + x - x)
+
+    drained = list(lazy_effect_probe(0))
+    assert hits["n"] == 1, (drained, hits["n"])
+    assert drained == [1]

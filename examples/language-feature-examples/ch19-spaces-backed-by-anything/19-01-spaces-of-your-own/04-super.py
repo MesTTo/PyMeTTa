@@ -38,9 +38,10 @@ def twin(m):
     def store(atom):
         return S.stored(atom)
 
-    # A space that gates it. `super` names the next definition up THIS space's
-    # chain, so the guard delegates without naming what it delegates to.
-    guarded = metta.space(S.guarded)
+    # A space that gates it, INHERITING this twin's own space so the chain
+    # super walks reaches the definition above. `super` names the next
+    # definition up the chain, so the guard delegates without naming it.
+    guarded = metta.space(S.guarded, inherits=m)
     guarded += equation(S.store(V.atom)).to(
         if_(S.eq(V.atom, S.bad), S.refused, fn.super(S.store(V.atom)))  # rung: the stored body of an equation naming `super`, which no compiled body reaches
     )
@@ -143,4 +144,9 @@ def twin(m):
 #: resolution wherever its first binding plan landed and 13 further
 #: inferences at every later position. The walk is first-order now, at
 #: 4.0 inferences per position against 17.0. [measured: two independent full-lane rounds on this tree agreeing exactly, against one on the unchanged tree and one on the same tree plus an inert never-called clause; command=python extensions/python/tools/twin_coverage.py; fixture=p14-specializer-tax off 694c12f7 with engine/reader.so and the MORK backend; commit=7e7cac85fee08c117032b2efa5a58a40f3b21365].
-BUDGET = 20454
+#: RE-PINNED 2026-09-01, 20454 to 11214 (-9240), the compiled-language batch:
+#: try/raise/dict/set/global/type-alias compilation, engine bit family
+#: builtins, prelude except/error-payload ops, variadic doors, twin heals
+#: [measured 2026-09-01: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 11214

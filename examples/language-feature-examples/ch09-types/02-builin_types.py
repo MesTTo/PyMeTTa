@@ -34,7 +34,7 @@ def twin(m):
     unary = arrow(int, int)
     compare = arrow(int, int, bool)
     predicate = arrow(int, bool)
-    one_type = arrow(V.a, V.a, bool)
+    two_type = arrow(V.a, V.b, bool)
     over_expression = arrow(V.a, int)
     logical = arrow(bool, bool, bool)
 
@@ -56,12 +56,13 @@ def twin(m):
     assert m.type(S.gt) == compare
     assert m.type(S.ge) == compare
 
-    # ONE type variable, twice: == compares two things of one type, and
-    # refuses two of different KNOWN types.
-    # !(test (get-type ==) (-> $a $a Bool))
-    # !(test (get-type !=) (-> $a $a Bool))
-    assert m.type(S.eq).alpha_eq(one_type)
-    assert m.type(S.ne).alpha_eq(one_type)
+    # TWO type variables: the declared arrow admits any pair, and the
+    # by-name refusal for two different KNOWN types is the checker's own
+    # rule rather than the arrow's.
+    # !(test (get-type ==) (-> $a $b Bool))
+    # !(test (get-type !=) (-> $a $b Bool))
+    assert m.type(S.eq).alpha_eq(two_type)
+    assert m.type(S.ne).alpha_eq(two_type)
 
     # Mathematics: the hyphenated names take rung 4's underscore map.
     # !(test (get-type pow-math) (-> Number Number Number)), and eighteen more
@@ -143,4 +144,9 @@ def twin(m):
 #: and deprecation apply-seam fixes recovering their shares; the
 #: remainder is compiled-image layout, the class this file's own chain
 #: documents [measured: min-of-3 serial fresh processes; command=python extensions/python/tools/twin_coverage.py --measure --rounds 3; fixture=p14-integration open-tail-index pricing tree with engine/reader.so; commit=5ca9ef775933e349f8dc3ec64ec3cb85273a5a00].
-BUDGET = 52951
+#: RE-PINNED 2026-09-01, 52951 to 62333 (+9382), the compiled-language batch:
+#: try/raise/dict/set/global/type-alias compilation, engine bit family
+#: builtins, prelude except/error-payload ops, variadic doors, twin heals
+#: [measured 2026-09-01: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 62333

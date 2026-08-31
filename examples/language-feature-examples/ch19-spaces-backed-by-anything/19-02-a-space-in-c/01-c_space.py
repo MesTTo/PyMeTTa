@@ -75,19 +75,21 @@ def twin(m):
     store += [(S.edge, S.a, S.b), (S.edge, S.a, S.c), (S.edge, S.b, S.c)]
     assert [row.x for row in store[S.edge(S.a, V.x)]] == [S.b, S.c]
 
-    # Removal is multiset subtraction: two atoms match `(edge a $any)`, so
-    # clearing them takes two removals rather than one.
+    # Removal means what remove-atom means everywhere: EVERY atom that
+    # unifies goes. Two stored atoms match (edge a $any), and one drain
+    # clears both, leaving the one edge that does not start at a.
     store -= S.edge(S.a, V.any)
-    assert len(store[S.edge(V.x, V.y)]) == 2
-    store -= S.edge(S.a, V.other)
     assert [(row.x, row.y) for row in store[S.edge(V.x, V.y)]] == [(S.b, S.c)]
 
-    # Identical copies are where the reading matters most: the count walks down
-    # one at a time rather than clearing to nothing.
+    # Identical copies are where the two grains separate: remove() is the
+    # one-occurrence door, the C provider's own seam:foreign_remove grain,
+    # so the count walks down one at a time, while -= drains what unifies,
+    # and draining is idempotent.
     store += [(S.dup, 1)] * 3
-    store -= S.dup(1)
+    assert store.remove(S.dup(1)) is True
     assert len(store[S.dup(V.n)]) == 2
     store -= S.dup(1)
+    assert len(store[S.dup(V.n)]) == 0
     store -= S.dup(1)
     assert len(store[S.dup(V.n)]) == 0
 
@@ -147,4 +149,20 @@ def twin(m):
 #: and deprecation apply-seam fixes recovering their shares; the
 #: remainder is compiled-image layout, the class this file's own chain
 #: documents [measured: min-of-3 serial fresh processes; command=python extensions/python/tools/twin_coverage.py --measure --rounds 3; fixture=p14-integration open-tail-index pricing tree with engine/reader.so; commit=5ca9ef775933e349f8dc3ec64ec3cb85273a5a00].
-BUDGET = 113901
+#: RE-PINNED 2026-09-01, 113901 to 115008 (+1107), one corpus pricing pass on
+#: the merged tree for the 2026-08-27..09-01 engine span (8e75816d..f0744f86),
+#: whose four mechanisms are decomposed per lane in benchmarks/baseline.json
+#: and ai-parametricity-audit.md passes 10-16: the seam-offer routing and its
+#: one-wrap fold (net +8 inferences per evaluation), the strict-scope removal
+#: leaving the eval path, the doubling cursor chunk (~3 engine-side inferences
+#: per answer replacing per-answer crossings; drains halve on CPU), and the
+#: aligned-path work; thirteen twins additionally carry the idiom sweep's local
+#: deltas tabulated in the twin-idioms notes, none above 347 [measured
+#: 2026-09-01: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+#: RE-PINNED 2026-09-01, 115008 to 115167 (+159), the -= drain law reaching the
+#: C-store pair: the twin healed to the two grains, remove() one occurrence and
+#: -= draining, mirroring the metta side [measured 2026-09-01: min-of-3 serial
+#: fresh processes; command=python extensions/python/tools/twin_coverage.py
+#: --repin; commit=WORKTREE].
+BUDGET = 115167

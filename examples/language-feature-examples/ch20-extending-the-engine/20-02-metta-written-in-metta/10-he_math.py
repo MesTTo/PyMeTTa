@@ -36,11 +36,17 @@ def twin(m):
     sqrt_math = m.fn.sqrt_math
     isnan, isinf = m.fn.isnan_math, m.fn.isinf_math
 
-    assert m.answers(G(2) ** 3) == [8.0]
+    # pow-math keeps its operands' own kinds: two integers answer the
+    # integer, upstream's `Out is A ** B` law.
+    assert m.answers(G(2) ** 3) == [8]
     assert isnan(sqrt_math(-1)) == [True]
-    assert isinf(G(0) ** -1) == [True]
-    # The signed-i32 bound is enforced only for INTEGER exponents.
-    assert m.answers(G(1) ** 2147483648.0) == [1.0]
+    # Integer zero to a negative power is exact division by zero, Error
+    # data; the float spelling rides binary64 to an infinity.
+    assert m.answers(G(0) ** -1) == [S.Error(S.pow_math(0, -1), S.DivisionByZero)]
+    assert isinf(m.fn.pow_math(0.0, -1.0)) == [True]
+    # The signed-i32 bound is enforced only for INTEGER exponents, and
+    # SWI's own 1 ** big-float is the integer 1, kind-preserved.
+    assert m.answers(G(1) ** 2147483648.0) == [1]
     assert sqrt_math(9) == [3.0]
     assert m.answers(abs(G(-5))) == [5]
     assert m.fn.log_math(10, 100) == [2.0]
@@ -127,4 +133,9 @@ RUNG = "min-atom and max-atom are two of the stdlib numeric operations this file
 #: and deprecation apply-seam fixes recovering their shares; the
 #: remainder is compiled-image layout, the class this file's own chain
 #: documents [measured: min-of-3 serial fresh processes; command=python extensions/python/tools/twin_coverage.py --measure --rounds 3; fixture=p14-integration open-tail-index pricing tree with engine/reader.so; commit=5ca9ef775933e349f8dc3ec64ec3cb85273a5a00].
-BUDGET = 4724
+#: RE-PINNED 2026-09-01, 4724 to 5458 (+734), the compiled-language batch:
+#: try/raise/dict/set/global/type-alias compilation, engine bit family
+#: builtins, prelude except/error-payload ops, variadic doors, twin heals
+#: [measured 2026-09-01: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 5458

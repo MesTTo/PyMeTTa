@@ -77,6 +77,7 @@ import logging
 import os
 import queue
 import threading
+import weakref as _weakref
 from collections.abc import Callable, Iterable, Iterator
 from concurrent.futures import Future, as_completed
 from typing import Any, Self
@@ -372,23 +373,42 @@ def _call(owner: Space, head: str, *arguments: Any):
 
 
 class FutureSpace(Space):
-    """A spawned computation's ordinary answer space with lifecycle verbs."""
+    """A spawned computation's ordinary answer space with lifecycle verbs.
+
+    Abandoning one follows Python's own future semantics: the computation
+    keeps running, exactly as a concurrent.futures future would, and the
+    garbage collector emits asyncio's kind of ResourceWarning when a
+    handle dies without anyone having observed settlement, so an
+    accidentally dropped infinite producer names itself instead of
+    spinning silently. ``cancel()`` remains the deliberate stop.
+    """
 
     def __init__(self, space: Space, owner: Space) -> None:  # noqa: D107 -- the enclosing type defines the future-space construction boundary
         super().__init__(space.name, _runtime=space.runtime)
         self._owner = owner
+        # The finalizer must not touch self or the engine at interpreter
+        # shutdown, so settlement observation rides a shared cell.
+        self._settlement = {"observed": False}
+        _weakref.finalize(self, _warn_abandoned, space.name, self._settlement)
 
     def wait(self):
         """Wait until evaluation settles, then lazily expose every stored answer."""
-        return _call(self._owner, "await", self)
+        answers = _call(self._owner, "await", self)
+        self._settlement["observed"] = True
+        return answers
 
     def settled(self) -> bool:
         """Whether the computation has finished, without waiting."""
-        return bool(_call(self._owner, "settled?", self).one())
+        finished = bool(_call(self._owner, "settled?", self).one())
+        if finished:
+            self._settlement["observed"] = True
+        return finished
 
     def cancel(self) -> bool:
         """Stop a pending computation, answering whether it was stopped."""
-        return bool(_call(self._owner, "cancel", self).one())
+        stopped = bool(_call(self._owner, "cancel", self).one())
+        self._settlement["observed"] = True
+        return stopped
 
     def __iter__(self) -> Iterator[Atom]:
         """Yield each answer occurrence after it lands, until settlement."""
@@ -407,6 +427,18 @@ class FutureSpace(Space):
                 subscription.wait(0.05)
         finally:
             subscription.cancel()
+
+
+def _warn_abandoned(name: str, settlement: dict) -> None:
+    if not settlement["observed"]:
+        import warnings  # noqa: PLC0415  -- the finalizer must import nothing at module load
+
+        warnings.warn(
+            f"FutureSpace {name} was abandoned while possibly pending; "
+            f"wait() or cancel() it",
+            ResourceWarning,
+            stacklevel=2,
+        )
 
 
 def _unseen_occurrences(current: list[Atom], seen: list[Atom]) -> Iterator[Atom]:

@@ -197,4 +197,13 @@ RUNG = "the `let`s here bind the variables whose identity is under test, which a
 #: extensions/python/tools/twin_coverage.py --measure --rounds 3;
 #: fixture=tabling-seam merged tree with engine/reader.so;
 #: commit=694c12f70da25a28ffe22f9209f1d75d56921f93].
-BUDGET = 13456
+#: RE-PINNED 2026-09-01, 13456 to 10732 (-2724), the compiled-language batch:
+#: try/raise on the error algebra, dict-space literals with lib_dict auto-
+#: import, the exact-integer operator family as engine builtins (bit-
+#: and/or/xor/not, floor-div, five registration rows moving clause indexing),
+#: the implicit-island fallback, the except/error-payload runtime ops replacing
+#: seven py- bridges, the variadic door family (transfer, batched remove and
+#: eval), the -= drain-law repair, and fourteen twins healed to the arbiter
+#: [measured 2026-09-01: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 10732

@@ -113,6 +113,10 @@ _._x_IfExp
 _._x_Lambda
 _._x_ListComp
 _._x_GeneratorExp
+_._x_Dict
+_._x_Set
+_._x_DictComp
+_._x_SetComp
 _._x_Call
 _._x_Subscript
 _._x_Tuple
@@ -187,3 +191,8 @@ release_many
 # on both the live Space and its async mirror; callers reach it by the old
 # spelling from user programs, never from inside the package.
 _.reaction
+
+# The equality family's alpha door: user programs and the twins call it on
+# atoms they build; nothing inside the package needs alpha equality of its
+# own, which is the same arrangement as eq and ne on the operator protocol.
+_.alpha

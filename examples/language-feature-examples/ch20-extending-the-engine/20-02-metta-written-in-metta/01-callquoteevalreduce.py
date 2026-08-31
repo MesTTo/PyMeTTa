@@ -41,21 +41,17 @@ def twin(m):
     def before_reduce():                # (= (before-reduce) (reduce-before (reduce (fib 5))))
         return S.reduce_before(S.reduce(S.fib(5)))
 
-    # With no fib to reduce, quote keeps its payload and the other two hand
-    # theirs back unevaluated. `before-call` is left out because it errors,
-    # which is what the original's head says in as many words. The original
-    # writes the two unevaluated payloads as `(noeval (fib 5))`, because `test`
-    # evaluates its expected side too and `noeval` comes off there; an assert
-    # compares against a literal, so the payload is written as it arrives.
+    # With no fib to reduce, all three control frames DISSOLVE at
+    # evaluation and each wrapper holds the bare payload: quote's arrives
+    # unevaluated by the barrier, and eval's and reduce's arrive unreduced
+    # for want of a fib. `before-call` is left out because it errors,
+    # which is what the original's head says in as many words.
     assert m.eval(S.before_call_errors_ofc(
         S.before_quote(), S.before_eval(), S.before_reduce()
     )) == [S.before_call_errors_ofc(
-        # Each control form retains its OWN irreducible call — LeaTTa
-        # 9ea9f9d answers this exact expression with these three wrappers,
-        # `eval` and `reduce` keeping their written frames.
-        S.quote_before(S.quote(fib5)),
-        S.eval_before(S.eval(fib5)),
-        S.reduce_before(S.reduce(fib5)),
+        S.quote_before(fib5),
+        S.eval_before(fib5),
+        S.reduce_before(fib5),
     )]
 
     @m.define
@@ -76,7 +72,8 @@ def twin(m):
     assert compilefib().one() == Expression((
         S.within(fib5),
         S.call_within(5),
-        S.quote_within(S.quote(fib5)),
+        # The barrier dissolves here too: the payload arrives bare.
+        S.quote_within(fib5),
         S.eval_within(5),
         S.reduce_within(5),
     ))
@@ -102,7 +99,7 @@ def twin(m):
         S.before_call(), S.before_quote(), S.before_eval(), S.before_reduce()
     ))) == [Expression((
         S.call_before(5),
-        S.quote_before(S.quote(fib5)),
+        S.quote_before(fib5),
         S.eval_before(5),
         S.reduce_before(5),
     ))]
@@ -111,7 +108,7 @@ def twin(m):
         S.after_call(), S.after_quote(), S.after_eval(), S.after_reduce()
     ))) == [Expression((
         S.call_after(5),
-        S.quote_after(S.quote(fib5)),
+        S.quote_after(fib5),
         S.eval_after(5),
         S.reduce_after(5),
     ))]

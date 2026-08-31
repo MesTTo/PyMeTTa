@@ -57,11 +57,16 @@ def twin(m):
             return a + b
         return S.a(S.list, S["not"], S.a, S.number)
 
-    # The Atom-typed argument arrives unevaluated, but wu1's %Undefined% result
-    # re-enters evaluation and reduces the held sum in the produced expression.
-    # !(test (wu1 (+ 2 4) (+ 4 2)) (42 6 6))
-    assert wu1(S.add(2, 4), S.add(4, 2)) == [Expression((42, 6, 6))]
-    # An Atom result answers as produced, retaining the held argument.
+    # The Atom-typed argument arrives unevaluated and STAYS that way all
+    # the way out: a RESULT does not re-enter evaluation, so the tuple the
+    # body built is the answer, whatever the result type says. Upstream's
+    # equation compiler emits no result continuation at all
+    # [source: PeTTa@ae66fa8 src/translator.pl:25-28].
+    # !(test (wu1 (+ 2 4) (+ 4 2)) (noeval (42 6 (+ 4 2))))
+    assert wu1(S.add(2, 4), S.add(4, 2)) == [
+        Expression((42, 6, S.add(4, 2)))
+    ]
+    # An Atom result answers the same produced expression.
     # !(test (wu1b (+ 2 4) (+ 4 2)) (noeval (42 6 (+ 4 2))))
     assert wu1b(S.add(2, 4), S.add(4, 2)) == [
         Expression((42, 6, S.add(4, 2)))
@@ -142,4 +147,9 @@ def twin(m):
 #: resolution wherever its first binding plan landed and 13 further
 #: inferences at every later position. The walk is first-order now, at
 #: 4.0 inferences per position against 17.0. [measured: two independent full-lane rounds on this tree agreeing exactly, against one on the unchanged tree and one on the same tree plus an inert never-called clause; command=python extensions/python/tools/twin_coverage.py; fixture=p14-specializer-tax off 694c12f7 with engine/reader.so and the MORK backend; commit=7e7cac85fee08c117032b2efa5a58a40f3b21365].
-BUDGET = 18350
+#: RE-PINNED 2026-09-01, 18350 to 13035 (-5315), the compiled-language batch:
+#: try/raise/dict/set/global/type-alias compilation, engine bit family
+#: builtins, prelude except/error-payload ops, variadic doors, twin heals
+#: [measured 2026-09-01: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 13035

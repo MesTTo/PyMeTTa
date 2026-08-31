@@ -126,4 +126,15 @@ def twin(m):
 #: resolution wherever its first binding plan landed and 13 further
 #: inferences at every later position. The walk is first-order now, at
 #: 4.0 inferences per position against 17.0. [measured: two independent full-lane rounds on this tree agreeing exactly, against one on the unchanged tree and one on the same tree plus an inert never-called clause; command=python extensions/python/tools/twin_coverage.py; fixture=p14-specializer-tax off 694c12f7 with engine/reader.so and the MORK backend; commit=7e7cac85fee08c117032b2efa5a58a40f3b21365].
-BUDGET = 96272
+#: RE-PINNED 2026-09-01, 96272 to 83752 (-12520), one corpus pricing pass on
+#: the merged tree for the 2026-08-27..09-01 engine span (8e75816d..f0744f86),
+#: whose four mechanisms are decomposed per lane in benchmarks/baseline.json
+#: and ai-parametricity-audit.md passes 10-16: the seam-offer routing and its
+#: one-wrap fold (net +8 inferences per evaluation), the strict-scope removal
+#: leaving the eval path, the doubling cursor chunk (~3 engine-side inferences
+#: per answer replacing per-answer crossings; drains halve on CPU), and the
+#: aligned-path work; thirteen twins additionally carry the idiom sweep's local
+#: deltas tabulated in the twin-idioms notes, none above 347 [measured
+#: 2026-09-01: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 83752

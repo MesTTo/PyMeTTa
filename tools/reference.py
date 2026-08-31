@@ -117,7 +117,8 @@ def split_top_level(arguments: str) -> list[str]:
 
 def spaced_default(part: str) -> str:
     """`x: int=1` as `x: int = 1`. PEP 8 spaces the default of an ANNOTATED
-    parameter and not of a bare one, and ast.unparse spaces neither."""
+    parameter and not of a bare one, and ast.unparse spaces neither.
+    """
     depth = 0
     annotated = False
     for index, character in enumerate(part):
@@ -135,7 +136,8 @@ def spaced_default(part: str) -> str:
 def is_overload(node: ast.FunctionDef | ast.AsyncFunctionDef) -> bool:
     """@overload declares a type, not a definition. Emitting all of them gave
     MeTTa.run four identical entries in the reference; the implementation is
-    the one a reader is looking for."""
+    the one a reader is looking for.
+    """
     return any(
         (isinstance(d, ast.Name) and d.id == "overload")
         or (isinstance(d, ast.Attribute) and d.attr == "overload")
@@ -156,7 +158,8 @@ def entry(heading: str, code: str, doc: str | None) -> str:
 
 def entries(tree: ast.Module) -> list[str]:
     """Public module-level definitions, in source order, methods under their
-    class. A leading underscore is private and a page never carried one."""
+    class. A leading underscore is private and a page never carried one.
+    """
     out = []
     for node in tree.body:
         if isinstance(node, ast.ClassDef) and not node.name.startswith("_"):

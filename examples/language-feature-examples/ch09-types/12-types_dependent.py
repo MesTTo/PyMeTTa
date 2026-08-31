@@ -15,9 +15,13 @@ is for. `EvenNumber` and `EvenNumberList` are Python classes so that `f` and
 
 The comparison is `=alpha` and not `==` throughout, for the example's own
 reason: each comparison crosses KNOWN and different types, which `==` refuses
-by name, and `=alpha` is the comparison that takes anything. Because its Atom
-parameters hold their operands, each computed value is named by `let` before
-the comparison receives it.
+by name, and `=alpha` is the comparison that takes anything. It is spelled
+`.alpha`, the builder beside `eq` and `ne`, since `=` sits outside Python's
+identifier grammar and dropping the marker is the same nearest-relative rung
+`eq()` takes for `==`. The `let` around each comparison is NOT naming: =alpha
+declares two Atom parameters, so an operand crosses AS WRITTEN, and the let
+is what evaluates `(% $x 2)` before the mask would hold it — the one job a
+build-time Python name (or a walrus) cannot do to a stored term.
 [source: examples/ch09-types/12-types_dependent.metta:6; commit=f053d9d46aa43b9beec360eae30b9016ffbf231f]
 """
 
@@ -34,20 +38,18 @@ class EvenNumberList:
 
 def twin(m):
     """Teach get-type two new answers, then use them as declared types."""
-    alpha, kind = fn["=alpha"], fn.get_type
-
     # The body is a ONE-ARMED if, the filtering form that answers nothing
     # where its condition fails, which `if_` takes beside the three-armed
     # conditional. `%` on an atom builds the term Python's own operator means.
     # (= (get-type $x)
     #    (catch (let $remainder (% $x 2)
     #             (if (=alpha $remainder 0) EvenNumber))))
-    m += equation(kind(V.x)).to(
+    m += equation(fn.get_type(V.x)).to(
         fn.catch(
-            S.let(  # rung: this stored equation has no Python statement position for assignment
+            S.let(  # the let FORCES evaluation before =alpha's Atom mask holds the operand
                 V.remainder,
                 V.x % 2,
-                if_(alpha(V.remainder, 0), S.EvenNumber),
+                if_(V.remainder.alpha(0), S.EvenNumber),
             )
         )
     )
@@ -67,13 +69,13 @@ def twin(m):
         #    (let $head-type (get-type $head)
         #      (if (=alpha $head-type EvenNumber)
         #          (if (=alpha $tail ()) EvenNumberList (get-type $tail)))))
-        yield equation(kind(S.cons(head, tail))).to(
-            S.let(  # rung: this rules generator builds the stored let where no Python statement position exists
+        yield equation(fn.get_type(S.cons(head, tail))).to(
+            S.let(  # the let forces (get-type $head) before the Atom mask
                 V.head_type,
-                kind(head),
+                fn.get_type(head),
                 if_(
-                    alpha(V.head_type, S.EvenNumber),
-                    if_(alpha(tail, UNIT), S.EvenNumberList, kind(tail)),
+                    V.head_type.alpha(S.EvenNumber),
+                    if_(tail.alpha(UNIT), S.EvenNumberList, fn.get_type(tail)),
                 ),
             )
         )
@@ -153,4 +155,9 @@ def twin(m):
 #: resolution wherever its first binding plan landed and 13 further
 #: inferences at every later position. The walk is first-order now, at
 #: 4.0 inferences per position against 17.0. [measured: two independent full-lane rounds on this tree agreeing exactly, against one on the unchanged tree and one on the same tree plus an inert never-called clause; command=python extensions/python/tools/twin_coverage.py; fixture=p14-specializer-tax off 694c12f7 with engine/reader.so and the MORK backend; commit=7e7cac85fee08c117032b2efa5a58a40f3b21365].
-BUDGET = 28923
+#: RE-PINNED 2026-09-01, 28923 to 16462 (-12461), the compiled-language batch:
+#: try/raise/dict/set/global/type-alias compilation, engine bit family
+#: builtins, prelude except/error-payload ops, variadic doors, twin heals
+#: [measured 2026-09-01: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 16462

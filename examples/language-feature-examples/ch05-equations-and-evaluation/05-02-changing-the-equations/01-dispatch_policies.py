@@ -35,17 +35,22 @@ def twin(m):
     # (= (only-a A) hit)
     m += equation(only_a(S.A)).to(S.hit)  # rung: the head fixes a SYMBOL
 
-    # The catalogued default: a call nothing matches answers itself.
-    assert m.eval(only_a(S.B)) == [only_a(S.B)]
-
-    reflection = metta.reflection
-    policy = S.dispatch_policy(S.only_a, S.NoMatchEnum, S[NoMatchEnum.NoMatchFail])
-
-    reflection += policy
+    # The catalogued default: a call nothing matches answers NOTHING, the
+    # typed-dispatch NoMatch row's own reading.
+    # !(test (collapse (only-a B)) ())
     assert m.eval(only_a(S.B)) == []
 
-    reflection -= policy
+    reflection = metta.reflection
+    policy = S.dispatch_policy(S.only_a, S.NoMatchEnum, S[NoMatchEnum.NoMatchOriginal])
+
+    # The override brings the answers-itself reading back for one head.
+    # !(add-atom &metta (dispatch-policy only-a NoMatchEnum NoMatchOriginal))
+    # !(test (only-a B) (only-a B))
+    reflection += policy
     assert m.eval(only_a(S.B)) == [only_a(S.B)]
+
+    reflection -= policy
+    assert m.eval(only_a(S.B)) == []
 
 
 #: Inferences this twin spends, its own tripwire.
@@ -107,4 +112,13 @@ def twin(m):
 #: and the scheduler, context-callback and exact-memo lifecycle clauses
 #: move compiled-image layout by tens, the class this file's chain
 #: documents [measured: min-of-3 serial fresh processes; command=python extensions/python/tools/twin_coverage.py --measure --rounds 3; fixture=merged p14-audit-async composed tree with engine/reader.so; commit=5059173b1767600ce4df0f6b7841d88116ee62d3].
-BUDGET = 1835
+#: RE-PINNED 2026-09-01, 1835 to 1758 (-77), the compiled-language batch:
+#: try/raise on the error algebra, dict-space literals with lib_dict auto-
+#: import, the exact-integer operator family as engine builtins (bit-
+#: and/or/xor/not, floor-div, five registration rows moving clause indexing),
+#: the implicit-island fallback, the except/error-payload runtime ops replacing
+#: seven py- bridges, the variadic door family (transfer, batched remove and
+#: eval), the -= drain-law repair, and fourteen twins healed to the arbiter
+#: [measured 2026-09-01: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 1758

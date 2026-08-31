@@ -62,4 +62,13 @@ def twin(m):
 #: so the whole corpus re-pins once on the exact release tree
 #: [measured 2026-08-25 through tools/twin_coverage.py --measure
 #: min-of-3 after a canonical single-boot QLF regeneration].
-BUDGET = 582
+#: RE-PINNED 2026-09-01, 582 to 639 (+57), the compiled-language batch:
+#: try/raise on the error algebra, dict-space literals with lib_dict auto-
+#: import, the exact-integer operator family as engine builtins (bit-
+#: and/or/xor/not, floor-div, five registration rows moving clause indexing),
+#: the implicit-island fallback, the except/error-payload runtime ops replacing
+#: seven py- bridges, the variadic door family (transfer, batched remove and
+#: eval), the -= drain-law repair, and fourteen twins healed to the arbiter
+#: [measured 2026-09-01: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 639
