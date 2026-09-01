@@ -18,7 +18,7 @@ Guarantees:
   - a BulkAdder is only a transport optimisation: every atom passes the same
     add policy before the batch method runs, and an empty batch is a no-op
     [tested: test_a_batch_preflights_every_add_policy_before_one_bulk_write;
-    commit=WORKTREE]
+    commit=06e553e2a31cd7e54b49df9b7759c63c1a5455ea]
   - provider registration changes Python state only after the engine accepts
     the same change [tested test_provider_registration_is_transactional]
   - a provider's own refusal sentence reaches the caller, and "implements it
