@@ -21,7 +21,7 @@ Guarantees:
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - an omitted wire-space name is authorized and executed against the same
     served space [tested: test_an_omitted_remote_space_cannot_cross_the_authorization_boundary;
-    commit=WORKTREE]
+    commit=af5821f5ffb7ce186e516706f003d02f5c1d3b4a]
 Open Obligations:
   To Do: None
   Hacks: None

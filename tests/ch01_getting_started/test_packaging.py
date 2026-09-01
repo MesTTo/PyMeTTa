@@ -18,7 +18,8 @@ Guarantees:
     commit=dfda5555bdc4b53a57da7084054826236ab1446e]
   - wheel-owned source and runtime data carry durable public authorities, not
     private agent scratch references [tested:
-    test_the_wheel_carries_no_agent_scratch_references; commit=WORKTREE]
+    test_the_wheel_carries_no_agent_scratch_references;
+    commit=af5821f5ffb7ce186e516706f003d02f5c1d3b4a]
 Open Obligations:
   To Do: None
   Hacks: None

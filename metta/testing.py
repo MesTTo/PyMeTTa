@@ -28,7 +28,7 @@ Guarantees:
   - check_twin compares encoded atoms, preserving integer, float, and boolean
     grounded species [tested:
     test_check_twin_distinguishes_integer_float_and_boolean_answers;
-    commit=WORKTREE]
+    commit=af5821f5ffb7ce186e516706f003d02f5c1d3b4a]
   - minted-space conformance recognizes decoded Space handles in provider
     answers [tested: test_fabricated_space_identities_are_refused;
     commit=4e2398075da67bb2cbcc123a9fc1e078ecac6fbf]

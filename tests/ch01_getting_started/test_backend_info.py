@@ -6,7 +6,7 @@ Guarantees:
   - a bare thread whose recycled identifier equals the runtime's boot-thread
     identifier is still classified by its live Janus attachment [tested:
     test_a_recycled_thread_identifier_never_selects_the_janus_fast_path;
-    commit=WORKTREE]
+    commit=af5821f5ffb7ce186e516706f003d02f5c1d3b4a]
 Open Obligations:
   To Do: None
   Hacks: None

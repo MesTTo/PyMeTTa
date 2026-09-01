@@ -44,7 +44,7 @@ Guarantees:
   - the functional Janus door is selected by live thread identity, never a
     recyclable numeric identifier [tested:
     test_a_recycled_thread_identifier_never_selects_the_janus_fast_path;
-    commit=WORKTREE]
+    commit=af5821f5ffb7ce186e516706f003d02f5c1d3b4a]
 Guarded by:
   - _LOCK serializes runtime creation and every call made on the HOME engine.
     A thread holding its own attached engine takes no process lock: it shares

@@ -21,7 +21,7 @@ Guarantees:
   - the public twin oracle preserves grounded scalar species while comparing
     engine and Python answers [tested:
     test_check_twin_distinguishes_integer_float_and_boolean_answers;
-    commit=WORKTREE]
+    commit=af5821f5ffb7ce186e516706f003d02f5c1d3b4a]
 Owns:
   - test_define_from_two_threads_is_serialized joins both definition workers
     before examining their equations [tested test_define_from_two_threads_is_serialized]

@@ -15,7 +15,8 @@ Guarantees:
     test_an_operation_call_inside_a_compiled_loop_is_linted; commit=acb40f1912f131ae088083d1af29b4b283019bea]
   - emitted authorities retain every adopted audit ID and point at the
     immutable public lint catalogue [tested:
-    test_lint_authorities_are_durable_public_references; commit=WORKTREE]
+    test_lint_authorities_are_durable_public_references;
+    commit=af5821f5ffb7ce186e516706f003d02f5c1d3b4a]
 Guarded by:
   - ``_LOCK`` serializes the process registries and their reflected facts
 """
