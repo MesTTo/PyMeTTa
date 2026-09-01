@@ -49,6 +49,12 @@ Guarantees:
     instructions:u min of 3: 4012009981 scanning against 48243634 indexed,
     83.2x, both delivering 200 of 200] [tested
     test_dispatch_through_the_index_delivers_the_same_subscribers_in_the_same_order]
+  - dispatch attempts every matching fold after a committed write: one failed
+    watcher remains a SubscriberError and several failures arrive together in
+    registration order [tested:
+    test_one_failed_watcher_does_not_starve_later_delivery,
+    test_multiple_watcher_failures_are_grouped_after_every_delivery;
+    commit=WORKTREE]
   - cancel waits for steps already in flight and a stale dispatch snapshot
     cannot deliver after cancellation [tested
     test_subscription_cancel_waits_for_inflight_delivery,
@@ -723,6 +729,7 @@ def publish(action: str, space: str, wire: list) -> bool:
 
 
 def _deliver(action: str, space: str, atom: Atom) -> None:
+    failures: list[SubscriberError] = []
     for fold in _REGISTRY.candidates(space, atom):
         if fold.on not in ("both", action):
             continue
@@ -733,7 +740,7 @@ def _deliver(action: str, space: str, atom: Atom) -> None:
             fold._run(Event(action, space, atom, bindings))
         # A control signal is BaseException and passes through untouched:
         # KeyboardInterrupt is not a watcher saying no.
-        except Exception as failure:
+        except Exception as failure:  # noqa: BLE001  -- every ordinary watcher failure is reported after every watcher runs
             msg = (
                 f"{space} applied and committed the {action} of {atom}, then a watcher "
                 f"failed. This is not a failed write: retrying it may store a "
@@ -743,13 +750,24 @@ def _deliver(action: str, space: str, atom: Atom) -> None:
                 f"Delivering to the subscription on {fold.pattern} "
                 f"raised {type(failure).__name__}: {failure}"
             )
-            raise SubscriberError(
+            error = SubscriberError(
                 msg,
                 subscription=fold,
                 action=action,
                 atom=atom,
                 space=space,
-            ) from failure
+            )
+            error.__cause__ = failure
+            failures.append(error)
+
+    if len(failures) == 1:
+        raise failures[0]
+    if failures:
+        msg = (
+            f"{space} applied and committed the {action} of {atom}, then "
+            f"{len(failures)} watchers failed"
+        )
+        raise ExceptionGroup(msg, failures)
 
 
 def atom_added(space: str, wire: list) -> bool:

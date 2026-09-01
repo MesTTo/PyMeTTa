@@ -8,7 +8,9 @@ Guarantees:
     re-arrives as the same object, fields intact [tested
     test_a_provider_refusal_carries_its_parts_across_the_boundary]
   - an op author's own exception class still arrives wrapped as EngineError
-    [tested test_an_op_authors_exception_stays_wrapped]
+    even when several are grouped [tested:
+    test_an_op_authors_exception_stays_wrapped,
+    test_an_op_authors_exception_group_stays_wrapped; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -174,6 +176,26 @@ def test_an_op_authors_exception_stays_wrapped(metta):  # noqa: D103  -- pytest 
             metta.run("!(moodyop 1)")
     finally:
         metta.unregister_op("moodyop")
+
+
+def test_an_op_authors_exception_group_stays_wrapped(metta):
+    """Only groups whose every leaf is a library error cross intact."""
+
+    def moodygroup(x):  # noqa: ARG001  -- the reflected parameter is part of the operation protocol
+        message = "two user failures"
+        raise ExceptionGroup(
+            message, [ValueError("nope"), RuntimeError("still nope")]
+        )
+
+    metta.op(moodygroup, effect="pureStructural")
+    try:
+        with pytest.raises(EngineError) as caught:
+            metta.run("!(moodygroup 1)")
+    finally:
+        metta.unregister_op("moodygroup")
+
+    assert not isinstance(caught.value, BaseExceptionGroup)
+    assert "two user failures" in str(caught.value)
 
 
 def test_case_dual_refusal_names_the_unarrived_cases(metta):

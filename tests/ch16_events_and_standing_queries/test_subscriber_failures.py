@@ -1,5 +1,12 @@
 """Purpose: telling a failed write apart from a watcher that failed after a
 write succeeded, which a caller deciding whether to retry has to do.
+Guarantees:
+  - one failed watcher remains a SubscriberError, while every later matching
+    watcher still runs and several failures arrive together in registration
+    order [tested:
+    test_one_failed_watcher_does_not_starve_later_delivery,
+    test_multiple_watcher_failures_are_grouped_after_every_delivery;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -97,3 +104,73 @@ def test_a_watcher_failure_is_distinguishable_from_a_failed_write(metta):
         assert space.match(S.fact(V.q)) == []
     finally:
         space.drop()
+
+
+def test_one_failed_watcher_does_not_starve_later_delivery(metta):
+    """A single watcher failure keeps its public type after all delivery."""
+    space = metta._new_space()
+    calls: list[str] = []
+
+    def angry(event):
+        calls.append(f"angry:{event.atom}")
+        msg = "the first watcher failed"
+        raise ValueError(msg)
+
+    def auditor(event):
+        calls.append(f"auditor:{event.atom}")
+
+    first = space.subscribe(S.fact(V.x), angry)
+    second = space.subscribe(S.fact(V.x), auditor)
+    try:
+        with pytest.raises(SubscriberError) as caught:
+            space.add(S.fact(S.one))
+    finally:
+        first.cancel()
+        second.cancel()
+        space.drop()
+
+    assert calls == ["angry:(fact one)", "auditor:(fact one)"]
+    assert caught.value.subscription is first
+    assert isinstance(caught.value.__cause__, ValueError)
+
+
+def test_multiple_watcher_failures_are_grouped_after_every_delivery(metta):
+    """All matching watchers run before their failures leave the write."""
+    space = metta._new_space()
+    calls: list[str] = []
+
+    def first_angry(event):
+        calls.append(f"first:{event.atom}")
+        msg = "the first watcher failed"
+        raise ValueError(msg)
+
+    def auditor(event):
+        calls.append(f"auditor:{event.atom}")
+
+    def last_angry(event):
+        calls.append(f"last:{event.atom}")
+        msg = "the last watcher failed"
+        raise RuntimeError(msg)
+
+    first = space.subscribe(S.fact(V.x), first_angry)
+    middle = space.subscribe(S.fact(V.x), auditor)
+    last = space.subscribe(S.fact(V.x), last_angry)
+    try:
+        with pytest.raises(ExceptionGroup) as caught:
+            space.add(S.fact(S.one))
+    finally:
+        first.cancel()
+        middle.cancel()
+        last.cancel()
+
+    assert calls == ["first:(fact one)", "auditor:(fact one)", "last:(fact one)"]
+    failures = caught.value.exceptions
+    assert len(failures) == 2
+    assert all(isinstance(failure, SubscriberError) for failure in failures)
+    assert [failure.subscription for failure in failures] == [first, last]
+    assert [failure.action for failure in failures] == ["add", "add"]
+    assert [failure.atom for failure in failures] == [S.fact(S.one), S.fact(S.one)]
+    assert [failure.space for failure in failures] == [space.name, space.name]
+    assert [type(failure.__cause__) for failure in failures] == [ValueError, RuntimeError]
+    assert len(space.match(S.fact(V.q))) == 1
+    space.drop()

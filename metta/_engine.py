@@ -23,6 +23,10 @@ Guarantees:
   - a rehydrated MettaError keeps the __cause__ it was raised with, so the
     boundary term never displaces the diagnosis [tested
     test_a_watcher_failure_is_distinguishable_from_a_failed_write]
+  - a group made only of MettaError leaves rehydrates whole, while an
+    operation author's exception group remains an EngineError [tested:
+    test_multiple_watcher_failures_are_grouped_after_every_delivery,
+    test_an_op_authors_exception_group_stays_wrapped; commit=WORKTREE]
   - a failed MeTTa assertion arrives as AssertionFailure and an engine fault
     as EngineError, neither an instance of the other [tested
     test_a_failing_assertion_is_a_different_exception_from_an_engine_fault]
@@ -86,6 +90,15 @@ from .errors import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+def _is_metta_failure(error: BaseException) -> bool:
+    """Whether one exception, including every leaf of a group, is ours."""
+    if isinstance(error, MettaError):
+        return True
+    return isinstance(error, BaseExceptionGroup) and all(
+        _is_metta_failure(member) for member in error.exceptions
+    )
 
 
 def _unencodable(inputs: Any) -> str | None:
@@ -843,13 +856,14 @@ class Runtime:
         message = _clean_message(exc)
         term = getattr(exc, "term", None)
         if term is not None:
-            original = self._original_python_error(term)
-            if original is not None:
+            original = self._original_python_error(term, base=BaseException)
+            if original is not None and _is_metta_failure(original):
                 # The library's own raise crossed Prolog and came back:
-                # re-raise the very object, structured fields intact,
-                # instead of an EngineError holding its transcript. Only
-                # MettaError rehydrates; an op author's ValueError keeps
-                # arriving wrapped, the boundary it crossed visible.
+                # re-raise the very object, structured fields intact, instead
+                # of an EngineError holding its transcript. A group rehydrates
+                # only when every leaf is a MettaError; an op author's own
+                # exception, grouped or plain, stays wrapped so the boundary
+                # it crossed remains visible.
                 #
                 # An error that already chose its own cause keeps it. `from
                 # exc` here would overwrite the diagnosis with the plumbing:
