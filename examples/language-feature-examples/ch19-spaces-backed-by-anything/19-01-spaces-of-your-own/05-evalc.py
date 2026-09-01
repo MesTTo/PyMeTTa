@@ -31,7 +31,7 @@ Open Obligations:
 """
 
 import metta
-from metta import G, S, V, equation, fn
+from metta import G, S, V, equation
 from metta.errors import MettaOperationError
 
 
@@ -40,15 +40,15 @@ def twin(m):
     metric = metta.space(S.metric, inherits=m)
 
     @metric.define
-    def distance(x):
-        return fn.mul(x, 1000)
+    def distance(x: int) -> int:
+        return x * 1000
 
     assert distance(2) == [2000]
     del distance
 
     @m.define
-    def distance(x):
-        return fn.mul(x, 5280)
+    def distance(x: int) -> int:
+        return x * 5280
 
     # The ambient space answers in feet, the named one in metres.
     assert distance(2) == [10560]
@@ -166,4 +166,9 @@ def twin(m):
 #: relational engine heads [measured 2026-09-01: min-of-3 serial fresh
 #: processes; command=python extensions/python/tools/twin_coverage.py --repin;
 #: commit=e3787593132a7ece2d300397045f7415709847c9].
-BUDGET = 9406
+#: RE-PINNED 2026-09-02, 9406 to 12660 (+3254), exact numeric annotations
+#: retain native operator heads, publish MeTTa type declarations, and leave
+#: relational heads only where static proof is unavailable [measured
+#: 2026-09-02: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 12660

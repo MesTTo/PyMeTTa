@@ -37,7 +37,7 @@ its arguments carry variables.
 """
 
 import metta
-from metta import S, V, arrow, equation, fn, typed
+from metta import S, V, arrow, equation, typed
 
 
 class Nat:
@@ -116,9 +116,9 @@ def twin(m):
         equation and is never called from Python.
         """
         # (= (fromNumber $n) (if (<= $n 0) Z (S (fromNumber (- $n 1)))))
-        if fn.le(n, 0):
+        if n <= 0:
             return S.Z
-        return S.S(from_number(fn.sub(n, 1)))
+        return S.S(from_number(n - 1))
 
     m += typed(S.fromNat, arrow(Nat, int))
 
@@ -351,4 +351,9 @@ def twin(m):
 #: name relational engine heads [measured 2026-09-01: min-of-3 serial fresh
 #: processes; command=python extensions/python/tools/twin_coverage.py --repin;
 #: commit=e3787593132a7ece2d300397045f7415709847c9].
-BUDGET = 283663702
+#: RE-PINNED 2026-09-02, 283663702 to 283662927 (-775), exact numeric
+#: annotations retain native operator heads, publish MeTTa type declarations,
+#: and leave relational heads only where static proof is unavailable [measured
+#: 2026-09-02: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 283662927

@@ -28,12 +28,12 @@ def twin(m):
     # not produce from any Python identifier, so this one door states the
     # exact name while the Python side stays snake_case.
     @m.define(name="expandK")
-    def expand_k(expression, n):
-        if fn.eq(n, 0):
+    def expand_k(expression, n: int):
+        if fn.eq(n, 0):  # engine equality is intentional
             return S.done
         space = fn.context_space()
         space += S.num(expression)
-        return expand_k(S.S(expression), fn.sub(n, 1))
+        return expand_k(S.S(expression), n - 1)
 
     @m.define
     def demo_peano(k):
@@ -127,4 +127,9 @@ def twin(m):
 #: relational engine heads [measured 2026-09-01: min-of-3 serial fresh
 #: processes; command=python extensions/python/tools/twin_coverage.py --repin;
 #: commit=e3787593132a7ece2d300397045f7415709847c9].
-BUDGET = 82575
+#: RE-PINNED 2026-09-02, 82575 to 88452 (+5877), exact numeric annotations
+#: retain native operator heads, publish MeTTa type declarations, and leave
+#: relational heads only where static proof is unavailable [measured
+#: 2026-09-02: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 88452

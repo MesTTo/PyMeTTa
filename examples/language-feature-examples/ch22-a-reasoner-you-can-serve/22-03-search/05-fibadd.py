@@ -25,15 +25,15 @@ reduction fuel"; commit=8a8b75a1f4052c00c70c29e25e95e4d5a1812cd5]. PERFECT:
 family carrying the branch allowance beside the two bounds it already carries.
 """
 
-from metta import S, fn
+from metta import S
 
 
 def twin(m):
     """Define the naive fib, then ask for fib(30) with the fuel raised."""
 
     @m.define
-    def fib(n):
-        return n if fn.lt(n, 2) else fn.add(fib(fn.sub(n, 1)), fib(fn.sub(n, 2)))
+    def fib(n: int) -> int:
+        return n if n < 2 else fib(n - 1) + fib(n - 2)
 
     raised = (S.max_stack_depth(100_000_000),)
     assert m.fn.with_pragma(raised, S.fib(30)) == [832040]
@@ -110,4 +110,9 @@ def twin(m):
 #: relational engine heads [measured 2026-09-01: min-of-3 serial fresh
 #: processes; command=python extensions/python/tools/twin_coverage.py --repin;
 #: commit=e3787593132a7ece2d300397045f7415709847c9].
-BUDGET = 30265
+#: RE-PINNED 2026-09-02, 30265 to 32774 (+2509), exact numeric annotations
+#: retain native operator heads, publish MeTTa type declarations, and leave
+#: relational heads only where static proof is unavailable [measured
+#: 2026-09-02: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 32774

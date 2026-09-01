@@ -44,9 +44,9 @@ def twin(m):
         return collapse(superpose(fn.superpose(first), fn.superpose(second)))  # noqa: F821  -- `collapse` is a name a compiled body reads as MeTTa; the package exports it nowhere yet (residue, P14.4)
 
     @m.define(name="range")
-    def count_from(k, n):
+    def count_from(k: int, n: int):
         # (= (range $K $N) (if (< $K $N) (TupleConcat ($K) (range (+ $K 1) $N)) ()))
-        return concat((k,), count_from(fn.add(k, 1), n)) if fn.lt(k, n) else ()
+        return concat((k,), count_from(k + 1, n)) if k < n else ()
 
     # !(test (range 1 10) (1 2 3 4 5 6 7 8 9))
     assert count_from(1, 10) == [Expression((1, 2, 3, 4, 5, 6, 7, 8, 9))]
@@ -128,4 +128,9 @@ def twin(m):
 #: relational engine heads [measured 2026-09-01: min-of-3 serial fresh
 #: processes; command=python extensions/python/tools/twin_coverage.py --repin;
 #: commit=e3787593132a7ece2d300397045f7415709847c9].
-BUDGET = 7738
+#: RE-PINNED 2026-09-02, 7738 to 8401 (+663), exact numeric annotations retain
+#: native operator heads, publish MeTTa type declarations, and leave relational
+#: heads only where static proof is unavailable [measured 2026-09-02: min-of-3
+#: serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 8401

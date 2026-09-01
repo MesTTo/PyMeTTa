@@ -35,22 +35,21 @@ def twin(m):
         yield 2
 
     @m.define
-    def bumped():  # (= (bumped)
+    def bumped() -> int:                         # (= (bumped)
         return S.foldall(
-            fn.add,  #    (foldall +
-            match(m, S.kb(V.n), fn.add(V.n, 1)),  # (match &self (kb $n) (+ $n 1))
-            0,
-        )  #     0))
+            fn.add,                              #    (foldall +
+            match(m, S.kb(V.n), fn.add(V.n, 1)),  # (match &self (kb $n) (+ $n 1)); V.n is an engine variable
+            0,                                   #     0))
+        )
 
     @m.define
-    def raised():  # (= (raised)
+    def raised() -> int:                         # (= (raised)
+        # The stored let keeps branching inside foldall's generator slot.
         return S.foldall(
-            fn.add,  #    (foldall +
-            S.let(
-                V.x, S.f(), fn.add(1, V.x)
-            ),  # rung: this `let` scopes the branching inside foldall's generator slot, where no Python statement can stand
-            0,
-        )  # (let $x (f) (+ 1 $x)), then 0
+            fn.add,                              #    (foldall +
+            S.let(V.x, S.f(), fn.add(1, V.x)),  # V.x is an engine variable
+            0,                                   # (let $x (f) (+ 1 $x)), then 0
+        )
 
     assert bumped() == [5]  # [5]
     assert raised() == [5]  # [5]

@@ -13,8 +13,6 @@ for yet (friction, P14.4). Out here the answer is an expression and Python
 unpacks it, so three steps are a loop rather than three copies of one line.
 """
 
-from metta import fn
-
 
 def twin(m):
     """Step a natural-number iterator three times and read off the values."""
@@ -24,8 +22,8 @@ def twin(m):
         return 0
 
     @m.define
-    def iter_next(n):  # (= (iter-next $N)
-        return (n, fn.add(n, 1))  #    (let* (($X $N) ($Next (+ $N 1))) ($X $Next)))
+    def iter_next(n: int):                # (= (iter-next $N)
+        return (n, n + 1)                 #    (let* (($X $N) ($Next (+ $N 1))) ($X $Next)))
 
     state, seen = make_nat_iter().one(), []
     for _ in range(3):
@@ -113,4 +111,9 @@ def twin(m):
 #: relational engine heads [measured 2026-09-01: min-of-3 serial fresh
 #: processes; command=python extensions/python/tools/twin_coverage.py --repin;
 #: commit=e3787593132a7ece2d300397045f7415709847c9].
-BUDGET = 3615
+#: RE-PINNED 2026-09-02, 3615 to 4593 (+978), exact numeric annotations retain
+#: native operator heads, publish MeTTa type declarations, and leave relational
+#: heads only where static proof is unavailable [measured 2026-09-02: min-of-3
+#: serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 4593

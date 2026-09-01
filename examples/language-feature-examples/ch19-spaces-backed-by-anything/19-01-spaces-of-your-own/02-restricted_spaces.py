@@ -17,7 +17,7 @@ value it is, so neither is quoted into text.
 from pathlib import Path
 
 import metta
-from metta import S, fn
+from metta import S
 from metta.errors import SpaceCapabilityError
 from metta.vocabularies import SpaceCapability
 
@@ -37,8 +37,8 @@ def twin(m):  # noqa: ARG001  -- both spaces are created here; the default handl
     locked = metta.space(S.locked, restricted=True)
 
     @locked.define
-    def double(x):
-        return fn.mul(x, 2)
+    def double(x: int) -> int:
+        return x * 2
 
     # A restricted space retains ordinary computation and its own equations.
     assert locked.eval(S.double(21)) == [42]
@@ -162,4 +162,9 @@ def twin(m):  # noqa: ARG001  -- both spaces are created here; the default handl
 #: relational engine heads [measured 2026-09-01: min-of-3 serial fresh
 #: processes; command=python extensions/python/tools/twin_coverage.py --repin;
 #: commit=e3787593132a7ece2d300397045f7415709847c9].
-BUDGET = 62711
+#: RE-PINNED 2026-09-02, 62711 to 63647 (+936), exact numeric annotations
+#: retain native operator heads, publish MeTTa type declarations, and leave
+#: relational heads only where static proof is unavailable [measured
+#: 2026-09-02: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 63647

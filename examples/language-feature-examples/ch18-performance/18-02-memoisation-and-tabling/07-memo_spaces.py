@@ -19,7 +19,7 @@ new one in without ceremony.
 """
 
 import metta
-from metta import S, V, equation, fn, lib
+from metta import S, V, equation, lib
 
 
 def twin(m):
@@ -30,9 +30,9 @@ def twin(m):
     metric += equation(S.shipping_cost(V.w)).to(V.w * 9)
 
     @m.define
-    def shipping_cost(w):
+    def shipping_cost(w: int) -> int:
         # (= (shipping-cost $w) (* $w 2))
-        return fn.mul(w, 2)
+        return w * 2
 
     here, there = m.fn.shipping_cost, metric.fn.shipping_cost
     memoized, memoized_there = m.fn.is_memoized, metric.fn.is_memoized
@@ -157,4 +157,9 @@ def twin(m):
 #: relational engine heads [measured 2026-09-01: min-of-3 serial fresh
 #: processes; command=python extensions/python/tools/twin_coverage.py --repin;
 #: commit=e3787593132a7ece2d300397045f7415709847c9].
-BUDGET = 45622
+#: RE-PINNED 2026-09-02, 45622 to 49061 (+3439), exact numeric annotations
+#: retain native operator heads, publish MeTTa type declarations, and leave
+#: relational heads only where static proof is unavailable [measured
+#: 2026-09-02: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 49061

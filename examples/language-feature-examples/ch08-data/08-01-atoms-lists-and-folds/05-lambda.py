@@ -7,10 +7,9 @@ that can be mapped over a list, applied directly, passed through a binding,
 partially applied, and closed over a preceding binding.
 
 Python's own `lambda` IS the second kind. Inside a compiled body it lowers
-straight to `|->`, so `lambda a: fn.add(1, a)` stores
-`(|-> ($a) (+ 1 $a))`, and a lambda that reads a name bound above it closes
-over that name exactly as the original's `let*` does. Three of the seven
-claims are written that way.
+straight to `|->`, so `lambda a: 1 + a` stores `(|-> ($a) (+ 1 $a))`, and a
+`lambda` that reads a name bound above it closes over that name exactly as the
+original's `let*` does. Three of the seven claims are written that way.
 
 What a compiled body will not do is apply a lambda WHERE IT STANDS: `(lambda
 ...)(arg)` is refused, "a compiled body calls a plain name". So the two forms
@@ -59,14 +58,14 @@ def twin(m):
     # The MeTTa names are camel-cased and Python's are not, so `name=` carries
     # the example's own spelling and the Python side stays PEP 8.
     @m.define(name="applyL1")
-    def apply_l1():
+    def apply_l1() -> int:
         # (= (applyL1) (apply (lambda $x (+ $x 1)) 2))
-        return S.apply(S["lambda"](V.x, fn.add(V.x, 1)), 2)
+        return S.apply(S["lambda"](V.x, fn.add(V.x, 1)), 2)  # V.x is an engine variable
 
     @m.define(name="applyL2")
-    def apply_l2():
+    def apply_l2() -> int:
         # (= (applyL2) (apply (lambda ($x $y) (+ $x $y)) (2 7)))
-        return S.apply(S["lambda"]((V.x, V.y), fn.add(V.x, V.y)), (2, 7))
+        return S.apply(S["lambda"]((V.x, V.y), fn.add(V.x, V.y)), (2, 7))  # V.x and V.y are engine variables
 
     assert apply_l1() == [3]
     assert apply_l2() == [9]
@@ -75,7 +74,7 @@ def twin(m):
     @m.define
     def increment_all(items):
         # (= (increment-all $items) (maplist (|-> ($a) (+ 1 $a)) $items))
-        return fn.maplist(lambda a: fn.add(1, a), items)
+        return fn.maplist(lambda a: fn.add(1, a), items)  # a is a lambda parameter
 
     assert increment_all((1, 2, 3)) == [Expression((2, 3, 4))]
 

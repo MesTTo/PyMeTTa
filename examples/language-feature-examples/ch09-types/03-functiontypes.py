@@ -11,10 +11,11 @@ branch and a number on the other, which `%Undefined%` allows.
 All four say their types as ANNOTATIONS, which is the whole declaration: `int`
 is Number, `Atom` is the Atom metatype, and `Any` is `%Undefined%`, all through
 the one conversion table, so each arrow is written once and the engine checks
-it. Inside the compiled bodies `fn.lt(a, 10)` and `fn.add(a, b)` explicitly
-name the source relations, while wu3's other branch builds the five-symbol
-expression `(a list not a number)` by calling its head. Nothing here defines
-`a`, and the expression is data.
+it. Inside the compiled bodies Python's own syntax is the MeTTa: `if a < 10`
+is the guard, `a + b` builds `(+ $a $b)`, and wu3's other branch builds the
+five-symbol expression `(a list not a number)` by calling its head, which is
+what building a term by its head means whether or not anything defines that
+head. Nothing here defines `a`, and the expression is data.
 
 Note what the twin does NOT need: the example wraps its expected answers in
 `noeval` because MeTTa's `test` evaluates them. Python's `==` evaluates
@@ -28,7 +29,7 @@ Guarantees:
 
 from typing import Any
 
-from metta import Atom, Expression, S, fn
+from metta import Atom, Expression, S
 
 
 def twin(m):
@@ -47,13 +48,13 @@ def twin(m):
     @m.define
     def wu2(a: int, b: int) -> int:
         """(: wu2 (-> Number Number Number)), (= (wu2 $a $b) (+ $a $b))."""
-        return fn.add(a, b)
+        return a + b
 
     @m.define
     def wu3(a: int, b: int) -> Any:
         """(: wu3 (-> Number Number %Undefined%)), guarded on (< $a 10)."""
-        if fn.lt(a, 10):
-            return fn.add(a, b)
+        if a < 10:
+            return a + b
         return S.a(S.list, S["not"], S.a, S.number)
 
     # The Atom-typed argument arrives unevaluated and STAYS that way all
@@ -158,4 +159,9 @@ def twin(m):
 #: relational engine heads [measured 2026-09-01: min-of-3 serial fresh
 #: processes; command=python extensions/python/tools/twin_coverage.py --repin;
 #: commit=e3787593132a7ece2d300397045f7415709847c9].
-BUDGET = 13803
+#: RE-PINNED 2026-09-02, 13803 to 13044 (-759), exact numeric annotations
+#: retain native operator heads, publish MeTTa type declarations, and leave
+#: relational heads only where static proof is unavailable [measured
+#: 2026-09-02: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 13044

@@ -46,9 +46,9 @@ def twin(m):
     """Run two functions forwards, then run everything backwards."""
 
     @m.define
-    def double(x):
+    def double(x: int) -> int:
         # (= (double $x) (* 2 $x))
-        return fn.mul(2, x)
+        return 2 * x
 
     assert double(5) == [10]
     assert m.solve(10, S.double(V.x)).x == 5
@@ -64,9 +64,9 @@ def twin(m):
     assert m.solve(7, S.double(V.x)).x == []
 
     @m.define
-    def square(x):
+    def square(x: int) -> int:
         # (= (square $x) (* $x $x))
-        return fn.mul(x, x)
+        return x * x
 
     # Past one unknown a constraint begins: 25 = X*X is nonlinear, so the
     # engine posts it to CLP(FD) and labels what propagation leaves, which
@@ -202,4 +202,9 @@ def twin(m):
 #: relational engine heads [measured 2026-09-01: min-of-3 serial fresh
 #: processes; command=python extensions/python/tools/twin_coverage.py --repin;
 #: commit=e3787593132a7ece2d300397045f7415709847c9].
-BUDGET = 34245
+#: RE-PINNED 2026-09-02, 34245 to 36348 (+2103), exact numeric annotations
+#: retain native operator heads, publish MeTTa type declarations, and leave
+#: relational heads only where static proof is unavailable [measured
+#: 2026-09-02: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 36348

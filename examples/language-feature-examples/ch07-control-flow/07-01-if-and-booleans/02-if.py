@@ -3,10 +3,9 @@
 Both arms are expressions, `(3 4)` and `(5 6)`, and a Python tuple is one. The
 condition is false, so the answer is the second arm.
 
-Inside a compiled body Python's conditional expression IS this form. The
-condition names the source relation as `fn.gt(1, 2)`, so the whole expression
-lowers to `(if (> 1 2) (3 4) (5 6))` arm for arm, and the untaken arm is never
-evaluated on either side.
+Inside a compiled body Python's own conditional expression IS this form:
+`(3, 4) if 1 > 2 else (5, 6)` lowers to `(if (> 1 2) (3 4) (5 6))` arm for arm,
+and the arm that is not taken is never evaluated on either side.
 Guarantees:
   - every ordered atom assembled in this file passes one iterable to
     Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=028b41a056cfd706e516cd0b945cbf69ac066da7]
@@ -16,7 +15,7 @@ Open Obligations:
   Future Enhancements: None.
 """
 
-from metta import Expression, fn
+from metta import Expression
 
 
 def twin(m):
@@ -25,7 +24,7 @@ def twin(m):
     @m.define
     def pick():
         # (if (> 1 2) (3 4) (5 6))
-        return (3, 4) if fn.gt(1, 2) else (5, 6)
+        return (3, 4) if 1 > 2 else (5, 6)  # noqa: PLR0133 -- keep the engine fixture's constant comparison
 
     # !(test (if (> 1 2) (3 4) (5 6)) (5 6))
     assert pick() == [Expression((5, 6))]
@@ -97,4 +96,9 @@ def twin(m):
 #: relational engine heads [measured 2026-09-01: min-of-3 serial fresh
 #: processes; command=python extensions/python/tools/twin_coverage.py --repin;
 #: commit=e3787593132a7ece2d300397045f7415709847c9].
-BUDGET = 3695
+#: RE-PINNED 2026-09-02, 3695 to 2942 (-753), exact numeric annotations retain
+#: native operator heads, publish MeTTa type declarations, and leave relational
+#: heads only where static proof is unavailable [measured 2026-09-02: min-of-3
+#: serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 2942

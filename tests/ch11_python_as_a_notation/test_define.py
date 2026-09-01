@@ -26,10 +26,12 @@ Guarantees:
     element count as their twin [tested:
     test_for_statement_uses_python_iteration_for_every_grounded_iterable;
     commit=cf1963fa03f91c1d9721636cb6f05c6cfc362819]
-  - compiled operators invoke Python's numeric, container, reflected, and
-    unary protocols and preserve their result species [tested:
-    test_compiled_operators_follow_python_protocols_and_result_species;
-    commit=e3787593132a7ece2d300397045f7415709847c9]
+  - generic compiled operators invoke Python's live protocols, while exact
+    int/float annotations retain pure engine heads; typing.no_type_check can
+    keep that syntax proof without publishing a source-absent arrow [tested:
+    test_compiled_operators_follow_python_protocols_and_result_species,
+    test_no_type_check_keeps_annotations_as_a_compile_proof_only;
+    commit=WORKTREE]
 Owns:
   - test_define_from_two_threads_is_serialized joins both definition workers
     before examining their equations [tested test_define_from_two_threads_is_serialized]
@@ -666,6 +668,43 @@ def test_annotations_declare_types_for_defines(m):  # noqa: D103  -- pytest disc
     assert m.run("!(get-type (dtyped 1))") == [[S.Number]]
 
 
+def test_no_type_check_keeps_annotations_as_a_compile_proof_only(m):
+    """A source-exact or multi-arity twin can keep proof without an arrow."""
+    from typing import no_type_check
+
+    @m.define
+    @no_type_check
+    def dnative_only(x: int) -> int:
+        """Add one.
+
+        Args:
+            x: the input
+
+        Returns:
+            the result
+        """
+        return x + 1
+
+    assert str(dnative_only.body) == "(+ $x 1)"
+    assert list(m.match(S[":"](S.dnative_only, V.type))) == []
+    documentation = str(m.run("!(get-doc dnative-only)")[0][0])
+    assert documentation.count("(@type %Undefined%)") == 2
+
+    @m.define
+    @no_type_check
+    def dshared(x: int) -> int:
+        return x + 1
+
+    @m.define(name="dshared")
+    @no_type_check
+    def dshared_2(x: int, y: int) -> int:
+        return x + y
+
+    assert dshared(3) == [4]
+    assert dshared_2(3, 4) == [7]
+    assert list(m.match(S[":"](S.dshared, V.type))) == []
+
+
 def test_engine_functions_feel_like_python(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     m.run("(= (dtriple $x) (* $x 3))")
     triple = m.fn.dtriple
@@ -1005,10 +1044,14 @@ def test_check_twin_distinguishes_integer_float_and_boolean_answers(m):
 
 def test_compiled_operators_follow_python_protocols_and_result_species(m):  # noqa: C901 -- one protocol matrix must exercise every operator family through the same differential oracle
     """Every lowered operator agrees with the live Python data model."""
-    from metta import testing
+    from metta import fn, testing
 
     @m.define
     def dt_add(left, right):
+        return left + right
+
+    @m.define
+    def dt_native_add(left: int, right: int) -> int:
         return left + right
 
     @m.define
@@ -1016,11 +1059,39 @@ def test_compiled_operators_follow_python_protocols_and_result_species(m):  # no
         return left - right
 
     @m.define
+    def dt_native_sub(left: int, right: int) -> int:
+        return left - right
+
+    @m.define
     def dt_mul(left, right):
         return left * right
 
     @m.define
+    def dt_native_mul(left: int, right: int) -> int:
+        return left * right
+
+    @m.define
+    def dt_div(left, right):
+        return left / right
+
+    @m.define
+    def dt_native_div(left: float, right: float) -> float:
+        return left / right
+
+    @m.define
+    def dt_floor(left, right):
+        return left // right
+
+    @m.define
+    def dt_native_floor(left: float, right: float) -> float:
+        return left // right
+
+    @m.define
     def dt_mod(left, right):
+        return left % right
+
+    @m.define
+    def dt_native_mod(left: int, right: int) -> int:
         return left % right
 
     @m.define
@@ -1040,16 +1111,48 @@ def test_compiled_operators_follow_python_protocols_and_result_species(m):  # no
         return left < right
 
     @m.define
+    def dt_native_order(left: int, right: int) -> bool:
+        return left < right
+
+    @m.define
+    def dt_greater(left, right):
+        return left > right
+
+    @m.define
+    def dt_native_greater(left: int, right: int) -> bool:
+        return left > right
+
+    @m.define
+    def dt_at_most(left, right):
+        return left <= right
+
+    @m.define
+    def dt_native_at_most(left: int, right: int) -> bool:
+        return left <= right
+
+    @m.define
+    def dt_at_least(left, right):
+        return left >= right
+
+    @m.define
+    def dt_native_at_least(left: int, right: int) -> bool:
+        return left >= right
+
+    @m.define
+    def dt_annotated_equal(left: int, right: float) -> bool:
+        return left == right
+
+    @m.define
+    def dt_annotated_float_equal(left: float, right: float) -> bool:
+        return left == right
+
+    @m.define
     def dt_builtins(values):
         return sum(values), min(values), max(values), sorted(values)
 
     @m.define
     def dt_reciprocal_species(value):
         return value**-1
-
-    @m.define
-    def dt_annotated_floor_species(left: float, right: float) -> float:
-        return left // right
 
     @m.define
     def dt_literal_set():
@@ -1152,15 +1255,32 @@ def test_compiled_operators_follow_python_protocols_and_result_species(m):  # no
 
     checks = (
         (dt_add, (("ab", "cd"), ([1, 2], [3, 4]), ((1, 2), (3, 4)))),
+        (dt_native_add, ((5, 2), (-5, 2))),
+        (dt_sub, ((5, 2),)),
+        (dt_native_sub, ((5, 2), (-5, 2))),
         (dt_mul, (("ab", 2), ([1, 2], 2), ((1, 2), 2))),
+        (dt_native_mul, ((5, 2), (-5, 2))),
+        (dt_div, ((5.0, 2.0), (-5.0, 2.0))),
+        (dt_native_div, ((5.0, 2.0), (-5.0, 2.0))),
+        (dt_floor, ((5.0, 2.0), (-5.0, 2.0))),
+        (dt_native_floor, ((5.0, 2.0), (-5.0, 2.0))),
         (dt_mod, (("%03d", 7),)),
+        (dt_native_mod, ((5, 2), (-5, 2))),
         (dt_band, ((6, 3), (True, False))),
         (dt_bor, ((6, 3), (True, False))),
         (dt_bxor, ((6, 3), (True, False))),
         (dt_order, (("alpha", "beta"),)),
+        (dt_native_order, ((1, 2), (2, 1))),
+        (dt_greater, ((2, 1), (1, 2))),
+        (dt_native_greater, ((2, 1), (1, 2))),
+        (dt_at_most, ((1, 2), (2, 1))),
+        (dt_native_at_most, ((1, 2), (2, 1))),
+        (dt_at_least, ((2, 1), (1, 2))),
+        (dt_native_at_least, ((2, 1), (1, 2))),
+        (dt_annotated_equal, ((1, 1.0),)),
+        (dt_annotated_float_equal, ((float("nan"), float("nan")), (-0.0, 0.0))),
         (dt_builtins, (((True, False, True),), ((3, 1, 2),))),
         (dt_reciprocal_species, ((1,), (-1,))),
-        (dt_annotated_floor_species, ((5.0, 2.0), (-5.0, 2.0))),
         (dt_reflected, ((Reflected(),),)),
         (dt_unary, ((Unary(),),)),
     )
@@ -1172,7 +1292,58 @@ def test_compiled_operators_follow_python_protocols_and_result_species(m):  # no
     assert dt_band({1, 2}, {2, 3})[0].value == {2}
     assert dt_bor({1}, {2})[0].value == {1, 2}
     assert dt_bxor({1, 2}, {2, 3})[0].value == {1, 3}
-    assert type(dt_annotated_floor_species(5.0, 2.0)[0].value) is float
+    protocol_heads = {
+        dt_add: "add",
+        dt_sub: "sub",
+        dt_mul: "mul",
+        dt_div: "truediv",
+        dt_floor: "floordiv",
+        dt_mod: "mod",
+        dt_order: "lt",
+        dt_greater: "gt",
+        dt_at_most: "le",
+        dt_at_least: "ge",
+    }
+    for defined, selector in protocol_heads.items():
+        assert str(defined.body) == f"(py-operator {selector} $left $right)"
+
+    native_heads = {
+        dt_native_add: "(+ $left $right)",
+        dt_native_sub: "(- $left $right)",
+        dt_native_mul: "(* $left $right)",
+        dt_native_div: "(/ (* 1.0 $left) $right)",
+        dt_native_floor: "(floor-div $left $right)",
+        dt_native_mod: "(% $left $right)",
+        dt_native_order: "(< $left $right)",
+        dt_native_greater: "(> $left $right)",
+        dt_native_at_most: "(<= $left $right)",
+        dt_native_at_least: "(>= $left $right)",
+    }
+    for defined, expected in native_heads.items():
+        assert str(defined.body) == expected
+        assert "py-operator" not in str(defined.body)
+
+    assert type(dt_native_add(5, 2)[0].value) is int
+    assert type(dt_native_sub(5, 2)[0].value) is int
+    assert type(dt_native_mul(5, 2)[0].value) is int
+    assert type(dt_native_div(5.0, 2.0)[0].value) is float
+    assert type(dt_native_floor(5.0, 2.0)[0].value) is float
+    assert type(dt_native_mod(5, 2)[0].value) is int
+    for native_compare in (
+        dt_native_order,
+        dt_native_greater,
+        dt_native_at_most,
+        dt_native_at_least,
+    ):
+        assert type(native_compare(1, 2)[0].value) is bool
+    assert dt_annotated_equal(1, 1.0) == [True]
+    assert dt_annotated_float_equal(float("nan"), float("nan")) == [False]
+    assert dt_annotated_float_equal(-0.0, 0.0) == [True]
+    assert m.eval(fn.eq(1, 1.0)) == [False]
+    assert m.eval(fn.eq(float("nan"), float("nan"))) == [True]
+    assert m.eval(fn.eq(-0.0, 0.0)) == [False]
+    assert str(dt_annotated_equal.body) == "(py-operator eq $left $right)"
+    assert str(dt_annotated_float_equal.body) == "(py-operator eq $left $right)"
 
     def members(answer):
         return {
@@ -1233,6 +1404,12 @@ def test_compiled_rich_comparisons_truth_test_only_in_boolean_contexts(m):
         return "falsy"
 
     @m.define
+    def dt_native_compare_test(a: int, b: int) -> str:
+        if a < b:
+            return "truthy"
+        return "falsy"
+
+    @m.define
     def dt_compare_chain(a, b, c):
         return a < b < c
 
@@ -1248,6 +1425,11 @@ def test_compiled_rich_comparisons_truth_test_only_in_boolean_contexts(m):
     calls.clear()
     assert dt_compare_test(left, middle) == ["falsy"]
     assert calls == ["lt", ("bool", "direct")]
+    assert "(py-truthy (py-operator lt $a $b))" in str(dt_compare_test.body)
+    assert "(< $a $b)" in str(dt_native_compare_test.body)
+    assert "py-truthy" not in str(dt_native_compare_test.body)
+    assert dt_native_compare_test(1, 2) == ["truthy"]
+    assert dt_native_compare_test(2, 1) == ["falsy"]
 
     direct.truth = True
     calls.clear()
@@ -1474,6 +1656,21 @@ def test_walrus_bindings_hoist_as_let(metta):
             "(let* (($y (py-operator mul $x $x))) (py-operator add $y $y))"
         )
         assert m.eval("(wsq 3)") == [18]
+
+        @m.define
+        def native_wsq(x: int) -> int:
+            return (y := x * x) + y
+
+        assert str(native_wsq.bodies[0]) == "(let* (($y (* $x $x))) (+ $y $y))"
+
+        @m.define
+        def native_guard(n: int) -> int:
+            if (half := n // 2) < 10:
+                return half
+            return 0
+
+        assert "py-operator" not in str(native_guard.bodies[0])
+        assert "py-truthy" not in str(native_guard.bodies[0])
 
         @m.define
         def nested(x):

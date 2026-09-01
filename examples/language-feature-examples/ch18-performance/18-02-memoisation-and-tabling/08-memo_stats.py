@@ -12,7 +12,7 @@ file record one of each. The claims here hold either way, because 81 is 81; the
 divergence is in the residue table with its reproduction.
 """
 
-from metta import S, fn, lib
+from metta import S, lib
 
 
 def twin(m):
@@ -20,8 +20,8 @@ def twin(m):
     m += lib.memo
 
     @m.define
-    def sq(x):
-        return fn.mul(x, x)
+    def sq(x: int) -> int:
+        return x * x
 
     m.eval(S.memoize(sq))
 
@@ -111,4 +111,9 @@ def twin(m):
 #: relational engine heads [measured 2026-09-01: min-of-3 serial fresh
 #: processes; command=python extensions/python/tools/twin_coverage.py --repin;
 #: commit=e3787593132a7ece2d300397045f7415709847c9].
-BUDGET = 30284
+#: RE-PINNED 2026-09-02, 30284 to 31351 (+1067), exact numeric annotations
+#: retain native operator heads, publish MeTTa type declarations, and leave
+#: relational heads only where static proof is unavailable [measured
+#: 2026-09-02: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 31351

@@ -25,9 +25,9 @@ assignment, which lowers to `let*`.
 
 Each claim states its own branch allowance above the evaluator's 100000
 default, which is a term because `m.limits` bounds inferences and time and not
-stack depth (residue, P14.14). The compiled kernels explicitly use `fn.eq`,
-`fn.sub`, and `fn.add`, so their million-step recursion stays on the source's
-engine relations rather than crossing into Python's live operator protocols.
+stack depth (residue, P14.14). The exact numeric annotations keep arithmetic
+and ordering on pure engine heads. Equality stays explicit as `fn.eq`, whose
+declared Bool result remains bare in each recursive condition.
 """
 
 from metta import S, V, equation, fn, if_
@@ -70,10 +70,10 @@ def twin(m):
     # `P0.13 suppression burn-down increased (observed, maximum): {'N': (37,
     # 35), 'A': (9, 8)}`; it would also redirect recursion to `py-range`.
     @m.define(name="range")
-    def range_(n):
-        if fn.eq(n, 0):
+    def range_(n: int):
+        if fn.eq(n, 0):  # engine equality is intentional
             return ()
-        rest = range_(fn.sub(n, 1))
+        rest = range_(n - 1)
         return S.cons(n, rest)
 
     assert m.fn.with_pragma(DEEP, S.length(S.map_flat(INC, S.range(1_000_000)))) == [1_000_000]
@@ -89,30 +89,30 @@ def twin(m):
     )
 
     @m.define
-    def deep_nest(n):
-        if fn.eq(n, 0):
+    def deep_nest(n: int):
+        if fn.eq(n, 0):  # engine equality is intentional
             return ()
         row = fn.range(50)
-        rest = deep_nest(fn.sub(n, 1))
+        rest = deep_nest(n - 1)
         return S.cons(row, rest)
 
     assert m.fn.with_pragma(DEEP, S.fold_nested(S.add, 0, S.deep_nest(20_000))).one() == 25_500_000
 
     # A hundred thousand applications of one function to one value.
     @m.define
-    def apply_many(f, n, x):
-        if fn.eq(n, 0):
+    def apply_many(f, n: int, x):
+        if fn.eq(n, 0):  # engine equality is intentional
             return x
-        return apply_many(f, fn.sub(n, 1), f(x))
+        return apply_many(f, n - 1, f(x))
 
     assert m.fn.with_pragma(DEEP, S.apply_many(INC, 100_000, 0)) == [100_000]
 
     # And a polynomial sum, which applies the parameter inside an addition.
     @m.define
-    def poly(f, n):
-        if fn.eq(n, 0):
+    def poly(f, n: int) -> int:
+        if fn.eq(n, 0):  # engine equality is intentional
             return 0
-        return fn.add(f(n), poly(f, fn.sub(n, 1)))
+        return fn.add(f(n), poly(f, n - 1))  # f's return type is unknown
 
     assert m.fn.with_pragma(DEEP, S.poly(INC, 1_000_000)) == [500_001_500_000]
 
@@ -198,4 +198,9 @@ def twin(m):
 #: name relational engine heads [measured 2026-09-01: min-of-3 serial fresh
 #: processes; command=python extensions/python/tools/twin_coverage.py --repin;
 #: commit=e3787593132a7ece2d300397045f7415709847c9].
-BUDGET = 27901918
+#: RE-PINNED 2026-09-02, 27901918 to 34146332 (+6244414), exact numeric
+#: annotations retain native operator heads, publish MeTTa type declarations,
+#: and leave relational heads only where static proof is unavailable [measured
+#: 2026-09-02: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 34146332

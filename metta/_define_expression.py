@@ -52,10 +52,12 @@ Guarantees:
     spelling [tested: test_known_call_site_keywords_bind_to_positional_metta_arguments,
     test_unknown_symbol_keywords_refuse_with_the_positional_remedy;
     commit=51b792423cec5787614d1488c0793b8a50eaa6fc]
-  - compiled Python operators invoke the live Python data model, including
-    reflected, in-place, unary, and rich-comparison protocols [tested:
-    test_compiled_operators_follow_python_protocols_and_result_species;
-    commit=e3787593132a7ece2d300397045f7415709847c9]
+  - compiled Python operators invoke the live Python data model for generic
+    operands and retain pure engine heads only for exact native-number
+    annotations, including bare native comparison tests [tested:
+    test_compiled_operators_follow_python_protocols_and_result_species,
+    test_compiled_rich_comparisons_truth_test_only_in_boolean_contexts;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -142,6 +144,10 @@ _NATIVE_COMPARE = {
     ast.LtE: "<=",
     ast.GtE: ">=",
 }
+# Equality stays on Python's protocol path even for exact numeric annotations:
+# 1 == 1.0, nan == nan, and -0.0 == 0.0 disagree with the engine relation.
+# [tested: test_compiled_operators_follow_python_protocols_and_result_species;
+# commit=WORKTREE]
 
 _SOURCE_COMPARE = {
     **_NATIVE_COMPARE,
@@ -563,6 +569,8 @@ class ExpressionCompilerMixin(CompilerContext):
             )
         if isinstance(node, ast.IfExp):
             return self._native_number(node.body) and self._native_number(node.orelse)
+        if isinstance(node, ast.NamedExpr):
+            return self._native_number(node.value)
         return (
             self.number_return
             and isinstance(node, ast.Call)

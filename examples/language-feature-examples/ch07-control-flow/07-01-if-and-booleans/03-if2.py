@@ -27,9 +27,9 @@ def twin(m):
     """Ask whether a symbol is a variable, and take the arm that answers."""
 
     @m.define
-    def branch(x):
+    def branch(x) -> int:
         # (if (is-var $x) (() (+ 1 1)) (+ 2 2))
-        return ((), fn.add(1, 1)) if fn.is_var(x) else fn.add(2, 2)
+        return ((), 1 + 1) if fn.is_var(x) else 2 + 2
 
     # !(test (if (is-var a) (() (+ 1 1)) (+ 2 2)) 4)
     assert branch(S.a) == [4]
@@ -111,4 +111,9 @@ def twin(m):
 #: relational engine heads [measured 2026-09-01: min-of-3 serial fresh
 #: processes; command=python extensions/python/tools/twin_coverage.py --repin;
 #: commit=e3787593132a7ece2d300397045f7415709847c9].
-BUDGET = 4203
+#: RE-PINNED 2026-09-02, 4203 to 4189 (-14), exact numeric annotations retain
+#: native operator heads, publish MeTTa type declarations, and leave relational
+#: heads only where static proof is unavailable [measured 2026-09-02: min-of-3
+#: serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 4189

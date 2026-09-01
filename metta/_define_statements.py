@@ -38,6 +38,9 @@ Guarantees:
     local container species across SSA rebinding [tested:
     test_compiled_operators_follow_python_protocols_and_result_species;
     commit=e3787593132a7ece2d300397045f7415709847c9]
+  - a walrus binding carries an exact native-number proof into the remainder
+    of its expression, just as a statement assignment does [tested:
+    test_walrus_bindings_hoist_as_let; commit=WORKTREE]
   - ``del space[pattern]`` removes every snapshotted match while annotated
     space ``-=`` removes one, with missing removals kept loud [tested:
     test_compiled_removal_statements_preserve_one_many_missing_and_target_scope;
@@ -1102,6 +1105,10 @@ class StatementCompilerMixin(CompilerContext):
                 self.container_locals.pop(target, None)
             else:
                 self.container_locals[target] = kind
+            if self._native_number(walrus.value):
+                self.number_locals.add(target)
+            else:
+                self.number_locals.discard(target)
             variable = Variable(self._bind(target))
             pairs.append(Expression([variable, value]))
             _replace_walrus(head, walrus, target)

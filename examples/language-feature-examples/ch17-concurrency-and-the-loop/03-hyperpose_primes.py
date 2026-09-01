@@ -14,11 +14,11 @@ What the answered form shows is the dissolution table three times over: `let` is
 an assignment, `collapse` is the answer list `m.hyperpose` already hands back,
 and `msort` is `sorted`, because atoms carry the engine's own order.
 
-Both equations are ordinary Python functions under the decorator, and every
-source arithmetic and comparison relation is explicit through `fn`. Generic
-operators use Python's live protocols; this trial-division loop needs the
-engine heads and no host crossing. `superpose_primes.py` beside this file
-carries the historical A/B measurement that settled the spelling.
+Both equations are ordinary Python functions under the decorator. Exact
+numeric annotations keep their arithmetic and ordering on pure engine heads.
+Both equality tests name MeTTa's own `==`, avoiding Python's live equality
+protocol in each trial-division iteration. superpose_primes.py beside this file
+carries the measured comparison.
 """
 
 from metta import fn
@@ -28,16 +28,16 @@ def twin(m):
     """Fan three numbers out over threads, and put the primes back together."""
 
     @m.define
-    def find_divisor(n, test_divisor):
-        if fn.gt(fn.mul(test_divisor, test_divisor), n):
+    def find_divisor(n: int, test_divisor: int) -> int:
+        if test_divisor * test_divisor > n:
             return n
-        if fn.eq(0, fn.mod(n, test_divisor)):
+        if fn.eq(0, n % test_divisor):  # engine equality is intentional
             return test_divisor
-        return find_divisor(n, fn.add(test_divisor, 1))
+        return find_divisor(n, test_divisor + 1)
 
     @m.define(name="prime?")
-    def prime(n):
-        return fn.eq(n, fn.find_divisor(n, 2))
+    def prime(n: int) -> bool:
+        return fn.eq(n, fn.find_divisor(n, 2))  # engine equality is intentional
 
     # hyperpose takes its branches through a variable as happily as inline, and
     # the answers come back in whatever order the threads finish.
@@ -122,4 +122,9 @@ def twin(m):
 #: relational engine heads [measured 2026-09-01: min-of-3 serial fresh
 #: processes; command=python extensions/python/tools/twin_coverage.py --repin;
 #: commit=e3787593132a7ece2d300397045f7415709847c9].
-BUDGET = 16412
+#: RE-PINNED 2026-09-02, 16412 to 16797 (+385), exact numeric annotations
+#: retain native operator heads, publish MeTTa type declarations, and leave
+#: relational heads only where static proof is unavailable [measured
+#: 2026-09-02: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 16797

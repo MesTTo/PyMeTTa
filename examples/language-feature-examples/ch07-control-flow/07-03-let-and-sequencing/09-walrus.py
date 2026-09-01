@@ -12,24 +12,24 @@ Open Obligations:
   Future Enhancements: None.
 """
 
-from metta import S, fn
+from metta import S
 
 
 def twin(m):
     """Bind with := where the value is first needed, then read it again."""
 
     @m.define
-    def double_used(n):
+    def double_used(n: int) -> int:
         # (let* (($big (* $n 10))) (+ $big $big))
-        return fn.add((big := fn.mul(n, 10)), big)
+        return (big := n * 10) + big
 
     # !(test (double-used 3) 60)
     assert double_used(3) == [60]
 
     @m.define
-    def guarded_half(n):
+    def guarded_half(n: int):
         # (let* (($half (floor-div $n 2))) (if (< $half 10) $half nope))
-        if fn.lt((half := fn.floor_div(n, 2)), 10):
+        if (half := n // 2) < 10:
             return half
         return S.nope
 
@@ -61,4 +61,9 @@ def twin(m):
 #: relational engine heads [measured 2026-09-01: min-of-3 serial fresh
 #: processes; command=python extensions/python/tools/twin_coverage.py --repin;
 #: commit=e3787593132a7ece2d300397045f7415709847c9].
-BUDGET = 5731
+#: RE-PINNED 2026-09-02, 5731 to 6881 (+1150), exact numeric annotations retain
+#: native operator heads, publish MeTTa type declarations, and leave relational
+#: heads only where static proof is unavailable [measured 2026-09-02: min-of-3
+#: serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 6881

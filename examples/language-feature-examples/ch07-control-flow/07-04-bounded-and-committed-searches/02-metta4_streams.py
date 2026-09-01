@@ -34,9 +34,9 @@ REDEFINITION. `@rules` is the other shape of the definitional door and says it
 directly, and `space += bundle` lands the clause set through the one write
 door.
 
-The historical stored-equation divergence is lifted. The current example and
-twin digest both equal
-`0a373e46d28e353ed02251c91b5d440f16ab17d3a79375fd5adebb149879c230`.
+The historical stored-equation divergence is lifted. The annotation publishes
+its type declaration, `(: range (-> Number Number Number))`, so the
+whole-space digest deliberately differs even though the equation agrees.
 Guarantees:
   - UNIT used here is a package value rather than a local reconstruction
     [tested: test_the_canonical_atoms_are_public_values; commit=028b41a056cfd706e516cd0b945cbf69ac066da7]
@@ -47,16 +47,16 @@ Open Obligations:
 """
 
 import metta
-from metta import UNIT, S, equation, fn, rules, superpose
+from metta import UNIT, S, equation, rules, superpose
 
 
 def twin(m):
     """Fan a range into two spaces, then fold three answers into one."""
 
     @m.define(name="range")
-    def counter(k, n):
+    def counter(k: int, n: int) -> int:
         # (= (range $K $N) (if (< $K $N) (superpose ($K (range (+ $K 1) $N))) (empty)))
-        return superpose(k, counter(fn.add(k, 1), n)) if fn.lt(k, n) else empty()  # noqa: F821  -- `empty` is a name a compiled body reads as MeTTa; the package exports it nowhere yet (residue, P14.4)
+        return superpose(k, counter(k + 1, n)) if k < n else empty()  # noqa: F821  -- `empty` is a name a compiled body reads as MeTTa; the package exports it nowhere yet (residue, P14.4)
 
     s1 = metta.space("&s1")
     s2 = metta.space("&s2")
@@ -163,4 +163,9 @@ def twin(m):
 #: relational engine heads [measured 2026-09-01: min-of-3 serial fresh
 #: processes; command=python extensions/python/tools/twin_coverage.py --repin;
 #: commit=e3787593132a7ece2d300397045f7415709847c9].
-BUDGET = 7350
+#: RE-PINNED 2026-09-02, 7350 to 8076 (+726), exact numeric annotations retain
+#: native operator heads, publish MeTTa type declarations, and leave relational
+#: heads only where static proof is unavailable [measured 2026-09-02: min-of-3
+#: serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 8076

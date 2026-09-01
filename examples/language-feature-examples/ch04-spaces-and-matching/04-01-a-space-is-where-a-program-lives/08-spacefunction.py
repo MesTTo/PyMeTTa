@@ -9,19 +9,19 @@ definition is an ordinary atom, so `-=`, the operator that removes an atom,
 removes it, and `equation(head).to(body)` names which atom to remove.
 """
 
-from metta import S, V, equation, fn
+from metta import S, V, equation
 
 
 def twin(m):
     """Define two functions, remove one, and see which answers survive."""
 
     @m.define
-    def f(x, y):
-        return fn.add(x, y)
+    def f(x: int, y: int) -> int:
+        return x + y
 
     @m.define
-    def g(x, y):
-        return fn.add(x, y)
+    def g(x: int, y: int) -> int:
+        return x + y
 
     # An equation is an ordinary atom, so the operator that removes an atom
     # removes it, and the compiled clause leaves with the atom.
@@ -121,4 +121,9 @@ def twin(m):
 #: relational engine heads [measured 2026-09-01: min-of-3 serial fresh
 #: processes; command=python extensions/python/tools/twin_coverage.py --repin;
 #: commit=e3787593132a7ece2d300397045f7415709847c9].
-BUDGET = 5404
+#: RE-PINNED 2026-09-02, 5404 to 6924 (+1520), exact numeric annotations retain
+#: native operator heads, publish MeTTa type declarations, and leave relational
+#: heads only where static proof is unavailable [measured 2026-09-02: min-of-3
+#: serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 6924

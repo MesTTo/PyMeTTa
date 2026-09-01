@@ -131,7 +131,7 @@ def twin(m):
     @m.define
     def tx_body():
         # (= (tx-body) (noeval (superpose ((+ 1 1) (+ 2 2)))))
-        return fn.noeval(superpose(fn.add(1, 1), fn.add(2, 2)))
+        return fn.noeval(superpose(1 + 1, 2 + 2))
 
     computed = S.tx_body()
     # !(test (collapse (let $b (tx-body) (atomically $b))) (2 4))
@@ -162,9 +162,9 @@ def twin(m):
     # cannot be an assertion here: a resource bound is a CONTROL exception, so
     # a program's own (catch ...) deliberately cannot eat it and the run stops.
     @m.define
-    def spin(n):
+    def spin(n: int):
         # (= (spin $n) (if (== $n 0) done (spin (- $n 1))))
-        return S.done if fn.eq(n, 0) else spin(fn.sub(n, 1))
+        return S.done if fn.eq(n, 0) else spin(n - 1)  # engine equality is intentional
 
     # !(test (timeout 5 (spin 10)) done)
     assert m.eval(S.spin(10), timeout=5) == [S.done]
@@ -279,4 +279,9 @@ def twin(m):
 #: relational engine heads [measured 2026-09-01: min-of-3 serial fresh
 #: processes; command=python extensions/python/tools/twin_coverage.py --repin;
 #: commit=e3787593132a7ece2d300397045f7415709847c9].
-BUDGET = 28918
+#: RE-PINNED 2026-09-02, 28918 to 30494 (+1576), exact numeric annotations
+#: retain native operator heads, publish MeTTa type declarations, and leave
+#: relational heads only where static proof is unavailable [measured
+#: 2026-09-02: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 30494

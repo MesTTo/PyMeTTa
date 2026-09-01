@@ -8,9 +8,9 @@ than computing it per call.
 Every one of the four is a compiled function now, including the accumulator
 pair. Its MeTTa name is hyphenated and its Python name is not, which is one
 declaration said once: rung 4's map turns `fib_tr` into `fib-tr` at the head
-and resolves the recursive call in the body the same way. Its guard is
-Python's own `==`, which the engine executes natively for wire values, so the
-comparison never leaves the engine.
+and resolves the recursive call in the body the same way. Its guard explicitly
+names engine equality because Python equality differs across numeric species,
+NaN, and signed zero, so the comparison never leaves the engine.
 """
 
 from metta import S, fn
@@ -20,27 +20,27 @@ def twin(m):
     """Define a tail-recursive fib, then inline one call to it at compile time."""
 
     @m.define
-    def fib_tr(n, a, b):  # (= (fib-tr $n $a $b)
-        if fn.eq(n, 0):  #    (if (== $n 0) $a
-            return a  #        (fib-tr (- $n 1) $b (+ $a $b))))
-        return fib_tr(fn.sub(n, 1), b, fn.add(a, b))
+    def fib_tr(n: int, a: int, b: int) -> int:  # (= (fib-tr $n $a $b)
+        if fn.eq(n, 0):                         #    (if (== $n 0) $a
+            return a                            #        (fib-tr (- $n 1) $b (+ $a $b))))
+        return fib_tr(n - 1, b, a + b)
 
     @m.define
-    def fib(n):  # (= (fib $n) (fib-tr $n 0 1))
+    def fib(n: int) -> int:               # (= (fib $n) (fib-tr $n 0 1))
         return fib_tr(n, 0, 1)
 
     @m.define
-    def compilefib(n):  # (= (compilefib $n) (fib $n))
+    def compilefib(n: int) -> int:        # (= (compilefib $n) (fib $n))
         return fib(n)
 
     # Can be left out, but then `smartfun` recomputes fib(10) on every call.
     m.fn.add_translator_rule(S.compilefib)  # (add-translator-rule! compilefib)
 
     @m.define
-    def smartfun(b):  # (= (smartfun $b) (* (compilefib 10) $b))
+    def smartfun(b: int) -> int:          # (= (smartfun $b) (* (compilefib 10) $b))
         # compilefib is a rule now, so this call is expanded and evaluated
         # while THIS definition is compiled, never per call.
-        return fn.mul(compilefib(10), b)
+        return fn.mul(compilefib(10), b)  # the sibling call's return type is unknown
 
     assert smartfun(42) == [2310]  # [2310]
 
@@ -126,4 +126,9 @@ def twin(m):
 #: relational engine heads [measured 2026-09-01: min-of-3 serial fresh
 #: processes; command=python extensions/python/tools/twin_coverage.py --repin;
 #: commit=e3787593132a7ece2d300397045f7415709847c9].
-BUDGET = 11691
+#: RE-PINNED 2026-09-02, 11691 to 14500 (+2809), exact numeric annotations
+#: retain native operator heads, publish MeTTa type declarations, and leave
+#: relational heads only where static proof is unavailable [measured
+#: 2026-09-02: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 14500

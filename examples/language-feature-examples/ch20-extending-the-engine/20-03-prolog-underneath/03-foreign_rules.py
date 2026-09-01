@@ -26,7 +26,7 @@ what `import_prolog_functions_from_file` names in MeTTa.
 from pathlib import Path
 
 import metta
-from metta import S, V, fn, lib
+from metta import S, V, lib
 
 #: The provider under test, thirteen lines. Its whole contribution is declaring
 #: the `rules` capability beside match, enumerate, add and remove. A path is
@@ -45,9 +45,9 @@ def twin(m):
 
     # A rule, added to the foreign space, evaluating.
     @demo.define
-    def fdouble(x):
+    def fdouble(x: int) -> int:
         # (= (fdouble $x) (* 2 $x))
-        return fn.mul(2, x)
+        return 2 * x
 
     assert demo.eval(S.fdouble(21)) == [42]
 
@@ -74,15 +74,15 @@ def twin(m):
     # the naive reading, and here that shows up as (* 2 3) reaching + as a list
     # instead of as 6.
     @demo.define
-    def fnest():
-        return fn.add(1, fn.mul(2, 3))
+    def fnest() -> int:
+        return 1 + 2 * 3
 
     assert demo.eval(S.fnest()) == [7]
 
     # Recursion, and `if` evaluating only the branch it takes.
     @demo.define
-    def ffact(x):
-        return fn.mul(x, ffact(fn.sub(x, 1))) if fn.gt(x, 0) else 1
+    def ffact(x: int) -> int:
+        return x * ffact(x - 1) if x > 0 else 1
 
     assert demo.eval(S.ffact(5)) == [120]
 
@@ -173,4 +173,9 @@ def twin(m):
 #: relational engine heads [measured 2026-09-01: min-of-3 serial fresh
 #: processes; command=python extensions/python/tools/twin_coverage.py --repin;
 #: commit=e3787593132a7ece2d300397045f7415709847c9].
-BUDGET = 31771
+#: RE-PINNED 2026-09-02, 31771 to 33787 (+2016), exact numeric annotations
+#: retain native operator heads, publish MeTTa type declarations, and leave
+#: relational heads only where static proof is unavailable [measured
+#: 2026-09-02: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 33787

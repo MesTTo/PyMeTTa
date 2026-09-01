@@ -36,7 +36,7 @@ Open Obligations:
 
 import time
 
-from metta import Expression, S, V, channel, fn, lib, race, spawn
+from metta import Expression, S, V, channel, lib, race, spawn
 
 
 def twin(m):
@@ -44,19 +44,19 @@ def twin(m):
     m += lib.thread
 
     @m.define
-    def inc(x):
+    def inc(x: int) -> int:
         # (= (inc $x) (+ $x 1))
-        return fn.add(x, 1)
+        return x + 1
 
     @m.define(name="big?")
-    def big(x):
+    def big(x: int) -> bool:
         # (= (big? $x) (> $x 2))
-        return fn.gt(x, 2)
+        return x > 2
 
     @m.define
-    def spin(n):
+    def spin(n: int):
         # (= (spin $n) (if (> $n 0) (spin (- $n 1)) done))
-        return spin(fn.sub(n, 1)) if fn.gt(n, 0) else S.done
+        return spin(n - 1) if n > 0 else S.done
 
     @m.define
     def slow(x):
@@ -237,9 +237,15 @@ def twin(m):
 #: full-lane observation 618693 and twenty-fifth observation 617737; command=python
 #: extensions/python/tools/twin_coverage.py; fixture=full-lane/219/workers=32;
 #: commit=e3787593132a7ece2d300397045f7415709847c9].
+#: RE-ENVELOPED 2026-09-02 after exact numeric annotations restored native
+#: operator heads and published their MeTTa declarations. The prior
+#: protocol-path modes describe another implementation, so ten fresh
+#: full-lane observations replace them [measured: exact extrema over 10
+#: observations; command=python extensions/python/tools/twin_coverage.py
+#: --observe --rounds 10; fixture=full-lane/219/workers=32; commit=WORKTREE].
 BUDGET = {
-    "minimum": 529767,
-    "maximum": 618693,
-    "observations": 25,
+    "minimum": 535357,
+    "maximum": 548800,
+    "observations": 10,
     "protocol": "full-lane/219/workers=32",
 }

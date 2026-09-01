@@ -9,9 +9,15 @@ callable.
 
 `is-memoized` answers a boolean, so the claims compare against `[True]` and
 `[False]` rather than against the symbols the example prints.
+
+A MeTTa type declaration fixes one call arity. Both Python signatures retain
+their numeric compile proofs, but suppress publishing because one shared head
+must keep answering at both arities.
 """
 
-from metta import S, fn, lib
+from typing import no_type_check
+
+from metta import S, lib
 
 
 def twin(m):
@@ -19,14 +25,16 @@ def twin(m):
     m += lib.memo
 
     @m.define
-    def mix(x):
+    @no_type_check  # one MeTTa head serves two arities
+    def mix(x: int) -> int:
         # (= (mix $x) (+ $x 1))
-        return fn.add(x, 1)
+        return x + 1
 
     @m.define(name="mix")
-    def mix_2(x, y):
+    @no_type_check  # one MeTTa head serves two arities
+    def mix_2(x: int, y: int) -> int:
         # (= (mix $x $y) (+ $x $y))
-        return fn.add(x, y)
+        return x + y
 
     m.eval(S.memoize(mix, 1))
 
@@ -127,4 +135,9 @@ def twin(m):
 #: relational engine heads [measured 2026-09-01: min-of-3 serial fresh
 #: processes; command=python extensions/python/tools/twin_coverage.py --repin;
 #: commit=e3787593132a7ece2d300397045f7415709847c9].
-BUDGET = 41542
+#: RE-PINNED 2026-09-02, 41542 to 41501 (-41), exact numeric annotations retain
+#: native operator heads, publish MeTTa type declarations, and leave relational
+#: heads only where static proof is unavailable [measured 2026-09-02: min-of-3
+#: serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 41501

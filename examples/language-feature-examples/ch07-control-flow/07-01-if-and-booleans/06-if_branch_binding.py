@@ -23,16 +23,14 @@ Open Obligations:
   Future Enhancements: None.
 """
 
-from metta import fn
-
 
 def twin(m):
     """Take each arm of four conditionals whose arms bind."""
 
     @m.define
-    def pick_else(a, b):
+    def pick_else(a: int, b: int) -> int:
         # (= (pick-else $a $b) (if (< $a $a) (let* (($c $a)) $a) $b))
-        if fn.lt(a, a):
+        if a < a:  # noqa: PLR0124 -- keep the fixture's self-comparison
             _c = a
             return a
         return b
@@ -41,9 +39,9 @@ def twin(m):
     assert pick_else(1, 2) == [2]
 
     @m.define
-    def pick_then(a, b):
+    def pick_then(a: int, b: int) -> int:
         # (= (pick-then $a $b) (if (> $a 0) (let* (($c $a)) $a) $b))
-        if fn.gt(a, 0):
+        if a > 0:
             _c = a
             return a
         return b
@@ -52,9 +50,9 @@ def twin(m):
     assert pick_then(1, 2) == [1]
 
     @m.define
-    def case_else(a, b):
+    def case_else(a: int, b: int) -> int:
         # (= (case-else $a $b) (case (< $a $a) ((True (let* (($c $a)) $a)) (False $b))))
-        match fn.lt(a, a):
+        match a < a:  # noqa: PLR0124 -- keep the fixture's self-comparison
             case True:
                 _c = a
                 return a
@@ -65,9 +63,9 @@ def twin(m):
     assert case_else(3, 4) == [4]
 
     @m.define
-    def both(a, b):
+    def both(a: int, b: int) -> int:
         # (= (both $a $b) (if (> $a $b) (let* (($c 1)) $a) (let* (($d 1)) $b)))
-        if fn.gt(a, b):
+        if a > b:
             _c = 1
             return a
         _d = 1
@@ -155,4 +153,9 @@ def twin(m):
 #: relational engine heads [measured 2026-09-01: min-of-3 serial fresh
 #: processes; command=python extensions/python/tools/twin_coverage.py --repin;
 #: commit=e3787593132a7ece2d300397045f7415709847c9].
-BUDGET = 10801
+#: RE-PINNED 2026-09-02, 10801 to 13607 (+2806), exact numeric annotations
+#: retain native operator heads, publish MeTTa type declarations, and leave
+#: relational heads only where static proof is unavailable [measured
+#: 2026-09-02: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 13607

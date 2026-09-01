@@ -4,9 +4,9 @@ Two syllogistic premises go in, one conclusion comes out, and the truth value
 on it is computed by the PLN deduction formula with its consistency
 preconditions. The claim is that conclusion.
 
-Five of the seven relations are compiled functions. Their control flow and
-destructuring use Python, while `fn.min`, `fn.max`, the arithmetic heads, and
-the comparison heads explicitly preserve the source relations. The deduction
+Five of the seven relations are compiled functions. Exact numeric annotations
+let their Python operators preserve the source arithmetic heads. `clamp`
+explicitly names the source's `min` and `max` relations, while the deduction
 formula destructures its five truth values with Python's `match` statement,
 which is MeTTa's `case`. Their declared arrows are the signatures' annotations.
 
@@ -34,29 +34,41 @@ def twin(m):
     """Build the deduction formula, then run one syllogism through it."""
 
     @m.define
-    def clamp(value, low, high):
+    def clamp(value: float, low: float, high: float) -> float:
         """(= (clamp $v $min $max) (min $max (max $v $min)))."""
         return fn.min(high, fn.max(value, low))
 
     @m.define
-    def smallest_intersection_probability(a_size: int, b_size: int) -> int:
+    def smallest_intersection_probability(a_size: float, b_size: float) -> float:
         """(: ... (-> Number Number Number)) and (clamp (/ (- (+ $As $Bs) 1) $As) 0 1)."""
-        return clamp(fn.truediv(fn.sub(fn.add(a_size, b_size), 1), a_size), 0, 1)
+        return clamp(
+            fn.truediv(a_size + b_size - 1, a_size),  # preserve the source's bare division head
+            0,
+            1,
+        )
 
     @m.define
-    def largest_intersection_probability(a_size: int, b_size: int) -> int:
+    def largest_intersection_probability(a_size: float, b_size: float) -> float:
         """(: ... (-> Number Number Number)) and (clamp (/ $Bs $As) 0 1)."""
-        return clamp(fn.truediv(b_size, a_size), 0, 1)
+        return clamp(
+            fn.truediv(b_size, a_size),  # preserve the source's bare division head
+            0,
+            1,
+        )
 
     @m.define
-    def conditional_probability_consistency(a_size: int, b_size: int, both: int) -> bool:
+    def conditional_probability_consistency(a_size: float, b_size: float, both: float) -> bool:
         """A conditional probability sits between the bounds its marginals allow."""
         # (= (conditional-probability-consistency $As $Bs $ABs)
         #    (and (< 0 $As) (and (<= (smallest ...) $ABs) (<= $ABs (largest ...)))))
         return (
-            fn.lt(0, a_size)
-            and fn.le(smallest_intersection_probability(a_size, b_size), both)
-            and fn.le(both, largest_intersection_probability(a_size, b_size))
+            0 < a_size
+            and fn.le(  # the helper call's return type is unknown
+                smallest_intersection_probability(a_size, b_size), both
+            )
+            and fn.le(  # the helper call's return type is unknown
+                both, largest_intersection_probability(a_size, b_size)
+            )
         )
 
     @m.define(name="Truth_Deduction")
@@ -76,8 +88,8 @@ def twin(m):
                 # Qs tending to 1 would divide by zero, so that branch answers Rs.
                 strength = (
                     rs
-                    if fn.lt(0.9999, qs)
-                    else fn.add(
+                    if fn.lt(0.9999, qs)  # qs is match-bound
+                    else fn.add(  # the probabilities are match-bound
                         fn.mul(pqs, qrs),
                         fn.truediv(
                             fn.mul(fn.sub(1, pqs), fn.sub(rs, fn.mul(qs, qrs))), fn.sub(1, qs)
@@ -219,4 +231,9 @@ def twin(m):
 #: relational engine heads [measured 2026-09-01: min-of-3 serial fresh
 #: processes; command=python extensions/python/tools/twin_coverage.py --repin;
 #: commit=e3787593132a7ece2d300397045f7415709847c9].
-BUDGET = 37573
+#: RE-PINNED 2026-09-02, 37573 to 38740 (+1167), exact numeric annotations
+#: retain native operator heads, publish MeTTa type declarations, and leave
+#: relational heads only where static proof is unavailable [measured
+#: 2026-09-02: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 38740

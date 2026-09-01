@@ -27,7 +27,7 @@ Open Obligations:
   Future Enhancements: None.
 """
 
-from metta import S, V, fn, superpose
+from metta import S, V, superpose
 from metta.errors import EngineError
 
 
@@ -45,9 +45,9 @@ def twin(m):
         assert list(superpose(S.a, S.b)[:0]) == []
 
     @m.define(name="from")
-    def count_up(n):
+    def count_up(n: int) -> int:
         # (= (from $n) (superpose ($n (from (+ $n 1)))))
-        return superpose(n, count_up(fn.add(n, 1)))
+        return superpose(n, count_up(n + 1))
 
     # The bound is applied OUTSIDE the producer, so it cuts one that would not
     # stop on its own, and the slice is that bound.
@@ -149,4 +149,9 @@ def twin(m):
 #: relational engine heads [measured 2026-09-01: min-of-3 serial fresh
 #: processes; command=python extensions/python/tools/twin_coverage.py --repin;
 #: commit=e3787593132a7ece2d300397045f7415709847c9].
-BUDGET = 5489
+#: RE-PINNED 2026-09-02, 5489 to 6619 (+1130), exact numeric annotations retain
+#: native operator heads, publish MeTTa type declarations, and leave relational
+#: heads only where static proof is unavailable [measured 2026-09-02: min-of-3
+#: serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 6619

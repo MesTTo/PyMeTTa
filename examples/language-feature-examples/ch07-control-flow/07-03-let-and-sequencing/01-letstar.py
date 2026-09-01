@@ -11,18 +11,16 @@ Open Obligations:
   Future Enhancements: None.
 """
 
-from metta import fn
-
 
 def twin(m):
     """Bind two names in order, then add them."""
 
     @m.define
-    def summed():
+    def summed() -> int:
         # (let* (($x 1) ($y 2)) (+ $x $y))
         x = 1
         y = 2
-        return fn.add(x, y)
+        return x + y
 
     # !(test (let* (($x 1) ($y 2)) (+ $x $y)) 3)
     assert summed() == [3]
@@ -94,4 +92,9 @@ def twin(m):
 #: relational engine heads [measured 2026-09-01: min-of-3 serial fresh
 #: processes; command=python extensions/python/tools/twin_coverage.py --repin;
 #: commit=e3787593132a7ece2d300397045f7415709847c9].
-BUDGET = 2659
+#: RE-PINNED 2026-09-02, 2659 to 2625 (-34), exact numeric annotations retain
+#: native operator heads, publish MeTTa type declarations, and leave relational
+#: heads only where static proof is unavailable [measured 2026-09-02: min-of-3
+#: serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 2625

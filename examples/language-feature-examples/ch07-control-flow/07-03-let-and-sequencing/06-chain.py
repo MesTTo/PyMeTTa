@@ -10,27 +10,25 @@ Open Obligations:
   Future Enhancements: None.
 """
 
-from metta import fn
-
 
 def twin(m):
     """Name one intermediate result, then two."""
 
     @m.define
-    def scaled():
+    def scaled() -> int:
         # (chain (+ 2 4) $n (* 3 $n))
-        n = fn.add(2, 4)
-        return fn.mul(3, n)
+        n = 2 + 4
+        return 3 * n
 
     # !(test (chain (+ 2 4) $n (* 3 $n)) 18)
     assert scaled() == [18]
 
     @m.define
-    def summed():
+    def summed() -> int:
         # (chain (+ 1 3) $n (chain (* 2 $n) $m (+ $n $m)))
-        n = fn.add(1, 3)
-        doubled = fn.mul(2, n)
-        return fn.add(n, doubled)
+        n = 1 + 3
+        doubled = 2 * n
+        return n + doubled
 
     # !(test (chain (+ 1 3) $n (chain (* 2 $n) $m (+ $n $m))) 12)
     assert summed() == [12]
@@ -112,4 +110,9 @@ def twin(m):
 #: relational engine heads [measured 2026-09-01: min-of-3 serial fresh
 #: processes; command=python extensions/python/tools/twin_coverage.py --repin;
 #: commit=e3787593132a7ece2d300397045f7415709847c9].
-BUDGET = 4718
+#: RE-PINNED 2026-09-02, 4718 to 4656 (-62), exact numeric annotations retain
+#: native operator heads, publish MeTTa type declarations, and leave relational
+#: heads only where static proof is unavailable [measured 2026-09-02: min-of-3
+#: serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 4656

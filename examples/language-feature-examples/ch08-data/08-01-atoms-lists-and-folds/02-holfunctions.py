@@ -30,49 +30,51 @@ def twin(m):
     """Fold, map and filter, first with the work inline and then with it named."""
 
     @m.define
-    def foldfun(a, b):  # (= (foldfun $a $b) (+ $a $b))
-        return fn.add(a, b)
+    def foldfun(a: int, b: int) -> int:   # (= (foldfun $a $b) (+ $a $b))
+        return a + b
 
     @m.define
-    def mapfun(a):  # (= (mapfun $a) (+ $a 1))
-        return fn.add(a, 1)
+    def mapfun(a: int) -> int:            # (= (mapfun $a) (+ $a 1))
+        return a + 1
 
     @m.define
-    def filterfun(x):  # (= (filterfun $x) (> $x 3))
-        return fn.gt(x, 3)
+    def filterfun(x: int) -> bool:        # (= (filterfun $x) (> $x 3))
+        return x > 3
 
     @m.define
-    def f1a():  # (= (f1a) (foldl-atom (1 2 3 4) 0
+    def f1a() -> int:                     # (= (f1a) (foldl-atom (1 2 3 4) 0
         return functools.reduce(
-            lambda acc, x: fn.add(acc, x), (1, 2, 3, 4), 0
-        )  # $acc $x (+ $acc $x)))
+            lambda acc, x: fn.add(acc, x),  # lambda parameters are untyped
+            (1, 2, 3, 4),
+            0,
+        )                                  # $acc $x (+ $acc $x)))
 
     @m.define
-    def f2a():  # (= (f2a) (map-atom (1 2 3) $x (+ $x 1)))
-        return [fn.add(x, 1) for x in (1, 2, 3)]
+    def f2a():                            # (= (f2a) (map-atom (1 2 3) $x (+ $x 1)))
+        return [fn.add(x, 1) for x in (1, 2, 3)]  # x is comprehension-bound
 
     @m.define
-    def f3a():  # (= (f3a) (filter-atom (1 2 3 4 5) $x (> $x 3)))
-        return [x for x in (1, 2, 3, 4, 5) if fn.gt(x, 3)]
+    def f3a():                            # (= (f3a) (filter-atom (1 2 3 4 5) $x (> $x 3)))
+        return [x for x in (1, 2, 3, 4, 5) if fn.gt(x, 3)]  # x is comprehension-bound
 
     @m.define
-    def f1b():  # (= (f1b) (foldl-atom (1 2 3 4) 0 foldfun))
+    def f1b():                            # (= (f1b) (foldl-atom (1 2 3 4) 0 foldfun))
         return functools.reduce(foldfun, (1, 2, 3, 4), 0)
 
     @m.define
-    def f2b():  # (= (f2b) (map-atom (1 2 3) mapfun))
+    def f2b():                            # (= (f2b) (map-atom (1 2 3) mapfun))
         return [mapfun(x) for x in (1, 2, 3)]
 
     @m.define
-    def f3b():  # (= (f3b) (filter-atom (1 2 3 4 5) filterfun))
+    def f3b():                            # (= (f3b) (filter-atom (1 2 3 4 5) filterfun))
         return [x for x in (1, 2, 3, 4, 5) if filterfun(x)]
 
     @m.define
-    def foldfun2(a, b):  # (= (foldfun2 $a $b) (append $a $b))
+    def foldfun2(a, b):                   # (= (foldfun2 $a $b) (append $a $b))
         return fn.append(a, b)
 
     @m.define
-    def joined(parts):  # the bare runnable, named:
+    def joined(parts):                    # the bare runnable, named:
         # (foldl-atom ((1 2) (3 4) (5 6)) () $acc $x (append $acc $x))
         return functools.reduce(lambda acc, x: fn.append(acc, x), parts, ())
 
@@ -181,4 +183,9 @@ def twin(m):
 #: relational engine heads [measured 2026-09-01: min-of-3 serial fresh
 #: processes; command=python extensions/python/tools/twin_coverage.py --repin;
 #: commit=e3787593132a7ece2d300397045f7415709847c9].
-BUDGET = 29392
+#: RE-PINNED 2026-09-02, 29392 to 30222 (+830), exact numeric annotations
+#: retain native operator heads, publish MeTTa type declarations, and leave
+#: relational heads only where static proof is unavailable [measured
+#: 2026-09-02: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 30222

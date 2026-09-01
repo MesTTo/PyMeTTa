@@ -8,16 +8,16 @@ The static settings tuple and `m.fn.with_pragma` preserve the source's scoped
 `with-pragma!` boundary, including restoration after the call.
 """
 
-from metta import S, fn
+from metta import S
 
 
 def twin(m):
     """Raise the branch bound, then run the exponential fib."""
 
     @m.define
-    def fib(n):
+    def fib(n: int) -> int:
         # (= (fib $N) (if (< $N 2) $N (+ (fib (- $N 1)) (fib (- $N 2)))))
-        return n if fn.lt(n, 2) else fn.add(fib(fn.sub(n, 1)), fib(fn.sub(n, 2)))
+        return n if n < 2 else fib(n - 1) + fib(n - 2)
 
     raised_stack = ((S.max_stack_depth, 100_000_000),)
     assert m.fn.with_pragma(raised_stack, S.fib(30)) == [832040]
@@ -91,4 +91,9 @@ def twin(m):
 #: relational engine heads [measured 2026-09-01: min-of-3 serial fresh
 #: processes; command=python extensions/python/tools/twin_coverage.py --repin;
 #: commit=e3787593132a7ece2d300397045f7415709847c9].
-BUDGET = 30265
+#: RE-PINNED 2026-09-02, 30265 to 32774 (+2509), exact numeric annotations
+#: retain native operator heads, publish MeTTa type declarations, and leave
+#: relational heads only where static proof is unavailable [measured
+#: 2026-09-02: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 32774

@@ -6,7 +6,7 @@ engine memo store; the two mechanisms agree on this exclusive Fibonacci
 definition but have different multiplicity laws.
 """
 
-from metta import S, V, fn, lib
+from metta import S, V, lib
 
 
 def twin(m):
@@ -14,8 +14,8 @@ def twin(m):
     m += lib.tabling
 
     @m.define
-    def fib(n):
-        return n if fn.lt(n, 2) else fn.add(fib(fn.sub(n, 1)), fib(fn.sub(n, 2)))
+    def fib(n: int) -> int:
+        return n if n < 2 else fib(n - 1) + fib(n - 2)
 
     m.eval(S.tabled(S.fib(V.n)))
     assert fib(30) == [832040]
@@ -148,4 +148,9 @@ def twin(m):
 #: relational engine heads [measured 2026-09-01: min-of-3 serial fresh
 #: processes; command=python extensions/python/tools/twin_coverage.py --repin;
 #: commit=e3787593132a7ece2d300397045f7415709847c9].
-BUDGET = 84486
+#: RE-PINNED 2026-09-02, 84486 to 89553 (+5067), exact numeric annotations
+#: retain native operator heads, publish MeTTa type declarations, and leave
+#: relational heads only where static proof is unavailable [measured
+#: 2026-09-02: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 89553

@@ -11,18 +11,16 @@ of its answers, and comparing that view to a list states the multiplicity as
 well as the values.
 """
 
-from metta import fn
-
 
 def twin(m):
     """Two alternatives for one head, and the answers both of them give."""
 
     @m.define
-    def mycalc(x, y):
+    def mycalc(x: int, y: int) -> int:
         # (= (mycalc $x $y) (+ $x $y))
-        yield fn.add(x, y)
+        yield x + y
         # (= (mycalc $x $y) (- $x $y))
-        yield fn.sub(x, y)
+        yield x - y
 
     assert mycalc(1, 2) == [3, -1]
 
@@ -105,4 +103,9 @@ def twin(m):
 #: relational engine heads [measured 2026-09-01: min-of-3 serial fresh
 #: processes; command=python extensions/python/tools/twin_coverage.py --repin;
 #: commit=e3787593132a7ece2d300397045f7415709847c9].
-BUDGET = 3399
+#: RE-PINNED 2026-09-02, 3399 to 4648 (+1249), exact numeric annotations retain
+#: native operator heads, publish MeTTa type declarations, and leave relational
+#: heads only where static proof is unavailable [measured 2026-09-02: min-of-3
+#: serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 4648

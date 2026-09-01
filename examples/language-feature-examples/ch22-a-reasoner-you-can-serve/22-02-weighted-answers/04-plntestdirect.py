@@ -8,13 +8,14 @@ relation that either matches a stored premise or DERIVES one, and asking it for
 The definitions duplicate the sibling file's because the examples do; each twin
 stands alone, since the lane runs it in its own process.
 
-Four relations are compiled functions whose control flow is Python and whose
-source arithmetic and comparison relations are explicit through `fn`. Three
-are `@m.rules` bundles, the door for equations whose heads are structures or
-symbols. `sentence` is the interesting one: its three clauses coexist, its
-recursive body is a conjunction of two sentence goals, and `(= $TV ...)` there
-is a GOAL rather than a definition. `equation(lhs).to(rhs)` is the same builder
-either way, because `(= lhs rhs)` in an evaluated position is an ordinary atom.
+Four relations are compiled functions. Exact numeric annotations let their
+Python operators preserve the source arithmetic heads, while `clamp`
+explicitly names the source's `min` and `max` relations. Three are `@m.rules`
+bundles, the door for equations whose heads are structures or symbols.
+`sentence` is the interesting one: its three clauses coexist, its recursive
+body is a conjunction of two sentence goals, and `(= $TV ...)` there is a GOAL
+rather than a definition. `equation(lhs).to(rhs)` is the same builder either
+way, because `(= lhs rhs)` in an evaluated position is an ordinary atom.
 
 The claim is `solve`, the relational `let`: it evaluates the subject, unifies
 its answer with the pattern, and hands back the subject's own variables, which
@@ -32,29 +33,41 @@ def twin(m):
     """Build the deduction formula, then let the search find the middle term."""
 
     @m.define
-    def clamp(value, low, high):
+    def clamp(value: float, low: float, high: float) -> float:
         """(= (clamp $v $min $max) (min $max (max $v $min)))."""
         return fn.min(high, fn.max(value, low))
 
     @m.define
-    def smallest_intersection_probability(a_size: int, b_size: int) -> int:
+    def smallest_intersection_probability(a_size: float, b_size: float) -> float:
         """(: ... (-> Number Number Number)) and (clamp (/ (- (+ $As $Bs) 1) $As) 0 1)."""
-        return clamp(fn.truediv(fn.sub(fn.add(a_size, b_size), 1), a_size), 0, 1)
+        return clamp(
+            fn.truediv(a_size + b_size - 1, a_size),  # preserve the source's bare division head
+            0,
+            1,
+        )
 
     @m.define
-    def largest_intersection_probability(a_size: int, b_size: int) -> int:
+    def largest_intersection_probability(a_size: float, b_size: float) -> float:
         """(: ... (-> Number Number Number)) and (clamp (/ $Bs $As) 0 1)."""
-        return clamp(fn.truediv(b_size, a_size), 0, 1)
+        return clamp(
+            fn.truediv(b_size, a_size),  # preserve the source's bare division head
+            0,
+            1,
+        )
 
     @m.define
-    def conditional_probability_consistency(a_size: int, b_size: int, both: int) -> bool:
+    def conditional_probability_consistency(a_size: float, b_size: float, both: float) -> bool:
         """A conditional probability sits between the bounds its marginals allow."""
         # (= (conditional-probability-consistency $As $Bs $ABs)
         #    (and (< 0 $As) (and (<= (smallest ...) $ABs) (<= $ABs (largest ...)))))
         return (
-            fn.lt(0, a_size)
-            and fn.le(smallest_intersection_probability(a_size, b_size), both)
-            and fn.le(both, largest_intersection_probability(a_size, b_size))
+            0 < a_size
+            and fn.le(  # the helper call's return type is unknown
+                smallest_intersection_probability(a_size, b_size), both
+            )
+            and fn.le(  # the helper call's return type is unknown
+                both, largest_intersection_probability(a_size, b_size)
+            )
         )
 
     @m.define(name="Truth_Deduction")
@@ -74,8 +87,8 @@ def twin(m):
                 # Qs tending to 1 would divide by zero, so that branch answers Rs.
                 strength = (
                     rs
-                    if fn.lt(0.9999, qs)
-                    else fn.add(
+                    if fn.lt(0.9999, qs)  # qs is match-bound
+                    else fn.add(  # the probabilities are match-bound
                         fn.mul(pqs, qrs),
                         fn.truediv(
                             fn.mul(fn.sub(1, pqs), fn.sub(rs, fn.mul(qs, qrs))), fn.sub(1, qs)
@@ -215,4 +228,9 @@ def twin(m):
 #: relational engine heads [measured 2026-09-01: min-of-3 serial fresh
 #: processes; command=python extensions/python/tools/twin_coverage.py --repin;
 #: commit=e3787593132a7ece2d300397045f7415709847c9].
-BUDGET = 42383
+#: RE-PINNED 2026-09-02, 42383 to 43550 (+1167), exact numeric annotations
+#: retain native operator heads, publish MeTTa type declarations, and leave
+#: relational heads only where static proof is unavailable [measured
+#: 2026-09-02: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 43550

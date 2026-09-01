@@ -1,21 +1,21 @@
 """Purpose: examples/ch18-performance/18-01-larger-workloads/03-superpose_primes.metta in Python: four divisor searches.
 
 Four eight-digit primes, each found by trial division, sharing one branch
-budget. Both equations are ordinary Python functions under the decorator; the
-recursion delegates by name and `fn` explicitly names every source arithmetic
-and comparison relation.
+budget. Both equations are ordinary Python functions under the decorator: the
+recursion delegates by name, and the arithmetic is Python's own, which is what
+the guide means by the syntax BEING the semantics.
 
 One thing is worth knowing about what the body compiles to, and it is the
 reason the two equality tests name their head.
 
-Generic Python equality used to lower through the prelude's `py-eq`, a host
+Python's `==` inside a compiled body lowers to the prelude's `py-eq`, a host
 crossing per iteration where the original's `(== 0 (% $n $d))` crosses not at
-all. The historical A/B measured 922,119 inferences with that Python path and
-539,720 with the named head, against the example's 543,116 [measured
-2026-08-23 on the merged tree, min of one fresh process each;
-commit=8a8b75a1f4052c00c70c29e25e95e4d5a1812cd5]. Generic operators now use
-Python's live protocols; this source twin still uses `fn.eq` and `fn.mod`, so
-it stores the original condition and avoids a host crossing.
+all, and a compiled `if` used to wrap any non-comparison condition in
+`py-truthy` besides. MeTTa's own `==` is declared `(-> $t $t Bool)`, so a
+compiled `if` now emits it bare, and `fn.eq(0, n % test_divisor)` stores
+exactly the original's condition [measured 2026-08-23 on the merged tree, min
+of one fresh process each: 922,119 inferences with the Python operators and
+539,720 with the named head, against the example's 543,116; commit=8a8b75a1f4052c00c70c29e25e95e4d5a1812cd5].
 
 `with-pragma!` stays a term for the one gap left: the four searches overflow the
 evaluator's default stack depth without it, and `m.limits` bounds inferences
@@ -43,16 +43,16 @@ def twin(m):
     """Define trial division, then ask it about four primes."""
 
     @m.define
-    def find_divisor(n, test_divisor):
-        if fn.gt(fn.mul(test_divisor, test_divisor), n):
+    def find_divisor(n: int, test_divisor: int) -> int:
+        if test_divisor * test_divisor > n:
             return n
-        if fn.eq(0, fn.mod(n, test_divisor)):
+        if fn.eq(0, n % test_divisor):  # engine equality is intentional
             return test_divisor
-        return find_divisor(n, fn.add(test_divisor, 1))
+        return find_divisor(n, test_divisor + 1)
 
     @m.define(name="prime?")
-    def prime(n):
-        return fn.eq(n, fn.find_divisor(n, 2))
+    def prime(n: int) -> bool:
+        return fn.eq(n, fn.find_divisor(n, 2))  # engine equality is intentional
 
     # Four searches share one branch budget, so the benchmark states a finite
     # allowance above the evaluator's 100000 default.
@@ -140,4 +140,9 @@ def twin(m):
 #: relational engine heads [measured 2026-09-01: min-of-3 serial fresh
 #: processes; command=python extensions/python/tools/twin_coverage.py --repin;
 #: commit=e3787593132a7ece2d300397045f7415709847c9].
-BUDGET = 544637
+#: RE-PINNED 2026-09-02, 544637 to 635279 (+90642), exact numeric annotations
+#: retain native operator heads, publish MeTTa type declarations, and leave
+#: relational heads only where static proof is unavailable [measured
+#: 2026-09-02: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 635279

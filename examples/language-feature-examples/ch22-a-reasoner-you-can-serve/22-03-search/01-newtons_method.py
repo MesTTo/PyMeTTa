@@ -4,12 +4,12 @@
 doubles at every level. The example imports lib_memo, sets a cache policy, and
 memoises the function by name; then two claims read it.
 
-`energy` is an ordinary Python function. The conditional is Python control
-flow, every arithmetic relation is explicitly named through `fn`, and the two
-recursive calls are the calls the equation makes. `@m.define` therefore lands
-the example's own equation up to variable naming, and `memoize` reaches it by
-name like any other definition. Calling it evaluates, which is why the claims
-read `energy(2.0, 0)` and not a rebuilt term.
+`energy` is an ordinary Python function. The `if` is MeTTa's `if`, the
+arithmetic is Python's own operators over the compiled parameters, and the two
+recursive calls are the calls the equation makes, so `@m.define` lands the
+example's own equation up to variable naming and `memoize` reaches it by name
+like any other definition. Calling it evaluates, which is why the claims read
+`energy(2.0, 0)` and not a rebuilt term.
 
 The three directives stay terms: each names an engine service rather than a
 computation, none of them is banged, and lib_memo has no Python face and needs
@@ -25,7 +25,7 @@ pre-pass and `memoize` on an unknown name is a domain error. The residue
 records the missing batch door against P14.4.
 """
 
-from metta import S, fn, lib
+from metta import S, lib
 from metta.vocabularies import MemoStrategy
 
 
@@ -37,14 +37,11 @@ def twin(m):
     m += lib.memo
 
     @m.define
-    def energy(x, n):
+    def energy(x: float, n: int) -> float:
         """(= (energy $x $n) (if (<= $n 0) (* $x $x) (+ (energy ...) (energy ...))))."""
-        if fn.le(n, 0):
-            return fn.mul(x, x)
-        return fn.add(
-            energy(fn.add(fn.mul(0.5, x), 0.4), fn.sub(n, 1)),
-            energy(fn.add(fn.mul(0.5, x), 0.4), fn.sub(n, 1)),
-        )
+        if n <= 0:
+            return x * x
+        return energy(0.5 * x + 0.4, n - 1) + energy(0.5 * x + 0.4, n - 1)
 
     # !(config-memoize (strategy wtinylfu) (unique-limit 100))
     # !(memoize energy)
@@ -139,4 +136,9 @@ def twin(m):
 #: relational engine heads [measured 2026-09-01: min-of-3 serial fresh
 #: processes; command=python extensions/python/tools/twin_coverage.py --repin;
 #: commit=e3787593132a7ece2d300397045f7415709847c9].
-BUDGET = 65694
+#: RE-PINNED 2026-09-02, 65694 to 72882 (+7188), exact numeric annotations
+#: retain native operator heads, publish MeTTa type declarations, and leave
+#: relational heads only where static proof is unavailable [measured
+#: 2026-09-02: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 72882

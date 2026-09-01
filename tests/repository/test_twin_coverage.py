@@ -46,10 +46,12 @@ Guarantees:
     test_a_bare_declaration_word_names_the_exact_member,
     test_non_declaration_vocabulary_text_keeps_the_existing_rules,
     test_the_declaration_vocabulary_is_the_librarys_own; commit=417c6428f89aed9f514b9219db2dcd472d31fbe7]
-  - explicit engine operator heads remain legal inside compiled bodies because
-    Python operator syntax denotes Python's live protocol instead [tested:
-    test_explicit_engine_operator_heads_are_allowed_in_lowered_bodies;
-    commit=e3787593132a7ece2d300397045f7415709847c9]
+  - an explicit engine operator head is a finding only when exact numeric
+    proof makes Python syntax build the identical term; untyped and
+    match-bound operands retain the distinct protocol-vs-relational choice
+    [tested: test_engine_operator_heads_require_syntax_only_for_native_operands,
+    test_python_operator_and_engine_head_split_depends_on_native_proof;
+    commit=WORKTREE]
   - the 159 entries superseded by empirical budgets are retired exactly once
     [tested: test_the_distribution_budget_retirement_is_exact;
     commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22]
@@ -89,6 +91,7 @@ def _run(
     digest=None,
     digest_error=None,
     equations=(),
+    type_declarations=(),
 ):
     """One side's run, built rather than measured.
 
@@ -101,6 +104,7 @@ def _run(
         digest,
         digest_error,
         tuple(equations),
+        tuple(type_declarations),
     )
 
 
@@ -139,7 +143,9 @@ def test_the_coverage_fraction_names_every_folder_of_the_corpus():
     still prints, at zero over its corpus count.
     """
     folders = coverage._folders([], REPO)
-    corpus = {str(path.relative_to(REPO / "examples").parent) for path in parity.corpus()}
+    corpus = {
+        str(path.relative_to(REPO / "examples").parent) for path in parity.corpus()
+    }
     assert set(folders) == corpus
     assert sum(counts[1] for counts in folders.values()) == len(parity.corpus())
     assert all(counts[0] == 0 for counts in folders.values()), "no verdicts were given"
@@ -262,7 +268,9 @@ def test_a_twin_that_does_not_parse_is_a_finding_and_not_a_traceback(tmp_path):
     """
     broken = tmp_path / "broken.py"
     broken.write_text("def twin(m:\n", encoding="utf-8")
-    assert coverage.scan(broken) == ["does not parse as Python, so nothing about it can be read"]
+    assert coverage.scan(broken) == [
+        "does not parse as Python, so nothing about it can be read"
+    ]
     assert coverage.budget_of(broken) is None
 
 
@@ -431,23 +439,11 @@ def test_the_declaration_vocabulary_is_the_librarys_own():
     assert all(coverage.VOCABULARY_WORD.match(word) for word in declared)
     enum_calls = set(coverage.DECLARATION_VOCABULARIES) | {"on_error"}
     assert enum_calls == {
-        "agenda",
-        "context",
-        "emits",
-        "events",
-        "handles",
-        "image",
-        "merge",
-        "on_error",
-        "source",
-        "writes",
+        "agenda", "context", "emits", "events", "handles", "image",
+        "merge", "on_error", "source", "writes",
     }
     assert coverage.DECLARATION_CALLS - enum_calls == {
-        "admits",
-        "algebra",
-        "annotations",
-        "capacity",
-        "reacts",
+        "admits", "algebra", "annotations", "capacity", "reacts",
     }
     # And the fifteen doors that take them are the fifteen the rewrite map
     # names, every one of them a live method on the handle.
@@ -728,7 +724,9 @@ def test_no_retired_spelling_is_ever_recommended():
     lane itself calls retired.
     """
     dead = (
-        set(coverage.RETIRED_ROOT) | set(coverage.RETIRED_HANDLE) | set(coverage.RETIRED_MODULES)
+        set(coverage.RETIRED_ROOT)
+        | set(coverage.RETIRED_HANDLE)
+        | set(coverage.RETIRED_MODULES)
     ) - RELOCATED
     # The call-shape names are deliberately absent: `one`, `first`, `count`,
     # `fn` and `stream` all survive on another object, so their own
@@ -831,13 +829,7 @@ def test_the_form_reader_agrees_with_the_engines_own_count():
 
 def test_a_test_form_is_read_as_a_claim():
     """An assert-family head states a claim; every other head does not."""
-    heads = coverage.example_forms(
-        REPO
-        / "examples"
-        / "ch20-extending-the-engine"
-        / "20-04-modules-and-the-catalog"
-        / "06-git_import.metta"
-    )
+    heads = coverage.example_forms(REPO / "examples" / "ch20-extending-the-engine" / "20-04-modules-and-the-catalog" / "06-git_import.metta")
     assert heads == [
         "import!",
         "import_prolog_functions_from_file",
@@ -899,18 +891,31 @@ def test_a_hidden_definition_is_a_finding():
     A twin proving its claims while defining nothing in the space is exactly
     what this refuses, and no restructuring may weaken it.
     """
-    findings = coverage._visible("x.metta", _run([], heads=("facF/1",)), _run([], heads=()))
+    findings = coverage._visible(
+        "x.metta", _run([], heads=("facF/1",)), _run([], heads=())
+    )
     assert any("hidden in Python" in finding for finding in findings)
     assert any("facF/1" in finding for finding in findings)
     assert coverage._visible("x.metta", _run([], heads=()), _run([], heads=("f/1",))) == []
 
 
 def test_stored_content_uses_the_digest_and_keeps_equation_multiplicity():
-    """A whole-space mismatch names each surplus equation copy."""
+    """A whole-space mismatch names each surplus equation and declaration."""
     equation = "(= (f $0) $0)"
     other = "(= (g $0) $0)"
-    left = _run([], digest="a" * 64, equations=(equation, equation, other))
-    right = _run([], digest="b" * 64, equations=(equation,))
+    declaration = "(: f (-> Number Number))"
+    left = _run(
+        [],
+        digest="a" * 64,
+        equations=(equation, equation, other),
+        type_declarations=(declaration, declaration),
+    )
+    right = _run(
+        [],
+        digest="b" * 64,
+        equations=(equation,),
+        type_declarations=(declaration,),
+    )
 
     findings = coverage._stored("x.metta", left, right)
 
@@ -918,6 +923,7 @@ def test_stored_content_uses_the_digest_and_keeps_equation_multiplicity():
     assert findings[0].count(equation) == 1
     assert f'example-only=["{equation}","{other}"]' in findings[0]
     assert "twin-only=[]" in findings[0]
+    assert f'type-declaration multiset example-only=["{declaration}"]' in findings[0]
     assert coverage._storage_status(left, right) == "different"
 
 
@@ -932,33 +938,41 @@ def test_a_digest_refusal_is_a_finding_and_never_an_atom_fallback():
     right = _run([], digest="c" * 64, equations=equations)
 
     assert coverage._stored("x.metta", left, right) == [
-        "x.metta: the example's stored-content digest refused: ValueError: live object"
+        "x.metta: the example's stored-content digest refused: "
+        "ValueError: live object"
     ]
     assert coverage._storage_status(left, right) == "refused"
 
 
 def test_a_twin_stores_the_equations_its_comments_claim():
-    """The seven historical files either agree or document their exact drift."""
+    """Seven historical files document exact equation and declaration drift."""
     historical = {
         "ch07-control-flow/07-05-recursion/01-factorial.metta": (
             (),
             (),
-            ("stored", "matches the source exactly"),
+            ("(: facF (-> Number Number))",),
+            ("matches the source equation exactly", "publishes its type declaration"),
         ),
         "ch07-control-flow/07-05-recursion/03-fibsmart.metta": (
             (),
             (),
-            ("store the source equation exactly",),
+            (
+                "(: fib (-> Number Number))",
+                "(: fib-tr (-> Number Number Number Number))",
+            ),
+            ("stores the source equation exactly", "publish their type declarations"),
         ),
         "ch05-equations-and-evaluation/05-03-the-number-library/02-math_exp_random.metta": (
             (),
             (),
-            ("historical stored-equation divergence is lifted",),
+            ("(: in-range (-> Number Number Number Bool))",),
+            ("historical stored-equation divergence is lifted", "publishes its type declaration"),
         ),
         "ch07-control-flow/07-01-if-and-booleans/09-xor.metta": (
             (),
             (),
-            ("stored equation matches the source",),
+            ("(: check_xor (-> Number Number Number))",),
+            ("matches the source equation", "publishes its type declaration"),
         ),
         "ch07-control-flow/07-03-let-and-sequencing/07-eval.metta": (
             (
@@ -981,14 +995,16 @@ def test_a_twin_stores_the_equations_its_comments_claim():
                 "(let* (($_alpha3 (+ $_alpha1 $_alpha2))) "
                 "(append ($_alpha3) $_alpha0)))",
             ),
+            ("(: f (-> %Undefined% Number Number %Undefined%))",),
             ("Source:", "Twin:", "nested one-binding `let*`"),
         ),
         "ch07-control-flow/07-04-bounded-and-committed-searches/02-metta4_streams.metta": (
             (),
             (),
+            ("(: range (-> Number Number Number))",),
             (
                 "historical stored-equation divergence is lifted",
-                "0a373e46d28e353ed02251c91b5d440f16ab17d3a79375fd5adebb149879c230",
+                "publishes its type declaration",
             ),
         ),
         "ch06-many-answers/07-tests.metta": (
@@ -1013,11 +1029,20 @@ def test_a_twin_stores_the_equations_its_comments_claim():
                 "(superpose ((if (< $_alpha0 10) "
                 "(superpose ((42 43))) 43))) 4))",
             ),
+            (
+                "(: program1 (-> Number %Undefined%))",
+                "(: program3 (-> Number %Undefined%))",
+            ),
             ("digest difference is deliberate", "Source:", "Twin:"),
         ),
     }
 
-    for relative, (example_only, twin_only, comment_claims) in historical.items():
+    for relative, (
+        example_only,
+        twin_only,
+        expected_twin_types,
+        comment_claims,
+    ) in historical.items():
         example = REPO / "examples" / relative
         twin = coverage.twin_for(example)
         left = coverage.run_example(example)
@@ -1029,12 +1054,17 @@ def test_a_twin_stores_the_equations_its_comments_claim():
         assert right.digest_error is None, (relative, right.digest_error)
         assert tuple(coverage._equation_surplus(left.equations, right.equations)) == example_only
         assert tuple(coverage._equation_surplus(right.equations, left.equations)) == twin_only
-        if example_only or twin_only:
+        assert tuple(
+            coverage._equation_surplus(
+                right.type_declarations, left.type_declarations
+            )
+        ) == expected_twin_types
+        if example_only or twin_only or expected_twin_types:
             assert left.digest != right.digest, relative
         else:
             assert left.digest == right.digest, relative
 
-        documented = twin.read_text(encoding="utf-8")
+        documented = " ".join(twin.read_text(encoding="utf-8").split())
         assert all(claim in documented for claim in comment_claims), relative
 
 
@@ -1110,7 +1140,9 @@ def test_a_repin_appends_below_the_code_and_rewrites_the_number(tmp_path):
     """
     twin = tmp_path / "tidy.py"
     twin.write_text(
-        coverage.repinned(_TIDY_TWIN, 142, "the planted mechanism", today="2026-08-27"),
+        coverage.repinned(
+            _TIDY_TWIN, 142, "the planted mechanism", today="2026-08-27"
+        ),
         encoding="utf-8",
     )
     rewritten = twin.read_text(encoding="utf-8")
@@ -1177,16 +1209,16 @@ def test_a_budget_is_two_sided():
     work and started answering the expected value, which is the cheat a fixed
     public corpus invites.
     """
-    twin = coverage.twin_for(
-        REPO / "examples" / "ch07-control-flow" / "07-05-recursion" / "01-factorial.metta"
-    )
+    twin = coverage.twin_for(REPO / "examples" / "ch07-control-flow" / "07-05-recursion" / "01-factorial.metta")
     budget = coverage.budget_of(twin)
     assert isinstance(budget, int), "factorial's twin pins a POINT budget"
     left = _run(["(True)"], cost=budget)
     for observed in (budget + coverage.TOLERANCE + 1, budget // 2):
         findings = coverage._price("x.metta", twin, left, _run([], cost=observed))
         assert any("pinned budget" in f for f in findings), observed
-    within = coverage._price("x.metta", twin, left, _run([], cost=budget + coverage.TOLERANCE))
+    within = coverage._price(
+        "x.metta", twin, left, _run([], cost=budget + coverage.TOLERANCE)
+    )
     assert within == []
 
 
@@ -1222,16 +1254,13 @@ def test_an_empirical_envelope_passes_its_observations_and_fails_new_spread(tmp_
 
     example = _run([], cost=2_000)
     for observed in (1_000, 1_007, 1_014):
-        assert (
-            coverage._price(
-                "x.metta",
-                twin,
-                example,
-                _run([], cost=observed),
-                protocol="full-lane/204/workers=32",
-            )
-            == []
-        )
+        assert coverage._price(
+            "x.metta",
+            twin,
+            example,
+            _run([], cost=observed),
+            protocol="full-lane/204/workers=32",
+        ) == []
 
     for observed, direction in ((999, "BELOW"), (1_015, "above")):
         findings = coverage._price(
@@ -1295,7 +1324,9 @@ def test_an_empirical_envelope_cannot_license_another_protocol(tmp_path):
         },
     ],
 )
-def test_an_empirical_envelope_requires_complete_measurement_metadata(tmp_path, budget):
+def test_an_empirical_envelope_requires_complete_measurement_metadata(
+    tmp_path, budget
+):
     """A band without bounds, repeated observations, and protocol is no claim."""
     twin = _empirical_twin(tmp_path, budget)
     with pytest.raises(ValueError, match="BUDGET empirical envelope"):
@@ -1328,7 +1359,9 @@ def test_spread_is_not_a_budget_door(tmp_path):
         encoding="utf-8",
     )
     assert not hasattr(coverage, "spread_of")
-    findings = coverage._price("x.metta", twin, _run([], cost=2_000), _run([], cost=1_005))
+    findings = coverage._price(
+        "x.metta", twin, _run([], cost=2_000), _run([], cost=1_005)
+    )
     assert any("pinned budget" in finding for finding in findings)
 
 
@@ -1338,9 +1371,7 @@ def test_the_band_refuses_a_twin_that_costs_more_than_it_was_pinned_to_allow():
     The Python spelling costs the same inferences as the handwritten `.metta`
     program, or fewer, within what the first measurements showed.
     """
-    twin = coverage.twin_for(
-        REPO / "examples" / "ch07-control-flow" / "07-05-recursion" / "01-factorial.metta"
-    )
+    twin = coverage.twin_for(REPO / "examples" / "ch07-control-flow" / "07-05-recursion" / "01-factorial.metta")
     budget = coverage.budget_of(twin)
     assert isinstance(budget, int), "factorial's twin pins a POINT budget"
     twin_run = _run([], cost=budget)
@@ -1398,20 +1429,33 @@ def test_the_band_pays_for_authoring_but_only_what_was_measured(tmp_path):
 
 
 @pytest.mark.parametrize(
-    "name",
+    ("name", "expected_type"),
     [
-        "ch05-equations-and-evaluation/05-01-an-equation-is-a-rewrite/01-identity.metta",
-        "ch04-spaces-and-matching/04-01-a-space-is-where-a-program-lives/03-spaces3.metta",
+        (
+            "ch05-equations-and-evaluation/05-01-an-equation-is-a-rewrite/01-identity.metta",
+            "(: f (-> Number Number))",
+        ),
+        (
+            "ch04-spaces-and-matching/04-01-a-space-is-where-a-program-lives/03-spaces3.metta",
+            None,
+        ),
     ],
 )
-def test_a_shipped_twin_agrees_with_its_example_end_to_end(name):
+def test_a_shipped_twin_agrees_with_its_example_end_to_end(name, expected_type):
     """Two twins run for real.
 
     A change breaking the machinery itself is then caught rather than reading
     as a corpus finding.
     """
     verdict = coverage.check(REPO / "examples" / name, coverage.residue())
-    assert verdict.findings == (), verdict.findings
+    storage = [finding for finding in verdict.findings if "stored content differs" in finding]
+    other = [finding for finding in verdict.findings if finding not in storage]
+    assert other == [], other
+    if expected_type is None:
+        assert storage == []
+    else:
+        assert len(storage) == 1
+        assert f'twin-only=["{expected_type}"]' in storage[0]
     assert verdict.covered == verdict.forms > 0
 
 
@@ -1430,7 +1474,8 @@ def test_the_distribution_budget_retirement_is_exact():
     retired = [
         entry
         for entry in document["retired"]
-        if entry.get("section") == section and "empirical two-sided envelope" in entry["retired"]
+        if entry.get("section") == section
+        and "empirical two-sided envelope" in entry["retired"]
     ]
     assert active == []
     assert len(retired) == 159
@@ -1457,49 +1502,63 @@ def test_the_idiom_check_catches_a_planted_transliteration(tmp_path):
     assert "Expression(...) builds what calling the head builds" in joined
 
 
-def test_explicit_engine_operator_heads_are_allowed_in_lowered_bodies(tmp_path):
-    """`a + b` and `fn.add(a, b)` name distinct execution contracts.
+def test_engine_operator_heads_require_syntax_only_for_native_operands(tmp_path):
+    """Exact numeric annotations make the engine head a transliteration.
 
-    The first invokes Python's operator protocol. The second deliberately
-    names the relational engine head, which a source twin needs when the MeTTa
-    original uses `+`. Neither is an unidiomatic transliteration of the other.
+    Equality remains exempt even there: engine equality preserves atom species
+    and treats NaN as self-equal, while Python equality does neither. True
+    division also remains distinct because Python syntax forces float species.
     """
     outside = tmp_path / "outside.py"
     outside.write_text(
-        '"""Doc."""\nfrom metta import S, V\ndef twin(m):\n    m += S["+"](V.a, V.b)\n',
+        '"""Doc."""\n'
+        "from metta import S, V\n"
+        "def twin(m):\n"
+        '    m += S["+"](V.a, V.b)\n',
         encoding="utf-8",
     )
-    assert coverage.idiom(outside) == []
+    assert not [f for f in coverage.idiom(outside) if "operator" in f]
 
     inside = tmp_path / "inside.py"
     inside.write_text(
         '"""Doc."""\n'
-        "from metta import S, V, fn\n"
+        "from metta import S, fn\n"
         "def twin(m):\n"
         "    @m.define\n"
-        "    def add(a, b):\n"
+        "    def add(a: int, b: int) -> int:\n"
         "        return fn.add(a, b)\n"
         "    @m.define\n"
-        "    def partial(a):\n"
+        "    def same(a: int, b: float) -> bool:\n"
+        "        return fn.eq(a, b)\n"
+        "    @m.define\n"
+        "    def engine_quotient(a: int, b: int) -> int:\n"
+        "        return fn.truediv(a, b)\n"
+        "    @m.define\n"
+        "    def partial(a: int):\n"
         '        return S["+"](a)\n',
         encoding="utf-8",
     )
-    assert coverage.idiom(inside) == []
+    operators = [f for f in coverage.idiom(inside) if "operator" in f]
+    assert len(operators) == 1, operators
+    assert "'+'" in operators[0]
+    assert "proven-native" in operators[0]
 
 
-def test_python_operator_syntax_and_engine_heads_are_distinct_idioms(tmp_path):
-    """The idiom checker accepts both sides of the execution split."""
-    planted = tmp_path / "heads.py"
+def test_python_operator_and_engine_head_split_depends_on_native_proof(tmp_path):
+    """A match-bound operand keeps the explicit relational-head spelling."""
+    planted = tmp_path / "split.py"
     planted.write_text(
         '"""Doc."""\n'
         "from metta import fn\n"
         "def twin(m):\n"
         "    @m.define\n"
-        "    def python_add(a, b):\n"
+        "    def native(a: int, b: int) -> int:\n"
         "        return a + b\n"
         "    @m.define\n"
-        "    def engine_add(a, b):\n"
-        "        return fn.add(a, b)\n",
+        "    def selected(pair):\n"
+        "        match pair:\n"
+        "            case (left, right):\n"
+        "                return fn.add(left, right)\n",
         encoding="utf-8",
     )
     assert coverage.idiom(planted) == []
@@ -1510,7 +1569,8 @@ def test_a_rules_body_carries_literals_but_lowers_no_operator(tmp_path):
 
     Its body is EXECUTED rather than lowered from syntax, though: `x == y` on
     two rule variables is Python's own structural equality and answers a bool,
-    so `.eq(...)` is the building spelling there.
+    so `.eq(...)` is the building spelling there and the operator rule would
+    report a correct bundle.
     """
     planted = tmp_path / "planted.py"
     planted.write_text(
@@ -1547,7 +1607,9 @@ def test_a_term_may_name_a_head_that_shares_a_source_doors_name(tmp_path):
 
     real = tmp_path / "real.py"
     real.write_text(
-        '"""Doc."""\ndef twin(m):\n    assert m.run(\'!(f a)\') == []\n',
+        '"""Doc."""\n'
+        "def twin(m):\n"
+        "    assert m.run('!(f a)') == []\n",
         encoding="utf-8",
     )
     assert coverage.scan(real)
@@ -1663,7 +1725,10 @@ def test_a_yielding_twin_is_a_finding(tmp_path):
     assert coverage.idiom(planted) == []
 
     planted.write_text(
-        '"""Doc."""\nfrom metta import S\ndef twin(m):\n    yield m.eval(S.f(1))\n',
+        '"""Doc."""\n'
+        "from metta import S\n"
+        "def twin(m):\n"
+        "    yield m.eval(S.f(1))\n",
         encoding="utf-8",
     )
     assert any("FORM BY FORM" in finding for finding in coverage.idiom(planted))
@@ -1699,7 +1764,10 @@ def test_a_failing_assertion_is_a_finding(tmp_path):
     """
     twin = tmp_path / "false.py"
     twin.write_text(
-        '"""A twin that claims something untrue."""\nBUDGET = 1\ndef twin(m):\n    assert 1 == 2\n',
+        '"""A twin that claims something untrue."""\n'
+        "BUDGET = 1\n"
+        "def twin(m):\n"
+        "    assert 1 == 2\n",
         encoding="utf-8",
     )
     run = coverage.run_twin(twin)
@@ -1707,7 +1775,10 @@ def test_a_failing_assertion_is_a_finding(tmp_path):
     assert "AssertionError" in run.outcome.error, run.outcome.error
 
     twin.write_text(
-        '"""A twin whose claim holds."""\nBUDGET = 1\ndef twin(m):\n    assert 1 == 1\n',
+        '"""A twin whose claim holds."""\n'
+        "BUDGET = 1\n"
+        "def twin(m):\n"
+        "    assert 1 == 1\n",
         encoding="utf-8",
     )
     assert coverage.run_twin(twin).outcome.error is None
@@ -1723,10 +1794,10 @@ def test_a_manual_hyphen_spelling_is_a_finding(tmp_path):
     twin.write_text(
         "from metta import S, fn\n"
         "def twin(m):\n"
-        '    a = S["foo-bar"](1)\n'  # redundant: S.foo_bar reaches it
-        '    b = fn["mixed-under_score"]\n'  # no round trip: stays exact
-        '    c = S["prime?"]\n'  # unspellable: stays exact
-        '    d = S["=="]\n'  # punctuation: stays exact
+        "    a = S[\"foo-bar\"](1)\n"          # redundant: S.foo_bar reaches it
+        "    b = fn[\"mixed-under_score\"]\n"  # no round trip: stays exact
+        "    c = S[\"prime?\"]\n"              # unspellable: stays exact
+        "    d = S[\"==\"]\n"                  # punctuation: stays exact
         "    return a, b, c, d\n",
         encoding="utf-8",
     )
@@ -1750,19 +1821,19 @@ def test_a_restated_define_name_is_a_finding(tmp_path):
     twin = tmp_path / "names.py"
     twin.write_text(
         "def twin(m):\n"
-        '    @m.define(name="find-divisor")\n'  # what the map already says
+        "    @m.define(name=\"find-divisor\")\n"   # what the map already says
         "    def find_divisor(n):\n"
         "        return n\n"
-        '    @m.define(name="helper")\n'  # the identifier itself
+        "    @m.define(name=\"helper\")\n"          # the identifier itself
         "    def helper(n):\n"
         "        return n\n"
-        '    @m.define(name="prime?")\n'  # unreachable: load-bearing
+        "    @m.define(name=\"prime?\")\n"          # unreachable: load-bearing
         "    def prime(n):\n"
         "        return n\n"
-        '    @m.define(name="facF")\n'  # mixed case: load-bearing
+        "    @m.define(name=\"facF\")\n"            # mixed case: load-bearing
         "    def fac_f(n):\n"
         "        return n\n"
-        '    @m.define(name="h_old")\n'  # preserves the underscore head
+        "    @m.define(name=\"h_old\")\n"           # preserves the underscore head
         "    def h_old(n):\n"
         "        return n\n",
         encoding="utf-8",
@@ -1787,9 +1858,9 @@ def test_an_operator_word_keeps_its_bracket(tmp_path):
     twin.write_text(
         "from metta import S\n"
         "def twin(m):\n"
-        '    a = S["add"](1, 2)\n'  # word: bracket load-bearing
-        '    b = S["neg"]\n'  # composite word: same
-        '    c = S["plain"]\n'  # not a word: still redundant
+        "    a = S[\"add\"](1, 2)\n"   # word: bracket load-bearing
+        "    b = S[\"neg\"]\n"          # composite word: same
+        "    c = S[\"plain\"]\n"        # not a word: still redundant
         "    return a, b, c\n",
         encoding="utf-8",
     )
@@ -1799,11 +1870,11 @@ def test_an_operator_word_keeps_its_bracket(tmp_path):
     assert any('S["plain"] is S.plain' in f for f in findings), findings
 
 
-def test_the_bracket_and_attribute_doors_stay_distinct_at_a_compiled_call(tmp_path):
-    """S["eq"](a, b) inside a lowered body is the data symbol eq, not the
-    operator: only the attribute door consults the word table. Both are legal
-    data mentions now that Python operator syntax, rather than an ``S``
-    attribute, is the spelling whose use the idiom check distinguishes.
+def test_the_bracket_door_is_exact_at_a_compiled_call(tmp_path):
+    """S["add"](a, b) inside a lowered body is the data symbol add, not the
+    operator: only the attribute door consults the word table, exactly as
+    the compiler does (agents A and F both measured the undistinguished
+    rule misreporting the exact door).
     """  # noqa: D205  -- the rule and its ground are one sentence
     import twin_coverage as lane
 
@@ -1812,14 +1883,15 @@ def test_the_bracket_and_attribute_doors_stay_distinct_at_a_compiled_call(tmp_pa
         "from metta import S\n"
         "def twin(m):\n"
         "    @m.define\n"
-        "    def wants_eq_data(a, b):\n"
-        '        return S["eq"](a, b)\n'
+        "    def wants_add_data(a, b):\n"
+        "        return S[\"add\"](a, b)\n"
         "    @m.define\n"
-        "    def spells_the_operator(a, b):\n"
-        "        return S.eq(a, b)\n",
+        "    def spells_the_operator(a: int, b: int) -> int:\n"
+        "        return S.add(a, b)\n",
         encoding="utf-8",
     )
     findings = lane.idiom(twin)
-    bracket = [f for f in findings if '"eq"' in f]
+    bracket = [f for f in findings if '"add"' in f]
+    attribute = [f for f in findings if "proven-native operands" in f and '"add"' not in f]
     assert not bracket, findings
-    assert findings == []
+    assert attribute, findings

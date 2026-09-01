@@ -121,9 +121,9 @@ def twin(m):
         )
 
     @m.define
-    def p1(x):
+    def p1(x: int) -> int:
         # (= (p1 $x) (+ 1 $x))
-        return fn.add(1, x)
+        return 1 + x
 
     assert m.eval(S.map_flat3(S.p1((1, 2)))) == [Expression((2, 3))]
 
@@ -304,4 +304,9 @@ def twin(m):
 #: structure, and the removal doors changed meaning where a twin spells one
 #: [measured 2026-09-01: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=c6a40460b1db341198a6150e3600f502831a6e83].
-BUDGET = 87526
+#: RE-PINNED 2026-09-02, 87526 to 88253 (+727), exact numeric annotations
+#: retain native operator heads, publish MeTTa type declarations, and leave
+#: relational heads only where static proof is unavailable [measured
+#: 2026-09-02: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 88253

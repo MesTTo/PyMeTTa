@@ -34,7 +34,7 @@ Open Obligations:
   Future Enhancements: None.
 """
 
-from metta import FALSE, TRUE, Expression, S, V, equation, fn, lib
+from metta import FALSE, TRUE, Expression, S, V, equation, lib
 
 
 def twin(m):
@@ -81,9 +81,9 @@ def twin(m):
     ]  # rung: `collapse` is what drops the Empty marker, and a Python list does not
 
     @m.define
-    def step_down(n):
+    def step_down(n: int):
         # (= (step-down $n) (if (> $n 0) (step-down (- $n 1)) done))
-        return step_down(fn.sub(n, 1)) if fn.gt(n, 0) else S.done
+        return step_down(n - 1) if n > 0 else S.done
 
     # The reduction loop is HANDED the call rather than making it, so these two
     # write `S.step_down(3)`: calling the Symbol builds where calling the
@@ -229,4 +229,9 @@ def twin(m):
 #: relational engine heads [measured 2026-09-01: min-of-3 serial fresh
 #: processes; command=python extensions/python/tools/twin_coverage.py --repin;
 #: commit=e3787593132a7ece2d300397045f7415709847c9].
-BUDGET = 190883
+#: RE-PINNED 2026-09-02, 190883 to 191033 (+150), exact numeric annotations
+#: retain native operator heads, publish MeTTa type declarations, and leave
+#: relational heads only where static proof is unavailable [measured
+#: 2026-09-02: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 191033

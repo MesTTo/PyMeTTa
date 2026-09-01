@@ -8,7 +8,7 @@ from Python does not reach the dispatch hook, so the second call recomputes
 rather than hitting. Both claims hold either way.
 """
 
-from metta import S, fn, lib
+from metta import S, lib
 
 
 def twin(m):
@@ -16,8 +16,8 @@ def twin(m):
     m += lib.memo
 
     @m.define
-    def double(x):
-        return fn.add(x, x)
+    def double(x: int) -> int:
+        return x + x
 
     m.eval(S.memoize(double))
 
@@ -106,4 +106,9 @@ def twin(m):
 #: relational engine heads [measured 2026-09-01: min-of-3 serial fresh
 #: processes; command=python extensions/python/tools/twin_coverage.py --repin;
 #: commit=e3787593132a7ece2d300397045f7415709847c9].
-BUDGET = 30023
+#: RE-PINNED 2026-09-02, 30023 to 31062 (+1039), exact numeric annotations
+#: retain native operator heads, publish MeTTa type declarations, and leave
+#: relational heads only where static proof is unavailable [measured
+#: 2026-09-02: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 31062

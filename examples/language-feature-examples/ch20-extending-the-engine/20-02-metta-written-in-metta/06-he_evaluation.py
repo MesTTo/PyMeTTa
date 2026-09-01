@@ -17,7 +17,7 @@ units rather than six trues, and Python says the same thing with `print`, whose
 return is None, the unit's Python spelling.
 """
 
-from metta import G, fn, lib
+from metta import G, lib
 
 
 def twin(m):
@@ -25,9 +25,9 @@ def twin(m):
     m += lib.he
 
     @m.define
-    def double(x):
+    def double(x: int) -> int:
         # (= (double $x) (+ $x $x))
-        return fn.add(x, x)
+        return x + x
 
     assert double(5) == [10]
     assert m.eval(G(5) + 5) == [10]
@@ -123,4 +123,9 @@ def twin(m):
 #: relational engine heads [measured 2026-09-01: min-of-3 serial fresh
 #: processes; command=python extensions/python/tools/twin_coverage.py --repin;
 #: commit=e3787593132a7ece2d300397045f7415709847c9].
-BUDGET = 4469
+#: RE-PINNED 2026-09-02, 4469 to 5387 (+918), exact numeric annotations retain
+#: native operator heads, publish MeTTa type declarations, and leave relational
+#: heads only where static proof is unavailable [measured 2026-09-02: min-of-3
+#: serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 5387

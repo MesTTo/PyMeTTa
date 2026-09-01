@@ -38,7 +38,7 @@ def twin(m):
         seen = S.collapse(
             S.once(match(space, atom, atom))
         )  # rung: `collapse` is list(), which a compiled body has no lowering for (P14.4)
-        if fn.eq(seen, ()):
+        if fn.eq(seen, ()):  # seen comes from a match, so its type is unknown
             return fn.add_atom(space, atom)
         return superpose()
 
@@ -52,14 +52,14 @@ def twin(m):
         return add_atom_no_duplicate(m, S.num(S.S(found)))
 
     @m.define(name="expandK")
-    def expand_k(n):
+    def expand_k(n: int):
         """Run expand-once n times, then answer done."""
         # (= (expandK $n)
         #    (if (== $n 0) done (let $temp1 (expand-once) (expandK (- $n 1)))))
-        if fn.eq(n, 0):
+        if fn.eq(n, 0):  # engine equality is intentional
             return S.done
         _round = expand_once()
-        return expand_k(fn.sub(n, 1))
+        return expand_k(n - 1)
 
     @m.define
     def demo_peano(k):
@@ -172,4 +172,9 @@ def twin(m):
 #: relational engine heads [measured 2026-09-01: min-of-3 serial fresh
 #: processes; command=python extensions/python/tools/twin_coverage.py --repin;
 #: commit=e3787593132a7ece2d300397045f7415709847c9].
-BUDGET = 1474885
+#: RE-PINNED 2026-09-02, 1474885 to 1476216 (+1331), exact numeric annotations
+#: retain native operator heads, publish MeTTa type declarations, and leave
+#: relational heads only where static proof is unavailable [measured
+#: 2026-09-02: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 1476216

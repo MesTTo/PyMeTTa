@@ -8,12 +8,12 @@ once, so `(log-math e (exp-math 3.0))` is one term rather than two crossings,
 which is the crossing rule as well as the spelling.
 
 The original's `and` is a Python keyword, so the compiled body takes the exact
-static-function escape, `fn["and"]`. Its comparisons use `fn.le` because this
-source twin needs engine relations rather than Python's live comparison
-protocol.
+static-function escape, `fn["and"]`, while each comparison uses Python's
+operator spelling and lowers to the corresponding engine relation.
 
-The historical stored-equation divergence is lifted. The example and twin
-currently produce the same cross-process digest.
+The historical stored-equation divergence is lifted. The annotation publishes
+its type declaration, `(: in-range (-> Number Number Number Bool))`, so the
+whole-space digest deliberately differs even though the equation agrees.
 """
 
 from metta import fn
@@ -33,10 +33,10 @@ def twin(m):
     assert abs(log(E, fn.exp_math(3.0)).one() - 3.0) < 1.0e-12
 
     @m.define
-    def in_range(lo, hi, x):
+    def in_range(lo: float, hi: float, x: float) -> bool:
         # (= (in-range $lo $hi $x) (and (<= $lo $x) (<= $x $hi)))
         return fn["and"](
-            fn.le(lo, x), fn.le(x, hi)
+            lo <= x, x <= hi
         )  # rung: `and` is a keyword, while fn names its engine relation
 
     # The random generators answer inside their bounds, every draw.
@@ -123,4 +123,9 @@ def twin(m):
 #: relational engine heads [measured 2026-09-01: min-of-3 serial fresh
 #: processes; command=python extensions/python/tools/twin_coverage.py --repin;
 #: commit=e3787593132a7ece2d300397045f7415709847c9].
-BUDGET = 7004
+#: RE-PINNED 2026-09-02, 7004 to 8221 (+1217), exact numeric annotations retain
+#: native operator heads, publish MeTTa type declarations, and leave relational
+#: heads only where static proof is unavailable [measured 2026-09-02: min-of-3
+#: serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 8221

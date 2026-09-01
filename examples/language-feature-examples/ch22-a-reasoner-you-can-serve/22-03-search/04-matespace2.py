@@ -56,12 +56,12 @@ def twin(m):
     # (= (rewriteK $n) (if (== $n 0) done (let* (($temp1 (expand)) ($temp2 (mate)))
     #                                           (rewriteK (- $n 1)))))
     @m.define(name="rewriteK")  # camelCase is outside the underscore map
-    def rewrite_k(n):
-        if fn.eq(n, 0):
+    def rewrite_k(n: int):
+        if fn.eq(n, 0):  # engine equality is intentional
             return S.done
         _grown = fn.expand()
         _mated = fn.mate()
-        return rewrite_k(fn.sub(n, 1))
+        return rewrite_k(n - 1)
 
     # (= (mate-space-demo $K) (let* (($s (add-atom ...)) ($g (rewriteK $K)))
     #                               (match &self (num $1) (num $1))))
@@ -190,4 +190,9 @@ RUNG = (
 #: relational engine heads [measured 2026-09-01: min-of-3 serial fresh
 #: processes; command=python extensions/python/tools/twin_coverage.py --repin;
 #: commit=e3787593132a7ece2d300397045f7415709847c9].
-BUDGET = 39625128
+#: RE-PINNED 2026-09-02, 39625128 to 39627774 (+2646), exact numeric
+#: annotations retain native operator heads, publish MeTTa type declarations,
+#: and leave relational heads only where static proof is unavailable [measured
+#: 2026-09-02: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 39627774

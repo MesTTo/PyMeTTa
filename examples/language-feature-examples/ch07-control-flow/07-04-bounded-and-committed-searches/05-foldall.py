@@ -20,7 +20,7 @@ clauses fix a literal in an argument position, which is what a parameter
 default is, so `g` is two ordinary defs.
 """
 
-from metta import TRUE, Expression, S, V, fn, if_
+from metta import TRUE, Expression, S, V, if_
 
 
 def twin(m):
@@ -40,8 +40,8 @@ def twin(m):
         return 3  # (= (g 2) 3)
 
     @m.define
-    def merge(a, b):  # (= (merge $A $B) (+ $A $B))
-        return fn.add(a, b)
+    def merge(a: int, b: int) -> int:  # (= (merge $A $B) (+ $A $B))
+        return a + b
 
     def fold(aggregate, generator, start=0):
         """Aggregate every answer of `generator`, starting from `start`."""
@@ -154,4 +154,9 @@ def twin(m):
 #: relational engine heads [measured 2026-09-01: min-of-3 serial fresh
 #: processes; command=python extensions/python/tools/twin_coverage.py --repin;
 #: commit=e3787593132a7ece2d300397045f7415709847c9].
-BUDGET = 28608
+#: RE-PINNED 2026-09-02, 28608 to 28804 (+196), exact numeric annotations
+#: retain native operator heads, publish MeTTa type declarations, and leave
+#: relational heads only where static proof is unavailable [measured
+#: 2026-09-02: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 28804

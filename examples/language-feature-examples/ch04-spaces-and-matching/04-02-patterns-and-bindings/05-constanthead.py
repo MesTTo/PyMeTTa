@@ -14,10 +14,10 @@ def twin(m):
     """Define the structural clause, then feed it the structure it wants."""
 
     @m.define
-    def h(data, c):  # (= (h (justdata haha $B) $C)
-        match data:  #    (+ $B $C))
+    def h(data, c: int) -> int:           # (= (h (justdata haha $B) $C)
+        match data:                       #    (+ $B $C))
             case (S.justdata, S.haha, b):
-                return fn.add(b, c)
+                return fn.add(b, c)  # b is match-bound, so its type is unknown
 
     assert h(S.justdata(S.haha, 30), 40) == [70]  # [70]
 
@@ -108,4 +108,9 @@ def twin(m):
 #: relational engine heads [measured 2026-09-01: min-of-3 serial fresh
 #: processes; command=python extensions/python/tools/twin_coverage.py --repin;
 #: commit=e3787593132a7ece2d300397045f7415709847c9].
-BUDGET = 4220
+#: RE-PINNED 2026-09-02, 4220 to 4819 (+599), exact numeric annotations retain
+#: native operator heads, publish MeTTa type declarations, and leave relational
+#: heads only where static proof is unavailable [measured 2026-09-02: min-of-3
+#: serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 4819

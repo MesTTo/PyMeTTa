@@ -12,19 +12,19 @@ head is named explicitly and the def carries its own Python name: an explicit
 where the engine's clause-by-clause walk and Python's own count agree.
 """
 
-from metta import Expression, S, fn
+from metta import Expression, S
 
 
 def twin(m):
     """Unpack an expression, then count one the long way and the short way."""
 
     @m.define(name="len")
-    def length(e):  # (= (len ()) 0)
-        match e:  # (= (len (cons $Head $Tail))
-            case ():  #    (let $N0 (len $Tail)
-                return 0  #         (+ $N0 1)))
+    def length(e) -> int:                      # (= (len ()) 0)
+        match e:                               # (= (len (cons $Head $Tail))
+            case ():                           #    (let $N0 (len $Tail)
+                return 0                       #         (+ $N0 1)))
             case (S.cons, _, tail):
-                return fn.add(length(tail), 1)
+                return length(tail) + 1
 
     head, *tail = Expression((1, 2, 3, 4, 5, 6))  # (let (cons $Head $Tail) ...)
     assert (head, tail) == (1, [2, 3, 4, 5, 6])
@@ -120,4 +120,9 @@ def twin(m):
 #: relational engine heads [measured 2026-09-01: min-of-3 serial fresh
 #: processes; command=python extensions/python/tools/twin_coverage.py --repin;
 #: commit=e3787593132a7ece2d300397045f7415709847c9].
-BUDGET = 5459
+#: RE-PINNED 2026-09-02, 5459 to 5425 (-34), exact numeric annotations retain
+#: native operator heads, publish MeTTa type declarations, and leave relational
+#: heads only where static proof is unavailable [measured 2026-09-02: min-of-3
+#: serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 5425

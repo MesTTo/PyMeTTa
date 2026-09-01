@@ -19,8 +19,10 @@ against the same row.
 
 The digest difference is deliberate and spans three equations. Assignment
 stores one-binding `let*` forms in `program1` and nested `let*` forms in
-`program2`. `program3` now stores the source's `==` through `fn.eq`; only its
-two identity lets disappear from the twin.
+`program2`. `fn.eq` keeps the source's exact equality head in `program3`,
+while its two identity lets disappear from the twin. The numeric annotations
+also publish `(: program1 (-> Number %Undefined%))` and
+`(: program3 (-> Number %Undefined%))`.
 Guarantees:
   - every ordered atom assembled in this file passes one iterable to
     Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=028b41a056cfd706e516cd0b945cbf69ac066da7]
@@ -37,11 +39,11 @@ def twin(m):
     """Stack lets and superpositions four ways, then collapse the lot."""
 
     @m.define
-    def program1(y):
+    def program1(y: int):
         # Source: (= (program1 $Y) (let $X $Y (collapse (superpose (12 (+ $X 4))))))
         # Twin:   (= (program1 $Y) (let* (($X $Y)) (collapse (superpose (12 (+ $X 4))))))
         x = y
-        return collapse(superpose(12, fn.add(x, 4)))  # noqa: F821  -- `collapse` is a name a compiled body reads as MeTTa, which the package exports nowhere yet (residue, P14.4)
+        return collapse(superpose(12, x + 4))  # noqa: F821  -- `collapse` is a name a compiled body reads as MeTTa, which the package exports nowhere yet (residue, P14.4)
 
     @m.define
     def program2(_y):
@@ -52,14 +54,14 @@ def twin(m):
         return fn.superpose(answers)
 
     @m.define
-    def program3(x):
+    def program3(x: int):
         # Source: (= (program3 $x)
         #    (if (== $x 2)
         #        (let $z (superpose ((if (< $x 10) (superpose ((42 43))) 43))) $z)
         #        (let $z 4 $z)))
         # Twin: the same if shape and comparisons; both identity lets are elided.
-        if fn.eq(x, 2):
-            return superpose(superpose((42, 43)) if fn.lt(x, 10) else 43)
+        if fn.eq(x, 2):  # engine equality is intentional
+            return superpose(superpose((42, 43)) if x < 10 else 43)
         return 4
 
     @m.define
@@ -152,4 +154,9 @@ def twin(m):
 #: relational engine heads [measured 2026-09-01: min-of-3 serial fresh
 #: processes; command=python extensions/python/tools/twin_coverage.py --repin;
 #: commit=e3787593132a7ece2d300397045f7415709847c9].
-BUDGET = 11734
+#: RE-PINNED 2026-09-02, 11734 to 11829 (+95), exact numeric annotations retain
+#: native operator heads, publish MeTTa type declarations, and leave relational
+#: heads only where static proof is unavailable [measured 2026-09-02: min-of-3
+#: serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 11829

@@ -19,16 +19,16 @@ with both clauses gone the call is not reducible, and `m.eval` drops that
 answer where a runnable form keeps it.
 """
 
-from metta import S, V, equation, fn
+from metta import S, V, equation
 
 
 def twin(m):
     """Take one clause out, put it back, take the other, then both."""
 
     @m.define
-    def g(x):
+    def g(x: int) -> int:
         # (= (g $x) (+ $x 1))
-        return fn.add(x, 1)
+        return x + 1
 
     @m.define
     def f(g):
@@ -151,4 +151,9 @@ def twin(m):
 #: relational engine heads [measured 2026-09-01: min-of-3 serial fresh
 #: processes; command=python extensions/python/tools/twin_coverage.py --repin;
 #: commit=e3787593132a7ece2d300397045f7415709847c9].
-BUDGET = 12444
+#: RE-PINNED 2026-09-02, 12444 to 13115 (+671), exact numeric annotations
+#: retain native operator heads, publish MeTTa type declarations, and leave
+#: relational heads only where static proof is unavailable [measured
+#: 2026-09-02: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 13115

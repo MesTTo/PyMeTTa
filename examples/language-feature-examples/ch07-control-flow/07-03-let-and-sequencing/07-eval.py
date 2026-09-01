@@ -17,7 +17,8 @@ The stored equations are deliberately not source-identical. Assignment
 lowers `f`'s `let` to a one-binding `let*`. `evalCustom` lowers the source's
 multi-binding `let*` to nested one-binding `let*` forms and names the running
 space as `(context-space)` instead of the source token `&self`. The digest
-lane reports both equations.
+lane reports both equations. `f`'s annotations also publish
+`(: f (-> %Undefined% Number Number %Undefined%))`.
 Guarantees:
   - every ordered atom assembled in this file passes one iterable to
     Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=028b41a056cfd706e516cd0b945cbf69ac066da7]
@@ -34,10 +35,10 @@ def twin(m):
     """Read a specialised body out of the space, then evaluate it."""
 
     @m.define
-    def f(li, a, b):
+    def f(li, a: float, b: int):
         # Source: (= (f $L $a $b) (let $result (+ $a $b) (append ($result) $L)))
         # Twin:   (= (f $L $a $b) (let* (($result (+ $a $b))) (append ($result) $L)))
-        result = fn.add(a, b)
+        result = a + b
         return fn.append((result,), li)
 
     # !(test (let $fbody_specialized (match &self (= (f (42) 40.7 2) $x) $x)
@@ -122,4 +123,9 @@ def twin(m):
 #: examples/ch07-control-flow/07-03-let-and-sequencing/07-eval.metta;
 #: fixture=operator-protocol tree after python extensions/python/tools/twin_coverage.py
 #: --observe --rounds 10; commit=e3787593132a7ece2d300397045f7415709847c9].
-BUDGET = 17236
+#: RE-PINNED 2026-09-02, 17236 to 17523 (+287), exact numeric annotations
+#: retain native operator heads, publish MeTTa type declarations, and leave
+#: relational heads only where static proof is unavailable [measured
+#: 2026-09-02: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 17523

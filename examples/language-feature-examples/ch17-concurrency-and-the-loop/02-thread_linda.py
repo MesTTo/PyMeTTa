@@ -37,7 +37,7 @@ Open Obligations:
 """
 
 import metta
-from metta import S, V, fn, lib, spawn
+from metta import S, V, lib, spawn
 
 
 def twin(m):
@@ -45,9 +45,9 @@ def twin(m):
     m += lib.thread
 
     @m.define
-    def inc(x):
+    def inc(x: int) -> int:
         # (= (inc $x) (+ $x 1))
-        return fn.add(x, 1)
+        return x + 1
 
     # A peek leaves the atom, so two peeks answer the same job.
     jobs = metta.space(S.jobs)
@@ -166,9 +166,14 @@ def twin(m):
 #: further full-lane observations, the last 401241; command=python
 #: extensions/python/tools/twin_coverage.py; fixture=full-lane/219/workers=32;
 #: commit=e3787593132a7ece2d300397045f7415709847c9].
-BUDGET = {
-    "minimum": 401238,
-    "maximum": 401241,
-    "observations": 25,
-    "protocol": "full-lane/219/workers=32",
-}
+#: RETIRED THE ENVELOPE 2026-09-02 after exact numeric annotations restored
+#: native operator heads and published their MeTTa declarations. The current
+#: implementation answered 401370 in all ten full-lane observations and all
+#: three serial measurements, so a point pin states the measured distribution
+#: while an envelope would have to invent a spread [measured: 10 full-lane
+#: observations and min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --observe --rounds 10, then python
+#: extensions/python/tools/twin_coverage.py --measure --rounds 3
+#: examples/ch17-concurrency-and-the-loop/02-thread_linda.metta;
+#: fixture=full-lane/219/workers=32 and serial fresh processes; commit=WORKTREE].
+BUDGET = 401370

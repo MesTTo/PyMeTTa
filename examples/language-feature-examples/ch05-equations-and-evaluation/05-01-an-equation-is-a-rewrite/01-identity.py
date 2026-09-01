@@ -10,15 +10,13 @@ Guarantees:
     test_a_shipped_twin_agrees_with_its_example_end_to_end; commit=39092863ae34184a9f955f185ff57c1ff177ec40]
 """
 
-from metta import fn
-
 
 def twin(m):
     """Define the square, then check it."""
 
     @m.define
-    def f(x):
-        return fn.mul(x, x)
+    def f(x: int) -> int:
+        return x * x
 
     assert f(1) == [1]
 
@@ -579,4 +577,8 @@ def twin(m):
 #: relational engine heads [measured 2026-09-01: min-of-3 serial fresh
 #: processes; command=python extensions/python/tools/twin_coverage.py --repin;
 #: commit=e3787593132a7ece2d300397045f7415709847c9].
-BUDGET = 2466
+#: RE-PINNED 2026-09-02, 2466 to 3392 (+926), exact numeric annotations retain
+#: pure engine heads and publish MeTTa type declarations [measured 2026-09-02:
+#: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 3392

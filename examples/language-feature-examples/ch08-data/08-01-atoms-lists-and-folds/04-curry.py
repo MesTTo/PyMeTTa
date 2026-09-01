@@ -51,14 +51,14 @@ def twin(m):
     """Apply four functions with too few arguments, and three with too many."""
 
     @m.define
-    def f(a, b):
+    def f(a: int, b: int) -> int:
         # (= (f $a $b) (+ $a $b))
-        return fn.add(a, b)
+        return a + b
 
     @m.define
-    def g(a, b, c):
+    def g(a: int, b: int, c: int) -> int:
         # (= (g $a $b $c) (+ $c (+ $a $b)))
-        return fn.add(c, fn.add(a, b))
+        return c + (a + b)
 
     @m.define
     def show():
@@ -103,8 +103,8 @@ def twin(m):
 
     # (= (overloaded-curry $a $b $c) (+ $a (+ $b $c)))
     @m.define(name="overloaded-curry")
-    def overloaded_curry_3(a, b, c):
-        return fn.add(a, fn.add(b, c))
+    def overloaded_curry_3(a: int, b: int, c: int) -> int:
+        return a + (b + c)
 
     assert m.fn.repr(S.overloaded_curry(1, 2)) == ["(partial overloaded-curry (1 2))"]
 
@@ -195,4 +195,9 @@ def twin(m):
 #: relational engine heads [measured 2026-09-01: min-of-3 serial fresh
 #: processes; command=python extensions/python/tools/twin_coverage.py --repin;
 #: commit=e3787593132a7ece2d300397045f7415709847c9].
-BUDGET = 20152
+#: RE-PINNED 2026-09-02, 20152 to 23312 (+3160), exact numeric annotations
+#: retain native operator heads, publish MeTTa type declarations, and leave
+#: relational heads only where static proof is unavailable [measured
+#: 2026-09-02: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 23312

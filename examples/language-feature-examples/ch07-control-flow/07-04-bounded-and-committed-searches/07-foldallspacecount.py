@@ -12,7 +12,7 @@ ever named as a symbol. `spacecount`'s parameter is `_`, MeTTa's own anonymous
 variable, because the original ignores it as well.
 """
 
-from metta import S, V, fn, match
+from metta import S, V, match
 
 
 def twin(m):
@@ -25,8 +25,8 @@ def twin(m):
         return 1  #         1))
 
     @m.define
-    def merge(a, b):  # (= (merge $a $b) (+ $a $b))
-        return fn.add(a, b)
+    def merge(a: int, b: int) -> int:            # (= (merge $a $b) (+ $a $b))
+        return a + b
 
     @m.define
     def spacecount(_):  # (= (spacecount $x)
@@ -110,4 +110,9 @@ def twin(m):
 #: relational engine heads [measured 2026-09-01: min-of-3 serial fresh
 #: processes; command=python extensions/python/tools/twin_coverage.py --repin;
 #: commit=e3787593132a7ece2d300397045f7415709847c9].
-BUDGET = 6514
+#: RE-PINNED 2026-09-02, 6514 to 6737 (+223), exact numeric annotations retain
+#: native operator heads, publish MeTTa type declarations, and leave relational
+#: heads only where static proof is unavailable [measured 2026-09-02: min-of-3
+#: serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 6737

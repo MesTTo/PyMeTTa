@@ -38,9 +38,9 @@ def twin(m):
     """Bound four evaluations, set seven pragmas, then invert arithmetic."""
 
     @m.define
-    def spin(n):
+    def spin(n: int):
         # (= (spin $n) (if (> $n 0) (spin (- $n 1)) done))
-        return spin(fn.sub(n, 1)) if fn.gt(n, 0) else S.done
+        return spin(n - 1) if n > 0 else S.done
 
     # A bound that is not reached is invisible.
     assert m.eval(S.spin(100), timeout=30) == [S.done]
@@ -196,4 +196,9 @@ def twin(m):
 #: relational engine heads [measured 2026-09-01: min-of-3 serial fresh
 #: processes; command=python extensions/python/tools/twin_coverage.py --repin;
 #: commit=e3787593132a7ece2d300397045f7415709847c9].
-BUDGET = 37940
+#: RE-PINNED 2026-09-02, 37940 to 43813 (+5873), exact numeric annotations
+#: retain native operator heads, publish MeTTa type declarations, and leave
+#: relational heads only where static proof is unavailable [measured
+#: 2026-09-02: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 43813

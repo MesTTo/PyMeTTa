@@ -11,9 +11,9 @@ to its own result, which is variable-head application (`r(r(g))` compiles to
 recursive call passes `twice(r)`, a PARTIAL application of a two-parameter
 function. Neither needs a MeTTa spelling: the subset already reads both.
 
-`fn.eq` and `fn.sub` explicitly name the source relations. Generic Python
-operators follow live protocols, while this source twin needs its stored
-equation to match the original.
+The numeric annotation keeps subtraction on the pure engine head. Equality
+stays explicit as `fn.eq`, because Python and the engine disagree across
+numeric species, NaN, and signed zero. The stored equation matches the source.
 """
 
 from metta import S, fn
@@ -33,10 +33,9 @@ def twin(m):
         return r(r(g))
 
     @m.define
-    def evolve(r, n, g):
-        # Source: (= (evolve $r $n $g) (if (== $n 0) $g (evolve (twice $r) (- $n 1) $g)))
-        # Twin: the same equation, with both relations named through fn.
-        return g if fn.eq(n, 0) else evolve(twice(r), fn.sub(n, 1), g)
+    def evolve(r, n: int, g):
+        # Source and twin: (= (evolve $r $n $g) (if (== $n 0) $g (evolve (twice $r) (- $n 1) $g)))
+        return g if fn.eq(n, 0) else evolve(twice(r), n - 1, g)  # engine equality is intentional
 
     assert evolve(S.derive, 2, S.stmt) == [S.stmt]
 
@@ -127,4 +126,9 @@ def twin(m):
 #: relational engine heads [measured 2026-09-01: min-of-3 serial fresh
 #: processes; command=python extensions/python/tools/twin_coverage.py --repin;
 #: commit=e3787593132a7ece2d300397045f7415709847c9].
-BUDGET = 10318
+#: RE-PINNED 2026-09-02, 10318 to 11882 (+1564), exact numeric annotations
+#: retain native operator heads, publish MeTTa type declarations, and leave
+#: relational heads only where static proof is unavailable [measured
+#: 2026-09-02: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 11882

@@ -1,12 +1,15 @@
 """examples/ch07-control-flow/07-01-if-and-booleans/09-xor.metta in Python: `xor` inside an equation.
 
 Python's `^` follows the left operand's live `__xor__` protocol in a compiled
-body. This source twin instead needs the engine's boolean `xor` relation, so
-it names that head through the static function namespace as `fn.xor`.
+body. This source needs the engine's boolean `xor` relation, so it names that
+head through the static function namespace as `fn.xor`.
 
 The static function mention is already an engine boolean function, so the
-conditional consumes it directly. `fn.eq` and `fn.gt` likewise name the
-source's relational comparisons. The stored equation matches the source.
+conditional consumes it directly. The numeric annotations keep Python's `>`
+syntax on the pure engine head. Equality stays explicit as `fn.eq`, because
+Python and the engine disagree across numeric species, NaN, and signed zero.
+The stored equation matches the source equation, while the annotation
+publishes its type declaration, `(: check_xor (-> Number Number Number))`.
 """
 
 from metta import fn
@@ -20,13 +23,11 @@ def twin(m):
     # included, turns a Python underscore into a hyphen, so `@m.define` alone
     # would store `check-xor` and the example's head would go unmatched. An
     # exact non-mechanical name is what `name=` is for.
-    @m.define(
-        name="check_xor"
-    )  # rung: def check_xor maps to check-xor, while the source head is check_xor
-    def check_xor(source, destination):
+    @m.define(name="check_xor")  # rung: def check_xor maps to check-xor, while the source head is check_xor
+    def check_xor(source: int, destination: int) -> int:
         # Source and twin: (= (check_xor $source $destination)
         #                    (if (xor (== $source $destination) (> $source $destination)) 42 0))
-        return 42 if fn.xor(fn.eq(source, destination), fn.gt(source, destination)) else 0
+        return 42 if fn.xor(fn.eq(source, destination), source > destination) else 0  # engine equality is intentional
 
     assert check_xor(2, 2) == [42]
     assert check_xor(4, 2) == [42]
@@ -110,4 +111,9 @@ def twin(m):
 #: relational engine heads [measured 2026-09-01: min-of-3 serial fresh
 #: processes; command=python extensions/python/tools/twin_coverage.py --repin;
 #: commit=e3787593132a7ece2d300397045f7415709847c9].
-BUDGET = 4721
+#: RE-PINNED 2026-09-02, 4721 to 5888 (+1167), exact numeric annotations retain
+#: native operator heads, publish MeTTa type declarations, and leave relational
+#: heads only where static proof is unavailable [measured 2026-09-02: min-of-3
+#: serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 5888

@@ -13,12 +13,10 @@ function: it returns the exact `(@doc ...)` atom and gives no answer for an
 undocumented subject. The rung comments keep that semantic distinction
 visible. `undocumented` remains lib_doc's own function and stays named.
 
-Neither function is ANNOTATED, and that is the example's own program rather
-than an omission: `(= (greet $who) $who)` declares no type, so each parameter's
-`@type` comes back as `%Undefined%`, the marked name of the unconstrained type,
-which is exactly what an undeclared parameter has. Annotating would emit
-`(: greet (-> String String))` beside the doc and make `(greet 5)` a BadType
-error the example never asked for.
+`greet` is unannotated, so its parameter remains `%Undefined%`. `add_two`
+carries exact numeric annotations: they keep its operator on the source's `+`
+head, publish `(: add-two (-> Number Number Number))`, and let its portable
+documentation report `Number` for both parameters and its result.
 
 The summaries end with a full stop where the example's prose does not, because
 the `@desc` atom IS the docstring, verbatim, and a docstring that carries no
@@ -27,11 +25,12 @@ twin's own datum, the way its scratch file names are; what the claims are about
 is the round trip.
 """
 
-from metta import G, S, fn, lib
+from metta import G, S, lib
 
 #: What an undeclared parameter's type comes back as. `%Undefined%` is a marked
 #: name rather than an identifier, so it takes rung 5's exact door.
 UNDECLARED = S["@type"](S["%Undefined%"])
+NUMBER = S["@type"](S.Number)
 
 #: The two summaries, written once here and once as the docstring they are. A
 #: drift between the two copies is the defect these claims exist to catch.
@@ -49,7 +48,7 @@ def twin(m):
         return who
 
     @m.define
-    def add_two(a, b):
+    def add_two(a: int, b: int) -> int:
         """Adds two numbers.
 
         Args:
@@ -59,7 +58,7 @@ def twin(m):
         Returns:
             their sum
         """
-        return fn.add(a, b)
+        return a + b
 
     # Retrieval answers the atom the docstring became.
     assert m.fn.get_doc(  # rung: lib_doc's unary raw-document query, not scoped m.doc
@@ -84,11 +83,11 @@ def twin(m):
             S["@desc"](ADD_TWO_SUMMARY),
             S["@params"](
                 (
-                    S["@param"](UNDECLARED, S["@desc"](G("the first"))),
-                    S["@param"](UNDECLARED, S["@desc"](G("the second"))),
+                    S["@param"](NUMBER, S["@desc"](G("the first"))),
+                    S["@param"](NUMBER, S["@desc"](G("the second"))),
                 )
             ),
-            S["@return"](UNDECLARED, S["@desc"](G("their sum"))),
+            S["@return"](NUMBER, S["@desc"](G("their sum"))),
         )
     ]
 
@@ -193,4 +192,9 @@ def twin(m):
 #: relational engine heads [measured 2026-09-01: min-of-3 serial fresh
 #: processes; command=python extensions/python/tools/twin_coverage.py --repin;
 #: commit=e3787593132a7ece2d300397045f7415709847c9].
-BUDGET = 9065
+#: RE-PINNED 2026-09-02, 9065 to 10157 (+1092), exact numeric annotations
+#: retain native operator heads, publish MeTTa type declarations, and leave
+#: relational heads only where static proof is unavailable [measured
+#: 2026-09-02: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 10157

@@ -8,9 +8,12 @@ naming ladder's own underscore map, and nothing has to say that name twice.
 name that object was installed under, so the stored equation is the
 original's.
 
-The body explicitly names the relational `==`, `-`, and `+` heads through
-`fn`. Generic Python operators follow Python's live protocols; the relational
-namespace instead makes `fib-tr` store the source equation exactly.
+The numeric annotations keep Python's `-` and `+` syntax on the pure engine
+heads. Equality stays explicit as `fn.eq`, because Python and the engine
+disagree across numeric species, NaN, and signed zero. `fib-tr` therefore
+stores the source equation exactly. The annotations publish their type
+declarations, `(: fib-tr (-> Number Number Number Number))` and
+`(: fib (-> Number Number))`.
 """
 
 from metta import fn
@@ -20,16 +23,16 @@ def twin(m):
     """Define the accumulator fib and its entry point, then run it."""
 
     @m.define
-    def fib_tr(n, a, b):
+    def fib_tr(n: int, a: int, b: int) -> int:
         # Source and twin: (= (fib-tr $n $a $b) (if (== $n 0) $a (fib-tr (- $n 1) $b (+ $a $b))))
-        return a if fn.eq(n, 0) else fib_tr(fn.sub(n, 1), b, fn.add(a, b))
+        return a if fn.eq(n, 0) else fib_tr(n - 1, b, a + b)  # engine equality is intentional
 
     # A body calling the definition above it is the ordinary call: `fib_tr` is
     # bound here to the decorated object, and the compiler emits that object's
     # installed MeTTa name, so the stored body is `(fib-tr $n 0 1)` even
     # though the two names differ.
     @m.define
-    def fib(n):
+    def fib(n: int) -> int:
         # (= (fib $n) (fib-tr $n 0 1))
         return fib_tr(n, 0, 1)
 
@@ -114,4 +117,9 @@ def twin(m):
 #: relational engine heads [measured 2026-09-01: min-of-3 serial fresh
 #: processes; command=python extensions/python/tools/twin_coverage.py --repin;
 #: commit=e3787593132a7ece2d300397045f7415709847c9].
-BUDGET = 7654
+#: RE-PINNED 2026-09-02, 7654 to 10165 (+2511), exact numeric annotations
+#: retain native operator heads, publish MeTTa type declarations, and leave
+#: relational heads only where static proof is unavailable [measured
+#: 2026-09-02: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 10165

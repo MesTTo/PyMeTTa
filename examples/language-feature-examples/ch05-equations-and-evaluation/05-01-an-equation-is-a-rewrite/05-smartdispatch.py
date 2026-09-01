@@ -24,16 +24,16 @@ Open Obligations:
   Future Enhancements: None.
 """
 
-from metta import Expression, S, fn
+from metta import Expression, S
 
 
 def twin(m):
     """Ask five heads what they do with a function as an argument."""
 
     @m.define
-    def f(x):
+    def f(x: int) -> int:
         # (= (f $x) (* $x 2))
-        return fn.mul(x, 2)
+        return x * 2
 
     @m.define
     def g(f, x):
@@ -156,4 +156,9 @@ def twin(m):
 #: relational engine heads [measured 2026-09-01: min-of-3 serial fresh
 #: processes; command=python extensions/python/tools/twin_coverage.py --repin;
 #: commit=e3787593132a7ece2d300397045f7415709847c9].
-BUDGET = 10444
+#: RE-PINNED 2026-09-02, 10444 to 11949 (+1505), exact numeric annotations
+#: retain native operator heads, publish MeTTa type declarations, and leave
+#: relational heads only where static proof is unavailable [measured
+#: 2026-09-02: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 11949

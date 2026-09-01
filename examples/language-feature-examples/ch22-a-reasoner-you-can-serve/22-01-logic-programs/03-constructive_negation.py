@@ -228,7 +228,7 @@ def quantifying(m):
     def any_pass(who):
         """(= (any-pass $w) (let $m (marks $w) (> $m 50)))."""
         mark = S.marks(who)
-        return fn.gt(mark, 50)
+        return fn.gt(mark, 50)  # mark comes from a call, so its type is unknown
 
     # carol has two marks and one of them passes, so she IS provable; dave has
     # two and neither does.
@@ -361,7 +361,7 @@ def masking(m):
     @m.define
     def mask_example_double(x: int) -> int:
         """(: mask-example-double (-> Number Number)), (= ... (* $x 2))."""
-        return fn.mul(x, 2)
+        return x * 2
 
     @m.define
     def mask_example_holds(_x: Atom = 10) -> bool:
@@ -502,4 +502,9 @@ def twin(m):
 #: relational engine heads [measured 2026-09-01: min-of-3 serial fresh
 #: processes; command=python extensions/python/tools/twin_coverage.py --repin;
 #: commit=e3787593132a7ece2d300397045f7415709847c9].
-BUDGET = 90183
+#: RE-PINNED 2026-09-02, 90183 to 90176 (-7), exact numeric annotations retain
+#: native operator heads, publish MeTTa type declarations, and leave relational
+#: heads only where static proof is unavailable [measured 2026-09-02: min-of-3
+#: serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 90176

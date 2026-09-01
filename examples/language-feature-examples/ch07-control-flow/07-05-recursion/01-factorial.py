@@ -4,10 +4,11 @@
 conditional expression IS MeTTa's `if` and the recursive call is the same call
 the equation makes.
 
-The body uses the explicit relational namespace for `==`, `*`, and `-`.
-Generic Python operators follow Python's live protocols; `fn.eq`, `fn.mul`,
-and `fn.sub` instead store the engine heads the source uses. The stored
-equation therefore matches the source exactly.
+The numeric annotations keep Python's `*` and `-` syntax on the pure engine
+heads. Equality stays explicit as `fn.eq`, because Python and the engine
+disagree across numeric species, NaN, and signed zero. The stored equation
+matches the source equation exactly, while the annotation publishes its type
+declaration, `(: facF (-> Number Number))`.
 """
 
 from metta import fn
@@ -17,9 +18,9 @@ def twin(m):
     """Define the factorial and run it."""
 
     @m.define(name="facF")
-    def fac_f(n):
+    def fac_f(n: int) -> int:
         # Source and twin: (= (facF $n) (if (== $n 0) 1 (* $n (facF (- $n 1)))))
-        return 1 if fn.eq(n, 0) else fn.mul(n, fac_f(fn.sub(n, 1)))
+        return 1 if fn.eq(n, 0) else n * fac_f(n - 1)  # engine equality is intentional
 
     assert fac_f(10) == [3628800]
 
@@ -105,4 +106,9 @@ def twin(m):
 #: relational engine heads [measured 2026-09-01: min-of-3 serial fresh
 #: processes; command=python extensions/python/tools/twin_coverage.py --repin;
 #: commit=e3787593132a7ece2d300397045f7415709847c9].
-BUDGET = 5117
+#: RE-PINNED 2026-09-02, 5117 to 6280 (+1163), exact numeric annotations retain
+#: native operator heads, publish MeTTa type declarations, and leave relational
+#: heads only where static proof is unavailable [measured 2026-09-02: min-of-3
+#: serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 6280

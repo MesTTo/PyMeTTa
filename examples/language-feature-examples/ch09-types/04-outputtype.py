@@ -21,17 +21,17 @@ def twin(m):
     @m.define
     def f(x: int) -> Any:
         """(: f (-> Number %Undefined%)), (= (f $x) (+ $x 42))."""
-        return fn.add(x, 42)
+        return x + 42
 
     @m.define
     def g(x: int) -> Atom:
         """(: g (-> Number Atom)), the same body under a lazy OUTPUT."""
-        return fn.add(x, 42)
+        return x + 42
 
     @m.define
     def h(x: Atom) -> Atom:
         """(: h (-> Atom Atom)), lazy on both sides."""
-        return fn.add(x, 42)
+        return fn.add(x, 42)  # Atom input needs the relational head
 
     # !(test (f (+ 1 1)) 44)
     assert f(S.add(1, 1)) == [44]
@@ -123,4 +123,9 @@ def twin(m):
 #: relational engine heads [measured 2026-09-01: min-of-3 serial fresh
 #: processes; command=python extensions/python/tools/twin_coverage.py --repin;
 #: commit=e3787593132a7ece2d300397045f7415709847c9].
-BUDGET = 8031
+#: RE-PINNED 2026-09-02, 8031 to 8017 (-14), exact numeric annotations retain
+#: native operator heads, publish MeTTa type declarations, and leave relational
+#: heads only where static proof is unavailable [measured 2026-09-02: min-of-3
+#: serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 8017

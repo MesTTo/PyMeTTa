@@ -155,9 +155,9 @@ def class_tops(m):
     m += [S.sc_class_student_grade(klass, student, grade) for klass, student, grade in GRADES]
 
     @m.define
-    def sc_pick_max(left, right):
+    def sc_pick_max(left: int, right: int) -> int:
         """(= (sc-pick-max $a $b) (if (> $a $b) $a $b))."""
-        return left if fn.gt(left, right) else right
+        return left if left > right else right  # noqa: FURB136 -- keep the source's conditional head
 
     @m.define
     def sc_class_max(klass):
@@ -165,7 +165,7 @@ def class_tops(m):
         return S.foldall(
             S.sc_pick_max,
             match(S.sc_class_student_grade(klass, V._, V.g), V.g),
-            fn.neg(1),
+            -1,
         )
 
     @m.define
@@ -206,7 +206,7 @@ def animal_count(m):
         """Every named object whose kind reaches `animal`."""
         named = match(S.sc_name(V.o, V.kind), (V.o, V.kind))
         ancestor = sc_ancestor_kind(named[1])
-        return named[0] if fn.eq(ancestor, S.animal) else superpose()
+        return named[0] if fn.eq(ancestor, S.animal) else superpose()  # ancestor is call-bound
 
     @m.define
     def sc_one_animal():
@@ -319,4 +319,9 @@ def twin(m):
 #: relational engine heads [measured 2026-09-01: min-of-3 serial fresh
 #: processes; command=python extensions/python/tools/twin_coverage.py --repin;
 #: commit=e3787593132a7ece2d300397045f7415709847c9].
-BUDGET = 85229
+#: RE-PINNED 2026-09-02, 85229 to 84481 (-748), exact numeric annotations
+#: retain native operator heads, publish MeTTa type declarations, and leave
+#: relational heads only where static proof is unavailable [measured
+#: 2026-09-02: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 84481

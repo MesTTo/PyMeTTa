@@ -22,7 +22,7 @@ would read the old mode. Both calls therefore state the `True` they answer,
 which both pulls them and says what they answered.
 """
 
-from metta import S, fn, lib
+from metta import S, lib
 from metta.vocabularies import MemoAggregate
 
 
@@ -34,11 +34,11 @@ def twin(m):
     assert config(S.aggregate(S[MemoAggregate.sum])) == [True]
 
     @m.define
-    def choices(x):
+    def choices(x: int) -> int:
         # (= (choices $x) $x), then (+ $x 1), then (+ $x 2)
         yield x
-        yield fn.add(x, 1)
-        yield fn.add(x, 2)
+        yield x + 1
+        yield x + 2
 
     m.eval(S.memoize(choices))
 
@@ -138,4 +138,9 @@ def twin(m):
 #: relational engine heads [measured 2026-09-01: min-of-3 serial fresh
 #: processes; command=python extensions/python/tools/twin_coverage.py --repin;
 #: commit=e3787593132a7ece2d300397045f7415709847c9].
-BUDGET = 36980
+#: RE-PINNED 2026-09-02, 36980 to 38069 (+1089), exact numeric annotations
+#: retain native operator heads, publish MeTTa type declarations, and leave
+#: relational heads only where static proof is unavailable [measured
+#: 2026-09-02: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 38069
