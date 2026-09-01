@@ -239,13 +239,13 @@ def twin(m):
 #: RE-PINNED 2026-09-02, 38740 to 40542 (+1802), static contract discharge and
 #: policy-stable recompilation [measured 2026-09-02: min-of-3 serial fresh
 #: processes; command=python extensions/python/tools/twin_coverage.py --repin;
-#: commit=WORKTREE].
+#: commit=c00341f0ff9d83d1b9338ca86ad51708eaf07ebd].
 #: RE-PINNED 2026-09-02, 40542 to 40712 (+170), static contract discharge with
 #: policy checks confined to invalidated contracts [measured 2026-09-02: min-
 #: of-3 serial fresh processes; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+#: extensions/python/tools/twin_coverage.py --repin; commit=c00341f0ff9d83d1b9338ca86ad51708eaf07ebd].
 #: RE-PINNED 2026-09-02, 40712 to 40724 (+12), P43 protects both generated
 #: policy-check fallbacks from space-local capture [measured 2026-09-02: min-
 #: of-3 serial fresh processes; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+#: extensions/python/tools/twin_coverage.py --repin; commit=c00341f0ff9d83d1b9338ca86ad51708eaf07ebd].
 BUDGET = 40724

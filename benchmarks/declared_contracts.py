@@ -36,7 +36,7 @@ and 6.840-microsecond contract cost
 60b9fbb2e961711cd653967367300505de41d478 and after at WORKTREE;
 command=python -m benchmarks.declared_contracts --calls 100000
 --reflective-calls 2000 --rounds 7; fixture=CPython 3.14, C reader, one
-fresh process per tree; commit=WORKTREE].
+fresh process per tree; commit=c00341f0ff9d83d1b9338ca86ad51708eaf07ebd].
 """
 
 from __future__ import annotations

@@ -169,19 +169,19 @@ def twin(m):
 #: implementation, so 25 fresh full-lane observations replace them [measured:
 #: minimum 88253, maximum 88352 over 25 observations; command=python
 #: extensions/python/tools/twin_coverage.py --observe --rounds 25;
-#: fixture=full-lane/219/workers=32; commit=WORKTREE].
+#: fixture=full-lane/219/workers=32; commit=c00341f0ff9d83d1b9338ca86ad51708eaf07ebd].
 #: RE-ENVELOPED 2026-09-02 after policy checks were confined to invalidated
 #: generated contracts. Twenty-five fresh full-lane observations replace the
 #: intermediate implementation's bounds [measured: minimum 88581, maximum
 #: 88680 over 25 observations; command=python
 #: extensions/python/tools/twin_coverage.py --observe --rounds 25;
-#: fixture=full-lane/219/workers=32; commit=WORKTREE].
+#: fixture=full-lane/219/workers=32; commit=c00341f0ff9d83d1b9338ca86ad51708eaf07ebd].
 #: RE-ENVELOPED 2026-09-02 after the two generated policy-check fallbacks
 #: joined the protected engine-emitted surface. Twenty-five fresh full-lane
 #: observations replace the pre-protection bounds [measured: minimum 88783,
 #: maximum 88882 over 25 observations; command=python
 #: extensions/python/tools/twin_coverage.py --observe --rounds 25;
-#: fixture=full-lane/219/workers=32; commit=WORKTREE].
+#: fixture=full-lane/219/workers=32; commit=c00341f0ff9d83d1b9338ca86ad51708eaf07ebd].
 BUDGET = {
     "minimum": 88783,
     "maximum": 88882,

@@ -16,13 +16,13 @@ Guarantees:
   - statically repeated parameter contracts yield to a later module-local
     typing rule, and removing the rule restores the discharged check
     [tested: test_a_static_parameter_proof_yields_to_a_later_typing_rule;
-    commit=WORKTREE]
+    commit=c00341f0ff9d83d1b9338ca86ad51708eaf07ebd]
   - a static parameter proof requires every governing chain to prove the same
     checked type; gradual consistency and an inherited clause running under a
     different local declaration retain the runtime check
     [tested: test_a_consistent_chain_is_not_a_static_type_proof,
     test_an_inherited_clause_does_not_reuse_its_owners_parameter_proof;
-    commit=WORKTREE]
+    commit=c00341f0ff9d83d1b9338ca86ad51708eaf07ebd]
 Open Obligations:
   To Do: None
   Hacks: None

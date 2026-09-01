@@ -198,13 +198,13 @@ RUNG = (
 #: RE-PINNED 2026-09-02, 39627774 to 39628051 (+277), static contract discharge
 #: and policy-stable recompilation [measured 2026-09-02: min-of-3 serial fresh
 #: processes; command=python extensions/python/tools/twin_coverage.py --repin;
-#: commit=WORKTREE].
+#: commit=c00341f0ff9d83d1b9338ca86ad51708eaf07ebd].
 #: RE-PINNED 2026-09-02, 39628051 to 39628065 (+14), static contract discharge
 #: with policy checks confined to invalidated contracts [measured 2026-09-02:
 #: min-of-3 serial fresh processes; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+#: extensions/python/tools/twin_coverage.py --repin; commit=c00341f0ff9d83d1b9338ca86ad51708eaf07ebd].
 #: RE-PINNED 2026-09-02, 39628065 to 39628091 (+26), P43 protects both
 #: generated policy-check fallbacks from space-local capture [measured
 #: 2026-09-02: min-of-3 serial fresh processes; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+#: extensions/python/tools/twin_coverage.py --repin; commit=c00341f0ff9d83d1b9338ca86ad51708eaf07ebd].
 BUDGET = 39628091
