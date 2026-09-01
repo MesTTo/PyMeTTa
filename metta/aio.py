@@ -1434,17 +1434,22 @@ class AsyncMeTTa:
         so the one-atom call still reads as the truth value it always
         was.
 
-        The MeTTa door is coarser and deliberately so: `remove-atom`, and
-        therefore `space -= atom`, drains EVERY unifying occurrence and
-        answers True either way, because that is upstream's law
-        [source: engine/spaces/foreign.pl, remove_matching_atoms/2] and
-        because `-=` is Python's in-place difference, which is total.
-        `-=` classifies its operand exactly as `+=` does, so the fact
-        stream one door stores the other drains, element by element in
-        one transactional crossing.
-        `del m[pattern]` drains too and raises when nothing matched, as
-        Python's `del` does. This method is the one door that reports
-        absence, so the distinction the MeTTa door gave up is still here.
+        `space -= atom` is this same grain without the report, the way
+        `+=` is `add` without one: Python's in-place difference over a
+        MULTISET, whose own Python spelling is `collections.Counter`,
+        subtracts the multiplicity given rather than clearing the key.
+        That is the only reading under which the operators are inverses,
+        so `s += a; s -= a` leaves the space it found. `-=` classifies its
+        operand exactly as `+=` does, so the fact stream one door stores
+        the other subtracts, one occurrence per element, in one
+        transactional crossing.
+
+        The DRAIN is the pattern-shaped door: `del m[pattern]` takes every
+        unifying occurrence in one crossing and raises when nothing
+        matched, as Python's `del` does, and MeTTa spells it `remove-atom`
+        [source: engine/spaces/foreign.pl, remove_matching_atoms/2].
+        MeTTa spells this method's grain `subtract-atom`. This is the one
+        door that reports absence.
 
         A bare variable is the remove-everything reading a multiset space
         gives it, each atom leaving through its own proper path, equations

@@ -4,8 +4,9 @@
 foreign-space seam, so `&cstore` is a space like any other and nothing above it
 knows there is a C backend. That is exactly why this twin reads like the spaces
 twins: the store is a handle named by an ATOM rather than by text, `store +=
-atom` writes, `store[pattern]` matches, and `store -= atom` takes one unifying
-occurrence away, which is what `remove-atom` means everywhere.
+atom` writes, `store[pattern]` matches, `store -= atom` takes one unifying
+occurrence away, and `del store[pattern]` drains every one, which is what
+`remove-atom` means everywhere.
 `check-space-provider` takes that handle too, as a grounded operand, so nothing
 here names a space as a symbol.
 
@@ -34,8 +35,14 @@ LIBRARIES = (lib["lib_import"], lib.file, lib.conformance)
 
 #: The build artefact and the provider that loads it, as host paths for a
 #: Python door.
-CSTORE_SO = Path("examples/ch19-spaces-backed-by-anything/19-02-a-space-in-c/cstore.so")
-CSTORE_PL = Path("examples/ch19-spaces-backed-by-anything/19-02-a-space-in-c/cstore.pl")
+#: Resolved against the REPOSITORY rather than the caller's directory. As a
+#: relative path this twin's whole body was skipped by any runner whose
+#: working directory was not the repository root -- the pytest lane runs from
+#: extensions/python -- so `if not CSTORE_SO.exists(): return` fired and the
+#: file certified nothing while reporting green [measured 2026-09-01].
+_REPO = Path(__file__).resolve().parents[6]
+CSTORE_SO = _REPO / Path("examples/ch19-spaces-backed-by-anything/19-02-a-space-in-c/cstore.so")
+CSTORE_PL = _REPO / Path("examples/ch19-spaces-backed-by-anything/19-02-a-space-in-c/cstore.pl")
 
 #: What a healthy provider reports about itself, in the engine's own prose:
 #: the capability inventory, the match family, the declared source
@@ -75,22 +82,23 @@ def twin(m):
     store += [(S.edge, S.a, S.b), (S.edge, S.a, S.c), (S.edge, S.b, S.c)]
     assert [row.x for row in store[S.edge(S.a, V.x)]] == [S.b, S.c]
 
-    # Removal means what remove-atom means everywhere: EVERY atom that
-    # unifies goes. Two stored atoms match (edge a $any), and one drain
-    # clears both, leaving the one edge that does not start at a.
-    store -= S.edge(S.a, V.any)
+    # `del` is the DRAIN, what (remove-atom &cstore (edge a $any)) means:
+    # every atom that unifies goes, so both edges from a leave together and
+    # the one that does not start at a stays. The provider's own door is
+    # finer and stays so -- seam:foreign_remove/3 takes one occurrence and
+    # reports it -- so this is one MeTTa call and two C calls.
+    del store[S.edge(S.a, V.any)]
     assert [(row.x, row.y) for row in store[S.edge(V.x, V.y)]] == [(S.b, S.c)]
 
-    # Identical copies are where the two grains separate: remove() is the
-    # one-occurrence door, the C provider's own seam:foreign_remove grain,
-    # so the count walks down one at a time, while -= drains what unifies,
-    # and draining is idempotent.
+    # Identical copies are where the two grains separate. `-=` and remove()
+    # are the C provider's own grain, one occurrence per call, so the count
+    # walks down one at a time; `del` takes what is left in one crossing.
     store += [(S.dup, 1)] * 3
     assert store.remove(S.dup(1)) is True
     assert len(store[S.dup(V.n)]) == 2
     store -= S.dup(1)
-    assert len(store[S.dup(V.n)]) == 0
-    store -= S.dup(1)
+    assert len(store[S.dup(V.n)]) == 1
+    del store[S.dup(V.n)]
     assert len(store[S.dup(V.n)]) == 0
 
     # Every declared capability has clauses behind it, match over-approximates
@@ -165,4 +173,10 @@ def twin(m):
 #: -= draining, mirroring the metta side [measured 2026-09-01: min-of-3 serial
 #: fresh processes; command=python extensions/python/tools/twin_coverage.py
 #: --repin; commit=51b792423cec5787614d1488c0793b8a50eaa6fc].
-BUDGET = 115167
+#: RE-PINNED 2026-09-01, 115167 to 115205 (+38), the subtract-atom primitive
+#: and Counter's grain for -=: a new engine head shifts every twin's load
+#: structure, the removal doors changed meaning where a twin spells one, and
+#: the quad twin stopped being a different program [measured 2026-09-01: min-
+#: of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 115205

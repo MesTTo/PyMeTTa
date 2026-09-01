@@ -1803,11 +1803,49 @@ metta_py_add_many(Space, TaggedList) :-
     maplist(metta_py_decode_for_add, TaggedList, Terms),
     metta_add_atoms(Space, Terms).
 
-%The verdict dance and its index-directed existence probe are the engine's
-%metta_host_remove_reported/3 now; this is decode, one call, encode.
+%ONE LAW, ONE IMPLEMENTATION. Every one-occurrence door in this seat asks the
+%engine's own 'subtract-atom'/3 rather than the private service beneath it, so
+%the unbound-term guard is written once and remove(), its variadic face, the
+%`-=` operator and transfer cannot disagree about what one occurrence means.
+%Reaching past the head is what made them disagree: remove(V.x) read the
+%variable as the whole space and DRAINED it while answering True, and
+%transfer(V.x, to=b) died on an opaque instantiation error, its transaction
+%rolling the source back [measured 2026-09-01].
+metta_py_subtract(Space, Term, Verdict) :-
+    'subtract-atom'(Space, Term, Result),
+    (   Result == true
+    ->  Verdict = true
+    ;   Result == false
+    ->  Verdict = false
+    ;   metta_py_subtract_refusal(Result)
+    ).
+
+%A refusal is the engine's error DATA, and a Python door must not answer it as
+%if it were a verdict: a caller testing `if space.remove(x)` would read the
+%(Error ...) atom as truthy and conclude the removal happened.
+metta_py_subtract_refusal(['Error', _, Reason]) :-
+    !,
+    metta_py_raise(value, Reason).
+metta_py_subtract_refusal(Result) :-
+    format(string(Message),
+           "subtract-atom answered ~p, which is neither a verdict nor a refusal",
+           [Result]),
+    metta_py_raise(value, Message).
+
 metta_py_remove(Space, Tagged, Removed) :-
     metta_py_decode_shared(Tagged, Term, _),
-    metta_host_remove_reported(Space, Term, Verdict),
+    metta_py_subtract(Space, Term, Verdict),
+    metta_py_encode(Verdict, Removed).
+
+%The OTHER documented mode of the same door, named rather than hidden behind a
+%var check three layers down: remove() given a bare variable takes everything,
+%the reading a multiset space gives an atom that unifies with all of them, each
+%leaving by its own proper path so equations and their compiled clauses go too.
+%It is a different operation from subtracting one occurrence, so it is a
+%different predicate, and 'subtract-atom' can keep refusing the unbound term
+%that would otherwise mean two opposite things in one head.
+metta_py_remove_everything(Space, Removed) :-
+    metta_host_remove_reported(Space, _Anything, Verdict),
     metta_py_encode(Verdict, Removed).
 
 %One crossing MOVES a batch: each wire removes one reported occurrence from
@@ -1822,7 +1860,7 @@ metta_py_transfer(From, To, Wires, Count) :-
 metta_py_transfer_each([], _, _, Count, Count).
 metta_py_transfer_each([Wire|Wires], From, To, Count0, Count) :-
     metta_py_decode_shared(Wire, Term, _),
-    metta_host_remove_reported(From, Term, Verdict),
+    metta_py_subtract(From, Term, Verdict),
     (   Verdict == true
     ->  'add-atom'(To, Term, _),
         Count1 is Count0 + 1
@@ -1854,30 +1892,28 @@ metta_py_remove_many(Space, Wires, Count) :-
 metta_py_remove_each([], _, Count, Count).
 metta_py_remove_each([Wire|Wires], Space, Count0, Count) :-
     metta_py_decode_shared(Wire, Term, _),
-    metta_host_remove_reported(Space, Term, Verdict),
+    metta_py_subtract(Space, Term, Verdict),
     ( Verdict == true -> Count1 is Count0 + 1 ; Count1 = Count0 ),
     metta_py_remove_each(Wires, Space, Count1, Count).
 
-%The -= door's own grain: remove-atom drains EVERY unifying occurrence,
-%upstream's law, and answers true either way.
-metta_py_drain(Space, Wire) :-
+%The `del space[pattern]` door: remove-atom drains EVERY unifying occurrence
+%in ONE crossing, upstream's law, and the verdict says whether anything was
+%there so the caller can raise KeyError the way `del d[k]` does. The door used
+%to drain by repeating remove(), one crossing per removed atom; asking the
+%engine's own drain makes it one crossing for the whole pattern.
+metta_py_drain(Space, Wire, Removed) :-
     metta_py_decode_shared(Wire, Term, _),
-    'remove-atom'(Space, Term, _).
-
-%One crossing drains a BATCH, the same fact-stream shape the += door
-%writes: each wire's every unifying occurrence goes. A drain is total per
-%element, so there is nothing to count, but the batch shares the family's
-%transaction anyway: a throw mid-batch (an undecodable wire, a refusing
-%hook) rolls the earlier drains back instead of leaving a half-applied
-%difference, the same all-or-nothing transfer and remove_many keep.
-metta_py_drain_many(Space, Wires) :-
-    metta_transaction(metta_py_drain_each(Wires, Space)).
-
-metta_py_drain_each([], _).
-metta_py_drain_each([Wire|Wires], Space) :-
-    metta_py_decode_shared(Wire, Term, _),
+    %The ask runs on a COPY for the reason the engine's own removal does: a
+    %probe that instantiated the caller's pattern would turn the drain that
+    %follows into a search for the probe's answer, taking one stored atom and
+    %leaving its siblings.
+    copy_term(Term, Probe),
+    (   match_stored(Space, Probe, Probe, _)
+    ->  Existed = true
+    ;   Existed = false
+    ),
     'remove-atom'(Space, Term, _),
-    metta_py_drain_each(Wires, Space).
+    metta_py_encode(Existed, Removed).
 
 metta_py_atoms(Space, Encoded) :-
     findall(E, ('get-atoms'(Space, P), metta_py_encode(P, E)), Encoded).

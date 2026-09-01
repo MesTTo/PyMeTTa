@@ -914,15 +914,28 @@ ENTRIES: list[Entry] = [
     ),
     Entry(
         "remove-atom", ("(-> SpaceType Atom Bool)",), "Grounded", "spaces", "dissolves",
-        "Drains every atom that unifies and answers True either way. `space "
-        "-= atom` is this door, because `-=` is Python's in-place difference "
-        "and set difference is total; `space.remove(atom)` is the "
-        "one-occurrence grain, Python's own `list.remove`, and reports whether "
-        "it found one; `del space[pattern]` raises when the pattern matches "
-        "nothing, as Python's `del` does.",
+        "Drains every atom that unifies and answers True either way. "
+        "`del space[pattern]` is this door, and raises when the pattern "
+        "matches nothing as Python's `del` does; `subtract-atom` is the "
+        "one-occurrence grain beside it, which `space -= atom` and "
+        "`space.remove(atom)` both spell.",
         metta="!(bind! &pb (new-space))\n!(add-atom &pb (f 1))\n!(remove-atom &pb (f 1))\n"
               "!(get-atoms &pb)",
-        python="space += S.f(1)\nspace -= S.f(1)\nspace.atoms()",
+        python="space += S.f(1)\ndel space[S.f(1)]\nspace.atoms()",
+    ),
+    Entry(
+        "subtract-atom", ("(-> SpaceType Atom Bool)",), "Grounded", "spaces", "dissolves",
+        "Takes ONE unifying occurrence and answers whether one was there, "
+        "the multiset subtraction `remove-atom` gave up when it took "
+        "upstream's draining law. `space -= atom` is this door, because "
+        "Python's in-place difference over a multiset is "
+        "`collections.Counter`'s, which subtracts the multiplicity given "
+        "rather than clearing the key, and `space.remove(atom)` is the same "
+        "grain reporting what it found. An unbound atom is refused by name "
+        "rather than read as every atom at once.",
+        metta="!(bind! &pb (new-space))\n!(add-atom &pb (f 1))\n!(add-atom &pb (f 1))\n"
+              "!(subtract-atom &pb (f 1))\n!(get-atoms &pb)",
+        python="space += S.f(1)\nspace += S.f(1)\nspace -= S.f(1)\nspace.atoms()",
     ),
     Entry(
         "get-atoms", ("(-> SpaceType Atom)",), "Grounded", "spaces", "method",

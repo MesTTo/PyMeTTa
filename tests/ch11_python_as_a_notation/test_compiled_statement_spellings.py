@@ -74,10 +74,14 @@ def test_compiled_removal_statements_preserve_one_many_missing_and_target_scope(
     assert remove_one.facts.effect is EffectClass.writesState
     assert remove_many.facts.effect is EffectClass.writesState
 
-    # `-=` is Python's in-place DIFFERENCE and set difference is total: every
-    # copy goes and absence is not an error. `del` is Python's own `del` and
-    # still raises on a pattern that matches nothing.
+    # `-=` is Python's in-place DIFFERENCE over a MULTISET, and Counter is
+    # Python's own multiset: it subtracts the multiplicity given rather than
+    # clearing the key, so one copy goes per call and absence is not an
+    # error. `del` is Python's own `del`, the drain, and still raises on a
+    # pattern that matches nothing.
     target.add(S.item(1), S.item(1), S.item(2), S.keep())
+    assert remove_one(target, S.item(1)) == [S.done]
+    assert target.atoms().count(S.item(1)) == 1
     assert remove_one(target, S.item(1)) == [S.done]
     assert target.atoms().count(S.item(1)) == 0
     assert program.atoms() != target.atoms()

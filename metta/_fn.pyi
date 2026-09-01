@@ -271,7 +271,7 @@ class _FunctionNamespace:
     reduce: Symbol
     register_token: Symbol
     remove_atom: Symbol
-    "remove-atom: (-> SpaceType Atom Bool)\n\nDrains every atom that unifies and answers True either way. `space -= atom` is this door, because `-=` is Python's in-place difference and set difference is total; `space.remove(atom)` is the one-occurrence grain, Python's own `list.remove`, and reports whether it found one; `del space[pattern]` raises when the pattern matches nothing, as Python's `del` does."
+    "remove-atom: (-> SpaceType Atom Bool)\n\nDrains every atom that unifies and answers True either way. `del space[pattern]` is this door, and raises when the pattern matches nothing as Python's `del` does; `subtract-atom` is the one-occurrence grain beside it, which `space -= atom` and `space.remove(atom)` both spell."
     remove_translator_rule: Symbol
     remove_typing_rule: Symbol
     repr: Symbol
@@ -303,6 +303,8 @@ class _FunctionNamespace:
     sread: Symbol
     sub: Symbol
     "-: (-> Number Number Number)\n\nPython's own operator."
+    subtract_atom: Symbol
+    "subtract-atom: (-> SpaceType Atom Bool)\n\nTakes ONE unifying occurrence and answers whether one was there, the multiset subtraction `remove-atom` gave up when it took upstream's draining law. `space -= atom` is this door, because Python's in-place difference over a multiset is `collections.Counter`'s, which subtracts the multiplicity given rather than clearing the key, and `space.remove(atom)` is the same grain reporting what it found. An unbound atom is refused by name rather than read as every atom at once."
     subtraction: Symbol
     "subtraction: (-> Atom Atom %Undefined%)\n\n`Counter` again, with `-`."
     subtraction_atom: Symbol

@@ -8,9 +8,10 @@ Guarantees:
     one-atom call keeps its truth-value reading, and every shape add
     accepts removes symmetrically [tested:
     test_remove_batches_and_takes_every_added_shape; commit=51b792423cec5787614d1488c0793b8a50eaa6fc]
-  - `-=` drains every unifying occurrence, upstream's law, where remove()
-    stays the one-occurrence door [tested:
-    test_isub_drains_every_occurrence; commit=51b792423cec5787614d1488c0793b8a50eaa6fc]
+  - `-=` subtracts ONE occurrence per operand element, Counter's grain,
+    so it inverts `+=`; `del space[pattern]` is the drain and remove()
+    the door that reports absence [tested:
+    test_isub_subtracts_one_occurrence_and_inverts_iadd; commit=WORKTREE]
   - eval's variadic face answers one group per term, run()'s grouping,
     with one bind scope over the whole batch [tested:
     test_eval_batches_with_one_bind_scope; commit=51b792423cec5787614d1488c0793b8a50eaa6fc]
@@ -20,7 +21,7 @@ Guarantees:
   - an abandoned FutureSpace warns and a settled one stays silent [tested:
     test_an_abandoned_future_warns; commit=51b792423cec5787614d1488c0793b8a50eaa6fc]
   - `-=` classifies its operand exactly as `+=` does, so the fact stream
-    one door stores the other drains, each element totally, in one
+    one door stores the other subtracts, one occurrence each, in one
     crossing [tested: test_isub_reads_the_same_stream_shapes_iadd_writes;
     commit=9ee2057351b951fe99cbfb6cbd43d8b137b05002]
   - the MeTTa context mirrors its space's container and write protocols
@@ -84,12 +85,32 @@ def test_remove_batches_and_takes_every_added_shape(context):
     assert space.remove(G(7)) is True
 
 
-def test_isub_drains_every_occurrence(context):
-    """Isub drains every occurrence."""
-    space = context.space("&drain-law")
+def test_isub_subtracts_one_occurrence_and_inverts_iadd(context):
+    """Isub subtracts one occurrence and inverts iadd.
+
+    Python's own multiset is Counter, whose `-=` subtracts the multiplicity
+    given rather than clearing the key, and that is the only reading under
+    which `+=` and `-=` are inverses. The drain door is `del`.
+    """
+    space = context.space("&subtract-law")
     space.add(S.d(1), S.d(1), S.d(1), S.e(9))
     space -= S.d(1)
+    assert sorted(str(atom) for atom in space) == ["(d 1)", "(d 1)", "(e 9)"]
+
+    before = sorted(str(atom) for atom in space)
+    space += S.d(1)
+    space -= S.d(1)
+    assert sorted(str(atom) for atom in space) == before
+
+    # Subtracting what is not there changes nothing and does not raise.
+    space -= S.absent(0)
+    assert sorted(str(atom) for atom in space) == before
+
+    # The drain door still drains, and still raises on nothing matched.
+    del space[S.d(V.n)]
     assert sorted(str(atom) for atom in space) == ["(e 9)"]
+    with pytest.raises(KeyError):
+        del space[S.gone(V.n)]
 
 
 def test_eval_batches_with_one_bind_scope(context):
@@ -126,11 +147,13 @@ def test_isub_reads_the_same_stream_shapes_iadd_writes(context):
     space += rows
     assert len(space) == 4
     space -= rows
+    assert sorted(str(atom) for atom in space) == ["(edge 1 2)", "(edge 2 3)"]
+    space -= rows
     assert sorted(str(atom) for atom in space) == []
 
     space += [S.d(1), S.d(1), S.e(2)]
     space -= [S.d(1)]
-    assert sorted(str(atom) for atom in space) == ["(e 2)"]
+    assert sorted(str(atom) for atom in space) == ["(d 1)", "(e 2)"]
 
 
 def test_the_context_speaks_its_spaces_protocols(context):

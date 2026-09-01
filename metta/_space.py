@@ -1510,17 +1510,22 @@ class Space(Handle):
         so the one-atom call still reads as the truth value it always
         was.
 
-        The MeTTa door is coarser and deliberately so: `remove-atom`, and
-        therefore `space -= atom`, drains EVERY unifying occurrence and
-        answers True either way, because that is upstream's law
-        [source: engine/spaces/foreign.pl, remove_matching_atoms/2] and
-        because `-=` is Python's in-place difference, which is total.
-        `-=` classifies its operand exactly as `+=` does, so the fact
-        stream one door stores the other drains, element by element in
-        one transactional crossing.
-        `del m[pattern]` drains too and raises when nothing matched, as
-        Python's `del` does. This method is the one door that reports
-        absence, so the distinction the MeTTa door gave up is still here.
+        `space -= atom` is this same grain without the report, the way
+        `+=` is `add` without one: Python's in-place difference over a
+        MULTISET, whose own Python spelling is `collections.Counter`,
+        subtracts the multiplicity given rather than clearing the key.
+        That is the only reading under which the operators are inverses,
+        so `s += a; s -= a` leaves the space it found. `-=` classifies its
+        operand exactly as `+=` does, so the fact stream one door stores
+        the other subtracts, one occurrence per element, in one
+        transactional crossing.
+
+        The DRAIN is the pattern-shaped door: `del m[pattern]` takes every
+        unifying occurrence in one crossing and raises when nothing
+        matched, as Python's `del` does, and MeTTa spells it `remove-atom`
+        [source: engine/spaces/foreign.pl, remove_matching_atoms/2].
+        MeTTa spells this method's grain `subtract-atom`. This is the one
+        door that reports absence.
 
         A bare variable is the remove-everything reading a multiset space
         gives it, each atom leaving through its own proper path, equations
@@ -1535,9 +1540,18 @@ class Space(Handle):
             _invalidate_builtins_cache(self._rt)
             return int(found)
         pattern = _to_atom(atom)
-        removed = self._rt.apply_must(
-            "metta_py_remove", self._space, pattern.to_wire()
-        )
+        if isinstance(pattern, Variable):
+            # The remove-everything reading, spelled as its own door rather
+            # than reached by handing an unbound term to the one-occurrence
+            # one. The engine's `subtract-atom` refuses that term precisely
+            # because it would otherwise mean two opposite things in one head.
+            removed = self._rt.apply_must(
+                "metta_py_remove_everything", self._space
+            )
+        else:
+            removed = self._rt.apply_must(
+                "metta_py_remove", self._space, pattern.to_wire()
+            )
         result = _atom_from_wire(removed)
         _invalidate_builtins_cache(self._rt)
         return bool(getattr(result, "value", True))
@@ -1869,20 +1883,36 @@ class Space(Handle):
 
     # A handle mutates its store while an atom's - constructs a term.
     def __isub__(self, atom: Any) -> Self:  # type: ignore[override]
-        # -= is in-place DIFFERENCE and set difference is total: the engine's
-        # remove-atom drains EVERY unifying occurrence, upstream's law, where
-        # remove() stays the one-occurrence door that reports absence. The
-        # operand reads by the SAME classification += writes by, so the fact
-        # stream one door stores the other drains: before this, a tuple of
-        # rows quietly became one never-matching pattern and -= "succeeded"
-        # over an unchanged space.
+        # -= is in-place DIFFERENCE over a MULTISET, and Python's own multiset
+        # is collections.Counter, whose -= subtracts the multiplicity given
+        # rather than clearing the key: Counter(a=3) -= Counter(a=1) leaves
+        # a=2. `set -= {x}` looks total only because a set has no
+        # multiplicity to subtract. So this takes ONE occurrence per operand
+        # element, which is also the only reading under which += and -= are
+        # inverses: `s += a; s -= a` has to leave the space it found, and a
+        # drain takes copies the += never added. `del s[pattern]` is the
+        # drain door and `remove()` the one that reports absence
+        # [user ruling 2026-09-01, "consider python's Counter"].
+        #
+        # The operand reads by the SAME classification += writes by, so the
+        # fact stream one door stores the other subtracts: before that, a
+        # tuple of rows quietly became one never-matching pattern and -=
+        # "succeeded" over an unchanged space.
         _refuse_in_batch(self._space, "remove")
         stream = _fact_stream(atom)
         if stream is None:
-            self._rt.do_must("metta_py_drain", self._space, _to_atom(atom).to_wire())
+            # One element is already atomic, so it takes the plain door. The
+            # batch door opens a transaction for the atomicity a BATCH needs,
+            # and a foreign provider that declares nothing about transactional
+            # writes refuses one it did not ask for: the C-store example's
+            # `store -= atom` failed that way the moment a single removal
+            # borrowed the batch path [measured 2026-09-01].
+            self._rt.apply_must(
+                "metta_py_remove", self._space, _to_atom(atom).to_wire()
+            )
         else:
             wires = [_to_atom(row).to_wire() for row in stream]
-            self._rt.do_must("metta_py_drain_many", self._space, wires)
+            self._rt.apply_must("metta_py_remove_many", self._space, wires)
         _invalidate_builtins_cache(self._rt)
         return self
 
@@ -2000,13 +2030,16 @@ class Space(Handle):
         del d[k] does on a missing key; remove() is the door that
         reports absence as False instead.
 
-        It drains by repeating remove(), so it costs one engine crossing
-        per removed atom rather than one for the whole pattern.
+        It asks the engine's own drain, so the whole pattern costs ONE
+        crossing rather than one per removed atom.
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
-        if not self.remove(pattern):
+        _refuse_in_batch(self._space, "remove")
+        existed = self._rt.apply_must(
+            "metta_py_drain", self._space, _to_atom(pattern).to_wire()
+        )
+        _invalidate_builtins_cache(self._rt)
+        if not bool(getattr(_atom_from_wire(existed), "value", True)):
             raise KeyError(pattern)
-        while self.remove(pattern):
-            pass
 
     # ----------------------------------------------------------------- queries
 
@@ -5525,17 +5558,22 @@ class MeTTa:
         so the one-atom call still reads as the truth value it always
         was.
 
-        The MeTTa door is coarser and deliberately so: `remove-atom`, and
-        therefore `space -= atom`, drains EVERY unifying occurrence and
-        answers True either way, because that is upstream's law
-        [source: engine/spaces/foreign.pl, remove_matching_atoms/2] and
-        because `-=` is Python's in-place difference, which is total.
-        `-=` classifies its operand exactly as `+=` does, so the fact
-        stream one door stores the other drains, element by element in
-        one transactional crossing.
-        `del m[pattern]` drains too and raises when nothing matched, as
-        Python's `del` does. This method is the one door that reports
-        absence, so the distinction the MeTTa door gave up is still here.
+        `space -= atom` is this same grain without the report, the way
+        `+=` is `add` without one: Python's in-place difference over a
+        MULTISET, whose own Python spelling is `collections.Counter`,
+        subtracts the multiplicity given rather than clearing the key.
+        That is the only reading under which the operators are inverses,
+        so `s += a; s -= a` leaves the space it found. `-=` classifies its
+        operand exactly as `+=` does, so the fact stream one door stores
+        the other subtracts, one occurrence per element, in one
+        transactional crossing.
+
+        The DRAIN is the pattern-shaped door: `del m[pattern]` takes every
+        unifying occurrence in one crossing and raises when nothing
+        matched, as Python's `del` does, and MeTTa spells it `remove-atom`
+        [source: engine/spaces/foreign.pl, remove_matching_atoms/2].
+        MeTTa spells this method's grain `subtract-atom`. This is the one
+        door that reports absence.
 
         A bare variable is the remove-everything reading a multiset space
         gives it, each atom leaving through its own proper path, equations
@@ -6170,8 +6208,8 @@ class MeTTa:
         del d[k] does on a missing key; remove() is the door that
         reports absence as False instead.
 
-        It drains by repeating remove(), so it costs one engine crossing
-        per removed atom rather than one for the whole pattern.
+        It asks the engine's own drain, so the whole pattern costs ONE
+        crossing rather than one per removed atom.
         Runs against this context's self space.
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         return self._self.__delitem__(pattern)

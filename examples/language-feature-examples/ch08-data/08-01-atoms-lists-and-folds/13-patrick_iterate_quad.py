@@ -10,6 +10,9 @@ namespace and passes the step by its `S` name, because the step is data there.
 file carries: its head destructures its second argument, where a decorated
 function's parameters are always plain variables.
 
+The division is `fn["/"]` rather than Python's `/` for the reason the body
+says: a compiled `/` is Python's true division and hands `iterate` a float
+bound, which is a different and enormously slower program than the example's.
 Inside that built body the conditional is `if_`, the keyword builder with the
 engine's own two-or-three arity, and the comparison is `S.eq`, the operator's
 WORD. Both are what a STORED equation needs: Python's conditional expression
@@ -40,7 +43,16 @@ def twin(m):
     @m.define
     def quad_sum(n):
         # (= (quad-sum $n) (last (iterate 0 (/ (* $n (+ $n 1)) 2) (1 1 0) quad-step)))
-        return fn.last(fn.iterate(0, n * (n + 1) / 2, (1, 1, 0), S.quad_step))
+        # rung: the engine's own `/` by name, because Python's `/` is TRUE
+        # division and a compiled body says so faithfully, emitting the
+        # float-forcing (* 1.0 ...) that hands `iterate` a float bound where
+        # the example hands it an integer. That is a different program: it
+        # answers the same 125417041750 and took over 280 SECONDS against the
+        # example's 0.29 [measured 2026-09-01]. `//` would be exact and fast
+        # but stores `floor-div` where the example stores `/`, so the twin
+        # would stop mirroring it; naming the head keeps the equation
+        # identical and the walk integer.
+        return fn.last(fn.iterate(0, fn["/"](n * (n + 1), 2), (1, 1, 0), S.quad_step))
 
     assert quad_sum(1000) == [125417041750]
 
@@ -120,4 +132,10 @@ def twin(m):
 #: and 13 further inferences at every later position. The walk is
 #: first-order now, at 4.0 inferences per position against 17.0.
 #: [measured: two independent full-lane rounds on this tree agreeing exactly, against one on the unchanged tree and one on the same tree plus an inert never-called clause; command=python extensions/python/tools/twin_coverage.py; fixture=p14-specializer-tax off 694c12f7 with engine/reader.so and the MORK backend; commit=7e7cac85fee08c117032b2efa5a58a40f3b21365].
-BUDGET = 55099479
+#: RE-PINNED 2026-09-01, 55099479 to 11528601 (-43570878), the subtract-atom
+#: primitive and Counter's grain for -=: a new engine head shifts every twin's
+#: load structure, the removal doors changed meaning where a twin spells one,
+#: and the quad twin stopped being a different program [measured 2026-09-01:
+#: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 11528601

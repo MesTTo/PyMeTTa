@@ -3,7 +3,9 @@
 > Write Python, get MeTTa. Atoms are Python values, spaces are queryable
 > stores, equations rewrite, and a Python function can be a MeTTa function.
 > This file is how to USE the seat; the repository root's llms.txt covers the
-> language and every other surface.
+> language and every other surface. Every door named here exists on the
+> object it is shown on, which `check.sh`'s `llms` lane checks against the
+> live library rather than trusting this text.
 
 ## Install
 
@@ -21,59 +23,117 @@ from metta import MeTTa, S, V, G, ground, Expression, equation, rules, parse
 
 m = MeTTa()                              # binds &self
 m.self.run("(= (f) 1) !(f) !(+ 1 2)")    # [[Grounded(1)], [Grounded(3)]]
+m.close()                                # or `with MeTTa() as m:`
 ```
 
-## Building terms without strings
+`m` is the CONTEXT and `m.self` its home space. Most doors exist on both; the
+context forwards to its home. Two contexts are independent engines' worth of
+state in one process, so a library never has to own the global one.
 
-A string is text. A symbol comes from its factory, a variable from `V`, a
-Python value from `G`:
+## Atoms: four kinds, no strings
+
+A string is text. Everything structural comes from a factory, so a rename is a
+rename and the type checker can see it.
 
 ```python
-S.parent(S.alice, S.bob)     # (parent alice bob)
-V.x                          # $x
-G(3.5)                       # a Python float, crossed as itself
+S.parent(S.alice, S.bob)     # Expression (parent alice bob)
+S.alice                      # Symbol
+V.x                          # Variable $x
+G(3.5)                       # Grounded: a Python value crossed as itself
+ground(numpy_array)          # the same, explicit
+Expression((S.a, S.b))       # built from a sequence
+S["odd?"]                    # a head outside Python's identifier grammar
 parse("(parent $x bob)")     # the string door, for whole programs
 ```
+
+`atom.metatype` answers `Symbol`, `Variable`, `Grounded` or `Expression`.
+Atoms are immutable, hashable and comparable; `a.alpha_eq(b)` is equality
+modulo variable renaming, and `a.alpha(b)` BUILDS the `(=alpha a b)` term
+instead of answering now. Operators build terms when an operand is a variable
+(`V.x + 1` is `(+ $x 1)`) and compute when nothing is: that is the one rule
+behind "the notation reveals the engine".
 
 ## Asking
 
 ```python
-m.query(S.parent(V.x, S.bob))    # rows, one per solution
-m.eval(S.add(1, 2))              # evaluate one term
-m.run(source)                    # run program text, one answer group per !
+kb.match(S.parent(V.x, S.bob))      # -> Answers, replayable; row.x is a binding
+kb[S.parent(V.x, S.bob)]            # the same, subscript spelling
+kb.match(a, b)                      # a conjunction: one row per joint solution
+m.eval(S.add(1, 2))                 # -> [answer, ...] flat, EAGER
+m.eval(t1, t2)                      # -> [[...], [...]] one GROUP per term
+m.run(source)                       # -> one answer group per `!` in the text
+kb.answers(term)                    # -> Answers, the lazy chunked cursor
+kb.solve(4, V.x - 1).x              # relational: runs let backwards, answers 5
+kb.why(pattern)                     # why a pattern matched NOTHING
 ```
 
-An answer set is iterable, and a generator registered as an operation is
-nondeterminism, so `yield` and `for` mean what they mean in Python.
+Return shapes are the thing you cannot guess. `match` and `answers` both hand
+back `Answers`, which is lazy, replayable and chunked; `eval` is eager and
+flat for ONE target but grouped for several, which is `run`'s own shape. A row
+is an `Answer`: `row.x` reads a binding, and it unpacks and indexes. Answers
+preserve MULTIPLICITY and do not promise order. `len(space)`,
+`atom in space`, `for atom in space` and `bool(space)` (always True, a handle
+is not a value that dwindles) are the container protocol; ask
+`bool(space.match(p))` when the question is emptiness.
 
-## Python functions as MeTTa functions, and the two doors
+## Defining: two doors, and the price of each
 
 ```python
-@m.define                      # LOWERED: the body becomes equations
+@m.define                      # LOWERED: the body BECOMES equations
 def double(x: int) -> int:
     return x * 2
 
-m.op(fetch)                    # CALLED: the engine calls into Python
+@m.op(effect="oracleIO")       # CALLED: the engine calls into Python
+def fetch(url): ...
+
+m.define(prolog=source, name="p-sum")   # a Prolog predicate as the function
+equation(S.f(V.x)).to(V.x + 1)          # one equation, built
+rules(...)                              # a generator yielding equations
 ```
 
-The two are a choice, not a convenience and its longhand, and the price is
-measured:
+Measured per call, 2026-09-01, on the extension-cost workload (`python -m
+benchmarks.extension_cost` from `extensions/python`):
 
-| door | µs/call | what the engine can do with it |
+| door | inferences/call | microseconds/call |
 |---|---|---|
-| `@m.define` | 0.15 | read it, specialise it, match on it |
-| `m.op`, `transport="raw"` | 1.05 | call it, and nothing else |
-| `m.op`, encoded | 3.93 | the same, through the wire codec |
+| C foreign predicate | 1.00 | 0.02 |
+| Prolog grounded predicate | 2.00 | 0.04 |
+| translator rule (a macro) | 2.00 | 0.06 |
+| `@m.define` | 3.00 | 0.07 |
+| an ordinary MeTTa function | 3.00 | 0.06 |
+| `m.op`, `transport="raw"` | 12.00 | 1.12 |
+| `m.op`, encoded | 20.00 | 3.87 |
 
-So reach for `@m.define` when the body is expressible as MeTTa, and `m.op` when
-it must stay Python: it touches the network, holds a file, or calls a library
-you are not going to re-express. A called operation must declare its effect
-class, because the engine cannot see inside it.
+So reach for `@m.define` when the body is expressible as MeTTa, and `m.op`
+when it must stay Python: it touches the network, holds a file, or calls a
+library you are not going to re-express. A called operation must DECLARE its
+effect class, because the engine cannot see inside it: `pure`, `reads`,
+`writes`, `io` are the shorthands, and only a pure one may be cached.
 
-## What a VALUE crosses as, which is a different choice
+## What a compiled BODY may say
 
-`py-atom` takes the image as an argument, and it is independent of the door
-above: a lowered body can still take an opaque argument.
+There is no unsupported-construct list. `try`/`except`/`else`/`finally` and
+`raise` compile onto the engine's error algebra, so `except ValueError as e`
+matches by MRO name and `str(e)` reads as Python's; dict and set literals are
+`lib_dict` spaces, so `d[k]`, `k in d`, `d[k] = v`, `del d[k]`, `len(d)` and
+the view methods all reach the library's vocabulary; comprehensions,
+generators (`yield` is nondeterminism, one answer per yield), `match`,
+walrus, `global`, and `type X = T` all compile; and `&`, `|`, `^`, `~`, `<<`,
+`>>`, `//` are engine builtins that pay no host crossing.
+
+Anything else odd becomes a visible host island inside the equation, run per
+application and never at decoration time, which is what `py(...)` spells
+explicitly. A refusal cites its ground in one of the two languages rather
+than a house rule, and renders the file, function, line and an exact caret.
+
+One trap worth knowing: Python's `/` is TRUE division, so a compiled `n / 2`
+faithfully forces a float. When you want the engine's own division, name it:
+`fn["/"](a, b)`. `//` is exact and compiles to `floor-div`.
+
+## What a VALUE crosses as, a different choice
+
+`py-atom` takes the image as an argument, independent of the door above: a
+lowered body can still take an opaque argument.
 
 ```python
 m.run('!(py-atom numpy.absolute Grounded)')     # opaque: the live reference
@@ -82,24 +142,121 @@ m.run('!(py-atom numpy.absolute Expression)')   # transparent: a snapshot
 
 Transparent means translated into MeTTa structure. Opaque means carried whole
 as a blob the engine holds and does not read, which keeps host identity and
-skips a translation you may not want. Neither is the lesser one. An iterator is
-always opaque, because measuring one drains it.
+skips a translation you may not want. Neither is the lesser one. An iterator
+is always opaque, because measuring one drains it.
 
 ## Spaces
 
 ```python
 kb = m.space(S.kb)          # a handle; naming one does not create it
+kb = m.space()              # fresh and anonymous; a context manager that drops
 kb += S.parent(S.alice, S.bob)
-kb.query(S.parent(V.x, S.bob))
+kb += [(S.Edge, 1, 2), (S.Edge, 2, 3)]   # a fact STREAM: two atoms
+kb += (S.Edge, 1, 2)                      # a tuple of scalars: ONE atom
 ```
 
-## Measuring your own program
+Removal has three doors and they differ in how much they take and what they
+say about absence:
 
 ```python
-with m.stats() as s:
-    rows = m.query(pattern)
-print(s.inferences)          # deterministic; wall time is not
+kb.remove(atom)          # ONE occurrence, answers True/False
+kb.remove(a, b, c)       # the same grain, batched, answers how many were found
+kb -= atom               # ONE occurrence, no verdict: += and -= are inverses
+del kb[pattern]          # the DRAIN: every unifying occurrence, one crossing
+                         # raises KeyError when nothing matched
 ```
+
+`-=` is Python's in-place difference over a MULTISET, and Python's multiset is
+`collections.Counter`, whose `-=` subtracts the multiplicity given rather than
+clearing the key. MeTTa spells the pair `subtract-atom` and `remove-atom`.
+
+```python
+kb.transfer(x, y, to=other)   # move one occurrence each, one transaction
+kb |= other                   # bulk merge; a space is a multiset
+kb.clear(); kb.drop()         # empty it; end its whole life and free the name
+kb.copy(); kb.digest()        # clone contents; content identity
+```
+
+`metta.spaces` composes without copying: `union(*spaces)` reads a set as one,
+`overlay(front, back)` reads both and writes to the front, `readonly(s)`
+refuses writes by capability, `mapped(s, shape)` is a shape view from one
+declaration, `view(obj)` presents a live Python object as a space, and
+`diff(a, b)` says HOW two spaces differ where `digest()` only says THAT they
+do. `metta.foreign` is the other direction: implement `Matcher`/`Adder`/
+`Remover` and register any backend as a space. `metta.remote` puts one across
+a process boundary, `metta.tables` derives one from a table.
+
+## Types, and checking them
+
+```python
+m += typed(S.f, arrow(S.Number, S.Number))   # (: f (-> Number Number))
+kb.type(atom)                                 # the first get-type answer
+casting.cast(value, S.Number)                 # runtime cast on the engine's rules
+```
+
+Annotations on a `@m.define` become the declaration, and a local annotation
+becomes an enforceable in-place claim.
+
+## Concurrency, transactions, bounds
+
+```python
+from metta import spawn, par_map, race, channel, parallel
+future = spawn(term)          # a FutureSpace; wait(), settled(), cancel()
+par_map(fn, items); race(a, b); channel()
+m.transaction(term)           # all-or-nothing; rollback delivers no events
+with m.limits(inferences=10_000, timeout=1.0): ...
+with m.speculate(): ...       # run and discard
+```
+
+An abandoned future warns rather than spinning silently.
+
+## Seeing what happened
+
+```python
+with m.stats() as s: ...      # s.inferences (deterministic), cputime, walltime
+m.trace(term)                 # the reduction trace as Python objects
+m.self.derivation(term)       # the proof tree
+m.self.lint()                 # diagnostics over declarations, equations, calls
+m.self.subscribe(pattern, cb, on="both")   # a standing query; on= add/remove/both
+m.self.watch(pattern)         # the iterator face of the same
+```
+
+Inferences are deterministic and wall clock is not; gate on the former.
+
+## The rest of the library, by module
+
+`metta.aio` is the same engine without blocking an event loop (`AsyncMeTTa`).
+`metta.arrays` crosses arrays for anything speaking the buffer standard.
+`metta.structures` has the stores worth having with MeTTa's semantics at
+Python speed: `AlphaSet`, `PatternMap`, `MatchIndex`, `LiveView`,
+`ClosureView`, `TabledMap`. `metta.events` is the public event stream and
+`metta.subscribe` its two delivery models. `metta.convert` registers two-way
+conversions, `metta.casting` runtime casts, `metta.integrate` is the
+interface a library implements to work deeply with the engine, `metta.paths`
+builds cycle-safe lazy structural paths, `metta.manifest` makes deployment
+knowledge (`metta.boot(path)` assembles an app), `metta.derivation` and
+`metta.trace` reify proofs and reductions, `metta.lint` reports diagnostics,
+and `metta.testing` ships hypothesis strategies for property-testing code
+built on this surface.
+
+`m += lib.x` imports one of the engine's 34 MeTTa libraries through the write
+door, because a library IS knowledge and the receiver is the target space.
+
+## When it refuses
+
+Every refusal is typed and carries machine-readable parts beside the message:
+`MettaError` is the base (with `atom`, `space`, `operation`, `capability`,
+`ground`), `CompileError` names the construct and renders a caret, and
+`SpaceCapabilityError` names the space, operation and missing capability. An
+error is DATA in MeTTa, so an `(Error ...)` answer can be caught, inspected
+by metatype, and passed through a strict position without being raised.
+
+## The ladder, and it never shrinks
+
+Python here, MeTTa source through `run`/`parse`, Prolog through
+`m.register_prolog(source=..., path=..., names=...)`, and C through
+`m.register_foreign_library(path, entry=, names=)`. Each rung is reachable
+from the one above, and the fast path is the idiomatic one.
 
 ## Where to read next
 

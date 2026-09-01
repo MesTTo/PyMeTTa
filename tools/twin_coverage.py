@@ -386,7 +386,8 @@ DISSOLVED = {
     "assertIncludes": "assert, with Python's `in`",
     "add-atom": "space += atom",
     "add-reduct": "space += the evaluated atom",
-    "remove-atom": "space -= atom",
+    "remove-atom": "del space[pattern], the drain",
+    "subtract-atom": "space -= atom, or space.remove(atom) for the verdict",
     # One word at three positions, all three shipped: the subscript takes ONE
     # pattern, the receiver method takes a conjunction, and bare `match(...)`
     # is the expression-position function over the ambient context space

@@ -116,4 +116,15 @@ def twin(m):
 #: eval), the -= drain-law repair, and fourteen twins healed to the arbiter
 #: [measured 2026-09-01: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=51b792423cec5787614d1488c0793b8a50eaa6fc].
-BUDGET = 12531
+#: RE-PINNED 2026-09-01, 12531 to 12583 (+52), the subtract-atom primitive and
+#: the Counter grain for -=: a new engine head shifts every twin's load
+#: structure, and the removal doors changed meaning where a twin spells one
+#: [measured 2026-09-01: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+#: RE-PINNED 2026-09-01, 12583 to 12505 (-78), the subtract-atom primitive and
+#: Counter's grain for -=: a new engine head shifts every twin's load
+#: structure, the removal doors changed meaning where a twin spells one, and
+#: the quad twin stopped being a different program [measured 2026-09-01: min-
+#: of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 12505

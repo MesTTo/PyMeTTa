@@ -129,4 +129,10 @@ def twin(m):
 #: above 347 [measured 2026-09-01: min-of-3 serial fresh processes;
 #: command=python extensions/python/tools/twin_coverage.py --repin;
 #: commit=51b792423cec5787614d1488c0793b8a50eaa6fc].
-BUDGET = 74207335
+#: RE-PINNED 2026-09-01, 74207335 to 74207322 (-13), the subtract-atom
+#: primitive and Counter's grain for -=: a new engine head shifts every twin's
+#: load structure, the removal doors changed meaning where a twin spells one,
+#: and the quad twin stopped being a different program [measured 2026-09-01:
+#: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 74207322

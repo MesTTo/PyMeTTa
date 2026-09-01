@@ -1262,18 +1262,19 @@ class StatementCompilerMixin(CompilerContext):
     def _space_augmented_removal(
         self, head: ast.AugAssign, continuation: Atom
     ) -> Expression | None:
-        """Drain an atom from a known space, propagating a bad-space Error.
+        """Subtract one occurrence from a known space, propagating a bad-space Error.
 
-        `-=` is Python's in-place DIFFERENCE, and set difference is total: it
-        takes every copy and says nothing about absence. That is exactly what
-        `remove-atom` does since 2026-08-30, when it took upstream's law
-        [source: engine/spaces/foreign.pl, remove_matching_atoms/2]. The
-        one-occurrence grain is `space.remove(atom)`, which is Python's
-        `list.remove` and reports whether it found one; the raising grain is
-        `del space[pattern]`, which is Python's own `del`.
+        `-=` is Python's in-place DIFFERENCE over a MULTISET, and Python's own
+        multiset is collections.Counter, whose `-=` subtracts the multiplicity
+        given rather than clearing the key. It compiles to `subtract-atom`,
+        the engine head with exactly that grain, so the operator means the
+        same thing inside a compiled body as it does on the Python surface;
+        the drain is `del space[pattern]` and `remove-atom`, and
+        `space.remove(atom)` is the grain that also reports what it found.
 
         The if-error still stands because a bad first argument is still an
-        error: `remove-atom` refuses a non-space.
+        error: `subtract-atom` refuses a non-space, and refuses an unbound
+        atom rather than reading it as every atom at once.
         """
         if not (
             isinstance(head.target, ast.Name)
@@ -1284,7 +1285,7 @@ class StatementCompilerMixin(CompilerContext):
         result = Variable(self._temp("remove-result"))
         removal = Expression(
             [
-                Symbol("remove-atom"),
+                Symbol("subtract-atom"),
                 Variable(self.scope[head.target.id]),
                 self.expression(head.value),
             ]
@@ -1472,13 +1473,16 @@ class StatementCompilerMixin(CompilerContext):
                 # arithmetic: the miscompile stored (+ $s atom), answered
                 # True, and wrote nothing. The write executes under a
                 # throwaway binding and the space name keeps its variable.
-                doors = {ast.Add: "add-atom", ast.Sub: "remove-atom"}
+                # The same pair the statement path emits, so a write
+                # inside a bound block means what it means outside one:
+                # -= subtracts ONE occurrence, and the drain is del.
+                doors = {ast.Add: "add-atom", ast.Sub: "subtract-atom"}
                 door = doors.get(type(head.op))
                 if door is None:
                     op_word = type(head.op).__name__
                     msg = (
                         f"{target_name!r} holds a space, which takes += "
-                        f"(add-atom) and -= (remove-atom); {op_word} has no "
+                        f"(add-atom) and -= (subtract-atom); {op_word} has no "
                         f"space meaning"
                     )
                     raise CompileError(
