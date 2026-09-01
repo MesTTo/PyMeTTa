@@ -45,6 +45,11 @@
 %     one receiver law without a second term walk [tested:
 %     test_atom_eval_rebinds_nested_self_to_the_receiver;
 %     commit=a408160adee022dffb72fbde405efc8f229c0b6e].
+%   - successive annotated Python operation answers extend the current carrier
+%     value instead of replacing it, while provider rows remain local inputs to
+%     the engine's conjunction join [tested:
+%     test_two_annotated_operation_calls_multiply_all_four_joint_weights;
+%     commit=WORKTREE].
 %   - an empty direct eval answers NOTHING both for a guarded head with no
 %     matching clause and for a matched empty body, which is one answer where
 %     this door used to draw two: the guarded head was a not-reducible answer
@@ -716,22 +721,30 @@ metta_py_answer_form([Tag, Theta, Residue, K, Value], Theta, Residue, K,
                      value(Value)) :-
     ( Tag == "a" -> true ; Tag == a ).
 
-%The annotation slot: the degenerate point is semiring 1 and costs
-%nothing; a real k is admitted exactly when its context declared a
-%non-Boolean semiring, and rides '$metta_answer_k' backtrackably for the
-%collapse-point consumers (top). An undeclared k is refused loudly
-%naming the declaration to add, because silently dropping it would
-%misweigh the answer and silently keeping it would smuggle an order the
-%context never declared.
+%The annotation slot: the degenerate point is the carrier's one and costs
+%nothing; a real k is admitted exactly when its context declared a non-Boolean
+%algebra. Provider rows REPLACE the cell because match_foreign_routed/6 captures
+%each row locally and extends the conjuncts itself. Operation answers EXTEND the
+%cell because sequential evaluation is the join: replacing there made the last
+%call's weight win. An undeclared k is refused loudly because silently dropping
+%it would misweigh the answer and silently keeping it would smuggle a carrier
+%the context never declared.
 metta_py_answer_kappa('@'(none), _) :- !.
 metta_py_answer_kappa(K0, Ctx) :-
-    (   metta_effective_algebra(Ctx, Semiring),
-        Semiring \== bool
-    ->  (   K0 = [_|_]
-        ->  metta_py_decode_shared(K0, K, _)
-        ;   K = K0
-        ),
-        b_setval('$metta_answer_k', K)
+    metta_py_answer_kappa_value(K0, Ctx, K),
+    b_setval('$metta_answer_k', K).
+
+metta_py_answer_compose_kappa('@'(none), _) :- !.
+metta_py_answer_compose_kappa(K0, Ctx) :-
+    metta_py_answer_kappa_value(K0, Ctx, K),
+    metta_annotation(Ctx, Previous),
+    metta_k_extend(Ctx, Previous, K, Joint),
+    b_setval('$metta_answer_k', Joint).
+
+metta_py_answer_kappa_value(K0, Ctx, K) :-
+    (   metta_effective_algebra(Ctx, Algebra),
+        Algebra \== bool
+    ->  ( K0 = [_|_] -> metta_py_decode_shared(K0, K, _) ; K = K0 )
     ;   throw(error(metta_answer_annotation_undeclared(Ctx, K0), none))
     ).
 
@@ -818,7 +831,7 @@ metta_py_answer_match(Item, Pattern, Limit, Table0, Ctx) :-
 %reading; a plain wire is the value itself, decoded with the lazy seed.
 metta_py_answer_result(Item, Name, Table0, Result) :-
     (   metta_py_answer_form(Item, Theta, Residue, K, ValueW)
-    ->  metta_py_answer_kappa(K, Name),
+    ->  metta_py_answer_compose_kappa(K, Name),
         metta_py_answer_theta(Theta, Table0, Table),
         (   ValueW = value(VW)
         ->  metta_py_decode_shared_(VW, Result, Table, _)
