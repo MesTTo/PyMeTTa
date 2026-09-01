@@ -14,8 +14,13 @@ Guarantees:
   - capture, atomic, and speculative execution compose as scopes without
     per-call shape or mode flags [tested: test_run_capture_collects_printed_output,
     test_atomic_run_commits_or_rolls_back_whole,
-    test_speculative_run_answers_and_discards;
-    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
+    test_speculative_run_answers_and_discards,
+    test_every_public_execution_door_honours_speculative_policy,
+    test_lazy_capture_collects_held_engine_output,
+    test_lazy_atomic_rolls_back_after_a_late_cursor_failure,
+    test_speculative_lazy_execution_preserves_every_answer,
+    test_a_guarded_query_length_hint_executes_its_write_once;
+    commit=WORKTREE]
   - streaming comparison guards use explicit comparison heads [tested:
     test_stream_guard_and_per_pull_bounds; commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
 Open Obligations:
@@ -1147,6 +1152,110 @@ def test_speculative_run_answers_and_discards(m):  # noqa: D103  -- pytest disco
     with pytest.raises(ValueError):
         with m.atomic(), m.speculative():
             pass
+
+
+def test_every_public_execution_door_honours_speculative_policy(m):
+    """Every public door that evaluates a program inherits one policy.
+
+    Each control call proves the door really performs the write. The matching
+    scoped call must still answer, while snapshot/1 discards the same write.
+    Keeping the complete inventory together makes a new execution door extend
+    this property instead of growing another partial policy wrapper.
+    """
+
+    def target(tag):
+        return f"(add-atom &self (policy-mark {tag}))"
+
+    def guard(tag):
+        return S["add-atom"](m, S["policy-mark"](S[tag]))
+
+    def stream(tag):
+        with m.stream(S["policy-seed"](V.n), where=guard(tag)) as rows:
+            return list(rows)
+
+    m.add(S["policy-seed"](1))
+
+    doors = {
+        "run": lambda tag: m.run(f"!{target(tag)}"),
+        "eval": lambda tag: m.eval(target(tag)),
+        "eval-many": lambda tag: m.eval(target(tag), "(+ 1 1)"),
+        "answers-list": lambda tag: list(m.answers(target(tag))),
+        "answers-len": lambda tag: len(m.answers(target(tag))),
+        "eval-status": lambda tag: m.eval_status(target(tag)),
+        "run-status": lambda tag: m.run_status(f"!{target(tag)}"),
+        "profile": lambda tag: m.profile(f"!{target(tag)}"),
+        "profile-extension": lambda tag: m.profile_extension(
+            f"!{target(tag)}", names=[]
+        ),
+        "trace": lambda tag: m.trace(f"!{target(tag)}"),
+        "match": lambda tag: m.match(
+            S["policy-seed"](V.n), where=guard(tag)
+        ).one(),
+        "match-len": lambda tag: len(
+            m.match(S["policy-seed"](V.n), where=guard(tag))
+        ),
+        "prepared": lambda tag: m.prepare(
+            S["policy-seed"](V.n), where=guard(tag)
+        ).solve(),
+        "stream": stream,
+    }
+
+    for name, execute in doors.items():
+        control = S["policy-mark"](S[f"control-{name}"])
+        execute(f"control-{name}")
+        assert control in m, f"{name} did not perform its control write"
+        m.remove(control)
+
+        discarded = S["policy-mark"](S[f"discarded-{name}"])
+        with m.speculative():
+            execute(f"discarded-{name}")
+        assert discarded not in m, f"{name} escaped speculative()"
+
+
+def test_an_answers_view_uses_policy_when_its_engine_work_runs(m):
+    """Creating a view is inert; its later engine crossing is scoped."""
+    answers = m.answers("(add-atom &self (policy-mark delayed))")
+    with m.speculative():
+        assert list(answers)
+    assert S["policy-mark"](S.delayed) not in m
+
+
+def test_lazy_capture_collects_held_engine_output(m, capsys):
+    """A held engine writes into its active capture scope, not the terminal."""
+    with m.capture() as output:
+        answers = list(
+            m.answers("(superpose ((println! lazy-one) (println! lazy-two)))")
+        )
+    assert answers == [TRUE, TRUE]
+    assert output.text == "lazy-one\nlazy-two\n"
+    assert capsys.readouterr().out == ""
+
+
+def test_lazy_atomic_rolls_back_after_a_late_cursor_failure(m):
+    """One transaction spans answers already yielded and a later failure."""
+    source = "(superpose ((add-atom &self (atomic-mark x)) (+ $left $right)))"
+    with pytest.raises(MettaOperationError):
+        with m.atomic():
+            list(m.answers(source))
+    assert S["atomic-mark"](S.x) not in m
+
+
+def test_speculative_lazy_execution_preserves_every_answer(m):
+    """The speculative snapshot discards writes without truncating answers."""
+    with m.speculative():
+        assert list(m.answers("(superpose (1 2 3))")) == [1, 2, 3]
+
+
+def test_a_guarded_query_length_hint_executes_its_write_once(m):
+    """list() may ask for a count, but that must not repeat a guard effect."""
+    m.add(S["query-config-source"](1))
+    guard = S["add-atom"](m, S["query-setting"](S.ready))
+
+    rows = list(m.match(S["query-config-source"](V.n), where=guard))
+
+    assert [row.n for row in rows] == [1]
+    settings = list(m.match(S["query-setting"](V.value)))
+    assert [row.value for row in settings] == [S.ready]
 
 
 def test_profile_counts_samples_on_real_work(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract

@@ -1220,17 +1220,15 @@ def count_tagged(
     encoded = query if isinstance(query, str) else _encode(query).to_wire()
     inputs = [metta.name, encoded, max_rounds, limit or 0]
     from ._space_execution import (  # noqa: PLC0415 -- algebra stays a satellite
-        _apply_limited,
+        _controlled_run,
         _limits,
     )
 
-    bounds = _limits(timeout, inferences)
-    output = (
-        metta.runtime.apply_must("metta_py_tagged_count", *inputs)
-        if bounds is None
-        else _apply_limited(
-            metta.runtime, bounds, "metta_py_tagged_count", inputs
-        )
+    output = _controlled_run(
+        metta.runtime,
+        "metta_py_tagged_count",
+        inputs,
+        _limits(timeout, inferences),
     )
     return int(output)
 

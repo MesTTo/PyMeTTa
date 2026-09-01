@@ -51,6 +51,9 @@ Guarantees:
     its structural children [tested:
     test_ior_merges_an_atom_without_iterating_expression_children;
     commit=9bbfe5a252eb4b3f8b7d8418def0cc39c0819c13]
+  - match, Prepared, and stream share one positive-limit contract [tested:
+    test_nonpositive_limits_are_refused_by_match_stream_and_prepared;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -336,6 +339,29 @@ def test_wide_query_projection_is_identical_through_every_answer_door(m):  # noq
     with m.stream(*patterns, where=guard) as cursor:
         assert cursor.columns == columns
         assert tuple(next(cursor)) == expected
+
+
+def test_nonpositive_limits_are_refused_by_match_stream_and_prepared(m):
+    """Every query face rejects zero before it can mean unbounded to Prolog."""
+    m.add(*(S.limited(index) for index in range(3)))
+    pattern = S.limited(V.index)
+    prepared = m.prepare(pattern)
+    guarded = m.prepare(pattern, where=V.index.ge(0))
+    doors = (
+        lambda limit: m.match(pattern, limit=limit),
+        lambda limit: prepared.solve(limit=limit),
+        lambda limit: guarded.solve(limit=limit),
+        lambda limit: m.stream(pattern, limit=limit),
+    )
+
+    for limit in (0, -1):
+        for door in doors:
+            with pytest.raises(ValueError, match="limit must be positive"):
+                door(limit)
+    for limit in (True, "1"):
+        for door in doors:
+            with pytest.raises(TypeError, match="limit must be a positive int"):
+                door(limit)
 
 
 def test_atoms_count_contains_remove_clear(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract

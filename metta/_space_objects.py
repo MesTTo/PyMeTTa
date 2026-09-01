@@ -41,6 +41,14 @@ Guarantees:
     catalog with the declared since/remedy [tested:
     test_deprecation_catalog_rows_drive_warnings_and_explanations;
     commit=d74e2e828cd9272882dcf907cfaf095d2d147ce0]
+  - Prepared and Cursor reject every non-positive or non-integer limit before
+    opening an engine query [tested:
+    test_nonpositive_limits_are_refused_by_match_stream_and_prepared;
+    commit=WORKTREE]
+  - prepared and streaming guard evaluation inherits the shared atomic and
+    speculative execution policy [tested:
+    test_every_public_execution_door_honours_speculative_policy;
+    commit=WORKTREE]
 Owns:
   - Cursor owns one engine query until exhaustion, close, or finalization
     and warns when finalization reaps an open query [tested
@@ -127,6 +135,18 @@ def _require_bound(value: Any, called: str, kinds: tuple[type, ...], reads: str)
     # comparison needs the type the check just established.
     if not cast(float, value) > 0:
         msg = f"{called} must be positive, got {value!r}"
+        raise ValueError(msg)
+
+
+def _validate_limit(limit: int | None) -> None:
+    """Require the one public query-limit vocabulary before an engine call."""
+    if limit is None:
+        return
+    if isinstance(limit, bool) or not isinstance(limit, int):
+        msg = f"limit must be a positive int or None, got {limit!r}"
+        raise TypeError(msg)
+    if limit <= 0:
+        msg = f"limit must be positive, got {limit}"
         raise ValueError(msg)
 
 
@@ -542,6 +562,9 @@ class Cursor:
         "_exhausted",
         "_finalizer",
         "_handle",
+        "_open_arguments",
+        "_open_predicate",
+        "_policy",
         "_row_cls",
         "_rt",
         "_space_name",
@@ -565,6 +588,7 @@ class Cursor:
         order: str | None = None,
         capture: Any = None,
     ) -> None:
+        _validate_limit(limit)
         atoms = [_to_atom(p) for p in patterns]
         columns = _column_names(atoms)
         self.columns = tuple(columns)
@@ -594,7 +618,10 @@ class Cursor:
         if under is not None:
             predicate = "metta_py_cursor_open_under"
             arguments.extend((under, order or "none"))
-        self._handle = self._rt.apply_must(predicate, *arguments)
+        self._open_predicate = predicate
+        self._open_arguments = arguments
+        self._handle: Any | None = None
+        self._policy: Any = None
         self._closed = False
         self._exhausted = False
         self._buffer: deque = deque()
@@ -603,7 +630,7 @@ class Cursor:
         # The finalizer is the last guard, not the contract: it destroys
         # the engine if a cursor is dropped unclosed, from whichever
         # thread collection runs on (cross-thread destroy is probed).
-        self._finalizer = weakref.finalize(self, Cursor._reap, self._rt, self._handle)
+        self._finalizer: weakref.finalize | None = None
 
     @staticmethod
     def _reap(runtime: Runtime, handle: Any) -> None:
@@ -614,6 +641,34 @@ class Cursor:
 
     def __iter__(self) -> Self:
         return self
+
+    def _open(self) -> None:
+        """Create the held engine at the first pull, under that pull's policy."""
+        if self._handle is not None:
+            return
+        # The policy module imports this object's limit helpers, so the edge
+        # is intentionally lazy after both modules have initialized.
+        from ._space_execution import (  # noqa: PLC0415
+            _controlled_run,
+            _execution_policy,
+        )
+
+        self._policy = _execution_policy()
+        self._handle = _controlled_run(
+            self._rt,
+            self._open_predicate,
+            self._open_arguments,
+            None,
+            policy=self._policy,
+        )
+        self._finalizer = weakref.finalize(
+            self, Cursor._reap, self._rt, self._handle
+        )
+
+    def _finish(self) -> None:
+        """Reap an opened engine; an inert, never-pulled cursor owns none."""
+        if self._finalizer is not None:
+            self._finalizer()
 
     def _refill(self) -> None:
         """Cross once, for as many answers as this cursor has earned.
@@ -646,16 +701,26 @@ class Cursor:
         raising the budget, which delivers more. The wall bound consequently
         covers a chunk's worth of work per crossing rather than one answer's.
         """
+        self._open()
+        from ._space_execution import _controlled_run  # noqa: PLC0415
+
         want = self._chunk
-        if self._timeout is None and self._stack < 0:
-            answers = self._rt.apply_must("metta_py_cursor_chunk", self._handle, want)
-        else:
-            answers = _apply_limited(
-                self._rt,
-                (-1.0 if self._timeout is None else self._timeout, -1, self._stack),
-                "metta_py_cursor_chunk",
-                [self._handle, want],
+        limits = (
+            None
+            if self._timeout is None and self._stack < 0
+            else (
+                -1.0 if self._timeout is None else self._timeout,
+                -1,
+                self._stack,
             )
+        )
+        answers = _controlled_run(
+            self._rt,
+            "metta_py_cursor_chunk",
+            [self._handle, want],
+            limits,
+            policy=self._policy,
+        )
         self._buffer = deque(answers)
         # A SHORT chunk is the whole of the exhaustion signal, so no pull ever
         # looks past the last answer it was asked for.
@@ -670,12 +735,12 @@ class Cursor:
         if not self._buffer:
             if self._exhausted or self._drained:
                 self._exhausted = True
-                self._finalizer()
+                self._finish()
                 raise StopIteration
             self._refill()
         if not self._buffer:
             self._exhausted = True
-            self._finalizer()
+            self._finish()
             raise StopIteration
         payload = self._buffer.popleft()
         if self._under is not None:
@@ -821,7 +886,7 @@ class Cursor:
         if self._closed or self._exhausted:
             return
         self._closed = True
-        self._finalizer()  # runs the reap exactly once; later GC is a no-op
+        self._finish()  # runs the reap exactly once; later GC is a no-op
 
     def __enter__(self) -> Self:
         return self
@@ -968,6 +1033,7 @@ class Prepared:
         `timeout` and `inferences` bound this solve exactly as they bound
         MeTTa.match().
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+        _validate_limit(limit)
         if not given:
             return self._run(limit, timeout, inferences)
         with self._space.assuming(*given):
@@ -984,11 +1050,11 @@ class Prepared:
             pred, ins = "metta_py_query_limit_all", [space, self._wires, names, limit]
         else:
             pred, ins = "metta_py_query_all", [space, self._wires, names]
-        limits = _limits(timeout, inferences)
-        if limits is None:
-            answered = rt.apply_must(pred, *ins)
-        else:
-            answered = _apply_limited(rt, limits, pred, ins)
+        from ._space_execution import _controlled_run  # noqa: PLC0415
+
+        answered = _controlled_run(
+            rt, pred, ins, _limits(timeout, inferences)
+        )
         decoded = [tuple(_atom_from_wire(v) for v in r) for r in answered]
         return Rows(self.columns, decoded)
 

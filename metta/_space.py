@@ -247,7 +247,12 @@ from ._space_persistence import (
     raise_unsafe_text_atom,
     save_space,
 )
-from ._space_query import _validate_limit, query_count, solve_rows
+from ._space_query import (
+    _validate_limit,
+    query_count,
+    query_count_if_repeatable,
+    solve_rows,
+)
 from ._under import _UNSET
 from ._under import selected as _selected_under
 from ._version import __version__
@@ -2140,10 +2145,11 @@ class Space(Handle):
             space=self._space,
             target=patterns,
             query=query_context,
-            # A pattern query reads and writes nothing, so counting it is
-            # always the cheap engine aggregate; the route hints a count
-            # source may be given change nothing here.
-            count=lambda **_route: query_count(
+            # The engine admits this second evaluation only when the match,
+            # provider, modifiers, and guard are repeatable. Otherwise
+            # Answers materializes its existing cursor, so list()'s length
+            # hint cannot fire an effect twice.
+            count=lambda **_route: query_count_if_repeatable(
                 self._rt,
                 self._space,
                 patterns,

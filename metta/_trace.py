@@ -9,6 +9,10 @@ Guarantees:
   - a term and the source that spells it trace identically, so the one
     door that shows a reduction takes the argument every other door
     takes [tested test_trace_takes_the_term_every_other_door_takes]
+  - traced source keeps run()'s real-write semantics while inheriting the
+    same speculative execution fence [tested:
+    test_every_public_execution_door_honours_speculative_policy;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -20,6 +24,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from ._atom_wire import _atom_from_wire
+from ._space_execution import _controlled_run
 from .atoms import Atom
 
 __all__ = ["TraceEvent", "trace"]
@@ -72,18 +77,18 @@ def trace(space, source: Atom | str, max_events: int = 1_000_000) -> list[TraceE
         raise ValueError(
             msg
         )
-    row = space.runtime.once(
-        "metta_py_trace(Src, Space, Max, Events)",
-        Src=_as_source(source),
-        Space=space.name,
-        Max=int(max_events),
+    records = _controlled_run(
+        space.runtime,
+        "metta_py_trace",
+        [_as_source(source), space.name, int(max_events)],
+        None,
     )
     # Events cross as terms on the ordinary wire. Read back from their own
     # text, a symbol whose spelling reads as something else arrived as
     # something else: (holds $notvar) traced as a variable while run
     # answered the symbol, and a tab inside a symbol split the record.
     events = []
-    for record in row.get("Events") or []:
+    for record in records or []:
         depth, kind, term, *answer = record
         events.append(
             TraceEvent(

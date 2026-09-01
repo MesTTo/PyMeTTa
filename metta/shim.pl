@@ -27,6 +27,14 @@
 %     test_atomic_scope_commits_or_discards_one_event_segment,
 %     test_speculative_execution_discards_its_event_segment,
 %     test_world_eval_fences_state_and_emits_nothing; commit=3ded7552797b66d78e666141eb51f3bc14686bd2].
+%   - held query and evaluation engines carry the same capture, atomic, or
+%     speculative policy for their complete lifetime as eager execution;
+%     speculation preserves every answer while discarding its writes
+%     [tested: test_every_public_execution_door_honours_speculative_policy,
+%     test_lazy_capture_collects_held_engine_output,
+%     test_lazy_atomic_rolls_back_after_a_late_cursor_failure,
+%     test_speculative_lazy_execution_preserves_every_answer;
+%     commit=WORKTREE].
 %   - an empty direct eval answers NOTHING both for a guarded head with no
 %     matching clause and for a matched empty body, which is one answer where
 %     this door used to draw two: the guarded head was a not-reducible answer
@@ -267,6 +275,11 @@
 %     lazy Python answer view [tested:
 %     test_query_answers_complete_the_lazy_projection_protocol;
 %     commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
+%   - metta_py_query_count_if_repeatable/6 fails closed for foreign spaces,
+%     pattern modifiers, and effect-bearing guards, so a Python length hint
+%     cannot execute a query effect twice [tested:
+%     test_a_guarded_query_length_hint_executes_its_write_once;
+%     commit=WORKTREE]
 %   - evaluation emits one undefined-truth frame and never a flag-selected
 %     residual-program shape [tested:
 %     test_a_not_reducible_answer_is_the_unreduced_term_with_no_flag;
@@ -941,8 +954,11 @@ metta_py_wrappable(metta_py_query_all).
 metta_py_wrappable(metta_py_query_guarded_all).
 metta_py_wrappable(metta_py_query_limit_all).
 metta_py_wrappable(metta_py_query_count).
+metta_py_wrappable(metta_py_query_count_if_repeatable).
 metta_py_wrappable(metta_py_eval_all).
 metta_py_wrappable(metta_py_eval_using_all).
+metta_py_wrappable(metta_py_eval_many_all).
+metta_py_wrappable(metta_py_eval_many_using_all).
 metta_py_wrappable(metta_py_eval_status_all).
 metta_py_wrappable(metta_py_reducible).
 metta_py_wrappable(metta_py_eval_status_using_all).
@@ -951,13 +967,22 @@ metta_py_wrappable(metta_py_captured).
 metta_py_wrappable(metta_py_atomic).
 metta_py_wrappable(metta_py_speculative).
 metta_py_wrappable(metta_py_profiled).
+metta_py_wrappable(metta_py_trace).
+metta_py_wrappable(metta_py_function_shape).
 metta_py_wrappable(metta_py_cursor_next).
 metta_py_wrappable(metta_py_cursor_chunk).
+metta_py_wrappable(metta_py_cursor_next_controlled).
+metta_py_wrappable(metta_py_cursor_chunk_controlled).
+metta_py_wrappable(metta_py_cursor_open_controlled).
+metta_py_wrappable(metta_py_cursor_open_under_controlled).
+metta_py_wrappable(metta_py_eval_cursor_open_controlled).
+metta_py_wrappable(metta_py_eval_cursor_open_under_controlled).
 metta_py_wrappable(metta_py_eval_count).
 metta_py_wrappable(metta_py_eval_count_under).
 metta_py_wrappable(metta_py_eval_count_if_repeatable).
 metta_py_wrappable(metta_py_eval_count_under_if_repeatable).
 metta_py_wrappable(metta_py_eval_count_retaining).
+metta_py_wrappable(metta_py_tagged_count).
 metta_py_wrappable(metta_py_derivation).
 metta_py_wrappable(metta_py_load).
 metta_py_wrappable(metta_py_fast_load_unit).
@@ -1030,7 +1055,8 @@ metta_py_stats([Inferences, CpuTime, GcCount, GcFreed, GcTimeMs, TableBytes]) :-
 %the rolled-back writes.
 metta_py_atomic(Pred, Ins, Out) :-
     metta_py_wrapped_goal(Pred, Ins, Out, Goal),
-    metta_transaction(Goal).
+    metta_py_execution_policy_goal(atomic, Goal, Scoped),
+    call(Scoped).
 
 %Run against a frozen view and discard every change: snapshot/1, the
 %what-if reading. The answers return; the space stays as it was. Atom events
@@ -1038,7 +1064,58 @@ metta_py_atomic(Pred, Ins, Out) :-
 %the former stay in a discarded observation frame and the latter refuse.
 metta_py_speculative(Pred, Ins, Out) :-
     metta_py_wrapped_goal(Pred, Ins, Out, Goal),
-    metta_speculate(metta_with_state_write_fence(Goal)).
+    metta_py_execution_policy_goal(speculative, Goal, Scoped),
+    call(Scoped).
+
+%The policy constructor is also used by held engines. Wrapping engine_next/2
+%on the caller cannot roll back work performed by the engine it resumes; the
+%transaction must be part of the engine's suspended Goal so it spans every
+%pull and closes with that one execution.
+metta_py_execution_policy_goal(none, Goal, Goal) :- !.
+metta_py_execution_policy_goal(atomic, Goal, metta_transaction(Goal)) :- !.
+metta_py_execution_policy_goal(
+    speculative,
+    Goal,
+    metta_speculate(metta_with_state_write_fence(Goal))) :- !.
+metta_py_execution_policy_goal(Mode, _, _) :-
+    throw(error(domain_error(metta_py_execution_policy, Mode), none)).
+
+%snapshot/1 is semidet, while a held evaluation is nondeterministic. Collect
+%inside the snapshot and replay outside it so speculation preserves every
+%answer while all writes still belong to one discarded execution.
+metta_py_execution_cursor_goal(speculative, Template, Goal, Controlled) :- !,
+    Controlled =
+        ( metta_speculate(
+              metta_with_state_write_fence(findall(Template, Goal, Bag))),
+          member(Template, Bag) ).
+metta_py_execution_cursor_goal(Mode, _, Goal, Controlled) :-
+    metta_py_execution_policy_goal(Mode, Goal, Controlled).
+
+%A held engine has its own current_output, so redirecting engine_next/2 in the
+%caller cannot capture it. The captured engine asks for a fresh memory stream
+%before each resume, yields one answer, and asks again before backtracking.
+%The caller can then close and read an unbounded memory file without a pipe's
+%finite-buffer deadlock.
+metta_py_captured_engine(Template, Goal) :-
+    setup_call_cleanup(
+        current_output(Old),
+        ( engine_fetch(Stream0),
+          set_output(Stream0),
+          call(Goal),
+          flush_output,
+          engine_yield(Template),
+          engine_fetch(Stream),
+          set_output(Stream),
+          fail ),
+        set_output(Old)).
+
+metta_py_open_controlled_cursor([Mode, Capture], Template, Goal, Handle) :-
+    metta_py_execution_cursor_goal(Mode, Template, Goal, Controlled),
+    (   Capture == @(true)
+    ->  engine_create(_, metta_py_captured_engine(Template, Controlled), Engine),
+        Handle = metta_py_captured_cursor(Engine)
+    ;   engine_create(Template, Controlled, Handle)
+    ).
 
 %%%%%%%%%% Lazy cursors %%%%%%%%%%
 %
@@ -1061,10 +1138,17 @@ metta_py_speculative(Pred, Ins, Out) :-
 %stay outside, per pull, where idle time between pulls cannot count.
 metta_py_cursor_open(Space, PatternsTagged, GuardTagged, VarNames, Limit, Inf,
                      prolog(Engine)) :-
+    metta_py_cursor_open_controlled(
+        Space, PatternsTagged, GuardTagged, VarNames, Limit, Inf, none,
+        prolog(Engine)).
+
+metta_py_cursor_open_controlled(
+        Space, PatternsTagged, GuardTagged, VarNames, Limit, Inf, Policy,
+        prolog(Engine)) :-
     metta_py_cursor_goal(Space, PatternsTagged, GuardTagged, VarNames, Limit,
                          Row, Goal),
     metta_host_inference_budget(Goal, Inf, Bounded),
-    engine_create(Row, Bounded, Engine).
+    metta_py_open_controlled_cursor(Policy, Row, Bounded, Engine).
 
 metta_py_cursor_goal(Space, PatternsTagged, GuardTagged, VarNames, Limit,
                      Row, Goal) :-
@@ -1088,6 +1172,13 @@ metta_py_cursor_goal(Space, PatternsTagged, GuardTagged, VarNames, Limit,
 %commit=c7468b2789746bcf95c4bacc0e2d517ec4d972fa].
 metta_py_cursor_open_under(Space, PatternsTagged, GuardTagged, VarNames,
                            Limit, Inf, Algebra, Direction, prolog(Engine)) :-
+    metta_py_cursor_open_under_controlled(
+        Space, PatternsTagged, GuardTagged, VarNames, Limit, Inf, Algebra,
+        Direction, none, prolog(Engine)).
+
+metta_py_cursor_open_under_controlled(
+        Space, PatternsTagged, GuardTagged, VarNames, Limit, Inf, Algebra,
+        Direction, Policy, prolog(Engine)) :-
     (   Direction \== none
     ->  metta_py_cursor_goal(Space, PatternsTagged, GuardTagged, VarNames, 0,
                              Row, Producer),
@@ -1100,7 +1191,7 @@ metta_py_cursor_open_under(Space, PatternsTagged, GuardTagged, VarNames,
     Scoped = metta_with_under(Algebra, Goal),
     Encoded = ( Scoped, metta_py_encode(K, KWire) ),
     metta_host_inference_budget(Encoded, Inf, Bounded),
-    engine_create([Row, KWire], Bounded, Engine).
+    metta_py_open_controlled_cursor(Policy, [Row, KWire], Bounded, Engine).
 
 metta_py_under_query(Space, Producer, K) :-
     metta_algebra_one(Space, One),
@@ -1124,6 +1215,32 @@ metta_py_ordered_pairs(_, Pairs, Ordered) :-
 metta_py_cursor_next(Engine, Answer) :-
     ( engine_next(Engine, Row) -> Answer = [Row] ; Answer = [] ).
 
+metta_py_captured_cursor_next(Engine, Answer, Text) :-
+    setup_call_cleanup(
+        new_memory_file(Memory),
+        ( setup_call_cleanup(
+              open_memory_file(
+                  Memory, write, Stream,
+                  [free_on_close(false), encoding(utf8)]),
+              ( engine_post(Engine, Stream),
+                ( engine_next(Engine, Row)
+                -> Answer = [Row]
+                ;  Answer = [] ),
+                flush_output(Stream) ),
+              close(Stream)),
+          memory_file_to_string(Memory, Text) ),
+        free_memory_file(Memory)).
+
+%The controlled variants normalize both handle kinds to [payload, text]. A
+%retained-count replay cursor has no captured engine because its target output
+%was already collected during the retaining call; it therefore contributes an
+%empty text chunk here.
+metta_py_cursor_next_controlled(
+        metta_py_captured_cursor(Engine), [Answer, Text]) :- !,
+    metta_py_captured_cursor_next(Engine, Answer, Text).
+metta_py_cursor_next_controlled(Engine, [Answer, ""]) :-
+    metta_py_cursor_next(Engine, Answer).
+
 %Up to Count answers in ONE crossing, which is the whole of the optimisation:
 %a pull costs 2.55us of janus crossing against 2.55us of engine work, so a
 %cursor that crosses per answer spends half its time in the boundary
@@ -1143,7 +1260,29 @@ metta_py_cursor_chunk(Engine, Count, Answers) :-
     ;   Answers = []
     ).
 
+metta_py_captured_cursor_chunk(_, Count, [], []) :-
+    Count =< 0, !.
+metta_py_captured_cursor_chunk(Engine, Count, Answers, Texts) :-
+    metta_py_captured_cursor_next(Engine, Answer, Text),
+    (   Answer = [Row]
+    ->  Answers = [Row|Rest],
+        Texts = [Text|MoreText],
+        Left is Count - 1,
+        metta_py_captured_cursor_chunk(Engine, Left, Rest, MoreText)
+    ;   Answers = [],
+        Texts = [Text]
+    ).
+
+metta_py_cursor_chunk_controlled(
+        metta_py_captured_cursor(Engine), Count, [Answers, Text]) :- !,
+    metta_py_captured_cursor_chunk(Engine, Count, Answers, Texts),
+    atomics_to_string(Texts, "", Text).
+metta_py_cursor_chunk_controlled(Engine, Count, [Answers, ""]) :-
+    metta_py_cursor_chunk(Engine, Count, Answers).
+
 %Idempotent close: a second destroy finds no engine and is at peace.
+metta_py_cursor_close(metta_py_captured_cursor(Engine)) :- !,
+    metta_py_cursor_close(Engine).
 metta_py_cursor_close(Engine) :-
     catch(engine_destroy(Engine), error(existence_error(_, _), _), true).
 
@@ -2253,6 +2392,45 @@ metta_py_query_count(Space, PatternsTagged, GuardTagged, _VarNames, Limit, Count
     ;   aggregate_all(count, Query, Count)
     ).
 
+%Answers may ask for a length hint before it opens its row cursor. Repeating a
+%foreign provider, a path modifier, or an effect-bearing guard would make that
+%hint observable, so the engine's shared effect walk admits only the ordinary
+%native match with no modifier and a repeatable guard. [] tells Python to
+%materialize its one existing cursor instead.
+metta_py_query_count_if_repeatable(
+        Space, PatternsTagged, GuardTagged, VarNames, Limit, Answer) :-
+    (   metta_py_query_repeatable(Space, PatternsTagged, GuardTagged)
+    ->  metta_py_query_count(
+            Space, PatternsTagged, GuardTagged, VarNames, Limit, Count),
+        Answer = [Count]
+    ;   Answer = []
+    ).
+
+metta_py_query_repeatable(Space, PatternsTagged, GuardTagged) :-
+    catch_recover(
+        (   \+ seam:foreign_space(Space),
+            (   GuardTagged == []
+            ->  metta_py_decode_shared(
+                    ["e", PatternsTagged], Patterns, _),
+                Guard = true
+            ;   metta_py_decode_shared(
+                    ["e", [GuardTagged | PatternsTagged]],
+                    [Guard | Patterns], _)
+            ),
+            metta_py_prepare_patterns(Patterns, _, Modifiers, _),
+            Modifiers == [],
+            (   GuardTagged == []
+            ->  true
+            ;   metta_py_module(Space, Module),
+                metta_py_in_module(
+                    Module,
+                    ( translate_expr(Guard, Goals, _),
+                      goals_list_to_conj(Goals, Body) )),
+                metta_host_goal_repeatable(Module, Body)
+            )
+        ),
+        fail).
+
 metta_py_query_count_under(Space, PatternsTagged, GuardTagged, VarNames,
                            Limit, Algebra, Count) :-
     metta_with_under(
@@ -2784,16 +2962,29 @@ metta_py_eval_target(Space, Target, Pairs, Term, Bindings) :-
     ).
 
 metta_py_eval_cursor_open(Space, Target, Pairs, VarNames, Inf, prolog(Engine)) :-
+    metta_py_eval_cursor_open_controlled(
+        Space, Target, Pairs, VarNames, Inf, none, prolog(Engine)).
+
+metta_py_eval_cursor_open_controlled(
+        Space, Target, Pairs, VarNames, Inf, Policy, prolog(Engine)) :-
     metta_py_eval_target(Space, Target, Pairs, Term, Bindings),
     Goal = ( statistics(inferences, Before),
              metta_py_eval_term_bounded(Space, Term, Encoded),
              metta_py_row(VarNames, Bindings, Row),
              statistics(inferences, Now), Used is Now - Before ),
     metta_host_inference_budget(Goal, Inf, Bounded),
-    engine_create([Encoded, Row, Used], Bounded, Engine).
+    metta_py_open_controlled_cursor(
+        Policy, [Encoded, Row, Used], Bounded, Engine).
 
 metta_py_eval_cursor_open_under(Space, Target, Pairs, VarNames, Inf, Algebra,
                                 Direction, prolog(Engine)) :-
+    metta_py_eval_cursor_open_under_controlled(
+        Space, Target, Pairs, VarNames, Inf, Algebra, Direction, none,
+        prolog(Engine)).
+
+metta_py_eval_cursor_open_under_controlled(
+        Space, Target, Pairs, VarNames, Inf, Algebra, Direction, Policy,
+        prolog(Engine)) :-
     metta_py_eval_target(Space, Target, Pairs, Term, Bindings),
     (   Direction \== none
     ->  Core = metta_py_ordered_eval_under(Space, Term, VarNames, Direction,
@@ -2808,7 +2999,8 @@ metta_py_eval_cursor_open_under(Space, Target, Pairs, VarNames, Inf, Algebra,
     ),
     Goal = ( metta_with_under(Algebra, Core), metta_py_encode(K, KWire) ),
     metta_host_inference_budget(Goal, Inf, Bounded),
-    engine_create([Encoded, Row, KWire, Used], Bounded, Engine).
+    metta_py_open_controlled_cursor(
+        Policy, [Encoded, Row, KWire, Used], Bounded, Engine).
 
 metta_py_ordered_eval_under(Space, Term, VarNames, Direction, Bindings, Encoded,
                             Row, K, Used) :-

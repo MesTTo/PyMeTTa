@@ -4,8 +4,10 @@ Guarantees:
     [tested test_run_using_carries_identity]
   - capture never changes an answer shape, and atomic, speculative, and
     execution policy scopes compose without per-call flags [tested:
-    test_no_decorator_flag_changes_the_return_shape_and_declarations_are_atoms;
-    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
+    test_no_decorator_flag_changes_the_return_shape_and_declarations_are_atoms,
+    test_every_public_execution_door_honours_speculative_policy,
+    test_an_answers_view_uses_policy_when_its_engine_work_runs;
+    commit=WORKTREE]
   - eager eval follows the same atomic and speculative policy wrapper as run,
     so State property writes cannot bypass a speculative fence [tested:
     test_speculative_state_write_is_fenced; commit=3ded7552797b66d78e666141eb51f3bc14686bd2]
@@ -68,6 +70,7 @@ import re
 from collections import deque
 from collections.abc import Generator, Iterable, Iterator, Sequence
 from contextvars import ContextVar
+from dataclasses import dataclass
 from typing import Any, Self
 
 from ._engine import Runtime
@@ -166,6 +169,37 @@ def capture_output() -> CapturedOutput:
     return CapturedOutput()
 
 
+@dataclass(frozen=True, slots=True)
+class _ExecutionPolicy:
+    """One immutable reading of the task-local execution scopes."""
+
+    mode: str | None
+    captured: CapturedOutput | None
+
+
+def _execution_policy() -> _ExecutionPolicy:
+    """Read every execution policy at one crossing boundary."""
+    modes = _SCOPED_EXECUTION.get()
+    mode = "atomic" if "atomic" in modes else None
+    if "speculative" in modes:
+        mode = "speculative"
+    return _ExecutionPolicy(mode, _CAPTURED_OUTPUT.get())
+
+
+_DEFERRED_EXECUTION_OPENERS = {
+    "metta_py_cursor_open": "metta_py_cursor_open_controlled",
+    "metta_py_cursor_open_under": "metta_py_cursor_open_under_controlled",
+    "metta_py_eval_cursor_open": "metta_py_eval_cursor_open_controlled",
+    "metta_py_eval_cursor_open_under": (
+        "metta_py_eval_cursor_open_under_controlled"
+    ),
+}
+_DEFERRED_EXECUTION_RESUMES = {
+    "metta_py_cursor_chunk": "metta_py_cursor_chunk_controlled",
+    "metta_py_cursor_next": "metta_py_cursor_next_controlled",
+}
+
+
 def _run_target(space: str, source: str, using: dict[str, Any] | None) -> tuple[str, list[Any]]:
     if not using:
         return "metta_py_run", [source, space]
@@ -187,39 +221,59 @@ def _run_target(space: str, source: str, using: dict[str, Any] | None) -> tuple[
     return "metta_py_run_using", [source, space, pairs]
 
 
-def _direct_run(rt: Runtime, predicate: str, inputs: list[Any]) -> Any:
-    """Run source through the predicate door, as evaluate() above does.
-
-    Both shim entries are already shaped for janus's functional convention --
-    ground inputs then one output -- so the goal string this used to build was
-    re-parsed by janus on every call for no gain. The functional signatures are
-    pinned by metta_py_run/3 and metta_py_run_using/4 in shim.pl.
-    """
-    return rt.apply_must(predicate, *inputs)
-
-
 def _controlled_run(
     rt: Runtime,
     predicate: str,
     inputs: list[Any],
     limits: tuple[float, int, int] | None,
     *,
-    capture: bool,
-    atomic: bool,
-    speculative: bool,
+    policy: _ExecutionPolicy | None = None,
 ) -> Any:
-    if atomic:
-        predicate, inputs = "metta_py_atomic", [predicate, inputs]
-    elif speculative:
-        predicate, inputs = "metta_py_speculative", [predicate, inputs]
-    if capture:
+    """Execute one engine target through the complete task-local policy.
+
+    No caller selects individual wrappers. That is the invariant which keeps
+    lazy cursors, diagnostics, and future execution doors from silently
+    inheriting only a subset of capture, atomic, and speculative semantics.
+    """
+    policy = _execution_policy() if policy is None else policy
+    deferred = _DEFERRED_EXECUTION_OPENERS.get(predicate)
+    resumed = _DEFERRED_EXECUTION_RESUMES.get(predicate)
+    mode_is_held = deferred is not None or resumed is not None
+    if deferred is not None:
+        predicate = deferred
+        inputs = [
+            *inputs,
+            [policy.mode or "none", policy.captured is not None],
+        ]
+    elif resumed is not None and policy.captured is not None:
+        predicate = resumed
+    elif not mode_is_held:
+        if policy.mode == "atomic":
+            predicate, inputs = "metta_py_atomic", [predicate, inputs]
+        elif policy.mode == "speculative":
+            predicate, inputs = "metta_py_speculative", [predicate, inputs]
+    if policy.captured is not None and not mode_is_held:
         predicate, inputs = "metta_py_captured", [predicate, inputs]
-    return _apply_limited(
-        rt,
-        limits if limits is not None else (-1.0, -1, -1),
-        predicate,
-        inputs,
+    has_outer_policy = not mode_is_held and (
+        policy.captured is not None or policy.mode is not None
     )
+    output = (
+        rt.apply_must(predicate, *inputs)
+        if limits is None and not has_outer_policy
+        else _apply_limited(
+            rt,
+            limits if limits is not None else (-1.0, -1, -1),
+            predicate,
+            inputs,
+        )
+    )
+    captures_output = policy.captured is not None and (
+        resumed is not None or deferred is None
+    )
+    if captures_output:
+        output, text = output
+        policy.captured._append(str(text))
+    return output
 
 
 def _decode_groups(wires: Any) -> list[list[Atom]]:
@@ -236,30 +290,9 @@ def run_source(
     inferences: int | None,
 ) -> list[list[Atom]]:
     """Execute source through the direct or controlled engine entry."""
-    modes = _SCOPED_EXECUTION.get()
-    atomic = "atomic" in modes
-    speculative = "speculative" in modes
-    captured = _CAPTURED_OUTPUT.get()
-    capture = captured is not None
     predicate, inputs = _run_target(space, source, using)
     limits = _limits(timeout, inferences)
-    if limits is None and not (capture or atomic or speculative):
-        output = _direct_run(rt, predicate, inputs)
-    else:
-        output = _controlled_run(
-            rt,
-            predicate,
-            inputs,
-            limits,
-            capture=capture,
-            atomic=atomic,
-            speculative=speculative,
-        )
-    if captured is not None:
-        groups_wire, text = output
-        captured._append(str(text))
-        return _decode_groups(groups_wire)
-    return _decode_groups(output)
+    return _decode_groups(_controlled_run(rt, predicate, inputs, limits))
 
 
 def profile_source(
@@ -272,11 +305,11 @@ def profile_source(
     inferences: int | None,
 ) -> tuple[list[list[Atom]], EngineProfile]:
     predicate, inputs = _run_target(space, source, using)
-    output, samples, ticks, nodes = _apply_limited(
+    output, samples, ticks, nodes = _controlled_run(
         rt,
-        _limits(timeout, inferences) or (-1.0, -1, -1),
         "metta_py_profiled",
         [predicate, inputs],
+        _limits(timeout, inferences) or (-1.0, -1, -1),
     )
     return _decode_groups(output), EngineProfile(samples, ticks, nodes)
 
@@ -329,8 +362,8 @@ def profile_extension(
     measured = _profiled_rows(profile.nodes)
     costs: list[FunctionCost] = []
     for name in names:
-        tier, detail, arities, determinism = rt.apply_must(
-            "metta_py_function_shape", name
+        tier, detail, arities, determinism = _controlled_run(
+            rt, "metta_py_function_shape", [name], None
         )
         shapes: list[tuple[int | None, float, bool]] = [
             (int(arity), float(speedup), bool(indexed))
@@ -385,28 +418,9 @@ def evaluate(
             *inputs,
             [[name, _encode(value).to_wire()] for name, value in using.items()],
         ]
-    limits = _limits(timeout, inferences)
-    modes = _SCOPED_EXECUTION.get()
-    atomic = "atomic" in modes
-    speculative = "speculative" in modes
-    captured = _CAPTURED_OUTPUT.get()
-    if limits is captured is None and not (atomic or speculative):
-        wires = rt.apply_must(predicate, *inputs)
-    else:
-        output = _controlled_run(
-            rt,
-            predicate,
-            inputs,
-            limits,
-            capture=captured is not None,
-            atomic=atomic,
-            speculative=speculative,
-        )
-        if captured is not None:
-            wires, text = output
-            captured._append(str(text))
-            return [_from_wire(wire) for wire in wires]
-        wires = output
+    wires = _controlled_run(
+        rt, predicate, inputs, _limits(timeout, inferences)
+    )
     return [_from_wire(wire) for wire in wires]
 
 
@@ -438,28 +452,9 @@ def evaluate_many(
         inputs.append(
             [[name, _encode(value).to_wire()] for name, value in using.items()]
         )
-    limits = _limits(timeout, inferences)
-    modes = _SCOPED_EXECUTION.get()
-    atomic = "atomic" in modes
-    speculative = "speculative" in modes
-    captured = _CAPTURED_OUTPUT.get()
-    if limits is captured is None and not (atomic or speculative):
-        groups = rt.apply_must(predicate, *inputs)
-    else:
-        output = _controlled_run(
-            rt,
-            predicate,
-            inputs,
-            limits,
-            capture=captured is not None,
-            atomic=atomic,
-            speculative=speculative,
-        )
-        if captured is not None:
-            groups, text = output
-            captured._append(str(text))
-        else:
-            groups = output
+    groups = _controlled_run(
+        rt, predicate, inputs, _limits(timeout, inferences)
+    )
     return [[_from_wire(wire) for wire in group] for group in groups]
 
 
@@ -485,20 +480,10 @@ def _count_call(
     timeout: float | None,
     inferences: int | None,
 ) -> Any:
-    """Send one counting predicate through the capture and limit wrappers."""
-    limits = _limits(timeout, inferences)
-    captured = _CAPTURED_OUTPUT.get()
-    if captured is not None:
-        predicate, inputs = "metta_py_captured", [predicate, inputs]
-    output = (
-        rt.apply_must(predicate, *inputs)
-        if limits is None
-        else _apply_limited(rt, limits, predicate, inputs)
+    """Send one counting predicate through the shared policy wrapper."""
+    return _controlled_run(
+        rt, predicate, inputs, _limits(timeout, inferences)
     )
-    if captured is not None:
-        output, captured_text = output
-        captured._append(str(captured_text))
-    return output
 
 
 def evaluate_count(
@@ -563,22 +548,14 @@ def _retain_and_count(
     pull, and the inference limit rides inside the predicate as it does for
     the cursor, because this single call is the whole enumeration.
     """
-    predicate = "metta_py_eval_count_retaining"
-    captured = _CAPTURED_OUTPUT.get()
-    if captured is not None:
-        predicate, inputs = "metta_py_captured", [predicate, inputs]
-    if seconds is None and stack < 0:
-        output = rt.apply_must(predicate, *inputs)
-    else:
-        output = _apply_limited(
-            rt,
-            (-1.0 if seconds is None else seconds, -1, stack),
-            predicate,
-            inputs,
-        )
-    if captured is not None:
-        output, text = output
-        captured._append(str(text))
+    limits = (
+        None
+        if seconds is None and stack < 0
+        else (-1.0 if seconds is None else seconds, -1, stack)
+    )
+    output = _controlled_run(
+        rt, "metta_py_eval_count_retaining", inputs, limits
+    )
     count, handle = output
     return int(count), handle
 
@@ -701,6 +678,7 @@ def evaluate_answers(
         return count
 
     def stream() -> Generator[Any]:
+        policy = _execution_policy()
         if retained:
             handle = retained.pop()
         else:
@@ -709,7 +687,11 @@ def evaluate_answers(
             if under is not None:
                 predicate = "metta_py_eval_cursor_open_under"
                 inputs.extend((under, order or "none"))
-            handle = rt.apply_must(predicate, *inputs)
+            # engine_create/3 is inert, but the selected execution mode must
+            # be embedded in its held goal before the first pull starts it.
+            handle = _controlled_run(
+                rt, predicate, inputs, None, policy=policy
+            )
         row_cls = _row_class(tuple(columns))
         reported_inferences = 0
         # The same doubling chunk the match cursor pulls, for the same
@@ -725,26 +707,18 @@ def evaluate_answers(
                 if not buffered:
                     if drained:
                         return
-                    captured = _CAPTURED_OUTPUT.get()
-                    predicate = "metta_py_cursor_chunk"
-                    pull_inputs: list[Any] = [handle, want]
-                    if captured is not None:
-                        predicate, pull_inputs = (
-                            "metta_py_captured",
-                            [predicate, pull_inputs],
-                        )
-                    if seconds is None and stack < 0:
-                        output = rt.apply_must(predicate, *pull_inputs)
-                    else:
-                        output = _apply_limited(
-                            rt,
-                            (-1.0 if seconds is None else seconds, -1, stack),
-                            predicate,
-                            pull_inputs,
-                        )
-                    if captured is not None:
-                        output, text = output
-                        captured._append(str(text))
+                    pull_limits = (
+                        None
+                        if seconds is None and stack < 0
+                        else (-1.0 if seconds is None else seconds, -1, stack)
+                    )
+                    output = _controlled_run(
+                        rt,
+                        "metta_py_cursor_chunk",
+                        [handle, want],
+                        pull_limits,
+                        policy=policy,
+                    )
                     if len(output) < want:
                         drained = True
                     want = min(want * 2, _CHUNK_CAP)
@@ -844,22 +818,12 @@ def evaluate_status(
         inputs.append(
             [[name, _encode(value).to_wire()] for name, value in using.items()]
         )
-    modes = _SCOPED_EXECUTION.get()
-    captured = _CAPTURED_OUTPUT.get()
-    output = _controlled_run(
+    rows = _controlled_run(
         rt,
         predicate,
         inputs,
         _limits(timeout, inferences),
-        capture=captured is not None,
-        atomic="atomic" in modes,
-        speculative="speculative" in modes,
     )
-    if captured is not None:
-        rows, captured_text = output
-        captured._append(str(captured_text))
-    else:
-        rows = output
     return [
         (str(status), None if status == "empty" else _from_wire(wire))
         for status, wire in rows
@@ -874,11 +838,11 @@ def run_status(
     inferences: int | None,
 ) -> list[list[tuple[str, Atom | Undefined | None]]]:
     """One (status, answer) list per ! directive, in source order."""
-    groups = _apply_limited(
+    groups = _controlled_run(
         rt,
-        _limits(timeout, inferences) or (-1.0, -1, -1),
         "metta_py_run_status",
         [source, space],
+        _limits(timeout, inferences) or (-1.0, -1, -1),
     )
     return [
         [

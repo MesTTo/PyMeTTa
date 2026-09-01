@@ -22,6 +22,14 @@ Guarantees:
   - eager and prepared queries carry a scoped stack bound through the shared
     limited-call selector [tested:
     test_stack_limit_is_carried_to_the_limited_six_seam; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
+  - query guards inherit the same atomic and speculative execution policy as
+    term evaluation [tested:
+    test_every_public_execution_door_honours_speculative_policy;
+    commit=WORKTREE]
+  - a query count hint runs only when its match and guard are repeatable, so
+    list() cannot execute a guard write once for the hint and again for rows
+    [tested: test_a_guarded_query_length_hint_executes_its_write_once;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -34,7 +42,12 @@ from typing import Any
 
 from ._engine import Runtime
 from ._name_mapping import resolve_known_name
-from ._space_objects import _apply_limited, _column_names, _limits, guard_atom
+from ._space_objects import (
+    _column_names,
+    _limits,
+    _validate_limit,
+    guard_atom,
+)
 from .atoms import Atom, Expression, _to_atom
 from .results import Rows
 
@@ -81,6 +94,61 @@ def query_count(
     under: str | None = None,
 ) -> int:
     """Count one query wholly inside the engine."""
+    predicate = "metta_py_query_count"
+    if under is not None:
+        predicate = "metta_py_query_count_under"
+    output = _query_count_call(
+        rt,
+        space,
+        patterns,
+        where=where,
+        limit=limit,
+        timeout=timeout,
+        inferences=inferences,
+        predicate=predicate,
+        extra=[] if under is None else [under],
+    )
+    return int(output)
+
+
+def query_count_if_repeatable(
+    rt: Runtime,
+    space: str,
+    patterns: tuple[Any, ...],
+    *,
+    where: Any | None,
+    limit: int | None,
+    timeout: float | None,
+    inferences: int | None,
+) -> int | None:
+    """Count only when opening the row cursor cannot repeat an effect."""
+    output = _query_count_call(
+        rt,
+        space,
+        patterns,
+        where=where,
+        limit=limit,
+        timeout=timeout,
+        inferences=inferences,
+        predicate="metta_py_query_count_if_repeatable",
+        extra=[],
+    )
+    return int(output[0]) if output else None
+
+
+def _query_count_call(
+    rt: Runtime,
+    space: str,
+    patterns: tuple[Any, ...],
+    *,
+    where: Any | None,
+    limit: int | None,
+    timeout: float | None,
+    inferences: int | None,
+    predicate: str,
+    extra: list[Any],
+) -> Any:
+    """Encode the shared query-count wire once for both count policies."""
     _validate_limit(limit)
     atoms = [_to_atom(pattern) for pattern in patterns]
     guard = guard_atom(where)
@@ -91,26 +159,9 @@ def query_count(
         [] if guard is None else guard.to_wire(),
         columns,
         limit or 0,
+        *extra,
     ]
-    predicate = "metta_py_query_count"
-    if under is not None:
-        predicate = "metta_py_query_count_under"
-        inputs.append(under)
-    return int(_execute_query(rt, predicate, inputs, _limits(timeout, inferences)))
-
-
-def _validate_limit(limit: int | None) -> None:
-    if limit is None:
-        return
-    # The comparison below is what would otherwise report a wrong type, as
-    # "'<=' not supported between instances of 'str' and 'int'", which names
-    # neither the argument nor the call.
-    if isinstance(limit, bool) or not isinstance(limit, int):
-        msg = f"limit must be a positive int or None, got {limit!r}"
-        raise TypeError(msg)
-    if limit <= 0:
-        msg = f"limit must be positive, got {limit}"
-        raise ValueError(msg)
+    return _execute_query(rt, predicate, inputs, _limits(timeout, inferences))
 
 
 def _execute_query(
@@ -119,6 +170,8 @@ def _execute_query(
     inputs: list[Any],
     limits: tuple[float, int, int] | None,
 ) -> Any:
-    if limits is None:
-        return rt.apply_must(predicate, *inputs)
-    return _apply_limited(rt, limits, predicate, inputs)
+    # Imported at the call boundary because _space_execution owns the policy
+    # seam and imports the shared query objects during module initialization.
+    from ._space_execution import _controlled_run  # noqa: PLC0415
+
+    return _controlled_run(rt, predicate, inputs, limits)
