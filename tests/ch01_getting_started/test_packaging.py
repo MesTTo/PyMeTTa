@@ -313,7 +313,12 @@ def test_integrations_group_is_left_to_third_parties():  # noqa: D103  -- pytest
     assert manifest["tool"]["setuptools"]["dynamic"]["version"] == {
         "attr": "metta._version.__version__"
     }
-    assert __version__ == "0.2.0"
+    # The SHAPE, not the number. The assertion above is the real contract --
+    # the manifest reads the version from metta._version rather than carrying
+    # its own copy -- and pinning today's literal beside it tests nothing
+    # except that somebody edited two files instead of one, which is the
+    # chore the dynamic declaration exists to remove.
+    assert re.fullmatch(r"\d+\.\d+\.\d+([abrc]\w*)?", __version__), __version__
 
 
 def test_every_runtime_resource_reaches_the_source_archive(repo_root):
