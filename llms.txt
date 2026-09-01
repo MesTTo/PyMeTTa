@@ -186,6 +186,44 @@ do. `metta.foreign` is the other direction: implement `Matcher`/`Adder`/
 `Remover` and register any backend as a space. `metta.remote` puts one across
 a process boundary, `metta.tables` derives one from a table.
 
+## The three axes of integration
+
+It is a KERNEL because the point is what plugs into it, and a thing you want
+to use lands on one of three axes rather than needing a fork.
+
+**Lower it** — host code BECOMES equations: `@m.define` compiles a Python body
+into MeTTa the engine reads, specialises and matches on, and a translator rule
+adds syntax that costs nothing at run time.
+
+**Extend it** — the engine CALLS your code: `m.op`, `m.register_prolog`,
+`m.register_foreign_library` and a reader token class each make a host
+callable or literal into an ordinary MeTTa one, priced 0.02 to 3.87
+microseconds by how far the value travels.
+
+**Back it** — the atoms LIVE elsewhere: a space is an interface, so SQLite,
+DuckDB, NetworkX, a live Python object, another process or a MORK store can
+BE a space, and a query against one joins with a native one.
+
+The third is the one people underestimate. A table-backed space is one
+declaration, not a wrapper:
+
+```python
+tables.declare(m, "&crm", "(bridge (edge $a $b) (row edges (a $a) (b $b)))")
+provider = TableBridge.from_context(m, "&crm", sqlite3.connect(":memory:"))
+m._register_space(provider, "&crm")
+```
+
+Every provider operation derives from that one declaration, both directions:
+a match becomes a WHERE, a repeated variable becomes `WHERE a = b`, `take`
+pushes down a LIMIT, an add becomes an INSERT, and the declaration is itself
+knowledge a program can query. `metta.foreign` is the hand-written form of
+the same seam, `metta.remote` puts a space in another process, and
+`metta.spaces.view` presents a live Python object as one.
+
+`extensions/python/examples/language-feature-examples/` is 219 runnable
+programs, one per MeTTa example, gated to agree with the MeTTa they mirror.
+They are the reference for idiomatic code on this surface.
+
 ## Types, and checking them
 
 ```python
