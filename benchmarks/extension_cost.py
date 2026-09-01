@@ -32,6 +32,10 @@ Guarantees:
   - raw operation measurements select the reflected transport kind without a
     boolean registration pair [tested: test_extension_cost_rows_are_marginal;
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
+  - the two @define rows keep Python protocol dispatch separate from an
+    annotation-proved native operator: 28.00 versus 3.00 inferences per call
+    [measured: command=python -m benchmarks.extension_cost; fixture=3000 calls,
+    min-of-3, C reader and C extension enabled; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
