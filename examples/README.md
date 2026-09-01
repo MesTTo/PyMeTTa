@@ -72,6 +72,7 @@ own.
 | [`reasoning/pln_uncertain_reasoning.py`](reasoning/pln_uncertain_reasoning.py) | the engine's PLN library driven from Python |
 | [`reasoning/custom_matchers.py`](reasoning/custom_matchers.py) | grounded values with their own matching logic inside unify |
 | [`reasoning/literature_discovery.py`](reasoning/literature_discovery.py) | an embedding decides what unifies, the engine decides what follows, and the answer carries its sources |
+| [`reasoning/neurosymbolic_addition.py`](reasoning/neurosymbolic_addition.py) | a predictive-coding network perceives, a symbolic constraint sharpens what it saw |
 
 ## Live systems
 
