@@ -13,7 +13,7 @@ Guarantees:
   - a for statement materializes every ordinary source through Python's
     iterator protocol [tested:
     test_for_statement_uses_python_iteration_for_every_grounded_iterable;
-    commit=WORKTREE]
+    commit=cf1963fa03f91c1d9721636cb6f05c6cfc362819]
 Open Obligations:
   To Do: None
   Hacks: None

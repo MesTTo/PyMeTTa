@@ -25,7 +25,7 @@ Guarantees:
   - compiled for statements iterate every Python iterable with the same
     element count as their twin [tested:
     test_for_statement_uses_python_iteration_for_every_grounded_iterable;
-    commit=WORKTREE]
+    commit=cf1963fa03f91c1d9721636cb6f05c6cfc362819]
 Owns:
   - test_define_from_two_threads_is_serialized joins both definition workers
     before examining their equations [tested test_define_from_two_threads_is_serialized]
