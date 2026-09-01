@@ -16,11 +16,12 @@ Guarantees:
     test_atomic_run_commits_or_rolls_back_whole,
     test_speculative_run_answers_and_discards,
     test_every_public_execution_door_honours_speculative_policy,
+    test_derivation_speculation_fences_the_engine_global_self,
     test_lazy_capture_collects_held_engine_output,
     test_lazy_atomic_rolls_back_after_a_late_cursor_failure,
     test_speculative_lazy_execution_preserves_every_answer,
     test_a_guarded_query_length_hint_executes_its_write_once;
-    commit=1262dd20ada9d5c799d9bdc4bdf5d2b859ca7a98]
+    commit=WORKTREE]
   - streaming comparison guards use explicit comparison heads [tested:
     test_stream_guard_and_per_pull_bounds; commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
 Open Obligations:
@@ -1188,6 +1189,9 @@ def test_every_public_execution_door_honours_speculative_policy(m):
             f"!{target(tag)}", names=[]
         ),
         "trace": lambda tag: m.trace(f"!{target(tag)}"),
+        "derivation": lambda tag: m.derivation(
+            f"(add-atom {m.name} (policy-mark {tag}))"
+        ),
         "match": lambda tag: m.match(
             S["policy-seed"](V.n), where=guard(tag)
         ).one(),
@@ -1210,6 +1214,26 @@ def test_every_public_execution_door_honours_speculative_policy(m):
         with m.speculative():
             execute(f"discarded-{name}")
         assert discarded not in m, f"{name} escaped speculative()"
+
+
+def test_derivation_speculation_fences_the_engine_global_self(metta):
+    """A diagnostic's meta-interpreter cannot escape the caller's scope."""
+    control = S["derivation-policy-mark"](S.control)
+    discarded = S["derivation-policy-mark"](S.discarded)
+    with metta._new_space() as child:
+        assert child.derivation(
+            "(add-atom &self (derivation-policy-mark control))"
+        )
+        assert control in metta
+        metta.remove(control)
+
+        with child.speculative():
+            assert child.derivation(
+                "(add-atom &self (derivation-policy-mark discarded))"
+            )
+
+        assert discarded not in child
+        assert discarded not in metta
 
 
 def test_an_answers_view_uses_policy_when_its_engine_work_runs(m):

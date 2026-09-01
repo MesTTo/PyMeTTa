@@ -35,6 +35,11 @@
 %     test_lazy_atomic_rolls_back_after_a_late_cursor_failure,
 %     test_speculative_lazy_execution_preserves_every_answer;
 %     commit=1262dd20ada9d5c799d9bdc4bdf5d2b859ca7a98].
+%   - derivation search is collected inside the same execution-policy goal,
+%     preserving every proof while speculative scopes discard meta-interpreter
+%     writes [tested: test_every_public_execution_door_honours_speculative_policy,
+%     test_derivation_speculation_fences_the_engine_global_self;
+%     commit=WORKTREE].
 %   - an empty direct eval answers NOTHING both for a guarded head with no
 %     matching clause and for a matched empty body, which is one answer where
 %     this door used to draw two: the guarded head was a not-reducible answer
@@ -983,6 +988,7 @@ metta_py_wrappable(metta_py_eval_count_under_if_repeatable).
 metta_py_wrappable(metta_py_eval_count_retaining).
 metta_py_wrappable(metta_py_tagged_count).
 metta_py_wrappable(metta_py_derivation).
+metta_py_wrappable(metta_py_derivations).
 metta_py_wrappable(metta_py_load).
 metta_py_wrappable(metta_py_fast_load_unit).
 %A save is linear in the space in all three of its parts, so all three are
@@ -4247,6 +4253,9 @@ metta_py_disassemble(Space, Name0, Text) :-
 % they execute. A finite depth emits a truncated node rather than claiming no
 % proof. Negative depth means unbounded; Python puts that search behind the
 % same time and inference guards as evaluation.
+
+metta_py_derivations(Space, Tagged, Depth, Trees) :-
+    findall(Tree, metta_py_derivation(Space, Tagged, Depth, Tree), Trees).
 
 metta_py_derivation(Space, Tagged, Depth, TreeTagged) :-
     metta_py_decode_shared(Tagged, Term, _),
