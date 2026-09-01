@@ -165,11 +165,11 @@ def test_the_minimal_version_matrix_installs_every_required_dependency():
     matrix environment from that day. The branch was never pushed, so no CI
     run reported it. This is the check that would have.
     """
-    matrix = _version_matrix_job()
-    install = next(
-        line for line in matrix.splitlines() if "janus_swi" in line and "pytest" in line
-    )
-    installed = set(install.split())
+    # The WHOLE job, not one line of it. The install was a single line when
+    # this was written and reading it that way made the check hostage to
+    # formatting: splitting it in two raised StopIteration before a single
+    # dependency was compared.
+    installed = set(_version_matrix_job().split())
     manifest = _manifest()["project"]
     # The `engine` extra is checked beside the required list, not instead of
     # it: janus-swi moved there so a plain install cannot fail inside its
@@ -181,6 +181,10 @@ def test_the_minimal_version_matrix_installs_every_required_dependency():
         # janus-swi is spelled with the underscore its distribution uses,
         # because --no-binary names the same package again.
         assert {name, name.replace("-", "_")} & installed, requirement
+    # And the package is INSTALLED rather than put on the path, because metta
+    # ships its pytest fixtures through the pytest11 entry point and an entry
+    # point exists only for an installed distribution.
+    assert "-e" in installed, _version_matrix_job()
 
 
 def test_the_pytest_lane_is_deterministic_under_load_protocol():
