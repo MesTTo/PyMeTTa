@@ -15,6 +15,10 @@ Guarantees:
   - &, |, ^, ~, <<, >> and // lower to the engine's exact integer family
     and agree with Python on every probed input [tested:
     test_bitwise_and_floor_division_agree_with_python; commit=51b792423cec5787614d1488c0793b8a50eaa6fc]
+  - compiled except arms preserve live exception class identity even when two
+    classes share every textual name [tested:
+    test_compiled_except_uses_exception_class_identity_not_bare_name;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -83,6 +87,40 @@ def test_raise_crosses_frames_and_matches_the_custom_lattice(m):
 
     assert list(catch_parent(-5)) == ["deep"]
     assert list(catch_parent(5)) == [6]
+
+
+def test_compiled_except_uses_exception_class_identity_not_bare_name(m):
+    """Two classes with identical metadata remain unrelated exception types."""
+    left = type("Timeout", (Exception,), {})
+    right = type("Timeout", (Exception,), {})
+    for kind in (left, right):
+        kind.__module__ = "shared.errors"
+        kind.__qualname__ = "Timeout"
+
+    left_error = left("left")
+    right_error = right("right")
+
+    @m.define
+    def raise_left_timeout():
+        raise left_error
+
+    @m.define
+    def raise_right_timeout():
+        raise right_error
+
+    @m.define
+    def classify_timeout(which):
+        try:
+            if which == 1:
+                return raise_left_timeout()
+            return raise_right_timeout()
+        except (left, KeyError):
+            return S.left
+        except Exception:
+            return S.right
+
+    assert list(classify_timeout(1)) == [S.left]
+    assert list(classify_timeout(2)) == [S.right]
 
 
 def test_try_else_runs_on_success_with_the_body_bindings(m):

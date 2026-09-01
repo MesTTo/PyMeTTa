@@ -21,6 +21,10 @@ Guarantees:
     registration batch, so public-surface generators see the complete runtime
     inventory [tested: test_internal_catalog_names_stay_exact_but_leave_public_outputs;
     commit=8779452fed89853c3f77c3469f7a6ec7b12e9efa]
+  - compiled exception dispatch compares live exception classes by identity
+    and inheritance [tested:
+    test_compiled_except_uses_exception_class_identity_not_bare_name;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -123,6 +127,11 @@ def _functor_class(
             return ZeroDivisionError
         return ArithmeticError
     if head == "python_error":
+        for part in child.children[1:]:
+            if isinstance(part, Grounded) and isinstance(
+                part.value, BaseException
+            ):
+                return part.value
         for part in child.children[1:]:
             if isinstance(part, Symbol):
                 return _named_exception(part.name)
@@ -278,6 +287,76 @@ def _railway(operation: Callable[..., Any]) -> Callable[..., Any]:
     return carried
 
 
+def _exception_targets(
+    classinfo: Any,
+) -> tuple[tuple[type[BaseException], ...], tuple[str, ...]]:
+    """Live classes plus legacy symbolic names from one except arm."""
+    classes: list[type[BaseException]] = []
+    names: list[str] = []
+
+    def collect(value: Any) -> None:
+        if isinstance(value, Expression):
+            for child in value.children:
+                collect(child)
+            return
+        candidate = value.value if isinstance(value, Grounded) else value
+        if isinstance(candidate, tuple):
+            for member in candidate:
+                collect(member)
+            return
+        if isinstance(candidate, type) and issubclass(candidate, BaseException):
+            classes.append(candidate)
+            return
+        name = (
+            candidate.name
+            if isinstance(candidate, Symbol)
+            else str(pythonic(candidate))
+        )
+        built = getattr(builtins, name, None)
+        if isinstance(built, type) and issubclass(built, BaseException):
+            classes.append(built)
+        else:
+            names.append(name)
+
+    collect(classinfo)
+    return tuple(classes), tuple(names)
+
+
+# Match one error against live Python classes and legacy symbol names.
+def _except_matches(error, classinfo):
+    classes, names = _exception_targets(classinfo)
+    kind = _error_class(error)
+    if isinstance(kind, BaseException):
+        return (bool(classes) and isinstance(kind, classes)) or any(
+            name in {cls.__name__ for cls in type(kind).__mro__}
+            for name in names
+        )
+    if isinstance(kind, type):
+        return (bool(classes) and issubclass(kind, classes)) or any(
+            name in {cls.__name__ for cls in kind.__mro__} for name in names
+        )
+    if isinstance(kind, str):
+        resolved = getattr(builtins, kind, None)
+        if isinstance(resolved, type) and issubclass(resolved, BaseException):
+            return (bool(classes) and issubclass(resolved, classes)) or any(
+                name in {cls.__name__ for cls in resolved.__mro__}
+                for name in names
+            )
+        return kind in names or any(
+            issubclass(Exception, candidate) for candidate in classes
+        ) or any(name in {"Exception", "BaseException"} for name in names)
+    # MeTTa's own thrown data classifies only as a generic error.
+    return any(issubclass(Exception, candidate) for candidate in classes) or any(
+        name in {"Exception", "BaseException"} for name in names
+    )
+
+
+# Return the original Python exception when an error carries one.
+def _error_payload(error):
+    instance = _error_instance(error)
+    return error if instance is None else instance
+
+
 def install(runtime) -> None:
     """Register the prelude on the shared engine, once per process."""
 
@@ -374,40 +453,6 @@ def install(runtime) -> None:
         pythonic(store)[pythonic(key)] = pythonic(value)
         return True
 
-    # `(except $err Kind)`: the mettafied class test, on NAMES. The arm's
-    # classinfo is the class's own name as a symbol (or an expression of
-    # them), so the equation is data; the lattice is walked by MRO NAMES,
-    # so a custom hierarchy matches exactly as Python's isinstance would,
-    # without the class object crossing.
-    def except_matches(error, classinfo):
-        names = classinfo
-        if isinstance(names, Expression):
-            wanted = [child.name for child in names.children if isinstance(child, Symbol)]
-        elif isinstance(names, Symbol):
-            wanted = [names.name]
-        else:
-            wanted = [str(pythonic(names))]
-        kind = _error_class(error)
-        lattice: tuple[str, ...]
-        if isinstance(kind, BaseException):
-            lattice = tuple(cls.__name__ for cls in type(kind).__mro__)
-        elif isinstance(kind, type):
-            lattice = tuple(cls.__name__ for cls in kind.__mro__)
-        elif isinstance(kind, str):
-            resolved = getattr(builtins, kind, None)
-            if isinstance(resolved, type) and issubclass(resolved, BaseException):
-                lattice = tuple(cls.__name__ for cls in resolved.__mro__)
-            else:
-                lattice = (kind, "Exception", "BaseException")
-        else:
-            # MeTTa's own thrown data classifies as an error, nothing more.
-            lattice = ("Exception", "BaseException")
-        return any(name in lattice for name in wanted)
-
-    def error_payload(error):
-        instance = _error_instance(error)
-        return error if instance is None else instance
-
     # register is typed as the identity it is, so the table has to say its
     # element type or a checker picks the first function's signature and
     # rejects the other eleven for not having it. A list rather than a tuple
@@ -430,8 +475,8 @@ def install(runtime) -> None:
         (_railway(py_slice), "py-slice", None),
         (py_global_read, "py-global-read", None),
         (py_global_write, "py-global-write", None),
-        (except_matches, "except", None),
-        (error_payload, "error-payload", None),
+        (_except_matches, "except", None),
+        (_error_payload, "error-payload", None),
     ]
     for fn, name, arities in prelude:
         _ops_module.register(

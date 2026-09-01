@@ -30,6 +30,10 @@ Guarantees:
     including message and generator continuations [tested:
     test_compiled_assert_lowers_to_the_error_algebra;
     commit=6a695598aaf5951530cb8efe9afe46977afe541c]
+  - except arms retain the live exception class objects resolved at compile
+    time rather than reducing identity to a class name [tested:
+    test_compiled_except_uses_exception_class_identity_not_bare_name;
+    commit=WORKTREE]
   - ``del space[pattern]`` removes every snapshotted match while annotated
     space ``-=`` removes one, with missing removals kept loud [tested:
     test_compiled_removal_statements_preserve_one_many_missing_and_target_scope;
@@ -633,20 +637,15 @@ class StatementCompilerMixin(CompilerContext):
 
     def _except_classinfo(self, node: ast.expr) -> Atom:
         """The exception kind an except arm names, METTAFIED: the class's
-        own name as a symbol, or an expression of them for a tuple arm, so
-        the equation is data with no opaque type in it. The arm's spelling
-        is validated against a live class at compile time, and the runtime
-        match walks the instance's own MRO names, so custom hierarchies
-        keep Python's lattice.
+        live object, or a grounded tuple of live objects for a tuple arm. The
+        arm's spelling is validated at compile time and the runtime can use
+        Python's identity-preserving isinstance lattice directly.
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         if isinstance(node, ast.Tuple):
-            return Expression(
-                [
-                    Symbol(self._except_class_value(element).__name__)
-                    for element in node.elts
-                ]
+            return Grounded(
+                tuple(self._except_class_value(element) for element in node.elts)
             )
-        return Symbol(self._except_class_value(node).__name__)
+        return Grounded(self._except_class_value(node))
 
     def _except_class_value(self, node: ast.expr) -> type:
         value: object = None
