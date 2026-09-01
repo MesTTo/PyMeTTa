@@ -15,6 +15,10 @@ Guarantees:
     test_a_context_that_declares_events_serves_them_and_one_that_does_not_refuses]
   - providers may decline one concrete request through should_run before its
     operation executes [tested test_provider_can_decline_one_request]
+  - a BulkAdder is only a transport optimisation: every atom passes the same
+    add policy before the batch method runs, and an empty batch is a no-op
+    [tested: test_a_batch_preflights_every_add_policy_before_one_bulk_write;
+    commit=WORKTREE]
   - provider registration changes Python state only after the engine accepts
     the same change [tested test_provider_registration_is_transactional]
   - a provider's own refusal sentence reaches the caller, and "implements it
@@ -902,9 +906,12 @@ def foreign_plan(space: str, pattern_wires: list):
 
 
 def foreign_add_many(space: str, atom_wires: list) -> bool:
+    if not atom_wires:
+        return True
     provider = _provider(space)
     atoms = [_atom_from_wire(wire) for wire in atom_wires]
-    _require_provider(provider, space, "add", "add-atom", atom=atoms[0])
+    for atom in atoms:
+        _require_provider(provider, space, "add", "add-atom", atom=atom)
     cast(BulkAdder, provider).add_many(atoms)
     return True
 
