@@ -125,11 +125,11 @@ def twin(m):
 #: the Counter grain for -=: a new engine head shifts every twin's load
 #: structure, and the removal doors changed meaning where a twin spells one
 #: [measured 2026-09-01: min-of-3 serial fresh processes; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+#: extensions/python/tools/twin_coverage.py --repin; commit=c6a40460b1db341198a6150e3600f502831a6e83].
 #: RE-PINNED 2026-09-01, 1809 to 1731 (-78), the subtract-atom primitive and
 #: Counter's grain for -=: a new engine head shifts every twin's load
 #: structure, the removal doors changed meaning where a twin spells one, and
 #: the quad twin stopped being a different program [measured 2026-09-01: min-
 #: of-3 serial fresh processes; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+#: extensions/python/tools/twin_coverage.py --repin; commit=c6a40460b1db341198a6150e3600f502831a6e83].
 BUDGET = 1731

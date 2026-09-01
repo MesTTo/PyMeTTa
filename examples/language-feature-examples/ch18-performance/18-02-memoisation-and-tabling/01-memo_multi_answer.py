@@ -114,5 +114,5 @@ def twin(m):
 #: structure, the removal doors changed meaning where a twin spells one, and
 #: the quad twin stopped being a different program [measured 2026-09-01: min-
 #: of-3 serial fresh processes; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+#: extensions/python/tools/twin_coverage.py --repin; commit=c6a40460b1db341198a6150e3600f502831a6e83].
 BUDGET = 34469

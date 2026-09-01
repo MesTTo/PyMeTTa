@@ -11,7 +11,7 @@ Guarantees:
   - `-=` subtracts ONE occurrence per operand element, Counter's grain,
     so it inverts `+=`; `del space[pattern]` is the drain and remove()
     the door that reports absence [tested:
-    test_isub_subtracts_one_occurrence_and_inverts_iadd; commit=WORKTREE]
+    test_isub_subtracts_one_occurrence_and_inverts_iadd; commit=c6a40460b1db341198a6150e3600f502831a6e83]
   - eval's variadic face answers one group per term, run()'s grouping,
     with one bind scope over the whole batch [tested:
     test_eval_batches_with_one_bind_scope; commit=51b792423cec5787614d1488c0793b8a50eaa6fc]
