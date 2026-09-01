@@ -55,6 +55,10 @@ Guarantees:
     [tested:
     test_a_bare_thread_blocking_in_the_engine_does_not_freeze_other_calls;
     commit=6ffd7e3bbfc653f10817c48f30cd56572960e43f]
+  - booted() publishes only after the shim, Python prelude, and contract
+    ontology all finish; a failed prelude or contract install retries whole
+    on the next construction [tested:
+    test_a_failed_python_runtime_install_retries_whole; commit=WORKTREE]
 Guarded by:
   - _LOCK serializes runtime creation and every call made on the HOME engine.
     A thread holding its own attached engine takes no process lock: it shares
@@ -602,7 +606,6 @@ class Runtime:
             "metta_host_set_silent(S)",
             {"S": "false" if self.verbose else "true"},
         )
-        _SHIM_LOADED.set()
         # The runtime-backed prelude compiled Python leans on; registered
         # with the shim so the two arrive together.
         prelude = importlib.import_module(f"{__package__}._prelude")
@@ -613,6 +616,10 @@ class Runtime:
         contract = importlib.import_module(f"{__package__}._contract")
         contract.install(self)
         logger.debug("installed the contract ontology")
+        # This is a completion flag, not a progress flag. A failed prelude or
+        # contract install leaves it clear so the next Runtime retries the
+        # whole Python layer instead of publishing a half-booted engine.
+        _SHIM_LOADED.set()
 
     # -------------------------------------------------------------------- calls
 

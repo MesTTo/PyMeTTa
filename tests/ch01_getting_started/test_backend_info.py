@@ -7,6 +7,9 @@ Guarantees:
     identifier is still classified by its live Janus attachment [tested:
     test_a_recycled_thread_identifier_never_selects_the_janus_fast_path;
     commit=af5821f5ffb7ce186e516706f003d02f5c1d3b4a]
+  - booted() becomes true only after both the Python prelude and contract
+    ontology finish, and either install retries after a one-off failure
+    [tested: test_a_failed_python_runtime_install_retries_whole; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -21,9 +24,65 @@ import threading
 from pathlib import Path
 
 import janus_swi
+import pytest
 
 import metta
 from metta.parallel import engine_thread
+
+
+@pytest.mark.parametrize("module_name", ["_prelude", "_contract"])
+def test_a_failed_python_runtime_install_retries_whole(repo_root, module_name):
+    """A completion flag cannot publish a prelude or ontology torn in half."""
+    program = f"""
+import metta
+from metta import _contract, _engine, _prelude, parse
+
+module = {module_name}
+real_install = module.install
+calls = []
+
+def fail_once(runtime):
+    calls.append(1)
+    if len(calls) == 1:
+        raise RuntimeError("one-off {{}} install failure".format(module.__name__))
+    return real_install(runtime)
+
+module.install = fail_once
+try:
+    metta.MeTTa(metta_path=".")
+except RuntimeError as failure:
+    assert "one-off" in str(failure)
+else:
+    raise AssertionError("the injected install failure did not leave boot")
+
+assert not _engine.booted()
+assert _engine._STATE.runtime is None
+
+runtime = metta.MeTTa(metta_path=".")
+assert calls == [1, 1]
+assert _engine.booted()
+assert runtime.run('!(py-len "abcd")') == [[4]]
+assert runtime.runtime.do(
+    "metta_py_contains", "&metta", parse("(: Declaration Type)").to_wire()
+)
+assert runtime.runtime.do(
+    "metta_py_contains", "&metta", parse("(: nondet Determinism)").to_wire()
+)
+print("PYTHON-RUNTIME-INSTALL-RETRIED")
+"""
+    environment = os.environ | {
+        "PYTHONPATH": str(repo_root / "extensions" / "python")
+    }
+    completed = subprocess.run(
+        [sys.executable, "-c", program],
+        cwd=repo_root,
+        env=environment,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert completed.returncode == 0, completed.stdout + completed.stderr
+    assert completed.stdout.strip() == "PYTHON-RUNTIME-INSTALL-RETRIED"
 
 
 def test_backend_info_reports_versions_and_consulted_tree():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
