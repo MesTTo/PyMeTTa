@@ -32,9 +32,9 @@ Guarantees:
   - a worker exception is raised to the caller rather than swallowed: one
     plainly, several together as one ExceptionGroup in input order
     [tested test_map_raises_every_failure_in_input_order]
-  - branches really run at once [measured 2026-08-15: 1.94x, 3.90x and 7.26x
-    at 2, 4 and 8 workers on a 12ms MeTTa evaluation, ai-tmp/pool/lock_check.py;
-    tested test_pool_runs_work_concurrently]
+  - branches really run at once [tested:
+    extensions/python/tests/ch14_seeing_your_program/test_engine_pool.py::test_pool_runs_work_concurrently;
+    commit=39092863ae34184a9f955f185ff57c1ff177ec40]
   - every worker releases its engine on close, including after an exception
     [tested test_close_releases_every_engine]
   - every Python and engine-backed spawn door snapshots ContextVars at launch,

@@ -1788,7 +1788,8 @@ def decode(atom: Any) -> Any:
 # it, which stores every name twice. Dropping the split costs the LRU
 # reordering, because reordering on a hit would have to take the lock:
 # measured at the old 256, FIFO and LRU are within half a point of each other
-# on all three workload shapes [ai-code-organisation-and-fixes.md BA3], and at
+# on all three workload shapes [tested:
+# extensions/python/tests/ch03_atoms_and_expressions/test_atoms.py::test_the_intern_cache_evicts_in_constant_time], and at
 # 65,536 an ordinary vocabulary never reaches an eviction at all.
 #
 # Eviction has to be O(1) in the bound, and `del cache[next(iter(cache))]` is
@@ -1817,7 +1818,8 @@ def decode(atom: Any) -> Any:
 # FIFO rather than LRU: reordering on a hit would have to take the lock, and
 # the hit is what has to stay lock-free. Measured at the old 256-entry bound,
 # FIFO and LRU are within half a point of each other on all three workload
-# shapes [ai-code-organisation-and-fixes.md BA3], and at 65,536 an ordinary
+# shapes [tested:
+# extensions/python/tests/ch03_atoms_and_expressions/test_atoms.py::test_the_intern_cache_evicts_in_constant_time], and at 65,536 an ordinary
 # vocabulary never reaches an eviction at all.
 #
 # 65,536 rather than 512: the bound is what a peer can make this process hold,

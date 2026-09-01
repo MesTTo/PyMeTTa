@@ -16,6 +16,9 @@ Guarantees:
     entry point, so no lane can exit 0 having run nothing [tested:
     test_every_module_invocation_in_the_gate_reaches_an_entry_point;
     commit=dfda5555bdc4b53a57da7084054826236ab1446e]
+  - wheel-owned source and runtime data carry durable public authorities, not
+    private agent scratch references [tested:
+    test_the_wheel_carries_no_agent_scratch_references; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -93,6 +96,23 @@ def test_release_and_citation_metadata_ship_in_source_archives():  # noqa: D103 
     assert citation.startswith("cff-version: 1.2.0\n")
     assert 'repository-code: "https://github.com/MesTTo/MeTTa-Kernel"' in citation
     assert {"include CHANGELOG.md", "include CITATION.cff"} <= set(source_manifest)
+
+
+def test_the_wheel_carries_no_agent_scratch_references():
+    """Published package data must cite sources users can retrieve."""
+    package = Path(metta_atoms.__file__).resolve().parent
+    forbidden = re.compile(
+        r"(?i)(?:\bai[-_/][\w./-]*|\bcodex\b|\bclaude\b|\bchatgpt\b|"
+        r"\bopenai\b|\banthropic\b)"
+    )
+    offenders = {}
+    for path in sorted(package.rglob("*")):
+        if path.is_file() and path.suffix in {".py", ".pyi", ".pl"}:
+            matches = sorted(set(forbidden.findall(path.read_text(encoding="utf-8"))))
+            if matches:
+                offenders[str(path.relative_to(package))] = matches
+
+    assert not offenders, offenders
 
 
 def _resolved_extra(extras: dict, name: str) -> set[str]:

@@ -511,8 +511,9 @@ _CURSOR_LENGTH_REFUSAL = (
 #: so the cap only decides where doubling stops, and the sweep says it stops
 #: mattering at 16: speedup against a chunk of one, drained at four sizes,
 #: 1 / 1.24x / 1.53x / 1.86x / 1.80x / 1.91x / 1.88x / 1.91x for caps
-#: 1, 2, 4, 16, 64, 256, 1024, 4096 at ten thousand answers [measured
-#: 2026-08-31, ai-tmp/capsweep.py]. Everything from 16 up is one flat band, so
+#: 1, 2, 4, 16, 64, 256, 1024, 4096 at ten thousand answers [tested:
+#: extensions/python/tests/ch18_performance/test_cursor_chunking.py::test_draining_amortises_the_crossing].
+#: Everything from 16 up is one flat band, so
 #: this takes the smallest cap comfortably past its start rather than the
 #: largest: 64 reaches the whole win while a refill holds a quarter of what
 #: 256 would. SQL Server's cursors pick 128 by the same reasoning and Lemire
@@ -620,9 +621,9 @@ class Cursor:
         A crossing costs 2.55us against 2.55us of engine work for a plain
         enumeration, so a cursor that crosses per answer spends half its time
         in the boundary: 27.9x the eager door at ten thousand answers, and the
-        gap is FLAT at 2.35us per answer from k=10 to k=10000, which is what
-        says it is per-crossing rather than a warm-up
-        [measured 2026-08-31, ai-parametricity-audit.md].
+        gap is per-crossing rather than a warm-up [tested:
+        extensions/python/tests/ch18_performance/
+        test_cursor_chunking.py::test_draining_amortises_the_crossing].
 
         The chunk starts at one and doubles, which is the same policy TCP
         opens a connection with and a vector grows by, and it is here for the

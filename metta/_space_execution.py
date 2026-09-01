@@ -192,10 +192,8 @@ def _direct_run(rt: Runtime, predicate: str, inputs: list[Any]) -> Any:
 
     Both shim entries are already shaped for janus's functional convention --
     ground inputs then one output -- so the goal string this used to build was
-    re-parsed by janus on every call for no gain. A census of ordinary work
-    (200 adds, 200 evals, 100 matches, 50 runs) found 900 of its 950 engine
-    calls already on this door and all 50 stragglers here [measured
-    2026-08-29, ai-tmp/perf-eval/door_census.py].
+    re-parsed by janus on every call for no gain. The functional signatures are
+    pinned by metta_py_run/3 and metta_py_run_using/4 in shim.pl.
     """
     return rt.apply_must(predicate, *inputs)
 

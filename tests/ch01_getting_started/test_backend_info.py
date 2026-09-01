@@ -2,6 +2,11 @@
 from returned data, in any suite order, and never starts the MeTTa
 runtime just to answer; a subprocess pins the no-start guarantee in a
 fresh interpreter where it is deterministic.
+Guarantees:
+  - a bare thread whose recycled identifier equals the runtime's boot-thread
+    identifier is still classified by its live Janus attachment [tested:
+    test_a_recycled_thread_identifier_never_selects_the_janus_fast_path;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -101,3 +106,37 @@ def test_engine_thread_owns_only_its_attachment(metta):  # noqa: D103  -- pytest
     with engine_thread():
         assert janus_swi.engine() == home_engine
     assert janus_swi.engine() == home_engine
+
+
+def test_a_recycled_thread_identifier_never_selects_the_janus_fast_path():
+    """A stale numeric identifier cannot stand in for an attached engine."""
+    program = (
+        "import threading\n"
+        "import metta\n"
+        "context = metta.MeTTa()\n"
+        "runtime = context.runtime\n"
+        "failure = []\n"
+        "def cross():\n"
+        "    runtime._home_thread = threading.get_ident()\n"
+        "    try:\n"
+        "        assert runtime._janus.engine() == -1\n"
+        "        assert context.eval('( + 1 2 )') == [3]\n"
+        "    except BaseException as exc:\n"
+        "        failure.append(exc)\n"
+        "worker = threading.Thread(target=cross)\n"
+        "worker.start()\n"
+        "worker.join()\n"
+        "assert not failure, failure\n"
+        "print('RECYCLED-THREAD-ID-SAFE')\n"
+    )
+    env = dict(os.environ)
+    env["PYTHONPATH"] = os.pathsep.join(sys.path)
+    done = subprocess.run(
+        [sys.executable, "-c", program],
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+
+    assert done.returncode == 0, (done.returncode, done.stdout, done.stderr)
+    assert "RECYCLED-THREAD-ID-SAFE" in done.stdout

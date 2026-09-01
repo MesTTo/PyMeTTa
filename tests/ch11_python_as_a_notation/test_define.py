@@ -18,6 +18,10 @@ Guarantees:
   - implicit definition names apply the underscore-to-hyphen map and explicit
     name= remains exact [tested:
     test_the_implicit_name_is_mapped_and_name_is_exact; commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
+  - the public twin oracle preserves grounded scalar species while comparing
+    engine and Python answers [tested:
+    test_check_twin_distinguishes_integer_float_and_boolean_answers;
+    commit=WORKTREE]
 Owns:
   - test_define_from_two_threads_is_serialized joins both definition workers
     before examining their equations [tested test_define_from_two_threads_is_serialized]
@@ -962,6 +966,31 @@ def test_a_prolog_twin_that_disagrees_is_caught(m, tmp_path):  # noqa: D103  -- 
 
     with pytest.raises(AssertionError, match="the engine answered"):
         testing.check_twin(dt_sum, [(1, 2)])
+
+
+def test_check_twin_distinguishes_integer_float_and_boolean_answers(m):
+    """Python's equal numeric scalars remain different MeTTa groundings."""
+    from metta import Grounded, testing
+
+    @m.define
+    def dt_reciprocal(value):
+        return value**-1
+
+    with pytest.raises(AssertionError, match="the engine answered"):
+        testing.check_twin(dt_reciprocal, [(1,)])
+
+    class DeliberatelyWrongScalarTwin:
+        name = "dt-bool-species"
+
+        def __call__(self):
+            return [Grounded(1)]
+
+        @staticmethod
+        def py():
+            return True
+
+    with pytest.raises(AssertionError, match="the engine answered"):
+        testing.check_twin(DeliberatelyWrongScalarTwin(), [()])
 
 
 def test_a_prolog_file_that_does_not_register_the_name_is_refused(m, fast_file):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract

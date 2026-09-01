@@ -41,6 +41,10 @@ Guarantees:
     test_an_enumeration_refuses_answers,
     test_an_enumeration_refuses_answers_through_the_term_door_too;
     commit=3b82643dd18ad5153bca71fa0c4bd09d59b0b7d0]
+  - the functional Janus door is selected by live thread identity, never a
+    recyclable numeric identifier [tested:
+    test_a_recycled_thread_identifier_never_selects_the_janus_fast_path;
+    commit=WORKTREE]
 Guarded by:
   - _LOCK serializes runtime creation and every call made on the HOME engine.
     A thread holding its own attached engine takes no process lock: it shares
@@ -140,13 +144,11 @@ class _CallLocks(threading.local):
     _LOCK serialises use of the home engine. A thread that attached its own
     engine through engine_thread() shares that engine with nobody, so
     serialising it against the home engine protects nothing and costs all the
-    parallelism [measured 2026-08-15: 1.94x, 3.90x and 7.26x at 2, 4 and 8
-    threads, ai-tmp/pool/janus_par.py].
+    parallelism [tested:
+    extensions/python/tests/ch14_seeing_your_program/test_engine_pool.py::test_pool_runs_work_concurrently].
 
-    The choice is made when the engine is attached rather than on every call.
-    Deciding per call cost 72ns against the plain lock's 43ns and, worse, put
-    a janus.engine() crossing on every call a pool worker makes; one
-    thread-local read is 59ns [measured 2026-08-15, ai-tmp/pool/lockcost.py].
+    The choice is made when the engine is attached rather than putting a
+    janus.engine() crossing on every call a pool worker makes.
 
     What makes running free safe is that MeTTa's shared structures already
     carry their own Prolog mutexes, because hyperpose workers have always
@@ -510,7 +512,7 @@ class Runtime:
             # therefore runs on the consulting thread and on any thread
             # holding an attached engine; every other thread falls back to
             # the relational form with identical semantics.
-            self._home_thread = threading.get_ident()
+            self._home_thread = threading.current_thread()
             self._consult_shim()
             # Without a heartbeat, Python never processes a SIGINT while a
             # goal runs: probed, a Ctrl-C on query_once(repeat,fail) stayed
@@ -520,7 +522,8 @@ class Runtime:
             # and an interleaved A/B on a pure 3M-step loop measured parity
             # with no heartbeat at all; 10,000 cost ~2% on that loop.
             # config.heartbeat_interval exposes that latency/cost tradeoff
-            # (probes in ai-tmp/janus-probes/11_interrupt_heartbeat).
+            # [tested: extensions/python/tests/ch10_errors_and_refusals/
+            # test_interrupt.py::test_sigint_interrupts_a_running_evaluation].
             self._janus.heartbeat(config.heartbeat_interval)
 
     # ------------------------------------------------------------------ startup
@@ -646,19 +649,17 @@ class Runtime:
         """The lock this thread's engine calls take, or None when this thread
         must fall back to the relational form.
 
-        This replaces the older _fast_ok() and answers both questions from one
-        threading.get_ident(), because the two have the same answer: a thread
+        This replaces the older _fast_ok() and answers both questions from the
+        live Thread object, because the two have the same answer: a thread
         may use the functional convention exactly when it holds an engine of
         its own, and a thread holding its own engine is exactly the thread
         that needs no process lock. Folding them keeps the home path at the
-        cost it had before per-engine locking existed, which matters: on the
-        space-name benchmark, one extra thread-local read per call measured
-        +15.5M instructions, +0.61% [measured 2026-08-15, ai-tmp/pool/ab_lock.py].
+        cost it had before per-engine locking existed.
 
         Bare foreign threads abort the process on apply_once and cmd
         (measured), which is why they answer None rather than a lock.
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
-        if threading.get_ident() == self._home_thread:
+        if threading.current_thread() is self._home_thread:
             return _LOCK
         if _CALL_LOCKS.lock is _NULL_LOCK:
             return _NULL_LOCK
@@ -790,10 +791,9 @@ class Runtime:
         that next call is janus's own PrologError.__str__, which runs
         message_to_string/2 to render the very error being classified: the
         classification then died on the pending error and the caller received
-        a raw janus PrologError instead of its own exception [measured
-        2026-08-29 at HEAD, ai-tmp/perf-eval/probe_apply_door_error.py:
-        space.eval leaked janus_swi.janus.PrologError where space.run raised
-        MettaError].
+        a raw janus PrologError instead of its own exception [tested:
+        extensions/python/tests/ch10_errors_and_refusals/
+        test_builtin_inputs.py::test_a_raising_builtin_names_the_metta_operation_not_the_host_predicate].
 
         One sacrificial goal takes the pending error so whatever follows sees
         a clean engine. Only ever run once a call has already failed, so the

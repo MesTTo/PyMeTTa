@@ -19,6 +19,9 @@ Guarantees:
     use the minimum of three samples [tested:
     test_two_answers_cross_the_wire_without_the_third_being_computed;
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
+  - an omitted wire-space name is authorized and executed against the same
+    served space [tested: test_an_omitted_remote_space_cannot_cross_the_authorization_boundary;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -273,6 +276,31 @@ def test_authorize_can_serve_a_space_read_only(metta):  # noqa: D103  -- pytest 
         served.drop()
 
     assert seen == [("atoms", name), ("add", name), ("atoms", name)]
+
+
+def test_an_omitted_remote_space_cannot_cross_the_authorization_boundary(metta):
+    """Authorization and execution resolve one canonical default space."""
+    served = metta._new_space()
+    default = metta._at("&self")
+    atom = S.remote_default_authority(S.served)
+    seen = []
+
+    def only_served(request):
+        seen.append((request.operation, request.space))
+        return request.space == served.name
+
+    try:
+        with remote.serve(served, authorize=only_served) as server:
+            reply = remote.connect(server.url)("add", {"atom": atom.to_wire()})
+
+        assert reply == {"added": True}
+        assert seen == [("add", served.name)]
+        assert atom in served
+        assert atom not in default
+    finally:
+        served.remove(atom)
+        default.remove(atom)
+        served.drop()
 
 
 @pytest.mark.parametrize(

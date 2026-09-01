@@ -13,6 +13,9 @@ Guarantees:
   - operation calls under compiled loop bodies are recognized from the
     registered operation object rather than from spelling [tested:
     test_an_operation_call_inside_a_compiled_loop_is_linted; commit=acb40f1912f131ae088083d1af29b4b283019bea]
+  - emitted authorities retain every adopted audit ID and point at the
+    immutable public lint catalogue [tested:
+    test_lint_authorities_are_durable_public_references; commit=WORKTREE]
 Guarded by:
   - ``_LOCK`` serializes the process registries and their reflected facts
 """
@@ -38,43 +41,22 @@ from .atoms import Atom, Expression, Grounded, Symbol
 
 # These are the adopted authorities, not implementation folklore. Keeping the
 # row IDs with every emitted kind lets a finding answer which ruling it applies.
-_AUTHORITIES: dict[str, str] = {
-    "operation-crossing-in-loop": (
-        "P14-14-02/GG-004; ai-python-conventions.md:350-362,2169-2171; "
-        "ai-python-first-revamp-discussion.md:7184-7190"
-    ),
-    "first-letter-role-convention": (
-        "P14-39-05; ai-python-conventions.md:104-108,564-584; "
-        "ai-python-first-revamp-discussion.md:3687-3701"
-    ),
-    "interpreter-equation-shadow": (
-        "P14-40-07/STYLE-150/GG-008; ai-python-conventions.md:1800-1803; "
-        "ai-python-first-revamp-discussion.md:3769-3774,7195-7198"
-    ),
-    "module-level-defined-call": (
-        "P14-40-09; ai-python-conventions.md:2193-2194; "
-        "ai-python-first-revamp-discussion.md:3779-3782"
-    ),
-    "effectful-operation-at-construction": (
-        "GG-013; ai-python-first-revamp-discussion.md:7209-7212"
-    ),
-    "operation-staged-in-law": (
-        "GG-014; ai-python-first-revamp-discussion.md:7212-7215"
-    ),
-    "unordered-answers-zip": (
-        "GG4-006/GG5-007/L9Z2-08; "
-        "ai-python-first-revamp-discussion.md:5738-5742,7501-7502,7588-7589"
-    ),
-    "unordered-answers-reversed": (
-        "L9Z2-09; ai-python-first-revamp-discussion.md:5738-5742"
-    ),
-    "sync-engine-call-in-async": (
-        "L9Z3-03; ai-python-first-revamp-discussion.md:5775-5779"
-    ),
-}
-_INTENT_AUTHORITY = (
-    "L9Z1-06; ai-python-first-revamp-discussion.md:5613-5618"
+_LINT_CATALOGUE = (
+    "https://github.com/MesTTo/MeTTa-Kernel/blob/"
+    "da5f3524fb671030928b8e1858580c0cd3a3a6a2/website/guide/run-query.md#lint-a-space"
 )
+_AUTHORITIES: dict[str, str] = {
+    "operation-crossing-in-loop": f"P14-14-02/GG-004; {_LINT_CATALOGUE}",
+    "first-letter-role-convention": f"P14-39-05; {_LINT_CATALOGUE}",
+    "interpreter-equation-shadow": f"P14-40-07/STYLE-150/GG-008; {_LINT_CATALOGUE}",
+    "module-level-defined-call": f"P14-40-09; {_LINT_CATALOGUE}",
+    "effectful-operation-at-construction": f"GG-013; {_LINT_CATALOGUE}",
+    "operation-staged-in-law": f"GG-014; {_LINT_CATALOGUE}",
+    "unordered-answers-zip": f"GG4-006/GG5-007/L9Z2-08; {_LINT_CATALOGUE}",
+    "unordered-answers-reversed": f"L9Z2-09; {_LINT_CATALOGUE}",
+    "sync-engine-call-in-async": f"L9Z3-03; {_LINT_CATALOGUE}",
+}
+_INTENT_AUTHORITY = f"L9Z1-06; {_LINT_CATALOGUE}"
 
 _DIRECTIVE = re.compile(r"#\s*metta:\s*ok\((?P<kind>[a-z0-9-]+)\)\s*$")
 _PACKAGE = Path(__file__).resolve().parent

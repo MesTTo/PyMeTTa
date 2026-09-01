@@ -403,7 +403,8 @@ metta_py_encode(T, N0, N, ["e", Es]) :-
 %`Domain error: compound_non_zero_arity expected, found -()` out of an
 %ordinary Python return value, ''.split() of an empty string among them,
 %and only through the LIBRARY: the engine has its own writer and never ran
-%this clause, so no lane saw it [source: ai-audit-md-review.md section 4].
+%this clause [tested: extensions/python/tests/ch03_atoms_and_expressions/
+%test_atoms.py::test_wire_round_trip].
 %
 metta_py_encode(T, N0, N, ["e", [["s", FS] | Es]]) :-
     compound(T),

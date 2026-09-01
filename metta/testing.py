@@ -25,6 +25,10 @@ Guarantees:
   - check_twin consumes a Defined call's eager answer list exactly once
     [tested: test_the_prolog_twin_is_checked_against_its_reference;
     commit=f88aa8be03cb64cb59d3307515ded8701f418321].
+  - check_twin compares encoded atoms, preserving integer, float, and boolean
+    grounded species [tested:
+    test_check_twin_distinguishes_integer_float_and_boolean_answers;
+    commit=WORKTREE]
   - minted-space conformance recognizes decoded Space handles in provider
     answers [tested: test_fabricated_space_identities_are_refused;
     commit=4e2398075da67bb2cbcc123a9fc1e078ecac6fbf]
@@ -915,16 +919,10 @@ def _same_atom(left, right) -> bool:
 def _comparable(value):
     """An engine answer and a twin answer in one shape.
 
-    A Grounded holds its Python value, an Expression and a Python sequence are both a
-    tuple of comparable parts, and everything else compares as itself.
+    Encoding is the public boundary's normalization: atoms stay atoms, Python
+    sequences become expressions, and scalar species stay distinct groundings.
     """
-    if isinstance(value, Grounded):
-        return _comparable(value.value)
-    if isinstance(value, Expression):
-        return tuple(_comparable(child) for child in value)
-    if isinstance(value, (list, tuple)):
-        return tuple(_comparable(item) for item in value)
-    return value
+    return _encode(value)
 
 
 def _twin_answers(defined, arguments) -> list:
