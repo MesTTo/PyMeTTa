@@ -47,6 +47,10 @@ Guarantees:
     limited, guarded, prepared, and cursor answer doors [tested:
     test_wide_query_projection_is_identical_through_every_answer_door;
     commit=d843bb6d17a525c36afd21cab077d63b34447535]
+  - ``Space |=`` treats every Atom subtype as one atom instead of iterating
+    its structural children [tested:
+    test_ior_merges_an_atom_without_iterating_expression_children;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -403,6 +407,16 @@ def test_ior_merges_a_space_equations_included(metta, m):  # noqa: D103  -- pyte
     # The equation crossed as an atom AND compiled on arrival.
     assert parse("(= (ior-double $x) (* 2 $x))") in m
     assert m.run("!(ior-double 21)") == [[42]]
+
+
+def test_ior_merges_an_atom_without_iterating_expression_children(m):
+    """An Atom is one fact even when its Python type is also a Sequence."""
+    atoms = (S.f(S.a, S.b), S.symbol, Grounded(object()), Expression())
+    for atom in atoms:
+        before = len(m)
+        m |= atom
+        assert len(m) == before + 1
+        assert m.atoms()[-1] == atom
 
 
 def test_removing_an_equation_from_a_named_space_stops_its_answers(metta):
