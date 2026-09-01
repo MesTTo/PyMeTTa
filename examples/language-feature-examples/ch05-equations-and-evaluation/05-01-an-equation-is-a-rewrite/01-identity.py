@@ -580,5 +580,5 @@ def twin(m):
 #: RE-PINNED 2026-09-02, 2466 to 3392 (+926), exact numeric annotations retain
 #: pure engine heads and publish MeTTa type declarations [measured 2026-09-02:
 #: min-of-3 serial fresh processes; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+#: extensions/python/tools/twin_coverage.py --repin; commit=d0dfff1a3ee6c85472fd9b12d6e4aec007a9c301].
 BUDGET = 3392

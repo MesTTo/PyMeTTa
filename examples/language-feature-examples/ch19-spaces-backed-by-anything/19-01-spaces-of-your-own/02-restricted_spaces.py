@@ -166,5 +166,5 @@ def twin(m):  # noqa: ARG001  -- both spaces are created here; the default handl
 #: retain native operator heads, publish MeTTa type declarations, and leave
 #: relational heads only where static proof is unavailable [measured
 #: 2026-09-02: min-of-3 serial fresh processes; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+#: extensions/python/tools/twin_coverage.py --repin; commit=d0dfff1a3ee6c85472fd9b12d6e4aec007a9c301].
 BUDGET = 63647

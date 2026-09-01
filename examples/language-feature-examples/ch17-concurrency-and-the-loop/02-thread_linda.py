@@ -175,5 +175,5 @@ def twin(m):
 #: extensions/python/tools/twin_coverage.py --observe --rounds 10, then python
 #: extensions/python/tools/twin_coverage.py --measure --rounds 3
 #: examples/ch17-concurrency-and-the-loop/02-thread_linda.metta;
-#: fixture=full-lane/219/workers=32 and serial fresh processes; commit=WORKTREE].
+#: fixture=full-lane/219/workers=32 and serial fresh processes; commit=d0dfff1a3ee6c85472fd9b12d6e4aec007a9c301].
 BUDGET = 401370

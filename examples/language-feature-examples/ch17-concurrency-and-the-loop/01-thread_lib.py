@@ -242,7 +242,7 @@ def twin(m):
 #: protocol-path modes describe another implementation, so ten fresh
 #: full-lane observations replace them [measured: exact extrema over 10
 #: observations; command=python extensions/python/tools/twin_coverage.py
-#: --observe --rounds 10; fixture=full-lane/219/workers=32; commit=WORKTREE].
+#: --observe --rounds 10; fixture=full-lane/219/workers=32; commit=d0dfff1a3ee6c85472fd9b12d6e4aec007a9c301].
 BUDGET = {
     "minimum": 535357,
     "maximum": 548800,

@@ -82,7 +82,7 @@ Guarantees:
     diagnostics [tested:
     test_a_twin_stores_the_equations_its_comments_claim,
     test_stored_content_uses_the_digest_and_keeps_equation_multiplicity;
-    commit=WORKTREE]
+    commit=d0dfff1a3ee6c85472fd9b12d6e4aec007a9c301]
   - a twin writing MeTTa in Python punctuation is a finding naming the Python
     spelling it should have used [tested:
     test_a_dissolved_head_names_the_python_spelling_it_replaces,
@@ -1001,7 +1001,7 @@ RUNG_LINE = re.compile(r"#\s*rung:\s*\S")
 #: treats NaN as equal to itself, while Python answers the opposite in all
 #: three cases [tested:
 #: test_engine_operator_heads_require_syntax_only_for_native_operands;
-#: commit=WORKTREE].
+#: commit=d0dfff1a3ee6c85472fd9b12d6e4aec007a9c301].
 NATIVE_NUMBER_OPERATOR_HEADS = frozenset({"+", "-", "*", "%", "floor-div"})
 NATIVE_COMPARE_OPERATOR_HEADS = frozenset({"<", ">", "<=", ">="})
 OPERATOR_HEADS = NATIVE_NUMBER_OPERATOR_HEADS | NATIVE_COMPARE_OPERATOR_HEADS

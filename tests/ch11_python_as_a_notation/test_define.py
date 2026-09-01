@@ -31,7 +31,7 @@ Guarantees:
     keep that syntax proof without publishing a source-absent arrow [tested:
     test_compiled_operators_follow_python_protocols_and_result_species,
     test_no_type_check_keeps_annotations_as_a_compile_proof_only;
-    commit=WORKTREE]
+    commit=d0dfff1a3ee6c85472fd9b12d6e4aec007a9c301]
 Owns:
   - test_define_from_two_threads_is_serialized joins both definition workers
     before examining their equations [tested test_define_from_two_threads_is_serialized]

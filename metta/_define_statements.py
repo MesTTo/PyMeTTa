@@ -40,7 +40,7 @@ Guarantees:
     commit=e3787593132a7ece2d300397045f7415709847c9]
   - a walrus binding carries an exact native-number proof into the remainder
     of its expression, just as a statement assignment does [tested:
-    test_walrus_bindings_hoist_as_let; commit=WORKTREE]
+    test_walrus_bindings_hoist_as_let; commit=d0dfff1a3ee6c85472fd9b12d6e4aec007a9c301]
   - ``del space[pattern]`` removes every snapshotted match while annotated
     space ``-=`` removes one, with missing removals kept loud [tested:
     test_compiled_removal_statements_preserve_one_many_missing_and_target_scope;

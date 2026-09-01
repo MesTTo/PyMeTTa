@@ -51,7 +51,7 @@ Guarantees:
     match-bound operands retain the distinct protocol-vs-relational choice
     [tested: test_engine_operator_heads_require_syntax_only_for_native_operands,
     test_python_operator_and_engine_head_split_depends_on_native_proof;
-    commit=WORKTREE]
+    commit=d0dfff1a3ee6c85472fd9b12d6e4aec007a9c301]
   - the 159 entries superseded by empirical budgets are retired exactly once
     [tested: test_the_distribution_budget_retirement_is_exact;
     commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22]

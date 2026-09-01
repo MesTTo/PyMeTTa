@@ -12,7 +12,7 @@ Guarantees:
   - clause wrappers and their dispatcher preserve typing.no_type_check so
     syntax-only annotations remain absent from portable documentation [tested:
     test_no_type_check_keeps_annotations_as_a_compile_proof_only;
-    commit=WORKTREE]
+    commit=d0dfff1a3ee6c85472fd9b12d6e4aec007a9c301]
 Guarded by:
   - _TWIN_LOCK serializes dispatcher creation, view publication, and clause
     replacement [tested test_define_from_two_threads_is_serialized]

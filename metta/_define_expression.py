@@ -57,7 +57,7 @@ Guarantees:
     annotations, including bare native comparison tests [tested:
     test_compiled_operators_follow_python_protocols_and_result_species,
     test_compiled_rich_comparisons_truth_test_only_in_boolean_contexts;
-    commit=WORKTREE]
+    commit=d0dfff1a3ee6c85472fd9b12d6e4aec007a9c301]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -147,7 +147,7 @@ _NATIVE_COMPARE = {
 # Equality stays on Python's protocol path even for exact numeric annotations:
 # 1 == 1.0, nan == nan, and -0.0 == 0.0 disagree with the engine relation.
 # [tested: test_compiled_operators_follow_python_protocols_and_result_species;
-# commit=WORKTREE]
+# commit=d0dfff1a3ee6c85472fd9b12d6e4aec007a9c301]
 
 _SOURCE_COMPARE = {
     **_NATIVE_COMPARE,
