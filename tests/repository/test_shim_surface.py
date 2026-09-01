@@ -25,7 +25,7 @@ Guarantees:
   - operation-answer weights are composed through the engine's published
     annotation read and algebra extension rather than reimplemented by the
     transport [tested: test_the_host_service_scoreboard_matches_the_tree;
-    commit=WORKTREE]
+    commit=fc0f512887da08a19a0ec8422a3a8d5716262a64]
 Open Obligations:
   To Do: None
   Hacks: None
