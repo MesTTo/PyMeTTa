@@ -40,6 +40,10 @@
 %     writes [tested: test_every_public_execution_door_honours_speculative_policy,
 %     test_derivation_speculation_fences_the_engine_global_self;
 %     commit=cf6507cfe9c3d6512ac75039ae22f178140e0cbf].
+%   - structured evaluation targets bind every symbolic &self occurrence to
+%     their receiving space while decoding, so Atom and source execution share
+%     one receiver law without a second term walk [tested:
+%     test_atom_eval_rebinds_nested_self_to_the_receiver; commit=WORKTREE].
 %   - an empty direct eval answers NOTHING both for a guarded head with no
 %     matching clause and for a matched empty body, which is one answer where
 %     this door used to draw two: the guarded head was a not-reducible answer
@@ -638,6 +642,37 @@ foldl_decode([], [], B, B).
 foldl_decode([E|Es], [T|Ts], B0, B) :-
     metta_py_decode_shared_(E, T, B0, B1),
     foldl_decode(Es, Ts, B1, B).
+
+%Decode an evaluation target in its receiver context. The ordinary &self
+%receiver takes the exact hot decoder above. A named receiver uses the same
+%single decode walk but replaces a symbolic ["s","&self"] leaf as it is met;
+%a ["p","&self"] is a carried Space handle and stays the handle it names.
+%Doing the replacement during decode avoids the second O(n) term walk that
+%formerly cost alpha-unique about 400k inferences, while still preserving the
+%shared variable table [source:
+%extensions/python/benchmarks/target_self_decode.py; commit=WORKTREE]. The
+%current and target complexity are both O(n); this removes the duplicate
+%traversal rather than changing the class.
+metta_py_decode_target('&self', Tagged, Term, Bindings) :- !,
+    metta_py_decode_shared(Tagged, Term, Bindings).
+metta_py_decode_target(Space, Tagged, Term, Bindings) :-
+    metta_py_decode_target_(Tagged, Space, Term, [], Bindings).
+
+metta_py_decode_target_([T0|Rest], Space, Term, B0, B) :-
+    ( atom(T0) -> T = T0 ; string(T0) -> atom_string(T, T0) ),
+    metta_py_decode_target_tagged(T, Rest, Space, Term, B0, B).
+
+metta_py_decode_target_tagged(e, [Es], Space, Term, B0, B) :- !,
+    foldl_decode_target(Es, Space, Term, B0, B).
+metta_py_decode_target_tagged(s, ['&self'], Space, Space, B, B) :- !.
+metta_py_decode_target_tagged(s, ["&self"], Space, Space, B, B) :- !.
+metta_py_decode_target_tagged(T, Rest, _, Term, B0, B) :-
+    metta_py_decode_shared_tagged(T, Rest, Term, B0, B).
+
+foldl_decode_target([], _, [], B, B).
+foldl_decode_target([E|Es], Space, [T|Ts], B0, B) :-
+    metta_py_decode_target_(E, Space, T, B0, B1),
+    foldl_decode_target(Es, Space, Ts, B1, B).
 
 %THE SEED TABLE IS GONE, and with it the reason a decode had to be handed
 %something to expand. It rebuilt the argument variables' names AFTER the
@@ -1542,19 +1577,21 @@ seam:host_reader_token_construct(Constructor, Text, Term) :-
 %decodes one large term: 3,699,768,516 instructions became 4,106,476,179
 %[measured 2026-08-16]. That is the same last-call optimisation the plunit
 %gate's own choicepoint check exists to catch.
-%&self resolves where text is read, exactly as in loaded source: the text
-%branch substitutes the hosting space's name, gated by a C substring probe
-%so text that never says &self pays two inferences, not a term walk. A wire
-%term was built programmatically, so it keeps its atoms as written, the
-%same boundary stored data has; metta_py_parse/2 has no space and reads
-%unpinned, the reader LeaTTa gives include. An unconditional walk here
-%cost alpha-unique +400k inferences on its one large decoded term
-%[measured 2026-08-17].
+%&self resolves to the evaluation receiver at both input doors. Text uses the
+%reader rewrite, gated by a C substring probe so text without &self pays two
+%inferences rather than a term walk. A wire target is decoded through the
+%receiver-aware decoder above, which substitutes in the decode walk rather than
+%walking the complete term again. metta_py_parse/2 has no receiver and still
+%reads unpinned, as does stored data: this policy belongs only to execution
+%targets.
 metta_py_target_term(Space, Target, Term) :-
+    metta_py_target_term_bindings(Space, Target, Term, _).
+
+metta_py_target_term_bindings(Space, Target, Term, Bindings) :-
     (   Target = [_, _]
-    ->  metta_py_decode_shared(Target, Term, _)
+    ->  metta_py_decode_target(Space, Target, Term, Bindings)
     ;   \+ is_list(Target)
-    ->  metta_py_read_form(Target, Term0, _),
+    ->  metta_py_read_form(Target, Term0, Bindings),
         (   Space == '&self'
         ->  Term = Term0
         ;   atom(Target), sub_atom(Target, _, _, _, '&self')
@@ -2946,20 +2983,7 @@ metta_py_eval_using_all(Space, Target, Pairs, Encoded) :-
 %first pull charged every fresh process for loading infrastructure rather than
 %for its query.
 metta_py_eval_target(Space, Target, Pairs, Term, Bindings) :-
-    (   Target = [_, _]
-    ->  metta_py_decode_shared(Target, Term0, Bindings)
-    ;   \+ is_list(Target)
-    ->  metta_py_read_form(Target, Read, Bindings),
-        (   Space == '&self'
-        ->  Term0 = Read
-        ;   atom(Target), sub_atom(Target, _, _, _, '&self')
-        ->  metta_substitute_self(Space, Read, Term0)
-        ;   string(Target), sub_string(Target, _, _, _, "&self")
-        ->  metta_substitute_self(Space, Read, Term0)
-        ;   Term0 = Read
-        )
-    ;   throw(error(domain_error(metta_py_wire_term, Target), none))
-    ),
+    metta_py_target_term_bindings(Space, Target, Term0, Bindings),
     (   Pairs == []
     ->  Term = Term0
     ;   maplist(metta_py_using_pair, Pairs, Substitutions),

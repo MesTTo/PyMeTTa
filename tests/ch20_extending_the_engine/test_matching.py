@@ -5,6 +5,9 @@ Hyperon's CustomMatch; a space operand routes through the engine's own
 match. The ground cases mirror the arbiter's measured answers
 [source: LeaTTa tests/semantics/matching/grounded_value_matching.metta,
 unify_branch_evaluation.metta, measured 2026-08-11].
+Structured evaluation binds every ``&self`` occurrence to the receiving space,
+the same law as source execution [tested:
+test_atom_eval_rebinds_nested_self_to_the_receiver; commit=WORKTREE].
 Open Obligations:
   To Do: None
   Hacks: None
@@ -88,6 +91,38 @@ def test_self_token_means_this_space_at_every_door(m):  # noqa: D103  -- pytest 
     (counted,) = m.run("!(sd-count)")[0]
     assert list(counted.children) == [S.here]
     assert m.eval("(match &self (sd $x) $x)") == [S.here]
+
+
+def test_atom_eval_rebinds_nested_self_to_the_receiver(metta):  # noqa: D103 -- pytest discovers this contract test
+    receiver = metta.metta.space("&p40-self-receiver")
+    global_self = metta
+    copied_marker = Expression(S.p40_copy_only, S.marker)
+    global_marker = Expression(S.p40_global_only, S.marker)
+    nested_copy_write = Expression(
+        S.chain,
+        Expression(S["add-atom"], S["&self"], copied_marker),
+        V._,
+        S.done,
+    )
+    global_write = Expression(S["add-atom"], S["&self"], global_marker)
+
+    receiver.clear()
+    global_self.remove(copied_marker)
+    global_self.remove(global_marker)
+    try:
+        with receiver.copy() as copied:
+            assert copied.eval(nested_copy_write) == [S.done]
+            assert copied_marker in copied
+            assert copied_marker not in receiver
+            assert copied_marker not in global_self
+
+        global_self.eval(global_write)
+        assert global_marker in global_self
+        assert global_marker not in receiver
+    finally:
+        receiver.clear()
+        global_self.remove(copied_marker)
+        global_self.remove(global_marker)
 
 
 def test_a_variable_binds_a_space_without_querying_it(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
