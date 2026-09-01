@@ -41,7 +41,7 @@ Guarantees:
   - variadic and_ and or_ retain the engine's binary heads by left-folding
     three or more operands [tested:
     test_variadic_boolean_builders_fold_to_binary_terms_and_filter_rows;
-    commit=WORKTREE]
+    commit=8a04841952ec6cf7f4eb4e418efcbf4519f16f34]
   - two-argument unify is symmetric and returns one normalized substitution
     over variables from either operand [tested:
     test_unify_binds_a_ground_term_and_pattern_in_both_orders,

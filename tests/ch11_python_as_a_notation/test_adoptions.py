@@ -22,7 +22,7 @@ Guarantees:
   - variadic boolean builders lower to binary engine chains and retain every
     guard's answer constraint [tested:
     test_variadic_boolean_builders_fold_to_binary_terms_and_filter_rows;
-    commit=WORKTREE]
+    commit=8a04841952ec6cf7f4eb4e418efcbf4519f16f34]
 Open Obligations:
   To Do: None
   Hacks: None

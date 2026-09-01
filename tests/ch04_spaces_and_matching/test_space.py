@@ -57,7 +57,7 @@ Guarantees:
   - a tuple or list in ``where=`` is an implicit conjunction while additional
     positional arguments remain stored-atom patterns [tested:
     test_guard_sequences_conjoin_without_changing_positional_patterns;
-    commit=WORKTREE]
+    commit=8a04841952ec6cf7f4eb4e418efcbf4519f16f34]
 Open Obligations:
   To Do: None
   Hacks: None

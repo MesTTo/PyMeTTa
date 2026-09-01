@@ -52,7 +52,7 @@ Guarantees:
   - a non-text sequence in guard position is one implicit conjunction, with
     the empty sequence as true [tested:
     test_guard_sequences_conjoin_without_changing_positional_patterns;
-    commit=WORKTREE]
+    commit=8a04841952ec6cf7f4eb4e418efcbf4519f16f34]
 Owns:
   - Cursor owns one engine query until exhaustion, close, or finalization
     and warns when finalization reaps an open query [tested
