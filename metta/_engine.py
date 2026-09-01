@@ -148,7 +148,11 @@ class _CallLocks(threading.local):
     extensions/python/tests/ch14_seeing_your_program/test_engine_pool.py::test_pool_runs_work_concurrently].
 
     The choice is made when the engine is attached rather than putting a
-    janus.engine() crossing on every call a pool worker makes.
+    janus.engine() crossing on every call a pool worker makes.  The original
+    A/B measured 72 ns for per-call dispatch against 43 ns for the direct
+    lock and 59 ns for one thread-local read; the promoted probe and historical
+    fixture are durable in benchmarks.thread_lock_dispatch [source:
+    extensions/python/benchmarks/thread_lock_dispatch.py; commit=WORKTREE].
 
     What makes running free safe is that MeTTa's shared structures already
     carry their own Prolog mutexes, because hyperpose workers have always
@@ -522,8 +526,7 @@ class Runtime:
             # and an interleaved A/B on a pure 3M-step loop measured parity
             # with no heartbeat at all; 10,000 cost ~2% on that loop.
             # config.heartbeat_interval exposes that latency/cost tradeoff
-            # [tested: extensions/python/tests/ch10_errors_and_refusals/
-            # test_interrupt.py::test_sigint_interrupts_a_running_evaluation].
+            # [tested: test_sigint_interrupts_a_running_evaluation].
             self._janus.heartbeat(config.heartbeat_interval)
 
     # ------------------------------------------------------------------ startup
@@ -654,7 +657,11 @@ class Runtime:
         may use the functional convention exactly when it holds an engine of
         its own, and a thread holding its own engine is exactly the thread
         that needs no process lock. Folding them keeps the home path at the
-        cost it had before per-engine locking existed.
+        cost it had before per-engine locking existed.  On the space-name
+        benchmark, adding one thread-local read to this arm cost 15.5 million
+        retired instructions, +0.61%; the promoted A/B retains the command and
+        fixture [source: extensions/python/benchmarks/thread_lock_dispatch.py;
+        commit=WORKTREE].
 
         Bare foreign threads abort the process on apply_once and cmd
         (measured), which is why they answer None rather than a lock.
@@ -792,8 +799,7 @@ class Runtime:
         message_to_string/2 to render the very error being classified: the
         classification then died on the pending error and the caller received
         a raw janus PrologError instead of its own exception [tested:
-        extensions/python/tests/ch10_errors_and_refusals/
-        test_builtin_inputs.py::test_a_raising_builtin_names_the_metta_operation_not_the_host_predicate].
+        test_a_raising_builtin_names_the_metta_operation_not_the_host_predicate].
 
         One sacrificial goal takes the pending error so whatever follows sees
         a clean engine. Only ever run once a call has already failed, so the

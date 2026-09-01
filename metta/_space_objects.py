@@ -677,8 +677,7 @@ class Cursor:
         enumeration, so a cursor that crosses per answer spends half its time
         in the boundary: 27.9x the eager door at ten thousand answers, and the
         gap is per-crossing rather than a warm-up [tested:
-        extensions/python/tests/ch18_performance/
-        test_cursor_chunking.py::test_draining_amortises_the_crossing].
+        test_draining_amortises_the_crossing].
 
         The chunk starts at one and doubles, which is the same policy TCP
         opens a connection with and a vector grows by, and it is here for the
