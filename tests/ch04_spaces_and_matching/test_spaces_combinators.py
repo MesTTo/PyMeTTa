@@ -11,6 +11,10 @@ Guarantees:
   - view presents dictionaries and zero-based sequences through kv and sets
     as member spaces, with every read reflecting the current Python value
     [tested: test_view_is_a_live_queryable_space; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
+  - every combinator member consults the provider's capability and concrete
+    request before a read or write reaches it
+    [tested: test_combinators_forward_every_provider_policy_request;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -322,3 +326,93 @@ def test_a_member_without_the_method_refuses_with_the_framework_sentence(metta):
                 call()
         # Reading still works: the provider implements exactly that.
         assert [str(a) for a in combined.atoms()] == ["(frozen 1)"]
+
+
+def test_combinators_forward_every_provider_policy_request():
+    """A composed provider keeps the same request-level boundary as the seam."""
+    from metta.foreign import SpaceProvider
+
+    class QueriesNotDumps(SpaceProvider):
+        def __init__(self):
+            self.requests = []
+            self.enumerations = 0
+
+        def atoms(self):
+            self.enumerations += 1
+            return iter([S.allowed(1)])
+
+        def should_run(self, capability, /, **request):
+            if capability == "enumerate":
+                self.requests.append(request)
+                return request.get("pattern") is not None
+            return True
+
+    queryable = QueriesNotDumps()
+    query_view = spaces.union(queryable)
+    with pytest.raises(MettaError, match="declines this enumerate request"):
+        list(query_view.atoms())
+    assert list(query_view.match(S.allowed(1))) == [S.allowed(1)]
+    assert queryable.requests == [{}, {"pattern": S.allowed(1)}]
+    assert queryable.enumerations == 1
+
+    class Selective(SpaceProvider):
+        def __init__(self):
+            self.stored = [S.allowed(1)]
+            self.reached = []
+
+        def atoms(self):
+            self.reached.append(("atoms", None))
+            return iter(self.stored)
+
+        def match(self, pattern):
+            self.reached.append(("match", pattern))
+            return iter(self.stored)
+
+        def add(self, atom):
+            self.reached.append(("add", atom))
+            self.stored.append(atom)
+
+        def remove(self, atom):
+            self.reached.append(("remove", atom))
+            return False
+
+        def clear(self):
+            self.reached.append(("clear", None))
+            self.stored.clear()
+
+        def should_run(self, capability, /, **request):
+            if capability == "enumerate":
+                return False
+            if capability == "match":
+                return request.get("pattern") != S.denied(2)
+            if capability in ("add", "remove"):
+                return request.get("atom") != S.denied(2)
+            if capability == "clear":
+                return False
+            return True
+
+    provider = Selective()
+    combined = spaces.overlay(provider, spaces.union(provider))
+
+    with pytest.raises(MettaError, match="declines this enumerate request"):
+        list(combined.atoms())
+    with pytest.raises(MettaError, match="declines this match request"):
+        list(combined.match(S.denied(2)))
+    with pytest.raises(MettaError, match="declines this add request"):
+        combined.add(S.denied(2))
+    with pytest.raises(MettaError, match="declines this remove request"):
+        combined.remove(S.denied(2))
+    with pytest.raises(MettaError, match="declines this clear request"):
+        combined.clear()
+
+    assert provider.reached == []
+
+    assert list(combined.match(S.allowed(1))) == [S.allowed(1), S.allowed(1)]
+    combined.add(S.allowed(3))
+    combined.remove(S.allowed(3))
+    assert provider.reached == [
+        ("match", S.allowed(1)),
+        ("match", S.allowed(1)),
+        ("add", S.allowed(3)),
+        ("remove", S.allowed(3)),
+    ]
