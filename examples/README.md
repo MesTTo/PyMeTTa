@@ -62,6 +62,7 @@ own.
 | [`integration/web_routes.py`](integration/web_routes.py) | FastAPI-shaped routing: the table is facts and dispatch is unification |
 | [`integration/multishot_solving.py`](integration/multishot_solving.py) | clingo-shaped multi-shot solving: parts ground incrementally and externals toggle |
 | [`integration/networkx_space.py`](integration/networkx_space.py) | a space's links as a networkx graph, an nx answer written back as atoms, one projection rule for n-ary links |
+| [`integration/cmetta_space.py`](integration/cmetta_space.py) | a sibling MeTTa implementation as a matcher behind the same provider seam |
 
 ## Reasoning
 
@@ -70,6 +71,7 @@ own.
 | [`reasoning/evolutionary_search.py`](reasoning/evolutionary_search.py) | a population as a space and generations as rewriting |
 | [`reasoning/pln_uncertain_reasoning.py`](reasoning/pln_uncertain_reasoning.py) | the engine's PLN library driven from Python |
 | [`reasoning/custom_matchers.py`](reasoning/custom_matchers.py) | grounded values with their own matching logic inside unify |
+| [`reasoning/literature_discovery.py`](reasoning/literature_discovery.py) | an embedding decides what unifies, the engine decides what follows, and the answer carries its sources |
 
 ## Live systems
 
