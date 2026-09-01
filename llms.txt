@@ -186,10 +186,10 @@ do. `metta.foreign` is the other direction: implement `Matcher`/`Adder`/
 `Remover` and register any backend as a space. `metta.remote` puts one across
 a process boundary, `metta.tables` derives one from a table.
 
-## The three axes of integration
+## The three seams anything plugs into
 
 It is a KERNEL because the point is what plugs into it, and a thing you want
-to use lands on one of three axes rather than needing a fork.
+to use lands on one of three seams rather than needing a fork.
 
 **Lower it** — host code BECOMES equations: `@m.define` compiles a Python body
 into MeTTa the engine reads, specialises and matches on, and a translator rule
