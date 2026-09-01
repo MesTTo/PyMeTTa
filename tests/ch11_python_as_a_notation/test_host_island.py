@@ -15,7 +15,8 @@ Guarantees:
     test_unknown_host_callee_islands_implicitly; commit=51b792423cec5787614d1488c0793b8a50eaa6fc]
   - nested Python scopes inside an island see the compiled locals supplied at
     application time [tested:
-    test_host_island_nested_scopes_see_compiled_locals; commit=WORKTREE]
+    test_host_island_nested_scopes_see_compiled_locals;
+    commit=310d0de137a5a6c406fec058e0284ba1af98623a]
 """  # noqa: D205, D415  -- the test contract is one continuous invariant, not summary-and-body prose
 
 from __future__ import annotations

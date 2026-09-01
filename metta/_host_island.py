@@ -12,7 +12,7 @@ Guarantees:
     commit=3f0a1d237a3c969b2d4ad0d48b2195ce196b631a]
   - nested scopes created by an island resolve the same runtime locals as the
     outer expression [tested: test_host_island_nested_scopes_see_compiled_locals;
-    commit=WORKTREE]
+    commit=310d0de137a5a6c406fec058e0284ba1af98623a]
 Fails when:
   - an internal compiled call supplies a different number of runtime locals
     than the island captured; this is a compiler/runtime contract violation.
