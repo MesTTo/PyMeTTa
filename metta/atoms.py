@@ -38,6 +38,10 @@ Guarantees:
   - fresh() mints process-independent variable names for library-authored
     patterns, so helper-local holes never capture caller names [tested:
     test_fresh_variables_keep_library_patterns_hygienic; commit=46ae646e5efe14320c01e1e110d9cfd6cd0fc7e1]
+  - variadic and_ and or_ retain the engine's binary heads by left-folding
+    three or more operands [tested:
+    test_variadic_boolean_builders_fold_to_binary_terms_and_filter_rows;
+    commit=WORKTREE]
   - two-argument unify is symmetric and returns one normalized substitution
     over variables from either operand [tested:
     test_unify_binds_a_ground_term_and_pattern_in_both_orders,
@@ -203,14 +207,24 @@ def not_(value: Any) -> Expression:
     return S["not"](value)
 
 
+def _binary_chain(head: str, values: tuple[Any, ...]) -> Expression:
+    """Build one binary-head chain, retaining its partial forms at arity 0/1."""
+    if len(values) < 2:
+        return S[head](*values)
+    result = S[head](values[0], values[1])
+    for value in values[2:]:
+        result = S[head](result, value)
+    return result
+
+
 def and_(*values: Any) -> Expression:
-    """Build a quoted or stored ``and`` term."""
-    return S["and"](*values)
+    """Left-fold 2+ values through ``and``; retain its arity-0/1 partials."""
+    return _binary_chain("and", values)
 
 
 def or_(*values: Any) -> Expression:
-    """Build a quoted or stored ``or`` term."""
-    return S["or"](*values)
+    """Left-fold 2+ values through ``or``; retain its arity-0/1 partials."""
+    return _binary_chain("or", values)
 
 
 def in_(member: Any, container: Any) -> Expression:

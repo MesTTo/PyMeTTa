@@ -54,6 +54,10 @@ Guarantees:
   - match, Prepared, and stream share one positive-limit contract [tested:
     test_nonpositive_limits_are_refused_by_match_stream_and_prepared;
     commit=1262dd20ada9d5c799d9bdc4bdf5d2b859ca7a98]
+  - a tuple or list in ``where=`` is an implicit conjunction while additional
+    positional arguments remain stored-atom patterns [tested:
+    test_guard_sequences_conjoin_without_changing_positional_patterns;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -1167,6 +1171,28 @@ def test_a_where_guard_that_can_never_be_true_is_refused(m, guard):  # noqa: D10
     m.add(S.age(S.Ada, 36))
     with pytest.raises(TypeError, match="can never answer true"):
         m.match(S.age(V.who, V.n), where=guard)
+
+
+def test_guard_sequences_conjoin_without_changing_positional_patterns(m):
+    """Guard sequences compose; pattern positions keep matching stored atoms."""
+    m.add(
+        S.age(S.ann, 17),
+        S.age(S.bob, 20),
+        S.age(S.cyd, 35),
+        S.age(S.dot, 49),
+        S.age(S.eli, 65),
+    )
+    pattern = S.age(V.who, V.n)
+    guards = (V.n.ge(18), V.n.lt(50))
+    expected = {"bob", "cyd", "dot"}
+
+    assert {str(row.who) for row in m.match(pattern, where=guards)} == expected
+    assert {str(row.who) for row in m.match(pattern, where=list(guards))} == expected
+    assert len(m.match(pattern, where=[])) == 5
+    assert {str(row.who) for row in m.match(pattern, where=[V.n.ge(65)])} == {"eli"}
+    with pytest.raises(TypeError, match="guard sequence item 0 is None"):
+        m.match(pattern, where=[None])
+    assert len(m.match(pattern, *guards)) == 0
 
 
 def test_wrong_bound_types_name_the_argument(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract

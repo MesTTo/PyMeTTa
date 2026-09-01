@@ -49,6 +49,10 @@ Guarantees:
     speculative execution policy [tested:
     test_every_public_execution_door_honours_speculative_policy;
     commit=1262dd20ada9d5c799d9bdc4bdf5d2b859ca7a98]
+  - a non-text sequence in guard position is one implicit conjunction, with
+    the empty sequence as true [tested:
+    test_guard_sequences_conjoin_without_changing_positional_patterns;
+    commit=WORKTREE]
 Owns:
   - Cursor owns one engine query until exhaustion, close, or finalization
     and warns when finalization reaps an open query [tested
@@ -68,7 +72,7 @@ import time
 import warnings
 import weakref
 from collections import deque
-from collections.abc import Iterable
+from collections.abc import Iterable, Sequence
 from contextvars import ContextVar
 from typing import TYPE_CHECKING, Any, Self, cast
 
@@ -77,6 +81,7 @@ from ._engine import Runtime
 from ._name_mapping import OperatorRecipe, operator_attribute_target
 from ._space_definitions import call_parameter_names
 from .atoms import (
+    TRUE,
     Atom,
     Expression,
     Grounded,
@@ -87,6 +92,7 @@ from .atoms import (
     _encode,
     _to_atom,
     _variables,
+    and_,
 )
 from .errors import EngineError, MettaError
 from .results import _MISSING, Rows, _row_class
@@ -256,6 +262,24 @@ def guard_atom(where: Any | None) -> Atom | None:
     """
     if where is None:
         return None
+    if isinstance(where, Sequence) and not isinstance(
+        where, (str, bytes, bytearray, Atom)
+    ):
+        guards: list[Atom] = []
+        for index, item in enumerate(where):
+            guard = guard_atom(item)
+            if guard is None:
+                msg = (
+                    f"where= guard sequence item {index} is None; omit it or "
+                    f"pass an actual guard"
+                )
+                raise TypeError(msg)
+            guards.append(guard)
+        if not guards:
+            return TRUE
+        if len(guards) == 1:
+            return guards[0]
+        return and_(*guards)
     guard = _to_atom(where)
     # An expression is the guard proper; a variable is one a pattern bound to
     # a truth; a grounded bool is trivially one. A grounded value or a bare
