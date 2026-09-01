@@ -152,7 +152,7 @@ class _CallLocks(threading.local):
     A/B measured 72 ns for per-call dispatch against 43 ns for the direct
     lock and 59 ns for one thread-local read; the promoted probe and historical
     fixture are durable in benchmarks.thread_lock_dispatch [source:
-    extensions/python/benchmarks/thread_lock_dispatch.py; commit=WORKTREE].
+    extensions/python/benchmarks/thread_lock_dispatch.py; commit=8fc1a4e204be4200862af7a3819a28a0d6279ea1].
 
     What makes running free safe is that MeTTa's shared structures already
     carry their own Prolog mutexes, because hyperpose workers have always
@@ -661,7 +661,7 @@ class Runtime:
         benchmark, adding one thread-local read to this arm cost 15.5 million
         retired instructions, +0.61%; the promoted A/B retains the command and
         fixture [source: extensions/python/benchmarks/thread_lock_dispatch.py;
-        commit=WORKTREE].
+        commit=8fc1a4e204be4200862af7a3819a28a0d6279ea1].
 
         Bare foreign threads abort the process on apply_once and cmd
         (measured), which is why they answer None rather than a lock.

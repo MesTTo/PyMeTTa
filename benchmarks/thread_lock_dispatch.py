@@ -31,7 +31,7 @@ both A/Bs preserve the decision's direction [measured: min of seven timeit
 rounds and min of three controlled perf rounds; command=python -m
 benchmarks.thread_lock_dispatch --micro and python -m
 benchmarks.thread_lock_dispatch --instructions; fixture=CPython 3.14 with
-the provisioned repository engine; commit=WORKTREE].
+the provisioned repository engine; commit=8fc1a4e204be4200862af7a3819a28a0d6279ea1].
 """
 
 from __future__ import annotations
