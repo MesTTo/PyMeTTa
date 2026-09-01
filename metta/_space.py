@@ -55,7 +55,7 @@ Guarantees:
   - the ``|=`` merge door treats every Atom subtype as one fact even when the
     atom also implements Python's sequence protocol [tested:
     test_ior_merges_an_atom_without_iterating_expression_children;
-    commit=WORKTREE]
+    commit=9bbfe5a252eb4b3f8b7d8418def0cc39c0819c13]
   - relative ``(admits Type)`` and ``(capacity n)`` values written through
     ``+=`` invoke the receiver installers, and refuse to overtake a live batch
     [tested: test_relative_capacity_declaration_installs_the_receiver_contract,

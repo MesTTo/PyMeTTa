@@ -50,7 +50,7 @@ Guarantees:
   - ``Space |=`` treats every Atom subtype as one atom instead of iterating
     its structural children [tested:
     test_ior_merges_an_atom_without_iterating_expression_children;
-    commit=WORKTREE]
+    commit=9bbfe5a252eb4b3f8b7d8418def0cc39c0819c13]
 Open Obligations:
   To Do: None
   Hacks: None
