@@ -14,7 +14,7 @@ Guarantees:
   - every combinator member consults the provider's capability and concrete
     request before a read or write reaches it
     [tested: test_combinators_forward_every_provider_policy_request;
-    commit=WORKTREE]
+    commit=f10b3766f72a01bc7c023eb27ff6732dfde7ccf6]
 Open Obligations:
   To Do: None
   Hacks: None
