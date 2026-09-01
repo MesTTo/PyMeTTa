@@ -43,7 +43,8 @@
 %   - structured evaluation targets bind every symbolic &self occurrence to
 %     their receiving space while decoding, so Atom and source execution share
 %     one receiver law without a second term walk [tested:
-%     test_atom_eval_rebinds_nested_self_to_the_receiver; commit=WORKTREE].
+%     test_atom_eval_rebinds_nested_self_to_the_receiver;
+%     commit=a408160adee022dffb72fbde405efc8f229c0b6e].
 %   - an empty direct eval answers NOTHING both for a guarded head with no
 %     matching clause and for a matched empty body, which is one answer where
 %     this door used to draw two: the guarded head was a not-reducible answer
@@ -650,7 +651,8 @@ foldl_decode([E|Es], [T|Ts], B0, B) :-
 %Doing the replacement during decode avoids the second O(n) term walk that
 %formerly cost alpha-unique about 400k inferences, while still preserving the
 %shared variable table [source:
-%extensions/python/benchmarks/target_self_decode.py; commit=WORKTREE]. The
+%extensions/python/benchmarks/target_self_decode.py;
+%commit=a408160adee022dffb72fbde405efc8f229c0b6e]. The
 %current and target complexity are both O(n); this removes the duplicate
 %traversal rather than changing the class.
 metta_py_decode_target('&self', Tagged, Term, Bindings) :- !,

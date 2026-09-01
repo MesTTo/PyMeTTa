@@ -18,7 +18,7 @@ inferences and 52.725 against 58.822 ms CPU per decode: a 400,020-inference
 [measured: min of three rounds over ten decodes per arm;
 command=python -m benchmarks.target_self_decode; fixture=CPython 3.14,
 50,000 three-child nodes and the provisioned repository engine;
-commit=WORKTREE].
+commit=a408160adee022dffb72fbde405efc8f229c0b6e].
 """
 
 from __future__ import annotations

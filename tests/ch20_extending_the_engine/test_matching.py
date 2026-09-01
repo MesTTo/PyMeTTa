@@ -7,7 +7,8 @@ match. The ground cases mirror the arbiter's measured answers
 unify_branch_evaluation.metta, measured 2026-08-11].
 Structured evaluation binds every ``&self`` occurrence to the receiving space,
 the same law as source execution [tested:
-test_atom_eval_rebinds_nested_self_to_the_receiver; commit=WORKTREE].
+test_atom_eval_rebinds_nested_self_to_the_receiver;
+commit=a408160adee022dffb72fbde405efc8f229c0b6e].
 Open Obligations:
   To Do: None
   Hacks: None
