@@ -35,7 +35,7 @@ Guarantees:
   - the two @define rows keep Python protocol dispatch separate from an
     annotation-proved native operator: 28.00 versus 3.00 inferences per call
     [measured: command=python -m benchmarks.extension_cost; fixture=3000 calls,
-    min-of-3, C reader and C extension enabled; commit=WORKTREE]
+    min-of-3, C reader and C extension enabled; commit=c350f51a5e1318187c4446fb2ceba04fba82e262]
 Open Obligations:
   To Do: None
   Hacks: None
