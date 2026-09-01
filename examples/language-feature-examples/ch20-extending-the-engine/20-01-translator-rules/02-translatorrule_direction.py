@@ -127,4 +127,8 @@ def twin(m):
 #: examples/ch20-extending-the-engine/20-01-translator-rules/02-translatorrule_direction.metta;
 #: fixture=operator-protocol tree after python extensions/python/tools/twin_coverage.py
 #: --observe --rounds 10; commit=e3787593132a7ece2d300397045f7415709847c9].
-BUDGET = 15562
+#: RE-PINNED 2026-09-02, 15562 to 16123 (+561), static contract discharge and
+#: policy-stable recompilation [measured 2026-09-02: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+BUDGET = 16123

@@ -149,4 +149,8 @@ RUNG = "min-atom and max-atom are two of the stdlib numeric operations this file
 #: relational engine heads [measured 2026-09-01: min-of-3 serial fresh
 #: processes; command=python extensions/python/tools/twin_coverage.py --repin;
 #: commit=e3787593132a7ece2d300397045f7415709847c9].
-BUDGET = 5513
+#: RE-PINNED 2026-09-02, 5513 to 5631 (+118), static contract discharge and
+#: policy-stable recompilation [measured 2026-09-02: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+BUDGET = 5631

@@ -148,4 +148,12 @@ def twin(m):
 #: relational heads only where static proof is unavailable [measured
 #: 2026-09-02: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=d0dfff1a3ee6c85472fd9b12d6e4aec007a9c301].
-BUDGET = 11529543
+#: RE-PINNED 2026-09-02, 11529543 to 11529834 (+291), static contract discharge
+#: and policy-stable recompilation [measured 2026-09-02: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+#: RE-PINNED 2026-09-02, 11529834 to 11529854 (+20), P43 protects both
+#: generated policy-check fallbacks from space-local capture [measured
+#: 2026-09-02: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 11529854

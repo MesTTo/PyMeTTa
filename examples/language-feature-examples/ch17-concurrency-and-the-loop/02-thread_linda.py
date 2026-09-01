@@ -176,4 +176,16 @@ def twin(m):
 #: extensions/python/tools/twin_coverage.py --measure --rounds 3
 #: examples/ch17-concurrency-and-the-loop/02-thread_linda.metta;
 #: fixture=full-lane/219/workers=32 and serial fresh processes; commit=d0dfff1a3ee6c85472fd9b12d6e4aec007a9c301].
-BUDGET = 401370
+#: RE-PINNED 2026-09-02, 401370 to 405731 (+4361), static contract discharge
+#: and policy-stable recompilation [measured 2026-09-02: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+#: RE-PINNED 2026-09-02, 405731 to 405788 (+57), static contract discharge with
+#: policy checks confined to invalidated contracts [measured 2026-09-02: min-
+#: of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+#: RE-PINNED 2026-09-02, 405788 to 405840 (+52), P43 protects both generated
+#: policy-check fallbacks from space-local capture [measured 2026-09-02: min-
+#: of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 405840

@@ -97,4 +97,8 @@ def twin(m):
 #: deltas tabulated in the twin-idioms notes, none above 347 [measured
 #: 2026-09-01: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=51b792423cec5787614d1488c0793b8a50eaa6fc].
-BUDGET = 3907
+#: RE-PINNED 2026-09-02, 3907 to 3981 (+74), static contract discharge and
+#: policy-stable recompilation [measured 2026-09-02: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+BUDGET = 3981

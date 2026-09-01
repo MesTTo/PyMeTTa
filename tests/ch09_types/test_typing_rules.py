@@ -13,6 +13,16 @@ Guarantees:
     retains Atom's gradual wildcard behavior
     [tested: test_shipped_reporting_rules_do_not_treat_atom_as_a_wildcard;
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
+  - statically repeated parameter contracts yield to a later module-local
+    typing rule, and removing the rule restores the discharged check
+    [tested: test_a_static_parameter_proof_yields_to_a_later_typing_rule;
+    commit=WORKTREE]
+  - a static parameter proof requires every governing chain to prove the same
+    checked type; gradual consistency and an inherited clause running under a
+    different local declaration retain the runtime check
+    [tested: test_a_consistent_chain_is_not_a_static_type_proof,
+    test_an_inherited_clause_does_not_reuse_its_owners_parameter_proof;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -210,8 +220,129 @@ def test_the_shipped_fast_path_answers_what_the_registry_answers():
     finally:
         metta.run("!(remove-typing-rule! p38-refuses-number)")
 
-    # Removal restores agreement, so the guard is a door rather than a latch.
+    # Removal restores agreement, so the guard is a condition rather than a latch.
     assert _match_differential(metta) == f"{len(_TYPE_VOCABULARY) ** 2}-[]"
+
+
+def test_a_static_parameter_proof_yields_to_a_later_typing_rule():
+    """A later rule recompiles the proof away; removal restores it."""
+    metta = MeTTa().self
+    metta.run("(: P43PolicyPayload Type)")
+    metta.run("(: p43-policy-value P43PolicyPayload)")
+    metta.run(
+        "(: p43-target (-> P43PolicyPayload P43PolicyPayload))"
+    )
+    metta.run("(= (p43-target $value) $value)")
+    metta.run(
+        "(: p43-policy-caller (-> P43PolicyPayload P43PolicyPayload))"
+    )
+    metta.run(
+        "(= (p43-policy-caller $value) (p43-target $value))"
+    )
+
+    refusal = [
+        "(Error (p43-policy-caller p43-policy-value) "
+        "(BadArgType 1 P43PolicyPayload P43PolicyPayload "
+        "(TypingRuleRefusal p43-deny-payload denied-after-compile)))"
+    ]
+    call = "(p43-policy-caller p43-policy-value)"
+    assert _answers(metta, call) == ["p43-policy-value"]
+    assert _answers(
+        metta,
+        "(add-typing-rule! p43-deny-payload ordinary "
+        "P43PolicyPayload P43PolicyPayload (refuse denied-after-compile))",
+    ) == ["True"]
+    assert _answers(metta, call) == refusal
+    assert _answers(metta, "(remove-typing-rule! p43-deny-payload)") == [
+        "True"
+    ]
+    assert _answers(metta, call) == ["p43-policy-value"]
+
+
+def test_a_rule_in_one_space_does_not_change_another_spaces_answers():
+    """Policy invalidation and registry lookup remain space-local."""
+    context = MeTTa()
+    left = context.space("&p43-left")
+    right = context.space("&p43-right")
+    for space in (left, right):
+        space.run("(: p43-local-target (-> Number Number))")
+        space.run("(= (p43-local-target $value) $value)")
+
+    left.run(
+        "!(add-typing-rule! p43-left-denies-number ordinary Number Number "
+        "(refuse left-space-only))"
+    )
+    assert _answers(left, "(p43-local-target 1)") == [
+        "(Error (p43-local-target 1) "
+        "(BadArgType 1 Number Number "
+        "(TypingRuleRefusal p43-left-denies-number left-space-only)))"
+    ]
+    assert _answers(right, "(p43-local-target 1)") == ["1"]
+
+    assert _answers(
+        left, "(remove-typing-rule! p43-left-denies-number)"
+    ) == ["True"]
+    assert _answers(left, "(p43-local-target 1)") == ["1"]
+    assert _answers(right, "(p43-local-target 1)") == ["1"]
+
+
+def test_a_consistent_chain_is_not_a_static_type_proof():
+    """One concrete chain cannot discharge a check for an unknown chain."""
+    metta = MeTTa().self
+    metta.run("(: P43Payload Type)")
+    metta.run("(: p43-needs-payload (-> P43Payload P43Payload))")
+    metta.run("(= (p43-needs-payload $value) $value)")
+    metta.run("(: p43-multichain (-> P43Payload P43Payload))")
+    metta.run("(: p43-multichain (-> %Undefined% P43Payload))")
+    metta.run(
+        "(= (p43-multichain $value) (p43-needs-payload $value))"
+    )
+    metta.run("(: p43-payload P43Payload)")
+    metta.run("(: p43-string String)")
+
+    assert _answers(metta, "(p43-multichain p43-payload)") == [
+        "p43-payload"
+    ]
+    assert _answers(metta, "(p43-multichain p43-string)") == []
+
+
+def test_an_inherited_clause_does_not_reuse_its_owners_parameter_proof():
+    """A child declaration governs a call into an inherited equation."""
+    context = MeTTa()
+    parent = context.space("&p43-parent")
+    child = context.space("&p43-child", inherits=parent)
+    parent.run("(: P43Payload Type)")
+    parent.run("(: p43-parent-target (-> P43Payload P43Payload))")
+    parent.run("(= (p43-parent-target $value) $value)")
+    parent.run("(: p43-parent-caller (-> P43Payload P43Payload))")
+    parent.run(
+        "(= (p43-parent-caller $value) (p43-parent-target $value))"
+    )
+    parent.run("(: p43-parent-value P43Payload)")
+    child.run("(: p43-parent-caller (-> String String))")
+    child.run("(: p43-child-value String)")
+
+    assert _answers(parent, "(p43-parent-caller p43-parent-value)") == [
+        "p43-parent-value"
+    ]
+    assert _answers(child, "(p43-parent-caller p43-child-value)") == []
+
+
+def test_static_proofs_do_not_resurrect_the_types_nondet_branch():
+    """The result check in upstream's types_nondet case still prunes."""
+    metta = MeTTa().self
+    metta.run("(: P43Type1 Type)")
+    metta.run("(: P43Type2 Type)")
+    metta.run("(: p43-nondet (-> P43Type1 P43Type1))")
+    metta.run("(: p43-nondet (-> P43Type2 P43Type2))")
+    metta.run(
+        "(= (p43-nondet $value) "
+        "   (if (== (get-type $value) P43Type1) p43-default $value))"
+    )
+    metta.run("(: p43-input P43Type1)")
+    metta.run("(: p43-default P43Type2)")
+
+    assert _answers(metta, "(p43-nondet p43-input)") == []
 
 
 def test_shipped_reporting_rules_do_not_treat_atom_as_a_wildcard():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract

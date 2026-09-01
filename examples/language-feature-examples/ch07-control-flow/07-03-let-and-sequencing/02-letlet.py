@@ -93,4 +93,8 @@ RUNG = "a `let*` binding whose left side is a PATTERN has no assignment spelling
 #: eval), the -= drain-law repair, and fourteen twins healed to the arbiter
 #: [measured 2026-09-01: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=51b792423cec5787614d1488c0793b8a50eaa6fc].
-BUDGET = 906
+#: RE-PINNED 2026-09-02, 906 to 946 (+40), static contract discharge and
+#: policy-stable recompilation [measured 2026-09-02: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+BUDGET = 946

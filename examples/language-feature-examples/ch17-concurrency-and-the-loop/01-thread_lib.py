@@ -243,9 +243,27 @@ def twin(m):
 #: full-lane observations replace them [measured: exact extrema over 10
 #: observations; command=python extensions/python/tools/twin_coverage.py
 #: --observe --rounds 10; fixture=full-lane/219/workers=32; commit=d0dfff1a3ee6c85472fd9b12d6e4aec007a9c301].
+#: RE-ENVELOPED 2026-09-02 after static contract discharge made retained
+#: translation policy-stable. The translation work changes this concurrent
+#: twin's modes, so 25 fresh full-lane observations replace the prior
+#: implementation's envelope [measured: minimum 542509, maximum 571598 over
+#: 25 observations; command=python extensions/python/tools/twin_coverage.py
+#: --observe --rounds 25; fixture=full-lane/219/workers=32; commit=WORKTREE].
+#: RE-ENVELOPED 2026-09-02 after policy checks were confined to invalidated
+#: generated contracts. Twenty-five fresh full-lane observations replace the
+#: broader intermediate implementation's modes [measured: minimum 542462,
+#: maximum 575145 over 25 observations; command=python
+#: extensions/python/tools/twin_coverage.py --observe --rounds 25;
+#: fixture=full-lane/219/workers=32; commit=WORKTREE].
+#: RE-ENVELOPED 2026-09-02 after the two generated policy-check fallbacks
+#: joined the protected engine-emitted surface. Twenty-five fresh full-lane
+#: observations replace the pre-protection bounds [measured: minimum 543027,
+#: maximum 603919 over 25 observations; command=python
+#: extensions/python/tools/twin_coverage.py --observe --rounds 25;
+#: fixture=full-lane/219/workers=32; commit=WORKTREE].
 BUDGET = {
-    "minimum": 535357,
-    "maximum": 548800,
-    "observations": 10,
+    "minimum": 543027,
+    "maximum": 603919,
+    "observations": 25,
     "protocol": "full-lane/219/workers=32",
 }

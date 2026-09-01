@@ -188,4 +188,16 @@ def twin(m):
 #: examples/ch20-extending-the-engine/20-02-metta-written-in-metta/01-callquoteevalreduce.metta;
 #: fixture=operator-protocol tree after python extensions/python/tools/twin_coverage.py
 #: --observe --rounds 10; commit=e3787593132a7ece2d300397045f7415709847c9].
-BUDGET = 68038
+#: RE-PINNED 2026-09-02, 68038 to 68738 (+700), static contract discharge and
+#: policy-stable recompilation [measured 2026-09-02: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+#: RE-PINNED 2026-09-02, 68738 to 68822 (+84), static contract discharge with
+#: policy checks confined to invalidated contracts [measured 2026-09-02: min-
+#: of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+#: RE-PINNED 2026-09-02, 68822 to 68832 (+10), P43 protects both generated
+#: policy-check fallbacks from space-local capture [measured 2026-09-02: min-
+#: of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 68832
