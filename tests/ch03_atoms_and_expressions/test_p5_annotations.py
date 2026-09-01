@@ -15,6 +15,7 @@ Open Obligations:
   Future Enhancements: None
 """
 
+import sys
 import types
 from collections.abc import Sequence
 from dataclasses import InitVar, dataclass
@@ -26,12 +27,25 @@ from typing import (
     NewType,
     Self,
     TypedDict,
-    TypeIs,
     TypeVar,
     overload,
 )
 
 import pytest
+
+# TypeIs arrived in 3.13, and the library reads it with getattr rather than
+# importing it, so on 3.12 the annotation this file exercises does not exist
+# to be read. The claims below are positional -- `param 5`, `param 6` -- so
+# dropping the one parameter would renumber the rest and quietly change what
+# every other assertion means. The whole module is a 3.13 capability.
+if sys.version_info < (3, 13):
+    pytest.skip(
+        "TypeIs is a 3.13 annotation; the library reads it optionally and "
+        "this module's claims are positional",
+        allow_module_level=True,
+    )
+
+from typing import TypeIs  # noqa: E402  -- guarded above; 3.13 or later only
 
 from metta import Atom, Expression, Grounded, MeTTa, S, Symbol, Variable, ground, wire
 from metta import integrate as pi
