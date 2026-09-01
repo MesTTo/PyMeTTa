@@ -45,7 +45,7 @@ if sys.version_info < (3, 13):
         allow_module_level=True,
     )
 
-from typing import TypeIs  # noqa: E402  -- guarded above; 3.13 or later only
+from typing import TypeIs  # guarded above; 3.13 or later only
 
 from metta import Atom, Expression, Grounded, MeTTa, S, Symbol, Variable, ground, wire
 from metta import integrate as pi
