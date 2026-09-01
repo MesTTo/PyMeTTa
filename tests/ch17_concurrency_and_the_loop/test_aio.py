@@ -1069,7 +1069,9 @@ def test_aio_a_failed_cursor_close_stays_retryable(m):
         async with aio.AsyncMeTTa(metta=m) as am:
             await am.add(S.aio_row(1), S.aio_row(2))
             rows = am.stream(S.aio_row(V.n))
-            await rows.columns()  # opens the engine cursor
+            await rows.columns()
+            first = await rows.__anext__()  # the first pull opens the held engine
+            assert first.n == 1
             open_engines = _live_engines(m)
             _fail_one_crossing(am, RuntimeError("transient close failure"))
             with pytest.raises(RuntimeError, match="transient close failure"):

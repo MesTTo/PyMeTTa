@@ -31,7 +31,7 @@ Guarantees:
     whose queue is full [tested:
     test_aio_a_failed_cursor_close_stays_retryable,
     test_aio_a_failed_subscription_close_stays_retryable,
-    test_aio_the_close_sentinel_survives_a_full_queue; commit=57f21ba9edf94bcf28cde11f938bce2c241a3709]
+    test_aio_the_close_sentinel_survives_a_full_queue; commit=WORKTREE]
   - an event queue is published only once its registration succeeded, and its
     bound is refused unless it is a count of events [tested:
     test_aio_a_failed_subscription_publishes_no_queue,
