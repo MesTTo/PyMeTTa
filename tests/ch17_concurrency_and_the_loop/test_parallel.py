@@ -11,6 +11,11 @@ Guarantees:
   - a dual built for the first time by several threads at once is built ONCE,
     which is the property a check-then-act did not have
     [tested: test_a_dual_is_built_once_under_concurrency; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
+  - a blocking relational call on a bare Python thread uses its temporary
+    Janus engine without holding the home-engine lock, so unrelated work can
+    complete before the blocker is released [tested:
+    test_a_bare_thread_blocking_in_the_engine_does_not_freeze_other_calls;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -18,15 +23,91 @@ Open Obligations:
 """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
 import threading
+import time
 
 import pytest
 
-from metta import S
+from metta import S, channel
+from metta._engine import engine_thread, runtime
 from metta.atoms import Expression
 from metta.errors import EngineError, TimeLimitError
 
 SQUARE = "(= (par-sq $x) (* $x $x))"
 SPIN = "(= (par-spin $n) (if (> $n 0) (par-spin (- $n 1)) done))"
+
+
+def test_a_bare_thread_blocking_in_the_engine_does_not_freeze_other_calls(metta):
+    """A private temporary engine must not borrow the home engine's lock."""
+    mailbox = channel(max=1)
+    waiter_observed = threading.Event()
+    evaluation_finished = threading.Event()
+    received = []
+    answers = []
+    failures: list[BaseException] = []
+    rt = runtime()
+
+    def receive() -> None:
+        try:
+            received.append(mailbox.recv())
+        except BaseException as failure:
+            failures.append(failure)
+
+    def observe_waiter() -> None:
+        try:
+            with engine_thread():
+                while not rt.once(
+                    "metta_channel(Id, _Queue), "
+                    "message_queue_property(_Queue, waiting(_Count)), _Count > 0",
+                    Id=mailbox._handle,
+                ):
+                    time.sleep(0.001)
+            waiter_observed.set()
+        except BaseException as failure:
+            failures.append(failure)
+            waiter_observed.set()
+
+    def evaluate() -> None:
+        try:
+            answers.extend(metta.eval("(+ 1 2)"))
+        except BaseException as failure:
+            failures.append(failure)
+        finally:
+            evaluation_finished.set()
+
+    def release() -> None:
+        try:
+            with engine_thread():
+                mailbox.send(S.release)
+        except BaseException as failure:
+            failures.append(failure)
+
+    consumer = threading.Thread(target=receive, daemon=True)
+    observer = threading.Thread(target=observe_waiter, daemon=True)
+    evaluator = threading.Thread(target=evaluate, daemon=True)
+    consumer.start()
+    observer.start()
+    observed = waiter_observed.wait(5)
+    if observed and not failures:
+        evaluator.start()
+        completed_before_release = evaluation_finished.wait(5)
+    else:
+        completed_before_release = False
+
+    releaser = threading.Thread(target=release, daemon=True)
+    releaser.start()
+    for worker in (releaser, consumer, observer, evaluator):
+        if worker.ident is not None:
+            worker.join(5)
+    mailbox.close()
+
+    assert observed, "the channel receiver never appeared in SWI's waiter count"
+    assert not any(
+        worker.is_alive() for worker in (releaser, consumer, observer, evaluator)
+    )
+    assert failures == []
+    assert completed_before_release, "the unrelated evaluation waited for the channel"
+    assert answers == [3]
+    assert received == [S.release]
 
 
 def test_parallel_answers_the_same_set_as_superpose(metta):

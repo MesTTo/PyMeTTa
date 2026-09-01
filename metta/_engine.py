@@ -1,7 +1,8 @@
 """Purpose: own the engine bootstrap and bridge. Consults MeTTa and the shim
 exactly once per process, serializes calls made on the home engine, lets a
-thread holding its own engine run without that lock, and turns Prolog
-exceptions into the library's own errors for both Python surfaces.
+thread holding its own engine run without that lock, lets Janus give bare
+threads temporary engines for relational calls, and turns Prolog exceptions
+into the library's own errors for both Python surfaces.
 Assumes:
   - JanusBridge.engine returns the documented integer engine identifier
     [source 2026-08-14:
@@ -49,6 +50,11 @@ Guarantees:
     recyclable numeric identifier [tested:
     test_a_recycled_thread_identifier_never_selects_the_janus_fast_path;
     commit=af5821f5ffb7ce186e516706f003d02f5c1d3b4a]
+  - a bare thread's relational call uses Janus's temporary engine without the
+    home-engine lock, so a blocking call cannot freeze unrelated engine work
+    [tested:
+    test_a_bare_thread_blocking_in_the_engine_does_not_freeze_other_calls;
+    commit=WORKTREE]
 Guarded by:
   - _LOCK serializes runtime creation and every call made on the HOME engine.
     A thread holding its own attached engine takes no process lock: it shares
@@ -56,6 +62,9 @@ Guarded by:
     carry their own Prolog mutexes because hyperpose workers have always
     reached the same database [tested
     test_define_from_two_threads_is_serialized]
+  - query_once and query on a bare foreign thread take no process lock because
+    Janus attaches and detaches a private temporary engine around that call
+    [source: https://www.swi-prolog.org/pldoc/man?section=janus-thread-call-prolog]
   - CONSULT_LOCK and the startup events publish completed consultation
 Open Obligations:
   To Do: None
@@ -152,7 +161,7 @@ _NULL_LOCK: AbstractContextManager[None] = nullcontext()
 
 
 class _CallLocks(threading.local):
-    """Which lock this thread's engine calls take, decided once per thread.
+    """Whether this thread may use the functional Janus calls, and their lock.
 
     _LOCK serialises use of the home engine. A thread that attached its own
     engine through engine_thread() shares that engine with nobody, so
@@ -178,8 +187,9 @@ class _CallLocks(threading.local):
     lock: AbstractContextManager[Any] = _LOCK
 
 
-# Threads start on the class default, so every thread that never attaches an
-# engine of its own keeps exactly the previous behaviour.
+# Threads start on the class default. _thread_lock distinguishes a bare thread
+# from the home thread before returning it, because the bare thread must use
+# relational Janus calls on a temporary engine rather than the functional form.
 _CALL_LOCKS = _CallLocks()
 
 CONSULT_LOCK = threading.Lock()
@@ -614,7 +624,7 @@ class Runtime:
         fails returns an empty dict, which no shim entry point does on
         purpose, so callers treat it as an engine-side refusal.
         """
-        with self._thread_lock() or _LOCK:
+        with self._relational_lock():
             try:
                 row = self._janus.query_once(goal, inputs)
             except self._janus.PrologError as exc:
@@ -686,6 +696,18 @@ class Runtime:
         # aio and remote workers attach an engine without going through
         # engine_thread(), so ask janus before deciding they are bare.
         return _NULL_LOCK if self._janus.engine() >= 0 else None
+
+    def _relational_lock(self) -> AbstractContextManager[Any]:
+        """Serialize the home engine and leave private engines independent.
+
+        Janus gives query_once() and query() a temporary engine on a bare
+        foreign thread. Taking the home lock around that private engine did
+        not protect either one; it only let a blocking foreign query prevent
+        the home thread, including the call that would unblock it, from
+        running.
+        """
+        lock = self._thread_lock()
+        return _NULL_LOCK if lock is None else lock
 
     def apply(self, predicate: str, *inputs: Any) -> Any:
         """Run a shim predicate through janus's functional convention:
@@ -767,11 +789,12 @@ class Runtime:
     def iter(self, goal: str, **inputs: Any) -> Iterator[dict]:
         """Enumerate a nondeterministic goal's answers, all of them.
 
-        The cursor is drained under the lock before anything is yielded:
-        janus queries belong to the engine, and interleaving user code that
+        The cursor is drained before anything is yielded, while its engine is
+        exclusive to this call: the home engine is locked, while attached and
+        temporary engines belong to this thread. Interleaving user code that
         may call back into the engine with an open cursor is how a session
-        deadlocks. That is why this is for the SMALL, bounded enumerations
-        the library asks itself about, an operation's arities and a space's
+        deadlocks. That is why this is for the SMALL, bounded enumerations the
+        library asks itself about, an operation's arities and a space's
         diagnostics, and why it is not the lazy route.
 
         The lazy route is an SWI engine, not a findall: metta_py_cursor_open
@@ -793,7 +816,7 @@ class Runtime:
         [measured 2026-08-31: `X = 1, freeze(Y, true)` raises, while
         `X = 1, freeze(_Y, true)` answers `{X, truth}`].
         """
-        with self._thread_lock() or _LOCK:
+        with self._relational_lock():
             try:
                 rows = list(self._janus.query(goal, inputs))
             except self._janus.PrologError as exc:

@@ -1,8 +1,8 @@
 """Purpose: pin the behavioral laws taught by the Python-first guide.
 
 Assumes:
-  - bare Python threads share the home engine and serialize individual engine
-    calls, while callers own synchronization across several calls.
+  - bare Python threads receive temporary engines for relational calls, while
+    callers still own synchronization across several calls.
 Guarantees:
   - the twin corpus states the Python-stack versus engine-LCO fuel boundary,
     pins one concrete depth divergence, and preserves answer equality below it
