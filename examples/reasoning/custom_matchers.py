@@ -42,23 +42,21 @@ class Regex:
             yield other
 
 starts_with_a = Grounded(Regex("^a"))
-(hit,) = m.eval(Expression(S.unify, starts_with_a, S.abbey, S.hit, S.miss))
+(hit,) = m.eval(S.unify(starts_with_a, S.abbey, S.hit, S.miss))
 check("regex value matches", hit, S.hit)
-(miss,) = m.eval(Expression(S.unify, starts_with_a, S.zebra, S.hit, S.miss))
+(miss,) = m.eval(S.unify(starts_with_a, S.zebra, S.hit, S.miss))
 check("regex value refuses", miss, S.miss)
 
 # Composition with structural match, no new syntax: the matchable gates
 # candidates the pattern produced.
 m.add(S.person(S.ada), S.person(S.alan), S.person(S.grace))
 (gated,) = m.eval(
-    Expression(
-        S.collapse,
-        Expression(
-            S.match,
-            Expression(S["context-space"]),
+    S.collapse(
+        S.match(
+            S["context-space"](),
             S.person(V.p),
-            Expression(S.unify, starts_with_a, V.p, V.p, Expression(S.superpose, Expression())),
-        ),
+            S.unify(starts_with_a, V.p, V.p, S.superpose(Expression())),
+        )
     )
 )
 check("composes with structural match", sorted(str(x) for x in gated), ["ada", "alan"])
@@ -75,11 +73,11 @@ def fuzzy(query, candidate=None):
 # reads the lexicon and never writes; the generator lifts the class itself
 m.reads(fuzzy, name="fuzmatch")
 m.annotations("fuzmatch", "ranked")
-(best,) = m.run('!(collapse (top 1 (fuzmatch "clase" $w)))')[0]
+(best,) = m.eval(S.collapse(S.top(1, S.fuzmatch("clase", V.w))))
 check("fuzzy best is difflib's own ranking", str(best.children[0]), '"clause"')
-(weighted,) = m.run(
-    '!(collapse (let $w (fuzmatch "clase" $c) (pair (annotation) $w)))'
-)[0]
+(weighted,) = m.eval(
+    S.collapse(S.let(V.w, S.fuzmatch("clase", V.c), S.pair(S.annotation(), V.w)))
+)
 check("degrees read through (annotation)", len(weighted.children), 3)
 
 # Semantic closeness: the embedding store's retrieval as matching logic.
@@ -96,7 +94,7 @@ class Nearest:
         yield Bindings({out: key})
 
 (nearest,) = m.eval(
-    Expression(S.unify, Grounded(Nearest()), Expression(S.espresso, V.k), V.k, S.none)
+    S.unify(Grounded(Nearest()), S.espresso(V.k), V.k, S.none)
 )
 check("nearest neighbour", nearest, S.espresso)
 done("custom_matchers")

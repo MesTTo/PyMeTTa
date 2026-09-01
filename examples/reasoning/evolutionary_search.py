@@ -24,7 +24,7 @@ m = MeTTa().space()
 
 for index in range(16):
     genome = [random.randint(0, 1) for _ in TARGET]
-    m.add(Expression(S.member, index, Expression(*genome)))
+    m.add(S.member(index, Expression(*genome)))
 
 
 @m.pure
@@ -50,10 +50,10 @@ def next_generation() -> bool:
     rows = m.match(S.member(V.i, V.g))
     scored = sorted(rows, key=lambda r: -fitness(r.g))
     parents = [r.g for r in scored[: len(scored) // 2]]
-    m.run("!(match (context-space) (member $i $g) (remove-atom (context-space) (member $i $g)))")
+    del m[S.member(V.i, V.g)]          # the drain: every match, one crossing
     for index in range(16):
         a, b = random.sample(parents, 2)
-        m.add(Expression(S.member, index, breed(a, b)))
+        m.add(S.member(index, breed(a, b)))
     return True
 
 
@@ -67,10 +67,9 @@ m.run(
     "           (Stopped at (best))\n"
     "           (let $next (next-generation) (evolve! (+ $gen 1))))))"
 )
-(group,) = m.run("!(evolve! 0)")
-(outcome,) = group
+(outcome,) = m.eval(S["evolve!"](0))
 check("outcome", outcome[0] in (S.Perfect, S.Stopped))
 check("population intact", len(m.match(S.member(V.i, V.g))), 16)
-best = m.run("!(best)")
-check("evolution improved the best genome", best[0][0] >= 7)
+best = m.eval(S.best())
+check("evolution improved the best genome", best[0] >= 7)
 done("evolutionary_search")

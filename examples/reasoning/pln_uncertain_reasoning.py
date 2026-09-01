@@ -9,12 +9,14 @@ Open Obligations:
 
 from _common import check, done
 
-from metta import MeTTa
+from metta import MeTTa, S, V, equation, lib
 
 # PLN's => writes derived equations into &self by design, so this
 # example lives there, the way the engine's own PLN examples do.
 m = MeTTa().self
-m.run("!(import! &self (library lib_pln))")
+m += lib.pln
+# New MeTTa FORMS, declared and defined: control shapes like collapse and
+# foldl-atom are what the source rung is for, so this one stays text.
 m.run(
     "(: => (-> Atom Atom %Undefined% %Undefined%))\n"
     "(= (=> $A $C $stv)\n"
@@ -28,13 +30,10 @@ m.run(
     "       (foldl-atom $evidence (stv 0.5 0.0) Truth_Revision)))))\n"
     "     (unique-atom $found)))"
 )
-m.run(
-    "!(=> (smokes $x) (cancer $x) (stv 0.6 0.9))\n"
-    "(= (smokes anna) (stv 1.0 0.95))"
-)
+m.eval(S["=>"](S.smokes(V.x), S.cancer(V.x), S.stv(0.6, 0.9)))
+m.add(equation(S.smokes(S.anna)).to(S.stv(1.0, 0.95)))
 # The answer is a tuple of (conclusion (stv strength confidence)) pairs.
-(group,) = m.run("!(? (cancer anna))")
-(answers,) = group
+(answers,) = m.eval(S["?"](S.cancer(S.anna)))
 (pair,) = answers
 conclusion, stv = pair[0], pair[1]
 check("conclusion", str(conclusion), "(cancer anna)")
