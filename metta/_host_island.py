@@ -10,6 +10,9 @@ Guarantees:
   - each island retains its source spelling and repeated-loop status for lint
     diagnostics [tested: test_py_host_island_inside_loops_emits_exact_findings;
     commit=3f0a1d237a3c969b2d4ad0d48b2195ce196b631a]
+  - nested scopes created by an island resolve the same runtime locals as the
+    outer expression [tested: test_host_island_nested_scopes_see_compiled_locals;
+    commit=WORKTREE]
 Fails when:
   - an internal compiled call supplies a different number of runtime locals
     than the island captured; this is a compiler/runtime contract violation.
@@ -86,13 +89,13 @@ class _HostIsland:
                 f"got {len(values)}"
             )
             raise RuntimeError(msg)
-        locals_ = {}
+        namespace = self._globals.copy()
         for name, cell in self._closure_cells:
             try:
-                locals_[name] = cell.cell_contents
+                namespace[name] = cell.cell_contents
             except ValueError:
                 continue
-        locals_.update(zip(self.runtime_names, values, strict=True))
+        namespace.update(zip(self.runtime_names, values, strict=True))
         # Evaluating arbitrary host syntax is the explicit purpose of an
         # island, marked or implicit; either way nothing here ran at
         # compile time. The
@@ -101,4 +104,4 @@ class _HostIsland:
         # process, not input crossing a boundary. ast.literal_eval cannot
         # stand in: an island is an expression, not a literal.
         # pylint: disable-next=eval-used
-        return eval(self._code, self._globals, locals_)  # noqa: S307  # nosec B307
+        return eval(self._code, namespace, namespace)  # noqa: S307  # nosec B307
