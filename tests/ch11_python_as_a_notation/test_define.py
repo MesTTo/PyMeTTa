@@ -22,6 +22,10 @@ Guarantees:
     engine and Python answers [tested:
     test_check_twin_distinguishes_integer_float_and_boolean_answers;
     commit=af5821f5ffb7ce186e516706f003d02f5c1d3b4a]
+  - compiled for statements iterate every Python iterable with the same
+    element count as their twin [tested:
+    test_for_statement_uses_python_iteration_for_every_grounded_iterable;
+    commit=WORKTREE]
 Owns:
   - test_define_from_two_threads_is_serialized joins both definition workers
     before examining their equations [tested test_define_from_two_threads_is_serialized]
@@ -602,6 +606,30 @@ def test_for_peels_with_decons_and_early_return_searches(m):  # noqa: D103  -- p
 
     assert m.run("!(dpositive (3 -1 4 -1 5))") == [[12]]
     assert dpositive.py((3, -1, 4, -1, 5)) == 12
+
+
+def test_for_statement_uses_python_iteration_for_every_grounded_iterable(m):
+    """Strings, bytes, and mappings follow iter(), like lists and tuples."""
+    @m.define
+    def diterable_count(values):
+        count = 0
+        for _value in values:
+            count += 1
+        return count
+
+    cases = (
+        ("abc", 3),
+        ("", 0),
+        (b"xy", 2),
+        (b"", 0),
+        ({"left": 1, "right": 2}, 2),
+        ({}, 0),
+        ([1, 2, 3], 3),
+        ((1, 2), 2),
+    )
+    for value, expected in cases:
+        assert diterable_count.py(value) == expected
+        assert list(diterable_count(value)) == [expected]
 
 
 def test_nested_defs_lift_with_their_closure(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract

@@ -10,6 +10,10 @@ Guarantees:
   - host islands in repeated tests and bodies retain loop context for lint,
     while a top-level iterable and the post-loop continuation do not [tested:
     test_py_host_island_inside_loops_emits_exact_findings; commit=3f0a1d237a3c969b2d4ad0d48b2195ce196b631a]
+  - a for statement materializes every ordinary source through Python's
+    iterator protocol [tested:
+    test_for_statement_uses_python_iteration_for_every_grounded_iterable;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -162,7 +166,8 @@ class LoopCompilerMixin(CompilerContext):
 
     def _materialized(self, iter_node: ast.expr) -> Atom:
         """An iterable as one expression value: a nondeterministic call's
-        answers collapse into a tuple, anything else already is its value.
+        answers collapse into a tuple; every ordinary value crosses Python's
+        iterator protocol before it becomes the tuple the loop peels.
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         if (
             isinstance(iter_node, ast.Call)
@@ -170,4 +175,10 @@ class LoopCompilerMixin(CompilerContext):
             and self.nondet(self._resolved_call_name(iter_node.func.id))
         ):
             return Expression([Symbol("collapse"), self.expression(iter_node)])
-        return self.expression(iter_node)
+        self.runtime_ops.add("py-iter")
+        return Expression(
+            [
+                Symbol("collapse"),
+                Expression([Symbol("py-iter"), self.expression(iter_node)]),
+            ]
+        )
