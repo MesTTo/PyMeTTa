@@ -16,7 +16,7 @@ Guarantees:
   - emitted authorities retain every adopted audit ID and point at the
     immutable public lint catalogue [tested:
     test_lint_authorities_are_durable_public_references;
-    commit=af5821f5ffb7ce186e516706f003d02f5c1d3b4a]
+    commit=WORKTREE]
 Guarded by:
   - ``_LOCK`` serializes the process registries and their reflected facts
 """
@@ -44,7 +44,7 @@ from .atoms import Atom, Expression, Grounded, Symbol
 # row IDs with every emitted kind lets a finding answer which ruling it applies.
 _LINT_CATALOGUE = (
     "https://github.com/MesTTo/MeTTa-Kernel/blob/"
-    "da5f3524fb671030928b8e1858580c0cd3a3a6a2/website/guide/run-query.md#lint-a-space"
+    "7de3d32d25a7166b12f7c68c179e9cbb931ac044/website/guide/run-query.md#lint-a-space"
 )
 _AUTHORITIES: dict[str, str] = {
     "operation-crossing-in-loop": f"P14-14-02/GG-004; {_LINT_CATALOGUE}",

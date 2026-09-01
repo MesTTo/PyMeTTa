@@ -20,6 +20,10 @@ Guarantees:
     private agent scratch references [tested:
     test_the_wheel_carries_no_agent_scratch_references;
     commit=af5821f5ffb7ce186e516706f003d02f5c1d3b4a]
+  - the public lint authority names the immutable catalogue shipped in this
+    repository [tested:
+    test_the_lint_authority_matches_the_public_repository_snapshot;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -43,6 +47,7 @@ import pytest
 
 import metta.atoms as metta_atoms
 from metta import __version__
+from metta._lint_events import _LINT_CATALOGUE
 
 ROOT = Path(__file__).resolve().parents[4]
 
@@ -114,6 +119,21 @@ def test_the_wheel_carries_no_agent_scratch_references():
                 offenders[str(path.relative_to(package))] = matches
 
     assert not offenders, offenders
+
+
+def test_the_lint_authority_matches_the_public_repository_snapshot():
+    """The immutable authority belongs to this project and names its real guide."""
+    repository = _manifest()["project"]["urls"]["Repository"]
+    match = re.fullmatch(
+        rf"{re.escape(repository)}/blob/(?P<commit>[0-9a-f]{{40}})/"
+        r"(?P<path>[^#]+)#(?P<anchor>[a-z0-9-]+)",
+        _LINT_CATALOGUE,
+    )
+    assert match is not None, _LINT_CATALOGUE
+    assert match.group("commit") == "7de3d32d25a7166b12f7c68c179e9cbb931ac044"
+    guide = (ROOT / match.group("path")).read_text(encoding="utf-8")
+    assert "## Lint a space" in guide
+    assert "operation-crossing-in-loop" in guide
 
 
 def _resolved_extra(extras: dict, name: str) -> set[str]:
