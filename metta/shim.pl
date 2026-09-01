@@ -39,7 +39,7 @@
 %     preserving every proof while speculative scopes discard meta-interpreter
 %     writes [tested: test_every_public_execution_door_honours_speculative_policy,
 %     test_derivation_speculation_fences_the_engine_global_self;
-%     commit=WORKTREE].
+%     commit=cf6507cfe9c3d6512ac75039ae22f178140e0cbf].
 %   - an empty direct eval answers NOTHING both for a guarded head with no
 %     matching clause and for a matched empty body, which is one answer where
 %     this door used to draw two: the guarded head was a not-reducible answer

@@ -15,7 +15,7 @@ Guarantees:
     so atomic, speculative, and capture scopes cover the whole proof search
     [tested: test_every_public_execution_door_honours_speculative_policy,
     test_derivation_speculation_fences_the_engine_global_self;
-    commit=WORKTREE]
+    commit=cf6507cfe9c3d6512ac75039ae22f178140e0cbf]
 Open Obligations:
   To Do: None
   Hacks: None
