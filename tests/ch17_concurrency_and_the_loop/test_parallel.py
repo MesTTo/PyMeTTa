@@ -15,7 +15,7 @@ Guarantees:
     Janus engine without holding the home-engine lock, so unrelated work can
     complete before the blocker is released [tested:
     test_a_bare_thread_blocking_in_the_engine_does_not_freeze_other_calls;
-    commit=WORKTREE]
+    commit=6ffd7e3bbfc653f10817c48f30cd56572960e43f]
 Open Obligations:
   To Do: None
   Hacks: None

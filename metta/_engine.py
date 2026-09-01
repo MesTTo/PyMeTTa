@@ -54,7 +54,7 @@ Guarantees:
     home-engine lock, so a blocking call cannot freeze unrelated engine work
     [tested:
     test_a_bare_thread_blocking_in_the_engine_does_not_freeze_other_calls;
-    commit=WORKTREE]
+    commit=6ffd7e3bbfc653f10817c48f30cd56572960e43f]
 Guarded by:
   - _LOCK serializes runtime creation and every call made on the HOME engine.
     A thread holding its own attached engine takes no process lock: it shares
