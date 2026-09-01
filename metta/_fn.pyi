@@ -244,7 +244,9 @@ class _FunctionNamespace:
     py_at: Symbol
     py_atom: Symbol
     py_call: Symbol
+    py_container_kind: Symbol
     py_dict: Symbol
+    py_dict_pairs: Symbol
     py_dot: Symbol
     py_eq: Symbol
     py_format: Symbol
@@ -254,9 +256,12 @@ class _FunctionNamespace:
     py_iter: Symbol
     py_len: Symbol
     py_list: Symbol
+    py_operator: Symbol
     py_range: Symbol
     py_repr: Symbol
     py_round: Symbol
+    py_set: Symbol
+    py_set_pairs: Symbol
     py_slice: Symbol
     py_str: Symbol
     py_str_join: Symbol

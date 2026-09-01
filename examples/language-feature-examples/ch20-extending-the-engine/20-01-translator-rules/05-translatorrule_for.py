@@ -21,7 +21,7 @@ as a term that Python can spell.
 
 from typing import Any
 
-from metta import Atom, S, V
+from metta import Atom, S, V, fn
 
 
 def twin(m):
@@ -31,18 +31,18 @@ def twin(m):
     def for_form(var: Atom, collection: Atom, body: Atom) -> Any:
         # (= (for $var $collection $body)
         #    (noeval (let $var (superpose $collection) $body)))
-        return S.noeval(S.let(var, S.superpose(collection), body))  # rung: the bound NAME arrives in a parameter, where Python's assignment binds a name it can see
+        return S.noeval(
+            S.let(var, S.superpose(collection), body)
+        )  # rung: the bound NAME arrives in a parameter, where Python's assignment binds a name it can see
 
-    m.fn.add_translator_rule(S["for"])       # (add-translator-rule! for)
+    m.fn.add_translator_rule(S["for"])  # (add-translator-rule! for)
 
     @m.define
     def myfun(items):
         # (= (myfun $L) (for $x $L (if (== (% $x 2) 0) (even $x) (odd $x))))
-        return S["for"](
-            V.x, items, S.even(V.x) if V.x % 2 == 0 else S.odd(V.x)
-        )
+        return S["for"](V.x, items, S.even(V.x) if fn.eq(fn.mod(V.x, 2), 0) else S.odd(V.x))
 
-    assert myfun((3, 4)) == [S.odd(3), S.even(4)]   # ((odd 3) (even 4))
+    assert myfun((3, 4)) == [S.odd(3), S.even(4)]  # ((odd 3) (even 4))
 
 
 #: Inferences this twin spends, its own tripwire. PLACEHOLDER rather than a
@@ -129,4 +129,9 @@ def twin(m):
 #: the quad twin stopped being a different program [measured 2026-09-01: min-
 #: of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=c6a40460b1db341198a6150e3600f502831a6e83].
-BUDGET = 6154
+#: RE-PINNED 2026-09-01, 6154 to 6954 (+800), generic Python operators now
+#: dispatch through live protocols while source twins explicitly name
+#: relational engine heads [measured 2026-09-01: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+BUDGET = 6954

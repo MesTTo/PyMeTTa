@@ -12,26 +12,26 @@ head is named explicitly and the def carries its own Python name: an explicit
 where the engine's clause-by-clause walk and Python's own count agree.
 """
 
-from metta import Expression, S
+from metta import Expression, S, fn
 
 
 def twin(m):
     """Unpack an expression, then count one the long way and the short way."""
 
     @m.define(name="len")
-    def length(e):                             # (= (len ()) 0)
-        match e:                               # (= (len (cons $Head $Tail))
-            case ():                           #    (let $N0 (len $Tail)
-                return 0                       #         (+ $N0 1)))
+    def length(e):  # (= (len ()) 0)
+        match e:  # (= (len (cons $Head $Tail))
+            case ():  #    (let $N0 (len $Tail)
+                return 0  #         (+ $N0 1)))
             case (S.cons, _, tail):
-                return length(tail) + 1
+                return fn.add(length(tail), 1)
 
-    head, *tail = Expression((1, 2, 3, 4, 5, 6))   # (let (cons $Head $Tail) ...)
+    head, *tail = Expression((1, 2, 3, 4, 5, 6))  # (let (cons $Head $Tail) ...)
     assert (head, tail) == (1, [2, 3, 4, 5, 6])
 
     counted = Expression((1, 2, 3))
-    assert length(counted).one() == len(counted) == 3   # [3], and Python's own 3
-    assert m.fn.cons(42, ()) == [Expression((42,))]   # [(42)]
+    assert length(counted).one() == len(counted) == 3  # [3], and Python's own 3
+    assert m.fn.cons(42, ()) == [Expression((42,))]  # [(42)]
 
 
 #: Inferences this twin spends, its own tripwire. PLACEHOLDER rather than a
@@ -115,4 +115,9 @@ def twin(m):
 #: structure, and the removal doors changed meaning where a twin spells one
 #: [measured 2026-09-01: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=c6a40460b1db341198a6150e3600f502831a6e83].
-BUDGET = 5412
+#: RE-PINNED 2026-09-01, 5412 to 5459 (+47), generic Python operators now
+#: dispatch through live protocols while source twins explicitly name
+#: relational engine heads [measured 2026-09-01: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+BUDGET = 5459

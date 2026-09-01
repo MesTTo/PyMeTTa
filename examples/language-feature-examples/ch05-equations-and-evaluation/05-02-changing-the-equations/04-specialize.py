@@ -123,7 +123,7 @@ def twin(m):
     @m.define
     def p1(x):
         # (= (p1 $x) (+ 1 $x))
-        return 1 + x
+        return fn.add(1, x)
 
     assert m.eval(S.map_flat3(S.p1((1, 2)))) == [Expression((2, 3))]
 

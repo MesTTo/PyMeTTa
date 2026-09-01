@@ -84,4 +84,9 @@ def twin(m):  # noqa: ARG001  -- the twin works in its own named space; the defa
 #: retired its own wrapper; drains halve, a tiny stream pays a few inferences
 #: more [measured 2026-08-31: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=505aec3433047045a96abdf00cecf4477b9a702b].
-BUDGET = 252
+#: RE-PINNED 2026-09-01, 252 to 262 (+10), generic Python operators now
+#: dispatch through live protocols while source twins explicitly name
+#: relational engine heads [measured 2026-09-01: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+BUDGET = 262

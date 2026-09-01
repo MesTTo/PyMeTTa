@@ -48,7 +48,7 @@ def twin(m):
     @m.define
     def double(x):
         # (= (double $x) (* 2 $x))
-        return 2 * x
+        return fn.mul(2, x)
 
     assert double(5) == [10]
     assert m.solve(10, S.double(V.x)).x == 5
@@ -66,20 +66,27 @@ def twin(m):
     @m.define
     def square(x):
         # (= (square $x) (* $x $x))
-        return x * x
+        return fn.mul(x, x)
 
     # Past one unknown a constraint begins: 25 = X*X is nonlinear, so the
     # engine posts it to CLP(FD) and labels what propagation leaves, which
     # answers EVERY solution rather than one.
     assert m.solve(25, S.square(V.x)).x == [-5, 5]
     assert [tuple(pair) for pair in m.solve(25, V.x * V.y)] == [
-        (-25, -1), (-5, -5), (-1, -25), (1, 25), (5, 5), (25, 1),
+        (-25, -1),
+        (-5, -5),
+        (-1, -25),
+        (1, 25),
+        (5, 5),
+        (25, 1),
     ]
 
     # A domain the constraint leaves unbounded has nothing finite to search,
     # so the engine refuses by name. Bounding the unknown first is what the
     # refusal asks for, and the `#` family is how a MeTTa program bounds one.
-    bounded = S.let(TRUE, fn["#>="](V.x, 0), S.let(25, S.square(V.x), V.x))  # rung: the GUARD reading of let, a bound posted and then asked inside ONE derivation
+    bounded = S.let(
+        TRUE, fn["#>="](V.x, 0), S.let(25, S.square(V.x), V.x)
+    )  # rung: the GUARD reading of let, a bound posted and then asked inside ONE derivation
     assert m.eval(bounded) == [5]
 
     # THE LIMIT: ordinary evaluation is inside-out, so a composed backward
@@ -190,4 +197,9 @@ def twin(m):
 #: structure, and the removal doors changed meaning where a twin spells one
 #: [measured 2026-09-01: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=c6a40460b1db341198a6150e3600f502831a6e83].
-BUDGET = 34129
+#: RE-PINNED 2026-09-01, 34129 to 34245 (+116), generic Python operators now
+#: dispatch through live protocols while source twins explicitly name
+#: relational engine heads [measured 2026-09-01: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+BUDGET = 34245

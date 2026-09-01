@@ -17,7 +17,7 @@ units rather than six trues, and Python says the same thing with `print`, whose
 return is None, the unit's Python spelling.
 """
 
-from metta import G, lib
+from metta import G, fn, lib
 
 
 def twin(m):
@@ -27,7 +27,7 @@ def twin(m):
     @m.define
     def double(x):
         # (= (double $x) (+ $x $x))
-        return x + x
+        return fn.add(x, x)
 
     assert double(5) == [10]
     assert m.eval(G(5) + 5) == [10]
@@ -118,4 +118,9 @@ def twin(m):
 #: the quad twin stopped being a different program [measured 2026-09-01: min-
 #: of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=c6a40460b1db341198a6150e3600f502831a6e83].
-BUDGET = 4416
+#: RE-PINNED 2026-09-01, 4416 to 4469 (+53), generic Python operators now
+#: dispatch through live protocols while source twins explicitly name
+#: relational engine heads [measured 2026-09-01: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+BUDGET = 4469

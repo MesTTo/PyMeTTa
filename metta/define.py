@@ -4,18 +4,20 @@ as MeTTa. The source is read with ast, never traced: tracing loses branches,
 which is torch.jit.script's own reason for reading syntax. Three rules hold
 the subset together: syntax outside it is a CompileError naming the construct,
 the line, and what to write instead; every supported construct has one MeTTa
-spelling; and a free identifier must be a
-parameter, a known function, or read as a data constructor, so a compiled
-body is pure atoms that any evaluator can take whole.
+spelling; and a free identifier must be a parameter, a known function, or
+read as a data constructor. A compiled body is a complete atom tree, and any
+runtime-backed Python semantics it needs are declared as visible operations.
 Guarantees:
   - ``async def`` refuses with both executable alternatives: ``@op`` returns
     a FutureSpace, while ``aio.AsyncMeTTa.call`` keeps orchestration in the
     host event loop [tested:
     test_define_async_refusal_names_both_actionable_remedies; commit=39092863ae34184a9f955f185ff57c1ff177ec40]
   - the compiler resolves exact standard-module attribute callables from a
-    function's globals and populated closure cells [tested:
-    test_callable_mentions_share_operator_and_fourteen_math_names;
-    commit=cff2e7f319bd2212f0c2d74f8d5fe5be3ac693b5]
+    function's globals and populated closure cells, while operator callables
+    retain Python's protocol semantics [tested:
+    test_callable_mentions_share_operator_and_fourteen_math_names,
+    test_compiled_callable_mentions_preserve_python_call_semantics;
+    commit=WORKTREE]
   - Defined.doc and Defined.__doc__ expose the first compiled clause's cleaned
     docstring after the twin dispatcher contains that clause [tested:
     test_one_docstring_reaches_help_dot_doc_and_get_doc;
@@ -62,6 +64,10 @@ Guarantees:
     carrying current SSA locals, live globals, source spans and loop context
     [tested: test_py_host_island_executes_per_engine_application,
     test_py_host_island_inside_loops_emits_exact_findings; commit=3f0a1d237a3c969b2d4ad0d48b2195ce196b631a]
+  - nested compiler contexts preserve local container species for Python
+    operator dispatch [tested:
+    test_compiled_operators_follow_python_protocols_and_result_species;
+    commit=WORKTREE]
   - a parameter whose resolved annotation names ``Space`` enters statement
     lowering as a space handle, so its augmented removal cannot become
     arithmetic [tested:
@@ -162,7 +168,11 @@ def _function_namespace(fn: types.FunctionType) -> dict[str, Any]:
 
 def _annotation_resolver(
     fn: types.FunctionType,
-) -> tuple[Callable[[ast.expr], Atom], Callable[[ast.expr], list[Atom]]]:
+) -> tuple[
+    Callable[[ast.expr], Atom],
+    Callable[[ast.expr], list[Atom]],
+    Callable[[ast.expr], Any],
+]:
     """Resolve local annotation syntax without executing arbitrary source.
 
     Two readers over one resolver: the single-type reader every in-place
@@ -269,7 +279,7 @@ def _annotation_resolver(
     def to_alternatives(node: ast.expr) -> list[Atom]:
         return type_atoms_for(resolve(node))
 
-    return to_atom, to_alternatives
+    return to_atom, to_alternatives, resolve
 
 
 def _initial_scope(params: list[str] | dict[str, str]) -> dict[str, str]:
@@ -513,8 +523,7 @@ def _is_flat_yield_sequence(statements: list[ast.stmt]) -> bool:
     ):
         body = body[1:]
     return bool(body) and all(
-        isinstance(statement, ast.Expr)
-        and isinstance(statement.value, (ast.Yield, ast.YieldFrom))
+        isinstance(statement, ast.Expr) and isinstance(statement.value, (ast.Yield, ast.YieldFrom))
         for statement in body
     )
 
@@ -611,7 +620,24 @@ def compile_function(
         def host_value(identifier: str) -> Any:
             return namespace.get(identifier, _MISSING_HOST)
 
-        annotation_resolver, annotation_alternatives = _annotation_resolver(fn)
+        annotation_resolver, annotation_alternatives, annotation_value = _annotation_resolver(fn)
+
+        def annotation_is_native_number(annotation: ast.expr | None) -> bool:
+            if annotation is None:
+                return False
+            try:
+                return annotation_value(annotation) in {int, float}
+            except CompileError:
+                # Numeric lowering is an optional proof. The established
+                # annotation consumer below still owns strict diagnostics.
+                return False
+
+        number_parameters = {
+            argument.arg
+            for argument in definition.args.args
+            if annotation_is_native_number(argument.annotation)
+        }
+        number_return = annotation_is_native_number(definition.returns)
 
         def annotation_names_space(annotation: ast.expr) -> bool:
             # This eager probe only decides whether a parameter is a space
@@ -633,8 +659,7 @@ def compile_function(
         space_parameters = {
             argument.arg
             for argument in definition.args.args
-            if argument.annotation is not None
-            and annotation_names_space(argument.annotation)
+            if argument.annotation is not None and annotation_names_space(argument.annotation)
         }
         compiler = _Compiler(
             metta_name or fn.__name__,
@@ -648,6 +673,7 @@ def compile_function(
             host_value=host_value,
             defined_name=defined_name,
             annotation_resolver=annotation_resolver,
+            annotation_value=annotation_value,
             function=fn,
             source=source,
             source_path=source_path,
@@ -655,6 +681,8 @@ def compile_function(
             call_parameters=call_parameters,
             signature_params=tuple(params),
             space_locals=space_parameters,
+            number_locals=number_parameters,
+            number_return=number_return,
             annotation_alternatives=annotation_alternatives,
         )
         generator = _is_generator(definition)
@@ -665,7 +693,9 @@ def compile_function(
             # superpositions and evaluation flattens them.
             answers = compiler.yield_answers(definition.body)
             body = _superpose(answers)
-            equation_bodies = tuple(answers) if _is_flat_yield_sequence(definition.body) else (body,)
+            equation_bodies = (
+                tuple(answers) if _is_flat_yield_sequence(definition.body) else (body,)
+            )
         else:
             body = compiler.block(definition.body)
             equation_bodies = (body,)
@@ -791,6 +821,7 @@ class _Compiler(
         hazards: set[str] | None = None,
         annotation_resolver: Callable[[ast.expr], Atom] | None = None,
         annotation_alternatives: Callable[[ast.expr], list[Atom]] | None = None,
+        annotation_value: Callable[[ast.expr], Any] | None = None,
         space_locals: set[str] | None = None,
         function: types.FunctionType | None = None,
         source: str = "",
@@ -803,6 +834,9 @@ class _Compiler(
         pragma_globals: set[str] | None = None,
         libraries: set[str] | None = None,
         dict_locals: set[str] | None = None,
+        container_locals: dict[str, str] | None = None,
+        number_locals: set[str] | None = None,
+        number_return: bool = False,
     ):
         self.name = name
         # The Python spelling of the definition's own name, for recursion
@@ -816,9 +850,7 @@ class _Compiler(
         self.builders = builders
         self.host_value = _provided(host_value, lambda _name: _MISSING_HOST)
         self.defined_name = _provided(defined_name, lambda _value: None)
-        self._given_call_parameters = _provided(
-            call_parameters, lambda _name, _arity: None
-        )
+        self._given_call_parameters = _provided(call_parameters, lambda _name, _arity: None)
         self.signature_params = signature_params
         # The prelude operations this definition leans on, and the reasons
         # its Python twin cannot run (a match, a constructor); both shared
@@ -852,6 +884,7 @@ class _Compiler(
         self.closer_names: list[str] = []
         self._annotation_resolver = annotation_resolver
         self._annotation_alternatives = annotation_alternatives
+        self._annotation_value = annotation_value
         self.function = function
         self.source = source
         self.source_path = source_path
@@ -868,6 +901,9 @@ class _Compiler(
         # locals holding a dict-space, forked like space_locals.
         self.libraries: set[str] = _provided(libraries, set())
         self.dict_locals: set[str] = _provided(dict_locals, set())
+        self.container_locals: dict[str, str] = _provided(container_locals, {})
+        self.number_locals: set[str] = _provided(number_locals, set())
+        self.number_return = number_return
         # Local names currently bound to a SPACE value: (context-space),
         # (new-space ...) or a closure handle. += and -= on one of these
         # are the write doors, never arithmetic; forks copy the set the
@@ -901,6 +937,17 @@ class _Compiler(
                 line=node.lineno,
             )
         return self._annotation_alternatives(node)
+
+    def annotation_is_native_number(self, node: ast.expr) -> bool:
+        """Whether an annotation resolves to exact built-in int or float."""
+        if self._annotation_value is None:
+            return False
+        try:
+            return self._annotation_value(node) in {int, float}
+        except CompileError:
+            # The ordinary annotation consumer below owns strict diagnostics;
+            # this optional proof only decides whether a pure fast path is safe.
+            return False
 
     def nondet(self, called: str) -> bool:
         lifted = self.lifted.get(called)
@@ -937,9 +984,7 @@ class _Compiler(
             return self.signature_params
         return self._given_call_parameters(called, arity)
 
-    def _bound_call_parameters(
-        self, identifier: str, arity: int
-    ) -> tuple[str, ...] | None:
+    def _bound_call_parameters(self, identifier: str, arity: int) -> tuple[str, ...] | None:
         """Read parameters only from an exact lexically bound Defined value."""
         value = self.host_value(identifier)
         if isinstance(value, Defined) and arity == len(value.params):
@@ -966,7 +1011,9 @@ class _Compiler(
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         scope = self.scope.copy()
         scope.update({p: p for p in extra})
-        return self._nested_compiler(scope)
+        nested = self._nested_compiler(scope)
+        nested.number_locals.difference_update(extra)
+        return nested
 
     def _equation_compiler(self, params: list[str], closer=None) -> _Compiler:
         """A compiler for a NEW equation (a loop helper, a lifted def):
@@ -982,6 +1029,8 @@ class _Compiler(
         closer: Callable[[_Compiler], Atom] | None,
         space_locals: set[str] | None = None,
         dict_locals: set[str] | None = None,
+        container_locals: dict[str, str] | None = None,
+        number_locals: set[str] | None = None,
     ) -> _Compiler:
         """Propagate shared definition context into every compiler child."""
         return _Compiler(
@@ -1005,6 +1054,7 @@ class _Compiler(
             hazards=self.hazards,
             annotation_resolver=self._annotation_resolver,
             annotation_alternatives=self._annotation_alternatives,
+            annotation_value=self._annotation_value,
             space_locals=space_locals,
             function=self.function,
             source=self.source,
@@ -1016,9 +1066,12 @@ class _Compiler(
             type_aliases=self.type_aliases,
             pragma_globals=self.pragma_globals,
             libraries=self.libraries,
-            dict_locals=dict_locals
-            if dict_locals is not None
-            else self.dict_locals.copy(),
+            dict_locals=dict_locals if dict_locals is not None else self.dict_locals.copy(),
+            container_locals=container_locals
+            if container_locals is not None
+            else self.container_locals.copy(),
+            number_locals=number_locals if number_locals is not None else self.number_locals.copy(),
+            number_return=self.number_return,
         )
 
     def _iteration(self, iter_node: ast.expr, var: str, body: Atom) -> Expression:

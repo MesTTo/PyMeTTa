@@ -10,14 +10,17 @@ Open Obligations:
   Future Enhancements: None.
 """
 
+from metta import fn
+
 
 def twin(m):
     """Name one intermediate result, then two."""
+
     @m.define
     def scaled():
         # (chain (+ 2 4) $n (* 3 $n))
-        n = 2 + 4
-        return 3 * n
+        n = fn.add(2, 4)
+        return fn.mul(3, n)
 
     # !(test (chain (+ 2 4) $n (* 3 $n)) 18)
     assert scaled() == [18]
@@ -25,9 +28,9 @@ def twin(m):
     @m.define
     def summed():
         # (chain (+ 1 3) $n (chain (* 2 $n) $m (+ $n $m)))
-        n = 1 + 3
-        doubled = 2 * n
-        return n + doubled
+        n = fn.add(1, 3)
+        doubled = fn.mul(2, n)
+        return fn.add(n, doubled)
 
     # !(test (chain (+ 1 3) $n (chain (* 2 $n) $m (+ $n $m))) 12)
     assert summed() == [12]
@@ -104,4 +107,9 @@ def twin(m):
 #: and the removal doors changed meaning where a twin spells one [measured
 #: 2026-09-01: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=c6a40460b1db341198a6150e3600f502831a6e83].
-BUDGET = 4647
+#: RE-PINNED 2026-09-01, 4647 to 4718 (+71), generic Python operators now
+#: dispatch through live protocols while source twins explicitly name
+#: relational engine heads [measured 2026-09-01: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+BUDGET = 4718

@@ -8,9 +8,10 @@ relation that either matches a stored premise or DERIVES one, and asking it for
 The definitions duplicate the sibling file's because the examples do; each twin
 stands alone, since the lane runs it in its own process.
 
-Four relations are compiled functions whose arithmetic is Python's own, and
-three are `@m.rules` bundles, the door for equations whose heads are structures
-or symbols. `sentence` is the interesting one: its three clauses coexist, its
+Four relations are compiled functions whose control flow is Python and whose
+source arithmetic and comparison relations are explicit through `fn`. Three
+are `@m.rules` bundles, the door for equations whose heads are structures or
+symbols. `sentence` is the interesting one: its three clauses coexist, its
 recursive body is a conjunction of two sentence goals, and `(= $TV ...)` there
 is a GOAL rather than a definition. `equation(lhs).to(rhs)` is the same builder
 either way, because `(= lhs rhs)` in an evaluated position is an ordinary atom.
@@ -33,17 +34,17 @@ def twin(m):
     @m.define
     def clamp(value, low, high):
         """(= (clamp $v $min $max) (min $max (max $v $min)))."""
-        return min(high, max(value, low))
+        return fn.min(high, fn.max(value, low))
 
     @m.define
     def smallest_intersection_probability(a_size: int, b_size: int) -> int:
         """(: ... (-> Number Number Number)) and (clamp (/ (- (+ $As $Bs) 1) $As) 0 1)."""
-        return clamp((a_size + b_size - 1) / a_size, 0, 1)
+        return clamp(fn.truediv(fn.sub(fn.add(a_size, b_size), 1), a_size), 0, 1)
 
     @m.define
     def largest_intersection_probability(a_size: int, b_size: int) -> int:
         """(: ... (-> Number Number Number)) and (clamp (/ $Bs $As) 0 1)."""
-        return clamp(b_size / a_size, 0, 1)
+        return clamp(fn.truediv(b_size, a_size), 0, 1)
 
     @m.define
     def conditional_probability_consistency(a_size: int, b_size: int, both: int) -> bool:
@@ -51,10 +52,9 @@ def twin(m):
         # (= (conditional-probability-consistency $As $Bs $ABs)
         #    (and (< 0 $As) (and (<= (smallest ...) $ABs) (<= $ABs (largest ...)))))
         return (
-            0 < a_size
-            and smallest_intersection_probability(a_size, b_size)
-            <= both
-            <= largest_intersection_probability(a_size, b_size)
+            fn.lt(0, a_size)
+            and fn.le(smallest_intersection_probability(a_size, b_size), both)
+            and fn.le(both, largest_intersection_probability(a_size, b_size))
         )
 
     @m.define(name="Truth_Deduction")
@@ -62,17 +62,27 @@ def twin(m):
         """Strength from the two conditionals, confidence as the weakest link."""
         # (= (Truth_Deduction (stv $Ps $Pc) ... ) (if (and ...) (stv ...) (stv 1 0)))
         match (p, q, r, pq, qr):
-            case ((S.stv, ps, pc), (S.stv, qs, qc), (S.stv, rs, rc),
-                  (S.stv, pqs, pqc), (S.stv, qrs, qrc)) if (
-                    conditional_probability_consistency(ps, qs, pqs)
-                    and conditional_probability_consistency(qs, rs, qrs)):
+            case (
+                (S.stv, ps, pc),
+                (S.stv, qs, qc),
+                (S.stv, rs, rc),
+                (S.stv, pqs, pqc),
+                (S.stv, qrs, qrc),
+            ) if conditional_probability_consistency(
+                ps, qs, pqs
+            ) and conditional_probability_consistency(qs, rs, qrs):
                 # Qs tending to 1 would divide by zero, so that branch answers Rs.
                 strength = (
                     rs
-                    if 0.9999 < qs
-                    else pqs * qrs + (1 - pqs) * (rs - qs * qrs) / (1 - qs)
+                    if fn.lt(0.9999, qs)
+                    else fn.add(
+                        fn.mul(pqs, qrs),
+                        fn.truediv(
+                            fn.mul(fn.sub(1, pqs), fn.sub(rs, fn.mul(qs, qrs))), fn.sub(1, qs)
+                        ),
+                    )
                 )
-                return S.stv(strength, min(pc, min(qc, min(rc, min(pqc, qrc)))))
+                return S.stv(strength, fn.min(pc, fn.min(qc, fn.min(rc, fn.min(pqc, qrc)))))
             case _:
                 # Preconditions unmet.
                 return S.stv(1, 0)
@@ -89,9 +99,7 @@ def twin(m):
         # (= (sentence (Inheritance a b) (stv 0.9 0.9)) (once True))
         # (= (sentence (Inheritance b c) (stv 0.9 0.9)) (once True))
         for start, end in ((S.a, S.b), (S.b, S.c)):
-            yield equation(S.sentence(S.Inheritance(start, end), S.stv(0.9, 0.9))).to(
-                fn.once(TRUE)
-            )
+            yield equation(S.sentence(S.Inheritance(start, end), S.stv(0.9, 0.9))).to(fn.once(TRUE))
         # (= (sentence (Inheritance $A $C) $TV)
         #    (once (and (and (sentence (Inheritance $A $B) $T1)
         #                    (sentence (Inheritance $B $C) $T2))
@@ -202,4 +210,9 @@ def twin(m):
 #: the quad twin stopped being a different program [measured 2026-09-01: min-
 #: of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=c6a40460b1db341198a6150e3600f502831a6e83].
-BUDGET = 42101
+#: RE-PINNED 2026-09-01, 42101 to 42383 (+282), generic Python operators now
+#: dispatch through live protocols while source twins explicitly name
+#: relational engine heads [measured 2026-09-01: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+BUDGET = 42383

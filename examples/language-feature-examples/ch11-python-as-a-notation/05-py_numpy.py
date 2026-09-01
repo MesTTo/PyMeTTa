@@ -122,4 +122,9 @@ def twin(m):
 #: builtins, prelude except/error-payload ops, variadic doors, twin heals
 #: [measured 2026-09-01: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=51b792423cec5787614d1488c0793b8a50eaa6fc].
-BUDGET = 4404
+#: RE-PINNED 2026-09-01, 4404 to 4439 (+35), generic Python operators now
+#: dispatch through live protocols while source twins explicitly name
+#: relational engine heads [measured 2026-09-01: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+BUDGET = 4439

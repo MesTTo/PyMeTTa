@@ -57,7 +57,7 @@ def twin(m):
     @m.define
     def f(x: EvenNumber, y: EvenNumber) -> EvenNumber:
         """(: f (-> EvenNumber EvenNumber EvenNumber)), (= (f $x $y) (+ $x $y))."""
-        return x + y
+        return fn.add(x, y)
 
     # !(test (f 2 4) 6)
     assert f(2, 4) == [6]
@@ -166,4 +166,9 @@ def twin(m):
 #: the quad twin stopped being a different program [measured 2026-09-01: min-
 #: of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=c6a40460b1db341198a6150e3600f502831a6e83].
-BUDGET = 16441
+#: RE-PINNED 2026-09-01, 16441 to 16496 (+55), generic Python operators now
+#: dispatch through live protocols while source twins explicitly name
+#: relational engine heads [measured 2026-09-01: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+BUDGET = 16496

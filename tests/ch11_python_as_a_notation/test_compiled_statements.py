@@ -12,8 +12,8 @@ Guarantees:
     reference, and `type X = T` is the rewrite rule it reads as [tested:
     test_global_pragma_moves_the_module,
     test_type_alias_claims_and_rewrites; commit=51b792423cec5787614d1488c0793b8a50eaa6fc]
-  - &, |, ^, ~, <<, >> and // lower to the engine's exact integer family
-    and agree with Python on every probed input [tested:
+  - &, |, ^, ~, <<, >> and // retain Python's operator protocols and agree
+    with Python on every probed integer input [tested:
     test_bitwise_and_floor_division_agree_with_python; commit=51b792423cec5787614d1488c0793b8a50eaa6fc]
   - compiled except arms preserve live exception class identity even when two
     classes share every textual name [tested:
@@ -47,6 +47,7 @@ class BoomError(ValueError):
 
 def test_try_dispatches_on_the_engine_error(m):
     """Try dispatches on the engine error."""
+
     @m.define
     def guarded(x):
         try:
@@ -60,6 +61,7 @@ def test_try_dispatches_on_the_engine_error(m):
 
 def test_try_as_binds_a_live_payload(m):
     """Try-as binds a live payload."""
+
     @m.define
     def named(x):  # noqa: ARG001  -- the compiled scenario carries a parameter its body ignores
         try:
@@ -72,6 +74,7 @@ def test_try_as_binds_a_live_payload(m):
 
 def test_raise_crosses_frames_and_matches_the_custom_lattice(m):
     """Raise crosses frames and matches the custom lattice."""
+
     @m.define
     def deep(x):
         if x < 0:
@@ -125,6 +128,7 @@ def test_compiled_except_uses_exception_class_identity_not_bare_name(m):
 
 def test_try_else_runs_on_success_with_the_body_bindings(m):
     """Try else runs on success with the body bindings."""
+
     @m.define
     def elsed(x):
         try:
@@ -140,6 +144,7 @@ def test_try_else_runs_on_success_with_the_body_bindings(m):
 
 def test_try_bindings_escape_to_the_rest(m):
     """Try bindings escape to the rest."""
+
     @m.define
     def binds(x):
         try:
@@ -153,6 +158,7 @@ def test_try_bindings_escape_to_the_rest(m):
 
 def test_a_binding_that_errors_inside_try_reaches_the_arm(m):
     """A binding that errors inside try reaches the arm."""
+
     @m.define
     def looped(xs):
         total = 0
@@ -168,6 +174,7 @@ def test_a_binding_that_errors_inside_try_reaches_the_arm(m):
 
 def test_nested_try_skips_the_wrong_arm(m):
     """Nested try skips the wrong arm."""
+
     @m.define
     def nested(x):
         try:
@@ -184,6 +191,7 @@ def test_nested_try_skips_the_wrong_arm(m):
 
 def test_a_tuple_arm_catches_any_member(m):
     """A tuple arm catches any member."""
+
     @m.define
     def pair_arm(x):
         try:
@@ -196,6 +204,7 @@ def test_a_tuple_arm_catches_any_member(m):
 
 def test_bare_reraise_lets_the_original_escape(m):
     """Bare reraise lets the original escape."""
+
     @m.define
     def rerun(x):
         try:
@@ -205,11 +214,12 @@ def test_bare_reraise_lets_the_original_escape(m):
 
     answered = str(list(rerun(0)))
     assert "Error" in answered
-    assert "DivisionByZero" in answered
+    assert "ZeroDivisionError" in answered
 
 
 def test_an_unmatched_error_propagates_past_the_rest(m):
     """An unmatched error propagates past the rest."""
+
     @m.define
     def wrong_arm(x):
         try:
@@ -223,6 +233,7 @@ def test_an_unmatched_error_propagates_past_the_rest(m):
 
 def test_finally_runs_before_the_rest_continues(m):
     """Finally runs before the rest continues."""
+
     @m.define
     def fin_effect(x, log: Space):
         try:
@@ -254,6 +265,7 @@ def test_finally_reading_a_rebound_name_refuses(m):
 
 def test_generator_raise_ends_the_answers(m):
     """Generator raise ends the answers."""
+
     @m.define
     def gen(n):
         yield n
@@ -272,6 +284,7 @@ def test_generator_raise_ends_the_answers(m):
 
 def test_dict_literal_lowers_to_dict_space(m):
     """Dict literal lowers to dict space."""
+
     @m.define
     def priced(item):
         costs = {S.apple: 3, S.pear: 5}
@@ -283,6 +296,7 @@ def test_dict_literal_lowers_to_dict_space(m):
 
 def test_set_membership_is_total(m):
     """Set membership is total."""
+
     @m.define
     def has(item):
         stock = {S.apple, S.pear}
@@ -294,6 +308,7 @@ def test_set_membership_is_total(m):
 
 def test_dict_mutation_rides_the_library_doors(m):
     """Dict mutation rides the library doors."""
+
     @m.define
     def grow(n):
         table = {S.base: 1}
@@ -306,6 +321,7 @@ def test_dict_mutation_rides_the_library_doors(m):
 
 def test_dict_comprehension_builds_the_pair_expression(m):
     """Dict comprehension builds the pair expression."""
+
     @m.define
     def squares(n):
         table = {x: x * x for x in range(n)}
@@ -316,6 +332,7 @@ def test_dict_comprehension_builds_the_pair_expression(m):
 
 def test_dict_values_evaluate_before_storage(m):
     """Dict values evaluate before storage."""
+
     @m.define
     def computed(x):
         d = {S.k: x + 1}
@@ -344,6 +361,7 @@ _PRAGMA_CELL = 0
 
 def test_type_alias_claims_and_rewrites(m):
     """Type alias claims and rewrites."""
+
     @m.define
     def aliased(x):
         type Marker = int
@@ -355,6 +373,7 @@ def test_type_alias_claims_and_rewrites(m):
 
 def test_bitwise_and_floor_division_agree_with_python(m):
     """Bitwise and floor division agree with python."""
+
     @m.define
     def masked(x):
         return (x & 12) | (x << 2) ^ ~x
@@ -369,7 +388,7 @@ def test_bitwise_and_floor_division_agree_with_python(m):
     assert list(floored(-7, 2)) == [-4]
     assert list(floored(7.0, 2)) == [3.0]
     answered = str(list(floored(7, 0)))
-    assert "DivisionByZero" in answered
+    assert "ZeroDivisionError" in answered
 
 
 def test_alpha_is_the_equality_family_spelling(m):

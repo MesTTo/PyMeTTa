@@ -27,7 +27,7 @@ twin's own datum, the way its scratch file names are; what the claims are about
 is the round trip.
 """
 
-from metta import G, S, lib
+from metta import G, S, fn, lib
 
 #: What an undeclared parameter's type comes back as. `%Undefined%` is a marked
 #: name rather than an identifier, so it takes rung 5's exact door.
@@ -59,7 +59,7 @@ def twin(m):
         Returns:
             their sum
         """
-        return a + b
+        return fn.add(a, b)
 
     # Retrieval answers the atom the docstring became.
     assert m.fn.get_doc(  # rung: lib_doc's unary raw-document query, not scoped m.doc
@@ -82,21 +82,33 @@ def twin(m):
             S.add_two,
             S["@kind"](S.function),
             S["@desc"](ADD_TWO_SUMMARY),
-            S["@params"]((
-                S["@param"](UNDECLARED, S["@desc"](G("the first"))),
-                S["@param"](UNDECLARED, S["@desc"](G("the second"))),
-            )),
+            S["@params"](
+                (
+                    S["@param"](UNDECLARED, S["@desc"](G("the first"))),
+                    S["@param"](UNDECLARED, S["@desc"](G("the second"))),
+                )
+            ),
             S["@return"](UNDECLARED, S["@desc"](G("their sum"))),
         )
     ]
 
     # An undocumented name answers nothing at all rather than an empty doc.
-    assert list(m.fn.get_doc(  # rung: unary raw get-doc has an empty missing result
-        S.greet_nobody
-    )) == []
-    assert list(m.fn.get_doc(  # rung: unary raw get-doc has an empty missing result
-        S.missing
-    )) == []
+    assert (
+        list(
+            m.fn.get_doc(  # rung: unary raw get-doc has an empty missing result
+                S.greet_nobody
+            )
+        )
+        == []
+    )
+    assert (
+        list(
+            m.fn.get_doc(  # rung: unary raw get-doc has an empty missing result
+                S.missing
+            )
+        )
+        == []
+    )
 
     # And a program can ask what it has NOT documented, which is the gap worth
     # closing in a real codebase. Both functions above are documented.
@@ -176,4 +188,9 @@ def twin(m):
 #: the quad twin stopped being a different program [measured 2026-09-01: min-
 #: of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=c6a40460b1db341198a6150e3600f502831a6e83].
-BUDGET = 9000
+#: RE-PINNED 2026-09-01, 9000 to 9065 (+65), generic Python operators now
+#: dispatch through live protocols while source twins explicitly name
+#: relational engine heads [measured 2026-09-01: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+BUDGET = 9065

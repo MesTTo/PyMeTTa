@@ -25,10 +25,11 @@ from metta import S, fn
 
 def twin(m):
     """Ask whether a symbol is a variable, and take the arm that answers."""
+
     @m.define
     def branch(x):
         # (if (is-var $x) (() (+ 1 1)) (+ 2 2))
-        return ((), 1 + 1) if fn.is_var(x) else 2 + 2
+        return ((), fn.add(1, 1)) if fn.is_var(x) else fn.add(2, 2)
 
     # !(test (if (is-var a) (() (+ 1 1)) (+ 2 2)) 4)
     assert branch(S.a) == [4]
@@ -105,4 +106,9 @@ def twin(m):
 #: and the removal doors changed meaning where a twin spells one [measured
 #: 2026-09-01: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=c6a40460b1db341198a6150e3600f502831a6e83].
-BUDGET = 4185
+#: RE-PINNED 2026-09-01, 4185 to 4203 (+18), generic Python operators now
+#: dispatch through live protocols while source twins explicitly name
+#: relational engine heads [measured 2026-09-01: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+BUDGET = 4203

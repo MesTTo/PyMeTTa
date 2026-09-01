@@ -23,13 +23,16 @@ Open Obligations:
   Future Enhancements: None.
 """
 
+from metta import fn
+
 
 def twin(m):
     """Take each arm of four conditionals whose arms bind."""
+
     @m.define
     def pick_else(a, b):
         # (= (pick-else $a $b) (if (< $a $a) (let* (($c $a)) $a) $b))
-        if a < a:  # noqa: PLR0124 -- comparing the parameter with itself is the fixture: the then arm must never run, and the else arm must still unify its own output
+        if fn.lt(a, a):
             _c = a
             return a
         return b
@@ -40,7 +43,7 @@ def twin(m):
     @m.define
     def pick_then(a, b):
         # (= (pick-then $a $b) (if (> $a 0) (let* (($c $a)) $a) $b))
-        if a > 0:
+        if fn.gt(a, 0):
             _c = a
             return a
         return b
@@ -51,7 +54,7 @@ def twin(m):
     @m.define
     def case_else(a, b):
         # (= (case-else $a $b) (case (< $a $a) ((True (let* (($c $a)) $a)) (False $b))))
-        match a < a:  # noqa: PLR0124 -- the same fixture, asked through `case` rather than through `if`
+        match fn.lt(a, a):
             case True:
                 _c = a
                 return a
@@ -64,7 +67,7 @@ def twin(m):
     @m.define
     def both(a, b):
         # (= (both $a $b) (if (> $a $b) (let* (($c 1)) $a) (let* (($d 1)) $b)))
-        if a > b:
+        if fn.gt(a, b):
             _c = 1
             return a
         _d = 1
@@ -147,4 +150,9 @@ def twin(m):
 #: structure, and the removal doors changed meaning where a twin spells one
 #: [measured 2026-09-01: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=c6a40460b1db341198a6150e3600f502831a6e83].
-BUDGET = 9038
+#: RE-PINNED 2026-09-01, 9038 to 10801 (+1763), generic Python operators now
+#: dispatch through live protocols while source twins explicitly name
+#: relational engine heads [measured 2026-09-01: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+BUDGET = 10801

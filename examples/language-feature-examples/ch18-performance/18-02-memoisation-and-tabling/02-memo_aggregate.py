@@ -22,7 +22,7 @@ would read the old mode. Both calls therefore state the `True` they answer,
 which both pulls them and says what they answered.
 """
 
-from metta import S, lib
+from metta import S, fn, lib
 from metta.vocabularies import MemoAggregate
 
 
@@ -37,8 +37,8 @@ def twin(m):
     def choices(x):
         # (= (choices $x) $x), then (+ $x 1), then (+ $x 2)
         yield x
-        yield x + 1
-        yield x + 2
+        yield fn.add(x, 1)
+        yield fn.add(x, 2)
 
     m.eval(S.memoize(choices))
 
@@ -133,4 +133,9 @@ def twin(m):
 #: the quad twin stopped being a different program [measured 2026-09-01: min-
 #: of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=c6a40460b1db341198a6150e3600f502831a6e83].
-BUDGET = 36912
+#: RE-PINNED 2026-09-01, 36912 to 36980 (+68), generic Python operators now
+#: dispatch through live protocols while source twins explicitly name
+#: relational engine heads [measured 2026-09-01: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+BUDGET = 36980

@@ -8,6 +8,12 @@ state dies with the space life: a dropped pooled module's tables cannot
 answer its next life. Each test descends from a probe in
 ai-tabling-review.md or ai-tmp/tabling-probes/ that demonstrated the
 defect.
+Guarantees:
+  - compiled numeric table fixtures opt into pure engine algebra explicitly,
+    so tabling never hides a Python operator protocol's possible effects
+    [tested:
+    test_a_second_live_call_reuses_the_table_but_an_undeclared_control_does_not;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -31,7 +37,9 @@ def _tabled_property(m, name, compiled_arity):
     row = m.runtime.once(
         "space_module(Space, _M), functor(_H, F, A), "
         "( predicate_property(_M:_H, tabled) -> T = true ; T = false )",
-        Space=m.name, F=name, A=compiled_arity,
+        Space=m.name,
+        F=name,
+        A=compiled_arity,
     )
     return row.get("T") == "true" or row.get("T") is True
 
@@ -48,13 +56,9 @@ def test_hyphenated_and_uppercase_names_genuinely_table(m):
     assert _tabled_property(m, "spin-down", 2)
     assert _tabled_property(m, "Upper_case", 2)
     with m.stats() as first:
-        assert m.run(
-            "!(with-pragma! ((max-stack-depth 1000000)) (spin-down 200000))"
-        ) == [[S.done]]
+        assert m.run("!(with-pragma! ((max-stack-depth 1000000)) (spin-down 200000))") == [[S.done]]
     with m.stats() as second:
-        assert m.run(
-            "!(with-pragma! ((max-stack-depth 1000000)) (spin-down 200000))"
-        ) == [[S.done]]
+        assert m.run("!(with-pragma! ((max-stack-depth 1000000)) (spin-down 200000))") == [[S.done]]
     # The second call answers from the table: orders of magnitude fewer
     # engine steps than the first recursion.
     assert second.inferences < first.inferences / 10
@@ -186,11 +190,11 @@ def test_a_second_live_call_reuses_the_table_but_an_undeclared_control_does_not(
     catalog.add(refusal)
 
     @m.define(name="live-reuse-tabled")
-    def live_reuse_tabled(n):
+    def live_reuse_tabled(n: int) -> int:
         return n if n < 2 else live_reuse_tabled(n - 1) + live_reuse_tabled(n - 2)
 
     @m.define(name="live-reuse-control")
-    def live_reuse_control(n):
+    def live_reuse_control(n: int) -> int:
         return n if n < 2 else live_reuse_control(n - 1) + live_reuse_control(n - 2)
 
     declaration = S["live-reuse-tabled"](V.n)
@@ -212,8 +216,7 @@ def test_a_second_live_call_reuses_the_table_but_an_undeclared_control_does_not(
 
 def _module_table_count(runtime, space_name):
     return runtime.once(
-        "space_module(Space, _M), "
-        "aggregate_all(count, current_table(_M:_G, _), N)",
+        "space_module(Space, _M), aggregate_all(count, current_table(_M:_G, _), N)",
         Space=space_name,
     )["N"]
 
@@ -225,9 +228,7 @@ def test_pool_reuse_starts_tabling_clean(metta):
     tabling declared in the new life (probe p14_pool_table_leak). The
     clear now resets the module's tabling state whole.
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
-    free = metta.runtime.once(
-        "aggregate_all(count, metta_py_free_space(_), N)"
-    )["N"]
+    free = metta.runtime.once("aggregate_all(count, metta_py_free_space(_), N)")["N"]
     held = [metta._new_space() for _ in range(free)]
     try:
         with metta._new_space() as first_life:
@@ -239,9 +240,7 @@ def test_pool_reuse_starts_tabling_clean(metta):
         with metta._new_space() as second_life:
             assert second_life.name == name
             assert _module_table_count(metta.runtime, name) == 0
-            assert not reflection.match(
-                S.tabled(S[name], S["leak-fn"], V.a)
-            )
+            assert not reflection.match(S.tabled(S[name], S["leak-fn"], V.a))
             second_life.run("(= (leak-fn $n) (* $n 10))")
             assert second_life.run("!(leak-fn 5)") == [[50]]
     finally:
@@ -262,9 +261,7 @@ def test_dropped_space_leaves_shared_tabling_alone(metta):
             scratch.run("(= (scratch-fn $n) (+ $n 1))")
             assert scratch.run("!(tabled (scratch-fn $n))") == [[True]]
         assert _tabled_property(metta, "shared-keeper", 2)
-        assert len(
-            reflection.match(S.tabled(S["&self"], S["shared-keeper"], V.a))
-        ) == 1
+        assert len(reflection.match(S.tabled(S["&self"], S["shared-keeper"], V.a))) == 1
     finally:
         assert metta.run("!(untabled (shared-keeper $n))") == [[True]]
 
@@ -320,9 +317,7 @@ def test_an_equation_change_does_not_pay_for_a_dropped_table(metta):
             big.run("!(import! (context-space) (library lib_tabling))")
             big.run("(= (cost-deep $n) (if (== $n 0) done (cost-deep (- $n 1))))")
             big.run("!(tabled (cost-deep $n))")
-            big.run(
-                f"!(with-pragma! ((max-stack-depth 1000000)) (cost-deep {answers}))"
-            )
+            big.run(f"!(with-pragma! ((max-stack-depth 1000000)) (cost-deep {answers}))")
         victim = metta._new_space()
         victim.run("(= (cost-changing $n) (+ $n 1))")
         try:

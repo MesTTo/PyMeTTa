@@ -30,60 +30,62 @@ def twin(m):
     """Fold, map and filter, first with the work inline and then with it named."""
 
     @m.define
-    def foldfun(a, b):                    # (= (foldfun $a $b) (+ $a $b))
-        return a + b
+    def foldfun(a, b):  # (= (foldfun $a $b) (+ $a $b))
+        return fn.add(a, b)
 
     @m.define
-    def mapfun(a):                        # (= (mapfun $a) (+ $a 1))
-        return a + 1
+    def mapfun(a):  # (= (mapfun $a) (+ $a 1))
+        return fn.add(a, 1)
 
     @m.define
-    def filterfun(x):                     # (= (filterfun $x) (> $x 3))
-        return x > 3
+    def filterfun(x):  # (= (filterfun $x) (> $x 3))
+        return fn.gt(x, 3)
 
     @m.define
-    def f1a():                            # (= (f1a) (foldl-atom (1 2 3 4) 0
-        return functools.reduce(lambda acc, x: acc + x, (1, 2, 3, 4), 0)  # $acc $x (+ $acc $x)))
+    def f1a():  # (= (f1a) (foldl-atom (1 2 3 4) 0
+        return functools.reduce(
+            lambda acc, x: fn.add(acc, x), (1, 2, 3, 4), 0
+        )  # $acc $x (+ $acc $x)))
 
     @m.define
-    def f2a():                            # (= (f2a) (map-atom (1 2 3) $x (+ $x 1)))
-        return [x + 1 for x in (1, 2, 3)]
+    def f2a():  # (= (f2a) (map-atom (1 2 3) $x (+ $x 1)))
+        return [fn.add(x, 1) for x in (1, 2, 3)]
 
     @m.define
-    def f3a():                            # (= (f3a) (filter-atom (1 2 3 4 5) $x (> $x 3)))
-        return [x for x in (1, 2, 3, 4, 5) if x > 3]
+    def f3a():  # (= (f3a) (filter-atom (1 2 3 4 5) $x (> $x 3)))
+        return [x for x in (1, 2, 3, 4, 5) if fn.gt(x, 3)]
 
     @m.define
-    def f1b():                            # (= (f1b) (foldl-atom (1 2 3 4) 0 foldfun))
+    def f1b():  # (= (f1b) (foldl-atom (1 2 3 4) 0 foldfun))
         return functools.reduce(foldfun, (1, 2, 3, 4), 0)
 
     @m.define
-    def f2b():                            # (= (f2b) (map-atom (1 2 3) mapfun))
+    def f2b():  # (= (f2b) (map-atom (1 2 3) mapfun))
         return [mapfun(x) for x in (1, 2, 3)]
 
     @m.define
-    def f3b():                            # (= (f3b) (filter-atom (1 2 3 4 5) filterfun))
+    def f3b():  # (= (f3b) (filter-atom (1 2 3 4 5) filterfun))
         return [x for x in (1, 2, 3, 4, 5) if filterfun(x)]
 
     @m.define
-    def foldfun2(a, b):                   # (= (foldfun2 $a $b) (append $a $b))
+    def foldfun2(a, b):  # (= (foldfun2 $a $b) (append $a $b))
         return fn.append(a, b)
 
     @m.define
-    def joined(parts):                    # the bare runnable, named:
+    def joined(parts):  # the bare runnable, named:
         # (foldl-atom ((1 2) (3 4) (5 6)) () $acc $x (append $acc $x))
         return functools.reduce(lambda acc, x: fn.append(acc, x), parts, ())
 
-    assert f1a() == [10]   # [10]
-    assert f2a() == [Expression((2, 3, 4))]   # [(2 3 4)]
-    assert f3a() == [Expression((4, 5))]   # [(4 5)]
+    assert f1a() == [10]  # [10]
+    assert f2a() == [Expression((2, 3, 4))]  # [(2 3 4)]
+    assert f3a() == [Expression((4, 5))]  # [(4 5)]
 
-    assert f1b() == [10]   # [10]
-    assert f2b() == [Expression((2, 3, 4))]   # [(2 3 4)]
-    assert f3b() == [Expression((4, 5))]   # [(4 5)]
+    assert f1b() == [10]  # [10]
+    assert f2b() == [Expression((2, 3, 4))]  # [(2 3 4)]
+    assert f3b() == [Expression((4, 5))]  # [(4 5)]
 
     parts = Expression((Expression((1, 2)), Expression((3, 4)), Expression((5, 6))))
-    assert joined(parts) == [Expression((1, 2, 3, 4, 5, 6))]   # [(1 2 3 4 5 6)]
+    assert joined(parts) == [Expression((1, 2, 3, 4, 5, 6))]  # [(1 2 3 4 5 6)]
 
 
 #: Inferences this twin spends, its own tripwire. PLACEHOLDER rather than a
@@ -174,4 +176,9 @@ def twin(m):
 #: structure, and the removal doors changed meaning where a twin spells one
 #: [measured 2026-09-01: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=c6a40460b1db341198a6150e3600f502831a6e83].
-BUDGET = 28483
+#: RE-PINNED 2026-09-01, 28483 to 29392 (+909), generic Python operators now
+#: dispatch through live protocols while source twins explicitly name
+#: relational engine heads [measured 2026-09-01: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+BUDGET = 29392

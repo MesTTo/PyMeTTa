@@ -80,8 +80,8 @@ is not a value that dwindles) are the container protocol; ask
 
 ```python
 @m.define                      # LOWERED: the body BECOMES equations
-def double(x: int) -> int:
-    return x * 2
+def double(x):
+    return fn.mul(x, 2)        # explicit engine relation
 
 @m.op(effect="oracleIO")       # CALLED: the engine calls into Python
 def fetch(url): ...
@@ -114,21 +114,28 @@ effect class, because the engine cannot see inside it: `pure`, `reads`,
 
 There is no unsupported-construct list. `try`/`except`/`else`/`finally` and
 `raise` compile onto the engine's error algebra, so `except ValueError as e`
-matches by MRO name and `str(e)` reads as Python's; dict and set literals are
+matches live classes by identity and inheritance and `str(e)` reads as
+Python's; dict and set literals are
 `lib_dict` spaces, so `d[k]`, `k in d`, `d[k] = v`, `del d[k]`, `len(d)` and
 the view methods all reach the library's vocabulary; comprehensions,
 generators (`yield` is nondeterminism, one answer per yield), `match`,
-walrus, `global`, and `type X = T` all compile; and `&`, `|`, `^`, `~`, `<<`,
-`>>`, `//` are engine builtins that pay no host crossing.
+walrus, `global`, and `type X = T` all compile.
+
+Generic operators (`+`, comparisons, bitwise operations, unary operations,
+and builtins such as `sum`) invoke Python's live protocol at application
+time. That preserves reflected methods and result species, and is classified
+`oracleIO` because a dunder can have host effects. Use `fn.add`, `fn.lt`,
+`fn.bit_and`, `fn.floor_div`, and sibling `fn` names when the body means an
+engine relation that should remain pure, matchable, or reversible.
 
 Anything else odd becomes a visible host island inside the equation, run per
 application and never at decoration time, which is what `py(...)` spells
 explicitly. A refusal cites its ground in one of the two languages rather
 than a house rule, and renders the file, function, line and an exact caret.
 
-One trap worth knowing: Python's `/` is TRUE division, so a compiled `n / 2`
-faithfully forces a float. When you want the engine's own division, name it:
-`fn["/"](a, b)`. `//` is exact and compiles to `floor-div`.
+One trap worth knowing: Python's `/` is true division, so a compiled `n / 2`
+faithfully answers a float. The engine's own divisions are `fn.truediv(a, b)`
+and `fn.floor_div(a, b)`.
 
 ## What a VALUE crosses as, a different choice
 

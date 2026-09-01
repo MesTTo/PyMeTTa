@@ -17,36 +17,36 @@ leaves the wrapper standing, which is exactly what the claim is measuring; that
 makes each one a term to evaluate rather than a call to make.
 """
 
-from metta import S
+from metta import S, fn
 
 
 def twin(m):
     """Wrap one term four ways, and see which of them reduce."""
 
     @m.define
-    def fib(n):                          # (= (fib $N) (if (< $N 2) $N
-        if n < 2:                        #     (+ (fib (- $N 1)) (fib (- $N 2)))))
+    def fib(n):  # (= (fib $N) (if (< $N 2) $N
+        if fn.lt(n, 2):  #     (+ (fib (- $N 1)) (fib (- $N 2)))))
             return n
-        return fib(n - 1) + fib(n - 2)
+        return fn.add(fib(fn.sub(n, 1)), fib(fn.sub(n, 2)))
 
     @m.define
-    def myfunc():                        # (= (myfunc) 5)
+    def myfunc():  # (= (myfunc) 5)
         return 5
 
     @m.define
-    def call_fib():                      # (= (call-fib) (call (fib (myfunc))))
+    def call_fib():  # (= (call-fib) (call (fib (myfunc))))
         return S.call(fib(myfunc()))
 
     @m.define
-    def quote_fib():                     # (= (quote-fib) (quote (fib (myfunc))))
+    def quote_fib():  # (= (quote-fib) (quote (fib (myfunc))))
         return S.quote(fib(myfunc()))
 
     @m.define
-    def eval_fib():                      # (= (eval-fib) (eval (fib (myfunc))))
+    def eval_fib():  # (= (eval-fib) (eval (fib (myfunc))))
         return S.eval(fib(myfunc()))
 
     @m.define
-    def reduce_fib():                    # (= (reduce-fib) (reduce (fib (myfunc))))
+    def reduce_fib():  # (= (reduce-fib) (reduce (fib (myfunc))))
         return S.reduce(fib(myfunc()))
 
     inner = S.fib(S.myfunc())
@@ -125,4 +125,9 @@ def twin(m):
 #: the quad twin stopped being a different program [measured 2026-09-01: min-
 #: of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=c6a40460b1db341198a6150e3600f502831a6e83].
-BUDGET = 38620
+#: RE-PINNED 2026-09-01, 38620 to 39435 (+815), generic Python operators now
+#: dispatch through live protocols while source twins explicitly name
+#: relational engine heads [measured 2026-09-01: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+BUDGET = 39435

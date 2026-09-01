@@ -12,7 +12,7 @@ Open Obligations:
   Future Enhancements: None.
 """
 
-from metta import S
+from metta import S, fn
 
 
 def twin(m):
@@ -21,7 +21,7 @@ def twin(m):
     @m.define
     def double_used(n):
         # (let* (($big (* $n 10))) (+ $big $big))
-        return (big := n * 10) + big
+        return fn.add((big := fn.mul(n, 10)), big)
 
     # !(test (double-used 3) 60)
     assert double_used(3) == [60]
@@ -29,7 +29,7 @@ def twin(m):
     @m.define
     def guarded_half(n):
         # (let* (($half (floor-div $n 2))) (if (< $half 10) $half nope))
-        if (half := n // 2) < 10:
+        if fn.lt((half := fn.floor_div(n, 2)), 10):
             return half
         return S.nope
 
@@ -56,4 +56,9 @@ def twin(m):
 #: structure, and the removal doors changed meaning where a twin spells one
 #: [measured 2026-09-01: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=c6a40460b1db341198a6150e3600f502831a6e83].
-BUDGET = 4945
+#: RE-PINNED 2026-09-01, 4945 to 5731 (+786), generic Python operators now
+#: dispatch through live protocols while source twins explicitly name
+#: relational engine heads [measured 2026-09-01: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+BUDGET = 5731

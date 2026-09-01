@@ -12,27 +12,27 @@ ever named as a symbol. `spacecount`'s parameter is `_`, MeTTa's own anonymous
 variable, because the original ignores it as well.
 """
 
-from metta import S, V, match
+from metta import S, V, fn, match
 
 
 def twin(m):
     """Put three facts in the space, then count them by folding ones."""
-    m += [(S.foo, n) for n in (1, 2, 3)]         # (foo 1) (foo 2) (foo 3)
+    m += [(S.foo, n) for n in (1, 2, 3)]  # (foo 1) (foo 2) (foo 3)
 
     @m.define
-    def countitem():                             # (= (countitem)
+    def countitem():  # (= (countitem)
         _row = match(m, S.foo(V.n), S.foo(V.n))  #    (let $x (match &self (foo $1) (foo $1))
-        return 1                                 #         1))
+        return 1  #         1))
 
     @m.define
-    def merge(a, b):                             # (= (merge $a $b) (+ $a $b))
-        return a + b
+    def merge(a, b):  # (= (merge $a $b) (+ $a $b))
+        return fn.add(a, b)
 
     @m.define
-    def spacecount(_):                           # (= (spacecount $x)
+    def spacecount(_):  # (= (spacecount $x)
         return S.foldall(merge, countitem(), 0)  #    (foldall merge (countitem) 0))
 
-    assert m.fn.foldall(S.merge, S.countitem(), 0) == [3]   # [3]
+    assert m.fn.foldall(S.merge, S.countitem(), 0) == [3]  # [3]
 
 
 #: Inferences this twin spends, its own tripwire. PLACEHOLDER rather than a
@@ -105,4 +105,9 @@ def twin(m):
 #: structure, and the removal doors changed meaning where a twin spells one
 #: [measured 2026-09-01: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=c6a40460b1db341198a6150e3600f502831a6e83].
-BUDGET = 6503
+#: RE-PINNED 2026-09-01, 6503 to 6514 (+11), generic Python operators now
+#: dispatch through live protocols while source twins explicitly name
+#: relational engine heads [measured 2026-09-01: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+BUDGET = 6514

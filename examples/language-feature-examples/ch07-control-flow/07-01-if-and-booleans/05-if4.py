@@ -4,27 +4,27 @@ A condition is an ordinary expression, so an `if` sits there as happily as a
 comparison does, and this file's whole subject is that nesting. All three `if`s
 are Python conditional expressions and the file compiles whole.
 
-Two lowerings the equation makes visible. Python's `==` is the prelude's
-`py-eq`, which is Python's equality rather than MeTTa's `==`; and a test
-position that is not already boolean by its syntax wraps in `py-truthy`, so an
-`if` used as a condition is asked for its truth the way Python asks. The stored
-equation is
-`(if (py-truthy (if (py-eq 42 42) True False)) (if True 42 lol) (+ 2 2))`.
+Two lowerings the equation makes visible. `fn.eq` explicitly names MeTTa's
+`==`; a test position that is not already boolean by its syntax wraps in
+`py-truthy`, so an `if` used as a condition is asked for its truth the way
+Python asks. `fn.add` names the other engine relation. The stored equation is
+`(if (py-truthy (if (== 42 42) True False)) (if True 42 lol) (+ 2 2))`.
 Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
 """
 
-from metta import S
+from metta import S, fn
 
 
 def twin(m):
     """Decide a condition with an `if`, then take an arm with another."""
+
     @m.define
     def nested():
         # (if (if (== 42 42) True False) (if True 42 lol) (+ 2 2))
-        return (42 if True else S.lol) if (True if 42 == 42 else False) else 2 + 2  # noqa: PLR0133  -- comparing two constants is the example's own program, which the engine reduces
+        return (42 if True else S.lol) if (True if fn.eq(42, 42) else False) else fn.add(2, 2)
 
     # !(test (if (if (== 42 42) True False) (if True 42 lol) (+ 2 2)) 42)
     assert nested() == [42]
@@ -91,4 +91,9 @@ def twin(m):
 #: and the removal doors changed meaning where a twin spells one [measured
 #: 2026-09-01: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=c6a40460b1db341198a6150e3600f502831a6e83].
-BUDGET = 4263
+#: RE-PINNED 2026-09-01, 4263 to 5050 (+787), generic Python operators now
+#: dispatch through live protocols while source twins explicitly name
+#: relational engine heads [measured 2026-09-01: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+BUDGET = 5050

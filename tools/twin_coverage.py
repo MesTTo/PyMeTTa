@@ -196,6 +196,7 @@ def answer_multiset_diff(
             remaining.pop(matched)
     return left_only, remaining
 
+
 #: One inference count, and the heads the space answers a `(= $head $body)`
 #: match with, on their own marker lines beside the answer groups.
 COST = "P14C-COST "
@@ -265,19 +266,24 @@ SOURCE_DOORS = frozenset({"run", "load", "parse", "save", "forms"})
 #: commit=5c67147566907276a95a5fbf059cf8f98b6685f1]. The retired carriers `val`, `sym`, `var` and `new_space`
 #: are NOT here; RETIRED_ROOT and RETIRED_HANDLE name them and their
 #: replacements.
-NAMING_CALLS = frozenset({
-    "ground", "G", "space", "attach",
-    # TypeVar("X") names a type variable exactly as S["x"] names an atom, and
-    # a twin declaring a parametric type needs it [found 2026-08-22 by the
-    # types agent, which worked around it with the name= keyword].
-    "TypeVar",
-    # `view(obj)` carries a Python container whole exactly as ground() carries
-    # a Python value whole: it makes a LIVE provider over the object, so the
-    # keys of `view({"port": 80})` are Python text and never a program
-    # [source: ai-python-conventions.md 3.12, the three routes for Python data;
-    # commit=5c67147566907276a95a5fbf059cf8f98b6685f1].
-    "view",
-})
+NAMING_CALLS = frozenset(
+    {
+        "ground",
+        "G",
+        "space",
+        "attach",
+        # TypeVar("X") names a type variable exactly as S["x"] names an atom, and
+        # a twin declaring a parametric type needs it [found 2026-08-22 by the
+        # types agent, which worked around it with the name= keyword].
+        "TypeVar",
+        # `view(obj)` carries a Python container whole exactly as ground() carries
+        # a Python value whole: it makes a LIVE provider over the object, so the
+        # keys of `view({"port": 80})` are Python text and never a program
+        # [source: ai-python-conventions.md 3.12, the three routes for Python data;
+        # commit=5c67147566907276a95a5fbf059cf8f98b6685f1].
+        "view",
+    }
+)
 
 #: Calls whose string arguments are HOST text rather than a program: a message
 #: a twin prints, a filesystem path it opens. `println!` dissolves into
@@ -289,11 +295,25 @@ HOST_TEXT_CALLS = frozenset({"print", "Path", "open", "warning", "info", "debug"
 #: `(capacity &pool 8)` is written `pool.capacity(8)` [source:
 #: ai-narrow-core-renames.md rows 71-89, the fifteen replacements;
 #: commit=5c67147566907276a95a5fbf059cf8f98b6685f1].
-DECLARATION_CALLS = frozenset({
-    "admits", "agenda", "algebra", "annotations", "capacity", "context",
-    "emits", "events", "handles", "image", "merge", "on_error", "reacts",
-    "source", "writes",
-})
+DECLARATION_CALLS = frozenset(
+    {
+        "admits",
+        "agenda",
+        "algebra",
+        "annotations",
+        "capacity",
+        "context",
+        "emits",
+        "events",
+        "handles",
+        "image",
+        "merge",
+        "on_error",
+        "reacts",
+        "source",
+        "writes",
+    }
+)
 
 #: A declaration's closed option value is a StrEnum member, never its bare
 #: wire string: `emits(AnswerPolicy.best_first)` and
@@ -361,12 +381,22 @@ DECLARATION_NAMES = frozenset({"BUDGET", "RUNG"})
 #: statement, so the lane counts them against the twin's assertions rather
 #: than asking the twin to call them [source: engine/prelude.metta lines
 #: 56-103, the assert family; commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22].
-ASSERT_HEADS = frozenset({
-    "test", "test-no-answer", "assert", "assertEqual", "assertAlphaEqual",
-    "assertEqualToResult", "assertAlphaEqualToResult", "assertIncludes",
-    "assertEqualMsg", "assertAlphaEqualMsg", "assertEqualToResultMsg",
-    "assertAlphaEqualToResultMsg",
-})
+ASSERT_HEADS = frozenset(
+    {
+        "test",
+        "test-no-answer",
+        "assert",
+        "assertEqual",
+        "assertAlphaEqual",
+        "assertEqualToResult",
+        "assertAlphaEqualToResult",
+        "assertIncludes",
+        "assertEqualMsg",
+        "assertAlphaEqualMsg",
+        "assertEqualToResultMsg",
+        "assertAlphaEqualToResultMsg",
+    }
+)
 
 #: What Python already spells, and how. A twin naming one of these heads is
 #: writing MeTTa in Python punctuation: the concept exists in Python and rule
@@ -712,14 +742,6 @@ def _factory(node: ast.expr) -> tuple[str, str] | None:
 #: commit=5c67147566907276a95a5fbf059cf8f98b6685f1].
 COMPILING_DECORATORS = frozenset({"define", "pre_add", "rules"})
 
-#: The subset whose body is LOWERED from Python syntax, where `a + b` emits
-#: `(+ $a $b)`. A `@rules` body is EXECUTED instead, so its `a == b` is
-#: Python's own structural equality and `.eq(...)` is the building spelling
-#: there; the operator rule below would report a correct bundle
-#: [source: extensions/python/metta/_rules.py rules, which calls the generator
-#: with Variable arguments; commit=8c057bb8055459cc13127d89b418deb634b90ae4].
-LOWERING_DECORATORS = frozenset({"define", "cache", "pre_add"})
-
 #: Decorators whose body is HOST PYTHON rather than knowledge. An operation
 #: RUNS in Python, so the `" "` in `title.replace(" ", "-")` is an argument to
 #: a Python method and never a program; the guide's own exemplar for the door
@@ -893,9 +915,7 @@ def _call_strings(node: ast.Call) -> set[int]:
     return permitted
 
 
-def _member_finding(
-    node: ast.expr, enum_class: type
-) -> tuple[int, str] | None:
+def _member_finding(node: ast.expr, enum_class: type) -> tuple[int, str] | None:
     """Name the exact member replacing one bare option string."""
     if not isinstance(node, ast.Constant) or not isinstance(node.value, str):
         return None
@@ -937,9 +957,7 @@ def _declaration_vocabulary_findings(node: ast.Call) -> list[tuple[int, str]]:
     if called != "on_error":
         return findings
 
-    mode_keyword = next(
-        (word for word in node.keywords if word.arg == "mode"), None
-    )
+    mode_keyword = next((word for word in node.keywords if word.arg == "mode"), None)
     if mode_keyword is not None:
         finding = _member_finding(mode_keyword.value, vocabularies.OnError)
         return findings + ([finding] if finding is not None else [])
@@ -985,32 +1003,6 @@ def _named_strings(tree: ast.Module) -> set[int]:
 
 #: A line-level rung declaration, in the shape of the tree's noqa grammar.
 RUNG_LINE = re.compile(r"#\s*rung:\s*\S")
-
-
-#: Heads Python's own syntax already builds INSIDE A LOWERED BODY, so writing
-#: them as a call or through Expression() there spells with a function what the
-#: language spells with a character. The translator is the authority, not the
-#: live dunder table, and the two disagree in three places
-#: [measured 2026-08-24: one file per spelling under `@m.define`, read back
-#: with `m.match(S['='](V.head, V.body))`. `a ** b` emits `(pow-math a b)`,
-#: `a == b` emits `(py-eq a b)`, `a != b` emits `(not (py-eq a b))`, `a in b`
-#: emits `(py-in a b)`, `not a` emits `(not (py-truthy a))`, and `a and b`
-#: emits a `let*` over `py-truthy`; `a // b` and `a & b` REFUSE, naming
-#: `floor_math(a / b)` and "MeTTa has no bitwise operators";
-#: source: extensions/python/metta/_define_expression.py _BINOPS, _COMPARE,
-#: _INSTEAD and _compare_link; commit=5c67147566907276a95a5fbf059cf8f98b6685f1].
-#:
-#: So `**` and `//` are NOT here: neither is an engine head, and demanding an
-#: operator for `floor-math` would demand the one spelling the translator
-#: refuses. `pow-math`, `py-eq` and `py-in` ARE, because they are exactly what
-#: `**`, `==` and `in` emit. `and`, `or` and `not` stay because `&`, `|` and
-#: `~` refuse inside a body, which leaves Python's own keywords as the only
-#: operator spelling there; a twin that needs the bare `(and a b)` term rather
-#: than Python's truthiness chain declares its rung on the line.
-OPERATOR_HEADS = frozenset({
-    "+", "-", "*", "/", "%", "pow-math", "==", "!=", "py-eq", "py-in",
-    "<", ">", "<=", ">=", "and", "or", "not",
-})
 
 
 def _rung_reason(tree: ast.Module) -> str | None:
@@ -1066,11 +1058,7 @@ def _subscripted_name(node: ast.Subscript) -> tuple[str, str, str] | None:
     # manual hyphen form where the map already serves is a finding).
     if "-" in name and "_" not in name:
         candidate = name.replace("-", "_")
-        if (
-            candidate.isidentifier()
-            and candidate.isascii()
-            and not keyword.iskeyword(candidate)
-        ):
+        if candidate.isidentifier() and candidate.isascii() and not keyword.iskeyword(candidate):
             return (namespace, name, candidate)
     return None
 
@@ -1089,8 +1077,7 @@ def _restated_define_names(node: ast.FunctionDef) -> list[tuple[int, str]]:
     return [
         (
             decorator.lineno,
-            f'name="{word.value.value}" is what '
-            f"def {node.name} already names; drop it",
+            f'name="{word.value.value}" is what def {node.name} already names; drop it',
         )
         for decorator in node.decorator_list
         if isinstance(decorator, ast.Call)
@@ -1132,9 +1119,10 @@ def idiom(twin: Path) -> list[str]:
     A twin avoiding MeTTa source text can still be MeTTa source text with
     Python punctuation, which is the failure this catches: `S["merge"]` where
     `S.merge` reads, `Expression((S["="], a, b))` where `S["="](a, b)` reads,
-    and `Expression((S["+"], a, b))` where `a + b` already builds that term.
-    The design
-    authority is ai-python-first-revamp-discussion.md, sections 9c and 9k.
+    and `Expression((S["+"], a, b))` where calling that head builds the same
+    term. Python operator syntax is deliberately different: an untyped
+    `a + b` lowers to Python's live protocol, while `fn.add(a, b)` names the
+    relational engine head explicitly.
     A twin that declares `RUNG = "<reason>"` is exempt, because a drop with a
     stated reason is what the ladder is for.
     """
@@ -1149,22 +1137,13 @@ def idiom(twin: Path) -> list[str]:
         for number, line in enumerate(twin.read_text(encoding="utf-8").splitlines(), 1)
         if RUNG_LINE.search(line)
     }
-    # The operator rule below only holds where an operator would BUILD the
-    # term, which is inside a lowered body. Outside one `ground(5) + 5`
-    # computes 10 and `S.x == 1` is Python's own structural equality, so naming
-    # the head is the deliberate spelling [found 2026-08-22: 33 findings in
-    # twins/libraries, every one of this shape and none of them a defect].
-    lowered = {
-        id(inner)
-        for node in ast.walk(tree)
-        if isinstance(node, (ast.FunctionDef, ast.ClassDef))
-        and _decorated(node, LOWERING_DECORATORS)
-        for inner in ast.walk(node)
-    }
     findings: list[tuple[int, str]] = [
-        (node.lineno, "twin() yields, so it mirrors the example FORM BY FORM; "
-                      "a twin is an ordinary function that does what the "
-                      "example does")
+        (
+            node.lineno,
+            "twin() yields, so it mirrors the example FORM BY FORM; "
+            "a twin is an ordinary function that does what the "
+            "example does",
+        )
         for node in _twin_body(tree)
         if isinstance(node, (ast.Yield, ast.YieldFrom))
     ]
@@ -1183,11 +1162,13 @@ def idiom(twin: Path) -> list[str]:
                 and reached[0] in MINTING_NAMESPACES
                 and reached[1].startswith("&")
             ):
-                findings.append((
-                    node.lineno,
-                    f"{reached[1]!r} names a SPACE as a symbol; a space is a "
-                    f"handle, and every context-relative door hangs off it",
-                ))
+                findings.append(
+                    (
+                        node.lineno,
+                        f"{reached[1]!r} names a SPACE as a symbol; a space is a "
+                        f"handle, and every context-relative door hangs off it",
+                    )
+                )
             redundant = _subscripted_name(node)
             if redundant is not None:
                 namespace, written, attribute = redundant
@@ -1203,46 +1184,15 @@ def idiom(twin: Path) -> list[str]:
                 )
             reached = _factory(node.func)
             called = reached[1] if reached is not None else None
-            # An operator WORD written at a factory call resolves to its head
-            # before the operator rule, so `S.eq(a, b)` in a compiled body
-            # reports as the transliteration of `a == b` it now stores. Only
-            # the ATTRIBUTE door consults, exactly as the compiler does:
-            # `S["eq"](a, b)` is the exact door for the data symbol `eq`,
-            # which the word table took from the attribute spelling, and
-            # agents A and F both measured the undistinguished form
-            # misreporting it. The two composite words raise in the table;
-            # the compiler refuses them itself, so a raise is no resolution.
-            spoken = called
-            if called is not None and isinstance(node.func, ast.Attribute):
-                try:
-                    spoken = operator_attribute_target(called) or called
-                except AttributeError:
-                    spoken = called
-            operator = spoken if spoken in OPERATOR_HEADS else head
             dissolved = DISSOLVED.get(called or "") or DISSOLVED.get(head or "")
             if dissolved is not None:
-                findings.append((
-                    node.lineno,
-                    f"the head {(called or head)!r} is {dissolved}",
-                ))
-            # At the operator's OWN arity only: `S["+"](1)` is a partial
-            # application, which Python has no operator spelling for.
-            arity = len(parts) - 1 if parts is not None else len(node.args)
-            if (
-                operator in OPERATOR_HEADS
-                and id(node) in lowered
-                and arity == (1 if operator == "not" else 2)
-            ):
-                findings.append((
-                    node.lineno,
-                    f"the head {operator!r} is what a Python operator writes "
-                    f"inside a compiled body",
-                ))
-    return [
-        f"line {line}: {what}"
-        for line, what in sorted(set(findings))
-        if line not in excused
-    ]
+                findings.append(
+                    (
+                        node.lineno,
+                        f"the head {(called or head)!r} is {dissolved}",
+                    )
+                )
+    return [f"line {line}: {what}" for line, what in sorted(set(findings)) if line not in excused]
 
 
 def _twin_body(tree: ast.Module) -> list[ast.AST]:
@@ -1260,10 +1210,7 @@ def _twin_body(tree: ast.Module) -> list[ast.AST]:
                 and statement is not node
                 for inner in ast.walk(statement)
             }
-            return [
-                inner for inner in ast.walk(node)
-                if id(inner) not in nested
-            ]
+            return [inner for inner in ast.walk(node) if id(inner) not in nested]
     return []
 
 
@@ -1305,9 +1252,7 @@ def scan(twin: Path) -> list[str]:
             # agent, which had no other spelling for the head].
             and _factory(node.func) is None
         ):
-            findings.append(
-                (node.lineno, f"calls {_callee(node)}(), which takes MeTTa source")
-            )
+            findings.append((node.lineno, f"calls {_callee(node)}(), which takes MeTTa source"))
         elif (
             isinstance(node, ast.Constant)
             and isinstance(node.value, str)
@@ -1358,9 +1303,7 @@ def retired(twin: Path) -> list[str]:
             root = (node.module or "").split(".")[0]
             current = RETIRED_MODULES.get(root)
             if current is not None:
-                findings.append(
-                    (node.lineno, f"{node.module} is retired; import from {current}")
-                )
+                findings.append((node.lineno, f"{node.module} is retired; import from {current}"))
             findings.extend(
                 (node.lineno, f"{alias.name} is retired; write {RETIRED_ROOT[alias.name]}")
                 for alias in node.names
@@ -1372,9 +1315,7 @@ def retired(twin: Path) -> list[str]:
                 RETIRED_ROOT.get(node.attr) if package else None
             )
             if current is not None:
-                findings.append(
-                    (node.lineno, f"{node.attr} is retired; write {current}")
-                )
+                findings.append((node.lineno, f"{node.attr} is retired; write {current}"))
         elif (
             isinstance(node, ast.Call)
             and isinstance(node.func, ast.Attribute)
@@ -1446,9 +1387,7 @@ _REPIN_TAG = (
 _REPIN_COMMAND = "python extensions/python/tools/twin_coverage.py --repin"
 
 
-def repinned(
-    source: str, measured: int, reason: str, *, today: str, rounds: int = 3
-) -> str:
+def repinned(source: str, measured: int, reason: str, *, today: str, rounds: int = 3) -> str:
     """One twin's source with its point budget re-pinned and the move recorded.
 
     The paragraph is APPENDED to the chain that already documents `BUDGET`,
@@ -1469,15 +1408,14 @@ def repinned(
         node
         for node in tree.body
         if isinstance(node, ast.Assign)
-        and any(
-            isinstance(target, ast.Name) and target.id == "BUDGET"
-            for target in node.targets
-        )
+        and any(isinstance(target, ast.Name) and target.id == "BUDGET" for target in node.targets)
     ]
     if not declared:
         msg = "the twin states no BUDGET, so there is nothing to re-pin"
         raise ValueError(msg)
-    if any(not isinstance(node, ast.Assign) for node in tree.body[tree.body.index(declared[0]) + 1 :]):
+    if any(
+        not isinstance(node, ast.Assign) for node in tree.body[tree.body.index(declared[0]) + 1 :]
+    ):
         msg = (
             "the twin's declarations still sit above its code; move the "
             "pricing block to the end of the file before re-pinning, so the "
@@ -1497,17 +1435,12 @@ def repinned(
         raise ValueError(msg)
 
     delta = measured - current
-    tag = _REPIN_TAG.format(
-        kind="measured", date=today, rounds=rounds, command=_REPIN_COMMAND
-    )
+    tag = _REPIN_TAG.format(kind="measured", date=today, rounds=rounds, command=_REPIN_COMMAND)
     paragraph = (
         f"RE-PINNED {today}, {current} to {measured} ({delta:+d}), "
         f"{reason.strip().rstrip('.')} {tag}."
     )
-    written = [
-        f"#: {line}"
-        for line in textwrap.wrap(paragraph, width=76, break_long_words=False)
-    ]
+    written = [f"#: {line}" for line in textwrap.wrap(paragraph, width=76, break_long_words=False)]
     head = lines[: node.lineno - 1]
     tail = lines[node.end_lineno :]
     return "\n".join([*head, *written, f"BUDGET = {measured}", *tail]) + "\n"
@@ -1570,22 +1503,20 @@ def _read(text: str, outcome: parity.Outcome) -> Run:
     equations: tuple[str, ...] = ()
     for line in text.splitlines():
         if line.startswith(COST):
-            cost = int(line[len(COST):].strip())
+            cost = int(line[len(COST) :].strip())
         elif line.startswith(HEADS):
-            heads = tuple(line[len(HEADS):].split())
+            heads = tuple(line[len(HEADS) :].split())
         elif line.startswith(DIGEST):
-            digest = line[len(DIGEST):].strip()
+            digest = line[len(DIGEST) :].strip()
         elif line.startswith(DIGEST_ERROR):
-            digest_error = json.loads(line[len(DIGEST_ERROR):])
+            digest_error = json.loads(line[len(DIGEST_ERROR) :])
         elif line.startswith(EQUATIONS):
-            equations = tuple(json.loads(line[len(EQUATIONS):]))
+            equations = tuple(json.loads(line[len(EQUATIONS) :]))
     return Run(outcome, cost, heads, digest, digest_error, equations)
 
 
 def _launch(source: str, root: Path) -> Run:
-    outcome, text = parity._run(
-        [sys.executable, "-c", source], root, env=_environment()
-    )
+    outcome, text = parity._run([sys.executable, "-c", source], root, env=_environment())
     return _read(text, outcome)
 
 
@@ -1615,11 +1546,7 @@ MEASURED_ENVIRONMENT = ("HOME", "LD_LIBRARY_PATH", "SWI_HOME_DIR", "LEATTA_PATH"
 
 def _environment() -> dict[str, str]:
     """The child environment for one measurement, built from nothing."""
-    kept = {
-        name: os.environ[name]
-        for name in MEASURED_ENVIRONMENT
-        if name in os.environ
-    }
+    kept = {name: os.environ[name] for name in MEASURED_ENVIRONMENT if name in os.environ}
     return kept | {"PATH": os.pathsep.join(MEASURED_PATH), "LC_ALL": "C"}
 
 
@@ -1648,15 +1575,13 @@ def run_twin(twin: Path, root: Path = REPO) -> Run:
     [tested: test_a_failing_assertion_is_a_finding].
     """
     return _launch(
-        _PREAMBLE
-        + "import importlib.util\n"
+        _PREAMBLE + "import importlib.util\n"
         f"_spec = importlib.util.spec_from_file_location('metta_twin', {str(twin)!r})\n"
         "_module = importlib.util.module_from_spec(_spec)\n"
         "_spec.loader.exec_module(_module)\n"
         "groups = []\n"
         "with m.stats() as spent:\n"
-        "    _module.twin(m)\n"
-        + _EPILOGUE,
+        "    _module.twin(m)\n" + _EPILOGUE,
         root,
     )
 
@@ -1698,28 +1623,17 @@ def _empirical_budget(value: dict, twin: Path) -> EmpiricalBudget:
     """Validate one literal empirical BUDGET declaration."""
     required = {"minimum", "maximum", "observations", "protocol"}
     if set(value) != required:
-        msg = (
-            f"{twin}: BUDGET empirical envelope must contain exactly "
-            f"{sorted(required)!r}"
-        )
+        msg = f"{twin}: BUDGET empirical envelope must contain exactly {sorted(required)!r}"
         raise ValueError(msg)
     minimum, maximum = value["minimum"], value["maximum"]
     observations, protocol = value["observations"], value["protocol"]
     bounds_are_ints = all(
-        isinstance(bound, int) and not isinstance(bound, bool)
-        for bound in (minimum, maximum)
+        isinstance(bound, int) and not isinstance(bound, bool) for bound in (minimum, maximum)
     )
     if not bounds_are_ints or minimum <= 0 or maximum <= minimum:
-        msg = (
-            f"{twin}: BUDGET empirical envelope needs positive integer "
-            "minimum < maximum"
-        )
+        msg = f"{twin}: BUDGET empirical envelope needs positive integer minimum < maximum"
         raise ValueError(msg)
-    if (
-        isinstance(observations, bool)
-        or not isinstance(observations, int)
-        or observations < 2
-    ):
+    if isinstance(observations, bool) or not isinstance(observations, int) or observations < 2:
         msg = f"{twin}: BUDGET empirical envelope needs at least 2 observations"
         raise ValueError(msg)
     if not isinstance(protocol, str) or not protocol.strip():
@@ -1742,11 +1656,7 @@ def budget_of(twin: Path) -> int | EmpiricalBudget | None:
                 value = ast.literal_eval(node.value)
                 if isinstance(value, dict):
                     return _empirical_budget(value, twin)
-                if (
-                    isinstance(value, bool)
-                    or not isinstance(value, int)
-                    or value <= 0
-                ):
+                if isinstance(value, bool) or not isinstance(value, int) or value <= 0:
                     msg = f"{twin}: BUDGET point must be a positive integer"
                     raise ValueError(msg)
                 return value
@@ -1866,9 +1776,7 @@ def check(
         claims = sum(head in ASSERT_HEADS for head in example_forms(example))
         return Verdict(example, claims, 0, None, None, tuple(findings))
 
-    claims, covered, differences = compare(
-        relative, example, twin, _declined(entries, relative)
-    )
+    claims, covered, differences = compare(relative, example, twin, _declined(entries, relative))
     findings.extend(differences)
     findings.extend(_visible(relative, left, right))
     findings.extend(_stored(relative, left, right))
@@ -1912,9 +1820,7 @@ def _storage_status(left: Run, right: Run) -> str:
     return "equal" if left.digest == right.digest else "different"
 
 
-def _equation_surplus(
-    these: tuple[str, ...], those: tuple[str, ...]
-) -> list[str]:
+def _equation_surplus(these: tuple[str, ...], those: tuple[str, ...]) -> list[str]:
     """Keep every extra canonical equation, including duplicate copies."""
     surplus = Counter(these) - Counter(those)
     return [equation for equation in sorted(surplus) for _ in range(surplus[equation])]
@@ -1929,22 +1835,16 @@ def _stored(relative: str, left: Run, right: Run) -> list[str]:
     findings = []
     if left.digest_error:
         findings.append(
-            f"{relative}: the example's stored-content digest refused: "
-            f"{left.digest_error}"
+            f"{relative}: the example's stored-content digest refused: {left.digest_error}"
         )
     elif left.digest is None:
-        findings.append(
-            f"{relative}: the example produced no stored-content digest marker"
-        )
+        findings.append(f"{relative}: the example produced no stored-content digest marker")
     if right.digest_error:
         findings.append(
-            f"{relative}: the twin's stored-content digest refused: "
-            f"{right.digest_error}"
+            f"{relative}: the twin's stored-content digest refused: {right.digest_error}"
         )
     elif right.digest is None:
-        findings.append(
-            f"{relative}: the twin produced no stored-content digest marker"
-        )
+        findings.append(f"{relative}: the twin produced no stored-content digest marker")
     if findings:
         return findings
     if left.digest == right.digest:
@@ -1978,9 +1878,7 @@ def _stored(relative: str, left: Run, right: Run) -> list[str]:
 ENGINE_FLOOR = 100
 
 
-def _budget_findings(
-    relative: str, twin: Path, right: Run, protocol: str
-) -> list[str]:
+def _budget_findings(relative: str, twin: Path, right: Run, protocol: str) -> list[str]:
     """The pinned-cost claim: what the twin declared against what it spent.
 
     The budget is TWO-SIDED. A twin that suddenly costs far less has most
@@ -2015,9 +1913,7 @@ def _budget_findings(
                 f"but the current protocol is {protocol!r}; one scheduler's "
                 "envelope cannot license another"
             ]
-        if right.cost is not None and not (
-            budget.minimum <= right.cost <= budget.maximum
-        ):
+        if right.cost is not None and not (budget.minimum <= right.cost <= budget.maximum):
             moved = "above" if right.cost > budget.maximum else "BELOW"
             return [
                 f"{relative}: the twin cost {right.cost} inferences, {moved} "
@@ -2089,11 +1985,15 @@ def definitions(twin: Path) -> int:
     extension; commit=5c67147566907276a95a5fbf059cf8f98b6685f1].
     """
     tree = _parse(twin)
-    return sum(
-        isinstance(node, (ast.FunctionDef, ast.ClassDef))
-        and _decorated(node, COMPILING_DECORATORS)
-        for node in ast.walk(tree)
-    ) if tree else 0
+    return (
+        sum(
+            isinstance(node, (ast.FunctionDef, ast.ClassDef))
+            and _decorated(node, COMPILING_DECORATORS)
+            for node in ast.walk(tree)
+        )
+        if tree
+        else 0
+    )
 
 
 # --------------------------------------------------------------------- reporting
@@ -2139,11 +2039,7 @@ def _print_report(verdicts: list[Verdict], entries: list[dict], root: Path) -> N
     print()
     folders = _folders(verdicts, root)
     for folder, (passing, corpus_files, covered, forms) in sorted(folders.items()):
-        answering = (
-            f", {covered}/{forms} claims of those files proved"
-            if forms
-            else ""
-        )
+        answering = f", {covered}/{forms} claims of those files proved" if forms else ""
         print(f"coverage {folder}: {passing}/{corpus_files} files{answering}")
     totals = [sum(counts[index] for counts in folders.values()) for index in range(4)]
     print(
@@ -2193,9 +2089,10 @@ def _observe(examples: list[Path], entries: list[dict], rounds: int) -> None:
     for round_number in range(1, rounds + 1):
         for verdict in _full_lane_round(examples, entries):
             if verdict.twin_cost is None:
-                failed = "; ".join(
-                    finding for finding in verdict.findings if "failed to run" in finding
-                ) or "the lane produced no twin cost"
+                failed = (
+                    "; ".join(finding for finding in verdict.findings if "failed to run" in finding)
+                    or "the lane produced no twin cost"
+                )
                 failures[verdict.example].append(f"round {round_number}: {failed}")
             else:
                 samples[verdict.example].append(verdict.twin_cost)
@@ -2225,8 +2122,11 @@ def main() -> int:
     """Run the lane, or measure it."""
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     mode = parser.add_mutually_exclusive_group()
-    mode.add_argument("--measure", action="store_true",
-                      help="print serial min-of-N point costs, and change nothing")
+    mode.add_argument(
+        "--measure",
+        action="store_true",
+        help="print serial min-of-N point costs, and change nothing",
+    )
     mode.add_argument(
         "--observe",
         action="store_true",
@@ -2342,8 +2242,7 @@ def main() -> int:
 
     findings = [finding for verdict in verdicts for finding in verdict.findings]
     findings.extend(
-        f"{path.relative_to(REPO)}: twins an example the corpus does not run"
-        for path in orphans()
+        f"{path.relative_to(REPO)}: twins an example the corpus does not run" for path in orphans()
     )
     _print_report(verdicts, entries, REPO)
     print()

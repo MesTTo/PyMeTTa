@@ -21,18 +21,18 @@ def twin(m):
     # ---- inside a DEFINE body (lowered) ----
 
     @m.define
-    def dc_twice(x):                     # (= (dc-twice $x) (+ $x $x))
-        return x + x
+    def dc_twice(x):  # (= (dc-twice $x) (+ $x $x))
+        return fn.add(x, x)
 
     @m.define
-    def dc_quad(x):                      # a define inside a define: the
-        return dc_twice(dc_twice(x))     # ordinary call term, engine-only
+    def dc_quad(x):  # a define inside a define: the
+        return dc_twice(dc_twice(x))  # ordinary call term, engine-only
 
     assert dc_quad(5) == [20]
 
     @m.define
-    def dc_upper(s):                     # a grounded operation inside a
-        return fn.py_call(S[".upper"](s))   # define: one host crossing per call
+    def dc_upper(s):  # a grounded operation inside a
+        return fn.py_call(S[".upper"](s))  # define: one host crossing per call
 
     assert m.eval(S.dc_upper(G("ab"))) == [S.AB]
 
@@ -61,9 +61,9 @@ def twin(m):
 
     @m.define
     def dc_fib(n):
-        if n <= 1:
+        if fn.le(n, 1):
             return n
-        return dc_fib(n - 1) + dc_fib(n - 2)
+        return fn.add(dc_fib(fn.sub(n, 1)), dc_fib(fn.sub(n, 2)))
 
     @rules
     def dc_cells(value):
@@ -137,11 +137,11 @@ def twin(m):
 #: full-lane observations under 'full-lane/219/workers=32'; a cost outside them
 #: is a real finding, and a new mode discovered later extends the
 #: envelope with its observation count rather than widening blind.
-BUDGET = {
-    # Re-measured after operation registration began recording the required
-    # five-rank effect contract fact for each host operation.
-    "minimum": 65218,
-    "maximum": 65274,
-    "observations": 10,
-    "protocol": "full-lane/219/workers=32",
-}
+#: RE-PINNED 2026-09-01 on the operator-protocol tree. Ten fresh full-lane
+#: observations had no spread, and the serial min-of-three confirmed the point
+#: [measured: twin minimum 46113 inferences; command=python
+#: extensions/python/tools/twin_coverage.py --measure --rounds 3
+#: examples/ch11-python-as-a-notation/06-door_combinations.metta;
+#: fixture=operator-protocol tree after python extensions/python/tools/twin_coverage.py
+#: --observe --rounds 10; commit=WORKTREE].
+BUDGET = 46113

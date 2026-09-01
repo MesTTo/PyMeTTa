@@ -8,19 +8,21 @@ naming ladder's own underscore map, and nothing has to say that name twice.
 name that object was installed under, so the stored equation is the
 original's.
 
-The source stores `==`. Python's comparison compiles to the engine-native
-`py-eq` head, so `fib-tr` deliberately differs in that one stored spelling.
-The digest lane reports it.
+The body explicitly names the relational `==`, `-`, and `+` heads through
+`fn`. Generic Python operators follow Python's live protocols; the relational
+namespace instead makes `fib-tr` store the source equation exactly.
 """
+
+from metta import fn
 
 
 def twin(m):
     """Define the accumulator fib and its entry point, then run it."""
+
     @m.define
     def fib_tr(n, a, b):
-        # Source: (= (fib-tr $n $a $b) (if (== $n 0) $a (fib-tr (- $n 1) $b (+ $a $b))))
-        # Twin:   (= (fib-tr $n $a $b) (if (py-eq $n 0) $a (fib-tr (- $n 1) $b (+ $a $b))))
-        return a if n == 0 else fib_tr(n - 1, b, a + b)
+        # Source and twin: (= (fib-tr $n $a $b) (if (== $n 0) $a (fib-tr (- $n 1) $b (+ $a $b))))
+        return a if fn.eq(n, 0) else fib_tr(fn.sub(n, 1), b, fn.add(a, b))
 
     # A body calling the definition above it is the ordinary call: `fib_tr` is
     # bound here to the decorated object, and the compiler emits that object's
@@ -107,4 +109,9 @@ def twin(m):
 #: structure, and the removal doors changed meaning where a twin spells one
 #: [measured 2026-09-01: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=c6a40460b1db341198a6150e3600f502831a6e83].
-BUDGET = 7193
+#: RE-PINNED 2026-09-01, 7193 to 7654 (+461), generic Python operators now
+#: dispatch through live protocols while source twins explicitly name
+#: relational engine heads [measured 2026-09-01: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+BUDGET = 7654

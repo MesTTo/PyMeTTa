@@ -17,12 +17,14 @@ value it is, so neither is quoted into text.
 from pathlib import Path
 
 import metta
-from metta import S
+from metta import S, fn
 from metta.errors import SpaceCapabilityError
 from metta.vocabularies import SpaceCapability
 
 #: The file the example asks about: a path, which is what pathlib is for.
-SOURCE = Path("examples/ch19-spaces-backed-by-anything/19-01-spaces-of-your-own/02-restricted_spaces.metta")
+SOURCE = Path(
+    "examples/ch19-spaces-backed-by-anything/19-01-spaces-of-your-own/02-restricted_spaces.metta"
+)
 
 
 def twin(m):  # noqa: ARG001  -- both spaces are created here; the default handle stays untouched
@@ -36,7 +38,7 @@ def twin(m):  # noqa: ARG001  -- both spaces are created here; the default handl
 
     @locked.define
     def double(x):
-        return x * 2
+        return fn.mul(x, 2)
 
     # A restricted space retains ordinary computation and its own equations.
     assert locked.eval(S.double(21)) == [42]
@@ -155,4 +157,9 @@ def twin(m):  # noqa: ARG001  -- both spaces are created here; the default handl
 #: the quad twin stopped being a different program [measured 2026-09-01: min-
 #: of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=c6a40460b1db341198a6150e3600f502831a6e83].
-BUDGET = 62273
+#: RE-PINNED 2026-09-01, 62273 to 62711 (+438), generic Python operators now
+#: dispatch through live protocols while source twins explicitly name
+#: relational engine heads [measured 2026-09-01: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+BUDGET = 62711

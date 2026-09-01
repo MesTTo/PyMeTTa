@@ -14,11 +14,11 @@ What the answered form shows is the dissolution table three times over: `let` is
 an assignment, `collapse` is the answer list `m.hyperpose` already hands back,
 and `msort` is `sorted`, because atoms carry the engine's own order.
 
-Both equations are ordinary Python functions under the decorator, and both
-equality tests name their head: Python's `==` inside a compiled body lowers to
-the prelude's `py-eq`, a host crossing per iteration, where MeTTa's own `==` is
-declared `(-> $t $t Bool)` and a compiled `if` emits it bare.
-superpose_primes.py beside this file carries the measurement.
+Both equations are ordinary Python functions under the decorator, and every
+source arithmetic and comparison relation is explicit through `fn`. Generic
+operators use Python's live protocols; this trial-division loop needs the
+engine heads and no host crossing. `superpose_primes.py` beside this file
+carries the historical A/B measurement that settled the spelling.
 """
 
 from metta import fn
@@ -29,15 +29,15 @@ def twin(m):
 
     @m.define
     def find_divisor(n, test_divisor):
-        if test_divisor * test_divisor > n:
+        if fn.gt(fn.mul(test_divisor, test_divisor), n):
             return n
-        if fn.eq(0, n % test_divisor):  # rung: `==` lowers to the prelude's `py-eq`, a host crossing per iteration, where the example writes MeTTa's own `==`
+        if fn.eq(0, fn.mod(n, test_divisor)):
             return test_divisor
-        return find_divisor(n, test_divisor + 1)
+        return find_divisor(n, fn.add(test_divisor, 1))
 
     @m.define(name="prime?")
     def prime(n):
-        return fn.eq(n, fn.find_divisor(n, 2))  # rung: the same host crossing, in answer position
+        return fn.eq(n, fn.find_divisor(n, 2))
 
     # hyperpose takes its branches through a variable as happily as inline, and
     # the answers come back in whatever order the threads finish.
@@ -117,4 +117,9 @@ def twin(m):
 #: the quad twin stopped being a different program [measured 2026-09-01: min-
 #: of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=c6a40460b1db341198a6150e3600f502831a6e83].
-BUDGET = 15681
+#: RE-PINNED 2026-09-01, 15681 to 16412 (+731), generic Python operators now
+#: dispatch through live protocols while source twins explicitly name
+#: relational engine heads [measured 2026-09-01: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+BUDGET = 16412

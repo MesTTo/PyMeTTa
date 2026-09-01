@@ -39,8 +39,14 @@ ODD = S["sc-odd?"]
 
 #: The colours, the grades and the taxonomy the last three programs work over.
 COLOURS = ((0, G("blue")), (1, G("green")), (2, G("blue")))
-GRADES = ((0, G("tom"), 50), (0, G("jerry"), 70), (0, G("alice"), 60),
-          (1, G("bob"), 80), (1, G("sherry"), 90), (1, G("frank"), 30))
+GRADES = (
+    (0, G("tom"), 50),
+    (0, G("jerry"), 70),
+    (0, G("alice"), 60),
+    (1, G("bob"), 80),
+    (1, G("sherry"), 90),
+    (1, G("frank"), 30),
+)
 KINDS = ((S.giraffe, S.mammal), (S.tiger, S.mammal), (S.mammal, S.animal))
 NAMES = ((1, S.giraffe), (1, S.tiger), (2, S.giraffe), (2, S.tiger))
 
@@ -71,7 +77,9 @@ def paths(m):
     @m.define
     def sc_paths():
         """(= (sc-paths) (collapse ...))."""
-        return S.collapse(sc_path_pair())  # rung: `collapse` is list(), which a compiled body has no lowering for (P14.4)
+        return S.collapse(
+            sc_path_pair()
+        )  # rung: `collapse` is list(), which a compiled body has no lowering for (P14.4)
 
     # !(test (sc-paths) ((0 1) (0 2) (1 2)))
     assert sc_paths() == [Expression(((0, 1), (0, 2), (1, 2)))]
@@ -90,7 +98,9 @@ def evens(m):
         # (= (sc-odd? $x)
         #    (let $n (match (context-space) (sc-number $x) $x) (sc-odd? (- $n 2))))
         yield equation(ODD(x)).to(
-            S.let(step, S.match(S.context_space(), S.sc_number(x), x), ODD(step - 2))  # rung: a rules body EXECUTES, so a stored `let` over a stored `match` is built by naming both heads (P14.4)
+            S.let(
+                step, S.match(S.context_space(), S.sc_number(x), x), ODD(step - 2)
+            )  # rung: a rules body EXECUTES, so a stored `let` over a stored `match` is built by naming both heads (P14.4)
         )
 
     @m.define
@@ -142,15 +152,12 @@ def colour_counts(m):
 def class_tops(m):
     """An argmax per class, through an open reducer rather than a closed list."""
     # (sc-class-student-grade 0 "tom" 50), and five more
-    m += [
-        S.sc_class_student_grade(klass, student, grade)
-        for klass, student, grade in GRADES
-    ]
+    m += [S.sc_class_student_grade(klass, student, grade) for klass, student, grade in GRADES]
 
     @m.define
     def sc_pick_max(left, right):
         """(= (sc-pick-max $a $b) (if (> $a $b) $a $b))."""
-        return left if left > right else right  # noqa: FURB136  -- max(right, left) compiles to (max $b $a), a different equation from the example's
+        return left if fn.gt(left, right) else right
 
     @m.define
     def sc_class_max(klass):
@@ -158,7 +165,7 @@ def class_tops(m):
         return S.foldall(
             S.sc_pick_max,
             match(S.sc_class_student_grade(klass, V._, V.g), V.g),
-            -1,
+            fn.neg(1),
         )
 
     @m.define
@@ -199,7 +206,7 @@ def animal_count(m):
         """Every named object whose kind reaches `animal`."""
         named = match(S.sc_name(V.o, V.kind), (V.o, V.kind))
         ancestor = sc_ancestor_kind(named[1])
-        return named[0] if ancestor == S.animal else superpose()
+        return named[0] if fn.eq(ancestor, S.animal) else superpose()
 
     @m.define
     def sc_one_animal():
@@ -307,4 +314,9 @@ def twin(m):
 #: the quad twin stopped being a different program [measured 2026-09-01: min-
 #: of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=c6a40460b1db341198a6150e3600f502831a6e83].
-BUDGET = 83410
+#: RE-PINNED 2026-09-01, 83410 to 85229 (+1819), generic Python operators now
+#: dispatch through live protocols while source twins explicitly name
+#: relational engine heads [measured 2026-09-01: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+BUDGET = 85229

@@ -1,17 +1,12 @@
 """examples/ch07-control-flow/07-01-if-and-booleans/09-xor.metta in Python: `xor` inside an equation.
 
-Python's `^` would be the operator: on a built term it lowers to `(xor ...)`,
-and inside a compiled body it is REFUSED, "the operator BitXor has no MeTTa
-function". The two doors disagree, which the residue table records against
-P14.4, so the body names `xor` through the static function namespace instead,
-`fn.xor`, which is the mention door for an engine function and which reads and
-autocompletes without the engine having to be running.
+Python's `^` follows the left operand's live `__xor__` protocol in a compiled
+body. This source twin instead needs the engine's boolean `xor` relation, so
+it names that head through the static function namespace as `fn.xor`.
 
 The static function mention is already an engine boolean function, so the
-conditional consumes it directly. Ordering retains `>`, while Python equality
-stores the engine-native `py-eq` head where the source stores `==`. The former
-`py-truthy` wrapper is gone, but the digest lane still reports that deliberate
-spelling difference.
+conditional consumes it directly. `fn.eq` and `fn.gt` likewise name the
+source's relational comparisons. The stored equation matches the source.
 """
 
 from metta import fn
@@ -19,18 +14,19 @@ from metta import fn
 
 def twin(m):
     """Define the xor guard, then check both of its true cases."""
+
     # The MeTTa name really is `check_xor` with an underscore, which the
     # naming ladder's own map does not produce: every door here, the decorator
     # included, turns a Python underscore into a hyphen, so `@m.define` alone
     # would store `check-xor` and the example's head would go unmatched. An
     # exact non-mechanical name is what `name=` is for.
-    @m.define(name="check_xor")  # rung: def check_xor maps to check-xor, while the source head is check_xor
+    @m.define(
+        name="check_xor"
+    )  # rung: def check_xor maps to check-xor, while the source head is check_xor
     def check_xor(source, destination):
-        # Source: (= (check_xor $source $destination)
-        #             (if (xor (== $source $destination) (> $source $destination)) 42 0))
-        # Twin:   (= (check_xor $source $destination)
-        #             (if (xor (py-eq $source $destination) (> $source $destination)) 42 0))
-        return 42 if fn.xor(source == destination, source > destination) else 0
+        # Source and twin: (= (check_xor $source $destination)
+        #                    (if (xor (== $source $destination) (> $source $destination)) 42 0))
+        return 42 if fn.xor(fn.eq(source, destination), fn.gt(source, destination)) else 0
 
     assert check_xor(2, 2) == [42]
     assert check_xor(4, 2) == [42]
@@ -109,4 +105,9 @@ def twin(m):
 #: structure, and the removal doors changed meaning where a twin spells one
 #: [measured 2026-09-01: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=c6a40460b1db341198a6150e3600f502831a6e83].
-BUDGET = 4675
+#: RE-PINNED 2026-09-01, 4675 to 4721 (+46), generic Python operators now
+#: dispatch through live protocols while source twins explicitly name
+#: relational engine heads [measured 2026-09-01: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+BUDGET = 4721

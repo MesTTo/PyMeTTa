@@ -19,7 +19,7 @@ new one in without ceremony.
 """
 
 import metta
-from metta import S, V, equation, lib
+from metta import S, V, equation, fn, lib
 
 
 def twin(m):
@@ -32,7 +32,7 @@ def twin(m):
     @m.define
     def shipping_cost(w):
         # (= (shipping-cost $w) (* $w 2))
-        return w * 2
+        return fn.mul(w, 2)
 
     here, there = m.fn.shipping_cost, metric.fn.shipping_cost
     memoized, memoized_there = m.fn.is_memoized, metric.fn.is_memoized
@@ -152,4 +152,9 @@ def twin(m):
 #: the quad twin stopped being a different program [measured 2026-09-01: min-
 #: of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=c6a40460b1db341198a6150e3600f502831a6e83].
-BUDGET = 45506
+#: RE-PINNED 2026-09-01, 45506 to 45622 (+116), generic Python operators now
+#: dispatch through live protocols while source twins explicitly name
+#: relational engine heads [measured 2026-09-01: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+BUDGET = 45622

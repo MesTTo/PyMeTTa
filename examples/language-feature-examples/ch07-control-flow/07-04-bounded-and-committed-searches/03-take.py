@@ -27,7 +27,7 @@ Open Obligations:
   Future Enhancements: None.
 """
 
-from metta import S, V, superpose
+from metta import S, V, fn, superpose
 from metta.errors import EngineError
 
 
@@ -47,7 +47,7 @@ def twin(m):
     @m.define(name="from")
     def count_up(n):
         # (= (from $n) (superpose ($n (from (+ $n 1)))))
-        return superpose(n, count_up(n + 1))
+        return superpose(n, count_up(fn.add(n, 1)))
 
     # The bound is applied OUTSIDE the producer, so it cuts one that would not
     # stop on its own, and the slice is that bound.
@@ -144,4 +144,9 @@ def twin(m):
 #: structure, and the removal doors changed meaning where a twin spells one
 #: [measured 2026-09-01: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=c6a40460b1db341198a6150e3600f502831a6e83].
-BUDGET = 5427
+#: RE-PINNED 2026-09-01, 5427 to 5489 (+62), generic Python operators now
+#: dispatch through live protocols while source twins explicitly name
+#: relational engine heads [measured 2026-09-01: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+BUDGET = 5489

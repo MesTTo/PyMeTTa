@@ -10,7 +10,7 @@ A pair comes back as one expression, so the claim compares the whole answer
 sequence; where the pair's head is a symbol the term is built by calling it.
 """
 
-from metta import Expression, S, lib
+from metta import Expression, S, fn, lib
 
 
 def twin(m):
@@ -20,7 +20,7 @@ def twin(m):
     @m.define
     def inc(x):
         # (= (inc $x) (+ $x 1))
-        return x + 1
+        return fn.add(x, 1)
 
     assert m.fn.first(S.inc, (1, 9)) == [Expression((2, 9))]
     assert m.fn.second(S.inc, (1, 9)) == [Expression((1, 10))]
@@ -105,4 +105,9 @@ def twin(m):
 #: the quad twin stopped being a different program [measured 2026-09-01: min-
 #: of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=c6a40460b1db341198a6150e3600f502831a6e83].
-BUDGET = 20083
+#: RE-PINNED 2026-09-01, 20083 to 20136 (+53), generic Python operators now
+#: dispatch through live protocols while source twins explicitly name
+#: relational engine heads [measured 2026-09-01: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+BUDGET = 20136

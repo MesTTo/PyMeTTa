@@ -11,7 +11,7 @@ callable.
 `[False]` rather than against the symbols the example prints.
 """
 
-from metta import S, lib
+from metta import S, fn, lib
 
 
 def twin(m):
@@ -21,12 +21,12 @@ def twin(m):
     @m.define
     def mix(x):
         # (= (mix $x) (+ $x 1))
-        return x + 1
+        return fn.add(x, 1)
 
     @m.define(name="mix")
     def mix_2(x, y):
         # (= (mix $x $y) (+ $x $y))
-        return x + y
+        return fn.add(x, y)
 
     m.eval(S.memoize(mix, 1))
 
@@ -122,4 +122,9 @@ def twin(m):
 #: the quad twin stopped being a different program [measured 2026-09-01: min-
 #: of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=c6a40460b1db341198a6150e3600f502831a6e83].
-BUDGET = 41454
+#: RE-PINNED 2026-09-01, 41454 to 41542 (+88), generic Python operators now
+#: dispatch through live protocols while source twins explicitly name
+#: relational engine heads [measured 2026-09-01: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+BUDGET = 41542

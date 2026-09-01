@@ -42,8 +42,17 @@ from metta.vocabularies import NoMatchEnum
 
 #: The nine relations the example gives NoMatchFail, so a missing proof is
 #: relational failure instead of the P3 residual-call dispatch value.
-FALLIBLE = (S.penguin, S.bird, S.student, S.married, S.invalid,
-            S.over_65, S.paid_up, S.marks, S.edge)
+FALLIBLE = (
+    S.penguin,
+    S.bird,
+    S.student,
+    S.married,
+    S.invalid,
+    S.over_65,
+    S.paid_up,
+    S.marks,
+    S.edge,
+)
 
 
 def defaults(m):
@@ -91,7 +100,10 @@ def defects(m):
         )
         # (= (two-but-not-one $x) (and (not-provable (== $x 1)) (let $x 2 True)))
         yield equation(S.two_but_not_one(who)).to(
-            fn.not_provable(S.eq(who, 1)) & S.let(who, 2, TRUE)  # rung: a stored `let` that BINDS, where Python's assignment binds a Python name (P14.4)
+            fn.not_provable(S.eq(who, 1))
+            & S.let(
+                who, 2, TRUE
+            )  # rung: a stored `let` that BINDS, where Python's assignment binds a Python name (P14.4)
         )
 
     # Prolog FAILS on unmarried_student(X), ignoring that X=bill is implied,
@@ -123,9 +135,7 @@ def welfare(m):
         yield equation(S.pension(person, S.old_age_pension)).to(
             S.over_65(person) & S.paid_up(person)
         )
-        yield equation(S.pension(person, S.supplementary_benefit)).to(
-            S.over_65(person)
-        )
+        yield equation(S.pension(person, S.supplementary_benefit)).to(S.over_65(person))
         # (= (entitlement $p $what) (pension $p $what))
         # (= (entitlement $p nothing) (not-provable (pension $p $any)))
         yield equation(S.entitlement(person, what)).to(S.pension(person, what))
@@ -136,7 +146,9 @@ def welfare(m):
     # !(test (collapse (let True (entitlement mc-tavish $w) $w))
     #        (invalid-pension old-age-pension supplementary-benefit))
     assert m.solve(TRUE, S.entitlement(S.mc_tavish, V.w)).w == [
-        S.invalid_pension, S.old_age_pension, S.supplementary_benefit,
+        S.invalid_pension,
+        S.old_age_pension,
+        S.supplementary_benefit,
     ]
     # !(test (collapse (let True (entitlement mc-duff $w) $w)) (supplementary-benefit))
     assert m.solve(TRUE, S.entitlement(S.mc_duff, V.w)).w == S.supplementary_benefit
@@ -154,9 +166,7 @@ def constraints(m):
         yield equation(S.edge(S.a, S.b)).to(TRUE)
         yield equation(S.edge(S.b, S.c)).to(TRUE)
         # (= (has-no-outgoing $x) (not-provable (edge $x $y)))
-        yield equation(S.has_no_outgoing(node)).to(
-            fn.not_provable(S.edge(node, target))
-        )
+        yield equation(S.has_no_outgoing(node)).to(fn.not_provable(S.edge(node, target)))
 
     # !(test (has-no-outgoing c) True)
     # !(test (has-no-outgoing a) False)
@@ -170,9 +180,15 @@ def constraints(m):
     # !(test (collapse (let True (has-no-outgoing $x) (let $x zzz $x))) (zzz))
     # !(test (collapse (let True (has-no-outgoing $x) (let $x a $x))) ())
     open_node = S.has_no_outgoing(V.x)
-    assert m.eval(S.let(TRUE, open_node, S.let(V.x, S.c, V.x))) == [S.c]  # rung: the template BINDS a second variable, which solve derives from the subject (P14.7)
-    assert m.eval(S.let(TRUE, open_node, S.let(V.x, S.zzz, V.x))) == [S.zzz]  # rung: the same shape (P14.7)
-    assert m.eval(S.let(TRUE, open_node, S.let(V.x, S.a, V.x))) == []  # rung: the same shape (P14.7)
+    assert m.eval(S.let(TRUE, open_node, S.let(V.x, S.c, V.x))) == [
+        S.c
+    ]  # rung: the template BINDS a second variable, which solve derives from the subject (P14.7)
+    assert m.eval(S.let(TRUE, open_node, S.let(V.x, S.zzz, V.x))) == [
+        S.zzz
+    ]  # rung: the same shape (P14.7)
+    assert (
+        m.eval(S.let(TRUE, open_node, S.let(V.x, S.a, V.x))) == []
+    )  # rung: the same shape (P14.7)
 
     # dif is the constraint the duals are built from, and it holds for as long
     # as the answer does.
@@ -180,8 +196,12 @@ def constraints(m):
     # !(test (collapse (let True (dif $q 5) (let $q 6 $q))) (6))
     # !(test (collapse (let True (dif $q 5) (let $q 5 $q))) ())
     assert m.fn.dif(1, 2) == [True]
-    assert m.eval(S.let(TRUE, S.dif(V.q, 5), S.let(V.q, 6, V.q))) == [6]  # rung: the same shape (P14.7)
-    assert m.eval(S.let(TRUE, S.dif(V.q, 5), S.let(V.q, 5, V.q))) == []  # rung: the same shape (P14.7)
+    assert m.eval(S.let(TRUE, S.dif(V.q, 5), S.let(V.q, 6, V.q))) == [
+        6
+    ]  # rung: the same shape (P14.7)
+    assert (
+        m.eval(S.let(TRUE, S.dif(V.q, 5), S.let(V.q, 5, V.q))) == []
+    )  # rung: the same shape (P14.7)
 
     # `!=` asks whether two terms are identical NOW, so on an unbound variable
     # it says True and lets a later binding contradict it.
@@ -190,7 +210,9 @@ def constraints(m):
     # !(test (collapse (let True (!= $r 5) (let $r 5 $r))) (5))
     assert m.fn["!="](1, 2) == [True]
     assert m.fn["!="](1, 1) == [False]
-    assert m.eval(S.let(TRUE, S.ne(V.r, 5), S.let(V.r, 5, V.r))) == [5]  # rung: the same shape (P14.7)
+    assert m.eval(S.let(TRUE, S.ne(V.r, 5), S.let(V.r, 5, V.r))) == [
+        5
+    ]  # rung: the same shape (P14.7)
 
 
 def quantifying(m):
@@ -206,7 +228,7 @@ def quantifying(m):
     def any_pass(who):
         """(= (any-pass $w) (let $m (marks $w) (> $m 50)))."""
         mark = S.marks(who)
-        return mark > 50
+        return fn.gt(mark, 50)
 
     # carol has two marks and one of them passes, so she IS provable; dave has
     # two and neither does.
@@ -227,9 +249,15 @@ def quantifying(m):
     # !(test (collapse (let True (not-provable (any-pass $w)) (let $w carol $w))) ())
     # !(test (collapse (let True (not-provable (any-pass $w)) (let $w erin $w))) (erin))
     failing = fn.not_provable(S.any_pass(V.w))
-    assert m.eval(S.let(TRUE, failing, S.let(V.w, S.dave, V.w))) == [S.dave]  # rung: the same shape (P14.7)
-    assert m.eval(S.let(TRUE, failing, S.let(V.w, S.carol, V.w))) == []  # rung: the same shape (P14.7)
-    assert m.eval(S.let(TRUE, failing, S.let(V.w, S.erin, V.w))) == [S.erin]  # rung: the same shape (P14.7)
+    assert m.eval(S.let(TRUE, failing, S.let(V.w, S.dave, V.w))) == [
+        S.dave
+    ]  # rung: the same shape (P14.7)
+    assert (
+        m.eval(S.let(TRUE, failing, S.let(V.w, S.carol, V.w))) == []
+    )  # rung: the same shape (P14.7)
+    assert m.eval(S.let(TRUE, failing, S.let(V.w, S.erin, V.w))) == [
+        S.erin
+    ]  # rung: the same shape (P14.7)
 
 
 def over_a_space(m):
@@ -259,9 +287,15 @@ def over_a_space(m):
     # !(test (collapse (let True (not-provable (has-child $w)) (let $w nobody $w)))
     #        (nobody))
     childless = fn.not_provable(S.has_child(V.w))
-    assert m.eval(S.let(TRUE, childless, S.let(V.w, S.bob, V.w))) == [S.bob]  # rung: the same shape (P14.7)
-    assert m.eval(S.let(TRUE, childless, S.let(V.w, S.alice, V.w))) == []  # rung: the same shape (P14.7)
-    assert m.eval(S.let(TRUE, childless, S.let(V.w, S.nobody, V.w))) == [S.nobody]  # rung: the same shape (P14.7)
+    assert m.eval(S.let(TRUE, childless, S.let(V.w, S.bob, V.w))) == [
+        S.bob
+    ]  # rung: the same shape (P14.7)
+    assert (
+        m.eval(S.let(TRUE, childless, S.let(V.w, S.alice, V.w))) == []
+    )  # rung: the same shape (P14.7)
+    assert m.eval(S.let(TRUE, childless, S.let(V.w, S.nobody, V.w))) == [
+        S.nobody
+    ]  # rung: the same shape (P14.7)
 
 
 def forms_with_no_answer(m):
@@ -270,7 +304,9 @@ def forms_with_no_answer(m):
     @m.rules
     def bands(key):
         """(= (band $n) (case $n ((90 True) (40 False))))."""
-        yield equation(S.band(key)).to(S.case(key, ((90, TRUE), (40, FALSE))))  # rung: Python's match statement lowers to a NESTED tower whose dual raises past the first arm (P14.4)
+        yield equation(S.band(key)).to(
+            S.case(key, ((90, TRUE), (40, FALSE)))
+        )  # rung: Python's match statement lowers to a NESTED tower whose dual raises past the first arm (P14.4)
 
     # A key that matches no pattern leaves the case with no answer, and no
     # answer is not True.
@@ -308,7 +344,9 @@ def bounds(m):
     # !(test (collapse (let True (not-provable (#< $x 5)) (let $x 3 $x))) ())
     assert m.fn.not_provable(fn["#<"](5, 1)) == [True]
     below_five = fn.not_provable(fn["#<"](V.x, 5))
-    assert m.eval(S.let(TRUE, below_five, S.let(V.x, 7, V.x))) == [7]  # rung: the same shape (P14.7)
+    assert m.eval(S.let(TRUE, below_five, S.let(V.x, 7, V.x))) == [
+        7
+    ]  # rung: the same shape (P14.7)
     assert m.eval(S.let(TRUE, below_five, S.let(V.x, 3, V.x))) == []  # rung: the same shape (P14.7)
     # !(test (collapse (let True (not-provable (#= $y 4)) (let $y 9 $y))) (9))
     # !(test (collapse (let True (not-provable (#= $y 4)) (let $y 4 $y))) ())
@@ -323,7 +361,7 @@ def masking(m):
     @m.define
     def mask_example_double(x: int) -> int:
         """(: mask-example-double (-> Number Number)), (= ... (* $x 2))."""
-        return x * 2
+        return fn.mul(x, 2)
 
     @m.define
     def mask_example_holds(_x: Atom = 10) -> bool:
@@ -459,4 +497,9 @@ def twin(m):
 #: the quad twin stopped being a different program [measured 2026-09-01: min-
 #: of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=c6a40460b1db341198a6150e3600f502831a6e83].
-BUDGET = 90039
+#: RE-PINNED 2026-09-01, 90039 to 90183 (+144), generic Python operators now
+#: dispatch through live protocols while source twins explicitly name
+#: relational engine heads [measured 2026-09-01: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+BUDGET = 90183

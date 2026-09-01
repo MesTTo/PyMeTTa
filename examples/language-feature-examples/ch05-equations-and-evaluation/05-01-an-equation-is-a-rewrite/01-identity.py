@@ -10,12 +10,15 @@ Guarantees:
     test_a_shipped_twin_agrees_with_its_example_end_to_end; commit=39092863ae34184a9f955f185ff57c1ff177ec40]
 """
 
+from metta import fn
+
 
 def twin(m):
     """Define the square, then check it."""
+
     @m.define
     def f(x):
-        return x * x
+        return fn.mul(x, x)
 
     assert f(1) == [1]
 
@@ -571,4 +574,9 @@ def twin(m):
 #: and the removal doors changed meaning where a twin spells one [measured
 #: 2026-09-01: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=c6a40460b1db341198a6150e3600f502831a6e83].
-BUDGET = 2428
+#: RE-PINNED 2026-09-01, 2428 to 2466 (+38), generic Python operators now
+#: dispatch through live protocols while source twins explicitly name
+#: relational engine heads [measured 2026-09-01: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+BUDGET = 2466

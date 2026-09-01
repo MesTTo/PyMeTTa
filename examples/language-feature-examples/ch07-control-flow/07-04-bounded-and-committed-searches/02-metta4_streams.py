@@ -47,15 +47,16 @@ Open Obligations:
 """
 
 import metta
-from metta import UNIT, S, equation, rules, superpose
+from metta import UNIT, S, equation, fn, rules, superpose
 
 
 def twin(m):
     """Fan a range into two spaces, then fold three answers into one."""
+
     @m.define(name="range")
     def counter(k, n):
         # (= (range $K $N) (if (< $K $N) (superpose ($K (range (+ $K 1) $N))) (empty)))
-        return superpose(k, counter(k + 1, n)) if k < n else empty()  # noqa: F821  -- `empty` is a name a compiled body reads as MeTTa; the package exports it nowhere yet (residue, P14.4)
+        return superpose(k, counter(fn.add(k, 1), n)) if fn.lt(k, n) else empty()  # noqa: F821  -- `empty` is a name a compiled body reads as MeTTa; the package exports it nowhere yet (residue, P14.4)
 
     s1 = metta.space("&s1")
     s2 = metta.space("&s2")
@@ -157,4 +158,9 @@ def twin(m):
 #: structure, and the removal doors changed meaning where a twin spells one
 #: [measured 2026-09-01: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=c6a40460b1db341198a6150e3600f502831a6e83].
-BUDGET = 6563
+#: RE-PINNED 2026-09-01, 6563 to 7350 (+787), generic Python operators now
+#: dispatch through live protocols while source twins explicitly name
+#: relational engine heads [measured 2026-09-01: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+BUDGET = 7350

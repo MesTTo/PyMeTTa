@@ -107,9 +107,11 @@ def twin(m):
 #: full-lane observations under 'full-lane/219/workers=32'; a cost outside them
 #: is a real finding, and a new mode discovered later extends the
 #: envelope with its observation count rather than widening blind.
-BUDGET = {
-    "minimum": 81967,
-    "maximum": 82019,
-    "observations": 20,
-    "protocol": "full-lane/219/workers=32",
-}
+#: RE-PINNED 2026-09-01 on the operator-protocol tree. Ten fresh full-lane
+#: observations had no spread, and the serial min-of-three confirmed the point
+#: [measured: twin minimum 24966 inferences; command=python
+#: extensions/python/tools/twin_coverage.py --measure --rounds 3
+#: examples/ch05-equations-and-evaluation/05-02-changing-the-equations/06-specializecyclic.metta;
+#: fixture=operator-protocol tree after python extensions/python/tools/twin_coverage.py
+#: --observe --rounds 10; commit=WORKTREE].
+BUDGET = 24966

@@ -37,7 +37,7 @@ Open Obligations:
 """
 
 import metta
-from metta import S, V, lib, spawn
+from metta import S, V, fn, lib, spawn
 
 
 def twin(m):
@@ -47,7 +47,7 @@ def twin(m):
     @m.define
     def inc(x):
         # (= (inc $x) (+ $x 1))
-        return x + 1
+        return fn.add(x, 1)
 
     # A peek leaves the atom, so two peeks answer the same job.
     jobs = metta.space(S.jobs)
@@ -84,7 +84,9 @@ def twin(m):
     # another thread writes it, which is the rendezvous a channel would
     # otherwise be needed for.
     inbox = metta.space(S.inbox)
-    writer = spawn(S.add_atom(inbox, S.msg(S.hello)))  # rung: the write is DATA handed to another engine thread, not a store this process mutates, so `space += atom` cannot say it
+    writer = spawn(
+        S.add_atom(inbox, S.msg(S.hello))
+    )  # rung: the write is DATA handed to another engine thread, not a store this process mutates, so `space += atom` cannot say it
     seen = inbox.take(S.msg(V.what), deadline=10)
     writer.wait()
     assert seen == S.msg(S.hello)
@@ -146,9 +148,27 @@ def twin(m):
 #: full-lane observations under 'full-lane/219/workers=32'; a cost outside them
 #: is a real finding, and a new mode discovered later extends the
 #: envelope with its observation count rather than widening blind.
+#: RE-ENVELOPED 2026-09-01 on the operator-protocol tree. Generic Python
+#: operators now dispatch through live protocols and relational twins name
+#: engine heads explicitly, so ten fresh full-lane observations replace the
+#: prior implementation's modes [measured: exact extrema over 10 observations;
+#: command=python extensions/python/tools/twin_coverage.py --observe --rounds 10;
+#: fixture=full-lane/219/workers=32; commit=WORKTREE].
+#: The confirming differential supplied an eleventh observation inside those
+#: bounds [measured: eleventh full-lane observation 401241; command=python
+#: extensions/python/tools/twin_coverage.py; fixture=full-lane/219/workers=32;
+#: commit=WORKTREE].
+#: A second ten-round observe pass stayed inside the first pass's bounds
+#: [measured: exact extrema over 10 further observations; command=python
+#: extensions/python/tools/twin_coverage.py --observe --rounds 10;
+#: fixture=full-lane/219/workers=32; commit=WORKTREE].
+#: Four confirming differentials stayed inside those bounds [measured: four
+#: further full-lane observations, the last 401241; command=python
+#: extensions/python/tools/twin_coverage.py; fixture=full-lane/219/workers=32;
+#: commit=WORKTREE].
 BUDGET = {
-    "minimum": 136109,
-    "maximum": 136140,
-    "observations": 20,
+    "minimum": 401238,
+    "maximum": 401241,
+    "observations": 25,
     "protocol": "full-lane/219/workers=32",
 }

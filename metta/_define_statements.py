@@ -34,6 +34,10 @@ Guarantees:
     time rather than reducing identity to a class name [tested:
     test_compiled_except_uses_exception_class_identity_not_bare_name;
     commit=e7919ef660e1c2b31a307187c0237823daccdbd4]
+  - non-space augmented assignments use Python's in-place protocol and carry
+    local container species across SSA rebinding [tested:
+    test_compiled_operators_follow_python_protocols_and_result_species;
+    commit=WORKTREE]
   - ``del space[pattern]`` removes every snapshotted match while annotated
     space ``-=`` removes one, with missing removals kept loud [tested:
     test_compiled_removal_statements_preserve_one_many_missing_and_target_scope;
@@ -50,7 +54,7 @@ import ast
 from collections.abc import Callable
 
 from ._define_context import CompilerContext, next_aux_serial
-from ._define_expression import _name_of
+from ._define_expression import _NATIVE_BINOPS, _name_of
 from .atoms import Atom, Expression, Grounded, Handle, Symbol, Variable
 from .errors import CompileError
 
@@ -125,8 +129,14 @@ def _hoistable_walruses(
             return
         if isinstance(
             node,
-            (ast.Lambda, ast.FunctionDef, ast.ListComp, ast.SetComp,
-             ast.DictComp, ast.GeneratorExp),
+            (
+                ast.Lambda,
+                ast.FunctionDef,
+                ast.ListComp,
+                ast.SetComp,
+                ast.DictComp,
+                ast.GeneratorExp,
+            ),
         ):
             for sub in ast.walk(node):
                 if isinstance(sub, ast.NamedExpr):
@@ -309,26 +319,20 @@ class StatementCompilerMixin(CompilerContext):
 
     def _assertion(self, node: ast.Assert, continuation: Atom) -> Expression:
         """Build one lazy failure branch shared by value and generator blocks."""
-        culprit = self.expression(node.test)
+        culprit = self._diagnostic_term(node.test)
         if node.msg is None:
-            failure: Atom = Expression(
-                [Symbol("Error"), culprit, Symbol("AssertionError")]
-            )
+            failure: Atom = Expression([Symbol("Error"), culprit, Symbol("AssertionError")])
         else:
             reason_name = self._temp("assert-reason")
             reason = Variable(reason_name)
             failure = Expression(
                 [
                     Symbol("let*"),
-                    Expression(
-                        [Expression([reason, self.expression(node.msg)])]
-                    ),
+                    Expression([Expression([reason, self.expression(node.msg)])]),
                     Expression([Symbol("Error"), culprit, reason]),
                 ]
             )
-        return Expression(
-            [Symbol("if"), self._truthy(node.test), continuation, failure]
-        )
+        return Expression([Symbol("if"), self._truthy(node.test), continuation, failure])
 
     def _raise_statement(self, node: ast.Raise, rest: list[ast.stmt]) -> Atom:
         """`raise` produces an error through the prelude's throw.
@@ -437,9 +441,7 @@ class StatementCompilerMixin(CompilerContext):
             # answer, passing through exactly as Python returns past the
             # rest of the function.
             success = result
-        handlers = self._try_handler_chain(
-            node, tag_params, result_name, result, settled
-        )
+        handlers = self._try_handler_chain(node, tag_params, result_name, result, settled)
         dispatch = Expression([Symbol("if-error"), result, handlers, success])
         caught = Expression([Symbol("catch"), body])
         if not node.finalbody:
@@ -466,6 +468,7 @@ class StatementCompilerMixin(CompilerContext):
         closer reads, restricted to names either already in scope or bound
         somewhere inside the try, in first-read order.
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+
         def stores(pieces: tuple[ast.AST, ...]) -> set[str]:
             found: set[str] = set()
             for piece in pieces:
@@ -475,9 +478,7 @@ class StatementCompilerMixin(CompilerContext):
             return found
 
         body_stored = stores(tuple(node.body))
-        stored = body_stored | stores(
-            (*node.handlers, *node.orelse, *node.finalbody)
-        )
+        stored = body_stored | stores((*node.handlers, *node.orelse, *node.finalbody))
         carried: list[str] = []
 
         def collect(pieces: list[ast.stmt], bound: set[str]) -> None:
@@ -531,9 +532,7 @@ class StatementCompilerMixin(CompilerContext):
             equation_compiler.closer = self.closer
             equation_compiler.closer_names = self.closer_names.copy()
             head = Expression([Symbol(helper), *(Variable(n) for n in k_params)])
-            self.aux.append(
-                Expression([Symbol("="), head, equation_compiler.block(rest)])
-            )
+            self.aux.append(Expression([Symbol("="), head, equation_compiler.block(rest)]))
 
             def continue_to(compiler: CompilerContext) -> Atom:
                 return Expression(
@@ -566,9 +565,7 @@ class StatementCompilerMixin(CompilerContext):
         settled: Callable[[CompilerContext], Atom],
     ) -> Expression:
         arm_compiler = self._fork()
-        pattern = Expression(
-            [Symbol(tag), *(Variable(arm_compiler._bind(n)) for n in tag_params)]
-        )
+        pattern = Expression([Symbol(tag), *(Variable(arm_compiler._bind(n)) for n in tag_params)])
         if node.orelse:
             # else compiles OUTSIDE the catch: an exception it raises is
             # not this try's to handle, exactly Python's rule; under a
@@ -642,9 +639,7 @@ class StatementCompilerMixin(CompilerContext):
         Python's identity-preserving isinstance lattice directly.
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         if isinstance(node, ast.Tuple):
-            return Grounded(
-                tuple(self._except_class_value(element) for element in node.elts)
-            )
+            return Grounded(tuple(self._except_class_value(element) for element in node.elts))
         return Grounded(self._except_class_value(node))
 
     def _except_class_value(self, node: ast.expr) -> type:
@@ -691,9 +686,7 @@ class StatementCompilerMixin(CompilerContext):
         wrapped = Expression(
             [
                 Symbol("catch"),
-                Expression(
-                    [Symbol("let"), value, dispatch, Expression([Symbol(done), value])]
-                ),
+                Expression([Symbol("let"), value, dispatch, Expression([Symbol(done), value])]),
             ]
         )
         settled = Variable(self._temp("try-settled"))
@@ -731,12 +724,8 @@ class StatementCompilerMixin(CompilerContext):
                     settled,
                     Expression(
                         [
-                            Expression(
-                                [Expression([Symbol(done), unwrapped]), inner_exit]
-                            ),
-                            Expression(
-                                [escaped, Expression([Symbol("throw"), escaped])]
-                            ),
+                            Expression([Expression([Symbol(done), unwrapped]), inner_exit]),
+                            Expression([escaped, Expression([Symbol("throw"), escaped])]),
                         ]
                     ),
                 ]
@@ -901,6 +890,8 @@ class StatementCompilerMixin(CompilerContext):
         value_node: ast.expr,
         head: ast.stmt,
         rest: list[ast.stmt],
+        *,
+        inplace_op: ast.operator | None = None,
     ) -> Expression:
         """One declared-global assignment: bind the compiled value, then
         island the write so globals() moves at application time.
@@ -925,12 +916,23 @@ class StatementCompilerMixin(CompilerContext):
             ]
         )
         written = Variable(self._temp("global-written"))
+        value = self.expression(value_node)
+        if inplace_op is not None:
+            current = self.expression(
+                ast.copy_location(ast.Name(id=name, ctx=ast.Load()), value_node)
+            )
+            value = self._inplace_atom(
+                inplace_op,
+                current,
+                value,
+                getattr(head, "lineno", None),
+            )
         return Expression(
             [
                 Symbol("let*"),
                 Expression(
                     [
-                        Expression([bound, self.expression(value_node)]),
+                        Expression([bound, value]),
                         Expression([written, write]),
                     ]
                 ),
@@ -968,10 +970,7 @@ class StatementCompilerMixin(CompilerContext):
                 construct="delete",
                 line=getattr(target, "lineno", None),
             )
-        if (
-            isinstance(target.value, ast.Name)
-            and target.value.id in self.dict_locals
-        ):
+        if isinstance(target.value, ast.Name) and target.value.id in self.dict_locals:
             # del d[k] on a dict local is lib_dict's remove: exact on the
             # key's pair, and an absent key is an ordinary answer rather
             # than a failure, the library's own stated semantics.
@@ -1005,9 +1004,7 @@ class StatementCompilerMixin(CompilerContext):
                         Expression(
                             [
                                 removed,
-                                Expression(
-                                    [Symbol("map-atom"), matches, item, removal]
-                                ),
+                                Expression([Symbol("map-atom"), matches, item, removal]),
                             ]
                         )
                     ]
@@ -1028,9 +1025,7 @@ class StatementCompilerMixin(CompilerContext):
                                 Expression(
                                     [
                                         Symbol("collapse"),
-                                        Expression(
-                                            [Symbol("match"), space, pattern, pattern]
-                                        ),
+                                        Expression([Symbol("match"), space, pattern, pattern]),
                                     ]
                                 ),
                             ]
@@ -1089,21 +1084,24 @@ class StatementCompilerMixin(CompilerContext):
             target = walrus.target.id
             value = self.expression(walrus.value)
             spacey = _space_valued(value) or (
-                isinstance(walrus.value, ast.Name)
-                and walrus.value.id in self.space_locals
+                isinstance(walrus.value, ast.Name) and walrus.value.id in self.space_locals
             )
             if spacey:
                 self.space_locals.add(target)
             else:
                 self.space_locals.discard(target)
             dictish = self._dict_atom(value) or (
-                isinstance(walrus.value, ast.Name)
-                and walrus.value.id in self.dict_locals
+                isinstance(walrus.value, ast.Name) and walrus.value.id in self.dict_locals
             )
             if dictish:
                 self.dict_locals.add(target)
             else:
                 self.dict_locals.discard(target)
+            kind = self._container_kind(walrus.value)
+            if kind is None:
+                self.container_locals.pop(target, None)
+            else:
+                self.container_locals[target] = kind
             variable = Variable(self._bind(target))
             pairs.append(Expression([variable, value]))
             _replace_walrus(head, walrus, target)
@@ -1128,8 +1126,14 @@ class StatementCompilerMixin(CompilerContext):
     ) -> Expression:
         pragma_target = self._pragma_write_target(head)
         if pragma_target is not None:
-            name, value_node = pragma_target
-            return self._global_write(name, value_node, head, rest)
+            name, value_node, inplace_op = pragma_target
+            return self._global_write(
+                name,
+                value_node,
+                head,
+                rest,
+                inplace_op=inplace_op,
+            )
         dict_write = self._dict_write(head, rest)
         if dict_write is not None:
             return dict_write
@@ -1137,6 +1141,7 @@ class StatementCompilerMixin(CompilerContext):
             isinstance(head, ast.AugAssign)
             and isinstance(head.target, ast.Name)
             and head.target.id in self.space_locals
+            and head.target.id not in self.container_locals
             and isinstance(head.op, ast.Sub)
         ):
             removal = self._space_augmented_removal(head, self.block(rest))
@@ -1155,9 +1160,7 @@ class StatementCompilerMixin(CompilerContext):
                 probe: Atom = pattern
             else:
                 held = Variable(self._temp("try-bound"))
-                rows = Expression(
-                    [Expression([held, value]), Expression([pattern, held])]
-                )
+                rows = Expression([Expression([held, value]), Expression([pattern, held])])
                 probe = held
             trapped = Expression(
                 [
@@ -1206,9 +1209,7 @@ class StatementCompilerMixin(CompilerContext):
         if isinstance(head, ast.AugAssign):
             self.libraries.add("dict")
             read = Expression([Symbol("get-value"), holder, key])
-            value = self._binop_atom(
-                head.op, read, self.expression(value_node), head.lineno
-            )
+            value = self._inplace_atom(head.op, read, self.expression(value_node), head.lineno)
         else:
             value = self.expression(value_node)
         self.libraries.add("dict")
@@ -1224,7 +1225,7 @@ class StatementCompilerMixin(CompilerContext):
 
     def _pragma_write_target(
         self, head: ast.Assign | ast.AnnAssign | ast.AugAssign
-    ) -> tuple[str, ast.expr] | None:
+    ) -> tuple[str, ast.expr, ast.operator | None] | None:
         """A declared-global assignment's name and value expression.
 
         An augmented assignment desugars to a read-then-write of the live
@@ -1244,19 +1245,8 @@ class StatementCompilerMixin(CompilerContext):
             return None
         if target not in self.pragma_globals or value is None:
             return None
-        if isinstance(head, ast.AugAssign):
-            value = ast.copy_location(
-                ast.BinOp(
-                    left=ast.copy_location(
-                        ast.Name(id=target, ctx=ast.Load()), head
-                    ),
-                    op=head.op,
-                    right=head.value,
-                ),
-                head,
-            )
-            ast.fix_missing_locations(value)
-        return target, value
+        inplace_op = head.op if isinstance(head, ast.AugAssign) else None
+        return target, value, inplace_op
 
     def _space_augmented_removal(
         self, head: ast.AugAssign, continuation: Atom
@@ -1278,6 +1268,7 @@ class StatementCompilerMixin(CompilerContext):
         if not (
             isinstance(head.target, ast.Name)
             and head.target.id in self.space_locals
+            and head.target.id not in self.container_locals
             and isinstance(head.op, ast.Sub)
         ):
             return None
@@ -1418,36 +1409,35 @@ class StatementCompilerMixin(CompilerContext):
         if binding is not None:
             state_cell, state_target = binding
             if isinstance(head, ast.AugAssign):
-                value_node: ast.expr | None = ast.BinOp(
-                    left=ast.copy_location(
-                        ast.Attribute(
-                            value=state_target.value,
-                            attr=state_target.attr,
-                            ctx=ast.Load(),
-                        ),
-                        state_target,
+                current_node = ast.copy_location(
+                    ast.Attribute(
+                        value=state_target.value,
+                        attr=state_target.attr,
+                        ctx=ast.Load(),
                     ),
-                    op=head.op,
-                    right=head.value,
-                    lineno=head.lineno,
-                    col_offset=head.col_offset,
+                    state_target,
+                )
+                state_value = self._inplace_atom(
+                    head.op,
+                    self.expression(current_node),
+                    self.expression(head.value),
+                    head.lineno,
                 )
             else:
                 value_node = head.value
-            if value_node is None:
-                msg = "an annotation without a value writes no State cell"
-                raise CompileError(
-                    msg,
-                    construct="annotation",
-                    line=head.lineno,
-                )
-            state_value = self.expression(value_node)
+                if value_node is None:
+                    msg = "an annotation without a value writes no State cell"
+                    raise CompileError(
+                        msg,
+                        construct="annotation",
+                        line=head.lineno,
+                    )
+                state_value = self.expression(value_node)
             discard = Variable(self._bind("_"))
-            return discard, Expression(
-                [Symbol("change-state!"), state_cell, state_value]
-            )
+            return discard, Expression([Symbol("change-state!"), state_cell, state_value])
 
         value: Atom
+        native_augassign = False
         if isinstance(head, ast.AugAssign):
             target_name = _name_of(head.target, head.lineno)
             if target_name not in self.scope:
@@ -1467,7 +1457,7 @@ class StatementCompilerMixin(CompilerContext):
                     construct="augmented assignment",
                     line=head.lineno,
                 )
-            if target_name in self.space_locals:
+            if target_name in self.space_locals and target_name not in self.container_locals:
                 # On a space, += and -= ARE the write doors, never
                 # arithmetic: the miscompile stored (+ $s atom), answered
                 # True, and wrote nothing. The write executes under a
@@ -1498,18 +1488,30 @@ class StatementCompilerMixin(CompilerContext):
                 )
                 target = "_"
             else:
-                # x += e is x = x <op> e; the desugared node lowers identically.
-                value = self._x_BinOp(
-                    ast.BinOp(
-                        left=ast.copy_location(
-                            ast.Name(id=target_name, ctx=ast.Load()), head
-                        ),
-                        op=head.op,
-                        right=head.value,
-                        lineno=head.lineno,
-                        col_offset=head.col_offset,
-                    )
+                left_kind = self.container_locals.get(target_name)
+                right_kind = self._container_kind(head.value)
+                native_augassign = (
+                    target_name in self.number_locals
+                    and self._native_number(head.value)
+                    and type(head.op) in _NATIVE_BINOPS
                 )
+                if native_augassign:
+                    value = self._binop_atom(
+                        head.op,
+                        Variable(self.scope[target_name]),
+                        self.expression(head.value),
+                        head.lineno,
+                        native=True,
+                    )
+                else:
+                    value = self._inplace_atom(
+                        head.op,
+                        self._operator_operand(Variable(self.scope[target_name]), left_kind),
+                        self._operator_operand(self.expression(head.value), right_kind),
+                        head.lineno,
+                        left_kind=left_kind,
+                        right_kind=right_kind,
+                    )
                 target = target_name
         elif isinstance(head, ast.AnnAssign):
             if head.value is None:
@@ -1525,22 +1527,39 @@ class StatementCompilerMixin(CompilerContext):
             target = _single_target(head)
             value = self.expression(head.value)
         if not isinstance(head, ast.AugAssign):
+            source_node = head.value
+            assert source_node is not None
             spacey = _space_valued(value) or (
-                isinstance(head.value, ast.Name)
-                and head.value.id in self.space_locals
+                isinstance(source_node, ast.Name) and source_node.id in self.space_locals
             )
             if spacey:
                 self.space_locals.add(target)
             else:
                 self.space_locals.discard(target)
             dictish = self._dict_atom(value) or (
-                isinstance(head.value, ast.Name)
-                and head.value.id in self.dict_locals
+                isinstance(source_node, ast.Name) and source_node.id in self.dict_locals
             )
             if dictish:
                 self.dict_locals.add(target)
             else:
                 self.dict_locals.discard(target)
+            kind = self._container_kind(source_node)
+            if kind is None:
+                self.container_locals.pop(target, None)
+            else:
+                self.container_locals[target] = kind
+            annotated_number = isinstance(head, ast.AnnAssign) and self.annotation_is_native_number(
+                head.annotation
+            )
+            if annotated_number or self._native_number(source_node):
+                self.number_locals.add(target)
+            else:
+                self.number_locals.discard(target)
+        elif target != "_":
+            if native_augassign:
+                self.number_locals.add(target)
+            else:
+                self.number_locals.discard(target)
         variable: Atom = Variable(self._bind(target))
         if isinstance(head, ast.AnnAssign):
             claim = Expression([Symbol(":"), variable, self.annotation_atom(head.annotation)])
@@ -1718,9 +1737,7 @@ class StatementCompilerMixin(CompilerContext):
             and head.target.id in self.space_locals
             and isinstance(head.op, ast.Sub)
         ):
-            removal = self._space_augmented_removal(
-                head, _superpose(self.yield_answers(rest))
-            )
+            removal = self._space_augmented_removal(head, _superpose(self.yield_answers(rest)))
             if removal is None:
                 msg = "a guarded space-local augmented removal lowered to nothing"
                 raise AssertionError(msg)
@@ -1743,18 +1760,14 @@ class StatementCompilerMixin(CompilerContext):
                 if head.orelse
                 else Expression([Symbol("empty")])
             )
-            chooser = Expression(
-                [Symbol("if"), self._truthy(head.test), then, otherwise]
-            )
+            chooser = Expression([Symbol("if"), self._truthy(head.test), then, otherwise])
             return [chooser, *self._yield_tail(rest)]
         if then_closes and else_closes and rest:
             msg = "statements after an if whose branches both raise are unreachable"
             raise CompileError(msg, construct="if", line=rest[0].lineno)
         then_band = head.body if then_closes else [*head.body, *rest]
         else_band = (
-            [*head.orelse, *rest]
-            if then_closes and not else_closes
-            else head.orelse or rest
+            [*head.orelse, *rest] if then_closes and not else_closes else head.orelse or rest
         )
         then = _superpose(self._fork().yield_answers(then_band))
         otherwise = (
@@ -1762,9 +1775,7 @@ class StatementCompilerMixin(CompilerContext):
             if else_band
             else Expression([Symbol("empty")])
         )
-        return [
-            Expression([Symbol("if"), self._truthy(head.test), then, otherwise])
-        ]
+        return [Expression([Symbol("if"), self._truthy(head.test), then, otherwise])]
 
     def _yield_for(self, head: ast.For, rest: list[ast.stmt]) -> list[Atom]:
         # `for x in e: <yields>` is iteration as nondeterminism: bind x to

@@ -32,7 +32,7 @@ Open Obligations:
   Future Enhancements: None.
 """
 
-from metta import TRUE, S, V, equation, if_, rules
+from metta import TRUE, S, V, equation, fn, if_, rules
 
 #: `(|-> ($x) (g $x))`, the generator lambda the original writes inline.
 GENERATOR = S["|->"]((V.x,), S.g(V.x))
@@ -64,6 +64,7 @@ def below(limit):
 
 def twin(m):
     """Check every answer of a generator, nine ways of naming the two."""
+
     # The top rung stacks two clauses under one head, the way `g` does below:
     #
     #     @m.define(name="f")
@@ -113,7 +114,7 @@ def twin(m):
     @m.define(name="P")
     def below_two(x):
         # (= (P $X) (< $X 2))
-        return x < 2
+        return fn.lt(x, 2)
 
     # Arg-free generator function plus check function.
     # !(test (forall (f) P) false)
@@ -230,4 +231,9 @@ def twin(m):
 #: structure, and the removal doors changed meaning where a twin spells one
 #: [measured 2026-09-01: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=c6a40460b1db341198a6150e3600f502831a6e83].
-BUDGET = 27481
+#: RE-PINNED 2026-09-01, 27481 to 27513 (+32), generic Python operators now
+#: dispatch through live protocols while source twins explicitly name
+#: relational engine heads [measured 2026-09-01: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+BUDGET = 27513

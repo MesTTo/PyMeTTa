@@ -29,11 +29,11 @@ def twin(m):
     # exact name while the Python side stays snake_case.
     @m.define(name="expandK")
     def expand_k(expression, n):
-        if n == 0:
+        if fn.eq(n, 0):
             return S.done
         space = fn.context_space()
         space += S.num(expression)
-        return expand_k(S.S(expression), n - 1)
+        return expand_k(S.S(expression), fn.sub(n, 1))
 
     @m.define
     def demo_peano(k):
@@ -122,4 +122,9 @@ def twin(m):
 #: the quad twin stopped being a different program [measured 2026-09-01: min-
 #: of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=c6a40460b1db341198a6150e3600f502831a6e83].
-BUDGET = 89324
+#: RE-PINNED 2026-09-01, 89324 to 82575 (-6749), generic Python operators now
+#: dispatch through live protocols while source twins explicitly name
+#: relational engine heads [measured 2026-09-01: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+BUDGET = 82575

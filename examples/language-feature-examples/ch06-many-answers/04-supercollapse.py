@@ -37,6 +37,7 @@ from metta import Expression, fn, superpose
 
 def twin(m):
     """Append two expressions, then count to nine with nothing else."""
+
     @m.define(name="TupleConcat")
     def concat(first, second):
         # (= (TupleConcat $Ev1 $Ev2) (collapse (superpose ((superpose $Ev1) (superpose $Ev2)))))
@@ -45,7 +46,7 @@ def twin(m):
     @m.define(name="range")
     def count_from(k, n):
         # (= (range $K $N) (if (< $K $N) (TupleConcat ($K) (range (+ $K 1) $N)) ()))
-        return concat((k,), count_from(k + 1, n)) if k < n else ()
+        return concat((k,), count_from(fn.add(k, 1), n)) if fn.lt(k, n) else ()
 
     # !(test (range 1 10) (1 2 3 4 5 6 7 8 9))
     assert count_from(1, 10) == [Expression((1, 2, 3, 4, 5, 6, 7, 8, 9))]
@@ -122,4 +123,9 @@ def twin(m):
 #: structure, and the removal doors changed meaning where a twin spells one
 #: [measured 2026-09-01: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=c6a40460b1db341198a6150e3600f502831a6e83].
-BUDGET = 6993
+#: RE-PINNED 2026-09-01, 6993 to 7738 (+745), generic Python operators now
+#: dispatch through live protocols while source twins explicitly name
+#: relational engine heads [measured 2026-09-01: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+BUDGET = 7738

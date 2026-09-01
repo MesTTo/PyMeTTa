@@ -7,9 +7,10 @@ that can be mapped over a list, applied directly, passed through a binding,
 partially applied, and closed over a preceding binding.
 
 Python's own `lambda` IS the second kind. Inside a compiled body it lowers
-straight to `|->`, so `lambda a: 1 + a` stores `(|-> ($a) (+ 1 $a))`, and a
-`lambda` that reads a name bound above it closes over that name exactly as the
-original's `let*` does. Three of the seven claims are written that way.
+straight to `|->`, so `lambda a: fn.add(1, a)` stores
+`(|-> ($a) (+ 1 $a))`, and a lambda that reads a name bound above it closes
+over that name exactly as the original's `let*` does. Three of the seven
+claims are written that way.
 
 What a compiled body will not do is apply a lambda WHERE IT STANDS: `(lambda
 ...)(arg)` is refused, "a compiled body calls a plain name". So the two forms
@@ -60,12 +61,12 @@ def twin(m):
     @m.define(name="applyL1")
     def apply_l1():
         # (= (applyL1) (apply (lambda $x (+ $x 1)) 2))
-        return S.apply(S["lambda"](V.x, V.x + 1), 2)
+        return S.apply(S["lambda"](V.x, fn.add(V.x, 1)), 2)
 
     @m.define(name="applyL2")
     def apply_l2():
         # (= (applyL2) (apply (lambda ($x $y) (+ $x $y)) (2 7)))
-        return S.apply(S["lambda"]((V.x, V.y), V.x + V.y), (2, 7))
+        return S.apply(S["lambda"]((V.x, V.y), fn.add(V.x, V.y)), (2, 7))
 
     assert apply_l1() == [3]
     assert apply_l2() == [9]
@@ -74,7 +75,7 @@ def twin(m):
     @m.define
     def increment_all(items):
         # (= (increment-all $items) (maplist (|-> ($a) (+ 1 $a)) $items))
-        return fn.maplist(lambda a: 1 + a, items)
+        return fn.maplist(lambda a: fn.add(1, a), items)
 
     assert increment_all((1, 2, 3)) == [Expression((2, 3, 4))]
 
@@ -98,9 +99,7 @@ def twin(m):
     assert through_partial() == [Expression((42, 43, 2, 3))]
 
     # Partially applied: one argument now, the other later.
-    assert m.eval(((S["|->"]((V.x, V.y), (42, V.x, V.y)), 43), 44)) == [
-        Expression((42, 43, 44))
-    ]
+    assert m.eval(((S["|->"]((V.x, V.y), (42, V.x, V.y)), 43), 44)) == [Expression((42, 43, 44))]
 
     @m.define
     def myfunc2(mylambda):
@@ -205,4 +204,9 @@ def twin(m):
 #: structure, and the removal doors changed meaning where a twin spells one
 #: [measured 2026-09-01: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=c6a40460b1db341198a6150e3600f502831a6e83].
-BUDGET = 22851
+#: RE-PINNED 2026-09-01, 22851 to 22950 (+99), generic Python operators now
+#: dispatch through live protocols while source twins explicitly name
+#: relational engine heads [measured 2026-09-01: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+BUDGET = 22950

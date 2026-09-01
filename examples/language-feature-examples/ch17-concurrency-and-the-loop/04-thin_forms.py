@@ -79,7 +79,9 @@ def twin(m):
     # `transaction` takes a callable or a term, and an open `with` scope is
     # appendix stamp 4, unruled: a callable rolls back on a Python EXCEPTION,
     # and this file's claim is a body that simply answers nothing.
-    rolls_back = S.progn(S.add_atom(m, S.tx_rolled(S.a)), nothing)  # rung: the write has to be inside the engine's transaction, and `space += atom` is a statement over a handle
+    rolls_back = S.progn(
+        S.add_atom(m, S.tx_rolled(S.a)), nothing
+    )  # rung: the write has to be inside the engine's transaction, and `space += atom` is a statement over a handle
     assert m.transaction(rolls_back) == []
     # !(test (collapse (match &self (tx-rolled $x) $x)) ())
     assert m[S.tx_rolled(V.x)].x == []
@@ -109,7 +111,9 @@ def twin(m):
     # !(test (collapse (transaction (superpose ((add-atom &self (tx-each 1))
     #                                           (add-atom &self (tx-each 2))))))
     #        (true true))
-    each = S.superpose((S.add_atom(m, S.tx_each(1)), S.add_atom(m, S.tx_each(2))))  # rung: two writes inside one transaction, and a write is a statement over a handle
+    each = S.superpose(
+        (S.add_atom(m, S.tx_each(1)), S.add_atom(m, S.tx_each(2)))
+    )  # rung: two writes inside one transaction, and a write is a statement over a handle
     assert m.transaction(each) == [True, True]
     # !(test (collapse (match &self (tx-each $x) $x)) (1 2))
     assert m[S.tx_each(V.x)].x == [1, 2]
@@ -127,15 +131,20 @@ def twin(m):
     @m.define
     def tx_body():
         # (= (tx-body) (noeval (superpose ((+ 1 1) (+ 2 2)))))
-        return fn.noeval(superpose(1 + 1, 2 + 2))
+        return fn.noeval(superpose(fn.add(1, 1), fn.add(2, 2)))
 
     computed = S.tx_body()
     # !(test (collapse (let $b (tx-body) (atomically $b))) (2 4))
-    assert m.eval(S.let(V.b, computed, S.atomically(V.b))) == [2, 4]  # rung: the binding IS the claim: it is what makes the argument a variable holding a value
+    assert m.eval(S.let(V.b, computed, S.atomically(V.b))) == [
+        2,
+        4,
+    ]  # rung: the binding IS the claim: it is what makes the argument a variable holding a value
     # !(test (size-atom (collapse (let $b (tx-body) (atomically $b)))) 2)
     assert len(m.eval(S.let(V.b, computed, S.atomically(V.b)))) == 2  # rung: the same binding
     # !(test (size-atom (collapse (let $b (tx-body) (transaction $b)))) 1)
-    assert len(m.eval(S.let(V.b, computed, S.transaction(V.b)))) == 1  # rung: the same binding, and the contrast this file is making
+    assert (
+        len(m.eval(S.let(V.b, computed, S.transaction(V.b)))) == 1
+    )  # rung: the same binding, and the contrast this file is making
 
     # ----------------------------------------------------- elapsed
     # Answers the value AND the seconds it took, as a pair, so the value is
@@ -155,7 +164,7 @@ def twin(m):
     @m.define
     def spin(n):
         # (= (spin $n) (if (== $n 0) done (spin (- $n 1))))
-        return S.done if n == 0 else spin(n - 1)
+        return S.done if fn.eq(n, 0) else spin(fn.sub(n, 1))
 
     # !(test (timeout 5 (spin 10)) done)
     assert m.eval(S.spin(10), timeout=5) == [S.done]
@@ -265,4 +274,9 @@ def twin(m):
 #: the quad twin stopped being a different program [measured 2026-09-01: min-
 #: of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=c6a40460b1db341198a6150e3600f502831a6e83].
-BUDGET = 28181
+#: RE-PINNED 2026-09-01, 28181 to 28918 (+737), generic Python operators now
+#: dispatch through live protocols while source twins explicitly name
+#: relational engine heads [measured 2026-09-01: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+BUDGET = 28918

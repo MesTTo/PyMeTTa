@@ -157,9 +157,7 @@ def test_no_decorator_flag_changes_the_return_shape_and_declarations_are_atoms(
     assert len(metta.match(Expression(S["p5-atomic"], V.x))) == 0
 
     # A directive nothing reduces answers itself, which is ordinary.
-    assert metta.run("!(p5-does-not-reduce 1)") == [
-        [Expression(S["p5-does-not-reduce"], 1)]
-    ]
+    assert metta.run("!(p5-does-not-reduce 1)") == [[Expression(S["p5-does-not-reduce"], 1)]]
 
     prelude_names = {S[name] for name in PRELUDE_NAMES}
     assert not any(
@@ -170,8 +168,7 @@ def test_no_decorator_flag_changes_the_return_shape_and_declarations_are_atoms(
     )
     reflection = metta._at("&metta")
     assert {
-        row.name
-        for row in reflection.match(Expression(S.arguments, V.name, S.atoms))
+        row.name for row in reflection.match(Expression(S.arguments, V.name, S.atoms))
     } >= prelude_names
 
     name = unique("p5-policy")
@@ -188,9 +185,9 @@ def test_no_decorator_flag_changes_the_return_shape_and_declarations_are_atoms(
     assert [row.kind for row in reflection.match(Expression(S.op, S[name], 1, V.kind))] == [
         S["raw_det"]
     ]
-    assert [
-        row.effect for row in reflection.match(Expression(S.effect, S[name], V.effect))
-    ] == [S.pureStructural]
+    assert [row.effect for row in reflection.match(Expression(S.effect, S[name], V.effect))] == [
+        S.pureStructural
+    ]
     assert effect in reflection
     assert metta.run(f"!({name} 7)") == [[7]]
 
@@ -206,8 +203,7 @@ def test_no_decorator_flag_changes_the_return_shape_and_declarations_are_atoms(
     assert metta.run(f"!({atoms_name} 8)") == [[8]]
     assert isinstance(seen[0], Atom)
     assert [
-        row.delivery
-        for row in reflection.match(Expression(S.arguments, S[atoms_name], V.delivery))
+        row.delivery for row in reflection.match(Expression(S.arguments, S[atoms_name], V.delivery))
     ] == [S.atoms]
 
     refused_name = unique("p5-raw-atoms")
@@ -442,9 +438,7 @@ def test_explicit_answer_value_preserves_generator_tuple_and_dict_results(metta)
     def dict_value(_left, _right):
         yield Answer(value=mapping)
 
-    assert list(metta.fn[tuple_name](S.any, S.arguments)) == [
-        Expression(S.paris, S.lyon)
-    ]
+    assert list(metta.fn[tuple_name](S.any, S.arguments)) == [Expression(S.paris, S.lyon)]
     dict_answers = list(metta.fn[dict_name](S.any, S.arguments))
     assert dict_answers == [ground(mapping)]
     assert dict_answers[0].value is mapping
@@ -516,8 +510,7 @@ def test_register_op_reads_co_flags_and_refuses_or_awaits(metta):
             metta.op(fn, name=name, effect=effect)
         assert name not in registered()
         assert not any(
-            isinstance(atom, Expression)
-            and atom.children[:2] == (S.op, S[name])
+            isinstance(atom, Expression) and atom.children[:2] == (S.op, S[name])
             for atom in reflection.atoms()
         ), name
 
@@ -804,9 +797,7 @@ def test_a_raw_operations_inverse_crosses_raw_too(metta):
         metta.run(f"!(let ({name} $n) sym $n)")
         kinds = {kind for _, kind in seen}
         assert len(kinds) == 1, f"{label} saw {seen}"
-        assert kinds == ({"str"} if transport == "raw" else {"Symbol"}), (
-            f"{label} saw {seen}"
-        )
+        assert kinds == ({"str"} if transport == "raw" else {"Symbol"}), f"{label} saw {seen}"
 
 
 def test_an_inverse_of_the_wrong_width_is_refused(metta):
@@ -1128,12 +1119,12 @@ def test_a_name_prolog_owns_registers_and_leaves_prolog_alone(metta):
     MeTTa arity 1 and 4 are.
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     for name, arity, call, expected in [
-        ("format", 1, "!(format 1)", 1),    # Prolog format/2, a system builtin
-        ("print", 1, "!(print 1)", 1),      # print/2, likewise
-        ("succ", 1, "!(succ 1)", 1),        # succ/2
+        ("format", 1, "!(format 1)", 1),  # Prolog format/2, a system builtin
+        ("print", 1, "!(print 1)", 1),  # print/2, likewise
+        ("succ", 1, "!(succ 1)", 1),  # succ/2
         ("between", 2, "!(between 1 2)", 1),  # between/3
-        ("digit", 2, "!(digit 1 2)", 1),    # digit/3, from library(dcg/basics)
-        ("last", 1, "!(last 1)", 1),        # last/2, from library(lists)
+        ("digit", 2, "!(digit 1 2)", 1),  # digit/3, from library(dcg/basics)
+        ("last", 1, "!(last 1)", 1),  # last/2, from library(lists)
         ("select", 2, "!(select 1 2)", 1),  # select/3, likewise
     ]:
         metta.op(
@@ -1168,8 +1159,9 @@ def test_a_generated_memo_clause_does_not_consume_a_registrable_name(metta):
     test_a_cached_definition_memoizes_its_complete_answer_bag
     [measured 2026-08-26]. The generated body now says system:between.
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
+
     @metta.define(name="opsleak-fib")
-    def opsleak_fib(n):
+    def opsleak_fib(n: int) -> int:
         return n if n < 2 else opsleak_fib(n - 1) + opsleak_fib(n - 2)
 
     metta.eval(S["import!"](metta, S.library(S["lib_memo"])))
@@ -1241,7 +1233,7 @@ def test_unregistering_a_name_a_system_predicate_shares_does_not_throw(metta):
 def test_a_tuple_defaults_to_data_and_grounded_retains_a_handle(metta):
     """The default structural answer and explicit host reading are distinct."""
     assert metta.run('!(py-atom "()")') == [[metta.parse("()")]]
-    assert metta.run('!((py-atom tuple))') == [[metta.parse("()")]]
+    assert metta.run("!((py-atom tuple))") == [[metta.parse("()")]]
     assert metta.run('!(py-atom "(1, 2)")') == [[metta.parse("(1 2)")]]
 
     ((grounded,),) = metta.run('!(py-atom "(1, 2)" Grounded)')
@@ -1250,20 +1242,17 @@ def test_a_tuple_defaults_to_data_and_grounded_retains_a_handle(metta):
     assert grounded.value == (1, 2)
     assert type(grounded.value) is tuple
     # The decoder removes Janus's private carrier before Python sees the value.
-    assert metta.run(
-        '!(py-dot (py-dot (py-atom "(1, 2)" Grounded) __class__) __name__)'
-    ) == [["tuple"]]
+    assert metta.run('!(py-dot (py-dot (py-atom "(1, 2)" Grounded) __class__) __name__)') == [
+        ["tuple"]
+    ]
     # A returned atom crosses back through Box on public reuse. The bridge
     # removes that transport layer, including inside a container argument.
     with metta.bind(held=grounded):
         assert metta.run("!(car-atom held)") == [[1]]
     with metta.bind(items=Expression(grounded)):
-        assert metta.run(
-            '!((py-atom "lambda xs: type(xs[0]) is tuple") items)'
-        ) == [[True]]
+        assert metta.run('!((py-atom "lambda xs: type(xs[0]) is tuple") items)') == [[True]]
     assert metta.run(
-        '!((py-atom "lambda x: x is x[0]") '
-        '(py-atom "(lambda x: (x.append(x), x)[1])([])"))'
+        '!((py-atom "lambda x: x is x[0]") (py-atom "(lambda x: (x.append(x), x)[1])([])"))'
     ) == [[True]], "checking nested transport must not copy a live cyclic list"
     # the shapes that already worked are untouched
     assert metta.run('!(py-atom "None")') == [[metta.parse("()")]]
@@ -1291,8 +1280,7 @@ def test_a_declared_type_survives_the_library_being_loaded(metta):
     """
     both = "(builtin_function_or_method (-> Number Number Number))"
     assert metta.run(
-        "!(let $f (py-atom math.pow (-> Number Number Number))"
-        " (collapse (get-type $f)))"
+        "!(let $f (py-atom math.pow (-> Number Number Number)) (collapse (get-type $f)))"
     ) == [[metta.parse(both)]], "the declared arrow is dropped"
     # A DIFFERENT object, one nothing declares, answers its classes and
     # nothing else, so the union adds no candidate of its own. It has to be

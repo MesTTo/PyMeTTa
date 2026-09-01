@@ -61,7 +61,7 @@ def twin(m):
             return S.done
         _grown = fn.expand()
         _mated = fn.mate()
-        return rewrite_k(n - 1)
+        return rewrite_k(fn.sub(n, 1))
 
     # (= (mate-space-demo $K) (let* (($s (add-atom ...)) ($g (rewriteK $K)))
     #                               (match &self (num $1) (num $1))))
@@ -185,4 +185,9 @@ RUNG = (
 #: and the quad twin stopped being a different program [measured 2026-09-01:
 #: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=c6a40460b1db341198a6150e3600f502831a6e83].
-BUDGET = 39625123
+#: RE-PINNED 2026-09-01, 39625123 to 39625128 (+5), generic Python operators
+#: now dispatch through live protocols while source twins explicitly name
+#: relational engine heads [measured 2026-09-01: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+BUDGET = 39625128

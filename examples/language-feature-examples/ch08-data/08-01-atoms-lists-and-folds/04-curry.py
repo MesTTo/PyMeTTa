@@ -53,12 +53,12 @@ def twin(m):
     @m.define
     def f(a, b):
         # (= (f $a $b) (+ $a $b))
-        return a + b
+        return fn.add(a, b)
 
     @m.define
     def g(a, b, c):
         # (= (g $a $b $c) (+ $c (+ $a $b)))
-        return c + (a + b)
+        return fn.add(c, fn.add(a, b))
 
     @m.define
     def show():
@@ -104,11 +104,9 @@ def twin(m):
     # (= (overloaded-curry $a $b $c) (+ $a (+ $b $c)))
     @m.define(name="overloaded-curry")
     def overloaded_curry_3(a, b, c):
-        return a + (b + c)
+        return fn.add(a, fn.add(b, c))
 
-    assert m.fn.repr(S.overloaded_curry(1, 2)) == [
-        "(partial overloaded-curry (1 2))"
-    ]
+    assert m.fn.repr(S.overloaded_curry(1, 2)) == ["(partial overloaded-curry (1 2))"]
 
 
 #: Inferences this twin spends, its own tripwire.
@@ -192,4 +190,9 @@ def twin(m):
 #: structure, and the removal doors changed meaning where a twin spells one
 #: [measured 2026-09-01: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=c6a40460b1db341198a6150e3600f502831a6e83].
-BUDGET = 19916
+#: RE-PINNED 2026-09-01, 19916 to 20152 (+236), generic Python operators now
+#: dispatch through live protocols while source twins explicitly name
+#: relational engine heads [measured 2026-09-01: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+BUDGET = 20152

@@ -13,11 +13,12 @@ The memoize argument is the function this file just defined. Mentioning a
 `Defined` in term position carries that definition's head symbol, so the
 declaration reads `S.memoize(add, 2)` without re-spelling its name.
 
-`x + y + z` in the compiled body is Python's own left-associating addition, so
-it builds `(+ (+ $x $y) $z)` without a word about it.
+The three-argument body writes the source's left association explicitly as
+`fn.add(fn.add(x, y), z)`, so it stores `(+ (+ $x $y) $z)` and remains a pure
+relation eligible for memoization.
 """
 
-from metta import S, lib
+from metta import S, fn, lib
 
 
 def twin(m):
@@ -27,12 +28,12 @@ def twin(m):
     @m.define
     def add(x, y):
         # (= (add $x $y) (+ $x $y))
-        return x + y
+        return fn.add(x, y)
 
     @m.define(name="add")
     def add_3(x, y, z):
         # (= (add $x $y $z) (+ (+ $x $y) $z))
-        return x + y + z
+        return fn.add(fn.add(x, y), z)
 
     m.eval(S.memoize(add, 2))
 
@@ -122,4 +123,9 @@ def twin(m):
 #: the quad twin stopped being a different program [measured 2026-09-01: min-
 #: of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=c6a40460b1db341198a6150e3600f502831a6e83].
-BUDGET = 36839
+#: RE-PINNED 2026-09-01, 36839 to 36916 (+77), generic Python operators now
+#: dispatch through live protocols while source twins explicitly name
+#: relational engine heads [measured 2026-09-01: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+BUDGET = 36916

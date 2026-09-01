@@ -8,8 +8,9 @@ once, so `(log-math e (exp-math 3.0))` is one term rather than two crossings,
 which is the crossing rule as well as the spelling.
 
 The original's `and` is a Python keyword, so the compiled body takes the exact
-static-function escape, `fn["and"]`, while each comparison uses Python's
-operator spelling and lowers to the corresponding engine relation.
+static-function escape, `fn["and"]`. Its comparisons use `fn.le` because this
+source twin needs engine relations rather than Python's live comparison
+protocol.
 
 The historical stored-equation divergence is lifted. The example and twin
 currently produce the same cross-process digest.
@@ -34,7 +35,9 @@ def twin(m):
     @m.define
     def in_range(lo, hi, x):
         # (= (in-range $lo $hi $x) (and (<= $lo $x) (<= $x $hi)))
-        return fn["and"](lo <= x, x <= hi)  # rung: & is refused inside a compiled body, and `and` is a keyword
+        return fn["and"](
+            fn.le(lo, x), fn.le(x, hi)
+        )  # rung: `and` is a keyword, while fn names its engine relation
 
     # The random generators answer inside their bounds, every draw.
     assert in_range(1, 6, fn.random_int(1, 6)) == [True]
@@ -115,4 +118,9 @@ def twin(m):
 #: structure, and the removal doors changed meaning where a twin spells one
 #: [measured 2026-09-01: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=c6a40460b1db341198a6150e3600f502831a6e83].
-BUDGET = 6952
+#: RE-PINNED 2026-09-01, 6952 to 7004 (+52), generic Python operators now
+#: dispatch through live protocols while source twins explicitly name
+#: relational engine heads [measured 2026-09-01: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+BUDGET = 7004

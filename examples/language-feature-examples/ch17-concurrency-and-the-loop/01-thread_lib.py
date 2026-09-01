@@ -36,7 +36,7 @@ Open Obligations:
 
 import time
 
-from metta import Expression, S, V, channel, lib, race, spawn
+from metta import Expression, S, V, channel, fn, lib, race, spawn
 
 
 def twin(m):
@@ -46,17 +46,17 @@ def twin(m):
     @m.define
     def inc(x):
         # (= (inc $x) (+ $x 1))
-        return x + 1
+        return fn.add(x, 1)
 
     @m.define(name="big?")
     def big(x):
         # (= (big? $x) (> $x 2))
-        return x > 2
+        return fn.gt(x, 2)
 
     @m.define
     def spin(n):
         # (= (spin $n) (if (> $n 0) (spin (- $n 1)) done))
-        return spin(n - 1) if n > 0 else S.done
+        return spin(fn.sub(n, 1)) if fn.gt(n, 0) else S.done
 
     @m.define
     def slow(x):
@@ -145,7 +145,9 @@ def twin(m):
 
     # Blocking until another thread writes the atom, event-driven through the
     # engine's own write hooks. The spawned branch does the writing.
-    writer = spawn(S.add_atom(m, S.ready(S.now)))  # rung: the write is DATA handed to another engine thread, not a store this process mutates, so `space += atom` cannot say it
+    writer = spawn(
+        S.add_atom(m, S.ready(S.now))
+    )  # rung: the write is DATA handed to another engine thread, not a store this process mutates, so `space += atom` cannot say it
     seen = m.peek(S.ready(V.what), deadline=10)
     writer.wait()
     assert seen == S.ready(S.now)
@@ -216,9 +218,28 @@ def twin(m):
 #: full-lane observations under 'full-lane/219/workers=32'; a cost outside them
 #: is a real finding, and a new mode discovered later extends the
 #: envelope with its observation count rather than widening blind.
+#: RE-ENVELOPED 2026-09-01 on the operator-protocol tree. Generic Python
+#: operators now dispatch through live protocols and relational twins name
+#: engine heads explicitly, so ten fresh full-lane observations replace the
+#: prior implementation's modes [measured: exact extrema over 10 observations;
+#: command=python extensions/python/tools/twin_coverage.py --observe --rounds 10;
+#: fixture=full-lane/219/workers=32; commit=WORKTREE].
+#: The confirming differential extended the observed maximum from 591824 to
+#: 608009 [measured: eleventh full-lane observation 608009; command=python
+#: extensions/python/tools/twin_coverage.py; fixture=full-lane/219/workers=32;
+#: commit=WORKTREE].
+#: A second ten-round observe pass extended the maximum from 608009 to 608164
+#: [measured: exact extrema over 10 further observations; command=python
+#: extensions/python/tools/twin_coverage.py --observe --rounds 10;
+#: fixture=full-lane/219/workers=32; commit=WORKTREE].
+#: Four confirming differentials brought the current-tree sample to 25; the
+#: third extended the maximum from 608164 to 618693 [measured: twenty-fourth
+#: full-lane observation 618693 and twenty-fifth observation 617737; command=python
+#: extensions/python/tools/twin_coverage.py; fixture=full-lane/219/workers=32;
+#: commit=WORKTREE].
 BUDGET = {
-    "minimum": 253588,
-    "maximum": 382714,
-    "observations": 20,
+    "minimum": 529767,
+    "maximum": 618693,
+    "observations": 25,
     "protocol": "full-lane/219/workers=32",
 }

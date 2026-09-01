@@ -31,7 +31,7 @@ Open Obligations:
 """
 
 import metta
-from metta import G, S, V, equation
+from metta import G, S, V, equation, fn
 from metta.errors import MettaOperationError
 
 
@@ -41,14 +41,14 @@ def twin(m):
 
     @metric.define
     def distance(x):
-        return x * 1000
+        return fn.mul(x, 1000)
 
     assert distance(2) == [2000]
     del distance
 
     @m.define
     def distance(x):
-        return x * 5280
+        return fn.mul(x, 5280)
 
     # The ambient space answers in feet, the named one in metres.
     assert distance(2) == [10560]
@@ -161,4 +161,9 @@ def twin(m):
 #: the quad twin stopped being a different program [measured 2026-09-01: min-
 #: of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=c6a40460b1db341198a6150e3600f502831a6e83].
-BUDGET = 9331
+#: RE-PINNED 2026-09-01, 9331 to 9406 (+75), generic Python operators now
+#: dispatch through live protocols while source twins explicitly name
+#: relational engine heads [measured 2026-09-01: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+BUDGET = 9406

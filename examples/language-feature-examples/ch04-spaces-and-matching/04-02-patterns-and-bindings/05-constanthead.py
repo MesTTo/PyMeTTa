@@ -7,19 +7,19 @@ tower, so the clause reads as the algorithm it is rather than as an equation
 built by hand.
 """
 
-from metta import S
+from metta import S, fn
 
 
 def twin(m):
     """Define the structural clause, then feed it the structure it wants."""
 
     @m.define
-    def h(data, c):                       # (= (h (justdata haha $B) $C)
-        match data:                       #    (+ $B $C))
+    def h(data, c):  # (= (h (justdata haha $B) $C)
+        match data:  #    (+ $B $C))
             case (S.justdata, S.haha, b):
-                return b + c
+                return fn.add(b, c)
 
-    assert h(S.justdata(S.haha, 30), 40) == [70]   # [70]
+    assert h(S.justdata(S.haha, 30), 40) == [70]  # [70]
 
 
 #: Inferences this twin spends, its own tripwire. PLACEHOLDER rather than a
@@ -103,4 +103,9 @@ def twin(m):
 #: structure, and the removal doors changed meaning where a twin spells one
 #: [measured 2026-09-01: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=c6a40460b1db341198a6150e3600f502831a6e83].
-BUDGET = 4178
+#: RE-PINNED 2026-09-01, 4178 to 4220 (+42), generic Python operators now
+#: dispatch through live protocols while source twins explicitly name
+#: relational engine heads [measured 2026-09-01: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+BUDGET = 4220

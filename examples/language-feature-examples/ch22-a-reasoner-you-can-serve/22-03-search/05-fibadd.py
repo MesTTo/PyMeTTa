@@ -25,7 +25,7 @@ reduction fuel"; commit=8a8b75a1f4052c00c70c29e25e95e4d5a1812cd5]. PERFECT:
 family carrying the branch allowance beside the two bounds it already carries.
 """
 
-from metta import S
+from metta import S, fn
 
 
 def twin(m):
@@ -33,7 +33,7 @@ def twin(m):
 
     @m.define
     def fib(n):
-        return n if n < 2 else fib(n - 1) + fib(n - 2)
+        return n if fn.lt(n, 2) else fn.add(fib(fn.sub(n, 1)), fib(fn.sub(n, 2)))
 
     raised = (S.max_stack_depth(100_000_000),)
     assert m.fn.with_pragma(raised, S.fib(30)) == [832040]
@@ -105,4 +105,9 @@ def twin(m):
 #: the quad twin stopped being a different program [measured 2026-09-01: min-
 #: of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=c6a40460b1db341198a6150e3600f502831a6e83].
-BUDGET = 29493
+#: RE-PINNED 2026-09-01, 29493 to 30265 (+772), generic Python operators now
+#: dispatch through live protocols while source twins explicitly name
+#: relational engine heads [measured 2026-09-01: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+BUDGET = 30265

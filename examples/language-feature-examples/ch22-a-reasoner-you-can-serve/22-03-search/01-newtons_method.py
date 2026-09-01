@@ -4,12 +4,12 @@
 doubles at every level. The example imports lib_memo, sets a cache policy, and
 memoises the function by name; then two claims read it.
 
-`energy` is an ordinary Python function. The `if` is MeTTa's `if`, the
-arithmetic is Python's own operators over the compiled parameters, and the two
-recursive calls are the calls the equation makes, so `@m.define` lands the
-example's own equation up to variable naming and `memoize` reaches it by name
-like any other definition. Calling it evaluates, which is why the claims read
-`energy(2.0, 0)` and not a rebuilt term.
+`energy` is an ordinary Python function. The conditional is Python control
+flow, every arithmetic relation is explicitly named through `fn`, and the two
+recursive calls are the calls the equation makes. `@m.define` therefore lands
+the example's own equation up to variable naming, and `memoize` reaches it by
+name like any other definition. Calling it evaluates, which is why the claims
+read `energy(2.0, 0)` and not a rebuilt term.
 
 The three directives stay terms: each names an engine service rather than a
 computation, none of them is banged, and lib_memo has no Python face and needs
@@ -25,7 +25,7 @@ pre-pass and `memoize` on an unknown name is a domain error. The residue
 records the missing batch door against P14.4.
 """
 
-from metta import S, lib
+from metta import S, fn, lib
 from metta.vocabularies import MemoStrategy
 
 
@@ -39,9 +39,12 @@ def twin(m):
     @m.define
     def energy(x, n):
         """(= (energy $x $n) (if (<= $n 0) (* $x $x) (+ (energy ...) (energy ...))))."""
-        if n <= 0:
-            return x * x
-        return energy(0.5 * x + 0.4, n - 1) + energy(0.5 * x + 0.4, n - 1)
+        if fn.le(n, 0):
+            return fn.mul(x, x)
+        return fn.add(
+            energy(fn.add(fn.mul(0.5, x), 0.4), fn.sub(n, 1)),
+            energy(fn.add(fn.mul(0.5, x), 0.4), fn.sub(n, 1)),
+        )
 
     # !(config-memoize (strategy wtinylfu) (unique-limit 100))
     # !(memoize energy)
@@ -131,4 +134,9 @@ def twin(m):
 #: the quad twin stopped being a different program [measured 2026-09-01: min-
 #: of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=c6a40460b1db341198a6150e3600f502831a6e83].
-BUDGET = 64884
+#: RE-PINNED 2026-09-01, 64884 to 65694 (+810), generic Python operators now
+#: dispatch through live protocols while source twins explicitly name
+#: relational engine heads [measured 2026-09-01: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+BUDGET = 65694

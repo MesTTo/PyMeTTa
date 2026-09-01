@@ -27,6 +27,10 @@ Guarantees:
   - expression lowering can request exact parameter names for a known call
     shape [tested: test_known_call_site_keywords_bind_to_positional_metta_arguments;
     commit=c2ad5892fbfdd690dd7e9b507e76e87d7d1376d1]
+  - compiler forks retain literal container species used by Python operator
+    dispatch [tested:
+    test_compiled_operators_follow_python_protocols_and_result_species;
+    commit=WORKTREE]
 Guarded by:
   - _AUX_LOCK protects the process-wide helper serial [tested
     test_define_from_two_threads_is_serialized]
@@ -95,13 +99,56 @@ class CompilerContext:
     # space_locals: subscripts read get-value, membership asks dict-has,
     # subscript assignment is dict-put and del is dict-remove.
     dict_locals: set[str]
+    # Local Python container species whose common Atom image would otherwise
+    # erase list-versus-tuple or set/dict-space protocol dispatch.
+    container_locals: dict[str, str]
+    # Names whose declared or locally derived Python type is an exact native
+    # int/float. These may retain the engine's pure numeric heads; every
+    # untyped operand must use Python's live operator protocol instead.
+    number_locals: set[str]
+    number_return: bool
 
     def annotation_alternatives(self, node: ast.expr) -> list[Atom]:
         raise NotImplementedError
 
+    def annotation_is_native_number(self, node: ast.expr) -> bool:
+        raise NotImplementedError
+
     def _binop_atom(
-        self, op: ast.operator, left: Atom, right: Atom, line: int | None
+        self,
+        op: ast.operator,
+        left: Atom,
+        right: Atom,
+        line: int | None,
+        *,
+        left_kind: str | None = None,
+        right_kind: str | None = None,
+        native: bool = False,
     ) -> Atom:
+        raise NotImplementedError
+
+    def _inplace_atom(
+        self,
+        op: ast.operator,
+        left: Atom,
+        right: Atom,
+        line: int | None,
+        *,
+        left_kind: str | None = None,
+        right_kind: str | None = None,
+    ) -> Atom:
+        raise NotImplementedError
+
+    def _container_kind(self, node: ast.expr) -> str | None:
+        raise NotImplementedError
+
+    def _native_number(self, node: ast.expr) -> bool:
+        raise NotImplementedError
+
+    def _diagnostic_term(self, node: ast.expr) -> Atom:
+        raise NotImplementedError
+
+    def _operator_operand(self, operand: Atom, kind: str | None) -> Atom:
         raise NotImplementedError
 
     def _dict_atom(self, atom: Atom) -> bool:
@@ -116,6 +163,7 @@ class CompilerContext:
         continuation: Callable[[CompilerContext], Atom],
     ) -> Atom:
         raise NotImplementedError
+
     host: Callable[[str], bool]
     host_value: Callable[[str], Any]
     runtime_ops: set[str]
@@ -153,9 +201,7 @@ class CompilerContext:
     def call_parameters(self, called: str, arity: int) -> tuple[str, ...] | None:
         raise NotImplementedError
 
-    def _bound_call_parameters(
-        self, identifier: str, arity: int
-    ) -> tuple[str, ...] | None:
+    def _bound_call_parameters(self, identifier: str, arity: int) -> tuple[str, ...] | None:
         raise NotImplementedError
 
     def _fork(self) -> CompilerContext:

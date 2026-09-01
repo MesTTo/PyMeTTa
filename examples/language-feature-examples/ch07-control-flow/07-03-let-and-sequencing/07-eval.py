@@ -6,15 +6,12 @@ in Python the two acts are two doors: the query door answers rows, and the
 evaluation door takes the atom out of one and reduces it.
 
 Both equations are compiled. `f` is an ordinary computation. `evalCustom`
-writes to a space from inside an equation, which is the thing a compiled body
-has no spelling for: `space += atom` is a Python STATEMENT over a handle, and
-a body is pure atoms, so the write is the head itself over `(context-space)`,
-the space the equation is running in. The statement spelling does not merely
-refuse there, it MISCOMPILES to arithmetic, which is why naming the head is
-the right rung and not a shortcut [measured 2026-08-24: `space += atom` inside
-a compiled body stores `(+ $space $atom)` and writes nothing; commit=028b41a056cfd706e516cd0b945cbf69ac066da7].
-That stays filed against ch07-control-flow/07-01-if-and-booleans/10-and_then_or_else.metta, where the space is
-neither a parameter nor the context space and so cannot be reached at all.
+writes to the running space from inside an equation. A space-bound local now
+takes `+=` as `add-atom`, but `-=` deliberately means the one-occurrence
+`subtract-atom`; the source asks for the draining `remove-atom`. Naming both
+heads therefore keeps the pair parallel while preserving the source's exact
+removal grain [tested: test_augmented_assignment_on_a_space_is_the_write_door,
+test_remove_atom_drains_every_occurrence; commit=WORKTREE].
 
 The stored equations are deliberately not source-identical. Assignment
 lowers `f`'s `let` to a one-binding `let*`. `evalCustom` lowers the source's
@@ -35,11 +32,12 @@ from metta import Expression, S, V, equation, fn
 
 def twin(m):
     """Read a specialised body out of the space, then evaluate it."""
+
     @m.define
     def f(li, a, b):
         # Source: (= (f $L $a $b) (let $result (+ $a $b) (append ($result) $L)))
         # Twin:   (= (f $L $a $b) (let* (($result (+ $a $b))) (append ($result) $L)))
-        result = a + b
+        result = fn.add(a, b)
         return fn.append((result,), li)
 
     # !(test (let $fbody_specialized (match &self (= (f (42) 40.7 2) $x) $x)
@@ -57,15 +55,11 @@ def twin(m):
         #          $res))
         # Twin: nested one-binding let* forms around add-atom, reduce, and
         # remove-atom, with (context-space) in both write calls.
-        # The top rung is the write door itself, as a body statement:
-        #     here = S.context_space()
-        #     here += equation(S.myfunc()).to(body)
-        # A compiled body is pure atoms, so `+=` and `equation(...)` have no
-        # image there; worse, `+=` COMPILES, to `(+ $here $atom)`, and stores
-        # nothing. Residue: P14.4.
-        _a = S.add_atom(S.context_space(), S["="](S.myfunc(), body))  # rung: `space += atom` is a Python statement over a handle, and a compiled body is pure atoms
+        # Name the write heads because -= is the one-occurrence
+        # subtract-atom door, while this source requires remove-atom's drain.
+        _a = S.add_atom(S.context_space(), S["="](S.myfunc(), body))
         res = S.reduce(S.myfunc())
-        _r = S.remove_atom(S.context_space(), S["="](S.myfunc(), body))  # rung: `space -= atom` the same way
+        _r = S.remove_atom(S.context_space(), S["="](S.myfunc(), body))
         return res
 
     # !(test (evalCustom (match &self (= (f (42) 40.7 2) $x) $x))
@@ -121,13 +115,11 @@ def twin(m):
 #: full-lane observations under 'full-lane/219/workers=32'; a cost outside them
 #: is a real finding, and a new mode discovered later extends the
 #: envelope with its observation count rather than widening blind.
-BUDGET = {
-    # Widened to 43862..43906 by a second ten-round full-lane
-    # observe pass; observations count both passes.
-    "minimum": 43862,
-    # Extended 43906 -> 43910: the first release check sampled it once,
-    # so the bound extends with its observation rather than widening blind.
-    "maximum": 43926,
-    "observations": 22,
-    "protocol": "full-lane/219/workers=32",
-}
+#: RE-PINNED 2026-09-01 on the operator-protocol tree. Ten fresh full-lane
+#: observations had no spread, and the serial min-of-three confirmed the point
+#: [measured: twin minimum 17236 inferences; command=python
+#: extensions/python/tools/twin_coverage.py --measure --rounds 3
+#: examples/ch07-control-flow/07-03-let-and-sequencing/07-eval.metta;
+#: fixture=operator-protocol tree after python extensions/python/tools/twin_coverage.py
+#: --observe --rounds 10; commit=WORKTREE].
+BUDGET = 17236

@@ -35,8 +35,10 @@ def twin(m):
         #    (if (== () (collapse (once (match $Space $Atom $Atom))))
         #        (add-atom $Space $Atom)
         #        (empty)))
-        seen = S.collapse(S.once(match(space, atom, atom)))  # rung: `collapse` is list(), which a compiled body has no lowering for (P14.4)
-        if seen == ():
+        seen = S.collapse(
+            S.once(match(space, atom, atom))
+        )  # rung: `collapse` is list(), which a compiled body has no lowering for (P14.4)
+        if fn.eq(seen, ()):
             return fn.add_atom(space, atom)
         return superpose()
 
@@ -54,10 +56,10 @@ def twin(m):
         """Run expand-once n times, then answer done."""
         # (= (expandK $n)
         #    (if (== $n 0) done (let $temp1 (expand-once) (expandK (- $n 1)))))
-        if n == 0:
+        if fn.eq(n, 0):
             return S.done
         _round = expand_once()
-        return expand_k(n - 1)
+        return expand_k(fn.sub(n, 1))
 
     @m.define
     def demo_peano(k):
@@ -165,4 +167,9 @@ def twin(m):
 #: structure, and the removal doors changed meaning where a twin spells one
 #: [measured 2026-09-01: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=c6a40460b1db341198a6150e3600f502831a6e83].
-BUDGET = 1745675
+#: RE-PINNED 2026-09-01, 1745675 to 1474885 (-270790), generic Python operators
+#: now dispatch through live protocols while source twins explicitly name
+#: relational engine heads [measured 2026-09-01: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+BUDGET = 1474885

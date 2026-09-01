@@ -52,6 +52,10 @@ Guarantees:
     spelling [tested: test_known_call_site_keywords_bind_to_positional_metta_arguments,
     test_unknown_symbol_keywords_refuse_with_the_positional_remedy;
     commit=51b792423cec5787614d1488c0793b8a50eaa6fc]
+  - compiled Python operators invoke the live Python data model, including
+    reflected, in-place, unary, and rich-comparison protocols [tested:
+    test_compiled_operators_follow_python_protocols_and_result_species;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -64,12 +68,15 @@ import ast
 import builtins
 import functools
 import math
-import operator
 import types
 from collections.abc import Callable
 
 from ._call_binding import bind_positional_call, refuse_unknown_keywords
-from ._callable_mentions import callable_arities, callable_mention
+from ._callable_mentions import (
+    callable_arities,
+    callable_mention,
+    operator_callable_selector,
+)
 from ._define_context import CompilerContext, next_aux_serial
 from ._host_island import _HostIsland
 from ._host_island import py as _py_marker
@@ -83,48 +90,81 @@ from ._state import State
 from .atoms import Atom, Expression, Grounded, Handle, Symbol, Variable
 from .errors import CompileError, character_column
 
-# Python operator to the MeTTa function the engine registers for it. Every
-# entry is a name engine/metta.pl puts through register_fun/1, and every mapping
-# was run on this engine: % follows the divisor's sign exactly as Python's
-# does, and / is true division except that an exact quotient of two integers
-# stays an integer ((/ 6 2) is 3 where Python says 3.0), so the lowering
-# multiplies by 1.0 first and the Python twin agrees to the digit.
+# Python syntax to the exact ``operator`` protocol selector consumed by the
+# compiler-only py-operator operation. Operand kinds are application-time
+# facts, so choosing a numeric engine head here would silently bypass Python's
+# container and reflected methods.
 _BINOPS = {
+    ast.Add: "add",
+    ast.Sub: "sub",
+    ast.Mult: "mul",
+    ast.Div: "truediv",
+    ast.FloorDiv: "floordiv",
+    ast.Mod: "mod",
+    ast.Pow: "pow",
+    ast.MatMult: "matmul",
+    ast.BitAnd: "and",
+    ast.BitOr: "or",
+    ast.BitXor: "xor",
+    ast.LShift: "lshift",
+    ast.RShift: "rshift",
+}
+
+# Exact int/float annotations are a semantic promise strong enough to retain
+# the engine's pure numeric heads. Untyped operands cannot use these: Python
+# may dispatch a reflected or container protocol at application time. Power
+# stays on the protocol path because an integral negative exponent changes
+# the result species, the divergence that repaired check_twin exposed.
+_NATIVE_BINOPS = {
     ast.Add: "+",
     ast.Sub: "-",
     ast.Mult: "*",
+    ast.Div: "/",
+    ast.FloorDiv: "floor-div",
     ast.Mod: "%",
-    ast.Pow: "pow-math",
 }
 
-#Only the four order comparisons: _compare_link intercepts Eq/NotEq (py-eq)
-#and In/NotIn (py-in) before this lookup, so rows for them could never be
-#reached and two once sat here dead.
+# Comparison syntax also follows the Python protocol. Equality is included:
+# __eq__ and __ne__ may return arbitrary objects, and only a surrounding test
+# position is entitled to ask for their truth value.
 _COMPARE = {
+    ast.Eq: "eq",
+    ast.NotEq: "ne",
+    ast.Lt: "lt",
+    ast.Gt: "gt",
+    ast.LtE: "le",
+    ast.GtE: "ge",
+}
+
+_NATIVE_COMPARE = {
     ast.Lt: "<",
     ast.Gt: ">",
     ast.LtE: "<=",
     ast.GtE: ">=",
 }
 
-# What to write instead, where the engine could half-express the construct.
-_INSTEAD: dict[type[ast.AST], str] = {
-    ast.MatMult: "register a matrix multiply with @m.op, or use pettorch's matmul",
+_SOURCE_COMPARE = {
+    **_NATIVE_COMPARE,
+    ast.Eq: "==",
+    ast.NotEq: "!=",
+    ast.In: "in",
+    ast.NotIn: "not-in",
 }
 
-# The engine's own exact integer family carries Python's bitwise operators
-# and floored division: bit-and, bit-or, bit-xor and the shifts are
-# Clojure's spellings beside the engine's existing bit-shift pair, and
-# floor-div is SWI's div, which IS Python's floored quotient. These are
-# engine heads, not runtime bridges, so the compiled form pays no host
-# crossing.
-_BRIDGED_BINOPS = {
-    ast.BitAnd: "bit-and",
-    ast.BitOr: "bit-or",
-    ast.BitXor: "bit-xor",
-    ast.LShift: "bit-shift-left",
-    ast.RShift: "bit-shift-right",
-    ast.FloorDiv: "floor-div",
+_INPLACE_BINOPS = {
+    ast.Add: "iadd",
+    ast.Sub: "isub",
+    ast.Mult: "imul",
+    ast.Div: "itruediv",
+    ast.FloorDiv: "ifloordiv",
+    ast.Mod: "imod",
+    ast.Pow: "ipow",
+    ast.MatMult: "imatmul",
+    ast.BitAnd: "iand",
+    ast.BitOr: "ior",
+    ast.BitXor: "ixor",
+    ast.LShift: "ilshift",
+    ast.RShift: "irshift",
 }
 
 # Names with special meaning inside a compiled body. `match` runs a pattern
@@ -173,9 +213,7 @@ class ExpressionCompilerMixin(CompilerContext):
         if isinstance(source, Variable):
             return self._piped(head(source), rest)
         held = Variable(f"held-source-{next_aux_serial()}")
-        return Expression(
-            [Symbol("let"), held, source, self._piped(head(held), rest)]
-        )
+        return Expression([Symbol("let"), held, source, self._piped(head(held), rest)])
 
     def expression(self, node: ast.expr) -> Atom:
         if isinstance(node, ast.Attribute):
@@ -223,11 +261,7 @@ class ExpressionCompilerMixin(CompilerContext):
         known = self._known_symbol(node.id)
         if known is not None:
             return known
-        if (
-            node.id in self.pragma_globals
-            and not self._in_pattern
-            and self.function is not None
-        ):
+        if node.id in self.pragma_globals and not self._in_pattern and self.function is not None:
             # A declared global reads through the ops lane against the
             # module dict grounded by reference, the write's own channel,
             # so reads and writes meet the same live binding; a missing
@@ -425,58 +459,205 @@ class ExpressionCompilerMixin(CompilerContext):
         return Symbol(node.id)
 
     def _x_BinOp(self, node: ast.BinOp) -> Atom:  # noqa: N802  -- the suffix mirrors ast node class names used by the translator's dynamic dispatch
+        native = self._native_number(node.left) and self._native_number(node.right)
+        left_kind = self._container_kind(node.left)
+        right_kind = self._container_kind(node.right)
         return self._binop_atom(
             node.op,
-            self.expression(node.left),
-            self.expression(node.right),
+            self.expression(node.left)
+            if native
+            else self._operator_operand(self.expression(node.left), left_kind),
+            self.expression(node.right)
+            if native
+            else self._operator_operand(self.expression(node.right), right_kind),
             node.lineno,
+            left_kind=left_kind,
+            right_kind=right_kind,
+            native=native,
         )
 
     def _binop_atom(
-        self, op: ast.operator, left: Atom, right: Atom, line: int | None
+        self,
+        op: ast.operator,
+        left: Atom,
+        right: Atom,
+        line: int | None,
+        *,
+        left_kind: str | None = None,
+        right_kind: str | None = None,
+        native: bool = False,
     ) -> Atom:
-        """One binary operation over already-compiled operands, so the
-        augmented-assignment desugars share the exact operator lowering.
-        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
-        if isinstance(op, ast.Div):
-            # Coercing the left side keeps an exact integer quotient a float,
-            # which is what Python's / answers: 6 / 2 is 3.0, never 3.
-            coerced = Expression([Symbol("*"), Grounded(1.0), left])
-            return Expression([Symbol("/"), coerced, right])
-        bridged = _BRIDGED_BINOPS.get(type(op))
-        if bridged is not None:
-            return Expression([Symbol(bridged), left, right])
-        head = _BINOPS.get(type(op))
-        if head is None:
+        """Lower one binary operation over already-compiled operands.
+
+        Augmented-assignment desugaring shares the exact operator lowering.
+        """
+        native_head = _NATIVE_BINOPS.get(type(op))
+        if native and native_head is not None:
+            return self._native_binop(op, native_head, left, right)
+        selector = _BINOPS.get(type(op))
+        if selector is None:
             msg = (
                 f"the operator {type(op).__name__} has no MeTTa function. "
-                f"{_INSTEAD.get(type(op), 'Register an operation with @m.op for it')}"
+                "Register an operation with @m.op for it"
             )
             raise CompileError(
                 msg,
                 construct=type(op).__name__,
                 line=line,
             )
+        applied = self._python_operator(selector, left, right)
+        if left_kind in {"set", "dict"} or right_kind in {"set", "dict"}:
+            return self._restore_mapping_container(applied)
+        return applied
+
+    def _native_binop(
+        self, op: ast.operator, head: str, left: Atom, right: Atom
+    ) -> Atom:
+        """Lower a declared int/float operation to its pure engine head."""
+        if isinstance(op, ast.Div):
+            left = Expression([Symbol("*"), Grounded(1.0), left])
         return Expression([Symbol(head), left, right])
+
+    def _inplace_atom(
+        self,
+        op: ast.operator,
+        left: Atom,
+        right: Atom,
+        line: int | None,
+        *,
+        left_kind: str | None = None,
+        right_kind: str | None = None,
+    ) -> Atom:
+        """Apply Python's in-place protocol, preserving a returned replacement."""
+        selector = _INPLACE_BINOPS.get(type(op))
+        if selector is None:
+            msg = f"the in-place operator {type(op).__name__} has no Python bridge"
+            raise CompileError(
+                msg,
+                construct="augmented assignment",
+                line=line,
+            )
+        applied = self._python_operator(selector, left, right)
+        if left_kind in {"set", "dict"} or right_kind in {"set", "dict"}:
+            return self._restore_mapping_container(applied)
+        return applied
+
+    def _python_operator(self, selector: str, *operands: Atom) -> Expression:
+        """Apply one fixed Python operator to evaluated Atom operands."""
+        self.runtime_ops.add("py-operator")
+        return Expression([Symbol("py-operator"), Symbol(selector), *operands])
+
+    def _native_number(self, node: ast.expr) -> bool:
+        """Whether this expression is constrained to a native int/float."""
+        if isinstance(node, ast.Constant):
+            return type(node.value) in {int, float}
+        if isinstance(node, ast.Name):
+            return node.id in self.number_locals
+        if isinstance(node, ast.UnaryOp):
+            return isinstance(node.op, (ast.UAdd, ast.USub)) and self._native_number(node.operand)
+        if isinstance(node, ast.BinOp):
+            return (
+                type(node.op) in _NATIVE_BINOPS
+                and self._native_number(node.left)
+                and self._native_number(node.right)
+            )
+        if isinstance(node, ast.IfExp):
+            return self._native_number(node.body) and self._native_number(node.orelse)
+        return (
+            self.number_return
+            and isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Name)
+            and self._resolved_call_name(node.func.id) == self.name
+        )
+
+    def _diagnostic_term(self, node: ast.expr) -> Atom:
+        """Preserve source operator spelling inside non-evaluated diagnostics."""
+        if isinstance(node, ast.Compare) and len(node.ops) == 1:
+            head = _SOURCE_COMPARE.get(type(node.ops[0]))
+            if head is not None:
+                return Expression(
+                    [
+                        Symbol(head),
+                        self.expression(node.left),
+                        self.expression(node.comparators[0]),
+                    ]
+                )
+        return self.expression(node)
+
+    def _operator_operand(self, operand: Atom, kind: str | None) -> Atom:
+        """Restore a literal/local container species before Python dispatch."""
+        if kind == "list":
+            return Expression([Symbol("py-list"), operand])
+        if kind in {"set", "dict"}:
+            self.libraries.add("dict")
+            pairs = Expression([Symbol("dict-pairs"), operand])
+            if kind == "set":
+                self.runtime_ops.add("py-set")
+                return Expression([Symbol("py-set"), pairs])
+            return Expression([Symbol("py-dict"), pairs])
+        return operand
+
+    def _restore_mapping_container(self, value: Atom) -> Atom:
+        """Return Python set/dict results to their established space image."""
+        held = Variable(self._temp("container-result"))
+        self.runtime_ops.update({"py-container-kind", "py-set-pairs", "py-dict-pairs"})
+        self.libraries.add("dict")
+        kind = Expression([Symbol("py-container-kind"), held])
+        set_image = Expression(
+            [
+                Symbol("dict-space"),
+                Expression([Symbol("py-set-pairs"), held]),
+            ]
+        )
+        dict_image = Expression(
+            [
+                Symbol("dict-space"),
+                Expression([Symbol("py-dict-pairs"), held]),
+            ]
+        )
+        restored = Expression(
+            [
+                Symbol("if"),
+                Expression([Symbol("=="), kind, Symbol("set")]),
+                set_image,
+                Expression(
+                    [
+                        Symbol("if"),
+                        Expression([Symbol("=="), kind, Symbol("dict")]),
+                        dict_image,
+                        held,
+                    ]
+                ),
+            ]
+        )
+        return Expression(
+            [
+                Symbol("let*"),
+                Expression([Expression([held, value])]),
+                restored,
+            ]
+        )
 
     def _x_UnaryOp(self, node: ast.UnaryOp) -> Atom:  # noqa: N802  -- the suffix mirrors ast node class names used by the translator's dynamic dispatch
         if isinstance(node.op, ast.USub):
             operand = node.operand
             if isinstance(operand, ast.Constant) and isinstance(operand.value, (int, float)):
                 return Grounded(-operand.value)
-            return Expression([Symbol("-"), Grounded(0), self.expression(operand)])
+            if self._native_number(operand):
+                return Expression([Symbol("-"), Grounded(0), self.expression(operand)])
+            return self._python_operator("neg", self.expression(operand))
         if isinstance(node.op, ast.Not):
             # Python's not is truthiness negated, over any value.
             return Expression([Symbol("not"), self._truthy(node.operand)])
         if isinstance(node.op, ast.UAdd):
-            return self.expression(node.operand)
+            if self._native_number(node.operand):
+                return self.expression(node.operand)
+            return self._python_operator("pos", self.expression(node.operand))
         if isinstance(node.op, ast.Invert):
-            # ~x is the engine's bit-not, the family's own complement;
-            # `not` stays the boolean negation.
-            return Expression([Symbol("bit-not"), self.expression(node.operand)])
+            return self._python_operator("invert", self.expression(node.operand))
         msg = (
             f"the unary operator {type(node.op).__name__} has no MeTTa "
-            f"function. {_INSTEAD.get(type(node.op), '')}"
+            "function. Register an operation with @m.op for it"
         )
         raise CompileError(
             msg,
@@ -485,7 +666,8 @@ class ExpressionCompilerMixin(CompilerContext):
         )
 
     def _x_Compare(self, node: ast.Compare) -> Atom:  # noqa: N802  -- the suffix mirrors ast node class names used by the translator's dynamic dispatch
-        terms = [self.expression(v) for v in (node.left, *node.comparators)]
+        nodes = (node.left, *node.comparators)
+        terms = [self.expression(value) for value in nodes]
         # A middle operand of a chain is read by two links; Python evaluates
         # it once, so anything that is not already a leaf binds to a
         # temporary before any link is built. Minted names carry a hyphen,
@@ -497,13 +679,40 @@ class ExpressionCompilerMixin(CompilerContext):
                 bindings.append((temp, terms[i]))
                 terms[i] = Variable(temp)
         links = [
-            self._compare_link(op_node, terms[i], terms[i + 1], node.lineno)
+            self._compare_link(
+                op_node,
+                terms[i],
+                terms[i + 1],
+                node.lineno,
+                native=(
+                    type(op_node) in _NATIVE_COMPARE
+                    and self._native_number(nodes[i])
+                    and self._native_number(nodes[i + 1])
+                ),
+            )
             for i, op_node in enumerate(node.ops)
         ]
         folded = links[-1]
         for link in reversed(links[:-1]):
-            # The chain short-circuits exactly as Python's does.
-            folded = Expression([Symbol("if"), link, folded, Grounded(False)])  # noqa: FBT003  -- the boolean literal is atom or wire data at this site, not a behavior switch
+            # Comparisons may answer arbitrary objects. Python truth-tests an
+            # intermediate result once and, like ``and``, returns that result
+            # itself when it is false rather than replacing it with False.
+            held = Variable(self._temp("comparison-result"))
+            self.runtime_ops.add("py-truthy")
+            folded = Expression(
+                [
+                    Symbol("let*"),
+                    Expression([Expression([held, link])]),
+                    Expression(
+                        [
+                            Symbol("if"),
+                            Expression([Symbol("py-truthy"), held]),
+                            folded,
+                            held,
+                        ]
+                    ),
+                ]
+            )
         for temp, value in reversed(bindings):
             folded = Expression(
                 [Symbol("let*"), Expression([Expression([Variable(temp), value])]), folded]
@@ -513,10 +722,15 @@ class ExpressionCompilerMixin(CompilerContext):
     def _truthy(self, node: ast.expr) -> Atom:
         """A test position: Python decides by truthiness, so anything not
         already boolean-valued by its syntax wraps in py-truthy, whose
-        answer IS bool() of the value. A comparison or a `not` stays bare.
+        answer IS bool() of the value. Only `not` and declared Bool-returning
+        engine calls stay bare; rich comparisons may return other objects.
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         term = self.expression(node)
-        if isinstance(node, ast.Compare):
+        if (
+            isinstance(node, ast.Compare)
+            and all(type(op) in _NATIVE_COMPARE for op in node.ops)
+            and all(self._native_number(value) for value in (node.left, *node.comparators))
+        ):
             return term
         if isinstance(node, ast.UnaryOp) and isinstance(node.op, ast.Not):
             return term
@@ -532,17 +746,21 @@ class ExpressionCompilerMixin(CompilerContext):
         self.runtime_ops.add("py-truthy")
         return Expression([Symbol("py-truthy"), term])
 
-    def _compare_link(self, op_node: ast.cmpop, left: Atom, right: Atom, line) -> Atom:
-        """One comparison: order through the engine's numeric functions,
-        equality and membership through the prelude, so mixed numeric types
-        and containers answer exactly what Python answers.
-        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
-        if isinstance(op_node, ast.Eq):
-            self.runtime_ops.add("py-eq")
-            return Expression([Symbol("py-eq"), left, right])
-        if isinstance(op_node, ast.NotEq):
-            self.runtime_ops.add("py-eq")
-            return Expression([Symbol("not"), Expression([Symbol("py-eq"), left, right])])
+    def _compare_link(
+        self,
+        op_node: ast.cmpop,
+        left: Atom,
+        right: Atom,
+        line: int | None,
+        *,
+        native: bool = False,
+    ) -> Atom:
+        """One comparison through Python's live rich-comparison protocol.
+
+        Membership is intrinsically boolean and retains its dedicated bridge;
+        every rich comparison may return an arbitrary object, which a caller
+        truth-tests only when its surrounding syntax demands it.
+        """
         if isinstance(op_node, ast.In):
             if self._dict_atom(right):
                 self.libraries.add("dict")
@@ -552,20 +770,20 @@ class ExpressionCompilerMixin(CompilerContext):
         if isinstance(op_node, ast.NotIn):
             if self._dict_atom(right):
                 self.libraries.add("dict")
-                return Expression(
-                    [Symbol("not"), Expression([Symbol("dict-has"), right, left])]
-                )
+                return Expression([Symbol("not"), Expression([Symbol("dict-has"), right, left])])
             self.runtime_ops.add("py-in")
             return Expression([Symbol("not"), Expression([Symbol("py-in"), left, right])])
-        op = _COMPARE.get(type(op_node))
-        if op is None:
+        if native:
+            return Expression([Symbol(_NATIVE_COMPARE[type(op_node)]), left, right])
+        selector = _COMPARE.get(type(op_node))
+        if selector is None:
             msg = f"the comparison {type(op_node).__name__} has no MeTTa function"
             raise CompileError(
                 msg,
                 construct=type(op_node).__name__,
                 line=line,
             )
-        return Expression([Symbol(op), left, right])
+        return self._python_operator(selector, left, right)
 
     def _x_BoolOp(self, node: ast.BoolOp) -> Atom:  # noqa: N802  -- the suffix mirrors ast node class names used by the translator's dynamic dispatch
         # Python's and/or short-circuit AND answer the deciding operand
@@ -633,9 +851,7 @@ class ExpressionCompilerMixin(CompilerContext):
         stages = [
             self._stage(
                 "filter-atom",
-                Expression(
-                    [Symbol("|->"), Expression([Variable(var)]), inner._truthy(condition)]
-                ),
+                Expression([Symbol("|->"), Expression([Variable(var)]), inner._truthy(condition)]),
             )
             for condition in gen.ifs
         ]
@@ -659,9 +875,7 @@ class ExpressionCompilerMixin(CompilerContext):
         dict-space reads it back, exactly as test_dict_story pins.
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         self._refuse_async_generators(node.generators, node.lineno)
-        pair = ast.copy_location(
-            ast.Tuple(elts=[node.key, node.value], ctx=ast.Load()), node
-        )
+        pair = ast.copy_location(ast.Tuple(elts=[node.key, node.value], ctx=ast.Load()), node)
         ast.fix_missing_locations(pair)
         return self._dict_space(self._comprehension(node.generators, pair, node.lineno))
 
@@ -669,17 +883,13 @@ class ExpressionCompilerMixin(CompilerContext):
         """{e for ...} is the dict comprehension to True, Python's kinship."""
         self._refuse_async_generators(node.generators, node.lineno)
         pair = ast.copy_location(
-            ast.Tuple(
-                elts=[node.elt, ast.Constant(value=True)], ctx=ast.Load()
-            ),
+            ast.Tuple(elts=[node.elt, ast.Constant(value=True)], ctx=ast.Load()),
             node,
         )
         ast.fix_missing_locations(pair)
         return self._dict_space(self._comprehension(node.generators, pair, node.lineno))
 
-    def _refuse_async_generators(
-        self, generators: list[ast.comprehension], line: int
-    ) -> None:
+    def _refuse_async_generators(self, generators: list[ast.comprehension], line: int) -> None:
         for gen in generators:
             if gen.is_async:
                 msg = "an async comprehension has no equation"
@@ -865,6 +1075,7 @@ class ExpressionCompilerMixin(CompilerContext):
             function=self.pyname,
             annotation="not a parameter, a known function, or a data constructor",
         )
+
     def _keyword_call(self, node: ast.Call) -> Atom:
         """Place keywords against a known signature before emitting the term."""
         if any(isinstance(argument, ast.Starred) for argument in node.args) or any(
@@ -895,9 +1106,7 @@ class ExpressionCompilerMixin(CompilerContext):
             root: ast.expr = node.func
             while isinstance(root, (ast.Attribute, ast.Subscript)):
                 root = root.value
-            if isinstance(root, ast.Name) and (
-                root.id in self.scope or self.host(root.id)
-            ):
+            if isinstance(root, ast.Name) and (root.id in self.scope or self.host(root.id)):
                 # A host call keeps its keywords by islanding whole: the
                 # author's own call runs at application time, and Python
                 # itself places the keywords.
@@ -905,9 +1114,7 @@ class ExpressionCompilerMixin(CompilerContext):
             refusal = refuse_unknown_keywords(
                 display, tuple(keyword.arg for keyword in node.keywords if keyword.arg)
             )
-            raise CompileError(
-                str(refusal), construct="keyword argument", line=node.lineno
-            )
+            raise CompileError(str(refusal), construct="keyword argument", line=node.lineno)
         try:
             ordered = bind_positional_call(
                 display,
@@ -923,9 +1130,7 @@ class ExpressionCompilerMixin(CompilerContext):
 
     @staticmethod
     def _builder_root(node: ast.expr) -> str | None:
-        if isinstance(node, (ast.Attribute, ast.Subscript)) and isinstance(
-            node.value, ast.Name
-        ):
+        if isinstance(node, (ast.Attribute, ast.Subscript)) and isinstance(node.value, ast.Name):
             return node.value.id
         return None
 
@@ -961,8 +1166,7 @@ class ExpressionCompilerMixin(CompilerContext):
             return False
         owner = self.host_value(node.value.id)
         return (
-            isinstance(owner, types.ModuleType)
-            and vars(owner).get(node.attr) is functools.reduce
+            isinstance(owner, types.ModuleType) and vars(owner).get(node.attr) is functools.reduce
         )
 
     def _reduce_call(self, node: ast.Call) -> Atom:
@@ -1039,14 +1243,8 @@ class ExpressionCompilerMixin(CompilerContext):
                     value = vars(owner).get(func.attr)
                     mention = callable_mention(value)
                     arities = callable_arities(value)
-                    if (
-                        mention is not None
-                        and arities is not None
-                        and len(node.args) in arities
-                    ):
-                        arguments = [
-                            self.expression(argument) for argument in node.args
-                        ]
+                    if mention is not None and arities is not None and len(node.args) in arities:
+                        arguments = [self.expression(argument) for argument in node.args]
                         return self._adapt_mentioned_call(value, mention, arguments)
         return self._implicit_island(node)
 
@@ -1054,6 +1252,9 @@ class ExpressionCompilerMixin(CompilerContext):
         self, value: object, mention: str, arguments: list[Atom]
     ) -> Expression:
         """Preserve Python semantics where an engine mention orders or types differently."""
+        selector = operator_callable_selector(value)
+        if selector is not None:
+            return self._python_operator(selector, *arguments)
         if value is math.log:
             arguments = (
                 [Grounded(math.e), arguments[0]]
@@ -1065,8 +1266,6 @@ class ExpressionCompilerMixin(CompilerContext):
         elif value is builtins.round:
             self.runtime_ops.add("py-round")
             mention = "py-round"
-        elif value is operator.truediv:
-            arguments[0] = Expression([Symbol("*"), Grounded(1.0), arguments[0]])
         return Expression([Symbol(mention), *arguments])
 
     def _plain_call_name(self, node: ast.Call) -> ast.Name:
@@ -1127,7 +1326,7 @@ class ExpressionCompilerMixin(CompilerContext):
 
     def _py_abs(self, node: ast.Call) -> Atom:
         (x,) = self._args(node, 1, "abs")
-        return Expression([Symbol("abs-math"), x])
+        return self._python_operator("abs", x)
 
     def _py_min(self, node: ast.Call) -> Atom:
         return self._extremum(node, "min")
@@ -1136,17 +1335,15 @@ class ExpressionCompilerMixin(CompilerContext):
         return self._extremum(node, "max")
 
     def _extremum(self, node: ast.Call, which: str) -> Atom:
-        # min(xs) reads the elements of one expression; min(a, b, ...) folds
-        # the engine's two-place min over the arguments, Python's own split.
         args = self._args(node, None, which)
         if not args:
             msg = f"{which}() needs arguments"
             raise CompileError(msg, construct=which, line=node.lineno)
         if len(args) == 1:
-            return Expression([Symbol(f"{which}-atom"), args[0]])
-        folded = args[-1]
-        for term in reversed(args[:-1]):
-            folded = Expression([Symbol(which), term, folded])
+            return self._python_operator(which, args[0])
+        folded = self._python_operator(which, args[0], args[1])
+        for argument in args[2:]:
+            folded = self._python_operator(which, folded, argument)
         return folded
 
     def _py_sum(self, node: ast.Call) -> Atom:
@@ -1158,16 +1355,15 @@ class ExpressionCompilerMixin(CompilerContext):
                 construct="sum",
                 line=node.lineno,
             )
-        start: Atom = args[1] if len(args) == 2 else Grounded(0)
-        return self._piped(args[0], [self._stage("foldl-atom", start, Symbol("+"))])
+        return self._python_operator("sum", *args)
 
     def _py_sorted(self, node: ast.Call) -> Atom:
         (xs,) = self._args(node, 1, "sorted")
-        return Expression([Symbol("sort-atom"), xs])
+        return self._python_operator("sorted", xs)
 
     def _py_pow(self, node: ast.Call) -> Atom:
         base, exponent = self._args(node, 2, "pow")
-        return Expression([Symbol("pow-math"), base, exponent])
+        return self._python_operator("pow", base, exponent)
 
     def _py_str_builtin(self, node: ast.Call) -> Atom:
         (value,) = self._args(node, 1, "str")
@@ -1218,6 +1414,55 @@ class ExpressionCompilerMixin(CompilerContext):
             )
         return False
 
+    def _container_kind(self, node: ast.expr) -> str | None:
+        """Recover a Python container species that its Atom image erases."""
+        if isinstance(node, ast.Name):
+            return self.container_locals.get(node.id)
+        if isinstance(node, (ast.List, ast.ListComp)):
+            return "list"
+        if isinstance(node, ast.Tuple):
+            return "tuple"
+        if isinstance(node, (ast.Set, ast.SetComp)):
+            return "set"
+        if isinstance(node, (ast.Dict, ast.DictComp)):
+            return "dict"
+        if isinstance(node, ast.NamedExpr):
+            return self._container_kind(node.value)
+        if isinstance(node, ast.IfExp):
+            body = self._container_kind(node.body)
+            return body if body == self._container_kind(node.orelse) else None
+        if isinstance(node, ast.BoolOp):
+            kinds = {self._container_kind(value) for value in node.values}
+            return kinds.pop() if len(kinds) == 1 else None
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Name):
+            if node.func.id not in self.scope and node.func.id in {
+                "dict",
+                "list",
+                "set",
+                "tuple",
+            }:
+                return node.func.id
+            if node.func.id == "sorted" and node.func.id not in self.scope:
+                return "list"
+        if not isinstance(node, ast.BinOp):
+            return None
+        left = self._container_kind(node.left)
+        right = self._container_kind(node.right)
+        if left == right == "set" and isinstance(
+            node.op, (ast.Sub, ast.BitAnd, ast.BitOr, ast.BitXor)
+        ):
+            return "set"
+        if left == right == "dict" and isinstance(node.op, ast.BitOr):
+            return "dict"
+        if left == right and left in {"list", "tuple"} and isinstance(node.op, ast.Add):
+            return left
+        if isinstance(node.op, ast.Mult):
+            if left in {"list", "tuple"} and _literal_integer(node.right):
+                return left
+            if right in {"list", "tuple"} and _literal_integer(node.left):
+                return right
+        return None
+
     def _x_Subscript(self, node: ast.Subscript) -> Atom:  # noqa: N802  -- the suffix mirrors ast node class names used by the translator's dynamic dispatch
         mention = self._mention(node)
         if mention is not None:
@@ -1227,9 +1472,7 @@ class ExpressionCompilerMixin(CompilerContext):
             # The get on a dict-space is lib_dict's own: the matching pair
             # releases its value, and a missing key answers nothing.
             self.libraries.add("dict")
-            return Expression(
-                [Symbol("get-value"), source, self.expression(node.slice)]
-            )
+            return Expression([Symbol("get-value"), source, self.expression(node.slice)])
         if isinstance(node.slice, ast.Slice):
             if node.slice.step is not None:
                 msg = (
@@ -1339,9 +1582,7 @@ class ExpressionCompilerMixin(CompilerContext):
             for element in node.elts
         }
         return self._dict_space(
-            Expression(
-                [Expression([member, truth]) for member, truth in members.items()]
-            )
+            Expression([Expression([member, truth]) for member, truth in members.items()])
         )
 
     def _dict_space(self, pairs: Atom) -> Expression:
@@ -1376,9 +1617,7 @@ class ExpressionCompilerMixin(CompilerContext):
             return Expression([Symbol(self._DICT_METHODS[func.attr]), holder])
         if func.attr == "get" and len(node.args) == 1:
             self.libraries.add("dict")
-            return Expression(
-                [Symbol("get-value"), holder, self.expression(node.args[0])]
-            )
+            return Expression([Symbol("get-value"), holder, self.expression(node.args[0])])
         return None
 
     def _x_JoinedStr(self, node: ast.JoinedStr) -> Atom:  # noqa: N802  -- the suffix mirrors ast node class names used by the translator's dynamic dispatch
@@ -1538,6 +1777,14 @@ def _name_of(target: ast.expr, line: int | None) -> str:
         msg,
         construct="assignment target",
         line=line,
+    )
+
+
+def _literal_integer(node: ast.expr) -> bool:
+    return (
+        isinstance(node, ast.Constant)
+        and isinstance(node.value, int)
+        and not isinstance(node.value, bool)
     )
 
 

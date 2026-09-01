@@ -26,12 +26,14 @@ what `import_prolog_functions_from_file` names in MeTTa.
 from pathlib import Path
 
 import metta
-from metta import S, V, lib
+from metta import S, V, fn, lib
 
 #: The provider under test, thirteen lines. Its whole contribution is declaring
 #: the `rules` capability beside match, enumerate, add and remove. A path is
 #: a Path, never text.
-PROVIDER = Path("./examples/ch20-extending-the-engine/20-03-prolog-underneath/_fixtures/rule_provider.pl")
+PROVIDER = Path(
+    "./examples/ch20-extending-the-engine/20-03-prolog-underneath/_fixtures/rule_provider.pl"
+)
 
 
 def twin(m):
@@ -45,7 +47,7 @@ def twin(m):
     @demo.define
     def fdouble(x):
         # (= (fdouble $x) (* 2 $x))
-        return 2 * x
+        return fn.mul(2, x)
 
     assert demo.eval(S.fdouble(21)) == [42]
 
@@ -73,14 +75,14 @@ def twin(m):
     # instead of as 6.
     @demo.define
     def fnest():
-        return 1 + 2 * 3
+        return fn.add(1, fn.mul(2, 3))
 
     assert demo.eval(S.fnest()) == [7]
 
     # Recursion, and `if` evaluating only the branch it takes.
     @demo.define
     def ffact(x):
-        return x * ffact(x - 1) if x > 0 else 1
+        return fn.mul(x, ffact(fn.sub(x, 1))) if fn.gt(x, 0) else 1
 
     assert demo.eval(S.ffact(5)) == [120]
 
@@ -166,4 +168,9 @@ def twin(m):
 #: the quad twin stopped being a different program [measured 2026-09-01: min-
 #: of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=c6a40460b1db341198a6150e3600f502831a6e83].
-BUDGET = 30800
+#: RE-PINNED 2026-09-01, 30800 to 31771 (+971), generic Python operators now
+#: dispatch through live protocols while source twins explicitly name
+#: relational engine heads [measured 2026-09-01: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+BUDGET = 31771

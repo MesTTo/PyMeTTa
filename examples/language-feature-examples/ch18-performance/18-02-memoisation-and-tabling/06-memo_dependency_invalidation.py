@@ -8,7 +8,7 @@ from Python does not reach the dispatch hook, so the second call recomputes
 rather than hitting. Both claims hold either way.
 """
 
-from metta import S, lib
+from metta import S, fn, lib
 
 
 def twin(m):
@@ -17,7 +17,7 @@ def twin(m):
 
     @m.define
     def double(x):
-        return x + x
+        return fn.add(x, x)
 
     m.eval(S.memoize(double))
 
@@ -101,4 +101,9 @@ def twin(m):
 #: the quad twin stopped being a different program [measured 2026-09-01: min-
 #: of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=c6a40460b1db341198a6150e3600f502831a6e83].
-BUDGET = 29975
+#: RE-PINNED 2026-09-01, 29975 to 30023 (+48), generic Python operators now
+#: dispatch through live protocols while source twins explicitly name
+#: relational engine heads [measured 2026-09-01: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+BUDGET = 30023

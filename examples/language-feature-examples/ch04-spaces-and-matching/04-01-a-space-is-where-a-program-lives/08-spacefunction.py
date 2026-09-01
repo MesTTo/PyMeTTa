@@ -9,7 +9,7 @@ definition is an ordinary atom, so `-=`, the operator that removes an atom,
 removes it, and `equation(head).to(body)` names which atom to remove.
 """
 
-from metta import S, V, equation
+from metta import S, V, equation, fn
 
 
 def twin(m):
@@ -17,11 +17,11 @@ def twin(m):
 
     @m.define
     def f(x, y):
-        return x + y
+        return fn.add(x, y)
 
     @m.define
     def g(x, y):
-        return x + y
+        return fn.add(x, y)
 
     # An equation is an ordinary atom, so the operator that removes an atom
     # removes it, and the compiled clause leaves with the atom.
@@ -116,4 +116,9 @@ def twin(m):
 #: the quad twin stopped being a different program [measured 2026-09-01: min-
 #: of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=c6a40460b1db341198a6150e3600f502831a6e83].
-BUDGET = 5359
+#: RE-PINNED 2026-09-01, 5359 to 5404 (+45), generic Python operators now
+#: dispatch through live protocols while source twins explicitly name
+#: relational engine heads [measured 2026-09-01: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+BUDGET = 5404

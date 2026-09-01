@@ -132,4 +132,9 @@ def twin(m):  # noqa: ARG001  -- the catalog lives in the reflection space; the 
 #: extensions/python/tools/twin_coverage.py --measure --rounds 3;
 #: fixture=tabling-seam merged tree with engine/reader.so;
 #: commit=694c12f70da25a28ffe22f9209f1d75d56921f93].
-BUDGET = 787
+#: RE-PINNED 2026-09-01, 787 to 815 (+28), generic Python operators now
+#: dispatch through live protocols while source twins explicitly name
+#: relational engine heads [measured 2026-09-01: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+BUDGET = 815

@@ -4,20 +4,22 @@
 conditional expression IS MeTTa's `if` and the recursive call is the same call
 the equation makes.
 
-The source stores `==`. Python's comparison compiles to the engine-native
-`py-eq` head, so the twin deliberately stores a different equation while
-keeping the comparison inside the engine. The digest lane reports that
-spelling difference.
+The body uses the explicit relational namespace for `==`, `*`, and `-`.
+Generic Python operators follow Python's live protocols; `fn.eq`, `fn.mul`,
+and `fn.sub` instead store the engine heads the source uses. The stored
+equation therefore matches the source exactly.
 """
+
+from metta import fn
 
 
 def twin(m):
     """Define the factorial and run it."""
+
     @m.define(name="facF")
     def fac_f(n):
-        # Source: (= (facF $n) (if (== $n 0) 1 (* $n (facF (- $n 1)))))
-        # Twin:   (= (facF $n) (if (py-eq $n 0) 1 (* $n (facF (- $n 1)))))
-        return 1 if n == 0 else n * fac_f(n - 1)
+        # Source and twin: (= (facF $n) (if (== $n 0) 1 (* $n (facF (- $n 1)))))
+        return 1 if fn.eq(n, 0) else fn.mul(n, fac_f(fn.sub(n, 1)))
 
     assert fac_f(10) == [3628800]
 
@@ -98,4 +100,9 @@ def twin(m):
 #: structure, and the removal doors changed meaning where a twin spells one
 #: [measured 2026-09-01: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=c6a40460b1db341198a6150e3600f502831a6e83].
-BUDGET = 4355
+#: RE-PINNED 2026-09-01, 4355 to 5117 (+762), generic Python operators now
+#: dispatch through live protocols while source twins explicitly name
+#: relational engine heads [measured 2026-09-01: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+BUDGET = 5117

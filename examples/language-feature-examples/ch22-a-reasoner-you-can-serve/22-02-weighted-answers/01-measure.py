@@ -146,11 +146,27 @@ def twin(m):
 #: full-lane observations under 'full-lane/219/workers=32'; a cost outside them
 #: is a real finding, and a new mode discovered later extends the
 #: envelope with its observation count rather than widening blind.
+#: RE-ENVELOPED 2026-09-01 on the operator-protocol tree. Generic Python
+#: operators now dispatch through live protocols and relational twins name
+#: engine heads explicitly, so ten fresh full-lane observations replace the
+#: prior implementation's modes [measured: exact extrema over 10 observations;
+#: command=python extensions/python/tools/twin_coverage.py --observe --rounds 10;
+#: fixture=full-lane/219/workers=32; commit=WORKTREE].
+#: The confirming differential supplied an eleventh observation inside those
+#: bounds [measured: eleventh full-lane observation 87984; command=python
+#: extensions/python/tools/twin_coverage.py; fixture=full-lane/219/workers=32;
+#: commit=WORKTREE].
+#: A second ten-round observe pass stayed inside the first pass's bounds
+#: [measured: exact extrema over 10 further observations; command=python
+#: extensions/python/tools/twin_coverage.py --observe --rounds 10;
+#: fixture=full-lane/219/workers=32; commit=WORKTREE].
+#: Four confirming differentials stayed inside those bounds [measured: four
+#: further full-lane observations, the last 87951; command=python
+#: extensions/python/tools/twin_coverage.py; fixture=full-lane/219/workers=32;
+#: commit=WORKTREE].
 BUDGET = {
-    # Widened to 193629..193752 by a second ten-round full-lane
-    # observe pass; observations count both passes.
-    "minimum": 193629,
-    "maximum": 193752,
-    "observations": 20,
+    "minimum": 87885,
+    "maximum": 87984,
+    "observations": 25,
     "protocol": "full-lane/219/workers=32",
 }

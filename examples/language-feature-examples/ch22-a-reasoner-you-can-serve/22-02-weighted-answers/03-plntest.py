@@ -4,11 +4,11 @@ Two syllogistic premises go in, one conclusion comes out, and the truth value
 on it is computed by the PLN deduction formula with its consistency
 preconditions. The claim is that conclusion.
 
-Five of the seven relations are compiled functions, so their arithmetic is
-Python's own: `clamp` is `min`/`max`, the two probability bounds divide, the
-consistency test is a chained comparison under `and`, and the deduction formula
-destructures its five truth values with Python's `match` statement, which is
-MeTTa's `case`. Their declared arrows are the signatures' annotations.
+Five of the seven relations are compiled functions. Their control flow and
+destructuring use Python, while `fn.min`, `fn.max`, the arithmetic heads, and
+the comparison heads explicitly preserve the source relations. The deduction
+formula destructures its five truth values with Python's `match` statement,
+which is MeTTa's `case`. Their declared arrows are the signatures' annotations.
 
 Two are `@m.rules` bundles, the door for equations whose heads are structures
 or symbols rather than parameter lists: `SyllogisticRuleGuard` and `STV` fix a
@@ -21,7 +21,7 @@ explicitly: the implicit name is the mechanical image and `truth-deduction`
 would be a different head from the one the example makes matchable.
 """
 
-from metta import TRUE, Expression, S, equation, if_
+from metta import TRUE, Expression, S, equation, fn, if_
 
 #: The deduction formula's own head, and the syllogism operator, both of which
 #: Python cannot spell as an identifier: one carries a genuine underscore, the
@@ -36,17 +36,17 @@ def twin(m):
     @m.define
     def clamp(value, low, high):
         """(= (clamp $v $min $max) (min $max (max $v $min)))."""
-        return min(high, max(value, low))
+        return fn.min(high, fn.max(value, low))
 
     @m.define
     def smallest_intersection_probability(a_size: int, b_size: int) -> int:
         """(: ... (-> Number Number Number)) and (clamp (/ (- (+ $As $Bs) 1) $As) 0 1)."""
-        return clamp((a_size + b_size - 1) / a_size, 0, 1)
+        return clamp(fn.truediv(fn.sub(fn.add(a_size, b_size), 1), a_size), 0, 1)
 
     @m.define
     def largest_intersection_probability(a_size: int, b_size: int) -> int:
         """(: ... (-> Number Number Number)) and (clamp (/ $Bs $As) 0 1)."""
-        return clamp(b_size / a_size, 0, 1)
+        return clamp(fn.truediv(b_size, a_size), 0, 1)
 
     @m.define
     def conditional_probability_consistency(a_size: int, b_size: int, both: int) -> bool:
@@ -54,10 +54,9 @@ def twin(m):
         # (= (conditional-probability-consistency $As $Bs $ABs)
         #    (and (< 0 $As) (and (<= (smallest ...) $ABs) (<= $ABs (largest ...)))))
         return (
-            0 < a_size
-            and smallest_intersection_probability(a_size, b_size)
-            <= both
-            <= largest_intersection_probability(a_size, b_size)
+            fn.lt(0, a_size)
+            and fn.le(smallest_intersection_probability(a_size, b_size), both)
+            and fn.le(both, largest_intersection_probability(a_size, b_size))
         )
 
     @m.define(name="Truth_Deduction")
@@ -65,17 +64,27 @@ def twin(m):
         """Strength from the two conditionals, confidence as the weakest link."""
         # (= (Truth_Deduction (stv $Ps $Pc) ... ) (if (and ...) (stv ...) (stv 1 0)))
         match (p, q, r, pq, qr):
-            case ((S.stv, ps, pc), (S.stv, qs, qc), (S.stv, rs, rc),
-                  (S.stv, pqs, pqc), (S.stv, qrs, qrc)) if (
-                    conditional_probability_consistency(ps, qs, pqs)
-                    and conditional_probability_consistency(qs, rs, qrs)):
+            case (
+                (S.stv, ps, pc),
+                (S.stv, qs, qc),
+                (S.stv, rs, rc),
+                (S.stv, pqs, pqc),
+                (S.stv, qrs, qrc),
+            ) if conditional_probability_consistency(
+                ps, qs, pqs
+            ) and conditional_probability_consistency(qs, rs, qrs):
                 # Qs tending to 1 would divide by zero, so that branch answers Rs.
                 strength = (
                     rs
-                    if 0.9999 < qs
-                    else pqs * qrs + (1 - pqs) * (rs - qs * qrs) / (1 - qs)
+                    if fn.lt(0.9999, qs)
+                    else fn.add(
+                        fn.mul(pqs, qrs),
+                        fn.truediv(
+                            fn.mul(fn.sub(1, pqs), fn.sub(rs, fn.mul(qs, qrs))), fn.sub(1, qs)
+                        ),
+                    )
                 )
-                return S.stv(strength, min(pc, min(qc, min(rc, min(pqc, qrc)))))
+                return S.stv(strength, fn.min(pc, fn.min(qc, fn.min(rc, fn.min(pqc, qrc)))))
             case _:
                 # Preconditions unmet.
                 return S.stv(1, 0)
@@ -97,20 +106,22 @@ def twin(m):
         #    (if (SyllogisticRuleGuard $LinkType)
         #        (($LinkType $A $C) (Truth_Deduction (STV $A) (STV $B) (STV $C) $T1 $T2))
         #        (empty)))
-        yield equation(ENTAILS(((link, left, middle), first),
-                               ((link, middle, right), second))).to(
-            if_(S.SyllogisticRuleGuard(link),
-                ((link, left, right),
-                 DEDUCTION(S.STV(left), S.STV(middle), S.STV(right), first, second)),
-                S.empty())
+        yield equation(ENTAILS(((link, left, middle), first), ((link, middle, right), second))).to(
+            if_(
+                S.SyllogisticRuleGuard(link),
+                (
+                    (link, left, right),
+                    DEDUCTION(S.STV(left), S.STV(middle), S.STV(right), first, second),
+                ),
+                S.empty(),
+            )
         )
 
     # !(test (|- ((Inheritance a b) (stv 0.9 0.9)) ((Inheritance b c) (stv 0.8 0.9)))
     #        ((Inheritance a c) (stv 0.7333333333333334 0.9)))
-    assert m.fn["|-"]((S.Inheritance(S.a, S.b), S.stv(0.9, 0.9)),
-                      (S.Inheritance(S.b, S.c), S.stv(0.8, 0.9))) == [
-        Expression((S.Inheritance(S.a, S.c), S.stv(0.7333333333333334, 0.9)))
-    ]
+    assert m.fn["|-"](
+        (S.Inheritance(S.a, S.b), S.stv(0.9, 0.9)), (S.Inheritance(S.b, S.c), S.stv(0.8, 0.9))
+    ) == [Expression((S.Inheritance(S.a, S.c), S.stv(0.7333333333333334, 0.9)))]
 
 
 #: Inferences this twin spends, its own tripwire. A PLACEHOLDER: the wave's
@@ -203,4 +214,9 @@ def twin(m):
 #: the quad twin stopped being a different program [measured 2026-09-01: min-
 #: of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=c6a40460b1db341198a6150e3600f502831a6e83].
-BUDGET = 37289
+#: RE-PINNED 2026-09-01, 37289 to 37573 (+284), generic Python operators now
+#: dispatch through live protocols while source twins explicitly name
+#: relational engine heads [measured 2026-09-01: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+BUDGET = 37573

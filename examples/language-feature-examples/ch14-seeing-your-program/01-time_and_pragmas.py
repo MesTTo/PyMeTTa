@@ -40,7 +40,7 @@ def twin(m):
     @m.define
     def spin(n):
         # (= (spin $n) (if (> $n 0) (spin (- $n 1)) done))
-        return spin(n - 1) if n > 0 else S.done
+        return spin(fn.sub(n, 1)) if fn.gt(n, 0) else S.done
 
     # A bound that is not reached is invisible.
     assert m.eval(S.spin(100), timeout=30) == [S.done]
@@ -191,4 +191,9 @@ def twin(m):
 #: the quad twin stopped being a different program [measured 2026-09-01: min-
 #: of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=c6a40460b1db341198a6150e3600f502831a6e83].
-BUDGET = 37132
+#: RE-PINNED 2026-09-01, 37132 to 37940 (+808), generic Python operators now
+#: dispatch through live protocols while source twins explicitly name
+#: relational engine heads [measured 2026-09-01: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+BUDGET = 37940

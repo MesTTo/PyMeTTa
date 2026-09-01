@@ -11,15 +11,18 @@ Open Obligations:
   Future Enhancements: None.
 """
 
+from metta import fn
+
 
 def twin(m):
     """Bind two names in order, then add them."""
+
     @m.define
     def summed():
         # (let* (($x 1) ($y 2)) (+ $x $y))
         x = 1
         y = 2
-        return x + y
+        return fn.add(x, y)
 
     # !(test (let* (($x 1) ($y 2)) (+ $x $y)) 3)
     assert summed() == [3]
@@ -86,4 +89,9 @@ def twin(m):
 #: and the removal doors changed meaning where a twin spells one [measured
 #: 2026-09-01: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=c6a40460b1db341198a6150e3600f502831a6e83].
-BUDGET = 2621
+#: RE-PINNED 2026-09-01, 2621 to 2659 (+38), generic Python operators now
+#: dispatch through live protocols while source twins explicitly name
+#: relational engine heads [measured 2026-09-01: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+BUDGET = 2659

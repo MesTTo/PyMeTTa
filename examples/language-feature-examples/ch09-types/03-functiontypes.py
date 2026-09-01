@@ -11,11 +11,10 @@ branch and a number on the other, which `%Undefined%` allows.
 All four say their types as ANNOTATIONS, which is the whole declaration: `int`
 is Number, `Atom` is the Atom metatype, and `Any` is `%Undefined%`, all through
 the one conversion table, so each arrow is written once and the engine checks
-it. Inside the compiled bodies Python's own syntax is the MeTTa: `if a < 10`
-is the guard, `a + b` builds `(+ $a $b)`, and wu3's other branch builds the
-five-symbol expression `(a list not a number)` by calling its head, which is
-what building a term by its head means whether or not anything defines that
-head. Nothing here defines `a`, and the expression is data.
+it. Inside the compiled bodies `fn.lt(a, 10)` and `fn.add(a, b)` explicitly
+name the source relations, while wu3's other branch builds the five-symbol
+expression `(a list not a number)` by calling its head. Nothing here defines
+`a`, and the expression is data.
 
 Note what the twin does NOT need: the example wraps its expected answers in
 `noeval` because MeTTa's `test` evaluates them. Python's `==` evaluates
@@ -29,7 +28,7 @@ Guarantees:
 
 from typing import Any
 
-from metta import Atom, Expression, S
+from metta import Atom, Expression, S, fn
 
 
 def twin(m):
@@ -48,13 +47,13 @@ def twin(m):
     @m.define
     def wu2(a: int, b: int) -> int:
         """(: wu2 (-> Number Number Number)), (= (wu2 $a $b) (+ $a $b))."""
-        return a + b
+        return fn.add(a, b)
 
     @m.define
     def wu3(a: int, b: int) -> Any:
         """(: wu3 (-> Number Number %Undefined%)), guarded on (< $a 10)."""
-        if a < 10:
-            return a + b
+        if fn.lt(a, 10):
+            return fn.add(a, b)
         return S.a(S.list, S["not"], S.a, S.number)
 
     # The Atom-typed argument arrives unevaluated and STAYS that way all
@@ -63,14 +62,10 @@ def twin(m):
     # equation compiler emits no result continuation at all
     # [source: PeTTa@ae66fa8 src/translator.pl:25-28].
     # !(test (wu1 (+ 2 4) (+ 4 2)) (noeval (42 6 (+ 4 2))))
-    assert wu1(S.add(2, 4), S.add(4, 2)) == [
-        Expression((42, 6, S.add(4, 2)))
-    ]
+    assert wu1(S.add(2, 4), S.add(4, 2)) == [Expression((42, 6, S.add(4, 2)))]
     # An Atom result answers the same produced expression.
     # !(test (wu1b (+ 2 4) (+ 4 2)) (noeval (42 6 (+ 4 2))))
-    assert wu1b(S.add(2, 4), S.add(4, 2)) == [
-        Expression((42, 6, S.add(4, 2)))
-    ]
+    assert wu1b(S.add(2, 4), S.add(4, 2)) == [Expression((42, 6, S.add(4, 2)))]
     # !(test (wu2 (+ 2 4) (+ 4 2)) 12)
     assert wu2(S.add(2, 4), S.add(4, 2)) == [12]
 
@@ -158,4 +153,9 @@ def twin(m):
 #: the quad twin stopped being a different program [measured 2026-09-01: min-
 #: of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=c6a40460b1db341198a6150e3600f502831a6e83].
-BUDGET = 13004
+#: RE-PINNED 2026-09-01, 13004 to 13803 (+799), generic Python operators now
+#: dispatch through live protocols while source twins explicitly name
+#: relational engine heads [measured 2026-09-01: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+BUDGET = 13803

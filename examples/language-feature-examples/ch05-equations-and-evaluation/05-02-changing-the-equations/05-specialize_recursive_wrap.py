@@ -11,12 +11,12 @@ to its own result, which is variable-head application (`r(r(g))` compiles to
 recursive call passes `twice(r)`, a PARTIAL application of a two-parameter
 function. Neither needs a MeTTa spelling: the subset already reads both.
 
-Python's `n == 0` compiles to the engine-native `py-eq` relation. It avoids a
-host callback but deliberately differs from the source's stored `==` spelling,
-which the digest lane reports.
+`fn.eq` and `fn.sub` explicitly name the source relations. Generic Python
+operators follow live protocols, while this source twin needs its stored
+equation to match the original.
 """
 
-from metta import S
+from metta import S, fn
 
 
 def twin(m):
@@ -35,8 +35,8 @@ def twin(m):
     @m.define
     def evolve(r, n, g):
         # Source: (= (evolve $r $n $g) (if (== $n 0) $g (evolve (twice $r) (- $n 1) $g)))
-        # Twin: the same equation with py-eq in the condition.
-        return g if n == 0 else evolve(twice(r), n - 1, g)
+        # Twin: the same equation, with both relations named through fn.
+        return g if fn.eq(n, 0) else evolve(twice(r), fn.sub(n, 1), g)
 
     assert evolve(S.derive, 2, S.stmt) == [S.stmt]
 
@@ -122,4 +122,9 @@ def twin(m):
 #: structure, and the removal doors changed meaning where a twin spells one
 #: [measured 2026-09-01: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=c6a40460b1db341198a6150e3600f502831a6e83].
-BUDGET = 9571
+#: RE-PINNED 2026-09-01, 9571 to 10318 (+747), generic Python operators now
+#: dispatch through live protocols while source twins explicitly name
+#: relational engine heads [measured 2026-09-01: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+BUDGET = 10318

@@ -19,8 +19,8 @@ against the same row.
 
 The digest difference is deliberate and spans three equations. Assignment
 stores one-binding `let*` forms in `program1` and nested `let*` forms in
-`program2`. Python equality stores `py-eq` in `program3`, and the two identity
-lets in that source equation disappear from the twin.
+`program2`. `program3` now stores the source's `==` through `fn.eq`; only its
+two identity lets disappear from the twin.
 Guarantees:
   - every ordered atom assembled in this file passes one iterable to
     Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=028b41a056cfd706e516cd0b945cbf69ac066da7]
@@ -35,12 +35,13 @@ from metta import Expression, fn, superpose
 
 def twin(m):
     """Stack lets and superpositions four ways, then collapse the lot."""
+
     @m.define
     def program1(y):
         # Source: (= (program1 $Y) (let $X $Y (collapse (superpose (12 (+ $X 4))))))
         # Twin:   (= (program1 $Y) (let* (($X $Y)) (collapse (superpose (12 (+ $X 4))))))
         x = y
-        return collapse(superpose(12, x + 4))  # noqa: F821  -- `collapse` is a name a compiled body reads as MeTTa, which the package exports nowhere yet (residue, P14.4)
+        return collapse(superpose(12, fn.add(x, 4)))  # noqa: F821  -- `collapse` is a name a compiled body reads as MeTTa, which the package exports nowhere yet (residue, P14.4)
 
     @m.define
     def program2(_y):
@@ -56,9 +57,9 @@ def twin(m):
         #    (if (== $x 2)
         #        (let $z (superpose ((if (< $x 10) (superpose ((42 43))) 43))) $z)
         #        (let $z 4 $z)))
-        # Twin: the same if shape with py-eq; both identity lets are elided.
-        if x == 2:
-            return superpose(superpose((42, 43)) if x < 10 else 43)
+        # Twin: the same if shape and comparisons; both identity lets are elided.
+        if fn.eq(x, 2):
+            return superpose(superpose((42, 43)) if fn.lt(x, 10) else 43)
         return 4
 
     @m.define
@@ -146,4 +147,9 @@ def twin(m):
 #: structure, and the removal doors changed meaning where a twin spells one
 #: [measured 2026-09-01: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=c6a40460b1db341198a6150e3600f502831a6e83].
-BUDGET = 10260
+#: RE-PINNED 2026-09-01, 10260 to 11734 (+1474), generic Python operators now
+#: dispatch through live protocols while source twins explicitly name
+#: relational engine heads [measured 2026-09-01: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+BUDGET = 11734

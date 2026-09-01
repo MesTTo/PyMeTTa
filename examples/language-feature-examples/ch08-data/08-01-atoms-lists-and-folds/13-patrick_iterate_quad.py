@@ -44,15 +44,14 @@ def twin(m):
     def quad_sum(n):
         # (= (quad-sum $n) (last (iterate 0 (/ (* $n (+ $n 1)) 2) (1 1 0) quad-step)))
         # rung: the engine's own `/` by name, because Python's `/` is TRUE
-        # division and a compiled body says so faithfully, emitting the
-        # float-forcing (* 1.0 ...) that hands `iterate` a float bound where
+        # division and its live protocol hands `iterate` a float bound where
         # the example hands it an integer. That is a different program: it
         # answers the same 125417041750 and took over 280 SECONDS against the
-        # example's 0.29 [measured 2026-09-01]. `//` would be exact and fast
-        # but stores `floor-div` where the example stores `/`, so the twin
-        # would stop mirroring it; naming the head keeps the equation
+        # example's 0.29 [measured 2026-09-01]. `fn.floor_div` would be exact
+        # and fast but stores `floor-div` where the example stores `/`, so the
+        # twin would stop mirroring it; naming the head keeps the equation
         # identical and the walk integer.
-        return fn.last(fn.iterate(0, fn["/"](n * (n + 1), 2), (1, 1, 0), S.quad_step))
+        return fn.last(fn.iterate(0, fn["/"](fn.mul(n, fn.add(n, 1)), 2), (1, 1, 0), S.quad_step))
 
     assert quad_sum(1000) == [125417041750]
 
@@ -138,4 +137,9 @@ def twin(m):
 #: and the quad twin stopped being a different program [measured 2026-09-01:
 #: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=c6a40460b1db341198a6150e3600f502831a6e83].
-BUDGET = 11528601
+#: RE-PINNED 2026-09-01, 11528601 to 11528614 (+13), generic Python operators
+#: now dispatch through live protocols while source twins explicitly name
+#: relational engine heads [measured 2026-09-01: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+BUDGET = 11528614
