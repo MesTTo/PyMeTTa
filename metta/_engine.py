@@ -26,7 +26,7 @@ Guarantees:
   - a group made only of MettaError leaves rehydrates whole, while an
     operation author's exception group remains an EngineError [tested:
     test_multiple_watcher_failures_are_grouped_after_every_delivery,
-    test_an_op_authors_exception_group_stays_wrapped; commit=WORKTREE]
+    test_an_op_authors_exception_group_stays_wrapped; commit=d8673a8488a111f1c01c778af3ed11b845c284a8]
   - a failed MeTTa assertion arrives as AssertionFailure and an engine fault
     as EngineError, neither an instance of the other [tested
     test_a_failing_assertion_is_a_different_exception_from_an_engine_fault]

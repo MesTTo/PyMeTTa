@@ -54,7 +54,7 @@ Guarantees:
     registration order [tested:
     test_one_failed_watcher_does_not_starve_later_delivery,
     test_multiple_watcher_failures_are_grouped_after_every_delivery;
-    commit=WORKTREE]
+    commit=d8673a8488a111f1c01c778af3ed11b845c284a8]
   - cancel waits for steps already in flight and a stale dispatch snapshot
     cannot deliver after cancellation [tested
     test_subscription_cancel_waits_for_inflight_delivery,

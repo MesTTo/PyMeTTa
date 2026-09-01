@@ -10,7 +10,7 @@ Guarantees:
   - an op author's own exception class still arrives wrapped as EngineError
     even when several are grouped [tested:
     test_an_op_authors_exception_stays_wrapped,
-    test_an_op_authors_exception_group_stays_wrapped; commit=WORKTREE]
+    test_an_op_authors_exception_group_stays_wrapped; commit=d8673a8488a111f1c01c778af3ed11b845c284a8]
 Open Obligations:
   To Do: None
   Hacks: None

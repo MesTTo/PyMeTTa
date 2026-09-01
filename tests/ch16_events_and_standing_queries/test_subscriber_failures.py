@@ -6,7 +6,7 @@ Guarantees:
     order [tested:
     test_one_failed_watcher_does_not_starve_later_delivery,
     test_multiple_watcher_failures_are_grouped_after_every_delivery;
-    commit=WORKTREE]
+    commit=d8673a8488a111f1c01c778af3ed11b845c284a8]
 Open Obligations:
   To Do: None
   Hacks: None
