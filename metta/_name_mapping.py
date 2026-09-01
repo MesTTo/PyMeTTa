@@ -99,6 +99,15 @@ def attribute_name(identifier: str) -> str:
         # V._ is MeTTa's anonymous variable, a grammar role rather than a
         # word that participates in the factory's transliteration.
         return identifier
+    if identifier.endswith("_") and not identifier.endswith("__"):
+        # PEP 8's keyword escape, which the naming ladder ranks ABOVE the
+        # mechanical map: `S.not_` is how Python spells a head the grammar
+        # reserves, so it reaches `not`. Mapping it instead would answer
+        # `not-`, and no head in this tree ends in a hyphen, so that spelling
+        # can never match anything and nothing would say so. The exact form
+        # stays reachable through the bracket door for a head that really
+        # does end in an underscore.
+        identifier = identifier[:-1]
     return identifier.replace("_", "-")
 
 

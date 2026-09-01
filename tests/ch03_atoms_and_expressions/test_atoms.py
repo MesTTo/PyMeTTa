@@ -938,3 +938,26 @@ def test_pretty_lays_out_deep_terms_and_agrees_with_the_engine(metta):  # noqa: 
     assert metta._one(f"(pretty-atom {source})") == laid_out
     # a fitting term stays inline
     assert repr(parse("(f 1 2)")) == "(f 1 2)"
+
+
+def test_a_trailing_underscore_escapes_a_keyword_rather_than_hyphenating():
+    """Python's own keyword escape reaches the bare head.
+
+    `not` is a Python keyword, so `S.not` cannot be written. PEP 8's answer is
+    a single trailing underscore, and the naming ladder puts that escape ABOVE
+    the mechanical underscore-to-hyphen map. Before this, `S.not_` answered the
+    symbol `not-`, which no head in the tree spells and nothing can match, with
+    no error to say so.
+    """
+    from metta import S, V
+
+    assert str(S.not_) == "not"
+    assert str(S.lambda_) == "lambda"
+    assert str(V.class_) == "$class"
+    # The map still applies everywhere else, including before the escape.
+    assert str(S.car_atom) == "car-atom"
+    assert str(S.get_type_) == "get-type"
+    # The anonymous variable is a grammar role, not an escaped word.
+    assert str(V._) == "$_"
+    # An exact head that really ends in an underscore stays reachable.
+    assert str(S["not_"]) == "not_"

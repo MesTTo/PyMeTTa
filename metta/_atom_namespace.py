@@ -45,7 +45,12 @@ import threading
 from typing import Any, Final
 
 from ._atoms_core import Symbol
-from ._name_mapping import OperatorRecipe, generated_aliases, operator_attribute_target
+from ._name_mapping import (
+    OperatorRecipe,
+    attribute_name,
+    generated_aliases,
+    operator_attribute_target,
+)
 
 NAMESPACE_CACHE_MAX: Final[int] = 512
 #: The fast tier in front of it, read without the lock and without
@@ -161,9 +166,7 @@ class _Namespace:
         if operator_target is not None:
             target = operator_target
         elif object.__getattribute__(self, "_allowed") is None:
-            target = name
-            if name != "_" and "_" in name:
-                target = name.replace("_", "-")
+            target = attribute_name(name)
         else:
             try:
                 target = aliases[name]
