@@ -126,5 +126,5 @@ def twin(m):
 #: extensions/python/tools/twin_coverage.py --measure --rounds 3
 #: examples/ch20-extending-the-engine/20-01-translator-rules/02-translatorrule_direction.metta;
 #: fixture=operator-protocol tree after python extensions/python/tools/twin_coverage.py
-#: --observe --rounds 10; commit=WORKTREE].
+#: --observe --rounds 10; commit=e3787593132a7ece2d300397045f7415709847c9].
 BUDGET = 15562

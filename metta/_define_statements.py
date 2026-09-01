@@ -37,7 +37,7 @@ Guarantees:
   - non-space augmented assignments use Python's in-place protocol and carry
     local container species across SSA rebinding [tested:
     test_compiled_operators_follow_python_protocols_and_result_species;
-    commit=WORKTREE]
+    commit=e3787593132a7ece2d300397045f7415709847c9]
   - ``del space[pattern]`` removes every snapshotted match while annotated
     space ``-=`` removes one, with missing removals kept loud [tested:
     test_compiled_removal_statements_preserve_one_many_missing_and_target_scope;

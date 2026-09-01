@@ -11,7 +11,7 @@ takes `+=` as `add-atom`, but `-=` deliberately means the one-occurrence
 `subtract-atom`; the source asks for the draining `remove-atom`. Naming both
 heads therefore keeps the pair parallel while preserving the source's exact
 removal grain [tested: test_augmented_assignment_on_a_space_is_the_write_door,
-test_remove_atom_drains_every_occurrence; commit=WORKTREE].
+test_remove_atom_drains_every_occurrence; commit=e3787593132a7ece2d300397045f7415709847c9].
 
 The stored equations are deliberately not source-identical. Assignment
 lowers `f`'s `let` to a one-binding `let*`. `evalCustom` lowers the source's
@@ -121,5 +121,5 @@ def twin(m):
 #: extensions/python/tools/twin_coverage.py --measure --rounds 3
 #: examples/ch07-control-flow/07-03-let-and-sequencing/07-eval.metta;
 #: fixture=operator-protocol tree after python extensions/python/tools/twin_coverage.py
-#: --observe --rounds 10; commit=WORKTREE].
+#: --observe --rounds 10; commit=e3787593132a7ece2d300397045f7415709847c9].
 BUDGET = 17236

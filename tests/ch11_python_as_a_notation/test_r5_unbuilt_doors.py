@@ -16,7 +16,7 @@ Guarantees:
   - compiled standard ``operator`` mentions retain Python protocol dispatch
     and result species [tested:
     test_compiled_callable_mentions_preserve_python_call_semantics;
-    commit=WORKTREE]
+    commit=e3787593132a7ece2d300397045f7415709847c9]
 Open Obligations:
   To Do: None
   Hacks: None

@@ -55,7 +55,7 @@ Guarantees:
   - compiled Python operators invoke the live Python data model, including
     reflected, in-place, unary, and rich-comparison protocols [tested:
     test_compiled_operators_follow_python_protocols_and_result_species;
-    commit=WORKTREE]
+    commit=e3787593132a7ece2d300397045f7415709847c9]
 Open Obligations:
   To Do: None
   Hacks: None

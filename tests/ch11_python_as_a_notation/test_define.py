@@ -29,7 +29,7 @@ Guarantees:
   - compiled operators invoke Python's numeric, container, reflected, and
     unary protocols and preserve their result species [tested:
     test_compiled_operators_follow_python_protocols_and_result_species;
-    commit=WORKTREE]
+    commit=e3787593132a7ece2d300397045f7415709847c9]
 Owns:
   - test_define_from_two_threads_is_serialized joins both definition workers
     before examining their equations [tested test_define_from_two_threads_is_serialized]

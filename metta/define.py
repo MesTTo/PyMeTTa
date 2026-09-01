@@ -17,7 +17,7 @@ Guarantees:
     retain Python's protocol semantics [tested:
     test_callable_mentions_share_operator_and_fourteen_math_names,
     test_compiled_callable_mentions_preserve_python_call_semantics;
-    commit=WORKTREE]
+    commit=e3787593132a7ece2d300397045f7415709847c9]
   - Defined.doc and Defined.__doc__ expose the first compiled clause's cleaned
     docstring after the twin dispatcher contains that clause [tested:
     test_one_docstring_reaches_help_dot_doc_and_get_doc;
@@ -67,7 +67,7 @@ Guarantees:
   - nested compiler contexts preserve local container species for Python
     operator dispatch [tested:
     test_compiled_operators_follow_python_protocols_and_result_species;
-    commit=WORKTREE]
+    commit=e3787593132a7ece2d300397045f7415709847c9]
   - a parameter whose resolved annotation names ``Space`` enters statement
     lowering as a space handle, so its augmented removal cannot become
     arithmetic [tested:

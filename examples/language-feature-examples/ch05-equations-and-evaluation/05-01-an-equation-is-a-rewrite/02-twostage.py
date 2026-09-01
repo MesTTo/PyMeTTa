@@ -91,5 +91,5 @@ def twin(m):
 #: extensions/python/tools/twin_coverage.py --measure --rounds 3
 #: examples/ch05-equations-and-evaluation/05-01-an-equation-is-a-rewrite/02-twostage.metta;
 #: fixture=operator-protocol tree after python extensions/python/tools/twin_coverage.py
-#: --observe --rounds 10; commit=WORKTREE].
+#: --observe --rounds 10; commit=e3787593132a7ece2d300397045f7415709847c9].
 BUDGET = 6888

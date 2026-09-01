@@ -13,7 +13,7 @@ Guarantees:
     so tabling never hides a Python operator protocol's possible effects
     [tested:
     test_a_second_live_call_reuses_the_table_but_an_undeclared_control_does_not;
-    commit=WORKTREE]
+    commit=e3787593132a7ece2d300397045f7415709847c9]
 Open Obligations:
   To Do: None
   Hacks: None

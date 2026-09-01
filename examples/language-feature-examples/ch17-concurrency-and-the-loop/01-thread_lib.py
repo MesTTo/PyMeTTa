@@ -223,20 +223,20 @@ def twin(m):
 #: engine heads explicitly, so ten fresh full-lane observations replace the
 #: prior implementation's modes [measured: exact extrema over 10 observations;
 #: command=python extensions/python/tools/twin_coverage.py --observe --rounds 10;
-#: fixture=full-lane/219/workers=32; commit=WORKTREE].
+#: fixture=full-lane/219/workers=32; commit=e3787593132a7ece2d300397045f7415709847c9].
 #: The confirming differential extended the observed maximum from 591824 to
 #: 608009 [measured: eleventh full-lane observation 608009; command=python
 #: extensions/python/tools/twin_coverage.py; fixture=full-lane/219/workers=32;
-#: commit=WORKTREE].
+#: commit=e3787593132a7ece2d300397045f7415709847c9].
 #: A second ten-round observe pass extended the maximum from 608009 to 608164
 #: [measured: exact extrema over 10 further observations; command=python
 #: extensions/python/tools/twin_coverage.py --observe --rounds 10;
-#: fixture=full-lane/219/workers=32; commit=WORKTREE].
+#: fixture=full-lane/219/workers=32; commit=e3787593132a7ece2d300397045f7415709847c9].
 #: Four confirming differentials brought the current-tree sample to 25; the
 #: third extended the maximum from 608164 to 618693 [measured: twenty-fourth
 #: full-lane observation 618693 and twenty-fifth observation 617737; command=python
 #: extensions/python/tools/twin_coverage.py; fixture=full-lane/219/workers=32;
-#: commit=WORKTREE].
+#: commit=e3787593132a7ece2d300397045f7415709847c9].
 BUDGET = {
     "minimum": 529767,
     "maximum": 618693,

@@ -29,7 +29,7 @@ Guarantees:
   - compiled operators invoke the corresponding Python protocol exactly once
     and preserve set/dict space images at their boundary [tested:
     test_compiled_operators_follow_python_protocols_and_result_species;
-    commit=WORKTREE]
+    commit=e3787593132a7ece2d300397045f7415709847c9]
 Open Obligations:
   To Do: None
   Hacks: None

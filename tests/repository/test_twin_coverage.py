@@ -49,7 +49,7 @@ Guarantees:
   - explicit engine operator heads remain legal inside compiled bodies because
     Python operator syntax denotes Python's live protocol instead [tested:
     test_explicit_engine_operator_heads_are_allowed_in_lowered_bodies;
-    commit=WORKTREE]
+    commit=e3787593132a7ece2d300397045f7415709847c9]
   - the 159 entries superseded by empirical budgets are retired exactly once
     [tested: test_the_distribution_budget_retirement_is_exact;
     commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22]

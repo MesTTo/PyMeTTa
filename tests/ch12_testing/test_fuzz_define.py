@@ -25,7 +25,7 @@ Guarantees:
   - untyped compiled division preserves Python's OverflowError boundary when
     an integer cannot convert to binary64 [tested:
     test_the_define_twin_preserves_python_overflow_past_the_float_range;
-    commit=WORKTREE]
+    commit=e3787593132a7ece2d300397045f7415709847c9]
 Open Obligations:
   To Do: None
   Hacks: None

@@ -153,19 +153,19 @@ def twin(m):
 #: engine heads explicitly, so ten fresh full-lane observations replace the
 #: prior implementation's modes [measured: exact extrema over 10 observations;
 #: command=python extensions/python/tools/twin_coverage.py --observe --rounds 10;
-#: fixture=full-lane/219/workers=32; commit=WORKTREE].
+#: fixture=full-lane/219/workers=32; commit=e3787593132a7ece2d300397045f7415709847c9].
 #: The confirming differential supplied an eleventh observation inside those
 #: bounds [measured: eleventh full-lane observation 401241; command=python
 #: extensions/python/tools/twin_coverage.py; fixture=full-lane/219/workers=32;
-#: commit=WORKTREE].
+#: commit=e3787593132a7ece2d300397045f7415709847c9].
 #: A second ten-round observe pass stayed inside the first pass's bounds
 #: [measured: exact extrema over 10 further observations; command=python
 #: extensions/python/tools/twin_coverage.py --observe --rounds 10;
-#: fixture=full-lane/219/workers=32; commit=WORKTREE].
+#: fixture=full-lane/219/workers=32; commit=e3787593132a7ece2d300397045f7415709847c9].
 #: Four confirming differentials stayed inside those bounds [measured: four
 #: further full-lane observations, the last 401241; command=python
 #: extensions/python/tools/twin_coverage.py; fixture=full-lane/219/workers=32;
-#: commit=WORKTREE].
+#: commit=e3787593132a7ece2d300397045f7415709847c9].
 BUDGET = {
     "minimum": 401238,
     "maximum": 401241,

@@ -6,7 +6,7 @@ Guarantees:
     [tested: test_callable_mentions_share_operator_and_fourteen_math_names,
     test_callable_mentions_require_identity_even_when_equality_is_spoofed,
     test_compiled_callable_mentions_preserve_python_call_semantics;
-    commit=WORKTREE]
+    commit=e3787593132a7ece2d300397045f7415709847c9]
 Decides:
   - the fourteen math names are the declarations in
     ``lib/lib_builtin_types/lib_builtin_types.metta`` from ``pow-math`` through ``atan-math``

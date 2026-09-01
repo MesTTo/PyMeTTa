@@ -30,7 +30,7 @@ Guarantees:
   - compiler forks retain literal container species used by Python operator
     dispatch [tested:
     test_compiled_operators_follow_python_protocols_and_result_species;
-    commit=WORKTREE]
+    commit=e3787593132a7ece2d300397045f7415709847c9]
 Guarded by:
   - _AUX_LOCK protects the process-wide helper serial [tested
     test_define_from_two_threads_is_serialized]
