@@ -22,7 +22,7 @@ Guarantees:
   - annotations from successive operation answers compose through the selected
     carrier's extend law [tested:
     test_two_annotated_operation_calls_multiply_all_four_joint_weights;
-    commit=WORKTREE]
+    commit=1208ea172e11560b2aaae238823514941aa5fe20]
 Open Obligations:
   To Do: None
   Hacks: None

@@ -49,7 +49,7 @@
 %     value instead of replacing it, while provider rows remain local inputs to
 %     the engine's conjunction join [tested:
 %     test_two_annotated_operation_calls_multiply_all_four_joint_weights;
-%     commit=WORKTREE].
+%     commit=1208ea172e11560b2aaae238823514941aa5fe20].
 %   - an empty direct eval answers NOTHING both for a guarded head with no
 %     matching clause and for a matched empty body, which is one answer where
 %     this door used to draw two: the guarded head was a not-reducible answer
