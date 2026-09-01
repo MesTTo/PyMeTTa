@@ -7,7 +7,7 @@ Guarantees:
     test_no_decorator_flag_changes_the_return_shape_and_declarations_are_atoms,
     test_every_public_execution_door_honours_speculative_policy,
     test_an_answers_view_uses_policy_when_its_engine_work_runs;
-    commit=WORKTREE]
+    commit=1262dd20ada9d5c799d9bdc4bdf5d2b859ca7a98]
   - eager eval follows the same atomic and speculative policy wrapper as run,
     so State property writes cannot bypass a speculative fence [tested:
     test_speculative_state_write_is_fenced; commit=3ded7552797b66d78e666141eb51f3bc14686bd2]

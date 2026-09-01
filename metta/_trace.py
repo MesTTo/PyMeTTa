@@ -12,7 +12,7 @@ Guarantees:
   - traced source keeps run()'s real-write semantics while inheriting the
     same speculative execution fence [tested:
     test_every_public_execution_door_honours_speculative_policy;
-    commit=WORKTREE]
+    commit=1262dd20ada9d5c799d9bdc4bdf5d2b859ca7a98]
 Open Obligations:
   To Do: None
   Hacks: None

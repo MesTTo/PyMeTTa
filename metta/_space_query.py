@@ -25,11 +25,11 @@ Guarantees:
   - query guards inherit the same atomic and speculative execution policy as
     term evaluation [tested:
     test_every_public_execution_door_honours_speculative_policy;
-    commit=WORKTREE]
+    commit=1262dd20ada9d5c799d9bdc4bdf5d2b859ca7a98]
   - a query count hint runs only when its match and guard are repeatable, so
     list() cannot execute a guard write once for the hint and again for rows
     [tested: test_a_guarded_query_length_hint_executes_its_write_once;
-    commit=WORKTREE]
+    commit=1262dd20ada9d5c799d9bdc4bdf5d2b859ca7a98]
 Open Obligations:
   To Do: None
   Hacks: None

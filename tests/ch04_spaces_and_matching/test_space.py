@@ -53,7 +53,7 @@ Guarantees:
     commit=9bbfe5a252eb4b3f8b7d8418def0cc39c0819c13]
   - match, Prepared, and stream share one positive-limit contract [tested:
     test_nonpositive_limits_are_refused_by_match_stream_and_prepared;
-    commit=WORKTREE]
+    commit=1262dd20ada9d5c799d9bdc4bdf5d2b859ca7a98]
 Open Obligations:
   To Do: None
   Hacks: None

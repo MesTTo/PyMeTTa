@@ -44,11 +44,11 @@ Guarantees:
   - Prepared and Cursor reject every non-positive or non-integer limit before
     opening an engine query [tested:
     test_nonpositive_limits_are_refused_by_match_stream_and_prepared;
-    commit=WORKTREE]
+    commit=1262dd20ada9d5c799d9bdc4bdf5d2b859ca7a98]
   - prepared and streaming guard evaluation inherits the shared atomic and
     speculative execution policy [tested:
     test_every_public_execution_door_honours_speculative_policy;
-    commit=WORKTREE]
+    commit=1262dd20ada9d5c799d9bdc4bdf5d2b859ca7a98]
 Owns:
   - Cursor owns one engine query until exhaustion, close, or finalization
     and warns when finalization reaps an open query [tested

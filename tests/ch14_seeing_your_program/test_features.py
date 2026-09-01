@@ -20,7 +20,7 @@ Guarantees:
     test_lazy_atomic_rolls_back_after_a_late_cursor_failure,
     test_speculative_lazy_execution_preserves_every_answer,
     test_a_guarded_query_length_hint_executes_its_write_once;
-    commit=WORKTREE]
+    commit=1262dd20ada9d5c799d9bdc4bdf5d2b859ca7a98]
   - streaming comparison guards use explicit comparison heads [tested:
     test_stream_guard_and_per_pull_bounds; commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
 Open Obligations:

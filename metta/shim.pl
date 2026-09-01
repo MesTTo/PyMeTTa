@@ -34,7 +34,7 @@
 %     test_lazy_capture_collects_held_engine_output,
 %     test_lazy_atomic_rolls_back_after_a_late_cursor_failure,
 %     test_speculative_lazy_execution_preserves_every_answer;
-%     commit=WORKTREE].
+%     commit=1262dd20ada9d5c799d9bdc4bdf5d2b859ca7a98].
 %   - an empty direct eval answers NOTHING both for a guarded head with no
 %     matching clause and for a matched empty body, which is one answer where
 %     this door used to draw two: the guarded head was a not-reducible answer
@@ -279,7 +279,7 @@
 %     pattern modifiers, and effect-bearing guards, so a Python length hint
 %     cannot execute a query effect twice [tested:
 %     test_a_guarded_query_length_hint_executes_its_write_once;
-%     commit=WORKTREE]
+%     commit=1262dd20ada9d5c799d9bdc4bdf5d2b859ca7a98]
 %   - evaluation emits one undefined-truth frame and never a flag-selected
 %     residual-program shape [tested:
 %     test_a_not_reducible_answer_is_the_unreduced_term_with_no_flag;
