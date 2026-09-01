@@ -58,7 +58,8 @@ Guarantees:
   - booted() publishes only after the shim, Python prelude, and contract
     ontology all finish; a failed prelude or contract install retries whole
     on the next construction [tested:
-    test_a_failed_python_runtime_install_retries_whole; commit=WORKTREE]
+    test_a_failed_python_runtime_install_retries_whole;
+    commit=7f1b7a27ed5044c1df8885f4cdf831654dff25fc]
 Guarded by:
   - _LOCK serializes runtime creation and every call made on the HOME engine.
     A thread holding its own attached engine takes no process lock: it shares

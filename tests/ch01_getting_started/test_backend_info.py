@@ -9,7 +9,8 @@ Guarantees:
     commit=af5821f5ffb7ce186e516706f003d02f5c1d3b4a]
   - booted() becomes true only after both the Python prelude and contract
     ontology finish, and either install retries after a one-off failure
-    [tested: test_a_failed_python_runtime_install_retries_whole; commit=WORKTREE]
+    [tested: test_a_failed_python_runtime_install_retries_whole;
+    commit=7f1b7a27ed5044c1df8885f4cdf831654dff25fc]
 Open Obligations:
   To Do: None
   Hacks: None
