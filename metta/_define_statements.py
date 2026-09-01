@@ -33,7 +33,7 @@ Guarantees:
   - except arms retain the live exception class objects resolved at compile
     time rather than reducing identity to a class name [tested:
     test_compiled_except_uses_exception_class_identity_not_bare_name;
-    commit=WORKTREE]
+    commit=e7919ef660e1c2b31a307187c0237823daccdbd4]
   - ``del space[pattern]`` removes every snapshotted match while annotated
     space ``-=`` removes one, with missing removals kept loud [tested:
     test_compiled_removal_statements_preserve_one_many_missing_and_target_scope;

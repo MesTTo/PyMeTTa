@@ -18,7 +18,7 @@ Guarantees:
   - compiled except arms preserve live exception class identity even when two
     classes share every textual name [tested:
     test_compiled_except_uses_exception_class_identity_not_bare_name;
-    commit=WORKTREE]
+    commit=e7919ef660e1c2b31a307187c0237823daccdbd4]
 Open Obligations:
   To Do: None
   Hacks: None

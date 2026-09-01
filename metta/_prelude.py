@@ -24,7 +24,7 @@ Guarantees:
   - compiled exception dispatch compares live exception classes by identity
     and inheritance [tested:
     test_compiled_except_uses_exception_class_identity_not_bare_name;
-    commit=WORKTREE]
+    commit=e7919ef660e1c2b31a307187c0237823daccdbd4]
 Open Obligations:
   To Do: None
   Hacks: None
