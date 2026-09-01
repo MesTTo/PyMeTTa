@@ -23,7 +23,7 @@ Guarantees:
   - the public lint authority names the immutable catalogue shipped in this
     repository [tested:
     test_the_lint_authority_matches_the_public_repository_snapshot;
-    commit=WORKTREE]
+    commit=2a32acb6d254ea12085526913c7b9a1a555b8ee0]
 Open Obligations:
   To Do: None
   Hacks: None

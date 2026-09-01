@@ -9,7 +9,7 @@ Guarantees:
     test_lint_evidence_and_intent_follow_space_clear; commit=acb40f1912f131ae088083d1af29b4b283019bea]
   - finding payloads retain their audit IDs and point at an immutable public
     rule description [tested: test_lint_authorities_are_durable_public_references;
-    commit=WORKTREE]
+    commit=2a32acb6d254ea12085526913c7b9a1a555b8ee0]
 """
 
 from __future__ import annotations

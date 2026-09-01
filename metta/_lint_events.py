@@ -16,7 +16,7 @@ Guarantees:
   - emitted authorities retain every adopted audit ID and point at the
     immutable public lint catalogue [tested:
     test_lint_authorities_are_durable_public_references;
-    commit=WORKTREE]
+    commit=2a32acb6d254ea12085526913c7b9a1a555b8ee0]
 Guarded by:
   - ``_LOCK`` serializes the process registries and their reflected facts
 """
