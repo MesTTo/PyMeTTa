@@ -306,49 +306,50 @@
     },
     "selective-query": {
       "cause": {
-        "chain": [
-          "python -m benchmarks.scaling --record measured selective-query",
-          "minimum of 3 fresh processes per size",
-          "the declared class is constant"
-        ],
+      "chain": [
+        "P50 makes Answers.__length_hint__ skip its repeatability and count query after __iter__ requests values",
+        "one answer cursor lowers the four-size inference row from [100, 97, 97, 97] to [34, 32, 32, 32]",
+        "minimum of 3 fresh processes per size",
+        "the declared class is constant"
+      ],
         "commit": "WORKTREE"
       },
       "counter": "inferences",
       "expected_class": "constant",
       "fit": {
         "best_model": "constant",
-        "coefficient": 107.23448941264257,
-        "exponent": -0.013183004276279284,
+        "coefficient": 39.07106985933396,
+        "exponent": -0.026238852375101884,
         "growth": [
-          1.0,
-          1.0,
-          1.0,
-          1.0
+          0.34,
+          0.3299,
+          0.3299,
+          0.3299
         ],
         "normalised_rms": {
-          "constant": 0.013289,
-          "cubic": 0.826911,
-          "linear": 0.58808,
-          "log_n": 0.120081,
-          "n_log_n": 0.628732,
-          "quadratic": 0.769919
+          "constant": 0.026647,
+          "cubic": 0.830169,
+          "linear": 0.594805,
+          "log_n": 0.131158,
+          "n_log_n": 0.634995,
+          "quadratic": 0.774157
         },
         "pair_slopes": [
-          -0.0439,
+          -0.0875,
           0.0,
           0.0
         ],
-        "r_squared": 0.6
+        "r_squared": 0.5999999999999961
       },
       "noise": {
         "absolute_max": 0,
         "relative_max": 0.0
       },
       "representative": [
-        100,
-        97,
-        97,
-        97
+        34,
+        32,
+        32,
+        32
       ],
       "sizes": [
         400,
