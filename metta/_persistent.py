@@ -1331,6 +1331,7 @@ class PersistentFactSpace(SpaceProvider):
                 try:
                     temporary.unlink(missing_ok=True)
                 except OSError:
+                    # Keep the migration error; no caller waits on this cleanup.
                     logger.exception(
                         "could not remove failed replay-rename staging file %s",
                         temporary,

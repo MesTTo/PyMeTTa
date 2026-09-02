@@ -6,10 +6,13 @@
 % Guarantees:
 %   - async Python operations answer a future space immediately, publish their
 %     launch through the current observation frame, and publish landing only
-%     from the later event-loop completion [tested:
+%     from the later event-loop completion; a publication fault settles the
+%     future as an error through its original token rather than stranding an
+%     awaiter [tested:
 %     test_an_async_operation_answers_a_future_space,
-%     test_a_transaction_commits_async_launch_before_its_landing;
-%     commit=39092863ae34184a9f955f185ff57c1ff177ec40].
+%     test_a_transaction_commits_async_launch_before_its_landing,
+%     test_a_failed_landing_publication_settles_the_future_as_an_error;
+%     commit=WORKTREE].
 %   - scheduler tasks dispatch Python callbacks under their copied ContextVars
 %     and detach oracleIO calls onto transient offload threads [tested:
 %     test_context_snapshot_crosses_every_spawn_door_including_thread_workers,
@@ -3591,6 +3594,14 @@ metta_py_async_land(Token, Status0, Payload) :-
     %the callback that still needs to settle it.
     metta_async_future_settle(Token, Outcome, Name, Space),
     metta_py_async_publish_landing(Name, Space).
+
+%A failed primary call still has the captured runtime and token. This path
+%records that failure but emits no lifecycle atom, because publication itself
+%is the failed operation. The future's single-assignment rule preserves an
+%outcome committed before a watcher raised.
+metta_py_async_fail_landing(Token, Class0, Exception) :-
+    metta_py_async_outcome(error, [Class0, Exception], _, Outcome),
+    metta_async_future_fail(Token, Outcome).
 
 %A watcher failure is raised to the background publisher and logged there; it
 %cannot rewrite an operation outcome that was already committed to its future.

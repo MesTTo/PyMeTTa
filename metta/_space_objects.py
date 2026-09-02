@@ -675,6 +675,7 @@ class Cursor:
         try:
             runtime.do("metta_py_cursor_close", handle)
         except EngineError:
+            # A finalizer has no caller; explicit close still reports failures.
             logger.debug("cursor finalization found an unavailable engine", exc_info=True)
 
     def __iter__(self) -> Self:
