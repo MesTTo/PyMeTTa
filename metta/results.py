@@ -43,7 +43,7 @@ Guarantees:
     returning, so dropping an iterated view closes its engine immediately
     [tested:
     test_iteration_does_not_delay_answer_finalization_in_a_frame_cycle;
-    commit=3fdb443f867ac40f2bcc19426ab7cf4d53dd8c2b]
+    commit=WORKTREE]
   - private item replay lets a deferred algebra route preserve those rows
     without probing the engine when its Answers view is constructed [tested:
     test_tagged_derivations_flow_through_match_and_reinterpret_without_requery;
