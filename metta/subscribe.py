@@ -34,7 +34,7 @@ Guarantees:
     test_a_queue_bound_that_cannot_fill_is_refused; commit=57f21ba9edf94bcf28cde11f938bce2c241a3709]
   - a guard-rejected event does not advance the queue's arrival counter, so a
     blocked events() stream remains open for the next accepted event [tested:
-    test_a_rejected_guard_event_does_not_end_a_blocking_stream; commit=WORKTREE]
+    test_a_rejected_guard_event_does_not_end_a_blocking_stream; commit=438506a1688c78a383499973b6a89fa6bb559629]
 Guarded by:
   - metta.events' fold registry lock protects queue state and the engine
     subscription snapshot [tested test_subscription_cancel_is_thread_safe]

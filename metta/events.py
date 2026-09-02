@@ -62,7 +62,7 @@ Guarantees:
   - an event rejected by a subscription guard is not an arrival, while an
     accepted step counts even when it preserves the same state [tested:
     test_a_rejected_guard_event_does_not_end_a_blocking_stream,
-    test_an_accepted_identity_step_still_wakes_its_waiter; commit=WORKTREE]
+    test_an_accepted_identity_step_still_wakes_its_waiter; commit=438506a1688c78a383499973b6a89fa6bb559629]
   - subscribe, bridge and reaction are each expressible as a fold over this
     surface alone, with the same answers as the shipped models [tested
     test_subscribe_bridge_and_reaction_are_expressible_over_the_public_event_stream]
@@ -257,7 +257,7 @@ class Fold:
             with self._state_lock:
                 # Filtering precedes reduction: RxJava's ObservableFilter only
                 # calls downstream.onNext after its predicate accepts the item.
-                # [source: https://github.com/ReactiveX/RxJava/blob/4d98d5988bec64ea24931c45464cbe6b7a7b1a60/src/main/java/io/reactivex/rxjava3/internal/operators/observable/ObservableFilter.java#L39-L53; commit=WORKTREE]
+                # [source: https://github.com/ReactiveX/RxJava/blob/4d98d5988bec64ea24931c45464cbe6b7a7b1a60/src/main/java/io/reactivex/rxjava3/internal/operators/observable/ObservableFilter.java#L39-L53; commit=438506a1688c78a383499973b6a89fa6bb559629]
                 if self._admits is not None and not self._admits(event):
                     return
                 before = self.state

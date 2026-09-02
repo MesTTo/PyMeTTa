@@ -18,7 +18,7 @@ Guarantees:
   - rejected subscription guards do not wake a blocked stream, while an
     accepted identity-preserving step does [tested:
     test_a_rejected_guard_event_does_not_end_a_blocking_stream,
-    test_an_accepted_identity_step_still_wakes_its_waiter; commit=WORKTREE]
+    test_an_accepted_identity_step_still_wakes_its_waiter; commit=438506a1688c78a383499973b6a89fa6bb559629]
 Open Obligations:
   To Do: None
   Hacks: None
