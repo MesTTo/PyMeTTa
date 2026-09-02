@@ -28,7 +28,7 @@ Guarantees:
       a frame reference cycle [tested:
       test_iteration_does_not_delay_answer_finalization_in_a_frame_cycle,
       test_function_call_does_not_delay_answer_finalization_in_a_frame_cycle;
-      commit=WORKTREE]
+      commit=853623455cdb02fe0afc1c815023a45c4a0eb989]
 Open Obligations:
   To Do: None
   Hacks: None
