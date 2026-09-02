@@ -600,5 +600,5 @@ def twin(m):
 #: [measured: 3575 inferences; command=PYTHONPATH=extensions/python
 #: $CHECK_PY -m pytest -q
 #: tests/repository/test_twin_coverage.py -k 'identity.metta'; fixture=warm
-#: main-checkout engine artifacts; commit=WORKTREE]
+#: main-checkout engine artifacts; commit=d1318d20b5d89d33079c49d0e94aa29e12685664]
 BUDGET = 3575
