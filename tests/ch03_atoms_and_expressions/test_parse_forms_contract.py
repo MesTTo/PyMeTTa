@@ -2,14 +2,16 @@
 
 Guarantees:
   - parse refuses empty input and multiple top-level forms instead of choosing
-    one silently [tested: test_parse_requires_exactly_one_form; commit=WORKTREE]
+    one silently [tested: test_parse_requires_exactly_one_form;
+    commit=9c03403aaaca9f1a1ec52e5898dd547eb80c8e82]
   - parse preserves a source variable's name and forms returns every top-level
     atom without evaluation [tested:
     test_parse_preserves_variable_names,
-    test_forms_reads_a_whole_source_without_running_it; commit=WORKTREE]
+    test_forms_reads_a_whole_source_without_running_it;
+    commit=9c03403aaaca9f1a1ec52e5898dd547eb80c8e82]
   - each public docstring names the other reader so callers can choose by input
     shape [tested: test_the_reader_docstrings_cross_reference_each_other;
-    commit=WORKTREE]
+    commit=9c03403aaaca9f1a1ec52e5898dd547eb80c8e82]
 """
 
 from __future__ import annotations

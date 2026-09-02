@@ -23,7 +23,7 @@ Guarantees:
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - generated pages publish reader prose rather than file-local contracts or
     evidence metadata [tested: test_reference_publishes_reader_prose_only;
-    commit=WORKTREE]
+    commit=9c03403aaaca9f1a1ec52e5898dd547eb80c8e82]
   - EXTENDING.md's extension-cost tables carry the numbers the committed
     pins derive and name every pinned tier, so the page cannot drift from
     the gate again [tested:

@@ -28,7 +28,8 @@ Guarantees:
   - parse requires exactly one form and preserves source variable names;
     forms is the separate whole-source reader [tested:
     test_parse_requires_exactly_one_form,
-    test_parse_preserves_variable_names; commit=WORKTREE]
+    test_parse_preserves_variable_names;
+    commit=9c03403aaaca9f1a1ec52e5898dd547eb80c8e82]
   - engine results restore registered ampersand names as Space operands while
     the public wire decoder keeps explicit s and p tags distinct [tested:
     test_space_handles_are_term_operands_and_round_trip; commit=4e2398075da67bb2cbcc123a9fc1e078ecac6fbf]

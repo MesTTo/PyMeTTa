@@ -21,7 +21,7 @@ Guarantees:
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - published prose omits file-local contracts and evidence metadata while
     retaining the purpose and reader-facing text [tested:
-    test_reference_publishes_reader_prose_only; commit=WORKTREE]
+    test_reference_publishes_reader_prose_only; commit=9c03403aaaca9f1a1ec52e5898dd547eb80c8e82]
 Fails when:
   - a page documents a module with runtime-generated members; those are
     invisible to the AST and would silently go missing

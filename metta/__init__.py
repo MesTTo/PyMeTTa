@@ -72,7 +72,8 @@ Guarantees:
   - ``forms`` reads every top-level form without evaluation and is explicitly
     distinct from singular ``parse`` [tested:
     test_forms_reads_a_whole_source_without_running_it,
-    test_the_reader_docstrings_cross_reference_each_other; commit=WORKTREE]
+    test_the_reader_docstrings_cross_reference_each_other;
+    commit=9c03403aaaca9f1a1ec52e5898dd547eb80c8e82]
 Open Obligations:
   To Do: None
   Hacks: None
