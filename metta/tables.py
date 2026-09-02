@@ -70,6 +70,11 @@ Guarantees:
     ``unify`` becomes symmetric [tested:
     test_a_nonground_compound_downgrades_and_removal_still_unifies;
     commit=6917bef7ca902671999eafcae3a7a86db8f69723]
+  - table cells preserve portable space references and refuse native handles,
+    whose registry identity cannot outlive its process [tested:
+    test_table_storage_refuses_native_handles_before_writing,
+    test_table_storage_preserves_portable_space_references;
+    commit=WORKTREE]
 Decides:
   - declarations are trusted code, not user data: table and column
     names are interpolated into SQL, so a bridge declaration belongs in
@@ -103,6 +108,7 @@ from .convert import auto_image, project
 from .foreign import SpaceProvider
 
 _ATOM_CELL_PREFIX = "\x00metta-atom-v1\x00"
+_NO_GROUNDED_VALUE = object()
 
 
 def _row_values(row: Any, keys: list[Any]) -> Any:
@@ -146,11 +152,35 @@ def add(space: Any, head: Any, data: Any) -> int:
     return len(facts)
 
 
+def _contains_native_handle(wire: Any) -> bool:
+    """Whether one well-formed atom wire contains an h-tagged reference."""
+    pending = [wire]
+    while pending:
+        term = pending.pop()
+        if not isinstance(term, (list, tuple)) or not term:
+            continue
+        if term[0] == "h":
+            return True
+        if term[0] == "e" and len(term) == 2 and isinstance(term[1], (list, tuple)):
+            pending.extend(term[1])
+    return False
+
+
 def _encoded_cell(atom: Atom) -> str:
     """A structured atom in one tagged text cell, never MeTTa source."""
+    wire = atom.to_wire()
+    # Capability protocols require an explicit persistent token before a live
+    # reference may be saved; a registry id alone is not such a token:
+    # https://github.com/capnproto/capnproto/blob/3a82de9b39736a2625f03c93b2b7c50642dd5b25/doc/rpc.md#L219-L225
+    if _contains_native_handle(wire):
+        msg = (
+            "a native handle has process-local identity; store a stable value "
+            "read through the extension's accessors instead"
+        )
+        raise ValueError(msg)
     try:
         payload = json.dumps(
-            atom.to_wire(),
+            wire,
             ensure_ascii=False,
             separators=(",", ":"),
         )
@@ -195,7 +225,9 @@ def _cell_from_atom(atom: Atom) -> Any:
     if isinstance(atom, Symbol):
         return atom.name
     if isinstance(atom, Grounded):
-        value = atom.value
+        value = getattr(atom, "value", _NO_GROUNDED_VALUE)
+        if value is _NO_GROUNDED_VALUE:
+            return _encoded_cell(atom)
         if value is None or type(value) in (int, float):
             return value
         if type(value) in (bool, str):

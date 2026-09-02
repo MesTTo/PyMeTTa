@@ -111,6 +111,10 @@ Guarantees:
     native blobs retain process-local registry identity
     [tested: test_space_handles_are_term_operands_and_round_trip;
     commit=4e2398075da67bb2cbcc123a9fc1e078ecac6fbf]
+  - a native blob's public wire value preserves its registry id and display
+    text, the two fields its decoder requires [tested:
+    test_native_handles_round_trip_through_the_public_wire_codec;
+    commit=WORKTREE]
 Guarded by:
   - _STATE_LOCK protects box identity, formatter registries, and wire interns
     [tested test_atom_identity_caches_are_thread_safe]
@@ -1154,7 +1158,7 @@ class _NativeHandle(Handle):
         )
 
     def to_wire(self) -> list:
-        return ["h", self.ident]
+        return ["h", self.ident, self.text]
 
     def __enter__(self) -> Self:
         return self
