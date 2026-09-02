@@ -593,4 +593,12 @@ def twin(m):
 #: policy-check fallbacks from space-local capture [measured 2026-09-02: min-
 #: of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=c00341f0ff9d83d1b9338ca86ad51708eaf07ebd].
-BUDGET = 3565
+#: RE-PINNED 2026-09-03, 3565 to 3575 (+10), after translator_rule/3 made the
+#: owning execution module part of each global rule row and release retirement
+#: added its module-keyed predicates to the loaded engine image. The MeTTa
+#: example itself still measures 2800 and both twins answer identically.
+#: [measured: 3575 inferences; command=PYTHONPATH=extensions/python
+#: $CHECK_PY -m pytest -q
+#: tests/repository/test_twin_coverage.py -k 'identity.metta'; fixture=warm
+#: main-checkout engine artifacts; commit=WORKTREE]
+BUDGET = 3575
