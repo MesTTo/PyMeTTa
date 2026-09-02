@@ -3193,7 +3193,7 @@ class Space(Handle):
         nothing applies to is its own answer, which is ordinary MeTTa and how
         `!(hello world)` works, so there is no scope here that refuses one.
 
-        The Node seat has had m.reducible() since it existed; this seat had
+        The Node surface has had m.reducible() since it existed; Python had
         only eval_status(), which evaluates to tell you [measured 2026-08-31].
         """
         # The seam answers the ATOM true or false, which crosses as the string

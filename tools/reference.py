@@ -42,12 +42,52 @@ PREAMBLE = "The entries below reproduce the source signatures and docstrings."
 LINE_LENGTH = 100
 
 
+# The file-local contract header is written for whoever edits the file next: it
+# names invariants, the tests that hold them, and the commit each was measured
+# on. A reader looking up `Space.match` wants none of that, and published it
+# read as documentation while serving the machine instead of the person.
+CONTRACT_LABELS = (
+    "Assumes:",
+    "Guarantees:",
+    "Fails when:",
+    "Owns resources:",
+    "Guarded by:",
+    "Decides:",
+    "Open Obligations:",
+)
+EVIDENCE_TAG = re.compile(r"[ \t]*\[(?:tested|measured|source|assumed)\b[^\]]*\]", re.S)
+
+
+def public_prose(text: str) -> str:
+    """The part of a docstring written for a reader rather than a maintainer."""
+    text = EVIDENCE_TAG.sub("", text)
+    kept: list[str] = []
+    in_contract = False
+    for line in text.splitlines():
+        stripped = line.strip()
+        if any(stripped.startswith(label) for label in CONTRACT_LABELS):
+            in_contract = True
+            continue
+        if in_contract:
+            # A contract section runs until the next unindented prose line.
+            if not stripped or line.startswith((" ", "\t")):
+                continue
+            in_contract = False
+        if stripped.startswith("Purpose:"):
+            stripped = stripped[len("Purpose:") :].strip()
+            line = stripped[:1].upper() + stripped[1:] if stripped else ""
+        kept.append(line.rstrip())
+    while kept and not kept[-1]:
+        kept.pop()
+    return "\n".join(kept).strip()
+
+
 def quote(text: str) -> str:
     """A docstring as a markdown blockquote, keeping its own line breaks."""
     lines = []
     in_indented_code = False
     previous_blank = False
-    for raw_line in text.strip().splitlines():
+    for raw_line in public_prose(text).strip().splitlines():
         line = raw_line.rstrip()
         indented = line.startswith("    ")
         is_code = indented and (previous_blank or in_indented_code)
