@@ -5,14 +5,16 @@ Guarantees:
     still reading final attributes live [tested:
     test_repeated_resolution_reuses_the_import_plan,
     test_resolution_reuses_the_prefix_and_reads_the_current_attribute;
-    commit=WORKTREE]
+    commit=d0bb2ff730a491eac9a0c679a4e2abe0f93ab196]
   - replacement modules and newly loaded longer prefixes supersede cached
     plans [tested: test_resolution_refreshes_after_module_replacement,
     test_resolution_refreshes_when_a_longer_module_is_loaded,
-    test_a_failed_final_read_does_not_poison_a_later_lookup; commit=WORKTREE]
+    test_a_failed_final_read_does_not_poison_a_later_lookup;
+    commit=d0bb2ff730a491eac9a0c679a4e2abe0f93ab196]
   - cached plans neither own temporary modules nor grow beyond the fixed bound
     [tested: test_resolution_plans_do_not_own_temporary_modules,
-    test_resolution_plan_cache_is_bounded; commit=WORKTREE]
+    test_resolution_plan_cache_is_bounded;
+    commit=d0bb2ff730a491eac9a0c679a4e2abe0f93ab196]
 Open Obligations:
   To Do: None
   Hacks: None

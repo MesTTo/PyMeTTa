@@ -14,14 +14,16 @@ Run from ``extensions/python``::
 Guarantees:
   - the counter wraps the exact ``importlib.import_module`` call used by the
     uncached discovery helper and verifies every returned identity [tested:
-    test_repeated_resolution_reuses_the_import_plan; commit=WORKTREE]
+    test_repeated_resolution_reuses_the_import_plan;
+    commit=d0bb2ff730a491eac9a0c679a4e2abe0f93ab196]
   - at depth 4/16/64 and 1,000 repeats, uncached discovery makes
     4,000/16,000/64,000 prefix imports while the hot cache makes zero; minimum
     time across three rounds is 15.575/250.514/4293.293 against
     0.259/0.556/2.008 microseconds [measured: command=cd extensions/python &&
     PYTHONPATH=. /home/user/Dev/.venv-pypetta/bin/python -m
     benchmarks.resolve_prefix_cache 4 16 64 --repetitions 1000 --rounds 3;
-    fixture=one synthetic module with live nested attributes; commit=WORKTREE]
+    fixture=one synthetic module with live nested attributes;
+    commit=d0bb2ff730a491eac9a0c679a4e2abe0f93ab196]
 Open Obligations:
   To Do: None
   Hacks: None

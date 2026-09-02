@@ -17,14 +17,16 @@ Guarantees:
     test_resolution_reuses_the_prefix_and_reads_the_current_attribute,
     test_resolution_refreshes_after_module_replacement,
     test_resolution_refreshes_when_a_longer_module_is_loaded,
-    test_a_failed_final_read_does_not_poison_a_later_lookup; commit=WORKTREE]
+    test_a_failed_final_read_does_not_poison_a_later_lookup;
+    commit=d0bb2ff730a491eac9a0c679a4e2abe0f93ab196]
   - over 1,000 hot paths of depth 4/16/64, prefix imports fall from
     4,000/16,000/64,000 to zero and minimum time falls from
     15.575/250.514/4293.293 to 0.259/0.556/2.008 microseconds per resolution
     [measured: minimum of three rounds; command=cd extensions/python &&
     PYTHONPATH=. /home/user/Dev/.venv-pypetta/bin/python -m
     benchmarks.resolve_prefix_cache 4 16 64 --repetitions 1000 --rounds 3;
-    fixture=one synthetic module with live nested attributes; commit=WORKTREE]
+    fixture=one synthetic module with live nested attributes;
+    commit=d0bb2ff730a491eac9a0c679a4e2abe0f93ab196]
   - resolve_grounded() and evaluate_grounded() retain an exact Python tuple
     behind a Python object reference, despite Janus translating base tuples
     eagerly [tested: test_a_python_tuple_answers_the_same_through_both_doors;
@@ -48,13 +50,14 @@ Owns resources:
     weak cache entry per live non-weak-referenceable declaration carrier.
   - at most RESOLVE_CACHE_MAX weak prefix plans; plans never own their modules
     [tested: test_resolution_plans_do_not_own_temporary_modules,
-    test_resolution_plan_cache_is_bounded; commit=WORKTREE]
+    test_resolution_plan_cache_is_bounded;
+    commit=d0bb2ff730a491eac9a0c679a4e2abe0f93ab196]
 Guarded by:
   - _DECLARATION_LOCK protects declaration records and carrier identity.
   - functools.lru_cache protects the bounded _resolve_plan cache during
     concurrent updates [source: Python 3.14.7 functools.lru_cache
     documentation; https://docs.python.org/3.14/library/functools.html#functools.lru_cache;
-    commit=WORKTREE]
+    commit=d0bb2ff730a491eac9a0c679a4e2abe0f93ab196]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -401,7 +404,7 @@ def _find_resolve_root(path: str) -> tuple[ModuleType, str | None, tuple[str, ..
 # concurrent calls. Its explicit clear operation is the invalidation primitive.
 # [source: Python 3.14.7 functools.lru_cache documentation,
 # https://docs.python.org/3.14/library/functools.html#functools.lru_cache;
-# commit=WORKTREE]
+# commit=d0bb2ff730a491eac9a0c679a4e2abe0f93ab196]
 @lru_cache(maxsize=RESOLVE_CACHE_MAX)
 def _resolve_plan(path: str) -> _ResolvePlan:
     root, module_name, attrs = _find_resolve_root(path)
