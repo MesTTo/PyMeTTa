@@ -24,7 +24,7 @@ Guarantees:
     takes 28.510/269.020 microseconds then raises at 1,000, while iterative
     traversal takes 9.420/31.140/92.510/398.930 microseconds [measured: minimum
     of three process-CPU rounds; command=cd extensions/python && PYTHONPATH=.
-    /home/user/Dev/.venv-pypetta/bin/python -m benchmarks.derivation_trees 100
+    python -m benchmarks.derivation_trees 100
     340 1000 5000 --facts 500 1000 2000 4000 --rounds 3;
     fixture=single-child proof chains;
     commit=9903250d082ab019535ab0c10b742053f9e640f0]

@@ -27,7 +27,7 @@ Guarantees:
     4,000/16,000/64,000 to zero and minimum time falls from
     15.575/250.514/4293.293 to 0.259/0.556/2.008 microseconds per resolution
     [measured: minimum of three rounds; command=cd extensions/python &&
-    PYTHONPATH=. /home/user/Dev/.venv-pypetta/bin/python -m
+    PYTHONPATH=. python -m
     benchmarks.resolve_prefix_cache 4 16 64 --repetitions 1000 --rounds 3;
     fixture=one synthetic module with live nested attributes;
     commit=d0bb2ff730a491eac9a0c679a4e2abe0f93ab196]

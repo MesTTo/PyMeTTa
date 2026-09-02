@@ -22,7 +22,7 @@ Guarantees:
     of atoms before the delta; it takes 8/16/32 calls and transports
     16/32/64 atoms after the delta [measured: exact write-call and payload
     counts at K=8/16/32; command=cd extensions/python && PYTHONPATH=.
-    /home/user/Dev/.venv-pypetta/bin/python -m
+    python -m
     benchmarks.definition_stacking_crossings 8 16 32; fixture=one main and
     one loop-helper equation per disjoint literal clause;
     commit=9b6695455c30809c75267c50a5137e38925af386]

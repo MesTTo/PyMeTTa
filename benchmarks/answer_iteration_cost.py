@@ -24,7 +24,7 @@ Guarantees:
     15.70, 358.81, and 1,356.07 microseconds per iteration; the weak call-site
     cache took 3.39, 3.27, and 3.33 microseconds [measured: 2,000
     warmed one-answer iterations, minimum of 3 rounds; command=cd
-    extensions/python && PYTHONPATH=. /home/user/Dev/.venv-pypetta/bin/python
+    extensions/python && PYTHONPATH=. python
     -m benchmarks.answer_iteration_cost --calls 2000 --rounds 3;
     fixture=CPython 3.14, paddings 0/1000/4000;
     commit=0ffac1f272c65d1c3742a2bfb824538e426c264a]

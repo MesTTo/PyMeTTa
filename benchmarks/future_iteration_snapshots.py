@@ -24,7 +24,7 @@ Guarantees:
     watermark implementation makes 2 full reads and transports 1,025 atoms at
     every wait count [measured: exact full-read and decoded-atom counts;
     command=cd extensions/python && PYTHONPATH=.
-    /home/user/Dev/.venv-pypetta/bin/python -m
+    python -m
     benchmarks.future_iteration_snapshots 4 16 64 --atoms 512;
     fixture=512 preloaded atoms plus one released engine answer;
     commit=1877bec75a9a22265c9222f0c0c538c8f65a983f]

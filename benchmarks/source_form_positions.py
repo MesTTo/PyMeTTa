@@ -18,7 +18,7 @@ Guarantees:
     1,605.600/5,996.412/22,444.015/89,185.181 microseconds while carried
     positions take 412.430/913.791/1,655.250/3,437.581 microseconds
     [measured: minimum of five process-CPU rounds; command=cd
-    extensions/python && PYTHONPATH=. /home/user/Dev/.venv-pypetta/bin/python
+    extensions/python && PYTHONPATH=. python
     -m benchmarks.source_form_positions 1000 2000 4000 8000 --rounds 5;
     fixture=one comment and one single-line expression per form;
     commit=aa02d6c674b1e86eec5ddf32d111400df8f9e4b4]
