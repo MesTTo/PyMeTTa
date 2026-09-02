@@ -140,6 +140,7 @@ from collections.abc import Callable, Coroutine, Iterable, Mapping, Sequence
 from types import TracebackType
 from typing import Any, Final, Literal, Self, TypeVar, overload
 
+from . import ops as _ops_module
 from ._api_types import _DEFAULT_SPACE, _SpaceId
 from ._engine import Runtime, bridge, runtime
 from ._name_mapping import OperatorRecipe, operator_attribute_target
@@ -1616,6 +1617,16 @@ class AsyncMeTTa:
         wrong.
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         return await self.call(lambda m: m.lint())
+
+    async def effect_plan(self, target: Any) -> _ops_module.EffectPlan:
+        """Return operations the target may execute and their joined effect.
+
+        The engine translates the same atom or source form ``eval`` accepts,
+        follows nested compiled calls, and reads current operation metadata.
+        It does not execute the target. A later registration change is visible
+        on the next call. This is the analysis reified-world admission uses.
+        """
+        return await self.call(lambda m: m.effect_plan(target))
 
     async def digest(self) -> str:
         """A sha256 hex digest of this space's content: every stored atom,

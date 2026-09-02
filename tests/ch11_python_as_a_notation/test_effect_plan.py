@@ -9,13 +9,18 @@ Guarantees:
     not retain a stale classification [tested:
     test_effect_plan_reads_replaced_operation_classification;
     commit=d06621ddec911922c156c79ce68b2c35318e7fc1]
+  - AsyncMeTTa carries the same resolvable EffectPlan result type and performs
+    the analysis on its worker without executing the target [tested:
+    test_async_effect_plan_retains_the_sync_contract; commit=WORKTREE]
 """
 
 from __future__ import annotations
 
+import asyncio
 import uuid
+from typing import get_type_hints
 
-from metta import S
+from metta import S, aio
 from metta.ops import EffectPlan, registered
 from metta.vocabularies import EffectClass
 
@@ -103,3 +108,35 @@ def test_effect_plan_reads_replaced_operation_classification(metta):
     finally:
         if operation_name in registered():
             metta.unregister_op(operation_name)
+
+
+def test_async_effect_plan_retains_the_sync_contract(metta):
+    """Resolve its public type and inspect a target on the engine worker."""
+    operation_name = _name("async-read")
+    target_name = _name("async-target")
+    called = []
+
+    async def inspect():
+        async with aio.AsyncMeTTa(metta=metta._new_space()) as async_metta:
+            def implementation(value):
+                called.append(value)
+                return value
+
+            await async_metta.op(
+                implementation,
+                name=operation_name,
+                effect=EffectClass.readOnlyLookup,
+            )
+            try:
+                await async_metta.run(
+                    f"(= ({target_name} $x) ({operation_name} $x))"
+                )
+                return await async_metta.effect_plan(S[target_name](7))
+            finally:
+                await async_metta.unregister_op(operation_name)
+
+    assert get_type_hints(aio.AsyncMeTTa.effect_plan)["return"] is EffectPlan
+    plan = asyncio.run(inspect())
+    assert plan.operations == ((operation_name, EffectClass.readOnlyLookup),)
+    assert plan.effect is EffectClass.readOnlyLookup
+    assert called == []
