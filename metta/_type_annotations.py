@@ -413,14 +413,23 @@ def callable_name(fn: Callable) -> str:
 
 def resolved_annotations(fn: Callable) -> dict[str, Any]:
     """Resolve postponed annotations or raise a diagnostic naming the callable."""
-    #get_type_hints introspects modules, classes, methods and functions. A
-    #functools.partial is none of those: 3.14 answers {} for it while 3.12 and
-    #3.13 raise "is not a module, class, method, or function", which this
-    #function then reported as annotations that do not resolve, blaming the
-    #annotations for the object's kind. A partial's annotations are the wrapped
-    #callable's on every version, so unwrap and ask about that instead.
+    #get_type_hints introspects modules, classes, methods and functions. Two
+    #ordinary callables are none of those: a functools.partial, and an instance
+    #whose class defines __call__. 3.14 answers {} for both while 3.12 and 3.13
+    #raise "is not a module, class, method, or function", which this function
+    #then reported as annotations that do not resolve, blaming the annotations
+    #for the object's kind. Ask about the thing that carries them: the wrapped
+    #callable for a partial, and __call__ for an instance.
     while isinstance(fn, functools.partial):
         fn = fn.func
+    if callable(fn) and not (
+        inspect.isfunction(fn)
+        or inspect.ismethod(fn)
+        or inspect.isclass(fn)
+        or inspect.ismodule(fn)
+        or inspect.isbuiltin(fn)
+    ):
+        fn = type(fn).__call__
     try:
         return typing.get_type_hints(fn, include_extras=True)
     except Exception as exc:
