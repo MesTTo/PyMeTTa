@@ -16,6 +16,10 @@ Guarantees:
     entry point, so no lane can exit 0 having run nothing [tested:
     test_every_module_invocation_in_the_gate_reaches_an_entry_point;
     commit=dfda5555bdc4b53a57da7084054826236ab1446e]
+  - source-tree fixture loading coexists with installed pytest entry-point
+    metadata [tested:
+    test_source_tree_fixtures_coexist_with_installed_plugin_metadata;
+    commit=WORKTREE]
   - wheel-owned source and runtime data carry durable public authorities, not
     private agent scratch references [tested:
     test_the_wheel_carries_no_agent_scratch_references;
@@ -259,6 +263,48 @@ def test_the_pytest_lane_is_deterministic_under_load_protocol():
     # added where the command is rather than where the lane is.
     assert "--reruns" not in lane
     assert "--reruns" not in (ROOT / entry).read_text(encoding="utf-8")
+
+
+def test_source_tree_fixtures_coexist_with_installed_plugin_metadata(tmp_path):
+    """The repository suite loads its fixture plugin exactly once.
+
+    A wheel build leaves distribution metadata beside the source. Pytest then
+    discovers the shipped entry point before it reads the repository
+    conftest, the same order as an editable installation.
+    """
+    metadata = tmp_path / "pymetta-0.dist-info"
+    metadata.mkdir()
+    (metadata / "METADATA").write_text(
+        "Metadata-Version: 2.1\nName: pymetta\nVersion: 0\n",
+        encoding="utf-8",
+    )
+    (metadata / "entry_points.txt").write_text(
+        "[pytest11]\nmetta = metta.pytest_plugin\n",
+        encoding="utf-8",
+    )
+    environment = os.environ | {
+        "PYTHONPATH": os.pathsep.join(
+            (str(tmp_path), str(ROOT / "extensions" / "python"))
+        )
+    }
+    environment.pop("PYTEST_DISABLE_PLUGIN_AUTOLOAD", None)
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "pytest",
+            "tests/ch16_events_and_standing_queries/test_events.py::"
+            "test_an_abandoned_watch_cancels_itself",
+            "-q",
+        ],
+        cwd=ROOT / "extensions" / "python",
+        env=environment,
+        capture_output=True,
+        text=True,
+        timeout=120,
+        check=False,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
 
 
 def _build_ext(destination: Path, environment: dict[str, str]) -> subprocess.CompletedProcess:
