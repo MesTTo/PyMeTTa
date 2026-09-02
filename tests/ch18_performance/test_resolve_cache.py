@@ -18,7 +18,7 @@ Guarantees:
   - a candidate module's internal ImportError or missing dependency propagates
     unchanged instead of being mistaken for an absent candidate [tested:
     test_resolution_preserves_internal_failure_from_an_importable_prefix;
-    commit=WORKTREE]
+    commit=e8b8cbc6734e73199f0f4105b6f0d4168516521a]
 Open Obligations:
   To Do: None
   Hacks: None
