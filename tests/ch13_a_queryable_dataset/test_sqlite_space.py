@@ -14,7 +14,7 @@ Guarantees:
     three counter samples;
     command=python -m pytest extensions/python/tests/ch13_a_queryable_dataset/test_sqlite_space.py -q;
     fixture=SQLite documents.payload containing bytes(range(256)) repeated 16;
-    commit=WORKTREE]
+    commit=1139d9fc879918dd49004f1a05fbb6cd1eecdbd8]
 Open Obligations:
   To Do: None
   Hacks: None
