@@ -79,7 +79,7 @@ Guarantees:
     test_counting_counts_match_bag_duplicates_without_opening_a_row_cursor,
     test_counting_counts_duplicate_call_answers_inside_the_engine,
     test_ranked_and_tropical_slices_are_stable_best_prefixes;
-    commit=WORKTREE]
+    commit=36d73621475291fdde1409367cf70bea8098681d]
   - ``Space.pre_add`` declares one compiled unary judge through the engine's
     existing pre-add hook [tested: test_pre_add_compiles_the_four_verdict_judge;
     commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
