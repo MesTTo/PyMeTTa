@@ -1356,9 +1356,28 @@ metta_py_cursor_close(Engine) :-
 % swallowed and its data projected to plain values: the summary counters
 % and one row per predicate, self-ticks-descending. Sampling is
 % statistical, so a short program may carry few samples.
+%Absorb the profiler's own reporting failure and nothing else. Out is bound by
+%the goal's success, so a bound Out means the goal already answered and the
+%division came from the report; an unbound one means the profiled goal raised
+%it, and that is the caller's error to see rather than ours to swallow.
+metta_py_profile_report_fault(error(evaluation_error(zero_divisor), _), Out) :-
+    nonvar(Out), !.
+metta_py_profile_report_fault(Fault, _) :- throw(Fault).
+
 metta_py_profiled(Pred, Ins, [Out, Samples, Ticks, Nodes]) :-
     metta_py_wrapped_goal(Pred, Ins, Out, Goal),
-    with_output_to(string(_), profile(Goal, [top(0)])),
+    %A zero-sample profile is a real outcome, not a fault: the comment above
+    %says so, and a short goal on a machine whose sampling timer never fires
+    %collects nothing. Some SWI versions divide by the total tick count while
+    %reporting, so the report raises evaluation_error(zero_divisor) on exactly
+    %that outcome and takes the goal's own answer with it. SWI 10.1.13 answers
+    %samples=0 ticks=0 for `profile(true, [top(0)])` where the CI runner's 9.x
+    %raises, which is what made four profile tests and every caller of
+    %aio.profile fail there and pass here. The goal has already run when the
+    %report is written, so catching this leaves Out bound and the data intact.
+    with_output_to(string(_),
+                   catch(profile(Goal, [top(0)]), Fault,
+                         metta_py_profile_report_fault(Fault, Out))),
     profile_data(Data),
     get_dict(summary, Data, Summary),
     get_dict(samples, Summary, Samples),

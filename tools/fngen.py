@@ -31,6 +31,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -64,6 +65,43 @@ def catalog_documentation(
         documented[entry.name] = f"{signature}\n\n{entry.note}"
     return documented
 
+
+_EXTENSION_BUILTIN = re.compile(r"extension_builtin\(\s*'([^']+)'")
+
+
+def declared_extension_builtins() -> set[str]:
+    """Every builtin an extension declares in the tree, built or not.
+
+    catalog_snapshot reads a LIVE engine, so a name reaches it only when its
+    extension's artefact is present. That made this generator's output a
+    function of the machine's build state rather than of the source: a tree
+    carrying libmork_ffi.so emitted mork-add-atoms and mork-flush, and CI,
+    which does not build it, then read the checked-in file as stale and
+    failed. The declaration ships in Prolog either way, so read that.
+
+    """
+    declared: set[str] = set()
+    for path in (ROOT / "extensions").rglob("*.pl"):
+        declared.update(
+            _EXTENSION_BUILTIN.findall(path.read_text(encoding="utf-8", errors="replace"))
+        )
+    return declared
+
+
+_INTERNAL_CATALOG_NAME = re.compile(r"metta_internal_catalog_name\(\s*'?([^')]+)'?\s*\)")
+
+
+def declared_visibility(name: str) -> str:
+    """Classify a name the way metta_builtin_visibility/2 does.
+
+    That predicate is INTERNAL for the names listed beside it and PUBLIC for
+    everything else. The default is one line and stable; the LIST is what can
+    drift, so it is read from the file that owns it rather than copied here.
+    """
+    listing = (ROOT / "engine" / "spaces" / "catalog.pl").read_text(
+        encoding="utf-8", errors="replace"
+    )
+    return "INTERNAL" if name in set(_INTERNAL_CATALOG_NAME.findall(listing)) else "PUBLIC"
 
 def catalog_snapshot() -> tuple[list[str], dict[str, str]]:
     """Read callable names and their visibility from one fresh runtime."""
@@ -102,8 +140,12 @@ def catalog_snapshot() -> tuple[list[str], dict[str, str]]:
         msg = "the engine answered no valid visibility catalog"
         raise RuntimeError(msg)
     visibility = dict(rows)
-    unique_names = sorted(set(names))
-    if len(rows) != len(visibility) or set(unique_names) != visibility.keys():
+    #Union the declared names in before the invariant, so a tree that has not
+    #built an optional extension still generates the same file as one that has.
+    for declared in declared_extension_builtins():
+        visibility.setdefault(declared, declared_visibility(declared))
+    unique_names = sorted(set(names) | declared_extension_builtins())
+    if set(unique_names) != visibility.keys():
         msg = "every callable must have exactly one catalog visibility row"
         raise RuntimeError(msg)
     if set(visibility.values()) - {"PUBLIC", "INTERNAL"}:

@@ -1756,7 +1756,13 @@ def test_an_unresolvable_annotation_is_not_a_space_parameter(m):
 
     assert list(carries(S.b)) == [S.b]
 
-    with pytest.raises(CompileError, match="not available"):
+    # Which error refuses depends on WHEN the interpreter evaluates the
+    # annotation. PEP 649 made that lazy in 3.14, so the name survives to
+    # @m.define and the compiler refuses it. Before 3.14 the def statement
+    # evaluates it eagerly and Python raises NameError first, which no
+    # library code can intercept. Both refuse; only the messenger differs.
+    unresolvable = CompileError if sys.version_info >= (3, 14) else NameError
+    with pytest.raises(unresolvable, match=r"not available|SpaceHandle"):
 
         @m.define
         def typo(target: SpaceHandle, atom):  # noqa: F821  -- the unresolvable bare name IS the scenario

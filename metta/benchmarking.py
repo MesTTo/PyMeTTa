@@ -824,7 +824,7 @@ def _counter_request(
     events: Sequence[str],
     rounds: int,
     timeout: float,
-) -> tuple[str, float]:
+) -> float:
     if rounds < _COUNTER_SAMPLES:
         msg = f"counter measurement needs at least {_COUNTER_SAMPLES} rounds"
         raise ValueError(msg)
@@ -837,16 +837,10 @@ def _counter_request(
     if isinstance(timeout, bool) or not isinstance(timeout, (int, float)) or timeout <= 0:
         msg = f"counter measurement timeout must be positive, got {timeout!r}"
         raise ValueError(msg)
-    perf = shutil.which("perf")
-    if perf is None:
-        msg = f"perf is required to measure {', '.join(events)}"
-        raise FileNotFoundError(msg)
-    if not os.access("/usr/bin/setarch", os.X_OK):
-        msg = f"setarch is required to measure {', '.join(events)} reproducibly"
-        raise FileNotFoundError(
-            msg
-        )
-    return perf, float(timeout)
+    #Finding perf belongs to the code that runs it, not here. A caller that
+    #substitutes _run_perf substitutes the whole act of running perf, and
+    #should not still need perf installed to reach the parsing it is testing.
+    return float(timeout)
 
 
 def _parse_counter_sample(
@@ -905,7 +899,7 @@ def measure_counters(
     timeout: float = 60.0,
 ) -> CounterRuns:
     """Run command under perf stat and return each run's counters and output."""
-    perf, timeout = _counter_request(command, events, rounds, timeout)
+    timeout = _counter_request(command, events, rounds, timeout)
     #The child environment is BUILT, not inherited, for two measured reasons.
     #PYTHONHASHSEED pinned: per-launch hash randomization moves a dict-heavy
     #workload's retired-instruction count by more than the gate's whole noise
@@ -928,7 +922,6 @@ def measure_counters(
     outputs: list[str] = []
     for _ in range(rounds):
         returncode, stdout, stderr = _run_perf(
-            perf,
             command,
             environment,
             controlled=controlled,
@@ -961,7 +954,6 @@ def measure_instructions(
 
 
 def _run_perf(
-    executable: str,
     command: Sequence[str],
     environment: Mapping[str, str],
     *,
@@ -969,7 +961,14 @@ def _run_perf(
     timeout: float,
     events: Sequence[str] = _DEFAULT_EVENTS,
 ) -> tuple[int, str, str]:
-    """Run perf without a shell and capture both output streams."""
+    """Find perf and run it without a shell, capturing both output streams."""
+    executable = shutil.which("perf")
+    if executable is None:
+        msg = f"perf is required to measure {', '.join(events)}"
+        raise FileNotFoundError(msg)
+    if not os.access("/usr/bin/setarch", os.X_OK):
+        msg = f"setarch is required to measure {', '.join(events)} reproducibly"
+        raise FileNotFoundError(msg)
     with (
         tempfile.TemporaryFile() as stdout,
         tempfile.TemporaryFile() as stderr,

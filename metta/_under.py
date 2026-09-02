@@ -12,7 +12,7 @@ from __future__ import annotations
 from contextvars import ContextVar
 from typing import Any, Final, Self
 
-_UNSET: Final = object()
+_UNSET: Final[object] = object()
 _SCOPED_UNDER: ContextVar[Any | None] = ContextVar(
     "metta_scoped_under", default=None
 )

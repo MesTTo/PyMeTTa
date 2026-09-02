@@ -747,6 +747,21 @@ def test_registering_an_operation_leaves_the_engines_pure_list_alone(metta):
     )
 
 
+
+def _floor_division_by_zero() -> str:
+    """CPython's own wording for `x // 0`, which differs between versions.
+
+    3.14 says "division by zero" where 3.12 and 3.13 say "integer division or
+    modulo by zero". requires-python is >=3.12, so hardcoding either one passes
+    on the interpreter it was written on and fails on the rest.
+    """
+    try:
+        _ = 1 // 0
+    except ZeroDivisionError as error:
+        return str(error)
+    msg = "dividing by zero did not raise"
+    raise AssertionError(msg)
+
 def test_a_raw_operation_fails_like_an_encoded_one(metta):
     """Skipping the wire encoding is a decision about ARGUMENTS and results.
 
@@ -765,7 +780,7 @@ def test_a_raw_operation_fails_like_an_encoded_one(metta):
     }
     for label, rendered in caught.items():
         assert "ZeroDivisionError" in rendered, (label, rendered)
-        assert "division by zero" in rendered, (label, rendered)
+        assert _floor_division_by_zero() in rendered, (label, rendered)
         assert "0x" not in rendered, (label, rendered)
         assert "python_stack" not in rendered, (label, rendered)
     # Same shape from both doors, with only the operation's own name differing.
@@ -844,7 +859,7 @@ def test_an_operation_failure_names_the_metta_call(metta):
     assert len(caught) == 1
     rendered = str(caught[0])
     assert "ZeroDivisionError" in rendered
-    assert "division by zero" in rendered
+    assert _floor_division_by_zero() in rendered
     assert f"({name} 1)" in rendered, rendered
     # Nothing in it is a live object, so it survives the failure and prints.
     assert "0x" not in rendered, rendered

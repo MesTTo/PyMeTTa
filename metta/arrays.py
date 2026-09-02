@@ -87,7 +87,7 @@ _SPACE_CONSTRUCTORS: dict[tuple[str, str], tuple[str, list[int]]] = {}
 _SPACE_STORES: dict[tuple[str, str], tuple[str, str]] = {}
 _STORE_SERIAL = itertools.count(1)
 
-_BROADCAST_SHAPE_SOURCE: Final = r"""
+_BROADCAST_SHAPE_SOURCE: Final[str] = r"""
 :- use_module(library(clpfd)).
 :- metta_extension(metta_arrays_shape, [version('0.1.0')]).
 :- metta_export("(: broadcast-shape (-> Expression Expression Expression Bool))").

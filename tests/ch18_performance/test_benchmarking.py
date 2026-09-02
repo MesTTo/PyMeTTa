@@ -336,20 +336,22 @@ def test_baseline_without_configuration_stamp_refuses_counter_comparison(tmp_pat
         BenchmarkBaseline(path).observe_configuration({"c_reader": True})
 
 
+
+
 def test_measure_instructions_parses_perf_csv(monkeypatch):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     calls = []
 
-    def run(executable, command, environment, *, controlled, timeout, events):
-        calls.append((executable, command, environment, controlled, timeout, events))
+    def run(command, environment, *, controlled, timeout, events):
+        calls.append((command, environment, controlled, timeout, events))
         return 0, "", "12345,,instructions:u,1000,100.00,,\n"
 
     monkeypatch.setattr("metta.benchmarking._run_perf", run)
     assert measure_instructions(["python", "work.py"]) == (12345, 12345, 12345)
     assert all(
-        call[1] == ["python", "work.py"]
-        and not call[3]
-        and call[4] == 60.0
-        and tuple(call[5]) == ("instructions:u",)
+        call[0] == ["python", "work.py"]
+        and not call[2]
+        and call[3] == 60.0
+        and tuple(call[4]) == ("instructions:u",)
         for call in calls
     )
 
@@ -364,8 +366,8 @@ def test_measure_counters_reads_every_requested_event(monkeypatch):
     """
     asked = []
 
-    def run(executable, command, environment, *, controlled, timeout, events):
-        asked.append((executable, command, environment, controlled, timeout, tuple(events)))
+    def run(command, environment, *, controlled, timeout, events):
+        asked.append((command, environment, controlled, timeout, tuple(events)))
         return 0, "inferences 4242\n", (
             "Events disabled\n"
             "700155618,,instructions:u,57673473,100.00,,\n"
@@ -379,7 +381,7 @@ def test_measure_counters_reads_every_requested_event(monkeypatch):
     assert runs.events["instructions:u"] == (700155618, 700155618, 700155618)
     assert runs.events["task-clock"] == (56.42, 56.42, 56.42)
     assert runs.outputs == ("inferences 4242\n",) * 3
-    assert [(call[1], call[3], call[5]) for call in asked] == [
+    assert [(call[0], call[2], call[4]) for call in asked] == [
         (["cases", "boot"], True, ("instructions:u", "task-clock"))
     ] * 3
 
@@ -464,7 +466,6 @@ def test_perf_timeout_kills_and_reaps_process_group(monkeypatch):  # noqa: D103 
 
     with pytest.raises(TimeoutError, match="1 second limit"):
         _run_perf(
-            "/usr/bin/perf",
             ["python"],
             {},
             controlled=False,

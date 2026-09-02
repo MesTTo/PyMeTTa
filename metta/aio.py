@@ -2815,8 +2815,8 @@ class AsyncWorld:
         return f"AsyncWorld(atoms={self.atoms!r})"
 
 
-_EXHAUSTED: Final = object()
-_STREAM_CLOSED: Final = object()
+_EXHAUSTED: Final[object] = object()
+_STREAM_CLOSED: Final[object] = object()
 
 
 class _AsyncStats:

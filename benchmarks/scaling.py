@@ -803,7 +803,17 @@ def selfcheck() -> list[str]:
             workload.space.drop()
 
     reader = "c" if (_BINDING_ROOT.parents[1] / "engine" / "reader.so").exists() else "prolog"
-    for name, expected in (("parse-forms", reader), ("mork-write", "foreign")):
+    #mork-write asked the same question as parse-forms and then ignored the
+    #answer: it expected 'foreign' whether or not the backend was built. A tree
+    #without libmork_ffi.so routes the write to the engine's own store, which
+    #is the correct behaviour there, so the check reported the unbuilt
+    #configuration as a defect.
+    mork_artefact = (
+        _BINDING_ROOT.parents[1]
+        / "extensions" / "mork" / "mork_ffi" / "target" / "release" / "libmork_ffi.so"
+    )
+    mork = "foreign" if mork_artefact.exists() else "native"
+    for name, expected in (("parse-forms", reader), ("mork-write", mork)):
         workload = WORKLOADS[name](4)
         try:
             assert workload.route is not None

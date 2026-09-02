@@ -32,6 +32,7 @@ Open Obligations:
 
 from __future__ import annotations
 
+import functools
 import inspect
 import itertools
 import types
@@ -398,13 +399,28 @@ def referenced_classes(annotations: Iterable[Any]) -> list[type]:
 
 
 def callable_name(fn: Callable) -> str:
-    """Return a stable diagnostic label for a callable."""
+    """Return a stable diagnostic label for a callable.
+
+    A functools.partial carries no __name__, so it would answer "partial" and
+    two unnamed partials would collide on that one MeTTa name. The wrapped
+    callable is the one the caller meant.
+    """
+    while isinstance(fn, functools.partial):
+        fn = fn.func
     name = getattr(fn, "__name__", None)
     return name if isinstance(name, str) and name else type(fn).__name__
 
 
 def resolved_annotations(fn: Callable) -> dict[str, Any]:
     """Resolve postponed annotations or raise a diagnostic naming the callable."""
+    #get_type_hints introspects modules, classes, methods and functions. A
+    #functools.partial is none of those: 3.14 answers {} for it while 3.12 and
+    #3.13 raise "is not a module, class, method, or function", which this
+    #function then reported as annotations that do not resolve, blaming the
+    #annotations for the object's kind. A partial's annotations are the wrapped
+    #callable's on every version, so unwrap and ask about that instead.
+    while isinstance(fn, functools.partial):
+        fn = fn.func
     try:
         return typing.get_type_hints(fn, include_extras=True)
     except Exception as exc:

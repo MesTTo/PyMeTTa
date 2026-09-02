@@ -1252,7 +1252,7 @@ def captured_answer(
     )
 
 
-_CONSTRUCTOR_MISSING: Final = object()
+_CONSTRUCTOR_MISSING: Final[object] = object()
 
 
 def _algebra_name(value: Any) -> str:

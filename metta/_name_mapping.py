@@ -53,7 +53,7 @@ class OperatorRecipe:
         return f"<operator word {self.word}: {self.image}>"
 
 
-_NEG: Final = OperatorRecipe("neg", "-", (0,), "(- 0 x)")
+_NEG: Final[OperatorRecipe] = OperatorRecipe("neg", "-", (0,), "(- 0 x)")
 
 # Python's operator module owns these public words. A word maps to a single
 # engine head when it has one and to an immutable recipe when its settled

@@ -107,7 +107,7 @@ from .errors import EngineError, MettaResultError
 __all__ = ["Answers", "Row", "Rows"]
 
 _ERROR_HEAD = Symbol("Error")
-_MISSING: Final = object()
+_MISSING: Final[object] = object()
 _REPR_ITEMS = 4
 
 

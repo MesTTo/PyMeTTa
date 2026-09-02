@@ -25,7 +25,13 @@ def test_answer_iteration_benchmark_reuses_one_warmed_view():
     """Position derivation is one preprocessing cost, not one scan per loop."""
     shallow, deep = rows(calls=1_000, paddings=(0, 1_000), rounds=3)
 
-    assert deep.positions > 150 * shallow.positions
+    # A control, so the timing comparison below is not vacuous: the two
+    # scenarios must differ enormously in position count. How many positions a
+    # code object carries is the interpreter's business and it varies, so the
+    # bar is set where only "these are the same scenario" can fail it. Measured
+    # 5040 against 39 on 3.12, a ratio of 129, and higher on 3.14; the earlier
+    # bar of 150 was read off one interpreter and failed on another.
+    assert deep.positions > 50 * shallow.positions
     assert deep.nanoseconds < 3 * shallow.nanoseconds, (
         f"iteration rose from {shallow.nanoseconds:.1f} ns at "
         f"{shallow.positions} positions to {deep.nanoseconds:.1f} ns at "

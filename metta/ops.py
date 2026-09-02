@@ -982,15 +982,27 @@ def register[**P, R](
         if staging and not kwargs:
             encoded = [_encode(a) for a in args]
             staged = any(_variables(a) for a in encoded)
+            #currentframe() returns the frame this local lives in, so holding
+            #it makes a cycle that only the cyclic collector can break. An
+            #Answers view dropped inside such a frame then keeps its engine
+            #cursor open until a collection runs, which is the defect
+            #results.py already repaired at its own site. `del` is CPython's
+            #own remedy for this, from the inspect documentation.
             frame = inspect.currentframe()
-            if frame is not None and frame.f_back is not None:
-                _record_rule_operation(operation, staged=staged, frame=frame.f_back)
+            try:
+                if frame is not None and frame.f_back is not None:
+                    _record_rule_operation(operation, staged=staged, frame=frame.f_back)
+            finally:
+                del frame
             if staged:
                 return Expression([Symbol(metta_name), *encoded])
         elif staging:
             frame = inspect.currentframe()
-            if frame is not None and frame.f_back is not None:
-                _record_rule_operation(operation, staged=False, frame=frame.f_back)
+            try:
+                if frame is not None and frame.f_back is not None:
+                    _record_rule_operation(operation, staged=False, frame=frame.f_back)
+            finally:
+                del frame
         return fn(*args, **kwargs)
 
     # Private metadata on the wrapper, so a reader resolves the Python object
