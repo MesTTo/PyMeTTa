@@ -57,7 +57,7 @@ Guarantees:
     cleanup failure or grouping several [tested:
     test_assuming_removes_every_fact_after_one_cleanup_fails,
     test_assuming_groups_multiple_cleanup_failures_after_removing_all;
-    commit=WORKTREE]
+    commit=ed732c6878fe872ff185733c739d7b3fe4032b92]
 Owns:
   - Cursor owns one engine query until exhaustion, close, or finalization
     and warns when finalization reaps an open query [tested
