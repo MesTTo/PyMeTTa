@@ -9,7 +9,7 @@ Guarantees:
     public answers before publishing a sample [tested:
     test_both_join_width_shapes_gate_on_controlled_instructions,
     test_instruction_join_workload_checks_both_projection_shapes;
-    commit=WORKTREE].
+    commit=5c9c97328472130cd30ad85b000e89c01556eb35].
   - the streaming answer curve measures bounded cursor memory without unique
     wire names populating the separately measured intern caches [tested:
     test_stream_curve_excludes_wire_cache_growth;

@@ -18,7 +18,7 @@ Guarantees:
     caller's inference counter
     [tested: test_aggregation_accepts_controlled_instruction_samples;
     test_both_join_width_shapes_gate_on_controlled_instructions;
-    commit=WORKTREE]
+    commit=5c9c97328472130cd30ad85b000e89c01556eb35]
   - query-answer curves use numeric payloads, leaving unique wire-name retention
     to its own capped-cache curves so streaming peak memory measures the cursor
     rather than the intern table [tested: test_stream_curve_excludes_wire_cache_growth;

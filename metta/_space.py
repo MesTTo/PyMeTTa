@@ -74,7 +74,8 @@ Guarantees:
     its existing cursor without first running a second count query [tested:
     test_query_answers_complete_the_lazy_projection_protocol,
     test_query_single_unpack_pulls_at_most_two_answers,
-    test_list_materializes_a_match_without_a_second_query; commit=WORKTREE]
+    test_list_materializes_a_match_without_a_second_query;
+    commit=5c9c97328472130cd30ad85b000e89c01556eb35]
   - match and call answers accept explicit or scoped algebra carriers;
     counting uses engine aggregates and ordered carriers sort before slicing
     [tested:

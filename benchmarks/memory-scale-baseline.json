@@ -212,7 +212,7 @@
           "controlled instructions include variable decoding and work inside the held SWI engine",
           "the intended complexity family is linear"
         ],
-        "commit": "WORKTREE"
+        "commit": "5c9c97328472130cd30ad85b000e89c01556eb35"
       },
       "comment": " RE-PINNED 2026-09-02: P10's repeatability count made list(match(...)) decode N projected variables twice, changing the width curve from O(N) to O(N^2). At widths 1/10/100/1000 the post-P10 instruction samples were [30062379,30063882,30063014]/[40718438,40715121,40716753]/[213502215,213518681,213501041]/[5640255421,5640347924,5640187166], with a 160758 maximum band. Skipping the count once iteration has requested values restores one cursor and samples [26608346,26607926,26609800]/[32441991,32441445,32442360]/[120733879,120732780,120720939]/[947299816,947380805,947571128], with a 271312 maximum band. The fitted curve is linear again (NRMS 0.0020).",
       "expected": "linear",
@@ -281,7 +281,7 @@
           "controlled instructions include conjunction work inside the held SWI engine",
           "the intended complexity family is linear"
         ],
-        "commit": "WORKTREE"
+        "commit": "5c9c97328472130cd30ad85b000e89c01556eb35"
       },
       "comment": " RE-PINNED 2026-08-30 (petta-alignment campaign): DOWN, 37,122 to 35,122 at the top width, and the whole ladder cheapened once the isolated-context wiring moved off space_parent rows onto the narrow equation-home relation, so conjunctions kept the direct native path (parent rows had routed every conjunct through match/4, 124,067 at width 256, before the narrow relation replaced them). RE-PINNED 2026-09-02: caller inferences stopped measuring the width after match moved work into a held engine; the post-P10 ladder was [138,700,5650,55152], but after removing list's redundant count it is the constant [34,34,34,34] despite real linear work. The corresponding post-P10 controlled instruction samples were [30210370,30055225,30055804]/[38059438,38057945,38059423]/[114629375,114598721,114614344]/[916345509,916505589,916346543], with a 160080 maximum band. The one-cursor path measures [26602622,26605487,26605991]/[30327225,30325030,30326833]/[65304063,65312435,65311993]/[456530827,456688621,456582637], with a 157794 maximum band and a linear fit (NRMS 0.0037). The gate therefore uses controlled instructions, not the caller's incomplete inference counter.",
       "expected": "linear",
