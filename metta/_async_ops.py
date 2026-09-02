@@ -16,7 +16,7 @@ Guarantees:
     test_a_failed_landing_publication_settles_the_future_as_an_error,
     test_async_landing_uses_the_runtime_captured_during_prepare,
     test_a_landing_cancellation_is_not_swallowed;
-    commit=WORKTREE]
+    commit=2f562bc5c051ee373cb7ab27ea6cae641f1df094]
   - delayed MeTTa injection sees the named space that launched the operation,
     and a landing observer sees terminal state before notification [tested:
     test_async_engine_injection_keeps_the_calling_named_space,

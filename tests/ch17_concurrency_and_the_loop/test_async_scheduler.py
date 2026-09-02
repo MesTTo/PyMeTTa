@@ -17,7 +17,7 @@ Guarantees:
     test_async_engine_injection_uses_the_registration_runtime,
     test_async_landing_uses_the_runtime_captured_during_prepare,
     test_a_landing_cancellation_is_not_swallowed;
-    commit=WORKTREE]
+    commit=2f562bc5c051ee373cb7ab27ea6cae641f1df094]
   - an enclosing transaction publishes an async launch before starting the
     coroutine, then publishes landing independently; rollback discards the
     prepared call without starting it [tested:

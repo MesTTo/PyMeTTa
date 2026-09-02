@@ -12,7 +12,7 @@
 %     test_an_async_operation_answers_a_future_space,
 %     test_a_transaction_commits_async_launch_before_its_landing,
 %     test_a_failed_landing_publication_settles_the_future_as_an_error;
-%     commit=WORKTREE].
+%     commit=2f562bc5c051ee373cb7ab27ea6cae641f1df094].
 %   - scheduler tasks dispatch Python callbacks under their copied ContextVars
 %     and detach oracleIO calls onto transient offload threads [tested:
 %     test_context_snapshot_crosses_every_spawn_door_including_thread_workers,
