@@ -12,13 +12,14 @@ on the current codec: ``one-pass`` calls ``metta_py_decode_target/4`` and
 
     python -m benchmarks.target_self_decode
 
-The 2026-09-01 promoted measurement was 1,000,145 against 1,400,165
-inferences and 52.725 against 58.822 ms CPU per decode: a 400,020-inference
-(28.57%) and 6.097 ms (10.36%) saving, with identical decoded terms
+The 2026-09-02 measurement was 1,000,145 against 1,400,165 inferences and
+53.697 against 60.468 ms CPU per decode: a 400,020-inference (28.57%) and
+6.771 ms (11.20%) saving, with identical decoded terms. Before timing, the
+probe also requires symbolic and parsed ``&self`` inputs to bind the receiver
 [measured: min of three rounds over ten decodes per arm;
 command=python -m benchmarks.target_self_decode; fixture=CPython 3.14,
 50,000 three-child nodes and the provisioned repository engine;
-commit=a408160adee022dffb72fbde405efc8f229c0b6e].
+commit=WORKTREE].
 """
 
 from __future__ import annotations
@@ -73,6 +74,23 @@ def _assert_equivalent(rt: Runtime, wire: list) -> None:
         raise AssertionError(msg)
 
 
+def _assert_self_forms_bind_receiver(rt: Runtime) -> None:
+    """Require both public wire forms of ``&self`` to bind the receiver."""
+    wire = [
+        "e",
+        [["s", "pair"], ["s", "&self"], ["p", "&self"]],
+    ]
+    row = rt.once(
+        "findall(ok, (metta_py_decode_target('&benchmark-target', W, T, _), "
+        "T == [pair, '&benchmark-target', '&benchmark-target']), [ok]), "
+        "T = none",
+        W=wire,
+    )
+    if not row:
+        msg = "symbolic and parsed &self targets did not bind the receiver"
+        raise AssertionError(msg)
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     """Measure the production decoder against the rejected second walk."""
     parser = argparse.ArgumentParser()
@@ -85,6 +103,7 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     rt = runtime()
     wire = _target_wire(arguments.terms)
+    _assert_self_forms_bind_receiver(rt)
     _assert_equivalent(rt, wire)
     samples = {
         arm: [_sample(rt, wire, arm, arguments.repeats) for _ in range(arguments.rounds)]

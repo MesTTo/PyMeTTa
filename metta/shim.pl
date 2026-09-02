@@ -40,11 +40,13 @@
 %     writes [tested: test_every_public_execution_door_honours_speculative_policy,
 %     test_derivation_speculation_fences_the_engine_global_self;
 %     commit=cf6507cfe9c3d6512ac75039ae22f178140e0cbf].
-%   - structured evaluation targets bind every symbolic &self occurrence to
-%     their receiving space while decoding, so Atom and source execution share
-%     one receiver law without a second term walk [tested:
-%     test_atom_eval_rebinds_nested_self_to_the_receiver;
-%     commit=a408160adee022dffb72fbde405efc8f229c0b6e].
+%   - structured evaluation targets bind every &self occurrence to their
+%     receiving space while decoding, including the executable handle produced
+%     by parse, so Atom and source execution share one receiver law without a
+%     second term walk [tested:
+%     test_atom_eval_rebinds_nested_self_to_the_receiver,
+%     test_parsed_atom_eval_rebinds_self_handle_to_the_receiver;
+%     commit=WORKTREE].
 %   - successive annotated Python operation answers extend the current carrier
 %     value instead of replacing it, while provider rows remain local inputs to
 %     the engine's conjunction join [tested:
@@ -651,13 +653,15 @@ foldl_decode([E|Es], [T|Ts], B0, B) :-
 
 %Decode an evaluation target in its receiver context. The ordinary &self
 %receiver takes the exact hot decoder above. A named receiver uses the same
-%single decode walk but replaces a symbolic ["s","&self"] leaf as it is met;
-%a ["p","&self"] is a carried Space handle and stays the handle it names.
+%single decode walk and replaces either ["s","&self"] written by an Atom
+%builder or ["p","&self"] returned by parse. The reserved name is contextual
+%inside an execution target even though p remains an executable handle in
+%stored data and through the ordinary codec.
 %Doing the replacement during decode avoids the second O(n) term walk that
 %formerly cost alpha-unique about 400k inferences, while still preserving the
 %shared variable table [source:
 %extensions/python/benchmarks/target_self_decode.py;
-%commit=a408160adee022dffb72fbde405efc8f229c0b6e]. The
+%commit=WORKTREE]. The
 %current and target complexity are both O(n); this removes the duplicate
 %traversal rather than changing the class.
 metta_py_decode_target('&self', Tagged, Term, Bindings) :- !,
@@ -673,6 +677,8 @@ metta_py_decode_target_tagged(e, [Es], Space, Term, B0, B) :- !,
     foldl_decode_target(Es, Space, Term, B0, B).
 metta_py_decode_target_tagged(s, ['&self'], Space, Space, B, B) :- !.
 metta_py_decode_target_tagged(s, ["&self"], Space, Space, B, B) :- !.
+metta_py_decode_target_tagged(p, ['&self'], Space, Space, B, B) :- !.
+metta_py_decode_target_tagged(p, ["&self"], Space, Space, B, B) :- !.
 metta_py_decode_target_tagged(T, Rest, _, Term, B0, B) :-
     metta_py_decode_shared_tagged(T, Rest, Term, B0, B).
 

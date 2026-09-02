@@ -6,9 +6,9 @@ match. The ground cases mirror the arbiter's measured answers
 [source: LeaTTa tests/semantics/matching/grounded_value_matching.metta,
 unify_branch_evaluation.metta, measured 2026-08-11].
 Structured evaluation binds every ``&self`` occurrence to the receiving space,
-the same law as source execution [tested:
-test_atom_eval_rebinds_nested_self_to_the_receiver;
-commit=a408160adee022dffb72fbde405efc8f229c0b6e].
+including the executable handle produced by ``parse``, under the same law as
+source execution [tested: test_atom_eval_rebinds_nested_self_to_the_receiver,
+test_parsed_atom_eval_rebinds_self_handle_to_the_receiver; commit=WORKTREE].
 Open Obligations:
   To Do: None
   Hacks: None
@@ -18,11 +18,13 @@ Open Obligations:
 import pytest
 
 from metta import (
+    TRUE,
     Answer,
     Bindings,
     Expression,
     S,
     V,
+    parse,
 )
 from metta.atoms import Grounded
 from metta.errors import EngineError
@@ -124,6 +126,26 @@ def test_atom_eval_rebinds_nested_self_to_the_receiver(metta):  # noqa: D103 -- 
         receiver.clear()
         global_self.remove(copied_marker)
         global_self.remove(global_marker)
+
+
+def test_parsed_atom_eval_rebinds_self_handle_to_the_receiver(metta):
+    """A parsed ``&self`` targets the copy evaluating the resulting atom."""
+    base = metta.metta.space("&p40-parsed-base")
+    engine_self = metta.metta.space("&self")
+    marker = Expression(S.p40_parsed_copy_only, S.marker)
+    target = parse("(add-atom &self (p40-parsed-copy-only marker))")
+
+    for space in (base, engine_self):
+        space.remove(marker)
+    try:
+        with base.copy() as copied:
+            assert copied.eval(target) == [TRUE]
+            assert marker in copied
+            assert marker not in base
+            assert marker not in engine_self
+    finally:
+        base.clear()
+        engine_self.remove(marker)
 
 
 def test_a_variable_binds_a_space_without_querying_it(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
