@@ -39,6 +39,11 @@ Guarantees:
     cursor a declined count opened and never handed to the stream included
     [tested: test_a_counted_view_releases_its_engine_when_it_is_dropped;
     commit=57f21ba9edf94bcf28cde11f938bce2c241a3709]
+  - caller inspection for ordering lint breaks its frame reference before
+    returning, so dropping an iterated view closes its engine immediately
+    [tested:
+    test_iteration_does_not_delay_answer_finalization_in_a_frame_cycle;
+    commit=WORKTREE]
   - private item replay lets a deferred algebra route preserve those rows
     without probing the engine when its Answers view is constructed [tested:
     test_tagged_derivations_flow_through_match_and_reinterpret_without_requery;
@@ -836,38 +841,44 @@ class Answers[T](Sequence[T]):
 
     def __iter__(self) -> Iterator[T]:  # noqa: D105 -- Python's iteration protocol names the contract
         frame = inspect.currentframe()
-        caller = None if frame is None else frame.f_back
-        if self._space is not None and caller is not None:
-            from ._lint_events import (  # noqa: PLC0415 -- lint remains optional
-                frame_calls_builtin,
-                record_event_for_name,
-            )
-
-            if frame_calls_builtin(caller, "zip"):
-                record_event_for_name(
-                    self._space,
-                    "unordered-answers-zip",
-                    "Answers",
-                    caller,
+        try:
+            caller = None if frame is None else frame.f_back
+            if self._space is not None and caller is not None:
+                from ._lint_events import (  # noqa: PLC0415 -- lint remains optional
+                    frame_calls_builtin,
+                    record_event_for_name,
                 )
+
+                if frame_calls_builtin(caller, "zip"):
+                    record_event_for_name(
+                        self._space,
+                        "unordered-answers-zip",
+                        "Answers",
+                        caller,
+                    )
+        finally:
+            del frame
         self._values_demanded = True
         return self._iterate()
 
     def __reversed__(self) -> Iterator[T]:
         """Reverse the materialized view and retain the unordered-use lint."""
         frame = inspect.currentframe()
-        caller = None if frame is None else frame.f_back
-        if self._space is not None and caller is not None:
-            from ._lint_events import (  # noqa: PLC0415 -- lint remains optional
-                record_event_for_name,
-            )
+        try:
+            caller = None if frame is None else frame.f_back
+            if self._space is not None and caller is not None:
+                from ._lint_events import (  # noqa: PLC0415 -- lint remains optional
+                    record_event_for_name,
+                )
 
-            record_event_for_name(
-                self._space,
-                "unordered-answers-reversed",
-                "Answers",
-                caller,
-            )
+                record_event_for_name(
+                    self._space,
+                    "unordered-answers-reversed",
+                    "Answers",
+                    caller,
+                )
+        finally:
+            del frame
         return reversed(self._materialize())
 
     def _items(self) -> Iterator[_AnswerItem]:

@@ -33,6 +33,10 @@ Guarantees:
     AsyncMeTTa lint as direct Space calls [tested:
     test_a_sync_engine_call_inside_async_def_is_linted_not_refused;
     commit=acb40f1912f131ae088083d1af29b4b283019bea]
+  - recording that call site never retains the returned lazy view through its
+    completed frame [tested:
+    test_function_call_does_not_delay_answer_finalization_in_a_frame_cycle;
+    commit=WORKTREE]
   - bound functions place call-site keywords against their exact definition or
     operation signature [tested:
     test_known_call_site_keywords_bind_to_positional_metta_arguments;
@@ -1215,11 +1219,16 @@ class _EngineFunction:
         completes.  Non-bang calls retain demand-driven evaluation.
         """
         frame = inspect.currentframe()
-        caller = None if frame is None else frame.f_back
-        if caller is not None:
-            from ._lint_events import record_sync_engine_call  # noqa: PLC0415 -- lint is optional
+        try:
+            caller = None if frame is None else frame.f_back
+            if caller is not None:
+                from ._lint_events import (  # noqa: PLC0415 -- lint is optional
+                    record_sync_engine_call,
+                )
 
-            record_sync_engine_call(self._space, self._name, caller)
+                record_sync_engine_call(self._space, self._name, caller)
+        finally:
+            del frame
         if kwargs:
             parameters = call_parameter_names(
                 self._space, self._name, len(args) + len(kwargs)

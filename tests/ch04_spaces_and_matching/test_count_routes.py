@@ -24,6 +24,11 @@ Guarantees:
       an answer [tested: test_taking_an_iterator_first_does_not_change_the_answers]
     - the retained bag survives an arbitrary generated answer multiset
       [tested: test_a_generated_answer_bag_survives_both_routes]
+    - inspecting an Answers iterator never delays its engine release through
+      a frame reference cycle [tested:
+      test_iteration_does_not_delay_answer_finalization_in_a_frame_cycle,
+      test_function_call_does_not_delay_answer_finalization_in_a_frame_cycle;
+      commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -297,6 +302,66 @@ def test_a_view_releases_its_cursor_on_request_not_only_on_collection(metta) -> 
         next(iter(scoped))
         assert engines() > before
     assert engines() == before, "leaving the block gives it back"
+
+
+def test_iteration_does_not_delay_answer_finalization_in_a_frame_cycle(metta) -> None:
+    """Dropping an iterated view closes its engine without cyclic collection.
+
+    Answers inspects its caller to record ordering lint. Keeping the current
+    frame in that method also kept ``self`` alive, so a started engine cursor
+    survived ordinary reference-counted finalization and closed only when the
+    cyclic collector happened to run.
+    """
+    name = unique("route-frame-cycle")
+
+    @metta.op(name=name, effect="writesState")
+    def route(origin, destination):
+        del origin, destination
+        yield from ((S.paris, S.lyon), (S.lyon, S.nice))
+
+    def engines() -> int:
+        return metta.runtime.once("aggregate_all(count, current_engine(_), N)")["N"]
+
+    gc.collect()
+    before = engines()
+    gc.disable()
+    try:
+        view = metta.answers(S[name](V.origin, V.destination))
+        next(iter(view))
+        assert engines() == before + 1, "the partial iteration must open a cursor"
+        del view
+        assert engines() == before, "ordinary finalization must close the cursor"
+    finally:
+        gc.enable()
+        gc.collect()
+
+
+def test_function_call_does_not_delay_answer_finalization_in_a_frame_cycle(
+    metta,
+) -> None:
+    """A bound call does not retain the lazy result it has returned."""
+    name = unique("route-call-frame-cycle")
+
+    @metta.op(name=name, effect="writesState")
+    def route(origin, destination):
+        del origin, destination
+        yield from ((S.paris, S.lyon), (S.lyon, S.nice))
+
+    def engines() -> int:
+        return metta.runtime.once("aggregate_all(count, current_engine(_), N)")["N"]
+
+    gc.collect()
+    before = engines()
+    gc.disable()
+    try:
+        view = metta.fn[name](V.origin, V.destination)
+        next(iter(view))
+        assert engines() == before + 1, "the partial iteration must open a cursor"
+        del view
+        assert engines() == before, "the completed call frame must release its result"
+    finally:
+        gc.enable()
+        gc.collect()
 
 
 def test_a_counted_view_releases_its_engine_when_it_is_dropped(metta) -> None:
