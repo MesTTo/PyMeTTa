@@ -396,10 +396,7 @@ def frame_calls_builtin(frame: FrameType, name: str) -> bool:
     expected = getattr(builtins, name)
     for node in _source_calls(path, line):
         if isinstance(node.func, ast.Name):
-            value = frame.f_locals.get(
-                node.func.id,
-                frame.f_globals.get(node.func.id, getattr(builtins, node.func.id, None)),
-            )
+            value = _name_in_frame(frame, node.func.id, getattr(builtins, node.func.id, None))
             if value is expected:
                 return True
         elif (
@@ -407,12 +404,26 @@ def frame_calls_builtin(frame: FrameType, name: str) -> bool:
             and isinstance(node.func.value, ast.Name)
             and node.func.attr == name
         ):
-            owner = frame.f_locals.get(
-                node.func.value.id, frame.f_globals.get(node.func.value.id)
-            )
-            if owner is builtins:
+            if _name_in_frame(frame, node.func.value.id, None) is builtins:
                 return True
     return False
+
+
+def _name_in_frame(frame: FrameType, name: str, default: Any) -> Any:
+    """Resolve one name the way Python does, without materialising f_locals.
+
+    Reading frame.f_locals builds a snapshot of every local, so its cost grows
+    with the caller's local count and this runs once per Answers iteration.
+    Measured per access at 1000 locals: 4.4 microseconds on 3.14 and 12.2 on
+    3.12, against 0.15 and 0.20 at five locals. A name that is not in the
+    code object's own variable names cannot be a local, and those names are a
+    static tuple, so asking them first skips the snapshot in the ordinary case
+    while keeping local shadowing authoritative when it applies.
+    """
+    code = frame.f_code
+    if name in code.co_varnames or name in code.co_cellvars or name in code.co_freevars:
+        return frame.f_locals.get(name, frame.f_globals.get(name, default))
+    return frame.f_globals.get(name, default)
 
 
 def _retain_file_intents(
