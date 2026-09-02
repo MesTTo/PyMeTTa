@@ -36,7 +36,8 @@ Guarantees:
     callback whose event loop has closed retires itself before another write
     can reach it [tested:
     test_aio_subscription_retires_when_its_event_loop_closes,
-    test_aio_close_cancels_every_acquired_subscription; commit=WORKTREE]
+    test_aio_close_cancels_every_acquired_subscription;
+    commit=4a52d2d77621b917f20b0c5618ea87de07cbbb71]
   - an event queue is published only once its registration succeeded, and its
     bound is refused unless it is a count of events [tested:
     test_aio_a_failed_subscription_publishes_no_queue,

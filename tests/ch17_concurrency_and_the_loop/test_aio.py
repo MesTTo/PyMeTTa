@@ -43,7 +43,8 @@ Guarantees:
   - an async subscription cannot retain a callback into a closed event loop,
     and AsyncMeTTa closes every subscription it acquired before its worker
     [tested: test_aio_subscription_retires_when_its_event_loop_closes,
-    test_aio_close_cancels_every_acquired_subscription; commit=WORKTREE]
+    test_aio_close_cancels_every_acquired_subscription;
+    commit=4a52d2d77621b917f20b0c5618ea87de07cbbb71]
 Open Obligations:
   To Do: None
   Hacks: None
