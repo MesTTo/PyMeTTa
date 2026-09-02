@@ -26,6 +26,9 @@ Guarantees:
     test_lowered_nondeterminism_remains_visible_to_world_admission,
     test_sealed_freshening_requires_state_coverage,
     test_a_masked_runtime_result_remains_dynamic; commit=173eeed021beb360b5e5f9f8461889e27190affc]
+  - relative ``S.covers`` values written through ``+=`` install the receiver's
+    effect coverage and remain absent from its stored atoms [tested:
+    test_relative_coverage_declaration_governs_world_evaluation; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -125,6 +128,28 @@ def test_world_coverage_admits_the_joined_plan(metta):
         try:
             assert answers == [S.done, S.done]
             assert successor.atoms == (S.joined(S.yes), S.joined(S.yes))
+            assert parent.atoms() == []
+        finally:
+            successor.close()
+    finally:
+        world.close()
+        parent.drop()
+
+
+def test_relative_coverage_declaration_governs_world_evaluation(metta):
+    """P31: ``space += S.covers(effect)`` installs coverage on that space."""
+    parent = metta._new_space()
+    parent += S.covers(S.writesState)
+    assert parent.atoms() == []
+
+    world = parent.reify()
+    try:
+        answers, successor = world.eval(
+            "(progn (add-atom &self (p31-landed yes)) done)"
+        )
+        try:
+            assert answers == [S.done]
+            assert successor.atoms == (S.p31_landed(S.yes),)
             assert parent.atoms() == []
         finally:
             successor.close()

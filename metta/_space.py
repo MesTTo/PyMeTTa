@@ -56,12 +56,14 @@ Guarantees:
     atom also implements Python's sequence protocol [tested:
     test_ior_merges_an_atom_without_iterating_expression_children;
     commit=9bbfe5a252eb4b3f8b7d8418def0cc39c0819c13]
-  - relative ``(admits Type)`` and ``(capacity n)`` values written through
-    ``+=`` invoke the receiver installers, and refuse to overtake a live batch
+  - relative ``(admits Type)``, ``(capacity n)``, and ``(covers effect)`` values
+    written through ``+=`` invoke the receiver installers and refuse to
+    overtake a live batch
     [tested: test_relative_capacity_declaration_installs_the_receiver_contract,
     test_relative_admits_declaration_installs_the_receiver_contract,
     test_two_declared_admission_checks_interact_over_one_store,
-    test_relative_declarations_refuse_inside_an_active_batch; commit=012413efb73b4dd27c71354c7f654862f349c03f]
+    test_relative_declarations_refuse_inside_an_active_batch,
+    test_relative_coverage_declaration_governs_world_evaluation; commit=WORKTREE]
   - ``Space.match`` returns a lazy Answers view; truth and single unpack pull
     only their demanded prefix, while len counts inside the engine [tested:
     test_query_answers_complete_the_lazy_projection_protocol,
@@ -1844,13 +1846,13 @@ class Space(Handle):
         (S.Edge, b, c)]`` and a generator yielding those rows add two. A built
         Expression is always one atom even though it implements Sequence.
         Dataframes use ``iter_rows`` or ``itertuples(index=False)``. The
-        explicit ``add(list_value)`` door remains available when a list itself
+        explicit ``add(list_value)`` method remains available when a list itself
         is intended as one transparent expression.
 
-        Relative ``S.admits(Type)`` and ``S.capacity(n)`` values are declared
-        data: they install the same contract as the receiver methods and are
-        not stored in this space. Explicit ``add(...)`` remains the raw storage
-        door for those shapes.
+        Relative ``S.admits(Type)``, ``S.capacity(n)``, and
+        ``S.covers(effect)`` values are declared data: they install the same
+        contract as the receiver methods and are not stored in this space.
+        Explicit ``add(...)`` remains the raw storage method for those shapes.
         """
         if self._install_relative_write_declaration(atom):
             return self
@@ -1867,7 +1869,7 @@ class Space(Handle):
         return self
 
     def _install_relative_write_declaration(self, atom: Any) -> bool:
-        """Install the two relative pre-add declarations recognized by ``+=``."""
+        """Install the three receiver-relative declarations recognized by ``+=``."""
         if (
             not isinstance(atom, Expression)
             or len(atom) != 2
@@ -1878,6 +1880,10 @@ class Space(Handle):
         if atom.head.name == "admits" and isinstance(argument, Symbol):
             _refuse_in_batch(self._space, "declare")
             self.admits(argument.name)
+            return True
+        if atom.head.name == "covers" and isinstance(argument, Symbol):
+            _refuse_in_batch(self._space, "declare")
+            self.covers(argument.name)
             return True
         if (
             atom.head.name == "capacity"
