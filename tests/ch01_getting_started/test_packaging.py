@@ -19,7 +19,7 @@ Guarantees:
   - source-tree fixture loading coexists with installed pytest entry-point
     metadata [tested:
     test_source_tree_fixtures_coexist_with_installed_plugin_metadata;
-    commit=WORKTREE]
+    commit=993608c01049bcca7530931b680c416c81023543]
   - wheel-owned source and runtime data carry durable public authorities, not
     private agent scratch references [tested:
     test_the_wheel_carries_no_agent_scratch_references;
