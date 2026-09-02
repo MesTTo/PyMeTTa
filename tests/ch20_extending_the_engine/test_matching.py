@@ -8,7 +8,8 @@ unify_branch_evaluation.metta, measured 2026-08-11].
 Structured evaluation binds every ``&self`` occurrence to the receiving space,
 including the executable handle produced by ``parse``, under the same law as
 source execution [tested: test_atom_eval_rebinds_nested_self_to_the_receiver,
-test_parsed_atom_eval_rebinds_self_handle_to_the_receiver; commit=WORKTREE].
+test_parsed_atom_eval_rebinds_self_handle_to_the_receiver;
+commit=f8453b013a603de9f9d4c7606c95ca7210229e78].
 Open Obligations:
   To Do: None
   Hacks: None

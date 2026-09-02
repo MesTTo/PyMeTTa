@@ -46,7 +46,7 @@
 %     second term walk [tested:
 %     test_atom_eval_rebinds_nested_self_to_the_receiver,
 %     test_parsed_atom_eval_rebinds_self_handle_to_the_receiver;
-%     commit=WORKTREE].
+%     commit=f8453b013a603de9f9d4c7606c95ca7210229e78].
 %   - successive annotated Python operation answers extend the current carrier
 %     value instead of replacing it, while provider rows remain local inputs to
 %     the engine's conjunction join [tested:
@@ -661,7 +661,7 @@ foldl_decode([E|Es], [T|Ts], B0, B) :-
 %formerly cost alpha-unique about 400k inferences, while still preserving the
 %shared variable table [source:
 %extensions/python/benchmarks/target_self_decode.py;
-%commit=WORKTREE]. The
+%commit=f8453b013a603de9f9d4c7606c95ca7210229e78]. The
 %current and target complexity are both O(n); this removes the duplicate
 %traversal rather than changing the class.
 metta_py_decode_target('&self', Tagged, Term, Bindings) :- !,

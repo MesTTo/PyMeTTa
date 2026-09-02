@@ -19,7 +19,7 @@ probe also requires symbolic and parsed ``&self`` inputs to bind the receiver
 [measured: min of three rounds over ten decodes per arm;
 command=python -m benchmarks.target_self_decode; fixture=CPython 3.14,
 50,000 three-child nodes and the provisioned repository engine;
-commit=WORKTREE].
+commit=f8453b013a603de9f9d4c7606c95ca7210229e78].
 """
 
 from __future__ import annotations
