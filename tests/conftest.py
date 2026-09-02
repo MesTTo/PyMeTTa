@@ -1,5 +1,10 @@
 """Purpose: provide the shared repository, runtime, and engine pytest fixtures.
 
+Guarantees:
+  - the source-tree suite loads ``metta.pytest_plugin`` explicitly, so its
+    public fixtures are exercised even when pymetta is not installed
+    [tested: test_an_abandoned_watch_cancels_itself; commit=WORKTREE]
+
 Open Obligations:
   To Do: None
   Hacks: None
@@ -15,6 +20,8 @@ import janus_swi
 import pytest
 
 from metta import Space
+
+pytest_plugins = ("metta.pytest_plugin",)
 
 # The twins moved to extensions/python/examples/language-feature-examples/,
 # out of this directory, so pytest no longer reaches them from here and the
