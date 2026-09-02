@@ -263,6 +263,7 @@ with m.stats() as s: ...      # s.inferences (deterministic), cputime, walltime
 m.trace(term)                 # the reduction trace as Python objects
 m.self.derivation(term)       # the proof tree
 m.self.lint()                 # diagnostics over declarations, equations, calls
+m.self.effect_plan(term)      # named operations and joined effect, without execution
 m.self.subscribe(pattern, cb, on="both")   # a standing query; on= add/remove/both
 m.self.watch(pattern)         # the iterator face of the same
 ```

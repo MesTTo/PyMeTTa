@@ -35,6 +35,11 @@ Guarantees:
     test_world_coverage_admits_the_joined_plan,
     test_committed_effects_leave_queryable_receipts_and_failed_steps_leave_none;
     commit=173eeed021beb360b5e5f9f8461889e27190affc]
+  - ``Space.effect_plan`` reports the current composite operation effects
+    without executing the target [tested:
+    test_effect_plan_reports_nested_calls_without_executing_them,
+    test_effect_plan_reads_replaced_operation_classification;
+    commit=WORKTREE]
   - named space construction accepts a space-name Symbol as well as its text
     spelling [tested: test_space_factory_accepts_a_name_symbol; commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
   - a Symbol or ground Expression names a source-visible atomic or parametric
@@ -1734,6 +1739,26 @@ class Space(Handle):
         wrong.
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         return _satellite("lint").lint(self)
+
+    def effect_plan(self, target: Any) -> _ops_module.EffectPlan:
+        """Return operations the target may execute and their joined effect.
+
+        The engine translates the same atom or source form ``eval`` accepts,
+        follows nested compiled calls, and reads current operation metadata.
+        It does not execute the target. A later registration change is visible
+        on the next call. This is the analysis reified-world admission uses.
+        """
+        target_wire = target if isinstance(target, str) else _to_atom(target).to_wire()
+        rows, effect, _coverage = self._rt.apply_must(
+            "metta_py_world_effect_plan",
+            self._space,
+            self._space,
+            target_wire,
+        )
+        operations = tuple(
+            (str(name), EffectClass(str(declared))) for name, declared in rows
+        )
+        return _ops_module.EffectPlan(operations, EffectClass(str(effect)))
 
     def copy(self) -> Space:
         """This space's contents in a new anonymous space, cloned through
