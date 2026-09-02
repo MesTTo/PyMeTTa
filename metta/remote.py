@@ -68,7 +68,7 @@ Guarantees:
     running engine goal is interrupted and drained before later work starts
     [tested:
     test_a_timed_out_remote_worker_never_runs_or_finishes_the_abandoned_write;
-    commit=WORKTREE]
+    commit=d64d3cc64e1e7b528e0043a67cb05f6c02da455f]
   - the HTTP boundary rejects ambiguous lengths, oversized bodies, and
     non-object JSON with a response instead of dropping the connection
     [tested test_remote_server_rejects_malformed_request_bodies]

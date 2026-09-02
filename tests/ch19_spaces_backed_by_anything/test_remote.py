@@ -25,7 +25,7 @@ Guarantees:
   - a worker timeout cancels a queued request and interrupts a running engine
     request before either can perform a later write [tested:
     test_a_timed_out_remote_worker_never_runs_or_finishes_the_abandoned_write;
-    commit=WORKTREE]
+    commit=d64d3cc64e1e7b528e0043a67cb05f6c02da455f]
 Open Obligations:
   To Do: None
   Hacks: None
