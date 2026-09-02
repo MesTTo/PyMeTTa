@@ -36,7 +36,7 @@ Guarantees:
   - recording that call site never retains the returned lazy view through its
     completed frame [tested:
     test_function_call_does_not_delay_answer_finalization_in_a_frame_cycle;
-    commit=WORKTREE]
+    commit=3fdb443f867ac40f2bcc19426ab7cf4d53dd8c2b]
   - bound functions place call-site keywords against their exact definition or
     operation signature [tested:
     test_known_call_site_keywords_bind_to_positional_metta_arguments;
