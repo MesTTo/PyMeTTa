@@ -5,6 +5,16 @@ and renders the result as indented text or notebook HTML.
 Guarantees:
   - Derivation.complete is false exactly when a Truncated node occurs
     [tested test_depth_exhaustion_returns_a_partial_proof]
+  - parsing, walking, and rendering use explicit work stacks, so proof depth is
+    data rather than Python recursion [tested:
+    test_deep_proof_consumers_treat_depth_as_data; commit=WORKTREE]
+  - facts and rules retain first-seen order with expected linear-time hash
+    membership [tested: test_fact_and_rule_projection_use_hash_membership;
+    commit=WORKTREE]
+  - post-order construction and pre-order traversal follow established
+    iterative tree algorithms [source: extensions/python/metta/_atom_wire.py:
+    _from_wire and psf/black pytree.py post_order at upstream commit
+    8947c48ef2077c3a301b03c1e814dc2e3f78436e; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -15,7 +25,7 @@ from __future__ import annotations
 
 import html
 import string
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
 from dataclasses import dataclass, field
 from typing import TypeGuard
 
@@ -65,13 +75,7 @@ class Step:
     children: tuple[Node, ...] = field(default_factory=tuple)
 
     def render(self, indent: int) -> str:  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
-        pad = "  " * indent
-        lines = [
-            f"{pad}{self.call} = {self.answer}",
-            f"{pad}  by {_pretty(self.equation)}",
-        ]
-        lines.extend(c.render(indent + 1) for c in self.children)
-        return "\n".join(lines)
+        return "\n".join(_render_nodes((self,), indent))
 
 
 Node = Step | Fact | Builtin | Truncated
@@ -112,24 +116,18 @@ class Derivation:
                 msg
             )
         call, out = answer_expr[1], answer_expr[2]
-        children = tuple(_node(c) for c in tree.children[2:])
+        children = _nodes(tree.children[2:])
         return Derivation(call=call, answer=out, children=children)
 
     @property
     def facts(self) -> list[Fact]:  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
-        seen: list[Fact] = []
-        for node in _walk(self.children):
-            if isinstance(node, Fact) and node not in seen:
-                seen.append(node)
-        return seen
+        return list(dict.fromkeys(node for node in _walk(self.children) if isinstance(node, Fact)))
 
     @property
     def rules(self) -> list[Atom]:  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
-        seen: list[Atom] = []
-        for n in _walk(self.children):
-            if isinstance(n, Step) and n.equation not in seen:
-                seen.append(n.equation)
-        return seen
+        return list(
+            dict.fromkeys(node.equation for node in _walk(self.children) if isinstance(node, Step))
+        )
 
     @property
     def truncations(self) -> list[Truncated]:
@@ -143,7 +141,7 @@ class Derivation:
 
     def __str__(self) -> str:  # noqa: D105  -- the Python data-model hook is defined by its name and enclosing type contract
         lines = [f"{self.call} = {self.answer}"]
-        lines.extend(c.render(1) for c in self.children)
+        lines.extend(_render_nodes(self.children, 1))
         return "\n".join(lines)
 
     def _repr_html_(self) -> str:
@@ -184,7 +182,9 @@ def _headed(e: Atom, name: str) -> TypeGuard[Expression]:
     )
 
 
-def _step_node(node: Expression) -> Step:
+def _step_parts(
+    node: Expression,
+) -> tuple[Atom, Atom, Atom, tuple[Atom, ...]]:
     if len(node) < 3:
         msg = (
             f"malformed step node {node}: expected "
@@ -198,8 +198,7 @@ def _step_node(node: Expression) -> Step:
         msg = f"malformed call node {call_expr}: expected (call Call Out)"
         raise ValueError(msg)
     call, out = call_expr[1], call_expr[2]
-    children = tuple(_node(child) for child in node.children[3:])
-    return Step(call=call, answer=out, equation=node[2], children=children)
+    return call, out, node[2], node.children[3:]
 
 
 def _fact_node(node: Expression) -> Fact:
@@ -225,9 +224,7 @@ def _text_node(
     return constructor(str(text))
 
 
-def _node(e: Atom) -> Node:
-    if _headed(e, "step"):
-        return _step_node(e)
+def _leaf_node(e: Atom) -> Node:
     if _headed(e, "fact"):
         return _fact_node(e)
     if _headed(e, "builtin"):
@@ -240,8 +237,63 @@ def _node(e: Atom) -> Node:
     )
 
 
-def _walk(nodes: tuple[Node, ...]):
-    for n in nodes:
-        yield n
-        if isinstance(n, Step):
-            yield from _walk(n.children)
+@dataclass(frozen=True, slots=True)
+class _PendingStep:
+    call: Atom
+    answer: Atom
+    equation: Atom
+    width: int
+
+
+def _nodes(nodes: tuple[Atom, ...]) -> tuple[Node, ...]:
+    """Parse proof nodes post-order with depth held in an explicit stack."""
+    # Black's post_order uses the same enter/finish work-stack pattern so a
+    # nested tree does not retain one delegating generator per level.
+    # https://github.com/psf/black/blob/8947c48ef2077c3a301b03c1e814dc2e3f78436e/src/blib2to3/pytree.py#L313-L326
+    stack: list[Atom | _PendingStep] = list(reversed(nodes))
+    built: list[Node] = []
+    while stack:
+        item = stack.pop()
+        if isinstance(item, _PendingStep):
+            children = tuple(built[-item.width :]) if item.width else ()
+            if item.width:
+                del built[-item.width :]
+            built.append(Step(item.call, item.answer, item.equation, children))
+            continue
+        if _headed(item, "step"):
+            call, answer, equation, children = _step_parts(item)
+            stack.append(_PendingStep(call, answer, equation, len(children)))
+            stack.extend(reversed(children))
+            continue
+        built.append(_leaf_node(item))
+    return tuple(built)
+
+
+def _node(e: Atom) -> Node:
+    return _nodes((e,))[0]
+
+
+def _walk(nodes: tuple[Node, ...]) -> Iterator[Node]:
+    """Yield proof nodes pre-order with depth held in an explicit stack."""
+    stack = list(reversed(nodes))
+    while stack:
+        node = stack.pop()
+        yield node
+        if isinstance(node, Step):
+            stack.extend(reversed(node.children))
+
+
+def _render_nodes(nodes: tuple[Node, ...], indent: int) -> list[str]:
+    """Render proof nodes in pre-order without recursive string assembly."""
+    lines: list[str] = []
+    stack = [(node, indent) for node in reversed(nodes)]
+    while stack:
+        node, level = stack.pop()
+        if isinstance(node, Step):
+            pad = "  " * level
+            lines.append(f"{pad}{node.call} = {node.answer}")
+            lines.append(f"{pad}  by {_pretty(node.equation)}")
+            stack.extend((child, level + 1) for child in reversed(node.children))
+        else:
+            lines.append(node.render(level))
+    return lines

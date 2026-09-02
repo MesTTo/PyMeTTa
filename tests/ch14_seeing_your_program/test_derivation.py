@@ -1,4 +1,8 @@
 """Purpose: engine-backed tests for proof trees, validation, and rendering.
+Guarantees:
+  - parsing, projections, completeness checks, and both renderers handle 600
+    nested proof steps without using Python recursion [tested:
+    test_deep_proof_consumers_treat_depth_as_data; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -289,3 +293,42 @@ def _walk_nodes(nodes):
         yield node
         if hasattr(node, "children"):
             yield from _walk_nodes(node.children)
+
+
+def _deep_derivation_tree(depth):
+    call = Expression(S.call, S.recur, S.value)
+    equation = Expression(S["="], S.recur, S.recur)
+    node = Expression(S.fact, S["&self"], S.base)
+    for _ in range(depth):
+        node = Expression(S.step, call, equation, node)
+    tree = Expression(
+        S.derivation,
+        Expression(S.answer, S.root, S.value),
+        node,
+    )
+    return tree, equation
+
+
+def test_deep_proof_consumers_treat_depth_as_data():
+    """A depth-600 proof parses, projects, and renders completely."""
+    depth = 600
+    tree, equation = _deep_derivation_tree(depth)
+
+    proof = Derivation.from_atom(tree)
+
+    node = proof.children[0]
+    observed_depth = 0
+    while isinstance(node, Step):
+        assert len(node.children) == 1
+        observed_depth += 1
+        node = node.children[0]
+    assert observed_depth == depth
+    assert node == Fact("&self", S.base)
+    assert proof.facts == [Fact("&self", S.base)]
+    assert proof.rules == [equation]
+    assert proof.complete
+    assert proof.truncations == []
+
+    rendered = str(proof)
+    assert len(rendered.splitlines()) == 2 * depth + 2
+    assert proof.children[0].render(1) == "\n".join(rendered.splitlines()[1:])
