@@ -217,7 +217,7 @@ declaration, not a wrapper:
 ```python
 tables.declare(m, "&crm", "(bridge (edge $a $b) (row edges (a $a) (b $b)))")
 provider = TableBridge.from_context(m, "&crm", sqlite3.connect(":memory:"))
-m._register_space(provider, "&crm")
+m.self._register_space(provider, "&crm")
 ```
 
 Every provider operation derives from that one declaration, both directions:
