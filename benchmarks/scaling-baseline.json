@@ -312,7 +312,7 @@
         "minimum of 3 fresh processes per size",
         "the declared class is constant"
       ],
-        "commit": "WORKTREE"
+        "commit": "6872eee94500bc0246eabaa40d7175c498cc32ab"
       },
       "counter": "inferences",
       "expected_class": "constant",
