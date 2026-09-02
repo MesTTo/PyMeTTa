@@ -19,7 +19,7 @@ SWI-Prolog 9.3+, and a `janus_swi` linked against that SWI.
 ## First call
 
 ```python
-from metta import MeTTa, S, V, G, ground, Expression, equation, rules, parse
+from metta import MeTTa, S, V, G, ground, Expression, equation, rules, parse, forms
 
 m = MeTTa()                              # binds &self
 m.self.run("(= (f) 1) !(f) !(+ 1 2)")    # [[Grounded(1)], [Grounded(3)]]
@@ -43,7 +43,8 @@ G(3.5)                       # Grounded: a Python value crossed as itself
 ground(numpy_array)          # the same, explicit
 Expression((S.a, S.b))       # built from a sequence
 S["odd?"]                    # a head outside Python's identifier grammar
-parse("(parent $x bob)")     # the string door, for whole programs
+parse("(parent $x bob)")     # exactly one form
+forms("(a b) (c d)")         # every top-level form, none evaluated
 ```
 
 `atom.metatype` answers `Symbol`, `Variable`, `Grounded` or `Expression`.

@@ -1060,7 +1060,7 @@ class AsyncMeTTa:
         `name=` is the naming ladder's exact-spelling rung, and it is here
         because the ladder does not shrink from one surface to another: an
         async caller installing `prime?` or an authored underscore had no
-        door for it while the synchronous define did [measured 2026-08-31].
+        method for it while the synchronous define did [measured 2026-08-31].
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         if fn is not None and prolog is None:
             # accessors= and methods= carry for every shape, their defaults

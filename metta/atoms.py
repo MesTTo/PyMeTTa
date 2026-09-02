@@ -25,8 +25,10 @@ Guarantees:
     test_atoms_cross_a_spawned_process_boundary]
   - Atom.map transforms trees iteratively and validates replacements [tested
     test_map_atoms_handles_depth_as_data_and_validates_transform_results]
-  - parse uses the engine reader and preserves source variable names [tested
-    test_parse_keeps_variable_names]
+  - parse requires exactly one form and preserves source variable names;
+    forms is the separate whole-source reader [tested:
+    test_parse_requires_exactly_one_form,
+    test_parse_preserves_variable_names; commit=WORKTREE]
   - engine results restore registered ampersand names as Space operands while
     the public wire decoder keeps explicit s and p tags distinct [tested:
     test_space_handles_are_term_operands_and_round_trip; commit=4e2398075da67bb2cbcc123a9fc1e078ecac6fbf]
@@ -295,6 +297,10 @@ def _pretty(atom: Any, width: int = 78) -> str:
 
 def parse(source: str) -> Atom:
     """Read one form of MeTTa source into an atom, evaluating nothing.
+
+    Use ``metta.forms()`` for a whole source program. ``parse()`` deliberately
+    refuses empty input and multiple top-level forms rather than selecting one
+    silently.
 
     Backed by the engine's own reader, with one improvement over sread/2: the
     variable names the DCG collects are kept, so parse("(Parent $x Bob)")

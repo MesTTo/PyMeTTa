@@ -69,6 +69,10 @@ Guarantees:
     hygienic variables for helper-authored patterns [tested:
     test_catalog_is_the_root_queryable_reflection_space and
     test_fresh_variables_keep_library_patterns_hygienic; commit=46ae646e5efe14320c01e1e110d9cfd6cd0fc7e1]
+  - ``forms`` reads every top-level form without evaluation and is explicitly
+    distinct from singular ``parse`` [tested:
+    test_forms_reads_a_whole_source_without_running_it,
+    test_the_reader_docstrings_cross_reference_each_other; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -330,7 +334,11 @@ def current_space():
 
 
 def forms(source: str) -> list[Atom]:
-    """Parse every top-level form without evaluating any of them."""
+    """Parse every top-level form without evaluating any of them.
+
+    Use ``parse()`` when exactly one form is required. ``forms()`` returns one
+    atom per top-level form and does not execute terms marked with ``!``.
+    """
     source_forms = _importlib.import_module(f"{__name__}._source_forms")
     return [parse(form.text) for form in source_forms.positioned_forms(source)]
 

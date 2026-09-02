@@ -19,6 +19,9 @@ Guarantees:
     [source: extensions/python/tools/reference.py:entries, the three
     `startswith("_")` refusals at module level, class level and method level;
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
+  - published prose omits file-local contracts and evidence metadata while
+    retaining the purpose and reader-facing text [tested:
+    test_reference_publishes_reader_prose_only; commit=WORKTREE]
 Fails when:
   - a page documents a module with runtime-generated members; those are
     invisible to the AST and would silently go missing
@@ -42,12 +45,56 @@ PREAMBLE = "The entries below reproduce the source signatures and docstrings."
 LINE_LENGTH = 100
 
 
+# The file-local contract header is written for whoever edits the file next: it
+# names invariants, the tests that hold them, and the commit each was measured
+# on. A reader looking up `Space.match` wants none of that, and publishing it
+# served the machine instead of the person.
+CONTRACT_LABELS = (
+    "Assumes:",
+    "Guarantees:",
+    "Fails when:",
+    "Owns resources:",
+    "Guarded by:",
+    "Decides:",
+    "Open Obligations:",
+)
+EVIDENCE_TAG = re.compile(
+    r"[ \t]*\[(?:tested|measured|source|assumed)\b[^\]]*\]", re.DOTALL
+)
+
+
+def public_prose(text: str) -> str:
+    """Return the reader-facing part of a docstring."""
+    text = EVIDENCE_TAG.sub("", text)
+    kept: list[str] = []
+    in_contract = False
+    for line in text.splitlines():
+        stripped = line.strip()
+        if any(stripped.startswith(label) for label in CONTRACT_LABELS):
+            in_contract = True
+            continue
+        if in_contract:
+            # A contract section runs until the next unindented prose line.
+            if not stripped or line.startswith((" ", "\t")):
+                continue
+            in_contract = False
+        if stripped.startswith("Purpose:"):
+            stripped = stripped[len("Purpose:") :].strip()
+            published_line = stripped[:1].upper() + stripped[1:] if stripped else ""
+        else:
+            published_line = line
+        kept.append(published_line.rstrip())
+    while kept and not kept[-1]:
+        kept.pop()
+    return "\n".join(kept).strip()
+
+
 def quote(text: str) -> str:
     """A docstring as a markdown blockquote, keeping its own line breaks."""
     lines = []
     in_indented_code = False
     previous_blank = False
-    for raw_line in text.strip().splitlines():
+    for raw_line in public_prose(text).strip().splitlines():
         line = raw_line.rstrip()
         indented = line.startswith("    ")
         is_code = indented and (previous_blank or in_indented_code)

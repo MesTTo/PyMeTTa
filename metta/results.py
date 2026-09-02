@@ -503,7 +503,7 @@ class Rows(UserList[Row]):
         conversion was only ever reachable through that keyword, so a
         prepared query's solve(), or any other Rows, could not ask for it
         even though rows_into() never cared where the rows came from
-        [measured 2026-08-31]. build(cls) is the neighbouring door and a
+        [measured 2026-08-31]. build(cls) is the neighbouring method and a
         different question: it rebuilds ONE column of complete constructor
         expressions, where this maps every column onto a field.
         """
