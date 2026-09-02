@@ -81,9 +81,9 @@ _CALLABLE_ARITIES_BY_ID: Final[dict[int, tuple[Any, tuple[int, ...]]]] = {
 }
 _CALLABLE_ARITIES_BY_ID.update(
     {
-        # policy-inventory-exempt: mechanism-internal; reason=log and round are the two mentioned standard callables with both one- and two-argument Python forms; evidence=extensions/python/metta/_define_expression.py:_adapt_mentioned_call
         id(value): (
             value,
+            # policy-inventory-exempt: mechanism-internal; reason=log and round are the two mentioned standard callables with both one- and two-argument Python forms; evidence=extensions/python/metta/_define_expression.py:_adapt_mentioned_call
             (1, 2) if value in {math.log, builtins.round} else (2,) if value is math.pow else (1,),
         )
         for value in MATH_CALLABLE_MENTIONS

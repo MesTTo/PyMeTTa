@@ -149,8 +149,7 @@ _NATIVE_COMPARE = {
 # [tested: test_compiled_operators_follow_python_protocols_and_result_species;
 # commit=d0dfff1a3ee6c85472fd9b12d6e4aec007a9c301]
 
-_SOURCE_COMPARE = {
-    **_NATIVE_COMPARE,
+_SOURCE_COMPARE = _NATIVE_COMPARE | {
     ast.Eq: "==",
     ast.NotEq: "!=",
     ast.In: "in",
@@ -512,6 +511,7 @@ class ExpressionCompilerMixin(CompilerContext):
                 line=line,
             )
         applied = self._python_operator(selector, left, right)
+        # policy-inventory-exempt: mechanism-internal; reason=set and dict are the mapping-like result species whose relational Atom image must be reconstructed after Python dispatch; evidence=extensions/python/metta/_define_expression.py:_restore_mapping_container
         if left_kind in {"set", "dict"} or right_kind in {"set", "dict"}:
             return self._restore_mapping_container(applied)
         return applied
@@ -544,6 +544,7 @@ class ExpressionCompilerMixin(CompilerContext):
                 line=line,
             )
         applied = self._python_operator(selector, left, right)
+        # policy-inventory-exempt: mechanism-internal; reason=set and dict are the mapping-like result species whose relational Atom image must be reconstructed after in-place Python dispatch; evidence=extensions/python/metta/_define_expression.py:_restore_mapping_container
         if left_kind in {"set", "dict"} or right_kind in {"set", "dict"}:
             return self._restore_mapping_container(applied)
         return applied
@@ -556,6 +557,7 @@ class ExpressionCompilerMixin(CompilerContext):
     def _native_number(self, node: ast.expr) -> bool:
         """Whether this expression is constrained to a native int/float."""
         if isinstance(node, ast.Constant):
+            # policy-inventory-exempt: mechanism-internal; reason=exact int and float literals prove the engine-native numeric path while bool must remain on Python's protocol despite subclassing int; evidence=extensions/python/metta/_define_expression.py:_native_number
             return type(node.value) in {int, float}
         if isinstance(node, ast.Name):
             return node.id in self.number_locals
@@ -596,6 +598,7 @@ class ExpressionCompilerMixin(CompilerContext):
         """Restore a literal/local container species before Python dispatch."""
         if kind == "list":
             return Expression([Symbol("py-list"), operand])
+        # policy-inventory-exempt: mechanism-internal; reason=set and dict are the two mapping-like container images encoded as pair relations before Python dispatch; evidence=extensions/python/metta/_define_expression.py:_operator_operand
         if kind in {"set", "dict"}:
             self.libraries.add("dict")
             pairs = Expression([Symbol("dict-pairs"), operand])
@@ -1443,6 +1446,7 @@ class ExpressionCompilerMixin(CompilerContext):
             kinds = {self._container_kind(value) for value in node.values}
             return kinds.pop() if len(kinds) == 1 else None
         if isinstance(node, ast.Call) and isinstance(node.func, ast.Name):
+            # policy-inventory-exempt: mechanism-internal; reason=these are the four built-in constructors whose returned container species this compiler preserves across Atom lowering; evidence=extensions/python/metta/_define_expression.py:_container_kind
             if node.func.id not in self.scope and node.func.id in {
                 "dict",
                 "list",
@@ -1462,11 +1466,14 @@ class ExpressionCompilerMixin(CompilerContext):
             return "set"
         if left == right == "dict" and isinstance(node.op, ast.BitOr):
             return "dict"
+        # policy-inventory-exempt: mechanism-internal; reason=list and tuple are the two ordered sequence species whose same-kind addition preserves the container kind; evidence=extensions/python/metta/_define_expression.py:_container_kind
         if left == right and left in {"list", "tuple"} and isinstance(node.op, ast.Add):
             return left
         if isinstance(node.op, ast.Mult):
+            # policy-inventory-exempt: mechanism-internal; reason=list and tuple are the two ordered sequence species whose multiplication by an integer preserves the container kind; evidence=extensions/python/metta/_define_expression.py:_container_kind
             if left in {"list", "tuple"} and _literal_integer(node.right):
                 return left
+            # policy-inventory-exempt: mechanism-internal; reason=list and tuple are the two ordered sequence species whose reflected multiplication by an integer preserves the container kind; evidence=extensions/python/metta/_define_expression.py:_container_kind
             if right in {"list", "tuple"} and _literal_integer(node.left):
                 return right
         return None

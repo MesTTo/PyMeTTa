@@ -1535,7 +1535,9 @@ class StatementCompilerMixin(CompilerContext):
             value = self.expression(head.value)
         if not isinstance(head, ast.AugAssign):
             source_node = head.value
-            assert source_node is not None
+            if source_node is None:
+                msg = "an assignment lowering reached its value phase without a value"
+                raise AssertionError(msg)
             spacey = _space_valued(value) or (
                 isinstance(source_node, ast.Name) and source_node.id in self.space_locals
             )

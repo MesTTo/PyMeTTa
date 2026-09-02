@@ -626,6 +626,7 @@ def compile_function(
             if annotation is None:
                 return False
             try:
+                # policy-inventory-exempt: mechanism-internal; reason=exact built-in int and float annotations are the compiler's proof for pure engine numeric lowering; evidence=extensions/python/metta/define.py:annotation_is_native_number
                 return annotation_value(annotation) in {int, float}
             except CompileError:
                 # Numeric lowering is an optional proof. The established
@@ -943,6 +944,7 @@ class _Compiler(
         if self._annotation_value is None:
             return False
         try:
+            # policy-inventory-exempt: mechanism-internal; reason=exact built-in int and float annotations are the compiler context's proof for pure engine numeric lowering; evidence=extensions/python/metta/define.py:annotation_is_native_number
             return self._annotation_value(node) in {int, float}
         except CompileError:
             # The ordinary annotation consumer below owns strict diagnostics;

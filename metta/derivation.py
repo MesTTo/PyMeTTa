@@ -8,7 +8,7 @@ Guarantees:
   - parsing, walking, and rendering use explicit work stacks, so proof depth is
     data rather than Python recursion [tested:
     test_deep_proof_consumers_treat_depth_as_data;
-    commit=9903250d082ab019535ab0c10b742053f9e640f0]
+    commit=WORKTREE]
   - facts and rules retain first-seen order with expected linear-time hash
     membership [tested: test_fact_and_rule_projection_use_hash_membership;
     commit=9903250d082ab019535ab0c10b742053f9e640f0]
@@ -263,9 +263,9 @@ def _nodes(nodes: tuple[Atom, ...]) -> tuple[Node, ...]:
             built.append(Step(item.call, item.answer, item.equation, children))
             continue
         if _headed(item, "step"):
-            call, answer, equation, children = _step_parts(item)
-            stack.append(_PendingStep(call, answer, equation, len(children)))
-            stack.extend(reversed(children))
+            call, answer, equation, child_atoms = _step_parts(item)
+            stack.append(_PendingStep(call, answer, equation, len(child_atoms)))
+            stack.extend(reversed(child_atoms))
             continue
         built.append(_leaf_node(item))
     return tuple(built)
@@ -293,8 +293,12 @@ def _render_nodes(nodes: tuple[Node, ...], indent: int) -> list[str]:
         node, level = stack.pop()
         if isinstance(node, Step):
             pad = "  " * level
-            lines.append(f"{pad}{node.call} = {node.answer}")
-            lines.append(f"{pad}  by {_pretty(node.equation)}")
+            lines.extend(
+                (
+                    f"{pad}{node.call} = {node.answer}",
+                    f"{pad}  by {_pretty(node.equation)}",
+                )
+            )
             stack.extend((child, level + 1) for child in reversed(node.children))
         else:
             lines.append(node.render(level))

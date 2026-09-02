@@ -466,10 +466,12 @@ def _except_matches(error, classinfo):
         return (
             kind in names
             or any(issubclass(Exception, candidate) for candidate in classes)
+            # policy-inventory-exempt: mechanism-internal; reason=Exception and BaseException are the two symbolic catch-all names that may classify legacy string errors; evidence=extensions/python/metta/_prelude.py:_except_matches
             or any(name in {"Exception", "BaseException"} for name in names)
         )
     # MeTTa's own thrown data classifies only as a generic error.
     return any(issubclass(Exception, candidate) for candidate in classes) or any(
+        # policy-inventory-exempt: mechanism-internal; reason=Exception and BaseException are the two symbolic catch-all names permitted to classify non-Python thrown data; evidence=extensions/python/metta/_prelude.py:_except_matches
         name in {"Exception", "BaseException"} for name in names
     )
 
