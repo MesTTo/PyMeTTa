@@ -49,6 +49,13 @@ Guarantees:
   - FutureSpace iteration performs a terminal drain after settlement and cannot
     lose an answer inserted between its live snapshot and settled check [tested:
     test_future_iteration_drains_the_terminal_snapshot; commit=39092863ae34184a9f955f185ff57c1ff177ec40]
+  - FutureSpace reads its initial bag and terminal reconciliation once, then
+    consumes additions by publication position; P quiet waits over N answers
+    cost theta(P+N), and equal answers on either side of the snapshot remain
+    distinct occurrences [tested:
+    test_future_iteration_does_not_resnapshot_per_quiet_wait,
+    test_future_iteration_watermark_separates_snapshot_from_later_events;
+    commit=WORKTREE]
   - an abandoned Channel destroys its SWI message queue from whichever thread
     collects the Python handle [tested:
     test_abandoned_channels_destroy_their_swi_queues_from_collector_thread;
@@ -84,13 +91,14 @@ import os
 import queue
 import threading
 import weakref as _weakref
+from collections import Counter
 from collections.abc import Callable, Iterable, Iterator
 from concurrent.futures import Future, as_completed
 from typing import Any, Self
 
 from ._engine import Runtime, engine_thread, runtime
 from ._space import Space
-from .atoms import Atom, Expression, Symbol, Variable, _to_atom
+from .atoms import Atom, Expression, Symbol, Variable, _atom_from_wire, _to_atom
 from .errors import MettaError, Timeout
 
 logger = logging.getLogger(__name__)
@@ -419,20 +427,33 @@ class FutureSpace(Space):
     def __iter__(self) -> Iterator[Atom]:
         """Yield each answer occurrence after it lands, until settlement."""
         subscription = self.subscribe(Variable("_future_answer"), on="add")
-        seen: list[Atom] = []
         try:
+            current, watermark = self._iteration_snapshot()
+            yielded = list(current)
+            yield from current
+            pending = subscription.drain()
             while True:
-                current = self.atoms()
-                yield from _unseen_occurrences(current, seen)
-                seen = current
+                for event in pending:
+                    sequence = getattr(event, "_sequence", None)
+                    if sequence is not None and sequence <= watermark:
+                        continue
+                    yielded.append(event.atom)
+                    yield event.atom
                 if self.settled():
-                    # Settlement is terminal for future-produced answers. One
-                    # final snapshot closes the snapshot-to-settled race.
-                    yield from _unseen_occurrences(self.atoms(), seen)
+                    # Settlement follows every engine-produced answer. One
+                    # final reconciliation also retains any ordinary space
+                    # write that did not carry a future publication position.
+                    final = list(_unseen_occurrences(self.atoms(), yielded))
+                    yield from final
                     return
-                subscription.wait(0.05)
+                pending = subscription.wait(0.05)
         finally:
             subscription.cancel()
+
+    def _iteration_snapshot(self) -> tuple[list[Atom], int]:
+        """The initial answer bag and its exact publication watermark."""
+        watermark, wires = self._rt.apply_must("metta_py_future_snapshot", self._space)
+        return [_atom_from_wire(wire) for wire in wires], int(watermark)
 
 
 def _warn_abandoned(name: str, settlement: dict) -> None:
@@ -448,13 +469,13 @@ def _warn_abandoned(name: str, settlement: dict) -> None:
 
 
 def _unseen_occurrences(current: list[Atom], seen: list[Atom]) -> Iterator[Atom]:
-    """Yield the multiset difference from one ordered atom snapshot."""
-    unmatched = list(seen)
+    """Yield an ordered multiset difference in expected linear time."""
+    unmatched = Counter(seen)
     for atom in current:
-        try:
-            unmatched.remove(atom)
-        except ValueError:
-            yield atom
+        if unmatched[atom]:
+            unmatched[atom] -= 1
+            continue
+        yield atom
 
 
 def _future(owner: Space, head: str, *arguments: Any) -> FutureSpace:

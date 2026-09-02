@@ -2115,6 +2115,13 @@ metta_py_drain(Space, Wire, Removed) :-
 metta_py_atoms(Space, Encoded) :-
     findall(E, ('get-atoms'(Space, P), metta_py_encode(P, E)), Encoded).
 
+%One initial future snapshot and the change-stream position that follows it.
+%The dedicated answer mutex makes the two fields one observation rather than a
+%bag read followed by an unrelated counter read.
+metta_py_future_snapshot(Space, [Watermark, Encoded]) :-
+    metta_future_snapshot(Space, Atoms, Watermark),
+    maplist(metta_py_encode, Atoms, Encoded).
+
 %The tracer answers terms; putting them on the wire is the shim's job, as
 %it is for every other atom leaving the engine. A call event has no answer
 %field at all, rather than a value standing in for its absence.
@@ -3593,7 +3600,7 @@ metta_py_async_outcome(ok, Tagged, Space, done) :-
     (   metta_py_declined(Tagged)
     ->  true
     ;   metta_py_decode_shared(Tagged, Result, _),
-        'add-atom'(Space, Result, _)
+        future_add_atom(Space, Result)
     ).
 metta_py_async_outcome(cancelled, _, _, cancelled).
 metta_py_async_outcome(error, [Class0, Exception], _,
@@ -4974,7 +4981,12 @@ metta_py_notify_atom_added(Space, Term) :-
     metta_py_subscribed_space(Space),
     metta_py_encode(Term, W),
     atom_string(Space, SpaceStr),
-    py_call(metta_ops:atom_added(SpaceStr, W), _).
+    metta_py_future_answer_sequence(Space, Sequence),
+    py_call(metta_ops:atom_added(SpaceStr, W, Sequence), _).
+
+metta_py_future_answer_sequence(Space, Sequence) :-
+    nb_current('$metta_future_answer_sequence', future(Space, Sequence)), !.
+metta_py_future_answer_sequence(_, -1).
 
 metta_py_notify_atom_removed(Space, Term) :-
     atom(Space),

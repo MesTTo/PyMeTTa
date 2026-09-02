@@ -35,14 +35,16 @@ Guarantees:
     test_context_snapshot_crosses_every_spawn_door_including_thread_workers,
     test_context_release_linearizes_before_a_waiting_entry;
     commit=39092863ae34184a9f955f185ff57c1ff177ec40]
-  - FutureSpace iteration drains its terminal snapshot, async reflection names
-    the public SpaceType and effective writesState contract, and loop teardown
-    finalizes pending coroutines and permits recovery after unexpected stop or
-    startup failure [tested:
+  - FutureSpace iteration drains its terminal snapshot and separates that
+    initial bag from later additions by publication position; async reflection
+    names the public SpaceType and effective writesState contract, and loop
+    teardown finalizes pending coroutines and permits recovery after unexpected
+    stop or startup failure [tested:
     test_future_iteration_drains_the_terminal_snapshot,
+    test_future_iteration_watermark_separates_snapshot_from_later_events,
     test_async_reflection_has_one_public_return_and_effect,
     test_the_async_loop_recovers_from_stop_and_thread_start_failure,
-    test_async_loop_shutdown_finalizes_pending_coroutines; commit=39092863ae34184a9f955f185ff57c1ff177ec40]
+    test_async_loop_shutdown_finalizes_pending_coroutines; commit=WORKTREE]
 """
 
 from __future__ import annotations
@@ -242,19 +244,17 @@ def test_future_iteration_drains_the_terminal_snapshot(metta, monkeypatch):
     metta.op(answer, name=name, effect="oracleIO")
     future = metta.eval(S[name]())[0]
     assert entered.wait(10)
-    original_atoms = FutureSpace.atoms
-    first_snapshot = True
+    future.add(42)
+    original_snapshot = FutureSpace._iteration_snapshot
 
-    def gated_atoms(self):
-        nonlocal first_snapshot
-        atoms = original_atoms(self)
-        if self is future and first_snapshot:
-            first_snapshot = False
+    def gated_snapshot(self):
+        snapshot = original_snapshot(self)
+        if self is future:
             snapshot_taken.set()
             assert return_snapshot.wait(10)
-        return atoms
+        return snapshot
 
-    monkeypatch.setattr(FutureSpace, "atoms", gated_atoms)
+    monkeypatch.setattr(FutureSpace, "_iteration_snapshot", gated_snapshot)
 
     def iterate() -> None:
         try:
@@ -269,15 +269,69 @@ def test_future_iteration_drains_the_terminal_snapshot(metta, monkeypatch):
     try:
         assert snapshot_taken.wait(10)
         release.set()
-        assert _bounded_call(lambda: list(future.wait())) == [42]
+        assert _bounded_call(lambda: list(future.wait())) == [42, 42]
         return_snapshot.set()
+        assert iteration_done.wait(10)
+        worker.join()
+        assert iteration_errors == []
+        assert iterated == [42, 42]
+    finally:
+        release.set()
+        return_snapshot.set()
+        metta.unregister_op(name)
+
+
+def test_future_iteration_watermark_separates_snapshot_from_later_events(metta, monkeypatch):
+    """An answer queued before the snapshot is present exactly once."""
+    name = _unique("future-snapshot-watermark")
+    entered = threading.Event()
+    release = threading.Event()
+    snapshot_entered = threading.Event()
+    take_snapshot = threading.Event()
+    iteration_done = threading.Event()
+    iterated: list[Any] = []
+    iteration_errors: list[BaseException] = []
+
+    async def answer() -> int:
+        entered.set()
+        await asyncio.to_thread(release.wait)
+        return 42
+
+    metta.op(answer, name=name, effect="oracleIO")
+    future = metta.eval(S[name]())[0]
+    assert entered.wait(10)
+    original_snapshot = FutureSpace._iteration_snapshot
+
+    def gated_snapshot(self):
+        if self is future:
+            snapshot_entered.set()
+            assert take_snapshot.wait(10)
+        return original_snapshot(self)
+
+    monkeypatch.setattr(FutureSpace, "_iteration_snapshot", gated_snapshot)
+
+    def iterate() -> None:
+        try:
+            iterated.extend(future)
+        except BaseException as error:
+            iteration_errors.append(error)
+        finally:
+            iteration_done.set()
+
+    worker = threading.Thread(target=iterate, daemon=True)
+    worker.start()
+    try:
+        assert snapshot_entered.wait(10)
+        release.set()
+        assert _bounded_call(lambda: list(future.wait())) == [42]
+        take_snapshot.set()
         assert iteration_done.wait(10)
         worker.join()
         assert iteration_errors == []
         assert iterated == [42]
     finally:
         release.set()
-        return_snapshot.set()
+        take_snapshot.set()
         metta.unregister_op(name)
 
 

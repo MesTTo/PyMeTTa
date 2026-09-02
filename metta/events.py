@@ -728,7 +728,12 @@ def publish(action: str, space: str, wire: list) -> bool:
     return True
 
 
-def _deliver(action: str, space: str, atom: Atom) -> None:
+def _deliver(
+    action: str,
+    space: str,
+    atom: Atom,
+    sequence: int | None = None,
+) -> None:
     failures: list[SubscriberError] = []
     for fold in _REGISTRY.candidates(space, atom):
         if fold.on not in ("both", action):
@@ -737,7 +742,13 @@ def _deliver(action: str, space: str, atom: Atom) -> None:
         if bindings is None:
             continue
         try:
-            fold._run(Event(action, space, atom, bindings))
+            event = Event(action, space, atom, bindings)
+            if sequence is not None:
+                # Keep transport metadata outside the dataclass fields so
+                # construction, repr, equality, asdict(), and class matching
+                # retain Event's public four-field record.
+                object.__setattr__(event, "_sequence", sequence)
+            fold._run(event)
         # A control signal is BaseException and passes through untouched:
         # KeyboardInterrupt is not a watcher saying no.
         except Exception as failure:  # noqa: BLE001  -- every ordinary watcher failure is reported after every watcher runs
@@ -770,9 +781,15 @@ def _deliver(action: str, space: str, atom: Atom) -> None:
         raise ExceptionGroup(msg, failures)
 
 
-def atom_added(space: str, wire: list) -> bool:
+def atom_added(space: str, wire: list, sequence: int = -1) -> bool:
     """The shim's added-atom hook."""
-    return publish("add", space, wire)
+    _deliver(
+        "add",
+        space,
+        _atom_from_wire(wire),
+        None if sequence < 0 else sequence,
+    )
+    return True
 
 
 def atom_removed(space: str, wire: list) -> bool:
