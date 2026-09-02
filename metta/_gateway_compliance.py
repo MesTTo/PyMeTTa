@@ -14,7 +14,7 @@ Guarantees:
     promises: multiset adds, match by pattern, removal by unification of
     one occurrence [tested test_the_operations_keep_space_semantics,
     test_add_many_lands_the_batch]
-  - the ask/next/stop lifecycle answers the eager door's answer set at
+  - the ask/next/stop lifecycle answers the eager method's answer set at
     every batch, ends on a null cursor, and refuses a cursor it no longer
     holds [tested test_the_lifecycle_streams_the_same_answers_the_eager_door_gives,
     test_the_lifecycle_refuses_what_it_cannot_answer,

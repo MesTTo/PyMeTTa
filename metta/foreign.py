@@ -166,7 +166,7 @@ class MatchClassifier(Protocol):
     everything else, and one flag for the whole provider would force it to
     claim the weaker answer everywhere.
 
-    This is Apache DataFusion's TableProviderFilterPushDown, whose Exact rung
+    This is Apache DataFusion's TableProviderFilterPushDown, whose Exact variant
     reads "Your source guarantees that no output rows will have a false value
     for this predicate", against Inexact, "Your source has the ability to
     reduce the data produced, but the output may still include rows that do
@@ -177,7 +177,7 @@ class MatchClassifier(Protocol):
     "Pushes down filters, and returns filters that need to be evaluated after
     scanning"].
 
-    DataFusion's third rung, Unsupported, is absent here. It exists there
+    DataFusion's third variant, Unsupported, is absent here. It exists there
     because the planner decides whether to SEND a filter at all; the pattern
     is the only thing a provider is given, so there is nothing to withhold,
     and a provider that ignores it is inexact in the only sense that acts on

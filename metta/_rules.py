@@ -106,7 +106,7 @@ def _stage_defined_calls() -> Iterator[list[LintEvent]]:
 
 
 class Rules(tuple[Expression, ...]):
-    """An immutable named equation set recognized by Space's one write door.
+    """An immutable named equation set recognized by Space's write operation.
 
     A tuple subtype cannot carry nonempty __slots__, so the name rides the
     instance dict while the equations themselves stay immutable.

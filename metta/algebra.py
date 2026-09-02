@@ -458,7 +458,7 @@ def _canonical_laws(laws: Iterable[str]) -> frozenset[str]:
 
 
 def _catalog_declaration(metta: Space, name: str) -> DeclaredAlgebra | None:
-    """Reify a direct ``&metta`` algebra row through the Python door."""
+    """Reify a direct ``&metta`` algebra row through the Python interface."""
     for atom in Space("&metta", _runtime=metta.runtime).atoms():
         if not isinstance(atom, Expression) or len(atom.children) != 9:
             continue

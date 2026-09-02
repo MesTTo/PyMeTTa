@@ -1,7 +1,7 @@
 """Purpose: the engine's own space tests, pointed at somebody else's provider.
 
-This is the rung above `check_space_provider`, and the two divide the work
-along a line worth keeping sharp.
+This pytest layer sits above `check_space_provider`, and the two divide the
+work along a line worth keeping sharp.
 
 `check_space_provider` is the PROVIDER AUTHOR's half. It runs in process, calls
 the provider's methods directly, needs no engine, and asks whether the object

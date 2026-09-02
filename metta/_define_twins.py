@@ -7,7 +7,7 @@ Guarantees:
   - twin dispatch skips clauses whose callable arity cannot accept the call
     [tested: test_define_supports_one_name_at_multiple_arities;
     commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
-  - a twin that cannot run names the eager Defined call as the engine door
+  - a twin that cannot run names the eager Defined call as the engine operation
     [tested: test_twin_refuses_engine_only_bodies; commit=88d2e764c999d89e8919172e5c1455be804b293d]
   - clause wrappers and their dispatcher preserve typing.no_type_check so
     syntax-only annotations remain absent from portable documentation [tested:

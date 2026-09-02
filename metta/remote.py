@@ -16,7 +16,7 @@ Guarantees:
     ahead, so taking two answers of an enumeration costs two answers'
     engine work whatever the enumeration's size [measured 2026-08-20 over
     real HTTP: 1,250 inferences for two answers whether the space held 10
-    atoms or 10,000, against 1,839 and 1,490,407 for the eager door]
+    atoms or 10,000, against 1,839 and 1,490,407 for the eager method]
     [tested test_two_answers_cross_the_wire_without_the_third_being_computed]
   - a cursor nobody pulls from is released after cursor_idle seconds and
     a gateway refuses to hold more than cursor_limit at once [tested
@@ -169,7 +169,7 @@ _MAX_REQUEST_BYTES = 16 * 1024 * 1024
 
 #: How many answers one reply of the ask/next lifecycle may carry when the
 #: request names no batch. One, so a client that never asks for more never
-#: pays for one, which is the whole point of the lazy door; pengines picks
+#: pays for one, which is the whole point of the lazy method; pengines picks
 #: the same default for the same field, its `chunk`
 #: [source 2026-08-20: /usr/lib/swi-prolog/library/ext/pengines/pengines.pl,
 #: pengine_ask/3's chunk(1) option].
@@ -427,7 +427,7 @@ class RemoteSpace(SpaceProvider):
     against the local pattern, so a lying or stale remote can only cost
     time, not soundness.
 
-    `batch` chooses which door match() uses, and the choice is the one
+    `batch` chooses how match() retrieves answers, and the choice is the one
     match() and stream() make in-process. Left None, match() is the eager
     /match: one crossing carrying the whole answer set, which is what a
     space whose answers fit in an HTTP body wants. Set to a count, match()
@@ -512,12 +512,12 @@ class RemoteSpace(SpaceProvider):
         batch: int = _DEFAULT_BATCH,
         limit: int | None = None,
     ) -> RemoteCursor:
-        """The lazy door: answers pulled a chunk at a time, so taking two
+        """The lazy method: answers pulled a chunk at a time, so taking two
         of a large enumeration costs the server two answers' work instead
         of the whole join's.
 
-        match() is the eager door and stays it, the split match() and
-        stream() already make in-process. Reach for this to take answers
+        match() remains eager, matching the in-process split between match()
+        and stream(). Reach for this to take answers
         until you have seen enough, or when the answer set is larger than
         one HTTP body.
 
@@ -581,7 +581,7 @@ class RemoteSpace(SpaceProvider):
         self._transport("add", {"space": self._space, "atom": atom.to_wire()})
 
     def add_many(self, atoms: list[Atom]) -> None:
-        """One request carries the batch, the engine's own bulk-door law on
+        """One request carries the batch, the engine's own bulk-write law on
         the wire: a batch is a transport optimisation and never a semantic
         one, and the engine already routes only plain stores through it.
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
@@ -596,8 +596,8 @@ class RemoteSpace(SpaceProvider):
 
 
 #: Every live server in THIS process, keyed by the address it accepts on.
-#: the space() URL door reads it to refuse a configuration that cannot work; Server
-#: registers on construction and releases on close.
+#: The space() URL form reads it to refuse a configuration that cannot work;
+#: Server registers on construction and releases on close.
 _LIVE_SERVERS: dict[tuple[str, int], tuple[str, ...]] = {}
 _LIVE_SERVERS_LOCK = threading.Lock()
 #: The spellings of one loopback address, so a server bound to 127.0.0.1 is
@@ -664,7 +664,7 @@ def _refuse_this_process(
     The configuration is what is wrong, not the ordering.
 
     A plain HTTP call to the same server from outside an evaluation works and
-    is not refused here; the guard is on the space() URL door, whose spaces
+    is not refused here; the guard is on the space() URL form, whose spaces
     are only ever matched from inside one.
     """
     if not isinstance(url, str):
@@ -839,7 +839,7 @@ def connect(
 
 
 #: The engine's own wording when a binding has no finite wire form, which is
-#: how the eager door learns a candidate is a rational tree
+#: how the eager method learns a candidate is a rational tree
 #: [source: extensions/python/metta/shim.pl, metta_py_wire_refuse/0].
 _RATIONAL_TREE = "rational-tree binding has no finite wire form"
 
@@ -903,9 +903,9 @@ def _read_out(atom: Atom) -> Atom:
 def _wire(atoms: list[Atom]) -> list:
     """The wire forms of the atoms a reply answers, each named by _read_out.
 
-    Every door names them the same way, so the eager reply and the chunks of
-    the lazy one are the same atoms rather than the same atoms under two
-    spellings, and one stored atom read twice is one atom.
+    Both response paths name them the same way, so the eager reply and the
+    chunks of the lazy one are the same atoms rather than the same atoms under
+    two spellings, and one stored atom read twice is one atom.
     """
     return [_read_out(atom).to_wire() for atom in atoms]
 
@@ -948,7 +948,7 @@ def _atom_of(payload: dict, name: str) -> Atom:
 
 
 def _atoms_of(payload: dict, name: str) -> list[Atom]:
-    """The list form, for the bulk door."""
+    """The list form, for the bulk request."""
     wires = payload.get(name)
     if not isinstance(wires, list):
         msg = f"this operation needs the `{name}` field, holding a list of wire atoms"
@@ -1205,11 +1205,11 @@ class Gateway:
         )
 
     def _match(self, payload: dict) -> dict:
-        """The eager door: one reply carrying the whole answer set.
+        """The eager method: one reply carrying the whole answer set.
 
         match()'s reading on the wire, and it costs what match() costs, the
-        join computed to the end before anything crosses. /ask is the other
-        door, and both take their candidates from _candidates, so the two
+        join computed to the end before anything crosses. /ask is the streaming
+        endpoint, and both take their candidates from _candidates, so the two
         answer the same set for every pattern.
         """
         space = self._space(payload)
@@ -1241,8 +1241,8 @@ class Gateway:
     def _collapsed(self, space: MeTTa, pattern: Atom) -> list[Atom]:
         """One engine-side match, collapsed to the instantiations it answers.
 
-        The whole answer set in ONE crossing, which is what makes the eager
-        door eager; the lazy door pays a crossing per chunk instead.
+        The whole answer set crosses once; stream() pays a crossing per chunk
+        instead.
         """
         with space.bind(pat=pattern):
             groups = space.run("!(collapse (match (context-space) pat pat))")
@@ -1303,7 +1303,7 @@ class Gateway:
         return {"atoms": _wire(atoms), "cursor": token}
 
     def _ask(self, payload: dict) -> dict:
-        """The lazy door: open a cursor and answer its first chunk.
+        """Open a cursor and answer the first chunk for the streaming endpoint.
 
         stream()'s reading on the wire. The reply's `cursor` is the
         continuation and doubles as the more-flag, because a finished

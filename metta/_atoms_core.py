@@ -58,7 +58,7 @@ Guarantees:
     is a memory decision rather than a speed one [tested
     test_the_intern_cache_evicts_in_constant_time]
   - _WIRE_SYM_ORDER and _WIRE_VAR_ORDER hold exactly the keys of the cache
-    each one bounds, and _wire_intern_clear is the only door that empties
+    each one bounds, and _wire_intern_clear is the only function that empties
     either [tested test_the_intern_cache_evicts_in_constant_time]
   - object formatters can be removed by their exact registration identity
     [tested test_object_repr_registrations_can_be_removed_exactly]
@@ -92,7 +92,7 @@ Guarantees:
     table, including explicit templates and named refusals [tested:
     test_the_operator_table_is_generated_from_one_source_with_no_holes;
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
-  - ``atom.cast(type_)`` delegates to the ambient ``Space.cast`` door, so
+  - ``atom.cast(type_)`` delegates to the ambient ``Space.cast`` method, so
     declarations remain space-relative while the atom owns the concise
     spelling [tested: test_atom_cast_delegates_to_the_ambient_space;
     commit=49c43f86fa17a20ecebf9f9dbb5514de4762297d]
@@ -182,8 +182,8 @@ def _is_primitive(value: Any) -> bool:
 
 
 def _ground_identical(mine: Any, theirs: Any) -> bool:
-    """Identity exactly as the engine reads two crossed values, through EITHER
-    of its doors: what unification matches and what the == operator answers are
+    """Identity exactly as the engine reads two crossed values through either
+    interface: what unification matches and what the == operator answers are
     now one relation.
 
     They were two. Until 2026-08-30 == was a numeric tower over crossed values
@@ -192,7 +192,7 @@ def _ground_identical(mine: Any, theirs: Any) -> bool:
     upstream declares == over two INDEPENDENT type variables and compares
     exactly, so aligning the declaration collapsed the split. Every edge that
     used to separate them now agrees on both sides
-    [measured 2026-08-30, ours and PeTTa@ae66fa8 alike, through the text door
+    [measured 2026-08-30, ours and PeTTa@ae66fa8 alike, through the text form
     and through Grounded values: `(== 0 0.0)`, `(== 0.0 -0.0)`, `(== True 1)`
     and `(== 1 "a")` are all False, `(== NaN NaN)` is True].
 
@@ -525,7 +525,7 @@ class Atom:
         The nearest-relative spelling of the head whose `=` marker Python
         cannot carry, exactly as eq() spells ==; compiled bodies write the
         same test as a bare alpha(x, y) call, and fn["=alpha"] stays the
-        exact door.
+        exact form.
         """
         return self._build("=alpha", other)
 
@@ -605,15 +605,15 @@ class Atom:
             S.greet(S.name).subs({S.name: "ada"})          # (greet "ada")
 
         The KEY says what is being replaced, so a variable hole and a
-        placeholder symbol are different substitutions rather than one string
-        meaning whichever the door happens to have chosen. ``unify`` produces
-        variable keys; a ``bind()`` scope at the evaluation doors accepts either.
+        placeholder symbol are different substitutions rather than one
+        ambiguous string. ``unify`` produces variable keys; a ``bind()`` scope
+        at the evaluation methods accepts either.
 
         An answer ``Row`` is accepted directly, because its columns ARE the
         query's variable names. It is the library's other producer of
         bindings, and it could not be fed back either.
 
-        Sugar over :meth:`map`, which is the rung below and stays reachable:
+        Sugar over :meth:`map`, which stays available as the lower-level method:
         this is ``atom.map(lambda item: bindings.get(item, item))`` with the
         keys and values encoded. Nothing consumed a substitution before this,
         so both producers answered in a currency the library did not accept,
@@ -874,7 +874,7 @@ class Grounded(Atom):
         if isinstance(other, Atom):
             return False
         # A raw tuple is the transparent Expression spelling at every Python
-        # value door. Explicit Grounded(tuple) is the opaque spelling; letting
+        # value boundary. Explicit Grounded(tuple) is the opaque spelling; letting
         # it equal the same raw tuple would make that tuple equal both an
         # Expression and an unequal Grounded atom, violating transitivity.
         if isinstance(other, tuple):
@@ -1418,7 +1418,7 @@ def _apply_operator_lowering(
     *,
     flipped: bool = False,
 ) -> Expression:
-    """Apply one table entry; ``taken`` entries never reach this door."""
+    """Apply one table entry; ``taken`` entries never reach this function."""
     if entry.form is None:
         msg = f"operator lowering {entry.dunder} has no form"
         raise RuntimeError(msg)
@@ -1509,10 +1509,9 @@ def _install_operator_lowerings() -> None:
 _install_operator_lowerings()
 
 
-#: The term-building method for each comparison operator, so a refusal names
-#: the nearest rung rather than the furthest one. The bracket door still works
-#: and is still shown, because it is the rung below and the ladder never
-#: shrinks; naming only it sent a caller past the method that exists.
+#: The term-building method for each comparison operator. A refusal names this
+#: concise method first and the exact bracket form second, so callers see the
+#: method that exists without losing the fallback.
 _ORDER_METHOD = {"<": "lt", "<=": "le", ">": "gt", ">=": "ge"}
 
 
@@ -1581,7 +1580,7 @@ Atom.__ge__ = _standard_order_ge  # type: ignore[method-assign]
 # Registered so case [head, *args] matches: the Sequence pattern checks the ABC.
 cast(ABCMeta, Sequence).register(Expression)
 
-# Atoms refuse assignment, so every slot write goes through a back door.
+# Atoms refuse assignment, so every slot write calls its descriptor directly.
 # object.__setattr__ resolves the attribute NAME against the type on every
 # call and costs 951 instructions; the slot's own descriptor is resolved
 # already and costs 568 [measured 2026-08-19: minimum of three
@@ -1828,7 +1827,7 @@ def decode(atom: Any) -> Any:
 # with no other writer able to interleave and no statement between them that
 # can raise, and a reader only ever touches `cache`. The pair that CAN drift
 # is a caller emptying one and not the other, so emptying has exactly one
-# door, _wire_intern_clear, and the two lengths are asserted to agree
+# function, _wire_intern_clear, and the two lengths are asserted to agree
 # [tested test_the_intern_cache_evicts_in_constant_time].
 #
 # FIFO rather than LRU: reordering on a hit would have to take the lock, and

@@ -724,7 +724,7 @@ class EventStream:
 
 
 def stream(runtime: Any) -> EventStream:
-    """The event stream of one engine; `MeTTa.events()` is the usual door."""
+    """The event stream of one engine; `MeTTa.events()` is the usual method."""
     return EventStream(runtime)
 
 

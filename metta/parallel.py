@@ -37,7 +37,7 @@ Guarantees:
     commit=39092863ae34184a9f955f185ff57c1ff177ec40]
   - every worker releases its engine on close, including after an exception
     [tested test_close_releases_every_engine]
-  - every Python and engine-backed spawn door snapshots ContextVars at launch,
+  - every Python and engine-backed spawn call snapshots ContextVars at launch,
     including EnginePool's OS-thread jobs [tested:
     test_context_snapshot_crosses_every_spawn_door_including_thread_workers;
     commit=39092863ae34184a9f955f185ff57c1ff177ec40]

@@ -7,7 +7,7 @@ tokeniser reads back whole, that true/false ARE the boolean atoms so their
 symbol spellings canonicalize, and that `_` is the anonymous variable,
 fresh at every occurrence.
 
-The conformance surfaces live here too, one rung per audience:
+The conformance surfaces live here too, one layer per audience:
 check_space_provider and check_codec run in process against an author's own
 object, SpaceComplianceSuite and GatewayComplianceSuite are pytest classes
 that run the engine's own expectations against a provider or a URL.
@@ -355,7 +355,7 @@ def check_space_provider(provider, *, atoms_to_store=None, source="repeated") ->
     Raises AssertionError on the first violation, naming the provider class,
     the operation and the atom.
 
-    THE DOOR IS UNIVERSAL: a provider is any foreign substrate, not only a
+    THE CHECK IS UNIVERSAL: a provider is any foreign substrate, not only a
     Python object, and every substrate sits behind the space seam. Handed a
     ``Space`` handle, this runs the engine's own checker
     (lib/lib_conformance/lib_conformance.pl's ``check-space-provider``), which holds the
@@ -543,7 +543,7 @@ def _joined(pattern, atom):
     helper instead returns the joined pattern under the engine's one binding
     law, in miniKanren's walk/unify shape: variables bind by name in one
     namespace, `_` matches anything and binds nothing, and bindings are RAW,
-    exactly as metta_match_atoms/2 and the match door now bind under the
+    exactly as metta_match_atoms/2 and the match method now bind under the
     petta alignment. A join that resolves into itself is a legal rational
     tree on the engine side but has no finite atom form here, so it comes
     back as the sentinel and the caller decides what a provider owes for it.
@@ -664,7 +664,7 @@ def _check_pushdown_claim(provider, name: str, stored: list) -> list[str]:
 def _match_or_cyclic_evidence(provider, pattern):
     """provider.match(pattern) as a list, or the _CYCLIC sentinel it refused with.
 
-    The door refuses a rational-tree row loudly, and that refusal is EVIDENCE, not
+    The method refuses a rational-tree row loudly, and that refusal is EVIDENCE, not
     absence: the wire raises it only while answering a row whose binding is
     cyclic, so the candidate exists on the engine side, where the seam's
     real consumer re-unifies natively with no wire between them. A python
@@ -703,7 +703,7 @@ def _check_match_contract(provider, name: str, stored: list) -> list[str]:
                 if joined is None:
                     continue
                 if answered is _CYCLIC:
-                    # The door itself refused a rational-tree row loudly,
+                    # The method itself refused a rational-tree row loudly,
                     # which only happens while answering one: every entry
                     # this pattern joins is covered by that evidence.
                     continue

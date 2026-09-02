@@ -11,7 +11,7 @@ Guarantees:
     value, are refused [tested test_json_codec_refuses_duplicate_keys,
     test_json_codec_refuses_trailing_content]
   - a value that contains itself, or that is nested too deeply to walk, is
-    refused with the remedy rather than crossing: this door passes its value
+    refused with the remedy rather than crossing: this function passes its value
     transparently, so either one used to overrun the C stack and take the
     process with it [tested:
     test_json_codec_refuses_a_value_that_contains_itself,
@@ -43,8 +43,8 @@ _CONTAINERS = (dict, list, tuple)
 def _reaches_itself(value: Any, path: set[int]) -> bool:
     """Whether a container reaches ITSELF, so crossing it cannot terminate.
 
-    Every other door hands a Python container over boxed, as `['o', Box(...)]`,
-    and a boxed object crosses by reference without being walked. This door
+    Every other crossing hands a Python container over boxed, as `['o', Box(...)]`,
+    and a boxed object crosses by reference without being walked. This function
     passes the value TRANSPARENTLY, so janus converts it into a Prolog term by
     recursing through it, and a container holding itself takes the C stack with
     it: measured 2026-08-29, `dumps({'a': 1, 'self': <itself>})` is SIGSEGV,
@@ -54,7 +54,7 @@ def _reaches_itself(value: Any, path: set[int]) -> bool:
 
     The engine already refuses the same shape where it materialises a Python
     object -- bridge.pl's metta_py_cycle_check/3, "materializing one is not a
-    slow answer but no answer" -- and this is that refusal for the one door
+    slow answer but no answer" -- and this is that refusal for the one function
     that crashed instead of reaching it.
 
     Detection is by the CURRENT PATH, not by everything visited, which is what

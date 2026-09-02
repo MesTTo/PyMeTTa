@@ -296,8 +296,8 @@ def guard_admits(guard: Atom, evaluate: Callable[[Atom], Any]) -> Callable[[Even
 
     The guard is instantiated under the event's own bindings and required
     true, which is match()'s rule for the same word. It is built here because
-    this module owns the instantiation, and handed the evaluation door because
-    evaluating a term needs the Space and this module sits below it.
+    this module owns the instantiation. It receives the evaluation function
+    because evaluating a term needs the Space and this module sits below it.
     """
     return lambda event: evaluate(_instantiate(guard, event.bindings)) == [True]
 

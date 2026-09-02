@@ -96,7 +96,7 @@ Guarantees:
     worker performs the synchronous Linda wait [tested:
     test_async_peek_and_take_mirror_the_space_handle; commit=4e2398075da67bb2cbcc123a9fc1e078ecac6fbf]
   - async match forwards the submitting task's scoped or explicit algebra,
-    and sample mirrors the synchronous random.choices-shaped door [tested:
+    and sample mirrors the synchronous random.choices-shaped method [tested:
     test_aio_covers_the_whole_synchronous_surface; commit=c7468b2789746bcf95c4bacc0e2d517ec4d972fa]
   - async reification, world evaluation, and commit keep every engine crossing
     on the owning worker while immutable atom snapshots remain directly
@@ -874,7 +874,7 @@ class AsyncMeTTa:
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         return self._worker.interrupt_if_running(None)
 
-    # ------------------------------------ doors the worker needs its own body for
+    # ----------------------------------- methods the worker needs its own body for
 
     async def count(self) -> int:
         """Return the number of atoms in this space."""
@@ -981,7 +981,7 @@ class AsyncMeTTa:
             )
         else:
             # A name and a model are independent here for the same reason they
-            # are on the synchronous door: the engine's declarations take any
+            # are on the synchronous method: the engine's declarations take any
             # valid space name.
             handle = await self.call(
                 lambda m: m._open(
@@ -1009,7 +1009,7 @@ class AsyncMeTTa:
         arities: list[int] | None = None,
         inverse: Callable | None = None,
     ) -> Callable:
-        """Register a callable through the single short operation door."""
+        """Register a callable through the short operation form."""
         options: dict[str, Any] = {
             "name": name,
             "transport": transport,
@@ -1029,8 +1029,8 @@ class AsyncMeTTa:
         """Collect and land a non-exclusive equation bundle on the worker.
 
         An awaitable CALL rather than a decorator, which is the same answer
-        define() gives to the same problem: decoration cannot await, so the
-        door stops being a decorator instead of stopping existing. It was
+        define() gives to the same problem: decoration cannot await, so this
+        method accepts only the applied form. It was
         excluded from the async surface for the first reading of that, which
         left an async caller unable to land a bundle at all
         [measured 2026-08-31].
@@ -1038,7 +1038,7 @@ class AsyncMeTTa:
         return await self.call(lambda space: space.rules(fn))
 
     async def pre_add(self, fn: Callable) -> Any:
-        """Compile or accept one unary judge and claim this space's write door.
+        """Compile or accept one unary judge and claim this space's write hook.
 
         Excluded for the same reading as rules(), and restored the same way.
         """
@@ -1055,13 +1055,12 @@ class AsyncMeTTa:
         methods: bool = True,
     ) -> Any:
         """Compile a Python function into equations on the worker. The
-        returned handle's own calls are synchronous doors; evaluate
+        returned handle's own calls are synchronous methods; evaluate
         through fn(name) or run() from async code.
 
-        `name=` is the naming ladder's exact-spelling rung, and it is here
-        because the ladder does not shrink from one surface to another: an
-        async caller installing `prime?` or an authored underscore had no
-        method for it while the synchronous define did [measured 2026-08-31].
+        `name=` preserves an exact spelling on the async surface. Without it,
+        an async caller installing `prime?` or an authored underscore had no
+        equivalent of the synchronous define method [measured 2026-08-31].
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         if fn is not None and prolog is None:
             # accessors= and methods= carry for every shape, their defaults
@@ -1076,7 +1075,7 @@ class AsyncMeTTa:
             raise TypeError(msg)
         source = prolog
         if fn is not None:
-            # The sync door's prolog= form is a decorator whose Python stays
+            # The sync method's prolog= form is a decorator whose Python stays
             # the reference twin; both pieces forward, nothing silently
             # drops.
             return await self.call(
@@ -1218,10 +1217,9 @@ class AsyncMeTTa:
     ) -> _AsyncSubscription:
         """Observe matching writes, raising Timeout after each quiet deadline.
 
-        The synchronous watch()'s meaning, which this door carried the NAME of
-        without: it was subscribe() under a second name, same signature and
-        same body, so an async caller had no way to say "stop waiting after
-        this long" that peek() and take() both give them
+        This method once shared subscribe()'s signature and body despite being
+        named watch(), so an async caller had no way to set the quiet deadline
+        that peek() and take() both provide
         [measured 2026-08-31].
         """
         require_deadline(deadline)
@@ -1234,7 +1232,7 @@ class AsyncMeTTa:
         """Engine functions as async callables, by attribute or exact name.
 
         ``m.fn.car_atom`` transliterates underscores to hyphens and
-        ``m.fn["=="]`` preserves exact punctuation, the same two doors the
+        ``m.fn["=="]`` preserves exact punctuation, the same two forms the
         sync namespace has. Resolution is lazy: the worker is asked when the
         function is awaited, so an unknown name raises there rather than at
         access.
@@ -1242,10 +1240,10 @@ class AsyncMeTTa:
         return _AsyncFunctionNamespace(self)
 
     # ---------------------------------------------- generated mirror
-    # Every door below is GENERATED by tools/aiogen.py from the synchronous
+    # Every method below is GENERATED by tools/aiogen.py from the synchronous
     # Space method of the same name, whose signature, return annotation and
     # docstring it carries verbatim. Each is one worker round trip. Do not
-    # edit them here: change Space, or hand-write the door above this block
+    # edit them here: change Space, or hand-write the method above this block
     # and the generator will yield to it. tools/aio_divergences.py holds the
     # exclusions and the one signature that cannot be Space's.
 
@@ -1297,8 +1295,8 @@ class AsyncMeTTa:
         after reading, before anything runs. It is a BLOCK rather than a
         keyword because a binding mapping is the kind of value that grows,
         and a block grows down the page where a keyword has to fit beside
-        everything else on the call. Every target door reads the same scope,
-        so one block covers a run(), an eval() and an answers() together.
+        everything else on the call. Every call that accepts a target reads the
+        same scope, so one block covers run(), eval(), and answers() together.
 
         `timeout` (seconds) and `inferences` (engine steps) bound the call
         with the engine's own guards; passing either raises TimeLimitError
@@ -1439,7 +1437,7 @@ class AsyncMeTTa:
         A load that raises leaves the previous definitions standing, so a
         broken edit costs nothing but the error.
 
-        `!(import! &self path)` is the other door and loads a file that is
+        `!(import! &self path)` is the other form and loads a file that is
         new or edited, skipping one that is neither. The two agree on what
         a reload means and differ only in whether an unchanged file runs
         again, which is SWI's consult/1 against its if(changed).
@@ -1493,7 +1491,7 @@ class AsyncMeTTa:
         spelling. That is the right property for a logic engine and it is the
         one thing about storage that surprises everybody once.
 
-        A library IS knowledge, so the same door imports it: ``m += lib.he``
+        A library IS knowledge, so the same operator imports it: ``m += lib.he``
         performs ``!(import! <m> (library lib_he))`` with this space as the
         target. An import is an effect, so it refuses to hide inside an atom
         batch or share a call with stored atoms.
@@ -1515,16 +1513,16 @@ class AsyncMeTTa:
         subtracts the multiplicity given rather than clearing the key.
         That is the only reading under which the operators are inverses,
         so `s += a; s -= a` leaves the space it found. `-=` classifies its
-        operand exactly as `+=` does, so the fact stream one door stores
-        the other subtracts, one occurrence per element, in one
+        operand exactly as `+=` does, so `-=` subtracts the same fact stream
+        `+=` stores, one occurrence per element, in one
         transactional crossing.
 
-        The DRAIN is the pattern-shaped door: `del m[pattern]` takes every
+        `del m[pattern]` is the draining form: it takes every
         unifying occurrence in one crossing and raises when nothing
         matched, as Python's `del` does, and MeTTa spells it `remove-atom`
         [source: engine/spaces/foreign.pl, remove_matching_atoms/2].
         MeTTa spells this method's grain `subtract-atom`. This is the one
-        door that reports absence.
+        method that reports absence.
 
         A bare variable is the remove-everything reading a multiset space
         gives it, each atom leaving through its own proper path, equations
@@ -1772,7 +1770,7 @@ class AsyncMeTTa:
         nothing applies to is its own answer, which is ordinary MeTTa and how
         `!(hello world)` works, so there is no scope here that refuses one.
 
-        The Node seat has had m.reducible() since it existed; this seat had
+        The Node extension has had m.reducible() since it existed; Python had
         only eval_status(), which evaluates to tell you [measured 2026-08-31].
         """
         return await self.call(lambda m: m.reducible(target))
@@ -1808,7 +1806,7 @@ class AsyncMeTTa:
         keys mean themselves, so `bind({V.x: 5})` fills a variable hole.
 
         `theory` and `interpreter` are eval()'s own, and mean the same here.
-        This is the door that says which evaluation path produced an answer, so
+        This is the method that says which evaluation path produced an answer, so
         being unable to point it at an alternative evaluation relation was the
         sharpest form of the gap: `m.eval_status(target, interpreter=my_eval)`
         is how you see whether an explicit interpreter reduced a term or handed
@@ -1865,7 +1863,7 @@ class AsyncMeTTa:
 
         An `(Error ...)` answer raises MettaResultError carrying the
         atom: an error among the answers is the evaluation reporting
-        failure, and failure outranks the count. eval() is the door
+        failure, and failure outranks the count. eval() is the method
         that keeps errors as data.
         """
         return await self.call(lambda m: m._one(target, timeout=timeout, inferences=inferences))
@@ -1891,7 +1889,7 @@ class AsyncMeTTa:
         return await self.call(lambda m: m._first(target, timeout=timeout, inferences=inferences))
 
     # pure DIVERGES from Space.pure, because
-    # the sync door's fn=None form returns a DECORATOR, and a decorator handed back across the
+    # the sync method's fn=None form returns a DECORATOR, and a decorator handed back across the
     # worker would register on the caller's thread rather than the engine's. Only the applied form
     # crosses
     async def pure(self, fn: Callable, /, **options: Any) -> Any:
@@ -1921,7 +1919,7 @@ class AsyncMeTTa:
         return await self.call(lambda m: m.pure(fn, **options))
 
     # reads DIVERGES from Space.reads, because
-    # the sync door's fn=None form returns a DECORATOR, and a decorator handed back across the
+    # the sync method's fn=None form returns a DECORATOR, and a decorator handed back across the
     # worker would register on the caller's thread rather than the engine's. Only the applied form
     # crosses
     async def reads(self, fn: Callable, /, **options: Any) -> Any:
@@ -1935,7 +1933,7 @@ class AsyncMeTTa:
         return await self.call(lambda m: m.reads(fn, **options))
 
     # writes DIVERGES from Space.writes, because
-    # the sync door's fn=None form returns a DECORATOR, and a decorator handed back across the
+    # the sync method's fn=None form returns a DECORATOR, and a decorator handed back across the
     # worker would register on the caller's thread rather than the engine's. Only the applied form
     # crosses
     async def writes(self, fn: Callable, /, **options: Any) -> Any:
@@ -1949,7 +1947,7 @@ class AsyncMeTTa:
         return await self.call(lambda m: m.writes(fn, **options))
 
     # io DIVERGES from Space.io, because
-    # the sync door's fn=None form returns a DECORATOR, and a decorator handed back across the
+    # the sync method's fn=None form returns a DECORATOR, and a decorator handed back across the
     # worker would register on the caller's thread rather than the engine's. Only the applied form
     # crosses
     async def io(self, fn: Callable, /, **options: Any) -> Any:
@@ -2509,7 +2507,7 @@ class AsyncMeTTa:
         """Type a pool's membership: only TYPE-carrying atoms enter.
 
         A thread pool is a space whose atoms are spaces, and this is its
-        door: (admits &pool Space) plus per-atom (: <space> Space)
+        declaration: (admits &pool Space) plus per-atom (: <space> Space)
         declarations make membership a type judgement the ontology
         already knows how to make.
         """

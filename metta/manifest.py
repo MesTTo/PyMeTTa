@@ -33,10 +33,10 @@ Guarantees:
     any of it runs [tested:
     test_a_manifest_that_attaches_before_it_serves_is_refused;
     commit=57f21ba9edf94bcf28cde11f938bce2c241a3709]
-  - an attach form meets the same refusal the direct attach door applies,
+  - an attach form meets the same refusal the direct attach method applies,
     because it calls it: a URL this process serves is refused instead of
     attached [measured 2026-08-30: the manifest attached it where the direct
-    door refused it, and the first match then stalled 30.0s, the whole
+    method refused it, and the first match then stalled 30.0s, the whole
     transport timeout, before failing with a message naming neither the
     cause nor the remedy] [tested:
     test_a_manifest_cannot_attach_a_space_this_process_serves;
@@ -80,7 +80,7 @@ _VOCABULARY = ("load", "attach", "bridge", "serve")
 
 def _read_forms(source: str) -> list[Atom]:
     """Every form in the source, read without evaluating anything. The
-    engine door answers each form's own text, so variable names in bridge
+    engine reader answers each form's own text, so variable names in bridge
     shapes survive into the recorded topology.
     """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
     row = runtime().must("metta_py_read_forms(Source, Forms)", Source=source)
@@ -464,12 +464,12 @@ class _Assembler:
     def _attach(self, arguments: list) -> None:
         """Register the remote space an attach form names.
 
-        The same refusal the direct attach door applies runs first.
+        The same refusal the direct attach method applies runs first.
         """
         name, url = str(arguments[0]), cast(Grounded, arguments[1]).value
         # metta._space.MeTTa.space() calls this before it builds a RemoteSpace,
         # and calling it rather than repeating it is what keeps the two attach
-        # doors one law. A URL this process serves cannot be reached from
+        # paths under one law. A URL this process serves cannot be reached from
         # inside an evaluation, and remote.py holds both the live-server
         # registry that decides it and the reason.
         _remote._refuse_this_process(url, name, self.pending)

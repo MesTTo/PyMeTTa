@@ -362,7 +362,7 @@ class _Member:
         "declines this request"; a combinator member reached the method
         directly, so a ReadOnly provider under overlay().clear() died with
         AttributeError instead [measured 2026-09-01]. A Space handle always
-        carries the doors, so only the provider case asks.
+        carries the methods, so only the provider case asks.
         """
         if self._is_space or not isinstance(self.target, SpaceProvider):
             return
@@ -458,7 +458,7 @@ class _ReadOnly(SpaceProvider):
         return self._member.match(pattern)
 
     def snapshot(self) -> tuple[Atom, ...]:
-        """Snapshot the same inner contents while retaining no write door."""
+        """Snapshot the same inner contents while retaining no write method."""
         return self._member.snapshot()
 
     def __repr__(self) -> str:

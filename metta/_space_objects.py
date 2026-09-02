@@ -37,7 +37,7 @@ Guarantees:
     operation signature [tested:
     test_known_call_site_keywords_bind_to_positional_metta_arguments;
     commit=c2ad5892fbfdd690dd7e9b507e76e87d7d1376d1]
-  - direct and composite callable doors warn from the shared deprecation
+  - direct and composite callable forms warn from the shared deprecation
     catalog with the declared since/remedy [tested:
     test_deprecation_catalog_rows_drive_warnings_and_explanations;
     commit=d74e2e828cd9272882dcf907cfaf095d2d147ce0]
@@ -113,12 +113,12 @@ def _require_vocabulary(
 ) -> Any:
     """One of a closed vocabulary's members, or a refusal naming them all.
 
-    Thirteen declaration doors wrote this check longhand, each rebuilding the
+    Thirteen declaration methods wrote this check longhand, each rebuilding the
     same sentence. Naming the whole vocabulary is the part that matters and the
     part a hand-written check drops first: a caller who wrote the wrong word
     needs to see the right ones, not that theirs is unknown.
 
-    ``because`` is the clause a door adds when the refusal needs its ground --
+    ``because`` is the clause a method adds when the refusal needs its ground --
     `handles` says the fidelity is the claim the router acts on, so an unknown
     word would declare nothing silently.
     """
@@ -164,7 +164,7 @@ def _validate_limit(limit: int | None) -> None:
 def require_deadline(deadline: Any) -> None:
     """Check one quiet-deadline: a nonnegative number of seconds, or None.
 
-    One definition because three doors take the same argument and mean the
+    One definition because three methods take the same argument and mean the
     same thing by it: peek(), take() and watch(), across both surfaces. It
     was written out twice in _space.py and the async watch had no check at
     all, which is how the two surfaces came to disagree about whether a
@@ -713,7 +713,7 @@ class Cursor:
 
         A crossing costs 2.55us against 2.55us of engine work for a plain
         enumeration, so a cursor that crosses per answer spends half its time
-        in the boundary: 27.9x the eager door at ten thousand answers, and the
+        in the boundary: 27.9x the eager method at ten thousand answers, and the
         gap is per-crossing rather than a warm-up [tested:
         test_draining_amortises_the_crossing].
 
@@ -877,7 +877,7 @@ class Cursor:
         contract and this message; a cursor is the third view of one lazy row
         source and had only ``next(cursor)`` plus a StopIteration to catch.
         Taking the first row is also the whole reason a stream exists, so it
-        was the door most worth having and the one that was missing.
+        was the method most worth having and the one that was missing.
 
         This PULLS: the cursor is one-shot, so the row is gone from it. The
         cursor stays open, since a caller who wants the second row wants it
@@ -1039,9 +1039,10 @@ class FunctionCost:
 
 class Prepared:
     """A prepared query: pattern wires and columns built once, solved many
-    times, optionally with per-call facts. The ladder the clingo API walks
-    (assumptions per solve, inputs per session, rules added), with the rung
-    clingo lacks: rules REMOVED, since this engine erases clauses whole.
+    times, optionally with per-call facts. It follows clingo's progression from
+    assumptions per solve, to inputs per session, to added rules, and includes
+    the capability clingo lacks: removing rules, since this engine erases
+    clauses whole.
 
         route = m.prepare(S.path(V.a, V.b))
         route.solve()
@@ -1348,7 +1349,7 @@ class _FunctionNamespace:
     """Functions visible to one space, resolved when an attribute is read.
 
     MeTTa marks effects with a trailing ``!``.  Calls whose resolved name has
-    that marker execute eagerly at the call door; all other calls stay lazy.
+    that marker execute eagerly when called; all other calls stay lazy.
     """
 
     __slots__ = ("_space",)
@@ -1374,9 +1375,9 @@ class _FunctionNamespace:
                 # The remedy, for the same reason the GENERATED namespace names
                 # one: a caller who reaches a function namespace wants the
                 # function, and "no such name" alone leaves them hunting a
-                # typo. This door is the LIVE one, so a miss here means the
+                # typo. This namespace is the LIVE one, so a miss here means the
                 # name is not defined or registered anywhere this space can
-                # see, which is a different answer from the generated door's.
+                # see, which is a different answer from the generated namespace's.
                 msg = (
                     f"{self._space.name}.fn has no function {asked!r}; define "
                     f"it with @space.define, register it with @space.op, or "
@@ -1472,7 +1473,7 @@ class _Batch:
         pending, self._pending = self._pending, []
         if exc_type is None and pending:
             # The batch is no longer active here, so this is the one real
-            # crossing, the engine's own bulk door underneath.
+            # crossing, the engine's own bulk operation underneath.
             self._space.add(*pending)
 
     def __len__(self) -> int:

@@ -37,16 +37,16 @@ Guarantees:
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - a call whose inputs the engine cannot accept fails on its OWN call, by
     kind and naming where in the input the offending text sits, and the next
-    call is unaffected on every door [tested:
+    call is unaffected through every interface [tested:
     test_text_with_no_utf8_encoding_is_refused_by_kind,
     test_a_refused_crossing_does_not_fail_the_next_call,
     test_no_door_leaves_the_next_call_carrying_the_refusal; commit=3b82643dd18ad5153bca71fa0c4bd09d59b0b7d0]
   - a Python exception raised inside the engine classifies the same through
-    the goal-string door and the predicate door [tested:
+    the goal-string call and the predicate call [tested:
     test_an_enumeration_refuses_answers,
     test_an_enumeration_refuses_answers_through_the_term_door_too;
     commit=3b82643dd18ad5153bca71fa0c4bd09d59b0b7d0]
-  - the functional Janus door is selected by live thread identity, never a
+  - the functional Janus API is selected by live thread identity, never a
     recyclable numeric identifier [tested:
     test_a_recycled_thread_identifier_never_selects_the_janus_fast_path;
     commit=af5821f5ffb7ce186e516706f003d02f5c1d3b4a]
@@ -152,7 +152,7 @@ def _unencodable(inputs: Any) -> str | None:
             pending.extend((f"{where}[{key!r}]" if where else str(key), item)
                            for key, item in value.items())
         elif isinstance(value, (list, tuple)):
-            # The predicate doors pass their arguments as the root tuple, so
+            # The predicate calls pass their arguments as the root tuple, so
             # the top level reads "argument 2" rather than a bare "[2]".
             pending.extend((f"{where}[{index}]" if where else f"argument {index}", item)
                            for index, item in enumerate(value))
@@ -479,7 +479,7 @@ def runtime(metta_path: str | None = None, verbose: bool | None = None) -> Runti
     the default None leaves the session as it is, so a constructor that
     merely reaches the runtime cannot silence a verbose session the way the
     old always-applied False default did (minting a context home did exactly
-    that, and the published verbosity door went quiet).
+    that, and the published verbosity setting went quiet).
     """
     with _LOCK:
         if _STATE.runtime is None:
@@ -503,7 +503,7 @@ def runtime(metta_path: str | None = None, verbose: bool | None = None) -> Runti
                 )
             if verbose is not None:
                 # Always write on an explicit ask: the engine flag is also
-                # mutated directly by tests and helper doors, so a cached
+                # mutated directly by tests and helper calls, so a cached
                 # mirror comparison here would skip a needed update against
                 # stale shadow state. The write is idempotent and cheap.
                 _STATE.runtime.verbose = verbose
@@ -560,13 +560,14 @@ class Runtime:
     # ------------------------------------------------------------------ startup
 
     def _consult_engine(self, metta_path: str, stack_limit: int) -> JanusBridge:
-        """Stack limit, the seats, main.pl.
+        """Configure the stack limit, load extensions, and consult main.pl.
 
-        `extensions` asks the engine to read every seat's control file and load
-        what each declares. This names none of them: which seats exist is
-        extensions/*/extension.pl and whether one is usable is that seat's own
-        declaration. It used to test for MORK's shared library here and pass
-        `mork`, which put a backend's build path in the embedding host.
+        `extensions` asks the engine to read every extension's control file
+        and load what each declares. This names none of them: which extensions
+        exist is defined by extensions/*/extension.pl, and whether one is
+        usable is that extension's own declaration. It used to test for MORK's
+        shared library here and pass `mork`, which put a backend's build path
+        in the embedding host.
         """
         logger.debug("consulting the MeTTa engine from %s", metta_path)
         root = Path(metta_path)
@@ -809,7 +810,7 @@ class Runtime:
         holds the goal's state between pulls, metta_py_cursor_next takes one
         answer, and unrelated calls interleave freely, which a raw janus
         cursor forbids because its frames nest LIFO and it dies crossing
-        threads. Space.stream() is that door in-process and
+        threads. Space.stream() is that interface in-process and
         RemoteSpace.stream() is the same lifecycle over the wire. A
         shim-side findall would only move the drain, not remove it.
 
@@ -836,8 +837,8 @@ class Runtime:
     def _resynchronise(self) -> None:
         """Absorb an error a failed crossing left pending in the engine.
 
-        The predicate doors (apply_once, cmd) leave a Python exception raised
-        inside the engine PENDING, where the goal-string door clears it. The
+        The predicate calls (apply_once, cmd) leave a Python exception raised
+        inside the engine PENDING, where the goal-string call clears it. The
         next janus call is the one that reports it, and on the failure path
         that next call is janus's own PrologError.__str__, which runs
         message_to_string/2 to render the very error being classified: the
@@ -869,8 +870,8 @@ class Runtime:
         crossing has already been lost.
 
         The refusal matches _atoms_core._encodable, which already gives this
-        wording where an ATOM carries the same text; this is the raw goal door
-        it never covered.
+        wording where an ATOM carries the same text; this is the raw goal
+        interface it never covered.
         """
         self._resynchronise()
         reason = _unencodable(inputs)

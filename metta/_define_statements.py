@@ -183,14 +183,14 @@ def _space_valued(value: Atom) -> bool:
     """Whether a compiled binding value is a SPACE.
 
     A handle, or a term whose head mints or reads one; decides whether +=
-    on the bound name means the write door or arithmetic. A dict-space IS
-    a space, so every space door works on a dict local too.
+    on the bound name means a space write or arithmetic. A dict-space IS
+    a space, so every space method works on a dict local too.
     """
     if isinstance(value, Handle):
         return True
     if isinstance(value, Expression) and value.children:
         head = value.children[0]
-        # policy-inventory-exempt: mechanism-internal; reason=the three heads that mint or read a space in a compiled binding decide the += write-door reading and are not a value vocabulary; evidence=extensions/python/metta/_define_statements.py:_space_valued
+        # policy-inventory-exempt: mechanism-internal; reason=the three heads that mint or read a space in a compiled binding decide the += space-write reading and are not a value vocabulary; evidence=extensions/python/metta/_define_statements.py:_space_valued
         return isinstance(head, Symbol) and head.name in {
             "context-space",
             "new-space",
@@ -852,7 +852,7 @@ class StatementCompilerMixin(CompilerContext):
         nondeterministic rewrite. Annotations after it mention the name
         symbolically and the engine rewrites it. A parametric alias would
         need type variables the local annotation resolver cannot carry,
-        so it names the general door instead.
+        so it names the general form instead.
         """
         if node.type_params:
             msg = (
@@ -1465,7 +1465,7 @@ class StatementCompilerMixin(CompilerContext):
                     line=head.lineno,
                 )
             if target_name in self.space_locals and target_name not in self.container_locals:
-                # On a space, += and -= ARE the write doors, never
+                # On a space, += and -= ARE the write operations, never
                 # arithmetic: the miscompile stored (+ $s atom), answered
                 # True, and wrote nothing. The write executes under a
                 # throwaway binding and the space name keeps its variable.

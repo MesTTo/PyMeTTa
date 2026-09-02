@@ -6,9 +6,9 @@ with no exit is a reduction that failed. Tracing wraps and unwraps per
 run, so it costs nothing when off; what is traced executes for real,
 writes included, exactly like a run.
 Guarantees:
-  - a term and the source that spells it trace identically, so the one
-    door that shows a reduction takes the argument every other door
-    takes [tested test_trace_takes_the_term_every_other_door_takes]
+  - a term and the source that spells it trace identically, so trace accepts
+    the same input forms as every other evaluation method
+    [tested test_trace_takes_the_term_every_other_door_takes]
   - traced source keeps run()'s real-write semantics while inheriting the
     same speculative execution fence [tested:
     test_every_public_execution_door_honours_speculative_policy;
@@ -54,8 +54,8 @@ def _as_source(what: Atom | str) -> str:
 
     An ATOM is the ordinary spelling everywhere else on this surface,
     `m.answers(S.fib(10))` rather than `m.answers("!(fib 10)")`, and
-    trace took only text, so the one door that shows you a reduction was
-    the one door that made you write the program twice. The tracer runs
+    trace once took only text, forcing callers to rewrite a term as source just
+    to inspect its reduction. The tracer runs
     SOURCE, so a term is written and prefixed with the `!` that makes it
     a runnable form; `str(Atom)` is the writer the whole surface prints
     through, which is why `.source()` on a definition reads back as MeTTa.

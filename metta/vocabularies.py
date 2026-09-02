@@ -8,7 +8,7 @@ this file. The vocab-sync gate lane fails when the two drift.
 
 Each member IS its wire string, so it passes every membership test a bare
 word passes and crosses as the symbol it always was; bare words remain the
-runtime escape hatch at every consuming door.
+runtime escape hatch at every consuming call.
 
 Guarantees:
   - every class here exactly matches its catalog vocabulary row, values in
@@ -65,7 +65,7 @@ class _EffectStrEnum(_AtomStrEnum):
         (commutative, idempotent, associative, with the weakest rank as
         identity). Anything that is not an effect refuses by naming both
         readings, so a caller who wanted the string operation is told which
-        door they reached rather than seeing a bad-enum-value error.
+        operation they reached rather than seeing a bad-enum-value error.
         """
         try:
             other = type(self)(other)

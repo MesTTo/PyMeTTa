@@ -74,7 +74,7 @@ Guarantees:
     test_compiled_removal_statements_preserve_one_many_missing_and_target_scope;
     commit=79e9635b6c20e046ace8fc82bd3edf062c7ae9b2]
   - known call-site keywords bind to the definition's parameter order both at
-    the live door and inside compiled bodies [tested:
+    the live call and inside compiled bodies [tested:
     test_known_call_site_keywords_bind_to_positional_metta_arguments;
     commit=c2ad5892fbfdd690dd7e9b507e76e87d7d1376d1]
   - a live Defined call reads the shared deprecation catalog after staging
@@ -906,7 +906,7 @@ class _Compiler(
         self.number_return = number_return
         # Local names currently bound to a SPACE value: (context-space),
         # (new-space ...) or a closure handle. += and -= on one of these
-        # are the write doors, never arithmetic; forks copy the set the
+        # are write operations, never arithmetic; forks copy the set the
         # way they copy scope, since an arm's binding must not leak.
         self.space_locals: set[str] = _provided(space_locals, set())
 

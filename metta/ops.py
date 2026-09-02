@@ -908,7 +908,7 @@ def register[**P, R](
         # Async operation settlement and FutureSpace lifecycle are lib_thread's
         # scheduler surface. Load it into the operation's declaration space
         # before compiling the host clause, so the first call cannot observe a
-        # half-installed future door [tested:
+        # half-installed future path [tested:
         # test_an_async_operation_answers_a_future_space; commit=39092863ae34184a9f955f185ff57c1ff177ec40].
         parallel_api = _importlib.import_module(f"{__package__}.parallel")
         space_api = _importlib.import_module(f"{__package__}._space")

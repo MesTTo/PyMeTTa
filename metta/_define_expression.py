@@ -16,7 +16,7 @@ Guarantees:
     test_compiled_bodies_reach_all_four_mention_families,
     test_banged_catalog_names_take_the_mechanical_fallback; commit=6b77b811c44e1819ed9cd99f3809c0667f289e2e]
   - the composite operator word ``neg`` lowers to ``(- 0 x)`` at both S and
-    fn call doors [tested: test_compiled_operator_word_calls_preserve_composite_images;
+    fn call forms [tested: test_compiled_operator_word_calls_preserve_composite_images;
     commit=8ec44dec3cafba5981e7cf712749cca0e1bdcc45]
   - a host-bound Defined mention lowers to the sibling's declared MeTTa name
     [tested: test_compiled_body_calls_renamed_defined_sibling;
@@ -307,7 +307,7 @@ class ExpressionCompilerMixin(CompilerContext):
     def _known_symbol(self, identifier: str) -> Symbol | None:
         # Exact catalog names win. A host binding blocks only the fallback:
         # silently choosing sc-edge-to over a Python sc_edge_to object would
-        # cross the quotation boundary by surprise. The explicit fn door
+        # cross the quotation boundary by surprise. The explicit fn form
         # disambiguates it. This follows CPython's scope-first ordering and
         # SQLAlchemy's expression-object precedent without copying its open
         # ended func namespace. [source:
@@ -326,7 +326,7 @@ class ExpressionCompilerMixin(CompilerContext):
 
         The word table first, exactly as _atom_namespace consults it, so
         S.eq is == at the live factory AND inside a compiled body, and
-        fn.eq resolves through the catalog's own ==. The bracket door stays
+        fn.eq resolves through the catalog's own ==. The bracket form stays
         exact by construction (only the attribute branch consults), V never
         consults (V.eq is the variable $eq), and an unsettled composite word
         refuses here as a CompileError the way every other refusal does.
@@ -941,7 +941,7 @@ class ExpressionCompilerMixin(CompilerContext):
         if func.id == "alpha" and func.id not in self.scope:
             # =alpha's nearest-relative spelling: `=` sits outside Python's
             # identifier grammar, so the bare name drops the marker the way
-            # eq() does for ==. fn["=alpha"] stays the exact door, and
+            # eq() does for ==. fn["=alpha"] stays the exact form, and
             # Atom.alpha() builds the same term on the atom tier.
             return Expression([Symbol("=alpha"), *self._args(node, 2, "alpha")])
         if func.id == "superpose":

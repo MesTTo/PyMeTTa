@@ -36,7 +36,7 @@ Guarantees:
   - controlled run, eval, status, profile, and lazy-pull calls preserve the /5
     limit seam unless a scoped stack byte count selects /6 [tested:
     test_stack_limit_is_carried_to_the_limited_six_seam; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
-  - status evaluation accepts the eager eval door's named host substitutions
+  - status evaluation accepts the eager eval method's named host substitutions
     and capture scope without evaluating the target twice [tested:
     test_eval_status_reports_the_four_outcomes,
     test_run_using_carries_identity; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
@@ -232,7 +232,7 @@ def _controlled_run(
     """Execute one engine target through the complete task-local policy.
 
     No caller selects individual wrappers. That is the invariant which keeps
-    lazy cursors, diagnostics, and future execution doors from silently
+    lazy cursors, diagnostics, and future execution paths from silently
     inheriting only a subset of capture, atomic, and speculative semantics.
     """
     policy = _execution_policy() if policy is None else policy
@@ -437,9 +437,9 @@ def evaluate_many(
 
     The batch is how evaluation amortises the boundary the way add's
     batch amortises writes: run()'s own grouping carried to the eval
-    door. One bind scope applies to every target, limits bound the whole
+    call. One bind scope applies to every target, limits bound the whole
     crossing, and a capture scope collects once, all exactly as the
-    single door's wrappers behave.
+    single call's wrappers behave.
     """
     predicate = "metta_py_eval_many_all"
     encoded = [
@@ -463,7 +463,7 @@ def _count_inputs(
     target: Any,
     using: dict[str, Any] | None,
 ) -> list[Any]:
-    """The space, wire target, and named substitutions a count door takes."""
+    """The space, wire target, and named substitutions a count call takes."""
     encoded_target = target if isinstance(target, str) else _to_atom(target).to_wire()
     pairs = (
         []
@@ -663,10 +663,10 @@ def evaluate_answers(
         if counted is not None or under is not None or values_wanted:
             # Three ways this count is already the cheapest one available.
             # An effect-safe goal counts on its own engine. A carrier cursor
-            # answers an annotation beside every value, a shape the holding
-            # door does not carry. And a caller that has taken an iterator is
-            # about to read the answers, so holding them to avoid a second
-            # evaluation buys nothing that one materializing pass does not.
+            # answers an annotation beside every value, a shape the
+            # retained-value path does not carry. And a caller that has taken
+            # an iterator is about to read the answers. Holding them to avoid a
+            # second evaluation buys nothing that one materializing pass does not.
             return counted
         count, handle = _retain_and_count(
             rt,
