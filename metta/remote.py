@@ -64,6 +64,11 @@ Guarantees:
     waits for both owned threads to finish [tested
     test_remote_serve_reports_worker_startup_failure,
     test_remote_close_waits_for_worker_detach]
+  - a worker call that times out is abandoned before it can start, or its
+    running engine goal is interrupted and drained before later work starts
+    [tested:
+    test_a_timed_out_remote_worker_never_runs_or_finishes_the_abandoned_write;
+    commit=WORKTREE]
   - the HTTP boundary rejects ambiguous lengths, oversized bodies, and
     non-object JSON with a response instead of dropping the connection
     [tested test_remote_server_rejects_malformed_request_bodies]
@@ -111,12 +116,12 @@ from urllib.parse import urlsplit
 
 from . import _json
 from ._atom_wire import _atom_from_wire
-from ._engine import bridge
+from ._engine import bridge, runtime
 from ._network import HTTPEndpoint, validated_timeout
 from ._space import Space as MeTTa
 from ._space_objects import Cursor
 from .atoms import Atom, Expression, Variable, substitute, unify
-from .errors import MettaError
+from .errors import Interrupted, MettaError
 from .foreign import SpaceProvider
 
 logger = logging.getLogger(__name__)
@@ -1367,16 +1372,30 @@ class Gateway:
         }
 
 
+@dataclass
+class _RemoteRequest:
+    """One worker request and the caller-owned channel for its outcome."""
+
+    operation: str
+    payload: dict
+    reply: queue.SimpleQueue
+    abandoned: threading.Event
+    interrupted: bool = False
+
+
 class _RemoteWorker:
     """One attached Prolog engine serving serialized remote requests."""
 
     def __init__(self, handle: Callable[[str, dict], dict]) -> None:
         self._handle = handle
         self._lock = threading.Lock()
+        self._transition = threading.Lock()
         self._started: queue.Queue[BaseException | None] = queue.Queue(maxsize=1)
         self._state = "unstarted"
         self._failures: list[BaseException] = []
-        self._work: queue.Queue[tuple[str, dict, queue.SimpleQueue] | None] = queue.Queue()
+        self._current: _RemoteRequest | None = None
+        self._swi_thread: Any = None
+        self._work: queue.Queue[_RemoteRequest | None] = queue.Queue()
         self.thread = threading.Thread(
             target=self._run,
             name="metta-remote-engine",
@@ -1421,10 +1440,32 @@ class _RemoteWorker:
                 msg = f"remote engine worker is {self._state}"
                 raise MettaError(msg)
             reply: queue.SimpleQueue = queue.SimpleQueue()
-            self._work.put((operation, payload, reply))
+            request = _RemoteRequest(
+                operation,
+                payload,
+                reply,
+                threading.Event(),
+            )
+            self._work.put(request)
         try:
             return reply.get(timeout=timeout)
         except queue.Empty as exc:
+            request.abandoned.set()
+            try:
+                self._interrupt_if_running(request)
+            except BaseException as cancellation_error:  # noqa: BLE001 -- a failed cancellation leaves an operation whose outcome is unknown
+                timed_out = TimeoutError(
+                    f"remote engine operation {operation!r} did not finish "
+                    f"within {timeout:g} seconds"
+                )
+                timed_out.__cause__ = exc
+                cancellation_message = (
+                    "the remote engine operation timed out and could not be cancelled"
+                )
+                raise BaseExceptionGroup(
+                    cancellation_message,
+                    [timed_out, cancellation_error],
+                ) from None
             msg = f"remote engine operation {operation!r} did not finish within {timeout:g} seconds"
             raise TimeoutError(
                 msg
@@ -1486,7 +1527,8 @@ class _RemoteWorker:
                 except queue.Empty:
                     break
                 if item is not None:
-                    pending.append(item[2])
+                    item.abandoned.set()
+                    pending.append(item.reply)
         for reply in pending:
             reply.put(("error", f"{type(failure).__name__}: {failure}"))
         if pending:
@@ -1496,6 +1538,8 @@ class _RemoteWorker:
         try:
             janus = bridge()
             janus.attach_engine()
+            with self._lock:
+                self._swi_thread = janus.engine()
         except BaseException as exc:  # noqa: BLE001
             self._record_failure(exc)
             self._started.put(exc)
@@ -1513,6 +1557,45 @@ class _RemoteWorker:
                 self._record_failure(exc)
             else:
                 logger.debug("remote engine server worker detached its Prolog engine")
+            finally:
+                with self._lock:
+                    self._swi_thread = None
+
+    def _drain(self) -> None:
+        """Consume only a stale cancellation signal before later work."""
+        janus = bridge()
+        try:
+            janus.query_once("true")
+        except janus.PrologError as exc:
+            try:
+                runtime()._raise(exc)
+            except Interrupted:
+                logger.debug("discarded a stale remote-worker interrupt: %s", exc)
+
+    def _interrupt_if_running(self, request: _RemoteRequest) -> bool:
+        """Interrupt only ``request`` when it has started running."""
+        with self._lock:
+            swi_thread = self._swi_thread
+        with self._transition:
+            if self._current is not request:
+                return False
+            if swi_thread is None:
+                msg = "the remote worker has a request but no published Prolog engine"
+                raise RuntimeError(msg)
+            # This is AsyncMeTTa's cancellation protocol: signal the exact
+            # attached engine, then drain a signal that raced completion
+            # before starting another request [source:
+            # extensions/python/metta/aio.py,
+            # _EngineThread.interrupt_if_running;
+            # commit=076eade6b1fe254379b2ae0f11ff56f36b4af1e4].
+            request.interrupted = True
+            bridge().query_once(
+                "thread_signal(T, throw(error(metta_control_signal(interrupted, none), "
+                "context(metta, interrupted))))",
+                {"T": swi_thread},
+            )
+            logger.debug("sent an interrupt to the remote engine worker")
+            return True
 
     def _work_loop(self) -> None:
         """Serve one request at a time until asked to stop."""
@@ -1520,19 +1603,44 @@ class _RemoteWorker:
             item = self._work.get()
             if item is None:
                 return
-            operation, payload, reply = item
+            request = item
+            with self._transition:
+                if request.abandoned.is_set():
+                    continue
+                self._current = request
+            fatal: BaseException | None = None
+            outcome: tuple[str, Any]
             try:
-                reply.put(("ok", self._handle(operation, payload)))
+                outcome = ("ok", self._handle(request.operation, request.payload))
             except Exception as exc:
                 logger.warning(
                     "remote engine operation %s failed",
-                    operation,
+                    request.operation,
                     exc_info=True,
                 )
-                reply.put(("error", str(exc)))
+                outcome = ("error", str(exc))
             except BaseException as exc:  # noqa: BLE001
-                reply.put(("error", str(exc)))
-                self._fail_running(exc)
+                outcome = ("error", str(exc))
+                fatal = exc
+            with self._transition:
+                self._current = None
+                try:
+                    if request.interrupted:
+                        self._drain()
+                except BaseException as exc:  # noqa: BLE001 -- an unexpected transition failure poisons the worker
+                    fatal = (
+                        exc
+                        if fatal is None
+                        else BaseExceptionGroup(
+                            "the remote request and its transition drain both failed",
+                            [fatal, exc],
+                        )
+                    )
+                    outcome = ("error", str(fatal))
+                if not request.abandoned.is_set():
+                    request.reply.put(outcome)
+            if fatal is not None:
+                self._fail_running(fatal)
                 return
 
 
