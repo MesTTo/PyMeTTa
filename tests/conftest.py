@@ -3,7 +3,8 @@
 Guarantees:
   - the source-tree suite loads ``metta.pytest_plugin`` explicitly, so its
     public fixtures are exercised even when pymetta is not installed
-    [tested: test_an_abandoned_watch_cancels_itself; commit=WORKTREE]
+    [tested: test_an_abandoned_watch_cancels_itself;
+    commit=59111561cbe93b0da58806d88cedfe4fb79324d9]
 
 Open Obligations:
   To Do: None
