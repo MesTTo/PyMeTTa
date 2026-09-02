@@ -54,6 +54,10 @@ Guarantees:
   - every flat-yield equation is stored and replaced as one atomic clause
     unit [tested: test_same_head_redefinition_replaces_the_whole_yield_unit;
     commit=2d4d4583c2d82e90bb21a7e8671842f126edd4f4]
+  - stacking disjoint clauses retains every unchanged physical equation and
+    batches only the alpha-equivalence delta, so K two-equation clauses take
+    K engine calls and transport 2K atoms rather than 2K squared [tested:
+    test_stacked_definition_writes_scale_with_the_new_clause; commit=WORKTREE]
   - install_type equips a plain annotated class with data construction,
     __match_args__, and __replace__ before registering its full-arity term
     image [tested: test_define_accepts_a_plain_annotated_data_class;
@@ -76,7 +80,7 @@ import os
 import threading
 import types
 import typing as _typing
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from functools import partial
 from typing import Any
 
@@ -411,24 +415,17 @@ def _store_clause(
         prospective[replaced] = record
     prospective = _materialize_clause_equations(name, prospective)
 
-    previous_atoms = [
-        atom for clause in earlier for atom in (*clause.get("aux", ()), *clause["equations"])
-    ]
-    for atom in previous_atoms:
-        space.remove(atom)
-    next_atoms = [
-        atom for clause in prospective for atom in (*clause.get("aux", ()), *clause["equations"])
-    ]
-    added: list[Expression] = []
+    previous_atoms = _physical_atoms(earlier)
+    next_atoms = _physical_atoms(prospective)
+    removed, added = _alpha_multiset_delta(previous_atoms, next_atoms)
+    if removed:
+        space.remove(removed[0], *removed[1:])
     try:
-        for atom in next_atoms:
-            space.add(atom)
-            added.append(atom)
+        space.add(*added)
     except BaseException:
-        for atom in reversed(added):
-            space.remove(atom)
-        for atom in previous_atoms:
-            space.add(atom)
+        if added:
+            space.remove(added[0], *added[1:])
+        space.add(*removed)
         raise
     if replaced is None:
         earlier[:] = prospective
@@ -436,6 +433,39 @@ def _store_clause(
     else:
         earlier[:] = prospective
         replace_twin_clause(dispatcher, replaced, clause_twin)
+
+
+def _physical_atoms(clauses: Sequence[dict[str, Any]]) -> list[Expression]:
+    """Flatten the helper and materialized equations stored for clauses."""
+    return [
+        atom
+        for clause in clauses
+        for atom in (*clause.get("aux", ()), *clause["equations"])
+    ]
+
+
+def _alpha_multiset_delta(
+    previous: Sequence[Expression], current: Sequence[Expression]
+) -> tuple[list[Expression], list[Expression]]:
+    """Return removed and added occurrences under alpha equivalence."""
+    positions: dict[int, list[int]] = {}
+    for index, atom in enumerate(current):
+        positions.setdefault(id(atom), []).append(index)
+    matched = [False] * len(current)
+    removed: list[Expression] = []
+    for atom in previous:
+        identical = positions.get(id(atom), [])
+        if identical:
+            matched[identical.pop()] = True
+            continue
+        for index, candidate in enumerate(current):
+            if not matched[index] and _alpha_eq(atom, candidate):
+                matched[index] = True
+                break
+        else:
+            removed.append(atom)
+    added = [atom for index, atom in enumerate(current) if not matched[index]]
+    return removed, added
 
 
 def _clause_record(
