@@ -11,7 +11,8 @@ Guarantees:
     commit=d06621ddec911922c156c79ce68b2c35318e7fc1]
   - AsyncMeTTa carries the same resolvable EffectPlan result type and performs
     the analysis on its worker without executing the target [tested:
-    test_async_effect_plan_retains_the_sync_contract; commit=WORKTREE]
+    test_async_effect_plan_retains_the_sync_contract;
+    commit=ce375389e773becefd3823878ba759a1f54face3]
 """
 
 from __future__ import annotations
