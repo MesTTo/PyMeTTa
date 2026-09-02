@@ -1369,15 +1369,24 @@ metta_py_profiled(Pred, Ins, [Out, Samples, Ticks, Nodes]) :-
     %A zero-sample profile is a real outcome, not a fault: the comment above
     %says so, and a short goal on a machine whose sampling timer never fires
     %collects nothing. Some SWI versions divide by the total tick count while
-    %reporting, so the report raises evaluation_error(zero_divisor) on exactly
-    %that outcome and takes the goal's own answer with it. SWI 10.1.13 answers
-    %samples=0 ticks=0 for `profile(true, [top(0)])` where the CI runner's 9.x
-    %raises, which is what made four profile tests and every caller of
-    %aio.profile fail there and pass here. The goal has already run when the
-    %report is written, so catching this leaves Out bound and the data intact.
+    %building the report or the data, so both raise
+    %evaluation_error(zero_divisor) on exactly that outcome. SWI 10.1.13
+    %answers samples=0 ticks=0 for `profile(true, [top(0)])` where the CI
+    %runner's does not, which failed four profile tests and every caller of
+    %aio.profile there while passing here. An empty profile is the honest
+    %answer when nothing was sampled; the goal has already run either way.
     with_output_to(string(_),
                    catch(profile(Goal, [top(0)]), Fault,
                          metta_py_profile_report_fault(Fault, Out))),
+    (   catch(metta_py_profile_rows(Samples, Ticks, Nodes),
+              error(evaluation_error(zero_divisor), _),
+              fail)
+    ->  true
+    ;   Samples = 0, Ticks = 0, Nodes = []
+    ).
+
+%The rows SWI's own profiler collected, read out of one profile_data/1.
+metta_py_profile_rows(Samples, Ticks, Nodes) :-
     profile_data(Data),
     get_dict(summary, Data, Summary),
     get_dict(samples, Summary, Samples),
