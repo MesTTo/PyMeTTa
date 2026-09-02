@@ -5,6 +5,14 @@ Guarantees:
     including float/integer ties, strings, opaque values, and the empty-list
     atom [tested: test_order_key_matches_msort_across_kinds;
     commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
+  - expression order keys use a flat prefix encoding, so 600 nested levels
+    retain childwise ordering without consuming Python frames [tested:
+    test_deep_atom_ordering_uses_a_constant_python_call_stack,
+    test_deep_expression_prefixes_keep_childwise_order; commit=WORKTREE]
+  - the explicit work agenda follows the engine arbiter's iterative compound
+    comparison [source: SWI-Prolog pl-prims.c compareStandard and
+    pl-termwalk.c term_agendaLR at upstream commit
+    9f804dee22b48bc6ad92f97d6c0fb675a1f0391b; commit=WORKTREE]
   - type and keyword builders produce stored terms while ``order_key`` and
     Atom.__lt__ agree on elementwise expression order [tested:
     test_typed_and_arrow_retire_49_raw_type_symbols,
@@ -340,6 +348,8 @@ def _is_ground(atom: Atom) -> bool:
 #: ranked with the symbols it reads as rather than the numbers it inherits.
 _ORDER_VAR, _ORDER_NUMBER, _ORDER_STRING = 0, 1, 2
 _ORDER_OBJECT, _ORDER_EMPTY, _ORDER_SYMBOL, _ORDER_EXPR = 3, 4, 5, 6
+_ORDER_END = -1
+_ORDER_END_MARKER = object()
 
 
 def order_key(atom: Atom) -> tuple:
@@ -357,26 +367,45 @@ def order_key(atom: Atom) -> tuple:
     Two atoms that compare equal here are not necessarily the same atom: a key
     orders, `same_atom` decides identity.
     """
-    if isinstance(atom, Variable):
-        return (_ORDER_VAR, atom.name)
-    if isinstance(atom, Symbol):
-        return (_ORDER_SYMBOL, atom.name)
-    if isinstance(atom, Expression):
-        if not atom.children:
-            return (_ORDER_EMPTY,)
-        children = tuple(order_key(child) for child in atom.children)
-        return (_ORDER_EXPR, children)
-    value = getattr(atom, "value", atom)
-    # bool before int: True is an int in Python and a symbol in MeTTa.
-    if isinstance(value, bool):
-        return (_ORDER_SYMBOL, str(value))
-    if isinstance(value, (int, float)):
-        # SWI compares numeric value first and sorts a float before an integer
-        # at an arithmetic tie: msort([1, 1.0]) is [1.0, 1].
-        return (_ORDER_NUMBER, value, 0 if isinstance(value, float) else 1)
-    if isinstance(value, str):
-        return (_ORDER_STRING, value)
-    return (_ORDER_OBJECT, type(value).__name__, repr(value))
+    # SWI's compareStandard uses a left-to-right term agenda rather than the C
+    # call stack. A flat prefix stream gives Python tuple comparison the same
+    # property. The end token sorts before every atom rank, preserving the rule
+    # that an exhausted expression sorts before another child.
+    # https://github.com/SWI-Prolog/swipl-devel/blob/9f804dee22b48bc6ad92f97d6c0fb675a1f0391b/src/pl-prims.c#L1899-L1974
+    tokens: list[tuple] = []
+    stack: list[Any] = [atom]
+    while stack:
+        node = stack.pop()
+        if node is _ORDER_END_MARKER:
+            tokens.append((_ORDER_END,))
+            continue
+        if isinstance(node, Variable):
+            tokens.append((_ORDER_VAR, node.name))
+            continue
+        if isinstance(node, Symbol):
+            tokens.append((_ORDER_SYMBOL, node.name))
+            continue
+        if isinstance(node, Expression):
+            if not node.children:
+                tokens.append((_ORDER_EMPTY,))
+                continue
+            tokens.append((_ORDER_EXPR,))
+            stack.append(_ORDER_END_MARKER)
+            stack.extend(reversed(node.children))
+            continue
+        value = getattr(node, "value", node)
+        # bool before int: True is an int in Python and a symbol in MeTTa.
+        if isinstance(value, bool):
+            tokens.append((_ORDER_SYMBOL, str(value)))
+        elif isinstance(value, (int, float)):
+            # SWI compares numeric value first and sorts a float before an
+            # integer at an arithmetic tie: msort([1, 1.0]) is [1.0, 1].
+            tokens.append((_ORDER_NUMBER, value, 0 if isinstance(value, float) else 1))
+        elif isinstance(value, str):
+            tokens.append((_ORDER_STRING, value))
+        else:
+            tokens.append((_ORDER_OBJECT, type(value).__name__, repr(value)))
+    return tuple(tokens)
 
 
 def _mapped_candidate(node: Atom, results: list[Atom]) -> Atom:

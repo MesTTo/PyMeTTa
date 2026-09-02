@@ -4,6 +4,8 @@ Guarantees:
     and nonempty expressions sort exactly as msort sorts their shared wire
     image [tested: test_order_key_matches_msort_across_kinds;
     commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
+  - generated nested expression shapes retain that same differential [tested:
+    test_flat_order_key_matches_msort_on_nested_shapes; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -35,6 +37,11 @@ _ATOMS = (
     Expression([Symbol("f")]),
     Expression([Symbol("f"), Grounded(1)]),
 )
+_TREE_ATOMS = st.recursive(
+    st.sampled_from(_ATOMS),
+    lambda children: st.lists(children, min_size=0, max_size=4).map(Expression),
+    max_leaves=20,
+)
 
 
 @given(st.permutations(_ATOMS))
@@ -46,3 +53,13 @@ def test_order_key_matches_msort_across_kinds(metta, permutation):
     assert isinstance(actual, Expression)
     assert _alpha_eq(expected, actual)
     assert _alpha_eq(plain, actual)
+
+
+@given(st.lists(_TREE_ATOMS, min_size=0, max_size=8))
+def test_flat_order_key_matches_msort_on_nested_shapes(metta, atoms):
+    """Generated expression trees sort exactly like the engine wire image."""
+    expected = Expression(sorted(atoms, key=order_key))
+    (actual,) = metta.eval(S.msort(Expression(atoms)))
+
+    assert isinstance(actual, Expression)
+    assert _alpha_eq(expected, actual)
