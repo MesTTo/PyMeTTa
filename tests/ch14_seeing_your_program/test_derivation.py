@@ -2,7 +2,8 @@
 Guarantees:
   - parsing, projections, completeness checks, and both renderers handle 600
     nested proof steps without using Python recursion [tested:
-    test_deep_proof_consumers_treat_depth_as_data; commit=WORKTREE]
+    test_deep_proof_consumers_treat_depth_as_data;
+    commit=9903250d082ab019535ab0c10b742053f9e640f0]
 Open Obligations:
   To Do: None
   Hacks: None

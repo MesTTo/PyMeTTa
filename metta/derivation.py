@@ -7,14 +7,16 @@ Guarantees:
     [tested test_depth_exhaustion_returns_a_partial_proof]
   - parsing, walking, and rendering use explicit work stacks, so proof depth is
     data rather than Python recursion [tested:
-    test_deep_proof_consumers_treat_depth_as_data; commit=WORKTREE]
+    test_deep_proof_consumers_treat_depth_as_data;
+    commit=9903250d082ab019535ab0c10b742053f9e640f0]
   - facts and rules retain first-seen order with expected linear-time hash
     membership [tested: test_fact_and_rule_projection_use_hash_membership;
-    commit=WORKTREE]
+    commit=9903250d082ab019535ab0c10b742053f9e640f0]
   - post-order construction and pre-order traversal follow established
     iterative tree algorithms [source: extensions/python/metta/_atom_wire.py:
     _from_wire and psf/black pytree.py post_order at upstream commit
-    8947c48ef2077c3a301b03c1e814dc2e3f78436e; commit=WORKTREE]
+    8947c48ef2077c3a301b03c1e814dc2e3f78436e;
+    commit=9903250d082ab019535ab0c10b742053f9e640f0]
 Open Obligations:
   To Do: None
   Hacks: None

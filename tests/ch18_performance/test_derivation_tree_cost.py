@@ -4,12 +4,14 @@ Guarantees:
   - recursive parser and traversal controls fail on a depth-2,000 chain while
     current consumers return every node [tested:
     test_recursive_derivation_controls_capture_the_depth_ceiling;
-    commit=WORKTREE]
+    commit=9903250d082ab019535ab0c10b742053f9e640f0]
   - fact and rule projection use bounded hash comparisons and preserve
     first-seen order [tested:
-    test_fact_and_rule_projection_use_hash_membership; commit=WORKTREE]
+    test_fact_and_rule_projection_use_hash_membership;
+    commit=9903250d082ab019535ab0c10b742053f9e640f0]
   - branching construction retains the recursive parser's child order [tested:
-    test_iterative_derivation_parser_preserves_branching_order; commit=WORKTREE]
+    test_iterative_derivation_parser_preserves_branching_order;
+    commit=9903250d082ab019535ab0c10b742053f9e640f0]
 Open Obligations:
   To Do: None
   Hacks: None

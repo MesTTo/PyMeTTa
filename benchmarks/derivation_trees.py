@@ -14,10 +14,10 @@ Run from ``extensions/python``::
 Guarantees:
   - recursive parsing and traversal controls retain the removed depth failures
     [tested: test_recursive_derivation_controls_capture_the_depth_ceiling;
-    commit=WORKTREE]
+    commit=9903250d082ab019535ab0c10b742053f9e640f0]
   - every timed parse and traversal verifies the complete node count [tested:
     test_recursive_derivation_controls_capture_the_depth_ceiling;
-    commit=WORKTREE]
+    commit=9903250d082ab019535ab0c10b742053f9e640f0]
   - at depths 100/340/1,000/5,000 recursive parsing takes 66.530 microseconds
     then raises RecursionError, while iterative parsing takes
     109.120/357.630/1,038.250/5,329.361 microseconds; recursive traversal
@@ -26,12 +26,13 @@ Guarantees:
     of three process-CPU rounds; command=cd extensions/python && PYTHONPATH=.
     /home/user/Dev/.venv-pypetta/bin/python -m benchmarks.derivation_trees 100
     340 1000 5000 --facts 500 1000 2000 4000 --rounds 3;
-    fixture=single-child proof chains; commit=WORKTREE]
+    fixture=single-child proof chains;
+    commit=9903250d082ab019535ab0c10b742053f9e640f0]
   - over 500/1,000/2,000/4,000 distinct facts, list membership takes
     63,532.704/245,115.897/946,034.771/3,818,650.598 microseconds while
     ordered hash membership takes 76.390/131.820/257.960/519.730 microseconds
     [measured: same command and process-CPU method; fixture=distinct root facts;
-    commit=WORKTREE]
+    commit=9903250d082ab019535ab0c10b742053f9e640f0]
 Open Obligations:
   To Do: None
   Hacks: None
