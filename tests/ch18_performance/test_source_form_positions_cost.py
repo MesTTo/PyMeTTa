@@ -4,7 +4,7 @@ Guarantees:
   - position bookkeeping inspects only a constant multiple of the source while
     preserving every form's line and column [tested:
     test_position_tracking_scans_only_disjoint_source_intervals;
-    commit=WORKTREE]
+    commit=aa02d6c674b1e86eec5ddf32d111400df8f9e4b4]
 Open Obligations:
   To Do: None
   Hacks: None
