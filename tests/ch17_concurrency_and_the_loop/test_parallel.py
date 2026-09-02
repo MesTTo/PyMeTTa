@@ -16,14 +16,20 @@ Guarantees:
     complete before the blocker is released [tested:
     test_a_bare_thread_blocking_in_the_engine_does_not_freeze_other_calls;
     commit=6ffd7e3bbfc653f10817c48f30cd56572960e43f]
+  - an abandoned Channel destroys its SWI message queue from whichever thread
+    collects it [tested:
+    test_abandoned_channels_destroy_their_swi_queues_from_collector_thread;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
 """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
+import gc
 import threading
 import time
+import weakref
 
 import pytest
 
@@ -34,6 +40,39 @@ from metta.errors import EngineError, TimeLimitError
 
 SQUARE = "(= (par-sq $x) (* $x $x))"
 SPIN = "(= (par-spin $n) (if (> $n 0) (par-spin (- $n 1)) done))"
+
+
+def _live_channels() -> int:
+    """The engine-side channel table, one row per owned SWI queue."""
+    return runtime().once(
+        "aggregate_all(count, metta_channel(_Id, _Queue), N)"
+    )["N"]
+
+
+def test_abandoned_channels_destroy_their_swi_queues_from_collector_thread():
+    """Collection is the backstop when explicit close was omitted."""
+    with channel(max=1):
+        pass  # load lib_thread before taking the baseline
+    baseline = _live_channels()
+    abandoned = [channel(max=8) for _ in range(200)]
+    references = [weakref.ref(mailbox) for mailbox in abandoned]
+    failures: list[BaseException] = []
+
+    def collect() -> None:
+        try:
+            abandoned.clear()
+            gc.collect()
+        except BaseException as failure:
+            failures.append(failure)
+
+    collector = threading.Thread(target=collect)
+    collector.start()
+    collector.join(30)
+
+    assert not collector.is_alive(), "channel collection did not finish"
+    assert failures == []
+    assert all(reference() is None for reference in references)
+    assert _live_channels() == baseline
 
 
 def test_a_bare_thread_blocking_in_the_engine_does_not_freeze_other_calls(metta):

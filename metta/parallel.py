@@ -49,6 +49,10 @@ Guarantees:
   - FutureSpace iteration performs a terminal drain after settlement and cannot
     lose an answer inserted between its live snapshot and settled check [tested:
     test_future_iteration_drains_the_terminal_snapshot; commit=39092863ae34184a9f955f185ff57c1ff177ec40]
+  - an abandoned Channel destroys its SWI message queue from whichever thread
+    collects the Python handle [tested:
+    test_abandoned_channels_destroy_their_swi_queues_from_collector_thread;
+    commit=WORKTREE]
 Fails when:
   - the work is not engine-bound. A pool costs one thread and one engine per
     worker, so fanning out calls that are already fast buys queueing overhead
@@ -58,6 +62,8 @@ Fails when:
 Owns:
   - one daemon thread and one attached Prolog engine per worker, from start
     until close(). close() is idempotent and runs from __exit__.
+  - one SWI message queue per Channel, released by close(), context exit, or a
+    finalizer that retains only the runtime and engine handle.
 Guarded by:
   - _state_lock publishes the pool's state and worker list; the work queue is
     a queue.Queue and needs no further locking.
@@ -82,7 +88,7 @@ from collections.abc import Callable, Iterable, Iterator
 from concurrent.futures import Future, as_completed
 from typing import Any, Self
 
-from ._engine import engine_thread, runtime
+from ._engine import Runtime, engine_thread, runtime
 from ._space import Space
 from .atoms import Atom, Expression, Symbol, Variable, _to_atom
 from .errors import MettaError, Timeout
@@ -495,6 +501,25 @@ class Channel:
         self._owner = owner
         self._handle = handle
         self._closed = False
+        # weakref.finalize keeps the callback alive without keeping this
+        # Channel alive. A static callback is load-bearing: a bound method
+        # would retain self and therefore prevent the collection it awaits.
+        # https://docs.python.org/3.14/library/weakref.html#weakref.finalize
+        self._finalizer = _weakref.finalize(
+            self, Channel._reap, self._owner.runtime, self._handle
+        )
+
+    @staticmethod
+    def _reap(rt: Runtime, handle: Any) -> None:
+        try:
+            # A finalizer can run on an arbitrary bare Python thread. Use the
+            # eager bridge crossing used by Cursor._reap: opening a lazy
+            # Answers cursor here leaves a Janus query object's destructor on
+            # that foreign thread, which can unregister atoms after its
+            # temporary SWI engine has detached.
+            rt.apply_must("channel_close", handle)
+        except MettaError:
+            logger.debug("channel finalization found an unavailable engine", exc_info=True)
 
     def send(self, term: Any) -> bool:
         """Block until capacity admits one copied term."""
@@ -527,6 +552,7 @@ class Channel:
             return
         _call(self._owner, "channel-close", self._handle).one()
         self._closed = True
+        self._finalizer.detach()
 
     def __enter__(self) -> Self:  # noqa: D105 -- context entry returns the live mailbox
         return self
