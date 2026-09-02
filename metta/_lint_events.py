@@ -20,7 +20,7 @@ Guarantees:
   - each live frame call site derives its source position once and then
     resolves repeated Answers iterations in constant time without retaining
     generated code [tested:
-    test_answer_iteration_benchmark_reuses_one_warmed_view,
+    test_answer_iteration_derives_each_call_site_once,
     test_answer_position_cache_does_not_own_generated_code;
     commit=0ffac1f272c65d1c3742a2bfb824538e426c264a]
 Guarded by:
