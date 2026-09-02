@@ -59,6 +59,10 @@ Guarantees:
     cannot deliver after cancellation [tested
     test_subscription_cancel_waits_for_inflight_delivery,
     test_stale_subscription_snapshot_cannot_deliver_after_cancel]
+  - an event rejected by a subscription guard is not an arrival, while an
+    accepted step counts even when it preserves the same state [tested:
+    test_a_rejected_guard_event_does_not_end_a_blocking_stream,
+    test_an_accepted_identity_step_still_wakes_its_waiter; commit=WORKTREE]
   - subscribe, bridge and reaction are each expressible as a fold over this
     surface alone, with the same answers as the shipped models [tested
     test_subscribe_bridge_and_reaction_are_expressible_over_the_public_event_stream]
@@ -155,6 +159,7 @@ class Fold:
 
     __slots__ = (
         "_active",
+        "_admits",
         "_consumed",
         "_initial",
         "_registry",
@@ -176,6 +181,7 @@ class Fold:
         *,
         on: str,
         state: Any,
+        admits: Callable[[Event], bool] | None = None,
     ) -> None:
         """Build the entry; registration is the registry's own step."""
         self._registry = registry
@@ -185,6 +191,7 @@ class Fold:
         self.state = state
         self._initial = state
         self._step = step
+        self._admits = admits
         self._active = True
         self._version = 0
         self._consumed = 0
@@ -244,9 +251,15 @@ class Fold:
                 # for a waiter to read. This is the delivering fold, the one
                 # subscribe() builds for a callback, and it pays exactly what
                 # the bespoke dispatch it replaced paid.
-                self._step(STATELESS, event)
+                if self._admits is None or self._admits(event):
+                    self._step(STATELESS, event)
                 return
             with self._state_lock:
+                # Filtering precedes reduction: RxJava's ObservableFilter only
+                # calls downstream.onNext after its predicate accepts the item.
+                # [source: https://github.com/ReactiveX/RxJava/blob/4d98d5988bec64ea24931c45464cbe6b7a7b1a60/src/main/java/io/reactivex/rxjava3/internal/operators/observable/ObservableFilter.java#L39-L53; commit=WORKTREE]
+                if self._admits is not None and not self._admits(event):
+                    return
                 before = self.state
                 after = self._step(before, event)
                 if self.state is not before and self.state is not after:
