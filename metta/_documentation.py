@@ -9,6 +9,10 @@ Guarantees:
   - annotations project through ``metta_type_for`` and missing annotations stay
     explicit as ``%Undefined%`` [tested:
     test_a_docstring_emits_the_whole_doc_vocabulary; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
+  - typing.no_type_check keeps syntax-only compiler annotations out of both
+    declarations and portable documentation [tested:
+    test_no_type_check_keeps_annotations_as_a_compile_proof_only;
+    commit=d0dfff1a3ee6c85472fd9b12d6e4aec007a9c301]
   - adjacent attribute docstrings become record-field descriptions [tested:
     test_record_attribute_docstrings_describe_parameters; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
 Fails when: a MeTTa doctest expectation is not a Python literal. Emission
@@ -44,9 +48,18 @@ def _signature(source: object) -> inspect.Signature | None:
     if not callable(source):
         return None
     try:
-        return inspect.signature(source)
+        signature = inspect.signature(source)
     except (TypeError, ValueError):
         return None
+    if not getattr(source, "__no_type_check__", False):
+        return signature
+    return signature.replace(
+        parameters=[
+            parameter.replace(annotation=inspect.Parameter.empty)
+            for parameter in signature.parameters.values()
+        ],
+        return_annotation=inspect.Signature.empty,
+    )
 
 
 def _description(text: str | None) -> Expression:

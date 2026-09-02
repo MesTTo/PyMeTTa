@@ -244,13 +244,13 @@ class MettaOperationError(EngineError):
 
 
 class MettaResultError(MettaError):
-    """The evaluation ANSWERED an `(Error ...)` atom, at a door that
-    answers a single value.
+    """The evaluation ANSWERED an `(Error ...)` atom through a single-value
+    accessor.
 
     In MeTTa an error is a result: `(Error culprit reason)` is one
-    element of the answer multiset, which is why the aggregation doors,
-    eval(), run(), function iteration and the streams, keep it as data. A door
-    that answers exactly one value has no multiset for the error to be
+    element of the answer multiset, which is why the aggregation methods,
+    eval(), run(), function iteration and the streams, keep it as data. An
+    accessor that answers exactly one value has no multiset for the error to be
     data in, so one(), first() and calling a function raise it instead.
     `atom` carries the whole `(Error ...)` expression, `culprit` the
     term it blames, `reason` the explanation beside it. Not an
@@ -497,10 +497,10 @@ def with_coordinates(
 
 class TransportFailure(MettaError):  # noqa: N818  -- the exception name is a domain outcome in the public protocol, not an implementation error suffix
     """The backend is ABSENT rather than wrong: a connection, a timeout, a
-    closed stream. The seam's error trichotomy treats these differently
-    from application errors: a declared keep or empty mode never applies,
-    transport always aborts, because retrying or giving up is the caller's
-    decision and an absent backend has said nothing about the data.
+    closed stream. The remote protocol's error trichotomy treats these
+    differently from application errors: a declared keep or empty mode never
+    applies, transport always aborts, because retrying or giving up is the
+    caller's decision and an absent backend has said nothing about the data.
     """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
 
 
@@ -510,8 +510,8 @@ def is_transport_failure(error: BaseException) -> bool:
     The obvious test does not separate them: a socket timeout raises
     OSError, but websocket-client's own timeout does NOT subclass it, so
     "is the cause an OSError" misses exactly the shape a broken event
-    stream takes under load. Hoisted from the DAS surface to the seam,
-    because every remote backend needs the same trichotomy.
+    stream takes under load. Hoisted from the DAS surface to the shared error
+    model, because every remote backend needs the same trichotomy.
     """
     from ._optional import optional_module  # noqa: PLC0415  optional probe
 

@@ -1,14 +1,14 @@
 """Purpose: pin the behavioral laws taught by the Python-first guide.
 
 Assumes:
-  - bare Python threads share the home engine and serialize individual engine
-    calls, while callers own synchronization across several calls.
+  - bare Python threads receive temporary engines for relational calls, while
+    callers still own synchronization across several calls.
 Guarantees:
   - the twin corpus states the Python-stack versus engine-LCO fuel boundary,
     pins one concrete depth divergence, and preserves answer equality below it
     [tested: test_twin_docs_state_python_stack_engine_lco_and_answer_equality,
     test_twin_depth_divergence_is_operational_not_an_answer_difference;
-    commit=ee43d4a0585593b4f40d0c3c0557db8214688829]
+    commit=e3787593132a7ece2d300397045f7415709847c9]
   - a walrus-bound nondeterministic call uses call-time choice, so both uses
     in one pair share one answer [tested:
     test_walrus_call_time_choice_shares_one_nondeterministic_value;
@@ -160,9 +160,7 @@ def test_attribute_docstrings_are_source_only_not_field_runtime_docs() -> None:
             """The total carried by this order."""
 
         documentation = [
-            str(atom)
-            for atom in target.atoms()
-            if str(atom).startswith("(@doc DocsLawOrder ")
+            str(atom) for atom in target.atoms() if str(atom).startswith("(@doc DocsLawOrder ")
         ]
         assert len(documentation) == 1
         assert "The total carried by this order." in documentation[0]
@@ -205,13 +203,20 @@ def test_guides_keep_documentation_law_explainers() -> None:
     assert "Python 3.14 adds t-string syntax" in floor
 
     spaces = _guide("spaces.md")
-    assert "rename={\"old\": \"new\"}" in spaces
+    assert 'rename={"old": "new"}' in spaces
     assert "Renaming a stored head changes the atom and therefore changes the digest" in spaces
 
 
 def test_twin_docs_state_python_stack_engine_lco_and_answer_equality() -> None:
     """The corpus-level prose keeps the ruled operational distinction."""
-    path = _REPOSITORY / "extensions" / "python" / "examples" / "language-feature-examples" / "README.md"
+    path = (
+        _REPOSITORY
+        / "extensions"
+        / "python"
+        / "examples"
+        / "language-feature-examples"
+        / "README.md"
+    )
     text = " ".join(path.read_text(encoding="utf-8").split())
     assert "`fib.py(n)` recurses on Python's stack" in text
     assert "the engine's last-call optimization (LCO)" in text
@@ -222,7 +227,14 @@ def test_twin_docs_state_python_stack_engine_lco_and_answer_equality() -> None:
 
 def test_twin_docs_state_where_the_pricing_block_lives() -> None:
     """The convention a twin author reads, and the door that keeps it true."""
-    path = _REPOSITORY / "extensions" / "python" / "examples" / "language-feature-examples" / "README.md"
+    path = (
+        _REPOSITORY
+        / "extensions"
+        / "python"
+        / "examples"
+        / "language-feature-examples"
+        / "README.md"
+    )
     text = " ".join(path.read_text(encoding="utf-8").split())
     assert "sit at the END of the file" in text
     assert "a re-pin APPENDS one more paragraph there" in text
@@ -238,7 +250,7 @@ def test_twin_depth_divergence_is_operational_not_an_answer_difference(tmp_path)
         "from metta import MeTTa\n"
         "with MeTTa().space() as target:\n"
         "    @target.define\n"
-        "    def fib(n):\n"
+        "    def fib(n: int) -> int:\n"
         "        return n if n < 2 else fib(n - 1) + fib(n - 2)\n"
         "    for n in range(21):\n"
         "        assert fib(n) == [fib.py(n)]\n"

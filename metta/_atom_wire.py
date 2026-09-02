@@ -34,9 +34,12 @@ Guarantees:
     test_a_transaction_commits_async_launch_before_its_landing;
     commit=39092863ae34184a9f955f185ff57c1ff177ec40]
   - object decoding removes every __metta_wire_value__ carrier by protocol,
-    so transport classes cannot replace the carried object's identity
+    while retaining that carrier privately for later crossings, so transport
+    classes cannot replace the carried object's identity or lose metadata
     [tested: test_bridge_answers_preserve_python_object_identity;
     commit=a0f1cc5f15a15e5ca6958fe02a20be8832c7237f]
+    [tested: test_a_py_atom_declaration_dies_with_its_grounded_value;
+    commit=bbf02dd309d15e178a9c83d03b749eb7170b6a20]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -154,7 +157,9 @@ def _variable_from_wire(payload: Any) -> Atom:
 
 
 def _object_from_wire(payload: Any) -> Atom:
-    return Grounded(_unbox_wire_value(payload))
+    grounded = Grounded(_unbox_wire_value(payload))
+    object.__setattr__(grounded, "_wire_value", payload)
+    return grounded
 
 
 class Undefined:

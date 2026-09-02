@@ -5,7 +5,7 @@ Guarantees:
     test_match_statement_lowers_to_one_ordered_case_tower; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
   - a compiled ``with space.limits(stack=N)`` block lowers to the sibling
     engine's ``stack-limit`` scoped pragma spelling [tested:
-    test_compiled_stack_limit_uses_the_scoped_pragma_contract; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
+    test_compiled_stack_limit_uses_the_scoped_pragma_contract; commit=e3787593132a7ece2d300397045f7415709847c9]
   - star patterns lower to the engine's segment variables, named and anonymous
     [tested: test_match_star_lowers_to_a_segment_variable; commit=a3dff3abc83b9d82f3652093246e1d693d526cdb]
   - overlapping decorator clauses share one exclusive case equation while
@@ -62,7 +62,7 @@ def test_compiled_stack_limit_uses_the_scoped_pragma_contract(metta):  # noqa: D
     m = metta._new_space()
 
     @m.define
-    def bounded_increment(value):
+    def bounded_increment(value: int) -> int:
         with m.limits(stack=4_000_000):
             return value + 1
 

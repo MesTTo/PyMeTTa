@@ -58,14 +58,14 @@ def twin(m):
     # The MeTTa names are camel-cased and Python's are not, so `name=` carries
     # the example's own spelling and the Python side stays PEP 8.
     @m.define(name="applyL1")
-    def apply_l1():
+    def apply_l1() -> int:
         # (= (applyL1) (apply (lambda $x (+ $x 1)) 2))
-        return S.apply(S["lambda"](V.x, V.x + 1), 2)
+        return S.apply(S["lambda"](V.x, fn.add(V.x, 1)), 2)  # V.x is an engine variable
 
     @m.define(name="applyL2")
-    def apply_l2():
+    def apply_l2() -> int:
         # (= (applyL2) (apply (lambda ($x $y) (+ $x $y)) (2 7)))
-        return S.apply(S["lambda"]((V.x, V.y), V.x + V.y), (2, 7))
+        return S.apply(S["lambda"]((V.x, V.y), fn.add(V.x, V.y)), (2, 7))  # V.x and V.y are engine variables
 
     assert apply_l1() == [3]
     assert apply_l2() == [9]
@@ -74,7 +74,7 @@ def twin(m):
     @m.define
     def increment_all(items):
         # (= (increment-all $items) (maplist (|-> ($a) (+ 1 $a)) $items))
-        return fn.maplist(lambda a: 1 + a, items)
+        return fn.maplist(lambda a: fn.add(1, a), items)  # a is a lambda parameter
 
     assert increment_all((1, 2, 3)) == [Expression((2, 3, 4))]
 
@@ -98,9 +98,7 @@ def twin(m):
     assert through_partial() == [Expression((42, 43, 2, 3))]
 
     # Partially applied: one argument now, the other later.
-    assert m.eval(((S["|->"]((V.x, V.y), (42, V.x, V.y)), 43), 44)) == [
-        Expression((42, 43, 44))
-    ]
+    assert m.eval(((S["|->"]((V.x, V.y), (42, V.x, V.y)), 43), 44)) == [Expression((42, 43, 44))]
 
     @m.define
     def myfunc2(mylambda):
@@ -205,4 +203,21 @@ def twin(m):
 #: structure, and the removal doors changed meaning where a twin spells one
 #: [measured 2026-09-01: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=c6a40460b1db341198a6150e3600f502831a6e83].
-BUDGET = 22851
+#: RE-PINNED 2026-09-01, 22851 to 22950 (+99), generic Python operators now
+#: dispatch through live protocols while source twins explicitly name
+#: relational engine heads [measured 2026-09-01: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=e3787593132a7ece2d300397045f7415709847c9].
+#: RE-PINNED 2026-09-02, 22950 to 23397 (+447), static contract discharge and
+#: policy-stable recompilation [measured 2026-09-02: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=c00341f0ff9d83d1b9338ca86ad51708eaf07ebd].
+#: RE-PINNED 2026-09-02, 23397 to 23489 (+92), static contract discharge with
+#: policy checks confined to invalidated contracts [measured 2026-09-02: min-
+#: of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=c00341f0ff9d83d1b9338ca86ad51708eaf07ebd].
+#: RE-PINNED 2026-09-02, 23489 to 23499 (+10), P43 protects both generated
+#: policy-check fallbacks from space-local capture [measured 2026-09-02: min-
+#: of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=c00341f0ff9d83d1b9338ca86ad51708eaf07ebd].
+BUDGET = 23499

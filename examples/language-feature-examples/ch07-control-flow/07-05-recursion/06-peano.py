@@ -35,8 +35,10 @@ def twin(m):
         #    (if (== () (collapse (once (match $Space $Atom $Atom))))
         #        (add-atom $Space $Atom)
         #        (empty)))
-        seen = S.collapse(S.once(match(space, atom, atom)))  # rung: `collapse` is list(), which a compiled body has no lowering for (P14.4)
-        if seen == ():
+        seen = S.collapse(
+            S.once(match(space, atom, atom))
+        )  # rung: `collapse` is list(), which a compiled body has no lowering for (P14.4)
+        if fn.eq(seen, ()):  # seen comes from a match, so its type is unknown
             return fn.add_atom(space, atom)
         return superpose()
 
@@ -50,11 +52,11 @@ def twin(m):
         return add_atom_no_duplicate(m, S.num(S.S(found)))
 
     @m.define(name="expandK")
-    def expand_k(n):
+    def expand_k(n: int):
         """Run expand-once n times, then answer done."""
         # (= (expandK $n)
         #    (if (== $n 0) done (let $temp1 (expand-once) (expandK (- $n 1)))))
-        if n == 0:
+        if fn.eq(n, 0):  # engine equality is intentional
             return S.done
         _round = expand_once()
         return expand_k(n - 1)
@@ -165,4 +167,26 @@ def twin(m):
 #: structure, and the removal doors changed meaning where a twin spells one
 #: [measured 2026-09-01: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=c6a40460b1db341198a6150e3600f502831a6e83].
-BUDGET = 1745675
+#: RE-PINNED 2026-09-01, 1745675 to 1474885 (-270790), generic Python operators
+#: now dispatch through live protocols while source twins explicitly name
+#: relational engine heads [measured 2026-09-01: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=e3787593132a7ece2d300397045f7415709847c9].
+#: RE-PINNED 2026-09-02, 1474885 to 1476216 (+1331), exact numeric annotations
+#: retain native operator heads, publish MeTTa type declarations, and leave
+#: relational heads only where static proof is unavailable [measured
+#: 2026-09-02: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=d0dfff1a3ee6c85472fd9b12d6e4aec007a9c301].
+#: RE-PINNED 2026-09-02, 1476216 to 1476476 (+260), static contract discharge
+#: and policy-stable recompilation [measured 2026-09-02: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=c00341f0ff9d83d1b9338ca86ad51708eaf07ebd].
+#: RE-PINNED 2026-09-02, 1476476 to 1476494 (+18), static contract discharge
+#: with policy checks confined to invalidated contracts [measured 2026-09-02:
+#: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=c00341f0ff9d83d1b9338ca86ad51708eaf07ebd].
+#: RE-PINNED 2026-09-02, 1476494 to 1476504 (+10), P43 protects both generated
+#: policy-check fallbacks from space-local capture [measured 2026-09-02: min-
+#: of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=c00341f0ff9d83d1b9338ca86ad51708eaf07ebd].
+BUDGET = 1476504

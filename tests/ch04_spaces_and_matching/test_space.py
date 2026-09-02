@@ -47,6 +47,17 @@ Guarantees:
     limited, guarded, prepared, and cursor answer doors [tested:
     test_wide_query_projection_is_identical_through_every_answer_door;
     commit=d843bb6d17a525c36afd21cab077d63b34447535]
+  - ``Space |=`` treats every Atom subtype as one atom instead of iterating
+    its structural children [tested:
+    test_ior_merges_an_atom_without_iterating_expression_children;
+    commit=9bbfe5a252eb4b3f8b7d8418def0cc39c0819c13]
+  - match, Prepared, and stream share one positive-limit contract [tested:
+    test_nonpositive_limits_are_refused_by_match_stream_and_prepared;
+    commit=1262dd20ada9d5c799d9bdc4bdf5d2b859ca7a98]
+  - a tuple or list in ``where=`` is an implicit conjunction while additional
+    positional arguments remain stored-atom patterns [tested:
+    test_guard_sequences_conjoin_without_changing_positional_patterns;
+    commit=8a04841952ec6cf7f4eb4e418efcbf4519f16f34]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -334,6 +345,29 @@ def test_wide_query_projection_is_identical_through_every_answer_door(m):  # noq
         assert tuple(next(cursor)) == expected
 
 
+def test_nonpositive_limits_are_refused_by_match_stream_and_prepared(m):
+    """Every query face rejects zero before it can mean unbounded to Prolog."""
+    m.add(*(S.limited(index) for index in range(3)))
+    pattern = S.limited(V.index)
+    prepared = m.prepare(pattern)
+    guarded = m.prepare(pattern, where=V.index.ge(0))
+    doors = (
+        lambda limit: m.match(pattern, limit=limit),
+        lambda limit: prepared.solve(limit=limit),
+        lambda limit: guarded.solve(limit=limit),
+        lambda limit: m.stream(pattern, limit=limit),
+    )
+
+    for limit in (0, -1):
+        for door in doors:
+            with pytest.raises(ValueError, match="limit must be positive"):
+                door(limit)
+    for limit in (True, "1"):
+        for door in doors:
+            with pytest.raises(TypeError, match="limit must be a positive int"):
+                door(limit)
+
+
 def test_atoms_count_contains_remove_clear(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     m.add(S.item(1), S.item(2))
     assert len(m) == 2
@@ -403,6 +437,16 @@ def test_ior_merges_a_space_equations_included(metta, m):  # noqa: D103  -- pyte
     # The equation crossed as an atom AND compiled on arrival.
     assert parse("(= (ior-double $x) (* 2 $x))") in m
     assert m.run("!(ior-double 21)") == [[42]]
+
+
+def test_ior_merges_an_atom_without_iterating_expression_children(m):
+    """An Atom is one fact even when its Python type is also a Sequence."""
+    atoms = (S.f(S.a, S.b), S.symbol, Grounded(object()), Expression())
+    for atom in atoms:
+        before = len(m)
+        m |= atom
+        assert len(m) == before + 1
+        assert m.atoms()[-1] == atom
 
 
 def test_removing_an_equation_from_a_named_space_stops_its_answers(metta):
@@ -1127,6 +1171,28 @@ def test_a_where_guard_that_can_never_be_true_is_refused(m, guard):  # noqa: D10
     m.add(S.age(S.Ada, 36))
     with pytest.raises(TypeError, match="can never answer true"):
         m.match(S.age(V.who, V.n), where=guard)
+
+
+def test_guard_sequences_conjoin_without_changing_positional_patterns(m):
+    """Guard sequences compose; pattern positions keep matching stored atoms."""
+    m.add(
+        S.age(S.ann, 17),
+        S.age(S.bob, 20),
+        S.age(S.cyd, 35),
+        S.age(S.dot, 49),
+        S.age(S.eli, 65),
+    )
+    pattern = S.age(V.who, V.n)
+    guards = (V.n.ge(18), V.n.lt(50))
+    expected = {"bob", "cyd", "dot"}
+
+    assert {str(row.who) for row in m.match(pattern, where=guards)} == expected
+    assert {str(row.who) for row in m.match(pattern, where=list(guards))} == expected
+    assert len(m.match(pattern, where=[])) == 5
+    assert {str(row.who) for row in m.match(pattern, where=[V.n.ge(65)])} == {"eli"}
+    with pytest.raises(TypeError, match="guard sequence item 0 is None"):
+        m.match(pattern, where=[None])
+    assert len(m.match(pattern, *guards)) == 0
 
 
 def test_wrong_bound_types_name_the_argument(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract

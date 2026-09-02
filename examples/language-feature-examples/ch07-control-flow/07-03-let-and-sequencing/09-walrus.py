@@ -19,7 +19,7 @@ def twin(m):
     """Bind with := where the value is first needed, then read it again."""
 
     @m.define
-    def double_used(n):
+    def double_used(n: int) -> int:
         # (let* (($big (* $n 10))) (+ $big $big))
         return (big := n * 10) + big
 
@@ -27,7 +27,7 @@ def twin(m):
     assert double_used(3) == [60]
 
     @m.define
-    def guarded_half(n):
+    def guarded_half(n: int):
         # (let* (($half (floor-div $n 2))) (if (< $half 10) $half nope))
         if (half := n // 2) < 10:
             return half
@@ -56,4 +56,26 @@ def twin(m):
 #: structure, and the removal doors changed meaning where a twin spells one
 #: [measured 2026-09-01: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=c6a40460b1db341198a6150e3600f502831a6e83].
-BUDGET = 4945
+#: RE-PINNED 2026-09-01, 4945 to 5731 (+786), generic Python operators now
+#: dispatch through live protocols while source twins explicitly name
+#: relational engine heads [measured 2026-09-01: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=e3787593132a7ece2d300397045f7415709847c9].
+#: RE-PINNED 2026-09-02, 5731 to 6881 (+1150), exact numeric annotations retain
+#: native operator heads, publish MeTTa type declarations, and leave relational
+#: heads only where static proof is unavailable [measured 2026-09-02: min-of-3
+#: serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=d0dfff1a3ee6c85472fd9b12d6e4aec007a9c301].
+#: RE-PINNED 2026-09-02, 6881 to 7209 (+328), static contract discharge and
+#: policy-stable recompilation [measured 2026-09-02: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=c00341f0ff9d83d1b9338ca86ad51708eaf07ebd].
+#: RE-PINNED 2026-09-02, 7209 to 7214 (+5), static contract discharge with
+#: policy checks confined to invalidated contracts [measured 2026-09-02: min-
+#: of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=c00341f0ff9d83d1b9338ca86ad51708eaf07ebd].
+#: RE-PINNED 2026-09-02, 7214 to 7224 (+10), P43 protects both generated
+#: policy-check fallbacks from space-local capture [measured 2026-09-02: min-
+#: of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=c00341f0ff9d83d1b9338ca86ad51708eaf07ebd].
+BUDGET = 7224

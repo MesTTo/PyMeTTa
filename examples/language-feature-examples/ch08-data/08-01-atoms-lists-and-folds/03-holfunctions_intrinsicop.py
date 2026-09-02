@@ -12,10 +12,10 @@ the example's nested `let` sequence.
 
 The claim is that a builtin and a defined function behave the same when either
 is handed to `mymap` half applied. `(== 1)` is equality with one argument, and
-`eq` is a function whose whole body is that same equality written as Python's
-own operator, so the two calls differ in nothing but which of them the engine
-had to compile. Applying a half-applied head is the one place a tuple beats a
-call, because the head is a value here rather than a name.
+`eq` is a function whose whole body names that same relation as `fn.eq`, so the
+two calls differ in nothing but which of them the engine had to compile.
+Applying a half-applied head is the one place a tuple beats a call, because the
+head is a value here rather than a name.
 
 The two half applications sit either side of the operator word table. `fn.eq`
 is `==`, the builtin, because the word table maps every operator to its
@@ -32,9 +32,9 @@ def twin(m):
     """Map a half-applied builtin and its defined twin over one list."""
 
     @m.define
-    def mymap(f, items):                    # (= (mymap $f ()) ())
-        match items:                        # (= (mymap $f (cons $x $xs))
-            case ():                        #    (cons ($f $x) (mymap $f $xs)))
+    def mymap(f, items):  # (= (mymap $f ()) ())
+        match items:  # (= (mymap $f (cons $x $xs))
+            case ():  #    (cons ($f $x) (mymap $f $xs)))
                 return ()
             case (S.cons, x, rest):
                 head = f(x)
@@ -42,12 +42,16 @@ def twin(m):
                 return S.cons(head, tail)
 
     @m.define
-    def eq(a, b):                           # (= (eq $a $b) (== $a $b))
-        return a == b
+    def eq(a, b):  # (= (eq $a $b) (== $a $b))
+        return fn.eq(a, b)
 
     numbers = Expression((1, 2, 3))
-    defined = S["eq"](1)  # rung: the word table owns S.eq, which is ==, so the symbol named eq takes rung 5's exact door
-    assert mymap(fn.eq(1), numbers) == mymap(defined, numbers)   # [(True False False)]
+    defined = S[
+        "eq"
+    ](
+        1
+    )  # rung: the word table owns S.eq, which is ==, so the symbol named eq takes rung 5's exact door
+    assert mymap(fn.eq(1), numbers) == mymap(defined, numbers)  # [(True False False)]
 
 
 #: Inferences this twin spends, its own tripwire. PLACEHOLDER rather than a
@@ -131,4 +135,17 @@ def twin(m):
 #: structure, and the removal doors changed meaning where a twin spells one
 #: [measured 2026-09-01: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=c6a40460b1db341198a6150e3600f502831a6e83].
-BUDGET = 14985
+#: RE-PINNED 2026-09-01, 14985 to 14419 (-566), generic Python operators now
+#: dispatch through live protocols while source twins explicitly name
+#: relational engine heads [measured 2026-09-01: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=e3787593132a7ece2d300397045f7415709847c9].
+#: RE-PINNED 2026-09-02, 14419 to 14599 (+180), static contract discharge and
+#: policy-stable recompilation [measured 2026-09-02: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=c00341f0ff9d83d1b9338ca86ad51708eaf07ebd].
+#: RE-PINNED 2026-09-02, 14599 to 14605 (+6), P43 protects both generated
+#: policy-check fallbacks from space-local capture [measured 2026-09-02: min-
+#: of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=c00341f0ff9d83d1b9338ca86ad51708eaf07ebd].
+BUDGET = 14605

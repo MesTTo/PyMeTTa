@@ -37,6 +37,9 @@ Guarantees:
     rerun the query [tested:
     test_tagged_derivations_flow_through_match_and_reinterpret_without_requery;
     commit=c7468b2789746bcf95c4bacc0e2d517ec4d972fa]
+  - tagged counts share the positive-limit contract used by ordinary queries
+    [tested: test_tagged_count_and_match_refuse_zero_with_the_same_message;
+    commit=61e107a8105a5cdaea164f615812a684b12d8fe3]
 Decides:
   - ``contraction`` is a capability, while the remaining public law names are
     equations checked exhaustively over the declared finite carrier.
@@ -60,6 +63,7 @@ from types import ModuleType
 from typing import Any, Final
 
 from ._space import Space
+from ._space_objects import _validate_limit
 from .atoms import (
     Atom,
     Expression,
@@ -458,7 +462,7 @@ def _canonical_laws(laws: Iterable[str]) -> frozenset[str]:
 
 
 def _catalog_declaration(metta: Space, name: str) -> DeclaredAlgebra | None:
-    """Reify a direct ``&metta`` algebra row through the Python door."""
+    """Reify a direct ``&metta`` algebra row through the Python interface."""
     for atom in Space("&metta", _runtime=metta.runtime).atoms():
         if not isinstance(atom, Expression) or len(atom.children) != 9:
             continue
@@ -1212,25 +1216,19 @@ def count_tagged(
     if max_rounds <= 0:
         msg = "max_rounds must be positive"
         raise ValueError(msg)
-    if limit is not None and (
-        isinstance(limit, bool) or not isinstance(limit, int) or limit < 0
-    ):
-        msg = "limit must be a nonnegative integer or None"
-        raise ValueError(msg)
+    _validate_limit(limit)
     encoded = query if isinstance(query, str) else _encode(query).to_wire()
     inputs = [metta.name, encoded, max_rounds, limit or 0]
     from ._space_execution import (  # noqa: PLC0415 -- algebra stays a satellite
-        _apply_limited,
+        _controlled_run,
         _limits,
     )
 
-    bounds = _limits(timeout, inferences)
-    output = (
-        metta.runtime.apply_must("metta_py_tagged_count", *inputs)
-        if bounds is None
-        else _apply_limited(
-            metta.runtime, bounds, "metta_py_tagged_count", inputs
-        )
+    output = _controlled_run(
+        metta.runtime,
+        "metta_py_tagged_count",
+        inputs,
+        _limits(timeout, inferences),
     )
     return int(output)
 

@@ -1,7 +1,8 @@
 """Purpose: own the engine bootstrap and bridge. Consults MeTTa and the shim
 exactly once per process, serializes calls made on the home engine, lets a
-thread holding its own engine run without that lock, and turns Prolog
-exceptions into the library's own errors for both Python surfaces.
+thread holding its own engine run without that lock, lets Janus give bare
+threads temporary engines for relational calls, and turns Prolog exceptions
+into the library's own errors for both Python surfaces.
 Assumes:
   - JanusBridge.engine returns the documented integer engine identifier
     [source 2026-08-14:
@@ -23,6 +24,10 @@ Guarantees:
   - a rehydrated MettaError keeps the __cause__ it was raised with, so the
     boundary term never displaces the diagnosis [tested
     test_a_watcher_failure_is_distinguishable_from_a_failed_write]
+  - a group made only of MettaError leaves rehydrates whole, while an
+    operation author's exception group remains an EngineError [tested:
+    test_multiple_watcher_failures_are_grouped_after_every_delivery,
+    test_an_op_authors_exception_group_stays_wrapped; commit=d8673a8488a111f1c01c778af3ed11b845c284a8]
   - a failed MeTTa assertion arrives as AssertionFailure and an engine fault
     as EngineError, neither an instance of the other [tested
     test_a_failing_assertion_is_a_different_exception_from_an_engine_fault]
@@ -32,15 +37,29 @@ Guarantees:
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - a call whose inputs the engine cannot accept fails on its OWN call, by
     kind and naming where in the input the offending text sits, and the next
-    call is unaffected on every door [tested:
+    call is unaffected through every interface [tested:
     test_text_with_no_utf8_encoding_is_refused_by_kind,
     test_a_refused_crossing_does_not_fail_the_next_call,
     test_no_door_leaves_the_next_call_carrying_the_refusal; commit=3b82643dd18ad5153bca71fa0c4bd09d59b0b7d0]
   - a Python exception raised inside the engine classifies the same through
-    the goal-string door and the predicate door [tested:
+    the goal-string call and the predicate call [tested:
     test_an_enumeration_refuses_answers,
     test_an_enumeration_refuses_answers_through_the_term_door_too;
     commit=3b82643dd18ad5153bca71fa0c4bd09d59b0b7d0]
+  - the functional Janus API is selected by live thread identity, never a
+    recyclable numeric identifier [tested:
+    test_a_recycled_thread_identifier_never_selects_the_janus_fast_path;
+    commit=af5821f5ffb7ce186e516706f003d02f5c1d3b4a]
+  - a bare thread's relational call uses Janus's temporary engine without the
+    home-engine lock, so a blocking call cannot freeze unrelated engine work
+    [tested:
+    test_a_bare_thread_blocking_in_the_engine_does_not_freeze_other_calls;
+    commit=6ffd7e3bbfc653f10817c48f30cd56572960e43f]
+  - booted() publishes only after the shim, Python prelude, and contract
+    ontology all finish; a failed prelude or contract install retries whole
+    on the next construction [tested:
+    test_a_failed_python_runtime_install_retries_whole;
+    commit=7f1b7a27ed5044c1df8885f4cdf831654dff25fc]
 Guarded by:
   - _LOCK serializes runtime creation and every call made on the HOME engine.
     A thread holding its own attached engine takes no process lock: it shares
@@ -48,6 +67,9 @@ Guarded by:
     carry their own Prolog mutexes because hyperpose workers have always
     reached the same database [tested
     test_define_from_two_threads_is_serialized]
+  - query_once and query on a bare foreign thread take no process lock because
+    Janus attaches and detaches a private temporary engine around that call
+    [source: https://www.swi-prolog.org/pldoc/man?section=janus-thread-call-prolog]
   - CONSULT_LOCK and the startup events publish completed consultation
 Open Obligations:
   To Do: None
@@ -82,6 +104,15 @@ from .errors import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+def _is_metta_failure(error: BaseException) -> bool:
+    """Whether one exception, including every leaf of a group, is ours."""
+    if isinstance(error, MettaError):
+        return True
+    return isinstance(error, BaseExceptionGroup) and all(
+        _is_metta_failure(member) for member in error.exceptions
+    )
 
 
 def _unencodable(inputs: Any) -> str | None:
@@ -121,7 +152,7 @@ def _unencodable(inputs: Any) -> str | None:
             pending.extend((f"{where}[{key!r}]" if where else str(key), item)
                            for key, item in value.items())
         elif isinstance(value, (list, tuple)):
-            # The predicate doors pass their arguments as the root tuple, so
+            # The predicate calls pass their arguments as the root tuple, so
             # the top level reads "argument 2" rather than a bare "[2]".
             pending.extend((f"{where}[{index}]" if where else f"argument {index}", item)
                            for index, item in enumerate(value))
@@ -135,18 +166,20 @@ _NULL_LOCK: AbstractContextManager[None] = nullcontext()
 
 
 class _CallLocks(threading.local):
-    """Which lock this thread's engine calls take, decided once per thread.
+    """Whether this thread may use the functional Janus calls, and their lock.
 
     _LOCK serialises use of the home engine. A thread that attached its own
     engine through engine_thread() shares that engine with nobody, so
     serialising it against the home engine protects nothing and costs all the
-    parallelism [measured 2026-08-15: 1.94x, 3.90x and 7.26x at 2, 4 and 8
-    threads, ai-tmp/pool/janus_par.py].
+    parallelism [tested:
+    extensions/python/tests/ch14_seeing_your_program/test_engine_pool.py::test_pool_runs_work_concurrently].
 
-    The choice is made when the engine is attached rather than on every call.
-    Deciding per call cost 72ns against the plain lock's 43ns and, worse, put
-    a janus.engine() crossing on every call a pool worker makes; one
-    thread-local read is 59ns [measured 2026-08-15, ai-tmp/pool/lockcost.py].
+    The choice is made when the engine is attached rather than putting a
+    janus.engine() crossing on every call a pool worker makes.  The original
+    A/B measured 72 ns for per-call dispatch against 43 ns for the direct
+    lock and 59 ns for one thread-local read; the promoted probe and historical
+    fixture are durable in benchmarks.thread_lock_dispatch [source:
+    extensions/python/benchmarks/thread_lock_dispatch.py; commit=8fc1a4e204be4200862af7a3819a28a0d6279ea1].
 
     What makes running free safe is that MeTTa's shared structures already
     carry their own Prolog mutexes, because hyperpose workers have always
@@ -159,8 +192,9 @@ class _CallLocks(threading.local):
     lock: AbstractContextManager[Any] = _LOCK
 
 
-# Threads start on the class default, so every thread that never attaches an
-# engine of its own keeps exactly the previous behaviour.
+# Threads start on the class default. _thread_lock distinguishes a bare thread
+# from the home thread before returning it, because the bare thread must use
+# relational Janus calls on a temporary engine rather than the functional form.
 _CALL_LOCKS = _CallLocks()
 
 CONSULT_LOCK = threading.Lock()
@@ -445,7 +479,7 @@ def runtime(metta_path: str | None = None, verbose: bool | None = None) -> Runti
     the default None leaves the session as it is, so a constructor that
     merely reaches the runtime cannot silence a verbose session the way the
     old always-applied False default did (minting a context home did exactly
-    that, and the published verbosity door went quiet).
+    that, and the published verbosity setting went quiet).
     """
     with _LOCK:
         if _STATE.runtime is None:
@@ -469,7 +503,7 @@ def runtime(metta_path: str | None = None, verbose: bool | None = None) -> Runti
                 )
             if verbose is not None:
                 # Always write on an explicit ask: the engine flag is also
-                # mutated directly by tests and helper doors, so a cached
+                # mutated directly by tests and helper calls, so a cached
                 # mirror comparison here would skip a needed update against
                 # stale shadow state. The write is idempotent and cheap.
                 _STATE.runtime.verbose = verbose
@@ -510,7 +544,7 @@ class Runtime:
             # therefore runs on the consulting thread and on any thread
             # holding an attached engine; every other thread falls back to
             # the relational form with identical semantics.
-            self._home_thread = threading.get_ident()
+            self._home_thread = threading.current_thread()
             self._consult_shim()
             # Without a heartbeat, Python never processes a SIGINT while a
             # goal runs: probed, a Ctrl-C on query_once(repeat,fail) stayed
@@ -520,19 +554,20 @@ class Runtime:
             # and an interleaved A/B on a pure 3M-step loop measured parity
             # with no heartbeat at all; 10,000 cost ~2% on that loop.
             # config.heartbeat_interval exposes that latency/cost tradeoff
-            # (probes in ai-tmp/janus-probes/11_interrupt_heartbeat).
+            # [tested: test_sigint_interrupts_a_running_evaluation].
             self._janus.heartbeat(config.heartbeat_interval)
 
     # ------------------------------------------------------------------ startup
 
     def _consult_engine(self, metta_path: str, stack_limit: int) -> JanusBridge:
-        """Stack limit, the seats, main.pl.
+        """Configure the stack limit, load extensions, and consult main.pl.
 
-        `extensions` asks the engine to read every seat's control file and load
-        what each declares. This names none of them: which seats exist is
-        extensions/*/extension.pl and whether one is usable is that seat's own
-        declaration. It used to test for MORK's shared library here and pass
-        `mork`, which put a backend's build path in the embedding host.
+        `extensions` asks the engine to read every extension's control file
+        and load what each declares. This names none of them: which extensions
+        exist is defined by extensions/*/extension.pl, and whether one is
+        usable is that extension's own declaration. It used to test for MORK's
+        shared library here and pass `mork`, which put a backend's build path
+        in the embedding host.
         """
         logger.debug("consulting the MeTTa engine from %s", metta_path)
         root = Path(metta_path)
@@ -573,17 +608,20 @@ class Runtime:
             "metta_host_set_silent(S)",
             {"S": "false" if self.verbose else "true"},
         )
-        _SHIM_LOADED.set()
         # The runtime-backed prelude compiled Python leans on; registered
         # with the shim so the two arrive together.
         prelude = importlib.import_module(f"{__package__}._prelude")
         prelude.install(self)
         logger.debug("installed the Python bridge prelude")
-        # The contract ontology: the typed vocabulary seam declarations are
-        # stated in, present before any user declaration can reference it.
+        # The contract ontology: the typed vocabulary used by interface
+        # declarations, present before any user declaration can reference it.
         contract = importlib.import_module(f"{__package__}._contract")
         contract.install(self)
         logger.debug("installed the contract ontology")
+        # This is a completion flag, not a progress flag. A failed prelude or
+        # contract install leaves it clear so the next Runtime retries the
+        # whole Python layer instead of publishing a half-booted engine.
+        _SHIM_LOADED.set()
 
     # -------------------------------------------------------------------- calls
 
@@ -595,7 +633,7 @@ class Runtime:
         fails returns an empty dict, which no shim entry point does on
         purpose, so callers treat it as an engine-side refusal.
         """
-        with self._thread_lock() or _LOCK:
+        with self._relational_lock():
             try:
                 row = self._janus.query_once(goal, inputs)
             except self._janus.PrologError as exc:
@@ -646,25 +684,39 @@ class Runtime:
         """The lock this thread's engine calls take, or None when this thread
         must fall back to the relational form.
 
-        This replaces the older _fast_ok() and answers both questions from one
-        threading.get_ident(), because the two have the same answer: a thread
+        This replaces the older _fast_ok() and answers both questions from the
+        live Thread object, because the two have the same answer: a thread
         may use the functional convention exactly when it holds an engine of
         its own, and a thread holding its own engine is exactly the thread
         that needs no process lock. Folding them keeps the home path at the
-        cost it had before per-engine locking existed, which matters: on the
-        space-name benchmark, one extra thread-local read per call measured
-        +15.5M instructions, +0.61% [measured 2026-08-15, ai-tmp/pool/ab_lock.py].
+        cost it had before per-engine locking existed.  On the space-name
+        benchmark, adding one thread-local read to this arm cost 15.5 million
+        retired instructions, +0.61%; the promoted A/B retains the command and
+        fixture [source: extensions/python/benchmarks/thread_lock_dispatch.py;
+        commit=8fc1a4e204be4200862af7a3819a28a0d6279ea1].
 
         Bare foreign threads abort the process on apply_once and cmd
         (measured), which is why they answer None rather than a lock.
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
-        if threading.get_ident() == self._home_thread:
+        if threading.current_thread() is self._home_thread:
             return _LOCK
         if _CALL_LOCKS.lock is _NULL_LOCK:
             return _NULL_LOCK
         # aio and remote workers attach an engine without going through
         # engine_thread(), so ask janus before deciding they are bare.
         return _NULL_LOCK if self._janus.engine() >= 0 else None
+
+    def _relational_lock(self) -> AbstractContextManager[Any]:
+        """Serialize the home engine and leave private engines independent.
+
+        Janus gives query_once() and query() a temporary engine on a bare
+        foreign thread. Taking the home lock around that private engine did
+        not protect either one; it only let a blocking foreign query prevent
+        the home thread, including the call that would unblock it, from
+        running.
+        """
+        lock = self._thread_lock()
+        return _NULL_LOCK if lock is None else lock
 
     def apply(self, predicate: str, *inputs: Any) -> Any:
         """Run a shim predicate through janus's functional convention:
@@ -746,18 +798,19 @@ class Runtime:
     def iter(self, goal: str, **inputs: Any) -> Iterator[dict]:
         """Enumerate a nondeterministic goal's answers, all of them.
 
-        The cursor is drained under the lock before anything is yielded:
-        janus queries belong to the engine, and interleaving user code that
+        The cursor is drained before anything is yielded, while its engine is
+        exclusive to this call: the home engine is locked, while attached and
+        temporary engines belong to this thread. Interleaving user code that
         may call back into the engine with an open cursor is how a session
-        deadlocks. That is why this is for the SMALL, bounded enumerations
-        the library asks itself about, an operation's arities and a space's
+        deadlocks. That is why this is for the SMALL, bounded enumerations the
+        library asks itself about, an operation's arities and a space's
         diagnostics, and why it is not the lazy route.
 
         The lazy route is an SWI engine, not a findall: metta_py_cursor_open
         holds the goal's state between pulls, metta_py_cursor_next takes one
         answer, and unrelated calls interleave freely, which a raw janus
         cursor forbids because its frames nest LIFO and it dies crossing
-        threads. Space.stream() is that door in-process and
+        threads. Space.stream() is that interface in-process and
         RemoteSpace.stream() is the same lifecycle over the wire. A
         shim-side findall would only move the drain, not remove it.
 
@@ -772,7 +825,7 @@ class Runtime:
         [measured 2026-08-31: `X = 1, freeze(Y, true)` raises, while
         `X = 1, freeze(_Y, true)` answers `{X, truth}`].
         """
-        with self._thread_lock() or _LOCK:
+        with self._relational_lock():
             try:
                 rows = list(self._janus.query(goal, inputs))
             except self._janus.PrologError as exc:
@@ -784,16 +837,14 @@ class Runtime:
     def _resynchronise(self) -> None:
         """Absorb an error a failed crossing left pending in the engine.
 
-        The predicate doors (apply_once, cmd) leave a Python exception raised
-        inside the engine PENDING, where the goal-string door clears it. The
+        The predicate calls (apply_once, cmd) leave a Python exception raised
+        inside the engine PENDING, where the goal-string call clears it. The
         next janus call is the one that reports it, and on the failure path
         that next call is janus's own PrologError.__str__, which runs
         message_to_string/2 to render the very error being classified: the
         classification then died on the pending error and the caller received
-        a raw janus PrologError instead of its own exception [measured
-        2026-08-29 at HEAD, ai-tmp/perf-eval/probe_apply_door_error.py:
-        space.eval leaked janus_swi.janus.PrologError where space.run raised
-        MettaError].
+        a raw janus PrologError instead of its own exception [tested:
+        test_a_raising_builtin_names_the_metta_operation_not_the_host_predicate].
 
         One sacrificial goal takes the pending error so whatever follows sees
         a clean engine. Only ever run once a call has already failed, so the
@@ -819,8 +870,8 @@ class Runtime:
         crossing has already been lost.
 
         The refusal matches _atoms_core._encodable, which already gives this
-        wording where an ATOM carries the same text; this is the raw goal door
-        it never covered.
+        wording where an ATOM carries the same text; this is the raw goal
+        interface it never covered.
         """
         self._resynchronise()
         reason = _unencodable(inputs)
@@ -837,13 +888,14 @@ class Runtime:
         message = _clean_message(exc)
         term = getattr(exc, "term", None)
         if term is not None:
-            original = self._original_python_error(term)
-            if original is not None:
+            original = self._original_python_error(term, base=BaseException)
+            if original is not None and _is_metta_failure(original):
                 # The library's own raise crossed Prolog and came back:
-                # re-raise the very object, structured fields intact,
-                # instead of an EngineError holding its transcript. Only
-                # MettaError rehydrates; an op author's ValueError keeps
-                # arriving wrapped, the boundary it crossed visible.
+                # re-raise the very object, structured fields intact, instead
+                # of an EngineError holding its transcript. A group rehydrates
+                # only when every leaf is a MettaError; an op author's own
+                # exception, grouped or plain, stays wrapped so the boundary
+                # it crossed remains visible.
                 #
                 # An error that already chose its own cause keeps it. `from
                 # exc` here would overwrite the diagnosis with the plumbing:

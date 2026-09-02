@@ -9,14 +9,12 @@ fails here rather than quietly publishing.
 Guarantees:
   - the driver's own cost is subtracted, so a tier cheaper than a MeTTa
     function reads as cheaper [tested test_extension_cost_rows_are_marginal]
-  - an unannotated @m.define costs exactly what the equivalent MeTTa equation
-    costs [tested test_extension_cost_rows_are_marginal]
-  - an annotated one costs the same IN INFERENCES, which is a fact about the
-    counter and not about the work: a specialised type check compiles to a VM
-    instruction SWI does not count. What it still costs is gated as the
-    typed-call instructions:u ceiling in benchmarks/baseline.json, and this
-    file asserts the parity so that the table cannot quietly imply annotating
-    is free [tested test_extension_cost_rows_are_marginal]
+  - an unannotated numeric operator follows Python's live protocol and costs
+    more than the equivalent native MeTTa equation, while an annotated operand
+    proves the native head and restores inference parity
+    [measured: 28.00 unannotated and 3.00 annotated against 3.00 MeTTa;
+    command=python -m benchmarks.extension_cost; fixture=3000 calls, min-of-3,
+    C reader and C extension enabled; commit=c350f51a5e1318187c4446fb2ceba04fba82e262]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -53,42 +51,18 @@ def test_extension_cost_rows_are_marginal(measured):  # noqa: D103  -- pytest di
     assert measured["Prolog grounded predicate"].inferences < baseline
     assert measured["translator rule (a macro)"].inferences < baseline
 
-    # @m.define lowers Python into MeTTa equations, so with no annotations it
-    # compiles to what the hand-written equation compiles to. This is a
-    # compiler result rather than an approximation, so it is asserted tightly.
-    # The tolerance is per-call, and the residual is a fixed per-DRIVE cost
-    # divided by the call count: 0.06 at 500 calls, 0.01 at the 3000 the
-    # published table uses.
-    # The define tier costs exactly the source tier now. It carried one more
-    # inference per call under deferred translation, from a goal sitting at
-    # the driver's call site rather than in the body; that difference is gone
-    # and this asserts its absence rather than its size
-    # [measured 2026-08-30: both tiers at the same per-call figure].
-    assert measured["@m.define, no annotations"].inferences == pytest.approx(
-        baseline, abs=0.1
-    )
+    # An unannotated `x + 1` cannot prove that x is a native number. P7 keeps
+    # Python's live operator protocol in that case, including overloads and
+    # reflected methods, so this row pays a Python crossing rather than the
+    # pure engine + head. The committed counter baseline pins the exact 28.00;
+    # this relation keeps a stale pre-P7 parity claim from returning.
+    assert measured["@m.define, no annotations"].inferences > baseline
 
-    # Annotations generate a type declaration, and a declared call emits a
-    # type check per argument and one on the result. Until 2026-08-17 that cost
-    # this tier over three times the baseline and the assertion here said so.
-    #
-    # It no longer does, and the reason is worth more than the number: the
-    # checks are specialised to a Prolog builtin when the declared type is
-    # Number, String or Bool, and SWI compiles number/1 to a VM instruction it
-    # does not COUNT. So the cost did not go to zero, it went somewhere this
-    # column cannot see. Asserting a gap that is no longer visible here would
-    # fail on a real improvement; asserting nothing would let this table tell a
-    # library author that annotating is free, which is false.
-    #
-    # So the inference column records parity, honestly, and the cost that
-    # remains is gated where it is visible: the typed-call case in
-    # benchmarks/baseline.json holds an instructions:u ceiling that reverting
-    # the specialisation overshoots by 44%.
-    # The same per-call site inference as the no-annotations tier above, and
-    # as the ordinary MeTTa function: annotating costs nothing this column can
-    # see. The RESULT check goes through the same specialisation the argument
-    # checks do; emitted unspecialised it cost 35 per call against 3
-    # [measured 2026-08-30].
+    # The int annotations prove that the body may lower to the pure engine +
+    # head. This benchmark calls it with a literal, so the argument contract is
+    # discharged at the call site; the result's number/1 check compiles to a VM
+    # instruction SWI does not count as an inference. The wall-clock and the
+    # typed-call instruction ceiling still cover that residual work.
     assert measured["@m.define, annotated"].inferences == pytest.approx(
         baseline, abs=0.1
     )

@@ -22,6 +22,10 @@ Guarantees:
     constant, the shared test_engine_and_twin_agree (60 examples) moved from
     a 0.48s to a 0.71s min-of-3; the file's own min-of-3 moved from 0.77s (3
     tests, no loop nesting reachable) to 1.28s (these 5 tests)]
+  - untyped compiled division preserves Python's OverflowError boundary when
+    an integer cannot convert to binary64 [tested:
+    test_the_define_twin_preserves_python_overflow_past_the_float_range;
+    commit=e3787593132a7ece2d300397045f7415709847c9]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -44,10 +48,7 @@ def _tuple_literal(draw, lowest: int, highest: int) -> str:
     """A Python tuple literal of small ints; the one-element spelling needs
     its trailing comma, or (5) is just 5.
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
-    values = [
-        str(draw(st.integers(-5, 5)))
-        for _ in range(draw(st.integers(lowest, highest)))
-    ]
+    values = [str(draw(st.integers(-5, 5))) for _ in range(draw(st.integers(lowest, highest)))]
     if len(values) == 1:
         return f"({values[0]},)"
     return "(" + ", ".join(values) + ")"
@@ -94,8 +95,20 @@ def int_expr(draw, names: tuple, depth: int = 0):  # noqa: D103  -- int_expr kee
         return str(draw(st.integers(-9, 9)))
     kind = draw(
         st.sampled_from(
-            ("add", "sub", "mul", "mod", "neg", "min", "max", "abs",
-             "ifexp", "or", "and", "truthytest")
+            (
+                "add",
+                "sub",
+                "mul",
+                "mod",
+                "neg",
+                "min",
+                "max",
+                "abs",
+                "ifexp",
+                "or",
+                "and",
+                "truthytest",
+            )
         )
     )
     a = draw(int_expr(names, depth + 1))
@@ -138,14 +151,11 @@ def bool_expr(draw, names: tuple, depth: int = 0):  # noqa: D103  -- pytest disc
             # Mixed numeric equality: Python says 4 == 4.0; so must the
             # compiled form, through py-eq. The operand is a fresh SMALL
             # literal rather than an arbitrary expression, because the two
-            # executors genuinely part company past binary64: the engine's
-            # division saturates to the IEEE infinity while plain Python
-            # raises OverflowError converting the huge int, so an unbounded
-            # operand made the twin die on its own arithmetic instead of
-            # reporting a disagreement (Hypothesis found it, 8/8
-            # reproductions; the boundary itself is pinned two-sidedly in
-            # test_the_define_twin_survives_integer_division_past_the_float_range).
-            # Small literals exercise the py-eq mixed-equality path fully.
+            # Both routes now follow Python's OverflowError boundary past
+            # binary64. The compiled route reifies that exception as an Error
+            # answer, so the value-only differential harness still keeps this
+            # operand small. The boundary itself is pinned two-sidedly in
+            # test_the_define_twin_preserves_python_overflow_past_the_float_range.
             right = f"({draw(st.integers(-9, 9))} / 1)"
         return f"({left} {op} {right})"
     if kind == "chain":
@@ -155,9 +165,7 @@ def bool_expr(draw, names: tuple, depth: int = 0):  # noqa: D103  -- pytest disc
     if kind == "not":
         return f"(not {draw(bool_expr(names, depth + 1))})"
     joiner = " and " if kind == "and" else " or "
-    return "(" + joiner.join(
-        draw(bool_expr(names, depth + 1)) for _ in range(2)
-    ) + ")"
+    return "(" + joiner.join(draw(bool_expr(names, depth + 1)) for _ in range(2)) + ")"
 
 
 @st.composite
@@ -197,8 +205,7 @@ MAX_LOOP_NEST = 3
 def loop_nest(draw, minimum: int = 1, maximum: int = MAX_LOOP_NEST - 1):
     """The kinds of one loop nest, outermost first."""
     return tuple(
-        draw(st.sampled_from(("while", "for")))
-        for _ in range(draw(st.integers(minimum, maximum)))
+        draw(st.sampled_from(("while", "for"))) for _ in range(draw(st.integers(minimum, maximum)))
     )
 
 
@@ -247,14 +254,10 @@ def loop_block(draw, scope: list, indent: str, nest: tuple, protected: tuple = (
         # loop: reading either after it is refused (or unbound in Python).
         # The target itself stays assignable, since the next round rebinds it.
         body_protected = protected
-    lines.extend(
-        draw(assignments(body_scope, inner, draw(st.integers(1, 2)), body_protected))
-    )
+    lines.extend(draw(assignments(body_scope, inner, draw(st.integers(1, 2)), body_protected)))
     if deeper:
         lines.extend(draw(loop_block(body_scope, inner, deeper, body_protected)))
-        lines.extend(
-            draw(assignments(body_scope, inner, draw(st.integers(0, 2)), body_protected))
-        )
+        lines.extend(draw(assignments(body_scope, inner, draw(st.integers(0, 2)), body_protected)))
     if draw(st.integers(0, 3)) == 0:
         lines.append(f"{inner}if {draw(bool_expr(tuple(body_scope), 1))}:")
         lines.append(f"{inner}    return {draw(int_expr(tuple(body_scope)))}")
@@ -461,20 +464,14 @@ def test_collection_bridge_agrees(metta, tmp_path_factory, program, data):  # no
     assert [_normalize(e) for e in engine] == [_normalize(twin)], source
 
 
-def test_the_define_twin_survives_integer_division_past_the_float_range(
-    metta, tmp_path_factory
-):
-    """The committed Hypothesis example: huge int meets /, both sides pinned.
+def test_the_define_twin_preserves_python_overflow_past_the_float_range(metta, tmp_path_factory):
+    """The committed Hypothesis example: huge int meets /, both sides agree.
 
     The generator once grew a value past binary64 and divided it by 1 for
-    the mixed-equality probe; the engine saturates that division to the
-    IEEE infinity (the numeric-boundary rule its own suite pins) while
-    plain Python raises OverflowError converting the huge int, so the
-    differential died on the twin's arithmetic instead of reporting a
-    disagreement. The boundary is genuinely twin-inexpressible: every
-    int-to-float conversion on such a value raises in Python. This pins
-    BOTH true behaviors, the way the tuple-index case above pins its
-    raise, and the generator now keeps its mixed-equality operand small.
+    the mixed-equality probe. Python raises OverflowError converting that
+    integer to a float. Untyped compiled arithmetic now invokes the same
+    protocol and reifies the same exception as an Error answer, instead of
+    silently taking the engine's saturating numeric path.
     """
     source = (
         "def grown_mix(a, b):\n"
@@ -486,9 +483,9 @@ def test_the_define_twin_survives_integer_division_past_the_float_range(
     fn = _load(tmp_path_factory, source, "grown_mix")
     defined = metta.define(fn)
     engine = defined(3, 4)
-    assert [_normalize(e) for e in engine] == [4], (
-        "the engine saturates acc / 1 to inf, 4 == inf is False, so the "
-        "else branch answers"
-    )
-    with pytest.raises(OverflowError):
+    assert len(engine) == 1
+    rendered = str(engine[0])
+    assert "OverflowError" in rendered
+    assert "too large for a float" in rendered
+    with pytest.raises(OverflowError, match="too large for a float"):
         fn(3, 4)

@@ -28,7 +28,7 @@ Guarantees:
     test_operation_results_preserve_python_object_identity;
     commit=a0f1cc5f15a15e5ca6958fe02a20be8832c7237f]
   - Atom annotations select syntax-level delivery, while an `(arguments ...
-    atoms)` seam declaration selects Atom wrappers after ordinary evaluation
+    atoms)` operation policy selects Atom wrappers after ordinary evaluation
     without a pass_atoms boolean [tested:
     test_no_decorator_flag_changes_the_return_shape_and_declarations_are_atoms;
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
@@ -315,7 +315,7 @@ def _receives_atom(annotation: Any) -> bool:
 def _encode_result(value: Any, annotation: Any = Any) -> list:
     if isinstance(value, Answer):
         # The explicit answer: bindings for the call's variables, crossing
-        # as the seam's own wire form beside the plain atoms.
+        # as the answer protocol's wire form beside the plain atoms.
         return value.to_wire()
     if value is None:
         # None is not a MeTTa value. A deterministic operation returning it
@@ -796,7 +796,7 @@ def type_names(obj: Any) -> list[str]:
 #
 # (predicate, type name) pairs; an object satisfying a predicate carries the
 # name as an additional type candidate. Consulted by the engine through the
-# shim's seam:grounded_extra_type/2 bridge.
+# shim's grounded_extra_type/2 bridge.
 
 PROTOCOL_TYPES: list[tuple[Any, str]] = []
 _PROTOCOL_TYPES_LOCK = threading.RLock()

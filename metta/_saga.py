@@ -250,7 +250,7 @@ class Saga:
         """Recover exceptional exits, then always retire the observer."""
         failures: list[BaseException] = []
         with self._lock:
-            # Close the admission door before recovery. A concurrent run blocks
+            # Close admission before recovery. A concurrent run blocks
             # on this lock and then observes the closed scope instead of adding
             # an obligation after the reverse pass.
             self._entered = False

@@ -149,4 +149,21 @@ def twin(m):  # noqa: ARG001  -- the declarations live in the reflection space; 
 #: builtins, prelude except/error-payload ops, variadic doors, twin heals
 #: [measured 2026-09-01: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=51b792423cec5787614d1488c0793b8a50eaa6fc].
-BUDGET = 1993
+#: RE-PINNED 2026-09-01, 1993 to 2033 (+40), generic Python operators now
+#: dispatch through live protocols while source twins explicitly name
+#: relational engine heads [measured 2026-09-01: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=e3787593132a7ece2d300397045f7415709847c9].
+#: RE-PINNED 2026-09-02, 2033 to 2038 (+5), static contract discharge and
+#: policy-stable recompilation [measured 2026-09-02: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=c00341f0ff9d83d1b9338ca86ad51708eaf07ebd].
+#: RE-PINNED 2026-09-02, 2038 to 2053 (+15), static contract discharge with
+#: policy checks confined to invalidated contracts [measured 2026-09-02: min-
+#: of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=c00341f0ff9d83d1b9338ca86ad51708eaf07ebd].
+#: RE-PINNED 2026-09-02, 2053 to 2018 (-35), P43 protects both generated
+#: policy-check fallbacks from space-local capture [measured 2026-09-02: min-
+#: of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=c00341f0ff9d83d1b9338ca86ad51708eaf07ebd].
+BUDGET = 2018

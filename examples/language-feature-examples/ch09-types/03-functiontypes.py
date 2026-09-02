@@ -63,14 +63,10 @@ def twin(m):
     # equation compiler emits no result continuation at all
     # [source: PeTTa@ae66fa8 src/translator.pl:25-28].
     # !(test (wu1 (+ 2 4) (+ 4 2)) (noeval (42 6 (+ 4 2))))
-    assert wu1(S.add(2, 4), S.add(4, 2)) == [
-        Expression((42, 6, S.add(4, 2)))
-    ]
+    assert wu1(S.add(2, 4), S.add(4, 2)) == [Expression((42, 6, S.add(4, 2)))]
     # An Atom result answers the same produced expression.
     # !(test (wu1b (+ 2 4) (+ 4 2)) (noeval (42 6 (+ 4 2))))
-    assert wu1b(S.add(2, 4), S.add(4, 2)) == [
-        Expression((42, 6, S.add(4, 2)))
-    ]
+    assert wu1b(S.add(2, 4), S.add(4, 2)) == [Expression((42, 6, S.add(4, 2)))]
     # !(test (wu2 (+ 2 4) (+ 4 2)) 12)
     assert wu2(S.add(2, 4), S.add(4, 2)) == [12]
 
@@ -158,4 +154,26 @@ def twin(m):
 #: the quad twin stopped being a different program [measured 2026-09-01: min-
 #: of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=c6a40460b1db341198a6150e3600f502831a6e83].
-BUDGET = 13004
+#: RE-PINNED 2026-09-01, 13004 to 13803 (+799), generic Python operators now
+#: dispatch through live protocols while source twins explicitly name
+#: relational engine heads [measured 2026-09-01: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=e3787593132a7ece2d300397045f7415709847c9].
+#: RE-PINNED 2026-09-02, 13803 to 13044 (-759), exact numeric annotations
+#: retain native operator heads, publish MeTTa type declarations, and leave
+#: relational heads only where static proof is unavailable [measured
+#: 2026-09-02: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=d0dfff1a3ee6c85472fd9b12d6e4aec007a9c301].
+#: RE-PINNED 2026-09-02, 13044 to 14100 (+1056), static contract discharge and
+#: policy-stable recompilation [measured 2026-09-02: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=c00341f0ff9d83d1b9338ca86ad51708eaf07ebd].
+#: RE-PINNED 2026-09-02, 14100 to 14133 (+33), static contract discharge with
+#: policy checks confined to invalidated contracts [measured 2026-09-02: min-
+#: of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=c00341f0ff9d83d1b9338ca86ad51708eaf07ebd].
+#: RE-PINNED 2026-09-02, 14133 to 14143 (+10), P43 protects both generated
+#: policy-check fallbacks from space-local capture [measured 2026-09-02: min-
+#: of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=c00341f0ff9d83d1b9338ca86ad51708eaf07ebd].
+BUDGET = 14143

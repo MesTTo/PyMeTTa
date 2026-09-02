@@ -8,10 +8,10 @@ general hook, refusing and accepting the same atoms, with a differential
 asserting the two agree verdict for verdict.
 
 The whole judge is ordinary Python now. Every part of the original's chain has
-a spelling inside a compiled body: `if`/`else` for the branches, `==` for the
-empty test, `types[0]` and `types[1:]` for `car-atom` and `cdr-atom`, `<` for
-the bound, `match(space, pattern, template)` for the two catalog reads, and
-`accept`/`refuse` for the verdicts. The four definitions are written
+a spelling inside a compiled body: `if`/`else` for the branches, `fn.eq` for
+the empty test, `types[0]` and `types[1:]` for `car-atom` and `cdr-atom`,
+`fn.lt` for the bound, `match(space, pattern, template)` for the two catalog
+reads, and `accept`/`refuse` for the verdicts. The four definitions are written
 bottom-upwards, because a compiled body calls a sibling by the Python name it
 is already bound to and a name has to exist before it is called.
 
@@ -57,15 +57,17 @@ def twin(m):
     # per add rather than an enumeration of everything the pool holds.
     @m.define
     def metta_admission_within(pool_, limits):
-        if limits == ():
+        if fn.eq(limits, ()):
             return accept()
-        if fn.space_atom_count(pool_) < limits[0]:
+        if fn.lt(fn.space_atom_count(pool_), limits[0]):
             return accept()
         return refuse(S.pool_at_capacity(limits[0]))
 
     @m.define
     def metta_admission_bounded(pool_):
-        return metta_admission_within(pool_, S.collapse(match(reflection, S.capacity(pool_, V.limit), V.limit)))  # rung: a compiled body has no spelling for list()
+        return metta_admission_within(
+            pool_, S.collapse(match(reflection, S.capacity(pool_, V.limit), V.limit))
+        )  # rung: a compiled body has no spelling for list()
 
     # Every declared admits type must be carried, the witness reading: an atom
     # whose type nothing declares is not evidence that it is one of these, and
@@ -73,7 +75,7 @@ def twin(m):
     # to declaring.
     @m.define
     def metta_admission_typed(pool_, atom: Atom, types):
-        if types == ():
+        if fn.eq(types, ()):
             return metta_admission_bounded(pool_)
         if fn.has_declared_type(atom, types[0]):
             return metta_admission_typed(pool_, atom, types[1:])
@@ -81,7 +83,9 @@ def twin(m):
 
     @m.define
     def metta_admission_verdict(pool_, atom: Atom):
-        return metta_admission_typed(pool_, atom, S.collapse(match(reflection, S.admits(pool_, V.type), V.type)))  # rung: as above
+        return metta_admission_typed(
+            pool_, atom, S.collapse(match(reflection, S.admits(pool_, V.type), V.type))
+        )  # rung: as above
 
     # Contract atoms for one pool: Ticket-typed members, at most two of them.
     reflection += S.admits(pool, S.Ticket)
@@ -101,12 +105,15 @@ def twin(m):
     assert [row.x for row in pool[S.ticket(V.x)]] == [S.a]
 
     stowaway = S.stowaway(1)
-    assert m.eval(fn.catch(fn.add_atom(pool, stowaway))) == [  # rung: catch keeps this failure as aggregate data, which is what the example claims about
-        S.Error(
-            S["metta_add_refused"](pool, stowaway, S.does_not_carry(S.Ticket)),
-            S.none,
-        )
-    ]
+    assert (
+        m.eval(fn.catch(fn.add_atom(pool, stowaway)))
+        == [  # rung: catch keeps this failure as aggregate data, which is what the example claims about
+            S.Error(
+                S["metta_add_refused"](pool, stowaway, S.does_not_carry(S.Ticket)),
+                S.none,
+            )
+        ]
+    )
 
     # The bound holds: the second ticket fills the pool and the third is
     # refused.
@@ -212,4 +219,21 @@ def twin(m):
 #: the quad twin stopped being a different program [measured 2026-09-01: min-
 #: of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=c6a40460b1db341198a6150e3600f502831a6e83].
-BUDGET = 28320
+#: RE-PINNED 2026-09-01, 28320 to 29955 (+1635), generic Python operators now
+#: dispatch through live protocols while source twins explicitly name
+#: relational engine heads [measured 2026-09-01: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=e3787593132a7ece2d300397045f7415709847c9].
+#: RE-PINNED 2026-09-02, 29955 to 30807 (+852), static contract discharge and
+#: policy-stable recompilation [measured 2026-09-02: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=c00341f0ff9d83d1b9338ca86ad51708eaf07ebd].
+#: RE-PINNED 2026-09-02, 30807 to 30784 (-23), static contract discharge with
+#: policy checks confined to invalidated contracts [measured 2026-09-02: min-
+#: of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=c00341f0ff9d83d1b9338ca86ad51708eaf07ebd].
+#: RE-PINNED 2026-09-02, 30784 to 30814 (+30), P43 protects both generated
+#: policy-check fallbacks from space-local capture [measured 2026-09-02: min-
+#: of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=c00341f0ff9d83d1b9338ca86ad51708eaf07ebd].
+BUDGET = 30814

@@ -1,17 +1,15 @@
 """examples/ch07-control-flow/07-01-if-and-booleans/09-xor.metta in Python: `xor` inside an equation.
 
-Python's `^` would be the operator: on a built term it lowers to `(xor ...)`,
-and inside a compiled body it is REFUSED, "the operator BitXor has no MeTTa
-function". The two doors disagree, which the residue table records against
-P14.4, so the body names `xor` through the static function namespace instead,
-`fn.xor`, which is the mention door for an engine function and which reads and
-autocompletes without the engine having to be running.
+Python's `^` follows the left operand's live `__xor__` protocol in a compiled
+body. This source needs the engine's boolean `xor` relation, so it names that
+head through the static function namespace as `fn.xor`.
 
 The static function mention is already an engine boolean function, so the
-conditional consumes it directly. Ordering retains `>`, while Python equality
-stores the engine-native `py-eq` head where the source stores `==`. The former
-`py-truthy` wrapper is gone, but the digest lane still reports that deliberate
-spelling difference.
+conditional consumes it directly. The numeric annotations keep Python's `>`
+syntax on the pure engine head. Equality stays explicit as `fn.eq`, because
+Python and the engine disagree across numeric species, NaN, and signed zero.
+The stored equation matches the source equation, while the annotation
+publishes its type declaration, `(: check_xor (-> Number Number Number))`.
 """
 
 from metta import fn
@@ -19,18 +17,17 @@ from metta import fn
 
 def twin(m):
     """Define the xor guard, then check both of its true cases."""
+
     # The MeTTa name really is `check_xor` with an underscore, which the
     # naming ladder's own map does not produce: every door here, the decorator
     # included, turns a Python underscore into a hyphen, so `@m.define` alone
     # would store `check-xor` and the example's head would go unmatched. An
     # exact non-mechanical name is what `name=` is for.
     @m.define(name="check_xor")  # rung: def check_xor maps to check-xor, while the source head is check_xor
-    def check_xor(source, destination):
-        # Source: (= (check_xor $source $destination)
-        #             (if (xor (== $source $destination) (> $source $destination)) 42 0))
-        # Twin:   (= (check_xor $source $destination)
-        #             (if (xor (py-eq $source $destination) (> $source $destination)) 42 0))
-        return 42 if fn.xor(source == destination, source > destination) else 0
+    def check_xor(source: int, destination: int) -> int:
+        # Source and twin: (= (check_xor $source $destination)
+        #                    (if (xor (== $source $destination) (> $source $destination)) 42 0))
+        return 42 if fn.xor(fn.eq(source, destination), source > destination) else 0  # engine equality is intentional
 
     assert check_xor(2, 2) == [42]
     assert check_xor(4, 2) == [42]
@@ -109,4 +106,22 @@ def twin(m):
 #: structure, and the removal doors changed meaning where a twin spells one
 #: [measured 2026-09-01: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=c6a40460b1db341198a6150e3600f502831a6e83].
-BUDGET = 4675
+#: RE-PINNED 2026-09-01, 4675 to 4721 (+46), generic Python operators now
+#: dispatch through live protocols while source twins explicitly name
+#: relational engine heads [measured 2026-09-01: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=e3787593132a7ece2d300397045f7415709847c9].
+#: RE-PINNED 2026-09-02, 4721 to 5888 (+1167), exact numeric annotations retain
+#: native operator heads, publish MeTTa type declarations, and leave relational
+#: heads only where static proof is unavailable [measured 2026-09-02: min-of-3
+#: serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=d0dfff1a3ee6c85472fd9b12d6e4aec007a9c301].
+#: RE-PINNED 2026-09-02, 5888 to 6217 (+329), static contract discharge and
+#: policy-stable recompilation [measured 2026-09-02: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=c00341f0ff9d83d1b9338ca86ad51708eaf07ebd].
+#: RE-PINNED 2026-09-02, 6217 to 6224 (+7), P43 protects both generated policy-
+#: check fallbacks from space-local capture [measured 2026-09-02: min-of-3
+#: serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=c00341f0ff9d83d1b9338ca86ad51708eaf07ebd].
+BUDGET = 6224

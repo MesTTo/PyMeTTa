@@ -33,14 +33,35 @@ Guarantees:
     AsyncMeTTa lint as direct Space calls [tested:
     test_a_sync_engine_call_inside_async_def_is_linted_not_refused;
     commit=acb40f1912f131ae088083d1af29b4b283019bea]
+  - recording that call site never retains the returned lazy view through its
+    completed frame [tested:
+    test_function_call_does_not_delay_answer_finalization_in_a_frame_cycle;
+    commit=853623455cdb02fe0afc1c815023a45c4a0eb989]
   - bound functions place call-site keywords against their exact definition or
     operation signature [tested:
     test_known_call_site_keywords_bind_to_positional_metta_arguments;
     commit=c2ad5892fbfdd690dd7e9b507e76e87d7d1376d1]
-  - direct and composite callable doors warn from the shared deprecation
+  - direct and composite callable forms warn from the shared deprecation
     catalog with the declared since/remedy [tested:
     test_deprecation_catalog_rows_drive_warnings_and_explanations;
     commit=d74e2e828cd9272882dcf907cfaf095d2d147ce0]
+  - Prepared and Cursor reject every non-positive or non-integer limit before
+    opening an engine query [tested:
+    test_nonpositive_limits_are_refused_by_match_stream_and_prepared;
+    commit=1262dd20ada9d5c799d9bdc4bdf5d2b859ca7a98]
+  - prepared and streaming guard evaluation inherits the shared atomic and
+    speculative execution policy [tested:
+    test_every_public_execution_door_honours_speculative_policy;
+    commit=1262dd20ada9d5c799d9bdc4bdf5d2b859ca7a98]
+  - a non-text sequence in guard position is one implicit conjunction, with
+    the empty sequence as true [tested:
+    test_guard_sequences_conjoin_without_changing_positional_patterns;
+    commit=8a04841952ec6cf7f4eb4e418efcbf4519f16f34]
+  - assuming attempts every hypothetical removal before propagating one
+    cleanup failure or grouping several [tested:
+    test_assuming_removes_every_fact_after_one_cleanup_fails,
+    test_assuming_groups_multiple_cleanup_failures_after_removing_all;
+    commit=ed732c6878fe872ff185733c739d7b3fe4032b92]
 Owns:
   - Cursor owns one engine query until exhaustion, close, or finalization
     and warns when finalization reaps an open query [tested
@@ -60,7 +81,7 @@ import time
 import warnings
 import weakref
 from collections import deque
-from collections.abc import Iterable
+from collections.abc import Iterable, Sequence
 from contextvars import ContextVar
 from typing import TYPE_CHECKING, Any, Self, cast
 
@@ -69,6 +90,7 @@ from ._engine import Runtime
 from ._name_mapping import OperatorRecipe, operator_attribute_target
 from ._space_definitions import call_parameter_names
 from .atoms import (
+    TRUE,
     Atom,
     Expression,
     Grounded,
@@ -79,6 +101,7 @@ from .atoms import (
     _encode,
     _to_atom,
     _variables,
+    and_,
 )
 from .errors import EngineError, MettaError
 from .results import _MISSING, Rows, _row_class
@@ -94,12 +117,12 @@ def _require_vocabulary(
 ) -> Any:
     """One of a closed vocabulary's members, or a refusal naming them all.
 
-    Thirteen declaration doors wrote this check longhand, each rebuilding the
+    Thirteen declaration methods wrote this check longhand, each rebuilding the
     same sentence. Naming the whole vocabulary is the part that matters and the
     part a hand-written check drops first: a caller who wrote the wrong word
     needs to see the right ones, not that theirs is unknown.
 
-    ``because`` is the clause a door adds when the refusal needs its ground --
+    ``because`` is the clause a method adds when the refusal needs its ground --
     `handles` says the fidelity is the claim the router acts on, so an unknown
     word would declare nothing silently.
     """
@@ -130,10 +153,22 @@ def _require_bound(value: Any, called: str, kinds: tuple[type, ...], reads: str)
         raise ValueError(msg)
 
 
+def _validate_limit(limit: int | None) -> None:
+    """Require the one public query-limit vocabulary before an engine call."""
+    if limit is None:
+        return
+    if isinstance(limit, bool) or not isinstance(limit, int):
+        msg = f"limit must be a positive int or None, got {limit!r}"
+        raise TypeError(msg)
+    if limit <= 0:
+        msg = f"limit must be positive, got {limit}"
+        raise ValueError(msg)
+
+
 def require_deadline(deadline: Any) -> None:
     """Check one quiet-deadline: a nonnegative number of seconds, or None.
 
-    One definition because three doors take the same argument and mean the
+    One definition because three methods take the same argument and mean the
     same thing by it: peek(), take() and watch(), across both surfaces. It
     was written out twice in _space.py and the async watch had no check at
     all, which is how the two surfaces came to disagree about whether a
@@ -215,7 +250,7 @@ def _apply_limited(
     predicate: str,
     inputs: list[Any],
 ) -> Any:
-    """Apply the preserved /5 seam or stack-aware /6 seam as required."""
+    """Apply the preserved /5 call or stack-aware /6 call as required."""
     seconds, steps, stack = limits
     if stack < 0:
         return runtime.apply_must(
@@ -236,6 +271,24 @@ def guard_atom(where: Any | None) -> Atom | None:
     """
     if where is None:
         return None
+    if isinstance(where, Sequence) and not isinstance(
+        where, (str, bytes, bytearray, Atom)
+    ):
+        guards: list[Atom] = []
+        for index, item in enumerate(where):
+            guard = guard_atom(item)
+            if guard is None:
+                msg = (
+                    f"where= guard sequence item {index} is None; omit it or "
+                    f"pass an actual guard"
+                )
+                raise TypeError(msg)
+            guards.append(guard)
+        if not guards:
+            return TRUE
+        if len(guards) == 1:
+            return guards[0]
+        return and_(*guards)
     guard = _to_atom(where)
     # An expression is the guard proper; a variable is one a pattern bound to
     # a truth; a grounded bool is trivially one. A grounded value or a bare
@@ -296,8 +349,17 @@ class _Assuming:
         return self._space
 
     def __exit__(self, exc_type, exc, tb) -> None:
+        failures: list[BaseException] = []
         for fact in self._facts:
-            self._space.remove(fact)
+            try:
+                self._space.remove(fact)
+            except BaseException as failure:  # noqa: BLE001 -- every hypothetical is removed before any cleanup failure leaves
+                failures.append(failure)
+        if len(failures) == 1:
+            raise failures[0]
+        if failures:
+            msg = "removing assumed facts failed"
+            raise BaseExceptionGroup(msg, failures)
 
 
 #: The counters a stats block fills on exit, named here so __getattr__ can
@@ -465,7 +527,7 @@ def _forward_window(window: slice) -> tuple[int, int | None]:
 
 
 def _explain_text(rt: Runtime, space_name: str, patterns: list, where) -> str:
-    """The seam's own decisions for one conjunction, rendered. Pure
+    """The engine's own decisions for one conjunction, rendered. Pure
     reflection through metta_py_explain: nothing runs, no row is pulled,
     and the engine answers claimed/rest as indexes so the caller's own
     atoms, variable names included, do the rendering.
@@ -511,8 +573,9 @@ _CURSOR_LENGTH_REFUSAL = (
 #: so the cap only decides where doubling stops, and the sweep says it stops
 #: mattering at 16: speedup against a chunk of one, drained at four sizes,
 #: 1 / 1.24x / 1.53x / 1.86x / 1.80x / 1.91x / 1.88x / 1.91x for caps
-#: 1, 2, 4, 16, 64, 256, 1024, 4096 at ten thousand answers [measured
-#: 2026-08-31, ai-tmp/capsweep.py]. Everything from 16 up is one flat band, so
+#: 1, 2, 4, 16, 64, 256, 1024, 4096 at ten thousand answers [tested:
+#: extensions/python/tests/ch18_performance/test_cursor_chunking.py::test_draining_amortises_the_crossing].
+#: Everything from 16 up is one flat band, so
 #: this takes the smallest cap comfortably past its start rather than the
 #: largest: 64 reaches the whole win while a refill holds a quarter of what
 #: 256 would. SQL Server's cursors pick 128 by the same reasoning and Lemire
@@ -541,6 +604,9 @@ class Cursor:
         "_exhausted",
         "_finalizer",
         "_handle",
+        "_open_arguments",
+        "_open_predicate",
+        "_policy",
         "_row_cls",
         "_rt",
         "_space_name",
@@ -564,6 +630,7 @@ class Cursor:
         order: str | None = None,
         capture: Any = None,
     ) -> None:
+        _validate_limit(limit)
         atoms = [_to_atom(p) for p in patterns]
         columns = _column_names(atoms)
         self.columns = tuple(columns)
@@ -593,7 +660,10 @@ class Cursor:
         if under is not None:
             predicate = "metta_py_cursor_open_under"
             arguments.extend((under, order or "none"))
-        self._handle = self._rt.apply_must(predicate, *arguments)
+        self._open_predicate = predicate
+        self._open_arguments = arguments
+        self._handle: Any | None = None
+        self._policy: Any = None
         self._closed = False
         self._exhausted = False
         self._buffer: deque = deque()
@@ -602,27 +672,55 @@ class Cursor:
         # The finalizer is the last guard, not the contract: it destroys
         # the engine if a cursor is dropped unclosed, from whichever
         # thread collection runs on (cross-thread destroy is probed).
-        self._finalizer = weakref.finalize(self, Cursor._reap, self._rt, self._handle)
+        self._finalizer: weakref.finalize | None = None
 
     @staticmethod
     def _reap(runtime: Runtime, handle: Any) -> None:
         try:
             runtime.do("metta_py_cursor_close", handle)
         except EngineError:
+            # A finalizer has no caller; explicit close still reports failures.
             logger.debug("cursor finalization found an unavailable engine", exc_info=True)
 
     def __iter__(self) -> Self:
         return self
+
+    def _open(self) -> None:
+        """Create the held engine at the first pull, under that pull's policy."""
+        if self._handle is not None:
+            return
+        # The policy module imports this object's limit helpers, so the edge
+        # is intentionally lazy after both modules have initialized.
+        from ._space_execution import (  # noqa: PLC0415
+            _controlled_run,
+            _execution_policy,
+        )
+
+        self._policy = _execution_policy()
+        self._handle = _controlled_run(
+            self._rt,
+            self._open_predicate,
+            self._open_arguments,
+            None,
+            policy=self._policy,
+        )
+        self._finalizer = weakref.finalize(
+            self, Cursor._reap, self._rt, self._handle
+        )
+
+    def _finish(self) -> None:
+        """Reap an opened engine; an inert, never-pulled cursor owns none."""
+        if self._finalizer is not None:
+            self._finalizer()
 
     def _refill(self) -> None:
         """Cross once, for as many answers as this cursor has earned.
 
         A crossing costs 2.55us against 2.55us of engine work for a plain
         enumeration, so a cursor that crosses per answer spends half its time
-        in the boundary: 27.9x the eager door at ten thousand answers, and the
-        gap is FLAT at 2.35us per answer from k=10 to k=10000, which is what
-        says it is per-crossing rather than a warm-up
-        [measured 2026-08-31, ai-parametricity-audit.md].
+        in the boundary: 27.9x the eager method at ten thousand answers, and the
+        gap is per-crossing rather than a warm-up [tested:
+        test_draining_amortises_the_crossing].
 
         The chunk starts at one and doubles, which is the same policy TCP
         opens a connection with and a vector grows by, and it is here for the
@@ -645,16 +743,26 @@ class Cursor:
         raising the budget, which delivers more. The wall bound consequently
         covers a chunk's worth of work per crossing rather than one answer's.
         """
+        self._open()
+        from ._space_execution import _controlled_run  # noqa: PLC0415
+
         want = self._chunk
-        if self._timeout is None and self._stack < 0:
-            answers = self._rt.apply_must("metta_py_cursor_chunk", self._handle, want)
-        else:
-            answers = _apply_limited(
-                self._rt,
-                (-1.0 if self._timeout is None else self._timeout, -1, self._stack),
-                "metta_py_cursor_chunk",
-                [self._handle, want],
+        limits = (
+            None
+            if self._timeout is None and self._stack < 0
+            else (
+                -1.0 if self._timeout is None else self._timeout,
+                -1,
+                self._stack,
             )
+        )
+        answers = _controlled_run(
+            self._rt,
+            "metta_py_cursor_chunk",
+            [self._handle, want],
+            limits,
+            policy=self._policy,
+        )
         self._buffer = deque(answers)
         # A SHORT chunk is the whole of the exhaustion signal, so no pull ever
         # looks past the last answer it was asked for.
@@ -669,12 +777,12 @@ class Cursor:
         if not self._buffer:
             if self._exhausted or self._drained:
                 self._exhausted = True
-                self._finalizer()
+                self._finish()
                 raise StopIteration
             self._refill()
         if not self._buffer:
             self._exhausted = True
-            self._finalizer()
+            self._finish()
             raise StopIteration
         payload = self._buffer.popleft()
         if self._under is not None:
@@ -701,7 +809,7 @@ class Cursor:
 
     def explain(self) -> str:
         """The query's plan, reflected rather than run: which provider
-        decisions the seam already made for this conjunction. See
+        decisions the engine already made for this conjunction. See
         Prepared.explain for the whole story; a cursor explains the same
         way, and explaining does not pull a row.
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
@@ -774,7 +882,7 @@ class Cursor:
         contract and this message; a cursor is the third view of one lazy row
         source and had only ``next(cursor)`` plus a StopIteration to catch.
         Taking the first row is also the whole reason a stream exists, so it
-        was the door most worth having and the one that was missing.
+        was the method most worth having and the one that was missing.
 
         This PULLS: the cursor is one-shot, so the row is gone from it. The
         cursor stays open, since a caller who wants the second row wants it
@@ -820,7 +928,7 @@ class Cursor:
         if self._closed or self._exhausted:
             return
         self._closed = True
-        self._finalizer()  # runs the reap exactly once; later GC is a no-op
+        self._finish()  # runs the reap exactly once; later GC is a no-op
 
     def __enter__(self) -> Self:
         return self
@@ -936,9 +1044,10 @@ class FunctionCost:
 
 class Prepared:
     """A prepared query: pattern wires and columns built once, solved many
-    times, optionally with per-call facts. The ladder the clingo API walks
-    (assumptions per solve, inputs per session, rules added), with the rung
-    clingo lacks: rules REMOVED, since this engine erases clauses whole.
+    times, optionally with per-call facts. It follows clingo's progression from
+    assumptions per solve, to inputs per session, to added rules, and includes
+    the capability clingo lacks: removing rules, since this engine erases
+    clauses whole.
 
         route = m.prepare(S.path(V.a, V.b))
         route.solve()
@@ -967,6 +1076,7 @@ class Prepared:
         `timeout` and `inferences` bound this solve exactly as they bound
         MeTTa.match().
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+        _validate_limit(limit)
         if not given:
             return self._run(limit, timeout, inferences)
         with self._space.assuming(*given):
@@ -983,17 +1093,17 @@ class Prepared:
             pred, ins = "metta_py_query_limit_all", [space, self._wires, names, limit]
         else:
             pred, ins = "metta_py_query_all", [space, self._wires, names]
-        limits = _limits(timeout, inferences)
-        if limits is None:
-            answered = rt.apply_must(pred, *ins)
-        else:
-            answered = _apply_limited(rt, limits, pred, ins)
+        from ._space_execution import _controlled_run  # noqa: PLC0415
+
+        answered = _controlled_run(
+            rt, pred, ins, _limits(timeout, inferences)
+        )
         decoded = [tuple(_atom_from_wire(v) for v in r) for r in answered]
         return Rows(self.columns, decoded)
 
     def explain(self) -> str:
         """The query's plan, reflected rather than run: polars'
-        LazyFrame.explain and SQL's EXPLAIN, from decisions the seam has
+        LazyFrame.explain and SQL's EXPLAIN, from decisions the engine has
         already made. For a Python-backed space, each pattern's line says
         whether its candidates push down exact (the provider's answers
         are trusted as instantiations, a bound may reach it) or inexact
@@ -1109,11 +1219,16 @@ class _EngineFunction:
         completes.  Non-bang calls retain demand-driven evaluation.
         """
         frame = inspect.currentframe()
-        caller = None if frame is None else frame.f_back
-        if caller is not None:
-            from ._lint_events import record_sync_engine_call  # noqa: PLC0415 -- lint is optional
+        try:
+            caller = None if frame is None else frame.f_back
+            if caller is not None:
+                from ._lint_events import (  # noqa: PLC0415 -- lint is optional
+                    record_sync_engine_call,
+                )
 
-            record_sync_engine_call(self._space, self._name, caller)
+                record_sync_engine_call(self._space, self._name, caller)
+        finally:
+            del frame
         if kwargs:
             parameters = call_parameter_names(
                 self._space, self._name, len(args) + len(kwargs)
@@ -1244,7 +1359,7 @@ class _FunctionNamespace:
     """Functions visible to one space, resolved when an attribute is read.
 
     MeTTa marks effects with a trailing ``!``.  Calls whose resolved name has
-    that marker execute eagerly at the call door; all other calls stay lazy.
+    that marker execute eagerly when called; all other calls stay lazy.
     """
 
     __slots__ = ("_space",)
@@ -1270,9 +1385,9 @@ class _FunctionNamespace:
                 # The remedy, for the same reason the GENERATED namespace names
                 # one: a caller who reaches a function namespace wants the
                 # function, and "no such name" alone leaves them hunting a
-                # typo. This door is the LIVE one, so a miss here means the
+                # typo. This namespace is the LIVE one, so a miss here means the
                 # name is not defined or registered anywhere this space can
-                # see, which is a different answer from the generated door's.
+                # see, which is a different answer from the generated namespace's.
                 msg = (
                     f"{self._space.name}.fn has no function {asked!r}; define "
                     f"it with @space.define, register it with @space.op, or "
@@ -1368,7 +1483,7 @@ class _Batch:
         pending, self._pending = self._pending, []
         if exc_type is None and pending:
             # The batch is no longer active here, so this is the one real
-            # crossing, the engine's own bulk door underneath.
+            # crossing, the engine's own bulk operation underneath.
             self._space.add(*pending)
 
     def __len__(self) -> int:

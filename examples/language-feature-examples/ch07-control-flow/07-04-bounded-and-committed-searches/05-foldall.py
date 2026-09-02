@@ -27,35 +27,35 @@ def twin(m):
     """Fold two answers into five, ten ways round."""
 
     @m.define
-    def f():                        # (= (f) 2)
-        yield 2                     # (= (f) 3)
-        yield 3                     #   one equation per alternative
+    def f():  # (= (f) 2)
+        yield 2  # (= (f) 3)
+        yield 3  #   one equation per alternative
 
     @m.define
-    def g(_=1):                     # (= (g 1) 2): the default IS the head's
-        return 2                    #   literal, so the parameter never appears
+    def g(_=1):  # (= (g 1) 2): the default IS the head's
+        return 2  #   literal, so the parameter never appears
 
     @m.define
     def g(_=2):  # noqa: F811  -- two literal heads are two equations, so the second def stacks rather than replacing
-        return 3                    # (= (g 2) 3)
+        return 3  # (= (g 2) 3)
 
     @m.define
-    def merge(a, b):                # (= (merge $A $B) (+ $A $B))
+    def merge(a: int, b: int) -> int:  # (= (merge $A $B) (+ $A $B))
         return a + b
 
     def fold(aggregate, generator, start=0):
         """Aggregate every answer of `generator`, starting from `start`."""
         return m.fn.foldall(aggregate, generator, start).one()
 
-    add = S["|->"]((V.x, V.y), V.x + V.y)     # (|-> ($x $y) (+ $x $y))
-    answering_f = S["|->"]((V.z,), S.f())     # (|-> ($z) (f))
+    add = S["|->"]((V.x, V.y), V.x + V.y)  # (|-> ($x $y) (+ $x $y))
+    answering_f = S["|->"]((V.z,), S.f())  # (|-> ($z) (f))
     answering_g = S["|->"]((V.z,), S.g(V.z))  # (|-> ($z) (g $z))
     twice_g = S["|->"]((V.z,), 2 * S.g(V.z))  # (|-> ($z) (* 2 (g $z)))
 
     # A named aggregator, over an argument-free and then an argument-ful
     # generator.
-    assert fold(S.merge, S.f()) == 5          # (foldall merge (f) 0)
-    assert fold(S.merge, S.g(V.x)) == 5       # (foldall merge (g $x) 0)
+    assert fold(S.merge, S.f()) == 5  # (foldall merge (f) 0)
+    assert fold(S.merge, S.g(V.x)) == 5  # (foldall merge (g $x) 0)
 
     # The same folds with a lambda. `(let $agglambda <lambda> ...)` is this
     # local: a let that only names a value is Python's own assignment. The
@@ -72,7 +72,9 @@ def twin(m):
     # And the aggregator arriving out of a syntactic construct rather than out
     # of a name. `if_` has the arity the engine's `if` has, which is why it is
     # the builder for stored code.
-    chosen = if_(TRUE, S.let(V.f, add, V.f), S.empty())  # rung: this `let` is inside a STORED term, where there is no Python statement position for an assignment
+    chosen = if_(
+        TRUE, S.let(V.f, add, V.f), S.empty()
+    )  # rung: this `let` is inside a STORED term, where there is no Python statement position for an assignment
     assert fold(chosen, Expression((answering_g, V.w))) == 5
     assert fold(chosen, Expression((twice_g, V.w))) == 10
 
@@ -147,4 +149,26 @@ def twin(m):
 #: structure, and the removal doors changed meaning where a twin spells one
 #: [measured 2026-09-01: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=c6a40460b1db341198a6150e3600f502831a6e83].
-BUDGET = 28277
+#: RE-PINNED 2026-09-01, 28277 to 28608 (+331), generic Python operators now
+#: dispatch through live protocols while source twins explicitly name
+#: relational engine heads [measured 2026-09-01: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=e3787593132a7ece2d300397045f7415709847c9].
+#: RE-PINNED 2026-09-02, 28608 to 28804 (+196), exact numeric annotations
+#: retain native operator heads, publish MeTTa type declarations, and leave
+#: relational heads only where static proof is unavailable [measured
+#: 2026-09-02: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=d0dfff1a3ee6c85472fd9b12d6e4aec007a9c301].
+#: RE-PINNED 2026-09-02, 28804 to 28649 (-155), static contract discharge and
+#: policy-stable recompilation [measured 2026-09-02: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=c00341f0ff9d83d1b9338ca86ad51708eaf07ebd].
+#: RE-PINNED 2026-09-02, 28649 to 29125 (+476), static contract discharge with
+#: policy checks confined to invalidated contracts [measured 2026-09-02: min-
+#: of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=c00341f0ff9d83d1b9338ca86ad51708eaf07ebd].
+#: RE-PINNED 2026-09-02, 29125 to 29135 (+10), P43 protects both generated
+#: policy-check fallbacks from space-local capture [measured 2026-09-02: min-
+#: of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=c00341f0ff9d83d1b9338ca86ad51708eaf07ebd].
+BUDGET = 29135

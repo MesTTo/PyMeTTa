@@ -2,7 +2,7 @@
 
 Guarantees:
   - ``Rules.lower`` stores equations, publishes lowering declarations, and
-    registers each symbolic head through the engine seam [tested:
+    registers each symbolic head through the engine bridge [tested:
     test_rules_lower_emits_queryable_declaration_and_registers_the_head,
     test_rules_lower_refuses_an_empty_rule_set_before_mutating;
     commit=c34c9bf3e55a8425d3f251c3ad06c33bc9755a22]
@@ -106,7 +106,7 @@ def _stage_defined_calls() -> Iterator[list[LintEvent]]:
 
 
 class Rules(tuple[Expression, ...]):
-    """An immutable named equation set recognized by Space's one write door.
+    """An immutable named equation set recognized by Space's write operation.
 
     A tuple subtype cannot carry nonempty __slots__, so the name rides the
     instance dict while the equations themselves stay immutable.

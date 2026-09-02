@@ -14,11 +14,11 @@ What the answered form shows is the dissolution table three times over: `let` is
 an assignment, `collapse` is the answer list `m.hyperpose` already hands back,
 and `msort` is `sorted`, because atoms carry the engine's own order.
 
-Both equations are ordinary Python functions under the decorator, and both
-equality tests name their head: Python's `==` inside a compiled body lowers to
-the prelude's `py-eq`, a host crossing per iteration, where MeTTa's own `==` is
-declared `(-> $t $t Bool)` and a compiled `if` emits it bare.
-superpose_primes.py beside this file carries the measurement.
+Both equations are ordinary Python functions under the decorator. Exact
+numeric annotations keep their arithmetic and ordering on pure engine heads.
+Both equality tests name MeTTa's own `==`, avoiding Python's live equality
+protocol in each trial-division iteration. superpose_primes.py beside this file
+carries the measured comparison.
 """
 
 from metta import fn
@@ -28,16 +28,16 @@ def twin(m):
     """Fan three numbers out over threads, and put the primes back together."""
 
     @m.define
-    def find_divisor(n, test_divisor):
+    def find_divisor(n: int, test_divisor: int) -> int:
         if test_divisor * test_divisor > n:
             return n
-        if fn.eq(0, n % test_divisor):  # rung: `==` lowers to the prelude's `py-eq`, a host crossing per iteration, where the example writes MeTTa's own `==`
+        if fn.eq(0, n % test_divisor):  # engine equality is intentional
             return test_divisor
         return find_divisor(n, test_divisor + 1)
 
     @m.define(name="prime?")
-    def prime(n):
-        return fn.eq(n, fn.find_divisor(n, 2))  # rung: the same host crossing, in answer position
+    def prime(n: int) -> bool:
+        return fn.eq(n, fn.find_divisor(n, 2))  # engine equality is intentional
 
     # hyperpose takes its branches through a variable as happily as inline, and
     # the answers come back in whatever order the threads finish.
@@ -117,4 +117,26 @@ def twin(m):
 #: the quad twin stopped being a different program [measured 2026-09-01: min-
 #: of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=c6a40460b1db341198a6150e3600f502831a6e83].
-BUDGET = 15681
+#: RE-PINNED 2026-09-01, 15681 to 16412 (+731), generic Python operators now
+#: dispatch through live protocols while source twins explicitly name
+#: relational engine heads [measured 2026-09-01: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=e3787593132a7ece2d300397045f7415709847c9].
+#: RE-PINNED 2026-09-02, 16412 to 16797 (+385), exact numeric annotations
+#: retain native operator heads, publish MeTTa type declarations, and leave
+#: relational heads only where static proof is unavailable [measured
+#: 2026-09-02: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=d0dfff1a3ee6c85472fd9b12d6e4aec007a9c301].
+#: RE-PINNED 2026-09-02, 16797 to 17281 (+484), static contract discharge and
+#: policy-stable recompilation [measured 2026-09-02: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=c00341f0ff9d83d1b9338ca86ad51708eaf07ebd].
+#: RE-PINNED 2026-09-02, 17281 to 17304 (+23), static contract discharge with
+#: policy checks confined to invalidated contracts [measured 2026-09-02: min-
+#: of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=c00341f0ff9d83d1b9338ca86ad51708eaf07ebd].
+#: RE-PINNED 2026-09-02, 17304 to 17314 (+10), P43 protects both generated
+#: policy-check fallbacks from space-local capture [measured 2026-09-02: min-
+#: of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=c00341f0ff9d83d1b9338ca86ad51708eaf07ebd].
+BUDGET = 17314

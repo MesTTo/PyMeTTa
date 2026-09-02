@@ -18,6 +18,20 @@ Guarantees:
   - implicit definition names apply the underscore-to-hyphen map and explicit
     name= remains exact [tested:
     test_the_implicit_name_is_mapped_and_name_is_exact; commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
+  - the public twin oracle preserves grounded scalar species while comparing
+    engine and Python answers [tested:
+    test_check_twin_distinguishes_integer_float_and_boolean_answers;
+    commit=af5821f5ffb7ce186e516706f003d02f5c1d3b4a]
+  - compiled for statements iterate every Python iterable with the same
+    element count as their twin [tested:
+    test_for_statement_uses_python_iteration_for_every_grounded_iterable;
+    commit=cf1963fa03f91c1d9721636cb6f05c6cfc362819]
+  - generic compiled operators invoke Python's live protocols, while exact
+    int/float annotations retain pure engine heads; typing.no_type_check can
+    keep that syntax proof without publishing a source-absent arrow [tested:
+    test_compiled_operators_follow_python_protocols_and_result_species,
+    test_no_type_check_keeps_annotations_as_a_compile_proof_only;
+    commit=d0dfff1a3ee6c85472fd9b12d6e4aec007a9c301]
 Owns:
   - test_define_from_two_threads_is_serialized joins both definition workers
     before examining their equations [tested test_define_from_two_threads_is_serialized]
@@ -198,9 +212,7 @@ def test_each_ast_derived_fact_replaces_the_flag_it_supersedes(m, monkeypatch):
     assert "pure" not in inspect.signature(m.define).parameters
 
     reflection = m._at("&metta")
-    source_rows = reflection.match(
-        parse("(source-span $space ast-observed $path $sl $sc $el $ec)")
-    )
+    source_rows = reflection.match(parse("(source-span $space ast-observed $path $sl $sc $el $ec)"))
     assert len(source_rows) == 1
     source_row = source_rows[0]
     assert source_row.space == m
@@ -215,15 +227,11 @@ def test_each_ast_derived_fact_replaces_the_flag_it_supersedes(m, monkeypatch):
         source_row.el,
         source_row.ec,
     )
-    free_fact = parse(
-        "(free-variable " + m.name + " ast-observed ast_helper)"
-    )
+    free_fact = parse("(free-variable " + m.name + " ast-observed ast_helper)")
     effect_fact = parse("(effect ast-observed pureStructural)")
     assert free_fact in reflection
     assert effect_fact in reflection
-    assert reflection.run(
-        f"!(get-type (defined {m.name} ast-observed))"
-    ) == [[S.DefinitionFact]]
+    assert reflection.run(f"!(get-type (defined {m.name} ast-observed))") == [[S.DefinitionFact]]
     assert reflection.run(f"!(get-type {source_fact})") == [[S.DefinitionFact]]
     assert reflection.run(f"!(get-type {free_fact})") == [[S.DefinitionFact]]
     assert reflection.run(f"!(get-type {effect_fact})") == [[S.EffectDecl]]
@@ -242,19 +250,15 @@ def test_each_ast_derived_fact_replaces_the_flag_it_supersedes(m, monkeypatch):
     assert replacement.effect is EffectClass.oracleIO
     assert effect_fact not in reflection
     assert parse("(effect ast-observed oracleIO)") in reflection
-    assert len(
-        reflection.match(
-            parse("(source-span $space ast-observed $path $sl $sc $el $ec)")
-        )
-    ) == 1
+    assert (
+        len(reflection.match(parse("(source-span $space ast-observed $path $sl $sc $el $ec)"))) == 1
+    )
     assert "Replacement documentation from the replacement AST." in str(
         m.run("!(get-doc ast-observed)")
     )
 
     old_source = list(
-        reflection.match(
-            parse("(source-span $space ast-observed $path $sl $sc $el $ec)")
-        )
+        reflection.match(parse("(source-span $space ast-observed $path $sl $sc $el $ec)"))
     )
 
     def ast_observed(value):
@@ -267,11 +271,7 @@ def test_each_ast_derived_fact_replaces_the_flag_it_supersedes(m, monkeypatch):
 
     def fail_reflection(runtime, goal, **inputs):
         nonlocal failed
-        if (
-            not failed
-            and goal == "metta_py_add(Space, W)"
-            and inputs.get("Space") == "&metta"
-        ):
+        if not failed and goal == "metta_py_add(Space, W)" and inputs.get("Space") == "&metta":
             failed = True
             msg = "forced definition-fact failure"
             raise EngineError(msg)
@@ -281,19 +281,16 @@ def test_each_ast_derived_fact_replaces_the_flag_it_supersedes(m, monkeypatch):
     with pytest.raises(EngineError, match="forced definition-fact failure"):
         m.define(ast_observed)
     monkeypatch.setattr(runtime_type, "must", real_must)
-    assert list(
-        reflection.match(
-            parse("(source-span $space ast-observed $path $sl $sc $el $ec)")
-        )
-    ) == old_source
+    assert (
+        list(reflection.match(parse("(source-span $space ast-observed $path $sl $sc $el $ec)")))
+        == old_source
+    )
     assert "Replacement documentation from the replacement AST." in str(
         m.run("!(get-doc ast-observed)")
     )
 
     m.clear()
-    assert not reflection.match(
-        parse("(source-span $space ast_observed $path $sl $sc $el $ec)")
-    )
+    assert not reflection.match(parse("(source-span $space ast_observed $path $sl $sc $el $ec)"))
     assert free_fact not in reflection
 
 
@@ -417,11 +414,10 @@ def test_constructor_convention_capitalized_names(m):  # noqa: D103  -- pytest d
 
 
 @pytest.mark.parametrize(
-    ("source", "needle"),
-    [
-        ("def f(x):\n    while x > 0:\n        break\n    return x", "test"),
-        ("def f(x):\n    y = x @ x\n    return y", "matmul"),
-        ("def f(x, w):\n    return f'{x:{w}}'", "f-string"),
+        ("source", "needle"),
+        [
+            ("def f(x):\n    while x > 0:\n        break\n    return x", "test"),
+            ("def f(x, w):\n    return f'{x:{w}}'", "f-string"),
         ("def f(x):\n    return unknown_lowercase(x)", "not a parameter"),
         ("def f(x, y=[]):\n    return x", "literal"),
     ],
@@ -600,6 +596,31 @@ def test_for_peels_with_decons_and_early_return_searches(m):  # noqa: D103  -- p
     assert dpositive.py((3, -1, 4, -1, 5)) == 12
 
 
+def test_for_statement_uses_python_iteration_for_every_grounded_iterable(m):
+    """Strings, bytes, and mappings follow iter(), like lists and tuples."""
+
+    @m.define
+    def diterable_count(values):
+        count = 0
+        for _value in values:
+            count += 1
+        return count
+
+    cases = (
+        ("abc", 3),
+        ("", 0),
+        (b"xy", 2),
+        (b"", 0),
+        ({"left": 1, "right": 2}, 2),
+        ({}, 0),
+        ([1, 2, 3], 3),
+        ((1, 2), 2),
+    )
+    for value, expected in cases:
+        assert diterable_count.py(value) == expected
+        assert list(diterable_count(value)) == [expected]
+
+
 def test_nested_defs_lift_with_their_closure(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     @m.define
     def douter(x, y):
@@ -624,9 +645,7 @@ def test_loops_run_in_constant_stack(m):
             n -= 1
         return n
 
-    assert m.run(
-        "!(with-pragma! ((max-stack-depth 10000000)) (dcountdown 2000000))"
-    ) == [[0]]
+    assert m.run("!(with-pragma! ((max-stack-depth 10000000)) (dcountdown 2000000))") == [[0]]
 
 
 def test_loop_variable_read_after_for_is_refused(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -638,9 +657,7 @@ def test_loop_variable_read_after_for_is_refused(m):  # noqa: D103  -- pytest di
                 pass
             return _x
 
-    assert "after the loop" in str(excinfo.value) or "no MeTTa equivalent" in str(
-        excinfo.value
-    )
+    assert "after the loop" in str(excinfo.value) or "no MeTTa equivalent" in str(excinfo.value)
 
 
 def test_annotations_declare_types_for_defines(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -649,6 +666,43 @@ def test_annotations_declare_types_for_defines(m):  # noqa: D103  -- pytest disc
         return x + 1
 
     assert m.run("!(get-type (dtyped 1))") == [[S.Number]]
+
+
+def test_no_type_check_keeps_annotations_as_a_compile_proof_only(m):
+    """A source-exact or multi-arity twin can keep proof without an arrow."""
+    from typing import no_type_check
+
+    @m.define
+    @no_type_check
+    def dnative_only(x: int) -> int:
+        """Add one.
+
+        Args:
+            x: the input
+
+        Returns:
+            the result
+        """
+        return x + 1
+
+    assert str(dnative_only.body) == "(+ $x 1)"
+    assert list(m.match(S[":"](S.dnative_only, V.type))) == []
+    documentation = str(m.run("!(get-doc dnative-only)")[0][0])
+    assert documentation.count("(@type %Undefined%)") == 2
+
+    @m.define
+    @no_type_check
+    def dshared(x: int) -> int:
+        return x + 1
+
+    @m.define(name="dshared")
+    @no_type_check
+    def dshared_2(x: int, y: int) -> int:
+        return x + y
+
+    assert dshared(3) == [4]
+    assert dshared_2(3, 4) == [7]
+    assert list(m.match(S[":"](S.dshared, V.type))) == []
 
 
 def test_engine_functions_feel_like_python(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -752,6 +806,7 @@ def test_host_bindings_read_as_implicit_islands(m):
     so the equation reads the module's binding at application time and a
     rebind is visible on the next call.
     """
+
     @m.define
     def dthreshold(x):
         return x + Threshold
@@ -850,9 +905,7 @@ def test_helper_only_redefinition_replaces_main_and_aux_equations(m):  # noqa: D
 
     assert daux_replace(3) == [6]
     assert daux_replace.py(3) == 6
-    helpers = [
-        atom for atom in m.atoms() if str(atom).startswith("(= (daux-replace--loop")
-    ]
+    helpers = [atom for atom in m.atoms() if str(atom).startswith("(= (daux-replace--loop")]
     assert len(helpers) == 1
 
 
@@ -964,6 +1017,478 @@ def test_a_prolog_twin_that_disagrees_is_caught(m, tmp_path):  # noqa: D103  -- 
         testing.check_twin(dt_sum, [(1, 2)])
 
 
+def test_check_twin_distinguishes_integer_float_and_boolean_answers(m):
+    """Python's equal numeric scalars remain different MeTTa groundings."""
+    from metta import Grounded, testing
+
+    @m.define
+    def dt_reciprocal(value):
+        return value**-1
+
+    testing.check_twin(dt_reciprocal, [(1,), (-1,)])
+    assert type(dt_reciprocal(1)[0].value) is float
+
+    class DeliberatelyWrongScalarTwin:
+        name = "dt-bool-species"
+
+        def __call__(self):
+            return [Grounded(1)]
+
+        @staticmethod
+        def py():
+            return True
+
+    with pytest.raises(AssertionError, match="the engine answered"):
+        testing.check_twin(DeliberatelyWrongScalarTwin(), [()])
+
+
+def test_compiled_operators_follow_python_protocols_and_result_species(m):  # noqa: C901 -- one protocol matrix must exercise every operator family through the same differential oracle
+    """Every lowered operator agrees with the live Python data model."""
+    from metta import fn, testing
+
+    @m.define
+    def dt_add(left, right):
+        return left + right
+
+    @m.define
+    def dt_native_add(left: int, right: int) -> int:
+        return left + right
+
+    @m.define
+    def dt_sub(left, right):
+        return left - right
+
+    @m.define
+    def dt_native_sub(left: int, right: int) -> int:
+        return left - right
+
+    @m.define
+    def dt_mul(left, right):
+        return left * right
+
+    @m.define
+    def dt_native_mul(left: int, right: int) -> int:
+        return left * right
+
+    @m.define
+    def dt_div(left, right):
+        return left / right
+
+    @m.define
+    def dt_native_div(left: float, right: float) -> float:
+        return left / right
+
+    @m.define
+    def dt_floor(left, right):
+        return left // right
+
+    @m.define
+    def dt_native_floor(left: float, right: float) -> float:
+        return left // right
+
+    @m.define
+    def dt_mod(left, right):
+        return left % right
+
+    @m.define
+    def dt_native_mod(left: int, right: int) -> int:
+        return left % right
+
+    @m.define
+    def dt_band(left, right):
+        return left & right
+
+    @m.define
+    def dt_bor(left, right):
+        return left | right
+
+    @m.define
+    def dt_bxor(left, right):
+        return left ^ right
+
+    @m.define
+    def dt_order(left, right):
+        return left < right
+
+    @m.define
+    def dt_native_order(left: int, right: int) -> bool:
+        return left < right
+
+    @m.define
+    def dt_greater(left, right):
+        return left > right
+
+    @m.define
+    def dt_native_greater(left: int, right: int) -> bool:
+        return left > right
+
+    @m.define
+    def dt_at_most(left, right):
+        return left <= right
+
+    @m.define
+    def dt_native_at_most(left: int, right: int) -> bool:
+        return left <= right
+
+    @m.define
+    def dt_at_least(left, right):
+        return left >= right
+
+    @m.define
+    def dt_native_at_least(left: int, right: int) -> bool:
+        return left >= right
+
+    @m.define
+    def dt_annotated_equal(left: int, right: float) -> bool:
+        return left == right
+
+    @m.define
+    def dt_annotated_float_equal(left: float, right: float) -> bool:
+        return left == right
+
+    @m.define
+    def dt_builtins(values):
+        return sum(values), min(values), max(values), sorted(values)
+
+    @m.define
+    def dt_reciprocal_species(value):
+        return value**-1
+
+    @m.define
+    def dt_literal_set():
+        return {1, 2, 3} - {2}
+
+    @m.define
+    def dt_set_comprehension(values):
+        return {value % 3 for value in values}
+
+    class Reflected:
+        def __radd__(self, _left):
+            return "radd"
+
+        def __rsub__(self, _left):
+            return "rsub"
+
+        def __rmul__(self, _left):
+            return "rmul"
+
+        def __rtruediv__(self, _left):
+            return "rtruediv"
+
+        def __rfloordiv__(self, _left):
+            return "rfloordiv"
+
+        def __rmod__(self, _left):
+            return "rmod"
+
+        def __rpow__(self, _left):
+            return "rpow"
+
+        def __rmatmul__(self, _left):
+            return "rmatmul"
+
+        def __rlshift__(self, _left):
+            return "rlshift"
+
+        def __rrshift__(self, _left):
+            return "rrshift"
+
+        def __rand__(self, _left):
+            return "rand"
+
+        def __ror__(self, _left):
+            return "ror"
+
+        def __rxor__(self, _left):
+            return "rxor"
+
+        def __gt__(self, _left):
+            return "reflected-lt"
+
+        def __ge__(self, _left):
+            return "reflected-le"
+
+        def __lt__(self, _left):
+            return "reflected-gt"
+
+        def __le__(self, _left):
+            return "reflected-ge"
+
+    @m.define
+    def dt_reflected(value):
+        return (
+            1 + value,
+            1 - value,
+            2 * value,
+            8 / value,
+            8 // value,
+            8 % value,
+            2**value,
+            2 @ value,
+            1 << value,
+            8 >> value,
+            6 & value,
+            6 | value,
+            6 ^ value,
+            1 < value,
+            1 <= value,
+            1 > value,
+            1 >= value,
+        )
+
+    class Unary:
+        def __neg__(self):
+            return "neg"
+
+        def __pos__(self):
+            return "pos"
+
+        def __invert__(self):
+            return "invert"
+
+        def __abs__(self):
+            return "abs"
+
+    @m.define
+    def dt_unary(value):
+        return -value, +value, ~value, abs(value)
+
+    checks = (
+        (dt_add, (("ab", "cd"), ([1, 2], [3, 4]), ((1, 2), (3, 4)))),
+        (dt_native_add, ((5, 2), (-5, 2))),
+        (dt_sub, ((5, 2),)),
+        (dt_native_sub, ((5, 2), (-5, 2))),
+        (dt_mul, (("ab", 2), ([1, 2], 2), ((1, 2), 2))),
+        (dt_native_mul, ((5, 2), (-5, 2))),
+        (dt_div, ((5.0, 2.0), (-5.0, 2.0))),
+        (dt_native_div, ((5.0, 2.0), (-5.0, 2.0))),
+        (dt_floor, ((5.0, 2.0), (-5.0, 2.0))),
+        (dt_native_floor, ((5.0, 2.0), (-5.0, 2.0))),
+        (dt_mod, (("%03d", 7),)),
+        (dt_native_mod, ((5, 2), (-5, 2))),
+        (dt_band, ((6, 3), (True, False))),
+        (dt_bor, ((6, 3), (True, False))),
+        (dt_bxor, ((6, 3), (True, False))),
+        (dt_order, (("alpha", "beta"),)),
+        (dt_native_order, ((1, 2), (2, 1))),
+        (dt_greater, ((2, 1), (1, 2))),
+        (dt_native_greater, ((2, 1), (1, 2))),
+        (dt_at_most, ((1, 2), (2, 1))),
+        (dt_native_at_most, ((1, 2), (2, 1))),
+        (dt_at_least, ((2, 1), (1, 2))),
+        (dt_native_at_least, ((2, 1), (1, 2))),
+        (dt_annotated_equal, ((1, 1.0),)),
+        (dt_annotated_float_equal, ((float("nan"), float("nan")), (-0.0, 0.0))),
+        (dt_builtins, (((True, False, True),), ((3, 1, 2),))),
+        (dt_reciprocal_species, ((1,), (-1,))),
+        (dt_reflected, ((Reflected(),),)),
+        (dt_unary, ((Unary(),),)),
+    )
+    for defined, cases in checks:
+        testing.check_twin(defined, cases)
+
+    dynamic_set = list(dt_sub({1, 2, 3}, {2}))
+    assert len(dynamic_set) == 1 and dynamic_set[0].value == {1, 3}
+    assert dt_band({1, 2}, {2, 3})[0].value == {2}
+    assert dt_bor({1}, {2})[0].value == {1, 2}
+    assert dt_bxor({1, 2}, {2, 3})[0].value == {1, 3}
+    protocol_heads = {
+        dt_add: "add",
+        dt_sub: "sub",
+        dt_mul: "mul",
+        dt_div: "truediv",
+        dt_floor: "floordiv",
+        dt_mod: "mod",
+        dt_order: "lt",
+        dt_greater: "gt",
+        dt_at_most: "le",
+        dt_at_least: "ge",
+    }
+    for defined, selector in protocol_heads.items():
+        assert str(defined.body) == f"(py-operator {selector} $left $right)"
+
+    native_heads = {
+        dt_native_add: "(+ $left $right)",
+        dt_native_sub: "(- $left $right)",
+        dt_native_mul: "(* $left $right)",
+        dt_native_div: "(/ (* 1.0 $left) $right)",
+        dt_native_floor: "(floor-div $left $right)",
+        dt_native_mod: "(% $left $right)",
+        dt_native_order: "(< $left $right)",
+        dt_native_greater: "(> $left $right)",
+        dt_native_at_most: "(<= $left $right)",
+        dt_native_at_least: "(>= $left $right)",
+    }
+    for defined, expected in native_heads.items():
+        assert str(defined.body) == expected
+        assert "py-operator" not in str(defined.body)
+
+    assert type(dt_native_add(5, 2)[0].value) is int
+    assert type(dt_native_sub(5, 2)[0].value) is int
+    assert type(dt_native_mul(5, 2)[0].value) is int
+    assert type(dt_native_div(5.0, 2.0)[0].value) is float
+    assert type(dt_native_floor(5.0, 2.0)[0].value) is float
+    assert type(dt_native_mod(5, 2)[0].value) is int
+    for native_compare in (
+        dt_native_order,
+        dt_native_greater,
+        dt_native_at_most,
+        dt_native_at_least,
+    ):
+        assert type(native_compare(1, 2)[0].value) is bool
+    assert dt_annotated_equal(1, 1.0) == [True]
+    assert dt_annotated_float_equal(float("nan"), float("nan")) == [False]
+    assert dt_annotated_float_equal(-0.0, 0.0) == [True]
+    assert m.eval(fn.eq(1, 1.0)) == [False]
+    assert m.eval(fn.eq(float("nan"), float("nan"))) == [True]
+    assert m.eval(fn.eq(-0.0, 0.0)) == [False]
+    assert str(dt_annotated_equal.body) == "(py-operator eq $left $right)"
+    assert str(dt_annotated_float_equal.body) == "(py-operator eq $left $right)"
+
+    def members(answer):
+        return {
+            pair.children[0].value
+            for pair in answer.atoms()
+            if isinstance(pair, Expression) and len(pair.children) == 2
+        }
+
+    assert members(next(iter(dt_literal_set()))) == {1, 3}
+    assert members(next(iter(dt_set_comprehension((1, 2, 3, 4))))) == {0, 1, 2}
+
+
+def test_compiled_rich_comparisons_truth_test_only_in_boolean_contexts(m):
+    """A rich comparison's object survives until Python syntax tests it."""
+    calls = []
+
+    class Verdict:
+        def __init__(self, name, truth):
+            self.name = name
+            self.truth = truth
+
+        def __bool__(self):
+            calls.append(("bool", self.name))
+            return self.truth
+
+    direct = Verdict("direct", truth=False)
+    final = Verdict("final", truth=True)
+
+    class Left:
+        def __lt__(self, _other):
+            calls.append("lt")
+            return direct
+
+        def __ne__(self, _other):
+            calls.append("ne")
+            return direct
+
+    class Middle:
+        def __lt__(self, _other):
+            calls.append("middle-lt")
+            return final
+
+    left = Left()
+    middle = Middle()
+
+    @m.define
+    def dt_direct_compare(a, b):
+        return a < b
+
+    @m.define
+    def dt_not_equal(a, b):
+        return a != b
+
+    @m.define
+    def dt_compare_test(a, b):
+        if a < b:
+            return "truthy"
+        return "falsy"
+
+    @m.define
+    def dt_native_compare_test(a: int, b: int) -> str:
+        if a < b:
+            return "truthy"
+        return "falsy"
+
+    @m.define
+    def dt_compare_chain(a, b, c):
+        return a < b < c
+
+    answer = dt_direct_compare(left, middle)[0]
+    assert answer.value is direct
+    assert calls == ["lt"]
+
+    calls.clear()
+    answer = dt_not_equal(left, middle)[0]
+    assert answer.value is direct
+    assert calls == ["ne"]
+
+    calls.clear()
+    assert dt_compare_test(left, middle) == ["falsy"]
+    assert calls == ["lt", ("bool", "direct")]
+    assert "(py-truthy (py-operator lt $a $b))" in str(dt_compare_test.body)
+    assert "(< $a $b)" in str(dt_native_compare_test.body)
+    assert "py-truthy" not in str(dt_native_compare_test.body)
+    assert dt_native_compare_test(1, 2) == ["truthy"]
+    assert dt_native_compare_test(2, 1) == ["falsy"]
+
+    direct.truth = True
+    calls.clear()
+    answer = dt_compare_chain(left, middle, object())[0]
+    assert answer.value is final
+    assert calls == ["lt", ("bool", "direct"), "middle-lt"]
+
+
+def test_compiled_augassign_uses_in_place_protocol(m):
+    """Non-space ``op=`` invokes __iop__ once and rebinds its result."""
+
+    class InPlace:
+        def __init__(self):
+            self.calls = []
+
+        def __iadd__(self, other):
+            self.calls.append(("iadd", other))
+            return "in-place-result"
+
+        def __add__(self, other):
+            self.calls.append(("add", other))
+            return "binary-result"
+
+        def __imatmul__(self, other):
+            self.calls.append(("imatmul", other))
+            return "in-place-matmul"
+
+    @m.define
+    def dt_in_place(value):
+        value += 3
+        return value
+
+    @m.define
+    def dt_in_place_matmul(value):
+        value @= 4
+        return value
+
+    @m.define
+    def dt_list_in_place():
+        values = [1]
+        values += [2]
+        return values
+
+    @m.define
+    def dt_set_in_place():
+        values = {1}
+        values |= {2}
+        return values
+
+    value = InPlace()
+    assert dt_in_place(value) == ["in-place-result"]
+    assert value.calls == [("iadd", 3)]
+    assert dt_in_place_matmul(value) == ["in-place-matmul"]
+    assert value.calls[-1] == ("imatmul", 4)
+    assert dt_list_in_place() == [Expression(1, 2)]
+    set_answer = dt_set_in_place()[0]
+    assert {pair.children[0].value for pair in set_answer.atoms()} == {1, 2}
+
+
 def test_a_prolog_file_that_does_not_register_the_name_is_refused(m, fast_file):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     with pytest.raises(CompileError, match="does not register"):
 
@@ -987,7 +1512,6 @@ def test_define_needs_a_function_or_prolog_and_then_one(m):  # noqa: D103  -- py
         m.define()
 
 
-
 # The space-hook door and the define door compose (P12.3). A hook body is
 # arbitrary MeTTa, and the Python that @m.define compiles participates on
 # both sides of a verdict: a comparison the engine evaluates decides
@@ -1004,10 +1528,7 @@ def test_a_hook_body_is_arbitrary_metta_and_python_compiles_to_it(m):  # noqa: D
     def stamp(item):
         return Stamped(item)  # noqa: F821  constructor convention
 
-    m.run(
-        '(= (p12-witness-guard (secret $x))'
-        ' (refuse "a python-compiled policy refuses secrets"))'
-    )
+    m.run('(= (p12-witness-guard (secret $x)) (refuse "a python-compiled policy refuses secrets"))')
     m.run("(= (p12-witness-guard (raw $x)) (accept (stamp $x)))")
     m.run(
         "(= (p12-witness-guard (count $n))"
@@ -1019,10 +1540,7 @@ def test_a_hook_body_is_arbitrary_metta_and_python_compiles_to_it(m):  # noqa: D
         # offered atom.
         m.run("!(add-atom &p12-witness-pool (raw 7))")
         assert m.run("!(match &p12-witness-pool (Stamped $x) $x)") == [[7]]
-        assert (
-            m.run("!(collapse (match &p12-witness-pool (raw $x) $x))")
-            == [[Expression()]]
-        )
+        assert m.run("!(collapse (match &p12-witness-pool (raw $x) $x))") == [[Expression()]]
 
         # The Python comparison decides admission in both directions.
         m.run("!(add-atom &p12-witness-pool (count 3))")
@@ -1034,10 +1552,7 @@ def test_a_hook_body_is_arbitrary_metta_and_python_compiles_to_it(m):  # noqa: D
         # A refusal carries the handler's own sentence to the Python caller.
         with pytest.raises(EngineError, match="refuses secrets"):
             m.run("!(add-atom &p12-witness-pool (secret 1))")
-        assert (
-            m.run("!(collapse (match &p12-witness-pool (secret $x) $x))")
-            == [[Expression()]]
-        )
+        assert m.run("!(collapse (match &p12-witness-pool (secret $x) $x))") == [[Expression()]]
     finally:
         m.run("!(undeclare-pre-add! &p12-witness-pool)")
 
@@ -1137,8 +1652,25 @@ def test_walrus_bindings_hoist_as_let(metta):
         def wsq(x):
             return (y := x * x) + y
 
-        assert str(wsq.bodies[0]) == "(let* (($y (* $x $x))) (+ $y $y))"
+        assert str(wsq.bodies[0]) == (
+            "(let* (($y (py-operator mul $x $x))) (py-operator add $y $y))"
+        )
         assert m.eval("(wsq 3)") == [18]
+
+        @m.define
+        def native_wsq(x: int) -> int:
+            return (y := x * x) + y
+
+        assert str(native_wsq.bodies[0]) == "(let* (($y (* $x $x))) (+ $y $y))"
+
+        @m.define
+        def native_guard(n: int) -> int:
+            if (half := n // 2) < 10:
+                return half
+            return 0
+
+        assert "py-operator" not in str(native_guard.bodies[0])
+        assert "py-truthy" not in str(native_guard.bodies[0])
 
         @m.define
         def nested(x):

@@ -39,6 +39,11 @@ Guarantees:
     cursor a declined count opened and never handed to the stream included
     [tested: test_a_counted_view_releases_its_engine_when_it_is_dropped;
     commit=57f21ba9edf94bcf28cde11f938bce2c241a3709]
+  - caller inspection for ordering lint breaks its frame reference before
+    returning, so dropping an iterated view closes its engine immediately
+    [tested:
+    test_iteration_does_not_delay_answer_finalization_in_a_frame_cycle;
+    commit=853623455cdb02fe0afc1c815023a45c4a0eb989]
   - private item replay lets a deferred algebra route preserve those rows
     without probing the engine when its Answers view is constructed [tested:
     test_tagged_derivations_flow_through_match_and_reinterpret_without_requery;
@@ -49,7 +54,7 @@ Guarantees:
   - Rows and Answers project caller variables by attribute, Variable key, or
     exact string key
     [tested: test_rows_share_the_answer_projection_contract; commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
-  - len on an untouched engine-backed Answers view uses its engine count door
+  - len on an untouched engine-backed Answers view uses its engine count method
     without populating the Python cache [tested:
     test_len_counts_an_unmaterialised_view_engine_side; commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
   - a count source may decline a second evaluation, in which case len
@@ -65,7 +70,7 @@ Guarantees:
   - one(default=) distinguishes absence from multiplicity for both eager and
     lazy faces, while first without a default never returns None [tested:
     test_query_answers_complete_the_lazy_projection_protocol; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
-  - the eager table doors refuse term answers instead of taking an answer
+  - the eager table methods refuse term answers instead of taking an answer
     apart into columns, and both display faces render term answers as a
     bounded list [tested test_term_answers_never_render_as_a_binding_table]
   - zip and reversed retain their lawful Sequence behavior while recording
@@ -133,7 +138,7 @@ def raise_error_answers(
 ) -> None:
     """Raise the first `(Error ...)` member of answers, if any.
 
-    The check every single-value door runs before decoding: an error
+    The check every single-value accessor runs before decoding: an error
     among the answers is the evaluation reporting failure, and failure
     outranks a count. The target rides as a note, so the traceback names
     the call without the message growing.
@@ -409,7 +414,7 @@ class Rows(UserList[Row]):
             m.match(pattern).raise_for_errors()
 
         Query rows are BINDINGS, not evaluation answers, so a stored
-        error record stays data through every Rows door, one() and
+        error record stays data through every Rows method, one() and
         first() included; this is the explicit bridge for callers who
         want the raise_for_status reading. One error raises it plainly,
         several raise one ExceptionGroup carrying each.
@@ -436,7 +441,7 @@ class Rows(UserList[Row]):
         has nothing to explain, and a manually constructed or transformed
         Rows has no query to inspect, so both uses fail loudly.
 
-        One of nine observability doors: metta.derivation answers HOW a
+        One of nine observability methods: metta.derivation answers HOW a
         result was derived, and prepare(...).explain() answers what a
         query will do before it runs; the guide's observability page maps
         the family.
@@ -475,7 +480,7 @@ class Rows(UserList[Row]):
         """Rebuild constructor atoms through the two-way translator.
 
         ``build(column, cls)`` projects a named column. ``build(cls)`` is the
-        query reconstruction door when exactly one column holds complete
+        query reconstruction form when exactly one column holds complete
         constructor expressions.
         """
         if cls is None:
@@ -503,7 +508,7 @@ class Rows(UserList[Row]):
         conversion was only ever reachable through that keyword, so a
         prepared query's solve(), or any other Rows, could not ask for it
         even though rows_into() never cared where the rows came from
-        [measured 2026-08-31]. build(cls) is the neighbouring door and a
+        [measured 2026-08-31]. build(cls) is the neighbouring method and a
         different question: it rebuilds ONE column of complete constructor
         expressions, where this maps every column onto a field.
         """
@@ -657,7 +662,7 @@ def rows_into(rows: Rows, cls: type) -> list:
     row_factory reading, over the existing conversion machinery. A field
     annotated with a registered class builds through the two-way
     translator; a primitive annotation decodes and is CHECKED, so a
-    symbol landing in an int field is an error at the door rather than
+    symbol landing in an int field is an error at the boundary rather than
     a surprise downstream; an unannotated field decodes plainly.
     """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
     constructor_rows: list[Any] | None = _constructor_rows(rows, cls)
@@ -836,38 +841,44 @@ class Answers[T](Sequence[T]):
 
     def __iter__(self) -> Iterator[T]:  # noqa: D105 -- Python's iteration protocol names the contract
         frame = inspect.currentframe()
-        caller = None if frame is None else frame.f_back
-        if self._space is not None and caller is not None:
-            from ._lint_events import (  # noqa: PLC0415 -- lint remains optional
-                frame_calls_builtin,
-                record_event_for_name,
-            )
-
-            if frame_calls_builtin(caller, "zip"):
-                record_event_for_name(
-                    self._space,
-                    "unordered-answers-zip",
-                    "Answers",
-                    caller,
+        try:
+            caller = None if frame is None else frame.f_back
+            if self._space is not None and caller is not None:
+                from ._lint_events import (  # noqa: PLC0415 -- lint remains optional
+                    frame_calls_builtin,
+                    record_event_for_name,
                 )
+
+                if frame_calls_builtin(caller, "zip"):
+                    record_event_for_name(
+                        self._space,
+                        "unordered-answers-zip",
+                        "Answers",
+                        caller,
+                    )
+        finally:
+            del frame
         self._values_demanded = True
         return self._iterate()
 
     def __reversed__(self) -> Iterator[T]:
         """Reverse the materialized view and retain the unordered-use lint."""
         frame = inspect.currentframe()
-        caller = None if frame is None else frame.f_back
-        if self._space is not None and caller is not None:
-            from ._lint_events import (  # noqa: PLC0415 -- lint remains optional
-                record_event_for_name,
-            )
+        try:
+            caller = None if frame is None else frame.f_back
+            if self._space is not None and caller is not None:
+                from ._lint_events import (  # noqa: PLC0415 -- lint remains optional
+                    record_event_for_name,
+                )
 
-            record_event_for_name(
-                self._space,
-                "unordered-answers-reversed",
-                "Answers",
-                caller,
-            )
+                record_event_for_name(
+                    self._space,
+                    "unordered-answers-reversed",
+                    "Answers",
+                    caller,
+                )
+        finally:
+            del frame
         return reversed(self._materialize())
 
     def _items(self) -> Iterator[_AnswerItem]:

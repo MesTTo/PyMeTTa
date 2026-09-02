@@ -13,12 +13,10 @@ function: it returns the exact `(@doc ...)` atom and gives no answer for an
 undocumented subject. The rung comments keep that semantic distinction
 visible. `undocumented` remains lib_doc's own function and stays named.
 
-Neither function is ANNOTATED, and that is the example's own program rather
-than an omission: `(= (greet $who) $who)` declares no type, so each parameter's
-`@type` comes back as `%Undefined%`, the marked name of the unconstrained type,
-which is exactly what an undeclared parameter has. Annotating would emit
-`(: greet (-> String String))` beside the doc and make `(greet 5)` a BadType
-error the example never asked for.
+`greet` is unannotated, so its parameter remains `%Undefined%`. `add_two`
+carries exact numeric annotations: they keep its operator on the source's `+`
+head, publish `(: add-two (-> Number Number Number))`, and let its portable
+documentation report `Number` for both parameters and its result.
 
 The summaries end with a full stop where the example's prose does not, because
 the `@desc` atom IS the docstring, verbatim, and a docstring that carries no
@@ -32,6 +30,7 @@ from metta import G, S, lib
 #: What an undeclared parameter's type comes back as. `%Undefined%` is a marked
 #: name rather than an identifier, so it takes rung 5's exact door.
 UNDECLARED = S["@type"](S["%Undefined%"])
+NUMBER = S["@type"](S.Number)
 
 #: The two summaries, written once here and once as the docstring they are. A
 #: drift between the two copies is the defect these claims exist to catch.
@@ -49,7 +48,7 @@ def twin(m):
         return who
 
     @m.define
-    def add_two(a, b):
+    def add_two(a: int, b: int) -> int:
         """Adds two numbers.
 
         Args:
@@ -82,21 +81,33 @@ def twin(m):
             S.add_two,
             S["@kind"](S.function),
             S["@desc"](ADD_TWO_SUMMARY),
-            S["@params"]((
-                S["@param"](UNDECLARED, S["@desc"](G("the first"))),
-                S["@param"](UNDECLARED, S["@desc"](G("the second"))),
-            )),
-            S["@return"](UNDECLARED, S["@desc"](G("their sum"))),
+            S["@params"](
+                (
+                    S["@param"](NUMBER, S["@desc"](G("the first"))),
+                    S["@param"](NUMBER, S["@desc"](G("the second"))),
+                )
+            ),
+            S["@return"](NUMBER, S["@desc"](G("their sum"))),
         )
     ]
 
     # An undocumented name answers nothing at all rather than an empty doc.
-    assert list(m.fn.get_doc(  # rung: unary raw get-doc has an empty missing result
-        S.greet_nobody
-    )) == []
-    assert list(m.fn.get_doc(  # rung: unary raw get-doc has an empty missing result
-        S.missing
-    )) == []
+    assert (
+        list(
+            m.fn.get_doc(  # rung: unary raw get-doc has an empty missing result
+                S.greet_nobody
+            )
+        )
+        == []
+    )
+    assert (
+        list(
+            m.fn.get_doc(  # rung: unary raw get-doc has an empty missing result
+                S.missing
+            )
+        )
+        == []
+    )
 
     # And a program can ask what it has NOT documented, which is the gap worth
     # closing in a real codebase. Both functions above are documented.
@@ -176,4 +187,26 @@ def twin(m):
 #: the quad twin stopped being a different program [measured 2026-09-01: min-
 #: of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=c6a40460b1db341198a6150e3600f502831a6e83].
-BUDGET = 9000
+#: RE-PINNED 2026-09-01, 9000 to 9065 (+65), generic Python operators now
+#: dispatch through live protocols while source twins explicitly name
+#: relational engine heads [measured 2026-09-01: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=e3787593132a7ece2d300397045f7415709847c9].
+#: RE-PINNED 2026-09-02, 9065 to 10157 (+1092), exact numeric annotations
+#: retain native operator heads, publish MeTTa type declarations, and leave
+#: relational heads only where static proof is unavailable [measured
+#: 2026-09-02: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=d0dfff1a3ee6c85472fd9b12d6e4aec007a9c301].
+#: RE-PINNED 2026-09-02, 10157 to 10590 (+433), static contract discharge and
+#: policy-stable recompilation [measured 2026-09-02: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=c00341f0ff9d83d1b9338ca86ad51708eaf07ebd].
+#: RE-PINNED 2026-09-02, 10590 to 10598 (+8), static contract discharge with
+#: policy checks confined to invalidated contracts [measured 2026-09-02: min-
+#: of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=c00341f0ff9d83d1b9338ca86ad51708eaf07ebd].
+#: RE-PINNED 2026-09-02, 10598 to 10608 (+10), P43 protects both generated
+#: policy-check fallbacks from space-local capture [measured 2026-09-02: min-
+#: of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=c00341f0ff9d83d1b9338ca86ad51708eaf07ebd].
+BUDGET = 10608

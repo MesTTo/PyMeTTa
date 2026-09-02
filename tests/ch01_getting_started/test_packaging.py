@@ -16,6 +16,18 @@ Guarantees:
     entry point, so no lane can exit 0 having run nothing [tested:
     test_every_module_invocation_in_the_gate_reaches_an_entry_point;
     commit=dfda5555bdc4b53a57da7084054826236ab1446e]
+  - source-tree fixture loading coexists with installed pytest entry-point
+    metadata [tested:
+    test_source_tree_fixtures_coexist_with_installed_plugin_metadata;
+    commit=993608c01049bcca7530931b680c416c81023543]
+  - wheel-owned source and runtime data carry durable public authorities, not
+    private agent scratch references [tested:
+    test_the_wheel_carries_no_agent_scratch_references;
+    commit=af5821f5ffb7ce186e516706f003d02f5c1d3b4a]
+  - the public lint authority names the immutable catalogue shipped in this
+    repository [tested:
+    test_the_lint_authority_matches_the_public_repository_snapshot;
+    commit=2a32acb6d254ea12085526913c7b9a1a555b8ee0]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -39,6 +51,7 @@ import pytest
 
 import metta.atoms as metta_atoms
 from metta import __version__
+from metta._lint_events import _LINT_CATALOGUE
 
 ROOT = Path(__file__).resolve().parents[4]
 
@@ -93,6 +106,38 @@ def test_release_and_citation_metadata_ship_in_source_archives():  # noqa: D103 
     assert citation.startswith("cff-version: 1.2.0\n")
     assert 'repository-code: "https://github.com/MesTTo/MeTTa-Kernel"' in citation
     assert {"include CHANGELOG.md", "include CITATION.cff"} <= set(source_manifest)
+
+
+def test_the_wheel_carries_no_agent_scratch_references():
+    """Published package data must cite sources users can retrieve."""
+    package = Path(metta_atoms.__file__).resolve().parent
+    forbidden = re.compile(
+        r"(?i)(?:\bai[-_/][\w./-]*|\bcodex\b|\bclaude\b|\bchatgpt\b|"
+        r"\bopenai\b|\banthropic\b)"
+    )
+    offenders = {}
+    for path in sorted(package.rglob("*")):
+        if path.is_file() and path.suffix in {".py", ".pyi", ".pl"}:
+            matches = sorted(set(forbidden.findall(path.read_text(encoding="utf-8"))))
+            if matches:
+                offenders[str(path.relative_to(package))] = matches
+
+    assert not offenders, offenders
+
+
+def test_the_lint_authority_matches_the_public_repository_snapshot():
+    """The immutable authority belongs to this project and names its real guide."""
+    repository = _manifest()["project"]["urls"]["Repository"]
+    match = re.fullmatch(
+        rf"{re.escape(repository)}/blob/(?P<commit>[0-9a-f]{{40}})/"
+        r"(?P<path>[^#]+)#(?P<anchor>[a-z0-9-]+)",
+        _LINT_CATALOGUE,
+    )
+    assert match is not None, _LINT_CATALOGUE
+    assert match.group("commit") == "7de3d32d25a7166b12f7c68c179e9cbb931ac044"
+    guide = (ROOT / match.group("path")).read_text(encoding="utf-8")
+    assert "## Lint a space" in guide
+    assert "operation-crossing-in-loop" in guide
 
 
 def _resolved_extra(extras: dict, name: str) -> set[str]:
@@ -218,6 +263,48 @@ def test_the_pytest_lane_is_deterministic_under_load_protocol():
     # added where the command is rather than where the lane is.
     assert "--reruns" not in lane
     assert "--reruns" not in (ROOT / entry).read_text(encoding="utf-8")
+
+
+def test_source_tree_fixtures_coexist_with_installed_plugin_metadata(tmp_path):
+    """The repository suite loads its fixture plugin exactly once.
+
+    A wheel build leaves distribution metadata beside the source. Pytest then
+    discovers the shipped entry point before it reads the repository
+    conftest, the same order as an editable installation.
+    """
+    metadata = tmp_path / "pymetta-0.dist-info"
+    metadata.mkdir()
+    (metadata / "METADATA").write_text(
+        "Metadata-Version: 2.1\nName: pymetta\nVersion: 0\n",
+        encoding="utf-8",
+    )
+    (metadata / "entry_points.txt").write_text(
+        "[pytest11]\nmetta = metta.pytest_plugin\n",
+        encoding="utf-8",
+    )
+    environment = os.environ | {
+        "PYTHONPATH": os.pathsep.join(
+            (str(tmp_path), str(ROOT / "extensions" / "python"))
+        )
+    }
+    environment.pop("PYTEST_DISABLE_PLUGIN_AUTOLOAD", None)
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "pytest",
+            "tests/ch16_events_and_standing_queries/test_events.py::"
+            "test_an_abandoned_watch_cancels_itself",
+            "-q",
+        ],
+        cwd=ROOT / "extensions" / "python",
+        env=environment,
+        capture_output=True,
+        text=True,
+        timeout=120,
+        check=False,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
 
 
 def _build_ext(destination: Path, environment: dict[str, str]) -> subprocess.CompletedProcess:

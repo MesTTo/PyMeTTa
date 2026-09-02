@@ -7,8 +7,12 @@ Guarantees:
   - twin dispatch skips clauses whose callable arity cannot accept the call
     [tested: test_define_supports_one_name_at_multiple_arities;
     commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
-  - a twin that cannot run names the eager Defined call as the engine door
+  - a twin that cannot run names the eager Defined call as the engine operation
     [tested: test_twin_refuses_engine_only_bodies; commit=88d2e764c999d89e8919172e5c1455be804b293d]
+  - clause wrappers and their dispatcher preserve typing.no_type_check so
+    syntax-only annotations remain absent from portable documentation [tested:
+    test_no_type_check_keeps_annotations_as_a_compile_proof_only;
+    commit=d0dfff1a3ee6c85472fd9b12d6e4aec007a9c301]
 Guarded by:
   - _TWIN_LOCK serializes dispatcher creation, view publication, and clause
     replacement [tested test_define_from_two_threads_is_serialized]
@@ -79,6 +83,13 @@ class TwinDispatcher:
         if first is None:
             return inspect.signature(self.__call__)
         return inspect.signature(first)
+
+    @property
+    def __no_type_check__(self) -> bool:
+        """Whether the canonical first clause suppresses runtime type use."""
+        with _TWIN_LOCK:
+            first = self._clauses[0] if self._clauses else None
+        return bool(first is not None and getattr(first, "__no_type_check__", False))
 
     def __repr__(self) -> str:
         with _TWIN_LOCK:
@@ -190,6 +201,9 @@ def _python_twin(
     )
     twin.__doc__ = fn.__doc__
     twin.__annotations__ = fn.__annotations__
+    setattr(  # noqa: B010 -- mypyc rejects this non-standard function attribute as direct assignment
+        twin, "__no_type_check__", getattr(fn, "__no_type_check__", False)
+    )
     order = list(inspect.signature(fn).parameters)
     return _guard_twin(twin, name, order, patterns)
 
@@ -221,6 +235,9 @@ def _guard_twin(
     guarded.__name__ = name
     guarded.__doc__ = twin.__doc__
     guarded.__annotations__ = getattr(twin, "__annotations__", {})
+    setattr(  # noqa: B010 -- mypyc rejects this non-standard function attribute as direct assignment
+        guarded, "__no_type_check__", getattr(twin, "__no_type_check__", False)
+    )
     guarded.__signature__ = signature  # type: ignore[attr-defined]  # ty: ignore[unresolved-attribute]
     return guarded
 

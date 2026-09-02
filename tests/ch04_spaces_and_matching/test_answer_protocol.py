@@ -19,6 +19,10 @@ Guarantees:
   - the settled ``reacts`` declaration spelling installs an ``(on ...)``
     bridge that runs under matched bindings [tested:
     test_a_bridge_inserts_under_the_matched_bindings; commit=0cfc68a483d8d64fb499e53bbe9a3cc63f68990f]
+  - annotations from successive operation answers compose through the selected
+    carrier's extend law [tested:
+    test_two_annotated_operation_calls_multiply_all_four_joint_weights;
+    commit=1208ea172e11560b2aaae238823514941aa5fe20]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -29,7 +33,7 @@ import gc
 
 import pytest
 
-from metta import TRUE, Answer, Bindings, Expression, S, V, parse
+from metta import TRUE, Answer, Bindings, Expression, S, V, parse, prob
 from metta.atoms import Grounded, Symbol, Variable
 from metta.errors import EngineError, MettaError, MettaResultError, TransportFailure
 from metta.foreign import SpaceProvider
@@ -356,6 +360,31 @@ def test_planner_rows_may_be_bindings(metta):
 
 
 # ------------------------------------------------- annotations and top (F3)
+
+
+def test_two_annotated_operation_calls_multiply_all_four_joint_weights(metta):
+    """A probabilistic bind retains both independent operation weights."""
+    belief = {
+        "a": ((0.2, 0), (0.8, 1)),
+        "b": ((0.3, 1), (0.7, 2)),
+    }
+
+    def perceive(observation):
+        for weight, digit in belief[str(observation)]:
+            yield Answer(value=digit, k=weight)
+
+    metta.reads(perceive, name="ap-joint-perceive")
+    metta.annotations("ap-joint-perceive", "prob")
+    metta.run(
+        "(= (ap-joint-total $x $y) "
+        "(let $a (ap-joint-perceive $x) "
+        "(let $b (ap-joint-perceive $y) (+ $a $b))))"
+    )
+
+    answers = metta.answers(S.ap_joint_total(S.a, S.b), under=prob)
+    observed = sorted((answer.value.value, answer.annotation) for answer in answers)
+    assert [value for value, _ in observed] == [1, 2, 2, 3]
+    assert [weight for _, weight in observed] == pytest.approx([0.06, 0.14, 0.24, 0.56])
 
 
 def test_top_over_an_annotated_op_answers_the_k_best_in_order(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract

@@ -34,9 +34,9 @@ REDEFINITION. `@rules` is the other shape of the definitional door and says it
 directly, and `space += bundle` lands the clause set through the one write
 door.
 
-The historical stored-equation divergence is lifted. The current example and
-twin digest both equal
-`0a373e46d28e353ed02251c91b5d440f16ab17d3a79375fd5adebb149879c230`.
+The historical stored-equation divergence is lifted. The annotation publishes
+its type declaration, `(: range (-> Number Number Number))`, so the
+whole-space digest deliberately differs even though the equation agrees.
 Guarantees:
   - UNIT used here is a package value rather than a local reconstruction
     [tested: test_the_canonical_atoms_are_public_values; commit=028b41a056cfd706e516cd0b945cbf69ac066da7]
@@ -52,8 +52,9 @@ from metta import UNIT, S, equation, rules, superpose
 
 def twin(m):
     """Fan a range into two spaces, then fold three answers into one."""
+
     @m.define(name="range")
-    def counter(k, n):
+    def counter(k: int, n: int) -> int:
         # (= (range $K $N) (if (< $K $N) (superpose ($K (range (+ $K 1) $N))) (empty)))
         return superpose(k, counter(k + 1, n)) if k < n else empty()  # noqa: F821  -- `empty` is a name a compiled body reads as MeTTa; the package exports it nowhere yet (residue, P14.4)
 
@@ -157,4 +158,26 @@ def twin(m):
 #: structure, and the removal doors changed meaning where a twin spells one
 #: [measured 2026-09-01: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=c6a40460b1db341198a6150e3600f502831a6e83].
-BUDGET = 6563
+#: RE-PINNED 2026-09-01, 6563 to 7350 (+787), generic Python operators now
+#: dispatch through live protocols while source twins explicitly name
+#: relational engine heads [measured 2026-09-01: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=e3787593132a7ece2d300397045f7415709847c9].
+#: RE-PINNED 2026-09-02, 7350 to 8076 (+726), exact numeric annotations retain
+#: native operator heads, publish MeTTa type declarations, and leave relational
+#: heads only where static proof is unavailable [measured 2026-09-02: min-of-3
+#: serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=d0dfff1a3ee6c85472fd9b12d6e4aec007a9c301].
+#: RE-PINNED 2026-09-02, 8076 to 8551 (+475), static contract discharge and
+#: policy-stable recompilation [measured 2026-09-02: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=c00341f0ff9d83d1b9338ca86ad51708eaf07ebd].
+#: RE-PINNED 2026-09-02, 8551 to 8569 (+18), static contract discharge with
+#: policy checks confined to invalidated contracts [measured 2026-09-02: min-
+#: of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=c00341f0ff9d83d1b9338ca86ad51708eaf07ebd].
+#: RE-PINNED 2026-09-02, 8569 to 8579 (+10), P43 protects both generated
+#: policy-check fallbacks from space-local capture [measured 2026-09-02: min-
+#: of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=c00341f0ff9d83d1b9338ca86ad51708eaf07ebd].
+BUDGET = 8579

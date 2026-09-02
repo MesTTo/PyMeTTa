@@ -21,6 +21,9 @@ Guarantees:
     [tested: test_an_overloaded_method_is_documented_once,
     test_the_legacy_reference_generator_tracks_the_narrow_public_modules;
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
+  - generated pages publish reader prose rather than file-local contracts or
+    evidence metadata [tested: test_reference_publishes_reader_prose_only;
+    commit=00afba04ff73e51bc2521371c30448898cb3c3d2]
   - EXTENDING.md's extension-cost tables carry the numbers the committed
     pins derive and name every pinned tier, so the page cannot drift from
     the gate again [tested:
@@ -163,6 +166,28 @@ def test_an_overloaded_method_is_documented_once():
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     page = _reference.page_for("extensions/python/metta/_space.py", "metta.Space")
     assert page.count("### `Space.run`") == 1
+
+
+def test_reference_publishes_reader_prose_only():
+    """Retain public explanation while removing maintainer-only metadata."""
+    fake_pin = "commit" + "=abc"
+    source_tag = f"{chr(91)}source: internal.py:thing; {fake_pin}]"
+    tested_tag = f"{chr(91)}tested: test_internal; {fake_pin}]"
+    measured_tag = f"{chr(91)}measured: 3 calls; command=probe; {fake_pin}]"
+    doc = f"""Purpose: explain the reader.
+
+Assumes:
+  - an internal condition {source_tag}
+Guarantees:
+  - an internal promise {tested_tag}
+Open Obligations:
+  To Do: None
+
+Reader-facing detail {measured_tag}.
+"""
+    assert _reference.public_prose(doc) == (
+        "Explain the reader.\n\nReader-facing detail."
+    )
 
 
 def test_the_legacy_reference_generator_tracks_the_narrow_public_modules():

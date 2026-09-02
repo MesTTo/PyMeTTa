@@ -30,28 +30,32 @@ def twin(m):
     """Fold, map and filter, first with the work inline and then with it named."""
 
     @m.define
-    def foldfun(a, b):                    # (= (foldfun $a $b) (+ $a $b))
+    def foldfun(a: int, b: int) -> int:   # (= (foldfun $a $b) (+ $a $b))
         return a + b
 
     @m.define
-    def mapfun(a):                        # (= (mapfun $a) (+ $a 1))
+    def mapfun(a: int) -> int:            # (= (mapfun $a) (+ $a 1))
         return a + 1
 
     @m.define
-    def filterfun(x):                     # (= (filterfun $x) (> $x 3))
+    def filterfun(x: int) -> bool:        # (= (filterfun $x) (> $x 3))
         return x > 3
 
     @m.define
-    def f1a():                            # (= (f1a) (foldl-atom (1 2 3 4) 0
-        return functools.reduce(lambda acc, x: acc + x, (1, 2, 3, 4), 0)  # $acc $x (+ $acc $x)))
+    def f1a() -> int:                     # (= (f1a) (foldl-atom (1 2 3 4) 0
+        return functools.reduce(
+            lambda acc, x: fn.add(acc, x),  # lambda parameters are untyped
+            (1, 2, 3, 4),
+            0,
+        )                                  # $acc $x (+ $acc $x)))
 
     @m.define
     def f2a():                            # (= (f2a) (map-atom (1 2 3) $x (+ $x 1)))
-        return [x + 1 for x in (1, 2, 3)]
+        return [fn.add(x, 1) for x in (1, 2, 3)]  # x is comprehension-bound
 
     @m.define
     def f3a():                            # (= (f3a) (filter-atom (1 2 3 4 5) $x (> $x 3)))
-        return [x for x in (1, 2, 3, 4, 5) if x > 3]
+        return [x for x in (1, 2, 3, 4, 5) if fn.gt(x, 3)]  # x is comprehension-bound
 
     @m.define
     def f1b():                            # (= (f1b) (foldl-atom (1 2 3 4) 0 foldfun))
@@ -74,16 +78,16 @@ def twin(m):
         # (foldl-atom ((1 2) (3 4) (5 6)) () $acc $x (append $acc $x))
         return functools.reduce(lambda acc, x: fn.append(acc, x), parts, ())
 
-    assert f1a() == [10]   # [10]
-    assert f2a() == [Expression((2, 3, 4))]   # [(2 3 4)]
-    assert f3a() == [Expression((4, 5))]   # [(4 5)]
+    assert f1a() == [10]  # [10]
+    assert f2a() == [Expression((2, 3, 4))]  # [(2 3 4)]
+    assert f3a() == [Expression((4, 5))]  # [(4 5)]
 
-    assert f1b() == [10]   # [10]
-    assert f2b() == [Expression((2, 3, 4))]   # [(2 3 4)]
-    assert f3b() == [Expression((4, 5))]   # [(4 5)]
+    assert f1b() == [10]  # [10]
+    assert f2b() == [Expression((2, 3, 4))]  # [(2 3 4)]
+    assert f3b() == [Expression((4, 5))]  # [(4 5)]
 
     parts = Expression((Expression((1, 2)), Expression((3, 4)), Expression((5, 6))))
-    assert joined(parts) == [Expression((1, 2, 3, 4, 5, 6))]   # [(1 2 3 4 5 6)]
+    assert joined(parts) == [Expression((1, 2, 3, 4, 5, 6))]  # [(1 2 3 4 5 6)]
 
 
 #: Inferences this twin spends, its own tripwire. PLACEHOLDER rather than a
@@ -174,4 +178,26 @@ def twin(m):
 #: structure, and the removal doors changed meaning where a twin spells one
 #: [measured 2026-09-01: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=c6a40460b1db341198a6150e3600f502831a6e83].
-BUDGET = 28483
+#: RE-PINNED 2026-09-01, 28483 to 29392 (+909), generic Python operators now
+#: dispatch through live protocols while source twins explicitly name
+#: relational engine heads [measured 2026-09-01: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=e3787593132a7ece2d300397045f7415709847c9].
+#: RE-PINNED 2026-09-02, 29392 to 30222 (+830), exact numeric annotations
+#: retain native operator heads, publish MeTTa type declarations, and leave
+#: relational heads only where static proof is unavailable [measured
+#: 2026-09-02: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=d0dfff1a3ee6c85472fd9b12d6e4aec007a9c301].
+#: RE-PINNED 2026-09-02, 30222 to 31353 (+1131), static contract discharge and
+#: policy-stable recompilation [measured 2026-09-02: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=c00341f0ff9d83d1b9338ca86ad51708eaf07ebd].
+#: RE-PINNED 2026-09-02, 31353 to 31594 (+241), static contract discharge with
+#: policy checks confined to invalidated contracts [measured 2026-09-02: min-
+#: of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=c00341f0ff9d83d1b9338ca86ad51708eaf07ebd].
+#: RE-PINNED 2026-09-02, 31594 to 31603 (+9), P43 protects both generated
+#: policy-check fallbacks from space-local capture [measured 2026-09-02: min-
+#: of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=c00341f0ff9d83d1b9338ca86ad51708eaf07ebd].
+BUDGET = 31603

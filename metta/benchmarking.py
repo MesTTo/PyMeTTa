@@ -31,7 +31,7 @@ Guarantees:
     on both, which is the only safe reading there: foreign code retires no
     inferences at all [tested test_a_cpu_time_pin_bands_on_both_sides]
   - a document's policy prose is owned by its runner's SOURCE and rewritten on
-    every update, so a seat whose deciding counter is not the default one
+    every update, so an extension whose deciding counter is not the default one
     cannot ship a file that states the opposite of its own rule [tested
     test_a_declared_policy_is_written_on_every_update]
   - observe_cpu records process CPU seconds beside an instruction pin and
@@ -39,12 +39,12 @@ Guarantees:
     inference counter is blind past the boundary, so instructions:u decides
     and CPU is the counter it is checked against
     [tested: extensions/mork/benchmarks/bench.py]
-  - the two CPU doors are one choice, made per row and visibly: a seat whose
-    CPU reading should GATE declares Metric.CPU_SECONDS through
-    observe_measurement and accepts the wide band a noisy counter needs, and a
-    seat that wants CPU only as the artifact beside an instruction pin calls
-    observe_cpu, which never compares. Reaching for one is a statement about
-    whether that row's CPU number can decide anything [tested
+  - the two CPU-recording functions make the policy visible per row: an
+    extension whose CPU reading should GATE declares Metric.CPU_SECONDS through
+    observe_measurement and accepts the wide band a noisy counter needs, while
+    an extension that wants CPU only as the artifact beside an instruction pin
+    calls observe_cpu, which never compares. Choosing one states whether that
+    row's CPU number can decide anything [tested
     test_the_recording_cpu_door_never_compares_where_the_gating_one_does]
 Owns:
   - BenchmarkBaseline owns an update file only until its atomic replace
@@ -108,7 +108,7 @@ _INSTRUCTION_NOISE_PERCENT = 1.0
 _CPU_NOISE_PERCENT = 10.0
 # What a document says about itself when its owner declares nothing else. A
 # reader meets these before any number, so they have to be true of the rows
-# below them; a seat measuring across a foreign boundary overrides them.
+# below them; an extension measuring across a foreign boundary overrides them.
 _DEFAULT_POLICIES = {
     "counter_policy": (
         "stats().inferences minimum of three and fixed two-point growth "
@@ -444,13 +444,13 @@ class BenchmarkBaseline:
         self.path = Path(path)
         self.update = update
         self.compare_counters = compare_counters or update
-        #A seat whose deciding counter is not the default one says so here, and
-        #says it in SOURCE rather than in the file: the C seat's counters are
-        #instructions:u and CPU time paired, because foreign code retires no
-        #inferences, so a document of its rows carrying the sentence
-        #"stats().inferences ... decide" would state the opposite of its own
-        #rule. Declared policies are written on every update, unlike a per-row
-        #noise band, because prose is authored and a band is measured.
+        # An extension whose deciding counter is not the default one says so
+        # here, and says it in SOURCE rather than in the file: the C extension's
+        # counters are instructions:u and CPU time paired, because foreign code
+        # retires no inferences, so a document of its rows carrying the sentence
+        # "stats().inferences ... decide" would state the opposite of its own
+        # rule. Declared policies are written on every update, unlike a per-row
+        # noise band, because prose is authored and a band is measured.
         self.policies = dict(_DEFAULT_POLICIES | dict(policies or {}))
         if not self.path.is_file():
             if not update:

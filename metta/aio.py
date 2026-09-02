@@ -31,7 +31,13 @@ Guarantees:
     whose queue is full [tested:
     test_aio_a_failed_cursor_close_stays_retryable,
     test_aio_a_failed_subscription_close_stays_retryable,
-    test_aio_the_close_sentinel_survives_a_full_queue; commit=57f21ba9edf94bcf28cde11f938bce2c241a3709]
+    test_aio_the_close_sentinel_survives_a_full_queue; commit=cd8a597152395767587bbc64b6034400c81dd7b3]
+  - an acquired subscription belongs to its AsyncMeTTa until it closes, and a
+    callback whose event loop has closed retires itself before another write
+    can reach it [tested:
+    test_aio_subscription_retires_when_its_event_loop_closes,
+    test_aio_close_cancels_every_acquired_subscription;
+    commit=4a52d2d77621b917f20b0c5618ea87de07cbbb71]
   - an event queue is published only once its registration succeeded, and its
     bound is refused unless it is a count of events [tested:
     test_aio_a_failed_subscription_publishes_no_queue,
@@ -90,7 +96,7 @@ Guarantees:
     worker performs the synchronous Linda wait [tested:
     test_async_peek_and_take_mirror_the_space_handle; commit=4e2398075da67bb2cbcc123a9fc1e078ecac6fbf]
   - async match forwards the submitting task's scoped or explicit algebra,
-    and sample mirrors the synchronous random.choices-shaped door [tested:
+    and sample mirrors the synchronous random.choices-shaped method [tested:
     test_aio_covers_the_whole_synchronous_surface; commit=c7468b2789746bcf95c4bacc0e2d517ec4d972fa]
   - async reification, world evaluation, and commit keep every engine crossing
     on the owning worker while immutable atom snapshots remain directly
@@ -134,6 +140,7 @@ from collections.abc import Callable, Coroutine, Iterable, Mapping, Sequence
 from types import TracebackType
 from typing import Any, Final, Literal, Self, TypeVar, overload
 
+from . import ops as _ops_module
 from ._api_types import _DEFAULT_SPACE, _SpaceId
 from ._engine import Runtime, bridge, runtime
 from ._name_mapping import OperatorRecipe, operator_attribute_target
@@ -553,6 +560,14 @@ def _close_timeout(timeout: float) -> float:
     return value
 
 
+def _raise_lifecycle_failures(message: str, failures: list[BaseException]) -> None:
+    """Preserve one cleanup failure; group several in attempted order."""
+    if len(failures) == 1:
+        raise failures[0]
+    if failures:
+        raise BaseExceptionGroup(message, failures)
+
+
 def _remember_worker(worker: _EngineThread) -> None:
     with _LIVE_WORKERS_LOCK:
         _LIVE_WORKERS.add(worker)
@@ -727,7 +742,10 @@ class AsyncMeTTa:
         self._m = metta if metta is not None else Space(space)
         self._worker = _EngineThread()
         self._closed = False
+        self._closing = False
         self._owner = True
+        self._subscriptions: set[Any] = set()
+        self._subscriptions_lock = threading.RLock()
 
     @classmethod
     def _sharing(cls, metta: Space, worker: _EngineThread) -> AsyncMeTTa:
@@ -735,8 +753,44 @@ class AsyncMeTTa:
         shared._m = metta
         shared._worker = worker
         shared._closed = False
+        shared._closing = False
         shared._owner = False
+        shared._subscriptions = set()
+        shared._subscriptions_lock = threading.RLock()
         return shared
+
+    def _require_open_locked(self) -> None:
+        if self._closed or self._closing:
+            state = "closed" if self._closed else "closing"
+            msg = f"this AsyncMeTTa is {state}"
+            raise MettaError(msg)
+
+    def _track_subscription(self, stream: _AsyncSubscription) -> None:
+        """Make an acquired stream part of this connection's close scope."""
+        with self._subscriptions_lock:
+            self._require_open_locked()
+            self._subscriptions.add(stream)
+
+    def _forget_subscription(self, stream: _AsyncSubscription) -> None:
+        with self._subscriptions_lock:
+            self._subscriptions.discard(stream)
+
+    def _begin_close(self) -> tuple[_AsyncSubscription, ...]:
+        with self._subscriptions_lock:
+            if self._closing:
+                msg = "this AsyncMeTTa is already closing"
+                raise MettaError(msg)
+            self._closing = True
+            return tuple(self._subscriptions)
+
+    def _abort_close(self) -> None:
+        with self._subscriptions_lock:
+            self._closing = False
+
+    def _finish_close(self) -> None:
+        with self._subscriptions_lock:
+            self._closed = True
+            self._closing = False
 
     @property
     def name(self) -> _SpaceId:  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
@@ -763,24 +817,24 @@ class AsyncMeTTa:
 
     async def start(self) -> Self:
         """Start the engine thread; connect() and `async with` call this."""
-        if self._closed:
-            msg = "this AsyncMeTTa is closed"
-            raise MettaError(msg)
+        with self._subscriptions_lock:
+            self._require_open_locked()
         await self._worker.start()
         return self
 
-    async def call(self, fn: Callable[[Space], Any]) -> Any:
-        """Run fn(m) on the engine's thread and await its result: the
-        escape hatch to the entire synchronous surface, subscriptions,
-        derivations, stats blocks and all.
-        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
-        if self._closed:
-            msg = "this AsyncMeTTa is closed"
-            raise MettaError(msg)
+    async def _submit(self, fn: Callable[[Space], Any], *, during_close: bool) -> Any:
         await self._worker.start()
         loop = asyncio.get_running_loop()
         request = _Request(fn, self._m, loop, loop.create_future())
-        self._worker.submit(request)
+        if during_close:
+            self._worker.submit(request)
+        else:
+            # Publication of a request and publication of close are ordered.
+            # A request already accepted is rejected or interrupted by the
+            # worker close; one that lost this race never enters the queue.
+            with self._subscriptions_lock:
+                self._require_open_locked()
+                self._worker.submit(request)
         try:
             return await request.future
         except asyncio.CancelledError:
@@ -789,6 +843,27 @@ class AsyncMeTTa:
             request.abandoned.set()
             self._worker.interrupt_if_running(request)
             raise
+
+    async def _resource_call(self, fn: Callable[[Space], Any]) -> Any:
+        """Release an acquired child while its parent is closing."""
+        return await self._submit(fn, during_close=True)
+
+    async def _subscription_call(self, fn: Callable[[Space], Any]) -> Any:
+        """Use the public crossing unless parent close already claimed it."""
+        with self._subscriptions_lock:
+            closing = self._closing
+        if closing:
+            return await self._resource_call(fn)
+        return await self.call(fn)
+
+    async def call(self, fn: Callable[[Space], Any]) -> Any:
+        """Run fn(m) on the engine's thread and await its result: the
+        escape hatch to the entire synchronous surface, subscriptions,
+        derivations, stats blocks and all.
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+        with self._subscriptions_lock:
+            self._require_open_locked()
+        return await self._submit(fn, during_close=False)
 
     def interrupt(self) -> bool:
         """Stop the evaluation the worker is running right now; answers
@@ -799,7 +874,7 @@ class AsyncMeTTa:
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         return self._worker.interrupt_if_running(None)
 
-    # ------------------------------------ doors the worker needs its own body for
+    # ----------------------------------- methods the worker needs its own body for
 
     async def count(self) -> int:
         """Return the number of atoms in this space."""
@@ -906,7 +981,7 @@ class AsyncMeTTa:
             )
         else:
             # A name and a model are independent here for the same reason they
-            # are on the synchronous door: the engine's declarations take any
+            # are on the synchronous method: the engine's declarations take any
             # valid space name.
             handle = await self.call(
                 lambda m: m._open(
@@ -934,7 +1009,7 @@ class AsyncMeTTa:
         arities: list[int] | None = None,
         inverse: Callable | None = None,
     ) -> Callable:
-        """Register a callable through the single short operation door."""
+        """Register a callable through the short operation form."""
         options: dict[str, Any] = {
             "name": name,
             "transport": transport,
@@ -954,8 +1029,8 @@ class AsyncMeTTa:
         """Collect and land a non-exclusive equation bundle on the worker.
 
         An awaitable CALL rather than a decorator, which is the same answer
-        define() gives to the same problem: decoration cannot await, so the
-        door stops being a decorator instead of stopping existing. It was
+        define() gives to the same problem: decoration cannot await, so this
+        method accepts only the applied form. It was
         excluded from the async surface for the first reading of that, which
         left an async caller unable to land a bundle at all
         [measured 2026-08-31].
@@ -963,7 +1038,7 @@ class AsyncMeTTa:
         return await self.call(lambda space: space.rules(fn))
 
     async def pre_add(self, fn: Callable) -> Any:
-        """Compile or accept one unary judge and claim this space's write door.
+        """Compile or accept one unary judge and claim this space's write hook.
 
         Excluded for the same reading as rules(), and restored the same way.
         """
@@ -980,13 +1055,12 @@ class AsyncMeTTa:
         methods: bool = True,
     ) -> Any:
         """Compile a Python function into equations on the worker. The
-        returned handle's own calls are synchronous doors; evaluate
+        returned handle's own calls are synchronous methods; evaluate
         through fn(name) or run() from async code.
 
-        `name=` is the naming ladder's exact-spelling rung, and it is here
-        because the ladder does not shrink from one surface to another: an
-        async caller installing `prime?` or an authored underscore had no
-        door for it while the synchronous define did [measured 2026-08-31].
+        `name=` preserves an exact spelling on the async surface. Without it,
+        an async caller installing `prime?` or an authored underscore had no
+        equivalent of the synchronous define method [measured 2026-08-31].
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         if fn is not None and prolog is None:
             # accessors= and methods= carry for every shape, their defaults
@@ -1001,7 +1075,7 @@ class AsyncMeTTa:
             raise TypeError(msg)
         source = prolog
         if fn is not None:
-            # The sync door's prolog= form is a decorator whose Python stays
+            # The sync method's prolog= form is a decorator whose Python stays
             # the reference twin; both pieces forward, nothing silently
             # drops.
             return await self.call(
@@ -1143,10 +1217,9 @@ class AsyncMeTTa:
     ) -> _AsyncSubscription:
         """Observe matching writes, raising Timeout after each quiet deadline.
 
-        The synchronous watch()'s meaning, which this door carried the NAME of
-        without: it was subscribe() under a second name, same signature and
-        same body, so an async caller had no way to say "stop waiting after
-        this long" that peek() and take() both give them
+        This method once shared subscribe()'s signature and body despite being
+        named watch(), so an async caller had no way to set the quiet deadline
+        that peek() and take() both provide
         [measured 2026-08-31].
         """
         require_deadline(deadline)
@@ -1159,7 +1232,7 @@ class AsyncMeTTa:
         """Engine functions as async callables, by attribute or exact name.
 
         ``m.fn.car_atom`` transliterates underscores to hyphens and
-        ``m.fn["=="]`` preserves exact punctuation, the same two doors the
+        ``m.fn["=="]`` preserves exact punctuation, the same two forms the
         sync namespace has. Resolution is lazy: the worker is asked when the
         function is awaited, so an unknown name raises there rather than at
         access.
@@ -1167,10 +1240,10 @@ class AsyncMeTTa:
         return _AsyncFunctionNamespace(self)
 
     # ---------------------------------------------- generated mirror
-    # Every door below is GENERATED by tools/aiogen.py from the synchronous
+    # Every method below is GENERATED by tools/aiogen.py from the synchronous
     # Space method of the same name, whose signature, return annotation and
     # docstring it carries verbatim. Each is one worker round trip. Do not
-    # edit them here: change Space, or hand-write the door above this block
+    # edit them here: change Space, or hand-write the method above this block
     # and the generator will yield to it. tools/aio_divergences.py holds the
     # exclusions and the one signature that cannot be Space's.
 
@@ -1222,8 +1295,8 @@ class AsyncMeTTa:
         after reading, before anything runs. It is a BLOCK rather than a
         keyword because a binding mapping is the kind of value that grows,
         and a block grows down the page where a keyword has to fit beside
-        everything else on the call. Every target door reads the same scope,
-        so one block covers a run(), an eval() and an answers() together.
+        everything else on the call. Every call that accepts a target reads the
+        same scope, so one block covers run(), eval(), and answers() together.
 
         `timeout` (seconds) and `inferences` (engine steps) bound the call
         with the engine's own guards; passing either raises TimeLimitError
@@ -1364,7 +1437,7 @@ class AsyncMeTTa:
         A load that raises leaves the previous definitions standing, so a
         broken edit costs nothing but the error.
 
-        `!(import! &self path)` is the other door and loads a file that is
+        `!(import! &self path)` is the other form and loads a file that is
         new or edited, skipping one that is neither. The two agree on what
         a reload means and differ only in whether an unchanged file runs
         again, which is SWI's consult/1 against its if(changed).
@@ -1418,7 +1491,7 @@ class AsyncMeTTa:
         spelling. That is the right property for a logic engine and it is the
         one thing about storage that surprises everybody once.
 
-        A library IS knowledge, so the same door imports it: ``m += lib.he``
+        A library IS knowledge, so the same operator imports it: ``m += lib.he``
         performs ``!(import! <m> (library lib_he))`` with this space as the
         target. An import is an effect, so it refuses to hide inside an atom
         batch or share a call with stored atoms.
@@ -1440,16 +1513,16 @@ class AsyncMeTTa:
         subtracts the multiplicity given rather than clearing the key.
         That is the only reading under which the operators are inverses,
         so `s += a; s -= a` leaves the space it found. `-=` classifies its
-        operand exactly as `+=` does, so the fact stream one door stores
-        the other subtracts, one occurrence per element, in one
+        operand exactly as `+=` does, so `-=` subtracts the same fact stream
+        `+=` stores, one occurrence per element, in one
         transactional crossing.
 
-        The DRAIN is the pattern-shaped door: `del m[pattern]` takes every
+        `del m[pattern]` is the draining form: it takes every
         unifying occurrence in one crossing and raises when nothing
         matched, as Python's `del` does, and MeTTa spells it `remove-atom`
         [source: engine/spaces/foreign.pl, remove_matching_atoms/2].
         MeTTa spells this method's grain `subtract-atom`. This is the one
-        door that reports absence.
+        method that reports absence.
 
         A bare variable is the remove-everything reading a multiset space
         gives it, each atom leaving through its own proper path, equations
@@ -1542,6 +1615,16 @@ class AsyncMeTTa:
         wrong.
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         return await self.call(lambda m: m.lint())
+
+    async def effect_plan(self, target: Any) -> _ops_module.EffectPlan:
+        """Return operations the target may execute and their joined effect.
+
+        The engine translates the same atom or source form ``eval`` accepts,
+        follows nested compiled calls, and reads current operation metadata.
+        It does not execute the target. A later registration change is visible
+        on the next call. This is the analysis reified-world admission uses.
+        """
+        return await self.call(lambda m: m.effect_plan(target))
 
     async def digest(self) -> str:
         """A sha256 hex digest of this space's content: every stored atom,
@@ -1687,7 +1770,7 @@ class AsyncMeTTa:
         nothing applies to is its own answer, which is ordinary MeTTa and how
         `!(hello world)` works, so there is no scope here that refuses one.
 
-        The Node surface has had m.reducible() since it existed; Python had
+        The Node extension has had m.reducible() since it existed; Python had
         only eval_status(), which evaluates to tell you [measured 2026-08-31].
         """
         return await self.call(lambda m: m.reducible(target))
@@ -1723,7 +1806,7 @@ class AsyncMeTTa:
         keys mean themselves, so `bind({V.x: 5})` fills a variable hole.
 
         `theory` and `interpreter` are eval()'s own, and mean the same here.
-        This is the door that says which evaluation path produced an answer, so
+        This is the method that says which evaluation path produced an answer, so
         being unable to point it at an alternative evaluation relation was the
         sharpest form of the gap: `m.eval_status(target, interpreter=my_eval)`
         is how you see whether an explicit interpreter reduced a term or handed
@@ -1780,7 +1863,7 @@ class AsyncMeTTa:
 
         An `(Error ...)` answer raises MettaResultError carrying the
         atom: an error among the answers is the evaluation reporting
-        failure, and failure outranks the count. eval() is the door
+        failure, and failure outranks the count. eval() is the method
         that keeps errors as data.
         """
         return await self.call(lambda m: m._one(target, timeout=timeout, inferences=inferences))
@@ -1806,7 +1889,7 @@ class AsyncMeTTa:
         return await self.call(lambda m: m._first(target, timeout=timeout, inferences=inferences))
 
     # pure DIVERGES from Space.pure, because
-    # the sync door's fn=None form returns a DECORATOR, and a decorator handed back across the
+    # the sync method's fn=None form returns a DECORATOR, and a decorator handed back across the
     # worker would register on the caller's thread rather than the engine's. Only the applied form
     # crosses
     async def pure(self, fn: Callable, /, **options: Any) -> Any:
@@ -1836,7 +1919,7 @@ class AsyncMeTTa:
         return await self.call(lambda m: m.pure(fn, **options))
 
     # reads DIVERGES from Space.reads, because
-    # the sync door's fn=None form returns a DECORATOR, and a decorator handed back across the
+    # the sync method's fn=None form returns a DECORATOR, and a decorator handed back across the
     # worker would register on the caller's thread rather than the engine's. Only the applied form
     # crosses
     async def reads(self, fn: Callable, /, **options: Any) -> Any:
@@ -1850,7 +1933,7 @@ class AsyncMeTTa:
         return await self.call(lambda m: m.reads(fn, **options))
 
     # writes DIVERGES from Space.writes, because
-    # the sync door's fn=None form returns a DECORATOR, and a decorator handed back across the
+    # the sync method's fn=None form returns a DECORATOR, and a decorator handed back across the
     # worker would register on the caller's thread rather than the engine's. Only the applied form
     # crosses
     async def writes(self, fn: Callable, /, **options: Any) -> Any:
@@ -1864,7 +1947,7 @@ class AsyncMeTTa:
         return await self.call(lambda m: m.writes(fn, **options))
 
     # io DIVERGES from Space.io, because
-    # the sync door's fn=None form returns a DECORATOR, and a decorator handed back across the
+    # the sync method's fn=None form returns a DECORATOR, and a decorator handed back across the
     # worker would register on the caller's thread rather than the engine's. Only the applied form
     # crosses
     async def io(self, fn: Callable, /, **options: Any) -> Any:
@@ -2424,7 +2507,7 @@ class AsyncMeTTa:
         """Type a pool's membership: only TYPE-carrying atoms enter.
 
         A thread pool is a space whose atoms are spaces, and this is its
-        door: (admits &pool Space) plus per-atom (: <space> Space)
+        declaration: (admits &pool Space) plus per-atom (: <space> Space)
         declarations make membership a type judgement the ontology
         already knows how to make.
         """
@@ -2475,8 +2558,8 @@ class AsyncMeTTa:
     ) -> Atom | Any:
         """Return the event stream, or declare what this context promises.
 
-        Subscribability is a promise about the context, not something the
-        seam reads off its methods. A native space needs no declaration:
+        Subscribability is a promise about the context, not something its
+        methods alone establish. A native space needs no declaration:
         every write into it runs the engine's own hooks, so it delivers
         per-write-exactly and ordered by construction. A FOREIGN context
         declares, and one that declares nothing refuses a subscription
@@ -2496,10 +2579,44 @@ class AsyncMeTTa:
 
     # -------------------------------------------------------------- lifecycle
 
+    async def _release_subscriptions(
+        self, subscriptions: tuple[_AsyncSubscription, ...]
+    ) -> None:
+        """Release every acquired stream before reporting any failure."""
+        failures: list[BaseException] = []
+        for subscription in subscriptions:
+            try:
+                await subscription._release()
+            except BaseException as exc:  # noqa: BLE001 -- every sibling releases before a failure leaves
+                failures.append(exc)
+        msg = "closing AsyncMeTTa subscriptions failed"
+        _raise_lifecycle_failures(msg, failures)
+
+    def _stop_subscriptions(
+        self, subscriptions: tuple[_AsyncSubscription, ...]
+    ) -> None:
+        """Synchronous counterpart used when no event loop is running."""
+        failures: list[BaseException] = []
+        for subscription in subscriptions:
+            try:
+                subscription._stop()
+            except BaseException as exc:  # noqa: BLE001 -- every sibling releases before a failure leaves
+                failures.append(exc)
+        msg = "stopping AsyncMeTTa subscriptions failed"
+        _raise_lifecycle_failures(msg, failures)
+
     async def aclose(self, timeout: float = DEFAULT_CLOSE_TIMEOUT) -> None:
-        """Interrupt work, reject queued calls, and detach within timeout."""
+        """Cancel acquired streams, then stop and detach the worker."""
         timeout = _close_timeout(timeout)
-        self._closed = True
+        subscriptions = self._begin_close()
+        try:
+            await _shielded(self._release_subscriptions(subscriptions))
+        except BaseException:
+            # A child that failed to cancel remains tracked, and the live
+            # worker makes an explicit retry possible.
+            self._abort_close()
+            raise
+        self._finish_close()
         if not self._owner:
             return
         thread = self._worker.close_soon()
@@ -2514,8 +2631,15 @@ class AsyncMeTTa:
                 )
 
     def stop(self, timeout: float = DEFAULT_CLOSE_TIMEOUT) -> None:
-        """Synchronous cleanup for code without a running event loop."""
-        self._closed = True
+        """Synchronously cancel streams and stop without an event loop."""
+        timeout = _close_timeout(timeout)
+        subscriptions = self._begin_close()
+        try:
+            self._stop_subscriptions(subscriptions)
+        except BaseException:
+            self._abort_close()
+            raise
+        self._finish_close()
         if self._owner:
             self._worker.stop(timeout)
 
@@ -2911,8 +3035,11 @@ class _AsyncSubscription:
         self._subscription: Any = None
         self._queue: asyncio.Queue[Any] | None = None
         self._closed = False
+        self._orphaned = False
         self._dropped = 0
         self._opening = asyncio.Lock()
+        self._state_changed = threading.Condition()
+        self._acquiring = False
 
     def _offer(self, events: asyncio.Queue[Any], event: Any) -> None:
         """Hand one event to a consumer that may have stopped consuming.
@@ -2924,10 +3051,44 @@ class _AsyncSubscription:
         still delivered, and the stream then ends by raising, which is the
         gap being reported rather than papered over.
         """
+        if self._closed:
+            return
         try:
             events.put_nowait(event)
         except asyncio.QueueFull:
             self._dropped += 1
+
+    def _retire_closed_loop(self) -> None:
+        """Cancel the engine fold whose asyncio delivery target is gone.
+
+        Python documents RuntimeError as call_soon_threadsafe's closed-loop
+        outcome. Cancellation is safe inside the fold's own callback because
+        the registry waits only for deliveries on other threads.
+        https://docs.python.org/3.14/library/asyncio-eventloop.html#asyncio.loop.call_soon_threadsafe
+        """
+        with self._state_changed:
+            self._orphaned = True
+            subscription = self._subscription
+        if subscription is None:
+            # Registration has published the fold but not yet returned it to
+            # _ensure. That path observes _orphaned as soon as it assigns the
+            # handle and performs this same retirement.
+            return
+        try:
+            subscription.cancel()
+        except Exception:
+            # Keep the child tracked so owner.aclose()/stop() can retry. Its
+            # callback is now inert, so later writes remain usable meanwhile.
+            logger.exception(
+                "could not retire an async subscription whose event loop closed"
+            )
+            return
+        with self._state_changed:
+            if self._subscription is subscription:
+                self._subscription = None
+            self._closed = True
+            self._state_changed.notify_all()
+        self._am._forget_subscription(self)
 
     def _end(self, events: asyncio.Queue[Any]) -> None:
         """Wake a consumer blocked on this queue, a full queue included.
@@ -2958,16 +3119,44 @@ class _AsyncSubscription:
                 events: asyncio.Queue[Any] = asyncio.Queue(maxsize=self._queue_max)
 
                 def deliver(event: Any) -> None:
-                    loop.call_soon_threadsafe(self._offer, events, event)
+                    with self._state_changed:
+                        if self._closed or self._orphaned:
+                            return
+                    try:
+                        loop.call_soon_threadsafe(self._offer, events, event)
+                    except RuntimeError:
+                        if not loop.is_closed():
+                            raise
+                        self._retire_closed_loop()
 
                 pattern, on, am = self._pattern, self._on, self._am
                 where = self._where
-                self._subscription = await _acquire(
-                    am.call(
-                        lambda m: m.subscribe(pattern, deliver, on=on, where=where)
-                    ),
-                    lambda subscription: am.call(lambda _m: subscription.cancel()),
-                )
+                am._track_subscription(self)
+                with self._state_changed:
+                    self._acquiring = True
+                try:
+                    subscription = await _acquire(
+                        am.call(
+                            lambda m: m.subscribe(
+                                pattern, deliver, on=on, where=where
+                            )
+                        ),
+                        lambda acquired: am._subscription_call(
+                            lambda _m: acquired.cancel()
+                        ),
+                    )
+                    with self._state_changed:
+                        self._subscription = subscription
+                        orphaned = self._orphaned
+                except BaseException:
+                    am._forget_subscription(self)
+                    raise
+                finally:
+                    with self._state_changed:
+                        self._acquiring = False
+                        self._state_changed.notify_all()
+                if orphaned:
+                    self._retire_closed_loop()
                 # A queue reachable before its registration succeeded is one a
                 # consumer waits on forever: nothing owns it, and nothing will
                 # ever write to it
@@ -3018,12 +3207,33 @@ class _AsyncSubscription:
         # Cancel first: marking closed before the engine let go left a live
         # subscription that every later aclose() returned early from
         # [tested test_aio_a_failed_subscription_close_stays_retryable].
-        subscription = self._subscription
+        async with self._opening:
+            with self._state_changed:
+                subscription = self._subscription
+            if subscription is not None:
+                await self._am._subscription_call(
+                    lambda _m: subscription.cancel()
+                )
+            with self._state_changed:
+                self._subscription = None
+                self._closed = True
+                self._state_changed.notify_all()
+            self._am._forget_subscription(self)
+            if self._queue is not None:
+                self._end(self._queue)
+
+    def _stop(self) -> None:
+        """Release the engine fold from synchronous AsyncMeTTa.stop()."""
+        with self._state_changed:
+            self._state_changed.wait_for(lambda: not self._acquiring)
+            subscription = self._subscription
         if subscription is not None:
-            await self._am.call(lambda _m: subscription.cancel())
-        self._closed = True
-        if self._queue is not None:
-            self._end(self._queue)
+            subscription.cancel()
+        with self._state_changed:
+            self._subscription = None
+            self._closed = True
+            self._state_changed.notify_all()
+        self._am._forget_subscription(self)
 
     async def __aenter__(self) -> Self:
         await self._ensure()

@@ -502,7 +502,7 @@ def _module_source(
 
 % ONE row, because removal is multiset subtraction and this store is a
 % multiset: assert_/N appends, so two identical facts are two rows and two
-% removals. library(persistency) generates both doors, and this is the
+% removals. library(persistency) generates both updater predicates, and this is the
 % retract_/N one: db_retract/1 is retract/1 under the library's own mutex,
 % and it journals retract(Fact) rather than retractall(Fact, Count), which
 % the journal validator above already accepts. It also answers what it did,
@@ -523,7 +523,7 @@ def _module_source(
 %A world or staged provider transaction has already validated every member
 %and computed its exact multiset delta. Apply the whole delta under the same
 %module mutex and one SWI transaction, removing before adding just like the
-%native world door. library(persistency) journals each updater as an ordinary
+%native world delta. library(persistency) journals each updater as an ordinary
 %retract/assert record, so replay sees facts rather than an opaque world blob.
 {helpers["apply_remove"]}([Head, Wires]) :-
     {helpers["schema"]}(Head, Arity),
@@ -1331,6 +1331,7 @@ class PersistentFactSpace(SpaceProvider):
                 try:
                     temporary.unlink(missing_ok=True)
                 except OSError:
+                    # Keep the migration error; no caller waits on this cleanup.
                     logger.exception(
                         "could not remove failed replay-rename staging file %s",
                         temporary,

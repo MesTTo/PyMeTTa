@@ -1,4 +1,4 @@
-"""Purpose: space views and combinators on the public seam. Object views,
+"""Purpose: space views and combinators on the public interface. Object views,
 union, readonly, mapped, and overlay are ordinary SpaceProvider instances;
 the same engine route therefore matches a live object or composes existing
 spaces without hardcoded integration paths.
@@ -26,6 +26,10 @@ Guarantees:
     member without the explicit snapshot protocol refuses by member name
     [tested: test_reify_refuses_and_names_a_live_composite_member;
     commit=3ded7552797b66d78e666141eb51f3bc14686bd2]
+  - every provider member keeps the provider interface's capability and
+    request-policy checks for enumeration, matching, add, remove, and clear
+    [tested: test_combinators_forward_every_provider_policy_request;
+    commit=f10b3766f72a01bc7c023eb27ff6732dfde7ccf6]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -314,6 +318,7 @@ class _Member:
         self._is_space = hasattr(target, "_rt") and hasattr(target, "_space")
 
     def atoms(self) -> Iterator[Atom]:
+        self._require("enumerate", "atoms")
         return iter(self.target.atoms())
 
     def match(self, pattern: Atom) -> Iterator[Atom]:
@@ -323,28 +328,33 @@ class _Member:
             for row in rows:
                 yield substitute(pattern, dict(zip(names, row, strict=True)))
             return
+        self._require("match", "match", pattern=pattern)
         if isinstance(self.target, Matcher):
             yield from self.target.match(pattern)
             return
-        yield from self.atoms()
+        self._require("enumerate", "match", pattern=pattern)
+        yield from self.target.atoms()
 
     def add(self, *atoms: Atom) -> None:
         if self._is_space:
             self.target.add(*atoms)
             return
-        self._require("add", "add")
+        for atom in atoms:
+            self._require("add", "add", atom=atom)
         for atom in atoms:
             self.target.add(atom)
 
     def remove(self, pattern: Atom) -> bool:
-        self._require("remove", "remove")
+        self._require("remove", "remove", atom=pattern)
         return bool(self.target.remove(pattern))
 
     def clear(self) -> None:
         self._require("clear", "clear")
         self.target.clear()
 
-    def _require(self, capability: str, operation: str) -> None:
+    def _require(
+        self, capability: str, operation: str, **request: Any
+    ) -> None:
         """The framework's refusal, not a bare AttributeError.
 
         The engine's own path through a provider asks can_run and answers
@@ -352,12 +362,12 @@ class _Member:
         "declines this request"; a combinator member reached the method
         directly, so a ReadOnly provider under overlay().clear() died with
         AttributeError instead [measured 2026-09-01]. A Space handle always
-        carries the doors, so only the provider case asks.
+        carries the methods, so only the provider case asks.
         """
         if self._is_space or not isinstance(self.target, SpaceProvider):
             return
         _require_provider(
-            self.target, self.describe(), capability, operation
+            self.target, self.describe(), capability, operation, **request
         )
 
     def snapshot(self) -> tuple[Atom, ...]:
@@ -389,7 +399,7 @@ class _Member:
 class _Union(SpaceProvider):
     """The read-only aggregate: rdflib's ReadOnlyGraphAggregate reading.
     match answers every member's candidates (over-approximation stays
-    sound by the seam's own law), atoms chains, and no write operation
+    sound by the provider contract's own law), atoms chains, and no write operation
     exists, so the engine's capability refusal answers writes. The MeTTa
     reading: overlapping shapes answer as a nondeterministic union the
     way overlapping equations do; a union space is that, one level up.
@@ -448,7 +458,7 @@ class _ReadOnly(SpaceProvider):
         return self._member.match(pattern)
 
     def snapshot(self) -> tuple[Atom, ...]:
-        """Snapshot the same inner contents while retaining no write door."""
+        """Snapshot the same inner contents while retaining no write method."""
         return self._member.snapshot()
 
     def __repr__(self) -> str:

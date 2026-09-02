@@ -78,10 +78,11 @@ Guarantees:
     commit=8bfe05c3850776543ece25a85038242f10b1d841]
   - each example and twin reports Space.digest() from its own process; an
     unequal digest, a refusal, or a missing oracle result is a stored-content
-    finding with multiplicity-preserving equation diagnostics [tested:
+    finding with multiplicity-preserving equation and type-declaration
+    diagnostics [tested:
     test_a_twin_stores_the_equations_its_comments_claim,
     test_stored_content_uses_the_digest_and_keeps_equation_multiplicity;
-    commit=5d93a44cf4820717163bbf8dfaf667ae14e5e4ee]
+    commit=d0dfff1a3ee6c85472fd9b12d6e4aec007a9c301]
   - a twin writing MeTTa in Python punctuation is a finding naming the Python
     spelling it should have used [tested:
     test_a_dissolved_head_names_the_python_spelling_it_replaces,
@@ -146,7 +147,7 @@ import os
 import re
 import sys
 import textwrap
-from collections import Counter
+from collections import Counter, defaultdict
 from collections.abc import Iterable
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
@@ -203,6 +204,7 @@ HEADS = "P14C-HEADS "
 DIGEST = "P14C-DIGEST "
 DIGEST_ERROR = "P14C-DIGEST-ERROR "
 EQUATIONS = "P14C-EQUATIONS "
+TYPE_DECLARATIONS = "P14C-TYPE-DECLARATIONS "
 
 #: What a twin yields for a form it cannot say in Python. It is not a group,
 #: so it can never collide with one: a group is always parenthesised.
@@ -987,30 +989,200 @@ def _named_strings(tree: ast.Module) -> set[int]:
 RUNG_LINE = re.compile(r"#\s*rung:\s*\S")
 
 
-#: Heads Python's own syntax already builds INSIDE A LOWERED BODY, so writing
-#: them as a call or through Expression() there spells with a function what the
-#: language spells with a character. The translator is the authority, not the
-#: live dunder table, and the two disagree in three places
-#: [measured 2026-08-24: one file per spelling under `@m.define`, read back
-#: with `m.match(S['='](V.head, V.body))`. `a ** b` emits `(pow-math a b)`,
-#: `a == b` emits `(py-eq a b)`, `a != b` emits `(not (py-eq a b))`, `a in b`
-#: emits `(py-in a b)`, `not a` emits `(not (py-truthy a))`, and `a and b`
-#: emits a `let*` over `py-truthy`; `a // b` and `a & b` REFUSE, naming
-#: `floor_math(a / b)` and "MeTTa has no bitwise operators";
-#: source: extensions/python/metta/_define_expression.py _BINOPS, _COMPARE,
-#: _INSTEAD and _compare_link; commit=5c67147566907276a95a5fbf059cf8f98b6685f1].
-#:
-#: So `**` and `//` are NOT here: neither is an engine head, and demanding an
-#: operator for `floor-math` would demand the one spelling the translator
-#: refuses. `pow-math`, `py-eq` and `py-in` ARE, because they are exactly what
-#: `**`, `==` and `in` emit. `and`, `or` and `not` stay because `&`, `|` and
-#: `~` refuse inside a body, which leaves Python's own keywords as the only
-#: operator spelling there; a twin that needs the bare `(and a b)` term rather
-#: than Python's truthiness chain declares its rung on the line.
-OPERATOR_HEADS = frozenset({
-    "+", "-", "*", "/", "%", "pow-math", "==", "!=", "py-eq", "py-in",
-    "<", ">", "<=", ">=", "and", "or", "not",
+#: The engine heads Python syntax builds only after the compiler has proved
+#: both operands are exact native numbers. Untyped syntax instead invokes the
+#: live Python protocol, so an explicit head is legal there and a required
+#: transliteration where the source example itself names that relational head.
+#: This follows the subset of _NATIVE_BINOPS and _NATIVE_COMPARE that builds
+#: the IDENTICAL term rather than the wider live dunder table. True division
+#: is absent because Python `/` injects `(* 1.0 left)` to preserve float
+#: species, while an explicit engine `/` does not. Equality is absent too:
+#: measured, engine `==` keeps atom species (`1 != 1.0`, `-0.0 != 0.0`) and
+#: treats NaN as equal to itself, while Python answers the opposite in all
+#: three cases [tested:
+#: test_engine_operator_heads_require_syntax_only_for_native_operands;
+#: commit=d0dfff1a3ee6c85472fd9b12d6e4aec007a9c301].
+NATIVE_NUMBER_OPERATOR_HEADS = frozenset({"+", "-", "*", "%", "floor-div"})
+NATIVE_COMPARE_OPERATOR_HEADS = frozenset({"<", ">", "<=", ">="})
+OPERATOR_HEADS = NATIVE_NUMBER_OPERATOR_HEADS | NATIVE_COMPARE_OPERATOR_HEADS
+
+_NATIVE_BINOP_TYPES = frozenset({
+    ast.Add, ast.Sub, ast.Mult, ast.Div, ast.FloorDiv, ast.Mod,
 })
+
+
+def _exact_number_annotation(node: ast.expr | None) -> bool:
+    """Whether syntax names exact built-in int or float without execution."""
+    if isinstance(node, ast.Name):
+        return node.id in {"int", "float"}
+    return (
+        isinstance(node, ast.Attribute)
+        and isinstance(node.value, ast.Name)
+        and node.value.id == "builtins"
+        and node.attr in {"int", "float"}
+    )
+
+
+def _operator_call(node: ast.Call) -> tuple[str | None, list[ast.expr]]:
+    """The settled engine head and operands of one explicit builder call."""
+    parts = _expression_parts(node)
+    head = _symbol_head(parts[0]) if parts else None
+    reached = _factory(node.func)
+    called = reached[1] if reached is not None else None
+    spoken = called
+    if called is not None and isinstance(node.func, ast.Attribute):
+        try:
+            spoken = operator_attribute_target(called) or called
+        except AttributeError:
+            spoken = called
+    operator = spoken if spoken in OPERATOR_HEADS else head
+    return operator, (parts[1:] if parts is not None else list(node.args))
+
+
+def _owned_nodes(function: ast.FunctionDef | ast.AsyncFunctionDef) -> list[ast.AST]:
+    """Nodes compiled in this definition, excluding nested scopes."""
+    result: list[ast.AST] = []
+    pending = list(function.body)
+    while pending:
+        node = pending.pop()
+        result.append(node)
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef, ast.Lambda)):
+            continue
+        pending.extend(ast.iter_child_nodes(node))
+    return result
+
+
+def _target_names(node: ast.AST | None) -> set[str]:
+    """Names one assignment, loop, context or pattern binds."""
+    if node is None:
+        return set()
+    if isinstance(node, ast.Name):
+        return {node.id}
+    if isinstance(node, (ast.MatchAs, ast.MatchStar)):
+        names = {node.name} if node.name is not None else set()
+        if isinstance(node, ast.MatchAs):
+            names.update(_target_names(node.pattern))
+        return names
+    if isinstance(node, ast.MatchMapping):
+        names = {node.rest} if node.rest is not None else set()
+        for pattern in node.patterns:
+            names.update(_target_names(pattern))
+        return names
+    names: set[str] = set()
+    for child in ast.iter_child_nodes(node):
+        names.update(_target_names(child))
+    return names
+
+
+def _native_number_expression(
+    node: ast.expr,
+    function: ast.FunctionDef | ast.AsyncFunctionDef,
+    native_names: set[str],
+) -> bool:
+    """Mirror the compiler's proof for syntax relevant to the idiom gate."""
+    if isinstance(node, ast.Constant):
+        return type(node.value) in {int, float}
+    if isinstance(node, ast.Name):
+        return node.id in native_names
+    if isinstance(node, ast.UnaryOp):
+        return (
+            isinstance(node.op, (ast.UAdd, ast.USub))
+            and _native_number_expression(node.operand, function, native_names)
+        )
+    if isinstance(node, ast.BinOp):
+        return (
+            type(node.op) in _NATIVE_BINOP_TYPES
+            and _native_number_expression(node.left, function, native_names)
+            and _native_number_expression(node.right, function, native_names)
+        )
+    if isinstance(node, ast.IfExp):
+        return (
+            _native_number_expression(node.body, function, native_names)
+            and _native_number_expression(node.orelse, function, native_names)
+        )
+    if isinstance(node, ast.NamedExpr):
+        return _native_number_expression(node.value, function, native_names)
+    if not isinstance(node, ast.Call):
+        return False
+    # The compiler does not infer a numeric result from an explicit engine
+    # call. Keeping that boundary exact matters for a surrounding operator:
+    # `fn.add(a, b) * 2` still takes Python's protocol path today.
+    return (
+        isinstance(node.func, ast.Name)
+        and node.func.id == function.name
+        and _exact_number_annotation(function.returns)
+    )
+
+
+def _native_names(function: ast.FunctionDef | ast.AsyncFunctionDef) -> set[str]:
+    """Names native on every binding site in one lowered definition."""
+    bindings: dict[str, list[ast.expr | bool]] = defaultdict(list)
+    arguments = [
+        *function.args.posonlyargs,
+        *function.args.args,
+        *function.args.kwonlyargs,
+    ]
+    for argument in arguments:
+        bindings[argument.arg].append(_exact_number_annotation(argument.annotation))
+    if function.args.vararg is not None:
+        bindings[function.args.vararg.arg].append(False)
+    if function.args.kwarg is not None:
+        bindings[function.args.kwarg.arg].append(False)
+
+    for node in _owned_nodes(function):
+        if isinstance(node, (ast.Assign, ast.AnnAssign, ast.NamedExpr)):
+            value = node.value
+            targets = node.targets if isinstance(node, ast.Assign) else [node.target]
+            for target in targets:
+                for name in _target_names(target):
+                    bindings[name].append(value)
+        elif isinstance(node, (ast.AugAssign, ast.For, ast.AsyncFor, ast.comprehension)):
+            for name in _target_names(node.target):
+                bindings[name].append(False)
+        elif isinstance(node, (ast.With, ast.AsyncWith)):
+            for item in node.items:
+                for name in _target_names(item.optional_vars):
+                    bindings[name].append(False)
+        elif isinstance(node, ast.ExceptHandler) and node.name is not None:
+            bindings[node.name].append(False)
+        elif isinstance(node, ast.Match):
+            for case in node.cases:
+                for name in _target_names(case.pattern):
+                    bindings[name].append(False)
+
+    native: set[str] = set()
+    changed = True
+    while changed:
+        changed = False
+        for name, sources in bindings.items():
+            if name in native or not sources:
+                continue
+            if all(
+                source is True
+                or (
+                    isinstance(source, ast.expr)
+                    and _native_number_expression(source, function, native)
+                )
+                for source in sources
+            ):
+                native.add(name)
+                changed = True
+    return native
+
+
+def _lowered_owner(
+    node: ast.AST,
+    parents: dict[int, ast.AST],
+) -> ast.FunctionDef | ast.AsyncFunctionDef | None:
+    """Nearest lowered function owning node, stopping at every nested scope."""
+    current = parents.get(id(node))
+    while current is not None:
+        if isinstance(current, (ast.Lambda, ast.ClassDef)):
+            return None
+        if isinstance(current, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            return current if _decorated(current, LOWERING_DECORATORS) else None
+        current = parents.get(id(current))
+    return None
 
 
 def _rung_reason(tree: ast.Module) -> str | None:
@@ -1132,9 +1304,9 @@ def idiom(twin: Path) -> list[str]:
     A twin avoiding MeTTa source text can still be MeTTa source text with
     Python punctuation, which is the failure this catches: `S["merge"]` where
     `S.merge` reads, `Expression((S["="], a, b))` where `S["="](a, b)` reads,
-    and `Expression((S["+"], a, b))` where `a + b` already builds that term.
-    The design
-    authority is ai-python-first-revamp-discussion.md, sections 9c and 9k.
+    and `Expression((S["+"], a, b))` where proven-native `a + b` builds that
+    identical term. Untyped operators invoke Python's live protocol instead,
+    so an explicit relational engine head remains legal there.
     A twin that declares `RUNG = "<reason>"` is exempt, because a drop with a
     stated reason is what the ladder is for.
     """
@@ -1149,18 +1321,16 @@ def idiom(twin: Path) -> list[str]:
         for number, line in enumerate(twin.read_text(encoding="utf-8").splitlines(), 1)
         if RUNG_LINE.search(line)
     }
-    # The operator rule below only holds where an operator would BUILD the
-    # term, which is inside a lowered body. Outside one `ground(5) + 5`
-    # computes 10 and `S.x == 1` is Python's own structural equality, so naming
-    # the head is the deliberate spelling [found 2026-08-22: 33 findings in
-    # twins/libraries, every one of this shape and none of them a defect].
-    lowered = {
-        id(inner)
-        for node in ast.walk(tree)
-        if isinstance(node, (ast.FunctionDef, ast.ClassDef))
-        and _decorated(node, LOWERING_DECORATORS)
-        for inner in ast.walk(node)
+    # The operator rule below holds only where the compiler's exact numeric
+    # proof makes syntax build the SAME engine term. Outside a lowered body,
+    # or with a match-bound/untyped operand, the explicit head deliberately
+    # selects a different contract.
+    parents = {
+        id(child): parent
+        for parent in ast.walk(tree)
+        for child in ast.iter_child_nodes(parent)
     }
+    native_by_owner: dict[int, set[str]] = {}
     findings: list[tuple[int, str]] = [
         (node.lineno, "twin() yields, so it mirrors the example FORM BY FORM; "
                       "a twin is an ordinary function that does what the "
@@ -1203,22 +1373,7 @@ def idiom(twin: Path) -> list[str]:
                 )
             reached = _factory(node.func)
             called = reached[1] if reached is not None else None
-            # An operator WORD written at a factory call resolves to its head
-            # before the operator rule, so `S.eq(a, b)` in a compiled body
-            # reports as the transliteration of `a == b` it now stores. Only
-            # the ATTRIBUTE door consults, exactly as the compiler does:
-            # `S["eq"](a, b)` is the exact door for the data symbol `eq`,
-            # which the word table took from the attribute spelling, and
-            # agents A and F both measured the undistinguished form
-            # misreporting it. The two composite words raise in the table;
-            # the compiler refuses them itself, so a raise is no resolution.
-            spoken = called
-            if called is not None and isinstance(node.func, ast.Attribute):
-                try:
-                    spoken = operator_attribute_target(called) or called
-                except AttributeError:
-                    spoken = called
-            operator = spoken if spoken in OPERATOR_HEADS else head
+            operator, operands = _operator_call(node)
             dissolved = DISSOLVED.get(called or "") or DISSOLVED.get(head or "")
             if dissolved is not None:
                 findings.append((
@@ -1226,17 +1381,28 @@ def idiom(twin: Path) -> list[str]:
                     f"the head {(called or head)!r} is {dissolved}",
                 ))
             # At the operator's OWN arity only: `S["+"](1)` is a partial
-            # application, which Python has no operator spelling for.
-            arity = len(parts) - 1 if parts is not None else len(node.args)
+            # application, which Python has no operator spelling for. Every
+            # operand must carry the same native proof the compiler requires.
+            owner = _lowered_owner(node, parents)
+            if owner is not None and id(owner) not in native_by_owner:
+                native_by_owner[id(owner)] = _native_names(owner)
             if (
                 operator in OPERATOR_HEADS
-                and id(node) in lowered
-                and arity == (1 if operator == "not" else 2)
+                and owner is not None
+                and len(operands) == 2
+                and all(
+                    _native_number_expression(
+                        operand,
+                        owner,
+                        native_by_owner[id(owner)],
+                    )
+                    for operand in operands
+                )
             ):
                 findings.append((
                     node.lineno,
-                    f"the head {operator!r} is what a Python operator writes "
-                    f"inside a compiled body",
+                    f"the head {operator!r} has proven-native operands, so "
+                    f"Python operator syntax writes the identical term",
                 ))
     return [
         f"line {line}: {what}"
@@ -1491,7 +1657,7 @@ def repinned(
             "an empirical envelope is a claim about a protocol's spread, not a "
             "point; widen it with --observe and record the observations"
         )
-        raise ValueError(msg)
+        raise ValueError(msg)  # noqa: TRY004 -- valid BUDGET syntax, invalid for point re-pinning
     if not reason.strip():
         msg = "a re-pin states the mechanism that moved the count"
         raise ValueError(msg)
@@ -1529,6 +1695,7 @@ class Run:
     digest: str | None = None
     digest_error: str | None = None
     equations: tuple[str, ...] = ()
+    type_declarations: tuple[str, ...] = ()
 
 
 _PREAMBLE = (
@@ -1553,6 +1720,10 @@ _EPILOGUE = (
     "equations = sorted(str(_canonical(S['='](row.head, row.body))) "
     "for row in m.match(S['='](V.head, V.body)))\n"
     "print('" + EQUATIONS + "' + json.dumps(equations, separators=(',', ':')))\n"
+    "type_declarations = sorted(str(_canonical(S[':'](row.head, row.type))) "
+    "for row in m.match(S[':'](V.head, V.type)))\n"
+    "print('" + TYPE_DECLARATIONS + "' + "
+    "json.dumps(type_declarations, separators=(',', ':')))\n"
     "try:\n"
     "    print('" + DIGEST + "' + m.digest())\n"
     "except Exception as error:\n"
@@ -1568,6 +1739,7 @@ def _read(text: str, outcome: parity.Outcome) -> Run:
     digest: str | None = None
     digest_error: str | None = None
     equations: tuple[str, ...] = ()
+    type_declarations: tuple[str, ...] = ()
     for line in text.splitlines():
         if line.startswith(COST):
             cost = int(line[len(COST):].strip())
@@ -1579,7 +1751,17 @@ def _read(text: str, outcome: parity.Outcome) -> Run:
             digest_error = json.loads(line[len(DIGEST_ERROR):])
         elif line.startswith(EQUATIONS):
             equations = tuple(json.loads(line[len(EQUATIONS):]))
-    return Run(outcome, cost, heads, digest, digest_error, equations)
+        elif line.startswith(TYPE_DECLARATIONS):
+            type_declarations = tuple(json.loads(line[len(TYPE_DECLARATIONS):]))
+    return Run(
+        outcome,
+        cost,
+        heads,
+        digest,
+        digest_error,
+        equations,
+        type_declarations,
+    )
 
 
 def _launch(source: str, root: Path) -> Run:
@@ -1952,14 +2134,28 @@ def _stored(relative: str, left: Run, right: Run) -> list[str]:
 
     example_only = _equation_surplus(left.equations, right.equations)
     twin_only = _equation_surplus(right.equations, left.equations)
+    example_types = _equation_surplus(
+        left.type_declarations, right.type_declarations
+    )
+    twin_types = _equation_surplus(
+        right.type_declarations, left.type_declarations
+    )
+    diagnostics = []
     if example_only or twin_only:
-        detail = (
+        diagnostics.append(
             "equation multiset "
             f"example-only={json.dumps(example_only, separators=(',', ':'))} "
             f"twin-only={json.dumps(twin_only, separators=(',', ':'))}"
         )
-    else:
-        detail = "equations agree, so non-equation stored content differs"
+    if example_types or twin_types:
+        diagnostics.append(
+            "type-declaration multiset "
+            f"example-only={json.dumps(example_types, separators=(',', ':'))} "
+            f"twin-only={json.dumps(twin_types, separators=(',', ':'))}"
+        )
+    detail = "; ".join(diagnostics) or (
+        "equations and type declarations agree, so other stored content differs"
+    )
     return [
         f"{relative}: stored content differs across processes: example digest "
         f"{left.digest}, twin digest {right.digest}; {detail}"

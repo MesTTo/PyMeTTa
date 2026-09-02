@@ -81,4 +81,8 @@ def twin(m):
 #: eval), the -= drain-law repair, and fourteen twins healed to the arbiter
 #: [measured 2026-09-01: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=51b792423cec5787614d1488c0793b8a50eaa6fc].
-BUDGET = 1175
+#: RE-PINNED 2026-09-02, 1175 to 1184 (+9), static contract discharge and
+#: policy-stable recompilation [measured 2026-09-02: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=c00341f0ff9d83d1b9338ca86ad51708eaf07ebd].
+BUDGET = 1184

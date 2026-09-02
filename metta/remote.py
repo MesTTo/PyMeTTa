@@ -16,7 +16,7 @@ Guarantees:
     ahead, so taking two answers of an enumeration costs two answers'
     engine work whatever the enumeration's size [measured 2026-08-20 over
     real HTTP: 1,250 inferences for two answers whether the space held 10
-    atoms or 10,000, against 1,839 and 1,490,407 for the eager door]
+    atoms or 10,000, against 1,839 and 1,490,407 for the eager method]
     [tested test_two_answers_cross_the_wire_without_the_third_being_computed]
   - a cursor nobody pulls from is released after cursor_idle seconds and
     a gateway refuses to hold more than cursor_limit at once [tested
@@ -53,6 +53,10 @@ Guarantees:
   - serve compares Bearer credentials with hmac.compare_digest before
     consulting the authorization callback [tested
     test_bearer_token_uses_constant_time_comparison]
+  - an omitted payload space resolves to the gateway's served context for both
+    authorization and execution [tested:
+    test_an_omitted_remote_space_cannot_cross_the_authorization_boundary;
+    commit=af5821f5ffb7ce186e516706f003d02f5c1d3b4a]
   - connect refuses non-HTTP URLs and refuses credentials over plain HTTP
     [tested test_remote_connect_refuses_non_http_urls,
     test_remote_connect_refuses_credentials_over_http]
@@ -60,6 +64,11 @@ Guarantees:
     waits for both owned threads to finish [tested
     test_remote_serve_reports_worker_startup_failure,
     test_remote_close_waits_for_worker_detach]
+  - a worker call that times out is abandoned before it can start, or its
+    running engine goal is interrupted and drained before later work starts
+    [tested:
+    test_a_timed_out_remote_worker_never_runs_or_finishes_the_abandoned_write;
+    commit=d64d3cc64e1e7b528e0043a67cb05f6c02da455f]
   - the HTTP boundary rejects ambiguous lengths, oversized bodies, and
     non-object JSON with a response instead of dropping the connection
     [tested test_remote_server_rejects_malformed_request_bodies]
@@ -107,12 +116,12 @@ from urllib.parse import urlsplit
 
 from . import _json
 from ._atom_wire import _atom_from_wire
-from ._engine import bridge
+from ._engine import bridge, runtime
 from ._network import HTTPEndpoint, validated_timeout
 from ._space import Space as MeTTa
 from ._space_objects import Cursor
 from .atoms import Atom, Expression, Variable, substitute, unify
-from .errors import MettaError
+from .errors import Interrupted, MettaError
 from .foreign import SpaceProvider
 
 logger = logging.getLogger(__name__)
@@ -130,7 +139,7 @@ __all__ = [
 
 #: A transport: one callable taking (operation, payload dict) and answering
 #: the decoded JSON dict. connect() builds the HTTP one; tests may pass any
-#: callable with the same contract, the DAS gateway's own injection seam.
+#: callable with the same contract, the DAS gateway's own injection point.
 Transport = Callable[[str, dict], dict]
 
 
@@ -160,7 +169,7 @@ _MAX_REQUEST_BYTES = 16 * 1024 * 1024
 
 #: How many answers one reply of the ask/next lifecycle may carry when the
 #: request names no batch. One, so a client that never asks for more never
-#: pays for one, which is the whole point of the lazy door; pengines picks
+#: pays for one, which is the whole point of the lazy method; pengines picks
 #: the same default for the same field, its `chunk`
 #: [source 2026-08-20: /usr/lib/swi-prolog/library/ext/pengines/pengines.pl,
 #: pengine_ask/3's chunk(1) option].
@@ -418,7 +427,7 @@ class RemoteSpace(SpaceProvider):
     against the local pattern, so a lying or stale remote can only cost
     time, not soundness.
 
-    `batch` chooses which door match() uses, and the choice is the one
+    `batch` chooses how match() retrieves answers, and the choice is the one
     match() and stream() make in-process. Left None, match() is the eager
     /match: one crossing carrying the whole answer set, which is what a
     space whose answers fit in an HTTP body wants. Set to a count, match()
@@ -503,12 +512,12 @@ class RemoteSpace(SpaceProvider):
         batch: int = _DEFAULT_BATCH,
         limit: int | None = None,
     ) -> RemoteCursor:
-        """The lazy door: answers pulled a chunk at a time, so taking two
+        """The lazy method: answers pulled a chunk at a time, so taking two
         of a large enumeration costs the server two answers' work instead
         of the whole join's.
 
-        match() is the eager door and stays it, the split match() and
-        stream() already make in-process. Reach for this to take answers
+        match() remains eager, matching the in-process split between match()
+        and stream(). Reach for this to take answers
         until you have seen enough, or when the answer set is larger than
         one HTTP body.
 
@@ -527,7 +536,7 @@ class RemoteSpace(SpaceProvider):
 
     def server_capabilities(self) -> dict[str, Any]:
         """The server's own advertisement from GET /health: `capabilities`
-        names the seam operations it admits, so a client can ask before
+        names the protocol operations it admits, so a client can ask before
         writing, and `bound` says whether /match honors the bound field
         exactly. A transport built by connect() knows its URL; a
         hand-built transport must carry its own `health` callable, or
@@ -572,7 +581,7 @@ class RemoteSpace(SpaceProvider):
         self._transport("add", {"space": self._space, "atom": atom.to_wire()})
 
     def add_many(self, atoms: list[Atom]) -> None:
-        """One request carries the batch, the engine's own bulk-door law on
+        """One request carries the batch, the engine's own bulk-write law on
         the wire: a batch is a transport optimisation and never a semantic
         one, and the engine already routes only plain stores through it.
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
@@ -587,8 +596,8 @@ class RemoteSpace(SpaceProvider):
 
 
 #: Every live server in THIS process, keyed by the address it accepts on.
-#: the space() URL door reads it to refuse a configuration that cannot work; Server
-#: registers on construction and releases on close.
+#: The space() URL form reads it to refuse a configuration that cannot work;
+#: Server registers on construction and releases on close.
 _LIVE_SERVERS: dict[tuple[str, int], tuple[str, ...]] = {}
 _LIVE_SERVERS_LOCK = threading.Lock()
 #: The spellings of one loopback address, so a server bound to 127.0.0.1 is
@@ -655,7 +664,7 @@ def _refuse_this_process(
     The configuration is what is wrong, not the ordering.
 
     A plain HTTP call to the same server from outside an evaluation works and
-    is not refused here; the guard is on the space() URL door, whose spaces
+    is not refused here; the guard is on the space() URL form, whose spaces
     are only ever matched from inside one.
     """
     if not isinstance(url, str):
@@ -830,7 +839,7 @@ def connect(
 
 
 #: The engine's own wording when a binding has no finite wire form, which is
-#: how the eager door learns a candidate is a rational tree
+#: how the eager method learns a candidate is a rational tree
 #: [source: extensions/python/metta/shim.pl, metta_py_wire_refuse/0].
 _RATIONAL_TREE = "rational-tree binding has no finite wire form"
 
@@ -894,9 +903,9 @@ def _read_out(atom: Atom) -> Atom:
 def _wire(atoms: list[Atom]) -> list:
     """The wire forms of the atoms a reply answers, each named by _read_out.
 
-    Every door names them the same way, so the eager reply and the chunks of
-    the lazy one are the same atoms rather than the same atoms under two
-    spellings, and one stored atom read twice is one atom.
+    Both response paths name them the same way, so the eager reply and the
+    chunks of the lazy one are the same atoms rather than the same atoms under
+    two spellings, and one stored atom read twice is one atom.
     """
     return [_read_out(atom).to_wire() for atom in atoms]
 
@@ -939,7 +948,7 @@ def _atom_of(payload: dict, name: str) -> Atom:
 
 
 def _atoms_of(payload: dict, name: str) -> list[Atom]:
-    """The list form, for the bulk door."""
+    """The list form, for the bulk request."""
     wires = payload.get(name)
     if not isinstance(wires, list):
         msg = f"this operation needs the `{name}` field, holding a list of wire atoms"
@@ -1185,7 +1194,7 @@ class Gateway:
     # ------------------------------------------------------------ operations
 
     def _space(self, payload: dict) -> MeTTa:
-        name = payload.get("space", "&self")
+        name = payload.get("space", self._metta.name)
         if self._allowed is not None and name not in self._allowed:
             msg = f"space {name!r} is not served"
             raise MettaError(msg)
@@ -1196,11 +1205,11 @@ class Gateway:
         )
 
     def _match(self, payload: dict) -> dict:
-        """The eager door: one reply carrying the whole answer set.
+        """The eager method: one reply carrying the whole answer set.
 
         match()'s reading on the wire, and it costs what match() costs, the
-        join computed to the end before anything crosses. /ask is the other
-        door, and both take their candidates from _candidates, so the two
+        join computed to the end before anything crosses. /ask is the streaming
+        endpoint, and both take their candidates from _candidates, so the two
         answer the same set for every pattern.
         """
         space = self._space(payload)
@@ -1232,8 +1241,8 @@ class Gateway:
     def _collapsed(self, space: MeTTa, pattern: Atom) -> list[Atom]:
         """One engine-side match, collapsed to the instantiations it answers.
 
-        The whole answer set in ONE crossing, which is what makes the eager
-        door eager; the lazy door pays a crossing per chunk instead.
+        The whole answer set crosses once; stream() pays a crossing per chunk
+        instead.
         """
         with space.bind(pat=pattern):
             groups = space.run("!(collapse (match (context-space) pat pat))")
@@ -1294,7 +1303,7 @@ class Gateway:
         return {"atoms": _wire(atoms), "cursor": token}
 
     def _ask(self, payload: dict) -> dict:
-        """The lazy door: open a cursor and answer its first chunk.
+        """Open a cursor and answer the first chunk for the streaming endpoint.
 
         stream()'s reading on the wire. The reply's `cursor` is the
         continuation and doubles as the more-flag, because a finished
@@ -1353,7 +1362,7 @@ class Gateway:
             "ok": True,
             "atoms": len(self._metta),
             "protocol": 3,
-            # The reflection the in-process seam has: what this server
+            # The reflection the in-process interface has: what this server
             # admits, so a client can ask before writing.
             # add-many is the registry's own hyphenated spelling
             # (foreign.CAPABILITIES); the WIRE verb stays /add_many.
@@ -1363,16 +1372,30 @@ class Gateway:
         }
 
 
+@dataclass
+class _RemoteRequest:
+    """One worker request and the caller-owned channel for its outcome."""
+
+    operation: str
+    payload: dict
+    reply: queue.SimpleQueue
+    abandoned: threading.Event
+    interrupted: bool = False
+
+
 class _RemoteWorker:
     """One attached Prolog engine serving serialized remote requests."""
 
     def __init__(self, handle: Callable[[str, dict], dict]) -> None:
         self._handle = handle
         self._lock = threading.Lock()
+        self._transition = threading.Lock()
         self._started: queue.Queue[BaseException | None] = queue.Queue(maxsize=1)
         self._state = "unstarted"
         self._failures: list[BaseException] = []
-        self._work: queue.Queue[tuple[str, dict, queue.SimpleQueue] | None] = queue.Queue()
+        self._current: _RemoteRequest | None = None
+        self._swi_thread: Any = None
+        self._work: queue.Queue[_RemoteRequest | None] = queue.Queue()
         self.thread = threading.Thread(
             target=self._run,
             name="metta-remote-engine",
@@ -1417,10 +1440,32 @@ class _RemoteWorker:
                 msg = f"remote engine worker is {self._state}"
                 raise MettaError(msg)
             reply: queue.SimpleQueue = queue.SimpleQueue()
-            self._work.put((operation, payload, reply))
+            request = _RemoteRequest(
+                operation,
+                payload,
+                reply,
+                threading.Event(),
+            )
+            self._work.put(request)
         try:
             return reply.get(timeout=timeout)
         except queue.Empty as exc:
+            request.abandoned.set()
+            try:
+                self._interrupt_if_running(request)
+            except BaseException as cancellation_error:  # noqa: BLE001 -- a failed cancellation leaves an operation whose outcome is unknown
+                timed_out = TimeoutError(
+                    f"remote engine operation {operation!r} did not finish "
+                    f"within {timeout:g} seconds"
+                )
+                timed_out.__cause__ = exc
+                cancellation_message = (
+                    "the remote engine operation timed out and could not be cancelled"
+                )
+                raise BaseExceptionGroup(
+                    cancellation_message,
+                    [timed_out, cancellation_error],
+                ) from None
             msg = f"remote engine operation {operation!r} did not finish within {timeout:g} seconds"
             raise TimeoutError(
                 msg
@@ -1482,7 +1527,8 @@ class _RemoteWorker:
                 except queue.Empty:
                     break
                 if item is not None:
-                    pending.append(item[2])
+                    item.abandoned.set()
+                    pending.append(item.reply)
         for reply in pending:
             reply.put(("error", f"{type(failure).__name__}: {failure}"))
         if pending:
@@ -1492,6 +1538,8 @@ class _RemoteWorker:
         try:
             janus = bridge()
             janus.attach_engine()
+            with self._lock:
+                self._swi_thread = janus.engine()
         except BaseException as exc:  # noqa: BLE001
             self._record_failure(exc)
             self._started.put(exc)
@@ -1509,6 +1557,45 @@ class _RemoteWorker:
                 self._record_failure(exc)
             else:
                 logger.debug("remote engine server worker detached its Prolog engine")
+            finally:
+                with self._lock:
+                    self._swi_thread = None
+
+    def _drain(self) -> None:
+        """Consume only a stale cancellation signal before later work."""
+        janus = bridge()
+        try:
+            janus.query_once("true")
+        except janus.PrologError as exc:
+            try:
+                runtime()._raise(exc)
+            except Interrupted:
+                logger.debug("discarded a stale remote-worker interrupt: %s", exc)
+
+    def _interrupt_if_running(self, request: _RemoteRequest) -> bool:
+        """Interrupt only ``request`` when it has started running."""
+        with self._lock:
+            swi_thread = self._swi_thread
+        with self._transition:
+            if self._current is not request:
+                return False
+            if swi_thread is None:
+                msg = "the remote worker has a request but no published Prolog engine"
+                raise RuntimeError(msg)
+            # This is AsyncMeTTa's cancellation protocol: signal the exact
+            # attached engine, then drain a signal that raced completion
+            # before starting another request [source:
+            # extensions/python/metta/aio.py,
+            # _EngineThread.interrupt_if_running;
+            # commit=076eade6b1fe254379b2ae0f11ff56f36b4af1e4].
+            request.interrupted = True
+            bridge().query_once(
+                "thread_signal(T, throw(error(metta_control_signal(interrupted, none), "
+                "context(metta, interrupted))))",
+                {"T": swi_thread},
+            )
+            logger.debug("sent an interrupt to the remote engine worker")
+            return True
 
     def _work_loop(self) -> None:
         """Serve one request at a time until asked to stop."""
@@ -1516,19 +1603,44 @@ class _RemoteWorker:
             item = self._work.get()
             if item is None:
                 return
-            operation, payload, reply = item
+            request = item
+            with self._transition:
+                if request.abandoned.is_set():
+                    continue
+                self._current = request
+            fatal: BaseException | None = None
+            outcome: tuple[str, Any]
             try:
-                reply.put(("ok", self._handle(operation, payload)))
+                outcome = ("ok", self._handle(request.operation, request.payload))
             except Exception as exc:
                 logger.warning(
                     "remote engine operation %s failed",
-                    operation,
+                    request.operation,
                     exc_info=True,
                 )
-                reply.put(("error", str(exc)))
+                outcome = ("error", str(exc))
             except BaseException as exc:  # noqa: BLE001
-                reply.put(("error", str(exc)))
-                self._fail_running(exc)
+                outcome = ("error", str(exc))
+                fatal = exc
+            with self._transition:
+                self._current = None
+                try:
+                    if request.interrupted:
+                        self._drain()
+                except BaseException as exc:  # noqa: BLE001 -- an unexpected transition failure poisons the worker
+                    fatal = (
+                        exc
+                        if fatal is None
+                        else BaseExceptionGroup(
+                            "the remote request and its transition drain both failed",
+                            [fatal, exc],
+                        )
+                    )
+                    outcome = ("error", str(fatal))
+                if not request.abandoned.is_set():
+                    request.reply.put(outcome)
+            if fatal is not None:
+                self._fail_running(fatal)
                 return
 
 

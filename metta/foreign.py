@@ -15,6 +15,10 @@ Guarantees:
     test_a_context_that_declares_events_serves_them_and_one_that_does_not_refuses]
   - providers may decline one concrete request through should_run before its
     operation executes [tested test_provider_can_decline_one_request]
+  - a BulkAdder is only a transport optimisation: every atom passes the same
+    add policy before the batch method runs, and an empty batch is a no-op
+    [tested: test_a_batch_preflights_every_add_policy_before_one_bulk_write;
+    commit=06e553e2a31cd7e54b49df9b7759c63c1a5455ea]
   - provider registration changes Python state only after the engine accepts
     the same change [tested test_provider_registration_is_transactional]
   - a provider's own refusal sentence reaches the caller, and "implements it
@@ -91,7 +95,7 @@ __all__ = [
 ]
 
 
-#: Every operation the seam names, in the engine's own vocabulary.
+#: Every operation the provider interface names, in the engine's own vocabulary.
 #:
 #: `rules` is the odd one and the one that matters most: it says this space's
 #: atoms include EQUATIONS, which in MeTTa is the difference between a data
@@ -162,7 +166,7 @@ class MatchClassifier(Protocol):
     everything else, and one flag for the whole provider would force it to
     claim the weaker answer everywhere.
 
-    This is Apache DataFusion's TableProviderFilterPushDown, whose Exact rung
+    This is Apache DataFusion's TableProviderFilterPushDown, whose Exact variant
     reads "Your source guarantees that no output rows will have a false value
     for this predicate", against Inexact, "Your source has the ability to
     reduce the data produced, but the output may still include rows that do
@@ -173,7 +177,7 @@ class MatchClassifier(Protocol):
     "Pushes down filters, and returns filters that need to be evaluated after
     scanning"].
 
-    DataFusion's third rung, Unsupported, is absent here. It exists there
+    DataFusion's third variant, Unsupported, is absent here. It exists there
     because the planner decides whether to SEND a filter at all; the pattern
     is the only thing a provider is given, so there is nothing to withhold,
     and a provider that ignores it is inexact in the only sense that acts on
@@ -251,8 +255,8 @@ class Planner(Protocol):
     pattern stops constraining the query. Each row is a list of instantiated
     atoms, one per claimed pattern, in the order you claimed them.
 
-    A claim is EXACT, which is the one place this seam differs from the rest of
-    it. Elsewhere you may over-approximate because the engine re-unifies each
+    A claim is EXACT, which is the one place this contract differs from the
+    rest. Elsewhere you may over-approximate because the engine re-unifies each
     candidate cheaply; there is no cheap re-check for a join, so a provider that
     cannot answer exactly must decline.
     """
@@ -306,10 +310,10 @@ class SpaceProvider:
     an identity rather than a spelling and the engine renames on the way in.
     Fuzzing the round trip with 500 examples found the rename in 174 of them
     and nothing else: ground atoms are exact in both directions, and what a
-    provider stores comes back to it unchanged. It is not a seam defect, the
-    native path does the same, but a provider that PERSISTS atoms persists the
-    renamed form, and a rule editor, a serializer or a diff built on this will
-    meet it. If you need the source spelling, keep it yourself.
+    provider stores comes back to it unchanged. It is not a wire-protocol
+    defect, the native path does the same, but a provider that PERSISTS atoms
+    persists the renamed form, and a rule editor, a serializer or a diff built
+    on this will meet it. If you need the source spelling, keep it yourself.
     """
 
     def __init_subclass__(cls, **kwargs: Any) -> None:  # noqa: D105  -- the Python data-model hook is defined by its name and enclosing type contract
@@ -347,7 +351,7 @@ class SpaceProvider:
         the same promise the engine acts on.
 
         None is the default and it is the safe one. Whether a space can emit
-        change events is a promise about the SPACE, not something the seam
+        change events is a promise about the SPACE, not something the interface
         can read off the methods: a store whose every write comes through
         this engine gets per-write-exactly for free from the engine's own
         write hooks, and one whose contents also change elsewhere gets
@@ -614,7 +618,7 @@ def _wire_stream(candidates: Iterable[Any], *, answers: bool = True):
             return
         except Exception as error:
             # Classified at the crossing, where isinstance still sees the
-            # real class: a transport failure re-raises under the seam's
+            # real class: a transport failure re-raises under the protocol's
             # own name, so the engine's declared error modes can hold the
             # trichotomy without parsing Python class names.
             if not isinstance(error, TransportFailure) and is_transport_failure(error):
@@ -902,9 +906,12 @@ def foreign_plan(space: str, pattern_wires: list):
 
 
 def foreign_add_many(space: str, atom_wires: list) -> bool:
+    if not atom_wires:
+        return True
     provider = _provider(space)
     atoms = [_atom_from_wire(wire) for wire in atom_wires]
-    _require_provider(provider, space, "add", "add-atom", atom=atoms[0])
+    for atom in atoms:
+        _require_provider(provider, space, "add", "add-atom", atom=atom)
     cast(BulkAdder, provider).add_many(atoms)
     return True
 

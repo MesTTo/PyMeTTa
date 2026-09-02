@@ -11,8 +11,9 @@ The original's `and` is a Python keyword, so the compiled body takes the exact
 static-function escape, `fn["and"]`, while each comparison uses Python's
 operator spelling and lowers to the corresponding engine relation.
 
-The historical stored-equation divergence is lifted. The example and twin
-currently produce the same cross-process digest.
+The historical stored-equation divergence is lifted. The annotation publishes
+its type declaration, `(: in-range (-> Number Number Number Bool))`, so the
+whole-space digest deliberately differs even though the equation agrees.
 """
 
 from metta import fn
@@ -32,9 +33,11 @@ def twin(m):
     assert abs(log(E, fn.exp_math(3.0)).one() - 3.0) < 1.0e-12
 
     @m.define
-    def in_range(lo, hi, x):
+    def in_range(lo: float, hi: float, x: float) -> bool:
         # (= (in-range $lo $hi $x) (and (<= $lo $x) (<= $x $hi)))
-        return fn["and"](lo <= x, x <= hi)  # rung: & is refused inside a compiled body, and `and` is a keyword
+        return fn["and"](
+            lo <= x, x <= hi
+        )  # rung: `and` is a keyword, while fn names its engine relation
 
     # The random generators answer inside their bounds, every draw.
     assert in_range(1, 6, fn.random_int(1, 6)) == [True]
@@ -115,4 +118,26 @@ def twin(m):
 #: structure, and the removal doors changed meaning where a twin spells one
 #: [measured 2026-09-01: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=c6a40460b1db341198a6150e3600f502831a6e83].
-BUDGET = 6952
+#: RE-PINNED 2026-09-01, 6952 to 7004 (+52), generic Python operators now
+#: dispatch through live protocols while source twins explicitly name
+#: relational engine heads [measured 2026-09-01: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=e3787593132a7ece2d300397045f7415709847c9].
+#: RE-PINNED 2026-09-02, 7004 to 8221 (+1217), exact numeric annotations retain
+#: native operator heads, publish MeTTa type declarations, and leave relational
+#: heads only where static proof is unavailable [measured 2026-09-02: min-of-3
+#: serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=d0dfff1a3ee6c85472fd9b12d6e4aec007a9c301].
+#: RE-PINNED 2026-09-02, 8221 to 8808 (+587), static contract discharge and
+#: policy-stable recompilation [measured 2026-09-02: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=c00341f0ff9d83d1b9338ca86ad51708eaf07ebd].
+#: RE-PINNED 2026-09-02, 8808 to 8820 (+12), static contract discharge with
+#: policy checks confined to invalidated contracts [measured 2026-09-02: min-
+#: of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=c00341f0ff9d83d1b9338ca86ad51708eaf07ebd].
+#: RE-PINNED 2026-09-02, 8820 to 8830 (+10), P43 protects both generated
+#: policy-check fallbacks from space-local capture [measured 2026-09-02: min-
+#: of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=c00341f0ff9d83d1b9338ca86ad51708eaf07ebd].
+BUDGET = 8830

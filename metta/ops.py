@@ -67,6 +67,11 @@ Guarantees:
     operation behind it [tested:
     test_an_effectful_ground_operation_at_rule_construction_is_linted;
     commit=8d6131a9d9902c67ce8cac71e96e8362a8713561]
+  - EffectPlan exposes the engine's live named-operation analysis and lattice
+    join without executing the target [tested:
+    test_effect_plan_reports_nested_calls_without_executing_them,
+    test_effect_plan_reads_replaced_operation_classification;
+    commit=d06621ddec911922c156c79ce68b2c35318e7fc1]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -80,6 +85,7 @@ import importlib as _importlib
 import inspect
 import typing
 from collections.abc import Callable, Iterable
+from dataclasses import dataclass
 from typing import Any, Literal
 
 from ._api_types import _DEFAULT_SPACE, _OperationName, _SpaceId
@@ -108,6 +114,7 @@ _CO_ITERABLE_COROUTINE = getattr(inspect, "CO_ITERABLE_COROUTINE", 0x0100)
 _CO_ASYNC_GENERATOR = getattr(inspect, "CO_ASYNC_GENERATOR", 0x0200)
 
 __all__ = [
+    "EffectPlan",
     "annotation_atom_for",
     "annotation_exprs",
     "class_declarations",
@@ -120,6 +127,14 @@ __all__ = [
     "type_atoms_for",
     "unregister",
 ]
+
+
+@dataclass(frozen=True, slots=True)
+class EffectPlan:
+    """Named operations reachable from one target and their lattice join."""
+
+    operations: tuple[tuple[str, EffectClass], ...]
+    effect: EffectClass
 
 #: The library's own space. Everything Python registers reflects here as
 #: ordinary atoms: (op name arity kind) per registered arity,
@@ -893,7 +908,7 @@ def register[**P, R](
         # Async operation settlement and FutureSpace lifecycle are lib_thread's
         # scheduler surface. Load it into the operation's declaration space
         # before compiling the host clause, so the first call cannot observe a
-        # half-installed future door [tested:
+        # half-installed future path [tested:
         # test_an_async_operation_answers_a_future_space; commit=39092863ae34184a9f955f185ff57c1ff177ec40].
         parallel_api = _importlib.import_module(f"{__package__}.parallel")
         space_api = _importlib.import_module(f"{__package__}._space")

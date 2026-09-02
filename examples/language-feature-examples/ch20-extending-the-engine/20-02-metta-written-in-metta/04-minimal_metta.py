@@ -48,21 +48,19 @@ def twin(m):
     assert m.fn.function(S.chain(S.add(1, 2), V.x, S["return"](V.x))) == [3]
 
     returned = S["return"](7)
-    assert m.eval(returned) == [returned]  # rung: `return` is an instruction of `function`, not a function of its own
+    assert m.eval(returned) == [
+        returned
+    ]  # rung: `return` is an instruction of `function`, not a function of its own
 
     failed_body = S.foo(S.bar)
     # The diagnostic carries the ORIGINAL function frame, not the bare
     # body: LeaTTa 9ea9f9d answers this exact form the same way.
-    assert m.fn.function(failed_body) == [
-        S.Error(S.function(failed_body), S.NoReturn)
-    ]
+    assert m.fn.function(failed_body) == [S.Error(S.function(failed_body), S.NoReturn)]
 
     otherwise = S["else"]
     assert m.fn.unify_mod(V.a, S.Empty, S.then, otherwise) == [S.then]
     assert m.fn.unify_mod(V.a, S[":="](S.Empty), S.then, otherwise) == [otherwise]
-    assert m.fn.unify_mod(
-        S[":="](S.a, S.b), S[":="](V.x, V.y), S.then, otherwise
-    ) == [S.then]
+    assert m.fn.unify_mod(S[":="](S.a, S.b), S[":="](V.x, V.y), S.then, otherwise) == [S.then]
     assert m.fn.unify_mod(
         (S.A, S.B, S.C, S.D, S.E),
         (S.A, S["..."], S.D, S["..."]),
@@ -78,10 +76,12 @@ def twin(m):
 
     # No case matches, so the switch answers Empty and the collapse prunes it.
     unmatched = S.mm_switch(9, cases)
-    assert m.eval(S.collapse(unmatched)) == [Expression(())]  # rung: `collapse` is what drops the Empty marker, and a Python list does not
+    assert m.eval(S.collapse(unmatched)) == [
+        Expression(())
+    ]  # rung: `collapse` is what drops the Empty marker, and a Python list does not
 
     @m.define
-    def step_down(n):
+    def step_down(n: int):
         # (= (step-down $n) (if (> $n 0) (step-down (- $n 1)) done))
         return step_down(n - 1) if n > 0 else S.done
 
@@ -94,13 +94,17 @@ def twin(m):
 
     m += S.edge(S.a, S.b)
     m += S.edge(S.a, S.c)
-    matched_edges = S.match(m, S.edge(S.a, V.y), S.found(V.y))  # rung: match's space is an ARGUMENT of the instruction under test, and the whole term is what `collapse-bind` is handed
+    matched_edges = S.match(
+        m, S.edge(S.a, V.y), S.found(V.y)
+    )  # rung: match's space is an ARGUMENT of the instruction under test, and the whole term is what `collapse-bind` is handed
     rows = m.fn.collapse_bind(matched_edges).one()
     assert rows.alpha_eq(
-        Expression((
-            (S.found(S.b), S.bindings(S["<-"](V.v, S.b))),
-            (S.found(S.c), S.bindings(S["<-"](V.v, S.c))),
-        ))
+        Expression(
+            (
+                (S.found(S.b), S.bindings(S["<-"](V.v, S.b))),
+                (S.found(S.c), S.bindings(S["<-"](V.v, S.c))),
+            )
+        )
     )
     assert m.fn.superpose_bind(rows) == [S.found(S.b), S.found(S.c)]
 
@@ -109,18 +113,19 @@ def twin(m):
         V.c,
         S.chain(S.superpose_bind(V.c), V.x, (V.x, V.y)),
     )
-    assert m.eval(S.collapse(restored)) == [  # rung: `collapse` gathers the two answers into ONE atom, which the example's own claim compares against
-        Expression(((S.found(S.b), S.b), (S.found(S.c), S.c)))
-    ]
+    assert (
+        m.eval(S.collapse(restored))
+        == [  # rung: `collapse` gathers the two answers into ONE atom, which the example's own claim compares against
+            Expression(((S.found(S.b), S.b), (S.found(S.c), S.c)))
+        ]
+    )
 
     m += equation(S.rule(S.S, 0)).to((S.S, 1, S.R))
     m += equation(S.rule(S.S, 1)).to((S.HALT, 1, S.N))
 
     assert m.fn.mm_tm(S.rule, S.S, ((), 1, ())) == [Expression(((), 1, ()))]
     assert m.fn.mm_tm(S.rule, S.S, ((), 0, (1,))) == [Expression(((1,), 1, ()))]
-    assert m.fn.mm_tm(S.rule, S.S, ((), 0, (0, 0, 1))) == [
-        Expression(((1, 1, 1), 1, ()))
-    ]
+    assert m.fn.mm_tm(S.rule, S.S, ((), 0, (0, 0, 1))) == [Expression(((1, 1, 1), 1, ()))]
 
     assert m.fn.mm_move(((), 0, (7,)), 1, S.R) == [Expression(((1,), 7, ()))]
     assert m.fn.mm_move(((9,), 0, ()), 1, S.L) == [Expression(((), 9, (1,)))]
@@ -128,7 +133,9 @@ def twin(m):
     assert m.fn.mm_move(((1,), 0, (2,)), 9, S.N) == [Expression(((1,), 9, (2,)))]
 
     assert m.fn.if_partial(TRUE, S.yes) == [S.yes]
-    assert m.eval(S.collapse(S.if_partial(FALSE, S.yes))) == [Expression(())]  # rung: collapse prunes Empty into one empty Expression; list() would materialise zero Python answers
+    assert (
+        m.eval(S.collapse(S.if_partial(FALSE, S.yes))) == [Expression(())]
+    )  # rung: collapse prunes Empty into one empty Expression; list() would materialise zero Python answers
 
 
 #: A PLACEHOLDER, not a measurement. The twins wave re-authored this file and
@@ -217,4 +224,26 @@ def twin(m):
 #: the quad twin stopped being a different program [measured 2026-09-01: min-
 #: of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=c6a40460b1db341198a6150e3600f502831a6e83].
-BUDGET = 190040
+#: RE-PINNED 2026-09-01, 190040 to 190883 (+843), generic Python operators now
+#: dispatch through live protocols while source twins explicitly name
+#: relational engine heads [measured 2026-09-01: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=e3787593132a7ece2d300397045f7415709847c9].
+#: RE-PINNED 2026-09-02, 190883 to 191033 (+150), exact numeric annotations
+#: retain native operator heads, publish MeTTa type declarations, and leave
+#: relational heads only where static proof is unavailable [measured
+#: 2026-09-02: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=d0dfff1a3ee6c85472fd9b12d6e4aec007a9c301].
+#: RE-PINNED 2026-09-02, 191033 to 193118 (+2085), static contract discharge
+#: and policy-stable recompilation [measured 2026-09-02: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=c00341f0ff9d83d1b9338ca86ad51708eaf07ebd].
+#: RE-PINNED 2026-09-02, 193118 to 193230 (+112), static contract discharge
+#: with policy checks confined to invalidated contracts [measured 2026-09-02:
+#: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=c00341f0ff9d83d1b9338ca86ad51708eaf07ebd].
+#: RE-PINNED 2026-09-02, 193230 to 193279 (+49), P43 protects both generated
+#: policy-check fallbacks from space-local capture [measured 2026-09-02: min-
+#: of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=c00341f0ff9d83d1b9338ca86ad51708eaf07ebd].
+BUDGET = 193279

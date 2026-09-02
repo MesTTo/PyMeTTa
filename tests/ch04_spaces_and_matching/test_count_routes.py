@@ -21,9 +21,15 @@ Guarantees:
       the values are then wanted [tested:
       test_a_length_evaluates_an_effect_bearing_goal_exactly_once]
     - the values-wanted hint a count source is given picks a route and never
-      an answer [tested: test_taking_an_iterator_first_does_not_change_the_answers]
+      an answer [tested: test_taking_an_iterator_first_does_not_change_the_answers,
+      test_list_materializes_a_match_without_a_second_query]
     - the retained bag survives an arbitrary generated answer multiset
       [tested: test_a_generated_answer_bag_survives_both_routes]
+    - inspecting an Answers iterator never delays its engine release through
+      a frame reference cycle [tested:
+      test_iteration_does_not_delay_answer_finalization_in_a_frame_cycle,
+      test_function_call_does_not_delay_answer_finalization_in_a_frame_cycle;
+      commit=853623455cdb02fe0afc1c815023a45c4a0eb989]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -80,6 +86,23 @@ def both_routes_agree(call) -> Counter:
         f"len() said {counted}, the bag holds {sum(first.values())}"
     )
     return first
+
+
+def two_city_route(metta, prefix: str) -> str:
+    """Register the effectful two-answer source used by lifecycle probes."""
+    name = unique(prefix)
+
+    @metta.op(name=name, effect="writesState")
+    def route(origin, destination):
+        del origin, destination
+        yield from ((S.paris, S.lyon), (S.lyon, S.nice))
+
+    return name
+
+
+def live_engines(metta) -> int:
+    """Count the SWI engines held by open answer cursors."""
+    return metta.runtime.once("aggregate_all(count, current_engine(_), N)")["N"]
 
 
 def test_a_retained_count_replays_the_bag_the_cursor_would_have_answered(metta) -> None:
@@ -235,6 +258,28 @@ def test_taking_an_iterator_first_does_not_change_the_answers(metta) -> None:
     assert fired == [0, 1, 2]
 
 
+def test_list_materializes_a_match_without_a_second_query(metta, monkeypatch) -> None:
+    """A caller already reading rows does not pre-count the same match."""
+    metta.add(S["route-list-row"](1))
+    runtime = metta.runtime
+    original = type(runtime).apply_must
+    counts: list[str] = []
+
+    def observe(self, predicate, *inputs):
+        if predicate == "metta_py_query_count_if_repeatable":
+            counts.append(predicate)
+        return original(self, predicate, *inputs)
+
+    monkeypatch.setattr(type(runtime), "apply_must", observe)
+
+    materialized = list(metta.match(S["route-list-row"](V.value)))
+    assert [row.value for row in materialized] == [1]
+    assert counts == [], "list() must use its one materializing query"
+
+    assert len(metta.match(S["route-list-row"](V.value))) == 1
+    assert counts == ["metta_py_query_count_if_repeatable"]
+
+
 @settings(deadline=None, max_examples=25)
 @given(
     st.lists(
@@ -255,6 +300,7 @@ def test_a_generated_answer_bag_survives_both_routes(metta, answers) -> None:
     agreed = both_routes_agree(lambda: metta.fn[name](0))
     assert agreed == Counter(str(value) for value in answers)
 
+
 def test_a_view_releases_its_cursor_on_request_not_only_on_collection(metta) -> None:
     """`close()` and the `with` form, which the other resource-owning type had.
 
@@ -267,25 +313,17 @@ def test_a_view_releases_its_cursor_on_request_not_only_on_collection(metta) -> 
     not inherit from BaseException" out of a torn-down module [measured
     2026-08-31].
     """
-    name = unique("route-closed")
-
-    @metta.op(name=name, effect="writesState")
-    def route(origin, destination):
-        del origin, destination
-        yield from ((S.paris, S.lyon), (S.lyon, S.nice))
-
-    def engines() -> int:
-        return metta.runtime.once("aggregate_all(count, current_engine(_), N)")["N"]
+    name = two_city_route(metta, "route-closed")
 
     gc.collect()
-    before = engines()
+    before = live_engines(metta)
 
     # Abandoned part-way, then closed by hand rather than by the collector.
     view = metta.answers(S[name](V.origin, V.destination))
     next(iter(view))
-    assert engines() > before, "a pulled view holds a cursor"
+    assert live_engines(metta) > before, "a pulled view holds a cursor"
     view.close()
-    assert engines() == before, "close() gives it back"
+    assert live_engines(metta) == before, "close() gives it back"
     view.close()  # twice is a no-op, as drop() is
 
     # Answers already pulled stay readable: they are cached values, not engine
@@ -295,8 +333,60 @@ def test_a_view_releases_its_cursor_on_request_not_only_on_collection(metta) -> 
     # And the with form is the same act, scoped.
     with metta.answers(S[name](V.origin, V.destination)) as scoped:
         next(iter(scoped))
-        assert engines() > before
-    assert engines() == before, "leaving the block gives it back"
+        assert live_engines(metta) > before
+    assert live_engines(metta) == before, "leaving the block gives it back"
+
+
+def test_iteration_does_not_delay_answer_finalization_in_a_frame_cycle(metta) -> None:
+    """Dropping an iterated view closes its engine without cyclic collection.
+
+    Answers inspects its caller to record ordering lint. Keeping the current
+    frame in that method also kept ``self`` alive, so a started engine cursor
+    survived ordinary reference-counted finalization and closed only when the
+    cyclic collector happened to run.
+    """
+    name = two_city_route(metta, "route-frame-cycle")
+
+    gc.collect()
+    before = live_engines(metta)
+    gc.disable()
+    try:
+        view = metta.answers(S[name](V.origin, V.destination))
+        next(iter(view))
+        assert live_engines(metta) == before + 1, (
+            "the partial iteration must open a cursor"
+        )
+        del view
+        assert live_engines(metta) == before, (
+            "ordinary finalization must close the cursor"
+        )
+    finally:
+        gc.enable()
+        gc.collect()
+
+
+def test_function_call_does_not_delay_answer_finalization_in_a_frame_cycle(
+    metta,
+) -> None:
+    """A bound call does not retain the lazy result it has returned."""
+    name = two_city_route(metta, "route-call-frame-cycle")
+
+    gc.collect()
+    before = live_engines(metta)
+    gc.disable()
+    try:
+        view = metta.fn[name](V.origin, V.destination)
+        next(iter(view))
+        assert live_engines(metta) == before + 1, (
+            "the partial iteration must open a cursor"
+        )
+        del view
+        assert live_engines(metta) == before, (
+            "the completed call frame must release its result"
+        )
+    finally:
+        gc.enable()
+        gc.collect()
 
 
 def test_a_counted_view_releases_its_engine_when_it_is_dropped(metta) -> None:
@@ -309,21 +399,13 @@ def test_a_counted_view_releases_its_engine_when_it_is_dropped(metta) -> None:
     after del and gc.collect(), and metta_py_cursor_next still answered from
     the abandoned handle.
     """
-    name = unique("route-dropped")
-
-    @metta.op(name=name, effect="writesState")
-    def route(origin, destination):
-        del origin, destination
-        yield from ((S.paris, S.lyon), (S.lyon, S.nice))
-
-    def engines() -> int:
-        return metta.runtime.once("aggregate_all(count, current_engine(_), N)")["N"]
+    name = two_city_route(metta, "route-dropped")
 
     gc.collect()  # an earlier view collected mid-test would move the count
-    before = engines()
+    before = live_engines(metta)
     view = metta.fn[name](V.a, V.b)
     assert len(view) == 2
-    assert engines() == before + 1, "the declined count retained a cursor"
+    assert live_engines(metta) == before + 1, "the declined count retained a cursor"
     del view
     gc.collect()
-    assert engines() == before
+    assert live_engines(metta) == before

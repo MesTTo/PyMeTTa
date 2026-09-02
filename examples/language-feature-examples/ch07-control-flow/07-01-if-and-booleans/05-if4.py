@@ -4,27 +4,30 @@ A condition is an ordinary expression, so an `if` sits there as happily as a
 comparison does, and this file's whole subject is that nesting. All three `if`s
 are Python conditional expressions and the file compiles whole.
 
-Two lowerings the equation makes visible. Python's `==` is the prelude's
-`py-eq`, which is Python's equality rather than MeTTa's `==`; and a test
-position that is not already boolean by its syntax wraps in `py-truthy`, so an
-`if` used as a condition is asked for its truth the way Python asks. The stored
-equation is
-`(if (py-truthy (if (py-eq 42 42) True False)) (if True 42 lol) (+ 2 2))`.
+Two lowerings the equation makes visible. `fn.eq` names MeTTa's exact equality
+head, and its declared Bool result makes the enclosing conditional expression
+a bare condition. The numeric return annotation also keeps `2 + 2` on the
+pure engine head. The stored equation matches the source.
 Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
 """
 
-from metta import S
+from metta import S, fn
 
 
 def twin(m):
     """Decide a condition with an `if`, then take an arm with another."""
+
     @m.define
-    def nested():
+    def nested() -> int:
         # (if (if (== 42 42) True False) (if True 42 lol) (+ 2 2))
-        return (42 if True else S.lol) if (True if 42 == 42 else False) else 2 + 2  # noqa: PLR0133  -- comparing two constants is the example's own program, which the engine reduces
+        return (
+            (42 if True else S.lol)
+            if (True if fn.eq(42, 42) else False)  # engine equality is intentional
+            else 2 + 2
+        )
 
     # !(test (if (if (== 42 42) True False) (if True 42 lol) (+ 2 2)) 42)
     assert nested() == [42]
@@ -91,4 +94,26 @@ def twin(m):
 #: and the removal doors changed meaning where a twin spells one [measured
 #: 2026-09-01: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=c6a40460b1db341198a6150e3600f502831a6e83].
-BUDGET = 4263
+#: RE-PINNED 2026-09-01, 4263 to 5050 (+787), generic Python operators now
+#: dispatch through live protocols while source twins explicitly name
+#: relational engine heads [measured 2026-09-01: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=e3787593132a7ece2d300397045f7415709847c9].
+#: RE-PINNED 2026-09-02, 5050 to 5043 (-7), exact numeric annotations retain
+#: native operator heads, publish MeTTa type declarations, and leave relational
+#: heads only where static proof is unavailable [measured 2026-09-02: min-of-3
+#: serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=d0dfff1a3ee6c85472fd9b12d6e4aec007a9c301].
+#: RE-PINNED 2026-09-02, 5043 to 5115 (+72), static contract discharge and
+#: policy-stable recompilation [measured 2026-09-02: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=c00341f0ff9d83d1b9338ca86ad51708eaf07ebd].
+#: RE-PINNED 2026-09-02, 5115 to 5095 (-20), static contract discharge with
+#: policy checks confined to invalidated contracts [measured 2026-09-02: min-
+#: of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=c00341f0ff9d83d1b9338ca86ad51708eaf07ebd].
+#: RE-PINNED 2026-09-02, 5095 to 5105 (+10), P43 protects both generated
+#: policy-check fallbacks from space-local capture [measured 2026-09-02: min-
+#: of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=c00341f0ff9d83d1b9338ca86ad51708eaf07ebd].
+BUDGET = 5105

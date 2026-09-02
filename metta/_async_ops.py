@@ -6,12 +6,17 @@ Guarantees:
     launch event [tested:
     test_a_transaction_commits_async_launch_before_its_landing;
     commit=39092863ae34184a9f955f185ff57c1ff177ec40]
-  - success, failure, and cancellation each land exactly once through
-    ``metta_py_async_land/3`` and release the copied launch Context [tested:
+  - success, failure, and cancellation each settle exactly once; if ordinary
+    landing publication fails, a second engine transition records that fault
+    instead of leaving the FutureSpace pending, and then releases the copied
+    launch Context [tested:
     test_an_async_operation_answers_a_future_space,
     test_a_transaction_commits_async_launch_before_its_landing,
-    test_cancelling_from_the_launch_observer_keeps_a_settled_future;
-    commit=39092863ae34184a9f955f185ff57c1ff177ec40]
+    test_cancelling_from_the_launch_observer_keeps_a_settled_future,
+    test_a_failed_landing_publication_settles_the_future_as_an_error,
+    test_async_landing_uses_the_runtime_captured_during_prepare,
+    test_a_landing_cancellation_is_not_swallowed;
+    commit=2f562bc5c051ee373cb7ab27ea6cae641f1df094]
   - delayed MeTTa injection sees the named space that launched the operation,
     and a landing observer sees terminal state before notification [tested:
     test_async_engine_injection_keeps_the_calling_named_space,
@@ -54,7 +59,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from . import _task_context
-from ._engine import active_runtime, engine_thread
+from ._engine import Runtime, active_runtime, engine_thread
 from .errors import NotReducible
 
 logger = logging.getLogger(__name__)
@@ -68,6 +73,7 @@ class _Pending:
     annotation: Any
     fn: Any
     call_space: Any
+    runtime: Runtime
 
 
 @dataclass
@@ -108,6 +114,11 @@ def prepare(name: str, tagged_args: list, parent_context: Any) -> int:
     parent = parent_context if isinstance(parent_context, int) else None
     context = _task_context.fork(parent)
     token = next(_TOKENS)
+    engine = active_runtime()
+    if engine is None:
+        _task_context.release(context)
+        msg = "an async operation was prepared without an active engine runtime"
+        raise RuntimeError(msg)
     with _LOCK:
         _PENDING[token] = _Pending(
             name,
@@ -116,6 +127,7 @@ def prepare(name: str, tagged_args: list, parent_context: Any) -> int:
             op.return_annotation,
             op.fn,
             _space.current_space(),
+            engine,
         )
     return token
 
@@ -275,22 +287,33 @@ def _queue_landing(token: int, pending: _Pending, status: str, payload: Any) -> 
 
 def _land(token: int, pending: _Pending, status: str, payload: Any) -> None:
     try:
-        _publish_landing(token, status, payload)
-    except BaseException:
+        _publish_landing(pending.runtime, token, status, payload)
+    except Exception as error:
+        # Process controls inherit BaseException and must keep propagating.
         logger.exception("async operation %s could not publish its landing", pending.name)
+        _settle_failed_landing(pending.runtime, token, error)
     finally:
         with _LOCK:
             _CANCELLING.discard(token)
         _task_context.release(pending.context)
 
 
-def _publish_landing(token: int, status: str, payload: Any) -> None:
-    """Publish through the already-booted runtime or fail for the log boundary."""
-    engine = active_runtime()
-    if engine is None:
-        msg = "the engine disappeared before an async operation landed"
-        raise RuntimeError(msg)
+def _publish_landing(engine: Runtime, token: int, status: str, payload: Any) -> None:
+    """Settle through the runtime retained by the operation's calling space."""
     engine.do_must("metta_py_async_land", token, status, payload)
+
+
+def _settle_failed_landing(engine: Runtime, token: int, error: Exception) -> None:
+    """Wake the future with a publication fault through its retained runtime."""
+    # Future.set_exception follows the same rule: failure is terminal and
+    # wakes waiters rather than leaving a senderless future pending.
+    # https://docs.python.org/3.14/library/concurrent.futures.html#concurrent.futures.Future.set_exception
+    engine.do_must(
+        "metta_py_async_fail_landing",
+        token,
+        type(error).__name__,
+        error,
+    )
 
 
 def _event_loop() -> asyncio.AbstractEventLoop:

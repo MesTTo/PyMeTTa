@@ -11,7 +11,7 @@ Guarantees:
     synchronous and the async door, because the engine's declarations take any
     valid space name [tested:
     test_a_named_space_takes_every_model_an_anonymous_one_takes,
-    test_an_async_named_space_takes_a_model; commit=41e2cb9862e757dbe066516dab13ae55491f64d3]
+    test_an_async_named_space_takes_a_model; commit=e3787593132a7ece2d300397045f7415709847c9]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -26,9 +26,7 @@ from metta import MeTTa, S, V, aio
 from metta.errors import MettaError, SpaceCapabilityError
 
 
-def test_a_restricted_space_cannot_reach_what_its_base_does_not_publish(
-    metta, tmp_path
-):
+def test_a_restricted_space_cannot_reach_what_its_base_does_not_publish(metta, tmp_path):
     """File, process, and network operations refuse by naming the missing capability."""
     path = tmp_path / "visible.txt"
     path.write_text("visible")
@@ -64,9 +62,7 @@ def test_a_restricted_space_cannot_reach_what_its_base_does_not_publish(
             locked.run(f'!(translatePredicate (open "{path}" read $stream))')
         assert (raw.value.operation, raw.value.capability) == ("open", "file")
 
-        assert locked.run("!(unknown-restricted-data 1)") == [
-            [S["unknown-restricted-data"](1)]
-        ]
+        assert locked.run("!(unknown-restricted-data 1)") == [[S["unknown-restricted-data"](1)]]
 
     with metta._new_space(restricted=True, grants=("file",)) as reader:
         assert reader.run(f'!(exists_file "{path}")') == [[True]]
@@ -152,7 +148,7 @@ def test_a_named_space_takes_every_model_an_anonymous_one_takes():
     assert str(locked.name) == "&namedlocked"
 
     @locked.define
-    def namedlocked_double(x):
+    def namedlocked_double(x: int) -> int:
         return x * 2
 
     # A restricted space keeps ordinary computation and its own equations.

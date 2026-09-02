@@ -11,6 +11,11 @@ Guarantees:
   - derivation enumeration selects ``metta_py_limited/6`` when a scoped stack
     bound exists [tested: test_stack_limit_is_carried_to_the_limited_six_seam;
     commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
+  - derivation enumeration crosses through the shared execution-policy wrapper,
+    so atomic, speculative, and capture scopes cover the whole proof search
+    [tested: test_every_public_execution_door_honours_speculative_policy,
+    test_derivation_speculation_fences_the_engine_global_self;
+    commit=cf6507cfe9c3d6512ac75039ae22f178140e0cbf]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -24,6 +29,7 @@ from difflib import get_close_matches
 from typing import Any
 
 from ._engine import Runtime
+from ._space_execution import _controlled_run
 from ._space_objects import _limits
 from .atoms import Atom, Expression, Symbol, _atom_from_wire, _to_atom
 
@@ -39,24 +45,16 @@ def derivations(
 ) -> list[Any]:
     """Return each guarded derivation for one target."""
     _validate_depth(depth)
-    seconds, steps, stack = _limits(timeout, inferences) or (-1.0, -1, -1)
-    goal = (
-        "metta_py_limited(Seconds, Steps, metta_py_derivation, Ins, Tree)"
-        if stack < 0
-        else "metta_py_limited(Seconds, Steps, Stack, metta_py_derivation, Ins, Tree)"
+    trees = _controlled_run(
+        rt,
+        "metta_py_derivations",
+        [space, _to_atom(target).to_wire(), -1 if depth is None else depth],
+        _limits(timeout, inferences),
     )
-    inputs = {
-        "Seconds": seconds,
-        "Steps": steps,
-        "Ins": [space, _to_atom(target).to_wire(), -1 if depth is None else depth],
-    }
-    if stack >= 0:
-        inputs["Stack"] = stack
-    rows = rt.iter(goal, **inputs)
     derivation_type = _importlib.import_module(
         f"{__package__}.derivation"
     ).Derivation
-    return [derivation_type.from_atom(_atom_from_wire(row["Tree"])) for row in rows]
+    return [derivation_type.from_atom(_atom_from_wire(tree)) for tree in trees]
 
 
 def _validate_depth(depth: int | None) -> None:

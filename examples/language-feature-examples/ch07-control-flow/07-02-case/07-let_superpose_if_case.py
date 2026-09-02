@@ -16,11 +16,12 @@ Open Obligations:
   Future Enhancements: None.
 """
 
-from metta import Expression, S, superpose
+from metta import Expression, S, fn, superpose
 
 
 def twin(m):
     """Fan out four numbers, filter them, and dispatch what survives."""
+
     @m.define
     def f(_x):
         # (= (f $x) 42): the head variable the body never reads
@@ -34,7 +35,7 @@ def twin(m):
         #                (case (1 $y) (((1 3) (f 0)) ((1 4) (42 42)) ($else (42 42 42))))
         #                answertoeverything)))
         y = superpose(2, 3, 4, 5)
-        if y > 2:
+        if fn.gt(y, 2):
             match 1, y:
                 case (1, 3):
                     return f(0)
@@ -119,4 +120,21 @@ def twin(m):
 #: structure, and the removal doors changed meaning where a twin spells one
 #: [measured 2026-09-01: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=c6a40460b1db341198a6150e3600f502831a6e83].
-BUDGET = 5663
+#: RE-PINNED 2026-09-01, 5663 to 6397 (+734), generic Python operators now
+#: dispatch through live protocols while source twins explicitly name
+#: relational engine heads [measured 2026-09-01: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=e3787593132a7ece2d300397045f7415709847c9].
+#: RE-PINNED 2026-09-02, 6397 to 6479 (+82), static contract discharge and
+#: policy-stable recompilation [measured 2026-09-02: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=c00341f0ff9d83d1b9338ca86ad51708eaf07ebd].
+#: RE-PINNED 2026-09-02, 6479 to 6467 (-12), static contract discharge with
+#: policy checks confined to invalidated contracts [measured 2026-09-02: min-
+#: of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=c00341f0ff9d83d1b9338ca86ad51708eaf07ebd].
+#: RE-PINNED 2026-09-02, 6467 to 6477 (+10), P43 protects both generated
+#: policy-check fallbacks from space-local capture [measured 2026-09-02: min-
+#: of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=c00341f0ff9d83d1b9338ca86ad51708eaf07ebd].
+BUDGET = 6477

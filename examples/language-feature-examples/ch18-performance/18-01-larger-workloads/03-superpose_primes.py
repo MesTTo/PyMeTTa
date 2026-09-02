@@ -43,21 +43,25 @@ def twin(m):
     """Define trial division, then ask it about four primes."""
 
     @m.define
-    def find_divisor(n, test_divisor):
+    def find_divisor(n: int, test_divisor: int) -> int:
         if test_divisor * test_divisor > n:
             return n
-        if fn.eq(0, n % test_divisor):  # rung: `==` lowers to the prelude's `py-eq`, a host crossing per iteration, where the example writes MeTTa's own `==`
+        if fn.eq(0, n % test_divisor):  # engine equality is intentional
             return test_divisor
         return find_divisor(n, test_divisor + 1)
 
     @m.define(name="prime?")
-    def prime(n):
-        return fn.eq(n, fn.find_divisor(n, 2))  # rung: the same host crossing, in answer position
+    def prime(n: int) -> bool:
+        return fn.eq(n, fn.find_divisor(n, 2))  # engine equality is intentional
 
     # Four searches share one branch budget, so the benchmark states a finite
     # allowance above the evaluator's 100000 default.
-    searches = (S["prime?"](53537257), S["prime?"](53781811),
-                S["prime?"](54218443), S["prime?"](54734431))
+    searches = (
+        S["prime?"](53537257),
+        S["prime?"](53781811),
+        S["prime?"](54218443),
+        S["prime?"](54734431),
+    )
     assert m.fn.with_pragma(DEEP, searches) == [Expression((TRUE, TRUE, TRUE, TRUE))]
 
 
@@ -131,4 +135,26 @@ def twin(m):
 #: the quad twin stopped being a different program [measured 2026-09-01: min-
 #: of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=c6a40460b1db341198a6150e3600f502831a6e83].
-BUDGET = 543897
+#: RE-PINNED 2026-09-01, 543897 to 544637 (+740), generic Python operators now
+#: dispatch through live protocols while source twins explicitly name
+#: relational engine heads [measured 2026-09-01: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=e3787593132a7ece2d300397045f7415709847c9].
+#: RE-PINNED 2026-09-02, 544637 to 635279 (+90642), exact numeric annotations
+#: retain native operator heads, publish MeTTa type declarations, and leave
+#: relational heads only where static proof is unavailable [measured
+#: 2026-09-02: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=d0dfff1a3ee6c85472fd9b12d6e4aec007a9c301].
+#: RE-PINNED 2026-09-02, 635279 to 636315 (+1036), static contract discharge
+#: and policy-stable recompilation [measured 2026-09-02: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=c00341f0ff9d83d1b9338ca86ad51708eaf07ebd].
+#: RE-PINNED 2026-09-02, 636315 to 636405 (+90), static contract discharge with
+#: policy checks confined to invalidated contracts [measured 2026-09-02: min-
+#: of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=c00341f0ff9d83d1b9338ca86ad51708eaf07ebd].
+#: RE-PINNED 2026-09-02, 636405 to 636415 (+10), P43 protects both generated
+#: policy-check fallbacks from space-local capture [measured 2026-09-02: min-
+#: of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=c00341f0ff9d83d1b9338ca86ad51708eaf07ebd].
+BUDGET = 636415

@@ -58,7 +58,7 @@ Guarantees:
     is a memory decision rather than a speed one [tested
     test_the_intern_cache_evicts_in_constant_time]
   - _WIRE_SYM_ORDER and _WIRE_VAR_ORDER hold exactly the keys of the cache
-    each one bounds, and _wire_intern_clear is the only door that empties
+    each one bounds, and _wire_intern_clear is the only function that empties
     either [tested test_the_intern_cache_evicts_in_constant_time]
   - object formatters can be removed by their exact registration identity
     [tested test_object_repr_registrations_can_be_removed_exactly]
@@ -83,15 +83,20 @@ Guarantees:
     without importing the Python package [tested:
     test_a_python_tuple_answers_the_same_through_both_doors;
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
+  - Grounded keeps a returned object carrier privately while exposing its
+    underlying value, so carrier-owned metadata survives a later engine
+    crossing [tested:
+    test_a_py_atom_declaration_dies_with_its_grounded_value;
+    commit=bbf02dd309d15e178a9c83d03b749eb7170b6a20]
   - Atom operator methods are installed from the immutable 22-entry lowering
     table, including explicit templates and named refusals [tested:
     test_the_operator_table_is_generated_from_one_source_with_no_holes;
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
-  - ``atom.cast(type_)`` delegates to the ambient ``Space.cast`` door, so
+  - ``atom.cast(type_)`` delegates to the ambient ``Space.cast`` method, so
     declarations remain space-relative while the atom owns the concise
     spelling [tested: test_atom_cast_delegates_to_the_ambient_space;
     commit=49c43f86fa17a20ecebf9f9dbb5514de4762297d]
-  - Grounded heads preserve keyword arguments for the py-call seam, while a
+  - Grounded heads preserve keyword arguments for the py-call bridge, while a
     signature-free Symbol refuses keywords it cannot position [tested:
     test_unknown_symbol_keywords_refuse_with_the_positional_remedy;
     commit=c2ad5892fbfdd690dd7e9b507e76e87d7d1376d1]
@@ -106,6 +111,10 @@ Guarantees:
     native blobs retain process-local registry identity
     [tested: test_space_handles_are_term_operands_and_round_trip;
     commit=4e2398075da67bb2cbcc123a9fc1e078ecac6fbf]
+  - a native blob's public wire value preserves its registry id and display
+    text, the two fields its decoder requires [tested:
+    test_native_handles_round_trip_through_the_public_wire_codec;
+    commit=9fad0bf6670061a26b1a17d3f566613b7d4d080c]
 Guarded by:
   - _STATE_LOCK protects box identity, formatter registries, and wire interns
     [tested test_atom_identity_caches_are_thread_safe]
@@ -173,8 +182,8 @@ def _is_primitive(value: Any) -> bool:
 
 
 def _ground_identical(mine: Any, theirs: Any) -> bool:
-    """Identity exactly as the engine reads two crossed values, through EITHER
-    of its doors: what unification matches and what the == operator answers are
+    """Identity exactly as the engine reads two crossed values through either
+    interface: what unification matches and what the == operator answers are
     now one relation.
 
     They were two. Until 2026-08-30 == was a numeric tower over crossed values
@@ -183,7 +192,7 @@ def _ground_identical(mine: Any, theirs: Any) -> bool:
     upstream declares == over two INDEPENDENT type variables and compares
     exactly, so aligning the declaration collapsed the split. Every edge that
     used to separate them now agrees on both sides
-    [measured 2026-08-30, ours and PeTTa@ae66fa8 alike, through the text door
+    [measured 2026-08-30, ours and PeTTa@ae66fa8 alike, through the text form
     and through Grounded values: `(== 0 0.0)`, `(== 0.0 -0.0)`, `(== True 1)`
     and `(== 1 "a")` are all False, `(== NaN NaN)` is True].
 
@@ -219,7 +228,7 @@ class Box:
     element objects. Which types convert is janus's decision, not ours, so
     every opaque value crosses boxed, uniformly, and every consuming surface
     unboxes: from_wire, raw operation arguments and results, and the
-    engine's typing through seam:grounded_type_names/2. A caller never sees a
+    engine's typing through ``grounded_type_names/2``. A caller never sees a
     box; it exists only on the wire and inside the engine.
 
     Boxes are INTERNED per object identity through boxed(): one live object
@@ -516,7 +525,7 @@ class Atom:
         The nearest-relative spelling of the head whose `=` marker Python
         cannot carry, exactly as eq() spells ==; compiled bodies write the
         same test as a bare alpha(x, y) call, and fn["=alpha"] stays the
-        exact door.
+        exact form.
         """
         return self._build("=alpha", other)
 
@@ -596,15 +605,15 @@ class Atom:
             S.greet(S.name).subs({S.name: "ada"})          # (greet "ada")
 
         The KEY says what is being replaced, so a variable hole and a
-        placeholder symbol are different substitutions rather than one string
-        meaning whichever the door happens to have chosen. ``unify`` produces
-        variable keys; a ``bind()`` scope at the evaluation doors accepts either.
+        placeholder symbol are different substitutions rather than one
+        ambiguous string. ``unify`` produces variable keys; a ``bind()`` scope
+        at the evaluation methods accepts either.
 
         An answer ``Row`` is accepted directly, because its columns ARE the
         query's variable names. It is the library's other producer of
         bindings, and it could not be fed back either.
 
-        Sugar over :meth:`map`, which is the rung below and stays reachable:
+        Sugar over :meth:`map`, which stays available as the lower-level method:
         this is ``atom.map(lambda item: bindings.get(item, item))`` with the
         keys and values encoded. Nothing consumed a substitution before this,
         so both producers answered in a currency the library did not accept,
@@ -821,14 +830,18 @@ class Grounded(Atom):
     A symbol never equals a string; that distinction is the point.
     """
 
-    __slots__ = {"value": "the ground Python value this atom carries"}
+    __slots__ = {
+        "_wire_value": "the private carrier to reuse on a later crossing",
+        "value": "the ground Python value this atom carries",
+    }
     __match_args__ = ("value",)
+    _wire_value: Any | None
     value: Any
 
     def __call__(self, *args: Any, **kwargs: Any) -> Expression:
         """A grounded head applied is an expression headed by it, the same
         law a symbol has: `np_arange(4, step=2)` builds
-        `(np_arange 4 (Kwargs (step 2)))`, which is what the seam's py-call
+        `(np_arange 4 (Kwargs (step 2)))`, which is what the py-call bridge
         route evaluates. Building is not calling: the term is data until
         something evaluates it.
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
@@ -850,6 +863,7 @@ class Grounded(Atom):
 
     def __init__(self, value: Any) -> None:
         object.__setattr__(self, "value", _normalize_grounded(value))
+        object.__setattr__(self, "_wire_value", None)
 
     def __eq__(self, other: object) -> bool:
         if isinstance(other, Grounded):
@@ -860,7 +874,7 @@ class Grounded(Atom):
         if isinstance(other, Atom):
             return False
         # A raw tuple is the transparent Expression spelling at every Python
-        # value door. Explicit Grounded(tuple) is the opaque spelling; letting
+        # value boundary. Explicit Grounded(tuple) is the opaque spelling; letting
         # it equal the same raw tuple would make that tuple equal both an
         # Expression and an unequal Grounded atom, violating transitivity.
         if isinstance(other, tuple):
@@ -883,7 +897,7 @@ class Grounded(Atom):
         return hash(("gnd", id(self.value)))
 
     def __reduce__(self):
-        if not _is_primitive(self.value):
+        if self._wire_value is not None or not _is_primitive(self.value):
             msg = (
                 "a grounded opaque object has process-local identity and "
                 "cannot be pickled; encode a stable value instead"
@@ -1018,6 +1032,8 @@ class Grounded(Atom):
 
     def to_wire(self) -> list:
         v = self.value
+        if self._wire_value is not None:
+            return ["o", self._wire_value]
         if type(v) is bool:
             return ["b", "true" if v else "false"]
         if type(v) is str:
@@ -1142,7 +1158,7 @@ class _NativeHandle(Handle):
         )
 
     def to_wire(self) -> list:
-        return ["h", self.ident]
+        return ["h", self.ident, self.text]
 
     def __enter__(self) -> Self:
         return self
@@ -1402,7 +1418,7 @@ def _apply_operator_lowering(
     *,
     flipped: bool = False,
 ) -> Expression:
-    """Apply one table entry; ``taken`` entries never reach this door."""
+    """Apply one table entry; ``taken`` entries never reach this function."""
     if entry.form is None:
         msg = f"operator lowering {entry.dunder} has no form"
         raise RuntimeError(msg)
@@ -1493,10 +1509,9 @@ def _install_operator_lowerings() -> None:
 _install_operator_lowerings()
 
 
-#: The term-building method for each comparison operator, so a refusal names
-#: the nearest rung rather than the furthest one. The bracket door still works
-#: and is still shown, because it is the rung below and the ladder never
-#: shrinks; naming only it sent a caller past the method that exists.
+#: The term-building method for each comparison operator. A refusal names this
+#: concise method first and the exact bracket form second, so callers see the
+#: method that exists without losing the fallback.
 _ORDER_METHOD = {"<": "lt", "<=": "le", ">": "gt", ">=": "ge"}
 
 
@@ -1565,7 +1580,7 @@ Atom.__ge__ = _standard_order_ge  # type: ignore[method-assign]
 # Registered so case [head, *args] matches: the Sequence pattern checks the ABC.
 cast(ABCMeta, Sequence).register(Expression)
 
-# Atoms refuse assignment, so every slot write goes through a back door.
+# Atoms refuse assignment, so every slot write calls its descriptor directly.
 # object.__setattr__ resolves the attribute NAME against the type on every
 # call and costs 951 instructions; the slot's own descriptor is resolved
 # already and costs 568 [measured 2026-08-19: minimum of three
@@ -1788,7 +1803,8 @@ def decode(atom: Any) -> Any:
 # it, which stores every name twice. Dropping the split costs the LRU
 # reordering, because reordering on a hit would have to take the lock:
 # measured at the old 256, FIFO and LRU are within half a point of each other
-# on all three workload shapes [ai-code-organisation-and-fixes.md BA3], and at
+# on all three workload shapes [tested:
+# extensions/python/tests/ch03_atoms_and_expressions/test_atoms.py::test_the_intern_cache_evicts_in_constant_time], and at
 # 65,536 an ordinary vocabulary never reaches an eviction at all.
 #
 # Eviction has to be O(1) in the bound, and `del cache[next(iter(cache))]` is
@@ -1811,13 +1827,14 @@ def decode(atom: Any) -> Any:
 # with no other writer able to interleave and no statement between them that
 # can raise, and a reader only ever touches `cache`. The pair that CAN drift
 # is a caller emptying one and not the other, so emptying has exactly one
-# door, _wire_intern_clear, and the two lengths are asserted to agree
+# function, _wire_intern_clear, and the two lengths are asserted to agree
 # [tested test_the_intern_cache_evicts_in_constant_time].
 #
 # FIFO rather than LRU: reordering on a hit would have to take the lock, and
 # the hit is what has to stay lock-free. Measured at the old 256-entry bound,
 # FIFO and LRU are within half a point of each other on all three workload
-# shapes [ai-code-organisation-and-fixes.md BA3], and at 65,536 an ordinary
+# shapes [tested:
+# extensions/python/tests/ch03_atoms_and_expressions/test_atoms.py::test_the_intern_cache_evicts_in_constant_time], and at 65,536 an ordinary
 # vocabulary never reaches an eviction at all.
 #
 # 65,536 rather than 512: the bound is what a peer can make this process hold,

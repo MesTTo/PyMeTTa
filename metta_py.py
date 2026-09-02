@@ -10,12 +10,38 @@ Guarantees:
   - resolve() imports the longest importable prefix of a dotted path and
     getattrs the rest, so a path of any depth works [tested: B26 in
     tests/prolog/suites/host/python_surface.plt]
+  - prefix fallback handles only a missing candidate module; import failures
+    raised by an importable candidate propagate unchanged [tested:
+    test_resolution_preserves_internal_failure_from_an_importable_prefix;
+    commit=e8b8cbc6734e73199f0f4105b6f0d4168516521a]
+  - successful resolve() calls reuse a bounded weak prefix plan, retain live
+    final attributes, and refresh when the chosen module or its next longer
+    prefix changes in sys.modules [tested:
+    test_repeated_resolution_reuses_the_import_plan,
+    test_resolution_reuses_the_prefix_and_reads_the_current_attribute,
+    test_resolution_refreshes_after_module_replacement,
+    test_resolution_refreshes_when_a_longer_module_is_loaded,
+    test_a_failed_final_read_does_not_poison_a_later_lookup;
+    commit=d0bb2ff730a491eac9a0c679a4e2abe0f93ab196]
+  - over 1,000 hot paths of depth 4/16/64, prefix imports fall from
+    4,000/16,000/64,000 to zero and minimum time falls from
+    15.575/250.514/4293.293 to 0.259/0.556/2.008 microseconds per resolution
+    [measured: minimum of three rounds; command=cd extensions/python &&
+    PYTHONPATH=. python -m
+    benchmarks.resolve_prefix_cache 4 16 64 --repetitions 1000 --rounds 3;
+    fixture=one synthetic module with live nested attributes;
+    commit=d0bb2ff730a491eac9a0c679a4e2abe0f93ab196]
   - resolve_grounded() and evaluate_grounded() retain an exact Python tuple
     behind a Python object reference, despite Janus translating base tuples
     eagerly [tested: test_a_python_tuple_answers_the_same_through_both_doors;
     commit=89374a7ed8eec75e26ea595f2c6e55665f80d6fc]
   - every function here returns the OBJECT, never a converted copy, so the
     caller decides what crosses; extensions/python/bridge.pl asks janus for py_object(true)
+  - a py-atom type declaration follows a weak-referenceable Python object
+    without owning it; values that cannot be weakly referenced carry their
+    declaration in a weakly interned transparent envelope [tested:
+    test_a_py_atom_declaration_dies_with_its_grounded_value;
+    commit=bbf02dd309d15e178a9c83d03b749eb7170b6a20]
   - numeric_operation() uses Python's operator protocol and an object's array
     namespace for math functions, retaining reflected dispatch and library
     result types [tested: test_numpy_numeric_family_keeps_python_result_types
@@ -23,11 +49,24 @@ Guarantees:
 Fails when:
   - a name does not resolve. It raises rather than answering None, because a
     typo in a module path is not a value.
+Owns resources:
+  - one weak registry entry per live weak-referenceable declaration, and one
+    weak cache entry per live non-weak-referenceable declaration carrier.
+  - at most RESOLVE_CACHE_MAX weak prefix plans; plans never own their modules
+    [tested: test_resolution_plans_do_not_own_temporary_modules,
+    test_resolution_plan_cache_is_bounded;
+    commit=d0bb2ff730a491eac9a0c679a4e2abe0f93ab196]
+Guarded by:
+  - _DECLARATION_LOCK protects declaration records and carrier identity.
+  - functools.lru_cache protects the bounded _resolve_plan cache during
+    concurrent updates [source: Python 3.14.7 functools.lru_cache
+    documentation; https://docs.python.org/3.14/library/functools.html#functools.lru_cache;
+    commit=d0bb2ff730a491eac9a0c679a4e2abe0f93ab196]
 Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None
-"""
+"""  # noqa: D205, D415 -- the contract is one continuous invariant
 
 from __future__ import annotations
 
@@ -36,15 +75,20 @@ import importlib
 import math
 import numbers
 import operator
+import sys
+import threading
+import weakref
 from collections.abc import Sequence
-from typing import Any, Self
+from functools import lru_cache
+from types import ModuleType
+from typing import Any, Final, NamedTuple, Self
 
 
 class _GroundedTuple(tuple):
     """A tuple subclass Janus carries as an object reference.
 
     Janus always translates an exact ``tuple`` to ``-/N``, even under
-    ``py_object(true)``, but applies that rule to no tuple subclass.  Keeping
+    ``py_object(true)``, but applies that rule to no tuple subclass. Keeping
     the exact source tuple lets calls through this bridge receive that value,
     while the subclass supplies ordinary tuple behaviour to any other host
     path that receives the reference directly.
@@ -65,6 +109,114 @@ class _GroundedTuple(tuple):
 
 def _grounded(value: Any) -> Any:
     return _GroundedTuple(value) if type(value) is tuple else value
+
+
+class _DeclaredValue:
+    """A transparent declaration owner for values weakref cannot observe."""
+
+    __slots__ = ("__weakref__", "_declared_type_texts", "value")
+
+    def __init__(self, value: Any) -> None:
+        self.value = value
+        self._declared_type_texts: list[str] = []
+
+    @property
+    def __metta_wire_value__(self) -> Any:
+        """The exact value represented by this private carrier."""
+        return self.value
+
+    def declare(self, type_text: str) -> None:
+        """Record one type once, preserving declaration order."""
+        with _DECLARATION_LOCK:
+            if type_text not in self._declared_type_texts:
+                self._declared_type_texts.append(type_text)
+
+    def declarations(self) -> list[str]:
+        """Snapshot the declarations while the carrier is live."""
+        with _DECLARATION_LOCK:
+            return list(self._declared_type_texts)
+
+    def __copy__(self) -> _DeclaredValue:
+        return self
+
+    def __deepcopy__(self, _memo: dict[int, Any]) -> _DeclaredValue:
+        return self
+
+
+_DECLARATION_LOCK = threading.RLock()
+_DECLARATIONS: dict[int, tuple[weakref.ReferenceType[Any], list[str]]] = {}
+_DECLARED_CARRIERS: dict[int, weakref.ReferenceType[_DeclaredValue]] = {}
+
+
+def _declared_carrier(value: Any) -> _DeclaredValue:
+    """Return the stable metadata carrier for a non-weak-referenceable value."""
+    if isinstance(value, _DeclaredValue):
+        return value
+    key = id(value)
+    with _DECLARATION_LOCK:
+        reference = _DECLARED_CARRIERS.get(key)
+        if reference is not None:
+            carrier = reference()
+            if carrier is not None and carrier.value is value:
+                return carrier
+        carrier = _DeclaredValue(value)
+
+        def _evict(_: Any, key: int = key) -> None:
+            with _DECLARATION_LOCK:
+                current = _DECLARED_CARRIERS.get(key)
+                if current is not None and current() is None:
+                    del _DECLARED_CARRIERS[key]
+
+        _DECLARED_CARRIERS[key] = weakref.ref(carrier, _evict)
+        return carrier
+
+
+def declare_type(value: Any, type_text: str) -> Any:
+    """Attach one serialized MeTTa type without strongly owning the value."""
+    if not isinstance(type_text, str):
+        msg = f"a declared type encoding must be str, not {type(type_text).__name__}"
+        raise TypeError(msg)
+    if isinstance(value, _DeclaredValue):
+        value.declare(type_text)
+        return value
+    unwrapped = _unwrap(value)
+    try:
+        key = id(unwrapped)
+
+        def _evict(reference: weakref.ReferenceType[Any], key: int = key) -> None:
+            with _DECLARATION_LOCK:
+                current = _DECLARATIONS.get(key)
+                if current is not None and current[0] is reference:
+                    del _DECLARATIONS[key]
+
+        reference = weakref.ref(unwrapped, _evict)
+    except TypeError:
+        carrier = _declared_carrier(unwrapped)
+        carrier.declare(type_text)
+        return carrier
+    with _DECLARATION_LOCK:
+        current = _DECLARATIONS.get(key)
+        if current is None or current[0]() is not unwrapped:
+            texts: list[str] = []
+            _DECLARATIONS[key] = (reference, texts)
+        else:
+            texts = current[1]
+        if type_text not in texts:
+            texts.append(type_text)
+    return value
+
+
+def declared_type_texts(value: Any) -> list[str]:
+    """Return live declarations without extending the value's lifetime."""
+    if isinstance(value, _DeclaredValue):
+        return value.declarations()
+    unwrapped = _unwrap(value)
+    key = id(unwrapped)
+    with _DECLARATION_LOCK:
+        current = _DECLARATIONS.get(key)
+        if current is None or current[0]() is not unwrapped:
+            return []
+        return list(current[1])
 
 
 def _wire_value(value: Any) -> tuple[bool, Any]:
@@ -223,6 +375,89 @@ def numeric_operation(name: str, args: Sequence[Any]) -> Any:
     return _UNARY_NUMERIC_OPERATORS[name](*values)
 
 
+RESOLVE_CACHE_MAX: Final[int] = 512
+
+
+class _ResolvePlan(NamedTuple):
+    """An import prefix and the live attribute path below it."""
+
+    module_name: str | None
+    module: weakref.ReferenceType[ModuleType]
+    attrs: tuple[str, ...]
+    next_module_name: str | None
+    next_module: weakref.ReferenceType[ModuleType] | None
+
+
+def _find_resolve_root(path: str) -> tuple[ModuleType, str | None, tuple[str, ...]]:
+    """Import the longest prefix and return its remaining attribute path."""
+    parts = path.split(".")
+    if not all(parts):
+        msg = f"{path!r} is not a dotted Python name"
+        raise ValueError(msg)
+    for cut in range(len(parts), 0, -1):
+        module_name = ".".join(parts[:cut])
+        try:
+            found = importlib.import_module(module_name)
+        except ModuleNotFoundError as error:
+            # ImportError.name records the module being imported. A missing
+            # intermediate package also rules out this longer candidate; any
+            # name outside the candidate's prefix chain is a dependency the
+            # candidate failed to import and must remain the reported failure.
+            # [source: https://docs.python.org/3/library/exceptions.html#ImportError; commit=e8b8cbc6734e73199f0f4105b6f0d4168516521a]
+            missing = error.name
+            if not isinstance(missing, str) or not (
+                module_name == missing or module_name.startswith(f"{missing}.")
+            ):
+                raise
+            continue
+        return found, module_name, tuple(parts[cut:])
+    return builtins, None, tuple(parts)
+
+
+# A bounded LRU retains recent plans and supplies a coherent cache under
+# concurrent calls. Its explicit clear operation is the invalidation primitive.
+# [source: Python 3.14.7 functools.lru_cache documentation,
+# https://docs.python.org/3.14/library/functools.html#functools.lru_cache;
+# commit=d0bb2ff730a491eac9a0c679a4e2abe0f93ab196]
+@lru_cache(maxsize=RESOLVE_CACHE_MAX)
+def _resolve_plan(path: str) -> _ResolvePlan:
+    root, module_name, attrs = _find_resolve_root(path)
+    next_name = None
+    if attrs:
+        next_name = attrs[0] if module_name is None else f"{module_name}.{attrs[0]}"
+    next_module = sys.modules.get(next_name) if next_name is not None else None
+    next_reference = (
+        weakref.ref(next_module) if isinstance(next_module, ModuleType) else None
+    )
+    return _ResolvePlan(
+        module_name,
+        weakref.ref(root),
+        attrs,
+        next_name,
+        next_reference,
+    )
+
+
+def _current_plan_root(plan: _ResolvePlan) -> ModuleType | None:
+    """Return the planned root only while its import bindings are unchanged."""
+    root = plan.module()
+    if root is None:
+        return None
+    if plan.module_name is not None and sys.modules.get(plan.module_name) is not root:
+        return None
+    if plan.next_module_name is None:
+        return root
+    expected = plan.next_module() if plan.next_module is not None else None
+    if sys.modules.get(plan.next_module_name) is not expected:
+        return None
+    return root
+
+
+def clear_resolve_cache() -> None:
+    """Forget imported-prefix plans after an external import-registry change."""
+    _resolve_plan.cache_clear()
+
+
 def resolve(path: str) -> Any:
     """A dotted Python name of any depth, resolved to the object it names.
 
@@ -235,16 +470,22 @@ def resolve(path: str) -> Any:
     is why `(py-atom numpy.random.randint)` works where splitting on the first
     dot cannot.
     """
-    parts = path.split(".")
-    if not all(parts):
-        raise ValueError(f"{path!r} is not a dotted Python name")
-    for cut in range(len(parts), 0, -1):
-        try:
-            found: Any = importlib.import_module(".".join(parts[:cut]))
-        except ImportError:
-            continue
-        return _walk(found, parts[cut:], path)
-    return _walk(builtins, parts, path)
+    plan = _resolve_plan(path)
+    root = _current_plan_root(plan)
+    if root is None:
+        clear_resolve_cache()
+        plan = _resolve_plan(path)
+        root = _current_plan_root(plan)
+        if root is None:
+            root, _, attrs = _find_resolve_root(path)
+            return _walk(root, attrs, path)
+    try:
+        return _walk(root, plan.attrs, path)
+    except AttributeError:
+        # A failed final read is not a durable plan: a later import or
+        # attribute assignment must be able to make the same name valid.
+        clear_resolve_cache()
+        raise
 
 
 def resolve_grounded(path: str) -> Any:
@@ -252,7 +493,7 @@ def resolve_grounded(path: str) -> Any:
     return _grounded(resolve(path))
 
 
-def _walk(root: Any, attrs: list[str], path: str) -> Any:
+def _walk(root: Any, attrs: Sequence[str], path: str) -> Any:
     found = root
     for index, attr in enumerate(attrs):
         try:

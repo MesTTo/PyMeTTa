@@ -22,19 +22,24 @@ Guarantees:
   - ``MeTTa`` carries only context primitives while ``Space`` owns storage,
     query, declaration, and lifecycle verbs [tested:
     test_m7_narrow_core_surface; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
-  - ``MeTTa.space()`` creates named or anonymous handles through one door
+  - ``MeTTa.space()`` is the one method that creates named or anonymous handles
     [tested: test_module_tier_is_sugar_over_one_default_engine;
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - ``Space.reify`` returns an immutable branch value and ``Space.commit``
     applies its base-relative diff through ordinary transaction and event
-    doors [tested: test_world_eval_branches_without_touching_parent,
+    methods [tested: test_world_eval_branches_without_touching_parent,
     test_commit_applies_the_world_diff_as_post_commit_events; commit=3ded7552797b66d78e666141eb51f3bc14686bd2]
   - ``Space.covers`` and ``Space.compensates`` publish the two effect-safety
     declarations, while ``Space.saga`` builds recovery on the existing
-    transaction and post-commit event doors [tested:
+    transaction and post-commit event paths [tested:
     test_world_coverage_admits_the_joined_plan,
     test_committed_effects_leave_queryable_receipts_and_failed_steps_leave_none;
     commit=173eeed021beb360b5e5f9f8461889e27190affc]
+  - ``Space.effect_plan`` reports the current composite operation effects
+    without executing the target [tested:
+    test_effect_plan_reports_nested_calls_without_executing_them,
+    test_effect_plan_reads_replaced_operation_classification;
+    commit=d06621ddec911922c156c79ce68b2c35318e7fc1]
   - named space construction accepts a space-name Symbol as well as its text
     spelling [tested: test_space_factory_accepts_a_name_symbol; commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
   - a Symbol or ground Expression names a source-visible atomic or parametric
@@ -44,7 +49,7 @@ Guarantees:
     patterns is a join, list writes stream their atoms, and del drains every
     match or raises KeyError [tested:
     test_subscript_one_pattern_and_bulk_delete_laws; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
-  - the ``+=`` write door classifies atoms and scalar conversion kinds before
+  - the ``+=`` write form classifies atoms and scalar conversion kinds before
     iteration, reads dataframe row protocols before generic iteration, and
     sends each fact-stream item through the engine write spine [tested:
     test_adding_an_iterable_of_atoms_writes_one_atom_each,
@@ -52,30 +57,39 @@ Guarantees:
     test_write_door_uses_the_iteration_protocol_not_only_the_iterable_abc,
     test_the_write_doors_accept_the_same_atoms,
     test_the_write_door_reads_each_dataframe_row_as_one_atom; commit=012413efb73b4dd27c71354c7f654862f349c03f]
-  - relative ``(admits Type)`` and ``(capacity n)`` values written through
-    ``+=`` invoke the receiver installers, and refuse to overtake a live batch
+  - the ``|=`` merge form treats every Atom subtype as one fact even when the
+    atom also implements Python's sequence protocol [tested:
+    test_ior_merges_an_atom_without_iterating_expression_children;
+    commit=9bbfe5a252eb4b3f8b7d8418def0cc39c0819c13]
+  - relative ``(admits Type)``, ``(capacity n)``, and ``(covers effect)`` values
+    written through ``+=`` invoke the receiver installers and refuse to
+    overtake a live batch
     [tested: test_relative_capacity_declaration_installs_the_receiver_contract,
     test_relative_admits_declaration_installs_the_receiver_contract,
     test_two_declared_admission_checks_interact_over_one_store,
-    test_relative_declarations_refuse_inside_an_active_batch; commit=012413efb73b4dd27c71354c7f654862f349c03f]
+    test_relative_declarations_refuse_inside_an_active_batch,
+    test_relative_coverage_declaration_governs_world_evaluation; commit=fdf3d1d7e7486dd8110bbf9b44b968960276a602]
   - ``Space.match`` returns a lazy Answers view; truth and single unpack pull
-    only their demanded prefix, while len counts inside the engine [tested:
+    only their demanded prefix, len counts inside the engine, and list uses
+    its existing cursor without first running a second count query [tested:
     test_query_answers_complete_the_lazy_projection_protocol,
-    test_query_single_unpack_pulls_at_most_two_answers; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
+    test_query_single_unpack_pulls_at_most_two_answers,
+    test_list_materializes_a_match_without_a_second_query;
+    commit=5c9c97328472130cd30ad85b000e89c01556eb35]
   - match and call answers accept explicit or scoped algebra carriers;
     counting uses engine aggregates and ordered carriers sort before slicing
     [tested:
     test_counting_counts_match_bag_duplicates_without_opening_a_row_cursor,
     test_counting_counts_duplicate_call_answers_inside_the_engine,
     test_ranked_and_tropical_slices_are_stable_best_prefixes;
-    commit=c7468b2789746bcf95c4bacc0e2d517ec4d972fa]
+    commit=36d73621475291fdde1409367cf70bea8098681d]
   - ``Space.pre_add`` declares one compiled unary judge through the engine's
     existing pre-add hook [tested: test_pre_add_compiles_the_four_verdict_judge;
     commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
   - handle-level Linda waits load their support into the default caller space,
     never into a distinct waited-on space [tested:
     test_peek_does_not_import_linda_into_the_waited_space; commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
-  - ``Space.match``, every head-named declaration verb, and the write door
+  - ``Space.match``, every head-named declaration verb, and the write method
     retain their established semantics after moving off ``MeTTa`` [tested:
     test_query_surfaces_share_column_order,
     test_no_decorator_flag_changes_the_return_shape_and_declarations_are_atoms,
@@ -127,13 +141,13 @@ Guarantees:
     two-argument form keeps explicit context-relative casting [tested:
     test_atom_cast_delegates_to_the_ambient_space;
     commit=162214d7a703e9108dd2422f4f18f3b9c007d367]
-  - callable doors cache live deprecation declarations until the next write
+  - callable methods cache live deprecation declarations until the next write
     and issue the catalog's since/remedy warning [tested:
     test_deprecation_catalog_rows_drive_warnings_and_explanations;
     commit=d74e2e828cd9272882dcf907cfaf095d2d147ce0]
   - builtin discovery is cached per logical space, with namespace reads
     comparing the engine's function generation and explicit Python mutation
-    doors retaining eager invalidation [tested:
+    methods retaining eager invalidation [tested:
     test_cache_reads_compare_the_function_generation,
     test_builtin_discovery_is_cached,
     test_builtin_cache_invalidates_after_a_miss; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
@@ -243,7 +257,12 @@ from ._space_persistence import (
     raise_unsafe_text_atom,
     save_space,
 )
-from ._space_query import _validate_limit, query_count, solve_rows
+from ._space_query import (
+    _validate_limit,
+    query_count,
+    query_count_if_repeatable,
+    solve_rows,
+)
 from ._under import _UNSET
 from ._under import selected as _selected_under
 from ._version import __version__
@@ -307,7 +326,7 @@ _DEPRECATION_CACHE: weakref.WeakKeyDictionary[
 #: is almost always empty, and without this flag every distinct name's first
 #: live call paid one engine crossing to learn nothing: measured 2026-08-26,
 #: +1,288 inferences on the parse twin (391 to 1,679) from d74e2e82's
-#: per-name reads alone. One process-wide apply-seam emptiness probe
+#: per-name reads alone. One process-wide apply-predicate emptiness probe
 #: amortises them
 #: [tested: test_an_empty_deprecation_catalog_costs_one_cheap_probe].
 _DEPRECATION_ANY: weakref.WeakKeyDictionary[Runtime, bool] = (
@@ -316,7 +335,7 @@ _DEPRECATION_ANY: weakref.WeakKeyDictionary[Runtime, bool] = (
 
 
 def _invalidate_builtins_cache(rt: Runtime) -> None:
-    """Advance the Python-door epoch and discard every cached space view."""
+    """Advance the Python API epoch and discard every cached space view."""
     with _BUILTINS_CACHE_LOCK:
         epoch, function_generation, _ = _BUILTINS_CACHE.get(rt, (0, -1, {}))
         _BUILTINS_CACHE[rt] = (epoch + 1, function_generation, {})
@@ -358,7 +377,7 @@ def _deprecation(rt: Runtime, name: str) -> tuple[str, str] | None:
 
 
 def _function_generation(rt: Runtime) -> int:
-    """Read the engine's fun/1 generation through its Janus seam.
+    """Read the engine's fun/1 generation through its Janus bridge.
 
     The service is SWI's ``last_modified_generation`` for exactly the dynamic
     ``fun/1`` set read by ``metta_py_builtins/1``; translator rules are static
@@ -572,7 +591,7 @@ def _substituted(target: Any, using: dict[str, Any]) -> Atom:
     """Apply a bindings mapping to a target in the host, as the engine does.
 
     ``metta_host_substitute/3`` replaces an ATOM whose name is a binding key,
-    recursively [source: engine/filereader.pl:579-584]. Any door that has to
+    recursively [source: engine/filereader.pl:579-584]. Any caller that has to
     hold the substituted term rather than hand the pairs to the engine needs
     exactly that, so it is written once.
     """
@@ -591,9 +610,9 @@ class _SpaceModel(NamedTuple):
 
     The mint and the declaration used to be one predicate per model, which is
     why a NAME and a model were exclusive: there was nowhere to put the name.
-    Splitting them leaves exactly this to decide, once, for both doors --
+    Splitting them leaves exactly this to decide, once, for both paths --
     anonymous space() mints a name and declares, named space() declares on the
-    name it was given -- and the model crosses as the atom the engine door
+    name it was given -- and the model crosses as the atom the engine
     already dispatches on rather than as part of a predicate name.
     """
 
@@ -827,10 +846,11 @@ class Space(Handle):
         self._rt = _runtime or runtime(metta_path=metta_path, verbose=verbose)
         self._name_atom: Symbol | Expression | None = None
         if isinstance(name, Space):
-            # Opening a space is idempotent, so this door takes back what it
-            # answers. A dropped handle still refuses, because _space is what
-            # reads the name. It matters now that an engine answer naming a
-            # space arrives AS a Space: `metta.space(json_decode(...).one())`
+            # Opening a space is idempotent, so this constructor accepts a handle
+            # it previously returned. A dropped handle still refuses because
+            # _space reads the name. It matters now that an engine answer
+            # naming a space arrives AS a Space:
+            # `metta.space(json_decode(...).one())`
             # used to hand a Symbol here and would otherwise have started
             # raising the moment the codec began classifying that atom
             # correctly.
@@ -928,8 +948,8 @@ class Space(Handle):
         """Open a NAMED space, declaring its model on the name given.
 
         A name and a model are independent: the engine's declarations validate
-        with metta_require_space_name/2 and take any space name, and the mint
-        below is this door with a fresh name in front of it. Both the
+        with metta_require_space_name/2 and take any space name, while the
+        anonymous path calls this method after minting a fresh name. Both the
         synchronous space() and the async one come through here, so the two
         cannot drift on which models a named space accepts.
         """
@@ -1059,7 +1079,7 @@ class Space(Handle):
             # The store clears in its OWN engine query, before the release:
             # a query cannot reclaim the clauses it erased while it still
             # runs, so clearing inside the release left this space's atoms
-            # in the table. The door mutes the removal funnel's super
+            # in the table. The release call mutes the removal funnel's super
             # recompilation exactly as the release does, since a dying
             # world's own users die with it
             # [tested: test_dropping_a_space_reclaims_its_atoms].
@@ -1191,8 +1211,8 @@ class Space(Handle):
         after reading, before anything runs. It is a BLOCK rather than a
         keyword because a binding mapping is the kind of value that grows,
         and a block grows down the page where a keyword has to fit beside
-        everything else on the call. Every target door reads the same scope,
-        so one block covers a run(), an eval() and an answers() together.
+        everything else on the call. Every call that accepts a target reads the
+        same scope, so one block covers run(), eval(), and answers() together.
 
         `timeout` (seconds) and `inferences` (engine steps) bound the call
         with the engine's own guards; passing either raises TimeLimitError
@@ -1378,7 +1398,7 @@ class Space(Handle):
         A load that raises leaves the previous definitions standing, so a
         broken edit costs nothing but the error.
 
-        `!(import! &self path)` is the other door and loads a file that is
+        `!(import! &self path)` is the other form and loads a file that is
         new or edited, skipping one that is neither. The two agree on what
         a reload means and differ only in whether an unchanged file runs
         again, which is SWI's consult/1 against its if(changed).
@@ -1449,7 +1469,7 @@ class Space(Handle):
         spelling. That is the right property for a logic engine and it is the
         one thing about storage that surprises everybody once.
 
-        A library IS knowledge, so the same door imports it: ``m += lib.he``
+        A library IS knowledge, so the same operator imports it: ``m += lib.he``
         performs ``!(import! <m> (library lib_he))`` with this space as the
         target. An import is an effect, so it refuses to hide inside an atom
         batch or share a call with stored atoms.
@@ -1468,7 +1488,7 @@ class Space(Handle):
         pending = _ACTIVE_BATCHES.get().get(self._space)
         if pending is not None:
             # A Rules bundle rides the batch WHOLE, so the flush's re-entry
-            # into this door sees its identity and publishes its evidence
+            # into this method sees its identity and publishes its evidence
             # only when the equations actually land; a discarded batch
             # therefore publishes nothing, which the eager spelling used to
             # get wrong.
@@ -1479,7 +1499,7 @@ class Space(Handle):
             # in place among the other atoms, and its construction evidence
             # publishes once they land, exactly as `m += bundle` publishes.
             # A SPLATTED bundle (`add(*bundle)`) was erased by the caller
-            # before this door ran, which is the one spelling that cannot
+            # before this method ran, which is the one spelling that cannot
             # carry the evidence.
             flattened: list[Any] = []
             for item in atoms:
@@ -1516,16 +1536,16 @@ class Space(Handle):
         subtracts the multiplicity given rather than clearing the key.
         That is the only reading under which the operators are inverses,
         so `s += a; s -= a` leaves the space it found. `-=` classifies its
-        operand exactly as `+=` does, so the fact stream one door stores
-        the other subtracts, one occurrence per element, in one
+        operand exactly as `+=` does, so `-=` subtracts the same fact stream
+        `+=` stores, one occurrence per element, in one
         transactional crossing.
 
-        The DRAIN is the pattern-shaped door: `del m[pattern]` takes every
+        `del m[pattern]` is the draining form: it takes every
         unifying occurrence in one crossing and raises when nothing
         matched, as Python's `del` does, and MeTTa spells it `remove-atom`
         [source: engine/spaces/foreign.pl, remove_matching_atoms/2].
         MeTTa spells this method's grain `subtract-atom`. This is the one
-        door that reports absence.
+        method that reports absence.
 
         A bare variable is the remove-everything reading a multiset space
         gives it, each atom leaving through its own proper path, equations
@@ -1541,7 +1561,7 @@ class Space(Handle):
             return int(found)
         pattern = _to_atom(atom)
         if isinstance(pattern, Variable):
-            # The remove-everything reading, spelled as its own door rather
+            # The remove-everything reading, spelled as its own method rather
             # than reached by handing an unbound term to the one-occurrence
             # one. The engine's `subtract-atom` refuses that term precisely
             # because it would otherwise mean two opposite things in one head.
@@ -1724,9 +1744,29 @@ class Space(Handle):
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         return _satellite("lint").lint(self)
 
+    def effect_plan(self, target: Any) -> _ops_module.EffectPlan:
+        """Return operations the target may execute and their joined effect.
+
+        The engine translates the same atom or source form ``eval`` accepts,
+        follows nested compiled calls, and reads current operation metadata.
+        It does not execute the target. A later registration change is visible
+        on the next call. This is the analysis reified-world admission uses.
+        """
+        target_wire = target if isinstance(target, str) else _to_atom(target).to_wire()
+        rows, effect, _coverage = self._rt.apply_must(
+            "metta_py_world_effect_plan",
+            self._space,
+            self._space,
+            target_wire,
+        )
+        operations = tuple(
+            (str(name), EffectClass(str(declared))) for name, declared in rows
+        )
+        return _ops_module.EffectPlan(operations, EffectClass(str(effect)))
+
     def copy(self) -> Space:
         """This space's contents in a new anonymous space, cloned through
-        the bulk door, so equations copy as equations and keep running:
+        one bulk write, so equations copy as equations and keep running:
         "a scratch space set up like production" is one line. The handle
         is ``space()``'s kind, so drop it, or use it as a context
         manager, to return the name. copy.copy(m) answers the same
@@ -1835,13 +1875,13 @@ class Space(Handle):
         (S.Edge, b, c)]`` and a generator yielding those rows add two. A built
         Expression is always one atom even though it implements Sequence.
         Dataframes use ``iter_rows`` or ``itertuples(index=False)``. The
-        explicit ``add(list_value)`` door remains available when a list itself
+        explicit ``add(list_value)`` method remains available when a list itself
         is intended as one transparent expression.
 
-        Relative ``S.admits(Type)`` and ``S.capacity(n)`` values are declared
-        data: they install the same contract as the receiver methods and are
-        not stored in this space. Explicit ``add(...)`` remains the raw storage
-        door for those shapes.
+        Relative ``S.admits(Type)``, ``S.capacity(n)``, and
+        ``S.covers(effect)`` values are declared data: they install the same
+        contract as the receiver methods and are not stored in this space.
+        Explicit ``add(...)`` remains the raw storage method for those shapes.
         """
         if self._install_relative_write_declaration(atom):
             return self
@@ -1858,7 +1898,7 @@ class Space(Handle):
         return self
 
     def _install_relative_write_declaration(self, atom: Any) -> bool:
-        """Install the two relative pre-add declarations recognized by ``+=``."""
+        """Install the three receiver-relative declarations recognized by ``+=``."""
         if (
             not isinstance(atom, Expression)
             or len(atom) != 2
@@ -1869,6 +1909,10 @@ class Space(Handle):
         if atom.head.name == "admits" and isinstance(argument, Symbol):
             _refuse_in_batch(self._space, "declare")
             self.admits(argument.name)
+            return True
+        if atom.head.name == "covers" and isinstance(argument, Symbol):
+            _refuse_in_batch(self._space, "declare")
+            self.covers(argument.name)
             return True
         if (
             atom.head.name == "capacity"
@@ -1891,18 +1935,18 @@ class Space(Handle):
         # element, which is also the only reading under which += and -= are
         # inverses: `s += a; s -= a` has to leave the space it found, and a
         # drain takes copies the += never added. `del s[pattern]` is the
-        # drain door and `remove()` the one that reports absence
+        # drain form and `remove()` the method that reports absence
         # [user ruling 2026-09-01, "consider python's Counter"].
         #
-        # The operand reads by the SAME classification += writes by, so the
-        # fact stream one door stores the other subtracts: before that, a
+        # The operand reads by the SAME classification += writes by, so -=
+        # subtracts the same fact stream += stores. Before that, a
         # tuple of rows quietly became one never-matching pattern and -=
         # "succeeded" over an unchanged space.
         _refuse_in_batch(self._space, "remove")
         stream = _fact_stream(atom)
         if stream is None:
-            # One element is already atomic, so it takes the plain door. The
-            # batch door opens a transaction for the atomicity a BATCH needs,
+            # One element is already atomic, so it takes the single-item call.
+            # The batch call opens a transaction for the atomicity a BATCH needs,
             # and a foreign provider that declares nothing about transactional
             # writes refuses one it did not ask for: the C-store example's
             # `store -= atom` failed that way the moment a single removal
@@ -1934,6 +1978,8 @@ class Space(Handle):
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         if isinstance(other, Space):
             merged: list[Any] = other.atoms()
+        elif isinstance(other, Atom):
+            merged = [other]
         elif isinstance(other, str):
             if other not in self.space_names():
                 msg = (
@@ -1996,7 +2042,7 @@ class Space(Handle):
 
         A str key parses first, matching match()'s tolerance. A slice is
         refused: a slice of a space has no one meaning, and the bounded
-        readings have their own doors, match(limit=) for a bounded answer
+        readings have their own methods, match(limit=) for a bounded answer
         set and stream() for rows pulled until you have seen enough.
         """  # noqa: D205, D415  -- the API contract is one continuous invariant, not summary-and-body prose; the first line deliberately introduces the indented example that follows
         pattern = i
@@ -2027,7 +2073,7 @@ class Space(Handle):
         spelling of remove()'s multiset subtraction: m[pattern] is a
         query answering many rows, so deleting it deletes them all, the
         way DELETE WHERE does. Nothing unifying raises KeyError, as
-        del d[k] does on a missing key; remove() is the door that
+        del d[k] does on a missing key; remove() is the method that
         reports absence as False instead.
 
         It asks the engine's own drain, so the whole pattern costs ONE
@@ -2128,16 +2174,11 @@ class Space(Handle):
             tuple(_to_atom(pattern) for pattern in patterns),
             guard_atom(where),
         )
-        answers: Answers[Any] = Answers(
-            source(),
-            columns=cursor.columns,
-            space=self._space,
-            target=patterns,
-            query=query_context,
-            # A pattern query reads and writes nothing, so counting it is
-            # always the cheap engine aggregate; the route hints a count
-            # source may be given change nothing here.
-            count=lambda **_route: query_count(
+
+        def count_answers(*, values_wanted: bool) -> int | None:
+            if values_wanted:
+                return None
+            return query_count_if_repeatable(
                 self._rt,
                 self._space,
                 patterns,
@@ -2145,7 +2186,18 @@ class Space(Handle):
                 limit=limit,
                 timeout=timeout,
                 inferences=inferences,
-            ),
+            )
+
+        answers: Answers[Any] = Answers(
+            source(),
+            columns=cursor.columns,
+            space=self._space,
+            target=patterns,
+            query=query_context,
+            # A bare len asks the engine to admit a repeatable second query.
+            # list has already asked for an iterator, so its length hint
+            # materializes the one cursor it is about to consume.
+            count=count_answers,
         )
         if into is None:
             return answers
@@ -2362,7 +2414,7 @@ class Space(Handle):
         name, because a counting fold is ONE number over the whole answer
         set and a cursor exists not to have one.
 
-        What this door does NOT take is match()'s `into=`, the same kind of
+        What this method does NOT take is match()'s `into=`, the same kind of
         difference: `into` builds a container out of every row.
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         carrier = _selected_under(under)
@@ -2608,9 +2660,9 @@ class Space(Handle):
                     m.add(edge)          # collected, no crossing yet
             # one add_many crossing happened here
 
-        The write ladder reads: add one; add(*atoms) several; batch a
-        region; transaction all-or-nothing; a provider's own bulk door
-        underneath. A batch is a transport economy and must not invent
+        The write forms are add for one or several atoms, batch for a region,
+        transaction for all-or-nothing work, and a provider's bulk method
+        underneath them. A batch is a transport economy and must not invent
         semantics, so the sharp edges are stated and enforced: reads
         inside the block see the space WITHOUT the pending adds; a
         remove() or clear() on this space inside the block refuses,
@@ -2704,7 +2756,7 @@ class Space(Handle):
 
         Variadic, and that is how evaluation BATCHES: several terms ride
         one engine crossing and the answer is one group per term in call
-        order, run()'s own grouping carried to the term door. One term
+        order, run()'s own grouping carried to the term form. One term
         keeps its flat list, so the scalar reading never changes shape.
 
         Every answer carries its truth: an answer that is undefined under
@@ -2720,15 +2772,15 @@ class Space(Handle):
         exactly as it does for run(): inside `with m.bind({"x": tensor})`,
         `m.eval("(decide x)")` hands the tensor itself to the rule, by
         identity, rather than a printed form of it. The name is the SYMBOL x
-        and not the variable $x, on this door and the source door alike. The evaluation doors take the same
-        vocabulary the source door takes, so reaching for a term instead
-        of source text costs no change of spelling.
+        and not the variable $x, in this call and the source form alike. The
+        evaluation calls take the same vocabulary as the source form, so using
+        a term instead of source text costs no change of spelling.
 
         A key may be a NAME or an ATOM. A name means the symbol of that name,
         which is what the engine's own substitution matches and what run()
         takes. An atom means exactly that atom, so `bind({V.x: 5})` fills a
         VARIABLE hole -- the one substitution `unify` reports and the one no
-        door could apply, because a variable crosses the wire as ['v', 'x']
+        evaluation call could apply, because a variable crosses the wire as ['v', 'x']
         where a symbol crosses as ['s', 'x'] and the engine matches names.
 
         `timeout` (seconds) and `inferences` (engine steps) bound the call,
@@ -2736,7 +2788,7 @@ class Space(Handle):
         `capture()` scope collects printed text without changing the list.
 
         `under`, `theory` and `interpreter` are answers()' three, and mean
-        exactly what they mean there; this door is that one materialised. A
+        exactly what they mean there; `eval()` materialises that query as a list. A
         surrounding `with metta.under(carrier)` reaches here too, which it did
         not before: match() and answers() both honoured such a scope while
         eval() ignored it in silence.
@@ -2777,11 +2829,11 @@ class Space(Handle):
         # Atom-keyed bindings are applied here whichever branch runs below, so
         # the eager path and the delegating one agree on what a binding means.
         target, using = self._prepared_ask(target, None)
-        # The two doors are NOT one mechanism, which was measured rather than
+        # The two methods are NOT one mechanism, which was measured rather than
         # assumed: eval() is one eager engine call (metta_py_eval_all) and
         # answers() opens a cursor, and routing eval() through the cursor
         # unconditionally left a memoized definition's call keys unrecorded
-        # where the eager door records them [measured 2026-08-31: a memoized
+        # where the eager method records them [measured 2026-08-31: a memoized
         # fib(12) reached through the handle then run() stored 13 entries on
         # the eager path and 0 through the cursor]. So the delegation is for
         # what answers() uniquely OWNS -- the carrier, the theory and the
@@ -2940,6 +2992,11 @@ class Space(Handle):
                 using=using,
                 under=declaration.name,
                 order=declaration.order,
+                annotation_factory=(
+                    lambda value, annotation: algebra_api.captured_answer(
+                        self, value, annotation, declaration
+                    )
+                ),
             )
             yield from ordinary._items()
 
@@ -2959,11 +3016,11 @@ class Space(Handle):
     ) -> tuple[Any, dict[str, Any] | None]:
         """Everything a term ask does to its target before the engine sees it.
 
-        Two things, both of which every door taking a target owes its caller.
+        Two things, both of which every method taking a target owes its caller.
 
         ``interpreter=`` is a TERM rewrite and nothing more, so it costs the
         same three lines wherever it is offered; ``theory=`` needs a scratch
-        space and stays with the door that owns its lifetime, which is why the
+        space and stays with the method that owns its lifetime, which is why the
         rewrite is skipped here when a theory is also present: the application
         has to name the SCRATCH as its space, and the scratch does not exist
         yet.
@@ -2974,7 +3031,7 @@ class Space(Handle):
         symbol and cannot reach a variable at all -- measured 2026-08-31,
         neither ``{"x": 5}`` nor ``{"$x": 5}`` fills the hole in
         ``(dbl $x)``. A variable hole is exactly what ``unify`` reports, so
-        the one substitution the library could produce was the one no door
+        the one substitution the library could produce was the one no method
         could apply. An atom key says which atom it means, so it is applied by
         ``Atom.subs`` here and a name key keeps meaning the symbol it always
         meant, to the same engine predicate as before.
@@ -3193,12 +3250,12 @@ class Space(Handle):
         nothing applies to is its own answer, which is ordinary MeTTa and how
         `!(hello world)` works, so there is no scope here that refuses one.
 
-        The Node surface has had m.reducible() since it existed; Python had
+        The Node extension has had m.reducible() since it existed; Python had
         only eval_status(), which evaluates to tell you [measured 2026-08-31].
         """
-        # The seam answers the ATOM true or false, which crosses as the string
+        # The engine call answers the ATOM true or false, which crosses as the string
         # of that name; bool("false") is True, so the comparison is explicit,
-        # the same way algebra.py reads its own boolean seam.
+        # the same way algebra.py reads its own boolean result.
         return (
             self._rt.apply_must(
                 "metta_py_reducible", self._space, _to_atom(target).to_wire()
@@ -3237,7 +3294,7 @@ class Space(Handle):
         keys mean themselves, so `bind({V.x: 5})` fills a variable hole.
 
         `theory` and `interpreter` are eval()'s own, and mean the same here.
-        This is the door that says which evaluation path produced an answer, so
+        This is the method that says which evaluation path produced an answer, so
         being unable to point it at an alternative evaluation relation was the
         sharpest form of the gap: `m.eval_status(target, interpreter=my_eval)`
         is how you see whether an explicit interpreter reduced a term or handed
@@ -3304,7 +3361,7 @@ class Space(Handle):
 
         An `(Error ...)` answer raises MettaResultError carrying the
         atom: an error among the answers is the evaluation reporting
-        failure, and failure outranks the count. eval() is the door
+        failure, and failure outranks the count. eval() is the method
         that keeps errors as data.
         """
         answers = self.eval(target, timeout=timeout, inferences=inferences)
@@ -3844,7 +3901,7 @@ class Space(Handle):
         # passes no names at all.
         if not wanted:
             # An extension that exports nothing registers nothing, and that is
-            # the shape of a provider: it contributes clauses to a seam.
+            # the shape of a provider: it contributes implementation clauses.
             if declares == "extension":
                 _invalidate_builtins_cache(self._rt)
                 return ()
@@ -3884,8 +3941,8 @@ class Space(Handle):
                 'register, a :- metta_export("...") declaration for a '
                 "source that defines functions, or a "
                 ":- metta_extension(name, []) declaration for one that "
-                "contributes clauses to a seam and exports nothing, such "
-                "as a space provider. Discovering the names would "
+                "contributes clauses to an extension point and exports "
+                "nothing, such as a space provider. Discovering the names would "
                 "silently register whatever else the source defines"
             )
             raise ValueError(
@@ -4134,7 +4191,7 @@ class Space(Handle):
             ),
             # The guard becomes ONE admission test over the event, built by
             # the module that owns the instantiation and given this space's
-            # own evaluation door, so a guard means on an event exactly what
+            # own evaluation method, so a guard means on an event exactly what
             # it means on a match.
             admits=(
                 None
@@ -4326,8 +4383,8 @@ class Space(Handle):
             def add_one(n):
                 return n + 1
 
-        This is rung 4 of the naming ladder applied to the definition door
-        itself: ``def not_provable`` lands as ``not-provable``. An authored
+        The same attribute mapping applies to the definition name itself:
+        ``def not_provable`` lands as ``not-provable``. An authored
         MeTTa underscore therefore uses explicit ``name="not_provable"``.
 
         A generator compiles to nondeterminism (each yield one answer), a
@@ -4370,7 +4427,7 @@ class Space(Handle):
         return bundle
 
     def pre_add(self, fn: Defined[..., Any] | Callable[..., Any]) -> Defined[..., Any]:
-        """Compile or accept one unary judge and claim this space's write door.
+        """Compile or accept one unary judge and claim this space's write hook.
 
         The common decorator stack places ``@pre_add`` above ``@define``, so
         an existing Defined keeps the module that owns its equations. A raw
@@ -4618,7 +4675,7 @@ class Space(Handle):
         matched nothing, and left every previous row standing.
 
         Both halves of the replacement are load-bearing and both were got
-        wrong by the doors that wrote this longhand instead of calling here.
+        wrong by the methods that wrote this longhand instead of calling here.
         The removal LOOPS, because `metta_py_remove` takes one occurrence and
         a catalog that somehow holds two rows for one subject would keep the
         stale one: measured 2026-08-31, a second `(emits &s fair)` row
@@ -4920,7 +4977,7 @@ class Space(Handle):
         """Type a pool's membership: only TYPE-carrying atoms enter.
 
         A thread pool is a space whose atoms are spaces, and this is its
-        door: (admits &pool Space) plus per-atom (: <space> Space)
+        declaration: (admits &pool Space) plus per-atom (: <space> Space)
         declarations make membership a type judgement the ontology
         already knows how to make.
         """
@@ -4996,8 +5053,8 @@ class Space(Handle):
     ) -> Atom | Any:
         """Return the event stream, or declare what this context promises.
 
-        Subscribability is a promise about the context, not something the
-        seam reads off its methods. A native space needs no declaration:
+        Subscribability is a promise about the context, not something its
+        methods alone establish. A native space needs no declaration:
         every write into it runs the engine's own hooks, so it delivers
         per-write-exactly and ordered by construction. A FOREIGN context
         declares, and one that declares nothing refuses a subscription
@@ -5029,9 +5086,9 @@ class Space(Handle):
     @property
     def metta(self) -> MeTTa:
         """The owning evaluation context, so a handle can reach every
-        context-level door: ``m.metta.space(S.kb)`` creates a sibling space
+        context-level method: ``m.metta.space(S.kb)`` creates a sibling space
         in THIS handle's own context rather than the process default, which
-        is the creation door the twins' known-issue asked for. The context
+        is the creation method the twins' known-issue asked for. The context
         BORROWS this handle's space as its home, so answering it mints
         nothing, and two answers compare equal because they share the
         runtime and the home.
@@ -5077,7 +5134,7 @@ class MeTTa:
             # A borrowed home carries its runtime, and explicit options
             # still mean what they say: routing them through runtime()
             # applies verbose and raises on a conflicting metta_path,
-            # exactly the one-engine contract that door documents. Silently
+            # exactly the one-engine contract that method documents. Silently
             # ignoring them was measured as accepting a conflicting engine
             # path and a dead verbose=True
             # [tested: test_a_borrowing_context_still_honors_its_options].
@@ -5376,13 +5433,13 @@ class MeTTa:
         return self._self.transaction(target)
 
     # ---------------------------------------------- generated context tier
-    # Every door below is GENERATED by tools/aiogen.py from the synchronous
+    # Every method below is GENERATED by tools/aiogen.py from the synchronous
     # Space method it delegates to, whose signature, return annotation and
     # docstring it carries, each with the tier note appended. MeTTa held a
     # hand-written subset of these once, typed (*args: Any) -> Any, which
-    # erased every overload a checker could use and silently missed doors
+    # erased every overload a checker could use and silently missed methods
     # (a context that could define but not eval). Do not edit them here:
-    # change Space, or remove the door's row from MODULE_DOORS in
+    # change Space, or remove the method's row from MODULE_DOORS in
     # tools/aio_divergences.py.
 
     def run(
@@ -5409,8 +5466,8 @@ class MeTTa:
         after reading, before anything runs. It is a BLOCK rather than a
         keyword because a binding mapping is the kind of value that grows,
         and a block grows down the page where a keyword has to fit beside
-        everything else on the call. Every target door reads the same scope,
-        so one block covers a run(), an eval() and an answers() together.
+        everything else on the call. Every call that accepts a target reads the
+        same scope, so one block covers run(), eval(), and answers() together.
 
         `timeout` (seconds) and `inferences` (engine steps) bound the call
         with the engine's own guards; passing either raises TimeLimitError
@@ -5451,7 +5508,7 @@ class MeTTa:
         A load that raises leaves the previous definitions standing, so a
         broken edit costs nothing but the error.
 
-        `!(import! &self path)` is the other door and loads a file that is
+        `!(import! &self path)` is the other form and loads a file that is
         new or edited, skipping one that is neither. The two agree on what
         a reload means and differ only in whether an unchanged file runs
         again, which is SWI's consult/1 against its if(changed).
@@ -5541,7 +5598,7 @@ class MeTTa:
         spelling. That is the right property for a logic engine and it is the
         one thing about storage that surprises everybody once.
 
-        A library IS knowledge, so the same door imports it: ``m += lib.he``
+        A library IS knowledge, so the same operator imports it: ``m += lib.he``
         performs ``!(import! <m> (library lib_he))`` with this space as the
         target. An import is an effect, so it refuses to hide inside an atom
         batch or share a call with stored atoms.
@@ -5564,16 +5621,16 @@ class MeTTa:
         subtracts the multiplicity given rather than clearing the key.
         That is the only reading under which the operators are inverses,
         so `s += a; s -= a` leaves the space it found. `-=` classifies its
-        operand exactly as `+=` does, so the fact stream one door stores
-        the other subtracts, one occurrence per element, in one
+        operand exactly as `+=` does, so `-=` subtracts the same fact stream
+        `+=` stores, one occurrence per element, in one
         transactional crossing.
 
-        The DRAIN is the pattern-shaped door: `del m[pattern]` takes every
+        `del m[pattern]` is the draining form: it takes every
         unifying occurrence in one crossing and raises when nothing
         matched, as Python's `del` does, and MeTTa spells it `remove-atom`
         [source: engine/spaces/foreign.pl, remove_matching_atoms/2].
         MeTTa spells this method's grain `subtract-atom`. This is the one
-        door that reports absence.
+        method that reports absence.
 
         A bare variable is the remove-everything reading a multiset space
         gives it, each atom leaving through its own proper path, equations
@@ -5624,7 +5681,7 @@ class MeTTa:
 
         Variadic, and that is how evaluation BATCHES: several terms ride
         one engine crossing and the answer is one group per term in call
-        order, run()'s own grouping carried to the term door. One term
+        order, run()'s own grouping carried to the term form. One term
         keeps its flat list, so the scalar reading never changes shape.
 
         Every answer carries its truth: an answer that is undefined under
@@ -5640,15 +5697,15 @@ class MeTTa:
         exactly as it does for run(): inside `with m.bind({"x": tensor})`,
         `m.eval("(decide x)")` hands the tensor itself to the rule, by
         identity, rather than a printed form of it. The name is the SYMBOL x
-        and not the variable $x, on this door and the source door alike. The evaluation doors take the same
-        vocabulary the source door takes, so reaching for a term instead
-        of source text costs no change of spelling.
+        and not the variable $x, in this call and the source form alike. The
+        evaluation calls take the same vocabulary as the source form, so using
+        a term instead of source text costs no change of spelling.
 
         A key may be a NAME or an ATOM. A name means the symbol of that name,
         which is what the engine's own substitution matches and what run()
         takes. An atom means exactly that atom, so `bind({V.x: 5})` fills a
         VARIABLE hole -- the one substitution `unify` reports and the one no
-        door could apply, because a variable crosses the wire as ['v', 'x']
+        evaluation call could apply, because a variable crosses the wire as ['v', 'x']
         where a symbol crosses as ['s', 'x'] and the engine matches names.
 
         `timeout` (seconds) and `inferences` (engine steps) bound the call,
@@ -5656,7 +5713,7 @@ class MeTTa:
         `capture()` scope collects printed text without changing the list.
 
         `under`, `theory` and `interpreter` are answers()' three, and mean
-        exactly what they mean there; this door is that one materialised. A
+        exactly what they mean there; `eval()` materialises that query as a list. A
         surrounding `with metta.under(carrier)` reaches here too, which it did
         not before: match() and answers() both honoured such a scope while
         eval() ignored it in silence.
@@ -5772,8 +5829,8 @@ class MeTTa:
             def add_one(n):
                 return n + 1
 
-        This is rung 4 of the naming ladder applied to the definition door
-        itself: ``def not_provable`` lands as ``not-provable``. An authored
+        The same attribute mapping applies to the definition name itself:
+        ``def not_provable`` lands as ``not-provable``. An authored
         MeTTa underscore therefore uses explicit ``name="not_provable"``.
 
         A generator compiles to nondeterminism (each yield one answer), a
@@ -6122,13 +6179,13 @@ class MeTTa:
         (S.Edge, b, c)]`` and a generator yielding those rows add two. A built
         Expression is always one atom even though it implements Sequence.
         Dataframes use ``iter_rows`` or ``itertuples(index=False)``. The
-        explicit ``add(list_value)`` door remains available when a list itself
+        explicit ``add(list_value)`` method remains available when a list itself
         is intended as one transparent expression.
 
-        Relative ``S.admits(Type)`` and ``S.capacity(n)`` values are declared
-        data: they install the same contract as the receiver methods and are
-        not stored in this space. Explicit ``add(...)`` remains the raw storage
-        door for those shapes.
+        Relative ``S.admits(Type)``, ``S.capacity(n)``, and
+        ``S.covers(effect)`` values are declared data: they install the same
+        contract as the receiver methods and are not stored in this space.
+        Explicit ``add(...)`` remains the raw storage method for those shapes.
         Runs against this context's self space.
         """
         self._self.__iadd__(atom)
@@ -6194,7 +6251,7 @@ class MeTTa:
 
         A str key parses first, matching match()'s tolerance. A slice is
         refused: a slice of a space has no one meaning, and the bounded
-        readings have their own doors, match(limit=) for a bounded answer
+        readings have their own methods, match(limit=) for a bounded answer
         set and stream() for rows pulled until you have seen enough.
         Runs against this context's self space.
         """  # noqa: D205, D415  -- the API contract is one continuous invariant, not summary-and-body prose; the first line deliberately introduces the indented example that follows
@@ -6205,7 +6262,7 @@ class MeTTa:
         spelling of remove()'s multiset subtraction: m[pattern] is a
         query answering many rows, so deleting it deletes them all, the
         way DELETE WHERE does. Nothing unifying raises KeyError, as
-        del d[k] does on a missing key; remove() is the door that
+        del d[k] does on a missing key; remove() is the method that
         reports absence as False instead.
 
         It asks the engine's own drain, so the whole pattern costs ONE

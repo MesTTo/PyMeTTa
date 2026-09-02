@@ -79,7 +79,9 @@ def twin(m):
     # `transaction` takes a callable or a term, and an open `with` scope is
     # appendix stamp 4, unruled: a callable rolls back on a Python EXCEPTION,
     # and this file's claim is a body that simply answers nothing.
-    rolls_back = S.progn(S.add_atom(m, S.tx_rolled(S.a)), nothing)  # rung: the write has to be inside the engine's transaction, and `space += atom` is a statement over a handle
+    rolls_back = S.progn(
+        S.add_atom(m, S.tx_rolled(S.a)), nothing
+    )  # rung: the write has to be inside the engine's transaction, and `space += atom` is a statement over a handle
     assert m.transaction(rolls_back) == []
     # !(test (collapse (match &self (tx-rolled $x) $x)) ())
     assert m[S.tx_rolled(V.x)].x == []
@@ -109,7 +111,9 @@ def twin(m):
     # !(test (collapse (transaction (superpose ((add-atom &self (tx-each 1))
     #                                           (add-atom &self (tx-each 2))))))
     #        (true true))
-    each = S.superpose((S.add_atom(m, S.tx_each(1)), S.add_atom(m, S.tx_each(2))))  # rung: two writes inside one transaction, and a write is a statement over a handle
+    each = S.superpose(
+        (S.add_atom(m, S.tx_each(1)), S.add_atom(m, S.tx_each(2)))
+    )  # rung: two writes inside one transaction, and a write is a statement over a handle
     assert m.transaction(each) == [True, True]
     # !(test (collapse (match &self (tx-each $x) $x)) (1 2))
     assert m[S.tx_each(V.x)].x == [1, 2]
@@ -131,11 +135,16 @@ def twin(m):
 
     computed = S.tx_body()
     # !(test (collapse (let $b (tx-body) (atomically $b))) (2 4))
-    assert m.eval(S.let(V.b, computed, S.atomically(V.b))) == [2, 4]  # rung: the binding IS the claim: it is what makes the argument a variable holding a value
+    assert m.eval(S.let(V.b, computed, S.atomically(V.b))) == [
+        2,
+        4,
+    ]  # rung: the binding IS the claim: it is what makes the argument a variable holding a value
     # !(test (size-atom (collapse (let $b (tx-body) (atomically $b)))) 2)
     assert len(m.eval(S.let(V.b, computed, S.atomically(V.b)))) == 2  # rung: the same binding
     # !(test (size-atom (collapse (let $b (tx-body) (transaction $b)))) 1)
-    assert len(m.eval(S.let(V.b, computed, S.transaction(V.b)))) == 1  # rung: the same binding, and the contrast this file is making
+    assert (
+        len(m.eval(S.let(V.b, computed, S.transaction(V.b)))) == 1
+    )  # rung: the same binding, and the contrast this file is making
 
     # ----------------------------------------------------- elapsed
     # Answers the value AND the seconds it took, as a pair, so the value is
@@ -153,9 +162,9 @@ def twin(m):
     # cannot be an assertion here: a resource bound is a CONTROL exception, so
     # a program's own (catch ...) deliberately cannot eat it and the run stops.
     @m.define
-    def spin(n):
+    def spin(n: int):
         # (= (spin $n) (if (== $n 0) done (spin (- $n 1))))
-        return S.done if n == 0 else spin(n - 1)
+        return S.done if fn.eq(n, 0) else spin(n - 1)  # engine equality is intentional
 
     # !(test (timeout 5 (spin 10)) done)
     assert m.eval(S.spin(10), timeout=5) == [S.done]
@@ -265,4 +274,26 @@ def twin(m):
 #: the quad twin stopped being a different program [measured 2026-09-01: min-
 #: of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=c6a40460b1db341198a6150e3600f502831a6e83].
-BUDGET = 28181
+#: RE-PINNED 2026-09-01, 28181 to 28918 (+737), generic Python operators now
+#: dispatch through live protocols while source twins explicitly name
+#: relational engine heads [measured 2026-09-01: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=e3787593132a7ece2d300397045f7415709847c9].
+#: RE-PINNED 2026-09-02, 28918 to 30494 (+1576), exact numeric annotations
+#: retain native operator heads, publish MeTTa type declarations, and leave
+#: relational heads only where static proof is unavailable [measured
+#: 2026-09-02: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=d0dfff1a3ee6c85472fd9b12d6e4aec007a9c301].
+#: RE-PINNED 2026-09-02, 30494 to 31132 (+638), static contract discharge and
+#: policy-stable recompilation [measured 2026-09-02: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=c00341f0ff9d83d1b9338ca86ad51708eaf07ebd].
+#: RE-PINNED 2026-09-02, 31132 to 31152 (+20), static contract discharge with
+#: policy checks confined to invalidated contracts [measured 2026-09-02: min-
+#: of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=c00341f0ff9d83d1b9338ca86ad51708eaf07ebd].
+#: RE-PINNED 2026-09-02, 31152 to 31178 (+26), P43 protects both generated
+#: policy-check fallbacks from space-local capture [measured 2026-09-02: min-
+#: of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=c00341f0ff9d83d1b9338ca86ad51708eaf07ebd].
+BUDGET = 31178

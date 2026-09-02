@@ -46,7 +46,7 @@ def twin(m):
             a,
             is_in(V.x, (1, 2, 3)),
             S.let(  # rung: solve(pattern, subject) has no expression-position form inside a compiled body
-                b, is_in(V.y, (2, 3)), is_in(V.x + V.y, (3, 4, 5))
+                b, is_in(V.y, (2, 3)), is_in(fn.add(V.x, V.y), (3, 4, 5))
             ),
         )
 
@@ -146,4 +146,17 @@ def twin(m):
 #: structure, and the removal doors changed meaning where a twin spells one
 #: [measured 2026-09-01: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=c6a40460b1db341198a6150e3600f502831a6e83].
-BUDGET = 8429
+#: RE-PINNED 2026-09-01, 8429 to 8468 (+39), generic Python operators now
+#: dispatch through live protocols while source twins explicitly name
+#: relational engine heads [measured 2026-09-01: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=e3787593132a7ece2d300397045f7415709847c9].
+#: RE-PINNED 2026-09-02, 8468 to 8576 (+108), static contract discharge and
+#: policy-stable recompilation [measured 2026-09-02: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=c00341f0ff9d83d1b9338ca86ad51708eaf07ebd].
+#: RE-PINNED 2026-09-02, 8576 to 8582 (+6), P43 protects both generated policy-
+#: check fallbacks from space-local capture [measured 2026-09-02: min-of-3
+#: serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=c00341f0ff9d83d1b9338ca86ad51708eaf07ebd].
+BUDGET = 8582

@@ -208,63 +208,64 @@
     "join-projection": {
       "cause": {
         "chain": [
-          "bench.py --memory-scale spawns join-projection in a fresh process",
-          "instructions is selected by minimum of repetitions",
+          "Space.match list materialization consumes one cursor without a repeatability/count query",
+          "controlled instructions include variable decoding and work inside the held SWI engine",
           "the intended complexity family is linear"
         ],
-        "commit": "WORKTREE"
+        "commit": "5c9c97328472130cd30ad85b000e89c01556eb35"
       },
+      "comment": " RE-PINNED 2026-09-02: P10's repeatability count made list(match(...)) decode N projected variables twice, changing the width curve from O(N) to O(N^2). At widths 1/10/100/1000 the post-P10 instruction samples were [30062379,30063882,30063014]/[40718438,40715121,40716753]/[213502215,213518681,213501041]/[5640255421,5640347924,5640187166], with a 160758 maximum band. Skipping the count once iteration has requested values restores one cursor and samples [26608346,26607926,26609800]/[32441991,32441445,32442360]/[120733879,120732780,120720939]/[947299816,947380805,947571128], with a 271312 maximum band. The fitted curve is linear again (NRMS 0.0020).",
       "expected": "linear",
       "fit": {
-        "best_model": "n_log_n",
-        "last_ratio": 18.39705042420424,
+        "best_model": "linear",
+        "last_ratio": 7.8470216007846,
         "models": {
           "capped_linear": {
-            "intercept": -39533394.944930315,
-            "nrms": 0.02109234887189844,
-            "slope": 3460019.5200537546
+            "intercept": 25730701.331389695,
+            "nrms": 0.0020492123831907737,
+            "slope": 921824.7710841055
           },
           "constant": {
-            "intercept": 921487026.75,
-            "nrms": 0.42628305472699135,
+            "intercept": 281767531.5,
+            "nrms": 0.4193044853190472,
             "slope": 0.0
           },
           "linear": {
-            "intercept": -39533394.944930315,
-            "nrms": 0.02109234887189844,
-            "slope": 3460019.5200537546
+            "intercept": 25730701.331389695,
+            "nrms": 0.0020492123831907737,
+            "slope": 921824.7710841055
           },
           "log_n": {
-            "intercept": -632175288.3,
-            "nrms": 0.2567818773136466,
-            "slope": 449831313.444831
+            "intercept": -145785743.09999996,
+            "nrms": 0.23666440444604697,
+            "slope": 123789351.91896383
           },
           "n_log_n": {
-            "intercept": 5816717.349686623,
-            "nrms": 0.008373634288135775,
-            "slope": 495539.641888099
+            "intercept": 38202883.040114015,
+            "nrms": 0.014263375854251902,
+            "slope": 131811.56736801728
           },
           "quadratic": {
-            "intercept": 73080142.53110147,
-            "nrms": 0.014360826678308238,
-            "slope": 3359.691295103751
+            "intercept": 56740334.9034535,
+            "nrms": 0.03657462988009584,
+            "slope": 891.1077074334012
           }
         },
-        "power_exponent": 0.6917393123255409,
-        "r_squared": 0.8816252995800532
+        "power_exponent": 0.5225111701317315,
+        "r_squared": 0.8923066513285868
       },
       "gated": true,
       "noise": {
-        "absolute_max": 28278,
-        "relative_max": 0.0001211951619431689,
+        "absolute_max": 271312,
+        "relative_max": 0.0002864056293662365,
         "resolution_bytes": 1
       },
       "primary_metric": "instructions",
       "representative": [
-        28654342,
-        38767200,
-        186550351,
-        3431976214
+        26607926,
+        32441445,
+        120720939,
+        947299816
       ],
       "sizes": [
         1,
@@ -276,64 +277,64 @@
     "join-shared": {
       "cause": {
         "chain": [
-          "bench.py --memory-scale spawns join-shared in a fresh process",
-          "inferences is selected by minimum of repetitions",
+          "Space.match list materialization consumes one cursor without a repeatability/count query",
+          "controlled instructions include conjunction work inside the held SWI engine",
           "the intended complexity family is linear"
         ],
-        "commit": "WORKTREE"
+        "commit": "5c9c97328472130cd30ad85b000e89c01556eb35"
       },
-      "comment": " RE-PINNED 2026-08-30 (petta-alignment campaign): DOWN, 37,122 to 35,122 at the top width, and the whole ladder cheapened once the isolated-context wiring moved off space_parent rows onto the narrow equation-home relation, so conjunctions kept the direct native path (parent rows had routed every conjunct through match/4, 124,067 at width 256, before the narrow relation replaced them).",
+      "comment": " RE-PINNED 2026-08-30 (petta-alignment campaign): DOWN, 37,122 to 35,122 at the top width, and the whole ladder cheapened once the isolated-context wiring moved off space_parent rows onto the narrow equation-home relation, so conjunctions kept the direct native path (parent rows had routed every conjunct through match/4, 124,067 at width 256, before the narrow relation replaced them). RE-PINNED 2026-09-02: caller inferences stopped measuring the width after match moved work into a held engine; the post-P10 ladder was [138,700,5650,55152], but after removing list's redundant count it is the constant [34,34,34,34] despite real linear work. The corresponding post-P10 controlled instruction samples were [30210370,30055225,30055804]/[38059438,38057945,38059423]/[114629375,114598721,114614344]/[916345509,916505589,916346543], with a 160080 maximum band. The one-cursor path measures [26602622,26605487,26605991]/[30327225,30325030,30326833]/[65304063,65312435,65311993]/[456530827,456688621,456582637], with a 157794 maximum band and a linear fit (NRMS 0.0037). The gate therefore uses controlled instructions, not the caller's incomplete inference counter.",
       "expected": "linear",
       "fit": {
         "best_model": "linear",
-        "last_ratio": 9.702209944751381,
+        "last_ratio": 6.990848747037378,
         "models": {
           "capped_linear": {
-            "intercept": 95.83673469387759,
-            "nrms": 0.0007642193215413602,
-            "slope": 35.02849060416246
+            "intercept": 24867805.28020732,
+            "nrms": 0.003747849711844112,
+            "slope": 431405.3293241861
           },
           "constant": {
-            "intercept": 9825.0,
-            "nrms": 0.4187190177224236,
+            "intercept": 144690635.5,
+            "nrms": 0.4202397266524029,
             "slope": 0.0
           },
           "linear": {
-            "intercept": 95.83673469387759,
-            "nrms": 0.0007642193215413602,
-            "slope": 35.02849060416246
+            "intercept": 24867805.28020732,
+            "nrms": 0.003747849711844112,
+            "slope": 431405.3293241861
           },
           "log_n": {
-            "intercept": -6412.799999999999,
-            "nrms": 0.2366032819081131,
-            "slope": 4701.324625499082
+            "intercept": -54023911.70000002,
+            "nrms": 0.24065882787556378,
+            "slope": 57533754.21524219
           },
           "n_log_n": {
-            "intercept": 568.9887184167874,
-            "nrms": 0.013029951195206797,
-            "slope": 5.009139718412256
+            "intercept": 30661028.45400153,
+            "nrms": 0.008892728073016826,
+            "slope": 61710.19204196051
           },
           "quadratic": {
-            "intercept": 1271.9556144280032,
-            "nrms": 0.03521496516926866,
-            "slope": 0.03387005610556567
+            "intercept": 39265665.19162616,
+            "nrms": 0.03118685492208957,
+            "slope": 417.48288659598927
           }
         },
-        "power_exponent": 0.868990041183257,
-        "r_squared": 0.9955240672515937
+        "power_exponent": 0.40367759577277174,
+        "r_squared": 0.8376959959294201
       },
       "gated": true,
       "noise": {
-        "absolute_max": 0,
-        "relative_max": 0.0,
+        "absolute_max": 157794,
+        "relative_max": 0.000345637119484157,
         "resolution_bytes": 1
       },
-      "primary_metric": "inferences",
+      "primary_metric": "instructions",
       "representative": [
-        88,
-        470,
-        3620,
-        35122
+        26602622,
+        30325030,
+        65304063,
+        456530827
       ],
       "sizes": [
         1,

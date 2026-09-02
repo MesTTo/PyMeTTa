@@ -8,26 +8,31 @@ naming ladder's own underscore map, and nothing has to say that name twice.
 name that object was installed under, so the stored equation is the
 original's.
 
-The source stores `==`. Python's comparison compiles to the engine-native
-`py-eq` head, so `fib-tr` deliberately differs in that one stored spelling.
-The digest lane reports it.
+The numeric annotations keep Python's `-` and `+` syntax on the pure engine
+heads. Equality stays explicit as `fn.eq`, because Python and the engine
+disagree across numeric species, NaN, and signed zero. `fib-tr` therefore
+stores the source equation exactly. The annotations publish their type
+declarations, `(: fib-tr (-> Number Number Number Number))` and
+`(: fib (-> Number Number))`.
 """
+
+from metta import fn
 
 
 def twin(m):
     """Define the accumulator fib and its entry point, then run it."""
+
     @m.define
-    def fib_tr(n, a, b):
-        # Source: (= (fib-tr $n $a $b) (if (== $n 0) $a (fib-tr (- $n 1) $b (+ $a $b))))
-        # Twin:   (= (fib-tr $n $a $b) (if (py-eq $n 0) $a (fib-tr (- $n 1) $b (+ $a $b))))
-        return a if n == 0 else fib_tr(n - 1, b, a + b)
+    def fib_tr(n: int, a: int, b: int) -> int:
+        # Source and twin: (= (fib-tr $n $a $b) (if (== $n 0) $a (fib-tr (- $n 1) $b (+ $a $b))))
+        return a if fn.eq(n, 0) else fib_tr(n - 1, b, a + b)  # engine equality is intentional
 
     # A body calling the definition above it is the ordinary call: `fib_tr` is
     # bound here to the decorated object, and the compiler emits that object's
     # installed MeTTa name, so the stored body is `(fib-tr $n 0 1)` even
     # though the two names differ.
     @m.define
-    def fib(n):
+    def fib(n: int) -> int:
         # (= (fib $n) (fib-tr $n 0 1))
         return fib_tr(n, 0, 1)
 
@@ -107,4 +112,26 @@ def twin(m):
 #: structure, and the removal doors changed meaning where a twin spells one
 #: [measured 2026-09-01: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=c6a40460b1db341198a6150e3600f502831a6e83].
-BUDGET = 7193
+#: RE-PINNED 2026-09-01, 7193 to 7654 (+461), generic Python operators now
+#: dispatch through live protocols while source twins explicitly name
+#: relational engine heads [measured 2026-09-01: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=e3787593132a7ece2d300397045f7415709847c9].
+#: RE-PINNED 2026-09-02, 7654 to 10165 (+2511), exact numeric annotations
+#: retain native operator heads, publish MeTTa type declarations, and leave
+#: relational heads only where static proof is unavailable [measured
+#: 2026-09-02: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=d0dfff1a3ee6c85472fd9b12d6e4aec007a9c301].
+#: RE-PINNED 2026-09-02, 10165 to 10831 (+666), static contract discharge and
+#: policy-stable recompilation [measured 2026-09-02: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=c00341f0ff9d83d1b9338ca86ad51708eaf07ebd].
+#: RE-PINNED 2026-09-02, 10831 to 10875 (+44), static contract discharge with
+#: policy checks confined to invalidated contracts [measured 2026-09-02: min-
+#: of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=c00341f0ff9d83d1b9338ca86ad51708eaf07ebd].
+#: RE-PINNED 2026-09-02, 10875 to 10885 (+10), P43 protects both generated
+#: policy-check fallbacks from space-local capture [measured 2026-09-02: min-
+#: of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=c00341f0ff9d83d1b9338ca86ad51708eaf07ebd].
+BUDGET = 10885

@@ -19,6 +19,14 @@ Guarantees:
   - root ``metta.catalog`` is the ordinary queryable ``&metta`` reflection
     space [tested: test_catalog_is_the_root_queryable_reflection_space;
     commit=46ae646e5efe14320c01e1e110d9cfd6cd0fc7e1]
+  - variadic boolean builders lower to binary engine chains and retain every
+    guard's answer constraint [tested:
+    test_variadic_boolean_builders_fold_to_binary_terms_and_filter_rows;
+    commit=8a04841952ec6cf7f4eb4e418efcbf4519f16f34]
+  - assuming attempts every hypothetical removal before propagating cleanup
+    failures [tested: test_assuming_removes_every_fact_after_one_cleanup_fails,
+    test_assuming_groups_multiple_cleanup_failures_after_removing_all;
+    commit=ed732c6878fe872ff185733c739d7b3fe4032b92]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -34,6 +42,7 @@ import pytest
 import metta as metta_package
 from metta import Answer, Expression, S, V, catalog, ground
 from metta.atoms import Grounded, Variable
+from metta.errors import SubscriberError
 from metta.ops import referenced_classes, type_atoms_for
 
 
@@ -75,6 +84,42 @@ def test_boolean_operators_compose_guards():  # noqa: D103  -- pytest discovers 
     assert (V.a | V.b) == Expression(S["or"], V.a, V.b)
     assert (V.a ^ V.b) == Expression(S["xor"], V.a, V.b)
     assert ~V.ok == Expression(S["not"], V.ok)
+
+
+def test_variadic_boolean_builders_fold_to_binary_terms_and_filter_rows(m):
+    """Three guards compose as two binary calls and constrain real rows."""
+    m.add(
+        S.person(S.ann, 17),
+        S.person(S.bob, 20),
+        S.person(S.cyd, 35),
+        S.person(S.dot, 49),
+        S.person(S.eli, 65),
+    )
+    age = V.age
+    adult = age.ge(18)
+    working_age = age.lt(50)
+    not_cyd = metta_package.not_(age.eq(35))
+    conjunction = metta_package.and_(adult, working_age, not_cyd)
+    assert metta_package.and_() == S["and"]()
+    assert metta_package.and_(adult) == S["and"](adult)
+    assert conjunction == (adult & working_age) & not_cyd
+    assert {str(row.name) for row in m.match(S.person(V.name, age), where=conjunction)} == {
+        "bob",
+        "dot",
+    }
+
+    young = age.lt(18)
+    senior = age.ge(65)
+    exactly_cyd = age.eq(35)
+    disjunction = metta_package.or_(young, senior, exactly_cyd)
+    assert metta_package.or_() == S["or"]()
+    assert metta_package.or_(young) == S["or"](young)
+    assert disjunction == (young | senior) | exactly_cyd
+    assert {str(row.name) for row in m.match(S.person(V.name, age), where=disjunction)} == {
+        "ann",
+        "cyd",
+        "eli",
+    }
 
 
 def test_ordering_builds_terms_by_method_the_way_equality_does(m):
@@ -277,6 +322,57 @@ def test_assuming_scopes_facts(m):  # noqa: D103  -- pytest discovers or injects
     except RuntimeError:
         pass
     assert len(m.match(S.road(V.x, V.y))) == 1
+
+
+def test_assuming_removes_every_fact_after_one_cleanup_fails(m):
+    """A committed watcher failure cannot strand later hypothetical facts."""
+
+    def reject_first(event):
+        if event.atom == S.assumed(S.a):
+            msg = "refuse the first hypothetical removal"
+            raise ValueError(msg)
+
+    subscription = m.subscribe(S.assumed(V.x), reject_first, on="remove")
+    try:
+        with pytest.raises(SubscriberError) as caught:
+            with m.assuming(
+                S.assumed(S.a), S.assumed(S.b), S.assumed(S.c)
+            ):
+                assert len(m.match(S.assumed(V.x))) == 3
+        assert isinstance(caught.value.__cause__, ValueError)
+        assert m.match(S.assumed(V.x)) == []
+    finally:
+        subscription.cancel()
+
+
+def test_assuming_groups_multiple_cleanup_failures_after_removing_all(m):
+    """Several committed watcher failures retain their per-fact order."""
+
+    def reject_each(event):
+        msg = f"refuse removal of {event.atom}"
+        raise ValueError(msg)
+
+    subscription = m.subscribe(S.grouped_assumption(V.x), reject_each, on="remove")
+    try:
+        with pytest.raises(ExceptionGroup) as caught:
+            with m.assuming(
+                S.grouped_assumption(S.a),
+                S.grouped_assumption(S.b),
+                S.grouped_assumption(S.c),
+            ):
+                pass
+        assert [error.atom for error in caught.value.exceptions] == [
+            S.grouped_assumption(S.a),
+            S.grouped_assumption(S.b),
+            S.grouped_assumption(S.c),
+        ]
+        assert all(
+            isinstance(error, SubscriberError)
+            for error in caught.value.exceptions
+        )
+        assert m.match(S.grouped_assumption(V.x)) == []
+    finally:
+        subscription.cancel()
 
 
 # --------------------------------------------------------- prepared queries

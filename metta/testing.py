@@ -7,7 +7,7 @@ tokeniser reads back whole, that true/false ARE the boolean atoms so their
 symbol spellings canonicalize, and that `_` is the anonymous variable,
 fresh at every occurrence.
 
-The conformance surfaces live here too, one rung per audience:
+The conformance surfaces live here too, one layer per audience:
 check_space_provider and check_codec run in process against an author's own
 object, SpaceComplianceSuite and GatewayComplianceSuite are pytest classes
 that run the engine's own expectations against a provider or a URL.
@@ -25,6 +25,10 @@ Guarantees:
   - check_twin consumes a Defined call's eager answer list exactly once
     [tested: test_the_prolog_twin_is_checked_against_its_reference;
     commit=f88aa8be03cb64cb59d3307515ded8701f418321].
+  - check_twin compares encoded atoms, preserving integer, float, and boolean
+    grounded species [tested:
+    test_check_twin_distinguishes_integer_float_and_boolean_answers;
+    commit=af5821f5ffb7ce186e516706f003d02f5c1d3b4a]
   - minted-space conformance recognizes decoded Space handles in provider
     answers [tested: test_fabricated_space_identities_are_refused;
     commit=4e2398075da67bb2cbcc123a9fc1e078ecac6fbf]
@@ -306,7 +310,7 @@ def from_pattern(pattern, max_leaves: int = 8):
     return instances()
 
 
-# ------------------------------------------------------ conformance for seams
+# ------------------------------------------ conformance for provider interfaces
 
 
 def check_space_provider(provider, *, atoms_to_store=None, source="repeated") -> list[str]:
@@ -328,9 +332,10 @@ def check_space_provider(provider, *, atoms_to_store=None, source="repeated") ->
     operation whose method is absent, which is a registration-time mistake
     that otherwise surfaces as an AttributeError inside an engine callback.
 
-    **Match over-approximates rather than under-approximates.** The seam's
-    central soundness claim is that a provider may yield more than the pattern
-    asks for, because the engine keeps unification, and may never yield less.
+    **Match over-approximates rather than under-approximates.** The provider
+    contract's central soundness claim is that a provider may yield more than
+    the pattern asks for, because the engine keeps unification, and may never
+    yield less.
     Every stored atom vouches for a whole pattern family, itself, each
     position opened to a variable, and repeated-variable folds, and the
     provider's answers for each are compared with a brute-force unification
@@ -351,13 +356,13 @@ def check_space_provider(provider, *, atoms_to_store=None, source="repeated") ->
     Raises AssertionError on the first violation, naming the provider class,
     the operation and the atom.
 
-    THE DOOR IS UNIVERSAL: a provider is any foreign substrate, not only a
-    Python object, and every substrate sits behind the space seam. Handed a
-    ``Space`` handle, this runs the engine's own checker
+    THE CHECK IS UNIVERSAL: a provider is any foreign substrate, not only a
+    Python object, and every substrate implements the space-provider protocol.
+    Handed a ``Space`` handle, this runs the engine's own checker
     (lib/lib_conformance/lib_conformance.pl's ``check-space-provider``), which holds the
     same laws (capability reachability, the match pattern family, the
     declared source discipline, the canary round trip, the pushdown claim)
-    asked through the seam, so a provider written in Prolog, C, or anything
+    asked through that protocol, so a provider written in Prolog, C, or anything
     else is held to one contract. The object form stays the
     pre-registration half for Python authors; ``source=`` applies to it
     alone, because a registered space carries its declared ``(source ...)``
@@ -373,8 +378,8 @@ def check_space_provider(provider, *, atoms_to_store=None, source="repeated") ->
         msg = (
             f"{name} is not a SpaceProvider, and it is not a Space handle: "
             f"pass the provider object for the pre-registration half, or "
-            f"the registered space's handle to run the engine's own checker "
-            f"through the seam, whatever the provider's substrate"
+            f"the registered space's handle to run the engine's own checker, "
+            f"whatever the provider's substrate"
         )
         raise AssertionError(msg)  # noqa: TRY004  -- the harness is checking its own invariant, so AssertionError is the intended contract
     ran = _check_declared_capabilities(provider, name)
@@ -539,7 +544,7 @@ def _joined(pattern, atom):
     helper instead returns the joined pattern under the engine's one binding
     law, in miniKanren's walk/unify shape: variables bind by name in one
     namespace, `_` matches anything and binds nothing, and bindings are RAW,
-    exactly as metta_match_atoms/2 and the match door now bind under the
+    exactly as metta_match_atoms/2 and the match method now bind under the
     petta alignment. A join that resolves into itself is a legal rational
     tree on the engine side but has no finite atom form here, so it comes
     back as the sentinel and the caller decides what a provider owes for it.
@@ -616,10 +621,11 @@ def _unify_pair(x, y, bindings, stack) -> bool:
 def _check_pushdown_claim(provider, name: str, stored: list) -> list[str]:
     """An exact claim is true: every candidate for the pattern unifies with it.
 
-    This is the one claim in the seam that can cost answers. Everything else a
-    provider says is checked by over-approximation being sound, but "exact"
-    licenses truncating at the caller's bound, and a provider that truncates
-    while yielding non-matching candidates answers fewer rows than exist.
+    This is the one claim in the provider contract that can cost answers.
+    Everything else a provider says is checked by over-approximation being
+    sound, but "exact" licenses truncating at the caller's bound, and a provider
+    that truncates while yielding non-matching candidates answers fewer rows
+    than exist.
     Under-answering is the one thing the contract forbids, so the claim is
     tested against the provider's own output over the whole pattern family of
     every stored atom, ground AND open AND repeated-variable: a filter that
@@ -660,9 +666,9 @@ def _check_pushdown_claim(provider, name: str, stored: list) -> list[str]:
 def _match_or_cyclic_evidence(provider, pattern):
     """provider.match(pattern) as a list, or the _CYCLIC sentinel it refused with.
 
-    The door refuses a rational-tree row loudly, and that refusal is EVIDENCE, not
+    The method refuses a rational-tree row loudly, and that refusal is EVIDENCE, not
     absence: the wire raises it only while answering a row whose binding is
-    cyclic, so the candidate exists on the engine side, where the seam's
+    cyclic, so the candidate exists on the engine side, where the provider contract's
     real consumer re-unifies natively with no wire between them. A python
     probe is the limited observer here, and the certification reads the
     refusal as the coverage it proves
@@ -699,7 +705,7 @@ def _check_match_contract(provider, name: str, stored: list) -> list[str]:
                 if joined is None:
                     continue
                 if answered is _CYCLIC:
-                    # The door itself refused a rational-tree row loudly,
+                    # The method itself refused a rational-tree row loudly,
                     # which only happens while answering one: every entry
                     # this pattern joins is covered by that evidence.
                     continue
@@ -915,16 +921,10 @@ def _same_atom(left, right) -> bool:
 def _comparable(value):
     """An engine answer and a twin answer in one shape.
 
-    A Grounded holds its Python value, an Expression and a Python sequence are both a
-    tuple of comparable parts, and everything else compares as itself.
+    Encoding is the public boundary's normalization: atoms stay atoms, Python
+    sequences become expressions, and scalar species stay distinct groundings.
     """
-    if isinstance(value, Grounded):
-        return _comparable(value.value)
-    if isinstance(value, Expression):
-        return tuple(_comparable(child) for child in value)
-    if isinstance(value, (list, tuple)):
-        return tuple(_comparable(item) for item in value)
-    return value
+    return _encode(value)
 
 
 def _twin_answers(defined, arguments) -> list:

@@ -1,5 +1,5 @@
 """Purpose: the library namespace and its import handles. A library IS
-knowledge, so the write door imports it: `m += lib.he` performs
+knowledge, so the write operator imports it: `m += lib.he` performs
 `!(import! <m> (library lib_he))` with the receiver as the target space,
 which is why no `&self` symbol and no new verb appears anywhere.
 Assumes:
@@ -14,22 +14,22 @@ Guarantees:
     `lib_` family prefix with underscores KEPT, never the hyphen map,
     because a library is a FILE name (`S.lib_he` is the atom `lib-he`,
     which no library answers) [tested: test_the_attribute_map_is_the_family_prefix]
-  - `lib["minimal_metta_lib"]` is the exact-name door for a library
+  - `lib["minimal_metta_lib"]` is the exact-name form for a library
     outside the family, `lib.x.part` is the two-argument
     `(library x part)` form, and `lib(S["path/to/module"])` is the
     exact-module-form escape for a path import: the path is an ATOM the
     engine resolves by its own rules (the importing file, the repo root
     for a host program), never against the host's working directory, so
-    it takes the same S[...] bracket every unspeakable name takes
-    (user-ruled 2026-08-25); str and os.PathLike stay accepted one rung
-    down [tested: test_the_exact_doors_build_the_engine_forms]
+    it uses the same S[...] bracket form as any name outside identifier grammar
+    (user-ruled 2026-08-25); str and os.PathLike remain accepted as explicit
+    inputs [tested: test_the_exact_doors_build_the_engine_forms]
   - a handle refuses every atom position: encoding one raises with the
     import spelling as the remedy, so a library can never silently become
     an opaque grounded box inside a stored term
     [tested: test_a_library_handle_refuses_atom_positions]
 Fails when:
   - the import must run inside an atom batch: an import is an effect and a
-    batch is one deferred bulk write, so the write door refuses the mix
+    batch is one deferred bulk write, so the write operator refuses the mix
     loudly rather than reorder either.
 """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
 
@@ -67,7 +67,7 @@ class Library:
     """One module form `import!` resolves, held as the atom it will cross as.
 
     `m += handle` performs the import into `m`. The handle itself is not an
-    atom: it names an ACT, and the write door is where the act happens.
+    atom: it names an ACT, and the write operator is where the act happens.
     """
 
     __slots__ = ("_form", "_spelling")
@@ -135,8 +135,8 @@ def _(value: Library) -> Atom:
 
 
 class _LibraryNamespace:
-    """`lib.he` is the shipped library `lib_he`; brackets and calls are the
-    exact doors, one rung down each: `lib["minimal_metta_lib"]` for an exact
+    """`lib.he` is the shipped library `lib_he`; brackets and calls give exact
+    names: `lib["minimal_metta_lib"]` for an exact
     library name outside the `lib_` family, `lib(S["path/to/module"])` for
     an exact module form such as a source path, named by its atom.
     """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose

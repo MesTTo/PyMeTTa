@@ -39,4 +39,8 @@ def twin(m):
 #: eval), the -= drain-law repair, and fourteen twins healed to the arbiter
 #: [measured 2026-09-01: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=51b792423cec5787614d1488c0793b8a50eaa6fc].
-BUDGET = 276
+#: RE-PINNED 2026-09-01, 276 to 281 (+5), generic Python operators now dispatch
+#: through live protocols while source twins explicitly name relational engine
+#: heads [measured 2026-09-01: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=e3787593132a7ece2d300397045f7415709847c9].
+BUDGET = 281

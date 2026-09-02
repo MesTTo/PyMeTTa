@@ -15,6 +15,10 @@ Guarantees:
     test_fold_into_state_updates_the_shared_engine_cell,
     test_fold_under_counting_and_tropical_uses_the_algebra_as_the_step;
     commit=c7468b2789746bcf95c4bacc0e2d517ec4d972fa]
+  - rejected subscription guards do not wake a blocked stream, while an
+    accepted identity-preserving step does [tested:
+    test_a_rejected_guard_event_does_not_end_a_blocking_stream,
+    test_an_accepted_identity_step_still_wakes_its_waiter; commit=438506a1688c78a383499973b6a89fa6bb559629]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -22,6 +26,9 @@ Open Obligations:
 """
 
 from __future__ import annotations
+
+import threading
+import time
 
 import pytest
 
@@ -269,6 +276,43 @@ def test_a_fold_waits_for_an_arrival_without_polling(metta):
         counted.cancel()
 
 
+def test_an_accepted_identity_step_still_wakes_its_waiter(metta):
+    """An accepted event counts even when the reducer preserves its state."""
+    source = metta._new_space()
+    folded = metta.events().fold(
+        lambda held, _event: held,
+        space=source.name,
+        pattern=S.p30_identity(V.n),
+        state=[],
+    )
+    received = []
+
+    def wait_once() -> None:
+        received.append(folded.wait(timeout=10.0))
+
+    waiters_before = folded._registry.waiters
+    consumer = threading.Thread(target=wait_once)
+    consumer.start()
+    deadline = time.monotonic() + 5.0
+    while (
+        folded._registry.waiters == waiters_before
+        and consumer.is_alive()
+        and time.monotonic() < deadline
+    ):
+        time.sleep(0.001)
+
+    try:
+        assert folded._registry.waiters > waiters_before
+        source.add(S.p30_identity(1))
+        consumer.join(5.0)
+    finally:
+        folded.cancel()
+        consumer.join(5.0)
+
+    assert not consumer.is_alive()
+    assert received == [[]]
+
+
 def test_a_fold_that_writes_into_its_own_pattern_says_so(metta):
     """A fold feeding itself cannot keep both answers, so it refuses.
 
@@ -433,6 +477,53 @@ def test_a_standing_query_takes_matchs_guard(metta):
         ]
     finally:
         queued.cancel()
+
+
+def test_a_rejected_guard_event_does_not_end_a_blocking_stream(metta):
+    """P30: a rejected event is not an arrival for a guarded subscription.
+
+    Start the stream after the rejected write. A false arrival counter makes
+    events() read the empty queue and stop; a real wait remains blocked until
+    the accepted write arrives.
+    """
+    source = metta._new_space()
+    subscription = source.subscribe(S.p30_job(V.n), where=V.n.ge(10))
+    source.add(S.p30_job(1))
+
+    received = []
+    failures: list[BaseException] = []
+    finished = threading.Event()
+
+    def consume_one() -> None:
+        try:
+            received.append(next(subscription.events(timeout=10.0)))
+        except BaseException as error:
+            failures.append(error)
+        finally:
+            finished.set()
+
+    waiters_before = subscription._registry.waiters
+    consumer = threading.Thread(target=consume_one)
+    consumer.start()
+    deadline = time.monotonic() + 5.0
+    while (
+        not finished.is_set()
+        and subscription._registry.waiters == waiters_before
+        and time.monotonic() < deadline
+    ):
+        time.sleep(0.001)
+
+    try:
+        assert finished.is_set() or subscription._registry.waiters > waiters_before
+        source.add(S.p30_job(12))
+        consumer.join(5.0)
+    finally:
+        subscription.cancel()
+        consumer.join(5.0)
+
+    assert not consumer.is_alive()
+    assert failures == []
+    assert [event.atom for event in received] == [S.p30_job(12)]
 
 
 def test_why_refuses_the_question_whose_premise_is_false(metta):

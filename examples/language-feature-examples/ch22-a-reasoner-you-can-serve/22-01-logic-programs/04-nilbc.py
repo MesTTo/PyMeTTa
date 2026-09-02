@@ -86,16 +86,16 @@ def _chain(premises):
           (: ($rule $p1 ... $pn) $thm)))`
     """
     pairs = PREMISE[:1] if premises == 1 else PREMISE[1 : premises + 1]
-    abstraction = typed(RULE,
-                        arrow(*[typed(proof, kind) for proof, kind in pairs], V.theorem))
+    abstraction = typed(RULE, arrow(*[typed(proof, kind) for proof, kind in pairs], V.theorem))
     recurse = [(abstraction, S.bc(KB, V.depth, abstraction))]
     recurse += [
-        (typed(proof, kind), S.bc(KB, V.depth, typed(proof, kind)))
-        for proof, kind in pairs
+        (typed(proof, kind), S.bc(KB, V.depth, typed(proof, kind))) for proof, kind in pairs
     ]
     fulfilled = typed((RULE, *(proof for proof, _ in pairs)), V.theorem)
     return equation(S.bc(KB, S.S(V.depth), fulfilled)).to(
-        S["let*"](tuple(recurse), fulfilled)  # rung: a stored let* whose bindings are proof-search calls (P14.4)
+        S["let*"](
+            tuple(recurse), fulfilled
+        )  # rung: a stored let* whose bindings are proof-search calls (P14.4)
     )
 
 
@@ -142,9 +142,13 @@ def twin(m):
         #    (let (: $proof $theorem) $query
         #         (match $kb (: $proof $theorem) (: $proof $theorem))))
         yield equation(S.bc(KB, V._, V.query)).to(
-            S.let(typed(V.proof, V.theorem),  # rung: a stored let whose PATTERN is a declaration term (P14.4)
-                  V.query,
-                  S.match(KB, typed(V.proof, V.theorem), typed(V.proof, V.theorem)))  # rung: a stored match whose space is this clause's PARAMETER (P14.4)
+            S.let(
+                typed(
+                    V.proof, V.theorem
+                ),  # rung: a stored let whose PATTERN is a declaration term (P14.4)
+                V.query,
+                S.match(KB, typed(V.proof, V.theorem), typed(V.proof, V.theorem)),
+            )  # rung: a stored match whose space is this clause's PARAMETER (P14.4)
         )
         for premises in range(1, 6):
             yield _chain(premises)
@@ -152,9 +156,7 @@ def twin(m):
     # EASY: term and wff are ignored, and Metamath implication is replaced by
     # the arrow type. Equality is right Euclidean, and zero is a right identity.
     kbe = metta.space()
-    kbe += typed(S.a1, arrow(typed(V.ter, eq(V.t, V.r)),
-                               typed(V.tes, eq(V.t, V.s)),
-                               eq(V.r, V.s)))
+    kbe += typed(S.a1, arrow(typed(V.ter, eq(V.t, V.r)), typed(V.tes, eq(V.t, V.s)), eq(V.r, V.s)))
     kbe += typed(S.a2, eq(plus(V.t, ZERO), V.t))
 
     # Prove that equality is reflexive. The answer carries a free variable, so
@@ -167,9 +169,17 @@ def twin(m):
     kbm += typed(ZERO, TERM)
     kbm += typed(S["⟨+⟩"], arrow(typed(V.t, TERM), typed(V.r, TERM), TERM))
     kbm += typed(S["⟨=⟩"], arrow(typed(V.t, TERM), typed(V.r, TERM), WFF))
-    kbm += typed(S.a1, arrow(typed(V.t, TERM), typed(V.r, TERM), typed(V.s, TERM),
-                               typed(V.ter, eq(V.t, V.r)), typed(V.tes, eq(V.t, V.s)),
-                               eq(V.r, V.s)))
+    kbm += typed(
+        S.a1,
+        arrow(
+            typed(V.t, TERM),
+            typed(V.r, TERM),
+            typed(V.s, TERM),
+            typed(V.ter, eq(V.t, V.r)),
+            typed(V.tes, eq(V.t, V.s)),
+            eq(V.r, V.s),
+        ),
+    )
     kbm += typed(S.a2, arrow(typed(V.t, TERM), eq(plus(V.t, ZERO), V.t)))
     kbm += typed(TT, TERM)
 
@@ -184,12 +194,26 @@ def twin(m):
     kbh += typed(S["⟨+⟩"], arrow(typed(V.t, TERM), typed(V.r, TERM), TERM))
     kbh += typed(S["⟨=⟩"], arrow(typed(V.t, TERM), typed(V.r, TERM), WFF))
     kbh += typed(S["⟨->⟩"], arrow(typed(V.P, WFF), typed(V.Q, WFF), WFF))
-    kbh += typed(S.a1, arrow(typed(V.t, TERM), typed(V.r, TERM), typed(V.s, TERM),
-                               implies(eq(V.t, V.r), implies(eq(V.t, V.s), eq(V.r, V.s)))))
+    kbh += typed(
+        S.a1,
+        arrow(
+            typed(V.t, TERM),
+            typed(V.r, TERM),
+            typed(V.s, TERM),
+            implies(eq(V.t, V.r), implies(eq(V.t, V.s), eq(V.r, V.s))),
+        ),
+    )
     kbh += typed(S.a2, arrow(typed(V.t, TERM), eq(plus(V.t, ZERO), V.t)))
-    kbh += typed(S.mp, arrow(typed(V.maj, implies(V.P, V.Q)),
-                               typed(V.P, WFF), typed(V.Q, WFF), typed(V.min, V.P),
-                               V.Q))
+    kbh += typed(
+        S.mp,
+        arrow(
+            typed(V.maj, implies(V.P, V.Q)),
+            typed(V.P, WFF),
+            typed(V.Q, WFF),
+            typed(V.min, V.P),
+            V.Q,
+        ),
+    )
     kbh += typed(TT, TERM)
 
     t_plus_zero = plus(TT, ZERO)
@@ -197,21 +221,17 @@ def twin(m):
     t_is_t = eq(TT, TT)
 
     # If t = t and t = t, then t = t.
-    assert m.fn.bc(kbh, S.fromNumber(1),
-                   typed(V.prf, implies(t_is_t, implies(t_is_t, t_is_t)))) == [
-        typed(S.a1(TT, TT, TT), implies(t_is_t, implies(t_is_t, t_is_t)))
-    ]
+    assert m.fn.bc(
+        kbh, S.fromNumber(1), typed(V.prf, implies(t_is_t, implies(t_is_t, t_is_t)))
+    ) == [typed(S.a1(TT, TT, TT), implies(t_is_t, implies(t_is_t, t_is_t)))]
 
     # If t + 0 = t and t + 0 = t, then t = t.
-    assert m.fn.bc(kbh, S.fromNumber(2),
-                   typed(V.prf, implies(sum_is_t, implies(sum_is_t, t_is_t)))) == [
-        typed(S.a1(t_plus_zero, TT, TT), implies(sum_is_t, implies(sum_is_t, t_is_t)))
-    ]
+    assert m.fn.bc(
+        kbh, S.fromNumber(2), typed(V.prf, implies(sum_is_t, implies(sum_is_t, t_is_t)))
+    ) == [typed(S.a1(t_plus_zero, TT, TT), implies(sum_is_t, implies(sum_is_t, t_is_t)))]
 
     # t + 0 = t.
-    assert m.fn.bc(kbh, S.fromNumber(1), typed(V.prf, sum_is_t)) == [
-        typed(S.a2(TT), sum_is_t)
-    ]
+    assert m.fn.bc(kbh, S.fromNumber(1), typed(V.prf, sum_is_t)) == [typed(S.a2(TT), sum_is_t)]
 
     # Both equalities are well formed formulas.
     assert m.fn.bc(kbh, S.fromNumber(2), typed(sum_is_t, WFF)) == [typed(sum_is_t, WFF)]
@@ -219,8 +239,7 @@ def twin(m):
 
     # If t + 0 = t, then t = t: one modus ponens over the two axioms.
     one_step = S.mp(S.a1(t_plus_zero, TT, TT), sum_is_t, implies(sum_is_t, t_is_t), S.a2(TT))
-    assert m.fn.bc(kbh, S.fromNumber(4),
-                   typed(V.prf, implies(sum_is_t, t_is_t))) == [
+    assert m.fn.bc(kbh, S.fromNumber(4), typed(V.prf, implies(sum_is_t, t_is_t))) == [
         typed(one_step, implies(sum_is_t, t_is_t))
     ]
 
@@ -327,4 +346,26 @@ def twin(m):
 #: and the quad twin stopped being a different program [measured 2026-09-01:
 #: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=c6a40460b1db341198a6150e3600f502831a6e83].
-BUDGET = 283662869
+#: RE-PINNED 2026-09-01, 283662869 to 283663702 (+833), generic Python
+#: operators now dispatch through live protocols while source twins explicitly
+#: name relational engine heads [measured 2026-09-01: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=e3787593132a7ece2d300397045f7415709847c9].
+#: RE-PINNED 2026-09-02, 283663702 to 283662927 (-775), exact numeric
+#: annotations retain native operator heads, publish MeTTa type declarations,
+#: and leave relational heads only where static proof is unavailable [measured
+#: 2026-09-02: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=d0dfff1a3ee6c85472fd9b12d6e4aec007a9c301].
+#: RE-PINNED 2026-09-02, 283662927 to 288291872 (+4628945), static contract
+#: discharge and policy-stable recompilation [measured 2026-09-02: min-of-3
+#: serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=c00341f0ff9d83d1b9338ca86ad51708eaf07ebd].
+#: RE-PINNED 2026-09-02, 288291872 to 288143587 (-148285), static contract
+#: discharge with policy checks confined to invalidated contracts [measured
+#: 2026-09-02: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=c00341f0ff9d83d1b9338ca86ad51708eaf07ebd].
+#: RE-PINNED 2026-09-02, 288143587 to 288143596 (+9), P43 protects both
+#: generated policy-check fallbacks from space-local capture [measured
+#: 2026-09-02: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=c00341f0ff9d83d1b9338ca86ad51708eaf07ebd].
+BUDGET = 288143596

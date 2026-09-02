@@ -19,6 +19,9 @@ Guarantees:
     [source: extensions/python/tools/reference.py:entries, the three
     `startswith("_")` refusals at module level, class level and method level;
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
+  - published prose omits file-local contracts and evidence metadata while
+    retaining the purpose and reader-facing text [tested:
+    test_reference_publishes_reader_prose_only; commit=9c03403aaaca9f1a1ec52e5898dd547eb80c8e82]
 Fails when:
   - a page documents a module with runtime-generated members; those are
     invisible to the AST and would silently go missing
@@ -44,8 +47,8 @@ LINE_LENGTH = 100
 
 # The file-local contract header is written for whoever edits the file next: it
 # names invariants, the tests that hold them, and the commit each was measured
-# on. A reader looking up `Space.match` wants none of that, and published it
-# read as documentation while serving the machine instead of the person.
+# on. A reader looking up `Space.match` wants none of that, and publishing it
+# served the machine instead of the person.
 CONTRACT_LABELS = (
     "Assumes:",
     "Guarantees:",
@@ -55,11 +58,13 @@ CONTRACT_LABELS = (
     "Decides:",
     "Open Obligations:",
 )
-EVIDENCE_TAG = re.compile(r"[ \t]*\[(?:tested|measured|source|assumed)\b[^\]]*\]", re.S)
+EVIDENCE_TAG = re.compile(
+    r"[ \t]*\[(?:tested|measured|source|assumed)\b[^\]]*\]", re.DOTALL
+)
 
 
 def public_prose(text: str) -> str:
-    """The part of a docstring written for a reader rather than a maintainer."""
+    """Return the reader-facing part of a docstring."""
     text = EVIDENCE_TAG.sub("", text)
     kept: list[str] = []
     in_contract = False
@@ -75,8 +80,10 @@ def public_prose(text: str) -> str:
             in_contract = False
         if stripped.startswith("Purpose:"):
             stripped = stripped[len("Purpose:") :].strip()
-            line = stripped[:1].upper() + stripped[1:] if stripped else ""
-        kept.append(line.rstrip())
+            published_line = stripped[:1].upper() + stripped[1:] if stripped else ""
+        else:
+            published_line = line
+        kept.append(published_line.rstrip())
     while kept and not kept[-1]:
         kept.pop()
     return "\n".join(kept).strip()

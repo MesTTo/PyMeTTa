@@ -26,10 +26,11 @@ Open Obligations:
 
 def twin(m):
     """Take each arm of four conditionals whose arms bind."""
+
     @m.define
-    def pick_else(a, b):
+    def pick_else(a: int, b: int) -> int:
         # (= (pick-else $a $b) (if (< $a $a) (let* (($c $a)) $a) $b))
-        if a < a:  # noqa: PLR0124 -- comparing the parameter with itself is the fixture: the then arm must never run, and the else arm must still unify its own output
+        if a < a:  # noqa: PLR0124 -- keep the fixture's self-comparison
             _c = a
             return a
         return b
@@ -38,7 +39,7 @@ def twin(m):
     assert pick_else(1, 2) == [2]
 
     @m.define
-    def pick_then(a, b):
+    def pick_then(a: int, b: int) -> int:
         # (= (pick-then $a $b) (if (> $a 0) (let* (($c $a)) $a) $b))
         if a > 0:
             _c = a
@@ -49,9 +50,9 @@ def twin(m):
     assert pick_then(1, 2) == [1]
 
     @m.define
-    def case_else(a, b):
+    def case_else(a: int, b: int) -> int:
         # (= (case-else $a $b) (case (< $a $a) ((True (let* (($c $a)) $a)) (False $b))))
-        match a < a:  # noqa: PLR0124 -- the same fixture, asked through `case` rather than through `if`
+        match a < a:  # noqa: PLR0124 -- keep the fixture's self-comparison
             case True:
                 _c = a
                 return a
@@ -62,7 +63,7 @@ def twin(m):
     assert case_else(3, 4) == [4]
 
     @m.define
-    def both(a, b):
+    def both(a: int, b: int) -> int:
         # (= (both $a $b) (if (> $a $b) (let* (($c 1)) $a) (let* (($d 1)) $b)))
         if a > b:
             _c = 1
@@ -147,4 +148,26 @@ def twin(m):
 #: structure, and the removal doors changed meaning where a twin spells one
 #: [measured 2026-09-01: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=c6a40460b1db341198a6150e3600f502831a6e83].
-BUDGET = 9038
+#: RE-PINNED 2026-09-01, 9038 to 10801 (+1763), generic Python operators now
+#: dispatch through live protocols while source twins explicitly name
+#: relational engine heads [measured 2026-09-01: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=e3787593132a7ece2d300397045f7415709847c9].
+#: RE-PINNED 2026-09-02, 10801 to 13607 (+2806), exact numeric annotations
+#: retain native operator heads, publish MeTTa type declarations, and leave
+#: relational heads only where static proof is unavailable [measured
+#: 2026-09-02: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=d0dfff1a3ee6c85472fd9b12d6e4aec007a9c301].
+#: RE-PINNED 2026-09-02, 13607 to 14821 (+1214), static contract discharge and
+#: policy-stable recompilation [measured 2026-09-02: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=c00341f0ff9d83d1b9338ca86ad51708eaf07ebd].
+#: RE-PINNED 2026-09-02, 14821 to 14869 (+48), static contract discharge with
+#: policy checks confined to invalidated contracts [measured 2026-09-02: min-
+#: of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=c00341f0ff9d83d1b9338ca86ad51708eaf07ebd].
+#: RE-PINNED 2026-09-02, 14869 to 14879 (+10), P43 protects both generated
+#: policy-check fallbacks from space-local capture [measured 2026-09-02: min-
+#: of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=c00341f0ff9d83d1b9338ca86ad51708eaf07ebd].
+BUDGET = 14879

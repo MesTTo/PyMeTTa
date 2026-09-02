@@ -44,17 +44,17 @@ def twin(m):
     m += lib.thread
 
     @m.define
-    def inc(x):
+    def inc(x: int) -> int:
         # (= (inc $x) (+ $x 1))
         return x + 1
 
     @m.define(name="big?")
-    def big(x):
+    def big(x: int) -> bool:
         # (= (big? $x) (> $x 2))
         return x > 2
 
     @m.define
-    def spin(n):
+    def spin(n: int):
         # (= (spin $n) (if (> $n 0) (spin (- $n 1)) done))
         return spin(n - 1) if n > 0 else S.done
 
@@ -145,7 +145,9 @@ def twin(m):
 
     # Blocking until another thread writes the atom, event-driven through the
     # engine's own write hooks. The spawned branch does the writing.
-    writer = spawn(S.add_atom(m, S.ready(S.now)))  # rung: the write is DATA handed to another engine thread, not a store this process mutates, so `space += atom` cannot say it
+    writer = spawn(
+        S.add_atom(m, S.ready(S.now))
+    )  # rung: the write is DATA handed to another engine thread, not a store this process mutates, so `space += atom` cannot say it
     seen = m.peek(S.ready(V.what), deadline=10)
     writer.wait()
     assert seen == S.ready(S.now)
@@ -216,9 +218,52 @@ def twin(m):
 #: full-lane observations under 'full-lane/219/workers=32'; a cost outside them
 #: is a real finding, and a new mode discovered later extends the
 #: envelope with its observation count rather than widening blind.
+#: RE-ENVELOPED 2026-09-01 on the operator-protocol tree. Generic Python
+#: operators now dispatch through live protocols and relational twins name
+#: engine heads explicitly, so ten fresh full-lane observations replace the
+#: prior implementation's modes [measured: exact extrema over 10 observations;
+#: command=python extensions/python/tools/twin_coverage.py --observe --rounds 10;
+#: fixture=full-lane/219/workers=32; commit=e3787593132a7ece2d300397045f7415709847c9].
+#: The confirming differential extended the observed maximum from 591824 to
+#: 608009 [measured: eleventh full-lane observation 608009; command=python
+#: extensions/python/tools/twin_coverage.py; fixture=full-lane/219/workers=32;
+#: commit=e3787593132a7ece2d300397045f7415709847c9].
+#: A second ten-round observe pass extended the maximum from 608009 to 608164
+#: [measured: exact extrema over 10 further observations; command=python
+#: extensions/python/tools/twin_coverage.py --observe --rounds 10;
+#: fixture=full-lane/219/workers=32; commit=e3787593132a7ece2d300397045f7415709847c9].
+#: Four confirming differentials brought the current-tree sample to 25; the
+#: third extended the maximum from 608164 to 618693 [measured: twenty-fourth
+#: full-lane observation 618693 and twenty-fifth observation 617737; command=python
+#: extensions/python/tools/twin_coverage.py; fixture=full-lane/219/workers=32;
+#: commit=e3787593132a7ece2d300397045f7415709847c9].
+#: RE-ENVELOPED 2026-09-02 after exact numeric annotations restored native
+#: operator heads and published their MeTTa declarations. The prior
+#: protocol-path modes describe another implementation, so ten fresh
+#: full-lane observations replace them [measured: exact extrema over 10
+#: observations; command=python extensions/python/tools/twin_coverage.py
+#: --observe --rounds 10; fixture=full-lane/219/workers=32; commit=d0dfff1a3ee6c85472fd9b12d6e4aec007a9c301].
+#: RE-ENVELOPED 2026-09-02 after static contract discharge made retained
+#: translation policy-stable. The translation work changes this concurrent
+#: twin's modes, so 25 fresh full-lane observations replace the prior
+#: implementation's envelope [measured: minimum 542509, maximum 571598 over
+#: 25 observations; command=python extensions/python/tools/twin_coverage.py
+#: --observe --rounds 25; fixture=full-lane/219/workers=32; commit=c00341f0ff9d83d1b9338ca86ad51708eaf07ebd].
+#: RE-ENVELOPED 2026-09-02 after policy checks were confined to invalidated
+#: generated contracts. Twenty-five fresh full-lane observations replace the
+#: broader intermediate implementation's modes [measured: minimum 542462,
+#: maximum 575145 over 25 observations; command=python
+#: extensions/python/tools/twin_coverage.py --observe --rounds 25;
+#: fixture=full-lane/219/workers=32; commit=c00341f0ff9d83d1b9338ca86ad51708eaf07ebd].
+#: RE-ENVELOPED 2026-09-02 after the two generated policy-check fallbacks
+#: joined the protected engine-emitted surface. Twenty-five fresh full-lane
+#: observations replace the pre-protection bounds [measured: minimum 543027,
+#: maximum 603919 over 25 observations; command=python
+#: extensions/python/tools/twin_coverage.py --observe --rounds 25;
+#: fixture=full-lane/219/workers=32; commit=c00341f0ff9d83d1b9338ca86ad51708eaf07ebd].
 BUDGET = {
-    "minimum": 253588,
-    "maximum": 382714,
-    "observations": 20,
+    "minimum": 543027,
+    "maximum": 603919,
+    "observations": 25,
     "protocol": "full-lane/219/workers=32",
 }

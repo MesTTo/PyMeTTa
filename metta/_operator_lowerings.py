@@ -1,7 +1,7 @@
 """Purpose: hold the immutable Python-operator-to-MeTTa lowering table.
 Guarantees:
   - all 22 supported, reserved, provided, templated, or refused Python
-    operators have one entry and no runtime remapping door [tested:
+    operators have one entry and no runtime remapping hook [tested:
     test_the_operator_table_is_generated_from_one_source_with_no_holes;
     commit=613f35974fa98746552dba584ad66082fdd1f3c7]
   - all four rich-comparison entries are reserved for atom ordering rather
@@ -22,7 +22,7 @@ from __future__ import annotations
 
 from typing import Any, Literal, NamedTuple
 
-# policy-inventory-exempt: mechanism-internal; reason=these four names are the lowering table's own entry kinds, read only by the apply and method doors that walk the table; evidence=extensions/python/metta/_operator_lowerings.py:OperatorLowering
+# policy-inventory-exempt: mechanism-internal; reason=these four names are the lowering table's own entry kinds, read only by the apply and method paths that walk the table; evidence=extensions/python/metta/_operator_lowerings.py:OperatorLowering
 LoweringKind = Literal["symbol", "template", "taken", "provided"]
 LoweringForm = str | int | tuple[Any, ...]
 

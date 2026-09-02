@@ -32,12 +32,12 @@ Guarantees:
   - a worker exception is raised to the caller rather than swallowed: one
     plainly, several together as one ExceptionGroup in input order
     [tested test_map_raises_every_failure_in_input_order]
-  - branches really run at once [measured 2026-08-15: 1.94x, 3.90x and 7.26x
-    at 2, 4 and 8 workers on a 12ms MeTTa evaluation, ai-tmp/pool/lock_check.py;
-    tested test_pool_runs_work_concurrently]
+  - branches really run at once [tested:
+    extensions/python/tests/ch14_seeing_your_program/test_engine_pool.py::test_pool_runs_work_concurrently;
+    commit=39092863ae34184a9f955f185ff57c1ff177ec40]
   - every worker releases its engine on close, including after an exception
     [tested test_close_releases_every_engine]
-  - every Python and engine-backed spawn door snapshots ContextVars at launch,
+  - every Python and engine-backed spawn call snapshots ContextVars at launch,
     including EnginePool's OS-thread jobs [tested:
     test_context_snapshot_crosses_every_spawn_door_including_thread_workers;
     commit=39092863ae34184a9f955f185ff57c1ff177ec40]
@@ -49,6 +49,17 @@ Guarantees:
   - FutureSpace iteration performs a terminal drain after settlement and cannot
     lose an answer inserted between its live snapshot and settled check [tested:
     test_future_iteration_drains_the_terminal_snapshot; commit=39092863ae34184a9f955f185ff57c1ff177ec40]
+  - FutureSpace reads its initial bag and terminal reconciliation once, then
+    consumes additions by publication position; P quiet waits over N answers
+    cost theta(P+N), and equal answers on either side of the snapshot remain
+    distinct occurrences [tested:
+    test_future_iteration_does_not_resnapshot_per_quiet_wait,
+    test_future_iteration_watermark_separates_snapshot_from_later_events;
+    commit=1877bec75a9a22265c9222f0c0c538c8f65a983f]
+  - an abandoned Channel destroys its SWI message queue from whichever thread
+    collects the Python handle [tested:
+    test_abandoned_channels_destroy_their_swi_queues_from_collector_thread;
+    commit=8909645dc7b390e4c6e7af77bfc75791c4f0aea1]
 Fails when:
   - the work is not engine-bound. A pool costs one thread and one engine per
     worker, so fanning out calls that are already fast buys queueing overhead
@@ -58,6 +69,8 @@ Fails when:
 Owns:
   - one daemon thread and one attached Prolog engine per worker, from start
     until close(). close() is idempotent and runs from __exit__.
+  - one SWI message queue per Channel, released by close(), context exit, or a
+    finalizer that retains only the runtime and engine handle.
 Guarded by:
   - _state_lock publishes the pool's state and worker list; the work queue is
     a queue.Queue and needs no further locking.
@@ -78,13 +91,14 @@ import os
 import queue
 import threading
 import weakref as _weakref
+from collections import Counter
 from collections.abc import Callable, Iterable, Iterator
 from concurrent.futures import Future, as_completed
 from typing import Any, Self
 
-from ._engine import engine_thread, runtime
+from ._engine import Runtime, engine_thread, runtime
 from ._space import Space
-from .atoms import Atom, Expression, Symbol, Variable, _to_atom
+from .atoms import Atom, Expression, Symbol, Variable, _atom_from_wire, _to_atom
 from .errors import MettaError, Timeout
 
 logger = logging.getLogger(__name__)
@@ -413,20 +427,33 @@ class FutureSpace(Space):
     def __iter__(self) -> Iterator[Atom]:
         """Yield each answer occurrence after it lands, until settlement."""
         subscription = self.subscribe(Variable("_future_answer"), on="add")
-        seen: list[Atom] = []
         try:
+            current, watermark = self._iteration_snapshot()
+            yielded = list(current)
+            yield from current
+            pending = subscription.drain()
             while True:
-                current = self.atoms()
-                yield from _unseen_occurrences(current, seen)
-                seen = current
+                for event in pending:
+                    sequence = getattr(event, "_sequence", None)
+                    if sequence is not None and sequence <= watermark:
+                        continue
+                    yielded.append(event.atom)
+                    yield event.atom
                 if self.settled():
-                    # Settlement is terminal for future-produced answers. One
-                    # final snapshot closes the snapshot-to-settled race.
-                    yield from _unseen_occurrences(self.atoms(), seen)
+                    # Settlement follows every engine-produced answer. One
+                    # final reconciliation also retains any ordinary space
+                    # write that did not carry a future publication position.
+                    final = list(_unseen_occurrences(self.atoms(), yielded))
+                    yield from final
                     return
-                subscription.wait(0.05)
+                pending = subscription.wait(0.05)
         finally:
             subscription.cancel()
+
+    def _iteration_snapshot(self) -> tuple[list[Atom], int]:
+        """The initial answer bag and its exact publication watermark."""
+        watermark, wires = self._rt.apply_must("metta_py_future_snapshot", self._space)
+        return [_atom_from_wire(wire) for wire in wires], int(watermark)
 
 
 def _warn_abandoned(name: str, settlement: dict) -> None:
@@ -442,13 +469,13 @@ def _warn_abandoned(name: str, settlement: dict) -> None:
 
 
 def _unseen_occurrences(current: list[Atom], seen: list[Atom]) -> Iterator[Atom]:
-    """Yield the multiset difference from one ordered atom snapshot."""
-    unmatched = list(seen)
+    """Yield an ordered multiset difference in expected linear time."""
+    unmatched = Counter(seen)
     for atom in current:
-        try:
-            unmatched.remove(atom)
-        except ValueError:
-            yield atom
+        if unmatched[atom]:
+            unmatched[atom] -= 1
+            continue
+        yield atom
 
 
 def _future(owner: Space, head: str, *arguments: Any) -> FutureSpace:
@@ -495,6 +522,25 @@ class Channel:
         self._owner = owner
         self._handle = handle
         self._closed = False
+        # weakref.finalize keeps the callback alive without keeping this
+        # Channel alive. A static callback is load-bearing: a bound method
+        # would retain self and therefore prevent the collection it awaits.
+        # https://docs.python.org/3.14/library/weakref.html#weakref.finalize
+        self._finalizer = _weakref.finalize(
+            self, Channel._reap, self._owner.runtime, self._handle
+        )
+
+    @staticmethod
+    def _reap(rt: Runtime, handle: Any) -> None:
+        try:
+            # A finalizer can run on an arbitrary bare Python thread. Use the
+            # eager bridge crossing used by Cursor._reap: opening a lazy
+            # Answers cursor here leaves a Janus query object's destructor on
+            # that foreign thread, which can unregister atoms after its
+            # temporary SWI engine has detached.
+            rt.apply_must("channel_close", handle)
+        except MettaError:
+            logger.debug("channel finalization found an unavailable engine", exc_info=True)
 
     def send(self, term: Any) -> bool:
         """Block until capacity admits one copied term."""
@@ -527,6 +573,7 @@ class Channel:
             return
         _call(self._owner, "channel-close", self._handle).one()
         self._closed = True
+        self._finalizer.detach()
 
     def __enter__(self) -> Self:  # noqa: D105 -- context entry returns the live mailbox
         return self

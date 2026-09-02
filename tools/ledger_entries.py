@@ -1,11 +1,11 @@
-"""Purpose: what each derived door BUYS, one row per door. `ledger.py` derives
+"""Purpose: what each derived method BUYS, one row per method. `ledger.py` derives
 the classification from the code and reads these for the reasons; this file is
 only the reasons.
 
-A derived door is macro-expressible by another public door. That is not a
+A derived method is macro-expressible by another public method. That is not a
 defect on its own: a named face of one mechanism is derived and should stay,
 because collapsing it puts the mechanism's argument back at the call site.
-What has no place is a derived door whose row cannot say what it buys, and the
+What has no place is a derived method whose row cannot say what it buys, and the
 gate exists to make that visible rather than arguable.
 
 Assumes:
@@ -13,7 +13,7 @@ Assumes:
     a cardinality contract, a lifetime, a different consumption model or a
     measured cost are.
 Guarantees:
-  - every derived door has exactly one row, checked against the class rather
+  - every derived method has exactly one row, checked against the class rather
     than against this file [tested: test_the_shrink_ledger_covers_every_derived_door]
 Open Obligations:
   To Do: None
@@ -23,7 +23,7 @@ Open Obligations:
 
 from __future__ import annotations
 
-#: door -> what it buys that the door expressing it does not give.
+#: method -> what it buys that the method expressing it does not give.
 DERIVED: dict[str, str] = {
     "add_tagged_fact": (
         "the tag threader's atom shape, so a caller writes the tag and the "
@@ -93,7 +93,7 @@ DERIVED: dict[str, str] = {
         "where `eval` answers the raw term list"
     ),
     "watch": (
-        "the ITERATOR face of the callback door, and a deadline. A caller "
+        "the ITERATOR form of the callback method, and a deadline. A caller "
         "who wants to pull events cannot use a callback, and the two "
         "consumption models are why both exist"
     ),

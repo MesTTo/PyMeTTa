@@ -1,5 +1,5 @@
-"""Purpose: the contract ontology, the typed vocabulary every seam
-declaration is stated in. Loaded into &metta at boot, before any user
+"""Purpose: the contract ontology, the typed vocabulary for every interface
+declaration. Loaded into &metta at boot, before any user
 declaration, so a declaration's kind, fidelity, effect, image, source,
 error-mode, atomicity, merge-policy and semiring names are ordinary typed
 atoms a program can match, get-type, and widen over. The fidelity chain

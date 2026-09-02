@@ -8,41 +8,41 @@ than computing it per call.
 Every one of the four is a compiled function now, including the accumulator
 pair. Its MeTTa name is hyphenated and its Python name is not, which is one
 declaration said once: rung 4's map turns `fib_tr` into `fib-tr` at the head
-and resolves the recursive call in the body the same way. Its guard is
-Python's own `==`, which the engine executes natively for wire values, so the
-comparison never leaves the engine.
+and resolves the recursive call in the body the same way. Its guard explicitly
+names engine equality because Python equality differs across numeric species,
+NaN, and signed zero, so the comparison never leaves the engine.
 """
 
-from metta import S
+from metta import S, fn
 
 
 def twin(m):
     """Define a tail-recursive fib, then inline one call to it at compile time."""
 
     @m.define
-    def fib_tr(n, a, b):                  # (= (fib-tr $n $a $b)
-        if n == 0:                        #    (if (== $n 0) $a
-            return a                      #        (fib-tr (- $n 1) $b (+ $a $b))))
+    def fib_tr(n: int, a: int, b: int) -> int:  # (= (fib-tr $n $a $b)
+        if fn.eq(n, 0):                         #    (if (== $n 0) $a
+            return a                            #        (fib-tr (- $n 1) $b (+ $a $b))))
         return fib_tr(n - 1, b, a + b)
 
     @m.define
-    def fib(n):                           # (= (fib $n) (fib-tr $n 0 1))
+    def fib(n: int) -> int:               # (= (fib $n) (fib-tr $n 0 1))
         return fib_tr(n, 0, 1)
 
     @m.define
-    def compilefib(n):                    # (= (compilefib $n) (fib $n))
+    def compilefib(n: int) -> int:        # (= (compilefib $n) (fib $n))
         return fib(n)
 
     # Can be left out, but then `smartfun` recomputes fib(10) on every call.
-    m.fn.add_translator_rule(S.compilefib)   # (add-translator-rule! compilefib)
+    m.fn.add_translator_rule(S.compilefib)  # (add-translator-rule! compilefib)
 
     @m.define
-    def smartfun(b):                      # (= (smartfun $b) (* (compilefib 10) $b))
+    def smartfun(b: int) -> int:          # (= (smartfun $b) (* (compilefib 10) $b))
         # compilefib is a rule now, so this call is expanded and evaluated
         # while THIS definition is compiled, never per call.
-        return compilefib(10) * b
+        return fn.mul(compilefib(10), b)  # the sibling call's return type is unknown
 
-    assert smartfun(42) == [2310]   # [2310]
+    assert smartfun(42) == [2310]  # [2310]
 
 
 #: Inferences this twin spends, its own tripwire. PLACEHOLDER rather than a
@@ -121,4 +121,26 @@ def twin(m):
 #: the quad twin stopped being a different program [measured 2026-09-01: min-
 #: of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=c6a40460b1db341198a6150e3600f502831a6e83].
-BUDGET = 10963
+#: RE-PINNED 2026-09-01, 10963 to 11691 (+728), generic Python operators now
+#: dispatch through live protocols while source twins explicitly name
+#: relational engine heads [measured 2026-09-01: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=e3787593132a7ece2d300397045f7415709847c9].
+#: RE-PINNED 2026-09-02, 11691 to 14500 (+2809), exact numeric annotations
+#: retain native operator heads, publish MeTTa type declarations, and leave
+#: relational heads only where static proof is unavailable [measured
+#: 2026-09-02: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=d0dfff1a3ee6c85472fd9b12d6e4aec007a9c301].
+#: RE-PINNED 2026-09-02, 14500 to 15483 (+983), static contract discharge and
+#: policy-stable recompilation [measured 2026-09-02: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=c00341f0ff9d83d1b9338ca86ad51708eaf07ebd].
+#: RE-PINNED 2026-09-02, 15483 to 15549 (+66), static contract discharge with
+#: policy checks confined to invalidated contracts [measured 2026-09-02: min-
+#: of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=c00341f0ff9d83d1b9338ca86ad51708eaf07ebd].
+#: RE-PINNED 2026-09-02, 15549 to 15559 (+10), P43 protects both generated
+#: policy-check fallbacks from space-local capture [measured 2026-09-02: min-
+#: of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=c00341f0ff9d83d1b9338ca86ad51708eaf07ebd].
+BUDGET = 15559

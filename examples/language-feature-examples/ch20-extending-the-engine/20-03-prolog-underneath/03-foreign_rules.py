@@ -31,7 +31,9 @@ from metta import S, V, lib
 #: The provider under test, thirteen lines. Its whole contribution is declaring
 #: the `rules` capability beside match, enumerate, add and remove. A path is
 #: a Path, never text.
-PROVIDER = Path("./examples/ch20-extending-the-engine/20-03-prolog-underneath/_fixtures/rule_provider.pl")
+PROVIDER = Path(
+    "./examples/ch20-extending-the-engine/20-03-prolog-underneath/_fixtures/rule_provider.pl"
+)
 
 
 def twin(m):
@@ -43,7 +45,7 @@ def twin(m):
 
     # A rule, added to the foreign space, evaluating.
     @demo.define
-    def fdouble(x):
+    def fdouble(x: int) -> int:
         # (= (fdouble $x) (* 2 $x))
         return 2 * x
 
@@ -72,14 +74,14 @@ def twin(m):
     # the naive reading, and here that shows up as (* 2 3) reaching + as a list
     # instead of as 6.
     @demo.define
-    def fnest():
+    def fnest() -> int:
         return 1 + 2 * 3
 
     assert demo.eval(S.fnest()) == [7]
 
     # Recursion, and `if` evaluating only the branch it takes.
     @demo.define
-    def ffact(x):
+    def ffact(x: int) -> int:
         return x * ffact(x - 1) if x > 0 else 1
 
     assert demo.eval(S.ffact(5)) == [120]
@@ -166,4 +168,26 @@ def twin(m):
 #: the quad twin stopped being a different program [measured 2026-09-01: min-
 #: of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=c6a40460b1db341198a6150e3600f502831a6e83].
-BUDGET = 30800
+#: RE-PINNED 2026-09-01, 30800 to 31771 (+971), generic Python operators now
+#: dispatch through live protocols while source twins explicitly name
+#: relational engine heads [measured 2026-09-01: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=e3787593132a7ece2d300397045f7415709847c9].
+#: RE-PINNED 2026-09-02, 31771 to 33787 (+2016), exact numeric annotations
+#: retain native operator heads, publish MeTTa type declarations, and leave
+#: relational heads only where static proof is unavailable [measured
+#: 2026-09-02: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=d0dfff1a3ee6c85472fd9b12d6e4aec007a9c301].
+#: RE-PINNED 2026-09-02, 33787 to 34472 (+685), static contract discharge and
+#: policy-stable recompilation [measured 2026-09-02: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=c00341f0ff9d83d1b9338ca86ad51708eaf07ebd].
+#: RE-PINNED 2026-09-02, 34472 to 34502 (+30), static contract discharge with
+#: policy checks confined to invalidated contracts [measured 2026-09-02: min-
+#: of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=c00341f0ff9d83d1b9338ca86ad51708eaf07ebd].
+#: RE-PINNED 2026-09-02, 34502 to 34518 (+16), P43 protects both generated
+#: policy-check fallbacks from space-local capture [measured 2026-09-02: min-
+#: of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=c00341f0ff9d83d1b9338ca86ad51708eaf07ebd].
+BUDGET = 34518

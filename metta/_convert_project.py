@@ -179,7 +179,7 @@ _AUTO_TRANSPARENT_LIMIT = 16
 def auto_image(value: Any) -> str:
     """"opaque" or "transparent" for one value, in O(1), reproducibly.
 
-    The auto rung of the image knob: never a third behaviour, only a choice
+    The auto setting of the image option: never a third behaviour, only a choice
     between the two declared ones. Scalars and small sized containers cross
     transparent; unsized values (a generator, an iterator, anything
     length_hint cannot answer) and large containers stay opaque, because an

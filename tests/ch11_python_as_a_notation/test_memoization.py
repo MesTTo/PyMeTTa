@@ -112,11 +112,7 @@ def _assert_alpha_bags_equal(memoized, plain) -> None:
     remaining = list(plain)
     for answer in memoized:
         match = next(
-            (
-                index
-                for index, candidate in enumerate(remaining)
-                if answer.alpha_eq(candidate)
-            ),
+            (index for index, candidate in enumerate(remaining) if answer.alpha_eq(candidate)),
             None,
         )
         assert match is not None
@@ -126,14 +122,14 @@ def _assert_alpha_bags_equal(memoized, plain) -> None:
 
 def _install_recursive_bag_pair(memo, plain):
     @_memoized(memo, name="p14-diff-recursive")
-    def memo_recursive(n):
+    def memo_recursive(n: int):
         yield n
         yield n
         if n > 0:
             yield from memo_recursive(n - 1)
 
     @plain.define(name="p14-diff-recursive-plain")
-    def plain_recursive(n):
+    def plain_recursive(n: int):
         yield n
         yield n
         if n > 0:
@@ -147,7 +143,7 @@ def test_a_cached_definition_memoizes_its_complete_answer_bag() -> None:
     metta = MeTTa().space("&cachedecorator")
 
     @_memoized(metta)
-    def cachedec_fib(n):
+    def cachedec_fib(n: int) -> int:
         return n if n < 2 else cachedec_fib(n - 1) + cachedec_fib(n - 2)
 
     with metta.stats() as cached:
@@ -171,7 +167,7 @@ def test_a_cached_definition_memoizes_its_complete_answer_bag() -> None:
     try:
 
         @plain.define
-        def cachedec_plain(n):
+        def cachedec_plain(n: int) -> int:
             return n if n < 2 else cachedec_plain(n - 1) + cachedec_plain(n - 2)
 
         with plain.stats() as untabled:
@@ -193,7 +189,7 @@ def test_a_cached_definition_memoizes_its_complete_answer_bag() -> None:
     # unchecked=True is the engine's own staleness-accepting declaration, and
     # name= is define's own.
     @_memoized(metta, name="cachedec-named", unchecked=True)
-    def cachedec_named(n):
+    def cachedec_named(n: int) -> int:
         return n if n < 2 else cachedec_named(n - 1) + cachedec_named(n - 2)
 
     assert _answers(cachedec_named, 20) == [6765]
@@ -227,15 +223,10 @@ def test_a_cached_definition_preserves_duplicate_answers() -> None:
             '"b"',
         ]
         assert _memo_stats(cachedup) == {"entries": 1, "answers": 3}
-        stats = {
-            str(pair[0]): int(pair[1])
-            for pair in metta.eval(S.get_memoize_stats())[0]
-        }
+        stats = {str(pair[0]): int(pair[1]) for pair in metta.eval(S.get_memoize_stats())[0]}
         assert stats == {"cache_hit": 1, "cache_miss": 1}
     finally:
-        metta.eval(
-            S.config_memoize(S.answer_limit(2048), S.aggregate(S.none), S.float(12))
-        )
+        metta.eval(S.config_memoize(S.answer_limit(2048), S.aggregate(S.none), S.float(12)))
 
 
 def test_exact_cache_matches_uncached_answer_bags() -> None:
@@ -389,9 +380,7 @@ def test_exact_cache_invalidation_crosses_a_live_pool_engine() -> None:
         yield source(value)
 
     with EnginePool(workers=1) as workers:
-        first = workers.submit(
-            lambda: Counter(map(str, derived(S.seed)))
-        ).result(timeout=30)
+        first = workers.submit(lambda: Counter(map(str, derived(S.seed)))).result(timeout=30)
         assert first == Counter({"(Before seed)": 2})
 
         def install_after():
@@ -405,9 +394,7 @@ def test_exact_cache_invalidation_crosses_a_live_pool_engine() -> None:
 
         install_after()
 
-        second = workers.submit(
-            lambda: Counter(map(str, derived(S.seed)))
-        ).result(timeout=30)
+        second = workers.submit(lambda: Counter(map(str, derived(S.seed)))).result(timeout=30)
         assert second == Counter({"(After seed)": 2, "(Extra seed)": 1})
 
 

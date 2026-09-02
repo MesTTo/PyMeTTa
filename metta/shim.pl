@@ -6,10 +6,13 @@
 % Guarantees:
 %   - async Python operations answer a future space immediately, publish their
 %     launch through the current observation frame, and publish landing only
-%     from the later event-loop completion [tested:
+%     from the later event-loop completion; a publication fault settles the
+%     future as an error through its original token rather than stranding an
+%     awaiter [tested:
 %     test_an_async_operation_answers_a_future_space,
-%     test_a_transaction_commits_async_launch_before_its_landing;
-%     commit=39092863ae34184a9f955f185ff57c1ff177ec40].
+%     test_a_transaction_commits_async_launch_before_its_landing,
+%     test_a_failed_landing_publication_settles_the_future_as_an_error;
+%     commit=2f562bc5c051ee373cb7ab27ea6cae641f1df094].
 %   - scheduler tasks dispatch Python callbacks under their copied ContextVars
 %     and detach oracleIO calls onto transient offload threads [tested:
 %     test_context_snapshot_crosses_every_spawn_door_including_thread_workers,
@@ -27,6 +30,31 @@
 %     test_atomic_scope_commits_or_discards_one_event_segment,
 %     test_speculative_execution_discards_its_event_segment,
 %     test_world_eval_fences_state_and_emits_nothing; commit=3ded7552797b66d78e666141eb51f3bc14686bd2].
+%   - held query and evaluation engines carry the same capture, atomic, or
+%     speculative policy for their complete lifetime as eager execution;
+%     speculation preserves every answer while discarding its writes
+%     [tested: test_every_public_execution_door_honours_speculative_policy,
+%     test_lazy_capture_collects_held_engine_output,
+%     test_lazy_atomic_rolls_back_after_a_late_cursor_failure,
+%     test_speculative_lazy_execution_preserves_every_answer;
+%     commit=1262dd20ada9d5c799d9bdc4bdf5d2b859ca7a98].
+%   - derivation search is collected inside the same execution-policy goal,
+%     preserving every proof while speculative scopes discard meta-interpreter
+%     writes [tested: test_every_public_execution_door_honours_speculative_policy,
+%     test_derivation_speculation_fences_the_engine_global_self;
+%     commit=cf6507cfe9c3d6512ac75039ae22f178140e0cbf].
+%   - structured evaluation targets bind every &self occurrence to their
+%     receiving space while decoding, including the executable handle produced
+%     by parse, so Atom and source execution share one receiver law without a
+%     second term walk [tested:
+%     test_atom_eval_rebinds_nested_self_to_the_receiver,
+%     test_parsed_atom_eval_rebinds_self_handle_to_the_receiver;
+%     commit=f8453b013a603de9f9d4c7606c95ca7210229e78].
+%   - successive annotated Python operation answers extend the current carrier
+%     value instead of replacing it, while provider rows remain local inputs to
+%     the engine's conjunction join [tested:
+%     test_two_annotated_operation_calls_multiply_all_four_joint_weights;
+%     commit=1208ea172e11560b2aaae238823514941aa5fe20].
 %   - an empty direct eval answers NOTHING both for a guarded head with no
 %     matching clause and for a matched empty body, which is one answer where
 %     this door used to draw two: the guarded head was a not-reducible answer
@@ -267,6 +295,11 @@
 %     lazy Python answer view [tested:
 %     test_query_answers_complete_the_lazy_projection_protocol;
 %     commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
+%   - metta_py_query_count_if_repeatable/6 fails closed for foreign spaces,
+%     pattern modifiers, and effect-bearing guards, so a Python length hint
+%     cannot execute a query effect twice [tested:
+%     test_a_guarded_query_length_hint_executes_its_write_once;
+%     commit=1262dd20ada9d5c799d9bdc4bdf5d2b859ca7a98]
 %   - evaluation emits one undefined-truth frame and never a flag-selected
 %     residual-program shape [tested:
 %     test_a_not_reducible_answer_is_the_unreduced_term_with_no_flag;
@@ -403,7 +436,7 @@ metta_py_encode(T, N0, N, ["e", Es]) :-
 %`Domain error: compound_non_zero_arity expected, found -()` out of an
 %ordinary Python return value, ''.split() of an empty string among them,
 %and only through the LIBRARY: the engine has its own writer and never ran
-%this clause, so no lane saw it [source: ai-audit-md-review.md section 4].
+%this clause [tested: test_wire_round_trip].
 %
 metta_py_encode(T, N0, N, ["e", [["s", FS] | Es]]) :-
     compound(T),
@@ -621,6 +654,42 @@ foldl_decode([E|Es], [T|Ts], B0, B) :-
     metta_py_decode_shared_(E, T, B0, B1),
     foldl_decode(Es, Ts, B1, B).
 
+%Decode an evaluation target in its receiver context. The ordinary &self
+%receiver takes the exact hot decoder above. A named receiver uses the same
+%single decode walk and replaces either ["s","&self"] written by an Atom
+%builder or ["p","&self"] returned by parse. The reserved name is contextual
+%inside an execution target even though p remains an executable handle in
+%stored data and through the ordinary codec.
+%Doing the replacement during decode avoids the second O(n) term walk that
+%formerly cost alpha-unique about 400k inferences, while still preserving the
+%shared variable table [source:
+%extensions/python/benchmarks/target_self_decode.py;
+%commit=f8453b013a603de9f9d4c7606c95ca7210229e78]. The
+%current and target complexity are both O(n); this removes the duplicate
+%traversal rather than changing the class.
+metta_py_decode_target('&self', Tagged, Term, Bindings) :- !,
+    metta_py_decode_shared(Tagged, Term, Bindings).
+metta_py_decode_target(Space, Tagged, Term, Bindings) :-
+    metta_py_decode_target_(Tagged, Space, Term, [], Bindings).
+
+metta_py_decode_target_([T0|Rest], Space, Term, B0, B) :-
+    ( atom(T0) -> T = T0 ; string(T0) -> atom_string(T, T0) ),
+    metta_py_decode_target_tagged(T, Rest, Space, Term, B0, B).
+
+metta_py_decode_target_tagged(e, [Es], Space, Term, B0, B) :- !,
+    foldl_decode_target(Es, Space, Term, B0, B).
+metta_py_decode_target_tagged(s, ['&self'], Space, Space, B, B) :- !.
+metta_py_decode_target_tagged(s, ["&self"], Space, Space, B, B) :- !.
+metta_py_decode_target_tagged(p, ['&self'], Space, Space, B, B) :- !.
+metta_py_decode_target_tagged(p, ["&self"], Space, Space, B, B) :- !.
+metta_py_decode_target_tagged(T, Rest, _, Term, B0, B) :-
+    metta_py_decode_shared_tagged(T, Rest, Term, B0, B).
+
+foldl_decode_target([], _, [], B, B).
+foldl_decode_target([E|Es], Space, [T|Ts], B0, B) :-
+    metta_py_decode_target_(E, Space, T, B0, B1),
+    foldl_decode_target(Es, Space, Ts, B1, B).
+
 %THE SEED TABLE IS GONE, and with it the reason a decode had to be handed
 %something to expand. It rebuilt the argument variables' names AFTER the
 %crossing, while the names Python was given had been written BEFORE it, and a
@@ -661,22 +730,30 @@ metta_py_answer_form([Tag, Theta, Residue, K, Value], Theta, Residue, K,
                      value(Value)) :-
     ( Tag == "a" -> true ; Tag == a ).
 
-%The annotation slot: the degenerate point is semiring 1 and costs
-%nothing; a real k is admitted exactly when its context declared a
-%non-Boolean semiring, and rides '$metta_answer_k' backtrackably for the
-%collapse-point consumers (top). An undeclared k is refused loudly
-%naming the declaration to add, because silently dropping it would
-%misweigh the answer and silently keeping it would smuggle an order the
-%context never declared.
+%The annotation slot: the degenerate point is the carrier's one and costs
+%nothing; a real k is admitted exactly when its context declared a non-Boolean
+%algebra. Provider rows REPLACE the cell because match_foreign_routed/6 captures
+%each row locally and extends the conjuncts itself. Operation answers EXTEND the
+%cell because sequential evaluation is the join: replacing there made the last
+%call's weight win. An undeclared k is refused loudly because silently dropping
+%it would misweigh the answer and silently keeping it would smuggle a carrier
+%the context never declared.
 metta_py_answer_kappa('@'(none), _) :- !.
 metta_py_answer_kappa(K0, Ctx) :-
-    (   metta_effective_algebra(Ctx, Semiring),
-        Semiring \== bool
-    ->  (   K0 = [_|_]
-        ->  metta_py_decode_shared(K0, K, _)
-        ;   K = K0
-        ),
-        b_setval('$metta_answer_k', K)
+    metta_py_answer_kappa_value(K0, Ctx, K),
+    b_setval('$metta_answer_k', K).
+
+metta_py_answer_compose_kappa('@'(none), _) :- !.
+metta_py_answer_compose_kappa(K0, Ctx) :-
+    metta_py_answer_kappa_value(K0, Ctx, K),
+    metta_annotation(Ctx, Previous),
+    metta_k_extend(Ctx, Previous, K, Joint),
+    b_setval('$metta_answer_k', Joint).
+
+metta_py_answer_kappa_value(K0, Ctx, K) :-
+    (   metta_effective_algebra(Ctx, Algebra),
+        Algebra \== bool
+    ->  ( K0 = [_|_] -> metta_py_decode_shared(K0, K, _) ; K = K0 )
     ;   throw(error(metta_answer_annotation_undeclared(Ctx, K0), none))
     ).
 
@@ -763,7 +840,7 @@ metta_py_answer_match(Item, Pattern, Limit, Table0, Ctx) :-
 %reading; a plain wire is the value itself, decoded with the lazy seed.
 metta_py_answer_result(Item, Name, Table0, Result) :-
     (   metta_py_answer_form(Item, Theta, Residue, K, ValueW)
-    ->  metta_py_answer_kappa(K, Name),
+    ->  metta_py_answer_compose_kappa(K, Name),
         metta_py_answer_theta(Theta, Table0, Table),
         (   ValueW = value(VW)
         ->  metta_py_decode_shared_(VW, Result, Table, _)
@@ -940,8 +1017,11 @@ metta_py_wrappable(metta_py_query_all).
 metta_py_wrappable(metta_py_query_guarded_all).
 metta_py_wrappable(metta_py_query_limit_all).
 metta_py_wrappable(metta_py_query_count).
+metta_py_wrappable(metta_py_query_count_if_repeatable).
 metta_py_wrappable(metta_py_eval_all).
 metta_py_wrappable(metta_py_eval_using_all).
+metta_py_wrappable(metta_py_eval_many_all).
+metta_py_wrappable(metta_py_eval_many_using_all).
 metta_py_wrappable(metta_py_eval_status_all).
 metta_py_wrappable(metta_py_reducible).
 metta_py_wrappable(metta_py_eval_status_using_all).
@@ -950,14 +1030,24 @@ metta_py_wrappable(metta_py_captured).
 metta_py_wrappable(metta_py_atomic).
 metta_py_wrappable(metta_py_speculative).
 metta_py_wrappable(metta_py_profiled).
+metta_py_wrappable(metta_py_trace).
+metta_py_wrappable(metta_py_function_shape).
 metta_py_wrappable(metta_py_cursor_next).
 metta_py_wrappable(metta_py_cursor_chunk).
+metta_py_wrappable(metta_py_cursor_next_controlled).
+metta_py_wrappable(metta_py_cursor_chunk_controlled).
+metta_py_wrappable(metta_py_cursor_open_controlled).
+metta_py_wrappable(metta_py_cursor_open_under_controlled).
+metta_py_wrappable(metta_py_eval_cursor_open_controlled).
+metta_py_wrappable(metta_py_eval_cursor_open_under_controlled).
 metta_py_wrappable(metta_py_eval_count).
 metta_py_wrappable(metta_py_eval_count_under).
 metta_py_wrappable(metta_py_eval_count_if_repeatable).
 metta_py_wrappable(metta_py_eval_count_under_if_repeatable).
 metta_py_wrappable(metta_py_eval_count_retaining).
+metta_py_wrappable(metta_py_tagged_count).
 metta_py_wrappable(metta_py_derivation).
+metta_py_wrappable(metta_py_derivations).
 metta_py_wrappable(metta_py_load).
 metta_py_wrappable(metta_py_fast_load_unit).
 %A save is linear in the space in all three of its parts, so all three are
@@ -1029,7 +1119,8 @@ metta_py_stats([Inferences, CpuTime, GcCount, GcFreed, GcTimeMs, TableBytes]) :-
 %the rolled-back writes.
 metta_py_atomic(Pred, Ins, Out) :-
     metta_py_wrapped_goal(Pred, Ins, Out, Goal),
-    metta_transaction(Goal).
+    metta_py_execution_policy_goal(atomic, Goal, Scoped),
+    call(Scoped).
 
 %Run against a frozen view and discard every change: snapshot/1, the
 %what-if reading. The answers return; the space stays as it was. Atom events
@@ -1037,7 +1128,58 @@ metta_py_atomic(Pred, Ins, Out) :-
 %the former stay in a discarded observation frame and the latter refuse.
 metta_py_speculative(Pred, Ins, Out) :-
     metta_py_wrapped_goal(Pred, Ins, Out, Goal),
-    metta_speculate(metta_with_state_write_fence(Goal)).
+    metta_py_execution_policy_goal(speculative, Goal, Scoped),
+    call(Scoped).
+
+%The policy constructor is also used by held engines. Wrapping engine_next/2
+%on the caller cannot roll back work performed by the engine it resumes; the
+%transaction must be part of the engine's suspended Goal so it spans every
+%pull and closes with that one execution.
+metta_py_execution_policy_goal(none, Goal, Goal) :- !.
+metta_py_execution_policy_goal(atomic, Goal, metta_transaction(Goal)) :- !.
+metta_py_execution_policy_goal(
+    speculative,
+    Goal,
+    metta_speculate(metta_with_state_write_fence(Goal))) :- !.
+metta_py_execution_policy_goal(Mode, _, _) :-
+    throw(error(domain_error(metta_py_execution_policy, Mode), none)).
+
+%snapshot/1 is semidet, while a held evaluation is nondeterministic. Collect
+%inside the snapshot and replay outside it so speculation preserves every
+%answer while all writes still belong to one discarded execution.
+metta_py_execution_cursor_goal(speculative, Template, Goal, Controlled) :- !,
+    Controlled =
+        ( metta_speculate(
+              metta_with_state_write_fence(findall(Template, Goal, Bag))),
+          member(Template, Bag) ).
+metta_py_execution_cursor_goal(Mode, _, Goal, Controlled) :-
+    metta_py_execution_policy_goal(Mode, Goal, Controlled).
+
+%A held engine has its own current_output, so redirecting engine_next/2 in the
+%caller cannot capture it. The captured engine asks for a fresh memory stream
+%before each resume, yields one answer, and asks again before backtracking.
+%The caller can then close and read an unbounded memory file without a pipe's
+%finite-buffer deadlock.
+metta_py_captured_engine(Template, Goal) :-
+    setup_call_cleanup(
+        current_output(Old),
+        ( engine_fetch(Stream0),
+          set_output(Stream0),
+          call(Goal),
+          flush_output,
+          engine_yield(Template),
+          engine_fetch(Stream),
+          set_output(Stream),
+          fail ),
+        set_output(Old)).
+
+metta_py_open_controlled_cursor([Mode, Capture], Template, Goal, Handle) :-
+    metta_py_execution_cursor_goal(Mode, Template, Goal, Controlled),
+    (   Capture == @(true)
+    ->  engine_create(_, metta_py_captured_engine(Template, Controlled), Engine),
+        Handle = metta_py_captured_cursor(Engine)
+    ;   engine_create(Template, Controlled, Handle)
+    ).
 
 %%%%%%%%%% Lazy cursors %%%%%%%%%%
 %
@@ -1060,10 +1202,17 @@ metta_py_speculative(Pred, Ins, Out) :-
 %stay outside, per pull, where idle time between pulls cannot count.
 metta_py_cursor_open(Space, PatternsTagged, GuardTagged, VarNames, Limit, Inf,
                      prolog(Engine)) :-
+    metta_py_cursor_open_controlled(
+        Space, PatternsTagged, GuardTagged, VarNames, Limit, Inf, none,
+        prolog(Engine)).
+
+metta_py_cursor_open_controlled(
+        Space, PatternsTagged, GuardTagged, VarNames, Limit, Inf, Policy,
+        prolog(Engine)) :-
     metta_py_cursor_goal(Space, PatternsTagged, GuardTagged, VarNames, Limit,
                          Row, Goal),
     metta_host_inference_budget(Goal, Inf, Bounded),
-    engine_create(Row, Bounded, Engine).
+    metta_py_open_controlled_cursor(Policy, Row, Bounded, Engine).
 
 metta_py_cursor_goal(Space, PatternsTagged, GuardTagged, VarNames, Limit,
                      Row, Goal) :-
@@ -1087,6 +1236,13 @@ metta_py_cursor_goal(Space, PatternsTagged, GuardTagged, VarNames, Limit,
 %commit=c7468b2789746bcf95c4bacc0e2d517ec4d972fa].
 metta_py_cursor_open_under(Space, PatternsTagged, GuardTagged, VarNames,
                            Limit, Inf, Algebra, Direction, prolog(Engine)) :-
+    metta_py_cursor_open_under_controlled(
+        Space, PatternsTagged, GuardTagged, VarNames, Limit, Inf, Algebra,
+        Direction, none, prolog(Engine)).
+
+metta_py_cursor_open_under_controlled(
+        Space, PatternsTagged, GuardTagged, VarNames, Limit, Inf, Algebra,
+        Direction, Policy, prolog(Engine)) :-
     (   Direction \== none
     ->  metta_py_cursor_goal(Space, PatternsTagged, GuardTagged, VarNames, 0,
                              Row, Producer),
@@ -1099,7 +1255,7 @@ metta_py_cursor_open_under(Space, PatternsTagged, GuardTagged, VarNames,
     Scoped = metta_with_under(Algebra, Goal),
     Encoded = ( Scoped, metta_py_encode(K, KWire) ),
     metta_host_inference_budget(Encoded, Inf, Bounded),
-    engine_create([Row, KWire], Bounded, Engine).
+    metta_py_open_controlled_cursor(Policy, [Row, KWire], Bounded, Engine).
 
 metta_py_under_query(Space, Producer, K) :-
     metta_algebra_one(Space, One),
@@ -1123,6 +1279,32 @@ metta_py_ordered_pairs(_, Pairs, Ordered) :-
 metta_py_cursor_next(Engine, Answer) :-
     ( engine_next(Engine, Row) -> Answer = [Row] ; Answer = [] ).
 
+metta_py_captured_cursor_next(Engine, Answer, Text) :-
+    setup_call_cleanup(
+        new_memory_file(Memory),
+        ( setup_call_cleanup(
+              open_memory_file(
+                  Memory, write, Stream,
+                  [free_on_close(false), encoding(utf8)]),
+              ( engine_post(Engine, Stream),
+                ( engine_next(Engine, Row)
+                -> Answer = [Row]
+                ;  Answer = [] ),
+                flush_output(Stream) ),
+              close(Stream)),
+          memory_file_to_string(Memory, Text) ),
+        free_memory_file(Memory)).
+
+%The controlled variants normalize both handle kinds to [payload, text]. A
+%retained-count replay cursor has no captured engine because its target output
+%was already collected during the retaining call; it therefore contributes an
+%empty text chunk here.
+metta_py_cursor_next_controlled(
+        metta_py_captured_cursor(Engine), [Answer, Text]) :- !,
+    metta_py_captured_cursor_next(Engine, Answer, Text).
+metta_py_cursor_next_controlled(Engine, [Answer, ""]) :-
+    metta_py_cursor_next(Engine, Answer).
+
 %Up to Count answers in ONE crossing, which is the whole of the optimisation:
 %a pull costs 2.55us of janus crossing against 2.55us of engine work, so a
 %cursor that crosses per answer spends half its time in the boundary
@@ -1142,7 +1324,29 @@ metta_py_cursor_chunk(Engine, Count, Answers) :-
     ;   Answers = []
     ).
 
+metta_py_captured_cursor_chunk(_, Count, [], []) :-
+    Count =< 0, !.
+metta_py_captured_cursor_chunk(Engine, Count, Answers, Texts) :-
+    metta_py_captured_cursor_next(Engine, Answer, Text),
+    (   Answer = [Row]
+    ->  Answers = [Row|Rest],
+        Texts = [Text|MoreText],
+        Left is Count - 1,
+        metta_py_captured_cursor_chunk(Engine, Left, Rest, MoreText)
+    ;   Answers = [],
+        Texts = [Text]
+    ).
+
+metta_py_cursor_chunk_controlled(
+        metta_py_captured_cursor(Engine), Count, [Answers, Text]) :- !,
+    metta_py_captured_cursor_chunk(Engine, Count, Answers, Texts),
+    atomics_to_string(Texts, "", Text).
+metta_py_cursor_chunk_controlled(Engine, Count, [Answers, ""]) :-
+    metta_py_cursor_chunk(Engine, Count, Answers).
+
 %Idempotent close: a second destroy finds no engine and is at peace.
+metta_py_cursor_close(metta_py_captured_cursor(Engine)) :- !,
+    metta_py_cursor_close(Engine).
 metta_py_cursor_close(Engine) :-
     catch(engine_destroy(Engine), error(existence_error(_, _), _), true).
 
@@ -1397,19 +1601,21 @@ seam:host_reader_token_construct(Constructor, Text, Term) :-
 %decodes one large term: 3,699,768,516 instructions became 4,106,476,179
 %[measured 2026-08-16]. That is the same last-call optimisation the plunit
 %gate's own choicepoint check exists to catch.
-%&self resolves where text is read, exactly as in loaded source: the text
-%branch substitutes the hosting space's name, gated by a C substring probe
-%so text that never says &self pays two inferences, not a term walk. A wire
-%term was built programmatically, so it keeps its atoms as written, the
-%same boundary stored data has; metta_py_parse/2 has no space and reads
-%unpinned, the reader LeaTTa gives include. An unconditional walk here
-%cost alpha-unique +400k inferences on its one large decoded term
-%[measured 2026-08-17].
+%&self resolves to the evaluation receiver at both input doors. Text uses the
+%reader rewrite, gated by a C substring probe so text without &self pays two
+%inferences rather than a term walk. A wire target is decoded through the
+%receiver-aware decoder above, which substitutes in the decode walk rather than
+%walking the complete term again. metta_py_parse/2 has no receiver and still
+%reads unpinned, as does stored data: this policy belongs only to execution
+%targets.
 metta_py_target_term(Space, Target, Term) :-
+    metta_py_target_term_bindings(Space, Target, Term, _).
+
+metta_py_target_term_bindings(Space, Target, Term, Bindings) :-
     (   Target = [_, _]
-    ->  metta_py_decode_shared(Target, Term, _)
+    ->  metta_py_decode_target(Space, Target, Term, Bindings)
     ;   \+ is_list(Target)
-    ->  metta_py_read_form(Target, Term0, _),
+    ->  metta_py_read_form(Target, Term0, Bindings),
         (   Space == '&self'
         ->  Term = Term0
         ;   atom(Target), sub_atom(Target, _, _, _, '&self')
@@ -1918,6 +2124,13 @@ metta_py_drain(Space, Wire, Removed) :-
 metta_py_atoms(Space, Encoded) :-
     findall(E, ('get-atoms'(Space, P), metta_py_encode(P, E)), Encoded).
 
+%One initial future snapshot and the change-stream position that follows it.
+%The dedicated answer mutex makes the two fields one observation rather than a
+%bag read followed by an unrelated counter read.
+metta_py_future_snapshot(Space, [Watermark, Encoded]) :-
+    metta_future_snapshot(Space, Atoms, Watermark),
+    maplist(metta_py_encode, Atoms, Encoded).
+
 %The tracer answers terms; putting them on the wire is the shim's job, as
 %it is for every other atom leaving the engine. A call event has no answer
 %field at all, rather than a value standing in for its absence.
@@ -2251,6 +2464,45 @@ metta_py_query_count(Space, PatternsTagged, GuardTagged, _VarNames, Limit, Count
     ->  aggregate_all(count, limit(Limit, Query), Count)
     ;   aggregate_all(count, Query, Count)
     ).
+
+%Answers may ask for a length hint before it opens its row cursor. Repeating a
+%foreign provider, a path modifier, or an effect-bearing guard would make that
+%hint observable, so the engine's shared effect walk admits only the ordinary
+%native match with no modifier and a repeatable guard. [] tells Python to
+%materialize its one existing cursor instead.
+metta_py_query_count_if_repeatable(
+        Space, PatternsTagged, GuardTagged, VarNames, Limit, Answer) :-
+    (   metta_py_query_repeatable(Space, PatternsTagged, GuardTagged)
+    ->  metta_py_query_count(
+            Space, PatternsTagged, GuardTagged, VarNames, Limit, Count),
+        Answer = [Count]
+    ;   Answer = []
+    ).
+
+metta_py_query_repeatable(Space, PatternsTagged, GuardTagged) :-
+    catch_recover(
+        (   \+ seam:foreign_space(Space),
+            (   GuardTagged == []
+            ->  metta_py_decode_shared(
+                    ["e", PatternsTagged], Patterns, _),
+                Guard = true
+            ;   metta_py_decode_shared(
+                    ["e", [GuardTagged | PatternsTagged]],
+                    [Guard | Patterns], _)
+            ),
+            metta_py_prepare_patterns(Patterns, _, Modifiers, _),
+            Modifiers == [],
+            (   GuardTagged == []
+            ->  true
+            ;   metta_py_module(Space, Module),
+                metta_py_in_module(
+                    Module,
+                    ( translate_expr(Guard, Goals, _),
+                      goals_list_to_conj(Goals, Body) )),
+                metta_host_goal_repeatable(Module, Body)
+            )
+        ),
+        fail).
 
 metta_py_query_count_under(Space, PatternsTagged, GuardTagged, VarNames,
                            Limit, Algebra, Count) :-
@@ -2762,20 +3014,7 @@ metta_py_eval_using_all(Space, Target, Pairs, Encoded) :-
 %first pull charged every fresh process for loading infrastructure rather than
 %for its query.
 metta_py_eval_target(Space, Target, Pairs, Term, Bindings) :-
-    (   Target = [_, _]
-    ->  metta_py_decode_shared(Target, Term0, Bindings)
-    ;   \+ is_list(Target)
-    ->  metta_py_read_form(Target, Read, Bindings),
-        (   Space == '&self'
-        ->  Term0 = Read
-        ;   atom(Target), sub_atom(Target, _, _, _, '&self')
-        ->  metta_substitute_self(Space, Read, Term0)
-        ;   string(Target), sub_string(Target, _, _, _, "&self")
-        ->  metta_substitute_self(Space, Read, Term0)
-        ;   Term0 = Read
-        )
-    ;   throw(error(domain_error(metta_py_wire_term, Target), none))
-    ),
+    metta_py_target_term_bindings(Space, Target, Term0, Bindings),
     (   Pairs == []
     ->  Term = Term0
     ;   maplist(metta_py_using_pair, Pairs, Substitutions),
@@ -2783,16 +3022,29 @@ metta_py_eval_target(Space, Target, Pairs, Term, Bindings) :-
     ).
 
 metta_py_eval_cursor_open(Space, Target, Pairs, VarNames, Inf, prolog(Engine)) :-
+    metta_py_eval_cursor_open_controlled(
+        Space, Target, Pairs, VarNames, Inf, none, prolog(Engine)).
+
+metta_py_eval_cursor_open_controlled(
+        Space, Target, Pairs, VarNames, Inf, Policy, prolog(Engine)) :-
     metta_py_eval_target(Space, Target, Pairs, Term, Bindings),
     Goal = ( statistics(inferences, Before),
              metta_py_eval_term_bounded(Space, Term, Encoded),
              metta_py_row(VarNames, Bindings, Row),
              statistics(inferences, Now), Used is Now - Before ),
     metta_host_inference_budget(Goal, Inf, Bounded),
-    engine_create([Encoded, Row, Used], Bounded, Engine).
+    metta_py_open_controlled_cursor(
+        Policy, [Encoded, Row, Used], Bounded, Engine).
 
 metta_py_eval_cursor_open_under(Space, Target, Pairs, VarNames, Inf, Algebra,
                                 Direction, prolog(Engine)) :-
+    metta_py_eval_cursor_open_under_controlled(
+        Space, Target, Pairs, VarNames, Inf, Algebra, Direction, none,
+        prolog(Engine)).
+
+metta_py_eval_cursor_open_under_controlled(
+        Space, Target, Pairs, VarNames, Inf, Algebra, Direction, Policy,
+        prolog(Engine)) :-
     metta_py_eval_target(Space, Target, Pairs, Term, Bindings),
     (   Direction \== none
     ->  Core = metta_py_ordered_eval_under(Space, Term, VarNames, Direction,
@@ -2807,7 +3059,8 @@ metta_py_eval_cursor_open_under(Space, Target, Pairs, VarNames, Inf, Algebra,
     ),
     Goal = ( metta_with_under(Algebra, Core), metta_py_encode(K, KWire) ),
     metta_host_inference_budget(Goal, Inf, Bounded),
-    engine_create([Encoded, Row, KWire, Used], Bounded, Engine).
+    metta_py_open_controlled_cursor(
+        Policy, [Encoded, Row, KWire, Used], Bounded, Engine).
 
 metta_py_ordered_eval_under(Space, Term, VarNames, Direction, Bindings, Encoded,
                             Row, K, Used) :-
@@ -3342,6 +3595,14 @@ metta_py_async_land(Token, Status0, Payload) :-
     metta_async_future_settle(Token, Outcome, Name, Space),
     metta_py_async_publish_landing(Name, Space).
 
+%A failed primary call still has the captured runtime and token. This path
+%records that failure but emits no lifecycle atom, because publication itself
+%is the failed operation. The future's single-assignment rule preserves an
+%outcome committed before a watcher raised.
+metta_py_async_fail_landing(Token, Class0, Exception) :-
+    metta_py_async_outcome(error, [Class0, Exception], _, Outcome),
+    metta_async_future_fail(Token, Outcome).
+
 %A watcher failure is raised to the background publisher and logged there; it
 %cannot rewrite an operation outcome that was already committed to its future.
 metta_py_async_publish_landing(Name, Space) :-
@@ -3356,7 +3617,7 @@ metta_py_async_outcome(ok, Tagged, Space, done) :-
     (   metta_py_declined(Tagged)
     ->  true
     ;   metta_py_decode_shared(Tagged, Result, _),
-        'add-atom'(Space, Result, _)
+        future_add_atom(Space, Result)
     ).
 metta_py_async_outcome(cancelled, _, _, cancelled).
 metta_py_async_outcome(error, [Class0, Exception], _,
@@ -4056,6 +4317,9 @@ metta_py_disassemble(Space, Name0, Text) :-
 % proof. Negative depth means unbounded; Python puts that search behind the
 % same time and inference guards as evaluation.
 
+metta_py_derivations(Space, Tagged, Depth, Trees) :-
+    findall(Tree, metta_py_derivation(Space, Tagged, Depth, Tree), Trees).
+
 metta_py_derivation(Space, Tagged, Depth, TreeTagged) :-
     metta_py_decode_shared(Tagged, Term, _),
     Term = [F|Args],
@@ -4734,7 +4998,12 @@ metta_py_notify_atom_added(Space, Term) :-
     metta_py_subscribed_space(Space),
     metta_py_encode(Term, W),
     atom_string(Space, SpaceStr),
-    py_call(metta_ops:atom_added(SpaceStr, W), _).
+    metta_py_future_answer_sequence(Space, Sequence),
+    py_call(metta_ops:atom_added(SpaceStr, W, Sequence), _).
+
+metta_py_future_answer_sequence(Space, Sequence) :-
+    nb_current('$metta_future_answer_sequence', future(Space, Sequence)), !.
+metta_py_future_answer_sequence(_, -1).
 
 metta_py_notify_atom_removed(Space, Term) :-
     atom(Space),

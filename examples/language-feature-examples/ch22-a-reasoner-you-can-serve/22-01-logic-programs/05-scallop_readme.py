@@ -39,8 +39,14 @@ ODD = S["sc-odd?"]
 
 #: The colours, the grades and the taxonomy the last three programs work over.
 COLOURS = ((0, G("blue")), (1, G("green")), (2, G("blue")))
-GRADES = ((0, G("tom"), 50), (0, G("jerry"), 70), (0, G("alice"), 60),
-          (1, G("bob"), 80), (1, G("sherry"), 90), (1, G("frank"), 30))
+GRADES = (
+    (0, G("tom"), 50),
+    (0, G("jerry"), 70),
+    (0, G("alice"), 60),
+    (1, G("bob"), 80),
+    (1, G("sherry"), 90),
+    (1, G("frank"), 30),
+)
 KINDS = ((S.giraffe, S.mammal), (S.tiger, S.mammal), (S.mammal, S.animal))
 NAMES = ((1, S.giraffe), (1, S.tiger), (2, S.giraffe), (2, S.tiger))
 
@@ -71,7 +77,9 @@ def paths(m):
     @m.define
     def sc_paths():
         """(= (sc-paths) (collapse ...))."""
-        return S.collapse(sc_path_pair())  # rung: `collapse` is list(), which a compiled body has no lowering for (P14.4)
+        return S.collapse(
+            sc_path_pair()
+        )  # rung: `collapse` is list(), which a compiled body has no lowering for (P14.4)
 
     # !(test (sc-paths) ((0 1) (0 2) (1 2)))
     assert sc_paths() == [Expression(((0, 1), (0, 2), (1, 2)))]
@@ -90,7 +98,9 @@ def evens(m):
         # (= (sc-odd? $x)
         #    (let $n (match (context-space) (sc-number $x) $x) (sc-odd? (- $n 2))))
         yield equation(ODD(x)).to(
-            S.let(step, S.match(S.context_space(), S.sc_number(x), x), ODD(step - 2))  # rung: a rules body EXECUTES, so a stored `let` over a stored `match` is built by naming both heads (P14.4)
+            S.let(
+                step, S.match(S.context_space(), S.sc_number(x), x), ODD(step - 2)
+            )  # rung: a rules body EXECUTES, so a stored `let` over a stored `match` is built by naming both heads (P14.4)
         )
 
     @m.define
@@ -142,15 +152,12 @@ def colour_counts(m):
 def class_tops(m):
     """An argmax per class, through an open reducer rather than a closed list."""
     # (sc-class-student-grade 0 "tom" 50), and five more
-    m += [
-        S.sc_class_student_grade(klass, student, grade)
-        for klass, student, grade in GRADES
-    ]
+    m += [S.sc_class_student_grade(klass, student, grade) for klass, student, grade in GRADES]
 
     @m.define
-    def sc_pick_max(left, right):
+    def sc_pick_max(left: int, right: int) -> int:
         """(= (sc-pick-max $a $b) (if (> $a $b) $a $b))."""
-        return left if left > right else right  # noqa: FURB136  -- max(right, left) compiles to (max $b $a), a different equation from the example's
+        return left if left > right else right  # noqa: FURB136 -- keep the source's conditional head
 
     @m.define
     def sc_class_max(klass):
@@ -199,7 +206,7 @@ def animal_count(m):
         """Every named object whose kind reaches `animal`."""
         named = match(S.sc_name(V.o, V.kind), (V.o, V.kind))
         ancestor = sc_ancestor_kind(named[1])
-        return named[0] if ancestor == S.animal else superpose()
+        return named[0] if fn.eq(ancestor, S.animal) else superpose()  # ancestor is call-bound
 
     @m.define
     def sc_one_animal():
@@ -307,4 +314,26 @@ def twin(m):
 #: the quad twin stopped being a different program [measured 2026-09-01: min-
 #: of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=c6a40460b1db341198a6150e3600f502831a6e83].
-BUDGET = 83410
+#: RE-PINNED 2026-09-01, 83410 to 85229 (+1819), generic Python operators now
+#: dispatch through live protocols while source twins explicitly name
+#: relational engine heads [measured 2026-09-01: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=e3787593132a7ece2d300397045f7415709847c9].
+#: RE-PINNED 2026-09-02, 85229 to 84481 (-748), exact numeric annotations
+#: retain native operator heads, publish MeTTa type declarations, and leave
+#: relational heads only where static proof is unavailable [measured
+#: 2026-09-02: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=d0dfff1a3ee6c85472fd9b12d6e4aec007a9c301].
+#: RE-PINNED 2026-09-02, 84481 to 85176 (+695), static contract discharge and
+#: policy-stable recompilation [measured 2026-09-02: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=c00341f0ff9d83d1b9338ca86ad51708eaf07ebd].
+#: RE-PINNED 2026-09-02, 85176 to 85380 (+204), static contract discharge with
+#: policy checks confined to invalidated contracts [measured 2026-09-02: min-
+#: of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=c00341f0ff9d83d1b9338ca86ad51708eaf07ebd].
+#: RE-PINNED 2026-09-02, 85380 to 85390 (+10), P43 protects both generated
+#: policy-check fallbacks from space-local capture [measured 2026-09-02: min-
+#: of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=c00341f0ff9d83d1b9338ca86ad51708eaf07ebd].
+BUDGET = 85390

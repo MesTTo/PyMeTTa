@@ -19,6 +19,13 @@ Guarantees:
     use the minimum of three samples [tested:
     test_two_answers_cross_the_wire_without_the_third_being_computed;
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
+  - an omitted wire-space name is authorized and executed against the same
+    served space [tested: test_an_omitted_remote_space_cannot_cross_the_authorization_boundary;
+    commit=af5821f5ffb7ce186e516706f003d02f5c1d3b4a]
+  - a worker timeout cancels a queued request and interrupts a running engine
+    request before either can perform a later write [tested:
+    test_a_timed_out_remote_worker_never_runs_or_finishes_the_abandoned_write;
+    commit=d64d3cc64e1e7b528e0043a67cb05f6c02da455f]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -204,6 +211,60 @@ def test_remote_close_waits_for_worker_detach(metta, monkeypatch):  # noqa: D103
     server.close()
 
 
+def test_a_timed_out_remote_worker_never_runs_or_finishes_the_abandoned_write(metta):
+    """A timeout cancels the request, rather than only abandoning its reply."""
+    entered = threading.Event()
+    release = threading.Event()
+    operations: list[str] = []
+    late = S.remote_worker_late_write(S.forbidden)
+    metta.run(
+        "(= (remote-worker-spin $n) "
+        "(if (== $n 0) done (remote-worker-spin (- $n 1))))"
+    )
+
+    def handle(operation, _payload):
+        operations.append(operation)
+        if operation == "hold":
+            entered.set()
+            if not release.wait(2.0):
+                msg = "the test did not release its worker"
+                raise RuntimeError(msg)
+        elif operation == "running-write":
+            entered.set()
+            metta.eval(
+                "(with-pragma! ((max-stack-depth 1000000000)) "
+                "(remote-worker-spin 2000000000))"
+            )
+            metta.add(late)
+        return {"operation": operation}
+
+    worker = remote._RemoteWorker(handle)
+    worker.start()
+    holding = threading.Thread(target=lambda: worker.call("hold", {}, timeout=2.0))
+    holding.start()
+    try:
+        assert entered.wait(2.0)
+        with pytest.raises(TimeoutError, match="late-write"):
+            worker.call("late-write", {}, timeout=0.05)
+        release.set()
+        holding.join(2.0)
+        assert not holding.is_alive()
+        worker.call("barrier", {}, timeout=2.0)
+        assert operations == ["hold", "barrier"]
+
+        entered.clear()
+        with pytest.raises(TimeoutError, match="running-write"):
+            worker.call("running-write", {}, timeout=0.1)
+        worker.call("after-interrupt", {}, timeout=2.0)
+        assert entered.is_set()
+        assert late not in metta
+        assert operations[-2:] == ["running-write", "after-interrupt"]
+    finally:
+        release.set()
+        holding.join(2.0)
+        worker.stop()
+
+
 @pytest.mark.parametrize(
     ("headers", "body", "status", "detail"),
     [
@@ -273,6 +334,31 @@ def test_authorize_can_serve_a_space_read_only(metta):  # noqa: D103  -- pytest 
         served.drop()
 
     assert seen == [("atoms", name), ("add", name), ("atoms", name)]
+
+
+def test_an_omitted_remote_space_cannot_cross_the_authorization_boundary(metta):
+    """Authorization and execution resolve one canonical default space."""
+    served = metta._new_space()
+    default = metta._at("&self")
+    atom = S.remote_default_authority(S.served)
+    seen = []
+
+    def only_served(request):
+        seen.append((request.operation, request.space))
+        return request.space == served.name
+
+    try:
+        with remote.serve(served, authorize=only_served) as server:
+            reply = remote.connect(server.url)("add", {"atom": atom.to_wire()})
+
+        assert reply == {"added": True}
+        assert seen == [("add", served.name)]
+        assert atom in served
+        assert atom not in default
+    finally:
+        served.remove(atom)
+        default.remove(atom)
+        served.drop()
 
 
 @pytest.mark.parametrize(

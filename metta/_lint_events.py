@@ -2,7 +2,7 @@
 
 Assumes:
   - ``&metta`` is the process reflection space and Python source positions use
-    the coordinates returned by ``inspect`` and ``ast``
+    the coordinates returned by ``code.co_positions()`` and ``ast``
 Guarantees:
   - ``# metta: ok(<rule>)`` comments are tokenized, bound to one statement,
     reflected as ``lint-intent`` data, and never alter execution [tested:
@@ -13,8 +13,19 @@ Guarantees:
   - operation calls under compiled loop bodies are recognized from the
     registered operation object rather than from spelling [tested:
     test_an_operation_call_inside_a_compiled_loop_is_linted; commit=acb40f1912f131ae088083d1af29b4b283019bea]
+  - emitted authorities retain every adopted audit ID and point at the
+    immutable public lint catalogue [tested:
+    test_lint_authorities_are_durable_public_references;
+    commit=2a32acb6d254ea12085526913c7b9a1a555b8ee0]
+  - each live frame call site derives its source position once and then
+    resolves repeated Answers iterations in constant time without retaining
+    generated code [tested:
+    test_answer_iteration_benchmark_reuses_one_warmed_view,
+    test_answer_position_cache_does_not_own_generated_code;
+    commit=0ffac1f272c65d1c3742a2bfb824538e426c264a]
 Guarded by:
   - ``_LOCK`` serializes the process registries and their reflected facts
+  - ``_POSITION_LOCK`` serializes the bounded weak call-site cache
 """
 
 from __future__ import annotations
@@ -27,10 +38,12 @@ import re
 import textwrap
 import threading
 import tokenize
+import weakref
+from collections import OrderedDict
 from collections.abc import Hashable
 from dataclasses import dataclass
 from pathlib import Path
-from types import FrameType, FunctionType
+from types import CodeType, FrameType, FunctionType
 from typing import Any
 
 from ._ops import live_registration
@@ -38,43 +51,22 @@ from .atoms import Atom, Expression, Grounded, Symbol
 
 # These are the adopted authorities, not implementation folklore. Keeping the
 # row IDs with every emitted kind lets a finding answer which ruling it applies.
-_AUTHORITIES: dict[str, str] = {
-    "operation-crossing-in-loop": (
-        "P14-14-02/GG-004; ai-python-conventions.md:350-362,2169-2171; "
-        "ai-python-first-revamp-discussion.md:7184-7190"
-    ),
-    "first-letter-role-convention": (
-        "P14-39-05; ai-python-conventions.md:104-108,564-584; "
-        "ai-python-first-revamp-discussion.md:3687-3701"
-    ),
-    "interpreter-equation-shadow": (
-        "P14-40-07/STYLE-150/GG-008; ai-python-conventions.md:1800-1803; "
-        "ai-python-first-revamp-discussion.md:3769-3774,7195-7198"
-    ),
-    "module-level-defined-call": (
-        "P14-40-09; ai-python-conventions.md:2193-2194; "
-        "ai-python-first-revamp-discussion.md:3779-3782"
-    ),
-    "effectful-operation-at-construction": (
-        "GG-013; ai-python-first-revamp-discussion.md:7209-7212"
-    ),
-    "operation-staged-in-law": (
-        "GG-014; ai-python-first-revamp-discussion.md:7212-7215"
-    ),
-    "unordered-answers-zip": (
-        "GG4-006/GG5-007/L9Z2-08; "
-        "ai-python-first-revamp-discussion.md:5738-5742,7501-7502,7588-7589"
-    ),
-    "unordered-answers-reversed": (
-        "L9Z2-09; ai-python-first-revamp-discussion.md:5738-5742"
-    ),
-    "sync-engine-call-in-async": (
-        "L9Z3-03; ai-python-first-revamp-discussion.md:5775-5779"
-    ),
-}
-_INTENT_AUTHORITY = (
-    "L9Z1-06; ai-python-first-revamp-discussion.md:5613-5618"
+_LINT_CATALOGUE = (
+    "https://github.com/MesTTo/MeTTa-Kernel/blob/"
+    "7de3d32d25a7166b12f7c68c179e9cbb931ac044/website/guide/run-query.md#lint-a-space"
 )
+_AUTHORITIES: dict[str, str] = {
+    "operation-crossing-in-loop": f"P14-14-02/GG-004; {_LINT_CATALOGUE}",
+    "first-letter-role-convention": f"P14-39-05; {_LINT_CATALOGUE}",
+    "interpreter-equation-shadow": f"P14-40-07/STYLE-150/GG-008; {_LINT_CATALOGUE}",
+    "module-level-defined-call": f"P14-40-09; {_LINT_CATALOGUE}",
+    "effectful-operation-at-construction": f"GG-013; {_LINT_CATALOGUE}",
+    "operation-staged-in-law": f"GG-014; {_LINT_CATALOGUE}",
+    "unordered-answers-zip": f"GG4-006/GG5-007/L9Z2-08; {_LINT_CATALOGUE}",
+    "unordered-answers-reversed": f"L9Z2-09; {_LINT_CATALOGUE}",
+    "sync-engine-call-in-async": f"L9Z3-03; {_LINT_CATALOGUE}",
+}
+_INTENT_AUTHORITY = f"L9Z1-06; {_LINT_CATALOGUE}"
 
 _DIRECTIVE = re.compile(r"#\s*metta:\s*ok\((?P<kind>[a-z0-9-]+)\)\s*$")
 _PACKAGE = Path(__file__).resolve().parent
@@ -82,6 +74,12 @@ _REFLECTION_SPACE = "&metta"
 _LOCK = threading.RLock()
 _CO_COROUTINE = getattr(inspect, "CO_COROUTINE", 0x0080)
 _CO_ASYNC_GENERATOR = getattr(inspect, "CO_ASYNC_GENERATOR", 0x0200)
+_POSITION_LOCK = threading.Lock()
+_POSITION_CACHE_MAX = 4_096
+_POSITION_CACHE: OrderedDict[
+    tuple[int, int],
+    tuple[weakref.ReferenceType[CodeType], tuple[str, int, int]],
+] = OrderedDict()
 
 
 @dataclass(frozen=True)
@@ -231,13 +229,44 @@ def _record_for_name(space: str, event: LintEvent) -> None:
 
 
 def _position(frame: FrameType) -> tuple[str, int, int]:
-    path = frame.f_code.co_filename
+    # CPython's inspect._get_code_position reaches instruction N with
+    # islice(code.co_positions(), N), a linear walk on every call. Deriving a
+    # call site once changes I repeated positions after B bytecode entries
+    # from Theta(I*B) to Theta(B+I).
+    # Source: https://github.com/python/cpython/blob/f6842ddae6b0c744b89c33b9bb088d7c4b3eb8d3/Lib/inspect.py#L1566-L1571
+    code = frame.f_code
+    key = (id(code), frame.f_lasti)
+    with _POSITION_LOCK:
+        cached = _POSITION_CACHE.get(key)
+        if cached is not None and cached[0]() is code:
+            _POSITION_CACHE.move_to_end(key)
+            return cached[1]
+
+    path = code.co_filename
     if not (path.startswith("<") and path.endswith(">")):
         path = str(Path(path).resolve())
     info = inspect.getframeinfo(frame, context=0)
     positions = info.positions
-    column = 0 if positions is None or positions.col_offset is None else positions.col_offset
-    return path, frame.f_lineno, column
+    column = (
+        0
+        if positions is None or positions.col_offset is None
+        else positions.col_offset
+    )
+    result = (path, frame.f_lineno, column)
+
+    def retire(reference: weakref.ReferenceType[CodeType]) -> None:
+        with _POSITION_LOCK:
+            current = _POSITION_CACHE.get(key)
+            if current is not None and current[0] is reference:
+                del _POSITION_CACHE[key]
+
+    reference = weakref.ref(code, retire)
+    with _POSITION_LOCK:
+        _POSITION_CACHE[key] = (reference, result)
+        _POSITION_CACHE.move_to_end(key)
+        while len(_POSITION_CACHE) > _POSITION_CACHE_MAX:
+            _POSITION_CACHE.popitem(last=False)
+    return result
 
 
 def external_caller(frame: FrameType | None = None) -> FrameType | None:

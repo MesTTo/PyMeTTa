@@ -25,10 +25,9 @@ assignment, which lowers to `let*`.
 
 Each claim states its own branch allowance above the evaluator's 100000
 default, which is a term because `m.limits` bounds inferences and time and not
-stack depth (residue, P14.14). It is load-bearing for the compiled kernels
-twice over: a compiled `if` wraps its condition in `py-truthy` and `==` lowers
-to `py-eq`, so every level of these million-step recursions spends reductions
-the original does not.
+stack depth (residue, P14.14). The exact numeric annotations keep arithmetic
+and ordering on pure engine heads. Equality stays explicit as `fn.eq`, whose
+declared Bool result remains bare in each recursive condition.
 """
 
 from metta import S, V, equation, fn, if_
@@ -46,8 +45,12 @@ DEEP = (S.max_stack_depth(100_000_000),)
 def twin(m):
     """Four higher-order kernels, each run to a million steps."""
     # A map that flattens as it goes, over a cons list built by counting down.
-    m += equation(S.map_flat(V.f, ())).to(())  # rung: a compiled head pattern may only be a literal default
-    m += equation(S.map_flat(V.f, S.cons(V.x, V.xs))).to(  # rung: as above
+    m += equation(S.map_flat(V.f, ())).to(
+        ()
+    )  # rung: a compiled head pattern may only be a literal default
+    m += equation(
+        S.map_flat(V.f, S.cons(V.x, V.xs))
+    ).to(  # rung: as above
         S.let(  # rung: this rules body has no Python statement position for the required binding
             V.head,
             (V.f, V.x),
@@ -67,8 +70,8 @@ def twin(m):
     # `P0.13 suppression burn-down increased (observed, maximum): {'N': (37,
     # 35), 'A': (9, 8)}`; it would also redirect recursion to `py-range`.
     @m.define(name="range")
-    def range_(n):
-        if n == 0:
+    def range_(n: int):
+        if fn.eq(n, 0):  # engine equality is intentional
             return ()
         rest = range_(n - 1)
         return S.cons(n, rest)
@@ -78,26 +81,27 @@ def twin(m):
     # A fold that recurses into nested expressions rather than over them.
     m += equation(S.fold_nested(V.f, V.init, ())).to(V.init)  # rung: as above
     m += equation(S.fold_nested(V.f, V.init, S.cons(V.x, V.xs))).to(  # rung: as above
-        if_(S.is_expr(V.x),  # rung: the stored body of an equation the decorator cannot compile
+        if_(
+            S.is_expr(V.x),  # rung: the stored body of an equation the decorator cannot compile
             S.fold_nested(V.f, S.fold_nested(V.f, V.init, V.x), V.xs),
-            S.fold_nested(V.f, (V.f, V.init, V.x), V.xs)))
+            S.fold_nested(V.f, (V.f, V.init, V.x), V.xs),
+        )
+    )
 
     @m.define
-    def deep_nest(n):
-        if n == 0:
+    def deep_nest(n: int):
+        if fn.eq(n, 0):  # engine equality is intentional
             return ()
         row = fn.range(50)
         rest = deep_nest(n - 1)
         return S.cons(row, rest)
 
-    assert m.fn.with_pragma(
-        DEEP, S.fold_nested(S.add, 0, S.deep_nest(20_000))
-    ).one() == 25_500_000
+    assert m.fn.with_pragma(DEEP, S.fold_nested(S.add, 0, S.deep_nest(20_000))).one() == 25_500_000
 
     # A hundred thousand applications of one function to one value.
     @m.define
-    def apply_many(f, n, x):
-        if n == 0:
+    def apply_many(f, n: int, x):
+        if fn.eq(n, 0):  # engine equality is intentional
             return x
         return apply_many(f, n - 1, f(x))
 
@@ -105,10 +109,10 @@ def twin(m):
 
     # And a polynomial sum, which applies the parameter inside an addition.
     @m.define
-    def poly(f, n):
-        if n == 0:
+    def poly(f, n: int) -> int:
+        if fn.eq(n, 0):  # engine equality is intentional
             return 0
-        return f(n) + poly(f, n - 1)
+        return fn.add(f(n), poly(f, n - 1))  # f's return type is unknown
 
     assert m.fn.with_pragma(DEEP, S.poly(INC, 1_000_000)) == [500_001_500_000]
 
@@ -189,4 +193,26 @@ def twin(m):
 #: and the quad twin stopped being a different program [measured 2026-09-01:
 #: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=c6a40460b1db341198a6150e3600f502831a6e83].
-BUDGET = 37300359
+#: RE-PINNED 2026-09-01, 37300359 to 27901918 (-9398441), generic Python
+#: operators now dispatch through live protocols while source twins explicitly
+#: name relational engine heads [measured 2026-09-01: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=e3787593132a7ece2d300397045f7415709847c9].
+#: RE-PINNED 2026-09-02, 27901918 to 34146332 (+6244414), exact numeric
+#: annotations retain native operator heads, publish MeTTa type declarations,
+#: and leave relational heads only where static proof is unavailable [measured
+#: 2026-09-02: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=d0dfff1a3ee6c85472fd9b12d6e4aec007a9c301].
+#: RE-PINNED 2026-09-02, 34146332 to 34148259 (+1927), static contract
+#: discharge and policy-stable recompilation [measured 2026-09-02: min-of-3
+#: serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=c00341f0ff9d83d1b9338ca86ad51708eaf07ebd].
+#: RE-PINNED 2026-09-02, 34148259 to 34148338 (+79), static contract discharge
+#: with policy checks confined to invalidated contracts [measured 2026-09-02:
+#: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=c00341f0ff9d83d1b9338ca86ad51708eaf07ebd].
+#: RE-PINNED 2026-09-02, 34148338 to 34148372 (+34), P43 protects both
+#: generated policy-check fallbacks from space-local capture [measured
+#: 2026-09-02: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=c00341f0ff9d83d1b9338ca86ad51708eaf07ebd].
+BUDGET = 34148372

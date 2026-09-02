@@ -13,6 +13,10 @@ Guarantees:
   - unary plus preserves atom identity while unary minus keeps its staged
     subtraction meaning [tested: test_unary_plus_is_atom_identity;
     commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
+  - compiled standard ``operator`` mentions retain Python protocol dispatch
+    and result species [tested:
+    test_compiled_callable_mentions_preserve_python_call_semantics;
+    commit=e3787593132a7ece2d300397045f7415709847c9]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -50,9 +54,7 @@ def test_typed_and_arrow_retire_49_raw_type_symbols():
     """R5.2: 33 arrows and 16 undefined symbols use the shared type table."""
     assert pymetta.arrow(int, int) == S["->"](S.Number, S.Number)
     assert pymetta.arrow(Any, str) == S["->"](S["%Undefined%"], S.String)
-    assert pymetta.typed(S.f, pymetta.arrow(int, int)) == S[":"](
-        S.f, S["->"](S.Number, S.Number)
-    )
+    assert pymetta.typed(S.f, pymetta.arrow(int, int)) == S[":"](S.f, S["->"](S.Number, S.Number))
 
 
 def test_keyword_builders_retire_53_raw_if_mentions():
@@ -185,9 +187,7 @@ MATH_MENTIONS = (
 
 
 @pytest.mark.parametrize(("callable_value", "head"), MATH_MENTIONS)
-def test_callable_mentions_share_operator_and_fourteen_math_names(
-    metta, callable_value, head
-):
+def test_callable_mentions_share_operator_and_fourteen_math_names(metta, callable_value, head):
     """R5.7: operator.add and the builtin-types math family become mentions."""
     assert pymetta.wire.encode(operator.add) == S["+"]
     assert pymetta.wire.encode(callable_value) == S[head]
@@ -202,6 +202,7 @@ def test_callable_mentions_share_operator_and_fourteen_math_names(
 
 def test_callable_mentions_require_identity_even_when_equality_is_spoofed():
     """A user callable equal to a standard one remains a grounded value."""
+
     class AddSpoof:
         def __call__(self, left, right):
             return left + right
@@ -221,6 +222,7 @@ def test_callable_mentions_require_identity_even_when_equality_is_spoofed():
 
 def test_compiled_callable_mentions_preserve_python_call_semantics(metta):
     """Adapters preserve argument order, optional forms, and result kinds."""
+
     @metta.define(name="r5-log-base")
     def log_base(value, base):
         return math.log(value, base)
@@ -241,6 +243,26 @@ def test_compiled_callable_mentions_preserve_python_call_semantics(metta):
     def true_divide(left, right):
         return operator.truediv(left, right)
 
+    @metta.define(name="r5-operator-add")
+    def operator_add(left, right):
+        return operator.add(left, right)
+
+    @metta.define(name="r5-operator-and")
+    def operator_and(left, right):
+        return operator.and_(left, right)
+
+    @metta.define(name="r5-operator-power")
+    def operator_power(left, right):
+        return operator.pow(left, right)
+
+    @metta.define(name="r5-operator-matmul")
+    def operator_matmul(left, right):
+        return operator.matmul(left, right)
+
+    class MatrixLike:
+        def __matmul__(self, other):
+            return f"matmul:{other}"
+
     assert log_base.body == S["log-math"](V.base, V.value)
     assert log_base(100, 10) == [2.0]
     assert log_natural(math.e**2)[0].value == pytest.approx(2.0)
@@ -249,6 +271,11 @@ def test_compiled_callable_mentions_preserve_python_call_semantics(metta):
     assert round_builtin(2.5) == [2]
     assert true_divide(6, 2) == [3.0]
     assert type(true_divide(6, 2)[0].value) is float
+    assert operator_add("left", "right") == ["leftright"]
+    assert operator_and({1, 2}, {2, 3})[0].value == {2}
+    reciprocal = operator_power(1, -1)[0]
+    assert reciprocal.value == 1.0 and type(reciprocal.value) is float
+    assert operator_matmul(MatrixLike(), "right") == ["matmul:right"]
 
 
 def test_plain_sorted_uses_the_engines_elementwise_order():
@@ -288,15 +315,14 @@ def test_rules_lower_emits_queryable_declaration_and_registers_the_head(metta):
         yield equation(S["r5-lower"](x)).to(S.noeval(S.r5_lowered(x)))
 
     declaration = r5_lowering.lower(S.topdown, requires=S.mork, space=metta)
-    assert declaration == S.lowering(
-        S["r5-lower"], S.topdown, S.requires(S.mork)
-    )
+    assert declaration == S.lowering(S["r5-lower"], S.topdown, S.requires(S.mork))
     assert declaration in metta._at("&metta")
     assert metta.eval(S["r5-lower"](3)) == [S.r5_lowered(3)]
 
 
 def test_rules_lower_refuses_an_empty_rule_set_before_mutating(metta):
     """A lowering needs a rule head to declare and register."""
+
     @pymetta.rules
     def empty_rules():
         if False:

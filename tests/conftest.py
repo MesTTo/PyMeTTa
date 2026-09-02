@@ -1,5 +1,12 @@
 """Purpose: provide the shared repository, runtime, and engine pytest fixtures.
 
+Guarantees:
+  - the source-tree suite registers ``metta.pytest_plugin`` when distribution
+    metadata has not already done so, and never registers the module twice
+    [tested: test_an_abandoned_watch_cancels_itself,
+    test_source_tree_fixtures_coexist_with_installed_plugin_metadata;
+    commit=993608c01049bcca7530931b680c416c81023543]
+
 Open Obligations:
   To Do: None
   Hacks: None
@@ -15,6 +22,13 @@ import janus_swi
 import pytest
 
 from metta import Space
+from metta import pytest_plugin as metta_pytest_plugin
+
+
+def pytest_configure(config: pytest.Config) -> None:
+    """Register the shipped fixtures only when entry-point discovery did not."""
+    if not config.pluginmanager.is_registered(metta_pytest_plugin):
+        config.pluginmanager.register(metta_pytest_plugin, "metta-source")
 
 # The twins moved to extensions/python/examples/language-feature-examples/,
 # out of this directory, so pytest no longer reaches them from here and the

@@ -27,27 +27,32 @@ from metta import S, V, fn, match
 
 def twin(m):
     """Fold a query's rows, then fold a function's two answers."""
-    m += [(S.kb, 1), (S.kb, 2)]                  # (kb 1) and (kb 2)
+    m += [(S.kb, 1), (S.kb, 2)]  # (kb 1) and (kb 2)
 
     @m.define
-    def f():                                     # (= (f) 1)
-        yield 1                                  # (= (f) 2)
+    def f():  # (= (f) 1)
+        yield 1  # (= (f) 2)
         yield 2
 
     @m.define
-    def bumped():                                # (= (bumped)
-        return S.foldall(fn.add,                 #    (foldall +
-                         match(m, S.kb(V.n), V.n + 1),  # (match &self (kb $n) (+ $n 1))
-                         0)                      #     0))
+    def bumped() -> int:                         # (= (bumped)
+        return S.foldall(
+            fn.add,                              #    (foldall +
+            match(m, S.kb(V.n), fn.add(V.n, 1)),  # (match &self (kb $n) (+ $n 1)); V.n is an engine variable
+            0,                                   #     0))
+        )
 
     @m.define
-    def raised():                                # (= (raised)
-        return S.foldall(fn.add,                 #    (foldall +
-                         S.let(V.x, S.f(), 1 + V.x),  # rung: this `let` scopes the branching inside foldall's generator slot, where no Python statement can stand
-                         0)                      # (let $x (f) (+ 1 $x)), then 0
+    def raised() -> int:                         # (= (raised)
+        # The stored let keeps branching inside foldall's generator slot.
+        return S.foldall(
+            fn.add,                              #    (foldall +
+            S.let(V.x, S.f(), fn.add(1, V.x)),  # V.x is an engine variable
+            0,                                   # (let $x (f) (+ 1 $x)), then 0
+        )
 
-    assert bumped() == [5]   # [5]
-    assert raised() == [5]   # [5]
+    assert bumped() == [5]  # [5]
+    assert raised() == [5]  # [5]
 
 
 #: Inferences this twin spends, its own tripwire. PLACEHOLDER rather than a
@@ -130,4 +135,21 @@ def twin(m):
 #: structure, and the removal doors changed meaning where a twin spells one
 #: [measured 2026-09-01: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=c6a40460b1db341198a6150e3600f502831a6e83].
-BUDGET = 7715
+#: RE-PINNED 2026-09-01, 7715 to 7738 (+23), generic Python operators now
+#: dispatch through live protocols while source twins explicitly name
+#: relational engine heads [measured 2026-09-01: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=e3787593132a7ece2d300397045f7415709847c9].
+#: RE-PINNED 2026-09-02, 7738 to 7779 (+41), static contract discharge and
+#: policy-stable recompilation [measured 2026-09-02: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=c00341f0ff9d83d1b9338ca86ad51708eaf07ebd].
+#: RE-PINNED 2026-09-02, 7779 to 7795 (+16), static contract discharge with
+#: policy checks confined to invalidated contracts [measured 2026-09-02: min-
+#: of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=c00341f0ff9d83d1b9338ca86ad51708eaf07ebd].
+#: RE-PINNED 2026-09-02, 7795 to 7841 (+46), P43 protects both generated
+#: policy-check fallbacks from space-local capture [measured 2026-09-02: min-
+#: of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=c00341f0ff9d83d1b9338ca86ad51708eaf07ebd].
+BUDGET = 7841

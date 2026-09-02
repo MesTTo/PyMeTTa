@@ -9,12 +9,15 @@ Guarantees:
     test_accepted_async_cancellation_overrides_a_suppressed_cancel,
     test_async_calls_are_effective_writes_with_independent_handles,
     test_a_failed_landing_watcher_does_not_rewrite_the_future,
+    test_a_failed_landing_publication_settles_the_future_as_an_error,
     test_a_landing_observer_can_await_the_future_it_observes,
     test_a_landing_observer_can_await_another_async_future,
     test_cancelling_from_the_launch_observer_keeps_a_settled_future,
     test_async_engine_injection_keeps_the_calling_named_space,
-    test_async_engine_injection_uses_the_registration_runtime;
-    commit=39092863ae34184a9f955f185ff57c1ff177ec40]
+    test_async_engine_injection_uses_the_registration_runtime,
+    test_async_landing_uses_the_runtime_captured_during_prepare,
+    test_a_landing_cancellation_is_not_swallowed;
+    commit=2f562bc5c051ee373cb7ab27ea6cae641f1df094]
   - an enclosing transaction publishes an async launch before starting the
     coroutine, then publishes landing independently; rollback discards the
     prepared call without starting it [tested:
@@ -35,14 +38,16 @@ Guarantees:
     test_context_snapshot_crosses_every_spawn_door_including_thread_workers,
     test_context_release_linearizes_before_a_waiting_entry;
     commit=39092863ae34184a9f955f185ff57c1ff177ec40]
-  - FutureSpace iteration drains its terminal snapshot, async reflection names
-    the public SpaceType and effective writesState contract, and loop teardown
-    finalizes pending coroutines and permits recovery after unexpected stop or
-    startup failure [tested:
+  - FutureSpace iteration drains its terminal snapshot and separates that
+    initial bag from later additions by publication position; async reflection
+    names the public SpaceType and effective writesState contract, and loop
+    teardown finalizes pending coroutines and permits recovery after unexpected
+    stop or startup failure [tested:
     test_future_iteration_drains_the_terminal_snapshot,
+    test_future_iteration_watermark_separates_snapshot_from_later_events,
     test_async_reflection_has_one_public_return_and_effect,
     test_the_async_loop_recovers_from_stop_and_thread_start_failure,
-    test_async_loop_shutdown_finalizes_pending_coroutines; commit=39092863ae34184a9f955f185ff57c1ff177ec40]
+    test_async_loop_shutdown_finalizes_pending_coroutines; commit=1877bec75a9a22265c9222f0c0c538c8f65a983f]
 """
 
 from __future__ import annotations
@@ -242,19 +247,17 @@ def test_future_iteration_drains_the_terminal_snapshot(metta, monkeypatch):
     metta.op(answer, name=name, effect="oracleIO")
     future = metta.eval(S[name]())[0]
     assert entered.wait(10)
-    original_atoms = FutureSpace.atoms
-    first_snapshot = True
+    future.add(42)
+    original_snapshot = FutureSpace._iteration_snapshot
 
-    def gated_atoms(self):
-        nonlocal first_snapshot
-        atoms = original_atoms(self)
-        if self is future and first_snapshot:
-            first_snapshot = False
+    def gated_snapshot(self):
+        snapshot = original_snapshot(self)
+        if self is future:
             snapshot_taken.set()
             assert return_snapshot.wait(10)
-        return atoms
+        return snapshot
 
-    monkeypatch.setattr(FutureSpace, "atoms", gated_atoms)
+    monkeypatch.setattr(FutureSpace, "_iteration_snapshot", gated_snapshot)
 
     def iterate() -> None:
         try:
@@ -269,15 +272,69 @@ def test_future_iteration_drains_the_terminal_snapshot(metta, monkeypatch):
     try:
         assert snapshot_taken.wait(10)
         release.set()
-        assert _bounded_call(lambda: list(future.wait())) == [42]
+        assert _bounded_call(lambda: list(future.wait())) == [42, 42]
         return_snapshot.set()
+        assert iteration_done.wait(10)
+        worker.join()
+        assert iteration_errors == []
+        assert iterated == [42, 42]
+    finally:
+        release.set()
+        return_snapshot.set()
+        metta.unregister_op(name)
+
+
+def test_future_iteration_watermark_separates_snapshot_from_later_events(metta, monkeypatch):
+    """An answer queued before the snapshot is present exactly once."""
+    name = _unique("future-snapshot-watermark")
+    entered = threading.Event()
+    release = threading.Event()
+    snapshot_entered = threading.Event()
+    take_snapshot = threading.Event()
+    iteration_done = threading.Event()
+    iterated: list[Any] = []
+    iteration_errors: list[BaseException] = []
+
+    async def answer() -> int:
+        entered.set()
+        await asyncio.to_thread(release.wait)
+        return 42
+
+    metta.op(answer, name=name, effect="oracleIO")
+    future = metta.eval(S[name]())[0]
+    assert entered.wait(10)
+    original_snapshot = FutureSpace._iteration_snapshot
+
+    def gated_snapshot(self):
+        if self is future:
+            snapshot_entered.set()
+            assert take_snapshot.wait(10)
+        return original_snapshot(self)
+
+    monkeypatch.setattr(FutureSpace, "_iteration_snapshot", gated_snapshot)
+
+    def iterate() -> None:
+        try:
+            iterated.extend(future)
+        except BaseException as error:
+            iteration_errors.append(error)
+        finally:
+            iteration_done.set()
+
+    worker = threading.Thread(target=iterate, daemon=True)
+    worker.start()
+    try:
+        assert snapshot_entered.wait(10)
+        release.set()
+        assert _bounded_call(lambda: list(future.wait())) == [42]
+        take_snapshot.set()
         assert iteration_done.wait(10)
         worker.join()
         assert iteration_errors == []
         assert iterated == [42]
     finally:
         release.set()
-        return_snapshot.set()
+        take_snapshot.set()
         metta.unregister_op(name)
 
 
@@ -381,6 +438,88 @@ def test_a_failed_landing_watcher_does_not_rewrite_the_future(metta):
     finally:
         subscription.cancel()
         metta.unregister_op(name)
+
+
+def test_a_failed_landing_publication_settles_the_future_as_an_error(metta, monkeypatch):
+    """A failed publication wakes the waiter with its terminal error."""
+    from metta import _async_ops
+
+    name = _unique("async-landing-publication")
+    attempted = threading.Event()
+    future = None
+
+    async def answer() -> int:
+        return 5
+
+    def fail_publication(*_args) -> None:
+        attempted.set()
+        msg = "synthetic landing publication failure"
+        raise RuntimeError(msg)
+
+    metta.op(answer, name=name, effect="pureStructural")
+    monkeypatch.setattr(_async_ops, "_publish_landing", fail_publication)
+    try:
+        future = metta.eval(S[name]())[0]
+        assert attempted.wait(10)
+        with pytest.raises(EngineError, match="synthetic landing publication failure"):
+            _bounded_call(lambda: list(future.wait()), seconds=1)
+        assert future.settled() is True
+    finally:
+        if future is not None:
+            runtime().once(
+                "(metta_future(Space, _, _Done) -> "
+                "metta_future_complete(Space, _Done, cancelled) ; true)",
+                Space=future.name,
+            )
+        metta.unregister_op(name)
+
+
+def test_async_landing_uses_the_runtime_captured_during_prepare(metta, monkeypatch):
+    """Completion does not reacquire a process-global runtime reference."""
+    from metta import _async_ops
+
+    name = _unique("async-captured-runtime")
+    entered = threading.Event()
+    release = threading.Event()
+
+    async def answer() -> int:
+        entered.set()
+        await asyncio.to_thread(release.wait, 20)
+        return 5
+
+    metta.op(answer, name=name, effect="oracleIO")
+    try:
+        future = metta.eval(S[name]())[0]
+        assert entered.wait(10)
+        monkeypatch.setattr(_async_ops, "active_runtime", lambda: None)
+        release.set()
+        assert _bounded_call(lambda: list(future.wait())) == [5]
+    finally:
+        release.set()
+        metta.unregister_op(name)
+
+
+def test_a_landing_cancellation_is_not_swallowed(metta, monkeypatch):
+    """Process-level cancellation leaves the landing function unchanged."""
+    from metta import _async_ops
+
+    context = _task_context.snapshot()
+    pending = _async_ops._Pending(
+        "cancelled-landing",
+        (),
+        context,
+        Any,
+        lambda: None,
+        str(metta.name),
+        metta.runtime,
+    )
+
+    def cancel_landing(*_args) -> None:
+        raise asyncio.CancelledError
+
+    monkeypatch.setattr(_async_ops, "_publish_landing", cancel_landing)
+    with pytest.raises(asyncio.CancelledError):
+        _async_ops._land(-1, pending, "ok", None)
 
 
 def test_a_landing_observer_can_await_the_future_it_observes(metta):

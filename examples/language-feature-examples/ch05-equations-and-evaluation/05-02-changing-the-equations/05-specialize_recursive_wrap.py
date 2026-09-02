@@ -11,12 +11,12 @@ to its own result, which is variable-head application (`r(r(g))` compiles to
 recursive call passes `twice(r)`, a PARTIAL application of a two-parameter
 function. Neither needs a MeTTa spelling: the subset already reads both.
 
-Python's `n == 0` compiles to the engine-native `py-eq` relation. It avoids a
-host callback but deliberately differs from the source's stored `==` spelling,
-which the digest lane reports.
+The numeric annotation keeps subtraction on the pure engine head. Equality
+stays explicit as `fn.eq`, because Python and the engine disagree across
+numeric species, NaN, and signed zero. The stored equation matches the source.
 """
 
-from metta import S
+from metta import S, fn
 
 
 def twin(m):
@@ -33,10 +33,9 @@ def twin(m):
         return r(r(g))
 
     @m.define
-    def evolve(r, n, g):
-        # Source: (= (evolve $r $n $g) (if (== $n 0) $g (evolve (twice $r) (- $n 1) $g)))
-        # Twin: the same equation with py-eq in the condition.
-        return g if n == 0 else evolve(twice(r), n - 1, g)
+    def evolve(r, n: int, g):
+        # Source and twin: (= (evolve $r $n $g) (if (== $n 0) $g (evolve (twice $r) (- $n 1) $g)))
+        return g if fn.eq(n, 0) else evolve(twice(r), n - 1, g)  # engine equality is intentional
 
     assert evolve(S.derive, 2, S.stmt) == [S.stmt]
 
@@ -122,4 +121,26 @@ def twin(m):
 #: structure, and the removal doors changed meaning where a twin spells one
 #: [measured 2026-09-01: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=c6a40460b1db341198a6150e3600f502831a6e83].
-BUDGET = 9571
+#: RE-PINNED 2026-09-01, 9571 to 10318 (+747), generic Python operators now
+#: dispatch through live protocols while source twins explicitly name
+#: relational engine heads [measured 2026-09-01: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=e3787593132a7ece2d300397045f7415709847c9].
+#: RE-PINNED 2026-09-02, 10318 to 11882 (+1564), exact numeric annotations
+#: retain native operator heads, publish MeTTa type declarations, and leave
+#: relational heads only where static proof is unavailable [measured
+#: 2026-09-02: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=d0dfff1a3ee6c85472fd9b12d6e4aec007a9c301].
+#: RE-PINNED 2026-09-02, 11882 to 12755 (+873), static contract discharge and
+#: policy-stable recompilation [measured 2026-09-02: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=c00341f0ff9d83d1b9338ca86ad51708eaf07ebd].
+#: RE-PINNED 2026-09-02, 12755 to 12760 (+5), static contract discharge with
+#: policy checks confined to invalidated contracts [measured 2026-09-02: min-
+#: of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=c00341f0ff9d83d1b9338ca86ad51708eaf07ebd].
+#: RE-PINNED 2026-09-02, 12760 to 12770 (+10), P43 protects both generated
+#: policy-check fallbacks from space-local capture [measured 2026-09-02: min-
+#: of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=c00341f0ff9d83d1b9338ca86ad51708eaf07ebd].
+BUDGET = 12770

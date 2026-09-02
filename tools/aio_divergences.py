@@ -1,15 +1,15 @@
 """Purpose: the async surface's exclusions and its one signature divergence,
-each with the reason it is not simply Space's door awaited. `aiogen.py`
-generates every other mirrored door from `Space` verbatim and reads these for
+each with the reason it is not simply Space's method awaited. `aiogen.py`
+generates every other mirrored method from `Space` verbatim and reads these for
 the cases that cannot be.
 
 The ledger exists because the divergences were REAL and UNRECORDED. Measured
 2026-08-31 over the 66 hand-written mirrors: 15 carried a signature different
-from the sync door's, 16 weakened its return type, and 64 of 66 paraphrased
+from the sync method's, 16 weakened its return type, and 64 of 66 paraphrased
 its docstring, while the section comment above them said the synchronous
 docstrings applied verbatim. Two of the fifteen were runtime refusals rather
 than annotations: `await am.type(atom=x)` raised TypeError where
-`m.type(atom=x)` answers, because the async door had made the parameter
+`m.type(atom=x)` answers, because the async method had made the parameter
 positional-only, and `await am.pure()` raised where `m.pure()` returns a
 decorator. None of the 66 docstrings said why.
 
@@ -17,7 +17,7 @@ Assumes:
   - a reason names the MECHANISM that makes the sync shape impossible across
     the worker, not a preference. "Simpler" is not one.
 Guarantees:
-  - every name here is a live Space method, and every mirrored door not here
+  - every name here is a live Space method, and every mirrored method not here
     carries Space's signature, return annotation and docstring verbatim
     [tested: test_the_async_mirror_is_generated_from_the_sync_surface]
 Open Obligations:
@@ -28,7 +28,7 @@ Open Obligations:
 
 from __future__ import annotations
 
-#: Space methods with NO async door, and why the async surface omits them.
+#: Space methods with NO async counterpart, and why the async surface omits them.
 EXCLUDED: dict[str, str] = {
     "pool": (
         "asyncio's fan-out is N workers and asyncio.gather; a pool of engine "
@@ -48,26 +48,26 @@ EXCLUDED: dict[str, str] = {
     "to_wire": "Space's Atom/Handle operand protocol, not an engine call",
 }
 
-#: Doors whose async signature CANNOT be the sync one, with the mechanism that
+#: Methods whose async signature CANNOT be the sync one, with the mechanism that
 #: forbids it and the replacement parameter list.
 DIVERGENT: dict[str, tuple[str, str]] = dict.fromkeys(
     ("pure", "reads", "writes", "io"),
     (
         "self, fn: Callable, /, **options: Any",
-        "the sync door's fn=None form returns a DECORATOR, and a decorator "
+        "the sync method's fn=None form returns a DECORATOR, and a decorator "
         "handed back across the worker would register on the caller's thread "
         "rather than the engine's. Only the applied form crosses",
     ),
 )
 
-#: Doors reached through a private Space method: the public name is the async
-#: one, and the sync surface spells its own door differently.
+#: Methods reached through a private Space method: the public name is the async
+#: one, and the sync surface uses a different method name.
 PRIVATE_TARGET: dict[str, str] = {"one": "_one", "first": "_first"}
 
 #: The module tier: metta.run(...) and its siblings, each one delegation to
-#: the same door on the default context's self space. Membership here is a
+#: the same method on the default context's self space. Membership here is a
 #: DESIGN decision rather than a derivation, because the module level carries
-#: only the everyday verbs; the pair maps the module name to the Space door
+#: only the everyday verbs; the pair maps the module name to the Space method
 #: it reaches, and only `speculate` differs, Space's noun being
 #: `speculative()`.
 MODULE_DOORS: tuple[tuple[str, str], ...] = (
@@ -91,7 +91,7 @@ MODULE_DOORS: tuple[tuple[str, str], ...] = (
     ("trace", "trace"),
 )
 
-#: The context's PROTOCOL faces, mirrored from Space the way the named doors
+#: The context's PROTOCOL methods, mirrored from Space the way the named methods
 #: are: the process home's handle speaks the same container and write
 #: protocols its space speaks, which is the MeTTa()~dict() reading the
 #: surface promises. The in-place trio returns the CONTEXT (the operator
@@ -121,4 +121,3 @@ CONTEXT_DUNDERS: tuple[str, ...] = (
 #: The in-place subset of CONTEXT_DUNDERS whose rendered body must
 #: `return self` after delegating.
 INPLACE_DUNDERS: frozenset[str] = frozenset({"__iadd__", "__isub__", "__ior__"})
-

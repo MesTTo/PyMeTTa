@@ -110,8 +110,8 @@ ENTRY_POINT_GROUP = "metta.integrations"
 #: metta.spaces, or the directory of MeTTa/Prolog sources it ships under
 #: metta.libraries, and the app loads by NAME. Nothing auto-registers on
 #: import; discovery answers names, and registration stays the app's
-#: explicit call, which is the control the engine's extensions/*.pl door
-#: keeps on its side of the seam.
+#: explicit call, which is the control the engine's extensions/*.pl loader
+#: keeps on its side of the extension-loading boundary.
 SPACES_GROUP = "metta.spaces"
 LIBRARIES_GROUP = "metta.libraries"
 

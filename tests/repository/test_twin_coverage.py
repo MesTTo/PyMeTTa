@@ -39,6 +39,10 @@ Guarantees:
     test_a_retired_module_import_is_a_finding,
     test_an_exact_bracket_spelling_is_not_the_attribute_one;
     commit=5c67147566907276a95a5fbf059cf8f98b6685f1]
+  - shipped examples use the attribute spelling whenever the canonical name
+    map reaches the exact head [tested:
+    test_shipped_examples_use_the_canonical_attribute_spelling;
+    commit=a900a106e06bd129951a3c49a8830ac0cae55438]
   - a declaration takes StrEnum members in typed option slots, reports a bare
     wire word with the exact member spelling, and keeps non-option pattern and
     name strings under the existing source-text rule [tested:
@@ -46,10 +50,12 @@ Guarantees:
     test_a_bare_declaration_word_names_the_exact_member,
     test_non_declaration_vocabulary_text_keeps_the_existing_rules,
     test_the_declaration_vocabulary_is_the_librarys_own; commit=417c6428f89aed9f514b9219db2dcd472d31fbe7]
-  - the operator heads the lane refuses inside a compiled body are the ones
-    the TRANSLATOR emits, so `pow-math` and `py-eq` report while `floor-math`,
-    which no operator reaches, does not [tested:
-    test_the_operator_heads_are_the_ones_the_translator_emits; commit=5c67147566907276a95a5fbf059cf8f98b6685f1]
+  - an explicit engine operator head is a finding only when exact numeric
+    proof makes Python syntax build the identical term; untyped and
+    match-bound operands retain the distinct protocol-vs-relational choice
+    [tested: test_engine_operator_heads_require_syntax_only_for_native_operands,
+    test_python_operator_and_engine_head_split_depends_on_native_proof;
+    commit=d0dfff1a3ee6c85472fd9b12d6e4aec007a9c301]
   - the 159 entries superseded by empirical budgets are retired exactly once
     [tested: test_the_distribution_budget_retirement_is_exact;
     commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22]
@@ -89,6 +95,7 @@ def _run(
     digest=None,
     digest_error=None,
     equations=(),
+    type_declarations=(),
 ):
     """One side's run, built rather than measured.
 
@@ -101,6 +108,7 @@ def _run(
         digest,
         digest_error,
         tuple(equations),
+        tuple(type_declarations),
     )
 
 
@@ -808,6 +816,20 @@ def test_an_exact_bracket_spelling_is_not_the_attribute_one(tmp_path):
     assert findings == ['line 8: S["plain"] is S.plain'], findings
 
 
+@pytest.mark.parametrize(
+    "relative",
+    [
+        "reasoning/literature_discovery.py",
+        "integration/duckdb_space.py",
+    ],
+    ids=["omega-3", "the-countess"],
+)
+def test_shipped_examples_use_the_canonical_attribute_spelling(relative):
+    """Reject an exact bracket spelling when the attribute map reaches it."""
+    example = REPO / "extensions/python/examples" / relative
+    assert coverage.idiom(example) == []
+
+
 # -------------------------------------------------------------- alpha equality
 
 
@@ -896,11 +918,22 @@ def test_a_hidden_definition_is_a_finding():
 
 
 def test_stored_content_uses_the_digest_and_keeps_equation_multiplicity():
-    """A whole-space mismatch names each surplus equation copy."""
+    """A whole-space mismatch names each surplus equation and declaration."""
     equation = "(= (f $0) $0)"
     other = "(= (g $0) $0)"
-    left = _run([], digest="a" * 64, equations=(equation, equation, other))
-    right = _run([], digest="b" * 64, equations=(equation,))
+    declaration = "(: f (-> Number Number))"
+    left = _run(
+        [],
+        digest="a" * 64,
+        equations=(equation, equation, other),
+        type_declarations=(declaration, declaration),
+    )
+    right = _run(
+        [],
+        digest="b" * 64,
+        equations=(equation,),
+        type_declarations=(declaration,),
+    )
 
     findings = coverage._stored("x.metta", left, right)
 
@@ -908,6 +941,7 @@ def test_stored_content_uses_the_digest_and_keeps_equation_multiplicity():
     assert findings[0].count(equation) == 1
     assert f'example-only=["{equation}","{other}"]' in findings[0]
     assert "twin-only=[]" in findings[0]
+    assert f'type-declaration multiset example-only=["{declaration}"]' in findings[0]
     assert coverage._storage_status(left, right) == "different"
 
 
@@ -929,48 +963,34 @@ def test_a_digest_refusal_is_a_finding_and_never_an_atom_fallback():
 
 
 def test_a_twin_stores_the_equations_its_comments_claim():
-    """The seven historical files either agree or document their exact drift."""
+    """Seven historical files document exact equation and declaration drift."""
     historical = {
         "ch07-control-flow/07-05-recursion/01-factorial.metta": (
-            (
-                "(= (facF $_alpha0) (if (== $_alpha0 0) 1 "
-                "(* $_alpha0 (facF (- $_alpha0 1)))))",
-            ),
-            (
-                "(= (facF $_alpha0) (if (py-eq $_alpha0 0) 1 "
-                "(* $_alpha0 (facF (- $_alpha0 1)))))",
-            ),
-            ("Source:", "Twin:", "engine-native", "`py-eq` head"),
+            (),
+            (),
+            ("(: facF (-> Number Number))",),
+            ("matches the source equation exactly", "publishes its type declaration"),
         ),
         "ch07-control-flow/07-05-recursion/03-fibsmart.metta": (
+            (),
+            (),
             (
-                "(= (fib-tr $_alpha0 $_alpha1 $_alpha2) "
-                "(if (== $_alpha0 0) $_alpha1 "
-                "(fib-tr (- $_alpha0 1) $_alpha2 (+ $_alpha1 $_alpha2))))",
+                "(: fib (-> Number Number))",
+                "(: fib-tr (-> Number Number Number Number))",
             ),
-            (
-                "(= (fib-tr $_alpha0 $_alpha1 $_alpha2) "
-                "(if (py-eq $_alpha0 0) $_alpha1 "
-                "(fib-tr (- $_alpha0 1) $_alpha2 (+ $_alpha1 $_alpha2))))",
-            ),
-            ("Source:", "Twin:", "engine-native", "`py-eq` head"),
+            ("stores the source equation exactly", "publish their type declarations"),
         ),
         "ch05-equations-and-evaluation/05-03-the-number-library/02-math_exp_random.metta": (
             (),
             (),
-            ("historical stored-equation divergence is lifted",),
+            ("(: in-range (-> Number Number Number Bool))",),
+            ("historical stored-equation divergence is lifted", "publishes its type declaration"),
         ),
         "ch07-control-flow/07-01-if-and-booleans/09-xor.metta": (
-            (
-                "(= (check_xor $_alpha0 $_alpha1) "
-                "(if (xor (== $_alpha0 $_alpha1) (> $_alpha0 $_alpha1)) 42 0))",
-            ),
-            (
-                "(= (check_xor $_alpha0 $_alpha1) "
-                "(if (xor (py-eq $_alpha0 $_alpha1) "
-                "(> $_alpha0 $_alpha1)) 42 0))",
-            ),
-            ("Source:", "Twin:", "former", "`py-truthy` wrapper is gone"),
+            (),
+            (),
+            ("(: check_xor (-> Number Number Number))",),
+            ("matches the source equation", "publishes its type declaration"),
         ),
         "ch07-control-flow/07-03-let-and-sequencing/07-eval.metta": (
             (
@@ -993,14 +1013,16 @@ def test_a_twin_stores_the_equations_its_comments_claim():
                 "(let* (($_alpha3 (+ $_alpha1 $_alpha2))) "
                 "(append ($_alpha3) $_alpha0)))",
             ),
+            ("(: f (-> %Undefined% Number Number %Undefined%))",),
             ("Source:", "Twin:", "nested one-binding `let*`"),
         ),
         "ch07-control-flow/07-04-bounded-and-committed-searches/02-metta4_streams.metta": (
             (),
             (),
+            ("(: range (-> Number Number Number))",),
             (
                 "historical stored-equation divergence is lifted",
-                "0a373e46d28e353ed02251c91b5d440f16ab17d3a79375fd5adebb149879c230",
+                "publishes its type declaration",
             ),
         ),
         "ch06-many-answers/07-tests.metta": (
@@ -1021,15 +1043,24 @@ def test_a_twin_stores_the_equations_its_comments_claim():
                 "(= (program2 $_alpha0) (let* (($_alpha1 (1 2 3))) "
                 "(let* (($_alpha2 (collapse (superpose $_alpha1)))) "
                 "(superpose $_alpha2))))",
-                "(= (program3 $_alpha0) (if (py-eq $_alpha0 2) "
+                "(= (program3 $_alpha0) (if (== $_alpha0 2) "
                 "(superpose ((if (< $_alpha0 10) "
                 "(superpose ((42 43))) 43))) 4))",
+            ),
+            (
+                "(: program1 (-> Number %Undefined%))",
+                "(: program3 (-> Number %Undefined%))",
             ),
             ("digest difference is deliberate", "Source:", "Twin:"),
         ),
     }
 
-    for relative, (example_only, twin_only, comment_claims) in historical.items():
+    for relative, (
+        example_only,
+        twin_only,
+        expected_twin_types,
+        comment_claims,
+    ) in historical.items():
         example = REPO / "examples" / relative
         twin = coverage.twin_for(example)
         left = coverage.run_example(example)
@@ -1041,12 +1072,17 @@ def test_a_twin_stores_the_equations_its_comments_claim():
         assert right.digest_error is None, (relative, right.digest_error)
         assert tuple(coverage._equation_surplus(left.equations, right.equations)) == example_only
         assert tuple(coverage._equation_surplus(right.equations, left.equations)) == twin_only
-        if example_only or twin_only:
+        assert tuple(
+            coverage._equation_surplus(
+                right.type_declarations, left.type_declarations
+            )
+        ) == expected_twin_types
+        if example_only or twin_only or expected_twin_types:
             assert left.digest != right.digest, relative
         else:
             assert left.digest == right.digest, relative
 
-        documented = twin.read_text(encoding="utf-8")
+        documented = " ".join(twin.read_text(encoding="utf-8").split())
         assert all(claim in documented for claim in comment_claims), relative
 
 
@@ -1411,16 +1447,33 @@ def test_the_band_pays_for_authoring_but_only_what_was_measured(tmp_path):
 
 
 @pytest.mark.parametrize(
-    "name", ["ch05-equations-and-evaluation/05-01-an-equation-is-a-rewrite/01-identity.metta", "ch04-spaces-and-matching/04-01-a-space-is-where-a-program-lives/03-spaces3.metta"]
+    ("name", "expected_type"),
+    [
+        (
+            "ch05-equations-and-evaluation/05-01-an-equation-is-a-rewrite/01-identity.metta",
+            "(: f (-> Number Number))",
+        ),
+        (
+            "ch04-spaces-and-matching/04-01-a-space-is-where-a-program-lives/03-spaces3.metta",
+            None,
+        ),
+    ],
 )
-def test_a_shipped_twin_agrees_with_its_example_end_to_end(name):
+def test_a_shipped_twin_agrees_with_its_example_end_to_end(name, expected_type):
     """Two twins run for real.
 
     A change breaking the machinery itself is then caught rather than reading
     as a corpus finding.
     """
     verdict = coverage.check(REPO / "examples" / name, coverage.residue())
-    assert verdict.findings == (), verdict.findings
+    storage = [finding for finding in verdict.findings if "stored content differs" in finding]
+    other = [finding for finding in verdict.findings if finding not in storage]
+    assert other == [], other
+    if expected_type is None:
+        assert storage == []
+    else:
+        assert len(storage) == 1
+        assert f'twin-only=["{expected_type}"]' in storage[0]
     assert verdict.covered == verdict.forms > 0
 
 
@@ -1467,13 +1520,13 @@ def test_the_idiom_check_catches_a_planted_transliteration(tmp_path):
     assert "Expression(...) builds what calling the head builds" in joined
 
 
-def test_an_operator_head_is_a_finding_only_where_an_operator_would_build(tmp_path):
-    """`a + b` builds `(+ $a $b)` INSIDE a compiled body, so writing the head
-    there is a transliteration. Outside one the same spelling is deliberate,
-    because Python's `+` on ground values computes and its `==` is structural
-    equality, so the rule would report a correct twin. The arity matters for
-    the same reason: `S["+"](1)` is a partial application Python cannot spell.
-    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
+def test_engine_operator_heads_require_syntax_only_for_native_operands(tmp_path):
+    """Exact numeric annotations make the engine head a transliteration.
+
+    Equality remains exempt even there: engine equality preserves atom species
+    and treats NaN as self-equal, while Python equality does neither. True
+    division also remains distinct because Python syntax forces float species.
+    """
     outside = tmp_path / "outside.py"
     outside.write_text(
         '"""Doc."""\n'
@@ -1487,50 +1540,46 @@ def test_an_operator_head_is_a_finding_only_where_an_operator_would_build(tmp_pa
     inside = tmp_path / "inside.py"
     inside.write_text(
         '"""Doc."""\n'
-        "from metta import S, V\n"
+        "from metta import S, fn\n"
         "def twin(m):\n"
         "    @m.define\n"
-        "    def add(a, b):\n"
-        '        return S["+"](a, b)\n'
+        "    def add(a: int, b: int) -> int:\n"
+        "        return fn.add(a, b)\n"
         "    @m.define\n"
-        "    def partial(a):\n"
+        "    def same(a: int, b: float) -> bool:\n"
+        "        return fn.eq(a, b)\n"
+        "    @m.define\n"
+        "    def engine_quotient(a: int, b: int) -> int:\n"
+        "        return fn.truediv(a, b)\n"
+        "    @m.define\n"
+        "    def partial(a: int):\n"
         '        return S["+"](a)\n',
         encoding="utf-8",
     )
     operators = [f for f in coverage.idiom(inside) if "operator" in f]
     assert len(operators) == 1, operators
     assert "'+'" in operators[0]
+    assert "proven-native" in operators[0]
 
 
-def test_the_operator_heads_are_the_ones_the_translator_emits(tmp_path):
-    """The heads a Python operator writes are the TRANSLATOR's, not the
-    dunders'. Measured 2026-08-24, one file per spelling under `@m.define`:
-    `a ** b` emits `(pow-math a b)` and `a == b` emits `(py-eq a b)`, so both
-    heads are transliterations inside a body; `a // b` REFUSES there, naming
-    `floor_math(a / b)`, so `floor-math` is the twin's only spelling and
-    demanding an operator for it would demand one the translator rejects.
-    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
-    planted = tmp_path / "heads.py"
+def test_python_operator_and_engine_head_split_depends_on_native_proof(tmp_path):
+    """A match-bound operand keeps the explicit relational-head spelling."""
+    planted = tmp_path / "split.py"
     planted.write_text(
         '"""Doc."""\n'
-        "from metta import S, fn\n"
+        "from metta import fn\n"
         "def twin(m):\n"
         "    @m.define\n"
-        "    def raised(a, b):\n"
-        '        return S["pow-math"](a, b)\n'
+        "    def native(a: int, b: int) -> int:\n"
+        "        return a + b\n"
         "    @m.define\n"
-        "    def same(a, b):\n"
-        '        return fn["py-eq"](a, b)\n'
-        "    @m.define\n"
-        "    def divided(a, b):\n"
-        "        return fn.floor_math(a / b)\n",
+        "    def selected(pair):\n"
+        "        match pair:\n"
+        "            case (left, right):\n"
+        "                return fn.add(left, right)\n",
         encoding="utf-8",
     )
-    operators = [f for f in coverage.idiom(planted) if "operator" in f]
-    assert len(operators) == 2, operators
-    assert "'pow-math'" in operators[0]
-    assert "'py-eq'" in operators[1]
-    assert "compiled body" in operators[0]
+    assert coverage.idiom(planted) == []
 
 
 def test_a_rules_body_carries_literals_but_lowers_no_operator(tmp_path):
@@ -1840,7 +1889,7 @@ def test_an_operator_word_keeps_its_bracket(tmp_path):
 
 
 def test_the_bracket_door_is_exact_at_a_compiled_call(tmp_path):
-    """S["eq"](a, b) inside a lowered body is the data symbol eq, not the
+    """S["add"](a, b) inside a lowered body is the data symbol add, not the
     operator: only the attribute door consults the word table, exactly as
     the compiler does (agents A and F both measured the undistinguished
     rule misreporting the exact door).
@@ -1852,15 +1901,15 @@ def test_the_bracket_door_is_exact_at_a_compiled_call(tmp_path):
         "from metta import S\n"
         "def twin(m):\n"
         "    @m.define\n"
-        "    def wants_eq_data(a, b):\n"
-        "        return S[\"eq\"](a, b)\n"
+        "    def wants_add_data(a, b):\n"
+        "        return S[\"add\"](a, b)\n"
         "    @m.define\n"
-        "    def spells_the_operator(a, b):\n"
-        "        return S.eq(a, b)\n",
+        "    def spells_the_operator(a: int, b: int) -> int:\n"
+        "        return S.add(a, b)\n",
         encoding="utf-8",
     )
     findings = lane.idiom(twin)
-    bracket = [f for f in findings if '"eq"' in f]
-    attribute = [f for f in findings if "Python operator writes" in f and '"eq"' not in f]
+    bracket = [f for f in findings if '"add"' in f]
+    attribute = [f for f in findings if "proven-native operands" in f and '"add"' not in f]
     assert not bracket, findings
     assert attribute, findings

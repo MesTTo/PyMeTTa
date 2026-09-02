@@ -32,6 +32,9 @@ Guarantees:
     passed the old `queue_max < 1` check and then held 25 of 25 events after
     25 adds, float("inf") the same] [tested:
     test_a_queue_bound_that_cannot_fill_is_refused; commit=57f21ba9edf94bcf28cde11f938bce2c241a3709]
+  - a guard-rejected event does not advance the queue's arrival counter, so a
+    blocked events() stream remains open for the next accepted event [tested:
+    test_a_rejected_guard_event_does_not_end_a_blocking_stream; commit=438506a1688c78a383499973b6a89fa6bb559629]
 Guarded by:
   - metta.events' fold registry lock protects queue state and the engine
     subscription snapshot [tested test_subscription_cancel_is_thread_safe]
@@ -93,7 +96,7 @@ class Subscription(Fold):
     fold's own state, which is the queue drain() empties.
     """
 
-    __slots__ = ("_admits", "_fact", "callback", "queue_max")
+    __slots__ = ("_fact", "callback", "queue_max")
 
     def __init__(
         self,
@@ -110,13 +113,9 @@ class Subscription(Fold):
             _REGISTRY, space, pattern, self._step_over,
             on=on,
             state=STATELESS if callback is not None else [],
+            admits=admits,
         )
         self.callback = callback
-        #: What this subscription admits, or None for everything. ONE
-        #: predicate over the event rather than a guard beside a judge: two
-        #: fields that must both be set or both be absent are a state the
-        #: type cannot express and the caller can get wrong.
-        self._admits = admits
         self.queue_max = _capacity(queue_max)
         self._fact: Expression | None = None  # the reflection atom in &metta, if any
 
@@ -124,12 +123,6 @@ class Subscription(Fold):
         """Deliver, or queue. The two shipped delivery disciplines, as one
         step over the fold's state.
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
-        # ONE place, because both delivery disciplines pass through it: a
-        # guard the engine evaluates per event, so a subscription can say
-        # what match() has always been able to say, instead of the filtering
-        # living in every callback [measured 2026-08-31].
-        if self._admits is not None and not self._admits(event):
-            return held
         if self.callback is not None:
             self.callback(event)
             return held
@@ -303,8 +296,8 @@ def guard_admits(guard: Atom, evaluate: Callable[[Atom], Any]) -> Callable[[Even
 
     The guard is instantiated under the event's own bindings and required
     true, which is match()'s rule for the same word. It is built here because
-    this module owns the instantiation, and handed the evaluation door because
-    evaluating a term needs the Space and this module sits below it.
+    this module owns the instantiation. It receives the evaluation function
+    because evaluating a term needs the Space and this module sits below it.
     """
     return lambda event: evaluate(_instantiate(guard, event.bindings)) == [True]
 

@@ -49,10 +49,20 @@ Guarantees:
     instructions:u min of 3: 4012009981 scanning against 48243634 indexed,
     83.2x, both delivering 200 of 200] [tested
     test_dispatch_through_the_index_delivers_the_same_subscribers_in_the_same_order]
+  - dispatch attempts every matching fold after a committed write: one failed
+    watcher remains a SubscriberError and several failures arrive together in
+    registration order [tested:
+    test_one_failed_watcher_does_not_starve_later_delivery,
+    test_multiple_watcher_failures_are_grouped_after_every_delivery;
+    commit=d8673a8488a111f1c01c778af3ed11b845c284a8]
   - cancel waits for steps already in flight and a stale dispatch snapshot
     cannot deliver after cancellation [tested
     test_subscription_cancel_waits_for_inflight_delivery,
     test_stale_subscription_snapshot_cannot_deliver_after_cancel]
+  - an event rejected by a subscription guard is not an arrival, while an
+    accepted step counts even when it preserves the same state [tested:
+    test_a_rejected_guard_event_does_not_end_a_blocking_stream,
+    test_an_accepted_identity_step_still_wakes_its_waiter; commit=438506a1688c78a383499973b6a89fa6bb559629]
   - subscribe, bridge and reaction are each expressible as a fold over this
     surface alone, with the same answers as the shipped models [tested
     test_subscribe_bridge_and_reaction_are_expressible_over_the_public_event_stream]
@@ -149,6 +159,7 @@ class Fold:
 
     __slots__ = (
         "_active",
+        "_admits",
         "_consumed",
         "_initial",
         "_registry",
@@ -170,6 +181,7 @@ class Fold:
         *,
         on: str,
         state: Any,
+        admits: Callable[[Event], bool] | None = None,
     ) -> None:
         """Build the entry; registration is the registry's own step."""
         self._registry = registry
@@ -179,6 +191,7 @@ class Fold:
         self.state = state
         self._initial = state
         self._step = step
+        self._admits = admits
         self._active = True
         self._version = 0
         self._consumed = 0
@@ -238,9 +251,15 @@ class Fold:
                 # for a waiter to read. This is the delivering fold, the one
                 # subscribe() builds for a callback, and it pays exactly what
                 # the bespoke dispatch it replaced paid.
-                self._step(STATELESS, event)
+                if self._admits is None or self._admits(event):
+                    self._step(STATELESS, event)
                 return
             with self._state_lock:
+                # Filtering precedes reduction: RxJava's ObservableFilter only
+                # calls downstream.onNext after its predicate accepts the item.
+                # [source: https://github.com/ReactiveX/RxJava/blob/4d98d5988bec64ea24931c45464cbe6b7a7b1a60/src/main/java/io/reactivex/rxjava3/internal/operators/observable/ObservableFilter.java#L39-L53; commit=438506a1688c78a383499973b6a89fa6bb559629]
+                if self._admits is not None and not self._admits(event):
+                    return
                 before = self.state
                 after = self._step(before, event)
                 if self.state is not before and self.state is not after:
@@ -705,7 +724,7 @@ class EventStream:
 
 
 def stream(runtime: Any) -> EventStream:
-    """The event stream of one engine; `MeTTa.events()` is the usual door."""
+    """The event stream of one engine; `MeTTa.events()` is the usual method."""
     return EventStream(runtime)
 
 
@@ -722,7 +741,13 @@ def publish(action: str, space: str, wire: list) -> bool:
     return True
 
 
-def _deliver(action: str, space: str, atom: Atom) -> None:
+def _deliver(
+    action: str,
+    space: str,
+    atom: Atom,
+    sequence: int | None = None,
+) -> None:
+    failures: list[SubscriberError] = []
     for fold in _REGISTRY.candidates(space, atom):
         if fold.on not in ("both", action):
             continue
@@ -730,10 +755,16 @@ def _deliver(action: str, space: str, atom: Atom) -> None:
         if bindings is None:
             continue
         try:
-            fold._run(Event(action, space, atom, bindings))
+            event = Event(action, space, atom, bindings)
+            if sequence is not None:
+                # Keep transport metadata outside the dataclass fields so
+                # construction, repr, equality, asdict(), and class matching
+                # retain Event's public four-field record.
+                object.__setattr__(event, "_sequence", sequence)
+            fold._run(event)
         # A control signal is BaseException and passes through untouched:
         # KeyboardInterrupt is not a watcher saying no.
-        except Exception as failure:
+        except Exception as failure:  # noqa: BLE001  -- every ordinary watcher failure is reported after every watcher runs
             msg = (
                 f"{space} applied and committed the {action} of {atom}, then a watcher "
                 f"failed. This is not a failed write: retrying it may store a "
@@ -743,18 +774,35 @@ def _deliver(action: str, space: str, atom: Atom) -> None:
                 f"Delivering to the subscription on {fold.pattern} "
                 f"raised {type(failure).__name__}: {failure}"
             )
-            raise SubscriberError(
+            error = SubscriberError(
                 msg,
                 subscription=fold,
                 action=action,
                 atom=atom,
                 space=space,
-            ) from failure
+            )
+            error.__cause__ = failure
+            failures.append(error)
+
+    if len(failures) == 1:
+        raise failures[0]
+    if failures:
+        msg = (
+            f"{space} applied and committed the {action} of {atom}, then "
+            f"{len(failures)} watchers failed"
+        )
+        raise ExceptionGroup(msg, failures)
 
 
-def atom_added(space: str, wire: list) -> bool:
+def atom_added(space: str, wire: list, sequence: int = -1) -> bool:
     """The shim's added-atom hook."""
-    return publish("add", space, wire)
+    _deliver(
+        "add",
+        space,
+        _atom_from_wire(wire),
+        None if sequence < 0 else sequence,
+    )
+    return True
 
 
 def atom_removed(space: str, wire: list) -> bool:

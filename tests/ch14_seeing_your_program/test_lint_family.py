@@ -7,6 +7,9 @@ Guarantees:
   - lint evidence and suppression intent remain queryable in ``&metta`` until
     the owning space is cleared [tested:
     test_lint_evidence_and_intent_follow_space_clear; commit=acb40f1912f131ae088083d1af29b4b283019bea]
+  - finding payloads retain their audit IDs and point at an immutable public
+    rule description [tested: test_lint_authorities_are_durable_public_references;
+    commit=2a32acb6d254ea12085526913c7b9a1a555b8ee0]
 """
 
 from __future__ import annotations
@@ -16,7 +19,7 @@ import asyncio
 import pytest
 
 from metta import Expression, S, V, aio, equation
-from metta._lint_events import _AUTHORITIES, _INTENT_AUTHORITY
+from metta._lint_events import _AUTHORITIES, _INTENT_AUTHORITY, _LINT_CATALOGUE
 
 
 @pytest.fixture()
@@ -82,6 +85,19 @@ def test_all_fifteen_assigned_rows_have_a_code_authority():
     }
     assert len(rows) == 15
     assert all(row in citations for row in rows)
+
+
+def test_lint_authorities_are_durable_public_references():
+    """Runtime evidence names an immutable document rather than local scratch."""
+    assert _LINT_CATALOGUE == (
+        "https://github.com/MesTTo/MeTTa-Kernel/blob/"
+        "7de3d32d25a7166b12f7c68c179e9cbb931ac044/"
+        "website/guide/run-query.md#lint-a-space"
+    )
+    authorities = (*_AUTHORITIES.values(), _INTENT_AUTHORITY)
+    for authority in authorities:
+        assert "github.com/MesTTo/MeTTa-Kernel/blob/" in authority
+        assert "/website/guide/run-query.md#" in authority
 
 
 def test_capital_functions_and_lowercase_data_are_linted_not_refused(m):

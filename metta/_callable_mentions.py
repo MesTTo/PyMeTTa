@@ -1,10 +1,12 @@
 """Purpose: map standard Python callables to the MeTTa functions they mention.
 
 Guarantees:
-  - encoding and compiled attribute calls consult this one identity table
+  - encoding, compiled attribute calls, and Python-protocol adapters consult
+    identity tables derived from the same standard-callable inventory
     [tested: test_callable_mentions_share_operator_and_fourteen_math_names,
-    test_callable_mentions_require_identity_even_when_equality_is_spoofed;
-    commit=c34c9bf3e55a8425d3f251c3ad06c33bc9755a22]
+    test_callable_mentions_require_identity_even_when_equality_is_spoofed,
+    test_compiled_callable_mentions_preserve_python_call_semantics;
+    commit=e3787593132a7ece2d300397045f7415709847c9]
 Decides:
   - the fourteen math names are the declarations in
     ``lib/lib_builtin_types/lib_builtin_types.metta`` from ``pow-math`` through ``atan-math``
@@ -65,9 +67,7 @@ MATH_CALLABLE_MENTIONS: Final[dict[Any, str]] = {
     math.atan: "atan-math",
 }
 
-CALLABLE_MENTIONS: Final[dict[Any, str]] = (
-    _SYMBOL_OPERATOR_MENTIONS | MATH_CALLABLE_MENTIONS
-)
+CALLABLE_MENTIONS: Final[dict[Any, str]] = _SYMBOL_OPERATOR_MENTIONS | MATH_CALLABLE_MENTIONS
 
 _CALLABLE_MENTIONS_BY_ID: Final[dict[int, tuple[Any, str]]] = {
     id(value): (value, mention) for value, mention in CALLABLE_MENTIONS.items()
@@ -81,12 +81,19 @@ _CALLABLE_ARITIES_BY_ID: Final[dict[int, tuple[Any, tuple[int, ...]]]] = {
 }
 _CALLABLE_ARITIES_BY_ID.update(
     {
-        # policy-inventory-exempt: mechanism-internal; reason=log and round are the two mentioned standard callables with both one- and two-argument Python forms; evidence=extensions/python/metta/_define_expression.py:_adapt_mentioned_call
-        id(value): (value, (1, 2) if value in {math.log, builtins.round} else (2,)
-                    if value is math.pow else (1,))
+        id(value): (
+            value,
+            # policy-inventory-exempt: mechanism-internal; reason=log and round are the two mentioned standard callables with both one- and two-argument Python forms; evidence=extensions/python/metta/_define_expression.py:_adapt_mentioned_call
+            (1, 2) if value in {math.log, builtins.round} else (2,) if value is math.pow else (1,),
+        )
         for value in MATH_CALLABLE_MENTIONS
     }
 )
+
+_OPERATOR_SELECTORS_BY_ID: Final[dict[int, tuple[Any, str]]] = {
+    id(value): (value, dunder.removeprefix("__").removesuffix("__"))
+    for dunder, value in _OPERATOR_CALLABLES.items()
+}
 
 
 def callable_mention(value: Any) -> str | None:
@@ -107,4 +114,17 @@ def callable_arities(value: Any) -> tuple[int, ...] | None:
     return entry[1]
 
 
-__all__ = ["CALLABLE_MENTIONS", "MATH_CALLABLE_MENTIONS", "callable_mention"]
+def operator_callable_selector(value: Any) -> str | None:
+    """Return the ``operator`` protocol selector for one exact callable."""
+    entry = _OPERATOR_SELECTORS_BY_ID.get(id(value))
+    if entry is None or entry[0] is not value:
+        return None
+    return entry[1]
+
+
+__all__ = [
+    "CALLABLE_MENTIONS",
+    "MATH_CALLABLE_MENTIONS",
+    "callable_mention",
+    "operator_callable_selector",
+]

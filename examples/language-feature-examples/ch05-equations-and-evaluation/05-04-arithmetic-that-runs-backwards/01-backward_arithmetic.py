@@ -46,7 +46,7 @@ def twin(m):
     """Run two functions forwards, then run everything backwards."""
 
     @m.define
-    def double(x):
+    def double(x: int) -> int:
         # (= (double $x) (* 2 $x))
         return 2 * x
 
@@ -64,7 +64,7 @@ def twin(m):
     assert m.solve(7, S.double(V.x)).x == []
 
     @m.define
-    def square(x):
+    def square(x: int) -> int:
         # (= (square $x) (* $x $x))
         return x * x
 
@@ -73,13 +73,20 @@ def twin(m):
     # answers EVERY solution rather than one.
     assert m.solve(25, S.square(V.x)).x == [-5, 5]
     assert [tuple(pair) for pair in m.solve(25, V.x * V.y)] == [
-        (-25, -1), (-5, -5), (-1, -25), (1, 25), (5, 5), (25, 1),
+        (-25, -1),
+        (-5, -5),
+        (-1, -25),
+        (1, 25),
+        (5, 5),
+        (25, 1),
     ]
 
     # A domain the constraint leaves unbounded has nothing finite to search,
     # so the engine refuses by name. Bounding the unknown first is what the
     # refusal asks for, and the `#` family is how a MeTTa program bounds one.
-    bounded = S.let(TRUE, fn["#>="](V.x, 0), S.let(25, S.square(V.x), V.x))  # rung: the GUARD reading of let, a bound posted and then asked inside ONE derivation
+    bounded = S.let(
+        TRUE, fn["#>="](V.x, 0), S.let(25, S.square(V.x), V.x)
+    )  # rung: the GUARD reading of let, a bound posted and then asked inside ONE derivation
     assert m.eval(bounded) == [5]
 
     # THE LIMIT: ordinary evaluation is inside-out, so a composed backward
@@ -190,4 +197,26 @@ def twin(m):
 #: structure, and the removal doors changed meaning where a twin spells one
 #: [measured 2026-09-01: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=c6a40460b1db341198a6150e3600f502831a6e83].
-BUDGET = 34129
+#: RE-PINNED 2026-09-01, 34129 to 34245 (+116), generic Python operators now
+#: dispatch through live protocols while source twins explicitly name
+#: relational engine heads [measured 2026-09-01: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=e3787593132a7ece2d300397045f7415709847c9].
+#: RE-PINNED 2026-09-02, 34245 to 36348 (+2103), exact numeric annotations
+#: retain native operator heads, publish MeTTa type declarations, and leave
+#: relational heads only where static proof is unavailable [measured
+#: 2026-09-02: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=d0dfff1a3ee6c85472fd9b12d6e4aec007a9c301].
+#: RE-PINNED 2026-09-02, 36348 to 36947 (+599), static contract discharge and
+#: policy-stable recompilation [measured 2026-09-02: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=c00341f0ff9d83d1b9338ca86ad51708eaf07ebd].
+#: RE-PINNED 2026-09-02, 36947 to 36978 (+31), static contract discharge with
+#: policy checks confined to invalidated contracts [measured 2026-09-02: min-
+#: of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=c00341f0ff9d83d1b9338ca86ad51708eaf07ebd].
+#: RE-PINNED 2026-09-02, 36978 to 36987 (+9), P43 protects both generated
+#: policy-check fallbacks from space-local capture [measured 2026-09-02: min-
+#: of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=c00341f0ff9d83d1b9338ca86ad51708eaf07ebd].
+BUDGET = 36987

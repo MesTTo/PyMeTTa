@@ -18,6 +18,10 @@ Guarantees:
     change [tested test_provider_registration_is_transactional]
   - the caller's bound reaches a provider that claimed exact and no other
     [tested test_a_bound_is_withheld_from_a_provider_that_claimed_nothing]
+  - a provider bulk write preflights every atom's add policy before the one
+    crossing, and an empty seam batch is a no-op
+    [tested: test_a_batch_preflights_every_add_policy_before_one_bulk_write;
+    commit=06e553e2a31cd7e54b49df9b7759c63c1a5455ea]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -227,6 +231,47 @@ def test_provider_can_decline_one_request(metta):  # noqa: D103  -- pytest disco
         with pytest.raises(MettaError, match="declines this add request"):
             metta._at(name).add(S.denied(1))
         assert provider.stored == [S.allowed(1)]
+    finally:
+        metta._unregister_space(name)
+
+
+def test_a_batch_preflights_every_add_policy_before_one_bulk_write(metta):
+    """Batch transport cannot bypass the policy of any logical add."""
+
+    class SelectiveBulk(SpaceProvider):
+        def __init__(self):
+            self.stored = []
+            self.bulk_calls = 0
+
+        def atoms(self):
+            return iter(self.stored)
+
+        def add(self, atom):
+            self.stored.append(atom)
+
+        def add_many(self, atoms):
+            self.bulk_calls += 1
+            self.stored.extend(atoms)
+
+        def should_run(self, capability, /, **request):
+            return capability != "add" or request["atom"] != S.denied(2)
+
+    provider = SelectiveBulk()
+    name = "&selective-bulk-capability"
+    metta._register_space(provider, name)
+    space = metta._at(name)
+    try:
+        with pytest.raises(MettaError, match="declines this add request"):
+            space.add(S.allowed(1), S.denied(2), S.allowed(3))
+        assert provider.stored == []
+        assert provider.bulk_calls == 0
+
+        space.add(S.allowed(1), S.allowed(3))
+        assert provider.stored == [S.allowed(1), S.allowed(3)]
+        assert provider.bulk_calls == 1
+
+        assert foreign_module.foreign_add_many(name, []) is True
+        assert provider.bulk_calls == 1
     finally:
         metta._unregister_space(name)
 

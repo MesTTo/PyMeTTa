@@ -22,6 +22,10 @@ Guarantees:
   - the host query door uses the engine's published pattern-modifier walk
     [tested: test_a_path_reaches_into_a_handle_without_converting_it;
     commit=a1b10566194f10c174101fdc05f956b33171613b]
+  - operation-answer weights are composed through the engine's published
+    annotation read and algebra extension rather than reimplemented by the
+    transport [tested: test_the_host_service_scoreboard_matches_the_tree;
+    commit=fc0f512887da08a19a0ec8422a3a8d5716262a64]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -72,6 +76,8 @@ HOST_SERVICES = {
     "metta_with_under/2",
     "metta_effective_algebra/2",
     "metta_algebra_one/2",
+    "metta_annotation/2",
+    "metta_k_extend/4",
     "match_foreign/5",
     "metta_host_load_file/3",
     "metta_host_read_forms/2",
@@ -230,6 +236,8 @@ FLOOR_REASONS = {
     "metta_with_under/2": "door",
     "metta_effective_algebra/2": "door",
     "metta_algebra_one/2": "door",
+    "metta_annotation/2": "door",
+    "metta_k_extend/4": "door",
     "match_foreign/5": "door",
     "metta_add_atoms/2": "door",
     "metta_assert_space_releasable/1": "door",

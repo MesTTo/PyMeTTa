@@ -9,7 +9,7 @@ Guarantees:
   - each expression names one intentional dynamic use, so the 60 percent
     confidence floor remains actionable instead of globally suppressing a
     name pattern [tested: the GATE vulture lane;
-    commit=f88aa8be03cb64cb59d3307515ded8701f418321].
+    commit=97df27ef8346695707d87fc9bec6a8761cff574e].
 Open Obligations:
   To Do: None
   Hacks: None
@@ -102,10 +102,13 @@ _.maxlevel
 _.maxstring
 _.maxother
 _._parse
+# Benchmark modules are outside Vulture's paths and import this parser directly.
+_._node
 
 # singledispatch and AST visitor methods are selected by registered type or
 # syntax-node name rather than a direct call.
 _
+_._x_BinOp
 _._x_UnaryOp
 _._x_Compare
 _._x_BoolOp

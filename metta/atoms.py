@@ -5,6 +5,16 @@ Guarantees:
     including float/integer ties, strings, opaque values, and the empty-list
     atom [tested: test_order_key_matches_msort_across_kinds;
     commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
+  - expression order keys use a flat prefix encoding, so 600 nested levels
+    retain childwise ordering without consuming Python frames [tested:
+    test_deep_atom_ordering_uses_a_constant_python_call_stack,
+    test_deep_expression_prefixes_keep_childwise_order;
+    commit=c8dace7a057afeb9db6acec2a1f4e952b954927e]
+  - the explicit work agenda follows the engine arbiter's iterative compound
+    comparison [source: SWI-Prolog pl-prims.c compareStandard and
+    pl-termwalk.c term_agendaLR at upstream commit
+    9f804dee22b48bc6ad92f97d6c0fb675a1f0391b;
+    commit=c8dace7a057afeb9db6acec2a1f4e952b954927e]
   - type and keyword builders produce stored terms while ``order_key`` and
     Atom.__lt__ agree on elementwise expression order [tested:
     test_typed_and_arrow_retire_49_raw_type_symbols,
@@ -15,8 +25,11 @@ Guarantees:
     test_atoms_cross_a_spawned_process_boundary]
   - Atom.map transforms trees iteratively and validates replacements [tested
     test_map_atoms_handles_depth_as_data_and_validates_transform_results]
-  - parse uses the engine reader and preserves source variable names [tested
-    test_parse_keeps_variable_names]
+  - parse requires exactly one form and preserves source variable names;
+    forms is the separate whole-source reader [tested:
+    test_parse_requires_exactly_one_form,
+    test_parse_preserves_variable_names;
+    commit=9c03403aaaca9f1a1ec52e5898dd547eb80c8e82]
   - engine results restore registered ampersand names as Space operands while
     the public wire decoder keeps explicit s and p tags distinct [tested:
     test_space_handles_are_term_operands_and_round_trip; commit=4e2398075da67bb2cbcc123a9fc1e078ecac6fbf]
@@ -38,6 +51,10 @@ Guarantees:
   - fresh() mints process-independent variable names for library-authored
     patterns, so helper-local holes never capture caller names [tested:
     test_fresh_variables_keep_library_patterns_hygienic; commit=46ae646e5efe14320c01e1e110d9cfd6cd0fc7e1]
+  - variadic and_ and or_ retain the engine's binary heads by left-folding
+    three or more operands [tested:
+    test_variadic_boolean_builders_fold_to_binary_terms_and_filter_rows;
+    commit=8a04841952ec6cf7f4eb4e418efcbf4519f16f34]
   - two-argument unify is symmetric and returns one normalized substitution
     over variables from either operand [tested:
     test_unify_binds_a_ground_term_and_pattern_in_both_orders,
@@ -142,7 +159,7 @@ for _atom_type in (Atom, Box, Expression, Grounded, Handle, Symbol, Undefined, V
 def ground(value: Any) -> Grounded:
     """Carry a Python value whole, whatever it is.
 
-    This is the FFI boxing door. Structural wire conversion lives in
+    This is the FFI boxing form. Structural wire conversion lives in
     :mod:`metta.wire`; ``ground([1, 2, 3])`` therefore carries one list by
     identity instead of turning it into an expression.
     """
@@ -203,14 +220,24 @@ def not_(value: Any) -> Expression:
     return S["not"](value)
 
 
+def _binary_chain(head: str, values: tuple[Any, ...]) -> Expression:
+    """Build one binary-head chain, retaining its partial forms at arity 0/1."""
+    if len(values) < 2:
+        return S[head](*values)
+    result = S[head](values[0], values[1])
+    for value in values[2:]:
+        result = S[head](result, value)
+    return result
+
+
 def and_(*values: Any) -> Expression:
-    """Build a quoted or stored ``and`` term."""
-    return S["and"](*values)
+    """Left-fold 2+ values through ``and``; retain its arity-0/1 partials."""
+    return _binary_chain("and", values)
 
 
 def or_(*values: Any) -> Expression:
-    """Build a quoted or stored ``or`` term."""
-    return S["or"](*values)
+    """Left-fold 2+ values through ``or``; retain its arity-0/1 partials."""
+    return _binary_chain("or", values)
 
 
 def in_(member: Any, container: Any) -> Expression:
@@ -272,6 +299,10 @@ def _pretty(atom: Any, width: int = 78) -> str:
 def parse(source: str) -> Atom:
     """Read one form of MeTTa source into an atom, evaluating nothing.
 
+    Use ``metta.forms()`` for a whole source program. ``parse()`` deliberately
+    refuses empty input and multiple top-level forms rather than selecting one
+    silently.
+
     Backed by the engine's own reader, with one improvement over sread/2: the
     variable names the DCG collects are kept, so parse("(Parent $x Bob)")
     contains Variable('x') rather than a machine name, and the same pattern built
@@ -326,6 +357,8 @@ def _is_ground(atom: Atom) -> bool:
 #: ranked with the symbols it reads as rather than the numbers it inherits.
 _ORDER_VAR, _ORDER_NUMBER, _ORDER_STRING = 0, 1, 2
 _ORDER_OBJECT, _ORDER_EMPTY, _ORDER_SYMBOL, _ORDER_EXPR = 3, 4, 5, 6
+_ORDER_END = -1
+_ORDER_END_MARKER = object()
 
 
 def order_key(atom: Atom) -> tuple:
@@ -343,26 +376,45 @@ def order_key(atom: Atom) -> tuple:
     Two atoms that compare equal here are not necessarily the same atom: a key
     orders, `same_atom` decides identity.
     """
-    if isinstance(atom, Variable):
-        return (_ORDER_VAR, atom.name)
-    if isinstance(atom, Symbol):
-        return (_ORDER_SYMBOL, atom.name)
-    if isinstance(atom, Expression):
-        if not atom.children:
-            return (_ORDER_EMPTY,)
-        children = tuple(order_key(child) for child in atom.children)
-        return (_ORDER_EXPR, children)
-    value = getattr(atom, "value", atom)
-    # bool before int: True is an int in Python and a symbol in MeTTa.
-    if isinstance(value, bool):
-        return (_ORDER_SYMBOL, str(value))
-    if isinstance(value, (int, float)):
-        # SWI compares numeric value first and sorts a float before an integer
-        # at an arithmetic tie: msort([1, 1.0]) is [1.0, 1].
-        return (_ORDER_NUMBER, value, 0 if isinstance(value, float) else 1)
-    if isinstance(value, str):
-        return (_ORDER_STRING, value)
-    return (_ORDER_OBJECT, type(value).__name__, repr(value))
+    # SWI's compareStandard uses a left-to-right term agenda rather than the C
+    # call stack. A flat prefix stream gives Python tuple comparison the same
+    # property. The end token sorts before every atom rank, preserving the rule
+    # that an exhausted expression sorts before another child.
+    # https://github.com/SWI-Prolog/swipl-devel/blob/9f804dee22b48bc6ad92f97d6c0fb675a1f0391b/src/pl-prims.c#L1899-L1974
+    tokens: list[tuple] = []
+    stack: list[Any] = [atom]
+    while stack:
+        node = stack.pop()
+        if node is _ORDER_END_MARKER:
+            tokens.append((_ORDER_END,))
+            continue
+        if isinstance(node, Variable):
+            tokens.append((_ORDER_VAR, node.name))
+            continue
+        if isinstance(node, Symbol):
+            tokens.append((_ORDER_SYMBOL, node.name))
+            continue
+        if isinstance(node, Expression):
+            if not node.children:
+                tokens.append((_ORDER_EMPTY,))
+                continue
+            tokens.append((_ORDER_EXPR,))
+            stack.append(_ORDER_END_MARKER)
+            stack.extend(reversed(node.children))
+            continue
+        value = getattr(node, "value", node)
+        # bool before int: True is an int in Python and a symbol in MeTTa.
+        if isinstance(value, bool):
+            tokens.append((_ORDER_SYMBOL, str(value)))
+        elif isinstance(value, (int, float)):
+            # SWI compares numeric value first and sorts a float before an
+            # integer at an arithmetic tie: msort([1, 1.0]) is [1.0, 1].
+            tokens.append((_ORDER_NUMBER, value, 0 if isinstance(value, float) else 1))
+        elif isinstance(value, str):
+            tokens.append((_ORDER_STRING, value))
+        else:
+            tokens.append((_ORDER_OBJECT, type(value).__name__, repr(value)))
+    return tuple(tokens)
 
 
 def _mapped_candidate(node: Atom, results: list[Atom]) -> Atom:
@@ -449,11 +501,11 @@ def substitute(atom: Any, bindings: Mapping[str, Atom]) -> Atom:
     variable stays itself, so a partial substitution is a narrower pattern
     rather than an error.
 
-    ``Atom.subs`` is the public door and the one implementation. It is keyed by
+    ``Atom.subs`` is the public method and the one implementation. It is keyed by
     ATOM because a bare name cannot say which kind it means on a surface that
     has both: this function reads ``{"x": ...}`` as the VARIABLE $x while
-    a ``bind()`` scope at the evaluation doors reads the same mapping as the SYMBOL x
-    [measured 2026-08-31, on the source door and the term door alike]. Two
+    a ``bind()`` scope at the evaluation methods reads the same mapping as the
+    SYMBOL x [measured 2026-08-31, on the source and term forms alike]. Two
     meanings for one spelling is fine inside the library, where each caller
     knows which it holds, and is not something to publish.
     """
@@ -478,7 +530,7 @@ def unify(left: Any, right: Any, *more: Any) -> Mapping[Atom, Atom] | None:
     Keyed by the VARIABLES themselves, which is what ``Atom.subs`` accepts, so
     a substitution this produces is one the library can apply. A bare name
     cannot say whether it means a variable or a symbol, and this language has
-    both: ``bind({"x": 5})`` at the evaluation doors means the SYMBOL x.
+    both: ``bind({"x": 5})`` at the evaluation methods means the SYMBOL x.
     """
     bindings: dict[str, Atom] = {}
     anchor = _encode(left)

@@ -24,6 +24,9 @@ Guarantees:
     [tested: test_under_answers_defers_its_tagged_route_probe_until_pull,
     test_scoped_under_crosses_the_async_worker_context,
     test_under_refuses_none_and_restores_after_an_exception; commit=c7468b2789746bcf95c4bacc0e2d517ec4d972fa]
+  - tagged counts and ordinary matches share one positive-limit contract
+    [tested: test_tagged_count_and_match_refuse_zero_with_the_same_message;
+    commit=61e107a8105a5cdaea164f615812a684b12d8fe3]
 """
 
 from __future__ import annotations
@@ -87,6 +90,21 @@ def test_counting_counts_duplicate_call_answers_inside_the_engine(metta):
         with program.stats() as measured:
             assert program.answers(S.under_call(), under=counting).one() == 3
         assert measured.inferences > 0
+
+
+def test_tagged_count_and_match_refuse_zero_with_the_same_message(metta):
+    """Zero cannot cross into either engine query as the unbounded sentinel."""
+    query = S.limit_contract(V.value)
+    module = importlib.import_module("metta.algebra")
+
+    with pytest.raises(ValueError) as match_error:
+        metta.match(query, limit=0)
+    with pytest.raises(ValueError) as tagged_error:
+        module.count_tagged(metta, query, limit=0)
+
+    expected = "limit must be positive, got 0"
+    assert str(match_error.value) == expected
+    assert str(tagged_error.value) == expected
 
 
 def test_counting_inference_growth_is_linear_when_answers_grow_in_depth(metta):

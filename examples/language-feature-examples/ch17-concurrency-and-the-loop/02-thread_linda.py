@@ -45,7 +45,7 @@ def twin(m):
     m += lib.thread
 
     @m.define
-    def inc(x):
+    def inc(x: int) -> int:
         # (= (inc $x) (+ $x 1))
         return x + 1
 
@@ -84,7 +84,9 @@ def twin(m):
     # another thread writes it, which is the rendezvous a channel would
     # otherwise be needed for.
     inbox = metta.space(S.inbox)
-    writer = spawn(S.add_atom(inbox, S.msg(S.hello)))  # rung: the write is DATA handed to another engine thread, not a store this process mutates, so `space += atom` cannot say it
+    writer = spawn(
+        S.add_atom(inbox, S.msg(S.hello))
+    )  # rung: the write is DATA handed to another engine thread, not a store this process mutates, so `space += atom` cannot say it
     seen = inbox.take(S.msg(V.what), deadline=10)
     writer.wait()
     assert seen == S.msg(S.hello)
@@ -146,9 +148,44 @@ def twin(m):
 #: full-lane observations under 'full-lane/219/workers=32'; a cost outside them
 #: is a real finding, and a new mode discovered later extends the
 #: envelope with its observation count rather than widening blind.
-BUDGET = {
-    "minimum": 136109,
-    "maximum": 136140,
-    "observations": 20,
-    "protocol": "full-lane/219/workers=32",
-}
+#: RE-ENVELOPED 2026-09-01 on the operator-protocol tree. Generic Python
+#: operators now dispatch through live protocols and relational twins name
+#: engine heads explicitly, so ten fresh full-lane observations replace the
+#: prior implementation's modes [measured: exact extrema over 10 observations;
+#: command=python extensions/python/tools/twin_coverage.py --observe --rounds 10;
+#: fixture=full-lane/219/workers=32; commit=e3787593132a7ece2d300397045f7415709847c9].
+#: The confirming differential supplied an eleventh observation inside those
+#: bounds [measured: eleventh full-lane observation 401241; command=python
+#: extensions/python/tools/twin_coverage.py; fixture=full-lane/219/workers=32;
+#: commit=e3787593132a7ece2d300397045f7415709847c9].
+#: A second ten-round observe pass stayed inside the first pass's bounds
+#: [measured: exact extrema over 10 further observations; command=python
+#: extensions/python/tools/twin_coverage.py --observe --rounds 10;
+#: fixture=full-lane/219/workers=32; commit=e3787593132a7ece2d300397045f7415709847c9].
+#: Four confirming differentials stayed inside those bounds [measured: four
+#: further full-lane observations, the last 401241; command=python
+#: extensions/python/tools/twin_coverage.py; fixture=full-lane/219/workers=32;
+#: commit=e3787593132a7ece2d300397045f7415709847c9].
+#: RETIRED THE ENVELOPE 2026-09-02 after exact numeric annotations restored
+#: native operator heads and published their MeTTa declarations. The current
+#: implementation answered 401370 in all ten full-lane observations and all
+#: three serial measurements, so a point pin states the measured distribution
+#: while an envelope would have to invent a spread [measured: 10 full-lane
+#: observations and min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --observe --rounds 10, then python
+#: extensions/python/tools/twin_coverage.py --measure --rounds 3
+#: examples/ch17-concurrency-and-the-loop/02-thread_linda.metta;
+#: fixture=full-lane/219/workers=32 and serial fresh processes; commit=d0dfff1a3ee6c85472fd9b12d6e4aec007a9c301].
+#: RE-PINNED 2026-09-02, 401370 to 405731 (+4361), static contract discharge
+#: and policy-stable recompilation [measured 2026-09-02: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=c00341f0ff9d83d1b9338ca86ad51708eaf07ebd].
+#: RE-PINNED 2026-09-02, 405731 to 405788 (+57), static contract discharge with
+#: policy checks confined to invalidated contracts [measured 2026-09-02: min-
+#: of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=c00341f0ff9d83d1b9338ca86ad51708eaf07ebd].
+#: RE-PINNED 2026-09-02, 405788 to 405840 (+52), P43 protects both generated
+#: policy-check fallbacks from space-local capture [measured 2026-09-02: min-
+#: of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=c00341f0ff9d83d1b9338ca86ad51708eaf07ebd].
+BUDGET = 405840

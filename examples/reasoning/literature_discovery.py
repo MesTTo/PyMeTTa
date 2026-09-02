@@ -126,7 +126,7 @@ check(
 # How much independent support? The same question under a different algebra.
 check(
     "two independent literature paths support it",
-    m.match(S.suggests(S["omega-3"], S.raynaud), under=counting).one(),
+    m.match(S.suggests(S.omega_3, S.raynaud), under=counting).one(),
     2,
 )
 

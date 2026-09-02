@@ -85,11 +85,23 @@ def twin(m):
 #: full-lane observations under 'full-lane/219/workers=32'; a cost outside them
 #: is a real finding, and a new mode discovered later extends the
 #: envelope with its observation count rather than widening blind.
-BUDGET = {
-    # Extended 8761 -> 8757: the release confirming check sampled the low
-    # mode once; bounds extend with their observations.
-    "minimum": 8757,
-    "maximum": 8793,
-    "observations": 21,
-    "protocol": "full-lane/219/workers=32",
-}
+#: RE-PINNED 2026-09-01 on the operator-protocol tree. Ten fresh full-lane
+#: observations had no spread, and the serial min-of-three confirmed the point
+#: [measured: twin minimum 6888 inferences; command=python
+#: extensions/python/tools/twin_coverage.py --measure --rounds 3
+#: examples/ch05-equations-and-evaluation/05-01-an-equation-is-a-rewrite/02-twostage.metta;
+#: fixture=operator-protocol tree after python extensions/python/tools/twin_coverage.py
+#: --observe --rounds 10; commit=e3787593132a7ece2d300397045f7415709847c9].
+#: RE-PINNED 2026-09-02, 6888 to 7058 (+170), static contract discharge and
+#: policy-stable recompilation [measured 2026-09-02: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=c00341f0ff9d83d1b9338ca86ad51708eaf07ebd].
+#: RE-PINNED 2026-09-02, 7058 to 7046 (-12), static contract discharge with
+#: policy checks confined to invalidated contracts [measured 2026-09-02: min-
+#: of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=c00341f0ff9d83d1b9338ca86ad51708eaf07ebd].
+#: RE-PINNED 2026-09-02, 7046 to 7056 (+10), P43 protects both generated
+#: policy-check fallbacks from space-local capture [measured 2026-09-02: min-
+#: of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=c00341f0ff9d83d1b9338ca86ad51708eaf07ebd].
+BUDGET = 7056

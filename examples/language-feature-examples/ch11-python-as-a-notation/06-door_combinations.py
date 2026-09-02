@@ -21,7 +21,7 @@ def twin(m):
     # ---- inside a DEFINE body (lowered) ----
 
     @m.define
-    def dc_twice(x):                     # (= (dc-twice $x) (+ $x $x))
+    def dc_twice(x: int) -> int:         # (= (dc-twice $x) (+ $x $x))
         return x + x
 
     @m.define
@@ -32,7 +32,7 @@ def twin(m):
 
     @m.define
     def dc_upper(s):                     # a grounded operation inside a
-        return fn.py_call(S[".upper"](s))   # define: one host crossing per call
+        return fn.py_call(S[".upper"](s))  # define: one host crossing per call
 
     assert m.eval(S.dc_upper(G("ab"))) == [S.AB]
 
@@ -60,7 +60,7 @@ def twin(m):
         return x * 10
 
     @m.define
-    def dc_fib(n):
+    def dc_fib(n: int) -> int:
         if n <= 1:
             return n
         return dc_fib(n - 1) + dc_fib(n - 2)
@@ -137,11 +137,28 @@ def twin(m):
 #: full-lane observations under 'full-lane/219/workers=32'; a cost outside them
 #: is a real finding, and a new mode discovered later extends the
 #: envelope with its observation count rather than widening blind.
-BUDGET = {
-    # Re-measured after operation registration began recording the required
-    # five-rank effect contract fact for each host operation.
-    "minimum": 65218,
-    "maximum": 65274,
-    "observations": 10,
-    "protocol": "full-lane/219/workers=32",
-}
+#: RE-PINNED 2026-09-01 on the operator-protocol tree. Ten fresh full-lane
+#: observations had no spread, and the serial min-of-three confirmed the point
+#: [measured: twin minimum 46113 inferences; command=python
+#: extensions/python/tools/twin_coverage.py --measure --rounds 3
+#: examples/ch11-python-as-a-notation/06-door_combinations.metta;
+#: fixture=operator-protocol tree after python extensions/python/tools/twin_coverage.py
+#: --observe --rounds 10; commit=e3787593132a7ece2d300397045f7415709847c9].
+#: RE-PINNED 2026-09-02, 46113 to 49921 (+3808), exact numeric annotations
+#: retain native operator heads, publish MeTTa type declarations, and leave
+#: relational heads only where static proof is unavailable [measured
+#: 2026-09-02: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=d0dfff1a3ee6c85472fd9b12d6e4aec007a9c301].
+#: RE-PINNED 2026-09-02, 49921 to 51017 (+1096), static contract discharge and
+#: policy-stable recompilation [measured 2026-09-02: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=c00341f0ff9d83d1b9338ca86ad51708eaf07ebd].
+#: RE-PINNED 2026-09-02, 51017 to 51151 (+134), static contract discharge with
+#: policy checks confined to invalidated contracts [measured 2026-09-02: min-
+#: of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=c00341f0ff9d83d1b9338ca86ad51708eaf07ebd].
+#: RE-PINNED 2026-09-02, 51151 to 51161 (+10), P43 protects both generated
+#: policy-check fallbacks from space-local capture [measured 2026-09-02: min-
+#: of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=c00341f0ff9d83d1b9338ca86ad51708eaf07ebd].
+BUDGET = 51161

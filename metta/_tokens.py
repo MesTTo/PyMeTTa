@@ -1,4 +1,4 @@
-"""Purpose: construct reader-token atoms for the engine's Python host seam.
+"""Purpose: construct reader-token atoms for the engine's Python host bridge.
 
 Guarantees:
   - a constructor receives the complete matched lexeme and may return either

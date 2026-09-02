@@ -15,7 +15,13 @@ declaration reads `S.memoize(add, 2)` without re-spelling its name.
 
 `x + y + z` in the compiled body is Python's own left-associating addition, so
 it builds `(+ (+ $x $y) $z)` without a word about it.
+
+A MeTTa type declaration fixes one call arity. Both Python signatures retain
+their numeric compile proofs, but suppress publishing because one shared head
+must keep answering at both arities.
 """
+
+from typing import no_type_check
 
 from metta import S, lib
 
@@ -25,12 +31,14 @@ def twin(m):
     m += lib.memo
 
     @m.define
-    def add(x, y):
+    @no_type_check  # one MeTTa head serves two arities
+    def add(x: int, y: int) -> int:
         # (= (add $x $y) (+ $x $y))
         return x + y
 
     @m.define(name="add")
-    def add_3(x, y, z):
+    @no_type_check  # one MeTTa head serves two arities
+    def add_3(x: int, y: int, z: int) -> int:
         # (= (add $x $y $z) (+ (+ $x $y) $z))
         return x + y + z
 
@@ -122,4 +130,26 @@ def twin(m):
 #: the quad twin stopped being a different program [measured 2026-09-01: min-
 #: of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=c6a40460b1db341198a6150e3600f502831a6e83].
-BUDGET = 36839
+#: RE-PINNED 2026-09-01, 36839 to 36916 (+77), generic Python operators now
+#: dispatch through live protocols while source twins explicitly name
+#: relational engine heads [measured 2026-09-01: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=e3787593132a7ece2d300397045f7415709847c9].
+#: RE-PINNED 2026-09-02, 36916 to 36868 (-48), exact numeric annotations retain
+#: native operator heads, publish MeTTa type declarations, and leave relational
+#: heads only where static proof is unavailable [measured 2026-09-02: min-of-3
+#: serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=d0dfff1a3ee6c85472fd9b12d6e4aec007a9c301].
+#: RE-PINNED 2026-09-02, 36868 to 37292 (+424), static contract discharge and
+#: policy-stable recompilation [measured 2026-09-02: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=c00341f0ff9d83d1b9338ca86ad51708eaf07ebd].
+#: RE-PINNED 2026-09-02, 37292 to 37272 (-20), static contract discharge with
+#: policy checks confined to invalidated contracts [measured 2026-09-02: min-
+#: of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=c00341f0ff9d83d1b9338ca86ad51708eaf07ebd].
+#: RE-PINNED 2026-09-02, 37272 to 37282 (+10), P43 protects both generated
+#: policy-check fallbacks from space-local capture [measured 2026-09-02: min-
+#: of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=c00341f0ff9d83d1b9338ca86ad51708eaf07ebd].
+BUDGET = 37282

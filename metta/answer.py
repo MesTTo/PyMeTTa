@@ -6,7 +6,7 @@ Python side sends it over janus, a remote backend sends the same shape
 over its own pipe, and a Prolog-side provider needs none of it because
 unification is already the binding step.
 Guarantees:
-  - to_wire() emits exactly the seam's answer form, theta as
+  - to_wire() emits exactly the answer protocol's form, theta as
     [[name, atom-wire], ...] pairs with $-stripped names
     [tested 2026-08-17: test_answer_wire_form_is_exact].
   - Construction validates shapes eagerly, so a malformed answer fails at

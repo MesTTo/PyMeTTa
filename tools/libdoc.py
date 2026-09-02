@@ -46,7 +46,7 @@ beside its definitions."""
 
 def _forms(source: str) -> list[tuple]:
     """Every form in the source with its line, read and never run: the
-    engine door the boot manifest reads through, which is what lets a
+    engine reader the boot manifest uses, which is what lets a
     library whose backend is absent still document itself.
     """
     return [

@@ -3,7 +3,7 @@ Guarantees:
   - imported and module-qualified ``functools.reduce`` lower a named reducer
     to three-argument ``foldl-atom`` and a lambda to its bound-variable
     template form [tested: test_reduce_lowers_named_and_lambda_reducers;
-    commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
+    commit=e3787593132a7ece2d300397045f7415709847c9]
   - reduce recognition follows the imported callable's identity rather than
     claiming an unrelated function named reduce [tested:
     test_reduce_requires_the_functools_callable_identity; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
@@ -47,7 +47,7 @@ def test_reduce_lowers_named_and_lambda_reducers(metta):  # noqa: D103 -- the te
     assert str(named_fold.body) == "(foldl-atom $values 0 combine)"
     assert str(template_fold.body) == (
         "(foldl-atom $values 0 $accumulator $item "
-        "(+ (+ $accumulator $item) $bias))"
+        "(py-operator add (py-operator add $accumulator $item) $bias))"
     )
     assert str(generic_fold.body) == "(foldl-atom $values $initial $reducer)"
 
