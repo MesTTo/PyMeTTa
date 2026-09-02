@@ -52,7 +52,7 @@ Guarantees:
   - an abandoned Channel destroys its SWI message queue from whichever thread
     collects the Python handle [tested:
     test_abandoned_channels_destroy_their_swi_queues_from_collector_thread;
-    commit=WORKTREE]
+    commit=8909645dc7b390e4c6e7af77bfc75791c4f0aea1]
 Fails when:
   - the work is not engine-bound. A pool costs one thread and one engine per
     worker, so fanning out calls that are already fast buys queueing overhead
