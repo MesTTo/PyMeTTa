@@ -39,7 +39,7 @@ Guarantees:
     [tested: test_bridge_answers_preserve_python_object_identity;
     commit=a0f1cc5f15a15e5ca6958fe02a20be8832c7237f]
     [tested: test_a_py_atom_declaration_dies_with_its_grounded_value;
-    commit=WORKTREE]
+    commit=bbf02dd309d15e178a9c83d03b749eb7170b6a20]
 Open Obligations:
   To Do: None
   Hacks: None

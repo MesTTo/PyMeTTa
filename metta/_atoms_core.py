@@ -86,7 +86,8 @@ Guarantees:
   - Grounded keeps a returned object carrier privately while exposing its
     underlying value, so carrier-owned metadata survives a later engine
     crossing [tested:
-    test_a_py_atom_declaration_dies_with_its_grounded_value; commit=WORKTREE]
+    test_a_py_atom_declaration_dies_with_its_grounded_value;
+    commit=bbf02dd309d15e178a9c83d03b749eb7170b6a20]
   - Atom operator methods are installed from the immutable 22-entry lowering
     table, including explicit templates and named refusals [tested:
     test_the_operator_table_is_generated_from_one_source_with_no_holes;

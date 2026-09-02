@@ -27,7 +27,8 @@
 %     commit=89374a7ed8eec75e26ea595f2c6e55665f80d6fc].
 %   - a py-atom type declaration follows its value through a Python round trip
 %     without a process-global Prolog fact owning the Python object [tested:
-%     test_a_py_atom_declaration_dies_with_its_grounded_value; commit=WORKTREE].
+%     test_a_py_atom_declaration_dies_with_its_grounded_value;
+%     commit=bbf02dd309d15e178a9c83d03b749eb7170b6a20].
 % Fails when:
 %   - a name does not resolve, which raises rather than answering nothing: a
 %     typo in a module path is a mistake, not an empty result.

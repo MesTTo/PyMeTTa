@@ -19,7 +19,8 @@ Guarantees:
   - a py-atom type declaration follows a weak-referenceable Python object
     without owning it; values that cannot be weakly referenced carry their
     declaration in a weakly interned transparent envelope [tested:
-    test_a_py_atom_declaration_dies_with_its_grounded_value; commit=WORKTREE]
+    test_a_py_atom_declaration_dies_with_its_grounded_value;
+    commit=bbf02dd309d15e178a9c83d03b749eb7170b6a20]
   - numeric_operation() uses Python's operator protocol and an object's array
     namespace for math functions, retaining reflected dispatch and library
     result types [tested: test_numpy_numeric_family_keeps_python_result_types

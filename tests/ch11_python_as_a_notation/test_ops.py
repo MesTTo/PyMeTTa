@@ -25,7 +25,8 @@ Guarantees:
     test_register_op_reads_co_flags_and_refuses_or_awaits; commit=39092863ae34184a9f955f185ff57c1ff177ec40]
   - a type declared by py-atom is owned by its grounded value, so dropping the
     value releases both the declaration and the Python object [tested:
-    test_a_py_atom_declaration_dies_with_its_grounded_value; commit=WORKTREE]
+    test_a_py_atom_declaration_dies_with_its_grounded_value;
+    commit=bbf02dd309d15e178a9c83d03b749eb7170b6a20]
 Open Obligations:
   To Do: None
   Hacks: None
