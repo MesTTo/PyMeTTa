@@ -8,11 +8,13 @@ Guarantees:
     reaches one field [tested:
     test_an_opaque_blob_column_is_reached_by_a_lazy_path_without_crossing;
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
-  - the transparent image costs more engine inferences than the opaque image
-    for the same 4,096-byte value [measured: minimum of three counter samples;
+  - the two image modes produce distinct payloads while caller-thread
+    inference counts stay equal after matching moved into a held SWI engine
+    [measured: opaque/transparent changed from 280/16668 to 41/41, minimum of
+    three counter samples;
     command=python -m pytest extensions/python/tests/ch13_a_queryable_dataset/test_sqlite_space.py -q;
     fixture=SQLite documents.payload containing bytes(range(256)) repeated 16;
-    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -150,7 +152,7 @@ def test_an_opaque_blob_column_is_reached_by_a_lazy_path_without_crossing(
     )
     opaque_space = m._at(name)
 
-    def measured_crossing(space):
+    def measured_caller_inferences(space):
         samples = []
         rows = None
         for _sample in range(3):
@@ -160,7 +162,7 @@ def test_an_opaque_blob_column_is_reached_by_a_lazy_path_without_crossing(
         assert rows is not None
         return min(samples), rows
 
-    opaque_inferences, opaque_rows = measured_crossing(opaque_space)
+    opaque_inferences, opaque_rows = measured_caller_inferences(opaque_space)
     opaque_blob = opaque_rows[0].blob.value
     assert type(opaque_blob).__name__ == "Blob"
     assert opaque_blob.data == payload
@@ -186,9 +188,12 @@ def test_an_opaque_blob_column_is_reached_by_a_lazy_path_without_crossing(
         m, name, opaque_provider.connection
     )
     m._register_space(transparent_provider, name)
-    transparent_inferences, transparent_rows = measured_crossing(m._at(name))
+    transparent_inferences, transparent_rows = measured_caller_inferences(m._at(name))
     assert str(transparent_rows[0].blob).startswith("(Blob 0 1 2 3 ")
-    assert transparent_inferences > opaque_inferences
+    # Both provider queries now execute in held engines. Space.stats() reads
+    # this calling engine, so it measures the same cursor-control work for
+    # both payload forms rather than either held engine's encoding work.
+    assert transparent_inferences == opaque_inferences
 
 
 def test_writes_ride_the_engine_transaction(attached):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
