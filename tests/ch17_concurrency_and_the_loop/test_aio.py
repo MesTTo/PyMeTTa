@@ -40,6 +40,10 @@ Guarantees:
   - async coverage declarations and complete saga scopes stay on the owning
     worker [tested: test_async_saga_and_world_coverage_stay_on_the_owning_worker;
     commit=173eeed021beb360b5e5f9f8461889e27190affc]
+  - an async subscription cannot retain a callback into a closed event loop,
+    and AsyncMeTTa closes every subscription it acquired before its worker
+    [tested: test_aio_subscription_retires_when_its_event_loop_closes,
+    test_aio_close_cancels_every_acquired_subscription; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -1185,6 +1189,51 @@ def test_aio_a_worker_whose_loop_closed_stops_itself(m, monkeypatch):
         time.sleep(0.05)
     assert not _live_workers() - before, "the worker did not stop itself"
     assert not raised, f"the worker raised out of its thread: {raised}"
+
+
+def test_aio_subscription_retires_when_its_event_loop_closes(m):
+    """A dead delivery loop cannot poison every later write to the space."""
+
+    async def open_subscription():
+        owner = aio.AsyncMeTTa(metta=m)
+        await owner.start()
+        stream = owner.watch(S.aio_dead_loop(V.x))
+        await stream.__aenter__()
+        return owner
+
+    owner = asyncio.run(open_subscription())
+    assert [str(pattern.children[0]) for pattern in _watched(m)] == [
+        "aio-dead-loop"
+    ]
+    try:
+        # asyncio.run closed the callback's loop. The first later event
+        # retires that stale registration instead of raising after commit.
+        m.add(S.aio_dead_loop(1))
+        assert _watched(m) == []
+        assert S.aio_dead_loop(1) in m
+    finally:
+        asyncio.run(owner.aclose())
+
+
+def test_aio_close_cancels_every_acquired_subscription(m):
+    """The worker owner releases streams even when their loop is already gone."""
+
+    async def open_subscriptions():
+        owner = aio.AsyncMeTTa(metta=m)
+        await owner.start()
+        for pattern in (S.aio_owned_one(V.x), S.aio_owned_two(V.x)):
+            stream = owner.watch(pattern)
+            await stream.__aenter__()
+        return owner
+
+    owner = asyncio.run(open_subscriptions())
+    assert [str(pattern.children[0]) for pattern in _watched(m)] == [
+        "aio-owned-one",
+        "aio-owned-two",
+    ]
+    asyncio.run(owner.aclose())
+    assert _watched(m) == []
+    m.add(S.aio_owned_one(1), S.aio_owned_two(2))
 
 
 def test_async_rules_and_pre_add_land_as_awaitable_calls(m):

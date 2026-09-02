@@ -32,6 +32,11 @@ Guarantees:
     test_aio_a_failed_cursor_close_stays_retryable,
     test_aio_a_failed_subscription_close_stays_retryable,
     test_aio_the_close_sentinel_survives_a_full_queue; commit=cd8a597152395767587bbc64b6034400c81dd7b3]
+  - an acquired subscription belongs to its AsyncMeTTa until it closes, and a
+    callback whose event loop has closed retires itself before another write
+    can reach it [tested:
+    test_aio_subscription_retires_when_its_event_loop_closes,
+    test_aio_close_cancels_every_acquired_subscription; commit=WORKTREE]
   - an event queue is published only once its registration succeeded, and its
     bound is refused unless it is a count of events [tested:
     test_aio_a_failed_subscription_publishes_no_queue,
@@ -553,6 +558,14 @@ def _close_timeout(timeout: float) -> float:
     return value
 
 
+def _raise_lifecycle_failures(message: str, failures: list[BaseException]) -> None:
+    """Preserve one cleanup failure; group several in attempted order."""
+    if len(failures) == 1:
+        raise failures[0]
+    if failures:
+        raise BaseExceptionGroup(message, failures)
+
+
 def _remember_worker(worker: _EngineThread) -> None:
     with _LIVE_WORKERS_LOCK:
         _LIVE_WORKERS.add(worker)
@@ -727,7 +740,10 @@ class AsyncMeTTa:
         self._m = metta if metta is not None else Space(space)
         self._worker = _EngineThread()
         self._closed = False
+        self._closing = False
         self._owner = True
+        self._subscriptions: set[Any] = set()
+        self._subscriptions_lock = threading.RLock()
 
     @classmethod
     def _sharing(cls, metta: Space, worker: _EngineThread) -> AsyncMeTTa:
@@ -735,8 +751,44 @@ class AsyncMeTTa:
         shared._m = metta
         shared._worker = worker
         shared._closed = False
+        shared._closing = False
         shared._owner = False
+        shared._subscriptions = set()
+        shared._subscriptions_lock = threading.RLock()
         return shared
+
+    def _require_open_locked(self) -> None:
+        if self._closed or self._closing:
+            state = "closed" if self._closed else "closing"
+            msg = f"this AsyncMeTTa is {state}"
+            raise MettaError(msg)
+
+    def _track_subscription(self, stream: _AsyncSubscription) -> None:
+        """Make an acquired stream part of this connection's close scope."""
+        with self._subscriptions_lock:
+            self._require_open_locked()
+            self._subscriptions.add(stream)
+
+    def _forget_subscription(self, stream: _AsyncSubscription) -> None:
+        with self._subscriptions_lock:
+            self._subscriptions.discard(stream)
+
+    def _begin_close(self) -> tuple[_AsyncSubscription, ...]:
+        with self._subscriptions_lock:
+            if self._closing:
+                msg = "this AsyncMeTTa is already closing"
+                raise MettaError(msg)
+            self._closing = True
+            return tuple(self._subscriptions)
+
+    def _abort_close(self) -> None:
+        with self._subscriptions_lock:
+            self._closing = False
+
+    def _finish_close(self) -> None:
+        with self._subscriptions_lock:
+            self._closed = True
+            self._closing = False
 
     @property
     def name(self) -> _SpaceId:  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
@@ -763,24 +815,24 @@ class AsyncMeTTa:
 
     async def start(self) -> Self:
         """Start the engine thread; connect() and `async with` call this."""
-        if self._closed:
-            msg = "this AsyncMeTTa is closed"
-            raise MettaError(msg)
+        with self._subscriptions_lock:
+            self._require_open_locked()
         await self._worker.start()
         return self
 
-    async def call(self, fn: Callable[[Space], Any]) -> Any:
-        """Run fn(m) on the engine's thread and await its result: the
-        escape hatch to the entire synchronous surface, subscriptions,
-        derivations, stats blocks and all.
-        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
-        if self._closed:
-            msg = "this AsyncMeTTa is closed"
-            raise MettaError(msg)
+    async def _submit(self, fn: Callable[[Space], Any], *, during_close: bool) -> Any:
         await self._worker.start()
         loop = asyncio.get_running_loop()
         request = _Request(fn, self._m, loop, loop.create_future())
-        self._worker.submit(request)
+        if during_close:
+            self._worker.submit(request)
+        else:
+            # Publication of a request and publication of close are ordered.
+            # A request already accepted is rejected or interrupted by the
+            # worker close; one that lost this race never enters the queue.
+            with self._subscriptions_lock:
+                self._require_open_locked()
+                self._worker.submit(request)
         try:
             return await request.future
         except asyncio.CancelledError:
@@ -789,6 +841,27 @@ class AsyncMeTTa:
             request.abandoned.set()
             self._worker.interrupt_if_running(request)
             raise
+
+    async def _resource_call(self, fn: Callable[[Space], Any]) -> Any:
+        """Release an acquired child while its parent is closing."""
+        return await self._submit(fn, during_close=True)
+
+    async def _subscription_call(self, fn: Callable[[Space], Any]) -> Any:
+        """Use the public crossing unless parent close already claimed it."""
+        with self._subscriptions_lock:
+            closing = self._closing
+        if closing:
+            return await self._resource_call(fn)
+        return await self.call(fn)
+
+    async def call(self, fn: Callable[[Space], Any]) -> Any:
+        """Run fn(m) on the engine's thread and await its result: the
+        escape hatch to the entire synchronous surface, subscriptions,
+        derivations, stats blocks and all.
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+        with self._subscriptions_lock:
+            self._require_open_locked()
+        return await self._submit(fn, during_close=False)
 
     def interrupt(self) -> bool:
         """Stop the evaluation the worker is running right now; answers
@@ -2496,10 +2569,44 @@ class AsyncMeTTa:
 
     # -------------------------------------------------------------- lifecycle
 
+    async def _release_subscriptions(
+        self, subscriptions: tuple[_AsyncSubscription, ...]
+    ) -> None:
+        """Release every acquired stream before reporting any failure."""
+        failures: list[BaseException] = []
+        for subscription in subscriptions:
+            try:
+                await subscription._release()
+            except BaseException as exc:  # noqa: BLE001 -- every sibling releases before a failure leaves
+                failures.append(exc)
+        msg = "closing AsyncMeTTa subscriptions failed"
+        _raise_lifecycle_failures(msg, failures)
+
+    def _stop_subscriptions(
+        self, subscriptions: tuple[_AsyncSubscription, ...]
+    ) -> None:
+        """Synchronous counterpart used when no event loop is running."""
+        failures: list[BaseException] = []
+        for subscription in subscriptions:
+            try:
+                subscription._stop()
+            except BaseException as exc:  # noqa: BLE001 -- every sibling releases before a failure leaves
+                failures.append(exc)
+        msg = "stopping AsyncMeTTa subscriptions failed"
+        _raise_lifecycle_failures(msg, failures)
+
     async def aclose(self, timeout: float = DEFAULT_CLOSE_TIMEOUT) -> None:
-        """Interrupt work, reject queued calls, and detach within timeout."""
+        """Cancel acquired streams, then stop and detach the worker."""
         timeout = _close_timeout(timeout)
-        self._closed = True
+        subscriptions = self._begin_close()
+        try:
+            await _shielded(self._release_subscriptions(subscriptions))
+        except BaseException:
+            # A child that failed to cancel remains tracked, and the live
+            # worker makes an explicit retry possible.
+            self._abort_close()
+            raise
+        self._finish_close()
         if not self._owner:
             return
         thread = self._worker.close_soon()
@@ -2514,8 +2621,15 @@ class AsyncMeTTa:
                 )
 
     def stop(self, timeout: float = DEFAULT_CLOSE_TIMEOUT) -> None:
-        """Synchronous cleanup for code without a running event loop."""
-        self._closed = True
+        """Synchronously cancel streams and stop without an event loop."""
+        timeout = _close_timeout(timeout)
+        subscriptions = self._begin_close()
+        try:
+            self._stop_subscriptions(subscriptions)
+        except BaseException:
+            self._abort_close()
+            raise
+        self._finish_close()
         if self._owner:
             self._worker.stop(timeout)
 
@@ -2911,8 +3025,11 @@ class _AsyncSubscription:
         self._subscription: Any = None
         self._queue: asyncio.Queue[Any] | None = None
         self._closed = False
+        self._orphaned = False
         self._dropped = 0
         self._opening = asyncio.Lock()
+        self._state_changed = threading.Condition()
+        self._acquiring = False
 
     def _offer(self, events: asyncio.Queue[Any], event: Any) -> None:
         """Hand one event to a consumer that may have stopped consuming.
@@ -2924,10 +3041,44 @@ class _AsyncSubscription:
         still delivered, and the stream then ends by raising, which is the
         gap being reported rather than papered over.
         """
+        if self._closed:
+            return
         try:
             events.put_nowait(event)
         except asyncio.QueueFull:
             self._dropped += 1
+
+    def _retire_closed_loop(self) -> None:
+        """Cancel the engine fold whose asyncio delivery target is gone.
+
+        Python documents RuntimeError as call_soon_threadsafe's closed-loop
+        outcome. Cancellation is safe inside the fold's own callback because
+        the registry waits only for deliveries on other threads.
+        https://docs.python.org/3.14/library/asyncio-eventloop.html#asyncio.loop.call_soon_threadsafe
+        """
+        with self._state_changed:
+            self._orphaned = True
+            subscription = self._subscription
+        if subscription is None:
+            # Registration has published the fold but not yet returned it to
+            # _ensure. That path observes _orphaned as soon as it assigns the
+            # handle and performs this same retirement.
+            return
+        try:
+            subscription.cancel()
+        except Exception:
+            # Keep the child tracked so owner.aclose()/stop() can retry. Its
+            # callback is now inert, so later writes remain usable meanwhile.
+            logger.exception(
+                "could not retire an async subscription whose event loop closed"
+            )
+            return
+        with self._state_changed:
+            if self._subscription is subscription:
+                self._subscription = None
+            self._closed = True
+            self._state_changed.notify_all()
+        self._am._forget_subscription(self)
 
     def _end(self, events: asyncio.Queue[Any]) -> None:
         """Wake a consumer blocked on this queue, a full queue included.
@@ -2958,16 +3109,44 @@ class _AsyncSubscription:
                 events: asyncio.Queue[Any] = asyncio.Queue(maxsize=self._queue_max)
 
                 def deliver(event: Any) -> None:
-                    loop.call_soon_threadsafe(self._offer, events, event)
+                    with self._state_changed:
+                        if self._closed or self._orphaned:
+                            return
+                    try:
+                        loop.call_soon_threadsafe(self._offer, events, event)
+                    except RuntimeError:
+                        if not loop.is_closed():
+                            raise
+                        self._retire_closed_loop()
 
                 pattern, on, am = self._pattern, self._on, self._am
                 where = self._where
-                self._subscription = await _acquire(
-                    am.call(
-                        lambda m: m.subscribe(pattern, deliver, on=on, where=where)
-                    ),
-                    lambda subscription: am.call(lambda _m: subscription.cancel()),
-                )
+                am._track_subscription(self)
+                with self._state_changed:
+                    self._acquiring = True
+                try:
+                    subscription = await _acquire(
+                        am.call(
+                            lambda m: m.subscribe(
+                                pattern, deliver, on=on, where=where
+                            )
+                        ),
+                        lambda acquired: am._subscription_call(
+                            lambda _m: acquired.cancel()
+                        ),
+                    )
+                    with self._state_changed:
+                        self._subscription = subscription
+                        orphaned = self._orphaned
+                except BaseException:
+                    am._forget_subscription(self)
+                    raise
+                finally:
+                    with self._state_changed:
+                        self._acquiring = False
+                        self._state_changed.notify_all()
+                if orphaned:
+                    self._retire_closed_loop()
                 # A queue reachable before its registration succeeded is one a
                 # consumer waits on forever: nothing owns it, and nothing will
                 # ever write to it
@@ -3018,12 +3197,33 @@ class _AsyncSubscription:
         # Cancel first: marking closed before the engine let go left a live
         # subscription that every later aclose() returned early from
         # [tested test_aio_a_failed_subscription_close_stays_retryable].
-        subscription = self._subscription
+        async with self._opening:
+            with self._state_changed:
+                subscription = self._subscription
+            if subscription is not None:
+                await self._am._subscription_call(
+                    lambda _m: subscription.cancel()
+                )
+            with self._state_changed:
+                self._subscription = None
+                self._closed = True
+                self._state_changed.notify_all()
+            self._am._forget_subscription(self)
+            if self._queue is not None:
+                self._end(self._queue)
+
+    def _stop(self) -> None:
+        """Release the engine fold from synchronous AsyncMeTTa.stop()."""
+        with self._state_changed:
+            self._state_changed.wait_for(lambda: not self._acquiring)
+            subscription = self._subscription
         if subscription is not None:
-            await self._am.call(lambda _m: subscription.cancel())
-        self._closed = True
-        if self._queue is not None:
-            self._end(self._queue)
+            subscription.cancel()
+        with self._state_changed:
+            self._subscription = None
+            self._closed = True
+            self._state_changed.notify_all()
+        self._am._forget_subscription(self)
 
     async def __aenter__(self) -> Self:
         await self._ensure()
