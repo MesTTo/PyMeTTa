@@ -23,6 +23,10 @@ Guarantees:
     guard's answer constraint [tested:
     test_variadic_boolean_builders_fold_to_binary_terms_and_filter_rows;
     commit=8a04841952ec6cf7f4eb4e418efcbf4519f16f34]
+  - assuming attempts every hypothetical removal before propagating cleanup
+    failures [tested: test_assuming_removes_every_fact_after_one_cleanup_fails,
+    test_assuming_groups_multiple_cleanup_failures_after_removing_all;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -38,6 +42,7 @@ import pytest
 import metta as metta_package
 from metta import Answer, Expression, S, V, catalog, ground
 from metta.atoms import Grounded, Variable
+from metta.errors import SubscriberError
 from metta.ops import referenced_classes, type_atoms_for
 
 
@@ -317,6 +322,57 @@ def test_assuming_scopes_facts(m):  # noqa: D103  -- pytest discovers or injects
     except RuntimeError:
         pass
     assert len(m.match(S.road(V.x, V.y))) == 1
+
+
+def test_assuming_removes_every_fact_after_one_cleanup_fails(m):
+    """A committed watcher failure cannot strand later hypothetical facts."""
+
+    def reject_first(event):
+        if event.atom == S.assumed(S.a):
+            msg = "refuse the first hypothetical removal"
+            raise ValueError(msg)
+
+    subscription = m.subscribe(S.assumed(V.x), reject_first, on="remove")
+    try:
+        with pytest.raises(SubscriberError) as caught:
+            with m.assuming(
+                S.assumed(S.a), S.assumed(S.b), S.assumed(S.c)
+            ):
+                assert len(m.match(S.assumed(V.x))) == 3
+        assert isinstance(caught.value.__cause__, ValueError)
+        assert m.match(S.assumed(V.x)) == []
+    finally:
+        subscription.cancel()
+
+
+def test_assuming_groups_multiple_cleanup_failures_after_removing_all(m):
+    """Several committed watcher failures retain their per-fact order."""
+
+    def reject_each(event):
+        msg = f"refuse removal of {event.atom}"
+        raise ValueError(msg)
+
+    subscription = m.subscribe(S.grouped_assumption(V.x), reject_each, on="remove")
+    try:
+        with pytest.raises(ExceptionGroup) as caught:
+            with m.assuming(
+                S.grouped_assumption(S.a),
+                S.grouped_assumption(S.b),
+                S.grouped_assumption(S.c),
+            ):
+                pass
+        assert [error.atom for error in caught.value.exceptions] == [
+            S.grouped_assumption(S.a),
+            S.grouped_assumption(S.b),
+            S.grouped_assumption(S.c),
+        ]
+        assert all(
+            isinstance(error, SubscriberError)
+            for error in caught.value.exceptions
+        )
+        assert m.match(S.grouped_assumption(V.x)) == []
+    finally:
+        subscription.cancel()
 
 
 # --------------------------------------------------------- prepared queries

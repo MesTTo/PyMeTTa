@@ -53,6 +53,11 @@ Guarantees:
     the empty sequence as true [tested:
     test_guard_sequences_conjoin_without_changing_positional_patterns;
     commit=8a04841952ec6cf7f4eb4e418efcbf4519f16f34]
+  - assuming attempts every hypothetical removal before propagating one
+    cleanup failure or grouping several [tested:
+    test_assuming_removes_every_fact_after_one_cleanup_fails,
+    test_assuming_groups_multiple_cleanup_failures_after_removing_all;
+    commit=WORKTREE]
 Owns:
   - Cursor owns one engine query until exhaustion, close, or finalization
     and warns when finalization reaps an open query [tested
@@ -340,8 +345,17 @@ class _Assuming:
         return self._space
 
     def __exit__(self, exc_type, exc, tb) -> None:
+        failures: list[BaseException] = []
         for fact in self._facts:
-            self._space.remove(fact)
+            try:
+                self._space.remove(fact)
+            except BaseException as failure:  # noqa: BLE001 -- every hypothetical is removed before any cleanup failure leaves
+                failures.append(failure)
+        if len(failures) == 1:
+            raise failures[0]
+        if failures:
+            msg = "removing assumed facts failed"
+            raise BaseExceptionGroup(msg, failures)
 
 
 #: The counters a stats block fills on exit, named here so __getattr__ can
