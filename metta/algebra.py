@@ -39,7 +39,7 @@ Guarantees:
     commit=c7468b2789746bcf95c4bacc0e2d517ec4d972fa]
   - tagged counts share the positive-limit contract used by ordinary queries
     [tested: test_tagged_count_and_match_refuse_zero_with_the_same_message;
-    commit=WORKTREE]
+    commit=61e107a8105a5cdaea164f615812a684b12d8fe3]
 Decides:
   - ``contraction`` is a capability, while the remaining public law names are
     equations checked exhaustively over the declared finite carrier.

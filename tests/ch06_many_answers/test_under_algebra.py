@@ -26,7 +26,7 @@ Guarantees:
     test_under_refuses_none_and_restores_after_an_exception; commit=c7468b2789746bcf95c4bacc0e2d517ec4d972fa]
   - tagged counts and ordinary matches share one positive-limit contract
     [tested: test_tagged_count_and_match_refuse_zero_with_the_same_message;
-    commit=WORKTREE]
+    commit=61e107a8105a5cdaea164f615812a684b12d8fe3]
 """
 
 from __future__ import annotations
