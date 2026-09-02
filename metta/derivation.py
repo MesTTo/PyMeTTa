@@ -8,7 +8,7 @@ Guarantees:
   - parsing, walking, and rendering use explicit work stacks, so proof depth is
     data rather than Python recursion [tested:
     test_deep_proof_consumers_treat_depth_as_data;
-    commit=WORKTREE]
+    commit=97df27ef8346695707d87fc9bec6a8761cff574e]
   - facts and rules retain first-seen order with expected linear-time hash
     membership [tested: test_fact_and_rule_projection_use_hash_membership;
     commit=9903250d082ab019535ab0c10b742053f9e640f0]

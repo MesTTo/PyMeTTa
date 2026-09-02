@@ -9,7 +9,7 @@ Guarantees:
   - each expression names one intentional dynamic use, so the 60 percent
     confidence floor remains actionable instead of globally suppressing a
     name pattern [tested: the GATE vulture lane;
-    commit=WORKTREE].
+    commit=97df27ef8346695707d87fc9bec6a8761cff574e].
 Open Obligations:
   To Do: None
   Hacks: None
