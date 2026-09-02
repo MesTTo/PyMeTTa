@@ -55,7 +55,7 @@ Guarantees:
     distinct occurrences [tested:
     test_future_iteration_does_not_resnapshot_per_quiet_wait,
     test_future_iteration_watermark_separates_snapshot_from_later_events;
-    commit=WORKTREE]
+    commit=1877bec75a9a22265c9222f0c0c538c8f65a983f]
   - an abandoned Channel destroys its SWI message queue from whichever thread
     collects the Python handle [tested:
     test_abandoned_channels_destroy_their_swi_queues_from_collector_thread;

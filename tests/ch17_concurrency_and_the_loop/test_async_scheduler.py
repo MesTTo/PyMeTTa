@@ -44,7 +44,7 @@ Guarantees:
     test_future_iteration_watermark_separates_snapshot_from_later_events,
     test_async_reflection_has_one_public_return_and_effect,
     test_the_async_loop_recovers_from_stop_and_thread_start_failure,
-    test_async_loop_shutdown_finalizes_pending_coroutines; commit=WORKTREE]
+    test_async_loop_shutdown_finalizes_pending_coroutines; commit=1877bec75a9a22265c9222f0c0c538c8f65a983f]
 """
 
 from __future__ import annotations

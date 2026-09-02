@@ -4,7 +4,7 @@ Guarantees:
   - quiet waits do not trigger whole-space reads, and every answer occurrence
     still arrives in order [tested:
     test_future_iteration_does_not_resnapshot_per_quiet_wait;
-    commit=WORKTREE]
+    commit=1877bec75a9a22265c9222f0c0c538c8f65a983f]
 Open Obligations:
   To Do: None
   Hacks: None

@@ -14,11 +14,11 @@ Run from ``extensions/python``::
 Guarantees:
   - ``polls`` is controlled by the subscription boundary rather than elapsed
     wall time [tested: test_future_iteration_does_not_resnapshot_per_quiet_wait;
-    commit=WORKTREE]
+    commit=1877bec75a9a22265c9222f0c0c538c8f65a983f]
   - every row verifies the complete ordered answer bag, so fewer reads cannot
     hide a lost or duplicated occurrence [tested:
     test_future_iteration_does_not_resnapshot_per_quiet_wait;
-    commit=WORKTREE]
+    commit=1877bec75a9a22265c9222f0c0c538c8f65a983f]
   - at 512 preloaded answers and 4/16/64 quiet waits, the former iterator made
     6/18/66 full reads and transported 3,074/9,218/33,794 atoms; the snapshot
     watermark implementation makes 2 full reads and transports 1,025 atoms at
@@ -27,7 +27,7 @@ Guarantees:
     /home/user/Dev/.venv-pypetta/bin/python -m
     benchmarks.future_iteration_snapshots 4 16 64 --atoms 512;
     fixture=512 preloaded atoms plus one released engine answer;
-    commit=WORKTREE]
+    commit=1877bec75a9a22265c9222f0c0c538c8f65a983f]
 Open Obligations:
   To Do: None
   Hacks: None
