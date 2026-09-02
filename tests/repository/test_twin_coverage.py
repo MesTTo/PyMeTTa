@@ -42,7 +42,7 @@ Guarantees:
   - shipped examples use the attribute spelling whenever the canonical name
     map reaches the exact head [tested:
     test_shipped_examples_use_the_canonical_attribute_spelling;
-    commit=WORKTREE]
+    commit=a900a106e06bd129951a3c49a8830ac0cae55438]
   - a declaration takes StrEnum members in typed option slots, reports a bare
     wire word with the exact member spelling, and keeps non-option pattern and
     name strings under the existing source-text rule [tested:
