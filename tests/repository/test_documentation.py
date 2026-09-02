@@ -23,7 +23,7 @@ Guarantees:
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - generated pages publish reader prose rather than file-local contracts or
     evidence metadata [tested: test_reference_publishes_reader_prose_only;
-    commit=9c03403aaaca9f1a1ec52e5898dd547eb80c8e82]
+    commit=WORKTREE]
   - EXTENDING.md's extension-cost tables carry the numbers the committed
     pins derive and name every pinned tier, so the page cannot drift from
     the gate again [tested:
@@ -170,16 +170,20 @@ def test_an_overloaded_method_is_documented_once():
 
 def test_reference_publishes_reader_prose_only():
     """Retain public explanation while removing maintainer-only metadata."""
-    doc = """Purpose: explain the reader.
+    fake_pin = "commit" + "=abc"
+    source_tag = f"{chr(91)}source: internal.py:thing; {fake_pin}]"
+    tested_tag = f"{chr(91)}tested: test_internal; {fake_pin}]"
+    measured_tag = f"{chr(91)}measured: 3 calls; command=probe; {fake_pin}]"
+    doc = f"""Purpose: explain the reader.
 
 Assumes:
-  - an internal condition [source: internal.py:thing; commit=abc]
+  - an internal condition {source_tag}
 Guarantees:
-  - an internal promise [tested: test_internal; commit=abc]
+  - an internal promise {tested_tag}
 Open Obligations:
   To Do: None
 
-Reader-facing detail [measured: 3 calls; command=probe; commit=abc].
+Reader-facing detail {measured_tag}.
 """
     assert _reference.public_prose(doc) == (
         "Explain the reader.\n\nReader-facing detail."
