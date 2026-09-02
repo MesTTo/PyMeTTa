@@ -71,7 +71,7 @@ Guarantees:
     join without executing the target [tested:
     test_effect_plan_reports_nested_calls_without_executing_them,
     test_effect_plan_reads_replaced_operation_classification;
-    commit=WORKTREE]
+    commit=d06621ddec911922c156c79ce68b2c35318e7fc1]
 Open Obligations:
   To Do: None
   Hacks: None

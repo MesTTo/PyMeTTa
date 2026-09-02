@@ -39,7 +39,7 @@ Guarantees:
     without executing the target [tested:
     test_effect_plan_reports_nested_calls_without_executing_them,
     test_effect_plan_reads_replaced_operation_classification;
-    commit=WORKTREE]
+    commit=d06621ddec911922c156c79ce68b2c35318e7fc1]
   - named space construction accepts a space-name Symbol as well as its text
     spelling [tested: test_space_factory_accepts_a_name_symbol; commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
   - a Symbol or ground Expression names a source-visible atomic or parametric

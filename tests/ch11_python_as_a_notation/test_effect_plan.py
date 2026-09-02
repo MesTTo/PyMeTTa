@@ -4,11 +4,11 @@ Guarantees:
   - Space.effect_plan follows nested compiled calls, returns every named
     operation with the lattice join, and executes none of them [tested:
     test_effect_plan_reports_nested_calls_without_executing_them;
-    commit=WORKTREE]
+    commit=d06621ddec911922c156c79ce68b2c35318e7fc1]
   - replacing an operation changes the next plan immediately, so Python does
     not retain a stale classification [tested:
     test_effect_plan_reads_replaced_operation_classification;
-    commit=WORKTREE]
+    commit=d06621ddec911922c156c79ce68b2c35318e7fc1]
 """
 
 from __future__ import annotations
