@@ -25,6 +25,9 @@
 %     while an explicit Grounded reading is retained as a Python object
 %     reference [tested: test_a_python_tuple_answers_the_same_through_both_doors;
 %     commit=89374a7ed8eec75e26ea595f2c6e55665f80d6fc].
+%   - a py-atom type declaration follows its value through a Python round trip
+%     without a process-global Prolog fact owning the Python object [tested:
+%     test_a_py_atom_declaration_dies_with_its_grounded_value; commit=WORKTREE].
 % Fails when:
 %   - a name does not resolve, which raises rather than answering nothing: a
 %     typo in a module path is a mistake, not an empty result.
@@ -340,8 +343,7 @@ seam:grounded_text(Obj, Text) :-
     ->  Result = Resolved
     ;   Type == 'Expression'
     ->  metta_py_materialize(Resolved, Result)
-    ;   Result = Resolved,
-        assert_declared_python_type(Result, Type)
+    ;   metta_py_declare_type(Resolved, Type, Result)
     ).
 
 %The snapshot, all the way down: every level that has a structural view becomes
@@ -382,19 +384,31 @@ metta_py_cycle_check(Value, Seen, [Id|Seen]) :-
     ;   Id = Value            %a tuple is finite by construction
     ).
 
-:- dynamic metta_py_declared_type/2.
 :- multifile seam:grounded_extra_type/2.
 
-%Keyed on the object, and recorded once: resolving the same name twice gives
-%the same Python object, so a repeated (py-atom f T) must not stack duplicate
-%type candidates and make get-type answer twice.
-assert_declared_python_type(Obj, Type) :-
-    (   metta_py_declared_type(Obj, Existing), Existing == Type
-    ->  true
-    ;   assertz(metta_py_declared_type(Obj, Type))
-    ).
+%A weak-referenceable value is the key of a Python-side weak identity record;
+%a list, dict or other value weakref cannot observe carries the declaration in
+%the same transparent envelope as the engine atom. Neither form needs the
+%process-global dynamic fact that retained every declared object. Type text is
+%read back for every query so variables are fresh and repeated occurrences
+%still share, as an asserted clause did [source:
+%extensions/python/metta/_atoms_core.py, boxed()'s weak identity cache;
+%commit=af5821f5ffb7ce186e516706f003d02f5c1d3b4a].
+metta_py_declare_type(Obj, _Type, Declared) :-
+    \+ python_object_blob(Obj),
+    !,
+    Declared = Obj.
+metta_py_declare_type(Obj, Type, Declared) :-
+    term_string(Type, Text, [quoted(true)]),
+    metta_py_call(['py-atom', Obj, Type], declare_type(Obj, Text), Declared).
 
-seam:grounded_extra_type(Obj, Type) :- metta_py_declared_type(Obj, Type).
+seam:grounded_extra_type(Obj, Type) :-
+    python_object_blob(Obj),
+    py_is_object(Obj),
+    metta_py_bridge,
+    py_call(metta_py:declared_type_texts(Obj), Texts, [py_string_as(string)]),
+    member(Text, Texts),
+    term_string(Type, Text).
 
 %The class walk, this host's clause of the fallback seam: every visible class
 %on the value's MRO except object, each a type candidate, which is what lets a

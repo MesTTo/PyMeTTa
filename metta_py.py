@@ -16,6 +16,10 @@ Guarantees:
     commit=89374a7ed8eec75e26ea595f2c6e55665f80d6fc]
   - every function here returns the OBJECT, never a converted copy, so the
     caller decides what crosses; extensions/python/bridge.pl asks janus for py_object(true)
+  - a py-atom type declaration follows a weak-referenceable Python object
+    without owning it; values that cannot be weakly referenced carry their
+    declaration in a weakly interned transparent envelope [tested:
+    test_a_py_atom_declaration_dies_with_its_grounded_value; commit=WORKTREE]
   - numeric_operation() uses Python's operator protocol and an object's array
     namespace for math functions, retaining reflected dispatch and library
     result types [tested: test_numpy_numeric_family_keeps_python_result_types
@@ -23,6 +27,11 @@ Guarantees:
 Fails when:
   - a name does not resolve. It raises rather than answering None, because a
     typo in a module path is not a value.
+Owns resources:
+  - one weak registry entry per live weak-referenceable declaration, and one
+    weak cache entry per live non-weak-referenceable declaration carrier.
+Guarded by:
+  - _DECLARATION_LOCK protects declaration records and carrier identity.
 Open Obligations:
   To Do: None
   Hacks: None
@@ -36,6 +45,8 @@ import importlib
 import math
 import numbers
 import operator
+import threading
+import weakref
 from collections.abc import Sequence
 from typing import Any, Self
 
@@ -44,7 +55,7 @@ class _GroundedTuple(tuple):
     """A tuple subclass Janus carries as an object reference.
 
     Janus always translates an exact ``tuple`` to ``-/N``, even under
-    ``py_object(true)``, but applies that rule to no tuple subclass.  Keeping
+    ``py_object(true)``, but applies that rule to no tuple subclass. Keeping
     the exact source tuple lets calls through this bridge receive that value,
     while the subclass supplies ordinary tuple behaviour to any other host
     path that receives the reference directly.
@@ -65,6 +76,114 @@ class _GroundedTuple(tuple):
 
 def _grounded(value: Any) -> Any:
     return _GroundedTuple(value) if type(value) is tuple else value
+
+
+class _DeclaredValue:
+    """A transparent declaration owner for values weakref cannot observe."""
+
+    __slots__ = ("__weakref__", "_declared_type_texts", "value")
+
+    def __init__(self, value: Any) -> None:
+        self.value = value
+        self._declared_type_texts: list[str] = []
+
+    @property
+    def __metta_wire_value__(self) -> Any:
+        """The exact value represented by this private carrier."""
+        return self.value
+
+    def declare(self, type_text: str) -> None:
+        """Record one type once, preserving declaration order."""
+        with _DECLARATION_LOCK:
+            if type_text not in self._declared_type_texts:
+                self._declared_type_texts.append(type_text)
+
+    def declarations(self) -> list[str]:
+        """Snapshot the declarations while the carrier is live."""
+        with _DECLARATION_LOCK:
+            return list(self._declared_type_texts)
+
+    def __copy__(self) -> _DeclaredValue:
+        return self
+
+    def __deepcopy__(self, _memo: dict[int, Any]) -> _DeclaredValue:
+        return self
+
+
+_DECLARATION_LOCK = threading.RLock()
+_DECLARATIONS: dict[int, tuple[weakref.ReferenceType[Any], list[str]]] = {}
+_DECLARED_CARRIERS: dict[int, weakref.ReferenceType[_DeclaredValue]] = {}
+
+
+def _declared_carrier(value: Any) -> _DeclaredValue:
+    """Return the stable metadata carrier for a non-weak-referenceable value."""
+    if isinstance(value, _DeclaredValue):
+        return value
+    key = id(value)
+    with _DECLARATION_LOCK:
+        reference = _DECLARED_CARRIERS.get(key)
+        if reference is not None:
+            carrier = reference()
+            if carrier is not None and carrier.value is value:
+                return carrier
+        carrier = _DeclaredValue(value)
+
+        def _evict(_: Any, key: int = key) -> None:
+            with _DECLARATION_LOCK:
+                current = _DECLARED_CARRIERS.get(key)
+                if current is not None and current() is None:
+                    del _DECLARED_CARRIERS[key]
+
+        _DECLARED_CARRIERS[key] = weakref.ref(carrier, _evict)
+        return carrier
+
+
+def declare_type(value: Any, type_text: str) -> Any:
+    """Attach one serialized MeTTa type without strongly owning the value."""
+    if not isinstance(type_text, str):
+        msg = f"a declared type encoding must be str, not {type(type_text).__name__}"
+        raise TypeError(msg)
+    if isinstance(value, _DeclaredValue):
+        value.declare(type_text)
+        return value
+    unwrapped = _unwrap(value)
+    try:
+        key = id(unwrapped)
+
+        def _evict(reference: weakref.ReferenceType[Any], key: int = key) -> None:
+            with _DECLARATION_LOCK:
+                current = _DECLARATIONS.get(key)
+                if current is not None and current[0] is reference:
+                    del _DECLARATIONS[key]
+
+        reference = weakref.ref(unwrapped, _evict)
+    except TypeError:
+        carrier = _declared_carrier(unwrapped)
+        carrier.declare(type_text)
+        return carrier
+    with _DECLARATION_LOCK:
+        current = _DECLARATIONS.get(key)
+        if current is None or current[0]() is not unwrapped:
+            texts: list[str] = []
+            _DECLARATIONS[key] = (reference, texts)
+        else:
+            texts = current[1]
+        if type_text not in texts:
+            texts.append(type_text)
+    return value
+
+
+def declared_type_texts(value: Any) -> list[str]:
+    """Return live declarations without extending the value's lifetime."""
+    if isinstance(value, _DeclaredValue):
+        return value.declarations()
+    unwrapped = _unwrap(value)
+    key = id(unwrapped)
+    with _DECLARATION_LOCK:
+        current = _DECLARATIONS.get(key)
+        if current is None or current[0]() is not unwrapped:
+            return []
+        return list(current[1])
 
 
 def _wire_value(value: Any) -> tuple[bool, Any]:

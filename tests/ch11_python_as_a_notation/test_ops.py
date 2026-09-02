@@ -23,6 +23,9 @@ Guarantees:
   - coroutine functions, including wrapped and callable forms, register as
     async operations and answer typed future spaces [tested:
     test_register_op_reads_co_flags_and_refuses_or_awaits; commit=39092863ae34184a9f955f185ff57c1ff177ec40]
+  - a type declared by py-atom is owned by its grounded value, so dropping the
+    value releases both the declaration and the Python object [tested:
+    test_a_py_atom_declaration_dies_with_its_grounded_value; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -31,13 +34,16 @@ Open Obligations:
 
 import asyncio
 import functools
+import gc
 import inspect
 import types
 import uuid
+import weakref
 from collections import Counter
 
 import pytest
 
+import metta_py
 from metta import (
     TRUE,
     UNIT,
@@ -1290,3 +1296,42 @@ def test_a_declared_type_survives_the_library_being_loaded(metta):
     assert metta.run("!(let $f (py-atom math.sqrt) (collapse (get-type $f)))") == [
         [metta.parse("(builtin_function_or_method)")]
     ]
+
+
+def test_a_py_atom_declaration_dies_with_its_grounded_value(metta):
+    """A declaration must not become a process-lifetime owner."""
+    value = metta.eval(
+        '(py-atom "type(\'DeclaredTypeVictim\', (), {})()" Ephemeral)'
+    )[0]
+    assert S.Ephemeral in metta.eval(S.get_type(value))
+    list_value = metta.eval('(py-atom "[1, 2]" Ephemeral)')[0]
+    assert S.Ephemeral in metta.eval(S.get_type(list_value))
+    polymorphic = metta.run(
+        "!(let $f (py-atom math.pow (-> $t $t $t)) "
+        "(collapse (get-type $f)))"
+    )[0][0]
+    arrow = polymorphic[1]
+    assert isinstance(arrow, Expression)
+    assert arrow[1] == arrow[2] == arrow[3]
+
+    class WeakVictim:
+        pass
+
+    references = []
+    for _ in range(200):
+        candidate = WeakVictim()
+        declared = metta_py.declare_type(candidate, "Ephemeral")
+        assert declared is candidate
+        references.append(weakref.ref(candidate))
+    del candidate, declared
+    gc.collect()
+    assert all(reference() is None for reference in references)
+
+    carriers = []
+    for _ in range(200):
+        declared = metta_py.declare_type([], "Ephemeral")
+        carriers.append(weakref.ref(declared))
+    del declared
+    gc.collect()
+    assert all(reference() is None for reference in carriers)
+    assert not metta.runtime.once("current_predicate(metta_py_declared_type/2)")

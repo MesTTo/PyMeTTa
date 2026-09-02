@@ -83,6 +83,10 @@ Guarantees:
     without importing the Python package [tested:
     test_a_python_tuple_answers_the_same_through_both_doors;
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
+  - Grounded keeps a returned object carrier privately while exposing its
+    underlying value, so carrier-owned metadata survives a later engine
+    crossing [tested:
+    test_a_py_atom_declaration_dies_with_its_grounded_value; commit=WORKTREE]
   - Atom operator methods are installed from the immutable 22-entry lowering
     table, including explicit templates and named refusals [tested:
     test_the_operator_table_is_generated_from_one_source_with_no_holes;
@@ -821,8 +825,12 @@ class Grounded(Atom):
     A symbol never equals a string; that distinction is the point.
     """
 
-    __slots__ = {"value": "the ground Python value this atom carries"}
+    __slots__ = {
+        "_wire_value": "the private carrier to reuse on a later crossing",
+        "value": "the ground Python value this atom carries",
+    }
     __match_args__ = ("value",)
+    _wire_value: Any | None
     value: Any
 
     def __call__(self, *args: Any, **kwargs: Any) -> Expression:
@@ -850,6 +858,7 @@ class Grounded(Atom):
 
     def __init__(self, value: Any) -> None:
         object.__setattr__(self, "value", _normalize_grounded(value))
+        object.__setattr__(self, "_wire_value", None)
 
     def __eq__(self, other: object) -> bool:
         if isinstance(other, Grounded):
@@ -883,7 +892,7 @@ class Grounded(Atom):
         return hash(("gnd", id(self.value)))
 
     def __reduce__(self):
-        if not _is_primitive(self.value):
+        if self._wire_value is not None or not _is_primitive(self.value):
             msg = (
                 "a grounded opaque object has process-local identity and "
                 "cannot be pickled; encode a stable value instead"
@@ -1018,6 +1027,8 @@ class Grounded(Atom):
 
     def to_wire(self) -> list:
         v = self.value
+        if self._wire_value is not None:
+            return ["o", self._wire_value]
         if type(v) is bool:
             return ["b", "true" if v else "false"]
         if type(v) is str:
