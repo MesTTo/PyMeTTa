@@ -214,7 +214,7 @@ _ROWS = 2_000
 #: size adds exactly 51 inferences and automatic adds 90/90/90/88. These are
 #: fixed translation and policy-guard costs, so plain remains exponential,
 #: automatic remains linear, and their n=20 separation remains 1,539x
-#: [measured: min-of-three fresh processes per size; command=CHECK_PY=/home/user/Dev/.venv-pypetta/bin/python python -c "from benchmarks.test_benchmarks import _automatic_tabling_observations; print(_automatic_tabling_observations())"; fixture=C reader and MORK present; commit=6872eee94500bc0246eabaa40d7175c498cc32ab].
+#: [measured: min-of-three fresh processes per size; command=$CHECK_PY -c "from benchmarks.test_benchmarks import _automatic_tabling_observations; print(_automatic_tabling_observations())"; fixture=C reader and MORK present; commit=6872eee94500bc0246eabaa40d7175c498cc32ab].
 _AUTOMATIC_TABLING_PINS = {
     12: {"plain": 122_400, "automatic": 16_701},
     15: {"plain": 953_952, "automatic": 17_838},
