@@ -454,6 +454,11 @@ def test_perf_timeout_kills_and_reaps_process_group(monkeypatch):  # noqa: D103 
     killed = []
 
     monkeypatch.setattr("metta.benchmarking.os.posix_spawn", lambda *_args, **_kwargs: 42)
+    # This test substitutes the whole act of running a process; the tools it
+    # would have run are part of that, and requiring them installed would make
+    # a timeout-and-reap test depend on the machine having perf.
+    monkeypatch.setattr("metta.benchmarking.shutil.which", lambda name: f"/usr/bin/{name}")
+    monkeypatch.setattr("metta.benchmarking.os.access", lambda _path, _mode: True)
 
     def waitpid(process, options):
         waits.append((process, options))
