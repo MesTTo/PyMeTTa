@@ -3,7 +3,7 @@
 Guarantees:
   - a disjoint clause publishes only its own main and helper equations in one
     engine call [tested: test_stacked_definition_writes_scale_with_the_new_clause;
-    commit=WORKTREE]
+    commit=9b6695455c30809c75267c50a5137e38925af386]
 Open Obligations:
   To Do: None
   Hacks: None

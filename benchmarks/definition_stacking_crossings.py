@@ -13,17 +13,19 @@ Run from ``extensions/python``::
 Guarantees:
   - generated functions remain inspectable without filesystem scratch data
     [tested: test_stacked_definition_writes_scale_with_the_new_clause;
-    commit=WORKTREE]
+    commit=9b6695455c30809c75267c50a5137e38925af386]
   - every measured clause answers its own literal head, so a lower write count
     cannot hide a missing equation [tested:
-    test_stacked_definition_writes_scale_with_the_new_clause; commit=WORKTREE]
+    test_stacked_definition_writes_scale_with_the_new_clause;
+    commit=9b6695455c30809c75267c50a5137e38925af386]
   - K=8/16/32 took 128/512/2,048 calls and transported the same number
     of atoms before the delta; it takes 8/16/32 calls and transports
     16/32/64 atoms after the delta [measured: exact write-call and payload
     counts at K=8/16/32; command=cd extensions/python && PYTHONPATH=.
     /home/user/Dev/.venv-pypetta/bin/python -m
     benchmarks.definition_stacking_crossings 8 16 32; fixture=one main and
-    one loop-helper equation per disjoint literal clause; commit=WORKTREE]
+    one loop-helper equation per disjoint literal clause;
+    commit=9b6695455c30809c75267c50a5137e38925af386]
 Open Obligations:
   To Do: None
   Hacks: None

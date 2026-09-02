@@ -57,7 +57,8 @@ Guarantees:
   - stacking disjoint clauses retains every unchanged physical equation and
     batches only the alpha-equivalence delta, so K two-equation clauses take
     K engine calls and transport 2K atoms rather than 2K squared [tested:
-    test_stacked_definition_writes_scale_with_the_new_clause; commit=WORKTREE]
+    test_stacked_definition_writes_scale_with_the_new_clause;
+    commit=9b6695455c30809c75267c50a5137e38925af386]
   - install_type equips a plain annotated class with data construction,
     __match_args__, and __replace__ before registering its full-arity term
     image [tested: test_define_accepts_a_plain_annotated_data_class;
