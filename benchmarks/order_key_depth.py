@@ -13,18 +13,19 @@ Guarantees:
   - the recursive reference preserves the former expression traversal for a
     durable failure threshold and timing comparison [tested:
     test_recursive_reference_captures_the_removed_depth_failure;
-    commit=WORKTREE]
+    commit=c8dace7a057afeb9db6acec2a1f4e952b954927e]
   - every measured key compares with an independently produced equivalent key,
     so a reported timing cannot hide an unusable result [tested:
     test_recursive_reference_captures_the_removed_depth_failure;
-    commit=WORKTREE]
+    commit=c8dace7a057afeb9db6acec2a1f4e952b954927e]
   - at depths 250/500/1,000/2,000 the recursive reference takes 58.796
     microseconds then raises RecursionError, while the flat key takes
     49.834/93.220/183.898/381.238 microseconds [measured: minimum of three
     process-CPU rounds with five calls per round; command=cd extensions/python
     && PYTHONPATH=. /home/user/Dev/.venv-pypetta/bin/python -m
     benchmarks.order_key_depth 250 500 1000 2000 --repetitions 5 --rounds 3;
-    fixture=unary expression chains; commit=WORKTREE]
+    fixture=unary expression chains;
+    commit=c8dace7a057afeb9db6acec2a1f4e952b954927e]
 Open Obligations:
   To Do: None
   Hacks: None

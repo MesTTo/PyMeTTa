@@ -4,13 +4,13 @@ Guarantees:
   - order_key, sorted, min, max, and all four rich comparisons answer at 600
     expression levels [tested:
     test_deep_atom_ordering_uses_a_constant_python_call_stack;
-    commit=WORKTREE]
+    commit=c8dace7a057afeb9db6acec2a1f4e952b954927e]
   - expression-prefix ordering remains childwise at the same depth [tested:
     test_deep_expression_prefixes_keep_childwise_order;
-    commit=WORKTREE]
+    commit=c8dace7a057afeb9db6acec2a1f4e952b954927e]
   - the durable recursive reference retains the removed failure at depth 600
     [tested: test_recursive_reference_captures_the_removed_depth_failure;
-    commit=WORKTREE]
+    commit=c8dace7a057afeb9db6acec2a1f4e952b954927e]
 Open Obligations:
   To Do: None
   Hacks: None

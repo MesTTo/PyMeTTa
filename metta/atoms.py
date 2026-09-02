@@ -8,11 +8,13 @@ Guarantees:
   - expression order keys use a flat prefix encoding, so 600 nested levels
     retain childwise ordering without consuming Python frames [tested:
     test_deep_atom_ordering_uses_a_constant_python_call_stack,
-    test_deep_expression_prefixes_keep_childwise_order; commit=WORKTREE]
+    test_deep_expression_prefixes_keep_childwise_order;
+    commit=c8dace7a057afeb9db6acec2a1f4e952b954927e]
   - the explicit work agenda follows the engine arbiter's iterative compound
     comparison [source: SWI-Prolog pl-prims.c compareStandard and
     pl-termwalk.c term_agendaLR at upstream commit
-    9f804dee22b48bc6ad92f97d6c0fb675a1f0391b; commit=WORKTREE]
+    9f804dee22b48bc6ad92f97d6c0fb675a1f0391b;
+    commit=c8dace7a057afeb9db6acec2a1f4e952b954927e]
   - type and keyword builders produce stored terms while ``order_key`` and
     Atom.__lt__ agree on elementwise expression order [tested:
     test_typed_and_arrow_retire_49_raw_type_symbols,
