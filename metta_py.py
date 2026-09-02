@@ -10,6 +10,10 @@ Guarantees:
   - resolve() imports the longest importable prefix of a dotted path and
     getattrs the rest, so a path of any depth works [tested: B26 in
     tests/prolog/suites/host/python_surface.plt]
+  - prefix fallback handles only a missing candidate module; import failures
+    raised by an importable candidate propagate unchanged [tested:
+    test_resolution_preserves_internal_failure_from_an_importable_prefix;
+    commit=WORKTREE]
   - successful resolve() calls reuse a bounded weak prefix plan, retain live
     final attributes, and refresh when the chosen module or its next longer
     prefix changes in sys.modules [tested:
@@ -394,7 +398,17 @@ def _find_resolve_root(path: str) -> tuple[ModuleType, str | None, tuple[str, ..
         module_name = ".".join(parts[:cut])
         try:
             found = importlib.import_module(module_name)
-        except ImportError:
+        except ModuleNotFoundError as error:
+            # ImportError.name records the module being imported. A missing
+            # intermediate package also rules out this longer candidate; any
+            # name outside the candidate's prefix chain is a dependency the
+            # candidate failed to import and must remain the reported failure.
+            # [source: https://docs.python.org/3/library/exceptions.html#ImportError; commit=WORKTREE]
+            missing = error.name
+            if not isinstance(missing, str) or not (
+                module_name == missing or module_name.startswith(f"{missing}.")
+            ):
+                raise
             continue
         return found, module_name, tuple(parts[cut:])
     return builtins, None, tuple(parts)

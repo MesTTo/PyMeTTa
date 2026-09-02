@@ -15,6 +15,10 @@ Guarantees:
     [tested: test_resolution_plans_do_not_own_temporary_modules,
     test_resolution_plan_cache_is_bounded;
     commit=d0bb2ff730a491eac9a0c679a4e2abe0f93ab196]
+  - a candidate module's internal ImportError or missing dependency propagates
+    unchanged instead of being mistaken for an absent candidate [tested:
+    test_resolution_preserves_internal_failure_from_an_importable_prefix;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -117,6 +121,39 @@ def test_a_failed_final_read_does_not_poison_a_later_lookup(monkeypatch):
     expected = object()
     module.value = expected
     assert metta_py.resolve(f"{name}.value") is expected
+
+
+@pytest.mark.parametrize("failure_kind", ["missing-dependency", "from-list"])
+def test_resolution_preserves_internal_failure_from_an_importable_prefix(
+    monkeypatch,
+    failure_kind,
+):
+    """P32: only the attempted candidate's absence permits prefix fallback."""
+    _clear_cache()
+    module_name = "p32_broken_resolution"
+    path = f"{module_name}.value"
+    failure: ImportError
+    if failure_kind == "missing-dependency":
+        failure = ModuleNotFoundError(name="p32_internal_dependency", path=None)
+    else:
+        failure = ImportError("cannot import name 'required_value'")
+    attempted = []
+
+    def broken_import(name: str):
+        attempted.append(name)
+        if name == path:
+            raise ModuleNotFoundError(name=path, path=None)
+        if name == module_name:
+            raise failure
+        msg = f"unexpected import candidate {name!r}"
+        raise AssertionError(msg)
+
+    monkeypatch.setattr(metta_py.importlib, "import_module", broken_import)
+    with pytest.raises(type(failure)) as caught:
+        metta_py.resolve(path)
+    assert caught.value is failure
+    assert attempted == [path, module_name]
+    _clear_cache()
 
 
 def test_resolution_plans_do_not_own_temporary_modules():
