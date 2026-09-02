@@ -13,10 +13,12 @@ Guarantees:
     term to atom-memory curves.
   - page-based process memory is reported but never gates the initial
     baseline; only deterministic SWI bytes/counts and inference shapes do.
-  - projection-width curves also use perf's controlled instructions:u window,
-    because SWI does not charge memberchk/2 traversal to its inference counter
+  - join-width curves use perf's controlled instructions:u window, because
+    work in a held engine and memberchk/2 traversal are both invisible to the
+    caller's inference counter
     [tested: test_aggregation_accepts_controlled_instruction_samples;
-    commit=d843bb6d17a525c36afd21cab077d63b34447535]
+    test_both_join_width_shapes_gate_on_controlled_instructions;
+    commit=WORKTREE]
   - query-answer curves use numeric payloads, leaving unique wire-name retention
     to its own capped-cache curves so streaming peak memory measures the cursor
     rather than the intern table [tested: test_stream_curve_excludes_wire_cache_growth;
@@ -132,7 +134,7 @@ CASES: dict[str, CurveCase] = {
         "query-stream", STANDARD_SIZES, "constant", "python_peak_bytes", "query_stream",
     ),
     "join-shared": CurveCase(
-        "join-shared", WIDE_SIZES, "linear", "inferences", "join_shared",
+        "join-shared", WIDE_SIZES, "linear", "instructions", "join_shared",
         instruction_case="memory-join-shared",
     ),
     "join-projection": CurveCase(

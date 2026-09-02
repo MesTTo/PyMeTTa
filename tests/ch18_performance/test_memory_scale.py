@@ -5,10 +5,11 @@ Guarantees:
   - linear and quadratic synthetic curves are classified by their intended
     complexity families.
   - the CLI quick lane executes each point in a distinct spawned process.
-  - controlled projection workloads check both shared and distinct-column
-    answer shapes before they can publish an instruction sample
-    [tested: test_instruction_join_workload_checks_both_projection_shapes;
-    commit=d843bb6d17a525c36afd21cab077d63b34447535].
+  - both join-width shapes gate on controlled instructions and check their
+    public answers before publishing a sample [tested:
+    test_both_join_width_shapes_gate_on_controlled_instructions,
+    test_instruction_join_workload_checks_both_projection_shapes;
+    commit=WORKTREE].
   - the streaming answer curve measures bounded cursor memory without unique
     wire names populating the separately measured intern caches [tested:
     test_stream_curve_excludes_wire_cache_growth;
@@ -57,7 +58,7 @@ def test_curve_fit_recognises_a_bounded_linear_cache():
 
 def test_aggregation_preserves_samples_and_noise_band():
     """Retain every raw sample and derive its full noise band."""
-    case = CASES["join-shared"]
+    case = CASES["support-drop-one"]
     raw = {
         1: [
             {"inferences": 10, "_worker_pid": 101},
@@ -109,6 +110,12 @@ def test_aggregation_accepts_controlled_instruction_samples():
     ]
 
 
+def test_both_join_width_shapes_gate_on_controlled_instructions():
+    """A held engine's invisible inference counter cannot decide either curve."""
+    assert CASES["join-shared"].primary_metric == "instructions"
+    assert CASES["join-projection"].primary_metric == "instructions"
+
+
 def test_instruction_join_workload_checks_both_projection_shapes():
     """Exercise shared and distinct-column controlled join workloads."""
     assert pure_benchmark_main(["memory-join-shared", "--size", "10"]) == 0
@@ -117,7 +124,7 @@ def test_instruction_join_workload_checks_both_projection_shapes():
 
 def test_baseline_comparison_uses_pinned_noise_and_names_a_regression():
     """Compare every selected pin and identify the moved case."""
-    case = CASES["join-shared"]
+    case = CASES["support-drop-one"]
     raw = {
         size: [{"inferences": size * 10, "_worker_pid": size}]
         for size in case.sizes

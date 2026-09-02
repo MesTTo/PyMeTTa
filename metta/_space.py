@@ -70,9 +70,11 @@ Guarantees:
     test_relative_declarations_refuse_inside_an_active_batch,
     test_relative_coverage_declaration_governs_world_evaluation; commit=fdf3d1d7e7486dd8110bbf9b44b968960276a602]
   - ``Space.match`` returns a lazy Answers view; truth and single unpack pull
-    only their demanded prefix, while len counts inside the engine [tested:
+    only their demanded prefix, len counts inside the engine, and list uses
+    its existing cursor without first running a second count query [tested:
     test_query_answers_complete_the_lazy_projection_protocol,
-    test_query_single_unpack_pulls_at_most_two_answers; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
+    test_query_single_unpack_pulls_at_most_two_answers,
+    test_list_materializes_a_match_without_a_second_query; commit=WORKTREE]
   - match and call answers accept explicit or scoped algebra carriers;
     counting uses engine aggregates and ordered carriers sort before slicing
     [tested:
@@ -2171,17 +2173,11 @@ class Space(Handle):
             tuple(_to_atom(pattern) for pattern in patterns),
             guard_atom(where),
         )
-        answers: Answers[Any] = Answers(
-            source(),
-            columns=cursor.columns,
-            space=self._space,
-            target=patterns,
-            query=query_context,
-            # The engine admits this second evaluation only when the match,
-            # provider, modifiers, and guard are repeatable. Otherwise
-            # Answers materializes its existing cursor, so list()'s length
-            # hint cannot fire an effect twice.
-            count=lambda **_route: query_count_if_repeatable(
+
+        def count_answers(*, values_wanted: bool) -> int | None:
+            if values_wanted:
+                return None
+            return query_count_if_repeatable(
                 self._rt,
                 self._space,
                 patterns,
@@ -2189,7 +2185,18 @@ class Space(Handle):
                 limit=limit,
                 timeout=timeout,
                 inferences=inferences,
-            ),
+            )
+
+        answers: Answers[Any] = Answers(
+            source(),
+            columns=cursor.columns,
+            space=self._space,
+            target=patterns,
+            query=query_context,
+            # A bare len asks the engine to admit a repeatable second query.
+            # list has already asked for an iterator, so its length hint
+            # materializes the one cursor it is about to consume.
+            count=count_answers,
         )
         if into is None:
             return answers

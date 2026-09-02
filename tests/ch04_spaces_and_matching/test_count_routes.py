@@ -21,7 +21,8 @@ Guarantees:
       the values are then wanted [tested:
       test_a_length_evaluates_an_effect_bearing_goal_exactly_once]
     - the values-wanted hint a count source is given picks a route and never
-      an answer [tested: test_taking_an_iterator_first_does_not_change_the_answers]
+      an answer [tested: test_taking_an_iterator_first_does_not_change_the_answers,
+      test_list_materializes_a_match_without_a_second_query]
     - the retained bag survives an arbitrary generated answer multiset
       [tested: test_a_generated_answer_bag_survives_both_routes]
     - inspecting an Answers iterator never delays its engine release through
@@ -255,6 +256,28 @@ def test_taking_an_iterator_first_does_not_change_the_answers(metta) -> None:
     assert len(counted_first) == 3
     assert [str(answer) for answer in counted_first] == ["0", "1", "2"]
     assert fired == [0, 1, 2]
+
+
+def test_list_materializes_a_match_without_a_second_query(metta, monkeypatch) -> None:
+    """A caller already reading rows does not pre-count the same match."""
+    metta.add(S["route-list-row"](1))
+    runtime = metta.runtime
+    original = type(runtime).apply_must
+    counts: list[str] = []
+
+    def observe(self, predicate, *inputs):
+        if predicate == "metta_py_query_count_if_repeatable":
+            counts.append(predicate)
+        return original(self, predicate, *inputs)
+
+    monkeypatch.setattr(type(runtime), "apply_must", observe)
+
+    materialized = list(metta.match(S["route-list-row"](V.value)))
+    assert [row.value for row in materialized] == [1]
+    assert counts == [], "list() must use its one materializing query"
+
+    assert len(metta.match(S["route-list-row"](V.value))) == 1
+    assert counts == ["metta_py_query_count_if_repeatable"]
 
 
 @settings(deadline=None, max_examples=25)
