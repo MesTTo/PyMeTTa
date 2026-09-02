@@ -3928,8 +3928,8 @@ class Space(Handle):
                 'register, a :- metta_export("...") declaration for a '
                 "source that defines functions, or a "
                 ":- metta_extension(name, []) declaration for one that "
-                "contributes clauses to a seam and exports nothing, such "
-                "as a space provider. Discovering the names would "
+                "contributes clauses to an extension point and exports "
+                "nothing, such as a space provider. Discovering the names would "
                 "silently register whatever else the source defines"
             )
             raise ValueError(

@@ -378,8 +378,8 @@ def check_space_provider(provider, *, atoms_to_store=None, source="repeated") ->
         msg = (
             f"{name} is not a SpaceProvider, and it is not a Space handle: "
             f"pass the provider object for the pre-registration half, or "
-            f"the registered space's handle to run the engine's own checker "
-            f"through the seam, whatever the provider's substrate"
+            f"the registered space's handle to run the engine's own checker, "
+            f"whatever the provider's substrate"
         )
         raise AssertionError(msg)  # noqa: TRY004  -- the harness is checking its own invariant, so AssertionError is the intended contract
     ran = _check_declared_capabilities(provider, name)

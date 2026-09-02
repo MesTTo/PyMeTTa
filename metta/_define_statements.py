@@ -1453,7 +1453,7 @@ class StatementCompilerMixin(CompilerContext):
                     msg = (
                         f"{target_name!r} is a space held outside this body, "
                         f"and += cannot rebind a closure (Python's own rule); "
-                        f"write the door itself, "
+                        f"call the write function itself, "
                         f"fn.add_atom({target_name}, <atom>), or take the "
                         f"space as a parameter"
                     )
@@ -1472,9 +1472,9 @@ class StatementCompilerMixin(CompilerContext):
                 # The same pair the statement path emits, so a write
                 # inside a bound block means what it means outside one:
                 # -= subtracts ONE occurrence, and the drain is del.
-                doors = {ast.Add: "add-atom", ast.Sub: "subtract-atom"}
-                door = doors.get(type(head.op))
-                if door is None:
+                space_operations = {ast.Add: "add-atom", ast.Sub: "subtract-atom"}
+                operation = space_operations.get(type(head.op))
+                if operation is None:
                     op_word = type(head.op).__name__
                     msg = (
                         f"{target_name!r} holds a space, which takes += "
@@ -1488,7 +1488,7 @@ class StatementCompilerMixin(CompilerContext):
                     )
                 value = Expression(
                     [
-                        Symbol(door),
+                        Symbol(operation),
                         Variable(self.scope[target_name]),
                         self.expression(head.value),
                     ]
