@@ -3,9 +3,11 @@
 Guarantees:
   - increasing the call site's bytecode offset by more than one hundredfold
     does not multiply steady-state Answers iteration time [tested:
-    test_answer_iteration_benchmark_reuses_one_warmed_view; commit=WORKTREE]
+    test_answer_iteration_benchmark_reuses_one_warmed_view;
+    commit=0ffac1f272c65d1c3742a2bfb824538e426c264a]
   - cached position metadata does not keep generated code alive [tested:
-    test_answer_position_cache_does_not_own_generated_code; commit=WORKTREE]
+    test_answer_position_cache_does_not_own_generated_code;
+    commit=0ffac1f272c65d1c3742a2bfb824538e426c264a]
 Open Obligations:
   To Do: None
   Hacks: None

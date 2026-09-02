@@ -15,17 +15,19 @@ Guarantees:
   - every row repeats one already-warmed one-answer view, so construction,
     source parsing, and the first position-table build stay outside timing
     [tested: test_answer_iteration_benchmark_reuses_one_warmed_view;
-    commit=WORKTREE]
+    commit=0ffac1f272c65d1c3742a2bfb824538e426c264a]
   - padding changes the call-site instruction offset without changing the
     measured iteration count or answer [tested:
-    test_answer_iteration_benchmark_reuses_one_warmed_view; commit=WORKTREE]
+    test_answer_iteration_benchmark_reuses_one_warmed_view;
+    commit=0ffac1f272c65d1c3742a2bfb824538e426c264a]
   - at 0, 1,000, and 4,000 skipped operations, the old linear lookup took
     15.70, 358.81, and 1,356.07 microseconds per iteration; the weak call-site
     cache took 3.39, 3.27, and 3.33 microseconds [measured: 2,000
     warmed one-answer iterations, minimum of 3 rounds; command=cd
     extensions/python && PYTHONPATH=. /home/user/Dev/.venv-pypetta/bin/python
     -m benchmarks.answer_iteration_cost --calls 2000 --rounds 3;
-    fixture=CPython 3.14, paddings 0/1000/4000; commit=WORKTREE]
+    fixture=CPython 3.14, paddings 0/1000/4000;
+    commit=0ffac1f272c65d1c3742a2bfb824538e426c264a]
 Open Obligations:
   To Do: None
   Hacks: None
