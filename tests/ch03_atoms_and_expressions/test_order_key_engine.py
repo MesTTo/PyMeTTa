@@ -9,7 +9,8 @@ Guarantees:
     commit=c8dace7a057afeb9db6acec2a1f4e952b954927e]
   - the engine oracle sorts decoded wire terms directly, so call-shaped data
     is compared rather than evaluated [tested:
-    test_flat_order_key_matches_msort_on_nested_shapes; commit=WORKTREE]
+    test_flat_order_key_matches_msort_on_nested_shapes;
+    commit=36c54faca8191c9c3b255285dbc9affd56bc970b]
 Open Obligations:
   To Do: None
   Hacks: None
