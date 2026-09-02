@@ -7,7 +7,7 @@ Guarantees:
     test_no_decorator_flag_changes_the_return_shape_and_declarations_are_atoms,
     test_every_public_execution_door_honours_speculative_policy,
     test_an_answers_view_uses_policy_when_its_engine_work_runs;
-    commit=c3c6c2588b7d445aa7de60cac25c1abb721a460b]
+    commit=WORKTREE]
   - eager eval follows the same atomic and speculative policy wrapper as run,
     so State property writes cannot bypass a speculative fence [tested:
     test_speculative_state_write_is_fenced; commit=3ded7552797b66d78e666141eb51f3bc14686bd2]
@@ -68,7 +68,7 @@ from __future__ import annotations
 
 import re
 from collections import deque
-from collections.abc import Generator, Iterable, Iterator, Sequence
+from collections.abc import Callable, Generator, Iterable, Iterator, Sequence
 from contextvars import ContextVar
 from dataclasses import dataclass
 from typing import Any, Self
@@ -613,6 +613,7 @@ def evaluate_answers(
     using: dict[str, Any] | None = None,
     under: str | None = None,
     order: str | None = None,
+    annotation_factory: Callable[[Any, Atom], Any] | None = None,
 ) -> Answers[Any]:
     """Return evaluation as a cached lazy answer sequence.
 
@@ -743,14 +744,11 @@ def evaluate_answers(
                     and error_answer(value) is None
                     and not isinstance(value, Undefined)
                 ):
-                    from ._space import Space  # noqa: PLC0415 -- avoid module cycle
-                    from .algebra import captured_answer  # noqa: PLC0415 -- lazy satellite
-
-                    value = captured_answer(
-                        Space(space, _runtime=rt),
-                        value,
-                        _atom_from_wire(annotation_wire),
-                        under,
+                    if annotation_factory is None:
+                        msg = "annotated evaluation requires an answer converter"
+                        raise EngineError(msg)
+                    value = annotation_factory(
+                        value, _atom_from_wire(annotation_wire)
                     )
                 # A failed branch is still its Error/Undefined answer.  For an
                 # ordinary relational answer, preserve the caller bindings as

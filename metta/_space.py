@@ -79,7 +79,7 @@ Guarantees:
     test_counting_counts_match_bag_duplicates_without_opening_a_row_cursor,
     test_counting_counts_duplicate_call_answers_inside_the_engine,
     test_ranked_and_tropical_slices_are_stable_best_prefixes;
-    commit=c7468b2789746bcf95c4bacc0e2d517ec4d972fa]
+    commit=WORKTREE]
   - ``Space.pre_add`` declares one compiled unary judge through the engine's
     existing pre-add hook [tested: test_pre_add_compiles_the_four_verdict_judge;
     commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
@@ -2984,6 +2984,11 @@ class Space(Handle):
                 using=using,
                 under=declaration.name,
                 order=declaration.order,
+                annotation_factory=(
+                    lambda value, annotation: algebra_api.captured_answer(
+                        self, value, annotation, declaration
+                    )
+                ),
             )
             yield from ordinary._items()
 
