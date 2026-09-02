@@ -575,7 +575,7 @@ def main(argv: list[str]) -> int:
             stale.append(path.name)
     if not stale:
         if not arguments.write:
-            print(f"all three mirrors match Space ({len(MODULE_DOORS)} module doors)")
+            print(f"all three mirrors match Space ({len(MODULE_DOORS)} module methods)")
         return 0
     print(
         f"{' and '.join(stale)} no longer match Space: run "

@@ -244,7 +244,7 @@ def _lookup_locked(cls: type) -> _Registration | None:
     return None
 
 
-# Registration listeners, the seam that lets an engine reflect explicit
+# Registration listeners let an engine reflect explicit
 # registrations as atoms without this module knowing engines exist. Each
 # callback receives (cls, old, new), new None on unregister; only EXPLICIT
 # entries notify, because the memoized defaults are this module's private

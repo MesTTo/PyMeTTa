@@ -65,7 +65,7 @@ class _EffectStrEnum(_AtomStrEnum):
         (commutative, idempotent, associative, with the weakest rank as
         identity). Anything that is not an effect refuses by naming both
         readings, so a caller who wanted the string operation is told which
-        operation they reached rather than seeing a bad-enum-value error.
+        operation they called rather than seeing a bad-enum-value error.
         """
         try:
             other = type(self)(other)

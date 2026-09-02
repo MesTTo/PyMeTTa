@@ -5,7 +5,7 @@ Guarantees:
   - union expansion is bounded by the configured declaration limit and its
     refusal points to unannotated wrappers plus explicit declaration atoms
     [tested: test_union_expansion_is_bounded; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
-  - every host atom class keeps its engine metatype at the annotation seam
+  - every host atom class keeps its engine metatype at the annotation boundary
     [tested: test_the_four_metatypes_stay_distinct_across_the_seam;
      commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - full container parameters survive as matchable annotation atoms while

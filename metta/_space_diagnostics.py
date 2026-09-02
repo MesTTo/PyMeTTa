@@ -11,7 +11,7 @@ Guarantees:
   - derivation enumeration selects ``metta_py_limited/6`` when a scoped stack
     bound exists [tested: test_stack_limit_is_carried_to_the_limited_six_seam;
     commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
-  - derivation enumeration crosses through the shared execution-policy seam,
+  - derivation enumeration crosses through the shared execution-policy wrapper,
     so atomic, speculative, and capture scopes cover the whole proof search
     [tested: test_every_public_execution_door_honours_speculative_policy,
     test_derivation_speculation_fences_the_engine_global_self;

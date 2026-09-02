@@ -26,8 +26,8 @@ Guarantees:
     member without the explicit snapshot protocol refuses by member name
     [tested: test_reify_refuses_and_names_a_live_composite_member;
     commit=3ded7552797b66d78e666141eb51f3bc14686bd2]
-  - every provider member keeps the seam's capability and request-policy
-    checks for enumeration, matching, add, remove, and clear
+  - every provider member keeps the provider interface's capability and
+    request-policy checks for enumeration, matching, add, remove, and clear
     [tested: test_combinators_forward_every_provider_policy_request;
     commit=f10b3766f72a01bc7c023eb27ff6732dfde7ccf6]
 Open Obligations:
@@ -399,7 +399,7 @@ class _Member:
 class _Union(SpaceProvider):
     """The read-only aggregate: rdflib's ReadOnlyGraphAggregate reading.
     match answers every member's candidates (over-approximation stays
-    sound by the seam's own law), atoms chains, and no write operation
+    sound by the provider contract's own law), atoms chains, and no write operation
     exists, so the engine's capability refusal answers writes. The MeTTa
     reading: overlapping shapes answer as a nondeterministic union the
     way overlapping equations do; a union space is that, one level up.

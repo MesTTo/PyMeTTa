@@ -246,7 +246,7 @@ def _apply_limited(
     predicate: str,
     inputs: list[Any],
 ) -> Any:
-    """Apply the preserved /5 seam or stack-aware /6 seam as required."""
+    """Apply the preserved /5 call or stack-aware /6 call as required."""
     seconds, steps, stack = limits
     if stack < 0:
         return runtime.apply_must(
@@ -523,7 +523,7 @@ def _forward_window(window: slice) -> tuple[int, int | None]:
 
 
 def _explain_text(rt: Runtime, space_name: str, patterns: list, where) -> str:
-    """The seam's own decisions for one conjunction, rendered. Pure
+    """The engine's own decisions for one conjunction, rendered. Pure
     reflection through metta_py_explain: nothing runs, no row is pulled,
     and the engine answers claimed/rest as indexes so the caller's own
     atoms, variable names included, do the rendering.
@@ -804,7 +804,7 @@ class Cursor:
 
     def explain(self) -> str:
         """The query's plan, reflected rather than run: which provider
-        decisions the seam already made for this conjunction. See
+        decisions the engine already made for this conjunction. See
         Prepared.explain for the whole story; a cursor explains the same
         way, and explaining does not pull a row.
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
@@ -1098,7 +1098,7 @@ class Prepared:
 
     def explain(self) -> str:
         """The query's plan, reflected rather than run: polars'
-        LazyFrame.explain and SQL's EXPLAIN, from decisions the seam has
+        LazyFrame.explain and SQL's EXPLAIN, from decisions the engine has
         already made. For a Python-backed space, each pattern's line says
         whether its candidates push down exact (the provider's answers
         are trusted as instantiations, a bound may reach it) or inexact

@@ -56,7 +56,7 @@ Guarantees:
   - a successful module-level call remains lawful and records one advisory
     lint event [tested: test_a_module_level_defined_call_is_linted_not_refused;
     commit=acb40f1912f131ae088083d1af29b4b283019bea]
-  - cached definitions enter the compiled-call dispatch seam and expose their
+  - cached definitions enter the compiled-call dispatch path and expose their
     bag-preserving memo store, reached through lib_memo's own forms
     [tested: test_a_cached_definition_preserves_duplicate_answers;
     commit=8d6131a9d9902c67ce8cac71e96e8362a8713561]

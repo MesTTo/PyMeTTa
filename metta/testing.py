@@ -310,7 +310,7 @@ def from_pattern(pattern, max_leaves: int = 8):
     return instances()
 
 
-# ------------------------------------------------------ conformance for seams
+# ------------------------------------------ conformance for provider interfaces
 
 
 def check_space_provider(provider, *, atoms_to_store=None, source="repeated") -> list[str]:
@@ -332,9 +332,10 @@ def check_space_provider(provider, *, atoms_to_store=None, source="repeated") ->
     operation whose method is absent, which is a registration-time mistake
     that otherwise surfaces as an AttributeError inside an engine callback.
 
-    **Match over-approximates rather than under-approximates.** The seam's
-    central soundness claim is that a provider may yield more than the pattern
-    asks for, because the engine keeps unification, and may never yield less.
+    **Match over-approximates rather than under-approximates.** The provider
+    contract's central soundness claim is that a provider may yield more than
+    the pattern asks for, because the engine keeps unification, and may never
+    yield less.
     Every stored atom vouches for a whole pattern family, itself, each
     position opened to a variable, and repeated-variable folds, and the
     provider's answers for each are compared with a brute-force unification
@@ -356,12 +357,12 @@ def check_space_provider(provider, *, atoms_to_store=None, source="repeated") ->
     the operation and the atom.
 
     THE CHECK IS UNIVERSAL: a provider is any foreign substrate, not only a
-    Python object, and every substrate sits behind the space seam. Handed a
-    ``Space`` handle, this runs the engine's own checker
+    Python object, and every substrate implements the space-provider protocol.
+    Handed a ``Space`` handle, this runs the engine's own checker
     (lib/lib_conformance/lib_conformance.pl's ``check-space-provider``), which holds the
     same laws (capability reachability, the match pattern family, the
     declared source discipline, the canary round trip, the pushdown claim)
-    asked through the seam, so a provider written in Prolog, C, or anything
+    asked through that protocol, so a provider written in Prolog, C, or anything
     else is held to one contract. The object form stays the
     pre-registration half for Python authors; ``source=`` applies to it
     alone, because a registered space carries its declared ``(source ...)``
@@ -620,10 +621,11 @@ def _unify_pair(x, y, bindings, stack) -> bool:
 def _check_pushdown_claim(provider, name: str, stored: list) -> list[str]:
     """An exact claim is true: every candidate for the pattern unifies with it.
 
-    This is the one claim in the seam that can cost answers. Everything else a
-    provider says is checked by over-approximation being sound, but "exact"
-    licenses truncating at the caller's bound, and a provider that truncates
-    while yielding non-matching candidates answers fewer rows than exist.
+    This is the one claim in the provider contract that can cost answers.
+    Everything else a provider says is checked by over-approximation being
+    sound, but "exact" licenses truncating at the caller's bound, and a provider
+    that truncates while yielding non-matching candidates answers fewer rows
+    than exist.
     Under-answering is the one thing the contract forbids, so the claim is
     tested against the provider's own output over the whole pattern family of
     every stored atom, ground AND open AND repeated-variable: a filter that
@@ -666,7 +668,7 @@ def _match_or_cyclic_evidence(provider, pattern):
 
     The method refuses a rational-tree row loudly, and that refusal is EVIDENCE, not
     absence: the wire raises it only while answering a row whose binding is
-    cyclic, so the candidate exists on the engine side, where the seam's
+    cyclic, so the candidate exists on the engine side, where the provider contract's
     real consumer re-unifies natively with no wire between them. A python
     probe is the limited observer here, and the certification reads the
     refusal as the coverage it proves

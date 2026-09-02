@@ -6,7 +6,7 @@ Every vocabulary renders as one StrEnum class: each member IS its wire string,
 so `mode=OnError.keep` autocompletes, renames, enumerates with `list(OnError)`,
 survives every `value in ("keep", ...)` membership test a plain word passes,
 and crosses the boundary as the symbol it always was through `__metta__`.
-Bare words stay the runtime escape hatch at every consuming door; the enum is
+Bare words stay the runtime escape hatch at every consuming call; the enum is
 what the annotations name, which is the guide's "never strings" rule for
 option values made checkable.
 
@@ -75,7 +75,7 @@ this file. The vocab-sync gate lane fails when the two drift.
 
 Each member IS its wire string, so it passes every membership test a bare
 word passes and crosses as the symbol it always was; bare words remain the
-runtime escape hatch at every consuming door.
+runtime escape hatch at every consuming call.
 
 Guarantees:
   - every class here exactly matches its catalog vocabulary row, values in
@@ -132,7 +132,7 @@ class _EffectStrEnum(_AtomStrEnum):
         (commutative, idempotent, associative, with the weakest rank as
         identity). Anything that is not an effect refuses by naming both
         readings, so a caller who wanted the string operation is told which
-        door they reached rather than seeing a bad-enum-value error.
+        operation they called rather than seeing a bad-enum-value error.
         """
         try:
             other = type(self)(other)
@@ -211,7 +211,7 @@ def alias_name(vocab: str) -> str:
 
 
 def member_name(value: str) -> str:
-    """Map a vocabulary value to its member spelling: rung 4's own transliteration."""
+    """Map a vocabulary value with the catalog's mechanical transliteration."""
     name = value.replace("-", "_")
     if keyword.iskeyword(name):
         name += "_"

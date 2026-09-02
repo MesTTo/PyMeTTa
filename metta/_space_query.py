@@ -170,8 +170,8 @@ def _execute_query(
     inputs: list[Any],
     limits: tuple[float, int, int] | None,
 ) -> Any:
-    # Imported at the call boundary because _space_execution owns the policy
-    # seam and imports the shared query objects during module initialization.
+    # Imported at the call boundary because _space_execution owns policy
+    # handling and imports the shared query objects during module initialization.
     from ._space_execution import _controlled_run  # noqa: PLC0415
 
     return _controlled_run(rt, predicate, inputs, limits)

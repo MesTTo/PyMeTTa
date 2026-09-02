@@ -8,7 +8,7 @@
 #   - catalog-row documentation is attached to explicit members for static
 #     help [tested: test_generated_fn_help_is_offline; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
 #   - INTERNAL names have no static member while their exact runtime bracket
-#     door remains available [tested:
+#     form remains available [tested:
 #     test_internal_catalog_names_stay_exact_but_leave_public_outputs;
 #     commit=8779452fed89853c3f77c3469f7a6ec7b12e9efa]
 # Open Obligations:
@@ -31,9 +31,9 @@ class _FunctionNamespace:
     add_atom: Symbol
     "add-atom: (-> SpaceType Atom (->))\n\n`space += atom`, the container protocol. A plain Python tuple encodes to an expression on the way in, so a fact needs no builder ceremony. Bare symbols, grounded values, and empty expressions cross when engine `add-atom` accepts them too."
     add_atoms: Symbol
-    "add-atoms: (-> SpaceType Expression (->))\n\nThe same `+=` door, once per fact: anything that yields tuples is a fact stream. Lists, outer tuples of rows, generators, SQL cursors, and dataframe row iterators each write one atom per yielded item; a built Expression is always one atom."
+    "add-atoms: (-> SpaceType Expression (->))\n\nThe same `+=` form, once per fact: anything that yields tuples is a fact stream. Lists, outer tuples of rows, generators, SQL cursors, and dataframe row iterators each write one atom per yielded item; a built Expression is always one atom."
     add_reduct: Symbol
-    "add-reduct: (-> SpaceType %Undefined% (->))\n\nThere is no second door: `+=` adds what you give it, so adding a REDUCT is explicit composition, `space += m.eval(term)[0]`. Bare grounded answers use that door directly; this row wraps the evaluated sum only to retain its `total` relation head."
+    "add-reduct: (-> SpaceType %Undefined% (->))\n\nThere is no second form: `+=` adds what you give it, so adding a REDUCT is explicit composition, `space += m.eval(term)[0]`. Bare grounded answers use `+=` directly; this row wraps the evaluated sum only to retain its `total` relation head."
     add_reducts: Symbol
     "add-reducts: (-> SpaceType %Undefined% (->))\n\nThe plural of the same composition: evaluate, then write the answers."
     add_translator_rule: Symbol
@@ -81,7 +81,7 @@ class _FunctionNamespace:
     cons_atom: Symbol
     "cons-atom: (-> Atom Expression Atom)\n\nConstruction: call the head, or rebuild from head and tail with `*`."
     context_space: Symbol
-    "context-space: (-> SpaceType)\n\nThe space a program is currently in, which in Python is the handle it holds; `metta.current_space()` is the door for code that did not receive one, and it follows Python's own `current_thread` and `current_task` convention, so the Python word wins over the instruction's name. The row asks both sides for the current space's atoms."
+    "context-space: (-> SpaceType)\n\nThe space a program is currently in, which in Python is the handle it holds; `metta.current_space()` is the function for code that did not receive one, and it follows Python's own `current_thread` and `current_task` convention, so the Python word wins over the instruction's name. The row asks both sides for the current space's atoms."
     cos_math: Symbol
     "cos-math: (-> Number Number)\n\n`math.cos`."
     current_time: Symbol
@@ -194,7 +194,7 @@ class _FunctionNamespace:
     "map-atom: (-> Expression Variable Atom Expression)\nmap-atom: (-> Expression Expression Expression)\n\nA comprehension, or `map`. The variable and the template are the comprehension's own binder and body."
     maplist: Symbol
     match: Symbol
-    "match: (-> SpaceType Atom Atom %Undefined%)\n\n`space[pattern]` is the subscript door and `space.match(pattern)` the named one; the TEMPLATE is built in Python from the answer's bindings. `under=counting|tropical|prov|ranked` changes the annotation algebra; `answers(call, under=...)` is its call twin, `with metta.under(...)` scopes the default, and an annotated answer exposes `.annotation`, `.why()` and `.under(other)` without a re-query. `metta.algebra(...)` constructs arbitrary carriers while remaining their namespace."
+    "match: (-> SpaceType Atom Atom %Undefined%)\n\n`space[pattern]` is the subscript form and `space.match(pattern)` the named method; the TEMPLATE is built in Python from the answer's bindings. `under=counting|tropical|prov|ranked` changes the annotation algebra; `answers(call, under=...)` is its call twin, `with metta.under(...)` scopes the default, and an annotated answer exposes `.annotation`, `.why()` and `.under(other)` without a re-query. `metta.algebra(...)` constructs arbitrary carriers while remaining their namespace."
     match_types: Symbol
     max: Symbol
     max_atom: Symbol
@@ -268,7 +268,7 @@ class _FunctionNamespace:
     py_truthy: Symbol
     py_tuple: Symbol
     quote: Symbol
-    "quote: (-> Atom Atom)\n\nThere is nothing to quote: building a term at the `S.` door never evaluates it, so the quoting question does not arise. `S.quote(x)` builds the term itself where a program needs the constructor."
+    "quote: (-> Atom Atom)\n\nThere is nothing to quote: building a term with `S[...]` never evaluates it, so the quoting question does not arise. `S.quote(x)` builds the term itself where a program needs the constructor."
     random_float: Symbol
     random_int: Symbol
     read_form: Symbol
@@ -276,7 +276,7 @@ class _FunctionNamespace:
     reduce: Symbol
     register_token: Symbol
     remove_atom: Symbol
-    "remove-atom: (-> SpaceType Atom Bool)\n\nDrains every atom that unifies and answers True either way. `del space[pattern]` is this door, and raises when the pattern matches nothing as Python's `del` does; `subtract-atom` is the one-occurrence grain beside it, which `space -= atom` and `space.remove(atom)` both spell."
+    "remove-atom: (-> SpaceType Atom Bool)\n\nDrains every atom that unifies and answers True either way. `del space[pattern]` is this operation, and raises when the pattern matches nothing as Python's `del` does; `subtract-atom` is the one-occurrence grain beside it, which `space -= atom` and `space.remove(atom)` both spell."
     remove_translator_rule: Symbol
     remove_typing_rule: Symbol
     repr: Symbol
@@ -309,14 +309,14 @@ class _FunctionNamespace:
     sub: Symbol
     "-: (-> Number Number Number)\n\nPython's own operator."
     subtract_atom: Symbol
-    "subtract-atom: (-> SpaceType Atom Bool)\n\nTakes ONE unifying occurrence and answers whether one was there, the multiset subtraction `remove-atom` gave up when it took upstream's draining law. `space -= atom` is this door, because Python's in-place difference over a multiset is `collections.Counter`'s, which subtracts the multiplicity given rather than clearing the key, and `space.remove(atom)` is the same grain reporting what it found. An unbound atom is refused by name rather than read as every atom at once."
+    "subtract-atom: (-> SpaceType Atom Bool)\n\nTakes ONE unifying occurrence and answers whether one was there, the multiset subtraction `remove-atom` gave up when it took upstream's draining law. `space -= atom` is this operation, because Python's in-place difference over a multiset is `collections.Counter`'s, which subtracts the multiplicity given rather than clearing the key, and `space.remove(atom)` is the same grain reporting what it found. An unbound atom is refused by name rather than read as every atom at once."
     subtraction: Symbol
     "subtraction: (-> Atom Atom %Undefined%)\n\n`Counter` again, with `-`."
     subtraction_atom: Symbol
     "subtraction-atom: (-> Expression Expression Atom)\n\n`Counter` over children, answering an expression."
     super: Symbol
     superpose: Symbol
-    "superpose: (-> Expression %Undefined%)\n\nNondeterminism has no primitive of its own because Python's iteration IS it: a list of values is a multiset of answers, and `yield` is the same act inside a compiled body. `space.sample(q, k=10, seed=7)` is the weighted choice door, with replacement and implicit `(rate n)` weights."
+    "superpose: (-> Expression %Undefined%)\n\nNondeterminism has no primitive of its own because Python's iteration IS it: a list of values is a multiset of answers, and `yield` is the same act inside a compiled body. `space.sample(q, k=10, seed=7)` is the weighted choice method, with replacement and implicit `(rate n)` weights."
     superpose_bind: Symbol
     "superpose-bind: (-> Expression Atom)\n\nThe inverse of `collapse-bind`: it restores each alternative WITH its recorded bindings, which is a different operation from `superpose`."
     switch: Symbol

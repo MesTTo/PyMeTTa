@@ -13,10 +13,11 @@ This is OUR half. It registers the provider on a real engine and runs the
 expectations the ENGINE places on a space: that a stored atom is matchable
 through MeTTa, that a conjunction joins across it, that an undeclared write
 refuses loudly instead of answering nothing, that a bound is honoured whatever
-the provider does with it. Those are facts about the seam, and they are ours to
-keep true. An author gets them by subclassing rather than by reading a summary
-of them, which is SQLAlchemy's dialect compliance suite, "the primary target
-for new dialects", with about thirty external dialects on the strength of it
+the provider does with it. Those are properties of the provider protocol, and
+they are ours to keep true. An author gets them by subclassing rather than by
+reading a summary of them, which is SQLAlchemy's dialect compliance suite,
+"the primary target for new dialects", with about thirty external dialects on
+the strength of it
 [source: SQLAlchemy README.dialects.rst,
 https://github.com/sqlalchemy/sqlalchemy/blob/main/README.dialects.rst,
 read 2026-08-16].
@@ -436,7 +437,7 @@ class SpaceComplianceSuite:
     def test_a_claimed_join_answers_what_the_split_answers(
         self, provider, exercised, space, stored
     ):
-        """A claim is the one thing in this seam the engine cannot check.
+        """A claim is the one part of this provider contract the engine cannot check.
 
         Everywhere else a provider may over-approximate, because the engine
         re-unifies each candidate it yields and that is cheap. Claiming a
@@ -597,7 +598,7 @@ class SpaceComplianceSuite:
     ):
         """The provider's atoms have to reach a query that is not entirely
         about the provider, which is where a space that half implements the
-        seam stops working.
+        provider interface stops working.
 
         Written as MeTTa source rather than through match(), because match()
         matches every pattern against ONE space and a cross-space join names

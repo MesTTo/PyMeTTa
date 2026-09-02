@@ -2558,8 +2558,8 @@ class AsyncMeTTa:
     ) -> Atom | Any:
         """Return the event stream, or declare what this context promises.
 
-        Subscribability is a promise about the context, not something the
-        seam reads off its methods. A native space needs no declaration:
+        Subscribability is a promise about the context, not something its
+        methods alone establish. A native space needs no declaration:
         every write into it runs the engine's own hooks, so it delivers
         per-write-exactly and ordered by construction. A FOREIGN context
         declares, and one that declares nothing refuses a subscription

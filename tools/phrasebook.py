@@ -35,9 +35,9 @@ The five buckets, and what each CLAIMS:
   - `method`: the concept is MeTTa's, so it wears a metta name
     (`m.eval`, `space.query`, `atom.alpha_eq`). Section 9e's second bucket.
   - `instruction`: deep control that stays instruction-tier and is reached by
-    building the term at the `S.` door and reducing it. Section 9e's third
-    bucket. Such a row is Python with no MeTTa source text, but it is
-    deliberately transliteration-shaped: the ladder keeps the rung.
+    building the term with `S[...]` and reducing it. Section 9e's third
+    bucket. Such a row is Python with no MeTTa source text, and keeps the
+    instruction's transliterated name.
   - `internal`: a mechanised interpreter, written in MeTTa. The
     `interpret-*`, `mi-*` and `u-*` families are the interpreter's own
     equations rather than operations a program calls, and MeTTa writes its
@@ -567,7 +567,7 @@ def page(entries: list[Entry], answers: dict[str, Any]) -> str:
 
 
 def _strategy_basis_section() -> list[str]:
-    """Every public lib_strategy constructor and application/type door."""
+    """Every public lib_strategy constructor and application/type method."""
     rows = (
         ("id", "`id`", "`strategies.id`", "`id(t) = t`"),
         ("fail", "`fail`", "`strategies.fail`", "answers no result"),
@@ -633,7 +633,7 @@ def _strategy_basis_section() -> list[str]:
         "queryable atom data, and every row is exercised by",
         "`examples/ch20-extending-the-engine/20-02-metta-written-in-metta/11-strategy.metta` through the normal library runner.",
         "",
-        "| public name | reified plan or MeTTa door | Python atom | law |",
+        "| public name | reified plan or MeTTa form | Python atom | law |",
         "|---|---|---|---|",
     ]
     out += [f"| `{name}` | {plan} | {python} | {law} |" for name, plan, python, law in rows]

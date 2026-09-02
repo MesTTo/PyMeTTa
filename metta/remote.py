@@ -139,7 +139,7 @@ __all__ = [
 
 #: A transport: one callable taking (operation, payload dict) and answering
 #: the decoded JSON dict. connect() builds the HTTP one; tests may pass any
-#: callable with the same contract, the DAS gateway's own injection seam.
+#: callable with the same contract, the DAS gateway's own injection point.
 Transport = Callable[[str, dict], dict]
 
 
@@ -536,7 +536,7 @@ class RemoteSpace(SpaceProvider):
 
     def server_capabilities(self) -> dict[str, Any]:
         """The server's own advertisement from GET /health: `capabilities`
-        names the seam operations it admits, so a client can ask before
+        names the protocol operations it admits, so a client can ask before
         writing, and `bound` says whether /match honors the bound field
         exactly. A transport built by connect() knows its URL; a
         hand-built transport must carry its own `health` callable, or
@@ -1362,7 +1362,7 @@ class Gateway:
             "ok": True,
             "atoms": len(self._metta),
             "protocol": 3,
-            # The reflection the in-process seam has: what this server
+            # The reflection the in-process interface has: what this server
             # admits, so a client can ask before writing.
             # add-many is the registry's own hyphenated spelling
             # (foreign.CAPABILITIES); the WIRE verb stays /add_many.

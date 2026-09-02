@@ -613,8 +613,8 @@ class Runtime:
         prelude = importlib.import_module(f"{__package__}._prelude")
         prelude.install(self)
         logger.debug("installed the Python bridge prelude")
-        # The contract ontology: the typed vocabulary seam declarations are
-        # stated in, present before any user declaration can reference it.
+        # The contract ontology: the typed vocabulary used by interface
+        # declarations, present before any user declaration can reference it.
         contract = importlib.import_module(f"{__package__}._contract")
         contract.install(self)
         logger.debug("installed the contract ontology")

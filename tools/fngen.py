@@ -12,7 +12,7 @@ Guarantees:
     test_generated_aliases_keep_exact_only_spellings_on_the_bracket_door;
     commit=6b77b811c44e1819ed9cd99f3809c0667f289e2e]
   - operator word aliases are generated from the same fixed vocabulary as
-    both runtime fn doors, including composite ``neg`` [tested:
+    both runtime fn forms, including composite ``neg`` [tested:
     test_operator_words_precede_the_mechanical_name_map; commit=8ec44dec3cafba5981e7cf712749cca0e1bdcc45]
   - executable phrasebook rows supply inert runtime and stub documentation
     without starting the engine [tested: test_generated_fn_help_is_offline;
@@ -233,7 +233,7 @@ def stub_text(
 #   - catalog-row documentation is attached to explicit members for static
 #     help [tested: test_generated_fn_help_is_offline; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
 #   - INTERNAL names have no static member while their exact runtime bracket
-#     door remains available [tested:
+#     form remains available [tested:
 #     test_internal_catalog_names_stay_exact_but_leave_public_outputs;
 #     commit=8779452fed89853c3f77c3469f7a6ec7b12e9efa]
 # Open Obligations:

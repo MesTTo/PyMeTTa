@@ -96,7 +96,7 @@ Guarantees:
     declarations remain space-relative while the atom owns the concise
     spelling [tested: test_atom_cast_delegates_to_the_ambient_space;
     commit=49c43f86fa17a20ecebf9f9dbb5514de4762297d]
-  - Grounded heads preserve keyword arguments for the py-call seam, while a
+  - Grounded heads preserve keyword arguments for the py-call bridge, while a
     signature-free Symbol refuses keywords it cannot position [tested:
     test_unknown_symbol_keywords_refuse_with_the_positional_remedy;
     commit=c2ad5892fbfdd690dd7e9b507e76e87d7d1376d1]
@@ -841,7 +841,7 @@ class Grounded(Atom):
     def __call__(self, *args: Any, **kwargs: Any) -> Expression:
         """A grounded head applied is an expression headed by it, the same
         law a symbol has: `np_arange(4, step=2)` builds
-        `(np_arange 4 (Kwargs (step 2)))`, which is what the seam's py-call
+        `(np_arange 4 (Kwargs (step 2)))`, which is what the py-call bridge
         route evaluates. Building is not calling: the term is data until
         something evaluates it.
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose

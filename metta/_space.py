@@ -323,7 +323,7 @@ _DEPRECATION_CACHE: weakref.WeakKeyDictionary[
 #: is almost always empty, and without this flag every distinct name's first
 #: live call paid one engine crossing to learn nothing: measured 2026-08-26,
 #: +1,288 inferences on the parse twin (391 to 1,679) from d74e2e82's
-#: per-name reads alone. One process-wide apply-seam emptiness probe
+#: per-name reads alone. One process-wide apply-predicate emptiness probe
 #: amortises them
 #: [tested: test_an_empty_deprecation_catalog_costs_one_cheap_probe].
 _DEPRECATION_ANY: weakref.WeakKeyDictionary[Runtime, bool] = (
@@ -374,7 +374,7 @@ def _deprecation(rt: Runtime, name: str) -> tuple[str, str] | None:
 
 
 def _function_generation(rt: Runtime) -> int:
-    """Read the engine's fun/1 generation through its Janus seam.
+    """Read the engine's fun/1 generation through its Janus bridge.
 
     The service is SWI's ``last_modified_generation`` for exactly the dynamic
     ``fun/1`` set read by ``metta_py_builtins/1``; translator rules are static
@@ -3240,9 +3240,9 @@ class Space(Handle):
         The Node extension has had m.reducible() since it existed; Python had
         only eval_status(), which evaluates to tell you [measured 2026-08-31].
         """
-        # The seam answers the ATOM true or false, which crosses as the string
+        # The engine call answers the ATOM true or false, which crosses as the string
         # of that name; bool("false") is True, so the comparison is explicit,
-        # the same way algebra.py reads its own boolean seam.
+        # the same way algebra.py reads its own boolean result.
         return (
             self._rt.apply_must(
                 "metta_py_reducible", self._space, _to_atom(target).to_wire()
@@ -3888,7 +3888,7 @@ class Space(Handle):
         # passes no names at all.
         if not wanted:
             # An extension that exports nothing registers nothing, and that is
-            # the shape of a provider: it contributes clauses to a seam.
+            # the shape of a provider: it contributes implementation clauses.
             if declares == "extension":
                 _invalidate_builtins_cache(self._rt)
                 return ()
@@ -5040,8 +5040,8 @@ class Space(Handle):
     ) -> Atom | Any:
         """Return the event stream, or declare what this context promises.
 
-        Subscribability is a promise about the context, not something the
-        seam reads off its methods. A native space needs no declaration:
+        Subscribability is a promise about the context, not something its
+        methods alone establish. A native space needs no declaration:
         every write into it runs the engine's own hooks, so it delivers
         per-write-exactly and ordered by construction. A FOREIGN context
         declares, and one that declares nothing refuses a subscription

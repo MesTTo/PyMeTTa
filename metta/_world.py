@@ -101,7 +101,7 @@ def _admit_world_effect(
 
 
 # World.eval calls this predicate exactly once before creating or mutating
-# scratch state. Keeping the named seam makes the ordering directly probeable.
+# scratch state. Keeping the named admission function makes the ordering probeable.
 _WORLD_EFFECT_ADMISSION: Callable[..., tuple[list[list[str]], EffectClass]] = (
     _admit_world_effect
 )
@@ -300,7 +300,7 @@ def commit_world(space: Space, world: ReifiedWorld) -> None:
             raise MettaError(msg)
         backing.commit_world(world._base, removed, added)
         # The provider has finished its durable delta. Feed exactly those
-        # ordinary changes through the same observer seam native writes use.
+        # ordinary changes through the same observer path native writes use.
         space._rt.must(
             "metta_py_publish_world_diff(Space, Removed, Added)",
             Space=space._space,

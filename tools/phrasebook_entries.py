@@ -19,7 +19,7 @@ Guarantees:
   - every stdlib name has exactly one row, so the coverage denominator cannot
     quietly shrink [tested: test_the_phrasebook_carries_one_row_per_name]
   - get-type, class declaration, and state rows use the consolidated R5 Python
-    doors [tested: test_the_phrasebook_page_is_up_to_date; commit=c34c9bf3e55a8425d3f251c3ad06c33bc9755a22]
+    methods [tested: test_the_phrasebook_page_is_up_to_date; commit=c34c9bf3e55a8425d3f251c3ad06c33bc9755a22]
   - the matching, nondeterminism, fold, and state rows execute every public
     algebra-carrier spelling [tested: test_the_phrasebook_page_is_up_to_date;
     commit=c7468b2789746bcf95c4bacc0e2d517ec4d972fa]
@@ -72,8 +72,8 @@ BUCKETS = {
     ),
     "method": "the concept is MeTTa's own, so it wears a metta name",
     "instruction": (
-        "deep control that stays instruction-tier, reached by building the term at "
-        "the `S.` door and reducing it"
+        "deep control that stays instruction-tier, reached by building the term with "
+        "the `S[...]` form and reducing it"
     ),
     "internal": (
         "a mechanised interpreter's own names, written in MeTTa; this engine "
@@ -159,7 +159,7 @@ PUBLIC_FACES: tuple[PublicFace, ...] = (
     ),
     PublicFace(
         "metta.catalog.add(S.deprecated(name, since, remedy))",
-        "warn at callable doors and carry the same retirement into explain",
+        "warn at callable methods and carry the same retirement into explain",
         "metta.catalog.add(S.deprecated(S.old, S['0.2.0'], S.use(S.new)))",
     ),
     PublicFace(
@@ -749,7 +749,7 @@ ENTRIES: list[Entry] = [
         "Nondeterminism has no primitive of its own because Python's iteration IS "
         "it: a list of values is a multiset of answers, and `yield` is the same act "
         "inside a compiled body. `space.sample(q, k=10, seed=7)` is the weighted "
-        "choice door, with replacement and implicit `(rate n)` weights.",
+        "choice method, with replacement and implicit `(rate n)` weights.",
         metta="!(superpose (a b))",
         python=(
             "space.add_tagged_fact(S.rate(1), S.choice(S.a))\n"
@@ -782,7 +782,7 @@ ENTRIES: list[Entry] = [
     ),
     Entry(
         "quote", ("(-> Atom Atom)",), "Symbol", "control", "dissolves",
-        "There is nothing to quote: building a term at the `S.` door never "
+        "There is nothing to quote: building a term with `S[...]` never "
         "evaluates it, so the quoting question does not arise. `S.quote(x)` builds "
         "the term itself where a program needs the constructor.",
         metta="!(quote (+ 1 2))", python="S['+'](1, 2)",
@@ -876,7 +876,7 @@ ENTRIES: list[Entry] = [
     ),
     Entry(
         "add-atoms", ("(-> SpaceType Expression (->))",), "Symbol", "spaces", "dissolves",
-        "The same `+=` door, once per fact: anything that yields tuples is a fact "
+        "The same `+=` form, once per fact: anything that yields tuples is a fact "
         "stream. Lists, outer tuples of rows, generators, SQL cursors, and dataframe "
         "row iterators each write one atom per yielded item; a built Expression is "
         "always one atom.",
@@ -885,9 +885,9 @@ ENTRIES: list[Entry] = [
     ),
     Entry(
         "add-reduct", ("(-> SpaceType %Undefined% (->))",), "Symbol", "spaces", "dissolves",
-        "There is no second door: `+=` adds what you give it, so adding a REDUCT is "
+        "There is no second form: `+=` adds what you give it, so adding a REDUCT is "
         "explicit composition, `space += m.eval(term)[0]`. Bare grounded answers "
-        "use that door directly; this row wraps the evaluated sum only to retain "
+        "use `+=` directly; this row wraps the evaluated sum only to retain "
         "its `total` relation head.",
         metta="!(bind! &pb (new-space))\n!(add-reduct &pb (total (+ 1 2)))\n!(get-atoms &pb)",
         python="space += S.total(m.eval(S['+'](1, 2))[0])\nspace.atoms()",
@@ -915,7 +915,7 @@ ENTRIES: list[Entry] = [
     Entry(
         "remove-atom", ("(-> SpaceType Atom Bool)",), "Grounded", "spaces", "dissolves",
         "Drains every atom that unifies and answers True either way. "
-        "`del space[pattern]` is this door, and raises when the pattern "
+        "`del space[pattern]` is this operation, and raises when the pattern "
         "matches nothing as Python's `del` does; `subtract-atom` is the "
         "one-occurrence grain beside it, which `space -= atom` and "
         "`space.remove(atom)` both spell.",
@@ -927,7 +927,7 @@ ENTRIES: list[Entry] = [
         "subtract-atom", ("(-> SpaceType Atom Bool)",), "Grounded", "spaces", "dissolves",
         "Takes ONE unifying occurrence and answers whether one was there, "
         "the multiset subtraction `remove-atom` gave up when it took "
-        "upstream's draining law. `space -= atom` is this door, because "
+        "upstream's draining law. `space -= atom` is this operation, because "
         "Python's in-place difference over a multiset is "
         "`collections.Counter`'s, which subtracts the multiplicity given "
         "rather than clearing the key, and `space.remove(atom)` is the same "
@@ -945,8 +945,8 @@ ENTRIES: list[Entry] = [
     ),
     Entry(
         "match", ("(-> SpaceType Atom Atom %Undefined%)",), "Grounded", "spaces", "method",
-        "`space[pattern]` is the subscript door and `space.match(pattern)` the named "
-        "one; the TEMPLATE is built in Python from the answer's bindings. "
+        "`space[pattern]` is the subscript form and `space.match(pattern)` the named "
+        "method; the TEMPLATE is built in Python from the answer's bindings. "
         "`under=counting|tropical|prov|ranked` changes the annotation algebra; "
         "`answers(call, under=...)` is its call twin, `with metta.under(...)` "
         "scopes the default, and an annotated answer exposes `.annotation`, "
@@ -1001,7 +1001,7 @@ ENTRIES: list[Entry] = [
     Entry(
         "context-space", ("(-> SpaceType)",), "Symbol", "spaces", "method",
         "The space a program is currently in, which in Python is the handle it "
-        "holds; `metta.current_space()` is the door for code that did not receive "
+        "holds; `metta.current_space()` is the function for code that did not receive "
         "one, and it follows Python's own `current_thread` and `current_task` "
         "convention, so the Python word wins over the instruction's name. The row "
         "asks both sides for the current space's atoms.",
@@ -1528,7 +1528,7 @@ ENTRIES: list[Entry] = [
     Entry(
         "module-tree!", ("(-> Atom)",), "Grounded", "modules", "dissolves",
         "`importlib.metadata.requires(name)`, which answers the dependency tree a "
-        "distribution declares. The row names the door rather than a package, "
+        "distribution declares. The row names the operation rather than a package, "
         "because no distribution is guaranteed installed wherever the lane runs.",
         metta="!(module-tree!)",
         python="import importlib.metadata\nS[importlib.metadata.requires.__name__]",
