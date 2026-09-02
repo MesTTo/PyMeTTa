@@ -63,7 +63,7 @@ Guarantees:
     test_relative_admits_declaration_installs_the_receiver_contract,
     test_two_declared_admission_checks_interact_over_one_store,
     test_relative_declarations_refuse_inside_an_active_batch,
-    test_relative_coverage_declaration_governs_world_evaluation; commit=WORKTREE]
+    test_relative_coverage_declaration_governs_world_evaluation; commit=fdf3d1d7e7486dd8110bbf9b44b968960276a602]
   - ``Space.match`` returns a lazy Answers view; truth and single unpack pull
     only their demanded prefix, while len counts inside the engine [tested:
     test_query_answers_complete_the_lazy_projection_protocol,

@@ -28,7 +28,7 @@ Guarantees:
     test_a_masked_runtime_result_remains_dynamic; commit=173eeed021beb360b5e5f9f8461889e27190affc]
   - relative ``S.covers`` values written through ``+=`` install the receiver's
     effect coverage and remain absent from its stored atoms [tested:
-    test_relative_coverage_declaration_governs_world_evaluation; commit=WORKTREE]
+    test_relative_coverage_declaration_governs_world_evaluation; commit=fdf3d1d7e7486dd8110bbf9b44b968960276a602]
 Open Obligations:
   To Do: None
   Hacks: None
