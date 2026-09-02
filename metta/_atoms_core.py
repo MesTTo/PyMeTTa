@@ -114,7 +114,7 @@ Guarantees:
   - a native blob's public wire value preserves its registry id and display
     text, the two fields its decoder requires [tested:
     test_native_handles_round_trip_through_the_public_wire_codec;
-    commit=WORKTREE]
+    commit=9fad0bf6670061a26b1a17d3f566613b7d4d080c]
 Guarded by:
   - _STATE_LOCK protects box identity, formatter registries, and wire interns
     [tested test_atom_identity_caches_are_thread_safe]

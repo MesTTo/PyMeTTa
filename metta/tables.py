@@ -74,7 +74,7 @@ Guarantees:
     whose registry identity cannot outlive its process [tested:
     test_table_storage_refuses_native_handles_before_writing,
     test_table_storage_preserves_portable_space_references;
-    commit=WORKTREE]
+    commit=9fad0bf6670061a26b1a17d3f566613b7d4d080c]
 Decides:
   - declarations are trusted code, not user data: table and column
     names are interpolated into SQL, so a bridge declaration belongs in

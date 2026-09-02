@@ -4,12 +4,12 @@ Guarantees:
   - a native handle and an expression containing one survive the public wire
     round trip with identity and display text intact [tested:
     test_native_handles_round_trip_through_the_public_wire_codec;
-    commit=WORKTREE]
+    commit=9fad0bf6670061a26b1a17d3f566613b7d4d080c]
   - table storage refuses process-local native identities before executing an
     insert, while portable space references remain storable [tested:
     test_table_storage_refuses_native_handles_before_writing,
     test_table_storage_preserves_portable_space_references;
-    commit=WORKTREE]
+    commit=9fad0bf6670061a26b1a17d3f566613b7d4d080c]
 Open Obligations:
   To Do: None
   Hacks: None
