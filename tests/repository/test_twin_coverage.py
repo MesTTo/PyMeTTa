@@ -39,6 +39,10 @@ Guarantees:
     test_a_retired_module_import_is_a_finding,
     test_an_exact_bracket_spelling_is_not_the_attribute_one;
     commit=5c67147566907276a95a5fbf059cf8f98b6685f1]
+  - shipped examples use the attribute spelling whenever the canonical name
+    map reaches the exact head [tested:
+    test_shipped_examples_use_the_canonical_attribute_spelling;
+    commit=WORKTREE]
   - a declaration takes StrEnum members in typed option slots, reports a bare
     wire word with the exact member spelling, and keeps non-option pattern and
     name strings under the existing source-text rule [tested:
@@ -810,6 +814,20 @@ def test_an_exact_bracket_spelling_is_not_the_attribute_one(tmp_path):
     )
     findings = coverage.idiom(planted)
     assert findings == ['line 8: S["plain"] is S.plain'], findings
+
+
+@pytest.mark.parametrize(
+    "relative",
+    [
+        "reasoning/literature_discovery.py",
+        "integration/duckdb_space.py",
+    ],
+    ids=["omega-3", "the-countess"],
+)
+def test_shipped_examples_use_the_canonical_attribute_spelling(relative):
+    """Reject an exact bracket spelling when the attribute map reaches it."""
+    example = REPO / "extensions/python/examples" / relative
+    assert coverage.idiom(example) == []
 
 
 # -------------------------------------------------------------- alpha equality

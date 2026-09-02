@@ -284,7 +284,7 @@ def demo() -> None:
         "!(collapse (match &crm (, (vips $id) (users $id $n)) "
         "(match (context-space) (nickname $id $nick) ($n $nick))))"
     )
-    check("SQL joined with native facts", group, [Expression(Expression("Ada", S["the-countess"]))])
+    check("SQL joined with native facts", group, [Expression(Expression("Ada", S.the_countess))])
 
     # Writes: add-atom inserts, remove-atom deletes, from running MeTTa.
     m.run('!(add-atom &crm (users 4 "Dee"))')
