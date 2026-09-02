@@ -2,7 +2,7 @@
 
 Assumes:
   - ``&metta`` is the process reflection space and Python source positions use
-    the coordinates returned by ``inspect`` and ``ast``
+    the coordinates returned by ``code.co_positions()`` and ``ast``
 Guarantees:
   - ``# metta: ok(<rule>)`` comments are tokenized, bound to one statement,
     reflected as ``lint-intent`` data, and never alter execution [tested:
@@ -17,8 +17,14 @@ Guarantees:
     immutable public lint catalogue [tested:
     test_lint_authorities_are_durable_public_references;
     commit=2a32acb6d254ea12085526913c7b9a1a555b8ee0]
+  - each live frame call site derives its source position once and then
+    resolves repeated Answers iterations in constant time without retaining
+    generated code [tested:
+    test_answer_iteration_benchmark_reuses_one_warmed_view,
+    test_answer_position_cache_does_not_own_generated_code; commit=WORKTREE]
 Guarded by:
   - ``_LOCK`` serializes the process registries and their reflected facts
+  - ``_POSITION_LOCK`` serializes the bounded weak call-site cache
 """
 
 from __future__ import annotations
@@ -31,10 +37,12 @@ import re
 import textwrap
 import threading
 import tokenize
+import weakref
+from collections import OrderedDict
 from collections.abc import Hashable
 from dataclasses import dataclass
 from pathlib import Path
-from types import FrameType, FunctionType
+from types import CodeType, FrameType, FunctionType
 from typing import Any
 
 from ._ops import live_registration
@@ -65,6 +73,12 @@ _REFLECTION_SPACE = "&metta"
 _LOCK = threading.RLock()
 _CO_COROUTINE = getattr(inspect, "CO_COROUTINE", 0x0080)
 _CO_ASYNC_GENERATOR = getattr(inspect, "CO_ASYNC_GENERATOR", 0x0200)
+_POSITION_LOCK = threading.Lock()
+_POSITION_CACHE_MAX = 4_096
+_POSITION_CACHE: OrderedDict[
+    tuple[int, int],
+    tuple[weakref.ReferenceType[CodeType], tuple[str, int, int]],
+] = OrderedDict()
 
 
 @dataclass(frozen=True)
@@ -214,13 +228,44 @@ def _record_for_name(space: str, event: LintEvent) -> None:
 
 
 def _position(frame: FrameType) -> tuple[str, int, int]:
-    path = frame.f_code.co_filename
+    # CPython's inspect._get_code_position reaches instruction N with
+    # islice(code.co_positions(), N), a linear walk on every call. Deriving a
+    # call site once changes I repeated positions after B bytecode entries
+    # from Theta(I*B) to Theta(B+I).
+    # Source: https://github.com/python/cpython/blob/f6842ddae6b0c744b89c33b9bb088d7c4b3eb8d3/Lib/inspect.py#L1566-L1571
+    code = frame.f_code
+    key = (id(code), frame.f_lasti)
+    with _POSITION_LOCK:
+        cached = _POSITION_CACHE.get(key)
+        if cached is not None and cached[0]() is code:
+            _POSITION_CACHE.move_to_end(key)
+            return cached[1]
+
+    path = code.co_filename
     if not (path.startswith("<") and path.endswith(">")):
         path = str(Path(path).resolve())
     info = inspect.getframeinfo(frame, context=0)
     positions = info.positions
-    column = 0 if positions is None or positions.col_offset is None else positions.col_offset
-    return path, frame.f_lineno, column
+    column = (
+        0
+        if positions is None or positions.col_offset is None
+        else positions.col_offset
+    )
+    result = (path, frame.f_lineno, column)
+
+    def retire(reference: weakref.ReferenceType[CodeType]) -> None:
+        with _POSITION_LOCK:
+            current = _POSITION_CACHE.get(key)
+            if current is not None and current[0] is reference:
+                del _POSITION_CACHE[key]
+
+    reference = weakref.ref(code, retire)
+    with _POSITION_LOCK:
+        _POSITION_CACHE[key] = (reference, result)
+        _POSITION_CACHE.move_to_end(key)
+        while len(_POSITION_CACHE) > _POSITION_CACHE_MAX:
+            _POSITION_CACHE.popitem(last=False)
+    return result
 
 
 def external_caller(frame: FrameType | None = None) -> FrameType | None:
