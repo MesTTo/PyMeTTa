@@ -5,4 +5,4 @@ Open Obligations:
   Future Enhancements: None.
 """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
 
-__version__ = "0.7.0"
+__version__ = "0.7.1"
