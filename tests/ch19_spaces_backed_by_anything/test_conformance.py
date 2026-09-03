@@ -14,6 +14,10 @@ Guarantees:
   - a provider claiming its filtering exact while over-approximating is
     refused, which is the one claim in the seam that can cost answers
     [tested test_a_false_exact_claim_is_caught]
+  - a registered Python-backed Space handle reaches the engine checker and
+    passes every declared hook's qualified ownership guard
+    [tested: test_a_python_backed_space_handle_passes_the_engine_checker;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -25,6 +29,7 @@ import pytest
 from metta import MeTTa, Space, testing
 from metta.atoms import Expression, Variable, parse
 from metta.foreign import SpaceProvider
+from metta.spaces import view
 
 ROWS = [parse("(edge a b)"), parse("(edge b c)")]
 
@@ -312,3 +317,16 @@ def test_a_space_handle_dispatches_to_the_engine_checker(repo_root):  # noqa: D1
         # The registration is engine-global and outlives the handle; a later
         # test enumerating foreign spaces must not meet this fixture.
         m.unregister_prolog("demo_provider")
+
+
+def test_a_python_backed_space_handle_passes_the_engine_checker():
+    """A qualified Python hook body is inspected through its leading guard."""
+    with view([1, 2, 3]) as python_space:
+        report = testing.check_space_provider(python_space)
+
+    assert "match: declared, seam:foreign_match/3 has clauses" in report
+    assert (
+        "match: over-approximation holds over 3 atoms and their pattern families"
+        in report
+    )
+    assert "source: repeated, two enumerations agree" in report
