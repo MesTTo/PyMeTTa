@@ -3,7 +3,7 @@ Guarantees:
   - a built chapter-19 handle extension makes the round-trip benchmark execute
     rather than skip [tested:
     test_handle_benchmark_reaches_the_built_chapter_19_library;
-    commit=WORKTREE]
+    commit=49cb09f7a208810c81ef4ca78b608ca85f32af96]
 Open Obligations:
   To Do: None
   Hacks: None

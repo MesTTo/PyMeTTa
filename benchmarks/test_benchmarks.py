@@ -14,7 +14,7 @@ Guarantees:
   - the native-handle case reaches the chapter-19 artifact that the worktree
     build produces instead of skipping behind its pre-reorganisation path
     [tested: test_handle_benchmark_reaches_the_built_chapter_19_library;
-    commit=WORKTREE]
+    commit=49cb09f7a208810c81ef4ca78b608ca85f32af96]
 Open Obligations:
   To Do: None
   Hacks: None
