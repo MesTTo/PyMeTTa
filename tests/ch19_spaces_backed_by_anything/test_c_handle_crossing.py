@@ -19,8 +19,8 @@ from metta.errors import EngineError
 _LIBRARY = (
     Path(__file__).resolve().parents[4]
     / "examples"
-    / "integration"
-    / "c_extension"
+    / "ch19-spaces-backed-by-anything"
+    / "19-03-a-builtin-in-c"
     / "handle.so"
 )
 
