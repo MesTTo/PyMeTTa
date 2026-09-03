@@ -167,6 +167,11 @@ Guarantees:
     created that life, while named-space representations remain stable
     [tested: test_anonymous_space_repr_carries_its_creation_site;
     commit=50d1de4d0ead4a0c3997f9b2ef58631bbafaede3]
+  - dropping an engine-owned base space is refused before subscriptions,
+    providers, definitions, or other Python-side lifecycle state is changed
+    [tested:
+    test_engine_owned_base_spaces_refuse_destructive_lifecycle_operations;
+    commit=WORKTREE]
 Owns resources:
   - ``Space.save`` owns its sibling temporary file and removes it after every
     failed operation [tested: test_save_failure_preserves_existing_file;
@@ -1039,17 +1044,18 @@ class Space(Handle):
         owned by this handle. A foreign provider with a clear/drop lifecycle,
         such as MORK, releases its provider state.
         A named space's public name is not an anonymous allocation and never
-        enters the anonymous pool. &self is cleared but never released.
+        enters the anonymous pool. The engine-owned &self and &metta roots
+        refuse before any Python-side state changes; drop the caller's own
+        context or a named space instead.
         Subscriptions on the space cancel with it: a pooled name reused later
         must not deliver to the old life's watchers. The handle itself dies
         here, and dropping twice is a no-op, as closing twice is.
         """
         if self._dropped:
             return
-        if self._space != "&self":
-            self._rt.must(
-                "metta_py_space_releasable(Space)", Space=self._space
-            )
+        self._rt.must(
+            "metta_py_space_releasable(Space)", Space=self._space
+        )
         subscriptions = _satellite("subscribe")
         foreign = _satellite("foreign")
         integrate = _satellite("integrate")
@@ -1066,28 +1072,23 @@ class Space(Handle):
                     close = getattr(self._backing, "close", None)
                     if callable(close):
                         close()
-        if self._space == "&self":
-            self.clear()
-        else:
-            # The engine's release clears the store itself, under its
-            # releasing flag so the removal funnel does not recompile super
-            # users of a dying world; only the python-side satellites need
-            # clearing here.
-            _satellite("_lint_events").clear(self)
-            _invalidate_builtins_cache(self._rt)
-            release_definitions(self)
-            # The store clears in its OWN engine query, before the release:
-            # a query cannot reclaim the clauses it erased while it still
-            # runs, so clearing inside the release left this space's atoms
-            # in the table. The release call mutes the removal funnel's super
-            # recompilation exactly as the release does, since a dying
-            # world's own users die with it
-            # [tested: test_dropping_a_space_reclaims_its_atoms].
-            self._rt.must("metta_py_clear_for_release(Space)", Space=self._space)
-            predicate = (
-                "metta_py_release_space" if self._ephemeral else "metta_py_drop_space"
-            )
-            self._rt.must(f"{predicate}(Space)", Space=self._space)
+        # The engine's release clears the store itself, under its releasing
+        # flag so the removal funnel does not recompile super users of a dying
+        # world; only the python-side satellites need clearing here.
+        _satellite("_lint_events").clear(self)
+        _invalidate_builtins_cache(self._rt)
+        release_definitions(self)
+        # The store clears in its OWN engine query, before the release: a query
+        # cannot reclaim the clauses it erased while it still runs, so clearing
+        # inside the release left this space's atoms in the table. The release
+        # call mutes the removal funnel's super recompilation exactly as the
+        # release does, since a dying world's own users die with it
+        # [tested: test_dropping_a_space_reclaims_its_atoms].
+        self._rt.must("metta_py_clear_for_release(Space)", Space=self._space)
+        predicate = (
+            "metta_py_release_space" if self._ephemeral else "metta_py_drop_space"
+        )
+        self._rt.must(f"{predicate}(Space)", Space=self._space)
         integrate._forget_space(self._space)
         self._dropped = True
 

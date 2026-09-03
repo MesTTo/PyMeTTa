@@ -24,6 +24,11 @@ Guarantees:
     current life, while named handles retain their compact representation
     [tested: test_anonymous_space_repr_carries_its_creation_site;
     commit=50d1de4d0ead4a0c3997f9b2ef58631bbafaede3]
+  - the engine-owned &self and &metta roots refuse clear and drop without
+    damaging catalog, typing, or arithmetic state, while caller-owned spaces
+    retain both lifecycle operations [tested:
+    test_engine_owned_base_spaces_refuse_destructive_lifecycle_operations;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -91,6 +96,43 @@ def test_a_named_space_drop_never_enters_the_anonymous_pool(drained):
         assert fresh.name != "&public-lifecycle-name"
     finally:
         fresh.drop()
+
+
+def test_engine_owned_base_spaces_refuse_destructive_lifecycle_operations(metta):
+    """Process roots refuse destruction and direct callers keep their remedy."""
+    base_spaces = [metta_package.engine().self, metta_package.space("&metta")]
+    catalog = base_spaces[1]
+    catalog_before = len(catalog)
+
+    for space in base_spaces:
+        for engine_operation, operation in (
+            ("clear", space.clear),
+            ("release", space.drop),
+        ):
+            with pytest.raises(MettaError) as refused:
+                operation()
+            message = str(refused.value)
+            assert str(space.name) in message
+            assert engine_operation in message
+            assert "caller's own context space" in message
+            assert "named space" in message
+            assert not space.dropped
+
+    assert len(catalog) == catalog_before
+    assert metta.run("!(get-type 1)\n!(+ 1 2)") == [[S.Number], [3]]
+
+    clearable = metta._new_space()
+    releasable = metta._new_space()
+    try:
+        clearable.add(S.ordinary(S.clear))
+        clearable.clear()
+        assert len(clearable) == 0
+        releasable.add(S.ordinary(S.release))
+        releasable.drop()
+        assert releasable.dropped
+    finally:
+        clearable.drop()
+        releasable.drop()
 
 
 def _execution_module_owns(metta, space_name):

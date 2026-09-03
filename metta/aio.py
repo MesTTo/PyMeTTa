@@ -1264,7 +1264,9 @@ class AsyncMeTTa:
         owned by this handle. A foreign provider with a clear/drop lifecycle,
         such as MORK, releases its provider state.
         A named space's public name is not an anonymous allocation and never
-        enters the anonymous pool. &self is cleared but never released.
+        enters the anonymous pool. The engine-owned &self and &metta roots
+        refuse before any Python-side state changes; drop the caller's own
+        context or a named space instead.
         Subscriptions on the space cancel with it: a pooled name reused later
         must not deliver to the old life's watchers. The handle itself dies
         here, and dropping twice is a no-op, as closing twice is.
