@@ -29,6 +29,10 @@ Guarantees:
     retain both lifecycle operations [tested:
     test_engine_owned_base_spaces_refuse_destructive_lifecycle_operations;
     commit=6229e43cb68cc3685360810d462d992874992f6c]
+  - a translator rule re-registered in a recycled context home compiles its
+    new body's generation even when an older cross-space caller survives
+    [tested: test_a_recycled_context_recompiles_its_translator_rule;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -133,6 +137,53 @@ def test_engine_owned_base_spaces_refuse_destructive_lifecycle_operations(metta)
     finally:
         clearable.drop()
         releasable.drop()
+
+
+def test_a_recycled_context_recompiles_its_translator_rule(drained, tmp_path):
+    """A pooled home name cannot retain the prior life's predicate identity."""
+    rule = """(: plunit-aba-pick (-> Atom Atom Atom Atom Atom %Undefined%))
+(= (plunit-aba-pick $expression $head $tail $body $otherwise)
+   (quote
+     (if (== $expression ())
+         $otherwise
+         (let ($head $tail) (decons-atom $expression) $body))))
+!(add-translator-rule! plunit-aba-pick)
+"""
+    cross = """(: plunit-aba-cross (-> Expression %Undefined%))
+(= (plunit-aba-cross $xs)
+   (plunit-aba-pick $xs $h $t $h empty))
+!(plunit-aba-cross (1 2 3))
+"""
+    combined = rule + """(: plunit-aba-current (-> Expression %Undefined%))
+(= (plunit-aba-current $xs)
+   (plunit-aba-pick $xs $h $t $h empty))
+!(plunit-aba-current (1 2 3))
+"""
+    rule_path = tmp_path / "rule.metta"
+    cross_path = tmp_path / "cross.metta"
+    combined_path = tmp_path / "combined.metta"
+    rule_path.write_text(rule)
+    cross_path.write_text(cross)
+    combined_path.write_text(combined)
+
+    first = metta_package.MeTTa()
+    assert first.runtime is drained.runtime
+    other = first.space("&plunit-aba-other")
+    second = None
+    first_name = first.self.name
+    try:
+        assert first.self.load(rule_path) == [[True]]
+        assert other.load(cross_path)[-1] == [1]
+        first.close()
+
+        second = metta_package.MeTTa()
+        assert second.self.name == first_name, "the regression requires name reuse"
+        assert second.self.load(combined_path)[-1] == [1]
+    finally:
+        if second is not None:
+            second.close()
+        first.close()
+        other.drop()
 
 
 def _execution_module_owns(metta, space_name):
