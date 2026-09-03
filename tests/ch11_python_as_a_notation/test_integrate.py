@@ -13,7 +13,7 @@ Guarantees:
     explicit alias [tested:
     test_prolog_integration_aliases_keep_fully_qualified_module_names,
     test_an_explicitly_shared_library_alias_keeps_all_directories;
-    commit=WORKTREE]
+    commit=a6681e54ded570684ba0e2969f2893ae016a841a]
 Open Obligations:
   To Do: None
   Hacks: None
