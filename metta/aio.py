@@ -73,7 +73,7 @@ Guarantees:
   - async derivation keeps the synchronous effect contract: premises execute,
     while an explicit speculative scope discards engine writes [tested:
     test_derivation_effects_are_explicit_and_speculation_discards_engine_writes;
-    commit=WORKTREE]
+    commit=418bed011dfc47bb2c2d9e6b51e0d2a6f7b7e729]
   - reader-token registration and removal run on the owning engine worker and
     mirror the synchronous surface [tested:
     test_aio_plain_methods_forward_on_the_worker and

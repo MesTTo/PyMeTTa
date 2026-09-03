@@ -43,7 +43,7 @@ Guarantees:
   - ``Space.derivation`` states that effectful proof premises execute and that
     only an explicit speculative scope discards their engine writes [tested:
     test_derivation_effects_are_explicit_and_speculation_discards_engine_writes;
-    commit=WORKTREE]
+    commit=418bed011dfc47bb2c2d9e6b51e0d2a6f7b7e729]
   - named space construction accepts a space-name Symbol as well as its text
     spelling [tested: test_space_factory_accepts_a_name_symbol; commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
   - a Symbol or ground Expression names a source-visible atomic or parametric

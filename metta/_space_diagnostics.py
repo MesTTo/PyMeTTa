@@ -20,7 +20,7 @@ Guarantees:
     writes; the existing speculative policy is the explicit rollback boundary
     [tested:
     test_derivation_effects_are_explicit_and_speculation_discards_engine_writes;
-    commit=WORKTREE]
+    commit=418bed011dfc47bb2c2d9e6b51e0d2a6f7b7e729]
 Open Obligations:
   To Do: None
   Hacks: None
