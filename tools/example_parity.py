@@ -21,7 +21,14 @@ Assumes:
 Guarantees:
   - a difference in ANSWERS, in verdicts, or in exit status between the two
     configurations is reported, naming the example and the first differing
-    line [tested test_example_parity_reports_a_planted_difference]
+    line [tested: test_example_parity_reports_a_planted_difference,
+    test_compare_reports_a_planted_exit_status_difference,
+    test_compare_reports_a_planted_verdict_difference,
+    test_compare_accepts_equivalent_passing_verdicts; commit=WORKTREE]
+  - the library configuration closes the MeTTa engine after loading each
+    example, and a teardown failure is part of that configuration's outcome
+    [tested: test_the_library_runner_reports_a_teardown_failure;
+    commit=WORKTREE]
   - answers are compared as VALUES, not as text, so a difference in
     source SPELLING is not a difference in answer: `true` and `True` both
     parse to Grounded(True), while both shipped writers emit canonical `true`
@@ -115,9 +122,14 @@ class Outcome:
 
     groups: list[str]
     error: str | None
+    # Appended defaults preserve the positional two-field construction used by
+    # the twin-coverage tests while making the two previously discarded
+    # observations part of the comparison.
+    verdicts: tuple[str, ...] = ()
+    returncode: int | None = 0
 
 
-def _read(text: str) -> Outcome:
+def _read(text: str, returncode: int | None = 0) -> Outcome:
     groups = [
         line[len(MARKER):].strip()
         for line in text.splitlines()
@@ -128,7 +140,8 @@ def _read(text: str) -> Outcome:
          if line.startswith(FAILED)),
         None,
     )
-    return Outcome(groups, failure)
+    verdicts = tuple(line.strip() for line in text.splitlines() if VERDICT in line)
+    return Outcome(groups, failure, verdicts, returncode)
 
 
 def _run(
@@ -141,16 +154,27 @@ def _run(
     same output [tested: test_a_runner_returns_its_raw_text_beside_the_outcome].
     """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
     try:
-        done = subprocess.run(
-            command, cwd=cwd, capture_output=True, text=True, timeout=TIMEOUT, env=env
+        done = subprocess.run(  # noqa: S603 -- commands are built by repository runners
+            command,
+            cwd=cwd,
+            capture_output=True,
+            text=True,
+            timeout=TIMEOUT,
+            env=env,
+            check=False,
         )
     except subprocess.TimeoutExpired:
-        return Outcome([], f"timed out after {TIMEOUT}s"), ""
+        return Outcome([], f"timed out after {TIMEOUT}s", returncode=None), ""
     text = done.stdout + done.stderr
-    outcome = _read(text)
+    outcome = _read(text, done.returncode)
     if outcome.error is None and done.returncode != 0:
         tail = text.strip().splitlines()
-        outcome = Outcome(outcome.groups, tail[-1][:300] if tail else "no output")
+        outcome = Outcome(
+            outcome.groups,
+            tail[-1][:300] if tail else "no output",
+            outcome.verdicts,
+            outcome.returncode,
+        )
     return outcome, text
 
 
@@ -181,8 +205,9 @@ def run_library(path: Path, root: Path = REPO) -> Outcome:
     source = (
         "import sys; sys.path.insert(0, 'extensions/python')\n"
         "from metta import MeTTa\n"
-        f"for group in MeTTa(metta_path='.').self.load({str(path.relative_to(root))!r}):\n"
-        "    print('" + MARKER + "(' + ' '.join(str(a) for a in group) + ')')\n"
+        "with MeTTa(metta_path='.') as metta:\n"
+        f"    for group in metta.self.load({str(path.relative_to(root))!r}):\n"
+        "        print('" + MARKER + "(' + ' '.join(str(a) for a in group) + ')')\n"
     )
     return _run([sys.executable, "-c", source], root)[0]
 
@@ -213,11 +238,32 @@ def _value(written: str):
         return written
 
 
+def _verdict_decision(line: str) -> bool | str:
+    """The pass/fail decision, retaining unknown output as its own value.
+
+    A verdict's displayed atoms may contain the current home-space name, which
+    is ``&self`` through the engine CLI and an allocated ``&pyspace_N`` through
+    the library. Those are equivalent contexts, while the final mark is the
+    verdict the two configurations must share.
+    """
+    if line.endswith("✅"):
+        return True
+    if line.endswith("❌"):
+        return False
+    return line
+
+
 def compare(path: Path, root: Path = REPO) -> Difference | None:
     """Run one example both ways, once, and answer what differs."""
     engine, library = run_engine(path, root), run_library(path, root)
     relative = path.relative_to(root)
 
+    if engine.returncode != library.returncode:
+        return Difference(
+            relative,
+            "the configurations exited differently",
+            f"engine {engine.returncode!r} against library {library.returncode!r}",
+        )
     if (engine.error is None) != (library.error is None):
         who = "library" if library.error else "engine"
         return Difference(
@@ -225,8 +271,22 @@ def compare(path: Path, root: Path = REPO) -> Difference | None:
             f"only the {who} failed",
             (library.error or engine.error or "")[:300],
         )
-    if engine.error and library.error:
-        return None
+    if len(engine.verdicts) != len(library.verdicts):
+        return Difference(
+            relative,
+            "a different number of test verdicts was printed",
+            f"engine {len(engine.verdicts)} verdicts, "
+            f"library {len(library.verdicts)}",
+        )
+    for index, (left, right) in enumerate(
+        zip(engine.verdicts, library.verdicts, strict=True)
+    ):
+        if _verdict_decision(left) != _verdict_decision(right):
+            return Difference(
+                relative,
+                f"test verdict {index + 1} differs",
+                f"engine {left!r} against library {right!r}",
+            )
 
     if len(engine.groups) != len(library.groups):
         return Difference(

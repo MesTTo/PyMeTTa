@@ -2,6 +2,15 @@
 in spelling that is not one, and preserves the per-form grouping. A lane that
 cannot be shown failing is not evidence of anything, so these plant differences
 and require the lane to report them.
+Guarantees:
+  - the library runner enters and exits every engine, so an exception raised
+    during teardown is reported rather than hidden behind answers printed
+    before close [tested: test_the_library_runner_reports_a_teardown_failure;
+    commit=WORKTREE]
+  - exit status and verdict lines are compared independently of answer groups
+    [tested: test_compare_reports_a_planted_exit_status_difference,
+    test_compare_reports_a_planted_verdict_difference,
+    test_compare_accepts_equivalent_passing_verdicts; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -108,6 +117,105 @@ def test_example_parity_reports_a_planted_difference():
     engine = parity.Outcome(["((1 2))"], None)
     library = parity.Outcome(["((1 3))"], None)
     assert parity._value(engine.groups[0]) != parity._value(library.groups[0])
+
+
+def test_the_library_runner_reports_a_teardown_failure(tmp_path):
+    """Answers printed before ``MeTTa.__exit__`` cannot hide a broken close."""
+    package = tmp_path / "extensions" / "python" / "metta"
+    package.mkdir(parents=True)
+    (package / "__init__.py").write_text(
+        """class _Space:
+    def load(self, _path):
+        return [[\"answer-before-close\"]]
+
+class MeTTa:
+    def __init__(self, **_kwargs):
+        self.self = _Space()
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *_exc):
+        raise RuntimeError(\"PLANTED_CLOSE_FAILURE\")
+""",
+        encoding="utf-8",
+    )
+    example = tmp_path / "examples" / "close_probe.metta"
+    example.parent.mkdir()
+    example.write_text("; the fake loader does not read this fixture\n", encoding="utf-8")
+
+    outcome = parity.run_library(example, tmp_path)
+
+    assert outcome.groups == ["(answer-before-close)"]
+    assert outcome.returncode != 0
+    assert outcome.error is not None
+    assert "PLANTED_CLOSE_FAILURE" in outcome.error
+
+
+def test_compare_reports_a_planted_exit_status_difference(monkeypatch):
+    """Equal answers do not erase a process-status disagreement."""
+    path = REPO / "examples" / "ch09-types" / "01-types.metta"
+    monkeypatch.setattr(
+        parity, "run_engine", lambda *_args: parity.Outcome(["(1)"], None)
+    )
+    monkeypatch.setattr(
+        parity,
+        "run_library",
+        lambda *_args: parity.Outcome(["(1)"], None, returncode=7),
+    )
+
+    difference = parity.compare(path)
+
+    assert difference is not None
+    assert difference.reason == "the configurations exited differently"
+    assert difference.detail == "engine 0 against library 7"
+
+
+def test_compare_reports_a_planted_verdict_difference(monkeypatch):
+    """Equal answer groups do not erase a failing assertion verdict."""
+    path = REPO / "examples" / "ch09-types" / "01-types.metta"
+    monkeypatch.setattr(
+        parity,
+        "run_engine",
+        lambda *_args: parity.Outcome(
+            ["(1)"], None, ("is 1, should 1. ✅",)
+        ),
+    )
+    monkeypatch.setattr(
+        parity,
+        "run_library",
+        lambda *_args: parity.Outcome(
+            ["(1)"], None, ("is 1, should 2. ❌",)
+        ),
+    )
+
+    difference = parity.compare(path)
+
+    assert difference is not None
+    assert difference.reason == "test verdict 1 differs"
+    assert "should 1" in difference.detail
+    assert "should 2" in difference.detail
+
+
+def test_compare_accepts_equivalent_passing_verdicts(monkeypatch):
+    """A configuration-local home name does not change a passing verdict."""
+    path = REPO / "examples" / "ch09-types" / "01-types.metta"
+    monkeypatch.setattr(
+        parity,
+        "run_engine",
+        lambda *_args: parity.Outcome(
+            ["(true)"], None, ("is &self, should &self. ✅",)
+        ),
+    )
+    monkeypatch.setattr(
+        parity,
+        "run_library",
+        lambda *_args: parity.Outcome(
+            ["(true)"], None, ("is &pyspace_1, should &pyspace_1. ✅",)
+        ),
+    )
+
+    assert parity.compare(path) is None
 
 
 def test_a_python_tuple_answers_the_same_through_both_doors(metta):
@@ -218,4 +326,3 @@ def test_the_stated_corpus_size_is_the_real_one():
     assert int(stated.group(1)) == size, (
         f"examples/README.md says {stated.group(1)}, the runners run {size}"
     )
-
