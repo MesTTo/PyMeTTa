@@ -5,11 +5,11 @@ Guarantees:
   - restoring recursive program content reconciles its call graph once per
     image while preserving every atom and a callable equation [tested:
     test_fast_restore_batches_content_dependent_program_analysis;
-    commit=WORKTREE]
+    commit=d2279ea320e54790dab4484421a168e93755b185]
   - fast caches rebase and restore translator rules, bound equation-world
     spaces, and repeat-load ownership while retaining the root atom count
     [tested: test_fast_cache_restores_translator_rules_and_bound_spaces;
-    commit=WORKTREE]
+    commit=d2279ea320e54790dab4484421a168e93755b185]
 Open Obligations:
   To Do: None
   Hacks: None

@@ -180,7 +180,7 @@ Guarantees:
     rebasing child-space identities, bound aliases, and translator rules when
     loaded into another context [tested:
     test_fast_cache_restores_translator_rules_and_bound_spaces;
-    commit=WORKTREE]
+    commit=d2279ea320e54790dab4484421a168e93755b185]
 Owns resources:
   - ``Space.save`` owns its sibling temporary file and removes it after every
     failed operation [tested: test_save_failure_preserves_existing_file;

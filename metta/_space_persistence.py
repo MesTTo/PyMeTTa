@@ -23,7 +23,7 @@ Guarantees:
     translator rules and bound child spaces, while its public save count stays
     the root atom count [tested:
     test_fast_cache_restores_translator_rules_and_bound_spaces;
-    commit=WORKTREE]
+    commit=d2279ea320e54790dab4484421a168e93755b185]
 Owns resources:
   - save_space owns one sibling temporary file and removes it after every
     failed or successful save
