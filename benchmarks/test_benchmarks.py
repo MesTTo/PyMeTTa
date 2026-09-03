@@ -11,6 +11,10 @@ Guarantees:
     regressions pinned to the measured floor [tested:
     test_automatic_tabling_growth;
     commit=5059173b1767600ce4df0f6b7841d88116ee62d3]
+  - the native-handle case reaches the chapter-19 artifact that the worktree
+    build produces instead of skipping behind its pre-reorganisation path
+    [tested: test_handle_benchmark_reaches_the_built_chapter_19_library;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -1167,8 +1171,8 @@ def _handle_space():
     library = (
         Path(__file__).resolve().parents[3]
         / "examples"
-        / "integration"
-        / "c_extension"
+        / "ch19-spaces-backed-by-anything"
+        / "19-03-a-builtin-in-c"
         / "handle.so"
     )
     if not library.is_file():

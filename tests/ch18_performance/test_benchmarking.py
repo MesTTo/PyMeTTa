@@ -1,4 +1,9 @@
 """Purpose: verify reusable benchmark setup, counter, and perf plumbing.
+Guarantees:
+  - a built chapter-19 handle extension makes the round-trip benchmark execute
+    rather than skip [tested:
+    test_handle_benchmark_reaches_the_built_chapter_19_library;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -558,6 +563,20 @@ def test_instruction_inventory_covers_primitive_heavy_engine_paths():  # noqa: D
     }
     assert engine_cases <= PERF_CASES.keys()
     assert set(INSTRUCTION_CASES) == PERF_CASES.keys()
+
+
+def test_handle_benchmark_reaches_the_built_chapter_19_library():
+    """A built fixture is a benchmark capability, not grounds for a skip."""
+    from benchmarks.test_benchmarks import _handle_space
+
+    try:
+        space = _handle_space()
+    except pytest.skip.Exception as skipped:
+        pytest.fail(f"the built chapter-19 handle fixture was skipped: {skipped}")
+    try:
+        assert space.run("!(vector-new 1)")
+    finally:
+        space.drop()
 
 
 @pytest.mark.parametrize(
