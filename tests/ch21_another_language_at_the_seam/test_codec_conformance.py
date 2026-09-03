@@ -21,6 +21,11 @@ Guarantees:
   - both Python codecs preserve a p-tagged executable space reference
     [tested: test_both_shipped_codecs_pass_the_shared_golden_corpus;
     commit=4e2398075da67bb2cbcc123a9fc1e078ecac6fbf]
+  - every codec tag has a corpus case or a corpus-owned reason, and the
+    irregular h case round-trips a live native value by resolved identity
+    [tested: test_the_tag_inventory_covers_what_the_cases_and_the_codecs_use,
+    test_an_unexercised_tag_requires_a_stated_corpus_exemption,
+    test_both_shipped_codecs_pass_the_shared_golden_corpus; commit=WORKTREE]
 
 Open Obligations:
   To Do: None
@@ -32,6 +37,8 @@ from __future__ import annotations
 
 import json
 import sys
+from contextlib import contextmanager
+from typing import Any
 
 import pytest
 
@@ -64,16 +71,30 @@ class JanusCodec:
     def __init__(self, metta):  # noqa: D107  -- the test double construction contract is local to its containing scenario
         self._metta = metta
         self._rt = metta.runtime
+        self._native_fixture_ids: set[int] | None = None
+        self._native_host_atoms: list[Any] | None = None
 
     def read(self, text):  # noqa: D102  -- the test double method is documented by its containing scenario and protocol
         return self._rt.must(
             "sread_with_names(T, _X, _M), metta_py_encode_named(_X, _M, W)", T=text
         )["W"]
 
-    def roundtrip(self, wire):  # noqa: D102  -- the test double method is documented by its containing scenario and protocol
-        return self._rt.must(
-            "metta_py_decode_shared(W, _T, _B), metta_py_encode_named(_T, _B, W2)", W=wire
+    def roundtrip(self, payload):  # noqa: D102  -- the test double method is documented by its containing scenario and protocol
+        if payload[:1] == ["h"]:
+            host_atom = wire.atom_from_wire(payload)
+            host_back = host_atom.to_wire()
+            if host_back != payload:
+                msg = f"the Python host changed native handle {payload!r} into {host_back!r}"
+                raise ValueError(msg)
+            assert self._native_host_atoms is not None
+            self._native_host_atoms.append(host_atom)
+        back = self._rt.must(
+            "metta_py_decode_shared(W, _T, _B), metta_py_encode_named(_T, _B, W2)",
+            W=payload,
         )["W2"]
+        if self._native_fixture_ids is not None and back[:1] == ["h"]:
+            self._native_fixture_ids.add(back[1])
+        return back
 
     def render(self, wire):  # noqa: D102  -- the test double method is documented by its containing scenario and protocol
         return self._rt.must("metta_py_decode_shared(W, _T, _B), swrite(_T, S)", W=wire)["S"]
@@ -99,6 +120,35 @@ class JanusCodec:
 
     def host_value(self):  # noqa: D102  -- the test double method is documented by its containing scenario and protocol
         return object()
+
+    @contextmanager
+    def native_handle(self):  # noqa: D102  -- the test double method is documented by its containing scenario and protocol
+        wire = self._rt.must(
+            "current_output(_Handle), metta_py_encode_named(_Handle, [], W)"
+        )["W"]
+        issued = {wire[1]}
+        self._native_fixture_ids = issued
+        host_atoms: list[Any] = []
+        self._native_host_atoms = host_atoms
+        try:
+            yield wire
+        finally:
+            for atom in host_atoms:
+                atom.release()
+            for ident in issued:
+                self._rt.do("metta_py_handle_release", ident)
+            self._native_fixture_ids = None
+            self._native_host_atoms = None
+
+    def same_native_handle(self, left, right):  # noqa: D102  -- the test double method is documented by its containing scenario and protocol
+        row = self._rt.must(
+            "metta_py_decode_shared(A, _X, _), "
+            "metta_py_decode_shared(B, _Y, _), "
+            "(_X == _Y -> Same = true ; Same = false)",
+            A=left,
+            B=right,
+        )
+        return row["Same"] == "true"
 
     def transcript(self, program):  # noqa: D102  -- the test double method is documented by its containing scenario and protocol
         # A fresh space per program, so a transcript that defines an
@@ -157,6 +207,14 @@ class JsonWireCodec:
         msg = "the JSON wire declares no o tag, so no case asks for one"
         raise AssertionError(msg)
 
+    def native_handle(self):  # noqa: D102  -- the test double method is documented by its containing scenario and protocol
+        msg = "the JSON wire declares no h tag, so no case asks for one"
+        raise AssertionError(msg)
+
+    def same_native_handle(self, left, right):  # noqa: ARG002,D102  -- outside this driver's declared profile
+        msg = "the JSON wire declares no h tag, so no case asks for one"
+        raise AssertionError(msg)
+
     def transcript(self, program):  # noqa: D102  -- the test double method is documented by its containing scenario and protocol
         with self._metta._new_space() as scratch:
             return [[atom.to_wire() for atom in group] for group in scratch.run(program)]
@@ -195,6 +253,7 @@ def test_the_plan_names_what_each_codec_leaves_out(codecs):
         "boolean-lowercase-source": "tags ['b']",
         "expression-every-tag": "tags ['b']",
         "host-reference": "tags ['o']",
+        "native-handle": "tags ['h']",
         "float-infinity": "needs non_finite",
         "float-negative-infinity": "needs non_finite",
         "float-nan": "needs non_finite",
@@ -350,17 +409,59 @@ def test_the_kit_is_reachable_from_the_documented_name():  # noqa: D103  -- pyte
     assert "check_codec" in testing.__all__
 
 
-def test_the_tag_inventory_covers_what_the_cases_and_the_codecs_use(codecs):
-    """The tag table is data, so it is held to the cases rather than trusted."""
-    corpus = codec_corpus()
+def _tag_inventory_findings(corpus):
+    """Return every unexercised, unexplained, or stale tag declaration."""
     inventory = set(corpus["tags"])
     used = {tag for case in corpus["cases"] for tag in case.get("tags", ())}
     used |= {case["frame"] for case in corpus["frames"]}
-    assert used <= inventory
+    exemptions = corpus.get("coverage_exemptions", {})
+    findings = [
+        f"exercised tag {tag!r} is absent from the inventory"
+        for tag in sorted(used - inventory)
+    ]
+    findings.extend(
+        f"inventory tag {tag!r} has no case or stated exemption"
+        for tag in sorted(inventory - used - set(exemptions))
+    )
+    findings.extend(
+        f"exemption tag {tag!r} is absent from the inventory"
+        for tag in sorted(set(exemptions) - inventory)
+    )
+    findings.extend(
+        f"exemption tag {tag!r} is stale because a case exercises it"
+        for tag in sorted(set(exemptions) & used)
+    )
+    for tag, reason in exemptions.items():
+        if not isinstance(reason, str) or not reason.strip():
+            findings.append(f"exemption tag {tag!r} gives no reason")
+    return findings
+
+
+def test_the_tag_inventory_covers_what_the_cases_and_the_codecs_use(codecs):
+    """The tag table is data, so both coverage directions are enforced."""
+    corpus = codec_corpus()
+    assert _tag_inventory_findings(corpus) == []
     for codec in codecs:
-        assert codec.tags <= inventory and codec.frames <= inventory
+        assert codec.tags <= set(corpus["tags"])
+        assert codec.frames <= set(corpus["tags"])
     terms = {tag for tag, entry in corpus["tags"].items() if entry["class"] == "term"}
     assert terms == set(corpus["profiles"]["full"]["tags"])
+
+
+def test_an_unexercised_tag_requires_a_stated_corpus_exemption():
+    """A future inventory addition cannot repeat h's silent omission."""
+    corpus = codec_corpus()
+    corpus["tags"]["q"] = {
+        "class": "frame",
+        "payload": "test-only",
+        "means": "a planted tag with no case",
+    }
+    assert _tag_inventory_findings(corpus) == [
+        "inventory tag 'q' has no case or stated exemption"
+    ]
+
+    corpus["coverage_exemptions"]["q"] = "A planted directional tag for this control."
+    assert _tag_inventory_findings(corpus) == []
 
 
 # ------------------------------------------------------ the document is generated

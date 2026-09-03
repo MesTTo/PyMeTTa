@@ -17,10 +17,10 @@ Assumes:
     [measured 2026-08-20: the built wheel installed into a venv outside the
     checkout loads the corpus, which the checks.yml wheel job now asserts]
 Guarantees:
-  - wire terms compare up to a renaming of v payloads and byte-exactly
-    everywhere else, so the two shipped variable-naming schemes both pass
-    and a collapsed or aliased variable does not
-    [tested test_alpha_comparison_refuses_a_collapsed_variable]
+  - wire terms compare up to a renaming of v payloads, byte-exactly for
+    ordinary values, and by resolved native identity for a live h fixture
+    [tested: test_alpha_comparison_refuses_a_collapsed_variable,
+    test_both_shipped_codecs_pass_the_shared_golden_corpus; commit=WORKTREE]
   - a case outside a driver's declared profile is REPORTED as out of
     profile rather than dropped, and a driver declaring less than the core
     profile is refused before any case runs
@@ -42,6 +42,8 @@ from __future__ import annotations
 
 import json
 import math
+from collections.abc import Iterator
+from contextlib import AbstractContextManager, contextmanager
 from pathlib import Path
 from typing import Any, Protocol, runtime_checkable
 
@@ -65,6 +67,11 @@ class CodecDriver(Protocol):
     carries wire terms and neither reads MeTTa source nor prints an atom,
     so `reads_text` may be false and `printer` may be None; the kit runs
     the legs the driver has and `codec_plan` names the ones it does not.
+
+    A driver claiming h also supplies a scoped native_handle fixture and
+    compares two references by the native identity they resolve to. Registry
+    ids may be reissued when the same native value is encoded again, so their
+    integer spelling is not semantic equality.
 
     Every operation refuses by raising.
     """
@@ -96,6 +103,12 @@ class CodecDriver(Protocol):
 
     def host_value(self) -> Any:
         """A value only this host can mint, for the o tag."""
+
+    def native_handle(self) -> AbstractContextManager[Any]:
+        """A live h wire term, released when the case has finished."""
+
+    def same_native_handle(self, left: Any, right: Any) -> bool:
+        """Whether two h wire terms resolve to the same native value."""
 
     def transcript(self, program: str) -> list:
         """Run a MeTTa program, answering one wire group per ! directive."""
@@ -209,10 +222,20 @@ def _generated(spec: dict) -> Any:
     return wire
 
 
-def _case_wire(case: dict, driver: CodecDriver) -> Any:
+@contextmanager
+def _case_wire(case: dict, driver: CodecDriver) -> Iterator[Any]:
+    fixture = case.get("wire_fixture")
+    if fixture is not None:
+        if fixture != "native_handle":
+            msg = f"the corpus asks for an unknown wire fixture {fixture!r}"
+            raise ValueError(msg)
+        with driver.native_handle() as wire:
+            yield wire
+        return
     if "generate" in case:
-        return _generated(case["generate"])
-    return _materialise(case["wire"], driver)
+        yield _generated(case["generate"])
+        return
+    yield _materialise(case["wire"], driver)
 
 
 # -------------------------------------------------------------------- plan
@@ -270,8 +293,12 @@ def _refused(operation, *arguments) -> str | None:
 
 
 def _check_term(case: dict, driver: CodecDriver) -> list[str]:
+    with _case_wire(case, driver) as wire:
+        return _check_materialised_term(case, driver, wire)
+
+
+def _check_materialised_term(case: dict, driver: CodecDriver, wire: Any) -> list[str]:
     complaints: list[str] = []
-    wire = _case_wire(case, driver)
     here = f"{driver.name}/{case['id']}"
 
     if "text" in case and driver.reads_text:
@@ -289,9 +316,17 @@ def _check_term(case: dict, driver: CodecDriver) -> list[str]:
     if isinstance(expected, dict):
         branch = "then" if getattr(driver, expected["when"]) else "otherwise"
         expected = _materialise(expected[branch], driver)
+    equivalence = case.get("roundtrip_equivalence")
+    if equivalence not in (None, "native_identity"):
+        msg = f"the corpus asks for an unknown round-trip equivalence {equivalence!r}"
+        raise ValueError(msg)
     try:
         back = driver.roundtrip(wire)
-        if not alpha_equal(back, expected):
+        if equivalence is None:
+            equal = alpha_equal(back, expected)
+        else:
+            equal = driver.same_native_handle(wire, back)
+        if not equal:
             complaints.append(f"{here}: roundtrip gave {back!r}, not {expected!r}")
     except Exception as exc:  # noqa: BLE001
         complaints.append(f"{here}: roundtrip refused: {exc}")
