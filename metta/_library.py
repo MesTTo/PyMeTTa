@@ -27,6 +27,10 @@ Guarantees:
     import spelling as the remedy, so a library can never silently become
     an opaque grounded box inside a stored term
     [tested: test_a_library_handle_refuses_atom_positions]
+  - shipped-library discovery admits both MeTTa and Prolog implementations,
+    so a Prolog-only library remains visible to every derived catalog
+    [tested: test_a_prolog_only_library_is_part_of_the_reference;
+    commit=WORKTREE]
 Fails when:
   - the import must run inside an atom batch: an import is an effect and a
     batch is one deferred bulk write, so the write operator refuses the mix
@@ -46,6 +50,24 @@ if TYPE_CHECKING:
     from ._space import Space
 
 _LIBRARY = Symbol("library")
+
+
+def _library_source_files(root: str | os.PathLike[str]) -> list[Path]:
+    """Every shipped library implementation under ``root/lib``.
+
+    The engine resolves a bare library name into its same-named directory,
+    where either a MeTTa or Prolog implementation can satisfy it. Keep the
+    Python namespace and generated documentation on that source model rather
+    than separate suffix-specific globs.
+    """
+    return sorted(
+        entry
+        for entry in Path(root, "lib").glob("*/*")
+        if entry.is_file()
+        # policy-inventory-exempt: mechanism-internal; reason=the two source suffixes a shipped library file can have, the catalog filter rather than an operator policy; evidence=engine/metta/interop.pl:resolve_module_form/2
+        and entry.suffix in {".metta", ".pl"}
+        and entry.stem.startswith("lib_")
+    )
 
 
 def _attribute_safe(suffix: str) -> bool:
@@ -182,13 +204,11 @@ class _LibraryNamespace:
         # A shipped library is a DIRECTORY under lib/ named for the library,
         # holding its MeTTa surface beside the Prolog it rides on, so the
         # source files are one level down [source: engine/metta.pl:library_within/2].
-        for entry in Path(root, "lib").glob("*/*"):
+        for entry in _library_source_files(root):
             stem = entry.stem
-            # policy-inventory-exempt: mechanism-internal; reason=the two source suffixes a shipped library file can have, the catalog filter rather than an operator policy; evidence=engine/metta/interop.pl:resolve_module_form/2
-            if entry.suffix in {".metta", ".pl"} and stem.startswith("lib_"):
-                suffix = stem[4:]
-                if _attribute_safe(suffix):
-                    names.add(suffix)
+            suffix = stem[4:]
+            if _attribute_safe(suffix):
+                names.add(suffix)
         return sorted(names)
 
 

@@ -1,17 +1,24 @@
-"""Purpose: generate website/reference/metta-libraries.md from the
-`(@doc ...)` atoms the MeTTa libraries carry, the same
+"""Purpose: generate the MeTTa-library reference from source documentation.
+
+The page reads the `(@doc ...)` atoms the MeTTa libraries carry, the same
 true-by-construction promise reference.py makes for the Python modules:
 both languages' docs come from their own sources through one pipeline.
 The coverage table is the burn-down surface, interrogate's role for the
 MeTTa side: a library gains entries here by gaining @doc atoms.
 
 Assumes:
-  - the engine's own reader parses every lib/lib_*/lib_*.metta; forms are READ
-    and never run, so a library needing an absent backend still documents
-    [tested test_the_metta_library_page_is_up_to_date]
+  - the engine's own reader parses each MeTTa implementation; forms are READ
+    and never run, while a Prolog-only implementation contributes an honest
+    zero-documentation row rather than being parsed as MeTTa
+    [tested: test_a_prolog_only_library_is_part_of_the_reference;
+    commit=WORKTREE]
 Guarantees:
   - the checked-in page equals what this produces, gated on every run
     [tested test_the_metta_library_page_is_up_to_date]
+  - the library roster comes from the runtime's shared `.metta`/`.pl` source
+    discovery, with one row when a library has both halves
+    [tested: test_metta_and_prolog_halves_share_one_library_row;
+    commit=WORKTREE]
 Fails when:
   - a library defines names only through runnable `!(...)` side effects;
     the static reading cannot see those, so they go uncounted
@@ -30,6 +37,7 @@ _REPO = pathlib.Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(_REPO / "extensions" / "python"))
 
 from metta import Expression, Grounded, Symbol, parse  # noqa: E402
+from metta._library import _library_source_files  # noqa: E402
 from metta._source_forms import positioned_forms  # noqa: E402
 
 _PAGE = _REPO / "website" / "reference" / "metta-libraries.md"
@@ -45,9 +53,10 @@ beside its definitions."""
 
 
 def _forms(source: str) -> list[tuple]:
-    """Every form in the source with its line, read and never run: the
-    engine reader the boot manifest uses, which is what lets a
-    library whose backend is absent still document itself.
+    """Read every non-runnable form with its source line.
+
+    This is the engine reader the boot manifest uses, which lets a library
+    whose backend is absent still document itself.
     """
     return [
         (parse(form.text), form.line)
@@ -72,8 +81,9 @@ def _named(atom) -> str | None:
 
 
 def _text(atom) -> str:
-    """The prose inside a doc part: a string value decodes, anything else
-    renders as written.
+    """Render the prose inside a documentation part.
+
+    A string value decodes; anything else renders as written.
     """
     if isinstance(atom, Grounded) and isinstance(atom.value, str):
         return atom.value
@@ -81,8 +91,10 @@ def _text(atom) -> str:
 
 
 def _entry(doc: Expression, declared: dict[str, str], where: str) -> list[str]:
-    """One @doc atom as markdown: heading, source line, declared type,
-    description, parameters, and return, parts absent when unwritten.
+    """Render one ``@doc`` atom as Markdown.
+
+    Include its heading, source line, declared type, description, parameters
+    and return value, omitting parts that were not written.
     """
     name = doc.children[1]
     lines = [f"### `{name}`", "", f"*{where}*", ""]
@@ -136,8 +148,26 @@ def _library(path: pathlib.Path) -> tuple[str, int, int, list[str]]:
     return path.stem, len(names | documented), len(documented), section
 
 
+def _libraries(root: pathlib.Path) -> list[tuple[str, int, int, list[str]]]:
+    """One documentation row per discovered library implementation name."""
+    sources: dict[str, list[pathlib.Path]] = {}
+    for path in _library_source_files(root):
+        sources.setdefault(path.stem, []).append(path)
+
+    rows: list[tuple[str, int, int, list[str]]] = []
+    for name, paths in sorted(sources.items()):
+        metta_sources = [path for path in paths if path.suffix == ".metta"]
+        if len(metta_sources) > 1:
+            joined = ", ".join(str(path) for path in metta_sources)
+            message = f"{name} has multiple MeTTa documentation sources: {joined}"
+            raise ValueError(message)
+        rows.append(_library(metta_sources[0]) if metta_sources else (name, 0, 0, []))
+    return rows
+
+
 def page() -> str:
-    rows = [_library(path) for path in sorted((_REPO / "lib").glob("lib_*/lib_*.metta"))]
+    """Render the complete checked-in library reference page."""
+    rows = _libraries(_REPO)
     table = ["| library | names | documented |", "|---|---|---|"]
     table += [f"| {name} | {total} | {done} |" for name, total, done, _ in rows]
     body: list[str] = []
@@ -147,6 +177,7 @@ def page() -> str:
 
 
 def main(argv: list[str]) -> int:
+    """Check the page, or regenerate it when ``--write`` is requested."""
     wanted = page()
     current = _PAGE.read_text(encoding="utf-8") if _PAGE.exists() else ""
     if current == wanted:

@@ -24,6 +24,10 @@ Guarantees:
   - generated pages publish reader prose rather than file-local contracts or
     evidence metadata [tested: test_reference_publishes_reader_prose_only;
     commit=00afba04ff73e51bc2521371c30448898cb3c3d2]
+  - the MeTTa-library reference includes a Prolog-only implementation and
+    combines the MeTTa and Prolog halves of one library into one row [tested:
+    test_a_prolog_only_library_is_part_of_the_reference,
+    test_metta_and_prolog_halves_share_one_library_row; commit=WORKTREE]
   - EXTENDING.md's extension-cost tables carry the numbers the committed
     pins derive and name every pinned tier, so the page cannot drift from
     the gate again [tested:
@@ -404,6 +408,39 @@ def test_the_metta_library_page_is_up_to_date():
         "metta-libraries.md no longer matches the libraries' @doc atoms; "
         "run `python extensions/python/tools/libdoc.py --write`"
     )
+
+
+def test_a_prolog_only_library_is_part_of_the_reference(tmp_path, monkeypatch):
+    """A library does not disappear merely because its implementation is Prolog."""
+    libdoc = _load_libdoc()
+    library = tmp_path / "lib" / "lib_planted"
+    library.mkdir(parents=True)
+    (library / "lib_planted.pl").write_text("planted(true).\n", encoding="utf-8")
+    monkeypatch.setattr(libdoc, "_REPO", tmp_path)
+
+    generated = libdoc.page()
+
+    assert "| lib_planted | 0 | 0 |" in generated
+
+
+def test_metta_and_prolog_halves_share_one_library_row(tmp_path, monkeypatch):
+    """A two-language library is one library, documented from its MeTTa half."""
+    libdoc = _load_libdoc()
+    library = tmp_path / "lib" / "lib_planted"
+    library.mkdir(parents=True)
+    (library / "lib_planted.pl").write_text("planted(true).\n", encoding="utf-8")
+    (library / "lib_planted.metta").write_text(
+        '(: planted (-> Atom))\n(@doc planted (@desc "A planted name."))\n',
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(libdoc, "_REPO", tmp_path)
+
+    generated = libdoc.page()
+
+    assert generated.count("| lib_planted |") == 1
+    assert "| lib_planted | 1 | 1 |" in generated
+    assert "## lib_planted" in generated
+    assert "A planted name." in generated
 
 
 def _lint_kinds() -> set[str]:
