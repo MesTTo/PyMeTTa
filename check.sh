@@ -180,7 +180,7 @@ run GATE extcost       in_py "$PY" -m benchmarks.extension_cost
 # does), so a gate would demand a declaration for its own sake. The list is
 # for deciding, once, which each one is.
 check_determinism_coverage() {
-    ( cd "$HERE/tests/prolog" && swipl -q determinism_coverage.pl )
+    ( cd "$HERE/tests/prolog" && bounded swipl -q determinism_coverage.pl )
 }
 run REPORT determinism check_determinism_coverage
 

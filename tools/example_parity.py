@@ -64,6 +64,7 @@ Open Obligations:
 from __future__ import annotations
 
 import argparse
+import shutil
 import subprocess
 import sys
 from concurrent.futures import ThreadPoolExecutor
@@ -78,6 +79,52 @@ VERDICT = " should "
 #: in the corpus runs well inside this; a hang is a defect, not a reason to
 #: wait [assumed 2026-08-18].
 TIMEOUT = 300
+
+#: How far ABOVE TIMEOUT the child's own bound sits. The parent must still be
+#: the one that gives up first, so `except subprocess.TimeoutExpired` below
+#: keeps firing at TIMEOUT exactly as it did; the child's bound is not a
+#: second opinion about how long an example may take, it is what remains when
+#: nobody is waiting
+#: [tested: test_a_process_this_suite_starts_reports_a_wrapper_as_its_parent;
+#: commit=WORKTREE].
+CHILD_GRACE = 60
+
+
+def _bounded(command: list[str]) -> list[str]:
+    """The same command, with its bound carried by a process that shares its
+    fate instead of the caller's.
+
+    `subprocess.run(timeout=)` is enforced in the PARENT's wait loop. Kill the
+    parent and nothing enforces it: the child keeps running with no bound at
+    all. Two `swipl` children spawned here survived that way from 2026-09-01
+    to 2026-09-03, spinning at 100% for 122 CPU-hours between them.
+
+    GNU `timeout` puts the bound in a wrapper process that is the child's own
+    parent, so an orphaned wrapper still counts down, and it runs the child in
+    its own process group and signals the GROUP, which is what reaches the
+    engine's own children [measured 2026-09-03: a child that spawns a
+    grandchild leaves no survivor when the wrapper fires].
+
+    `PR_SET_PDEATHSIG` is the other candidate and is wrong here twice over:
+    it is set through `preexec_fn`, which CPython documents as unsafe in the
+    presence of threads, and this module spawns from a `ThreadPoolExecutor`;
+    and the kernel sends the parent-death signal when the parent THREAD exits
+    rather than the process, so a pool worker finishing would kill a live
+    child.
+    """
+    if TIMEOUT_COMMAND is None:
+        refusal = (
+            "example_parity needs GNU `timeout` on PATH to bound the children "
+            "it spawns. Without it a killed runner leaves them running with no "
+            "bound at all, which has already cost 122 CPU-hours. Install "
+            "coreutils rather than removing this check."
+        )
+        raise RuntimeError(refusal)
+    return [TIMEOUT_COMMAND, "--preserve-status", "-k", "5",
+            str(TIMEOUT + CHILD_GRACE), *command]
+
+
+TIMEOUT_COMMAND = shutil.which("timeout")
 
 def skips() -> dict[str, str]:
     """The declared skips, path to reason. One definition, read by every
@@ -155,7 +202,7 @@ def _run(
     """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
     try:
         done = subprocess.run(  # noqa: S603 -- commands are built by repository runners
-            command,
+            _bounded(command),
             cwd=cwd,
             capture_output=True,
             text=True,
