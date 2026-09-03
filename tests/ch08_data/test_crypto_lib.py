@@ -1,6 +1,10 @@
 """Purpose: lib_crypto from Python: hashes agree with Python's hashlib,
 determinism holds, unknown algorithms refuse loudly, and random hex is
 well formed and fresh per call.
+Guarantees:
+  - the five hashes shared with library(sha) are all pinned on the full
+    library(crypto) seat [tested:
+    test_hashes_are_deterministic_and_agree_with_hashlib; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -22,12 +26,11 @@ def cr(metta):  # noqa: D103  -- pytest discovers or injects this callable; its 
 
 
 def test_hashes_are_deterministic_and_agree_with_hashlib(cr):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    (digest,) = cr.eval('(crypto-hash sha256 "hello")')
-    assert digest == hashlib.sha256(b"hello").hexdigest()
-    assert cr.eval('(crypto-hash sha256 "hello")') == [digest]
-    (wide,) = cr.eval('(crypto-hash sha512 "hello")')
-    assert wide == hashlib.sha512(b"hello").hexdigest()
-    assert len(wide.value) == 128
+    for algorithm in ("sha1", "sha224", "sha256", "sha384", "sha512"):
+        (digest,) = cr.eval(f'(crypto-hash {algorithm} "hello")')
+        assert digest == getattr(hashlib, algorithm)(b"hello").hexdigest()
+        assert cr.eval(f'(crypto-hash {algorithm} "hello")') == [digest]
+        assert len(digest.value) == getattr(hashlib, algorithm)().digest_size * 2
 
 
 def test_unknown_algorithm_is_loud(cr):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
