@@ -25,7 +25,7 @@ Guarantees:
     irregular h case round-trips a live native value by resolved identity
     [tested: test_the_tag_inventory_covers_what_the_cases_and_the_codecs_use,
     test_an_unexercised_tag_requires_a_stated_corpus_exemption,
-    test_both_shipped_codecs_pass_the_shared_golden_corpus; commit=WORKTREE]
+    test_both_shipped_codecs_pass_the_shared_golden_corpus; commit=5e88a5e3cf96e3ea60f77ab48a8e10d3e7bc29c7]
 
 Open Obligations:
   To Do: None

@@ -20,7 +20,7 @@ Guarantees:
   - wire terms compare up to a renaming of v payloads, byte-exactly for
     ordinary values, and by resolved native identity for a live h fixture
     [tested: test_alpha_comparison_refuses_a_collapsed_variable,
-    test_both_shipped_codecs_pass_the_shared_golden_corpus; commit=WORKTREE]
+    test_both_shipped_codecs_pass_the_shared_golden_corpus; commit=5e88a5e3cf96e3ea60f77ab48a8e10d3e7bc29c7]
   - a case outside a driver's declared profile is REPORTED as out of
     profile rather than dropped, and a driver declaring less than the core
     profile is refused before any case runs
