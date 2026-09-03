@@ -30,7 +30,7 @@ Guarantees:
   - shipped-library discovery admits both MeTTa and Prolog implementations,
     so a Prolog-only library remains visible to every derived catalog
     [tested: test_a_prolog_only_library_is_part_of_the_reference;
-    commit=WORKTREE]
+    commit=1bfad3db85807fff774cad370ff8e57f7400ae99]
 Fails when:
   - the import must run inside an atom batch: an import is an effect and a
     batch is one deferred bulk write, so the write operator refuses the mix

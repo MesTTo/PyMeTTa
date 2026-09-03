@@ -11,14 +11,14 @@ Assumes:
     and never run, while a Prolog-only implementation contributes an honest
     zero-documentation row rather than being parsed as MeTTa
     [tested: test_a_prolog_only_library_is_part_of_the_reference;
-    commit=WORKTREE]
+    commit=1bfad3db85807fff774cad370ff8e57f7400ae99]
 Guarantees:
   - the checked-in page equals what this produces, gated on every run
     [tested test_the_metta_library_page_is_up_to_date]
   - the library roster comes from the runtime's shared `.metta`/`.pl` source
     discovery, with one row when a library has both halves
     [tested: test_metta_and_prolog_halves_share_one_library_row;
-    commit=WORKTREE]
+    commit=1bfad3db85807fff774cad370ff8e57f7400ae99]
 Fails when:
   - a library defines names only through runnable `!(...)` side effects;
     the static reading cannot see those, so they go uncounted

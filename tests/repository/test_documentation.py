@@ -27,7 +27,8 @@ Guarantees:
   - the MeTTa-library reference includes a Prolog-only implementation and
     combines the MeTTa and Prolog halves of one library into one row [tested:
     test_a_prolog_only_library_is_part_of_the_reference,
-    test_metta_and_prolog_halves_share_one_library_row; commit=WORKTREE]
+    test_metta_and_prolog_halves_share_one_library_row;
+    commit=1bfad3db85807fff774cad370ff8e57f7400ae99]
   - EXTENDING.md's extension-cost tables carry the numbers the committed
     pins derive and name every pinned tier, so the page cannot drift from
     the gate again [tested:
