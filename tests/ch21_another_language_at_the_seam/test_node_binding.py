@@ -66,7 +66,9 @@ _CORPUS = json.loads((_BINDING / "kit" / "corpus.json").read_text(encoding="utf-
 # subprocess are one capability because the cost is the same.
 _EXPECTED_REFUSALS = [
     ("concurrency", "library(thread)"),
+    ("crypto", "library(crypto)"),
     ("deadlines", "library(time)"),
+    ("redis", "library(redis)"),
     ("subprocess", "library(process)"),
 ]
 
