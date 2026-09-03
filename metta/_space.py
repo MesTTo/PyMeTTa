@@ -40,6 +40,10 @@ Guarantees:
     test_effect_plan_reports_nested_calls_without_executing_them,
     test_effect_plan_reads_replaced_operation_classification;
     commit=d06621ddec911922c156c79ce68b2c35318e7fc1]
+  - ``Space.derivation`` states that effectful proof premises execute and that
+    only an explicit speculative scope discards their engine writes [tested:
+    test_derivation_effects_are_explicit_and_speculation_discards_engine_writes;
+    commit=WORKTREE]
   - named space construction accepts a space-name Symbol as well as its text
     spelling [tested: test_space_factory_accepts_a_name_symbol; commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
   - a Symbol or ground Expression names a source-visible atomic or parametric
@@ -4257,6 +4261,14 @@ class Space(Handle):
         Truncated nodes when its budget ends, so an empty list means no proof.
         `timeout` and `inferences` guard the whole search. An evaluation error
         inside a proof surfaces as itself rather than as an empty proof list.
+
+        Building a proof executes every premise it records, including
+        effectful operations. Engine writes persist and repeated derivations
+        accumulate them, just as repeated evaluations do. Use
+        ``with space.speculative():`` when the proof should return while its
+        engine writes are discarded. That scope cannot undo Python side
+        effects, I/O, or subscription callbacks that already fired, so do not
+        derive an effectful target when those effects must not happen.
 
         A `bind()` scope binds host values into the term, for the reason
         eval_status needs it: the substitution lands BEFORE the search, so the

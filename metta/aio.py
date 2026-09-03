@@ -70,6 +70,10 @@ Guarantees:
   - async scoped limits forward stack byte bounds through the synchronous
     task-local scope [tested: test_stack_limit_is_carried_to_the_limited_six_seam;
     commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
+  - async derivation keeps the synchronous effect contract: premises execute,
+    while an explicit speculative scope discards engine writes [tested:
+    test_derivation_effects_are_explicit_and_speculation_discards_engine_writes;
+    commit=WORKTREE]
   - reader-token registration and removal run on the owning engine worker and
     mirror the synchronous surface [tested:
     test_aio_plain_methods_forward_on_the_worker and
@@ -2181,6 +2185,13 @@ class AsyncMeTTa:
         Truncated nodes when its budget ends, so an empty list means no proof.
         `timeout` and `inferences` guard the whole search. An evaluation error
         inside a proof surfaces as itself rather than as an empty proof list.
+
+        Building a proof executes every premise it records, including
+        effectful operations. Engine writes persist and repeated derivations
+        accumulate them. Use ``with self.speculative():`` around the awaited
+        call when the proof should return while its engine writes are
+        discarded. The scope cannot undo Python side effects, I/O, or
+        subscription callbacks that already fired.
 
         A `bind()` scope binds host values into the term, for the reason
         eval_status needs it: the substitution lands BEFORE the search, so the

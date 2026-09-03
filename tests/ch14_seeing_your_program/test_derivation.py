@@ -4,6 +4,10 @@ Guarantees:
     nested proof steps without using Python recursion [tested:
     test_deep_proof_consumers_treat_depth_as_data;
     commit=9903250d082ab019535ab0c10b742053f9e640f0]
+  - derivation's public contract names effect execution and the speculative
+    rollback boundary, and both behaviors are exercised [tested:
+    test_derivation_effects_are_explicit_and_speculation_discards_engine_writes;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -147,6 +151,25 @@ def test_unbounded_derivation_obeys_resource_guards(metta):  # noqa: D103  -- py
     metta.run("(= (loop-guard-d $x) (loop-guard-d $x))")
     with pytest.raises(InferenceLimitError):
         metta.derivation(S["loop-guard-d"](1), inferences=2_000)
+
+
+def test_derivation_effects_are_explicit_and_speculation_discards_engine_writes(
+    metta,
+):
+    """Effectful premises run; speculation is the explicit write fence."""
+    assert "effectful operations" in type(metta).derivation.__doc__
+    assert "space.speculative()" in type(metta).derivation.__doc__
+
+    with metta._new_space() as space:
+        space.run("(= (derivation-remember $x) (add-atom &self (seen $x)))")
+        assert space.derivation("(derivation-remember one)")
+        assert space.derivation("(derivation-remember two)")
+        assert S.seen(S.one) in space
+        assert S.seen(S.two) in space
+
+        with space.speculative():
+            assert space.derivation("(derivation-remember discarded)")
+        assert S.seen(S.discarded) not in space
 
 
 @pytest.mark.parametrize("depth", [0, -1, True, 1.5])

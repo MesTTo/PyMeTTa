@@ -16,6 +16,11 @@ Guarantees:
     [tested: test_every_public_execution_door_honours_speculative_policy,
     test_derivation_speculation_fences_the_engine_global_self;
     commit=cf6507cfe9c3d6512ac75039ae22f178140e0cbf]
+  - ordinary derivation executes effectful premises and retains their engine
+    writes; the existing speculative policy is the explicit rollback boundary
+    [tested:
+    test_derivation_effects_are_explicit_and_speculation_discards_engine_writes;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
