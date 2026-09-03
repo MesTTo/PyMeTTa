@@ -154,7 +154,6 @@ HOST_SERVICES = {
     "metta_space_operand/1",
     "metta_string_declarations/2",
     "metta_substitute_self/3",
-    "metta_trace_source/4",
     "metta_release_space/1",
     "metta_annotations/2",
     "metta_contract_fact/1",
@@ -188,6 +187,13 @@ HOST_SERVICES = {
     # binding that walks compiled clauses meets the charge, and a shape each
     # of them spells again drifts the moment the charge changes.
     "metta_host_stack_charge/3",
+    # The reduction trace, and it answers the truncation flag beside the
+    # events. Both transports moved from /4 to /5 together on 2026-09-03:
+    # reaching the bound truncates rather than raising, and a prefix that
+    # cannot say it is one is worse than the raise it replaced. The floor
+    # SWAPPED rather than grew -- /4 is engine-internal now, reached only
+    # by tests/prolog/suites/metatheory/tracer.plt.
+    "metta_trace_source/5",
     "sread_with_names/3",
     "swrite_with_names/3",
     # Eval crosses through a cached translation template while source forms
@@ -289,7 +295,7 @@ FLOOR_REASONS = {
     "metta_space_operand/1": "codec",
     "metta_string_declarations/2": "codec",
     "metta_substitute_self/3": "door",
-    "metta_trace_source/4": "door",
+    "metta_trace_source/5": "door",
     "metta_annotations/2": "door",
     "metta_contract_fact/1": "door",
     "metta_error_answer/3": "error-vocabulary",

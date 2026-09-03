@@ -120,3 +120,63 @@ def test_a_foreign_predicate_does_not_break_tracing(m):
     events = m.trace("!(tr-foreign)")
     assert [e.kind for e in events] == ["call", "exit"]
     assert events[-1].answer == 42
+
+
+def test_a_bound_trace_answers_its_prefix_instead_of_raising(m):
+    """Reaching max_events used to raise and discard every event with it.
+
+    The memory was spent either way: the bound is a COUNT and an event costs
+    the size of its term, so a trace that refused had already paid for the
+    bound it refused at and answered nothing. Measured on
+    ch22/22-03-search/02-tilepuzzle.metta, 5,000 events cost 1.38GB and a
+    downstream renderer measured 100,000 above 14GB, every one of them
+    raising.
+    """
+    m.run("(= (tr-count $n) (if (== $n 0) 0 (+ 1 (tr-count (- $n 1)))))")
+    whole = m.trace("!(tr-count 20)")
+    assert not whole.truncated
+    assert len(whole) > 6
+
+    cut = m.trace("!(tr-count 20)", max_events=5)
+    assert cut.truncated
+    assert len(cut) == 5
+    assert next(event.kind for event in cut) == "call"
+    # The prefix is the SAME prefix, not a different run.
+    assert [str(event.term) for event in cut] == [
+        str(event.term) for event in whole[:5]
+    ]
+
+
+def test_a_trace_is_a_list_and_says_when_it_is_a_prefix(m):
+    """Every consumer iterates, indexes and lengths a trace, so it IS a list.
+
+    `truncated` is the one thing a plain list cannot say and the one thing a
+    bounded trace has to: a prefix that does not admit to being one is worse
+    than the raise it replaced.
+    """
+    m.run("(= (tr-list $n) (if (== $n 0) 0 (+ 1 (tr-list (- $n 1)))))")
+    cut = m.trace("!(tr-list 20)", max_events=3)
+    assert isinstance(cut, list)
+    assert len(list(cut)) == 3
+    assert cut.truncated is True
+    assert "truncated" in repr(cut)
+    assert m.trace("!(tr-list 2)").truncated is False
+
+
+def test_the_size_of_a_term_bounds_a_trace_that_a_count_does_not(m):
+    """max_events cannot bound memory, because nothing bounds an event's term.
+
+    The engine carries a second bound in cells of its own store, and both
+    truncate identically so a caller never has to know which one stopped it.
+    Without it, 02-tilepuzzle.metta traced at the old 1,000,000 default
+    exceeded a 4GB cap and died; with it the same call stops at 4,035 events
+    and 0.73GB.
+    """
+    payload = " ".join(f"p{n}" for n in range(400))
+    m.run("(= (tr-walk 0 $p) done)")
+    m.run("(= (tr-walk $n $p) (tr-walk (- $n 1) $p))")
+    # A count far above the events this can produce, so only the cell budget
+    # can be what stops it.
+    cut = m.trace(f"!(tr-walk 2000 ({payload}))", max_events=10_000_000)
+    assert cut.truncated, "the cell budget did not stop an unbounded-by-count trace"
+    assert len(cut) < 10_000_000

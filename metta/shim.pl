@@ -2162,8 +2162,12 @@ metta_py_future_snapshot(Space, [Watermark, Encoded]) :-
 %The tracer answers terms; putting them on the wire is the shim's job, as
 %it is for every other atom leaving the engine. A call event has no answer
 %field at all, rather than a value standing in for its absence.
-metta_py_trace(Source, Space, Max, Encoded) :-
-    metta_trace_source(Source, Space, Max, Events),
+%One output, because janus binds the LAST argument and a trace now has two
+%things to say: the events, and whether they are all of them. Truncated
+%leads so a reader of the wire sees the qualifier before the data it
+%qualifies.
+metta_py_trace(Source, Space, Max, [Truncated, Encoded]) :-
+    metta_trace_source(Source, Space, Max, Events, Truncated),
     maplist(metta_py_trace_event, Events, Encoded).
 
 metta_py_trace_event(event(Depth, call, Term, _, Names),

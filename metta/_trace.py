@@ -65,19 +65,60 @@ def _as_source(what: Atom | str) -> str:
     return what if isinstance(what, str) else f"!{what}"
 
 
-def trace(space, source: Atom | str, max_events: int = 1_000_000) -> list[TraceEvent]:
+#: The bound an unqualified trace carries. An event costs the size of its
+#: term and nothing bounds that, so max_events is a count against an unbounded
+#: per-event cost: 10,000 events of
+#: examples/ch22-a-reasoner-you-can-serve/22-03-search/02-tilepuzzle.metta peak
+#: 0.26GB, and a downstream renderer measured 50,000 at 5.77GB, 100,000 above
+#: 14GB, and six concurrent renders taking a 60GB machine to 2GB free with the
+#: 1,000,000 this was through 2026-09-03. A default has to be survivable on an
+#: ordinary machine; asking for more is one argument, and the result says when
+#: it was cut.
+DEFAULT_MAX_EVENTS = 10_000
+
+
+class Trace(list):
+    """The events, and whether the bound stopped the recording early.
+
+    A list, because that is what a trace IS and every consumer wants to
+    iterate it, index it and take its length. `truncated` is the one thing a
+    plain list cannot say, and it has to be said: the bound is a COUNT and the
+    memory an event costs is its term's size, so the honest answer to "trace
+    this if it is cheap" is a prefix that admits to being one.
+    """
+
+    __slots__ = ("truncated",)
+
+    def __init__(self, events=(), *, truncated: bool = False) -> None:
+        super().__init__(events)
+        self.truncated = truncated
+
+    def __repr__(self) -> str:
+        cut = ", truncated" if self.truncated else ""
+        return f"Trace({len(self)} events{cut})"
+
+
+def trace(space, source: Atom | str,
+          max_events: int | None = None) -> Trace:
     """Run a term, or source, in this space under the engine's reduction trace.
 
-    max_events bounds the recording: past it the trace raises instead
-    of accumulating without limit, the same shape as the timeout and
-    inference bounds elsewhere.
+    max_events bounds the recording. Past it the recording STOPS and the
+    result's `truncated` is True, so what was already recorded is answered
+    rather than discarded: through 2026-09-03 the bound raised, which threw
+    away every event and charged the full memory of the bound for no answer.
     """
+    # None means unspecified, and the number lives here alone: metta._space
+    # may not import this module (import-linter, "the facade does not import
+    # its satellites"), so a default spelled in the facade would be a second
+    # copy of it.
+    if max_events is None:
+        max_events = DEFAULT_MAX_EVENTS
     if max_events <= 0:
         msg = f"max_events must be positive, got {max_events!r}"
         raise ValueError(
             msg
         )
-    records = _controlled_run(
+    truncated, records = _controlled_run(
         space.runtime,
         "metta_py_trace",
         [_as_source(source), space.name, int(max_events)],
@@ -98,4 +139,4 @@ def trace(space, source: Atom | str, max_events: int = 1_000_000) -> list[TraceE
                 _atom_from_wire(answer[0]) if answer else None,
             )
         )
-    return events
+    return Trace(events, truncated=str(truncated) == "true")

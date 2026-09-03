@@ -1735,7 +1735,7 @@ class Space(Handle):
             return super().cast(value)
         return _satellite("casting").cast(self, value, type_)
 
-    def trace(self, source: Atom | str, max_events: int = 1_000_000):
+    def trace(self, source: Atom | str, max_events: int | None = None):
         """Run a TERM, or source, under the engine's reduction trace and
         answer TraceEvent records: what entered reduction at which depth,
         what it answered, and which reductions failed (a call with no
@@ -1743,7 +1743,8 @@ class Space(Handle):
         argument `answers` and `eval` take; a string is still a string.
         What is traced executes for real, writes included, like run();
         the wrap exists only while tracing, so untraced calls pay
-        nothing. max_events bounds the recording, raising past it rather
+        nothing. max_events bounds the recording; past it the recording
+        stops and the result's `truncated` is True, rather
         than accumulating a long run's trace without limit.
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         return _satellite("_trace").trace(self, source, max_events=max_events)
@@ -6168,7 +6169,7 @@ class MeTTa:
         """
         return self._self.speculative()
 
-    def trace(self, source: Atom | str, max_events: int = 1_000_000):
+    def trace(self, source: Atom | str, max_events: int | None = None):
         """Run a TERM, or source, under the engine's reduction trace and
         answer TraceEvent records: what entered reduction at which depth,
         what it answered, and which reductions failed (a call with no
@@ -6176,7 +6177,8 @@ class MeTTa:
         argument `answers` and `eval` take; a string is still a string.
         What is traced executes for real, writes included, like run();
         the wrap exists only while tracing, so untraced calls pay
-        nothing. max_events bounds the recording, raising past it rather
+        nothing. max_events bounds the recording; past it the recording
+        stops and the result's `truncated` is True, rather
         than accumulating a long run's trace without limit.
         Runs against this context's self space.
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose

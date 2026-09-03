@@ -1057,7 +1057,7 @@ def speculate() -> _ScopedExecution:
     return engine().self.speculative()
 
 
-def trace(source: Atom | str, max_events: int = 1000000):
+def trace(source: Atom | str, max_events: int | None = None):
     """Run a TERM, or source, under the engine's reduction trace and
     answer TraceEvent records: what entered reduction at which depth,
     what it answered, and which reductions failed (a call with no
@@ -1065,7 +1065,8 @@ def trace(source: Atom | str, max_events: int = 1000000):
     argument `answers` and `eval` take; a string is still a string.
     What is traced executes for real, writes included, like run();
     the wrap exists only while tracing, so untraced calls pay
-    nothing. max_events bounds the recording, raising past it rather
+    nothing. max_events bounds the recording; past it the recording
+    stops and the result's `truncated` is True, rather
     than accumulating a long run's trace without limit.
     Runs against the default context's self space.
     """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
