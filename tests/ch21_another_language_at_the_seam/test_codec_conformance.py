@@ -211,7 +211,7 @@ class JsonWireCodec:
         msg = "the JSON wire declares no h tag, so no case asks for one"
         raise AssertionError(msg)
 
-    def same_native_handle(self, left, right):  # noqa: ARG002,D102  -- outside this driver's declared profile
+    def same_native_handle(self, left, right):  # noqa: ARG002, D102  -- outside this driver's declared profile
         msg = "the JSON wire declares no h tag, so no case asks for one"
         raise AssertionError(msg)
 
