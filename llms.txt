@@ -295,9 +295,14 @@ door, because a library IS knowledge and the receiver is the target space.
 Every refusal is typed and carries machine-readable parts beside the message:
 `MettaError` is the base (with `atom`, `space`, `operation`, `capability`,
 `ground`), `CompileError` names the construct and renders a caret, and
-`SpaceCapabilityError` names the space, operation and missing capability. An
-error is DATA in MeTTa, so an `(Error ...)` answer can be caught, inspected
-by metatype, and passed through a strict position without being raised.
+`SpaceCapabilityError` names the space, operation and missing capability.
+An error has two readings in MeTTa. An `(Error ...)` written literally, or an
+answer bound before its next call, is data and can be compared or inspected.
+A strict argument whose evaluation produces an `(Error ...)` instead finishes
+the enclosing call with that error unchanged. Use `if-error`,
+`return-on-error`, or an explicit `let` binding before treating the answer as
+data; a parameter declared `Atom` receives its written argument without
+evaluating it.
 
 ## The ladder, and it never shrinks
 

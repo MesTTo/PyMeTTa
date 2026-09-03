@@ -8,6 +8,10 @@ Guarantees:
   - an under-applied operation answers a partial application and never takes
     the host process down.
   [tested: test_an_underapplied_operation_answers_instead_of_aborting; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
+  - the Python contract distinguishes an error produced while evaluating a
+    strict operand from literal, bound, and unevaluated Atom data.
+  [tested: test_python_contract_matches_the_computed_error_boundary;
+  commit=WORKTREE]
 Fails when: a probe is read as a claim about Hyperon rather than about LeaTTa;
   the arbiter is LeaTTa and every pin below cites the LeaTTa file it came from.
 Open Obligations:
@@ -190,6 +194,49 @@ def test_the_error_vocabulary_answers_what_the_arbiter_answers() -> None:
 
     # A collapse keeps the error as an ordinary answer.
     assert _answers(metta, '!(collapse (+ 1 "bad"))') == [f"({produced})"]
+
+
+def test_python_contract_matches_the_computed_error_boundary(repo_root) -> None:
+    """The seat guide states the same strict/data boundary the engine runs."""
+    with MeTTa() as context:
+        metta = context.self
+        metta.run(
+            "(: boundary-taker (-> %Undefined% %Undefined% %Undefined%))\n"
+            "(= (boundary-taker $left $right)\n"
+            "   (if (== $left $right) SAME (DIFFERENT $left $right)))\n"
+            "(: boundary-taker-atom (-> Atom Atom %Undefined%))\n"
+            "(= (boundary-taker-atom $left $right)\n"
+            "   (if (== $left $right) SAME (DIFFERENT $left $right)))\n"
+            "(: boundary-makes-error (-> %Undefined%))\n"
+            "(= (boundary-makes-error) (Error junk expected-something))"
+        )
+        error = "(Error junk expected-something)"
+
+        assert _answers(metta, f"!(boundary-taker {error} {error})") == ["SAME"]
+        assert _answers(metta, f"!(boundary-taker (boundary-makes-error) {error})") == [
+            error
+        ]
+        assert _answers(
+            metta,
+            f"!(let $error (boundary-makes-error) "
+            f"(boundary-taker $error {error}))",
+        ) == ["SAME"]
+
+        # Atom is the reporter's discriminating control: it does not propagate
+        # the produced error "the same way" because it never evaluates the
+        # written call. Binding first gives it the resulting Error as data.
+        assert _answers(
+            metta, f"!(boundary-taker-atom (boundary-makes-error) {error})"
+        ) == [f"(DIFFERENT (boundary-makes-error) {error})"]
+        assert _answers(
+            metta,
+            f"!(let $error (boundary-makes-error) "
+            f"(boundary-taker-atom $error {error}))",
+        ) == ["SAME"]
+
+    contract = (repo_root / "extensions/python/llms.txt").read_text()
+    assert "passed through a strict position without being raised" not in contract
+    assert "A strict argument whose evaluation produces" in contract
 
 
 # The nine registrations register_prolog_arities/1 used to make for a SWI
