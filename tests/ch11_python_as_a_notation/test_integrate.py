@@ -8,6 +8,12 @@ Guarantees:
   - module operations use one transport selector and infer declarations from
     annotations [tested: test_module_ops_bulk_registers_a_stdlib_module;
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
+  - Prolog-only integrations preserve distinct dotted module names as library
+    aliases, while callers may still compose several directories under one
+    explicit alias [tested:
+    test_prolog_integration_aliases_keep_fully_qualified_module_names,
+    test_an_explicitly_shared_library_alias_keeps_all_directories;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -255,6 +261,101 @@ def test_pi_protocol_and_idempotence(metta):  # noqa: D103  -- pytest discovers 
         assert len(calls) == 2
     finally:
         other.drop()
+
+
+def test_prolog_integration_aliases_keep_fully_qualified_module_names(
+    metta, tmp_path
+):
+    """Two dotted modules ending in ``tools`` retain distinct file doors."""
+    alpha_dir = tmp_path / "alpha"
+    beta_dir = tmp_path / "beta"
+    alpha_dir.mkdir()
+    beta_dir.mkdir()
+    (alpha_dir / "probe.metta").write_text("(= (qualified-alpha-probe) alpha)\n")
+    (beta_dir / "probe.metta").write_text("(= (qualified-beta-probe) beta)\n")
+
+    def prolog_only_module(name, directory):
+        module = types.ModuleType(name)
+        module.__file__ = str(directory / "__init__.py")
+        module.METTA_PROLOG = []
+        return module
+
+    aliases = ("alpha.tools", "beta.tools")
+    with metta._new_space() as space:
+        try:
+            assert (
+                pi.integrate(space, prolog_only_module(aliases[0], alpha_dir))
+                == aliases[0]
+            )
+            assert (
+                pi.integrate(space, prolog_only_module(aliases[1], beta_dir))
+                == aliases[1]
+            )
+
+            for alias, directory in zip(aliases, (alpha_dir, beta_dir), strict=True):
+                assert space.runtime.once(
+                    "user:file_search_path(Alias, Directory)",
+                    Alias=alias,
+                    Directory=str(directory),
+                )
+            assert not space.runtime.once(
+                "user:file_search_path(Alias, Directory)",
+                Alias=aliases[0],
+                Directory=str(beta_dir),
+            )
+            assert not space.runtime.once(
+                "user:file_search_path(Alias, Directory)",
+                Alias=aliases[1],
+                Directory=str(alpha_dir),
+            )
+            for directory in (alpha_dir, beta_dir):
+                assert not space.runtime.once(
+                    "user:file_search_path(Alias, Directory)",
+                    Alias="tools",
+                    Directory=str(directory),
+                )
+
+            space.fn["import!"](
+                space, S.library(S[aliases[0]], S["probe.metta"])
+            ).one()
+            space.fn["import!"](
+                space, S.library(S[aliases[1]], S["probe.metta"])
+            ).one()
+            assert space.run("!(qualified-alpha-probe)") == [[S.alpha]]
+            assert space.run("!(qualified-beta-probe)") == [[S.beta]]
+        finally:
+            for alias in (*aliases, "tools"):
+                space.runtime.must(
+                    "retractall(user:file_search_path(Alias, _))", Alias=alias
+                )
+
+
+def test_an_explicitly_shared_library_alias_keeps_all_directories(metta, tmp_path):
+    """SWI's additive alias remains available when sharing is deliberate."""
+    first = tmp_path / "first"
+    second = tmp_path / "second"
+    first.mkdir()
+    second.mkdir()
+    (first / "left.metta").write_text("(= (shared-left-probe) left)\n")
+    (second / "right.metta").write_text("(= (shared-right-probe) right)\n")
+    alias = "shared.integration.paths"
+
+    with metta._new_space() as space:
+        try:
+            space.register_library_path(first, alias)
+            space.register_library_path(second, alias)
+            space.fn["import!"](
+                space, S.library(S[alias], S["left.metta"])
+            ).one()
+            space.fn["import!"](
+                space, S.library(S[alias], S["right.metta"])
+            ).one()
+            assert space.run("!(shared-left-probe)") == [[S.left]]
+            assert space.run("!(shared-right-probe)") == [[S.right]]
+        finally:
+            space.runtime.must(
+                "retractall(user:file_search_path(Alias, _))", Alias=alias
+            )
 
 
 def test_dropped_space_name_reinstalls_integrations(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract

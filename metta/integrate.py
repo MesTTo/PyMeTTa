@@ -29,6 +29,12 @@ Guarantees:
   - callable wrappers require a host-effect classification, and object
     wrappers require one class per method [tested:
     test_wrap_object_methods_with_effect_convention; commit=3cfbe0d7417b1c453c2dc12d47e2e47e7de461f7]
+  - Prolog-only integrations register their directories under the module's
+    fully qualified name, so distinct dotted modules cannot silently share
+    one ordered SWI search alias [tested:
+    test_prolog_integration_aliases_keep_fully_qualified_module_names,
+    test_an_explicitly_shared_library_alias_keeps_all_directories;
+    commit=WORKTREE]
 Owns:
   - _INSTALLED retains one target per live space and integration name;
     MeTTa.drop releases every record for that space [tested
@@ -186,7 +192,7 @@ def _prolog_installer(target: Any) -> Callable:
     files = [package / name for name in target.METTA_PROLOG]
 
     def install(m) -> None:
-        alias = getattr(target, "__name__", "metta_integration").rsplit(".", 1)[-1]
+        alias = getattr(target, "__name__", "metta_integration")
         m.register_library_path(package, alias)
         for path in files:
             m.register_prolog(path=path)
