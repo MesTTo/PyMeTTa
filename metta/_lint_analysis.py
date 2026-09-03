@@ -762,7 +762,9 @@ def _binder_simplified(
     if head == "let":
         if len(inner) != 4:
             return None
-        patterns = (inner[1],)
+        # Annotated because the other branch below builds a variable-length
+        # tuple, and a bare 1-tuple here infers the narrower fixed shape.
+        patterns: tuple[Atom, ...] = (inner[1],)
     elif head == "let*":
         if len(inner) < 2 or not isinstance(inner[1], Expression):
             return None
