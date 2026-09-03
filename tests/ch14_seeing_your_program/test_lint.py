@@ -6,6 +6,14 @@ carries. A healthy space answers no findings.
 Guarantees:
   - public finding records survive pickle through metta.lint [tested
     test_finding_retains_public_pickle_identity]
+  - duplicate-binder covers clause-scoped names across plain ``let`` forms,
+    retains all three nested and sibling ``let*`` shapes, and leaves distinct
+    binders' ``Pair`` answer unchanged [tested:
+    test_plain_let_duplicate_binders_are_reported_across_one_clause,
+    test_plain_let_duplicates_inside_binding_values_are_reported,
+    test_let_star_duplicate_binder_controls_keep_reporting,
+    test_distinct_plain_let_binders_are_clean_and_keep_their_pair_answer;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -333,6 +341,57 @@ def test_the_seven_simplification_rules_fire(m):  # noqa: D103  -- pytest discov
         "superposed-single",
         "duplicate-binder",
     } <= kinds
+
+
+def test_plain_let_duplicate_binders_are_reported_across_one_clause(m):
+    """Two single-binding lets still share one compiled clause variable."""
+    m.run(
+        "(= (plain-let-duplicate) "
+        "(Pair (let $a 1 $a) (let $a 2 $a)))"
+    )
+    duplicates = [finding for finding in lint(m) if finding.kind == "duplicate-binder"]
+    assert len(duplicates) == 1
+    assert duplicates[0].atom[1][0] == S["plain-let-duplicate"]
+    assert "clause-scoped" in duplicates[0].detail
+    assert m.run("!(plain-let-duplicate)") == [[]]
+
+
+def test_plain_let_duplicates_inside_binding_values_are_reported(m):
+    """The reporter's nested-value shape is clause-scoped too."""
+    m.run(
+        "(= (plain-let-duplicate-values) "
+        "(let* (($x (let $a 1 $a)) ($y (let $a 2 $a))) (Pair $x $y)))"
+    )
+    duplicates = [finding for finding in lint(m) if finding.kind == "duplicate-binder"]
+    assert len(duplicates) == 1
+    assert duplicates[0].atom[1][0] == S["plain-let-duplicate-values"]
+    assert m.run("!(plain-let-duplicate-values)") == [[]]
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        "(let* (($a 1) ($a 2)) (Pair $a $a))",
+        "(let* (($x (let* (($a 1) ($a 2)) $a))) $x)",
+        "(let* (($x 1)) (let* (($a 1) ($a 2)) (Pair $x $a)))",
+    ],
+)
+def test_let_star_duplicate_binder_controls_keep_reporting(m, body):
+    """Sibling, binding-value, and body nesting keep their existing finding."""
+    m.run(f"(= (let-star-duplicate-control) {body})")
+    duplicates = [finding for finding in lint(m) if finding.kind == "duplicate-binder"]
+    assert len(duplicates) == 1
+    assert duplicates[0].atom[1][0] == S["let-star-duplicate-control"]
+
+
+def test_distinct_plain_let_binders_are_clean_and_keep_their_pair_answer(m):
+    """Distinct clause variables neither warn nor change evaluation."""
+    m.run(
+        "(= (plain-let-distinct) "
+        "(Pair (let $a 1 $a) (let $b 2 $b)))"
+    )
+    assert m.run("!(plain-let-distinct)") == [[Expression(S.Pair, 1, 2)]]
+    assert "duplicate-binder" not in _kinds(lint(m))
 
 
 def test_inconsistent_arity_reports_and_an_arrow_silences(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract

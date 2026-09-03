@@ -22,6 +22,13 @@ Guarantees:
   - a compiled ``py(...)`` island retained under a repeated loop equation is
     reported once per source island with its Python coordinates [tested:
     test_py_host_island_inside_loops_emits_exact_findings; commit=3f0a1d237a3c969b2d4ad0d48b2195ce196b631a]
+  - duplicate-binder follows the engine's clause-scoped variable identity
+    through both ``let`` and ``let*``, including binders in sibling forms
+    [tested: test_plain_let_duplicate_binders_are_reported_across_one_clause,
+    test_plain_let_duplicates_inside_binding_values_are_reported,
+    test_let_star_duplicate_binder_controls_keep_reporting,
+    test_distinct_plain_let_binders_are_clean_and_keep_their_pair_answer;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -748,35 +755,63 @@ def _superpose_simplified(inner: Expression) -> tuple[str, str, Atom | None] | N
     return None
 
 
-def _binder_simplified(inner: Expression) -> tuple[str, str, Atom | None] | None:
-    if len(inner) < 2 or not isinstance(inner[1], Expression):
+def _binder_simplified(
+    inner: Expression, seen: set[str] | None = None
+) -> tuple[str, str, Atom | None] | None:
+    head = _symbol_head(inner)
+    if head == "let":
+        if len(inner) != 4:
+            return None
+        patterns = (inner[1],)
+    elif head == "let*":
+        if len(inner) < 2 or not isinstance(inner[1], Expression):
+            return None
+        patterns = tuple(
+            binding.children[0]
+            for binding in inner[1].children
+            if isinstance(binding, Expression) and binding.children
+        )
+    else:
         return None
-    seen: set[str] = set()
-    for binding in inner[1].children:
-        if not (isinstance(binding, Expression) and binding.children):
-            continue
-        for name in _variables(binding.children[0]):
-            if name in seen:
-                return (
-                    "duplicate-binder",
-                    f"${name} is bound twice in one let*; the second binding "
-                    f"unifies rather than shadows, so if an equality "
-                    f"constraint is meant, say == instead",
-                    None,
-                )
+
+    seen = set() if seen is None else seen
+    duplicate = None
+    for pattern in patterns:
+        for name in _variables(pattern):
+            if name in seen and duplicate is None:
+                duplicate = name
             seen.add(name)
-    return None
+    if duplicate is None:
+        return None
+    return (
+        "duplicate-binder",
+        f"${duplicate} is bound twice in one equation; let and let* use "
+        f"clause-scoped variables, so the second binding unifies rather "
+        f"than shadows. If an equality constraint is meant, say == instead",
+        None,
+    )
 
 
-_SIMPLIFIERS = {"if": _if_simplified, "superpose": _superpose_simplified, "let*": _binder_simplified}
+_SIMPLIFIERS = {
+    "if": _if_simplified,
+    "superpose": _superpose_simplified,
+    "let": _binder_simplified,
+    "let*": _binder_simplified,
+}
 
 
-def _simplified(inner: Expression) -> tuple[str, str, Atom | None] | None:
+def _simplified(
+    inner: Expression, seen_binders: set[str] | None = None
+) -> tuple[str, str, Atom | None] | None:
     """One nested expression's simplification, or None: (kind, detail,
     replacement), replacement None when the finding has no rewrite.
     """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
     simplifier = _SIMPLIFIERS.get(_symbol_head(inner) or "")
-    return None if simplifier is None else simplifier(inner)
+    if simplifier is None:
+        return None
+    if simplifier is _binder_simplified:
+        return _binder_simplified(inner, seen_binders)
+    return simplifier(inner)
 
 
 def _replaced(stored: Expression, target: Atom, replacement: Atom) -> Atom:
@@ -787,8 +822,9 @@ def _replaced(stored: Expression, target: Atom, replacement: Atom) -> Atom:
 def _simplification_findings(equations: list[Expression]) -> list[Finding]:
     findings: list[Finding] = []
     for equation in equations:
+        seen_binders: set[str] = set()
         for call in _walk_heads(equation[2]):
-            found = _simplified(call)
+            found = _simplified(call, seen_binders)
             if found is None:
                 continue
             kind, detail, replacement = found
