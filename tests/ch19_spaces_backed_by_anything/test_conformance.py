@@ -17,7 +17,7 @@ Guarantees:
   - a registered Python-backed Space handle reaches the engine checker and
     passes every declared hook's qualified ownership guard
     [tested: test_a_python_backed_space_handle_passes_the_engine_checker;
-    commit=WORKTREE]
+    commit=90362cf551149c822a05fb26fbf80d0c2ce11fa4]
 Open Obligations:
   To Do: None
   Hacks: None
