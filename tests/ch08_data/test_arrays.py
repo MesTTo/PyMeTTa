@@ -21,7 +21,7 @@ Guarantees:
     NumPy's hidden global state [tested:
     test_nested_backend_names_do_not_retarget_an_earlier_space,
     test_randn_never_borrows_another_backends_random_state;
-    commit=WORKTREE]
+    commit=de15573db164c24b9dcaa3e5b783e66dcb05d4d1]
 Open Obligations:
   To Do: None
   Hacks: None
