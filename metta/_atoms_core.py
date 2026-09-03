@@ -1627,10 +1627,14 @@ def explicit_metta_atom(value: Any) -> Atom | None:
 
 @singledispatch
 def _encode_value(value: Any) -> Atom:
-    """The open dispatch behind encode. See encode for the contract."""
-    result = explicit_metta_atom(value)
-    if result is not None:
-        return result
+    """The open dispatch behind encode. See encode for the contract.
+
+    No __metta__ check here. encode is this function's only caller and asks
+    before it dispatches, because a hook has to beat an encoder registered for
+    a BASE class and this dispatch resolves by MRO. Asking twice would cost
+    every unregistered value a second inspect.getattr_static for an answer
+    already known to be None.
+    """
     return Grounded(value)
 
 
@@ -1725,6 +1729,24 @@ def encode(value: Any) -> Atom:
     handler = _ENCODE_FAST.get(value.__class__)
     if handler is not None:
         return handler(value)
+    # An explicit hook outranks an encoder INFERRED from a base class. The
+    # table above is keyed on the exact class, so a subclass misses it and
+    # falls to _encode_value, which is a singledispatch and resolves by MRO:
+    # a str subclass reaches the str handler and a class that says how to
+    # encode itself is never asked. That was 7 of 8 subclass shapes, including
+    # every NamedTuple and every IntEnum, and every StrEnum vocabgen.py emits,
+    # against llms.txt's claim that each vocabulary member "encodes as its
+    # symbol" [tested: test_a_hook_outranks_an_encoder_inherited_from_a_base].
+    #
+    # This is the precedence the comment above the table already cites and the
+    # dispatch then departed from: pickle's table is keyed on the exact type
+    # and, on a miss, pickle consults the object's own __reduce_ex__ rather
+    # than a base class's handler. json.JSONEncoder has the opposite order and
+    # is the standard example of the bug, a str subclass serialising as a
+    # string with `default` never called.
+    explicit = explicit_metta_atom(value)
+    if explicit is not None:
+        return explicit
     mentioned = callable_mention(value)
     if mentioned is not None:
         return Symbol(mentioned)

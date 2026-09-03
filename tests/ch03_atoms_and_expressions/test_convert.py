@@ -12,7 +12,7 @@ Open Obligations:
 
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field, make_dataclass
-from enum import Enum
+from enum import Enum, IntEnum, StrEnum
 from typing import NamedTuple
 
 import pytest
@@ -26,6 +26,7 @@ from metta.convert import (
     register_type,
     unregister_type,
 )
+from metta.vocabularies import EffectClass
 
 
 class Color(Enum):  # noqa: D101  -- the local test double is documented by the scenario that constructs it
@@ -174,6 +175,128 @@ def test_metta_dunder_hooks_work_unregistered():  # noqa: D103  -- pytest discov
     assert atom == Expression(S.Tagged, "x")
     rebuilt = build(atom, Tagged)
     assert isinstance(rebuilt, Tagged) and rebuilt.label == "x"
+
+
+def test_a_hook_outranks_an_encoder_inherited_from_a_base():
+    """A class that says how to encode itself beats a base class's encoder.
+
+    encode's fast table is keyed on the EXACT class, so a subclass misses it
+    and used to fall to a singledispatch that resolves by MRO: a str subclass
+    reached the str encoder and its own __metta__ was never asked. Seven of
+    the eight shapes below were wrong that way, IntEnum encoding as a repr,
+    and every StrEnum vocabgen.py emits was among them.
+
+    Every shape, not one. Special-casing StrEnum, or registering an encoder
+    for Enum, makes the reported case pass and leaves NamedTuple and every
+    list subclass broken, which is why this is a table.
+    """
+    def hook(_self):
+        return Symbol("HOOKED")
+
+    class SubStr(str):
+        __metta__ = hook
+
+    class SubInt(int):
+        __metta__ = hook
+
+    class SubFloat(float):
+        __metta__ = hook
+
+    class SubList(list):
+        __metta__ = hook
+
+    class SubTuple(tuple):
+        __metta__ = hook
+
+    class SubNamedTuple(NamedTuple):
+        x: int
+        __metta__ = hook
+
+    class SubEnum(Enum):
+        A = 1
+        __metta__ = hook
+
+    class SubIntEnum(IntEnum):
+        A = 1
+        __metta__ = hook
+
+    class SubStrEnum(StrEnum):
+        A = "a"
+        __metta__ = hook
+
+    hooked = (SubStr("v"), SubInt(1), SubFloat(1.5), SubList([1]), SubTuple((1,)),
+              SubNamedTuple(1), SubEnum.A, SubIntEnum.A, SubStrEnum.A)
+    for value in hooked:
+        assert project(value).atom == Symbol("HOOKED"), type(value).__name__
+
+
+def test_a_value_without_a_hook_encodes_exactly_as_before():
+    """The other half of the control: the fast path must not have moved.
+
+    A fix that made every subclass reach __metta__ by weakening the exact-class
+    table would pass the table above and change what a plain str costs and
+    means. These are the shapes that must be untouched.
+    """
+    assert project("v").atom == "v"
+    assert project(1).atom == 1
+    assert project(1.5).atom == 1.5
+    assert project([1, 2]).atom == Expression(1, 2)
+    assert project((1, 2)).atom == Expression(1, 2)
+
+
+def test_a_hook_outranks_a_default_derived_from_the_shape():
+    """project() memoizes a default for an Enum, dataclass or NamedTuple, and
+    a default is what applies when the author has NOT said otherwise.
+
+    The hook was consulted only below a registration existing at all, so a
+    NamedTuple carrying __metta__ projected as its constructor expression and
+    an Enum as its member name. An EXPLICIT register_type still wins, because
+    that is the author speaking too and it is the more specific of the two.
+    """  # noqa: D205  -- one continuous invariant, not summary-and-body prose
+
+    def hook(_self):
+        return Symbol("HOOKED")
+
+    @dataclass
+    class Hooked:
+        x: int
+        __metta__ = hook
+
+    class HookedTuple(NamedTuple):
+        x: int
+        __metta__ = hook
+
+    class HookedEnum(Enum):
+        A = 1
+        __metta__ = hook
+
+    for value in (Hooked(1), HookedTuple(1), HookedEnum.A):
+        assert project(value).atom == Symbol("HOOKED"), type(value).__name__
+
+    # And the shapes with no hook keep the defaults the docstring promises.
+    @dataclass
+    class Bare:
+        x: int
+
+    class BareTuple(NamedTuple):
+        x: int
+
+    class BareEnum(Enum):
+        A = 1
+
+    assert project(Bare(1)).atom == Expression(S.Bare, 1)
+    assert project(BareTuple(1)).atom == Expression(S.BareTuple, 1)
+    assert project(BareEnum.A).atom == S.A
+
+
+def test_a_shipped_vocabulary_member_encodes_as_its_symbol():
+    """llms.txt says each member IS its wire word and encodes as its symbol.
+
+    Every class vocabgen.py writes is a StrEnum, so that sentence was false for
+    all of them until the precedence above was fixed.
+    """
+    member = next(iter(EffectClass))
+    assert project(member).atom == Symbol(member.value)
 
 
 def test_declarations_without_an_instance():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract

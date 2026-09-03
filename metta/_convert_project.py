@@ -110,6 +110,23 @@ def _project_object(value: Any) -> Projected:
     registration = _registration_for(cls)
     if registration is None:
         return _project_unregistered(value)
+    if not registration.explicit:
+        # A DEFAULT is what applies when the author has not said otherwise,
+        # and __metta__ is the author saying otherwise. _registration_for
+        # derives one from the shape of an Enum, dataclass or NamedTuple and
+        # memoizes it, so the hook -- consulted only by _project_unregistered,
+        # below a registration existing at all -- was never reached for those
+        # three: a NamedTuple carrying __metta__ projected as its constructor
+        # expression and an Enum as its member name. The same precedence
+        # explicit_projection already states, that a memoized default is not
+        # an author's opt-in, applied to the door that memoizes it
+        # [tested: test_a_hook_outranks_a_default_derived_from_the_shape].
+        #
+        # An EXPLICIT register_type still wins, because that is also the
+        # author speaking and it is the more specific of the two.
+        atom = explicit_metta_atom(value)
+        if atom is not None:
+            return Projected(atom, ())
     return _project_registered(value, cls, registration)
 
 
