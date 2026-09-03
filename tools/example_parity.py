@@ -24,11 +24,11 @@ Guarantees:
     line [tested: test_example_parity_reports_a_planted_difference,
     test_compare_reports_a_planted_exit_status_difference,
     test_compare_reports_a_planted_verdict_difference,
-    test_compare_accepts_equivalent_passing_verdicts; commit=WORKTREE]
+    test_compare_accepts_equivalent_passing_verdicts; commit=835925ee1c55d2267aa54f0a5ccbdfcdb6fc003c]
   - the library configuration closes the MeTTa engine after loading each
     example, and a teardown failure is part of that configuration's outcome
     [tested: test_the_library_runner_reports_a_teardown_failure;
-    commit=WORKTREE]
+    commit=835925ee1c55d2267aa54f0a5ccbdfcdb6fc003c]
   - answers are compared as VALUES, not as text, so a difference in
     source SPELLING is not a difference in answer: `true` and `True` both
     parse to Grounded(True), while both shipped writers emit canonical `true`

@@ -6,11 +6,11 @@ Guarantees:
   - the library runner enters and exits every engine, so an exception raised
     during teardown is reported rather than hidden behind answers printed
     before close [tested: test_the_library_runner_reports_a_teardown_failure;
-    commit=WORKTREE]
+    commit=835925ee1c55d2267aa54f0a5ccbdfcdb6fc003c]
   - exit status and verdict lines are compared independently of answer groups
     [tested: test_compare_reports_a_planted_exit_status_difference,
     test_compare_reports_a_planted_verdict_difference,
-    test_compare_accepts_equivalent_passing_verdicts; commit=WORKTREE]
+    test_compare_accepts_equivalent_passing_verdicts; commit=835925ee1c55d2267aa54f0a5ccbdfcdb6fc003c]
 Open Obligations:
   To Do: None
   Hacks: None
