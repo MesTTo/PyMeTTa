@@ -1,5 +1,5 @@
 """Purpose: the Python surface's shrink ledger, the question KERNEL.md asks of
-the engine asked of the library. KERNEL.md classes 58 translator heads as
+the engine asked of the library. KERNEL.md classes 67 translator heads as
 primitive or derived and requires every derived form still fused into the
 compiler to say why, measured. This does the same for `Space`'s public methods:
 it classes each one, and requires every method that is macro-expressible ON THE
