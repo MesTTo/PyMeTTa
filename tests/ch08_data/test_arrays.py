@@ -21,7 +21,7 @@ Guarantees:
     NumPy's hidden global state [tested:
     test_nested_backend_names_do_not_retarget_an_earlier_space,
     test_randn_never_borrows_another_backends_random_state;
-    commit=8469625f933f6b5557fb9c885c50be64152527aa]
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -138,8 +138,7 @@ def test_nested_backend_names_do_not_retarget_an_earlier_space():
         assert isinstance(wire.decode(second_answer[0]), numpy.ndarray)
         assert type(wire.decode(after_second[0])).__module__.startswith("jax")
         assert "zeros--jax.numpy" in registered()
-        numpy_key = arrays._backend_name(arrays._default_namespace(numpy))
-        assert f"zeros--{numpy_key}" in registered()
+        assert "zeros--numpy" in registered()
     finally:
         for name in sorted(set(registered()) - before, reverse=True):
             first_owner.self.unregister_op(name)
@@ -150,8 +149,12 @@ def test_nested_backend_names_do_not_retarget_an_earlier_space():
 def test_randn_never_borrows_another_backends_random_state():
     """A namespace without implicit randomness refuses rather than crossing backends."""
     jax_numpy = pytest.importorskip("jax.numpy")
+    numpy.random.seed(1701)
+    expected_next = numpy.random.standard_normal(4)
+    numpy.random.seed(1701)
     with pytest.raises(MettaError, match="jax\\.numpy offers no normal sampler"):
         arrays._randn(jax_numpy)(3)
+    assert numpy.array_equal(numpy.random.standard_normal(4), expected_next)
 
 
 def test_activations_are_standard_not_torch(am):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract

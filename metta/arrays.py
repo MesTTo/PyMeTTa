@@ -36,7 +36,7 @@ Guarantees:
     backend's hidden random state [tested:
     test_nested_backend_names_do_not_retarget_an_earlier_space,
     test_randn_never_borrows_another_backends_random_state;
-    commit=8469625f933f6b5557fb9c885c50be64152527aa]
+    commit=WORKTREE]
 Guarded by:
   - _PROTOCOLS_LOCK serializes one-time protocol registration
     [tested test_array_protocol_registration_is_idempotent]
@@ -264,8 +264,11 @@ def install(m, default: Any = None) -> list[str]:  # noqa: C901  -- install keep
     when compatibility or inference must happen before materialisation.
     """
     _register_protocols()
-    xp_default = _default_namespace(default)
-    library = _backend_name(xp_default)
+    backend = _numpy() if default is None else default
+    if isinstance(backend, str):
+        backend = importlib.import_module(backend)
+    xp_default = _default_namespace(backend)
+    library = _backend_name(backend)
     registered: list[str] = []
 
     m.register_prolog(_BROADCAST_SHAPE_SOURCE)
@@ -592,10 +595,10 @@ def _randn(xp_default):
         dims = tuple(int(d) for d in shape)
         if hasattr(xp_default, "randn"):
             return xp_default.randn(*dims)
-        native = importlib.import_module(module)
-        if hasattr(native, "random"):
+        random = getattr(xp_default, "random", None)
+        if random is not None and hasattr(random, "standard_normal"):
             return xp_default.asarray(
-                native.random.standard_normal(dims), dtype=xp_default.float32
+                random.standard_normal(dims), dtype=xp_default.float32
             )
         msg = f"{module} offers no normal sampler for randn"
         raise MettaError(msg)
