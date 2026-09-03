@@ -5,7 +5,8 @@ run refuses the same incomplete file with a nonzero exit, lint gates on
 findings, doc answers or refuses, and serve and boot expose spaces until
 interrupted [tested: test_repl_reports_an_incomplete_final_form_at_eof,
 test_run_refuses_an_incomplete_file,
-test_repl_reports_an_error_and_keeps_going; commit=WORKTREE].
+test_repl_reports_an_error_and_keeps_going;
+commit=c6d72f55aa94e2d33adb376e294a3c5ead429e5b].
 Open Obligations:
   To Do: None
   Hacks: None

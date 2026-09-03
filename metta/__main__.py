@@ -9,10 +9,12 @@ Guarantees:
     exit; the interactive repl instead reports each malformed form on stderr,
     continues after it, and exits zero when its input ends [tested:
     test_run_refuses_an_incomplete_file,
-    test_repl_reports_an_error_and_keeps_going; commit=WORKTREE]
+    test_repl_reports_an_error_and_keeps_going;
+    commit=c6d72f55aa94e2d33adb376e294a3c5ead429e5b]
   - a noninteractive repl submits a buffered final form at EOF, so an
     incomplete form is reported rather than discarded silently [tested:
-    test_repl_reports_an_incomplete_final_form_at_eof; commit=WORKTREE]
+    test_repl_reports_an_incomplete_final_form_at_eof;
+    commit=c6d72f55aa94e2d33adb376e294a3c5ead429e5b]
   - doc reports an unknown function as a normal missing-documentation result
     after bound function access became fail-fast [tested:
     test_doc_answers_and_refuses; commit=2d4d4583c2d82e90bb21a7e8671842f126edd4f4]
