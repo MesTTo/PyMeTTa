@@ -5,7 +5,7 @@ Guarantees:
   - restoring recursive program content reconciles its call graph once per
     image while preserving every atom and a callable equation [tested:
     test_fast_restore_batches_content_dependent_program_analysis;
-    commit=WORKTREE]
+    commit=83412e29ac271669b6ecc17cca1722832df2d892]
 Open Obligations:
   To Do: None
   Hacks: None
