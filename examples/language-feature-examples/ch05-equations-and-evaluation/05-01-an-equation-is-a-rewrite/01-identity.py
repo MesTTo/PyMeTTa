@@ -601,4 +601,16 @@ def twin(m):
 #: $CHECK_PY -m pytest -q
 #: tests/repository/test_twin_coverage.py -k 'identity.metta'; fixture=warm
 #: main-checkout engine artifacts; commit=d1318d20b5d89d33079c49d0e94aa29e12685664]
-BUDGET = 3575
+#: RE-PINNED 2026-09-03, 3575 to 3564 (-11), by the fast cache reusing a
+#: matching live rule in its owning module instead of registering a second one.
+#: That gives back most of the +10 the row above paid when translator_rule/3
+#: took on the owning execution module. Attributed by A/B in one worktree, same
+#: configuration both sides so the delta is the commit rather than the
+#: environment: at 76690d84^ the twin passes its 3575 pin, at 76690d84 it reads
+#: 3564. Deterministic, three identical samples
+#: [measured: 3564 inferences; command=PYTHONPATH=extensions/python
+#: $CHECK_PY -m pytest -q
+#: tests/repository/test_twin_coverage.py -k 'identity.metta'; fixture=warm
+#: worktree engine artifacts provisioned by worktree.sh;
+#: commit=76690d84e47dcd890748646015830e4fa38075e0]
+BUDGET = 3564
