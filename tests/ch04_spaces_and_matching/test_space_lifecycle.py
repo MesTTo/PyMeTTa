@@ -28,7 +28,7 @@ Guarantees:
     damaging catalog, typing, or arithmetic state, while caller-owned spaces
     retain both lifecycle operations [tested:
     test_engine_owned_base_spaces_refuse_destructive_lifecycle_operations;
-    commit=WORKTREE]
+    commit=6229e43cb68cc3685360810d462d992874992f6c]
 Open Obligations:
   To Do: None
   Hacks: None

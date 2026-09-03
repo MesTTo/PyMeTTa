@@ -171,7 +171,7 @@ Guarantees:
     providers, definitions, or other Python-side lifecycle state is changed
     [tested:
     test_engine_owned_base_spaces_refuse_destructive_lifecycle_operations;
-    commit=WORKTREE]
+    commit=6229e43cb68cc3685360810d462d992874992f6c]
 Owns resources:
   - ``Space.save`` owns its sibling temporary file and removes it after every
     failed operation [tested: test_save_failure_preserves_existing_file;
