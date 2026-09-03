@@ -1,1575 +1,1573 @@
 {
-  "cases": {
-    "atom-reclamation": {
-      "cause": {
-        "chain": [
-          "bench.py --memory-scale spawns atom-reclamation in a fresh process",
-          "post_gc_atom_count is selected by minimum of repetitions",
-          "the intended complexity family is constant"
-        ],
-        "commit": "WORKTREE"
-      },
-      "expected": "constant",
-      "fit": {
-        "best_model": "constant",
-        "last_ratio": 1.0,
-        "models": {
-          "capped_linear": {
-            "intercept": 6.0,
-            "nrms": 0.0,
-            "slope": 0.0
-          },
-          "constant": {
-            "intercept": 6.0,
-            "nrms": 0.0,
-            "slope": 0.0
-          },
-          "linear": {
-            "intercept": 6.0,
-            "nrms": 0.0,
-            "slope": 0.0
-          },
-          "log_n": {
-            "intercept": 6.0,
-            "nrms": 0.0,
-            "slope": 0.0
-          },
-          "n_log_n": {
-            "intercept": 6.0,
-            "nrms": 0.0,
-            "slope": 0.0
-          },
-          "quadratic": {
-            "intercept": 6.0,
-            "nrms": 0.0,
-            "slope": 0.0
-          }
-        },
-        "power_exponent": 0.0,
-        "r_squared": null
-      },
-      "gated": true,
-      "noise": {
-        "absolute_max": 0,
-        "relative_max": 0.0,
-        "resolution_bytes": 1
-      },
-      "primary_metric": "post_gc_atom_count",
-      "representative": [
-        6,
-        6,
-        6,
-        6
-      ],
-      "sizes": [
-        10,
-        100,
-        1000,
-        10000
-      ]
+ "cases": {
+  "atom-reclamation": {
+   "cause": {
+    "chain": [
+     "bench.py --memory-scale spawns atom-reclamation in a fresh process",
+     "post_gc_atom_count is selected by minimum of repetitions",
+     "the intended complexity family is constant"
+    ],
+    "commit": "WORKTREE"
+   },
+   "expected": "constant",
+   "fit": {
+    "best_model": "constant",
+    "last_ratio": 1.0,
+    "models": {
+     "capped_linear": {
+      "intercept": 8.0,
+      "nrms": 0.0,
+      "slope": 0.0
+     },
+     "constant": {
+      "intercept": 8.0,
+      "nrms": 0.0,
+      "slope": 0.0
+     },
+     "linear": {
+      "intercept": 8.0,
+      "nrms": 0.0,
+      "slope": 0.0
+     },
+     "log_n": {
+      "intercept": 8.0,
+      "nrms": 0.0,
+      "slope": 0.0
+     },
+     "n_log_n": {
+      "intercept": 8.0,
+      "nrms": 0.0,
+      "slope": 0.0
+     },
+     "quadratic": {
+      "intercept": 8.0,
+      "nrms": 0.0,
+      "slope": 0.0
+     }
     },
-    "compiled-equations": {
-      "cause": {
-        "chain": [
-          "bench.py --memory-scale spawns compiled-equations in a fresh process",
-          "compiled_predicate_bytes is selected by minimum of repetitions",
-          "the intended complexity family is linear"
-        ],
-        "commit": "WORKTREE"
-      },
-      "comment": " RE-PINNED 2026-08-30 (petta-alignment campaign), 3,724,480 to 5,004,480 compiled_predicate_bytes at the top size (+34%): the application protocol is INLINED into every compiled clause now, with the call terms built only on the irreducible branch, which bought 3,000,003 -> 2,000,003 inferences per million calls at the cost of larger clause bodies. Bytes per equation stay LINEAR; the constant is the priced trade.",
-      "expected": "linear",
-      "fit": {
-        "best_model": "linear",
-        "last_ratio": 10.405189620758483,
-        "models": {
-          "capped_linear": {
-            "intercept": -6812.973113054642,
-            "nrms": 0.0015758994794285743,
-            "slope": 501.0034106617659
-          },
-          "constant": {
-            "intercept": 1384724.0,
-            "nrms": 0.41961816254669626,
-            "slope": 0.0
-          },
-          "linear": {
-            "intercept": -6812.973113054642,
-            "nrms": 0.0015758994794285743,
-            "slope": 501.0034106617659
-          },
-          "log_n": {
-            "intercept": -2473328.0,
-            "nrms": 0.23876393134302248,
-            "slope": 670212.2777983218
-          },
-          "n_log_n": {
-            "intercept": 43726.66430501174,
-            "nrms": 0.007906507567232551,
-            "slope": 53.9123113297196
-          },
-          "quadratic": {
-            "intercept": 160919.83156632935,
-            "nrms": 0.03329890046286345,
-            "slope": 0.048462645554599816
-          }
-        },
-        "power_exponent": 1.0168362605783665,
-        "r_squared": 0.9998749391438732
-      },
-      "gated": true,
-      "noise": {
-        "absolute_max": 0,
-        "relative_max": 0.0,
-        "resolution_bytes": 1
-      },
-      "primary_metric": "compiled_predicate_bytes",
-      "representative": [
-        4368,
-        49088,
-        480960,
-        5004480
-      ],
-      "sizes": [
-        10,
-        100,
-        1000,
-        10000
-      ]
-    },
-    "hyperpose-branches": {
-      "cause": {
-        "chain": [
-          "bench.py --memory-scale spawns hyperpose-branches in a fresh process",
-          "inferences is selected by minimum of repetitions",
-          "the intended complexity family is linear"
-        ],
-        "commit": "WORKTREE"
-      },
-      "expected": "linear",
-      "fit": {
-        "best_model": "linear",
-        "last_ratio": 7.959232661091982,
-        "models": {
-          "capped_linear": {
-            "intercept": 9728.282798833825,
-            "nrms": 0.0025301418800687384,
-            "slope": 394.95577750194843
-          },
-          "constant": {
-            "intercept": 119427.25,
-            "nrms": 0.4181521347320539,
-            "slope": 0.0
-          },
-          "linear": {
-            "intercept": 9728.282798833825,
-            "nrms": 0.0025301418800687384,
-            "slope": 394.95577750194843
-          },
-          "log_n": {
-            "intercept": -64190.30000000002,
-            "nrms": 0.23482123763560073,
-            "slope": 53162.725830396295
-          },
-          "n_log_n": {
-            "intercept": 15078.456163488197,
-            "nrms": 0.015039877059913255,
-            "slope": 56.471159322688024
-          },
-          "quadratic": {
-            "intercept": 23028.752398836237,
-            "nrms": 0.03720719522517896,
-            "slope": 0.381738054317989
-          }
-        },
-        "power_exponent": 0.5542120646821976,
-        "r_squared": 0.9206145884519726
-      },
-      "gated": true,
-      "noise": {
-        "absolute_max": 20,
-        "relative_max": 0.00044816253361219,
-        "resolution_bytes": 1
-      },
-      "primary_metric": "inferences",
-      "representative": [
-        8968,
-        13388,
-        50825,
-        404528
-      ],
-      "sizes": [
-        1,
-        10,
-        100,
-        1000
-      ]
-    },
-    "join-projection": {
-      "cause": {
-        "chain": [
-          "Space.match list materialization consumes one cursor without a repeatability/count query",
-          "controlled instructions include variable decoding and work inside the held SWI engine",
-          "the intended complexity family is linear"
-        ],
-        "commit": "5c9c97328472130cd30ad85b000e89c01556eb35"
-      },
-      "comment": " RE-PINNED 2026-09-02: P10's repeatability count made list(match(...)) decode N projected variables twice, changing the width curve from O(N) to O(N^2). At widths 1/10/100/1000 the post-P10 instruction samples were [30062379,30063882,30063014]/[40718438,40715121,40716753]/[213502215,213518681,213501041]/[5640255421,5640347924,5640187166], with a 160758 maximum band. Skipping the count once iteration has requested values restores one cursor and samples [26608346,26607926,26609800]/[32441991,32441445,32442360]/[120733879,120732780,120720939]/[947299816,947380805,947571128], with a 271312 maximum band. The fitted curve is linear again (NRMS 0.0020).",
-      "expected": "linear",
-      "fit": {
-        "best_model": "linear",
-        "last_ratio": 7.8470216007846,
-        "models": {
-          "capped_linear": {
-            "intercept": 25730701.331389695,
-            "nrms": 0.0020492123831907737,
-            "slope": 921824.7710841055
-          },
-          "constant": {
-            "intercept": 281767531.5,
-            "nrms": 0.4193044853190472,
-            "slope": 0.0
-          },
-          "linear": {
-            "intercept": 25730701.331389695,
-            "nrms": 0.0020492123831907737,
-            "slope": 921824.7710841055
-          },
-          "log_n": {
-            "intercept": -145785743.09999996,
-            "nrms": 0.23666440444604697,
-            "slope": 123789351.91896383
-          },
-          "n_log_n": {
-            "intercept": 38202883.040114015,
-            "nrms": 0.014263375854251902,
-            "slope": 131811.56736801728
-          },
-          "quadratic": {
-            "intercept": 56740334.9034535,
-            "nrms": 0.03657462988009584,
-            "slope": 891.1077074334012
-          }
-        },
-        "power_exponent": 0.5225111701317315,
-        "r_squared": 0.8923066513285868
-      },
-      "gated": true,
-      "noise": {
-        "absolute_max": 271312,
-        "relative_max": 0.0002864056293662365,
-        "resolution_bytes": 1
-      },
-      "primary_metric": "instructions",
-      "representative": [
-        26607926,
-        32441445,
-        120720939,
-        947299816
-      ],
-      "sizes": [
-        1,
-        10,
-        100,
-        1000
-      ]
-    },
-    "join-shared": {
-      "cause": {
-        "chain": [
-          "Space.match list materialization consumes one cursor without a repeatability/count query",
-          "controlled instructions include conjunction work inside the held SWI engine",
-          "the intended complexity family is linear"
-        ],
-        "commit": "5c9c97328472130cd30ad85b000e89c01556eb35"
-      },
-      "comment": " RE-PINNED 2026-08-30 (petta-alignment campaign): DOWN, 37,122 to 35,122 at the top width, and the whole ladder cheapened once the isolated-context wiring moved off space_parent rows onto the narrow equation-home relation, so conjunctions kept the direct native path (parent rows had routed every conjunct through match/4, 124,067 at width 256, before the narrow relation replaced them). RE-PINNED 2026-09-02: caller inferences stopped measuring the width after match moved work into a held engine; the post-P10 ladder was [138,700,5650,55152], but after removing list's redundant count it is the constant [34,34,34,34] despite real linear work. The corresponding post-P10 controlled instruction samples were [30210370,30055225,30055804]/[38059438,38057945,38059423]/[114629375,114598721,114614344]/[916345509,916505589,916346543], with a 160080 maximum band. The one-cursor path measures [26602622,26605487,26605991]/[30327225,30325030,30326833]/[65304063,65312435,65311993]/[456530827,456688621,456582637], with a 157794 maximum band and a linear fit (NRMS 0.0037). The gate therefore uses controlled instructions, not the caller's incomplete inference counter.",
-      "expected": "linear",
-      "fit": {
-        "best_model": "linear",
-        "last_ratio": 6.990848747037378,
-        "models": {
-          "capped_linear": {
-            "intercept": 24867805.28020732,
-            "nrms": 0.003747849711844112,
-            "slope": 431405.3293241861
-          },
-          "constant": {
-            "intercept": 144690635.5,
-            "nrms": 0.4202397266524029,
-            "slope": 0.0
-          },
-          "linear": {
-            "intercept": 24867805.28020732,
-            "nrms": 0.003747849711844112,
-            "slope": 431405.3293241861
-          },
-          "log_n": {
-            "intercept": -54023911.70000002,
-            "nrms": 0.24065882787556378,
-            "slope": 57533754.21524219
-          },
-          "n_log_n": {
-            "intercept": 30661028.45400153,
-            "nrms": 0.008892728073016826,
-            "slope": 61710.19204196051
-          },
-          "quadratic": {
-            "intercept": 39265665.19162616,
-            "nrms": 0.03118685492208957,
-            "slope": 417.48288659598927
-          }
-        },
-        "power_exponent": 0.40367759577277174,
-        "r_squared": 0.8376959959294201
-      },
-      "gated": true,
-      "noise": {
-        "absolute_max": 157794,
-        "relative_max": 0.000345637119484157,
-        "resolution_bytes": 1
-      },
-      "primary_metric": "instructions",
-      "representative": [
-        26602622,
-        30325030,
-        65304063,
-        456530827
-      ],
-      "sizes": [
-        1,
-        10,
-        100,
-        1000
-      ]
-    },
-    "live-spaces": {
-      "cause": {
-        "chain": [
-          "bench.py --memory-scale spawns live-spaces in a fresh process",
-          "live_module_bytes is selected by minimum of repetitions",
-          "the intended complexity family is linear"
-        ],
-        "commit": "WORKTREE"
-      },
-      "expected": "linear",
-      "fit": {
-        "best_model": "linear",
-        "last_ratio": 10.0,
-        "models": {
-          "capped_linear": {
-            "intercept": 0.0,
-            "nrms": 0.0,
-            "slope": 7128.0
-          },
-          "constant": {
-            "intercept": 1979802.0,
-            "nrms": 0.41920338109080324,
-            "slope": 0.0
-          },
-          "linear": {
-            "intercept": 0.0,
-            "nrms": 0.0,
-            "slope": 7128.0
-          },
-          "log_n": {
-            "intercept": -1320818.4,
-            "nrms": 0.23743054807048092,
-            "slope": 955627.4843848692
-          },
-          "n_log_n": {
-            "intercept": 96219.74345904053,
-            "nrms": 0.01256607434108086,
-            "slope": 1019.3512526188338
-          },
-          "quadratic": {
-            "intercept": 239184.53047396638,
-            "nrms": 0.03483067252846592,
-            "slope": 6.892845248251546
-          }
-        },
-        "power_exponent": 1.0,
-        "r_squared": 1.0
-      },
-      "gated": true,
-      "noise": {
-        "absolute_max": 0,
-        "relative_max": 0.0,
-        "resolution_bytes": 1
-      },
-      "primary_metric": "live_module_bytes",
-      "representative": [
-        7128,
-        71280,
-        712800,
-        7128000
-      ],
-      "sizes": [
-        1,
-        10,
-        100,
-        1000
-      ]
-    },
-    "load-fast": {
-      "cause": {
-        "chain": [
-          "bench.py --memory-scale spawns load-fast in a fresh process",
-          "inferences is selected by minimum of repetitions",
-          "the intended complexity family is linear"
-        ],
-        "commit": "WORKTREE"
-      },
-      "expected": "linear",
-      "fit": {
-        "best_model": "linear",
-        "last_ratio": 9.275836704670835,
-        "models": {
-          "capped_linear": {
-            "intercept": 1313.5471331389708,
-            "nrms": 2.822734815243833e-05,
-            "slope": 15.001243156385609
-          },
-          "constant": {
-            "intercept": 42979.5,
-            "nrms": 0.4191877715131778,
-            "slope": 0.0
-          },
-          "linear": {
-            "intercept": 1313.5471331389708,
-            "nrms": 2.822734815243833e-05,
-            "slope": 15.001243156385609
-          },
-          "log_n": {
-            "intercept": -72795.0,
-            "nrms": 0.2374112611056586,
-            "slope": 20112.09059804321
-          },
-          "n_log_n": {
-            "intercept": 2830.1934581108144,
-            "nrms": 0.009454038596584616,
-            "slope": 1.6141284224378247
-          },
-          "quadratic": {
-            "intercept": 6347.304024024743,
-            "nrms": 0.03482873661977266,
-            "slope": 0.00145063497515497
-          }
-        },
-        "power_exponent": 0.6810779435267321,
-        "r_squared": 0.9509781529258439
-      },
-      "gated": true,
-      "noise": {
-        "absolute_max": 0,
-        "relative_max": 0.0,
-        "resolution_bytes": 1
-      },
-      "primary_metric": "inferences",
-      "representative": [
-        1458,
-        2820,
-        16314,
-        151326
-      ],
-      "sizes": [
-        10,
-        100,
-        1000,
-        10000
-      ]
-    },
-    "load-metta": {
-      "cause": {
-        "chain": [
-          "bench.py --memory-scale spawns load-metta in a fresh process",
-          "inferences is selected by minimum of repetitions",
-          "the intended complexity family is linear"
-        ],
-        "commit": "WORKTREE"
-      },
-      "expected": "linear",
-      "fit": {
-        "best_model": "linear",
-        "last_ratio": 9.70082401141647,
-        "models": {
-          "capped_linear": {
-            "intercept": 722.7123420796852,
-            "nrms": 1.5262560127694644e-06,
-            "slope": 21.000823639215234
-          },
-          "constant": {
-            "intercept": 59052.5,
-            "nrms": 0.41920383697812813,
-            "slope": 0.0
-          },
-          "linear": {
-            "intercept": 722.7123420796852,
-            "nrms": 1.5262560127694644e-06,
-            "slope": 21.000823639215234
-          },
-          "log_n": {
-            "intercept": -103021.0,
-            "nrms": 0.23743191184294382,
-            "slope": 28155.05068509867
-          },
-          "n_log_n": {
-            "intercept": 2845.9158219827514,
-            "nrms": 0.009451487059979008,
-            "slope": 2.2596814955004407
-          },
-          "quadratic": {
-            "intercept": 7769.655447678102,
-            "nrms": 0.034829189481197044,
-            "slope": 0.0020308006645799537
-          }
-        },
-        "power_exponent": 0.7947749276979783,
-        "r_squared": 0.9787267855268211
-      },
-      "gated": true,
-      "noise": {
-        "absolute_max": 0,
-        "relative_max": 0.0,
-        "resolution_bytes": 1
-      },
-      "primary_metric": "inferences",
-      "representative": [
-        933,
-        2823,
-        21723,
-        210731
-      ],
-      "sizes": [
-        10,
-        100,
-        1000,
-        10000
-      ]
-    },
-    "mork-join-width": {
-      "cause": {
-        "chain": [
-          "bench.py --memory-scale spawns mork-join-width in a fresh process",
-          "inferences is selected by minimum of repetitions",
-          "the intended complexity family is linear"
-        ],
-        "commit": "WORKTREE"
-      },
-      "expected": "linear",
-      "fit": {
-        "best_model": "n_log_n",
-        "last_ratio": 16.942211889737628,
-        "models": {
-          "capped_linear": {
-            "intercept": -2306.656948493677,
-            "nrms": 0.016331993993428037,
-            "slope": 154.9465596705443
-          },
-          "constant": {
-            "intercept": 40729.75,
-            "nrms": 0.42487020338306586,
-            "slope": 0.0
-          },
-          "linear": {
-            "intercept": -2306.656948493677,
-            "nrms": 0.016331993993428037,
-            "slope": 154.9465596705443
-          },
-          "log_n": {
-            "intercept": -29306.000000000015,
-            "nrms": 0.2527102505646542,
-            "slope": 20277.426507303782
-          },
-          "n_log_n": {
-            "intercept": -262.2766946546908,
-            "nrms": 0.003619059731814943,
-            "slope": 22.18393893522658
-          },
-          "quadratic": {
-            "intercept": 2771.4337002229586,
-            "nrms": 0.01902928487977954,
-            "slope": 0.1503149340502664
-          }
-        },
-        "power_exponent": 0.980210413281025,
-        "r_squared": 0.9710539960023999
-      },
-      "gated": true,
-      "noise": {
-        "absolute_max": 0,
-        "relative_max": 0.0,
-        "resolution_bytes": 1
-      },
-      "primary_metric": "inferences",
-      "representative": [
-        199,
-        648,
-        9033,
-        153039
-      ],
-      "sizes": [
-        1,
-        10,
-        100,
-        1000
-      ]
-    },
-    "mork-space-reclamation": {
-      "cause": {
-        "chain": [
-          "bench.py --memory-scale spawns mork-space-reclamation in a fresh process",
-          "retained_atom_count is selected by minimum of repetitions",
-          "the intended complexity family is constant"
-        ],
-        "commit": "WORKTREE"
-      },
-      "expected": "constant",
-      "fit": {
-        "best_model": "constant",
-        "last_ratio": null,
-        "models": {
-          "capped_linear": {
-            "intercept": 0.0,
-            "nrms": 0.0,
-            "slope": 0.0
-          },
-          "constant": {
-            "intercept": 0.0,
-            "nrms": 0.0,
-            "slope": 0.0
-          },
-          "linear": {
-            "intercept": 0.0,
-            "nrms": 0.0,
-            "slope": 0.0
-          },
-          "log_n": {
-            "intercept": 0.0,
-            "nrms": 0.0,
-            "slope": 0.0
-          },
-          "n_log_n": {
-            "intercept": 0.0,
-            "nrms": 0.0,
-            "slope": 0.0
-          },
-          "quadratic": {
-            "intercept": 0.0,
-            "nrms": 0.0,
-            "slope": 0.0
-          }
-        },
-        "power_exponent": null,
-        "r_squared": null
-      },
-      "gated": true,
-      "noise": {
-        "absolute_max": 0,
-        "relative_max": 0.0,
-        "resolution_bytes": 1
-      },
-      "primary_metric": "retained_atom_count",
-      "representative": [
-        0,
-        0,
-        0,
-        0
-      ],
-      "sizes": [
-        1,
-        10,
-        100,
-        1000
-      ]
-    },
-    "object-reclamation": {
-      "cause": {
-        "chain": [
-          "bench.py --memory-scale spawns object-reclamation in a fresh process",
-          "post_drop_live_objects is selected by minimum of repetitions",
-          "the intended complexity family is constant"
-        ],
-        "commit": "WORKTREE"
-      },
-      "expected": "constant",
-      "fit": {
-        "best_model": "constant",
-        "last_ratio": null,
-        "models": {
-          "capped_linear": {
-            "intercept": 0.0,
-            "nrms": 0.0,
-            "slope": 0.0
-          },
-          "constant": {
-            "intercept": 0.0,
-            "nrms": 0.0,
-            "slope": 0.0
-          },
-          "linear": {
-            "intercept": 0.0,
-            "nrms": 0.0,
-            "slope": 0.0
-          },
-          "log_n": {
-            "intercept": 0.0,
-            "nrms": 0.0,
-            "slope": 0.0
-          },
-          "n_log_n": {
-            "intercept": 0.0,
-            "nrms": 0.0,
-            "slope": 0.0
-          },
-          "quadratic": {
-            "intercept": 0.0,
-            "nrms": 0.0,
-            "slope": 0.0
-          }
-        },
-        "power_exponent": null,
-        "r_squared": null
-      },
-      "gated": true,
-      "noise": {
-        "absolute_max": 0,
-        "relative_max": 0.0,
-        "resolution_bytes": 1
-      },
-      "primary_metric": "post_drop_live_objects",
-      "representative": [
-        0,
-        0,
-        0,
-        0
-      ],
-      "sizes": [
-        1,
-        10,
-        100,
-        1000
-      ]
-    },
-    "query-eager": {
-      "cause": {
-        "chain": [
-          "bench.py --memory-scale spawns query-eager in a fresh process",
-          "python_peak_bytes is selected by minimum of repetitions",
-          "the intended complexity family is linear"
-        ],
-        "commit": "WORKTREE"
-      },
-      "expected": "linear",
-      "fit": {
-        "best_model": "quadratic",
-        "last_ratio": 1.0000229468119377,
-        "models": {
-          "capped_linear": {
-            "intercept": 4532217.599287334,
-            "nrms": 1.1743517252386892e-05,
-            "slope": 0.010495306090375802
-          },
-          "constant": {
-            "intercept": 4532246.75,
-            "nrms": 1.5230131908085325e-05,
-            "slope": 0.0
-          },
-          "linear": {
-            "intercept": 4532217.599287334,
-            "nrms": 1.1743517252386892e-05,
-            "slope": 0.010495306090375802
-          },
-          "log_n": {
-            "intercept": 4532207.5,
-            "nrms": 1.472946808090457e-05,
-            "slope": 6.818423365881053
-          },
-          "n_log_n": {
-            "intercept": 4532218.470519416,
-            "nrms": 1.169115316184531e-05,
-            "slope": 0.0011369240795099677
-          },
-          "quadratic": {
-            "intercept": 4532220.660211628,
-            "nrms": 1.162628241087997e-05,
-            "slope": 1.0331556298427887e-06
-          }
-        },
-        "power_exponent": 1.5044230988627934e-06,
-        "r_squared": 0.06466538670471156
-      },
-      "gated": false,
-      "noise": {
-        "absolute_max": 163,
-        "relative_max": 3.596529415308021e-05,
-        "resolution_bytes": 1
-      },
-      "primary_metric": "python_peak_bytes",
-      "representative": [
-        4532296,
-        4532147,
-        4532220,
-        4532324
-      ],
-      "sizes": [
-        10,
-        100,
-        1000,
-        10000
-      ]
-    },
-    "query-stream": {
-      "cause": {
-        "chain": [
-          "bench.py --memory-scale spawns query-stream in a fresh process",
-          "python_peak_bytes is selected by minimum of repetitions",
-          "the intended complexity family is constant"
-        ],
-        "commit": "WORKTREE"
-      },
-      "expected": "constant",
-      "fit": {
-        "best_model": "log_n",
-        "last_ratio": 1.0001173855307661,
-        "models": {
-          "capped_linear": {
-            "intercept": 272583.63459669583,
-            "nrms": 8.41608790042698e-05,
-            "slope": 0.005622107400244398
-          },
-          "constant": {
-            "intercept": 272599.25,
-            "nrms": 0.000120593918602485,
-            "slope": 0.0
-          },
-          "linear": {
-            "intercept": 272583.63459669583,
-            "nrms": 8.41608790042698e-05,
-            "slope": 0.005622107400244398
-          },
-          "log_n": {
-            "intercept": 272531.0,
-            "nrms": 4.4789658625075154e-05,
-            "slope": 11.856239355958772
-          },
-          "n_log_n": {
-            "intercept": 272584.3921706546,
-            "nrms": 8.528273306190002e-05,
-            "slope": 0.0005973314786183364
-          },
-          "quadratic": {
-            "intercept": 272586.09263041225,
-            "nrms": 8.796873673217948e-05,
-            "slope": 5.210318408844295e-07
-          }
-        },
-        "power_exponent": 4.349437151083425e-05,
-        "r_squared": 0.8620367566894723
-      },
-      "gated": true,
-      "noise": {
-        "absolute_max": 14,
-        "relative_max": 5.136728711011312e-05,
-        "resolution_bytes": 1
-      },
-      "primary_metric": "python_peak_bytes",
-      "representative": [
-        272547,
-        272606,
-        272606,
-        272638
-      ],
-      "sizes": [
-        10,
-        100,
-        1000,
-        10000
-      ]
-    },
-    "save-fast": {
-      "cause": {
-        "chain": [
-          "bench.py --memory-scale spawns save-fast in a fresh process",
-          "inferences is selected by minimum of repetitions",
-          "the intended complexity family is linear"
-        ],
-        "commit": "WORKTREE"
-      },
-      "expected": "linear",
-      "fit": {
-        "best_model": "linear",
-        "last_ratio": 9.695187750637988,
-        "models": {
-          "capped_linear": {
-            "intercept": 1857.9216067379166,
-            "nrms": 1.4421491403507863e-07,
-            "slope": 53.00200842241659
-          },
-          "constant": {
-            "intercept": 149071.0,
-            "nrms": 0.4192034318711646,
-            "slope": 0.0
-          },
-          "linear": {
-            "intercept": 1857.9216067379166,
-            "nrms": 1.4421491403507863e-07,
-            "slope": 53.00200842241659
-          },
-          "log_n": {
-            "intercept": -259971.99999999994,
-            "nrms": 0.2374305768317506,
-            "slope": 71058.04710446073
-          },
-          "n_log_n": {
-            "intercept": 7216.48772364654,
-            "nrms": 0.009453057498140648,
-            "slope": 5.7029976315387545
-          },
-          "quadratic": {
-            "intercept": 19643.081176531952,
-            "nrms": 0.03483074423715899,
-            "slope": 0.005125345636662791
-          }
-        },
-        "power_exponent": 0.7927797222921588,
-        "r_squared": 0.9783186021776837
-      },
-      "gated": true,
-      "noise": {
-        "absolute_max": 0,
-        "relative_max": 0.0,
-        "resolution_bytes": 1
-      },
-      "primary_metric": "inferences",
-      "representative": [
-        2388,
-        7158,
-        54860,
-        531878
-      ],
-      "sizes": [
-        10,
-        100,
-        1000,
-        10000
-      ]
-    },
-    "save-metta": {
-      "cause": {
-        "chain": [
-          "bench.py --memory-scale spawns save-metta in a fresh process",
-          "inferences is selected by minimum of repetitions",
-          "the intended complexity family is linear"
-        ],
-        "commit": "WORKTREE"
-      },
-      "expected": "linear",
-      "fit": {
-        "best_model": "linear",
-        "last_ratio": 9.449928469241774,
-        "models": {
-          "capped_linear": {
-            "intercept": 1367.7123420796852,
-            "nrms": 1.5262560127694644e-06,
-            "slope": 21.000823639215234
-          },
-          "constant": {
-            "intercept": 59697.5,
-            "nrms": 0.41920383697812813,
-            "slope": 0.0
-          },
-          "linear": {
-            "intercept": 1367.7123420796852,
-            "nrms": 1.5262560127694644e-06,
-            "slope": 21.000823639215234
-          },
-          "log_n": {
-            "intercept": -102376.0,
-            "nrms": 0.23743191184294382,
-            "slope": 28155.05068509867
-          },
-          "n_log_n": {
-            "intercept": 3490.9158219827514,
-            "nrms": 0.009451487059979008,
-            "slope": 2.2596814955004407
-          },
-          "quadratic": {
-            "intercept": 8414.655447678102,
-            "nrms": 0.034829189481197044,
-            "slope": 0.0020308006645799537
-          }
-        },
-        "power_exponent": 0.7190394094292377,
-        "r_squared": 0.9610150624457126
-      },
-      "gated": true,
-      "noise": {
-        "absolute_max": 0,
-        "relative_max": 0.0,
-        "resolution_bytes": 1
-      },
-      "primary_metric": "inferences",
-      "representative": [
-        1578,
-        3468,
-        22368,
-        211376
-      ],
-      "sizes": [
-        10,
-        100,
-        1000,
-        10000
-      ]
-    },
-    "space-reuse": {
-      "cause": {
-        "chain": [
-          "bench.py --memory-scale spawns space-reuse in a fresh process",
-          "second_cycle_module_delta is selected by minimum of repetitions",
-          "the intended complexity family is constant"
-        ],
-        "commit": "WORKTREE"
-      },
-      "expected": "constant",
-      "fit": {
-        "best_model": "constant",
-        "last_ratio": null,
-        "models": {
-          "capped_linear": {
-            "intercept": 0.0,
-            "nrms": 0.0,
-            "slope": 0.0
-          },
-          "constant": {
-            "intercept": 0.0,
-            "nrms": 0.0,
-            "slope": 0.0
-          },
-          "linear": {
-            "intercept": 0.0,
-            "nrms": 0.0,
-            "slope": 0.0
-          },
-          "log_n": {
-            "intercept": 0.0,
-            "nrms": 0.0,
-            "slope": 0.0
-          },
-          "n_log_n": {
-            "intercept": 0.0,
-            "nrms": 0.0,
-            "slope": 0.0
-          },
-          "quadratic": {
-            "intercept": 0.0,
-            "nrms": 0.0,
-            "slope": 0.0
-          }
-        },
-        "power_exponent": null,
-        "r_squared": null
-      },
-      "gated": true,
-      "noise": {
-        "absolute_max": 0,
-        "relative_max": 0.0,
-        "resolution_bytes": 1
-      },
-      "primary_metric": "second_cycle_module_delta",
-      "representative": [
-        0,
-        0,
-        0,
-        0
-      ],
-      "sizes": [
-        1,
-        10,
-        100,
-        1000
-      ]
-    },
-    "stored-atoms-mork": {
-      "cause": {
-        "chain": [
-          "bench.py --memory-scale spawns stored-atoms-mork in a fresh process",
-          "private_steady_bytes is selected by minimum of repetitions",
-          "the intended complexity family is linear"
-        ],
-        "commit": "WORKTREE"
-      },
-      "expected": "linear",
-      "fit": {
-        "best_model": "linear",
-        "last_ratio": 8.64864864864865,
-        "models": {
-          "capped_linear": {
-            "intercept": 390403.06835114956,
-            "nrms": 0.00446347102639826,
-            "slope": 1532.865141907777
-          },
-          "constant": {
-            "intercept": 4647936.0,
-            "nrms": 0.41918276869181853,
-            "slope": 0.0
-          },
-          "linear": {
-            "intercept": 390403.06835114956,
-            "nrms": 0.00446347102639826,
-            "slope": 1532.865141907777
-          },
-          "log_n": {
-            "intercept": -7135232.0,
-            "nrms": 0.23941999524571878,
-            "slope": 2046945.9366955904
-          },
-          "n_log_n": {
-            "intercept": 544554.9065448805,
-            "nrms": 0.006231509274402358,
-            "slope": 164.9688281447526
-          },
-          "quadratic": {
-            "intercept": 901868.3580042771,
-            "nrms": 0.03102635999881701,
-            "slope": 0.14834428010647344
-          }
-        },
-        "power_exponent": 0.5199891801032819,
-        "r_squared": 0.9037138244086798
-      },
-      "gated": false,
-      "noise": {
-        "absolute_max": 8192,
-        "relative_max": 0.012987012987012988,
-        "resolution_bytes": 4096
-      },
-      "primary_metric": "private_steady_bytes",
-      "representative": [
-        413696,
-        630784,
-        1818624,
-        15728640
-      ],
-      "sizes": [
-        10,
-        100,
-        1000,
-        10000
-      ]
-    },
-    "stored-atoms-native": {
-      "cause": {
-        "chain": [
-          "bench.py --memory-scale spawns stored-atoms-native in a fresh process",
-          "storage_module_bytes is selected by minimum of repetitions",
-          "the intended complexity family is linear"
-        ],
-        "commit": "WORKTREE"
-      },
-      "expected": "linear",
-      "fit": {
-        "best_model": "linear",
-        "last_ratio": 9.98932517635308,
-        "models": {
-          "capped_linear": {
-            "intercept": 152.0,
-            "nrms": 0.0,
-            "slope": 128.0
-          },
-          "constant": {
-            "intercept": 355672.0,
-            "nrms": 0.41920338109080324,
-            "slope": 0.0
-          },
-          "linear": {
-            "intercept": 152.0,
-            "nrms": 0.0,
-            "slope": 128.0
-          },
-          "log_n": {
-            "intercept": -632167.9999999998,
-            "nrms": 0.2374305480704809,
-            "slope": 171605.38440132327
-          },
-          "n_log_n": {
-            "intercept": 13092.951224435528,
-            "nrms": 0.00945299784690556,
-            "slope": 13.77275542688198
-          },
-          "quadratic": {
-            "intercept": 43103.20637018478,
-            "nrms": 0.03483067252846592,
-            "slope": 0.012377724351517927
-          }
-        },
-        "power_exponent": 0.9849344115882126,
-        "r_squared": 0.9998915623940657
-      },
-      "gated": true,
-      "noise": {
-        "absolute_max": 0,
-        "relative_max": 0.0,
-        "resolution_bytes": 1
-      },
-      "primary_metric": "storage_module_bytes",
-      "representative": [
-        1432,
-        12952,
-        128152,
-        1280152
-      ],
-      "sizes": [
-        10,
-        100,
-        1000,
-        10000
-      ]
-    },
-    "support-drop-one": {
-      "cause": {
-        "chain": [
-          "bench.py --memory-scale spawns support-drop-one in a fresh process",
-          "inferences is selected by minimum of repetitions",
-          "the intended complexity family is linear"
-        ],
-        "commit": "WORKTREE"
-      },
-      "comment": " RE-PINNED 2026-08-30 (petta-alignment campaign), 248,329 to 266,388 inferences (+7.3%): support-graph nodes for compiled clauses carry sequence ids instead of clause references (a reference's variant_hash is its address and made whole-load inference counts nondeterministic), and a drop resolves the id through the mapping it retracts. The ladder stays linear; the constant is the determinism trade.",
-      "expected": "linear",
-      "fit": {
-        "best_model": "linear",
-        "last_ratio": 8.975941775052227,
-        "models": {
-          "capped_linear": {
-            "intercept": 3376.209264658246,
-            "nrms": 1.3811117552135355e-06,
-            "slope": 263.01184783201353
-          },
-          "constant": {
-            "intercept": 76427.75,
-            "nrms": 0.41920311941373545,
-            "slope": 0.0
-          },
-          "linear": {
-            "intercept": 3376.209264658246,
-            "nrms": 1.3811117552135355e-06,
-            "slope": 263.01184783201353
-          },
-          "log_n": {
-            "intercept": -45360.09999999999,
-            "nrms": 0.23742951709681803,
-            "slope": 35261.19414524063
-          },
-          "n_log_n": {
-            "intercept": 6926.571183812062,
-            "nrms": 0.012567398673199856,
-            "slope": 37.61243420017645
-          },
-          "quadratic": {
-            "intercept": 12201.754820181544,
-            "nrms": 0.0348320012091933,
-            "slope": 0.2543349434554305
-          }
-        },
-        "power_exponent": 0.628744710760188,
-        "r_squared": 0.9349223266878324
-      },
-      "gated": true,
-      "noise": {
-        "absolute_max": 0,
-        "relative_max": 0.0,
-        "resolution_bytes": 1
-      },
-      "primary_metric": "inferences",
-      "representative": [
-        3639,
-        6006,
-        29678,
-        266388
-      ],
-      "sizes": [
-        1,
-        10,
-        100,
-        1000
-      ]
-    },
-    "support-drop-spaces": {
-      "cause": {
-        "chain": [
-          "bench.py --memory-scale spawns support-drop-spaces in a fresh process",
-          "inferences is selected by minimum of repetitions",
-          "the intended complexity family is linear"
-        ],
-        "commit": "WORKTREE"
-      },
-      "expected": "linear",
-      "fit": {
-        "best_model": "linear",
-        "last_ratio": 9.997384915059214,
-        "models": {
-          "capped_linear": {
-            "intercept": 102.37933268549386,
-            "nrms": 1.4190783758972845e-07,
-            "slope": 3536.142648667199
-          },
-          "constant": {
-            "intercept": 982266.0,
-            "nrms": 0.41920344113847463,
-            "slope": 0.0
-          },
-          "linear": {
-            "intercept": 102.37933268549386,
-            "nrms": 1.4190783758972845e-07,
-            "slope": 3536.142648667199
-          },
-          "log_n": {
-            "intercept": -655144.7999999998,
-            "nrms": 0.2374305984952219,
-            "slope": 474078.98336585937
-          },
-          "n_log_n": {
-            "intercept": 47836.21168148564,
-            "nrms": 0.012566114934570865,
-            "slope": 505.69183899408665
-          },
-          "quadratic": {
-            "intercept": 118759.88190791919,
-            "nrms": 0.034830725746459464,
-            "slope": 3.4194842618394827
-          }
-        },
-        "power_exponent": 0.9961561333352477,
-        "r_squared": 0.9999929687068397
-      },
-      "gated": true,
-      "noise": {
-        "absolute_max": 0,
-        "relative_max": 0.0,
-        "resolution_bytes": 1
-      },
-      "primary_metric": "inferences",
-      "representative": [
-        3639,
-        35463,
-        353717,
-        3536245
-      ],
-      "sizes": [
-        1,
-        10,
-        100,
-        1000
-      ]
-    },
-    "table-reclamation": {
-      "cause": {
-        "chain": [
-          "bench.py --memory-scale spawns table-reclamation in a fresh process",
-          "table_bytes_after_clear is selected by minimum of repetitions",
-          "the intended complexity family is constant"
-        ],
-        "commit": "WORKTREE"
-      },
-      "expected": "constant",
-      "fit": {
-        "best_model": "constant",
-        "last_ratio": 1.0,
-        "models": {
-          "capped_linear": {
-            "intercept": 168.0,
-            "nrms": 0.0,
-            "slope": 0.0
-          },
-          "constant": {
-            "intercept": 168.0,
-            "nrms": 0.0,
-            "slope": 0.0
-          },
-          "linear": {
-            "intercept": 168.0,
-            "nrms": 0.0,
-            "slope": 0.0
-          },
-          "log_n": {
-            "intercept": 168.0,
-            "nrms": 0.0,
-            "slope": 0.0
-          },
-          "n_log_n": {
-            "intercept": 168.0,
-            "nrms": 0.0,
-            "slope": 0.0
-          },
-          "quadratic": {
-            "intercept": 168.0,
-            "nrms": 0.0,
-            "slope": 0.0
-          }
-        },
-        "power_exponent": 0.0,
-        "r_squared": null
-      },
-      "gated": true,
-      "noise": {
-        "absolute_max": 0,
-        "relative_max": 0.0,
-        "resolution_bytes": 1
-      },
-      "primary_metric": "table_bytes_after_clear",
-      "representative": [
-        168,
-        168,
-        168,
-        168
-      ],
-      "sizes": [
-        10,
-        100,
-        1000,
-        10000
-      ]
-    },
-    "wire-intern-symbols": {
-      "cause": {
-        "chain": [
-          "bench.py --memory-scale spawns wire-intern-symbols in a fresh process",
-          "wire_symbol_cache_entries is selected by minimum of repetitions",
-          "the intended complexity family is capped_linear"
-        ],
-        "commit": "WORKTREE"
-      },
-      "expected": "capped_linear",
-      "fit": {
-        "best_model": "capped_linear",
-        "last_ratio": 6.552944705529447,
-        "models": {
-          "capped_linear": {
-            "intercept": 1.0534923191808048,
-            "nrms": 9.468583340880584e-07,
-            "slope": 0.9999841592818425
-          },
-          "constant": {
-            "intercept": 19159.75,
-            "nrms": 0.4134442063434937,
-            "slope": 0.0
-          },
-          "linear": {
-            "intercept": 1240.266277939747,
-            "nrms": 0.0210817627097623,
-            "slope": 0.6451659305872278
-          },
-          "log_n": {
-            "intercept": -52697.0,
-            "nrms": 0.2188242721533421,
-            "slope": 8916.282860714711
-          },
-          "n_log_n": {
-            "intercept": 1777.6175949638127,
-            "nrms": 0.028523107608957984,
-            "slope": 0.05558883790293752
-          },
-          "quadratic": {
-            "intercept": 3472.225083449701,
-            "nrms": 0.055315883857434696,
-            "slope": 6.212259929076518e-06
-          }
-        },
-        "power_exponent": 0.9436085020320713,
-        "r_squared": 0.9978006268304449
-      },
-      "gated": true,
-      "noise": {
-        "absolute_max": 0,
-        "relative_max": 0.0,
-        "resolution_bytes": 1
-      },
-      "primary_metric": "wire_symbol_cache_entries",
-      "representative": [
-        101,
-        1001,
-        10001,
-        65536
-      ],
-      "sizes": [
-        100,
-        1000,
-        10000,
-        100000
-      ]
-    },
-    "wire-intern-variables": {
-      "cause": {
-        "chain": [
-          "bench.py --memory-scale spawns wire-intern-variables in a fresh process",
-          "wire_variable_cache_entries is selected by minimum of repetitions",
-          "the intended complexity family is capped_linear"
-        ],
-        "commit": "WORKTREE"
-      },
-      "expected": "capped_linear",
-      "fit": {
-        "best_model": "capped_linear",
-        "last_ratio": 6.5536,
-        "models": {
-          "capped_linear": {
-            "intercept": 0.0,
-            "nrms": 0.0,
-            "slope": 1.0
-          },
-          "constant": {
-            "intercept": 19159.0,
-            "nrms": 0.4134444373003218,
-            "slope": 0.0
-          },
-          "linear": {
-            "intercept": 1239.2303206997094,
-            "nrms": 0.021080828859204797,
-            "slope": 0.6451762260774182
-          },
-          "log_n": {
-            "intercept": -52698.8,
-            "nrms": 0.21882508523995256,
-            "slope": 8916.413149059283
-          },
-          "n_log_n": {
-            "intercept": 1776.589492904055,
-            "nrms": 0.028522179143089476,
-            "slope": 0.05558972728577962
-          },
-          "quadratic": {
-            "intercept": 3471.2217275209096,
-            "nrms": 0.055314976424288786,
-            "slope": 6.2123602580253225e-06
-          }
-        },
-        "power_exponent": 0.9449439791871097,
-        "r_squared": 0.9977419970322802
-      },
-      "gated": true,
-      "noise": {
-        "absolute_max": 0,
-        "relative_max": 0.0,
-        "resolution_bytes": 1
-      },
-      "primary_metric": "wire_variable_cache_entries",
-      "representative": [
-        100,
-        1000,
-        10000,
-        65536
-      ],
-      "sizes": [
-        100,
-        1000,
-        10000,
-        100000
-      ]
-    }
+    "power_exponent": 0.0,
+    "r_squared": null
+   },
+   "gated": true,
+   "noise": {
+    "absolute_max": 0,
+    "relative_max": 0.0,
+    "resolution_bytes": 1
+   },
+   "primary_metric": "post_gc_atom_count",
+   "representative": [
+    8,
+    8,
+    8,
+    8
+   ],
+   "sizes": [
+    10,
+    100,
+    1000,
+    10000
+   ]
   },
-  "repetitions": 3,
-  "repin_rule": "A changed pin must name the first causal code or dependency change, carry the old and new raw samples and noise bands, and explain why the new curve still matches its declared complexity. Never re-pin to hide an unexplained move.",
-  "schema": 1
+  "compiled-equations": {
+   "cause": {
+    "chain": [
+     "bench.py --memory-scale spawns compiled-equations in a fresh process",
+     "compiled_predicate_bytes is selected by minimum of repetitions",
+     "the intended complexity family is linear"
+    ],
+    "commit": "WORKTREE"
+   },
+   "expected": "linear",
+   "fit": {
+    "best_model": "linear",
+    "last_ratio": 10.405189620758483,
+    "models": {
+     "capped_linear": {
+      "intercept": -6812.973113054642,
+      "nrms": 0.0015758994794285743,
+      "slope": 501.0034106617659
+     },
+     "constant": {
+      "intercept": 1384724.0,
+      "nrms": 0.41961816254669626,
+      "slope": 0.0
+     },
+     "linear": {
+      "intercept": -6812.973113054642,
+      "nrms": 0.0015758994794285743,
+      "slope": 501.0034106617659
+     },
+     "log_n": {
+      "intercept": -2473328.0,
+      "nrms": 0.23876393134302248,
+      "slope": 670212.2777983218
+     },
+     "n_log_n": {
+      "intercept": 43726.66430501174,
+      "nrms": 0.007906507567232551,
+      "slope": 53.9123113297196
+     },
+     "quadratic": {
+      "intercept": 160919.83156632935,
+      "nrms": 0.03329890046286345,
+      "slope": 0.048462645554599816
+     }
+    },
+    "power_exponent": 1.0168362605783665,
+    "r_squared": 0.9998749391438732
+   },
+   "gated": true,
+   "noise": {
+    "absolute_max": 0,
+    "relative_max": 0.0,
+    "resolution_bytes": 1
+   },
+   "primary_metric": "compiled_predicate_bytes",
+   "representative": [
+    4368,
+    49088,
+    480960,
+    5004480
+   ],
+   "sizes": [
+    10,
+    100,
+    1000,
+    10000
+   ]
+  },
+  "hyperpose-branches": {
+   "cause": {
+    "chain": [
+     "bench.py --memory-scale spawns hyperpose-branches in a fresh process",
+     "inferences is selected by minimum of repetitions",
+     "the intended complexity family is linear"
+    ],
+    "commit": "WORKTREE"
+   },
+   "expected": "linear",
+   "fit": {
+    "best_model": "linear",
+    "last_ratio": 7.938743070595482,
+    "models": {
+     "capped_linear": {
+      "intercept": 9742.045675413014,
+      "nrms": 0.002547665565814366,
+      "slope": 389.9620317716903
+     },
+     "constant": {
+      "intercept": 118054.0,
+      "nrms": 0.4181421932461611,
+      "slope": 0.0
+     },
+     "linear": {
+      "intercept": 9742.045675413014,
+      "nrms": 0.002547665565814366,
+      "slope": 389.9620317716903
+     },
+     "log_n": {
+      "intercept": -63247.399999999994,
+      "nrms": 0.23480038819663587,
+      "slope": 52492.13172088948
+     },
+     "n_log_n": {
+      "intercept": 15024.694712700584,
+      "nrms": 0.015056251009653316,
+      "slope": 55.75708256772545
+     },
+     "quadratic": {
+      "intercept": 22874.648888317446,
+      "nrms": 0.03722230091779519,
+      "slope": 0.37691023417136527
+     }
+    },
+    "power_exponent": 0.5520845430359032,
+    "r_squared": 0.9199633710119358
+   },
+   "gated": true,
+   "noise": {
+    "absolute_max": 14,
+    "relative_max": 0.00037433555439095605,
+    "resolution_bytes": 1
+   },
+   "primary_metric": "inferences",
+   "representative": [
+    8981,
+    13357,
+    50329,
+    399549
+   ],
+   "sizes": [
+    1,
+    10,
+    100,
+    1000
+   ]
+  },
+  "join-projection": {
+   "cause": {
+    "chain": [
+     "bench.py --memory-scale spawns join-projection in a fresh process",
+     "instructions is selected by minimum of repetitions",
+     "the intended complexity family is linear"
+    ],
+    "commit": "WORKTREE"
+   },
+   "expected": "linear",
+   "fit": {
+    "best_model": "linear",
+    "last_ratio": 7.846713024887327,
+    "models": {
+     "capped_linear": {
+      "intercept": 25714764.28377065,
+      "nrms": 0.002058345924817158,
+      "slope": 921097.6560440301
+     },
+     "constant": {
+      "intercept": 281549638.25,
+      "nrms": 0.41931507029532483,
+      "slope": 0.0
+     },
+     "linear": {
+      "intercept": 25714764.28377065,
+      "nrms": 0.002058345924817158,
+      "slope": 921097.6560440301
+     },
+     "log_n": {
+      "intercept": -145659778.29999995,
+      "nrms": 0.23667826914109366,
+      "slope": 123689794.81651516
+     },
+     "n_log_n": {
+      "intercept": 38177068.3297649,
+      "nrms": 0.014263024472934562,
+      "slope": 131707.61889466847
+     },
+     "quadratic": {
+      "intercept": 56699893.54070723,
+      "nrms": 0.036575112990671746,
+      "slope": 890.4049979528494
+     }
+    },
+    "power_exponent": 0.522405241087042,
+    "r_squared": 0.8920898877702241
+   },
+   "gated": true,
+   "noise": {
+    "absolute_max": 7728,
+    "relative_max": 7.033747371315394e-05,
+    "resolution_bytes": 1
+   },
+   "primary_metric": "instructions",
+   "representative": [
+    26614547,
+    32395884,
+    120631032,
+    946557090
+   ],
+   "sizes": [
+    1,
+    10,
+    100,
+    1000
+   ]
+  },
+  "join-shared": {
+   "cause": {
+    "chain": [
+     "bench.py --memory-scale spawns join-shared in a fresh process",
+     "instructions is selected by minimum of repetitions",
+     "the intended complexity family is linear"
+    ],
+    "commit": "WORKTREE"
+   },
+   "expected": "linear",
+   "fit": {
+    "best_model": "linear",
+    "last_ratio": 6.9915368555496435,
+    "models": {
+     "capped_linear": {
+      "intercept": 24845770.85973437,
+      "nrms": 0.00377970639494371,
+      "slope": 430707.34073903016
+     },
+     "constant": {
+      "intercept": 144474734.75,
+      "nrms": 0.42027076790533385,
+      "slope": 0.0
+     },
+     "linear": {
+      "intercept": 24845770.85973437,
+      "nrms": 0.00377970639494371,
+      "slope": 430707.34073903016
+     },
+     "log_n": {
+      "intercept": -53903056.599999994,
+      "nrms": 0.2407148363480678,
+      "slope": 57436253.410306424
+     },
+     "n_log_n": {
+      "intercept": 30629328.771459952,
+      "nrms": 0.008855719480323272,
+      "slope": 61610.506674785574
+     },
+     "quadratic": {
+      "intercept": 39219637.75558898,
+      "nrms": 0.031155575982381247,
+      "slope": 416.81018826596954
+     }
+    },
+    "power_exponent": 0.4034211951092853,
+    "r_squared": 0.8372518220655663
+   },
+   "gated": true,
+   "noise": {
+    "absolute_max": 79592,
+    "relative_max": 0.00017461559564168757,
+    "resolution_bytes": 1
+   },
+   "primary_metric": "instructions",
+   "representative": [
+    26611473,
+    30279884,
+    65194917,
+    455812665
+   ],
+   "sizes": [
+    1,
+    10,
+    100,
+    1000
+   ]
+  },
+  "live-spaces": {
+   "cause": {
+    "chain": [
+     "bench.py --memory-scale spawns live-spaces in a fresh process",
+     "live_module_bytes is selected by minimum of repetitions",
+     "the intended complexity family is linear"
+    ],
+    "commit": "WORKTREE"
+   },
+   "expected": "linear",
+   "fit": {
+    "best_model": "linear",
+    "last_ratio": 10.0,
+    "models": {
+     "capped_linear": {
+      "intercept": 0.0,
+      "nrms": 0.0,
+      "slope": 7304.0
+     },
+     "constant": {
+      "intercept": 2028686.0,
+      "nrms": 0.41920338109080324,
+      "slope": 0.0
+     },
+     "linear": {
+      "intercept": 0.0,
+      "nrms": 0.0,
+      "slope": 7304.0
+     },
+     "log_n": {
+      "intercept": -1353431.2000000002,
+      "nrms": 0.23743054807048092,
+      "slope": 979223.2247400512
+     },
+     "n_log_n": {
+      "intercept": 98595.53959383164,
+      "nrms": 0.012566074341080861,
+      "slope": 1044.520419350163
+     },
+     "quadratic": {
+      "intercept": 245090.32134986692,
+      "nrms": 0.03483067252846592,
+      "slope": 7.063038958084917
+     }
+    },
+    "power_exponent": 1.0,
+    "r_squared": 1.0
+   },
+   "gated": true,
+   "noise": {
+    "absolute_max": 0,
+    "relative_max": 0.0,
+    "resolution_bytes": 1
+   },
+   "primary_metric": "live_module_bytes",
+   "representative": [
+    7304,
+    73040,
+    730400,
+    7304000
+   ],
+   "sizes": [
+    1,
+    10,
+    100,
+    1000
+   ]
+  },
+  "load-fast": {
+   "cause": {
+    "chain": [
+     "bench.py --memory-scale spawns load-fast in a fresh process",
+     "inferences is selected by minimum of repetitions",
+     "the intended complexity family is linear"
+    ],
+    "commit": "WORKTREE",
+    "repin_2026_09_04": "RE-PINNED 2026-09-04, 151326 to 351480. First causal change: d2279ea3, the equation-world commit, which made the cache an image a Prolog codec validates and decodes rather than a term fast_read/2 consumes whole. Measured on a 2,000-equation cache before this pass: validating 264,121 inferences, decoding 116,011, against 270,105 for the storing that is the work. Reduced here from 831,560 to 351,480 by fusing three full walks into one and skipping the decode outright: the validity pass walked every term for space references, then walked the WHOLE image again for host objects, then the decode walked it a third time rebuilding every node to swap references a program with no child space does not have. The one walk now answers all three questions and reports whether any reference exists, and `none` skips the decode. What is left is one walk of an untrusted payload, which the format requires and cannot be skipped on a file the engine did not write. STILL LINEAR: the walk is O(atoms), nrms 1.19e-05 against the linear model, which is why the family is unchanged and only the constant moved."
+   },
+   "expected": "linear",
+   "fit": {
+    "best_model": "linear",
+    "last_ratio": 9.641211323238974,
+    "models": {
+     "capped_linear": {
+      "intercept": 1453.6844833171344,
+      "nrms": 1.190693738107473e-05,
+      "slope": 35.00263384939077
+     },
+     "constant": {
+      "intercept": 98673.5,
+      "nrms": 0.4191965625970025,
+      "slope": 0.0
+     },
+     "linear": {
+      "intercept": 1453.6844833171344,
+      "nrms": 1.190693738107473e-05,
+      "slope": 35.00263384939077
+     },
+     "log_n": {
+      "intercept": -171461.99999999994,
+      "nrms": 0.23742171152573702,
+      "slope": 46927.34280647035
+     },
+     "n_log_n": {
+      "intercept": 4992.498935414726,
+      "nrms": 0.009454203418357628,
+      "slope": 3.766270939275357
+     },
+     "quadratic": {
+      "intercept": 13199.047443816191,
+      "nrms": 0.03483061587820043,
+      "slope": 0.0033847883550727625
+     }
+    },
+    "power_exponent": 0.7739620130080236,
+    "r_squared": 0.9744384986551479
+   },
+   "gated": true,
+   "noise": {
+    "absolute_max": 0,
+    "relative_max": 0.0,
+    "resolution_bytes": 1
+   },
+   "primary_metric": "inferences",
+   "representative": [
+    1798,
+    4960,
+    36456,
+    351480
+   ],
+   "sizes": [
+    10,
+    100,
+    1000,
+    10000
+   ]
+  },
+  "load-metta": {
+   "cause": {
+    "chain": [
+     "bench.py --memory-scale spawns load-metta in a fresh process",
+     "inferences is selected by minimum of repetitions",
+     "the intended complexity family is linear"
+    ],
+    "commit": "WORKTREE"
+   },
+   "expected": "linear",
+   "fit": {
+    "best_model": "linear",
+    "last_ratio": 9.700423494752348,
+    "models": {
+     "capped_linear": {
+      "intercept": 723.7123420796852,
+      "nrms": 1.5262560127694644e-06,
+      "slope": 21.000823639215234
+     },
+     "constant": {
+      "intercept": 59053.5,
+      "nrms": 0.41920383697812813,
+      "slope": 0.0
+     },
+     "linear": {
+      "intercept": 723.7123420796852,
+      "nrms": 1.5262560127694644e-06,
+      "slope": 21.000823639215234
+     },
+     "log_n": {
+      "intercept": -103020.0,
+      "nrms": 0.23743191184294382,
+      "slope": 28155.05068509867
+     },
+     "n_log_n": {
+      "intercept": 2846.9158219827514,
+      "nrms": 0.009451487059979008,
+      "slope": 2.2596814955004407
+     },
+     "quadratic": {
+      "intercept": 7770.655447678102,
+      "nrms": 0.034829189481197044,
+      "slope": 0.0020308006645799537
+     }
+    },
+    "power_exponent": 0.7946225939887102,
+    "r_squared": 0.9786956976444076
+   },
+   "gated": true,
+   "noise": {
+    "absolute_max": 0,
+    "relative_max": 0.0,
+    "resolution_bytes": 1
+   },
+   "primary_metric": "inferences",
+   "representative": [
+    934,
+    2824,
+    21724,
+    210732
+   ],
+   "sizes": [
+    10,
+    100,
+    1000,
+    10000
+   ]
+  },
+  "mork-join-width": {
+   "cause": {
+    "chain": [
+     "bench.py --memory-scale spawns mork-join-width in a fresh process",
+     "inferences is selected by minimum of repetitions",
+     "the intended complexity family is linear"
+    ],
+    "commit": "WORKTREE"
+   },
+   "expected": "linear",
+   "fit": {
+    "best_model": "constant",
+    "last_ratio": 1.0,
+    "models": {
+     "capped_linear": {
+      "intercept": 34.0,
+      "nrms": 0.0,
+      "slope": 0.0
+     },
+     "constant": {
+      "intercept": 34.0,
+      "nrms": 0.0,
+      "slope": 0.0
+     },
+     "linear": {
+      "intercept": 34.0,
+      "nrms": 0.0,
+      "slope": 0.0
+     },
+     "log_n": {
+      "intercept": 34.0,
+      "nrms": 0.0,
+      "slope": 0.0
+     },
+     "n_log_n": {
+      "intercept": 34.0,
+      "nrms": 0.0,
+      "slope": 0.0
+     },
+     "quadratic": {
+      "intercept": 34.0,
+      "nrms": 0.0,
+      "slope": 0.0
+     }
+    },
+    "power_exponent": 0.0,
+    "r_squared": null
+   },
+   "gated": true,
+   "noise": {
+    "absolute_max": 0,
+    "relative_max": 0.0,
+    "resolution_bytes": 1
+   },
+   "primary_metric": "inferences",
+   "representative": [
+    34,
+    34,
+    34,
+    34
+   ],
+   "sizes": [
+    1,
+    10,
+    100,
+    1000
+   ]
+  },
+  "mork-space-reclamation": {
+   "cause": {
+    "chain": [
+     "bench.py --memory-scale spawns mork-space-reclamation in a fresh process",
+     "retained_atom_count is selected by minimum of repetitions",
+     "the intended complexity family is constant"
+    ],
+    "commit": "WORKTREE"
+   },
+   "expected": "constant",
+   "fit": {
+    "best_model": "constant",
+    "last_ratio": null,
+    "models": {
+     "capped_linear": {
+      "intercept": 0.0,
+      "nrms": 0.0,
+      "slope": 0.0
+     },
+     "constant": {
+      "intercept": 0.0,
+      "nrms": 0.0,
+      "slope": 0.0
+     },
+     "linear": {
+      "intercept": 0.0,
+      "nrms": 0.0,
+      "slope": 0.0
+     },
+     "log_n": {
+      "intercept": 0.0,
+      "nrms": 0.0,
+      "slope": 0.0
+     },
+     "n_log_n": {
+      "intercept": 0.0,
+      "nrms": 0.0,
+      "slope": 0.0
+     },
+     "quadratic": {
+      "intercept": 0.0,
+      "nrms": 0.0,
+      "slope": 0.0
+     }
+    },
+    "power_exponent": null,
+    "r_squared": null
+   },
+   "gated": true,
+   "noise": {
+    "absolute_max": 0,
+    "relative_max": 0.0,
+    "resolution_bytes": 1
+   },
+   "primary_metric": "retained_atom_count",
+   "representative": [
+    0,
+    0,
+    0,
+    0
+   ],
+   "sizes": [
+    1,
+    10,
+    100,
+    1000
+   ]
+  },
+  "object-reclamation": {
+   "cause": {
+    "chain": [
+     "bench.py --memory-scale spawns object-reclamation in a fresh process",
+     "post_drop_live_objects is selected by minimum of repetitions",
+     "the intended complexity family is constant"
+    ],
+    "commit": "WORKTREE"
+   },
+   "expected": "constant",
+   "fit": {
+    "best_model": "constant",
+    "last_ratio": null,
+    "models": {
+     "capped_linear": {
+      "intercept": 0.0,
+      "nrms": 0.0,
+      "slope": 0.0
+     },
+     "constant": {
+      "intercept": 0.0,
+      "nrms": 0.0,
+      "slope": 0.0
+     },
+     "linear": {
+      "intercept": 0.0,
+      "nrms": 0.0,
+      "slope": 0.0
+     },
+     "log_n": {
+      "intercept": 0.0,
+      "nrms": 0.0,
+      "slope": 0.0
+     },
+     "n_log_n": {
+      "intercept": 0.0,
+      "nrms": 0.0,
+      "slope": 0.0
+     },
+     "quadratic": {
+      "intercept": 0.0,
+      "nrms": 0.0,
+      "slope": 0.0
+     }
+    },
+    "power_exponent": null,
+    "r_squared": null
+   },
+   "gated": true,
+   "noise": {
+    "absolute_max": 0,
+    "relative_max": 0.0,
+    "resolution_bytes": 1
+   },
+   "primary_metric": "post_drop_live_objects",
+   "representative": [
+    0,
+    0,
+    0,
+    0
+   ],
+   "sizes": [
+    1,
+    10,
+    100,
+    1000
+   ]
+  },
+  "query-eager": {
+   "cause": {
+    "chain": [
+     "bench.py --memory-scale spawns query-eager in a fresh process",
+     "python_peak_bytes is selected by minimum of repetitions",
+     "the intended complexity family is linear"
+    ],
+    "commit": "WORKTREE"
+   },
+   "expected": "linear",
+   "fit": {
+    "best_model": "log_n",
+    "last_ratio": 0.9999878702148273,
+    "models": {
+     "capped_linear": {
+      "intercept": 4534275.1516034985,
+      "nrms": 9.602613956023683e-06,
+      "slope": -0.003564933752850504
+     },
+     "constant": {
+      "intercept": 4534265.25,
+      "nrms": 1.0151413768082915e-05,
+      "slope": 0.0
+     },
+     "linear": {
+      "intercept": 4534275.1516034985,
+      "nrms": 9.602613956023683e-06,
+      "slope": -0.003564933752850504
+     },
+     "log_n": {
+      "intercept": 4534308.0,
+      "nrms": 9.234336839490021e-06,
+      "slope": -7.4264356405456065
+     },
+     "n_log_n": {
+      "intercept": 4534274.877441037,
+      "nrms": 9.59264856369897e-06,
+      "slope": -0.00038705341517331196
+     },
+     "quadratic": {
+      "intercept": 4534274.394294224,
+      "nrms": 9.548403089404227e-06,
+      "slope": -3.621140548660835e-07
+     }
+    },
+    "power_exponent": -1.6378361622665078e-06,
+    "r_squared": 0.17251592705920904
+   },
+   "gated": false,
+   "noise": {
+    "absolute_max": 241,
+    "relative_max": 5.315115792333795e-05,
+    "resolution_bytes": 1
+   },
+   "primary_metric": "python_peak_bytes",
+   "representative": [
+    4534324,
+    4534206,
+    4534293,
+    4534238
+   ],
+   "sizes": [
+    10,
+    100,
+    1000,
+    10000
+   ]
+  },
+  "query-stream": {
+   "cause": {
+    "chain": [
+     "bench.py --memory-scale spawns query-stream in a fresh process",
+     "python_peak_bytes is selected by minimum of repetitions",
+     "the intended complexity family is constant"
+    ],
+    "commit": "WORKTREE"
+   },
+   "expected": "constant",
+   "fit": {
+    "best_model": "linear",
+    "last_ratio": 1.0001173166743655,
+    "models": {
+     "capped_linear": {
+      "intercept": 272727.8244250081,
+      "nrms": 0.00015164010680186982,
+      "slope": 0.00726393339042359
+     },
+     "constant": {
+      "intercept": 272748.0,
+      "nrms": 0.00018823965936312544,
+      "slope": 0.0
+     },
+     "linear": {
+      "intercept": 272727.8244250081,
+      "nrms": 0.00015164010680186982,
+      "slope": 0.00726393339042359
+     },
+     "log_n": {
+      "intercept": 272698.0,
+      "nrms": 0.00016944901532977465,
+      "slope": 8.685889638065035
+     },
+     "n_log_n": {
+      "intercept": 272728.7360863993,
+      "nrms": 0.00015240324735164856,
+      "slope": 0.0007744699260959302
+     },
+     "quadratic": {
+      "intercept": 272730.99444067356,
+      "nrms": 0.000155176982803827,
+      "slope": 6.734201560615705e-07
+     }
+    },
+    "power_exponent": 3.1846001227954126e-05,
+    "r_squared": 0.18965029083372087
+   },
+   "gated": true,
+   "noise": {
+    "absolute_max": 104,
+    "relative_max": 0.0003814246209592829,
+    "resolution_bytes": 1
+   },
+   "primary_metric": "python_peak_bytes",
+   "representative": [
+    272766,
+    272662,
+    272766,
+    272798
+   ],
+   "sizes": [
+    10,
+    100,
+    1000,
+    10000
+   ]
+  },
+  "save-fast": {
+   "cause": {
+    "chain": [
+     "bench.py --memory-scale spawns save-fast in a fresh process",
+     "inferences is selected by minimum of repetitions",
+     "the intended complexity family is linear"
+    ],
+    "commit": "WORKTREE",
+    "repin_2026_09_04": "RE-PINNED 2026-09-04, 531878 to 982090. Same first causal change, d2279ea3: the encode walk locates space handles so a child space can be relocated on restore, and it visits every node of every atom. Measured at 182,015 of a 468,074-inference save over 2,000 equations. Reduced from 1,012,092 by rebuilding a node only when one of its children actually changed, so a program with no child space is answered rather than reconstructed. The walk itself is what the format needs and stays. STILL LINEAR, and a rewrite of the dispatch into a single if-then-else chain was tried and REVERTED: it cost 28,000 inferences more, because SWI's clause indexing is C-level while each test in a chain is a counted goal."
+   },
+   "expected": "linear",
+   "fit": {
+    "best_model": "linear",
+    "last_ratio": 9.815403374110499,
+    "models": {
+     "capped_linear": {
+      "intercept": 2051.915127955959,
+      "nrms": 2.0780615574379864e-07,
+      "slope": 98.00381093502936
+     },
+     "constant": {
+      "intercept": 274257.5,
+      "nrms": 0.41920341159409796,
+      "slope": 0.0
+     },
+     "linear": {
+      "intercept": 2051.915127955959,
+      "nrms": 2.0780615574379864e-07,
+      "slope": 98.00381093502936
+     },
+     "log_n": {
+      "intercept": -482087.0,
+      "nrms": 0.23743050612048006,
+      "slope": 131390.49710714963
+     },
+     "n_log_n": {
+      "intercept": 11960.218242834962,
+      "nrms": 0.009453143302743444,
+      "slope": 10.54517584682798
+     },
+     "quadratic": {
+      "intercept": 34937.71866678496,
+      "nrms": 0.03483082953977925,
+      "slope": 0.00947706343556595
+     }
+    },
+    "power_exponent": 0.8457717769908903,
+    "r_squared": 0.987960621270013
+   },
+   "gated": true,
+   "noise": {
+    "absolute_max": 0,
+    "relative_max": 0.0,
+    "resolution_bytes": 1
+   },
+   "primary_metric": "inferences",
+   "representative": [
+    3032,
+    11852,
+    100056,
+    982090
+   ],
+   "sizes": [
+    10,
+    100,
+    1000,
+    10000
+   ]
+  },
+  "save-metta": {
+   "cause": {
+    "chain": [
+     "bench.py --memory-scale spawns save-metta in a fresh process",
+     "inferences is selected by minimum of repetitions",
+     "the intended complexity family is linear"
+    ],
+    "commit": "WORKTREE"
+   },
+   "expected": "linear",
+   "fit": {
+    "best_model": "linear",
+    "last_ratio": 9.464050611267847,
+    "models": {
+     "capped_linear": {
+      "intercept": 1393.7123420796852,
+      "nrms": 1.4568832646323188e-06,
+      "slope": 22.000823639215234
+     },
+     "constant": {
+      "intercept": 62501.0,
+      "nrms": 0.41920381625661074,
+      "slope": 0.0
+     },
+     "linear": {
+      "intercept": 1393.7123420796852,
+      "nrms": 1.4568832646323188e-06,
+      "slope": 22.000823639215234
+     },
+     "log_n": {
+      "intercept": -107289.99999999997,
+      "nrms": 0.2374318498554944,
+      "slope": 29495.71775073401
+     },
+     "n_log_n": {
+      "intercept": 3618.0170034236507,
+      "nrms": 0.009451555729578861,
+      "slope": 2.3672811472729562
+     },
+     "quadratic": {
+      "intercept": 8776.21174744518,
+      "nrms": 0.03482925688998276,
+      "slope": 0.0021275016360761873
+     }
+    },
+    "power_exponent": 0.7225360440713625,
+    "r_squared": 0.9619245688861149
+   },
+   "gated": true,
+   "noise": {
+    "absolute_max": 0,
+    "relative_max": 0.0,
+    "resolution_bytes": 1
+   },
+   "primary_metric": "inferences",
+   "representative": [
+    1614,
+    3594,
+    23394,
+    221402
+   ],
+   "sizes": [
+    10,
+    100,
+    1000,
+    10000
+   ]
+  },
+  "space-reuse": {
+   "cause": {
+    "chain": [
+     "bench.py --memory-scale spawns space-reuse in a fresh process",
+     "second_cycle_module_delta is selected by minimum of repetitions",
+     "the intended complexity family is constant"
+    ],
+    "commit": "WORKTREE"
+   },
+   "expected": "constant",
+   "fit": {
+    "best_model": "constant",
+    "last_ratio": null,
+    "models": {
+     "capped_linear": {
+      "intercept": 0.0,
+      "nrms": 0.0,
+      "slope": 0.0
+     },
+     "constant": {
+      "intercept": 0.0,
+      "nrms": 0.0,
+      "slope": 0.0
+     },
+     "linear": {
+      "intercept": 0.0,
+      "nrms": 0.0,
+      "slope": 0.0
+     },
+     "log_n": {
+      "intercept": 0.0,
+      "nrms": 0.0,
+      "slope": 0.0
+     },
+     "n_log_n": {
+      "intercept": 0.0,
+      "nrms": 0.0,
+      "slope": 0.0
+     },
+     "quadratic": {
+      "intercept": 0.0,
+      "nrms": 0.0,
+      "slope": 0.0
+     }
+    },
+    "power_exponent": null,
+    "r_squared": null
+   },
+   "gated": true,
+   "noise": {
+    "absolute_max": 0,
+    "relative_max": 0.0,
+    "resolution_bytes": 1
+   },
+   "primary_metric": "second_cycle_module_delta",
+   "representative": [
+    0,
+    0,
+    0,
+    0
+   ],
+   "sizes": [
+    1,
+    10,
+    100,
+    1000
+   ]
+  },
+  "stored-atoms-mork": {
+   "cause": {
+    "chain": [
+     "bench.py --memory-scale spawns stored-atoms-mork in a fresh process",
+     "private_steady_bytes is selected by minimum of repetitions",
+     "the intended complexity family is linear"
+    ],
+    "commit": "WORKTREE"
+   },
+   "expected": "linear",
+   "fit": {
+    "best_model": "linear",
+    "last_ratio": 8.537777777777778,
+    "models": {
+     "capped_linear": {
+      "intercept": 436114.5344995139,
+      "nrms": 0.004977149108743378,
+      "slope": 1528.9423818183568
+     },
+     "constant": {
+      "intercept": 4682752.0,
+      "nrms": 0.41957455635976165,
+      "slope": 0.0
+     },
+     "linear": {
+      "intercept": 436114.5344995139,
+      "nrms": 0.004977149108743378,
+      "slope": 1528.9423818183568
+     },
+     "log_n": {
+      "intercept": -7055360.0,
+      "nrms": 0.24027684087400483,
+      "slope": 2039118.9078249373
+     },
+     "n_log_n": {
+      "intercept": 589710.9705291218,
+      "nrms": 0.005465976748647113,
+      "slope": 164.55312504538833
+     },
+     "quadratic": {
+      "intercept": 945742.8923740583,
+      "nrms": 0.030327139421089947,
+      "slope": 0.1479855621418429
+     }
+    },
+    "power_exponent": 0.49960266834577044,
+    "r_squared": 0.8903411181677259
+   },
+   "gated": false,
+   "noise": {
+    "absolute_max": 4096,
+    "relative_max": 0.008620689655172414,
+    "resolution_bytes": 4096
+   },
+   "primary_metric": "private_steady_bytes",
+   "representative": [
+    475136,
+    675840,
+    1843200,
+    15736832
+   ],
+   "sizes": [
+    10,
+    100,
+    1000,
+    10000
+   ]
+  },
+  "stored-atoms-native": {
+   "cause": {
+    "chain": [
+     "bench.py --memory-scale spawns stored-atoms-native in a fresh process",
+     "storage_module_bytes is selected by minimum of repetitions",
+     "the intended complexity family is linear"
+    ],
+    "commit": "WORKTREE"
+   },
+   "expected": "linear",
+   "fit": {
+    "best_model": "linear",
+    "last_ratio": 9.912545645850097,
+    "models": {
+     "capped_linear": {
+      "intercept": 1256.0,
+      "nrms": 0.0,
+      "slope": 128.0
+     },
+     "constant": {
+      "intercept": 356776.0,
+      "nrms": 0.41920338109080324,
+      "slope": 0.0
+     },
+     "linear": {
+      "intercept": 1256.0,
+      "nrms": 0.0,
+      "slope": 128.0
+     },
+     "log_n": {
+      "intercept": -631063.9999999998,
+      "nrms": 0.2374305480704809,
+      "slope": 171605.38440132327
+     },
+     "n_log_n": {
+      "intercept": 14196.951224435528,
+      "nrms": 0.00945299784690556,
+      "slope": 13.77275542688198
+     },
+     "quadratic": {
+      "intercept": 44207.20637018478,
+      "nrms": 0.03483067252846592,
+      "slope": 0.012377724351517927
+     }
+    },
+    "power_exponent": 0.9074048952347045,
+    "r_squared": 0.9957216470414946
+   },
+   "gated": true,
+   "noise": {
+    "absolute_max": 0,
+    "relative_max": 0.0,
+    "resolution_bytes": 1
+   },
+   "primary_metric": "storage_module_bytes",
+   "representative": [
+    2536,
+    14056,
+    129256,
+    1281256
+   ],
+   "sizes": [
+    10,
+    100,
+    1000,
+    10000
+   ]
+  },
+  "support-drop-one": {
+   "cause": {
+    "chain": [
+     "bench.py --memory-scale spawns support-drop-one in a fresh process",
+     "inferences is selected by minimum of repetitions",
+     "the intended complexity family is linear"
+    ],
+    "commit": "WORKTREE"
+   },
+   "expected": "linear",
+   "fit": {
+    "best_model": "linear",
+    "last_ratio": 8.98694617709472,
+    "models": {
+     "capped_linear": {
+      "intercept": 3500.209264658246,
+      "nrms": 1.316062221003428e-06,
+      "slope": 276.01184783201353
+     },
+     "constant": {
+      "intercept": 80162.5,
+      "nrms": 0.4192031317384661,
+      "slope": 0.0
+     },
+     "linear": {
+      "intercept": 3500.209264658246,
+      "nrms": 1.316062221003428e-06,
+      "slope": 276.01184783201353
+     },
+     "log_n": {
+      "intercept": -47645.000000000015,
+      "nrms": 0.2374295656549865,
+      "slope": 37004.061330566576
+     },
+     "n_log_n": {
+      "intercept": 7226.056125586401,
+      "nrms": 0.012567336297718173,
+      "slope": 39.47152037919509
+     },
+     "quadratic": {
+      "intercept": 12761.978009878745,
+      "nrms": 0.03483193862908318,
+      "slope": 0.26690606974994086
+     }
+    },
+    "power_exponent": 0.6304319400163256,
+    "r_squared": 0.9354535499300357
+   },
+   "gated": true,
+   "noise": {
+    "absolute_max": 0,
+    "relative_max": 0.0,
+    "resolution_bytes": 1
+   },
+   "primary_metric": "inferences",
+   "representative": [
+    3776,
+    6260,
+    31102,
+    279512
+   ],
+   "sizes": [
+    1,
+    10,
+    100,
+    1000
+   ]
+  },
+  "support-drop-spaces": {
+   "cause": {
+    "chain": [
+     "bench.py --memory-scale spawns support-drop-spaces in a fresh process",
+     "inferences is selected by minimum of repetitions",
+     "the intended complexity family is linear"
+    ],
+    "commit": "WORKTREE"
+   },
+   "expected": "linear",
+   "fit": {
+    "best_model": "linear",
+    "last_ratio": 9.99729151039891,
+    "models": {
+     "capped_linear": {
+      "intercept": 110.23550372524187,
+      "nrms": 1.283747755163886e-07,
+      "slope": 3665.1467668632754
+     },
+     "constant": {
+      "intercept": 1018104.75,
+      "nrms": 0.41920345208573245,
+      "slope": 0.0
+     },
+     "linear": {
+      "intercept": 110.23550372524187,
+      "nrms": 1.283747755163886e-07,
+      "slope": 3665.1467668632754
+     },
+     "log_n": {
+      "intercept": -679041.2999999998,
+      "nrms": 0.23743063579152815,
+      "slope": 491374.10966593353
+     },
+     "n_log_n": {
+      "intercept": 49585.47099933098,
+      "nrms": 0.012566070328151453,
+      "slope": 524.1402847188867
+     },
+     "quadratic": {
+      "intercept": 123096.54475119908,
+      "nrms": 0.03483068138498898,
+      "slope": 3.544232528227577
+     }
+    },
+    "power_exponent": 0.9960052097776557,
+    "r_squared": 0.9999924062987011
+   },
+   "gated": true,
+   "noise": {
+    "absolute_max": 0,
+    "relative_max": 0.0,
+    "resolution_bytes": 1
+   },
+   "primary_metric": "inferences",
+   "representative": [
+    3776,
+    36761,
+    366625,
+    3665257
+   ],
+   "sizes": [
+    1,
+    10,
+    100,
+    1000
+   ]
+  },
+  "table-reclamation": {
+   "cause": {
+    "chain": [
+     "bench.py --memory-scale spawns table-reclamation in a fresh process",
+     "table_bytes_after_clear is selected by minimum of repetitions",
+     "the intended complexity family is constant"
+    ],
+    "commit": "WORKTREE"
+   },
+   "expected": "constant",
+   "fit": {
+    "best_model": "constant",
+    "last_ratio": 1.0,
+    "models": {
+     "capped_linear": {
+      "intercept": 168.0,
+      "nrms": 0.0,
+      "slope": 0.0
+     },
+     "constant": {
+      "intercept": 168.0,
+      "nrms": 0.0,
+      "slope": 0.0
+     },
+     "linear": {
+      "intercept": 168.0,
+      "nrms": 0.0,
+      "slope": 0.0
+     },
+     "log_n": {
+      "intercept": 168.0,
+      "nrms": 0.0,
+      "slope": 0.0
+     },
+     "n_log_n": {
+      "intercept": 168.0,
+      "nrms": 0.0,
+      "slope": 0.0
+     },
+     "quadratic": {
+      "intercept": 168.0,
+      "nrms": 0.0,
+      "slope": 0.0
+     }
+    },
+    "power_exponent": 0.0,
+    "r_squared": null
+   },
+   "gated": true,
+   "noise": {
+    "absolute_max": 0,
+    "relative_max": 0.0,
+    "resolution_bytes": 1
+   },
+   "primary_metric": "table_bytes_after_clear",
+   "representative": [
+    168,
+    168,
+    168,
+    168
+   ],
+   "sizes": [
+    10,
+    100,
+    1000,
+    10000
+   ]
+  },
+  "wire-intern-symbols": {
+   "cause": {
+    "chain": [
+     "bench.py --memory-scale spawns wire-intern-symbols in a fresh process",
+     "wire_symbol_cache_entries is selected by minimum of repetitions",
+     "the intended complexity family is capped_linear"
+    ],
+    "commit": "WORKTREE"
+   },
+   "expected": "capped_linear",
+   "fit": {
+    "best_model": "capped_linear",
+    "last_ratio": 6.552944705529447,
+    "models": {
+     "capped_linear": {
+      "intercept": 1.0534923191808048,
+      "nrms": 9.468583340880584e-07,
+      "slope": 0.9999841592818425
+     },
+     "constant": {
+      "intercept": 19159.75,
+      "nrms": 0.4134442063434937,
+      "slope": 0.0
+     },
+     "linear": {
+      "intercept": 1240.266277939747,
+      "nrms": 0.0210817627097623,
+      "slope": 0.6451659305872278
+     },
+     "log_n": {
+      "intercept": -52697.0,
+      "nrms": 0.2188242721533421,
+      "slope": 8916.282860714711
+     },
+     "n_log_n": {
+      "intercept": 1777.6175949638127,
+      "nrms": 0.028523107608957984,
+      "slope": 0.05558883790293752
+     },
+     "quadratic": {
+      "intercept": 3472.225083449701,
+      "nrms": 0.055315883857434696,
+      "slope": 6.212259929076518e-06
+     }
+    },
+    "power_exponent": 0.9436085020320713,
+    "r_squared": 0.9978006268304449
+   },
+   "gated": true,
+   "noise": {
+    "absolute_max": 0,
+    "relative_max": 0.0,
+    "resolution_bytes": 1
+   },
+   "primary_metric": "wire_symbol_cache_entries",
+   "representative": [
+    101,
+    1001,
+    10001,
+    65536
+   ],
+   "sizes": [
+    100,
+    1000,
+    10000,
+    100000
+   ]
+  },
+  "wire-intern-variables": {
+   "cause": {
+    "chain": [
+     "bench.py --memory-scale spawns wire-intern-variables in a fresh process",
+     "wire_variable_cache_entries is selected by minimum of repetitions",
+     "the intended complexity family is capped_linear"
+    ],
+    "commit": "WORKTREE"
+   },
+   "expected": "capped_linear",
+   "fit": {
+    "best_model": "capped_linear",
+    "last_ratio": 6.5536,
+    "models": {
+     "capped_linear": {
+      "intercept": 0.0,
+      "nrms": 0.0,
+      "slope": 1.0
+     },
+     "constant": {
+      "intercept": 19159.0,
+      "nrms": 0.4134444373003218,
+      "slope": 0.0
+     },
+     "linear": {
+      "intercept": 1239.2303206997094,
+      "nrms": 0.021080828859204797,
+      "slope": 0.6451762260774182
+     },
+     "log_n": {
+      "intercept": -52698.8,
+      "nrms": 0.21882508523995256,
+      "slope": 8916.413149059283
+     },
+     "n_log_n": {
+      "intercept": 1776.589492904055,
+      "nrms": 0.028522179143089476,
+      "slope": 0.05558972728577962
+     },
+     "quadratic": {
+      "intercept": 3471.2217275209096,
+      "nrms": 0.055314976424288786,
+      "slope": 6.2123602580253225e-06
+     }
+    },
+    "power_exponent": 0.9449439791871097,
+    "r_squared": 0.9977419970322802
+   },
+   "gated": true,
+   "noise": {
+    "absolute_max": 0,
+    "relative_max": 0.0,
+    "resolution_bytes": 1
+   },
+   "primary_metric": "wire_variable_cache_entries",
+   "representative": [
+    100,
+    1000,
+    10000,
+    65536
+   ],
+   "sizes": [
+    100,
+    1000,
+    10000,
+    100000
+   ]
+  }
+ },
+ "repetitions": 3,
+ "repin_rule": "A changed pin must name the first causal code or dependency change, carry the old and new raw samples and noise bands, and explain why the new curve still matches its declared complexity. Never re-pin to hide an unexplained move.",
+ "schema": 1
 }
