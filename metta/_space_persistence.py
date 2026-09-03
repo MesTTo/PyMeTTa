@@ -19,6 +19,11 @@ Guarantees:
   - text and fast loads apply a scoped stack byte bound through the /6 engine
     predicate while preserving the established guard path otherwise [tested:
     test_stack_limit_is_carried_to_the_limited_six_seam; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
+  - a fast cache restores a complete versioned equation-world image, including
+    translator rules and bound child spaces, while its public save count stays
+    the root atom count [tested:
+    test_fast_cache_restores_translator_rules_and_bound_spaces;
+    commit=WORKTREE]
 Owns resources:
   - save_space owns one sibling temporary file and removes it after every
     failed or successful save
@@ -51,7 +56,8 @@ _FAST_ERRORS = (
     "metta_fast_integrity_header",
     "metta_fast_integrity_mismatch",
     "metta_fast_read_failed",
-    "metta_fast_payload_not_atom_list",
+    "metta_fast_payload_invalid",
+    "metta_fast_missing_derived_equation",
 )
 
 
@@ -211,11 +217,11 @@ def save_space(
 ) -> int:
     """Validate and atomically persist one space, bounding its engine work.
 
-    The enumeration, the unwritable-atom scan and the fast writer are all
-    linear in the space and all run under the caller's bounds, which is why the
-    enumeration happens HERE rather than at the call site: an unbounded
-    enumeration handed in as an argument is the largest of the three and the
-    one a guard could not reach.
+    Enumeration and validation run under the caller's bounds, which is why
+    enumeration happens HERE rather than at the call site. The fast writer
+    additionally walks the receiver's equation-world graph and registries
+    under the same bounds; handing either state set in as an already-built
+    argument would put that work outside the guard.
     """
     if save_format not in SaveFormat:
         msg = f"save format must be 'metta' or 'fast', got {save_format!r}"

@@ -5,7 +5,11 @@ Guarantees:
   - restoring recursive program content reconciles its call graph once per
     image while preserving every atom and a callable equation [tested:
     test_fast_restore_batches_content_dependent_program_analysis;
-    commit=83412e29ac271669b6ecc17cca1722832df2d892]
+    commit=WORKTREE]
+  - fast caches rebase and restore translator rules, bound equation-world
+    spaces, and repeat-load ownership while retaining the root atom count
+    [tested: test_fast_cache_restores_translator_rules_and_bound_spaces;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -14,6 +18,7 @@ Open Obligations:
 
 import gzip
 import re
+import uuid
 from contextlib import contextmanager
 from pathlib import Path
 
@@ -21,6 +26,7 @@ import pytest
 
 from metta import (
     TRUE,
+    MeTTa,
     S,
     V,
     engine,
@@ -68,7 +74,169 @@ def test_fast_restore_batches_content_dependent_program_analysis(metta, tmp_path
 
         assert len(restored) == size
         assert restored.run("!(fast-restore-recursive-39 2)") == [[0]]
-        assert spent.inferences < 750_000
+        assert spent.inferences < 100_000
+
+
+def test_fast_cache_restores_translator_rules_and_bound_spaces(tmp_path, capfd):
+    """The cache is a program image, not only the receiver's atom list.
+
+    The child gets a fresh runtime name, while both aliases, its atoms, and
+    the translator rule keep their logical identity. Loading the same image
+    again replaces every source-owned component instead of accumulating it.
+    """
+    source = tmp_path / "translator-world.metta"
+    cache = tmp_path / "translator-world.fast"
+    source.write_text(
+        "(: pick (-> Atom Atom Atom Atom Atom %Undefined%))\n"
+        "(= (pick $expression $head $tail $body $otherwise)\n"
+        "   (quote (if (== $expression ())\n"
+        "              $otherwise\n"
+        "              (let ($head $tail)\n"
+        "                   (decons-atom $expression) $body))))\n"
+        "!(add-translator-rule! pick)\n"
+    )
+
+    with MeTTa() as donor:
+        donor.self.load(source)
+        donor.run("!(bind! &kept (new-space))")
+        donor.run("!(bind! &also &kept)")
+        donor.run("!(add-atom &kept (a 1))")
+        donor.run("!(add-atom &kept (a 2))")
+        old_child = donor.runtime.once("metta_token('&kept', Child)")["Child"]
+        assert donor.self.save(cache, format="fast") == 2
+
+    with MeTTa() as restored:
+        for _ in range(2):
+            restored.self.load(cache)
+            home = str(restored.self.name)
+            module = restored.runtime.once(
+                "space_module(Space, Module)", Space=home
+            )["Module"]
+            child = restored.runtime.once("metta_token('&kept', Child)")["Child"]
+            alias = restored.runtime.once("metta_token('&also', Child)")["Child"]
+            children = list(
+                restored.runtime.iter(
+                    "spaces:space_equation_home(Child, Home)", Home=home
+                )
+            )
+
+            assert child == alias
+            assert [row["Child"] for row in children] == [child]
+            assert len(restored.self) == 2
+            assert restored.run("!(space-atom-count &kept)") == [[2]]
+            assert restored.run("!(pick (1 2) $head $tail $head empty)") == [[1]]
+            assert restored.runtime.once(
+                "translator_rules:translator_rule(pick, _, Home), Home == Module",
+                Module=module,
+            )
+            assert child != old_child
+
+        assert "Illegal UTF-8 start" not in capfd.readouterr().err
+
+        # A caller-owned binding cannot be discarded to make a replacement
+        # fit. The refusal rolls the provisional withdrawal back, including
+        # the old child module and translator registry.
+        restored.runtime.must(
+            "space_module(Space, Module), "
+            "with_metta_module(Module, register_metta_token('&kept', 99))",
+            Space=home,
+        )
+        with pytest.raises(EngineError, match="metta_fast_token_conflict"):
+            restored.self.load(cache)
+        alias = restored.runtime.once("metta_token('&also', Child)")["Child"]
+        assert alias == child
+        assert restored.runtime.once("metta_token('&kept', Value)")["Value"] == 99
+        assert restored.run("!(space-atom-count &also)") == [[2]]
+        assert restored.run("!(pick (1 2) $head $tail $head empty)") == [[1]]
+        assert restored.runtime.once(
+            "spaces:space_equation_home(Child, Home)", Child=child, Home=home
+        )
+
+
+def test_fast_cache_rebases_nested_space_graph_references(tmp_path):
+    """Every edge and term reference is relocated through one identity map."""
+    cache = tmp_path / "nested-world.fast"
+    grand_name = f"&cache-grand-{uuid.uuid4().hex}"
+
+    with MeTTa() as donor:
+        donor.run("!(bind! &kept (new-space))")
+        donor.run("!(bind! &sibling (new-space))")
+        old_child = donor.runtime.once("metta_token('&kept', Child)")["Child"]
+        donor.runtime.must(
+            "metta_py_declare_space(scoped, Grand, Child)",
+            Grand=grand_name,
+            Child=old_child,
+        )
+        donor.run(f"!(bind! &deep {grand_name})")
+        donor.run("!(add-atom &kept (shallow fact))")
+        donor.run("!(add-atom &deep (deep fact))")
+        donor.run("!(add-atom &sibling (side fact))")
+        donor.run("(points &kept &deep &sibling)")
+        assert donor.self.save(cache, format="fast") == 1
+
+    with MeTTa() as restored:
+        restored.self.load(cache)
+        home = str(restored.self.name)
+        child = restored.runtime.once("metta_token('&kept', Child)")["Child"]
+        deep = restored.runtime.once("metta_token('&deep', Deep)")["Deep"]
+        sibling = restored.runtime.once("metta_token('&sibling', Side)")["Side"]
+        edge = restored.runtime.once(
+            "spaces:space_equation_home(Deep, Child)", Child=child, Deep=deep
+        )
+        side_edge = restored.runtime.once(
+            "spaces:space_equation_home(Side, Home)", Side=sibling, Home=home
+        )
+        stored = restored.runtime.once(
+            "'get-atoms'(Home, [points, Child, Deep, Side])", Home=home
+        )
+
+        assert edge
+        assert side_edge
+        assert child != old_child
+        assert deep != grand_name
+        assert stored["Child"] == child
+        assert stored["Deep"] == deep
+        assert stored["Side"] == sibling
+        assert restored.run("!(space-atom-count &kept)") == [[1]]
+        assert restored.run("!(space-atom-count &deep)") == [[1]]
+        assert restored.run("!(space-atom-count &sibling)") == [[1]]
+
+
+def test_fast_cache_restores_bidirectional_rule_ownership(tmp_path):
+    """A restored generated inverse remains one removable derived equation."""
+    source = tmp_path / "bidirectional-world.metta"
+    cache = tmp_path / "bidirectional-world.fast"
+    source.write_text(
+        "(: unpack (-> Atom %Undefined%))\n"
+        "(= (unpack (wrap (box $x))) (noeval (twin $x $x)))\n"
+        "!(add-translator-rule! unpack ((direction bidirectional)))\n"
+    )
+
+    with MeTTa() as donor:
+        donor.self.load(source)
+        assert donor.self.save(cache, format="fast") == 3
+
+    with MeTTa() as restored:
+        restored.self.load(cache)
+        home = str(restored.self.name)
+
+        assert str(restored.run("!(unpack (wrap (box 1)))")[0][0]) == "(twin 1 1)"
+        assert str(restored.run("!(twin (a b c) (a b c))")[0][0]) == (
+            "(unpack (wrap (box (a b c))))"
+        )
+        assert restored.runtime.once(
+            "aggregate_all(count, "
+            "translator_rules:translator_rule_derived(unpack, Space, _), Count)",
+            Space=home,
+        )["Count"] == 1
+
+        assert restored.run("!(remove-translator-rule! unpack)") == [[TRUE]]
+        assert not restored.runtime.once(
+            "translator_rules:translator_rule(twin, _, _)"
+        )
+        assert not restored.runtime.once(
+            "'get-atoms'(Space, ['=', [twin|_], _])", Space=home
+        )
 
 
 def test_load_auto_detects_text_and_fast_files(metta, tmp_path):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -329,9 +497,9 @@ def test_fast_file_starts_with_the_magic_header(m, tmp_path):  # noqa: D103  -- 
     m.add(S.header(S.fact))
     m.save(path, format="fast")
     data = path.read_bytes()
-    assert data.startswith(b"METTA-CACHE\tMETTA-FAST\t2\t")
+    assert data.startswith(b"METTA-CACHE\tMETTA-FAST\t3\t")
     header = data.split(b"\n", 1)[0] + b"\n"
-    assert re.fullmatch(rb"METTA-CACHE\tMETTA-FAST\t2\t\d+\.\d+\.\d+\t[0-9a-f]{64}\n", header)
+    assert re.fullmatch(rb"METTA-CACHE\tMETTA-FAST\t3\t\d+\.\d+\.\d+\t[0-9a-f]{64}\n", header)
     assert header[:-1].split(b"\t")[3].decode() == engine().info()["swi_prolog"]
 
 

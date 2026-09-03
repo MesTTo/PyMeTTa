@@ -1403,19 +1403,22 @@ class AsyncMeTTa:
         inferences: int | None = None,
     ) -> int:
         """Write every stored atom of this space, equations included, as
-        MeTTa source by default, or as a version-pinned trusted cache with
-        format="fast"; answers how many. A path ending .gz writes gzip
-        compressed in either format, and load and import! read it back
-        under the same name. The completed sibling file is synced and then
-        atomically replaces the target, so a failed save leaves the old file
-        intact. Atoms carrying live host objects cannot survive either file
-        and are refused.
+        MeTTa source by default. ``format="fast"`` writes a version-pinned
+        image of the receiver's equation world: its own atoms, owned child
+        spaces, aliases bound to those spaces, and translator rules. Loading
+        the image mints fresh runtime space identities and preserves their
+        graph relationships. The returned count remains the receiver's own
+        atom count. A path ending .gz writes gzip compressed in either format,
+        and load and import! read it back under the same name. The completed
+        sibling file is synced and then atomically replaces the target, so a
+        failed save leaves the old file intact. Atoms carrying live host
+        objects cannot survive either file and are refused.
 
         `timeout` (seconds) and `inferences` (engine steps) bound the save with
-        the engine's own guards, exactly as they bound load(). Every part of a
-        save is linear in the space -- the enumeration, the unwritable-atom
-        scan and the fast writer -- so this is the unbounded engine work those
-        guards exist to bound, and the atomic replace above already makes a
+        the engine's own guards, exactly as they bound load(). A text save
+        examines the receiver; a fast save also traverses its reachable
+        equation-world graph and registries. Those guards therefore bound all
+        state the chosen format writes, and the atomic replace above makes a
         stopped save safe: the sibling is never moved into place.
 
         There is no `format` on load(), and that is not an omission. When you
