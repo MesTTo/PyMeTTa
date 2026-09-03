@@ -5,8 +5,14 @@ without a checkout. The bare `metta` console script keeps upstream's
 swipl-launcher contract exactly; the subcommands live here, on the
 library engine.
 Guarantees:
-  - every subcommand exits nonzero on failure, so each is scriptable
-    [tested test_serve_and_boot_expose_spaces_until_interrupted]
+  - run, lint, doc, serve and boot expose failures through a nonzero process
+    exit; the interactive repl instead reports each malformed form on stderr,
+    continues after it, and exits zero when its input ends [tested:
+    test_run_refuses_an_incomplete_file,
+    test_repl_reports_an_error_and_keeps_going; commit=WORKTREE]
+  - a noninteractive repl submits a buffered final form at EOF, so an
+    incomplete form is reported rather than discarded silently [tested:
+    test_repl_reports_an_incomplete_final_form_at_eof; commit=WORKTREE]
   - doc reports an unknown function as a normal missing-documentation result
     after bound function access became fail-fast [tested:
     test_doc_answers_and_refuses; commit=2d4d4583c2d82e90bb21a7e8671842f126edd4f4]
@@ -92,6 +98,8 @@ def _forms(interactive: bool):  # noqa: FBT001  -- the boolean is established AP
         except EOFError:
             if interactive:
                 print()
+            if has_content:
+                yield "\n".join(lines)
             return
         except KeyboardInterrupt:
             print()

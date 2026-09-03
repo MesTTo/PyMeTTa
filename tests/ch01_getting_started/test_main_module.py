@@ -1,7 +1,11 @@
 """Purpose: the python -m metta subcommands, each driven as a real
 subprocess: run prints answer groups, the repl reads multi-line forms
-and exits cleanly, lint gates on findings, doc answers or refuses, and
-serve and boot expose spaces until interrupted.
+and exits cleanly, including after reporting a malformed or incomplete form;
+run refuses the same incomplete file with a nonzero exit, lint gates on
+findings, doc answers or refuses, and serve and boot expose spaces until
+interrupted [tested: test_repl_reports_an_incomplete_final_form_at_eof,
+test_run_refuses_an_incomplete_file,
+test_repl_reports_an_error_and_keeps_going; commit=WORKTREE].
 Open Obligations:
   To Do: None
   Hacks: None
@@ -64,6 +68,23 @@ def test_repl_reports_an_error_and_keeps_going():  # noqa: D103  -- pytest disco
     assert finished.returncode == 0, finished.stderr
     assert "error:" in finished.stderr
     assert "3" in finished.stdout
+
+
+def test_repl_reports_an_incomplete_final_form_at_eof():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
+    finished = _metta("repl", stdin="!(+ 1 2")
+    assert finished.returncode == 0
+    assert finished.stdout == ""
+    assert "error:" in finished.stderr
+    assert "missing ')'" in finished.stderr
+
+
+def test_run_refuses_an_incomplete_file(tmp_path):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
+    path = tmp_path / "incomplete.metta"
+    path.write_text("!(+ 1 2")
+    finished = _metta("run", str(path))
+    assert finished.returncode != 0
+    assert finished.stdout == ""
+    assert "missing ')'" in finished.stderr
 
 
 def test_complete_form_reads_strings_and_comments():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
