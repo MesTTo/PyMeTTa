@@ -245,14 +245,15 @@ def test_a_value_without_a_hook_encodes_exactly_as_before():
 
 
 def test_a_hook_outranks_a_default_derived_from_the_shape():
-    """project() memoizes a default for an Enum, dataclass or NamedTuple, and
-    a default is what applies when the author has NOT said otherwise.
+    """A default derived from a shape loses to a hook the class wrote itself.
 
-    The hook was consulted only below a registration existing at all, so a
-    NamedTuple carrying __metta__ projected as its constructor expression and
-    an Enum as its member name. An EXPLICIT register_type still wins, because
-    that is the author speaking too and it is the more specific of the two.
-    """  # noqa: D205  -- one continuous invariant, not summary-and-body prose
+    project() memoizes a default for an Enum, dataclass or NamedTuple, and a
+    default is what applies when the author has NOT said otherwise. The hook
+    was consulted only below a registration existing at all, so a NamedTuple
+    carrying __metta__ projected as its constructor expression and an Enum as
+    its member name. An EXPLICIT register_type still wins, because that is the
+    author speaking too and it is the more specific of the two.
+    """
 
     def hook(_self):
         return Symbol("HOOKED")
