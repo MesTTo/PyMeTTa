@@ -36,7 +36,7 @@ Guarantees:
     backend's hidden random state [tested:
     test_nested_backend_names_do_not_retarget_an_earlier_space,
     test_randn_never_borrows_another_backends_random_state;
-    commit=WORKTREE]
+    commit=8469625f933f6b5557fb9c885c50be64152527aa]
 Guarded by:
   - _PROTOCOLS_LOCK serializes one-time protocol registration
     [tested test_array_protocol_registration_is_idempotent]
