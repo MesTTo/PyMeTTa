@@ -1,5 +1,11 @@
 """Purpose: verify version-pinned fast cache save and load, text auto-detection,
-equation recompilation, live-object refusal, and corrupt-cache failures.
+equation recompilation, batched program analysis, live-object refusal, and
+corrupt-cache failures.
+Guarantees:
+  - restoring recursive program content reconciles its call graph once per
+    image while preserving every atom and a callable equation [tested:
+    test_fast_restore_batches_content_dependent_program_analysis;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -41,6 +47,28 @@ def test_fast_save_load_round_trip_recompiles_equations(metta, tmp_path):  # noq
             S.beta,
         ]
         assert loaded.run("!(fast-io-next 41)") == [[42]]
+
+
+def test_fast_restore_batches_content_dependent_program_analysis(metta, tmp_path):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
+    path = tmp_path / "recursive-program.fast"
+    size = 40
+    forms = []
+    for index in range(size):
+        name = f"fast-restore-recursive-{index}"
+        forms.append(
+            f"(= ({name} $n) (if (== $n 0) 0 "
+            f"(+ ({name} (- $n 1)) ({name} (- $n 1)))))"
+        )
+
+    with metta._new_space() as source, metta._new_space() as restored:
+        source.run("\n".join(forms))
+        assert source.save(path, format="fast") == size
+        with metta.stats() as spent:
+            restored.load(path)
+
+        assert len(restored) == size
+        assert restored.run("!(fast-restore-recursive-39 2)") == [[0]]
+        assert spent.inferences < 750_000
 
 
 def test_load_auto_detects_text_and_fast_files(metta, tmp_path):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
