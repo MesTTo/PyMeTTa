@@ -11,7 +11,7 @@ Guarantees:
   - the Python contract distinguishes an error produced while evaluating a
     strict operand from literal, bound, and unevaluated Atom data.
   [tested: test_python_contract_matches_the_computed_error_boundary;
-  commit=WORKTREE]
+  commit=c293a0a09ee5d30f4550b51923c35931227f8f3f]
 Fails when: a probe is read as a claim about Hyperon rather than about LeaTTa;
   the arbiter is LeaTTa and every pin below cites the LeaTTa file it came from.
 Open Obligations:
