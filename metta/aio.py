@@ -2191,10 +2191,11 @@ class AsyncMeTTa:
 
         Building a proof executes every premise it records, including
         effectful operations. Engine writes persist and repeated derivations
-        accumulate them. Use ``with self.speculative():`` around the awaited
-        call when the proof should return while its engine writes are
-        discarded. The scope cannot undo Python side effects, I/O, or
-        subscription callbacks that already fired.
+        accumulate them, just as repeated evaluations do. Use
+        ``with space.speculative():`` when the proof should return while its
+        engine writes are discarded. That scope cannot undo Python side
+        effects, I/O, or subscription callbacks that already fired, so do not
+        derive an effectful target when those effects must not happen.
 
         A `bind()` scope binds host values into the term, for the reason
         eval_status needs it: the substitution lands BEFORE the search, so the

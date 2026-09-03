@@ -42,12 +42,6 @@ DERIVED: dict[str, str] = {
         "the structured `(@doc ...)` answer decoded into its parts, where "
         "`eval` of `get-doc` answers the raw term"
     ),
-    "drop": (
-        "the LIFETIME, which `clear` is only one step of: it releases an "
-        "anonymous name back to the pool, cancels the space's subscriptions "
-        "so a reused name cannot deliver to the old life's watchers, and "
-        "unregisters a foreign provider"
-    ),
     "eval": (
         "the EAGER path. It delegates to `answers` only for the carrier, the "
         "theory and the interpreter, and the split is measured rather than "
