@@ -28,7 +28,7 @@ Guarantees:
     test_plain_let_duplicates_inside_binding_values_are_reported,
     test_let_star_duplicate_binder_controls_keep_reporting,
     test_distinct_plain_let_binders_are_clean_and_keep_their_pair_answer;
-    commit=WORKTREE]
+    commit=43bf074ce97adb6bfe599ae20faa5f38ef524bd7]
 Open Obligations:
   To Do: None
   Hacks: None
