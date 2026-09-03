@@ -4,7 +4,8 @@ well formed and fresh per call.
 Guarantees:
   - the five hashes shared with library(sha) are all pinned on the full
     library(crypto) seat [tested:
-    test_hashes_are_deterministic_and_agree_with_hashlib; commit=WORKTREE]
+    test_hashes_are_deterministic_and_agree_with_hashlib;
+    commit=59792b524568755a2fbfe1c5f7cdb571bd78a3bf]
 Open Obligations:
   To Do: None
   Hacks: None
