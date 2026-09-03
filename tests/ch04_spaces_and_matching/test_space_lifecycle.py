@@ -32,7 +32,7 @@ Guarantees:
   - a translator rule re-registered in a recycled context home compiles its
     new body's generation even when an older cross-space caller survives
     [tested: test_a_recycled_context_recompiles_its_translator_rule;
-    commit=WORKTREE]
+    commit=a5c34eb71ea5b078c55023ed988dd20b2c675323]
 Open Obligations:
   To Do: None
   Hacks: None
