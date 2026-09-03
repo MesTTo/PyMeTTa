@@ -16,6 +16,12 @@ Guarantees:
     extensions/python/tests/ch08_data/test_arrays.py
     extensions/python/tests/repository/test_operator_documentation.py;
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
+  - fully qualified backend names keep ``jax.numpy`` constructors separate
+    from NumPy, and JAX random construction refuses instead of sampling from
+    NumPy's hidden global state [tested:
+    test_nested_backend_names_do_not_retarget_an_earlier_space,
+    test_randn_never_borrows_another_backends_random_state;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -29,12 +35,14 @@ import pytest
 
 from metta import (
     Expression,
+    MeTTa,
     S,
     V,
     arrays,
     ground,
     wire,
 )
+from metta.errors import MettaError
 from metta.ops import registered
 from metta.vocabularies import EffectClass
 
@@ -108,6 +116,42 @@ def test_every_array_operation_is_typed_and_a_shape_is_a_constraint(am):
 def test_the_constructor_builds_numpy_here(am):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     (group,) = am.run("!(tensor (1.0 2.0))")
     assert isinstance(wire.decode(group[0]), numpy.ndarray)
+
+
+def test_nested_backend_names_do_not_retarget_an_earlier_space():
+    """A later NumPy install leaves an existing JAX space routed to JAX."""
+    jax_numpy = pytest.importorskip("jax.numpy")
+    before = set(registered())
+    first_owner = MeTTa()
+    second_owner = MeTTa()
+    try:
+        first = first_owner.space()
+        arrays.install(first, default=jax_numpy)
+        (before_second,) = first.run("!(zeros 2 2)")
+
+        second = second_owner.space()
+        arrays.install(second, default=numpy)
+        (second_answer,) = second.run("!(zeros 2 2)")
+        (after_second,) = first.run("!(zeros 2 2)")
+
+        assert type(wire.decode(before_second[0])).__module__.startswith("jax")
+        assert isinstance(wire.decode(second_answer[0]), numpy.ndarray)
+        assert type(wire.decode(after_second[0])).__module__.startswith("jax")
+        assert "zeros--jax.numpy" in registered()
+        numpy_key = arrays._backend_name(arrays._default_namespace(numpy))
+        assert f"zeros--{numpy_key}" in registered()
+    finally:
+        for name in sorted(set(registered()) - before, reverse=True):
+            first_owner.self.unregister_op(name)
+        first_owner.close()
+        second_owner.close()
+
+
+def test_randn_never_borrows_another_backends_random_state():
+    """A namespace without implicit randomness refuses rather than crossing backends."""
+    jax_numpy = pytest.importorskip("jax.numpy")
+    with pytest.raises(MettaError, match="jax\\.numpy offers no normal sampler"):
+        arrays._randn(jax_numpy)(3)
 
 
 def test_activations_are_standard_not_torch(am):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract

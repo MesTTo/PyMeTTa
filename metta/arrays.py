@@ -30,6 +30,13 @@ Guarantees:
     test_every_array_operation_is_typed_and_a_shape_is_a_constraint,
     test_embedding_store_runs_on_numpy;
     commit=3cfbe0d7417b1c453c2dc12d47e2e47e7de461f7]
+  - constructor registrations use the backend namespace's fully qualified
+    module name, so installing ``jax.numpy`` and then ``numpy`` cannot
+    retarget the first space; random construction never borrows a different
+    backend's hidden random state [tested:
+    test_nested_backend_names_do_not_retarget_an_earlier_space,
+    test_randn_never_borrows_another_backends_random_state;
+    commit=WORKTREE]
 Guarded by:
   - _PROTOCOLS_LOCK serializes one-time protocol registration
     [tested test_array_protocol_registration_is_idempotent]
@@ -194,6 +201,11 @@ def _default_namespace(backend: Any):
     return compat.array_namespace(probe)
 
 
+def _backend_name(namespace: Any) -> str:
+    """The stable, fully qualified module identity used in MeTTa aliases."""
+    return str(getattr(namespace, "__name__", namespace))
+
+
 def _describe(x: Any) -> str:
     compat = _compat()
     dtype = str(x.dtype)
@@ -253,7 +265,7 @@ def install(m, default: Any = None) -> list[str]:  # noqa: C901  -- install keep
     """
     _register_protocols()
     xp_default = _default_namespace(default)
-    library = getattr(xp_default, "__name__", str(xp_default)).rsplit(".", 1)[-1]
+    library = _backend_name(xp_default)
     registered: list[str] = []
 
     m.register_prolog(_BROADCAST_SHAPE_SOURCE)
@@ -574,7 +586,7 @@ def install(m, default: Any = None) -> list[str]:  # noqa: C901  -- install keep
 
 
 def _randn(xp_default):
-    module = xp_default.__name__.rsplit(".", 1)[-1]
+    module = _backend_name(xp_default)
 
     def randn(*shape: int) -> DLTensor:
         dims = tuple(int(d) for d in shape)
