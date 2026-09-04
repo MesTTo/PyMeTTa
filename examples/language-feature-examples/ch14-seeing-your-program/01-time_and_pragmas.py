@@ -111,6 +111,29 @@ def twin(m):
         assert m.eval(S.spin(100)) == [S.done]
     assert m.eval(S.spin(2000)) == [S.done]
 
+    # verify-specializations runs each generated higher-order call beside its
+    # generic form on first use. A compiled parameter applied to itself is the
+    # same `($f ($f $x))` the example writes, so the twin exercises the mode on
+    # the same specialization; turning the pragma off reports the tally. The
+    # value is `S.true`/`S.false`, the symbols the example writes, rather than
+    # Python booleans that would only happen to compare unequal to `false`.
+    assert pragma(S.verify_specializations, S.true) == [UNIT]
+
+    @m.define
+    def verified_inc(x: int):
+        # (= (verified-inc $x) (+ $x 1)). The annotation is what makes the
+        # body the engine's own `+` rather than the host `py-operator add`;
+        # it costs the twin-only declaration `spin` already carries.
+        return x + 1
+
+    @m.define
+    def verified_twice(f, x):
+        # (= (verified-twice $f $x) ($f ($f $x)))
+        return f(f(x))
+
+    assert m.eval(S.verified_twice(S.verified_inc, 20)) == [22]
+    assert pragma(S.verify_specializations, S.false) == [UNIT]
+
     # Relational integer arithmetic: one unbound argument among integers
     # solves for it. Exactness is honest, so a branch with no integer answer
     # answers nothing rather than something approximate.
@@ -213,4 +236,11 @@ def twin(m):
 #: policy-check fallbacks from space-local capture [measured 2026-09-02: min-
 #: of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=c00341f0ff9d83d1b9338ca86ad51708eaf07ebd].
-BUDGET = 44455
+#: RE-PINNED 2026-09-06, 44455 to 49767 (+5312), the twin gained the verify-
+#: specializations block its example gained: two definitions, one higher-order
+#: call that specializes, and the mode's own first-use comparison of the
+#: generated clause against the generic one. The move is work the example now
+#: does too, not layout [measured 2026-09-06: min-of-3 serial fresh processes;
+#: command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+BUDGET = 49767
