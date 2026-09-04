@@ -45,6 +45,7 @@ own.
 | [`operations/annotation_contracts.py`](operations/annotation_contracts.py) | annotations as evaluation contracts, local type claims, and source-derived definition facts |
 | [`operations/engine_controls.py`](operations/engine_controls.py) | per-call and scoped time, inference, and stack bounds, engine stats, captured output, and DataFrame conversion |
 | [`operations/runtime_configuration.py`](operations/runtime_configuration.py) | inspected process settings, pre-start configuration, and the startup freeze |
+| [`operations/saga_compensation.py`](operations/saga_compensation.py) | committed effect receipts and reverse-order compensation on exceptional exit |
 
 ## Data
 
