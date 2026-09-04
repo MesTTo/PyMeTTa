@@ -60,6 +60,9 @@ Guarantees:
   - custom algebra rows and their Python mirrors have the same context
     lifetime as annotations, while shipped presets remain shared [tested:
     test_custom_algebras_are_context_owned; commit=WORKTREE]
+  - calling the module constructor targets the ambient space rather than the
+    process-default home [tested:
+    test_algebra_module_constructor_targets_the_ambient_space; commit=WORKTREE]
 Decides:
   - ``contraction`` is a capability, while the remaining public law names are
     equations checked exhaustively over the declared finite carrier.
@@ -1429,9 +1432,9 @@ def _construct(
     order: SemiringOrder | None = None,
 ) -> DeclaredAlgebra:
     """Implement the functional and class-decorator constructor forms."""
-    from . import engine  # noqa: PLC0415 -- the callable module stays lazy
+    from . import current_space, engine  # noqa: PLC0415 -- the callable module stays lazy
 
-    target = engine().self
+    target = engine().space(current_space())
     algebra_name = _algebra_name(subject)
     if isinstance(subject, type):
         plus = getattr(subject, "plus", plus)

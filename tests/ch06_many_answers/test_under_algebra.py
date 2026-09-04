@@ -30,6 +30,9 @@ Guarantees:
   - custom algebra declarations are visible only to their owning context and
     distinct contexts may reuse one algebra name [tested:
     test_custom_algebras_are_context_owned; commit=WORKTREE]
+  - the module-level algebra constructor follows the active space context
+    [tested: test_algebra_module_constructor_targets_the_ambient_space;
+    commit=WORKTREE]
 """
 
 from __future__ import annotations
@@ -384,6 +387,33 @@ def test_custom_algebras_are_context_owned(metta):
         assert right.runtime.must(
             "metta_algebra_one(Ctx, One)", Ctx=right.name
         )["One"] == 9
+
+
+def test_algebra_module_constructor_targets_the_ambient_space(metta):
+    """The implicit constructor receiver is the current space, not ``&self``."""
+    algebra_module = importlib.import_module("metta.algebra")
+    with metta._new_space() as program:
+        with program:
+            declared = algebra_module(
+                "ambient-product",
+                plus=lambda left, right: left + right,
+                times=lambda left, right: left * right,
+                zero=0,
+                one=1,
+            )
+
+        assert algebra_module.require(program, "ambient-product") == declared
+        program.add_tagged_fact(3, S.ambient(S.value))
+        assert (
+            program.match(S.ambient(S.value), under=declared).one().annotation
+            == 3
+        )
+
+    with pytest.raises(
+        algebra_module.AlgebraDeclarationError,
+        match="algebra_not_declared",
+    ):
+        algebra_module.require(metta, "ambient-product")
 
 
 def test_space_sample_is_seeded_and_uses_k_vocabulary(metta):
