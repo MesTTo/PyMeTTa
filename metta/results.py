@@ -169,6 +169,34 @@ def _plain(value: Any) -> Any:
     return str(value) if isinstance(value, Atom) else value
 
 
+def _twin_column(name: str, columns: tuple[str, ...] | list[str]) -> str | None:
+    """The column this name differs from only by the host-convention map.
+
+    `V.head_word` is `$head-word` and `V["head_word"]` is `$head_word`. That is
+    the ladder working as designed: attribute access takes Python's convention
+    to MeTTa's, and the bracket door stays exact so a head outside identifier
+    grammar is still reachable. Mixing the two in one pattern therefore builds
+    TWO variables, and the miss surfaced here as a bare "no column", a call or
+    more away from the pattern that made it.
+    """
+    for candidate in (name.replace("_", "-"), name.replace("-", "_")):
+        if candidate != name and candidate in columns:
+            return candidate
+    return None
+
+
+def _missing_column(name: str, columns: tuple[str, ...] | list[str]) -> str:
+    """Say a column is absent, naming its map-twin when one is present."""
+    twin = _twin_column(name, columns)
+    if twin is None:
+        return f"no column {name!r}; columns are {list(columns)}"
+    return (
+        f"no column {name!r}, but {twin!r} is one: attribute access maps _ to -"
+        f" and the bracket door is exact, so V.{name.replace('-', '_')} and"
+        f" V[{name!r}] are different variables"
+    )
+
+
 class Row(tuple):
     """One answer: a tuple whose fields are the query's variable names.
 
@@ -184,7 +212,7 @@ class Row(tuple):
         try:
             return self[type(self)._columns.index(name)]
         except ValueError:
-            msg = f"no column {name!r}; columns are {list(type(self)._columns)}"
+            msg = _missing_column(name, type(self)._columns)
             raise AttributeError(
                 msg
             ) from None
@@ -198,7 +226,7 @@ class Row(tuple):
             try:
                 key = type(self)._columns.index(key)
             except ValueError:
-                msg = f"no column {key!r}; columns are {list(type(self)._columns)}"
+                msg = _missing_column(key, type(self)._columns)
                 raise KeyError(
                     msg
                 ) from None
@@ -372,9 +400,12 @@ class Rows(UserList[Row]):
             # tuple.index would otherwise report this as
             # "tuple.index(x): x not in tuple", naming neither the column
             # asked for nor the ones that exist.
-            close = get_close_matches(str(name), self.columns, n=1, cutoff=0.6)
-            suggestion = f"; did you mean {close[0]!r}?" if close else ""
-            msg = f"no column {name!r} in {self.columns}{suggestion}"
+            if _twin_column(str(name), self.columns) is not None:
+                msg = _missing_column(str(name), self.columns)
+            else:
+                close = get_close_matches(str(name), self.columns, n=1, cutoff=0.6)
+                suggestion = f"; did you mean {close[0]!r}?" if close else ""
+                msg = f"no column {name!r} in {self.columns}{suggestion}"
             raise KeyError(
                 msg
             )
@@ -966,12 +997,23 @@ class Answers[T](Sequence[T]):
 
     def _project(self, name: str) -> Answers[Any]:
         if name not in self._columns:
-            close = get_close_matches(name, self._columns, n=1, cutoff=0.6)
-            suggestion = f"; did you mean {close[0]!r}?" if close else ""
-            msg = (
-                f"no answer variable {name!r}; variables are "
-                f"{list(self._columns)}{suggestion}"
-            )
+            twin = _twin_column(name, self._columns)
+            if twin is not None:
+                # The map-twin is a specific, diagnosable mistake rather than a
+                # near miss, so it names the mechanism instead of guessing.
+                msg = (
+                    f"no answer variable {name!r}, but {twin!r} is one: attribute"
+                    f" access maps _ to - and the bracket door is exact, so"
+                    f" V.{name.replace('-', '_')} and V[{name!r}] are different"
+                    f" variables"
+                )
+            else:
+                close = get_close_matches(name, self._columns, n=1, cutoff=0.6)
+                suggestion = f"; did you mean {close[0]!r}?" if close else ""
+                msg = (
+                    f"no answer variable {name!r}; variables are "
+                    f"{list(self._columns)}{suggestion}"
+                )
             raise AttributeError(msg)
         index = self._columns.index(name)
 

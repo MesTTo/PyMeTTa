@@ -1266,6 +1266,37 @@ def test_an_unknown_column_names_the_columns_that_exist(m):  # noqa: D103  -- py
         _ = rows.wh
 
 
+def test_a_column_missed_by_the_underscore_map_names_the_two_doors(m):
+    """`V.x_y` and `V["x_y"]` are different variables, by design.
+
+    Attribute access takes Python's convention to MeTTa's and the bracket door
+    stays exact, which is what keeps a head outside identifier grammar
+    reachable. Mixing them in one pattern therefore builds TWO variables, and
+    the miss used to surface a call or more later as a bare "no column" with no
+    hint of the cause. Every door that can miss says the mechanism now.
+    """
+    m.add(S.arc(S.alpha, S.beta))
+    rows = m.match(S.arc(V.head_word, V.tail))
+    assert rows.columns == ("head-word", "tail")
+
+    expected = "attribute access maps _ to - and the bracket door is exact"
+    with pytest.raises(AttributeError, match=expected):
+        _ = rows["head_word"]
+    with pytest.raises(AttributeError, match=expected):
+        _ = rows[0].head_word
+    with pytest.raises(KeyError, match=expected):
+        _ = rows[0]["head_word"]
+
+    # A name that is nobody's twin keeps the ordinary wording, so the specific
+    # message stays a signal rather than decoration.
+    with pytest.raises(AttributeError) as absent:
+        _ = rows["nonesuch"]
+    assert "different variables" not in str(absent.value)
+
+    # And the spelling that matches still answers.
+    assert rows[0]["head-word"] == S.alpha
+
+
 @pytest.mark.parametrize(
     ("call", "match"),
     [
