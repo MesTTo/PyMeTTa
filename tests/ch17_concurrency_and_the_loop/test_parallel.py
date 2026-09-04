@@ -33,7 +33,7 @@ import weakref
 
 import pytest
 
-from metta import S, channel
+from metta import G, S, channel, parse
 from metta._engine import engine_thread, runtime
 from metta.atoms import Expression
 from metta.errors import EngineError, TimeLimitError
@@ -256,3 +256,41 @@ def test_a_dual_is_built_once_under_concurrency(metta):
         ))
     )["N"]
     assert clauses == 1, f"{clauses} clauses of the dual were built, not one"
+
+
+def test_a_cross_thread_wait_inside_a_transaction_refuses_instead_of_hanging(metta):
+    """A transaction cannot see another thread's writes, so the wait is unreachable.
+
+    A transaction reads the database as it was when it OPENED. A write another
+    thread makes while it runs stays invisible inside it, and every blocking
+    wait here waits for exactly such a write. Measured before the guard:
+    `(let $f (spawn (inc 41)) (await $f))` answers 42 in 0.00s and never
+    returned inside a transaction, and the same spawn under a two-second
+    `space_await` answered `[]` after the full two seconds, which is a WRONG
+    answer rather than a slow one.
+    """
+    metta.run("!(import! &self (library lib_thread))")
+    metta.run("(= (inc $x) (+ $x 1))")
+
+    await_form = "(let $f (spawn (inc 41)) (await $f))"
+    wait_form = (
+        "(let $s (new-space) "
+        "  (let $_ (spawn (add-atom $s (job 1))) "
+        "    (space_await $s (job $x) 2)))"
+    )
+
+    # Outside a transaction both answer, which is what makes the refusal below
+    # a statement about the transaction rather than about the form.
+    assert metta.eval(await_form) == [G(42)]
+    assert metta.eval(wait_form) == [parse("(job 1)")]
+
+    for form in (await_form, wait_form):
+        with pytest.raises(EngineError) as refused:
+            metta.transaction(lambda f=form: metta.eval(f))
+        message = str(refused.value)
+        assert "cannot become visible while the transaction lasts" in message
+        assert "Wait outside the transaction" in message
+
+    # A channel is not database state, so it keeps working and is not guarded.
+    channel = "(let $c (channel) (let $_ (send $c hello) (recv $c)))"
+    assert metta.transaction(lambda: metta.eval(channel)) == [S.hello]
