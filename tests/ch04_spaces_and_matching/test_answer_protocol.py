@@ -1,7 +1,7 @@
 """Purpose: the explicit answer form, end to end: a provider or operation
 answers bindings for the query's own variables, plain atoms and explicit
-answers mix in one stream, and the staged slots (residue, annotation)
-refuse loudly instead of dropping silently.
+answers mix in one stream, and residue and annotation execute while an
+undeclared annotation refuses instead of disappearing.
 Guarantees:
   - operations returning explicit bindings request evaluated Atom wrappers
     through `(arguments name atoms)` declarations [tested:
@@ -23,6 +23,9 @@ Guarantees:
     carrier's extend law [tested:
     test_two_annotated_operation_calls_multiply_all_four_joint_weights;
     commit=1208ea172e11560b2aaae238823514941aa5fe20]
+  - theta, value, residue, and k work together, and get-metatype observes the
+    encoded answer content [tested: test_every_answer_constructor_slot_is_live;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -60,6 +63,35 @@ def test_answer_validates_eagerly():  # noqa: D103  -- pytest discovers or injec
         Answer({}, residue="not an atom")
     with pytest.raises(TypeError, match="annotation in the declared"):
         Answer({}, k=object())
+
+
+def test_every_answer_constructor_slot_is_live(metta):
+    """One provider answer exercises theta, value, residue, k, and metatype."""
+    def answer(pattern):
+        (n,) = _pattern_vars(pattern)
+        keeps = Expression([Symbol(">"), n, Grounded(1)])
+        yield Answer(
+            {n: 2},
+            value=parse("(item 2)"),
+            residue=keeps,
+            k=0.75,
+        )
+        yield Answer(
+            {n: 0},
+            value=parse("(item 0)"),
+            residue=keeps,
+            k=0.99,
+        )
+
+    metta._register_space(_AnswerProvider(answer), "&ap-live-slots")
+    metta.annotations("&ap-live-slots", "ranked")
+    answers = metta._at("&ap-live-slots").match(
+        S.item(V.n), under="ranked"
+    )
+    selected = answers.one()
+    assert selected.value.n == Grounded(2)
+    assert selected.annotation == 0.75
+    assert metta.eval(S["get-metatype"](selected.value.n)) == [S.Grounded]
 
 
 class _AnswerProvider(SpaceProvider):
