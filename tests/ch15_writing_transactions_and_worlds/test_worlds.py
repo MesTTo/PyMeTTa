@@ -184,8 +184,8 @@ def test_every_declaration_door_removes_every_stale_duplicate(metta):
     cases = [
         ("emits", "emits", lambda s: s.emits("depth"), S.fair,
          lambda s: s.emits("best-first")),
-        ("source", "source", lambda s: s.source("linear"), S.repeated,
-         lambda s: s.source("peek")),
+        ("source", "source", lambda s: s.consumption("linear"), S.repeated,
+         lambda s: s.consumption("peek")),
         ("context", "context", lambda s: s.context("closed-world"), S["open-world"],
          lambda s: s.context("closed-world")),
         ("atomicity", "writes", lambda s: s.atomicity("atomic-single"),

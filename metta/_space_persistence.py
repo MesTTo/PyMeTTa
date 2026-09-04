@@ -10,6 +10,10 @@ Guarantees:
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - text snapshots use UTF-8 regardless of the process locale [tested
     test_text_save_uses_utf8_for_plain_and_gzip_files; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
+  - text snapshots canonicalize stored variable identities by first
+    occurrence, so independent reads of one unchanged program are byte
+    identical [tested: test_source_is_the_exact_round_trippable_text_save_view;
+    commit=WORKTREE]
   - the save format type admits exactly metta and fast [tested:
     test_canonical_context_types_replace_public_newtypes; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - save validation consumes the generated SaveFormat vocabulary class rather
@@ -46,7 +50,7 @@ from typing import Literal
 
 from ._engine import Runtime
 from ._space_objects import _apply_limited, _limits
-from .atoms import Atom, Expression, Grounded, Handle, Symbol, _atom_from_wire
+from .atoms import Atom, Expression, Grounded, Handle, Symbol, Variable, _atom_from_wire
 from .errors import EngineError, ResourceLimitError
 from .vocabularies import SaveFormat
 
@@ -199,10 +203,42 @@ def _write_fast(
     return int(value)
 
 
+def _source_line(atom: Atom) -> str:
+    """Render one stored atom with stable, clause-local variable names."""
+    text = str(atom)
+    # Most stored atoms are ground. Their ordinary rendering is already the
+    # canonical rendering, so avoid rebuilding the whole tree merely to learn
+    # that there was no variable to rename.
+    if "$" not in text:
+        return f"{text}\n"
+    renamings: dict[str, str] = {}
+
+    def stable_name(term: Atom) -> Atom:
+        if not isinstance(term, Variable) or term.name == "_":
+            return term
+        name = renamings.setdefault(term.name, f"_{len(renamings) + 1}")
+        return Variable(name)
+
+    return f"{atom.map(stable_name)}\n"
+
+
+def _source_text(atoms: list[Atom]) -> str:
+    """Render stored atoms as deterministic, loadable MeTTa source."""
+    return "".join(_source_line(atom) for atom in atoms)
+
+
+def source_space(rt: Runtime, space: str) -> str:
+    """Return one space's validated text snapshot without writing a file."""
+    bounds = _limits(None, None) or (-1.0, -1, -1)
+    atoms = _enumerate(rt, space, bounds)
+    _validate_atoms(rt, space, atoms, bounds)
+    return _source_text(atoms)
+
+
 def _write_text(temporary: Path, atoms: list[Atom]) -> int:
     with _open_maybe_gz(temporary, "wt") as handle:
         for atom in atoms:
-            handle.write(f"{atom}\n")
+            handle.write(_source_line(atom))
     return len(atoms)
 
 

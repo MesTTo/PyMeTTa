@@ -93,16 +93,17 @@ Guarantees:
   - handle-level Linda waits load their support into the default caller space,
     never into a distinct waited-on space [tested:
     test_peek_does_not_import_linda_into_the_waited_space; commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
-  - ``Space.match``, every head-named declaration verb, and the write method
+  - ``Space.match``, every declaration verb, and the write method
     retain their established semantics after moving off ``MeTTa`` [tested:
     test_query_surfaces_share_column_order,
     test_no_decorator_flag_changes_the_return_shape_and_declarations_are_atoms,
     test_the_python_remove_door_subtracts_one_copy; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - all fifteen declaration heads use their settled receiver spellings,
-    including ``reacts`` for ``(on ...)``; the former ``reaction`` spelling
-    remains as a compatibility alias and no ``declare_*`` alias returns
-    [tested: test_declarations_use_their_atom_heads_on_the_receiver and
-    test_m7_narrow_core_surface; commit=0cfc68a483d8d64fb499e53bbe9a3cc63f68990f]
+    including ``reacts`` for ``(on ...)`` and ``consumption`` for
+    ``(source ...)``; the former ``reaction`` spelling remains as a
+    compatibility alias and no ``declare_*`` alias returns
+    [tested: test_declarations_use_settled_receiver_spellings and
+    test_m7_narrow_core_surface; commit=WORKTREE]
   - Expression recognizes Space as the one iterable Handle whose listing is
     collected as an assembly-order snapshot [tested:
     test_expression_of_a_space_is_an_assembly_order_snapshot; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
@@ -181,6 +182,10 @@ Guarantees:
     loaded into another context [tested:
     test_fast_cache_restores_translator_rules_and_bound_spaces;
     commit=d2279ea320e54790dab4484421a168e93755b185]
+  - ``Space.source()`` returns the receiver's directly stored atoms as the
+    exact loadable text written by ``Space.save(format="metta")``, and its
+    notebook representation shows that source [tested:
+    test_source_is_the_exact_round_trippable_text_save_view; commit=WORKTREE]
 Owns resources:
   - ``Space.save`` owns its sibling temporary file and removes it after every
     failed operation [tested: test_save_failure_preserves_existing_file;
@@ -197,6 +202,7 @@ import builtins as _builtins
 import contextlib
 import functools
 import hashlib
+import html
 import importlib as _importlib
 import os
 import re as _re
@@ -271,6 +277,7 @@ from ._space_persistence import (
     load_space,
     raise_unsafe_text_atom,
     save_space,
+    source_space,
 )
 from ._space_query import (
     _validate_limit,
@@ -1140,6 +1147,10 @@ class Space(Handle):
         )
         return f"Space({shown!r}{state}{created})"
 
+    def _repr_html_(self) -> str:
+        """Show this space's loadable MeTTa source in rich notebooks."""
+        return f"<pre>{html.escape(self.source())}</pre>"
+
     def __str__(self) -> str:
         return str(self._name_atom if self._name_atom is not None else self._name)
 
@@ -1379,11 +1390,13 @@ class Space(Handle):
         spaces, aliases bound to those spaces, and translator rules. Loading
         the image mints fresh runtime space identities and preserves their
         graph relationships. The returned count remains the receiver's own
-        atom count. A path ending .gz writes gzip compressed in either format,
-        and load and import! read it back under the same name. The completed
-        sibling file is synced and then atomically replaces the target, so a
-        failed save leaves the old file intact. Atoms carrying live host
-        objects cannot survive either file and are refused.
+        atom count. Text variables are numbered by first occurrence within
+        each atom, so saving unchanged content twice is byte-stable. A path
+        ending .gz writes gzip compressed in either format, and load and
+        import! read it back under the same name. The completed sibling file
+        is synced and then atomically replaces the target, so a failed save
+        leaves the old file intact. Atoms carrying live host objects cannot
+        survive either file and are refused.
 
         `timeout` (seconds) and `inferences` (engine steps) bound the save with
         the engine's own guards, exactly as they bound load(). A text save
@@ -1404,6 +1417,20 @@ class Space(Handle):
             timeout=timeout,
             inferences=inferences,
         )
+
+    def source(self) -> str:
+        """Return this space's directly stored atoms as loadable MeTTa text.
+
+        This is exactly the text that ``save(path, format="metta")`` writes:
+        one atom per line, including equations, with a final newline when the
+        space is nonempty. Variables are numbered by first occurrence within
+        each atom, making independent views of unchanged content byte-stable.
+        Inherited prelude and library atoms, the global
+        ``&metta`` catalog, and child spaces are outside that save boundary.
+        Live host objects and atoms whose printed form cannot round-trip are
+        refused for the same reason a text save refuses them.
+        """
+        return source_space(self._rt, self._space)
 
     def load(
         self,
@@ -4866,7 +4893,7 @@ class Space(Handle):
             )
         )
 
-    def source(
+    def consumption(
         self,
         kind: SourceKind,
     ) -> Atom:
@@ -4878,7 +4905,9 @@ class Space(Handle):
         silently empty set from the drained object; re-registering the
         provider resets the mark, because a fresh provider is a fresh
         source. peek promises reads do not consume, which the conformance
-        kit checks by enumerating twice.
+        kit checks by enumerating twice. The Python door is named
+        ``consumption`` so ``source()`` can show program text; the MeTTa
+        catalog row deliberately keeps its language-level ``source`` head.
         """
         _require_vocabulary(kind, SourceKind, "kind")
         return self._replace_catalog_declaration(

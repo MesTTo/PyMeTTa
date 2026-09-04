@@ -52,14 +52,18 @@ Guarantees:
   - async names and save formats retain the synchronous surface's contextual
     types [tested: test_canonical_context_types_replace_public_newtypes;
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
-  - async head-named declaration methods reuse the catalog-generated policy aliases and
+  - async declaration methods reuse the catalog-generated policy aliases and
     own no duplicate Literal lists [tested: tests/checks/check_policy_inventory.py;
-    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
+    commit=WORKTREE]
   - all fifteen synchronous declaration heads have asynchronous mirrors,
-    including ``reacts`` for ``(on ...)`` while ``reaction`` remains, and no
-    ``declare_*`` aliases [tested:
+    including ``reacts`` for ``(on ...)`` and ``consumption`` for
+    ``(source ...)``, while ``reaction`` remains and no ``declare_*``
+    aliases return [tested:
     test_aio_covers_the_whole_synchronous_surface,
-    test_m7_narrow_core_surface; commit=0cfc68a483d8d64fb499e53bbe9a3cc63f68990f]
+    test_m7_narrow_core_surface; commit=WORKTREE]
+  - source() mirrors the synchronous round-trippable text view on the owning
+    worker [tested: test_aio_declare_and_register_delegations_land;
+    commit=WORKTREE]
   - async cast preserves a concrete target class as its static return type and
     keeps the target positional-only [tested
     test_target_type_overloads_preserve_the_requested_class,
@@ -1416,11 +1420,13 @@ class AsyncMeTTa:
         spaces, aliases bound to those spaces, and translator rules. Loading
         the image mints fresh runtime space identities and preserves their
         graph relationships. The returned count remains the receiver's own
-        atom count. A path ending .gz writes gzip compressed in either format,
-        and load and import! read it back under the same name. The completed
-        sibling file is synced and then atomically replaces the target, so a
-        failed save leaves the old file intact. Atoms carrying live host
-        objects cannot survive either file and are refused.
+        atom count. Text variables are numbered by first occurrence within
+        each atom, so saving unchanged content twice is byte-stable. A path
+        ending .gz writes gzip compressed in either format, and load and
+        import! read it back under the same name. The completed sibling file
+        is synced and then atomically replaces the target, so a failed save
+        leaves the old file intact. Atoms carrying live host objects cannot
+        survive either file and are refused.
 
         `timeout` (seconds) and `inferences` (engine steps) bound the save with
         the engine's own guards, exactly as they bound load(). A text save
@@ -1436,6 +1442,20 @@ class AsyncMeTTa:
         return await self.call(
             lambda m: m.save(path, format=format, timeout=timeout, inferences=inferences)
         )
+
+    async def source(self) -> str:
+        """Return this space's directly stored atoms as loadable MeTTa text.
+
+        This is exactly the text that ``save(path, format="metta")`` writes:
+        one atom per line, including equations, with a final newline when the
+        space is nonempty. Variables are numbered by first occurrence within
+        each atom, making independent views of unchanged content byte-stable.
+        Inherited prelude and library atoms, the global
+        ``&metta`` catalog, and child spaces are outside that save boundary.
+        Live host objects and atoms whose printed form cannot round-trip are
+        refused for the same reason a text save refuses them.
+        """
+        return await self.call(lambda m: m.source())
 
     async def load(
         self,
@@ -2429,7 +2449,7 @@ class AsyncMeTTa:
         """
         return await self.call(lambda m: m.sample(query, k=k, seed=seed))
 
-    async def source(
+    async def consumption(
         self,
         kind: SourceKind,
     ) -> Atom:
@@ -2441,9 +2461,11 @@ class AsyncMeTTa:
         silently empty set from the drained object; re-registering the
         provider resets the mark, because a fresh provider is a fresh
         source. peek promises reads do not consume, which the conformance
-        kit checks by enumerating twice.
+        kit checks by enumerating twice. The Python door is named
+        ``consumption`` so ``source()`` can show program text; the MeTTa
+        catalog row deliberately keeps its language-level ``source`` head.
         """
-        return await self.call(lambda m: m.source(kind))
+        return await self.call(lambda m: m.consumption(kind))
 
     async def on_error(
         self,

@@ -1075,7 +1075,7 @@ def test_explain_answers_the_route_and_the_route_is_honest(metta):  # noqa: D103
     provider = _Rec()
     metta._register_space(provider, "&ex-s")
     metta._at("&ex-s").handles("(erow $x)", "Exact")
-    metta._at("&ex-s").source("repeated")
+    metta._at("&ex-s").consumption("repeated")
     metta._at("&ex-s").context("closed-world")
     out = metta.run("!(explain (match &ex-s (erow $x) $x))")
     explained = {str(item.children[0]): item for item in out[0][0].children}

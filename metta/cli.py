@@ -4,6 +4,9 @@ Guarantees:
     MORK preload, while the current ``engine/main.pl`` tree delegates backend
     discovery to the engine [tested: test_main_retains_the_upstream_layout and
     test_main_asks_for_native_backends_and_names_none; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
+  - launcher help points to the complete ``python -m metta`` subcommand
+    surface, including Python-to-MeTTa conversion [tested:
+    test_the_launcher_answers_version_and_help_without_booting; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -41,7 +44,7 @@ Every other argument is passed to the program.
   metta --version         print the version
 
 The subcommand surface is `python -m metta` (run, repl, serve, boot, lint,
-doc). The Python surface is `import metta`."""
+doc, convert). The Python surface is `import metta`."""
 
 
 def main(argv=None):

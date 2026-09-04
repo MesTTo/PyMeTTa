@@ -3,6 +3,9 @@ Guarantees:
   - both retained upstream and current runtime layouts keep their own command
     contracts [tested: test_main_retains_the_upstream_layout and
     test_main_forwards_arguments_and_exit_status; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
+  - bare-launcher help names convert as part of the separate module-command
+    surface [tested: test_the_launcher_answers_version_and_help_without_booting;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -205,6 +208,7 @@ def test_the_launcher_answers_version_and_help_without_booting(capsys):
     printed = capsys.readouterr().out
     assert "usage: metta" in printed
     assert "python -m metta" in printed, "the help names the subcommand surface"
+    assert "convert" in printed
 
     # Not the whole command line, so it belongs to the program being run.
     assert "--help" not in metta_cli_self_answered_for(["program.metta", "--help"])

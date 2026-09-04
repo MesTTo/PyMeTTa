@@ -31,6 +31,9 @@ Guarantees:
   - async match and sample mirror the algebra carrier doors on their owning
     worker [tested: test_aio_covers_the_whole_synchronous_surface;
     commit=c7468b2789746bcf95c4bacc0e2d517ec4d972fa]
+  - async source() and consumption() reach their distinct synchronous doors
+    on the engine worker [tested:
+    test_aio_declare_and_register_delegations_land; commit=WORKTREE]
   - async bound ``fn.neg`` evaluates the shared composite operator recipe on
     the engine worker [tested: test_aio_structural_surface_behaves;
     commit=8ec44dec3cafba5981e7cf712749cca0e1bdcc45]
@@ -895,7 +898,9 @@ def test_aio_declare_and_register_delegations_land():  # noqa: D103  -- pytest d
         async with aio.AsyncMeTTa() as am:
             m = await am.space()
             source = await m.space("&aio-src")
-            declared = await source.source("linear")
+            await source.add(S.aio_source(S.fact))
+            assert await source.source() == "(aio-source fact)\n"
+            declared = await source.consumption("linear")
             assert "aio-src" in str(declared)
 
             def double(x: int) -> int:

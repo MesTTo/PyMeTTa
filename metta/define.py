@@ -81,6 +81,11 @@ Guarantees:
     has finished and warns with its since/remedy declaration [tested:
     test_deprecation_catalog_rows_drive_warnings_and_explanations;
     commit=d74e2e828cd9272882dcf907cfaf095d2d147ce0]
+  - Defined and PrologBacked source is always MeTTa text, with a Prolog-backed
+    origin represented by a MeTTa comment, and rich notebooks escape that
+    source [tested:
+    test_a_definition_may_be_written_in_prolog_with_the_python_as_reference,
+    test_defined_rich_repr_shows_escaped_source; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -90,6 +95,7 @@ Open Obligations:
 from __future__ import annotations
 
 import ast
+import html
 import inspect
 import textwrap
 import types
@@ -455,6 +461,10 @@ class Defined[**P, R]:
         """Every equation in this clause unit as MeTTa source."""
         return "\n".join(f"(= {self.head} {body})" for body in self.bodies)
 
+    def _repr_html_(self) -> str:
+        """Show this definition's MeTTa equations in rich notebooks."""
+        return f"<pre>{html.escape(self.source())}</pre>"
+
     def __repr__(self) -> str:  # noqa: D105  -- the Python data-model hook is defined by its name and enclosing type contract
         return f"<defined {self.name}({', '.join(self.params)}) = {self.body}>"
 
@@ -468,8 +478,8 @@ class PrologBacked[**P, R](Defined[P, R]):
     and the differential oracle went with it; here the Python stays as the
     reference the fast one is checked against.
 
-    There is no compiled body to print, so source() answers where the
-    Prolog came from.
+    There is no compiled body to print, so source() answers a MeTTa comment
+    naming where the Prolog came from.
     """
 
     __slots__ = ("origin",)
@@ -486,8 +496,9 @@ class PrologBacked[**P, R](Defined[P, R]):
         self.origin = origin
 
     def source(self) -> str:
-        """Where the fast side came from, there being no equation to show."""
-        return f"% {self.name}/{len(self.params) + 1} registered from {self.origin}"
+        """Name the fast side's origin as a MeTTa comment."""
+        description = f"{self.name}/{len(self.params) + 1} registered from {self.origin}"
+        return "\n".join(f"; {line}" for line in description.splitlines())
 
     def __repr__(self) -> str:  # noqa: D105  -- the Python data-model hook is defined by its name and enclosing type contract
         return (

@@ -10,6 +10,10 @@ Guarantees:
     spaces, and repeat-load ownership while retaining the root atom count
     [tested: test_fast_cache_restores_translator_rules_and_bound_spaces;
     commit=d2279ea320e54790dab4484421a168e93755b185]
+  - source() is byte-for-text identical to the default text save, excludes
+    inherited engine state, and reloads to the same program [tested:
+    test_source_is_the_exact_round_trippable_text_save_view,
+    test_source_and_save_agree_for_generated_variable_aliases; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -17,6 +21,7 @@ Open Obligations:
 """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
 import gzip
+import html
 import re
 import uuid
 from contextlib import contextmanager
@@ -30,6 +35,7 @@ from metta import (
     S,
     V,
     engine,
+    equation,
     ground,
 )
 from metta import _space_persistence as persistence_module
@@ -258,6 +264,56 @@ def test_load_auto_detects_text_and_fast_files(metta, tmp_path):  # noqa: D103  
         assert [row.x for row in from_fast.match(S["auto-fact"](V.x))] == expected
 
 
+def test_source_is_the_exact_round_trippable_text_save_view(metta, tmp_path):
+    """Expose the direct, round-trippable text-save view of one space."""
+    path = tmp_path / "visible-program.metta"
+    empty_path = tmp_path / "empty.metta"
+    with (
+        metta._new_space() as source,
+        metta._new_space() as restored,
+        metta._new_space() as empty,
+    ):
+        @source.define
+        def source_double(value: int) -> int:
+            return value * 2
+
+        @source.rules
+        def source_laws(value):
+            yield equation(S.source_identity(value)).to(value)
+
+        @source.define
+        class SourceRoundTripPair:
+            left: int
+            right: int
+
+        source += S.source_fact(S.ready)
+        declared = source.consumption("repeated")
+
+        text = source.source()
+        assert str(declared) == f"(source {source} repeated)"
+        assert source.save(path, format="metta") == 7
+        assert path.read_text() == text
+        assert len(text.splitlines()) == 7
+        assert "(: source-double (-> Number Number))" in text
+        assert "(= (source-double " in text
+        assert "(= (source-identity " in text
+        assert "(: SourceRoundTripPair (-> Number Number SourceRoundTripPair))" in text
+        assert "(source-fact ready)" in text
+        assert "(op " not in text
+        assert "(source &" not in text
+        assert source._repr_html_() == f"<pre>{html.escape(text)}</pre>"
+
+        assert restored.load(path) == []
+        assert restored.digest() == source.digest()
+        assert restored.run("!(source-double 21)") == [[42]]
+        assert restored.run("!(source-identity ready)") == [[S.ready]]
+        assert restored.run("!(SourceRoundTripPair-left (SourceRoundTripPair 3 4))") == [[3]]
+
+        assert empty.source() == ""
+        assert empty.save(empty_path) == 0
+        assert empty_path.read_text() == ""
+
+
 def test_escaped_quote_round_trips_through_text_save_and_load(metta, tmp_path):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     path = tmp_path / "escaped-quote.metta"
     with metta._new_space() as source, metta._new_space() as loaded:
@@ -294,11 +350,14 @@ def test_comments_remain_outside_escaped_string_state(metta):  # noqa: D103  -- 
 
 def test_fast_save_refuses_live_objects_exactly_like_text(m, tmp_path):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     m.add(S.holds(ground(object())))
+    with pytest.raises(ValueError) as source_error:
+        m.source()
     with pytest.raises(ValueError) as text_error:
         m.save(tmp_path / "object.metta")
     with pytest.raises(ValueError) as fast_error:
         m.save(tmp_path / "object.fast", format="fast")
     assert str(fast_error.value) == str(text_error.value)
+    assert str(source_error.value) == str(text_error.value)
     assert "live Python object" in str(fast_error.value)
     assert not (tmp_path / "object.fast").exists()
 
@@ -544,3 +603,32 @@ else:
             assert source.save(path, format="fast") == len(values)
             assert target.load(path) == []
             assert [int(row.value) for row in target.match(S["generated-value"](V.value))] == values
+
+    @settings(
+        max_examples=30,
+        deadline=None,
+        suppress_health_check=[HealthCheck.function_scoped_fixture],
+    )
+    @given(
+        st.lists(
+            st.lists(st.integers(min_value=0, max_value=4), min_size=1, max_size=6),
+            max_size=12,
+        )
+    )
+    def test_source_and_save_agree_for_generated_variable_aliases(
+        metta, tmp_path, aliases
+    ):
+        """Repeated indices denote repeated variables within one stored atom."""
+        path = tmp_path / "generated-source.metta"
+        with metta._new_space() as source, metta._new_space() as target:
+            atoms = [
+                S["generated-pattern"](*(V[f"v{index}"] for index in row))
+                for row in aliases
+            ]
+            source.add(*atoms)
+
+            text = source.source()
+            assert source.save(path) == len(atoms)
+            assert path.read_text() == text
+            assert target.load(path) == []
+            assert target.digest() == source.digest()
