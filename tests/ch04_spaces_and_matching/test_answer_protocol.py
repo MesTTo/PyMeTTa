@@ -1347,6 +1347,63 @@ def test_answers_project_caller_variables_and_slices_stay_answers(metta):  # noq
         _ = answers.typo
 
 
+def test_only_a_pristine_bounded_slice_offers_its_stop_to_the_source():
+    """The producer may replace an untouched prefix, never observed state."""
+    original_pulls = []
+    bounded_pulls = []
+    offered = []
+
+    def original():
+        for value in range(5):
+            original_pulls.append(value)
+            yield value
+
+    def bounded(stop, fallback):  # noqa: ARG001  -- this successful source does not need its exact fallback
+        offered.append(stop)
+
+        def source():
+            for value in range(stop):
+                bounded_pulls.append(value)
+                yield value
+
+        return source()
+
+    answers = Answers(original(), bound_source=bounded)
+    middle = answers[1:3]
+    assert offered == [3]
+    assert original_pulls == bounded_pulls == []
+    assert list(middle) == [1, 2]
+    assert bounded_pulls == [0, 1, 2]
+    assert original_pulls == []
+    assert list(answers) == [0, 1, 2, 3, 4]
+
+    shared_pulls = []
+
+    def shared_source():
+        for value in range(4):
+            shared_pulls.append(value)
+            yield value
+
+    def keep_shared(_stop, fallback):
+        return fallback
+
+    shared = Answers(shared_source(), bound_source=keep_shared)
+    assert list(shared[:2]) == [0, 1]
+    assert list(shared) == [0, 1, 2, 3]
+    assert shared_pulls == [0, 1, 2, 3]
+
+    offered.clear()
+    observed = Answers(original(), bound_source=bounded)
+    assert observed.first() == 0
+    assert list(observed[:2]) == [0, 1]
+    assert offered == []
+
+    untouched = Answers(original(), bound_source=bounded)
+    assert list(untouched[:0]) == []
+    assert list(untouched[-2:]) == [3, 4]
+    assert offered == []
+
+
 def test_answers_scalar_doors_raise_error_atoms_but_iteration_retains_them(metta):  # noqa: D103 -- the test name states the contract
     space = metta._new_space()
     answers = space.answers(S["/"](1, 0))
