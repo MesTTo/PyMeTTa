@@ -65,6 +65,7 @@ own.
 | [`integration/sqlite_space.py`](integration/sqlite_space.py) | Declared table shapes, transactional writes, and opaque or transparent SQL BLOB images |
 | [`integration/persistent_migration.py`](integration/persistent_migration.py) | One-open journal schema migration through the public space factory |
 | [`integration/provider_policy.py`](integration/provider_policy.py) | structural provider capabilities, per-request policy, and refusal reasons |
+| [`integration/provider_worlds.py`](integration/provider_worlds.py) | exact bound pushdown and provider-owned immutable-world snapshots and commits |
 | [`integration/remote_controls.py`](integration/remote_controls.py) | remote authorization, capability discovery, and cursor resource ceilings |
 | [`integration/routing_equations.py`](integration/routing_equations.py) | dispatch as equations, with the catch-all as the 404 |
 | [`integration/web_routes.py`](integration/web_routes.py) | FastAPI-shaped routing: the table is facts and dispatch is unification |
