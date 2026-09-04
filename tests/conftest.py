@@ -6,13 +6,15 @@ Guarantees:
     [tested: test_an_abandoned_watch_cancels_itself,
     test_source_tree_fixtures_coexist_with_installed_plugin_metadata;
     commit=993608c01049bcca7530931b680c416c81023543]
+  - ``HYPOTHESIS_PROFILE=petta`` is a supported alias of the ordinary
+    exploratory ``metta`` profile [tested: test_petta_profile_matches_metta;
+    commit=WORKTREE]
 
 Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None
 """
-
 
 import importlib
 import os
@@ -94,6 +96,7 @@ def pytest_configure(config: pytest.Config) -> None:
         config.pluginmanager.register(metta_pytest_plugin, "metta-source")
     _bound_children_to_a_wrapper()
 
+
 # The twins moved to extensions/python/examples/language-feature-examples/,
 # out of this directory, so pytest no longer reaches them from here and the
 # ignore that used to sit at this line is gone with them. What replaced it is
@@ -109,6 +112,7 @@ else:
     # reproduction blob, and HYPOTHESIS_PROFILE=ci derandomizes whole
     # runs while the default keeps exploring fresh examples.
     settings.register_profile("metta", print_blob=True)
+    settings.register_profile("petta", parent=settings.get_profile("metta"))
     settings.register_profile("ci", print_blob=True, derandomize=True)
     settings.load_profile(os.environ.get("HYPOTHESIS_PROFILE", "metta"))
 
