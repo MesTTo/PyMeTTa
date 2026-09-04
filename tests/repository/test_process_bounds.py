@@ -15,11 +15,11 @@ Guarantees:
     a child is asked what its own parent is, which is the one question a
     parent-side timeout cannot answer with `timeout`
     [tested: test_a_process_this_suite_starts_reports_a_wrapper_as_its_parent;
-    commit=WORKTREE]
+    commit=8bce8ad16b55b9fde7bfd0d1509ec69d5978f456]
   - the mechanism is exercised against a real orphan, because "the wrapper is
     in the argv" and "the wrapper reaps an orphan" are different claims and
     only the second is the guarantee
-    [tested: test_an_orphaned_child_is_reaped_by_its_own_wrapper; commit=WORKTREE]
+    [tested: test_an_orphaned_child_is_reaped_by_its_own_wrapper; commit=8bce8ad16b55b9fde7bfd0d1509ec69d5978f456]
 Fails when: someone replaces the wrapper with a parent-side kill in a
   `finally`, which passes an ordinary run and changes nothing about an
   orphan. That is the fix this test exists to reject.

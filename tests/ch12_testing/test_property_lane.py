@@ -15,12 +15,12 @@ Guarantees:
     stopped testing fails here
     [tested: test_a_prolog_property_lane_catches_a_planted_roundtrip_violation,
     test_the_planted_violation_is_the_same_violation_every_run;
-    commit=WORKTREE]
+    commit=8bce8ad16b55b9fde7bfd0d1509ec69d5978f456]
   - the provenance test reads the vendored files for the licence, the upstream
     commit and the record of what the vendoring changed, and checks the licence
     text itself rather than a claim about it
     [tested: test_the_vendored_runner_records_its_provenance,
-    test_the_vendored_licence_is_the_unlicense_itself; commit=WORKTREE]
+    test_the_vendored_licence_is_the_unlicense_itself; commit=8bce8ad16b55b9fde7bfd0d1509ec69d5978f456]
 Open Obligations:
   To Do: None
   Hacks: None

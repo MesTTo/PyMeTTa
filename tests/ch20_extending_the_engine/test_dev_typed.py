@@ -13,12 +13,12 @@ Guarantees:
     under -O the annotated clause body must be identical to an unannotated
     control's, which is what "compiles to nothing extra" means
     [tested: test_the_dev_build_checks_a_planted_type_violation_and_optimise_strips_it,
-    test_optimise_leaves_no_check_anywhere_in_the_engine; commit=WORKTREE]
+    test_optimise_leaves_no_check_anywhere_in_the_engine; commit=8bce8ad16b55b9fde7bfd0d1509ec69d5978f456]
   - the dependency test reads every shipped Prolog source rather than a list of
     the ones this item touched, so a later annotation that reaches for mavis
     fails here
     [tested: test_no_shipped_prolog_source_depends_on_the_development_build;
-    commit=WORKTREE]
+    commit=8bce8ad16b55b9fde7bfd0d1509ec69d5978f456]
 Open Obligations:
   To Do: None
   Hacks: None

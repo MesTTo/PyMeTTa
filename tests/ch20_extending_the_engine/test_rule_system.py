@@ -20,7 +20,7 @@ Guarantees:
     test_a_translator_rule_declares_its_direction_and_a_bidirectional_rule_is_one_declaration,
     test_a_translator_rule_can_decline_with_its_own_words,
     test_a_translator_rule_carries_a_cost_and_a_conjunctive_left_side;
-    commit=WORKTREE]
+    commit=8bce8ad16b55b9fde7bfd0d1509ec69d5978f456]
 Open Obligations:
   To Do: None
   Hacks: None

@@ -12,7 +12,7 @@ Guarantees:
       first writes the exact shape that used to fail through the library and
       the second the exact shape that used to disagree
       [tested: test_load_pre_registers_signatures_so_a_later_definition_resolves,
-      test_a_forward_call_behaves_the_same_through_both_doors; commit=WORKTREE]
+      test_a_forward_call_behaves_the_same_through_both_doors; commit=8bce8ad16b55b9fde7bfd0d1509ec69d5978f456]
 Open Obligations:
   To Do: None
   Hacks: None
