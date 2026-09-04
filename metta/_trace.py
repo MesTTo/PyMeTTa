@@ -16,7 +16,7 @@ Guarantees:
   - timeout and inferences bound the traced RUN, per call and through the
     scoped m.limits() default, independently of the max_events recording bound
     [tested: test_a_run_bound_stops_a_trace_the_way_it_stops_a_run;
-    commit=WORKTREE]
+    commit=73f47d27edae99e0c7fd35481040ce2d127bce76]
 Open Obligations:
   To Do: None
   Hacks: None
