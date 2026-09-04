@@ -22,6 +22,11 @@ Guarantees:
     test_nested_backend_names_do_not_retarget_an_earlier_space,
     test_randn_never_borrows_another_backends_random_state;
     commit=de15573db164c24b9dcaa3e5b783e66dcb05d4d1]
+  - Annotated DLTensor shapes participate in base-type checking, broadcast
+    inference, nested inference, and rank-two matmul unification before an
+    array is built [tested:
+    test_annotated_tensor_shapes_flow_through_broadcast_and_matmul;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -43,7 +48,7 @@ from metta import (
     wire,
 )
 from metta.errors import MettaError
-from metta.ops import registered
+from metta.ops import annotation_atom_for, registered
 from metta.vocabularies import EffectClass
 
 numpy = pytest.importorskip("numpy")
@@ -53,6 +58,7 @@ pytest.importorskip("array_api_compat")
 @pytest.fixture(scope="module")
 def am(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     before = set(registered())
+    atoms_before = set(map(str, metta.atoms()))
     arrays.install(metta, default=numpy)
     installed = set(registered()) - before
     try:
@@ -61,6 +67,17 @@ def am(metta):  # noqa: D103  -- pytest discovers or injects this callable; its 
         for name in sorted(installed, reverse=True):
             if name in registered():
                 metta.unregister_op(name)
+        # The shape rules are not operations, so the loop above does not reach
+        # them: install() adds `get-type` equations and one typing rule, and
+        # this suite drives the process home space, so anything left here is
+        # left for every later test in this worker.
+        metta.run("!(remove-typing-rule! metta-arrays-shaped-dltensor-base)")
+        for atom in metta.atoms():
+            text = str(atom)
+            if text in atoms_before or not text.startswith("(= ("):
+                continue
+            if text.startswith(("(= (get-type ", "(= (metta-arrays-")):
+                metta.remove(atom)
 
 
 def test_numpy_flows_through_the_same_ops(am):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -111,6 +128,71 @@ def test_every_array_operation_is_typed_and_a_shape_is_a_constraint(am):
     assert am.run(f"!(t-tolist (stack {tensors} 0))") == [
         [Expression(Expression(Expression(1.0, 2.0)), Expression(Expression(3.0, 4.0)))]
     ]
+
+
+def test_a_shape_rule_never_claims_an_unbound_get_type_subject(am):
+    """A shape equation must fail on a variable rather than invent one.
+
+    `!(get-type $subject)` is a question the engine answers for an unbound
+    subject, and a head spelled `(get-type (t+ $l $r))` unifies with exactly
+    that. Without the metatype guard the body then asks `(get-type $l)` about
+    a variable it has just invented, and each level invents two more: the
+    engine ran out of its 7.5Gb stack at depth 44,071,263 rather than
+    answering. Every shape equation reads its operand through the one guarded
+    reader, so the equation fails and the engine's own answer stands.
+    """
+    answers = am.run("!(get-type $subject)")
+    assert len(answers) == 1
+    assert [str(atom).startswith("$") for atom in answers[0]] == [True]
+    assert am.run("!(get-type ())") == [[S["->"]()]]
+
+
+def test_annotated_tensor_shapes_flow_through_broadcast_and_matmul(am):
+    """Shape metadata computes compatible results and rejects incompatible ones."""
+    assert str(arrays.Shape(V.n, V.k)) == "(Shape ($n $k))"
+    operation = registered()["matmul"]
+    assert str(annotation_atom_for(operation.parameter_annotations[0])) == (
+        "(Annotated (NewType DLTensor %Undefined%) (Shape ($rows $shared)))"
+    )
+    assert str(annotation_atom_for(operation.return_annotation)) == (
+        "(Annotated (NewType DLTensor %Undefined%) (Shape ($rows $columns)))"
+    )
+
+    am.run(
+        """
+        (: f3-image (Annotated DLTensor (Shape (4 1))))
+        (: f3-bias (Annotated DLTensor (Shape (3))))
+        (: f3-incompatible (Annotated DLTensor (Shape (2 5))))
+        (: f3-matrix (Annotated DLTensor (Shape (2 3))))
+        (: f3-right (Annotated DLTensor (Shape (3 4))))
+        (: f3-bad-right (Annotated DLTensor (Shape (5 4))))
+        (: f3-needs-tensor (-> DLTensor Bool))
+        (= (f3-needs-tensor $tensor) True)
+        """
+    )
+
+    def types_of(call: str) -> set[str]:
+        return {
+            str(atom)
+            for group in am.run(f"!(get-type {call})")
+            for atom in group
+        }
+
+    broadcast = "(Annotated DLTensor (Shape (4 3)))"
+    assert broadcast in types_of("(t+ f3-image f3-bias)")
+    assert broadcast in types_of("(t* (t+ f3-image f3-bias) f3-bias)")
+    assert not any(
+        type_name.startswith("(Annotated DLTensor")
+        for type_name in types_of("(t+ f3-image f3-incompatible)")
+    )
+    assert "(Annotated DLTensor (Shape (2 4)))" in types_of(
+        "(matmul f3-matrix f3-right)"
+    )
+    assert not any(
+        type_name.startswith("(Annotated DLTensor")
+        for type_name in types_of("(matmul f3-matrix f3-bad-right)")
+    )
+    assert am.run("!(f3-needs-tensor f3-image)") == [[True]]
 
 
 def test_the_constructor_builds_numpy_here(am):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract

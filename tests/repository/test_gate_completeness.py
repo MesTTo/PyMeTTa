@@ -73,7 +73,11 @@ RUFF_FAMILY_BURN_DOWN = {
     # 35 -> 37 with the compiled dict story: _x_Set and _x_DictComp join the
     # _x_<Node> translator-dispatch family, whose suffix mirrors ast class
     # names by contract.
-    "N": 37,
+    # 37 -> 38 for metta.arrays.Shape, a type-metadata constructor used inside
+    # `Annotated[DLTensor, Shape(...)]`. Python spells that position with a
+    # type, so the name follows Annotated and Literal rather than a function's
+    # lower_snake, and the one site carries N802 with that reason.
+    "N": 38,
     # 8 -> 10 for metta.strategies: `id` and `all` must be the exact public
     # strategy atoms, while each line carries the narrow A001 explanation.
     # 10 -> 12 with the compiled-statement scenarios: two refused-or-compiled
