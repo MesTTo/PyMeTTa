@@ -5,10 +5,10 @@ Guarantees:
     and total probability agree with independently evaluated formulas over
     generated valid inputs [tested: test_confidence_count_round_trip,
     test_beta_moments_match_definition, test_supported_product_matches_the_formula,
-    test_supported_total_probability_matches_the_formula; commit=WORKTREE]
+    test_supported_total_probability_matches_the_formula; commit=afc4024cef7d4b7bcdd194bb030a112187b676d0]
   - overlapping provenance and unidentifiable or invalid values refuse while
     naming the supported remedy [tested: test_support_overlap_refuses_factoring,
-    test_pln2_numeric_refusals_name_the_remedy; commit=WORKTREE]
+    test_pln2_numeric_refusals_name_the_remedy; commit=afc4024cef7d4b7bcdd194bb030a112187b676d0]
 """
 
 from __future__ import annotations

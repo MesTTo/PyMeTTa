@@ -7,13 +7,13 @@ mass and every marginal without copying or sharing implementation structure.
 Guarantees:
   - exact mass and all marginals agree with exhaustive Fraction arithmetic,
     preserve identity and order, and are invariant under one shared loss scale
-    [tested: test_weighted_subset_matches_exhaustive; commit=WORKTREE]
+    [tested: test_weighted_subset_matches_exhaustive; commit=afc4024cef7d4b7bcdd194bb030a112187b676d0]
   - conditioning on an exact unit-loss total makes the sum of posterior
     inclusion marginals equal that total [tested:
-    test_unit_loss_marginals_sum_to_observation; commit=WORKTREE]
+    test_unit_loss_marginals_sum_to_observation; commit=afc4024cef7d4b7bcdd194bb030a112187b676d0]
   - malformed identity, lattice, prior, and zero-mass inputs refuse with their
     own remedies [tested: test_weighted_subset_refusals_name_the_remedy;
-    commit=WORKTREE]
+    commit=afc4024cef7d4b7bcdd194bb030a112187b676d0]
 """
 
 from __future__ import annotations
