@@ -961,3 +961,64 @@ def test_a_trailing_underscore_escapes_a_keyword_rather_than_hyphenating():
     assert str(V._) == "$_"
     # An exact head that really ends in an underscore stays reachable.
     assert str(S["not_"]) == "not_"
+
+
+def test_the_atom_factories_are_concrete_to_a_type_checker(tmp_path):
+    """`S.foo` is a Symbol and `V.x` a Variable to mypy, not Any.
+
+    The stated reason to prefer `S.foo` over the string "foo" is that a string
+    is opaque to the type checker. The factory was opaque too: both revealed
+    as Any, which took the benefit away from the very door that argues for it.
+
+    Run through mypy rather than asserted in this file, because the gate's
+    mypy reads `files = ["metta"]` and never sees tests, so a `typing
+    .assert_type` here would pass by not being looked at.
+    """
+    import subprocess
+    import sys
+    from pathlib import Path
+
+    #`sys.executable -m mypy`, not a bare `mypy` from PATH: the gate runs
+    #`"$PY" -m mypy`, and this must check the SAME one or it certifies a
+    #different checker. A bare lookup also found nothing here, because mypy
+    #lives in the venv rather than on PATH, and the test skipped silently.
+    if subprocess.run(
+        [sys.executable, "-c", "import mypy"], capture_output=True, check=False
+    ).returncode:
+        pytest.skip("mypy is not importable from this interpreter")
+    probe = tmp_path / "probe.py"
+    probe.write_text(
+        "from metta import S, V\n"
+        "reveal_type(S.foo)\n"
+        "reveal_type(V.x)\n"
+        "reveal_type(S['car-atom'])\n",
+        encoding="utf-8",
+    )
+    package = Path(__file__).resolve().parents[2]
+    result = subprocess.run(
+        [sys.executable, "-m", "mypy", "--no-error-summary", str(probe)],
+        cwd=package, capture_output=True, text=True, check=False, timeout=300,
+    )
+    revealed = [line for line in result.stdout.splitlines() if "Revealed type" in line]
+    assert len(revealed) == 3, result.stdout + result.stderr
+    assert revealed[0].endswith('"metta._atoms_core.Symbol"'), revealed[0]
+    assert revealed[1].endswith('"metta._atoms_core.Variable"'), revealed[1]
+    assert revealed[2].endswith('"metta._atoms_core.Symbol"'), revealed[2]
+
+
+def test_the_one_attribute_that_is_not_the_atom_its_namespace_mints():
+    """`S.neg` is a recipe, and it is the only name that is.
+
+    The declared type says the atom, which is imprecise for exactly this name
+    and exactly this namespace. Pinning it here is what keeps that documented
+    compromise from quietly becoming two names, or from reaching `V`.
+    """
+    from metta._name_mapping import OPERATOR_WORDS, OperatorRecipe
+
+    recipes = [n for n, v in OPERATOR_WORDS.items() if isinstance(v, OperatorRecipe)]
+    assert recipes == ["neg"], recipes
+    assert isinstance(S.neg, OperatorRecipe)
+    # The exact door never answers the recipe, and the operator path is reached
+    # only when the kind is Symbol, so the variable namespace is unaffected.
+    assert S["neg"] == Symbol("neg")
+    assert V.neg == Variable("neg")

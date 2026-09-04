@@ -55,7 +55,7 @@ def _container_type(annotation: Any, recurse: Callable[[Any], list[Atom]]) -> At
     arguments = _arguments(annotation)
     if origin is tuple and arguments and arguments[-1] is not Ellipsis:
         return Expression([recurse(argument)[0] for argument in arguments])
-    return S.Expression
+    return S["Expression"]
 
 
 def _container_annotation(
@@ -63,7 +63,10 @@ def _container_annotation(
 ) -> Atom:
     origin = _container_origin(annotation)
     arguments = _arguments(annotation)
-    children = [S[origin.__name__]]
+    #Annotated, because the exact bracket door answers a Symbol and the
+    #recursion below appends an Atom; inference used to widen this list
+    #only because the first element was untyped.
+    children: list[Atom] = [S[origin.__name__]]
     for argument in arguments:
         if argument is Ellipsis:
             children.append(S["..."])

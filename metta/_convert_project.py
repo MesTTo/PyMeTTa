@@ -389,7 +389,7 @@ def _enum_declarations(cls: type[Enum]) -> tuple[Expression, ...]:
 def _expression_declarations(cls: type, registration: _Registration) -> tuple[Expression, ...]:
     fields = registration.fields or ()
     hints = resolved_hints(cls)
-    alternative_lists = [
+    alternative_lists: list[list[Atom]] = [
         type_atoms_for(hints[f]) if f in hints else [S["%Undefined%"]] for f in fields
     ]
     return _declarations_for_alternatives(registration.type_name, alternative_lists)

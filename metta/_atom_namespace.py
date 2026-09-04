@@ -42,9 +42,9 @@ from __future__ import annotations
 
 import importlib
 import threading
-from typing import Any, Final
+from typing import Any, Final, cast
 
-from ._atoms_core import Symbol
+from ._atoms_core import Atom, Symbol
 from ._name_mapping import (
     OperatorRecipe,
     attribute_name,
@@ -67,7 +67,11 @@ class _DocumentedSymbol(Symbol):
         object.__setattr__(self, "__doc__", documentation)
 
 
-class _Namespace:
+#The atom class a namespace mints is already the constructor's first argument,
+#so making the class generic over it costs no new API and lets a type checker
+#see through the attribute door: `S.foo` was `Any`, which took away the very
+#reason to prefer it over the string "foo".
+class _Namespace[AtomT: Atom]:
     """Mint atoms by attribute access: S.likes is the symbol likes, V.x is $x.
 
     The Python binding is the name itself, so nothing is spelled twice.
@@ -89,7 +93,7 @@ class _Namespace:
 
     def __init__(
         self,
-        kind: type,
+        kind: type[AtomT],
         *,
         allowed: frozenset[str] | None = None,
         aliases: dict[str, str] | None = None,
@@ -116,7 +120,18 @@ class _Namespace:
         object.__setattr__(self, "_attrs", {})
         object.__setattr__(self, "_lock", threading.RLock())
 
-    def __getattr__(self, name: str) -> Any:
+    #Declared as the atom, though ONE name in one namespace answers otherwise:
+    #`S.neg` is an OperatorRecipe carrying the composite `(- 0 x)`, and the
+    #operator path is reached only when the kind is Symbol, so `V.neg` is the
+    #plain variable `$neg`. Every other name in every namespace is the atom.
+    #
+    #The union `AtomT | OperatorRecipe` was tried and taken back out. It is
+    #the honest type and the wrong one to publish: it makes `Expression([S.x])`
+    #an error for EVERY caller in order to be exact about a single name, so the
+    #cost falls on the many to describe the one. The same trade `_fn.pyi`
+    #makes, where operator words are declared explicitly rather than widening
+    #the whole roster. `S['neg']` remains the exact door and answers the symbol.
+    def __getattr__(self, name: str) -> AtomT:
         """Two tiers, copied from _atoms_core._wire_intern, which took them
         from CPython's own re module cache.
 
@@ -162,7 +177,10 @@ class _Namespace:
                 if len(fast) >= NAMESPACE_FAST_MAX:
                     del fast[next(iter(fast))]
                 fast[name] = hit
-            return hit
+            #The one place the declared type is wider than the value: `S.neg`
+            #answers an OperatorRecipe. Cast HERE, in the implementation,
+            #rather than publishing a union that every caller would narrow.
+            return cast("AtomT", hit)
         if operator_target is not None:
             target = operator_target
         elif object.__getattribute__(self, "_allowed") is None:
@@ -225,7 +243,7 @@ class _Namespace:
             fast[name] = hit
             return hit
 
-    def __getitem__(self, name: str) -> Any:
+    def __getitem__(self, name: str) -> AtomT:
         if not isinstance(name, str):
             msg = f"an exact namespace name is a string, got {type(name).__name__}"
             raise TypeError(msg)

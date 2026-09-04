@@ -130,7 +130,7 @@ def annotation_atom_for(annotation: Any) -> Atom:
         arguments = typing.get_args(annotation)
         return Expression([S.type, *(annotation_atom_for(item) for item in arguments)])
     if annotation in (typing.Never, typing.NoReturn):
-        return S.Empty
+        return S["Empty"]
     if annotation is typing.Self:
         return Variable("t")
     hook = _parameterized_hook(annotation)
@@ -154,9 +154,9 @@ def _direct_type_atoms(annotation: Any, origin: Any) -> list[Atom] | None:
         # Undefined) and letstarcomputed's first claim answered []].
         return [S["%Undefined%"]]
     if annotation is object:
-        return [S.Atom]
+        return [S["Atom"]]
     if annotation is None or annotation is type(None):
-        return [S.NoneType]
+        return [S["NoneType"]]
     if isinstance(annotation, typing.TypeVar):
         if annotation.__constraints__:
             return _typevar_constraints(annotation)
@@ -199,7 +199,7 @@ def _callable_type_atoms(annotation: Any) -> list[Atom]:
 def _tuple_type_atoms(annotation: Any) -> list[Atom]:
     args = typing.get_args(annotation)
     if args and args[-1] is Ellipsis:
-        return [S.Expression]
+        return [S["Expression"]]
     shapes: list[Atom] = []
     seen: set[str] = set()
     for combination in _bounded_product(
@@ -218,7 +218,7 @@ def _generic_type_atoms(origin: Any) -> list[Atom]:
             return [S[_class_type_name(origin)]]
         return [S["%Undefined%"]]
     if origin is list or issubclass(origin, abc.Sequence):
-        return [S.Expression]
+        return [S["Expression"]]
     if not inspect.isabstract(origin):
         return [S[_class_type_name(origin)]]
     return [S["%Undefined%"]]
@@ -232,15 +232,15 @@ def type_atoms_for(annotation: Any) -> list[Atom]:
     if origin is typing.Literal:
         return _literal_type_atoms(annotation)
     if origin in _type_predicate_origins():
-        return [S.Bool]
+        return [S["Bool"]]
     if annotation in (typing.Never, typing.NoReturn):
-        return [S.Empty]
+        return [S["Empty"]]
     if annotation is typing.Self:
         return [Variable("t")]
     if annotation is typing.LiteralString:
-        return [S.String]
+        return [S["String"]]
     if origin is type:
-        return [S.Type]
+        return [S["Type"]]
     if origin in (typing.Required, typing.NotRequired):
         return type_atoms_for(typing.get_args(annotation)[0])
     if origin is typing.Annotated:

@@ -1069,7 +1069,7 @@ def register[**P, R](
         arities=arities,
         fn=fn,
         supplied=supplied,
-        result_type=S.SpaceType if kind == "async" else None,
+        result_type=S["SpaceType"] if kind == "async" else None,
     )
     # The grammar check is the last read before the registration transaction:
     # every Python-side refusal above remains free, and an unreadable name has
