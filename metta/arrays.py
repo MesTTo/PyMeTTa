@@ -37,6 +37,13 @@ Guarantees:
     test_nested_backend_names_do_not_retarget_an_earlier_space,
     test_randn_never_borrows_another_backends_random_state;
     commit=de15573db164c24b9dcaa3e5b783e66dcb05d4d1]
+  - a mixed call converts on the LIBRARY the operand belongs to and not on
+    its Python class, so two classes of one namespace, a JAX tracer beside a
+    concrete array among them, cross untouched [tested:
+    test_an_operand_of_the_same_library_is_not_converted_through_dlpack,
+    test_a_jax_tracer_crosses_a_binary_op_and_a_gradient_reaches_it]
+  - install() takes a context or a space and registers into the space either
+    way [tested: test_install_takes_a_context_as_well_as_a_space]
 Guarded by:
   - _PROTOCOLS_LOCK serializes one-time protocol registration
     [tested test_array_protocol_registration_is_idempotent]
@@ -190,6 +197,29 @@ def namespace_of(x: Any):
     return _compat().array_namespace(x)
 
 
+def _into(namespace: Any, like: Any, value: Any):
+    """``value`` as an array of ``namespace``, converted only when it is not.
+
+    Which LIBRARY a value belongs to is the question, and Python type identity
+    is not that question. JAX's tracer and its concrete array are two classes
+    of ONE namespace, and a tracer carries ``__dlpack__`` without the
+    ``__dlpack_device__`` half, so converting one was both unnecessary and
+    impossible: ``from_dlpack`` refuses it with "The array passed to
+    from_dlpack must have __dlpack__ and __dlpack_device__ methods", which
+    took every traced call through ``jax.jit`` and ``jax.grad`` down with it
+    [measured 2026-09-04 on jax 0.11.0: ``namespace_of(tracer)`` IS
+    ``namespace_of(concrete)`` while ``type`` reads DynamicJaxprTracer against
+    ArrayImpl].
+
+    The type test stays in front of the namespace one as a fast path, because
+    two values of one Python type are always of one library and
+    ``array_namespace`` is a dispatch this saves on every same-library call.
+    """
+    if type(value) is type(like) or namespace_of(value) is namespace:
+        return value
+    return namespace.from_dlpack(value)
+
+
 def _default_namespace(backend: Any):
     compat = _compat()
     if backend is None:
@@ -262,7 +292,13 @@ def install(m, default: Any = None) -> list[str]:  # noqa: C901  -- install keep
 
     t-shape remains observation of an existing tensor. Use broadcast-shape
     when compatibility or inference must happen before materialisation.
+
+    m may be a context or a space. The operations are registered into the
+    space either way, which is the object whose storage and introspection
+    doors this needs; `install(m)` on a context used to raise
+    `MeTTa has no 'is_function'` and leave every operation unregistered.
     """
+    m = _integrate.space_of(m)
     _register_protocols()
     backend = _numpy() if default is None else default
     if isinstance(backend, str):
@@ -362,11 +398,7 @@ def install(m, default: Any = None) -> list[str]:  # noqa: C901  -- install keep
         number, since the standard's functions take arrays on both sides.
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         xp = namespace_of(a)
-        if is_array(b):
-            if type(b) is not type(a):
-                b = xp.from_dlpack(b)
-        else:
-            b = xp.asarray(b, dtype=a.dtype)
+        b = _into(xp, a, b) if is_array(b) else xp.asarray(b, dtype=a.dtype)
         return a, b, xp
 
     # ------------------------------------------------------------ constructors
@@ -751,16 +783,11 @@ class EmbeddingStore:
     def _normalized_query(self, query: Any):
         xp = namespace_of(self._vectors[0])
         if self._matrix is None:
-            rows = [
-                xp.from_dlpack(v) if type(v) is not type(self._vectors[0]) else v
-                for v in self._vectors
-            ]
+            rows = [_into(xp, self._vectors[0], v) for v in self._vectors]
             stacked = xp.stack([xp.astype(r, xp.float32) for r in rows])
             norms = xp.sqrt(xp.sum(stacked * stacked, axis=-1, keepdims=True))
             self._matrix = stacked / norms
-        q = self._checked_vector(query)
-        if type(q) is not type(self._vectors[0]):
-            q = xp.from_dlpack(q)
+        q = _into(xp, self._vectors[0], self._checked_vector(query))
         q = xp.reshape(xp.astype(q, xp.float32), (-1,))
         return xp, q / xp.sqrt(xp.sum(q * q))
 

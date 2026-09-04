@@ -28,6 +28,7 @@ import pytest
 
 from metta import (
     Expression,
+    MeTTa,
     MettaError,
     S,
     Symbol,
@@ -261,6 +262,33 @@ def test_pi_protocol_and_idempotence(metta):  # noqa: D103  -- pytest discovers 
         assert len(calls) == 2
     finally:
         other.drop()
+
+
+def test_an_integration_installed_on_a_context_reaches_its_home_space():
+    """An installer is handed a SPACE, whichever of the two the caller holds.
+
+    MeTTa refuses a Space door rather than forwarding it, deliberately, so
+    every installer that reached one died on a context: `integrate(m, target)`
+    raised on `m.name` before calling anything, and `metta.arrays.install(m)`
+    raised `MeTTa has no 'is_function'` with every operation unregistered.
+    The context resolves to its home space once, here, so the installer still
+    receives the object whose storage it writes into.
+    """
+    seen = []
+    fake = types.SimpleNamespace(
+        __name__="context_integration", install_metta=seen.append
+    )
+    context = MeTTa()
+    home = context.self
+
+    assert pi.integrate(context, fake) == "context_integration"
+    assert seen == [home]
+    assert (home.name, "context_integration") in pi.installed()
+
+    # And it is the same installation the space itself would have made, so
+    # handing the context a second time installs nothing further.
+    pi.integrate(home, fake)
+    assert len(seen) == 1
 
 
 def test_prolog_integration_aliases_keep_fully_qualified_module_names(

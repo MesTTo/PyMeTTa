@@ -232,6 +232,95 @@ def test_mixed_library_binary_op_converts_rightward(am):  # noqa: D103  -- pytes
     assert float(group[0]) == 8.0
 
 
+class _SameLibraryOtherType(numpy.ndarray):
+    """One library, another Python class, and no device half of DLPack.
+
+    This is JAX's tracer in miniature and it needs no JAX: `array_namespace`
+    answers NumPy for a subclass, so the two operands belong to ONE library,
+    while `type` reads two classes and `from_dlpack` refuses a value that
+    exports `__dlpack__` without `__dlpack_device__`.
+    """
+
+    @property
+    def __dlpack_device__(self):
+        """Absent, the way a JAX tracer's is."""
+        msg = "__dlpack_device__"
+        raise AttributeError(msg)
+
+
+def test_an_operand_of_the_same_library_is_not_converted_through_dlpack(am):
+    """Which LIBRARY an operand belongs to is the question, not which class.
+
+    Python type identity answered it for a while, and JAX is where that
+    breaks: a traced value and a concrete array are two classes of one
+    namespace, and a tracer carries `__dlpack__` without
+    `__dlpack_device__`, so the conversion was both unnecessary and
+    impossible. Measured 2026-09-04 on jax 0.11.0, the reported case
+    `(t+ <concrete> <tracer>)` raised `Python TypeError ... The array passed
+    to from_dlpack must have __dlpack__ and __dlpack_device__ methods`.
+    """
+    left = numpy.asarray([1.0, 2.0, 3.0], dtype=numpy.float32)
+    right = numpy.asarray([1.0, 1.0, 1.0], dtype=numpy.float32).view(
+        _SameLibraryOtherType
+    )
+    assert arrays.namespace_of(right) is arrays.namespace_of(left)
+    assert type(right) is not type(left)
+    assert not hasattr(right, "__dlpack_device__")
+
+    answer = am.eval(S["t-item"](S["t-sum"](S["t+"](ground(left), ground(right)))))
+    assert answer == [9.0]
+
+
+def test_a_jax_tracer_crosses_a_binary_op_and_a_gradient_reaches_it():
+    """The reported case, on the library it was reported against.
+
+    A tracer on the RIGHT is what fails: the left operand names the
+    namespace, so a concrete left and a traced right is the pair that used to
+    reach from_dlpack. Both directions are checked here because only one of
+    them ever broke.
+    """
+    jax = pytest.importorskip("jax")
+    jax_numpy = pytest.importorskip("jax.numpy")
+    context = MeTTa()
+    before = set(registered())
+    arrays.install(context, default=jax_numpy)
+    try:
+        concrete = jax_numpy.asarray([1.0, 2.0, 3.0])
+
+        def through_metta(traced):
+            call = S["t+"](ground(concrete), ground(traced))
+            return arrays.data_of(context.self.eval(call)[0]).sum()
+
+        assert float(through_metta(concrete)) == 12.0
+        assert float(jax.jit(through_metta)(concrete)) == 12.0
+        assert list(jax.grad(through_metta)(concrete)) == [1.0, 1.0, 1.0]
+    finally:
+        for name in sorted(set(registered()) - before, reverse=True):
+            if name in registered():
+                context.self.unregister_op(name)
+
+
+def test_install_takes_a_context_as_well_as_a_space():
+    """`install(m)` is the spelling every downstream wrote, and it raised.
+
+    The operations are registered into a space, and MeTTa refuses a Space
+    door rather than forwarding it, so the installer died on the first one it
+    reached: `MeTTa has no 'is_function'`, with every array operation left
+    unregistered.
+    """
+    context = MeTTa()
+    before = set(registered())
+    names = arrays.install(context, default=numpy)
+    try:
+        assert "t+" in names
+        assert context.self.is_function("t+")
+        assert context.run("!(t-item (t-sum (tensor (1.0 2.0 3.0))))") == [[6.0]]
+    finally:
+        for name in sorted(set(registered()) - before, reverse=True):
+            if name in registered():
+                context.self.unregister_op(name)
+
+
 def test_embedding_store_runs_on_numpy(am):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     space = am._new_space()
     store = arrays.EmbeddingStore(space, name="npk")
