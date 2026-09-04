@@ -27,7 +27,7 @@ Owns:
     test_m7_satellites_are_lazy_and_identity_stable; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
 Decides:
   - ``BASELINE_*`` and ``FINAL_*`` are the published surface metrics
-    [measured: 90 to 20 MeTTa names and 152 to 98 metta names after the
+    [measured 2026-08-26: 90 to 20 MeTTa names and 152 to 98 metta names after the
     module-tier family, package rename, and algebra-carrier promotion;
     command=python -m pytest extensions/python/tests/ch01_getting_started/test_m7_narrow_core.py -q;
     fixture=a142938d baseline and the current generated root; commit=c7468b2789746bcf95c4bacc0e2d517ec4d972fa]

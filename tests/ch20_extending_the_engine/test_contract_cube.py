@@ -3,10 +3,13 @@ enumerated exhaustively, and for every point the clause compiled FROM the
 contract atoms must be a variant of the clause builder's expected body. If a
 callable policy cannot be expressed as atoms, this fails and names the point.
 Guarantees:
-  - every valid callable declaration combination compiles the expected clause
-    and invalid raw-Atom and under-ranked generator combinations are refused
+  - every valid callable declaration combination compiles the expected clause,
+    an invalid raw-Atom combination is refused, and an UNDER-RANKED GENERATOR
+    IS LIFTED rather than refused: registration decides nondeterminism from
+    the function itself, so refusing would ask the author to restate what it
+    had already worked out
     [tested: test_every_cube_point_compiles_the_expected_clause;
-    test_generator_effects_below_nondeterministic_rank_are_refused;
+    test_a_generator_is_lifted_to_the_nondeterministic_rank;
     test_raw_transport_with_atom_arguments_is_refused;
     commit=3cfbe0d7417b1c453c2dc12d47e2e47e7de461f7]
 Open Obligations:

@@ -12,7 +12,7 @@ Guarantees:
   - package ``superpose`` and ``match`` evaluate the same expressions they
     lower inside compiled bodies, with an empty zero-branch superposition and
     ambient-space matching [tested:
-    test_expression_position_superpose_and_match_share_the_ambient_space;
+    test_expression_position_superpose_and_match_use_the_ruled_doors_share_the_ambient_space;
     commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
   - package ``unify`` dispatches its two-atom matcher and four-atom engine
     conditional overloads, and compiled definitions lower the latter directly

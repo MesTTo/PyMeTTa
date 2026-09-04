@@ -10,7 +10,7 @@ Guarantees:
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - the two image modes produce distinct payloads while caller-thread
     inference counts stay equal after matching moved into a held SWI engine
-    [measured: opaque/transparent changed from 280/16668 to 41/41, minimum of
+    [measured 2026-09-02: opaque/transparent changed from 280/16668 to 41/41, minimum of
     three counter samples;
     command=python -m pytest extensions/python/tests/ch13_a_queryable_dataset/test_sqlite_space.py -q;
     fixture=SQLite documents.payload containing bytes(range(256)) repeated 16;

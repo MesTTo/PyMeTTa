@@ -22,7 +22,7 @@ Guarantees:
     [measured 2026-08-24 against LeaTTa 9ea9f9d: `(: sf (-> Symbol
     %Undefined%))` with `(= foo bar)` answers `(quote bar)`]
   - a type-position modifier holds its argument and checks its value type
-    [measured the same day: `(: mf (-> (:Atom Number) %Undefined%))` answers
+    [measured 2026-08-24: `(: mf (-> (:Atom Number) %Undefined%))` answers
     `(quote (+ 1 2))` and refuses a String with `(BadArgType 1 Number String)`]
 Open Obligations:
   To Do: None

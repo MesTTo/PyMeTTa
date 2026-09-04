@@ -148,7 +148,7 @@ def test_a_bounded_conjunctive_match_stops_at_the_bound(metta):
     # fixed runnable boundary.  Minimal-MeTTa result normalization adds the
     # same fixed cost at both sizes; the 390-row increase remains 18,722
     # inferences, against 17,550 before that boundary was implemented
-    # [measured: 18722; command=pytest -q -p no:benchmark
+    # [measured 2026-08-25: 18722; command=pytest -q -p no:benchmark
     # tests/test_match_snapshot.py::test_a_bounded_conjunctive_match_stops_at_the_bound;
     # fixture=10 and 400 edge chains; commit=b77e3ce5233e5f6032cfc8546ff83ecf4dc3de87].
     unbounded = "!(match &self (, (edge $x $y) (edge $y $z)) (path $x $z))"

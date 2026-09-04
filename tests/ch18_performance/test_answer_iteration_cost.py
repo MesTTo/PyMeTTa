@@ -1,9 +1,13 @@
 """Purpose: keep Answers caller-position lookup constant after one derivation.
 
 Guarantees:
-  - increasing the call site's bytecode offset by more than one hundredfold
-    does not multiply steady-state Answers iteration time [tested:
-    test_answer_iteration_benchmark_reuses_one_warmed_view;
+  - position derivation is ONE preprocessing cost rather than one scan per
+    loop, so a call site's bytecode offset does not multiply iteration work.
+    Stated as work rather than as time on purpose: the wall-clock form of this
+    claim, and the benchmark test that carried it, were replaced because the
+    same code answered a ratio of 0.9 here and 8.5 on a shared runner, so the
+    bar was measuring the machine [tested:
+    test_answer_iteration_derives_each_call_site_once;
     commit=0ffac1f272c65d1c3742a2bfb824538e426c264a]
   - cached position metadata does not keep generated code alive [tested:
     test_answer_position_cache_does_not_own_generated_code;

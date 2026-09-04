@@ -1,8 +1,8 @@
 """Purpose: pin the public contextual names, inferred target types, save format,
 and constants.
 Guarantees:
-  - type hints distinguish spaces, MeTTa functions, and save formats [tested
-    test_public_context_types_are_distinct]
+  - type hints distinguish spaces, MeTTa functions, and save formats
+    [tested: test_canonical_context_types_replace_public_newtypes]
   - cast and build preserve a concrete target class for static callers [tested
     test_target_type_overloads_preserve_the_requested_class]
   - cast's implementation-only target name is not a keyword API [tested

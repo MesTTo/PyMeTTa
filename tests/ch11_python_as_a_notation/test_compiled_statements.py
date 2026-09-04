@@ -4,10 +4,16 @@ aliases, and the exact-integer operator family.
 Guarantees:
   - try/except/else/finally compile onto catch, if-error, `except` and
     error-payload with Python's dispatch, binding and ordering [tested:
-    every test below whose name starts test_try or test_raise; commit=51b792423cec5787614d1488c0793b8a50eaa6fc]
+    test_try_dispatches_on_the_engine_error, test_try_as_binds_a_live_payload,
+    test_try_else_runs_on_success_with_the_body_bindings,
+    test_try_bindings_escape_to_the_rest,
+    test_raise_crosses_frames_and_matches_the_custom_lattice; commit=51b792423cec5787614d1488c0793b8a50eaa6fc]
   - a dict literal lowers to lib_dict's dict-space and every Python door
-    rides the library's own vocabulary [tested: the test_dict rows below;
-    commit=51b792423cec5787614d1488c0793b8a50eaa6fc]
+    rides the library's own vocabulary [tested:
+    test_dict_literal_lowers_to_dict_space,
+    test_dict_mutation_rides_the_library_doors,
+    test_dict_comprehension_builds_the_pair_expression,
+    test_dict_values_evaluate_before_storage; commit=51b792423cec5787614d1488c0793b8a50eaa6fc]
   - `global` reads and writes the definition module through a grounded
     reference, and `type X = T` is the rewrite rule it reads as [tested:
     test_global_pragma_moves_the_module,

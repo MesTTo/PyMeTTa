@@ -74,10 +74,14 @@ def test_registered_space_writes_queries_and_persists_remove(metta, tmp_path):  
             S.edge(S.c, S.d),
         ]
         # True, which is what upstream answers for a removal that happened
-        # [measured 2026-08-30 against PeTTa@ae66fa8]. Absence answers an
-        # error here instead of upstream's silent True, and this atom is
-        # there, so True is the answer either way
-        # [tested test_removing_an_absent_atom_is_an_error_not_a_silent_unit].
+        # [measured 2026-08-30 against PeTTa@ae66fa8]. Absence answers True
+        # too, so the answer does not distinguish a removal that happened
+        # from one that found nothing; the provider's own bool below is what
+        # does. The comment here claimed the opposite, that absence was an
+        # error rather than upstream's silent True, and named a test that no
+        # longer exists: measured 2026-09-05, `!(remove-atom &self (edge x y))`
+        # on an absent atom answers Grounded(True), the same as a present one
+        # [tested: test_removing_an_absent_atom_answers_true].
         assert metta.run(f"!(remove-atom {name} (edge a b))") == [
             [Grounded(True)]  # noqa: FBT003  -- True is the ATOM the engine answers, not a flag
         ]

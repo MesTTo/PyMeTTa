@@ -9,7 +9,7 @@ scoreboard never drifts from the tree.
 
 Assumes:
   - seam:kind rows in engine/ext_points.pl are the one authority for a
-    seam's kind [tested: every_seam_declares_one_kind in static_checks]
+    seam's kind [tested: static_checks:every_seam_declares_one_kind]
 Guarantees:
   - the manifest and the tree hold the same host_service set, compared as
     sets with both differences named

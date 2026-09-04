@@ -12,7 +12,7 @@ Guarantees:
   - an unannotated numeric operator follows Python's live protocol and costs
     more than the equivalent native MeTTa equation, while an annotated operand
     proves the native head and restores inference parity
-    [measured: 28.00 unannotated and 3.00 annotated against 3.00 MeTTa;
+    [measured 2026-09-02: 28.00 unannotated and 3.00 annotated against 3.00 MeTTa;
     command=python -m benchmarks.extension_cost; fixture=3000 calls, min-of-3,
     C reader and C extension enabled; commit=c350f51a5e1318187c4446fb2ceba04fba82e262]
 Open Obligations:

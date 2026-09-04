@@ -8,9 +8,13 @@ Guarantees:
     [tested: test_the_pytest_lane_is_deterministic_under_load_protocol;
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - the blocking NetworkX and NumPy gallery has installable dependencies in
-    both test extras and the minimal-version matrix [tested:
+    the test extras, and the minimal-version matrix DELIBERATELY installs none
+    of them, so the suite's skip-clean property stays testable on a floor with
+    nothing but the engine binding and the runner. The claim here said the
+    matrix installed them too and named a test asserting the opposite of what
+    the one in the tree asserts [tested:
     test_optional_integrations_have_installable_extras,
-    test_minimal_version_matrix_installs_blocking_gallery_dependency;
+    test_the_minimal_version_matrix_installs_no_optional_integration;
     commit=8bfe05c3850776543ece25a85038242f10b1d841]
   - every ``python -m`` target named by a check.sh command reaches a real
     entry point, so no lane can exit 0 having run nothing [tested:
