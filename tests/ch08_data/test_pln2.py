@@ -170,7 +170,7 @@ def test_supported_product_matches_the_formula(
     condition_mean=_PROBABILITY,
     condition_fraction=_PROBABILITY,
 )
-def test_supported_total_probability_matches_the_formula(
+def test_supported_total_probability_matches_the_formula(  # noqa: PLR0917  -- each parameter is one drawn strategy, and hypothesis injects them by name
     pln2_space,
     true_mean,
     true_fraction,

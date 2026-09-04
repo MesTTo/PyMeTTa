@@ -647,4 +647,31 @@ def twin(m):
 #: extensions/python $CHECK_PY -m pytest -q
 #: tests/repository/test_twin_coverage.py -k 'identity.metta'; fixture=warm
 #: main-checkout engine artifacts; commit=6cff6f972723b1b466d35b21b972f901408c471d]
-BUDGET = 3565
+#: RE-PINNED 2026-09-05, 3565 to 3553 (-12), another IMPROVEMENT the lane
+#: refuses to leave unpinned. Four of the twelve are attributed by A/B in the
+#: main checkout with the QLF cleared on both sides: with
+#: engine/metta/control.pl reverted to 7e071e5f^ the twin reads 3557, and with
+#: the residual-check reader restored it reads 3553. That commit adds clauses
+#: to a boot-consulted file without changing what the example computes, the
+#: same first-argument-index shape as the kind/2 move above.
+#: The other eight are NOT attributed to a code change, and saying so is the
+#: point. Only two commits since the 3565 pin touched engine/ at all
+#: (7e071e5f and 4d94a1ac's single line), and removing lib/lib_pln2 entirely
+#: leaves the reading at 3553. What DID move is the configuration: the
+#: gitignored extensions/mork/mork_ffi/target/release/libmork_ffi.so was
+#: rebuilt at 08:09, after the 06:01 pin, and a backend whose artefact is
+#: present loads while one whose artefact is absent does not. That is the
+#: mechanism this file already documents in the other direction, where the
+#: same commit read 3575 in the checkout and 3796 in a worktree.
+#: The confirming control -- move the .so aside, re-read, restore -- was NOT
+#: run. It changes the engine configuration for every process that boots
+#: during the window, and the box was carrying other agents' work at loadavg
+#: 11. An unattributed eight recorded as unattributed is honest; a control run
+#: under concurrent owners would not be.
+#: Deterministic: three identical samples, 0.0000% spread
+#: [measured: 3553 inferences, three identical samples, and 3557 with
+#: engine/metta/control.pl at 7e071e5f^; command=cd extensions/python &&
+#: PYTHONPATH=. $CHECK_PY -m pytest -q tests/repository/test_twin_coverage.py
+#: -k 'identity.metta'; fixture=warm main-checkout engine artifacts with
+#: libmork_ffi.so present; commit=WORKTREE]
+BUDGET = 3553
