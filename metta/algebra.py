@@ -40,6 +40,12 @@ Guarantees:
   - tagged counts share the positive-limit contract used by ordinary queries
     [tested: test_tagged_count_and_match_refuse_zero_with_the_same_message;
     commit=61e107a8105a5cdaea164f615812a684b12d8fe3]
+  - tagged fixpoint evaluation carries one absolute timeout through its Python
+    scans; each algebra operation receives the remaining time and remaining
+    call-wide inference quota [tested:
+    test_tagged_algebra_forwards_bounds_to_every_evaluating_door,
+    test_tagged_algebra_debits_inferences_across_operations;
+    commit=WORKTREE]
 Decides:
   - ``contraction`` is a capability, while the remaining public law names are
     equations checked exhaustively over the declared finite carrier.
@@ -55,6 +61,7 @@ import itertools
 import math
 import random
 import sys
+import time
 from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass, field, replace
 from fractions import Fraction
@@ -63,7 +70,8 @@ from types import ModuleType
 from typing import Any, Final
 
 from ._space import Space
-from ._space_objects import _validate_limit
+from ._space_execution import evaluate_accounted
+from ._space_objects import _limits, _validate_limit
 from .atoms import (
     Atom,
     Expression,
@@ -77,7 +85,7 @@ from .atoms import (
     parse,
     substitute,
 )
-from .errors import MettaError
+from .errors import InferenceLimitError, MettaError, TimeLimitError
 from .vocabularies import EffectClass, Semiring, SemiringOrder
 
 __all__ = [
@@ -132,6 +140,75 @@ class LinearEvidenceError(MettaError):
     """One stored premise occurrence was consumed twice in one derivation."""
 
 
+@dataclass(slots=True)
+class _EvaluationBudget:
+    """One call's absolute wall deadline and remaining engine-step quota."""
+
+    timeout: float | None
+    inferences: int | None
+    deadline: float | None
+    remaining_inferences: int | None
+
+    @classmethod
+    def from_call(
+        cls, timeout: float | None, inferences: int | None
+    ) -> _EvaluationBudget:
+        limits = _limits(timeout, inferences)
+        if limits is None:
+            return cls(None, None, None, None)
+        seconds = None if limits[0] < 0 else limits[0]
+        steps = None if limits[1] < 0 else limits[1]
+        deadline = None if seconds is None else time.monotonic() + seconds
+        return cls(seconds, steps, deadline, steps)
+
+    def checkpoint(self) -> float | None:
+        """Raise at expiry, otherwise answer the time left for one engine call."""
+        if self.deadline is None:
+            return None
+        remaining = self.deadline - time.monotonic()
+        if remaining <= 0:
+            raise self._time_limit_error()
+        return remaining
+
+    def _time_limit_error(self) -> TimeLimitError:
+        msg = f"the {self.timeout} second time limit was reached"
+        return TimeLimitError(msg)
+
+    def _inference_limit_error(self) -> InferenceLimitError:
+        msg = f"the {self.inferences} inference limit was reached"
+        return InferenceLimitError(msg)
+
+    def evaluate_operation(
+        self, metta: Space, target: Atom
+    ) -> list[Atom | Undefined]:
+        """Evaluate one algebra operation and debit its measured engine work."""
+        remaining_time = self.checkpoint()
+        remaining_steps = self.remaining_inferences
+        if remaining_steps is not None and remaining_steps <= 0:
+            raise self._inference_limit_error()
+        try:
+            if remaining_steps is None:
+                return metta.eval(target, timeout=remaining_time)
+            # Each eager eval is a fresh engine crossing, so giving it the original
+            # quota would reset the caller's budget once per algebra operation.
+            # The accounted eval reports its own goal's inference delta in the SAME
+            # crossing. Sampling with Space.stats() here would add two crossings per
+            # operation and spend more on the meter than on a small operation.
+            answers, spent = evaluate_accounted(
+                metta.runtime,
+                metta.name,
+                target,
+                remaining_time,
+                remaining_steps,
+            )
+        except TimeLimitError as error:
+            raise self._time_limit_error() from error
+        except InferenceLimitError as error:
+            raise self._inference_limit_error() from error
+        self.remaining_inferences = remaining_steps - spent
+        return answers
+
+
 @dataclass(frozen=True, slots=True)
 class Amplitude:
     """An exact complex value with rational real and imaginary components."""
@@ -180,7 +257,15 @@ class DeclaredAlgebra:
     requires: frozenset[str]
     order: SemiringOrder | None = None
 
-    def operation(self, metta: Space, name: str, left: Atom, right: Atom) -> Atom:
+    def operation(
+        self,
+        metta: Space,
+        name: str,
+        left: Atom,
+        right: Atom,
+        *,
+        budget: _EvaluationBudget | None = None,
+    ) -> Atom:
         """Apply a declared binary operation and require one answer."""
         if isinstance(left, Grounded) and isinstance(right, Grounded):
             left_value, right_value = _decode(left), _decode(right)
@@ -201,7 +286,12 @@ class DeclaredAlgebra:
         # policy-inventory-exempt: mechanism-internal; reason=the two role names a declaration coins for its own combine and extend operations, which _register_operation spells as <algebra>-<role>; evidence=extensions/python/metta/algebra.py:_operation_name
         if name in {"plus", "times"}:
             return Expression((Symbol(name), left, right))
-        answers = metta.eval(Expression((Symbol(name), left, right)))
+        target = Expression((Symbol(name), left, right))
+        answers = (
+            metta.eval(target)
+            if budget is None
+            else budget.evaluate_operation(metta, target)
+        )
         if len(answers) != 1:
             msg = (
                 f"algebra_operation_not_single({self.name}, {name}, "
@@ -217,13 +307,39 @@ class DeclaredAlgebra:
             raise AlgebraOperationError(msg)
         return result
 
-    def combine_values(self, metta: Space, left: Atom, right: Atom) -> Atom:
+    def combine_values(
+        self,
+        metta: Space,
+        left: Atom,
+        right: Atom,
+        *,
+        budget: _EvaluationBudget | None = None,
+    ) -> Atom:
         """Combine alternative derivations."""
-        return self.operation(metta, self.combine, left, right)
+        return self.operation(
+            metta,
+            self.combine,
+            left,
+            right,
+            budget=budget,
+        )
 
-    def extend_values(self, metta: Space, left: Atom, right: Atom) -> Atom:
+    def extend_values(
+        self,
+        metta: Space,
+        left: Atom,
+        right: Atom,
+        *,
+        budget: _EvaluationBudget | None = None,
+    ) -> Atom:
         """Extend one derivation through a premise."""
-        return self.operation(metta, self.extend, left, right)
+        return self.operation(
+            metta,
+            self.extend,
+            left,
+            right,
+            budget=budget,
+        )
 
 
 @dataclass(frozen=True, slots=True)
@@ -914,6 +1030,7 @@ def _derive_rule(
     declaration: DeclaredAlgebra,
     rule: _Rule,
     available: Sequence[TaggedAnswer],
+    budget: _EvaluationBudget,
 ) -> list[TaggedAnswer]:
     states: list[
         tuple[
@@ -928,6 +1045,7 @@ def _derive_rule(
     ]
     linear = "linear" in declaration.requires
     for premise in rule.premises:
+        budget.checkpoint()
         next_states: list[
             tuple[
                 dict[str, Atom],
@@ -938,8 +1056,10 @@ def _derive_rule(
             ]
         ] = []
         for bindings, tag, tokens, proof, child_traces in states:
+            budget.checkpoint()
             pattern = substitute(premise, bindings)
             for candidate in available:
+                budget.checkpoint()
                 matched = _match(pattern, candidate.value)
                 if matched is None:
                     continue
@@ -956,7 +1076,12 @@ def _derive_rule(
                 next_states.append(
                     (
                         merged,
-                        declaration.extend_values(metta, tag, candidate.tag),
+                        declaration.extend_values(
+                            metta,
+                            tag,
+                            candidate.tag,
+                            budget=budget,
+                        ),
                         tokens | candidate.tokens,
                         proof + candidate.proof,
                         child_traces + candidate._derivations,
@@ -999,10 +1124,12 @@ def _fuse(
     metta: Space,
     declaration: DeclaredAlgebra,
     answers: Sequence[TaggedAnswer],
+    budget: _EvaluationBudget,
 ) -> list[TaggedAnswer]:
     fused: list[TaggedAnswer] = []
     positions: dict[str, int] = {}
     for answer in answers:
+        budget.checkpoint()
         key = str(answer.value)
         position = positions.get(key)
         if position is None:
@@ -1012,7 +1139,12 @@ def _fuse(
         previous = fused[position]
         fused[position] = TaggedAnswer(
             value=previous.value,
-            tag=declaration.combine_values(metta, previous.tag, answer.tag),
+            tag=declaration.combine_values(
+                metta,
+                previous.tag,
+                answer.tag,
+                budget=budget,
+            ),
             tokens=previous.tokens | answer.tokens,
             proof=previous.proof + answer.proof,
             _derivations=previous._derivations + answer._derivations,
@@ -1096,17 +1228,33 @@ def evaluate(
     *,
     algebra: str,
     max_rounds: int = 64,
+    timeout: float | None = None,
+    inferences: int | None = None,
 ) -> AlgebraEvaluation:
-    """Evaluate all finite tagged derivations in declaration order."""
+    """Evaluate finite tagged derivations under one call-wide resource budget."""
+    budget = _EvaluationBudget.from_call(timeout, inferences)
     declaration = require(metta, algebra)
     _require_context_capabilities(metta, declaration)
     goal = parse(query) if isinstance(query, str) else _encode(query)
+    budget.checkpoint()
     available, rules = _program(metta.atoms())
     seen = {_signature(answer) for answer in available}
+    # max_rounds bounds fixpoint HEIGHT, not how long one round can run. The
+    # absolute deadline therefore gets checked between rounds and inside each
+    # potentially large Python scan, while every engine operation receives the
+    # remaining time and inference quota. Reusing either original bound at
+    # each operation would permit max_rounds times that budget instead [tested:
+    # test_tagged_algebra_forwards_bounds_to_every_evaluating_door,
+    # test_tagged_algebra_debits_inferences_across_operations;
+    # commit=WORKTREE].
     for _ in range(max_rounds):
+        budget.checkpoint()
         added: list[TaggedAnswer] = []
         for rule in rules:
-            for answer in _derive_rule(metta, declaration, rule, available):
+            budget.checkpoint()
+            for answer in _derive_rule(
+                metta, declaration, rule, available, budget
+            ):
                 signature = _signature(answer)
                 if signature not in seen:
                     seen.add(signature)
@@ -1119,7 +1267,11 @@ def evaluate(
             f"algebra_derivation_did_not_reach_fixpoint({algebra}, rounds={max_rounds})"
         )
         raise AlgebraEvaluationError(msg)
-    matched = [answer for answer in available if _match(goal, answer.value) is not None]
+    matched: list[TaggedAnswer] = []
+    for answer in available:
+        budget.checkpoint()
+        if _match(goal, answer.value) is not None:
+            matched.append(answer)
     licence = "combine-associative"
     can_fuse = licence in declaration.laws
     plan = (
@@ -1130,11 +1282,14 @@ def evaluate(
         ),
     )
     if can_fuse:
-        matched = _fuse(metta, declaration, matched)
-    retained = [
-        replace(answer, _space=metta, _algebra=declaration.name, _plan=plan)
-        for answer in _order_answers(declaration, matched)
-    ]
+        matched = _fuse(metta, declaration, matched, budget)
+    budget.checkpoint()
+    retained = []
+    for answer in _order_answers(declaration, matched):
+        budget.checkpoint()
+        retained.append(
+            replace(answer, _space=metta, _algebra=declaration.name, _plan=plan)
+        )
     return AlgebraEvaluation(tuple(retained), plan)
 
 

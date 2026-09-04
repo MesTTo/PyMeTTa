@@ -24,6 +24,12 @@ Guarantees:
     commit=cf6507cfe9c3d6512ac75039ae22f178140e0cbf]
   - streaming comparison guards use explicit comparison heads [tested:
     test_stream_guard_and_per_pull_bounds; commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
+  - tagged algebra operations inherit timeout and inference bounds through all
+    three evaluation doors, and ordered materialization is interruptible before
+    its first answer [tested:
+    test_tagged_algebra_forwards_bounds_to_every_evaluating_door,
+    test_tagged_algebra_debits_inferences_across_operations,
+    test_an_ordered_algebra_view_is_bounded_by_its_timeout; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -907,6 +913,16 @@ def test_a_cursor_budget_stops_a_resume_that_never_answers(m):
         list(m.answers("(spin 100000000)", inferences=5_000, timeout=10.0))
 
 
+def _cyclic_closure(m):
+    """Install the untabled cycle used to discriminate every lazy timeout."""
+    m.run("!(import! &self (library lib_tabling))")
+    m.run("(edge a b)\n(edge b c)\n(edge c a)\n")
+    name = m.name
+    m.run(f"(= (cyc $x $y) (match {name} (edge $x $y) $y))")
+    m.run(f"(= (cyc $x $y) (let $z (match {name} (edge $x $z) $z) (cyc $z $y)))")
+    return S.cyc(S.a, V.y)
+
+
 def test_a_lazy_view_is_bounded_by_its_timeout(m):
     """A lazy view honours its timeout, because the engine holds the deadline."""
     # answers() is LAZY, and its timeout used to do nothing at all: a
@@ -915,15 +931,113 @@ def test_a_lazy_view_is_bounded_by_its_timeout(m):
     # cannot interrupt a goal running inside an SWI engine, so wrapping each
     # crossing left the bound inert; it rides the in-engine goal now, beside
     # the inference budget that already worked.
-    m.run("!(import! &self (library lib_tabling))")
-    m.run("(edge a b)\n(edge b c)\n(edge c a)\n")
-    name = m.name
-    m.run(f"(= (cyc $x $y) (match {name} (edge $x $y) $y))")
-    m.run(f"(= (cyc $x $y) (let $z (match {name} (edge $x $z) $z) (cyc $z $y)))")
     started = time.monotonic()
     with pytest.raises(TimeLimitError):
-        list(m.answers(S.cyc(S.a, V.y), timeout=2.0))
+        list(m.answers(_cyclic_closure(m), timeout=2.0))
     assert time.monotonic() - started < 30.0
+
+
+def test_an_ordered_algebra_view_is_bounded_by_its_timeout(m):
+    """An ordered algebra view interrupts collection before its first answer."""
+    # An ordered carrier has to collect before it can sort. The ordinary
+    # between-answer cursor deadline therefore cannot see an infinite producer
+    # unless the deterministic collect-and-sort prefix has its own guard.
+    started = time.monotonic()
+    with pytest.raises(TimeLimitError):
+        list(m.answers(_cyclic_closure(m), timeout=2.0, under="tropical"))
+    assert time.monotonic() - started < 30.0
+
+
+@pytest.mark.parametrize("door", ["answers", "match", "eval"])
+def test_tagged_algebra_forwards_bounds_to_every_evaluating_door(m, door):
+    """Every tagged route bounds the engine operation inside one Python round."""
+    algebra_api = importlib.import_module("metta.algebra")
+    algebra = f"bounded-{door}"
+    operation = f"{algebra}-never"
+    algebra_api(
+        algebra,
+        combine="+",
+        extend=operation,
+        zero=0,
+        one=1,
+    )
+    m.run(f"(= ({operation} $x $y) ({operation} $x $y))")
+    m.add_tagged_fact(2, S.base(S.x))
+    m.add_tagged_rule(3, S.derived(S.x), S.base(S.x))
+    target = S.derived(S.x)
+    calls = {
+        "answers": lambda **bounds: list(
+            m.answers(target, under=algebra, **bounds)
+        ),
+        "match": lambda **bounds: list(
+            m.match(target, under=algebra, **bounds)
+        ),
+        "eval": lambda **bounds: m.eval(target, under=algebra, **bounds),
+    }
+
+    with pytest.raises(
+        TimeLimitError,
+        match=r"the 0\.05 second time limit was reached",
+    ):
+        calls[door](timeout=0.05)
+    with pytest.raises(
+        InferenceLimitError,
+        match="the 5000 inference limit was reached",
+    ):
+        calls[door](timeout=10.0, inferences=5_000)
+
+
+@pytest.mark.parametrize("phase", ["extend", "combine"])
+def test_tagged_algebra_debits_inferences_across_operations(m, phase):
+    """The inference quota belongs to the tagged call, not to each operation."""
+    algebra_api = importlib.import_module("metta.algebra")
+    algebra = f"bounded-aggregate-{phase}"
+    operation = f"{algebra}-add"
+    if phase == "extend":
+        algebra_api(
+            algebra,
+            combine=operation,
+            extend=operation,
+            zero=0,
+            one=1,
+        )
+        m.run(f"(= ({operation} $x $y) (+ $x $y))")
+    else:
+        m._at("&self").run(f"(= ({operation} $x $y) $x)")
+        algebra_api(
+            algebra,
+            combine=operation,
+            extend=operation,
+            zero=0,
+            one=1,
+            laws=("combine-associative",),
+            carrier=(0, 1),
+        )
+    nominal_limit = 5_000
+    # One operation fits. Reusing this full quota per operation therefore lets
+    # the old implementation finish, even though the tagged call spends it
+    # many times over.
+    expected = 5 if phase == "extend" else 2
+    assert m.eval(f"({operation} 2 3)", inferences=nominal_limit) == [expected]
+    if phase == "extend":
+        for value in range(24):
+            m.add_tagged_fact(1, S.base(value))
+        m.add_tagged_rule(1, S.derived(V.x), S.base(V.x))
+        target = S.derived(V.x)
+    else:
+        for _ in range(96):
+            m.add_tagged_fact(1, S.derived(S.same))
+        target = S.derived(S.same)
+
+    with pytest.raises(InferenceLimitError):
+        list(
+            m.answers(
+                target,
+                under=algebra,
+                timeout=10.0,
+                inferences=nominal_limit,
+            )
+        )
 
 
 def test_limit_validation_refuses_nonsense(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract

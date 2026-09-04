@@ -23,6 +23,14 @@
 %     length nobody turns into values encodes nothing [tested:
 %     test_a_retained_count_replays_the_bag_the_cursor_would_have_answered;
 %     commit=00a30179a1acd55aa969b44a977fb9a38e2e2df2].
+%   - ordered algebra cursors interrupt their deterministic collect-and-sort
+%     phase at timeout without leaving an alarm armed across cursor suspension
+%     [tested: test_an_ordered_algebra_view_is_bounded_by_its_timeout;
+%     commit=WORKTREE].
+%   - accounted eager evaluation returns its inference delta in the same
+%     crossing so tagged Python fixpoints can pass only their remaining quota
+%     to the next operation [tested:
+%     test_tagged_algebra_debits_inferences_across_operations; commit=WORKTREE].
 %   - atomic entry points publish atom hooks after commit, while speculative
 %     and reified-world entry points discard their buffered event segments;
 %     speculative and world execution also fence the non-backtrackable State
@@ -1019,6 +1027,7 @@ metta_py_wrappable(metta_py_query_limit_all).
 metta_py_wrappable(metta_py_query_count).
 metta_py_wrappable(metta_py_query_count_if_repeatable).
 metta_py_wrappable(metta_py_eval_all).
+metta_py_wrappable(metta_py_eval_accounted).
 metta_py_wrappable(metta_py_eval_using_all).
 metta_py_wrappable(metta_py_eval_many_all).
 metta_py_wrappable(metta_py_eval_many_using_all).
@@ -1262,7 +1271,8 @@ metta_py_cursor_open_under_controlled(
     (   Direction \== none
     ->  metta_py_cursor_goal(Space, PatternsTagged, GuardTagged, VarNames, 0,
                              Row, Producer),
-        Core = metta_py_ordered_under_query(Space, Direction, Producer, Row, K),
+        Core = metta_py_ordered_under_query(
+                   Space, Direction, TimeS, Producer, Row, K),
         ( Limit > 0 -> Goal = limit(Limit, Core) ; Goal = Core )
     ;   metta_py_cursor_goal(Space, PatternsTagged, GuardTagged, VarNames,
                              Limit, Row, Producer),
@@ -1280,12 +1290,26 @@ metta_py_under_query(Space, Producer, K) :-
     call(Producer),
     b_getval('$metta_answer_k', K).
 
-metta_py_ordered_under_query(Space, Direction, Producer, Row, K) :-
-    findall(K0-Row,
-            metta_py_under_query(Space, Producer, K0),
-            Pairs),
-    metta_py_ordered_pairs(Direction, Pairs, Ordered),
+metta_py_ordered_under_query(Space, Direction, TimeS, Producer, Row, K) :-
+    metta_py_ordered_within_time(
+        TimeS, Direction, K0-Row,
+        metta_py_under_query(Space, Producer, K0), Ordered),
     member(K-Row, Ordered).
+
+%An ordered cursor cannot yield before its whole input is collected and sorted,
+%so the between-answer deadline around its held engine cannot see a producer
+%stuck before that first answer. call_with_time_limit/2 is safe on exactly this
+%DETERMINISTIC prefix: it is cancelled before member/2 starts yielding, hence no
+%alarm remains armed while the engine is suspended. Putting the same guard
+%around member/2 is the rejected shape that silently truncated a resumed cursor
+%[tested: test_an_ordered_algebra_view_is_bounded_by_its_timeout;
+%commit=WORKTREE].
+:- meta_predicate metta_py_ordered_within_time(+, +, ?, 0, -).
+metta_py_ordered_within_time(TimeS, Direction, Pair, Producer, Ordered) :-
+    metta_py_guarded(
+        TimeS, -1,
+        ( findall(Pair, Producer, Pairs),
+          metta_py_ordered_pairs(Direction, Pairs, Ordered) )).
 
 metta_py_ordered_pairs(ascending, Pairs, Ordered) :- !,
     sort(1, @=<, Pairs, Ordered).
@@ -3048,6 +3072,16 @@ metta_py_eval_all(Space, Tagged, Encoded) :-
       -> Encoded = [Original]
       ;  Encoded = Answers ).
 
+%The measurement sits inside the limited call and beside the work it reports.
+%A Space.stats() block would cross twice around every algebra operation, making
+%the observer cost more engine work than a small operation and then leaving
+%that observer work outside the quota it exists to enforce.
+metta_py_eval_accounted(Space, Tagged, [Encoded, Used]) :-
+    statistics(inferences, Before),
+    metta_py_eval_all(Space, Tagged, Encoded),
+    statistics(inferences, After),
+    Used is After - Before.
+
 metta_py_eval_bounded(Space, Tagged, Encoded) :-
     metta_run_with_fuel(metta_py_answer(Raw), Answer,
                         metta_py_eval(Space, Tagged, Raw)),
@@ -3117,8 +3151,9 @@ metta_py_eval_cursor_open_under_controlled(
         prolog(Engine)) :-
     metta_py_eval_target(Space, Target, Pairs, Term, Bindings),
     (   Direction \== none
-    ->  Core = metta_py_ordered_eval_under(Space, Term, VarNames, Direction,
-                                            Bindings, Encoded, Row, K, Used)
+    ->  Core = metta_py_ordered_eval_under(
+                   Space, Term, VarNames, Direction, TimeS,
+                   Bindings, Encoded, Row, K, Used)
     ;   Core = ( statistics(inferences, Before),
                  metta_algebra_one(Space, One),
                  b_setval('$metta_answer_k', One),
@@ -3133,19 +3168,18 @@ metta_py_eval_cursor_open_under_controlled(
     metta_py_open_controlled_cursor(
         Policy, [Encoded, Row, KWire, Used], Bounded, Engine).
 
-metta_py_ordered_eval_under(Space, Term, VarNames, Direction, Bindings, Encoded,
-                            Row, K, Used) :-
+metta_py_ordered_eval_under(Space, Term, VarNames, Direction, TimeS, Bindings,
+                            Encoded, Row, K, Used) :-
     statistics(inferences, Before),
     metta_algebra_one(Space, One),
-    findall(K0-[Encoded0, Row0],
-            ( b_setval('$metta_answer_k', One),
-              metta_py_eval_term_bounded(Space, Term, Encoded0),
-              metta_py_row(VarNames, Bindings, Row0),
-              b_getval('$metta_answer_k', K0) ),
-            Pairs),
+    metta_py_ordered_within_time(
+        TimeS, Direction, K0-[Encoded0, Row0],
+        ( b_setval('$metta_answer_k', One),
+          metta_py_eval_term_bounded(Space, Term, Encoded0),
+          metta_py_row(VarNames, Bindings, Row0),
+          b_getval('$metta_answer_k', K0) ), Ordered),
     statistics(inferences, Now),
     Used is Now - Before,
-    metta_py_ordered_pairs(Direction, Pairs, Ordered),
     member(K-[Encoded, Row], Ordered).
 
 metta_py_eval_count(Space, Target, Pairs, Count) :-

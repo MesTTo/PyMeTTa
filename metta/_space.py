@@ -81,12 +81,14 @@ Guarantees:
     test_list_materializes_a_match_without_a_second_query;
     commit=5c9c97328472130cd30ad85b000e89c01556eb35]
   - match and call answers accept explicit or scoped algebra carriers;
-    counting uses engine aggregates and ordered carriers sort before slicing
+    counting uses engine aggregates, ordered carriers sort before slicing, and
+    tagged evaluation receives both public resource bounds
     [tested:
     test_counting_counts_match_bag_duplicates_without_opening_a_row_cursor,
     test_counting_counts_duplicate_call_answers_inside_the_engine,
-    test_ranked_and_tropical_slices_are_stable_best_prefixes;
-    commit=36d73621475291fdde1409367cf70bea8098681d]
+    test_ranked_and_tropical_slices_are_stable_best_prefixes,
+    test_tagged_algebra_forwards_bounds_to_every_evaluating_door;
+    commit=WORKTREE]
   - ``Space.pre_add`` declares one compiled unary judge through the engine's
     existing pre-add hook [tested: test_pre_add_compiles_the_four_verdict_judge;
     commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
@@ -2317,6 +2319,8 @@ class Space(Handle):
                 self,
                 patterns[0],
                 algebra=declaration.name,
+                timeout=timeout,
+                inferences=inferences,
             )
             row_cls = _row_class(columns)
             # Built ONCE: the guard term does not depend on the answer, only
@@ -3042,6 +3046,8 @@ class Space(Handle):
                     self,
                     tagged_target,
                     algebra=declaration.name,
+                    timeout=timeout,
+                    inferences=inferences,
                 )
                 if not columns:
                     yield from evaluation.answers

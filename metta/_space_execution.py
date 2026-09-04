@@ -17,6 +17,10 @@ Guarantees:
     residual-shape flag [tested:
     test_a_not_reducible_answer_is_the_unreduced_term_with_no_flag;
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
+  - internal accounted evaluation returns its engine inference delta in the
+    same crossing so a Python fixpoint can carry one remaining quota across
+    calls [tested: test_tagged_algebra_debits_inferences_across_operations;
+    commit=WORKTREE]
   - lazy evaluation preserves caller-variable rows and held-engine inference
     accounting across progressive pulls [tested:
     test_answers_project_caller_variables_and_slices_stay_answers,
@@ -422,6 +426,24 @@ def evaluate(
         rt, predicate, inputs, _limits(timeout, inferences)
     )
     return [_from_wire(wire) for wire in wires]
+
+
+def evaluate_accounted(
+    rt: Runtime,
+    space: str,
+    target: Any,
+    timeout: float | None,
+    inferences: int,
+) -> tuple[list[Atom | Undefined], int]:
+    """Evaluate once and return the engine work to debit from an outer quota."""
+    encoded = target if isinstance(target, str) else _to_atom(target).to_wire()
+    wires, spent = _controlled_run(
+        rt,
+        "metta_py_eval_accounted",
+        [space, encoded],
+        _limits(timeout, inferences),
+    )
+    return [_from_wire(wire) for wire in wires], int(spent)
 
 
 def evaluate_many(
