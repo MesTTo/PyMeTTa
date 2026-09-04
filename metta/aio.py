@@ -1611,7 +1611,14 @@ class AsyncMeTTa:
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         return await self.call(lambda m: m.cast(value, type_))
 
-    async def trace(self, source: Atom | str, max_events: int | None = None) -> Trace:
+    async def trace(
+        self,
+        source: Atom | str,
+        max_events: int | None = None,
+        *,
+        timeout: float | None = None,
+        inferences: int | None = None,
+    ) -> Trace:
         """Run a TERM, or source, under the engine's reduction trace and
         answer TraceEvent records: what entered reduction at which depth,
         what it answered, and which reductions failed (a call with no
@@ -1619,11 +1626,17 @@ class AsyncMeTTa:
         argument `answers` and `eval` take; a string is still a string.
         What is traced executes for real, writes included, like run();
         the wrap exists only while tracing, so untraced calls pay
-        nothing. max_events bounds the recording; past it the recording
+        nothing. max_events bounds the RECORDING; past it the recording
         stops and the result's `truncated` is True, rather
-        than accumulating a long run's trace without limit.
+        than accumulating a long run's trace without limit. timeout and
+        inferences bound the RUN, the pair every evaluating door takes,
+        defaulting to whatever `m.limits()` scopes: the two are
+        independent because a program can retire millions of inferences
+        inside a handful of recorded events.
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
-        return await self.call(lambda m: m.trace(source, max_events))
+        return await self.call(
+            lambda m: m.trace(source, max_events, timeout=timeout, inferences=inferences)
+        )
 
     async def lint(self) -> list[Finding]:
         """Diagnose this space for the silently-wrong class: declared

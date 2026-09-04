@@ -13,6 +13,10 @@ Guarantees:
     same speculative execution fence [tested:
     test_every_public_execution_door_honours_speculative_policy;
     commit=1262dd20ada9d5c799d9bdc4bdf5d2b859ca7a98]
+  - timeout and inferences bound the traced RUN, per call and through the
+    scoped m.limits() default, independently of the max_events recording bound
+    [tested: test_a_run_bound_stops_a_trace_the_way_it_stops_a_run;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -25,6 +29,7 @@ from dataclasses import dataclass
 
 from ._atom_wire import _atom_from_wire
 from ._space_execution import _controlled_run
+from ._space_objects import _limits
 from .atoms import Atom
 
 __all__ = ["TraceEvent", "trace"]
@@ -99,13 +104,25 @@ class Trace(list):
 
 
 def trace(space, source: Atom | str,
-          max_events: int | None = None) -> Trace:
+          max_events: int | None = None,
+          *,
+          timeout: float | None = None,
+          inferences: int | None = None) -> Trace:
     """Run a term, or source, in this space under the engine's reduction trace.
 
-    max_events bounds the recording. Past it the recording STOPS and the
+    max_events bounds the RECORDING. Past it the recording STOPS and the
     result's `truncated` is True, so what was already recorded is answered
     rather than discarded: through 2026-09-03 the bound raised, which threw
     away every event and charged the full memory of the bound for no answer.
+
+    timeout and inferences bound the RUN, the same pair every evaluating door
+    takes and the same scoped `m.limits()` default behind them. The two bounds
+    are independent because they stop different things: a program can retire
+    millions of inferences inside a handful of recorded events, and through
+    0.7.1 this door passed no limits at all, so `with m.limits(inferences=100)`
+    let a traced program run 209,322 of them to completion
+    [measured 2026-09-04, `!(loop 2000)` at inferences=100: run stopped at
+    1,685 with InferenceLimitError, trace finished].
     """
     # None means unspecified, and the number lives here alone: metta._space
     # may not import this module (import-linter, "the facade does not import
@@ -122,7 +139,7 @@ def trace(space, source: Atom | str,
         space.runtime,
         "metta_py_trace",
         [_as_source(source), space.name, int(max_events)],
-        None,
+        _limits(timeout, inferences),
     )
     # Events cross as terms on the ordinary wire. Read back from their own
     # text, a symbol whose spelling reads as something else arrived as

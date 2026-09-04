@@ -180,3 +180,45 @@ def test_the_size_of_a_term_bounds_a_trace_that_a_count_does_not(m):
     cut = m.trace(f"!(tr-walk 2000 ({payload}))", max_events=10_000_000)
     assert cut.truncated, "the cell budget did not stop an unbounded-by-count trace"
     assert len(cut) < 10_000_000
+
+
+def test_a_run_bound_stops_a_trace_the_way_it_stops_a_run(m):
+    """The two bounds stop different things and both now apply.
+
+    max_events bounds the RECORDING; timeout and inferences bound the RUN. A
+    program can retire millions of inferences inside a handful of recorded
+    events, so a recording bound is no substitute. Through 0.7.1 this door
+    passed no limits at all: `with m.limits(inferences=100)` let a traced
+    program run to completion while the same program under `run` stopped in
+    the same scope.
+    """
+    from metta.errors import InferenceLimitError
+
+    m.run("(= (loop $n) (if (> $n 0) (loop (- $n 1)) done))")
+
+    # The control: the same bound on the same program through run().
+    with m.stats() as bounded_run, pytest.raises(InferenceLimitError):
+        with m.limits(inferences=100):
+            m.run("!(loop 2000)")
+
+    with m.stats() as scoped, pytest.raises(InferenceLimitError):
+        with m.limits(inferences=100):
+            m.trace("!(loop 2000)")
+
+    with m.stats() as per_call, pytest.raises(InferenceLimitError):
+        m.trace("!(loop 2000)", inferences=100)
+
+    # Unbounded, the same program is three orders of magnitude more work, which
+    # is what makes the two stops above evidence rather than coincidence.
+    with m.stats() as unbounded:
+        whole = m.trace("!(loop 2000)")
+    assert not whole.truncated
+    assert unbounded.inferences > 100 * bounded_run.inferences
+
+    for measured in (scoped, per_call):
+        assert measured.inferences < 10 * bounded_run.inferences
+
+    # The recording bound remains independent: it cuts events, not the run.
+    prefix = m.trace("!(loop 2000)", max_events=4)
+    assert prefix.truncated
+    assert len(prefix) == 4
