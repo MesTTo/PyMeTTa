@@ -23,7 +23,7 @@ Guarantees:
     engine [tested: test_space_factory_accepts_a_name_symbol; commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
   - ``space(journal=)`` exposes the PathLike persistence door its delegated
     implementation already accepts [tested:
-    test_root_space_hint_accepts_pathlike_journals; commit=WORKTREE]
+    test_root_space_hint_accepts_pathlike_journals; commit=71f43dd54034363d3bf8b2d1a3189a63b9e4ce1a]
   - ``fn`` is an inert, generated, statically typed mention namespace and
     importing it never starts the engine [tested:
     test_the_fn_namespace_is_generated; commit=6b77b811c44e1819ed9cd99f3809c0667f289e2e]

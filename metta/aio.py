@@ -89,7 +89,7 @@ Guarantees:
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - direct, saga, and reified-world evaluations expose Undefined in their
     return types wherever Well Founded Semantics can return it [tested:
-    test_async_result_hints_preserve_undefined_answers; commit=WORKTREE]
+    test_async_result_hints_preserve_undefined_answers; commit=71f43dd54034363d3bf8b2d1a3189a63b9e4ce1a]
   - async function handles consume the synchronous Answers surface on their
     owning worker, including the composite ``neg`` operator word [tested:
     test_aio_structural_surface_behaves; commit=8ec44dec3cafba5981e7cf712749cca0e1bdcc45]

@@ -11,7 +11,7 @@ Guarantees:
     test_policy_constants_are_final]
   - root persistence and async three-valued evaluation annotations retain the
     runtime value species [tested: test_root_space_hint_accepts_pathlike_journals,
-    test_async_result_hints_preserve_undefined_answers; commit=WORKTREE]
+    test_async_result_hints_preserve_undefined_answers; commit=71f43dd54034363d3bf8b2d1a3189a63b9e4ce1a]
 Open Obligations:
   To Do: None
   Hacks: None
