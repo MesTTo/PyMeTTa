@@ -5,9 +5,19 @@ Guarantees:
   - covers every vocabulary entry (load, attach, bridge, serve), every
     refusal (unknown form, bad shape, definition, ! directive, empty
     manifest, connection mismatches), and the mid-way failure law
+    [tested: test_load_and_serve_assemble_and_record,
+    test_bridge_declares_materializes_and_registers,
+    test_attach_registers_the_remote_space, test_an_empty_manifest_refuses,
+    test_a_manifest_neither_runs_nor_defines,
+    test_connections_must_match_bridges_exactly,
+    test_a_mid_way_failure_names_the_form_and_closes_servers;
+    commit=WORKTREE]
   - covers the three ways a form and its record can come apart: an attach
     the direct door would refuse, a record write that raises after its
     effect performed, and a cleanup that meets a server refusing to close
+    [tested: test_a_manifest_cannot_attach_a_space_this_process_serves,
+    test_a_failed_record_reports_the_effect_that_performed,
+    test_every_server_closes_even_when_one_refuses; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None

@@ -14,9 +14,12 @@ Guarantees:
   - the bound is OBSERVED rather than asserted from the code that installs it:
     a child is asked what its own parent is, which is the one question a
     parent-side timeout cannot answer with `timeout`
+    [tested: test_a_process_this_suite_starts_reports_a_wrapper_as_its_parent;
+    commit=WORKTREE]
   - the mechanism is exercised against a real orphan, because "the wrapper is
     in the argv" and "the wrapper reaps an orphan" are different claims and
     only the second is the guarantee
+    [tested: test_an_orphaned_child_is_reaped_by_its_own_wrapper; commit=WORKTREE]
 Fails when: someone replaces the wrapper with a parent-side kill in a
   `finally`, which passes an ordinary run and changes nothing about an
   orphan. That is the fix this test exists to reject.

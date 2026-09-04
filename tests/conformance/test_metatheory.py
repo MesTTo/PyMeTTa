@@ -24,12 +24,19 @@ Assumes:
 Guarantees:
   - the provenance test does not stop at the header text: it RUNS the
     counter-example the header names and observes both halves of the caveat,
-    the loop and the normal form the loop misses.
+    the loop and the normal form the loop misses
+    [tested: test_the_confluence_checker_records_its_provenance_and_its_termination_caveat;
+    commit=WORKTREE]
   - the termination test walks every MeTTa file this tree ships that registers
     a translator rule, so "no third answer" is a claim about the shipped
-    corpus and not about one example.
+    corpus and not about one example
+    [tested: test_the_compile_time_rule_set_is_shown_terminating_or_the_failure_is_named;
+    commit=WORKTREE]
   - the overlap test proves the thing the report warns about, by running the
-    same two rules in both orders and getting two different answers.
+    same two rules in both orders and getting two different answers
+    [tested: test_overlapping_translator_rules_are_reported_with_the_overlap_named,
+    test_assertion_order_alone_decides_which_overlapping_rule_wins;
+    commit=WORKTREE]
   - a rule's body is its condition: a body with no answer declines and the next
     clause is tried, a rule whose only clause declines leaves the call to
     ordinary dispatch, and the report says which of its verdict is a decision

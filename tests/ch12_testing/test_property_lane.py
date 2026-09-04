@@ -12,10 +12,15 @@ Guarantees:
   - the planted-violation test does not stop at "the selftest exits 0": it
     reads the per-plant verdict lines and requires each named plant to be
     CAUGHT and the shipped printer and reader not to be, so a selftest that
-    stopped testing fails here.
+    stopped testing fails here
+    [tested: test_a_prolog_property_lane_catches_a_planted_roundtrip_violation,
+    test_the_planted_violation_is_the_same_violation_every_run;
+    commit=WORKTREE]
   - the provenance test reads the vendored files for the licence, the upstream
     commit and the record of what the vendoring changed, and checks the licence
-    text itself rather than a claim about it.
+    text itself rather than a claim about it
+    [tested: test_the_vendored_runner_records_its_provenance,
+    test_the_vendored_licence_is_the_unlicense_itself; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None

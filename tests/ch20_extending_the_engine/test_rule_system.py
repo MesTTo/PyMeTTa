@@ -15,7 +15,12 @@ Guarantees:
     tree writes the inverse; the refusal test asserts the rule's own words
     reach the output and that a declining rule leaves the call to ordinary
     dispatch; the cost test asserts the declared price changes which direction
-    fires, on two inputs that differ only in size.
+    fires, on two inputs that differ only in size
+    [tested:
+    test_a_translator_rule_declares_its_direction_and_a_bidirectional_rule_is_one_declaration,
+    test_a_translator_rule_can_decline_with_its_own_words,
+    test_a_translator_rule_carries_a_cost_and_a_conjunctive_left_side;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None

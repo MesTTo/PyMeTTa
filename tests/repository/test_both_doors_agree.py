@@ -11,6 +11,8 @@ Guarantees:
     - each test fails if its mechanism regresses, shown by construction: the
       first writes the exact shape that used to fail through the library and
       the second the exact shape that used to disagree
+      [tested: test_load_pre_registers_signatures_so_a_later_definition_resolves,
+      test_a_forward_call_behaves_the_same_through_both_doors; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
