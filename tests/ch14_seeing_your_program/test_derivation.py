@@ -4,6 +4,11 @@ Guarantees:
     nested proof steps without using Python recursion [tested:
     test_deep_proof_consumers_treat_depth_as_data;
     commit=9903250d082ab019535ab0c10b742053f9e640f0]
+  - an empty proof list means NO PROOF and cannot mean anything else: an
+    exhausted budget raises and a depth cutoff answers a non-empty partial
+    tree, so the three outcomes stay distinguishable [tested:
+    test_an_empty_proof_list_can_only_mean_no_proof;
+    commit=WORKTREE]
   - derivation's public contract names effect execution and the speculative
     rollback boundary, and both behaviors are exercised [tested:
     test_derivation_effects_are_explicit_and_speculation_discards_engine_writes;
@@ -18,7 +23,7 @@ import pytest
 
 from metta import Expression, S, V, Variable
 from metta.derivation import Builtin, Derivation, Fact, Step, Truncated
-from metta.errors import InferenceLimitError
+from metta.errors import InferenceLimitError, TimeLimitError
 
 
 def test_multi_step_proof_names_equations_and_facts(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -151,6 +156,45 @@ def test_unbounded_derivation_obeys_resource_guards(metta):  # noqa: D103  -- py
     metta.run("(= (loop-guard-d $x) (loop-guard-d $x))")
     with pytest.raises(InferenceLimitError):
         metta.derivation(S["loop-guard-d"](1), inferences=2_000)
+
+
+def test_an_empty_proof_list_can_only_mean_no_proof(metta):
+    """The three ways a search can end stay separable, so `[]` says one thing.
+
+    A reasoner that cannot tell "I proved there is no proof" from "I ran out
+    of budget" has to cache the distinction alongside the budget that produced
+    it, and then maintain that cache against new evidence. PeTTa does not need
+    the cache because the three outcomes have three different shapes, and this
+    pins that so a friendlier `[]` on exhaustion cannot quietly replace the
+    raise.
+    """
+    metta.run("(= (tri-d 0) done)\n(= (tri-d $n) (tri-d (- $n 1)))")
+
+    # Budget exhaustion RAISES. It never answers the empty list.
+    for guard in ({"inferences": 2_000}, {"timeout": 1e-06}):
+        with pytest.raises((InferenceLimitError, TimeLimitError)):
+            metta.derivation(S["tri-d"](1), **guard)
+
+    # A depth cutoff answers a NON-EMPTY partial tree that says it is partial.
+    shallow = metta.derivation(S["tri-d"](2), depth=1)
+    assert shallow, "a truncated search answered nothing, which reads as no proof"
+    assert not any(proof.complete for proof in shallow)
+    assert all(proof.truncations for proof in shallow)
+
+    # A larger budget REFINES it, so truncation was never a final answer.
+    deep = metta.derivation(S["tri-d"](2), depth=20)
+    assert any(proof.complete and not proof.truncations for proof in deep)
+
+    # Only a genuinely unprovable target is empty.
+    assert metta.derivation(S["tri-d-absent"](1)) == []
+
+
+def test_a_derivation_sees_new_evidence_without_being_invalidated(metta):
+    """Nothing caches the empty answer, so nothing has to be invalidated."""
+    metta.run("(= (inv-d $x) (match &self (ev-d $x) found))")
+    assert metta.derivation(S["inv-d"](1)) == []
+    metta.run("(ev-d 1)")
+    assert metta.derivation(S["inv-d"](1)), "the earlier empty answer went stale"
 
 
 def test_derivation_effects_are_explicit_and_speculation_discards_engine_writes(
