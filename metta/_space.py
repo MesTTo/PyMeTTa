@@ -32,6 +32,9 @@ Guarantees:
   - ``MeTTa.space()`` is the one method that creates named or anonymous handles
     [tested: test_module_tier_is_sugar_over_one_default_engine;
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
+  - the same factory exposes a persistent journal's one-open schema rename,
+    so migration does not require importing its private provider [tested:
+    test_the_public_space_factory_exposes_replay_rename; commit=WORKTREE]
   - ``Space.reify`` returns an immutable branch value and ``Space.commit``
     applies its base-relative diff through ordinary transaction and event
     methods [tested: test_world_eval_branches_without_touching_parent,
@@ -5464,6 +5467,7 @@ class MeTTa:
         journal: str | os.PathLike[str] | None = None,
         schema: _abc.Mapping[str, Any] | None = None,
         sync: str = "none",
+        rename: _abc.Mapping[str, str] | None = None,
         _created_at: tuple[str, int] | None = None,
     ) -> Space:
         """Create one native, provider-backed, remote, or journaled space.
@@ -5477,7 +5481,8 @@ class MeTTa:
         headers, or its own timeout, and hand THAT in as the backing); and
         ``journal=`` constructs ``PersistentFactSpace`` from ``schema=`` or
         a schema mapping supplied as the backing. ``sync`` paces the
-        journal and means nothing without one, so it refuses alone.
+        journal and ``rename`` performs its one-open schema migration; neither
+        means anything without ``journal``, so either refuses alone.
 
         ``inherits``, ``restricted`` and ``grants`` choose the space MODEL and
         are independent of whether the space is named. MeTTa's own
@@ -5488,6 +5493,9 @@ class MeTTa:
         """
         if sync != "none" and journal is None:
             msg = "space(sync=...) paces a journal; pass journal= as well"
+            raise TypeError(msg)
+        if rename is not None and journal is None:
+            msg = "space(rename=...) migrates a journal; pass journal= as well"
             raise TypeError(msg)
         # VALIDATE first, so a refusal costs nothing: no space is minted
         # for a request that cannot be built
@@ -5572,6 +5580,7 @@ class MeTTa:
                     journal,
                     schema,
                     sync=sync,
+                    rename=rename,
                 )
                 owns_backing = True
             elif isinstance(backing, str):

@@ -8,6 +8,9 @@ Guarantees:
     test_a_failed_async_space_construction_leaks_nothing,
     test_an_anonymous_async_space_resolves_equations_through_its_home;
     commit=d263b1f05e3ca3a0621122c1fc60d295b87692b0]
+  - the async factory reaches a journal's one-open schema migration, so the
+    sync door's rename keyword is not a synchronous-only spelling [tested:
+    test_the_async_space_factory_exposes_replay_rename; commit=WORKTREE]
 """
 
 import asyncio
@@ -77,6 +80,34 @@ def test_async_schema_mapping_backing_matches_sync(tmp_path):
                     await stored.drop()
             with context.space(backing={"edge": 2}, journal=journal) as sync_space:
                 assert sync_space.atoms() == [S.edge(S.a, S.b), S.edge(S.b, S.c)]
+
+    asyncio.run(go())
+
+
+def test_the_async_space_factory_exposes_replay_rename(tmp_path):
+    """The async door migrates a journal the sync door wrote under old heads."""
+    async def go():
+        journal = tmp_path / "async-rename.jnl"
+        with MeTTa() as context:
+            with context.space(backing={"old": 1}, journal=journal, sync="close") as old:
+                old.add(S.old(S.value))
+            async with aio.AsyncMeTTa(metta=context.self) as am:
+                migrated = await am.space(
+                    backing={"new": 1},
+                    journal=journal,
+                    sync="close",
+                    rename={"old": "new"},
+                )
+                try:
+                    assert await migrated.atoms() == [S.new(S.value)]
+                finally:
+                    await migrated.drop()
+                # The migration is one-open: the next open must not repeat it.
+                reopened = await am.space(backing={"new": 1}, journal=journal)
+                try:
+                    assert await reopened.atoms() == [S.new(S.value)]
+                finally:
+                    await reopened.drop()
 
     asyncio.run(go())
 
