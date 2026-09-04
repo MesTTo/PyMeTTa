@@ -464,3 +464,45 @@ def test_lint_file_anchors_findings_to_lines(metta, tmp_path):  # noqa: D103  --
     assert ghost.payload["file"] == str(target)
     simplifiable = findings["constant-if-true"]
     assert simplifiable.payload["line"] == 5
+
+
+def test_an_annotated_arrow_is_diagnosed_like_its_plain_twin(metta):
+    """Both arrow spellings reach the same diagnostics.
+
+    The engine spells an annotated declaration with a different HEAD ATOM,
+    `-[det]->` rather than `->`, and the linter reads raw `space.atoms()`,
+    so a head test written as `== "->"` skips every annotated declaration
+    while the lane keeps reporting healthily. Measured with the old
+    predicate restored: the plain twin reported and the annotated one
+    reported nothing at all.
+    """
+    plain = metta._new_space()
+    plain.run("(: hh-lint (-> Number Number))")
+    plain.run('(= (hh-caller) (hh-lint "text"))')
+    annotated = metta._new_space()
+    annotated.run("(: hh-lint (-[det]-> Number Number))")
+    annotated.run('(= (hh-caller) (hh-lint "text"))')
+
+    def mismatches(space):
+        return [f.payload for f in space.lint() if f.kind == "type-mismatch"]
+
+    assert mismatches(plain), "the plain twin stopped reporting"
+    assert mismatches(annotated) == mismatches(plain)
+
+
+def test_the_arrow_head_test_accepts_every_engine_spelling():
+    """The frame the engine accepts, and the malformed heads it does not.
+
+    Only the FRAME is matched. `metta_arrow_type_shape/5` owns which
+    cardinalities and effect classes are legal, so `-[semidet,pure]->` is
+    accepted here and refused by the engine, because `pure` is not in the
+    `effect-class` vocabulary. That direction is deliberate: it lets the
+    declaration be diagnosed rather than skipped. Copying the vocabulary
+    into Python would be a second closed value set to keep in step.
+    """
+    from metta._lint_analysis import _is_arrow_head
+
+    for spelling in ("->", "-[det]->", "-[$e]->", "-[nondet,oracleIO]->"):
+        assert _is_arrow_head(spelling), spelling
+    for rejected in ("-[]->", "-", "foo", "-[det]", "[det]->"):
+        assert not _is_arrow_head(rejected), rejected

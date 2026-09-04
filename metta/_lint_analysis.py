@@ -85,9 +85,33 @@ _EVENT_DETAILS = {
 }
 
 
+def _is_arrow_head(name: str) -> bool:
+    """Whether a signature head is an arrow, in either spelling.
+
+    `->` is the implicit spelling; `-[det]->`, `-[semidet,pure]->` and
+    `-[$e]->` are the explicit ones. Only the FRAME is matched. Which
+    cardinalities and effect classes are legal belongs to
+    `metta_arrow_type_shape/5` in engine/metta/types.pl, and copying that
+    table here would be a second closed value set to keep in step with the
+    first. The two directions of error are not symmetric: being too
+    permissive lints a declaration the engine refuses anyway, while being
+    too restrictive SILENTLY skips a valid one and leaves the arity,
+    declared-function and type diagnostics reporting healthily on a
+    declaration they never saw.
+    """
+    return name == "->" or (
+        name.startswith("-[") and name.endswith("]->") and len(name) > len("-[]->")
+    )
+
+
 def _arrow_inputs(declaration: Atom) -> int | None:
-    """Return the input count of an arrow declaration."""
-    if isinstance(declaration, Expression) and len(declaration) >= 2 and declaration[0] == Symbol("->"):
+    """Return the input count of an arrow declaration, either spelling."""
+    if (
+        isinstance(declaration, Expression)
+        and len(declaration) >= 2
+        and isinstance(head := declaration[0], Symbol)
+        and _is_arrow_head(head.name)
+    ):
         return len(declaration) - 2
     return None
 
@@ -899,7 +923,8 @@ def _declared_arrows(declarations: list[Expression]) -> dict[str, tuple[Atom, ..
         if (
             isinstance(name_atom, Symbol)
             and isinstance(signature, Expression)
-            and _symbol_head(signature) == "->"
+            and (head := _symbol_head(signature)) is not None
+            and _is_arrow_head(head)
         ):
             arrows.setdefault(name_atom.name, signature.children[1:-1])
     return arrows
