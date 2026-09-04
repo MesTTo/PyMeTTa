@@ -60,7 +60,8 @@ def joint_cases(draw):
 
 
 @pytest.fixture(scope="module")
-def distribution_space(metta):  # noqa: D103  -- the fixture name states its role
+def distribution_space(metta):
+    """Provide a fresh space containing the library and test-only functions."""
     with metta._new_space() as space:
         space.run("!(import! (context-space) (library lib_distribution))")
         space.run(
