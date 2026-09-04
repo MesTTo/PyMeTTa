@@ -770,7 +770,7 @@ class _StreamProvider(SpaceProvider):
 
 def test_a_linear_source_refuses_its_second_consumption(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     metta._register_space(_StreamProvider(), "&sd-lin")
-    metta._at("&sd-lin").source("linear")
+    metta._at("&sd-lin").consumption("linear")
     out = metta.run("!(collapse (match &sd-lin (edge $x $y) $y))")
     assert str(out[0][0]) == "(b c d)"
     # The undeclared floor answered a silently empty set here; declared,
@@ -786,7 +786,7 @@ def test_a_linear_source_refuses_its_second_consumption(metta):  # noqa: D103  -
 
 def test_a_join_over_a_linear_source_is_refused(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     metta._register_space(_StreamProvider(), "&sd-join")
-    metta._at("&sd-join").source("linear")
+    metta._at("&sd-join").consumption("linear")
     # The nested loop's inner conjunct is a second physical touch: today's
     # floor answers a wrong empty join from the drained generator.
     with pytest.raises(EngineError, match="second consumption"):
@@ -802,9 +802,9 @@ def test_the_undeclared_floor_keeps_todays_behaviour(metta):  # noqa: D103  -- p
     assert str(metta.run("!(collapse (match &sd-floor (edge $x $y) $y))")[0][0]) == "()"
 
 
-def test_declare_source_validates(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
+def test_consumption_validates(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     with pytest.raises(ValueError, match="linear, repeated, peek"):
-        metta._at("&sd-v").source("stream")
+        metta._at("&sd-v").consumption("stream")
 
 
 def test_the_kit_catches_a_linear_object_declared_repeated():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract

@@ -41,7 +41,7 @@ Assumes:
     section 9d rule 1, "assert and pytest for the assert family"]
 Guarantees:
   - a twin that reaches the engine through MeTTa source text is REFUSED, both
-    the five source doors and any string that is not a name or ground()-marked
+    the five source-input doors and any string that is not a name or ground()-marked
     data [tested: test_the_source_scan_catches_a_planted_string]
   - a twin naming something the narrow core deleted is a finding that names the
     current spelling, so `val`, `sym`, `var`, `m.new_space`, `m.fn("name")`,
@@ -56,15 +56,15 @@ Guarantees:
   - every door the surface tracks landed reads clean: the naming factories,
     the answer view with its defaulted cells, the keyword builders, the
     coordination verbs, the class door, the verdict builders under
-    `@space.pre_add`, the head-named declaration methods, package `match`
+    `@space.pre_add`, the declaration methods, package `match`
     and `superpose`, `view()`, `limits(stack=)` and the
     standard-module mentions inside a compiled body
-    [tested: test_the_landed_doors_read_clean; commit=0cfc68a483d8d64fb499e53bbe9a3cc63f68990f]
-  - a bare vocabulary word at a head-named declaration door is a finding that
+    [tested: test_the_landed_doors_read_clean; commit=42502e9d4a7fedd419856d5e6a1c291fc18ba644]
+  - a bare vocabulary word at a declaration door is a finding that
     names the exact StrEnum member, while pattern and name strings at those
     doors remain governed by the source-text rule
     [tested: test_a_bare_declaration_word_names_the_exact_member,
-    test_a_declaration_takes_members_and_refuses_a_program; commit=417c6428f89aed9f514b9219db2dcd472d31fbe7]
+    test_a_declaration_takes_members_and_refuses_a_program; commit=42502e9d4a7fedd419856d5e6a1c291fc18ba644]
   - a twin stating fewer claims than its example is a finding, so a skip
     cannot be silent [tested: test_a_twin_that_claims_less_is_a_finding]
   - a false claim fails the twin, because a raised AssertionError leaves the
@@ -286,15 +286,15 @@ NAMING_CALLS = frozenset({
 #: `print()` by the table below, so the scan has to let a twin print.
 HOST_TEXT_CALLS = frozenset({"print", "Path", "open", "warning", "info", "debug"})
 
-#: The head-named receiver methods that replaced the `declare_*` family: each
-#: writes one declaration atom and its head IS the method name, so
-#: `(capacity &pool 8)` is written `pool.capacity(8)` [source:
+#: The receiver methods that replaced the `declare_*` family. Most use the
+#: declaration head itself; `reacts` writes `(on ...)` and `consumption`
+#: writes `(source ...)` [source:
 #: ai-narrow-core-renames.md rows 71-89, the fifteen replacements;
 #: commit=5c67147566907276a95a5fbf059cf8f98b6685f1].
 DECLARATION_CALLS = frozenset({
     "admits", "agenda", "algebra", "annotations", "capacity", "context",
     "emits", "events", "handles", "image", "merge", "on_error", "reacts",
-    "source", "writes",
+    "consumption", "writes",
 })
 
 #: A declaration's closed option value is a StrEnum member, never its bare
@@ -312,11 +312,11 @@ DECLARATION_CALLS = frozenset({
 #: A word, and nothing else: `reacts("(Job $n)", op)` still reports, because
 #: a program carries a parenthesis, a space or a dollar and a vocabulary word
 #: carries none of them. That is what keeps a `str | Atom` pattern parameter
-#: from being a sixth source door
+#: from being another source door
 #: [tested: test_a_declaration_takes_members_and_refuses_a_program; commit=417c6428f89aed9f514b9219db2dcd472d31fbe7].
 VOCABULARY_WORD = re.compile(r"[\w.-]+\Z")
 
-#: The typed option slots of the head-named declaration doors. Mapping the
+#: The typed option slots of the declaration doors. Mapping the
 #: slot to the generated class makes the diagnostic use the library's own
 #: exact spelling rather than a copied word table. Doors absent here take
 #: names, patterns, numbers, or open user-defined vocabularies rather than a
@@ -336,7 +336,7 @@ DECLARATION_VOCABULARIES = {
     ),
     "image": ({1: vocabularies.ImageMode}, {"setting": vocabularies.ImageMode}),
     "merge": ({1: vocabularies.AnswerPolicy}, {"policy": vocabularies.AnswerPolicy}),
-    "source": ({0: vocabularies.SourceKind}, {"kind": vocabularies.SourceKind}),
+    "consumption": ({0: vocabularies.SourceKind}, {"kind": vocabularies.SourceKind}),
     "writes": ({0: vocabularies.Atomicity}, {"atomicity": vocabularies.Atomicity}),
 }
 
@@ -505,10 +505,11 @@ RETIRED_HANDLE = {
     "space_name": "space.name",
     "unregister": "space.unregister_op(...)",
     "unregister_space": "space.drop()",
-    # The fifteen `declare_*` methods, each replaced by the head its atom
-    # already had: the method IS the head, so `(capacity &pool 8)` is written
-    # `pool.capacity(8)` and the ceremony is gone. Every entry is one row of
-    # the rewrite map [source: ai-narrow-core-renames.md rows 71-89;
+    # The fifteen `declare_*` methods use concise receiver spellings, usually
+    # the catalog head itself. `reacts` writes `(on ...)` and
+    # `consumption` writes `(source ...)` because those Python names say
+    # what the declarations do without occupying other public doors. Every
+    # entry is one row of the rewrite map [source: ai-narrow-core-renames.md rows 71-89;
     # CHANGELOG.md "Remove all 15 synchronous `declare_*` methods";
     # commit=5c67147566907276a95a5fbf059cf8f98b6685f1].
     "declare_admits": "space.admits(...)",
@@ -524,7 +525,7 @@ RETIRED_HANDLE = {
     "declare_merge": "space.merge(...)",
     "declare_on_error": "space.on_error(...)",
     "declare_reaction": "space.reacts(...)",
-    "declare_source": "space.source(...)",
+    "declare_source": "space.consumption(...)",
     "declare_writes": "space.atomicity(...)",
 }
 

@@ -32,6 +32,11 @@ Guarantees:
     test_compiled_operators_follow_python_protocols_and_result_species,
     test_no_type_check_keeps_annotations_as_a_compile_proof_only;
     commit=d0dfff1a3ee6c85472fd9b12d6e4aec007a9c301]
+  - Defined renders its own escaped equation source in rich notebooks, and a
+    Prolog-backed definition's source remains valid MeTTa text [tested:
+    test_defined_rich_repr_shows_escaped_source,
+    test_a_definition_may_be_written_in_prolog_with_the_python_as_reference;
+    commit=42502e9d4a7fedd419856d5e6a1c291fc18ba644]
 Owns:
   - test_define_from_two_threads_is_serialized joins both definition workers
     before examining their equations [tested test_define_from_two_threads_is_serialized]
@@ -41,6 +46,7 @@ Open Obligations:
   Future Enhancements: None.
 """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
+import html
 import importlib.util
 import inspect
 import pydoc
@@ -136,6 +142,18 @@ def test_recursion_compiles_and_runs(m):  # noqa: D103  -- pytest discovers or i
     assert dfact(5) == [120]
     assert S.dfact(5) == Expression(S.dfact, 5)  # the S door stages explicitly
     assert "(= (dfact $n)" in dfact.source()
+
+
+def test_defined_rich_repr_shows_escaped_source(m):
+    """Render a definition's escaped equation source in rich notebooks."""
+    @m.define
+    def negative(value: int) -> bool:
+        return value < 0
+
+    source = negative.source()
+    assert "(< $value 0)" in source
+    assert negative._repr_html_() == f"<pre>{html.escape(source)}</pre>"
+    assert "&lt;" in negative._repr_html_()
 
 
 def test_early_return_reads_as_else(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -983,8 +1001,11 @@ def test_a_definition_may_be_written_in_prolog_with_the_python_as_reference(m, f
     assert dt_dot((1, 2, 3), (4, 5, 6)) == [32]
     assert dt_dot.py((1, 2, 3), (4, 5, 6)) == 32
     assert dt_dot.name == "dt-dot"
-    # There is no compiled equation to print, so source() says where it came from.
+    # There is no compiled equation to print, so source() says where it came
+    # from in a MeTTa comment rather than returning Prolog syntax.
+    assert dt_dot.source().startswith("; dt-dot/3 registered from ")
     assert str(fast_file) in dt_dot.source()
+    assert m.run(dt_dot.source()) == []
     assert "python twin as .py" in repr(dt_dot)
 
 

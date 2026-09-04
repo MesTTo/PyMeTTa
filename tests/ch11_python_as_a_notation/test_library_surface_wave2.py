@@ -23,9 +23,10 @@ Guarantees:
     builders preserve, transform, refuse, or silently drop each offered atom
     [tested: test_pre_add_compiles_the_four_verdict_judge; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
   - all fifteen declaration heads use their settled Space and AsyncMeTTa
-    spellings, including ``reacts`` for ``(on ...)`` while ``reaction``
-    remains, and leave every ``declare_*`` spelling absent [tested:
-    test_declarations_use_their_atom_heads_on_the_receiver; commit=0cfc68a483d8d64fb499e53bbe9a3cc63f68990f]
+    spellings, including ``reacts`` for ``(on ...)`` and
+    ``consumption`` for ``(source ...)``, while ``reaction`` remains;
+    every ``declare_*`` spelling stays absent [tested:
+    test_declarations_use_settled_receiver_spellings; commit=42502e9d4a7fedd419856d5e6a1c291fc18ba644]
 """
 
 import copy
@@ -250,8 +251,8 @@ def test_pre_add_compiles_the_four_verdict_judge() -> None:
     target.drop()
 
 
-def test_declarations_use_their_atom_heads_on_the_receiver() -> None:
-    """Declaration data reads like its head and carries the receiver once."""
+def test_declarations_use_settled_receiver_spellings() -> None:
+    """Declaration data carries its receiver once under the settled doors."""
     target = space("&libfix-declarations")
     old_names = {
         "declare_admits",
@@ -281,7 +282,7 @@ def test_declarations_use_their_atom_heads_on_the_receiver() -> None:
     assert str(target.image("_", "opaque")) == (
         "(image &libfix-declarations _ opaque)"
     )
-    assert str(target.source("repeated")) == (
+    assert str(target.consumption("repeated")) == (
         "(source &libfix-declarations repeated)"
     )
     assert str(target.on_error("(row $x)", "keep")) == (

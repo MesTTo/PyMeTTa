@@ -1,7 +1,8 @@
 """Purpose: `python -m metta` subcommands, the stdlib "Command-line
 usage" chapter for the installed wheel: run a program, talk to a repl,
 serve spaces, boot a manifest, lint a file, and read documentation, all
-without a checkout. The bare `metta` console script keeps upstream's
+without a checkout, or convert a Python-authored program to MeTTa source. The
+bare `metta` console script keeps upstream's
 swipl-launcher contract exactly; the subcommands live here, on the
 library engine.
 Guarantees:
@@ -18,6 +19,12 @@ Guarantees:
   - doc reports an unknown function as a normal missing-documentation result
     after bound function access became fail-fast [tested:
     test_doc_answers_and_refuses; commit=2d4d4583c2d82e90bb21a7e8671842f126edd4f4]
+  - convert imports a real Python module against a fresh default space and
+    emits exactly that space's round-trippable MeTTa source, keeping module
+    stdout off the source channel, then restores the ordinary package and
+    context factories [tested:
+    test_convert_imports_a_python_program_and_round_trips_its_source,
+    test_convert_restores_the_in_process_declaration_receiver; commit=42502e9d4a7fedd419856d5e6a1c291fc18ba644]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -30,6 +37,7 @@ import argparse
 import contextlib
 import sys
 import threading
+from pathlib import Path
 
 
 def _print_groups(groups) -> None:
@@ -217,6 +225,96 @@ def _doc(arguments) -> int:
     return 0
 
 
+def _python_program(value: str) -> Path:
+    """Resolve one existing Python source file for ``convert``."""
+    path = Path(value).resolve()
+    if path.suffix != ".py":
+        msg = f"convert input must be a .py file: {value}"
+        raise argparse.ArgumentTypeError(msg)
+    if not path.is_file():
+        msg = f"convert input does not exist: {value}"
+        raise argparse.ArgumentTypeError(msg)
+    return path
+
+
+@contextlib.contextmanager
+def _conversion_receiver(context):
+    """Make module-level Python declarations target one fresh context.
+
+    Root helpers already route through ``metta.engine()``. The two conventional
+    ways to bind a program receiver, ``metta.space()`` and
+    ``metta.MeTTa().space()``, also denote the conversion context's own space
+    for the duration of this import. Explicitly named spaces keep their
+    ordinary meaning.
+    """
+    package = sys.modules[__package__ or "metta"]
+    namespace = vars(package)
+    original_engine = namespace["engine"]
+    original_space = namespace["space"]
+    context_type = type(context)
+    original_context_init = context_type.__init__
+    original_context_space = context_type.space
+    original_context_close = context_type.close
+
+    def captured_space(*args, **kwargs):
+        return context.self if not args and not kwargs else context.space(*args, **kwargs)
+
+    def captured_context_init(
+        receiver,
+        space=None,
+        *,
+        verbose=None,
+        metta_path=None,
+        _runtime=None,
+    ):
+        target = context.self if space is _runtime is None else space
+        original_context_init(
+            receiver,
+            target,
+            verbose=verbose,
+            metta_path=metta_path,
+            _runtime=_runtime,
+        )
+
+    def captured_context_space(receiver, *args, **kwargs):
+        if receiver.self is context.self and not args and not kwargs:
+            return context.self
+        return original_context_space(receiver, *args, **kwargs)
+
+    def captured_context_close(receiver):
+        if receiver is not context:
+            original_context_close(receiver)
+
+    try:
+        namespace["engine"] = lambda: context
+        namespace["space"] = captured_space
+        context_type.__init__ = captured_context_init
+        context_type.space = captured_context_space
+        context_type.close = captured_context_close
+        yield
+    finally:
+        context_type.close = original_context_close
+        context_type.space = original_context_space
+        context_type.__init__ = original_context_init
+        namespace["engine"] = original_engine
+        namespace["space"] = original_space
+
+
+def _convert(arguments) -> int:
+    """Import a Python-authored program and emit its lowered MeTTa source."""
+    from . import MeTTa  # noqa: PLC0415 -- version and help must not boot
+    from .vocabularies import SaveFormat  # noqa: PLC0415 -- version and help must not boot
+
+    with MeTTa() as context:
+        with _conversion_receiver(context), contextlib.redirect_stdout(sys.stderr):
+            context.self.fn["import!"](context.self, str(arguments.program))
+        if arguments.output is None:
+            sys.stdout.write(context.self.source())
+        else:
+            context.self.save(arguments.output, format=SaveFormat.metta)
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:  # noqa: D103  -- the package reference and enclosing module document this exported entry point
     from ._version import __version__  # noqa: PLC0415  deferred: --version and help must not boot
 
@@ -257,7 +355,22 @@ def main(argv: list[str] | None = None) -> int:  # noqa: D103  -- the package re
     doc.add_argument("files", nargs="*", metavar="file.metta", help="sources to load first")
     doc.set_defaults(entry=_doc)
 
+    convert = commands.add_parser(
+        "convert", help="lower a Python-authored program to MeTTa source"
+    )
+    convert.add_argument("program", type=_python_program, metavar="program.py")
+    convert.add_argument(
+        "-o", "--output", type=Path, metavar="out.metta", help="write the source to this file"
+    )
+    convert.set_defaults(entry=_convert)
+
     arguments = parser.parse_args(argv)
+    if (
+        arguments.command == "convert"
+        and arguments.output is not None
+        and arguments.output.resolve() == arguments.program
+    ):
+        parser.error("convert output must differ from the input Python file")
     return arguments.entry(arguments)
 
 

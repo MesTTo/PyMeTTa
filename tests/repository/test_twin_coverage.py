@@ -49,7 +49,7 @@ Guarantees:
     test_a_declaration_takes_members_and_refuses_a_program,
     test_a_bare_declaration_word_names_the_exact_member,
     test_non_declaration_vocabulary_text_keeps_the_existing_rules,
-    test_the_declaration_vocabulary_is_the_librarys_own; commit=417c6428f89aed9f514b9219db2dcd472d31fbe7]
+    test_the_declaration_vocabulary_is_the_librarys_own; commit=42502e9d4a7fedd419856d5e6a1c291fc18ba644]
   - an explicit engine operator head is a finding only when exact numeric
     proof makes Python syntax build the identical term; untyped and
     match-bound operands retain the distinct protocol-vs-relational choice
@@ -348,7 +348,7 @@ def test_a_declaration_takes_members_and_refuses_a_program(tmp_path):
         "    m.events(Delivery.at_least_once, EventOrder.ordered)\n"
         "    m.handles(S.user(V.n), Fidelity.Exact, det=Determinism.semidet)\n"
         "    m.image(S.Tensor.name, ImageMode.opaque)\n"
-        "    m.source(SourceKind.linear)\n"
+        "    m.consumption(SourceKind.linear)\n"
         "    m.agenda(AgendaPolicy.specificity)\n"
         "    m.on_error(S.user(V.n), OnError.keep)\n"
         "    m.merge(S.user(V.n), AnswerPolicy.fair)\n",
@@ -444,7 +444,7 @@ def test_the_declaration_vocabulary_is_the_librarys_own():
     enum_calls = set(coverage.DECLARATION_VOCABULARIES) | {"on_error"}
     assert enum_calls == {
         "agenda", "context", "emits", "events", "handles", "image",
-        "merge", "on_error", "source", "writes",
+        "consumption", "merge", "on_error", "writes",
     }
     assert coverage.DECLARATION_CALLS - enum_calls == {
         "admits", "algebra", "annotations", "capacity", "reacts",
@@ -455,12 +455,13 @@ def test_the_declaration_vocabulary_is_the_librarys_own():
 
     assert len(coverage.DECLARATION_CALLS) == 15
     assert all(hasattr(Space, name) for name in coverage.DECLARATION_CALLS)
-    # Each call has a retired `declare_*` spelling it replaced. `reacts` is
-    # the one whose retired name does not follow from its current one: the
-    # door was `declare_reaction`, then `reaction`, and `reacts` now, because
-    # `reaction` was an explicit compatibility alias and this library keeps no
-    # synonyms. The retired map records what was retired, not what replaced it.
-    retired_of = {"reacts": "declare_reaction"}
+    # Each call has a retired `declare_*` spelling it replaced. The two whose
+    # retired names do not follow from their current names are explicit here.
+    # The retired map records what was retired, not what replaced it.
+    retired_of = {
+        "consumption": "declare_source",
+        "reacts": "declare_reaction",
+    }
     assert all(
         retired_of.get(name, f"declare_{name}") in coverage.RETIRED_HANDLE
         for name in coverage.DECLARATION_CALLS
@@ -546,7 +547,7 @@ LANDED_DOORS = (
     '        yield equation(S.clamped(x)).to(S["<"](x, 0))\n'
     "    kb.emits(AnswerPolicy.best_first)\n"
     "    kb.atomicity(Atomicity.transactional)\n"
-    "    kb.source(SourceKind.linear)\n"
+    "    kb.consumption(SourceKind.linear)\n"
     "    kb.context(World.closed_world)\n"
     "    kb.agenda(AgendaPolicy.specificity)\n"
     "    kb.events(Delivery.at_least_once, EventOrder.ordered)\n"

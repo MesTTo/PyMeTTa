@@ -179,7 +179,7 @@ def _vec_context(metta, name, *, best_first=True):
     metta._register_space(provider, name)
     metta._at(name).context("open-world")
     metta.annotations(name, "ranked")
-    metta._at(name).source("repeated")
+    metta._at(name).consumption("repeated")
     metta._at(name).handles("(near (in $q) $hit)", "Exact", det="semidet")
     metta._at(name).handles("(near $q $hit)", "Refuse")
     if best_first:

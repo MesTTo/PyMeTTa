@@ -3,10 +3,14 @@ subprocess: run prints answer groups, the repl reads multi-line forms
 and exits cleanly, including after reporting a malformed or incomplete form;
 run refuses the same incomplete file with a nonzero exit, lint gates on
 findings, doc answers or refuses, and serve and boot expose spaces until
-interrupted [tested: test_repl_reports_an_incomplete_final_form_at_eof,
+interrupted. Convert imports a real Python file and emits source that reloads
+as the same program [tested:
+test_convert_imports_a_python_program_and_round_trips_its_source,
+test_convert_restores_the_in_process_declaration_receiver,
+test_repl_reports_an_incomplete_final_form_at_eof,
 test_run_refuses_an_incomplete_file,
 test_repl_reports_an_error_and_keeps_going;
-commit=c6d72f55aa94e2d33adb376e294a3c5ead429e5b].
+commit=42502e9d4a7fedd419856d5e6a1c291fc18ba644].
 Open Obligations:
   To Do: None
   Hacks: None
@@ -24,9 +28,13 @@ from pathlib import Path
 
 import pytest
 
+import metta as metta_package
+from metta import MeTTa, S
 from metta.__main__ import _scan_line
+from metta.__main__ import main as module_main
 
 _PACKAGE_ROOT = str(Path(__file__).resolve().parents[2])
+_CONVERT_FIXTURE = Path(__file__).resolve().parents[1] / "fixtures" / "convert_program.py"
 
 
 def _environment():
@@ -54,6 +62,100 @@ def test_run_prints_answer_groups(tmp_path):  # noqa: D103  -- pytest discovers 
     finished = _metta("run", str(tmp_path / "prog.metta"))
     assert finished.returncode == 0, finished.stderr
     assert finished.stdout.strip() == "42"
+
+
+def test_convert_imports_a_python_program_and_round_trips_its_source(tmp_path):
+    """Convert a real module to the exact source that reloads its program."""
+    printed = _metta("convert", str(_CONVERT_FIXTURE))
+    assert printed.returncode == 0, printed.stderr
+    assert "convert fixture imported" in printed.stderr
+    assert "convert fixture imported" not in printed.stdout
+    assert len(printed.stdout.splitlines()) == 9
+    assert "(: converted-double (-> Number Number))" in printed.stdout
+    assert "(= (converted-double " in printed.stdout
+    assert "(= (converted-identity " in printed.stdout
+    assert "(: ConvertedPair (-> Number Number ConvertedPair))" in printed.stdout
+    assert "(@doc converted-double " in printed.stdout
+    assert "(@doc ConvertedPair " in printed.stdout
+    assert "(converted-fact ready)" in printed.stdout
+    assert "(op " not in printed.stdout
+
+    output = tmp_path / "converted.metta"
+    written = _metta("convert", str(_CONVERT_FIXTURE), "-o", str(output))
+    assert written.returncode == 0, written.stderr
+    assert written.stdout == ""
+    assert "convert fixture imported" in written.stderr
+    assert output.read_text() == printed.stdout
+
+    with MeTTa() as restored:
+        assert restored.self.load(output) == []
+        assert restored.self.run("!(converted-double 21)") == [[42]]
+        assert restored.self.run("!(converted-identity ready)") == [[S.ready]]
+        assert restored.self.run("!(ConvertedPair-right (ConvertedPair 3 4))") == [[4]]
+
+
+def test_convert_validates_paths_before_importing_or_overwriting(tmp_path):
+    """Reject invalid and self-overwriting conversion paths before import."""
+    missing = _metta("convert", str(tmp_path / "missing.py"))
+    assert missing.returncode == 2
+    assert "convert input does not exist" in missing.stderr
+
+    wrong_suffix = tmp_path / "program.txt"
+    wrong_suffix.write_text("print('not imported')\n")
+    wrong = _metta("convert", str(wrong_suffix))
+    assert wrong.returncode == 2
+    assert "convert input must be a .py file" in wrong.stderr
+
+    same = tmp_path / "same.py"
+    same.write_text("raise AssertionError('must not be imported')\n")
+    original = same.read_text()
+    refused = _metta("convert", str(same), "-o", str(same))
+    assert refused.returncode == 2
+    assert "convert output must differ" in refused.stderr
+    assert same.read_text() == original
+
+
+def test_convert_publishes_nothing_when_the_python_import_fails(tmp_path):
+    """Keep both output channels transactional when module import fails."""
+    broken = tmp_path / "broken.py"
+    broken.write_text(
+        "import metta\n"
+        "@metta.define\n"
+        "def partial(value: int) -> int:\n"
+        "    return value + 1\n"
+        "raise RuntimeError('conversion exploded')\n"
+    )
+    output = tmp_path / "existing.metta"
+    output.write_text("old source stays\n")
+
+    finished = _metta("convert", str(broken), "-o", str(output))
+
+    assert finished.returncode != 0
+    assert finished.stdout == ""
+    assert "conversion exploded" in finished.stderr
+    assert output.read_text() == "old source stays\n"
+
+
+def test_convert_restores_the_in_process_declaration_receiver(capsys):
+    """Restore package functions and context methods after direct dispatch."""
+    package_engine = metta_package.engine
+    package_space = metta_package.space
+    context_init = MeTTa.__init__
+    context_space = MeTTa.space
+    context_close = MeTTa.close
+
+    assert module_main(["convert", str(_CONVERT_FIXTURE)]) == 0
+    captured = capsys.readouterr()
+    assert "(: converted-double (-> Number Number))" in captured.out
+    assert "convert fixture imported" in captured.err
+    assert metta_package.engine is package_engine
+    assert metta_package.space is package_space
+    assert MeTTa.__init__ is context_init
+    assert MeTTa.space is context_space
+    assert MeTTa.close is context_close
+
+    with MeTTa() as first, MeTTa() as second:
+        assert first.self != second.self
 
 
 def test_repl_reads_multi_line_forms_and_exits():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
