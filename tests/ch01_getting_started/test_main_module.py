@@ -10,7 +10,7 @@ test_convert_restores_the_in_process_declaration_receiver,
 test_repl_reports_an_incomplete_final_form_at_eof,
 test_run_refuses_an_incomplete_file,
 test_repl_reports_an_error_and_keeps_going;
-commit=WORKTREE].
+commit=42502e9d4a7fedd419856d5e6a1c291fc18ba644].
 Open Obligations:
   To Do: None
   Hacks: None

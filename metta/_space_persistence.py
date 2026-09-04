@@ -13,7 +13,7 @@ Guarantees:
   - text snapshots canonicalize stored variable identities by first
     occurrence, so independent reads of one unchanged program are byte
     identical [tested: test_source_is_the_exact_round_trippable_text_save_view;
-    commit=WORKTREE]
+    commit=42502e9d4a7fedd419856d5e6a1c291fc18ba644]
   - the save format type admits exactly metta and fast [tested:
     test_canonical_context_types_replace_public_newtypes; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - save validation consumes the generated SaveFormat vocabulary class rather

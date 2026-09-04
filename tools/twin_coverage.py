@@ -59,12 +59,12 @@ Guarantees:
     `@space.pre_add`, the declaration methods, package `match`
     and `superpose`, `view()`, `limits(stack=)` and the
     standard-module mentions inside a compiled body
-    [tested: test_the_landed_doors_read_clean; commit=WORKTREE]
+    [tested: test_the_landed_doors_read_clean; commit=42502e9d4a7fedd419856d5e6a1c291fc18ba644]
   - a bare vocabulary word at a declaration door is a finding that
     names the exact StrEnum member, while pattern and name strings at those
     doors remain governed by the source-text rule
     [tested: test_a_bare_declaration_word_names_the_exact_member,
-    test_a_declaration_takes_members_and_refuses_a_program; commit=WORKTREE]
+    test_a_declaration_takes_members_and_refuses_a_program; commit=42502e9d4a7fedd419856d5e6a1c291fc18ba644]
   - a twin stating fewer claims than its example is a finding, so a skip
     cannot be silent [tested: test_a_twin_that_claims_less_is_a_finding]
   - a false claim fails the twin, because a raised AssertionError leaves the

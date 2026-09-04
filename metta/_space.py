@@ -103,7 +103,7 @@ Guarantees:
     ``(source ...)``; the former ``reaction`` spelling remains as a
     compatibility alias and no ``declare_*`` alias returns
     [tested: test_declarations_use_settled_receiver_spellings and
-    test_m7_narrow_core_surface; commit=WORKTREE]
+    test_m7_narrow_core_surface; commit=42502e9d4a7fedd419856d5e6a1c291fc18ba644]
   - Expression recognizes Space as the one iterable Handle whose listing is
     collected as an assembly-order snapshot [tested:
     test_expression_of_a_space_is_an_assembly_order_snapshot; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
@@ -185,7 +185,7 @@ Guarantees:
   - ``Space.source()`` returns the receiver's directly stored atoms as the
     exact loadable text written by ``Space.save(format="metta")``, and its
     notebook representation shows that source [tested:
-    test_source_is_the_exact_round_trippable_text_save_view; commit=WORKTREE]
+    test_source_is_the_exact_round_trippable_text_save_view; commit=42502e9d4a7fedd419856d5e6a1c291fc18ba644]
 Owns resources:
   - ``Space.save`` owns its sibling temporary file and removes it after every
     failed operation [tested: test_save_failure_preserves_existing_file;

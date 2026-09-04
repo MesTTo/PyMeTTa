@@ -5,7 +5,7 @@ Guarantees:
     test_main_forwards_arguments_and_exit_status; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - bare-launcher help names convert as part of the separate module-command
     surface [tested: test_the_launcher_answers_version_and_help_without_booting;
-    commit=WORKTREE]
+    commit=42502e9d4a7fedd419856d5e6a1c291fc18ba644]
 Open Obligations:
   To Do: None
   Hacks: None

@@ -6,7 +6,7 @@ Guarantees:
     test_main_asks_for_native_backends_and_names_none; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - launcher help points to the complete ``python -m metta`` subcommand
     surface, including Python-to-MeTTa conversion [tested:
-    test_the_launcher_answers_version_and_help_without_booting; commit=WORKTREE]
+    test_the_launcher_answers_version_and_help_without_booting; commit=42502e9d4a7fedd419856d5e6a1c291fc18ba644]
 Open Obligations:
   To Do: None
   Hacks: None

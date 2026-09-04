@@ -85,7 +85,7 @@ Guarantees:
     origin represented by a MeTTa comment, and rich notebooks escape that
     source [tested:
     test_a_definition_may_be_written_in_prolog_with_the_python_as_reference,
-    test_defined_rich_repr_shows_escaped_source; commit=WORKTREE]
+    test_defined_rich_repr_shows_escaped_source; commit=42502e9d4a7fedd419856d5e6a1c291fc18ba644]
 Open Obligations:
   To Do: None
   Hacks: None

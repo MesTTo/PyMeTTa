@@ -36,7 +36,7 @@ Guarantees:
     Prolog-backed definition's source remains valid MeTTa text [tested:
     test_defined_rich_repr_shows_escaped_source,
     test_a_definition_may_be_written_in_prolog_with_the_python_as_reference;
-    commit=WORKTREE]
+    commit=42502e9d4a7fedd419856d5e6a1c291fc18ba644]
 Owns:
   - test_define_from_two_threads_is_serialized joins both definition workers
     before examining their equations [tested test_define_from_two_threads_is_serialized]

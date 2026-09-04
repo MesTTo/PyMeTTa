@@ -33,7 +33,7 @@ Guarantees:
     commit=c7468b2789746bcf95c4bacc0e2d517ec4d972fa]
   - async source() and consumption() reach their distinct synchronous doors
     on the engine worker [tested:
-    test_aio_declare_and_register_delegations_land; commit=WORKTREE]
+    test_aio_declare_and_register_delegations_land; commit=42502e9d4a7fedd419856d5e6a1c291fc18ba644]
   - async bound ``fn.neg`` evaluates the shared composite operator recipe on
     the engine worker [tested: test_aio_structural_surface_behaves;
     commit=8ec44dec3cafba5981e7cf712749cca0e1bdcc45]

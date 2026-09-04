@@ -26,7 +26,7 @@ Guarantees:
     spellings, including ``reacts`` for ``(on ...)`` and
     ``consumption`` for ``(source ...)``, while ``reaction`` remains;
     every ``declare_*`` spelling stays absent [tested:
-    test_declarations_use_settled_receiver_spellings; commit=WORKTREE]
+    test_declarations_use_settled_receiver_spellings; commit=42502e9d4a7fedd419856d5e6a1c291fc18ba644]
 """
 
 import copy

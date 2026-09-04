@@ -13,7 +13,7 @@ Guarantees:
   - source() is byte-for-text identical to the default text save, excludes
     inherited engine state, and reloads to the same program [tested:
     test_source_is_the_exact_round_trippable_text_save_view,
-    test_source_and_save_agree_for_generated_variable_aliases; commit=WORKTREE]
+    test_source_and_save_agree_for_generated_variable_aliases; commit=42502e9d4a7fedd419856d5e6a1c291fc18ba644]
 Open Obligations:
   To Do: None
   Hacks: None

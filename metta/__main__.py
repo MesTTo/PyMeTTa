@@ -24,7 +24,7 @@ Guarantees:
     stdout off the source channel, then restores the ordinary package and
     context factories [tested:
     test_convert_imports_a_python_program_and_round_trips_its_source,
-    test_convert_restores_the_in_process_declaration_receiver; commit=WORKTREE]
+    test_convert_restores_the_in_process_declaration_receiver; commit=42502e9d4a7fedd419856d5e6a1c291fc18ba644]
 Open Obligations:
   To Do: None
   Hacks: None

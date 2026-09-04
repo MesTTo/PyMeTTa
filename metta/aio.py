@@ -54,16 +54,16 @@ Guarantees:
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - async declaration methods reuse the catalog-generated policy aliases and
     own no duplicate Literal lists [tested: tests/checks/check_policy_inventory.py;
-    commit=WORKTREE]
+    commit=42502e9d4a7fedd419856d5e6a1c291fc18ba644]
   - all fifteen synchronous declaration heads have asynchronous mirrors,
     including ``reacts`` for ``(on ...)`` and ``consumption`` for
     ``(source ...)``, while ``reaction`` remains and no ``declare_*``
     aliases return [tested:
     test_aio_covers_the_whole_synchronous_surface,
-    test_m7_narrow_core_surface; commit=WORKTREE]
+    test_m7_narrow_core_surface; commit=42502e9d4a7fedd419856d5e6a1c291fc18ba644]
   - source() mirrors the synchronous round-trippable text view on the owning
     worker [tested: test_aio_declare_and_register_delegations_land;
-    commit=WORKTREE]
+    commit=42502e9d4a7fedd419856d5e6a1c291fc18ba644]
   - async cast preserves a concrete target class as its static return type and
     keeps the target positional-only [tested
     test_target_type_overloads_preserve_the_requested_class,

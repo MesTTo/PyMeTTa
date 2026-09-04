@@ -49,7 +49,7 @@ Guarantees:
     test_a_declaration_takes_members_and_refuses_a_program,
     test_a_bare_declaration_word_names_the_exact_member,
     test_non_declaration_vocabulary_text_keeps_the_existing_rules,
-    test_the_declaration_vocabulary_is_the_librarys_own; commit=WORKTREE]
+    test_the_declaration_vocabulary_is_the_librarys_own; commit=42502e9d4a7fedd419856d5e6a1c291fc18ba644]
   - an explicit engine operator head is a finding only when exact numeric
     proof makes Python syntax build the identical term; untyped and
     match-bound operands retain the distinct protocol-vs-relational choice

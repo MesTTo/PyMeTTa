@@ -5,7 +5,7 @@ Guarantees:
     record, and one fact through both the root and conventional bound-space
     surfaces [tested:
     test_convert_imports_a_python_program_and_round_trips_its_source;
-    commit=WORKTREE]
+    commit=42502e9d4a7fedd419856d5e6a1c291fc18ba644]
 """
 
 import metta
