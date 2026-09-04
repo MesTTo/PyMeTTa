@@ -6,6 +6,10 @@ Guarantees:
   - a ground algebra goal cannot bind a variable inside a stored candidate
     [tested: test_algebra_patterns_do_not_bind_variables_inside_stored_candidates;
     commit=6917bef7ca902671999eafcae3a7a86db8f69723]
+  - a MeTTa-defined operation is checked once in the space that declares its
+    algebra, and an actual counterexample keeps the AlgebraLawError API
+    [tested: test_a_law_is_checked_once_in_the_declaring_space,
+    test_a_false_declared_law_is_refused_by_name; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -169,7 +173,10 @@ def test_a_false_declared_law_is_refused_by_name(metta):
     )
     with pytest.raises(
         AlgebraLawError,
-        match=r"algebra_law_violation\(p4-bad-associative, combine-associative",
+        match=(
+            r"algebra_law_violation: p4-bad-associative law "
+            r"combine-associative fails at"
+        ),
     ):
         metta.algebra(
             "p4-bad-associative",
@@ -180,6 +187,22 @@ def test_a_false_declared_law_is_refused_by_name(metta):
             laws=("associative",),
             carrier=(0, 1, 2),
         )
+
+
+def test_a_law_is_checked_once_in_the_declaring_space(metta):
+    """A local equation certifies its local algebra instead of being retried in &self."""
+    with metta._new_space() as scratch:
+        scratch.run("(= (p4-local-max $a $b) (if (> $a $b) $a $b))")
+        row = scratch.algebra(
+            "p4-local-certified",
+            combine="p4-local-max",
+            extend="*",
+            zero=0.0,
+            one=1.0,
+            laws=("combine-associative",),
+            carrier=(0.0, 1.0),
+        )
+    assert row.head == S.algebra
 
 
 @given(

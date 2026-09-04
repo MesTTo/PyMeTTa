@@ -54,6 +54,9 @@ Guarantees:
     objects name the same ten shipped algebras [tested:
     test_every_shipped_semiring_has_one_root_object_in_catalog_order;
     commit=WORKTREE]
+  - arbitrary law-bearing declarations use the engine's one checker in the
+    declaring space's equation module [tested:
+    test_a_law_is_checked_once_in_the_declaring_space; commit=WORKTREE]
 Decides:
   - ``contraction`` is a capability, while the remaining public law names are
     equations checked exhaustively over the declared finite carrier.
@@ -66,12 +69,11 @@ Open Obligations:
 from __future__ import annotations
 
 import builtins
-import itertools
 import math
 import random
 import sys
 import time
-from collections.abc import Callable, Generator, Iterable, Mapping, Sequence
+from collections.abc import Generator, Iterable, Mapping, Sequence
 from dataclasses import dataclass, field, replace
 from fractions import Fraction
 from numbers import Real
@@ -94,7 +96,7 @@ from .atoms import (
     parse,
     substitute,
 )
-from .errors import InferenceLimitError, MettaError, TimeLimitError
+from .errors import EngineError, InferenceLimitError, MettaError, TimeLimitError
 from .vocabularies import EffectClass, Semiring, SemiringOrder
 
 __all__ = [
@@ -746,149 +748,6 @@ def _same(left: Atom, right: Atom) -> builtins.bool:
         return left is right
 
 
-def _member(value: Atom, carrier: Sequence[Atom]) -> builtins.bool:
-    return any(_same(value, candidate) for candidate in carrier)
-
-
-def _counterexample(
-    declaration: DeclaredAlgebra,
-    law: str,
-    inputs: tuple[Atom, ...],
-    left: Atom,
-    right: Atom,
-) -> AlgebraLawError:
-    return AlgebraLawError(
-        f"algebra_law_violation({declaration.name}, {law}, "
-        f"inputs={[str(value) for value in inputs]!r}, left={left}, right={right})"
-    )
-
-
-def _check_binary_closure(metta: Space, declaration: DeclaredAlgebra) -> None:
-    for operation in (declaration.combine, declaration.extend):
-        for left, right in itertools.product(declaration.carrier, repeat=2):
-            result = declaration.operation(metta, operation, left, right)
-            if not _member(result, declaration.carrier):
-                msg = (
-                    f"algebra_carrier_not_closed({declaration.name}, {operation}, "
-                    f"inputs=({left}, {right}), result={result})"
-                )
-                raise AlgebraLawError(msg)
-
-
-def _check_associative(
-    metta: Space,
-    declaration: DeclaredAlgebra,
-    law: str,
-    operation: Callable[[Space, Atom, Atom], Atom],
-) -> None:
-    for a, b, c in itertools.product(declaration.carrier, repeat=3):
-        left = operation(metta, operation(metta, a, b), c)
-        right = operation(metta, a, operation(metta, b, c))
-        if not _same(left, right):
-            raise _counterexample(declaration, law, (a, b, c), left, right)
-
-
-def _check_commutative(
-    metta: Space,
-    declaration: DeclaredAlgebra,
-    law: str,
-    operation: Callable[[Space, Atom, Atom], Atom],
-) -> None:
-    for a, b in itertools.product(declaration.carrier, repeat=2):
-        left = operation(metta, a, b)
-        right = operation(metta, b, a)
-        if not _same(left, right):
-            raise _counterexample(declaration, law, (a, b), left, right)
-
-
-def _check_idempotent(metta: Space, declaration: DeclaredAlgebra, law: str) -> None:
-    for value in declaration.carrier:
-        result = declaration.combine_values(metta, value, value)
-        if not _same(result, value):
-            raise _counterexample(declaration, law, (value,), result, value)
-
-
-def _check_distributive(
-    metta: Space, declaration: DeclaredAlgebra, law: str
-) -> None:
-    combine = declaration.combine_values
-    extend = declaration.extend_values
-    for a, b, c in itertools.product(declaration.carrier, repeat=3):
-        if law == "left-distributive":
-            left = extend(metta, a, combine(metta, b, c))
-            right = combine(metta, extend(metta, a, b), extend(metta, a, c))
-        else:
-            left = extend(metta, combine(metta, a, b), c)
-            right = combine(metta, extend(metta, a, c), extend(metta, b, c))
-        if not _same(left, right):
-            raise _counterexample(declaration, law, (a, b, c), left, right)
-
-
-def _check_identity(
-    metta: Space,
-    declaration: DeclaredAlgebra,
-    law: str,
-    operation: Callable[[Space, Atom, Atom], Atom],
-    identity: Atom,
-) -> None:
-    for value in declaration.carrier:
-        for left, right in (
-            (operation(metta, identity, value), value),
-            (operation(metta, value, identity), value),
-        ):
-            if not _same(left, right):
-                raise _counterexample(declaration, law, (value,), left, right)
-
-
-def _check_zero_annihilates(
-    metta: Space, declaration: DeclaredAlgebra, law: str
-) -> None:
-    extend = declaration.extend_values
-    for value in declaration.carrier:
-        for left, right in (
-            (extend(metta, declaration.zero, value), declaration.zero),
-            (extend(metta, value, declaration.zero), declaration.zero),
-        ):
-            if not _same(left, right):
-                raise _counterexample(declaration, law, (value,), left, right)
-
-
-def _check_law(metta: Space, declaration: DeclaredAlgebra, law: str) -> None:
-    combine = declaration.combine_values
-    extend = declaration.extend_values
-    operation = combine if law.startswith("combine-") else extend
-    if law.endswith("-associative"):
-        _check_associative(metta, declaration, law, operation)
-    elif law.endswith("-commutative"):
-        _check_commutative(metta, declaration, law, operation)
-    elif law == "combine-idempotent":
-        _check_idempotent(metta, declaration, law)
-    # policy-inventory-exempt: mechanism-internal; reason=these are the two law names that share one checker, so the dispatcher groups them where its other arms match a single name; evidence=extensions/python/metta/algebra.py:_check_distributive
-    elif law in {"left-distributive", "right-distributive"}:
-        _check_distributive(metta, declaration, law)
-    elif law == "combine-zero-identity":
-        _check_identity(metta, declaration, law, combine, declaration.zero)
-    elif law == "extend-one-identity":
-        _check_identity(metta, declaration, law, extend, declaration.one)
-    elif law == "extend-zero-annihilates":
-        _check_zero_annihilates(metta, declaration, law)
-
-
-def _validate_laws(metta: Space, declaration: DeclaredAlgebra) -> None:
-    equational = declaration.laws & _EQUATIONAL_LAWS
-    if equational and not declaration.carrier:
-        msg = (
-            f"algebra_law_uncheckable({declaration.name}, "
-            f"laws={sorted(equational)!r}, reason=finite_carrier_required)"
-        )
-        raise AlgebraLawError(msg)
-    if not equational:
-        return
-    _check_binary_closure(metta, declaration)
-    for law in sorted(equational):
-        _check_law(metta, declaration, law)
-
-
 def _list(head: str, values: Iterable[Any]) -> Expression:
     return Expression((Symbol(head), *(_encode(value) for value in values)))
 
@@ -937,7 +796,6 @@ def declare(
         requires=frozenset(requires),
         order=order,
     )
-    _validate_laws(metta, declaration)
     atom = Expression(
         (
             Symbol("algebra"),
@@ -951,7 +809,20 @@ def declare(
             _symbol_list("requires", sorted(declaration.requires)),
         )
     )
-    Space("&metta", _runtime=metta.runtime).add(atom)
+    try:
+        metta.runtime.do_must(
+            "metta_py_declare_algebra", metta.name, atom.to_wire()
+        )
+    except EngineError as error:
+        if str(error).startswith(
+            (
+                "algebra_carrier_not_closed",
+                "algebra_law_uncheckable",
+                "algebra_law_violation",
+            )
+        ):
+            raise AlgebraLawError(str(error)) from error
+        raise
     _REGISTRY[_key(metta, name)] = declaration
     return atom
 
