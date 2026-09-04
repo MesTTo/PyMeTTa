@@ -630,4 +630,21 @@ def twin(m):
 #: tests/repository/test_twin_coverage.py -k 'identity.metta';
 #: fixture=warm main-checkout engine artifacts, and a worktree.sh-provisioned
 #: worktree of the same commit; commit=WORKTREE]
-BUDGET = 3575
+#: RE-PINNED 2026-09-05, 3575 to 3565 (-10), by declaring
+#: metta_host_time_budget/3 as a host_service in engine/ext_points.pl. An
+#: IMPROVEMENT, which this lane refuses to leave unpinned for the same reason
+#: it refuses a regression: an unpinned number stops being a meter.
+#: Attributed by A/B in the main checkout, the configuration the gate judges
+#: in, with the QLF cleared on both sides so neither read a stale image: with
+#: the kind/2 clause the twin reads 3565, and with only that clause removed it
+#: passes its 3575 pin. One added fact to a predicate the boot consults is
+#: enough to move a first-argument index, which is the shape of a ten-inference
+#: move rather than a change in what the example computes; the MeTTa example
+#: itself is untouched and both twins still answer identically. Deterministic:
+#: three identical samples at loadavg 29.4, 0.0000% spread, which is why an
+#: inference pin does not need the measurement lock that a wall-clock one does
+#: [measured: 3565 inferences, three identical samples; command=PYTHONPATH=
+#: extensions/python $CHECK_PY -m pytest -q
+#: tests/repository/test_twin_coverage.py -k 'identity.metta'; fixture=warm
+#: main-checkout engine artifacts; commit=WORKTREE]
+BUDGET = 3565

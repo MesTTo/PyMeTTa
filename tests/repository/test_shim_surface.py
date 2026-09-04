@@ -96,6 +96,15 @@ HOST_SERVICES = {
     # still has to grow one, so the wrapper is built engine-side and handed
     # back rather than described.
     "metta_host_inference_budget/3",
+    # The same bargain on the wall-clock axis, and it cannot be collapsed into
+    # the row above: metta_host_inference_budget/3 is also used ALONE, once in
+    # this shim and by the Node and CMeTTa bridges, so a single combined door
+    # would not retire it and the floor would not shrink either way. The
+    # sharper reason this one must be engine-side is that
+    # call_with_time_limit/2 cannot interrupt a goal running inside an engine,
+    # so a host wrapping its own pull loop waits for the current pull to
+    # return before the alarm is ever seen.
+    "metta_host_time_budget/3",
     # Cache validation reads the function registry's engine-owned generation.
     "metta_host_function_generation/1",
     # The one row here that makes the floor SHRINK by being added. The engine
@@ -283,6 +292,7 @@ FLOOR_REASONS = {
     "metta_host_stack_charge/3": "host-orchestration",
     "metta_host_save_fast/3": "host-orchestration",
     "metta_host_stored/2": "host-orchestration",
+    "metta_host_time_budget/3": "host-orchestration",
     "metta_host_substitute/3": "host-orchestration",
     "metta_host_unregister_reader_token/1": "door",
     "metta_reducible_head/2": "door",
