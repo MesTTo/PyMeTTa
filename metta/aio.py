@@ -87,6 +87,9 @@ Guarantees:
     residuals flag [tested:
     test_a_not_reducible_answer_is_the_unreduced_term_with_no_flag;
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
+  - direct, saga, and reified-world evaluations expose Undefined in their
+    return types wherever Well Founded Semantics can return it [tested:
+    test_async_result_hints_preserve_undefined_answers; commit=71f43dd54034363d3bf8b2d1a3189a63b9e4ce1a]
   - async function handles consume the synchronous Answers surface on their
     owning worker, including the composite ``neg`` operator word [tested:
     test_aio_structural_surface_behaves; commit=8ec44dec3cafba5981e7cf712749cca0e1bdcc45]
@@ -896,6 +899,32 @@ class AsyncMeTTa:
         """Return the number of atoms in this space."""
         return await self.call(len)
 
+    @overload
+    async def eval(
+        self,
+        target: Any,
+        *,
+        timeout: float | None = ...,
+        inferences: int | None = ...,
+        under: Any = ...,
+        theory: Any | None = ...,
+        interpreter: Any | None = ...,
+    ) -> list[Atom | Undefined]: ...
+
+    @overload
+    async def eval(
+        self,
+        target: Any,
+        second: Any,
+        /,
+        *more: Any,
+        timeout: float | None = ...,
+        inferences: int | None = ...,
+        under: Any = ...,
+        theory: Any | None = ...,
+        interpreter: Any | None = ...,
+    ) -> list[list[Atom | Undefined]]: ...
+
     async def eval(
         self,
         target: Any,
@@ -905,7 +934,7 @@ class AsyncMeTTa:
         under: Any = _UNSET,
         theory: Any | None = None,
         interpreter: Any | None = None,
-    ) -> list[Atom] | list[list[Atom]]:
+    ) -> list[Atom | Undefined] | list[list[Atom | Undefined]]:
         """Evaluate a term and return every answer.
 
         `under`, `theory` and `interpreter` are the synchronous eval()'s, and
@@ -2792,7 +2821,7 @@ class AsyncSaga:
         )
         self._saga = None
 
-    async def run(self, target: Any) -> list[Atom]:
+    async def run(self, target: Any) -> list[Atom | Undefined]:
         """Commit one forward step and its receipt on the owning worker."""
         saga = self._require_saga("run")
         return await self._am.call(lambda _space: saga.run(target))
@@ -2848,7 +2877,7 @@ class AsyncWorld:
         *,
         timeout: float | None = None,
         inferences: int | None = None,
-    ) -> tuple[list[Atom], AsyncWorld]:
+    ) -> tuple[list[Atom | Undefined], AsyncWorld]:
         """Evaluate on the worker and return answers plus a successor value."""
         world = self._world
         answers, successor = await self._am.call(

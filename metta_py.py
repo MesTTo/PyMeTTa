@@ -46,6 +46,12 @@ Guarantees:
     namespace for math functions, retaining reflected dispatch and library
     result types [tested: test_numpy_numeric_family_keeps_python_result_types
     and test_user_numeric_subclass_uses_its_own_operator; commit=a0f1cc5f15a15e5ca6958fe02a20be8832c7237f]
+  - iterator objects crossing through resolve(), evaluate(), dot(), apply(), or
+    a grounded transport envelope acquire one lazy shared cache; iterate()
+    returns an independent cursor at index zero, while iterate_once() exposes
+    Python's consumptive protocol for compiled for statements [tested:
+    test_nested_py_iter_reads_form_the_cartesian_product,
+    test_compiled_for_keeps_one_shot_python_iteration; commit=0dc78c93461d6c7f5a83975abedf0f1a631095c3]
 Fails when:
   - a name does not resolve. It raises rather than answering None, because a
     typo in a module path is not a value.
@@ -56,12 +62,20 @@ Owns resources:
     [tested: test_resolution_plans_do_not_own_temporary_modules,
     test_resolution_plan_cache_is_bounded;
     commit=d0bb2ff730a491eac9a0c679a4e2abe0f93ab196]
+  - one cache of every value pulled from a live one-shot iterator; the carrier
+    or grounded transport envelope owns it, and its death releases the source
+    and cache [tested: test_a_grounded_iterator_cache_dies_with_its_box;
+    commit=0dc78c93461d6c7f5a83975abedf0f1a631095c3]
 Guarded by:
   - _DECLARATION_LOCK protects declaration records and carrier identity.
   - functools.lru_cache protects the bounded _resolve_plan cache during
     concurrent updates [source: Python 3.14.7 functools.lru_cache
     documentation; https://docs.python.org/3.14/library/functools.html#functools.lru_cache;
     commit=d0bb2ff730a491eac9a0c679a4e2abe0f93ab196]
+  - _REPLAY_LOCK protects transport-envelope carrier identity, and each
+    _ReplayableIterator lock serializes source pulls and cache publication
+    [tested: test_two_threads_replay_one_iterator_without_duplicate_pulls;
+    commit=0dc78c93461d6c7f5a83975abedf0f1a631095c3]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -78,7 +92,7 @@ import operator
 import sys
 import threading
 import weakref
-from collections.abc import Sequence
+from collections.abc import Iterator, Sequence
 from functools import lru_cache
 from types import ModuleType
 from typing import Any, Final, NamedTuple, Self
@@ -107,8 +121,52 @@ class _GroundedTuple(tuple):
         return self.original
 
 
+class _ReplayableIterator:
+    """One lazy source cache with a fresh index for every enumeration."""
+
+    __slots__ = ("_cache", "_done", "_lock", "_source")
+
+    def __init__(self, source: Iterator[Any]) -> None:
+        self._source = source
+        self._cache: list[Any] = []
+        self._done = False
+        self._lock = threading.RLock()
+
+    @property
+    def __metta_wire_value__(self) -> Iterator[Any]:
+        """The original consumptive value represented by this carrier."""
+        return self._source
+
+    def replay(self) -> Iterator[Any]:
+        """Read from index zero, extending the shared cache only on demand."""
+        index = 0
+        while True:
+            with self._lock:
+                if index < len(self._cache):
+                    value = self._cache[index]
+                elif self._done:
+                    return
+                else:
+                    try:
+                        value = _transported(next(self._source))
+                    except StopIteration:
+                        self._done = True
+                        return
+                    self._cache.append(value)
+            index += 1
+            yield value
+
+
+def _transported(value: Any) -> Any:
+    if isinstance(value, _ReplayableIterator):
+        return value
+    if isinstance(value, Iterator):
+        return _ReplayableIterator(value)
+    return value
+
+
 def _grounded(value: Any) -> Any:
-    return _GroundedTuple(value) if type(value) is tuple else value
+    return _GroundedTuple(value) if type(value) is tuple else _transported(value)
 
 
 class _DeclaredValue:
@@ -146,6 +204,31 @@ class _DeclaredValue:
 _DECLARATION_LOCK = threading.RLock()
 _DECLARATIONS: dict[int, tuple[weakref.ReferenceType[Any], list[str]]] = {}
 _DECLARED_CARRIERS: dict[int, weakref.ReferenceType[_DeclaredValue]] = {}
+_REPLAY_LOCK = threading.RLock()
+_REPLAY_CARRIERS: dict[
+    int,
+    tuple[weakref.ReferenceType[Any], _ReplayableIterator],
+] = {}
+
+
+def _transport_replay(envelope: Any, source: Iterator[Any]) -> _ReplayableIterator:
+    """The replay cache owned by one weak-referenceable transport envelope."""
+    key = id(envelope)
+    with _REPLAY_LOCK:
+        current = _REPLAY_CARRIERS.get(key)
+        if current is not None and current[0]() is envelope:
+            return current[1]
+
+        def _evict(reference: weakref.ReferenceType[Any], key: int = key) -> None:
+            with _REPLAY_LOCK:
+                found = _REPLAY_CARRIERS.get(key)
+                if found is not None and found[0] is reference:
+                    del _REPLAY_CARRIERS[key]
+
+        reference = weakref.ref(envelope, _evict)
+        carrier = _ReplayableIterator(source)
+        _REPLAY_CARRIERS[key] = (reference, carrier)
+        return carrier
 
 
 def _declared_carrier(value: Any) -> _DeclaredValue:
@@ -179,7 +262,8 @@ def declare_type(value: Any, type_text: str) -> Any:
     if isinstance(value, _DeclaredValue):
         value.declare(type_text)
         return value
-    unwrapped = _unwrap(value)
+    # Keep replay ownership between a declaration envelope and the original.
+    unwrapped = value if isinstance(value, _ReplayableIterator) else _unwrap(value)
     try:
         key = id(unwrapped)
 
@@ -478,9 +562,9 @@ def resolve(path: str) -> Any:
         root = _current_plan_root(plan)
         if root is None:
             root, _, attrs = _find_resolve_root(path)
-            return _walk(root, attrs, path)
+            return _transported(_walk(root, attrs, path))
     try:
-        return _walk(root, plan.attrs, path)
+        return _transported(_walk(root, plan.attrs, path))
     except AttributeError:
         # A failed final read is not a durable plan: a later import or
         # attribute assignment must be able to make the same name valid.
@@ -513,7 +597,7 @@ def evaluate(source: str) -> Any:
     string that happens to parse as a name should still be evaluated: `"len"`
     is the builtin and `"len(x)"` is a call.
     """
-    return eval(source, {"__builtins__": builtins})  # noqa: S307
+    return _transported(eval(source, {"__builtins__": builtins}))  # noqa: S307
 
 
 def evaluate_grounded(source: str) -> Any:
@@ -527,14 +611,16 @@ def dot(obj: Any, attr: str) -> Any:
     `py-call`'s `.name` spelling always applies, so reading a property or
     getting a bound method as a value needed `getattr` by hand.
     """
-    return getattr(_unwrap(obj), attr)
+    return _transported(getattr(_unwrap(obj), attr))
 
 
 def apply(fn: Any, args: list, kwargs: dict | None = None) -> Any:
     """Call a resolved Python object. Kwargs arrive as a dict or not at all."""
-    return _unwrap(fn)(
-        *(_unwrap(arg) for arg in args),
-        **{name: _unwrap(value) for name, value in (kwargs or {}).items()},
+    return _transported(
+        _unwrap(fn)(
+            *(_unwrap(arg) for arg in args),
+            **{name: _unwrap(value) for name, value in (kwargs or {}).items()},
+        )
     )
 
 
@@ -582,8 +668,27 @@ def iterate(obj: Any) -> Any:
     """The iterator, so the Prolog side can pull one element at a time.
 
     Draining is what the engine must not do: a generator asked for its first
-    element should run one step, and an infinite one should still work.
+    element runs one step, an infinite one still works, and a later read starts
+    at index zero without pulling an already cached value from the source.
+
+    The shared-cache/fresh-index model follows itertools.tee, while the lock
+    also permits concurrent readers, which tee explicitly does not guarantee.
+    [source: Python 3.14 itertools.tee documentation;
+    https://docs.python.org/3.14/library/itertools.html#itertools.tee;
+    commit=0dc78c93461d6c7f5a83975abedf0f1a631095c3]
     """
+    if isinstance(obj, _ReplayableIterator):
+        return obj.replay()
+    if isinstance(obj, _DeclaredValue) and isinstance(obj.value, _ReplayableIterator):
+        return obj.value.replay()
+    wrapped, source = _wire_value(obj)
+    if wrapped and isinstance(source, Iterator):
+        return _transport_replay(obj, source).replay()
+    return iter(_unwrap(obj))
+
+
+def iterate_once(obj: Any) -> Iterator[Any]:
+    """Python's original consumptive iterator protocol for compiled loops."""
     return iter(_unwrap(obj))
 
 

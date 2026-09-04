@@ -29,6 +29,12 @@
 %     without a process-global Prolog fact owning the Python object [tested:
 %     test_a_py_atom_declaration_dies_with_its_grounded_value;
 %     commit=bbf02dd309d15e178a9c83d03b749eb7170b6a20].
+%   - py-iter gives every enumeration an independent lazy cursor over an
+%     iterator's shared cache; py-iter-once retains Python's consumptive rule
+%     for compiled for statements [tested:
+%     test_nested_py_iter_reads_form_the_cartesian_product,
+%     test_compiled_for_keeps_one_shot_python_iteration;
+%     commit=0dc78c93461d6c7f5a83975abedf0f1a631095c3].
 % Fails when:
 %   - a name does not resolve, which raises rather than answering nothing: a
 %     typo in a module path is a mistake, not an empty result.
@@ -585,6 +591,17 @@ metta_py_kwarg(Other, _) :-
     metta_py_guard(['py-iter', Obj], py_iter(metta_py:iterate(Obj), Raw, Opts)),
     metta_py_result(Raw, Element).
 
+%Compiled Python needs the source iterator's real cursor: applying the same
+%compiled function twice to one iterator must answer the remaining suffix,
+%not replay earlier values. It is a separate, explicit operation so py-iter's
+%public nondeterministic reading can be replayable without changing Python.
+'py-iter-once'(Obj, Element) :-
+    metta_py_bridge,
+    metta_py_opts(Opts),
+    metta_py_guard(['py-iter-once', Obj],
+                   py_iter(metta_py:iterate_once(Obj), Raw, Opts)),
+    metta_py_result(Raw, Element).
+
 
 %%%% The Python surface the engine used to carry %%%%
 %
@@ -629,6 +646,7 @@ seam:extension_builtin('py-list',  oracleIO).
 seam:extension_builtin('py-tuple', oracleIO).
 seam:extension_builtin('py-dict',  oracleIO).
 seam:extension_builtin('py-iter',  oracleIO).
+seam:extension_builtin('py-iter-once', oracleIO).
 
 %This host claims an import whose source is a .py file, and does the whole
 %job through the engine's own published lifecycle.
