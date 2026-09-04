@@ -25,6 +25,7 @@ FILES = [
     "ch22-a-reasoner-you-can-serve/22-02-weighted-answers/02-soft.metta",
     "ch22-a-reasoner-you-can-serve/22-02-weighted-answers/10-pln2-ctv.metta",
     "ch22-a-reasoner-you-can-serve/22-02-weighted-answers/11-weighted_subset_posterior.metta",
+    "ch22-a-reasoner-you-can-serve/22-02-weighted-answers/12-distribution.metta",
     "ch11-python-as-a-notation/02-python_booleans.metta",
     "ch05-equations-and-evaluation/05-03-the-number-library/02-math_exp_random.metta",
     "ch07-control-flow/07-01-if-and-booleans/06-if_branch_binding.metta",

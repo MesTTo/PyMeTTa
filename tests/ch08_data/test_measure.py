@@ -32,7 +32,7 @@ def test_ws_best_is_argmax(m):  # noqa: D103  -- pytest discovers or injects thi
 
 def test_ws_normalize_refuses_zero_mass(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     (rows,) = m.run("!(ws-normalize ((0.0 x)))")
-    assert "nonzero total mass" in str(rows[0])
+    assert "positive total mass; provide at least one positive-weight outcome" in str(rows[0])
 
 
 def test_ws_softmax_refuses_zero_temperature(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
