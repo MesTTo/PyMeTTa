@@ -12,7 +12,7 @@ from enum import Enum
 
 from _common import check, done
 
-from metta import MeTTa, S, V, ground
+from metta import MeTTa, S, V, ground, spaces
 from metta.convert import build, project
 from metta.integrate import install_reflection_ops
 
@@ -40,6 +40,16 @@ check("match on parts", str(rows[0].name), '"HAL"')
 
 rebuilt = build(projected.atom)
 check("rebuild", isinstance(rebuilt, Robot) and rebuilt.mood, Mood.calm)
+
+named_view = m.metta.space(
+    backing=spaces.object_view(
+        Robot("C3", Mood.calm),
+        relation="robot-field",
+    )
+)
+named_fields = named_view.match(S["robot-field"](V.object, V.field, V.value))
+check("custom object-view relation", {str(row.field) for row in named_fields}, {"name", "mood"})
+named_view.drop()
 
 
 class Tagged:
