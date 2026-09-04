@@ -641,7 +641,14 @@ class Cursor:
         # Placement alone is not the whole of it: SWI bounds inferences per
         # SOLUTION, so the engine-side wrapper also reads that counter against
         # a base and stops on the answer that passes the budget. The wall bound
-        # wraps each pull outside, where idle time between pulls is free.
+        # goes INSIDE the engine beside it, against what this comment used to
+        # say: a time limit in this thread cannot interrupt a goal running
+        # inside an engine, so wrapping each pull outside left the caller's
+        # timeout inert [measured 2026-09-05, plain SWI:
+        # `call_with_time_limit(2, engine_next(E, _))` over a non-terminating
+        # engine goal ran ninety seconds without firing]. Idle time between
+        # pulls counts now, because the deadline is absolute from the engine's
+        # start, which is what a caller passing timeout= to a query means.
         self._timeout = None if limits is None or limits[0] < 0 else limits[0]
         steps = -1 if limits is None else limits[1]
         self._stack = -1 if limits is None else limits[2]
@@ -660,6 +667,8 @@ class Cursor:
         if under is not None:
             predicate = "metta_py_cursor_open_under"
             arguments.extend((under, order or "none"))
+        # Appended last, so the `under` variant's existing positions stay put.
+        arguments.append(-1.0 if self._timeout is None else float(self._timeout))
         self._open_predicate = predicate
         self._open_arguments = arguments
         self._handle: Any | None = None

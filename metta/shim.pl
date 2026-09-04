@@ -1201,20 +1201,32 @@ metta_py_open_controlled_cursor([Mode, Capture], Template, Goal, Handle) :-
 %them, so a limiter around one pull charges the pull loop rather than the
 %engine. This file used to read that measurement the other way round and wrap
 %each pull, which left the budget inert; metta_host_inference_budget/3 in
-%engine/metta/control.pl carries the numbers and the reasoning. Wall bounds
-%stay outside, per pull, where idle time between pulls cannot count.
+%engine/metta/control.pl carries the numbers and the reasoning.
+%
+%THE WALL BOUND IS INSIDE NOW TOO, for the same reason and against what this
+%comment used to say. "Wall bounds stay outside, per pull, where idle time
+%between pulls cannot count" assumed an outside bound ACTS, and it does not: a
+%time limit in the caller cannot interrupt a goal running inside an engine at
+%all, measured in plain SWI with none of this engine in it
+%[measured 2026-09-05: call_with_time_limit(2, engine_next(E, _)) over a
+%non-terminating engine goal ran ninety seconds without firing]. So the outside
+%guard left the caller's timeout inert exactly as the outside inference limit
+%once did. Idle time between pulls DOES count now, because the deadline is
+%absolute from the engine's start, which is what a caller passing timeout= to a
+%query means by it.
 metta_py_cursor_open(Space, PatternsTagged, GuardTagged, VarNames, Limit, Inf,
-                     prolog(Engine)) :-
+                     TimeS, prolog(Engine)) :-
     metta_py_cursor_open_controlled(
-        Space, PatternsTagged, GuardTagged, VarNames, Limit, Inf, none,
+        Space, PatternsTagged, GuardTagged, VarNames, Limit, Inf, TimeS, none,
         prolog(Engine)).
 
 metta_py_cursor_open_controlled(
-        Space, PatternsTagged, GuardTagged, VarNames, Limit, Inf, Policy,
+        Space, PatternsTagged, GuardTagged, VarNames, Limit, Inf, TimeS, Policy,
         prolog(Engine)) :-
     metta_py_cursor_goal(Space, PatternsTagged, GuardTagged, VarNames, Limit,
                          Row, Goal),
-    metta_host_inference_budget(Goal, Inf, Bounded),
+    metta_host_time_budget(Goal, TimeS, Timed),
+    metta_host_inference_budget(Timed, Inf, Bounded),
     metta_py_open_controlled_cursor(Policy, Row, Bounded, Engine).
 
 metta_py_cursor_goal(Space, PatternsTagged, GuardTagged, VarNames, Limit,
@@ -1238,14 +1250,15 @@ metta_py_cursor_goal(Space, PatternsTagged, GuardTagged, VarNames, Limit,
 %extensions/python/tests/ch06_many_answers/test_under_algebra.py;
 %commit=c7468b2789746bcf95c4bacc0e2d517ec4d972fa].
 metta_py_cursor_open_under(Space, PatternsTagged, GuardTagged, VarNames,
-                           Limit, Inf, Algebra, Direction, prolog(Engine)) :-
+                           Limit, Inf, Algebra, Direction, TimeS,
+                           prolog(Engine)) :-
     metta_py_cursor_open_under_controlled(
         Space, PatternsTagged, GuardTagged, VarNames, Limit, Inf, Algebra,
-        Direction, none, prolog(Engine)).
+        Direction, TimeS, none, prolog(Engine)).
 
 metta_py_cursor_open_under_controlled(
         Space, PatternsTagged, GuardTagged, VarNames, Limit, Inf, Algebra,
-        Direction, Policy, prolog(Engine)) :-
+        Direction, TimeS, Policy, prolog(Engine)) :-
     (   Direction \== none
     ->  metta_py_cursor_goal(Space, PatternsTagged, GuardTagged, VarNames, 0,
                              Row, Producer),
@@ -1257,7 +1270,8 @@ metta_py_cursor_open_under_controlled(
     ),
     Scoped = metta_with_under(Algebra, Goal),
     Encoded = ( Scoped, metta_py_encode(K, KWire) ),
-    metta_host_inference_budget(Encoded, Inf, Bounded),
+    metta_host_time_budget(Encoded, TimeS, Timed),
+    metta_host_inference_budget(Timed, Inf, Bounded),
     metta_py_open_controlled_cursor(Policy, [Row, KWire], Bounded, Engine).
 
 metta_py_under_query(Space, Producer, K) :-
@@ -3075,29 +3089,31 @@ metta_py_eval_target(Space, Target, Pairs, Term, Bindings) :-
         metta_host_substitute(Substitutions, Term0, Term)
     ).
 
-metta_py_eval_cursor_open(Space, Target, Pairs, VarNames, Inf, prolog(Engine)) :-
+metta_py_eval_cursor_open(Space, Target, Pairs, VarNames, Inf, TimeS,
+                          prolog(Engine)) :-
     metta_py_eval_cursor_open_controlled(
-        Space, Target, Pairs, VarNames, Inf, none, prolog(Engine)).
+        Space, Target, Pairs, VarNames, Inf, TimeS, none, prolog(Engine)).
 
 metta_py_eval_cursor_open_controlled(
-        Space, Target, Pairs, VarNames, Inf, Policy, prolog(Engine)) :-
+        Space, Target, Pairs, VarNames, Inf, TimeS, Policy, prolog(Engine)) :-
     metta_py_eval_target(Space, Target, Pairs, Term, Bindings),
     Goal = ( statistics(inferences, Before),
              metta_py_eval_term_bounded(Space, Term, Encoded),
              metta_py_row(VarNames, Bindings, Row),
              statistics(inferences, Now), Used is Now - Before ),
-    metta_host_inference_budget(Goal, Inf, Bounded),
+    metta_host_time_budget(Goal, TimeS, Timed),
+    metta_host_inference_budget(Timed, Inf, Bounded),
     metta_py_open_controlled_cursor(
         Policy, [Encoded, Row, Used], Bounded, Engine).
 
 metta_py_eval_cursor_open_under(Space, Target, Pairs, VarNames, Inf, Algebra,
-                                Direction, prolog(Engine)) :-
+                                Direction, TimeS, prolog(Engine)) :-
     metta_py_eval_cursor_open_under_controlled(
-        Space, Target, Pairs, VarNames, Inf, Algebra, Direction, none,
+        Space, Target, Pairs, VarNames, Inf, Algebra, Direction, TimeS, none,
         prolog(Engine)).
 
 metta_py_eval_cursor_open_under_controlled(
-        Space, Target, Pairs, VarNames, Inf, Algebra, Direction, Policy,
+        Space, Target, Pairs, VarNames, Inf, Algebra, Direction, TimeS, Policy,
         prolog(Engine)) :-
     metta_py_eval_target(Space, Target, Pairs, Term, Bindings),
     (   Direction \== none
@@ -3112,7 +3128,8 @@ metta_py_eval_cursor_open_under_controlled(
                  statistics(inferences, Now), Used is Now - Before )
     ),
     Goal = ( metta_with_under(Algebra, Core), metta_py_encode(K, KWire) ),
-    metta_host_inference_budget(Goal, Inf, Bounded),
+    metta_host_time_budget(Goal, TimeS, Timed),
+    metta_host_inference_budget(Timed, Inf, Bounded),
     metta_py_open_controlled_cursor(
         Policy, [Encoded, Row, KWire, Used], Bounded, Engine).
 

@@ -907,6 +907,24 @@ def test_a_cursor_budget_stops_a_resume_that_never_answers(m):
         list(m.answers("(spin 100000000)", inferences=5_000, timeout=10.0))
 
 
+def test_a_lazy_view_is_bounded_by_its_timeout(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
+    # answers() is LAZY, and its timeout used to do nothing at all: a
+    # non-terminating recursion ran past sixty seconds under timeout=3 where
+    # eval() raised at 3.01s on the same program. A time limit in the caller
+    # cannot interrupt a goal running inside an SWI engine, so wrapping each
+    # crossing left the bound inert; it rides the in-engine goal now, beside
+    # the inference budget that already worked.
+    m.run("!(import! &self (library lib_tabling))")
+    m.run("(edge a b)\n(edge b c)\n(edge c a)\n")
+    name = m.name
+    m.run(f"(= (cyc $x $y) (match {name} (edge $x $y) $y))")
+    m.run(f"(= (cyc $x $y) (let $z (match {name} (edge $x $z) $z) (cyc $z $y)))")
+    started = time.monotonic()
+    with pytest.raises(TimeLimitError):
+        list(m.answers(S.cyc(S.a, V.y), timeout=2.0))
+    assert time.monotonic() - started < 30.0
+
+
 def test_limit_validation_refuses_nonsense(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     with pytest.raises(ValueError):
         m.run("!(+ 1 1)", timeout=0)

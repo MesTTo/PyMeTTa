@@ -688,6 +688,13 @@ def evaluate_answers(
             if under is not None:
                 predicate = "metta_py_eval_cursor_open_under"
                 inputs.extend((under, order or "none"))
+            # The wall bound goes INSIDE the engine, beside the inference
+            # budget, because a time limit in this thread cannot interrupt a
+            # goal running inside one: `call_with_time_limit(2, engine_next(E,
+            # _))` over a non-terminating engine goal ran ninety seconds
+            # without firing [measured 2026-09-05, plain SWI]. It is appended
+            # last so the `under` variant's existing positions are untouched.
+            inputs.append(-1.0 if seconds is None else float(seconds))
             # engine_create/3 is inert, but the selected execution mode must
             # be embedded in its held goal before the first pull starts it.
             handle = _controlled_run(
