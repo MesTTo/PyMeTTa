@@ -76,7 +76,7 @@ Guarantees:
     claiming it, a replaced registration comes back as it was, and an inner
     commit dies with the outer rollback [tested:
     test_a_rolled_back_registration_leaves_no_registry_claiming_it,
-    test_an_inner_registration_dies_with_the_outer_rollback; commit=WORKTREE]
+    test_an_inner_registration_dies_with_the_outer_rollback; commit=420070bc7fe0ddb0185dc614ab8e3409941a320f]
 Open Obligations:
   To Do: None
   Hacks: None
