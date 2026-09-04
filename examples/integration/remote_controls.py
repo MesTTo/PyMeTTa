@@ -8,7 +8,10 @@ the process exits.
 from _common import check, done
 
 from metta import MeTTa, S, V, remote
-from metta.errors import MettaError
+from metta.errors import MettaError, is_transport_failure
+
+check("a backend outage is a transport failure", is_transport_failure(ConnectionError("down")))
+check("an application refusal is not a transport failure", not is_transport_failure(ValueError("bad row")))
 
 with MeTTa() as context:
     served = context.space("&remote-controls")
