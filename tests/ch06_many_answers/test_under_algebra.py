@@ -33,6 +33,11 @@ Guarantees:
   - the module-level algebra constructor follows the active space context
     [tested: test_algebra_module_constructor_targets_the_ambient_space;
     commit=WORKTREE]
+  - counting answers share TaggedAnswer's value, annotation, explanation, and
+    reinterpretation protocol [tested:
+    test_counting_counts_match_bag_duplicates_without_opening_a_row_cursor,
+    test_counting_counts_duplicate_call_answers_inside_the_engine;
+    commit=WORKTREE]
 """
 
 from __future__ import annotations
@@ -43,7 +48,7 @@ import importlib
 import pytest
 
 import metta as metta_module
-from metta import Answer, S, V, aio, counting, prov, ranked, tropical
+from metta import Answer, S, V, aio, counting, prob, prov, ranked, tropical
 from metta.foreign import SpaceProvider
 from metta.vocabularies import Semiring
 
@@ -78,11 +83,16 @@ def test_counting_counts_match_bag_duplicates_without_opening_a_row_cursor(
         monkeypatch.setattr("metta._space.Cursor", cursor_must_not_open)
         counted = facts.match(S.edge(S.a, V.x), under=counting)
         with facts.stats() as measured:
-            assert counted.one() == 3
+            answer = counted.one()
 
+        assert answer.value == ()
+        assert answer.tag == metta_module.G(3)
+        assert answer.annotation == 3
+        assert answer.why().answer == ()
+        assert answer.under(prob).annotation == 3
         assert measured.inferences > 0
         assert len(counted._cache) == 1
-        assert facts.match(S.absent(V.x), under=counting).one() == 0
+        assert facts.match(S.absent(V.x), under=counting).one().annotation == 0
 
 
 def test_counting_counts_duplicate_call_answers_inside_the_engine(metta):
@@ -94,7 +104,9 @@ def test_counting_counts_duplicate_call_answers_inside_the_engine(metta):
             "(= (under-call) other)"
         )
         with program.stats() as measured:
-            assert program.answers(S.under_call(), under=counting).one() == 3
+            answer = program.answers(S.under_call(), under=counting).one()
+        assert answer.value == ()
+        assert answer.annotation == 3
         assert measured.inferences > 0
 
 
@@ -125,7 +137,10 @@ def test_counting_inference_growth_is_linear_when_answers_grow_in_depth(metta):
                 value = S.S(value)
             facts.add(*atoms)
             with facts.stats() as stats:
-                assert facts.match(S.num(V.value), under=counting).one() == size
+                assert (
+                    facts.match(S.num(V.value), under=counting).one().annotation
+                    == size
+                )
             return stats.inferences
 
     shallow = measured(128)
@@ -139,11 +154,11 @@ def test_scoped_under_is_task_local_and_explicit_under_wins(metta):
         facts.add(S.item(S.a), S.item(S.b))
         facts.run("(= (scoped-call) same)\n(= (scoped-call) same)")
         with metta_module_under(counting):
-            assert facts.match(S.item(V.x)).one() == 2
-            assert facts.fn.scoped_call().one() == 2
+            assert facts.match(S.item(V.x)).one().annotation == 2
+            assert facts.fn.scoped_call().one().annotation == 2
             with metta_module_under(tropical):
-                assert facts.match(S.item(V.x), under=counting).one() == 2
-            assert facts.match(S.item(V.x)).one() == 2
+                assert facts.match(S.item(V.x), under=counting).one().annotation == 2
+            assert facts.match(S.item(V.x)).one().annotation == 2
         assert [str(row.x) for row in facts.match(S.item(V.x))] == ["a", "b"]
 
 
@@ -156,7 +171,7 @@ def test_scoped_under_crosses_the_async_worker_context(metta):
             async with aio.AsyncMeTTa(metta=facts) as worker:
                 with metta_module_under(counting):
                     counted = await worker.match(S.item(V.x))
-                return counted.one()
+                return counted.one().annotation
 
         assert asyncio.run(ask()) == 2
 
@@ -252,7 +267,7 @@ def test_tagged_derivations_flow_through_match_and_reinterpret_without_requery(
         assert "grandparent" in answer.why().render()
         assert program.match(
             S.grandparent(S.tom, S.ann), under=counting
-        ).one() == 1
+        ).one().annotation == 1
 
 
 def test_tagged_call_answers_use_the_carrier_without_hijacking_other_calls(metta):
@@ -273,7 +288,12 @@ def test_tagged_call_answers_use_the_carrier_without_hijacking_other_calls(metta
         )
         assert tagged.one().annotation == 7
         assert tagged.value.one() == S.yes
-        assert program.answers(S.tagged_call(V.value), under=counting).one() == 1
+        assert (
+            program.answers(S.tagged_call(V.value), under=counting)
+            .one()
+            .annotation
+            == 1
+        )
 
         ordinary = program.answers(S.ordinary_call(), under=ranked).one()
         assert ordinary.value == S.ordinary
@@ -470,7 +490,9 @@ def test_semiring_vocabulary_members_are_carrier_spellings(metta):
     """The generated catalog enum reaches the same resolver as bare objects."""
     with metta._new_space() as facts:
         facts.add(S.item(S.a), S.item(S.a))
-        assert facts.match(S.item(V.x), under=Semiring.counting).one() == 2
+        assert (
+            facts.match(S.item(V.x), under=Semiring.counting).one().annotation == 2
+        )
 
 
 def test_a_streamed_algebra_answers_what_a_matched_one_answers(metta):
@@ -489,7 +511,8 @@ def test_a_streamed_algebra_answers_what_a_matched_one_answers(metta):
         matched = list(space.match(S.streamed(V.x, V.n), under=carrier))
         with space.stream(S.streamed(V.x, V.n), under=carrier) as cursor:
             assert list(cursor) == matched
-    assert list(space.match(S.streamed(V.x, V.n), under="counting")) == [2]
+    counted = list(space.match(S.streamed(V.x, V.n), under="counting"))
+    assert [answer.annotation for answer in counted] == [2]
     with pytest.raises(TypeError, match="nothing to stream"):
         space.stream(S.streamed(V.x, V.n), under="counting")
 
@@ -506,9 +529,16 @@ def test_a_scoped_carrier_reaches_every_evaluating_door(metta):
     space = metta._at("&self")
     space.run("(= (scoped-path a) b) (= (scoped-path a) c)")
     assert space.eval(S["scoped-path"](S.a)) == [S.b, S.c]
-    assert space.eval(S["scoped-path"](S.a), under="counting") == [2]
+    assert [
+        answer.annotation
+        for answer in space.eval(S["scoped-path"](S.a), under="counting")
+    ] == [2]
     with metta_module.under("counting"):
-        assert space.eval(S["scoped-path"](S.a)) == [2]
-        assert list(space.answers(S["scoped-path"](S.a))) == [2]
+        assert [
+            answer.annotation for answer in space.eval(S["scoped-path"](S.a))
+        ] == [2]
+        assert [
+            answer.annotation for answer in space.answers(S["scoped-path"](S.a))
+        ] == [2]
     # And the scope ends where the block ends.
     assert space.eval(S["scoped-path"](S.a)) == [S.b, S.c]

@@ -37,6 +37,8 @@ Guarantees:
   - async source() and consumption() reach their distinct synchronous doors
     on the engine worker [tested:
     test_aio_declare_and_register_delegations_land; commit=42502e9d4a7fedd419856d5e6a1c291fc18ba644]
+  - async counting keeps the synchronous TaggedAnswer element protocol
+    [tested: test_an_async_evaluation_can_be_annotated; commit=WORKTREE]
   - async bound ``fn.neg`` evaluates the shared composite operator recipe on
     the engine worker [tested: test_aio_structural_surface_behaves;
     commit=8ec44dec3cafba5981e7cf712749cca0e1bdcc45]
@@ -1302,6 +1304,6 @@ def test_an_async_evaluation_can_be_annotated(m):
 
     plain, counted, tagged, scoped = asyncio.run(go())
     assert plain == [S.b, S.c]
-    assert counted == [2]
+    assert [answer.annotation for answer in counted] == [2]
     assert [type(one).__name__ for one in tagged] == ["TaggedAnswer", "TaggedAnswer"]
-    assert scoped == [2]
+    assert [answer.annotation for answer in scoped] == [2]

@@ -7,10 +7,10 @@ Python twin has to respect.
 
 The final count stays inside the engine:
 `m.answers(call, under=counting).one()` maps every answer derivation to one
-and crosses only the scalar 1,063,919, rather than materializing that million
-atoms in Python [tested:
-tools/twin_coverage.py --measure examples/ch22-a-reasoner-you-can-serve/22-03-search/03-matespace.metta;
-commit=c7468b2789746bcf95c4bacc0e2d517ec4d972fa].
+and returns one TaggedAnswer whose annotation is 1,063,919, rather than
+materializing that million atoms in Python [tested:
+tools/twin_coverage.py --measure --rounds 1 examples/ch22-a-reasoner-you-can-serve/22-03-search/03-matespace.metta;
+commit=WORKTREE].
 
 The three definitions whose bodies name `case` or `once` remain terms because
 neither translator form is in the function registry (residue, P14.4).
@@ -67,7 +67,9 @@ def twin(m):
         _mated = fn.mate()
         return match(space, S.num(V.x), S.num(V.x))
 
-    assert m.answers(S.mate_space_demo(390), under=counting).one() == 1063919
+    assert (
+        m.answers(S.mate_space_demo(390), under=counting).one().annotation == 1063919
+    )
 
 
 #: Why this twin sits below the top rung, stated once for the whole file.

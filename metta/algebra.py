@@ -63,6 +63,11 @@ Guarantees:
   - calling the module constructor targets the ambient space rather than the
     process-default home [tested:
     test_algebra_module_constructor_targets_the_ambient_space; commit=WORKTREE]
+  - counting retains the common TaggedAnswer protocol while crossing only its
+    one engine-side aggregate [tested:
+    test_counting_counts_match_bag_duplicates_without_opening_a_row_cursor,
+    test_counting_counts_duplicate_call_answers_inside_the_engine;
+    commit=WORKTREE]
 Decides:
   - ``contraction`` is a capability, while the remaining public law names are
     equations checked exhaustively over the declared finite carrier.
@@ -1337,8 +1342,8 @@ def count_tagged(
     limit: int | None = None,
     timeout: float | None = None,
     inferences: int | None = None,
-) -> int:
-    """Count tagged derivation trees wholly inside the engine."""
+) -> TaggedAnswer:
+    """Count tagged derivation trees into one protocol-shaped answer."""
     if isinstance(max_rounds, builtins.bool) or not isinstance(max_rounds, int):
         msg = "max_rounds must be a positive integer"
         raise TypeError(msg)
@@ -1359,7 +1364,7 @@ def count_tagged(
         inputs,
         _limits(timeout, inferences),
     )
-    return int(output)
+    return counting_answer(metta, int(output))
 
 
 def captured_answer(
@@ -1378,6 +1383,29 @@ def captured_answer(
         (_Trace(-1, annotation),),
         metta,
         declaration.name,
+    )
+
+
+def counting_answer(
+    metta: Space,
+    count: int,
+    carrier: Any = "counting",
+) -> TaggedAnswer:
+    """Wrap one engine aggregate without manufacturing a proposition row.
+
+    Public beside `captured_answer` and `count_tagged` because `Space` is the
+    caller: the count doors under it stay scalar so that the core never
+    imports this satellite, and the layering contract stays kept.
+    """
+    annotation = _encode(count)
+    return TaggedAnswer(
+        (),
+        annotation,
+        frozenset(),
+        (),
+        (_Trace(-1, annotation),),
+        metta,
+        _carrier_name(carrier),
     )
 
 

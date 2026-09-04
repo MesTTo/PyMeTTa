@@ -954,9 +954,10 @@ ENTRIES: list[Entry] = [
         metta="!(bind! &pb (new-space))\n!(add-atom &pb (f 1))\n!(match &pb (f $x) $x)",
         python=(
             "space += S.f(1)\n"
-            "assert space.match(S.f(V.x), under=metta.counting).one() == 1\n"
+            "assert space.match(S.f(V.x), under=metta.counting).one().annotation == 1\n"
             "space.run('(= (phrasebook-call) yes)')\n"
-            "assert space.answers(S.phrasebook_call(), under=metta.counting).one() == 1\n"
+            "assert space.answers(S.phrasebook_call(), under=metta.counting)"
+            ".one().annotation == 1\n"
             "with metta.under(metta.prov):\n"
             "    annotated = space.match(S.f(V.x)).one()\n"
             "assert annotated.annotation == S.one\n"
