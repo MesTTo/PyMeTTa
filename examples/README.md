@@ -87,7 +87,7 @@ own.
 
 | example | what it shows |
 |---|---|
-| [`live/standing_queries.py`](live/standing_queries.py) | actors and pub-sub: mailboxes as spaces and delivery inside the write |
+| [`live/standing_queries.py`](live/standing_queries.py) | actors and pub-sub, including inspection of the space's live event folds |
 
 ## Executable gallery
 
