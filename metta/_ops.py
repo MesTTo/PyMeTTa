@@ -257,6 +257,12 @@ class Operation:
     pass_atoms: bool = False  # derived from (arguments name atoms)
     space: _SpaceId | None = None  # where the type declarations were added
     declarations: tuple = ()  # the (: ...) atoms, for unregistration
+    #: (space, declarations) for EVERY space this name has declared into, the
+    #: one above included. An implementation is process-global and the registry
+    #: is keyed by name alone, but declarations are space-local, so one entry
+    #: has to remember what it gave each space or a second space registering
+    #: the same operation retires the first space's contract.
+    holdings: tuple[tuple[str, tuple], ...] = ()
     catalog: tuple = ()  # policy atoms owned in &metta
     arities: tuple = ()  # every registered arity, for reflection facts
     inverse: Callable[..., Any] | None = None  # the backwards direction

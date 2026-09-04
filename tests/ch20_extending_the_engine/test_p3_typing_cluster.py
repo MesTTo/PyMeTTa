@@ -371,3 +371,55 @@ def test_the_empty_expressions_type_follows_the_arbiters_ruling():  # noqa: D103
     # classifier derives no type here, so the existing gradual fallback admits
     # the value at a concrete parameter instead of rejecting unit against it.
     assert _answers(metta, "!(classifier-control ())") == ["accepted"]
+
+
+def test_a_second_space_registering_one_operation_keeps_both_contracts():
+    """Declarations are space-local while an implementation is process-global.
+
+    The registry is keyed by NAME, so registering the same typed operation in a
+    second space used to retire the first space's declarations: three rows in A
+    before, zero after, with both operations still reducing and only the last
+    registration site keeping its type contract. An operation now remembers
+    what it gave each space, so a registration replaces its OWN space's rows
+    and leaves every other space's alone.
+    """
+    def declarations(space, name):
+        return sorted(
+            str(atom)
+            for atom in space.atoms()
+            if name in str(atom)
+            and (str(atom).startswith("(:") or "annotation" in str(atom))
+        )
+
+    with MeTTa(verbose=False) as context:
+        with context.space("&decl-a") as a, context.space("&decl-b") as b:
+
+            def widen(value: int) -> int:
+                return value + 1
+
+            a.op(widen, name="two-space-op", effect="pureStructural")
+            in_a = declarations(a, "two-space-op")
+            assert len(in_a) == 3
+
+            b.op(widen, name="two-space-op", effect="pureStructural")
+            assert declarations(a, "two-space-op") == in_a
+            assert declarations(b, "two-space-op") == in_a
+
+            # Re-registering in A replaces A's rows and no one else's, so the
+            # per-space memory does not simply leak the older signature.
+            def narrow(value: str) -> str:
+                return value
+
+            a.op(narrow, name="two-space-op", effect="pureStructural")
+            assert declarations(a, "two-space-op") == [
+                "(: two-space-op (-> String String))",
+                "(annotation two-space-op (param 1 String))",
+                "(annotation two-space-op (return String))",
+            ]
+            assert declarations(b, "two-space-op") == in_a
+
+            # Unregistering clears every space it declared into, so nothing is
+            # left describing a function that no longer exists.
+            context.unregister_op("two-space-op")
+            assert declarations(a, "two-space-op") == []
+            assert declarations(b, "two-space-op") == []

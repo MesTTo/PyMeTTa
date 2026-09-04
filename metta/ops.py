@@ -679,20 +679,47 @@ def _register_transaction(
     return new_facts, old_facts
 
 
+def _holdings(
+    previous: Operation | None, space: str, declarations: Iterable[Expression]
+) -> tuple[tuple[str, tuple], ...]:
+    """The spaces this name has declared into, and what each one holds.
+
+    The space being registered replaces whatever it held before. Every other
+    space keeps what it has, which is what stops a second registration site
+    from retiring the first one's contract.
+    """
+    rows = tuple(declarations)
+    kept = tuple(
+        (held, held_rows)
+        for held, held_rows in (() if previous is None else previous.holdings)
+        if held != space
+    )
+    return (*kept, (space, rows)) if rows else kept
+
+
 def _retire_previous(
     runtime: Any,
     previous: Operation | None,
     new_facts: list[Expression],
     old_facts: list[Expression],
-    fallback_space: str,
+    space: str,
 ) -> None:
     if previous is None:
         return
     for fact in old_facts:
         if fact not in new_facts:
             _reflect_remove(runtime, fact)
-    for declaration in previous.declarations:
-        _release_declaration(runtime, previous.space or fallback_space, declaration)
+    # ONLY the space being re-registered. Declarations are space-local while
+    # the registry is keyed by name, so releasing the previous life's whole set
+    # made a second space's registration retire the first space's contract:
+    # three declaration rows in space A before, zero after registering the same
+    # typed operation in B, with both operations still reducing and only the
+    # last site keeping its types [measured 2026-09-04].
+    for held_space, declarations in previous.holdings:
+        if held_space != space:
+            continue
+        for declaration in declarations:
+            _release_declaration(runtime, held_space, declaration)
 
 
 def _engine_positions(params: list[inspect.Parameter], fn: Callable) -> list[int]:
@@ -925,6 +952,7 @@ def register[**P, R](
         pass_atoms=pass_atoms,
         space=_SpaceId(space),
         declarations=declarations,
+        holdings=_holdings(previous, space, declarations),
         catalog=catalog,
         arities=tuple(arities),
         inverse=inverse,
@@ -1046,8 +1074,12 @@ def unregister(runtime, name: str) -> None:
     for arity_row in arities:
         runtime.must("metta_py_unregister_op(Name, Arity)", Name=name, Arity=arity_row["Arity"])
     if op is not None:
-        for declaration in op.declarations:
-            _release_declaration(runtime, op.space or "&self", declaration)
+        # Every space it declared into, not only the last registered one:
+        # unregistering has to leave no space describing a function that no
+        # longer exists.
+        for held_space, rows in op.holdings:
+            for declaration in rows:
+                _release_declaration(runtime, held_space, declaration)
         for fact in _op_facts(op):
             _reflect_remove(runtime, fact)
         _withdraw_purity(runtime, op)
