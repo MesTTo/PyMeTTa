@@ -907,7 +907,8 @@ def test_a_cursor_budget_stops_a_resume_that_never_answers(m):
         list(m.answers("(spin 100000000)", inferences=5_000, timeout=10.0))
 
 
-def test_a_lazy_view_is_bounded_by_its_timeout(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
+def test_a_lazy_view_is_bounded_by_its_timeout(m):
+    """A lazy view honours its timeout, because the engine holds the deadline."""
     # answers() is LAZY, and its timeout used to do nothing at all: a
     # non-terminating recursion ran past sixty seconds under timeout=3 where
     # eval() raised at 3.01s on the same program. A time limit in the caller
