@@ -522,10 +522,12 @@ def test_registering_a_shape_backed_class_changes_nothing():
 
 
 def test_the_transaction_door_reaches_the_same_derivation():
-    """metta.integrate.register_type must not pass an image on the caller's
-    behalf: doing so looked explicit to convert.register_type and defeated the
-    derivation, so the enlisted door broke what the plain door had fixed.
-    """  # noqa: D205  -- one continuous invariant rather than summary-and-body
+    """The enlisted door reaches the same derivation as the plain one.
+
+    metta.integrate.register_type must not pass an image on the caller's
+    behalf. Doing so looked explicit to convert.register_type and defeated
+    the derivation, so this door broke what the plain door had fixed.
+    """
     from metta import integrate
 
     class EnlistedChoice(Enum):
