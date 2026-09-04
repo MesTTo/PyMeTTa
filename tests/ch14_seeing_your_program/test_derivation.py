@@ -8,7 +8,7 @@ Guarantees:
     exhausted budget raises and a depth cutoff answers a non-empty partial
     tree, so the three outcomes stay distinguishable [tested:
     test_an_empty_proof_list_can_only_mean_no_proof;
-    commit=WORKTREE]
+    commit=538a9be9411e620822e1ec593f617c017f49e597]
   - derivation's public contract names effect execution and the speculative
     rollback boundary, and both behaviors are exercised [tested:
     test_derivation_effects_are_explicit_and_speculation_discards_engine_writes;
