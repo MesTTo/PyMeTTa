@@ -60,6 +60,14 @@ with m.capture() as output:
 check("captured print output", "(hello world)" in output.text)
 check("the answers still arrive beside it", groups[1], [3])
 
+with metta.speculate():
+    metta.run("!(add-atom &self (discarded-by-speculation))")
+check(
+    "module-tier speculation discarded the write",
+    list(metta.match(S["discarded-by-speculation"])),
+    [],
+)
+
 try:
     import polars  # noqa: F401
 
