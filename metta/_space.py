@@ -5260,6 +5260,41 @@ class MeTTa:
         state = ", closed" if self.closed else ""
         return f"MeTTa(self={str(self._self)!r}{state})"
 
+    if not TYPE_CHECKING:
+        # HIDDEN FROM TYPE CHECKERS ON PURPOSE. A visible __getattr__ makes
+        # mypy type every unknown attribute as its return type rather than
+        # reporting attr-defined, which trades a static error for a runtime
+        # one, exactly backwards. Measured 2026-09-04: with it visible, both
+        # `m.totally_made_up` and `x: int = m.atoms` type-checked clean.
+        def __getattr__(self, name):
+            """Refuse a Space door reached on the context, naming the spelling that works.
+
+            The context forwards the evaluation doors and its home space owns
+            storage and introspection. That split is real, but it is invisible
+            at a call site: an installer written as `install(m)` reached for
+            `m.is_function` and got Python's bare `'MeTTa' object has no
+            attribute 'is_function'`, which says nothing about
+            `m.self.is_function` sitting one attribute away. The roster is
+            Space's own surface rather than a list kept here, so a door Space
+            grows is covered the day it lands.
+
+            This raises rather than forwards on purpose. `MeTTa` owns runtime
+            context and `Space` owns storage, and silently answering for the
+            home space would erase the distinction the two classes draw.
+            """
+            # A private or dunder name is machinery rather than a door: copy,
+            # pickle and weakref all probe for names this answers about as
+            # Python does, and a slot read during __init__ arrives here too.
+            if not name.startswith("_") and hasattr(Space, name):
+                msg = (
+                    f"{type(self).__name__} has no {name!r}: it is a Space door, "
+                    f"and a context is not its space. Write `m.self.{name}` to "
+                    f"reach the home space, or `m.space(...)` for a named one."
+                )
+                raise AttributeError(msg)
+            msg = f"{type(self).__name__!r} object has no attribute {name!r}"
+            raise AttributeError(msg)
+
     @property
     def self(self) -> Space:
         """The context's home space handle, its own ``&self``."""

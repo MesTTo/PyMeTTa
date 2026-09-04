@@ -135,3 +135,39 @@ def test_compile_refusals_derive_a_python_reference_ground(m):
     _assert_python_ground(frame.value, "7.12-7.13")
     assert "no active exception" in str(bare.value)
     assert "enclosing function frame" in str(frame.value)
+
+
+def test_a_space_door_on_the_context_names_the_self_spelling():
+    """A context asked for a Space door says where the door is.
+
+    An installer written as `install(m)` reached for `m.is_function` and got
+    Python's bare `'MeTTa' object has no attribute 'is_function'`, which says
+    nothing about `m.self.is_function` one attribute away. The roster is
+    Space's own surface, so this covers every storage and introspection door
+    rather than the seven that were reported.
+    """
+    import metta
+
+    doors = sorted(
+        name
+        for name in dir(metta.Space)
+        if not name.startswith("_") and not hasattr(metta.MeTTa, name)
+    )
+    assert {"atoms", "digest", "is_function", "type"} <= set(doors)
+
+    with metta.MeTTa() as context:
+        for name in doors:
+            with pytest.raises(AttributeError) as refused:
+                getattr(context, name)
+            assert f"m.self.{name}" in str(refused.value)
+            # The refusal stays an ordinary missing attribute, so a caller
+            # probing the surface reads False rather than catching a message.
+            assert not hasattr(context, name)
+            assert getattr(context, name, "absent") == "absent"
+
+        # A name that is nobody's door keeps Python's own wording, because
+        # inventing a remedy for a typo would point at a space that has none.
+        with pytest.raises(AttributeError) as unknown:
+            getattr(context, "no_such_door_anywhere")  # noqa: B009  -- the attribute read IS the scenario
+        assert "no attribute 'no_such_door_anywhere'" in str(unknown.value)
+        assert "m.self." not in str(unknown.value)

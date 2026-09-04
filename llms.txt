@@ -26,9 +26,15 @@ m.self.run("(= (f) 1) !(f) !(+ 1 2)")    # [[Grounded(1)], [Grounded(3)]]
 m.close()                                # or `with MeTTa() as m:`
 ```
 
-`m` is the CONTEXT and `m.self` its home space. Most doors exist on both; the
-context forwards to its home. Two contexts are independent engines' worth of
-state in one process, so a library never has to own the global one.
+`m` is the CONTEXT and `m.self` its home space. The context carries the
+EVALUATION doors and forwards them home, `run`, `eval`, `match`, `add`,
+`define`, `op`, `transaction`, `limits`, `stats` and their kin, plus the
+collection protocols, so `len(m)`, `atom in m` and `m[pattern]` read the home
+space directly. Storage and introspection stay on the space: `atoms`, `type`,
+`digest`, `is_function`, `arities`, `builtins` and `space_names` are reached as
+`m.self.atoms()`, and asking the context for one says so rather than raising a
+bare attribute error. Two contexts are independent engines' worth of state in
+one process, so a library never has to own the global one.
 
 ## Atoms: four kinds, no strings
 
