@@ -91,14 +91,19 @@ Guarantees:
     test_list_materializes_a_match_without_a_second_query;
     commit=5c9c97328472130cd30ad85b000e89c01556eb35]
   - match and call answers accept explicit or scoped algebra carriers;
-    counting uses engine aggregates, ordered carriers sort before slicing, and
-    tagged evaluation receives both public resource bounds
-    [tested:
+    counting keeps the shared TaggedAnswer protocol around its one engine
+    aggregate, ordered carriers sort before slicing, and tagged evaluation
+    receives both public resource bounds [tested:
     test_counting_counts_match_bag_duplicates_without_opening_a_row_cursor,
     test_counting_counts_duplicate_call_answers_inside_the_engine,
     test_ranked_and_tropical_slices_are_stable_best_prefixes,
     test_tagged_algebra_forwards_bounds_to_every_evaluating_door;
-    commit=51e719767e3dd322a9cf88bd096410bbc5647493]
+    commit=WORKTREE]
+  - a pristine bounded slice enters a repeatable foreign source only when that
+    source promises best-first emission in the selected ordered algebra
+    [tested:
+    test_pristine_ranked_slice_pushes_only_the_licensed_provider_bound;
+    commit=WORKTREE]
   - ``Space.pre_add`` declares one compiled unary judge through the engine's
     existing pre-add hook [tested: test_pre_add_compiles_the_four_verdict_judge;
     commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
@@ -2386,6 +2391,15 @@ class Space(Handle):
             atoms,
             guard_atom(where),
         )
+        tagged_route: bool | None = None
+
+        def has_tagged_program() -> bool:
+            nonlocal tagged_route
+            if tagged_route is None:
+                tagged_route = len(patterns) == 1 and algebra_api.has_tagged_program(
+                    self, patterns[0]
+                )
+            return tagged_route
 
         def tagged_source() -> Iterator[_AnswerItem]:
             if len(patterns) != 1:
@@ -2425,16 +2439,18 @@ class Space(Handle):
                 yielded += 1
                 yield _AnswerItem(answer, row)
 
-        def engine_source() -> Iterator[_AnswerItem]:
+        def engine_source(
+            *, cursor_limit: int | None = limit, cursor_order: Any = declaration.order
+        ) -> Iterator[_AnswerItem]:
             cursor = Cursor(
                 self,
                 patterns,
                 where,
                 timeout,
                 inferences,
-                limit=limit,
+                limit=cursor_limit,
                 under=declaration.name,
-                order=declaration.order,
+                order=cursor_order,
             )
             try:
                 for row in cursor:
@@ -2448,10 +2464,43 @@ class Space(Handle):
             finally:
                 cursor.close()
 
-        def source() -> Iterator[_AnswerItem]:
-            if len(patterns) == 1 and algebra_api.has_tagged_program(
-                self, patterns[0]
+        def bounded_engine_source(
+            stop: int, shared: Iterable[_AnswerItem]
+        ) -> Iterable[_AnswerItem]:
+            if (
+                len(patterns) != 1
+                or where is not None
+                or declaration.order is None
+                or limit == 0
             ):
+                return shared
+            bounded_limit = stop if limit is None else min(stop, limit)
+
+            def bounded() -> Iterator[_AnswerItem]:
+                promises = self._rt.once(
+                    "seam:foreign_space(Space), "
+                    "metta_emits(Space, 'best-first'), "
+                    "metta_source(Space, Kind), "
+                    "metta_effective_algebra(Space, Algebra)",
+                    Space=self._space,
+                )
+                if (
+                    not promises
+                    or str(promises["Kind"]) == "linear"
+                    or str(promises["Algebra"]) != declaration.name
+                    or has_tagged_program()
+                ):
+                    yield from shared
+                    return
+                yield from engine_source(
+                    cursor_limit=bounded_limit,
+                    cursor_order=None,
+                )
+
+            return bounded()
+
+        def source() -> Iterator[_AnswerItem]:
+            if has_tagged_program():
                 yield from tagged_source()
             else:
                 yield from engine_source()
@@ -2462,6 +2511,7 @@ class Space(Handle):
             space=self._space,
             target=patterns,
             query=query_context,
+            bound_source=bounded_engine_source,
         )
         if into is None:
             return answers
@@ -2574,8 +2624,8 @@ class Space(Handle):
         if declaration.name == "counting":
             # A counting fold is ONE aggregate over the whole answer set,
             # which is the thing a cursor exists not to have. Answering
-            # per-row would
-            # make under= mean a fold through match() and something else here.
+            # per-row would make under= mean a fold through match() and
+            # something else here.
             msg = (
                 "under='counting' folds every answer into one aggregate, so "
                 "it has nothing to stream; use match(under='counting'), "

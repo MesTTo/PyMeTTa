@@ -8,9 +8,11 @@ Guarantees:
     test_counting_inference_growth_is_linear_when_answers_grow_in_depth;
     commit=c7468b2789746bcf95c4bacc0e2d517ec4d972fa]
   - ordered carriers determine answer order before an Answers slice selects
-    its prefix [tested:
-    test_ranked_and_tropical_slices_are_stable_best_prefixes;
-    commit=c7468b2789746bcf95c4bacc0e2d517ec4d972fa]
+    its prefix, and a pristine bounded slice reaches only a provider licensed
+    by Exact, matching ordered annotations, and best-first emission [tested:
+    test_ranked_and_tropical_slices_are_stable_best_prefixes,
+    test_pristine_ranked_slice_pushes_only_the_licensed_provider_bound;
+    commit=WORKTREE]
   - a retained derivation can be explained and reinterpreted without asking
     its provider again [tested:
     test_provenance_retains_a_derivation_for_no_requery_reinterpretation,
@@ -257,6 +259,68 @@ def test_ranked_and_tropical_slices_are_stable_best_prefixes(metta):
     with metta._new_space() as program:
         best = program.answers(S.under_scored_call(S.query), under=ranked)[:2]
         assert [answer.value for answer in best] == [S.best_a, S.best_b]
+
+
+def test_pristine_ranked_slice_pushes_only_the_licensed_provider_bound(metta):
+    """The slice reopens only a repeatable source whose declared order it can trust."""
+    class BestFirstRows(SpaceProvider):
+        def __init__(self):
+            self.rows = [(S.best, 9), (S.middle, 4), (S.low, 1)]
+            self.limits = []
+
+        def atoms(self):
+            return iter(())
+
+        def match(self, pattern, *, limit=None):  # noqa: ARG002 -- the provider protocol requires the pattern argument
+            self.limits.append(limit)
+            rows = self.rows if limit is None else self.rows[:limit]
+            for value, annotation in rows:
+                yield Answer(value=S.score(value), k=annotation)
+
+    provider = BestFirstRows()
+    metta._register_space(provider, "&slice-ranked")
+    scores = metta._at("&slice-ranked")
+    scores.annotations("ranked")
+    scores.handles("(score $x)", "Exact")
+    scores.emits("best-first")
+
+    all_answers = scores.match(S.score(V.x), under=ranked)
+    first_two = all_answers[:2]
+    assert provider.limits == []
+    assert [str(value) for value in first_two.x] == ["best", "middle"]
+    assert provider.limits == [2]
+    assert [str(value) for value in all_answers.x] == ["best", "middle", "low"]
+    assert provider.limits == [2, None]
+
+    provider.limits.clear()
+    assert [
+        str(value)
+        for value in scores.match(S.score(V.x), under=tropical)[:1].x
+    ] == ["low"]
+    assert provider.limits == [None]
+
+    no_order_promise = BestFirstRows()
+    metta._register_space(no_order_promise, "&slice-no-emits")
+    unpromised = metta._at("&slice-no-emits")
+    unpromised.annotations("ranked")
+    unpromised.handles("(score $x)", "Exact")
+    assert [
+        str(value)
+        for value in unpromised.match(S.score(V.x), under=ranked)[:1].x
+    ] == ["best"]
+    assert no_order_promise.limits == [None]
+
+    inexact = BestFirstRows()
+    metta._register_space(inexact, "&slice-inexact")
+    inexact_space = metta._at("&slice-inexact")
+    inexact_space.annotations("ranked")
+    inexact_space.handles("(score $x)", "Partial")
+    inexact_space.emits("best-first")
+    assert [
+        str(value)
+        for value in inexact_space.match(S.score(V.x), under=ranked)[:1].x
+    ] == ["best"]
+    assert inexact.limits == [None]
 
 
 def test_provenance_retains_a_derivation_for_no_requery_reinterpretation(metta):
