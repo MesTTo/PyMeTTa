@@ -9,6 +9,9 @@ Guarantees:
     test_cast_target_is_positional_only]
   - the fixed cache, constructor, and close policies are Final [tested
     test_policy_constants_are_final]
+  - root persistence and async three-valued evaluation annotations retain the
+    runtime value species [tested: test_root_space_hint_accepts_pathlike_journals,
+    test_async_result_hints_preserve_undefined_answers; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -16,6 +19,7 @@ Open Obligations:
 """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
 import inspect
+import os
 from typing import Final, get_args, get_overloads, get_type_hints
 
 import pytest
@@ -38,6 +42,26 @@ def test_canonical_context_types_replace_public_newtypes():
     assert get_type_hints(aio.AsyncMeTTa.save)["format"] is SaveFormat
     assert issubclass(SaveFormat, str)
     assert [member.value for member in SaveFormat] == ["metta", "fast"]
+
+
+def test_root_space_hint_accepts_pathlike_journals():
+    """The root facade exposes the persistence path accepted at runtime."""
+    assert get_type_hints(metta.space)["journal"] == str | os.PathLike[str] | None
+
+
+def test_async_result_hints_preserve_undefined_answers():
+    """Every async route exposing WFS answers includes Undefined."""
+    direct = get_overloads(aio.AsyncMeTTa.eval)
+    assert [get_type_hints(overload)["return"] for overload in direct] == [
+        list[metta.Atom | metta.Undefined],
+        list[list[metta.Atom | metta.Undefined]],
+    ]
+    assert get_type_hints(aio.AsyncSaga.run)["return"] == list[
+        metta.Atom | metta.Undefined
+    ]
+    assert get_type_hints(aio.AsyncWorld.eval)["return"] == tuple[
+        list[metta.Atom | metta.Undefined], aio.AsyncWorld
+    ]
 
 
 def test_a_name_parameter_takes_a_plain_string():

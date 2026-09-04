@@ -21,6 +21,9 @@ Guarantees:
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - ``space()`` accepts both text and a space-name Symbol returned by the
     engine [tested: test_space_factory_accepts_a_name_symbol; commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
+  - ``space(journal=)`` exposes the PathLike persistence door its delegated
+    implementation already accepts [tested:
+    test_root_space_hint_accepts_pathlike_journals; commit=WORKTREE]
   - ``fn`` is an inert, generated, statically typed mention namespace and
     importing it never starts the engine [tested:
     test_the_fn_namespace_is_generated; commit=6b77b811c44e1819ed9cd99f3809c0667f289e2e]
@@ -305,7 +308,7 @@ def space(
     inherits: _Any = None,
     restricted: bool = False,
     grants: _Any = (),
-    journal: str | None = None,
+    journal: str | _os.PathLike[str] | None = None,
     schema: _Any = None,
     sync: str = "none",
 ):
