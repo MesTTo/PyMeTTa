@@ -16,7 +16,7 @@ Guarantees:
     commit=cf1963fa03f91c1d9721636cb6f05c6cfc362819]
   - that compiler-only materialization is consumptive even though public
     py-iter enumeration is replayable [tested:
-    test_compiled_for_keeps_one_shot_python_iteration; commit=WORKTREE]
+    test_compiled_for_keeps_one_shot_python_iteration; commit=0dc78c93461d6c7f5a83975abedf0f1a631095c3]
 Open Obligations:
   To Do: None
   Hacks: None

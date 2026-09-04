@@ -33,7 +33,8 @@
 %     iterator's shared cache; py-iter-once retains Python's consumptive rule
 %     for compiled for statements [tested:
 %     test_nested_py_iter_reads_form_the_cartesian_product,
-%     test_compiled_for_keeps_one_shot_python_iteration; commit=WORKTREE].
+%     test_compiled_for_keeps_one_shot_python_iteration;
+%     commit=0dc78c93461d6c7f5a83975abedf0f1a631095c3].
 % Fails when:
 %   - a name does not resolve, which raises rather than answering nothing: a
 %     typo in a module path is a mistake, not an empty result.

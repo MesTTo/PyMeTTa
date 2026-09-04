@@ -51,7 +51,7 @@ Guarantees:
     returns an independent cursor at index zero, while iterate_once() exposes
     Python's consumptive protocol for compiled for statements [tested:
     test_nested_py_iter_reads_form_the_cartesian_product,
-    test_compiled_for_keeps_one_shot_python_iteration; commit=WORKTREE]
+    test_compiled_for_keeps_one_shot_python_iteration; commit=0dc78c93461d6c7f5a83975abedf0f1a631095c3]
 Fails when:
   - a name does not resolve. It raises rather than answering None, because a
     typo in a module path is not a value.
@@ -65,7 +65,7 @@ Owns resources:
   - one cache of every value pulled from a live one-shot iterator; the carrier
     or grounded transport envelope owns it, and its death releases the source
     and cache [tested: test_a_grounded_iterator_cache_dies_with_its_box;
-    commit=WORKTREE]
+    commit=0dc78c93461d6c7f5a83975abedf0f1a631095c3]
 Guarded by:
   - _DECLARATION_LOCK protects declaration records and carrier identity.
   - functools.lru_cache protects the bounded _resolve_plan cache during
@@ -75,7 +75,7 @@ Guarded by:
   - _REPLAY_LOCK protects transport-envelope carrier identity, and each
     _ReplayableIterator lock serializes source pulls and cache publication
     [tested: test_two_threads_replay_one_iterator_without_duplicate_pulls;
-    commit=WORKTREE]
+    commit=0dc78c93461d6c7f5a83975abedf0f1a631095c3]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -675,7 +675,7 @@ def iterate(obj: Any) -> Any:
     also permits concurrent readers, which tee explicitly does not guarantee.
     [source: Python 3.14 itertools.tee documentation;
     https://docs.python.org/3.14/library/itertools.html#itertools.tee;
-    commit=WORKTREE]
+    commit=0dc78c93461d6c7f5a83975abedf0f1a631095c3]
     """
     if isinstance(obj, _ReplayableIterator):
         return obj.replay()

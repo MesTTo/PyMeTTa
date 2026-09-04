@@ -4,14 +4,15 @@ Guarantees:
     source, including Python-API grounded values [tested:
     test_nested_py_iter_reads_form_the_cartesian_product,
     test_a_python_grounded_iterator_replays_through_the_engine;
-    commit=WORKTREE]
+    commit=0dc78c93461d6c7f5a83975abedf0f1a631095c3]
   - compiled Python for statements retain Python's consumptive iterator law
-    [tested: test_compiled_for_keeps_one_shot_python_iteration; commit=WORKTREE]
+    [tested: test_compiled_for_keeps_one_shot_python_iteration;
+    commit=0dc78c93461d6c7f5a83975abedf0f1a631095c3]
   - a grounded transport envelope owns its replay cache weakly, and concurrent
     cursors pull each source value once [tested:
     test_a_grounded_iterator_cache_dies_with_its_box,
     test_two_threads_replay_one_iterator_without_duplicate_pulls;
-    commit=WORKTREE].
+    commit=0dc78c93461d6c7f5a83975abedf0f1a631095c3].
 """  # noqa: D205  -- the contract is one continuous invariant
 
 from __future__ import annotations
