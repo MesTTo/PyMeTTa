@@ -72,6 +72,11 @@ Guarantees:
     test_effect_plan_reports_nested_calls_without_executing_them,
     test_effect_plan_reads_replaced_operation_classification;
     commit=d06621ddec911922c156c79ce68b2c35318e7fc1]
+  - a registration rolled back with its transaction leaves no registry entry
+    claiming it, a replaced registration comes back as it was, and an inner
+    commit dies with the outer rollback [tested:
+    test_a_rolled_back_registration_leaves_no_registry_claiming_it,
+    test_an_inner_registration_dies_with_the_outer_rollback; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -84,7 +89,9 @@ import functools
 import importlib as _importlib
 import inspect
 import typing
-from collections.abc import Callable, Iterable
+from collections.abc import Callable, Iterable, Iterator
+from contextlib import contextmanager
+from contextvars import ContextVar
 from dataclasses import dataclass
 from typing import Any, Literal
 
@@ -185,6 +192,66 @@ def _reflect_remove(runtime, atom: Expression) -> None:
 # (space, declaration); the atom enters the space with the first owner and
 # leaves with the last.
 _DECLARATION_REFS: dict[tuple[str, str], int] = {}
+
+
+#: Open undo frames, innermost last. A frame records what REGISTRY held for
+#: each name it changed, BEFORE the change, so restoring gives the value the
+#: frame opened with.
+#:
+#: REGISTRY is the library's own mirror of engine state, which is what makes it
+#: different from the Python state transaction() says a caller must undo
+#: itself. A rolled-back registration left the mirror claiming an operation the
+#: engine had forgotten: `registered()` said True while the reflection rows and
+#: the declarations were gone and the call no longer reduced, so an installer's
+#: own "already there" check skipped reinstalling a dead name for the life of
+#: the process [measured 2026-09-04].
+_REGISTRY_UNDO: ContextVar[tuple[list[tuple[str, Operation | None]], ...]] = ContextVar(
+    "metta_registry_undo", default=()
+)
+
+
+def _record_undo(name: str) -> None:
+    """Remember what the registry held for one name before this frame changed it."""
+    frames = _REGISTRY_UNDO.get()
+    if not frames:
+        return
+    frame = frames[-1]
+    if any(recorded == name for recorded, _ in frame):
+        # Only the FIRST record in a frame is the pre-frame value; a second
+        # registration of the same name inside one transaction must not
+        # overwrite it with the intermediate one.
+        return
+    frame.append((name, REGISTRY.get(name)))
+
+
+@contextmanager
+def registry_undo() -> Iterator[None]:
+    """Undo this block's registry changes when it does not complete.
+
+    Frames nest the way SWI's transactions do: an inner block that completes
+    hands its records to its parent, so an outer rollback discards inner work
+    too. This is the undo log a savepoint keeps, and it exists because an
+    engine rollback cannot reach a Python dict.
+    """
+    frames = _REGISTRY_UNDO.get()
+    frame: list[tuple[str, Operation | None]] = []
+    token = _REGISTRY_UNDO.set((*frames, frame))
+    try:
+        yield
+    except BaseException:
+        for name, previous in reversed(frame):
+            if previous is None:
+                REGISTRY.pop(name, None)
+            else:
+                REGISTRY[name] = previous
+        raise
+    else:
+        if frames:
+            parent = frames[-1]
+            already = {name for name, _ in parent}
+            parent.extend((name, previous) for name, previous in frame if name not in already)
+    finally:
+        _REGISTRY_UNDO.reset(token)
 
 
 def _retain_declaration(runtime, space: str, declaration: Expression) -> None:
@@ -986,6 +1053,7 @@ def register[**P, R](
     # declarations release through the refcount, staying while any other
     # owner still declares them.
     _retire_previous(runtime, previous, new_facts, old_facts, space)
+    _record_undo(metta_name)
     REGISTRY[metta_name] = operation
 
     # The staging split's op half, the design's own cell: inside a rules
@@ -1083,6 +1151,7 @@ def unregister(runtime, name: str) -> None:
         for fact in _op_facts(op):
             _reflect_remove(runtime, fact)
         _withdraw_purity(runtime, op)
+    _record_undo(name)
     REGISTRY.pop(name, None)
 
 

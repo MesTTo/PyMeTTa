@@ -22,7 +22,7 @@ Open Obligations:
 
 import pytest
 
-from metta import S, V
+from metta import G, S, V, parse
 from metta.errors import EngineError, MettaResultError
 
 
@@ -233,3 +233,83 @@ def test_speculative_execution_discards_its_event_segment(m):
         assert S.tx(30) not in m
     finally:
         subscription.cancel()
+
+
+def test_a_rolled_back_registration_leaves_no_registry_claiming_it(m):
+    """The library's own mirror of engine state rolls back with the engine.
+
+    transaction() says Python-side state is the caller's to undo, and that is
+    right for a list appended or a file written. The operation registry is not
+    that: it is the library's mirror of engine state, and a rolled-back
+    registration left it claiming an operation the engine had forgotten.
+    `registered()` answered True while the reflection rows and the type
+    declarations were gone and the call no longer reduced, so an installer's
+    own "already installed" check skipped reinstalling a name that was dead for
+    the life of the process.
+    """
+    import importlib
+
+    ops = importlib.import_module("metta.ops")
+
+    def install():
+        @m.op(effect="pureStructural")
+        def rolled_back_op(value: int) -> int:
+            return value * 10
+
+        m.add(parse("(installed marker)"))
+        message = "injected failure"
+        raise RuntimeError(message)
+
+    with pytest.raises(RuntimeError):
+        m.transaction(install)
+
+    # All three readings agree, which is the property that was broken: the
+    # registry, the space and the engine's own answer.
+    assert "rolled-back-op" not in ops.registered()
+    assert not any("installed" in str(atom) for atom in m.atoms())
+    assert m.run("!(rolled-back-op 4)") == [[parse("(rolled-back-op 4)")]]
+
+    # A registration the transaction REPLACED comes back as it was, rather
+    # than being dropped along with the one that replaced it.
+    @m.op(effect="pureStructural")
+    def shadowed(value: int) -> int:
+        return value + 1
+
+    def replace():
+        @m.op(effect="pureStructural", name="shadowed")
+        def louder(value: int) -> int:
+            return value + 1000
+
+        message = "injected failure"
+        raise RuntimeError(message)
+
+    try:
+        with pytest.raises(RuntimeError):
+            m.transaction(replace)
+        assert m.run("!(shadowed 4)") == [[G(5)]]
+    finally:
+        m.unregister_op("shadowed")
+
+
+def test_an_inner_registration_dies_with_the_outer_rollback(m):
+    """Nesting follows SWI's rule: an inner commit is relative to its outer."""
+    import importlib
+
+    ops = importlib.import_module("metta.ops")
+
+    def inner():
+        @m.op(effect="pureStructural")
+        def inner_op(value: int) -> int:
+            return value
+
+        return 1
+
+    def outer():
+        m.transaction(inner)
+        message = "outer failure"
+        raise RuntimeError(message)
+
+    with pytest.raises(RuntimeError):
+        m.transaction(outer)
+
+    assert "inner-op" not in ops.registered()

@@ -2550,26 +2550,32 @@ class Space(Handle):
         def _capture() -> None:
             answer.append(target())
 
-        try:
-            row = self._rt.once("metta_py_transaction(F, R)", F=_capture)
-        except MettaError as error:
-            term = getattr(error.__cause__, "term", None)
-            original = (
-                self._rt._original_python_error(term, base=BaseException)
-                if term is not None
-                else None
-            )
-            if original is not None and original is not error:
-                raise original from error
-            raise
-        if not row:
-            msg = (
-                "the transaction goal failed without an exception, which "
-                "metta_py_transaction does not do on purpose"
-            )
-            raise EngineError(
-                msg
-            )
+        # The operation registry is the library's OWN mirror of engine state,
+        # which is what separates it from the Python state above: a rolled-back
+        # registration left it claiming an operation the engine had forgotten,
+        # so registered() said True while the call no longer reduced and an
+        # installer's "already there" check skipped reinstalling a dead name.
+        with _ops_module.registry_undo():
+            try:
+                row = self._rt.once("metta_py_transaction(F, R)", F=_capture)
+            except MettaError as error:
+                term = getattr(error.__cause__, "term", None)
+                original = (
+                    self._rt._original_python_error(term, base=BaseException)
+                    if term is not None
+                    else None
+                )
+                if original is not None and original is not error:
+                    raise original from error
+                raise
+            if not row:
+                msg = (
+                    "the transaction goal failed without an exception, which "
+                    "metta_py_transaction does not do on purpose"
+                )
+                raise EngineError(
+                    msg
+                )
         return cast("_R", answer[0] if answer else None)
 
     def saga(self, receipts: Space):
