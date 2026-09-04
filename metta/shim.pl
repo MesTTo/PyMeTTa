@@ -26,11 +26,12 @@
 %   - ordered algebra cursors interrupt their deterministic collect-and-sort
 %     phase at timeout without leaving an alarm armed across cursor suspension
 %     [tested: test_an_ordered_algebra_view_is_bounded_by_its_timeout;
-%     commit=WORKTREE].
+%     commit=51e719767e3dd322a9cf88bd096410bbc5647493].
 %   - accounted eager evaluation returns its inference delta in the same
 %     crossing so tagged Python fixpoints can pass only their remaining quota
 %     to the next operation [tested:
-%     test_tagged_algebra_debits_inferences_across_operations; commit=WORKTREE].
+%     test_tagged_algebra_debits_inferences_across_operations;
+%     commit=51e719767e3dd322a9cf88bd096410bbc5647493].
 %   - atomic entry points publish atom hooks after commit, while speculative
 %     and reified-world entry points discard their buffered event segments;
 %     speculative and world execution also fence the non-backtrackable State
@@ -1303,7 +1304,7 @@ metta_py_ordered_under_query(Space, Direction, TimeS, Producer, Row, K) :-
 %alarm remains armed while the engine is suspended. Putting the same guard
 %around member/2 is the rejected shape that silently truncated a resumed cursor
 %[tested: test_an_ordered_algebra_view_is_bounded_by_its_timeout;
-%commit=WORKTREE].
+%commit=51e719767e3dd322a9cf88bd096410bbc5647493].
 :- meta_predicate metta_py_ordered_within_time(+, +, ?, 0, -).
 metta_py_ordered_within_time(TimeS, Direction, Pair, Producer, Ordered) :-
     metta_py_guarded(

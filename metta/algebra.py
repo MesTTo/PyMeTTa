@@ -45,7 +45,7 @@ Guarantees:
     call-wide inference quota [tested:
     test_tagged_algebra_forwards_bounds_to_every_evaluating_door,
     test_tagged_algebra_debits_inferences_across_operations;
-    commit=WORKTREE]
+    commit=51e719767e3dd322a9cf88bd096410bbc5647493]
 Decides:
   - ``contraction`` is a capability, while the remaining public law names are
     equations checked exhaustively over the declared finite carrier.
@@ -1246,7 +1246,7 @@ def evaluate(
     # each operation would permit max_rounds times that budget instead [tested:
     # test_tagged_algebra_forwards_bounds_to_every_evaluating_door,
     # test_tagged_algebra_debits_inferences_across_operations;
-    # commit=WORKTREE].
+    # commit=51e719767e3dd322a9cf88bd096410bbc5647493].
     for _ in range(max_rounds):
         budget.checkpoint()
         added: list[TaggedAnswer] = []

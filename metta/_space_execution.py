@@ -20,7 +20,7 @@ Guarantees:
   - internal accounted evaluation returns its engine inference delta in the
     same crossing so a Python fixpoint can carry one remaining quota across
     calls [tested: test_tagged_algebra_debits_inferences_across_operations;
-    commit=WORKTREE]
+    commit=51e719767e3dd322a9cf88bd096410bbc5647493]
   - lazy evaluation preserves caller-variable rows and held-engine inference
     accounting across progressive pulls [tested:
     test_answers_project_caller_variables_and_slices_stay_answers,

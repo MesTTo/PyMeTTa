@@ -29,7 +29,8 @@ Guarantees:
     its first answer [tested:
     test_tagged_algebra_forwards_bounds_to_every_evaluating_door,
     test_tagged_algebra_debits_inferences_across_operations,
-    test_an_ordered_algebra_view_is_bounded_by_its_timeout; commit=WORKTREE]
+    test_an_ordered_algebra_view_is_bounded_by_its_timeout;
+    commit=51e719767e3dd322a9cf88bd096410bbc5647493]
 Open Obligations:
   To Do: None
   Hacks: None
