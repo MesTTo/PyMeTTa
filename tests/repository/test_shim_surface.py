@@ -14,11 +14,11 @@ Guarantees:
   - the manifest and the tree hold the same host_service set, compared as
     sets with both differences named
     [tested: test_the_host_service_scoreboard_matches_the_tree;
-    commit=c7468b2789746bcf95c4bacc0e2d517ec4d972fa]
+    commit=WORKTREE]
   - every remaining row carries a named floor reason, so the list is the
     transport floor rather than a smaller pile of orchestration
     [tested: test_the_shim_surface_shrank_to_the_transport_floor;
-    commit=4c9a794750103e0a3a2e9d883adde337ffb501f0]
+    commit=WORKTREE]
   - the host query door uses the engine's published pattern-modifier walk
     [tested: test_a_path_reaches_into_a_handle_without_converting_it;
     commit=a1b10566194f10c174101fdc05f956b33171613b]
@@ -75,6 +75,10 @@ HOST_SERVICES = {
     # declaration's one rather than rebuilding those rules in the transport.
     "metta_with_under/2",
     "metta_effective_algebra/2",
+    # current_algebra reads an engine-held per-call override before the host's
+    # task scope and an explicit context declaration. The host cannot observe
+    # that held override without this door.
+    "metta_current_algebra/3",
     "metta_algebra_one/2",
     "metta_annotation/2",
     "metta_k_extend/4",
@@ -262,6 +266,7 @@ FLOOR_REASONS = {
     "metta_seq_query_plan/2": "door",
     "metta_with_under/2": "door",
     "metta_effective_algebra/2": "door",
+    "metta_current_algebra/3": "door",
     "metta_algebra_one/2": "door",
     "metta_annotation/2": "door",
     "metta_k_extend/4": "door",

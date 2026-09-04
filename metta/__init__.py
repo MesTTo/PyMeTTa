@@ -64,6 +64,10 @@ Guarantees:
     test_scoped_under_is_task_local_and_explicit_under_wins,
     test_every_shipped_semiring_has_one_root_object_in_catalog_order;
     commit=WORKTREE]
+  - ``current_algebra()`` reports the explicit call, task scope, or current
+    space declaration without turning the implicit Boolean default into a
+    declaration [tested: test_current_algebra_follows_each_selection_layer;
+    commit=WORKTREE]
   - ``speculate()`` is the exact module-tier spelling for the default
     receiver's discarded execution scope [tested:
     test_speculative_execution_discards_its_event_segment; commit=3ded7552797b66d78e666141eb51f3bc14686bd2]
@@ -364,6 +368,14 @@ def current_space():
     """Return the ambient space selected by an enclosing space context."""
     space_api = _importlib.import_module(f"{__name__}._space")
     value = space_api.current_space()
+    _rehide_implementation_modules()
+    return value
+
+
+def current_algebra() -> str | None:
+    """Return the algebra selected for the current context, if one exists."""
+    algebra_api = _importlib.import_module(f"{__name__}.algebra")
+    value = algebra_api.current_algebra()
     _rehide_implementation_modules()
     return value
 
@@ -1314,6 +1326,7 @@ __all__ = [
     "config",
     "convert",
     "counting",
+    "current_algebra",
     "current_space",
     "define",
     "derivation",

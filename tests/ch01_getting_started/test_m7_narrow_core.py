@@ -1,8 +1,9 @@
 """Purpose: prove the Fork 4 surface collapse deletes superseded doors.
 Guarantees:
-  - the package surface has 112 names, including every shipped semiring
-    object, and keeps ``record`` and ``order_key`` absent [tested:
-    test_m7_narrow_core_surface; commit=WORKTREE]
+  - the package surface has 113 names, including every shipped semiring
+    object and the current algebra observer, and keeps ``record`` and
+    ``order_key`` absent [tested: test_m7_narrow_core_surface;
+    commit=WORKTREE]
   - the published before/after counts are exact for ``MeTTa`` and ``metta``
     [tested: test_m7_narrow_core_surface; commit=WORKTREE]
   - every retired root, context, and atom name is absent rather than aliased
@@ -110,7 +111,9 @@ FINAL_METTA_METHODS = 35
 # rather than a document link because the document has to be reachable from an
 # INSTALL, where there is no checkout to open and no path a reader could guess;
 # setup.py ships the file into metta/_runtime/ for it.
-FINAL_METTA_EXPORTS = 112
+# +1 for ``current_algebra``, the context observer paired with
+# ``current_space``.
+FINAL_METTA_EXPORTS = 113
 
 SATELLITES = {
     "aio",

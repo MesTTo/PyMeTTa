@@ -68,6 +68,9 @@ Guarantees:
     test_counting_counts_match_bag_duplicates_without_opening_a_row_cursor,
     test_counting_counts_duplicate_call_answers_inside_the_engine;
     commit=WORKTREE]
+  - ``current_algebra()`` observes the per-call carrier, surrounding task
+    scope, or current space declaration in that order [tested:
+    test_current_algebra_follows_each_selection_layer; commit=WORKTREE]
 Decides:
   - ``contraction`` is a capability, while the remaining public law names are
     equations checked exhaustively over the declared finite carrier.
@@ -91,9 +94,11 @@ from numbers import Real
 from types import ModuleType
 from typing import Any, Final
 
-from ._space import Space
+from ._engine import active_runtime
+from ._space import Space, current_space
 from ._space_execution import evaluate_accounted
 from ._space_objects import _limits, _validate_limit
+from ._under import selected as _selected_under
 from .atoms import (
     Atom,
     Expression,
@@ -129,6 +134,7 @@ __all__ = [
     "bool",
     "budget",
     "counting",
+    "current_algebra",
     "declare",
     "evaluate",
     "prob",
@@ -586,6 +592,26 @@ def _carrier_name(carrier: Any) -> str:
         f"algebra name, not {type(carrier).__name__}"
     )
     raise TypeError(msg)
+
+
+def current_algebra() -> str | None:
+    """Return the selected algebra name, or ``None`` when none is declared.
+
+    An explicit carrier on the evaluating call wins over ``with under(...)``;
+    that task-local scope wins over the current space's annotations row.
+    """
+    scoped = _selected_under()
+    runtime = active_runtime()
+    if runtime is None:
+        return None if scoped is None else _carrier_name(scoped)
+    target = Space(current_space(), _runtime=runtime)
+    scope = [] if scoped is None else [_carrier_name(scoped)]
+    row = target.runtime.once(
+        "metta_current_algebra(Ctx, Scope, Algebra)",
+        Ctx=str(target.name),
+        Scope=scope,
+    )
+    return None if not row else str(row["Algebra"])
 
 
 def resolve(metta: Space, carrier: Any) -> DeclaredAlgebra:
@@ -1460,8 +1486,12 @@ def _construct(
     order: SemiringOrder | None = None,
 ) -> DeclaredAlgebra:
     """Implement the functional and class-decorator constructor forms."""
-    from . import current_space, engine  # noqa: PLC0415 -- the callable module stays lazy
+    from . import engine  # noqa: PLC0415 -- the callable module stays lazy
 
+    # The module-level `current_space`, the one `current_algebra` reads too,
+    # rather than the root door of the same name: the root's own spelling adds
+    # only the implementation-module rehide, and importing it here would shadow
+    # this module's.
     target = engine().space(current_space())
     algebra_name = _algebra_name(subject)
     if isinstance(subject, type):

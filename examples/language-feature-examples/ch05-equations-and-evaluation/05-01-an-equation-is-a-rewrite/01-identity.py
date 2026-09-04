@@ -871,4 +871,29 @@ def twin(m):
 #: extensions/python/tools/twin_coverage.py --measure --rounds 3 examples/ch05-
 #: equations-and-evaluation/05-01-an-equation-is-a-rewrite/01-identity.metta;
 #: commit=ccad9f6d588270ec2f0810fc56c30e9e59207e7c].
-BUDGET = 3437
+#: RE-PINNED 2026-09-06, 3437 to 3402 (-35), engine SHAPE again, in the two
+#: steps a bisect across petta at 9b944a94 and every landed commit finds: the
+#: algebra-owner commit reads 3432 and this one 3402. The entry above already
+#: records that this row's moves are base-dependent and non-monotonic, and this
+#: thread saw the same: the identical pair of commits read 0 and +5 against
+#: 754df32f, -5 and -30 against 84bb5aa9 and db307494, and -5 and -30 here. On
+#: 754df32f, removing the single kind(metta_current_algebra/3, host_service)
+#: row restored the earlier number while removing the predicate it names, the
+#: root door or the algebra door each did not, and replacing engine/ with
+#: trunk's at the branch tip restored it where replacing
+#: extensions/python/metta/ changed nothing. The MeTTa half reads 2357 on every
+#: one of those arms, which is the control saying the work is unchanged: no
+#: reduction, clause or answer differs [measured 2026-09-06: min-of-3 serial
+#: fresh processes; command=python extensions/python/tools/twin_coverage.py
+#: --repin; commit=WORKTREE].
+#: RE-PINNED AGAIN 2026-09-06 on the base this branch finally sits on, petta at
+#: 7d9b66a1: 3402 to 3407. The row moved with the base and not with the branch,
+#: which is the fifth base to show it. Read arm against arm on that base, trunk
+#: measures 3402 where it pins 3437, and this branch measures 3407, so what the
+#: row prices here is the same engine-shape difference the paragraph above
+#: attributes and not new work: the MeTTa half is 2357 on both arms again
+#: [measured 2026-09-06: min-of-3 serial fresh processes, both arms on petta at
+#: 7d9b66a1; command=python extensions/python/tools/twin_coverage.py --measure
+#: --rounds 3 examples/ch05-equations-and-evaluation/
+#: 05-01-an-equation-is-a-rewrite/01-identity.metta; commit=WORKTREE].
+BUDGET = 3407

@@ -38,6 +38,9 @@ Guarantees:
     test_counting_counts_match_bag_duplicates_without_opening_a_row_cursor,
     test_counting_counts_duplicate_call_answers_inside_the_engine;
     commit=WORKTREE]
+  - current_algebra observes explicit, scoped, and context-declared carriers
+    in precedence order while leaving an undeclared context as None [tested:
+    test_current_algebra_follows_each_selection_layer; commit=WORKTREE]
 """
 
 from __future__ import annotations
@@ -190,6 +193,34 @@ def test_under_refuses_none_and_restores_after_an_exception(metta):
             with metta_module_under(counting):
                 raise ScopeError
         assert [str(row.x) for row in facts.match(S.item(V.x))] == ["a", "b"]
+
+
+def test_current_algebra_follows_each_selection_layer(metta):
+    """One observer follows the same precedence as an evaluating query."""
+    with metta._new_space() as first, metta._new_space() as second:
+        with first:
+            assert metta_module.current_algebra() is None
+
+        first.annotations("ranked")
+        second.annotations("tropical")
+        with first:
+            assert metta_module.current_algebra() == "ranked"
+            with metta_module.under(counting):
+                assert metta_module.current_algebra() == "counting"
+        with second:
+            assert metta_module.current_algebra() == "tropical"
+
+        def inspect_algebra() -> str:
+            return metta_module.current_algebra() or "none"
+
+        first.op(
+            inspect_algebra,
+            name="inspect-algebra",
+            effect="readOnlyLookup",
+        )
+        with metta_module.under(counting):
+            answer = first.answers(S.inspect_algebra(), under=prov).one()
+        assert answer.value == metta_module.G("prov")
 
 
 def metta_module_under(carrier):
