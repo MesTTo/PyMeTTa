@@ -35,7 +35,7 @@ own.
 
 | example | what it shows |
 |---|---|
-| [`basics/first_steps.py`](basics/first_steps.py) | run, atoms, joined queries, eval, and proof trees |
+| [`basics/first_steps.py`](basics/first_steps.py) | run, atoms, unification/substitution, joined queries, eval, and proof trees |
 
 ## Operations
 

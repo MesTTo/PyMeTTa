@@ -23,6 +23,17 @@ rows = m.match(S.Parent(V.gp, V.p), S.Parent(V.p, V.gc))
 check("join count", len(rows), 2)
 check("first grandparent", (rows[0].gp, rows[0].gc), (S.Tom, S.Ann))
 
+# A unifier is already the substitution currency Atom.subs accepts, so a
+# template can consume it directly without a recursive walk or string keys.
+pattern = S.Parent(V.parent, V.child)
+bindings = pattern.unify(S.Parent(S.Tom, S.Bob))
+check("unification succeeds", bindings is not None)
+check(
+    "substitution consumes the unifier",
+    S.Cares(V.parent, V.child).subs(bindings),
+    S.Cares(S.Tom, S.Bob),
+)
+
 # Evaluation is what ! runs, nondeterminism included.
 check("eval", m.eval(S.superpose(Expression(1, 2, 3))), [1, 2, 3])
 
