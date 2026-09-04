@@ -88,7 +88,7 @@ TIMEOUT = 300
 #: second opinion about how long an example may take, it is what remains when
 #: nobody is waiting
 #: [tested: test_a_process_this_suite_starts_reports_a_wrapper_as_its_parent;
-#: commit=WORKTREE].
+#: commit=88ba8f12b292eece7dc3810942ffce393b34dca4].
 CHILD_GRACE = 60
 
 

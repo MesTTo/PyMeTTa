@@ -9,6 +9,10 @@ Guarantees:
   - overlapping provenance and unidentifiable or invalid values refuse while
     naming the supported remedy [tested: test_support_overlap_refuses_factoring,
     test_pln2_numeric_refusals_name_the_remedy; commit=afc4024cef7d4b7bcdd194bb030a112187b676d0]
+  - every refusal renders its formal term as a sentence rather than as
+    `Unknown error term` [tested:
+    test_pln2_refusals_state_the_complaint_and_not_its_shape;
+    commit=WORKTREE]
 """
 
 from __future__ import annotations
@@ -266,3 +270,40 @@ def test_pln2_numeric_refusals_name_the_remedy(pln2_space, source, remedy):
     """A rejected value says how to represent the supported case."""
     with pytest.raises(EngineError, match=remedy):
         _one(pln2_space, source)
+
+
+@pytest.mark.parametrize(
+    ("source", "complaint"),
+    [
+        ("(pln2-moments-stv (moments 170.0 25.0) 100.0)", "the mean is 170"),
+        ("(pln2-stv-moments (moments 0.5 0.1) 100.0)", "is not a truth value"),
+        ("(pln2-beta-moments (stv 1.0 0.5))", "is not a Beta distribution"),
+        ("(pln2-confidence-count 1.0 800.0)", "the confidence is 1.0"),
+        (
+            "(pln2-moments-stv (moments 0.5 0.0) 1.0)",
+            "leaves the Beta concentration unbounded",
+        ),
+        (
+            "(pln2-product-independent (supported (moments 0.5 0.01) (a))"
+            " (supported (moments 0.5 0.01) (a)))",
+            "supports more than one operand",
+        ),
+    ],
+)
+def test_pln2_refusals_state_the_complaint_and_not_its_shape(pln2_space, source, complaint):
+    """The thrown term renders as a sentence, beside the remedy it travels with.
+
+    A refusal carries two halves: the formal term says what was WRONG and the
+    context says what to DO. Only the second had a renderer, so a caller who
+    passed a height distribution where a truth value belongs read
+    `Unknown error term: pln2_invalid_probability(mean,170)`, which is the
+    shape of the complaint rather than the complaint. The clauses are
+    `prolog:error_message//1` and not `message//1`, because SWI dispatches the
+    formal half of an `error(Formal, Context)` pair through that hook alone,
+    so this also pins the hook the library chose.
+    """
+    with pytest.raises(EngineError) as refused:
+        _one(pln2_space, source)
+    message = str(refused.value)
+    assert complaint in message, message
+    assert "Unknown error term" not in message, message

@@ -8,7 +8,7 @@ Guarantees:
     commit=993608c01049bcca7530931b680c416c81023543]
   - ``HYPOTHESIS_PROFILE=petta`` is a supported alias of the ordinary
     exploratory ``metta`` profile [tested: test_petta_profile_matches_metta;
-    commit=WORKTREE]
+    commit=afc4024cef7d4b7bcdd194bb030a112187b676d0]
 
 Open Obligations:
   To Do: None
