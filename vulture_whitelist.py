@@ -199,3 +199,9 @@ _.reaction
 # atoms they build; nothing inside the package needs alpha equality of its
 # own, which is the same arrangement as eq and ne on the operator protocol.
 _.alpha
+
+# Trace.truncated is the yes-or-no reading of Trace.stopped, kept because it is
+# what a caller asks first and what every consumer written against the older
+# shape already asks; the package itself has the bound's own word to read, so
+# nothing inside it loads this name.
+_.truncated

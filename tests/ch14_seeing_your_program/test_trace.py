@@ -14,6 +14,7 @@ from pathlib import Path
 import pytest
 
 from metta import S, Symbol
+from metta.vocabularies import Limit
 
 _C_EXTENSION = (
     Path(__file__).resolve().parents[4] / "examples" / "ch19-spaces-backed-by-anything" / "19-03-a-builtin-in-c"
@@ -138,6 +139,7 @@ def test_a_bound_trace_answers_its_prefix_instead_of_raising(m):
     assert len(whole) > 6
 
     cut = m.trace("!(tr-count 20)", max_events=5)
+    assert cut.stopped is Limit.events
     assert cut.truncated
     assert len(cut) == 5
     assert next(event.kind for event in cut) == "call"
@@ -159,8 +161,10 @@ def test_a_trace_is_a_list_and_says_when_it_is_a_prefix(m):
     assert isinstance(cut, list)
     assert len(list(cut)) == 3
     assert cut.truncated is True
-    assert "truncated" in repr(cut)
-    assert m.trace("!(tr-list 2)").truncated is False
+    assert "stopped=events" in repr(cut)
+    whole = m.trace("!(tr-list 2)")
+    assert whole.truncated is False
+    assert whole.stopped is None
 
 
 def test_the_size_of_a_term_bounds_a_trace_that_a_count_does_not(m):
@@ -179,16 +183,19 @@ def test_the_size_of_a_term_bounds_a_trace_that_a_count_does_not(m):
     # can be what stops it.
     cut = m.trace(f"!(tr-walk 2000 ({payload}))", max_events=10_000_000)
     assert cut.truncated, "the cell budget did not stop an unbounded-by-count trace"
+    # And it says WHICH, because raising max_events here buys nothing: the
+    # count was already ten million and the store is what ran out.
+    assert cut.stopped is Limit.memory
     assert len(cut) < 10_000_000
 
 
 def test_a_run_bound_stops_a_trace_the_way_it_stops_a_run(m):
-    """The two bounds stop different things and both now apply.
+    """The two kinds of bound stop different things and both now apply.
 
-    max_events bounds the RECORDING; timeout and inferences bound the RUN. A
-    program can retire millions of inferences inside a handful of recorded
-    events, so a recording bound is no substitute. Through 0.7.1 this door
-    passed no limits at all: `with m.limits(inferences=100)` let a traced
+    max_events bounds the RECORDING; timeout, inferences and stack bound the
+    RUN. A program can retire millions of inferences inside a handful of
+    recorded events, so a recording bound is no substitute. Through 0.7.1 this
+    door passed no limits at all: `with m.limits(inferences=100)` let a traced
     program run to completion while the same program under `run` stopped in
     the same scope.
     """
@@ -196,23 +203,28 @@ def test_a_run_bound_stops_a_trace_the_way_it_stops_a_run(m):
 
     m.run("(= (loop $n) (if (> $n 0) (loop (- $n 1)) done))")
 
-    # The control: the same bound on the same program through run().
+    # The control: the same bound on the same program through run(), which
+    # raises, because a run has no partial answer to give back.
     with m.stats() as bounded_run, pytest.raises(InferenceLimitError):
         with m.limits(inferences=100):
             m.run("!(loop 2000)")
 
-    with m.stats() as scoped, pytest.raises(InferenceLimitError):
+    with m.stats() as scoped:
         with m.limits(inferences=100):
-            m.trace("!(loop 2000)")
+            scoped_trace = m.trace("!(loop 2000)")
 
-    with m.stats() as per_call, pytest.raises(InferenceLimitError):
-        m.trace("!(loop 2000)", inferences=100)
+    with m.stats() as per_call:
+        per_call_trace = m.trace("!(loop 2000)", inferences=100)
+
+    for cut in (scoped_trace, per_call_trace):
+        assert cut.stopped is Limit.inferences
 
     # Unbounded, the same program is three orders of magnitude more work, which
     # is what makes the two stops above evidence rather than coincidence.
     with m.stats() as unbounded:
         whole = m.trace("!(loop 2000)")
     assert not whole.truncated
+    assert whole.stopped is None
     assert unbounded.inferences > 100 * bounded_run.inferences
 
     for measured in (scoped, per_call):
@@ -220,5 +232,90 @@ def test_a_run_bound_stops_a_trace_the_way_it_stops_a_run(m):
 
     # The recording bound remains independent: it cuts events, not the run.
     prefix = m.trace("!(loop 2000)", max_events=4)
-    assert prefix.truncated
+    assert prefix.stopped is Limit.events
     assert len(prefix) == 4
+
+
+def test_a_run_bound_keeps_the_events_it_recorded(m):
+    """A bound is a request to stop, never a request to throw the work away.
+
+    0.7.0 settled that for the RECORDING bound and left the RUN bounds
+    raising, which discarded every event with the exception. Measured
+    2026-09-04 downstream on ch07's 06-peano.metta: a 2,000,000-inference
+    limit answered 7,972 events on the 0.7.1 release and an
+    InferenceLimitError on the tip, and the renderer reading it drew 4 frames
+    where the events give 302.
+
+    The events kept are a genuine PREFIX of the unbounded run, not a
+    differently-shaped short answer, which is what makes them usable.
+
+    The budget is half what the whole door cost rather than a number written
+    here, so it follows the engine instead of going stale: measured
+    2026-09-04, this program costs 52,940 inferences through the door and
+    answers 802 events, and half of that stops it at 605.
+    """
+    m.run("(= (walk $n) (if (> $n 0) (walk (- $n 1)) done))")
+    with m.stats() as ran:
+        whole = m.trace("!(walk 400)")
+    assert not whole.truncated
+
+    cut = m.trace("!(walk 400)", inferences=ran.inferences // 2)
+    assert cut.stopped is Limit.inferences
+    assert 0 < len(cut) < len(whole)
+    assert [str(e.term) for e in cut] == [str(e.term) for e in whole[: len(cut)]]
+
+
+def test_each_bound_answers_its_prefix_and_names_itself(m):
+    """One mechanism, four faces, because the remedies differ.
+
+    A caller told only "something cut this" raises the wrong bound: asking for
+    more events after the store ran out returns the same prefix at the same
+    cost, and asking for more events after an inference bound runs the same
+    program into the same wall.
+    """
+    m.run("(= (span $n) (if (> $n 0) (span (- $n 1)) done))")
+    payload = " ".join(f"q{n}" for n in range(400))
+    m.run("(= (heavy 0 $p) done)")
+    m.run("(= (heavy $n $p) (heavy (- $n 1) $p))")
+
+    named = {
+        Limit.events: m.trace("!(span 400)", max_events=6),
+        Limit.memory: m.trace(f"!(heavy 2000 ({payload}))", max_events=10_000_000),
+        Limit.inferences: m.trace("!(span 4000)", inferences=40_000),
+        # A recording bound far above what a fifth of a second records, so
+        # the clock is what stops this one: measured 2026-09-04, 0.08s of
+        # this program records 7,685 events.
+        Limit.timeout: m.trace(
+            "!(span 2000000)", max_events=1_000_000, timeout=0.2
+        ),
+    }
+    for bound, cut in named.items():
+        assert cut.stopped is bound, f"{bound} answered {cut.stopped}"
+        assert cut.truncated is True
+        assert len(cut) > 0, f"{bound} kept no events"
+
+
+def test_encoding_a_bounded_trace_is_not_charged_to_the_run_bound(m):
+    """The bound is on the RUN, and answering is not the run.
+
+    Encoding the events for the wire costs more than producing them: measured
+    2026-09-04 on 06-peano.metta at max_events=10,000, the traced run and
+    harvest cost 686,743 inferences and the encoding cost 4,825,600, seven
+    times more. Charged to the run budget, that
+    trace reached its EVENT bound during the run and then died encoding
+    events it had already recorded, so the caller paid the whole budget to be
+    told only that the budget was gone.
+
+    A budget comfortably above the run's own cost must therefore leave the
+    recording bound in charge.
+    """
+    m.run("(= (brief $n) (if (> $n 0) (brief (- $n 1)) done))")
+    with m.stats() as ran:
+        whole = m.trace("!(brief 300)", max_events=40)
+    assert whole.stopped is Limit.events
+
+    # Twice what the whole door cost, so the RUN is nowhere near it; before
+    # the bound moved inside the door this raised instead.
+    cut = m.trace("!(brief 300)", max_events=40, inferences=2 * ran.inferences)
+    assert cut.stopped is Limit.events
+    assert len(cut) == len(whole) == 40

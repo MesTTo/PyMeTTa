@@ -328,8 +328,9 @@ if TYPE_CHECKING:
     # Named only by `trace`'s return annotation, which `from __future__ import
     # annotations` keeps as text, so the satellite stays as lazy as
     # _satellite("_trace") makes it while the annotation still says which
-    # class comes back. `Trace` is a list carrying `truncated`, and a caller
-    # that reads it as a bare list cannot tell a complete trace from a cut one.
+    # class comes back. `Trace` is a list carrying `stopped`, and a caller
+    # that reads it as a bare list cannot tell a complete trace from a cut one,
+    # nor which of the five bounds cut it.
     from ._trace import Trace
     from .lint import Finding
 
@@ -1760,13 +1761,13 @@ class Space(Handle):
         argument `answers` and `eval` take; a string is still a string.
         What is traced executes for real, writes included, like run();
         the wrap exists only while tracing, so untraced calls pay
-        nothing. max_events bounds the RECORDING; past it the recording
-        stops and the result's `truncated` is True, rather
-        than accumulating a long run's trace without limit. timeout and
-        inferences bound the RUN, the pair every evaluating door takes,
-        defaulting to whatever `m.limits()` scopes: the two are
-        independent because a program can retire millions of inferences
-        inside a handful of recorded events.
+        nothing. max_events bounds the RECORDING and timeout,
+        inferences and stack bound the RUN, defaulting to whatever
+        `m.limits()` scopes; they are independent because a program can
+        retire millions of inferences inside a handful of recorded
+        events. Whichever one stops it, the events already recorded are
+        ANSWERED and `stopped` names the bound, so a caller told a trace
+        was cut knows which bound to raise.
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         return _satellite("_trace").trace(
             self, source, max_events=max_events, timeout=timeout, inferences=inferences
@@ -6248,13 +6249,13 @@ class MeTTa:
         argument `answers` and `eval` take; a string is still a string.
         What is traced executes for real, writes included, like run();
         the wrap exists only while tracing, so untraced calls pay
-        nothing. max_events bounds the RECORDING; past it the recording
-        stops and the result's `truncated` is True, rather
-        than accumulating a long run's trace without limit. timeout and
-        inferences bound the RUN, the pair every evaluating door takes,
-        defaulting to whatever `m.limits()` scopes: the two are
-        independent because a program can retire millions of inferences
-        inside a handful of recorded events.
+        nothing. max_events bounds the RECORDING and timeout,
+        inferences and stack bound the RUN, defaulting to whatever
+        `m.limits()` scopes; they are independent because a program can
+        retire millions of inferences inside a handful of recorded
+        events. Whichever one stops it, the events already recorded are
+        ANSWERED and `stopped` names the bound, so a caller told a trace
+        was cut knows which bound to raise.
         Runs against this context's self space.
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         return self._self.trace(source, max_events, timeout=timeout, inferences=inferences)

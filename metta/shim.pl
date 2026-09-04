@@ -1030,6 +1030,9 @@ metta_py_wrappable(metta_py_captured).
 metta_py_wrappable(metta_py_atomic).
 metta_py_wrappable(metta_py_speculative).
 metta_py_wrappable(metta_py_profiled).
+%The trace door stays wrappable for the execution POLICY wrappers, which is
+%what this list is for; its RUN bounds ride inside it as an argument instead,
+%so metta_py_limited never charges a caller's budget for encoding the trace.
 metta_py_wrappable(metta_py_trace).
 metta_py_wrappable(metta_py_function_shape).
 metta_py_wrappable(metta_py_cursor_next).
@@ -2163,11 +2166,30 @@ metta_py_future_snapshot(Space, [Watermark, Encoded]) :-
 %it is for every other atom leaving the engine. A call event has no answer
 %field at all, rather than a value standing in for its absence.
 %One output, because janus binds the LAST argument and a trace now has two
-%things to say: the events, and whether they are all of them. Truncated
-%leads so a reader of the wire sees the qualifier before the data it
-%qualifies.
-metta_py_trace(Source, Space, Max, [Truncated, Encoded]) :-
-    metta_trace_source(Source, Space, Max, Events, Truncated),
+%things to say: the events, and which bound stopped them being all of them.
+%Stopped leads so a reader of the wire sees the qualifier before the data it
+%qualifies, and carries the bound's own word rather than a yes-or-no,
+%because the remedy differs per bound: false, or one of the limit
+%vocabulary's events, memory, inferences, timeout and stack.
+%
+%Bounds is the caller's [Seconds, Inferences, StackBytes] triple, with the
+%same -1 no-bound sentinels metta_py_limited uses, and this door applies it
+%to the RUN itself rather than taking it from the generic wrapper around the
+%whole door. Everything after the run -- harvesting the recorder and encoding
+%events for the wire -- is work proportional to Max, which the caller has
+%already bounded, and it is not small: measured 2026-09-04 on
+%examples/ch07-control-flow/07-05-recursion/06-peano.metta's own head, the
+%traced run and harvest cost 686,743 inferences and encoding its 10,000
+%events cost 4,825,600, seven times more
+%[measured 2026-09-04; docs/journal/2026-09-04-bounded-trace-keeps-its-events.md].
+%Charged to the run budget, a 2,000,000-inference trace therefore reached
+%its EVENT bound during the run and then died encoding events it had already
+%recorded, and the caller paid the whole budget to be told only that the
+%budget was gone.
+metta_py_trace(Source, Space, Max, Bounds, [Stopped, Encoded]) :-
+    Bounds = [TimeS, Inf, StackBytes],
+    metta_py_guarded(TimeS, Inf, StackBytes,
+                     metta_trace_source(Source, Space, Max, Events, Stopped)),
     maplist(metta_py_trace_event, Events, Encoded).
 
 metta_py_trace_event(event(Depth, call, Term, _, Names),

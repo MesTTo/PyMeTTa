@@ -122,6 +122,7 @@ __all__ = [
     "Fidelity",
     "FunctionResultEnum",
     "ImageMode",
+    "Limit",
     "MemoAggregate",
     "MemoStrategy",
     "MismatchEnum",
@@ -255,6 +256,15 @@ class ImageMode(_AtomStrEnum):
     opaque = "opaque"
     transparent = "transparent"
     auto = "auto"
+
+#: (vocabulary limit events memory inferences timeout stack)
+class Limit(_AtomStrEnum):
+    """Typed values of the limit vocabulary."""
+    events = "events"
+    memory = "memory"
+    inferences = "inferences"
+    timeout = "timeout"
+    stack = "stack"
 
 #: (vocabulary memo-aggregate none min max sum count)
 class MemoAggregate(_AtomStrEnum):
