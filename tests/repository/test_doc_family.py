@@ -13,6 +13,7 @@ Open Obligations:
   Future Enhancements: None.
 """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
+import pytest
 from hypothesis import given
 from hypothesis import strategies as st
 
@@ -179,3 +180,46 @@ def test_the_doc_verb_answers_the_structured_atom(metta):  # noqa: D103  -- pyte
     package.run('(@doc ambient-doc-verb (@desc "ambient"))')
     ambient = package.doc(S["ambient-doc-verb"])
     assert '(@desc "ambient")' in str(ambient)
+
+
+def test_a_function_documented_without_parameters_reaches_the_scoped_door(metta):
+    """The portable `(@doc name (@desc ...))` shape on an arrow-typed name.
+
+    `get-doc-function` builds the four-field shape and matches only
+    `('@doc' Name Desc ('@params' _) _)`, so committing every arrow type to it
+    left the scoped door answering nothing while the unary `get-doc` answered
+    the same row from the same space. A downstream integration documents 47
+    arrow-typed callables that way and every one of them raised here.
+    """
+    from metta import S
+    from metta.errors import EngineError
+
+    with metta._new_space() as kb:
+        kb.run('(: fpc.test (-> Number Number))\n(@doc fpc.test (@desc "Portable"))')
+
+        # The unary form always saw it; that is what made the scoped miss a bug
+        # rather than a missing document.
+        assert len(kb.eval("(get-doc fpc.test)")) == 1
+
+        answer = str(kb.doc(S["fpc.test"]))
+        assert "(@kind function)" in answer
+        assert "(@type (-> Number Number))" in answer
+        assert '(@desc "Portable")' in answer
+
+        # A function documented WITH parameters keeps the full formal shape.
+        kb.run(
+            '(: full (-> Number Number))\n'
+            '(@doc full (@desc "Full") (@params ((@param "x"))) (@return "y"))'
+        )
+        full = str(kb.doc(S.full))
+        assert "(@params" in full
+        assert "(@return" in full
+
+        # A name that was never documented still raises, so the door keeps
+        # saying "no documentation" rather than inventing a placeholder.
+        # The name has to be one the engine does not document itself:
+        # `undocumented` is engine vocabulary and resolves from the prelude
+        # register, which is get-doc's documented fallback and not a miss.
+        kb.run("(: fpc.never-written (-> Number Number))")
+        with pytest.raises(EngineError):
+            kb.doc(S["fpc.never-written"])
