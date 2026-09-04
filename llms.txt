@@ -189,7 +189,13 @@ kb.transfer(x, y, to=other)   # move one occurrence each, one transaction
 kb |= other                   # bulk merge; a space is a multiset
 kb.clear(); kb.drop()         # empty it; end its whole life and free the name
 kb.copy(); kb.digest()        # clone contents; content identity
+kb.source()                   # directly stored program as loadable MeTTa
+kb.save("program.metta")      # writes exactly kb.source()
+kb.consumption("repeated")    # writes (source <space> repeated) in the catalog
 ```
+
+`python -m metta convert program.py [-o out.metta]` imports the module against
+a fresh space and prints or writes its declarations as loadable MeTTa source.
 
 `metta.spaces` composes without copying: `union(*spaces)` reads a set as one,
 `overlay(front, back)` reads both and writes to the front, `readonly(s)`
