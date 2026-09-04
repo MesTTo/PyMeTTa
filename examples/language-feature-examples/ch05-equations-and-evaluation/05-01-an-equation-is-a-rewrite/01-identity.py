@@ -673,5 +673,5 @@ def twin(m):
 #: engine/metta/control.pl at 7e071e5f^; command=cd extensions/python &&
 #: PYTHONPATH=. $CHECK_PY -m pytest -q tests/repository/test_twin_coverage.py
 #: -k 'identity.metta'; fixture=warm main-checkout engine artifacts with
-#: libmork_ffi.so present; commit=WORKTREE]
+#: libmork_ffi.so present; commit=fc095384e1c6ed4c50d19d0f8aa559344a286e29]
 BUDGET = 3553
