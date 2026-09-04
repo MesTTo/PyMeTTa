@@ -16,6 +16,19 @@ Guarantees:
     exact removal counterparts [tested
     test_protocol_and_reflector_registrations_can_be_removed,
     test_type_registration_can_be_removed_and_its_name_reclaimed]
+  - a failed installer restores operations and their declaration ownership,
+    protocol types, protocol reprs, reflectors, converted types, atoms written
+    to native spaces or transactional providers, library-path facts, dynamic
+    Prolog extension registrations, and nested installation receipts [tested
+    test_a_failed_integration_unwinds_every_framework_registration,
+    test_a_failed_outer_installation_unwinds_its_completed_dependency]
+  - a best-effort home space is refused before its installer runs, because its
+    declared writes can survive rollback [tested
+    test_an_integration_refuses_a_best_effort_home_before_installing]
+  - a started installer's original failure names the effects no transaction
+    can safely reverse, and declarative Prolog integrations also name every
+    source file that may remain consulted [tested
+    test_a_failed_prolog_integration_names_its_possible_source_residue]
   - installation idempotence ends with the lifetime of its space [tested
     test_dropped_space_name_reinstalls_integrations]
   - an installer is handed a SPACE whichever of the two the caller holds, so
@@ -40,8 +53,10 @@ Guarantees:
     commit=a6681e54ded570684ba0e2969f2893ae016a841a]
 Owns:
   - _INSTALLED retains one target per live space and integration name;
-    MeTTa.drop releases every record for that space [tested
-    test_dropped_space_name_reinstalls_integrations]
+    MeTTa.drop releases every record for that space and a containing
+    transaction rollback releases completed nested installations [tested
+    test_dropped_space_name_reinstalls_integrations,
+    test_a_failed_outer_installation_unwinds_its_completed_dependency]
 Guarded by:
   - _INSTALLED_LOCK serializes integration installation and invalidation
     [tested test_dropped_space_name_reinstalls_integrations]
@@ -64,9 +79,11 @@ from importlib import metadata
 from pathlib import Path
 from typing import Any, Literal, Protocol, runtime_checkable
 
+from . import _atoms_core as _atom_registry
+from . import _convert_registry as _type_registry
+from . import _ops as _operation_registry
 from . import convert
 from ._object_fields import field_names as _field_names
-from ._ops import register_protocol_type, unregister_protocol_type
 from .atoms import (
     Atom,
     Expression,
@@ -77,12 +94,11 @@ from .atoms import (
     _decode,
     _encode,
     _expr,
-    _register_protocol_repr,
-    _unregister_protocol_repr,
     ground,
 )
 from .errors import MettaError
 from .foreign import SpaceProvider
+from .ops import _record_registry_undo
 from .vocabularies import EffectClass
 
 __all__ = [
@@ -169,10 +185,21 @@ def integrate(m, target: Any) -> str:
     m may be a context or a space; the installer is handed the space either
     way, which is the object whose storage doors it needs.
 
-    Idempotence is per SPACE, because equations and facts an installer
-    writes land in the space it was handed: installing into a second space
-    installs again there. Operations are process-wide either way, and
-    re-registering them is the registry's ordinary replacement.
+    Idempotence is per SPACE, because equations and facts an installer writes
+    land in the space it was handed: installing into a second space installs
+    again there. Operations are process-wide either way, and re-registering
+    them is the registry's ordinary replacement.
+
+    Installation is one unit of work. A failure restores engine state and each
+    framework-owned Python registry to the state before this call. A home space
+    declaring best-effort writes is refused before the installer runs because
+    those writes explicitly survive rollback.
+
+    Source consultation, native-library loading, custom listener effects, and
+    arbitrary process-global side effects have no general safe inverse. The
+    original installer exception carries that boundary as a note; a
+    METTA_PROLOG integration also names every source path that may remain
+    consulted.
     """
     if isinstance(target, str):
         target = _resolve(target)
@@ -196,10 +223,83 @@ def integrate(m, target: Any) -> str:
     space = space_of(m)
     key = (space.name, name)
     with _INSTALLED_LOCK:
-        if key not in _INSTALLED:
+        if key in _INSTALLED:
+            return name
+        started = False
+
+        def install() -> None:
+            nonlocal started
+            _require_transactional_home(space, name)
+            started = True
             installer(space)
+            _record_registry_undo(
+                lambda: _restore_installation_receipt(key, target),
+                description=f"installation receipt {key!r}",
+            )
             _INSTALLED[key] = target
+
+        try:
+            space.transaction(install)
+        except BaseException as error:
+            if started:
+                _annotate_irreversible_residue(error, name, installer)
+            raise
     return name
+
+
+def _require_transactional_home(space: Any, name: str) -> None:
+    """Refuse a home whose own contract permits writes to survive rollback."""
+    row = space.runtime.once(
+        "metta_writes(Space, Atomicity)",
+        Space=space.name,
+    )
+    if row is None or row.get("Atomicity") != "best-effort":
+        return
+    msg = (
+        f"cannot install integration {name!r} into {space.name}: the space "
+        "declares best-effort writes, so a failed installer could leave atoms "
+        "behind; use a native or transactional home space"
+    )
+    raise MettaError(msg)
+
+
+def _restore_installation_receipt(key: tuple[str, str], target: Any) -> None:
+    """Remove one receipt created by a completed nested installation."""
+    with _INSTALLED_LOCK:
+        current = _INSTALLED.get(key)
+        if current is target:
+            del _INSTALLED[key]
+        elif current is not None:
+            msg = f"installation receipt {key!r} was replaced before rollback"
+            raise RuntimeError(msg)
+
+
+def _annotate_irreversible_residue(
+    error: BaseException,
+    name: str,
+    installer: Callable,
+) -> None:
+    """State the process effects the framework cannot promise to reverse."""
+    BaseException.add_note(
+        error,
+        f"integration {name!r} failed after its installer started; "
+        "framework-managed registrations and transactional writes were "
+        "enrolled for rollback, but consulted Prolog source, loaded native "
+        "libraries, custom registration-listener effects, and other "
+        "process-global side effects cannot be unwound automatically and may remain"
+    )
+    files = (
+        installer.__dict__.get("_metta_prolog_files", ())
+        if inspect.isfunction(installer)
+        else ()
+    )
+    if files:
+        paths = ", ".join(str(path) for path in files)
+        BaseException.add_note(
+            error,
+            f"Prolog source declared by integration {name!r} may remain "
+            f"consulted: {paths}"
+        )
 
 
 def _prolog_installer(target: Any) -> Callable:
@@ -225,6 +325,7 @@ def _prolog_installer(target: Any) -> Callable:
         for path in files:
             m.register_prolog(path=path)
 
+    install.__dict__["_metta_prolog_files"] = tuple(files)
     return install
 
 
@@ -559,10 +660,130 @@ def _effect(fn: Callable) -> Callable:
 
 # --------------------------------------------------------------- value bridge
 
-# The four-image translator is part of the integration surface; re-exported
-# so an integration is written against one namespace.
-register_type = convert.register_type
-unregister_type = convert.unregister_type
+
+def _append_registry_entry(
+    registry: list[tuple[Any, Any]],
+    lock: Any,
+    entry: tuple[Any, Any],
+    description: str,
+) -> None:
+    """Append one ordered registration and enlist its identity-exact inverse."""
+
+    def undo() -> None:
+        with lock:
+            for index in range(len(registry) - 1, -1, -1):
+                if registry[index] is entry:
+                    registry.pop(index)
+                    return
+
+    _record_registry_undo(undo, description=description)
+    with lock:
+        registry.append(entry)
+
+
+def _remove_registry_entry(
+    registry: list[tuple[Any, Any]],
+    lock: Any,
+    matches: Callable[[tuple[Any, Any]], bool],
+    *,
+    missing: str,
+    description: str,
+) -> None:
+    """Remove the latest match and enlist restoration at its exact precedence."""
+    with lock:
+        for index in range(len(registry) - 1, -1, -1):
+            if matches(registry[index]):
+                entry = registry[index]
+                break
+        else:
+            raise KeyError(missing)
+
+        def undo() -> None:
+            with lock:
+                if any(candidate is entry for candidate in registry):
+                    return
+                if index > len(registry):
+                    msg = (
+                        f"cannot restore {description} at index {index}; "
+                        f"registry now has {len(registry)} entries"
+                    )
+                    raise RuntimeError(msg)
+                registry.insert(index, entry)
+
+        _record_registry_undo(undo, description=description)
+        registry.pop(index)
+
+
+def _type_registration(cls: type) -> Any:
+    """Read one exact converted-type registration, without MRO fallback."""
+    with _type_registry._REGISTRY_LOCK:
+        return _type_registry._REGISTRY.get(cls)
+
+
+def _restore_type_registration(cls: type, previous: Any, expected: Any) -> None:
+    """Restore converter maps silently; the engine transaction restores listeners."""
+    with _type_registry._REGISTRY_LOCK:
+        current = _type_registry._REGISTRY.get(cls)
+        if current is previous:
+            return
+        if current is not expected:
+            msg = (
+                f"converted type {cls.__qualname__} changed again before rollback"
+            )
+            raise RuntimeError(msg)
+        _type_registry._discard_old_constructor(cls, current)
+        if (
+            current is not None
+            and _type_registry._TYPE_OWNERS.get(current.type_name) is cls
+        ):
+            del _type_registry._TYPE_OWNERS[current.type_name]
+        _type_registry._REGISTRY.pop(cls, None)
+        if previous is not None:
+            _type_registry._record_registration_locked(cls, previous)
+
+
+def _enlist_type_preimage(cls: type) -> list[Any]:
+    """Enlist before mutation so a failing registration listener also unwinds."""
+    previous = _type_registration(cls)
+    expected = [previous]
+    _record_registry_undo(
+        lambda: _restore_type_registration(cls, previous, expected[0]),
+        description=f"converted type registration {cls.__qualname__!r}",
+    )
+    return expected
+
+
+def register_type(
+    cls: type,
+    *,
+    image: str = "expression",
+    to_atom: Callable[[Any], Any] | None = None,
+    from_atom: Callable[..., Any] | None = None,
+    name: str | None = None,
+    fields: tuple[str, ...] = (),
+) -> type:
+    """Register a converted type, enlisted in an enclosing transaction."""
+    expected = _enlist_type_preimage(cls)
+    try:
+        return convert.register_type(
+            cls,
+            image=image,
+            to_atom=to_atom,
+            from_atom=from_atom,
+            name=name,
+            fields=fields,
+        )
+    finally:
+        expected[0] = _type_registration(cls)
+
+
+def unregister_type(cls: type) -> None:
+    """Remove one converted type, restoring its exact preimage on rollback."""
+    expected = _enlist_type_preimage(cls)
+    try:
+        convert.unregister_type(cls)
+    finally:
+        expected[0] = _type_registration(cls)
 
 
 def register_object_type(predicate: Callable[[Any], bool], name: str) -> None:
@@ -571,24 +792,46 @@ def register_object_type(predicate: Callable[[Any], bool], name: str) -> None:
 
         register_object_type(lambda x: hasattr(x, "__dlpack__"), "DLTensor")
     """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
-    register_protocol_type(predicate, name)
+    _append_registry_entry(
+        _operation_registry.PROTOCOL_TYPES,
+        _operation_registry._PROTOCOL_TYPES_LOCK,
+        (predicate, name),
+        f"object type protocol {name!r}",
+    )
 
 
 def unregister_object_type(predicate: Callable[[Any], bool], name: str) -> None:
     """Remove the latest exact protocol type registration."""
-    unregister_protocol_type(predicate, name)
+    _remove_registry_entry(
+        _operation_registry.PROTOCOL_TYPES,
+        _operation_registry._PROTOCOL_TYPES_LOCK,
+        lambda entry: entry[0] is predicate and entry[1] == name,
+        missing=f"no object type protocol {name!r} uses that predicate",
+        description=f"object type protocol {name!r}",
+    )
 
 
 def register_repr(predicate: Callable[[Any], bool], formatter: Callable[[Any], str]) -> None:
     """How objects satisfying a protocol print when stored as atoms."""
-    _register_protocol_repr(predicate, formatter)
+    _append_registry_entry(
+        _atom_registry._PROTOCOL_REPRS,
+        _atom_registry._STATE_LOCK,
+        (predicate, formatter),
+        "protocol repr registration",
+    )
 
 
 def unregister_repr(
     predicate: Callable[[Any], bool], formatter: Callable[[Any], str]
 ) -> None:
     """Remove the latest exact protocol formatter registration."""
-    _unregister_protocol_repr(predicate, formatter)
+    _remove_registry_entry(
+        _atom_registry._PROTOCOL_REPRS,
+        _atom_registry._STATE_LOCK,
+        lambda entry: entry[0] is predicate and entry[1] is formatter,
+        missing="no protocol repr is registered for those exact callables",
+        description="protocol repr registration",
+    )
 
 
 # ----------------------------------------------------------------- reflection
@@ -603,22 +846,25 @@ def register_reflector(
     predicate: Callable[[Any], bool], fn: Callable[[Any, str, Any], int]
 ) -> None:
     """fn(m, name, obj) writes facts about obj into m and returns the count."""
-    with _REFLECTOR_LOCK:
-        _REFLECTORS.append((predicate, fn))
+    _append_registry_entry(
+        _REFLECTORS,
+        _REFLECTOR_LOCK,
+        (predicate, fn),
+        "reflector registration",
+    )
 
 
 def unregister_reflector(
     predicate: Callable[[Any], bool], fn: Callable[[Any, str, Any], int]
 ) -> None:
     """Remove the latest reflector matching both callables exactly."""
-    with _REFLECTOR_LOCK:
-        for index in range(len(_REFLECTORS) - 1, -1, -1):
-            registered_predicate, registered_fn = _REFLECTORS[index]
-            if registered_predicate is predicate and registered_fn is fn:
-                _REFLECTORS.pop(index)
-                return
-    msg = "no reflector is registered for those exact callables"
-    raise KeyError(msg)
+    _remove_registry_entry(
+        _REFLECTORS,
+        _REFLECTOR_LOCK,
+        lambda entry: entry[0] is predicate and entry[1] is fn,
+        missing="no reflector is registered for those exact callables",
+        description="reflector registration",
+    )
 
 
 def reflect(m, name: str, obj: Any) -> int:

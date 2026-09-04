@@ -5,6 +5,16 @@ modules, and a real third-party library (networkx) integrated in a page.
 Guarantees:
   - dropping a space invalidates its integration installation records [tested
     test_dropped_space_name_reinstalls_integrations]
+  - a failed integration removes every framework-managed registration and
+    transactional write, restores prior registry entries, and releases a
+    completed nested dependency receipt [tested
+    test_a_failed_integration_unwinds_every_framework_registration,
+    test_a_failed_integration_restores_registry_preimages,
+    test_a_failed_outer_installation_unwinds_its_completed_dependency]
+  - installation refuses a best-effort home before invoking user code and a
+    failed declarative Prolog install names source that may remain consulted
+    [tested test_an_integration_refuses_a_best_effort_home_before_installing,
+    test_a_failed_prolog_integration_names_its_possible_source_residue]
   - module operations use one transport selector and infer declarations from
     annotations [tested: test_module_ops_bulk_registers_a_stdlib_module;
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
@@ -20,6 +30,7 @@ Open Obligations:
   Future Enhancements: None.
 """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
+import contextlib
 import math
 import types
 from dataclasses import dataclass
@@ -33,6 +44,7 @@ from metta import (
     S,
     Symbol,
     V,
+    convert,
     ground,
 )
 from metta import integrate as pi
@@ -289,6 +301,343 @@ def test_an_integration_installed_on_a_context_reaches_its_home_space():
     # handing the context a second time installs nothing further.
     pi.integrate(home, fake)
     assert len(seen) == 1
+
+
+def test_a_failed_integration_unwinds_every_framework_registration(
+    metta, repo_root
+):
+    """The reporter's operation, marker, library fact, and type all disappear."""
+    import importlib
+
+    ops = importlib.import_module("metta.ops")
+    operation_name = "failed-integration-operation"
+    integration_name = "failed_integration_rollback_probe"
+    library_alias = "failed.integration.rollback"
+    type_name = "FailedIntegrationType"
+    library_directory = repo_root / "extensions" / "python" / "tests" / "fixtures"
+    marker = S["integration-install-marker"](S.present)
+
+    class InstalledType:
+        def __init__(self, value):
+            self.value = value
+
+    class ReclaimedType:
+        def __init__(self, value):
+            self.value = value
+
+    class ProtocolTarget:
+        pass
+
+    target = ProtocolTarget()
+
+    def predicate(value):
+        return isinstance(value, ProtocolTarget)
+
+    def formatter(_value):
+        return "<failed integration target>"
+
+    def reflector(space, name, _value):
+        return pi.facts(space, [S.reflected(Symbol(name))])
+
+    def install(space):
+        @space.op(name=operation_name, effect="pureStructural")
+        def installed_operation(value: int) -> int:
+            return value
+
+        space.add(marker)
+        space.register_library_path(library_directory, library_alias)
+        pi.register_type(
+            InstalledType,
+            name=type_name,
+            to_atom=lambda value: (value.value,),
+            from_atom=InstalledType,
+            fields=("value",),
+        )
+        pi.register_object_type(predicate, "FailedIntegrationProtocol")
+        pi.register_repr(predicate, formatter)
+        pi.register_reflector(predicate, reflector)
+        message = "injected integration failure"
+        raise RuntimeError(message)
+
+    integration = types.SimpleNamespace(
+        __name__=integration_name,
+        install_metta=install,
+    )
+
+    with metta._new_space() as space:
+        try:
+            with pytest.raises(
+                RuntimeError, match="injected integration failure"
+            ) as caught:
+                pi.integrate(space, integration)
+
+            notes = getattr(caught.value, "__notes__", ())
+            assert any("process-global side effects" in note for note in notes)
+            assert operation_name not in ops.registered()
+            assert not space.is_function(operation_name)
+            assert marker not in space
+            assert not space.runtime.once(
+                "user:file_search_path(Alias, Directory)",
+                Alias=library_alias,
+                Directory=str(library_directory),
+            )
+            assert S["type-image"](S[type_name], S.expression) not in space._at(
+                "&metta"
+            )
+            with pytest.raises(TypeError, match="has no default image"):
+                convert.ensure_registered(InstalledType)
+            assert (space.name, integration_name) not in pi.installed()
+            with pytest.raises(CastError):
+                space.cast(target, "FailedIntegrationProtocol")
+            assert str(ground(target)) == "<ProtocolTarget>"
+            with pytest.raises(MettaError, match="no reflector claims ProtocolTarget"):
+                pi.reflect(space, "removed", target)
+
+            # The public names are reclaimable, and a typed operation retry
+            # republishes every declaration rather than trusting stale Python
+            # ownership counts left by the failed first attempt.
+            pi.register_type(
+                ReclaimedType,
+                name=type_name,
+                to_atom=lambda value: (value.value,),
+                from_atom=ReclaimedType,
+                fields=("value",),
+            )
+            pi.unregister_type(ReclaimedType)
+
+            def replacement_operation(value: int) -> int:
+                return value
+
+            space.op(
+                replacement_operation,
+                name=operation_name,
+                effect="pureStructural",
+            )
+            declarations = ops.registered()[operation_name].declarations
+            assert declarations
+            assert all(declaration in space for declaration in declarations)
+        finally:
+            if operation_name in ops.registered() or space.is_function(operation_name):
+                with contextlib.suppress(KeyError, MettaError):
+                    space.unregister_op(operation_name)
+            for cls in (InstalledType, ReclaimedType):
+                with contextlib.suppress(KeyError):
+                    pi.unregister_type(cls)
+            with contextlib.suppress(KeyError):
+                pi.unregister_reflector(predicate, reflector)
+            with contextlib.suppress(KeyError):
+                pi.unregister_repr(predicate, formatter)
+            with contextlib.suppress(KeyError):
+                pi.unregister_object_type(predicate, "FailedIntegrationProtocol")
+            while marker in space:
+                space.remove(marker)
+            space.runtime.must(
+                "retractall(user:file_search_path(Alias, Directory))",
+                Alias=library_alias,
+                Directory=str(library_directory),
+            )
+
+
+def test_a_failed_integration_restores_registry_preimages(metta):
+    """Removal and replacement roll back to exact entries and list precedence."""
+    class ExistingType:
+        def __init__(self, value):
+            self.value = value
+
+    class ExistingTarget:
+        pass
+
+    type_name = "ExistingIntegrationType"
+    protocol_name = "ExistingIntegrationProtocol"
+    target = ExistingTarget()
+
+    def predicate(value):
+        return isinstance(value, ExistingTarget)
+
+    def formatter(_value):
+        return "<existing integration target>"
+
+    def reflector(space, name, _value):
+        return pi.facts(space, [S.reflected(Symbol(name))])
+
+    pi.register_type(
+        ExistingType,
+        name=type_name,
+        to_atom=lambda value: (value.value,),
+        from_atom=ExistingType,
+        fields=("value",),
+    )
+    pi.register_object_type(predicate, protocol_name)
+    pi.register_repr(predicate, formatter)
+    pi.register_reflector(predicate, reflector)
+
+    def install(_space):
+        pi.unregister_object_type(predicate, protocol_name)
+        pi.unregister_repr(predicate, formatter)
+        pi.unregister_reflector(predicate, reflector)
+        pi.register_type(ExistingType, image="handle", name=type_name)
+        message = "restore registry preimages"
+        raise RuntimeError(message)
+
+    integration = types.SimpleNamespace(
+        __name__="failed_registry_preimage_probe",
+        install_metta=install,
+    )
+
+    with metta._new_space() as space:
+        try:
+            with pytest.raises(RuntimeError, match="restore registry preimages"):
+                pi.integrate(space, integration)
+
+            assert space.cast(target, protocol_name) is target
+            assert str(ground(target)) == "<existing integration target>"
+            assert pi.reflect(space, "restored", target) == 1
+            assert str(convert.project(ExistingType(7)).atom) == (
+                f"({type_name} 7)"
+            )
+            images = space._at("&metta").match(
+                S["type-image"](S[type_name], V.image)
+            )
+            assert [str(answer.image) for answer in images] == ["expression"]
+        finally:
+            with contextlib.suppress(KeyError):
+                pi.unregister_reflector(predicate, reflector)
+            with contextlib.suppress(KeyError):
+                pi.unregister_repr(predicate, formatter)
+            with contextlib.suppress(KeyError):
+                pi.unregister_object_type(predicate, protocol_name)
+            with contextlib.suppress(KeyError):
+                pi.unregister_type(ExistingType)
+
+
+def test_a_failed_outer_installation_unwinds_its_completed_dependency(metta):
+    """A child commit is relative to the outer installer's transaction."""
+    calls = []
+    marker = S.completed_dependency(S.marker)
+
+    def install_dependency(space):
+        calls.append(space.name)
+        space.add(marker)
+
+    dependency = types.SimpleNamespace(
+        __name__="completed_dependency_probe",
+        install_metta=install_dependency,
+    )
+
+    def install_outer(space):
+        pi.integrate(space, dependency)
+        message = "outer installer failure"
+        raise RuntimeError(message)
+
+    outer = types.SimpleNamespace(
+        __name__="failed_outer_integration_probe",
+        install_metta=install_outer,
+    )
+
+    with metta._new_space() as space:
+        with pytest.raises(RuntimeError, match="outer installer failure"):
+            pi.integrate(space, outer)
+        assert marker not in space
+        assert (space.name, dependency.__name__) not in pi.installed()
+        assert (space.name, outer.__name__) not in pi.installed()
+
+        def fail_after_dependency_commit():
+            pi.integrate(space, dependency)
+            message = "user transaction failure"
+            raise RuntimeError(message)
+
+        with pytest.raises(RuntimeError, match="user transaction failure"):
+            space.transaction(fail_after_dependency_commit)
+        assert marker not in space
+        assert (space.name, dependency.__name__) not in pi.installed()
+
+        pi.integrate(space, dependency)
+        assert calls == [space.name, space.name, space.name]
+        assert marker in space
+
+
+def test_an_integration_refuses_a_best_effort_home_before_installing(metta):
+    """A known non-transactional home cannot start an all-or-nothing install."""
+    from metta.foreign import SpaceProvider
+
+    class Store(SpaceProvider):
+        def __init__(self):
+            self.rows = []
+
+        def atoms(self):
+            return iter(self.rows)
+
+        def add(self, atom):
+            self.rows.append(atom)
+
+    store = Store()
+    space_name = "&best_effort_integration_probe"
+    metta._register_space(store, space_name)
+    space = metta._at(space_name)
+    space.atomicity("best-effort")
+    calls = []
+
+    def install(target):
+        calls.append(target)
+
+    integration = types.SimpleNamespace(
+        __name__="best_effort_integration_probe",
+        install_metta=install,
+    )
+    try:
+        with pytest.raises(MettaError, match="declares best-effort writes") as caught:
+            pi.integrate(space, integration)
+        assert not calls
+        assert not store.rows
+        assert not getattr(caught.value, "__notes__", ())
+        assert (space.name, integration.__name__) not in pi.installed()
+    finally:
+        metta._unregister_space(space_name)
+
+
+def test_a_failed_prolog_integration_names_its_possible_source_residue(
+    metta, tmp_path
+):
+    """Dynamic extension state unwinds; consulted source is named and remains."""
+    package = tmp_path
+    module_name = "failed.prolog.integration"
+    extension_name = "failed_prolog_integration_residue"
+    operation_name = "failed-prolog-integration-residue"
+    first = package / "first-residue.pl"
+    first.write_text(
+        f":- metta_extension({extension_name}, [version('0.0.0')]).\n"
+        f':- metta_export("(: {operation_name} (-> Number Number))").\n'
+        f"'{operation_name}'(X, Y) :- Y is X + 1.\n"
+    )
+    module = types.ModuleType(module_name)
+    module.__file__ = str(package / "__init__.py")
+    module.METTA_PROLOG = ["first-residue.pl", "second-residue.pl"]
+
+    with metta._new_space() as space:
+        with pytest.raises(
+            ValueError, match="register_prolog needs one of three things"
+        ) as caught:
+            pi.integrate(space, module)
+
+        notes = getattr(caught.value, "__notes__", ())
+        joined = "\n".join(notes)
+        assert "consulted Prolog source" in joined
+        for filename in module.METTA_PROLOG:
+            assert str(package / filename) in joined
+        assert not space.runtime.once(
+            "user:file_search_path(Alias, Directory)",
+            Alias=module_name,
+            Directory=str(package),
+        )
+        assert not space.runtime.once(
+            "metta_extension_info(Extension, _, _)",
+            Extension=extension_name,
+        )
+        assert not space.is_function(operation_name)
+        assert (space.name, module_name) not in pi.installed()
+        assert space.runtime.once(
+            f"current_predicate('{operation_name}'/2)"
+        ), "consulted Prolog clauses are the documented non-transactional residue"
 
 
 def test_prolog_integration_aliases_keep_fully_qualified_module_names(

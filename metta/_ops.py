@@ -808,24 +808,6 @@ PROTOCOL_TYPES: list[tuple[Any, str]] = []
 _PROTOCOL_TYPES_LOCK = threading.RLock()
 
 
-def register_protocol_type(predicate: Callable[[Any], bool], name: str) -> None:
-    """Register one predicate and public type-name pair."""
-    with _PROTOCOL_TYPES_LOCK:
-        PROTOCOL_TYPES.append((predicate, name))
-
-
-def unregister_protocol_type(predicate: Callable[[Any], bool], name: str) -> None:
-    """Remove the latest exact predicate and type-name registration."""
-    with _PROTOCOL_TYPES_LOCK:
-        for index in range(len(PROTOCOL_TYPES) - 1, -1, -1):
-            registered_predicate, registered_name = PROTOCOL_TYPES[index]
-            if registered_predicate is predicate and registered_name == name:
-                PROTOCOL_TYPES.pop(index)
-                return
-    msg = f"no object type protocol {name!r} uses that predicate"
-    raise KeyError(msg)
-
-
 def extra_types(obj) -> list[str]:
     names = []
     with _PROTOCOL_TYPES_LOCK:

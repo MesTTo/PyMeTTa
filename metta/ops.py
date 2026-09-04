@@ -73,10 +73,11 @@ Guarantees:
     test_effect_plan_reads_replaced_operation_classification;
     commit=d06621ddec911922c156c79ce68b2c35318e7fc1]
   - a registration rolled back with its transaction leaves no registry entry
-    claiming it, a replaced registration comes back as it was, and an inner
-    commit dies with the outer rollback [tested:
+    or declaration ownership count claiming it, a replaced registration comes
+    back as it was, and an inner commit dies with the outer rollback [tested:
     test_a_rolled_back_registration_leaves_no_registry_claiming_it,
-    test_an_inner_registration_dies_with_the_outer_rollback; commit=420070bc7fe0ddb0185dc614ab8e3409941a320f]
+    test_an_inner_registration_dies_with_the_outer_rollback,
+    test_a_failed_integration_unwinds_every_framework_registration]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -194,9 +195,9 @@ def _reflect_remove(runtime, atom: Expression) -> None:
 _DECLARATION_REFS: dict[tuple[str, str], int] = {}
 
 
-#: Open undo frames, innermost last. A frame records what REGISTRY held for
-#: each name it changed, BEFORE the change, so restoring gives the value the
-#: frame opened with.
+#: Open undo frames, innermost last. A keyed record captures the first preimage
+#: for one registry cell; an unkeyed record is one exact inverse in a mutation
+#: sequence. Together these are the process-side half of an engine transaction.
 #:
 #: REGISTRY is the library's own mirror of engine state, which is what makes it
 #: different from the Python state transaction() says a caller must undo
@@ -204,52 +205,127 @@ _DECLARATION_REFS: dict[tuple[str, str], int] = {}
 #: engine had forgotten: `registered()` said True while the reflection rows and
 #: the declarations were gone and the call no longer reduced, so an installer's
 #: own "already there" check skipped reinstalling a dead name for the life of
-#: the process [measured 2026-09-04].
-_REGISTRY_UNDO: ContextVar[tuple[list[tuple[str, Operation | None]], ...]] = ContextVar(
+#: the process [measured 2026-09-04]. Integration registries have the same
+#: receipt/payload invariant, so they enlist exact inverse callbacks here too.
+_NO_UNDO_KEY = object()
+
+
+@dataclass(frozen=True, slots=True)
+class _RegistryUndo:
+    """One Python registry preimage or exact inverse."""
+
+    callback: Callable[[], None]
+    description: str
+    key: object = _NO_UNDO_KEY
+
+
+_REGISTRY_UNDO: ContextVar[tuple[list[_RegistryUndo], ...]] = ContextVar(
     "metta_registry_undo", default=()
 )
 
 
-def _record_undo(name: str) -> None:
-    """Remember what the registry held for one name before this frame changed it."""
+def _record_registry_undo(
+    callback: Callable[[], None],
+    *,
+    description: str,
+    key: object = _NO_UNDO_KEY,
+) -> None:
+    """Enlist one process-side inverse in the current transaction frame."""
     frames = _REGISTRY_UNDO.get()
     if not frames:
         return
     frame = frames[-1]
-    if any(recorded == name for recorded, _ in frame):
-        # Only the FIRST record in a frame is the pre-frame value; a second
-        # registration of the same name inside one transaction must not
-        # overwrite it with the intermediate one.
+    if key is not _NO_UNDO_KEY and any(record.key == key for record in frame):
         return
-    frame.append((name, REGISTRY.get(name)))
+    frame.append(_RegistryUndo(callback, description, key))
+
+
+def _record_undo(name: str) -> None:
+    """Remember what the registry held for one name before this frame changed it."""
+    previous = REGISTRY.get(name)
+
+    def restore() -> None:
+        if previous is None:
+            REGISTRY.pop(name, None)
+        else:
+            REGISTRY[name] = previous
+
+    _record_registry_undo(
+        restore,
+        description=f"operation registry entry {name!r}",
+        key=("operation", name),
+    )
+
+
+def _record_declaration_undo(key: tuple[str, str]) -> None:
+    """Remember one declaration ownership count before changing it."""
+    present = key in _DECLARATION_REFS
+    previous = _DECLARATION_REFS.get(key, 0)
+
+    def restore() -> None:
+        if present:
+            _DECLARATION_REFS[key] = previous
+        else:
+            _DECLARATION_REFS.pop(key, None)
+
+    _record_registry_undo(
+        restore,
+        description=f"declaration ownership count {key!r}",
+        key=("declaration", key),
+    )
 
 
 @contextmanager
 def registry_undo() -> Iterator[None]:
-    """Undo this block's registry changes when it does not complete.
+    """Undo this block's enlisted registry changes when it does not complete.
 
     Frames nest the way SWI's transactions do: an inner block that completes
     hands its records to its parent, so an outer rollback discards inner work
-    too. This is the undo log a savepoint keeps, and it exists because an
-    engine rollback cannot reach a Python dict.
+    too. Callbacks run in reverse mutation order and every callback is attempted;
+    a broken inverse is attached to the original exception instead of masking
+    it. This is the undo log a savepoint keeps, and it exists because an engine
+    rollback cannot reach a Python dict.
+
+    The context is paired with an engine transaction by Space.transaction().
+    Registry callbacks therefore restore Python state only; the engine
+    transaction restores reflected atoms and other dynamic engine state.
     """
     frames = _REGISTRY_UNDO.get()
-    frame: list[tuple[str, Operation | None]] = []
+    frame: list[_RegistryUndo] = []
     token = _REGISTRY_UNDO.set((*frames, frame))
     try:
         yield
-    except BaseException:
-        for name, previous in reversed(frame):
-            if previous is None:
-                REGISTRY.pop(name, None)
-            else:
-                REGISTRY[name] = previous
+    except BaseException as error:
+        # Undo callbacks can use the public removal counterparts. Suppress
+        # enlistment while they run, or each inverse would journal its inverse
+        # into this same frame. The original exception remains the failure;
+        # cleanup defects are notes on it and never stop later cleanup.
+        suspended = _REGISTRY_UNDO.set(())
+        try:
+            for record in reversed(frame):
+                try:
+                    record.callback()
+                except BaseException as undo_error:  # noqa: BLE001  -- every remaining inverse must run even when one cleanup receives a control signal
+                    try:
+                        detail = str(undo_error)
+                    except BaseException:  # noqa: BLE001  -- an unprintable cleanup failure still must not mask the installer's exception
+                        detail = "<exception text unavailable>"
+                    BaseException.add_note(
+                        error,
+                        f"rollback of {record.description} failed: "
+                        f"{type(undo_error).__name__}: {detail}"
+                    )
+        finally:
+            _REGISTRY_UNDO.reset(suspended)
         raise
     else:
         if frames:
             parent = frames[-1]
-            already = {name for name, _ in parent}
-            parent.extend((name, previous) for name, previous in frame if name not in already)
+            for record in frame:
+                if record.key is _NO_UNDO_KEY or not any(
+                    parent_record.key == record.key for parent_record in parent
+                ):
+                    parent.append(record)
     finally:
         _REGISTRY_UNDO.reset(token)
 
@@ -257,6 +333,7 @@ def registry_undo() -> Iterator[None]:
 def _retain_declaration(runtime, space: str, declaration: Expression) -> None:
     key = (space, str(declaration))
     count = _DECLARATION_REFS.get(key, 0)
+    _record_declaration_undo(key)
     if count == 0:
         runtime.must(
             "metta_py_add_strict_declaration(Space, W)",
@@ -269,9 +346,10 @@ def _retain_declaration(runtime, space: str, declaration: Expression) -> None:
 def _release_declaration(runtime, space: str, declaration: Expression) -> None:
     key = (space, str(declaration))
     count = _DECLARATION_REFS.get(key, 0)
+    _record_declaration_undo(key)
     if count <= 1:
-        _DECLARATION_REFS.pop(key, None)
         runtime.once("metta_py_remove(Space, W, _)", Space=space, W=declaration.to_wire())
+        _DECLARATION_REFS.pop(key, None)
     else:
         _DECLARATION_REFS[key] = count - 1
 
@@ -1047,13 +1125,13 @@ def register[**P, R](
         ),
         return_annotation=conversion_hints.get("return", Any),
     )
+    _record_undo(metta_name)
     new_facts, old_facts = _register_transaction(runtime, operation, previous)
     # Committed: the previous life retires, shared pieces surviving. Facts
     # equal in both lives were never re-added, so they are not removed;
     # declarations release through the refcount, staying while any other
     # owner still declares them.
     _retire_previous(runtime, previous, new_facts, old_facts, space)
-    _record_undo(metta_name)
     REGISTRY[metta_name] = operation
 
     # The staging split's op half, the design's own cell: inside a rules
@@ -1139,6 +1217,7 @@ def unregister(runtime, name: str) -> None:
     if not arities and op is None:
         msg = f"no operation named {name!r} is registered"
         raise KeyError(msg)
+    _record_undo(name)
     for arity_row in arities:
         runtime.must("metta_py_unregister_op(Name, Arity)", Name=name, Arity=arity_row["Arity"])
     if op is not None:
@@ -1151,7 +1230,6 @@ def unregister(runtime, name: str) -> None:
         for fact in _op_facts(op):
             _reflect_remove(runtime, fact)
         _withdraw_purity(runtime, op)
-    _record_undo(name)
     REGISTRY.pop(name, None)
 
 
