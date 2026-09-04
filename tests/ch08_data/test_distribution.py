@@ -12,7 +12,8 @@ Guarantees:
   - empty, zero, negative, and nonfinite mass expose exact remedy-bearing Error
     messages through normalization and every composition operation [tested:
     test_invalid_distributions_refuse_with_a_remedy,
-    test_operations_preserve_the_normalization_refusal; commit=WORKTREE].
+    test_operations_preserve_the_normalization_refusal,
+    test_average_preserves_a_refusal_at_every_input_position; commit=WORKTREE].
 Owns resources:
   - distribution_space closes its module-scoped fresh Space when the fixture
     exits.
@@ -448,6 +449,37 @@ def test_operations_preserve_the_normalization_refusal(distribution_space):
 
     for name, arguments, message in calls:
         assert error_message(call(distribution_space, name, *arguments)) == message
+
+
+def test_average_preserves_a_refusal_at_every_input_position(distribution_space):
+    """The average fold short-circuits the first invalid distribution."""
+    valid = distribution([(1, 0)])
+    invalids = [
+        (
+            Expression(),
+            "ws-normalize requires a nonempty finite distribution; provide at least one positive-weight outcome",
+        ),
+        (
+            distribution([(0, 0)]),
+            "ws-normalize requires positive total mass; provide at least one positive-weight outcome",
+        ),
+        (
+            distribution([(-1, 0)]),
+            "ws-normalize requires nonnegative weights; remove negative weights and provide at least one positive-weight outcome",
+        ),
+    ]
+
+    for invalid, message in invalids:
+        for position in range(3):
+            inputs = [valid, valid]
+            inputs.insert(position, invalid)
+            error = call(
+                distribution_space,
+                "ws-average-independent",
+                Expression(*inputs),
+            )
+            assert error.children[1] == invalid
+            assert error_message(error) == message
 
 
 def test_operation_specific_empty_cases_refuse_with_a_remedy(distribution_space):
