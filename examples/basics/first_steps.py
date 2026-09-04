@@ -8,7 +8,7 @@ Open Obligations:
 
 from _common import check, done
 
-from metta import MeTTa, S, V, Expression
+from metta import MeTTa, S, V, Expression, in_, not_
 
 m = MeTTa().space()
 
@@ -33,6 +33,8 @@ check(
     S.Cares(V.parent, V.child).subs(bindings),
     S.Cares(S.Tom, S.Bob),
 )
+check("not_ spells Python's keyword safely", str(not_(S.ready)), "(not ready)")
+check("in_ spells Python's keyword safely", str(in_(S.Ada, S.Team)), "(in Ada Team)")
 
 # Evaluation is what ! runs, nondeterminism included.
 check("eval", m.eval(S.superpose(Expression(1, 2, 3))), [1, 2, 3])
