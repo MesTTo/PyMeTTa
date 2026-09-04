@@ -1,7 +1,7 @@
 """Purpose: the engine-control surface on one page. Per-call time and
-inference bounds with their own error classes, engine counters read as a
-stats block, print output captured beside the answers, and rows crossing
-into a DataFrame.
+inference bounds, a scoped stack-byte ceiling, engine counters read as a stats
+block, print output captured beside the answers, and rows crossing into a
+DataFrame.
 Guarantees:
   - capture collects print output without changing the run result shape
     [tested: test_example_runs_and_verifies_itself; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
@@ -21,6 +21,13 @@ m = MeTTa().space("&bounds-demo")
 
 # A function that spins for as long as it is allowed to.
 m.run("(= (spin $n) (if (== $n 0) done (spin (- $n 1))))")
+
+with m.limits(stack=4_000_000):
+    check(
+        "a scoped stack-byte ceiling leaves a finite call unchanged",
+        m.eval("(+ 20 22)"),
+        [42],
+    )
 
 try:
     m.run(
