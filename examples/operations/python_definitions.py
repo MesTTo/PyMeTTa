@@ -7,6 +7,8 @@ Open Obligations:
   Future Enhancements: None
 """
 
+from dataclasses import dataclass
+
 from _common import check, done
 
 from metta import MeTTa, S, equation, rules
@@ -70,4 +72,42 @@ try:
         return n
 except CompileError as e:
     check("refusal names the fix", "recursion" in str(e) and "line" in str(e))
+
+
+@dataclass
+class OpenBox:
+    """A class whose fields and methods are intentionally callable in MeTTa."""
+
+    value: int
+
+    def reveal(self) -> int:
+        """Return the value exposed to MeTTa."""
+        return self.value
+
+
+@dataclass
+class OpaqueBox:
+    """A data type whose host capabilities must stay on the Python side."""
+
+    value: int
+
+    def reveal(self) -> int:
+        """Return the value only to Python callers."""
+        return self.value
+
+
+m.define(OpenBox)
+m.define(OpaqueBox, accessors=False, methods=False)
+stored = {str(atom) for atom in m.atoms()}
+builtins = set(m.builtins())
+check(
+    "default class exposure installs a field accessor",
+    any("OpenBox-value" in atom for atom in stored),
+)
+check("default class exposure installs a method", "OpenBox-reveal" in builtins)
+check(
+    "accessors=False keeps the field private",
+    all("OpaqueBox-value" not in atom for atom in stored),
+)
+check("methods=False keeps the method private", "OpaqueBox-reveal" not in builtins)
 done("python_definitions")
