@@ -14,6 +14,9 @@ Guarantees:
     iterator protocol [tested:
     test_for_statement_uses_python_iteration_for_every_grounded_iterable;
     commit=cf1963fa03f91c1d9721636cb6f05c6cfc362819]
+  - that compiler-only materialization is consumptive even though public
+    py-iter enumeration is replayable [tested:
+    test_compiled_for_keeps_one_shot_python_iteration; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -175,10 +178,10 @@ class LoopCompilerMixin(CompilerContext):
             and self.nondet(self._resolved_call_name(iter_node.func.id))
         ):
             return Expression([Symbol("collapse"), self.expression(iter_node)])
-        self.runtime_ops.add("py-iter")
+        self.runtime_ops.add("py-iter-once")
         return Expression(
             [
                 Symbol("collapse"),
-                Expression([Symbol("py-iter"), self.expression(iter_node)]),
+                Expression([Symbol("py-iter-once"), self.expression(iter_node)]),
             ]
         )

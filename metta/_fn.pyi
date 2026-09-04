@@ -254,6 +254,7 @@ class _FunctionNamespace:
     py_global_write: Symbol
     py_in: Symbol
     py_iter: Symbol
+    py_iter_once: Symbol
     py_len: Symbol
     py_list: Symbol
     py_operator: Symbol
