@@ -41,6 +41,29 @@ check("match on parts", str(rows[0].name), '"HAL"')
 rebuilt = build(projected.atom)
 check("rebuild", isinstance(rebuilt, Robot) and rebuilt.mood, Mood.calm)
 
+
+class Tagged:
+    """An owned type that converts without process-wide registration."""
+
+    def __init__(self, label: str) -> None:
+        """Retain the label reconstructed from MeTTa."""
+        self.label = label
+
+    def __metta__(self):
+        """Project this value as a constructor term."""
+        return S.Tagged(self.label)
+
+    @classmethod
+    def __from_metta__(cls, label):
+        """Rebuild a value from that constructor's fields."""
+        return cls(label)
+
+
+tagged_atom = project(Tagged("checked")).atom
+tagged = build(tagged_atom, Tagged)
+check("owned conversion hook projects", str(tagged_atom), '(Tagged "checked")')
+check("owned conversion hook rebuilds", isinstance(tagged, Tagged) and tagged.label, "checked")
+
 # Reflection: fields of any live object become a two-mode relation.
 install_reflection_ops(m)
 m.add(S.config(ground(Robot("Probe", Mood.calm))))

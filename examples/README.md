@@ -57,7 +57,7 @@ own.
 
 | example | what it shows |
 |---|---|
-| [`integration/python_objects.py`](integration/python_objects.py) | Python object projection, reconstruction, and `py-field` reasoning |
+| [`integration/python_objects.py`](integration/python_objects.py) | registered and class-owned `__metta__`/`__from_metta__` conversion, plus `py-field` reasoning |
 | [`integration/duckdb_space.py`](integration/duckdb_space.py) | DuckDB tables as a matchable space with `WHERE` pushdown |
 | [`integration/sqlite_space.py`](integration/sqlite_space.py) | Declared table shapes, transactional writes, and opaque or transparent SQL BLOB images |
 | [`integration/persistent_migration.py`](integration/persistent_migration.py) | One-open journal schema migration through the public space factory |
