@@ -229,10 +229,21 @@ def _compare_counter(
     #722264, so anything under 12x slower would still have read green. A
     #drop beyond the allowance therefore fails until the pin is re-measured
     #and its mechanism recorded beside it.
-    if observed < baseline - _COUNTER_TOLERANCE:
+    #
+    #The improvement side reads the HIGHEST sample where the regression side
+    #reads the lowest, and the asymmetry is the point: min-of-n is the right
+    #statistic for "did anything get slower" and the wrong one for "did this
+    #get faster". One anomalous low sample is not an improvement, and the C
+    #seat's boot produced exactly that inside the gate, [1484396, 1485362,
+    #1485362] against a 1485363 pin, where nine consecutive samples measured
+    #outside it read 1485362 every time [measured 2026-09-04]. A row that
+    #really improved has EVERY sample below the pin, so this still fails on
+    #one and cannot be quieted by a noisy run.
+    highest = max(sample_values) if sample_values else observed
+    if highest < baseline - _COUNTER_TOLERANCE:
         msg = (
-            f"{name} inference improvement left unpinned: minimum of "
-            f"{sample_values!r} is {observed}, baseline {baseline} minus the "
+            f"{name} inference improvement left unpinned: every sample of "
+            f"{sample_values!r} is under baseline {baseline} minus the "
             f"{_COUNTER_TOLERANCE} inference allowance; re-pin with "
             f"--update-baseline and record the mechanism beside the pin"
         )

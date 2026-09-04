@@ -194,6 +194,15 @@ def test_baseline_rejects_inference_movement_beyond_the_allowance(tmp_path):  # 
     assert baseline.observe_counter("engine", unit="answers", operations=2, samples=[6, 6, 6]) == 6
     with pytest.raises(AssertionError, match="improvement left unpinned"):
         baseline.observe_counter("engine", unit="answers", operations=2, samples=[5, 5, 5])
+    # ONE low sample is not an improvement. min-of-n is the right statistic for
+    # "did anything get slower" and the wrong one for "did this get faster", and
+    # taking it for both directions made an anomalous reading claim a win: the C
+    # seat's boot read [1484396, 1485362, 1485362] inside the gate against a
+    # 1485363 pin while nine consecutive samples outside it read 1485362.
+    assert (
+        baseline.observe_counter("engine", unit="answers", operations=2, samples=[5, 14, 14])
+        == 5
+    )
 
 
 def test_baseline_update_is_atomic_json(tmp_path):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
