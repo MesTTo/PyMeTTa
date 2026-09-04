@@ -19,15 +19,15 @@ from metta.algebra import LinearEvidenceError
 
 def test_a_linear_algebra_refuses_the_second_spend_of_one_premise(metta):
     """Refuse one meeting token serving two premises in one derivation."""
-    metta.algebra(
-        "p4-linear",
-        combine="max",
-        extend="+",
-        zero=0,
-        one=0,
-        requires=("linear",),
-    )
     with metta._new_space() as program:
+        program.algebra(
+            "p4-linear",
+            combine="max",
+            extend="+",
+            zero=0,
+            one=0,
+            requires=("linear",),
+        )
         program.annotations(
             program.name, "p4-linear", capabilities=("linear",)
         )
@@ -44,14 +44,14 @@ def test_a_linear_algebra_refuses_the_second_spend_of_one_premise(metta):
         ):
             list(program.match(S.double_booked(S.alice), under="p4-linear"))
 
-    metta.algebra(
-        "p4-reusable-evidence",
-        combine="max",
-        extend="+",
-        zero=0,
-        one=0,
-    )
     with metta._new_space() as reusable:
+        reusable.algebra(
+            "p4-reusable-evidence",
+            combine="max",
+            extend="+",
+            zero=0,
+            one=0,
+        )
         reusable.add_tagged_fact(1, S.meeting_token(S.alice, S.room7))
         reusable.add_tagged_rule(
             0,

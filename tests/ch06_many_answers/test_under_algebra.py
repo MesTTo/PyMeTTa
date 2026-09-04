@@ -27,6 +27,9 @@ Guarantees:
   - tagged counts and ordinary matches share one positive-limit contract
     [tested: test_tagged_count_and_match_refuse_zero_with_the_same_message;
     commit=61e107a8105a5cdaea164f615812a684b12d8fe3]
+  - custom algebra declarations are visible only to their owning context and
+    distinct contexts may reuse one algebra name [tested:
+    test_custom_algebras_are_context_owned; commit=WORKTREE]
 """
 
 from __future__ import annotations
@@ -222,14 +225,14 @@ def test_tagged_derivations_flow_through_match_and_reinterpret_without_requery(
     metta,
 ):
     """The former evaluate_algebra capability lives behind match(under=)."""
-    metta.algebra(
-        "under-product",
-        combine="+",
-        extend="*",
-        zero=0,
-        one=1,
-    )
     with metta._new_space() as program:
+        program.algebra(
+            "under-product",
+            combine="+",
+            extend="*",
+            zero=0,
+            one=1,
+        )
         program.add_tagged_fact(2, S.parent(S.tom, S.bob))
         program.add_tagged_fact(3, S.parent(S.bob, S.ann))
         program.add_tagged_rule(
@@ -251,14 +254,14 @@ def test_tagged_derivations_flow_through_match_and_reinterpret_without_requery(
 
 def test_tagged_call_answers_use_the_carrier_without_hijacking_other_calls(metta):
     """Tagged routing is query-specific and both call kinds keep their values."""
-    metta.algebra(
-        "under-call-product",
-        combine="+",
-        extend="*",
-        zero=0,
-        one=1,
-    )
     with metta._new_space() as program:
+        program.algebra(
+            "under-call-product",
+            combine="+",
+            extend="*",
+            zero=0,
+            one=1,
+        )
         program.add_tagged_fact(7, S.tagged_call(S.yes))
         program.run("(= (ordinary-call) ordinary)")
 
@@ -322,6 +325,14 @@ def test_algebra_module_is_the_constructor_and_the_old_space_doors_are_retired(
 
     assert UnderDecorated.name == "UnderDecorated"
     with metta._new_space() as program:
+        program.algebra(
+            declared.name,
+            combine=declared.combine,
+            extend=declared.extend,
+            zero=declared.zero,
+            one=declared.one,
+            order=declared.order,
+        )
         program.add_tagged_fact(1, S.option(S.low))
         program.add_tagged_fact(9, S.option(S.high))
         program.add_tagged_fact(2, S.base(S.x))
@@ -333,6 +344,46 @@ def test_algebra_module_is_the_constructor_and_the_old_space_doors_are_retired(
     assert not hasattr(metta_module, "sample_rates")
     assert not hasattr(metta_module._space.Space, "evaluate_algebra")
     assert not hasattr(metta_module._space.Space, "sample_rates")
+
+
+def test_custom_algebras_are_context_owned(metta):
+    """Algebra rows and annotations use the same context lifetime key."""
+    algebra_module = importlib.import_module("metta.algebra")
+    with metta._new_space() as left, metta._new_space() as right:
+        left.algebra(
+            "same-local-name", combine="+", extend="*", zero=0, one=1
+        )
+        assert algebra_module.require(left, "same-local-name").one == metta_module.G(1)
+        with pytest.raises(
+            algebra_module.AlgebraDeclarationError,
+            match="algebra_not_declared",
+        ):
+            algebra_module.require(right, "same-local-name")
+        with metta_module.MeTTa() as isolated:
+            with pytest.raises(
+                algebra_module.AlgebraDeclarationError,
+                match="algebra_not_declared",
+            ):
+                algebra_module.require(isolated.self, "same-local-name")
+            assert algebra_module.require(isolated.self, "ranked").name == "ranked"
+
+        right.algebra(
+            "same-local-name", combine="+", extend="*", zero=0, one=9
+        )
+        assert algebra_module.require(right, "same-local-name").one == metta_module.G(9)
+        assert algebra_module.require(left, "same-local-name").one == metta_module.G(1)
+        assert str(left.annotations("same-local-name")) == (
+            f"(annotations {left.name} same-local-name)"
+        )
+        assert str(right.annotations("same-local-name")) == (
+            f"(annotations {right.name} same-local-name)"
+        )
+        assert left.runtime.must(
+            "metta_algebra_one(Ctx, One)", Ctx=left.name
+        )["One"] == 1
+        assert right.runtime.must(
+            "metta_algebra_one(Ctx, One)", Ctx=right.name
+        )["One"] == 9
 
 
 def test_space_sample_is_seeded_and_uses_k_vocabulary(metta):

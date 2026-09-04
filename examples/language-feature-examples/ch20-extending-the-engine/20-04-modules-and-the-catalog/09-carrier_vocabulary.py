@@ -33,15 +33,25 @@ def twin(m):  # noqa: ARG001  -- the catalog lives in the reflection space; the 
 
     # Each of those names also has an (algebra ...) row saying what it computes.
     # budget is a cost carrier: min to combine, + to extend, and infinity for
-    # the path that does not exist yet, so every real path improves on it.
+    # the path that does not exist yet, so every real path improves on it. The
+    # last field is the row's OWNER: a shipped preset says global, a declared
+    # one names the space that declared it.
     assert [
-        row.zero
+        (row.zero, row.owner)
         for row in reflection[
             S.algebra(
-                S[Semiring.budget], V.combine, V.extend, V.zero, V.one, V.laws, V.carrier, V.needs
+                S[Semiring.budget],
+                V.combine,
+                V.extend,
+                V.zero,
+                V.one,
+                V.laws,
+                V.carrier,
+                V.needs,
+                V.owner,
             )
         ]
-    ] == [S.infinity]
+    ] == [(S.infinity, S.global_)]
 
     # Orderedness is a separate claim, because combining with min does not by
     # itself say which end a (top k ...) slice takes. budget reads ASCENDING,
@@ -72,4 +82,21 @@ def twin(m):  # noqa: ARG001  -- the catalog lives in the reflection space; the 
 #: examples/ch20-extending-the-engine/20-04-modules-and-the-catalog/09-carrier_vocabulary.metta;
 #: fixture=worktree with libmork_ffi.so provisioned and the QLF warmed;
 #: commit=f2b818bc2c894ff2f386d67fca8271aa69cb308d].
+#:
+#: RE-MEASURED 2026-09-06, when the algebra row gained its owner field and the
+#: two (algebra ...) matches here gained the variable that reads it. The twin
+#: does not move: 119 on the unchanged tree and 119 with the field, so the pin
+#: stands and the 4 between it and 123 is the point allowance absorbing older
+#: engine work rather than anything this change did. The MeTTa half moves
+#: 2,621 -> 2,794, +173, which is the extra variable in two matches and the
+#: wider answer template. The 13,733 above is stale for a reason that is not
+#: this file's: the same command reads 2,621 on the unchanged tree, so the
+#: five-fold drop happened on trunk between f2b818bc and 903a42e6, where ten
+#: predicate_property/2 sites stopped paying SWI's 1,030-inference autoload
+#: search per probe [measured 2026-09-06: min-of-3 serial fresh processes on
+#: both arms; command=python extensions/python/tools/twin_coverage.py
+#: --measure --rounds 3
+#: examples/ch20-extending-the-engine/20-04-modules-and-the-catalog/09-carrier_vocabulary.metta;
+#: fixture=two worktrees, 903a42e6 and this tree, each with engine/*.so and
+#: libmork_ffi.so provisioned and the QLF warmed; commit=WORKTREE].
 BUDGET = 123

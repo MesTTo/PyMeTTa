@@ -57,6 +57,9 @@ Guarantees:
   - arbitrary law-bearing declarations use the engine's one checker in the
     declaring space's equation module [tested:
     test_a_law_is_checked_once_in_the_declaring_space; commit=WORKTREE]
+  - custom algebra rows and their Python mirrors have the same context
+    lifetime as annotations, while shipped presets remain shared [tested:
+    test_custom_algebras_are_context_owned; commit=WORKTREE]
 Decides:
   - ``contraction`` is a capability, while the remaining public law names are
     equations checked exhaustively over the declared finite carrier.
@@ -548,11 +551,15 @@ _PRESETS: Final[dict[str, DeclaredAlgebra]] = {
     ),
 }
 
-_REGISTRY: dict[tuple[int, str], DeclaredAlgebra] = {}
+_REGISTRY: dict[tuple[int, str, str], DeclaredAlgebra] = {}
 
 
-def _key(metta: Space, name: str) -> tuple[int, str]:
-    return id(metta._rt), name
+def _context_name(metta: Space) -> str:
+    return str(metta.name)
+
+
+def _key(metta: Space, context: str, name: str) -> tuple[int, str, str]:
+    return id(metta._rt), context, name
 
 
 def _carrier_name(carrier: Any) -> str:
@@ -593,60 +600,74 @@ def _canonical_laws(laws: Iterable[str]) -> frozenset[str]:
     return frozenset(out)
 
 
-def _catalog_declaration(metta: Space, name: str) -> DeclaredAlgebra | None:
+def _catalog_declaration(
+    metta: Space, context: str, name: str
+) -> DeclaredAlgebra | None:
     """Reify a direct ``&metta`` algebra row through the Python interface."""
+    # The context's own row, else the shipped global one: the same two-clause
+    # preference metta_algebra_descriptor_fresh/9 applies engine-side. At most
+    # one of each exists, because the catalog refuses a second row for one
+    # context and name.
+    owned: tuple[Atom, ...] | None = None
+    shared: tuple[Atom, ...] | None = None
     for atom in Space("&metta", _runtime=metta.runtime).atoms():
-        if not isinstance(atom, Expression) or len(atom.children) != 9:
+        if not isinstance(atom, Expression) or len(atom.children) != 10:
             continue
-        head, declared_name, combine, extend, zero, one, laws, carrier, requires = (
-            atom.children
-        )
+        head, declared_name = atom.children[:2]
         if head != Symbol("algebra") or declared_name != Symbol(name):
             continue
-        if not isinstance(combine, Symbol) or not isinstance(extend, Symbol):
-            msg = f"algebra_catalog_operations_malformed({name})"
-            raise AlgebraDeclarationError(msg)
-        if (
-            not isinstance(laws, Expression)
-            or not laws.children
-            or laws.children[0] != Symbol("laws")
-        ):
-            msg = f"algebra_catalog_fields_malformed({name})"
-            raise AlgebraDeclarationError(msg)
-        if (
-            not isinstance(carrier, Expression)
-            or not carrier.children
-            or carrier.children[0] != Symbol("carrier")
-        ):
-            msg = f"algebra_catalog_fields_malformed({name})"
-            raise AlgebraDeclarationError(msg)
-        if (
-            not isinstance(requires, Expression)
-            or not requires.children
-            or requires.children[0] != Symbol("requires")
-        ):
-            msg = f"algebra_catalog_fields_malformed({name})"
-            raise AlgebraDeclarationError(msg)
-        law_names = tuple(
-            law.name for law in laws.children[1:] if isinstance(law, Symbol)
-        )
-        requirement_names = tuple(
-            requirement.name
-            for requirement in requires.children[1:]
-            if isinstance(requirement, Symbol)
-        )
-        return DeclaredAlgebra(
-            name=name,
-            combine=combine.name,
-            extend=extend.name,
-            zero=zero,
-            one=one,
-            laws=_canonical_laws(law_names),
-            carrier=tuple(carrier.children[1:]),
-            requires=frozenset(requirement_names),
-            order=_catalog_order(metta, name),
-        )
-    return None
+        owner = atom.children[9]
+        if owner == Symbol(context):
+            owned = atom.children[:9]
+        elif owner == Symbol("global"):
+            shared = atom.children[:9]
+    children = owned if owned is not None else shared
+    if children is None:
+        return None
+    _, _, combine, extend, zero, one, laws, carrier, requires = children
+    if not isinstance(combine, Symbol) or not isinstance(extend, Symbol):
+        msg = f"algebra_catalog_operations_malformed({name})"
+        raise AlgebraDeclarationError(msg)
+    if (
+        not isinstance(laws, Expression)
+        or not laws.children
+        or laws.children[0] != Symbol("laws")
+    ):
+        msg = f"algebra_catalog_fields_malformed({name})"
+        raise AlgebraDeclarationError(msg)
+    if (
+        not isinstance(carrier, Expression)
+        or not carrier.children
+        or carrier.children[0] != Symbol("carrier")
+    ):
+        msg = f"algebra_catalog_fields_malformed({name})"
+        raise AlgebraDeclarationError(msg)
+    if (
+        not isinstance(requires, Expression)
+        or not requires.children
+        or requires.children[0] != Symbol("requires")
+    ):
+        msg = f"algebra_catalog_fields_malformed({name})"
+        raise AlgebraDeclarationError(msg)
+    law_names = tuple(
+        law.name for law in laws.children[1:] if isinstance(law, Symbol)
+    )
+    requirement_names = tuple(
+        requirement.name
+        for requirement in requires.children[1:]
+        if isinstance(requirement, Symbol)
+    )
+    return DeclaredAlgebra(
+        name=name,
+        combine=combine.name,
+        extend=extend.name,
+        zero=zero,
+        one=one,
+        laws=_canonical_laws(law_names),
+        carrier=tuple(carrier.children[1:]),
+        requires=frozenset(requirement_names),
+        order=_catalog_order(metta, name),
+    )
 
 
 def _catalog_order(
@@ -677,8 +698,9 @@ def get(metta: Space, name: str) -> DeclaredAlgebra | None:
     preset = _PRESETS.get(name)
     if preset is not None:
         return replace(preset)
-    catalog = _catalog_declaration(metta, name)
-    key = _key(metta, name)
+    context = _context_name(metta)
+    catalog = _catalog_declaration(metta, context, name)
+    key = _key(metta, context, name)
     if catalog is None:
         _REGISTRY.pop(key, None)
         return None
@@ -796,6 +818,7 @@ def declare(
         requires=frozenset(requires),
         order=order,
     )
+    context = _context_name(metta)
     atom = Expression(
         (
             Symbol("algebra"),
@@ -807,6 +830,7 @@ def declare(
             _symbol_list("laws", sorted(declaration.laws)),
             _list("carrier", declaration.carrier),
             _symbol_list("requires", sorted(declaration.requires)),
+            Symbol(context),
         )
     )
     try:
@@ -823,7 +847,7 @@ def declare(
         ):
             raise AlgebraLawError(str(error)) from error
         raise
-    _REGISTRY[_key(metta, name)] = declaration
+    _REGISTRY[_key(metta, context, name)] = declaration
     return atom
 
 

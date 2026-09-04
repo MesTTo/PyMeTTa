@@ -19,14 +19,14 @@ from metta.algebra import RateDeclarationError
 
 def test_declared_rates_make_seeded_selection_match_their_distribution(metta):
     """Match a declared 1:3 ratio reproducibly over one thousand draws."""
-    metta.algebra(
-        "p4-rates",
-        combine="+",
-        extend="*",
-        zero=0,
-        one=1,
-    )
     with metta._new_space() as program:
+        program.algebra(
+            "p4-rates",
+            combine="+",
+            extend="*",
+            zero=0,
+            one=1,
+        )
         program.add(S.ordinary(S.stays))
         unchanged = program.match(S.ordinary(V.value))
         program.add_tagged_fact(parse("(rate 1)"), S.branch(S.slow))
