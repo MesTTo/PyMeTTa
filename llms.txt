@@ -260,7 +260,7 @@ An abandoned future warns rather than spinning silently.
 
 ```python
 with m.stats() as s: ...      # s.inferences (deterministic), cputime, walltime
-m.trace(term)                 # the reduction trace as Python objects
+m.trace(term)                 # the reduction trace; .truncated if max_events cut it
 m.self.derivation(term)       # the proof tree; premises and effects execute
 m.self.speculative()          # scope a derivation to discard engine writes
 m.self.lint()                 # diagnostics over declarations, equations, calls

@@ -142,7 +142,7 @@ import weakref
 from collections import abc as _abc
 from collections.abc import Callable, Coroutine, Iterable, Mapping, Sequence
 from types import TracebackType
-from typing import Any, Final, Literal, Self, TypeVar, overload
+from typing import TYPE_CHECKING, Any, Final, Literal, Self, TypeVar, overload
 
 from . import ops as _ops_module
 from ._api_types import _DEFAULT_SPACE, _SpaceId
@@ -172,6 +172,14 @@ from .vocabularies import (
     SourceKind,
     World,
 )
+
+if TYPE_CHECKING:
+    # Named only by mirrored return annotations, which `from __future__ import
+    # annotations` keeps as text. Space reaches both through _satellite(), so
+    # importing them here at runtime would make `import metta.aio` pay for
+    # surfaces the caller may never touch.
+    from ._trace import Trace
+    from .lint import Finding
 
 logger = logging.getLogger(__name__)
 
@@ -1603,7 +1611,7 @@ class AsyncMeTTa:
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         return await self.call(lambda m: m.cast(value, type_))
 
-    async def trace(self, source: Atom | str, max_events: int | None = None):
+    async def trace(self, source: Atom | str, max_events: int | None = None) -> Trace:
         """Run a TERM, or source, under the engine's reduction trace and
         answer TraceEvent records: what entered reduction at which depth,
         what it answered, and which reductions failed (a call with no
@@ -1617,7 +1625,7 @@ class AsyncMeTTa:
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         return await self.call(lambda m: m.trace(source, max_events))
 
-    async def lint(self):
+    async def lint(self) -> list[Finding]:
         """Diagnose this space for the silently-wrong class: declared
         types nothing defines, arity mismatches, unbound body variables,
         duplicate equations, and references no function or fact carries.

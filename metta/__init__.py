@@ -110,6 +110,7 @@ if TYPE_CHECKING:
     from ._space_objects import ScopedLimits as _ScopedLimits
     from ._space_objects import _StatsBlock
     from ._state import State
+    from ._trace import Trace as _Trace
     from .algebra import counting, prob, prov, ranked, tropical
     from .answer import Answer, Bindings
     from .define import Defined
@@ -1057,7 +1058,7 @@ def speculate() -> _ScopedExecution:
     return engine().self.speculative()
 
 
-def trace(source: Atom | str, max_events: int | None = None):
+def trace(source: Atom | str, max_events: int | None = None) -> _Trace:
     """Run a TERM, or source, under the engine's reduction trace and
     answer TraceEvent records: what entered reduction at which depth,
     what it answered, and which reductions failed (a call with no

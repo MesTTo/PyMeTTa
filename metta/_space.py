@@ -209,6 +209,7 @@ from collections.abc import Callable, Iterable, Iterator
 from contextvars import ContextVar
 from pathlib import Path
 from typing import (
+    TYPE_CHECKING,
     Any,
     Literal,
     NamedTuple,
@@ -322,6 +323,15 @@ from .vocabularies import (
     SpaceCapability,
     World,
 )
+
+if TYPE_CHECKING:
+    # Named only by `trace`'s return annotation, which `from __future__ import
+    # annotations` keeps as text, so the satellite stays as lazy as
+    # _satellite("_trace") makes it while the annotation still says which
+    # class comes back. `Trace` is a list carrying `truncated`, and a caller
+    # that reads it as a bare list cannot tell a complete trace from a cut one.
+    from ._trace import Trace
+    from .lint import Finding
 
 __all__ = ["Cursor", "EngineProfile", "MeTTa", "Prepared", "Space", "current_space"]
 
@@ -1735,7 +1745,7 @@ class Space(Handle):
             return super().cast(value)
         return _satellite("casting").cast(self, value, type_)
 
-    def trace(self, source: Atom | str, max_events: int | None = None):
+    def trace(self, source: Atom | str, max_events: int | None = None) -> Trace:
         """Run a TERM, or source, under the engine's reduction trace and
         answer TraceEvent records: what entered reduction at which depth,
         what it answered, and which reductions failed (a call with no
@@ -1749,7 +1759,7 @@ class Space(Handle):
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         return _satellite("_trace").trace(self, source, max_events=max_events)
 
-    def lint(self):
+    def lint(self) -> list[Finding]:
         """Diagnose this space for the silently-wrong class: declared
         types nothing defines, arity mismatches, unbound body variables,
         duplicate equations, and references no function or fact carries.
@@ -6169,7 +6179,7 @@ class MeTTa:
         """
         return self._self.speculative()
 
-    def trace(self, source: Atom | str, max_events: int | None = None):
+    def trace(self, source: Atom | str, max_events: int | None = None) -> Trace:
         """Run a TERM, or source, under the engine's reduction trace and
         answer TraceEvent records: what entered reduction at which depth,
         what it answered, and which reductions failed (a call with no

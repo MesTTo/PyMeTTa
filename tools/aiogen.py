@@ -242,6 +242,7 @@ MODULE_ALIASES = (
     ("EffectClass", "_EffectClass"),
     ("Defined", "_Defined"),
     ("PrologBacked", "_PrologBacked"),
+    ("Trace", "_Trace"),
     ("os", "_os"),
 )
 
