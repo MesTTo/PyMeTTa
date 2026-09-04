@@ -36,9 +36,24 @@ def anyval(term):
     return term
 
 
+def define_dependent():
+    """Compile one function with an ordinary lexical dependency."""
+    dependency = anyatom
+
+    @m.define
+    def through_anyatom(term):
+        return dependency(term)
+
+    return through_anyatom
+
+
+through_anyatom = define_dependent()
+
+
 m.run("(= (side) 42)")
 check("Atom preserves the call", m.run("!(anyatom (side))"), [[m.parse("(side)")]])
 check("ordinary input reduces", m.run("!(anyval (side))"), [[42]])
+check("lexical dependencies are inspectable", through_anyatom.free_variables, ("dependency",))
 
 
 @m.define
