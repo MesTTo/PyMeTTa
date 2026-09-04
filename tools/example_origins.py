@@ -1,5 +1,7 @@
-"""Purpose: keep examples/ORIGINS.tsv true, which is the attribution for the
-  example programs that derive from another author's work.
+"""Purpose: keep examples/ORIGINS.tsv true.
+
+ORIGINS.tsv is the attribution for the example programs that derive from
+another author's work.
 
 An attribution nobody recomputes is a claim that rots: examples get added,
 edited and reorganised, and a hand-kept list quietly stops describing the
@@ -65,8 +67,8 @@ def authors(root: Path, relative: str) -> str:
     these examples come from, and naming only the most prolific would
     miscredit the rest.
     """
-    result = subprocess.run(  # noqa: S603 - git, on a path this tool derived
-        ["git", "log", "--format=%an", "--follow", "--", relative],
+    result = subprocess.run(  # noqa: S603  -- git, on a path this tool derived
+        ["git", "log", "--format=%an", "--follow", "--", relative],  # noqa: S607  -- git from PATH, not this box's copy of it
         cwd=root, capture_output=True, text=True, check=False,
     )
     if result.returncode != 0:

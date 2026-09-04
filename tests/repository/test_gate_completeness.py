@@ -46,7 +46,20 @@ import pytest
 REPO = Path(__file__).resolve().parents[4]
 PYTHON_ROOT = REPO / "extensions" / "python"
 RUFF_CONFIGS = (REPO / "pyproject.toml", PYTHON_ROOT / "pyproject.toml")
-RUFF_SCOPE = ("metta", "tests", "bench.py")
+# One entry per (working directory, paths) pair, NOT one flat path list. Ruff
+# picks a single project root for an invocation, so naming a path outside
+# extensions/python alongside metta/ moved every file onto the repository
+# config and metta/__init__.py lost its own per-file PTH ignore, reporting
+# eight findings that are configured away [measured 2026-09-04]. Each scope is
+# asked where its own pyproject.toml governs, which is what the lanes do.
+#
+# tools/ and the repository's tests/checks/ were in no ruff lane at all until
+# 2026-09-04, so their suppressions were counted by nothing: a burn-down that
+# cannot see a directory is a ceiling with a door under it.
+RUFF_SCOPES = (
+    (PYTHON_ROOT, ("metta", "tests", "bench.py", "tools")),
+    (REPO, ("tests/checks",)),
+)
 REQUIRED_RUFF_FAMILIES = frozenset({"FBT", "N", "A", "D", "ARG", "PERF", "C90", "TRY", "EM"})
 RUFF_SUPPRESSION_GUARDS = frozenset({"RUF100", "RUF103"})
 RUFF_FAMILY_BURN_DOWN = {
@@ -148,7 +161,14 @@ RUFF_FAMILY_BURN_DOWN = {
     # four-method stub would say less than the scenario around it already
     # does. Counted, not eyeballed: git show <base>:<file> against the
     # working tree, per file.
-    "D": 2201,
+    # 2201 -> 2231 on 2026-09-04, recorded rather than authored: RUFF_SCOPE
+    # grew to cover extensions/python/tools/ and tests/checks/, and tools/ was
+    # already carrying 30 D suppressions that no lane linted and no ledger
+    # counted. Attributed by directory: tools contributes D 30, TRY 1, FBT 2
+    # and tests/checks contributes FBT 1, ARG 2, measured with --ignore-noqa
+    # per directory. Nothing was suppressed to make the lanes green; the 135
+    # findings those two directories carried were fixed.
+    "D": 2231,
     # 145, from 139 before the idiomatic twin corpus. Every one of the six new
     # sites is a `twin(m)` whose example needs no engine, because the form it
     # demonstrates is native Python (destructuring, `len`, `max`), or a
@@ -168,7 +188,8 @@ RUFF_FAMILY_BURN_DOWN = {
     "C90": 26,
     # 23 -> 24 with the bare-reraise scenario, whose useless-looking
     # try/except IS the construct under test.
-    "TRY": 24,
+    # 24 -> 25 on 2026-09-04, the one TRY site in the newly scanned tools/.
+    "TRY": 25,
     # 0 -> 3 with the compiled raise scenarios: the raised literals are the
     # constructs under test, not messages to extract.
     "EM": 3,
@@ -218,35 +239,38 @@ def _ruff_findings(*extra: str) -> list[dict]:
     # test drives the real binary rather than reading its configuration, so
     # without it there is nothing to ask.
     pytest.importorskip("ruff", reason="ruff is a checks-extra tool")
-    command = [
-        sys.executable,
-        "-m",
-        "ruff",
-        "check",
-        "--output-format=json",
-        *extra,
-        *RUFF_SCOPE,
-    ]
-    completed = subprocess.run(
-        command,
-        cwd=PYTHON_ROOT,
-        capture_output=True,
-        text=True,
-        timeout=120,
-        check=False,
-    )
-    assert completed.returncode in {0, 1}, (
-        f"{command!r} exited {completed.returncode}\n"
-        f"stdout:\n{completed.stdout}\nstderr:\n{completed.stderr}"
-    )
-    try:
-        return json.loads(completed.stdout)
-    except json.JSONDecodeError as exc:
-        msg = (
-            f"{command!r} did not emit Ruff JSON\n"
+    findings: list[dict] = []
+    for directory, scope in RUFF_SCOPES:
+        command = [
+            sys.executable,
+            "-m",
+            "ruff",
+            "check",
+            "--output-format=json",
+            *extra,
+            *scope,
+        ]
+        completed = subprocess.run(
+            command,
+            cwd=directory,
+            capture_output=True,
+            text=True,
+            timeout=120,
+            check=False,
+        )
+        assert completed.returncode in {0, 1}, (
+            f"{command!r} in {directory} exited {completed.returncode}\n"
             f"stdout:\n{completed.stdout}\nstderr:\n{completed.stderr}"
         )
-        raise AssertionError(msg) from exc
+        try:
+            findings.extend(json.loads(completed.stdout))
+        except json.JSONDecodeError as exc:
+            msg = (
+                f"{command!r} in {directory} did not emit Ruff JSON\n"
+                f"stdout:\n{completed.stdout}\nstderr:\n{completed.stderr}"
+            )
+            raise AssertionError(msg) from exc
+    return findings
 
 
 def _assert_ruff_configuration(path: Path, ruff: dict) -> None:
@@ -276,9 +300,14 @@ def _assert_ruff_configuration(path: Path, ruff: dict) -> None:
 
 def _audit_policy_suppressions() -> list[tuple[str, list[str], str]]:
     suppressions = []
+    # Every directory a ruff lane covers, so a suppression cannot be parked in
+    # one the burn-down does not read. tools/ and tests/checks/ were in no lane
+    # at all until 2026-09-04 and would have been exactly that pool.
     sources = [
         *sorted((PYTHON_ROOT / "metta").rglob("*.py")),
         *sorted((PYTHON_ROOT / "tests").rglob("*.py")),
+        *sorted((PYTHON_ROOT / "tools").rglob("*.py")),
+        *sorted((REPO / "tests" / "checks").rglob("*.py")),
         PYTHON_ROOT / "bench.py",
     ]
     for path in sources:

@@ -192,7 +192,10 @@ run REPORT determinism check_determinism_coverage
 # than as `examples`, which would newly lint the topical examples beside it:
 # those carry 184 findings of their own that predate this and belong to their
 # own burn-down, not to a folder move.
-run GATE   ruff        in_py "$PY" -m ruff check metta tests examples/language-feature-examples bench.py
+# tools/ is this component's generators and it was in NO lane: not here, and
+# not in the root gate's ruff-drivers, which excludes extensions/python/
+# wholesale. 38 findings had accumulated there unseen [measured 2026-09-04].
+run GATE   ruff        in_py "$PY" -m ruff check metta tests tools examples/language-feature-examples bench.py
 # ledger C2: 65 errors in 13 files
 run GATE   mypy        in_py "$PY" -m mypy
 # ledger C2: 67 diagnostics, independent engine

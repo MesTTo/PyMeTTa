@@ -1,5 +1,7 @@
-"""Purpose: run every example through BOTH configurations, the engine alone
-and the shipped Python library, and require identical verdicts. The example
+"""Purpose: run every example through both configurations and require identical verdicts.
+
+The two configurations are the engine alone and the shipped Python library.
+The example
 corpus is the executable semantics documentation, and until this existed it
 was only ever executed by the engine: check.sh ran `swipl -s engine/main.pl`,
 test.sh and test_metta_examples.py shelled to run.sh, and the plunit suites
@@ -91,8 +93,7 @@ CHILD_GRACE = 60
 
 
 def _bounded(command: list[str]) -> list[str]:
-    """The same command, with its bound carried by a process that shares its
-    fate instead of the caller's.
+    """The same command, bounded by a process that shares its fate rather than the caller's.
 
     `subprocess.run(timeout=)` is enforced in the PARENT's wait loop. Kill the
     parent and nothing enforces it: the child keeps running with no bound at
@@ -127,8 +128,10 @@ def _bounded(command: list[str]) -> list[str]:
 TIMEOUT_COMMAND = shutil.which("timeout")
 
 def skips() -> dict[str, str]:
-    """The declared skips, path to reason. One definition, read by every
-    runner, because two copies matching on basename already disagreed.
+    """The declared skips, path to reason.
+
+    One definition, read by every runner, because two copies matching on
+    basename already disagreed.
     """
     out: dict[str, str] = {}
     for line in SKIPS.read_text().splitlines():
@@ -147,14 +150,13 @@ def corpus(root: Path = REPO) -> list[Path]:
     alias for a file already in the list, so neither is discovered.
     """
     declared = skips()
-    found = [
+    return [
         path
         for path in sorted((root / "examples").rglob("*.metta"))
         if not path.is_symlink()
         and "_fixtures" not in path.parts
         and str(path.relative_to(root)) not in declared
     ]
-    return found
 
 
 MARKER = "ANSWER-GROUP "
@@ -163,8 +165,10 @@ FAILED = "ANSWER-ERROR "
 
 @dataclass(frozen=True, slots=True)
 class Outcome:
-    """What one configuration made of one example: one written answer group
-    per runnable form, in source order, or the error that stopped it.
+    """What one configuration made of one example.
+
+    One written answer group per runnable form, in source order, or the error
+    that stopped it.
     """
 
     groups: list[str]
@@ -226,8 +230,9 @@ def _run(
 
 
 def run_engine(path: Path, root: Path = REPO) -> Outcome:
-    """The engine alone, read through the emitter that already exists for
-    exactly this: one answer GROUP per runnable form on a marker line.
+    """The engine alone, read through the emitter that already exists for this.
+
+    One answer GROUP per runnable form, on a marker line.
     """
     return _run(
         [
@@ -241,8 +246,10 @@ def run_engine(path: Path, root: Path = REPO) -> Outcome:
 
 
 def run_library(path: Path, root: Path = REPO) -> Outcome:
-    """The shipped library, in its own process for the isolation the engine
-    lane gets, emitting the same marker format so the two are comparable.
+    """The shipped library, in its own process, emitting the same marker format.
+
+    The separate process is the isolation the engine lane gets, and the shared
+    format is what makes the two comparable.
 
     `load()` already returns the per-form groups, so this preserves the
     structure rather than flattening it: an empty group prints as `()`
@@ -267,21 +274,22 @@ class Difference:
     reason: str
     detail: str
 
-    def __str__(self) -> str:
+    def __str__(self) -> str:  # noqa: D105  -- the Python data-model hook is defined by its name
         return f"{self.path}: {self.reason}\n    {self.detail}"
 
 
 def _value(written: str):
-    """One written group as a VALUE, so a difference in spelling is not
-    reported as a difference in answer: boolean source aliases parse to the
-    same Grounded value. An unparsable group compares as its own text, which keeps
-    malformed output visible instead of collapsing it to equal.
+    """One written group as a VALUE, so a spelling difference is not an answer difference.
+
+    Boolean source aliases parse to the same Grounded value. An unparsable
+    group compares as its own text, which keeps malformed output visible
+    instead of collapsing it to equal.
     """
-    from metta.atoms import parse
+    from metta.atoms import parse  # noqa: PLC0415  -- the package is imported only to compare
 
     try:
         return parse(written)
-    except Exception:
+    except Exception:  # noqa: BLE001  -- any parse failure means compare as text
         return written
 
 
@@ -353,6 +361,7 @@ def compare(path: Path, root: Path = REPO) -> Difference | None:
 
 
 def main() -> int:
+    """Run the corpus through both configurations and report any disagreement."""
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     parser.add_argument("--list", action="store_true", help="print the corpus")
     parser.add_argument("--count", action="store_true", help="print its size")

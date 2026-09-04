@@ -1,5 +1,7 @@
-"""Purpose: generate CODEC.md's tables from tests/codec/corpus.json, so the
-grammar document and the conformance kit have ONE authority between them.
+"""Purpose: generate CODEC.md's tables from tests/codec/corpus.json.
+
+The grammar document and the conformance kit then have ONE authority between
+them.
 
 The row this answers asks for one authority for spec and kit and suggests
 generating the document from R19's `.mettail` `::=` annotations. Measured
@@ -50,6 +52,7 @@ def _prose(text: str) -> str:
 
 
 def tags_table(corpus: dict) -> list[str]:
+    """One row per wire tag: its class, its payload and what it means."""
     rows = ["| tag | class | payload | what it is |", "|---|---|---|---|"]
     for tag, entry in corpus["tags"].items():
         rows.append(
@@ -60,6 +63,7 @@ def tags_table(corpus: dict) -> list[str]:
 
 
 def profiles_table(corpus: dict) -> list[str]:
+    """One row per profile: the tags and frames it admits, and what speaks it."""
     rows = ["| profile | tags | frames | what speaks it |", "|---|---|---|---|"]
     for name, entry in corpus["profiles"].items():
         tags = " ".join(f"`{tag}`" for tag in entry["tags"])
@@ -78,6 +82,7 @@ def _written(case: dict) -> str:
 
 
 def cases_table(corpus: dict) -> list[str]:
+    """One row per conformance case: its text, its wire, and how it is written back."""
     rows = ["| case | text | wire | written |", "|---|---|---|---|"]
     for case in corpus["cases"]:
         wire = _cell(case["wire"]) if "wire" in case else "built, see the corpus"
@@ -87,6 +92,7 @@ def cases_table(corpus: dict) -> list[str]:
 
 
 def refusals_table(corpus: dict) -> list[str]:
+    """One row per refusal: the operation refused, the wire, and the ground for it."""
     rows = ["| case | operation | wire | why it is refused |", "|---|---|---|---|"]
     for case in corpus["refusals"]:
         licensed = case.get("unless")
@@ -99,6 +105,7 @@ def refusals_table(corpus: dict) -> list[str]:
 
 
 def frames_table(corpus: dict) -> list[str]:
+    """One row per framed case: the frame it carries and the parts it decodes to."""
     rows = ["| case | frame | wire | parts |", "|---|---|---|---|"]
     for case in corpus["frames"]:
         parts = ", ".join(f"{name} {_cell(value)}" for name, value in case["parts"].items())
@@ -107,6 +114,7 @@ def frames_table(corpus: dict) -> list[str]:
 
 
 def transcripts_table(corpus: dict) -> list[str]:
+    """One row per transcript: the program and the answer groups it produces."""
     rows = ["| case | program | answer groups |", "|---|---|---|"]
     for case in corpus["transcripts"]:
         program = _cell(case["program"])
@@ -129,15 +137,15 @@ def document(current: str, corpus: dict) -> str:
     fenced = {match.group("name") for match in FENCE.finditer(current)}
     unknown = fenced - set(TABLES)
     if unknown:
-        raise SystemExit(
-            f"CODEC.md fences {sorted(unknown)}, which codecdoc.py does not build"
-        )
+        msg = f"CODEC.md fences {sorted(unknown)}, which codecdoc.py does not build"
+        raise SystemExit(msg)
     unfenced = set(TABLES) - fenced
     if unfenced:
-        raise SystemExit(
+        msg = (
             f"codecdoc.py builds {sorted(unfenced)} and CODEC.md has no fence for "
             f"it, so the table would be missing rather than stale"
         )
+        raise SystemExit(msg)
 
     def replace(match: re.Match) -> str:
         rows = TABLES[match.group("name")](corpus)
@@ -147,6 +155,7 @@ def document(current: str, corpus: dict) -> str:
 
 
 def main(argv: list[str]) -> int:
+    """Compare CODEC.md against the corpus, rewriting it under --write."""
     if not DOCUMENT.exists():
         print(f"{DOCUMENT.name} is missing; the corpus has no document to keep in step")
         return 1

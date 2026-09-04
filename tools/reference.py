@@ -1,9 +1,11 @@
-"""Purpose: generate website/reference/metta-*.md from the modules they
-document, so the page's own promise, "The entries below reproduce the source
-signatures and docstrings", is true by construction rather than by hand.
+r"""Purpose: generate website/reference/metta-*.md from the modules they document.
+
+Each page promises that "The entries below reproduce the source signatures and
+docstrings", and generating it makes that true by construction rather than by
+hand.
 
 Assumes:
-  - every reference page names its module in a `Source: \\`path\\`.` line
+  - every reference page names its module in a `Source: \`path\`.` line
     [tested test_every_reference_page_names_its_source]
   - metta.atoms and friends parse as ordinary Python, since this reads the AST
     and never imports: a page can be regenerated without a working janus
@@ -163,8 +165,10 @@ def split_top_level(arguments: str) -> list[str]:
 
 
 def spaced_default(part: str) -> str:
-    """`x: int=1` as `x: int = 1`. PEP 8 spaces the default of an ANNOTATED
-    parameter and not of a bare one, and ast.unparse spaces neither.
+    """`x: int=1` as `x: int = 1`.
+
+    PEP 8 spaces the default of an ANNOTATED parameter and not of a bare one,
+    and ast.unparse spaces neither.
     """
     depth = 0
     annotated = False
@@ -181,9 +185,10 @@ def spaced_default(part: str) -> str:
 
 
 def is_overload(node: ast.FunctionDef | ast.AsyncFunctionDef) -> bool:
-    """@overload declares a type, not a definition. Emitting all of them gave
-    MeTTa.run four identical entries in the reference; the implementation is
-    the one a reader is looking for.
+    """@overload declares a type, not a definition.
+
+    Emitting all of them gave MeTTa.run four identical entries in the
+    reference; the implementation is the one a reader is looking for.
     """
     return any(
         (isinstance(d, ast.Name) and d.id == "overload")
@@ -193,19 +198,22 @@ def is_overload(node: ast.FunctionDef | ast.AsyncFunctionDef) -> bool:
 
 
 def class_line(node: ast.ClassDef) -> str:
+    """The `class Name(bases):` line a reader sees, bases and keywords included."""
     bases = [ast.unparse(base) for base in node.bases]
     bases += [f"{kw.arg}={ast.unparse(kw.value)}" for kw in node.keywords if kw.arg]
     return f"class {node.name}({', '.join(bases)}):" if bases else f"class {node.name}:"
 
 
 def entry(heading: str, code: str, doc: str | None) -> str:
+    """One reference entry: its heading, its signature block and its docstring."""
     body = quote(doc) if doc else "No docstring is defined."
     return f"{heading}\n\n```python\n{code}\n```\n\n{body}\n"
 
 
 def entries(tree: ast.Module) -> list[str]:
-    """Public module-level definitions, in source order, methods under their
-    class. A leading underscore is private and a page never carried one.
+    """Public module-level definitions, in source order, methods under their class.
+
+    A leading underscore is private and a page never carried one.
     """
     out = []
     for node in tree.body:
@@ -213,19 +221,17 @@ def entries(tree: ast.Module) -> list[str]:
             out.append(
                 entry(f"## `{node.name}`", class_line(node), ast.get_docstring(node))
             )
-            for sub in node.body:
-                if (
-                    isinstance(sub, (ast.FunctionDef, ast.AsyncFunctionDef))
-                    and not sub.name.startswith("_")
-                    and not is_overload(sub)
-                ):
-                    out.append(
-                        entry(
-                            f"### `{node.name}.{sub.name}`",
-                            signature(sub),
-                            ast.get_docstring(sub),
-                        )
-                    )
+            out.extend(
+                entry(
+                    f"### `{node.name}.{sub.name}`",
+                    signature(sub),
+                    ast.get_docstring(sub),
+                )
+                for sub in node.body
+                if isinstance(sub, (ast.FunctionDef, ast.AsyncFunctionDef))
+                and not sub.name.startswith("_")
+                and not is_overload(sub)
+            )
         elif (
             isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
             and not node.name.startswith("_")
@@ -236,6 +242,7 @@ def entries(tree: ast.Module) -> list[str]:
 
 
 def page_for(module_path: str, title: str) -> str:
+    """The whole page one module deserves, from its own source."""
     tree = ast.parse((ROOT / module_path).read_text(encoding="utf-8"))
     doc = ast.get_docstring(tree)
     head = [f"# `{title}`", "", f"Source: `{module_path}`.", ""]
@@ -255,15 +262,17 @@ def sources() -> list[tuple[pathlib.Path, str, str]]:
         match = SOURCE.search(text)
         title = text.splitlines()[0].strip("# `")
         if match is None:
-            raise SystemExit(
+            msg = (
                 f"{page.name} carries no `Source:` line, so nothing can say "
                 f"which module it documents"
             )
+            raise SystemExit(msg)
         found.append((page, match.group(1), title))
     return found
 
 
 def main(argv: list[str]) -> int:
+    """Compare every page against its module, rewriting them under --write."""
     write = "--write" in argv
     stale = []
     for page, module_path, title in sources():
