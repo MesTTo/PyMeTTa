@@ -756,13 +756,20 @@ def _enlist_type_preimage(cls: type) -> list[Any]:
 def register_type(
     cls: type,
     *,
-    image: str = "expression",
+    image: str | None = None,
     to_atom: Callable[[Any], Any] | None = None,
     from_atom: Callable[..., Any] | None = None,
     name: str | None = None,
     fields: tuple[str, ...] = (),
 ) -> type:
-    """Register a converted type, enlisted in an enclosing transaction."""
+    """Register a converted type, enlisted in an enclosing transaction.
+
+    `image` defaults to None rather than to a literal, so that a bare call
+    reaches convert.register_type's derivation from the class shape. Passing
+    "expression" here on its behalf was enough to defeat it, and an Enum, a
+    dataclass or a NamedTuple registered through this door then lost the
+    projection it already had.
+    """
     expected = _enlist_type_preimage(cls)
     try:
         return convert.register_type(

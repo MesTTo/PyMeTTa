@@ -90,7 +90,7 @@ def _class_label(cls: type) -> str:
 def register_type(
     cls: type,
     *,
-    image: str = "expression",
+    image: str | None = None,
     to_atom: Callable[[Any], Any] | None = None,
     from_atom: Callable[..., Any] | None = None,
     name: str | None = None,
@@ -115,10 +115,38 @@ def register_type(
     alone. image chooses among symbol, expression, handle and operations;
     the docstring of project() states the rule for choosing. Returns cls,
     so it composes as a decorator.
+
+    Anything not given is DERIVED FROM THE CLASS, by the same rule that
+    applies when nobody registers it. Registering one of those four
+    explicitly therefore changes nothing, which is what a sentence saying
+    registration is not required has to mean: it used to substitute the
+    `expression` default for the derived image and leave `to_atom` empty,
+    so `register_type(SomeEnum)` -- and the dataclass and NamedTuple cases
+    with it -- replaced a working projection with a TypeError on the next
+    project() [tested: test_registering_a_shape_backed_class_changes_nothing].
     """
-    if image not in IMAGES:
+    if image is not None and image not in IMAGES:
         msg = f"image must be one of {IMAGES}, not {image!r}"
         raise ValueError(msg)
+    #Only a BARE register_type(cls) derives. Once the caller has named an
+    #image or either direction of the conversion, they have said how this
+    #type crosses and the shape has nothing to add. The narrow rule also
+    #keeps the derivation's own refusals where they belong: an init=False
+    #dataclass cannot be rebuilt by the default expression image and says so,
+    #and the remedy it names is exactly a register_type carrying to_atom and
+    #from_atom, which must not re-enter the derivation that refused
+    #[tested: test_init_false_dataclass_requires_an_explicit_reverse].
+    field_types: tuple = ()
+    bare = image is None and to_atom is None and from_atom is None and not fields
+    derived = _default_registration(cls) if bare else None
+    if derived is None:
+        image = "expression" if image is None else image
+    else:
+        image = derived.image
+        to_atom = derived.to_atom
+        from_atom = derived.from_atom
+        fields = derived.fields
+        field_types = derived.field_types
     type_name = name or cls.__name__
     registration = _Registration(
         image=image,
@@ -126,6 +154,7 @@ def register_type(
         from_atom=from_atom,
         type_name=type_name,
         fields=tuple(fields),
+        field_types=field_types,
     )
     _record_registration(cls, registration)
     return cls

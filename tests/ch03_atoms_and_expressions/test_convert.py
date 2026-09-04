@@ -491,3 +491,57 @@ def test_union_build_selects_by_shape_and_surfaces_reverse_errors():  # noqa: D1
     )
     with pytest.raises(TypeError, match="selected reverse failed"):
         build(Expression(S.BrokenReverseProbe, 1), BrokenReverse | str)
+
+
+def test_registering_a_shape_backed_class_changes_nothing():
+    """register_type's own docstring says these four need no registration.
+
+    It substituted the literal `expression` default for the image the shape
+    derives, and left `to_atom` empty, so registering one replaced a working
+    projection with a TypeError on the next project(). The sentence and the
+    behaviour now agree: a BARE call derives everything from the class.
+    """
+    @dataclass
+    class BareRecord:
+        value: int
+
+    class BarePair(NamedTuple):
+        left: int
+
+    class BareChoice(Enum):
+        ONE = "one"
+
+    for cls, make in (
+        (BareRecord, lambda: BareRecord(1)),
+        (BarePair, lambda: BarePair(2)),
+        (BareChoice, lambda: BareChoice.ONE),
+    ):
+        before = project(make())
+        register_type(cls)
+        assert project(make()) == before, cls.__name__
+
+
+def test_the_transaction_door_reaches_the_same_derivation():
+    """metta.integrate.register_type must not pass an image on the caller's
+    behalf: doing so looked explicit to convert.register_type and defeated the
+    derivation, so the enlisted door broke what the plain door had fixed.
+    """  # noqa: D205  -- one continuous invariant rather than summary-and-body
+    from metta import integrate
+
+    class EnlistedChoice(Enum):
+        TWO = "two"
+
+    before = project(EnlistedChoice.TWO)
+    integrate.register_type(EnlistedChoice)
+    assert project(EnlistedChoice.TWO) == before
+
+
+def test_an_explicit_image_still_outranks_the_derived_one():
+    """The derivation fills gaps; it never overrules the author."""
+    @dataclass
+    class HandledRecord:
+        value: int
+
+    register_type(HandledRecord, image="handle")
+    projected = project(HandledRecord(1))
+    assert isinstance(projected.atom, Grounded)
