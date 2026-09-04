@@ -12,7 +12,7 @@ Guarantees:
   - every refusal renders its formal term as a sentence rather than as
     `Unknown error term` [tested:
     test_pln2_refusals_state_the_complaint_and_not_its_shape;
-    commit=WORKTREE]
+    commit=e34e8e386772b582ba24828138056c5d26be28f8]
 """
 
 from __future__ import annotations
