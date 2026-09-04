@@ -43,6 +43,7 @@ own.
 |---|---|
 | [`operations/python_definitions.py`](operations/python_definitions.py) | `@m.define`: Python compiled to equations, plus class accessor and method exposure controls |
 | [`operations/annotation_contracts.py`](operations/annotation_contracts.py) | annotations as evaluation contracts, local type claims, and source-derived definition facts |
+| [`operations/concurrency_handles.py`](operations/concurrency_handles.py) | multi-argument engine-pool work and nonblocking channel reads |
 | [`operations/engine_controls.py`](operations/engine_controls.py) | per-call and scoped time, inference, and stack bounds, engine stats, captured output, and DataFrame conversion |
 | [`operations/error_handling.py`](operations/error_handling.py) | structured assertion failures for test and conformance harnesses |
 | [`operations/runtime_configuration.py`](operations/runtime_configuration.py) | inspected process settings, pre-start configuration, and the startup freeze |
