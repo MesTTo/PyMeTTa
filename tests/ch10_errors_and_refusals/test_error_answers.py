@@ -19,7 +19,7 @@ Open Obligations:
 
 import pytest
 
-from metta import MettaError, S, V, wire
+from metta import Expression, G, MettaError, S, V, wire
 from metta.errors import EngineError, MettaOperationError, MettaResultError
 from metta.foreign import SpaceProvider
 
@@ -216,3 +216,36 @@ def test_case_dual_refusal_names_the_unarrived_cases(metta):
         assert "arrive" in message
         assert "writing the cases out" in message
         assert "special form" not in message
+
+
+def test_an_opaque_argument_does_not_replace_the_failure_it_was_passed_to(metta):
+    """The report of a failed call must not fail on the call's own arguments.
+
+    `prolog:message//1` rendered the failing call through the ROUND-TRIP
+    writer, which refuses a value whose printed form would read back as
+    something else. An opaque host handle is exactly such a value, so
+    reporting the failure threw out of the renderer and the caller received
+    that refusal instead of what the operation raised:
+
+        PrologError: swrite/2: cannot write <py_Box>(0x...) as MeTTa text
+
+    with the operation's own message gone. Rendering a message is display, not
+    round-trip, so the total writer answers it.
+    """
+    def opaque_op(handle):  # noqa: ARG001  -- the reflected parameter is part of the operation protocol
+        message = "clean"
+        raise MettaError(message)
+
+    metta.op(opaque_op, effect="oracleIO")
+    try:
+        with pytest.raises(EngineError) as caught:
+            metta.eval(Expression([S["opaque-op"], G(object())]))
+    finally:
+        metta.unregister_op("opaque-op")
+
+    text = str(caught.value)
+    assert "clean" in text, text
+    assert "swrite" not in text, text
+    # The operation is still named, which is the whole point of rendering the
+    # call, and the argument that could not be written appears by identity.
+    assert "opaque-op" in text, text

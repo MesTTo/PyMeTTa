@@ -149,7 +149,7 @@ metta_py_signal_class('SystemExit').
 prolog:message(error(python_error(Class, Message), Context)) -->
     { metta_error_context(Context, Call, 'while calling Python'),
       string(Message),
-      swrite(Call, CallText) },
+      sdisplay(Call, CallText) },
     [ 'Python ~w in ~w'-[Class, CallText], nl, '  ~w'-[Message] ],
     python_unbound_argument(Call).
 
