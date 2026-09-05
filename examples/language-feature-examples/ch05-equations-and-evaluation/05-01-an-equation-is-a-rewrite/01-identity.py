@@ -810,4 +810,11 @@ def twin(m):
 #: against one base and by -35 against this one [measured 2026-09-05: min-of-3
 #: serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=39dd4c9014bf8c38d78df8c8fdc9c114b372dc1f].
-BUDGET = 3382
+#: RE-PINNED 2026-09-05, 3382 to 3387 (+5), The C seat's compiled boot moved
+#: qlf_load_engine/0 into engine/qlf_boot.pl and main.pl calls it, which shifts
+#: engine clause layout by +5 on this row after the debugger's three kind/2
+#: rows moved it -35; metta side unchanged. This row counts code shape and
+#: moves with every engine unit change; the seventh resolution tonight
+#: [measured 2026-09-05: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 3387
