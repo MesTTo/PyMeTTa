@@ -797,5 +797,5 @@ def twin(m):
 #: examples/ch05-equations-and-evaluation/05-01-an-equation-is-a-rewrite/01-identity.metta;
 #: fixture=provisioned worktree, libmork_ffi.so
 #: fd4066201267c8c894a1e255235587a3b314e95d590483dc8449a55519a974a0, QLF
-#: cleared and warmed; commit=WORKTREE].
+#: cleared and warmed; commit=78d1d8946990498965fa940a676d1b91fb8bd35f].
 BUDGET = 3393
