@@ -780,4 +780,12 @@ def twin(m):
 #: examples/ch05-equations-and-evaluation/05-01-an-equation-is-a-rewrite/01-identity.metta;
 #: fixture=merged main checkout, libmork_ffi.so present, QLF warmed;
 #: commit=9f0bae4845e871dee2b14b3b73a7dc5850c1418e].
-BUDGET = 3398
+#: RE-PINNED 2026-09-05, 3398 to 3412 (+14), The annotated arrow product audits
+#: declared cardinality at ordinary call dispatch: compiling and first-calling
+#: a function costs a constant +7 beside K installed products for K in 0..50
+#: (measured on the branch, zero slope), and this twin defines two functions,
+#: so its first evaluation pays +14. The identity twin's fifth merge
+#: resolution; the four earlier ones sit above [measured 2026-09-05: min-of-3
+#: serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 3412
