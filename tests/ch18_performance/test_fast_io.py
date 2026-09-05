@@ -480,7 +480,13 @@ def test_fast_load_refuses_a_different_swi_version_before_payload(m, tmp_path): 
 
 @pytest.mark.parametrize(
     ("field", "replacement", "message"),
-    [(1, b"METTA-NOT-FAST", "magic tag"), (2, b"999", "format version")],
+    [
+        (1, b"METTA-NOT-FAST", "magic tag"),
+        (2, b"1", "format version"),
+        (2, b"2", "format version"),
+        (2, b"3", "format version"),
+        (2, b"999", "format version"),
+    ],
 )
 def test_fast_load_refuses_other_incompatible_headers(m, tmp_path, field, replacement, message):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     path = tmp_path / f"wrong-header-{field}.fast"
@@ -556,9 +562,9 @@ def test_fast_file_starts_with_the_magic_header(m, tmp_path):  # noqa: D103  -- 
     m.add(S.header(S.fact))
     m.save(path, format="fast")
     data = path.read_bytes()
-    assert data.startswith(b"METTA-CACHE\tMETTA-FAST\t3\t")
+    assert data.startswith(b"METTA-CACHE\tMETTA-FAST\t4\t")
     header = data.split(b"\n", 1)[0] + b"\n"
-    assert re.fullmatch(rb"METTA-CACHE\tMETTA-FAST\t3\t\d+\.\d+\.\d+\t[0-9a-f]{64}\n", header)
+    assert re.fullmatch(rb"METTA-CACHE\tMETTA-FAST\t4\t\d+\.\d+\.\d+\t[0-9a-f]{64}\n", header)
     assert header[:-1].split(b"\t")[3].decode() == engine().info()["swi_prolog"]
 
 
