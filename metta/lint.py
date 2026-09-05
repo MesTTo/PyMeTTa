@@ -18,9 +18,10 @@ import importlib as _importlib
 import os
 import pathlib
 
+from ._head_meaning import EngineRegistry
 from ._lint_analysis import analyze
 from ._lint_events import prepare_lint
-from ._lint_model import EngineRegistry, Finding
+from ._lint_model import Finding
 from ._source_forms import positioned_forms
 from .atoms import _alpha_eq, parse
 from .foreign import require_capability

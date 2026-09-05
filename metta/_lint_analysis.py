@@ -39,9 +39,9 @@ from __future__ import annotations
 
 from collections import Counter
 from collections.abc import Mapping
-from difflib import get_close_matches
 from typing import Any, TypeGuard
 
+from ._head_meaning import EngineRegistry, head_meaning
 from ._host_island import _HostIsland
 from ._lint_events import (
     LintInvocation,
@@ -49,7 +49,7 @@ from ._lint_events import (
     events_for,
     is_suppressed,
 )
-from ._lint_model import EngineRegistry, Finding
+from ._lint_model import Finding
 from .atoms import Atom, Expression, Grounded, Symbol, Variable, _alpha_eq, _map_atoms, _variables
 
 _BINDING_HEADS = {"let", "let*", "match", "unify", "case", "chain", "bind!"}
@@ -938,54 +938,37 @@ def _unbound_findings(equation: Expression, head: Atom, body: Atom) -> list[Find
     ]
 
 
-def _nothing_carries(
-    name: str,
-    arguments: int,
-    fact_heads: set[str],
-    registry: EngineRegistry,
-) -> bool:
-    """Whether nothing in the engine or the space gives this head meaning.
-
-    The engine gives one two ways, and the check has to ask both: fun/1 for
-    a function, and metta_translated_head/1 for a form the translator
-    compiles. Asking fun/1 alone reported every correct use of `if`, `case`
-    and `collapse` as undefined. A bare symbol with no arguments is data by
-    construction and is never asked about.
-    """
-    return (
-        arguments > 0
-        and name not in fact_heads
-        and not registry.is_special_form(name)
-    )
-
-
 def _call_findings(
     equation: Expression,
     body: Atom,
     fact_heads: set[str],
     registry: EngineRegistry,
 ) -> list[Finding]:
+    """Diagnose every call in one body from the shared head verdict.
+
+    A bare symbol with no arguments is data by construction and is never
+    asked about; everything else goes to head_meaning, which is the same
+    question why() asks, answered once.
+    """
     findings: list[Finding] = []
     for call in _walk_heads(body):
         name = call[0].name
         arguments = len(call) - 1
-        if registry.is_function(name):
-            compiled = registry.arities(name)
-            if compiled and (arguments + 1) not in compiled:
-                arities = sorted(arity - 1 for arity in compiled)
-                findings.append(
-                    Finding(
-                        "arity-mismatch",
-                        name,
-                        f"called with {arguments} argument(s) but defined for {arities}",
-                        equation,
-                        severity="error",
-                    )
+        if arguments == 0:
+            continue
+        meaning = head_meaning(name, arguments, registry, fact_heads)
+        if meaning.wrong_arity:
+            findings.append(
+                Finding(
+                    "arity-mismatch",
+                    name,
+                    f"called with {arguments} argument(s) but defined for "
+                    f"{sorted(meaning.arities)}",
+                    equation,
+                    severity="error",
                 )
-        elif _nothing_carries(name, arguments, fact_heads, registry):
-            close = get_close_matches(
-                name, registry.known_names() | fact_heads, n=1, cutoff=0.8
             )
+        elif not meaning.carried:
             findings.append(
                 Finding(
                     "possibly-undefined-reference",
@@ -995,7 +978,7 @@ def _call_findings(
                     "be data on purpose)",
                     equation,
                     severity="hint",
-                    suggestion=close[0] if close else None,
+                    suggestion=meaning.suggestion,
                 )
             )
     return findings

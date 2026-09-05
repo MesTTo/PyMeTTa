@@ -177,7 +177,7 @@ def test_calling_a_special_form_is_not_an_undefined_reference(m, body):  # noqa:
 
 
 def test_a_special_form_is_a_known_head(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    from metta._lint_model import EngineRegistry
+    from metta._head_meaning import EngineRegistry
 
     registry = EngineRegistry(m.runtime)
     assert registry.is_function("if") is False
@@ -602,3 +602,46 @@ def test_lint_and_why_agree_on_whether_a_head_is_known(metta):
             "the two doors flipped together above; if either stops flipping, "
             "one of them has learned about a head the other has not"
         )
+
+
+# --------------------------------------------------- one verdict, two doors
+#
+# lint() and why() ask the same question about a head and answered it from
+# separate code. They disagreed twice: why() asked fun/1 alone, so a special
+# form used correctly came back as an unknown name, and it did no arity check
+# at all, so a call at an arity the function has no clause for was sent to
+# eval, where it also answers nothing.
+
+
+def test_why_and_lint_agree_about_a_special_form(m):
+    """A head the translator compiles is not an unknown name to either door."""
+    text = m.why(S["if"](V.c, V.t, V.e))
+    assert "special form" in text
+    assert "did you mean" not in text
+    m.run("(= (chooses $c) (if $c 1 2))")
+    assert "possibly-undefined-reference" not in _kinds(m.lint())
+
+
+def test_why_and_lint_agree_about_a_call_at_an_undefined_arity(m):
+    """Both name the arity, so neither sends a caller to a call that fails."""
+    m.run("(= (arity-one $x) (* 2 $x))")
+    text = m.why(S["arity-one"](1, 2, 3))
+    assert "defined for [1] argument(s) rather than 3" in text
+
+    m.run("(= (arity-caller $x) (arity-one $x $x))")
+    mismatch = [f for f in m.lint() if f.kind == "arity-mismatch"]
+    assert [f.subject for f in mismatch] == ["arity-one"]
+    assert "defined for [1]" in mismatch[0].detail
+
+
+def test_why_and_lint_draw_suggestions_from_one_pool(m):
+    """One catalogue and one cutoff, and a name is never its own suggestion.
+
+    The pool is fun/1 united with the translator's special-form heads, so a
+    mistyped special form gets an offer too; reading fun/1 alone left
+    `collapes` with nothing to say.
+    """
+    assert "did you mean collapse?" in m.why(S["collapes"](V.x))
+    m.run("(= (typo-caller $x) (collapes $x))")
+    typo = [f for f in m.lint() if f.kind == "possibly-undefined-reference"]
+    assert [(f.subject, f.suggestion) for f in typo] == [("collapes", "collapse")]
