@@ -43,7 +43,14 @@ PLANTS = {
     "ascii_folded": "a symbol outside ASCII",
     "number_blind": "a number",
     "flattened_nesting": "a nested expression",
+    "identity_leak": "an answer holding a variable",
 }
+
+#: The laws a plant is caught by. identity_leak damages EVALUATION, not the
+#: printer or the reader, so the plants no longer all belong to one law and the
+#: shipped control is run per law: a plant asked the wrong question reads as
+#: uncaught for a reason that is not a defect.
+LAWS = ("prop_eval_variant/1", "prop_roundtrip_full/1")
 
 VENDORED = ("quickcheck.pl", "mavis.pl", "list_util.pl")
 
@@ -67,11 +74,15 @@ def test_a_prolog_property_lane_catches_a_planted_roundtrip_violation(repo_root)
     for plant, feature in PLANTS.items():
         assert f"plant {plant} ({feature}): caught" in report, report
 
-    # And the shipped printer and reader pass the same law under the same
+    # And the shipped engine passes each of those laws under the same
     # generator, so "caught" above means the plant was caught and not that the
     # law is red for everyone.
-    assert "shipped printer and reader: uncaught" in report, report
-    assert f"property lane selftest: {len(PLANTS)} plants, each caught" in report, report
+    for law in LAWS:
+        assert f"shipped engine under {law}: uncaught" in report, report
+    assert (
+        f"property lane selftest: {len(PLANTS)} plants over {len(LAWS)} laws, "
+        f"each caught" in report
+    ), report
 
 
 def test_the_planted_violation_is_the_same_violation_every_run(repo_root):

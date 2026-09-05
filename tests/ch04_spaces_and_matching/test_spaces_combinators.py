@@ -15,6 +15,10 @@ Guarantees:
     request before a read or write reaches it
     [tested: test_combinators_forward_every_provider_policy_request;
     commit=f10b3766f72a01bc7c023eb27ff6732dfde7ccf6]
+  - a generated nested tree serves every capability it claims, and every
+    capability refusal names the member that lacks it
+    [tested: test_random_combinator_trees_serve_what_they_claim;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -25,7 +29,13 @@ from dataclasses import dataclass
 
 import pytest
 
-from metta import MettaError, S, V, ground, parse, spaces, testing, view
+hypothesis = pytest.importorskip("hypothesis")
+from hypothesis import given, settings  # noqa: E402
+from hypothesis import strategies as st  # noqa: E402
+
+from metta import MettaError, S, V, ground, parse, spaces, testing, view  # noqa: E402
+from metta.foreign import SpaceProvider  # noqa: E402
+from metta.foreign import _require_provider as require_capability_of  # noqa: E402
 
 
 @pytest.fixture()
@@ -416,3 +426,164 @@ def test_combinators_forward_every_provider_policy_request():
         ("add", S.allowed(3)),
         ("remove", S.allowed(3)),
     ]
+
+
+# ----------------------------------------------- the composition closure law
+
+
+class _Store(SpaceProvider):
+    """A leaf that serves every capability."""
+
+    def __init__(self, atoms=()):
+        self.stored = list(atoms)
+
+    def atoms(self):
+        return iter(list(self.stored))
+
+    def match(self, pattern):  # noqa: ARG002  -- the protocol allows an over-approximating candidate set
+        return iter(list(self.stored))
+
+    def add(self, atom):
+        self.stored.append(atom)
+
+    def remove(self, atom):
+        if atom in self.stored:
+            self.stored.remove(atom)
+            return True
+        return False
+
+    def clear(self):
+        self.stored.clear()
+
+    def snapshot(self):
+        return tuple(self.stored)
+
+
+class _Frozen(SpaceProvider):
+    """A leaf that enumerates and nothing else."""
+
+    def __init__(self, atoms=()):
+        self.stored = list(atoms)
+
+    def atoms(self):
+        return iter(list(self.stored))
+
+    def snapshot(self):
+        return tuple(self.stored)
+
+
+class _Indexed(SpaceProvider):
+    """A leaf that matches and cannot dump.
+
+    The seam allows it, saying enumeration is the correct default candidate
+    set and not the required one, and no hand-written tree in this file
+    composes one. That is the point of generating trees.
+    """
+
+    def __init__(self, atoms=()):
+        self.stored = list(atoms)
+
+    def match(self, pattern):  # noqa: ARG002  -- the protocol allows an over-approximating candidate set
+        return iter(list(self.stored))
+
+
+#: The member spellings a refusal may name: a provider member describes itself
+#: by its class name, so these are what "names the lacking member" means.
+_MEMBERS = ("_Store", "_Frozen", "_Indexed", "_Union", "_ReadOnly", "_Mapped", "_Overlay")
+_LEAVES = {"store": _Store, "frozen": _Frozen, "indexed": _Indexed}
+_BRIDGE = "(bridge (edge $a $b) (triple $a linked-to $b))"
+_SEED = S.triple(S.a, S["linked-to"], S.b)
+
+_CALLS = {
+    "enumerate": lambda tree: list(tree.atoms()),
+    "match": lambda tree: list(tree.match(S.edge(V.a, V.b))),
+    "add": lambda tree: tree.add(S.edge(S.a, S.b)),
+    "remove": lambda tree: tree.remove(S.edge(S.a, S.b)),
+    "clear": lambda tree: tree.clear(),
+}
+
+def _compositions(child):
+    """One more combinator over whatever the recipe already is."""
+    return st.one_of(
+        st.builds(lambda kids: ("union", *kids), st.lists(child, min_size=1, max_size=3)),
+        st.builds(lambda kid: ("readonly", kid), child),
+        st.builds(lambda kid: ("mapped", kid), child),
+        st.builds(lambda front, back: ("overlay", front, back), child, child),
+    )
+
+
+#: At least ONE combinator, because a bare leaf is not a composed space: the
+#: capability seam is what a combinator and the engine consult, and calling a
+#: method straight on a leaf that does not define it is Python's attribute
+#: lookup rather than the seam.
+_TREES = _compositions(
+    st.recursive(st.sampled_from(sorted(_LEAVES)), _compositions, max_leaves=4)
+)
+
+
+def _build(recipe):
+    """One combinator tree from its recipe, with fresh leaves every time."""
+    if isinstance(recipe, str):
+        return _LEAVES[recipe]([_SEED])
+    shape, *children = recipe
+    if shape == "union":
+        return spaces.union(*[_build(child) for child in children])
+    if shape == "readonly":
+        return spaces.readonly(_build(children[0]))
+    if shape == "mapped":
+        return spaces.mapped(_build(children[0]), _BRIDGE)
+    return spaces.overlay(_build(children[0]), _build(children[1]))
+
+
+@settings(max_examples=120, deadline=None)
+@given(_TREES)
+def test_random_combinator_trees_serve_what_they_claim(recipe):
+    """A composed space's capability set says what it will actually do.
+
+    Every operation a tree CLAIMS is served, and every capability refusal
+    names the member that lacks it. Composition is where this breaks and where
+    a hand-written tree cannot look: can_run read the combinator's own methods,
+    so `overlay(readonly, store)` claimed add and raised on it, and the same
+    false set was published into &metta as the space's queryable capabilities.
+    Measured over 400 random trees before the fix, 388 of 2,000 claims were
+    false; after it, none.
+
+    A SHAPE refusal is a different contract and is allowed: `mapped` admits
+    only atoms its declaration maps, so nesting one mapped view inside another
+    hands the inner view an atom written in the outer view's spelling. The two
+    are told apart by `MettaError.capability`, which only the capability path
+    sets, rather than by reading the sentence.
+    """
+    for capability, call in _CALLS.items():
+        tree = _build(recipe)
+        claims = tree.can_run(capability)
+
+        # The engine's own door, which is what a false claim gets past.
+        refused = None
+        try:
+            require_capability_of(tree, "&probe", capability, capability)
+        except MettaError as error:
+            refused = error
+        assert (refused is None) == claims, (
+            f"{tree!r} answers can_run({capability})={claims} and the engine's "
+            f"pre-check {'refused' if refused else 'admitted'} it"
+        )
+
+        if refused is not None:
+            assert refused.capability == capability
+            assert capability in str(refused), (
+                f"{tree!r} refused {capability} without naming it: {refused}"
+            )
+            assert any(member in str(refused) for member in _MEMBERS), (
+                f"{tree!r} refused {capability} without naming a member: {refused}"
+            )
+            continue
+
+        # It claims the capability, so calling it must not meet one.
+        try:
+            call(tree)
+        except MettaError as error:
+            assert error.capability is None, (
+                f"{tree!r} claims {capability} and raised a capability "
+                f"refusal on it: {error}"
+            )

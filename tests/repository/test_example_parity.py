@@ -312,6 +312,53 @@ def test_a_known_agreeing_example_agrees(name):
     assert difference is None, str(difference)
 
 
+def test_a_runaway_child_is_stopped_at_the_capture_ceiling():
+    """A deadline does not bound memory, so the capture carries its own bound.
+
+    Measured on the parent before this existed: a child printing 256 MiB took
+    it to 850 MiB resident in about two seconds, against TIMEOUT=300, because
+    `capture_output=True` holds the chunk list, the joined bytes and the
+    decoded string at once. greedy_chess is the shipped shape of it, printing
+    17,973,938 lines in 120 seconds once its command loop meets EOF.
+    """
+    spew = (
+        "import sys\n"
+        "line = 'x' * 1023 + chr(10)\n"
+        "for _ in range({lines}):\n"
+        "    sys.stdout.write(line)\n"
+    )
+    under = parity.MAX_CAPTURE_BYTES // 4096
+    outcome, text = parity._run(
+        [sys.executable, "-c", spew.format(lines=under)], REPO
+    )
+    assert outcome.error is None
+    assert len(text) == under * 1024
+
+    over = parity.MAX_CAPTURE_BYTES // 1024 + 4096
+    outcome, text = parity._run(
+        [sys.executable, "-c", spew.format(lines=over)], REPO
+    )
+    assert outcome.error == (
+        f"printed more than {parity.MAX_CAPTURE_BYTES} bytes and was stopped"
+    )
+    assert outcome.returncode is None
+    assert outcome.groups == []
+
+
+def test_a_bounded_run_still_reports_a_timeout():
+    """The byte cap is a second bound, not a replacement for the deadline."""
+    original = parity.TIMEOUT
+    parity.TIMEOUT = 1
+    try:
+        outcome, _ = parity._run(
+            [sys.executable, "-c", "import time; time.sleep(30)"], REPO
+        )
+    finally:
+        parity.TIMEOUT = original
+    assert outcome.error == "timed out after 1s"
+    assert outcome.returncode is None
+
+
 def test_the_stated_corpus_size_is_the_real_one():
     """Three places used to state this number and all three were wrong,
     each by a different amount: examples/README.md said 184, llms.txt said
