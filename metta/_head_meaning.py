@@ -117,7 +117,7 @@ def _closest(
 
     The pool is the whole language catalogue plus whatever the caller can see
     stored, so a mistyped SPECIAL FORM is suggested too: fun/1 does not
-    enumerate them, and drawing from it alone left `collaps` with nothing to
+    enumerate them, and drawing from it alone left `collapes` with nothing to
     offer. The name itself is never a candidate, which is what produced
     "did you mean if?" for `if`.
     """

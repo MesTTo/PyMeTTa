@@ -663,7 +663,7 @@ def test_an_unresolvable_annotation_an_arity_reaches_still_refuses(m):
     assert _arrows_of(m, "widen-refused") == set()
 
 
-def test_every_resolvable_annotation_kind_survives_the_per_annotation_pass(m):  # noqa: ARG001  -- pytest injects this fixture to establish engine state for the scenario
+def test_every_resolvable_annotation_kind_survives_the_per_annotation_pass():
     """The fallback resolves what the whole-signature pass would have.
 
     Each annotation goes to get_type_hints alone on a probe function, so a

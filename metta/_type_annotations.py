@@ -512,14 +512,13 @@ def _one_at_a_time(fn: Callable) -> dict[str, Any]:
 
 
 def resolved_annotations(fn: Callable) -> dict[str, Any]:
-    """Resolve postponed annotations, one at a time when the signature has one
-    the runtime cannot name.
+    """Resolve a callable's postponed annotations.
 
     The whole-signature pass runs first and answers unchanged whenever it can,
     which is every ordinary callable. Only a signature it refuses is resolved
-    annotation by annotation, and each annotation that still cannot resolve
+    one annotation at a time, and each annotation that still cannot resolve
     becomes an Unresolved standing in for it.
-    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+    """
     #get_type_hints introspects modules, classes, methods and functions. Two
     #ordinary callables are none of those: a functools.partial, and an instance
     #whose class defines __call__. 3.14 answers {} for both while 3.12 and 3.13

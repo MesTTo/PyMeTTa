@@ -34,11 +34,12 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 from dataclasses import dataclass
+from typing import Any
 
 from ._atom_wire import _atom_from_wire
 from ._space_execution import _controlled_run
 from ._space_objects import _limits
-from .atoms import Atom, Symbol
+from .atoms import Atom, Symbol, _to_atom
 from .vocabularies import Limit
 
 __all__ = ["TraceEvent", "trace"]
@@ -61,6 +62,49 @@ class TraceEvent:
         if self.kind == "exit":
             return f"{indent}{self.term} = {self.answer}"
         return f"{indent}-> {self.term}"
+
+
+def _selected_names(value: Any, parameter: str) -> list[str] | None:
+    """The function names a door was given, as the engine spells them.
+
+    None is "not restricted", which each door reads its own way: a trace
+    records every function and a debug session arms no breakpoint. A list is
+    the exact selection, empty included.
+
+    Every way this surface names a head is accepted, because a name comes
+    from its factory rather than from a string: ``S.double``, ``fn.car_atom``
+    and ``m.fn.double`` all mention as their own head symbol through
+    ``__metta__``, and a plain string stays the exact-head escape hatch.
+    Anything that is not one head refuses by name rather than quietly
+    selecting nothing.
+    """
+    if value is None:
+        return None
+    if isinstance(value, (Symbol, str)) or hasattr(value, "__metta__"):
+        items = [value]
+    elif isinstance(value, Iterable) and not isinstance(value, Atom):
+        items = list(value)
+    else:
+        msg = (
+            f"{parameter} must be a function Symbol, name string, "
+            f"or iterable of names"
+        )
+        raise TypeError(msg)
+    selected = []
+    for item in items:
+        if isinstance(item, str):
+            spelling = item
+        else:
+            atom = _to_atom(item) if isinstance(item, Atom) or hasattr(item, "__metta__") else None
+            if not isinstance(atom, Symbol):
+                msg = f"{parameter} members must be function Symbols or name strings"
+                raise TypeError(msg)
+            spelling = atom.name
+        if not spelling:
+            msg = f"{parameter} names must be nonempty; use [] to select none"
+            raise ValueError(msg)
+        selected.append(spelling)
+    return selected
 
 
 def _as_source(what: Atom | str) -> str:
@@ -167,26 +211,10 @@ def trace(space, source: Atom | str,
         raise ValueError(
             msg
         )
-    request: int | list = int(max_events)
-    if filter is not None:
-        if isinstance(filter, (Symbol, str)):
-            names = [filter]
-        elif isinstance(filter, Iterable) and not isinstance(filter, Atom):
-            names = list(filter)
-        else:
-            msg = "filter must be a function Symbol, name string, or iterable of names"
-            raise TypeError(msg)
-        selected = []
-        for name in names:
-            if not isinstance(name, (Symbol, str)):
-                msg = "filter members must be function Symbols or name strings"
-                raise TypeError(msg)
-            spelling = name.name if isinstance(name, Symbol) else name
-            if not spelling:
-                msg = "filter names must be nonempty; use [] to record no functions"
-                raise ValueError(msg)
-            selected.append(spelling)
-        request = [int(max_events), selected]
+    selected = _selected_names(filter, "filter")
+    request: int | list = (
+        int(max_events) if selected is None else [int(max_events), selected]
+    )
     # The bounds ride INSIDE the door as an argument rather than being handed
     # to _controlled_run, which would wrap the whole door: the trace's answer
     # costs seven times its run to encode, so a budget spent around the door

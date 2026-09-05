@@ -177,7 +177,19 @@ RUFF_FAMILY_BURN_DOWN = {
     # the repository's own D205 one-invariant form: the purpose and the
     # ownership rule are one continuous sentence, so the blank line pydocstyle
     # wants would split a single contract. Measured after the last edit.
-    "D": 2232,
+    # 2232 -> 2233 on 2026-09-05 with the diagnostics rows, and the ceiling
+    # had three of slack: petta stood at 2229 before them. The four they add
+    # are the obligation-header D205 form on three new modules
+    # (metta/_debug.py +1, metta/_head_meaning.py +2 and
+    # tests/ch14_seeing_your_program/test_debug.py +2) and one D103 on
+    # test_debug.py's space fixture, less the two metta/_lint_model.py pays
+    # back by shrinking to the Finding record when the engine facts it held
+    # move to _head_meaning.py. Sixteen further docstrings those rows wrote
+    # were REPHRASED to open with a summary line rather than priced here.
+    # Measured with --ignore-noqa over the whole RUFF_SCOPE at petta c0bb66c3
+    # and after the last edit: 2229 -> 2233, the same four across the two petta
+    # tips this branch was rebased onto.
+    "D": 2233,
     # 145, from 139 before the idiomatic twin corpus. Every one of the six new
     # sites is a `twin(m)` whose example needs no engine, because the form it
     # demonstrates is native Python (destructuring, `len`, `max`), or a
@@ -185,7 +197,14 @@ RUFF_FAMILY_BURN_DOWN = {
     # its reason, and --ignore-noqa counts the site whatever the suppression
     # says, which is the point of a burn-down.
     # 147 after the startup-perf merge; its two new files carry two sites.
-    "ARG": 147,
+    # 147 -> 151 on 2026-09-05, recorded rather than authored: petta stands at
+    # 151 on c93b26a1 with the diagnostics rows absent, so the four arrived
+    # before them and the ceiling has been behind since. Named so the next
+    # measurement is against a true number: two ARG002 on one lint test's
+    # runtime double, whose `goal` and `inputs` are the signature the double
+    # has to present, and two ARG001 on scenario fixtures. The rows landing
+    # here add none, and removed the one they briefly had.
+    "ARG": 151,
     "PERF": 0,
     # 24 -> 25 at the twins-wave merge: functions/specialize.py mirrors an
     # example that defines thirteen functions in a source order its

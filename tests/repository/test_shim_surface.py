@@ -201,8 +201,20 @@ HOST_SERVICES = {
     # reaching the bound truncates rather than raising, and a prefix that
     # cannot say it is one is worse than the raise it replaced. The floor
     # SWAPPED rather than grew -- /4 is engine-internal now, reached only
-    # by tests/prolog/suites/metatheory/tracer.plt.
+    # by tests/prolog/suites/metatheory/tracer.plt. The function filter rides
+    # inside its bound argument as a two-item request, which is why adding it
+    # moved nothing here.
     "metta_trace_source/5",
+    # The debugger's session trio: the two ends of a session and the goal that
+    # goes inside the engine holding a suspended program. The transport creates
+    # and steps that engine, as it does for a lazy cursor, because the policy a
+    # scope names has to be part of the suspended goal rather than wrapped
+    # around engine_next/2. What it cannot own is the WRAPPERS a breakpoint
+    # needs: they are the tracer's, only one session may hold them, and
+    # refusing a second is a decision no transport can make for the others.
+    "metta_debug_begin/1",
+    "metta_debug_run/3",
+    "metta_debug_end/0",
     "sread_with_names/3",
     "swrite_with_names/3",
     # Eval crosses through a cached translation template while source forms
@@ -306,6 +318,9 @@ FLOOR_REASONS = {
     "metta_string_declarations/2": "codec",
     "metta_substitute_self/3": "door",
     "metta_trace_source/5": "door",
+    "metta_debug_begin/1": "door",
+    "metta_debug_run/3": "door",
+    "metta_debug_end/0": "door",
     "metta_annotations/2": "door",
     "metta_contract_fact/1": "door",
     "metta_error_answer/3": "error-vocabulary",

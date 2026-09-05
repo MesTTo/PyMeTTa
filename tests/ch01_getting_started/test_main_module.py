@@ -411,15 +411,15 @@ def _every_match(complete, text):
 def test_the_completer_offers_heads_and_space_names(metta):
     """Completion draws on the language catalogue and the engine's spaces.
 
-    Special forms are in the catalogue as well as functions, so a mistyped
-    `collaps` and a mistyped `car-atmo` both have somewhere to complete to,
-    and a token opening with & completes a space instead.
+    Special forms are in the catalogue as well as functions, so a half-typed
+    `collap` completes as readily as a half-typed `car-a`, and a token opening
+    with & completes a space instead.
     """
     complete = _completer(metta)
     assert complete("car-a", 0) == "car-atom"
     assert complete("car-a", 1) is None
     # A translator special form, which fun/1 alone would not have offered.
-    assert complete("collaps", 0) == "collapse"
+    assert complete("collap", 0) == "collapse"
     # Every match rather than the first: the suite's workers share one engine,
     # so which space sorts first is another test's business.
     assert "&self" in _every_match(complete, "&s")

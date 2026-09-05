@@ -248,6 +248,7 @@ MODULE_ALIASES = (
     ("Defined", "_Defined"),
     ("PrologBacked", "_PrologBacked"),
     ("Trace", "_Trace"),
+    ("Debugger", "_Debugger"),
     ("os", "_os"),
 )
 

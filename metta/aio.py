@@ -194,6 +194,7 @@ if TYPE_CHECKING:
     # annotations` keeps as text. Space reaches both through _satellite(), so
     # importing them here at runtime would make `import metta.aio` pay for
     # surfaces the caller may never touch.
+    from ._debug import Debugger
     from ._trace import Trace
     from .lint import Finding
 
@@ -1695,6 +1696,42 @@ class AsyncMeTTa:
                 inferences=inferences,
             )
         )
+
+    async def debug(
+        self,
+        source: Atom | str,
+        *,
+        on: Any = None,
+        inferences: int | None = None,
+    ) -> Debugger:
+        """Run a TERM, or source, under breakpoints, stepped from Python.
+
+        Iterating the Debugger runs the program to each breakpoint, the loop
+        body is where the program is SUSPENDED, and leaving the body resumes
+        that same execution:
+
+            with m.debug(S.quad(3), on=[S.double]) as d:
+                for stop in d:
+                    print(stop)      # halted here
+                    if stop.depth > 2:
+                        d.step()     # stop at the next reduction instead
+                print(d.answers)
+
+        on= names the functions that stop it, the way every door here names a
+        head; naming none runs the program to the end in one advance.
+        `step()` stops at the very next reduction, breakpoint or not, and
+        lasts one advance. `breakpoints` is a live set, so one added while
+        the program is suspended stops it.
+
+        inferences bound the WHOLE session cumulatively, so a resume that
+        would never reach another breakpoint stops. There is no timeout:
+        the session is suspended by design and a clock would run while a
+        person reads a stop. What is debugged executes for real, writes
+        included, and inherits the caller's scope. Close it, or leave its
+        with-block: the session holds a wrapper on every compiled function
+        until it does.
+        """
+        return await self.call(lambda m: m.debug(source, on=on, inferences=inferences))
 
     async def lint(self) -> list[Finding]:
         """Diagnose this space for the silently-wrong class: declared

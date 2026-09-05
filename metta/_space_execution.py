@@ -197,6 +197,10 @@ _DEFERRED_EXECUTION_OPENERS = {
     "metta_py_eval_cursor_open_under": (
         "metta_py_eval_cursor_open_under_controlled"
     ),
+    # A debug session is a held engine too, and for the same reason: the
+    # scope's policy has to span the suspended program rather than wrap the
+    # host's steps through it.
+    "metta_py_debug_open": "metta_py_debug_open_controlled",
 }
 _DEFERRED_EXECUTION_RESUMES = {
     "metta_py_cursor_chunk": "metta_py_cursor_chunk_controlled",

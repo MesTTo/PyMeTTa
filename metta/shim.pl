@@ -1049,6 +1049,11 @@ metta_py_wrappable(metta_py_profiled).
 %what this list is for; its RUN bounds ride inside it as an argument instead,
 %so metta_py_limited never charges a caller's budget for encoding the trace.
 metta_py_wrappable(metta_py_trace).
+%Opening a debug session creates the engine that will run the program, and
+%the scope's policy goes INSIDE that engine's goal, the way a lazy cursor's
+%does: a transaction wrapped around the host's later steps could not roll
+%back what the engine did between them.
+metta_py_wrappable(metta_py_debug_open_controlled).
 metta_py_wrappable(metta_py_function_shape).
 metta_py_wrappable(metta_py_cursor_next).
 metta_py_wrappable(metta_py_cursor_chunk).
@@ -2236,6 +2241,71 @@ metta_py_trace_event(event(Depth, exit, Term, Answer, Names),
                      [Depth, "exit", EncodedTerm, EncodedAnswer]) :-
     metta_py_encode_named(Term, Names, EncodedTerm),
     metta_py_encode_named(Answer, Names, EncodedAnswer).
+
+%%%%%%%%%% The debugger %%%%%%%%%%
+%
+% A debug session is a held engine, the same shape a lazy cursor is: the
+% engine keeps the suspended program's state between crossings and the host
+% steps it. What differs is what a crossing carries. A cursor's engine
+% yields ANSWERS by succeeding; this one yields STOPS through
+% engine_yield/1 from inside the tracer's wrapper, deep in the call tree,
+% and takes a command back through engine_fetch/1 before it carries on.
+%
+% The policy rides inside the engine's goal for the reason
+% metta_py_execution_policy_goal/3 already records: a transaction wrapped
+% around the caller's engine_next/2 cannot roll back work the engine did,
+% so it has to span the suspended goal. The cursor's speculative form
+% collects and replays because a held query is nondeterministic; a debug run
+% is one semidet execution, so the ordinary constructor is the right one.
+%
+% Inferences bounds the WHOLE session cumulatively and rides inside the
+% engine, where the counter the budget reads is. There is no wall bound, and
+% that is deliberate rather than missing: a session is suspended by design,
+% so a clock would run while a person reads a stop.
+metta_py_debug_open_controlled(Source, Space, Armed, Inferences,
+                               [Mode, _Capture], prolog(Engine)) :-
+    metta_debug_begin(Armed),
+    catch(( metta_py_execution_policy_goal(
+                Mode, metta_debug_run(Source, Space, Groups), Controlled),
+            metta_host_inference_budget(Controlled, Inferences, Bounded),
+            engine_create(done(Groups), Bounded, Engine) ),
+          Error,
+          ( metta_debug_end, throw(Error) )).
+
+%The first event, and every later one. The handle crosses to Python inside
+%prolog/1 at the open and comes back as the bare engine, the same round trip
+%a lazy cursor's handle makes. resume/2 is the session's own command
+%term: the mode the program runs under next, and the WHOLE armed set, so a
+%breakpoint added or dropped between stops needs no second protocol and
+%leaves no edit to lose.
+metta_py_debug_next(Engine, Answer) :-
+    engine_next_reified(Engine, Event),
+    metta_py_debug_event(Event, Answer).
+
+metta_py_debug_resume(Engine, Mode, Armed, Answer) :-
+    engine_post(Engine, resume(Mode, Armed)),
+    engine_next_reified(Engine, Event),
+    metta_py_debug_event(Event, Answer).
+
+metta_py_debug_close(Engine) :-
+    catch(engine_destroy(Engine), error(existence_error(_, _), _), true),
+    metta_debug_end.
+
+%A stop carries what a trace event carries, in the same encoding, so a host
+%that renders one renders the other. `done` carries the run's answer groups,
+%encoded exactly as metta_py_run/3 encodes them.
+metta_py_debug_event(the(stop(Depth, call, Term, _, Names)),
+                     [Depth, "call", EncodedTerm]) :- !,
+    metta_py_encode_named(Term, Names, EncodedTerm).
+metta_py_debug_event(the(stop(Depth, exit, Term, Answer, Names)),
+                     [Depth, "exit", EncodedTerm, EncodedAnswer]) :- !,
+    metta_py_encode_named(Term, Names, EncodedTerm),
+    metta_py_encode_named(Answer, Names, EncodedAnswer).
+metta_py_debug_event(the(done(TermGroups)), [-1, "done", Groups]) :- !,
+    maplist(metta_py_encode_group, TermGroups, Groups).
+metta_py_debug_event(no, [-1, "failed"]) :- !.
+metta_py_debug_event(throw(Error), _) :-
+    throw(Error).
 
 %Bulk cleanup of the reflection facts describing one space: every
 %(defined <Space> _) atom in &metta goes through the engine's own removal

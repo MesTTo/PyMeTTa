@@ -1323,6 +1323,10 @@ def test_every_public_execution_door_honours_speculative_policy(m):
             f"!{target(tag)}", names=[]
         ),
         "trace": lambda tag: m.trace(f"!{target(tag)}"),
+        # A debug session's program runs inside a held engine, so its scope
+        # has to span the suspended goal rather than wrap the host's steps
+        # through it; run() lets it finish in one advance.
+        "debug": lambda tag: m.debug(f"!{target(tag)}").run(),
         "derivation": lambda tag: m.derivation(
             f"(add-atom {m.name} (policy-mark {tag}))"
         ),
