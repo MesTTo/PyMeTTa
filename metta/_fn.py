@@ -57,6 +57,7 @@ _NAMES = frozenset(
         ">",
         ">=",
         "Predicate",
+        "__metta_type_syntax__",
         "abs-math",
         "acos-math",
         "add-atom",

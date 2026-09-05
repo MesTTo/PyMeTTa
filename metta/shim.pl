@@ -2878,14 +2878,12 @@ metta_py_in_module(Module, Goal) :-
     ( current_predicate(with_metta_module/2) -> with_metta_module(Module, Goal)
     ; call(Goal) ).
 
-%The translator's own acceptance for one typed argument position,
-%exposed to Python: Value admits Type when ('get-type' *-> true ;
-%'get-metatype') succeeds with Type bound, the exact check a typed call
-%compiles, run in Space's module so its ':' declarations and &self's
-%both answer, protocol types included. Both terms decode with shared
-%variables, so a repeated variable in the target ((Pair $t $t))
-%constrains. Refusal answers the value's own type candidates for the
-%message; 'get-type' always answers at least '%Undefined%'.
+%A cast asks get-type, then get-metatype, for a bound target in Space's
+%module. It applies the wildcard to the target only and is stricter than a
+%typed call: an unknown value does not establish Person. The deliberate
+%difference is pinned by test_metatype_targets_reach_through_the_fallback.
+%Both decoded terms retain their own repeated-variable relationships, and
+%a refusal returns the value's reported types for the Python diagnostic.
 metta_py_cast(Space, ValueW, TypeW, Out) :-
     metta_py_decode_shared(ValueW, Value, _),
     metta_py_decode_shared(TypeW, Type, _),
