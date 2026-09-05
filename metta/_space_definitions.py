@@ -85,7 +85,7 @@ import os
 import threading
 import types
 import typing as _typing
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Iterable, Sequence
 from functools import partial
 from typing import Any
 
@@ -124,7 +124,9 @@ from .ops import resolved_annotations
 from .vocabularies import EffectClass
 
 _DEFINE_CLAUSES: dict[tuple[str, str], list[dict[str, Any]]] = {}
-_DECLARED_DEFINES: dict[tuple[str, str], bool] = {}
+#: The declarations each (space, name) has already published, so a second
+#: clause adds the arrow its own signature states and a repeat adds nothing.
+_DECLARED_DEFINES: dict[tuple[str, str], list[Expression]] = {}
 #: Classes declared into each space by install_type, in declaration order, so a
 #: base declared after its subclass still supplies that subclass's (:< ...) edge.
 _DECLARED_TYPES: dict[str, list[_builtins.type]] = {}
@@ -707,9 +709,7 @@ def _declare_definition(
     annotated = resolved_annotations(fn)
     overloads = _typing.get_overloads(fn)
     key = (space.name, name)
-    if _DECLARED_DEFINES.get(key) or (
-        not overloads and not any(label != "return" for label in annotated)
-    ):
+    if not overloads and not any(label != "return" for label in annotated):
         return ()
     for signature in overloads:
         signature_params = tuple(_inspect.signature(signature).parameters.values())
@@ -734,17 +734,36 @@ def _declare_definition(
         fn,
         include_annotation_claims=False,
     )
+    # What this name has ALREADY declared here, so a second clause adds the
+    # arrow its own signature states rather than being suppressed whole, and a
+    # clause repeating a signature adds nothing twice. One boolean per name
+    # recorded only WHETHER it had declared anything, which is a different
+    # question: a MeTTa name may carry several declarations, and the second
+    # clause of `sized` published none of its own.
+    published = _DECLARED_DEFINES.setdefault(key, [])
     added: list[Expression] = []
     try:
         for declaration in declarations:
+            if declaration in published:
+                continue
             space.add(declaration)
             added.append(declaration)
+            published.append(declaration)
     except BaseException:
-        for declaration in reversed(added):
-            space.remove(declaration)
+        _retract_declarations(space, key, added)
         raise
-    _DECLARED_DEFINES[key] = True
     return tuple(added)
+
+
+def _retract_declarations(
+    space: Any, key: tuple[str, str], declared: Iterable[Expression]
+) -> None:
+    """Remove exactly the declarations one install added, and forget them."""
+    published = _DECLARED_DEFINES.get(key, [])
+    for declaration in reversed(list(declared)):
+        space.remove(declaration)
+        if declaration in published:
+            published.remove(declaration)
 
 
 def _install_define_locked(space: Any, fn: Callable[..., Any], name: str | None = None):
@@ -883,10 +902,7 @@ def _install_define_locked(space: Any, fn: Callable[..., Any], name: str | None 
             replaced=replaced,
         )
     except BaseException:
-        for declaration in reversed(declared):
-            space.remove(declaration)
-        if declared:
-            _DECLARED_DEFINES.pop((space.name, name), None)
+        _retract_declarations(space, (space.name, name), declared)
         _sync_definition_facts(space, name, earlier)
         raise
     defined = _defined_result(space, name, compiled, bodies, dispatcher)
