@@ -702,5 +702,5 @@ def twin(m):
 #: samples each; command=cd extensions/python && PYTHONPATH=. $CHECK_PY -m
 #: pytest -q tests/repository/test_twin_coverage.py -k 'identity.metta';
 #: fixture=main checkout, libmork_ffi.so present, QLF cleared and warmed;
-#: commit=WORKTREE]
+#: commit=dbd76f0366f5695031b60aff22e3bc6b0b4b1aac]
 BUDGET = 3583
