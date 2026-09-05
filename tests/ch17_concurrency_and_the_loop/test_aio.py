@@ -2,6 +2,9 @@
 works, results and errors cross threads intact, bounds fire on the worker
 thread, and spaces borrow the owner's engine thread.
 Guarantees:
+  - presence and runtime parameter checks share aio_divergences.DIVERGENT
+    with the generated and handwritten mirror gates [tested:
+    test_aio_covers_the_whole_synchronous_surface; commit=WORKTREE]
   - the two surfaces agree PARAMETER for parameter, not merely method for
     method, so a door cannot carry one name and two shapes: checking names
     alone let watch(), stream() and define() each diverge until they were
@@ -396,7 +399,7 @@ def test_aio_covers_the_whole_synchronous_surface():
     # The ledger the GENERATOR reads, so one list decides both what is
     # excluded and what gets generated; each entry carries its own reason.
     sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "tools"))
-    from aio_divergences import EXCLUDED
+    from aio_divergences import DIVERGENT, EXCLUDED
 
     excluded = set(EXCLUDED)
     # Atom and Handle methods are operand behavior inherited by Space, not
@@ -413,13 +416,8 @@ def test_aio_covers_the_whole_synchronous_surface():
     # is the naming ladder's exact-spelling rung and so cannot be missing from
     # one surface. A default may differ where the surfaces genuinely differ
     # (queue_max is unbounded-by-default synchronously); a NAME may not.
-    parameter_excluded = {
-        # The async stream IS the delivery, so there is nothing to call back.
-        # The asynchronous docstring says so where the parameter would be.
-        ("subscribe", "callback"),
-    }
     divergent = set()
-    for name in sorted(sync - excluded):
+    for name in sorted(sync - excluded - DIVERGENT.keys()):
         asynchronous = getattr(aio.AsyncMeTTa, name, None)
         if asynchronous is None:
             continue
@@ -439,7 +437,6 @@ def test_aio_covers_the_whole_synchronous_surface():
         divergent |= {
             (name, parameter)
             for parameter in named["sync"] ^ named["async"]
-            if (name, parameter) not in parameter_excluded
         }
     assert not divergent, (
         f"these doors carry one name and two surfaces: {sorted(divergent)}"

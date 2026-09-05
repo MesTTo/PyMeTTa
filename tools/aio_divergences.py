@@ -1,7 +1,8 @@
-"""Purpose: the async surface's exclusions and its one signature divergence,
-each with the reason it is not simply Space's method awaited. `aiogen.py`
-generates every other mirrored method from `Space` verbatim and reads these for
-the cases that cannot be.
+"""Purpose: record exclusions and signature divergences in the async surface.
+
+`aiogen.py` generates mechanical counterparts from Space. A handwritten
+counterpart still conforms to Space or MeTTa, unless this ledger states the
+worker mechanism that requires a different parameter shape.
 
 The ledger exists because the divergences were REAL and UNRECORDED. Measured
 2026-08-31 over the 66 hand-written mirrors: 15 carried a signature different
@@ -17,14 +18,17 @@ Assumes:
   - a reason names the MECHANISM that makes the sync shape impossible across
     the worker, not a preference. "Simpler" is not one.
 Guarantees:
-  - every name here is a live Space method, and every mirrored method not here
-    carries Space's signature, return annotation and docstring verbatim
-    [tested: test_the_async_mirror_is_generated_from_the_sync_surface]
+  - every name here resolves to a synchronous method; generated counterparts
+    carry its signature, return annotation and docstring verbatim except for
+    the DIVERGENT replacement signatures, while
+    handwritten counterparts obey the parameter-name parity gate or the
+    replacement parameter shape below [tested:
+    test_every_async_counterpart_has_the_sync_parameters; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
-"""  # noqa: D205  -- the contract is one continuous invariant, not summary-and-body prose
+"""
 
 from __future__ import annotations
 
@@ -58,6 +62,15 @@ DIVERGENT: dict[str, tuple[str, str]] = dict.fromkeys(
         "handed back across the worker would register on the caller's thread "
         "rather than the engine's. Only the applied form crosses",
     ),
+)
+
+DIVERGENT["subscribe"] = (
+    'self, pattern: Any, *, on: str = "add", where: Any | None = None, '
+    'queue_max: int = SUBSCRIPTION_QUEUE_MAX',
+    "the synchronous callback runs during delivery on the engine worker, "
+    "while async consumers resume on their event loop. A caller callback "
+    "cannot run on both threads; the async event stream is the delivery "
+    "across that boundary and therefore has no callback parameter",
 )
 
 #: Methods reached through a private Space method: the public name is the async
