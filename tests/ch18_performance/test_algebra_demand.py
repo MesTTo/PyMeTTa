@@ -10,7 +10,7 @@ Guarantees:
   - an atom that reached the evaluator without passing certification is
     refused by name, which an assert said only while asserts were compiled
     [tested: test_an_atom_the_certifier_would_decline_is_refused_by_name;
-    commit=WORKTREE]
+    commit=60d6ca9089f50521bba869c3b7a87c92fd6a990f]
 
 Private access only selects the unchanged reference evaluator or plants a
 fault in the optimized path; every result is produced by public evaluate.

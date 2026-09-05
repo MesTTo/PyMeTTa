@@ -15,7 +15,7 @@ Guarantees:
     reached the evaluator without shaping is refused by name instead of being
     read as though it had a relation and arguments [tested:
     test_an_atom_the_certifier_would_decline_is_refused_by_name;
-    commit=WORKTREE]
+    commit=60d6ca9089f50521bba869c3b7a87c92fd6a990f]
 Owns resources:
   - indexes, completed demands, and suspended rule generators belong to one
     evaluation; the generator stack closes on success and every exception
