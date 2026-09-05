@@ -54,15 +54,6 @@
     },
     {
       "kind": "friction",
-      "example": "examples/ch18-performance/18-02-memoisation-and-tabling/11-tabling_space_write.metta",
-      "form": null,
-      "missing": "a conjunction pattern (, p q) inside a compiled match()",
-      "row": "P14.4",
-      "section": "\u00a74 surface gaps: the compiled subset",
-      "detail": "RE-ANCHORED 2026-08-24 on the finished surface. The RECEIVER door takes a conjunction as varargs, `space.match(p, q)`, so the cell is served outside a body. Inside one the compiled `match()` refuses it by arity, measured: `match(m, S.edge(x, V.y), S.edge(V.y, z), z)` raises `CompileError: match takes (pattern, template) or (space, pattern, template)`. A Python tuple of patterns builds `(p q)` and `,` is not a name Python can put in head position, so (= (twohop $x $z) (match &self (, (edge $x $y) (edge $y $z)) $z)) is written at the container door while (= (reach $x $y) (match &self (edge $x $y) $y)) and (= (bypattern $p) (match &self $p $p)) beside it are both compiled."
-    },
-    {
-      "kind": "friction",
       "example": "examples/ch08-data/08-01-atoms-lists-and-folds/11-patrick.metta",
       "form": null,
       "missing": "an as-pattern as a let PATTERN",
@@ -164,10 +155,12 @@
       "kind": "friction",
       "example": "examples/ch07-control-flow/07-03-let-and-sequencing/02-letlet.metta",
       "form": null,
-      "missing": "a destructuring assignment as a `let*` PATTERN binding",
+      "missing": "a literal constraint in an assignment target; use a match pattern or stored let binding",
       "row": "P14.4",
       "section": "\u00a74 surface gaps: the compiled subset",
-      "detail": "(= (f) (let* ((($f1 $c1 3) (1 2 $d1))) ($f1 $c1 $d1))) binds a three-element pattern against a three-element value, which Python spells `f1, c1, _ = 1, 2, d1`. Re-measured 2026-08-24: `_define_expression._name_of` still refuses a tuple target, 'a compiled body binds plain names; destructuring and attribute assignment have no let* form'. `solve(pattern, subject)`, the `let` door for a pattern that must win variables, closed ch07-control-flow/07-03-let-and-sequencing/03-letext this wave but does not reach here: it is a module function and a compiled body reads only its own seven names, so a definition whose binding is a pattern has no spelling at all. The one-spelling rule points at let* with a pattern on the left, which the form already supports. [measured 2026-08-24 on the p14-twins3-b tree; commit=028b41a056cfd706e516cd0b945cbf69ac066da7]"
+      "detail": "(= (f) (let* ((($f1 $c1 3) (1 2 $d1))) ($f1 $c1 $d1))) binds a three-element pattern against a three-element value, which Python spells `f1, c1, _ = 1, 2, d1`. Re-measured 2026-08-24: `_define_expression._name_of` still refuses a tuple target, 'a compiled body binds plain names; destructuring and attribute assignment have no let* form'. `solve(pattern, subject)`, the `let` door for a pattern that must win variables, closed ch07-control-flow/07-03-let-and-sequencing/03-letext this wave but does not reach here: it is a module function and a compiled body reads only its own seven names, so a definition whose binding is a pattern has no spelling at all. The one-spelling rule points at let* with a pattern on the left, which the form already supports. [measured 2026-08-24 on the p14-twins3-b tree; commit=028b41a056cfd706e516cd0b945cbf69ac066da7]",
+      "historical_missing": "a destructuring assignment as a `let*` PATTERN binding",
+      "ruling": "2026-09-05: L036 now lowers tuple/list assignment targets. A target containing literal3 is not legal Python assignment syntax. The historical letlet constraint is instead expressed by match (1, 2, V.d1): case (f1, c1, 3): return f1, c1, V.d1, measured to answer (1 2 3), or by fn.let/fn[\"let*\"]. ai-tmp/ai-residue-literal-probe.py records the executable distinction."
     },
     {
       "kind": "friction",
@@ -195,33 +188,6 @@
       "row": "P14.4",
       "section": "correction to \u00a79e's dissolution table: `collapse` is `list()`",
       "detail": "The second instance, with a different cause. `!(test (collapse (unify a b then Empty)) ())` claims the `Empty` branch removes the branch. `m.eval` of that unify answers `[Empty]`, the marker itself, and only the engine's own `collapse` drops it, answering `()`. So `list(answers)` and `(collapse ...)` disagree again, this time over the `Empty` marker rather than over variables [re-measured 2026-08-23]."
-    },
-    {
-      "kind": "friction",
-      "example": "examples/ch06-many-answers/04-supercollapse.metta",
-      "form": null,
-      "missing": "`list()` lowering to `collapse` inside a compiled body",
-      "row": "P14.4",
-      "section": "\u00a74 surface gaps: the compiled subset",
-      "detail": "The dissolution table says `(collapse X)` is `list(...)`, and inside a compiled body `list` is not a lowering at all: it is not in _PYBUILTIN_CALLS, so it falls through to the free-identifier refusal, \"'list' is not a parameter of <fn>, not a function the engine knows, and not a capitalized data constructor\" [measured 2026-08-22; commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22]. So `(collapse (superpose ((superpose $Ev1) (superpose $Ev2))))` in TupleConcat is written `collapse(...)`. So the collapse is written as the bare name `collapse(...)`, one of the four names a compiled body reads as MeTTa, which then carries an F821 suppression because the package exports none of them. Adding `list` to the builtin bridge beside `len`, `min` and `sorted` closes it."
-    },
-    {
-      "kind": "friction",
-      "example": "examples/ch06-many-answers/07-tests.metta",
-      "form": null,
-      "missing": "`list()` lowering to `collapse` inside a compiled body",
-      "row": "P14.4",
-      "section": "\u00a74 surface gaps: the compiled subset",
-      "detail": "The dissolution table says `(collapse X)` is `list(...)`, and inside a compiled body `list` is not a lowering at all: it is not in _PYBUILTIN_CALLS, so it falls through to the free-identifier refusal, \"'list' is not a parameter of <fn>, not a function the engine knows, and not a capitalized data constructor\" [re-measured 2026-08-24, unchanged]. So all three collapses here, in program1, program2 and program4, are written as the bare name `collapse(...)`, one of the seven names a compiled body reads as MeTTa, which then carries an F821 suppression because the package exports that one nowhere. Adding `list` to the builtin bridge beside `len`, `min` and `sorted` closes it. [measured 2026-08-24 on the p14-twins3-b tree; commit=028b41a056cfd706e516cd0b945cbf69ac066da7]"
-    },
-    {
-      "kind": "friction",
-      "example": "examples/ch06-many-answers/01-superpose_nested.metta",
-      "form": null,
-      "missing": "`list()` lowering to `collapse` inside a compiled body",
-      "row": "P14.4",
-      "section": "\u00a74 surface gaps: the compiled subset",
-      "detail": "The dissolution table says `(collapse X)` is `list(...)`, and inside a compiled body `list` is not a lowering at all: it is not in _PYBUILTIN_CALLS, so it falls through to the free-identifier refusal, \"'list' is not a parameter of <fn>, not a function the engine knows, and not a capitalized data constructor\" [measured 2026-08-22; commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22]. So all four collapses of progme is written `collapse(...)`. So the collapse is written as the bare name `collapse(...)`, one of the four names a compiled body reads as MeTTa, which then carries an F821 suppression because the package exports none of them. Adding `list` to the builtin bridge beside `len`, `min` and `sorted` closes it."
     },
     {
       "kind": "friction",
@@ -268,15 +234,6 @@
       "row": "P14.4",
       "section": "\u00a74 surface gaps: the compiled subset",
       "detail": "The example matches `(1 2 3)` against `(cons $h $t)` and answers the head. `ast.Match` lowers now, so the shape is reachable in principle; the star arm is not. Measured 2026-08-24: `match e: case (h, *_tail): return h` inside `@m.define` raises `CompileError: star patterns need the engine's named segment variables; spell the fixed prefix today and use that segment-variable row when it lands`, while the fixed-arity arm `case (h, _b, _c)` compiles to `(case $e ((($h $b $c) $h) ($_ (empty))))` and answers 1. A fixed prefix is a NARROWER claim than the original's cons pattern, which holds for a tail of any length, so the twin does the destructuring in Python instead, `head, *tail = e`, which is the structure family's own spelling for decons-atom and costs no crossing at all: 5 inferences against the example's 1745. P4.10, sequence variables at the surface and in the index, is the prerequisite this lowering is waiting on. [measured 2026-08-24 on the p14-twins3-b tree; commit=028b41a056cfd706e516cd0b945cbf69ac066da7]"
-    },
-    {
-      "kind": "friction",
-      "example": "examples/ch07-control-flow/07-02-case/04-caseempty.metta",
-      "form": null,
-      "missing": "a `match` statement whose subject may have NO ANSWERS, which the lowering's own let* binding prunes",
-      "row": "P14.4",
-      "section": "\u00a74 surface gaps: the compiled subset",
-      "detail": "`(= (wu) (case (empty) ((1 2) (Empty 42))))` answers 42, because `Empty` is the branch a key with no answers takes. The match-statement lowering cannot say it. Measured 2026-08-24: `@m.define def wu(): match empty(): case 1: return 2; case S.Empty: return 42` stores `(let* (($k (empty))) (case $k ((1 2) ($_ (case $k ((Empty 42) ($_ (empty))))))))` and answers `[]`, because the lowering binds the SUBJECT into a `let*` first and a binding over a key with no answers prunes the whole form before any branch is consulted. The companion `wu2`, whose key answers 42, compiles and answers `ok`, so the gap is exactly the no-answer subject. The remedy is to emit `(case <subject> ...)` directly where the subject is a single expression, rather than always hoisting it into a binding. [measured 2026-08-24 on the p14-twins3-b tree; commit=028b41a056cfd706e516cd0b945cbf69ac066da7]"
     },
     {
       "kind": "friction",
@@ -390,10 +347,12 @@
       "kind": "friction",
       "example": "examples/ch19-spaces-backed-by-anything/19-01-spaces-of-your-own/03-parametric_spaces.metta",
       "form": null,
-      "missing": "a compiled body destructuring a ground-expression space name",
+      "missing": "installing a compiled definition in a space whose name is a ground expression",
       "row": "P14.4",
       "section": "\u00a74 surface gaps",
-      "detail": "RE-ANCHORED 2026-08-24. Atom-valued space names landed: `metta.space(S.cache(PRIMARY, 100))` returns a Handle and the twin uses `+=`, `[pattern]`, `.eval(term)` and `.type(atom)` directly. What remains is the equation `(let (cache $base $limit) (context-space) ...)`: the assignment target is a pattern rather than a name. The liked expression-position call `solve(S.cache(V.base, V.limit), fn.context_space())` is refused exactly `'solve' is not a parameter of cache-config, not a function the engine knows`, so that one equation remains a term."
+      "detail": "RE-ANCHORED 2026-08-24. Atom-valued space names landed: `metta.space(S.cache(PRIMARY, 100))` returns a Handle and the twin uses `+=`, `[pattern]`, `.eval(term)` and `.type(atom)` directly. What remains is the equation `(let (cache $base $limit) (context-space) ...)`: the assignment target is a pattern rather than a name. The liked expression-position call `solve(S.cache(V.base, V.limit), fn.context_space())` is refused exactly `'solve' is not a parameter of cache-config, not a function the engine knows`, so that one equation remains a term.",
+      "historical_missing": "a compiled body destructuring a ground-expression space name",
+      "ruling": "2026-09-05: Structural match and tuple assignment now compile. This contextual example still fails earlier during @space.define registration: metta_py_function_visible calls atom_string/2 with the ground expression [cache,primary-base,100], raising a string type error. ai-tmp/ai-residue-structural-probe.py reproduces it. This separate space-definition boundary is not claimed fixed by L036."
     },
     {
       "kind": "friction",
@@ -430,15 +389,6 @@
       "row": "P14.24",
       "section": "\u00a74 surface gaps",
       "detail": "RE-ANCHORED 2026-08-24. The driver now compiles and uses a local context-space Handle plus `+=`; only recursive `rewriteK` remains a term. Compiling that recursion runs correctly at depth 3 but reaches StackOverflow before depth 19, where the built equation answers 1,572,862 atoms, so the built recursive equation stays."
-    },
-    {
-      "kind": "friction",
-      "example": "examples/ch18-performance/18-01-larger-workloads/01-scale.metta",
-      "form": null,
-      "missing": "a compiled body spelling for `collapse`",
-      "row": "P14.4",
-      "section": "\u00a74 surface gaps",
-      "detail": "RE-ANCHORED 2026-08-23 on the p14 library-fixes merge (cf2c0e5a). The compiled-`if` half is closed by fix 20, measured on superpose_primes: a Bool-typed head in condition position is emitted bare. What survives is the first blocker unchanged: the five queries are `(collapse (match ...))` and a compiled body has no spelling for collapse at all."
     },
     {
       "kind": "friction",
@@ -520,15 +470,6 @@
       "row": "P14.13",
       "section": "\u00a74 surface gaps: directives",
       "detail": "The door half landed 2026-08-25 (`m += lib(path)`), leaving the resolution half this entry names. What it cannot do is RESOLVE: a bare module name resolves relative to the importing FILE, and a Python-authored program has no file, so the engine answers `source_sink fibsmart does not exist`. The twin names the path, S[\"examples/ch07-control-flow/07-05-recursion/03-fibsmart\"]."
-    },
-    {
-      "kind": "friction",
-      "example": "examples/ch05-equations-and-evaluation/05-02-changing-the-equations/07-specializefunctiontypes.metta",
-      "form": null,
-      "missing": "one Python declaration source for overloaded function types",
-      "row": "P14.9",
-      "section": "\u00a74 the typing front",
-      "detail": "The example carries multiple type declarations that cannot be derived from one Python signature, so the twin stores declaration atoms directly."
     },
     {
       "kind": "friction",
@@ -811,15 +752,6 @@
     },
     {
       "kind": "friction",
-      "example": "examples/ch09-types/06-dont_eval_type.metta",
-      "form": null,
-      "missing": "Python's own `type(a)` inside a compiled body",
-      "row": "P14.4",
-      "section": "\u00a79d the concept map: the Python CLASS of an atom to its metatype",
-      "detail": "The body names the accessor through `fn.get_metatype`, which compiles. What has no lowering is Python's own `type()`, which is the spelling the same question takes on the Python side of the seam, so one question is two words depending on which side of the decorator it is asked on."
-    },
-    {
-      "kind": "friction",
       "example": "examples/ch22-a-reasoner-you-can-serve/22-03-search/01-newtons_method.metta",
       "form": null,
       "missing": "a Python batch door that installs equations before an earlier memoize runnable executes",
@@ -829,30 +761,12 @@
     },
     {
       "kind": "friction",
-      "example": "examples/ch07-control-flow/07-05-recursion/06-peano.metta",
-      "form": null,
-      "missing": "a compiled body spelling for `collapse`, where the dissolution table names list()",
-      "row": "P14.4",
-      "section": "\u00a74 surface gaps",
-      "detail": "All four definitions are compiled now: `case` with one capturing arm is an ordinary binding, `S.once` is an ordinary mention, and `match(pattern, template)` reads the ambient space. `collapse` is what is left: `list()` is the dissolution table's answer for it and a compiled body refuses `list`, so the twin names the head and declares its rung on the line."
-    },
-    {
-      "kind": "friction",
       "example": "examples/ch22-a-reasoner-you-can-serve/22-01-logic-programs/05-scallop_readme.metta",
       "form": null,
       "missing": "a compiled body resolving `fn.<name>` for an engine head outside the space's catalog",
       "row": "P14.4",
       "section": "\u00a74 surface gaps",
       "detail": "A compiled body names a hyphenated SIBLING by its Python name and a hyphenated CATALOG function through `fn`. What it refuses is a head the catalog does not carry: measured 2026-08-24, `fn.foldall` and `fn.not_provable` both raise `names no target function in this space's catalog` inside `@m.define`, where the static `fn.foldall` outside one is the symbol `foldall`. The twin writes `S.foldall` and `S.not_provable` there instead."
-    },
-    {
-      "kind": "friction",
-      "example": "examples/ch22-a-reasoner-you-can-serve/22-01-logic-programs/03-constructive_negation.metta",
-      "form": null,
-      "missing": "a `case` whose DUAL survives, where Python's match statement lowers to a nested tower",
-      "row": "P14.4",
-      "section": "\u00a74 surface gaps",
-      "detail": "Two of the three closed on 2026-08-24: `&` builds `(and ...)` in a `@m.rules` body, and `match(space, pattern, template)` inside a compiled body stores `(match &kin (parent $x $y) True)`. The `case` did not. `(= (band $n) (case $n ((90 True) (40 False))))` written as a Python match statement lowers to a NESTED tower, answers correctly on a direct call, and then fails its dual with `Type error: `integer' expected, found `Empty'` on every key past the first arm, so the flat case term stays."
     },
     {
       "kind": "friction",
@@ -921,46 +835,12 @@
       "kind": "friction",
       "example": "examples/ch22-a-reasoner-you-can-serve/22-01-logic-programs/05-scallop_readme.metta",
       "form": null,
-      "missing": "a `case` whose DUAL survives, where Python's match statement lowers to a nested tower",
+      "missing": "constructive enumeration over an unbound case generator under negation",
       "row": "P14.4",
       "section": "\u00a77 the examples-twin coverage lane",
-      "detail": "`sc-odd?` must stay the example's TWO coexisting equations, a literal head beside a variable one. Folding them into one guarded compiled body compiles and answers `sc-odd?(3)` correctly, and then `(not-provable (sc-odd? $y))` fails with `Type error: `integer' expected, found `Empty'`, the same nested-tower dual that constructive_negation's `band` hits."
-    },
-    {
-      "kind": "friction",
-      "example": "examples/ch22-a-reasoner-you-can-serve/22-03-search/02-tilepuzzle.metta",
-      "form": null,
-      "missing": "an `if`/`else` lowering that keeps a recursive call in tail position, the way two coexisting clauses do",
-      "row": "P14.4",
-      "section": "\u00a77 the examples-twin coverage lane",
-      "detail": "`bfs_loop`'s two clauses fold into one `if`/`else` that compiles and answers, and then raises StackOverflow at 16,665 of the 181,441 states (measured 2026-08-24), because the recursion moves out of the let* chain's tail into `if`'s third argument. The twin keeps the clause pair, which is a `@m.rules` bundle."
-    },
-    {
-      "kind": "friction",
-      "example": "examples/ch22-a-reasoner-you-can-serve/22-01-logic-programs/04-nilbc.metta",
-      "form": null,
-      "missing": "a builder for a stored `let`, `let*` or `match` term, the way `if_` builds a stored `if`",
-      "row": "P14.4",
-      "section": "\u00a77 the examples-twin coverage lane",
-      "detail": "The six `bc` clauses are stored code built from an EXECUTING `@m.rules` body, so their `let*`, `let` and `match` have to be named as heads. `if_` is the exported builder for a stored `if` and there is no sibling for the other three, which is what makes those three lines declare a rung."
-    },
-    {
-      "kind": "friction",
-      "example": "examples/ch22-a-reasoner-you-can-serve/22-03-search/02-tilepuzzle.metta",
-      "form": null,
-      "missing": "a builder for a stored `let`, `let*` or `match` term, the way `if_` builds a stored `if`",
-      "row": "P14.4",
-      "section": "\u00a77 the examples-twin coverage lane",
-      "detail": "`bfs_loop`'s second clause is stored code built from an EXECUTING `@m.rules` body, so its `let*` is named as a head where `if_` builds the base clause's `if`."
-    },
-    {
-      "kind": "friction",
-      "example": "examples/ch22-a-reasoner-you-can-serve/22-01-logic-programs/03-constructive_negation.metta",
-      "form": null,
-      "missing": "a builder for a stored `let`, `let*` or `match` term, the way `if_` builds a stored `if`",
-      "row": "P14.4",
-      "section": "\u00a77 the examples-twin coverage lane",
-      "detail": "`(let $x 2 True)` inside `two-but-not-one` is stored code built from an EXECUTING `@m.rules` body, so the `let` is named as a head; `if_` builds a stored `if` and has no sibling for `let`."
+      "detail": "`sc-odd?` must stay the example's TWO coexisting equations, a literal head beside a variable one. Folding them into one guarded compiled body compiles and answers `sc-odd?(3)` correctly, and then `(not-provable (sc-odd? $y))` fails with `Type error: `integer' expected, found `Empty'`, the same nested-tower dual that constructive_negation's `band` hits.",
+      "historical_missing": "a `case` whose DUAL survives, where Python's match statement lowers to a nested tower",
+      "ruling": "2026-09-05: L046 fixes nested case negation for ground keys, including False and unmatched arms. An arbitrary unbound case key still reaches metta_generator_forall/5 insufficient instantiation (negated_let_value), also present for the flat engine case. The original sc-odd variable-key enumeration claim is therefore retained, narrowed to this existing engine boundary; ai-tmp/ai-L046-L047.md records it."
     },
     {
       "kind": "friction",
@@ -997,15 +877,6 @@
       "row": "P14.15",
       "section": "\u00a79i the extension seams",
       "detail": "The example's py-atom forms evaluate Python source such as list literals, iterator expressions, a lambda and a missing dotted name. Wrapping those spellings in val() would still carry source. Its cross-form bind! tokens also exist only while the file reader parses the remaining source; repeated m.eval calls cannot retain them. The file stays untwinned rather than replacing source strings with expected values."
-    },
-    {
-      "kind": "friction",
-      "example": "examples/ch07-control-flow/07-05-recursion/05-iter.metta",
-      "form": null,
-      "missing": "destructuring assignment as a let* pattern binding",
-      "row": "P14.4",
-      "section": "\u00a74 surface gaps: the compiled subset",
-      "detail": "The runnable form's let* pairs DESTRUCTURE, (($x1 $it1) (iter-next $it)), and a compiled body binds plain names only (_name_of: \"a compiled body binds plain names; destructuring and attribute assignment have no let* form\"), so that form stays at the term door. The definitions themselves compile: assignment in iter-next's body IS the let* the original writes."
     },
     {
       "kind": "declined",
@@ -1618,24 +1489,6 @@
       "row": "P14.5",
       "section": "\u00a79d the concept map, \"the Python CLASS of an atom to its metatype\"",
       "detail": "NARROWED 2026-08-25: the isinstance half is closed, Handle subclasses Grounded per the canonical glossary (commit 02dc7642), with every value-reading Grounded branch audited for the unset value slot. What survives is the metatype half: `atom.metatype` answers the STRING \"Grounded\" where the design's own factories speak symbols; flipping it is a surface decision with a consumer list (messages format it, tests compare it), recorded in the known-issues ledger rather than changed blind."
-    },
-    {
-      "kind": "friction",
-      "example": "examples/ch07-control-flow/07-04-bounded-and-committed-searches/05-foldall.metta",
-      "form": null,
-      "missing": "a `let` inside another term's ARGUMENT, where Python has no statement position",
-      "row": "P14.4",
-      "section": "\u00a74 surface gaps: the compiled subset",
-      "detail": "The aggregator `(if True (let $f (|-> ($x $y) (+ $x $y)) $f) (empty))` arrives as foldall's FIRST argument, so its `let` sits inside another term rather than at a statement position. `if_` is the ruled builder for the conditional and the lambda is rung 5's bracket, but the binding has no Python image there, so the twin writes `S.let(V.f, add, V.f)` with its rung declared on the line."
-    },
-    {
-      "kind": "friction",
-      "example": "examples/ch07-control-flow/07-04-bounded-and-committed-searches/06-foldallmatch.metta",
-      "form": null,
-      "missing": "a `let` inside another term's ARGUMENT, where Python has no statement position",
-      "row": "P14.4",
-      "section": "\u00a74 surface gaps: the compiled subset",
-      "detail": "`(foldall + (let $x (f) (+ 1 $x)) 0)` needs its binding INSIDE the generator slot, and the binding is load-bearing: measured 2026-08-24, the stored `(foldall + (+ 1 (f)) 0)` answers 2 and 3 rather than 5, because the branching escapes the slot and the whole fold runs once per answer. A Python assignment in the compiled body would lower to a `let*` AROUND the fold, which is the same escape, so the twin writes `S.let(V.x, S.f(), 1 + V.x)` with its rung declared on the line."
     },
     {
       "kind": "friction",
@@ -5369,6 +5222,176 @@
       "section": "\u00a74 surface gaps",
       "detail": "Each answer atom is decoded with its own variable numbering, so two answers that carry DIFFERENT variables arrive under one name and the difference is unobservable from Python. Measured 2026-08-22: the match over two separately sealed rules answers `[($_716 ok), ($_716 ok)]` through `m.eval` and `m.query` alike, while collapsing it first answers `(($_1732 ok) ($_1714 ok))`. The twin therefore collapses in the engine, which works, but the general shape, an Answers view whose variable identities are consistent across the set, is what the surface owes. Sibling of the dissolution-table entry on this file.",
       "retired": "2026-08-31: the Python binding's wire names are no longer the cell's stack offset. A fresh name comes from a session counter and is recorded in the map the crossing is encoded under, so two answers that carry different variables arrive under different names through m.eval and the row door alike. The measurement in `detail` reproduces on the previous binding and not on this one: `($_56584 ok)` twice before, `($_1 ok)` and `($_2 ok)` after [tested: test_two_answers_carrying_different_variables_arrive_under_different_names, test_two_rows_carrying_different_variables_stay_different]."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/ch07-control-flow/07-02-case/04-caseempty.metta",
+      "form": null,
+      "missing": "a `match` statement whose subject may have NO ANSWERS, which the lowering's own let* binding prunes",
+      "row": "P14.4",
+      "section": "\u00a74 surface gaps: the compiled subset",
+      "detail": "`(= (wu) (case (empty) ((1 2) (Empty 42))))` answers 42, because `Empty` is the branch a key with no answers takes. The match-statement lowering cannot say it. Measured 2026-08-24: `@m.define def wu(): match empty(): case 1: return 2; case S.Empty: return 42` stores `(let* (($k (empty))) (case $k ((1 2) ($_ (case $k ((Empty 42) ($_ (empty))))))))` and answers `[]`, because the lowering binds the SUBJECT into a `let*` first and a binding over a key with no answers prunes the whole form before any branch is consulted. The companion `wu2`, whose key answers 42, compiles and answers `ok`, so the gap is exactly the no-answer subject. The remedy is to emit `(case <subject> ...)` directly where the subject is a single expression, rather than always hoisting it into a binding. [measured 2026-08-24 on the p14-twins3-b tree; commit=028b41a056cfd706e516cd0b945cbf69ac066da7]",
+      "retired": "2026-09-05: L044 preserves Empty around an unanswered match subject. The twin now compiles both wu and wu2 with Python match; test_empty_match_subject_selects_only_the_empty_branch proves unanswered, ordinary, and generator cases."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/ch18-performance/18-02-memoisation-and-tabling/11-tabling_space_write.metta",
+      "form": null,
+      "missing": "a conjunction pattern (, p q) inside a compiled match()",
+      "row": "P14.4",
+      "section": "\u00a74 surface gaps: the compiled subset",
+      "detail": "RE-ANCHORED 2026-08-24 on the finished surface. The RECEIVER door takes a conjunction as varargs, `space.match(p, q)`, so the cell is served outside a body. Inside one the compiled `match()` refuses it by arity, measured: `match(m, S.edge(x, V.y), S.edge(V.y, z), z)` raises `CompileError: match takes (pattern, template) or (space, pattern, template)`. A Python tuple of patterns builds `(p q)` and `,` is not a name Python can put in head position, so (= (twohop $x $z) (match &self (, (edge $x $y) (edge $y $z)) $z)) is written at the container door while (= (reach $x $y) (match &self (edge $x $y) $y)) and (= (bypattern $p) (match &self $p $p)) beside it are both compiled.",
+      "retired": "2026-09-05: L039 was already supported: match(S[\",\"](p, q), template) builds a conjunction at the compiled door. test_existing_conjunction_match_and_runtime_cases proves its joined answers."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/ch06-many-answers/04-supercollapse.metta",
+      "form": null,
+      "missing": "`list()` lowering to `collapse` inside a compiled body",
+      "row": "P14.4",
+      "section": "\u00a74 surface gaps: the compiled subset",
+      "detail": "The dissolution table says `(collapse X)` is `list(...)`, and inside a compiled body `list` is not a lowering at all: it is not in _PYBUILTIN_CALLS, so it falls through to the free-identifier refusal, \"'list' is not a parameter of <fn>, not a function the engine knows, and not a capitalized data constructor\" [measured 2026-08-22; commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22]. So `(collapse (superpose ((superpose $Ev1) (superpose $Ev2))))` in TupleConcat is written `collapse(...)`. So the collapse is written as the bare name `collapse(...)`, one of the four names a compiled body reads as MeTTa, which then carries an F821 suppression because the package exports none of them. Adding `list` to the builtin bridge beside `len`, `min` and `sorted` closes it.",
+      "retired": "2026-09-05: L032 compiles list(known_answer_stream()) and list(match(...)) as engine collapse. test_list_collects_engine_answers_and_preserves_host_lists and test_list_collects_matching_answers_without_splicing_their_terms distinguish the collected expression from a host list. Explicit collapse and fn.collapse remain available for ambiguous deterministic calls; this retirement does not identify host list(answers) with engine collapse."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/ch06-many-answers/07-tests.metta",
+      "form": null,
+      "missing": "`list()` lowering to `collapse` inside a compiled body",
+      "row": "P14.4",
+      "section": "\u00a74 surface gaps: the compiled subset",
+      "detail": "The dissolution table says `(collapse X)` is `list(...)`, and inside a compiled body `list` is not a lowering at all: it is not in _PYBUILTIN_CALLS, so it falls through to the free-identifier refusal, \"'list' is not a parameter of <fn>, not a function the engine knows, and not a capitalized data constructor\" [re-measured 2026-08-24, unchanged]. So all three collapses here, in program1, program2 and program4, are written as the bare name `collapse(...)`, one of the seven names a compiled body reads as MeTTa, which then carries an F821 suppression because the package exports that one nowhere. Adding `list` to the builtin bridge beside `len`, `min` and `sorted` closes it. [measured 2026-08-24 on the p14-twins3-b tree; commit=028b41a056cfd706e516cd0b945cbf69ac066da7]",
+      "retired": "2026-09-05: L032 compiles list(known_answer_stream()) and list(match(...)) as engine collapse. test_list_collects_engine_answers_and_preserves_host_lists and test_list_collects_matching_answers_without_splicing_their_terms distinguish the collected expression from a host list. Explicit collapse and fn.collapse remain available for ambiguous deterministic calls; this retirement does not identify host list(answers) with engine collapse."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/ch06-many-answers/01-superpose_nested.metta",
+      "form": null,
+      "missing": "`list()` lowering to `collapse` inside a compiled body",
+      "row": "P14.4",
+      "section": "\u00a74 surface gaps: the compiled subset",
+      "detail": "The dissolution table says `(collapse X)` is `list(...)`, and inside a compiled body `list` is not a lowering at all: it is not in _PYBUILTIN_CALLS, so it falls through to the free-identifier refusal, \"'list' is not a parameter of <fn>, not a function the engine knows, and not a capitalized data constructor\" [measured 2026-08-22; commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22]. So all four collapses of progme is written `collapse(...)`. So the collapse is written as the bare name `collapse(...)`, one of the four names a compiled body reads as MeTTa, which then carries an F821 suppression because the package exports none of them. Adding `list` to the builtin bridge beside `len`, `min` and `sorted` closes it.",
+      "retired": "2026-09-05: L032 compiles list(known_answer_stream()) and list(match(...)) as engine collapse. test_list_collects_engine_answers_and_preserves_host_lists and test_list_collects_matching_answers_without_splicing_their_terms distinguish the collected expression from a host list. Explicit collapse and fn.collapse remain available for ambiguous deterministic calls; this retirement does not identify host list(answers) with engine collapse."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/ch18-performance/18-01-larger-workloads/01-scale.metta",
+      "form": null,
+      "missing": "a compiled body spelling for `collapse`",
+      "row": "P14.4",
+      "section": "\u00a74 surface gaps",
+      "detail": "RE-ANCHORED 2026-08-23 on the p14 library-fixes merge (cf2c0e5a). The compiled-`if` half is closed by fix 20, measured on superpose_primes: a Bool-typed head in condition position is emitted bare. What survives is the first blocker unchanged: the five queries are `(collapse (match ...))` and a compiled body has no spelling for collapse at all.",
+      "retired": "2026-09-05: L032 compiles list(known_answer_stream()) and list(match(...)) as engine collapse. test_list_collects_engine_answers_and_preserves_host_lists and test_list_collects_matching_answers_without_splicing_their_terms distinguish the collected expression from a host list. Explicit collapse and fn.collapse remain available for ambiguous deterministic calls; this retirement does not identify host list(answers) with engine collapse."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/ch05-equations-and-evaluation/05-02-changing-the-equations/07-specializefunctiontypes.metta",
+      "form": null,
+      "missing": "one Python declaration source for overloaded function types",
+      "row": "P14.9",
+      "section": "\u00a74 the typing front",
+      "detail": "The example carries multiple type declarations that cannot be derived from one Python signature, so the twin stores declaration atoms directly.",
+      "retired": "2026-09-05: L051 emits all distinct fixed-arity typing.overload declarations from one compiled definition. test_define_emits_each_overload_from_one_source and test_define_deduplicates_coincident_overload_arrows preserve correlated arrows and remove duplicates."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/ch09-types/06-dont_eval_type.metta",
+      "form": null,
+      "missing": "Python's own `type(a)` inside a compiled body",
+      "row": "P14.4",
+      "section": "\u00a79d the concept map: the Python CLASS of an atom to its metatype",
+      "detail": "The body names the accessor through `fn.get_metatype`, which compiles. What has no lowering is Python's own `type()`, which is the spelling the same question takes on the Python side of the seam, so one question is two words depending on which side of the decorator it is asked on.",
+      "retired": "2026-09-05: L050 lowers type(value) to the engine metatype query, preserving a held parameter and evaluating a computed operand once. test_type_uses_engine_metatypes_with_an_explicit_host_boundary and test_type_evaluates_computed_operands_before_querying_their_metatype prove engine values and explicit py(type(...))."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/ch07-control-flow/07-05-recursion/06-peano.metta",
+      "form": null,
+      "missing": "a compiled body spelling for `collapse`, where the dissolution table names list()",
+      "row": "P14.4",
+      "section": "\u00a74 surface gaps",
+      "detail": "All four definitions are compiled now: `case` with one capturing arm is an ordinary binding, `S.once` is an ordinary mention, and `match(pattern, template)` reads the ambient space. `collapse` is what is left: `list()` is the dissolution table's answer for it and a compiled body refuses `list`, so the twin names the head and declares its rung on the line.",
+      "retired": "2026-09-05: L032 compiles list(known_answer_stream()) and list(match(...)) as engine collapse. test_list_collects_engine_answers_and_preserves_host_lists and test_list_collects_matching_answers_without_splicing_their_terms distinguish the collected expression from a host list. Explicit collapse and fn.collapse remain available for ambiguous deterministic calls; this retirement does not identify host list(answers) with engine collapse."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/ch22-a-reasoner-you-can-serve/22-01-logic-programs/03-constructive_negation.metta",
+      "form": null,
+      "missing": "a `case` whose DUAL survives, where Python's match statement lowers to a nested tower",
+      "row": "P14.4",
+      "section": "\u00a74 surface gaps",
+      "detail": "Two of the three closed on 2026-08-24: `&` builds `(and ...)` in a `@m.rules` body, and `match(space, pattern, template)` inside a compiled body stores `(match &kin (parent $x $y) True)`. The `case` did not. `(= (band $n) (case $n ((90 True) (40 False))))` written as a Python match statement lowers to a NESTED tower, answers correctly on a direct call, and then fails its dual with `Type error: `integer' expected, found `Empty'` on every key past the first arm, so the flat case term stays.",
+      "retired": "2026-09-05: L046 repairs wildcard identity, case-bound variable scope and the empty answer dual. test_compiled_nested_cases_negate_every_selected_arm and test_compiled_case_without_matching_arm_is_not_provable cover ground keys through nested cases. The non-ground generator refusal remains separately recorded on the scallop example."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/ch22-a-reasoner-you-can-serve/22-03-search/02-tilepuzzle.metta",
+      "form": null,
+      "missing": "an `if`/`else` lowering that keeps a recursive call in tail position, the way two coexisting clauses do",
+      "row": "P14.4",
+      "section": "\u00a77 the examples-twin coverage lane",
+      "detail": "`bfs_loop`'s two clauses fold into one `if`/`else` that compiles and answers, and then raises StackOverflow at 16,665 of the 181,441 states (measured 2026-08-24), because the recursion moves out of the let* chain's tail into `if`'s third argument. The twin keeps the clause pair, which is a `@m.rules` bundle.",
+      "retired": "2026-09-05: L047 was already supported: test_compiled_conditional_tail_calls_fit_a_fixed_stack executes 200000 recursive calls under an 8000000-byte stack for expression, statement and nested conditionals. The actual tilepuzzle conditional probe completes all181441 states; docs/journal/2026-09-05-case-duals-and-tail-contexts.md records the measured source and Chez tail-context rule."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/ch22-a-reasoner-you-can-serve/22-01-logic-programs/04-nilbc.metta",
+      "form": null,
+      "missing": "a builder for a stored `let`, `let*` or `match` term, the way `if_` builds a stored `if`",
+      "row": "P14.4",
+      "section": "\u00a77 the examples-twin coverage lane",
+      "detail": "The six `bc` clauses are stored code built from an EXECUTING `@m.rules` body, so their `let*`, `let` and `match` have to be named as heads. `if_` is the exported builder for a stored `if` and there is no sibling for the other three, which is what makes those three lines declare a rung.",
+      "retired": "2026-09-05: L042 was already supported by fn.let, fn[\"let*\"], and fn.match. test_stored_control_builders_include_nested_arguments builds and stores these terms inertly, including fn.let nested in another call argument, then checks their evaluated answers."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/ch22-a-reasoner-you-can-serve/22-03-search/02-tilepuzzle.metta",
+      "form": null,
+      "missing": "a builder for a stored `let`, `let*` or `match` term, the way `if_` builds a stored `if`",
+      "row": "P14.4",
+      "section": "\u00a77 the examples-twin coverage lane",
+      "detail": "`bfs_loop`'s second clause is stored code built from an EXECUTING `@m.rules` body, so its `let*` is named as a head where `if_` builds the base clause's `if`.",
+      "retired": "2026-09-05: L042 was already supported by fn.let, fn[\"let*\"], and fn.match. test_stored_control_builders_include_nested_arguments builds and stores these terms inertly, including fn.let nested in another call argument, then checks their evaluated answers."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/ch22-a-reasoner-you-can-serve/22-01-logic-programs/03-constructive_negation.metta",
+      "form": null,
+      "missing": "a builder for a stored `let`, `let*` or `match` term, the way `if_` builds a stored `if`",
+      "row": "P14.4",
+      "section": "\u00a77 the examples-twin coverage lane",
+      "detail": "`(let $x 2 True)` inside `two-but-not-one` is stored code built from an EXECUTING `@m.rules` body, so the `let` is named as a head; `if_` builds a stored `if` and has no sibling for `let`.",
+      "retired": "2026-09-05: L042 was already supported by fn.let, fn[\"let*\"], and fn.match. test_stored_control_builders_include_nested_arguments builds and stores these terms inertly, including fn.let nested in another call argument, then checks their evaluated answers."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/ch07-control-flow/07-05-recursion/05-iter.metta",
+      "form": null,
+      "missing": "destructuring assignment as a let* pattern binding",
+      "row": "P14.4",
+      "section": "\u00a74 surface gaps: the compiled subset",
+      "detail": "The runnable form's let* pairs DESTRUCTURE, (($x1 $it1) (iter-next $it)), and a compiled body binds plain names only (_name_of: \"a compiled body binds plain names; destructuring and attribute assignment have no let* form\"), so that form stays at the term door. The definitions themselves compile: assignment in iter-next's body IS the let* the original writes.",
+      "retired": "2026-09-05: L036 compiles tuple/list assignment as let* expression-pattern bindings. test_structural_assignments_share_pattern_binding_and_ssa covers nested patterns, repeated assignment names and shape mismatch; test_structural_assignment_preserves_dictionary_and_star_bindings covers starred tails."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/ch07-control-flow/07-04-bounded-and-committed-searches/05-foldall.metta",
+      "form": null,
+      "missing": "a `let` inside another term's ARGUMENT, where Python has no statement position",
+      "row": "P14.4",
+      "section": "\u00a74 surface gaps: the compiled subset",
+      "detail": "The aggregator `(if True (let $f (|-> ($x $y) (+ $x $y)) $f) (empty))` arrives as foldall's FIRST argument, so its `let` sits inside another term rather than at a statement position. `if_` is the ruled builder for the conditional and the lambda is rung 5's bracket, but the binding has no Python image there, so the twin writes `S.let(V.f, add, V.f)` with its rung declared on the line.",
+      "retired": "2026-09-05: L042 was already supported by fn.let, fn[\"let*\"], and fn.match. test_stored_control_builders_include_nested_arguments builds and stores these terms inertly, including fn.let nested in another call argument, then checks their evaluated answers."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/ch07-control-flow/07-04-bounded-and-committed-searches/06-foldallmatch.metta",
+      "form": null,
+      "missing": "a `let` inside another term's ARGUMENT, where Python has no statement position",
+      "row": "P14.4",
+      "section": "\u00a74 surface gaps: the compiled subset",
+      "detail": "`(foldall + (let $x (f) (+ 1 $x)) 0)` needs its binding INSIDE the generator slot, and the binding is load-bearing: measured 2026-08-24, the stored `(foldall + (+ 1 (f)) 0)` answers 2 and 3 rather than 5, because the branching escapes the slot and the whole fold runs once per answer. A Python assignment in the compiled body would lower to a `let*` AROUND the fold, which is the same escape, so the twin writes `S.let(V.x, S.f(), 1 + V.x)` with its rung declared on the line.",
+      "retired": "2026-09-05: L042 was already supported by fn.let, fn[\"let*\"], and fn.match. test_stored_control_builders_include_nested_arguments builds and stores these terms inertly, including fn.let nested in another call argument, then checks their evaluated answers."
     }
   ]
 }

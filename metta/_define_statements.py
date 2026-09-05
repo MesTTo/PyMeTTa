@@ -2,10 +2,31 @@
 Guarantees:
   - assignments lower to ordered let* bindings [tested
     test_bindings_become_let_star]
+  - structural assignments share case-pattern binding, preserve SSA and test
+    source errors before matching [tested:
+    test_structural_assignments_share_pattern_binding_and_ssa,
+    test_structural_assignment_checks_errors_before_matching; commit=9958c72363d2fbc640d2ae39ee6f0670ecfbff67]
+  - generator matches carry captures into their continuation, and an Empty
+    arm observes an answerless subject [tested:
+    test_generator_match_preserves_captures_guards_and_continuations,
+    test_empty_match_subject_selects_only_the_empty_branch; commit=9958c72363d2fbc640d2ae39ee6f0670ecfbff67]
+  - shared generator continuations have linear emitted size and carry only
+    live branch bindings [tested:
+    test_generator_join_size_is_linear_across_sequential_conditionals,
+    test_generator_join_reads_only_values_live_before_continuation_writes;
+    commit=9958c72363d2fbc640d2ae39ee6f0670ecfbff67]
   - generator statements preserve answer order and reject return values
     [tested test_generator_with_branches]
-  - Python match arms compile to one ordered case tower, including captures,
-    dotted value patterns, guards, alternatives, as-bindings, and fallback
+  - Python match arms use an ordered case table or guarded tower, with each
+    as-capture retaining its own subterm [tested:
+    test_simple_match_stores_the_direct_ordered_case_table,
+    test_nested_as_patterns_capture_their_own_subterm_and_retry_shape_failures;
+    commit=9958c72363d2fbc640d2ae39ee6f0670ecfbff67]
+  - an alias pattern commits its source bindings only after the whole pattern
+    matches [tested: test_failed_as_pattern_rolls_back_all_source_variable_bindings,
+    test_as_pattern_or_retry_commits_only_the_complete_selected_alternative;
+    commit=9958c72363d2fbc640d2ae39ee6f0670ecfbff67]
+  - guarded match arms retain dotted value patterns, alternatives and fallback
     [tested: test_match_statement_lowers_to_one_ordered_case_tower;
     commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
   - a star pattern lowers to the engine's segment variable, named through
@@ -1167,8 +1188,20 @@ class StatementCompilerMixin(CompilerContext):
                 probe: Atom = pattern
             else:
                 held = Variable(self._temp("try-bound"))
-                rows = Expression([Expression([held, value]), Expression([pattern, held])])
-                probe = held
+                rows = Expression([Expression([held, value])])
+                continuation = Expression(
+                    [Symbol("let*"), Expression([Expression([pattern, held])]), continuation]
+                )
+                # if-error returns branch operands; its current call mask
+                # evaluates both before selecting. A structural binding must
+                # select first, since an error cannot match the target shape.
+                trapped = _case_row(
+                    held,
+                    Expression([Symbol("Error"), Symbol("...")]),
+                    Expression([Symbol("throw"), held]),
+                    continuation,
+                )
+                return Expression([Symbol("let*"), rows, trapped])
             trapped = Expression(
                 [
                     Symbol("if-error"),
@@ -1313,30 +1346,48 @@ class StatementCompilerMixin(CompilerContext):
         self._lift_definition(head)
         return self.block(rest)
 
-    def _match_statement(self, node: ast.Match, rest: list[ast.stmt]) -> Atom:
-        """Compile ordered Python patterns into nested engine ``case`` rows.
+    def _match_statement(
+        self, node: ast.Match, rest: list[ast.stmt], *, yielding: bool = False
+    ) -> Atom:
+        """Compile ordered Python patterns into engine ``case`` rows.
 
         Each arm owns a forked SSA scope. Guard failure jumps to the first
         row after the whole arm, so an OR-pattern never retries another
-        alternative after its guard has already run. The subject is bound
-        once before the tower, matching Python even when it is a call.
+        alternative after its guard has already run. An outer case catches
+        absence before any binding can discard it.
         """
         subject_name = self._temp("match-subject")
         subject = Variable(subject_name)
         subject_value = self.expression(node.subject)
 
-        if rest and _is_irrefutable(node.cases[-1].pattern):
+        last_case = node.cases[-1]
+        exhaustive = _is_irrefutable(last_case.pattern) and last_case.guard is None
+        if rest and exhaustive and not yielding:
             msg = "statements after an exhaustive match are unreachable"
             raise CompileError(msg, construct="match", line=rest[0].lineno)
-        if rest:
+        continue_generator = _GeneratorContinuation(self, node, rest) if yielding else None
+        if continue_generator is not None:
+            fallback = (
+                Expression([Symbol("empty")])
+                if exhaustive
+                else continue_generator(self._fork())
+            )
+        elif rest:
             fallback = self._fork().block(rest)
         elif self.closer is not None:
             fallback = self.closer(self._fork())
         else:
             fallback = Expression([Symbol("empty")])
 
+        empty_fallback = fallback
+        empty_branch: Atom | None = None
+        flat = all(case.guard is None for case in node.cases)
+        flat_rows: list[Expression] = []
         for case in reversed(node.cases):
             after_arm = fallback
+            after_empty = (
+                empty_branch if empty_branch is not None else empty_fallback
+            )
             alternatives = (
                 list(case.pattern.patterns)
                 if isinstance(case.pattern, ast.MatchOr)
@@ -1346,11 +1397,49 @@ class StatementCompilerMixin(CompilerContext):
                 compiler = self._fork()
                 pattern_scope = _StatementPattern(compiler)
                 pattern = pattern_scope.pattern(pattern_node)
-                arm = compiler.block(case.body)
-                if case.guard is not None:
-                    arm = Expression([Symbol("if"), compiler._truthy(case.guard), arm, after_arm])
-                arm = pattern_scope.wrap_as_bindings(subject, arm)
-                fallback = _case_row(subject, pattern, arm, fallback)
+                flat = flat and not pattern_scope.as_bindings
+                guard = compiler._truthy(case.guard) if case.guard is not None else None
+                arm: Atom
+                if continue_generator is not None:
+                    compiler.closer = continue_generator
+                    compiler.closer_names = continue_generator.params.copy()
+                    arm = _superpose(compiler.yield_answers(case.body))
+                else:
+                    arm = compiler.block(case.body)
+                if guard is not None:
+                    rejected = after_empty if pattern == Symbol("Empty") else after_arm
+                    arm = Expression([Symbol("if"), guard, arm, rejected])
+                if pattern == Symbol("Empty"):
+                    empty_branch = arm
+                    for variable, inner in pattern_scope.as_bindings:
+                        empty_branch = Expression([Symbol("let"), variable, inner, empty_branch])
+                    flat_rows.append(Expression([pattern, empty_branch]))
+                else:
+                    flat_rows.append(Expression([pattern, arm]))
+                    fallback = pattern_scope.case_row(subject, pattern, arm, fallback)
+
+        if continue_generator is not None:
+            continue_generator.finish()
+
+        if flat:
+            # The engine's case already selects the first matching row and
+            # extracts Empty before evaluating the key. Guards and additional
+            # as-pattern tests need the tower; plain rows need no extra let.
+            rows = list(reversed(flat_rows))
+            if not exhaustive and empty_fallback != Expression([Symbol("empty")]):
+                rows.append(Expression([Variable("_"), empty_fallback]))
+            return Expression([Symbol("case"), subject_value, Expression(rows)])
+
+        if empty_branch is not None:
+            return Expression(
+                [
+                    Symbol("case"),
+                    subject_value,
+                    Expression(
+                        [Expression([Symbol("Empty"), empty_branch]), Expression([subject, fallback])]
+                    ),
+                ]
+            )
 
         return Expression(
             [
@@ -1531,6 +1620,12 @@ class StatementCompilerMixin(CompilerContext):
             target = _name_of(head.target, head.lineno)
             value = self.expression(head.value)
         else:
+            if len(head.targets) == 1 and isinstance(head.targets[0], (ast.Tuple, ast.List)):
+                value = self.expression(head.value)
+                pattern = _StatementPattern(self).assignment(
+                    head.targets[0], head.value, self._fork(), value
+                )
+                return pattern, value
             target = _single_target(head)
             value = self.expression(head.value)
         if not isinstance(head, ast.AugAssign):
@@ -1661,8 +1756,7 @@ class StatementCompilerMixin(CompilerContext):
         """
         statements = [s for s in statements if not _is_docstring(s)]
         if not statements:
-            msg = f"{self.name} yields nothing"
-            raise CompileError(msg, construct="body")
+            return [self.closer(self)] if self.closer is not None else []
         head, rest = statements[0], statements[1:]
 
         if isinstance(head, ast.Expr):
@@ -1677,6 +1771,12 @@ class StatementCompilerMixin(CompilerContext):
 
         if isinstance(head, ast.If):
             return self._yield_if(head, rest)
+
+        if isinstance(head, ast.Match):
+            return [self._match_statement(head, rest, yielding=True)]
+
+        if isinstance(head, ast.Pass):
+            return self._yield_tail(rest)
 
         if isinstance(head, ast.For):
             return self._yield_for(head, rest)
@@ -1705,7 +1805,8 @@ class StatementCompilerMixin(CompilerContext):
 
         msg = (
             f"{type(head).__name__} has no place in a compiled generator, "
-            f"which covers yield, assignment, if/else and raise"
+            f"which covers yield, assignment, if/else, match and raise; "
+            f"move this statement into a helper called by yield"
         )
         raise CompileError(
             msg,
@@ -1762,28 +1863,17 @@ class StatementCompilerMixin(CompilerContext):
         # nothing after it runs.
         then_closes = bool(head.body) and isinstance(head.body[-1], ast.Raise)
         else_closes = bool(head.orelse) and isinstance(head.orelse[-1], ast.Raise)
-        if not then_closes and not else_closes:
-            then = _superpose(self._fork().yield_answers(head.body))
-            otherwise = (
-                _superpose(self._fork().yield_answers(head.orelse))
-                if head.orelse
-                else Expression([Symbol("empty")])
-            )
-            chooser = Expression([Symbol("if"), self._truthy(head.test), then, otherwise])
-            return [chooser, *self._yield_tail(rest)]
         if then_closes and else_closes and rest:
             msg = "statements after an if whose branches both raise are unreachable"
             raise CompileError(msg, construct="if", line=rest[0].lineno)
-        then_band = head.body if then_closes else [*head.body, *rest]
-        else_band = (
-            [*head.orelse, *rest] if then_closes and not else_closes else head.orelse or rest
-        )
-        then = _superpose(self._fork().yield_answers(then_band))
-        otherwise = (
-            _superpose(self._fork().yield_answers(else_band))
-            if else_band
-            else Expression([Symbol("empty")])
-        )
+        continuation = _GeneratorContinuation(self, head, rest)
+        then_compiler, else_compiler = self._fork(), self._fork()
+        then_compiler.closer = else_compiler.closer = continuation
+        then_compiler.closer_names = continuation.params.copy()
+        else_compiler.closer_names = continuation.params.copy()
+        then = _superpose(then_compiler.yield_answers(head.body))
+        otherwise = _superpose(else_compiler.yield_answers(head.orelse))
+        continuation.finish()
         return [Expression([Symbol("if"), self._truthy(head.test), then, otherwise])]
 
     def _yield_for(self, head: ast.For, rest: list[ast.stmt]) -> list[Atom]:
@@ -1801,13 +1891,216 @@ class StatementCompilerMixin(CompilerContext):
                 line=head.lineno,
             )
         body_compiler = self._fork()
+        body_compiler.closer = None
         variable = body_compiler._bind(_name_of(head.target, head.lineno))
         body = _superpose(body_compiler.yield_answers(head.body))
         looped = self._iteration(head.iter, variable, body)
         return [looped, *self._yield_tail(rest)]
 
     def _yield_tail(self, rest: list[ast.stmt]) -> list[Atom]:
-        return self.yield_answers(rest) if rest else []
+        return self.yield_answers(rest)
+
+
+class _GeneratorReads(ast.NodeVisitor):
+    """Read expression names with Python's lambda and comprehension scopes."""
+
+    def __init__(self):
+        self.reads: set[str] = set()
+        self.bound: set[str] = set()
+
+    def visit_Name(self, node: ast.Name) -> None:
+        if isinstance(node.ctx, ast.Load) and node.id not in self.bound:
+            self.reads.add(node.id)
+
+    def visit_Lambda(self, node: ast.Lambda) -> None:
+        for default in [*node.args.defaults, *node.args.kw_defaults]:
+            if default is not None:
+                self.visit(default)
+        outer = self.bound.copy()
+        self.bound.update(
+            arg.arg for arg in [*node.args.posonlyargs, *node.args.args, *node.args.kwonlyargs]
+        )
+        for argument in (node.args.vararg, node.args.kwarg):
+            if argument is not None:
+                self.bound.add(argument.arg)
+        self.visit(node.body)
+        self.bound = outer
+
+    def visit_NamedExpr(self, node: ast.NamedExpr) -> None:
+        self.visit(node.value)
+        self.bound.add(node.target.id)
+
+    def visit_ListComp(self, node: ast.ListComp) -> None:
+        self._comprehension(node.generators, [node.elt])
+
+    def visit_SetComp(self, node: ast.SetComp) -> None:
+        self._comprehension(node.generators, [node.elt])
+
+    def visit_GeneratorExp(self, node: ast.GeneratorExp) -> None:
+        self._comprehension(node.generators, [node.elt])
+
+    def visit_DictComp(self, node: ast.DictComp) -> None:
+        self._comprehension(node.generators, [node.key, node.value])
+
+    def _comprehension(self, generators: list[ast.comprehension], values: list[ast.expr]) -> None:
+        outer = self.bound.copy()
+        for generator in generators:
+            self.visit(generator.iter)
+            self.bound.update(_generator_bound_names(generator.target))
+            for condition in generator.ifs:
+                self.visit(condition)
+        for value in values:
+            self.visit(value)
+        self.bound = outer
+
+
+def _generator_bound_names(node: ast.AST) -> set[str]:
+    """Lexical assignment and pattern targets, excluding nested Python scopes."""
+    names: set[str] = set()
+    stack = [node]
+    while stack:
+        child = stack.pop()
+        if isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+            names.add(child.name)
+            continue
+        if isinstance(child, (ast.Lambda, ast.ListComp, ast.SetComp, ast.DictComp, ast.GeneratorExp)):
+            continue
+        if isinstance(child, ast.Name) and isinstance(child.ctx, ast.Store):
+            names.add(child.id)
+        elif isinstance(child, (ast.MatchAs, ast.MatchStar)) and child.name is not None:
+            names.add(child.name)
+        elif isinstance(child, ast.MatchMapping) and child.rest is not None:
+            names.add(child.rest)
+        stack.extend(ast.iter_child_nodes(child))
+    return names
+
+
+def _generator_live_names(statements: list[ast.stmt], following: set[str]) -> set[str]:
+    """Backward liveness: a write kills its previous value; branch inputs join.
+
+    Lambdas and comprehensions bind their own parameters. A raising path has
+    no successor, and an unmatched case keeps the ordinary fallthrough edge.
+    """
+    live = following.copy()
+    for node in reversed(statements):
+        reader = _GeneratorReads()
+        if isinstance(node, (ast.Assign, ast.AnnAssign)):
+            if node.value is not None:
+                reader.visit(node.value)
+            targets = node.targets if isinstance(node, ast.Assign) else [node.target]
+            for target in targets:
+                live.difference_update(_generator_bound_names(target))
+                reader.visit(target)
+        elif isinstance(node, ast.AugAssign):
+            reader.visit(node.value)
+            reader.visit(node.target)
+            live.update(_generator_bound_names(node.target))
+        elif isinstance(node, ast.If):
+            live = _generator_live_names(node.body, live) | _generator_live_names(node.orelse, live)
+            reader.visit(node.test)
+        elif isinstance(node, ast.Match):
+            last = node.cases[-1]
+            arms: set[str] = (
+                set() if _is_irrefutable(last.pattern) and last.guard is None else live.copy()
+            )
+            for case in node.cases:
+                captures = _generator_bound_names(case.pattern)
+                body = _generator_live_names(case.body, live)
+                guard_reads = _GeneratorReads()
+                if case.guard is not None:
+                    guard_reads.visit(case.guard)
+                arms.update((body | guard_reads.reads) - captures)
+                reader.visit(case.pattern)
+            live = arms
+            reader.visit(node.subject)
+        elif isinstance(node, ast.For):
+            body = _generator_live_names(node.body, set())
+            live.update(body - _generator_bound_names(node.target))
+            reader.visit(node.iter)
+        elif isinstance(node, ast.Raise):
+            live = set()
+            reader.visit(node)
+        else:
+            reader.visit(node)
+        live.difference_update(reader.bound)
+        live.update(reader.reads)
+    return live
+
+
+class _GeneratorContinuation:
+    """One shared block with live SSA arguments and proofs from every incoming edge.
+
+    Naming the continuation once avoids exponential CPS duplication. This is
+    the T_c conditional conversion in this pinned Scheme compiler:
+    https://github.com/edu-ucsd-cse-231/fa12-schemec/blob/755992dbb38ee73abb608d2ff4f8c2c59428fa16/schemec/cps.py
+    The helper is compiled after its incoming edges, so its value proofs are
+    their intersection rather than whichever arm happened to compile first.
+    """
+
+    def __init__(self, compiler: CompilerContext, node: ast.stmt, rest: list[ast.stmt]):
+        self.compiler = compiler
+        self.node = node
+        self.rest = rest
+        self.incoming: list[CompilerContext] = []
+        self.helper = f"{compiler.name}--after-yield-{next_aux_serial()}" if rest else None
+        if rest:
+            locals_ = set(compiler.scope) | _generator_bound_names(node)
+            for statement in rest:
+                locals_.update(_generator_bound_names(statement))
+            live = _generator_live_names(rest, set(compiler.closer_names))
+            self.params = sorted(live & locals_)
+        else:
+            self.params = compiler.closer_names.copy()
+
+    def __call__(self, compiler: CompilerContext) -> Atom:
+        if self.helper is None:
+            if self.compiler.closer is not None:
+                return self.compiler.closer(compiler)
+            return Expression([Symbol("empty")])
+        arguments: list[Atom] = []
+        for name in self.params:
+            if name not in compiler.scope:
+                msg = (
+                    f"{name!r} is read after a generator branch but is not bound on "
+                    "every path reaching that read; bind it before the branch or in every arm"
+                )
+                raise CompileError(msg, construct="generator continuation", line=self.node.lineno)
+            arguments.append(Variable(compiler.scope[name]))
+        self.incoming.append(compiler._fork())
+        return Expression([Symbol(self.helper), *arguments])
+
+    def finish(self) -> None:
+        if self.helper is None or not self.incoming:
+            return
+        compiler = self.compiler._equation_compiler(self.params)
+        compiler.closer = self.compiler.closer
+        compiler.closer_names = self.compiler.closer_names.copy()
+        compiler.number_locals = set.intersection(*(edge.number_locals for edge in self.incoming))
+        compiler.space_locals = set()
+        compiler.dict_locals = set()
+        compiler.container_locals = {}
+        for name in self.params:
+            representations = {
+                (edge.container_locals.get(name), name in edge.space_locals, name in edge.dict_locals)
+                for edge in self.incoming
+            }
+            if len(representations) != 1:
+                msg = (
+                    f"{name!r} crosses a generator join with incompatible representation "
+                    "proofs; bind the same container or space kind in every arm, or move "
+                    "the operations that depend on its kind into those arms"
+                )
+                raise CompileError(msg, construct="generator continuation", line=self.node.lineno)
+            kind, space, dictionary = representations.pop()
+            if kind is not None:
+                compiler.container_locals[name] = kind
+            if space:
+                compiler.space_locals.add(name)
+            if dictionary:
+                compiler.dict_locals.add(name)
+        body = _superpose(compiler.yield_answers(self.rest))
+        head = Expression([Symbol(self.helper), *(Variable(name) for name in self.params)])
+        self.compiler.aux.append(Expression([Symbol("="), head, body]))
 
 
 def _superpose(answers: list[Atom]) -> Expression:
@@ -1830,11 +2123,95 @@ def _superpose(answers: list[Atom]) -> Expression:
 
 
 class _StatementPattern:
-    """Compile one Python case pattern and remember its whole-value binds."""
+    """Compile structural captures and the subpattern checks behind aliases."""
 
     def __init__(self, compiler: CompilerContext):
         self.compiler = compiler
-        self.as_variables: list[Variable] = []
+        self.as_bindings: list[tuple[Variable, Atom]] = []
+
+    def assignment(
+        self,
+        target: ast.expr,
+        source: ast.expr | None,
+        before: CompilerContext,
+        image: Atom | None = None,
+    ) -> Atom:
+        """Read an unpacking target with the same sequence and capture vocabulary."""
+        if isinstance(target, ast.Name):
+            variable = self._capture(target.id)
+            if image is not None:
+                if _space_valued(image):
+                    self.compiler.space_locals.add(target.id)
+                if before._dict_atom(image):
+                    self.compiler.dict_locals.add(target.id)
+            if source is not None:
+                if before._native_number(source):
+                    self.compiler.number_locals.add(target.id)
+                kind = before._container_kind(source)
+                if kind is not None:
+                    self.compiler.container_locals[target.id] = kind
+                if isinstance(source, ast.Name):
+                    if source.id in before.space_locals:
+                        self.compiler.space_locals.add(target.id)
+                    if source.id in before.dict_locals:
+                        self.compiler.dict_locals.add(target.id)
+            return variable
+        if isinstance(target, (ast.Tuple, ast.List)):
+            sources: list[ast.expr | None] = [None] * len(target.elts)
+            images: list[Atom | None] = [None] * len(target.elts)
+            if isinstance(source, (ast.Tuple, ast.List)) and not any(
+                isinstance(part, ast.Starred) for part in source.elts
+            ):
+                star = next(
+                    (i for i, part in enumerate(target.elts) if isinstance(part, ast.Starred)),
+                    None,
+                )
+                fits = (
+                    len(source.elts) == len(target.elts)
+                    if star is None
+                    else len(source.elts) >= len(target.elts) - 1
+                )
+                if fits:
+                    for index in range(len(target.elts)):
+                        if index == star:
+                            continue
+                        offset = (
+                            index
+                            if star is None or index < star
+                            else len(source.elts) - len(target.elts) + index
+                        )
+                        sources[index] = source.elts[offset]
+                        if isinstance(image, Expression) and len(image) == len(source.elts):
+                            images[index] = image.children[offset]
+            return Expression(
+                [
+                    self.assignment(part, value, before, lowered)
+                    for part, value, lowered in zip(target.elts, sources, images, strict=True)
+                ]
+            )
+        if isinstance(target, ast.Starred) and isinstance(target.value, ast.Name):
+            variable = self._capture(target.value.id)
+            self.compiler.container_locals[target.value.id] = "list"
+            return Expression([Symbol(":seg"), variable])
+        msg = (
+            "structural assignment binds plain names inside tuple or list targets; "
+            "write an attribute or subscript through a separate host operation"
+        )
+        raise CompileError(msg, construct="assignment target", line=target.lineno)
+
+    def _capture(self, name: str) -> Variable:
+        """A new capture replaces both the SSA name and its old value proofs."""
+        if name in self.compiler.pragma_globals:
+            msg = (
+                f"structural captures cannot write declared global {name!r}; "
+                "unpack or match into local names, then assign the globals separately"
+            )
+            raise CompileError(msg, construct="structural capture")
+        self.compiler.number_locals.discard(name)
+        self.compiler.container_locals.pop(name, None)
+        self.compiler.space_locals.discard(name)
+        self.compiler.dict_locals.discard(name)
+        return Variable(self.compiler._bind(name))
 
     def pattern(self, node: ast.pattern) -> Atom:
         # Structural position: the host-island fallback is off while a case
@@ -1885,7 +2262,9 @@ class _StatementPattern:
         """
         if node.name is None:
             return Symbol("...")
-        return Expression([Symbol(":seg"), Variable(self.compiler._bind(node.name))])
+        variable = self._capture(node.name)
+        self.compiler.container_locals[node.name] = "list"
+        return Expression([Symbol(":seg"), variable])
 
     def _singleton(self, node: ast.MatchSingleton) -> Atom:
         if isinstance(node.value, bool):
@@ -1908,16 +2287,30 @@ class _StatementPattern:
         inner = Variable("_") if node.pattern is None else self.pattern(node.pattern)
         if node.name is None:
             return inner
-        variable = Variable(self.compiler._bind(node.name))
+        variable = self._capture(node.name)
         if node.pattern is None:
             return variable
-        self.as_variables.append(variable)
-        return inner
+        self.as_bindings.append((variable, inner))
+        return inner if inner == Symbol("Empty") else variable
 
-    def wrap_as_bindings(self, subject: Atom, body: Atom) -> Atom:
-        for variable in reversed(self.as_variables):
-            body = Expression([Symbol("let"), variable, subject, body])
-        return body
+    def case_row(self, subject: Atom, pattern: Atom, body: Atom, fallback: Atom) -> Atom:
+        # A product pattern puts every alias equation in the same case decision.
+        # Delaying subpatterns into the body would retain sibling bindings when
+        # one fails. Holding the product also preserves original subterms rather
+        # than rebuilding segment patterns as literal (:seg ...) expressions.
+        # [source: engine/translator/runtime.pl:translate_case/5; commit=9958c72363d2fbc640d2ae39ee6f0670ecfbff67]
+        if self.as_bindings:
+            # Outer aliases supply the actual subterm before a nested segment
+            # pattern inspects it; an unbound subject would invent gap syntax.
+            bindings = list(reversed(self.as_bindings))
+            subject = Expression(
+                [
+                    Symbol("noeval"),
+                    Expression([subject, *(variable for variable, _ in bindings)]),
+                ]
+            )
+            pattern = Expression([pattern, *(inner for _, inner in bindings)])
+        return _case_row(subject, pattern, body, fallback)
 
 
 def _case_row(subject: Atom, pattern: Atom, body: Atom, fallback: Atom) -> Expression:

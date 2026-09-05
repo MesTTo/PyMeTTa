@@ -22,6 +22,12 @@ Guarantees:
   - wherever the direct goal is eligible, its answers equal the general
     path's, over every head class and plain-argument class the door admits
     [tested: test_the_direct_goal_path_and_the_general_path_agree_on_every_corpus_call]
+Owns resources:
+  - each fixture and wildcard-control context closes its anonymous spaces;
+    closing the rule owner retires its global translator registration
+    [tested: test_a_rule_owned_head_obeys_its_orientation_through_the_flat_door
+    followed by test_structural_assignment_preserves_dictionary_and_star_bindings;
+    commit=9958c72363d2fbc640d2ae39ee6f0670ecfbff67]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -39,7 +45,8 @@ def m():
     rules, and import libraries, and `&self` is shared engine-wide, so
     dirtying it would leak into every later file in the same worker.
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
-    return MeTTa().space()
+    with MeTTa() as context, context.space() as space:
+        yield space
 
 
 def test_an_undeclared_function_answers_through_the_flat_door(m):
@@ -159,20 +166,20 @@ def test_the_direct_goal_path_and_the_general_path_agree_on_every_corpus_call(m)
     # A wildcard declaration types EVERY head, so it must close the fast
     # path for the previously undeclared function too, in a fresh space
     # where nothing else is declared.
-    fresh = MeTTa().space()
-    fresh += typed(V.any, S.Wide)
+    with MeTTa() as context, context.space() as fresh:
+        fresh += typed(V.any, S.Wide)
 
-    @fresh.define
-    def open_head(x):
-        """(= (open-head $x) (kept $x))."""
-        return S.kept(x)
+        @fresh.define
+        def open_head(x):
+            """(= (open-head $x) (kept $x))."""
+            return S.kept(x)
 
-    for a in [7, "text", S.plain]:
-        call = S.open_head(a)
-        flat = fresh.eval(call)
-        general = fresh.eval(fn.collapse(call))
-        assert len(general) == 1, (call, general)
-        assert flat == list(general[0]), (call, flat, general)
+        for a in [7, "text", S.plain]:
+            call = S.open_head(a)
+            flat = fresh.eval(call)
+            general = fresh.eval(fn.collapse(call))
+            assert len(general) == 1, (call, general)
+            assert flat == list(general[0]), (call, flat, general)
 
 
 def test_a_rule_owned_head_obeys_its_orientation_through_the_flat_door(m):

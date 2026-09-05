@@ -869,7 +869,9 @@
   "python_inferences": 0
  },
  "if-decons-expr": {
-  "metta": null,
+  "metta": [
+   "(yes a (b))"
+  ],
   "python": [
    "(yes a (b))"
   ]
