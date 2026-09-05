@@ -3,8 +3,8 @@
 Guarantees:
   - journal replay, validation, failed acquisition cleanup, and equation-home
     resolution agree across MeTTa.space and AsyncMeTTa.space [tested:
-    CHECK_PY=$VENV/bin/python sh extensions/python/test.sh
-    tests/ch17_concurrency_and_the_loop/test_async_space.py; commit=d263b1f05e3ca3a0621122c1fc60d295b87692b0]
+    extensions/python/tests/ch17_concurrency_and_the_loop/test_async_space.py;
+    commit=WORKTREE]
 """
 
 import asyncio
