@@ -49,7 +49,7 @@ Guarantees:
     verdict depend on the box's load: `epoll_wait` seeing nothing and
     `waitpid` seeing the child gone are observations from two different
     instants, and on a loaded box a whole child fits between them
-    [tested: test_a_child_that_writes_late_is_read_in_full; commit=WORKTREE]
+    [tested: test_a_child_that_writes_late_is_read_in_full; commit=b0d85db82c8069fa5c2bb864b1ce8a93bccf40f8]
   - a configuration that did not answer is run again, both doors, and if it
     still does not answer it is reported as `no verdict` with what stopped it,
     what it cost, the ceiling and the loadavg, and counted apart from the
@@ -57,7 +57,7 @@ Guarantees:
     where before they compared equal and passed
     [tested: test_a_stopped_run_is_reported_as_unanswered_with_its_load,
     test_two_stopped_configurations_do_not_agree,
-    test_an_unanswered_configuration_is_run_again; commit=WORKTREE]
+    test_an_unanswered_configuration_is_run_again; commit=b0d85db82c8069fa5c2bb864b1ce8a93bccf40f8]
 Decides:
   - process isolation per example, matching how the engine lane already
     works, rather than one engine over many spaces: it is affordable at the
