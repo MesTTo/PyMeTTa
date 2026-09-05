@@ -535,7 +535,11 @@ def test_two_stopped_configurations_do_not_agree(monkeypatch):
 
 
 def test_an_unanswered_configuration_is_run_again(monkeypatch):
-    """A transient is not reproducible and a real one is; the retry separates them."""
+    """A transient is not reproducible and a real one is; the retry separates them.
+
+    The retry is also SAID, because one that succeeded is the same disturbance
+    the bare zero used to be, one attempt earlier.
+    """
     silent = parity.Outcome([], None, (), 0, "engine", 0.1)
     answering = parity.Outcome(["(1)"], None, (), 0, "engine", 0.1)
     attempts: list[str] = []
@@ -548,11 +552,13 @@ def test_an_unanswered_configuration_is_run_again(monkeypatch):
     monkeypatch.setattr(
         parity, "run_library",
         lambda *_args: parity.Outcome(["(1)"], None, (), 0, "library", 0.1))
+    monkeypatch.setattr(parity, "RETRIED", [])
 
     difference = parity.compare(REPO / "examples" / "ch09-types" / "01-types.metta")
 
     assert difference is None, str(difference)
     assert len(attempts) == 2, "the configuration that answered nothing was not run again"
+    assert parity.RETRIED == ["examples/ch09-types/01-types.metta"]
 
 
 def test_a_configuration_silent_through_both_doors_is_agreement(monkeypatch):

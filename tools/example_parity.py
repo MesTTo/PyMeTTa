@@ -141,6 +141,11 @@ BOUNDED = REPO / "bounded.sh"
 #: reads it until they have all finished.
 COSTS: list[tuple[float, str, str]] = []
 
+#: The examples a configuration had to be run again for. A retry that
+#: SUCCEEDED is the same disturbance the bare zero used to be, one attempt
+#: earlier, and a lane that swallows it is hiding the same event more quietly.
+RETRIED: list[str] = []
+
 
 def _late(reason: str) -> str:
     """A deadline expiry, with the load it expired under.
@@ -559,6 +564,7 @@ def compare(path: Path, root: Path = REPO) -> Difference | None:
     relative = path.relative_to(root)
 
     if _unanswered(engine, library) is not None:
+        RETRIED.append(str(relative))
         engine, library = run_engine(path, root), run_library(path, root)
     missing = _unanswered(engine, library)
     if missing is not None:
@@ -573,8 +579,8 @@ def compare(path: Path, root: Path = REPO) -> Difference | None:
         return Difference(
             relative,
             f"no verdict: the {quiet.door} configuration answered nothing, twice",
-            f"{quiet.stopped or _late('no answer group, no verdict and no error')} "
-            f"after {quiet.seconds:.1f}s against a {TIMEOUT}s ceiling; {beside}",
+            f"{quiet.stopped or _late('no answer group, no verdict and no error')}; "
+            f"it ran {quiet.seconds:.1f}s against a {TIMEOUT}s ceiling; {beside}",
             kind="unanswered",
         )
 
@@ -665,6 +671,11 @@ def main() -> int:
         print(f"{len(unanswered)} example(s) made no observation in one "
               f"configuration, counted apart from the {len(disagreements)} "
               f"disagreement(s)")
+    if RETRIED:
+        shown = ", ".join(sorted(RETRIED)[:5])
+        print(f"{len(RETRIED)} example(s) had a configuration answer nothing "
+              f"and were run again: {shown}"
+              f"{', ...' if len(RETRIED) > 5 else ''}")
     if COSTS:
         seconds, door, name = max(COSTS)
         print(f"slowest child {seconds:.1f}s against a {TIMEOUT}s ceiling "
