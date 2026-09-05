@@ -60,13 +60,18 @@ def test_the_credit_is_per_file_rather_than_one_name():
 
 
 def test_the_examples_readme_states_the_split():
-    """A reader of the directory learns what is theirs and what is ours."""
+    """A reader of the directory learns what is theirs and what is ours.
+
+    The total is checked alongside the two halves. It was the one number in
+    that sentence nothing recomputed, and it read 254 against a tree of 255
+    while the same paragraph's 143 and 112 summed to 255.
+    """
     text = README.read_text(encoding="utf-8")
     derived = len(_rows())
     total = len(list((REPO / "examples").rglob("*.metta")))
     assert "## Origins" in text, "the origins section is gone"
     section = text.split("## Origins", 1)[1]
-    for required in (str(derived), str(total - derived), "MIT", "ORIGINS.tsv"):
+    for required in (str(derived), str(total - derived), str(total), "MIT", "ORIGINS.tsv"):
         assert required in section, f"the origins section no longer states {required!r}"
 
 
