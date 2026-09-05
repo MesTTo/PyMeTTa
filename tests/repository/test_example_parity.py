@@ -11,6 +11,8 @@ Guarantees:
     [tested: test_compare_reports_a_planted_exit_status_difference,
     test_compare_reports_a_planted_verdict_difference,
     test_compare_accepts_equivalent_passing_verdicts; commit=835925ee1c55d2267aa54f0a5ccbdfcdb6fc003c]
+  - process termination preserves its status without becoming an answer error
+    [tested: test_process_exit_is_not_an_answer_error; commit=bbb512316280110a747e31c26adfc31e8c5104be]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -373,3 +375,24 @@ def test_the_stated_corpus_size_is_the_real_one():
     assert int(stated.group(1)) == size, (
         f"examples/README.md says {stated.group(1)}, the runners run {size}"
     )
+
+
+@pytest.mark.parametrize("status", [0, 7])
+def test_process_exit_is_not_an_answer_error(tmp_path, status):
+    """SWI unwind exceptions carry process control through the answer reporter."""
+    example = tmp_path / "exit.metta"
+    example.write_text(
+        f"!(import! &self (library lib_file))\n!(exit! {status})\n",
+        encoding="utf-8",
+    )
+    outcome, text = parity._run(
+        [
+            "swipl", "--stack_limit=8g", "-q",
+            "-g", 'consult("engine/metta.pl")',
+            "-s", "tests/conformance/answer_groups.pl",
+            "--", "--file", str(example), "extensions",
+        ],
+        REPO,
+    )
+    assert outcome.returncode == status, text
+    assert "ANSWER-ERROR " not in text, text

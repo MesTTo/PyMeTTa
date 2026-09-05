@@ -4,9 +4,10 @@ with the wrong argument count, body variables the head never bound,
 alpha-equivalent duplicate equations, and heads no function or fact
 carries. A healthy space answers no findings.
 Guarantees:
-  - annotated arrows retain call checks, application types and stored spelling
-    through file and separate loads [tested:
-    test_a_declaration_the_engine_will_not_honour_is_reported; commit=cba149fe709e7e11b343d7c722ea81b81275a1a5]
+  - concrete annotated arrows retain call checks, application types and stored
+    spelling through file and separate loads; unresolved products refuse load
+    [tested: test_a_declaration_the_engine_will_not_honour_is_reported;
+    commit=bbb512316280110a747e31c26adfc31e8c5104be]
   - public finding records survive pickle through metta.lint [tested
     test_finding_retains_public_pickle_identity]
   - duplicate-binder covers clause-scoped names across plain ``let`` forms,
@@ -524,7 +525,7 @@ def test_the_arrow_head_test_accepts_every_engine_spelling():
 
 def test_a_declaration_the_engine_will_not_honour_is_reported(metta, tmp_path):
     """The engine owns arrow validity for the loader, dispatch and the linter."""
-    for head in ("->", "-[det]->", "-[semidet,pureStructural]->", "-[$e]->"):
+    for head in ("->", "-[det]->", "-[semidet,pureStructural]->"):
         for mode in ("file", "separate"):
             with metta._new_space() as honoured:
                 declaration = f"(: hn-lint ({head} Number Number))"
@@ -553,9 +554,9 @@ def test_a_declaration_the_engine_will_not_honour_is_reported(metta, tmp_path):
                             if finding.kind == "arrow-arity-mismatch"])
     assert arities[0] and arities[1] == arities[0]
 
-    for head in ("-[bogus]->", "-[]->"):
+    for head in ("-[bogus]->", "-[]->", "-[$e]->"):
         with metta._new_space() as invalid:
-            with pytest.raises(MettaError, match="is not an arrow"):
+            with pytest.raises(MettaError, match=r"cannot honour|is not an arrow"):
                 invalid.run(f"(: hn-invalid ({head} Number Number))"
                             "(= (hn-invalid $x) $x)")
 
