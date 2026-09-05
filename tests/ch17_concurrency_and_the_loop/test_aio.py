@@ -4,7 +4,7 @@ thread, and spaces borrow the owner's engine thread.
 Guarantees:
   - presence and runtime parameter checks share aio_divergences.DIVERGENT
     with the generated and handwritten mirror gates [tested:
-    test_aio_covers_the_whole_synchronous_surface; commit=WORKTREE]
+    test_aio_covers_the_whole_synchronous_surface; commit=d263b1f05e3ca3a0621122c1fc60d295b87692b0]
   - the two surfaces agree PARAMETER for parameter, not merely method for
     method, so a door cannot carry one name and two shapes: checking names
     alone let watch(), stream() and define() each diverge until they were

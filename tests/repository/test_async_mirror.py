@@ -16,7 +16,7 @@ Guarantees:
   - every public async counterpart has its synchronous parameter names or
     the replacement shape recorded in DIVERGENT, including handwritten
     methods and private sync targets [tested:
-    test_every_async_counterpart_has_the_sync_parameters; commit=WORKTREE]
+    test_every_async_counterpart_has_the_sync_parameters; commit=d263b1f05e3ca3a0621122c1fc60d295b87692b0]
   - the checked-in block equals what the generator renders [tested:
     test_the_async_mirror_is_generated_from_the_sync_surface]
   - every generated door carries Space's signature and docstring verbatim,

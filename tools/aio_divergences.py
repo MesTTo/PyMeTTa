@@ -23,7 +23,7 @@ Guarantees:
     the DIVERGENT replacement signatures, while
     handwritten counterparts obey the parameter-name parity gate or the
     replacement parameter shape below [tested:
-    test_every_async_counterpart_has_the_sync_parameters; commit=WORKTREE]
+    test_every_async_counterpart_has_the_sync_parameters; commit=d263b1f05e3ca3a0621122c1fc60d295b87692b0]
 Open Obligations:
   To Do: None
   Hacks: None

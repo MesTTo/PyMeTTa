@@ -13,7 +13,7 @@ Guarantees:
     caller creation site and borrowed provider lifecycle [tested:
     test_a_journaled_async_space_round_trips_a_fact,
     test_async_space_provider_backing_attaches_and_remains_borrowed,
-    test_async_anonymous_space_repr_keeps_the_submitting_site; commit=WORKTREE]
+    test_async_anonymous_space_repr_keeps_the_submitting_site; commit=d263b1f05e3ca3a0621122c1fc60d295b87692b0]
   - async solve, Linda verbs, watch, class/type dispatch, and the two
     transaction laws execute on the owning worker [tested:
     test_aio_structural_surface_behaves; commit=cff2e7f319bd2212f0c2d74f8d5fe5be3ac693b5]

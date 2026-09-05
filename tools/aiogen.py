@@ -29,7 +29,7 @@ Guarantees:
   - a new public Space method appears here or in EXCLUDED, so it cannot be
     silently absent from the async surface [tested: test_aio_mirrors_the_surface]
   - handwritten counterparts cannot escape the shared parameter-name gate
-    [tested: test_every_async_counterpart_has_the_sync_parameters; commit=WORKTREE]
+    [tested: test_every_async_counterpart_has_the_sync_parameters; commit=d263b1f05e3ca3a0621122c1fc60d295b87692b0]
 Fails when: a method needs its own worker body. Hand-write it in AsyncMeTTa;
   the generator yields, but the parity test still checks it. The categories
   are generated, excluded, divergent, and handwritten-but-conforming.
