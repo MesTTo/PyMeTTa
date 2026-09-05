@@ -171,7 +171,7 @@ def test_every_vocabulary_member_crosses_as_its_symbol():
             assert member.value in cls, (name, member)
 
 
-def test_every_algebra_the_catalog_defines_is_one_its_vocabulary_admits(metta):
+def test_every_algebra_the_catalog_defines_is_one_its_vocabulary_admits():
     """A defined carrier and a nameable one are the same set, in both directions.
 
     The catalog carries `[algebra, X, ...]` rows defining a carrier and a

@@ -7,7 +7,7 @@ is Python's own `assert`.
 Guarantees:
   - the translated definition and assertion agree with the source example
     inside the current inference budget [tested:
-    test_a_shipped_twin_agrees_with_its_example_end_to_end; commit=39092863ae34184a9f955f185ff57c1ff177ec40]
+    test_a_shipped_twin_agrees_with_its_example_end_to_end; commit=cba149fe709e7e11b343d7c722ea81b81275a1a5]
 """
 
 
@@ -703,4 +703,27 @@ def twin(m):
 #: pytest -q tests/repository/test_twin_coverage.py -k 'identity.metta';
 #: fixture=main checkout, libmork_ffi.so present, QLF cleared and warmed;
 #: commit=dbd76f0366f5695031b60aff22e3bc6b0b4b1aac]
-BUDGET = 3583
+#: RE-PINNED 2026-09-05, 3558 to 3578 (+20), the callable-type read boundary
+#: now projects annotated arrows. Equally provisioned worktrees measure
+#: 7eb873e0c758f90f2ff192b7c02df172f16892b2 at 3558 and this change at 3578
+#: in the unchanged define-and-call workload.
+#: [measured: 3578 inferences, three identical fresh-process samples;
+#: command=$PY
+#: extensions/python/tools/twin_coverage.py --measure --rounds 3
+#: examples/ch05-equations-and-evaluation/05-01-an-equation-is-a-rewrite/01-identity.metta;
+#: fixture=warm worktrees with the shipping C artifacts and both MORK shared
+#: objects; commit=cba149fe709e7e11b343d7c722ea81b81275a1a5].
+#: MERGE RESOLUTION 2026-09-05, 3592. Both parents re-pinned this row from
+#: different bases and git could not choose: the semiring slice measured 3583
+#: and the annotated-arrow slice 3578, and both narratives are kept above
+#: because both are true of the tree they were measured in. Neither is true of
+#: the merge. 3592 is measured HERE, three identical samples on the merged
+#: tree, which is the rule this repository has for a value derived from two
+#: sides: a clean merge of two correct edits can still leave a derived number
+#: that neither parent holds
+#: [measured 2026-09-05: 3592, three identical samples; command=cd
+#: extensions/python && PYTHONPATH=. $CHECK_PY -m pytest -q
+#: tests/repository/test_twin_coverage.py -k 'identity.metta'; fixture=merged
+#: main checkout, libmork_ffi.so present, QLF cleared and warmed;
+#: commit=WORKTREE]
+BUDGET = 3592
