@@ -7,6 +7,10 @@ Guarantees:
   - unsupported programs retain the original failure and effect behavior
     [tested: test_demand_preserves_global_cycle_and_round_failures,
     test_demand_retains_custom_operation_effects; commit=3c64e2e24787362a5a5081513bc24b880711a1d7]
+  - an atom that reached the evaluator without passing certification is
+    refused by name, which an assert said only while asserts were compiled
+    [tested: test_an_atom_the_certifier_would_decline_is_refused_by_name;
+    commit=WORKTREE]
 
 Private access only selects the unchanged reference evaluator or plants a
 fault in the optimized path; every result is produced by public evaluate.
@@ -21,7 +25,7 @@ from hypothesis import strategies as st
 
 from metta import S, V, parse
 from metta import algebra as carrier
-from metta._algebra_demand import _DemandEvaluator
+from metta._algebra_demand import _certified_shape, _DemandEvaluator
 from metta.algebra import AlgebraEvaluationError, evaluate
 
 
@@ -361,3 +365,14 @@ def test_demand_closes_suspended_rules_on_failure(metta, monkeypatch):
             evaluate(program, S.answer(0), algebra="counting")
     assert len(opened) == 3
     assert Counter(opened) == Counter(closed)
+
+
+def test_an_atom_the_certifier_would_decline_is_refused_by_name():
+    """The readers are total because `_certify` admits only shaped atoms.
+
+    That invariant used to be five bare asserts, which vanish under -O and say
+    nothing when they hold. The refusal names the atom instead, and the plant
+    is one `_shape` declines: a variable is neither a symbol nor an expression.
+    """
+    with pytest.raises(AlgebraEvaluationError, match="algebra_demand_uncertified_atom"):
+        _certified_shape(V.x)
