@@ -4,6 +4,8 @@
 %   derivations on top of an unmodified MeTTa engine. Consulted after
 %   engine/main.pl; only adds predicates, never redefines engine ones.
 % Guarantees:
+%   - transport failure subclasses retain their outcome across error policies
+%     [tested: test_protocol_errors_cannot_become_engine_answers; commit=089bc6036ae5039bce3963d8b4e80ecaf04dfb49]
 %   - async Python operations answer a future space immediately, publish their
 %     launch through the current observation frame, and publish landing only
 %     from the later event-loop completion; a publication fault settles the
@@ -2259,6 +2261,14 @@ metta_py_space_names(Names) :-
 %the blob to the very object the callback raised.
 metta_py_original_exception(error(python_error(_, Obj), _), Obj) :-
     py_is_object(Obj).
+
+%The bridge's class-name fast path cannot recognize Python subclasses.
+%Classify the live object with the library's shared transport predicate.
+:- multifile seam:host_transport_failure/1.
+seam:host_transport_failure(error(python_error(Class, Obj), _)) :-
+    Class \== 'TransportFailure',
+    py_is_object(Obj),
+    py_call('metta.errors':is_transport_failure(Obj), @(true)).
 
 %Run a Python callable inside one engine transaction: the same
 %metta_transaction/1 the MeTTa (transaction ...) form compiles to, so

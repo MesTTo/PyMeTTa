@@ -9,6 +9,14 @@ metta-wam's metta_server, translated onto metta's own SpaceProvider
 protocol; the engine keeps unification for itself, so a remote answer is
 speed and reach, never trust.
 Guarantees:
+  - lost mutation replies raise OutcomeUnknown; negotiated keys replay once
+    within a gateway instance and expiry, and changed parameters are refused
+    [tested: test_lost_mutation_reply_has_a_safe_retry,
+    test_expired_reentrant_mutation_cannot_resurrect_its_reservation; commit=ec64336e16ebb0299f9794d277daaee3cf234493]
+  - response envelopes and complete atom lists are validated before delivery
+    [tested: test_remote_rejects_malformed_response_fields,
+    test_custom_transport_validates_the_whole_atom_list_before_yield;
+    commit=089bc6036ae5039bce3963d8b4e80ecaf04dfb49]
   - remote JSON decoding preserves explicit s and p tags instead of applying
     process-local engine provenance [tested:
     test_space_handles_are_term_operands_and_round_trip; commit=4e2398075da67bb2cbcc123a9fc1e078ecac6fbf]
@@ -96,6 +104,8 @@ Open Obligations:
 
 from __future__ import annotations
 
+import hashlib
+import heapq
 import hmac
 import logging
 import math
@@ -107,6 +117,7 @@ import time
 import warnings
 from collections import deque
 from collections.abc import Callable, Iterable, Iterator, Mapping
+from copy import deepcopy
 from dataclasses import dataclass
 from http.client import HTTPException
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -121,7 +132,7 @@ from ._network import HTTPEndpoint, validated_timeout
 from ._space import Space as MeTTa
 from ._space_objects import Cursor
 from .atoms import Atom, Expression, Variable, substitute, unify
-from .errors import Interrupted, MettaError
+from .errors import Interrupted, MettaError, TransportFailure
 from .foreign import SpaceProvider
 
 logger = logging.getLogger(__name__)
@@ -129,11 +140,13 @@ logging.getLogger("metta").addHandler(logging.NullHandler())
 
 __all__ = [
     "Gateway",
+    "OutcomeUnknown",
+    "ProtocolError",
     "RemoteCursor",
     "RemoteSpace",
     "Request",
     "Server",
-        "connect",
+    "connect",
     "serve",
 ]
 
@@ -144,10 +157,11 @@ Transport = Callable[[str, dict], dict]
 
 
 class _HTTPTransport:
-    """connect()'s transport: one call per operation, and it knows its
-    server's GET /health, which is how server_capabilities() can ask. A
+    """connect()'s transport validates replies and negotiates mutation replay.
+
+    It knows its server's GET /health, so server_capabilities() can ask. A
     hand-built transport that wants the same offers its own `health`.
-    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+    """
 
     def __init__(
         self,
@@ -158,10 +172,188 @@ class _HTTPTransport:
         self._health = health
 
     def __call__(self, operation: str, payload: dict) -> dict:
-        return self._operate(operation, payload)
+        if operation in _MUTATIONS:
+            return _mutate(self._operate, self.health, operation, payload)
+        return _response(operation, self._operate(operation, payload), payload)
 
     def health(self) -> dict:
-        return self._health()
+        return _response("health", self._health())
+
+
+_MUTATIONS = frozenset({"add", "add_many", "remove"})
+_MUTATION_TTL = 300.0
+_MUTATION_LIMIT = 4096
+
+
+class OutcomeUnknown(TransportFailure):
+    """A mutation may have executed; ``retry()`` replays its keyed request.
+
+    ``outcome`` is always ``"unknown"``. A retry returns the original wire
+    acknowledgement. Without a negotiated replay contract it refuses to send;
+    callers must reconcile the operation with the serving application.
+    """
+
+    outcome = "unknown"
+    operation: str
+
+    def __init__(self, operation: str, retry: Callable[[], dict] | None = None) -> None:
+        """Retain the mutation name and its optional keyed recovery operation."""
+        super().__init__(
+            f"the remote mutation {operation} has an unknown outcome; "
+            "it may have been applied. Use this exception's retry() for keyed "
+            "recovery, or reconcile with the server before issuing a new mutation"
+        )
+        self.operation = operation
+        self._retry = retry
+
+    def retry(self) -> dict:
+        """Recover the original result without issuing a new logical write."""
+        if self._retry is None:
+            msg = "this mutation has no negotiated idempotency key; reconcile with the server"
+            raise MettaError(msg)
+        try:
+            return self._retry()
+        except OutcomeUnknown:
+            raise
+        except Exception as exc:
+            # A refused recovery cannot settle whether the ORIGINAL ran.
+            raise OutcomeUnknown(self.operation, self._retry) from exc
+
+
+class ProtocolError(TransportFailure):
+    """A response violates its schema; cursor retains a rejected reply's token."""
+
+    def __init__(self, message: str, *, cursor: str | None = None) -> None:
+        """Keep a valid release token available if initial cursor cleanup fails."""
+        super().__init__(message)
+        self.cursor = cursor
+
+
+class _Response(dict):
+    """An envelope and its completely validated, decoded atom list."""
+
+    def __init__(self, body: dict) -> None:
+        super().__init__(body)
+        self.atoms: list[Atom] = []
+
+
+def _response(operation: str, body: Any, payload: dict | None = None) -> _Response:
+    token = body.get("cursor") if isinstance(body, dict) else None
+    token = token if operation in ("ask", "next") and isinstance(token, str) and token else None
+
+    def refuse(detail: str) -> None:
+        msg = f"invalid remote {operation} response: {detail}"
+        raise ProtocolError(msg, cursor=token)
+
+    if not isinstance(body, dict):
+        refuse("expected an object")
+    if "error" in body:
+        if not isinstance(body["error"], str):
+            refuse("error must be a string")
+        if body.get("outcome") == "unknown":
+            if operation not in _MUTATIONS:
+                refuse("unknown outcome is only valid for mutations")
+            raise OutcomeUnknown(operation) from MettaError(body["error"])
+        msg = f"the remote engine refused {operation}: {body['error']}"
+        raise MettaError(msg)
+    answer = _Response(body)
+    if operation in ("match", "atoms", "ask", "next"):
+        if not isinstance(body.get("atoms"), list):
+            refuse("chunk without an atom list")
+        try:
+            answer.atoms = [_atom_from_wire(wire) for wire in body["atoms"]]
+        except (ValueError, TypeError) as exc:
+            msg = f"invalid remote {operation} response: {exc}"
+            raise ProtocolError(msg, cursor=token) from exc
+    if operation in ("ask", "next"):
+        if "cursor" not in body:
+            refuse("cursor field is required")
+        cursor = body["cursor"]
+        if cursor is not None and (not isinstance(cursor, str) or not cursor):
+            refuse("cursor must be a nonempty string or null")
+        if cursor is not None and not answer.atoms:
+            refuse("live cursor with no atoms")
+        if payload is not None:
+            batch = payload.get("batch", _DEFAULT_BATCH)
+            if len(answer.atoms) > batch:
+                refuse("atom list exceeds the requested batch")
+            if cursor is not None and len(answer.atoms) < batch:
+                refuse("a short chunk must end the stream")
+            if operation == "next" and cursor not in (None, payload.get("cursor")):
+                refuse("next changed the cursor token")
+    if operation in ("remove", "stop"):
+        field = "removed" if operation == "remove" else "stopped"
+        if type(body.get(field)) is not bool:
+            refuse(f"{field} must be a boolean")
+    if operation == "add" and body.get("added") is not True:
+        refuse("added must be true")
+    if operation == "add_many":
+        if type(body.get("added")) is not int or body["added"] < 0:
+            refuse("added must be a nonnegative integer")
+        if payload is not None and body["added"] != len(payload.get("atoms", ())):
+            refuse("added count differs from the requested batch")
+    if operation == "health":
+        if body.get("ok") is not True:
+            refuse("ok must be true")
+        if type(body.get("atoms")) is not int or body["atoms"] < 0:
+            refuse("atoms must be a nonnegative integer")
+        if "bound" in body and type(body["bound"]) is not bool:
+            refuse("bound must be a boolean")
+        if "protocol" in body and (type(body["protocol"]) is not int or body["protocol"] < 1):
+            refuse("protocol must be a positive integer")
+        if "capabilities" in body and (
+            not isinstance(body["capabilities"], list)
+            or any(not isinstance(item, str) or not item for item in body["capabilities"])
+        ):
+            refuse("capabilities must be a list of nonempty strings")
+        if "idempotency" in body:
+            contract = body["idempotency"]
+            if (
+                not isinstance(contract, dict)
+                or not isinstance(contract.get("scope"), str)
+                or not contract["scope"]
+                or type(contract.get("expires")) not in (int, float)
+                or not math.isfinite(contract["expires"])
+            ):
+                refuse("malformed idempotency metadata")
+    return answer
+
+
+def _mutate(
+    transport: Transport,
+    health: Callable[[], dict] | None,
+    operation: str,
+    payload: dict,
+) -> dict:
+    # Stripe API 2026-07-29.dahlia: reuse a key only with the original inputs.
+    # https://docs.stripe.com/api/idempotent_requests
+    request = deepcopy(payload)
+    contract = None if health is None else _response("health", health()).get("idempotency")
+    if "idempotency" in request:
+        token = request["idempotency"]
+        if (contract is None or not isinstance(token, dict)
+                or token.get("scope") != contract["scope"]):
+            msg = "the supplied idempotency key does not name this gateway instance"
+            raise MettaError(msg)
+    elif contract is not None:
+        request["idempotency"] = {
+            "scope": contract["scope"],
+            "expires": contract["expires"],
+            "key": secrets.token_urlsafe(24),
+        }
+
+    def attempt() -> dict:
+        try:
+            answer = _response(operation, transport(operation, deepcopy(request)), request)
+        except OutcomeUnknown as exc:
+            if contract is None:
+                raise
+            raise OutcomeUnknown(operation, attempt) from exc
+        except (HTTPException, OSError, ProtocolError) as exc:
+            raise OutcomeUnknown(operation, attempt if contract is not None else None) from exc
+        return answer
+
+    return attempt()
 
 
 _SERVER_TIMEOUT = 10.0
@@ -306,37 +498,22 @@ class RemoteCursor:
         }
         if limit is not None:
             payload["bound"] = limit
-        self._absorb(transport("ask", payload))
+        try:
+            self._absorb(transport("ask", payload))
+        except ProtocolError as response_error:
+            self._token = response_error.cursor
+            try:
+                self.close()
+            except BaseException as close_error:  # noqa: BLE001 -- report both acquisition and cleanup failures
+                msg = "remote cursor response and initial cleanup failed"
+                raise BaseExceptionGroup(msg, [response_error, close_error]) from None
+            raise
 
     def _absorb(self, answer: dict) -> None:
-        """Take a reply's chunk and its continuation.
-
-        A chunk that carries nothing while still naming a cursor is
-        refused rather than looped on: the protocol says a short chunk
-        ends the stream, so an empty one with a live cursor is a server
-        that would spin a client forever.
-        """
-        atoms = answer.get("atoms")
-        if not isinstance(atoms, list):
-            msg = f"the remote engine answered a chunk without an atom list: {answer!r}"
-            raise MettaError(
-                msg
-            )
-        token = answer.get("cursor")
-        if token is not None and not isinstance(token, str):
-            msg = f"the remote engine answered a non-string cursor: {token!r}"
-            raise MettaError(msg)
-        if token is not None and not atoms:
-            msg = (
-                "the remote engine answered a live cursor with no atoms; a "
-                "chunk that carries nothing ends the stream and must answer "
-                "a null cursor"
-            )
-            raise MettaError(
-                msg
-            )
-        self._token = token
-        self._buffer.extend(_atom_from_wire(wire) for wire in atoms)
+        operation = "ask" if self._token is None else "next"
+        reply = _response(operation, answer, {"batch": self._batch, "cursor": self._token})
+        self._token = reply["cursor"]
+        self._buffer.extend(reply.atoms)
 
     def __iter__(self) -> Iterator[Atom]:  # noqa: D105  -- the Python data-model hook is defined by its name and enclosing type contract
         return self
@@ -367,7 +544,7 @@ class RemoteCursor:
             return
         token = self._token
         if token is not None:
-            self._transport("stop", {"cursor": token})
+            _response("stop", self._transport("stop", {"cursor": token}))
             self._token = None
         self._closed = True
         self._buffer.clear()
@@ -501,9 +678,8 @@ class RemoteSpace(SpaceProvider):
         payload: dict[str, Any] = {"space": self._space, "pattern": pattern.to_wire()}
         if limit is not None:
             payload["bound"] = limit
-        answer = self._transport("match", payload)
-        for wire in answer["atoms"]:
-            yield _atom_from_wire(wire)
+        answer = _response("match", self._transport("match", payload), payload)
+        yield from answer.atoms
 
     def stream(
         self,
@@ -552,47 +728,52 @@ class RemoteSpace(SpaceProvider):
             raise MettaError(
                 msg
             )
-        body = health()
+        body = _response("health", health())
         # A revision-1 server advertises nothing: the four required
         # operations, bound ignored, is what its silence means.
         return {
             "capabilities": body.get(
                 "capabilities", ["match", "enumerate", "add", "remove"]
             ),
-            "bound": bool(body.get("bound", False)),
+            "bound": body.get("bound", False),
             "protocol": body.get("protocol"),
         }
 
     def atoms(self) -> Iterator[Atom]:  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
-        answer = self._transport("atoms", {"space": self._space})
-        for wire in answer["atoms"]:
-            yield _atom_from_wire(wire)
+        answer = _response("atoms", self._transport("atoms", {"space": self._space}))
+        yield from answer.atoms
 
     def add(self, atom: Atom) -> None:
         """Store one atom on the serving side.
 
-        A transport TIMEOUT means UNKNOWN, not failed: the server may
-        still be processing the request when the client stops waiting, so
-        a mutation behind a timeout can have committed. Exactly-once
-        delivery needs idempotency keys and server-side deduplication,
-        which the remote protocol does not carry yet; until it does,
-        re-checking with a read is the caller's disambiguation.
+        A lost response raises OutcomeUnknown. Its retry() replays the
+        original acknowledgement when the server advertised idempotency;
+        otherwise retry refuses to send and the caller must reconcile with
+        the server. Calling add again starts a NEW logical mutation.
         """
-        self._transport("add", {"space": self._space, "atom": atom.to_wire()})
+        self._mutate("add", {"space": self._space, "atom": atom.to_wire()})
 
     def add_many(self, atoms: list[Atom]) -> None:
         """One request carries the batch, the engine's own bulk-write law on
         the wire: a batch is a transport optimisation and never a semantic
         one, and the engine already routes only plain stores through it.
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
-        self._transport(
+        self._mutate(
             "add_many",
             {"space": self._space, "atoms": [atom.to_wire() for atom in atoms]},
         )
 
     def remove(self, atom: Atom) -> bool:  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
-        answer = self._transport("remove", {"space": self._space, "atom": atom.to_wire()})
-        return bool(answer.get("removed"))
+        answer = self._mutate("remove", {"space": self._space, "atom": atom.to_wire()})
+        return answer["removed"]
+
+
+    def _mutate(self, operation: str, payload: dict) -> dict:
+        if isinstance(self._transport, _HTTPTransport):
+            return self._transport(operation, payload)
+        return _mutate(
+            self._transport, getattr(self._transport, "health", None), operation, payload
+        )
 
 
 #: Every live server in THIS process, keyed by the address it accepts on.
@@ -735,7 +916,10 @@ def connect(
     Python's own ssl.SSLContext for https urls, certificate pinning
     included, so the transport composes with whatever security the
     serving side asks for. Only absolute http and https URLs are accepted.
-    Credentials require https.
+    Credentials require https. Each mutation negotiates a replay key through
+    GET /health before its POST; authorization policies must permit that read.
+    An unadvertised extension leaves mutations unkeyed, and OutcomeUnknown
+    refuses to resend those requests after a lost response.
     """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
     endpoint = HTTPEndpoint(
         url,
@@ -772,6 +956,8 @@ def connect(
                 operation,
                 exc_info=True,
             )
+            if operation in _MUTATIONS:
+                raise OutcomeUnknown(operation) from exc
             msg = f"the remote engine request {operation} failed: {exc}"
             raise MettaError(msg) from exc
         logger.debug(
@@ -782,23 +968,20 @@ def connect(
         try:
             answer = _json.loads(raw)
         except (UnicodeDecodeError, ValueError) as exc:
+            if operation in _MUTATIONS:
+                raise OutcomeUnknown(operation) from exc
             detail = raw.decode("utf-8", "replace")[:200]
             msg = f"the remote engine answered {status} {reason} with invalid JSON: {detail}"
-            raise MettaError(
-                msg
-            ) from exc
+            raise ProtocolError(msg) from exc
+        if operation in _MUTATIONS and (
+            status >= 500 or (isinstance(answer, dict) and answer.get("outcome") == "unknown")
+        ):
+            detail = answer.get("error", reason) if isinstance(answer, dict) else reason
+            raise OutcomeUnknown(operation) from MettaError(str(detail))
         if status >= 400:
             body = raw.decode("utf-8", "replace")
             detail = answer.get("error", body) if isinstance(answer, dict) else body
             msg = f"the remote engine refused {operation}: {detail}"
-            raise MettaError(msg)
-        if not isinstance(answer, dict):
-            msg = f"the remote engine returned {type(answer).__name__}, expected an object"
-            raise MettaError(
-                msg
-            )
-        if "error" in answer:
-            msg = f"the remote engine refused {operation}: {answer['error']}"
             raise MettaError(msg)
         return answer
 
@@ -820,10 +1003,8 @@ def connect(
                 f"the remote engine answered health with invalid JSON "
                 f"({status} {reason})"
             )
-            raise MettaError(
-                msg
-            ) from exc
-        if status >= 400 or not isinstance(answer, dict):
+            raise ProtocolError(msg) from exc
+        if status >= 400:
             # The body's own sentence when there is one, the same detail POST
             # surfaces: a policy hook that refused, or failed, says why here.
             detail = answer.get("error") if isinstance(answer, dict) else None
@@ -1126,6 +1307,12 @@ class Gateway:
     while the protocol runs, an HTTP server answering on a thread of its
     own.
 
+    Keyed mutations retain their acknowledgements for mutation_ttl seconds
+    (300 by default), up to mutation_limit entries (4096). Full ledgers refuse
+    new keys before execution. Expired keys and keys for another gateway
+    instance refuse instead of becoming new writes. The ledger is in memory;
+    restarting a gateway requires reconciling outstanding unknown outcomes.
+
     A Gateway OWNS the cursors ask/next/stop hold open, so close() it when
     the process is done with it. Server.close() does that for the one
     serve() made.
@@ -1143,12 +1330,24 @@ class Gateway:
         *,
         cursor_idle: float = _CURSOR_IDLE,
         cursor_limit: int = _CURSOR_LIMIT,
+        mutation_ttl: float = _MUTATION_TTL,
+        mutation_limit: int = _MUTATION_LIMIT,
     ) -> None:
+        self._mutation_ttl = _server_timeout(mutation_ttl, "mutation retention")
+        if type(mutation_limit) is not int or mutation_limit < 1:
+            msg = "mutation_limit must be a positive integer"
+            raise ValueError(msg)
+        self._mutation_limit = mutation_limit
+        self._mutation_scope = secrets.token_urlsafe(24)
+        self._mutations: dict[str, tuple[float, bytes, dict]] = {}
+        self._mutation_expiries: list[tuple[float, str]] = []
         self._metta = m
         self._allowed = None if spaces is None else set(spaces)
         self._cursors = _Cursors(cursor_idle, cursor_limit)
 
     def __call__(self, operation: str, payload: dict) -> dict:  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
+        if operation in _MUTATIONS and "idempotency" in payload:
+            return self._mutate(operation, payload)
         if operation == "match":
             return self._match(payload)
         if operation == "ask":
@@ -1172,6 +1371,56 @@ class Gateway:
             return self._health()
         msg = f"unknown operation {operation!r}"
         raise MettaError(msg)
+
+    def _mutate(self, operation: str, payload: dict) -> dict:
+        token = payload["idempotency"]
+        now = time.monotonic()
+        if (
+            not isinstance(token, dict)
+            or not isinstance(token.get("key"), str)
+            or not 1 <= len(token["key"]) <= 255
+            or token.get("scope") != self._mutation_scope
+            or type(token.get("expires")) not in (int, float)
+            or not math.isfinite(token["expires"])
+            or not now < token["expires"] <= now + self._mutation_ttl
+        ):
+            msg = "invalid or expired idempotency key, or gateway instance changed"
+            raise MettaError(msg)
+        # Resolve authorization before replay, including direct Gateway callers.
+        space = self._space(payload)
+        digest = hashlib.sha256(_json.dumps([
+            operation, str(space.name), payload.get("atom"), payload.get("atoms"),
+            token["expires"],
+        ])).digest()
+        while self._mutation_expiries and self._mutation_expiries[0][0] <= now:
+            _, expired = heapq.heappop(self._mutation_expiries)
+            del self._mutations[expired]
+        key = token["key"]
+        held = self._mutations.get(key)
+        if held is not None:
+            if held[1] != digest:
+                msg = "idempotency key reused with different parameters"
+                raise MettaError(msg)
+            return dict(held[2])
+        if len(self._mutations) >= self._mutation_limit:
+            msg = "mutation replay capacity reached; wait for expiry or increase mutation_limit"
+            raise MettaError(msg)
+        # Reserve before execution. Reentrancy or a partially applied provider
+        # failure must never create an opportunity to execute this key twice.
+        answer = {"error": "mutation did not complete", "outcome": "unknown"}
+        reservation = (token["expires"], digest, answer)
+        self._mutations[key] = reservation
+        heapq.heappush(self._mutation_expiries, (token["expires"], key))
+        request = {name: value for name, value in payload.items() if name != "idempotency"}
+        try:
+            answer = self(operation, request)
+        except Exception as exc:  # noqa: BLE001 -- provider failures may follow partial effects
+            answer = {"error": str(exc), "outcome": "unknown"}
+        # Reentrant work may expire and prune this reservation before return.
+        # A late completion may only update the entry it still owns.
+        if self._mutations.get(key) is reservation:
+            self._mutations[key] = (token["expires"], digest, dict(answer))
+        return answer
 
     def health(self) -> dict:
         """The transport-side spelling of GET /health, so a Gateway is a
@@ -1362,6 +1611,10 @@ class Gateway:
             "ok": True,
             "atoms": len(self._metta),
             "protocol": 3,
+            "idempotency": {
+                "scope": self._mutation_scope,
+                "expires": time.monotonic() + self._mutation_ttl,
+            },
             # The reflection the in-process interface has: what this server
             # admits, so a client can ask before writing.
             # add-many is the registry's own hyphenated spelling
@@ -1644,6 +1897,22 @@ class _RemoteWorker:
                 return
 
 
+def _worker_response(worker: _RemoteWorker, operation: str, payload: dict) -> tuple[dict, int]:
+    """Distinguish completed replies from a worker deadline after possible effects."""
+    try:
+        kind, value = worker.call(operation, payload, timeout=600.0)
+    except TimeoutError as exc:
+        if operation not in _MUTATIONS:
+            raise
+        return {"error": str(exc), "outcome": "unknown"}, 400
+    if kind == "ok":
+        return value, 200
+    answer = {"error": value}
+    if operation in _MUTATIONS:
+        answer["outcome"] = "unknown"
+    return answer, 400
+
+
 class Server:
     """This engine's spaces, served. close() stops accepting.
 
@@ -1772,6 +2041,8 @@ def serve(
     ssl_context: Any = None,
     cursor_idle: float = _CURSOR_IDLE,
     cursor_limit: int = _CURSOR_LIMIT,
+    mutation_ttl: float = _MUTATION_TTL,
+    mutation_limit: int = _MUTATION_LIMIT,
 ) -> Server:
     """Expose this engine's spaces over HTTP; port 0 picks a free one.
 
@@ -1791,6 +2062,10 @@ def serve(
     how many live at once before a further ask is refused. The defaults
     are pengines' own, 300 seconds and a ceiling.
 
+    mutation_ttl and mutation_limit bound the keyed mutation replay ledger,
+    as documented on Gateway. Authorization must admit health for clients
+    that negotiate mutation keys.
+
     A context is a PROCESS: serving and attaching within one process
     cannot join through the local engine, because one runtime lock guards
     both sides of that call and the serving thread would wait on the very
@@ -1800,7 +2075,10 @@ def serve(
     transport under it, for a test or a framework that wants the
     operations without a socket.
     """
-    gateway = Gateway(m, spaces, cursor_idle=cursor_idle, cursor_limit=cursor_limit)
+    gateway = Gateway(
+        m, spaces, cursor_idle=cursor_idle, cursor_limit=cursor_limit,
+        mutation_ttl=mutation_ttl, mutation_limit=mutation_limit,
+    )
 
     # Every engine call runs on one persistent attached-engine worker.
     worker = _RemoteWorker(gateway)
@@ -1884,9 +2162,7 @@ def serve(
                     self._refuse_unauthorized(operation)
                     return
                 if operation == "health":
-                    kind, value = worker.call("health", {}, timeout=600.0)
-                    answer = value if kind == "ok" else {"error": value}
-                    status = 200 if kind == "ok" else 400
+                    answer, status = _worker_response(worker, "health", {})
                 else:
                     answer, status = {"error": f"unknown operation {operation!r}"}, 400
             except _HTTPProblem as exc:
@@ -1937,9 +2213,7 @@ def serve(
                 if authorize is not None and not authorize(request):
                     self._refuse_unauthorized(operation)
                     return
-                kind, value = worker.call(operation, payload, timeout=600.0)
-                answer = value if kind == "ok" else {"error": value}
-                status = 200 if kind == "ok" else 400
+                answer, status = _worker_response(worker, operation, payload)
             except _HTTPProblem as exc:
                 logger.warning(
                     "remote engine HTTP handler rejected operation %s: %s",

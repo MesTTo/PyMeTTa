@@ -21,6 +21,8 @@ Assumes:
     process_metta_string in filereader.pl, and a per-function mutex in
     lib_memo.pl [source 2026-08-15]
 Guarantees:
+  - a waiting close joins owned workers after nonwaiting close or join failure
+    [tested: test_waiting_close_joins_after_nonwaiting_close; commit=089bc6036ae5039bce3963d8b4e80ecaf04dfb49]
   - package coordination functions evaluate lib_thread in the ambient space;
     spawned and repeating computations stay Space handles whose answers may
     be iterated as they arrive [tested:
@@ -294,15 +296,22 @@ class EnginePool:
     # --------------------------------------------------------------- lifecycle
 
     def close(self, wait: bool = True) -> None:  # noqa: FBT001, FBT002  -- the boolean is established API data and positional compatibility is part of the call shape
-        """Stop every worker and release every engine. Idempotent."""
+        """Stop accepting work and release every engine after queued work finishes.
+
+        wait=False returns while the owned workers drain. A later waiting
+        close still joins them, including after an earlier join timed out.
+        Cancelling a Future skips only that queued task, not worker teardown.
+        """
         with self._state_lock:
-            if self._closed:
-                return
-            self._closed = True
-        for _ in self._started:
-            self._work.put(None)
+            if not self._closed:
+                self._closed = True
+                for _ in self._started:
+                    self._work.put(None)
         if not wait:
             return
+        if threading.current_thread() in self._started:
+            msg = "a pool worker cannot join itself; use close(wait=False)"
+            raise MettaError(msg)
         for thread in self._started:
             thread.join(timeout=30)
         still_running = [t.name for t in self._started if t.is_alive()]

@@ -21,7 +21,7 @@ def _store_transport(store: list):
     def transport(operation: str, payload: dict) -> dict:
         if operation == "add":
             store.append(wire.atom_from_wire(payload["atom"]))
-            return {}
+            return {"added": True}
         if operation == "remove":
             atom = wire.atom_from_wire(payload["atom"])
             if atom not in store:

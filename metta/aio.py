@@ -9,6 +9,10 @@ evaluation through the engine's own thread_signal, the sqlite3 reading,
 and a cancelled task fires it on its own call, so asyncio timeouts stop
 the engine instead of abandoning it.
 Guarantees:
+  - Prolog-backed definitions require their reference function and construct
+    and apply the synchronous decorator on the owning worker
+    [tested: test_async_prolog_define_requires_the_reference_function,
+    test_async_prolog_define_registers_and_applies_on_its_worker; commit=089bc6036ae5039bce3963d8b4e80ecaf04dfb49]
   - AsyncMeTTa.space delegates construction to MeTTa.space and preserves the
     caller creation site and borrowed provider lifecycle [tested:
     test_a_journaled_async_space_round_trips_a_fact,
@@ -1093,30 +1097,29 @@ class AsyncMeTTa:
         returned handle's own calls are synchronous methods; evaluate
         through fn(name) or run() from async code.
 
+        The reference function is required, including with prolog=. The
+        synchronous decorator is constructed and applied on the owning worker.
+
         `name=` preserves an exact spelling on the async surface. Without it,
         an async caller installing `prime?` or an authored underscore had no
         equivalent of the synchronous define method [measured 2026-08-31].
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
-        if fn is not None and prolog is None:
-            # accessors= and methods= carry for every shape, their defaults
-            # being what the plain call already meant.
+        if fn is None:
+            msg = (
+                "AsyncMeTTa.define needs the reference function; pass "
+                "await am.define(function, prolog=source). A synchronous "
+                "decorator would register on the caller's thread after the "
+                "owning worker may have closed"
+            )
+            raise TypeError(msg)
+        if prolog is None:
             return await self.call(
                 lambda m: m.define(
                     fn, name=name, accessors=accessors, methods=methods
                 )
             )
-        if prolog is None:
-            msg = "define takes a function or prolog= source"
-            raise TypeError(msg)
-        source = prolog
-        if fn is not None:
-            # The sync method's prolog= form is a decorator whose Python stays
-            # the reference twin; both pieces forward, nothing silently
-            # drops.
-            return await self.call(
-                lambda m: m.define(prolog=source, name=name)(fn)
-            )
-        return await self.call(lambda m: m.define(prolog=source, name=name))
+        # Construct and apply the synchronous decorator in one worker request.
+        return await self.call(lambda m: m.define(prolog=prolog, name=name)(fn))
 
     def limits(
         self,
@@ -1306,6 +1309,11 @@ class AsyncMeTTa:
         Subscriptions on the space cancel with it: a pooled name reused later
         must not deliver to the old life's watchers. The handle itself dies
         here, and dropping twice is a no-op, as closing twice is.
+
+        Engine teardown must succeed before Python cleanup is discarded.
+        If later cleanup fails, call drop() again to finish it. The handle
+        refuses other operations in that state and retains its anonymous name
+        until cleanup succeeds; retrying does not repeat engine teardown.
         """
         return await self.call(lambda m: m.drop())
 
