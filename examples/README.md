@@ -35,15 +35,20 @@ own.
 
 | example | what it shows |
 |---|---|
-| [`basics/first_steps.py`](basics/first_steps.py) | run, atoms, joined queries, eval, and proof trees |
+| [`basics/first_steps.py`](basics/first_steps.py) | run, atoms, unification/substitution, joined queries, eval, and proof trees |
 
 ## Operations
 
 | example | what it shows |
 |---|---|
-| [`operations/python_definitions.py`](operations/python_definitions.py) | `@m.define`: Python compiled to equations, stacked clauses, generators, and match |
+| [`operations/python_definitions.py`](operations/python_definitions.py) | `@m.define`: Python compiled to equations, plus class accessor and method exposure controls |
 | [`operations/annotation_contracts.py`](operations/annotation_contracts.py) | annotations as evaluation contracts, local type claims, and source-derived definition facts |
-| [`operations/engine_controls.py`](operations/engine_controls.py) | per-call time and inference bounds, engine stats, captured output, and DataFrame conversion |
+| [`operations/concurrency_handles.py`](operations/concurrency_handles.py) | multi-argument engine-pool work and nonblocking channel reads |
+| [`operations/engine_controls.py`](operations/engine_controls.py) | per-call and scoped time, inference, and stack bounds, engine stats, captured output, and DataFrame conversion |
+| [`operations/error_handling.py`](operations/error_handling.py) | structured assertion failures and the explicit row-data-to-exception bridge |
+| [`operations/property_instances.py`](operations/property_instances.py) | ground Hypothesis instances that preserve named and anonymous variable laws |
+| [`operations/runtime_configuration.py`](operations/runtime_configuration.py) | inspected process settings, pre-start configuration, and the startup freeze |
+| [`operations/saga_compensation.py`](operations/saga_compensation.py) | committed effect receipts and reverse-order compensation on exceptional exit |
 
 ## Data
 
@@ -55,9 +60,14 @@ own.
 
 | example | what it shows |
 |---|---|
-| [`integration/python_objects.py`](integration/python_objects.py) | Python object projection, reconstruction, and `py-field` reasoning |
+| [`integration/python_objects.py`](integration/python_objects.py) | registered and class-owned `__metta__`/`__from_metta__` conversion, plus `py-field` reasoning |
+| [`integration/registration_lifecycle.py`](integration/registration_lifecycle.py) | unloaded entry-point discovery and exact cleanup of process-wide integration hooks |
 | [`integration/duckdb_space.py`](integration/duckdb_space.py) | DuckDB tables as a matchable space with `WHERE` pushdown |
 | [`integration/sqlite_space.py`](integration/sqlite_space.py) | Declared table shapes, transactional writes, and opaque or transparent SQL BLOB images |
+| [`integration/persistent_migration.py`](integration/persistent_migration.py) | One-open journal schema migration through the public space factory |
+| [`integration/provider_policy.py`](integration/provider_policy.py) | structural provider capabilities, per-request policy, and refusal reasons |
+| [`integration/provider_worlds.py`](integration/provider_worlds.py) | exact bound pushdown and provider-owned immutable-world snapshots and commits |
+| [`integration/remote_controls.py`](integration/remote_controls.py) | remote authorization, capability discovery, and cursor resource ceilings |
 | [`integration/routing_equations.py`](integration/routing_equations.py) | dispatch as equations, with the catch-all as the 404 |
 | [`integration/web_routes.py`](integration/web_routes.py) | FastAPI-shaped routing: the table is facts and dispatch is unification |
 | [`integration/multishot_solving.py`](integration/multishot_solving.py) | clingo-shaped multi-shot solving: parts ground incrementally and externals toggle |
@@ -78,7 +88,7 @@ own.
 
 | example | what it shows |
 |---|---|
-| [`live/standing_queries.py`](live/standing_queries.py) | actors and pub-sub: mailboxes as spaces and delivery inside the write |
+| [`live/standing_queries.py`](live/standing_queries.py) | actors and pub-sub, including inspection of the space's live event folds |
 
 ## Executable gallery
 

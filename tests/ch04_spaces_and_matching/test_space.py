@@ -707,6 +707,8 @@ def test_a_failed_space_construction_leaks_nothing():  # noqa: D103  -- pytest d
         # space is minted for a request that cannot be built.
         with pytest.raises(TypeError, match="schema"):
             context.space(journal="never-written.jnl")
+        with pytest.raises(TypeError, match=r"rename.*journal"):
+            context.space(rename={"old": "new"})
         with pytest.raises(TypeError, match="transport callable"):
             context.space(backing=lambda _operation, _payload: None)
         assert set(context.self.space_names()) == names_before

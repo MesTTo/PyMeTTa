@@ -9,6 +9,9 @@ Guarantees:
     test_a_replay_rename_with_an_absent_old_name_refuses_with_the_remedy,
     test_a_second_replay_does_not_reapply_the_rename,
     test_replay_rename_composes_with_terminal_tail_recovery; commit=ee43d4a0585593b4f40d0c3c0557db8214688829]
+  - the public space factory forwards that migration rather than requiring a
+    private provider import [tested:
+    test_the_public_space_factory_exposes_replay_rename; commit=694dff934a11dbc2ee99267b60f39564053baf87]
   - live State cells are refused before journal append and leave no replayable
     residue after close and reopen [tested:
     test_a_live_state_cell_never_enters_the_persistent_journal;
@@ -45,6 +48,7 @@ import pytest
 
 from metta import (
     Grounded,
+    MeTTa,
     MettaError,
     S,
     State,
@@ -139,6 +143,26 @@ def _write_old_head_journal(journal) -> None:
         space.add(S.old(S.value))
     finally:
         space.close()
+
+
+def test_the_public_space_factory_exposes_replay_rename(tmp_path):
+    """A user migrates a journal through the same factory that created it."""
+    journal = tmp_path / "public-rename.db"
+    _write_old_head_journal(journal)
+
+    with MeTTa() as context:
+        with context.space(
+            backing={"new": 1},
+            journal=journal,
+            sync="close",
+            rename={"old": "new"},
+        ) as migrated:
+            assert list(migrated.atoms()) == [S.new(S.value)]
+
+        with context.space(
+            backing={"new": 1}, journal=journal, sync="close"
+        ) as reopened:
+            assert list(reopened.atoms()) == [S.new(S.value)]
 
 
 def test_a_replay_rename_migrates_every_journal_action_once(tmp_path):

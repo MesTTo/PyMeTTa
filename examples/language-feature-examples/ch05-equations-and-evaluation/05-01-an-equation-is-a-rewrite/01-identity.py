@@ -833,4 +833,15 @@ def twin(m):
 #: extensions/python/tools/twin_coverage.py --measure --rounds 3 examples/ch05-
 #: equations-and-evaluation/05-01-an-equation-is-a-rewrite/01-identity.metta;
 #: commit=3c64e2e24787362a5a5081513bc24b880711a1d7].
-BUDGET = 3422
+#: RE-PINNED 2026-09-06, 3422 to 3432 (+10), the specialization coverage report
+#: adds one dynamic marker and five predicates to engine/specializer.pl, and
+#: this row counts engine code SHAPE. A positive control settles it: an
+#: UNREACHABLE set of the same shape, one dynamic and five static predicates
+#: that nothing calls, placed in the same file over trunk's own specializer.pl,
+#: reads the identical 3432, while the same set in engine/tracer.pl leaves the
+#: row at 3422 and the dynamic marker alone reads 3417. The MeTTa side is 2357
+#: on every arm, which is the control saying the work is unchanged; no
+#: reduction, clause or answer differs [measured 2026-09-06: min-of-3 serial
+#: fresh processes; command=python extensions/python/tools/twin_coverage.py
+#: --repin; commit=694dff934a11dbc2ee99267b60f39564053baf87].
+BUDGET = 3432

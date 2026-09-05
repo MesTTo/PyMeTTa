@@ -52,8 +52,12 @@ check("the mailbox drains in order",
       [str(e.bindings["body"]) for e in inbox.drain()], ["first", "second"])
 check("and empties", inbox.drain(), [])
 
+event_stream = m.events()
+check("the event stream lists live folds", len(event_stream.folds(str(m.name))), 4)
+
 for subscription in (ping, pong, audit, inbox):
     subscription.cancel()
+check("cancelled folds leave the live roster", event_stream.folds(str(m.name)), ())
 m.add(S.ping(99))
 check("no delivery after cancel", len(transcript), 5)
 done("standing_queries")

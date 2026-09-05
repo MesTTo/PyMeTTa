@@ -18,6 +18,9 @@ Guarantees:
     test_a_journaled_async_space_round_trips_a_fact,
     test_async_space_provider_backing_attaches_and_remains_borrowed,
     test_async_anonymous_space_repr_keeps_the_submitting_site; commit=d263b1f05e3ca3a0621122c1fc60d295b87692b0]
+  - that delegation carries the journal's one-open schema rename, so the
+    migration is not a synchronous-only spelling [tested:
+    test_the_async_space_factory_exposes_replay_rename; commit=694dff934a11dbc2ee99267b60f39564053baf87]
   - async solve, Linda verbs, watch, class/type dispatch, and the two
     transaction laws execute on the owning worker [tested:
     test_aio_structural_surface_behaves; commit=cff2e7f319bd2212f0c2d74f8d5fe5be3ac693b5]
@@ -1013,14 +1016,16 @@ class AsyncMeTTa:
         journal: str | os.PathLike[str] | None = None,
         schema: _abc.Mapping[str, Any] | None = None,
         sync: str = "none",
+        rename: _abc.Mapping[str, str] | None = None,
         _created_at: tuple[str, int] | None = None,
     ) -> AsyncMeTTa:
         """Create or open a space through MeTTa.space on this connection's worker.
 
         Native, provider, remote, and journaled construction use the synchronous
-        context door. Returned spaces borrow the connection's worker, so closing
-        one does not stop the connection. Anonymous handles record the submitting
-        coroutine's creation site.
+        context door, including a journal's one-open ``rename`` migration.
+        Returned spaces borrow the connection's worker, so closing one does not
+        stop the connection. Anonymous handles record the submitting coroutine's
+        creation site.
         """
         if inherits is not None and inherits._worker is not self._worker:
             msg = "an inherited async space must share this engine worker"
@@ -1031,7 +1036,7 @@ class AsyncMeTTa:
         handle = await self.call(
             lambda m: m.metta.space(
                 name, backing, inherits=parent, restricted=restricted, grants=requested_grants,
-                journal=journal, schema=schema, sync=sync, _created_at=site,
+                journal=journal, schema=schema, sync=sync, rename=rename, _created_at=site,
             )
         )
         return AsyncMeTTa._sharing(handle, self._worker)

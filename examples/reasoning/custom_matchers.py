@@ -86,6 +86,11 @@ store = EmbeddingStore(m, name="vec", mirror=False)
 store.add(S.espresso, numpy.array([0.9, 0.1, 0.0]))
 store.add(S.latte, numpy.array([0.8, 0.3, 0.0]))
 store.add(S.granite, numpy.array([0.0, 0.1, 0.9]))
+check(
+    "stored embedding lookup",
+    tuple(round(float(value), 1) for value in store.vector_for(S.espresso)),
+    (0.9, 0.1, 0.0),
+)
 
 class Nearest:
     def match_(self, other):
