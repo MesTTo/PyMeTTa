@@ -110,18 +110,38 @@ def test_previously_compiled_function_admits_missing_source_metadata():
     )
 
 
+def _settled_cost(metta, call, answer):
+    """The steady-state inference cost of one evaluation, min of three.
+
+    A single reading is not the steady state. Repeating the same evaluation in
+    one context reads 3,149 inferences and then 3,151 about once every ten,
+    at an arbitrary position rather than as a warm-up: over twenty-five fresh
+    contexts, eight readings each, fourteen contexts carried exactly one 3,151
+    and it sat at position 0 through 7 [measured 2026-09-05, and the same
+    before the shared-head cost repair, so it is the engine's own periodic
+    housekeeping and not that change]. Comparing two single samples therefore
+    fails about one run in five for a reason that has nothing to do with the
+    observation. The minimum is the repository's statistic for this everywhere
+    else, and it makes the equality below exact again.
+    """
+    readings = []
+    for _ in range(3):
+        with metta.stats() as block:
+            assert list(metta.eval(call)) == answer
+        readings.append(block.inferences)
+    return min(readings)
+
+
 def test_observation_restores_the_cost_of_ordinary_successful_execution():
     """An observation leaves no counter or wrapper in an ordinary hot path."""
     with MeTTa() as metta:
         metta.run("(= (sum-down $n $a) (if (== $n 0) $a (sum-down (- $n 1) (+ $a $n))))")
         call = S["sum-down"](500, 0)
         assert list(metta.eval(call)) == [125250]
-        with metta.stats() as before:
-            assert list(metta.eval(call)) == [125250]
+        before = _settled_cost(metta, call, [125250])
         _observe(metta, "(= (observed $x) (+ $x 2)) !(observed 3)")
-        with metta.stats() as after:
-            assert list(metta.eval(call)) == [125250]
-    assert after.inferences == before.inferences
+        after = _settled_cost(metta, call, [125250])
+    assert after == before
 
 
 def test_never_called_definition_has_zero_entry_coverage():
