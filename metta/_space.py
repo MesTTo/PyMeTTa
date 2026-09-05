@@ -7,6 +7,10 @@ Assumes:
     _space_execution.py, _space_persistence.py, _space_objects.py, and
     _space_diagnostics.py; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
 Guarantees:
+  - failed engine teardown retains subscriptions and provider ownership;
+    unfinished cleanup retains the anonymous name until a later drop succeeds
+    [tested: test_failed_engine_drop_keeps_subscriptions,
+    test_failed_provider_unregistration_keeps_owned_backing_open; commit=WORKTREE]
   - MeTTa.space forwards an explicit caller creation site to Space._new_space
     for anonymous handles [tested:
     test_async_anonymous_space_repr_keeps_the_submitting_site; commit=d263b1f05e3ca3a0621122c1fc60d295b87692b0]
@@ -935,6 +939,7 @@ class Space(Handle):
         # the NewType is constructed once here and threads through inside.
         self._name = cast(_SpaceId, engine_name)
         self._dropped = False
+        self._drop_engine_done = False
         self._ephemeral = False
         self._autodrop = False
         self._backing: Any = None
@@ -961,6 +966,9 @@ class Space(Handle):
             raise MettaError(
                 msg
             )
+        if self._drop_engine_done:
+            msg = f"{self._name} finished engine teardown; call drop() again to finish cleanup"
+            raise MettaError(msg)
         return self._name
 
     # ------------------------------------------------------------------ naming
@@ -1082,46 +1090,63 @@ class Space(Handle):
         Subscriptions on the space cancel with it: a pooled name reused later
         must not deliver to the old life's watchers. The handle itself dies
         here, and dropping twice is a no-op, as closing twice is.
+
+        Engine teardown must succeed before Python cleanup is discarded.
+        If later cleanup fails, call drop() again to finish it. The handle
+        refuses other operations in that state and retains its anonymous name
+        until cleanup succeeds; retrying does not repeat engine teardown.
         """
         if self._dropped:
             return
-        self._rt.must(
-            "metta_py_space_releasable(Space)", Space=self._space
-        )
+        name = self._name
         subscriptions = _satellite("subscribe")
         foreign = _satellite("foreign")
         integrate = _satellite("integrate")
-        for subscription in subscriptions._subscriptions_for(self._space):
-            subscription.cancel()
-        if foreign.has_provider(self._space):
-            # The owned backing's close is an OBLIGATION, not a courtesy:
-            # it runs even when unregistration raises, or a failing
-            # provider would leak its connection forever.
+        if not self._drop_engine_done:
+            self._rt.must("metta_py_space_releasable(Space)", Space=name)
+            # Detach the engine's provider route while keeping Python ownership.
+            # Drop must not clear an external journal or borrowed provider.
+            provider = foreign._provider(name) if foreign.has_provider(name) else None
             try:
-                foreign.unregister_provider(self._rt, self._space)
-            finally:
-                if self._owns_backing:
-                    close = getattr(self._backing, "close", None)
-                    if callable(close):
-                        close()
-        # The engine's release clears the store itself, under its releasing
-        # flag so the removal funnel does not recompile super users of a dying
-        # world; only the python-side satellites need clearing here.
-        _satellite("_lint_events").clear(self)
+                if provider is not None:
+                    self._rt.must("metta_py_unregister_foreign(Space)", Space=name)
+                # Separate queries let SWI reclaim clauses erased by the clear.
+                self._rt.must("metta_py_clear_for_release(Space)", Space=name)
+                self._rt.must("metta_py_drop_space(Space)", Space=name)
+            except BaseException as teardown_error:
+                if provider is not None:
+                    try:
+                        foreign.register_provider(self._rt, name, provider)
+                    except BaseException as restore_error:  # noqa: BLE001 -- preserve both teardown failures
+                        msg = "space teardown and provider restoration failed"
+                        raise BaseExceptionGroup(
+                            msg,
+                            [teardown_error, restore_error],
+                        ) from None
+                raise
+            self._drop_engine_done = True
+
+        # A failed cleanup is retryable, but may not release the name for reuse
+        # or repeat engine teardown. The bookkeeping handle carries only the
+        # name/runtime needed to retire satellites; it creates no engine state.
+        cleanup = Space(name, _runtime=self._rt)
+        for subscription in subscriptions._subscriptions_for(name):
+            subscription.cancel()
+        if foreign.has_provider(name):
+            foreign.unregister_provider(self._rt, name)
+        if self._owns_backing:
+            close = getattr(self._backing, "close", None)
+            if callable(close):
+                close()
+            self._owns_backing = False
+        _satellite("_lint_events").clear(cleanup)
         _invalidate_builtins_cache(self._rt)
-        release_definitions(self)
-        # The store clears in its OWN engine query, before the release: a query
-        # cannot reclaim the clauses it erased while it still runs, so clearing
-        # inside the release left this space's atoms in the table. The release
-        # call mutes the removal funnel's super recompilation exactly as the
-        # release does, since a dying world's own users die with it
-        # [tested: test_dropping_a_space_reclaims_its_atoms].
-        self._rt.must("metta_py_clear_for_release(Space)", Space=self._space)
-        predicate = (
-            "metta_py_release_space" if self._ephemeral else "metta_py_drop_space"
-        )
-        self._rt.must(f"{predicate}(Space)", Space=self._space)
-        integrate._forget_space(self._space)
+        release_definitions(cleanup)
+        integrate._forget_space(name)
+        if self._ephemeral:
+            self._rt.must(
+                "atom_string(_Name, Space), metta_py_pool_space(_Name)", Space=name
+            )
         self._dropped = True
 
     @property

@@ -1309,6 +1309,11 @@ class AsyncMeTTa:
         Subscriptions on the space cancel with it: a pooled name reused later
         must not deliver to the old life's watchers. The handle itself dies
         here, and dropping twice is a no-op, as closing twice is.
+
+        Engine teardown must succeed before Python cleanup is discarded.
+        If later cleanup fails, call drop() again to finish it. The handle
+        refuses other operations in that state and retains its anonymous name
+        until cleanup succeeds; retrying does not repeat engine teardown.
         """
         return await self.call(lambda m: m.drop())
 
