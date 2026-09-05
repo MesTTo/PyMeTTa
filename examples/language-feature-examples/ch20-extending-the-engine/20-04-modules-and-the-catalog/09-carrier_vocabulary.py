@@ -1,0 +1,75 @@
+"""examples/ch20-extending-the-engine/20-04-modules-and-the-catalog/09-carrier_vocabulary.metta in Python: the vocabulary row a generated enum is made of.
+
+The MeTTa half reads the catalog rows directly, because in MeTTa the catalog IS
+data and `match` is how you ask. Python has a second way to reach the same row,
+and it is the reason the row matters: `metta.vocabularies` is GENERATED from the
+shipped catalog, so `Semiring.budget` exists as a typed member exactly when the
+`(vocabulary semiring ...)` row names budget.
+
+So the twin asserts the two against each other rather than restating the MeTTa
+literal. `tuple(S[member] for member in Semiring)` is the generated side and the
+matched row is the catalog side, and they are the same tuple in the same order
+because one is made from the other. A copy of the ten words would have passed
+whatever the generator did.
+"""
+
+import metta
+from metta import S, V
+from metta.vocabularies import Semiring
+
+
+def twin(m):  # noqa: ARG001  -- the catalog lives in the reflection space; the default handle stays untouched
+    """The generated enum and the row it is generated from are one statement."""
+    reflection = metta.reflection
+
+    # Ten algebras ship, and the vocabulary row is exactly their names, in the
+    # order the enum renders them.
+    assert [
+        (row.a, row.b, row.c, row.d, row.e, row.f, row.g, row.h, row.i, row.j)
+        for row in reflection[
+            S.vocabulary(S.semiring, V.a, V.b, V.c, V.d, V.e, V.f, V.g, V.h, V.i, V.j)
+        ]
+    ] == [tuple(S[member] for member in Semiring)]
+
+    # Each of those names also has an (algebra ...) row saying what it computes.
+    # budget is a cost carrier: min to combine, + to extend, and infinity for
+    # the path that does not exist yet, so every real path improves on it.
+    assert [
+        row.zero
+        for row in reflection[
+            S.algebra(
+                S[Semiring.budget], V.combine, V.extend, V.zero, V.one, V.laws, V.carrier, V.needs
+            )
+        ]
+    ] == [S.infinity]
+
+    # Orderedness is a separate claim, because combining with min does not by
+    # itself say which end a (top k ...) slice takes. budget reads ASCENDING,
+    # cheapest first, the direction tropical reads.
+    for carrier in (Semiring.budget, Semiring.tropical):
+        assert [
+            row.direction
+            for row in reflection[
+                S.claim(S.semiring, S[carrier], V.property, V.direction)
+            ]
+        ] == [S.ascending], carrier
+
+    # The member IS its wire word, which is why S[member] above needed no
+    # conversion: a StrEnum member crosses as the bare symbol it always was.
+    assert S[Semiring.budget] == S.budget
+
+
+#: FIRST PIN, 2026-09-05, on the tree that widened the semiring vocabulary to
+#: the ten algebras the catalog defines. The MeTTa half costs 13,733 and this
+#: one 123, a ratio of 0.009, and the gap is the door rather than the work: a
+#: first draft that asked through `m.run(...)` with MeTTa text measured 3,068,
+#: twenty-five times this, because that door PARSES its argument before any of
+#: it is knowledge. The subscript match hands the engine a term that already
+#: is. The corpus's own source scan refuses the first draft for the same
+#: reason it is slow, which is the ladder working
+#: [measured 2026-09-05: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --measure --rounds 3
+#: examples/ch20-extending-the-engine/20-04-modules-and-the-catalog/09-carrier_vocabulary.metta;
+#: fixture=worktree with libmork_ffi.so provisioned and the QLF warmed;
+#: commit=6ac37a290e6abefebee2aa562f97198c3410b18e].
+BUDGET = 123
