@@ -128,6 +128,18 @@ the view methods all reach the library's vocabulary; comprehensions,
 generators (`yield` is nondeterminism, one answer per yield), `match`,
 walrus, `global`, and `type X = T` all compile.
 
+Tuple and list assignment bind engine expression patterns; a shape mismatch
+answers nothing. Generator `match` arms retain their captures in subsequent
+yields. `case S.Empty` selects a subject that produced no answers.
+
+`list(generator())` gathers a known compiled generator's answers into one
+engine expression. `list(range(n))` returns a host list. If a deterministic
+call could mean either returned data or collected answers, use `collapse(...)`
+to collect answers, or bind the returned data before calling `list`.
+`type(value)` queries the engine metatype after evaluating its operand;
+`py(type(value))` requests the Python class. `typing.overload` stubs on one
+compiled definition publish all distinct signatures with its fixed arity.
+
 Generic operators (`+`, comparisons, bitwise operations, unary operations,
 and builtins such as `sum`) invoke Python's live protocol at application
 time. That preserves reflected methods and result species, and is classified

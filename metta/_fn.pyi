@@ -152,6 +152,8 @@ class _FunctionNamespace:
     hyperpose: Symbol
     id: Symbol
     "id: (-> $t $t)\n\nThe identity function, which Python writes as the value itself."
+    if_decons_expr: Symbol
+    "if-decons-expr: (-> (:Atom Expression) (:Atom Variable) (:Atom Variable) Atom Atom %Undefined%)\n\nStarred unpacking inside an `if`: the empty case is the `else` branch."
     if_equal: Symbol
     "if-equal: (-> Atom Atom Atom Atom %Undefined%)\n\nA conditional expression over `==`."
     if_equal2: Symbol

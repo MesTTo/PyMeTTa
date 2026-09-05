@@ -606,7 +606,7 @@ ENTRIES: list[Entry] = [
     ),
     Entry(
         "if-decons-expr",
-        ("(-> Expression Variable Variable Atom Atom %Undefined%)",),
+        ("(-> (:Atom Expression) (:Atom Variable) (:Atom Variable) Atom Atom %Undefined%)",),
         "Symbol", "atoms", "dissolves",
         "Starred unpacking inside an `if`: the empty case is the `else` branch.",
         metta="!(if-decons-expr (a b) $h $t (yes $h $t) no)",
@@ -614,7 +614,6 @@ ENTRIES: list[Entry] = [
             "e = metta.Expression(S.a, S.b)\n"
             "S.yes(e[0], e[1:]) if len(e) else S.no"
         ),
-        unrun="this engine leaves the call unreduced",
     ),
     # ----------------------------------------------------------------- sets
     Entry(

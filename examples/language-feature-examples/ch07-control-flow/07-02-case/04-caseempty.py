@@ -1,38 +1,26 @@
-"""Purpose: examples/ch07-control-flow/07-02-case/04-caseempty.metta in Python: the `Empty` branch.
+"""Purpose: mirror the no-answer branch in examples/ch07-control-flow/07-02-case/04-caseempty.metta.
 
-`Empty` is the branch a key with NO ANSWERS takes. In `wu` the key is
-`(empty)`, so the default fires and the answer is 42; in `wu2` the key answers
-42, so the ordinary branch fires and `Empty` is never reached. The pair is the
-whole file: `Empty` is about the absence of an answer, not about the value
-`()`.
-
-`wu2` is Python's `match` statement, which is what a `case` is, and the
-equation it stores is the case tower with the `Empty` arm intact. `wu` cannot
-be, and the reason is measurable rather than a missing lowering: the statement
-lowers its SUBJECT into a `let*` binding first, and a `let*` over a key with no
-answers prunes the whole form, so the compiled `wu` answers nothing where the
-example answers 42 [measured 2026-08-24: `match empty(): case 1: ...;
-case S.Empty: return 42` stores
-`(let* (($k (empty))) (case $k ((1 2) ($_ (case $k ((Empty 42) ...))))))` and
-answers `[]`; commit=028b41a056cfd706e516cd0b945cbf69ac066da7]. So `wu` is stated as the term it is, and the
-gap is filed against P14.4.
-Open Obligations:
-  To Do: None
-  Hacks: None
-  Future Enhancements: None.
+`Empty` selects a subject with no answers. In `wu`, `empty()` answers nothing,
+so the `Empty` case returns 42. In `wu2`, `f()` answers 42 and the ordinary
+case returns `ok`. Neither case treats the expression `()` as no answers.
+Both definitions use Python `match`; the compiler keeps the `Empty` branch
+outside the binding that would otherwise prune an unanswered subject.
+[tested: test_empty_match_subject_selects_only_the_empty_branch;
+commit=WORKTREE]
 """
 
-from metta import S, equation
+from metta import S
 
 
 def twin(m):
     """Take the `Empty` branch, then take an ordinary one instead."""
-    # The top rung is the `match` statement `wu2` writes below. It answers
-    # nothing here, because the lowering binds the subject with a `let*` and a
-    # `let*` over a key with no answers prunes the form, which is the one
-    # thing `Empty` exists to catch. Residue: P14.4.
-    # (= (wu) (case (empty) ((1 2) (Empty 42))))
-    m += equation(S.wu()).to(S.case(S.empty(), ((1, 2), (S.Empty, 42))))  # rung: the compiled `match` binds its subject first, and a binding over a key with no answers prunes the whole form
+    @m.define
+    def wu():
+        match S.empty():
+            case 1:
+                return 2
+            case S.Empty:
+                return 42
 
     @m.define
     def f():
@@ -49,7 +37,7 @@ def twin(m):
                 return S.nok
 
     # !(test (wu) 42)
-    assert m.eval(S.wu()) == [42]
+    assert wu() == [42]
     # !(test (wu2) ok)
     assert wu2() == [S.ok]
 
@@ -137,4 +125,7 @@ def twin(m):
 #: policy-check fallbacks from space-local capture [measured 2026-09-02: min-
 #: of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=c00341f0ff9d83d1b9338ca86ad51708eaf07ebd].
-BUDGET = 5742
+#: RE-PINNED 2026-09-05, 5742 to 5269: both definitions now compile
+#: Python match into the source's direct ordered case table, preserving Empty.
+#: [measured: 5269, 5269, 5269 inferences; command=PYTHONPATH=extensions/python:extensions/python/tools $VENV/bin/python -c "from pathlib import Path; from twin_coverage import run_twin; print(run_twin(Path('extensions/python/examples/language-feature-examples/ch07-control-flow/07-02-case/04-caseempty.py').resolve()).cost)"; fixture=three independent fresh harness processes; commit=WORKTREE]
+BUDGET = 5269

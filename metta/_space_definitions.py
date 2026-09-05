@@ -1,5 +1,9 @@
 """Purpose: install compiled Python functions and class declarations into a space.
 Guarantees:
+  - typing.overload stubs declare every distinct fixed-arity signature before
+    their shared equation is published [tested:
+    test_define_emits_each_overload_from_one_source,
+    test_define_deduplicates_coincident_overload_arrows; commit=WORKTREE]
   - ``install_type`` is the class branch behind ``Space.define`` [tested:
     test_define_absorbs_class_declaration_and_frees_space_type;
     commit=cff2e7f319bd2212f0c2d74f8d5fe5be3ac693b5]
@@ -116,12 +120,7 @@ from .define import (
     compile_function,
 )
 from .errors import CompileError
-from .ops import (
-    class_declarations,
-    declaration_exprs,
-    referenced_classes,
-    resolved_annotations,
-)
+from .ops import resolved_annotations
 from .vocabularies import EffectClass
 
 _DEFINE_CLAUSES: dict[tuple[str, str], list[dict[str, Any]]] = {}
@@ -702,14 +701,35 @@ def _declare_definition(
     params: list[str],
 ) -> tuple[Expression, ...]:
     annotated = resolved_annotations(fn)
+    overloads = _typing.get_overloads(fn)
     key = (space.name, name)
-    if not any(label != "return" for label in annotated) or _DECLARED_DEFINES.get(key):
+    if _DECLARED_DEFINES.get(key) or (
+        not overloads and not any(label != "return" for label in annotated)
+    ):
         return ()
-    annotations = [annotated.get(param, _inspect.Parameter.empty) for param in params]
-    ret_annotation = annotated.get("return", _inspect.Parameter.empty)
-    declarations = [*declaration_exprs(name, annotations, ret_annotation)]
-    for cls in referenced_classes([*annotations, ret_annotation]):
-        declarations.extend(class_declarations(cls))
+    for signature in overloads:
+        signature_params = tuple(_inspect.signature(signature).parameters.values())
+        if len(signature_params) != len(params) or any(
+            param.kind not in (
+                _inspect.Parameter.POSITIONAL_ONLY,
+                _inspect.Parameter.POSITIONAL_OR_KEYWORD,
+            )
+            for param in signature_params
+        ):
+            msg = (
+                f"an overload of {name} must have the implementation's fixed "
+                f"positional arity {len(params)}; use separate @m.define "
+                "clauses for different arities"
+            )
+            raise CompileError(msg, construct="overload signature")
+    declarations = _ops_module._type_declarations(
+        name,
+        list(_inspect.signature(fn).parameters.values()),
+        None,
+        [len(params)],
+        fn,
+        include_annotation_claims=False,
+    )
     added: list[Expression] = []
     try:
         for declaration in declarations:

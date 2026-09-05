@@ -58,6 +58,14 @@ Guarantees:
     test_compiled_operators_follow_python_protocols_and_result_species,
     test_compiled_rich_comparisons_truth_test_only_in_boolean_contexts;
     commit=d0dfff1a3ee6c85472fd9b12d6e4aec007a9c301]
+  - list collects known engine answer streams through collapse and keeps host
+    iterables as host lists [tested:
+    test_list_collects_engine_answers_and_preserves_host_lists;
+    commit=WORKTREE]
+  - unshadowed type queries use get-metatype and explicit py retains host
+    type queries [tested:
+    test_type_uses_engine_metatypes_with_an_explicit_host_boundary;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -1335,6 +1343,49 @@ class ExpressionCompilerMixin(CompilerContext):
         self.runtime_ops.add("py-len")
         return Expression([Symbol("py-len"), xs])
 
+    def _py_list(self, node: ast.Call) -> Atom:
+        """Collect a known answer stream; leave host iterable construction intact."""
+        if self.host_value("list") is not builtins.list or len(node.args) != 1:
+            return self._implicit_island(node)
+        source = node.args[0]
+        if not isinstance(source, ast.Call):
+            return self._implicit_island(node)
+        called: str | None = None
+        if isinstance(source.func, ast.Name) and source.func.id not in self.scope:
+            called = self._resolved_call_name(source.func.id)
+        else:
+            mention = self._mention(source.func)
+            if isinstance(mention, Symbol):
+                called = mention.name
+        # These three forms produce answer streams by their syntax; ordinary
+        # callees use the same cardinality metadata as generator iteration.
+        if called in {"superpose", "empty", "match"} or (
+            called is not None and self.nondet(called)
+        ):
+            return Expression([Symbol("collapse"), self.expression(source)])
+        if called is not None and (self.known(called) or called in self.lifted):
+            msg = (
+                f"list({ast.unparse(source)}) cannot tell whether to collect engine "
+                "answers or iterate returned data; use collapse(...) for answers, "
+                "or bind the returned data before calling list on that value"
+            )
+            raise CompileError(msg, construct="list", line=node.lineno)
+        return self._implicit_island(node)
+
+    def _py_type(self, node: ast.Call) -> Atom:
+        """Read an engine metatype; explicit py keeps Python's class query."""
+        if self.host_value("type") is not builtins.type or len(node.args) != 1:
+            return self._implicit_island(node)
+        value = self.expression(node.args[0])
+        if not isinstance(value, Expression):
+            return Expression([Symbol("get-metatype"), value])
+        # get-metatype holds its operand. Python evaluates a call's argument,
+        # so bind a computed value before passing it to that structural read.
+        held = Variable(self._temp("metatype-value"))
+        return Expression(
+            [Symbol("let"), held, value, Expression([Symbol("get-metatype"), held])]
+        )
+
     def _py_abs(self, node: ast.Call) -> Atom:
         (x,) = self._args(node, 1, "abs")
         return self._python_operator("abs", x)
@@ -1768,6 +1819,8 @@ class _PatternScope:
 # the same thing on the values this subset computes.
 _PYBUILTIN_CALLS: dict[str, Callable] = {
     "len": ExpressionCompilerMixin._py_len,
+    "list": ExpressionCompilerMixin._py_list,
+    "type": ExpressionCompilerMixin._py_type,
     "abs": ExpressionCompilerMixin._py_abs,
     "min": ExpressionCompilerMixin._py_min,
     "max": ExpressionCompilerMixin._py_max,
@@ -1785,8 +1838,8 @@ def _name_of(target: ast.expr, line: int | None) -> str:
     if isinstance(target, ast.Name):
         return target.id
     msg = (
-        "a compiled body binds plain names; destructuring and attribute "
-        "assignment have no let* form"
+        "this binding position takes a plain name; bind a tuple or list "
+        "with a separate assignment, and write attributes through a host operation"
     )
     raise CompileError(
         msg,
