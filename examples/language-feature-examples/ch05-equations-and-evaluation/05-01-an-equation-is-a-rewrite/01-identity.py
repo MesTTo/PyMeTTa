@@ -7,7 +7,7 @@ is Python's own `assert`.
 Guarantees:
   - the translated definition and assertion agree with the source example
     inside the current inference budget [tested:
-    test_a_shipped_twin_agrees_with_its_example_end_to_end; commit=WORKTREE]
+    test_a_shipped_twin_agrees_with_its_example_end_to_end; commit=8bd37f3042555ee016a7b917234ce44c75a97c3e]
 """
 
 
@@ -711,5 +711,5 @@ def twin(m):
 #: QLF and matching C/MORK artifacts in the isolated worktree. See
 #: docs/journal/2026-09-05-catalog-arity-enumeration.md [measured 2026-09-05:
 #: min-of-3 serial fresh processes; command=$CHECK_PY ai-tmp/ai-twin-audit.py;
-#: commit=WORKTREE].
+#: commit=8bd37f3042555ee016a7b917234ce44c75a97c3e].
 BUDGET = 3378

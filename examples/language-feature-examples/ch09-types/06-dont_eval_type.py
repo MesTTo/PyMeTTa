@@ -145,5 +145,5 @@ def twin(m):
 #: QLF and matching C/MORK artifacts in the isolated worktree. See
 #: docs/journal/2026-09-05-catalog-arity-enumeration.md [measured 2026-09-05:
 #: min-of-3 serial fresh processes; command=$CHECK_PY ai-tmp/ai-twin-audit.py;
-#: commit=WORKTREE].
+#: commit=8bd37f3042555ee016a7b917234ce44c75a97c3e].
 BUDGET = 3577

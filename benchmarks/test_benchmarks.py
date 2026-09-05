@@ -231,7 +231,7 @@ _ROWS = 2_000
 #: [measured: min-of-three per size and mode; command=$CHECK_PY -c
 #: "from benchmarks.test_benchmarks import _automatic_tabling_observations;
 #: print(_automatic_tabling_observations())"; fixture=provisioned isolated
-#: worktree, warm QLF, C reader and MORK present; commit=WORKTREE].
+#: worktree, warm QLF, C reader and MORK present; commit=8bd37f3042555ee016a7b917234ce44c75a97c3e].
 _AUTOMATIC_TABLING_PINS = {
     12: {"plain": 122_030, "automatic": 16_141},
     15: {"plain": 953_580, "automatic": 17_293},
