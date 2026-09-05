@@ -144,15 +144,30 @@ def test_demand_preserves_complete_derivation_bags(metta, monkeypatch, source, g
             _differential(program, goal, monkeypatch, algebra="counting")
 
 
+def _source_ids(program):
+    """Map each stored declaration to the source number a proof will name.
+
+    A proof number is the declaration's position in the space's own atom
+    enumeration, and that enumeration groups by arity in an order the engine
+    does not fix: `(fact tag prop)` and `(rule tag head premises)` are three
+    and four wide, so which group is enumerated first varies with what else
+    the process has compiled. Reading the same enumeration here pins the
+    proof's SHAPE without pinning numbers that mean nothing outside one run.
+    """
+    return {str(atom): order for order, atom in enumerate(program.atoms())}
+
+
 def test_demand_preserves_all_four_duplicate_combinations(metta, monkeypatch):
     """Two repeated occurrences in two premises contribute four proof trees."""
     with metta._new_space() as program:
         program.add_tagged_fact(1, S.seed(0))
         program.add_tagged_fact(1, S.seed(0))
         program.add_tagged_rule(1, S.both(V.x), S.seed(V.x), S.seed(V.x))
+        ids = _source_ids(program)
+        rule = next(number for text, number in ids.items() if text.startswith("(rule "))
         result = _differential(program, S.both(0), monkeypatch, algebra="counting")
     assert [str(answer.tag) for answer in result.answers] == ["4"]
-    assert result.answers[0].why().render().count("rule 2:") == 4
+    assert result.answers[0].why().render().count(f"rule {rule}:") == 4
     assert result.plan[-1].optimization == "demand-directed-derivation"
     assert result.plan[-1].applied
 
@@ -308,9 +323,17 @@ def test_demand_uses_an_explicit_stack_for_deep_rule_graphs(metta, monkeypatch):
         program.add_tagged_fact(1, S["depth-0"](0))
         for level in range(1, 81):
             program.add_tagged_rule(1, S[f"depth-{level}"](V.x), S[f"depth-{level - 1}"](V.x))
+        ids = _source_ids(program)
         result = _differential(program, S["depth-80"](0), monkeypatch, algebra="counting", max_rounds=82)
+        chain = [
+            next(number for text, number in ids.items()
+                 if text.startswith(f"(rule 1 (depth-{level} "))
+            for level in range(80, 0, -1)
+        ]
+        chain.append(next(number for text, number in ids.items()
+                          if text.startswith("(fact ")))
     assert result.plan[-1].applied
-    assert result.answers[0].proof == tuple(range(80, -1, -1))
+    assert result.answers[0].proof == tuple(chain)
 
 
 def test_demand_closes_suspended_rules_on_failure(metta, monkeypatch):
