@@ -173,8 +173,26 @@ def main(argv: list[str] | None = None) -> int:
     if not MANIFEST.exists():
         print(f"{MANIFEST.relative_to(REPO)} is missing; run with --write")
         return 1
-    if MANIFEST.read_text() != rendered:
+    committed = MANIFEST.read_text()
+    if committed != rendered:
         print(f"{MANIFEST.relative_to(REPO)} no longer describes examples/; run with --write")
+        #Print WHICH rows moved. The recomputation reads a sibling working tree
+        #for the upstream side, so a disagreement can come from this repository
+        #or from that checkout walking on, and the two are different defects
+        #wearing the same sentence. Once, during a gate, this lane failed and
+        #then passed on every rerun with examples/ holding an unchanged set of
+        #254 .metta files; with only the sentence above there was nothing to
+        #attribute it to.
+        difference = list(
+            difflib.unified_diff(
+                committed.splitlines(), rendered.splitlines(),
+                fromfile="committed", tofile="recomputed", lineterm="", n=0,
+            )
+        )
+        for line in difference[:20]:
+            print(line)
+        if len(difference) > 20:
+            print(f"... {len(difference) - 20} more line(s)")
         return 1
     print(f"{MANIFEST.relative_to(REPO)}: {len(rows)} derived, {total - len(rows)} original")
     return 0
