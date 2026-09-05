@@ -26,7 +26,7 @@ Guarantees:
     test_root_space_hint_accepts_pathlike_journals; commit=71f43dd54034363d3bf8b2d1a3189a63b9e4ce1a]
   - ``space(journal=..., rename=...)`` reaches the persistent provider's
     one-open schema migration through the public root factory [tested:
-    test_the_public_space_factory_exposes_replay_rename; commit=WORKTREE]
+    test_the_public_space_factory_exposes_replay_rename; commit=694dff934a11dbc2ee99267b60f39564053baf87]
   - ``fn`` is an inert, generated, statically typed mention namespace and
     importing it never starts the engine [tested:
     test_the_fn_namespace_is_generated; commit=6b77b811c44e1819ed9cd99f3809c0667f289e2e]

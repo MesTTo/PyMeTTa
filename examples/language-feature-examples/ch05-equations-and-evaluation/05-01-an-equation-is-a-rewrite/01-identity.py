@@ -843,5 +843,5 @@ def twin(m):
 #: on every arm, which is the control saying the work is unchanged; no
 #: reduction, clause or answer differs [measured 2026-09-06: min-of-3 serial
 #: fresh processes; command=python extensions/python/tools/twin_coverage.py
-#: --repin; commit=WORKTREE].
+#: --repin; commit=694dff934a11dbc2ee99267b60f39564053baf87].
 BUDGET = 3432

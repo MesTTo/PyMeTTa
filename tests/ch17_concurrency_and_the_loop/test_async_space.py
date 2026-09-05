@@ -10,7 +10,7 @@ Guarantees:
     commit=d263b1f05e3ca3a0621122c1fc60d295b87692b0]
   - the async factory reaches a journal's one-open schema migration, so the
     sync door's rename keyword is not a synchronous-only spelling [tested:
-    test_the_async_space_factory_exposes_replay_rename; commit=WORKTREE]
+    test_the_async_space_factory_exposes_replay_rename; commit=694dff934a11dbc2ee99267b60f39564053baf87]
 """
 
 import asyncio

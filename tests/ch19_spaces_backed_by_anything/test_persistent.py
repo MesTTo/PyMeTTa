@@ -11,7 +11,7 @@ Guarantees:
     test_replay_rename_composes_with_terminal_tail_recovery; commit=ee43d4a0585593b4f40d0c3c0557db8214688829]
   - the public space factory forwards that migration rather than requiring a
     private provider import [tested:
-    test_the_public_space_factory_exposes_replay_rename; commit=WORKTREE]
+    test_the_public_space_factory_exposes_replay_rename; commit=694dff934a11dbc2ee99267b60f39564053baf87]
   - live State cells are refused before journal append and leave no replayable
     residue after close and reopen [tested:
     test_a_live_state_cell_never_enters_the_persistent_journal;

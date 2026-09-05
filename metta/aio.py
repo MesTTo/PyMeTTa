@@ -20,7 +20,7 @@ Guarantees:
     test_async_anonymous_space_repr_keeps_the_submitting_site; commit=d263b1f05e3ca3a0621122c1fc60d295b87692b0]
   - that delegation carries the journal's one-open schema rename, so the
     migration is not a synchronous-only spelling [tested:
-    test_the_async_space_factory_exposes_replay_rename; commit=WORKTREE]
+    test_the_async_space_factory_exposes_replay_rename; commit=694dff934a11dbc2ee99267b60f39564053baf87]
   - async solve, Linda verbs, watch, class/type dispatch, and the two
     transaction laws execute on the owning worker [tested:
     test_aio_structural_surface_behaves; commit=cff2e7f319bd2212f0c2d74f8d5fe5be3ac693b5]
