@@ -49,7 +49,7 @@ Guarantees:
   - certified acyclic integer-tagged programs propagate query demands while
     retaining complete proof bags and the full evaluator's refusal boundaries
     [tested: test_demand_preserves_complete_derivation_bags,
-    test_demand_preserves_global_cycle_and_round_failures; commit=WORKTREE]
+    test_demand_preserves_global_cycle_and_round_failures; commit=c4f52c8ebbe2bd36973b150bf74cf9e54435d58d]
 Decides:
   - ``contraction`` is a capability, while the remaining public law names are
     equations checked exhaustively over the declared finite carrier.

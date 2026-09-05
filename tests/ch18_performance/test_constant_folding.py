@@ -4,9 +4,9 @@ Guarantees:
   - source replacement invalidates a folded dependency, and generated
     arithmetic preserves complete bags against a variable-input reference
     [tested: test_folded_dependencies_rebuild_after_override_and_removal,
-    test_generated_constant_expressions_preserve_answer_bags; commit=WORKTREE]
+    test_generated_constant_expressions_preserve_answer_bags; commit=c4f52c8ebbe2bd36973b150bf74cf9e54435d58d]
   - immutable host declarations do not force an undemanded call at load time
-    [tested: test_host_calls_remain_deferred; commit=WORKTREE]
+    [tested: test_host_calls_remain_deferred; commit=c4f52c8ebbe2bd36973b150bf74cf9e54435d58d]
 """
 
 from collections import Counter

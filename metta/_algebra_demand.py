@@ -6,16 +6,16 @@ Guarantees:
   - demand control facts are unique while every source occurrence and proof
     combination remains in each cached answer bag [tested:
     test_demand_preserves_complete_derivation_bags,
-    test_demand_preserves_all_four_duplicate_combinations; commit=WORKTREE]
+    test_demand_preserves_all_four_duplicate_combinations; commit=c4f52c8ebbe2bd36973b150bf74cf9e54435d58d]
   - cycles, insufficient fixpoint bounds, custom operations, linear evidence,
     and unsupported atoms retain full evaluation [tested:
     test_demand_preserves_global_cycle_and_round_failures,
-    test_demand_retains_custom_operation_effects; commit=WORKTREE]
+    test_demand_retains_custom_operation_effects; commit=c4f52c8ebbe2bd36973b150bf74cf9e54435d58d]
 Owns resources:
   - indexes, completed demands, and suspended rule generators belong to one
     evaluation; the generator stack closes on success and every exception
     [tested: test_demand_closes_suspended_rules_on_failure;
-    commit=WORKTREE]
+    commit=c4f52c8ebbe2bd36973b150bf74cf9e54435d58d]
 """
 
 from __future__ import annotations
@@ -44,7 +44,7 @@ from .atoms import Atom, Expression, Grounded, Symbol, Variable, _decode
 # This bag discipline is the multiset magic transformation of Mumick, Pirahesh
 # and Ramakrishnan: erasing unique magic guards preserves each original proof.
 # https://www.vldb.org/conf/1990/P264.PDF
-# [source: VLDB 1990, section 2.3.2 and theorem 2.5; commit=WORKTREE]
+# [source: VLDB 1990, section 2.3.2 and theorem 2.5; commit=c4f52c8ebbe2bd36973b150bf74cf9e54435d58d]
 type _Relation = tuple[bool, str, int]
 type _Shape = tuple[_Relation, tuple[Atom, ...]]
 type _Bindings = tuple[tuple[int, Atom], ...]

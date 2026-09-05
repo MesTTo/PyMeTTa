@@ -823,5 +823,5 @@ def twin(m):
 #: fully provisioned checkout, so 17 of the move is trunk's and 18 is this
 #: branch's; the MeTTa side is unchanged either way [measured 2026-09-05: min-
 #: of-3 serial fresh processes; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+#: extensions/python/tools/twin_coverage.py --repin; commit=c4f52c8ebbe2bd36973b150bf74cf9e54435d58d].
 BUDGET = 3422

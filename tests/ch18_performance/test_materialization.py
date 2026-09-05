@@ -3,13 +3,13 @@
 Guarantees:
   - text and fast reloads preserve duplicate paths and replace old content
     [tested: test_reloading_a_materialized_program_preserves_its_bag;
-    commit=WORKTREE]
+    commit=c4f52c8ebbe2bd36973b150bf74cf9e54435d58d]
   - a completed load prepares its relation once, whether or not its repair
     pass invalidates what the file body built
-    [tested: test_a_reloaded_program_builds_its_relation_once; commit=WORKTREE]
+    [tested: test_a_reloaded_program_builds_its_relation_once; commit=c4f52c8ebbe2bd36973b150bf74cf9e54435d58d]
   - later compiled callers retain the original bounded derivation tree
     [tested: test_a_later_retained_caller_preserves_bounded_derivations;
-    commit=WORKTREE]
+    commit=c4f52c8ebbe2bd36973b150bf74cf9e54435d58d]
 """
 
 from collections import Counter
@@ -349,7 +349,7 @@ def _collected_trie_identities():
     of them, so a leak still fails the assertion
     [tested: test_a_released_index_is_collected_after_its_query_boundary,
     test_a_rolled_back_index_is_collected_while_the_live_index_answers;
-    commit=WORKTREE].
+    commit=c4f52c8ebbe2bd36973b150bf74cf9e54435d58d].
     """
     previous = None
     for _ in range(4):
