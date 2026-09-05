@@ -442,3 +442,55 @@ def test_undefined_annotates_as_the_metatype_symbol():
     assert metta.arrow(Atom, Atom, Undefined) == parse("(-> Atom Atom %Undefined%)")
     assert metta.arrow(Atom, Atom, Any) == metta.arrow(Atom, Atom, Undefined)
     assert metta.typed(metta.S.f, Undefined) == parse("(: f %Undefined%)")
+
+
+def test_an_atom_in_annotation_position_is_the_type_itself(metta):
+    """The direction the builders already read, given to signatures.
+
+    `typed(S.a, S.Number)` and `arrow(S.Number, S.Bool)` take an atom or a
+    Python type either way; a signature took only the Python type, so a MeTTa
+    type with no Python class had to be given an empty one to be nameable.
+    """
+    import metta as metta_package
+    from metta import S, V, arrow
+
+    m = metta._new_space()
+
+    @m.define
+    def speak(a: S.Animal) -> S.Sound:
+        """A MeTTa type named directly."""
+        return S.said(a)
+
+    assert list(m[metta_package.typed(S.speak, V.t)]) != []
+    assert m.type(S.speak) == arrow(S.Animal, S.Sound)
+
+    @m.define
+    def apply_it(f: arrow(int, int), x: int) -> int:
+        """A built arrow in annotation position."""
+        return f(x)
+
+    assert m.type(S["apply-it"]) == arrow(arrow(int, int), int, int)
+
+    m += metta_package.typed(S.Rex, S.Animal)
+    assert list(speak(S.Rex)) == [S.said(S.Rex)]
+
+
+def test_an_atom_annotation_reaches_the_documented_type_field():
+    """A doc's (@type ...) carries the atom rather than %Undefined%."""
+    from metta import S
+    from metta._documentation import documentation_atom
+
+    def speak(a: S.Animal) -> S.Sound:
+        """Make a noise.
+
+        Args:
+            a: the animal asked.
+
+        Returns:
+            the noise it makes.
+        """
+        return S.said(a)
+
+    written = str(documentation_atom("speak", speak, kind="function"))
+    assert "(@type Animal)" in written
+    assert "(@type Sound)" in written

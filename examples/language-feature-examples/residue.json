@@ -826,10 +826,10 @@
       "kind": "friction",
       "example": "examples/ch09-types/01-types.metta",
       "form": null,
-      "missing": "the Python-type table read on the RIGHT of an equality, so an answered type compares against Any",
+      "missing": "a scalar type projection in the ROOT namespace, so an answered type compares against a Python one without reaching into metta.ops",
       "row": "P14.9",
       "section": "\u00a77 the examples-twin coverage lane",
-      "detail": "`typed(x, Any)` and `arrow(int, int)` read Python types through the conversion table, but the table is one-way: measured 2026-08-24, `m.type(S.c) == Any` is False where `m.type(S.c) == S['%Undefined%']` is True, so a twin comparing an ANSWER against a type writes the marked name out."
+      "detail": "REWORDED 2026-09-05 to what survives. The table was never one-way in the direction that matters: `arrow(int, int)` builds from Python types and `m.type(S.bump) == arrow(int, int)` is True, `metta.ops.type_atom_for(Any)` is the scalar projection and `m.type(S.c) == metta.ops.type_atom_for(Any)` is True, and an ATOM in annotation position projects as itself since 2026-09-05, so `def speak(a: S.Animal) -> S.Sound` declares `(-> Animal Sound)`. What is still measured as recorded is the BARE comparison: `m.type(S.c) == Any` is False. That one cannot be fixed as an equality, because the projection is many-to-one: `int`, `float` and `complex` all give `Number`, so `S.Number == int` and `S.Number == float` would put `int == float` one transitive step away while `hash` cannot follow. What remains is packaging: the scalar projection sits in `metta.ops` while the composite one, `arrow`, is a root name. [measured 2026-09-05]"
     },
     {
       "kind": "friction",

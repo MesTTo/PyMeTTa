@@ -98,7 +98,12 @@ def type_atom_for(annotation: Any) -> Atom:
 
 
 def annotation_atom_for(annotation: Any) -> Atom:
-    """Project a Python annotation itself, preserving generic parameters."""
+    """Project a Python annotation itself, preserving generic parameters.
+
+    An atom is already the projection and travels unchanged.
+    """
+    if isinstance(annotation, Atom):
+        return annotation
     origin = typing.get_origin(annotation)
     if origin is typing.Annotated:
         base, *metadata = typing.get_args(annotation)
@@ -234,9 +239,23 @@ def _generic_type_atoms(origin: Any) -> list[Atom]:
 
 
 def type_atoms_for(annotation: Any) -> list[Atom]:
-    """Return every MeTTa type alternative named by an annotation."""
+    """Return every MeTTa type alternative named by an annotation.
+
+    An ATOM in annotation position is the type itself, the direction the
+    builders already read: ``typed(S.a, S.Number)`` and
+    ``arrow(S.Number, S.Bool)`` take an atom or a Python type either way, and a
+    signature took only the Python type, so ``def speak(a: S.Animal)`` declared
+    ``(-> %Undefined% ...)`` and said nothing. It is the escape hatch the table
+    needs, because the table is many-to-one and finite: a MeTTa type with no
+    Python class had to be given one, and two shipped twins declare an empty
+    class for no reason but to name a type in a signature.
+    """
+    # The refusal comes first: an annotation the runtime could not name is not
+    # a type, and an atom is one already.
     if isinstance(annotation, Unresolved):
         raise annotation.refusal()
+    if isinstance(annotation, Atom):
+        return [annotation]
     origin = typing.get_origin(annotation)
     if _is_new_type(annotation):
         return [S[annotation.__name__]]
