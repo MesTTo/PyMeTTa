@@ -78,7 +78,12 @@ RUFF_FAMILY_BURN_DOWN = {
     # strategy atoms, while each line carries the narrow A001 explanation.
     # 10 -> 12 with the compiled-statement scenarios: two refused-or-compiled
     # probes carry parameters their bodies deliberately ignore.
-    "A": 12,
+    # 12 -> 17 for the requested trace(filter=...) keyword: Space, _trace,
+    # AsyncMeTTa, MeTTa and the module mirror preserve that public name.
+    # Each site suppresses only A002 with the public-selector reason.
+    # [tested: test_the_ruff_configuration_enables_every_family_or_records_why_not;
+    # commit=WORKTREE]
+    "A": 17,
     # 2112 -> 2114 at the p12-space-model merge: its two new test modules
     # carry the repository's obligation-header docstring convention, whose
     # Purpose/Guarantees block is a deliberate per-line D205 suppression.

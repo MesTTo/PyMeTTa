@@ -281,7 +281,8 @@ def _module_signature(fn: ast.FunctionDef, name: str) -> list[str]:
     for part in parts:
         if "Literal[" in part:
             body.append(exempt)
-        body.append(f"    {part},")
+        suffix = "  # noqa: A002 -- public trace selector" if part.startswith("filter:") else ""
+        body.append(f"    {part},{suffix}")
     # A suppression binds to the line it ends, so a wrapped def carries it on
     # the first line, where the shadowing name is.
     return [f"def {name}({noqa.replace('  #', '  #', 1)}" if noqa else f"def {name}(",

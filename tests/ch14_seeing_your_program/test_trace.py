@@ -319,3 +319,85 @@ def test_encoding_a_bounded_trace_is_not_charged_to_the_run_bound(m):
     cut = m.trace("!(brief 300)", max_events=40, inferences=2 * ran.inferences)
     assert cut.stopped is Limit.events
     assert len(cut) == len(whole) == 40
+
+
+def test_trace_filter_preserves_depth_and_budget(m):
+    """Selection precedes accounting and preserves excluded ancestor depth."""
+    m.run("(= (tr-outer $x) (tr-inner $x)) (= (tr-inner $x) (+ $x 1))")
+    whole = m.trace("!(tr-outer 2)")
+    selected = m.trace("!(tr-outer 2)", filter=S["tr-inner"], max_events=2)
+    expected = [event for event in whole if event.term.children[0] == S["tr-inner"]]
+    assert selected == expected
+    assert [(event.depth, event.kind) for event in selected] == [(1, "call"), (1, "exit")]
+    assert selected[-1].answer == 3
+    assert selected.stopped is None
+    prefix = m.trace("!(tr-outer 2)", filter="tr-inner", max_events=1)
+    assert prefix == selected[:1]
+    assert prefix.stopped is Limit.events
+    assert m.trace("!(tr-outer 2)") == whole
+
+
+@pytest.mark.parametrize("names", [[], ["missing"], ["tr-outer"], ["tr-inner"],
+                                   ["tr-outer", "tr-inner"], ["tr-inner", "tr-inner"]])
+def test_trace_filter_is_exact_selection_of_the_whole_trace(m, names):
+    """Exact-name selection agrees with the complete trace for every subset."""
+    m.run("(= (tr-outer $x) (tr-inner $x)) (= (tr-inner $x) (+ $x 1))")
+    whole = m.trace("!(tr-outer 4)")
+    selected = m.trace("!(tr-outer 4)", filter=(Symbol(name) for name in names))
+    assert selected == [event for event in whole if event.term.children[0].name in names]
+    assert selected.stopped is None
+
+
+def test_empty_trace_filter_still_executes_writes(m):
+    """Filtering changes observation; source definitions and writes still run."""
+    selected = m.trace(
+        "(= (tr-write-filtered) (add-atom (context-space) (tr-filtered-mark done))) "
+        "!(tr-write-filtered)",
+        filter=[], max_events=1,
+    )
+    assert selected == []
+    assert selected.stopped is None
+    assert m.match(S["tr-filtered-mark"](S.done))
+    assert len(m.trace("!(tr-write-filtered)")) == 2
+
+
+def test_trace_filter_matches_a_function_defined_in_traced_source(m):
+    """Names can be selected before the source defines the function."""
+    events = m.trace("(= (tr-born $x) (+ $x 2)) !(tr-born 3)", filter="tr-born")
+    assert [event.kind for event in events] == ["call", "exit"]
+    assert events[-1].answer == 5
+
+
+@pytest.mark.parametrize(("selection", "error", "remedy"), [
+    (42, TypeError, "function Symbol"),
+    ([42], TypeError, "function Symbols"),
+    ("", ValueError, "nonempty"),
+    ([Symbol("")], ValueError, "nonempty"),
+])
+def test_invalid_trace_filter_refuses_before_execution(m, selection, error, remedy):
+    """Invalid names cannot execute the source before their refusal."""
+    with pytest.raises(error, match=remedy):
+        m.trace("!(add-atom (context-space) (tr-invalid-write done))", filter=selection)
+    assert not m.match(S["tr-invalid-write"](S.done))
+
+
+def test_filtered_trace_keeps_run_bounds_and_speculative_policy(m):
+    """Excluding every event cannot evade run bounds or speculative rollback."""
+    m.run("(= (tr-filter-loop $n) (if (> $n 0) (tr-filter-loop (- $n 1)) done))")
+    cut = m.trace("!(tr-filter-loop 2000)", filter=[], inferences=100)
+    assert cut == []
+    assert cut.stopped is Limit.inferences
+    m.run("(= (tr-filter-write) (add-atom (context-space) (tr-spec-mark done)))")
+    with m.speculative():
+        events = m.trace("!(tr-filter-write)", filter="tr-filter-write")
+    assert len(events) == 2
+    assert not m.match(S["tr-spec-mark"](S.done))
+
+
+def test_trace_filter_applies_inside_hyperpose_workers(m):
+    """Worker calls share the selection as well as the event buffer."""
+    m.run("(= (tr-outer $x) (tr-inner $x)) (= (tr-inner $x) (+ $x 1))")
+    events = m.trace("!(hyperpose ((tr-outer 1) (tr-outer 2)))", filter="tr-inner")
+    assert len(events) == 4
+    assert all(event.depth == 1 and event.term.children[0] == S["tr-inner"] for event in events)
+    assert sorted(event.answer for event in events if event.kind == "exit") == [2, 3]

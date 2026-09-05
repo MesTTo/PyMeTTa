@@ -6,6 +6,9 @@ with no exit is a reduction that failed. Tracing wraps and unwraps per
 run, so it costs nothing when off; what is traced executes for real,
 writes included, exactly like a run.
 Guarantees:
+  - named filters select events before recording bounds without changing
+    execution depth [tested: test_trace_filter_preserves_depth_and_budget;
+    commit=WORKTREE]
   - a term and the source that spells it trace identically, so trace accepts
     the same input forms as every other evaluation method
     [tested test_trace_takes_the_term_every_other_door_takes]
@@ -29,12 +32,13 @@ Open Obligations:
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import dataclass
 
 from ._atom_wire import _atom_from_wire
 from ._space_execution import _controlled_run
 from ._space_objects import _limits
-from .atoms import Atom
+from .atoms import Atom, Symbol
 from .vocabularies import Limit
 
 __all__ = ["TraceEvent", "trace"]
@@ -126,9 +130,14 @@ class Trace(list):
 def trace(space, source: Atom | str,
           max_events: int | None = None,
           *,
+          filter: Symbol | str | Iterable[Symbol | str] | None = None,  # noqa: A002 -- public trace selector
           timeout: float | None = None,
           inferences: int | None = None) -> Trace:
     """Run a term, or source, in this space under the engine's reduction trace.
+
+    filter selects exact function names before recording; None selects all
+    and an empty iterable selects none. Excluded calls still contribute depth
+    and execute normally, including their writes.
 
     max_events bounds the RECORDING. timeout, inferences and stack bound the
     RUN, the same triple every evaluating door takes and the same scoped
@@ -158,6 +167,26 @@ def trace(space, source: Atom | str,
         raise ValueError(
             msg
         )
+    request: int | list = int(max_events)
+    if filter is not None:
+        if isinstance(filter, (Symbol, str)):
+            names = [filter]
+        elif isinstance(filter, Iterable) and not isinstance(filter, Atom):
+            names = list(filter)
+        else:
+            msg = "filter must be a function Symbol, name string, or iterable of names"
+            raise TypeError(msg)
+        selected = []
+        for name in names:
+            if not isinstance(name, (Symbol, str)):
+                msg = "filter members must be function Symbols or name strings"
+                raise TypeError(msg)
+            spelling = name.name if isinstance(name, Symbol) else name
+            if not spelling:
+                msg = "filter names must be nonempty; use [] to record no functions"
+                raise ValueError(msg)
+            selected.append(spelling)
+        request = [int(max_events), selected]
     # The bounds ride INSIDE the door as an argument rather than being handed
     # to _controlled_run, which would wrap the whole door: the trace's answer
     # costs seven times its run to encode, so a budget spent around the door
@@ -169,7 +198,7 @@ def trace(space, source: Atom | str,
         [
             _as_source(source),
             space.name,
-            int(max_events),
+            request,
             list(_limits(timeout, inferences) or _NO_BOUND),
         ],
         None,
