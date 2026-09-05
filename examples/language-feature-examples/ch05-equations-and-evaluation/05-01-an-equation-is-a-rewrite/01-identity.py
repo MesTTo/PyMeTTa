@@ -832,5 +832,5 @@ def twin(m):
 #: provisioned base worktree with its .qlf set rebuilt first; command=python
 #: extensions/python/tools/twin_coverage.py --measure --rounds 3 examples/ch05-
 #: equations-and-evaluation/05-01-an-equation-is-a-rewrite/01-identity.metta;
-#: commit=c4f52c8ebbe2bd36973b150bf74cf9e54435d58d].
+#: commit=3c64e2e24787362a5a5081513bc24b880711a1d7].
 BUDGET = 3422

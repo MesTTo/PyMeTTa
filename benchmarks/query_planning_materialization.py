@@ -17,9 +17,9 @@ Assumes: the fixed two-rule chain has n edges and one answer per ground query.
 Guarantees:
   - every measured query checks its exact one-occurrence bag, and each image
     is inspected only after the cold query [source: _measure_size;
-    commit=c4f52c8ebbe2bd36973b150bf74cf9e54435d58d]
+    commit=3c64e2e24787362a5a5081513bc24b880711a1d7]
   - changed source fingerprints reject a measurement [source:
-    benchmarks.query_planning.finish_metadata; commit=c4f52c8ebbe2bd36973b150bf74cf9e54435d58d]
+    benchmarks.query_planning.finish_metadata; commit=3c64e2e24787362a5a5081513bc24b880711a1d7]
 Owns resources: spaces, contexts and temporary source/cache files close after
   use. The original control disables construction in this process only.
 Decides: report SWI inferences and CPU beside complete-process CPU. Inferences
@@ -27,7 +27,7 @@ Decides: report SWI inferences and CPU beside complete-process CPU. Inferences
   calling thread and completed joined children; process CPU includes all
   process threads and system time [source: CPython v3.14.0
   Doc/library/time.rst, process_time; SWI V10.1.13 man/builtin.doc,
-  statistics/2; commit=c4f52c8ebbe2bd36973b150bf74cf9e54435d58d].
+  statistics/2; commit=3c64e2e24787362a5a5081513bc24b880711a1d7].
 """
 
 from __future__ import annotations

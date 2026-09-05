@@ -3,10 +3,10 @@
 Guarantees:
   - the differential compares values, tags, occurrence ledgers, proofs, and
     rendered derivation trees, including duplicate facts and requests
-    [tested: test_demand_preserves_complete_derivation_bags; commit=c4f52c8ebbe2bd36973b150bf74cf9e54435d58d]
+    [tested: test_demand_preserves_complete_derivation_bags; commit=3c64e2e24787362a5a5081513bc24b880711a1d7]
   - unsupported programs retain the original failure and effect behavior
     [tested: test_demand_preserves_global_cycle_and_round_failures,
-    test_demand_retains_custom_operation_effects; commit=c4f52c8ebbe2bd36973b150bf74cf9e54435d58d]
+    test_demand_retains_custom_operation_effects; commit=3c64e2e24787362a5a5081513bc24b880711a1d7]
 
 Private access only selects the unchanged reference evaluator or plants a
 fault in the optimized path; every result is produced by public evaluate.

@@ -5,7 +5,7 @@ Guarantees:
     rollback, inheritance, duplicate removal and fast restoration
     [tested: test_metadata_projections_follow_public_lifecycle,
     test_metadata_projections_follow_reload_and_failed_load,
-    test_metadata_owners_follow_local_shadowing; commit=c4f52c8ebbe2bd36973b150bf74cf9e54435d58d]
+    test_metadata_owners_follow_local_shadowing; commit=3c64e2e24787362a5a5081513bc24b880711a1d7]
 """
 
 from collections import Counter

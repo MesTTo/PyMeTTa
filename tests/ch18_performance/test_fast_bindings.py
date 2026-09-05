@@ -4,7 +4,7 @@ Guarantees:
   - reader, native and mixed equation occurrences retain their answer bags,
     source atoms and later recompilation behavior after relocation
     [tested: test_fast_images_preserve_each_equations_binding;
-    commit=c4f52c8ebbe2bd36973b150bf74cf9e54435d58d]
+    commit=3c64e2e24787362a5a5081513bc24b880711a1d7]
 """
 
 import hashlib

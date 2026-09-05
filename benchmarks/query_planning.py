@@ -20,9 +20,9 @@ Guarantees:
   - every measured query checks its exact result; demand checks value, tag,
     tokens and the sole proof before comparing complete rendered proof bags
     [tested: native_generic_join, test_demand_preserves_complete_derivation_bags;
-    commit=c4f52c8ebbe2bd36973b150bf74cf9e54435d58d]
+    commit=3c64e2e24787362a5a5081513bc24b880711a1d7]
   - mismatched source fingerprints before and after a run reject its result
-    [source: source_snapshot and main in this file; commit=c4f52c8ebbe2bd36973b150bf74cf9e54435d58d]
+    [source: source_snapshot and main in this file; commit=3c64e2e24787362a5a5081513bc24b880711a1d7]
 Owns resources: each space and context closes after use. The native control
   is the shipping default, so it sets nothing; no source file changes.
   Metadata is written through atomic_json after all measurements finish.

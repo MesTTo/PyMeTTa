@@ -14,10 +14,10 @@ both fixtures; arbitrary-precision arithmetic remains sensitive to bit sizes.
 Guarantees:
   - registration, first compilation and q completed public calls are measured
     separately; every returned bag is checked before reporting its workload
-    [tested: the three-mode complete size sweep; commit=c4f52c8ebbe2bd36973b150bf74cf9e54435d58d]
+    [tested: the three-mode complete size sweep; commit=3c64e2e24787362a5a5081513bc24b880711a1d7]
   - mismatched source fingerprints before and after a run reject its result
     [source: benchmarks.query_planning.finish_metadata and main in this file;
-    commit=c4f52c8ebbe2bd36973b150bf74cf9e54435d58d]
+    commit=3c64e2e24787362a5a5081513bc24b880711a1d7]
 Owns resources: each MeTTa context closes after its workload; control predicate
   substitutions last for this process, and metadata uses finish_metadata.
 Decides: samples must be a positive integer; the default is three. SWI ports omit
