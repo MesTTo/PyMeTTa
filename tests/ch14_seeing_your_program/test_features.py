@@ -1430,6 +1430,30 @@ def test_profile_counts_samples_on_real_work(m):  # noqa: D103  -- pytest discov
     assert "samples" in repr(prof)
 
 
+def test_a_profile_is_the_same_table_every_other_door_answers(m):
+    """`Rows`, so a column is reachable by name and a notebook renders it.
+
+    The profile was the one public answer a reader had to index positionally
+    against a docstring: `node[3]` for self-ticks, counted out by hand. `Rows`
+    is what `match`, `answers` and every other table door already answer, and
+    `Row` subclasses `tuple`, so the positional reading above keeps working.
+    """
+    from metta.results import Rows
+
+    m.run("(= (prof-table $n) (if (== $n 0) done (prof-table (- $n 1))))")
+    _groups, prof = m.profile("!(prof-table 20000)")
+
+    assert isinstance(prof.nodes, Rows)
+    assert prof.nodes.columns == (
+        "predicate", "calls", "redos", "ticks_self", "ticks_siblings",
+    )
+    assert isinstance(prof.top(3), Rows), "a slice keeps the table type"
+
+    row = prof.nodes[0]
+    assert (row.predicate, row.calls, row.redos, row.ticks_self, row.ticks_siblings) == tuple(row)
+    assert prof.nodes.predicate[0] == row.predicate, "and the column projects"
+
+
 # profile() answers over every predicate in the process. A library author's
 # question is narrower and needs two things the sampler does not carry: which
 # tier installed a name, and whether the clause index its callers rely on

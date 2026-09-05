@@ -961,19 +961,32 @@ class Cursor:
 
 class EngineProfile:
     """MeTTa.profile()'s second answer: the sampler's counters and one
-    row per predicate, self-ticks-descending. Each node is (predicate,
-    calls, redos, ticks_self, ticks_siblings).
+    row per predicate, self-ticks-descending.
+
+    `nodes` and `top()` answer `Rows`, the same table type every other
+    public door here answers, so a column is reachable by NAME rather than
+    by position: `profile.nodes.predicate` and `row.ticks_self` read where
+    `node[0]` and `node[3]` had to be counted out, and a notebook renders
+    the profile as a table without a caller writing the header. They were
+    bare tuples, which made the profile the one public answer a reader had
+    to index positionally against a docstring.
+
+    `Row` subclasses `tuple`, so positional access keeps working for
+    anything that already counted.
     """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
 
     __slots__ = ("nodes", "samples", "ticks")
 
+    #: The sampler's own node shape, in its own order.
+    COLUMNS = ("predicate", "calls", "redos", "ticks_self", "ticks_siblings")
+
     def __init__(self, samples: int, ticks: int, nodes: list) -> None:
         self.samples = int(samples)
         self.ticks = int(ticks)
-        self.nodes = [tuple(node) for node in nodes]
+        self.nodes = Rows(self.COLUMNS, nodes)
 
-    def top(self, n: int = 10) -> list[tuple]:
-        """The n predicates the samples landed in most."""
+    def top(self, n: int = 10) -> Rows:
+        """The n predicates the samples landed in most, as `Rows`."""
         return self.nodes[:n]
 
     def __repr__(self) -> str:
