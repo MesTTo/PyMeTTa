@@ -82,7 +82,7 @@ RUFF_FAMILY_BURN_DOWN = {
     # AsyncMeTTa, MeTTa and the module mirror preserve that public name.
     # Each site suppresses only A002 with the public-selector reason.
     # [tested: test_the_ruff_configuration_enables_every_family_or_records_why_not;
-    # commit=WORKTREE]
+    # commit=a0580a1bf6c00fd0c6d790990555c345ac41f185]
     "A": 17,
     # 2112 -> 2114 at the p12-space-model merge: its two new test modules
     # carry the repository's obligation-header docstring convention, whose
