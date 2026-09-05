@@ -11,6 +11,11 @@ Guarantees:
     and unsupported atoms retain full evaluation [tested:
     test_demand_preserves_global_cycle_and_round_failures,
     test_demand_retains_custom_operation_effects; commit=3c64e2e24787362a5a5081513bc24b880711a1d7]
+  - the readers certification makes total say so themselves: an atom that
+    reached the evaluator without shaping is refused by name instead of being
+    read as though it had a relation and arguments [tested:
+    test_an_atom_the_certifier_would_decline_is_refused_by_name;
+    commit=60d6ca9089f50521bba869c3b7a87c92fd6a990f]
 Owns resources:
   - indexes, completed demands, and suspended rule generators belong to one
     evaluation; the generator stack closes on success and every exception
@@ -27,6 +32,7 @@ from dataclasses import dataclass, field
 
 from ._space import Space
 from .algebra import (
+    AlgebraEvaluationError,
     DeclaredAlgebra,
     TaggedAnswer,
     _derive_rule_steps,
@@ -70,6 +76,22 @@ def _shape(atom: Atom) -> _Shape | None:
     return (True, head.name, len(arguments)), tuple(arguments)
 
 
+def _certified_shape(atom: Atom) -> _Shape:
+    """The shape of an atom `_certify` has already accepted.
+
+    Certification is what makes this total: it declines the whole algebra
+    unless every fact, head and premise shapes, and the evaluator runs only on
+    what it admitted. So a None here is not a program this transformation
+    declines, it is an atom that reached the evaluator without passing the
+    gate, and saying so beats reading a position off nothing.
+    """
+    shape = _shape(atom)
+    if shape is None:
+        msg = f"algebra_demand_uncertified_atom({atom})"
+        raise AlgebraEvaluationError(msg)
+    return shape
+
+
 def _printable_bits(bits: int) -> bool:
     # _signature renders tags as decimal text. Python's integer conversion limit
     # can therefore make an irrelevant arithmetic rule fail. Three bits per
@@ -97,11 +119,16 @@ def _certify(
     # These are exactly DeclaredAlgebra.operation's direct integer operations.
     # No user operation can execute and an integer carrier never changes kind.
     direct = {"+", "*", "min", "max"}
+    # What the transformation asks of the DECLARATION, named apart from what it
+    # asks of this call below.
+    declared_directly = (
+        declaration.extend in direct
+        and declaration.combine in direct
+        and "linear" not in declaration.requires
+    )
     if (
-        not rules
-        or declaration.extend not in direct
-        or declaration.combine not in direct
-        or "linear" in declaration.requires
+        not declared_directly
+        or not rules
         or not isinstance(max_rounds, int)
         or _shape(goal) is None
     ):
@@ -111,6 +138,7 @@ def _certify(
     dependencies: dict[_Relation, set[_Relation]] = defaultdict(set)
     bounds: dict[_Relation, int] = defaultdict(lambda: 1)
     rule_bits: dict[int, int] = {}
+    rule_relations: dict[int, list[_Relation]] = {}
     for answer in facts:
         budget.checkpoint()
         shape = _shape(answer.value)
@@ -125,16 +153,22 @@ def _certify(
         budget.checkpoint()
         head = _shape(rule.head)
         bits = _integer_bits(rule.tag)
-        premises = [_shape(premise) for premise in rule.premises]
-        if head is None or bits is None or any(premise is None for premise in premises):
+        if head is None or bits is None:
             return None
         key, arguments = head
         head_vars = {arg.name for arg in arguments if isinstance(arg, Variable)}
         body_vars: set[str] = set()
         dependencies.setdefault(key, set())
-        for premise_shape in premises:
-            assert premise_shape is not None
+        # In premise order and keeping repeats: the walk below charges one
+        # bound per premise, where `dependencies` is a set and cannot say how
+        # many times a relation was named.
+        relations: list[_Relation] = []
+        for premise in rule.premises:
+            premise_shape = _shape(premise)
+            if premise_shape is None:
+                return None
             relation, args = premise_shape
+            relations.append(relation)
             dependencies[key].add(relation)
             dependencies.setdefault(relation, set())
             body_vars.update(arg.name for arg in args if isinstance(arg, Variable))
@@ -142,6 +176,7 @@ def _certify(
             return None
         rule_rows[key].append(rule)
         rule_bits[rule.order] = bits
+        rule_relations[rule.order] = relations
 
     # Certify the entire graph: full evaluation can fail on a cycle or depth
     # outside the query's slice, and pruning must not conceal that failure.
@@ -159,10 +194,9 @@ def _certify(
         for rule in rule_rows[key]:
             bits = rule_bits[rule.order]
             height = 1
-            for premise in rule.premises:
-                shape = _shape(premise)
-                assert shape is not None
-                relation = shape[0]
+            # The relations the pass above already read off this rule's
+            # premises, rather than shaping every premise a second time.
+            for relation in rule_relations[rule.order]:
                 height = max(height, depth[relation] + 1)
                 if declaration.extend == "*":
                     bits += bounds[relation]
@@ -190,15 +224,12 @@ class _Demand:
 
     @classmethod
     def from_pattern(cls, pattern: Atom) -> _Demand:
-        shape = _shape(pattern)
-        assert shape is not None
-        relation, args = shape
+        relation, args = _certified_shape(pattern)
         return cls(relation, tuple((i, arg) for i, arg in enumerate(args) if not isinstance(arg, Variable)))
 
 
 def _head_bindings(rule: _Rule, demand: _Demand) -> dict[str, Atom] | None:
-    shape = _shape(rule.head)
-    assert shape is not None
+    shape = _certified_shape(rule.head)
     result: dict[str, Atom] = {}
     for position, value in demand.bindings:
         head = shape[1][position]
@@ -232,8 +263,7 @@ class _DemandEvaluator:
             index = defaultdict(list)
             for answer in self.facts.get(demand.relation, ()):
                 self.budget.checkpoint()
-                shape = _shape(answer.value)
-                assert shape is not None
+                shape = _certified_shape(answer.value)
                 index[tuple(shape[1][position] for position in positions)].append(answer)
             self.indexes[index_key] = index
         return index.get(tuple(value for _, value in demand.bindings), ())
