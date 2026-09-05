@@ -25,7 +25,7 @@ Guarantees:
     test_a_blocking_landing_observer_does_not_delay_the_future,
     test_async_operation_failure_and_cancellation_settle_once,
     test_a_transaction_commits_async_launch_before_its_landing;
-    commit=WORKTREE]
+    commit=5b6652cb90c441c8b29d55d1260987d71e3b861e]
   - an enclosing transaction publishes an async launch before starting the
     coroutine, then publishes landing independently; rollback discards the
     prepared call without starting it [tested:

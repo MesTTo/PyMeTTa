@@ -31,7 +31,7 @@ Guarantees:
     [tested: test_a_blocking_landing_observer_does_not_delay_the_future,
     test_async_operation_failure_and_cancellation_settle_once,
     test_a_transaction_commits_async_launch_before_its_landing;
-    commit=WORKTREE]
+    commit=5b6652cb90c441c8b29d55d1260987d71e3b861e]
   - an accepted running cancellation remains cancelled even when the coroutine
     suppresses ``CancelledError``, and blocking landing observers do not stop
     unrelated coroutine tasks from landing [tested:
