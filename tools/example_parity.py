@@ -306,7 +306,7 @@ def _capture(
             # pipes was reported as -9 in 40 of 40 runs, and the runner's
             # last-line-is-the-error fallback then made an error out of its
             # output [measured 2026-09-05: ai-tmp probe over _capture;
-            # commit=WORKTREE]. Wait for the status, within what is left of
+            # commit=00df0ebbd0d46a1778be70df020c3512f9e42a16]. Wait for the status, within what is left of
             # the deadline; only a child that is still running after that is
             # a runaway.
             try:
