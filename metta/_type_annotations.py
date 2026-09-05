@@ -24,6 +24,13 @@ Guarantees:
     instead of declaring an unrelated user type [tested:
     test_compiled_removal_statements_preserve_one_many_missing_and_target_scope;
     commit=79e9635b6c20e046ace8fc82bd3edf062c7ae9b2]
+  - an annotation the runtime cannot name costs only itself: the annotations
+    beside it still declare their types, and the refusal fires where the
+    unresolvable one is consumed as a type [tested:
+    test_one_unresolvable_annotation_costs_only_itself,
+    test_an_unresolvable_annotation_an_arity_reaches_still_refuses,
+    test_every_resolvable_annotation_kind_survives_the_per_annotation_pass;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -35,10 +42,12 @@ from __future__ import annotations
 import functools
 import inspect
 import itertools
+import sys
 import types
 import typing
 from collections import abc
 from collections.abc import Callable, Iterable
+from dataclasses import dataclass
 from typing import Any
 
 from ._config import config
@@ -226,6 +235,8 @@ def _generic_type_atoms(origin: Any) -> list[Atom]:
 
 def type_atoms_for(annotation: Any) -> list[Atom]:
     """Return every MeTTa type alternative named by an annotation."""
+    if isinstance(annotation, Unresolved):
+        raise annotation.refusal()
     origin = typing.get_origin(annotation)
     if _is_new_type(annotation):
         return [S[annotation.__name__]]
@@ -411,8 +422,104 @@ def callable_name(fn: Callable) -> str:
     return name if isinstance(name, str) and name else type(fn).__name__
 
 
+#: The code object every single-annotation probe below borrows. A probe is a
+#: function so that typing.get_type_hints resolves it exactly as it resolves
+#: the callable it stands in for: same globals, same type parameters, same
+#: ForwardRef handling for a postponed string. Nothing ever calls one.
+_PROBE_CODE = (lambda: None).__code__
+
+
+@dataclass(frozen=True)
+class Unresolved:
+    """One annotation that names something the runtime cannot resolve.
+
+    It stands in the resolved mapping where the type would be, so the
+    annotations beside it stay usable and the refusal happens where the
+    annotation is CONSUMED as a type rather than where the map is built.
+    ``target: Space`` with the import missing must still refuse loudly, and
+    it does: type_atoms_for raises this refusal the moment it is asked to
+    turn one into a type atom.
+    """
+
+    owner: str
+    parameter: str
+    reason: str
+
+    def refusal(self) -> TypeError:
+        """The loud refusal, naming the parameter rather than the callable."""
+        where = "return annotation" if self.parameter == "return" else f"parameter {self.parameter!r}"
+        return TypeError(
+            f"the {where} of {self.owner} does not resolve ({self.reason}); "
+            f"a declared type must name something importable"
+        )
+
+
+#The annotations AS WRITTEN, without evaluating any of them.
+#
+#Reading __annotations__ is the whole story before 3.14. From 3.14 the
+#attribute EVALUATES the deferred annotations (PEP 649), so a name that
+#resolves nowhere raises out of the read itself, and annotationlib's
+#FORWARDREF format is the documented way to get the written form back
+#[source: https://docs.python.org/3.14/library/annotationlib.html]. The
+#version guard is the definition rather than a branch inside one, because
+#annotationlib does not exist to import at all on the versions below it.
+if sys.version_info >= (3, 14):
+    import annotationlib
+
+    def _written_annotations(fn: Callable) -> dict[str, Any]:
+        """Every annotation this callable carries, unevaluated."""
+        return dict(
+            annotationlib.get_annotations(fn, format=annotationlib.Format.FORWARDREF)
+        )
+
+else:
+
+    def _written_annotations(fn: Callable) -> dict[str, Any]:
+        """Every annotation this callable carries, unevaluated."""
+        return dict(getattr(fn, "__annotations__", None) or {})
+
+
+def _one_at_a_time(fn: Callable) -> dict[str, Any]:
+    """Resolve each annotation on its own, so one bad name costs only itself.
+
+    get_type_hints is all-or-nothing over a whole signature: one parameter
+    naming something importable only under TYPE_CHECKING discarded every
+    other annotation and refused the registration, including one on a
+    parameter no declared arity reaches. Each annotation goes to
+    get_type_hints alone, on a probe function carrying the same globals and
+    the same type parameters, which is what makes `item: T` and a postponed
+    `"list[int]"` resolve here exactly as they resolve in the whole-signature
+    pass.
+    """
+    namespace = fn
+    while hasattr(namespace, "__wrapped__"):
+        namespace = namespace.__wrapped__
+    globalns = getattr(namespace, "__globals__", {})
+    type_params = getattr(namespace, "__type_params__", ())
+    owner = callable_name(fn)
+    resolved: dict[str, Any] = {}
+    for parameter, written in _written_annotations(fn).items():
+        probe = types.FunctionType(_PROBE_CODE, globalns)
+        probe.__annotations__ = {parameter: written}
+        probe.__type_params__ = type_params
+        try:
+            resolved[parameter] = typing.get_type_hints(probe, include_extras=True)[
+                parameter
+            ]
+        except Exception as exc:  # noqa: BLE001  -- any resolution failure is this one annotation's, and the reason travels in the refusal
+            resolved[parameter] = Unresolved(owner, parameter, str(exc))
+    return resolved
+
+
 def resolved_annotations(fn: Callable) -> dict[str, Any]:
-    """Resolve postponed annotations or raise a diagnostic naming the callable."""
+    """Resolve postponed annotations, one at a time when the signature has one
+    the runtime cannot name.
+
+    The whole-signature pass runs first and answers unchanged whenever it can,
+    which is every ordinary callable. Only a signature it refuses is resolved
+    annotation by annotation, and each annotation that still cannot resolve
+    becomes an Unresolved standing in for it.
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
     #get_type_hints introspects modules, classes, methods and functions. Two
     #ordinary callables are none of those: a functools.partial, and an instance
     #whose class defines __call__. 3.14 answers {} for both while 3.12 and 3.13
@@ -432,11 +539,20 @@ def resolved_annotations(fn: Callable) -> dict[str, Any]:
         fn = type(fn).__call__
     try:
         return typing.get_type_hints(fn, include_extras=True)
-    except Exception as exc:
-        msg = (
-            f"the annotations of {callable_name(fn)} do not resolve "
-            f"({exc}); a declared type must name something importable"
-        )
-        raise TypeError(
-            msg
-        ) from exc
+    except Exception:  # noqa: BLE001  -- the per-annotation pass reports which annotation failed and why
+        return _one_at_a_time(fn)
+
+
+def for_conversion(annotations: dict[str, Any]) -> dict[str, Any]:
+    """The same mapping with each unresolvable annotation read as Any.
+
+    Value conversion at the call boundary asks what a parameter's declared
+    type is; "we could not name it" is Any there, the same answer an
+    unannotated parameter gives. The arrow declarations refuse first for
+    every annotation an arity reaches, so this only ever softens one no
+    declared call form uses.
+    """
+    return {
+        name: (Any if isinstance(value, Unresolved) else value)
+        for name, value in annotations.items()
+    }

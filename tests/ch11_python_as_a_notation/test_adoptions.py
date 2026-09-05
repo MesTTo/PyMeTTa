@@ -34,6 +34,8 @@ Open Obligations:
 """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
 import dataclasses
+import textwrap
+import types
 from collections.abc import Callable, Sequence
 from typing import Annotated, Generic, TypeVar
 
@@ -41,6 +43,7 @@ import pytest
 
 import metta as metta_package
 from metta import Answer, Expression, S, V, catalog, ground
+from metta._type_annotations import Unresolved, resolved_annotations
 from metta.atoms import Grounded, Variable
 from metta.errors import SubscriberError
 from metta.ops import referenced_classes, type_atoms_for
@@ -586,3 +589,107 @@ def test_annotated_and_generic_annotations_map_faithfully(m):  # noqa: ARG001, D
     assert [str(a) for a in type_atoms_for(GenericBox[int])] == ["GenericBox"]
     referenced = referenced_classes([Annotated[int, Meta], GenericBox[int]])
     assert GenericBox in referenced and Meta not in referenced
+
+
+def _module_with(source: str, name: str):
+    """Compile SOURCE as its own module and hand back one callable from it.
+
+    `from __future__ import annotations` is a per-module statement, so a
+    signature that stores its annotations as text has to be written in a
+    module of its own. Its globals are what the resolver reads, which is
+    exactly the namespace under test.
+    """
+    module = types.ModuleType("adoptions_annotation_scenario")
+    exec(
+        compile(textwrap.dedent(source), "adoptions_annotation_scenario.py", "exec"),
+        module.__dict__,
+    )
+    return module.__dict__[name]
+
+
+def test_one_unresolvable_annotation_costs_only_itself(m):
+    """A signature resolves annotation by annotation, not as a unit.
+
+    `from decimal import Decimal` under TYPE_CHECKING is a name the runtime
+    never binds, and get_type_hints refuses the WHOLE signature over it. The
+    two annotations beside it are perfectly good, and a parameter no declared
+    arity reaches is not consumed as a type at all, so refusing the
+    registration threw away everything usable over an annotation nothing asks
+    about.
+    """
+    joiner = _module_with(
+        """
+        from __future__ import annotations
+        from typing import TYPE_CHECKING
+        if TYPE_CHECKING:
+            from decimal import Decimal
+        def joiner(a: int, *rest: Decimal) -> int:
+            return a
+        """,
+        "joiner",
+    )
+    m.op(joiner, name="join-one", effect="pureStructural", arities=[1])
+    assert _arrows_of(m, "join-one") == {"(-> Number Number)"}
+    assert m.run("!(join-one 7)") == [[7]]
+
+    resolved = resolved_annotations(joiner)
+    assert resolved["a"] is int
+    assert resolved["return"] is int
+    assert isinstance(resolved["rest"], Unresolved)
+
+
+def test_an_unresolvable_annotation_an_arity_reaches_still_refuses(m):
+    """The strict refusal belongs where an annotation is consumed as a type.
+
+    `target: Space` with the import missing must not quietly become
+    %Undefined%, so an annotation a declared call form DOES reach keeps
+    refusing. The message names the parameter, because "the annotations of f
+    do not resolve" left a reader to find which one among six.
+    """
+    widen = _module_with(
+        """
+        from __future__ import annotations
+        from typing import TYPE_CHECKING
+        if TYPE_CHECKING:
+            from decimal import Decimal
+        def widen(n: int, precision: Decimal) -> int:
+            return n
+        """,
+        "widen",
+    )
+    with pytest.raises(TypeError, match=r"parameter 'precision' of widen does not resolve"):
+        m.op(widen, name="widen-refused", effect="pureStructural")
+    assert not m.is_function("widen-refused")
+    assert _arrows_of(m, "widen-refused") == set()
+
+
+def test_every_resolvable_annotation_kind_survives_the_per_annotation_pass(m):  # noqa: ARG001  -- pytest injects this fixture to establish engine state for the scenario
+    """The fallback resolves what the whole-signature pass would have.
+
+    Each annotation goes to get_type_hints alone on a probe function, so a
+    type parameter, an Annotated, a postponed container and a module-level
+    class all have to resolve there exactly as they resolve together.
+    """
+    mixed = _module_with(
+        """
+        from __future__ import annotations
+        from typing import TYPE_CHECKING, Annotated
+        if TYPE_CHECKING:
+            from decimal import Decimal
+        class Local:
+            pass
+        def mixed[T](tag: Annotated[str, "unit"], item: T, batch: list[int],
+                     here: Local, bad: Decimal) -> int:
+            return 1
+        """,
+        "mixed",
+    )
+    resolved = resolved_annotations(mixed)
+    assert resolved["tag"] == Annotated[str, "unit"]
+    assert resolved["item"] is mixed.__type_params__[0]
+    assert resolved["batch"] == list[int]
+    assert resolved["here"].__name__ == "Local"
+    assert resolved["return"] is int
+    assert isinstance(resolved["bad"], Unresolved)
+    assert resolved["bad"].parameter == "bad"
+    assert "Decimal" in resolved["bad"].reason
