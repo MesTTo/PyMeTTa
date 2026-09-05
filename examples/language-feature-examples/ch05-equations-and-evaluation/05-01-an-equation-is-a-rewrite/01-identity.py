@@ -817,4 +817,11 @@ def twin(m):
 #: moves with every engine unit change; the seventh resolution tonight
 #: [measured 2026-09-05: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
-BUDGET = 3387
+#: RE-PINNED 2026-09-05, 3387 to 3422 (+35), materialization, the Generic Join
+#: planner and the folding pass add engine units, and this row counts code
+#: shape. The trunk it rebases onto already measures 3404 against this pin in a
+#: fully provisioned checkout, so 17 of the move is trunk's and 18 is this
+#: branch's; the MeTTa side is unchanged either way [measured 2026-09-05: min-
+#: of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 3422
