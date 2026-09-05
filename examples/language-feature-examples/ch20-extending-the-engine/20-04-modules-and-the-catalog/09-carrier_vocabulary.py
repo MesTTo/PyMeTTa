@@ -71,5 +71,5 @@ def twin(m):  # noqa: ARG001  -- the catalog lives in the reflection space; the 
 #: extensions/python/tools/twin_coverage.py --measure --rounds 3
 #: examples/ch20-extending-the-engine/20-04-modules-and-the-catalog/09-carrier_vocabulary.metta;
 #: fixture=worktree with libmork_ffi.so provisioned and the QLF warmed;
-#: commit=6ac37a290e6abefebee2aa562f97198c3410b18e].
+#: commit=f2b818bc2c894ff2f386d67fca8271aa69cb308d].
 BUDGET = 123
