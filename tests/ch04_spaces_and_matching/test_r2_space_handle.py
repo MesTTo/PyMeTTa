@@ -173,7 +173,11 @@ def test_a_space_the_engine_made_crosses_as_a_space(spaces):  # noqa: D103  -- p
     # ordinary Symbol and could not be used as a space.
     (made,) = host.eval(S["new-space"]())
     assert isinstance(made, Space)
-    assert host.eval(S["get-metatype"](made)) == [S.Grounded]
+    # The species question is get-type, not get-metatype: since 2026-09-05 a
+    # metatype says whether the engine holds a FUNCTION of the name, which is
+    # upstream PeTTa's rule, so every space handle is a Symbol to it.
+    assert host.eval(S["get-type"](made)) == [S.SpaceType]
+    assert host.eval(S["get-metatype"](made)) == [S.Symbol]
     made.add(S.kept())
     assert S.kept() in made
 
@@ -181,8 +185,9 @@ def test_a_space_the_engine_made_crosses_as_a_space(spaces):  # noqa: D103  -- p
 def test_the_ampersand_alone_does_not_make_a_space(spaces):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     _context, host, _target = spaces
 
-    # p is a species, so it follows get-metatype rather than the spelling.
+    # p is a species, so it follows get-type rather than the spelling.
     # is-space answers the wider operand question and says True for both.
+    assert host.eval(S["get-type"](S["&&&"])) == [S["%Undefined%"]]
     assert host.eval(S["get-metatype"](S["&&&"])) == [S.Symbol]
     assert host.eval(S["is-space"](S["&&&"])) == [metta.TRUE]
     assert type(metta.parse("&&&")) is metta.Symbol
