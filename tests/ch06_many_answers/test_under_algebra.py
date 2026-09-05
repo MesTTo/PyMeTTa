@@ -348,10 +348,41 @@ def test_space_sample_is_seeded_and_uses_k_vocabulary(metta):
         assert {str(answer) for answer in first} <= {"(route slow)", "(route fast)"}
 
 
-@pytest.mark.parametrize("carrier", [counting, tropical, prov, ranked, metta_module.prob])
+@pytest.mark.parametrize(
+    "carrier",
+    [
+        metta_module.bool,
+        metta_module.bag,
+        counting,
+        metta_module.set,
+        ranked,
+        tropical,
+        metta_module.prob,
+        prov,
+        metta_module.budget,
+        metta_module.amplitude,
+    ],
+)
 def test_requested_carrier_spellings_are_declared(carrier):
     """The exact bare names from the algebra-tower cell are carrier objects."""
-    assert carrier.name in {"counting", "tropical", "prov", "ranked", "prob"}
+    assert carrier.name in {member.value for member in Semiring}
+
+
+def test_every_shipped_semiring_has_one_root_object_in_catalog_order():
+    """Each generated Semiring member is a root carrier object of that name.
+
+    ch20's test_every_algebra_the_catalog_defines_is_one_its_vocabulary_admits
+    compares the presets against the enum as sets. What that cannot see is the
+    third roster, `metta.<name>`, the objects a Python annotation reaches:
+    five of the ten were exported and five were reachable only as strings, so
+    `metta.budget` raised AttributeError for a carrier that already answered
+    `under="budget"`. The order is pinned here too, because the enum is
+    generated from the catalog row and the presets are written beside it.
+    """
+    algebra_module = importlib.import_module("metta.algebra")
+    names = tuple(member.value for member in Semiring)
+    assert names == tuple(algebra_module._PRESETS)
+    assert all(getattr(metta_module, name).name == name for name in names)
 
 
 def test_semiring_vocabulary_members_are_carrier_spellings(metta):

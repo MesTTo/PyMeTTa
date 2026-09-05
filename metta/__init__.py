@@ -59,11 +59,11 @@ Guarantees:
     the definition compiler recognizes for an inline host island [tested:
     test_py_is_identity_outside_a_compiled_body,
     test_py_host_island_executes_per_engine_application; commit=3f0a1d237a3c969b2d4ad0d48b2195ce196b631a]
-  - under scopes an algebra through ContextVar state and the exact counting,
-    tropical, probability, provenance, and ranking carriers stay lazy root
-    exports [tested:
+  - under scopes an algebra through ContextVar state and all ten catalog
+    semirings stay lazy root exports [tested:
     test_scoped_under_is_task_local_and_explicit_under_wins,
-    test_requested_carrier_spellings_are_declared; commit=c7468b2789746bcf95c4bacc0e2d517ec4d972fa]
+    test_every_shipped_semiring_has_one_root_object_in_catalog_order;
+    commit=WORKTREE]
   - ``speculate()`` is the exact module-tier spelling for the default
     receiver's discarded execution scope [tested:
     test_speculative_execution_discards_its_event_segment; commit=3ded7552797b66d78e666141eb51f3bc14686bd2]
@@ -114,6 +114,12 @@ if TYPE_CHECKING:
     # The static faces of _LAZY_ATTRIBUTES below, name for name: the lazy
     # __getattr__ keeps `import metta` narrow at runtime, and without these
     # a checker types every root export Any, py.typed notwithstanding.
+    #
+    # Two lazy attributes are deliberately absent: the `bool` and `set`
+    # carrier objects. Binding either name here would make every `bool`
+    # annotation below a variable annotation, which mypy refuses, and the
+    # generated module tier renders its signatures from Space. Both stay
+    # reachable at runtime and type as Any through __getattr__.
     from ._debug import Debugger as _Debugger
     from ._rules import equation, rules
     from ._space import _P, _R, MeTTa, Space
@@ -122,7 +128,16 @@ if TYPE_CHECKING:
     from ._space_objects import _StatsBlock
     from ._state import State
     from ._trace import Trace as _Trace
-    from .algebra import counting, prob, prov, ranked, tropical
+    from .algebra import (
+        amplitude,
+        bag,
+        budget,
+        counting,
+        prob,
+        prov,
+        ranked,
+        tropical,
+    )
     from .answer import Answer, Bindings
     from .define import Defined
     from .define import Defined as _Defined
@@ -204,10 +219,15 @@ _LAZY_ATTRIBUTES = {
     "Space": ("_space", "Space"),
     "SpaceProvider": ("foreign", "SpaceProvider"),
     "State": ("_state", "State"),
+    "amplitude": ("algebra", "amplitude"),
+    "bag": ("algebra", "bag"),
+    "bool": ("algebra", "bool"),
+    "budget": ("algebra", "budget"),
     "counting": ("algebra", "counting"),
     "prob": ("algebra", "prob"),
     "prov": ("algebra", "prov"),
     "ranked": ("algebra", "ranked"),
+    "set": ("algebra", "set"),
     "tropical": ("algebra", "tropical"),
     "boot": ("manifest", "boot"),
     "equation": ("_rules", "equation"),
@@ -1278,11 +1298,15 @@ __all__ = [
     "add",
     "aio",
     "algebra",
+    "amplitude",
     "and_",
     "arrays",
     "arrow",
     "attach",
+    "bag",
+    "bool",
     "boot",
+    "budget",
     "casting",
     "catalog",
     "channel",
@@ -1335,6 +1359,7 @@ __all__ = [
     "rules",
     "run",
     "seg",
+    "set",
     "solve",
     "space",
     "spaces",

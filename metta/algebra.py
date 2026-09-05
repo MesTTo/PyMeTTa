@@ -50,6 +50,10 @@ Guarantees:
     retaining complete proof bags and the full evaluator's refusal boundaries
     [tested: test_demand_preserves_complete_derivation_bags,
     test_demand_preserves_global_cycle_and_round_failures; commit=3c64e2e24787362a5a5081513bc24b880711a1d7]
+  - the generated Semiring vocabulary, preset descriptors, and public carrier
+    objects name the same ten shipped algebras [tested:
+    test_every_shipped_semiring_has_one_root_object_in_catalog_order;
+    commit=WORKTREE]
 Decides:
   - ``contraction`` is a capability, while the remaining public law names are
     equations checked exhaustively over the declared finite carrier.
@@ -61,6 +65,7 @@ Open Obligations:
 
 from __future__ import annotations
 
+import builtins
 import itertools
 import math
 import random
@@ -106,6 +111,10 @@ __all__ = [
     "PlanDecision",
     "RateDeclarationError",
     "TaggedAnswer",
+    "amplitude",
+    "bag",
+    "bool",
+    "budget",
     "counting",
     "declare",
     "evaluate",
@@ -114,6 +123,7 @@ __all__ = [
     "ranked",
     "resolve",
     "sample",
+    "set",
     "tagged_fact",
     "tagged_rule",
     "tropical",
@@ -268,14 +278,14 @@ class DeclaredAlgebra:
         left: Atom,
         right: Atom,
         *,
-        budget: _EvaluationBudget | None = None,
+        resources: _EvaluationBudget | None = None,
     ) -> Atom:
         """Apply a declared binary operation and require one answer."""
         if isinstance(left, Grounded) and isinstance(right, Grounded):
             left_value, right_value = _decode(left), _decode(right)
             if (
-                not isinstance(left_value, bool)
-                and not isinstance(right_value, bool)
+                not isinstance(left_value, builtins.bool)
+                and not isinstance(right_value, builtins.bool)
                 and isinstance(left_value, Real)
                 and isinstance(right_value, Real)
             ):
@@ -293,8 +303,8 @@ class DeclaredAlgebra:
         target = Expression((Symbol(name), left, right))
         answers = (
             metta.eval(target)
-            if budget is None
-            else budget.evaluate_operation(metta, target)
+            if resources is None
+            else resources.evaluate_operation(metta, target)
         )
         if len(answers) != 1:
             msg = (
@@ -317,7 +327,7 @@ class DeclaredAlgebra:
         left: Atom,
         right: Atom,
         *,
-        budget: _EvaluationBudget | None = None,
+        resources: _EvaluationBudget | None = None,
     ) -> Atom:
         """Combine alternative derivations."""
         return self.operation(
@@ -325,7 +335,7 @@ class DeclaredAlgebra:
             self.combine,
             left,
             right,
-            budget=budget,
+            resources=resources,
         )
 
     def extend_values(
@@ -334,7 +344,7 @@ class DeclaredAlgebra:
         left: Atom,
         right: Atom,
         *,
-        budget: _EvaluationBudget | None = None,
+        resources: _EvaluationBudget | None = None,
     ) -> Atom:
         """Extend one derivation through a premise."""
         return self.operation(
@@ -342,7 +352,7 @@ class DeclaredAlgebra:
             self.extend,
             left,
             right,
-            budget=budget,
+            resources=resources,
         )
 
 
@@ -351,7 +361,7 @@ class PlanDecision:
     """An evaluation choice, including a withheld law-gated optimization."""
 
     optimization: str
-    applied: bool
+    applied: builtins.bool
     missing_laws: tuple[str, ...] = ()
 
 
@@ -362,7 +372,7 @@ class _Trace:
     source: int
     raw: Atom
     children: tuple[_Trace, ...] = ()
-    is_rule: bool = False
+    is_rule: builtins.bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -570,10 +580,10 @@ def resolve(metta: Space, carrier: Any) -> DeclaredAlgebra:
 
 
 def _canonical_laws(laws: Iterable[str]) -> frozenset[str]:
-    out: set[str] = set()
+    out: builtins.set[str] = builtins.set()
     for law in laws:
         expanded = _LAW_ALIASES.get(law, (law,))
-        unknown = set(expanded) - _KNOWN_LAWS
+        unknown = builtins.set(expanded) - _KNOWN_LAWS
         if unknown:
             msg = f"algebra_law_unknown({sorted(unknown)!r})"
             raise AlgebraDeclarationError(msg)
@@ -724,15 +734,19 @@ def _require_context_capabilities(
     raise AlgebraRequirementError(msg)
 
 
-def _same(left: Atom, right: Atom) -> bool:
+def _same(left: Atom, right: Atom) -> builtins.bool:
     try:
         result = left == right
-        return result if isinstance(result, bool) else bool(result)
+        return (
+            result
+            if isinstance(result, builtins.bool)
+            else builtins.bool(result)
+        )
     except (RuntimeError, TypeError, ValueError):
         return left is right
 
 
-def _member(value: Atom, carrier: Sequence[Atom]) -> bool:
+def _member(value: Atom, carrier: Sequence[Atom]) -> builtins.bool:
     return any(_same(value, candidate) for candidate in carrier)
 
 
@@ -909,7 +923,7 @@ def declare(
     if not extend or not isinstance(extend, str):
         msg = f"algebra_operation_invalid({name}, extend)"
         raise AlgebraDeclarationError(msg)
-    if order is not None and order not in set(SemiringOrder):
+    if order is not None and order not in builtins.set(SemiringOrder):
         msg = f"algebra_order_invalid({name}, {order!r})"
         raise AlgebraDeclarationError(msg)
     declaration = DeclaredAlgebra(
@@ -974,7 +988,7 @@ def _coefficient(tag: Atom) -> Atom:
     return tag
 
 
-def _head(atom: Atom, name: str, arity: int | None = None) -> bool:
+def _head(atom: Atom, name: str, arity: int | None = None) -> builtins.bool:
     if not isinstance(atom, Expression) or not atom.children:
         return False
     first = atom.children[0]
@@ -1034,9 +1048,9 @@ def _derive_rule(
     declaration: DeclaredAlgebra,
     rule: _Rule,
     available: Sequence[TaggedAnswer],
-    budget: _EvaluationBudget,
+    resources: _EvaluationBudget,
 ) -> list[TaggedAnswer]:
-    derivation = _derive_rule_steps(metta, declaration, rule, budget, {})
+    derivation = _derive_rule_steps(metta, declaration, rule, resources, {})
     # A generator's return value arrives through StopIteration, whose `value` is
     # untyped, so the declaration is what says what crosses that boundary. The
     # loop leaves only by that exception, which is why the name is bound there
@@ -1057,7 +1071,7 @@ def _derive_rule_steps(
     metta: Space,
     declaration: DeclaredAlgebra,
     rule: _Rule,
-    budget: _EvaluationBudget,
+    resources: _EvaluationBudget,
     initial: dict[str, Atom],
 ) -> Generator[Atom, Sequence[TaggedAnswer], list[TaggedAnswer]]:
     """Suspend at each premise so either evaluator supplies its candidate bag."""
@@ -1074,7 +1088,7 @@ def _derive_rule_steps(
     ]
     linear = "linear" in declaration.requires
     for premise in rule.premises:
-        budget.checkpoint()
+        resources.checkpoint()
         next_states: list[
             tuple[
                 dict[str, Atom],
@@ -1085,7 +1099,7 @@ def _derive_rule_steps(
             ]
         ] = []
         for bindings, tag, tokens, proof, child_traces in states:
-            budget.checkpoint()
+            resources.checkpoint()
             pattern = substitute(premise, bindings)
             # The suspension point, written as its own statement: a `yield`
             # inside a `for` header is the same generator and astroid reads the
@@ -1093,7 +1107,7 @@ def _derive_rule_steps(
             # caller's `.send`, `.close` and iteration a finding.
             candidates = yield pattern
             for candidate in candidates:
-                budget.checkpoint()
+                resources.checkpoint()
                 matched = _match(pattern, candidate.value)
                 if matched is None:
                     continue
@@ -1114,7 +1128,7 @@ def _derive_rule_steps(
                             metta,
                             tag,
                             candidate.tag,
-                            budget=budget,
+                            resources=resources,
                         ),
                         tokens | candidate.tokens,
                         proof + candidate.proof,
@@ -1158,12 +1172,12 @@ def _fuse(
     metta: Space,
     declaration: DeclaredAlgebra,
     answers: Sequence[TaggedAnswer],
-    budget: _EvaluationBudget,
+    resources: _EvaluationBudget,
 ) -> list[TaggedAnswer]:
     fused: list[TaggedAnswer] = []
     positions: dict[str, int] = {}
     for answer in answers:
-        budget.checkpoint()
+        resources.checkpoint()
         key = str(answer.value)
         position = positions.get(key)
         if position is None:
@@ -1177,7 +1191,7 @@ def _fuse(
                 metta,
                 previous.tag,
                 answer.tag,
-                budget=budget,
+                resources=resources,
             ),
             tokens=previous.tokens | answer.tokens,
             proof=previous.proof + answer.proof,
@@ -1186,10 +1200,10 @@ def _fuse(
     return fused
 
 
-def _headed_tag(atom: Atom, name: str) -> bool:
+def _headed_tag(atom: Atom, name: str) -> builtins.bool:
     return (
         isinstance(atom, Expression)
-        and bool(atom.children)
+        and builtins.bool(atom.children)
         and atom.children[0] == Symbol(name)
     )
 
@@ -1264,7 +1278,7 @@ def _demand_evaluate(
     *,
     goal: Atom,
     max_rounds: int,
-    budget: _EvaluationBudget,
+    resources: _EvaluationBudget,
 ) -> list[TaggedAnswer] | None:
     # The demand planner consumes the algebra's rule and proof types; importing
     # it here keeps that dependency out of this module's initialization cycle.
@@ -1272,7 +1286,7 @@ def _demand_evaluate(
 
     return evaluate_demand(
         metta, declaration, facts, rules,
-        goal=goal, max_rounds=max_rounds, budget=budget,
+        goal=goal, max_rounds=max_rounds, budget=resources,
     )
 
 
@@ -1286,11 +1300,11 @@ def evaluate(
     inferences: int | None = None,
 ) -> AlgebraEvaluation:
     """Evaluate finite tagged derivations under one call-wide resource budget."""
-    budget = _EvaluationBudget.from_call(timeout, inferences)
+    resources = _EvaluationBudget.from_call(timeout, inferences)
     declaration = require(metta, algebra)
     _require_context_capabilities(metta, declaration)
     goal = parse(query) if isinstance(query, str) else _encode(query)
-    budget.checkpoint()
+    resources.checkpoint()
     available, rules = _program(metta.atoms())
     # max_rounds bounds fixpoint HEIGHT, not how long one round can run. The
     # absolute deadline therefore gets checked between rounds and inside each
@@ -1302,19 +1316,19 @@ def evaluate(
     # commit=51e719767e3dd322a9cf88bd096410bbc5647493].
     demanded = _demand_evaluate(
         metta, declaration, available, rules,
-        goal=goal, max_rounds=max_rounds, budget=budget,
+        goal=goal, max_rounds=max_rounds, resources=resources,
     )
     if demanded is not None:
         available = demanded
     else:
         seen = {_signature(answer) for answer in available}
         for _ in range(max_rounds):
-            budget.checkpoint()
+            resources.checkpoint()
             added: list[TaggedAnswer] = []
             for rule in rules:
-                budget.checkpoint()
+                resources.checkpoint()
                 for answer in _derive_rule(
-                    metta, declaration, rule, available, budget
+                    metta, declaration, rule, available, resources
                 ):
                     signature = _signature(answer)
                     if signature not in seen:
@@ -1330,7 +1344,7 @@ def evaluate(
             raise AlgebraEvaluationError(msg)
     matched: list[TaggedAnswer] = []
     for answer in available:
-        budget.checkpoint()
+        resources.checkpoint()
         if _match(goal, answer.value) is not None:
             matched.append(answer)
     licence = "combine-associative"
@@ -1344,11 +1358,11 @@ def evaluate(
         PlanDecision("demand-directed-derivation", demanded is not None),
     )
     if can_fuse:
-        matched = _fuse(metta, declaration, matched, budget)
-    budget.checkpoint()
+        matched = _fuse(metta, declaration, matched, resources)
+    resources.checkpoint()
     retained = []
     for answer in _order_answers(declaration, matched):
-        budget.checkpoint()
+        resources.checkpoint()
         retained.append(
             replace(answer, _space=metta, _algebra=declaration.name, _plan=plan)
         )
@@ -1365,7 +1379,7 @@ def _rate(tag: Atom) -> float:
         value = tag.children[1]
     if isinstance(value, Grounded):
         value = _decode(value)
-    if isinstance(value, bool) or not isinstance(value, Real):
+    if isinstance(value, builtins.bool) or not isinstance(value, Real):
         msg = f"rate_not_numeric({tag})"
         raise RateDeclarationError(msg)
     numeric = float(value)
@@ -1389,7 +1403,7 @@ def sample(
     seed: int,
 ) -> tuple[Atom, ...]:
     """Draw a stable cumulative rate selection using isolated seeded state."""
-    if isinstance(draws, bool) or not isinstance(draws, int) or draws < 0:
+    if isinstance(draws, builtins.bool) or not isinstance(draws, int) or draws < 0:
         msg = "draws must be a nonnegative integer"
         raise ValueError(msg)
     evaluation = evaluate(metta, query, algebra=algebra)
@@ -1409,7 +1423,7 @@ def sample(
     return tuple(selected)
 
 
-def has_tagged_program(metta: Space, query: str | Atom) -> bool:
+def has_tagged_program(metta: Space, query: str | Atom) -> builtins.bool:
     """Ask whether a normative tagged fact or rule can answer this query."""
     encoded = query if isinstance(query, str) else _encode(query).to_wire()
     return metta.runtime.apply_must(
@@ -1427,7 +1441,7 @@ def count_tagged(
     inferences: int | None = None,
 ) -> int:
     """Count tagged derivation trees wholly inside the engine."""
-    if isinstance(max_rounds, bool) or not isinstance(max_rounds, int):
+    if isinstance(max_rounds, builtins.bool) or not isinstance(max_rounds, int):
         msg = "max_rounds must be a positive integer"
         raise TypeError(msg)
     if max_rounds <= 0:
@@ -1612,11 +1626,16 @@ class _AlgebraModule(ModuleType):
         )
 
 
+bool = replace(_PRESETS["bool"])  # noqa: A001 -- the catalog spelling is public
+bag = replace(_PRESETS["bag"])
 counting = replace(_PRESETS["counting"])
-tropical = replace(_PRESETS["tropical"])
-prov = replace(_PRESETS["prov"])
+set = replace(_PRESETS["set"])  # noqa: A001 -- the catalog spelling is public
 ranked = replace(_PRESETS["ranked"])
+tropical = replace(_PRESETS["tropical"])
 prob = replace(_PRESETS["prob"])
+prov = replace(_PRESETS["prov"])
+budget = replace(_PRESETS["budget"])
+amplitude = replace(_PRESETS["amplitude"])
 
 # PEP 562 preserves lazy import identity at the package; changing the real
 # module object's class adds construction without introducing a proxy.
