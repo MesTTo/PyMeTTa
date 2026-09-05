@@ -22,6 +22,16 @@ Guarantees:
     test_async_engine_injection_keeps_the_calling_named_space,
     test_a_landing_observer_can_await_the_future_it_observes;
     commit=39092863ae34184a9f955f185ff57c1ff177ec40]
+  - that ordering holds in one direction only. ``metta_py_async_land/3``
+    settles the future first and publishes ``(async-op N S landing)`` second,
+    both on the transient landing thread, so a waiter released by the settle
+    races the rest of that predicate: ``wait()`` returning promises terminal
+    state and promises nothing about landing subscriptions, which may not have
+    been entered. Await an observation on its own signal, never on the future
+    [tested: test_a_blocking_landing_observer_does_not_delay_the_future,
+    test_async_operation_failure_and_cancellation_settle_once,
+    test_a_transaction_commits_async_launch_before_its_landing;
+    commit=WORKTREE]
   - an accepted running cancellation remains cancelled even when the coroutine
     suppresses ``CancelledError``, and blocking landing observers do not stop
     unrelated coroutine tasks from landing [tested:

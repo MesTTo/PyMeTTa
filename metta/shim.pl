@@ -3789,7 +3789,18 @@ metta_py_async_land(Token, Status0, Payload) :-
           Outcome = error(Error)),
     %Terminal state precedes the landing notification: a synchronous landing
     %observer may await the future it was told has landed without deadlocking
-    %the callback that still needs to settle it.
+    %the callback that still needs to settle it. The converse is therefore not
+    %promised. Settling releases every waiter here, so an await that has
+    %returned orders nothing against the publication below, which on a loaded
+    %box may not have started; an observation that must be seen is awaited on
+    %its own signal. CPython resolves the same pair the same way, waking
+    %Future.result() inside the lock and running the done-callbacks after
+    %releasing it [CPython 3.14, Lib/concurrent/futures/_base.py,
+    %Future.set_result]. Swapping these two goals hangs
+    %test_a_blocking_landing_observer_does_not_delay_the_future in 5.24s and
+    %deadlocks test_a_landing_observer_can_await_the_future_it_observes
+    %outright, whose observer awaits the very future the callback would still
+    %owe a settle.
     metta_async_future_settle(Token, Outcome, Name, Space),
     metta_py_async_publish_landing(Name, Space).
 
