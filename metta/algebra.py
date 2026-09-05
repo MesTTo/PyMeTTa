@@ -46,6 +46,10 @@ Guarantees:
     test_tagged_algebra_forwards_bounds_to_every_evaluating_door,
     test_tagged_algebra_debits_inferences_across_operations;
     commit=51e719767e3dd322a9cf88bd096410bbc5647493]
+  - certified acyclic integer-tagged programs propagate query demands while
+    retaining complete proof bags and the full evaluator's refusal boundaries
+    [tested: test_demand_preserves_complete_derivation_bags,
+    test_demand_preserves_global_cycle_and_round_failures; commit=WORKTREE]
 Decides:
   - ``contraction`` is a capability, while the remaining public law names are
     equations checked exhaustively over the declared finite carrier.
@@ -62,7 +66,7 @@ import math
 import random
 import sys
 import time
-from collections.abc import Callable, Iterable, Mapping, Sequence
+from collections.abc import Callable, Generator, Iterable, Mapping, Sequence
 from dataclasses import dataclass, field, replace
 from fractions import Fraction
 from numbers import Real
@@ -344,7 +348,7 @@ class DeclaredAlgebra:
 
 @dataclass(frozen=True, slots=True)
 class PlanDecision:
-    """A law-gated evaluation choice, including a withheld optimization."""
+    """An evaluation choice, including a withheld law-gated optimization."""
 
     optimization: str
     applied: bool
@@ -1032,6 +1036,25 @@ def _derive_rule(
     available: Sequence[TaggedAnswer],
     budget: _EvaluationBudget,
 ) -> list[TaggedAnswer]:
+    derivation = _derive_rule_steps(metta, declaration, rule, budget, {})
+    try:
+        next(derivation)
+        while True:
+            derivation.send(available)
+    except StopIteration as completed:
+        return completed.value
+    finally:
+        derivation.close()
+
+
+def _derive_rule_steps(
+    metta: Space,
+    declaration: DeclaredAlgebra,
+    rule: _Rule,
+    budget: _EvaluationBudget,
+    initial: dict[str, Atom],
+) -> Generator[Atom, Sequence[TaggedAnswer], list[TaggedAnswer]]:
+    """Suspend at each premise so either evaluator supplies its candidate bag."""
     states: list[
         tuple[
             dict[str, Atom],
@@ -1041,7 +1064,7 @@ def _derive_rule(
             tuple[_Trace, ...],
         ]
     ] = [
-        ({}, rule.tag, frozenset(), (rule.order,), ())
+        (initial, rule.tag, frozenset(), (rule.order,), ())
     ]
     linear = "linear" in declaration.requires
     for premise in rule.premises:
@@ -1058,7 +1081,7 @@ def _derive_rule(
         for bindings, tag, tokens, proof, child_traces in states:
             budget.checkpoint()
             pattern = substitute(premise, bindings)
-            for candidate in available:
+            for candidate in (yield pattern):
                 budget.checkpoint()
                 matched = _match(pattern, candidate.value)
                 if matched is None:
@@ -1222,6 +1245,26 @@ def _order_answers(
     )
 
 
+def _demand_evaluate(
+    metta: Space,
+    declaration: DeclaredAlgebra,
+    facts: Sequence[TaggedAnswer],
+    rules: Sequence[_Rule],
+    *,
+    goal: Atom,
+    max_rounds: int,
+    budget: _EvaluationBudget,
+) -> list[TaggedAnswer] | None:
+    # The demand planner consumes the algebra's rule and proof types; importing
+    # it here keeps that dependency out of this module's initialization cycle.
+    from ._algebra_demand import evaluate_demand  # noqa: PLC0415
+
+    return evaluate_demand(
+        metta, declaration, facts, rules,
+        goal=goal, max_rounds=max_rounds, budget=budget,
+    )
+
+
 def evaluate(
     metta: Space,
     query: str | Atom,
@@ -1238,7 +1281,6 @@ def evaluate(
     goal = parse(query) if isinstance(query, str) else _encode(query)
     budget.checkpoint()
     available, rules = _program(metta.atoms())
-    seen = {_signature(answer) for answer in available}
     # max_rounds bounds fixpoint HEIGHT, not how long one round can run. The
     # absolute deadline therefore gets checked between rounds and inside each
     # potentially large Python scan, while every engine operation receives the
@@ -1247,26 +1289,34 @@ def evaluate(
     # test_tagged_algebra_forwards_bounds_to_every_evaluating_door,
     # test_tagged_algebra_debits_inferences_across_operations;
     # commit=51e719767e3dd322a9cf88bd096410bbc5647493].
-    for _ in range(max_rounds):
-        budget.checkpoint()
-        added: list[TaggedAnswer] = []
-        for rule in rules:
-            budget.checkpoint()
-            for answer in _derive_rule(
-                metta, declaration, rule, available, budget
-            ):
-                signature = _signature(answer)
-                if signature not in seen:
-                    seen.add(signature)
-                    added.append(answer)
-        if not added:
-            break
-        available.extend(added)
+    demanded = _demand_evaluate(
+        metta, declaration, available, rules,
+        goal=goal, max_rounds=max_rounds, budget=budget,
+    )
+    if demanded is not None:
+        available = demanded
     else:
-        msg = (
-            f"algebra_derivation_did_not_reach_fixpoint({algebra}, rounds={max_rounds})"
-        )
-        raise AlgebraEvaluationError(msg)
+        seen = {_signature(answer) for answer in available}
+        for _ in range(max_rounds):
+            budget.checkpoint()
+            added: list[TaggedAnswer] = []
+            for rule in rules:
+                budget.checkpoint()
+                for answer in _derive_rule(
+                    metta, declaration, rule, available, budget
+                ):
+                    signature = _signature(answer)
+                    if signature not in seen:
+                        seen.add(signature)
+                        added.append(answer)
+            if not added:
+                break
+            available.extend(added)
+        else:
+            msg = (
+                f"algebra_derivation_did_not_reach_fixpoint({algebra}, rounds={max_rounds})"
+            )
+            raise AlgebraEvaluationError(msg)
     matched: list[TaggedAnswer] = []
     for answer in available:
         budget.checkpoint()
@@ -1280,6 +1330,7 @@ def evaluate(
             can_fuse,
             () if can_fuse else (licence,),
         ),
+        PlanDecision("demand-directed-derivation", demanded is not None),
     )
     if can_fuse:
         matched = _fuse(metta, declaration, matched, budget)
