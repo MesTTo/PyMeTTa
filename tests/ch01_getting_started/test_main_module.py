@@ -4,13 +4,16 @@ and exits cleanly, including after reporting a malformed or incomplete form;
 run refuses the same incomplete file with a nonzero exit, lint gates on
 findings, doc answers or refuses, and serve and boot expose spaces until
 interrupted. Convert imports a real Python file and emits source that reloads
-as the same program [tested:
+as the same program, and llms prints the repository root's cheat sheet, the
+same bytes the package door prints [tested:
 test_convert_imports_a_python_program_and_round_trips_its_source,
 test_convert_restores_the_in_process_declaration_receiver,
 test_repl_reports_an_incomplete_final_form_at_eof,
 test_run_refuses_an_incomplete_file,
-test_repl_reports_an_error_and_keeps_going;
-commit=42502e9d4a7fedd419856d5e6a1c291fc18ba644].
+test_repl_reports_an_error_and_keeps_going,
+test_llms_prints_the_root_cheat_sheet_and_answers_none,
+test_the_llms_verb_prints_the_same_cheat_sheet_the_package_door_prints;
+commit=d4f129e1d977239c2e25b5042e3b1df30d9d32d3].
 Open Obligations:
   To Do: None
   Hacks: None
@@ -37,6 +40,7 @@ from metta.__main__ import main as module_main
 
 _PACKAGE_ROOT = str(Path(__file__).resolve().parents[2])
 _CONVERT_FIXTURE = Path(__file__).resolve().parents[1] / "fixtures" / "convert_program.py"
+_ROOT_SHEET = Path(__file__).resolve().parents[4] / "llms.txt"
 
 
 def _environment():
@@ -285,6 +289,19 @@ def test_doc_answers_and_refuses(tmp_path):  # noqa: ARG001, D103  -- pytest inj
     missing = _metta("doc", "m-no-such-name")
     assert missing.returncode == 1
     assert "no documentation" in missing.stderr
+
+
+def test_llms_prints_the_root_cheat_sheet_and_answers_none(capsys):
+    """Print llms.txt verbatim, the way help() prints rather than returns."""
+    assert metta_package.llms() is None
+    assert capsys.readouterr().out == _ROOT_SHEET.read_text(encoding="utf-8")
+
+
+def test_the_llms_verb_prints_the_same_cheat_sheet_the_package_door_prints():
+    """One document behind two faces, checked as bytes rather than by shape."""
+    finished = _metta("llms")
+    assert finished.returncode == 0, finished.stderr
+    assert finished.stdout == _ROOT_SHEET.read_text(encoding="utf-8")
 
 
 def test_the_parser_requires_a_subcommand_and_answers_version():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract

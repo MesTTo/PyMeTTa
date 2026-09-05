@@ -3,9 +3,11 @@
 > Write Python, get MeTTa. Atoms are Python values, spaces are queryable
 > stores, equations rewrite, and a Python function can be a MeTTa function.
 > This file is how to USE the seat; the repository root's llms.txt covers the
-> language and every other surface. Every door named here exists on the
-> object it is shown on, which `check.sh`'s `llms` lane checks against the
-> live library rather than trusting this text.
+> language and every other surface. `metta.llms()` prints that file the way
+> `help()` prints, from an install as well as a checkout, and
+> `python -m metta llms` is the same document from a shell. Every door named
+> here exists on the object it is shown on, which `check.sh`'s `llms` lane
+> checks against the live library rather than trusting this text.
 
 ## Install
 
