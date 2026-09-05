@@ -1913,12 +1913,12 @@ class _GeneratorReads(ast.NodeVisitor):
             self.reads.add(node.id)
 
     def visit_Lambda(self, node: ast.Lambda) -> None:
-        for default in [*node.args.defaults, *node.args.kw_defaults]:
+        for default in (*node.args.defaults, *node.args.kw_defaults):
             if default is not None:
                 self.visit(default)
         outer = self.bound.copy()
         self.bound.update(
-            arg.arg for arg in [*node.args.posonlyargs, *node.args.args, *node.args.kwonlyargs]
+            arg.arg for arg in (*node.args.posonlyargs, *node.args.args, *node.args.kwonlyargs)
         )
         for argument in (node.args.vararg, node.args.kwarg):
             if argument is not None:

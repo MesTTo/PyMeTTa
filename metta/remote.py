@@ -1372,18 +1372,31 @@ class Gateway:
         msg = f"unknown operation {operation!r}"
         raise MettaError(msg)
 
+    def _idempotency_token_is_live(self, token: object, now: float) -> bool:
+        """A token this gateway minted, unexpired, with a key of wire-legal length.
+
+        The seven conditions are one question, is this OUR live token, and each
+        rejects a distinct way a replay can be wrong: not a dict, no string key,
+        a key outside 1..255, another gateway's scope, a non-numeric or
+        non-finite expiry, or an expiry outside (now, now + ttl].
+        """
+        if not isinstance(token, dict) or not isinstance(token.get("key"), str):
+            return False
+        if not 1 <= len(token["key"]) <= 255 or token.get("scope") != self._mutation_scope:
+            return False
+        expires = token.get("expires")
+        # isinstance narrows for the type checker where `type(x) in (...)` does
+        # not; bool is excluded by name because it is an int to isinstance.
+        if isinstance(expires, bool) or not isinstance(expires, (int, float)):
+            return False
+        if not math.isfinite(expires):
+            return False
+        return now < expires <= now + self._mutation_ttl
+
     def _mutate(self, operation: str, payload: dict) -> dict:
         token = payload["idempotency"]
         now = time.monotonic()
-        if (
-            not isinstance(token, dict)
-            or not isinstance(token.get("key"), str)
-            or not 1 <= len(token["key"]) <= 255
-            or token.get("scope") != self._mutation_scope
-            or type(token.get("expires")) not in (int, float)
-            or not math.isfinite(token["expires"])
-            or not now < token["expires"] <= now + self._mutation_ttl
-        ):
+        if not self._idempotency_token_is_live(token, now):
             msg = "invalid or expired idempotency key, or gateway instance changed"
             raise MettaError(msg)
         # Resolve authorization before replay, including direct Gateway callers.

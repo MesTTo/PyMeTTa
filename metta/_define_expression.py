@@ -1359,6 +1359,7 @@ class ExpressionCompilerMixin(CompilerContext):
                 called = mention.name
         # These three forms produce answer streams by their syntax; ordinary
         # callees use the same cardinality metadata as generator iteration.
+        # policy-inventory-exempt: mechanism-internal; reason=the three special forms whose answer cardinality is fixed by their syntax rather than by a declaration, which is why the lowerer cannot ask nondet() about them; evidence=extensions/python/metta/_define_context.py:nondet
         if called in {"superpose", "empty", "match"} or (
             called is not None and self.nondet(called)
         ):
