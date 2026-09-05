@@ -116,6 +116,18 @@ def _arrow_inputs(declaration: Atom) -> int | None:
     return None
 
 
+def _arrow_head_name(declaration: Atom) -> str | None:
+    """The head atom of an arrow-framed signature, or None if it is not one."""
+    if (
+        isinstance(declaration, Expression)
+        and len(declaration) >= 2
+        and isinstance(head := declaration[0], Symbol)
+        and _is_arrow_head(head.name)
+    ):
+        return head.name
+    return None
+
+
 def _walk_heads(atom: Atom):
     """Yield each nested expression whose head is a symbol."""
     stack = [atom]
@@ -388,6 +400,27 @@ def _arrowed_names(declarations: list[Expression]) -> set[str]:
     }
 
 
+def _call_typing_names(
+    declarations: list[Expression], registry: EngineRegistry
+) -> set[str]:
+    """The names whose declaration the ENGINE honours as a call type.
+
+    Narrower than `_arrowed_names`, and deliberately so. The frame is what an
+    author's INTENT looks like, which is the right question for arity and
+    declared-function diagnostics. Whether a call is actually checked is the
+    engine's answer, and the two disagree today for `-[det]->`.
+    """
+    names: set[str] = set()
+    for declaration in declarations:
+        name_atom = declaration[1]
+        if not isinstance(name_atom, Symbol):
+            continue
+        head = _arrow_head_name(declaration[2])
+        if head is not None and registry.types_a_call(head):
+            names.add(name_atom.name)
+    return names
+
+
 def _types_the_symbol(
     space: Any,
     declaration: Expression,
@@ -406,11 +439,25 @@ def _types_the_symbol(
         return None
     if name not in defined_here and not space.is_function_here(name):
         return None
+    #A declaration can fail to type a call two ways, and they read differently.
+    #Naming an ordinary type is the plain case. Writing an arrow SPELLING the
+    #engine parses but does not honour looks correct and is not, so the message
+    #says which of the two happened rather than calling an arrow "not an arrow".
+    if _arrow_head_name(signature) is not None:
+        reason = (
+            f"declared {signature}; the engine does not read that arrow "
+            f"spelling as a call type, so every ({name} ...) compiles "
+            f"unchecked and answers IncorrectNumberOfArguments"
+        )
+    else:
+        reason = (
+            f"declared {signature}, which is not an arrow, so it types the "
+            f"symbol and not a call: every ({name} ...) compiles unchecked"
+        )
     return Finding(
         "declaration-types-the-symbol",
         name,
-        f"declared {signature}, which is not an arrow, so it types the "
-        f"symbol and not a call: every ({name} ...) compiles unchecked",
+        reason,
         declaration,
         severity="warning",
     )
@@ -423,20 +470,31 @@ def _declaration_findings(
     registry: EngineRegistry,
 ) -> list[Finding]:
     findings: list[Finding] = []
-    arrowed = _arrowed_names(declarations)
+    #The names the ENGINE honours, not the ones carrying an arrow frame. A
+    #declaration whose spelling the engine does not read leaves the call
+    #unchecked exactly as a non-arrow declaration does, and this rule is the
+    #only place that difference is caught: the loader judges a definition's own
+    #forms, so a declaration loaded apart from its definition never meets it.
+    honoured = _call_typing_names(declarations, registry)
     for declaration in declarations:
         name_atom, signature = declaration[1], declaration[2]
         if not isinstance(name_atom, Symbol):
             continue
         name = name_atom.name
         inputs = _arrow_inputs(signature)
-        if inputs is None:
+        head = _arrow_head_name(signature)
+        if inputs is None or (head is not None and not registry.types_a_call(head)):
             finding = _types_the_symbol(
-                space, declaration, name, arrowed, defined_here
+                space, declaration, name, honoured, defined_here
             )
             if finding:
                 findings.append(finding)
-            continue
+            if inputs is None:
+                continue
+            #An arrow the engine will not honour still STATES an arity, and a
+            #disagreement with it is a second, independent fact. Reporting only
+            #the spelling would surface the arity error on the next pass, after
+            #the author had already fixed one thing.
         if name not in defined_here and not space.is_function_here(name):
             findings.append(
                 Finding(

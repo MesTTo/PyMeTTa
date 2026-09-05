@@ -506,3 +506,36 @@ def test_the_arrow_head_test_accepts_every_engine_spelling():
         assert _is_arrow_head(spelling), spelling
     for rejected in ("-[]->", "-", "foo", "-[det]", "[det]->"):
         assert not _is_arrow_head(rejected), rejected
+
+
+def test_a_declaration_the_engine_will_not_honour_is_reported(metta):
+    """The net catches the spelling the loader never judged.
+
+    `refuse_untypable_declaration/3` judges a definition's OWN forms, so a
+    declaration loaded apart from its definition never meets it, and
+    `space.lint()` is the documented net for everything else. The net had a
+    hole exactly where its two halves disagreed: the linter had been taught
+    that `-[det]->` is an arrow while `untypable_declarations/2` still decides
+    with a literal `->`, so an annotated declaration was reported by neither
+    and every call to the function answered IncorrectNumberOfArguments.
+
+    The engine is ASKED rather than second-guessed here, so on the day it
+    reads the annotated spelling the second case joins the first with nothing
+    in Python to change.
+    """
+
+    def kinds(space):
+        return sorted({finding.kind for finding in space.lint()})
+
+    honoured = metta._new_space()
+    honoured.run("(: hn-lint (-> Number Number))")
+    honoured.run("(= (hn-lint $x) $x)")
+    assert "declaration-types-the-symbol" not in kinds(honoured)
+
+    unread = metta._new_space()
+    unread.run("(: hn-lint (-[det]-> Number Number))")
+    unread.run("(= (hn-lint $x) $x)")
+    assert "declaration-types-the-symbol" in kinds(unread), kinds(unread)
+
+    # The finding claims the call compiles unchecked; this is that claim.
+    assert "IncorrectNumberOfArguments" in str(unread.run("!(hn-lint 1)"))

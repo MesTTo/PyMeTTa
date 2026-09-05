@@ -80,6 +80,7 @@ class EngineRegistry:
     __slots__ = (
         "_arities",
         "_functions",
+        "_honoured",
         "_known",
         "_operations",
         "_runtime",
@@ -97,6 +98,7 @@ class EngineRegistry:
         self._known: frozenset[str] | None = None
         self._operations: dict[str, str | None] = {}
         self._types: dict[str, str] = {}
+        self._honoured: dict[str, bool] = {}
 
     def tabled(self) -> frozenset[str]:
         """The function names tabled right now, in any space.
@@ -115,6 +117,33 @@ class EngineRegistry:
             names = raw if isinstance(raw, (list, tuple)) else []
             self._tabled = frozenset(str(name) for name in names)
         return self._tabled
+
+    def types_a_call(self, head: str) -> bool:
+        """Whether the engine reads a declaration under this head as a CALL type.
+
+        Asked, never copied. `_is_arrow_head` matches the arrow FRAME, which is
+        what an author's intent looks like and what the arity and
+        declared-function diagnostics want. This is the narrower question of
+        what the engine will HONOUR, and the two differ today: `-[det]->`
+        parses through `metta_arrow_type_shape/5` and is still refused by
+        `untypable_declarations/2`, whose literal `[->|_]` decides it. A
+        function declared with one therefore compiles unchecked and answers
+        IncorrectNumberOfArguments for every call. When the engine learns the
+        annotated spelling this answer follows it with nothing here to change,
+        which is why it is a query and not a table.
+        """
+        known = self._honoured.get(head)
+        if known is None:
+            row = self._runtime.once(
+                "(   untypable_declarations([[Head, 'Number', 'Number']], _)"
+                " -> Answer = no"
+                " ;   Answer = yes"
+                " )",
+                Head=head,
+            )
+            known = str(row.get("Answer")) == "yes"
+            self._honoured[head] = known
+        return known
 
     def is_function(self, name: str) -> bool:
         known = self._functions.get(name)
