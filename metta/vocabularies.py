@@ -206,10 +206,9 @@ class Atomicity(_AtomStrEnum):
     atomic_single = "atomic-single"
     best_effort = "best-effort"
 
-#: (vocabulary cache-mode unchecked force refuse)
+#: (vocabulary cache-mode force refuse)
 class CacheMode(_AtomStrEnum):
     """Typed values of the cache-mode vocabulary."""
-    unchecked = "unchecked"
     force = "force"
     refuse = "refuse"
 

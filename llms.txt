@@ -117,7 +117,9 @@ So reach for `@m.define` when the body is expressible as MeTTa, and `m.op`
 when it must stay Python: it touches the network, holds a file, or calls a
 library you are not going to re-express. A called operation must DECLARE its
 effect class, because the engine cannot see inside it: `pure`, `reads`,
-`writes`, `io` are the shorthands, and only a pure one may be cached.
+`writes`, `io` are the shorthands, and only a pure one is cached without being
+asked. A written `!(memoize f)` or `!(tabled (f $x))` is honoured whatever the
+class says.
 
 ## What a compiled BODY may say
 

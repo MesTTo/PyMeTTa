@@ -21,6 +21,10 @@ Guarantees:
   - a first evaluation of a head costs the same in the eighth live space
     defining it as in the second [tested:
     test_a_first_evaluation_costs_the_same_in_every_space; commit=22ce91dd50882975ccb175dcd2b235f4110ab6ff]
+  - and still does when an annotated arrow is live somewhere else in the
+    process, which used to turn a per-module effect scan back on [tested:
+    test_a_first_evaluation_costs_the_same_in_every_space_beside_an_annotated_arrow;
+    commit=WORKTREE]
   - defining that head costs the same in the eighth as in the second [tested:
     test_defining_a_shared_head_costs_the_same_in_every_space; commit=22ce91dd50882975ccb175dcd2b235f4110ab6ff]
   - a recycled space name defines for a fresh name's cost [tested:
@@ -122,6 +126,51 @@ def test_a_first_evaluation_costs_the_same_in_every_space(metta, rooms):
         f"a first evaluation of psh-eval costs {eighth} inferences in the "
         f"eighth live space defining it against {second} in the second, so it "
         f"is still paying for the spaces beside it: {_report(evaluating)}"
+    )
+
+
+def test_a_first_evaluation_costs_the_same_in_every_space_beside_an_annotated_arrow(
+    metta, rooms
+):
+    """One annotated arrow anywhere must not reopen the per-module scan.
+
+    The arrow is on `psh-annotated`, in a room of its own, and the measurement
+    is of `psh-eval-annotated`, which nothing declares. They have nothing to do
+    with each other, and that was the point: the removed compile-time check was
+    guarded by `metta_annotated_operation_effect(_, _)`, both arguments
+    unbound, which asks whether ANY annotated arrow exists anywhere in the
+    process rather than anything about the name being compiled. One live
+    declaration therefore turned the check on for every cached name, and its
+    body then computed a host goal effect plan in every module holding that
+    name, so a first evaluation cost O(spaces sharing the head).
+
+    Measured over eight rooms. With the check:
+    `[13484, 16353, 19090, 21823, 24548, 27297, 30010, 32773]`, a slope of
+    `[2737, 2733, 2725, 2749, 2713, 2763]` and an eighth 100.4% above the
+    second. Without it: `[15582, 13538, 13557, 13578, 13583, 13618, 13613,
+    13662]`, a slope of `[19, 21, 5, 35, -5, 49]` and an eighth 0.92% above the
+    second.
+
+    The second and the eighth, which are what the assertion reads, repeat
+    exactly across runs and across three trunk tips; the fourth and fifth rooms
+    move by two inferences between runs, which is why this compares an endpoint
+    pair rather than pinning the list. Against an engine three merges older the
+    same pair read 3,730 and 17 a space, before the autoload-search guards took
+    about 11,000 inferences off every row: the slope is what this pins, not the
+    level.
+    """
+    annotated = space("&psh-annotated-room")
+    rooms.append(annotated)
+    annotated.run("!(import! (context-space) (library lib_memo))")
+    annotated.run("(: psh-annotated (-[det]-> Number Number))")
+
+    _, evaluating = _shared_head_costs(metta, rooms, "psh-eval-annotated")
+    second, eighth = evaluating[1], evaluating[-1]
+    assert eighth <= second * (1 + BAND), (
+        f"a first evaluation of psh-eval-annotated costs {eighth} inferences "
+        f"in the eighth live space defining it against {second} in the second, "
+        f"so one annotated arrow elsewhere is still pricing it: "
+        f"{_report(evaluating)}"
     )
 
 

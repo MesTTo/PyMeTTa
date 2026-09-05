@@ -104,8 +104,8 @@ FINAL_METTA_METHODS = 35
 # -1 for ``cache``, removed 2026-08-31: it was a host door for ONE library,
 # reaching lib_memo's exact-bag variant from Python and from nowhere else, and
 # every capability it had is a library form (``memoize-exact``,
-# ``get-memoize-stats``, ``invalidate-memoize``, ``(cache <name> unchecked)``)
-# that every seat already reaches.
+# ``get-memoize-stats``, ``invalidate-memoize``) that every seat already
+# reaches.
 # +1 for ``llms``, which prints llms.txt the way help() prints. It is a door
 # rather than a document link because the document has to be reachable from an
 # INSTALL, where there is no checkout to open and no path a reader could guess;

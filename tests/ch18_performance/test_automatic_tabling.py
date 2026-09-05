@@ -7,10 +7,11 @@ Guarantees:
     declined [tested:
     test_a_doubly_branching_recursion_is_tabled_automatically_and_a_tail_recursion_is_not;
     commit=9e7d5dc2cad810940e5386d52636ac6946df279d]
-  - impurity remains a hard refusal and catalog force/refuse declarations move
-    only the profitability decision [tested:
+  - impurity declines a function nobody declared, and `(cache <name> force)`
+    overrides that as well as profitability [tested:
     test_an_impure_function_is_never_cached_automatically,
-    test_automatic_cache_force_and_refuse_overrides; commit=9e7d5dc2cad810940e5386d52636ac6946df279d]
+    test_a_forced_impure_function_is_cached_on_the_declaration,
+    test_automatic_cache_force_and_refuse_overrides; commit=WORKTREE]
   - automatic caching preserves duplicate answer bags even above the manual
     answer limit and under a manual aggregate setting [tested:
     test_automatic_caching_preserves_multiplicity_and_answer_limit;
@@ -69,28 +70,61 @@ def test_a_doubly_branching_recursion_is_tabled_automatically_and_a_tail_recursi
 
 
 def test_an_impure_function_is_never_cached_automatically() -> None:
-    """Keep the effect walk's impurity refusal stronger than force."""
+    """Nobody declared this one, so the library answers the effect question.
+
+    Automatic caching is the library choosing a cache on its own initiative,
+    and a cache it puts on a body that prints would swallow the printing. The
+    doubly branching shape is the profitable one, so profitability is not what
+    declines it here; the effect walk is.
+    """
     metta = MeTTa().space("&p14-auto-impure")
-    declaration = "(cache p14-auto-impure force)"
+    metta.run(
+        """
+        (= (p14-auto-impure $n)
+           (if (< $n 1)
+               1
+               (let $_ (println! $n)
+                 (+ (p14-auto-impure (- $n 1))
+                    (p14-auto-impure (- $n 1))))))
+        """
+    )
+    _memo_inspection(metta)
+    assert metta.run("!(is-memoized p14-auto-impure)") == [[False]]
+    assert _cache_text(metta, "(p14-auto-impure 3)").startswith(
+        "(cache declined (impure "
+    )
+
+
+def test_a_forced_impure_function_is_cached_on_the_declaration() -> None:
+    """`force` is the developer answering the question the walk asked.
+
+    The same body as the case above, with `(cache <name> force)` written for
+    it. The declaration is honoured: the function is cached, and `explain`
+    reports the declaration rather than the impurity it overrode.
+    """
+    metta = MeTTa().space("&p14-auto-forced-impure")
+    declaration = "(cache p14-forced-impure force)"
     try:
         metta.run(f"!(add-atom &metta {declaration})")
         metta.run(
             """
-            (= (p14-auto-impure $n)
+            (= (p14-forced-impure $n)
                (if (< $n 1)
                    1
                    (let $_ (println! $n)
-                     (+ (p14-auto-impure (- $n 1))
-                        (p14-auto-impure (- $n 1))))))
+                     (+ (p14-forced-impure (- $n 1))
+                        (p14-forced-impure (- $n 1))))))
             """
         )
         _memo_inspection(metta)
-        assert metta.run("!(is-memoized p14-auto-impure)") == [[False]]
-        assert _cache_text(metta, "(p14-auto-impure 3)").startswith(
-            "(cache declined (impure "
+        assert metta.run("!(is-memoized p14-forced-impure)") == [[True]]
+        assert _cache_text(metta, "(p14-forced-impure 3)") == (
+            "(cache forced declaration)"
         )
+        assert metta.run("!(p14-forced-impure 3)") == [[8]]
     finally:
         metta.run(f"!(remove-atom &metta {declaration})")
+    assert metta.run("!(is-memoized p14-forced-impure)") == [[False]]
 
 
 def test_automatic_cache_force_and_refuse_overrides() -> None:
@@ -219,7 +253,13 @@ def test_scc_profitability_is_per_rhs_and_selects_a_mutual_component() -> None:
 
 
 def test_bounded_left_recursive_search_is_not_cached_automatically() -> None:
-    """Decline bounded search whose pruning conflicts with eager collection."""
+    """Decline bounded search whose pruning conflicts with eager collection.
+
+    `force` does not open this one. It is not a judgement about whether the
+    developer should want the cache; eager bag collection would keep probing
+    the recursion after `once` had its answer, so it is a cache this library
+    cannot build on anyone's word.
+    """
     metta = MeTTa().space("&p14-auto-variant")
     metta.run(
         """
@@ -237,9 +277,24 @@ def test_bounded_left_recursive_search_is_not_cached_automatically() -> None:
     )
     assert metta.run("!(p14-path a c)") == [[True]]
 
+    declaration = "(cache p14-path force)"
+    try:
+        metta.run(f"!(add-atom &metta {declaration})")
+        assert metta.run("!(is-memoized p14-path)") == [[False]]
+        assert _cache_text(metta, "(p14-path a c)") == (
+            "(cache declined (bounded-search once))"
+        )
+    finally:
+        metta.run(f"!(remove-atom &metta {declaration})")
+
 
 def test_explicit_tabling_takes_precedence_over_automatic_memoization() -> None:
-    """Disable automatic bag caching while an explicit answer trie is live."""
+    """Disable automatic bag caching while an explicit answer trie is live.
+
+    `force` does not open this one either: two cache substrates on one
+    predicate is a mechanism this library cannot build, not an opinion about
+    the program.
+    """
     metta = MeTTa().space("&p14-auto-explicit-table")
     metta.run(
         """
@@ -256,6 +311,16 @@ def test_explicit_tabling_takes_precedence_over_automatic_memoization() -> None:
     metta.run("!(import! &self (library lib_tabling))")
     assert metta.run("!(tabled (p14-explicit-table $n))") == [[True]]
     assert metta.run("!(is-memoized p14-explicit-table)") == [[False]]
+
+    declaration = "(cache p14-explicit-table force)"
+    try:
+        metta.run(f"!(add-atom &metta {declaration})")
+        assert metta.run("!(is-memoized p14-explicit-table)") == [[False]]
+        assert _cache_text(metta, "(p14-explicit-table 3)") == (
+            "(cache declined explicit-tabling)"
+        )
+    finally:
+        metta.run(f"!(remove-atom &metta {declaration})")
     assert _cache_text(metta, "(p14-explicit-table 10)") == (
         "(cache declined explicit-tabling)"
     )

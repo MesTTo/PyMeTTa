@@ -1003,7 +1003,10 @@ def register[**P, R](
     the operation's complete lifecycle: type atoms live in its declaration
     space, while its canonical effect row and other policy atoms live in
     &metta and can be matched there. Only ``pureStructural`` enters the
-    compatibility allow-list for tabled or memoized bodies.
+    compatibility allow-list the caching libraries read: a body calling an
+    operation outside it is not memoized automatically and tables plain
+    rather than incremental, while a written declaration is honoured either
+    way.
     """
     metta_name = _metta_name(fn, name)
     kind = _operation_kind(fn, transport)

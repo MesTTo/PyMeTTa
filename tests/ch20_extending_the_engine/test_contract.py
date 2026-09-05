@@ -292,7 +292,12 @@ def test_a_registered_structural_effect_reaches_the_purity_walk(metta):  # noqa:
     assert _effect_atom("ct-mdecl") in metta._at("&metta")
 
 
-def test_an_unchecked_declaration_memoizes_an_impure_body(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
+def test_a_declaration_memoizes_an_impure_body(metta):
+    """`(memoize f)` over a writesState body is honoured and the cache serves.
+
+    This took `(cache ct-uwrap unchecked)` first, an extra atom whose only job
+    was to answer a question the `memoize` had already answered.
+    """
     calls = []
 
     def draw(x: int) -> int:
@@ -302,19 +307,22 @@ def test_an_unchecked_declaration_memoizes_an_impure_body(metta):  # noqa: D103 
     metta.op(draw, name="ct-draw", effect=EffectClass.writesState)
     metta.run("!(import! &self (library lib_memo))")
     metta.run("(= (ct-uwrap $x) (ct-draw $x))")
-    with pytest.raises(EngineError):
-        metta.run("!(memoize ct-uwrap)")
-    metta.run("!(add-atom &metta (cache ct-uwrap unchecked))")
     assert metta.run("!(memoize ct-uwrap)") == [[True]]
-    # The declared acceptance is real: the second call answers from the
-    # cache, so Python runs once and the answer repeats.
+    # The second call answers from the cache, so Python runs once and the
+    # answer repeats.
     first = metta.run("!(ct-uwrap 7)")
     second = metta.run("!(ct-uwrap 7)")
     assert first == second == [[1]]
     assert calls == [7]
 
 
-def test_an_unchecked_declaration_tables_an_impure_body(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
+def test_a_declaration_tables_an_impure_body(metta):
+    """`(tabled (f $x))` over a writesState body builds a PLAIN shared table.
+
+    A body the effect walk cannot classify has no read to hang the incremental
+    property on, so the table carries `shared` and not `incremental`; the space
+    reader beside it keeps both.
+    """
     calls = []
 
     def now(x: int) -> int:
@@ -324,8 +332,21 @@ def test_an_unchecked_declaration_tables_an_impure_body(metta):  # noqa: D103  -
     metta.op(now, name="ct-tnow", effect=EffectClass.writesState)
     metta.run("!(import! &self (library lib_tabling))")
     metta.run("(= (ct-twrap $x) (ct-tnow $x))")
-    metta.run("!(add-atom &metta (cache ct-twrap unchecked))")
     assert metta.run("!(tabled (ct-twrap $x))") == [[True]]
+    assert metta.run("!(ct-twrap 5)") == metta.run("!(ct-twrap 5)") == [[5]]
+    assert calls == [5]
+
+    metta.run("(ct-tfact 1) (= (ct-tread $x) (match &self (ct-tfact $y) $y))")
+    assert metta.run("!(tabled (ct-tread $x))") == [[True]]
+    properties = metta.runtime.once(
+        "( metta_module_space(_M, '&self'), "
+        "  findall(_N-_K, ( member(_N, ['ct-twrap', 'ct-tread']), "
+        "                   functor(_H, _N, 2), "
+        "                   predicate_property(_M:_H, tabled(_K)) ), Kinds) )"
+    )["Kinds"]
+    assert ("ct-twrap", "shared") in properties
+    assert ("ct-twrap", "incremental") not in properties
+    assert ("ct-tread", "incremental") in properties
 
 
 class _CtPoint:

@@ -1,9 +1,10 @@
 """Purpose: verify annotated-arrow contracts through public Python consumers.
 
-Guarantees: effect plans, world admission and memoization consume annotations;
-cardinality auditing observes one execution and source lifetimes keep effects
-current [tested: extensions/python/tests/ch11_python_as_a_notation/test_arrow_products.py;
-commit=bbb512316280110a747e31c26adfc31e8c5104be].
+Guarantees: effect plans and world admission consume annotations, memoization
+does NOT, cardinality auditing observes one execution, and source lifetimes
+keep effects current [tested:
+extensions/python/tests/ch11_python_as_a_notation/test_arrow_products.py;
+commit=WORKTREE].
 Owns resources: pytest fixtures release spaces; tests restore the cardinality
 pragma and close every successor world they create.
 """
@@ -32,8 +33,18 @@ def product_space(metta):
         ("det", EffectClass.oracleIO),
     ],
 )
-def test_arrow_effect_reaches_planning_and_cache_refusal(product_space, product, expected):
-    """The declaration's class reaches the same gate as an operation's class."""
+def test_arrow_effect_reaches_planning_and_leaves_the_cache_to_its_author(
+    product_space, product, expected
+):
+    """The declaration's class reaches planning; it does not veto a cache.
+
+    An annotation is what the function's author says the function DOES, and
+    effect planning and world admission are the two consumers that need it. It
+    used to be a third thing as well, a refusal at `memoize-exact`, so an
+    author who wrote a `writesState` arrow took the cache away from every
+    caller. Caching is the caller's own decision about their own program and
+    this library carries it out as written (user ruling, 2026-09-06).
+    """
     product_space.run(
         f"(: arrow-py-f (-[{product}]-> Number Number)) "
         "(= (arrow-py-f $x) $x)"
@@ -45,22 +56,42 @@ def test_arrow_effect_reaches_planning_and_cache_refusal(product_space, product,
     assert [str(row.effect) for row in rows] == [expected.value]
 
     product_space.run("!(import! &self (library lib_memo))")
-    product_space._at("&metta").add(S.cache(S.arrow_py_f, S.unchecked))
-    try:
-        with pytest.raises(MettaError, match="pureStructural"):
-            product_space.run("!(memoize-exact arrow-py-f)")
-        assert product_space.run("!(is-memoized arrow-py-f)") == [[False]]
-        assert product_space.eval(S.arrow_py_f(1)) == [1]
-    finally:
-        product_space._at("&metta").remove(S.cache(S.arrow_py_f, S.unchecked))
+    assert product_space.run("!(memoize-exact arrow-py-f)") == [[True]]
+    assert product_space.run("!(is-memoized arrow-py-f)") == [[True]]
+    assert product_space.eval(S.arrow_py_f(1)) == [1]
+    # And the declaration still says what it said: the cache did not weaken it.
+    assert product_space.effect_plan(S.arrow_py_f(1)).effect is expected
 
-    with pytest.raises(MettaError, match="pureStructural") as caught:
-        product_space.run("!(memoize-exact arrow-py-f)")
-    assert expected.value in str(caught.value)
+
+def test_an_annotated_effectful_body_answers_from_its_cache(product_space):
+    """The honoured declaration is a working cache, not a recorded flag.
+
+    The body's one call has an observable effect, so a second answer that costs
+    no second effect is the cache serving it.
+    """
+    seen = []
+
+    @product_space.op(name="arrow-py-record", effect="writesState")
+    def record(value: int) -> int:
+        seen.append(value)
+        return value
+
+    try:
+        product_space.run(
+            "(: arrow-py-writer (-[det,writesState]-> Number Number)) "
+            "(= (arrow-py-writer $x) (arrow-py-record $x)) "
+            "!(import! &self (library lib_memo))"
+        )
+        assert product_space.run("!(memoize arrow-py-writer)") == [[True]]
+        assert product_space.eval(S.arrow_py_writer(3)) == [3]
+        assert product_space.eval(S.arrow_py_writer(3)) == [3]
+        assert seen == [3]
+    finally:
+        product_space.unregister_op("arrow-py-record")
 
 
 def test_an_annotated_pure_function_remains_memoizable(product_space):
-    """The new refusal has a positive structural control."""
+    """A pureStructural annotation is as ordinary as it always was."""
     product_space.run(
         "(: arrow-py-f (-[det,pureStructural]-> Number Number)) "
         "(= (arrow-py-f $x) $x) !(import! &self (library lib_memo))"
@@ -234,40 +265,57 @@ def test_forward_memoization_preserves_deferred_answer_aggregation(product_space
         product_space.run("!(config-memoize (aggregate none))")
 
 
-def test_a_pending_cache_refuses_a_later_author_effect(product_space):
-    """A cache without equations still cannot override its author's effect."""
-    with pytest.raises(MettaError, match="dependent cache"):
-        product_space.run(
-            "!(import! &self (library lib_memo)) !(memoize arrow-py-forward) "
-            "(: arrow-py-forward (-[det,writesState]-> Number Number)) "
-            "(= (arrow-py-forward $x) $x)"
-        )
-    assert list(product_space._at("&metta").match(S.effect(S.arrow_py_forward, V.effect))) == []
+def test_a_pending_cache_survives_a_later_author_effect(product_space):
+    """A forward declaration is honoured when its annotated body arrives.
+
+    `!(memoize arrow-py-forward)` names a function that has no equations yet,
+    so there is nothing to inspect at admission; the annotation and the body
+    both land afterwards. This used to be the one shape the library could still
+    refuse late, and it refused the DECLARATION rather than the cache, so an
+    author who annotated their own function was told to delete somebody else's
+    cached definition first.
+    """
+    product_space.run(
+        "!(import! &self (library lib_memo)) !(memoize arrow-py-forward) "
+        "(: arrow-py-forward (-[det,writesState]-> Number Number)) "
+        "(= (arrow-py-forward $x) $x)"
+    )
+    rows = product_space._at("&metta").match(S.effect(S.arrow_py_forward, V.effect))
+    assert [str(row.effect) for row in rows] == ["writesState"]
+    assert product_space.run("!(is-memoized arrow-py-forward)") == [[True]]
+    assert product_space.eval(S.arrow_py_forward(1)) == [1]
 
 
-@pytest.mark.parametrize("unchecked", [False, True])
-def test_a_forward_cached_body_refuses_an_annotated_dependency(product_space, unchecked):
-    """Compilation validates a body that did not exist at cache admission."""
-    catalog = product_space._at("&metta")
-    if unchecked:
-        catalog.add(S.cache(S.arrow_py_forward, S.unchecked))
-    try:
-        with pytest.raises(MettaError, match="arrow-py-writer declares writesState"):
-            product_space.run(
-                "!(import! &self (library lib_memo)) "
-                "(: arrow-py-writer (-[det,writesState]-> Number Number)) "
-                "(= (arrow-py-writer $x) $x) !(memoize arrow-py-forward) "
-                "(= (arrow-py-forward $x) (arrow-py-writer $x)) !(arrow-py-forward 1)"
-            )
-    finally:
-        if unchecked:
-            catalog.remove(S.cache(S.arrow_py_forward, S.unchecked))
+def test_a_forward_cached_body_keeps_an_annotated_dependency(product_space):
+    """A dependency's annotation does not withdraw a caller's cache.
+
+    The body compiles after the cache is declared, and it calls a function
+    whose author annotated it `writesState`. Compiling it used to raise, from a
+    `function_clauses_changed` handler installed once per cached name; the
+    handler is gone with the check it existed for.
+    """
+    product_space.run(
+        "!(import! &self (library lib_memo)) "
+        "(: arrow-py-writer (-[det,writesState]-> Number Number)) "
+        "(= (arrow-py-writer $x) $x) !(memoize arrow-py-forward) "
+        "(= (arrow-py-forward $x) (arrow-py-writer $x)) "
+    )
+    assert product_space.run("!(arrow-py-forward 1)") == [[1]]
+    assert product_space.run("!(is-memoized arrow-py-forward)") == [[True]]
+    assert (
+        product_space.effect_plan(S.arrow_py_forward(1)).effect is EffectClass.writesState
+    )
 
 
 @pytest.mark.parametrize("cached", ["arrow-py-f", "arrow-py-caller"])
 @pytest.mark.parametrize("elsewhere", [False, True])
-def test_a_late_effect_refuses_while_a_dependent_cache_is_live(product_space, cached, elsewhere):
-    """An existing direct or caller cache cannot suppress a new author assertion."""
+def test_a_late_effect_lands_while_a_dependent_cache_is_live(product_space, cached, elsewhere):
+    """A new author assertion lands beside a direct or caller cache.
+
+    The annotation is stored, the plan reports it, and the cache keeps
+    answering; whether that cache should have been declared over this function
+    is the question the declaring program already answered.
+    """
     product_space.run(
         "(: arrow-py-f (-> Number Number)) (= (arrow-py-f $x) $x) "
         "(: arrow-py-caller (-> Number Number)) "
@@ -278,14 +326,11 @@ def test_a_late_effect_refuses_while_a_dependent_cache_is_live(product_space, ca
     declaration = "(: arrow-py-f (-[det,writesState]-> Number Number))"
     with product_space._new_space() as other:
         owner = other if elsewhere else product_space
-        with pytest.raises(MettaError, match="remove the cached definition"):
-            owner.run(declaration)
-        assert product_space.effect_plan(S.arrow_py_f(1)).effect is EffectClass.pureStructural
-        assert declaration not in {str(atom) for atom in owner.atoms()}
-        assert product_space.eval(S[cached](1)) == [1]
-        product_space.run(f"!(remove-atom &self (= ({cached} $x) $body))")
         owner.run(declaration)
         assert product_space.effect_plan(S.arrow_py_f(1)).effect is EffectClass.writesState
+        assert declaration in {str(atom) for atom in owner.atoms()}
+        assert product_space.eval(S[cached](1)) == [1]
+        assert product_space.run(f"!(is-memoized {cached})") == [[True]]
 
 
 def test_a_failed_late_annotation_restores_plain_callers(product_space, tmp_path):
@@ -349,7 +394,13 @@ def test_a_removed_cache_owner_retires_while_another_definition_remains(product_
 
 
 def test_retired_memo_owners_release_their_event_and_dispatch_clauses(product_space):
-    """Repeated cache lives restore the seam census they started with."""
+    """Repeated cache lives restore the seam census they started with.
+
+    `Changed` counts a clause memoization no longer installs. It stays in the
+    census as the pin on that: a live cache must add nothing to
+    `function_clauses_changed`, because the only handler it ever put there ran
+    an effect plan per module holding the name on every compiled equation.
+    """
     product_space.run("!(import! &self (library lib_memo))")
     census = """
         aggregate_all(count,
@@ -369,6 +420,9 @@ def test_retired_memo_owners_release_their_event_and_dispatch_clauses(product_sp
                 "(= (arrow-py-hooks $x) $x) !(memoize-exact arrow-py-hooks)"
             )
             assert space.eval(S.arrow_py_hooks(1)) == [1]
+            live = product_space.runtime.once(census)
+            assert live["Dispatch"] == before["Dispatch"] + 1
+            assert live["Changed"] == before["Changed"]
             space.clear()
             assert product_space.runtime.once(census) == before
 
