@@ -1503,7 +1503,7 @@ metta_py_origin_part(Part, String) :-
 %[measured 2026-09-06: 1,030 inferences against 8 for a name the module has,
 %and 37 against 9 with the guard;
 %tested: extensions/python/tests/ch18_performance/test_function_shape_cost.py;
-%commit=WORKTREE].
+%commit=693b1bdb6ed06cd0ba01e901a8a6d774bc733d19].
 metta_py_index_quality(Module, Name, Arity, Speedup, Realised) :-
     functor(Head, Name, Arity),
     (   (   current_predicate(Module:Name/Arity)

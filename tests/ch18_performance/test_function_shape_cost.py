@@ -13,7 +13,7 @@ documented load contract is engine-free: without the engine the asking module
 carries almost no autoload declarations and the same miss costs 58 inferences
 instead of 1,030, so a ratio asserted there cannot tell the two spellings apart
 [measured 2026-09-06: engine-free 22 present against 58 missing, engine-loaded
-8 against 1,030; commit=WORKTREE].
+8 against 1,030; commit=693b1bdb6ed06cd0ba01e901a8a6d774bc733d19].
 
 Guarantees:
   - a name the module does not have is priced like one it does
