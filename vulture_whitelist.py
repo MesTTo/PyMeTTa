@@ -205,3 +205,17 @@ _.alpha
 # shape already asks; the package itself has the bound's own word to read, so
 # nothing inside it loads this name.
 _.truncated
+
+# ast.NodeVisitor dispatches its hooks by NAME, `visit_` plus the node class,
+# so no attribute load names this one and a reachability scan cannot see it.
+# It is the walrus case of _GeneratorReads, the backward liveness walk that
+# gives a generator's shared continuation its parameter list, and it is
+# reached: measured, a walrus in the statements after a generator branch calls
+# it once. Every such program is then REFUSED, and the hook is what keeps the
+# refusal accurate. Without it the target counts as a free read, so the
+# liveness check fires first and blames the wrong thing: `total = (doubled :=
+# n * 2) + 1` after a branch answers "NamedExpr has no MeTTa equivalent in the
+# compiled subset" with the hook and "'doubled' is read after a generator
+# branch but is not bound on every path reaching that read" without it
+# [tested: test_a_generator_walrus_refuses_as_an_unsupported_construct].
+_.visit_NamedExpr

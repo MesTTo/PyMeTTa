@@ -1926,6 +1926,14 @@ class _GeneratorReads(ast.NodeVisitor):
         self.visit(node.body)
         self.bound = outer
 
+    # A generator body cannot hoist a walrus, so every one refuses; this walk
+    # runs BEFORE that refusal, and treating the target as a binding is what
+    # keeps the refusal accurate. Without it the target reads as free, the
+    # liveness check fires first, and `total = (doubled := n * 2) + 1` after a
+    # branch is blamed on `doubled` not being bound on every path rather than
+    # on the construct [tested:
+    # test_a_generator_walrus_refuses_as_an_unsupported_construct]. Whitelisted
+    # for vulture, which cannot see NodeVisitor's dispatch by name.
     def visit_NamedExpr(self, node: ast.NamedExpr) -> None:
         self.visit(node.value)
         self.bound.add(node.target.id)

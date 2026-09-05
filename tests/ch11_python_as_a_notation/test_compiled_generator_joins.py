@@ -211,3 +211,23 @@ def test_generator_join_empty_yield_stream_does_not_prune_the_continuation(scrat
 
     assert list(selected(flag=True)) == [2]
     assert list(selected(flag=False)) == [8]
+
+
+def test_a_generator_walrus_refuses_as_an_unsupported_construct(scratch_space):
+    """The liveness walk sees the walrus first, and must not blame liveness.
+
+    A generator body cannot hoist a walrus, so every one refuses; the walk that
+    gives the shared continuation its parameters runs BEFORE that refusal, and
+    it treats the walrus target as a binding rather than a free read. Without
+    that, `doubled` reads as unbound on the branch's other edge and the
+    liveness check fires first with the wrong reason.
+    """
+    def hoisted(n):
+        if n:
+            yield 1
+        total = (doubled := n * 2) + 1
+        yield total
+        yield doubled
+
+    with pytest.raises(CompileError, match="NamedExpr has no MeTTa equivalent"):
+        scratch_space.define(hoisted)
