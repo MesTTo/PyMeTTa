@@ -161,6 +161,40 @@ def test_source_reload_and_failure_withdraw_owned_effect_rows(product_space, tmp
     assert list(product_space._at("&metta").match(S.effect(S.arrow_py_failed, V.effect))) == []
 
 
+def test_a_library_reloaded_into_two_spaces_keeps_both_products(product_space, tmp_path):
+    """A library is a file more than one space loads, and a reload withdraws
+    every copy. Each copy's declaration owns a catalog row of its own and the
+    rows are equal, so a withdrawal that removed one of them by value reached
+    the row the other space still owned and refused mid-reload.
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
+    source = tmp_path / "arrow-library.metta"
+    source.write_text(
+        "(: arrow-py-lib (-[det,writesState]-> Number Number)) "
+        "(= (arrow-py-lib $x) $x)",
+        encoding="utf-8",
+    )
+    with product_space._new_space() as other:
+        product_space.load(source)
+        other.load(source)
+        catalog = product_space._at("&metta")
+        rows = catalog.match(S.effect(S.arrow_py_lib, V.effect))
+        assert [str(row.effect) for row in rows] == ["writesState", "writesState"]
+
+        source.write_text(
+            "(: arrow-py-lib (-[det,writesState]-> Number Number)) "
+            "(= (arrow-py-lib $x) (+ $x 100))",
+            encoding="utf-8",
+        )
+        product_space.load(source)
+
+        rows = catalog.match(S.effect(S.arrow_py_lib, V.effect))
+        assert [str(row.effect) for row in rows] == ["writesState", "writesState"]
+        assert product_space.eval(S.arrow_py_lib(1)) == [101]
+        assert other.eval(S.arrow_py_lib(1)) == [101]
+        assert product_space.effect_plan(S.arrow_py_lib(1)).effect is EffectClass.writesState
+        assert other.effect_plan(S.arrow_py_lib(1)).effect is EffectClass.writesState
+
+
 def test_fast_source_restore_reinstalls_the_product(product_space, tmp_path):
     """The saved written type recreates policy when its old owner is gone."""
     cache = tmp_path / "arrow-cache.qlf"
