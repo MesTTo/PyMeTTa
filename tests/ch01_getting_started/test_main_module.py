@@ -23,6 +23,7 @@ import random
 import signal
 import subprocess
 import sys
+import time
 import urllib.request
 from pathlib import Path
 
@@ -327,3 +328,72 @@ def test_serve_and_boot_expose_spaces_until_interrupted(tmp_path, arguments):  #
         process.send_signal(signal.SIGINT)
         assert process.wait(timeout=30) == 0
         process.stdout.close()
+
+
+def test_the_shutdown_guard_ignores_the_signal_that_started_it():
+    """SIGINT is held off for the close, and the old handler comes back.
+
+    Tested at the MECHANISM rather than through the race it exists for. The
+    race is real and reproduces 10 times out of 10 from a standalone script:
+    `serve` waits for an interrupt and closes in a `finally`, a second signal
+    arriving inside that close lands in `socketserver.shutdown`'s wait,
+    `RemoteServer._stop_http` collects it as a close FAILURE, and `close()`
+    re-raises it, so the shutdown the first signal asked for is aborted and
+    the process exits nonzero half torn down.
+
+    It does NOT reproduce under pytest, and several attempts to make it did
+    not either: serving a request first to widen the window, exactly two
+    signals rather than a burst, and looping the attempt. This repository's
+    own concurrency tests use a barrier for exactly this reason, and a
+    barrier cannot be threaded into a subprocess's shutdown without changing
+    what is being tested. So the guard's contract is asserted directly, which
+    is deterministic, and the integration case below is a smoke test rather
+    than the proof.
+    """
+    from metta.__main__ import _shutdown_uninterrupted
+
+    before = signal.getsignal(signal.SIGINT)
+    with _shutdown_uninterrupted():
+        assert signal.getsignal(signal.SIGINT) is signal.SIG_IGN, (
+            "a repeat of the signal that asked for the shutdown must not reach it"
+        )
+    assert signal.getsignal(signal.SIGINT) is before, "and the handler is given back"
+
+
+def test_the_shutdown_guard_restores_its_handler_when_the_close_raises():
+    """A failing close must not leave the process deaf to Ctrl-C."""
+    from metta.__main__ import _shutdown_uninterrupted
+
+    before = signal.getsignal(signal.SIGINT)
+    failure = RuntimeError("close failed")
+    with pytest.raises(RuntimeError, match="close failed"), _shutdown_uninterrupted():
+        raise failure
+    assert signal.getsignal(signal.SIGINT) is before
+
+
+def test_serve_exits_cleanly_when_the_interrupt_repeats(tmp_path):
+    """The integration smoke test for the guard above."""
+    (tmp_path / "facts.metta").write_text("(m-twice fact)\n")
+    process = subprocess.Popen(
+        [sys.executable, "-m", "metta", "serve", str(tmp_path / "facts.metta"), "--port", "0"],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        env=_environment(),
+    )
+    try:
+        url = None
+        for _ in range(300):
+            line = process.stdout.readline()
+            if line.startswith("serving "):
+                url = line.split()[1]
+                break
+        assert url, "serve never printed its serving line"
+        urllib.request.urlopen(url + "/health", timeout=5).read()
+        process.send_signal(signal.SIGINT)
+        time.sleep(0.02)
+        process.send_signal(signal.SIGINT)
+        assert process.wait(timeout=30) == 0, process.stderr.read()[-1500:]
+    finally:
+        process.stdout.close()
+        process.stderr.close()

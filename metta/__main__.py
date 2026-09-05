@@ -35,6 +35,7 @@ from __future__ import annotations
 
 import argparse
 import contextlib
+import signal
 import sys
 import threading
 from pathlib import Path
@@ -168,8 +169,48 @@ def _serve(arguments) -> int:
     except KeyboardInterrupt:
         pass
     finally:
-        server.close()
+        with _shutdown_uninterrupted():
+            server.close()
     return 0
+
+
+@contextlib.contextmanager
+def _shutdown_uninterrupted():
+    """Hold SIGINT off a shutdown that a SIGINT just started.
+
+    `serve` and `boot` wait for an interrupt and then close in a `finally`.
+    A SECOND interrupt arriving inside that close lands in
+    `socketserver.shutdown`'s wait, and `RemoteServer._stop_http` collects it
+    as a close FAILURE, which `close()` then re-raises: the graceful shutdown
+    the first signal asked for is aborted by a repeat of the same signal, and
+    the process exits nonzero having half torn down. Reproduced deterministically
+    by sending two signals 20ms apart [measured 2026-09-05]; under load it
+    reproduces on one signal, because the delivery can land after the main
+    thread has already left the wait.
+
+    The shape is asyncio.Runner's, which installs its own SIGINT handler for
+    the duration of a run and restores it in `finally`: the first signal is
+    the graceful request and a repeat must not be handled as a new one. Its
+    guards are worth copying too, main thread only and tolerating a ValueError,
+    because `signal.signal` raises where signals are not registered
+    [source: /usr/lib/python3.14/asyncio/runners.py:111-138,159-166].
+
+    The close is bounded by its own timeout, so holding the signal cannot hang
+    a shutdown indefinitely.
+    """
+    if threading.current_thread() is not threading.main_thread():
+        yield
+        return
+    try:
+        previous = signal.signal(signal.SIGINT, signal.SIG_IGN)
+    except ValueError:  # signals not registered in this interpreter
+        yield
+        return
+    try:
+        yield
+    finally:
+        with contextlib.suppress(ValueError):
+            signal.signal(signal.SIGINT, previous)
 
 
 def _boot(arguments) -> int:
@@ -187,7 +228,8 @@ def _boot(arguments) -> int:
     except KeyboardInterrupt:
         pass
     finally:
-        booted.close()
+        with _shutdown_uninterrupted():
+            booted.close()
     return 0
 
 
