@@ -2,7 +2,7 @@
 
 Guarantees: repeated source text keeps separate positions and observing a
 program preserves its answers and writes [tested: test_coverage_distinguishes_identical_branches,
-test_observation_executes_writes_and_retains_error_answers; commit=WORKTREE].
+test_observation_executes_writes_and_retains_error_answers; commit=df1367c75148ca6c7262134a8736b237e1150383].
 """
 
 from metta import MeTTa, S
