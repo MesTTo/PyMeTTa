@@ -10,7 +10,7 @@ Guarantees:
     inference growth from exponential to linear, with both improvements and
     regressions pinned to the measured floor [tested:
     test_automatic_tabling_growth;
-    commit=WORKTREE]
+    commit=bbb512316280110a747e31c26adfc31e8c5104be]
   - the native-handle case reaches the chapter-19 artifact that the worktree
     build produces instead of skipping behind its pre-reorganisation path
     [tested: test_handle_benchmark_reaches_the_built_chapter_19_library;
@@ -247,7 +247,7 @@ _ROWS = 2_000
 #: command=$PY -c "from benchmarks.test_benchmarks import
 #: _automatic_tabling_observations; print(_automatic_tabling_observations())";
 #: fixture=source-only base 763b7f2d and product at the same path with matching
-#: C and MORK artifacts; commit=WORKTREE].
+#: C and MORK artifacts; commit=bbb512316280110a747e31c26adfc31e8c5104be].
 _AUTOMATIC_TABLING_PINS = {
     12: {"plain": 122_101, "automatic": 16_202},
     15: {"plain": 953_643, "automatic": 17_366},

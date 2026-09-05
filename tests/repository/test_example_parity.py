@@ -12,7 +12,7 @@ Guarantees:
     test_compare_reports_a_planted_verdict_difference,
     test_compare_accepts_equivalent_passing_verdicts; commit=835925ee1c55d2267aa54f0a5ccbdfcdb6fc003c]
   - process termination preserves its status without becoming an answer error
-    [tested: test_process_exit_is_not_an_answer_error; commit=WORKTREE]
+    [tested: test_process_exit_is_not_an_answer_error; commit=bbb512316280110a747e31c26adfc31e8c5104be]
 Open Obligations:
   To Do: None
   Hacks: None

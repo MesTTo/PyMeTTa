@@ -7,7 +7,7 @@ is Python's own `assert`.
 Guarantees:
   - the translated definition and assertion agree with the source example
     inside the current inference budget [tested:
-    test_a_shipped_twin_agrees_with_its_example_end_to_end; commit=WORKTREE]
+    test_a_shipped_twin_agrees_with_its_example_end_to_end; commit=bbb512316280110a747e31c26adfc31e8c5104be]
 """
 
 
@@ -629,7 +629,7 @@ def twin(m):
 #: the same commit; command=PYTHONPATH=extensions/python $CHECK_PY -m pytest -q
 #: tests/repository/test_twin_coverage.py -k 'identity.metta';
 #: fixture=warm main-checkout engine artifacts, and a worktree.sh-provisioned
-#: worktree of the same commit; commit=WORKTREE]
+#: worktree of the same commit; commit=bbb512316280110a747e31c26adfc31e8c5104be]
 #: RE-PINNED 2026-09-05, 3575 to 3565 (-10), by declaring
 #: metta_host_time_budget/3 as a host_service in engine/ext_points.pl. An
 #: IMPROVEMENT, which this lane refuses to leave unpinned for the same reason
@@ -747,7 +747,7 @@ def twin(m):
 #: extensions/python/tools/twin_coverage.py --measure --rounds 3
 #: examples/ch05-equations-and-evaluation/05-01-an-equation-is-a-rewrite/01-identity.metta;
 #: fixture=merged main checkout, libmork_ffi.so present, QLF cleared and
-#: warmed; commit=WORKTREE].
+#: warmed; commit=bbb512316280110a747e31c26adfc31e8c5104be].
 #: RE-PINNED 2026-09-05, 3399 to 3413 (+14), Annotated product consumers after
 #: rebase onto 763b7f2d: same-path source-only base and product triples measure
 #: 3399 and 3413. Disabling annotation detection measures 3408, accounting for
@@ -756,5 +756,5 @@ def twin(m):
 #: unchanged. The compiled plain-call body is identical and 100000 calls cost
 #: 700002 inferences on both arms [measured 2026-09-05: min-of-3 serial fresh
 #: processes; command=python extensions/python/tools/twin_coverage.py --repin;
-#: commit=WORKTREE].
+#: commit=bbb512316280110a747e31c26adfc31e8c5104be].
 BUDGET = 3413

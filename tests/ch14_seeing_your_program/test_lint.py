@@ -7,7 +7,7 @@ Guarantees:
   - concrete annotated arrows retain call checks, application types and stored
     spelling through file and separate loads; unresolved products refuse load
     [tested: test_a_declaration_the_engine_will_not_honour_is_reported;
-    commit=WORKTREE]
+    commit=bbb512316280110a747e31c26adfc31e8c5104be]
   - public finding records survive pickle through metta.lint [tested
     test_finding_retains_public_pickle_identity]
   - duplicate-binder covers clause-scoped names across plain ``let`` forms,
