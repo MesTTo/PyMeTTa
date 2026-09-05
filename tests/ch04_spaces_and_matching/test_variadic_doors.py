@@ -193,6 +193,17 @@ def test_alpha_stays_binary_on_the_engines_own_ground(context):
         context.self.eval("(=alpha 1 1 1)")
 
 
+def _abandoned(caught, name):
+    """The abandoned-future warnings that name one future.
+
+    gc.collect() reclaims every unreachable object, not the one just deleted,
+    so a future some earlier test dropped into a reference cycle is finalized
+    inside these blocks too and its warning lands in the same record. Reading
+    the record by name keeps each assertion about its own block's future.
+    """
+    return [row for row in caught if f"FutureSpace {name} was abandoned" in str(row.message)]
+
+
 def test_an_abandoned_future_warns(context):
     """An abandoned future warns."""
     from metta.parallel import spawn
@@ -201,16 +212,18 @@ def test_an_abandoned_future_warns(context):
     space.run("(= (idle) 1)")
     with space:
         settled = spawn(S.idle())
+        settled_name = settled.name
         settled.wait()
         with warnings.catch_warnings(record=True) as caught:
             warnings.simplefilter("always")
             del settled
             gc.collect()
-        assert not any("abandoned" in str(row.message) for row in caught)
+        assert not _abandoned(caught, settled_name)
 
         with warnings.catch_warnings(record=True) as caught:
             warnings.simplefilter("always")
             dangling = spawn(S.idle())
+            dangling_name = dangling.name
             del dangling
             gc.collect()
-        assert any("abandoned" in str(row.message) for row in caught)
+        assert _abandoned(caught, dangling_name)
