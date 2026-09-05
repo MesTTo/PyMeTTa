@@ -319,7 +319,7 @@ def test_authorize_can_serve_a_space_read_only(metta):  # noqa: D103  -- pytest 
 
     def read_only(request):
         seen.append((request.operation, request.space))
-        return request.operation in ("atoms", "match")
+        return request.operation in ("health", "atoms", "match")
 
     server = remote.serve(metta, spaces=[name], authorize=read_only)
     try:
@@ -333,7 +333,7 @@ def test_authorize_can_serve_a_space_read_only(metta):  # noqa: D103  -- pytest 
         server.close()
         served.drop()
 
-    assert seen == [("atoms", name), ("add", name), ("atoms", name)]
+    assert seen == [("atoms", name), ("health", metta.name), ("add", name), ("atoms", name)]
 
 
 def test_an_omitted_remote_space_cannot_cross_the_authorization_boundary(metta):
@@ -352,7 +352,7 @@ def test_an_omitted_remote_space_cannot_cross_the_authorization_boundary(metta):
             reply = remote.connect(server.url)("add", {"atom": atom.to_wire()})
 
         assert reply == {"added": True}
-        assert seen == [("add", served.name)]
+        assert seen == [("health", served.name), ("add", served.name)]
         assert atom in served
         assert atom not in default
     finally:
@@ -980,6 +980,8 @@ def test_a_remote_cursor_refuses_a_server_that_would_loop_it(metta):  # pytest i
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
     def looping(operation, payload):  # noqa: ARG001  -- the test reflects this callable signature, so every declared parameter must remain visible
+        if operation == "stop":
+            return {"stopped": True}
         return {"atoms": [], "cursor": "forever"}
 
     with pytest.raises(MettaError, match="live cursor with no atoms"):
