@@ -7,7 +7,7 @@ is Python's own `assert`.
 Guarantees:
   - the translated definition and assertion agree with the source example
     inside the current inference budget [tested:
-    test_a_shipped_twin_agrees_with_its_example_end_to_end; commit=39092863ae34184a9f955f185ff57c1ff177ec40]
+    test_a_shipped_twin_agrees_with_its_example_end_to_end; commit=WORKTREE]
 """
 
 
@@ -689,4 +689,14 @@ def twin(m):
 #: $CHECK_PY -m pytest -q tests/repository/test_twin_coverage.py
 #: -k 'identity.metta'; fixture=warm main-checkout engine artifacts with
 #: libmork_ffi.so present; commit=8fdcfd754d0916544667751e0c959a2f113f96f0]
-BUDGET = 3558
+#: RE-PINNED 2026-09-05, 3558 to 3578 (+20), the callable-type read boundary
+#: now projects annotated arrows. Equally provisioned worktrees measure
+#: 7eb873e0c758f90f2ff192b7c02df172f16892b2 at 3558 and this change at 3578
+#: in the unchanged define-and-call workload.
+#: [measured: 3578 inferences, three identical fresh-process samples;
+#: command=$PY
+#: extensions/python/tools/twin_coverage.py --measure --rounds 3
+#: examples/ch05-equations-and-evaluation/05-01-an-equation-is-a-rewrite/01-identity.metta;
+#: fixture=warm worktrees with the shipping C artifacts and both MORK shared
+#: objects; commit=WORKTREE].
+BUDGET = 3578

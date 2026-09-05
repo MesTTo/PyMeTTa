@@ -4,6 +4,9 @@ with the wrong argument count, body variables the head never bound,
 alpha-equivalent duplicate equations, and heads no function or fact
 carries. A healthy space answers no findings.
 Guarantees:
+  - annotated arrows retain call checks, application types and stored spelling
+    through file and separate loads [tested:
+    test_a_declaration_the_engine_will_not_honour_is_reported; commit=WORKTREE]
   - public finding records survive pickle through metta.lint [tested
     test_finding_retains_public_pickle_identity]
   - duplicate-binder covers clause-scoped names across plain ``let`` forms,
@@ -508,34 +511,47 @@ def test_the_arrow_head_test_accepts_every_engine_spelling():
         assert not _is_arrow_head(rejected), rejected
 
 
-def test_a_declaration_the_engine_will_not_honour_is_reported(metta):
-    """The net catches the spelling the loader never judged.
+def test_a_declaration_the_engine_will_not_honour_is_reported(metta, tmp_path):
+    """The engine owns arrow validity for the loader, dispatch and the linter."""
+    for head in ("->", "-[det]->", "-[semidet,pureStructural]->", "-[$e]->"):
+        for mode in ("file", "separate"):
+            with metta._new_space() as honoured:
+                declaration = f"(: hn-lint ({head} Number Number))"
+                equation = "(= (hn-lint $x) $x)"
+                if mode == "file":
+                    source = tmp_path / "annotated-arrow.metta"
+                    source.write_text(declaration + "\n" + equation + "\n")
+                    honoured.load(source)
+                else:
+                    honoured.run(declaration)
+                    honoured.run(equation)
+                assert honoured.run("!(hn-lint 1)") == [[1]]
+                assert str(honoured.run('!(hn-lint "s")')[0][0]) == (
+                    '(Error (hn-lint "s") (BadArgType 1 Number String))'
+                )
+                assert honoured.run("!(get-type (hn-lint 1))") == [[S.Number]]
+                assert declaration in {str(atom) for atom in honoured.atoms()}
+                assert "declaration-types-the-symbol" not in _kinds(honoured.lint())
 
-    `refuse_untypable_declaration/3` judges a definition's OWN forms, so a
-    declaration loaded apart from its definition never meets it, and
-    `space.lint()` is the documented net for everything else. The net had a
-    hole exactly where its two halves disagreed: the linter had been taught
-    that `-[det]->` is an arrow while `untypable_declarations/2` still decides
-    with a literal `->`, so an annotated declaration was reported by neither
-    and every call to the function answered IncorrectNumberOfArguments.
+    arities = []
+    for head in ("->", "-[det]->"):
+        with metta._new_space() as mismatch:
+            mismatch.run(f"(: hn-arity ({head} Number Number Number))"
+                         "(= (hn-arity $x) $x)")
+            arities.append([finding.payload for finding in mismatch.lint()
+                            if finding.kind == "arrow-arity-mismatch"])
+    assert arities[0] and arities[1] == arities[0]
 
-    The engine is ASKED rather than second-guessed here, so on the day it
-    reads the annotated spelling the second case joins the first with nothing
-    in Python to change.
-    """
+    for head in ("-[bogus]->", "-[]->"):
+        with metta._new_space() as invalid:
+            with pytest.raises(MettaError, match="is not an arrow"):
+                invalid.run(f"(: hn-invalid ({head} Number Number))"
+                            "(= (hn-invalid $x) $x)")
 
-    def kinds(space):
-        return sorted({finding.kind for finding in space.lint()})
-
-    honoured = metta._new_space()
-    honoured.run("(: hn-lint (-> Number Number))")
-    honoured.run("(= (hn-lint $x) $x)")
-    assert "declaration-types-the-symbol" not in kinds(honoured)
-
-    unread = metta._new_space()
-    unread.run("(: hn-lint (-[det]-> Number Number))")
-    unread.run("(= (hn-lint $x) $x)")
-    assert "declaration-types-the-symbol" in kinds(unread), kinds(unread)
-
-    # The finding claims the call compiles unchecked; this is that claim.
-    assert "IncorrectNumberOfArguments" in str(unread.run("!(hn-lint 1)"))
+    # Separate arrivals still permit an incomplete declaration set. The linter
+    # reports the non-arrow once the program is complete.
+    with metta._new_space() as unread:
+        unread.run("(: hn-lint Number)")
+        unread.run("(= (hn-lint $x) $x)")
+        assert "declaration-types-the-symbol" in _kinds(unread.lint())
+        assert "IncorrectNumberOfArguments" in str(unread.run("!(hn-lint 1)"))
