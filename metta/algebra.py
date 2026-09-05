@@ -1037,14 +1037,20 @@ def _derive_rule(
     budget: _EvaluationBudget,
 ) -> list[TaggedAnswer]:
     derivation = _derive_rule_steps(metta, declaration, rule, budget, {})
+    # A generator's return value arrives through StopIteration, whose `value` is
+    # untyped, so the declaration is what says what crosses that boundary. The
+    # loop leaves only by that exception, which is why the name is bound there
+    # and returned once after the close.
+    answers: list[TaggedAnswer]
     try:
         next(derivation)
         while True:
             derivation.send(available)
     except StopIteration as completed:
-        return completed.value
+        answers = completed.value
     finally:
         derivation.close()
+    return answers
 
 
 def _derive_rule_steps(
@@ -1081,7 +1087,12 @@ def _derive_rule_steps(
         for bindings, tag, tokens, proof, child_traces in states:
             budget.checkpoint()
             pattern = substitute(premise, bindings)
-            for candidate in (yield pattern):
+            # The suspension point, written as its own statement: a `yield`
+            # inside a `for` header is the same generator and astroid reads the
+            # function as an ordinary one that returns a list, which made every
+            # caller's `.send`, `.close` and iteration a finding.
+            candidates = yield pattern
+            for candidate in candidates:
                 budget.checkpoint()
                 matched = _match(pattern, candidate.value)
                 if matched is None:
