@@ -19,7 +19,10 @@ Assumes:
     format, `is X, should Y. <mark>` [measured 2026-08-18: 12 lines each
     from examples/ch07-control-flow/07-04-bounded-and-committed-searches/01-forall.metta, byte-identical]
   - an example is cheap enough to run in its own process in both
-    configurations [measured 2026-08-18: 0.08s engine, 0.15s library]
+    configurations. Half the corpus is under 0.69s and 95% of it under 2.0s;
+    the one file that is not is 04-nilbc.metta, and the ceiling below is set
+    by that file alone [measured 2026-09-06: 506 captures on a box at loadavg
+    23, median 0.686s, p95 1.99s, maximum 26.69s]
 Guarantees:
   - a difference in ANSWERS, in verdicts, or in exit status between the two
     configurations is reported, naming the example and the first differing
@@ -101,26 +104,31 @@ SKIPS = REPO / "tests" / "data" / "example_skips.txt"
 VERDICT = " should "
 
 #: How long one example may take in one configuration: a wall ceiling one cost
-#: class above the corpus's slowest member, so a loaded box cannot reach it and
-#: a hang cannot hide under it.
+#: class above the corpus's slowest member on a QUIET box, which is where this
+#: repository's other per-item ceilings sit -- test.sh gives each example 290s
+#: over the same corpus.
 #:
 #: DERIVED rather than assumed, which is what it was until 2026-09-06. The
 #: slowest member is
 #: examples/ch22-a-reasoner-you-can-serve/22-01-logic-programs/04-nilbc.metta
-#: through the library, and it is the same file on either door at either load,
-#: so the corpus has one worst case rather than a spread of them. It costs
-#: 26.7s on a quiet box and 90.3s on one carrying three times its cores, which
-#: is the whole load factor this lane has ever been measured under; 300s is
-#: 3.3 times that worst case and 11 times the quiet one [measured 2026-09-06:
-#: six whole-corpus runs, 506 captures each, at median loadavg 23.3, 37.5,
-#: 64.0, 65.7, 77.3 and 101.7; slowest capture 26.69s, 57.53s, 69.33s, 90.26s,
-#: 61.31s and 63.70s; command=extensions/python/tools/example_parity.py].
+#: through the library, and it is the same file on either door at every load,
+#: so the corpus has one worst case rather than a spread of them. It runs
+#: 26.7s on a quiet box, which puts 300s eleven times above it. Under load the
+#: margin is what the load leaves: 39.8s to 69.4s over twenty whole-corpus
+#: runs at one-minute loadavg 49 to 83, and 60.3s to 173.3s over twenty-one
+#: more at 22 to 114, where a box with four times its cores runnable leaves
+#: 1.7 times [measured 2026-09-06: forty-one runs of 253 examples, plus a
+#: 506-capture instrumented run at loadavg 23 for the quiet figure;
+#: command=extensions/python/tools/example_parity.py].
 #:
-#: `main` prints the slowest example each run against this number, because a
-#: ceiling derived once from a measurement nothing repeats is a ceiling that
-#: goes stale silently, and a corpus lane with no per-item wall bound cannot
-#: tell "the right answer in seconds" from "the right answer in a different
-#: cost class".
+#: A load that does reach it is no longer a wrong verdict. The run is reported
+#: as `no verdict`, with the ceiling and the loadavg, and counted apart from
+#: the disagreements, which is why the ceiling can sit where waiting sensibly
+#: stops rather than where no load could ever reach it. `main` prints the
+#: slowest child each run against this number, because a ceiling derived once
+#: from a measurement nothing repeats goes stale silently, and a corpus lane
+#: with no per-item wall bound cannot tell "the right answer in seconds" from
+#: "the right answer in a different cost class".
 TIMEOUT = 300
 
 #: How far ABOVE TIMEOUT the child's own bound sits. The parent must still be
