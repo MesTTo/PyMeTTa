@@ -125,6 +125,9 @@ from .vocabularies import EffectClass
 
 _DEFINE_CLAUSES: dict[tuple[str, str], list[dict[str, Any]]] = {}
 _DECLARED_DEFINES: dict[tuple[str, str], bool] = {}
+#: Classes declared into each space by install_type, in declaration order, so a
+#: base declared after its subclass still supplies that subclass's (:< ...) edge.
+_DECLARED_TYPES: dict[str, list[_builtins.type]] = {}
 _MISSING_FIELD = object()
 _DEFINED_GENERATORS: set[tuple[str, str]] = set()
 _DEFINE_DOCUMENTATION: dict[tuple[str, str], Expression] = {}
@@ -160,6 +163,7 @@ def release_definitions(space: Any) -> None:
         for registry in (_DEFINE_CLAUSES, _DECLARED_DEFINES, _DEFINE_DOCUMENTATION):
             for key in [key for key in registry if key[0] == space.name]:
                 del registry[key]
+        _DECLARED_TYPES.pop(space.name, None)
         _DEFINED_GENERATORS.difference_update(
             {key for key in _DEFINED_GENERATORS if key[0] == space.name}
         )
@@ -1025,9 +1029,15 @@ def install_type(
     def apply(target: _builtins.type) -> _builtins.type:
         convert = _convert_api()
         _prepare_plain_data_class(target, convert)
-        registration = convert.ensure_registered(target)
+        # Its OWN registration, not the one the MRO would find: declaring a
+        # class into a space says it is a type there, so it answers its own
+        # name rather than restating its base's declaration.
+        registration = convert.ensure_own_registration(target)
         for declaration in convert.declarations(target):
             space.add(declaration)
+        for edge in _subtype_edges(space, target, convert):
+            if edge not in space:
+                space.add(edge)
         if accessors and registration.image == "expression" and registration.fields:
             constructor = registration.type_name
             fields = registration.fields
@@ -1055,6 +1065,49 @@ def install_type(
         return target
 
     return apply(cls) if cls is not None else apply
+
+
+def _subtype_edges(
+    space: Any, target: _builtins.type, convert: Any
+) -> list[Expression]:
+    """``(:< Sub Super)`` for the classes this space already knows as types.
+
+    Python's class hierarchy IS a subtype relation, so declaring a class
+    declares its place in one and the edge no longer has to be written by hand
+    beside it. Two rules keep it from naming things the program never wrote.
+
+    Only DECLARED classes count as supertypes. A base the space has not been
+    told about is not a MeTTa type here, which is what keeps `object`, `tuple`
+    under a NamedTuple and `Enum` under an enum out of the answer; a base that
+    IS declared is a type the program named itself.
+
+    Only REAL bases count, which `__mro__` gives for free:
+    ``abc.ABCMeta.register``'s virtual bases move ``isinstance`` alone and never
+    appear there, so a virtual registration states no subtype edge here either.
+
+    The walk is per DIRECT base, to its nearest declared ancestor, so
+    ``class C(A, B)`` with both declared answers both edges while a chain
+    answers one: `:<` widening is transitive, so a second edge to the same
+    ancestor would only duplicate a type in `get-type`'s answer. Declaring a
+    base AFTER its subclass fills the edge in then, because the whole set is
+    recomputed from what the space knows at the time.
+    """
+    declared = _DECLARED_TYPES.setdefault(space.name, [])
+    if target not in declared:
+        declared.append(target)
+    names = {cls: convert.ensure_own_registration(cls).type_name for cls in declared}
+    edges: list[Expression] = []
+    for sub in declared:
+        for base in sub.__bases__:
+            ancestor = next((c for c in base.__mro__ if c in names), None)
+            # A class with no image of its own keeps its base's registration
+            # and therefore its base's NAME; one name is not below itself.
+            if ancestor is None or names[ancestor] == names[sub]:
+                continue
+            edge = Expression([Symbol(":<"), Symbol(names[sub]), Symbol(names[ancestor])])
+            if edge not in edges:
+                edges.append(edge)
+    return edges
 
 
 def _register_methods(space: Any, target: _builtins.type, type_name: str) -> None:
