@@ -4,17 +4,21 @@ Guarantees:
   - text and fast reloads preserve duplicate paths and replace old content
     [tested: test_reloading_a_materialized_program_preserves_its_bag;
     commit=WORKTREE]
+  - a completed load prepares its relation once, whether or not its repair
+    pass invalidates what the file body built
+    [tested: test_a_reloaded_program_builds_its_relation_once; commit=WORKTREE]
   - later compiled callers retain the original bounded derivation tree
     [tested: test_a_later_retained_caller_preserves_bounded_derivations;
     commit=WORKTREE]
 """
 
 from collections import Counter
+from contextlib import contextmanager
 
 import janus_swi
 import pytest
 
-from metta import MeTTa, S, Variable
+from metta import MeTTa, S, Variable, _engine
 from metta.errors import InferenceLimitError
 
 _RULES = """
@@ -29,9 +33,33 @@ def _discard_relation(space):
     janus_swi.query_once("materialize:discard_space(S)", {"S": str(space.name)})
 
 
+@contextmanager
+def _materialization_build_counter():
+    """Construction count has no public observation; bags use the public API."""
+    janus_swi.query_once(
+        "use_module(library(prolog_wrap)),"
+        "flag(materialization_test_builds,_Before,0),"
+        "wrap_predicate(materialize:build_materialization("
+        "_Space,_Module,_Names,_Stamp,_Signatures,_Trie,_Owner),"
+        "materialization_test_builds,_Wrapped,"
+        "(call(_Wrapped),flag(materialization_test_builds,_N,_N+1)))"
+    )
+    try:
+        yield
+    finally:
+        janus_swi.query_once(
+            "unwrap_predicate(materialize:build_materialization/7,"
+            "materialization_test_builds)"
+        )
+
+
+def _take_materialization_build_count():
+    return janus_swi.query_once("flag(materialization_test_builds,Count,0)")["Count"]
+
+
 @pytest.mark.parametrize("file_format", ["metta", "fast"])
 def test_reloading_a_materialized_program_preserves_its_bag(tmp_path, file_format):
-    """Both loading doors replace a counted relation after a source edit."""
+    """Each load builds once and replaces the same bag after a source edit."""
     path = tmp_path / f"materialized.{file_format}"
     with MeTTa() as m, m.space() as source, m.space() as restored:
         source.run(
@@ -39,17 +67,81 @@ def test_reloading_a_materialized_program_preserves_its_bag(tmp_path, file_forma
             "(materialized-edge b c)" + _RULES
         )
         source.save(path, format=file_format)
-        for _ in range(2):
+        with _materialization_build_counter():
+            for _ in range(2):
+                restored.load(path)
+                assert _take_materialization_build_count() == 1
+                assert Counter(map(str, restored.eval(S.materialized_reach(S.a, S.c)))) == {
+                    "True": 2
+                }
+            source.add(S.materialized_edge(S.a, S.c))
+            source.save(path, format=file_format)
             restored.load(path)
+            assert _take_materialization_build_count() == 1
             assert Counter(map(str, restored.eval(S.materialized_reach(S.a, S.c)))) == {
-                "True": 2
+                "True": 3
             }
-        source.add(S.materialized_edge(S.a, S.c))
-        source.save(path, format=file_format)
-        restored.load(path)
-        assert Counter(map(str, restored.eval(S.materialized_reach(S.a, S.c)))) == {
-            "True": 3
-        }
+
+
+def test_a_plain_source_builds_once_and_keeps_its_exact_bag():
+    """Direct source execution has one final construction per changed source."""
+    with MeTTa() as m, m.space() as space, _materialization_build_counter():
+        space.run(
+            "(materialized-edge a b) (materialized-edge a b) "
+            "(materialized-edge b c)" + _RULES
+        )
+        assert _take_materialization_build_count() == 1
+        assert Counter(map(str, space.eval(S.materialized_reach(S.a, S.c)))) == {"True": 2}
+        space.run("(materialized-edge a c)")
+        assert _take_materialization_build_count() == 1
+        actual = Counter(map(str, space.eval(S.materialized_reach(S.a, S.c))))
+        _discard_relation(space)
+        assert actual == Counter(map(str, space.eval(S.materialized_reach(S.a, S.c))))
+        assert actual == {"True": 3}
+
+
+def test_a_reloaded_program_builds_its_relation_once(tmp_path):
+    """A load whose repair pass follows its last form still prepares once.
+
+    The function names are unique to this test because a name another test
+    already defined has nothing left to repair, and then a second preparation
+    would not happen here whether or not the loader batches its requests.
+    """
+    path = tmp_path / "once.metta"
+    path.write_text(
+        "(once-edge a b) (once-edge a b) (once-edge b c)\n"
+        "(= (once-reach $x $y) (match &self (once-edge $x $y) True))\n"
+        "(= (once-reach $x $y) (match &self (once-edge $x $z) (once-reach $z $y)))\n"
+    )
+    with MeTTa() as m, m.space() as space, _materialization_build_counter():
+        for _ in range(2):
+            space.load(path)
+            assert _take_materialization_build_count() == 1
+            assert Counter(map(str, space.eval(S.once_reach(S.a, S.c)))) == {"True": 2}
+
+
+def test_file_runnables_see_their_prefix_before_final_materialization(tmp_path):
+    """Deferring final construction preserves both intermediate answer bags."""
+    path = tmp_path / "materialized-prefix.metta"
+    source = (
+        "(materialized-edge a b) (materialized-edge b c)"
+        + _RULES
+        + "!(materialized-reach a c) "
+        "(materialized-edge a b) !(materialized-reach a c) "
+        "(materialized-edge a c)"
+    )
+    path.write_text(source)
+    with MeTTa() as m, m.space() as space:
+        for _ in range(2):
+            groups = space.load(path)
+            assert [Counter(map(str, group)) for group in groups] == [
+                {"True": 1},
+                {"True": 2},
+            ]
+            actual = Counter(map(str, space.eval(S.materialized_reach(S.a, S.c))))
+            _discard_relation(space)
+            assert actual == Counter(map(str, space.eval(S.materialized_reach(S.a, S.c))))
+            assert actual == {"True": 3}
 
 
 def test_a_later_retained_caller_preserves_bounded_derivations():
