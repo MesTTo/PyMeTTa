@@ -12,7 +12,7 @@ Guarantees:
   - lost mutation replies raise OutcomeUnknown; negotiated keys replay once
     within a gateway instance and expiry, and changed parameters are refused
     [tested: test_lost_mutation_reply_has_a_safe_retry,
-    test_expired_reentrant_mutation_cannot_resurrect_its_reservation; commit=WORKTREE]
+    test_expired_reentrant_mutation_cannot_resurrect_its_reservation; commit=ec64336e16ebb0299f9794d277daaee3cf234493]
   - response envelopes and complete atom lists are validated before delivery
     [tested: test_remote_rejects_malformed_response_fields,
     test_custom_transport_validates_the_whole_atom_list_before_yield;
