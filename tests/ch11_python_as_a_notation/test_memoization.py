@@ -18,13 +18,13 @@ Guarantees:
     already-live pool engine populated the old private answer table.
   [tested: test_exact_cache_matches_uncached_answer_bags,
    test_exact_cache_invalidation_crosses_a_live_pool_engine; commit=205f818240658af34bda4a383084c42cf1383275]
-  - memoizing a registered operation is refused by the LIBRARY on its declared
-    effect class, for every seat, and `unchecked` does not open it.
-  [tested: test_memoizing_an_effectful_operation_is_refused_by_the_library;
-   commit=205f818240658af34bda4a383084c42cf1383275]
+  - memoizing a registered operation is admitted whatever its declared effect
+    class, for every seat, because the declaration is the caller's own word
+    about their own program.
+  [tested: test_memoizing_an_effectful_operation_is_the_callers_own_word;
+   commit=ccad9f6d588270ec2f0810fc56c30e9e59207e7c]
 Fails when: read as a fixed-size cache. The memo holds the answers for the calls
-  that were made and has no maxsize; the engine's own `(cache <name> unchecked)`
-  is the staleness it accepts, not a size.
+  that were made and has no maxsize.
   Also when a counter is read after a LAZY call. The exact store is an SWI
   table and a private table belongs to the table space that fills it, so an
   answer cursor's engine keeps its own copy; `_answers` below is why every
@@ -37,21 +37,19 @@ Open Obligations:
 
 from collections import Counter
 
-import pytest
-
 from metta import MeTTa, S, V
 from metta.parallel import EnginePool
 
 
-def _memoized(space, *, name=None, unchecked=False):
+def _memoized(space, *, name=None):
     """Define, then memoize through lib_memo's own forms.
 
     There is no host door for this. A hardcoded Python verb for ONE library is
     the special-case surface the universal seam exists to avoid, and every
     capability the removed decorator had is a library form reachable from every
-    seat: `memoize-exact` declares it, `get-memoize-stats` reports it,
-    `invalidate-memoize` clears it, and `(cache <name> unchecked)` is the
-    staleness opt-in. This is the test's own convenience over that route.
+    seat: `memoize-exact` declares it, `get-memoize-stats` reports it and
+    `invalidate-memoize` clears it. This is the test's own convenience over
+    that route.
     """
 
     def install(fn):
@@ -60,8 +58,6 @@ def _memoized(space, *, name=None, unchecked=False):
         # attribute door would apply the underscore-to-hyphen map to a
         # LIBRARY name that really does carry an underscore.
         space.eval(S["import!"](space, S.library(S["lib_memo"])))
-        if unchecked:
-            space.add(S.cache(S[defined.name], S.unchecked))
         space.eval(S.memoize_exact(S[defined.name]))
         return defined
 
@@ -186,9 +182,8 @@ def test_a_cached_definition_memoizes_its_complete_answer_bag() -> None:
     # The Python twin is untouched: a cached definition is still a definition.
     assert cachedec_fib.py(10) == 55
 
-    # unchecked=True is the engine's own staleness-accepting declaration, and
     # name= is define's own.
-    @_memoized(metta, name="cachedec-named", unchecked=True)
+    @_memoized(metta, name="cachedec-named")
     def cachedec_named(n: int) -> int:
         return n if n < 2 else cachedec_named(n - 1) + cachedec_named(n - 2)
 
@@ -398,15 +393,20 @@ def test_exact_cache_invalidation_crosses_a_live_pool_engine() -> None:
         assert second == Counter({"(After seed)": 2, "(Extra seed)": 1})
 
 
-def test_memoizing_an_effectful_operation_is_refused_by_the_library() -> None:
-    """The effect class decides, and the library decides it for every seat.
+def test_memoizing_an_effectful_operation_is_the_callers_own_word() -> None:
+    """The effect class no longer decides, and no seat's door decides either.
 
     The removed decorator refused to wrap ANY registered operation, from one
-    host, with a message naming functools. That ban was both too wide and too
-    narrow: too wide because a pureStructural operation is exactly as cacheable
-    as a compiled definition, and too narrow because the same call written in
-    MeTTa, Node or C met no ban at all. The rule now sits in lib_memo, reads the
-    declared effect, and holds wherever `memoize-exact` is spelled.
+    host, with a message naming functools. lib_memo replaced that with a
+    narrower refusal reading the declared effect class, which was still the
+    library answering a question the caller had already answered: whether to
+    cache their own program is theirs (user ruling, 2026-09-06). What remains
+    is that both spellings behave the same wherever `memoize-exact` is written,
+    which is what moving the rule off one host bought.
+
+    An `oracleIO` operation is the strongest case there is, and it is admitted.
+    The cache does not SERVE a bare operation, which has no equations to
+    recompile; that gap predates this and is the same for `pureStructural`.
     """
     metta = MeTTa().space("&cache-over-op")
     metta.eval(S["import!"](metta, S.library(S["lib_memo"])))
@@ -419,23 +419,27 @@ def test_memoizing_an_effectful_operation_is_refused_by_the_library() -> None:
     def cache_io_op(value):
         return value
 
-    # An operation whose author declared it above pureStructural cannot be
-    # cached: memoization invalidates on an equation change and on nothing
-    # else, so a reading it cannot see change goes stale in silence.
-    with pytest.raises(Exception) as raised:
-        metta.eval(S.memoize_exact(S["cache-io-op"]))
-    assert "cache-io-op" in str(raised.value)
+    assert metta.eval(S.memoize_exact(S["cache-io-op"])) == [True]
+    assert metta.eval(S.is_memoized(S["cache-io-op"])) == [True]
+    assert cache_io_op(3) == 3
 
-    # And the declaration is the AUTHOR's answer, so the caller's `unchecked`
-    # does not open it, matching the volatility gate beside it.
-    metta.add(S.cache(S["cache-io-op"], S.unchecked))
-    with pytest.raises(Exception) as still:
-        metta.eval(S.memoize_exact(S["cache-io-op"]))
-    assert "cache-io-op" in str(still.value)
-
-    # The pureStructural twin is ordinary and caches.
     assert metta.eval(S.memoize_exact(S["cache-pure-op"])) == [True]
     assert cache_pure_op(3) == 3
 
+    # A compiled body over the same operation is where the cache does serve,
+    # and it does so whatever the operation's class.
+    calls = []
+
+    @metta.op(name="cache-counted-op", effect="oracleIO")
+    def counted(value):
+        calls.append(value)
+        return len(calls)
+
+    metta.run("(= (cache-io-wrap $x) (cache-counted-op $x))")
+    assert metta.run("!(memoize cache-io-wrap)") == [[True]]
+    assert metta.run("!(cache-io-wrap 4)") == metta.run("!(cache-io-wrap 4)") == [[1]]
+    assert calls == [4]
+
     metta.unregister_op("cache-pure-op")
     metta.unregister_op("cache-io-op")
+    metta.unregister_op("cache-counted-op")

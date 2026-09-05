@@ -844,4 +844,31 @@ def twin(m):
 #: reduction, clause or answer differs [measured 2026-09-06: min-of-3 serial
 #: fresh processes; command=python extensions/python/tools/twin_coverage.py
 #: --repin; commit=694dff934a11dbc2ee99267b60f39564053baf87].
-BUDGET = 3432
+#: RE-PINNED 2026-09-06, 3432 to 3437 (+5), five memo cache-admission refusals
+#: and the seam:function_clauses_changed/1 handler clause one of them installed
+#: leave lib_memo.pl. The MeTTa side is 2357 on every arm, which is the control
+#: saying the work is unchanged; no reduction, clause or answer differs. This
+#: row counts engine code SHAPE and, as the 2026-09-05 entry above says, that
+#: class is base-dependent and NON-MONOTONIC: the identical removal read -5
+#: against two earlier tips and +5 against this one, so the sign is a property
+#: of the surrounding image and not of the change.
+#:
+#:   fcfac73f   parent 3432, with the change 3427
+#:   754df32f   parent 3432, with the change 3427
+#:   84bb5aa9   parent 3437, with the change 3432
+#:   db307494   parent 3432, with the change 3437
+#:
+#: The WARM-UP is part of the protocol and not an incidental. With the .qlf set
+#: cleared and rebuilt by a bare
+#: `swipl -g "consult('engine/qlf_boot.pl'), consult('engine/metta.pl')"` this
+#: row read 3401 on a tree that reads 3427 when the tool's own subprocess
+#: rebuilds it, twice over, so an arm warmed one way cannot be compared with an
+#: arm warmed the other. `--repin` prices `run_twin` alone while the gate reads
+#: the full lane, which is how that spread reached a written pin
+#: [measured 2026-09-06: min-of-3 serial fresh processes on each arm, three
+#: readings per arm and all nine prices identical, .qlf cleared and rebuilt by a
+#: discarded tool round first; command=python
+#: extensions/python/tools/twin_coverage.py --measure --rounds 3 examples/ch05-
+#: equations-and-evaluation/05-01-an-equation-is-a-rewrite/01-identity.metta;
+#: commit=ccad9f6d588270ec2f0810fc56c30e9e59207e7c].
+BUDGET = 3437

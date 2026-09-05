@@ -685,10 +685,10 @@ def test_a_registered_operation_runs_backwards(metta):
 
 
 def test_a_pure_python_operation_can_be_declared_and_cached(metta):
-    """An operation could not be declared pure by ANY route, and the refusal
+    """An operation could not be declared pure by ANY route, and the report
     that said to do it named the bridge instead of the operation.
 
-    Two halves. The refusal read the dispatch goal's functor, so it said
+    Two halves. The report read the dispatch goal's functor, so it said
     `metta_py_dispatch_det/3`, which is neither something an author wrote nor
     something a declaration could match. And seam:pure_operation/1 was
     multifile but not dynamic, so a running process could add nothing to it
@@ -713,11 +713,23 @@ def test_a_pure_python_operation_can_be_declared_and_cached(metta):
 
     assert metta.run(f"!(tabled (uses-{declared} $k))") == [[True]]
 
-    with pytest.raises(EngineError) as refused:
-        metta.run(f"!(tabled (uses-{stateful} $k))")
-    message = str(refused.value)
-    assert f"{stateful}/1" in message, message
-    assert "metta_py_dispatch" not in message, message
+    # The undeclared twin tables too, because `tabled` is the program's own
+    # word; what its class decides is the KIND of table. Where the name has to
+    # be right is the automatic cache, which nobody asked for and which reports
+    # the goal it declined over.
+    assert metta.run(f"!(tabled (uses-{stateful} $k))") == [[True]]
+    metta.run("!(import! &self (library lib_memo))")
+    metta.run(
+        f"(= (rec-{stateful} $n) (if (< $n 1) 1 "
+        f"(let $_ ({stateful} $n) "
+        f"(+ (rec-{stateful} (- $n 1)) (rec-{stateful} (- $n 1))))))"
+    )
+    report = metta.run(f"!(explain (rec-{stateful} 3))")[0][0]
+    row = str(
+        next(item for item in report.children if str(item.children[0]) == "cache")
+    )
+    assert f"(impure (/ {stateful} 1))" in row, row
+    assert "metta_py_dispatch" not in row, row
 
 
 def test_registering_an_operation_leaves_the_engines_pure_list_alone(metta):
@@ -1187,7 +1199,6 @@ def test_a_generated_memo_clause_does_not_consume_a_registrable_name(metta):
         return n if n < 2 else opsleak_fib(n - 1) + opsleak_fib(n - 2)
 
     metta.eval(S["import!"](metta, S.library(S["lib_memo"])))
-    metta.add(S.cache(S["opsleak-fib"], S.unchecked))
     metta.eval(S.memoize_exact(S["opsleak-fib"]))
     assert metta.eval(S["opsleak-fib"](10)) == [55]
 
