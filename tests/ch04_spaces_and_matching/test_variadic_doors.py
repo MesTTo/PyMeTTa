@@ -18,8 +18,10 @@ Guarantees:
   - unify is simultaneous when variadic: every operand agrees under one
     substitution or the answer is None [tested:
     test_unify_is_simultaneous_when_variadic; commit=51b792423cec5787614d1488c0793b8a50eaa6fc]
-  - an abandoned FutureSpace warns and a settled one stays silent [tested:
-    test_an_abandoned_future_warns; commit=51b792423cec5787614d1488c0793b8a50eaa6fc]
+  - an abandoned FutureSpace warns and a settled one stays silent, and each
+    half reads the warning record by its own future's name because
+    gc.collect() finalizes strangers too [tested:
+    test_an_abandoned_future_warns; commit=b12d2f0a7ed82f617f6e13baf69d27c716ae39c5]
   - `-=` classifies its operand exactly as `+=` does, so the fact stream
     one door stores the other subtracts, one occurrence each, in one
     crossing [tested: test_isub_reads_the_same_stream_shapes_iadd_writes;
