@@ -323,7 +323,7 @@ class SaveFormat(_AtomStrEnum):
     metta = "metta"
     fast = "fast"
 
-#: (vocabulary semiring bool bag counting set ranked tropical prob prov)
+#: (vocabulary semiring bool bag counting set ranked tropical prob prov budget amplitude)
 class Semiring(_AtomStrEnum):
     """Typed values of the semiring vocabulary."""
     bool = "bool"
@@ -334,6 +334,8 @@ class Semiring(_AtomStrEnum):
     tropical = "tropical"
     prob = "prob"
     prov = "prov"
+    budget = "budget"
+    amplitude = "amplitude"
 
 #: (vocabulary semiring-order ascending descending)
 class SemiringOrder(_AtomStrEnum):

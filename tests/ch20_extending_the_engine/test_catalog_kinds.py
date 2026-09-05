@@ -171,6 +171,54 @@ def test_every_vocabulary_member_crosses_as_its_symbol():
             assert member.value in cls, (name, member)
 
 
+def test_every_algebra_the_catalog_defines_is_one_its_vocabulary_admits(metta):
+    """A defined carrier and a nameable one are the same set, in both directions.
+
+    The catalog carries `[algebra, X, ...]` rows defining a carrier and a
+    `(vocabulary semiring ...)` row saying which may be NAMED, and
+    vocabularies.Semiring is generated from the second. Nothing compared them,
+    so `budget` and `amplitude` were defined, shipped in `algebra._PRESETS`,
+    listed by the runtime's own refusal as shipped presets, and absent from
+    both the vocabulary and the enum: a carrier a caller could use but could
+    not spell in a typed annotation. The vocabulary row had not been touched
+    since 2026-08-23 and `budget` arrived after it.
+
+    Checked against the catalog rather than a list here, so a carrier added
+    tomorrow is covered without editing this test.
+    """
+    from metta import algebra, vocabularies
+
+    presets = set(algebra._PRESETS)
+    members = {member.value for member in vocabularies.Semiring}
+    assert presets == members, (
+        f"shipped presets and the generated Semiring enum disagree: "
+        f"presets-only {sorted(presets - members)}, enum-only {sorted(members - presets)}"
+    )
+
+
+def test_every_ordered_carrier_declares_its_direction_in_the_catalog(metta):
+    """A preset carrying an `order` has the claim row that publishes it.
+
+    `(claim semiring X ordered <direction>)` is how a program asks which way a
+    carrier counts. Three of the four ordered presets had a row and `budget`
+    did not, though it declares `order=ascending` exactly as `tropical` does,
+    so a program asking the catalog was told nothing about it.
+    """
+    from metta import algebra
+
+    answers = metta.run("!(match &metta (claim semiring $s ordered $d) ($s $d))")
+    published = {str(atom).strip("()").split()[0] for group in answers for atom in group}
+    ordered = {
+        name
+        for name, preset in algebra._PRESETS.items()
+        if getattr(preset, "order", None) is not None
+    }
+    assert ordered <= published, (
+        f"ordered carriers with no (claim semiring ... ordered ...) row: "
+        f"{sorted(ordered - published)}"
+    )
+
+
 def test_a_keyword_value_takes_a_trailing_underscore(repo_root):
     """route-key's `global` cannot be a bare member name, so rung 4's own
     keyword convention applies: trailing underscore on the member, bare word
