@@ -17,9 +17,9 @@ The engine holds its own builtins to the same law, which is the whole of why
 Guarantees:
   - every row of LAW holds: the term answers that many times and carries that
     class, whether it was declared here or shipped by the engine
-    [tested: effect_ranks example; commit=WORKTREE]
+    [tested: effect_ranks example; commit=75827a539a6928d1a737edf4cb044c5019fcb044]
   - a plan takes the strongest class of the operations it calls
-    [tested: effect_ranks example; commit=WORKTREE]
+    [tested: effect_ranks example; commit=75827a539a6928d1a737edf4cb044c5019fcb044]
 Open Obligations:
   To Do: None
   Hacks: None
