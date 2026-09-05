@@ -214,16 +214,27 @@ def test_registry_queries_are_native_and_cached_per_name(m, monkeypatch):  # noq
 
     monkeypatch.setattr(runtime_type, "once", counted)
     assert m.lint() == []
+    # Matched on the WHOLE goal rather than on a substring. `builtin_fun(F)`
+    # contains `fun(F)`, so a substring test counted the engine's two separate
+    # questions as one and would have hidden a second `fun/1` query behind the
+    # builtin one.
+    is_function = "( fun(F) -> T = true ; T = false )"
+    is_builtin = "( builtin_fun(F) -> T = true ; T = false )"
+    is_special = "( metta_translated_head(F) -> T = true ; T = false )"
+
     target = queries["cached-target"]
-    assert len([goal for goal in target if "fun(F)" in goal]) == 1
+    assert target.count(is_function) == 1
     assert [goal for goal in target if "findall" in goal] == [
         "findall(_A, arity(F, _A), L)"
     ]
     # `if` appears three times across two equations and is asked once for
-    # each of the two questions the registry answers about a head.
+    # each of the three questions the registry answers about a head: whether
+    # it is a function, whether the translator compiles it, and whether the
+    # engine ships it.
     branch = queries["if"]
-    assert len([goal for goal in branch if "fun(F)" in goal]) == 1
-    assert len([goal for goal in branch if "metta_translated_head(F)" in goal]) == 1
+    assert branch.count(is_function) == 1
+    assert branch.count(is_special) == 1
+    assert branch.count(is_builtin) <= 1, "the builtin question caches per name too"
 
 
 def test_lint_walks_deep_expression_trees_iteratively(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract

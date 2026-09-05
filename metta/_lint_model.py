@@ -79,6 +79,7 @@ class EngineRegistry:
 
     __slots__ = (
         "_arities",
+        "_builtin",
         "_functions",
         "_honoured",
         "_known",
@@ -93,6 +94,7 @@ class EngineRegistry:
         self._runtime = runtime
         self._functions: dict[str, bool] = {}
         self._special: dict[str, bool] = {}
+        self._builtin: dict[str, bool] = {}
         self._arities: dict[str, frozenset[int]] = {}
         self._tabled: frozenset[str] | None = None
         self._known: frozenset[str] | None = None
@@ -174,6 +176,26 @@ class EngineRegistry:
             )
             known = row.get("T") in ("true", True)
             self._special[name] = known
+        return known
+
+    def is_builtin(self, name: str) -> bool:
+        """Whether the engine ships this head, as opposed to a space defining it.
+
+        `builtin_fun/1` rather than `fun/1`, because `fun/1` enumerates user
+        functions too: defining one takes the count from 298 to 299. The
+        engine keeps the two facts apart deliberately and says why at
+        `engine/metta/registration.pl:596-607` -- a builtin stays visible from
+        every space even when a named space defines its name, which `fun_in/2`
+        cannot carry, and the pair is what `runtime_guarded_builtin_call/1`
+        uses to decide a builtin was overridden.
+        """
+        known = self._builtin.get(name)
+        if known is None:
+            row = self._runtime.once(
+                "( builtin_fun(F) -> T = true ; T = false )", F=name
+            )
+            known = row.get("T") in ("true", True)
+            self._builtin[name] = known
         return known
 
     def arities(self, name: str) -> frozenset[int]:

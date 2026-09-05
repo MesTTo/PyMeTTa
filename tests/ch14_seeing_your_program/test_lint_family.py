@@ -18,7 +18,7 @@ import asyncio
 
 import pytest
 
-from metta import Expression, S, V, aio, equation
+from metta import Expression, Grounded, S, V, aio, equation
 from metta._lint_events import _AUTHORITIES, _INTENT_AUTHORITY, _LINT_CATALOGUE
 
 
@@ -116,6 +116,34 @@ def test_capital_data_and_lowercase_functions_are_allowed(m):
     m.run("(CapitalData item)(= (lowercase-function $x) $x)")
 
     assert not _kind(m, "first-letter-role-convention")
+
+
+def test_a_builtin_equation_shadow_is_linted_not_refused(m):
+    """A writable equation over a shipped builtin stays installed and answers.
+
+    The engine permits this deliberately and scopes it: the equation compiles
+    into this space's own module, so the engine's version and every other
+    space's are untouched. Nothing said so, which is what the finding is for.
+    The dangerous cases refuse instead, by name, so this fires only where the
+    engine chose silence.
+    """
+    assert m.eval(S["max-atom"](Expression([1, 5, 3]))) == [Grounded(5)]
+
+    m.run("(= (max-atom $x) shadowed)")
+    findings = _kind(m, "builtin-equation-shadow")
+
+    assert [finding.subject for finding in findings] == ["max-atom"]
+    assert findings[0].severity == "warning", "lawful, so not an error"
+    assert m.eval(S["max-atom"](Expression([1, 5, 3]))) == [S.shadowed], (
+        "the equation is installed; the finding reports it rather than blocking it"
+    )
+
+
+def test_a_users_own_name_is_not_a_builtin_shadow(m):
+    """`fun/1` enumerates user functions too, so the question must be `builtin_fun/1`."""
+    m.run("(= (a-name-the-engine-does-not-ship $x) $x)")
+
+    assert not _kind(m, "builtin-equation-shadow")
 
 
 def test_an_interpreter_equation_shadow_is_linted_not_refused(m):

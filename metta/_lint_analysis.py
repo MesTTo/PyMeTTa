@@ -232,6 +232,47 @@ def _first_letter_role_findings(atoms: list[Atom], equations: list[Expression]) 
     return findings
 
 
+def _builtin_shadow_findings(
+    equations: list[Expression], registry: EngineRegistry
+) -> list[Finding]:
+    """Report local equations that redefine a head the engine ships.
+
+    The dangerous cases already refuse by name: `metta_engine_goal_redefinition`
+    for a head the engine compiles into function bodies, and
+    `metta_builtin_redefinition` for a protected core predicate. What was
+    silent is the case the engine PERMITS, where the equation compiles into
+    this space's own module and shadows the builtin there, leaving the
+    engine's and every other space's alone. `!(max-atom (1 5 3))` answers 5
+    before such an equation and `shadowed` after, with nothing said.
+
+    That is a lawful, space-scoped capability, so this is a warning about
+    intent rather than an error: the same weight `interpreter-equation-shadow`
+    carries for the translator's heads, of which this is the sibling for the
+    engine's.
+    """
+    authority = authority_for("builtin-equation-shadow")
+    findings: list[Finding] = []
+    for equation in equations:
+        name = _symbol_head(equation[1])
+        if name is None or registry.is_special_form(name):
+            continue
+        if not registry.is_builtin(name):
+            continue
+        findings.append(
+            Finding(
+                "builtin-equation-shadow",
+                name,
+                "this equation shadows a builtin the engine ships; the write is "
+                "lawful and scoped to this space, but calls here stop reaching "
+                "the engine's version",
+                equation,
+                severity="warning",
+                payload={"authority": authority},
+            )
+        )
+    return findings
+
+
 def _interpreter_shadow_findings(
     equations: list[Expression], registry: EngineRegistry
 ) -> list[Finding]:
@@ -1056,6 +1097,7 @@ def analyze(
             else _first_letter_role_findings(atoms, equations)
         ),
         *_interpreter_shadow_findings(equations, registry),
+        *_builtin_shadow_findings(equations, registry),
         *_declaration_findings(space, declarations, defined_here, registry),
         *_duplicate_findings(equations),
         *_subsumed_findings(equations),
