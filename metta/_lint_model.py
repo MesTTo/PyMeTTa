@@ -3,7 +3,7 @@ from live in _head_meaning.py, which why() reads too.
 Guarantees:
   - a finding renders its kind, subject, detail, suggestion and autofix in one
     line [tested: test_findings_carry_the_lsp_diagnostic_fields;
-    commit=WORKTREE]
+    commit=bd3a1bbad63952fc7c0d7367f38237dd1c219d8b]
 Open Obligations:
   To Do: None
   Hacks: None

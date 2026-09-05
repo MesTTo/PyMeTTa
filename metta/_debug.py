@@ -7,21 +7,21 @@ Guarantees:
   - a breakpoint suspends the program and the loop body observes it, then
     resuming carries the same execution on to the next one [tested:
     test_a_breakpoint_suspends_the_program_and_resuming_carries_it_on;
-    commit=WORKTREE]
+    commit=39dd4c9014bf8c38d78df8c8fdc9c114b372dc1f]
   - step() stops at the very next reduction, breakpoint or not, and resume()
     puts the session back on breakpoints [tested: test_step_stops_at_the_next_reduction;
-    commit=WORKTREE]
+    commit=39dd4c9014bf8c38d78df8c8fdc9c114b372dc1f]
   - breakpoints are a live set: one added while the program is suspended
     stops it, and one removed stops stopping it [tested:
     test_breakpoints_can_be_changed_while_the_program_is_suspended;
-    commit=WORKTREE]
+    commit=39dd4c9014bf8c38d78df8c8fdc9c114b372dc1f]
   - the session's wrappers come off at close, so a later trace or run is
     untouched, and a dropped Debugger is reaped by its finalizer [tested:
-    test_a_debug_session_leaves_the_engine_as_it_found_it; commit=WORKTREE]
+    test_a_debug_session_leaves_the_engine_as_it_found_it; commit=39dd4c9014bf8c38d78df8c8fdc9c114b372dc1f]
   - inferences bound the WHOLE session cumulatively, so a resume that would
     never reach another breakpoint stops [tested:
     test_an_inference_bound_stops_a_resume_that_would_never_return;
-    commit=WORKTREE]
+    commit=39dd4c9014bf8c38d78df8c8fdc9c114b372dc1f]
 Open Obligations:
   To Do: None
   Hacks: None

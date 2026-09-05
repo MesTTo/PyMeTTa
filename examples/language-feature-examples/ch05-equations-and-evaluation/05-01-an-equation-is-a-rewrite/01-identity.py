@@ -809,5 +809,5 @@ def twin(m):
 #: dependent and non-monotonic: the same three rows moved this row by -5
 #: against one base and by -35 against this one [measured 2026-09-05: min-of-3
 #: serial fresh processes; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+#: extensions/python/tools/twin_coverage.py --repin; commit=39dd4c9014bf8c38d78df8c8fdc9c114b372dc1f].
 BUDGET = 3382

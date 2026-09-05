@@ -30,7 +30,7 @@ Guarantees:
     test_one_unresolvable_annotation_costs_only_itself,
     test_an_unresolvable_annotation_an_arity_reaches_still_refuses,
     test_every_resolvable_annotation_kind_survives_the_per_annotation_pass;
-    commit=WORKTREE]
+    commit=77d3b82aeb856e5d811e83e598138925bfc40e17]
 Open Obligations:
   To Do: None
   Hacks: None

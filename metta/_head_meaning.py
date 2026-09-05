@@ -24,7 +24,7 @@ Guarantees:
     undefined arity is named by both [tested:
     test_why_and_lint_agree_about_a_special_form,
     test_why_and_lint_agree_about_a_call_at_an_undefined_arity,
-    test_why_and_lint_draw_suggestions_from_one_pool; commit=WORKTREE]
+    test_why_and_lint_draw_suggestions_from_one_pool; commit=bd3a1bbad63952fc7c0d7367f38237dd1c219d8b]
 Open Obligations:
   To Do: None
   Hacks: None

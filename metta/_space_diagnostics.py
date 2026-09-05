@@ -10,7 +10,7 @@ Guarantees:
     never reported as an unknown name and a call at an undefined arity is
     named by both [tested: test_why_and_lint_agree_about_a_special_form,
     test_why_and_lint_agree_about_a_call_at_an_undefined_arity,
-    test_why_and_lint_draw_suggestions_from_one_pool; commit=WORKTREE]
+    test_why_and_lint_draw_suggestions_from_one_pool; commit=bd3a1bbad63952fc7c0d7367f38237dd1c219d8b]
   - eager query explanations distinguish a pattern miss, failed join, and
     rejecting guard [tested test_query_rows_explain_empty_results]
   - derivation enumeration selects ``metta_py_limited/6`` when a scoped stack

@@ -30,7 +30,7 @@ Guarantees:
     the terminator [tested: test_the_completer_offers_heads_and_space_names,
     test_the_history_file_follows_its_variable,
     test_the_repl_completes_a_head_on_a_terminal,
-    test_the_repl_keeps_its_history_between_sessions; commit=WORKTREE]
+    test_the_repl_keeps_its_history_between_sessions; commit=76ddfc8495fa9c4db6d17263080e1427ec447755]
 Open Obligations:
   To Do: None
   Hacks: None
