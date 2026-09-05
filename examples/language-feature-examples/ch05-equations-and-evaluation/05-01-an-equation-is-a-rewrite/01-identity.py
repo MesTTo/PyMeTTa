@@ -7,7 +7,7 @@ is Python's own `assert`.
 Guarantees:
   - the translated definition and assertion agree with the source example
     inside the current inference budget [tested:
-    test_a_shipped_twin_agrees_with_its_example_end_to_end; commit=WORKTREE]
+    test_a_shipped_twin_agrees_with_its_example_end_to_end; commit=cba149fe709e7e11b343d7c722ea81b81275a1a5]
 """
 
 
@@ -698,5 +698,5 @@ def twin(m):
 #: extensions/python/tools/twin_coverage.py --measure --rounds 3
 #: examples/ch05-equations-and-evaluation/05-01-an-equation-is-a-rewrite/01-identity.metta;
 #: fixture=warm worktrees with the shipping C artifacts and both MORK shared
-#: objects; commit=WORKTREE].
+#: objects; commit=cba149fe709e7e11b343d7c722ea81b81275a1a5].
 BUDGET = 3578

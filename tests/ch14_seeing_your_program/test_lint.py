@@ -6,7 +6,7 @@ carries. A healthy space answers no findings.
 Guarantees:
   - annotated arrows retain call checks, application types and stored spelling
     through file and separate loads [tested:
-    test_a_declaration_the_engine_will_not_honour_is_reported; commit=WORKTREE]
+    test_a_declaration_the_engine_will_not_honour_is_reported; commit=cba149fe709e7e11b343d7c722ea81b81275a1a5]
   - public finding records survive pickle through metta.lint [tested
     test_finding_retains_public_pickle_identity]
   - duplicate-binder covers clause-scoped names across plain ``let`` forms,
