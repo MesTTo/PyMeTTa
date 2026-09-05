@@ -22,7 +22,7 @@ Guarantees:
     class, for every seat, because the declaration is the caller's own word
     about their own program.
   [tested: test_memoizing_an_effectful_operation_is_the_callers_own_word;
-   commit=WORKTREE]
+   commit=ccad9f6d588270ec2f0810fc56c30e9e59207e7c]
 Fails when: read as a fixed-size cache. The memo holds the answers for the calls
   that were made and has no maxsize.
   Also when a counter is read after a LAZY call. The exact store is an SWI

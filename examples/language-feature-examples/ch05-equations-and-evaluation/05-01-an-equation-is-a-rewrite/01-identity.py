@@ -870,5 +870,5 @@ def twin(m):
 #: discarded tool round first; command=python
 #: extensions/python/tools/twin_coverage.py --measure --rounds 3 examples/ch05-
 #: equations-and-evaluation/05-01-an-equation-is-a-rewrite/01-identity.metta;
-#: commit=WORKTREE].
+#: commit=ccad9f6d588270ec2f0810fc56c30e9e59207e7c].
 BUDGET = 3437

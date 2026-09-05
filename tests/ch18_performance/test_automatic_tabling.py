@@ -11,7 +11,7 @@ Guarantees:
     overrides that as well as profitability [tested:
     test_an_impure_function_is_never_cached_automatically,
     test_a_forced_impure_function_is_cached_on_the_declaration,
-    test_automatic_cache_force_and_refuse_overrides; commit=WORKTREE]
+    test_automatic_cache_force_and_refuse_overrides; commit=ccad9f6d588270ec2f0810fc56c30e9e59207e7c]
   - automatic caching preserves duplicate answer bags even above the manual
     answer limit and under a manual aggregate setting [tested:
     test_automatic_caching_preserves_multiplicity_and_answer_limit;

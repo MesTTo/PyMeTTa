@@ -24,7 +24,7 @@ Guarantees:
   - and still does when an annotated arrow is live somewhere else in the
     process, which used to turn a per-module effect scan back on [tested:
     test_a_first_evaluation_costs_the_same_in_every_space_beside_an_annotated_arrow;
-    commit=WORKTREE]
+    commit=ccad9f6d588270ec2f0810fc56c30e9e59207e7c]
   - defining that head costs the same in the eighth as in the second [tested:
     test_defining_a_shared_head_costs_the_same_in_every_space; commit=22ce91dd50882975ccb175dcd2b235f4110ab6ff]
   - a recycled space name defines for a fresh name's cost [tested:

@@ -4,7 +4,7 @@ Guarantees: effect plans and world admission consume annotations, memoization
 does NOT, cardinality auditing observes one execution, and source lifetimes
 keep effects current [tested:
 extensions/python/tests/ch11_python_as_a_notation/test_arrow_products.py;
-commit=WORKTREE].
+commit=ccad9f6d588270ec2f0810fc56c30e9e59207e7c].
 Owns resources: pytest fixtures release spaces; tests restore the cardinality
 pragma and close every successor world they create.
 """
