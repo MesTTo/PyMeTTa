@@ -689,4 +689,18 @@ def twin(m):
 #: $CHECK_PY -m pytest -q tests/repository/test_twin_coverage.py
 #: -k 'identity.metta'; fixture=warm main-checkout engine artifacts with
 #: libmork_ffi.so present; commit=8fdcfd754d0916544667751e0c959a2f113f96f0]
-BUDGET = 3558
+#: RE-PINNED 2026-09-05, 3558 to 3583 (+25), attributed in full by A/B on the
+#: merged tree with the QLF cleared and warmed on both sides: with
+#: engine/spaces/catalog.pl at bf39bfd1 the twin reads 3558 and the lane
+#: passes, and with the semiring slice restored it reads 3583. Four facts added
+#: to a file the boot consults, widening the semiring vocabulary to the ten
+#: algebras the catalog defines and publishing budget's ordering claim. The
+#: same first-argument-index shape the three moves above record, and the MeTTa
+#: example is untouched.
+#: Deterministic: three identical samples
+#: [measured 2026-09-05: 3583 with the slice and 3558 without, three identical
+#: samples each; command=cd extensions/python && PYTHONPATH=. $CHECK_PY -m
+#: pytest -q tests/repository/test_twin_coverage.py -k 'identity.metta';
+#: fixture=main checkout, libmork_ffi.so present, QLF cleared and warmed;
+#: commit=WORKTREE]
+BUDGET = 3583
