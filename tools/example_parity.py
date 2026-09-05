@@ -36,6 +36,11 @@ Guarantees:
     parse to Grounded(True), while both shipped writers emit canonical `true`
     [tested: test_spelling_is_not_a_difference,
     test_swrite_writes_the_engines_own_boolean_literal; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
+  - a child's output is bounded in BYTES as well as in time, so an example
+    printing without stopping is a reported outcome rather than an exhausted
+    parent, and the streams still join stdout-then-stderr so the last line is
+    the failure [tested: test_a_runaway_child_is_stopped_at_the_capture_ceiling,
+    test_the_library_runner_reports_a_teardown_failure; commit=819393cb9608052a198ef0b2a8c0676d9ef9e824]
 Decides:
   - process isolation per example, matching how the engine lane already
     works, rather than one engine over many spaces: it is affordable at the
@@ -66,9 +71,14 @@ Open Obligations:
 from __future__ import annotations
 
 import argparse
+import contextlib
+import os
+import selectors
 import shutil
+import signal
 import subprocess
 import sys
+import time
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from pathlib import Path
@@ -195,6 +205,110 @@ def _read(text: str, returncode: int | None = 0) -> Outcome:
     return Outcome(groups, failure, verdicts, returncode)
 
 
+#: How much of a child's output is kept before the run is stopped. The bound
+#: this sits beside is a DEADLINE, and a deadline does not bound memory: a
+#: child printing 256 MiB took this parent to 850 MiB resident, because
+#: `capture_output=True` holds the chunk list, the joined bytes and the decoded
+#: string at once, and it got there in about two seconds against a 300 second
+#: TIMEOUT [measured 2026-09-05; command=python -c "for _ in range(262144):
+#: sys.stdout.write('x'*1023+chr(10))" through _run; fixture=resource
+#: .getrusage(RUSAGE_SELF).ru_maxrss around the call]. The class is not
+#: hypothetical: greedy_chess printed 17,973,938 lines in 120 seconds once its
+#: command loop met EOF [source: tests/data/example_skips.txt]. 16 MiB is 33
+#: times the largest output a shipped example produces, greedy_chess's own
+#: 501,917 bytes when it is given its quit command, and it is the ceiling
+#: CeTTa's corpus generator settled on over the same corpus [source:
+#: CETTA_PATH/scripts/petta_corpus_manifest.py, MAX_CAPTURE_BYTES and
+#: run_bounded_process; CETTA_PATH is the override tests/conformance/cetta.py
+#: resolves the fork through].
+MAX_CAPTURE_BYTES = 16 * 1024 * 1024
+
+
+def _capture(
+    command: list[str], cwd: Path, env: dict[str, str] | None
+) -> tuple[str, int | None, str | None]:
+    """One child's output, bounded in BYTES as well as in time.
+
+    `subprocess.run(capture_output=True, timeout=)` buffers whatever the child
+    writes with no ceiling at all, so an example that prints without stopping
+    exhausts memory long before the deadline is reached. This reads both pipes
+    through `selectors` with the same deadline, stops at MAX_CAPTURE_BYTES, and
+    signals the process GROUP, which is what reaches the engine's own children.
+
+    `start_new_session=True` puts the `timeout` wrapper in a group of its own
+    so a kill reaches everything under it. The DEADLINE still belongs to that
+    wrapper, which is the process that shares the child's fate; the loop's own
+    deadline is the parent's view of the same bound and not a second opinion
+    about it. The shape is the one tests/conformance/petta_capture.py already
+    uses for the same corpus [tested:
+    test_a_runaway_child_is_stopped_at_the_capture_ceiling,
+    test_a_bounded_run_still_reports_a_timeout].
+
+    stdin is left INHERITED, as `subprocess.run` left it, because an example
+    that reads it must see what the runner sees. The two streams are kept
+    APART and joined stdout-then-stderr at the end, which is the order
+    `subprocess.run` produced and which `_read` depends on: interleaving them
+    in arrival order put an ANSWER-GROUP line last and the teardown failure
+    stopped being the reported error [tested:
+    test_the_library_runner_reports_a_teardown_failure].
+
+    Answers the text, the child's exit status, and the reason the run was
+    stopped early, or None when the child ended on its own.
+    """
+    process = subprocess.Popen(  # noqa: S603 -- commands are built by repository runners
+        command,
+        cwd=cwd,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        env=env,
+        start_new_session=True,
+    )
+    streams = {process.stdout.fileno(): bytearray(), process.stderr.fileno(): bytearray()}
+    captured = 0
+    stopped: str | None = None
+    deadline = time.monotonic() + TIMEOUT
+    selector = selectors.DefaultSelector()
+    try:
+        selector.register(process.stdout, selectors.EVENT_READ)
+        selector.register(process.stderr, selectors.EVENT_READ)
+        while selector.get_map() and stopped is None:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                stopped = f"timed out after {TIMEOUT}s"
+                break
+            ready = selector.select(timeout=min(0.25, remaining))
+            if not ready and process.poll() is not None:
+                break
+            for key, _ in ready:
+                chunk = os.read(key.fileobj.fileno(), 65536)
+                if not chunk:
+                    selector.unregister(key.fileobj)
+                    continue
+                room = MAX_CAPTURE_BYTES - captured
+                streams[key.fileobj.fileno()].extend(chunk[:room])
+                captured += min(len(chunk), room)
+                if len(chunk) > room:
+                    stopped = (
+                        f"printed more than {MAX_CAPTURE_BYTES} bytes and was stopped"
+                    )
+                    break
+    finally:
+        selector.close()
+        if stopped is not None or process.poll() is None:
+            with contextlib.suppress(ProcessLookupError, PermissionError):
+                os.killpg(os.getpgid(process.pid), signal.SIGKILL)
+        out, err = (
+            bytes(streams[process.stdout.fileno()]),
+            bytes(streams[process.stderr.fileno()]),
+        )
+        for pipe in (process.stdout, process.stderr):
+            if pipe is not None:
+                pipe.close()
+        process.wait()
+    text = out.decode("utf-8", errors="replace") + err.decode("utf-8", errors="replace")
+    return text, process.returncode, stopped
+
+
 def _run(
     command: list[str], cwd: Path, env: dict[str, str] | None = None
 ) -> tuple[Outcome, str]:
@@ -204,21 +318,11 @@ def _run(
     coverage lane reads an inference count and the defined heads from the
     same output [tested: test_a_runner_returns_its_raw_text_beside_the_outcome].
     """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
-    try:
-        done = subprocess.run(  # noqa: S603 -- commands are built by repository runners
-            _bounded(command),
-            cwd=cwd,
-            capture_output=True,
-            text=True,
-            timeout=TIMEOUT,
-            env=env,
-            check=False,
-        )
-    except subprocess.TimeoutExpired:
-        return Outcome([], f"timed out after {TIMEOUT}s", returncode=None), ""
-    text = done.stdout + done.stderr
-    outcome = _read(text, done.returncode)
-    if outcome.error is None and done.returncode != 0:
+    text, returncode, stopped = _capture(_bounded(command), cwd, env)
+    if stopped is not None:
+        return Outcome([], stopped, returncode=None), ""
+    outcome = _read(text, returncode)
+    if outcome.error is None and returncode != 0:
         tail = text.strip().splitlines()
         outcome = Outcome(
             outcome.groups,

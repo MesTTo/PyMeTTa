@@ -59,6 +59,11 @@ Guarantees:
   - the 159 entries superseded by empirical budgets are retired exactly once
     [tested: test_the_distribution_budget_retirement_is_exact;
     commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22]
+  - a measurement's child environment is BUILT, so two callers whose own PATH
+    differs price the same twin identically and neither has its own
+    environment written to [tested:
+    test_a_measurement_environment_is_built_and_never_inherited;
+    commit=819393cb9608052a198ef0b2a8c0676d9ef9e824]
 
 Open Obligations:
   To Do: None
@@ -69,6 +74,7 @@ Open Obligations:
 from __future__ import annotations
 
 import json
+import os
 import re
 import subprocess
 import sys
@@ -1088,6 +1094,38 @@ def test_a_twin_stores_the_equations_its_comments_claim():
 
 
 # ---------------------------------------------------------------- the budgets
+
+
+def test_a_measurement_environment_is_built_and_never_inherited(monkeypatch):
+    """A counter that moves with the caller's PATH is not a counter.
+
+    `git-import!` reaches for an executable inside a counted path, so every
+    PATH entry cost 45 inferences and the same twin read a different figure
+    under `sh check.sh` than run directly. `_environment` answers that by
+    BUILDING the child's environment rather than inheriting one, and this is
+    what says the building did not quietly become inheriting again: two
+    callers whose own PATH differs hand the child the same PATH, the caller's
+    own environment is left alone, and the entry count the child sees is fixed
+    rather than whatever the caller had.
+
+    Measured beside it end to end 2026-09-05 on
+    examples/ch20-extending-the-engine/20-04-modules-and-the-catalog/06-git_import.metta,
+    warm: a 2-entry caller PATH and an 8-entry one with six junk directories
+    first both price the twin at 34,467 inferences and the example at 34,444.
+    """
+    seen = []
+    for caller in ("/usr/bin:/bin", "/nowhere/one:/nowhere/two:/nowhere/three:/usr/bin:/bin"):
+        monkeypatch.setenv("PATH", caller)
+        built = coverage._environment()
+        seen.append(built["PATH"])
+        # The build is handed to the child, never written into this process:
+        # writing it escaped the lane under pytest and cost every later test
+        # in the same process its own PATH.
+        assert coverage.os.environ["PATH"] == caller
+
+    assert seen[0] == seen[1]
+    assert seen[0] == os.pathsep.join(coverage.MEASURED_PATH)
+    assert len(seen[0].split(os.pathsep)) == len(coverage.MEASURED_PATH)
 
 
 def test_the_full_lane_protocol_names_every_scheduling_input():

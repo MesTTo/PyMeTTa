@@ -30,6 +30,12 @@ Guarantees:
     request-policy checks for enumeration, matching, add, remove, and clear
     [tested: test_combinators_forward_every_provider_policy_request;
     commit=f10b3766f72a01bc7c023eb27ff6732dfde7ccf6]
+  - a COMPOSED space's capability set is its members' and not its methods',
+    so every operation a tree claims is served and every capability refusal
+    names the member that lacks it, over generated trees rather than over the
+    fixed ones written here
+    [tested: test_random_combinator_trees_serve_what_they_claim;
+    commit=819393cb9608052a198ef0b2a8c0676d9ef9e824]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -59,7 +65,13 @@ from .atoms import (
     substitute,
 )
 from .errors import MettaError
-from .foreign import Matcher, Snapshotter, SpaceProvider, _require_provider
+from .foreign import (
+    Matcher,
+    Snapshotter,
+    SpaceProvider,
+    _refusal_detail,
+    _require_provider,
+)
 from .structures import _canonical
 
 __all__ = [
@@ -390,13 +402,95 @@ class _Member:
             raise MettaError(msg)
         return captured
 
+    def can_run(self, capability: str, /, **request: Any) -> bool:
+        """Whether this member implements the operation at all.
+
+        A MeTTa handle carries every method, so it answers yes. `should_run`
+        is deliberately not consulted: it is per-REQUEST policy a provider may
+        answer differently on the next call, and a capability set that moved
+        with the request would describe nothing
+        [tested: test_combinators_forward_every_provider_policy_request].
+        """
+        if self._is_space or not isinstance(self.target, SpaceProvider):
+            return True
+        return self.target.can_run(capability, **request)
+
     def describe(self) -> str:
         if self._is_space:
             return str(self.target.name)
         return type(self.target).__name__
 
 
-class _Union(SpaceProvider):
+class _Composed(SpaceProvider):
+    """A combinator whose capability set is its members', not its methods'.
+
+    A composition implements an operation by ROUTING it, so defining the
+    method is only half the answer: `overlay(readonly, store)` defines add and
+    cannot add, because the front it writes to has none. Deriving can_run from
+    the methods alone published that lie into &metta, where a MeTTa program
+    reads a space's capabilities as ordinary data (register_provider writes
+    `Capabilities=[c for c in CAPABILITIES if provider.can_run(c)]`), and let
+    require_capability wave through the operation it exists to stop before it
+    starts. Measured over 400 random trees before the fix: 388 of 2,000
+    capability claims raised when the operation was called, none of them from
+    a policy refusal [tested:
+    test_random_combinator_trees_serve_what_they_claim].
+
+    `_serving` is the one thing a combinator has to say, and it is the routing
+    table it already implements: union reads every member, readonly and mapped
+    their one, overlay reads both and writes the front, which is ChainMap's
+    rule. It answers the member, the capability THAT member is asked for, and
+    the request it is asked with, because neither is always the composition's
+    own: `mapped` serves a match it cannot translate by enumerating instead,
+    so mapped(mapped(indexed)) claimed match and met "cannot enumerate atoms"
+    from a leaf two levels down, and where it does forward the match it
+    forwards the INWARD pattern, which is the one the member sees at call time
+    [tested: test_random_combinator_trees_serve_what_they_claim].
+    """
+
+    def _serving(
+        self, capability: str, **request: Any
+    ) -> tuple[tuple[_Member, str, dict[str, Any]], ...]:
+        """(member, the capability it is asked for, the request) per route."""
+        raise NotImplementedError
+
+    def can_run(self, capability: str, /, **request: Any) -> bool:
+        """Implemented here AND servable by every member it would reach."""
+        if not SpaceProvider.can_run(self, capability, **request):
+            return False
+        return all(
+            member.can_run(wanted, **asked)
+            for member, wanted, asked in self._serving(capability, **request)
+        )
+
+    def refusal(self, capability: str, /, **request: Any) -> str | None:
+        """Name the member that lacks it: a composition's no is a part's no.
+
+        Without this the engine's pre-check refused at the COMBINATOR and said
+        "its _Overlay provider does not implement add", which sends a reader
+        to the wrong object. The DETAIL is asked of the framework rather than
+        restated, so the pre-check and a direct call through the member say the
+        same thing about the same member: enumerate reads "cannot enumerate
+        atoms" on both paths and not "does not implement enumerate" on one
+        [tested:
+        test_a_member_without_the_method_refuses_with_the_framework_sentence,
+        test_random_combinator_trees_serve_what_they_claim].
+        """
+        lacking = [
+            (member, wanted, asked)
+            for member, wanted, asked in self._serving(capability, **request)
+            if not member.can_run(wanted, **asked)
+        ]
+        if not lacking:
+            return None
+        return " and ".join(
+            f"its member {member.describe()} "
+            f"{_refusal_detail(member.target, wanted, asked)}"
+            for member, wanted, asked in lacking
+        )
+
+
+class _Union(_Composed):
     """The read-only aggregate: rdflib's ReadOnlyGraphAggregate reading.
     match answers every member's candidates (over-approximation stays
     sound by the provider contract's own law), atoms chains, and no write operation
@@ -407,6 +501,14 @@ class _Union(SpaceProvider):
 
     def __init__(self, members: list[_Member]) -> None:
         self._members = members
+
+    def _serving(
+        self, capability: str, **request: Any
+    ) -> tuple[tuple[_Member, str, dict[str, Any]], ...]:
+        """Every member, because atoms and match chain all of them."""
+        if capability not in ("enumerate", "match"):
+            return ()
+        return tuple((member, capability, request) for member in self._members)
 
     def atoms(self) -> Iterator[Atom]:
         for member in self._members:
@@ -440,7 +542,7 @@ def union(*spaces: Any) -> _Union:
     return _Union([_Member(space) for space in spaces])
 
 
-class _ReadOnly(SpaceProvider):
+class _ReadOnly(_Composed):
     """The inner space with every write capability stripped: reads
     forward, and the absence of write methods makes the engine refuse
     add-atom with its standing capability error. ``writes`` carries
@@ -450,6 +552,14 @@ class _ReadOnly(SpaceProvider):
 
     def __init__(self, member: _Member) -> None:
         self._member = member
+
+    def _serving(
+        self, capability: str, **request: Any
+    ) -> tuple[tuple[_Member, str, dict[str, Any]], ...]:
+        """The one member, for reads; a write is stripped rather than routed."""
+        if capability not in ("enumerate", "match"):
+            return ()
+        return ((self._member, capability, request),)
 
     def atoms(self) -> Iterator[Atom]:
         return self._member.atoms()
@@ -485,7 +595,7 @@ def _repeats_a_variable(atom: Atom) -> bool:
     return False
 
 
-class _Mapped(SpaceProvider):
+class _Mapped(_Composed):
     """A view of the inner space through one (bridge outer inner) pair:
     metta.tables' derivation with unification where tables emits WHERE.
     The outer shape is what this space presents; the inner shape is how
@@ -497,6 +607,39 @@ class _Mapped(SpaceProvider):
         self._member = member
         self._outer = outer
         self._inner = inner
+
+    def _serving(
+        self, capability: str, **request: Any
+    ) -> tuple[tuple[_Member, str, dict[str, Any]], ...]:
+        """The one member, and which of its capabilities `match` reaches.
+
+        match/1 below takes the member's match only for a pattern that
+        translates inward and is ground or linear, and it hands it the INWARD
+        pattern, so that is the pattern the member is asked about here too.
+        Otherwise it enumerates this view, which is the member's ENUMERATE and
+        carries no pattern. Asked with no pattern, as registration asks, either
+        branch is still possible, so both are required.
+        """
+        if capability in ("enumerate", "add", "remove"):
+            return ((self._member, capability, request),)
+        if capability != "match":
+            return ()
+        pattern = request.get("pattern")
+        if pattern is None:
+            return (
+                (self._member, "match", {}),
+                (self._member, "enumerate", {}),
+            )
+        inward = self._inward(pattern)
+        if inward is not None and (
+            _is_ground(pattern) or not _repeats_a_variable(pattern)
+        ):
+            return ((self._member, "match", {"pattern": inward}),)
+        if not _is_ground(pattern):
+            return ((self._member, "enumerate", {}),)
+        # An untranslatable ground pattern answers nothing and reaches no
+        # member, so there is nothing here that could be missing.
+        return ()
 
     def _inward(self, outer_atom: Atom) -> Atom | None:
         bindings = _match(self._outer, outer_atom)
@@ -596,7 +739,7 @@ def mapped(inner: Any, declaration: Any) -> _Mapped:
     return _Mapped(_Member(inner), outer, inner_shape)
 
 
-class _Overlay(SpaceProvider):
+class _Overlay(_Composed):
     """Reads both layers; writes, removals, and clears touch the front
     only, collections.ChainMap's own rule, stated loudly because for
     multisets silent routing would invent placement decisions. The back
@@ -608,6 +751,19 @@ class _Overlay(SpaceProvider):
     def __init__(self, front: _Member, back: _Member) -> None:
         self._front = front
         self._back = back
+
+    def _serving(
+        self, capability: str, **request: Any
+    ) -> tuple[tuple[_Member, str, dict[str, Any]], ...]:
+        """Both layers for a read, the front alone for a write: ChainMap's rule."""
+        if capability in ("enumerate", "match"):
+            return (
+                (self._front, capability, request),
+                (self._back, capability, request),
+            )
+        if capability in ("add", "remove", "clear"):
+            return ((self._front, capability, request),)
+        return ()
 
     def atoms(self) -> Iterator[Atom]:
         yield from self._front.atoms()
