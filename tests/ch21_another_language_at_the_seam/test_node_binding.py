@@ -29,6 +29,15 @@ Guarantees:
   - the Node binding computes exactly the answers it is asked for, proven on
     an unbounded generator with a witness space
     [tested test_the_node_binding_leaves_the_third_answer_uncomputed]
+  - the two seats' codecs answer the golden corpus IDENTICALLY, in process and
+    over JSON, which is a different question from each satisfying the page
+    [tested test_the_two_seats_answer_the_golden_corpus_identically]
+  - a number crosses a live remote exchange unchanged in both directions, for
+    every class the n tag has, and a non-finite float is refused at both ends
+    because JSON has no literal for one
+    [tested test_a_python_client_reads_every_number_class_from_a_node_gateway,
+    test_a_node_client_reads_every_number_class_from_a_python_gateway,
+    test_both_seats_refuse_a_non_finite_float_on_the_json_wire]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -120,46 +129,39 @@ def _comparable(wire: list) -> list:
     return [tag, wire[1]]
 
 
-def _number_from_text(text: str) -> int | float:
-    """The corpus writes a number as canonical Prolog text; this is Python's
-    half of reading it, the mirror of numberFromText in index.mjs.
-    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
-    if text.lstrip("-").isdigit():
-        return int(text)
-    if text.endswith("Inf"):
-        return float("-inf") if text.startswith("-") else float("inf")
-    if text.endswith("NaN"):
-        return float("nan")
-    return float(text)
+_FLOAT_ESCAPES = {"inf": math.inf, "-inf": -math.inf, "nan": math.nan}
 
 
-def _atom_from_transport(transport: list):
-    tag = transport[0]
-    if tag == "n":
-        return wire.atom_from_wire(["n", _number_from_text(transport[1])])
-    if tag == "e":
-        return wire.atom_from_wire(["e", [_wire_from_transport(item) for item in transport[1]]])
-    return wire.atom_from_wire(transport)
+def _materialise(value: Any) -> Any:
+    """A document with the corpus's `{"$float": ...}` escape resolved.
+
+    JSON has no literal for a non-finite float, so the corpus writes one as an
+    escape and both sides of this pipe resolve it. Everything else on the wire
+    is a JSON value already: an integer is bare digits, exact at any width, and
+    a float carries a point or an exponent.
+    """
+    if isinstance(value, list):
+        if len(value) == 2 and value[0] == "n" and isinstance(value[1], dict):
+            return ["n", _FLOAT_ESCAPES[value[1]["$float"]]]
+        return [_materialise(item) for item in value]
+    if isinstance(value, dict):
+        return {key: _materialise(item) for key, item in value.items()}
+    return value
 
 
-def _wire_from_transport(transport: Any) -> Any:
-    if not isinstance(transport, list) or len(transport) != 2:
-        return transport
-    if transport[0] == "n":
-        return ["n", _number_from_text(transport[1])]
-    if transport[0] == "e":
-        return ["e", [_wire_from_transport(item) for item in transport[1]]]
-    return transport
-
-
-def _comparable_transport(transport: list) -> list:
-    """A transport atom in the comparison form, so two spellings of one number
-    compare as the number. The engine writes 1.0e+20 and JavaScript writes
-    100000000000000000000.0 for the same double, and the reader takes both:
-    the transport carries a value, and only the engine's own writer is
-    canonical about how it spells.
-    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
-    return _comparable(_wire_from_transport(transport))
+def _escaped(value: Any) -> Any:
+    """The inverse: a non-finite float written as the escape JSON can carry."""
+    if isinstance(value, list):
+        if len(value) == 2 and value[0] == "n" and isinstance(value[1], float):
+            if math.isnan(value[1]):
+                return ["n", {"$float": "nan"}]
+            if math.isinf(value[1]):
+                return ["n", {"$float": "inf" if value[1] > 0 else "-inf"}]
+            return value
+        return [_escaped(item) for item in value]
+    if isinstance(value, dict):
+        return {key: _escaped(item) for key, item in value.items()}
+    return value
 
 
 # --------------------------------------------------------------- the kit driver
@@ -169,45 +171,6 @@ def _comparable_transport(transport: list) -> list:
 # drives the reference store. This is that object for the Node binding, and it
 # runs every leg rather than the store's two: a whole binding reads MeTTa
 # source, prints through the engine's own writer, and runs programs.
-
-
-def _number_to_text(value: Any) -> Any:
-    """A number in the spelling SWI's ~q writes and its reader takes back,
-    which is what bridge.pl's transport carries. The mirror of numberToText in
-    index.mjs, and it exists because JSON has one number kind while the wire
-    must preserve both integer width and the integer/float distinction.
-
-    A payload that is not a number at all goes through untouched, so the
-    corpus's malformed cases are refused by the codec under test rather than
-    by this converter.
-    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
-    if isinstance(value, bool) or not isinstance(value, (int, float)):
-        return value
-    if isinstance(value, int):
-        return str(value)
-    if math.isnan(value):
-        return "1.5NaN"
-    if value == math.inf:
-        return "1.0Inf"
-    if value == -math.inf:
-        return "-1.0Inf"
-    text = repr(value)
-    if "." in text:
-        return text
-    exponent = text.find("e")
-    if exponent >= 0:
-        return f"{text[:exponent]}.0{text[exponent:]}"
-    return f"{text}.0"
-
-
-def _transport_from_wire(wire: Any) -> Any:
-    if not isinstance(wire, list) or len(wire) != 2:
-        return wire
-    if wire[0] == "n":
-        return ["n", _number_to_text(wire[1])]
-    if wire[0] == "e" and isinstance(wire[1], list):
-        return ["e", [_transport_from_wire(item) for item in wire[1]]]
-    return wire
 
 
 class NodeBinding:
@@ -258,20 +221,20 @@ class NodeBinding:
         return answer["ok"]
 
     def read(self, text: str) -> Any:  # noqa: D102  -- the test double method is documented by its containing scenario and protocol
-        return _wire_from_transport(self._call("read", text=text))
+        return _materialise(self._call("read", text=text))
 
     def roundtrip(self, wire: Any) -> Any:  # noqa: D102  -- the test double method is documented by its containing scenario and protocol
-        return _wire_from_transport(self._call("roundtrip", transport=_transport_from_wire(wire)))
+        return _materialise(self._call("roundtrip", transport=_escaped(wire)))
 
     def transport(self, wire: Any) -> Any:  # noqa: D102  -- the test double method is documented by its containing scenario and protocol
-        return _wire_from_transport(self._call("transport", transport=_transport_from_wire(wire)))
+        return _materialise(self._call("transport", transport=_escaped(wire)))
 
     def render(self, wire: Any) -> str:  # noqa: D102  -- the test double method is documented by its containing scenario and protocol
-        return str(self._call("render", transport=_transport_from_wire(wire)))
+        return str(self._call("render", transport=_escaped(wire)))
 
     def transcript(self, program: str) -> list:  # noqa: D102  -- the test double method is documented by its containing scenario and protocol
         groups = self._call("transcript", program=program)
-        return [[_wire_from_transport(answer) for answer in group] for group in groups]
+        return [[_materialise(answer) for answer in group] for group in groups]
 
     def host_value(self) -> Any:  # noqa: D102  -- the test double method is documented by its containing scenario and protocol
         msg = "the Node binding declares no o tag"
@@ -416,11 +379,11 @@ def test_the_node_binding_and_the_python_host_answer_the_same_programs(node_repo
         transport = case["transport"]
         assert crossed["transport"] == transport
         assert "error" not in crossed, crossed.get("error")
-        atom = _atom_from_transport(transport)
+        atom = wire.atom_from_wire(_materialise(transport))
         expected = _comparable(atom.to_wire())
         assert crossed["wire"] == expected, transport
         assert crossed["roundTrip"] == expected, f"{transport} did not survive the engine"
-        assert _comparable_transport(crossed["backToTransport"]) == expected, transport
+        assert _comparable(_materialise(crossed["backToTransport"])) == expected, transport
         if _named_apart(str(atom)) != _named_apart(str(parse(crossed["text"]))):
             divergences.add((crossed["text"], str(atom)))
 
@@ -430,6 +393,197 @@ def test_the_node_binding_and_the_python_host_answer_the_same_programs(node_repo
         assert refusal["message"], case["transport"]
 
     assert divergences == _KNOWN_TEXT_DIVERGENCES
+
+
+def test_the_two_seats_answer_the_golden_corpus_identically(node_driver, metta) -> None:  # noqa: ARG001  -- the engine fixture is what supplies metta._json and Atom.to_wire a runtime; the body reaches them by import rather than through the argument
+    """Every case of tests/codec/corpus.json, through both seats, both ways.
+
+    `check_codec` above holds the Node binding to the WRITTEN grammar. This
+    holds it to the other IMPLEMENTATION on the same cases, which is a
+    different question: two codecs can each satisfy the page and still hand a
+    peer something the other refuses, and that is exactly what the `n` tag did
+    while this seat carried a number as text and the Python seat carried the
+    value.
+
+    Two legs, because the seats have two encodings each. `roundtrip` is the
+    in-process one, decode to an atom and encode back, and it carries
+    everything including the booleans and the non-finite floats. `transport`
+    is the JSON one, and it is compared over what JSON can carry: the Python
+    half is `metta._json`, the engine's own codec, which is what the remote
+    wire reads and writes.
+    """
+    from metta import _json
+    from metta.testing import codec_corpus, codec_plan
+
+    corpus = codec_corpus()
+    running = set(codec_plan(node_driver, corpus=corpus)["run"])
+    json_tags = set(corpus["profiles"]["core"]["tags"]) | {"p"}
+
+    round_trips: list[tuple[str, Any, Any]] = []
+    transports: list[tuple[str, Any, Any]] = []
+    compared = {"roundtrip": 0, "transport": 0}
+    for case in corpus["cases"]:
+        if case["id"] not in running or "wire" not in case:
+            continue
+        here = _materialise_corpus(case["wire"])
+        compared["roundtrip"] += 1
+        node_round = _comparable(node_driver.roundtrip(here))
+        python_round = _comparable(wire.atom_from_wire(here).to_wire())
+        if node_round != python_round:
+            round_trips.append((case["id"], python_round, node_round))
+        if set(case.get("tags", ())) - json_tags or case.get("requires") == "non_finite":
+            continue
+        compared["transport"] += 1
+        node_carried = _comparable(node_driver.transport(here))
+        python_carried = _comparable(_json.loads(_json.dumps(here)))
+        if node_carried != python_carried:
+            transports.append((case["id"], python_carried, node_carried))
+
+    assert round_trips == [], "the two seats' in-process codecs disagree"
+    assert transports == [], "the two seats' JSON codecs disagree"
+    # Pinned, so a corpus that stopped REACHING these legs is visible rather
+    # than passing as agreement about nothing. The transport leg runs fewer
+    # because the JSON wire carries neither a boolean nor a non-finite float.
+    assert compared == {"roundtrip": 39, "transport": 32}
+
+
+def _materialise_corpus(value: Any) -> Any:
+    """The corpus's `$float` escape resolved; `$host` never reaches this seat."""
+    return _materialise(value)
+
+
+# The numbers a remote exchange has to carry without changing, one per class
+# the `n` tag has: an integer, a float, a float whose value is whole, a
+# negative fraction, and an integer past every JavaScript number.
+_EXCHANGED: list = [
+    ["e", [["s", "row"], ["n", 42], ["s", "int"]]],
+    ["e", [["s", "row"], ["n", 1.5], ["s", "float"]]],
+    ["e", [["s", "row"], ["n", 1.0], ["s", "integral-float"]]],
+    ["e", [["s", "row"], ["n", -0.25], ["s", "negative-fraction"]]],
+    ["e", [["s", "row"], ["n", 9007199254740993], ["s", "beyond-double"]]],
+    ["e", [["s", "row"], ["n", 1208925819614629174706176], ["s", "beyond-i64"]]],
+]
+
+
+def _node_gateway(atoms: list):
+    """A Node `serve()` holding these atoms, and the URL it listens on."""
+    process = subprocess.Popen(
+        ["node", str(_BINDING / "build" / "kit" / "remote.js"), "serve"],
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.DEVNULL,
+        text=True,
+    )
+    assert process.stdin is not None and process.stdout is not None
+    process.stdin.write(f"{json.dumps({'atoms': atoms})}\n")
+    process.stdin.close()
+    ready = json.loads(process.stdout.readline())
+    return process, f"http://127.0.0.1:{ready['listening']['port']}"
+
+
+def test_a_python_client_reads_every_number_class_from_a_node_gateway() -> None:
+    """The Python seat's own RemoteSpace, against this seat's own serve().
+
+    The interoperability `src/remote.ts` claims in its header, run. It did not
+    hold while this seat put a number on the wire as TEXT: the Python client
+    refused every one of these with "wire number payload must be numeric".
+    """
+    _need_node()
+    if not (_BINDING / "build" / "kit" / "remote.js").is_file():
+        pytest.skip("run npm ci in extensions/node to build its TypeScript")
+    from metta import remote
+
+    process, url = _node_gateway(_EXCHANGED)
+    try:
+        space = remote.RemoteSpace(remote.connect(url), space="&served")
+        read = sorted(
+            (_comparable(atom.to_wire()) for atom in space.atoms()),
+            key=repr,
+        )
+    finally:
+        process.terminate()
+        process.wait(timeout=10)
+    expected = sorted((_comparable(term) for term in _EXCHANGED), key=repr)
+    assert read == expected
+
+
+def test_a_node_client_reads_every_number_class_from_a_python_gateway(metta) -> None:
+    """The same exchange the other way round, this seat's client and the
+    Python seat's serve().
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
+    _need_node()
+    if not (_BINDING / "build" / "kit" / "remote.js").is_file():
+        pytest.skip("run npm ci in extensions/node to build its TypeScript")
+    from metta import remote
+
+    with metta._new_space() as scratch:
+        for term in _EXCHANGED:
+            scratch.add(wire.atom_from_wire(term))
+        server = remote.serve(scratch, spaces=[scratch.name])
+        try:
+            finished = subprocess.run(
+                [
+                    "node",
+                    str(_BINDING / "build" / "kit" / "remote.js"),
+                    "attach",
+                    f"http://127.0.0.1:{server.port}",
+                    scratch.name,
+                ],
+                capture_output=True,
+                text=True,
+                timeout=120,
+                check=False,
+            )
+        finally:
+            server.close()
+    assert finished.returncode == 0, finished.stderr[-4000:]
+    read = sorted(
+        (_comparable(term) for term in json.loads(finished.stdout)["atoms"]),
+        key=repr,
+    )
+    expected = sorted((_comparable(term) for term in _EXCHANGED), key=repr)
+    assert read == expected
+
+
+def test_both_seats_refuse_a_non_finite_float_on_the_json_wire() -> None:
+    """JSON has no literal for one, so neither end invents a spelling.
+
+    CODEC.md: "JSON has no literal for either, so both ends of the JSON wire
+    refuse them rather than inventing one." The two seats now say it in the
+    same sentence, which is the engine's own.
+    """
+    _need_node()
+    if not (_BINDING / "build" / "kit" / "remote.js").is_file():
+        pytest.skip("run npm ci in extensions/node to build its TypeScript")
+    from metta import _json
+
+    finished = subprocess.run(
+        ["node", str(_BINDING / "build" / "kit" / "remote.js"), "refuses"],
+        capture_output=True,
+        text=True,
+        timeout=120,
+        check=False,
+    )
+    assert finished.returncode == 0, finished.stderr[-4000:]
+    node = json.loads(finished.stdout)
+    said = "JSON cannot carry the non-finite number"
+    for name, value in [("inf", math.inf), ("-inf", -math.inf), ("nan", math.nan)]:
+        with pytest.raises(ValueError) as refused:
+            _json.dumps({"atom": ["n", value]})
+        assert said in str(refused.value), str(refused.value)
+        assert node[name].startswith(said), node[name]
+    # The sentence is the engine's own and both seats refuse. The VALUE inside
+    # it is spelled differently, and that is the engine's own inconsistency
+    # rather than this seat's: metta_py_json_rethrow/1 names the culprit with
+    # `~w`, which is SWI's `1.0Inf`, where the engine's own writer prints the
+    # arbiter's `inf` for the same float. This seat writes what the engine
+    # PRINTS. Pinned so the day the engine's message uses its own writer, this
+    # says so rather than silently starting to agree.
+    assert [node["inf"], node["-inf"], node["nan"]] == [
+        f"{said} inf",
+        f"{said} -inf",
+        f"{said} NaN",
+    ]
 
 
 def test_the_node_binding_leaves_the_third_answer_uncomputed(node_report: dict) -> None:
