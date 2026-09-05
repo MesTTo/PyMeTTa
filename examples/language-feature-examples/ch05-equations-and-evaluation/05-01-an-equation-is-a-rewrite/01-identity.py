@@ -726,4 +726,26 @@ def twin(m):
 #: tests/repository/test_twin_coverage.py -k 'identity.metta'; fixture=merged
 #: main checkout, libmork_ffi.so present, QLF cleared and warmed;
 #: commit=464ffffb05a0ef09d4e69043d03cfba625966aef]
-BUDGET = 3592
+#: RE-PINNED 2026-09-05, 3583 to 3378 (-205), fixed-width
+#: metta_catalog_clause/2 reads now select their storage predicate directly,
+#: while open-tail reads retain enumeration with one list check. Source-only
+#: A/B against 2458294ae03b8dc1c982a5bc7d31601cc6332dd3 measures 3583 before
+#: and 3378 after, three identical fresh processes each with cleared and warmed
+#: QLF and matching C/MORK artifacts in the isolated worktree. See
+#: docs/journal/2026-09-05-catalog-arity-enumeration.md [measured 2026-09-05:
+#: min-of-3 serial fresh processes; command=$CHECK_PY ai-tmp/ai-twin-audit.py;
+#: commit=8bd37f3042555ee016a7b917234ce44c75a97c3e].
+#: MERGE RESOLUTION 2026-09-05, the second one this row has needed, 3399.
+#: Three parents' worth of narrative now sits above and none of their numbers
+#: is true of this tree: the earlier merge resolved to 3592, and the catalog
+#: arity branch measured 3583 to 3378 against a base that predates it. Measured
+#: HERE on the merged tree, three identical samples, metta=2292 twin=3399
+#: ratio=1.4830. The rule is the one the note above states and this row keeps
+#: proving: a clean merge of two correct edits leaves a derived number that
+#: neither parent holds
+#: [measured 2026-09-05: 3399, three identical samples; command=$PY
+#: extensions/python/tools/twin_coverage.py --measure --rounds 3
+#: examples/ch05-equations-and-evaluation/05-01-an-equation-is-a-rewrite/01-identity.metta;
+#: fixture=merged main checkout, libmork_ffi.so present, QLF cleared and
+#: warmed; commit=WORKTREE].
+BUDGET = 3399

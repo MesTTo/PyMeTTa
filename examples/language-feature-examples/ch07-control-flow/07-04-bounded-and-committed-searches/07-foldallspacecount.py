@@ -1,4 +1,4 @@
-"""examples/ch07-control-flow/07-04-bounded-and-committed-searches/07-foldallspacecount.metta in Python: counting by folding ones.
+"""Purpose: examples/ch07-control-flow/07-04-bounded-and-committed-searches/07-foldallspacecount.metta in Python: counting by folding ones.
 
 `countitem` answers 1 once per atom the match finds, and folding those ones
 with `merge` counts them, so three `foo` facts make 3. The counting is done by
@@ -127,4 +127,13 @@ def twin(m):
 #: policy-check fallbacks from space-local capture [measured 2026-09-02: min-
 #: of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=c00341f0ff9d83d1b9338ca86ad51708eaf07ebd].
-BUDGET = 7006
+#: RE-PINNED 2026-09-05, 7006 to 6587 (-419), fixed-width
+#: metta_catalog_clause/2 reads now select their storage predicate directly,
+#: while open-tail reads retain enumeration with one list check. Source-only
+#: A/B against 2458294ae03b8dc1c982a5bc7d31601cc6332dd3 measures 7005 before
+#: and 6587 after, three identical fresh processes each with cleared and warmed
+#: QLF and matching C/MORK artifacts in the isolated worktree. See
+#: docs/journal/2026-09-05-catalog-arity-enumeration.md [measured 2026-09-05:
+#: min-of-3 serial fresh processes; command=$CHECK_PY ai-tmp/ai-twin-audit.py;
+#: commit=8bd37f3042555ee016a7b917234ce44c75a97c3e].
+BUDGET = 6587
