@@ -18,7 +18,6 @@ Open Obligations:
 
 import importlib
 import os
-import shutil
 import subprocess
 from pathlib import Path
 
@@ -28,15 +27,15 @@ import pytest
 from metta import Space
 from metta import pytest_plugin as metta_pytest_plugin
 
-#: How long a process this suite starts may live once nothing is waiting for
-#: it. `subprocess.run(timeout=)` is enforced in the PARENT's wait loop, so a
-#: killed pytest leaves its children running with no bound at all: two swipl
-#: children spawned by a repository runner survived that way from 2026-09-01 to
-#: 2026-09-03, spinning at 100% for 122 CPU-hours between them. An hour is
-#: twelve times the entire GATE_ONLY run, so a test can only reach it by
-#: hanging, and every per-test `timeout=` is far below it and still the thing
-#: that fires first.
-CHILD_CEILING = os.environ.get("METTA_CHILD_CEILING", "3600")
+#: The repository's one bound, which check.sh, test.sh, run.sh, engine/test.sh
+#: and every seat's test.sh also call. It holds a deadline in a process of the
+#: child's own AND links that child to the process that started it, so a killed
+#: pytest reaps its children in milliseconds instead of leaving them to the
+#: deadline: `subprocess.run(timeout=)` is enforced in the PARENT's wait loop
+#: and stops enforcing when the parent does, which is how two swipl children
+#: spawned by a repository runner survived from 2026-09-01 to 2026-09-03,
+#: spinning at 100% for 122 CPU-hours between them.
+BOUNDED = Path(__file__).resolve().parents[3] / "bounded.sh"
 
 
 def _bound_children_to_a_wrapper() -> None:
@@ -49,42 +48,59 @@ def _bound_children_to_a_wrapper() -> None:
     and `bounded`; this is the same convention where pytest is driven directly,
     which is the case that convention did not reach.
 
-    GNU `timeout` and not `PR_SET_PDEATHSIG`, on two measurements: the flag is
-    set through `preexec_fn`, which CPython documents as unsafe in the presence
-    of threads and this repository's runners spawn from a ThreadPoolExecutor;
-    and the kernel sends the parent-death signal when the parent THREAD exits
-    rather than the process, so a finished pool worker would kill a live child.
-    `timeout` runs the command in its own process group and signals the GROUP,
-    which is what reaches the engine's own children [measured 2026-09-03: a
-    child that spawns a grandchild leaves no survivor when the wrapper fires].
+    `bounded.sh` and not a `timeout` spelled out here, since 2026-09-05. Two
+    copies of one policy had already drifted apart from the shell one, and the
+    deadline alone was the whole bound: an orphaned child burned a core for the
+    full hour rather than dying with its starter.
+
+    Not `preexec_fn`. CPython documents it as unsafe in the presence of
+    threads, and this suite runs under four xdist workers; the parent-death
+    signal is armed inside `setpriv`, an already-exec'd single-threaded process,
+    so no Python code runs between the fork and the exec.
+
+    The other half of the old objection was that the kernel signals on the exit
+    of the spawning THREAD rather than of the process, so a finished pool worker
+    would kill a live child. It cannot happen here, for a reason stronger than
+    the kernel's behaviour: every spawn this suite makes comes from the
+    MainThread, in the controller and in each worker alike, and a CPython main
+    thread does not exit before its process. Measured 2026-09-05 by recording
+    `threading.current_thread()` at each `Popen` across a four-worker run: 43
+    spawns over five processes, all `MainThread`, none exited at session
+    finish. The kernel's behaviour is measured too and agrees --
+    tests/shell/test_bounded_reaping.sh case 6 forks from a pthread, joins it,
+    and finds the child alive, with PR_GET_PDEATHSIG read back as SIGKILL in
+    the child and the process-death control dying in the same binary -- and
+    that case is a GATE lane, so a kernel that changes it says so by name.
+
+    `--owner` carries this process's pid, read BEFORE the fork, which is the
+    only way the arming race closes completely: a wrapper that reads getppid()
+    after it starts cannot tell a legitimate parent from a subreaper that
+    adopted it, and comparing against 1 is wrong for both reasons
+    [util-linux sys-utils/unshare.c opens a pidfd for the parent before forking
+    for the same reason]. It goes in the ARGV rather than the environment so
+    that a caller passing its own `env=` keeps exactly the environment it asked
+    for; a wrapper that rewrites the environment is a wrapper that changes what
+    it wraps.
 
     List-form commands only. Nothing in this tree passes `shell=True`, and a
     string command would have to be re-quoted to wrap, which is how a wrapper
     starts changing what it wraps.
-
-    `--preserve-status` is load-bearing rather than tidy. Without it `timeout`
-    answers 124 for a command that was SIGNALLED, and the child's own exit
-    status is lost: a child exiting 42 from its SIGINT handler is reported as
-    42 unwrapped, 124 wrapped, and 42 again with this flag [measured
-    2026-09-03]. Three tests read that status, and a wrapper that changes what
-    a test observes about its own child is a wrapper that changes the subject.
     """
-    wrapper = shutil.which("timeout")
-    if wrapper is None:
+    if not BOUNDED.is_file():
         refusal = (
-            "this suite needs GNU `timeout` on PATH to bound the processes it "
-            "starts. Without it a killed pytest leaves them running unbounded, "
-            "which has already cost 122 CPU-hours. Install coreutils rather "
-            "than removing this check."
+            f"this suite bounds the processes it starts through {BOUNDED}, "
+            "and that file is not there. Without it a killed pytest leaves "
+            "them running unbounded, which has already cost 122 CPU-hours. "
+            "Restore it rather than removing this check."
         )
         raise RuntimeError(refusal)
     original = subprocess.Popen.__init__
 
     def bounded_init(self, args, *rest, **keywords):
-        already = isinstance(args, (list, tuple)) and args and args[0] == wrapper
         listed = isinstance(args, (list, tuple)) and args
+        already = listed and str(BOUNDED) in [str(word) for word in args[:2]]
         if listed and not keywords.get("shell") and not already:
-            args = [wrapper, "--preserve-status", "-k", "10", CHILD_CEILING, *args]
+            args = ["sh", str(BOUNDED), "--owner", str(os.getpid()), *args]
         original(self, args, *rest, **keywords)
 
     subprocess.Popen.__init__ = bounded_init

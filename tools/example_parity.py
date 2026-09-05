@@ -74,7 +74,6 @@ import argparse
 import contextlib
 import os
 import selectors
-import shutil
 import signal
 import subprocess
 import sys
@@ -101,6 +100,10 @@ TIMEOUT = 300
 #: commit=88ba8f12b292eece7dc3810942ffce393b34dca4].
 CHILD_GRACE = 60
 
+#: The repository's one bound. Every runner in this tree, and a command
+#: typed by hand, reach the same file.
+BOUNDED = REPO / "bounded.sh"
+
 
 def _bounded(command: list[str]) -> list[str]:
     """The same command, bounded by a process that shares its fate rather than the caller's.
@@ -110,32 +113,32 @@ def _bounded(command: list[str]) -> list[str]:
     all. Two `swipl` children spawned here survived that way from 2026-09-01
     to 2026-09-03, spinning at 100% for 122 CPU-hours between them.
 
-    GNU `timeout` puts the bound in a wrapper process that is the child's own
-    parent, so an orphaned wrapper still counts down, and it runs the child in
-    its own process group and signals the GROUP, which is what reaches the
-    engine's own children [measured 2026-09-03: a child that spawns a
-    grandchild leaves no survivor when the wrapper fires].
+    `bounded.sh` is the repository's one bound and holds two things: a deadline
+    in a process that is the child's own parent, so an orphaned wrapper still
+    counts down, and a parent-death signal linking that wrapper to THIS process,
+    so a killed runner reaps its children in milliseconds rather than leaving
+    them to the deadline.
 
-    `PR_SET_PDEATHSIG` is the other candidate and is wrong here twice over:
-    it is set through `preexec_fn`, which CPython documents as unsafe in the
-    presence of threads, and this module spawns from a `ThreadPoolExecutor`;
-    and the kernel sends the parent-death signal when the parent THREAD exits
-    rather than the process, so a pool worker finishing would kill a live
-    child.
+    `--owner` names this process's pid, read here, in the parent, before the
+    fork. A wrapper that reads getppid() after it starts cannot tell its
+    original caller from a subreaper that adopted it. The pid is a pool
+    worker's PROCESS, not its thread: the signal is armed by `setpriv` after
+    the exec rather than by a `preexec_fn`, so no Python runs between fork and
+    exec, and the spawning THREAD's exit does not deliver it on this kernel
+    [tested: tests/shell/test_bounded_reaping.sh case 6, a GATE lane].
     """
-    if TIMEOUT_COMMAND is None:
+    if not BOUNDED.is_file():
         refusal = (
-            "example_parity needs GNU `timeout` on PATH to bound the children "
-            "it spawns. Without it a killed runner leaves them running with no "
-            "bound at all, which has already cost 122 CPU-hours. Install "
-            "coreutils rather than removing this check."
+            f"example_parity bounds the children it spawns through {BOUNDED}, "
+            "and that file is not there. Without it a killed runner leaves "
+            "them running with no bound at all, which has already cost 122 "
+            "CPU-hours. Restore it rather than removing this check."
         )
         raise RuntimeError(refusal)
-    return [TIMEOUT_COMMAND, "--preserve-status", "-k", "5",
-            str(TIMEOUT + CHILD_GRACE), *command]
+    return ["sh", str(BOUNDED),
+            "--ceiling", str(TIMEOUT + CHILD_GRACE), "--grace", "5",
+            "--owner", str(os.getpid()), *command]
 
-
-TIMEOUT_COMMAND = shutil.which("timeout")
 
 def skips() -> dict[str, str]:
     """The declared skips, path to reason.
