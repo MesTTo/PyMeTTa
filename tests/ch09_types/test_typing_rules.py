@@ -158,7 +158,7 @@ def test_a_user_typing_rule_participates_like_a_shipped_one(repo_root, tmp_path)
 _TYPE_VOCABULARY = ["%Undefined%", "Atom", "Number", "String", "BigInt", "Bool"]
 
 
-def _match_differential(metta, family="ordinary"):
+def _match_differential(metta, family="ordinary", *, vocabulary=None, dispatch=False):
     """Rows where the shipped fast path and the registry disagree.
 
     Asked of the engine directly, because the two relations being compared are
@@ -167,12 +167,15 @@ def _match_differential(metta, family="ordinary"):
     string as an INPUT, so `Rows` would arrive unbound and the goal would raise
     "Arguments are not sufficiently instantiated" before running.
     """
+    vocabulary = _TYPE_VOCABULARY if vocabulary is None else vocabulary
+    fast = ("user:metta_types_match_in(_Mod, _L, _R2)" if dispatch else
+            "user:metta_shipped_types_match(_L, _R2)")
     goal = (
         f"space_module('{metta.name}', _Mod), "
-        f"_Ts = {_TYPE_VOCABULARY!r}, ".replace("'", "'") +
+        f"_Ts = {vocabulary!r}, ".replace("'", "'") +
         "findall(_L-_R2-_F-_G, "
         "  ( member(_L, _Ts), member(_R2, _Ts), "
-        "    ( user:metta_shipped_types_match(_L, _R2) -> _F = yes ; _F = no ), "
+        f"    ( {fast} -> _F = yes ; _F = no ), "
         f"    ( type_rules:typing_rule_accepts(_Mod, {family}, _L, _R2) "
         "      -> _G = yes ; _G = no ) ), "
         "  _Rows), "
@@ -222,6 +225,26 @@ def test_the_shipped_fast_path_answers_what_the_registry_answers():
 
     # Removal restores agreement, so the guard is a condition rather than a latch.
     assert _match_differential(metta) == f"{len(_TYPE_VOCABULARY) ** 2}-[]"
+
+
+def test_aliases_keep_the_fast_path_and_registry_in_agreement():
+    """Raw aliases in both positions use the registry's user-first decision."""
+    with MeTTa().space() as metta:
+        metta.run("(: Count (Alias Number)) (: Held (Alias Atom)) "
+                  "(: Row (Alias (Count String))) "
+                  "(: Signature (Alias (-> Count Count)))")
+        vocabulary = [*_TYPE_VOCABULARY, "Count", "Held", "Row", "Signature",
+                      ["Number", "String"], ["->", "Number", "Number"]]
+        expected = f"{len(vocabulary) ** 2}-[]"
+        assert _match_differential(metta, vocabulary=vocabulary, dispatch=True) == expected
+        metta.run("!(add-typing-rule! deny ordinary Count Count (refuse denied))")
+        assert _match_differential(metta, vocabulary=vocabulary, dispatch=True) == expected
+        assert metta.runtime.once(
+            f"space_module('{metta.name}', _M), "
+            "\\+ user:metta_types_match_in(_M, 'Count', 'Number')"
+        )["truth"]
+        metta.run("!(remove-typing-rule! deny)")
+        assert _match_differential(metta, vocabulary=vocabulary, dispatch=True) == expected
 
 
 def test_a_static_parameter_proof_yields_to_a_later_typing_rule():

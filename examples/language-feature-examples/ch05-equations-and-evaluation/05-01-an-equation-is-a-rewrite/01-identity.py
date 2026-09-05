@@ -748,4 +748,16 @@ def twin(m):
 #: examples/ch05-equations-and-evaluation/05-01-an-equation-is-a-rewrite/01-identity.metta;
 #: fixture=merged main checkout, libmork_ffi.so present, QLF cleared and
 #: warmed; commit=WORKTREE].
-BUDGET = 3399
+#: RE-PINNED 2026-09-05, 3399 to 3383 (-16). The alias integration changes the
+#: remaining open-tail catalog enumeration order. A fixed-order control on both
+#: rebased arms measures twin=3450 before and 3449 after; the one-inference
+#: saving is the skipped empty declaration prepass. The unmodified source-order
+#: arms measure 3399 and 3383, so the other fifteen inferences are catalog
+#: layout, not alias expansion. Alias-free readers retain their original work.
+#: Both arms use 8f853f992a4c732eca39de34ff0a3dfe161508dd with matching C/MORK
+#: artifacts and cleared, warmed QLF; see docs/journal/2026-09-05-structural-
+#: type-aliases.md [measured 2026-09-05: min-of-3 serial fresh processes;
+#: command=$PY extensions/python/tools/twin_coverage.py --repin --rounds 3
+#: examples/ch05-equations-and-evaluation/05-01-an-equation-is-a-rewrite/01-identity.metta;
+#: commit=acad923476d21110870f235192757281a737ee71].
+BUDGET = 3383
