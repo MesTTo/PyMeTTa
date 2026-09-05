@@ -28,7 +28,7 @@ import pickle
 
 import pytest
 
-from metta import Expression, MettaError, S
+from metta import Expression, MettaError, S, V
 from metta.lint import Finding, lint
 
 
@@ -555,3 +555,38 @@ def test_a_declaration_the_engine_will_not_honour_is_reported(metta, tmp_path):
         unread.run("(= (hn-lint $x) $x)")
         assert "declaration-types-the-symbol" in _kinds(unread.lint())
         assert "IncorrectNumberOfArguments" in str(unread.run("!(hn-lint 1)"))
+
+def test_lint_and_why_agree_on_whether_a_head_is_known(metta):
+    """Two doors ask "is this head known?" and must not drift apart.
+
+    `lint()` reads the stored program and `why()` reads a query pattern, so
+    they answer different questions over different inputs, but both rest on
+    the same fact. This repository has already been bitten by asking that
+    fact one way: a head has meaning through `fun/1` OR through the
+    translator, and consulting only one of them produced 723 false lint
+    findings. Nothing pinned the two doors to each other afterwards.
+
+    Both directions are asserted, because a check that only sees the
+    undefined case passes trivially once a door stops reporting anything.
+    """
+    with metta._new_space() as space:
+        space.run("(= (hn-agree-caller $x) (hn-agree-target $x))")
+
+        undefined_findings = [f for f in space.lint()
+                              if f.subject == "hn-agree-target"]
+        undefined_why = space.why(S["hn-agree-target"](V.x))
+        assert [f.kind for f in undefined_findings] == ["possibly-undefined-reference"]
+        assert "no function has that name" in undefined_why
+
+        space.run("(= (hn-agree-target $x) ok)")
+
+        defined_findings = [f for f in space.lint()
+                            if f.subject == "hn-agree-target"]
+        defined_why = space.why(S["hn-agree-target"](V.x))
+        assert defined_findings == [], defined_findings
+        assert "is a function" in defined_why
+
+        assert bool(undefined_findings) != bool(defined_findings), (
+            "the two doors flipped together above; if either stops flipping, "
+            "one of them has learned about a head the other has not"
+        )
