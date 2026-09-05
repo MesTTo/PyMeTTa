@@ -50,13 +50,24 @@ _SUB = ":<"
 
 # (head, subject, object) triples; the whole ontology is (: X Y) and
 # (:< X Y) forms, so triples are the entire grammar it needs.
-_OP_DECL_TYPE = Expression([Symbol("->"), Symbol("Symbol"), Symbol("Number"), Symbol("OpKind"), Symbol("OpDecl")])
-_DEFINED_TYPE = Expression([Symbol("->"), Symbol("SpaceType"), Symbol("Symbol"), Symbol("DefinitionFact")])
+# A NAME position is declared `Atom` rather than `Symbol`. A name's metatype
+# says whether the engine holds a FUNCTION for it, which is upstream PeTTa's
+# rule and this engine's since 2026-09-05 [source: PeTTa@43705f5d
+# src/metta.pl:202], so an operation name is `Grounded` the moment
+# `metta.op` registers it and a defined name is `Grounded` the moment its
+# clauses exist. These positions hold exactly those names, so `Symbol`
+# refused the facts this ontology exists to type and
+# `!(get-type (op p5-async-1 1 async))` answered no type at all. `Atom` is
+# the metatype wildcard and the true claim; a field naming a CLOSED set keeps
+# its own type (`OpKind`, `Effect`, `ArgumentDelivery`, `ImageSetting`,
+# `TypeImage`).
+_OP_DECL_TYPE = Expression([Symbol("->"), Symbol("Atom"), Symbol("Number"), Symbol("OpKind"), Symbol("OpDecl")])
+_DEFINED_TYPE = Expression([Symbol("->"), Symbol("SpaceType"), Symbol("Atom"), Symbol("DefinitionFact")])
 _SOURCE_SPAN_TYPE = Expression(
     [
         Symbol("->"),
         Symbol("SpaceType"),
-        Symbol("Symbol"),
+        Symbol("Atom"),
         Symbol("String"),
         Symbol("Number"),
         Symbol("Number"),
@@ -69,26 +80,26 @@ _FREE_VARIABLE_TYPE = Expression(
     [
         Symbol("->"),
         Symbol("SpaceType"),
-        Symbol("Symbol"),
-        Symbol("Symbol"),
+        Symbol("Atom"),
+        Symbol("Atom"),
         Symbol("DefinitionFact"),
     ]
 )
-_EFFECT_TYPE = Expression([Symbol("->"), Symbol("Symbol"), Symbol("Effect"), Symbol("EffectDecl")])
+_EFFECT_TYPE = Expression([Symbol("->"), Symbol("Atom"), Symbol("Effect"), Symbol("EffectDecl")])
 _ARGUMENTS_TYPE = Expression(
-    [Symbol("->"), Symbol("Symbol"), Symbol("ArgumentDelivery"), Symbol("ArgumentsDecl")]
+    [Symbol("->"), Symbol("Atom"), Symbol("ArgumentDelivery"), Symbol("ArgumentsDecl")]
 )
 _CONTEXT_IMAGE_TYPE = Expression(
-    [Symbol("->"), Symbol("SpaceType"), Symbol("Symbol"), Symbol("ImageSetting"), Symbol("ImageDecl")]
+    [Symbol("->"), Symbol("SpaceType"), Symbol("Atom"), Symbol("ImageSetting"), Symbol("ImageDecl")]
 )
 _REGISTRY_IMAGE_TYPE = Expression(
-    [Symbol("->"), Symbol("Symbol"), Symbol("TypeImage"), Symbol("ImageDecl")]
+    [Symbol("->"), Symbol("Atom"), Symbol("TypeImage"), Symbol("ImageDecl")]
 )
 _LINT_EVIDENCE_TYPE = Expression(
     [
         Symbol("->"),
         Symbol("SpaceType"),
-        Symbol("Symbol"),
+        Symbol("Atom"),
         Symbol("String"),
         Symbol("String"),
         Symbol("Number"),
@@ -101,7 +112,7 @@ _LINT_INTENT_TYPE = Expression(
     [
         Symbol("->"),
         Symbol("SpaceType"),
-        Symbol("Symbol"),
+        Symbol("Atom"),
         Symbol("String"),
         Symbol("Number"),
         Symbol("Number"),

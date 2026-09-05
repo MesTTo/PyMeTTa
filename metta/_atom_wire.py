@@ -23,8 +23,8 @@ Guarantees:
     commit=4e2398075da67bb2cbcc123a9fc1e078ecac6fbf]
   - the tag alone decides the species: an s payload is a Symbol however it is
     spelled, because the engine's encoder asks metta_space_operand/1, the same
-    test metatype_of/2 asks, and writes p for every atom the language calls a
-    space [tested: test_the_s_tag_stays_a_symbol_however_it_is_spelled,
+    test get-type asks before answering SpaceType, and writes p for every atom
+    the language calls a space [tested: test_the_s_tag_stays_a_symbol_however_it_is_spelled,
     test_a_space_the_engine_made_crosses_as_a_space,
     test_the_ampersand_alone_does_not_make_a_space; commit=dee7dd651135f124376c183977b31320e1f9b3a1]
   - a reserved future name decodes to FutureSpace with the active space as its

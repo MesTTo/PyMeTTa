@@ -88,8 +88,12 @@ def test_a_state_cell_is_a_value_typed_by_what_it_holds() -> None:
     assert _answers(metta, "!(get-type (new-state 5))") == ["(StateMonad Number)"]
     assert _answers(metta, '!(get-type (new-state "hi"))') == ["(StateMonad String)"]
     assert _answers(metta, "!(get-type (new-state True))") == ["(StateMonad Bool)"]
+    # A cell is an atom no function carries, so its METATYPE is Symbol, the
+    # same answer upstream PeTTa gives for a state name [source:
+    # PeTTa@43705f5d src/metta.pl:202]. The type above is what tells a cell
+    # from a number, which is why the guard below reads get-type.
     assert _answers(metta, "!(let $c (new-state 5) (get-metatype $c))") == [
-        "Grounded"
+        "Symbol"
     ]
 
     # Two cells built from the same value are DIFFERENT cells.

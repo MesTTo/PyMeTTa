@@ -396,11 +396,14 @@ metta_py_encode(T, N, N, ["g", T])    :- string(T), !.
 metta_py_encode(T, N, N, ["b", T])    :- ( T == true ; T == false ), !.
 %WHICH QUESTION THE `p` TAG ASKS, asked of the engine rather than answered
 %here. `p` is a SPECIES tag: what it decodes into is a Space where `s` decodes
-%into a Symbol, so the question is the one the engine's own species classifier
-%asks, and metatype_of/2 asks metta_space_operand/1
-%[source: engine/metta/types.pl, metatype_of(X, 'Grounded') :- atom(X),
-%metta_space_operand(X)]. Asking it here is what makes get-metatype and the
-%wire agree on every atom.
+%into a Symbol, so the question is the engine's own species question, which is
+%metta_space_operand/1 and which get_type_candidate/2 asks for the same set
+%[source: engine/metta/types.pl, get_type_candidate(X, 'SpaceType') :-
+%atom(X), metta_space_operand(X)]. It is NOT get-metatype, which since
+%2026-09-05 answers upstream PeTTa's question instead, whether the engine
+%holds a FUNCTION of the name, and calls `&self` a Symbol
+%[source: PeTTa@43705f5d src/metta.pl:202]. The wire and the metatype answer
+%different questions about a space and both are right about their own.
 %
 %The pair '&self' and '&metta' used to be written out here, which tagged
 %exactly two names, so a space !(new-space) had just made crossed as an
@@ -411,11 +414,11 @@ metta_py_encode(T, N, N, ["b", T])    :- ( T == true ; T == false ), !.
 %NOT metta_space_name/1, the WIDER test that is-space/2 answers. That one is
 %about operand admissibility, not species: it accepts any ampersand name
 %because a space is created on demand, so it calls '&bar' a space where
-%get-metatype answers Symbol, and it calls a State cell a space too
-%[measured 2026-08-27: metta_space_name('&state-#0') is true and
-%get-metatype answers Grounded through metta_state_cell/1, not through the
-%space clause]. Tagging either as `p` would make the wire disagree with the
-%language in the one dimension the tag encodes.
+%get-type answers %Undefined%, and it calls a State cell a space too
+%[measured 2026-09-05: metta_space_name('&state-#0') is true and get-type
+%answers (StateMonad Number) for the same atom]. Tagging either as `p` would
+%make the wire disagree with the language in the one dimension the tag
+%encodes.
 %
 %NOT metta_space_names/1 either, which is the same set as a sorted LIST:
 %two findalls, an append and a sort per call where this is one indexed lookup.

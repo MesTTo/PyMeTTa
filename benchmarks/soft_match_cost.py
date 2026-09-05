@@ -1,15 +1,18 @@
-"""Purpose: price soft-match under both spellings of soft-fold's name parameter.
+"""Purpose: price soft-match on the declaration lib_soft actually ships.
 
-The declared `Symbol` is what the name actually is; `%Undefined%` is the
-metatype spelling that reaches the typing-rule registry. lib_soft's own comment
-cites the ratio between them, so this DERIVES that ratio rather than leaving it
-to be remembered: a quotient in a comment outlives the mechanism that produced
-it, and the one this replaces no longer reproduced.
+It compared `Symbol` against `%Undefined%` for soft-fold's name parameter
+until 2026-09-05. `Symbol` stopped being a legal declaration that day: the
+default aggregation is `min`, `min` is an engine function, and a name the
+engine holds a function for is Grounded under upstream PeTTa's metatype rule,
+so the `Symbol` arm refuses the library's own default rather than measuring
+it. What is left to derive is the number lib_soft's comment cites: what the
+shipped spelling costs, and the early-stop ratio between a pattern that
+mismatches at position 0, where min may stop, and one that matches, where it
+walks every position.
 
 Guarantees:
-  - both arms are measured in one run, from a checkout, with no absolute path
-  - each arm gets a fresh space, so a compiled clause from one spelling cannot
-    price the other
+  - measured from a checkout, with no absolute path
+  - a fresh space, so nothing a previous run compiled prices this one
 Open Obligations:
   To Do: None
   Hacks: None
@@ -31,8 +34,7 @@ from metta import Space  # noqa: E402  -- the path above has to be set first
 
 #: Enough candidates that per-candidate cost dominates the fixed setup.
 CANDIDATES = 400
-SHIPPED = "(-> Symbol Atom Atom Number)"
-METATYPE = "(-> %Undefined% Atom Atom Number)"
+SHIPPED = "(-> %Undefined% Atom Atom Number)"
 PATTERNS = (
     ("mismatch at position 0", "(hates $a $b $c $d $e $f)"),
     ("match at position 0", "(adores $a $b $c $d $e $f)"),
@@ -64,15 +66,12 @@ def arm(declaration: str) -> dict[str, int]:
 
 
 def main() -> int:
-    """Print both arms and the tax the metatype spelling carries."""
-    shipped, metatype = arm(SHIPPED), arm(METATYPE)
+    """Print the shipped arm and the ratio min's early stop buys."""
+    shipped = arm(SHIPPED)
     for label, _ in PATTERNS:
-        tax = metatype[label] / shipped[label]
-        print(
-            f"  {label:24} Symbol {shipped[label]:>9,}"
-            f"   %Undefined% {metatype[label]:>9,}   tax {tax:.2f}x",
-            flush=True,
-        )
+        print(f"  {label:24} {shipped[label]:>9,}", flush=True)
+    stopped, walked = (shipped[label] for label, _ in PATTERNS)
+    print(f"  early stop buys          {walked / stopped:.2f}x", flush=True)
     return 0
 
 

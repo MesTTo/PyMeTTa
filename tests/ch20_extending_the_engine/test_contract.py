@@ -195,7 +195,10 @@ def test_every_register_op_writes_its_declaration_and_get_doc_answers(metta, mon
     reflection = metta._at("&metta")
     assert parse("(: OpKind Type)") in reflection
     assert reflection.run("!(get-type async)") == [[parse("OpKind")]]
-    assert parse("(: op (-> Symbol Number OpKind OpDecl))") in reflection
+    # The name position is `Atom`, not `Symbol`: registering the operation is
+    # what makes its name Grounded, so a Symbol position refused the very
+    # facts this ontology types.
+    assert parse("(: op (-> Atom Number OpKind OpDecl))") in reflection
     for name, fn, transport, kind, effect in functions:
         metta.op(fn, name=name, transport=transport, effect=effect)
         fact = parse(f"(op {name} 1 {kind})")
