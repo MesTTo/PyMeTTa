@@ -7,7 +7,7 @@ is Python's own `assert`.
 Guarantees:
   - the translated definition and assertion agree with the source example
     inside the current inference budget [tested:
-    test_a_shipped_twin_agrees_with_its_example_end_to_end; commit=39092863ae34184a9f955f185ff57c1ff177ec40]
+    test_a_shipped_twin_agrees_with_its_example_end_to_end; commit=WORKTREE]
 """
 
 
@@ -703,4 +703,13 @@ def twin(m):
 #: pytest -q tests/repository/test_twin_coverage.py -k 'identity.metta';
 #: fixture=main checkout, libmork_ffi.so present, QLF cleared and warmed;
 #: commit=dbd76f0366f5695031b60aff22e3bc6b0b4b1aac]
-BUDGET = 3583
+#: RE-PINNED 2026-09-05, 3583 to 3378 (-205), fixed-width
+#: metta_catalog_clause/2 reads now select their storage predicate directly,
+#: while open-tail reads retain enumeration with one list check. Source-only
+#: A/B against 2458294ae03b8dc1c982a5bc7d31601cc6332dd3 measures 3583 before
+#: and 3378 after, three identical fresh processes each with cleared and warmed
+#: QLF and matching C/MORK artifacts in the isolated worktree. See
+#: docs/journal/2026-09-05-catalog-arity-enumeration.md [measured 2026-09-05:
+#: min-of-3 serial fresh processes; command=$CHECK_PY ai-tmp/ai-twin-audit.py;
+#: commit=WORKTREE].
+BUDGET = 3378

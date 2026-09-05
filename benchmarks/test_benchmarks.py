@@ -219,11 +219,24 @@ _ROWS = 2_000
 #: fixed translation and policy-guard costs, so plain remains exponential,
 #: automatic remains linear, and their n=20 separation remains 1,539x
 #: [measured: min-of-three fresh processes per size; command=$CHECK_PY -c "from benchmarks.test_benchmarks import _automatic_tabling_observations; print(_automatic_tabling_observations())"; fixture=C reader and MORK present; commit=6872eee94500bc0246eabaa40d7175c498cc32ab].
+#: RE-PINNED 2026-09-05 for direct fixed-width catalog lookup. Equal-path
+#: original/fixed controls at n=12/15/18/20 read plain
+#: 122448/954000/7606215/30413702 -> 122030/953580/7605795/30413280;
+#: automatic 16839/17995/19157/19945 -> 16141/17293/18459/19245.
+#: Dispatch-policy reads lose their arity enumeration during translation;
+#: recursive growth stays exponential/plain and linear/automatic. The base
+#: already differs from the standing pins, so that prior additive is not
+#: attributed to this fix. Evidence and source controls are in
+#: docs/journal/2026-09-05-catalog-arity-enumeration.md
+#: [measured: min-of-three per size and mode; command=$CHECK_PY -c
+#: "from benchmarks.test_benchmarks import _automatic_tabling_observations;
+#: print(_automatic_tabling_observations())"; fixture=provisioned isolated
+#: worktree, warm QLF, C reader and MORK present; commit=WORKTREE].
 _AUTOMATIC_TABLING_PINS = {
-    12: {"plain": 122_400, "automatic": 16_701},
-    15: {"plain": 953_952, "automatic": 17_838},
-    18: {"plain": 7_606_167, "automatic": 18_989},
-    20: {"plain": 30_413_652, "automatic": 19_763},
+    12: {"plain": 122_030, "automatic": 16_141},
+    15: {"plain": 953_580, "automatic": 17_293},
+    18: {"plain": 7_605_795, "automatic": 18_459},
+    20: {"plain": 30_413_280, "automatic": 19_245},
 }
 
 
