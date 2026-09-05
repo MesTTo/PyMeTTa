@@ -242,12 +242,22 @@ def _declared_type_members(declarations: list[Expression]) -> dict[str, set[str]
     """
     members: dict[str, set[str]] = {}
     for declaration in declarations:
-        if len(declaration) != 3:
+        if len(declaration) != 3 or not isinstance(subject := declaration[1], Symbol):
             continue
-        subject, kind = declaration[1], declaration[2]
-        if not isinstance(subject, Symbol) or not isinstance(kind, Symbol):
+        kind = declaration[2]
+        if isinstance(kind, Symbol):
+            members.setdefault(kind.name, set()).add(subject.name)
             continue
-        members.setdefault(kind.name, set()).add(subject.name)
+        # A constructor is a member of the type it RETURNS:
+        # `(: Circle (-> Number Shape))` makes Circle one of Shape's, beside
+        # the nullary `(: Point Shape)` above. Without this the check sees
+        # only enums and misses every algebraic type, which is the shape the
+        # upstream exhaustiveness fixture is written in.
+        if _arrow_inputs(kind) is None or len(kind) < 2:
+            continue
+        result = kind[len(kind) - 1]
+        if isinstance(result, Symbol):
+            members.setdefault(result.name, set()).add(subject.name)
     return members
 
 
@@ -309,10 +319,24 @@ def _uncovered_constructor_findings(
                     covered = set()
                     break
                 argument = head[position]
-                if not isinstance(argument, Symbol) or argument.name.startswith("$"):
+                # A bare symbol covers itself; a constructor PATTERN covers
+                # its constructor, which is how an algebraic type is matched:
+                # `(area (Circle $r))` covers Circle.
+                if isinstance(argument, Symbol):
+                    name_covered = argument.name
+                elif (
+                    isinstance(argument, Expression)
+                    and len(argument) >= 1
+                    and isinstance(inner := argument[0], Symbol)
+                ):
+                    name_covered = inner.name
+                else:
                     covered = set()
                     break
-                covered.add(argument.name)
+                if name_covered.startswith("$"):
+                    covered = set()
+                    break
+                covered.add(name_covered)
             missing = declared - covered
             if not covered or not missing:
                 continue

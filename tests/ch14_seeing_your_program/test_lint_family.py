@@ -164,6 +164,28 @@ def test_a_python_enum_reaches_the_coverage_check_without_extra_machinery(m):
     assert findings[0].payload["missing"] == ["vivid"]
 
 
+def test_a_constructor_pattern_covers_its_constructor(m):
+    """The algebraic case, in the shape upstream's own fixture is written in.
+
+    `(: Circle (-> Number Shape))` makes Circle a member of the type it
+    RETURNS, and `(area (Circle $r))` covers it by pattern rather than by
+    name. Counting only bare symbols saw enums and missed every algebraic
+    type, which is the more important half.
+    """
+    m.run("(: Shape Type)")
+    m.run("(: Circle (-> Number Shape))(: Square (-> Number Shape))(: Point Shape)")
+    m.run("(: area (-[det]-> Shape Number))")
+    m.run("(= (area (Circle $r)) (* 3 (* $r $r)))")
+    m.run("(= (area (Square $s)) (* $s $s))")
+
+    findings = _kind(m, "uncovered-constructor")
+
+    assert [finding.subject for finding in findings] == ["area"]
+    assert findings[0].payload["missing"] == ["Point"], (
+        "the nullary constructor is the one no pattern reaches"
+    )
+
+
 def test_a_plain_arrow_promises_nothing_so_partiality_is_not_a_finding(m):
     """A function is a relation; answering nothing is legal without a claim."""
     m.run("(: Hot Heat)(: Cold Heat)")
