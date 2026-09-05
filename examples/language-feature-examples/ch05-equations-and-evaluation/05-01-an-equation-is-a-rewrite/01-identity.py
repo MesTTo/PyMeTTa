@@ -674,4 +674,19 @@ def twin(m):
 #: PYTHONPATH=. $CHECK_PY -m pytest -q tests/repository/test_twin_coverage.py
 #: -k 'identity.metta'; fixture=warm main-checkout engine artifacts with
 #: libmork_ffi.so present; commit=fc095384e1c6ed4c50d19d0f8aa559344a286e29]
-BUDGET = 3553
+#: RE-PINNED 2026-09-05, 3553 to 3558 (+5), and this one is attributed in
+#: full, which the -12 above was not. Routing the arrow reader's CARDINALITY
+#: slot through the catalog's (vocabulary determinism ...) row, the way its
+#: effect-class slot already went, adds metta_determinism_canonical/2 and three
+#: metta_long_determinism/2 facts to engine/spaces/catalog.pl, a file the boot
+#: consults. A/B in the main checkout with the QLF cleared on both sides: at
+#: HEAD the twin reads 3553 and the lane passes, and with the four changed
+#: files restored it reads 3558. Same first-argument-index shape as the two
+#: moves above, and the example itself is untouched.
+#: Deterministic: three identical samples
+#: [measured: 3558 inferences with the change and 3553 at HEAD, three
+#: identical samples each; command=cd extensions/python && PYTHONPATH=.
+#: $CHECK_PY -m pytest -q tests/repository/test_twin_coverage.py
+#: -k 'identity.metta'; fixture=warm main-checkout engine artifacts with
+#: libmork_ffi.so present; commit=WORKTREE]
+BUDGET = 3558
