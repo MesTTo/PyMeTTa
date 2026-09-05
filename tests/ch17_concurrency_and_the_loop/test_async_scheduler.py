@@ -18,6 +18,14 @@ Guarantees:
     test_async_landing_uses_the_runtime_captured_during_prepare,
     test_a_landing_cancellation_is_not_swallowed;
     commit=2f562bc5c051ee373cb7ab27ea6cae641f1df094]
+  - settling a future and publishing its landing are two ordered steps of one
+    landing thread, so a returned ``wait()`` releases its waiter into a race
+    with the notification and orders no observation; landing observations here
+    wait on a signal their own callback sets [tested:
+    test_a_blocking_landing_observer_does_not_delay_the_future,
+    test_async_operation_failure_and_cancellation_settle_once,
+    test_a_transaction_commits_async_launch_before_its_landing;
+    commit=5b6652cb90c441c8b29d55d1260987d71e3b861e]
   - an enclosing transaction publishes an async launch before starting the
     coroutine, then publishes landing independently; rollback discards the
     prepared call without starting it [tested:
@@ -130,14 +138,28 @@ def _isolated_python(repo_root, source: str) -> subprocess.CompletedProcess[str]
     )
 
 
-def _record_async_lifecycle(metta, name: str) -> tuple[list[Any], Any]:
-    """Subscribe to both phases and return the owned cancellation handle."""
+def _record_async_lifecycle(metta, name: str) -> tuple[list[Any], threading.Event, Any]:
+    """Subscribe to both phases, signal landing, and return the owned handle.
+
+    ``metta_py_async_land/3`` settles the future before it publishes the
+    landing event, so a ``wait()`` that has returned orders nothing against
+    this subscription. Wait on the returned event before reading ``seen`` for
+    a landing. Recording and signalling share one callback because two folds
+    on one event have no defined order between them.
+    """
     seen: list[Any] = []
+    landed = threading.Event()
+
+    def record(event) -> None:
+        seen.append(event)
+        if event.atom.children[-1] == S.landing:
+            landed.set()
+
     subscription = metta._at("&metta").subscribe(
         S["async-op"](S[name], V.space, V.phase),
-        seen.append,
+        record,
     )
-    return seen, subscription
+    return seen, landed, subscription
 
 
 def test_an_async_operation_answers_a_future_space(metta):
@@ -363,9 +385,15 @@ def test_async_operation_failure_and_cancellation_settle_once(metta):
     metta.op(decline, name=decline_name, effect="pureStructural")
     reflection = metta._at("&metta")
     landed: list[Any] = []
+    landing_published = threading.Event()
+
+    def record_landing(event) -> None:
+        landed.append(event)
+        landing_published.set()
+
     subscription = reflection.subscribe(
         S["async-op"](S[cancel_name], V.space, S.landing),
-        landed.append,
+        record_landing,
     )
     try:
         failed = metta.eval(S[error_name]())[0]
@@ -380,6 +408,10 @@ def test_async_operation_failure_and_cancellation_settle_once(metta):
         assert cancelled.cancel() is True
         assert _bounded_call(lambda: list(cancelled.wait())) == []
         assert cancelled.settled() is True
+        # Settling releases the waiter; the landing event is published after
+        # it, on the landing thread, so the returned wait() orders nothing
+        # against this subscription and the count needs its own deadline.
+        assert landing_published.wait(10)
         assert len(landed) == 1
     finally:
         release.set()
@@ -605,6 +637,42 @@ def test_a_landing_observer_can_await_another_async_future(metta):
         metta.unregister_op(second_name)
 
 
+def test_a_blocking_landing_observer_does_not_delay_the_future(metta):
+    """Settling releases waiters; publishing the landing is a later step."""
+    name = _unique("async-observer-ordering")
+    observing = threading.Event()
+    release_observer = threading.Event()
+    observer_returned = threading.Event()
+
+    async def answer() -> int:
+        return 21
+
+    def block_until_released(_event) -> None:
+        observing.set()
+        release_observer.wait(20)
+        observer_returned.set()
+
+    metta.op(answer, name=name, effect="pureStructural")
+    subscription = metta._at("&metta").subscribe(
+        S["async-op"](S[name], V.space, S.landing),
+        block_until_released,
+    )
+    try:
+        future = metta.eval(S[name]())[0]
+        assert observing.wait(10)
+        # The observer is inside its callback now and stays there. The waiter
+        # was released by the settle, which ran before the landing was
+        # published, so wait() answers without the observer returning. Ordering
+        # notification before release instead would hang this call, and would
+        # deadlock test_a_landing_observer_can_await_the_future_it_observes.
+        assert _bounded_call(lambda: list(future.wait()), seconds=5) == [21]
+        assert observer_returned.is_set() is False
+    finally:
+        release_observer.set()
+        subscription.cancel()
+        metta.unregister_op(name)
+
+
 def test_cancelling_from_the_launch_observer_keeps_a_settled_future(metta):
     """Pre-start cancellation lands after launch instead of discarding the handle."""
     name = _unique("async-cancel-on-launch")
@@ -697,7 +765,7 @@ def test_a_transaction_commits_async_launch_before_its_landing(metta):
         return value + 1
 
     metta.op(gated, name=name, effect="oracleIO")
-    seen, subscription = _record_async_lifecycle(metta, name)
+    seen, landed, subscription = _record_async_lifecycle(metta, name)
     held: list[FutureSpace] = []
     try:
 
@@ -714,6 +782,7 @@ def test_a_transaction_commits_async_launch_before_its_landing(metta):
 
         release.set()
         assert _bounded_call(lambda: list(future.wait())) == [9]
+        assert landed.wait(10)
         assert [event.atom.children[-1] for event in seen] == [
             S.launch,
             S.landing,
@@ -793,7 +862,7 @@ def test_a_rolled_back_async_launch_never_starts_or_lands(metta):
         return 1
 
     metta.op(should_not_run, name=name, effect="writesState")
-    seen, subscription = _record_async_lifecycle(metta, name)
+    seen, _landed, subscription = _record_async_lifecycle(metta, name)
     held: list[FutureSpace] = []
     try:
 
