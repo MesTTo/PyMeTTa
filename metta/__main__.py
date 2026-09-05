@@ -1,8 +1,8 @@
 """Purpose: `python -m metta` subcommands, the stdlib "Command-line
 usage" chapter for the installed wheel: run a program, talk to a repl,
-serve spaces, boot a manifest, lint a file, and read documentation, all
-without a checkout, or convert a Python-authored program to MeTTa source. The
-bare `metta` console script keeps upstream's
+serve spaces, boot a manifest, lint a file, read documentation, and print
+`llms.txt`, all without a checkout, or convert a Python-authored program
+to MeTTa source. The bare `metta` console script keeps upstream's
 swipl-launcher contract exactly; the subcommands live here, on the
 library engine.
 Guarantees:
@@ -31,6 +31,10 @@ Guarantees:
     test_the_history_file_follows_its_variable,
     test_the_repl_completes_a_head_on_a_terminal,
     test_the_repl_keeps_its_history_between_sessions; commit=76ddfc8495fa9c4db6d17263080e1427ec447755]
+  - llms calls the package's own ``metta.llms()``, so the shell face and the
+    Python face cannot print different documents [tested:
+    test_the_llms_verb_prints_the_same_cheat_sheet_the_package_door_prints;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -382,6 +386,15 @@ def _doc(arguments) -> int:
     return 0
 
 
+def _llms(_arguments) -> int:
+    # The package door itself, so the shell and Python faces cannot print
+    # different documents. It boots nothing: the sheet is a file.
+    from . import llms  # noqa: PLC0415  deferred: --version and help must not boot
+
+    llms()
+    return 0
+
+
 def _python_program(value: str) -> Path:
     """Resolve one existing Python source file for ``convert``."""
     path = Path(value).resolve()
@@ -511,6 +524,9 @@ def main(argv: list[str] | None = None) -> int:  # noqa: D103  -- the package re
     doc.add_argument("name")
     doc.add_argument("files", nargs="*", metavar="file.metta", help="sources to load first")
     doc.set_defaults(entry=_doc)
+
+    llms = commands.add_parser("llms", help="print llms.txt, the sheet that teaches this library")
+    llms.set_defaults(entry=_llms)
 
     convert = commands.add_parser(
         "convert", help="lower a Python-authored program to MeTTa source"

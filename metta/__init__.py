@@ -77,6 +77,10 @@ Guarantees:
     test_forms_reads_a_whole_source_without_running_it,
     test_the_reader_docstrings_cross_reference_each_other;
     commit=9c03403aaaca9f1a1ec52e5898dd547eb80c8e82]
+  - ``llms()`` prints the runtime tree's own ``llms.txt`` verbatim and answers
+    None, so a checkout and an installed wheel print the same bytes [tested:
+    test_llms_prints_the_root_cheat_sheet_and_answers_none,
+    tests/shell/test_packaged_cli.sh; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -347,6 +351,37 @@ def forms(source: str) -> list[Atom]:
     """
     source_forms = _importlib.import_module(f"{__name__}._source_forms")
     return [parse(form.text) for form in source_forms.positioned_forms(source)]
+
+
+def llms() -> None:
+    """Print `llms.txt`, the sheet that teaches this library, to stdout.
+
+    The `help()` analogy is exact: it PRINTS and answers None, so the
+    document is on stdout rather than in a string somebody still has to
+    print. `llms.txt` is the whole language and library surface in one
+    read, and it ships inside the wheel, so a checkout and an install
+    print the same bytes and nobody has to find the source tree:
+
+        python -c "import metta; metta.llms()"
+        python -m metta llms          # the same document, from a shell
+
+    Unlike `help()` this never pages. CPython's `license()` hands its text
+    to `_pyrepl.pager.get_pager()`, which spawns `less` on a terminal; the
+    reader here is usually a program with a pipe, for which that pager is
+    already `sys.stdout.write`, and a library call that starts a pager is
+    a surprise the one interactive reader can arrange for themselves.
+    """
+    path = _os.path.join(_resolve_metta_path(), "llms.txt")
+    if not _path_exists(path):
+        msg = (
+            f"the cheat sheet is not at {path}; a checkout carries it at "
+            f"llms.txt and a wheel carries it beside the engine tree"
+        )
+        raise FileNotFoundError(msg)
+    # open() rather than Path.read_text() for the reason _path_exists gives:
+    # pathlib adds eager imports to a plain ``import metta``.
+    with open(path, encoding="utf-8") as sheet:
+        print(sheet.read(), end="")
 
 
 # ------------------------------------------------- generated module tier
@@ -1271,6 +1306,7 @@ __all__ = [
     "lib",
     "limits",
     "lint",
+    "llms",
     "manifest",
     "match",
     "not_",

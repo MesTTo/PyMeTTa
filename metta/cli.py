@@ -5,8 +5,9 @@ Guarantees:
     discovery to the engine [tested: test_main_retains_the_upstream_layout and
     test_main_asks_for_native_backends_and_names_none; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - launcher help points to the complete ``python -m metta`` subcommand
-    surface, including Python-to-MeTTa conversion [tested:
-    test_the_launcher_answers_version_and_help_without_booting; commit=42502e9d4a7fedd419856d5e6a1c291fc18ba644]
+    surface, including Python-to-MeTTa conversion and the ``llms`` cheat sheet
+    [tested: test_the_launcher_answers_version_and_help_without_booting;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -44,7 +45,7 @@ Every other argument is passed to the program.
   metta --version         print the version
 
 The subcommand surface is `python -m metta` (run, repl, serve, boot, lint,
-doc, convert). The Python surface is `import metta`."""
+doc, llms, convert). The Python surface is `import metta`."""
 
 
 def main(argv=None):
