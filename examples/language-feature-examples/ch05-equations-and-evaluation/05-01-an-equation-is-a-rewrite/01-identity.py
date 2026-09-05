@@ -747,7 +747,7 @@ def twin(m):
 #: extensions/python/tools/twin_coverage.py --measure --rounds 3
 #: examples/ch05-equations-and-evaluation/05-01-an-equation-is-a-rewrite/01-identity.metta;
 #: fixture=merged main checkout, libmork_ffi.so present, QLF cleared and
-#: warmed; commit=WORKTREE].
+#: warmed; commit=e7cc36d2e5d8e38927fa821f8cb3130f55047bfa].
 #: RE-PINNED 2026-09-05, 3399 to 3383 (-16). The alias integration changes the
 #: remaining open-tail catalog enumeration order. A fixed-order control on both
 #: rebased arms measures twin=3450 before and 3449 after; the one-inference
