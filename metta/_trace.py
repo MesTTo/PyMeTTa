@@ -8,7 +8,7 @@ writes included, exactly like a run.
 Guarantees:
   - named filters select events before recording bounds without changing
     execution depth [tested: test_trace_filter_preserves_depth_and_budget;
-    commit=WORKTREE]
+    commit=504f8dddfa890ced97e795a13ab10e239b1de2ce]
   - a term and the source that spells it trace identically, so trace accepts
     the same input forms as every other evaluation method
     [tested test_trace_takes_the_term_every_other_door_takes]
