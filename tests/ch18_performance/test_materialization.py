@@ -132,8 +132,16 @@ def test_reloading_a_materialized_program_preserves_its_bag(tmp_path, file_forma
             }
 
 
-def test_a_plain_source_builds_once_and_keeps_its_exact_bag():
-    """Direct source execution has one final construction per changed source."""
+@pytest.mark.parametrize("door", ["run", "add"])
+def test_a_source_that_defines_nothing_costs_no_construction(door):
+    """A data-only source and add() are one door: neither rebuilds, both answer.
+
+    Entering the preparation wrapper for a source with no equation is what made
+    every completed runnable-only call pay for the subsystem, and it bought an
+    asymmetry rather than a guarantee: add() never rebuilt either, and the
+    relation a data change invalidates is discarded by the next lookup's stamp
+    check, which answers the same bag from the retained clauses.
+    """
     with MeTTa() as m, m.space() as space, _materialization_build_counter():
         space.run(
             "(materialized-edge a b) (materialized-edge a b) "
@@ -141,8 +149,11 @@ def test_a_plain_source_builds_once_and_keeps_its_exact_bag():
         )
         assert _take_materialization_build_count() == 1
         assert Counter(map(str, space.eval(S.materialized_reach(S.a, S.c)))) == {"True": 2}
-        space.run("(materialized-edge a c)")
-        assert _take_materialization_build_count() == 1
+        if door == "run":
+            space.run("(materialized-edge a c)")
+        else:
+            space.add(S.materialized_edge(S.a, S.c))
+        assert _take_materialization_build_count() == 0
         actual = Counter(map(str, space.eval(S.materialized_reach(S.a, S.c))))
         _discard_relation(space)
         assert actual == Counter(map(str, space.eval(S.materialized_reach(S.a, S.c))))
