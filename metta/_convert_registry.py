@@ -137,7 +137,7 @@ def register_type(
     #from_atom, which must not re-enter the derivation that refused
     #[tested: test_init_false_dataclass_requires_an_explicit_reverse].
     field_types: tuple = ()
-    bare = image is None and to_atom is None and from_atom is None and not fields
+    bare = image is to_atom is from_atom is None and not fields
     derived = _default_registration(cls) if bare else None
     if derived is None:
         image = "expression" if image is None else image
