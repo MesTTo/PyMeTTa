@@ -29,13 +29,15 @@ METTA_ROOT="$HERE/../.."
     exit 2
 }
 
+bounded() { sh "$HERE/../../bounded.sh" "$@"; }
+
 cd "$HERE"
 status=0
 
 # --keep-going because one regression must not hide another: the counter half
 # reports every case before it exits.
-"$PY" bench.py --counter-only --keep-going "$@" || status=1
+bounded "$PY" bench.py --counter-only --keep-going "$@" || status=1
 # The instruction half runs whatever happened above, for the same reason.
-"$PY" -m benchmarks.check_instructions || status=1
+bounded "$PY" -m benchmarks.check_instructions || status=1
 
 exit "$status"

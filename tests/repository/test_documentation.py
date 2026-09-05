@@ -514,7 +514,7 @@ _CONTRIBUTING_CLAUSES = (
     "evidence tag",
     "a tag on a gate-green tree",
     "python -m pytest extensions/python/tests/ -q --rootdir=extensions/python -c extensions/python/pyproject.toml",
-    "cd tests/prolog",
+    "sh engine/test.sh suites/reader/parser.plt",
 )
 _FORM_TYPES = {"markdown", "textarea", "input", "dropdown", "checkboxes"}
 

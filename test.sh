@@ -36,8 +36,15 @@ METTA_ROOT="$HERE/../.."
 # load-tested ceiling rather than a machine-size-dependent `auto` expansion
 # [tested: test_the_pytest_lane_is_deterministic_under_load_protocol;
 # commit=dcfc20be4933c19140ccb5759291401d13058301].
+#
+# Through bounded.sh, so the four xdist workers and everything they spawn share
+# this process's fate; conftest.py bounds each worker's own children in turn.
+# Spelled as the path rather than through a `bounded` function, because a
+# function cannot be exec'd and this file's exit status must stay pytest's.
 cd "$HERE"
 if [ "$#" -gt 0 ]; then
-    exec "$PY" -m pytest "$@" -q -p no:benchmark -n 4 --dist loadfile --max-worker-restart=0
+    exec sh "$HERE/../../bounded.sh" \
+        "$PY" -m pytest "$@" -q -p no:benchmark -n 4 --dist loadfile --max-worker-restart=0
 fi
-exec "$PY" -m pytest tests -q -p no:benchmark -n 4 --dist loadfile --max-worker-restart=0
+exec sh "$HERE/../../bounded.sh" \
+    "$PY" -m pytest tests -q -p no:benchmark -n 4 --dist loadfile --max-worker-restart=0
