@@ -2,7 +2,8 @@
 
 Guarantees:
   - a lost reply can be retried without executing the mutation twice
-    [tested: test_lost_mutation_reply_has_a_safe_retry; commit=089bc6036ae5039bce3963d8b4e80ecaf04dfb49]
+    [tested: test_lost_mutation_reply_has_a_safe_retry,
+    test_expired_reentrant_mutation_cannot_resurrect_its_reservation; commit=WORKTREE]
 """
 
 from concurrent.futures import ThreadPoolExecutor
@@ -247,3 +248,40 @@ def test_concurrent_http_replays_share_one_mutation(metta):
         with ThreadPoolExecutor(max_workers=4) as clients:
             assert list(clients.map(add, range(8))) == [{"added": True}] * 8
         assert metta.atoms() == [S.concurrent_replay], "concurrent replays must execute once"
+
+
+def test_expired_reentrant_mutation_cannot_resurrect_its_reservation(monkeypatch):
+    """Late completion must not restore an expired slot over newer admission."""
+    clock = [100.0]
+    calls = []
+
+    class Store:
+        name = "&reentrant-replay"
+
+        def __len__(self):
+            return len(calls)
+
+        def add(self, atom):
+            calls.append(atom)
+            if len(calls) == 1:
+                clock[0] += 11
+                gateway("add", payload("nested"))
+
+    gateway = remote.Gateway(Store(), mutation_limit=1, mutation_ttl=10)
+    monkeypatch.setattr(remote.time, "monotonic", lambda: clock[0])
+
+    def payload(key):
+        return {"atom": S[key].to_wire(), "idempotency": {
+            **gateway.health()["idempotency"], "key": key,
+        }}
+
+    assert gateway("add", payload("outer")) == {"added": True}
+    clock[0] += 11
+    try:
+        result = gateway("add", payload("later"))
+    except MettaError as failure:
+        result = str(failure)
+    assert result == {"added": True}, (
+        "expiry during a reentrant write must not resurrect a pruned reservation"
+    )
+    assert calls == [S.outer, S.nested, S.later]

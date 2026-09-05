@@ -11,7 +11,8 @@ speed and reach, never trust.
 Guarantees:
   - lost mutation replies raise OutcomeUnknown; negotiated keys replay once
     within a gateway instance and expiry, and changed parameters are refused
-    [tested: test_lost_mutation_reply_has_a_safe_retry; commit=089bc6036ae5039bce3963d8b4e80ecaf04dfb49]
+    [tested: test_lost_mutation_reply_has_a_safe_retry,
+    test_expired_reentrant_mutation_cannot_resurrect_its_reservation; commit=WORKTREE]
   - response envelopes and complete atom lists are validated before delivery
     [tested: test_remote_rejects_malformed_response_fields,
     test_custom_transport_validates_the_whole_atom_list_before_yield;
@@ -1407,14 +1408,18 @@ class Gateway:
         # Reserve before execution. Reentrancy or a partially applied provider
         # failure must never create an opportunity to execute this key twice.
         answer = {"error": "mutation did not complete", "outcome": "unknown"}
-        self._mutations[key] = (token["expires"], digest, answer)
+        reservation = (token["expires"], digest, answer)
+        self._mutations[key] = reservation
         heapq.heappush(self._mutation_expiries, (token["expires"], key))
         request = {name: value for name, value in payload.items() if name != "idempotency"}
         try:
             answer = self(operation, request)
         except Exception as exc:  # noqa: BLE001 -- provider failures may follow partial effects
             answer = {"error": str(exc), "outcome": "unknown"}
-        self._mutations[key] = (token["expires"], digest, dict(answer))
+        # Reentrant work may expire and prune this reservation before return.
+        # A late completion may only update the entry it still owns.
+        if self._mutations.get(key) is reservation:
+            self._mutations[key] = (token["expires"], digest, dict(answer))
         return answer
 
     def health(self) -> dict:
