@@ -7,7 +7,7 @@ is Python's own `assert`.
 Guarantees:
   - the translated definition and assertion agree with the source example
     inside the current inference budget [tested:
-    test_a_shipped_twin_agrees_with_its_example_end_to_end; commit=cba149fe709e7e11b343d7c722ea81b81275a1a5]
+    test_a_shipped_twin_agrees_with_its_example_end_to_end; commit=df1367c75148ca6c7262134a8736b237e1150383]
 """
 
 
@@ -629,7 +629,7 @@ def twin(m):
 #: the same commit; command=PYTHONPATH=extensions/python $CHECK_PY -m pytest -q
 #: tests/repository/test_twin_coverage.py -k 'identity.metta';
 #: fixture=warm main-checkout engine artifacts, and a worktree.sh-provisioned
-#: worktree of the same commit; commit=WORKTREE]
+#: worktree of the same commit; commit=c8900bc70f1bf02ca7cde2fab184aeaa954db9be]
 #: RE-PINNED 2026-09-05, 3575 to 3565 (-10), by declaring
 #: metta_host_time_budget/3 as a host_service in engine/ext_points.pl. An
 #: IMPROVEMENT, which this lane refuses to leave unpinned for the same reason
@@ -760,4 +760,24 @@ def twin(m):
 #: command=$PY extensions/python/tools/twin_coverage.py --repin --rounds 3
 #: examples/ch05-equations-and-evaluation/05-01-an-equation-is-a-rewrite/01-identity.metta;
 #: commit=acad923476d21110870f235192757281a737ee71].
-BUDGET = 3383
+#: warmed; commit=e7cc36d2e5d8e38927fa821f8cb3130f55047bfa].
+#: RE-PINNED 2026-09-05, 3399 to 3394 (-5), the source-observation engine
+#: overlay reduces this unchanged define-and-call workload by five inferences.
+#: Same-path isolated A/B against 8f853f99 measured twin 3351 before and 3346
+#: after, with metta 2280 on both sides; this fully provisioned worktree
+#: measures twin 3394 and metta 2292. Compiled successful function clauses and
+#: native execution counts are unchanged; the absolute counters depend on the
+#: boot artifacts and image layout [measured 2026-09-05: min-of-3 serial fresh
+#: processes; command=$VENV/bin/python
+#: extensions/python/tools/twin_coverage.py --repin;
+#: commit=df1367c75148ca6c7262134a8736b237e1150383].
+#: MERGE RESOLUTION 2026-09-05, the third this row has needed, 3398. The alias
+#: slice measured 3383 and the observation slice 3394, from different bases, and
+#: the merge is neither: measured HERE, three identical samples, metta=2291
+#: twin=3398 ratio=1.4832
+#: [measured 2026-09-05; command=$PY extensions/python/tools/twin_coverage.py
+#: --measure --rounds 3
+#: examples/ch05-equations-and-evaluation/05-01-an-equation-is-a-rewrite/01-identity.metta;
+#: fixture=merged main checkout, libmork_ffi.so present, QLF warmed;
+#: commit=WORKTREE].
+BUDGET = 3398
