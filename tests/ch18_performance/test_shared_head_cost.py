@@ -20,17 +20,17 @@ Assumes: every space here is opened under a WRITTEN name nothing else uses,
 Guarantees:
   - a first evaluation of a head costs the same in the eighth live space
     defining it as in the second [tested:
-    test_a_first_evaluation_costs_the_same_in_every_space; commit=WORKTREE]
+    test_a_first_evaluation_costs_the_same_in_every_space; commit=22ce91dd50882975ccb175dcd2b235f4110ab6ff]
   - defining that head costs the same in the eighth as in the second [tested:
-    test_defining_a_shared_head_costs_the_same_in_every_space; commit=WORKTREE]
+    test_defining_a_shared_head_costs_the_same_in_every_space; commit=22ce91dd50882975ccb175dcd2b235f4110ab6ff]
   - a recycled space name defines for a fresh name's cost [tested:
-    test_a_recycled_space_name_defines_for_a_fresh_names_cost; commit=WORKTREE]
+    test_a_recycled_space_name_defines_for_a_fresh_names_cost; commit=22ce91dd50882975ccb175dcd2b235f4110ab6ff]
   - narrowing those three did not narrow what a definition REACHES: an
     inheriting space still retargets to its parent's new definition, a sibling
     still cannot move it, and every space's copy is still memoized [tested:
     test_a_definition_reaches_an_inheriting_spaces_view,
     test_a_sibling_definition_does_not_move_an_inheriting_spaces_answer,
-    test_every_space_defining_a_shared_head_still_memoizes_it; commit=WORKTREE]
+    test_every_space_defining_a_shared_head_still_memoizes_it; commit=22ce91dd50882975ccb175dcd2b235f4110ab6ff]
 Fails when: read as a pin on the absolute numbers. Every assertion here is a
   RATIO between two spaces of one run, so an engine that gets faster or slower
   everywhere passes unchanged and only a slope reopens it.
