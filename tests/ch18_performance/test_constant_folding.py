@@ -19,13 +19,21 @@ from metta import MeTTa
 
 
 def test_folded_dependencies_rebuild_after_override_and_removal():
-    """The retained source rebuilds a folded caller when its native name changes."""
+    """The retained source rebuilds a folded caller when its native name changes.
+
+    The overridden name is abs-math rather than +, which is equally foldable
+    and is not one of Prolog's own predicates. Whether a space may define over
+    a core predicate depends on what else has lived in the process: the same
+    override is accepted in a fresh interpreter and refused after the space
+    suite has run, on this tree and on the trunk alike, so a fixture built on
+    it tests the process's history rather than this rebuild.
+    """
     with MeTTa() as m:
-        m.run("(= (folding-source-dependency) (+ 1 2))")
+        m.run("(= (folding-source-dependency) (abs-math -3))")
         assert m.run("!(folding-source-dependency)") == [[3]]
-        m.run("(= (+ 1 2) 42)")
+        m.run("(= (abs-math -3) 42)")
         assert m.run("!(folding-source-dependency)") == [[42]]
-        m.run("!(remove-atom &self (= (+ 1 2) 42))")
+        m.run("!(remove-atom &self (= (abs-math -3) 42))")
         assert m.run("!(folding-source-dependency)") == [[3]]
 
 
