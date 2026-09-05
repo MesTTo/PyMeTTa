@@ -10,9 +10,13 @@ where `m.type(atom=x)` answers, and the parity test could not see any of it
 because it compares parameter NAMES.
 
 Assumes:
-  - `Space` is the source of truth and the generator reads its AST, so this
+  - `Space` and `MeTTa` are the synchronous sources; AST checks mean this
     file needs no engine to check the shape
 Guarantees:
+  - every public async counterpart has its synchronous parameter names or
+    the replacement shape recorded in DIVERGENT, including handwritten
+    methods and private sync targets [tested:
+    test_every_async_counterpart_has_the_sync_parameters; commit=d263b1f05e3ca3a0621122c1fc60d295b87692b0]
   - the checked-in block equals what the generator renders [tested:
     test_the_async_mirror_is_generated_from_the_sync_surface]
   - every generated door carries Space's signature and docstring verbatim,
@@ -32,6 +36,8 @@ from __future__ import annotations
 import ast
 import sys
 from pathlib import Path
+
+import pytest
 
 REPO = Path(__file__).resolve().parents[4]
 sys.path.insert(0, str(REPO / "extensions" / "python" / "tools"))
@@ -89,6 +95,84 @@ def test_every_generated_door_is_spaces_door():
         assert here == there, f"{name} returns {here}, Space.{target} returns {there}"
 
 
+def _parameter_shape(door):
+    """Each KIND on its own, because a caller sees kinds and not only names.
+
+    Flattening positional-only together with positional-or-keyword hides the
+    defect this ledger was created for. `await am.type(atom=x)` raised
+    TypeError where `m.type(atom=x)` answers, because the async method had
+    made that parameter positional-only; the NAMES matched, so a name-only
+    comparison called it parity and the ledger's own motivating case would
+    pass. Keyword-only order cannot affect a call, so those still sort.
+    """
+    args = door.args
+    return (
+        [p.arg for p in args.posonlyargs if p.arg != "self"],
+        [p.arg for p in args.args if p.arg != "self"],
+        sorted(p.arg for p in args.kwonlyargs),
+    )
+
+
+def _async_parameter_drifts():
+    """Resolve both synchronous classes, retaining one/first's private targets."""
+    sources = {}
+    for owner in ("MeTTa", "Space"):
+        cls, _ = aiogen._class(aiogen.SPACE, owner)
+        for name, nodes in aiogen.methods(cls).items():
+            sources[name] = (owner, nodes[-1])
+    cls, _ = aiogen._class(aiogen.AIO, "AsyncMeTTa")
+    drifts = []
+    for name, nodes in sorted(aiogen.methods(cls).items()):
+        if name.startswith("_"):
+            continue
+        target = PRIVATE_TARGET.get(name, name)
+        if target not in sources:
+            continue
+        owner, reference = sources[target]
+        expected_from = f"{owner}.{target}"
+        if name in DIVERGENT:
+            parameters, reason = DIVERGENT[name]
+            assert len(reason.split()) >= 8, f"{name}: too short to name a mechanism"
+            reference = ast.parse(f"def replacement({parameters}): pass").body[0]
+            expected_from = f"DIVERGENT[{name!r}]"
+        expected, actual = _parameter_shape(reference), _parameter_shape(nodes[-1])
+        if expected != actual:
+            drifts.append(f"DRIFT {name}: {expected_from} {expected!r}; AsyncMeTTa {actual!r}")
+    return drifts
+
+
+def test_every_async_counterpart_has_the_sync_parameters():
+    """Handwriting a body cannot hide parameter drift from either sync source."""
+    drifts = _async_parameter_drifts()
+    assert not drifts, "\n".join(drifts)
+
+
+def test_the_parameter_gate_catches_a_missing_handwritten_parameter(tmp_path, monkeypatch):
+    """A missing journal keyword fails outside the generated block, then restores."""
+    original = aiogen.AIO.read_text(encoding="utf-8")
+    copied = tmp_path / "aio.py"
+    cls, _ = aiogen._class(aiogen.AIO, "AsyncMeTTa")
+    door = aiogen.methods(cls)["space"][-1]
+    lines = original.splitlines(keepends=True)
+    parameter = next(p for p in door.args.kwonlyargs if p.arg == "journal")
+    del lines[parameter.lineno - 1]
+    copied.write_text("".join(lines), encoding="utf-8")
+    monkeypatch.setattr(aiogen, "AIO", copied)
+    with pytest.raises(AssertionError, match=r"DRIFT space: MeTTa\.space"):
+        test_every_async_counterpart_has_the_sync_parameters()
+    copied.write_text(original, encoding="utf-8")
+    test_every_async_counterpart_has_the_sync_parameters()
+
+
+def test_the_parameter_gate_requires_the_subscribe_divergence(monkeypatch):
+    """Removing the callback mechanism exposes subscribe's different shape."""
+    with monkeypatch.context() as patch:
+        patch.delitem(DIVERGENT, "subscribe")
+        with pytest.raises(AssertionError, match=r"DRIFT subscribe: Space\.subscribe"):
+            test_every_async_counterpart_has_the_sync_parameters()
+    test_every_async_counterpart_has_the_sync_parameters()
+
+
 def test_the_async_mirror_gate_catches_a_planted_edit():
     """A lane that cannot be shown failing is evidence of nothing."""
     original = aiogen.AIO.read_text(encoding="utf-8")
@@ -107,11 +191,15 @@ def test_the_async_mirror_gate_catches_a_planted_edit():
 def test_every_exclusion_names_a_live_door_and_a_reason():
     """An exclusion is a decision, so it names the mechanism behind it."""
     _, sync, _, _ = _generated()
+    context, _ = aiogen._class(aiogen.SPACE, "MeTTa")
+    sources = set(sync) | set(aiogen.methods(context))
     for name, reason in EXCLUDED.items():
         assert name in sync, f"{name} is excluded but Space no longer has it"
         assert len(reason.split()) >= 6, f"{name}: too short to be a reason"
     for name, (signature, reason) in DIVERGENT.items():
-        assert name in sync, f"{name} diverges but Space no longer has it"
+        assert PRIVATE_TARGET.get(name, name) in sources, (
+            f"{name} diverges but neither synchronous class has it"
+        )
         assert signature.startswith("self"), f"{name}: a method signature starts with self"
         assert len(reason.split()) >= 8, f"{name}: too short to be a reason"
 

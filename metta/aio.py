@@ -9,6 +9,11 @@ evaluation through the engine's own thread_signal, the sqlite3 reading,
 and a cancelled task fires it on its own call, so asyncio timeouts stop
 the engine instead of abandoning it.
 Guarantees:
+  - AsyncMeTTa.space delegates construction to MeTTa.space and preserves the
+    caller creation site and borrowed provider lifecycle [tested:
+    test_a_journaled_async_space_round_trips_a_fact,
+    test_async_space_provider_backing_attaches_and_remains_borrowed,
+    test_async_anonymous_space_repr_keeps_the_submitting_site; commit=d263b1f05e3ca3a0621122c1fc60d295b87692b0]
   - async solve, Linda verbs, watch, class/type dispatch, and the two
     transaction laws execute on the owning worker [tested:
     test_aio_structural_surface_behaves; commit=cff2e7f319bd2212f0c2d74f8d5fe5be3ac693b5]
@@ -147,7 +152,7 @@ import threading
 import warnings
 import weakref
 from collections import abc as _abc
-from collections.abc import Callable, Coroutine, Iterable, Mapping, Sequence
+from collections.abc import Callable, Coroutine, Iterable, Mapping
 from types import TracebackType
 from typing import TYPE_CHECKING, Any, Final, Literal, Self, TypeVar, overload
 
@@ -994,51 +999,36 @@ class AsyncMeTTa:
 
     async def space(
         self,
-        name: str | None = None,
+        name: str | Symbol | Expression | Space | None = None,
         backing: Any = None,
         *,
         inherits: AsyncMeTTa | None = None,
         restricted: bool = False,
-        grants: Sequence[str] = (),
+        grants: _abc.Iterable[str] = (),
+        journal: str | os.PathLike[str] | None = None,
+        schema: _abc.Mapping[str, Any] | None = None,
+        sync: str = "none",
+        _created_at: tuple[str, int] | None = None,
     ) -> AsyncMeTTa:
-        """Create or open one space through this connection's worker.
+        """Create or open a space through MeTTa.space on this connection's worker.
 
-        An omitted name creates an anonymous space. ``inherits``, ``restricted``
-        and ``grants`` choose the space MODEL and apply to a named space as
-        well as an anonymous one. A provider supplied as ``backing`` is
-        attached to the resulting handle. The connection owns the worker;
-        returned spaces borrow it, so closing one does not stop the connection.
+        Native, provider, remote, and journaled construction use the synchronous
+        context door. Returned spaces borrow the connection's worker, so closing
+        one does not stop the connection. Anonymous handles record the submitting
+        coroutine's creation site.
         """
         if inherits is not None and inherits._worker is not self._worker:
             msg = "an inherited async space must share this engine worker"
             raise ValueError(msg)
         parent = None if inherits is None else inherits._m
         requested_grants = tuple(grants)
-        if name is None:
-            created_at = _creation_site()
-            handle = await self.call(
-                lambda m: m._new_space(
-                    inherits=parent,
-                    restricted=restricted,
-                    grants=requested_grants,
-                    _created_at=created_at,
-                )
+        site = _creation_site() if _created_at is None else _created_at
+        handle = await self.call(
+            lambda m: m.metta.space(
+                name, backing, inherits=parent, restricted=restricted, grants=requested_grants,
+                journal=journal, schema=schema, sync=sync, _created_at=site,
             )
-        else:
-            # A name and a model are independent here for the same reason they
-            # are on the synchronous method: the engine's declarations take any
-            # valid space name.
-            handle = await self.call(
-                lambda m: m._open(
-                    name,
-                    inherits=parent,
-                    restricted=restricted,
-                    grants=requested_grants,
-                )
-            )
-        if backing is not None:
-            await self.call(lambda m: m._register_space(backing, str(handle.name)))
-            handle._backing = backing
+        )
         return AsyncMeTTa._sharing(handle, self._worker)
 
     async def op(
@@ -1289,8 +1279,9 @@ class AsyncMeTTa:
     # Space method of the same name, whose signature, return annotation and
     # docstring it carries verbatim. Each is one worker round trip. Do not
     # edit them here: change Space, or hand-write the method above this block
-    # and the generator will yield to it. tools/aio_divergences.py holds the
-    # exclusions and the one signature that cannot be Space's.
+    # and the generator will yield to it. Handwritten counterparts still pass
+    # parameter parity against Space or MeTTa. tools/aio_divergences.py records
+    # exclusions and worker mechanisms that require different signatures.
 
     async def space_names(self) -> list[str]:
         """Every space name this engine registers, sorted: '&self' and

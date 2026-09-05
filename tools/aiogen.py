@@ -18,17 +18,21 @@ https://github.com/sqlalchemy/sqlalchemy/blob/main/tools/generate_proxy_methods.
 Assumes:
   - `Space` is the source of truth. The generator reads _space.py's AST, not a
     live class, so it needs no engine and can gate cheaply
-  - a mirrored method is one AsyncMeTTa does not define itself. Hand-write a
-    method and the generator stops emitting it, with no list to maintain
+  - generation yields to methods AsyncMeTTa defines itself. Handwritten
+    counterparts still pass parameter-name parity against Space or MeTTa;
+    a different shape requires a mechanism in DIVERGENT
 Guarantees:
   - every generated method carries Space's signature, return annotation and
-    docstring VERBATIM, except the four in DIVERGENT which carry their stated
+    docstring VERBATIM, except those in DIVERGENT which carry their stated
     reason beside them [tested:
     test_the_async_mirror_is_generated_from_the_sync_surface]
   - a new public Space method appears here or in EXCLUDED, so it cannot be
     silently absent from the async surface [tested: test_aio_mirrors_the_surface]
-Fails when: a Space method's body must differ across the worker. Hand-write it in
-  AsyncMeTTa and the generator yields to it.
+  - handwritten counterparts cannot escape the shared parameter-name gate
+    [tested: test_every_async_counterpart_has_the_sync_parameters; commit=d263b1f05e3ca3a0621122c1fc60d295b87692b0]
+Fails when: a method needs its own worker body. Hand-write it in AsyncMeTTa;
+  the generator yields, but the parity test still checks it. The categories
+  are generated, excluded, divergent, and handwritten-but-conforming.
 Open Obligations:
   To Do: None
   Hacks: None
@@ -71,8 +75,9 @@ HEADER = """
     # Space method of the same name, whose signature, return annotation and
     # docstring it carries verbatim. Each is one worker round trip. Do not
     # edit them here: change Space, or hand-write the method above this block
-    # and the generator will yield to it. tools/aio_divergences.py holds the
-    # exclusions and the one signature that cannot be Space's.
+    # and the generator will yield to it. Handwritten counterparts still pass
+    # parameter parity against Space or MeTTa. tools/aio_divergences.py records
+    # exclusions and worker mechanisms that require different signatures.
 """
 
 

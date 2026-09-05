@@ -1,7 +1,8 @@
-"""Purpose: the async surface's exclusions and its one signature divergence,
-each with the reason it is not simply Space's method awaited. `aiogen.py`
-generates every other mirrored method from `Space` verbatim and reads these for
-the cases that cannot be.
+"""Purpose: record exclusions and signature divergences in the async surface.
+
+`aiogen.py` generates mechanical counterparts from Space. A handwritten
+counterpart still conforms to Space or MeTTa, unless this ledger states the
+worker mechanism that requires a different parameter shape.
 
 The ledger exists because the divergences were REAL and UNRECORDED. Measured
 2026-08-31 over the 66 hand-written mirrors: 15 carried a signature different
@@ -17,14 +18,17 @@ Assumes:
   - a reason names the MECHANISM that makes the sync shape impossible across
     the worker, not a preference. "Simpler" is not one.
 Guarantees:
-  - every name here is a live Space method, and every mirrored method not here
-    carries Space's signature, return annotation and docstring verbatim
-    [tested: test_the_async_mirror_is_generated_from_the_sync_surface]
+  - every name here resolves to a synchronous method; generated counterparts
+    carry its signature, return annotation and docstring verbatim except for
+    the DIVERGENT replacement signatures, while
+    handwritten counterparts obey the parameter-name parity gate or the
+    replacement parameter shape below [tested:
+    test_every_async_counterpart_has_the_sync_parameters; commit=d263b1f05e3ca3a0621122c1fc60d295b87692b0]
 Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
-"""  # noqa: D205  -- the contract is one continuous invariant, not summary-and-body prose
+"""
 
 from __future__ import annotations
 
@@ -50,14 +54,42 @@ EXCLUDED: dict[str, str] = {
 
 #: Methods whose async signature CANNOT be the sync one, with the mechanism that
 #: forbids it and the replacement parameter list.
+_DECORATOR_ACROSS_THE_WORKER = (
+    "the sync method's fn=None form returns a DECORATOR, and a decorator "
+    "handed back across the worker would register on the caller's thread "
+    "rather than the engine's. Only the applied form crosses"
+)
+
 DIVERGENT: dict[str, tuple[str, str]] = dict.fromkeys(
     ("pure", "reads", "writes", "io"),
-    (
-        "self, fn: Callable, /, **options: Any",
-        "the sync method's fn=None form returns a DECORATOR, and a decorator "
-        "handed back across the worker would register on the caller's thread "
-        "rather than the engine's. Only the applied form crosses",
-    ),
+    ("self, fn: Callable, /, **options: Any", _DECORATOR_ACROSS_THE_WORKER),
+)
+
+#: `define` and `op` carry the same mechanism and were not recorded, because
+#: the parameter gate compared NAMES and flattened positional-only together
+#: with positional-or-keyword. `m.define(fn=f)` answers and
+#: `await am.define(fn=f)` raises TypeError, which is the shape this file was
+#: written for: one of the two runtime refusals measured 2026-08-31 was exactly
+#: that, on `type`. Separating the kinds in the gate surfaced both.
+DIVERGENT["define"] = (
+    "self, fn: Callable | None = None, /, *, prolog: Any = None, "
+    "name: Any = None, accessors: bool = True, methods: bool = True",
+    _DECORATOR_ACROSS_THE_WORKER,
+)
+DIVERGENT["op"] = (
+    "self, fn: Callable, /, *, effect: Any, name: Any = None, "
+    "transport: Any = 'encoded', declarations: Any = (), arities: Any = None, "
+    "inverse: Any = None",
+    _DECORATOR_ACROSS_THE_WORKER,
+)
+
+DIVERGENT["subscribe"] = (
+    'self, pattern: Any, *, on: str = "add", where: Any | None = None, '
+    'queue_max: int = SUBSCRIPTION_QUEUE_MAX',
+    "the synchronous callback runs during delivery on the engine worker, "
+    "while async consumers resume on their event loop. A caller callback "
+    "cannot run on both threads; the async event stream is the delivery "
+    "across that boundary and therefore has no callback parameter",
 )
 
 #: Methods reached through a private Space method: the public name is the async
