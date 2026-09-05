@@ -817,4 +817,20 @@ def twin(m):
 #: moves with every engine unit change; the seventh resolution tonight
 #: [measured 2026-09-05: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
-BUDGET = 3387
+#: RE-PINNED 2026-09-05, 3387 to 3422 (+35), materialization, the Generic Join
+#: planner and the folding pass add engine units, and this row counts code
+#: shape. The trunk it rebases onto already measures 3404 against this pin in a
+#: fully provisioned checkout, so 17 of the move is trunk's and 18 is this
+#: branch's. Unlike the two moves above it this one is not layout alone: the
+#: MeTTa side moves with it, 2291 to 2357, and a sweep of the branch's own
+#: commits accounts for every inference of that +66. +7 is the constant-folding
+#: admission probe, +12 the metadata projection index, and +47 what is left of
+#: materialization after its three gates, which is +454 where it is introduced,
+#: then -241 for preparing once per completed load, -72 for the pragma and -94
+#: for charging the source doors only when a program has asked [measured
+#: 2026-09-06: min-of-3 serial fresh processes per commit, each in a fully
+#: provisioned base worktree with its .qlf set rebuilt first; command=python
+#: extensions/python/tools/twin_coverage.py --measure --rounds 3 examples/ch05-
+#: equations-and-evaluation/05-01-an-equation-is-a-rewrite/01-identity.metta;
+#: commit=3c64e2e24787362a5a5081513bc24b880711a1d7].
+BUDGET = 3422
