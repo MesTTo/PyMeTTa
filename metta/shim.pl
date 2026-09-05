@@ -1159,17 +1159,6 @@ metta_py_execution_policy_goal(
 metta_py_execution_policy_goal(Mode, _, _) :-
     throw(error(domain_error(metta_py_execution_policy, Mode), none)).
 
-%snapshot/1 is semidet, while a held evaluation is nondeterministic. Collect
-%inside the snapshot and replay outside it so speculation preserves every
-%answer while all writes still belong to one discarded execution.
-metta_py_execution_cursor_goal(speculative, Template, Goal, Controlled) :- !,
-    Controlled =
-        ( metta_speculate(
-              metta_with_state_write_fence(findall(Template, Goal, Bag))),
-          member(Template, Bag) ).
-metta_py_execution_cursor_goal(Mode, _, Goal, Controlled) :-
-    metta_py_execution_policy_goal(Mode, Goal, Controlled).
-
 %A held engine has its own current_output, so redirecting engine_next/2 in the
 %caller cannot capture it. The captured engine asks for a fresh memory stream
 %before each resume, yields one answer, and asks again before backtracking.
@@ -1188,8 +1177,12 @@ metta_py_captured_engine(Template, Goal) :-
           fail ),
         set_output(Old)).
 
+%A held evaluation is nondeterministic, and so is every policy here: the
+%speculative one used to need its own findall-then-member because
+%metta_speculate/1 ran its goal as once/1, and it answers every answer itself
+%now, so a cursor takes the same construction the eager doors take.
 metta_py_open_controlled_cursor([Mode, Capture], Template, Goal, Handle) :-
-    metta_py_execution_cursor_goal(Mode, Template, Goal, Controlled),
+    metta_py_execution_policy_goal(Mode, Goal, Controlled),
     (   Capture == @(true)
     ->  engine_create(_, metta_py_captured_engine(Template, Controlled), Engine),
         Handle = metta_py_captured_cursor(Engine)
