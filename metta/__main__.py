@@ -201,8 +201,12 @@ def _install_readline(m) -> object | None:
     backend = getattr(readline, "backend", None)
     if backend is None:
         # readline.backend arrived in 3.13; before it, libedit says so in the
-        # module docstring, which is the test CPython's site.py used.
-        backend = "editline" if "libedit" in (readline.__doc__ or "") else "readline"
+        # module docstring, which is the test CPython's site.py used. FURB143 is
+        # suppressed because it reads mypy's synthesized `module.__doc__: str`
+        # as a fact: a module object's docstring is `str | None`, and
+        # `"libedit" in None` raises.
+        doc = readline.__doc__ or ""  # noqa: FURB143
+        backend = "editline" if "libedit" in doc else "readline"
     readline.parse_and_bind(
         "bind ^I rl_complete" if backend == "editline" else "tab: complete"
     )
