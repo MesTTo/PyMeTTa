@@ -10,7 +10,7 @@ Guarantees:
   - failed engine teardown retains subscriptions and provider ownership;
     unfinished cleanup retains the anonymous name until a later drop succeeds
     [tested: test_failed_engine_drop_keeps_subscriptions,
-    test_failed_provider_unregistration_keeps_owned_backing_open; commit=WORKTREE]
+    test_failed_provider_unregistration_keeps_owned_backing_open; commit=089bc6036ae5039bce3963d8b4e80ecaf04dfb49]
   - MeTTa.space forwards an explicit caller creation site to Space._new_space
     for anonymous handles [tested:
     test_async_anonymous_space_repr_keeps_the_submitting_site; commit=d263b1f05e3ca3a0621122c1fc60d295b87692b0]

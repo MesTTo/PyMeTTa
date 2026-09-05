@@ -2,7 +2,7 @@
 
 Guarantees:
   - engine teardown failure preserves Python cleanup state for retry
-    [tested: test_failed_engine_drop_keeps_subscriptions; commit=WORKTREE]
+    [tested: test_failed_engine_drop_keeps_subscriptions; commit=089bc6036ae5039bce3963d8b4e80ecaf04dfb49]
 """
 
 import pytest

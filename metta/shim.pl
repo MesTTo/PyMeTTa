@@ -5,7 +5,7 @@
 %   engine/main.pl; only adds predicates, never redefines engine ones.
 % Guarantees:
 %   - transport failure subclasses retain their outcome across error policies
-%     [tested: test_protocol_errors_cannot_become_engine_answers; commit=WORKTREE]
+%     [tested: test_protocol_errors_cannot_become_engine_answers; commit=089bc6036ae5039bce3963d8b4e80ecaf04dfb49]
 %   - async Python operations answer a future space immediately, publish their
 %     launch through the current observation frame, and publish landing only
 %     from the later event-loop completion; a publication fault settles the

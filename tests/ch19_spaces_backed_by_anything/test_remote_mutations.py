@@ -2,7 +2,7 @@
 
 Guarantees:
   - a lost reply can be retried without executing the mutation twice
-    [tested: test_lost_mutation_reply_has_a_safe_retry; commit=WORKTREE]
+    [tested: test_lost_mutation_reply_has_a_safe_retry; commit=089bc6036ae5039bce3963d8b4e80ecaf04dfb49]
 """
 
 from concurrent.futures import ThreadPoolExecutor

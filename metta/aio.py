@@ -12,7 +12,7 @@ Guarantees:
   - Prolog-backed definitions require their reference function and construct
     and apply the synchronous decorator on the owning worker
     [tested: test_async_prolog_define_requires_the_reference_function,
-    test_async_prolog_define_registers_and_applies_on_its_worker; commit=WORKTREE]
+    test_async_prolog_define_registers_and_applies_on_its_worker; commit=089bc6036ae5039bce3963d8b4e80ecaf04dfb49]
   - AsyncMeTTa.space delegates construction to MeTTa.space and preserves the
     caller creation site and borrowed provider lifecycle [tested:
     test_a_journaled_async_space_round_trips_a_fact,

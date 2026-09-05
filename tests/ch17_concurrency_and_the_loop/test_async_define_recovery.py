@@ -2,7 +2,7 @@
 
 Guarantees:
   - an unapplied synchronous decorator cannot escape AsyncMeTTa.define
-    [tested: test_async_prolog_define_requires_the_reference_function; commit=WORKTREE]
+    [tested: test_async_prolog_define_requires_the_reference_function; commit=089bc6036ae5039bce3963d8b4e80ecaf04dfb49]
 """
 
 import asyncio

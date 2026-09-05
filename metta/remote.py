@@ -11,11 +11,11 @@ speed and reach, never trust.
 Guarantees:
   - lost mutation replies raise OutcomeUnknown; negotiated keys replay once
     within a gateway instance and expiry, and changed parameters are refused
-    [tested: test_lost_mutation_reply_has_a_safe_retry; commit=WORKTREE]
+    [tested: test_lost_mutation_reply_has_a_safe_retry; commit=089bc6036ae5039bce3963d8b4e80ecaf04dfb49]
   - response envelopes and complete atom lists are validated before delivery
     [tested: test_remote_rejects_malformed_response_fields,
     test_custom_transport_validates_the_whole_atom_list_before_yield;
-    commit=WORKTREE]
+    commit=089bc6036ae5039bce3963d8b4e80ecaf04dfb49]
   - remote JSON decoding preserves explicit s and p tags instead of applying
     process-local engine provenance [tested:
     test_space_handles_are_term_operands_and_round_trip; commit=4e2398075da67bb2cbcc123a9fc1e078ecac6fbf]

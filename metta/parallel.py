@@ -22,7 +22,7 @@ Assumes:
     lib_memo.pl [source 2026-08-15]
 Guarantees:
   - a waiting close joins owned workers after nonwaiting close or join failure
-    [tested: test_waiting_close_joins_after_nonwaiting_close; commit=WORKTREE]
+    [tested: test_waiting_close_joins_after_nonwaiting_close; commit=089bc6036ae5039bce3963d8b4e80ecaf04dfb49]
   - package coordination functions evaluate lib_thread in the ambient space;
     spawned and repeating computations stay Space handles whose answers may
     be iterated as they arrive [tested:

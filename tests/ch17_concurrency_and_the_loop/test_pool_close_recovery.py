@@ -2,7 +2,7 @@
 
 Guarantees:
   - close(wait=True) joins even after an earlier nonwaiting close
-    [tested: test_waiting_close_joins_after_nonwaiting_close; commit=WORKTREE]
+    [tested: test_waiting_close_joins_after_nonwaiting_close; commit=089bc6036ae5039bce3963d8b4e80ecaf04dfb49]
 """
 
 import threading

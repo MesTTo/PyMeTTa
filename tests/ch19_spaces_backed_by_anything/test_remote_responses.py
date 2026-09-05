@@ -2,7 +2,7 @@
 
 Guarantees:
   - response fields have protocol types instead of Python truthiness
-    [tested: test_remote_rejects_malformed_response_fields; commit=WORKTREE]
+    [tested: test_remote_rejects_malformed_response_fields; commit=089bc6036ae5039bce3963d8b4e80ecaf04dfb49]
 """
 
 import pytest
