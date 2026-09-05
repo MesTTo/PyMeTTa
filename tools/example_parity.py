@@ -297,6 +297,22 @@ def _capture(
                     break
     finally:
         selector.close()
+        if stopped is None and process.poll() is None:
+            # EOF on both pipes is not exit. A child closes its descriptors
+            # when IT exits, and the status then propagates up through
+            # bounded.sh's three wrappers, which takes a beat; polling here
+            # read None and the kill below shot a process that had already
+            # finished its work, so a child exiting 7 after closing its
+            # pipes was reported as -9 in 40 of 40 runs, and the runner's
+            # last-line-is-the-error fallback then made an error out of its
+            # output [measured 2026-09-05: ai-tmp probe over _capture;
+            # commit=WORKTREE]. Wait for the status, within what is left of
+            # the deadline; only a child that is still running after that is
+            # a runaway.
+            try:
+                process.wait(timeout=max(0.0, deadline - time.monotonic()))
+            except subprocess.TimeoutExpired:
+                stopped = f"closed its output but was still running at {TIMEOUT}s"
         if stopped is not None or process.poll() is None:
             with contextlib.suppress(ProcessLookupError, PermissionError):
                 os.killpg(os.getpgid(process.pid), signal.SIGKILL)

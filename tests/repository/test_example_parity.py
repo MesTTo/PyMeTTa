@@ -347,6 +347,48 @@ def test_a_runaway_child_is_stopped_at_the_capture_ceiling():
     assert outcome.groups == []
 
 
+def test_a_child_that_closes_its_output_before_exiting_keeps_its_status():
+    """EOF on both pipes is not exit, and the capture must not shoot the gap.
+
+    A child closes its descriptors when it exits, and under bounded.sh the
+    status then climbs through three wrappers before the parent can read it.
+    Reading EOF, finding poll() still None and killing the group reported a
+    child that exited 7 as -9 in 40 of 40 runs, and the runner's last-line
+    fallback then presented a line of its own output as the error; in the
+    full suite that read as four parity failures that passed alone. The
+    capture now waits for the status, within what is left of the deadline.
+    """
+    for _ in range(10):
+        text, returncode, stopped = parity._capture(
+            ["sh", "-c", "echo 'ANSWER-GROUP (1)'; exec >&- 2>&-; sleep 0.05; exit 7"],
+            REPO, None,
+        )
+        assert returncode == 7, (returncode, stopped, text)
+        assert stopped is None
+        assert "ANSWER-GROUP (1)" in text
+
+
+def test_a_child_still_running_after_eof_is_named_a_runaway():
+    """The wait after EOF is bounded, and a child that outlives it says so."""
+    original = parity.TIMEOUT
+    parity.TIMEOUT = 3
+    try:
+        _text, returncode, stopped = parity._capture(
+            ["sh", "-c", "echo x; exec >&- 2>&-; sleep 30"], REPO, None
+        )
+    finally:
+        parity.TIMEOUT = original
+    assert returncode == -9
+    # Two branches can name this stop, the read loop's deadline or the wait
+    # after EOF, and which one wins depends on whether EOF was read before the
+    # deadline check in the same iteration. Either is the contract: the child
+    # was killed at the ceiling and the outcome says it was stopped.
+    assert stopped in (
+        "closed its output but was still running at 3s",
+        "timed out after 3s",
+    )
+
+
 def test_a_bounded_run_still_reports_a_timeout():
     """The byte cap is a second bound, not a replacement for the deadline."""
     original = parity.TIMEOUT
