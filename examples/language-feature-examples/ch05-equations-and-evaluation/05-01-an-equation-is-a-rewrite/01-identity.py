@@ -7,7 +7,7 @@ is Python's own `assert`.
 Guarantees:
   - the translated definition and assertion agree with the source example
     inside the current inference budget [tested:
-    test_a_shipped_twin_agrees_with_its_example_end_to_end; commit=cba149fe709e7e11b343d7c722ea81b81275a1a5]
+    test_a_shipped_twin_agrees_with_its_example_end_to_end; commit=WORKTREE]
 """
 
 
@@ -748,4 +748,13 @@ def twin(m):
 #: examples/ch05-equations-and-evaluation/05-01-an-equation-is-a-rewrite/01-identity.metta;
 #: fixture=merged main checkout, libmork_ffi.so present, QLF cleared and
 #: warmed; commit=WORKTREE].
-BUDGET = 3399
+#: RE-PINNED 2026-09-05, 3399 to 3413 (+14), Annotated product consumers after
+#: rebase onto 763b7f2d: same-path source-only base and product triples measure
+#: 3399 and 3413. Disabling annotation detection measures 3408, accounting for
+#: five of the fourteen added define-and-call inferences; nine remain
+#: unattributed. Reverting only the lexical selector rewrite leaves 3413
+#: unchanged. The compiled plain-call body is identical and 100000 calls cost
+#: 700002 inferences on both arms [measured 2026-09-05: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+BUDGET = 3413

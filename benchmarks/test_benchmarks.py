@@ -10,7 +10,7 @@ Guarantees:
     inference growth from exponential to linear, with both improvements and
     regressions pinned to the measured floor [tested:
     test_automatic_tabling_growth;
-    commit=5059173b1767600ce4df0f6b7841d88116ee62d3]
+    commit=WORKTREE]
   - the native-handle case reaches the chapter-19 artifact that the worktree
     build produces instead of skipping behind its pre-reorganisation path
     [tested: test_handle_benchmark_reaches_the_built_chapter_19_library;
@@ -236,11 +236,23 @@ _ROWS = 2_000
 #: at every n. A CONSTANT shift rather than a per-operation one, which is what
 #: says it is setup: the fixed-width metta_catalog_clause/2 selection changes
 #: what a space creation costs once, and the growth shape below is untouched.
+#: RE-PINNED 2026-09-05 for annotated product admission and memo ownership.
+#: Equal-path base/product controls, three fresh processes each, read plain
+#: 122036/953586/7605801/30413286 -> 122101/953643/7605873/30413373;
+#: automatic 16151/17305/18469/19257 -> 16202/17366/18545/19346.
+#: The plain exponential and automatic linear growth laws still hold.
+#: This comparison measures the complete consumer change, not an attribution
+#: to one predicate. No allowance or separation bound changes
+#: [measured: minimum of three fresh-process observations per mode and size;
+#: command=$PY -c "from benchmarks.test_benchmarks import
+#: _automatic_tabling_observations; print(_automatic_tabling_observations())";
+#: fixture=source-only base 763b7f2d and product at the same path with matching
+#: C and MORK artifacts; commit=WORKTREE].
 _AUTOMATIC_TABLING_PINS = {
-    12: {"plain": 122_036, "automatic": 16_153},
-    15: {"plain": 953_586, "automatic": 17_305},
-    18: {"plain": 7_605_801, "automatic": 18_471},
-    20: {"plain": 30_413_286, "automatic": 19_257},
+    12: {"plain": 122_101, "automatic": 16_202},
+    15: {"plain": 953_643, "automatic": 17_366},
+    18: {"plain": 7_605_873, "automatic": 18_545},
+    20: {"plain": 30_413_373, "automatic": 19_346},
 }
 
 
