@@ -162,11 +162,13 @@ def test_source_reload_and_failure_withdraw_owned_effect_rows(product_space, tmp
 
 
 def test_a_library_reloaded_into_two_spaces_keeps_both_products(product_space, tmp_path):
-    """A library is a file more than one space loads, and a reload withdraws
-    every copy. Each copy's declaration owns a catalog row of its own and the
-    rows are equal, so a withdrawal that removed one of them by value reached
-    the row the other space still owned and refused mid-reload.
-    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
+    """Both spaces keep their product when the file they share is reloaded.
+
+    A library is a file more than one space loads, and a reload withdraws every
+    copy. Each copy's declaration owns a catalog row of its own and the rows are
+    equal, so a withdrawal that removed one of them by value reached the row the
+    other space still owned and refused mid-reload.
+    """
     source = tmp_path / "arrow-library.metta"
     source.write_text(
         "(: arrow-py-lib (-[det,writesState]-> Number Number)) "
@@ -371,26 +373,83 @@ def test_retired_memo_owners_release_their_event_and_dispatch_clauses(product_sp
             assert product_space.runtime.once(census) == before
 
 
-def test_equation_observers_keep_plain_data_clear_bulk(product_space):
-    """Retiring a memo owner must not enumerate unrelated data through hooks."""
-    product_space.run("!(import! &self (library lib_memo))")
+BULK_CLEAR_SIZES = (0, 200, 2000)
+# What the two data sizes decide is which pass ran, so the case bounds the
+# GROWTH between them and not the cost itself: the same clear costs 4,602
+# inferences in a fresh process and 14,617 in a pytest worker that has already
+# run other files. The removal funnel charges about 65 inferences an atom, so
+# routing this data through it grows by more than 110,000. The bulk pass
+# charges nothing per atom in a controlled process, measured at 0.000 an atom
+# at 200, 2,000 and 20,000 atoms, with and without a capacity counter,
+# lib_tabling and a live subscription on another space; a worker carrying other
+# files' state has been seen at 2.2, which is not that funnel and is not
+# explained. Ten an atom sits six times from each.
+BULK_CLEAR_GROWTH = 10 * (BULK_CLEAR_SIZES[2] - BULK_CLEAR_SIZES[1])
+
+
+def live_removal_hooks(root):
+    """Every removed-atom hook clause head the process holds.
+
+    A red bulk-clear case cannot be attributed without them: the pass it
+    measures is refused by whichever hook the census will not call idle, and
+    which hooks are live depends on what else has run in the same process.
+    """
+    return root.runtime.once(
+        "findall(_Text, ( seam:atom_hook_clause(removed, _Ref), "
+        "clause(_Clause, _, _Ref), strip_module(_Clause, _, _Head), "
+        "term_string(_Head, _Text) ), Heads)"
+    )["Heads"]
+
+
+def bulk_clear_costs(root, function, data):
+    """Clear a memoized space at each data size and return the last two costs.
+
+    The size-zero life warms the cache machinery, so the two measured clears
+    differ in their stored data and nothing else.
+    """
     counts = []
-    # Warm one complete cache life before measuring either data size.
-    for size in (0, 200, 2000):
-        with product_space._new_space() as space:
+    for size in BULK_CLEAR_SIZES:
+        with root._new_space() as space:
             space.run(
-                "(: arrow-py-bulk-memo (-> Number Number)) "
-                "(= (arrow-py-bulk-memo $x) $x) "
-                "!(memoize-exact arrow-py-bulk-memo)"
+                f"(: {function} (-> Number Number)) "
+                f"(= ({function} $x) $x) "
+                f"!(memoize-exact {function})"
             )
-            space.add(*(S.arrow_py_plain_data(value) for value in range(size)))
-            with product_space.stats() as measured:
+            space.add(*(data(value) for value in range(size)))
+            with root.stats() as measured:
                 space.clear()
             if size:
                 counts.append(measured.inferences)
             assert list(space.atoms()) == []
-            assert space.run("!(is-memoized arrow-py-bulk-memo)") == [[False]]
-    assert counts[1] <= counts[0] + 100, counts
+            assert space.run(f"!(is-memoized {function})") == [[False]]
+    return counts
+
+
+def test_equation_observers_keep_plain_data_clear_bulk(product_space):
+    """Retiring a memo owner must not enumerate unrelated data through hooks."""
+    product_space.run("!(import! &self (library lib_memo))")
+    counts = bulk_clear_costs(product_space, "arrow-py-bulk-memo", S.arrow_py_plain_data)
+    assert counts[1] - counts[0] <= BULK_CLEAR_GROWTH, (
+        counts,
+        live_removal_hooks(product_space),
+    )
+
+
+def test_a_hook_that_names_another_space_keeps_the_bulk_clear(product_space):
+    """A hook clause whose head names a space cannot fire for a different one.
+
+    lib_tabling watches `&metta` for its (tabled ...) rows, and that single
+    standing clause used to make every other space's clear walk its data atom
+    by atom, because no host owns the clause and the census had no way to read
+    the space out of its own head.
+    """
+    product_space.run("!(import! &self (library lib_memo))")
+    product_space.run("!(import! &self (library lib_tabling))")
+    counts = bulk_clear_costs(product_space, "arrow-py-named-hook", S.arrow_py_named_data)
+    assert counts[1] - counts[0] <= BULK_CLEAR_GROWTH, (
+        counts,
+        live_removal_hooks(product_space),
+    )
 
 
 @pytest.mark.parametrize("atomicity", [None, "best-effort"])
