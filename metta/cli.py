@@ -7,7 +7,7 @@ Guarantees:
   - launcher help points to the complete ``python -m metta`` subcommand
     surface, including Python-to-MeTTa conversion and the ``llms`` cheat sheet
     [tested: test_the_launcher_answers_version_and_help_without_booting;
-    commit=WORKTREE]
+    commit=d4f129e1d977239c2e25b5042e3b1df30d9d32d3]
 Open Obligations:
   To Do: None
   Hacks: None

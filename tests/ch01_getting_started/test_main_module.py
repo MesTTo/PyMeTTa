@@ -13,7 +13,7 @@ test_run_refuses_an_incomplete_file,
 test_repl_reports_an_error_and_keeps_going,
 test_llms_prints_the_root_cheat_sheet_and_answers_none,
 test_the_llms_verb_prints_the_same_cheat_sheet_the_package_door_prints;
-commit=WORKTREE].
+commit=d4f129e1d977239c2e25b5042e3b1df30d9d32d3].
 Open Obligations:
   To Do: None
   Hacks: None

@@ -34,7 +34,7 @@ Guarantees:
   - llms calls the package's own ``metta.llms()``, so the shell face and the
     Python face cannot print different documents [tested:
     test_the_llms_verb_prints_the_same_cheat_sheet_the_package_door_prints;
-    commit=WORKTREE]
+    commit=d4f129e1d977239c2e25b5042e3b1df30d9d32d3]
 Open Obligations:
   To Do: None
   Hacks: None

@@ -80,7 +80,7 @@ Guarantees:
   - ``llms()`` prints the runtime tree's own ``llms.txt`` verbatim and answers
     None, so a checkout and an installed wheel print the same bytes [tested:
     test_llms_prints_the_root_cheat_sheet_and_answers_none,
-    tests/shell/test_packaged_cli.sh; commit=WORKTREE]
+    tests/shell/test_packaged_cli.sh; commit=d4f129e1d977239c2e25b5042e3b1df30d9d32d3]
 Open Obligations:
   To Do: None
   Hacks: None
