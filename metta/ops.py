@@ -104,6 +104,7 @@ from ._type_annotations import (
     annotation_atom_for,
     annotation_exprs,
     declaration_exprs,
+    for_conversion,
     metta_type_for,
     referenced_classes,
     resolved_annotations,
@@ -1075,7 +1076,7 @@ def register[**P, R](
     # every Python-side refusal above remains free, and an unreadable name has
     # not reflected a contract atom or opened a predicate when it is rejected.
     _require_readable_name(runtime, metta_name)
-    conversion_hints = resolved_annotations(fn)
+    conversion_hints = for_conversion(resolved_annotations(fn))
     if kind == "async":
         # Async operation settlement and FutureSpace lifecycle are lib_thread's
         # scheduler surface. Load it into the operation's declaration space

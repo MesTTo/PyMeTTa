@@ -56,7 +56,11 @@ BASELINE_PACKAGE_EXPORTS = 152
 #: so (the with form rides them). Both delegate lifecycle to Space.drop, so
 #: Space keeps the lifecycle verbs and MeTTa still carries only context
 #: primitives.
-FINAL_METTA_METHODS = 34
+#: 35 on 2026-09-05: `debug` joins MODULE_DOORS, so the context tier and the
+#: async mirror generate it beside `trace`, which is the door it belongs
+#: with. A generated door counts once here, on the class the generator
+#: renders it onto.
+FINAL_METTA_METHODS = 35
 # The class count: 21 before the context tier; +13 on 2026-09-01 when MeTTa
 # became the third generated mirror. The finding behind it was a context
 # that could define but not eval: the hand-written derived subset was typed

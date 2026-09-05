@@ -6,6 +6,11 @@ Guarantees:
     test_depth_exhaustion_returns_a_partial_proof]
   - why() distinguishes stored-shape misses, functions, and close names
     [tested test_why]
+  - why() and lint() reach one head verdict, so a translator special form is
+    never reported as an unknown name and a call at an undefined arity is
+    named by both [tested: test_why_and_lint_agree_about_a_special_form,
+    test_why_and_lint_agree_about_a_call_at_an_undefined_arity,
+    test_why_and_lint_draw_suggestions_from_one_pool; commit=bd3a1bbad63952fc7c0d7367f38237dd1c219d8b]
   - eager query explanations distinguish a pattern miss, failed join, and
     rejecting guard [tested test_query_rows_explain_empty_results]
   - derivation enumeration selects ``metta_py_limited/6`` when a scoped stack
@@ -30,10 +35,10 @@ Open Obligations:
 from __future__ import annotations
 
 import importlib as _importlib
-from difflib import get_close_matches
 from typing import Any
 
 from ._engine import Runtime
+from ._head_meaning import EngineRegistry, head_meaning
 from ._space_execution import _controlled_run
 from ._space_objects import _limits
 from .atoms import Atom, Expression, Symbol, _atom_from_wire, _to_atom
@@ -86,17 +91,36 @@ def _stored_explanation(atom: Expression, name: str, stored: list[Expression]) -
     return f"{len(stored)} {name} atom(s) exist here but none unifies with {atom}"
 
 
-def _unstored_explanation(space: Any, name: str) -> str:
-    if space.is_function(name):
+def _unstored_explanation(space: Any, name: str, arguments: int) -> str:
+    """Explain a head no stored atom carries, from the shared head verdict.
+
+    The same head_meaning() lint() reads, so the two cannot disagree about
+    what carries a name. Asking fun/1 alone, which this did through 0.7.3,
+    answered "nothing here is headed by if, and no function has that name;
+    did you mean if?" for a translator special form used correctly.
+    """
+    meaning = head_meaning(name, arguments, EngineRegistry(space.runtime))
+    if meaning.wrong_arity:
+        return (
+            f"no {name} atoms are stored here, and {name} is a function "
+            f"defined for {sorted(meaning.arities)} argument(s) rather than "
+            f"{arguments}, so evaluating this will not answer either"
+        )
+    if meaning.route == "function":
         return (
             f"no {name} atoms are stored here; {name} is a function, so its "
             f"answers come from evaluation, not matching: try eval"
         )
-    # get_close_matches already covers the near-miss this used to special-case
-    # by hand: with no underscore-to-hyphen rewriting left in the surface,
-    # nn_next against a stored nn-next is just a close match like any other.
-    close = get_close_matches(name, space.builtins(), n=1, cutoff=0.75)
-    suggestion = f"; did you mean {close[0]}?" if close else ""
+    if meaning.route == "translated":
+        return (
+            f"no {name} atoms are stored here; {name} is a special form the "
+            f"translator compiles, so its answers come from evaluation, not "
+            f"matching: try eval"
+        )
+    # The near-miss needs no special case of its own: with no
+    # underscore-to-hyphen rewriting left in the surface, nn_next against a
+    # stored nn-next is a close match like any other.
+    suggestion = f"; did you mean {meaning.suggestion}?" if meaning.suggestion else ""
     return f"nothing here is headed by {name}, and no function has that name{suggestion}"
 
 
@@ -111,7 +135,7 @@ def explain_no_match(space: Any, pattern: Any) -> str:
     stored = _stored_with_head(space, head.name)
     if stored:
         return _stored_explanation(atom, head.name, stored)
-    return _unstored_explanation(space, head.name)
+    return _unstored_explanation(space, head.name, len(atom) - 1)
 
 
 def _first_unmatched_pattern(space: Any, patterns: tuple[Atom, ...]) -> tuple[int, Atom] | None:

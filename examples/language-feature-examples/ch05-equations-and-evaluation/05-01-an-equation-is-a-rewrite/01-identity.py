@@ -796,4 +796,18 @@ def twin(m):
 #: branch, five arms). The identity twin's sixth merge resolution [measured
 #: 2026-09-05: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
-BUDGET = 3417
+#: RE-PINNED 2026-09-05, 3417 to 3382 (-35), the debugger's three seam
+#: declarations change kind/2's clause layout: engine/ext_points.pl gains
+#: kind(metta_debug_begin/1, host_service), kind(metta_debug_run/3,
+#: host_service) and kind(metta_debug_end/0, host_service), which the
+#: registration path reads. Same-worktree A/B with QLF cleared and warmed on
+#: both arms and three identical samples each: twin 3417 with petta's
+#: ext_points.pl, which is that row's own pin exactly, and 3382 with these
+#: three rows, metta 2289 on BOTH arms. The MeTTa side not moving is the
+#: control that says the WORK is unchanged and only the layout is; no
+#: reduction, no clause and no answer differs. The size of this class is base-
+#: dependent and non-monotonic: the same three rows moved this row by -5
+#: against one base and by -35 against this one [measured 2026-09-05: min-of-3
+#: serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=39dd4c9014bf8c38d78df8c8fdc9c114b372dc1f].
+BUDGET = 3382
