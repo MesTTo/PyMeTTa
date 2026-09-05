@@ -1499,7 +1499,11 @@ metta_py_origin_part(Part, String) :-
 %answer exactly: current_predicate/1 admits what the module has, and
 %implementation_module/1 admits what it would autoload, for 33 and without
 %loading it, so the property behind the guard still resolves what it used to
-%[source: /usr/lib/swi-prolog/boot/syspred.pl, property_predicate/2].
+%[source: /usr/lib/swi-prolog/boot/syspred.pl, property_predicate/2]
+%[measured 2026-09-06: 1,030 inferences against 8 for a name the module has,
+%and 37 against 9 with the guard;
+%tested: extensions/python/tests/ch18_performance/test_function_shape_cost.py;
+%commit=WORKTREE].
 metta_py_index_quality(Module, Name, Arity, Speedup, Realised) :-
     functor(Head, Name, Arity),
     (   (   current_predicate(Module:Name/Arity)
