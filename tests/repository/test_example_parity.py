@@ -431,8 +431,14 @@ class _StaleFirstLook:
         if self._looked:
             return self._real.select(timeout)
         self._looked = True
-        # Long enough that the planted child below has certainly exited, so
-        # `process.poll()` answers on the next line.
+        # Both halves of the race have to be true or the case proves nothing:
+        # the pipes must already hold the child's output, and the child must
+        # already be gone. Waiting for the real selector to report readiness
+        # makes the first certain rather than likely, and the beat after it
+        # covers the exit that follows the planted child's last echo. A fixed
+        # sleep alone stopped being enough to make either true somewhere above
+        # loadavg 100.
+        self._real.select(timeout=5)
         time.sleep(0.3)
         return []
 
