@@ -7,7 +7,7 @@ is Python's own `assert`.
 Guarantees:
   - the translated definition and assertion agree with the source example
     inside the current inference budget [tested:
-    test_a_shipped_twin_agrees_with_its_example_end_to_end; commit=cba149fe709e7e11b343d7c722ea81b81275a1a5]
+    test_a_shipped_twin_agrees_with_its_example_end_to_end; commit=WORKTREE]
 """
 
 
@@ -748,4 +748,14 @@ def twin(m):
 #: examples/ch05-equations-and-evaluation/05-01-an-equation-is-a-rewrite/01-identity.metta;
 #: fixture=merged main checkout, libmork_ffi.so present, QLF cleared and
 #: warmed; commit=WORKTREE].
-BUDGET = 3399
+#: RE-PINNED 2026-09-05, 3399 to 3394 (-5), the source-observation engine
+#: overlay reduces this unchanged define-and-call workload by five inferences.
+#: Same-path isolated A/B against 8f853f99 measured twin 3351 before and 3346
+#: after, with metta 2280 on both sides; this fully provisioned worktree
+#: measures twin 3394 and metta 2292. Compiled successful function clauses and
+#: native execution counts are unchanged; the absolute counters depend on the
+#: boot artifacts and image layout [measured 2026-09-05: min-of-3 serial fresh
+#: processes; command=$VENV/bin/python
+#: extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+BUDGET = 3394
