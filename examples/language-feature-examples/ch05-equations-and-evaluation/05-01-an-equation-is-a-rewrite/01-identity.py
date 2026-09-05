@@ -791,5 +791,5 @@ def twin(m):
 #: metta=2291 on both sides, so no MeTTa work changed [measured 2026-09-05:
 #: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin;
-#: commit=WORKTREE].
+#: commit=48b6cb4eea09e6f2f9637c7186e77c628d61b7e3].
 BUDGET = 3392
