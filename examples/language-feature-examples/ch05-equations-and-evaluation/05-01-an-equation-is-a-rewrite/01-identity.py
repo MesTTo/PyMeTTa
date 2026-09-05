@@ -780,4 +780,16 @@ def twin(m):
 #: examples/ch05-equations-and-evaluation/05-01-an-equation-is-a-rewrite/01-identity.metta;
 #: fixture=merged main checkout, libmork_ffi.so present, QLF warmed;
 #: commit=9f0bae4845e871dee2b14b3b73a7dc5850c1418e].
-BUDGET = 3398
+#: RE-PINNED 2026-09-05, 3398 to 3392 (-6), engine/qlf_boot.pl gained
+#: qlf_load_engine/0, the one engine load engine/main.pl and the C host both
+#: run now, so the boot-loaded predicate set grows by one predicate and this
+#: workload is reached through differently placed code. That file's own header
+#: records exactly this class, a boot-content change moving a twin by tens
+#: under source and .qlf boots alike. Positive control on this worktree, three
+#: identical samples per arm: reverting engine/qlf_boot.pl and engine/main.pl
+#: to HEAD measures twin=3398 and restoring them measures twin=3392, with
+#: metta=2291 on both sides, so no MeTTa work changed [measured 2026-09-05:
+#: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+BUDGET = 3392
