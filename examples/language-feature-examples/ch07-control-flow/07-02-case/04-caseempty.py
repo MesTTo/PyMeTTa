@@ -6,7 +6,7 @@ case returns `ok`. Neither case treats the expression `()` as no answers.
 Both definitions use Python `match`; the compiler keeps the `Empty` branch
 outside the binding that would otherwise prune an unanswered subject.
 [tested: test_empty_match_subject_selects_only_the_empty_branch;
-commit=WORKTREE]
+commit=9958c72363d2fbc640d2ae39ee6f0670ecfbff67]
 """
 
 from metta import S
@@ -127,5 +127,5 @@ def twin(m):
 #: extensions/python/tools/twin_coverage.py --repin; commit=c00341f0ff9d83d1b9338ca86ad51708eaf07ebd].
 #: RE-PINNED 2026-09-05, 5742 to 5269: both definitions now compile
 #: Python match into the source's direct ordered case table, preserving Empty.
-#: [measured: 5269, 5269, 5269 inferences; command=PYTHONPATH=extensions/python:extensions/python/tools $VENV/bin/python -c "from pathlib import Path; from twin_coverage import run_twin; print(run_twin(Path('extensions/python/examples/language-feature-examples/ch07-control-flow/07-02-case/04-caseempty.py').resolve()).cost)"; fixture=three independent fresh harness processes; commit=WORKTREE]
+#: [measured: 5269, 5269, 5269 inferences; command=PYTHONPATH=extensions/python:extensions/python/tools $VENV/bin/python -c "from pathlib import Path; from twin_coverage import run_twin; print(run_twin(Path('extensions/python/examples/language-feature-examples/ch07-control-flow/07-02-case/04-caseempty.py').resolve()).cost)"; fixture=three independent fresh harness processes; commit=9958c72363d2fbc640d2ae39ee6f0670ecfbff67]
 BUDGET = 5269

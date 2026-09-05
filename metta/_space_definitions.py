@@ -3,7 +3,7 @@ Guarantees:
   - typing.overload stubs declare every distinct fixed-arity signature before
     their shared equation is published [tested:
     test_define_emits_each_overload_from_one_source,
-    test_define_deduplicates_coincident_overload_arrows; commit=WORKTREE]
+    test_define_deduplicates_coincident_overload_arrows; commit=9958c72363d2fbc640d2ae39ee6f0670ecfbff67]
   - ``install_type`` is the class branch behind ``Space.define`` [tested:
     test_define_absorbs_class_declaration_and_frees_space_type;
     commit=cff2e7f319bd2212f0c2d74f8d5fe5be3ac693b5]

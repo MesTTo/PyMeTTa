@@ -61,11 +61,11 @@ Guarantees:
   - list collects known engine answer streams through collapse and keeps host
     iterables as host lists [tested:
     test_list_collects_engine_answers_and_preserves_host_lists;
-    commit=WORKTREE]
+    commit=9958c72363d2fbc640d2ae39ee6f0670ecfbff67]
   - unshadowed type queries use get-metatype and explicit py retains host
     type queries [tested:
     test_type_uses_engine_metatypes_with_an_explicit_host_boundary;
-    commit=WORKTREE]
+    commit=9958c72363d2fbc640d2ae39ee6f0670ecfbff67]
 Open Obligations:
   To Do: None
   Hacks: None

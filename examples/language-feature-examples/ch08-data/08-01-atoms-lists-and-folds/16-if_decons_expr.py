@@ -33,5 +33,5 @@ def twin(m):
 
 
 #: The final image includes the provisioned engine and MORK artifacts.
-#: [measured: 16981, 16981, 16981 inferences; command=PYTHONPATH=extensions/python:extensions/python/tools $VENV/bin/python -c "from pathlib import Path; from twin_coverage import run_twin; print(run_twin(Path('extensions/python/examples/language-feature-examples/ch08-data/08-01-atoms-lists-and-folds/16-if_decons_expr.py').resolve()).cost)"; fixture=three independent fresh harness processes; commit=WORKTREE]
+#: [measured: 16981, 16981, 16981 inferences; command=PYTHONPATH=extensions/python:extensions/python/tools $VENV/bin/python -c "from pathlib import Path; from twin_coverage import run_twin; print(run_twin(Path('extensions/python/examples/language-feature-examples/ch08-data/08-01-atoms-lists-and-folds/16-if_decons_expr.py').resolve()).cost)"; fixture=three independent fresh harness processes; commit=9958c72363d2fbc640d2ae39ee6f0670ecfbff67]
 BUDGET = 16981

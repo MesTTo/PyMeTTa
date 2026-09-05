@@ -41,5 +41,5 @@ def twin(m):
 
 
 #: The final image includes the provisioned engine and MORK artifacts.
-#: [measured: 9510, 9510, 9510 inferences; command=PYTHONPATH=extensions/python:extensions/python/tools $VENV/bin/python -c "from pathlib import Path; from twin_coverage import run_twin; print(run_twin(Path('extensions/python/examples/language-feature-examples/ch07-control-flow/07-02-case/08-case-duals.py').resolve()).cost)"; fixture=three independent fresh harness processes; commit=WORKTREE]
+#: [measured: 9510, 9510, 9510 inferences; command=PYTHONPATH=extensions/python:extensions/python/tools $VENV/bin/python -c "from pathlib import Path; from twin_coverage import run_twin; print(run_twin(Path('extensions/python/examples/language-feature-examples/ch07-control-flow/07-02-case/08-case-duals.py').resolve()).cost)"; fixture=three independent fresh harness processes; commit=9958c72363d2fbc640d2ae39ee6f0670ecfbff67]
 BUDGET = 9510

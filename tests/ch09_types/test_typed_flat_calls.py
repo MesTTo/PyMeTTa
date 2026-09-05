@@ -27,7 +27,7 @@ Owns resources:
     closing the rule owner retires its global translator registration
     [tested: test_a_rule_owned_head_obeys_its_orientation_through_the_flat_door
     followed by test_structural_assignment_preserves_dictionary_and_star_bindings;
-    commit=WORKTREE]
+    commit=9958c72363d2fbc640d2ae39ee6f0670ecfbff67]
 Open Obligations:
   To Do: None
   Hacks: None

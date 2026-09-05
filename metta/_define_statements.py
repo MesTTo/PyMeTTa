@@ -5,27 +5,27 @@ Guarantees:
   - structural assignments share case-pattern binding, preserve SSA and test
     source errors before matching [tested:
     test_structural_assignments_share_pattern_binding_and_ssa,
-    test_structural_assignment_checks_errors_before_matching; commit=WORKTREE]
+    test_structural_assignment_checks_errors_before_matching; commit=9958c72363d2fbc640d2ae39ee6f0670ecfbff67]
   - generator matches carry captures into their continuation, and an Empty
     arm observes an answerless subject [tested:
     test_generator_match_preserves_captures_guards_and_continuations,
-    test_empty_match_subject_selects_only_the_empty_branch; commit=WORKTREE]
+    test_empty_match_subject_selects_only_the_empty_branch; commit=9958c72363d2fbc640d2ae39ee6f0670ecfbff67]
   - shared generator continuations have linear emitted size and carry only
     live branch bindings [tested:
     test_generator_join_size_is_linear_across_sequential_conditionals,
     test_generator_join_reads_only_values_live_before_continuation_writes;
-    commit=WORKTREE]
+    commit=9958c72363d2fbc640d2ae39ee6f0670ecfbff67]
   - generator statements preserve answer order and reject return values
     [tested test_generator_with_branches]
   - Python match arms use an ordered case table or guarded tower, with each
     as-capture retaining its own subterm [tested:
     test_simple_match_stores_the_direct_ordered_case_table,
     test_nested_as_patterns_capture_their_own_subterm_and_retry_shape_failures;
-    commit=WORKTREE]
+    commit=9958c72363d2fbc640d2ae39ee6f0670ecfbff67]
   - an alias pattern commits its source bindings only after the whole pattern
     matches [tested: test_failed_as_pattern_rolls_back_all_source_variable_bindings,
     test_as_pattern_or_retry_commits_only_the_complete_selected_alternative;
-    commit=WORKTREE]
+    commit=9958c72363d2fbc640d2ae39ee6f0670ecfbff67]
   - guarded match arms retain dotted value patterns, alternatives and fallback
     [tested: test_match_statement_lowers_to_one_ordered_case_tower;
     commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
@@ -2298,7 +2298,7 @@ class _StatementPattern:
         # Delaying subpatterns into the body would retain sibling bindings when
         # one fails. Holding the product also preserves original subterms rather
         # than rebuilding segment patterns as literal (:seg ...) expressions.
-        # [source: engine/translator/runtime.pl:translate_case/5; commit=WORKTREE]
+        # [source: engine/translator/runtime.pl:translate_case/5; commit=9958c72363d2fbc640d2ae39ee6f0670ecfbff67]
         if self.as_bindings:
             # Outer aliases supply the actual subterm before a nested segment
             # pattern inspects it; an unbound subject would invent gap syntax.

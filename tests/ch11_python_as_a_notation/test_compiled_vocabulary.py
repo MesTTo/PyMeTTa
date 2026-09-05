@@ -5,7 +5,7 @@ Owns resources:
     finally blocks; dropping scratch_space releases stored equations, not ops
     [tested: test_as_pattern_or_retry_commits_only_the_complete_selected_alternative
     followed by test_public_space_add_observes_every_pre_add_verdict;
-    commit=WORKTREE].
+    commit=9958c72363d2fbc640d2ae39ee6f0670ecfbff67].
 """
 
 import pytest
