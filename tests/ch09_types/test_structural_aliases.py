@@ -2,7 +2,7 @@
 
 Guarantees: source, file, named-space and reflective calls share lexical
 substitution and live mutation repair [tested: test_structural_aliases.py;
-commit=WORKTREE].
+commit=acad923476d21110870f235192757281a737ee71].
 Owns resources: fixtures close spaces and pytest removes temporary files.
 """
 

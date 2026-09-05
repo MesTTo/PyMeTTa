@@ -759,5 +759,5 @@ def twin(m):
 #: type-aliases.md [measured 2026-09-05: min-of-3 serial fresh processes;
 #: command=$PY extensions/python/tools/twin_coverage.py --repin --rounds 3
 #: examples/ch05-equations-and-evaluation/05-01-an-equation-is-a-rewrite/01-identity.metta;
-#: commit=WORKTREE].
+#: commit=acad923476d21110870f235192757281a737ee71].
 BUDGET = 3383
