@@ -25,6 +25,12 @@ Guarantees:
     context factories [tested:
     test_convert_imports_a_python_program_and_round_trips_its_source,
     test_convert_restores_the_in_process_declaration_receiver; commit=42502e9d4a7fedd419856d5e6a1c291fc18ba644]
+  - an interactive repl completes a head or a space name against the live
+    engine, hyphens included, and keeps its history between sessions without
+    the terminator [tested: test_the_completer_offers_heads_and_space_names,
+    test_the_history_file_follows_its_variable,
+    test_the_repl_completes_a_head_on_a_terminal,
+    test_the_repl_keeps_its_history_between_sessions; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -35,6 +41,7 @@ from __future__ import annotations
 
 import argparse
 import contextlib
+import os
 import signal
 import sys
 import threading
@@ -129,23 +136,131 @@ def _forms(interactive: bool):  # noqa: FBT001  -- the boolean is established AP
             lines, depth, in_string, has_content = [], 0, False, False
 
 
+#: Where a session's history is kept between runs, and the variable that moves
+#: it. The name follows CPython's own PYTHON_HISTORY, which site.py reads for
+#: exactly this [source:
+#: https://docs.python.org/3.14/using/cmdline.html#envvar-PYTHON_HISTORY].
+HISTORY_VARIABLE = "METTA_HISTORY"
+HISTORY_FILE = ".metta_history"
+
+#: Lines kept in that file. readline writes the WHOLE history on exit,
+#: startup's included, so without a bound the file grows for the life of the
+#: installation; CPython leaves it unbounded and bash's own default is 500.
+HISTORY_LENGTH = 1000
+
+
+def _completer(m):
+    """Complete the token under the cursor from the live engine.
+
+    The pool is every name the language knows, plus the spaces this engine
+    registers when the token opens with &.
+    readline's protocol is one call per candidate: state 0 computes the
+    matches and each later state indexes them, which is how rlcompleter is
+    written and why the matches are cached rather than recomputed per key
+    [source: https://github.com/python/cpython/blob/3.14/Lib/rlcompleter.py].
+    """
+    matches: list[str] = []
+
+    def complete(text: str, state: int) -> str | None:
+        if state == 0:
+            pool = m.space_names() if text.startswith("&") else m.builtins()
+            matches[:] = sorted(name for name in pool if name.startswith(text))
+        return matches[state] if state < len(matches) else None
+
+    return complete
+
+
+def _history_path():
+    named = os.environ.get(HISTORY_VARIABLE)
+    return Path(named) if named else Path.home() / HISTORY_FILE
+
+
+def _install_readline(m) -> object | None:
+    """Install MeTTa completion and a persistent history, where readline is.
+
+    Answers the readline module, or None on a platform without one.
+    The shape is CPython's own site.register_readline: bind the completion
+    key for whichever backend is present, read the user's init file if there
+    is one, then load the history file
+    [source: https://github.com/python/cpython/blob/3.14/Lib/site.py].
+
+    What is ours is the delimiters. readline's default set breaks a token on
+    `-`, `!`, `?`, `*` and `&`, every one of which is ordinary inside a MeTTa
+    head, so with them `car-a` completes against `a` and answers nothing
+    useful. Whitespace, parentheses and the string quote are the only
+    characters that actually end a head here.
+    """
+    try:
+        import readline  # noqa: PLC0415  deferred: --version and help must not boot
+    except ImportError:
+        return None
+    backend = getattr(readline, "backend", None)
+    if backend is None:
+        # readline.backend arrived in 3.13; before it, libedit says so in the
+        # module docstring, which is the test CPython's site.py used.
+        backend = "editline" if "libedit" in (readline.__doc__ or "") else "readline"
+    readline.parse_and_bind(
+        "bind ^I rl_complete" if backend == "editline" else "tab: complete"
+    )
+    with contextlib.suppress(OSError):
+        # No .inputrc, or no .editrc on macOS, is the ordinary case.
+        readline.read_init_file()
+    readline.set_completer_delims(' \t\n()"')
+    readline.set_completer(_completer(m))
+    readline.set_history_length(HISTORY_LENGTH)
+    with contextlib.suppress(OSError):
+        # A first run has no history file yet.
+        readline.read_history_file(_history_path())
+    return readline
+
+
+def _save_history(readline) -> None:
+    """Keep this session's lines for the next one.
+
+    A failure is reported rather than raised.
+    A read-only home, a full disk or a path the variable points somewhere
+    unwritable are all real, and losing history is not worth ending the
+    session over; it IS worth one line on stderr, because history that
+    silently stops persisting looks like a REPL that forgot how.
+    """
+    if readline is None:
+        return
+    # The line that ended the session is the one line never worth recalling,
+    # and it is always the last, so leaving it in makes the first Up of the
+    # next session answer `exit`. get_history_item counts from one and
+    # remove_history_item from zero [source:
+    # https://docs.python.org/3.14/library/readline.html#history-list].
+    length = readline.get_current_history_length()
+    if length and (readline.get_history_item(length) or "").strip() in ("exit", "quit"):
+        readline.remove_history_item(length - 1)
+    path = _history_path()
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        readline.write_history_file(path)
+    except OSError as error:
+        print(f"history not saved to {path}: {error}", file=sys.stderr)
+
+
 def _repl(_arguments) -> int:
     from ._space import Space  # noqa: PLC0415 -- version and help must not boot
     from ._version import __version__  # noqa: PLC0415  deferred: --version and help must not boot
     from .errors import MettaError  # noqa: PLC0415  deferred: --version and help must not boot
 
-    with contextlib.suppress(ImportError):
-        # history and line editing where the platform has readline
-        import readline  # noqa: F401, PLC0415  # pylint: disable=unused-import
     m = Space()
     interactive = sys.stdin.isatty()
+    # Completion needs a terminal to complete into, and a piped session
+    # writing its lines to the history file would fill it with test input.
+    readline = _install_readline(m) if interactive else None
     if interactive:
         print(f"MeTTa {__version__}; a bare `exit` leaves, Ctrl-D too.")
-    for source in _forms(interactive):
-        try:
-            _print_groups(m.run(source))
-        except MettaError as error:
-            print(f"error: {error}", file=sys.stderr)
+    try:
+        for source in _forms(interactive):
+            try:
+                _print_groups(m.run(source))
+            except MettaError as error:
+                print(f"error: {error}", file=sys.stderr)
+    finally:
+        _save_history(readline)
     return 0
 
 

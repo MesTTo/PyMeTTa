@@ -20,6 +20,7 @@ Open Obligations:
 import json
 import os
 import random
+import select
 import signal
 import subprocess
 import sys
@@ -31,7 +32,7 @@ import pytest
 
 import metta as metta_package
 from metta import MeTTa, S
-from metta.__main__ import _scan_line
+from metta.__main__ import _completer, _history_path, _scan_line
 from metta.__main__ import main as module_main
 
 _PACKAGE_ROOT = str(Path(__file__).resolve().parents[2])
@@ -397,3 +398,131 @@ def test_serve_exits_cleanly_when_the_interrupt_repeats(tmp_path):
     finally:
         process.stdout.close()
         process.stderr.close()
+
+
+def _every_match(complete, text):
+    """Drain readline's one-call-per-candidate protocol into a list."""
+    found = []
+    while (match := complete(text, len(found))) is not None:
+        found.append(match)
+    return found
+
+
+def test_the_completer_offers_heads_and_space_names(metta):
+    """Completion draws on the language catalogue and the engine's spaces.
+
+    Special forms are in the catalogue as well as functions, so a mistyped
+    `collaps` and a mistyped `car-atmo` both have somewhere to complete to,
+    and a token opening with & completes a space instead.
+    """
+    complete = _completer(metta)
+    assert complete("car-a", 0) == "car-atom"
+    assert complete("car-a", 1) is None
+    # A translator special form, which fun/1 alone would not have offered.
+    assert complete("collaps", 0) == "collapse"
+    # Every match rather than the first: the suite's workers share one engine,
+    # so which space sorts first is another test's business.
+    assert "&self" in _every_match(complete, "&s")
+    assert complete("no-such-prefix-here", 0) is None
+
+    # A function this session defines is offered at once, because the
+    # catalogue is stamped with the engine's own function generation.
+    metta.run("(= (completion-probe $x) $x)")
+    assert _completer(metta)("completion-pro", 0) == "completion-probe"
+
+
+def test_the_history_file_follows_its_variable(monkeypatch, tmp_path):
+    """METTA_HISTORY moves the file; without it the file is ~/.metta_history."""
+    monkeypatch.setenv("METTA_HISTORY", str(tmp_path / "elsewhere"))
+    assert _history_path() == tmp_path / "elsewhere"
+    monkeypatch.delenv("METTA_HISTORY")
+    monkeypatch.setenv("HOME", str(tmp_path))
+    assert _history_path() == tmp_path / ".metta_history"
+
+
+def _repl_on_a_terminal(keys, home, timeout=60.0):
+    """Run `python -m metta repl` against a real terminal and answer what it
+    wrote. A pipe is not enough: readline installs itself only for a tty, so
+    completion and history are exactly the behaviour a piped session skips.
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
+    # Local, because pty does not exist on Windows and importing it at module
+    # level would take the whole file's collection down with it there.
+    import pty
+
+    environment = _environment()
+    environment["HOME"] = str(home)
+    environment.setdefault("TERM", "xterm")
+    primary, secondary = pty.openpty()
+    child = subprocess.Popen(
+        [sys.executable, "-m", "metta", "repl"],
+        stdin=secondary,
+        stdout=secondary,
+        stderr=secondary,
+        env=environment,
+        close_fds=True,
+    )
+    os.close(secondary)
+
+    def drain(seconds):
+        out = b""
+        deadline = time.time() + seconds
+        while time.time() < deadline:
+            ready, _, _ = select.select([primary], [], [], 0.3)
+            if not ready:
+                continue
+            try:
+                chunk = os.read(primary, 65536)
+            except OSError:
+                break
+            if not chunk:
+                break
+            out += chunk
+            deadline = time.time() + 0.8
+        return out
+
+    transcript = drain(timeout)
+    try:
+        for keystroke, wait in keys:
+            os.write(primary, keystroke)
+            transcript += drain(wait)
+        # \x15 clears the edit line so a half-typed completion cannot swallow
+        # the exit that ends the session.
+        os.write(primary, b"\x15exit\r")
+        transcript += drain(15.0)
+        child.wait(timeout=60)
+    finally:
+        if child.poll() is None:
+            child.kill()
+            child.wait(timeout=30)
+        os.close(primary)
+    return transcript.decode(errors="replace")
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="pty is POSIX only")
+def test_the_repl_completes_a_head_on_a_terminal(tmp_path):
+    """TAB completes the token under the cursor, hyphen included.
+
+    The hyphen is the whole point: readline's default delimiters break a
+    token on it, so before the delimiters were set for MeTTa this inserted a
+    tab and completed nothing.
+    """
+    transcript = _repl_on_a_terminal([(b"(car-a", 3.0), (b"\t", 8.0)], tmp_path)
+    assert "(car-atom" in transcript
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="pty is POSIX only")
+def test_the_repl_keeps_its_history_between_sessions(tmp_path):
+    """A line typed in one session is recalled by Up in the next.
+
+    The terminator is not kept, because it is always the last line and
+    leaving it in makes the next session's first Up answer `exit`.
+    """
+    first = _repl_on_a_terminal([(b"!(+ 40 2)\r", 20.0)], tmp_path)
+    assert "42" in first
+    history = tmp_path / ".metta_history"
+    assert history.read_text() == "!(+ 40 2)\n"
+
+    second = _repl_on_a_terminal([(b"\x1b[A", 5.0), (b"\r", 20.0)], tmp_path)
+    assert "!(+ 40 2)" in second
+    assert "42" in second
+    assert history.read_text() == "!(+ 40 2)\n"
