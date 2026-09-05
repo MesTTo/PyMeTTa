@@ -16,7 +16,11 @@ Open Obligations:
   Future Enhancements: None.
 """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
-from metta import MeTTa
+import dataclasses
+import enum
+from typing import NamedTuple
+
+from metta import MeTTa, S, V, ground, typed
 
 
 def _counting_engine():
@@ -109,3 +113,170 @@ def test_one_untyped_component_makes_the_whole_expressions_type_undefined():
     # and it is the one a program hits most.
     m.run("(= (nullary) 42)")
     assert answer("(get-type (nullary))") == ["%Undefined%"]
+
+
+def test_pythons_type_in_a_compiled_body_is_the_metatype_accessor(metta):
+    """One question, one word on both sides of the decorator.
+
+    Outside a compiled body `type(atom)` answers the atom's Python class, and
+    the four classes are named exactly as the four metatype symbols. Inside
+    one, the values ARE engine values, so the same word lowers to
+    `get-metatype` rather than running Python's `type` over the crossing.
+    """
+    m = metta._new_space()
+
+    @m.define
+    def kind(a):
+        """Every atom's metatype."""
+        return type(a)
+
+    assert str(kind.body) == "(get-metatype $a)"
+    for atom in (S.foo(1, 2), ground(1), V.x, S.a):
+        assert list(kind(atom)) == [S[type(atom).__name__]]
+
+
+def test_the_three_argument_type_stays_a_host_island(metta):
+    """Python's class constructor is a different function of the same name."""
+    m = metta._new_space()
+
+    @m.define
+    def make_class():
+        """Build a Python class at application time."""
+        return type("Made", (), {})
+
+    assert "get-metatype" not in str(make_class.body)
+    assert "HostIsland" in str(make_class.body)
+
+
+def test_a_declared_class_hierarchy_writes_its_subtype_edges(metta):
+    """Python's class hierarchy IS a subtype relation, so declaring says it.
+
+    Only DECLARED classes count as supertypes, so a base the space was never
+    told about names nothing; `:<` widening is transitive, so one edge per
+    direct base to its nearest declared ancestor is the whole chain.
+    """
+    m = metta._new_space()
+
+    @dataclasses.dataclass
+    class Animal:
+        """A declared base."""
+
+        name: str
+
+    @dataclasses.dataclass
+    class Dog(Animal):
+        """Its subclass."""
+
+    @dataclasses.dataclass
+    class Puppy(Dog):
+        """And one more level."""
+
+    for cls in (Animal, Dog, Puppy):
+        m.define(cls)
+    edges = sorted(str(atom) for atom in m.atoms() if str(atom).startswith("(:< "))
+    assert edges == ["(:< Dog Animal)", "(:< Puppy Dog)"]
+
+    m += typed(S.Rex, S.Dog)
+    assert list(m.fn.get_type(S.Rex)) == [S.Dog, S.Animal]
+    m += typed(S.Fido, S.Puppy)
+    assert list(m.fn.get_type(S.Fido)) == [S.Puppy, S.Dog, S.Animal]
+
+
+def test_a_subtype_edge_waits_for_the_base_and_skips_an_undeclared_one(metta):
+    """The set is recomputed from what the space knows, so order does not decide.
+
+    A base the program never declared is not a MeTTa type here, which is what
+    keeps `object`, a NamedTuple's `tuple` and an enum's `Enum` out.
+    """
+    m = metta._new_space()
+
+    @dataclasses.dataclass
+    class Vehicle:
+        """Declared second."""
+
+        wheels: int
+
+    @dataclasses.dataclass
+    class Car(Vehicle):
+        """Declared first."""
+
+    m.define(Car)
+    assert [atom for atom in m.atoms() if str(atom).startswith("(:< ")] == []
+    m.define(Vehicle)
+    assert [str(atom) for atom in m.atoms() if str(atom).startswith("(:< ")] == [
+        "(:< Car Vehicle)"
+    ]
+
+    other = metta._new_space()
+
+    class Point(NamedTuple):
+        """Its tuple base is nobody's declaration."""
+
+        x: float
+        y: float
+
+    class Colour(enum.Enum):
+        """And an enum's Enum base likewise."""
+
+        red = 1
+
+    other.define(Point)
+    other.define(Colour)
+    assert [atom for atom in other.atoms() if str(atom).startswith("(:< ")] == []
+
+
+def test_multiple_inheritance_answers_one_edge_per_direct_base(metta):
+    """Two declared bases are two edges, and get-type reads all three types."""
+    m = metta._new_space()
+
+    @dataclasses.dataclass
+    class Walks:
+        """One base."""
+
+        legs: int
+
+    @dataclasses.dataclass
+    class Swims:
+        """The other."""
+
+        fins: int
+
+    @dataclasses.dataclass
+    class Otter(Walks, Swims):
+        """Both."""
+
+    for cls in (Walks, Swims, Otter):
+        m.define(cls)
+    assert sorted(str(atom) for atom in m.atoms() if str(atom).startswith("(:< ")) == [
+        "(:< Otter Swims)",
+        "(:< Otter Walks)",
+    ]
+    m += typed(S.Ollie, S.Otter)
+    assert list(m.fn.get_type(S.Ollie)) == [S.Otter, S.Walks, S.Swims]
+
+
+def test_declaring_a_subclass_gives_it_its_own_type_name(metta):
+    """A declared class is a type THERE, so it answers its own name.
+
+    ensure_registered walks the MRO, so a subclass adding nothing projected
+    through its base's entry: declaring it restated the BASE's declaration and
+    left no subtype at all.
+    """
+    m = metta._new_space()
+
+    @dataclasses.dataclass
+    class Base:
+        """The registered base."""
+
+        value: int
+
+    @dataclasses.dataclass
+    class Derived(Base):
+        """Adds nothing, and is still its own type."""
+
+    m.define(Base)
+    m.define(Derived)
+    declared = {str(atom) for atom in m.atoms()}
+    assert "(: Derived (-> Number Derived))" in declared
+    assert "(: Base (-> Number Base))" in declared
+    assert list(m.fn.get_type(Derived(3))) == [S.Derived, S.Base]

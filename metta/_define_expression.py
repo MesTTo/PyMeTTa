@@ -1565,45 +1565,56 @@ class ExpressionCompilerMixin(CompilerContext):
 
     def _match_call(self, node: ast.Call) -> Atom:
         """match(Pattern(...), template) runs against the running space;
-        match(space, pattern, template) accepts a name or handle operand.
-        Pattern variables are the names not otherwise bound, exactly as in
-        source MeTTa.
+        match(space, pattern, template) accepts a name or handle operand; and
+        two or more patterns before the template are a CONJUNCTION, the engine's
+        own ``(, p q)``. Variables shared between the patterns join, which is
+        what the read door already spells as ``m[p1, p2]`` and
+        ``Space.match(p1, p2)``. Pattern variables are the names not otherwise
+        bound, exactly as in source MeTTa.
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         args = node.args
-        if len(args) == 3:
-            space_node, pattern_node, template_node = args
-            if (
-                isinstance(space_node, ast.Constant)
-                and isinstance(space_node.value, str)
-                and space_node.value.startswith("&")
-            ):
-                space: Atom = Symbol(space_node.value)
-            else:
-                space = self.expression(space_node)
-            if not isinstance(space, (Handle, Variable)) and not (
-                isinstance(space, Symbol) and space.name.startswith("&")
-            ):
-                msg = (
-                    "match with three arguments takes a space handle, a space "
-                    'parameter, or a name such as "&kb" first'
-                )
-                raise CompileError(
-                    msg,
-                    construct="match",
-                    line=node.lineno,
-                )
-        elif len(args) == 2:
-            pattern_node, template_node = args
-            space = Expression([Symbol("context-space")])
-        else:
-            msg = "match takes (pattern, template) or (space, pattern, template)"
+        if len(args) < 2:
+            msg = (
+                "match takes (pattern, template), (space, pattern, template), "
+                "or two or more patterns before the template as a conjunction"
+            )
             raise CompileError(
                 msg,
                 construct="match",
                 line=node.lineno,
             )
+        *operands, template_node = args
+        space: Atom = Expression([Symbol("context-space")])
+        if len(operands) > 1:
+            named = self._space_operand(operands[0])
+            if named is not None:
+                space = named
+                operands = operands[1:]
         pattern_scope = _PatternScope(self)
-        pattern = pattern_scope.expression(pattern_node)
+        # ONE scope across the conjuncts, so a name they share is one variable
+        # and the conjunction is a join rather than two unrelated asks.
+        conjuncts = [pattern_scope.expression(operand) for operand in operands]
+        pattern = conjuncts[0]
+        if len(conjuncts) > 1:
+            for conjunct, operand in zip(conjuncts, operands, strict=True):
+                if isinstance(conjunct, Expression):
+                    continue
+                # The subscript door's own trap, in the door that lowers: a
+                # bare atom among complete patterns is the operand-order
+                # mistake, and a conjunct the space can never hold would
+                # otherwise answer nothing at all.
+                msg = (
+                    f"{ast.unparse(operand)} is neither a complete pattern nor "
+                    f"a space; a conjunct is a whole pattern such as "
+                    f"edge(x, y), and a leading space operand is a handle, a "
+                    f'parameter, or a name such as "&kb"'
+                )
+                raise CompileError(
+                    msg,
+                    construct="match",
+                    line=getattr(operand, "lineno", node.lineno),
+                )
+            pattern = Expression([Symbol(","), *conjuncts])
         # Names the pattern bound are in scope for the template.
         for bound in pattern_scope.bound:
             if bound not in self.scope:
@@ -1613,6 +1624,34 @@ class ExpressionCompilerMixin(CompilerContext):
         # A match reads the space; Python alone has nothing to run it on.
         self.hazards.add("a match against the space")
         return Expression([Symbol("match"), space, pattern, template])
+
+    def _space_operand(self, node: ast.expr) -> Atom | None:
+        """The space a leading match operand names, or None when it is a pattern.
+
+        The three shapes the door has always taken: a ``"&name"`` literal, a
+        parameter or host name holding one, and the exact-name builder
+        ``S["&kb"]``. The test reads the operand's SYNTAX rather than what it
+        compiles to, because a conjunct is a pattern and a relation pattern
+        whose head is a free lowercase name has no expression reading at all:
+        compiling it to find out would raise on the very spelling that makes
+        the conjunction worth having.
+        """
+        if (
+            isinstance(node, ast.Constant)
+            and isinstance(node.value, str)
+            and node.value.startswith("&")
+        ):
+            return Symbol(node.value)
+        if isinstance(node, ast.Name):
+            if node.id in self.scope:
+                return Variable(self.scope[node.id])
+            if isinstance(self.host_value(node.id), Handle):
+                return self.expression(node)
+            return None
+        mention = self._mention(node)
+        if isinstance(mention, Symbol) and mention.name.startswith("&"):
+            return mention
+        return None
 
     def _x_Tuple(self, node: ast.Tuple) -> Atom:  # noqa: N802  -- the suffix mirrors ast node class names used by the translator's dynamic dispatch
         return Expression([self.expression(e) for e in node.elts])

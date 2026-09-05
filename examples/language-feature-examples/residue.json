@@ -806,15 +806,6 @@
     },
     {
       "kind": "friction",
-      "example": "examples/ch09-types/11-subtyping.metta",
-      "form": null,
-      "missing": "Python's own class hierarchy as the source of the (:< Sub Super) edge",
-      "row": "P14.9",
-      "section": "\u00a79d the concept map (Python's word where both languages have the concept)",
-      "detail": "The twin already shows that a Python class IS a MeTTa type name in an annotation: `class Animal` plus `def speak(a: Animal) -> str` declares `(: speak (-> Animal String))` exactly [measured 2026-08-22]. The obvious next row of the same table does not hold: `class Dog(Animal)` declares no `(:< Dog Animal)`, and a `@metta.record` subclass writes no `:<` atom either (measured: no `:<` atom appears in the space). Subtyping is the one relation where Python's own syntax says the whole thing, so the declaration source is already written in every typed Python program. Until then the edge is `S[\":<\"](sub, super)`, which is the sibling wart the existing entry on this example files."
-    },
-    {
-      "kind": "friction",
       "example": "examples/ch22-a-reasoner-you-can-serve/22-01-logic-programs/03-constructive_negation.metta",
       "form": null,
       "missing": "a solve whose answer template can bind a SECOND variable, which is how this file tests a constraint the first one left standing",
@@ -826,10 +817,10 @@
       "kind": "friction",
       "example": "examples/ch09-types/01-types.metta",
       "form": null,
-      "missing": "the Python-type table read on the RIGHT of an equality, so an answered type compares against Any",
+      "missing": "a scalar type projection in the ROOT namespace, so an answered type compares against a Python one without reaching into metta.ops",
       "row": "P14.9",
       "section": "\u00a77 the examples-twin coverage lane",
-      "detail": "`typed(x, Any)` and `arrow(int, int)` read Python types through the conversion table, but the table is one-way: measured 2026-08-24, `m.type(S.c) == Any` is False where `m.type(S.c) == S['%Undefined%']` is True, so a twin comparing an ANSWER against a type writes the marked name out."
+      "detail": "REWORDED 2026-09-05 to what survives. The table was never one-way in the direction that matters: `arrow(int, int)` builds from Python types and `m.type(S.bump) == arrow(int, int)` is True, `metta.ops.type_atom_for(Any)` is the scalar projection and `m.type(S.c) == metta.ops.type_atom_for(Any)` is True, and an ATOM in annotation position projects as itself since 2026-09-05, so `def speak(a: S.Animal) -> S.Sound` declares `(-> Animal Sound)`. What is still measured as recorded is the BARE comparison: `m.type(S.c) == Any` is False. That one cannot be fixed as an equality, because the projection is many-to-one: `int`, `float` and `complex` all give `Number`, so `S.Number == int` and `S.Number == float` would put `int == float` one transitive step away while `hash` cannot follow. What remains is packaging: the scalar projection sits in `metta.ops` while the composite one, `arrow`, is a root name. [measured 2026-09-05]"
     },
     {
       "kind": "friction",
@@ -5392,6 +5383,16 @@
       "section": "\u00a74 surface gaps: the compiled subset",
       "detail": "`(foldall + (let $x (f) (+ 1 $x)) 0)` needs its binding INSIDE the generator slot, and the binding is load-bearing: measured 2026-08-24, the stored `(foldall + (+ 1 (f)) 0)` answers 2 and 3 rather than 5, because the branching escapes the slot and the whole fold runs once per answer. A Python assignment in the compiled body would lower to a `let*` AROUND the fold, which is the same escape, so the twin writes `S.let(V.x, S.f(), 1 + V.x)` with its rung declared on the line.",
       "retired": "2026-09-05: L042 was already supported by fn.let, fn[\"let*\"], and fn.match. test_stored_control_builders_include_nested_arguments builds and stores these terms inertly, including fn.let nested in another call argument, then checks their evaluated answers."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/ch09-types/11-subtyping.metta",
+      "form": null,
+      "missing": "Python's own class hierarchy as the source of the (:< Sub Super) edge",
+      "row": "P14.9",
+      "section": "\u00a79d the concept map (Python's word where both languages have the concept)",
+      "detail": "The twin already shows that a Python class IS a MeTTa type name in an annotation: `class Animal` plus `def speak(a: Animal) -> str` declares `(: speak (-> Animal String))` exactly [measured 2026-08-22]. The obvious next row of the same table does not hold: `class Dog(Animal)` declares no `(:< Dog Animal)`, and a `@metta.record` subclass writes no `:<` atom either (measured: no `:<` atom appears in the space). Subtyping is the one relation where Python's own syntax says the whole thing, so the declaration source is already written in every typed Python program. Until then the edge is `S[\":<\"](sub, super)`, which is the sibling wart the existing entry on this example files.",
+      "retired": "2026-09-05: declaring a class into a space writes its subtype edges. `m.define(Animal)` then `m.define(Dog)` for `class Dog(Animal)` stores `(:< Dog Animal)`, `get-type` on a `(: Rex Dog)` widens to `[Dog, Animal]`, and a chain widens transitively; multiple inheritance answers one edge per direct base, and a base declared AFTER its subclass fills the edge in then. Only DECLARED classes count as supertypes, which keeps `object`, `tuple` under a NamedTuple and `Enum` under an enum out of the answer, and only REAL bases do, since a virtual abc registration never reaches __mro__. This twin keeps its atoms: the example's Dog and Animal are bare SYMBOLS with no Python classes behind them, so `S[':<'](sub, super)` is the example's own text rather than a workaround. Declaring a class also gives it its OWN registration now, which it needed: a subclass used to project through its base's entry, restate the base's declaration, and leave no subtype to put below anything."
     }
   ]
 }

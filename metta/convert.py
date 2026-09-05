@@ -16,6 +16,7 @@ from ._convert_build import build
 from ._convert_project import Projected, auto_image, declarations, project
 from ._convert_registry import (
     IMAGES,
+    ensure_own_registration,
     ensure_registered,
     register_type,
     unregister_type,
@@ -34,6 +35,7 @@ __all__ = [
     "auto_image",
     "build",
     "declarations",
+    "ensure_own_registration",
     "ensure_registered",
     "project",
     "register_type",

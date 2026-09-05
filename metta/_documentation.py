@@ -36,7 +36,7 @@ from typing import Any
 import docstring_parser as _docstring_parser  # type: ignore[import-not-found]
 
 from ._type_annotations import metta_type_for
-from .atoms import Expression, S, _expr, parse
+from .atoms import Atom, Expression, S, _expr, parse
 
 DocstringStyle = _docstring_parser.DocstringStyle
 parse_docstring = _docstring_parser.parse
@@ -67,7 +67,11 @@ def _description(text: str | None) -> Expression:
 
 
 def _type(annotation: Any) -> Expression:
-    return _expr(S["@type"], S[metta_type_for(annotation)])
+    # An ATOM in annotation position is the type itself rather than a Python
+    # name for one, so it travels into the doc as written; everything else
+    # keeps the scalar name the table reports.
+    named = annotation if isinstance(annotation, Atom) else S[metta_type_for(annotation)]
+    return _expr(S["@type"], named)
 
 
 def _parameters(

@@ -202,6 +202,31 @@ def ensure_registered(cls: type) -> _Registration:
     return registration
 
 
+def ensure_own_registration(cls: type) -> _Registration:
+    """The registration for THIS exact class, its default memoized for it.
+
+    ``ensure_registered`` walks the MRO, so a subclass of a registered class
+    projects through the BASE's entry and answers the base's type name. That is
+    right for CONVERSION, where a subclass adding nothing converts as its base,
+    and wrong for DECLARATION: declaring a class into a space says it is a type
+    THERE, and a type has its own name. Declaring `Dog(Animal)` used to restate
+    `(: Animal (-> String Animal))`, which the engine reported as a duplicate
+    declaration, and left no `Dog` type to be below `Animal` at all.
+
+    A class with no default image of its own keeps the inherited answer, which
+    is what ``ensure_registered`` already gives it, refusal included.
+    """
+    with _REGISTRY_LOCK:
+        own = _REGISTRY.get(cls)
+    if own is not None:
+        return own
+    default = _default_registration(cls)
+    if default is None:
+        return ensure_registered(cls)
+    _record_registration(cls, default)
+    return default
+
+
 def _record_registration_locked(cls: type, registration: _Registration) -> None:
     """Record one registration after proving its public type name is safe."""
     current = _REGISTRY.get(cls)

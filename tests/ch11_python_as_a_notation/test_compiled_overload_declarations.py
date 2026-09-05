@@ -129,3 +129,43 @@ def test_failed_overload_publication_rolls_back_all_arrows(
     assert m.eval(fn.match(m, typed(S.identity, V.t), V.t)) == []
     assert m.define(identity)(7) == [7]
     assert set(m.eval(fn.get_type(S.identity))) == {arrow(int, int), arrow(str, str)}
+
+
+def test_a_second_clause_publishes_the_arrow_its_own_signature_states(scratch_space):
+    """A MeTTa name may carry several declarations, so a later clause adds its own.
+
+    One boolean per name recorded only WHETHER it had declared anything, which
+    is a different question, so every clause after the first published none of
+    its own signature.
+    """
+    m = scratch_space
+
+    @m.define
+    def sized(x: int = 0) -> int:  # noqa: ARG001 -- the default is the clause head pattern
+        """The literal-head clause."""
+        return 1
+
+    @m.define
+    def sized(x: str) -> int:  # noqa: F811, ARG001 -- the other argument type
+        """The other clause."""
+        return 2
+
+    assert set(m.eval(fn.get_type(S.sized))) == {arrow(int, int), arrow(str, int)}
+
+
+def test_a_clause_repeating_a_signature_declares_it_once(scratch_space):
+    """The ledger holds what was published, so an equal arrow is not stored twice."""
+    m = scratch_space
+
+    @m.define
+    def paired(x: int = 0) -> int:  # noqa: ARG001 -- the default is the clause head pattern
+        """The literal-head clause."""
+        return 1
+
+    @m.define
+    def paired(x: int) -> int:  # noqa: F811, ARG001 -- the same signature again
+        """The same signature on the general clause."""
+        return 2
+
+    declared = list(m.eval(fn.match(m, typed(S.paired, V.t), V.t)))
+    assert declared == [arrow(int, int)]

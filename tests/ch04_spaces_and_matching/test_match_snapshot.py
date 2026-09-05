@@ -25,7 +25,8 @@ Open Obligations:
 
 import pytest
 
-from metta import TRUE, Expression, S, V
+from metta import TRUE, Expression, S, V, match
+from metta.errors import CompileError
 
 
 @pytest.fixture()
@@ -274,3 +275,46 @@ def test_the_snapshot_does_not_hide_a_write_from_the_next_match(m):
     (pairs,) = m.run("!(collapse (match &self (pair $a $b) ($a $b)))")
     assert len(pairs[0]) == 4
     assert m.match(S.pair(V.a, V.b))
+
+
+def test_a_compiled_match_reads_two_patterns_as_one_conjunction(metta):
+    """Patterns before the template are the engine's own `(, p q)`.
+
+    A tuple of patterns is a two-element pattern TERM, which the space cannot
+    hold, so the join had to be written as separate arguments; the read door
+    already spells it that way as `m[p1, p2]` and `Space.match(p1, p2)`.
+    """
+    m = metta._new_space()
+    m += [S.edge(S.a, S.b), S.edge(S.b, S.c), S.edge(S.c, S.d)]
+
+    @m.define
+    def twohop():
+        """Every two-step path, joined on the shared middle node."""
+        return match(S.edge(V.x, V.y), S.edge(V.y, V.z), (V.x, V.z))
+
+    assert str(twohop.body) == "(match (context-space) (, (edge $x $y) (edge $y $z)) ($x $z))"
+    assert sorted(twohop()) == [Expression([S.a, S.c]), Expression([S.b, S.d])]
+
+    @m.define
+    def twohop_here():
+        """The same join with the space named first."""
+        return match(m, S.edge(V.x, V.y), S.edge(V.y, V.z), (V.x, V.z))
+
+    assert " (, (edge $x $y) (edge $y $z)) " in str(twohop_here.body)
+    assert sorted(twohop_here()) == [Expression([S.a, S.c]), Expression([S.b, S.d])]
+
+
+def test_a_conjunct_that_is_not_a_whole_pattern_is_refused(metta):
+    """A bare atom among patterns is the operand-order mistake, not a query.
+
+    It would otherwise ask the space for an atom it can never hold and answer
+    nothing, which is the trap the subscript door already names.
+    """
+    m = metta._new_space()
+
+    with pytest.raises(CompileError, match="neither a complete pattern nor a space"):
+
+        @m.define
+        def wrong():
+            """A symbol cannot be a conjunct."""
+            return match(S.edge(V.x, V.y), S.nothere, (V.x, V.y))
