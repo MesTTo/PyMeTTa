@@ -23,9 +23,11 @@ from __future__ import annotations
 
 import os
 import re
+import selectors
 import signal
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 import pytest
@@ -383,10 +385,11 @@ def test_a_child_still_running_after_eof_is_named_a_runaway():
     # after EOF, and which one wins depends on whether EOF was read before the
     # deadline check in the same iteration. Either is the contract: the child
     # was killed at the ceiling and the outcome says it was stopped.
-    assert stopped in (
-        "closed its output but was still running at 3s",
-        "timed out after 3s",
-    )
+    assert stopped is not None
+    assert stopped.startswith((
+        "closed its output but was still running at 3s under loadavg ",
+        "timed out after 3s under loadavg ",
+    ))
 
 
 def test_a_bounded_run_still_reports_a_timeout():
@@ -399,8 +402,167 @@ def test_a_bounded_run_still_reports_a_timeout():
         )
     finally:
         parity.TIMEOUT = original
-    assert outcome.error == "timed out after 1s"
+    assert outcome.error is not None
+    assert outcome.error.startswith("timed out after 1s under loadavg ")
     assert outcome.returncode is None
+
+
+#: The real selector, bound at import so the stand-in below can still build
+#: one after monkeypatch has replaced the name it would otherwise read.
+_REAL_SELECTOR = selectors.DefaultSelector
+
+
+class _StaleFirstLook:
+    """A selector whose FIRST look sees nothing, whatever the pipes hold.
+
+    That is what a descheduled parent's look sees, and reproducing it is the
+    only way to plant the race deterministically: the defect needs `select` to
+    have looked before the child wrote and `waitpid` to be asked after the
+    child exited, and neither the child nor the test can arrange the gap
+    between two statements in the parent. Everything but the first look is the
+    real selector's.
+    """
+
+    def __init__(self):
+        self._real = _REAL_SELECTOR()
+        self._looked = False
+
+    def select(self, timeout=None):
+        if self._looked:
+            return self._real.select(timeout)
+        self._looked = True
+        # Long enough that the planted child below has certainly exited, so
+        # `process.poll()` answers on the next line.
+        time.sleep(0.3)
+        return []
+
+    def __getattr__(self, name):
+        return getattr(self._real, name)
+
+
+def test_a_child_that_writes_late_is_read_in_full(monkeypatch):
+    """A pipe is finished at EOF, never because the writer's process exited.
+
+    The loop used to break when a `select` had seen nothing and a `poll()`
+    then reported the child gone. Those are observations from two different
+    instants, and on a loaded box the gap between them holds a whole child:
+    `epoll_wait` returned nothing at 0.25s because the child had not written
+    yet, the thread was not scheduled again for another 1.6s, and by then the
+    child had printed everything and exited. Three reproductions over sixteen
+    corpus runs at loadavg 53-108, one on each door, each with the child's
+    whole output (5,564, 567 and 358 bytes) still readable from the pipes
+    after the loop and reproduced byte for byte by re-running the same
+    command; `compare` read each as `engine 0 verdicts` or `library 0
+    verdicts` against the door that did answer [measured 2026-09-06].
+    """
+    monkeypatch.setattr(parity.selectors, "DefaultSelector", _StaleFirstLook)
+    text, returncode, stopped = parity._capture(
+        ["sh", "-c", "echo 'ANSWER-GROUP (1)'; echo 'is 1, should 1. OK'"],
+        REPO, None,
+    )
+    assert stopped is None, stopped
+    assert returncode == 0
+    assert "ANSWER-GROUP (1)" in text
+    assert "is 1, should 1. OK" in text
+
+
+def test_a_stopped_run_is_reported_as_unanswered_with_its_load(monkeypatch):
+    """A child killed at its ceiling is a run that did not happen.
+
+    It used to reach `compare` as `returncode=None` and be reported as "the
+    configurations exited differently", which says the two disagree when what
+    happened is that one of them was killed. The load belongs in the sentence
+    because a ceiling reached on a box carrying three times its cores is a
+    different fact from one reached on an idle box.
+    """
+    original = parity.TIMEOUT
+    parity.TIMEOUT = 1
+    try:
+        stopped, _ = parity._run(
+            [sys.executable, "-c", "import time; time.sleep(30)"],
+            REPO, door="engine", name="planted",
+        )
+    finally:
+        parity.TIMEOUT = original
+    assert stopped.stopped is not None
+    assert stopped.stopped.startswith("timed out after 1s under loadavg ")
+    assert stopped.seconds >= 1
+    assert stopped.door == "engine"
+
+    answered = parity.Outcome(["(1)"], None, ("is 1, should 1. ✅",), 0,
+                              "library", 0.2)
+    monkeypatch.setattr(parity, "run_engine", lambda *_args: stopped)
+    monkeypatch.setattr(parity, "run_library", lambda *_args: answered)
+
+    difference = parity.compare(REPO / "examples" / "ch09-types" / "01-types.metta")
+
+    assert difference is not None
+    assert difference.kind == "unanswered"
+    assert difference.reason == (
+        "no verdict: the engine configuration answered nothing, twice")
+    assert "timed out after 1s under loadavg " in difference.detail
+    assert f"against a {parity.TIMEOUT}s ceiling" in difference.detail
+    assert "library configuration printed 1 group(s) and 1 verdict(s)" in (
+        difference.detail)
+
+
+def test_two_stopped_configurations_do_not_agree(monkeypatch):
+    """Both killed is not both equal, which is how it used to read.
+
+    Two stopped outcomes carry the same `returncode=None`, the same empty
+    groups and the same empty verdicts, so every comparison below them passed
+    and the example counted as agreeing.
+    """
+    killed = parity.Outcome([], "timed out after 300s under loadavg 71.00", (),
+                            None, "engine", 300.0,
+                            "timed out after 300s under loadavg 71.00")
+    monkeypatch.setattr(parity, "run_engine", lambda *_args: killed)
+    monkeypatch.setattr(
+        parity, "run_library",
+        lambda *_args: parity.Outcome([], killed.error, (), None, "library",
+                                      300.0, killed.stopped))
+
+    difference = parity.compare(REPO / "examples" / "ch09-types" / "01-types.metta")
+
+    assert difference is not None
+    assert difference.kind == "unanswered"
+
+
+def test_an_unanswered_configuration_is_run_again(monkeypatch):
+    """A transient is not reproducible and a real one is; the retry separates them."""
+    silent = parity.Outcome([], None, (), 0, "engine", 0.1)
+    answering = parity.Outcome(["(1)"], None, (), 0, "engine", 0.1)
+    attempts: list[str] = []
+
+    def engine(*_args):
+        attempts.append("engine")
+        return silent if len(attempts) == 1 else answering
+
+    monkeypatch.setattr(parity, "run_engine", engine)
+    monkeypatch.setattr(
+        parity, "run_library",
+        lambda *_args: parity.Outcome(["(1)"], None, (), 0, "library", 0.1))
+
+    difference = parity.compare(REPO / "examples" / "ch09-types" / "01-types.metta")
+
+    assert difference is None, str(difference)
+    assert len(attempts) == 2, "the configuration that answered nothing was not run again"
+
+
+def test_a_configuration_silent_through_both_doors_is_agreement(monkeypatch):
+    """An example can legitimately observe nothing; a SIDE cannot.
+
+    examples/ch20-extending-the-engine/20-06-files-and-processes/02-standard-streams.metta
+    prints verdicts and no answer group at all, on either door, so the signal
+    has to be the asymmetry rather than the emptiness.
+    """
+    empty = parity.Outcome([], None, (), 0, "engine", 0.1)
+    monkeypatch.setattr(parity, "run_engine", lambda *_args: empty)
+    monkeypatch.setattr(
+        parity, "run_library",
+        lambda *_args: parity.Outcome([], None, (), 0, "library", 0.1))
+
+    assert parity.compare(REPO / "examples" / "ch09-types" / "01-types.metta") is None
 
 
 def test_the_stated_corpus_size_is_the_real_one():

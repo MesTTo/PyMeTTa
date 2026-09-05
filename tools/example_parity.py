@@ -41,6 +41,20 @@ Guarantees:
     parent, and the streams still join stdout-then-stderr so the last line is
     the failure [tested: test_a_runaway_child_is_stopped_at_the_capture_ceiling,
     test_the_library_runner_reports_a_teardown_failure; commit=819393cb9608052a198ef0b2a8c0676d9ef9e824]
+  - a child's output is read to EOF whatever its process does. Exit is not a
+    reason to stop reading a pipe, and treating it as one made the lane's
+    verdict depend on the box's load: `epoll_wait` seeing nothing and
+    `waitpid` seeing the child gone are observations from two different
+    instants, and on a loaded box a whole child fits between them
+    [tested: test_a_child_that_writes_late_is_read_in_full; commit=WORKTREE]
+  - a configuration that did not answer is run again, both doors, and if it
+    still does not answer it is reported as `no verdict` with what stopped it,
+    what it cost, the ceiling and the loadavg, and counted apart from the
+    disagreements. Two configurations that were BOTH stopped are that too,
+    where before they compared equal and passed
+    [tested: test_a_stopped_run_is_reported_as_unanswered_with_its_load,
+    test_two_stopped_configurations_do_not_agree,
+    test_an_unanswered_configuration_is_run_again; commit=WORKTREE]
 Decides:
   - process isolation per example, matching how the engine lane already
     works, rather than one engine over many spaces: it is affordable at the
@@ -86,9 +100,27 @@ REPO = Path(__file__).resolve().parents[3]
 SKIPS = REPO / "tests" / "data" / "example_skips.txt"
 VERDICT = " should "
 
-#: How long one example may take in one configuration. The slowest example
-#: in the corpus runs well inside this; a hang is a defect, not a reason to
-#: wait [assumed 2026-08-18].
+#: How long one example may take in one configuration: a wall ceiling one cost
+#: class above the corpus's slowest member, so a loaded box cannot reach it and
+#: a hang cannot hide under it.
+#:
+#: DERIVED rather than assumed, which is what it was until 2026-09-06. The
+#: slowest member is
+#: examples/ch22-a-reasoner-you-can-serve/22-01-logic-programs/04-nilbc.metta
+#: through the library, and it is the same file on either door at either load,
+#: so the corpus has one worst case rather than a spread of them. It costs
+#: 26.7s on a quiet box and 90.3s on one carrying three times its cores, which
+#: is the whole load factor this lane has ever been measured under; 300s is
+#: 3.3 times that worst case and 11 times the quiet one [measured 2026-09-06:
+#: six whole-corpus runs, 506 captures each, at median loadavg 23.3, 37.5,
+#: 64.0, 65.7, 77.3 and 101.7; slowest capture 26.69s, 57.53s, 69.33s, 90.26s,
+#: 61.31s and 63.70s; command=extensions/python/tools/example_parity.py].
+#:
+#: `main` prints the slowest example each run against this number, because a
+#: ceiling derived once from a measurement nothing repeats is a ceiling that
+#: goes stale silently, and a corpus lane with no per-item wall bound cannot
+#: tell "the right answer in seconds" from "the right answer in a different
+#: cost class".
 TIMEOUT = 300
 
 #: How far ABOVE TIMEOUT the child's own bound sits. The parent must still be
@@ -103,6 +135,21 @@ CHILD_GRACE = 60
 #: The repository's one bound. Every runner in this tree, and a command
 #: typed by hand, reach the same file.
 BOUNDED = REPO / "bounded.sh"
+
+#: What every child cost, appended as it finishes, so `main` can print the
+#: slowest against TIMEOUT. `list.append` is what the threads share; nothing
+#: reads it until they have all finished.
+COSTS: list[tuple[float, str, str]] = []
+
+
+def _late(reason: str) -> str:
+    """A deadline expiry, with the load it expired under.
+
+    A ceiling reached on a box carrying three times its cores is a different
+    fact from one reached on an idle box, and a reader who cannot tell them
+    apart treats the first as a defect in the example.
+    """
+    return f"{reason} under loadavg {os.getloadavg()[0]:.2f}"
 
 
 def _bounded(command: list[str]) -> list[str]:
@@ -191,6 +238,14 @@ class Outcome:
     # observations part of the comparison.
     verdicts: tuple[str, ...] = ()
     returncode: int | None = 0
+    #: Which configuration this is, so a run that did not answer can say who
+    #: did not answer without the comparator having to remember.
+    door: str = "configuration"
+    #: What the run cost, and what stopped it early. A run stopped at its
+    #: ceiling is a run that did not happen, which is a different sentence
+    #: from a disagreement and is counted apart from one.
+    seconds: float = 0.0
+    stopped: str | None = None
 
 
 def _read(text: str, returncode: int | None = 0) -> Outcome:
@@ -277,12 +332,25 @@ def _capture(
         while selector.get_map() and stopped is None:
             remaining = deadline - time.monotonic()
             if remaining <= 0:
-                stopped = f"timed out after {TIMEOUT}s"
+                stopped = _late(f"timed out after {TIMEOUT}s")
                 break
-            ready = selector.select(timeout=min(0.25, remaining))
-            if not ready and process.poll() is not None:
-                break
-            for key, _ in ready:
+            # A pipe is finished when it reports EOF, never because the process
+            # that started it has exited. Asking `process.poll()` here and
+            # breaking when it answered was a check-then-act race: `ready` is
+            # what epoll saw at one instant and `poll()` is what waitpid saw at
+            # a later one, and on a loaded box the gap between them holds a
+            # whole child. `epoll_wait` returned nothing at 0.25s because the
+            # child had not written yet, this thread was not scheduled again
+            # for another 1.6s, and by then the child had printed everything
+            # and exited -- so the loop broke on its first iteration and threw
+            # away 5,564 bytes that were sitting in the pipes, which `compare`
+            # then read as "engine 0 verdicts" [measured 2026-09-06: three
+            # reproductions over ten instrumented corpus runs at loadavg
+            # 53-108, on both doors, each with the whole of the child's output
+            # (5,564, 567 and 358 bytes) recoverable from the pipes after the
+            # loop and reproduced byte for byte by re-running the same command;
+            # tested: test_a_child_that_writes_late_is_read_in_full].
+            for key, _ in selector.select(timeout=min(0.25, remaining)):
                 chunk = os.read(key.fileobj.fileno(), 65536)
                 if not chunk:
                     selector.unregister(key.fileobj)
@@ -312,7 +380,8 @@ def _capture(
             try:
                 process.wait(timeout=max(0.0, deadline - time.monotonic()))
             except subprocess.TimeoutExpired:
-                stopped = f"closed its output but was still running at {TIMEOUT}s"
+                stopped = _late(
+                    f"closed its output but was still running at {TIMEOUT}s")
         if stopped is not None or process.poll() is None:
             with contextlib.suppress(ProcessLookupError, PermissionError):
                 os.killpg(os.getpgid(process.pid), signal.SIGKILL)
@@ -329,27 +398,34 @@ def _capture(
 
 
 def _run(
-    command: list[str], cwd: Path, env: dict[str, str] | None = None
+    command: list[str], cwd: Path, env: dict[str, str] | None = None,
+    door: str = "configuration", name: str = "",
 ) -> tuple[Outcome, str]:
     """One configuration's run, as the outcome the comparator reads and the
     raw text beside it. The text is returned rather than discarded because a
     runner may emit more than answers on its own marker lines: the twin
     coverage lane reads an inference count and the defined heads from the
     same output [tested: test_a_runner_returns_its_raw_text_beside_the_outcome].
+
+    The outcome carries what the run COST and what stopped it, because a run
+    the box did not let finish is a different fact from a disagreement and has
+    to be reported as itself
+    [tested: test_a_stopped_run_is_reported_as_unanswered_with_its_load].
     """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+    started = time.monotonic()
     text, returncode, stopped = _capture(_bounded(command), cwd, env)
+    seconds = time.monotonic() - started
+    COSTS.append((seconds, door, name))
     if stopped is not None:
-        return Outcome([], stopped, returncode=None), ""
+        return Outcome([], stopped, returncode=None, door=door,
+                       seconds=seconds, stopped=stopped), ""
     outcome = _read(text, returncode)
-    if outcome.error is None and returncode != 0:
+    error = outcome.error
+    if error is None and returncode != 0:
         tail = text.strip().splitlines()
-        outcome = Outcome(
-            outcome.groups,
-            tail[-1][:300] if tail else "no output",
-            outcome.verdicts,
-            outcome.returncode,
-        )
-    return outcome, text
+        error = tail[-1][:300] if tail else "no output"
+    return Outcome(outcome.groups, error, outcome.verdicts, outcome.returncode,
+                   door, seconds), text
 
 
 def run_engine(path: Path, root: Path = REPO) -> Outcome:
@@ -365,6 +441,8 @@ def run_engine(path: Path, root: Path = REPO) -> Outcome:
             "--", "--file", str(path.relative_to(root)), "extensions",
         ],
         root,
+        door="engine",
+        name=str(path.relative_to(root)),
     )[0]
 
 
@@ -386,7 +464,8 @@ def run_library(path: Path, root: Path = REPO) -> Outcome:
         f"    for group in metta.self.load({str(path.relative_to(root))!r}):\n"
         "        print('" + MARKER + "(' + ' '.join(str(a) for a in group) + ')')\n"
     )
-    return _run([sys.executable, "-c", source], root)[0]
+    return _run([sys.executable, "-c", source], root, door="library",
+                name=str(path.relative_to(root)))[0]
 
 
 @dataclass(frozen=True, slots=True)
@@ -396,6 +475,12 @@ class Difference:
     path: Path
     reason: str
     detail: str
+    #: `disagreement` when the two configurations answered and differed, and
+    #: `unanswered` when one of them did not answer at all. They are counted
+    #: apart because only the first is a claim about MeTTa: the second is a
+    #: claim about the box, and printing it in the same sentence as a
+    #: disagreement is how "engine 0 verdicts" read as a defect in the engine.
+    kind: str = "disagreement"
 
     def __str__(self) -> str:  # noqa: D105  -- the Python data-model hook is defined by its name
         return f"{self.path}: {self.reason}\n    {self.detail}"
@@ -431,10 +516,67 @@ def _verdict_decision(line: str) -> bool | str:
     return line
 
 
+def _silent(outcome: Outcome) -> bool:
+    """Whether this configuration produced nothing a comparator can read."""
+    return not outcome.groups and not outcome.verdicts and outcome.error is None
+
+
+def _unanswered(engine: Outcome, library: Outcome) -> tuple[Outcome, Outcome] | None:
+    """The configuration that did not answer and the one that did, or None.
+
+    A run STOPPED at its ceiling did not answer whatever the other one did,
+    including when both were stopped: two configurations that were both killed
+    agree about nothing, and reading that as agreement is a silent pass.
+
+    Otherwise the signal is the ASYMMETRY. One example in the corpus prints no
+    answer group at all on either door
+    (ch20-extending-the-engine/20-06-files-and-processes/02-standard-streams.metta,
+    which prints verdicts and no groups), and a file that observes nothing
+    through both doors is agreement rather than a failure to run. One side
+    silent while the other answered is not something an example can be.
+    """
+    for outcome, other in ((engine, library), (library, engine)):
+        if outcome.stopped is not None:
+            return outcome, other
+    if _silent(engine) != _silent(library):
+        return (engine, library) if _silent(engine) else (library, engine)
+    return None
+
+
 def compare(path: Path, root: Path = REPO) -> Difference | None:
-    """Run one example both ways, once, and answer what differs."""
+    """Run one example both ways and answer what differs.
+
+    A configuration that did not answer is run AGAIN, both doors, before it is
+    believed. The lane's verdict must not depend on how loaded the box is, and
+    a run the box did not let finish is not reproducible by definition where a
+    real failure is. The line a retry must not cross is the one Bazel's
+    `--flaky_test_attempts` and pytest-rerunfailures both draw, between an
+    environmental failure and an assertion, and it is drawn here as exactly
+    that: an answer that never arrived is re-run, an answer that disagreed
+    never is [tested: test_an_unanswered_configuration_is_run_again].
+    """
     engine, library = run_engine(path, root), run_library(path, root)
     relative = path.relative_to(root)
+
+    if _unanswered(engine, library) is not None:
+        engine, library = run_engine(path, root), run_library(path, root)
+    missing = _unanswered(engine, library)
+    if missing is not None:
+        quiet, other = missing
+        beside = (
+            f"the {other.door} configuration was stopped too: {other.stopped}"
+            if other.stopped is not None else
+            f"the {other.door} configuration printed {len(other.groups)} "
+            f"group(s) and {len(other.verdicts)} verdict(s) in "
+            f"{other.seconds:.1f}s"
+        )
+        return Difference(
+            relative,
+            f"no verdict: the {quiet.door} configuration answered nothing, twice",
+            f"{quiet.stopped or _late('no answer group, no verdict and no error')} "
+            f"after {quiet.seconds:.1f}s against a {TIMEOUT}s ceiling; {beside}",
+            kind="unanswered",
+        )
 
     if engine.returncode != library.returncode:
         return Difference(
@@ -502,15 +644,32 @@ def main() -> int:
         return 0
 
     sys.path.insert(0, str(REPO / "extensions" / "python"))
+    started = os.getloadavg()[0]
     with ThreadPoolExecutor() as pool:
         found = [d for d in pool.map(compare, paths) if d is not None]
 
     for difference in found:
         print(difference)
+    disagreements = [d for d in found if d.kind == "disagreement"]
+    unanswered = [d for d in found if d.kind == "unanswered"]
     print(
         f"{len(paths) - len(found)}/{len(paths)} examples agree "
         f"across both configurations"
     )
+    if unanswered:
+        # Counted apart from the disagreements, and said out loud even when
+        # there are none of those, because "one configuration did not run" is
+        # a claim about this box and "the two configurations differ" is a
+        # claim about MeTTa. Printing them as one number is what let a child
+        # whose output was never read report itself as `engine 0 verdicts`.
+        print(f"{len(unanswered)} example(s) made no observation in one "
+              f"configuration, counted apart from the {len(disagreements)} "
+              f"disagreement(s)")
+    if COSTS:
+        seconds, door, name = max(COSTS)
+        print(f"slowest child {seconds:.1f}s against a {TIMEOUT}s ceiling "
+              f"({door} {name}), loadavg {started:.2f} to "
+              f"{os.getloadavg()[0]:.2f}")
     return 1 if found else 0
 
 
