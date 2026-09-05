@@ -5,9 +5,9 @@ import pytest
 from metta import S
 
 
-def test_compiled_nested_cases_negate_every_selected_arm(metta):
+def test_compiled_nested_cases_negate_every_selected_arm(scratch_space):
     """A wildcard stays a wildcard when the dual reads nested case rows."""
-    m = metta._new_space()
+    m = scratch_space
 
     @m.define
     def selected(key):
@@ -27,9 +27,9 @@ def test_compiled_nested_cases_negate_every_selected_arm(metta):
         assert m.fn.not_provable(S.selected(key)) == [expected]
 
 
-def test_compiled_case_without_matching_arm_is_not_provable(metta):
+def test_compiled_case_without_matching_arm_is_not_provable(scratch_space):
     """No matching arm produces no answer and therefore has a true dual."""
-    m = metta._new_space()
+    m = scratch_space
 
     @m.define
     def band(key):
@@ -45,9 +45,9 @@ def test_compiled_case_without_matching_arm_is_not_provable(metta):
     assert m.fn.not_provable(S.band(55)) == [True]
 
 
-def test_compiled_case_capture_is_bound_before_its_body_is_negated(metta):
+def test_compiled_case_capture_is_bound_before_its_body_is_negated(scratch_space):
     """A captured field is supplied by the selected pattern's key."""
-    m = metta._new_space()
+    m = scratch_space
 
     @m.define
     def tagged(key):
@@ -63,9 +63,9 @@ def test_compiled_case_capture_is_bound_before_its_body_is_negated(metta):
 
 
 @pytest.mark.parametrize("spelling", ("expression", "statement", "nested"))
-def test_compiled_conditional_tail_calls_fit_a_fixed_stack(metta, spelling):
+def test_compiled_conditional_tail_calls_fit_a_fixed_stack(scratch_space, spelling):
     """Two hundred thousand recursive branches fit an eight-megabyte stack."""
-    m = metta._new_space()
+    m = scratch_space
 
     @m.define
     def expression(n: int, acc: int):
