@@ -674,6 +674,17 @@ def evaluate_answers(
     retained: list[Any] = []
 
     def count_answers(*, values_wanted: bool) -> int | None:
+        if values_wanted:
+            # BEFORE the count, not after it. A caller holding an iterator is
+            # about to read every answer, so one materializing pass serves the
+            # length and the values both; asking first and checking second
+            # meant list() paid the separate-engine count AND then drained the
+            # cursor. Measured 2026-09-05 over a 400-answer superpose:
+            # list(view) 90,399 inferences against 8,563 for the equivalent
+            # comprehension, 10.6x, falling to parity with this line. The
+            # match-backed count source at _space.py:2245 has always tested
+            # the hint first; this one is the door that disagreed.
+            return None
         counted = evaluate_count_if_repeatable(
             rt,
             space,
@@ -683,13 +694,15 @@ def evaluate_answers(
             using=using,
             under=under,
         )
-        if counted is not None or under is not None or values_wanted:
-            # Three ways this count is already the cheapest one available.
-            # An effect-safe goal counts on its own engine. A carrier cursor
-            # answers an annotation beside every value, a shape the
-            # retained-value path does not carry. And a caller that has taken
-            # an iterator is about to read the answers. Holding them to avoid a
-            # second evaluation buys nothing that one materializing pass does not.
+        if counted is not None or under is not None:
+            # Two ways this count is already the cheapest one available. An
+            # effect-safe goal counts on its own engine, crossing one integer
+            # rather than encoding every answer, which is a HOST-MEMORY win
+            # and costs more engine work than draining: measured 9.6x over a
+            # 400-answer superpose, constant across 50 to 800 answers, both
+            # linear. A caller who asked only for a number is taken at their
+            # word. And a carrier cursor answers an annotation beside every
+            # value, a shape the retained-value path does not carry.
             return counted
         count, handle = _retain_and_count(
             rt,

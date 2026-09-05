@@ -36,8 +36,6 @@ from __future__ import annotations
 
 from itertools import islice
 
-import pytest
-
 from metta import Grounded, S, V, _space_objects
 
 
@@ -232,19 +230,24 @@ def test_the_evaluation_cursor_chunks_too(metta, monkeypatch):
 
 
 
-@pytest.mark.xfail(
-    reason=(
-        "the eval cursor's engine goal retains a choicepoint, so resuming for"
-        " the second chunk REDOES an effectful body: two executions and the"
-        " second value delivered. Eager eval and the trace door both run it"
-        " once, and metta_host_goal_repeatable already guards the COUNT door"
-        " (shim.pl metta_py_eval_count_if_repeatable), so the fix belongs in"
-        " the cursor goal's determinism, not in a new guard"
-    ),
-    strict=True,
-)
 def test_a_lazy_drain_runs_an_effectful_island_once():
-    """One application must execute a compiled effectful body exactly once."""
+    """One application must execute a compiled effectful body exactly once.
+
+    This was xfail(strict) and its recorded diagnosis was wrong, which is why
+    it stayed open: it blamed the eval cursor's engine goal for retaining a
+    choicepoint and resuming into a second execution, and it explicitly ruled
+    the count door OUT on the grounds that metta_host_goal_repeatable already
+    guards it. So nobody looked at the count door.
+
+    The count door was the cause. `list(view)` asks for an iterator before its
+    length hint, and `count_answers` in `_space_execution.py` called
+    `evaluate_count_if_repeatable` BEFORE testing that hint. Probing an
+    effectful goal for repeatability runs it, and the materializing pass then
+    ran it again: two executions, and the second value delivered
+    (`Grounded(2)` for a probe that must answer `Grounded(1)`). Testing the
+    hint first, as the match-backed count source at `_space.py:2245` always
+    did, leaves exactly one execution [measured 2026-09-05, both arms].
+    """
     from metta import MeTTa, py
 
     m = MeTTa().self

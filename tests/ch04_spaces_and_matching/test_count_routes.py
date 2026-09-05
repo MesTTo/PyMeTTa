@@ -205,6 +205,48 @@ def test_a_length_evaluates_an_effect_bearing_goal_exactly_once(metta) -> None:
     assert fired == [0, 1, 2], "list()'s length hint must not double the effect"
 
 
+
+def test_list_of_an_evaluation_view_costs_one_pass(metta) -> None:
+    """The idiomatic spelling has to be the fast one.
+
+    `list(view)` asks for an iterator BEFORE its length hint, which is exactly
+    how a count source knows the values are wanted. The match door has always
+    tested that hint first. The evaluation door asked its separate-engine
+    count first and tested the hint after, then returned the number it had
+    already paid for, so `list()` bought a count AND drained the cursor:
+    90,399 inferences against 8,563 for the equivalent comprehension over 400
+    answers, 10.6x [measured 2026-09-05].
+
+    The RATIO is what this pins rather than either number, because both sides
+    move together with the engine. Every other test in this file measures
+    effects, which is why none of them saw this: the doors answered the same
+    values at very different cost, and the file's own note said that cost was
+    a corpus lane's business. No lane exercised list() over an evaluation
+    view.
+    """
+    name = unique("route-listcost")
+    literals = " ".join(str(index) for index in range(400))
+    metta.run(f"(= ({name}) (superpose ({literals})))")
+
+    def cost(drain) -> int:
+        with metta.stats() as stats:
+            drain(metta.answers(f"({name})"))
+        return stats.inferences
+
+    cost(list)  # the first evaluation compiles; neither arm should carry that
+    comprehension = min(
+        cost(lambda view: [answer for answer in view])  # noqa: C416 -- the two spellings are the arms; rewriting one into the other erases the comparison
+        for _ in range(3)
+    )
+    materialized = min(cost(list) for _ in range(3))
+
+    assert materialized <= comprehension * 1.25, (
+        f"list(view) cost {materialized} inferences against {comprehension} "
+        f"for the comprehension over the same answers; the values-wanted hint "
+        f"is being tested after the count it exists to avoid"
+    )
+
+
 def test_a_repeatable_count_still_leaves_its_cursor_to_run(metta) -> None:
     """An effect-safe goal keeps the second evaluation the count door allows.
 
