@@ -312,6 +312,53 @@ def test_a_removed_cache_owner_retires_while_another_definition_remains(product_
         assert other.eval(S.arrow_py_shared(1)) == [2]
 
 
+def test_retired_memo_owners_release_their_event_and_dispatch_clauses(product_space):
+    """Repeated cache lives restore the seam census they started with."""
+    product_space.run("!(import! &self (library lib_memo))")
+    census = """
+        aggregate_all(count,
+            clause(seam:dispatch_call('arrow-py-hooks', _, _, _), _), Dispatch),
+        aggregate_all(count,
+            clause(seam:function_clauses_changed('arrow-py-hooks'), _), Changed),
+        aggregate_all(count,
+            clause(seam:atom_removed(_, [=, ['arrow-py-hooks'|_], _]), _), Atom),
+        aggregate_all(count,
+            clause(seam:function_removed('arrow-py-hooks'), _), Removed)
+    """
+    before = product_space.runtime.once(census)
+    for _ in range(3):
+        with product_space._new_space() as space:
+            space.run(
+                "(: arrow-py-hooks (-> Number Number)) "
+                "(= (arrow-py-hooks $x) $x) !(memoize-exact arrow-py-hooks)"
+            )
+            assert space.eval(S.arrow_py_hooks(1)) == [1]
+            space.clear()
+            assert product_space.runtime.once(census) == before
+
+
+def test_equation_observers_keep_plain_data_clear_bulk(product_space):
+    """Retiring a memo owner must not enumerate unrelated data through hooks."""
+    product_space.run("!(import! &self (library lib_memo))")
+    counts = []
+    # Warm one complete cache life before measuring either data size.
+    for size in (0, 200, 2000):
+        with product_space._new_space() as space:
+            space.run(
+                "(: arrow-py-bulk-memo (-> Number Number)) "
+                "(= (arrow-py-bulk-memo $x) $x) "
+                "!(memoize-exact arrow-py-bulk-memo)"
+            )
+            space.add(*(S.arrow_py_plain_data(value) for value in range(size)))
+            with product_space.stats() as measured:
+                space.clear()
+            if size:
+                counts.append(measured.inferences)
+            assert list(space.atoms()) == []
+            assert space.run("!(is-memoized arrow-py-bulk-memo)") == [[False]]
+    assert counts[1] <= counts[0] + 100, counts
+
+
 @pytest.mark.parametrize("atomicity", [None, "best-effort"])
 def test_a_foreign_product_refuses_when_its_storage_cannot_roll_back(product_space, atomicity):
     """A partial provider write cannot separate the assertion from its catalog row."""
