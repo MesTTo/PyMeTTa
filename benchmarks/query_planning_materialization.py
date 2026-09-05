@@ -155,6 +155,11 @@ def main(argv: Sequence[str] | None = None) -> int:
     Path("ai-tmp").mkdir(exist_ok=True)
     with MeTTa() as m:
         metadata["swi"] = m.runtime.must("current_prolog_flag(version, Version)")["Version"]
+        if args.mode != "original":
+            # Preparation is a declared choice, so the measured arm asks for it
+            # through the pragma a program would use.
+            with m.space() as declaring:
+                declaring.run("!(pragma! materialize-source-relations True)")
         if args.mode == "original":
             m.runtime.must(
                 "abolish(materialize:with_source_materialization/3),"

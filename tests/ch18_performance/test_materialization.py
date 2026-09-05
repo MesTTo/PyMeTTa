@@ -28,6 +28,55 @@ _RULES = """
 """
 
 
+_MATERIALIZE = "materialize-source-relations"
+
+
+def _set_materialization(value):
+    """Write the pragma as a Prolog atom; a host string is a different term."""
+    janus_swi.query_once(f"set_metta_pragma('{_MATERIALIZE}',{value})")
+
+
+@pytest.fixture(autouse=True)
+def _declared_materialization():
+    """Preparation is off unless a program asks, and every case here asks.
+
+    The pragma is a host query, so the engine has to be consulted before the
+    first one: an unbooted process answers Unknown procedure. One context does
+    that once, and creating one per case perturbs the index-collection cases
+    below. conftest's own guard fails any test that leaves a pragma set, which
+    is why the restore is to the unset value rather than to a saved one.
+    """
+    if not _engine.booted():
+        with MeTTa():
+            pass
+    _set_materialization("true")
+    try:
+        yield
+    finally:
+        _set_materialization("none")
+
+
+def test_preparation_is_declared_rather_than_the_default():
+    """Without the pragma a source boundary derives nothing and answers alike."""
+    source = (
+        "(materialized-edge a b) (materialized-edge a b) "
+        "(materialized-edge b c)" + _RULES
+    )
+    _set_materialization("none")
+    try:
+        with MeTTa() as m, m.space() as space:
+            space.run(source)
+            assert not janus_swi.query_once(
+                "materialize:materialized_snapshot(S,_M,_T,_St,_F)",
+                {"S": str(space.name)},
+            )["truth"]
+            assert Counter(map(str, space.eval(S.materialized_reach(S.a, S.c)))) == {
+                "True": 2
+            }
+    finally:
+        _set_materialization("true")
+
+
 def _discard_relation(space):
     """The internal lifecycle door exposes the retained compiled oracle."""
     janus_swi.query_once("materialize:discard_space(S)", {"S": str(space.name)})
