@@ -232,6 +232,71 @@ def _first_letter_role_findings(atoms: list[Atom], equations: list[Expression]) 
     return findings
 
 
+def _claims_det(signature: Atom) -> bool:
+    """Whether an arrow promises EXACTLY ONE answer.
+
+    A plain `->` promises nothing about answer count, so a function under one
+    is an ordinary relation and neither too few answers nor too many is a
+    defect. `-[semidet]->` and `-[nondet]->` are the honest spellings for
+    those, and are what the findings that read this recommend rather than
+    second defects to report.
+    """
+    arrow = _arrow_head_name(signature) or ""
+    return "det" in arrow and "semidet" not in arrow and "nondet" not in arrow
+
+
+def _overlapping_det_findings(
+    equations: list[Expression], declarations: list[Expression]
+) -> list[Finding]:
+    """Report a `det` claim two equations with the same head are guaranteed to break.
+
+    `(: two (-[det]-> Number Number))` with `(= (two $x) $x)` and
+    `(= (two $x) (+ $x 1))` answers 1 AND 2: two answers from a function
+    declared to give exactly one. Neither existing overlap rule reaches it,
+    and correctly so: the equations are not duplicates, since their bodies
+    differ, and neither is a strict instance of the other, since the heads are
+    variants. What makes this one wrong is the declaration.
+
+    Alpha-equivalent HEADS, so the overlap is total and no argument can
+    separate them. A partial overlap needs unification against every stored
+    head and is a different, more expensive question; this is the case that
+    is certain.
+    """
+    authority = authority_for("det-equations-overlap")
+    claims = {
+        name.name
+        for declaration in declarations
+        if len(declaration) == 3
+        and isinstance(name := declaration[1], Symbol)
+        and _claims_det(declaration[2])
+    }
+    seen: dict[tuple[str, Any], Expression] = {}
+    findings: list[Finding] = []
+    for equation in equations:
+        head_name = _symbol_head(equation[1])
+        if head_name is None or head_name not in claims:
+            continue
+        key = (head_name, _alpha_key(equation[1]))
+        first = seen.get(key)
+        if first is None:
+            seen[key] = equation
+            continue
+        findings.append(
+            Finding(
+                "det-equations-overlap",
+                head_name,
+                "this arrow claims det, so exactly one answer, and two "
+                "equations share a head up to variable renaming: every call "
+                "that matches one matches both and answers twice. Merge them, "
+                "separate their heads, or declare -[nondet]-> and mean it",
+                equation,
+                severity="warning",
+                payload={"authority": authority},
+            )
+        )
+    return findings
+
+
 def _declared_type_members(declarations: list[Expression]) -> dict[str, set[str]]:
     """Symbols declared of each plain type, so a finite type can be enumerated.
 
@@ -296,11 +361,7 @@ def _uncovered_constructor_findings(
         signature = declaration[2]
         if _arrow_inputs(signature) is None:
             continue
-        # Only a `det` claim is broken by a missing member. A plain arrow
-        # promises nothing about answer count, and `-[semidet]->` is the
-        # remedy this finding recommends rather than a second defect.
-        arrow = _arrow_head_name(signature) or ""
-        if "det" not in arrow or "semidet" in arrow or "nondet" in arrow:
+        if not _claims_det(signature):
             continue
         rows = [e for e in equations if _symbol_head(e[1]) == name.name]
         if not rows:
@@ -1224,6 +1285,7 @@ def analyze(
         *_interpreter_shadow_findings(equations, registry),
         *_builtin_shadow_findings(equations, registry),
         *_uncovered_constructor_findings(equations, declarations),
+        *_overlapping_det_findings(equations, declarations),
         *_declaration_findings(space, declarations, defined_here, registry),
         *_duplicate_findings(equations),
         *_subsumed_findings(equations),

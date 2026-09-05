@@ -118,6 +118,35 @@ def test_capital_data_and_lowercase_functions_are_allowed(m):
     assert not _kind(m, "first-letter-role-convention")
 
 
+def test_a_det_claim_broken_by_two_equal_heads_is_reported(m):
+    """The other way a det claim fails: too many answers rather than too few.
+
+    Neither existing overlap rule reaches this and both are right not to. The
+    equations are not duplicates, because their bodies differ, and neither is
+    a strict instance of the other, because the heads are variants. What makes
+    it wrong is the declaration.
+    """
+    m.run("(: two (-[det]-> Number Number))")
+    m.run("(= (two $x) $x)")
+    m.run("(= (two $x) (+ $x 1))")
+
+    findings = _kind(m, "det-equations-overlap")
+
+    assert [finding.subject for finding in findings] == ["two"]
+    assert "-[nondet]->" in findings[0].detail, "the message names the other remedy"
+    assert len(m.eval(S.two(1))) == 2, "two answers from a function declared det"
+
+
+def test_distinct_heads_and_a_relation_are_both_silent(m):
+    """A det function may have many equations; a plain arrow may answer twice."""
+    m.run("(: pick (-[det]-> Number Number))")
+    m.run("(= (pick 1) 10)(= (pick 2) 20)")
+    m.run("(: rel (-> Number Number))")
+    m.run("(= (rel $x) $x)(= (rel $x) (+ $x 1))")
+
+    assert not _kind(m, "det-equations-overlap")
+
+
 def test_a_det_claim_broken_by_an_uncovered_constructor_is_reported(m):
     """`-[det]->` promises exactly one answer; an uncovered member gives zero.
 
