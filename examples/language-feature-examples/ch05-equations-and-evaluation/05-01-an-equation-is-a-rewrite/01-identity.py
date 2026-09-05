@@ -780,4 +780,22 @@ def twin(m):
 #: examples/ch05-equations-and-evaluation/05-01-an-equation-is-a-rewrite/01-identity.metta;
 #: fixture=merged main checkout, libmork_ffi.so present, QLF warmed;
 #: commit=WORKTREE].
-BUDGET = 3398
+#: RE-PINNED 2026-09-05, 3398 to 3393 (-5), by union type membership. This row
+#: moves with engine code SHAPE rather than with the work a program does, and
+#: non-monotonically. Four arms on this tree: base 3398; the whole feature
+#: 3393; engine/metta/type_unions.pl resident with nothing calling it 3398, so
+#: the residents are not the mechanism and the guarded arms are; the same
+#: union decision predicates placed in engine/type_rules.pl instead 3408, with
+#: removing the one arm that module keeps still measuring 3408. That module's
+#: inventory is what costs there: five inert four-argument predicates appended
+#: to it move the row 3398 -> 3403 and ten move it 3398 -> 3413. Hence the
+#: decision predicates live in the union unit. No union appears anywhere in
+#: this workload and its metta side is unchanged at 2291
+#: [measured 2026-09-05: three identical samples, metta=2291 twin=3393
+#: ratio=1.4810; command=PYTHONPATH=extensions/python $VENV/bin/python
+#: extensions/python/tools/twin_coverage.py --measure --rounds 3
+#: examples/ch05-equations-and-evaluation/05-01-an-equation-is-a-rewrite/01-identity.metta;
+#: fixture=provisioned worktree, libmork_ffi.so
+#: fd4066201267c8c894a1e255235587a3b314e95d590483dc8449a55519a974a0, QLF
+#: cleared and warmed; commit=WORKTREE].
+BUDGET = 3393

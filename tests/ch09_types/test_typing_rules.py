@@ -247,6 +247,79 @@ def test_aliases_keep_the_fast_path_and_registry_in_agreement():
         assert _match_differential(metta, vocabulary=vocabulary, dispatch=True) == expected
 
 
+def test_unions_keep_the_fast_path_and_registry_in_agreement():
+    """The union arms are two relations, so the differential has to cover them.
+
+    metta_shipped_types_match/2 answers the six shipped comparisons inline and
+    appends its own union arm; the registry decomposes a union only after both
+    tiers have declined the written pair. Those are separately written pieces
+    of code deciding the same question, which is exactly the obligation the
+    differential above exists for, so the vocabulary gains unions on both sides
+    and every pair is put to both relations again.
+    """
+    unions = [
+        ["|", "Number", "String"],
+        ["|", "Number", "String", "Bool"],
+        ["|", "Atom", "Number"],
+        ["|", "%Undefined%", "Number"],
+        ["|", "Number", "Number"],
+        ["|", ["Number", "String"], "Bool"],
+    ]
+    with MeTTa().space() as metta:
+        # The raw fast path is compared on written types alone: it is the
+        # relation BEFORE alias expansion, which the dispatch arm below adds.
+        written = [*_TYPE_VOCABULARY, *unions]
+        expected = f"{len(written) ** 2}-[]"
+        assert _match_differential(metta, vocabulary=written) == expected
+
+        metta.run("(: Scalar (Alias (| Number String)))")
+        named = [*written, "Scalar"]
+        named_expected = f"{len(named) ** 2}-[]"
+        assert _match_differential(
+            metta, vocabulary=named, dispatch=True) == named_expected
+
+        # A user rule refusing one member must stop the fast path answering
+        # about any pair, exactly as it does for a non-union refusal.
+        metta.run("!(add-typing-rule! union-deny ordinary Number Number "
+                  "(refuse denied))")
+        try:
+            disagreements = _match_differential(metta, vocabulary=written)
+            assert disagreements != expected, (
+                "with a user rule registered the fast path still answered "
+                "about unions, so the rule cannot change what a union admits"
+            )
+            # The union-specific row: the fast path still admits Number
+            # through the union's first member where the registry, seeing the
+            # user refusal of that member, admits nothing.
+            assert "'Number'-['|','Number','String']" in disagreements, \
+                disagreements
+            assert _match_differential(
+                metta, vocabulary=named, dispatch=True) == named_expected
+        finally:
+            metta.run("!(remove-typing-rule! union-deny)")
+        assert _match_differential(metta, vocabulary=written) == expected
+
+
+def test_a_union_admits_a_value_through_the_same_doors_a_member_does():
+    """The public surface, not the relations: argument, result and reporting."""
+    with MeTTa().space() as metta:
+        metta.run(
+            "(: union-id (-> (| Number String) %Undefined%))"
+            "(= (union-id $x) $x)"
+        )
+        assert _answers(metta, "(union-id 1)") == ["1"]
+        assert _answers(metta, '(union-id "s")') == ['"s"']
+        assert _answers(metta, "(union-id True)") == [
+            "(Error (union-id True) (BadArgType 1 (| Number String) Bool))"
+        ]
+        assert _answers(metta, "(get-type union-id)") == [
+            "(-> (| Number String) %Undefined%)"
+        ]
+        # A union target reaches the strict witness family, which is the
+        # relation Python's cast asks and a concrete member satisfies.
+        assert metta.cast(1, "(| Number String)") == 1
+
+
 def test_a_static_parameter_proof_yields_to_a_later_typing_rule():
     """A later rule recompiles the proof away; removal restores it."""
     metta = MeTTa().self
