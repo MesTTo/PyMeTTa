@@ -334,12 +334,11 @@ def _collected_trie_identities():
     Prolog suite uses for the same assertion. And one round is not a fixpoint:
     the atom pass that reclaims an index blob can already have run when the
     clause pass drops the last reference to it, so the index goes on the next
-    round. Measured over 25 released images, one or two rounds always sufficed
-    and the live population returned to its pre-image size either way, while a
-    retained root survives every round
-    [measured: rounds_needed 1 or 2 over 25 rounds, live tries 22 before and
-    after each; command=PYTHONPATH=extensions/python $VENV/bin/python
-    ai-tmp/qp-finish/release-collect-probe.py 25; commit=WORKTREE].
+    round. Four rounds bound the loop with room; a retained root survives all
+    of them, so a leak still fails the assertion
+    [tested: test_a_released_index_is_collected_after_its_query_boundary,
+    test_a_rolled_back_index_is_collected_while_the_live_index_answers;
+    commit=WORKTREE].
     """
     previous = None
     for _ in range(4):
