@@ -41,6 +41,10 @@ from .atoms import Atom, Expression, Grounded, Symbol, Variable, _decode
 # https://arxiv.org/html/1909.08246v1#S3.SS2
 # Here its acyclic demand graph is evaluated by an explicit stack. Only control
 # demands are sets; cached relation values retain their original proof bags.
+# This bag discipline is the multiset magic transformation of Mumick, Pirahesh
+# and Ramakrishnan: erasing unique magic guards preserves each original proof.
+# https://www.vldb.org/conf/1990/P264.PDF
+# [source: VLDB 1990, section 2.3.2 and theorem 2.5; commit=WORKTREE]
 type _Relation = tuple[bool, str, int]
 type _Shape = tuple[_Relation, tuple[Atom, ...]]
 type _Bindings = tuple[tuple[int, Atom], ...]
