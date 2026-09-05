@@ -63,7 +63,7 @@ Guarantees:
     differs price the same twin identically and neither has its own
     environment written to [tested:
     test_a_measurement_environment_is_built_and_never_inherited;
-    commit=WORKTREE]
+    commit=819393cb9608052a198ef0b2a8c0676d9ef9e824]
 
 Open Obligations:
   To Do: None

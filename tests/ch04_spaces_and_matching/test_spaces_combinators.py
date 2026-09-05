@@ -18,7 +18,7 @@ Guarantees:
   - a generated nested tree serves every capability it claims, and every
     capability refusal names the member that lacks it
     [tested: test_random_combinator_trees_serve_what_they_claim;
-    commit=WORKTREE]
+    commit=819393cb9608052a198ef0b2a8c0676d9ef9e824]
 Open Obligations:
   To Do: None
   Hacks: None

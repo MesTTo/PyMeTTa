@@ -40,7 +40,7 @@ Guarantees:
     printing without stopping is a reported outcome rather than an exhausted
     parent, and the streams still join stdout-then-stderr so the last line is
     the failure [tested: test_a_runaway_child_is_stopped_at_the_capture_ceiling,
-    test_the_library_runner_reports_a_teardown_failure; commit=WORKTREE]
+    test_the_library_runner_reports_a_teardown_failure; commit=819393cb9608052a198ef0b2a8c0676d9ef9e824]
 Decides:
   - process isolation per example, matching how the engine lane already
     works, rather than one engine over many spaces: it is affordable at the

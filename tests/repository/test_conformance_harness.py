@@ -11,19 +11,19 @@ Guarantees:
   - the gate tells its three cases apart on a planted pin: an entry that
     agrees, one that does not, and one whose divergence is recorded
     [tested: test_the_conformance_gate_tells_the_three_cases_apart;
-    commit=WORKTREE]
+    commit=819393cb9608052a198ef0b2a8c0676d9ef9e824]
   - alpha canonicalisation is syntax-aware and scoped to one printed term, so
     a `$_7` inside a string literal is data, two answers reusing an allocation
     slot are not one variable, and sharing inside one term still decides
     [tested: test_a_variable_identifier_inside_a_string_is_data,
     test_two_answers_reusing_a_slot_are_not_one_variable,
     test_sharing_inside_one_printed_term_still_decides,
-    test_a_term_printed_over_several_lines_keeps_its_sharing; commit=WORKTREE]
+    test_a_term_printed_over_several_lines_keeps_its_sharing; commit=819393cb9608052a198ef0b2a8c0676d9ef9e824]
   - an untracked corpus input cannot enter the frozen artefact
-    [tested: test_an_untracked_corpus_input_is_refused; commit=WORKTREE]
+    [tested: test_an_untracked_corpus_input_is_refused; commit=819393cb9608052a198ef0b2a8c0676d9ef9e824]
   - a skip is derived from a declared capability and reported when that
     capability arrives [tested: test_a_skip_is_derived_from_a_declared_capability,
-    test_a_skip_whose_capability_arrived_is_reported; commit=WORKTREE]
+    test_a_skip_whose_capability_arrived_is_reported; commit=819393cb9608052a198ef0b2a8c0676d9ef9e824]
 Open Obligations:
   To Do: None
   Hacks: None
