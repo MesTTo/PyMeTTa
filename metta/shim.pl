@@ -1491,9 +1491,23 @@ metta_py_origin_part(Part, String) :-
 
 %The best index SWI has for this predicate, or 1.0 for none, which is the
 %same number a useless index scores and reads the same way: no discrimination.
+%The arities come from the engine's name-wide arity/2 register, so this is
+%asked about Name/Arity pairs the reported module does not have. indexed/1 is
+%one of the properties SWI answers by running its undefined-procedure trap,
+%which searches the whole autoload library index before raising the existence
+%error: 1,030 inferences to learn "no index". The guard's two arms keep the
+%answer exactly: current_predicate/1 admits what the module has, and
+%implementation_module/1 admits what it would autoload, for 33 and without
+%loading it, so the property behind the guard still resolves what it used to
+%[source: /usr/lib/swi-prolog/boot/syspred.pl, property_predicate/2].
 metta_py_index_quality(Module, Name, Arity, Speedup, Realised) :-
     functor(Head, Name, Arity),
-    (   predicate_property(Module:Head, indexed(Indexes)),
+    (   (   current_predicate(Module:Name/Arity)
+        ->  true
+        ;   predicate_property(Module:Head, implementation_module(Home)),
+            Home \== Module
+        ),
+        predicate_property(Module:Head, indexed(Indexes)),
         Indexes \== []
     ->  findall(S-R, ( member(Index, Indexes),
                        get_dict(speedup, Index, S),
