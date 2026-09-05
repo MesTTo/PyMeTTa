@@ -1783,6 +1783,7 @@ class Space(Handle):
         source: Atom | str,
         max_events: int | None = None,
         *,
+        filter: Symbol | str | Iterable[Symbol | str] | None = None,  # noqa: A002 -- public trace selector
         timeout: float | None = None,
         inferences: int | None = None,
     ) -> Trace:
@@ -1800,9 +1801,13 @@ class Space(Handle):
         events. Whichever one stops it, the events already recorded are
         ANSWERED and `stopped` names the bound, so a caller told a trace
         was cut knows which bound to raise.
+        filter selects exact function Symbols or names, singly or in an iterable.
+        None records all functions; [] records none. Selection happens before
+        the recording bounds, while excluded calls still execute and add depth.
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         return _satellite("_trace").trace(
-            self, source, max_events=max_events, timeout=timeout, inferences=inferences
+            self, source, max_events=max_events, filter=filter,
+            timeout=timeout, inferences=inferences
         )
 
     def lint(self) -> list[Finding]:
@@ -6279,6 +6284,7 @@ class MeTTa:
         source: Atom | str,
         max_events: int | None = None,
         *,
+        filter: Symbol | str | Iterable[Symbol | str] | None = None,  # noqa: A002 -- public trace selector
         timeout: float | None = None,
         inferences: int | None = None,
     ) -> Trace:
@@ -6296,9 +6302,14 @@ class MeTTa:
         events. Whichever one stops it, the events already recorded are
         ANSWERED and `stopped` names the bound, so a caller told a trace
         was cut knows which bound to raise.
+        filter selects exact function Symbols or names, singly or in an iterable.
+        None records all functions; [] records none. Selection happens before
+        the recording bounds, while excluded calls still execute and add depth.
         Runs against this context's self space.
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
-        return self._self.trace(source, max_events, timeout=timeout, inferences=inferences)
+        return self._self.trace(
+            source, max_events, filter=filter, timeout=timeout, inferences=inferences
+        )
 
     def __bool__(self) -> bool:
         """Always true: a space is a handle to a store, not a value that

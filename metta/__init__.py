@@ -1065,6 +1065,7 @@ def trace(
     source: Atom | str,
     max_events: int | None = None,
     *,
+    filter: Symbol | str | _Iterable[Symbol | str] | None = None,  # noqa: A002 -- public trace selector
     timeout: float | None = None,
     inferences: int | None = None,
 ) -> _Trace:
@@ -1082,9 +1083,14 @@ def trace(
     events. Whichever one stops it, the events already recorded are
     ANSWERED and `stopped` names the bound, so a caller told a trace
     was cut knows which bound to raise.
+    filter selects exact function Symbols or names, singly or in an iterable.
+    None records all functions; [] records none. Selection happens before
+    the recording bounds, while excluded calls still execute and add depth.
     Runs against the default context's self space.
     """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
-    return engine().self.trace(source, max_events, timeout=timeout, inferences=inferences)
+    return engine().self.trace(
+        source, max_events, filter=filter, timeout=timeout, inferences=inferences
+    )
 
 
 # ------------------------------------------ end of generated module tier

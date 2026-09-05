@@ -1656,6 +1656,7 @@ class AsyncMeTTa:
         source: Atom | str,
         max_events: int | None = None,
         *,
+        filter: Symbol | str | Iterable[Symbol | str] | None = None,  # noqa: A002 -- public trace selector
         timeout: float | None = None,
         inferences: int | None = None,
     ) -> Trace:
@@ -1673,9 +1674,18 @@ class AsyncMeTTa:
         events. Whichever one stops it, the events already recorded are
         ANSWERED and `stopped` names the bound, so a caller told a trace
         was cut knows which bound to raise.
+        filter selects exact function Symbols or names, singly or in an iterable.
+        None records all functions; [] records none. Selection happens before
+        the recording bounds, while excluded calls still execute and add depth.
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         return await self.call(
-            lambda m: m.trace(source, max_events, timeout=timeout, inferences=inferences)
+            lambda m: m.trace(
+                source,
+                max_events,
+                filter=filter,
+                timeout=timeout,
+                inferences=inferences,
+            )
         )
 
     async def lint(self) -> list[Finding]:
