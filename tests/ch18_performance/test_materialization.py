@@ -325,11 +325,37 @@ def test_public_transactions_prepare_and_roll_back_the_same_relation():
 
 
 def _collected_trie_identities():
-    """Separate host queries end transient Prolog roots before collecting."""
-    janus_swi.query_once("garbage_collect_clauses,garbage_collect,garbage_collect_atoms")
-    return janus_swi.query_once(
-        "findall(_Text,(current_trie(_Trie),term_string(_Trie,_Text)),Identities)"
-    )["Identities"]
+    """Separate host queries end transient Prolog roots; collect to a fixpoint.
+
+    Two things make a single collection call the wrong question.
+    garbage_collect_clauses/0 returns immediately when the collector thread
+    already owns the collection flag, so the clauses holding a retired index
+    survive it; stopping and joining that thread first is the protocol the
+    Prolog suite uses for the same assertion. And one round is not a fixpoint:
+    the atom pass that reclaims an index blob can already have run when the
+    clause pass drops the last reference to it, so the index goes on the next
+    round. Measured over 25 released images, one or two rounds always sufficed
+    and the live population returned to its pre-image size either way, while a
+    retained root survives every round
+    [measured: rounds_needed 1 or 2 over 25 rounds, live tries 22 before and
+    after each; command=PYTHONPATH=extensions/python $VENV/bin/python
+    ai-tmp/qp-finish/release-collect-probe.py 25; commit=WORKTREE].
+    """
+    previous = None
+    for _ in range(4):
+        janus_swi.query_once(
+            "current_prolog_flag(gc_thread,_GC),"
+            "setup_call_cleanup(set_prolog_gc_thread(false),"
+            "(garbage_collect_clauses,garbage_collect,garbage_collect_atoms),"
+            "set_prolog_gc_thread(_GC))"
+        )
+        identities = janus_swi.query_once(
+            "findall(_Text,(current_trie(_Trie),term_string(_Trie,_Text)),Identities)"
+        )["Identities"]
+        if identities == previous:
+            break
+        previous = identities
+    return identities
 
 
 def test_a_rolled_back_index_is_collected_while_the_live_index_answers():
