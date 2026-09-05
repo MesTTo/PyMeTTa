@@ -788,4 +788,12 @@ def twin(m):
 #: resolution; the four earlier ones sit above [measured 2026-09-05: min-of-3
 #: serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
-BUDGET = 3412
+#: RE-PINNED 2026-09-05, 3412 to 3417 (+5), Union membership's decision
+#: predicates live in engine/metta/type_unions.pl and reach the typing registry
+#: through its public surface, because this row counts engine code SHAPE: five
+#: inert predicates in type_rules.pl move it +5 and ten move it +15, while a
+#: new unit resident with no caller leaves it unmoved (measured on the union
+#: branch, five arms). The identity twin's sixth merge resolution [measured
+#: 2026-09-05: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 3417
