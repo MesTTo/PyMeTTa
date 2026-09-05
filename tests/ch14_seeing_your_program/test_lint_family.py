@@ -134,7 +134,30 @@ def test_a_det_claim_broken_by_two_equal_heads_is_reported(m):
 
     assert [finding.subject for finding in findings] == ["two"]
     assert "-[nondet]->" in findings[0].detail, "the message names the other remedy"
+    assert findings[0].severity == "hint", "a heuristic: it proves the overlap, not the answers"
     assert len(m.eval(S.two(1))) == 2, "two answers from a function declared det"
+
+
+def test_the_overlap_hint_reports_what_it_can_prove_and_no_more(m):
+    """Overlapping heads mean both equations are TRIED, not that both answer.
+
+    A guarded second body keeps the det claim for some calls and breaks it for
+    others, so the finding cannot promise two answers. Deciding which needs the
+    body analysis the typechecker audit refused as interprocedural; this costs
+    an alpha-key comparison, and says so.
+    """
+    m.run("(: guarded (-[det]-> Number Number))")
+    m.run("(= (guarded $x) $x)")
+    m.run("(= (guarded $x) (if (> $x 100) 999 (empty)))")
+
+    assert len(m.eval(S.guarded(1))) == 1, "the claim HOLDS for this call"
+    assert len(m.eval(S.guarded(200))) == 2, "and breaks for this one"
+
+    findings = _kind(m, "det-equations-overlap")
+    assert [finding.subject for finding in findings] == ["guarded"]
+    assert "at most one body succeeds" in findings[0].detail, (
+        "the message must not claim every call answers twice"
+    )
 
 
 def test_distinct_heads_and_a_relation_are_both_silent(m):

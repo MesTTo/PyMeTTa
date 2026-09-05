@@ -258,9 +258,21 @@ def _overlapping_det_findings(
     variants. What makes this one wrong is the declaration.
 
     Alpha-equivalent HEADS, so the overlap is total and no argument can
-    separate them. A partial overlap needs unification against every stored
-    head and is a different, more expensive question; this is the case that
-    is certain.
+    separate them: both equations are TRIED for every call. Whether both
+    ANSWER is a question about the bodies, which this does not ask, so the
+    finding is a hint rather than a proof. A guard makes it wrong:
+
+        (= (guarded $x) $x)
+        (= (guarded $x) (if (> $x 100) 999 (empty)))
+
+    answers once for 1 and twice for 200, so the claim holds for some calls
+    and breaks for others. Deciding which needs the body analysis the
+    typechecker audit refused as interprocedural; reporting the overlap costs
+    an alpha-key comparison.
+
+    A PARTIAL overlap is not reported at all: `(= (f 1) 10)` beside
+    `(= (f $x) $x)` does answer twice for `(f 1)`, and deciding it needs
+    unification against every stored head.
     """
     authority = authority_for("det-equations-overlap")
     claims = {
@@ -286,11 +298,12 @@ def _overlapping_det_findings(
                 "det-equations-overlap",
                 head_name,
                 "this arrow claims det, so exactly one answer, and two "
-                "equations share a head up to variable renaming: every call "
-                "that matches one matches both and answers twice. Merge them, "
-                "separate their heads, or declare -[nondet]-> and mean it",
+                "equations share a head up to variable renaming, so both are "
+                "tried for every call: the claim holds only while at most one "
+                "body succeeds, which nothing checks. Merge them, separate "
+                "their heads, or declare -[nondet]-> and mean it",
                 equation,
-                severity="warning",
+                severity="hint",
                 payload={"authority": authority},
             )
         )
