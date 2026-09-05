@@ -232,6 +232,107 @@ def _first_letter_role_findings(atoms: list[Atom], equations: list[Expression]) 
     return findings
 
 
+def _declared_type_members(declarations: list[Expression]) -> dict[str, set[str]]:
+    """Symbols declared of each plain type, so a finite type can be enumerated.
+
+    `(: Red Colour)` makes `Red` a member of `Colour`. An arrow-framed
+    declaration is a signature rather than a membership and is skipped, and so
+    is anything whose type is not a plain symbol, because a parametric type
+    has no finite member set to be missing from.
+    """
+    members: dict[str, set[str]] = {}
+    for declaration in declarations:
+        if len(declaration) != 3:
+            continue
+        subject, kind = declaration[1], declaration[2]
+        if not isinstance(subject, Symbol) or not isinstance(kind, Symbol):
+            continue
+        members.setdefault(kind.name, set()).add(subject.name)
+    return members
+
+
+def _uncovered_constructor_findings(
+    equations: list[Expression], declarations: list[Expression]
+) -> list[Finding]:
+    """Report a `det` claim a finite declared type's uncovered member breaks.
+
+    A plain `->` promises nothing about how many answers come back, so a
+    partial function is ordinary MeTTa and gets no finding here. `-[det]->`
+    promises EXACTLY ONE, and a constructor no equation covers answers zero, so
+    the declaration and the equations contradict each other. That is the
+    finding: a broken promise, not partiality.
+
+    The remedy is a choice and the message names both halves of it, following
+    the upstream typechecker's own fixture for this case: cover the missing
+    member, or say `-[semidet]->` and mean it.
+
+    Two limits, both deliberate. This is NOT general exhaustiveness, which
+    needs totality and is undecidable; it is the decidable corner where the
+    members were declared one by one and are therefore enumerable. And the
+    verdict is a LOWER BOUND on incompleteness rather than a totality
+    guarantee, because a constructor declared later, or in another file not
+    yet loaded, cannot be seen from the space as it stands; `lint()` reports
+    what is there when it is called.
+
+    It fires only when EVERY equation puts a symbol in that position: one
+    equation with a variable there covers the whole type.
+    """
+    authority = authority_for("uncovered-constructor")
+    members = _declared_type_members(declarations)
+    findings: list[Finding] = []
+    for declaration in declarations:
+        if len(declaration) != 3 or not isinstance(name := declaration[1], Symbol):
+            continue
+        signature = declaration[2]
+        if _arrow_inputs(signature) is None:
+            continue
+        # Only a `det` claim is broken by a missing member. A plain arrow
+        # promises nothing about answer count, and `-[semidet]->` is the
+        # remedy this finding recommends rather than a second defect.
+        arrow = _arrow_head_name(signature) or ""
+        if "det" not in arrow or "semidet" in arrow or "nondet" in arrow:
+            continue
+        rows = [e for e in equations if _symbol_head(e[1]) == name.name]
+        if not rows:
+            continue  # declared-but-undefined is a different finding
+        for position in range(1, len(signature) - 1):
+            kind = signature[position]
+            if not isinstance(kind, Symbol):
+                continue
+            declared = members.get(kind.name)
+            if not declared:
+                continue
+            covered: set[str] = set()
+            for equation in rows:
+                head = equation[1]
+                if not isinstance(head, Expression) or len(head) <= position:
+                    covered = set()
+                    break
+                argument = head[position]
+                if not isinstance(argument, Symbol) or argument.name.startswith("$"):
+                    covered = set()
+                    break
+                covered.add(argument.name)
+            missing = declared - covered
+            if not covered or not missing:
+                continue
+            findings.append(
+                Finding(
+                    "uncovered-constructor",
+                    name.name,
+                    f"this arrow claims det, so exactly one answer, but argument "
+                    f"{position} is declared {kind.name}, whose members are "
+                    f"{sorted(declared)}, and no equation covers {sorted(missing)}: "
+                    f"a call with one answers zero. Cover it, or declare "
+                    f"-[semidet]-> and mean it",
+                    declaration,
+                    severity="warning",
+                    payload={"authority": authority, "missing": sorted(missing)},
+                )
+            )
+    return findings
+
+
 def _builtin_shadow_findings(
     equations: list[Expression], registry: EngineRegistry
 ) -> list[Finding]:
@@ -1098,6 +1199,7 @@ def analyze(
         ),
         *_interpreter_shadow_findings(equations, registry),
         *_builtin_shadow_findings(equations, registry),
+        *_uncovered_constructor_findings(equations, declarations),
         *_declaration_findings(space, declarations, defined_here, registry),
         *_duplicate_findings(equations),
         *_subsumed_findings(equations),

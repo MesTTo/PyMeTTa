@@ -118,6 +118,80 @@ def test_capital_data_and_lowercase_functions_are_allowed(m):
     assert not _kind(m, "first-letter-role-convention")
 
 
+def test_a_det_claim_broken_by_an_uncovered_constructor_is_reported(m):
+    """`-[det]->` promises exactly one answer; an uncovered member gives zero.
+
+    The finding is the contradiction between the declaration and the
+    equations, not partiality, which is ordinary MeTTa. The members were
+    declared one by one, so the missing set is a difference rather than an
+    analysis: the decidable corner of exhaustiveness.
+    """
+    m.run("(: Red Colour)(: Green Colour)(: Blue Colour)")
+    m.run("(: paint (-[det]-> Colour Number))")
+    m.run("(= (paint Red) 1)(= (paint Green) 2)")
+
+    findings = _kind(m, "uncovered-constructor")
+
+    assert [finding.subject for finding in findings] == ["paint"]
+    assert findings[0].payload["missing"] == ["Blue"]
+    assert findings[0].severity == "warning"
+    assert "-[semidet]->" in findings[0].detail, "the message names the other remedy"
+    assert m.eval(S.paint(S.Blue)) == [], "reported rather than refused"
+
+
+def test_a_python_enum_reaches_the_coverage_check_without_extra_machinery(m):
+    """`@m.define` on an Enum declares its members as ordinary declarations.
+
+    That is what makes this rule reach the Python surface for nothing: the
+    enum lands as `(: red Colour)` beside `(: Colour Type)`, which is the same
+    shape a MeTTa program writes by hand, so the set difference works on both
+    without knowing which wrote it.
+    """
+    from enum import StrEnum
+
+    @m.define
+    class Shade(StrEnum):
+        pale = "pale"
+        deep = "deep"
+        vivid = "vivid"
+
+    m.run("(: intensity (-[det]-> Shade Number))")
+    m.run("(= (intensity pale) 1)(= (intensity deep) 2)")
+
+    findings = _kind(m, "uncovered-constructor")
+
+    assert [finding.subject for finding in findings] == ["intensity"]
+    assert findings[0].payload["missing"] == ["vivid"]
+
+
+def test_a_plain_arrow_promises_nothing_so_partiality_is_not_a_finding(m):
+    """A function is a relation; answering nothing is legal without a claim."""
+    m.run("(: Hot Heat)(: Cold Heat)")
+    m.run("(: describe (-> Heat Number))")
+    m.run("(= (describe Hot) 1)")
+
+    assert not _kind(m, "uncovered-constructor")
+
+
+def test_the_two_ways_a_det_claim_is_kept(m):
+    """Cover every member, or bind the position with a variable."""
+    m.run("(: Up Way)(: Down Way)")
+    m.run("(: go (-[det]-> Way Number))(: fall (-[det]-> Way Number))")
+    m.run("(= (go Up) 1)(= (go Down) 2)")
+    m.run("(= (fall Up) 1)(= (fall $any) 0)")
+
+    assert not _kind(m, "uncovered-constructor")
+
+
+def test_semidet_is_the_remedy_rather_than_a_second_finding(m):
+    """Saying the function is partial is what the message asks for."""
+    m.run("(: Yes Answer2)(: No Answer2)")
+    m.run("(: maybe-rank (-[semidet]-> Answer2 Number))")
+    m.run("(= (maybe-rank Yes) 1)")
+
+    assert not _kind(m, "uncovered-constructor")
+
+
 def test_a_builtin_equation_shadow_is_linted_not_refused(m):
     """A writable equation over a shipped builtin stays installed and answers.
 

@@ -66,6 +66,7 @@ _AUTHORITIES: dict[str, str] = {
     "unordered-answers-reversed": f"L9Z2-09; {_LINT_CATALOGUE}",
     "sync-engine-call-in-async": f"L9Z3-03; {_LINT_CATALOGUE}",
     "builtin-equation-shadow": f"L086; {_LINT_CATALOGUE}",
+    "uncovered-constructor": f"L087/TC-20; {_LINT_CATALOGUE}",
 }
 _INTENT_AUTHORITY = f"L9Z1-06; {_LINT_CATALOGUE}"
 
