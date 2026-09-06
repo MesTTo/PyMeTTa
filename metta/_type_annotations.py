@@ -20,7 +20,7 @@ Guarantees:
     matchable in annotation claims and the base selects runtime conversion
     [tested: test_atom_metadata_refines_annotation_alternatives,
     test_two_values_of_one_base_type_are_distinguishable_by_their_metadata;
-    commit=WORKTREE]
+    commit=4eaefdd8d40e53b2613722287302a14b41704662]
   - the public Space handle annotation denotes the engine's ``SpaceType``
     instead of declaring an unrelated user type [tested:
     test_compiled_removal_statements_preserve_one_many_missing_and_target_scope;

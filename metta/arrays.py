@@ -50,12 +50,12 @@ Guarantees:
     output through ``broadcast-shape``, and rank-two ``matmul`` unifies its
     shared dimension before materialisation [tested:
     test_annotated_tensor_shapes_flow_through_broadcast_and_matmul;
-    commit=WORKTREE]
+    commit=4eaefdd8d40e53b2613722287302a14b41704662]
   - declared and observed shapes use one Annotated type expression; every
     registered head names its shape behavior and preserving arrows share their
     input shape [tested: test_declared_shape_variables_derive_the_result_without_execution,
     test_every_preserving_unary_head_keeps_symbolic_and_live_shapes;
-    commit=WORKTREE]
+    commit=4eaefdd8d40e53b2613722287302a14b41704662]
 Guarded by:
   - _PROTOCOLS_LOCK serializes one-time protocol registration
     [tested test_array_protocol_registration_is_idempotent]

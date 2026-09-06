@@ -15,7 +15,7 @@ Guarantees:
   - protocol registrations accept literal or computed type atoms, with
     expression terms preserved across the engine bridge and callable removal
     selected by identity [tested: test_computed_protocol_types_are_live_and_removable,
-    test_computed_protocol_removal_uses_provider_identity; commit=WORKTREE]
+    test_computed_protocol_removal_uses_provider_identity; commit=4eaefdd8d40e53b2613722287302a14b41704662]
   - protocol type, formatter, conversion, and reflector registrations have
     exact removal counterparts [tested
     test_protocol_and_reflector_registrations_can_be_removed,

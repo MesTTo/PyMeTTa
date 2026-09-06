@@ -10,7 +10,7 @@ Guarantees:
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - protocol expressions cross through the atom wire with repeated variables
     shared, and computed types are read from each live value [tested:
-    test_computed_protocol_types_are_live_and_removable; commit=WORKTREE]
+    test_computed_protocol_types_are_live_and_removable; commit=4eaefdd8d40e53b2613722287302a14b41704662]
   - protocol type registrations can be removed by exact identity [tested
     test_protocol_and_reflector_registrations_can_be_removed]
   - a release that FAILS reaches the caller. Left to the deallocator,

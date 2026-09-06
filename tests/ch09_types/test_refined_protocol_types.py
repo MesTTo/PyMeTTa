@@ -5,7 +5,7 @@ Guarantees:
     compute expression types without losing variable identity [tested:
     test_atom_metadata_refines_annotation_alternatives,
     test_computed_protocol_types_are_live_and_removable;
-    commit=WORKTREE]
+    commit=4eaefdd8d40e53b2613722287302a14b41704662]
 """
 
 import contextlib

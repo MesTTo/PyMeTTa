@@ -26,13 +26,13 @@ Guarantees:
     inference, nested inference, and rank-two matmul unification before an
     array is built [tested:
     test_annotated_tensor_shapes_flow_through_broadcast_and_matmul;
-    commit=WORKTREE]
+    commit=4eaefdd8d40e53b2613722287302a14b41704662]
   - shape claims refuse incompatible values, bind output dimensions, and
     preserve shapes across the complete operation roster [tested:
     test_declared_shape_refuses_an_incompatible_live_argument,
     test_a_live_tensor_type_carries_its_current_shape,
     test_every_preserving_unary_head_keeps_symbolic_and_live_shapes;
-    commit=WORKTREE]
+    commit=4eaefdd8d40e53b2613722287302a14b41704662]
 Open Obligations:
   To Do: None
   Hacks: None
