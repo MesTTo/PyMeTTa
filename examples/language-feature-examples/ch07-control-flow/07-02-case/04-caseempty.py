@@ -128,4 +128,11 @@ def twin(m):
 #: RE-PINNED 2026-09-05, 5742 to 5269: both definitions now compile
 #: Python match into the source's direct ordered case table, preserving Empty.
 #: [measured: 5269, 5269, 5269 inferences; command=PYTHONPATH=extensions/python:extensions/python/tools $VENV/bin/python -c "from pathlib import Path; from twin_coverage import run_twin; print(run_twin(Path('extensions/python/examples/language-feature-examples/ch07-control-flow/07-02-case/04-caseempty.py').resolve()).cost)"; fixture=three independent fresh harness processes; commit=9958c72363d2fbc640d2ae39ee6f0670ecfbff67]
-BUDGET = 5269
+#: RE-PINNED 2026-09-06, 5269 to 5317 (+48), the one pricing pass at the 0.8.0
+#: release cut, and trunk's own movement rather than any mechanism in this
+#: twin: each pin was taken on the base its own branch had, and the September
+#: merge wave has moved the engine's clause layout, the evaluation path and the
+#: library's write doors since [measured 2026-09-06: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=b96e1a15260b7538a8e42be613bcc5dd0dddd136].
+BUDGET = 5317

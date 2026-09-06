@@ -146,4 +146,11 @@ def twin(m):
 #: docs/journal/2026-09-05-catalog-arity-enumeration.md [measured 2026-09-05:
 #: min-of-3 serial fresh processes; command=$CHECK_PY ai-tmp/ai-twin-audit.py;
 #: commit=8bd37f3042555ee016a7b917234ce44c75a97c3e].
-BUDGET = 3577
+#: RE-PINNED 2026-09-06, 3577 to 3618 (+41), the one pricing pass at the 0.8.0
+#: release cut, and trunk's own movement rather than any mechanism in this
+#: twin: each pin was taken on the base its own branch had, and the September
+#: merge wave has moved the engine's clause layout, the evaluation path and the
+#: library's write doors since [measured 2026-09-06: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=b96e1a15260b7538a8e42be613bcc5dd0dddd136].
+BUDGET = 3618

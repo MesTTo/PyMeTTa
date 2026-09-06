@@ -248,11 +248,37 @@ _ROWS = 2_000
 #: _automatic_tabling_observations; print(_automatic_tabling_observations())";
 #: fixture=source-only base 763b7f2d and product at the same path with matching
 #: C and MORK artifacts; commit=bbb512316280110a747e31c26adfc31e8c5104be].
+#: RE-PINNED 2026-09-06 for the 0.8.0 release, every move attributed by a
+#: first-parent sweep of the 65 commits from a94f804c to this tip, three
+#: fresh processes per size and mode at each point, recorded in
+#: docs/journal/2026-09-06-the-release-repin.md. The automatic mode falls
+#: 1,939 at EVERY size, all of it at 653922f1: the ten predicate_property/2
+#: sites that priced an undefined name at the 1,030-inference autoload search
+#: now ask current_predicate/1 or implementation_module/1, and a cached
+#: function's declaration probe is one of them. The rest is a handful of
+#: fixed setup inferences that do not scale with n and are the same class the
+#: entries above record: 4a40c577's annotated arrow product moves plain by
+#: +59/+31/-16/-61 and automatic by +68/+50/+18/-12; 40aca947's per-module
+#: definition pricing moves automatic by -51 at every size; 26f479ba's query
+#: planning moves plain by +29 and automatic by +74 at every size; 9b944a94's
+#: memoisation-as-a-library moves plain by -1 and automatic by +8 at every
+#: size. The growth laws are unchanged: plain stays exponential at 7.8x, 8.0x
+#: and 4.0x per step and automatic stays linear, and the n=20 separation is
+#: 1,748x against the 900x floor below. The pins this replaces were measured
+#: on a branch rather than on the tree that shipped them, which is why plain
+#: already read 66 LOW and automatic 12 HIGH at a94f804c before any of the
+#: merges above [measured 2026-09-06: min-of-three fresh processes per size
+#: and mode; command=$PY -c "from benchmarks.test_benchmarks import
+#: _automatic_tabling_observations;
+#: print(_automatic_tabling_observations())"; fixture=a clone of the branch
+#: whose path is as long as the repository root with the C reader, writer,
+#: JSON codec, chapter-19 artifacts and libmork_ffi.so present and the QLF
+#: warmed, loadavg 12 to 15; commit=b96e1a15260b7538a8e42be613bcc5dd0dddd136].
 _AUTOMATIC_TABLING_PINS = {
-    12: {"plain": 122_101, "automatic": 16_202},
-    15: {"plain": 953_643, "automatic": 17_366},
-    18: {"plain": 7_605_873, "automatic": 18_545},
-    20: {"plain": 30_413_373, "automatic": 19_346},
+    12: {"plain": 122_123, "automatic": 14_372},
+    15: {"plain": 953_645, "automatic": 15_506},
+    18: {"plain": 7_605_815, "automatic": 16_640},
+    20: {"plain": 30_413_255, "automatic": 17_396},
 }
 
 

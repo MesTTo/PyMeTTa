@@ -36,6 +36,11 @@ Assumes:
     instead [tested: test_a_budget_is_two_sided,
     test_an_empirical_envelope_passes_its_observations_and_fails_new_spread;
     commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22]
+  - a twin whose count is measured to track something that is not its work
+    declares its own two-sided ALLOWANCE beside BUDGET, and a re-pin honours
+    it rather than rewriting the number the band holds still
+    [tested: test_a_declared_allowance_widens_one_twins_band_only,
+    test_a_declared_allowance_is_validated; commit=b96e1a15260b7538a8e42be613bcc5dd0dddd136]
   - an assert-family head states one claim, and Python's `assert` is its image
     [source: engine/prelude.metta 56-103; ai-python-first-revamp-discussion.md
     section 9d rule 1, "assert and pytest for the assert family"]
@@ -242,6 +247,29 @@ DEFINITION_COST = 765
 #: commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22].
 TOLERANCE = 4
 
+#: What a twin may declare INSTEAD of the point allowance above, when its own
+#: count is measured to track something that is not its work. It is a point
+#: claim still, two-sided still, and it is never a default: a twin that states
+#: none is held to TOLERANCE, and a twin that states one has to have measured
+#: it, because the paragraph above the declaration is where the measurement
+#: goes.
+#:
+#: The case it exists for is `ch05-.../01-identity.py`, whose count includes a
+#: compile-time term that tracks the engine's own clause layout: on
+#: 2026-09-06 it was re-pinned ten times in one night, every time with the
+#: MeTTa side of the same run unchanged, and appending ONE inert clause to
+#: engine/specializer.pl, engine/filereader.pl or engine/translator/analysis.pl
+#: moves it 3422 to 3432 while the MeTTa side reads 2356 in every arm
+#: [measured 2026-09-06: 0, 1, 2, 4, 8, 16 and 32 inert facts read
+#: 3422/3432/3432/3432/3432/3432/3432 with metta=2356 throughout; command=sh
+#: ai-tmp/layout-probe.sh]. A point pin on that number prices the engine's
+#: predicate set, which no twin is a claim about.
+#:
+#: It applies to a POINT budget only. An empirical envelope already states its
+#: own extrema, and widening measured extrema by a declared number would
+#: report a spread nobody observed, which is the rule TOLERANCE follows above.
+ALLOWANCE_NAME = "ALLOWANCE"
+
 #: A direct check is serial. The shipped lane fixes and names both its executor
 #: width and corpus size, so either scheduling change invalidates an old
 #: empirical claim visibly instead of changing the scheduler under one label
@@ -355,9 +383,10 @@ NAMING_NAMESPACES = frozenset({"S", "V", "fn"})
 MINTING_NAMESPACES = frozenset({"S", "V"})
 
 #: Module-level constants a twin declares ABOUT itself rather than as
-#: program text: the inference pin, and the reason it sits below the top
-#: rung. Both are read from source the way the lane reads BUDGET.
-DECLARATION_NAMES = frozenset({"BUDGET", "RUNG"})
+#: program text: the inference pin, the allowance around it, and the reason it
+#: sits below the top rung. All three are read from source the way the lane
+#: reads BUDGET.
+DECLARATION_NAMES = frozenset({"BUDGET", "RUNG", "ALLOWANCE"})
 
 #: The example heads that STATE A CLAIM. Their Python image is the `assert`
 #: statement, so the lane counts them against the twin's assertions rather
@@ -1911,6 +1940,27 @@ def _empirical_budget(value: dict, twin: Path) -> EmpiricalBudget:
     return EmpiricalBudget(minimum, maximum, observations, protocol)
 
 
+def allowance_of(twin: Path) -> int | None:
+    """The twin's own declared point allowance, or None for the tree's.
+
+    Read from source beside BUDGET and validated the same way, so a
+    negative, fractional or boolean declaration refuses instead of quietly
+    widening or narrowing the band it is supposed to state.
+    """
+    tree = _parse(twin)
+    for node in tree.body if tree else []:
+        if not isinstance(node, ast.Assign):
+            continue
+        for target in node.targets:
+            if isinstance(target, ast.Name) and target.id == ALLOWANCE_NAME:
+                value = ast.literal_eval(node.value)
+                if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+                    msg = f"{twin}: {ALLOWANCE_NAME} must be a non-negative integer"
+                    raise ValueError(msg)
+                return value
+    return None
+
+
 def budget_of(twin: Path) -> int | EmpiricalBudget | None:
     """The twin's own pinned inference count, read from its BUDGET
     assignment without importing it: reading the source keeps this usable
@@ -2196,6 +2246,7 @@ def _budget_findings(
     """
     try:
         budget = budget_of(twin)
+        declared_allowance = allowance_of(twin)
     except (TypeError, ValueError) as error:
         # A malformed declaration reports the error and stops there; reading it
         # as a number below raised TypeError out of the lane instead
@@ -2224,13 +2275,16 @@ def _budget_findings(
                 "inference deterministic tolerance is not added to empirical "
                 "bounds"
             ]
-    elif right.cost is not None and abs(right.cost - budget) > TOLERANCE:
-        moved = "above" if right.cost > budget else "BELOW"
-        return [
-            f"{relative}: the twin cost {right.cost} inferences, {moved} its "
-            f"pinned budget of {budget} by more than the {TOLERANCE} "
-            "deterministic allowance"
-        ]
+    elif right.cost is not None:
+        allowance = TOLERANCE if declared_allowance is None else declared_allowance
+        if abs(right.cost - budget) > allowance:
+            moved = "above" if right.cost > budget else "BELOW"
+            whose = "the deterministic" if declared_allowance is None else "its own declared"
+            return [
+                f"{relative}: the twin cost {right.cost} inferences, {moved} its "
+                f"pinned budget of {budget} by more than {whose} allowance of "
+                f"{allowance}"
+            ]
     return []
 
 
@@ -2488,7 +2542,16 @@ def main() -> int:
                     file=sys.stderr,
                 )
                 continue
-            if abs(cost - budget) <= TOLERANCE:
+            # The twin's own allowance when it declares one, so a re-pin
+            # pass does not rewrite the number a declared band exists to hold
+            # still.
+            try:
+                allowance = allowance_of(twin)
+            except ValueError as error:
+                unmeasured.append(str(twin.relative_to(REPO)))
+                print(f"{twin.relative_to(REPO)}: {error}", file=sys.stderr)
+                continue
+            if abs(cost - budget) <= (TOLERANCE if allowance is None else allowance):
                 continue
             source = twin.read_text(encoding="utf-8")
             try:
