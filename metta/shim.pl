@@ -44,6 +44,22 @@
 %     to the next operation [tested:
 %     test_tagged_algebra_debits_inferences_across_operations;
 %     commit=51e719767e3dd322a9cf88bd096410bbc5647493].
+%   - metta_py_origin/3 answers one row per compiled clause in clause order,
+%     with the file from clause_property/2 or from the loader's ownership
+%     journal and the line left to the position walk in
+%     extensions/python/metta/_source_forms.py [tested:
+%     test_a_head_loaded_from_a_metta_file_names_that_file_and_line,
+%     test_every_clause_of_a_multi_clause_head_answers_in_clause_order,
+%     test_two_files_defining_one_head_keep_each_clause_with_its_own_file,
+%     shim_observation_doors; commit=WORKTREE].
+%   - the thread_message_hook/3 clause here delivers to metta_ops and then
+%     FAILS, so SWI still prints, and it never reenters itself [tested:
+%     test_the_engine_still_prints_its_own_message, shim_observation_doors;
+%     commit=WORKTREE].
+%   - a profile row carries its predicate's source and its ticks in seconds,
+%     converted the way SWI's own report converts them [tested:
+%     test_a_profile_is_the_same_table_every_other_door_answers,
+%     test_a_profile_exports_as_pstats; commit=WORKTREE].
 %   - atomic entry points publish atom hooks after commit, while speculative
 %     and reified-world entry points discard their buffered event segments;
 %     speculative and world execution also fence the non-backtrackable State
@@ -1487,7 +1503,7 @@ metta_py_profile_report_fault(error(evaluation_error(zero_divisor), _), Out) :-
     nonvar(Out), !.
 metta_py_profile_report_fault(Fault, _) :- throw(Fault).
 
-metta_py_profiled(Pred, Ins, [Out, Samples, Ticks, Nodes]) :-
+metta_py_profiled(Pred, Ins, [Out, Samples, Ticks, Seconds, Nodes]) :-
     metta_py_wrapped_goal(Pred, Ins, Out, Goal),
     %A zero-sample profile is a real outcome, not a fault: the comment above
     %says so, and a short goal on a machine whose sampling timer never fires
@@ -1501,31 +1517,73 @@ metta_py_profiled(Pred, Ins, [Out, Samples, Ticks, Nodes]) :-
     with_output_to(string(_),
                    catch(profile(Goal, [top(0)]), Fault,
                          metta_py_profile_report_fault(Fault, Out))),
-    (   catch(metta_py_profile_rows(Samples, Ticks, Nodes),
+    (   catch(metta_py_profile_rows(Samples, Ticks, Seconds, Nodes),
               error(evaluation_error(zero_divisor), _),
               fail)
     ->  true
-    ;   Samples = 0, Ticks = 0, Nodes = []
+    ;   Samples = 0, Ticks = 0, Seconds = 0.0, Nodes = []
     ).
 
 %The rows SWI's own profiler collected, read out of one profile_data/1.
-metta_py_profile_rows(Samples, Ticks, Nodes) :-
+%
+%Each row carries seconds beside its ticks, because a tick count alone cannot
+%be read without the ratio and nothing published the ratio. The conversion is
+%SWI's own, from the report it would have printed: net ticks are the total
+%less the profiler's accounting, and a predicate's share of them is its share
+%of the sampled time [source: SWI-Prolog 10.1.13
+%library/prolog_profile.pl:151,205-210 time_data/7].
+%
+%Each row also carries the file and line its predicate was defined at, from
+%the same two routes metta_py_origin/3 uses, so a profile exported to pstats
+%has the source key every Python profile viewer navigates by.
+metta_py_profile_rows(Samples, Ticks, Seconds, Nodes) :-
     profile_data(Data),
     get_dict(summary, Data, Summary),
     get_dict(samples, Summary, Samples),
     get_dict(ticks, Summary, Ticks),
+    get_dict(accounting, Summary, Accounting),
+    get_dict(time, Summary, Seconds),
+    Net is Ticks - Accounting,
     get_dict(nodes, Data, NodeDicts),
     %sort/4 keys index compounds, not lists, so the self-ticks ride in
     %front as the key of a pair and are stripped after the sort.
-    findall(Self-[PredName, Calls, Redos, Self, Siblings],
+    findall(Self-[PredName, Calls, Redos, Self, Siblings, File, Line,
+                  SelfSeconds, TotalSeconds],
             ( member(Node, NodeDicts),
               get_dict(predicate, Node, P), term_string(P, PredName),
               get_dict(call, Node, Calls), get_dict(redo, Node, Redos),
               get_dict(ticks_self, Node, Self),
-              get_dict(ticks_siblings, Node, Siblings) ),
+              get_dict(ticks_siblings, Node, Siblings),
+              metta_py_predicate_source(P, File, Line),
+              metta_py_tick_seconds(Self, Net, Seconds, SelfSeconds),
+              Both is Self + Siblings,
+              metta_py_tick_seconds(Both, Net, Seconds, TotalSeconds) ),
             Keyed),
     sort(1, @>=, Keyed, SortedKeyed),
     findall(Row, member(_-Row, SortedKeyed), Nodes).
+
+metta_py_tick_seconds(_, Net, _, 0.0) :- Net =< 0, !.
+metta_py_tick_seconds(Ticks, Net, Seconds, Answer) :-
+    Answer is Ticks * Seconds / Net.
+
+%Where a profiled predicate was defined, off its first clause: the same two
+%routes metta_py_origin/3 answers with, reduced to the pair pstats keys a row
+%by. A MeTTa-compiled predicate has no line to give and keeps its file, and a
+%foreign or built-in predicate has neither.
+metta_py_predicate_source(Module:Name/Arity, File, Line) :-
+    atom(Name),
+    integer(Arity),
+    functor(Head, Name, Arity),
+    catch(nth_clause(Module:Head, 1, Ref), _, fail),
+    !,
+    (   clause_property(Ref, file(Path)),
+        clause_property(Ref, line_count(Line))
+    ->  atom_string(Path, File)
+    ;   metta_py_clause_load(Ref, _, Path)
+    ->  atom_string(Path, File), Line = 0
+    ;   File = "", Line = 0
+    ).
+metta_py_predicate_source(_, "", 0).
 
 %What the profiler cannot say about a registered function: which tier put it
 %there, and whether the clause index its callers rely on actually exists.
@@ -4732,6 +4790,135 @@ metta_py_disassemble(Space, Name0, Text) :-
                           ->  listing(Module:Name/A)
                           ;   true ))).
 
+%%%%%%%%%% Source locations %%%%%%%%%%
+%
+% Where a head's clauses were written: one row per compiled clause, in clause
+% order, arities ascending, as [File, Line, FormIndex]. An empty File means the
+% engine knows no source for that clause; Line is -1 and FormIndex -1 when the
+% respective half is unknown.
+%
+% Two routes, because the engine makes clauses two ways and only one of them
+% leaves SWI a source location.
+%
+% A clause SWI loaded from a consulted Prolog file answers file and line off
+% clause_property/2 directly. That is every builtin and every registered Prolog
+% function, and engine/metta/interop.pl:113 already reads the file half of it
+% to refuse a registration that would claim another file's name.
+%
+% A clause the translator built from a MeTTa equation is asserted at runtime,
+% so SWI records nothing about it and clause_property(Ref, file(_)) simply
+% fails [measured 2026-09-06: `car-atom` answers input_guards.pl lines 170-175
+% while a head loaded from a .metta file and one defined through m.run both
+% answer predicate/1 and nothing else; fixture=ai-tmp/obs/probe4.py on this
+% branch]. Its file comes instead from the loader's ownership journal, which
+% already records every reference a load asserted, and its line is left to
+% extensions/python/metta/_source_forms.py. Hence the FORM INDEX: it indexes
+% the same parsed-form list metta_py_read_forms/2 hands that walk, so the two
+% sides share one reader and neither reproduces the other's job -- Prolog owns
+% which form defines a clause, Python owns where a form sits.
+%
+% The clause-to-form correspondence is the loader's own order. A file's
+% equations for one predicate translate in source order and assert in that
+% order, so the k-th clause of Name/Arity owned by a load is the k-th equation
+% for Name/Arity in that load's source. The count is kept per LOAD rather than
+% per predicate, which is what keeps a head defined across two files right.
+metta_py_origin(Space, Name0, Origins) :-
+    ( atom(Name0) -> Name = Name0 ; atom_string(Name, Name0) ),
+    %A deferred function has no clauses until its equations translate, and the
+    %question is about clauses, so asking IS the demand, as .compiled is.
+    spaces:metta_ensure_compiled(Name),
+    space_module(Space, Module),
+    findall(A, arity(Name, A), As0),
+    sort(As0, As),
+    metta_py_origin_arities(As, Module, Name, [], Nested),
+    append(Nested, Origins).
+
+metta_py_origin_arities([], _, _, _, []).
+metta_py_origin_arities([A|As], Module, Name, Sources0, [Rows|Rest]) :-
+    (   current_predicate(Module:Name/A),
+        functor(Head, Name, A)
+    ->  findall(Ref, nth_clause(Module:Head, _, Ref), Refs)
+    ;   Refs = []
+    ),
+    %Clause numbering restarts with each predicate, so the per-load counter
+    %does too; the parsed source cache is shared across arities.
+    metta_py_origin_clauses(Refs, Name, A, [], _, Sources0, Sources1, Rows),
+    metta_py_origin_arities(As, Module, Name, Sources1, Rest).
+
+metta_py_origin_clauses([], _, _, Seen, Seen, Sources, Sources, []).
+metta_py_origin_clauses([Ref|Refs], Name, Arity, Seen0, Seen,
+                        Sources0, Sources, [Row|Rows]) :-
+    metta_py_origin_clause(Ref, Name, Arity, Seen0, Seen1,
+                           Sources0, Sources1, Row),
+    metta_py_origin_clauses(Refs, Name, Arity, Seen1, Seen,
+                            Sources1, Sources, Rows).
+
+metta_py_origin_clause(Ref, _, _, Seen, Seen, Sources, Sources, [File, Line, -1]) :-
+    clause_property(Ref, file(Path)),
+    clause_property(Ref, line_count(Line)),
+    !,
+    atom_string(Path, File).
+metta_py_origin_clause(Ref, Name, Arity, Seen0, Seen, Sources0, Sources,
+                       [File, -1, Index]) :-
+    metta_py_clause_load(Ref, Load, Path),
+    !,
+    atom_string(Path, File),
+    metta_py_load_ordinal(Load, Seen0, Seen, K),
+    metta_py_load_forms(Load, Path, Sources0, Sources, Parsed),
+    (   metta_py_equation_indices(Parsed, Name, Arity, Indices),
+        nth0(K, Indices, Found)
+    ->  Index = Found
+    ;   Index = -1
+    ).
+metta_py_origin_clause(_, _, _, Seen, Seen, Sources, Sources, ["", -1, -1]).
+
+%The load that asserted this clause, and the file that load read. A clause
+%asserted outside any load -- a definition made from Python text, a prelude
+%clause built at boot -- matches nothing here and falls to the last clause
+%above.
+metta_py_clause_load(Ref, Load, Path) :-
+    filereader:source_load_assertion(Load, artifact, Ref),
+    filereader:metta_source_load(Path, _, Load, _),
+    !.
+
+metta_py_load_ordinal(Load, Seen0, Seen, K) :-
+    (   selectchk(Load-K, Seen0, Rest)
+    ->  Next is K + 1,
+        Seen = [Load-Next|Rest]
+    ;   K = 0,
+        Seen = [Load-1|Seen0]
+    ).
+
+%One parse per source per call, and a source this cannot read or parse gives
+%an empty form list rather than an error: a head still knows which FILE it came
+%from when the file has since been deleted or edited into a syntax error, and
+%saying so beats refusing the whole answer.
+metta_py_load_forms(Load, _, Sources, Sources, Parsed) :-
+    memberchk(Load-Parsed, Sources),
+    !.
+metta_py_load_forms(Load, Path, Sources, [Load-Parsed|Sources], Parsed) :-
+    (   catch(filereader:read_source_text(Path, Text), _, fail),
+        catch(filereader:metta_host_tagged_parse(Text, Read), _, fail)
+    ->  Parsed = Read
+    ;   Parsed = []
+    ).
+
+%Which top-level forms are equations for this head at this PREDICATE arity,
+%by their position in the reader's own form list. The predicate carries the
+%output slot the MeTTa call does not, so a form's argument count is one less.
+metta_py_equation_indices(Parsed, Name, Arity, Indices) :-
+    Args is Arity - 1,
+    Args >= 0,
+    findall(I,
+            ( nth0(I, Parsed, Form),
+              metta_py_form_equation(Form, Name, Args) ),
+            Indices).
+
+metta_py_form_equation(parsed(function, _, [=, [Name|Args], _]), Name, N) :-
+    length(Args, N).
+metta_py_form_equation(parsed(function, _, [=, [Name|Args], _], _), Name, N) :-
+    length(Args, N).
+
 %%%%%%%%%% Derivation trees %%%%%%%%%%
 %
 % The classic proof-tree meta-interpreter, rendered in MeTTa terms: every
@@ -5411,6 +5598,81 @@ metta_py_unregister_foreign(Space0) :-
     metta_py_declare_delivery(Space, []),
     retractall(metta_py_foreign(Space)),
     metta_disclaim_space(Space, python).
+
+%%%%%%%%%% Engine messages %%%%%%%%%%
+%
+% Every message the engine prints is also a `metta.engine` log record, so the
+% tool a Python program already configures does the filtering and the
+% formatting, and an engine warning lands in the same place the application's
+% own warnings do.
+%
+% thread_message_hook/3 rather than message_hook/3, for the reason
+% engine/metta/interop.pl:1200 gives and one more. SWI declares it thread_local
+% [source: SWI-Prolog 10.1.13 boot/messages.pl:2083-2084], so a clause
+% consulted here belongs to the thread that consulted this file, which is the
+% thread Python drives the engine on. That IS the thread-safety argument: the
+% Python callback only ever runs inside a crossing this process asked for, on
+% a thread that has an interpreter state, and a message emitted on a Prolog
+% worker thread finds no clause here and prints exactly as it did before
+% [measured 2026-09-06: a clause asserted from one janus crossing is visible
+% in the next on the same thread and absent on a Python worker thread's
+% engine; fixture=ai-tmp/obs/probe_hook.py on this branch].
+%
+% It FAILS after delivering, and must. print_message_guarded/2 reads a
+% succeeding thread_message_hook as "handled", calling neither message_hook/3
+% nor the printer [source: SWI-Prolog 10.1.13 boot/messages.pl:2135-2141], so
+% succeeding here would silence the engine's own stderr. interop.pl's clause
+% fails for that reason too, and both run: they are clauses of one predicate
+% and neither claims the message.
+%
+% Messages emitted before this file is consulted -- the engine's own load --
+% have no hook to reach and print only.
+:- multifile user:thread_message_hook/3.
+user:thread_message_hook(_, Kind, Lines) :-
+    Kind \== silent,
+    \+ nb_current('$metta_py_message_bridge', true),
+    setup_call_cleanup(nb_setval('$metta_py_message_bridge', true),
+                       metta_py_deliver_message(Kind, Lines),
+                       nb_setval('$metta_py_message_bridge', false)),
+    fail.
+
+%The flag above is a guard and not an optimisation: a logging handler that
+%writes its way back into the engine emits from inside this call, and without
+%it the message that raised would re-enter here without end. The Node seat's
+%capture window carries the same flag for the same reason
+%(extensions/node/bridge.pl:139).
+%
+%The rendered text is the lines SWI is about to print, not a second
+%translation of the term, so the record and the stderr line say the same
+%thing. Everything is caught: a message is not a place to fail from, and a
+%Python side that is not ready yet -- metta_ops unimportable, an interpreter
+%shutting down -- must cost the engine nothing but the attempt.
+metta_py_deliver_message(Kind, Lines) :-
+    catch(( metta_py_message_level(Kind, Level),
+            print_message_lines(atom(Text), '', Lines),
+            metta_py_message_location(File, Line),
+            py_call(metta_ops:engine_message(Level, Text, File, Line), _) ),
+          _,
+          true).
+
+%The location SWI's own printer prefixes the message with, so the record says
+%as much as the stderr line beside it. It reads source_location/2 for the same
+%reason print_system_message/3 does, and a message with none -- most of them,
+%outside a load -- carries no location rather than a made-up one
+%[source: SWI-Prolog 10.1.13 boot/messages.pl:2175-2179]. A syntax error is
+%the exception there and here alike: its own location is already inside the
+%rendered text.
+metta_py_message_location(File, Line) :-
+    (   source_location(Path, Line0)
+    ->  atom_string(Path, File), Line = Line0
+    ;   File = "", Line = -1
+    ).
+
+%SWI's kind as the word the Python side maps to a logging level. A compound
+%kind -- debug(Topic) is the one that ships -- carries its functor, and the
+%topic stays SWI's own business.
+metta_py_message_level(Kind, Level) :-
+    ( atom(Kind) -> Level = Kind ; functor(Kind, Level, _) ).
 
 %%%%%%%%%% Subscriptions %%%%%%%%%%
 %

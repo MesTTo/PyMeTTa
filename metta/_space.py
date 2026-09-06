@@ -217,6 +217,10 @@ Guarantees:
     exact loadable text written by ``Space.save(format="metta")``, and its
     notebook representation shows that source [tested:
     test_source_is_the_exact_round_trippable_text_save_view; commit=42502e9d4a7fedd419856d5e6a1c291fc18ba644]
+  - a context refusal for a Space door carries AttributeError's name and obj
+    beside its own remedy, while a private-name probe stays bare [tested:
+    test_a_context_door_that_belongs_to_the_space_still_names_the_remedy;
+    commit=WORKTREE]
 Owns resources:
   - ``Space.save`` owns its sibling temporary file and removes it after every
     failed operation [tested: test_save_failure_preserves_existing_file;
@@ -1356,6 +1360,12 @@ class Space(Handle):
 
             groups, prof = m.profile("!(big-computation)")
             prof.top(5)     # the five predicates the samples landed in
+
+        A row carries the predicate's calls and redos, its ticks, the file
+        and line its clauses were defined at, and its share of the sampled
+        seconds. `prof.as_stats()` answers the same run as a `pstats.Stats`,
+        so `sort_stats("cumulative").print_stats()` reads it and
+        `dump_stats(path)` writes what snakeviz and tuna open.
 
         The sampler is statistical: a program that finishes in
         milliseconds carries few samples, so profile something that runs.
@@ -5515,15 +5525,23 @@ class MeTTa:
             # A private or dunder name is machinery rather than a door: copy,
             # pickle and weakref all probe for names this answers about as
             # Python does, and a slot read during __init__ arrives here too.
-            if not name.startswith("_") and hasattr(Space, name):
+            # Those probes also keep the two suggestion fields off, because
+            # nobody reads a probe's traceback and carrying them costs the
+            # round trip 296 ns against 462 ns [measured 2026-09-06;
+            # command=ai-tmp/obs/probe_attr_cost.py, minimum of nine runs of
+            # 200,000 on CPython 3.14].
+            private = name.startswith("_")
+            if not private and hasattr(Space, name):
                 msg = (
                     f"{type(self).__name__} has no {name!r}: it is a Space door, "
                     f"and a context is not its space. Write `m.self.{name}` to "
                     f"reach the home space, or `m.space(...)` for a named one."
                 )
-                raise AttributeError(msg)
+                raise AttributeError(msg, name=name, obj=self)
             msg = f"{type(self).__name__!r} object has no attribute {name!r}"
-            raise AttributeError(msg)
+            if private:
+                raise AttributeError(msg)
+            raise AttributeError(msg, name=name, obj=self)
 
     @property
     def self(self) -> Space:

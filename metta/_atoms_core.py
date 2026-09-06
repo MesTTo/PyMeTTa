@@ -115,6 +115,9 @@ Guarantees:
     text, the two fields its decoder requires [tested:
     test_native_handles_round_trip_through_the_public_wire_codec;
     commit=9fad0bf6670061a26b1a17d3f566613b7d4d080c]
+  - a symbol answers the ambient space's origins for the head it names, and
+    the empty tuple where nothing compiled under it [tested:
+    test_a_symbol_answers_the_ambient_spaces_origins; commit=WORKTREE]
 Guarded by:
   - _STATE_LOCK protects box identity, formatter registries, and wire interns
     [tested test_atom_identity_caches_are_thread_safe]
@@ -745,6 +748,24 @@ class Symbol(Atom):
     @property
     def metatype(self) -> str:
         return "Symbol"
+
+    @property
+    def origin(self) -> tuple[Any, ...]:
+        """Where the head this name denotes was written, clause by clause.
+
+        The ambient space's own answer, so `metta.fn.car_atom.origin` and
+        `S["car-atom"].origin` read what `m.fn["car-atom"].origin` reads on a
+        space, one `Origin(file, line)` per compiled clause. A name nothing
+        compiled under -- a special form, a symbol that is only data --
+        answers the empty tuple, because having no clauses is what that is.
+
+        It reaches the ambient space the way `cast` does, so the first read
+        starts the engine when nothing else has.
+        """
+        from . import _ambient_space  # noqa: PLC0415  -- root owns ambient scope
+        from ._source_forms import head_origins  # noqa: PLC0415  -- diagnostic path
+
+        return head_origins(_ambient_space(), self.name)
 
     def __call__(self, *args: Any, **kwargs: Any) -> Expression:
         """A symbol applied is an expression headed by it: S.likes(S.Ada).

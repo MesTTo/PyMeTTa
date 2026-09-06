@@ -11,6 +11,9 @@ Guarantees:
     owning satellites [tested:
     test_context_snapshot_crosses_every_spawn_door_including_thread_workers,
     test_an_async_operation_answers_a_future_space; commit=39092863ae34184a9f955f185ff57c1ff177ec40]
+  - the engine-message callback resolves lazily to the runtime module that
+    owns the metta.engine logger [tested:
+    test_an_engine_warning_becomes_a_warning_record; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -20,6 +23,7 @@ Open Obligations:
 from __future__ import annotations
 
 import importlib as _importlib
+import sys as _sys
 from typing import Any as _Any
 
 _CALLBACKS = {
@@ -33,6 +37,7 @@ _CALLBACKS = {
     "capture_contexts": ("_task_context", "snapshot_many"),
     "construct_token": ("_tokens", "construct_token"),
     "dispatch": ("_ops", "dispatch"),
+    "engine_message": ("_engine", "engine_message"),
     "dispatch_context": ("_ops", "dispatch_context"),
     "dispatch_inverse": ("_ops", "dispatch_inverse"),
     "dispatch_inverse_context": ("_ops", "dispatch_inverse_context"),
@@ -79,6 +84,7 @@ capture_context: _Any
 capture_contexts: _Any
 construct_token: _Any
 dispatch: _Any
+engine_message: _Any
 dispatch_context: _Any
 dispatch_inverse: _Any
 dispatch_inverse_context: _Any
@@ -134,6 +140,7 @@ __all__ = [
     "dispatch_raw_context",
     "dispatch_raw_many",
     "dispatch_raw_many_context",
+    "engine_message",
     "foreign_add",
     "foreign_add_many",
     "foreign_atoms",
@@ -164,7 +171,7 @@ def __getattr__(name: str) -> _Any:
         module_name, attribute = _CALLBACKS[name]
     except KeyError:
         msg = f"module {__name__!r} has no attribute {name!r}"
-        raise AttributeError(msg) from None
+        raise AttributeError(msg, name=name, obj=_sys.modules[__name__]) from None
     module = _importlib.import_module(f"{__package__}.{module_name}")
     value = getattr(module, attribute)
     globals()[name] = value

@@ -41,6 +41,10 @@ Guarantees:
     test_from_pattern_generates_ground_instances_without_losing_aliases and
     test_from_pattern_draws_anonymous_occurrences_independently;
     commit=5750e8fe84d8e933c1b5ef5d08c801846c8e5eb8]
+  - the module names both compliance suites in __dir__ and carries the asked
+    name on a refusal, without resolving either import [tested:
+    test_the_testing_module_names_both_suites_without_importing_them;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -49,6 +53,7 @@ Open Obligations:
 
 from __future__ import annotations
 
+import sys
 from types import GeneratorType
 
 from ._codec_kit import CodecDriver, check_codec, codec_corpus, codec_plan
@@ -132,7 +137,16 @@ def __getattr__(name: str):
 
         return GatewayComplianceSuite
     msg = f"module {__name__!r} has no attribute {name!r}"
-    raise AttributeError(msg)
+    raise AttributeError(msg, name=name, obj=sys.modules[__name__])
+
+
+def __dir__() -> list[str]:
+    """Name both compliance suites without resolving either import.
+
+    Completion and the interpreter's own did-you-mean read this, and both
+    names live behind PEP 562 until first use.
+    """
+    return sorted(__all__)
 
 
 def _st():

@@ -1398,6 +1398,12 @@ class AsyncMeTTa:
             groups, prof = m.profile("!(big-computation)")
             prof.top(5)     # the five predicates the samples landed in
 
+        A row carries the predicate's calls and redos, its ticks, the file
+        and line its clauses were defined at, and its share of the sampled
+        seconds. `prof.as_stats()` answers the same run as a `pstats.Stats`,
+        so `sort_stats("cumulative").print_stats()` reads it and
+        `dump_stats(path)` writes what snakeviz and tuna open.
+
         The sampler is statistical: a program that finishes in
         milliseconds carries few samples, so profile something that runs.
         Profiling changes execution; it is a debugging surface, not a

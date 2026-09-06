@@ -87,6 +87,11 @@ Guarantees:
     advisory ordering evidence for Space.lint [tested:
     test_zip_over_unordered_answers_is_lawful_and_linted,
     test_reversed_over_unordered_answers_is_lawful_and_linted; commit=acb40f1912f131ae088083d1af29b4b283019bea]
+  - a row, a table and an answer view each name their columns in __dir__ and
+    carry them on a refusal, so the interpreter's suggestion and the
+    library's sentence agree about the same mistake [tested:
+    test_a_row_offers_its_own_columns,
+    test_a_projection_answers_its_columns_from_dir; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -223,9 +228,11 @@ class Row(tuple):
             return self[type(self)._columns.index(name)]
         except ValueError:
             msg = _missing_column(name, type(self)._columns)
-            raise AttributeError(
-                msg
-            ) from None
+            raise AttributeError(msg, name=name, obj=self) from None
+
+    def __dir__(self) -> list[str]:
+        """Name this answer's columns beside a tuple's own attributes."""
+        return sorted(set(super().__dir__()) | set(type(self)._columns))
 
     def __getitem__(self, key):  # noqa: D105  -- the Python data-model hook is defined by its name and enclosing type contract
         # A column NAME works everywhere an index does, and it is the only
@@ -344,7 +351,7 @@ class Rows(UserList[Row]):
         try:
             return self._column(name)
         except KeyError as exc:
-            raise AttributeError(str(exc)) from None
+            raise AttributeError(str(exc), name=name, obj=self) from None
 
     def __dir__(self) -> list[str]:  # noqa: D105  -- completion exposes the documented projection columns
         return sorted(set(super().__dir__()) | set(self.columns))
@@ -1098,7 +1105,7 @@ class Answers[T](Sequence[T]):
                     f"no answer variable {name!r}; variables are "
                     f"{list(self._columns)}{suggestion}"
                 )
-            raise AttributeError(msg)
+            raise AttributeError(msg, name=name, obj=self)
         index = self._columns.index(name)
 
         def values() -> Iterator[Any]:

@@ -1545,10 +1545,11 @@ def test_profile_counts_samples_on_real_work(m):  # noqa: D103  -- pytest discov
         "!(with-pragma! ((max-stack-depth 30000000)) (prof-spin 10000000))"
     )
     assert groups == [[S.done]]
-    assert prof.samples > 0 and prof.ticks > 0
+    assert prof.samples > 0 and prof.ticks > 0 and prof.seconds > 0
     assert len(prof.nodes) >= 1
-    predicate, _calls, _redos, ticks_self, _siblings = prof.nodes[0]
-    assert isinstance(predicate, str) and ticks_self >= 0
+    row = prof.nodes[0]
+    assert isinstance(row.predicate, str) and row.ticks_self >= 0
+    assert row.seconds_self >= 0 and row.seconds_total >= row.seconds_self
     assert prof.top(1) == prof.nodes[:1]
     assert "samples" in repr(prof)
 
@@ -1569,12 +1570,76 @@ def test_a_profile_is_the_same_table_every_other_door_answers(m):
     assert isinstance(prof.nodes, Rows)
     assert prof.nodes.columns == (
         "predicate", "calls", "redos", "ticks_self", "ticks_siblings",
+        "file", "line", "seconds_self", "seconds_total",
     )
     assert isinstance(prof.top(3), Rows), "a slice keeps the table type"
 
     row = prof.nodes[0]
-    assert (row.predicate, row.calls, row.redos, row.ticks_self, row.ticks_siblings) == tuple(row)
+    assert (
+        row.predicate, row.calls, row.redos, row.ticks_self, row.ticks_siblings,
+        row.file, row.line, row.seconds_self, row.seconds_total,
+    ) == tuple(row)
     assert prof.nodes.predicate[0] == row.predicate, "and the column projects"
+
+
+def test_a_profile_exports_as_pstats(m):
+    """SWI's profile in the currency every Python profile viewer reads.
+
+    `pstats.Stats` is what `snakeviz` and `tuna` open and what
+    `sort_stats`/`print_stats` operate on, so exporting to it is what makes
+    the engine's sampler visible to tooling nobody has to write. The key is
+    (file, line, function), so a predicate defined in a file is navigable
+    and one without a source keeps pstats' own ('~', 0) spelling.
+    """
+    import io
+    import pstats
+
+    m.run("(= (prof-stats $n) (if (== $n 0) done (prof-stats (- $n 1))))")
+    _groups, prof = m.profile("!(prof-stats 20000)")
+
+    stats = prof.as_stats()
+    assert isinstance(stats, pstats.Stats)
+    assert len(stats.stats) == len(prof.nodes)
+
+    row = prof.nodes[0]
+    key = (row.file or "~", row.line, row.predicate)
+    calls, primitive, tottime, cumtime, callers = stats.stats[key]
+    assert calls == primitive == row.calls
+    assert tottime == pytest.approx(row.seconds_self)
+    assert cumtime == pytest.approx(row.seconds_total)
+    assert callers == {}, "the caller graph is left empty rather than guessed"
+
+    printed = io.StringIO()
+    stats.stream = printed
+    stats.sort_stats("cumulative").print_stats(5)
+    report = printed.getvalue()
+    assert "Ordered by: cumulative time" in report
+    assert "ncalls" in report and "cumtime" in report
+
+    ordered = [key[2] for key in stats.fcn_list]
+    cumulative = {key: values[3] for key, values in stats.stats.items()}
+    by_name = {key[2]: value for key, value in cumulative.items()}
+    assert [by_name[name] for name in ordered] == sorted(
+        (by_name[name] for name in ordered), reverse=True
+    ), "sort_stats put the report in cumulative order"
+
+
+def test_an_unsampled_profile_still_exports():
+    """Export an empty profile rather than raising on one.
+
+    A sampler that never fired collected nothing, which is an honest
+    profile; pstats refuses to LOAD an empty mapping, so the empty case is
+    built the way pstats builds an empty one.
+    """
+    import pstats
+
+    from metta._space_objects import EngineProfile
+
+    empty = EngineProfile(0, 0, 0.0, [])
+    assert empty.nodes.columns == EngineProfile.COLUMNS
+    stats = empty.as_stats()
+    assert isinstance(stats, pstats.Stats)
+    assert stats.stats == {}
 
 
 # profile() answers over every predicate in the process. A library author's

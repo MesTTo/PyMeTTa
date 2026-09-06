@@ -71,6 +71,9 @@ Guarantees:
     where the answers were never pulled as well [tested:
     test_a_counted_view_releases_its_engine_when_it_is_dropped;
     commit=57f21ba9edf94bcf28cde11f938bce2c241a3709]
+  - a profiled run answers the sampler's seconds beside its ticks, so a
+    profile row can be read without knowing the tick ratio [tested:
+    test_profile_counts_samples_on_real_work; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -366,13 +369,13 @@ def profile_source(
     inferences: int | None,
 ) -> tuple[list[list[Atom]], EngineProfile]:
     predicate, inputs = _run_target(space, source, using)
-    output, samples, ticks, nodes = _controlled_run(
+    output, samples, ticks, seconds, nodes = _controlled_run(
         rt,
         "metta_py_profiled",
         [predicate, inputs],
         _limits(timeout, inferences) or (-1.0, -1, -1),
     )
-    return _decode_groups(output), EngineProfile(samples, ticks, nodes)
+    return _decode_groups(output), EngineProfile(samples, ticks, seconds, nodes)
 
 
 # The profiler names a predicate the way Prolog writes it, module and arity

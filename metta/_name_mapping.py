@@ -89,7 +89,10 @@ def operator_attribute_target(identifier: str) -> str | OperatorRecipe | None:
             f"operator word {identifier!r} has no single engine head; "
             f"its image is {image}"
         )
-        raise AttributeError(msg)
+        #No obj: the refusal names the image rather than a near miss, so there
+        #is nothing for the interpreter to suggest and no receiver to draw one
+        #from. The name is set because it is what was asked for.
+        raise AttributeError(msg, name=identifier)
     return OPERATOR_WORDS.get(identifier)
 
 

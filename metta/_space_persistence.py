@@ -28,6 +28,10 @@ Guarantees:
     the root atom count [tested:
     test_fast_cache_restores_translator_rules_and_bound_spaces;
     commit=d2279ea320e54790dab4484421a168e93755b185]
+  - the load door raises sys.audit("metta.host", "load", path) before it
+    reads, so an audit hook can refuse the load [tested:
+    test_the_load_door_raises_its_event,
+    test_a_hook_can_refuse_a_door_by_raising; commit=WORKTREE]
 Owns resources:
   - save_space owns one sibling temporary file and removes it after every
     failed or successful save
@@ -44,6 +48,7 @@ import gzip
 import os
 import re
 import stat
+import sys
 import tempfile
 from pathlib import Path
 from typing import Literal
@@ -383,6 +388,10 @@ def load_space(
     so the predicate name remains closed even on the stack-aware route.
     """
     file = str(path)
+    # A loaded file carries `!` directives and an import graph, so it runs
+    # code the caller may not have written. Raised before the read, so an
+    # audit hook can refuse it, which is what PEP 578 events are for.
+    sys.audit("metta.host", "load", file)
     bounds = _limits(timeout, inferences) or (-1.0, -1, -1)
     try:
         with _open_maybe_gz(file, "rb") as handle:

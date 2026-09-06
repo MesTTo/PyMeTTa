@@ -75,6 +75,9 @@ Guarantees:
     test_fold_into_state_updates_the_shared_engine_cell,
     test_fold_under_counting_and_tropical_uses_the_algebra_as_the_step;
     commit=c7468b2789746bcf95c4bacc0e2d517ec4d972fa]
+  - an event names its bindings in __dir__ and carries the asked name on a
+    refusal, so a mistyped binding is suggested from the bindings [tested:
+    test_a_projection_answers_its_columns_from_dir; commit=WORKTREE]
 Guarded by:
   - _FoldRegistry._lock protects fold state, the active runtime, delivery
     counts, and engine subscription snapshots [tested
@@ -122,7 +125,11 @@ class Event:
             return self.bindings[name]
         except KeyError:
             msg = f"no event binding {name!r}; bindings are {list(self.bindings)}"
-            raise AttributeError(msg) from None
+            raise AttributeError(msg, name=name, obj=self) from None
+
+    def __dir__(self) -> list[str]:
+        """The projected bindings beside the record's own fields."""
+        return sorted(set(super().__dir__()) | set(self.bindings))
 
 
 #: The step a fold runs per event. It receives the accumulated state and the
