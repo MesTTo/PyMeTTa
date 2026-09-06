@@ -21,6 +21,11 @@ Guarantees:
     [tested: test_atom_metadata_refines_annotation_alternatives,
     test_two_values_of_one_base_type_are_distinguishable_by_their_metadata;
     commit=4eaefdd8d40e53b2613722287302a14b41704662]
+  - an annotated_types constraint refines the same way, through its encoded
+    atom, when that atom's head is in the catalog's refinement vocabulary;
+    ``doc`` and ``Timezone`` stay in the annotation claim alone
+    [tested: test_a_refined_signature_declares_the_refined_arrow,
+    test_doc_and_timezone_stay_in_the_annotation_claim; commit=19093dd75eda0102eb0329a71460e8a0c7a0c727]
   - the public Space handle annotation denotes the engine's ``SpaceType``
     instead of declaring an unrelated user type [tested:
     test_compiled_removal_statements_preserve_one_many_missing_and_target_scope;
@@ -54,6 +59,7 @@ from typing import Any
 from ._config import config
 from ._convert_registry import _lookup as _lookup_conversion
 from ._parameterized import hook_for as _parameterized_hook
+from ._refinements import refinement_atom
 from .atoms import Atom, Expression, Grounded, S, Symbol, Undefined, Variable, _encode, _expr
 
 _TYPE_NAMES: tuple[tuple[type, str], ...] = (
@@ -277,9 +283,11 @@ def type_atoms_for(annotation: Any) -> list[Atom]:
     if origin is typing.Annotated:
         base, *metadata = typing.get_args(annotation)
         alternatives = type_atoms_for(base)
-        # An Atom already names MeTTa structure at a type boundary. Host
-        # metadata remains in annotation_atom_for's catalog projection.
-        refinements = [item for item in metadata if isinstance(item, Atom)]
+        # An Atom already names MeTTa structure at a type boundary, and a
+        # metadata object whose atom heads the refinement vocabulary is a
+        # constraint the engine decides on the value. Every other item stays
+        # in annotation_atom_for's catalog projection.
+        refinements = [atom for atom in map(refinement_atom, metadata) if atom is not None]
         if refinements:
             return [Expression([S.Annotated, atom, *refinements]) for atom in alternatives]
         return alternatives
@@ -562,7 +570,10 @@ def resolved_annotations(fn: Callable) -> dict[str, Any]:
         or inspect.ismodule(fn)
         or inspect.isbuiltin(fn)
     ):
-        fn = type(fn).__call__
+        #An instance that names what it wraps, a Defined and its twin
+        #dispatcher among them, carries that function's annotations; only an
+        #instance that wraps nothing is asked about its __call__.
+        fn = inspect.unwrap(fn) if hasattr(fn, "__wrapped__") else type(fn).__call__
     try:
         return typing.get_type_hints(fn, include_extras=True)
     except Exception:  # noqa: BLE001  -- the per-annotation pass reports which annotation failed and why

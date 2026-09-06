@@ -1799,3 +1799,21 @@ def test_an_unresolvable_annotation_is_not_a_space_parameter(m):
     held += S.marker(1)
     assert list(removes(held, S.marker(1))) == [S.done]
     assert list(held[S.marker(V.n)]) == []
+
+
+def test_a_twin_carries_the_definitions_resolved_annotations(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
+    from typing import Annotated, get_type_hints
+
+    from annotated_types import Gt
+
+    @m.define
+    def positive_twice(x: Annotated[int, Gt(0)]) -> int:
+        return x * 2
+
+    # The twin names what it wraps, so the readers that follow wrappers
+    # resolve the definition's own annotations through it.
+    assert get_type_hints(positive_twice.py, include_extras=True) == {
+        "x": Annotated[int, Gt(0)],
+        "return": int,
+    }
+    assert get_type_hints(positive_twice, include_extras=True)["x"] == Annotated[int, Gt(0)]

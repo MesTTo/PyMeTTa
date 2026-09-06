@@ -132,6 +132,7 @@ __all__ = [
     "OnError",
     "OpKind",
     "OutOfClausesEnum",
+    "Refinement",
     "RegistryImage",
     "RouteKey",
     "SaveFormat",
@@ -193,7 +194,7 @@ class AgendaPolicy(_AtomStrEnum):
     priority = "priority"
     user = "user"
 
-#: (vocabulary algebra-law combine-associative combine-commutative extend-associative extend-commutative left-distributive right-distributive combine-idempotent combine-zero-identity extend-one-identity extend-zero-annihilates contraction associative commutative distributive idempotent)
+#: (vocabulary algebra-law combine-associative combine-commutative extend-associative extend-commutative left-distributive right-distributive combine-idempotent combine-zero-identity extend-one-identity extend-zero-annihilates contraction roundtrip equivalent associative commutative distributive idempotent identity distributes-over)
 class AlgebraLaw(_AtomStrEnum):
     """Typed values of the algebra-law vocabulary."""
     combine_associative = "combine-associative"
@@ -207,10 +208,14 @@ class AlgebraLaw(_AtomStrEnum):
     extend_one_identity = "extend-one-identity"
     extend_zero_annihilates = "extend-zero-annihilates"
     contraction = "contraction"
+    roundtrip = "roundtrip"
+    equivalent = "equivalent"
     associative = "associative"
     commutative = "commutative"
     distributive = "distributive"
     idempotent = "idempotent"
+    identity = "identity"
+    distributes_over = "distributes-over"
 
 #: (vocabulary answer-policy depth fair best-first)
 class AnswerPolicy(_AtomStrEnum):
@@ -321,6 +326,21 @@ class OpKind(_AtomStrEnum):
     async_ = "async"
     raw_det = "raw_det"
     raw_many = "raw_many"
+
+#: (vocabulary refinement Gt Ge Lt Le Interval MultipleOf MinLen MaxLen Len Predicate Unit)
+class Refinement(_AtomStrEnum):
+    """Typed values of the refinement vocabulary."""
+    Gt = "Gt"
+    Ge = "Ge"
+    Lt = "Lt"
+    Le = "Le"
+    Interval = "Interval"
+    MultipleOf = "MultipleOf"
+    MinLen = "MinLen"
+    MaxLen = "MaxLen"
+    Len = "Len"
+    Predicate = "Predicate"
+    Unit = "Unit"
 
 #: (vocabulary registry-image expression symbol handle operations)
 class RegistryImage(_AtomStrEnum):

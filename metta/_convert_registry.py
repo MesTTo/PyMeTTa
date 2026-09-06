@@ -22,6 +22,15 @@ Guarantees:
     registration, while a defaulted InitVar remains reconstructible
     [tested: test_each_remaining_annotation_shape_refuses_or_carries;
      commit=ff4ac16f07a6e373e79ed0eae0a4c2d64cb92550]
+  - a class that states its positional fields through ``__match_args__``, a
+    plain class or an attrs class, destructures field-wise by default with
+    the positional constructor as its reverse; attrs state outside that
+    tuple and a required constructor parameter it does not name are refused
+    rather than lost, and an Atom class has no default image at all
+    [tested: test_a_plain_class_with_match_args_destructures_by_default,
+    test_an_attrs_class_destructures_by_default,
+    test_match_args_registration_refuses_hidden_state;
+    commit=19093dd75eda0102eb0329a71460e8a0c7a0c727]
 Guarded by:
   - _REGISTRY_LOCK protects registrations, constructors, and type owners
     [tested test_registration_collisions_are_serialized]
@@ -41,6 +50,8 @@ import typing
 from collections.abc import Callable
 from enum import Enum
 from typing import Any, NamedTuple
+
+from ._atoms_core import Atom
 
 IMAGES = ("symbol", "expression", "handle", "operations")
 
@@ -357,6 +368,10 @@ def explicitly_registered(cls: type) -> bool:
 
 def _default_registration(cls: type) -> _Registration | None:
     """The image common types get without being registered."""
+    # An atom IS the translation; its __match_args__ states destructuring
+    # for Python's match statement, not a constructor image.
+    if issubclass(cls, Atom):
+        return None
     if issubclass(cls, Enum):
         return _Registration("symbol", None, None, cls.__name__, (), (), explicit=False)
     # A pydantic model is a constructor expression like a dataclass, its
@@ -371,6 +386,17 @@ def _default_registration(cls: type) -> _Registration | None:
         return _dataclass_registration(cls)
     if issubclass(cls, tuple) and hasattr(cls, "_fields"):  # NamedTuple
         return _named_tuple_registration(cls)
+    match_args = getattr(cls, "__match_args__", None)
+    if (
+        isinstance(match_args, tuple)
+        and match_args
+        and all(isinstance(name, str) for name in match_args)
+        # A class that says how it crosses through __metta__ has spoken; a
+        # default derived beside it would claim the type name for a
+        # projection the hook never uses.
+        and inspect.getattr_static(cls, "__metta__", None) is None
+    ):
+        return _match_args_registration(cls, match_args)
     return None
 
 
@@ -422,18 +448,7 @@ def _dataclass_registration(cls: type) -> _Registration:
             msg
         )
     names = tuple(field.name for field in data_fields)
-    required_non_fields = tuple(
-        parameter.name
-        for parameter in inspect.signature(cls).parameters.values()
-        if parameter.name not in names
-        and parameter.default is inspect.Parameter.empty
-        and parameter.kind
-        in (
-            inspect.Parameter.POSITIONAL_ONLY,
-            inspect.Parameter.POSITIONAL_OR_KEYWORD,
-            inspect.Parameter.KEYWORD_ONLY,
-        )
-    )
+    required_non_fields = _required_parameters_outside(cls, names)
     if required_non_fields:
         listed = ", ".join(required_non_fields)
         msg = (
@@ -446,6 +461,76 @@ def _dataclass_registration(cls: type) -> _Registration:
         "expression",
         lambda obj: tuple(getattr(obj, name) for name in names),
         lambda *parts: cls(**dict(zip(names, parts, strict=True))),
+        cls.__name__,
+        names,
+        _field_types(cls, names),
+        explicit=False,
+    )
+
+
+def _required_parameters_outside(cls: type, names: tuple[str, ...]) -> tuple[str, ...]:
+    """Constructor parameters with no default that the projected fields do not name.
+
+    Each is state the positional or keyword rebuild cannot supply, so a
+    registration that would lose it is refused before any data is lost. A
+    class whose signature cannot be read has nothing to report here.
+    """
+    try:
+        parameters = inspect.signature(cls).parameters.values()
+    except (TypeError, ValueError):
+        return ()
+    return tuple(
+        parameter.name
+        for parameter in parameters
+        if parameter.name not in names
+        and parameter.default is inspect.Parameter.empty
+        and parameter.kind
+        in (
+            inspect.Parameter.POSITIONAL_ONLY,
+            inspect.Parameter.POSITIONAL_OR_KEYWORD,
+            inspect.Parameter.KEYWORD_ONLY,
+        )
+    )
+
+
+def _match_args_registration(cls: type, names: tuple[str, ...]) -> _Registration:
+    """The image a class states for itself through PEP 634's ``__match_args__``.
+
+    The tuple is the class's own statement of its positional fields, and the
+    reverse the same tuple promises is the positional constructor call. attrs
+    sets it for every ``define``d class and a plain class may set it by hand;
+    dataclasses and NamedTuples never reach here because their own rules run
+    first. Hidden state is refused the way the dataclass rule refuses
+    ``init=False``: an attrs attribute the tuple does not name, ``init=False``
+    or ``kw_only``, would be dropped or reset on the way back, and so would a
+    required constructor parameter outside the tuple.
+    """
+    hidden = tuple(
+        attribute.name
+        for attribute in getattr(cls, "__attrs_attrs__", ())
+        if attribute.name not in names
+    )
+    if hidden:
+        listed = ", ".join(hidden)
+        msg = (
+            f"{cls.__name__} keeps attrs state its __match_args__ does not "
+            f"name ({listed}), which the positional rebuild would lose; "
+            "register the type explicitly with to_atom and from_atom"
+        )
+        raise TypeError(msg)
+    required = _required_parameters_outside(cls, names)
+    if required:
+        listed = ", ".join(required)
+        msg = (
+            f"{cls.__name__} requires constructor state its __match_args__ "
+            f"does not name ({listed}); give it a default or register an "
+            "explicit conversion"
+        )
+        raise TypeError(msg)
+    return _Registration(
+        "expression",
+        lambda obj: tuple(getattr(obj, name) for name in names),
+        cls,
         cls.__name__,
         names,
         _field_types(cls, names),

@@ -50,6 +50,10 @@ Guarantees:
     namespace for math functions, retaining reflected dispatch and library
     result types [tested: test_numpy_numeric_family_keeps_python_result_types
     and test_user_numeric_subclass_uses_its_own_operator; commit=a0f1cc5f15a15e5ca6958fe02a20be8832c7237f]
+  - a scalar comparison over a host numeric answers Python's bool, so it
+    crosses as the MeTTa boolean `if` and `==` read, while an array comparison
+    keeps its array [tested: test_a_numpy_scalar_comparison_answers_the_metta_boolean;
+    commit=19093dd75eda0102eb0329a71460e8a0c7a0c727]
   - iterator objects crossing through resolve(), evaluate(), dot(), apply(), or
     a grounded transport envelope acquire one lazy shared cache; iterate()
     returns an independent cursor at index zero, while iterate_once() exposes
@@ -400,6 +404,9 @@ _BINARY_NUMERIC_OPERATORS = {
     "pow-math": operator.pow,
 }
 
+#: The comparisons whose scalar answer is a MeTTa boolean rather than a host value.
+_COMPARISON_OPERATIONS = frozenset({"<", "<=", ">", ">="})
+
 _ARRAY_NUMERIC_OPERATORS = {
     "sqrt-math": "sqrt",
     "abs-math": "abs",
@@ -480,7 +487,15 @@ def numeric_operation(name: str, args: Sequence[Any]) -> Any:
     if binary is not None:
         if name in ("min", "max"):
             return binary(values)
-        return binary(*values)
+        result = binary(*values)
+        # A scalar comparison answers Python's own bool. numpy's `int64(5) < 6`
+        # is `np.True_`, a zero-dimensional object janus carries whole rather
+        # than as the MeTTa boolean, so `(if (< x 6) yes no)` answered `no`
+        # and `(== (< x 6) True)` answered False for every numpy scalar. An
+        # array comparison keeps its array, whose truth is element-wise.
+        if name in _COMPARISON_OPERATIONS and getattr(result, "ndim", 0) == 0:
+            return bool(result)
+        return result
 
     namespace = _array_namespace(values)
     if name == "log-math":

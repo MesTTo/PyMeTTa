@@ -432,6 +432,17 @@ class Defined[**P, R]:
         return self._py
 
     @property
+    def __annotations__(self) -> dict[str, Any]:  # type: ignore[override]
+        """The definition's annotations, as the twin carries them.
+
+        `typing.get_type_hints(defined)` reads this attribute and follows
+        `__wrapped__` for the globals, so the declared `Annotated` types are
+        reachable from the head itself
+        [tested: test_a_twin_carries_the_definitions_resolved_annotations].
+        """
+        return dict(getattr(self._py, "__annotations__", {}))
+
+    @property
     def __doc__(self) -> str | None:  # type: ignore[override]
         """The canonical first clause's cleaned Python docstring."""
         return self.doc

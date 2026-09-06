@@ -32,8 +32,8 @@ disable_error_code = ["misc"]
 
 [[tool.mypy.overrides]]
 module = [
-    "array_api_compat", "faiss", "hypothesis", "numpy", "pandas",
-    "nanoarrow", "nanoarrow.*", "polars", "rich.*", "websocket",
+    "annotated_types", "array_api_compat", "faiss", "hypothesis", "numpy",
+    "nanoarrow", "nanoarrow.*", "pandas", "polars", "rich.*", "websocket",
 ]
 ignore_missing_imports = true
 follow_imports = "skip"
