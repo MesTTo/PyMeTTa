@@ -31,7 +31,8 @@ class _GenerationRuntime:
         self.generation_reads += 1
         return self.generation
 
-    def builtins(self):
+    def builtins(self, space=None):
+        assert space == "&self", "the per-space catalogue names its space"
         self.catalogue_reads += 1
         return list(self.names)
 

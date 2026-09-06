@@ -596,7 +596,9 @@ def test_algebra_law_vocabulary_drives_aliases_and_unknown_refusals(metta):
         "associative": ("combine-associative", "extend-associative"),
         "commutative": ("combine-commutative",),
         "distributive": ("left-distributive", "right-distributive"),
+        "distributes-over": ("left-distributive", "right-distributive"),
         "idempotent": ("combine-idempotent",),
+        "identity": ("combine-zero-identity", "extend-one-identity"),
         "contraction": ("contraction",),
     }
     assert module._catalog_law_aliases(metta) == expected_aliases
@@ -621,11 +623,11 @@ def test_algebra_law_vocabulary_drives_aliases_and_unknown_refusals(metta):
             extend="min",
             zero=0,
             one=1,
-            laws=("identity",),
+            laws=("transitive",),
         )
     accepted = ", ".join(member.value for member in AlgebraLaw)
     assert str(refusal.value) == (
-        "algebra_law_unknown(['identity']); accepted laws are " + accepted
+        "algebra_law_unknown(['transitive']); accepted laws are " + accepted
     )
 
 

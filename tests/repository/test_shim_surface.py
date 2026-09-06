@@ -235,6 +235,11 @@ HOST_SERVICES = {
     # engine's (engine/metta/refinements.pl) and the shim only asks it; the
     # orchestration, get-type then get-metatype then this, was already here.
     "metta_refinement_violation/3",
+    # The per-space function catalogue: which registered heads ONE space can
+    # call, fun_here/1's rule with the module explicit. The rule is the
+    # engine's (engine/metta/registration.pl) and the shim only asks it, per
+    # catalogue build and per attribute miss.
+    "metta_host_function_callable_from/2",
     "sread_with_names/3",
     "swrite_with_names/3",
     # Eval crosses through a cached translation template while source forms
@@ -291,6 +296,7 @@ FLOOR_REASONS = {
     "metta_annotation/2": "door",
     "metta_k_extend/4": "door",
     "metta_refinement_violation/3": "door",
+    "metta_host_function_callable_from/2": "door",
     "match_foreign/5": "door",
     "metta_add_atoms/2": "door",
     "metta_assert_space_releasable/1": "door",

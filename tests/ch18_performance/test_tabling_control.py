@@ -176,6 +176,7 @@ def test_live_call_populates_the_shared_table(m):
             S.complete_call(1),
             S.invalidated(0),
             S.reevaluated(0),
+            S.policy(S.incremental(S.shared)),
         ]
     finally:
         assert m.eval(S.untabled(call)) == [True]

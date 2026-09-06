@@ -4768,24 +4768,18 @@ metta_py_builtins(Names) :-
 %[measured 2026-09-07: 800 equations in one space made another space's
 %namespace list 1,107 names and lose "Did you mean: 'dbl'?"; the same space
 %alone lists 306]. The rule is the engine's own fun_here/1 with the module
-%made explicit: an unscoped name (a builtin, a Python operation registered
-%into &self, a prelude rule) answers everywhere, a scoped one answers where
-%fun_here_in/2 says its clauses are visible from, which is its own module, a
-%parent it inherits from, or &self.
+%made explicit, metta_host_function_callable_from/2: an unscoped name (a
+%builtin, a Python operation registered into &self, a prelude rule) answers
+%everywhere, a scoped one answers where its clauses are visible from, which is
+%its own module, a parent it inherits from, or &self.
 metta_py_builtins(Space0, Names) :-
     ( atom(Space0) -> Space = Space0 ; atom_string(Space, Space0) ),
     metta_py_module(Space, Module),
-    findall(N, ( fun(N), metta_py_callable_from(Module, N) ), Functions),
+    findall(N, metta_host_function_callable_from(Module, N), Functions),
     metta_py_special_form_names(SpecialForms),
     append(Functions, SpecialForms, Language0),
     sort(Language0, Language),
     maplist(atom_string, Language, Names).
-
-metta_py_callable_from(Module, N) :-
-    (   \+ fun_scoped(N)
-    ->  true
-    ;   fun_here_in(Module, N)
-    ).
 
 metta_py_function_generation(Generation) :-
     metta_host_function_generation(Generation).
@@ -4819,7 +4813,7 @@ metta_py_catalogue_member(Space0, Name0) :-
     ( atom(Name0) -> Name = Name0 ; atom_string(Name, Name0) ),
     (   fun(Name)
     ->  metta_py_module(Space, Module),
-        metta_py_callable_from(Module, Name)
+        metta_host_function_callable_from(Module, Name)
     ;   once(metta_special_form_head(Name))
     ).
 

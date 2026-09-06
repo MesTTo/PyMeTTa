@@ -913,7 +913,20 @@ def twin(m):
 #: size of this class are both base-dependent, as the entries above already
 #: record [measured 2026-09-06: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=5e0ae6c22d604c4b980766e3cc4811ee545e5c9e].
-BUDGET = 3422
+#: RE-PINNED 2026-09-07, 3422 to 3462 (+40), two merges of the same day, each
+#: measured on its own merge commit in a worktree provisioned with every .so
+#: and its .qlf set rebuilt, the MeTTa side beside it: acd04732 (the assertion
+#: bag diff) 3424/2320, 2f4422c9 (the per-space function catalogue) 3422/2320,
+#: ab02d526 (the test-hygiene suite) 3422/2320, 80af155d (the refinement
+#: vocabulary) 3442/2320, 5621c456 (the cache policies) 3462/2322. So +20 is
+#: the refinement guards at the typing sites, which the branch itself measured
+#: at 3442 against 3422 + 20 and which sit on this twin's path, and +20 is the
+#: cache-policy rows and the reconcile handler lib_tabling installs, which also
+#: move the MeTTa side by +2 [measured 2026-09-07: one fresh process per arm,
+#: inferences deterministic; command=python extensions/python/tools/twin_coverage.py
+#: --measure --rounds 1 examples/ch05-equations-and-evaluation/05-01-an-equation-is-a-rewrite/01-identity.metta;
+#: commit=WORKTREE].
+BUDGET = 3462
 #: BANDED 2026-09-06 rather than re-pinned an eighteenth time. Seventeen of
 #: the eighty-three re-pins above were written on 2026-09-05 and 2026-09-06
 #: alone, and every control taken with them left the MeTTa side of the same
