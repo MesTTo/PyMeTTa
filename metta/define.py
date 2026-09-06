@@ -431,7 +431,11 @@ class Defined[**P, R]:
         """The ordinary Python function, recursion included."""
         return self._py
 
+    # astroid synthesises __annotations__ into every class's locals, so an
+    # intentional override of it reads as a second definition of a name this
+    # class never wrote; the pragma is that reading, not a silenced clash.
     @property
+    # pylint: disable-next=function-redefined
     def __annotations__(self) -> dict[str, Any]:  # type: ignore[override]
         """The definition's annotations, as the twin carries them.
 

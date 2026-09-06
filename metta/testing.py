@@ -76,7 +76,7 @@ from pathlib import Path
 from types import GeneratorType
 from typing import Any
 
-import annotated_types as at
+import annotated_types as _at
 
 from ._api_types import space_of
 from ._atoms_core import decode
@@ -1249,7 +1249,9 @@ def _twin_answers(defined, arguments) -> list:
     return [_comparable(answered)]
 
 
-def check_twin(defined, cases) -> list[str]:
+# The parameter name is public API, and it is what the caller passes:
+# the cases() strategy's own answer.
+def check_twin(defined, cases) -> list[str]:  # pylint: disable=redefined-outer-name
     """Prove a definition and its Python twin answer the same. Answers the
     cases run.
 
@@ -1372,15 +1374,15 @@ def _generation_split(annotation: Any) -> tuple[Any, list[Any]]:
     filters: list[Any] = []
     for constraint in _constraints(metadata):
         if isinstance(constraint, _HYPOTHESIS_READS) or (
-            isinstance(constraint, at.Predicate) and not isinstance(constraint.func, Defined)
+            isinstance(constraint, _at.Predicate) and not isinstance(constraint.func, Defined)
         ):
             kept.append(constraint)
-        elif isinstance(constraint, (at.MultipleOf, at.Predicate)):
+        elif isinstance(constraint, (_at.MultipleOf, _at.Predicate)):
             filters.append(constraint)
     return (typing.Annotated[(base, *kept)] if kept else base), filters
 
 
-_HYPOTHESIS_READS: tuple[type, ...] = (at.Gt, at.Ge, at.Lt, at.Le, at.MinLen, at.MaxLen)
+_HYPOTHESIS_READS: tuple[type, ...] = (_at.Gt, _at.Ge, _at.Lt, _at.Le, _at.MinLen, _at.MaxLen)
 
 
 def _inhabitants(space: Any, type_atom: Atom, parameter: str, owner: str):
@@ -1453,11 +1455,16 @@ def _hypothesis_test(
         "metta.testing generates examples with hypothesis, which is not "
         "installed; install pymetta[test]",
     )
-    run.__signature__ = inspect.Signature(  # type: ignore[attr-defined]
+    # Python lets a function object carry attributes and no static type says
+    # so, so the three writes go through one local rather than three
+    # classifiers: Hypothesis reads __signature__ to name the parameters it
+    # draws, and pytest prints __name__.
+    generated: Any = run
+    generated.__signature__ = inspect.Signature(
         [inspect.Parameter(parameter, inspect.Parameter.KEYWORD_ONLY) for parameter in strategies]
     )
-    run.__name__ = name
-    run.__qualname__ = name
+    generated.__name__ = name
+    generated.__qualname__ = name
     wrapped = hypothesis.given(**strategies)(run)
     wrapped = hypothesis.settings(
         max_examples=examples,
@@ -1849,7 +1856,9 @@ class Laws:
     all; ``notes`` records the laws that had nothing to compare.
     """
 
-    def __init__(
+    # `laws` is the keyword laws() takes and hands on, so the constructor
+    # spells it the same way the factory does.
+    def __init__(  # pylint: disable=redefined-outer-name
         self,
         algebra: Any,
         space: Any,
@@ -1968,7 +1977,9 @@ class Laws:
         return f"laws({self.declaration.name}, {', '.join(self.laws)})"
 
 
-def laws(
+# The keyword names what it selects, which is what the function is called;
+# renaming either to please the shadow check would rename public API.
+def laws(  # pylint: disable=redefined-outer-name
     algebra: Any,
     space: Any = None,
     *,

@@ -931,7 +931,7 @@ class AsyncMeTTa:
     async def eval(
         self,
         target: Any,
-        second: Any,
+        _second: Any,
         /,
         *more: Any,
         timeout: float | None = ...,

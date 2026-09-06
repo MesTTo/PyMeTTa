@@ -334,7 +334,7 @@ def run_void_write(rt: Runtime, predicate: str, *inputs: Any) -> None:
     greater arity (metta_py_add/3 beside metta_py_add/2).
     """
     policy = _execution_policy()
-    if policy.mode is None and policy.captured is None:
+    if policy.mode is policy.captured is None:
         rt.do_must(predicate, *inputs)
         return
     _controlled_run(rt, predicate, list(inputs), None, policy=policy)

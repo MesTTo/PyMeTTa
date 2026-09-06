@@ -110,7 +110,11 @@ class TwinDispatcher:
             first = self._clauses[0] if self._clauses else None
         return self.__call__ if first is None else first
 
+    # astroid synthesises __annotations__ into every class's locals, so an
+    # intentional override of it reads as a second definition of a name this
+    # class never wrote; the pragma is that reading, not a silenced clash.
     @property
+    # pylint: disable-next=function-redefined
     def __annotations__(self) -> dict[str, Any]:  # type: ignore[override]
         """The canonical first clause's annotations, as written.
 

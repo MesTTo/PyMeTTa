@@ -351,7 +351,7 @@ def eval(
 @_overload
 def eval(
     target: _Any,
-    second: _Any,
+    _second: _Any,
     /,
     *more: _Any,
     timeout: float | None = ...,

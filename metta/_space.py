@@ -3162,7 +3162,7 @@ class Space(Handle):
     def eval(
         self,
         target: Any,
-        second: Any,
+        _second: Any,
         /,
         *more: Any,
         timeout: float | None = ...,
@@ -5244,7 +5244,7 @@ class Space(Handle):
             for count in {len(values), *supersedes}
         ]
 
-        def replace() -> Atom:
+        def supersede() -> Atom:
             for previous in shapes:
                 while True:
                     removed = self._rt.apply_must(
@@ -5262,7 +5262,7 @@ class Space(Handle):
             )
             return atom
 
-        return self._at("&metta").transaction(replace)
+        return self._at("&metta").transaction(supersede)
 
     def covers(self, effect: EffectClass | str) -> Atom:
         """Declare the strongest effect this reified world can handle.
@@ -6332,7 +6332,7 @@ class MeTTa:
     def eval(
         self,
         target: Any,
-        second: Any,
+        _second: Any,
         /,
         *more: Any,
         timeout: float | None = ...,

@@ -238,3 +238,12 @@ _._repr_pretty_
 # Nothing inside the package registers one, the way nothing inside it builds a
 # DataFrame; the suite and the reference are its consumers.
 _.sql_function
+
+# The engine reaches this one from PROLOG, not from Python: shim.pl's
+# seam:grounded_algebra_type/3 clause calls
+# py_call('metta.algebra':'_carrier_type_accepts'(TypeWire, ValueWire), Raw)
+# so a host carrier predicate can decide an algebra's membership question. No
+# Python name load reaches it, which is what makes it invisible to a
+# reachability scan [source: extensions/python/metta/shim.pl,
+# seam:grounded_algebra_type/3; commit=WORKTREE].
+_carrier_type_accepts
