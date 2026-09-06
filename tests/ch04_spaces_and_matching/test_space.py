@@ -749,6 +749,58 @@ def test_close_still_refuses_for_a_declared_heir():  # noqa: D103  -- pytest dis
     assert context.closed
 
 
+@pytest.mark.parametrize("keep_the_handle", [True, False])
+def test_a_context_closes_the_same_way_whether_a_base_space_handle_lives(
+    metta, keep_the_handle
+):
+    """Opening &metta is reading a catalogue, not acquiring it.
+
+    The context recorded every handle its factory returned and released
+    them all at close, so a live `m.space("&metta")` made close() raise
+    `No permission to release metta_base_space` while a collected one made
+    it succeed: whether a context could be closed depended on when the
+    garbage collector ran.
+    """
+    import gc
+
+    context = MeTTa()
+    catalog = context.space("&metta")
+    catalog_atoms = len(catalog)
+    if not keep_the_handle:
+        del catalog
+        gc.collect()
+
+    context.close()
+
+    assert context.closed
+    reader = Space("&metta")
+    assert not reader.dropped
+    assert len(reader) == catalog_atoms
+    assert metta.run("!(get-type 1)\n!(+ 1 2)") == [[S.Number], [3]]
+
+
+def test_a_context_close_leaves_a_named_space_it_only_opened():
+    """A named space is shared process state; a reader closing is not its end."""
+    writer, reader = MeTTa(), MeTTa()
+    shared_by_writer = writer.space("&close-borrowed-name")
+    shared_by_reader = reader.space("&close-borrowed-name")
+    try:
+        shared_by_writer.add(S["named-space-row"](1))
+        assert len(shared_by_reader) == 1
+
+        writer.close()
+
+        # The writer minted neither the name nor its content: the second
+        # context is still reading it, and a close that swept it away took
+        # a live collaborator's store with it.
+        assert not shared_by_reader.dropped
+        assert len(shared_by_reader) == 1
+        assert "&close-borrowed-name" in reader.self.space_names()
+    finally:
+        shared_by_reader.drop()
+        reader.close()
+
+
 def test_a_contexts_spaces_resolve_through_its_home():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     with MeTTa() as context:
         context.self.run("(= (ctx-home-fact) 41)")

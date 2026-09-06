@@ -32,6 +32,11 @@ Guarantees:
   - ``MeTTa.space()`` is the one method that creates named or anonymous handles
     [tested: test_module_tier_is_sugar_over_one_default_engine;
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
+  - a context releases the spaces it MINTED and borrows the ones it opened by
+    name, and releases the same spaces whether or not their handles are still
+    referenced [tested:
+    test_a_context_closes_the_same_way_whether_a_base_space_handle_lives,
+    test_a_context_close_leaves_a_named_space_it_only_opened; commit=WORKTREE]
   - the same factory exposes a persistent journal's one-open schema rename,
     so migration does not require importing its private provider [tested:
     test_the_public_space_factory_exposes_replay_rename; commit=694dff934a11dbc2ee99267b60f39564053baf87]
@@ -5352,7 +5357,7 @@ class MeTTa:
         metta_path: str | None = None,
         _runtime: Runtime | None = None,
     ) -> None:
-        self._minted: list = []
+        self._minted: dict[str, Space] = {}
         self._finalizer = None
         if isinstance(space, Space):
             # A borrowed home carries its runtime, and explicit options
@@ -5411,18 +5416,23 @@ class MeTTa:
         outlive it. A space the program declared with (inherits ...) still
         refuses, naming the heir, because that relationship is the
         program's own.
+
+        What a context OPENED by name it borrows and leaves alone, the way
+        it leaves a borrowed home alone: ``m.space("&kb")`` may be a space
+        that already existed, that another context is reading, or that the
+        engine owns, and closing a reader is not how any of those end.
         """
         if self._owns_self:
             if self._finalizer is not None:
                 self._finalizer.detach()
-            # Handles this context minted tear down python-side first, so
+            # The spaces this context MINTED tear down python-side first, so
             # their subscriptions and provider state cannot follow a pooled
             # name into another life; the engine's own cascade then covers
             # the program's handle-less mints.
-            for ref in self._minted:
-                handle = ref()
-                if handle is not None and not handle.dropped:
+            for handle in list(self._minted.values()):
+                if not handle.dropped:
                     handle.drop()
+            self._minted.clear()
             self._self.drop()
 
     @property
@@ -5552,6 +5562,11 @@ class MeTTa:
         ``metta.space(S.locked, restricted=True)`` is that call. Declaring a
         model on a name that already carries the same one is a no-op; a
         different one raises, because a space cannot have two models.
+
+        The context OWNS what it mints and BORROWS what it opens by name:
+        :meth:`close` releases the anonymous mints and leaves ``&kb``,
+        ``&metta`` and every other named space exactly as it found them,
+        whether or not the handle is still referenced.
         """
         if sync != "none" and journal is None:
             msg = "space(sync=...) paces a journal; pass journal= as well"
@@ -5669,7 +5684,18 @@ class MeTTa:
             if minted_fresh:
                 handle.drop()
             raise
-        self._minted.append(weakref.ref(handle))
+        if minted_fresh:
+            # ONLY the mints. A named open is a BORROW: the name may be a
+            # space that already existed, one another context is reading, or
+            # an engine-owned root, and close() releasing it destroyed the
+            # first two and raised `No permission to release
+            # metta_base_space` on the third. Recorded STRONGLY and keyed by
+            # the engine name, so which spaces a close releases is decided
+            # when they are minted rather than by when the collector runs,
+            # and a pooled name a later mint draws replaces its own entry
+            # instead of accumulating one per mint
+            # [tested: test_a_context_closes_the_same_way_whether_a_base_space_handle_lives].
+            self._minted[str(handle._name)] = handle
         return handle
 
     @property
