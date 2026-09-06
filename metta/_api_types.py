@@ -20,7 +20,7 @@ Guarantees:
     package root, which the narrow-core roster counts [tested:
     test_the_template_protocols_are_public_through_metta_atoms,
     test_m7_narrow_core_surface,
-    test_canonical_context_types_replace_public_newtypes; commit=WORKTREE]
+    test_canonical_context_types_replace_public_newtypes; commit=bd8689098b4720411b94ea620b7d973ecea46409]
 Assumes:
   - it imports nothing but ``typing``, which is what lets the LEAF modules use
     it: ``metta.casting`` costs 10.9ms to import and ``metta.integrate``, where
