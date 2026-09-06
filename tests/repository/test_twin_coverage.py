@@ -1279,6 +1279,56 @@ def test_a_budget_is_two_sided():
     assert within == []
 
 
+def _banded_twin(tmp_path, name, budget, allowance=None):
+    """A planted twin with a point budget and, optionally, its own allowance."""
+    twin = tmp_path / name
+    source = (
+        '"""Purpose: a planted twin that declares its own allowance."""\n'
+        "def twin(m):\n"
+        "    assert m\n"
+        f"BUDGET = {budget}\n"
+    )
+    if allowance is not None:
+        source += f"ALLOWANCE = {allowance!r}\n"
+    twin.write_text(source, encoding="utf-8")
+    return twin
+
+
+def test_a_declared_allowance_widens_one_twins_band_only(tmp_path):
+    """A twin whose count tracks something other than its own work bands itself.
+
+    `ch05-.../01-identity.py` is the case: its cost carries a compile-time
+    term that moves with the engine's clause layout, so appending one inert
+    clause to engine/specializer.pl moves it by 10 while the MeTTa side of the
+    same run does not move at all, and a point pin on it prices the engine's
+    predicate set rather than the twin. A twin that declares nothing keeps
+    TOLERANCE, which is what makes this one twin's band a declaration rather
+    than a loosening of the lane.
+    """
+    left = _run(["(True)"], cost=1000)
+    plain = _banded_twin(tmp_path, "plain.py", 1000)
+    banded = _banded_twin(tmp_path, "banded.py", 1000, allowance=40)
+    inside = _run([], cost=1030)
+    assert any(
+        "pinned budget" in finding
+        for finding in coverage._price("x.metta", plain, left, inside)
+    )
+    assert coverage._price("x.metta", banded, left, inside) == []
+    for outside in (1041, 959):
+        findings = coverage._price("x.metta", banded, left, _run([], cost=outside))
+        assert any("its own declared allowance of 40" in f for f in findings), outside
+
+
+def test_a_declared_allowance_is_validated(tmp_path):
+    """A malformed allowance is reported, never read as a wider band."""
+    for index, bad in enumerate((-1, True, 4.5)):
+        twin = _banded_twin(tmp_path, f"bad{index}.py", 1000, allowance=bad)
+        findings = coverage._price(
+            "x.metta", twin, _run(["(True)"], cost=1000), _run([], cost=1000)
+        )
+        assert any("non-negative integer" in f for f in findings), bad
+
+
 def _empirical_twin(tmp_path, budget):
     twin = tmp_path / "nondeterministic.py"
     twin.write_text(
