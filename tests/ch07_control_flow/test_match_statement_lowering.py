@@ -11,6 +11,11 @@ Guarantees:
   - overlapping decorator clauses share one exclusive case equation while
     disjoint heads remain separate equations [tested:
     test_overlapping_clauses_materialize_as_one_case_equation; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
+  - each case row is built from ITS OWN clause's parameter names, so two
+    stacked clauses that spell a parameter differently still bind the same
+    variable in the row's pattern and its body [tested:
+    test_stacked_clauses_may_spell_their_parameters_differently;
+    commit=WORKTREE]
 """  # noqa: D205, D415 -- the obligation block is a searchable contract, not a prose module summary
 
 from __future__ import annotations
@@ -112,3 +117,30 @@ def test_overlapping_clauses_materialize_as_one_case_equation(metta):  # noqa: D
 
     disjoint = [atom for atom in m if str(atom).startswith("(= (disjoint-clause ")]
     assert len(disjoint) == 2
+
+
+def test_stacked_clauses_may_spell_their_parameters_differently(metta):
+    """Two functions under one name are two functions; a position is what they share.
+
+    Every row of the merged case equation used to be built from the FIRST
+    clause's parameter names, so a second clause that spelled its parameter
+    differently got a row whose pattern variable was not the one its body used.
+    The call then answered its own unreduced body with a free variable, which
+    is a wrong answer no refusal marked: `(spelled-apart 5)` read
+    `(+ $_8 1)` [measured 2026-09-07].
+    """
+    m = metta._new_space()
+
+    @m.define(name="spelled-apart")
+    # The default is this clause's head pattern, so the name is not a variable
+    # in the body's scope and cannot be read there.
+    def at_zero(_count=0):
+        return S.Zero
+
+    @m.define(name="spelled-apart")
+    def otherwise_named(total):
+        return total + 1
+
+    (equation,) = [atom for atom in m if str(atom).startswith("(= (spelled-apart ")]
+    assert "(case " in str(equation)
+    assert m.run("!(spelled-apart 0) !(spelled-apart 5)") == [[S.Zero], [6]]

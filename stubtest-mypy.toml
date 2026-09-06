@@ -1,0 +1,26 @@
+# Purpose: the mypy build settings `python -m mypy.stubtest` needs to compare
+#   metta's stubs against its runtime, which are NOT the settings the mypy lane
+#   checks the package with.
+# Assumes: stubtest sets `pos_only_special_methods = False` on its own options
+#   before parsing this file, which changes what the build reports rather than
+#   what the package does [source:
+#   https://github.com/python/mypy/blob/v2.3.0/mypy/stubtest.py, `options.pos_only_special_methods = False`].
+# Guarantees: the build succeeds, so the lane reaches the stub-versus-runtime
+#   comparison it exists for. Under the repository's own pyproject settings it
+#   does not: three diagnostics stop it, and every one is an artefact of the
+#   flag above rather than a fact about the package -- `__iadd__`/`__isub__`
+#   read as incompatible with the inherited `__add__`/`__sub__` because their
+#   parameters stop being positional-only, and one `type: ignore` in
+#   _documentation.py reads as unused [measured 2026-09-07: `python -m
+#   mypy.stubtest --mypy-config-file pyproject.toml metta` printed "not
+#   checking stubs due to mypy build errors" and compared nothing].
+# Decides: `misc` is disabled for the BUILD, not for the comparison; stub and
+#   runtime disagreements are what this lane reports and they are unaffected.
+#   The `mypy` lane owns the package's own type errors and reads pyproject.
+[tool.mypy]
+python_version = "3.12"
+explicit_package_bases = true
+mypy_path = "."
+no_site_packages = true
+check_untyped_defs = true
+disable_error_code = ["misc"]

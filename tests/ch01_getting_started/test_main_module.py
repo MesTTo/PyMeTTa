@@ -2,7 +2,8 @@
 subprocess: run prints answer groups, the repl reads multi-line forms
 and exits cleanly, including after reporting a malformed or incomplete form;
 run refuses the same incomplete file with a nonzero exit, lint gates on
-findings, doc answers or refuses, and serve and boot expose spaces until
+findings, doc answers or refuses, stubs writes a program's declarations as a
+.pyi while its printing stays on stderr, and serve and boot expose spaces until
 interrupted. Convert imports a real Python file and emits source that reloads
 as the same program, and llms prints the repository root's cheat sheet, the
 same bytes the package door prints [tested:
@@ -20,6 +21,7 @@ Open Obligations:
   Future Enhancements: None.
 """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
+import ast
 import json
 import os
 import random
@@ -302,6 +304,50 @@ def test_the_llms_verb_prints_the_same_cheat_sheet_the_package_door_prints():
     finished = _metta("llms")
     assert finished.returncode == 0, finished.stderr
     assert finished.stdout == _ROOT_SHEET.read_text(encoding="utf-8")
+
+
+def test_stubs_writes_a_pyi_and_keeps_the_programs_output_off_stdout(tmp_path):
+    """The artefact is stdout, so the program it loads prints on stderr.
+
+    The engine prints from Prolog, which is why the subcommand swaps the
+    descriptor rather than redirecting Python's stream: with
+    `contextlib.redirect_stdout` the program's line landed in the middle of
+    the stub [measured 2026-09-07].
+    """
+    program = tmp_path / "shapes.metta"
+    program.write_text(
+        '(: Sq Type)\n'
+        '(: Sq (-> Number Sq))\n'
+        '(: sq-area (-> Sq Number))\n'
+        '(@doc sq-area (@desc "The area of a square."))\n'
+        '(= (sq-area (Sq $s)) (* $s $s))\n'
+        '!(println! "loading shapes")\n',
+        encoding="utf-8",
+    )
+    printed = _metta("stubs", str(program))
+    assert printed.returncode == 0, printed.stderr
+    assert printed.stdout.startswith('"""MeTTa declarations from ')
+    assert "def sq_area(x1: Sq, /) -> int | float:" in printed.stdout
+    assert "The area of a square." in printed.stdout
+    assert "loading shapes" not in printed.stdout
+    assert "loading shapes" in printed.stderr
+
+    written = tmp_path / "shapes.pyi"
+    to_file = _metta("stubs", str(program), "-o", str(written))
+    assert to_file.returncode == 0, to_file.stderr
+    assert to_file.stdout == ""
+    assert written.read_text(encoding="utf-8") == printed.stdout
+    ast.parse(written.read_text(encoding="utf-8"))
+
+
+def test_stubs_refuses_to_write_over_its_input(tmp_path):
+    """A generator that can destroy its own source is a generator that will."""
+    program = tmp_path / "keep.metta"
+    program.write_text("(: keep-head (-> Number Number))\n", encoding="utf-8")
+    refused = _metta("stubs", str(program), "-o", str(program))
+    assert refused.returncode == 2
+    assert "must differ from every input file" in refused.stderr
+    assert program.read_text(encoding="utf-8") == "(: keep-head (-> Number Number))\n"
 
 
 def test_the_parser_requires_a_subcommand_and_answers_version():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract

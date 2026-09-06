@@ -1,8 +1,8 @@
 """Purpose: `python -m metta` subcommands, the stdlib "Command-line
 usage" chapter for the installed wheel: run a program, talk to a repl,
-serve spaces, boot a manifest, lint a file, read documentation, and print
-`llms.txt`, all without a checkout, or convert a Python-authored program
-to MeTTa source. The bare `metta` console script keeps upstream's
+serve spaces, boot a manifest, lint a file, read documentation, print
+`llms.txt` and write a program's `.pyi`, all without a checkout, or convert
+a Python-authored program to MeTTa source. The bare `metta` console script keeps upstream's
 swipl-launcher contract exactly; the subcommands live here, on the
 library engine.
 Guarantees:
@@ -35,6 +35,10 @@ Guarantees:
     Python face cannot print different documents [tested:
     test_the_llms_verb_prints_the_same_cheat_sheet_the_package_door_prints;
     commit=d4f129e1d977239c2e25b5042e3b1df30d9d32d3]
+  - stubs calls the package's own ``metta.stubs()`` and keeps the loaded
+    program's printing on stderr, so the artefact on stdout is the stub alone
+    [tested: test_stubs_writes_a_pyi_and_keeps_the_programs_output_off_stdout;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -390,6 +394,51 @@ def _doc(arguments) -> int:
     return 0
 
 
+@contextlib.contextmanager
+def _output_on_stderr():
+    """Send everything the loaded program prints to stderr, at the descriptor.
+
+    Without -o the stub IS this process's standard output, and a program that
+    prints while it loads would land in the middle of it. The swap is at the
+    file descriptor rather than through `contextlib.redirect_stdout` because
+    the engine prints from Prolog: a Python-level redirection catches nothing
+    [measured 2026-09-07: `!(println! "x")` under redirect_stdout captured "",
+    and the text reached the process's own stdout]. Both sides flush inside
+    the swap so nothing buffered arrives after it, which is the shape
+    extensions/python/tools/phrasebook.py:quiet already uses for the same
+    two-writer problem.
+
+    m.capture() is the in-process door for the same text and does not reach
+    here: load_space calls the runtime directly rather than through the
+    execution policy that installs a capture, so a load prints past it.
+    """
+    sys.stdout.flush()
+    saved = os.dup(1)
+    try:
+        os.dup2(2, 1)
+        yield
+    finally:
+        sys.stdout.flush()
+        os.dup2(saved, 1)
+        os.close(saved)
+
+
+def _stubs(arguments) -> int:
+    from . import stubs  # noqa: PLC0415  deferred: --version and help must not boot
+    from ._space import Space  # noqa: PLC0415 -- version and help must not boot
+
+    m = Space()
+    with _output_on_stderr():
+        for path in arguments.files:
+            m.load(path)
+    text = stubs(m, sources=arguments.files)
+    if arguments.output is None:
+        sys.stdout.write(text)
+    else:
+        arguments.output.write_text(text, encoding="utf-8")
+    return 0
+
+
 def _llms(_arguments) -> int:
     # The package door itself, so the shell and Python faces cannot print
     # different documents. It boots nothing: the sheet is a file.
@@ -532,6 +581,15 @@ def main(argv: list[str] | None = None) -> int:  # noqa: D103  -- the package re
     llms = commands.add_parser("llms", help="print llms.txt, the sheet that teaches this library")
     llms.set_defaults(entry=_llms)
 
+    stubs = commands.add_parser(
+        "stubs", help="write a .pyi for the heads a program declares"
+    )
+    stubs.add_argument("files", nargs="+", metavar="file.metta")
+    stubs.add_argument(
+        "-o", "--output", type=Path, metavar="out.pyi", help="write the stub to this file"
+    )
+    stubs.set_defaults(entry=_stubs)
+
     convert = commands.add_parser(
         "convert", help="lower a Python-authored program to MeTTa source"
     )
@@ -548,6 +606,10 @@ def main(argv: list[str] | None = None) -> int:  # noqa: D103  -- the package re
         and arguments.output.resolve() == arguments.program
     ):
         parser.error("convert output must differ from the input Python file")
+    if arguments.command == "stubs" and arguments.output is not None:
+        written = arguments.output.resolve()
+        if any(Path(source).resolve() == written for source in arguments.files):
+            parser.error("stubs output must differ from every input file")
     return arguments.entry(arguments)
 
 
