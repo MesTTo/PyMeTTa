@@ -3,3 +3,9 @@
 # Python module for every later run in the checkout, so it is ignored and
 # check.sh's own build is out of tree.
 metta/*.so
+
+# coverage's data files, written by the `coverage` REPORT lane, which runs from
+# this directory. One per xdist worker under `parallel = true`, plus the
+# combined file.
+.coverage
+.coverage.*

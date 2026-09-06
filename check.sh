@@ -91,8 +91,9 @@ run GATE packaged sh -c "cd '$HERE' && sh tests/shell/test_packaged_cli.sh"
 
 # The example corpus is the executable semantics documentation, and until this
 # lane existed it only ever ran through the ENGINE: the examples gate below
-# invokes swipl on engine/main.pl, test.sh and test_metta_examples.py shell to
-# run.sh, and the plunit suites load engine/metta.pl without extensions/python/metta/shim.pl.
+# invokes swipl on engine/main.pl, test.sh and the pytest items collected from
+# tests/repository/metta_examples.txt shell to run.sh, and the plunit suites load
+# engine/metta.pl without extensions/python/metta/shim.pl.
 # So the configuration users actually ship was gated by unit tests alone, and
 # defects lived there under green lanes: !(py-atom "()") answered () in the
 # engine and raised out of the library, and a declared type on a Python object
@@ -256,3 +257,130 @@ run GATE   deptry      in_py "$PY" -m deptry .
 run GATE   audit       in_py "$PY" -m pip_audit --progress-spinner off
 # ledger F: public API documentation is held above the 80% target
 run GATE   interrogate in_py "$PY" -m interrogate metta
+
+# ---------------------------------------------------------------------------
+# What the suite does not say about itself. Four REPORT lanes, each measuring a
+# property no GATE above can see: which lines the suite reaches, how much of the
+# published surface a type checker can see a type for, whether the shipped stubs
+# still describe the runtime, and whether the tests would notice if the code
+# were wrong.
+
+# Branch coverage over the library, printed, never gated. A percentage floor
+# rewards tests that touch lines; the mutation lane below is the one that asks
+# whether touching them decides anything.
+#
+# Through the seat's own test.sh, so the coverage run is the SAME run the gate
+# makes -- four workers, loadfile, the same bound -- rather than a second,
+# plainer invocation that would measure a configuration nobody ships.
+# pytest-cov is what carries coverage across those four processes; `coverage run
+# -m pytest` would measure the controller and none of the workers.
+check_coverage() {
+    in_py env CHECK_PY="$PY" sh "$HERE/extensions/python/test.sh" \
+        --cov --cov-report=term-missing:skip-covered
+}
+run REPORT coverage    check_coverage
+
+# How much of `metta`'s PUBLISHED surface is typed, as pyright counts it: a
+# symbol is "known" when its type can be read without inferring it from an
+# untyped body. --ignoreexternal keeps the count about this package rather than
+# about the libraries it imports, whose types are their own to publish. It exits
+# nonzero on any unknown symbol, which is why it is a REPORT: the number is the
+# burn-down and the lane's job is to print it.
+#
+# Against the built wheel installed into an environment of its own, which is
+# what pyright's own documentation asks for and what the `packaged` GATE lane
+# above already does for the CLI: --verifytypes measures what a user receives,
+# and a checkout is not that. Two things about it are measured rather than
+# assumed [both 2026-09-07]:
+#   - pyright resolves the package for --verifytypes through the search paths of
+#     the `python` it finds on PATH. --pythonpath moves ordinary import
+#     resolution -- a probe file's `import metta` resolves with it -- and leaves
+#     this one answering `Package directory: ""` and a score of 0%.
+#   - the environment is built on $PY. `uv venv` with no --python picks the
+#     newest interpreter it can find, which on this box is a free-threaded
+#     3.14t, and the package under test should be read on the interpreter the
+#     rest of the gate uses.
+check_verifytypes() {
+    command -v uv >/dev/null 2>&1 || {
+        echo "verifytypes: uv is not on PATH, and this lane measures the built \
+wheel rather than the checkout; install uv or run the lane elsewhere" >&2
+        return 1
+    }
+    metta_verifytypes_scratch=$(mktemp -d "${TMPDIR:-/tmp}/metta-verifytypes.XXXXXX") || return 2
+    metta_verifytypes_status=0
+    # --no-deps, like tests/shell/test_packaged_cli.sh: the lane must not reach
+    # the network, and --ignoreexternal already excludes the dependency's own
+    # symbols from the count.
+    bounded uv build --wheel --out-dir "$metta_verifytypes_scratch/dist" "$HERE" >/dev/null \
+        && bounded uv venv --python "$PY" "$metta_verifytypes_scratch/venv" >/dev/null \
+        && bounded uv pip install --python "$metta_verifytypes_scratch/venv/bin/python" \
+            --no-deps "$metta_verifytypes_scratch"/dist/pymetta-*.whl >/dev/null \
+        || metta_verifytypes_status=$?
+    if [ "$metta_verifytypes_status" -eq 0 ]; then
+        (
+            PATH="$metta_verifytypes_scratch/venv/bin:$PATH"
+            export PATH
+            cd "$PYDIR" && bounded "$PY" -m pyright --verifytypes metta --ignoreexternal
+        ) || metta_verifytypes_status=$?
+    fi
+    rm -rf "$metta_verifytypes_scratch"
+    return "$metta_verifytypes_status"
+}
+run REPORT verifytypes check_verifytypes
+
+# The shipped .pyi files against the runtime they claim to describe. mypy checks
+# that the ANNOTATIONS hold; stubtest checks that the stub and the object agree
+# about what exists, which is the half a type checker cannot see because it
+# reads the stub instead of the module. The allowlist carries the known
+# differences, each under the reason it is there, and an entry that stops
+# matching is reported rather than ignored, so the file cannot rot. The mypy
+# configuration is stubtest's own and says why it is not the project's; without
+# it the run ends in mypy's build and the lane reports nothing at all.
+run REPORT stubtest    in_py "$PY" -m mypy.stubtest metta \
+    --mypy-config-file tests/data/stubtest-mypy.toml \
+    --allowlist tests/data/stubtest-allowlist.txt
+
+# Whether the tests would notice. mutmut changes one operator, constant or
+# branch at a time and asks whether any test fails; a mutant that survives names
+# a line the suite executes without deciding anything about it.
+#
+# ONE module per run, because the package is 61,000 lines and a full pass is
+# days. METTA_MUTATION_TARGET is an fnmatch pattern over mutmut's own mutant
+# names and METTA_MUTATION_TESTS is the selection that judges them; they are two
+# knobs rather than one because mutmut takes its test selection from
+# configuration alone and a lane cannot rewrite pyproject.toml.
+#
+# The scratch directory is built here rather than in pyproject.toml because the
+# depth is the point: mutmut copies the package into <cwd>/mutants/, and only a
+# cwd ONE level under the repository root puts that copy back where
+# metta/shim.pl finds `../../../engine` and tests/conftest.py finds bounded.sh
+# at parents[3]. It is rebuilt each run, since a stale copy would mutate
+# yesterday's source and say nothing about today's.
+check_mutation() {
+    # Guarded before the rm: $HERE is set by check.sh, and an empty one would
+    # make the next line `rm -rf /.mutmut`.
+    [ -n "${HERE:-}" ] && [ -d "$HERE" ] || return 2
+    metta_mutation_scratch="$HERE/.mutmut"
+    rm -rf "$metta_mutation_scratch"
+    mkdir -p "$metta_mutation_scratch"
+    cp -a "$PYDIR/metta" "$metta_mutation_scratch/metta"
+    cp -a "$PYDIR/tests" "$metta_mutation_scratch/tests"
+    cp "$HERE/pyproject.toml" "$metta_mutation_scratch/pyproject.toml"
+    find "$metta_mutation_scratch" -name '__pycache__' -type d -prune -exec rm -rf {} +
+    metta_mutation_target=${METTA_MUTATION_TARGET:-metta.atoms.*}
+    (
+        cd "$metta_mutation_scratch" || exit 2
+        # The default selection deselects one case: a test that asks MYPY about
+        # the library cannot answer about a mutated copy, where every function
+        # is wrapped in mutmut's dispatch trampoline and reveals as Any
+        # [measured 2026-09-07: the clean run fails on
+        # test_the_atom_factories_are_concrete_to_a_type_checker].
+        PYTEST_ADDOPTS=${METTA_MUTATION_TESTS:-tests/ch03_atoms_and_expressions/test_atoms.py --deselect tests/ch03_atoms_and_expressions/test_atoms.py::test_the_atom_factories_are_concrete_to_a_type_checker}
+        export PYTEST_ADDOPTS
+        bounded "$PY" -m mutmut run "$metta_mutation_target" || exit $?
+        bounded "$PY" -m mutmut export-cicd-stats >/dev/null || exit $?
+    ) || return $?
+    bounded "$PY" "$HERE/extensions/python/tools/mutation_score.py" \
+        "$metta_mutation_scratch/mutants/mutmut-cicd-stats.json" "$metta_mutation_target"
+}
+run REPORT mutation    check_mutation

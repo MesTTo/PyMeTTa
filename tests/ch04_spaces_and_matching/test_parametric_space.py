@@ -161,11 +161,22 @@ def test_a_parametric_fact_leaf_names_its_space(metta):
 
 
 def test_a_callable_family_head_does_not_replace_the_identity(metta):
-    """A callable family head at a space door names the instance, never evaluates."""
+    """A callable family head at a space door names the instance, never evaluates.
+
+    The equation is withdrawn on the way out. It is written into `&self`, where
+    it stays for the rest of the process, and `cache` is the family the other
+    tests in this file name their spaces from: with it left standing,
+    `(evalc (cache-config) (cache &p12-param-left 100))` answers nothing at all,
+    because the `(let (cache $base $limit) (context-space) ...)` it goes through
+    now has a rewrite to `&wrong-space` in front of it
+    [measured 2026-09-07 under `--randomly-seed=1`, where this test runs before
+    test_two_instances_of_a_parametric_space_answer_independently].
+    """
     surface = "(cache &p12-param-callable 2)"
     name = "[cache, '&p12-param-callable', 2]"
+    wrong = "(= (cache $base $limit) &wrong-space)"
     try:
-        metta.run("(= (cache $base $limit) &wrong-space)")
+        metta.run(wrong)
         assert _answers(metta, f"!(new-space {surface})") == [surface]
         assert _answers(metta, f"!(is-space {surface})") == ["True"]
         assert _answers(metta, f"!(add-atom {surface} (entry local))") == ["True"]
@@ -177,4 +188,5 @@ def test_a_callable_family_head_does_not_replace_the_identity(metta):
             "((entry local))"
         ]
     finally:
+        metta.run(f"!(remove-atom &self {wrong})")
         _release(metta, name)

@@ -1338,8 +1338,17 @@ def test_a_py_atom_declaration_dies_with_its_grounded_value(metta):
     assert S.Ephemeral in metta.eval(S.get_type(value))
     list_value = metta.eval('(py-atom "[1, 2]" Ephemeral)')[0]
     assert S.Ephemeral in metta.eval(S.get_type(list_value))
+    # math.fmod rather than math.pow, and the choice is load-bearing: a
+    # declaration is keyed on the OBJECT and a module-level builtin lives as
+    # long as the process, so a second declaration on the same object stacks
+    # beside the first for every later test.
+    # test_a_declared_type_survives_the_library_being_loaded pins math.pow's
+    # type EXACTLY, and read `(builtin_function_or_method (-> $t $t $t)
+    # (-> Number Number Number))` whenever this test ran before it
+    # [measured 2026-09-07 under --randomly-seed=1]. Nothing else in the tree
+    # declares math.fmod.
     polymorphic = metta.run(
-        "!(let $f (py-atom math.pow (-> $t $t $t)) "
+        "!(let $f (py-atom math.fmod (-> $t $t $t)) "
         "(collapse (get-type $f)))"
     )[0][0]
     arrow = polymorphic[1]

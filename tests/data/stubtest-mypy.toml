@@ -1,0 +1,36 @@
+# Purpose: the mypy settings stubtest builds `metta` under, which are not the
+#   settings the `mypy` GATE lane uses.
+# Assumes: it is passed as `--mypy-config-file` by the `stubtest` REPORT lane in
+#   extensions/python/check.sh, from extensions/python.
+# Guarantees: stubtest gets past mypy's BUILD and reaches the comparison it
+#   exists to make. Anything mypy emits during that build, notes included, is
+#   raised as `not checking stubs due to mypy build errors` and the lane reports
+#   nothing at all, so the two settings below are what make the lane able to say
+#   anything [measured 2026-09-07: with the project's own configuration the run
+#   ends at `metta/_space.py:2038: Signatures of "__iadd__" and "__add__" are
+#   incompatible`; with these it reports 971 lines of stub findings].
+# Decides: this file is NOT the type policy. `[tool.mypy]` in pyproject.toml is,
+#   and the `mypy`, `mypy-root-impl` and `mypy-algebra-surface` GATE lanes hold
+#   the package to it. Nothing here loosens those.
+
+[tool.mypy]
+python_version = "3.12"
+explicit_package_bases = true
+mypy_path = "."
+no_site_packages = true
+# stubtest builds the package a second time and reports mypy's NOTES as build
+# errors. The default leaves untyped function bodies unchecked and says so in a
+# note per file, six of which were enough to stop the run.
+check_untyped_defs = true
+
+# stubtest sets `pos_only_special_methods = False` before it builds, which makes
+# mypy compare a special method's parameters by NAME. `Space.__iadd__` takes an
+# `atom` and `Atom.__add__` takes an `other`, so under that setting the in-place
+# operator reads as an incompatible override of the term constructor, and the
+# `# type: ignore[override]` already on the line does not cover the `misc` code
+# it is reported under. The ordinary mypy lane, which keeps special methods
+# positional-only, finds no issue in the same file
+# [source: mypy/stubtest.py:2396 `options.pos_only_special_methods = False`].
+[[tool.mypy.overrides]]
+module = ["metta._space"]
+disable_error_code = ["misc"]

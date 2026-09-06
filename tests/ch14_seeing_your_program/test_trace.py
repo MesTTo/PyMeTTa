@@ -227,8 +227,19 @@ def test_a_run_bound_stops_a_trace_the_way_it_stops_a_run(m):
     assert whole.stopped is None
     assert unbounded.inferences > 100 * bounded_run.inferences
 
+    # What the bound saves is the RUN. The door's own fixed cost -- arming the
+    # tracer over every name the process has registered, and unwrapping them
+    # again -- sits outside the bound, twelve inferences per name [measured
+    # 2026-09-07], so it is measured here and subtracted from both sides
+    # rather than left to make a bounded trace look expensive: the same two
+    # numbers are 4,803 against 240,016 in a fresh process and 16,795 against
+    # 263,953 with two thousand more names defined.
+    with m.stats() as door:
+        m.trace("!(loop 0)")
     for measured in (scoped, per_call):
-        assert measured.inferences < 10 * bounded_run.inferences
+        assert measured.inferences - door.inferences < (
+            unbounded.inferences - door.inferences
+        ) / 100
 
     # The recording bound remains independent: it cuts events, not the run.
     prefix = m.trace("!(loop 2000)", max_events=4)
@@ -249,20 +260,81 @@ def test_a_run_bound_keeps_the_events_it_recorded(m):
     The events kept are a genuine PREFIX of the unbounded run, not a
     differently-shaped short answer, which is what makes them usable.
 
-    The budget is half what the whole door cost rather than a number written
-    here, so it follows the engine instead of going stale: measured
-    2026-09-04, this program costs 52,940 inferences through the door and
-    answers 802 events, and half of that stops it at 605.
+    The budget is half what the PROGRAM costs rather than a number written
+    here, so it follows the engine instead of going stale, and half of what
+    the DOOR costs is not the same thing: arming the tracer walks every name
+    the process has registered and unwrapping them again is the same walk,
+    twelve inferences per name [measured 2026-09-07: 12,016 in a fresh
+    process, 47,943 with three thousand more names defined, against 45,600 for
+    this program]. That pair is now outside the bound, so a budget of half the
+    door's cost lets the whole run finish once a process is big enough, where
+    before the fix it stopped inside the setup and kept no events at all --
+    both directions measured under the whole suite in one process, which is
+    the only configuration that reaches either.
+
+    Tracing the base case measures the door's own cost, warm, so the
+    difference is what walking 400 costs on top of it: 22,801 inferences and
+    521 events at every registry size from none to three thousand extra names
+    [measured 2026-09-07; the same sweep is what
+    test_arming_the_tracer_is_not_charged_to_the_run_bound asserts].
     """
     m.run("(= (walk $n) (if (> $n 0) (walk (- $n 1)) done))")
+    # Warm first: the first trace of a program also compiles it, and that cost
+    # belongs to neither of the two measurements below.
+    m.trace("!(walk 0)")
+    with m.stats() as door:
+        m.trace("!(walk 0)")
     with m.stats() as ran:
         whole = m.trace("!(walk 400)")
     assert not whole.truncated
 
-    cut = m.trace("!(walk 400)", inferences=ran.inferences // 2)
+    cut = m.trace("!(walk 400)", inferences=(ran.inferences - door.inferences) // 2)
     assert cut.stopped is Limit.inferences
     assert 0 < len(cut) < len(whole)
     assert [str(e.term) for e in cut] == [str(e.term) for e in whole[: len(cut)]]
+
+
+def test_arming_the_tracer_is_not_charged_to_the_run_bound(m):
+    """The bound is on the RUN, and arming the tracer is not the run.
+
+    metta_trace_target/1 walks every name in the engine's arity/2 registry and
+    wraps the ones a module still defines; metta_trace_end_unlocked/0 unwraps
+    them again. That pair costs twelve inferences per registered NAME --
+    measured 2026-09-07, a door with nothing to run cost 12,016 inferences in
+    a fresh process, 35,941 with two thousand more names defined and 47,943
+    with three thousand -- and it is the door's cost, not the program's.
+
+    While the transport wrapped the whole door in metta_py_guarded/4 it came
+    out of the caller's budget, so the same program under the same bound kept
+    452 events in a fresh process, 306 with two thousand more names and none
+    at all under the whole suite in one process: what `inferences=` did
+    depended on how much else had been loaded. The names below are the
+    experiment, run twice with the same budget.
+    """
+    m.run("(= (armed $n) (if (> $n 0) (armed (- $n 1)) done))")
+    m.trace("!(armed 0)")
+    with m.stats() as door:
+        m.trace("!(armed 0)")
+    with m.stats() as ran:
+        whole = m.trace("!(armed 200)")
+    budget = (ran.inferences - door.inferences) // 2
+    before = m.trace("!(armed 200)", inferences=budget)
+    assert before.stopped is Limit.inferences
+    assert 0 < len(before) < len(whole)
+
+    # A thousand more function names, which only the door's own walk reads.
+    # The check is the DIFFERENCE rather than a ratio: the walk costs twelve
+    # inferences per name wherever it starts from, and a ratio would ask the
+    # names to double a door whose cost this test does not set.
+    names = 1000
+    m.run("\n".join(f"(= (armed-filler-{index} $x) $x)" for index in range(names)))
+    with m.stats() as after_door:
+        m.trace("!(armed 0)")
+    assert after_door.inferences - door.inferences > names * 5
+
+    after = m.trace("!(armed 200)", inferences=budget)
+    assert len(after) == len(before)
+    assert [str(e.term) for e in after] == [str(e.term) for e in before]
 
 
 def test_each_bound_answers_its_prefix_and_names_itself(m):

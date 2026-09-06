@@ -146,13 +146,25 @@ class ProgramSpace(ListSpace):
         return super().can_run(capability, **request)
 
 
-PROGRAM = ProgramSpace(ROWS)
-
-
 class TestProgramSpaceComplies(SpaceComplianceSuite):  # noqa: D101  -- the local test double is documented by the scenario that constructs it
     @pytest.fixture()
-    def provider(self):  # noqa: D102  -- the test double method is documented by its containing scenario and protocol
-        return PROGRAM
+    def provider(self):
+        """A fresh instance per test, unlike ROUND_TRIP below, which is shared
+        on purpose so the assertion at the end of this file can observe it.
+
+        This one is the provider that declares `rules`, so the suite adds an
+        equation to it, and the suite's own cleanup cannot take that equation
+        back: the engine renames a stored atom's variables apart on the way in
+        and again on the way out, so `space.remove(rule)` reaches the provider
+        as `(= (m $_52) (* 2 $_52))` against a stored `(= (m $_18) ...)` and a
+        provider comparing atoms finds no match. Shared, the leftover equation
+        then answered three later tests in this class -- a batch add that found
+        an atom "still matched after removal", a write round trip, and a bound
+        position -- whenever the rule test ran before them, which the file's
+        own definition order hid and a shuffled order does not
+        [measured 2026-09-07 under `--randomly-seed=1`].
+        """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
+        return ProgramSpace(ROWS)
 
 
 # One shared instance, so the assertion below observes the provider the suite

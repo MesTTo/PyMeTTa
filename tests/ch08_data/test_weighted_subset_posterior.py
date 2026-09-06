@@ -18,6 +18,7 @@ Guarantees:
 
 from __future__ import annotations
 
+from collections.abc import Iterator
 from fractions import Fraction
 from itertools import product
 from math import gcd
@@ -31,11 +32,24 @@ from metta.errors import EngineError
 
 
 @pytest.fixture(scope="module")
-def subset_space(metta) -> Space:
-    """One isolated imported library shared by the generated examples."""
-    space = metta._new_space()
-    space.run("!(import! (context-space) (library lib_combinatorics))")
-    return space
+def subset_space(metta) -> Iterator[Space]:
+    """One isolated imported library shared by the generated examples.
+
+    Dropped on the way out, because an import is not isolated by the space it
+    is made in: a library's heads are compiled into the one module table this
+    process has, so `lib_combinatorics`' `range` answered `is_function` in
+    `&self` for every later test in the same worker. That is not academic --
+    `list(range(n))` inside an `@m.define` then reads as ambiguous between an
+    engine answer stream and a host list, which is what the compiler refuses,
+    and test_list_collects_engine_answers_and_preserves_host_lists failed
+    whenever this file ran before it [measured 2026-09-07: `pytest -n 0
+    tests/ch08_data/test_weighted_subset_posterior.py <that test>` fails and
+    the test alone passes]. Dropping the space withdraws the head, measured the
+    same day: is_function('range') answers False again.
+    """
+    with metta._new_space() as space:
+        space.run("!(import! (context-space) (library lib_combinatorics))")
+        yield space
 
 
 @st.composite

@@ -343,6 +343,14 @@ def test_shipped_plugin_provides_the_fixtures(tmp_path: Path):  # noqa: D103  --
     # One registration path in every environment: with the entry point
     # installed, autoload plus -p would register the module twice.
     environment["PYTEST_DISABLE_PLUGIN_AUTOLOAD"] = "1"
+    # And a configuration of its own, so the child cannot inherit THIS
+    # repository's. pytest walks up from its rootdir for an ini file, and with
+    # a temporary directory anywhere under the checkout it reaches
+    # pyproject.toml, reads `timeout = 900` for a plugin autoload has just
+    # been told not to load, and answers PytestConfigWarning -- which
+    # `filterwarnings = error` makes an INTERNALERROR before a test runs
+    # [measured 2026-09-07 with TMPDIR inside the worktree].
+    (tmp_path / "pytest.ini").write_text("[pytest]\n", encoding="utf8")
     done = subprocess.run(
         [
             sys.executable,

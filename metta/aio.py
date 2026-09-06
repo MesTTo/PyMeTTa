@@ -1693,7 +1693,8 @@ class AsyncMeTTa:
         argument `answers` and `eval` take; a string is still a string.
         What is traced executes for real, writes included, like run();
         the wrap exists only while tracing, so untraced calls pay
-        nothing. max_events bounds the RECORDING and timeout,
+        nothing and the wrapping itself is not charged to the bounds
+        below. max_events bounds the RECORDING and timeout,
         inferences and stack bound the RUN, defaulting to whatever
         `m.limits()` scopes; they are independent because a program can
         retire millions of inferences inside a handful of recorded

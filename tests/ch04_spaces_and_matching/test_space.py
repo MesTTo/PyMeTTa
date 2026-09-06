@@ -1162,6 +1162,68 @@ def test_new_spaces_drop_and_names_recycle(metta):
         assert current_space() == metta.name
 
 
+def test_a_release_answers_the_next_mint_even_with_other_names_free(metta):
+    """The anonymous pool is a stack, so a drop-then-mint round trip is one name.
+
+    With only one name free, a queue and a stack answer the same, which is why a
+    test running alone never saw the difference. With TWO free names a queue
+    hands back the older one: measured 2026-09-07 under `--randomly-seed=13683517`,
+    two earlier tests had freed &pyspace_42 and &pyspace_43, the mint took 42,
+    the drop put 42 back behind 43, and the next mint answered 43 for a released
+    42. `metta_py_pool_space` uses `asserta` now, so `retract/1` takes the name
+    most recently released.
+    """
+    # Both minted BEFORE either is dropped, so the pool really holds two
+    # distinct names; minting and dropping one at a time would hand the same
+    # name back each time and a queue would look like a stack.
+    older = metta._new_space()
+    newer = metta._new_space()
+    older.drop()
+    newer.drop()
+    with metta._new_space() as scratch:
+        held = scratch.name
+        scratch.add(S.noted(S.here))
+    with metta._new_space() as again:
+        assert again.name == held, (
+            f"{again.name} was minted where {held} was released while "
+            f"{older.name} and {newer.name} were also free, so the pool is "
+            f"answering by age rather than by release"
+        )
+        assert len(again) == 0
+
+
+def test_a_collected_context_does_not_take_the_name_a_live_mint_released(metta):
+    """A collection between a mint and its release may not reorder the pool.
+
+    The anonymous pool is served first-in-first-out, so a name pooled while
+    another space is still alive is handed out AHEAD of the name that space
+    releases. `MeTTa()`'s abandonment backstop used to pool from a weakref
+    callback, which put the collector in charge of that ordering: measured
+    2026-09-07, an abandoned context collected inside a `with
+    metta._new_space()` block made the next mint answer the abandoned home's
+    name for a space nobody had released, which is
+    test_new_spaces_drop_and_names_recycle's failure under `-n 4 --dist
+    loadfile` whenever the file order put a leaked context before it.
+
+    The backstop hands its drop to `_DEFERRED_WORK` now and retires the name
+    rather than pooling it, so the pool's order is program order.
+    """
+    import gc
+
+    abandoned = MeTTa()
+    with metta._new_space() as scratch:
+        first = scratch.name
+        scratch.add(S.noted(S.here))
+        del abandoned
+        gc.collect()
+    with metta._new_space() as again:
+        assert again.name == first, (
+            f"{again.name} was minted where {first} was released, so a "
+            f"collected context reordered the anonymous pool"
+        )
+        assert len(again) == 0
+
+
 def test_load_restores_the_working_directory(metta, tmp_path):
     """One load resolves its imports from its own directory and puts the
     process's directory back afterwards, so later runs are untouched.
@@ -1562,32 +1624,44 @@ def test_adding_in_one_space_never_removes_atoms_from_another(metta):
     specialization's atom from HERE and the source of a copy lost atoms to the
     copy. It was the suite's one known flake, `assert 51 == 47`, 1 firing in 12
     parallel runs, with no concurrency involved.
+
+    The subject is a space of its own rather than the process home. Re-adding
+    a base equation plans the specialization again and leaves the previous
+    generated equation in place, one per base clause, so the two re-adds below
+    took `&self` from one `p6-map_Spec_[p6-inc]` equation to four [measured
+    2026-09-07: 1, 2, 4, 7, 11, 16 over successive re-adds, 1 + k(k+1)/2], and
+    a clone of `&self` then carried two of the four -- which is what
+    test_aio_structural_surface_behaves compares, and what it failed on 994
+    tests later in one process. Every assertion here holds unchanged against a
+    scratch space, the stored specialization included, and `&self` is left
+    with nothing.
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
-    metta.run("(= (p6-inc $x) (+ $x 1))")
-    metta.run("(= (p6-map $f $x) ($f $x))")
-    metta.run("(= (p6-use $z) (p6-map p6-inc $z))")
-    assert metta.run("!(p6-use 1)") == [[2]]
+    with metta._new_space() as subject:
+        subject.run("(= (p6-inc $x) (+ $x 1))")
+        subject.run("(= (p6-map $f $x) ($f $x))")
+        subject.run("(= (p6-use $z) (p6-map p6-inc $z))")
+        assert subject.run("!(p6-use 1)") == [[2]]
 
-    before = _atom_multiset(metta)
-    # The specialization the call above planned is a stored equation of the
-    # source space, so this is not an abstract multiset: it is what copy() went
-    # on to delete.
-    assert any("p6-map_Spec_" in atom for atom in before), before
+        before = _atom_multiset(subject)
+        # The specialization the call above planned is a stored equation of the
+        # source space, so this is not an abstract multiset: it is what copy()
+        # went on to delete.
+        assert any("p6-map_Spec_" in atom for atom in before), before
 
-    clone = metta.copy()
-    try:
-        assert _atom_multiset(metta) == before
-    finally:
-        clone.drop()
+        clone = subject.copy()
+        try:
+            assert _atom_multiset(subject) == before
+        finally:
+            clone.drop()
 
-    # The direct form, with no copy in it: two spaces defining one name, and
-    # neither losing atoms to the other.
-    with metta._new_space() as other:
-        other.run("(= (p6-map $f $x) ($f $x))")
-        assert _atom_multiset(metta) == before
-        other_before = _atom_multiset(other)
-        metta.run("(= (p6-map $f $x) ($f $x))")
-        assert _atom_multiset(other) == other_before
+        # The direct form, with no copy in it: two spaces defining one name,
+        # and neither losing atoms to the other.
+        with metta._new_space() as other:
+            other.run("(= (p6-map $f $x) ($f $x))")
+            assert _atom_multiset(subject) == before
+            other_before = _atom_multiset(other)
+            subject.run("(= (p6-map $f $x) ($f $x))")
+            assert _atom_multiset(other) == other_before
 
 
 def test_a_system_predicate_survives_an_equation_for_its_name(metta):
