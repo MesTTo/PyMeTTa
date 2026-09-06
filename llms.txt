@@ -262,8 +262,10 @@ knowledge a program can query. `metta.foreign` is the hand-written form of
 the same seam, `metta.remote` puts a space in another process, and
 `metta.spaces.view` presents a live Python object as one.
 
-`extensions/python/examples/language-feature-examples/` is 219 runnable
-programs, one per MeTTa example, gated to agree with the MeTTa they mirror.
+`extensions/python/examples/language-feature-examples/` is 224 runnable
+programs, each mirroring one MeTTa example's path. The `twins` REPORT lane
+runs each against the MeTTa it mirrors and prints what a twin cannot yet say;
+an example without a twin is a backlog row rather than a gap in the corpus.
 They are the reference for idiomatic code on this surface.
 
 ## Types, and checking them
@@ -323,7 +325,7 @@ knowledge (`metta.boot(path)` assembles an app), `metta.derivation` and
 and `metta.testing` ships hypothesis strategies for property-testing code
 built on this surface.
 
-`m += lib.x` imports one of the engine's 34 MeTTa libraries through the write
+`m += lib.x` imports one of the engine's 38 MeTTa libraries through the write
 door, because a library IS knowledge and the receiver is the target space.
 
 ## When it refuses
