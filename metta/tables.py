@@ -78,20 +78,20 @@ Guarantees:
   - add() reads an Arrow stream one record batch at a time and produces the
     atoms the source's own row door would have [tested:
     test_a_duckdb_relation_loads_through_the_arrow_door,
-    test_both_inward_doors_build_the_same_atoms; commit=WORKTREE]
+    test_both_inward_doors_build_the_same_atoms; commit=6ef81c4dd8fe5fcdd7aec5eeb7d26b4c5a4ddf9d]
   - a bridge streams its declared columns to any Arrow consumer, and refuses
     when its shapes do not agree on one column list [tested:
     test_a_bridge_streams_its_sqlite_rows,
-    test_a_bridge_over_two_relations_refuses_one_schema; commit=WORKTREE]
+    test_a_bridge_over_two_relations_refuses_one_schema; commit=6ef81c4dd8fe5fcdd7aec5eeb7d26b4c5a4ddf9d]
   - the stream reads the connection inside the call, so a consumer that reads
     the capsule on its own thread needs a connection that permits it
-    [tested: test_a_bridge_streams_its_sqlite_rows; commit=WORKTREE]
+    [tested: test_a_bridge_streams_its_sqlite_rows; commit=6ef81c4dd8fe5fcdd7aec5eeb7d26b4c5a4ddf9d]
   - `df.metta` is installed for a frame library already imported, without
     importing one [tested: test_the_frame_accessors_install_for_imported_libraries;
-    commit=WORKTREE]
+    commit=6ef81c4dd8fe5fcdd7aec5eeb7d26b4c5a4ddf9d]
   - a head registered as a SQL function answers NULL for no answer and
     refuses several [tested: test_a_head_is_a_duckdb_scalar_function,
-    test_a_head_is_a_sqlite_scalar_function; commit=WORKTREE]
+    test_a_head_is_a_sqlite_scalar_function; commit=6ef81c4dd8fe5fcdd7aec5eeb7d26b4c5a4ddf9d]
 Decides:
   - declarations are trusted code, not user data: table and column
     names are interpolated into SQL, so a bridge declaration belongs in

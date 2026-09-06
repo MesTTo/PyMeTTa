@@ -37,7 +37,7 @@ Guarantees:
     against 247,830,216 retired instructions over five 10,000-cell columns,
     is in docs/journal/2026-09-06-answers-as-arrow-streams.md
     [tested: test_the_fused_pass_answers_what_two_passes_answered;
-    commit=WORKTREE]
+    commit=6ef81c4dd8fe5fcdd7aec5eeb7d26b4c5a4ddf9d]
 Fails when:
   - a consumer wants a lazy producer: nanoarrow 0.9.0 builds an
     ArrowArrayStream only from a resolved list of arrays

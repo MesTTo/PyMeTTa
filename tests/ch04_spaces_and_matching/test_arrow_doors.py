@@ -9,9 +9,9 @@ to refuse rather than to work, and one scenario proves exactly that by hiding
 the module from the import system.
 Guarantees:
   - pyarrow, DuckDB, pandas 3 and polars read Rows and Answers with no glue
-    [tested: this module; commit=WORKTREE]
+    [tested: this module; commit=6ef81c4dd8fe5fcdd7aec5eeb7d26b4c5a4ddf9d]
   - the projection's kinds, nulls, canonical text and batch layout are the
-    ones the module's contract states [tested: this module; commit=WORKTREE]
+    ones the module's contract states [tested: this module; commit=6ef81c4dd8fe5fcdd7aec5eeb7d26b4c5a4ddf9d]
 Open Obligations:
   To Do: None
   Hacks: None

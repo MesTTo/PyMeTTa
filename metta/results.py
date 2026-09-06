@@ -91,12 +91,12 @@ Guarantees:
     typed projection, so pyarrow, polars, pandas 3 and DuckDB read them with
     no glue, and to_df and to_pl are sugar over the same stream [tested:
     test_pyarrow_reads_the_rows_capsule_directly,
-    test_to_pl_and_the_capsule_answer_the_same_frame; commit=WORKTREE]
+    test_to_pl_and_the_capsule_answer_the_same_frame; commit=6ef81c4dd8fe5fcdd7aec5eeb7d26b4c5a4ddf9d]
   - a column projects to a NumPy array of its decoded values through
     __array__, rather than an object array of atoms [tested:
-    test_a_numeric_column_becomes_a_typed_numpy_array; commit=WORKTREE]
+    test_a_numeric_column_becomes_a_typed_numpy_array; commit=6ef81c4dd8fe5fcdd7aec5eeb7d26b4c5a4ddf9d]
   - __length_hint__ answers only a size already known and never pulls
-    [tested: test_length_hint_never_pulls_and_len_counts; commit=WORKTREE]
+    [tested: test_length_hint_never_pulls_and_len_counts; commit=6ef81c4dd8fe5fcdd7aec5eeb7d26b4c5a4ddf9d]
 Open Obligations:
   To Do: None
   Hacks: None

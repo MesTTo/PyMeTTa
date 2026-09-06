@@ -40,10 +40,10 @@ Guarantees:
   - two handles under <, <=, > or >= refuse naming spaces.diff and
     spaces.union, while a handle against any other atom keeps the standard
     order [tested: test_two_handles_refuse_to_be_ordered_and_name_the_algebra;
-    commit=WORKTREE]
+    commit=6ef81c4dd8fe5fcdd7aec5eeb7d26b4c5a4ddf9d]
   - an expression pretty-prints through IPython's protocol with the same
     grouping __rich_repr__ gives rich [tested:
-    test_ipython_pretty_prints_an_expression_as_a_grouped_tree; commit=WORKTREE]
+    test_ipython_pretty_prints_an_expression_as_a_grouped_tree; commit=6ef81c4dd8fe5fcdd7aec5eeb7d26b4c5a4ddf9d]
   - Expression is a complete immutable Sequence with iterative equality and hashing
     [tested test_expr_sequence_index_and_count, test_expr_identity_equality]
   - Expression collects one generic iterable, snapshots a Space listing, and

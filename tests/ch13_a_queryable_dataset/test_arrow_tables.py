@@ -6,9 +6,9 @@ libraries' accessor, and a MeTTa head registered as a SQL scalar function.
 Guarantees:
   - a DuckDB relation, a pyarrow table and a Parquet-shaped reader load as
     facts through the stream, and a source with its own row door produces the
-    same atoms either way [tested: this module; commit=WORKTREE]
+    same atoms either way [tested: this module; commit=6ef81c4dd8fe5fcdd7aec5eeb7d26b4c5a4ddf9d]
   - a SQL-backed space streams its declared columns to any Arrow consumer
-    [tested: test_a_bridge_streams_its_sqlite_rows; commit=WORKTREE]
+    [tested: test_a_bridge_streams_its_sqlite_rows; commit=6ef81c4dd8fe5fcdd7aec5eeb7d26b4c5a4ddf9d]
 Open Obligations:
   To Do: None
   Hacks: None
