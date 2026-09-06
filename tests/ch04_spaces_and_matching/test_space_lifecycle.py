@@ -10,6 +10,11 @@ Guarantees:
   - a recycled name inherits no stored atom, no equation, no declaration and
     no tabling from its past life [tested
     test_a_recycled_space_name_inherits_no_clauses_from_its_past_life]
+  - nor its past life's user typing rules, which are the declaration made by
+    a call rather than by a stored atom and were the one kind that stayed
+    [tested
+    test_a_recycled_space_name_inherits_no_typing_rule_from_its_past_life;
+    commit=84327245373bba29fba00cf2cea62d8257a9f5cb]
   - what a recycled name DOES carry is the process-wide registrations, which
     belong to no space [tested
     test_a_recycled_name_still_sees_process_wide_registrations]
@@ -286,6 +291,64 @@ def test_a_recycled_space_name_inherits_no_clauses_from_its_past_life(drained): 
         # at a different arity without the first life's shape reaching it.
         second.run("(= (past-life $x $y) fresh)")
         assert second.run("!(past-life 1 2)") == [[S.fresh]]
+    finally:
+        second.drop()
+
+
+def test_a_recycled_space_name_inherits_no_typing_rule_from_its_past_life(drained):
+    """A typing rule is a declaration too, and it is the one that stayed.
+
+    `add-typing-rule!` writes into the space's execution module, and a
+    released name hands that module to its next life. What the survivor did
+    was not merely linger: a module holding ANY user rule answered nothing at
+    all for every ordinary argument refusal in it, no value and no error, so a
+    wrong-typed call in the new life produced no answers instead of its
+    BadArgType. That is what failed
+    ch09_types/test_gradual_typing.py::test_an_unknown_type_is_consistent_with_every_declared_type
+    on one xdist worker while the same file alone passed, the polluter being
+    ch09_types/test_typed_flat_calls.py::test_the_direct_goal_path_and_the_general_path_agree_on_every_corpus_call
+    and the two of them landing on the same pooled name.
+    """
+    payload = (
+        "(: held (-> PastPayload Atom))\n"
+        "(= (held $x) (kept $x))\n"
+        "(: p PastPayload)"
+    )
+    first = drained._new_space()
+    name = first.name
+    first.run(payload)
+    first.run(
+        "!(add-typing-rule! past-deny ordinary PastPayload PastPayload "
+        "(refuse gone))"
+    )
+    # The rule is READ rather than taken on its receipt: it has to be in force
+    # in the first life for the second life's acceptance to mean anything.
+    assert first.run("!(held p)") == [
+        [
+            S.Error(
+                S.held(S.p),
+                S.BadArgType(
+                    1,
+                    S.PastPayload,
+                    S.PastPayload,
+                    S.TypingRuleRefusal(S["past-deny"], S.gone),
+                ),
+            )
+        ]
+    ]
+    first.drop()
+
+    second = drained._new_space()
+    assert second.name == name, "the point of the test is the reused name"
+    try:
+        second.run("(: concrete (-> Number Atom))\n(= (concrete $x) (got $x))")
+        assert second.run('!(concrete "s")') == [
+            [S.Error(S.concrete("s"), S.BadArgType(1, S.Number, S.String))]
+        ]
+        # And the inherited rule is gone rather than merely outvoted: the pair
+        # it named is accepted again.
+        second.run(payload)
+        assert second.run("!(held p)") == [[S.kept(S.p)]]
     finally:
         second.drop()
 
