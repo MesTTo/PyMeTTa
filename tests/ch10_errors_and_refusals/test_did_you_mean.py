@@ -21,7 +21,9 @@ and the auto-fill is an interpreter internal rather than a documented
 guarantee. A private-name guard is the exception, staying bare because it
 answers protocol probes from ``copy``, ``pickle`` and ``inspect`` where the
 round trip costs 296 ns against 462 ns and nobody reads the traceback
-[measured 2026-09-06, minimum of nine runs of 200,000 on CPython 3.14].
+[measured 2026-09-06: minimum of nine timeit rounds of 200,000 on CPython
+3.14.4, recorded in
+docs/journal/2026-09-06-a-head-knows-where-it-came-from.md].
 Open Obligations:
   To Do: None
   Hacks: None

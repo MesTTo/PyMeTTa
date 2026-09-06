@@ -4809,8 +4809,8 @@ metta_py_disassemble(Space, Name0, Text) :-
 % so SWI records nothing about it and clause_property(Ref, file(_)) simply
 % fails [measured 2026-09-06: `car-atom` answers input_guards.pl lines 170-175
 % while a head loaded from a .metta file and one defined through m.run both
-% answer predicate/1 and nothing else; fixture=ai-tmp/obs/probe4.py on this
-% branch]. Its file comes instead from the loader's ownership journal, which
+% answer predicate/1 and nothing else; the MeTTa half is pinned since by
+% test_a_head_defined_from_python_text_has_no_source]. Its file comes instead from the loader's ownership journal, which
 % already records every reference a load asserted, and its line is left to
 % extensions/python/metta/_source_forms.py. Hence the FORM INDEX: it indexes
 % the same parsed-form list metta_py_read_forms/2 hands that walk, so the two
@@ -5614,9 +5614,9 @@ metta_py_unregister_foreign(Space0) :-
 % Python callback only ever runs inside a crossing this process asked for, on
 % a thread that has an interpreter state, and a message emitted on a Prolog
 % worker thread finds no clause here and prints exactly as it did before
-% [measured 2026-09-06: a clause asserted from one janus crossing is visible
-% in the next on the same thread and absent on a Python worker thread's
-% engine; fixture=ai-tmp/obs/probe_hook.py on this branch].
+% [measured 2026-09-06: a clause asserted into user:thread_message_hook/3 from
+% one janus crossing is still counted by clause/2 in the NEXT crossing on the
+% same thread, and is absent from a Python worker thread's own engine].
 %
 % It FAILS after delivering, and must. print_message_guarded/2 reads a
 % succeeding thread_message_hook as "handled", calling neither message_hook/3

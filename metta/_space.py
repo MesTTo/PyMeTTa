@@ -5527,9 +5527,12 @@ class MeTTa:
             # Python does, and a slot read during __init__ arrives here too.
             # Those probes also keep the two suggestion fields off, because
             # nobody reads a probe's traceback and carrying them costs the
-            # round trip 296 ns against 462 ns [measured 2026-09-06;
-            # command=ai-tmp/obs/probe_attr_cost.py, minimum of nine runs of
-            # 200,000 on CPython 3.14].
+            # round trip 296 ns against 462 ns [measured 2026-09-06: minimum
+            # of nine timeit rounds of 200,000 on CPython 3.14.4 over
+            # `try: o.__wrapped__` / `except AttributeError: pass`, against a
+            # class whose __getattr__ raises AttributeError(name) and one
+            # whose raises AttributeError(name, name=name, obj=self);
+            # recorded in docs/journal/2026-09-06-a-head-knows-where-it-came-from.md].
             private = name.startswith("_")
             if not private and hasattr(Space, name):
                 msg = (
