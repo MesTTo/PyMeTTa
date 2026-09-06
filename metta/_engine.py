@@ -273,13 +273,26 @@ def _reserved_message(kind: object, detail: object, fallback: str) -> str:
     The thrown term is an envelope the Python side put there, so rendering
     it leaks janus framing: the caller who passed timeout=0.05 was reading
     `Unknown error term: metta_control_signal(time_limit,0.05)`.
+
+    A bound may expire with no detail to name. That is SWI's own
+    `inference_limit_exceeded` or `time_limit_exceeded` ball, which arrives
+    unenveloped from a nested query and knows only which resource ran out;
+    the sentence says exactly that rather than naming a limit of `None`.
     """
     if kind == "syntax":
         return detail if isinstance(detail, str) else fallback
     if kind == "time_limit":
-        return f"the {detail} second time limit was reached"
+        return (
+            "the time limit was reached"
+            if detail is None
+            else f"the {detail} second time limit was reached"
+        )
     if kind == "inference_limit":
-        return f"the {detail} inference limit was reached"
+        return (
+            "the inference limit was reached"
+            if detail is None
+            else f"the {detail} inference limit was reached"
+        )
     if kind == "interrupted":
         return "interrupt() stopped the evaluation"
     return fallback

@@ -47,6 +47,20 @@ Guarantees:
   - snapshot capability is structural and explicit, so reification never
     mistakes live enumeration for an immutable view [tested:
     test_reify_refuses_and_names_a_live_composite_member; commit=3ded7552797b66d78e666141eb51f3bc14686bd2]
+  - a provider's own exception, raised at any point of a pull, reaches the
+    caller: one written as a MettaError keeps its sentence, anything else
+    arrives as an EngineError naming the space and the provider class with the
+    original as its cause, and a control signal crosses unchanged [tested:
+    test_a_provider_generator_that_raises_names_the_space_and_the_provider,
+    test_a_provider_that_raises_our_own_error_keeps_its_own_sentence,
+    test_an_enumeration_that_raises_mid_stream_names_its_provider;
+    commit=WORKTREE]
+  - a provider may query the engine from inside its own match, and a resource
+    bound spent there stops the query as that bound [tested:
+    test_a_provider_may_query_the_engine_from_inside_its_own_match,
+    test_an_inference_limit_spent_inside_a_provider_callback_is_an_inference_limit_error,
+    test_a_bound_the_provider_set_itself_crosses_as_that_bound;
+    commit=WORKTREE]
 Guarded by:
   - _PROVIDER_LOCK serializes library registration and provider lookups
     [tested test_provider_registration_is_transactional]
@@ -67,7 +81,13 @@ from typing import Any, ClassVar, Protocol, cast, runtime_checkable
 
 from .answer import Answer
 from .atoms import Atom, Box, Expression, Grounded, Symbol, _atom_from_wire, _encode
-from .errors import MettaError, TransportFailure, is_transport_failure
+from .errors import (
+    EngineError,
+    MettaError,
+    TransportFailure,
+    guarded,
+    is_transport_failure,
+)
 from .vocabularies import Delivery, EventOrder
 
 __all__ = [
@@ -773,10 +793,12 @@ def _erring_stream(stream, mode: str, pattern):
     the reserved ["x","error",...] item carrying the language's own
     (Error <query> <reason>) atom, empty ends the stream, and both always
     end with ["x","end"] so an empty stream still claims the route.
-    Control signals and transport failures re-raise, always.
+    Control signals and transport failures re-raise, always, into the
+    crossing guard around this, which carries them across as data.
     """
     # KeyboardInterrupt and SystemExit are BaseException, outside this
-    # handler by construction, so control signals pass through untouched.
+    # handler by construction, so control signals reach the guard untouched
+    # by the declared mode.
     try:
         yield from stream
     except Exception as error:
@@ -791,17 +813,54 @@ def _erring_stream(stream, mode: str, pattern):
     yield ["x", "end"]
 
 
+def _provider_failure(
+    error: BaseException, space: str, operation: str, provider: SpaceProvider
+) -> BaseException:
+    """Name the provider on a failure that is not already in our words.
+
+    A provider that raised a MettaError already wrote its own sentence and
+    keeps it, which is what makes `_require_provider`'s stated refusals read
+    the way their author wrote them; so does a TransportFailure, whose class
+    the error modes read. Anything else is the provider's own domain
+    exception, a sqlite3.OperationalError say, and on its own it says only
+    that something raised somewhere in Python: which space asked, and which
+    provider answered, are exactly what the caller cannot recover from a
+    traceback that names a method called `match`.
+
+    EngineError rather than the bare MettaError `_require_provider` raises,
+    because the two are different events and the hierarchy already separates
+    them: a provider that DECLINED made a policy decision the caller can act
+    on, and a provider that CRASHED is a backend fault. `space` and
+    `operation` are MettaError's own fields, so both carry them.
+
+    A BaseException that is not an Exception is a control signal on its way
+    out of the process and is never wrapped: KeyboardInterrupt reaches the
+    caller as KeyboardInterrupt.
+    """
+    if isinstance(error, MettaError) or not isinstance(error, Exception):
+        return error
+    msg = (
+        f"{operation} cannot use {space}: its {type(provider).__name__} "
+        f"provider raised {type(error).__name__}: {error}"
+    )
+    failure = EngineError(msg, space=space, operation=operation)
+    failure.__cause__ = error
+    failure.__suppress_context__ = True
+    return failure
+
+
 def foreign_match(
     space: str, pattern_wire: list, limit: int | None = None, mode: str = "abort"
 ):
     """The shim's py_iter enumerates this: candidate atoms, encoded.
 
-    Everything that can fail happens before the generator exists. A
-    generator body does not run until the first pull, and an exception
-    raised there escapes through py_iter as
-    `SystemError: apply_once returned a result with an exception set`,
-    which names nothing the caller did. Raising it from an ordinary call
-    instead lets janus carry it as the error it is.
+    Everything that CAN fail eagerly does, before the generator exists: a
+    refusal raised here escapes through janus's own py_eval, which reports
+    it as the error it is. What a provider's own generator raises later
+    cannot take that route, because py_iter reads a raising pull as an
+    exhausted stream, so the pulls are wrapped in the crossing guard and a
+    failure crosses as data. `metta.errors.stream_failure` has the
+    measurements.
     """
     provider = _provider(space)
     pattern = _atom_from_wire(pattern_wire)
@@ -820,16 +879,22 @@ def foreign_match(
         msg = "validated match provider has no candidate source"
         raise RuntimeError(msg)  # noqa: TRY004  -- the provider failed after dispatch, so this is an execution failure rather than caller type validation
     stream = _wire_stream(iter(candidates))
-    if mode == "abort":
-        return stream
-    return _erring_stream(stream, mode, pattern)
+    if mode != "abort":
+        stream = _erring_stream(stream, mode, pattern)
+    return guarded(
+        stream,
+        lambda error: _provider_failure(error, space, "match", provider),
+    )
 
 
 def foreign_atoms(space: str):
     """The shim's py_iter enumerates this; see foreign_match on ordering."""
     provider = _provider(space)
     _require_provider(provider, space, "enumerate", "get-atoms")
-    return _wire_stream(iter(cast(Enumerable, provider).atoms()), answers=False)
+    return guarded(
+        _wire_stream(iter(cast(Enumerable, provider).atoms()), answers=False),
+        lambda error: _provider_failure(error, space, "get-atoms", provider),
+    )
 
 
 def is_matchable(obj: Any) -> bool:
@@ -842,10 +907,11 @@ def match_object(obj: Any, other_wire: list):
 
     The value is local, so nothing crosses per candidate: match_ runs
     here and only the answers are encoded. Errors abort by design; see
-    CustomMatch.
+    CustomMatch. A bare value has no space and no provider to name, so the
+    crossing carries its exception unchanged.
     """
     other = _atom_from_wire(other_wire)
-    return _wire_stream(iter(_unwrap_box(obj).match_(other)))
+    return guarded(_wire_stream(iter(_unwrap_box(obj).match_(other))))
 
 
 def _unwrap_box(obj: Any) -> Any:

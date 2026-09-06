@@ -27,6 +27,11 @@ Guarantees:
     value releases both the declaration and the Python object [tested:
     test_a_py_atom_declaration_dies_with_its_grounded_value;
     commit=bbf02dd309d15e178a9c83d03b749eb7170b6a20]
+  - an inverse or streaming generator that raises reaches the caller naming
+    its MeTTa call, and a control signal out of one crosses as itself [tested:
+    test_a_raising_inverse_generator_names_the_metta_call,
+    test_an_interrupt_out_of_a_generator_operation_reaches_the_caller;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -1362,3 +1367,58 @@ def test_a_py_atom_declaration_dies_with_its_grounded_value(metta):
     gc.collect()
     assert all(reference() is None for reference in carriers)
     assert not metta.runtime.once("current_predicate(metta_py_declared_type/2)")
+
+
+def test_a_raising_inverse_generator_names_the_metta_call(metta):
+    """An inverse enumerates through py_iter, so it needs the same guard.
+
+    Without it a preimage generator that raised had its already-yielded rows
+    kept and its exception delivered later wearing janus's own wording, which
+    named a Python file and no MeTTa call at all: the very defect
+    metta_py_failure/2 exists to close for every other operation door.
+    """
+    name = unique("halve")
+
+    def forwards(x: int) -> int:
+        return x * 2
+
+    def backwards(y: int):
+        yield y // 2
+        msg = "the inverse generator blew up"
+        raise RuntimeError(msg)
+
+    metta.op(forwards, name=name, effect="pureStructural", inverse=backwards)
+    try:
+        with pytest.raises(EngineError) as failed:
+            metta.run(f"!(let ({name} $x) 8 $x)")
+        assert f"in ({name} 8)" in str(failed.value)
+        assert "the inverse generator blew up" in str(failed.value)
+        assert metta.eval(S["+"](1, 2)) == [3]
+    finally:
+        metta.unregister_op(name)
+
+
+def test_an_interrupt_out_of_a_generator_operation_reaches_the_caller(metta):
+    """A control signal out of a streaming operation crosses as itself.
+
+    KeyboardInterrupt is a BaseException, outside the declared error modes by
+    construction, so it escaped into py_iter, which reads a raising pull as an
+    exhausted stream. That it still arrived was luck of where the pending
+    exception was next noticed; the leak SWI reported on the way past is
+    pinned in test_foreign.py's
+    test_a_control_signal_out_of_a_python_stream_leaves_no_pending_exception,
+    which reads the child process's own stderr.
+    """
+    name = unique("interrupting")
+
+    @metta.op(name=name, effect="nondeterministicReadOnly")
+    def interrupting(n: int):
+        yield n
+        raise KeyboardInterrupt
+
+    try:
+        with pytest.raises(KeyboardInterrupt):
+            metta.eval(S[name](7))
+        assert metta.eval(S["+"](1, 2)) == [3]
+    finally:
+        metta.unregister_op(name)

@@ -25,6 +25,14 @@ Guarantees:
     machine-readable ground [tested:
     test_an_uncovered_world_refuses_before_creating_scratch_or_running_the_operation;
     commit=173eeed021beb360b5e5f9f8461889e27190affc]
+  - a stream janus pulls through py_iter/2 never raises into it: every failure
+    ends the stream as stream_failure's reserved frame and stream_reraise
+    raises it back on the Python side of the crossing, so a provider's
+    exception, an operation's, and a control signal each reach the caller as
+    themselves [tested:
+    test_a_provider_generator_that_raises_names_the_space_and_the_provider,
+    test_a_control_signal_out_of_a_python_stream_leaves_no_pending_exception,
+    test_a_raising_inverse_generator_names_the_metta_call; commit=WORKTREE]
   - CompileError renders a source path, function, line and exact caret span
     while retaining its machine-readable construct and coordinates, and
     with_coordinates derives that block for a statement wall raised with the
@@ -40,7 +48,10 @@ Open Obligations:
 from __future__ import annotations
 
 import ast
+import functools
+from collections.abc import Callable, Iterable, Iterator
 from dataclasses import dataclass
+from typing import Any
 
 __all__ = [
     "AssertionFailure",
@@ -60,7 +71,11 @@ __all__ = [
     "TimeLimitError",
     "Timeout",
     "TransportFailure",
+    "guarded",
+    "guarding",
     "is_transport_failure",
+    "stream_failure",
+    "stream_reraise",
 ]
 
 
@@ -536,3 +551,98 @@ class NotReducible(Exception):  # noqa: N818  -- the exception name is a domain 
     than error, which is how a semi-deterministic MeTTa function says no. A
     generator operation needs no signal: yielding nothing already is one.
     """
+
+
+# --------------------------------------------------------- the py_iter crossing
+
+
+def _failed_during_generator_close(error: BaseException) -> bool:
+    """Tell a release failure from an ordinary mid-iteration failure.
+
+    ``contextlib.closing`` calls the owned generator's ``close`` while handling
+    ``GeneratorExit`` from this stream. A release error then carries that
+    control signal as its direct context and must propagate rather than yield,
+    because yielding while closing raises ``RuntimeError: generator ignored
+    GeneratorExit`` and hides the resource failure.
+    """
+    return isinstance(error.__context__, GeneratorExit)
+
+
+def stream_failure(error: BaseException) -> list:
+    """Carry a terminal stream failure as data until Prolog can raise it.
+
+    Janus pulls a Python iterator with ``PyIter_Next`` inside ``py_iter/2`` and
+    never consults the error indicator afterwards, so an iterator that RAISES is
+    indistinguishable there from one that is exhausted: the Prolog goal carries
+    on with a silently truncated stream and the still-set Python exception
+    surfaces at whatever crossing runs next [source: janus 1.5.3
+    janus.c:py_iter3, the two ``state->next = PyIter_Next(state->iterator)``
+    calls, neither followed by ``check_error``; commit=WORKTREE]. What "whatever
+    runs next" turned out to be was a provider match answering one atom instead
+    of two and then dying inside janus's own error path with SIGSEGV, because
+    ``py_record`` asks Python to build a ``Term`` while the indicator is set,
+    CPython refuses, and ``Py_SetPrologErrorFromObject`` increments the NULL
+    that leaves; and a KeyboardInterrupt out of a nondeterministic operation
+    printing ``foreign predicate system:$new_findall_bag/0 did not clear
+    exception`` before vanishing [tested:
+    test_an_inference_limit_spent_inside_a_provider_callback_is_an_inference_limit_error,
+    test_a_control_signal_out_of_a_python_stream_leaves_no_pending_exception;
+    commit=WORKTREE].
+
+    So a stream this library hands to ``py_iter`` may not raise. It ends with
+    this reserved frame instead, carrying the live exception object; the Prolog
+    side hands that object straight back to ``stream_reraise``, where janus's
+    own ``check_error`` converts it exactly as it converts the exception of a
+    deterministic ``py_call`` callback. ``x`` is the wire's control namespace,
+    so no encoded atom can be read as one.
+    """
+    return ["x", "raise", type(error).__name__, error]
+
+
+def stream_reraise(error: BaseException) -> None:
+    """Raise what a stream carried out, back on the Python side of the crossing.
+
+    Called from Prolog with the object ``stream_failure`` put in the frame, so
+    the exception is raised inside an ordinary ``py_call``: janus maps
+    ``KeyboardInterrupt`` and ``SystemExit`` onto their unwind forms and every
+    other class onto ``error(python_error(Class, Object), context(python_stack
+    (Stack), _))``, and the live object stays reachable for
+    ``metta_py_original_exception/2`` to re-raise at the outer door.
+    """
+    raise error
+
+
+def guarded(
+    stream: Iterable[Any],
+    translate: Callable[[BaseException], BaseException] | None = None,
+) -> Iterator[Any]:
+    """One stream, made total: it yields items and never raises into py_iter.
+
+    A failure ends the stream with ``stream_failure``'s frame. ``translate``
+    is the owning seam's chance to say whose failure it was before the
+    exception crosses; it may not itself raise.
+    """
+    try:
+        yield from stream
+    except GeneratorExit:
+        raise
+    except BaseException as error:
+        # Every class, because every class poisons the crossing equally: the
+        # narrower `except Exception` these doors used to carry is exactly
+        # what let KeyboardInterrupt through to py_iter.
+        if _failed_during_generator_close(error):
+            raise
+        yield stream_failure(error if translate is None else translate(error))
+
+
+def guarding(door: Callable[..., Iterable[Any]]) -> Callable[..., Iterator[Any]]:
+    """Declare that janus pulls this door's stream through ``py_iter``.
+
+    The decorator form of ``guarded``, for the doors the shim names directly.
+    """
+
+    @functools.wraps(door)
+    def crossing(*arguments: Any, **keywords: Any) -> Iterator[Any]:
+        return guarded(door(*arguments, **keywords))
+
+    return crossing

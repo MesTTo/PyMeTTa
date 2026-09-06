@@ -101,7 +101,14 @@ from .atoms import (
     _decode,
     _encode,
 )
-from .errors import MettaError, NotReducible, is_transport_failure
+from .errors import (
+    MettaError,
+    NotReducible,
+    _failed_during_generator_close,
+    guarding,
+    is_transport_failure,
+    stream_failure,
+)
 from .vocabularies import EffectClass
 
 __all__ = [
@@ -377,6 +384,7 @@ def dispatch_context(token: int, name: str, tagged_args: list) -> list:
     return _task_context.run(token, dispatch, name, tagged_args)
 
 
+@guarding
 def dispatch_inverse(name: str, tagged_result: Any):
     """Run an operation BACKWARDS: one result in, argument tuples out.
 
@@ -405,11 +413,13 @@ def dispatch_inverse(name: str, tagged_result: Any):
         yield encoded_arguments
 
 
+@guarding
 def dispatch_inverse_context(token: int, name: str, tagged_result: Any):
     """Enumerate inverse rows under the spawned child Context."""
     yield from _context_stream(token, dispatch_inverse(name, tagged_result))
 
 
+@guarding
 def dispatch_inverse_raw(name: str, result: Any):
     """The same relation for a raw operation, with janus's own conversions.
 
@@ -425,6 +435,7 @@ def dispatch_inverse_raw(name: str, result: Any):
         yield [_rebox(argument) for argument in arguments]
 
 
+@guarding
 def dispatch_inverse_raw_context(token: int, name: str, result: Any):
     """Enumerate raw inverse rows under the spawned child Context."""
     yield from _context_stream(token, dispatch_inverse_raw(name, result))
@@ -464,6 +475,7 @@ def _preimages(name: str, result: Any):
             close()
 
 
+@guarding
 def dispatch_many(name: str, tagged_args: list, mode: str = "abort"):
     """A generator of encoded answers; each yield is one MeTTa answer.
 
@@ -515,7 +527,7 @@ def dispatch_many(name: str, tagged_args: list, mode: str = "abort"):
             or is_transport_failure(error)
         )
         if must_abort:
-            yield _stream_error(error)
+            yield stream_failure(error)
         elif mode == "keep":
             call = Expression(
                 [
@@ -530,6 +542,7 @@ def dispatch_many(name: str, tagged_args: list, mode: str = "abort"):
             yield Expression([Symbol("Error"), call, Grounded(reason)]).to_wire()
 
 
+@guarding
 def dispatch_many_context(
     token: int,
     name: str,
@@ -588,29 +601,6 @@ def _relation_schema(op: Operation, arity: int) -> _RelationSchema:
         positions,
         frozenset(repeated),
     )
-
-
-def _failed_during_generator_close(error: Exception) -> bool:
-    """Tell a release failure from an ordinary mid-iteration failure.
-
-    ``contextlib.closing`` calls the owned generator's ``close`` while handling
-    ``GeneratorExit`` from this stream. A release error then carries that
-    control signal as its direct context and must propagate rather than yield,
-    because yielding while closing raises ``RuntimeError: generator ignored
-    GeneratorExit`` and hides the resource failure.
-    """
-    return isinstance(error.__context__, GeneratorExit)
-
-
-def _stream_error(error: Exception) -> list:
-    """Carry a terminal generator failure as data until Prolog can throw it.
-
-    Raising while Janus is pulling ``py_iter/2`` loses the Python exception
-    behind a bare ``SystemError``. The shim recognizes this reserved frame and
-    hands the live object to ``metta_py_failure/2``, the same structured error
-    boundary deterministic operations use.
-    """
-    return ["x", "raise", type(error).__name__, error]
 
 
 def _encode_relation_candidate(
@@ -737,6 +727,7 @@ def dispatch_raw_context(token: int, name: str, args: list) -> Any:
     return _task_context.run(token, dispatch_raw, name, args)
 
 
+@guarding
 def dispatch_raw_many(name: str, args: list):
     op = REGISTRY[name]
     unboxed_args = [_unbox(argument) for argument in args]
@@ -751,9 +742,10 @@ def dispatch_raw_many(name: str, args: list):
     except Exception as error:
         if _failed_during_generator_close(error):
             raise
-        yield _stream_error(error)
+        yield stream_failure(error)
 
 
+@guarding
 def dispatch_raw_many_context(token: int, name: str, args: list):
     """Pull every raw stream item in a spawned child Context."""
     yield from _context_stream(token, dispatch_raw_many(name, args))
