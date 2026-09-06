@@ -113,7 +113,7 @@ __all__ = [
     "AlgebraLaw",
     "AnswerPolicy",
     "Atomicity",
-    "CacheMode",
+    "CachePolicy",
     "ClauseFailedEnum",
     "Delivery",
     "Determinism",
@@ -231,11 +231,22 @@ class Atomicity(_AtomStrEnum):
     atomic_single = "atomic-single"
     best_effort = "best-effort"
 
-#: (vocabulary cache-mode force refuse)
-class CacheMode(_AtomStrEnum):
-    """Typed values of the cache-mode vocabulary."""
+#: (vocabulary cache-policy force refuse plain incremental monotonic lazy shared private subsumptive lattice max-answers subgoal-abstract answer-abstract)
+class CachePolicy(_AtomStrEnum):
+    """Typed values of the cache-policy vocabulary."""
     force = "force"
     refuse = "refuse"
+    plain = "plain"
+    incremental = "incremental"
+    monotonic = "monotonic"
+    lazy = "lazy"
+    shared = "shared"
+    private = "private"
+    subsumptive = "subsumptive"
+    lattice = "lattice"
+    max_answers = "max-answers"
+    subgoal_abstract = "subgoal-abstract"
+    answer_abstract = "answer-abstract"
 
 #: (vocabulary delivery at-most-once at-least-once per-write-exactly)
 class Delivery(_AtomStrEnum):

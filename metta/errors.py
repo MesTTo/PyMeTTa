@@ -75,6 +75,7 @@ __all__ = [
     "MettaSyntaxError",
     "NotReducible",
     "ResourceLimitError",
+    "RestraintError",
     "SourceNotFound",
     "SpaceCapabilityError",
     "SubscriberError",
@@ -385,6 +386,32 @@ class TimeLimitError(ResourceLimitError):
 
 class InferenceLimitError(ResourceLimitError):
     """inferences= engine steps were spent before the call finished."""
+
+
+class RestraintError(ResourceLimitError):
+    """A restraint the program declared for one of its tables tripped.
+
+    The bound is the program's own `(cache name (max-answers N))`,
+    `(subgoal-abstract N)` or `(answer-abstract N)` row rather than a
+    caller's keyword, which is the one difference from its two siblings.
+    `restraint` is that word, `bound` its integer, and `call` the tabled call
+    the engine was evaluating, as MeTTa text. Whatever the goal completed
+    before the stop stands, and the table keeps the answers it had, so the
+    next call of the same table signals again until it is cleared.
+    """
+
+    def __init__(  # noqa: D107  -- the enclosing class documents construction and the object invariants
+        self,
+        message: str,
+        *,
+        restraint: str | None = None,
+        bound: int | None = None,
+        call: str | None = None,
+    ):
+        super().__init__(message)
+        self.restraint = restraint
+        self.bound = bound
+        self.call = call
 
 
 class Interrupted(EngineError):  # noqa: N818  -- the exception name is a domain outcome in the public protocol, not an implementation error suffix

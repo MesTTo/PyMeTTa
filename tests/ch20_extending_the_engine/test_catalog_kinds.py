@@ -252,7 +252,7 @@ def test_the_ledger_rename_names_on_error(repo_root):
     finally:
         sys.path.pop(0)
     assert vocabgen.alias_name("on-error-mode") == "OnError"
-    assert vocabgen.alias_name("cache-mode") == "CacheMode"
+    assert vocabgen.alias_name("cache-policy") == "CachePolicy"
 
 
 def test_the_image_declaration_is_catalog_validated():
