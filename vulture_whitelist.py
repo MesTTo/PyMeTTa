@@ -219,3 +219,14 @@ _.truncated
 # branch but is not bound on every path reaching that read" without it
 # [tested: test_a_generator_walrus_refuses_as_an_unsupported_construct].
 _.visit_NamedExpr
+
+# IPython's pretty printer dispatches by NAME, the way rich dispatches to
+# __rich__ and __rich_repr__ beside it: only the printer calls this, and only
+# when a notebook or an interactive shell is present, so no attribute load in
+# the package names it.
+_._repr_pretty_
+
+# A MeTTa head as a SQL function is a door for a caller's own connection.
+# Nothing inside the package registers one, the way nothing inside it builds a
+# DataFrame; the suite and the reference are its consumers.
+_.sql_function

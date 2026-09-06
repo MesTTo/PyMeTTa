@@ -75,6 +75,23 @@ Guarantees:
     test_table_storage_refuses_native_handles_before_writing,
     test_table_storage_preserves_portable_space_references;
     commit=9fad0bf6670061a26b1a17d3f566613b7d4d080c]
+  - add() reads an Arrow stream one record batch at a time and produces the
+    atoms the source's own row door would have [tested:
+    test_a_duckdb_relation_loads_through_the_arrow_door,
+    test_both_inward_doors_build_the_same_atoms; commit=WORKTREE]
+  - a bridge streams its declared columns to any Arrow consumer, and refuses
+    when its shapes do not agree on one column list [tested:
+    test_a_bridge_streams_its_sqlite_rows,
+    test_a_bridge_over_two_relations_refuses_one_schema; commit=WORKTREE]
+  - the stream reads the connection inside the call, so a consumer that reads
+    the capsule on its own thread needs a connection that permits it
+    [tested: test_a_bridge_streams_its_sqlite_rows; commit=WORKTREE]
+  - `df.metta` is installed for a frame library already imported, without
+    importing one [tested: test_the_frame_accessors_install_for_imported_libraries;
+    commit=WORKTREE]
+  - a head registered as a SQL function answers NULL for no answer and
+    refuses several [tested: test_a_head_is_a_duckdb_scalar_function,
+    test_a_head_is_a_sqlite_scalar_function; commit=WORKTREE]
 Decides:
   - declarations are trusted code, not user data: table and column
     names are interpolated into SQL, so a bridge declaration belongs in
@@ -87,7 +104,10 @@ Open Obligations:
 
 from __future__ import annotations
 
+import inspect
 import json
+import sqlite3
+import sys
 from collections.abc import Callable, Iterable, Iterator, Mapping
 from typing import Any, Protocol, cast
 
@@ -131,9 +151,23 @@ def add(space: Any, head: Any, data: Any) -> int:
     """Add a tabular source to a space as ``(head column...)`` facts.
 
     space may be a context or a space.
+
+    The source may offer rows its own way (``iter_rows()`` for polars,
+    ``itertuples()`` for pandas, a mapping of columns, any iterable of rows)
+    or speak the Arrow PyCapsule Interface, which is how a DuckDB relation, a
+    pyarrow Table, a Parquet reader or an Ibis expression hands over rows
+    without a row-at-a-time Python door. A source with both keeps its own:
+    the two produce identical atoms, and the row door is the faster of them
+    [measured 2026-09-06: 10,000 rows, polars 14.07 ms through iter_rows
+    against 14.36 ms through the stream, pandas 20.39 ms against 25.11 ms].
+
+    An Arrow source is written one record batch at a time, so a reader larger
+    than memory loads, and the writes are one transaction each; wrap the call
+    in ``m.transaction(...)`` to make the whole load one.
     """
     space = space_of(space)
     head_atom = head if isinstance(head, Atom) else Symbol(str(head))
+    accessors()
     keys: list[Any] = []
     if hasattr(data, "iter_rows"):
         rows = data.iter_rows()
@@ -141,12 +175,15 @@ def add(space: Any, head: Any, data: Any) -> int:
         rows = data.itertuples(index=False)
     elif isinstance(data, Mapping):
         rows = zip(*data.values(), strict=True)
+    elif hasattr(data, "__arrow_c_stream__"):
+        return _add_arrow_stream(space, head_atom, data)
     elif isinstance(data, Iterable):
         rows = iter(data)
     else:
         msg = (
             "tables.add reads iter_rows(), itertuples(), a mapping of "
-            f"columns, or an iterable of rows; {type(data).__name__} offers none"
+            f"columns, __arrow_c_stream__(), or an iterable of rows; "
+            f"{type(data).__name__} offers none"
         )
         raise TypeError(msg)
     facts = [
@@ -155,6 +192,22 @@ def add(space: Any, head: Any, data: Any) -> int:
     ]
     space.add(*facts)
     return len(facts)
+
+
+def _add_arrow_stream(space: Any, head_atom: Atom, data: Any) -> int:
+    """Write one Arrow stream's record batches as facts, a batch per write."""
+    from ._arrow import read_batches  # noqa: PLC0415  -- the optional Arrow extra
+
+    _names, batches = read_batches(data)
+    written = 0
+    for batch in batches:
+        facts = [
+            Expression([head_atom, *(_encode(value) for value in row)]) for row in batch
+        ]
+        if facts:
+            space.add(*facts)
+            written += len(facts)
+    return written
 
 
 def _contains_native_handle(wire: Any) -> bool:
@@ -368,12 +421,16 @@ class _Shape:
             )
         return where, arguments, exact
 
-    def column_list(self) -> str:
-        return ", ".join(
+    def column_names(self) -> list[str]:
+        """The table columns this shape selects, in the atom shape's order."""
+        return [
             self.columns[str(child)]
             for child in self.shape.children
             if isinstance(child, Variable)
-        )
+        ]
+
+    def column_list(self) -> str:
+        return ", ".join(self.column_names())
 
     def values(self, atom: Expression) -> list[Any]:
         return [
@@ -587,6 +644,68 @@ class TableBridge(SpaceProvider):
         for table in {shape.table for shape in self._shapes}:
             self.connection.execute(f"DELETE FROM {table}")  # noqa: S608 - identifier from the trusted declaration  # nosec B608
 
+    # -- the rows as an Arrow stream -----------------------------------------
+
+    def _projection(self):
+        """Every declared shape's rows as one typed projection.
+
+        The declaration fixes the columns and their order, which is what makes
+        one schema possible at all; the Arrow type of each is derived from the
+        cells, the same rule every other projection follows, because a bridge
+        declaration says which column a variable binds and not what SQL type
+        it has. Shapes are read through the provider's own cursor and its
+        image catalog, so the stream carries exactly the values `atoms()`
+        would have built atoms from.
+        """
+        from ._arrow import Projection  # noqa: PLC0415  -- the one projection
+
+        names = self._shapes[0].column_names()
+        for shape in self._shapes[1:]:
+            if shape.column_names() != names:
+                msg = (
+                    f"one Arrow stream carries one schema, and this bridge "
+                    f"declares columns {names} for {self._shapes[0].table} and "
+                    f"{shape.column_names()} for {shape.table}; stream one "
+                    f"relation per bridge, or read atoms() for the union"
+                )
+                raise ValueError(msg)
+        rows = [
+            tuple(self._cell_atom(cell) for cell in row)
+            for shape in self._shapes
+            for row in self._select(shape, [], [])
+        ]
+        return Projection.of(names, rows)
+
+    def __arrow_c_schema__(self):
+        """The declared columns as an "arrow_schema" PyCapsule."""
+        from ._arrow import schema_capsule  # noqa: PLC0415  -- the optional Arrow extra
+
+        return schema_capsule(self._projection())
+
+    def __arrow_c_stream__(self, requested_schema=None):
+        """This bridge's rows as an "arrow_array_stream" PyCapsule.
+
+            pl.DataFrame(bridge)
+            duckdb.sql("select * from bridge")
+
+        The provider declares the capability by having the method, which is
+        how the rest of the ecosystem declares one, so a SQL-backed space
+        reaches a frame or a query engine without the caller materialising
+        atoms.
+
+        The rows are read through the connection INSIDE this call, and a
+        consumer may make the call from its own thread: DuckDB's replacement
+        scan reads the capsule on a worker. A driver whose connection is
+        thread-affine therefore has to permit that. sqlite3's default refuses
+        with "SQLite objects created in a thread can only be used in that same
+        thread", and `sqlite3.connect(path, check_same_thread=False)` is its
+        opt-in; polars and pyarrow read on the calling thread and need
+        neither.
+        """
+        from ._arrow import stream_capsule  # noqa: PLC0415  -- the optional Arrow extra
+
+        return stream_capsule(self._projection(), requested_schema)
+
     def begin(self) -> None:  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
         self.connection.execute("BEGIN")
 
@@ -638,3 +757,169 @@ def declare(m: Any, name: str, declaration: Atom | str) -> Atom:
     with m.bind(decl=stored):
         m.run("!(add-atom &metta decl)")
     return stored
+
+
+# -- the frame libraries' own doors ------------------------------------------
+
+#: `df.metta`, spelled the way each library spells an extension: pandas'
+#: registered accessor and polars' registered namespace are the same idea, so
+#: one class serves both.
+_ACCESSOR = "metta"
+_ACCESSED: set[str] = set()
+
+
+class _FrameDoor:
+    """`df.metta`: this library's face on a pandas or polars frame."""
+
+    __slots__ = ("_frame",)
+
+    def __init__(self, frame: Any) -> None:
+        """Hold the frame this accessor was reached through."""
+        self._frame = frame
+
+    def into(self, space: Any, head: Any) -> int:
+        """Add this frame to a space as ``(head column...)`` facts.
+
+        ``df.metta.into(m, "row")`` is ``metta.tables.add(m, "row", df)``, and
+        says so: the accessor is the frame library's spelling of the same
+        door, not a second mechanism.
+        """
+        return add(space, head, self._frame)
+
+
+def accessors() -> tuple[str, ...]:
+    """Install `df.metta` for every frame library already imported.
+
+    Answers the libraries that now carry it, so a program can ask.
+
+    Registration never imports pandas or polars itself. `import metta.tables`
+    costs 15 ms and `import pandas` costs 531 ms [measured 2026-09-06,
+    time.perf_counter around each import in a fresh interpreter], so a module
+    that registered by importing would charge every tables user for a library
+    the program may never touch. It registers what is in `sys.modules`, every
+    door in this module calls it first, and a program that imports a frame
+    library afterwards and touches nothing else here calls this by name.
+    Idempotent, because both libraries warn when an accessor name is replaced.
+    """
+    for library, install in (("pandas", _install_pandas), ("polars", _install_polars)):
+        module = sys.modules.get(library)
+        if module is not None and library not in _ACCESSED:
+            install(module)
+            _ACCESSED.add(library)
+    return tuple(sorted(_ACCESSED))
+
+
+def _install_pandas(pandas: Any) -> None:
+    pandas.api.extensions.register_dataframe_accessor(_ACCESSOR)(_FrameDoor)
+
+
+def _install_polars(polars: Any) -> None:
+    polars.api.register_dataframe_namespace(_ACCESSOR)(_FrameDoor)
+
+
+# -- a head as a SQL function ------------------------------------------------
+
+#: MeTTa's types in SQL's vocabulary. `Number` is one type covering integers
+#: and floats, and DOUBLE is SQL's type that holds both; cast in the query
+#: when a column wants an integer. Everything else is text, because every atom
+#: has canonical MeTTa text and nothing else survives a SQL column intact.
+_SQL_TYPE = {"Number": "DOUBLE", "Bool": "BOOLEAN", "String": "VARCHAR"}
+_SQL_TEXT = "VARCHAR"
+
+
+def _sql_answer(answers: Any) -> Any:
+    """One SQL cell from a head's answers.
+
+    No answer is SQL NULL, which is how SQL spells absence. Several answers
+    refuse: a scalar function has one result per row and picking one would
+    drop the rest silently. An atom that is not a primitive crosses as its
+    canonical MeTTa text, the same rule the Arrow projection follows.
+    """
+    answer = answers.one(default=None)
+    return str(answer) if isinstance(answer, Atom) else answer
+
+
+def _sql_arity(signature: Any) -> int:
+    """A head's SQL argument count, or -1 for a head with no declared arrow."""
+    total = 0
+    for parameter in signature.parameters.values():
+        if parameter.kind is inspect.Parameter.VAR_POSITIONAL:
+            return -1
+        total += 1
+    return total
+
+
+def _sql_signature(signature: Any, name: str) -> tuple[list[str], str]:
+    """A head's SQL parameter and return types, from its declared arrow."""
+    empty = inspect.Signature.empty
+    if _sql_arity(signature) < 0:
+        msg = (
+            f"DuckDB needs the types of {name} and cannot infer them; declare "
+            f"the head's arrow, `(: {name} (-> Number Number))`, and register "
+            f"again. sqlite3 needs only the arity and takes it undeclared"
+        )
+        raise TypeError(msg)
+    parameters = [
+        _SQL_TYPE.get(str(parameter.annotation), _SQL_TEXT)
+        for parameter in signature.parameters.values()
+    ]
+    declared = signature.return_annotation
+    returns = _SQL_TEXT if declared is empty else _SQL_TYPE.get(str(declared), _SQL_TEXT)
+    return parameters, returns
+
+
+def sql_function(connection: Any, head: Any, name: str | None = None) -> str:
+    """Register a MeTTa head as a scalar SQL function, and answer its SQL name.
+
+        m.run("(: dbl (-> Number Number))  (= (dbl $x) (* 2 $x))")
+        tables.sql_function(connection, m.fn.dbl)
+        connection.sql("select dbl(age) from people")
+
+    The head is the callable from a space's `fn` namespace, which already
+    carries its own name, its arity and its arrow, so nothing about the
+    function is restated here; `name=` is the escape for a SQL identifier the
+    head's own name cannot be.
+
+    Two drivers, told apart by what their `create_function` takes: sqlite3
+    wants the arity and no types, DuckDB wants the types and reads them from
+    the head's declared arrow, refusing by name when there is none. A row that
+    produces no answer is SQL NULL and one that produces several refuses,
+    because a scalar function has one result per row; a SQL NULL argument
+    reaches the head as `Grounded(None)` and MeTTa decides what it means.
+    """
+    accessors()
+    if not callable(head):
+        msg = (
+            f"sql_function registers a callable head, as m.fn.dbl; "
+            f"{type(head).__name__} is not callable"
+        )
+        raise TypeError(msg)
+    sql_name = name if name is not None else str(getattr(head, "__name__", head))
+    create = getattr(connection, "create_function", None)
+    if create is None:
+        msg = (
+            f"{type(connection).__name__} has no create_function; "
+            f"sql_function registers on a sqlite3 or DuckDB connection"
+        )
+        raise TypeError(msg)
+
+    def call(*arguments: Any) -> Any:
+        return _sql_answer(head(*arguments))
+
+    call.__name__ = sql_name
+    signature = inspect.signature(head)
+    if isinstance(connection, sqlite3.Connection):
+        create(sql_name, _sql_arity(signature), call)
+    else:
+        parameters, returns = _sql_signature(signature, sql_name)
+        # SPECIAL, so a head may answer nothing and get SQL NULL: under
+        # DuckDB's DEFAULT a returned NULL is an error, and NULL arguments
+        # never reach the function at all.
+        create(sql_name, call, parameters, returns, null_handling="special")
+    return sql_name
+
+
+# The common order is a frame library first and this module second, so the
+# import registers what is already there and no door has to be called to make
+# `df.metta` appear. The other order is what `accessors()` is public for.
+accessors()

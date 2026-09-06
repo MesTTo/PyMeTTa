@@ -87,6 +87,16 @@ Guarantees:
     advisory ordering evidence for Space.lint [tested:
     test_zip_over_unordered_answers_is_lawful_and_linted,
     test_reversed_over_unordered_answers_is_lawful_and_linted; commit=acb40f1912f131ae088083d1af29b4b283019bea]
+  - Rows and Answers produce the Arrow C schema and stream capsules from one
+    typed projection, so pyarrow, polars, pandas 3 and DuckDB read them with
+    no glue, and to_df and to_pl are sugar over the same stream [tested:
+    test_pyarrow_reads_the_rows_capsule_directly,
+    test_to_pl_and_the_capsule_answer_the_same_frame; commit=WORKTREE]
+  - a column projects to a NumPy array of its decoded values through
+    __array__, rather than an object array of atoms [tested:
+    test_a_numeric_column_becomes_a_typed_numpy_array; commit=WORKTREE]
+  - __length_hint__ answers only a size already known and never pulls
+    [tested: test_length_hint_never_pulls_and_len_counts; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -110,11 +120,14 @@ from functools import lru_cache
 from typing import Any, Final, NamedTuple, Self, SupportsIndex, cast, overload
 
 from ._config import config
-from ._optional import require_module
+from ._optional import optional_module, require_module
 from .atoms import Atom, Expression, Grounded, Symbol, Undefined, Variable, _decode, _encode
 from .errors import EngineError, MettaResultError
 
-__all__ = ["Answers", "Row", "Rows"]
+if typing.TYPE_CHECKING:
+    from ._arrow import ArrowView, Projection
+
+__all__ = ["Answers", "Column", "Row", "Rows"]
 
 _ERROR_HEAD = Symbol("Error")
 _MISSING: Final[object] = object()
@@ -258,6 +271,70 @@ class Row(tuple):
         return _restore_row, (type(self)._columns, tuple(self))
 
 
+class Column(list[Any]):
+    """One projected query column: the answer atoms, and the array face.
+
+    A list, because that is what a column of answers has always been and
+    every caller that indexes, slices, compares or iterates one keeps
+    working. What it adds is `__array__`: `np.asarray(rows["age"])` answers
+    an int64 array rather than an object array of Grounded atoms, because
+    the array face reads the column's DERIVED kind the way the Arrow doors
+    and `to_pl` do, rather than handing NumPy the atoms to guess at.
+    """
+
+    __slots__ = ("name",)
+
+    def __init__(self, name: str = "", values: Iterable[Any] = ()) -> None:
+        """Hold one query column's atoms under the column's own name."""
+        super().__init__(values)
+        self.name = name
+
+    def __getitem__(self, key):
+        """Index or slice this column; a slice is still this column.
+
+        The name and the array face travel with the window, so
+        `np.asarray(rows["age"][:100])` stays an int64 array where a plain
+        list would have become an object array of atoms.
+        """
+        if isinstance(key, slice):
+            return Column(self.name, list.__getitem__(self, key))
+        return list.__getitem__(self, key)
+
+    def __array__(self, dtype: Any = None, copy: bool | None = None) -> Any:  # noqa: FBT001  -- NumPy's array protocol fixes this positional signature
+        """This column as a NumPy array of its decoded values.
+
+        The kind is the column's, not the cell's: a column of Numbers is
+        int64 or float64, a column of Strings is text, and a column mixing
+        kinds is the canonical MeTTa text of each atom, exactly as it
+        crosses through the Arrow doors. A column carrying nulls leaves the
+        dtype to NumPy, since no fixed-width dtype holds absence.
+        """
+        from ._arrow import resolve  # noqa: PLC0415  -- the one projection
+
+        if copy is False:
+            msg = (
+                f"column {self.name!r} decodes its atoms into a new array, so "
+                f"np.asarray(column, copy=False) cannot be satisfied; ask for "
+                f"the default copy"
+            )
+            raise ValueError(msg)
+        numpy = require_module(
+            "numpy",
+            "np.asarray(column) builds a NumPy array and NumPy is not "
+            "installed; install pymetta[arrays], or read the column as a list",
+        )
+        kind, values = resolve(self)
+        if dtype is None and not any(value is None for value in values):
+            dtype = _NUMPY_DTYPE.get(kind)
+        return numpy.array(values, dtype=dtype)
+
+
+#: Only the fixed-width kinds name a dtype. Text is left to NumPy, whose own
+#: answer is a `<U` array sized to the longest value, and a column carrying
+#: nulls is left to it too, because none of these dtypes holds absence.
+_NUMPY_DTYPE: Final = {"int64": "int64", "float64": "float64", "bool": "bool"}
+
+
 class _AnswerItem(NamedTuple):
     """One engine answer and the caller bindings produced alongside it."""
 
@@ -320,10 +397,10 @@ class Rows(UserList[Row]):
         return _row_class(self.columns)(values)
 
     @overload  # type: ignore[override]
-    def __getitem__(self, i: Variable) -> list[Any]: ...  # type: ignore[overload-overlap]
+    def __getitem__(self, i: Variable) -> Column: ...  # type: ignore[overload-overlap]
 
     @overload
-    def __getitem__(self, i: str) -> list[Any]: ...
+    def __getitem__(self, i: str) -> Column: ...
 
     @overload
     def __getitem__(self, i: SupportsIndex) -> Row: ...
@@ -333,14 +410,14 @@ class Rows(UserList[Row]):
 
     def __getitem__(  # noqa: D105  -- the Python data-model hook is defined by its name and enclosing type contract
         self, i: SupportsIndex | slice[SupportsIndex | None] | Variable | str
-    ) -> Row | Rows | list[Any]:
+    ) -> Row | Rows | Column:
         if isinstance(i, (Variable, str)):
             return self._column(i.name if isinstance(i, Variable) else i)
         if isinstance(i, slice):
             return Rows(self.columns, self.data[i])
         return self.data[i]
 
-    def __getattr__(self, name: str) -> list[Any]:  # noqa: D105  -- projection is the documented data-model extension
+    def __getattr__(self, name: str) -> Column:  # noqa: D105  -- projection is the documented data-model extension
         try:
             return self._column(name)
         except KeyError as exc:
@@ -403,7 +480,7 @@ class Rows(UserList[Row]):
     def __rmul__(self, n: int) -> Rows:  # noqa: D105  -- the Python data-model hook is defined by its name and enclosing type contract
         return self * n
 
-    def _column(self, name: str) -> list[Any]:
+    def _column(self, name: str) -> Column:
         # Attribute and Variable-key projection share this implementation
         # with the cast route.
         if name not in self.columns:
@@ -420,9 +497,9 @@ class Rows(UserList[Row]):
                 msg
             )
         index = self.columns.index(name)
-        return [row[index] for row in self]
+        return Column(name, (row[index] for row in self))
 
-    def column(self, name: str) -> list[Any]:
+    def column(self, name: str) -> Column:
         """Project one exact column name."""
         return self._column(name)
 
@@ -596,30 +673,91 @@ class Rows(UserList[Row]):
             for i, name in enumerate(self.columns)
         }
 
+    def _projection(self) -> Projection:
+        """These rows as named, kinded columns: the one typed projection."""
+        from ._arrow import Projection  # noqa: PLC0415  -- the one projection
+
+        return Projection.of(self.columns, self.data)
+
+    def __arrow_c_schema__(self):
+        """The Arrow struct schema these rows produce, as an "arrow_schema"
+        PyCapsule. One field per column, typed from the wire kinds the column
+        holds. Only a consumer of the PyCapsule Interface calls this.
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+        from ._arrow import schema_capsule  # noqa: PLC0415  -- the optional Arrow extra
+
+        return schema_capsule(self._projection())
+
+    def __arrow_c_stream__(self, requested_schema=None):
+        """These rows as an "arrow_array_stream" PyCapsule, in record batches.
+
+            pa.table(rows)                      # pyarrow
+            pl.scan_arrow_c_stream(rows)        # polars, lazily
+            pd.DataFrame.from_arrow(rows)       # pandas 3
+            duckdb.sql("select * from rows")    # a replacement scan
+
+        `requested_schema` is honoured when every column can be produced at
+        the type asked for, and otherwise ignored, which the interface allows.
+        `rows.arrow()` is the same stream for a consumer that dispatches on
+        Python type before protocol.
+        """
+        from ._arrow import stream_capsule  # noqa: PLC0415  -- the optional Arrow extra
+
+        return stream_capsule(self._projection(), requested_schema)
+
+    def arrow(self) -> ArrowView:
+        """These rows wearing nothing but the Arrow protocol.
+
+        `Rows` is a sequence, and polars' `DataFrame()` constructor tests for
+        a sequence before it looks for the capsule, so `pl.DataFrame(rows)`
+        reads the atoms row by row instead. `pl.DataFrame(rows.arrow())` is
+        the stream. Consumers that ask for the protocol first, pyarrow,
+        DuckDB, pandas 3 and `pl.scan_arrow_c_stream`, take `rows` itself.
+        """
+        from ._arrow import ArrowView  # noqa: PLC0415  -- the optional Arrow extra
+
+        return ArrowView(self)
+
     def to_df(self):
         """The rows as a pandas DataFrame, DuckDB's own conversion naming.
+
+        Sugar over `__arrow_c_stream__` where pandas reads it, which is
+        `DataFrame.from_arrow` from pandas 3, so the columns are TYPED by the
+        projection rather than inferred from Python objects. Without pandas 3
+        or without the `arrow` extra it builds the same projected columns
+        through the frame constructor, which answers the same values.
         pandas is the caller's dependency; its absence raises naming the
         need, and table() stays the constructor-agnostic shape.
-        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+        """
         pandas = require_module(
             "pandas",
             "to_df() builds a pandas DataFrame and pandas is not installed; "
             "rows.table() is the plain dict any frame constructor takes",
         )
+        from_arrow = getattr(pandas.DataFrame, "from_arrow", None)
+        if from_arrow is not None and optional_module("nanoarrow") is not None:
+            return from_arrow(self)
         if self and not self.columns:
             return pandas.DataFrame([{} for _ in self])
-        return pandas.DataFrame(self.table())
+        return pandas.DataFrame(self._projection().table())
 
     def to_pl(self):
-        """The rows as a polars DataFrame; the polars twin of to_df()."""
+        """The rows as a polars DataFrame; the polars twin of to_df().
+
+        Sugar over `__arrow_c_stream__`, through the view that hides the
+        sequence protocol from polars' constructor; without the `arrow` extra
+        it builds the same projected columns directly.
+        """
         polars = require_module(
             "polars",
             "to_pl() builds a polars DataFrame and polars is not installed; "
             "rows.table() is the plain dict any frame constructor takes",
         )
+        if optional_module("nanoarrow") is not None:
+            return polars.DataFrame(self.arrow())
         if self and not self.columns:
             return polars.DataFrame([{} for _ in self])
-        return polars.DataFrame(self.table())
+        return polars.DataFrame(self._projection().table())
 
     def pipe(self, fn: Callable[..., Any], *args: Any, **kwargs: Any) -> Any:
         """fn(self, *args, **kwargs), pandas' chaining shape, so a
@@ -1201,6 +1339,41 @@ class Answers[T](Sequence[T]):
     def to_pl(self):
         """Materialize as a polars DataFrame."""
         return self._eager_rows().to_pl()
+
+    def __arrow_c_schema__(self):
+        """Materialize as binding rows and answer their Arrow schema.
+
+        Materializing is the schema's own requirement, not a shortcut: a
+        column's Arrow type is derived from the wire kinds it holds, so the
+        schema is not known until the answers are. Term answers are refused
+        here for the same reason every other table face refuses them.
+        """
+        return self._eager_rows().__arrow_c_schema__()
+
+    def __arrow_c_stream__(self, requested_schema=None):
+        """Materialize as binding rows and answer their Arrow stream."""
+        return self._eager_rows().__arrow_c_stream__(requested_schema)
+
+    def arrow(self) -> ArrowView:
+        """These answers wearing nothing but the Arrow protocol."""
+        return self._eager_rows().arrow()
+
+    def __length_hint__(self) -> int | Any:
+        """The size already known, without pulling a single answer.
+
+        Python's `operator.length_hint` and `list()` both try `__len__`
+        first, and `Answers.__len__` will run an engine count or materialize
+        to answer, which is what a caller asking for a length wants. This is
+        the other question: what is the size IF it costs nothing. A finished
+        cursor knows it, a view whose length was already counted knows it,
+        and anything else answers NotImplemented rather than starting work.
+        """
+        with self._lock:
+            if self._done:
+                return len(self._cache)
+            if self._known_length is not None:
+                return self._known_length
+        return NotImplemented
 
     def pipe(self, fn: Callable[..., Any], *args: Any, **kwargs: Any) -> Any:
         """Materialize and pass the eager Rows face to ``fn``."""

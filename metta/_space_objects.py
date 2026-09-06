@@ -89,6 +89,7 @@ from contextvars import ContextVar
 from typing import TYPE_CHECKING, Any, Self, cast
 
 from ._call_binding import bind_positional_call, refuse_unknown_keywords
+from ._config import _CHUNK_CAP
 from ._engine import Runtime, defer_engine_call
 from ._name_mapping import OperatorRecipe, operator_attribute_target
 from ._space_definitions import call_parameter_names
@@ -571,20 +572,6 @@ _CURSOR_LENGTH_REFUSAL = (
     "which is what it exists to avoid. Use len(space.match(pattern)) for the "
     "count, or match() if you want the rows"
 )
-
-
-#: The largest chunk a cursor will pull in one crossing. Growth is geometric,
-#: so the cap only decides where doubling stops, and the sweep says it stops
-#: mattering at 16: speedup against a chunk of one, drained at four sizes,
-#: 1 / 1.24x / 1.53x / 1.86x / 1.80x / 1.91x / 1.88x / 1.91x for caps
-#: 1, 2, 4, 16, 64, 256, 1024, 4096 at ten thousand answers [tested:
-#: extensions/python/tests/ch18_performance/test_cursor_chunking.py::test_draining_amortises_the_crossing].
-#: Everything from 16 up is one flat band, so
-#: this takes the smallest cap comfortably past its start rather than the
-#: largest: 64 reaches the whole win while a refill holds a quarter of what
-#: 256 would. SQL Server's cursors pick 128 by the same reasoning and Lemire
-#: measures 64 as the batch where prefetching stops paying.
-_CHUNK_CAP = 64
 
 
 class Cursor:
