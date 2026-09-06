@@ -38,7 +38,7 @@ def error_text(answer):
 # The write path already refuses a first argument that is not a space, with a
 # diagnostic naming itself, and the read path raised SWI's bare
 # `Arguments are not sufficiently instantiated` instead, which names nothing.
-# The arbiter answers all three the same way, and words `get-atoms` differently
+# LeaTTa answers all three the same way, and words `get-atoms` differently
 # because upstream does: pinned `space.rs:143` says "its argument" where
 # `:172` and `:199` say "the first argument"
 # [source: LeaTTa MettaHyperonFull/Minimal/Interpreter.lean, getAtomsStep at

@@ -1,4 +1,4 @@
-"""Purpose: pin the canonical error-atom vocabulary against the LeaTTa arbiter.
+"""Purpose: pin the canonical error-atom vocabulary as LeaTTa recorded it.
 Assumes: the engine answers through the ordinary MeTTa surface; no probe needs
   a named space, a backend or a file.
 Guarantees:
@@ -13,7 +13,10 @@ Guarantees:
   [tested: test_python_contract_matches_the_computed_error_boundary;
   commit=c293a0a09ee5d30f4550b51923c35931227f8f3f]
 Fails when: a probe is read as a claim about Hyperon rather than about LeaTTa;
-  the arbiter is LeaTTa and every pin below cites the LeaTTa file it came from.
+  every pin below cites the LeaTTa file it came from. Upstream PeTTa at
+  ae66fa8e is the arbiter now, and the error vocabulary is one of the areas
+  the 2026-09-05 differential recorded as diverging from it
+  [source: docs/journal/2026-09-05-petta-alignment-authority.md].
 Open Obligations:
   To Do: None
   Hacks: None
@@ -24,7 +27,7 @@ import pytest
 
 from metta import MeTTa
 
-# The arbiter, file by file. Each pin below names the LeaTTa program whose
+# The pins, file by file. Each names the LeaTTa program whose
 # MEASURED block carries the transcript this test asserts, all of them STATUS
 # conforms against the pinned Hyperon 0.2.10 binary:
 #

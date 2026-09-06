@@ -121,14 +121,16 @@ run REPORT twins       sh -c "cd '$HERE' && '$PY' extensions/python/tools/twin_c
 
 # Every operation MeTTa's standard library declares, and what you write in
 # Python instead. The rows live in extensions/python/tools/phrasebook_entries.py,
-# one per LeaTTa-declared name; the lane runs BOTH sides of each row and
-# compares three columns, the MeTTa form on LeaTTa as the oracle, the same form
-# on this engine, and the Python spelling here. The MeTTa column is frozen from
-# LeaTTa in phrasebook_answers.json and re-measured only under --learn, so this
-# needs no LeaTTa checkout and costs 0.3s. It enters as a GATE rather than a
-# REPORT because it was proven to see: breaking one row's executable Python
+# one per standard-library name; the lane runs BOTH sides of each row and
+# compares two columns, the MeTTa form on this engine and the Python spelling
+# here, each against the answer frozen in phrasebook_answers.json and
+# re-measured only under --learn, so this needs no outside checkout and costs
+# 0.3s. A third column held an outside arbiter's answers until 2026-08-31 and
+# went with the LeaTTa lane; upstream PeTTa at ae66fa8e is the arbiter and
+# tests/conformance/petta.py is what reads it. It enters as a GATE rather than
+# a REPORT because it was proven to see: breaking one row's executable Python
 # column, `e[0]` to `e[1]`, produces three findings, against the recorded
-# answer, against this engine and against LeaTTa.
+# answer, against this engine, and against the generated page.
 run GATE   phrasebook  sh -c "cd '$HERE' && '$PY' extensions/python/tools/phrasebook.py --gate"
 
 # Structural checks with a clean baseline today, so a regression is a failure.

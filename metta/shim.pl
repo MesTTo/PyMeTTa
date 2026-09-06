@@ -2533,7 +2533,7 @@ seam:host_remove_hooks_idle(Space, [OnlyRef]) :-
 metta_py_space_counter(0).
 
 %A SPACE THIS DOOR HANDS OUT IS ONE, with nothing written to it, which is the
-%property 'new-space'/1 has and the arbiter requires: (chain (new-space) $s
+%property 'new-space'/1 has and LeaTTa requires: (chain (new-space) $s
 %(get-type $s)) is SpaceType [source: engine/metta/control.pl, 'new-space'/1
 %and its LeaTTa citation]. Minting only the NAME left metta.space() answering
 %a handle whose get-type was %Undefined% and whose metatype was Symbol, so it

@@ -1,8 +1,8 @@
 """Purpose: no tracked file cites an absolute workspace path. The repository
 may be published, and a reader's machine has no such user directory; a
-citation spells the arbiter repo-relative (LeaTTa tests/...) and machinery
-reaches the oracle through the LEATTA_PATH environment override, whose three
-carriers are the one documented exception.
+citation spells its source repo-relative (LeaTTa tests/...) and machinery
+reaches an outside checkout through the LEATTA_PATH environment override,
+whose three carriers are the one documented exception.
 Open Obligations:
   To Do: None
   Hacks: None

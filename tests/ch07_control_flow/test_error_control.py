@@ -17,7 +17,8 @@ Open Obligations:
 
 from metta import MeTTa
 
-# The arbiter for switch is LeaTTa tests/semantics/control-stdlib/03_case_switch.metta,
+# Upstream PeTTa at ae66fa8e is the arbiter; the pins below come from LeaTTa
+# tests/semantics/control-stdlib/03_case_switch.metta,
 # whose STATUS records switch as conforming against the pinned Hyperon 0.2.10
 # binary and whose MEASURED block carries the five lines asserted below. case is
 # in the same file and already answers its six lines; the pair is asserted
@@ -91,7 +92,7 @@ def test_a_thrown_reason_travels_as_a_produced_error() -> None:
     ]
     # return-on-error is the reference's double-return frame: at top level one
     # return instruction remains for an enclosing function frame, and the
-    # arbiter answers this exact shape [measured 2026-08-25 against the LeaTTa
+    # LeaTTa answers this exact shape [measured 2026-08-25 against the LeaTTa
     # binary: !(return-on-error (Error 5 BadType) 6) is (return (Error 5
     # BadType)) while the value case answers 6].
     assert _answers(metta, "!(return-on-error (control-guard -1) fallback)") == [

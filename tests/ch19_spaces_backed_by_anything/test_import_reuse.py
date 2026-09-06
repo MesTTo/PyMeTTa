@@ -122,7 +122,7 @@ def test_missing_import_is_loud_and_names_the_file(metta, tmp_path):  # noqa: D1
 def test_an_import_into_a_named_space_registers_its_equations_there(
     metta, tmp_path
 ):
-    """An alias import admits nothing into the caller: LeaTTa's law.
+    """An alias import admits nothing into the caller, on LeaTTa's rule.
 
     grounded/29-builtin-module-alias-import pins it byte-exactly (MEASURED:
     both alias probes stay unreduced data, and only the companion &self

@@ -364,7 +364,7 @@ def _float_text(value: float) -> str:
 
     The digits are repr's, the shortest decimal that reads back to the
     same binary64, which is also what the engine's writer starts from;
-    the LAYOUT is the arbiter's law the engine implements [source: LeaTTa
+    the LAYOUT is LeaTTa's law the engine implements [source: LeaTTa
     RyuLean4/Runtime.lean:371-396, Decimal.formatMeTTa]: with D the
     stripped significand and KK the exponent making the value 0.D*10^KK,
     print positionally while KK is in -4..16 and scientifically

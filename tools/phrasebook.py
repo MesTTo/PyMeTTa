@@ -726,7 +726,7 @@ def cost(engine: Any, entries: list[Entry]) -> list[tuple[str, int, int]]:
 
 
 def learn(engine: Any, entries: list[Entry], answers: dict[str, Any]) -> dict[str, Any]:
-    """Re-measure every side and freeze it. LeaTTa only when it is present."""
+    """Re-measure every side and freeze it, dropping a stale LeaTTa column."""
     return _learn(engine, entries, answers)
 
 
