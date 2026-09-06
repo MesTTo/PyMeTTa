@@ -671,9 +671,32 @@ metta_py_decode_(n, [N], N)     :- number(N).
 metta_py_decode_(b, [B], A)     :- metta_py_wire_bool(B, A).
 metta_py_decode_(v, [Name], _)  :- ( atom(Name) -> true ; string(Name) ).
 metta_py_decode_(e, [Es], Term) :- maplist(metta_py_decode, Es, Term).
+%A p payload is a space NAME, and any symbol a host writes through is one: a
+%space operation is built as `Term =.. [Space, Rel|Args]`, so
+%`(= (space) my_space_name)` with a write through it registers `my_space_name`
+%and metta_space_names/1 lists it [source: engine/spaces/catalog.pl,
+%metta_space_writable_name/1, which accepts any atom; commit=WORKTREE]. The
+%ampersand is how the engine SPELLS the spaces it mints, not a rule of the tag,
+%and demanding it here refused a name the engine's own registry had handed
+%out: a host that opened one and sent it back lost the whole term, because a
+%leaf that does not decode fails the decode of everything containing it. The
+%Node seat carried the same demand in its own decoder and dropped it on
+%2026-09-07; this clause was the opposite ruling on the other seat
+%[source: extensions/node/bridge.pl, metta_node_decode_/5's p clause;
+%commit=WORKTREE].
+%
+%The decode is the s tag's, and costs what it costs: -1.00 inference per p
+%leaf in both payload spellings, the sub_atom/5 that is gone
+%[measured 2026-09-07 by the per-tag protocol the paragraph above records,
+%10,000 decodes minus a bare loop of the same count, three identical runs:
+%atom 3.00 -> 2.00, string 4.00 -> 3.00, and a BARE name went from 4.00/5.00
+%spent failing to the same 2.00/3.00; fixture=the probe recorded in
+%docs/journal/2026-09-07-a-bare-name-poisons-the-plane.md;
+%commit=WORKTREE]. Every other tag is untouched and measured so
+%[tested: shim_wire_decoding:every_tag_decodes,
+%shim_wire_decoding:a_bare_space_name_decodes_like_a_symbol; commit=WORKTREE].
 metta_py_decode_(p, [S], Space) :-
-    ( atom(S) -> Space = S ; string(S), atom_string(Space, S) ),
-    sub_atom(Space, 0, 1, _, '&').
+    ( atom(S) -> Space = S ; string(S), atom_string(Space, S) ).
 
 %Decode sharing variables by name, so the $x in a head and in a body unify.
 %Bindings comes back as Name-Var pairs for reading answers off a query:

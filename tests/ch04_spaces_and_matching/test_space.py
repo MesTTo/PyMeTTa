@@ -815,9 +815,22 @@ def test_a_contexts_spaces_resolve_through_its_home():  # noqa: D103  -- pytest 
             sibling.drop()
 
 
-def test_space_name_validation():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    with pytest.raises(ValueError):
-        MeTTa().space("kb")
+def test_space_name_validation():
+    """A string names the space EXACTLY; two spellings are still refused.
+
+    The ampersand is how the engine spells the spaces it mints, not a rule
+    about what a space name may be: a program writing through a bare symbol
+    registers that symbol and `space_names()` lists it, so a string door that
+    refused one refused a name the engine had just issued. What stays refused
+    is a `$` name, which reads back as a variable, and the empty name.
+    """
+    with MeTTa() as context:
+        assert context.space("kb").name == "kb"
+        assert context.space("&kb").name == "&kb"
+        with pytest.raises(ValueError, match=r"reads back as a variable"):
+            context.space("$kb")
+        with pytest.raises(ValueError, match=r"nonempty symbol"):
+            context.space("")
 
 
 def test_load_runs_a_file(metta, tmp_path):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -1317,7 +1330,7 @@ def test_wrong_bound_types_name_the_argument(m):  # noqa: D103  -- pytest discov
         m.run("!(+ 1 2)", timeout="x")
     with pytest.raises(TypeError, match="inferences must be"):
         m.run("!(+ 1 2)", inferences="x")
-    with pytest.raises(TypeError, match="& string, Symbol, or ground Expression"):
+    with pytest.raises(TypeError, match="string, Symbol, or ground Expression"):
         MeTTa().space(123)
 
 

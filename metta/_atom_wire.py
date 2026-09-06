@@ -116,10 +116,12 @@ def _text_payload(payload: Any, kind: str, expected: str = "text") -> str:
 
 
 def _space_from_wire(payload: Any) -> Atom:
+    # Any symbol the engine registers is a space name, ampersand-prefixed or
+    # not: `(= (space) my_space_name)` with a write through it registers
+    # `my_space_name` and `space_names()` lists it. The prefix is how the
+    # engine spells the spaces it mints, not a rule of the tag, and demanding
+    # it here refused a name the engine's own registry had just handed out.
     payload = _text_payload(payload, "space")
-    if not payload.startswith("&"):
-        msg = f"wire space payload must start with &, got {payload!r}"
-        raise ValueError(msg)
     engine_module = importlib.import_module(f"{__package__}._engine")
     space_module = importlib.import_module(f"{__package__}._space")
     active = engine_module.active_runtime()
