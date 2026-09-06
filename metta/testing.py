@@ -452,7 +452,7 @@ def _argument(draw, seen: dict[str, int], depth: int, draft: _Draft, surface: _S
     # there is no oracle) and by the DISTINCT divergences found, which is what
     # the lane is for [measured 2026-09-07;
     # command=tests/checks/check_upstream_fuzz.py -n 120 --seed 0 --rounds 4;
-    # fixture=tests/conformance/petta/HEADS.json; commit=WORKTREE]:
+    # fixture=tests/conformance/petta/HEADS.json; commit=5e53dfba208acc69c1eb8a5f2e8aa90c9864a5ce]:
     #
     #   this split                 93 agree, 10 arbiter errors, 4 divergences
     #   every written kind, evenly  47 agree, 38 arbiter errors, 4 divergences

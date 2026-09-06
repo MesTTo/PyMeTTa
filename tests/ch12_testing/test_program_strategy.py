@@ -11,16 +11,16 @@ Guarantees:
   - every drawn program parses, and its equations and queries are the shapes
     the lane's classifier reads back
     [tested: test_every_drawn_program_reads_back_as_metta;
-    commit=WORKTREE]
+    commit=5e53dfba208acc69c1eb8a5f2e8aa90c9864a5ce]
   - a census recording no reducing head is refused with the command that
     writes one, rather than answering a strategy that draws nothing
-    [tested: test_a_census_with_nothing_reducible_is_refused; commit=WORKTREE]
+    [tested: test_a_census_with_nothing_reducible_is_refused; commit=5e53dfba208acc69c1eb8a5f2e8aa90c9864a5ce]
   - the shipped census is reachable without arguments from a checkout
     [tested: test_the_committed_census_is_what_programs_reads_by_default;
-    commit=WORKTREE]
+    commit=5e53dfba208acc69c1eb8a5f2e8aa90c9864a5ce]
   - a query never carries a variable no line binds, which is what makes the
     generated program a closed question for both engines
-    [tested: test_a_query_binds_every_variable_it_writes; commit=WORKTREE]
+    [tested: test_a_query_binds_every_variable_it_writes; commit=5e53dfba208acc69c1eb8a5f2e8aa90c9864a5ce]
 Open Obligations:
   To Do: None
   Hacks: None
