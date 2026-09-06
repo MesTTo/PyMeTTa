@@ -12,7 +12,10 @@
 #   is a path the evidence gate cannot see.  Mypy checks the installed package
 #   surface, the shadowed root implementation, and the callable-algebra consumer
 #   independently [tested: mypy, mypy-root-impl, mypy-algebra-surface;
-#   commit=5e0ae6c22d604c4b980766e3cc4811ee545e5c9e].
+#   commit=5e0ae6c22d604c4b980766e3cc4811ee545e5c9e], the class door's PEP 681
+#   declaration is executable in a consumer file, and stubtest holds the two
+#   generated stubs against the runtime [tested: mypy-class-door, stubtest;
+#   commit=dd4f82100a052e2c5254a2ef9e91f6eb9d2e0c49].
 # Open Obligations:
 #   To Do: None
 #   Hacks: None
@@ -217,6 +220,30 @@ run GATE   mypy-algebra-surface in_py "$PY" -m mypy tests/typing/algebra_surface
 # `conversion: str | None` in place of the read-only property made it 7 errors
 # [measured 2026-09-07].
 run GATE   mypy-template-surface in_py "$PY" -m mypy --python-version 3.14 tests/typing/template_surface.py
+# The other consumer file: `@metta.define` on an annotated class synthesises a
+# constructor at run time, and PEP 681 is how a checker is told so. The gate's
+# mypy reads `files = ["metta"]` and never opens the suite, so an assertion
+# about what a checker infers has to be a file a checker is pointed at. Its
+# `type: ignore`s are the assertions that mypy REFUSES the wrong-arity calls,
+# load-bearing under warn_unused_ignores.
+run GATE   mypy-class-door in_py "$PY" -m mypy tests/typing/class_door.py
+# Whether the two generated stubs still describe the runtime they were
+# generated from. Its build settings are its own file: stubtest turns
+# positional-only special methods off before reading a config, which makes
+# three of this package's ordinary lines look like errors and stops the
+# comparison before it starts. stubtest-allowlist.txt says which findings are
+# facts about typeshed's model of a live object rather than about a stub, and
+# an entry that stops matching fails the lane as an unused one, so the
+# classification cannot go stale quietly.
+run GATE   stubtest    in_py "$PY" -m mypy.stubtest --mypy-config-file stubtest-mypy.toml --allowlist stubtest-allowlist.txt metta
+# How much of the public surface a checker can actually see: 59.8% complete on
+# 2026-09-07, 489 exported symbols of 1,294 with an unknown type. A REPORT
+# because that is a burn-down rather than a bound, and because pyright fetches
+# its own Node runtime on first use, which a gate should not depend on.
+# PYTHONPATH names the package: --verifytypes resolves the module through the
+# import path and answers "No py.typed file found" for a source tree it cannot
+# find that way [measured 2026-09-07].
+run REPORT verifytypes in_py env PYTHONPATH=. "$PY" -m pyright --verifytypes metta
 # ledger C2: 67 diagnostics, independent engine
 run GATE   ty          in_py "$PY" -m ty check --python "$(dirname "$(dirname "$PY")")" metta
 # Residual Pylint findings describe deliberate facades, compiler mixins,

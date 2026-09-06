@@ -21,6 +21,13 @@ Guarantees:
     test_run_status_refuses_program_text_with_holes; commit=4481c32eb0e922047199c54cea97c24995c6959e]
   - captured annotation membership retains the cursor's evaluation context
     [tested: tests/ch06_many_answers/test_evaluation_context_types.py; commit=074dc0a88b1605c54824de677d586b6f60998bcf]
+  - the class branch of ``define`` keeps the class it is handed and declares
+    PEP 681's transform, so a checker synthesises the constructor
+    ``install_type`` builds [tested: mypy-class-door; commit=dd4f82100a052e2c5254a2ef9e91f6eb9d2e0c49]
+  - ``_is_function_inherited`` answers only about heads reachable through THIS
+    space's chain, so a builtin and an unrelated space's definition are both
+    no [tested: test_an_engine_builtin_is_not_something_to_override;
+    commit=dd4f82100a052e2c5254a2ef9e91f6eb9d2e0c49]
   - tagged guards retain scoped binding preparation while carrying their algebra
     [tested: sh extensions/python/test.sh
     tests/ch06_many_answers/test_evaluation_context_bindings.py -n 0;
@@ -275,6 +282,7 @@ from typing import (
     Self,
     TypeVar,
     cast,
+    dataclass_transform,
     overload,
 )
 
@@ -419,6 +427,9 @@ __all__ = ["Cursor", "EngineProfile", "MeTTa", "Prepared", "Space", "current_spa
 _CastT = TypeVar("_CastT")
 _R = TypeVar("_R")
 _P = ParamSpec("_P")
+#: The class a declaring door hands back unchanged, so `@m.define` on a class
+#: keeps its identity instead of widening to `type`; the stub mirrors it.
+_T = TypeVar("_T")
 
 _BUILTINS_CACHE_LOCK = threading.RLock()
 _BUILTINS_CACHE: weakref.WeakKeyDictionary[
@@ -4215,6 +4226,26 @@ class Space(Handle):
             )
         )
 
+    def _is_function_inherited(self, name: str) -> bool:
+        """Whether a head answers here through the space chain while this
+        space defines nothing of its own for it: a space this one inherits
+        from defines it, or `&self` does and this is another space. An engine
+        builtin is not an answer, because shadowing one is the same-space
+        collision `is_function_here` already refuses. This is the question
+        `@typing.override` asks, and the reason `is_function` cannot answer
+        it: that one is process-wide and says yes for a head defined in an
+        unrelated space [tested: test_override_is_refused_when_nothing_is_shadowed;
+        commit=dd4f82100a052e2c5254a2ef9e91f6eb9d2e0c49].
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+        _require_name(name, "is_function_inherited")
+        return bool(
+            self._rt.once(
+                "metta_py_function_inherited(Space, Name)",
+                Space=self._space,
+                Name=name,
+            )
+        )
+
     def arities(self, name: str) -> list[int]:
         """Compiled predicate arities for a name: MeTTa arity plus one each."""
         row = self._rt.once("metta_py_arities(Name, As)", Name=name)
@@ -4764,15 +4795,35 @@ class Space(Handle):
 
     # ------------------------------------------------------------ definitions
 
+    # PEP 681's declaration that this branch synthesises __init__ from the
+    # class's annotations, which install_type does through
+    # _prepare_plain_data_class. eq_default=False because it does not
+    # synthesise __eq__: the class keeps object's identity comparison and the
+    # atom image is what MeTTa matches on.
+    #
+    # Pyright, the specification's reference implementation, reads the
+    # declaration through this bound method and completes `Point(1, 2)`. Mypy
+    # resolves a decorator expression to a definition node and an instance
+    # member access has none, so it reads the transform on the module-level
+    # `metta.define` only; the specification lists a function, a class and a
+    # metaclass and not a method, so that is mypy being literal rather than
+    # wrong [source: https://typing.python.org/en/latest/spec/dataclasses.html;
+    # https://github.com/python/mypy/issues/19824, which is SQLAlchemy meeting
+    # this with `registry.mapped_as_dataclass` and answering it the same way,
+    # by offering the module-level spelling beside the method]
+    # [measured 2026-09-07: mypy 2.3.0 reveals `def (self: object)` for the
+    # method spelling and the whole constructor for the module one]
+    # [tested: mypy-class-door; commit=dd4f82100a052e2c5254a2ef9e91f6eb9d2e0c49].
     @overload
+    @dataclass_transform(eq_default=False)
     def define(  # type: ignore[overload-overlap]
         self,
-        fn: _builtins.type,
+        fn: _builtins.type[_T],
         /,
         *,
         accessors: bool = ...,
         methods: bool = ...,
-    ) -> _builtins.type: ...
+    ) -> _builtins.type[_T]: ...
 
     @overload
     def define(
@@ -6336,14 +6387,15 @@ class MeTTa:
         return self._self.doc(atom)
 
     @overload
+    @dataclass_transform(eq_default=False)
     def define(  # type: ignore[overload-overlap]
         self,
-        fn: _builtins.type,
+        fn: _builtins.type[_T],
         /,
         *,
         accessors: bool = ...,
         methods: bool = ...,
-    ) -> _builtins.type: ...
+    ) -> _builtins.type[_T]: ...
     @overload
     def define(
         self,

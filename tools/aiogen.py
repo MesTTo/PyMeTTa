@@ -107,6 +107,24 @@ def _decorators(fn: ast.AST) -> list[str]:
     return [ast.unparse(d) for d in getattr(fn, "decorator_list", [])]
 
 
+def _declaring_decorators(fn: ast.AST) -> list[str]:
+    """An overload's decorators other than ``overload`` itself.
+
+    A decorator on an overload is part of what that row PROMISES, not an
+    implementation detail of the method: PEP 681's ``dataclass_transform`` on
+    define's class row is the whole reason a checker synthesises the
+    constructor `install_type` builds, and a mirror that renders the signature
+    and drops the declaration is a mirror that says less than its source.
+    Carried into the sync class mirror and the module tier, whose call shape
+    is the same one; NOT into the async mirror, whose doors are coroutines, so
+    a claim about what applying the decorator does to a class stops being true
+    of awaiting it.
+    """
+    return [
+        decorator for decorator in _decorators(fn) if not decorator.startswith("overload")
+    ]
+
+
 def methods(cls: ast.ClassDef) -> dict[str, list[ast.FunctionDef | ast.AsyncFunctionDef]]:
     """Every def in the class, by name, overload stubs kept before the method."""
     out: dict[str, list[ast.FunctionDef | ast.AsyncFunctionDef]] = {}
@@ -240,6 +258,7 @@ MODULE_HEADER = """
 MODULE_ALIASES = (
     ("Any", "_Any"),
     ("TemplateLike", "_TemplateLike"),
+    ("dataclass_transform", "_dataclass_transform"),
     ("Callable", "_Callable"),
     ("Iterable", "_Iterable"),
     ("Literal", "_Literal"),
@@ -337,9 +356,17 @@ def _module_overloads(nodes: list[ast.FunctionDef], name: str) -> list[str]:
         signature = _module_signature(node, name)
         signature[-1] = signature[-1] + " ..."
         if first and name == "define":
-            signature[-1] += "  # type: ignore[overload-overlap]"
+            # On the OPENING line when the signature wraps: mypy reports an
+            # overload overlap at the `def`, and a suppression binds to the
+            # line it ends, so on the closing line it silenced nothing and was
+            # itself reported as unused. The class row wraps now that it
+            # carries a type parameter [measured 2026-09-07: mypy 2.3.0
+            # reported both errors at metta/__init__.py:767 and :773].
+            position = 0 if len(signature) > 1 else -1
+            signature[position] += "  # type: ignore[overload-overlap]"
         first = False
-        out.extend(("@_overload", *signature))
+        declarations = [f"@{_aliased(d)}" for d in _declaring_decorators(node)]
+        out.extend(("@_overload", *declarations, *signature))
     return out
 
 
@@ -400,14 +427,20 @@ def _metta_docstring(fn: ast.FunctionDef, lines: list[str]) -> list[str]:
 
 
 def _metta_overloads(nodes: list[ast.FunctionDef], lines: list[str], name: str) -> list[str]:
-    """Space's @overload stubs verbatim, renamed with the public method."""
+    """Space's @overload stubs verbatim, renamed with the public method.
+
+    Their declaring decorators come too: this class is the same door on a
+    context, and a checker reading `@m.define` on a MeTTa() must be told what
+    it is told about the same call on a Space.
+    """
     out: list[str] = []
     for node in nodes:
         if "overload" not in _decorators(node):
             continue
         source = lines[node.lineno - 1 : node.end_lineno]
         head = source[0].replace(f"def {node.name}(", f"def {name}(", 1)
-        out.extend(["    @overload", head, *source[1:]])
+        declarations = [f"    @{d}" for d in _declaring_decorators(node)]
+        out.extend(["    @overload", *declarations, head, *source[1:]])
     return out
 
 

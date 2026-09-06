@@ -13,6 +13,11 @@ Guarantees:
     test_literal_defaults_are_head_patterns_and_clauses_stack,
     test_overlapping_clauses_materialize_as_one_case_equation;
     commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
+  - each merged case row reads its OWN clause's parameter names, so stacked
+    clauses that spell a parameter differently still bind one variable across
+    a row's pattern and its body [tested:
+    test_stacked_clauses_may_spell_their_parameters_differently;
+    commit=dd4f82100a052e2c5254a2ef9e91f6eb9d2e0c49]
   - clauses at different arities under one MeTTa name stack instead of
     replacing one another [tested:
     test_define_supports_one_name_at_multiple_arities; commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
@@ -69,6 +74,14 @@ Guarantees:
     __match_args__, and __replace__ before registering its full-arity term
     image [tested: test_define_accepts_a_plain_annotated_data_class;
     commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
+  - ``@typing.override`` under the decorator is read as a declaration: a
+    definition carrying it must shadow a head an inherited space defines, and
+    one that shadows nothing is refused with both remedies while an undeclared
+    shadow is unchanged [tested:
+    test_override_declares_a_shadow_of_an_inherited_definition,
+    test_override_is_refused_when_nothing_is_shadowed,
+    test_a_shadowing_definition_without_the_decorator_is_unchanged;
+    commit=dd4f82100a052e2c5254a2ef9e91f6eb9d2e0c49]
 Guarded by:
   - _DEFINE_LOCK serializes equation installation, reflection, and process
     bookkeeping for every space [tested test_define_from_two_threads_is_serialized]
@@ -374,6 +387,46 @@ def _validate_clause_order(
             )
 
 
+def _validate_override_declaration(
+    space: Any, fn: Callable[..., Any], name: str, earlier: list[dict[str, Any]]
+) -> None:
+    """Read `@typing.override` as the declaration that this definition shadows one.
+
+    Inherited declarations do not shadow by accident here: a space's own
+    definition governs as a complete set, C++'s unqualified-lookup rule, and
+    the definition that hides an inherited one is deliberate and stays silent
+    (2026-08-26, engine/metta/types.pl `governing_type_declaration_in/3`). What
+    was missing was the other direction, the developer SAYING so, which is
+    exactly `typing.override`'s contract: the decorator is a claim the checker
+    refuses when nothing was there to override, and this door refuses it for
+    the same reason on the MeTTa side.
+
+    The decorator has to sit BELOW `@m.define`, on the function itself, because
+    `typing.override` writes `__override__` on the object it is handed and the
+    installer reads it from the function. Applied above, it is handed the
+    `Defined`, whose `__slots__` refuse the attribute, and `typing.override`
+    swallows that by its own specification, so the claim would be silently
+    lost.
+
+    Only the FIRST clause of a name asks: a second clause stacks onto a
+    definition this space already owns, so `_is_function_inherited` is false by
+    then and re-asking would refuse the continuation of a lawful override.
+    """
+    if earlier or not getattr(fn, "__override__", False):
+        return
+    if space._is_function_inherited(name):  # the private sibling of is_function_here, one package
+        return
+    msg = (
+        f"{name!r} is declared @typing.override but overrides nothing: no "
+        f"space {space.name} inherits from defines it, so there is no "
+        f"definition here to shadow. Drop the decorator, or import the space "
+        f"that defines {name!r} -- m.space(name, inherits=other) puts this "
+        f"space under it, and (import! ...) into that space or into &self "
+        f"puts the definition where this one can hide it."
+    )
+    raise CompileError(msg, construct="override declaration")
+
+
 def _same_clause(clause: dict[str, Any], canonical: tuple[Expression, ...], name: str) -> bool:
     old_equations = (*clause.get("raw_equations", clause["equations"]), *clause.get("aux", ()))
     old_canonical = canonical_aux_set(old_equations, name)
@@ -557,14 +610,27 @@ def _heads_overlap(left: dict[str, Atom], right: dict[str, Atom]) -> bool:
 
 
 def _case_equation(name: str, clauses: list[dict[str, Any]]) -> Expression:
-    """One general equation whose case rows preserve authored clause order."""
-    params = clauses[0]["params"]
-    subject_variables = [Variable(f"{name}-argument-{index}") for index in range(len(params))]
+    """One general equation whose case rows preserve authored clause order.
+
+    Each row is built from the clause's OWN parameter names. They are the same
+    ARITY across a component and nothing more: two Python functions stacked
+    under one MeTTa name are two functions, and a position is what they share.
+    Reading every row through the first clause's names put a case arm's pattern
+    variable and its body's variable at different names whenever the second
+    clause spelled a parameter differently, and the call then answered its own
+    unreduced body: `def f(a=0)` beside `def f(b)` answered `(+ $_8 1)` for
+    `(f 5)` [measured 2026-09-07, and the same shape read a patterned position
+    as unpatterned when the pattern was keyed by the other name].
+    """
+    subject_variables = [
+        Variable(f"{name}-argument-{index}") for index in range(len(clauses[0]["params"]))
+    ]
     subject: Atom = (
         subject_variables[0] if len(subject_variables) == 1 else Expression(subject_variables)
     )
     rows: list[Expression] = []
     for serial, clause in enumerate(clauses, start=1):
+        params = clause["params"]
         rename = {
             variable.name: f"{name}-clause-{serial}-{variable.name}"
             for body in clause["bodies"]
@@ -847,6 +913,7 @@ def _install_define_locked(space: Any, fn: Callable[..., Any], name: str | None 
     # in the space, not in whichever MeTTa instance happened to add them.
     earlier = _DEFINE_CLAUSES.setdefault((space.name, name), [])
     _validate_clause_order(space, name, patterns, len(params), earlier)
+    _validate_override_declaration(space, fn, name, earlier)
     # The materializer below turns overlapping heads into one ordered case
     # equation. Keeping the authored bodies raw here lets replacement rebuild
     # the whole connected component without accumulating old guards.

@@ -352,12 +352,16 @@ def _render_function(
     returns = f" -> {ast.unparse(qualified_return)}" if qualified_return is not None else ""
     # The type-checker suppression is the stub's OWN, because the overlap it
     # silences is between two rendered overloads rather than a source name.
+    # The prefix match rather than equality: the class overload took a type
+    # PARAMETER when the class door started declaring its dataclass transform,
+    # and `_builtins.type[_T]` overlaps the callable overload exactly as
+    # `_builtins.type` did.
     opening_suffix = ""
     if (
         node.name == "define"
         and _is_overload(node)
         and node.args.posonlyargs
-        and ast.unparse(node.args.posonlyargs[0].annotation) == "_builtins.type"
+        and ast.unparse(node.args.posonlyargs[0].annotation).startswith("_builtins.type")
     ):
         opening_suffix = "  # type: ignore[overload-overlap]"
 

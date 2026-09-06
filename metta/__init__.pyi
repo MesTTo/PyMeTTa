@@ -28,6 +28,7 @@ from ._space import MeTTa as MeTTa
 from ._space import Space as Space
 from ._space import _P
 from ._space import _R
+from ._space import _T
 from ._space_execution import ScopedExecution as _ScopedExecution
 from ._space_objects import ScopedLimits as _ScopedLimits
 from ._space_objects import _StatsBlock
@@ -93,6 +94,7 @@ from collections.abc import Mapping as _Mapping
 from typing import Any as _Any
 from typing import Literal as _Literal
 from typing import Protocol as _Protocol
+from typing import dataclass_transform as _dataclass_transform
 from typing import overload as _overload
 
 
@@ -248,6 +250,7 @@ __all__ = [
     "stats",
     "strategies",
     "structures",
+    "stubs",
     "subscribe",
     "superpose",
     "tables",
@@ -298,6 +301,8 @@ def current_algebra() -> str | None: ...
 def forms(source: str) -> list[Atom]: ...
 
 def llms() -> None: ...
+
+def stubs(space: _Any = ..., *, sources: _Iterable[str | _os.PathLike[str]] = ...) -> str: ...
 
 def run(
     source: str | _TemplateLike,
@@ -362,13 +367,14 @@ def solve(pattern: _Any, subject: _Any) -> _Any: ...
 def doc(atom: _Any) -> Atom: ...
 
 @_overload
+@_dataclass_transform(eq_default=False)
 def define(  # type: ignore[overload-overlap]
-    fn: _builtins.type,
+    fn: _builtins.type[_T],
     /,
     *,
     accessors: _builtins.bool = ...,
     methods: _builtins.bool = ...,
-) -> _builtins.type: ...
+) -> _builtins.type[_T]: ...
 
 @_overload
 def define(

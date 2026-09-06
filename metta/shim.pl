@@ -4756,6 +4756,42 @@ metta_py_function_visible(Space0, Name0) :-
                     clause(Module:Head, _, _) ),
                   fail), !.
 
+%Whether a head this space does NOT define answers here through the space
+%chain: a space it inherits from defines it, or &self does and this is some
+%other space, which is the sharing rule fun_here_in/2 states. This is the
+%question `@typing.override` asks, so a definition that shadows nothing is
+%refused where it is written instead of answering beside the one it meant to
+%replace.
+%
+%A BUILTIN is deliberately not an answer, which is why this walks the chain
+%rather than calling fun_here_in/2: that predicate's last clause admits every
+%engine name, and shadowing a builtin is the same-space collision
+%metta_py_function_visible/2 already refuses with its own message.
+%
+%fun_in/2 is a REGISTRATION fact rather than a clause fact -- register_fun_in/2
+%asserts it when the equation lands -- so unlike the clause probe above this
+%needs no metta_ensure_compiled/1 to be right on a definition nothing has
+%evaluated yet [measured 2026-09-07: fun_in holds immediately after
+%space.run("(= (area $r) ...)") with no evaluation in between].
+metta_py_function_inherited(Space0, Name0) :-
+    ( atom(Space0) -> Space = Space0 ; atom_string(Space, Space0) ),
+    ( atom(Name0) -> Name = Name0 ; atom_string(Name, Name0) ),
+    fun(Name),
+    metta_py_module(Space, Module),
+    \+ spaces:fun_in(Module, Name),
+    metta_py_inherited_definer(Module, Name), !.
+
+metta_py_inherited_definer(Module, Name) :-
+    spaces:metta_exec_module_parent(Module, Parent),
+    (   spaces:fun_in(Parent, Name)
+    ->  true
+    ;   metta_py_inherited_definer(Parent, Name)
+    ).
+metta_py_inherited_definer(Module, Name) :-
+    spaces:metta_self_module(Self),
+    Module \== Self,
+    spaces:fun_in(Self, Name).
+
 metta_py_arities(Name0, As) :-
     ( atom(Name0) -> Name = Name0 ; atom_string(Name, Name0) ),
     %Compiled arities are registered at translation, so the read forces.

@@ -1,5 +1,10 @@
 """Purpose: query, profiling, scope, and callable objects returned by MeTTa.
 Guarantees:
+  - a documentation part written with its type beside it,
+    ``(@param (@type Number) (@desc "..."))``, reads its DESCRIPTION, so
+    help() and every stub built from the same formatter print the prose
+    [tested: test_a_structured_documentation_part_reads_its_description;
+    commit=dd4f82100a052e2c5254a2ef9e91f6eb9d2e0c49]
   - algebra and demand cross internal evaluation without changing answer shape
     [tested: sh extensions/python/test.sh
     tests/ch06_many_answers/test_evaluation_context.py -n 0; commit=54cb2eee69c42c1ae685643cbe2578f8d617a265]
@@ -1273,6 +1278,27 @@ def _doc_text(atom: object) -> str:
     return str(atom)
 
 
+def _doc_part_text(parts: Sequence[Atom]) -> str:
+    """The reader's prose from one documentation part's children.
+
+    A `@param` or `@return` is written either as bare prose, `(@param "the
+    radius")`, or with the type beside it, `(@param (@type Number) (@desc "the
+    radius"))`, which is the shape a Python docstring's parsed arguments
+    produce. Taking the first child answered `(@type Number)` for the second
+    shape, so help() printed the type where the description belongs and the
+    description was unreachable [measured 2026-09-07: an annotated @m.define
+    listed its one parameter as `(@type Number)` under `Parameters:`].
+    """
+    for part in parts:
+        if (
+            isinstance(part, Expression)
+            and len(part.children) > 1
+            and part.children[0] == Symbol("@desc")
+        ):
+            return _doc_text(part.children[1])
+    return _doc_text(parts[0])
+
+
 def _format_doc_atom(doc: Expression) -> str:
     """`(@doc name (@desc ...) (@params (...)) (@return ...))` as help()
     text: one summary line, then the parameters, then the return.
@@ -1289,12 +1315,12 @@ def _format_doc_atom(doc: Expression) -> str:
             lines.append(f"{name}: {_doc_text(rest[0])}")
         elif head == Symbol("@params") and rest and isinstance(rest[0], Expression):
             parameters = [
-                _doc_text(param.children[1])
+                _doc_part_text(param.children[1:])
                 for param in rest[0].children
                 if isinstance(param, Expression) and len(param.children) > 1
             ]
         elif head == Symbol("@return") and rest:
-            returns = _doc_text(rest[0])
+            returns = _doc_part_text(rest)
     if not lines:
         lines.append(str(name))
     if parameters:

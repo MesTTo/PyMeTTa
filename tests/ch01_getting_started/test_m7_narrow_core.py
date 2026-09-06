@@ -113,7 +113,11 @@ FINAL_METTA_METHODS = 35
 # setup.py ships the file into metta/_runtime/ for it.
 # +1 for ``current_algebra``, the context observer paired with
 # ``current_space``.
-FINAL_METTA_EXPORTS = 113
+# +1 for ``stubs``, which answers a space's declarations as the text of a
+# `.pyi`. It is a root door rather than a Space method for the same reason
+# ``llms`` is: it takes the space as an argument so a caller can project one
+# it does not own, and `python -m metta stubs` is the same generator.
+FINAL_METTA_EXPORTS = 114
 
 SATELLITES = {
     "aio",

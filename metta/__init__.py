@@ -113,6 +113,7 @@ import sys as _sys
 from collections.abc import Mapping as _Mapping
 from typing import TYPE_CHECKING
 from typing import Any as _Any
+from typing import dataclass_transform as _dataclass_transform
 from typing import overload as _overload
 
 if TYPE_CHECKING:
@@ -131,7 +132,7 @@ if TYPE_CHECKING:
     # reachable at runtime and type as Any through __getattr__.
     from ._debug import Debugger as _Debugger
     from ._rules import equation, rules
-    from ._space import _P, _R, MeTTa, Space
+    from ._space import _P, _R, _T, MeTTa, Space
     from ._space_execution import ScopedExecution as _ScopedExecution
     from ._space_objects import ScopedLimits as _ScopedLimits
     from ._space_objects import _StatsBlock
@@ -431,6 +432,27 @@ def llms() -> None:
     # pathlib adds eager imports to a plain ``import metta``.
     with open(path, encoding="utf-8") as sheet:
         print(sheet.read(), end="")
+
+
+def stubs(space: _Any = None, *, sources: _Iterable[str | _os.PathLike[str]] = ()) -> str:
+    """Return a space's declared heads as the text of a Python stub file.
+
+    An arrow is a type, and a `.pyi` is where Python keeps the types of things
+    with no runtime object to hang them on. One `def` per declared head with
+    the arrow projected to annotations, one `class` per declared type, and each
+    `(@doc ...)` as the docstring, so an editor completes a MeTTa program's
+    heads and a checker refuses a call that passes the wrong thing:
+
+        metta.load("geometry.metta")
+        print(metta.stubs())                      # this context's own space
+        print(metta.stubs(other, sources=["geometry.metta"]))
+
+    `python -m metta stubs geometry.metta -o geometry.pyi` is the same
+    generator from a shell. Without an argument it reads the space the active
+    context selects; `sources` names the files the module docstring credits.
+    """
+    projection = _importlib.import_module(f"{__name__}._stubs")
+    return projection.stubs(_ambient_space() if space is None else space, sources=sources)
 
 
 # ------------------------------------------------- generated module tier
@@ -793,7 +815,14 @@ def doc(atom: _Any) -> Atom:
 
 
 @_overload
-def define(fn: _builtins.type, /, *, accessors: bool = ..., methods: bool = ...) -> _builtins.type: ...  # type: ignore[overload-overlap]
+@_dataclass_transform(eq_default=False)
+def define(  # type: ignore[overload-overlap]
+    fn: _builtins.type[_T],
+    /,
+    *,
+    accessors: bool = ...,
+    methods: bool = ...,
+) -> _builtins.type[_T]: ...
 @_overload
 def define(
     fn: _Callable[_P, _R],
@@ -1438,6 +1467,7 @@ __all__ = [
     "stats",
     "strategies",
     "structures",
+    "stubs",
     "subscribe",
     "superpose",
     "tables",
