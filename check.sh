@@ -208,6 +208,13 @@ run GATE   mypy-root-impl in_py "$PY" -m mypy metta/__init__.py
 # This is a consumer file on purpose.  It proves the package attribute is
 # callable, its two forms stay precise, and every catalog carrier is present.
 run GATE   mypy-algebra-surface in_py "$PY" -m mypy tests/typing/algebra_surface.py
+# The template protocols, asked at the one version that can answer. The library
+# floor is 3.12 so `metta` may never name string.templatelib.Template, and this
+# is the only configuration where "does the class the protocol describes
+# actually satisfy it" is a question typeshed can be asked. Planting a mutable
+# `conversion: str | None` in place of the read-only property made it 7 errors
+# [measured 2026-09-07].
+run GATE   mypy-template-surface in_py "$PY" -m mypy --python-version 3.14 tests/typing/template_surface.py
 # ledger C2: 67 diagnostics, independent engine
 run GATE   ty          in_py "$PY" -m ty check --python "$(dirname "$(dirname "$PY")")" metta
 # Residual Pylint findings describe deliberate facades, compiler mixins,

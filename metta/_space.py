@@ -7,6 +7,18 @@ Assumes:
     _space_execution.py, _space_persistence.py, _space_objects.py, and
     _space_diagnostics.py; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
 Guarantees:
+  - every text door takes program text with holes in all three faces, and the
+    two with no engine binding channel put the values in the term instead
+    [tested: test_every_text_door_takes_program_text_with_holes,
+    test_a_pattern_template_matches_the_value_itself; commit=WORKTREE]
+  - a hole and a bind() of the same value answer identically, while a binding
+    also reaches the occurrences a hole cannot [tested:
+    test_a_hole_and_a_binding_answer_the_same,
+    test_a_binding_reaches_every_occurrence_where_a_hole_reaches_one;
+    commit=WORKTREE]
+  - the doors with nowhere to put a hole refuse one, naming the reason and the
+    remedy [tested: test_load_refuses_program_text_with_holes,
+    test_run_status_refuses_program_text_with_holes; commit=WORKTREE]
   - captured annotation membership retains the cursor's evaluation context
     [tested: tests/ch06_many_answers/test_evaluation_context_types.py; commit=074dc0a88b1605c54824de677d586b6f60998bcf]
   - tagged guards retain scoped binding preparation while carrying their algebra
@@ -263,7 +275,7 @@ from typing import (
 )
 
 from . import ops as _ops_module
-from ._api_types import _DEFAULT_SPACE, _SpaceId
+from ._api_types import _DEFAULT_SPACE, TemplateLike, _SpaceId
 from ._engine import Runtime, bridge, runtime, started
 from ._library import Library, import_library
 from ._lint_events import record_sync_engine_call as _record_sync_engine_call
@@ -322,6 +334,24 @@ from ._space_query import (
     query_count,
     query_count_if_repeatable,
     solve_rows,
+)
+from ._templates import (
+    HOLE_PREFIX as _HOLE_PREFIX,
+)
+from ._templates import (
+    apply as _apply_holes,
+)
+from ._templates import (
+    is_template as _is_template,
+)
+from ._templates import (
+    read_source as _read_source,
+)
+from ._templates import (
+    read_targets as _read_targets,
+)
+from ._templates import (
+    refuse_template as _refuse_template,
 )
 from ._under import _UNSET, EvaluationContext
 from ._under import selected as _selected_under
@@ -641,10 +671,64 @@ class _WatchIterator:
             subscription.cancel()
 
 def _require_source(source: Any, called: str) -> None:
-    """Refuse non-text source here rather than at the engine's reader."""
-    if not isinstance(source, str):
-        msg = f"{called} takes MeTTa source as a string, got {source!r}"
+    """Refuse non-text source here rather than at the engine's reader.
+
+    The doors that CAN carry a hole's value take program text with holes
+    instead of calling this. The one that cannot is run_status, whose engine
+    door metta_host_run_source_status/3 takes no bindings argument, so a hole
+    there would have nowhere to land and `bind()` does not reach it either
+    [source: engine/filereader.pl:674, metta_host_run_source_status/3].
+    """
+    if isinstance(source, str):
+        return
+    if _is_template(source):
+        msg = (
+            f"{called} does not take program text with holes: the engine's "
+            f"status door carries no bindings, which is also why bind() does "
+            f"not reach it. Use run() for holes, and run_status() for plain "
+            f"source."
+        )
         raise TypeError(msg)
+    msg = f"{called} takes MeTTa source as a string, got {source!r}"
+    raise TypeError(msg)
+
+
+#: A door's own keyword-only parameters. A {field} spelled the same cannot be
+#: reached by keyword, because the named parameter takes the value first, so
+#: the reader names the collision instead of reporting a missing value.
+_SOURCE_KEYWORDS = ("timeout", "inferences")
+_TERM_KEYWORDS = (*_SOURCE_KEYWORDS, "under", "theory", "interpreter")
+_STATUS_KEYWORDS = (*_SOURCE_KEYWORDS, "theory", "interpreter")
+_MATCH_KEYWORDS = (*_SOURCE_KEYWORDS, "where", "limit", "under", "into")
+_EXTENSION_KEYWORDS = (*_SOURCE_KEYWORDS, "extension", "names")
+
+
+def _with_holes(
+    scope: dict[Any, Any] | None, holes: dict[str, Any] | None
+) -> dict[Any, Any] | None:
+    """One binding map from the surrounding bind() scope and this call's holes.
+
+    A hole wins over a same-named scope entry, which cannot actually happen:
+    the hole names are reserved and bind() refuses them. The order says which
+    one would, rather than leaving it to dict iteration.
+    """
+    if not holes:
+        return scope
+    return {**(scope or {}), **holes}
+
+
+def _held(target: Any, holes: dict[str, Any] | None, *, handed_on: bool) -> Any:
+    """A target with its holes already in it, when this call hands it onward.
+
+    The engine substitutes a binding pair once, at the door it was given to.
+    A theory, an interpreter or a carrier makes this door ask ANOTHER door,
+    sometimes lazily inside a generator, and a pair cannot follow a target
+    through an arbitrary number of hand-offs; the value in the TERM can. So a
+    delegating branch pays one reader crossing to put it there, and a plain
+    branch keeps the cheaper pair, which is the same split match() and parse()
+    sit on permanently.
+    """
+    return _apply_holes(_to_atom(target), holes) if handed_on and holes else target
 
 
 def _require_name(name: Any, called: str) -> None:
@@ -1278,16 +1362,30 @@ class Space(Handle):
             msg = f"host values were bound twice: {sorted(overlap)!r}"
             raise TypeError(msg)
         bindings.update(named)
+        reserved = sorted(
+            name
+            for name in bindings
+            if isinstance(name, str) and name.startswith(_HOLE_PREFIX)
+        )
+        if reserved:
+            msg = (
+                f"{_HOLE_PREFIX!r} names the symbols a template hole is spliced "
+                f"as, so {reserved!r} cannot be bound: a hole and a binding "
+                f"would be indistinguishable. Bind another name."
+            )
+            raise ValueError(msg)
         return _BoundValues(bindings)
 
     # ----------------------------------------------------------------- running
 
     def run(
         self,
-        source: str,
+        source: str | TemplateLike,
+        /,
         *,
         timeout: float | None = None,
         inferences: int | None = None,
+        **values: Any,
     ) -> list[list[Atom]]:
         """Run MeTTa source: one list of answers per ! directive.
 
@@ -1296,8 +1394,23 @@ class Space(Handle):
         directive instead of flattened. Equations and facts in the source
         land in this space.
 
-        `bind()` names Python values the source refers to by bare symbol,
-        the way DuckDB reads a local dataframe by its variable name:
+        The source may carry HOLES, which are bindings by position:
+
+            m.run(t"!(fib {n})")            # a 3.14 t-string literal
+            m.run("!(fib {n})", n=10)       # the same on every version
+
+        Each hole is spliced into the text as a generated symbol and bound to
+        its value, so a str stays one String atom and never has to be escaped.
+        Values enter through `encode`: an int is a Number, a str a String, an
+        Atom itself, a Space its handle. The markers at a hole are the atom
+        constructors, `{Symbol(name)}`, `{Grounded(obj)}` and `{parse(text)}`,
+        with the specs `:sym`, `:py` and `:expr` as their short forms; `!r`
+        and `!s` convert in Python first and enter the result as text. A hole
+        inside a string literal, a comment or a symbol is refused with its
+        line and column.
+
+        `bind()` is the same substitution by NAME, for a value several calls
+        share, the way DuckDB reads a local dataframe by its variable name:
 
             with m.bind({"graph": my_graph}):
                 m.run("!(py-len graph)")
@@ -1308,6 +1421,9 @@ class Space(Handle):
         and a block grows down the page where a keyword has to fit beside
         everything else on the call. Every call that accepts a target reads the
         same scope, so one block covers run(), eval(), and answers() together.
+        A binding names a symbol and so replaces EVERY occurrence of it,
+        including one the author meant as a symbol; a hole is positional and
+        cannot reach anything but itself.
 
         `timeout` (seconds) and `inferences` (engine steps) bound the call
         with the engine's own guards; passing either raises TimeLimitError
@@ -1328,14 +1444,16 @@ class Space(Handle):
         which answers reduced and which did not, as data, for a caller who
         wants to decide about it.
         """
-        _require_source(source, "run")
+        source, holes = _read_source(
+            source, values, called="run", reserved=_SOURCE_KEYWORDS
+        )
         _record_sync_engine_call(self, "run", sys._getframe(1))
         try:
             return run_source(
                 self._rt,
                 self._space,
                 source,
-                _RUN_BINDINGS.get(),
+                _with_holes(_RUN_BINDINGS.get(), holes),
                 timeout=timeout,
                 inferences=inferences,
             )
@@ -1344,10 +1462,12 @@ class Space(Handle):
 
     def profile(
         self,
-        source: str,
+        source: str | TemplateLike,
+        /,
         *,
         timeout: float | None = None,
         inferences: int | None = None,
+        **values: Any,
     ) -> tuple[list[list[Atom]], EngineProfile]:
         """Run source under the engine's statistical profiler, answering
         (groups, profile): the groups exactly as run() answers them, and
@@ -1362,23 +1482,28 @@ class Space(Handle):
         Profiling changes execution; it is a debugging surface, not a
         mode to leave on.
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+        source, holes = _read_source(
+            source, values, called="profile", reserved=_SOURCE_KEYWORDS
+        )
         return profile_source(
             self._rt,
             self._space,
             source,
-            _RUN_BINDINGS.get(),
+            _with_holes(_RUN_BINDINGS.get(), holes),
             timeout=timeout,
             inferences=inferences,
         )
 
     def profile_extension(
         self,
-        source: str,
+        source: str | TemplateLike,
+        /,
         *,
         extension: str | None = None,
         names: _abc.Sequence[str] | None = None,
         timeout: float | None = None,
         inferences: int | None = None,
+        **values: Any,
     ) -> tuple[list[list[Atom]], list[FunctionCost]]:
         """Run source under the profiler, reporting only YOUR functions.
 
@@ -1421,11 +1546,14 @@ class Space(Handle):
             if names is not None
             else list(self._extension_members(extension))
         )
+        source, holes = _read_source(
+            source, values, called="profile_extension", reserved=_EXTENSION_KEYWORDS
+        )
         return profile_extension(
             self._rt,
             self._space,
             source,
-            _RUN_BINDINGS.get(),
+            _with_holes(_RUN_BINDINGS.get(), holes),
             wanted,
             timeout=timeout,
             inferences=inferences,
@@ -1529,7 +1657,18 @@ class Space(Handle):
         likely to be handed code the caller did not write, since a file can
         carry `!` directives and an import graph, so it takes the same pair
         its siblings take.
+
+        Program text with holes is refused here. A hole is a binding, and a
+        PATH has nowhere to bind one: run() takes holes, and an f-string or a
+        Path builds a computed filename.
         """
+        _refuse_template(
+            path,
+            "load",
+            "it takes a PATH, and a hole is a binding a filename has nowhere "
+            "to put. Use run() for program text with holes, or an f-string "
+            "for a computed path.",
+        )
         try:
             return load_space(
                 self._rt, self._space, path, timeout=timeout, inferences=inferences
@@ -1537,9 +1676,15 @@ class Space(Handle):
         finally:
             _invalidate_builtins_cache(self._rt)
 
-    def parse(self, source: str) -> Atom:
-        """Read one form into an atom without evaluating it."""
-        return parse(source)
+    def parse(self, source: str | TemplateLike, /, **values: Any) -> Atom:
+        """Read one form into an atom without evaluating it.
+
+        Holes work here as they do at run(), and land in the term this
+        answers rather than crossing to the engine, since nothing runs:
+        `m.parse(t"(person {name} 36)")` is the built term with the value
+        already in it.
+        """
+        return parse(source, **values)
 
     def register_token(
         self,
@@ -2265,6 +2410,7 @@ class Space(Handle):
         inferences: int | None = None,
         under: Any = _UNSET,
         into: _builtins.type | None = None,
+        **values: Any,
     ) -> Any:
         """Lazily match patterns against this space as one conjunction.
 
@@ -2308,8 +2454,26 @@ class Space(Handle):
         expressions instead: `m.match(V.edge, into=Edge)`.
 
             m.match(S.Edge(V.x, V.y), S.Edge(V.y, V.z))
+
+        A text pattern may carry HOLES, as run()'s source may:
+        `m.match(t"(person {name} $age)")` matches the value itself, so a name
+        holding a space stays one String atom rather than reading as two
+        symbols. Keyword values apply across every pattern of the call.
         """
         _record_sync_engine_call(self, "match", sys._getframe(1))
+        patterns, holes = _read_targets(
+            patterns, values, called="match", reserved=_MATCH_KEYWORDS
+        )
+        if holes:
+            # A cursor opens through metta_py_cursor_open, which carries no
+            # bindings, so a pattern's holes go into the pattern here. The
+            # values are already atoms, which is what keeps this agreeing with
+            # the engine path: _to_atom PARSES a str where encode makes it a
+            # String, so an unencoded value would mean two different things at
+            # the two doors.
+            patterns = tuple(
+                _apply_holes(_to_atom(pattern), holes) for pattern in patterns
+            )
         _validate_limit(limit)
         carrier = _selected_under(under)
         if carrier is not None:
@@ -2952,12 +3116,14 @@ class Space(Handle):
     def eval(
         self,
         target: Any,
+        /,
         *,
         timeout: float | None = ...,
         inferences: int | None = ...,
         under: Any = ...,
         theory: Any | None = ...,
         interpreter: Any | None = ...,
+        **values: Any,
     ) -> list[Atom | Undefined]: ...
 
     @overload
@@ -2972,17 +3138,20 @@ class Space(Handle):
         under: Any = ...,
         theory: Any | None = ...,
         interpreter: Any | None = ...,
+        **values: Any,
     ) -> list[list[Atom | Undefined]]: ...
 
     def eval(
         self,
         target: Any,
+        /,
         *more: Any,
         timeout: float | None = None,
         inferences: int | None = None,
         under: Any = _UNSET,
         theory: Any | None = None,
         interpreter: Any | None = None,
+        **values: Any,
     ) -> list[Atom | Undefined] | list[list[Atom | Undefined]]:
         """Evaluate a term, returning every answer.
 
@@ -3003,6 +3172,11 @@ class Space(Handle):
         rule applies is the ordinary answer itself; `eval_status()` names
         that path `not-reducible`. run() does not carry the third truth
         value; evaluate through eval() when it matters.
+
+        A text target may carry HOLES, exactly as run()'s source may:
+        `m.eval(t"(decide {tensor})")` and `m.eval("(decide {x})", x=tensor)`
+        hand the object itself to the rule, by identity. One call's holes are
+        numbered together, so a batch and a nested template cannot collide.
 
         `bind()` binds named host values into the term before it evaluates,
         exactly as it does for run(): inside `with m.bind({"x": tensor})`,
@@ -3030,19 +3204,23 @@ class Space(Handle):
         eval() ignored it in silence.
         """
         _record_sync_engine_call(self, "eval", sys._getframe(1))
+        grouped, holes = _read_targets(
+            (target, *more), values, called="eval", reserved=_TERM_KEYWORDS
+        )
+        handed_on = (
+            theory is not None
+            or interpreter is not None
+            or _selected_under(under) is not None
+        )
+        target, more = grouped[0], grouped[1:]
         if more:
             # The batched face: the delegating knobs stay per-term through
             # answers(); the plain lane crosses once for the lot.
-            grouped = (target, *more)
-            if (
-                theory is not None
-                or interpreter is not None
-                or _selected_under(under) is not None
-            ):
+            if handed_on:
                 return [
                     list(
                         self.answers(
-                            each,
+                            _held(each, holes, handed_on=True),
                             timeout=timeout,
                             inferences=inferences,
                             under=under,
@@ -3052,7 +3230,7 @@ class Space(Handle):
                     )
                     for each in grouped
                 ]
-            prepared = [self._prepared_ask(each, None) for each in grouped]
+            prepared = [self._prepared_ask(each, holes) for each in grouped]
             scope = next((using for _, using in prepared if using), None)
             return evaluate_many(
                 self._rt,
@@ -3064,7 +3242,10 @@ class Space(Handle):
             )
         # Atom-keyed bindings are applied here whichever branch runs below, so
         # the eager path and the delegating one agree on what a binding means.
-        target, using = self._prepared_ask(target, None)
+        target, using = self._prepared_ask(
+            _held(target, holes, handed_on=handed_on),
+            None if handed_on else holes,
+        )
         # The two methods are NOT one mechanism, which was measured rather than
         # assumed: eval() is one eager engine call (metta_py_eval_all) and
         # answers() opens a cursor, and routing eval() through the cursor
@@ -3074,7 +3255,7 @@ class Space(Handle):
         # the eager path and 0 through the cursor]. So the delegation is for
         # what answers() uniquely OWNS -- the carrier, the theory and the
         # interpreter -- and the eager path stays the eager path.
-        if theory is not None or interpreter is not None or _selected_under(under) is not None:
+        if handed_on:
             return list(
                 self.answers(
                     target,
@@ -3092,12 +3273,14 @@ class Space(Handle):
     def answers(
         self,
         target: Any,
+        /,
         *,
         timeout: float | None = None,
         inferences: int | None = None,
         under: Any = _UNSET,
         theory: Any | None = None,
         interpreter: Any | None = None,
+        **values: Any,
     ) -> Answers[Any]:
         """Evaluate lazily as an immutable, cached and replayable view.
 
@@ -3144,10 +3327,24 @@ class Space(Handle):
         target before the interpreter ever sees it; and its RETURN metatype
         `%Undefined%`, or the interpreter's own answer is not reduced either.
         `(: e (-> Atom Atom Atom %Undefined%))` is the declaration.
+
+        A text target may carry HOLES, as run()'s source may:
+        `m.answers(t"(near {point})")`. A theory, an interpreter or a carrier
+        makes this view ask through another door, so the holes are read into
+        the term itself there rather than sent as pairs a hand-off would drop.
         """
         _record_sync_engine_call(self, "answers", sys._getframe(1))
-        target, using = self._prepared_ask(target, None, theory, interpreter)
+        (target,), holes = _read_targets(
+            (target,), values, called="answers", reserved=_TERM_KEYWORDS
+        )
         carrier = _selected_under(under)
+        handed_on = theory is not None or interpreter is not None or carrier is not None
+        target, using = self._prepared_ask(
+            _held(target, holes, handed_on=handed_on),
+            None if handed_on else holes,
+            theory,
+            interpreter,
+        )
         if theory is not None:
             return self._answers_with_theory(
                 target,
@@ -3510,11 +3707,13 @@ class Space(Handle):
     def eval_status(
         self,
         target: Any,
+        /,
         *,
         timeout: float | None = None,
         inferences: int | None = None,
         theory: Any | None = None,
         interpreter: Any | None = None,
+        **values: Any,
     ) -> list[tuple[str, Atom | Undefined | None]]:
         """Evaluate a term, pairing each answer with how it was produced.
 
@@ -3546,7 +3745,10 @@ class Space(Handle):
         answer with an algebra value, so it would make a status row a triple
         rather than the pair it is, which is a question about what a status IS.
         """
-        target, using = self._prepared_ask(target, None, theory, interpreter)
+        (target,), holes = _read_targets(
+            (target,), values, called="eval_status", reserved=_STATUS_KEYWORDS
+        )
+        target, using = self._prepared_ask(target, holes, theory, interpreter)
         if theory is None:
             return evaluate_status(
                 self._rt, self._space, target, timeout, inferences, using=using
@@ -5765,10 +5967,12 @@ class MeTTa:
 
     def run(
         self,
-        source: str,
+        source: str | TemplateLike,
+        /,
         *,
         timeout: float | None = None,
         inferences: int | None = None,
+        **values: Any,
     ) -> list[list[Atom]]:
         """Run MeTTa source: one list of answers per ! directive.
 
@@ -5777,8 +5981,23 @@ class MeTTa:
         directive instead of flattened. Equations and facts in the source
         land in this space.
 
-        `bind()` names Python values the source refers to by bare symbol,
-        the way DuckDB reads a local dataframe by its variable name:
+        The source may carry HOLES, which are bindings by position:
+
+            m.run(t"!(fib {n})")            # a 3.14 t-string literal
+            m.run("!(fib {n})", n=10)       # the same on every version
+
+        Each hole is spliced into the text as a generated symbol and bound to
+        its value, so a str stays one String atom and never has to be escaped.
+        Values enter through `encode`: an int is a Number, a str a String, an
+        Atom itself, a Space its handle. The markers at a hole are the atom
+        constructors, `{Symbol(name)}`, `{Grounded(obj)}` and `{parse(text)}`,
+        with the specs `:sym`, `:py` and `:expr` as their short forms; `!r`
+        and `!s` convert in Python first and enter the result as text. A hole
+        inside a string literal, a comment or a symbol is refused with its
+        line and column.
+
+        `bind()` is the same substitution by NAME, for a value several calls
+        share, the way DuckDB reads a local dataframe by its variable name:
 
             with m.bind({"graph": my_graph}):
                 m.run("!(py-len graph)")
@@ -5789,6 +6008,9 @@ class MeTTa:
         and a block grows down the page where a keyword has to fit beside
         everything else on the call. Every call that accepts a target reads the
         same scope, so one block covers run(), eval(), and answers() together.
+        A binding names a symbol and so replaces EVERY occurrence of it,
+        including one the author meant as a symbol; a hole is positional and
+        cannot reach anything but itself.
 
         `timeout` (seconds) and `inferences` (engine steps) bound the call
         with the engine's own guards; passing either raises TimeLimitError
@@ -5810,7 +6032,7 @@ class MeTTa:
         wants to decide about it.
         Runs against this context's self space.
         """
-        return self._self.run(source, timeout=timeout, inferences=inferences)
+        return self._self.run(source, timeout=timeout, inferences=inferences, **values)
 
     def load(
         self,
@@ -5846,6 +6068,10 @@ class MeTTa:
         likely to be handed code the caller did not write, since a file can
         carry `!` directives and an import graph, so it takes the same pair
         its siblings take.
+
+        Program text with holes is refused here. A hole is a binding, and a
+        PATH has nowhere to bind one: run() takes holes, and an f-string or a
+        Path builds a computed filename.
         Runs against this context's self space.
         """
         return self._self.load(path, timeout=timeout, inferences=inferences)
@@ -5859,6 +6085,7 @@ class MeTTa:
         inferences: int | None = None,
         under: Any = _UNSET,
         into: _builtins.type | None = None,
+        **values: Any,
     ) -> Any:
         """Lazily match patterns against this space as one conjunction.
 
@@ -5902,10 +6129,15 @@ class MeTTa:
         expressions instead: `m.match(V.edge, into=Edge)`.
 
             m.match(S.Edge(V.x, V.y), S.Edge(V.y, V.z))
+
+        A text pattern may carry HOLES, as run()'s source may:
+        `m.match(t"(person {name} $age)")` matches the value itself, so a name
+        holding a space stays one String atom rather than reading as two
+        symbols. Keyword values apply across every pattern of the call.
         Runs against this context's self space.
         """
         return self._self.match(
-            *patterns, where=where, limit=limit, timeout=timeout, inferences=inferences, under=under, into=into
+            *patterns, where=where, limit=limit, timeout=timeout, inferences=inferences, under=under, into=into, **values
         )
 
     def add(self, *atoms: Any) -> None:
@@ -5965,12 +6197,14 @@ class MeTTa:
     def eval(
         self,
         target: Any,
+        /,
         *,
         timeout: float | None = ...,
         inferences: int | None = ...,
         under: Any = ...,
         theory: Any | None = ...,
         interpreter: Any | None = ...,
+        **values: Any,
     ) -> list[Atom | Undefined]: ...
     @overload
     def eval(
@@ -5984,16 +6218,19 @@ class MeTTa:
         under: Any = ...,
         theory: Any | None = ...,
         interpreter: Any | None = ...,
+        **values: Any,
     ) -> list[list[Atom | Undefined]]: ...
     def eval(
         self,
         target: Any,
+        /,
         *more: Any,
         timeout: float | None = None,
         inferences: int | None = None,
         under: Any = _UNSET,
         theory: Any | None = None,
         interpreter: Any | None = None,
+        **values: Any,
     ) -> list[Atom | Undefined] | list[list[Atom | Undefined]]:
         """Evaluate a term, returning every answer.
 
@@ -6014,6 +6251,11 @@ class MeTTa:
         rule applies is the ordinary answer itself; `eval_status()` names
         that path `not-reducible`. run() does not carry the third truth
         value; evaluate through eval() when it matters.
+
+        A text target may carry HOLES, exactly as run()'s source may:
+        `m.eval(t"(decide {tensor})")` and `m.eval("(decide {x})", x=tensor)`
+        hand the object itself to the rule, by identity. One call's holes are
+        numbered together, so a batch and a nested template cannot collide.
 
         `bind()` binds named host values into the term before it evaluates,
         exactly as it does for run(): inside `with m.bind({"x": tensor})`,
@@ -6041,7 +6283,7 @@ class MeTTa:
         eval() ignored it in silence.
         Runs against this context's self space.
         """
-        return cast("Any", self._self).eval(target, *more, timeout=timeout, inferences=inferences, under=under, theory=theory, interpreter=interpreter)
+        return cast("Any", self._self).eval(target, *more, timeout=timeout, inferences=inferences, under=under, theory=theory, interpreter=interpreter, **values)
 
     def solve(self, pattern: Any, subject: Any) -> Any:
         """Run relational ``let`` and return bindings keyed by its variables.

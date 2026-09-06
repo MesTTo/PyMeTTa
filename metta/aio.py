@@ -197,6 +197,7 @@ if TYPE_CHECKING:
     # annotations` keeps as text. Space reaches both through _satellite(), so
     # importing them here at runtime would make `import metta.aio` pay for
     # surfaces the caller may never touch.
+    from ._api_types import TemplateLike
     from ._debug import Debugger
     from ._trace import Trace
     from .lint import Finding
@@ -916,12 +917,14 @@ class AsyncMeTTa:
     async def eval(
         self,
         target: Any,
+        /,
         *,
         timeout: float | None = ...,
         inferences: int | None = ...,
         under: Any = ...,
         theory: Any | None = ...,
         interpreter: Any | None = ...,
+        **values: Any,
     ) -> list[Atom | Undefined]: ...
 
     @overload
@@ -936,17 +939,20 @@ class AsyncMeTTa:
         under: Any = ...,
         theory: Any | None = ...,
         interpreter: Any | None = ...,
+        **values: Any,
     ) -> list[list[Atom | Undefined]]: ...
 
     async def eval(
         self,
         target: Any,
+        /,
         *more: Any,
         timeout: float | None = None,
         inferences: int | None = None,
         under: Any = _UNSET,
         theory: Any | None = None,
         interpreter: Any | None = None,
+        **values: Any,
     ) -> list[Atom | Undefined] | list[list[Atom | Undefined]]:
         """Evaluate a term and return every answer.
 
@@ -956,6 +962,11 @@ class AsyncMeTTa:
         without them there was no way to annotate an EVALUATION asynchronously
         at all -- match(under=) covered patterns and nothing covered calls
         [measured 2026-08-31].
+
+        A text target may carry HOLES, as the synchronous eval()'s may:
+        `await m.eval(t"(decide {tensor})")`. `target` is positional-only for
+        the same reason it is there, so `{target}` is a field name a caller can
+        use.
         """
         carrier = _selected_under(under)
         return await self.call(
@@ -967,6 +978,7 @@ class AsyncMeTTa:
                 under=_UNSET if carrier is None else carrier,
                 theory=theory,
                 interpreter=interpreter,
+                **values,
             )
         )
 
@@ -1337,10 +1349,12 @@ class AsyncMeTTa:
 
     async def run(
         self,
-        source: str,
+        source: str | TemplateLike,
+        /,
         *,
         timeout: float | None = None,
         inferences: int | None = None,
+        **values: Any,
     ) -> list[list[Atom]]:
         """Run MeTTa source: one list of answers per ! directive.
 
@@ -1349,8 +1363,23 @@ class AsyncMeTTa:
         directive instead of flattened. Equations and facts in the source
         land in this space.
 
-        `bind()` names Python values the source refers to by bare symbol,
-        the way DuckDB reads a local dataframe by its variable name:
+        The source may carry HOLES, which are bindings by position:
+
+            m.run(t"!(fib {n})")            # a 3.14 t-string literal
+            m.run("!(fib {n})", n=10)       # the same on every version
+
+        Each hole is spliced into the text as a generated symbol and bound to
+        its value, so a str stays one String atom and never has to be escaped.
+        Values enter through `encode`: an int is a Number, a str a String, an
+        Atom itself, a Space its handle. The markers at a hole are the atom
+        constructors, `{Symbol(name)}`, `{Grounded(obj)}` and `{parse(text)}`,
+        with the specs `:sym`, `:py` and `:expr` as their short forms; `!r`
+        and `!s` convert in Python first and enter the result as text. A hole
+        inside a string literal, a comment or a symbol is refused with its
+        line and column.
+
+        `bind()` is the same substitution by NAME, for a value several calls
+        share, the way DuckDB reads a local dataframe by its variable name:
 
             with m.bind({"graph": my_graph}):
                 m.run("!(py-len graph)")
@@ -1361,6 +1390,9 @@ class AsyncMeTTa:
         and a block grows down the page where a keyword has to fit beside
         everything else on the call. Every call that accepts a target reads the
         same scope, so one block covers run(), eval(), and answers() together.
+        A binding names a symbol and so replaces EVERY occurrence of it,
+        including one the author meant as a symbol; a hole is positional and
+        cannot reach anything but itself.
 
         `timeout` (seconds) and `inferences` (engine steps) bound the call
         with the engine's own guards; passing either raises TimeLimitError
@@ -1381,14 +1413,18 @@ class AsyncMeTTa:
         which answers reduced and which did not, as data, for a caller who
         wants to decide about it.
         """
-        return await self.call(lambda m: m.run(source, timeout=timeout, inferences=inferences))
+        return await self.call(
+            lambda m: m.run(source, timeout=timeout, inferences=inferences, **values)
+        )
 
     async def profile(
         self,
-        source: str,
+        source: str | TemplateLike,
+        /,
         *,
         timeout: float | None = None,
         inferences: int | None = None,
+        **values: Any,
     ) -> tuple[list[list[Atom]], EngineProfile]:
         """Run source under the engine's statistical profiler, answering
         (groups, profile): the groups exactly as run() answers them, and
@@ -1403,16 +1439,20 @@ class AsyncMeTTa:
         Profiling changes execution; it is a debugging surface, not a
         mode to leave on.
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
-        return await self.call(lambda m: m.profile(source, timeout=timeout, inferences=inferences))
+        return await self.call(
+            lambda m: m.profile(source, timeout=timeout, inferences=inferences, **values)
+        )
 
     async def profile_extension(
         self,
-        source: str,
+        source: str | TemplateLike,
+        /,
         *,
         extension: str | None = None,
         names: _abc.Sequence[str] | None = None,
         timeout: float | None = None,
         inferences: int | None = None,
+        **values: Any,
     ) -> tuple[list[list[Atom]], list[FunctionCost]]:
         """Run source under the profiler, reporting only YOUR functions.
 
@@ -1449,6 +1489,7 @@ class AsyncMeTTa:
                 names=names,
                 timeout=timeout,
                 inferences=inferences,
+                **values,
             )
         )
 
@@ -1537,12 +1578,22 @@ class AsyncMeTTa:
         likely to be handed code the caller did not write, since a file can
         carry `!` directives and an import graph, so it takes the same pair
         its siblings take.
+
+        Program text with holes is refused here. A hole is a binding, and a
+        PATH has nowhere to bind one: run() takes holes, and an f-string or a
+        Path builds a computed filename.
         """
         return await self.call(lambda m: m.load(path, timeout=timeout, inferences=inferences))
 
-    async def parse(self, source: str) -> Atom:
-        """Read one form into an atom without evaluating it."""
-        return await self.call(lambda m: m.parse(source))
+    async def parse(self, source: str | TemplateLike, /, **values: Any) -> Atom:
+        """Read one form into an atom without evaluating it.
+
+        Holes work here as they do at run(), and land in the term this
+        answers rather than crossing to the engine, since nothing runs:
+        `m.parse(t"(person {name} 36)")` is the built term with the value
+        already in it.
+        """
+        return await self.call(lambda m: m.parse(source, **values))
 
     async def register_token(
         self,
@@ -1792,6 +1843,7 @@ class AsyncMeTTa:
         inferences: int | None = None,
         under: Any = _UNSET,
         into: _builtins.type | None = None,
+        **values: Any,
     ) -> Any:
         """Lazily match patterns against this space as one conjunction.
 
@@ -1835,6 +1887,11 @@ class AsyncMeTTa:
         expressions instead: `m.match(V.edge, into=Edge)`.
 
             m.match(S.Edge(V.x, V.y), S.Edge(V.y, V.z))
+
+        A text pattern may carry HOLES, as run()'s source may:
+        `m.match(t"(person {name} $age)")` matches the value itself, so a name
+        holding a space stays one String atom rather than reading as two
+        symbols. Keyword values apply across every pattern of the call.
         """
         return await self.call(
             lambda m: m.match(
@@ -1845,6 +1902,7 @@ class AsyncMeTTa:
                 inferences=inferences,
                 under=under,
                 into=into,
+                **values,
             )
         )
 
@@ -1922,11 +1980,13 @@ class AsyncMeTTa:
     async def eval_status(
         self,
         target: Any,
+        /,
         *,
         timeout: float | None = None,
         inferences: int | None = None,
         theory: Any | None = None,
         interpreter: Any | None = None,
+        **values: Any,
     ) -> list[tuple[str, Atom | Undefined | None]]:
         """Evaluate a term, pairing each answer with how it was produced.
 
@@ -1965,6 +2025,7 @@ class AsyncMeTTa:
                 inferences=inferences,
                 theory=theory,
                 interpreter=interpreter,
+                **values,
             )
         )
 

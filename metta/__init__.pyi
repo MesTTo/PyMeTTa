@@ -15,6 +15,8 @@
 import builtins as _builtins
 import functools as _functools
 import os as _os
+from ._api_types import InterpolationLike as InterpolationLike
+from ._api_types import TemplateLike as TemplateLike
 from ._config import Config as Config
 from ._config import config as config
 from ._debug import Debugger as _Debugger
@@ -158,6 +160,7 @@ __all__ = [
     "G",
     "Grounded",
     "Handle",
+    "InterpolationLike",
     "Library",
     "MeTTa",
     "MettaError",
@@ -167,6 +170,7 @@ __all__ = [
     "SpaceProvider",
     "State",
     "Symbol",
+    "TemplateLike",
     "Timeout",
     "Undefined",
     "V",
@@ -299,10 +303,12 @@ def forms(source: str) -> list[Atom]: ...
 def llms() -> None: ...
 
 def run(
-    source: str,
+    source: str | TemplateLike,
+    /,
     *,
     timeout: float | None = ...,
     inferences: int | None = ...,
+    **values: _Any,
 ) -> list[list[Atom]]: ...
 
 def load(
@@ -320,6 +326,7 @@ def match(
     inferences: int | None = ...,
     under: _Any = ...,
     into: _builtins.type | None = ...,
+    **values: _Any,
 ) -> _Any: ...
 
 def add(*atoms: _Any) -> None: ...
@@ -329,12 +336,14 @@ def remove(atom: _Any, *more: _Any) -> _builtins.bool | int: ...
 @_overload
 def eval(
     target: _Any,
+    /,
     *,
     timeout: float | None = ...,
     inferences: int | None = ...,
     under: _Any = ...,
     theory: _Any | None = ...,
     interpreter: _Any | None = ...,
+    **values: _Any,
 ) -> list[Atom | Undefined]: ...
 
 @_overload
@@ -348,6 +357,7 @@ def eval(
     under: _Any = ...,
     theory: _Any | None = ...,
     interpreter: _Any | None = ...,
+    **values: _Any,
 ) -> list[list[Atom | Undefined]]: ...
 
 def solve(pattern: _Any, subject: _Any) -> _Any: ...

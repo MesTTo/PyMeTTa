@@ -30,6 +30,9 @@ Guarantees:
     test_parse_requires_exactly_one_form,
     test_parse_preserves_variable_names;
     commit=9c03403aaaca9f1a1ec52e5898dd547eb80c8e82]
+  - parse takes program text with holes and lands their values in the term it
+    answers, making exactly one reader crossing either way [tested:
+    test_every_text_door_takes_program_text_with_holes; commit=WORKTREE]
   - engine results restore registered ampersand names as Space operands while
     the public wire decoder keeps explicit s and p tags distinct [tested:
     test_space_handles_are_term_operands_and_round_trip; commit=4e2398075da67bb2cbcc123a9fc1e078ecac6fbf]
@@ -75,6 +78,7 @@ from typing import Any
 from . import _atom_namespace as _namespace
 from . import _atom_wire as _wire
 from . import _atoms_core as _core
+from ._api_types import TemplateLike
 from ._atom_wire import Undefined
 from ._atoms_core import (
     Atom,
@@ -296,12 +300,17 @@ def _pretty(atom: Any, width: int = 78) -> str:
     return render(_to_atom(atom), 0)
 
 
-def parse(source: str) -> Atom:
+def parse(source: str | TemplateLike, /, **values: Any) -> Atom:
     """Read one form of MeTTa source into an atom, evaluating nothing.
 
     Use ``metta.forms()`` for a whole source program. ``parse()`` deliberately
     refuses empty input and multiple top-level forms rather than selecting one
     silently.
+
+    The source may carry HOLES, which land in the term this answers rather
+    than crossing to the engine, since nothing runs here:
+    ``parse(t"(person {name} 36)")`` and ``parse("(person {n} 36)", n=name)``
+    both build the term with the value already in it.
 
     Backed by the engine's own reader, with one improvement over sread/2: the
     variable names the DCG collects are kept, so parse("(Parent $x Bob)")
@@ -315,6 +324,19 @@ def parse(source: str) -> Atom:
     eval("(structured (pair a b))") 517.02 inferences and 34.70us, against
     241.01 and 10.60us for the same term prebuilt].
     """
+    if values or not isinstance(source, str):
+        # Imported here rather than at module scope because _templates reaches
+        # back into this module for its `expr` spec, and because `import metta`
+        # should not pay for a door most programs do not use.
+        templates = importlib.import_module(f"{__package__}._templates")
+        (text,), holes = templates.read_targets((source,), values, called="parse")
+        atom = _read_one(text)
+        return templates.apply(atom, holes) if holes else atom
+    return _read_one(source)
+
+
+def _read_one(source: str) -> Atom:
+    """The reader crossing itself, so both faces of parse make exactly one."""
     engine = importlib.import_module(f"{__package__}._engine")
     return _wire._atom_from_wire(engine.runtime().apply_must("metta_py_parse", source))
 

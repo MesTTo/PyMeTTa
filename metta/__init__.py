@@ -124,6 +124,7 @@ if TYPE_CHECKING:
     # annotation below a variable annotation, which mypy refuses, and the
     # generated module tier renders its signatures from Space. Both stay
     # reachable at runtime and type as Any through __getattr__.
+    from ._api_types import InterpolationLike, TemplateLike
     from ._debug import Debugger as _Debugger
     from ._rules import equation, rules
     from ._space import _P, _R, MeTTa, Space
@@ -219,6 +220,8 @@ _LAZY_ATTRIBUTES = {
     "Answer": ("answer", "Answer"),
     "Bindings": ("answer", "Bindings"),
     "Defined": ("define", "Defined"),
+    "InterpolationLike": ("_api_types", "InterpolationLike"),
+    "TemplateLike": ("_api_types", "TemplateLike"),
     "MeTTa": ("_space", "MeTTa"),
     "Space": ("_space", "Space"),
     "SpaceProvider": ("foreign", "SpaceProvider"),
@@ -428,10 +431,12 @@ def llms() -> None:
 # Space, or remove the method's row from MODULE_DOORS in tools/aio_divergences.py.
 
 def run(
-    source: str,
+    source: str | TemplateLike,
+    /,
     *,
     timeout: float | None = None,
     inferences: int | None = None,
+    **values: _Any,
 ) -> list[list[Atom]]:
     """Run MeTTa source: one list of answers per ! directive.
 
@@ -440,8 +445,23 @@ def run(
     directive instead of flattened. Equations and facts in the source
     land in this space.
 
-    `bind()` names Python values the source refers to by bare symbol,
-    the way DuckDB reads a local dataframe by its variable name:
+    The source may carry HOLES, which are bindings by position:
+
+        m.run(t"!(fib {n})")            # a 3.14 t-string literal
+        m.run("!(fib {n})", n=10)       # the same on every version
+
+    Each hole is spliced into the text as a generated symbol and bound to
+    its value, so a str stays one String atom and never has to be escaped.
+    Values enter through `encode`: an int is a Number, a str a String, an
+    Atom itself, a Space its handle. The markers at a hole are the atom
+    constructors, `{Symbol(name)}`, `{Grounded(obj)}` and `{parse(text)}`,
+    with the specs `:sym`, `:py` and `:expr` as their short forms; `!r`
+    and `!s` convert in Python first and enter the result as text. A hole
+    inside a string literal, a comment or a symbol is refused with its
+    line and column.
+
+    `bind()` is the same substitution by NAME, for a value several calls
+    share, the way DuckDB reads a local dataframe by its variable name:
 
         with m.bind({"graph": my_graph}):
             m.run("!(py-len graph)")
@@ -452,6 +472,9 @@ def run(
     and a block grows down the page where a keyword has to fit beside
     everything else on the call. Every call that accepts a target reads the
     same scope, so one block covers run(), eval(), and answers() together.
+    A binding names a symbol and so replaces EVERY occurrence of it,
+    including one the author meant as a symbol; a hole is positional and
+    cannot reach anything but itself.
 
     `timeout` (seconds) and `inferences` (engine steps) bound the call
     with the engine's own guards; passing either raises TimeLimitError
@@ -473,7 +496,7 @@ def run(
     wants to decide about it.
     Runs against the default context's self space.
     """
-    return engine().self.run(source, timeout=timeout, inferences=inferences)
+    return engine().self.run(source, timeout=timeout, inferences=inferences, **values)
 
 
 def load(
@@ -509,6 +532,10 @@ def load(
     likely to be handed code the caller did not write, since a file can
     carry `!` directives and an import graph, so it takes the same pair
     its siblings take.
+
+    Program text with holes is refused here. A hole is a binding, and a
+    PATH has nowhere to bind one: run() takes holes, and an f-string or a
+    Path builds a computed filename.
     Runs against the default context's self space.
     """
     return engine().self.load(path, timeout=timeout, inferences=inferences)
@@ -522,6 +549,7 @@ def match(
     inferences: int | None = None,
     under: _Any = _UNSET,
     into: _builtins.type | None = None,
+    **values: _Any,
 ) -> _Any:
     """Lazily match patterns against this space as one conjunction.
 
@@ -565,10 +593,15 @@ def match(
     expressions instead: `m.match(V.edge, into=Edge)`.
 
         m.match(S.Edge(V.x, V.y), S.Edge(V.y, V.z))
+
+    A text pattern may carry HOLES, as run()'s source may:
+    `m.match(t"(person {name} $age)")` matches the value itself, so a name
+    holding a space stays one String atom rather than reading as two
+    symbols. Keyword values apply across every pattern of the call.
     Runs against the default context's self space.
     """
     return engine().self.match(
-        *patterns, where=where, limit=limit, timeout=timeout, inferences=inferences, under=under, into=into
+        *patterns, where=where, limit=limit, timeout=timeout, inferences=inferences, under=under, into=into, **values
     )
 
 
@@ -630,12 +663,14 @@ def remove(atom: _Any, *more: _Any) -> bool | int:
 @_overload
 def eval(  # noqa: A001 -- eval is the ruled public verb
     target: _Any,
+    /,
     *,
     timeout: float | None = ...,
     inferences: int | None = ...,
     under: _Any = ...,
     theory: _Any | None = ...,
     interpreter: _Any | None = ...,
+    **values: _Any,
 ) -> list[Atom | Undefined]: ...
 @_overload
 def eval(  # noqa: A001 -- eval is the ruled public verb
@@ -648,15 +683,18 @@ def eval(  # noqa: A001 -- eval is the ruled public verb
     under: _Any = ...,
     theory: _Any | None = ...,
     interpreter: _Any | None = ...,
+    **values: _Any,
 ) -> list[list[Atom | Undefined]]: ...
 def eval(  # noqa: A001 -- eval is the ruled public verb
     target: _Any,
+    /,
     *more: _Any,
     timeout: float | None = None,
     inferences: int | None = None,
     under: _Any = _UNSET,
     theory: _Any | None = None,
     interpreter: _Any | None = None,
+    **values: _Any,
 ) -> list[Atom | Undefined] | list[list[Atom | Undefined]]:
     """Evaluate a term, returning every answer.
 
@@ -677,6 +715,11 @@ def eval(  # noqa: A001 -- eval is the ruled public verb
     rule applies is the ordinary answer itself; `eval_status()` names
     that path `not-reducible`. run() does not carry the third truth
     value; evaluate through eval() when it matters.
+
+    A text target may carry HOLES, exactly as run()'s source may:
+    `m.eval(t"(decide {tensor})")` and `m.eval("(decide {x})", x=tensor)`
+    hand the object itself to the rule, by identity. One call's holes are
+    numbered together, so a batch and a nested template cannot collide.
 
     `bind()` binds named host values into the term before it evaluates,
     exactly as it does for run(): inside `with m.bind({"x": tensor})`,
@@ -705,7 +748,7 @@ def eval(  # noqa: A001 -- eval is the ruled public verb
     Runs against the default context's self space.
     """
     return engine().self.eval(
-        target, *more, timeout=timeout, inferences=inferences, under=under, theory=theory, interpreter=interpreter
+        target, *more, timeout=timeout, inferences=inferences, under=under, theory=theory, interpreter=interpreter, **values
     )
 
 
@@ -1297,6 +1340,7 @@ __all__ = [
     "G",
     "Grounded",
     "Handle",
+    "InterpolationLike",
     "Library",
     "MeTTa",
     "MettaError",
@@ -1306,6 +1350,7 @@ __all__ = [
     "SpaceProvider",
     "State",
     "Symbol",
+    "TemplateLike",
     "Timeout",
     "Undefined",
     "V",
