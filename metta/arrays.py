@@ -50,7 +50,12 @@ Guarantees:
     output through ``broadcast-shape``, and rank-two ``matmul`` unifies its
     shared dimension before materialisation [tested:
     test_annotated_tensor_shapes_flow_through_broadcast_and_matmul;
-    commit=2e627a593413191cda3170f2eb716835f7f62543]
+    commit=WORKTREE]
+  - declared and observed shapes use one Annotated type expression; every
+    registered head names its shape behavior and preserving arrows share their
+    input shape [tested: test_declared_shape_variables_derive_the_result_without_execution,
+    test_every_preserving_unary_head_keeps_symbolic_and_live_shapes;
+    commit=WORKTREE]
 Guarded by:
   - _PROTOCOLS_LOCK serializes one-time protocol registration
     [tested test_array_protocol_registration_is_idempotent]
@@ -63,10 +68,12 @@ Open Obligations:
 from __future__ import annotations
 
 import importlib
+import inspect
 import itertools
 import operator
 import threading
 from collections.abc import Iterable
+from functools import wraps
 from typing import Annotated, Any, Final, Literal, NewType, cast
 
 from . import integrate as _integrate
@@ -88,6 +95,7 @@ from .errors import MettaError
 
 __all__ = [
     "ARRAY_OPS",
+    "SHAPE_RULES",
     "DLTensor",
     "EmbeddingStore",
     "Shape",
@@ -98,6 +106,50 @@ __all__ = [
 ]
 
 ARRAY_OPS: list[str] = []
+# Shape behavior for every logical head; backend constructor aliases use the
+# same entry. Only preserve, broadcast, and matmul derive unevaluated types.
+# Other rules describe the runtime transformation whose result is observed by
+# the grounded type protocol. A missing entry refuses registration.
+SHAPE_RULES: Final[dict[str, str]] = {
+    "tensor": "from-data",
+    "zeros": "dimensions",
+    "ones": "dimensions",
+    "randn": "dimensions",
+    "arange-t": "range-length",
+    "eye": "square",
+    "matmul": "matmul",
+    "t+": "broadcast",
+    "t-": "broadcast",
+    "t*": "broadcast",
+    "t/": "broadcast",
+    "t-pow": "broadcast",
+    "t-neg": "preserve",
+    "t-exp": "preserve",
+    "t-log": "preserve",
+    "relu": "preserve",
+    "sigmoid": "preserve",
+    "softmax": "preserve",
+    "tanh": "preserve",
+    "t-as": "preserve",
+    "reshape": "reshape",
+    "t-transpose": "swap-axes",
+    "unsqueeze": "insert-axis",
+    "squeeze": "remove-unit-axis",
+    "t-index": "index-leading-axis",
+    "cat": "concatenate-axis",
+    "stack": "stack-axis",
+    "t-sum": "reduce-all",
+    "t-mean": "reduce-all",
+    "t-max": "reduce-all",
+    "t-min": "reduce-all",
+    "t-norm": "reduce-all",
+    "t-argmax": "reduce-axis",
+    "t-item": "scalar-observation",
+    "t-tolist": "nested-observation",
+    "t-shape": "shape-observation",
+    "t-dtype": "dtype-observation",
+    "t-device": "device-observation",
+}
 DLTensor = NewType("DLTensor", Any)  # type: ignore[valid-newtype]  # ty: ignore[invalid-newtype]
 _PROTOCOLS_REGISTERED = threading.Event()
 _PROTOCOLS_LOCK = threading.Lock()
@@ -253,13 +305,6 @@ def _matmul_type_equation() -> Expression:
     )
 
 
-def _broadcast_annotations(fn, second: Any) -> None:
-    """Publish symbolic shape roles without changing the operation's base arrows."""
-    fn.__annotations__["a"] = Annotated[DLTensor, Shape(V.left_shape)]
-    fn.__annotations__["b"] = Annotated[second, Shape(V.right_shape)]
-    fn.__annotations__["return"] = Annotated[DLTensor, Shape(V.out_shape)]
-
-
 def _top_indices(xp: Any, scores: Any, count: int) -> list[int]:
     """Top score indexes, best first, without sorting the full NumPy array."""
     size = int(scores.shape[0])
@@ -382,6 +427,11 @@ def _describe(x: Any) -> str:
     return f"<{type(x).__name__} {shape} {dtype} {device}{grad}>"
 
 
+def _array_type(value: Any) -> Expression:
+    """Observe shape on each type query, including an array resized in place."""
+    return _shaped_tensor(_expr(*value.shape))
+
+
 def _register_protocols() -> None:
     """DLTensor typing and protocol printing, once per process."""
     if _PROTOCOLS_REGISTERED.is_set():
@@ -390,6 +440,7 @@ def _register_protocols() -> None:
         if _PROTOCOLS_REGISTERED.is_set():
             return
         _integrate.register_object_type(is_array, "DLTensor")
+        _integrate.register_object_type(is_array, _array_type)
         _integrate.register_repr(is_array, _describe)
         _PROTOCOLS_REGISTERED.set()
 
@@ -430,6 +481,11 @@ def install(m, default: Any = None) -> list[str]:  # noqa: C901  -- install keep
     when compatibility or inference must happen before materialisation.
 
     ``Shape`` carries those expressions through Python ``Annotated`` claims.
+    User operation arrows retain the claim: argument dimensions unify and
+    bind shared result dimensions. Live values report the same type expression.
+    ``SHAPE_RULES`` names every installed head's behavior; preserving heads
+    share their entire input shape with the result. Other transformations
+    expose their actual shape when their result value exists.
     A declared ``(Annotated DLTensor (Shape ...))`` remains a valid DLTensor
     argument, elementwise binary operations derive their output shape with
     ``broadcast-shape``, and rank-two matmul unifies the two inner dimensions:
@@ -489,6 +545,25 @@ def install(m, default: Any = None) -> list[str]:  # noqa: C901  -- install keep
             raise MettaError(
                 msg
             )
+        rule = SHAPE_RULES[name.split("--", 1)[0]]
+        if rule == "preserve":
+            original = fn
+
+            @wraps(original)
+            def preserving(a, *args, **kwargs):
+                # NumPy elementwise functions can return scalars for rank-zero arrays.
+                result = original(a, *args, **kwargs)
+                return result if is_array(result) else namespace_of(a).asarray(result)
+
+            fn = preserving
+            tensor = Annotated[DLTensor, _shape_metadata(V.shape)]
+            parameter = next(iter(inspect.signature(fn).parameters))
+            fn.__annotations__[parameter] = tensor
+            fn.__annotations__["return"] = tensor
+        elif rule == "broadcast":
+            add_type_equation(_broadcast_type_equation(name))
+        elif rule == "matmul":
+            add_type_equation(_matmul_type_equation())
         m.op(fn, name=name, effect=effect, transport=transport, **kw)
         registered.append(name)
         return fn
@@ -598,23 +673,20 @@ def install(m, default: Any = None) -> list[str]:  # noqa: C901  -- install keep
 
     # ---------------------------------------------------------------- algebra
 
-    def binop(fn, name: str, second: Any = Any):
+    def binop(fn, name: str):
         def call(a: DLTensor, b: Any) -> DLTensor:
             a2, b2, xp = aligned(a, b)
             return fn(xp, a2, b2)
 
-        _broadcast_annotations(call, second)
-        add_type_equation(_broadcast_type_equation(name))
         op(call, name=name, effect="writesState")
 
     def matmul(
-        a: Annotated[DLTensor, Shape(V.rows, V.shared)],
-        b: Annotated[DLTensor, Shape(V.shared, V.columns)],
-    ) -> Annotated[DLTensor, Shape(V.rows, V.columns)]:
+        a: DLTensor,
+        b: DLTensor,
+    ) -> DLTensor:
         a2, b2, xp = aligned(a, b)
         return xp.matmul(a2, b2)
 
-    add_type_equation(_matmul_type_equation())
     op(matmul, name="matmul", effect="writesState")
     binop(lambda xp, a, b: xp.add(a, b), "t+")
     binop(lambda xp, a, b: xp.subtract(a, b), "t-")
@@ -640,8 +712,6 @@ def install(m, default: Any = None) -> list[str]:  # noqa: C901  -- install keep
         a2, p2, xp = aligned(a, p)
         return xp.pow(a2, p2)
 
-    _broadcast_annotations(power, Any)
-    add_type_equation(_broadcast_type_equation("t-pow"))
     op(power, name="t-pow", effect="writesState")
 
     # ------------------------------------------------------------------ shape

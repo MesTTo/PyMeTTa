@@ -16,10 +16,11 @@ Guarantees:
     claim rather than collapsing to an undefined type
     [tested: test_every_advanced_annotation_reaches_metta_as_a_target_symbol;
      commit=f88aa8be03cb64cb59d3307515ded8701f418321]
-  - Annotated metadata remains matchable in annotation claims while its base
-    type continues to determine arrow types and runtime conversion [tested:
+  - Annotated Atom metadata refines arrow alternatives; all metadata remains
+    matchable in annotation claims and the base selects runtime conversion
+    [tested: test_atom_metadata_refines_annotation_alternatives,
     test_two_values_of_one_base_type_are_distinguishable_by_their_metadata;
-    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
+    commit=WORKTREE]
   - the public Space handle annotation denotes the engine's ``SpaceType``
     instead of declaring an unrelated user type [tested:
     test_compiled_removal_statements_preserve_one_many_missing_and_target_scope;
@@ -274,7 +275,14 @@ def type_atoms_for(annotation: Any) -> list[Atom]:
     if origin in (typing.Required, typing.NotRequired):
         return type_atoms_for(typing.get_args(annotation)[0])
     if origin is typing.Annotated:
-        return type_atoms_for(typing.get_args(annotation)[0])
+        base, *metadata = typing.get_args(annotation)
+        alternatives = type_atoms_for(base)
+        # An Atom already names MeTTa structure at a type boundary. Host
+        # metadata remains in annotation_atom_for's catalog projection.
+        refinements = [item for item in metadata if isinstance(item, Atom)]
+        if refinements:
+            return [Expression([S.Annotated, atom, *refinements]) for atom in alternatives]
+        return alternatives
     direct = _direct_type_atoms(annotation, origin)
     if direct is not None:
         return direct
