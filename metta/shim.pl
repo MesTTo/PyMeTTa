@@ -302,7 +302,7 @@
 %     in a module it cannot see, and its directory stays inside the 750
 %     candidates CPython's suggestion machinery accepts
 %     [tested: test_a_namespace_lists_and_resolves_only_what_its_space_can_call;
-%     commit=WORKTREE]
+%     commit=1f32a7c85d5c3bcbd8797218694ae5550c362e9a]
 %   - metta_py_catalogue_member/2 answers membership in exactly that union
 %     as a point probe, so the bound namespace resolves an attribute
 %     without rebuilding the catalogue after a definition [tested:

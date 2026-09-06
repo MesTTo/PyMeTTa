@@ -501,7 +501,7 @@ def _function_generation(rt: Runtime) -> int:
     defining an already-registered name advances it although ``fun/1`` did
     not move; translator rules are static catalogue-neutral metadata
     [source: engine/metta.pl:metta_host_function_generation/1;
-    commit=WORKTREE].
+    commit=1f32a7c85d5c3bcbd8797218694ae5550c362e9a].
     """
     return int(rt.apply_must("metta_py_function_generation"))
 
@@ -514,7 +514,7 @@ def _space_builtins(rt: Runtime, space_name: str) -> list[str]:
     but is not callable from here, and a namespace that listed it resolved
     calls that answered themselves unreduced [tested:
     test_a_namespace_lists_and_resolves_only_what_its_space_can_call;
-    commit=WORKTREE].
+    commit=1f32a7c85d5c3bcbd8797218694ae5550c362e9a].
     """
     while True:
         observed_generation = _function_generation(rt)
