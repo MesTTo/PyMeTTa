@@ -147,6 +147,27 @@ def test_a_hand_built_template_object_reaches_the_same_door(metta):
     assert metta.run(Tpl(("!(+ ", " 1)"), (Interp(41),))) == [[Grounded(42)]]
 
 
+def test_the_template_protocols_are_public_through_metta_atoms():
+    """The two protocols are `metta.atoms`' surface, not the package root's.
+
+    They name the type of the first argument of eight doors, so they have to
+    be reachable; the root is held to a narrow-core count and a hole's markers
+    are the atom constructors this module already exports, so `metta.atoms` is
+    where they land. `_api_types` DEFINES them and publishes nothing.
+    """
+    import metta
+    from metta import _api_types, atoms
+
+    assert {"TemplateLike", "InterpolationLike"} <= set(atoms.__all__)
+    assert atoms.TemplateLike is _api_types.TemplateLike
+    assert atoms.InterpolationLike is _api_types.InterpolationLike
+    assert _api_types.__all__ == []
+    for name in ("TemplateLike", "InterpolationLike"):
+        assert name not in metta.__all__
+        with pytest.raises(AttributeError):
+            getattr(metta, name)
+
+
 def test_the_keyword_face_binds_by_name_on_every_version(metta):
     """The face that needs no new syntax at all."""
     assert metta.run("!(+ {n} 1)", n=41) == [[Grounded(42)]]

@@ -78,7 +78,7 @@ from typing import Any
 from . import _atom_namespace as _namespace
 from . import _atom_wire as _wire
 from . import _atoms_core as _core
-from ._api_types import TemplateLike
+from ._api_types import InterpolationLike, TemplateLike
 from ._atom_wire import Undefined
 from ._atoms_core import (
     Atom,
@@ -119,6 +119,12 @@ UNIT = Expression(())
 _HERE = Expression((Symbol("context-space"),))
 _OMITTED = object()
 
+#: `InterpolationLike` and `TemplateLike` join on 2026-09-07. They are the type
+#: of the first argument of every door that reads program text with holes, and
+#: they are published HERE rather than at the package root because the root is
+#: held to a narrow-core count and because a hole's markers are the atom
+#: constructors this module already exports
+#: [tested: test_the_template_protocols_are_public_through_metta_atoms].
 __all__ = [
     "FALSE",
     "OPERATOR_LOWERINGS",
@@ -129,9 +135,11 @@ __all__ = [
     "G",
     "Grounded",
     "Handle",
+    "InterpolationLike",
     "OperatorLowering",
     "S",
     "Symbol",
+    "TemplateLike",
     "Undefined",
     "V",
     "Variable",

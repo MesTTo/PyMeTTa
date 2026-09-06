@@ -1,6 +1,9 @@
 """Purpose: the types the API boundary is written in: how a space is designated,
 the one resolution from the receiver a caller holds to the space a door works
-in, and the structural contract program text with holes is accepted by.
+in, and the structural contract program text with holes is accepted by. It
+publishes NONE of them itself, which is what lets the leaf modules import it:
+``metta.atoms`` is where ``TemplateLike`` and ``InterpolationLike`` are public,
+beside the reader door and the atom constructors that are a hole's markers.
 Guarantees:
   - type checkers distinguish engine space identifiers from operation names
     without exporting either implementation detail [tested:
@@ -13,6 +16,11 @@ Guarantees:
     reach one door [tested:
     test_a_hand_built_template_object_reaches_the_same_door,
     mypy-template-surface; commit=4481c32eb0e922047199c54cea97c24995c6959e]
+  - the two protocols are public through ``metta.atoms`` and absent from the
+    package root, which the narrow-core roster counts [tested:
+    test_the_template_protocols_are_public_through_metta_atoms,
+    test_m7_narrow_core_surface,
+    test_canonical_context_types_replace_public_newtypes; commit=WORKTREE]
 Assumes:
   - it imports nothing but ``typing``, which is what lets the LEAF modules use
     it: ``metta.casting`` costs 10.9ms to import and ``metta.integrate``, where
@@ -105,4 +113,8 @@ def space_of(m: Any) -> Any:
     return m if home is None else home
 
 
-__all__ = ["InterpolationLike", "TemplateLike"]
+#: Empty on purpose: this module is where the boundary types are DEFINED, not
+#: where they are published. `metta.atoms` re-exports the two template
+#: protocols and the package root stays at its narrow-core count
+#: [tested: test_canonical_context_types_replace_public_newtypes].
+__all__: list[str] = []

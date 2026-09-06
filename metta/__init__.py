@@ -124,7 +124,6 @@ if TYPE_CHECKING:
     # annotation below a variable annotation, which mypy refuses, and the
     # generated module tier renders its signatures from Space. Both stay
     # reachable at runtime and type as Any through __getattr__.
-    from ._api_types import InterpolationLike, TemplateLike
     from ._debug import Debugger as _Debugger
     from ._rules import equation, rules
     from ._space import _P, _R, MeTTa, Space
@@ -144,6 +143,13 @@ if TYPE_CHECKING:
         tropical,
     )
     from .answer import Answer, Bindings
+
+    # Underscore-aliased like every other typing name the generated module tier
+    # renders: TemplateLike is public through `metta.atoms`, and binding the
+    # plain name here would put it on `metta.<TAB>` and in the narrow-core
+    # roster this root is counted against. InterpolationLike needs no alias
+    # because no door's signature names it.
+    from .atoms import TemplateLike as _TemplateLike
     from .define import Defined
     from .define import Defined as _Defined
     from .define import PrologBacked as _PrologBacked
@@ -220,8 +226,6 @@ _LAZY_ATTRIBUTES = {
     "Answer": ("answer", "Answer"),
     "Bindings": ("answer", "Bindings"),
     "Defined": ("define", "Defined"),
-    "InterpolationLike": ("_api_types", "InterpolationLike"),
-    "TemplateLike": ("_api_types", "TemplateLike"),
     "MeTTa": ("_space", "MeTTa"),
     "Space": ("_space", "Space"),
     "SpaceProvider": ("foreign", "SpaceProvider"),
@@ -431,7 +435,7 @@ def llms() -> None:
 # Space, or remove the method's row from MODULE_DOORS in tools/aio_divergences.py.
 
 def run(
-    source: str | TemplateLike,
+    source: str | _TemplateLike,
     /,
     *,
     timeout: float | None = None,
@@ -1340,7 +1344,6 @@ __all__ = [
     "G",
     "Grounded",
     "Handle",
-    "InterpolationLike",
     "Library",
     "MeTTa",
     "MettaError",
@@ -1350,7 +1353,6 @@ __all__ = [
     "SpaceProvider",
     "State",
     "Symbol",
-    "TemplateLike",
     "Timeout",
     "Undefined",
     "V",
