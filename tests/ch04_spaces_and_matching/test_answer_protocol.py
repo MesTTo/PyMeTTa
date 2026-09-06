@@ -16,6 +16,10 @@ Guarantees:
     projections and the rows face [tested:
     test_answers_project_caller_variables_and_slices_stay_answers;
     commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
+  - Answers.index remains Sequence row lookup and explains when a missing
+    string is instead a caller column [tested:
+    test_answers_index_keeps_the_sequence_contract_and_explains_columns;
+    commit=WORKTREE]
   - the settled ``reacts`` declaration spelling installs an ``(on ...)``
     bridge that runs under matched bindings [tested:
     test_a_bridge_inserts_under_the_matched_bindings; commit=0cfc68a483d8d64fb499e53bbe9a3cc63f68990f]
@@ -1402,6 +1406,26 @@ def test_only_a_pristine_bounded_slice_offers_its_stop_to_the_source():
     assert list(untouched[:0]) == []
     assert list(untouched[-2:]) == [3, 4]
     assert offered == []
+
+
+def test_answers_index_keeps_the_sequence_contract_and_explains_columns(metta):
+    """A column-name miss gives a remedy without changing Sequence.index."""
+    space = metta._new_space()
+    space.add(S.fact(S.a), S.fact(S.b))
+    rows = space.match(S.fact(V.fact))
+
+    assert rows.index(rows[1]) == 1
+    with pytest.raises(ValueError) as absent:
+        rows.index(S.missing)
+    assert str(absent.value) == ""
+    with pytest.raises(
+        ValueError,
+        match=r"`index` is the Sequence method.*row position.*'fact'.*\.column\('fact'\)",
+    ):
+        rows.index("fact")
+
+    string_rows = Answers(("fact",), columns=("fact",))
+    assert string_rows.index("fact") == 0
 
 
 def test_answers_scalar_doors_raise_error_atoms_but_iteration_retains_them(metta):  # noqa: D103 -- the test name states the contract
