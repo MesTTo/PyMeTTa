@@ -16,7 +16,7 @@ Guarantees:
     differences as decoded atoms, None where the failing form computed none,
     which is a different answer from an empty tuple [tested:
     test_a_two_sided_difference_arrives_as_two_bags,
-    test_a_form_with_no_bag_comparison_reports_neither_bag; commit=WORKTREE]
+    test_a_form_with_no_bag_comparison_reports_neither_bag; commit=71de27a76dd16684941e3e090de0d17299d96493]
   - SpaceCapabilityError carries the refused space, operation, and capability
     as fields [tested:
     test_a_restricted_space_cannot_reach_what_its_base_does_not_publish;
