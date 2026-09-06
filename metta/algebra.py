@@ -71,6 +71,10 @@ Guarantees:
   - ``current_algebra()`` observes the per-call carrier, surrounding task
     scope, or current space declaration in that order [tested:
     test_current_algebra_follows_each_selection_layer; commit=2e627a593413191cda3170f2eb716835f7f62543]
+  - accepted algebra-law names and alias expansions come from the catalog,
+    and a refusal names the full accepted vocabulary [tested:
+    test_algebra_law_vocabulary_drives_aliases_and_unknown_refusals,
+    test_equational_law_names_read_no_catalog; commit=WORKTREE]
 Decides:
   - ``contraction`` is a capability, while the remaining public law names are
     equations checked exhaustively over the declared finite carrier.
@@ -92,7 +96,7 @@ from dataclasses import dataclass, field, replace
 from fractions import Fraction
 from numbers import Real
 from types import ModuleType
-from typing import Any, Final
+from typing import Any, Final, cast
 
 from ._engine import active_runtime
 from ._space import Space, current_space
@@ -113,7 +117,7 @@ from .atoms import (
     substitute,
 )
 from .errors import EngineError, InferenceLimitError, MettaError, TimeLimitError
-from .vocabularies import EffectClass, Semiring, SemiringOrder
+from .vocabularies import AlgebraLaw, EffectClass, Semiring, SemiringOrder
 
 __all__ = [
     "AlgebraDeclarationError",
@@ -478,13 +482,6 @@ class _Rule:
     premises: tuple[Atom, ...]
 
 
-_LAW_ALIASES: Final[dict[str, tuple[str, ...]]] = {
-    "associative": ("combine-associative", "extend-associative"),
-    "commutative": ("combine-commutative",),
-    "distributive": ("left-distributive", "right-distributive"),
-    "idempotent": ("combine-idempotent",),
-    "contraction": ("contraction",),
-}
 _EQUATIONAL_LAWS: Final[frozenset[str]] = frozenset(
     {
         "combine-associative",
@@ -499,7 +496,6 @@ _EQUATIONAL_LAWS: Final[frozenset[str]] = frozenset(
         "extend-zero-annihilates",
     }
 )
-_KNOWN_LAWS: Final[frozenset[str]] = _EQUATIONAL_LAWS | {"contraction"}
 _SEMIRING_LAWS: Final[frozenset[str]] = frozenset(
     {
         "combine-associative",
@@ -622,15 +618,52 @@ def resolve(metta: Space, carrier: Any) -> DeclaredAlgebra:
     return require(metta, _carrier_name(carrier))
 
 
-def _canonical_laws(laws: Iterable[str]) -> frozenset[str]:
+def _catalog_law_aliases(metta: Space) -> dict[str, tuple[str, ...]]:
+    """Read algebra-law alias expansions from the live catalog."""
+    aliases: dict[str, tuple[str, ...]] = {}
+    prefix = (Symbol("claim"), Symbol("algebra-law"))
+    for atom in Space("&metta", _runtime=metta.runtime).atoms():
+        if (
+            not isinstance(atom, Expression)
+            or len(atom.children) < 5
+            or atom.children[:2] != prefix
+            or atom.children[3] != Symbol("expands-to")
+            or not all(isinstance(value, Symbol) for value in atom.children[2:])
+        ):
+            continue
+        alias = cast(Symbol, atom.children[2])
+        aliases[alias.name] = tuple(
+            cast(Symbol, value).name for value in atom.children[4:]
+        )
+    return aliases
+
+
+def _canonical_laws(metta: Space, laws: Iterable[str]) -> frozenset[str]:
+    accepted = tuple(member.value for member in AlgebraLaw)
+    accepted_set = frozenset(accepted)
+    requested = tuple(laws)
+    unknown = sorted({law for law in requested if law not in accepted_set})
+    if unknown:
+        msg = (
+            f"algebra_law_unknown({unknown!r}); accepted laws are "
+            f"{', '.join(accepted)}"
+        )
+        raise AlgebraDeclarationError(msg)
+    # Reading the alias claims walks every &metta row, so ask only when a
+    # requested name is not already an equation that stands for itself. No
+    # alias claim is named after an equation, so both paths answer the same set
+    # [tested: catalog_self_description:algebra_law_vocabulary_and_alias_claims_are_exact,
+    # test_algebra_law_vocabulary_drives_aliases_and_unknown_refusals;
+    # commit=WORKTREE].  declare() canonicalizes before it writes, so a stored
+    # row reaches this with equations and pays nothing; a row written as MeTTa
+    # source with an alias still asks the catalog
+    # [tested: test_equational_law_names_read_no_catalog; commit=WORKTREE].
+    if all(law in _EQUATIONAL_LAWS for law in requested):
+        return frozenset(requested)
+    aliases = _catalog_law_aliases(metta)
     out: builtins.set[str] = builtins.set()
-    for law in laws:
-        expanded = _LAW_ALIASES.get(law, (law,))
-        unknown = builtins.set(expanded) - _KNOWN_LAWS
-        if unknown:
-            msg = f"algebra_law_unknown({sorted(unknown)!r})"
-            raise AlgebraDeclarationError(msg)
-        out.update(expanded)
+    for law in requested:
+        out.update(aliases.get(law, (law,)))
     return frozenset(out)
 
 
@@ -697,7 +730,7 @@ def _catalog_declaration(
         extend=extend.name,
         zero=zero,
         one=one,
-        laws=_canonical_laws(law_names),
+        laws=_canonical_laws(metta, law_names),
         carrier=tuple(carrier.children[1:]),
         requires=frozenset(requirement_names),
         order=_catalog_order(metta, name),
@@ -847,7 +880,7 @@ def declare(
         extend=extend,
         zero=_encode(zero),
         one=_encode(one),
-        laws=_canonical_laws(laws),
+        laws=_canonical_laws(metta, laws),
         carrier=tuple(_encode(value) for value in carrier),
         requires=frozenset(requires),
         order=order,

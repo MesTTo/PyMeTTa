@@ -110,6 +110,7 @@ class _EffectStrEnum(_AtomStrEnum):
 
 __all__ = [
     "AgendaPolicy",
+    "AlgebraLaw",
     "AnswerPolicy",
     "Atomicity",
     "CacheMode",
@@ -191,6 +192,25 @@ class AgendaPolicy(_AtomStrEnum):
     specificity = "specificity"
     priority = "priority"
     user = "user"
+
+#: (vocabulary algebra-law combine-associative combine-commutative extend-associative extend-commutative left-distributive right-distributive combine-idempotent combine-zero-identity extend-one-identity extend-zero-annihilates contraction associative commutative distributive idempotent)
+class AlgebraLaw(_AtomStrEnum):
+    """Typed values of the algebra-law vocabulary."""
+    combine_associative = "combine-associative"
+    combine_commutative = "combine-commutative"
+    extend_associative = "extend-associative"
+    extend_commutative = "extend-commutative"
+    left_distributive = "left-distributive"
+    right_distributive = "right-distributive"
+    combine_idempotent = "combine-idempotent"
+    combine_zero_identity = "combine-zero-identity"
+    extend_one_identity = "extend-one-identity"
+    extend_zero_annihilates = "extend-zero-annihilates"
+    contraction = "contraction"
+    associative = "associative"
+    commutative = "commutative"
+    distributive = "distributive"
+    idempotent = "idempotent"
 
 #: (vocabulary answer-policy depth fair best-first)
 class AnswerPolicy(_AtomStrEnum):
