@@ -949,6 +949,18 @@ metta_py_operation_error(Error, Operation, Kind, Expected, Culprit) :-
 metta_py_operation_part(Part, @none) :- var(Part), !.
 metta_py_operation_part(Part, Part).
 
+%A bag of ANSWERS on its way to Python, which is what an assertion's two
+%directed differences are. It crosses on metta_py_encode_answer/2, the wire
+%every other answer takes, so `.missing` and `.excess` arrive DECODED as atoms
+%and carry the rational-tree refusal with them; janus's own reading of the
+%engine's storage would hand a caller nested Python lists of strings instead.
+%Absence stays absence, the same unbound-is-@none convention the operation
+%parts above use, so an empty bag and a bag the form never computed remain two
+%different answers [tested:
+%extensions/python/tests/ch10_errors_and_refusals/test_assertion_difference.py].
+metta_py_answer_bag(Bag, @none) :- var(Bag), !.
+metta_py_answer_bag(Bag, Wires) :- maplist(metta_py_encode_answer, Bag, Wires).
+
 metta_py_space_capability_error(
     error(metta_space_capability_required(Space, Operation, Capability), _),
     Space, Operation, Capability).
