@@ -925,7 +925,7 @@ def twin(m):
 #: move the MeTTa side by +2 [measured 2026-09-07: one fresh process per arm,
 #: inferences deterministic; command=python extensions/python/tools/twin_coverage.py
 #: --measure --rounds 1 examples/ch05-equations-and-evaluation/05-01-an-equation-is-a-rewrite/01-identity.metta;
-#: commit=WORKTREE].
+#: commit=a376df6dff8099d6145ace55132c7e30922ea1de].
 BUDGET = 3462
 #: BANDED 2026-09-06 rather than re-pinned an eighteenth time. Seventeen of
 #: the eighty-three re-pins above were written on 2026-09-05 and 2026-09-06
