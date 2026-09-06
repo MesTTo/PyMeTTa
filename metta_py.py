@@ -5,10 +5,14 @@ Assumes:
   - janus is importing this module by name after extensions/python/bridge.pl adds this directory to
     sys.path with py_add_lib_dir/1, so it must not import anything from the
     `metta` package: the engine runs with janus alone and the package need not
-    be installed [tested: examples/ch11-python-as-a-notation/04-py_surface.metta under run.sh]
+    be installed [tested:
+    test_a_python_tuple_answers_the_same_through_both_doors, which runs
+    examples/ch11-python-as-a-notation/04-py_surface.metta through the engine
+    seat where janus is all there is]
 Guarantees:
   - resolve() imports the longest importable prefix of a dotted path and
-    getattrs the rest, so a path of any depth works [tested: B26 in
+    getattrs the rest, so a path of any depth works [tested:
+    a_dotted_path_of_any_depth_resolves in
     tests/prolog/suites/host/python_surface.plt]
   - prefix fallback handles only a missing candidate module; import failures
     raised by an importable candidate propagate unchanged [tested:
@@ -26,7 +30,7 @@ Guarantees:
   - over 1,000 hot paths of depth 4/16/64, prefix imports fall from
     4,000/16,000/64,000 to zero and minimum time falls from
     15.575/250.514/4293.293 to 0.259/0.556/2.008 microseconds per resolution
-    [measured: minimum of three rounds; command=cd extensions/python &&
+    [measured 2026-09-02: minimum of three rounds; command=cd extensions/python &&
     PYTHONPATH=. python -m
     benchmarks.resolve_prefix_cache 4 16 64 --repetitions 1000 --rounds 3;
     fixture=one synthetic module with live nested attributes;
@@ -55,6 +59,10 @@ Guarantees:
   - algebra_equal() compares tensor shape and exact elements, including unequal
     NaNs [tested: test_finite_tensor_semiring_checks_every_law,
     test_finite_tensor_nan_does_not_become_equal_by_identity; commit=074dc0a88b1605c54824de677d586b6f60998bcf].
+  - the expression form of py-atom raises sys.audit("metta.host", "py-atom",
+    source) before it evaluates, so an audit hook sees the source and can
+    refuse it [tested: test_the_py_atom_expression_door_raises_its_event;
+    commit=6375a7c8f3c035b04bc9d41c8f7f22e56b42fb41]
 Fails when:
   - a name does not resolve. It raises rather than answering None, because a
     typo in a module path is not a value.
@@ -625,7 +633,13 @@ def evaluate(source: str) -> Any:
     Separate from resolve() because the two answer different questions and a
     string that happens to parse as a name should still be evaluated: `"len"`
     is the builtin and `"len(x)"` is a call.
+
+    The event is raised BEFORE the expression runs, which is PEP 578's whole
+    shape: a hook may refuse by raising, and one that only watches sees the
+    source rather than the code object `exec` would hand it. The name form
+    needs none of its own, because importing raises `import` already.
     """
+    sys.audit("metta.host", "py-atom", source)
     return _transported(eval(source, {"__builtins__": builtins}))  # noqa: S307
 
 

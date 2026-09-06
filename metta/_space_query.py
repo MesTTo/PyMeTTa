@@ -35,6 +35,9 @@ Guarantees:
     list() cannot execute a guard write once for the hint and again for rows
     [tested: test_a_guarded_query_length_hint_executes_its_write_once;
     commit=1262dd20ada9d5c799d9bdc4bdf5d2b859ca7a98]
+  - a solution-row refusal carries the asked name and the row, so the
+    interpreter suggests from the same variables the message lists [tested:
+    test_a_solution_row_offers_its_own_variables; commit=6375a7c8f3c035b04bc9d41c8f7f22e56b42fb41]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -67,7 +70,7 @@ class SolveRows(Rows):
         resolved = resolve_known_name(name, self.columns.__contains__, allow_bang=False)
         if resolved is None:
             msg = f"no solution variable {name!r}; variables are {list(self.columns)}"
-            raise AttributeError(msg)
+            raise AttributeError(msg, name=name, obj=self)
         values = self._column(resolved)
         return values[0] if len(values) == 1 else values
 

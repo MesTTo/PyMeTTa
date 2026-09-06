@@ -137,7 +137,6 @@ from .errors import Interrupted, MettaError, TransportFailure
 from .foreign import SpaceProvider
 
 logger = logging.getLogger(__name__)
-logging.getLogger("metta").addHandler(logging.NullHandler())
 
 __all__ = [
     "Gateway",

@@ -65,6 +65,16 @@ Guarantees:
     test_assuming_removes_every_fact_after_one_cleanup_fails,
     test_assuming_groups_multiple_cleanup_failures_after_removing_all;
     commit=ed732c6878fe872ff185733c739d7b3fe4032b92]
+  - a bound function answers one Origin per compiled clause in clause order,
+    None where the clause has no source, and the file without the line where
+    the source no longer carries the equation [tested:
+    test_a_head_loaded_from_a_metta_file_names_that_file_and_line,
+    test_a_head_defined_from_python_text_has_no_source,
+    test_an_edited_file_loses_the_line_and_keeps_the_file; commit=6375a7c8f3c035b04bc9d41c8f7f22e56b42fb41]
+  - EngineProfile.as_stats answers a pstats.Stats whose keys are the
+    predicates' source locations, and an unsampled profile exports as an
+    empty one rather than raising [tested: test_a_profile_exports_as_pstats,
+    test_an_unsampled_profile_still_exports; commit=6375a7c8f3c035b04bc9d41c8f7f22e56b42fb41]
 Owns:
   - Cursor owns one engine query until exhaustion, close, or finalization
     and warns when finalization reaps an open query [tested
@@ -92,6 +102,7 @@ from ._call_binding import bind_positional_call, refuse_unknown_keywords
 from ._config import _CHUNK_CAP
 from ._engine import Runtime, defer_engine_call
 from ._name_mapping import OperatorRecipe, operator_attribute_target
+from ._source_forms import Origin, head_origins
 from ._space_definitions import call_parameter_names
 from ._under import EvaluationContext
 from .atoms import (
@@ -112,6 +123,8 @@ from .errors import EngineError, MettaError
 from .results import _MISSING, Rows, _row_class
 
 if TYPE_CHECKING:
+    import pstats
+
     from ._space import Space as MeTTa
 
 logger = logging.getLogger(__name__)
@@ -447,7 +460,7 @@ class _StatsBlock:
                 msg
             )
         msg = f"{type(self).__name__!r} object has no attribute {name!r}"
-        raise AttributeError(msg)
+        raise AttributeError(msg, name=name, obj=self)
 
     def __enter__(self) -> Self:
         self._before = _stats_snapshot(self._rt)
@@ -990,26 +1003,110 @@ class EngineProfile:
 
     `Row` subclasses `tuple`, so positional access keeps working for
     anything that already counted.
+
+    `seconds` is the time the sampler covered, and each row carries its
+    predicate's share of it beside the raw ticks, because a tick count
+    cannot be read without the ratio and nothing published the ratio. The
+    conversion is the one SWI's own report prints.
     """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
 
-    __slots__ = ("nodes", "samples", "ticks")
+    __slots__ = ("nodes", "samples", "seconds", "ticks")
 
-    #: The sampler's own node shape, in its own order.
-    COLUMNS = ("predicate", "calls", "redos", "ticks_self", "ticks_siblings")
+    #: The sampler's own node shape, in its own order, then where the
+    #: predicate was defined and what its ticks are in seconds.
+    COLUMNS = (
+        "predicate",
+        "calls",
+        "redos",
+        "ticks_self",
+        "ticks_siblings",
+        "file",
+        "line",
+        "seconds_self",
+        "seconds_total",
+    )
 
-    def __init__(self, samples: int, ticks: int, nodes: list) -> None:
+    def __init__(self, samples: int, ticks: int, seconds: float, nodes: list) -> None:
         self.samples = int(samples)
         self.ticks = int(ticks)
+        self.seconds = float(seconds)
         self.nodes = Rows(self.COLUMNS, nodes)
 
     def top(self, n: int = 10) -> Rows:
         """The n predicates the samples landed in most, as `Rows`."""
         return self.nodes[:n]
 
+    def as_stats(self) -> pstats.Stats:
+        """Answer this profile as a `pstats.Stats`.
+
+        That is the currency every Python profile viewer already reads:
+        `snakeviz` and `tuna` open what `.dump_stats(path)` writes, and
+        `sort_stats("cumulative")` and `print_stats()` work as they do on a
+        `cProfile` run.
+
+        The key of a pstats row is (file, line, function), so a predicate
+        keeps the source location its clauses carry and a viewer can
+        navigate to it. `tottime` is the predicate's own sampled seconds and
+        `cumtime` adds the seconds its callees spent, which is what SWI's
+        ticks_self and ticks_siblings mean.
+
+        A predicate with no source keeps pstats' own spelling for one,
+        the ('~', 0) key `func_std_string` prints bare [source: CPython
+        3.14 Lib/pstats.py, func_std_string].
+
+        Two things do not survive the format. pstats has no column for a
+        REDO, so `.nodes` stays the door for choice-point cost; and the
+        caller graph is left empty rather than guessed at, so a viewer shows
+        a flat profile. Both are absences the format has, not measurements
+        this drops.
+        """
+        import pstats  # noqa: PLC0415  -- an export path, not an import-time cost
+
+        stats: dict[tuple[str, int, str], tuple[int, int, float, float, dict]] = {
+            (str(row.file) or "~", int(row.line), str(row.predicate)): (
+                int(row.calls),
+                int(row.calls),
+                float(row.seconds_self),
+                float(row.seconds_total),
+                {},
+            )
+            for row in self.nodes
+        }
+        # A sampler that never fired collected nothing, which is an honest
+        # profile and not a fault; pstats refuses to LOAD an empty mapping,
+        # so an empty profile is built the way pstats builds an empty one.
+        # typeshed narrows Stats(...) to the two profilers it ships with;
+        # the argument's contract is create_stats() plus .stats, which is
+        # what pstats itself reads and what _ProfileSnapshot answers.
+        return (
+            pstats.Stats(cast("Any", _ProfileSnapshot(stats)))
+            if stats
+            else pstats.Stats()
+        )
+
     def __repr__(self) -> str:
         return (
             f"<profile: {self.samples} samples, {self.ticks} ticks, {len(self.nodes)} predicates>"
         )
+
+
+class _ProfileSnapshot:
+    """The profiler shape `pstats.Stats` loads from.
+
+    `pstats.Stats(arg)` accepts an object carrying `create_stats()` and a
+    `stats` dict and takes the dict away from it, which is how it reads a
+    live `cProfile.Profile` [source: CPython 3.14 Lib/pstats.py, Stats.
+    load_stats]. Answering that shape is the whole adapter: nothing here
+    subclasses or reimplements pstats.
+    """
+
+    __slots__ = ("stats",)
+
+    def __init__(self, stats: dict) -> None:
+        self.stats = stats
+
+    def create_stats(self) -> None:
+        """Already collected; the engine sampled before this object existed."""
 
 
 class FunctionCost:
@@ -1315,6 +1412,28 @@ class _EngineFunction:
         return self._space._disassemble(self._name)
 
     @property
+    def origin(self) -> tuple[Origin | None, ...]:
+        """Where each clause of this head was written, in clause order.
+
+        One `Origin(file, line)` per compiled clause, or None in that
+        position for a clause with no source. A head defined in a `.metta`
+        file answers that file and the line its equation sits on; a head
+        registered from a Prolog file answers that file and line, which is
+        every builtin; a head defined from Python text has no source and
+        answers None.
+
+        `inspect.getsourcefile` cannot reach these, because a MeTTa head has
+        no Python code object. This is the door that answers the same
+        question, one row per clause because MeTTa spreads a definition
+        across equations the way Prolog spreads it across clauses.
+
+        It is a diagnostic: answering a `.metta` line reads and parses that
+        file, once per file per call, so it costs what reading the source
+        costs rather than what a lookup costs.
+        """
+        return head_origins(self._space, self._name)
+
+    @property
     def __signature__(self) -> inspect.Signature:
         """Built from the arrow type when one is declared, so
         inspect.signature() and completion show the arity with the
@@ -1432,7 +1551,7 @@ class _FunctionNamespace:
                     f"it with @space.define, register it with @space.op, or "
                     f"build the term directly with S[{asked!r}](...)"
                 )
-                raise AttributeError(msg)
+                raise AttributeError(msg, name=asked, obj=self)
         return _EngineFunction(self._space, resolved)
 
     def __getattr__(self, name: str) -> _EngineFunction | _CompositeEngineFunction:

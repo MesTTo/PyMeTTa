@@ -67,6 +67,14 @@ _.__lt__
 # Subscription.drain is the queue spelling of Fold.take, documented as the
 # sugar it is; the general name is what the library calls internally now.
 _.drain
+# EngineProfile.as_stats is a public export door: its callers are programs
+# handing SWI's profile to snakeviz, tuna or pstats.Stats, none of which are
+# in this package.
+_.as_stats
+# create_stats is the profiler protocol pstats.Stats loads through: it calls
+# it by name on whatever it is handed [source: CPython 3.14 Lib/pstats.py,
+# Stats.load_stats].
+_.create_stats
 
 # singledispatch reaches path traversal handlers through registered types.
 _path_begin

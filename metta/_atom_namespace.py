@@ -28,6 +28,12 @@ Guarantees:
   - generated Symbol mentions can carry inert per-instance documentation while
     retaining Symbol equality and hashing [tested: test_generated_fn_help_is_offline;
     commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
+  - a namespace refusal carries AttributeError's name and obj through the
+    bracket door as well as the attribute door, where the interpreter fills
+    neither [tested:
+    test_the_generated_namespace_refusal_carries_both_fields,
+    test_a_bracket_door_suggests_where_the_interpreter_fills_nothing;
+    commit=6375a7c8f3c035b04bc9d41c8f7f22e56b42fb41]
 Guarded by:
   - each namespace lock protects its target and attribute cache tiers; each
     fast-tier hit path reads one dict and takes no lock [tested
@@ -195,7 +201,7 @@ class _Namespace[AtomT: Atom]:
                     f"no {label} attribute named {name!r} exists in the "
                     f"generated catalog{remedy}"
                 )
-                raise AttributeError(msg) from None
+                raise AttributeError(msg, name=name, obj=self) from None
         hit = self._resolve(target)
         lock = object.__getattribute__(self, "_lock")
         with lock:
@@ -214,7 +220,15 @@ class _Namespace[AtomT: Atom]:
                 f"no {label} named {name!r} exists in the generated "
                 f"catalog{remedy}"
             )
-            raise AttributeError(msg)
+            #`name` and `obj` are what the interpreter renders "Did you mean"
+            #from, and it fills them itself for anything raised out of
+            #__getattr__ [measured 2026-09-06 on CPython 3.14.4]. This is the
+            #BRACKET door, which is not attribute access, so nothing fills
+            #them here and a refusal carried no suggestion at all. Every
+            #refusal in the package sets them rather than the ones that need
+            #to: which door a caller came through is not the raise site's
+            #business, and the auto-fill is an interpreter internal.
+            raise AttributeError(msg, name=name, obj=self)
         fast = object.__getattribute__(self, "_fast")
         try:
             return fast[name]

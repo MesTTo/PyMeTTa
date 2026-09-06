@@ -60,6 +60,18 @@ Guarantees:
     on the next construction [tested:
     test_a_failed_python_runtime_install_retries_whole;
     commit=7f1b7a27ed5044c1df8885f4cdf831654dff25fc]
+  - engine_message delivers an engine message as a metta.engine record at the
+    level its SWI kind maps to, and neither a broken handler nor an unmapped
+    kind reaches the engine [tested:
+    test_an_engine_warning_becomes_a_warning_record,
+    test_an_engine_error_becomes_an_error_record,
+    test_a_broken_handler_cannot_poison_the_crossing,
+    test_the_kind_map_covers_swis_own_levels; commit=6375a7c8f3c035b04bc9d41c8f7f22e56b42fb41]
+  - the package root logger carries the library NullHandler from this module,
+    so a record nobody configured a handler for does not reach
+    logging.lastResort and print a second copy of a line SWI already wrote
+    [tested: test_the_package_root_carries_the_library_null_handler;
+    commit=6375a7c8f3c035b04bc9d41c8f7f22e56b42fb41]
 Guarded by:
   - _LOCK serializes runtime creation and every call made on the HOME engine.
     A thread holding its own attached engine takes no process lock: it shares
@@ -84,6 +96,7 @@ import logging
 import os
 import sys
 import threading
+import traceback
 from collections import deque
 from collections.abc import Iterator, Mapping
 from contextlib import AbstractContextManager, contextmanager, nullcontext, suppress
@@ -105,6 +118,79 @@ from .errors import (
 )
 
 logger = logging.getLogger(__name__)
+
+# The library-author NullHandler, on the package's root logger rather than on
+# this module's. Without it a record with no configured handler reaches
+# logging.lastResort, a StreamHandler at WARNING, so an engine warning that
+# SWI has already printed to stderr would print a SECOND time from Python.
+# It sits here rather than in metta/__init__.py because importing logging is
+# not free at package import and every logger in this package belongs to a
+# module that imports this one.
+logging.getLogger("metta").addHandler(logging.NullHandler())
+
+#: Engine messages arrive here. The name is "metta.engine" and not this
+#: module's own "metta._engine": it is the ENGINE speaking, and a program
+#: filtering or formatting its messages should not have to know which file
+#: carries the bridge.
+_ENGINE_LOGGER = logging.getLogger("metta.engine")
+
+#: SWI's message kinds against logging's levels. SWI's kinds are names rather
+#: than a numeric scale, so the mapping is by name, and a kind with no row is
+#: INFO, which is where banner and help belong. `information` is a second
+#: informational kind and not a typo for the first: `time/1`, `explain/1` and
+#: `shell/2` all print at it [source: SWI-Prolog 10.1.13
+#: library/statistics.pl:72,352, library/explain.pl:97, library/shell.pl:149].
+_MESSAGE_LEVELS = {
+    "error": logging.ERROR,
+    "warning": logging.WARNING,
+    "informational": logging.INFO,
+    "information": logging.INFO,
+    "debug": logging.DEBUG,
+}
+
+
+def engine_message(kind: str, text: str, file: str, line: int) -> bool:
+    """Deliver one engine message as a ``metta.engine`` log record.
+
+    The shim's ``user:thread_message_hook/3`` calls this and then FAILS, so
+    SWI still prints the message itself. This is an additional reader, not a
+    replacement.
+
+    It runs on the thread that emitted the message, and that thread is one
+    Python drove into Prolog: the hook clause is thread-local and belongs to
+    the thread that consulted the shim, so a message emitted on a Prolog
+    worker thread finds no clause and prints as it always did. That is the
+    whole thread-safety argument, and it is why nothing here has to ask
+    whether Python is reachable.
+
+    Nothing raised here may cross back into the engine, because it would
+    poison whichever crossing happened to be running. A fault while logging
+    is logging's own business, so this takes logging's own policy, the one
+    ``logging.Handler.handleError`` applies.
+    """
+    try:
+        _ENGINE_LOGGER.log(
+            _MESSAGE_LEVELS.get(kind, logging.INFO),
+            # The engine's text is DATA, never a format string: a message
+            # naming a percentage would otherwise be a formatting error.
+            # The rendered lines end in the newline SWI would have printed,
+            # and a log record's message does not carry its own line break.
+            "%s",
+            text.rstrip("\n"),
+            # The engine's own vocabulary on the record, so a filter selects
+            # on the kind SWI used and a formatter can print the location its
+            # stderr line carries. Not `pathname` and `lineno`: those are
+            # LogRecord's own fields for the CALL SITE, which is this file.
+            extra={
+                "metta_kind": kind,
+                "metta_file": file or None,
+                "metta_line": line if line >= 0 else None,
+            },
+        )
+    except Exception:  # noqa: BLE001  -- a logging fault must not reach Prolog
+        if logging.raiseExceptions:
+            traceback.print_exc(file=sys.stderr)
+    return True
 
 
 def _is_metta_failure(error: BaseException) -> bool:

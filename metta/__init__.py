@@ -88,6 +88,10 @@ Guarantees:
     None, so a checkout and an installed wheel print the same bytes [tested:
     test_llms_prints_the_root_cheat_sheet_and_answers_none,
     tests/shell/test_packaged_cli.sh; commit=d4f129e1d977239c2e25b5042e3b1df30d9d32d3]
+  - the package's own module refusal carries AttributeError's name and obj,
+    so the interpreter's suggestion is drawn from __all__ [tested:
+    test_the_package_module_refusal_suggests_an_exported_name;
+    commit=6375a7c8f3c035b04bc9d41c8f7f22e56b42fb41]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -105,6 +109,7 @@ import builtins as _builtins
 import functools as _functools
 import importlib as _importlib
 import os as _os
+import sys as _sys
 from collections.abc import Mapping as _Mapping
 from typing import TYPE_CHECKING
 from typing import Any as _Any
@@ -297,7 +302,7 @@ def __getattr__(name: str) -> _Any:
         value = engine().space("&metta")
     else:
         msg = f"module {__name__!r} has no attribute {name!r}"
-        raise AttributeError(msg)
+        raise AttributeError(msg, name=name, obj=_sys.modules[__name__])
     _rehide_implementation_modules()
     globals()[name] = value
     return value

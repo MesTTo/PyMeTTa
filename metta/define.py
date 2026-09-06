@@ -86,6 +86,10 @@ Guarantees:
     source [tested:
     test_a_definition_may_be_written_in_prolog_with_the_python_as_reference,
     test_defined_rich_repr_shows_escaped_source; commit=42502e9d4a7fedd419856d5e6a1c291fc18ba644]
+  - compile_function raises sys.audit("metta.host", "compile", qualname)
+    before it reads a function's source, so the third host door is auditable
+    with the other two [tested: test_the_compile_door_raises_its_event;
+    commit=6375a7c8f3c035b04bc9d41c8f7f22e56b42fb41]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -97,6 +101,7 @@ from __future__ import annotations
 import ast
 import html
 import inspect
+import sys
 import textwrap
 import types
 from collections.abc import Callable
@@ -570,6 +575,12 @@ def compile_function(
     if not isinstance(fn, types.FunctionType):
         msg = f"define expects a Python function, got {type(fn).__name__}"
         raise TypeError(msg)
+    # The third host door, beside `py-atom` and `load`: this reads a
+    # function's source and compiles host expressions inside it into values
+    # the engine will apply. Raised before the read for the reason PEP 578
+    # gives, so a hook can refuse; the payload names the function rather than
+    # carrying its source, which is what identifies it in a log.
+    sys.audit("metta.host", "compile", f"{fn.__module__}.{fn.__qualname__}")
     try:
         source_lines, first_line = inspect.getsourcelines(fn)
         source = textwrap.dedent("".join(source_lines))
