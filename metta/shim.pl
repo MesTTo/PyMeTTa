@@ -9,6 +9,11 @@
 %     tests/ch06_many_answers/test_evaluation_context.py -n 0; commit=54cb2eee69c42c1ae685643cbe2578f8d617a265].
 %   - protocol type expressions use the atom wire and retain shared variables
 %     [tested: test_computed_protocol_types_are_live_and_removable; commit=4eaefdd8d40e53b2613722287302a14b41704662]
+%   - tagged provider premises and direct matches share match/4, annotations,
+%     and the controlled inference budget [tested:
+%     test_tagged_premise_keeps_the_direct_provider_annotation,
+%     test_provider_duplicate_premises_keep_four_proofs_and_one_source_bag;
+%     commit=4f2d6c0f8eb293b73f8dde30a1c84e24834f7393].
 %   - transport failure subclasses retain their outcome across error policies
 %     [tested: test_protocol_errors_cannot_become_engine_answers; commit=089bc6036ae5039bce3963d8b4e80ecaf04dfb49]
 %   - async Python operations answer a future space immediately, publish their
@@ -1054,6 +1059,7 @@ metta_py_wrappable(metta_py_query_count_if_repeatable).
 metta_py_wrappable(metta_py_eval_all).
 metta_py_wrappable(metta_py_eval_accounted).
 metta_py_wrappable(metta_py_check_algebra_values_accounted).
+metta_py_wrappable(metta_py_tagged_sources).
 metta_py_wrappable(metta_py_eval_using_all).
 metta_py_wrappable(metta_py_eval_many_all).
 metta_py_wrappable(metta_py_eval_many_using_all).
@@ -2814,29 +2820,51 @@ metta_py_tagged_conclusion([rule, _Tag, Head, [premises|_]], Head).
 metta_py_tagged_count(Space, Target, MaxDepth, Limit, Count) :-
     metta_py_eval_target(Space, Target, [], Query, _),
     findall(Atom, 'get-atoms'(Space, Atom), Atoms),
-    Goal = metta_py_tagged_prove(Atoms, Query, MaxDepth),
+    Goal = metta_with_under(counting,
+               metta_py_tagged_prove(Space, Atoms, Query, MaxDepth)),
     (   Limit > 0
     ->  aggregate_all(count, limit(Limit, Goal), Count)
     ;   aggregate_all(count, Goal, Count)
     ).
 
-metta_py_tagged_prove(Atoms, Query, _) :-
+% Ordinary source rows enter through the same match door as direct queries.
+% Capture k exactly as a direct query does. Python validates it against the
+% selected declaration; metta_annotation/2 would instead reselect a same-name
+% local carrier before the explicit declaration can check it.
+% [tested: test_provider_conclusions_check_the_explicit_typed_carrier;
+% commit=4f2d6c0f8eb293b73f8dde30a1c84e24834f7393]
+metta_py_tagged_sources(Space, Target, Algebra, [Rows, Used]) :-
+    statistics(inferences, Before),
+    metta_py_eval_target(Space, Target, [], Pattern, _),
+    metta_with_under(Algebra,
+        findall([ValueWire, KWire],
+            ( metta_py_under_query(
+                  Space, match(Space, Pattern, Pattern, Value), K),
+              metta_py_encode(Value, ValueWire),
+              metta_py_encode(K, KWire) ), Rows)),
+    statistics(inferences, After),
+    Used is After - Before.
+
+metta_py_tagged_prove(Space, _, Query, _) :-
+    seam:foreign_space(Space),
+    match(Space, Query, Query, _).
+metta_py_tagged_prove(_, Atoms, Query, _) :-
     member(Stored, Atoms),
     copy_term(Stored, [fact, _Tag, Proposition]),
     unify_with_occurs_check(Query, Proposition).
-metta_py_tagged_prove(Atoms, Query, Depth) :-
+metta_py_tagged_prove(Space, Atoms, Query, Depth) :-
     Depth > 0,
     member(Stored, Atoms),
     copy_term(Stored, [rule, _Tag, Head, [premises|Premises]]),
     unify_with_occurs_check(Query, Head),
     NextDepth is Depth - 1,
-    metta_py_tagged_premises(Premises, Atoms, NextDepth),
+    metta_py_tagged_premises(Premises, Space, Atoms, NextDepth),
     ground(Head).
 
-metta_py_tagged_premises([], _, _).
-metta_py_tagged_premises([Premise|Premises], Atoms, Depth) :-
-    metta_py_tagged_prove(Atoms, Premise, Depth),
-    metta_py_tagged_premises(Premises, Atoms, Depth).
+metta_py_tagged_premises([], _, _, _).
+metta_py_tagged_premises([Premise|Premises], Space, Atoms, Depth) :-
+    metta_py_tagged_prove(Space, Atoms, Premise, Depth),
+    metta_py_tagged_premises(Premises, Space, Atoms, Depth).
 
 %The seam's own decision for this query, shown without running it, is the
 %engine's metta_host_explain_match/3; this renders its term report as the
