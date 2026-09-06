@@ -7,6 +7,8 @@
 %   - internal and held evaluations install the same carrier and demand context
 %     [tested: sh extensions/python/test.sh
 %     tests/ch06_many_answers/test_evaluation_context.py -n 0; commit=54cb2eee69c42c1ae685643cbe2578f8d617a265].
+%   - protocol type expressions use the atom wire and retain shared variables
+%     [tested: test_computed_protocol_types_are_live_and_removable; commit=4eaefdd8d40e53b2613722287302a14b41704662]
 %   - transport failure subclasses retain their outcome across error policies
 %     [tested: test_protocol_errors_cannot_become_engine_answers; commit=089bc6036ae5039bce3963d8b4e80ecaf04dfb49]
 %   - async Python operations answer a future space immediately, publish their
@@ -5326,12 +5328,18 @@ metta_py_subscriptions_locked(SpaceAtoms) :-
 
 :- multifile seam:grounded_type_names/2.
 
-%Values cross the boundary boxed so janus cannot rewrite them; the names
-%are computed on the held value, in Python, and cross as plain text: the
-%classes off the method resolution order, then every satisfied protocol.
+%Class names cross as text; protocol type atoms use the ordinary wire.
+%Decode each complete type with shared variables so (Pair $t $t) remains
+%one constraint rather than two independently fresh variables.
 seam:grounded_type_names(X, Names) :-
     py_is_object(X),
-    py_call(metta_ops:type_names(X), Names).
+    py_call(metta_ops:type_names(X), Candidates),
+    maplist(metta_py_protocol_type, Candidates, Names).
+
+metta_py_protocol_type(Candidate, Type) :-
+    ( is_list(Candidate)
+    -> metta_py_decode_shared(Candidate, Type, _)
+    ; Type = Candidate ).
 
 %(context-space) lives in the engine now (engine/metta.pl); the shim keeps
 %nothing to add for it.

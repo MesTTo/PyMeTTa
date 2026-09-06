@@ -356,7 +356,16 @@ Inferences are deterministic and wall clock is not; gate on the former.
 ## The rest of the library, by module
 
 `metta.aio` is the same engine without blocking an event loop (`AsyncMeTTa`).
-`metta.arrays` crosses arrays for anything speaking the buffer standard.
+`metta.arrays` crosses arrays through DLPack and the Array API standard.
+`Annotated[DLTensor, Shape(2, 3)]` refines an operation's arrow to
+`(Annotated DLTensor (Shape (2 3)))`. A `(4 1)` argument returns `BadArgType`;
+shared MeTTa dimension variables bind across parameters and the result.
+Live array values carry the same shaped type. `SHAPE_RULES` covers every
+registered head: unary elementwise operations preserve shape, binary
+operations use broadcasting, and rank-two `matmul` unifies inner dimensions.
+Other operations expose an array result's actual shape; scalar observations
+retain their host type. Unknown dimensions stay symbolic until argument or
+live-value typing binds them.
 `metta.structures` has the stores worth having with MeTTa's semantics at
 Python speed: `AlphaSet`, `PatternMap`, `MatchIndex`, `LiveView`,
 `ClosureView`, `TabledMap`. `metta.events` is the public event stream and

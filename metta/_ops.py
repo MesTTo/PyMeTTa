@@ -8,6 +8,9 @@ Guarantees:
   - operation records distinguish MeTTa names from declaration-space names
     [tested: test_canonical_context_types_replace_public_newtypes;
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
+  - protocol expressions cross through the atom wire with repeated variables
+    shared, and computed types are read from each live value [tested:
+    test_computed_protocol_types_are_live_and_removable; commit=4eaefdd8d40e53b2613722287302a14b41704662]
   - protocol type registrations can be removed by exact identity [tested
     test_protocol_and_reflector_registrations_can_be_removed]
   - a release that FAILS reaches the caller. Left to the deallocator,
@@ -786,36 +789,43 @@ def _refuse_raw_answer(value: Any) -> Any:
     return value
 
 
-def type_names(obj: Any) -> list[str]:
+def type_names(obj: Any) -> list[str | list]:
     """Every type name an object carries, for the engine's typing bridge:
-    its classes in resolution order short of object, then every satisfied
-    protocol. Computed on the boxed value's contents, and returned as text,
-    which janus cannot damage.
+    structural protocol types first, then classes in resolution order short
+    of object and named protocols. Class names cross as text and structural
+    types use the atom wire, computed on the boxed value's contents.
     """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
     value = _unbox(obj)
     names = [c.__name__ for c in type(value).__mro__ if c.__name__ != "object"]
-    names.extend(extra_types(value))
-    return names
+    protocols = extra_types(value)
+    # Specific facts lead their class names so ordinary argument refusals
+    # report the constraint that failed before its less precise base type.
+    return [
+        *(kind.to_wire() for kind in protocols if isinstance(kind, Atom)),
+        *names,
+        *(kind for kind in protocols if isinstance(kind, str)),
+    ]
 
 
 # -------------------------------------------------------------- extra typing
 #
-# (predicate, type name) pairs; an object satisfying a predicate carries the
-# name as an additional type candidate. Consulted by the engine through the
-# shim's grounded_extra_type/2 bridge.
+# (predicate, type) pairs; a satisfied predicate adds a literal type or the
+# Atom returned by its projection. The shim decodes structural candidates
+# through the same wire as every other atom.
 
-PROTOCOL_TYPES: list[tuple[Any, str]] = []
+PROTOCOL_TYPES: list[tuple[Callable[[Any], bool], str | Atom | Callable[[Any], Atom]]] = []
 _PROTOCOL_TYPES_LOCK = threading.RLock()
 
 
-def extra_types(obj) -> list[str]:
-    names = []
+def extra_types(obj: Any) -> list[str | Atom]:
+    names: list[str | Atom] = []
     with _PROTOCOL_TYPES_LOCK:
         registrations = tuple(PROTOCOL_TYPES)
     for predicate, name in registrations:
         try:
-            if predicate(obj):
-                names.append(name)
+            if not predicate(obj):
+                continue
+            kind = name if isinstance(name, (str, Atom)) else name(obj)
         except Exception as exc:
             # A broken probe is the registrant's bug: surface it with the
             # protocol's name attached, never as a type quietly missing.
@@ -823,4 +833,11 @@ def extra_types(obj) -> list[str]:
             raise RuntimeError(
                 msg
             ) from exc
+        if not isinstance(name, (str, Atom)) and not isinstance(kind, Atom):
+            msg = (
+                f"the object type projection {name!r} for {type(obj).__name__} "
+                "must return a type Atom"
+            )
+            raise TypeError(msg)
+        names.append(kind)
     return names

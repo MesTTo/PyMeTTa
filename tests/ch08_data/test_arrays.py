@@ -26,7 +26,13 @@ Guarantees:
     inference, nested inference, and rank-two matmul unification before an
     array is built [tested:
     test_annotated_tensor_shapes_flow_through_broadcast_and_matmul;
-    commit=2e627a593413191cda3170f2eb716835f7f62543]
+    commit=4eaefdd8d40e53b2613722287302a14b41704662]
+  - shape claims refuse incompatible values, bind output dimensions, and
+    preserve shapes across the complete operation roster [tested:
+    test_declared_shape_refuses_an_incompatible_live_argument,
+    test_a_live_tensor_type_carries_its_current_shape,
+    test_every_preserving_unary_head_keeps_symbolic_and_live_shapes;
+    commit=4eaefdd8d40e53b2613722287302a14b41704662]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -37,6 +43,8 @@ import inspect
 import threading
 
 import pytest
+from hypothesis import given
+from hypothesis import strategies as st
 
 from metta import (
     Expression,
@@ -48,7 +56,7 @@ from metta import (
     wire,
 )
 from metta.errors import MettaError
-from metta.ops import annotation_atom_for, registered
+from metta.ops import registered
 from metta.vocabularies import EffectClass
 
 numpy = pytest.importorskip("numpy")
@@ -150,13 +158,8 @@ def test_a_shape_rule_never_claims_an_unbound_get_type_subject(am):
 def test_annotated_tensor_shapes_flow_through_broadcast_and_matmul(am):
     """Shape metadata computes compatible results and rejects incompatible ones."""
     assert str(arrays.Shape(V.n, V.k)) == "(Shape ($n $k))"
-    operation = registered()["matmul"]
-    assert str(annotation_atom_for(operation.parameter_annotations[0])) == (
-        "(Annotated (NewType DLTensor %Undefined%) (Shape ($rows $shared)))"
-    )
-    assert str(annotation_atom_for(operation.return_annotation)) == (
-        "(Annotated (NewType DLTensor %Undefined%) (Shape ($rows $columns)))"
-    )
+    assert arrays.SHAPE_RULES["matmul"] == "matmul"
+    assert arrays.SHAPE_RULES["t+"] == "broadcast"
 
     am.run(
         """
@@ -276,14 +279,15 @@ def test_a_protocol_and_a_declaration_are_both_answered_once(am):
     [tested test_ops.py::test_a_declared_type_survives_the_library_being_loaded].
     Answering both raises the opposite question, whether a name can now
     arrive twice, so this pins the whole list rather than a membership:
-    the classes, then the protocol, then the declaration, each once.
+    the shaped protocol, then the classes, the named protocol, and the
+    declaration, each once.
     """
     source = "\"__import__('numpy').arange(3.0)\""
     (answers,) = am.run(
         f"!(let $a (py-atom {source} (-> Number Number)) (collapse (get-type $a)))"
     )
     names = [str(a) for a in answers[0]]
-    assert names == ["ndarray", "DLTensor", "(-> Number Number)"], names
+    assert names == ["(Annotated DLTensor (Shape (3)))", "ndarray", "DLTensor", "(-> Number Number)"], names
 
 
 def test_protocol_printing_covers_any_library(am):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -476,7 +480,7 @@ def test_array_protocol_registration_is_idempotent(monkeypatch):  # noqa: D103  
     arrays._register_protocols()
     arrays._register_protocols()
 
-    assert [kind for kind, _ in calls] == ["type", "repr"]
+    assert [kind for kind, _ in calls] == ["type", "type", "repr"]
 
 
 def test_same_named_embedding_stores_route_per_space(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -544,3 +548,148 @@ def test_arrays_layer_is_torch_free():
     """The module must not import torch anywhere, even lazily by name."""
     source = inspect.getsource(arrays)
     assert "import torch" not in source
+
+
+def test_declared_shape_refuses_an_incompatible_live_argument(am):
+    """A shape claim is checked at the operation door before Python executes."""
+    from typing import Annotated
+
+    calls = []
+
+    def claimed(a: Annotated[arrays.DLTensor, arrays.Shape(2, 3)]) -> arrays.DLTensor:
+        calls.append(a)
+        return a
+
+    name = "shape-claimed-argument"
+    am.op(claimed, name=name, effect="writesState", transport="raw")
+    try:
+        answers = am.eval(S[name](ground(numpy.ones((4, 1)))))
+        assert answers and all(isinstance(answer, Expression) and answer.head == S.Error for answer in answers)
+        assert any(
+            answer.args[1] == S.BadArgType(
+                1, S.Annotated(S.DLTensor, arrays.Shape(2, 3)),
+                S.Annotated(S.DLTensor, arrays.Shape(4, 1)),
+            )
+            for answer in answers
+        )
+        assert calls == []
+        assert arrays.data_of(am.eval(S[name](ground(numpy.ones((2, 3)))))[0]).shape == (2, 3)
+    finally:
+        am.unregister_op(name)
+
+
+def test_declared_shape_variables_derive_the_result_without_execution(am):
+    """Input bindings project through the ordinary arrow to its result."""
+    from typing import Annotated
+
+    calls = []
+
+    def rows(
+        a: Annotated[arrays.DLTensor, arrays.Shape(V.rows, V.columns)],
+    ) -> Annotated[arrays.DLTensor, arrays.Shape(V.rows)]:
+        calls.append(a)
+        return numpy.sum(a, axis=1)
+
+    name = "shape-claimed-rows"
+    am.op(rows, name=name, effect="writesState", transport="raw")
+    try:
+        am.run("(: shape-claimed-input (Annotated DLTensor (Shape (2 3))))")
+        assert am.run(f"!(get-type ({name} shape-claimed-input))") == [
+            [S.Annotated(S.DLTensor, arrays.Shape(2))]
+        ]
+        assert am.eval(S["get-type"](S[name](ground(numpy.ones((5, 7)))))) == [
+            S.Annotated(S.DLTensor, arrays.Shape(5))
+        ]
+        assert calls == []
+    finally:
+        am.unregister_op(name)
+
+
+def test_a_live_tensor_type_carries_its_current_shape(am):
+    """Grounded types observe dimensions anew, including scalar and empty axes."""
+    for dimensions in ((), (0,), (2, 3)):
+        value = numpy.ones(dimensions)
+        assert S.Annotated(S.DLTensor, arrays.Shape(*dimensions)) in am.eval(
+            S["get-type"](ground(value))
+        )
+    value = numpy.ones((2, 3))
+    atom = ground(value)
+    value.resize((3, 2), refcheck=False)
+    assert S.Annotated(S.DLTensor, arrays.Shape(3, 2)) in am.eval(S["get-type"](atom))
+
+
+@pytest.mark.parametrize(
+    "head", [head for head, rule in arrays.SHAPE_RULES.items() if rule == "preserve"]
+)
+@pytest.mark.parametrize("dimensions", [(), (0, 3), (2, 3)])
+def test_every_preserving_unary_head_keeps_symbolic_and_live_shapes(am, head, dimensions):
+    """Every preserving head has the same arrow-level shape behavior."""
+    suffix = "x".join(map(str, dimensions)) or "scalar"
+    subject = S[f"shape-unary-input-{head}-{suffix}"]
+    expected = S.Annotated(S.DLTensor, arrays.Shape(*dimensions))
+    am.run(f"(: {subject} {expected})")
+    extra = (ground("numpy"),) if head == "t-as" else ()
+    assert expected in am.eval(S["get-type"](S[head](subject, *extra)))
+    argument = ground(numpy.ones(dimensions))
+    assert expected in am.eval(S["get-type"](S[head](argument, *extra)))
+    assert arrays.data_of(am.eval(S[head](argument, *extra))[0]).shape == dimensions
+
+
+@pytest.mark.usefixtures("am")
+def test_every_registered_head_has_a_shape_rule():
+    """A newly registered head cannot omit its shape behavior."""
+    assert {name.split("--", 1)[0] for name in arrays.ARRAY_OPS} == set(arrays.SHAPE_RULES)
+
+
+@pytest.mark.parametrize(
+    "head", [head for head, rule in arrays.SHAPE_RULES.items() if rule == "broadcast"]
+)
+def test_broadcast_rules_retain_scalar_operands(am, head):
+    """Refinement does not narrow the scalar-capable binary operation arrows."""
+    tensor = ground(numpy.ones((2, 3)))
+    (answer,) = am.eval(S[head](tensor, ground(2.0)))
+    assert arrays.data_of(answer).shape == (2, 3)
+
+
+@pytest.mark.parametrize(
+    ("left", "right", "expected"),
+    [((3,), (3, 2), (2,)), ((2, 3), (3,), (2,)), ((5, 2, 3), (5, 3, 4), (5, 2, 4))],
+)
+def test_rank_two_matmul_inference_does_not_narrow_backend_execution(am, left, right, expected):
+    """The backend still handles vector and batched cases beyond static inference."""
+    (answer,) = am.eval(S.matmul(ground(numpy.ones(left)), ground(numpy.ones(right))))
+    assert arrays.data_of(answer).shape == expected
+
+
+def test_declared_shape_checks_the_evaluated_constructor_result(am):
+    """A bare constructor arrow defers the shape check until its value exists."""
+    from typing import Annotated
+
+    calls = []
+
+    def claimed(a: Annotated[arrays.DLTensor, arrays.Shape(2, 3)]) -> arrays.DLTensor:
+        calls.append(a)
+        return a
+
+    name = "shape-claimed-constructor"
+    am.op(claimed, name=name, effect="writesState", transport="raw")
+    try:
+        (good,) = am.eval(S[name](S.zeros(2, 3)))
+        assert arrays.data_of(good).shape == (2, 3)
+        answers = am.eval(S[name](S.zeros(4, 1)))
+        assert answers and all(isinstance(answer, Expression) and answer.head == S.Error for answer in answers)
+        assert any("(Shape (4 1))" in str(answer) for answer in answers)
+        assert len(calls) == 1
+    finally:
+        am.unregister_op(name)
+
+
+@given(dimensions=st.lists(st.integers(min_value=0, max_value=3), max_size=4))
+def test_live_and_inferred_shapes_agree_across_ranks_and_empty_axes(am, dimensions):
+    """Backend shapes agree with inference for scalars, empty axes, and higher ranks."""
+    argument = ground(numpy.ones(tuple(dimensions)))
+    call = S["t-exp"](argument)
+    (result,) = am.eval(call)
+    expected = S.Annotated(S.DLTensor, arrays.Shape(*arrays.data_of(result).shape))
+    assert expected in am.eval(S["get-type"](argument))
+    assert am.eval(S["get-type"](call)) == [expected]

@@ -12,6 +12,10 @@ Assumes:
     unavailable signatures with ValueError [source 2026-08-14:
     https://docs.python.org/3/library/inspect.html#inspect.signature]
 Guarantees:
+  - protocol registrations accept literal or computed type atoms, with
+    expression terms preserved across the engine bridge and callable removal
+    selected by identity [tested: test_computed_protocol_types_are_live_and_removable,
+    test_computed_protocol_removal_uses_provider_identity; commit=4eaefdd8d40e53b2613722287302a14b41704662]
   - protocol type, formatter, conversion, and reflector registrations have
     exact removal counterparts [tested
     test_protocol_and_reflector_registrations_can_be_removed,
@@ -794,9 +798,13 @@ def unregister_type(cls: type) -> None:
         expected[0] = _type_registration(cls)
 
 
-def register_object_type(predicate: Callable[[Any], bool], name: str) -> None:
+def register_object_type(
+    predicate: Callable[[Any], bool], name: str | Atom | Callable[[Any], Atom]
+) -> None:
     """A protocol as a type: objects satisfying predicate get name as an
-    additional get-type candidate, beyond their own classes.
+    additional get-type candidate, beyond their own classes. A type Atom
+    carries structure; a callable computes a type Atom from the live value
+    every time the engine reads its type.
 
         register_object_type(lambda x: hasattr(x, "__dlpack__"), "DLTensor")
     """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
@@ -808,12 +816,17 @@ def register_object_type(predicate: Callable[[Any], bool], name: str) -> None:
     )
 
 
-def unregister_object_type(predicate: Callable[[Any], bool], name: str) -> None:
+def unregister_object_type(
+    predicate: Callable[[Any], bool], name: str | Atom | Callable[[Any], Atom]
+) -> None:
     """Remove the latest exact protocol type registration."""
     _remove_registry_entry(
         _operation_registry.PROTOCOL_TYPES,
         _operation_registry._PROTOCOL_TYPES_LOCK,
-        lambda entry: entry[0] is predicate and entry[1] == name,
+        lambda entry: entry[0] is predicate and (
+            entry[1] is name
+            or (isinstance(name, (str, Atom)) and entry[1] == name)
+        ),
         missing=f"no object type protocol {name!r} uses that predicate",
         description=f"object type protocol {name!r}",
     )
