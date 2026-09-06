@@ -100,6 +100,7 @@ from .errors import (
     MettaError,
     MettaOperationError,
     MettaSyntaxError,
+    RestraintError,
     SpaceCapabilityError,
     TimeLimitError,
 )
@@ -257,6 +258,7 @@ _EXCEPTION_TYPES = {
     "syntax": MettaSyntaxError,
     "time_limit": TimeLimitError,
     "inference_limit": InferenceLimitError,
+    "restraint": RestraintError,
     "interrupted": Interrupted,
     #The engine's JSON codec classifies its own refusals: a value JSON
     #cannot carry is a ValueError, a term that is not JSON data at all
@@ -295,7 +297,24 @@ def _reserved_message(kind: object, detail: object, fallback: str) -> str:
         )
     if kind == "interrupted":
         return "interrupt() stopped the evaluation"
+    if kind == "restraint" and isinstance(detail, list) and len(detail) == 3:
+        word, bound, call = detail
+        return f"the ({word} {bound}) restraint declared for the table of {call} tripped"
     return fallback
+
+
+def _restraint_fields(detail: object) -> dict[str, object]:
+    """The three fields a restraint signal carries, as RestraintError keywords.
+
+    lib_tabling throws `metta_control_signal(restraint, [Word, Bound, Call])`
+    and janus hands the list over as a Python list; anything else is a
+    detail this side does not know, and the error then carries only its
+    sentence.
+    """
+    if isinstance(detail, list) and len(detail) == 3:
+        word, bound, call = detail
+        return {"restraint": word, "bound": bound, "call": call}
+    return {}
 
 
 def started() -> bool:
@@ -1142,6 +1161,11 @@ class Runtime:
                 error_type = (
                     _EXCEPTION_TYPES.get(kind) if isinstance(kind, str) else None
                 )
+                if error_type is RestraintError:
+                    detail = row.get("Detail")
+                    raise RestraintError(
+                        _reserved_message(kind, detail, message), **_restraint_fields(detail)
+                    ) from exc
                 if error_type is not None:
                     raise error_type(_reserved_message(kind, row.get("Detail"), message)) from exc
             self._raise_assertion_failure(exc, term, message)

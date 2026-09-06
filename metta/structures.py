@@ -546,21 +546,30 @@ class TabledMap:
             return False
         return bool(self._space.eval(_call_expr(self._name, parts)))
 
-    def stats(self) -> dict[str, int]:
+    def stats(self) -> dict[str, int | Expression]:
         """The engine's own counters for this function's tables: tables,
         answers, complete-call, invalidated, reevaluated. invalidated
         above reevaluated is SWI deciding a table was not worth
         rebuilding yet; both moving is the freshness machinery working.
+        `policy` is the cache policy in force, the expression
+        `(incremental shared)` for a bare `tabled` over a body the engine
+        can watch, or whatever a `(cache name ...)` row in `&metta` compiled
+        to, `(monotonic shared)` or `(plain private (lattice join))`; it is
+        present while the table is declared.
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         (answer,) = self._space.eval(f"(table-stats {self._call_pattern})")
         if not isinstance(answer, Expression):
             msg = f"table-stats answered {answer!r}, not an expression"
             raise MettaError(msg)
-        report: dict[str, int] = {}
+        report: dict[str, int | Expression] = {}
         for pair in answer.children:
             if isinstance(pair, Expression) and len(pair.children) == 2:
-                count = pair.children[1]
-                report[str(pair.children[0])] = int(getattr(count, "value", count))
+                name = str(pair.children[0])
+                value = pair.children[1]
+                if name == "policy" and isinstance(value, Expression):
+                    report[name] = value
+                else:
+                    report[name] = int(getattr(value, "value", value))
         return report
 
     def clear(self) -> None:
