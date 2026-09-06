@@ -14,7 +14,7 @@ Guarantees:
     a call rather than by a stored atom and were the one kind that stayed
     [tested
     test_a_recycled_space_name_inherits_no_typing_rule_from_its_past_life;
-    commit=WORKTREE]
+    commit=84327245373bba29fba00cf2cea62d8257a9f5cb]
   - what a recycled name DOES carry is the process-wide registrations, which
     belong to no space [tested
     test_a_recycled_name_still_sees_process_wide_registrations]
