@@ -479,7 +479,7 @@ def _install_deferred_term_release(janus: Any) -> None:
     # Captured whether or not the release is already installed, so a second
     # bridge() over a fresh _STATE still has the primitive its queue needs.
     _STATE.erase_record = swipl.erase
-    if getattr(term.__del__, "_metta_defers_to_a_crossing", False):
+    if getattr(term.__del__, "__module__", None) == __name__:
         return
 
     # _defer is bound as a default rather than read as a global, because a
@@ -500,10 +500,13 @@ def _install_deferred_term_release(janus: Any) -> None:
         _defer(record)
 
     # Named for what it does and renamed on installation, rather than defined
-    # as `__del__`, which reads as a module-level dunder to the linter.
+    # as `__del__`, which reads as a module-level dunder to the linter. The
+    # installed marker is __module__, which the rename leaves at this module
+    # and janus's own leaves at janus_swi.janus: a real property of the
+    # function rather than an attribute bolted onto it, so both the
+    # already-installed test above and the shape test read the same thing.
     released.__name__ = "__del__"
     released.__qualname__ = "Term.__del__"
-    released._metta_defers_to_a_crossing = True  # type: ignore[attr-defined]
     term.__del__ = released
 
 

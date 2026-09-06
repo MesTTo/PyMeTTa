@@ -122,9 +122,10 @@ def test_the_janus_term_shape_the_deferred_release_depends_on(janus):
     term = _a_term(janus, "shape_probe")
     assert isinstance(term._record, int)  # the attribute the release clears
     assert term._record != 0  # a live Term carries its record id
-    assert getattr(
-        janus.Term.__del__, "_metta_defers_to_a_crossing", False
-    ), "the deferred Term release is not installed on janus.Term"
+    assert janus.Term.__del__.__module__ == "metta._engine", (
+        "the deferred Term release is not installed on janus.Term; its __del__ "
+        f"still comes from {janus.Term.__del__.__module__}"
+    )
 
 
 def test_a_finalised_term_defers_its_record_and_goes_inert(janus):
