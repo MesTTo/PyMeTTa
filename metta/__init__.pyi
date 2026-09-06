@@ -15,8 +15,6 @@
 import builtins as _builtins
 import functools as _functools
 import os as _os
-from ._api_types import InterpolationLike as InterpolationLike
-from ._api_types import TemplateLike as TemplateLike
 from ._config import Config as Config
 from ._config import config as config
 from ._debug import Debugger as _Debugger
@@ -56,6 +54,7 @@ from .atoms import Handle as Handle
 from .atoms import S as S
 from .atoms import Symbol as Symbol
 from .atoms import TRUE as TRUE
+from .atoms import TemplateLike as _TemplateLike
 from .atoms import UNIT as UNIT
 from .atoms import Undefined as Undefined
 from .atoms import V as V
@@ -160,7 +159,6 @@ __all__ = [
     "G",
     "Grounded",
     "Handle",
-    "InterpolationLike",
     "Library",
     "MeTTa",
     "MettaError",
@@ -170,7 +168,6 @@ __all__ = [
     "SpaceProvider",
     "State",
     "Symbol",
-    "TemplateLike",
     "Timeout",
     "Undefined",
     "V",
@@ -303,7 +300,7 @@ def forms(source: str) -> list[Atom]: ...
 def llms() -> None: ...
 
 def run(
-    source: str | TemplateLike,
+    source: str | _TemplateLike,
     /,
     *,
     timeout: float | None = ...,

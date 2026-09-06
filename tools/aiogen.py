@@ -239,6 +239,7 @@ MODULE_HEADER = """
 #: annotations resolve.
 MODULE_ALIASES = (
     ("Any", "_Any"),
+    ("TemplateLike", "_TemplateLike"),
     ("Callable", "_Callable"),
     ("Iterable", "_Iterable"),
     ("Literal", "_Literal"),

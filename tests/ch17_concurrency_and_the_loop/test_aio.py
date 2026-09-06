@@ -478,12 +478,23 @@ def test_aio_covers_the_whole_synchronous_surface():
         derivation.parameters["depth"].kind
         is inspect.Parameter.POSITIONAL_OR_KEYWORD
     )
-    assert list(inspect.signature(aio.AsyncMeTTa.run).parameters) == [
+    # Advanced on 2026-09-07: every door that reads program text gained
+    # `**values`, the keyword face of a hole, so `values` joins both lists.
+    # That is the legitimate widening the comment above describes, and the
+    # pin moves rather than the surface. `source` became POSITIONAL-ONLY in
+    # the same change and is asserted below, because it is what lets a hole
+    # be named `{source}`: a positional-or-keyword parameter of that name
+    # would take the value before the field could ever see it.
+    running = inspect.signature(aio.AsyncMeTTa.run)
+    assert list(running.parameters) == [
         "self",
         "source",
         "timeout",
         "inferences",
+        "values",
     ]
+    assert running.parameters["source"].kind is inspect.Parameter.POSITIONAL_ONLY
+    assert running.parameters["values"].kind is inspect.Parameter.VAR_KEYWORD
     assert list(inspect.signature(aio.AsyncMeTTa.match).parameters) == [
         "self",
         "patterns",
@@ -493,6 +504,7 @@ def test_aio_covers_the_whole_synchronous_surface():
         "inferences",
         "under",
         "into",
+        "values",
     ]
     # What this pin exists for, stated rather than spelled as a list: the
     # `residuals` parameter is still absent, and eval() carries answers()'

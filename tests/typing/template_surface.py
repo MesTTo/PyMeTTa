@@ -26,8 +26,8 @@ Guarantees:
 from string.templatelib import Interpolation, Template
 from typing import Any
 
-from metta import InterpolationLike, Space, TemplateLike
-from metta.atoms import parse
+from metta import Space
+from metta.atoms import InterpolationLike, TemplateLike, parse
 
 
 class Backported:
