@@ -77,7 +77,7 @@ Guarantees:
     commit=c7468b2789746bcf95c4bacc0e2d517ec4d972fa]
   - an event names its bindings in __dir__ and carries the asked name on a
     refusal, so a mistyped binding is suggested from the bindings [tested:
-    test_a_projection_answers_its_columns_from_dir; commit=WORKTREE]
+    test_a_projection_answers_its_columns_from_dir; commit=6375a7c8f3c035b04bc9d41c8f7f22e56b42fb41]
 Guarded by:
   - _FoldRegistry._lock protects fold state, the active runtime, delivery
     counts, and engine subscription snapshots [tested

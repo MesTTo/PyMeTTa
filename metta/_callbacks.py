@@ -13,7 +13,7 @@ Guarantees:
     test_an_async_operation_answers_a_future_space; commit=39092863ae34184a9f955f185ff57c1ff177ec40]
   - the engine-message callback resolves lazily to the runtime module that
     owns the metta.engine logger [tested:
-    test_an_engine_warning_becomes_a_warning_record; commit=WORKTREE]
+    test_an_engine_warning_becomes_a_warning_record; commit=6375a7c8f3c035b04bc9d41c8f7f22e56b42fb41]
 Open Obligations:
   To Do: None
   Hacks: None

@@ -73,7 +73,7 @@ Guarantees:
     commit=57f21ba9edf94bcf28cde11f938bce2c241a3709]
   - a profiled run answers the sampler's seconds beside its ticks, so a
     profile row can be read without knowing the tick ratio [tested:
-    test_profile_counts_samples_on_real_work; commit=WORKTREE]
+    test_profile_counts_samples_on_real_work; commit=6375a7c8f3c035b04bc9d41c8f7f22e56b42fb41]
 Open Obligations:
   To Do: None
   Hacks: None

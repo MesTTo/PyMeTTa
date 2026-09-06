@@ -37,7 +37,7 @@ Guarantees:
     commit=1262dd20ada9d5c799d9bdc4bdf5d2b859ca7a98]
   - a solution-row refusal carries the asked name and the row, so the
     interpreter suggests from the same variables the message lists [tested:
-    test_a_solution_row_offers_its_own_variables; commit=WORKTREE]
+    test_a_solution_row_offers_its_own_variables; commit=6375a7c8f3c035b04bc9d41c8f7f22e56b42fb41]
 Open Obligations:
   To Do: None
   Hacks: None

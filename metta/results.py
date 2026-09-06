@@ -91,7 +91,7 @@ Guarantees:
     carry them on a refusal, so the interpreter's suggestion and the
     library's sentence agree about the same mistake [tested:
     test_a_row_offers_its_own_columns,
-    test_a_projection_answers_its_columns_from_dir; commit=WORKTREE]
+    test_a_projection_answers_its_columns_from_dir; commit=6375a7c8f3c035b04bc9d41c8f7f22e56b42fb41]
 Open Obligations:
   To Do: None
   Hacks: None

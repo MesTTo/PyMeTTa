@@ -31,7 +31,7 @@ Guarantees:
   - the load door raises sys.audit("metta.host", "load", path) before it
     reads, so an audit hook can refuse the load [tested:
     test_the_load_door_raises_its_event,
-    test_a_hook_can_refuse_a_door_by_raising; commit=WORKTREE]
+    test_a_hook_can_refuse_a_door_by_raising; commit=6375a7c8f3c035b04bc9d41c8f7f22e56b42fb41]
 Owns resources:
   - save_space owns one sibling temporary file and removes it after every
     failed or successful save

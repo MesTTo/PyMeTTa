@@ -117,7 +117,7 @@ Guarantees:
     commit=9fad0bf6670061a26b1a17d3f566613b7d4d080c]
   - a symbol answers the ambient space's origins for the head it names, and
     the empty tuple where nothing compiled under it [tested:
-    test_a_symbol_answers_the_ambient_spaces_origins; commit=WORKTREE]
+    test_a_symbol_answers_the_ambient_spaces_origins; commit=6375a7c8f3c035b04bc9d41c8f7f22e56b42fb41]
 Guarded by:
   - _STATE_LOCK protects box identity, formatter registries, and wire interns
     [tested test_atom_identity_caches_are_thread_safe]

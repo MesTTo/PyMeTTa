@@ -33,7 +33,7 @@ Guarantees:
     neither [tested:
     test_the_generated_namespace_refusal_carries_both_fields,
     test_a_bracket_door_suggests_where_the_interpreter_fills_nothing;
-    commit=WORKTREE]
+    commit=6375a7c8f3c035b04bc9d41c8f7f22e56b42fb41]
 Guarded by:
   - each namespace lock protects its target and attribute cache tiers; each
     fast-tier hit path reads one dict and takes no lock [tested

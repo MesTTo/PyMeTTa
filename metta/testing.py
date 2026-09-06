@@ -44,7 +44,7 @@ Guarantees:
   - the module names both compliance suites in __dir__ and carries the asked
     name on a refusal, without resolving either import [tested:
     test_the_testing_module_names_both_suites_without_importing_them;
-    commit=WORKTREE]
+    commit=6375a7c8f3c035b04bc9d41c8f7f22e56b42fb41]
 Open Obligations:
   To Do: None
   Hacks: None

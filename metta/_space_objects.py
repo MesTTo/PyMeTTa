@@ -70,11 +70,11 @@ Guarantees:
     the source no longer carries the equation [tested:
     test_a_head_loaded_from_a_metta_file_names_that_file_and_line,
     test_a_head_defined_from_python_text_has_no_source,
-    test_an_edited_file_loses_the_line_and_keeps_the_file; commit=WORKTREE]
+    test_an_edited_file_loses_the_line_and_keeps_the_file; commit=6375a7c8f3c035b04bc9d41c8f7f22e56b42fb41]
   - EngineProfile.as_stats answers a pstats.Stats whose keys are the
     predicates' source locations, and an unsampled profile exports as an
     empty one rather than raising [tested: test_a_profile_exports_as_pstats,
-    test_an_unsampled_profile_still_exports; commit=WORKTREE]
+    test_an_unsampled_profile_still_exports; commit=6375a7c8f3c035b04bc9d41c8f7f22e56b42fb41]
 Owns:
   - Cursor owns one engine query until exhaustion, close, or finalization
     and warns when finalization reaps an open query [tested

@@ -62,7 +62,7 @@ Guarantees:
   - the expression form of py-atom raises sys.audit("metta.host", "py-atom",
     source) before it evaluates, so an audit hook sees the source and can
     refuse it [tested: test_the_py_atom_expression_door_raises_its_event;
-    commit=WORKTREE]
+    commit=6375a7c8f3c035b04bc9d41c8f7f22e56b42fb41]
 Fails when:
   - a name does not resolve. It raises rather than answering None, because a
     typo in a module path is not a value.

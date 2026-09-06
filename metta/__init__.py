@@ -91,7 +91,7 @@ Guarantees:
   - the package's own module refusal carries AttributeError's name and obj,
     so the interpreter's suggestion is drawn from __all__ [tested:
     test_the_package_module_refusal_suggests_an_exported_name;
-    commit=WORKTREE]
+    commit=6375a7c8f3c035b04bc9d41c8f7f22e56b42fb41]
 Open Obligations:
   To Do: None
   Hacks: None

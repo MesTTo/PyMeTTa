@@ -89,7 +89,7 @@ Guarantees:
   - compile_function raises sys.audit("metta.host", "compile", qualname)
     before it reads a function's source, so the third host door is auditable
     with the other two [tested: test_the_compile_door_raises_its_event;
-    commit=WORKTREE]
+    commit=6375a7c8f3c035b04bc9d41c8f7f22e56b42fb41]
 Open Obligations:
   To Do: None
   Hacks: None

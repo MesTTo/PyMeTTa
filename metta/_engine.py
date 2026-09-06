@@ -66,12 +66,12 @@ Guarantees:
     test_an_engine_warning_becomes_a_warning_record,
     test_an_engine_error_becomes_an_error_record,
     test_a_broken_handler_cannot_poison_the_crossing,
-    test_the_kind_map_covers_swis_own_levels; commit=WORKTREE]
+    test_the_kind_map_covers_swis_own_levels; commit=6375a7c8f3c035b04bc9d41c8f7f22e56b42fb41]
   - the package root logger carries the library NullHandler from this module,
     so a record nobody configured a handler for does not reach
     logging.lastResort and print a second copy of a line SWI already wrote
     [tested: test_the_package_root_carries_the_library_null_handler;
-    commit=WORKTREE]
+    commit=6375a7c8f3c035b04bc9d41c8f7f22e56b42fb41]
 Guarded by:
   - _LOCK serializes runtime creation and every call made on the HOME engine.
     A thread holding its own attached engine takes no process lock: it shares

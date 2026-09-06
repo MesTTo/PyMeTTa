@@ -220,7 +220,7 @@ Guarantees:
   - a context refusal for a Space door carries AttributeError's name and obj
     beside its own remedy, while a private-name probe stays bare [tested:
     test_a_context_door_that_belongs_to_the_space_still_names_the_remedy;
-    commit=WORKTREE]
+    commit=6375a7c8f3c035b04bc9d41c8f7f22e56b42fb41]
 Owns resources:
   - ``Space.save`` owns its sibling temporary file and removes it after every
     failed operation [tested: test_save_failure_preserves_existing_file;

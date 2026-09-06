@@ -51,15 +51,15 @@
 %     test_a_head_loaded_from_a_metta_file_names_that_file_and_line,
 %     test_every_clause_of_a_multi_clause_head_answers_in_clause_order,
 %     test_two_files_defining_one_head_keep_each_clause_with_its_own_file,
-%     shim_observation_doors; commit=WORKTREE].
+%     shim_observation_doors; commit=6375a7c8f3c035b04bc9d41c8f7f22e56b42fb41].
 %   - the thread_message_hook/3 clause here delivers to metta_ops and then
 %     FAILS, so SWI still prints, and it never reenters itself [tested:
 %     test_the_engine_still_prints_its_own_message, shim_observation_doors;
-%     commit=WORKTREE].
+%     commit=6375a7c8f3c035b04bc9d41c8f7f22e56b42fb41].
 %   - a profile row carries its predicate's source and its ticks in seconds,
 %     converted the way SWI's own report converts them [tested:
 %     test_a_profile_is_the_same_table_every_other_door_answers,
-%     test_a_profile_exports_as_pstats; commit=WORKTREE].
+%     test_a_profile_exports_as_pstats; commit=6375a7c8f3c035b04bc9d41c8f7f22e56b42fb41].
 %   - atomic entry points publish atom hooks after commit, while speculative
 %     and reified-world entry points discard their buffered event segments;
 %     speculative and world execution also fence the non-backtrackable State

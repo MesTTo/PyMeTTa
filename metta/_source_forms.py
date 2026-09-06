@@ -13,7 +13,7 @@ Assumes:
     indexing the same parsed-form list metta_py_read_forms/2 answers, so the
     walk below is what turns an index into a line
     [source: extensions/python/metta/shim.pl metta_py_origin/3;
-    commit=WORKTREE]
+    commit=6375a7c8f3c035b04bc9d41c8f7f22e56b42fb41]
 Guarantees:
   - a locator/reader disagreement raises instead of guessing [tested
     test_a_locator_mismatch_refuses]
@@ -25,7 +25,7 @@ Guarantees:
     source that no longer carries the equation loses the line rather than
     answering a wrong one [tested:
     test_every_clause_of_a_multi_clause_head_answers_in_clause_order,
-    test_an_edited_file_loses_the_line_and_keeps_the_file; commit=WORKTREE]
+    test_an_edited_file_loses_the_line_and_keeps_the_file; commit=6375a7c8f3c035b04bc9d41c8f7f22e56b42fb41]
 Open Obligations:
   To Do: None
   Hacks: None
