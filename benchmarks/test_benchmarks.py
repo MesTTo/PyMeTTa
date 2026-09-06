@@ -273,7 +273,7 @@ _ROWS = 2_000
 #: print(_automatic_tabling_observations())"; fixture=a clone of the branch
 #: whose path is as long as the repository root with the C reader, writer,
 #: JSON codec, chapter-19 artifacts and libmork_ffi.so present and the QLF
-#: warmed, loadavg 12 to 15; commit=WORKTREE].
+#: warmed, loadavg 12 to 15; commit=b96e1a15260b7538a8e42be613bcc5dd0dddd136].
 _AUTOMATIC_TABLING_PINS = {
     12: {"plain": 122_123, "automatic": 14_372},
     15: {"plain": 953_645, "automatic": 15_506},

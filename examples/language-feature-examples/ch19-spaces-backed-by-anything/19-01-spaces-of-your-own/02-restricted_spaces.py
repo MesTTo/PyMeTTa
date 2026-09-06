@@ -185,5 +185,5 @@ def twin(m):  # noqa: ARG001  -- both spaces are created here; the default handl
 #: September merge wave has moved the engine's clause layout, the evaluation
 #: path and the library's write doors since [measured 2026-09-06: min-of-3
 #: serial fresh processes; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+#: extensions/python/tools/twin_coverage.py --repin; commit=b96e1a15260b7538a8e42be613bcc5dd0dddd136].
 BUDGET = 70138

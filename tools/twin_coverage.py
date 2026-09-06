@@ -40,7 +40,7 @@ Assumes:
     declares its own two-sided ALLOWANCE beside BUDGET, and a re-pin honours
     it rather than rewriting the number the band holds still
     [tested: test_a_declared_allowance_widens_one_twins_band_only,
-    test_a_declared_allowance_is_validated; commit=WORKTREE]
+    test_a_declared_allowance_is_validated; commit=b96e1a15260b7538a8e42be613bcc5dd0dddd136]
   - an assert-family head states one claim, and Python's `assert` is its image
     [source: engine/prelude.metta 56-103; ai-python-first-revamp-discussion.md
     section 9d rule 1, "assert and pytest for the assert family"]

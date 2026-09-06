@@ -787,7 +787,7 @@ def twin(m):
 #: so its first evaluation pays +14. The identity twin's fifth merge
 #: resolution; the four earlier ones sit above [measured 2026-09-05: min-of-3
 #: serial fresh processes; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+#: extensions/python/tools/twin_coverage.py --repin; commit=b96e1a15260b7538a8e42be613bcc5dd0dddd136].
 #: RE-PINNED 2026-09-05, 3412 to 3417 (+5), Union membership's decision
 #: predicates live in engine/metta/type_unions.pl and reach the typing registry
 #: through its public surface, because this row counts engine code SHAPE: five
@@ -795,7 +795,7 @@ def twin(m):
 #: new unit resident with no caller leaves it unmoved (measured on the union
 #: branch, five arms). The identity twin's sixth merge resolution [measured
 #: 2026-09-05: min-of-3 serial fresh processes; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+#: extensions/python/tools/twin_coverage.py --repin; commit=b96e1a15260b7538a8e42be613bcc5dd0dddd136].
 #: RE-PINNED 2026-09-05, 3417 to 3382 (-35), the debugger's three seam
 #: declarations change kind/2's clause layout: engine/ext_points.pl gains
 #: kind(metta_debug_begin/1, host_service), kind(metta_debug_run/3,
@@ -816,7 +816,7 @@ def twin(m):
 #: rows moved it -35; metta side unchanged. This row counts code shape and
 #: moves with every engine unit change; the seventh resolution tonight
 #: [measured 2026-09-05: min-of-3 serial fresh processes; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+#: extensions/python/tools/twin_coverage.py --repin; commit=b96e1a15260b7538a8e42be613bcc5dd0dddd136].
 #: RE-PINNED 2026-09-05, 3387 to 3422 (+35), materialization, the Generic Join
 #: planner and the folding pass add engine units, and this row counts code
 #: shape. The trunk it rebases onto already measures 3404 against this pin in a
@@ -943,5 +943,5 @@ BUDGET = 3422
 #: 3398/3397/3412/3404/3404/3422/3422/3422/3437/3437/3437/3422/3422/3422/3422/3422;
 #: command=python extensions/python/tools/twin_coverage.py --measure --rounds
 #: 3 examples/ch05-equations-and-evaluation/05-01-an-equation-is-a-
-#: rewrite/01-identity.metta; commit=WORKTREE].
+#: rewrite/01-identity.metta; commit=b96e1a15260b7538a8e42be613bcc5dd0dddd136].
 ALLOWANCE = 20
