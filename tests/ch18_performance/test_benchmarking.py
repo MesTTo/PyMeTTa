@@ -410,7 +410,9 @@ def test_measure_counters_refuses_a_counter_perf_did_not_produce(monkeypatch):
         return 0, "", "<not counted>,,instructions:u,0,0.00,,\n"
 
     monkeypatch.setattr("metta.benchmarking._run_perf", run)
-    with pytest.raises(RuntimeError, match="did not return a numeric instructions:u"):
+    # `<not counted>` is the box refusing rather than the workload answering, so
+    # the refusal carries its own type and names the knob that decides it.
+    with pytest.raises(MeasurementRefusedError, match="never armed"):
         measure_counters(["cases", "boot"])
 
 
