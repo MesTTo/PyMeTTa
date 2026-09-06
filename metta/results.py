@@ -1364,11 +1364,12 @@ class Answers[T](Sequence[T]):
         # the cursor synchronously from here aborted the process inside SWI's
         # copy_record on a record another member's finaliser had already
         # erased [source: docs/journal/2026-09-06-finalisers-must-not-call-prolog.md;
-        # commit=WORKTREE]. Asked for by name rather than by a flag, so a
+        # commit=2421d06e697daffb0797c307a798131616ebdd8e]. Asked for by name rather
+        # than by a flag, so a
         # source that has no engine behind it needs no changes and keeps its
         # plain close().
         # [tested: test_a_view_dropped_in_a_cycle_defers_its_cursor_close;
-        # commit=WORKTREE]
+        # commit=2421d06e697daffb0797c307a798131616ebdd8e]
         source = self._source
         close = getattr(source, "close_deferred", None) or getattr(source, "close", None)
         if callable(close):

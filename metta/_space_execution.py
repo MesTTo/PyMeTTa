@@ -646,7 +646,7 @@ def _release_cursor(rt: Runtime, handle: Any) -> None:
     _OPEN_CURSORS, so it is continuously reachable and never inert when used.
     [tested: test_a_view_dropped_in_a_cycle_defers_its_cursor_close,
     test_an_explicit_close_still_closes_its_cursor_immediately;
-    commit=WORKTREE]
+    commit=2421d06e697daffb0797c307a798131616ebdd8e]
     """
     _OPEN_CURSORS.pop(id(handle), None)
     if getattr(_FINALISING, "active", False):

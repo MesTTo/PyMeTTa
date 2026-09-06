@@ -15,30 +15,30 @@ Guarantees:
     the process aborts on `./src/pl-rec.c:1560: copy_record___LD: Assertion
     failed: 0` [tested:
     test_a_released_term_handed_back_to_prolog_is_refused_not_fatal;
-    commit=WORKTREE]
+    commit=2421d06e697daffb0797c307a798131616ebdd8e]
   - a Term finalised anywhere defers its record to the engine rather than
     erasing it where it stands [tested:
     test_a_finalised_term_defers_its_record_and_goes_inert;
-    commit=WORKTREE]
+    commit=2421d06e697daffb0797c307a798131616ebdd8e]
   - the next engine crossing does that deferred work, and a piece of it that
     fails does not fail the unrelated call that drained it [tested:
     test_deferred_work_is_drained_by_the_next_engine_crossing,
     test_a_failing_deferred_call_does_not_fail_the_crossing_that_drains_it;
-    commit=WORKTREE]
+    commit=2421d06e697daffb0797c307a798131616ebdd8e]
   - a lazy view dropped inside a reference cycle defers its cursor close
     instead of crossing from the collector, while an explicit close still
     closes immediately [tested:
     test_a_view_dropped_in_a_cycle_defers_its_cursor_close,
     test_an_explicit_close_still_closes_its_cursor_immediately;
-    commit=WORKTREE]
+    commit=2421d06e697daffb0797c307a798131616ebdd8e]
   - a match cursor dropped unclosed defers its close instead of crossing from
     the collector [tested:
     test_a_dropped_cursor_defers_its_close_instead_of_crossing;
-    commit=WORKTREE]
+    commit=2421d06e697daffb0797c307a798131616ebdd8e]
   - the janus private structure the release depends on is asserted, so a janus
     upgrade that moves it fails here rather than at a core dump [tested:
     test_the_janus_term_shape_the_deferred_release_depends_on;
-    commit=WORKTREE]
+    commit=2421d06e697daffb0797c307a798131616ebdd8e]
 """
 
 import gc
@@ -70,7 +70,7 @@ def _lazy_view(metta, prefix):
     # The count route declines to count an effect-bearing source cheaply and
     # RETAINS the answers in an engine instead, which is what leaves a cursor
     # for a finaliser to close [source: metta/_space_execution.py,
-    # _RetainedAnswers; commit=WORKTREE].
+    # _RetainedAnswers; commit=2421d06e697daffb0797c307a798131616ebdd8e].
     assert len(view) == 2
     return view
 

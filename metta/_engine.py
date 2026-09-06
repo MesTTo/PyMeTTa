@@ -379,7 +379,8 @@ def _no_engine(exc: ImportError) -> NoReturn:
 # `assert(0)` at src/pl-rec.c:1560 in copy_record -- the default arm of its
 # switch over record tags, which is what reading an ALREADY ERASED record looks
 # like [source: SWI-Prolog 10.1.13 src/pl-rec.c:1560 copy_record, reached from
-# janus_swi 1.5.3 janus.c py_unify_record; commit=WORKTREE]. A finaliser runs
+# janus_swi 1.5.3 janus.c py_unify_record;
+# commit=2421d06e697daffb0797c307a798131616ebdd8e]. A finaliser runs
 # at a point no caller chooses -- inside a garbage collection pass, on any
 # thread, possibly while that thread is already inside another crossing -- and
 # within one cycle the collector finalises members in no defined order, so the
@@ -422,11 +423,12 @@ def _install_deferred_term_release(janus: Any) -> None:
     engine LD is null and the process dies with SIGSEGV
     [source: SWI-Prolog 10.1.13 src/pl-incl.h:2839 truePrologFlag,
     src/pl-thread.c:7353 signalGCThread, src/pl-atom.c:1475 considerAGC;
-    commit=WORKTREE].
+    commit=2421d06e697daffb0797c307a798131616ebdd8e].
 
     THE SECOND DEFECT, in the same method. janus 1.5.3 clears `self.record`,
     an attribute nothing reads, where it means `self._record`
-    [source: janus_swi 1.5.3 janus.py:485-488; commit=WORKTREE]. A released
+    [source: janus_swi 1.5.3 janus.py:485-488; commit=2421d06e697daffb0797c307a798131616ebdd8e]. A
+    released
     Term therefore keeps a dangling record id, and anything that passes it back
     to Prolog reaches PL_recorded on freed memory, which is the copy_record
     assertion above. Clearing the attribute janus reads makes its own guard
@@ -435,7 +437,8 @@ def _install_deferred_term_release(janus: Any) -> None:
 
     _swipl.engine() is PL_thread_self(), which returns -1 exactly when LD is
     null [source: SWI-Prolog 10.1.13 src/pl-thread.c:1739 PL_thread_self;
-    commit=WORKTREE]. That is the same variable whose nullness faults, read
+    commit=2421d06e697daffb0797c307a798131616ebdd8e]. That is the same variable whose nullness
+    faults, read
     through janus's own public API rather than a proxy for it; the deferral
     does not consult it, because a finaliser on a thread that HAS an engine is
     still a finaliser and still unsafe, but the drain does.
@@ -445,7 +448,8 @@ def _install_deferred_term_release(janus: Any) -> None:
     a static, and py_is_record tests a candidate with
     `cls == py_term_constructor()`, an identity comparison
     [source: janus_swi 1.5.3 janus.c:1547 py_term_constructor, :1627
-    py_is_record; commit=WORKTREE]. A subclass fails that test, so a Term of
+    py_is_record; commit=2421d06e697daffb0797c307a798131616ebdd8e]. A subclass fails that test, so a
+    Term of
     ours would stop being recognised as a record on the way back into Prolog.
     Replacing the method on the one class object janus already caches reaches
     every instance, including the ones its C creates, and changes no identity.
@@ -457,7 +461,7 @@ def _install_deferred_term_release(janus: Any) -> None:
     [tested: test_the_janus_term_shape_the_deferred_release_depends_on,
     test_a_finalised_term_defers_its_record_and_goes_inert,
     test_deferred_work_is_drained_by_the_next_engine_crossing;
-    commit=WORKTREE]
+    commit=2421d06e697daffb0797c307a798131616ebdd8e]
     """
     term = getattr(janus, "Term", None)
     if term is None:
@@ -487,7 +491,8 @@ def _install_deferred_term_release(janus: Any) -> None:
     # namespace has been torn down. It is the same reason asyncio's transports
     # write `def __del__(self, _warn=warnings.warn)`
     # [source: https://github.com/python/cpython/blob/main/Lib/asyncio/proactor_events.py,
-    # _ProactorBasePipeTransport.__del__; commit=WORKTREE].
+    # _ProactorBasePipeTransport.__del__;
+    # commit=2421d06e697daffb0797c307a798131616ebdd8e].
     def released(
         self: Any,
         _defer: Any = _defer_record_erase,
@@ -893,10 +898,10 @@ class Runtime:
         the pop; that is the shape jedi's CompiledSubprocess.run uses to drain
         its own deletion queue
         [source: https://github.com/davidhalter/jedi/blob/master/jedi/inference/compiled/subprocess/__init__.py,
-        CompiledSubprocess.run; commit=WORKTREE].
+        CompiledSubprocess.run; commit=2421d06e697daffb0797c307a798131616ebdd8e].
         [tested: test_deferred_work_is_drained_by_the_next_engine_crossing,
         test_a_failing_deferred_call_does_not_fail_the_crossing_that_drains_it;
-        commit=WORKTREE]
+        commit=2421d06e697daffb0797c307a798131616ebdd8e]
         """
         if not _DEFERRED_WORK or getattr(_DRAINING, "active", False):
             return

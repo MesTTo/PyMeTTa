@@ -692,10 +692,11 @@ class Cursor:
         is a crossing, and one taken that way aborted the process inside SWI's
         copy_record [source:
         docs/journal/2026-09-06-finalisers-must-not-call-prolog.md;
-        commit=WORKTREE]. _finish() disarms this and closes directly, so the
+        commit=2421d06e697daffb0797c307a798131616ebdd8e]. _finish() disarms this and closes
+        directly, so the
         explicit path still reports its failures to the caller that asked.
         [tested: test_a_dropped_cursor_defers_its_close_instead_of_crossing;
-        commit=WORKTREE]
+        commit=2421d06e697daffb0797c307a798131616ebdd8e]
         """
         del runtime  # the drain makes the call on its own runtime
         defer_engine_call("metta_py_cursor_close", handle)
