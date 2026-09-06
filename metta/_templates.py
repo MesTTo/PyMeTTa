@@ -22,26 +22,26 @@ names [source: https://www.psycopg.org/psycopg3/docs/basic/tstrings.html].
 Assumes:
   - ``BOUNDARY`` is the engine reader's token boundary set, Unicode
     White_Space plus ``(``, ``)`` and ``;`` [tested:
-    test_the_boundary_table_matches_the_engines; commit=WORKTREE]
+    test_the_boundary_table_matches_the_engines; commit=4481c32eb0e922047199c54cea97c24995c6959e]
   - a template's ``strings`` is one longer than its ``interpolations``, which
     PEP 750 guarantees and which a hand-built object is checked for [tested:
-    test_a_malformed_template_object_is_refused; commit=WORKTREE]
+    test_a_malformed_template_object_is_refused; commit=4481c32eb0e922047199c54cea97c24995c6959e]
 Guarantees:
   - a spliced hole name reads back as one symbol and can be substituted, since
     it is a token of no boundary character that is not a number, a string, a
     boolean or a variable [tested: test_the_reserved_hole_symbol_reads_as_itself;
-    commit=WORKTREE]
+    commit=4481c32eb0e922047199c54cea97c24995c6959e]
   - a hole that would not be its own token is refused with its line and column
     in the text the author wrote, separately for a string literal, a comment and
     a symbol [tested: test_a_hole_inside_a_string_literal_is_refused,
     test_a_hole_inside_a_comment_is_refused,
-    test_a_hole_inside_a_symbol_is_refused; commit=WORKTREE]
+    test_a_hole_inside_a_symbol_is_refused; commit=4481c32eb0e922047199c54cea97c24995c6959e]
   - author text carrying the reserved prefix is refused, so a generated name
     cannot collide with one the program already uses [tested:
-    test_program_text_may_not_spell_the_reserved_prefix; commit=WORKTREE]
+    test_program_text_may_not_spell_the_reserved_prefix; commit=4481c32eb0e922047199c54cea97c24995c6959e]
   - values enter through ``encode``, so an int is a Number, a str a String, an
     Atom itself and a Space its handle [tested:
-    test_a_hole_enters_each_value_kind_through_encode; commit=WORKTREE]
+    test_a_hole_enters_each_value_kind_through_encode; commit=4481c32eb0e922047199c54cea97c24995c6959e]
 Fails when: the caller wants the template rendered to a string. It is not a
   formatter; ``format(...)`` and f-strings are Python's own answer for text.
 Open Obligations:

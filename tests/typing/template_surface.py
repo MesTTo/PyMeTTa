@@ -17,10 +17,10 @@ Guarantees:
   - the 3.14 ``Template`` and ``Interpolation`` satisfy ``TemplateLike`` and
     ``InterpolationLike``, and a plain class of four attributes satisfies the
     latter too, so the backport and a test double reach the same door
-    [tested: mypy-template-surface; commit=WORKTREE]
+    [tested: mypy-template-surface; commit=4481c32eb0e922047199c54cea97c24995c6959e]
   - every door that takes program text with holes accepts a ``Template``, a
     ``str``, and the keyword face's values [tested: mypy-template-surface;
-    commit=WORKTREE]
+    commit=4481c32eb0e922047199c54cea97c24995c6959e]
 """
 
 from string.templatelib import Interpolation, Template

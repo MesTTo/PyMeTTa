@@ -32,7 +32,7 @@ Guarantees:
     commit=9c03403aaaca9f1a1ec52e5898dd547eb80c8e82]
   - parse takes program text with holes and lands their values in the term it
     answers, making exactly one reader crossing either way [tested:
-    test_every_text_door_takes_program_text_with_holes; commit=WORKTREE]
+    test_every_text_door_takes_program_text_with_holes; commit=4481c32eb0e922047199c54cea97c24995c6959e]
   - engine results restore registered ampersand names as Space operands while
     the public wire decoder keeps explicit s and p tags distinct [tested:
     test_space_handles_are_term_operands_and_round_trip; commit=4e2398075da67bb2cbcc123a9fc1e078ecac6fbf]

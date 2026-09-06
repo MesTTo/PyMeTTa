@@ -11,11 +11,11 @@ supported version, which is the point of accepting the shape structurally.
 
 Guarantees:
   - the reader's boundary table and this library's copy of it cannot drift
-    [tested: test_the_boundary_table_matches_the_engines; commit=WORKTREE]
+    [tested: test_the_boundary_table_matches_the_engines; commit=4481c32eb0e922047199c54cea97c24995c6959e]
   - a hole and a binding of the same value answer identically, and a binding
     reaches occurrences a hole cannot [tested: test_a_hole_and_a_binding_answer_the_same,
     test_a_binding_reaches_every_occurrence_where_a_hole_reaches_one;
-    commit=WORKTREE]
+    commit=4481c32eb0e922047199c54cea97c24995c6959e]
 Open Obligations:
   To Do: None
   Hacks: None

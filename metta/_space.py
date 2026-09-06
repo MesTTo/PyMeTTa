@@ -10,15 +10,15 @@ Guarantees:
   - every text door takes program text with holes in all three faces, and the
     two with no engine binding channel put the values in the term instead
     [tested: test_every_text_door_takes_program_text_with_holes,
-    test_a_pattern_template_matches_the_value_itself; commit=WORKTREE]
+    test_a_pattern_template_matches_the_value_itself; commit=4481c32eb0e922047199c54cea97c24995c6959e]
   - a hole and a bind() of the same value answer identically, while a binding
     also reaches the occurrences a hole cannot [tested:
     test_a_hole_and_a_binding_answer_the_same,
     test_a_binding_reaches_every_occurrence_where_a_hole_reaches_one;
-    commit=WORKTREE]
+    commit=4481c32eb0e922047199c54cea97c24995c6959e]
   - the doors with nowhere to put a hole refuse one, naming the reason and the
     remedy [tested: test_load_refuses_program_text_with_holes,
-    test_run_status_refuses_program_text_with_holes; commit=WORKTREE]
+    test_run_status_refuses_program_text_with_holes; commit=4481c32eb0e922047199c54cea97c24995c6959e]
   - captured annotation membership retains the cursor's evaluation context
     [tested: tests/ch06_many_answers/test_evaluation_context_types.py; commit=074dc0a88b1605c54824de677d586b6f60998bcf]
   - tagged guards retain scoped binding preparation while carrying their algebra

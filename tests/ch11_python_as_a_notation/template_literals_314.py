@@ -14,7 +14,7 @@ Guarantees:
   - each function answers a real ``string.templatelib.Template`` built by the
     compiler, not a hand-assembled object, so the literal path is what the
     suite exercises [tested: test_a_literal_template_binds_an_int;
-    commit=WORKTREE]
+    commit=4481c32eb0e922047199c54cea97c24995c6959e]
 Open Obligations:
   To Do: None
   Hacks: None

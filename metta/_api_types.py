@@ -12,7 +12,7 @@ Guarantees:
     carrying the two attributes does too, so the 3.14 literal and a backport
     reach one door [tested:
     test_a_hand_built_template_object_reaches_the_same_door,
-    mypy-template-surface; commit=WORKTREE]
+    mypy-template-surface; commit=4481c32eb0e922047199c54cea97c24995c6959e]
 Assumes:
   - it imports nothing but ``typing``, which is what lets the LEAF modules use
     it: ``metta.casting`` costs 10.9ms to import and ``metta.integrate``, where
