@@ -121,6 +121,12 @@ effect class, because the engine cannot see inside it: `pure`, `reads`,
 asked. A written `!(memoize f)` or `!(tabled (f $x))` is honoured whatever the
 class says.
 
+The ordered `EffectClass` members are: `pureStructural`, `readOnlyLookup`,
+`nondeterministicReadOnly`, `writesState`, `oracleIO`. Those are the longhands
+`effect=` takes and the names reflection answers with. There is no shorthand
+for `nondeterministicReadOnly` because registering a generator lifts the class
+itself.
+
 ## What a compiled BODY may say
 
 There is no unsupported-construct list. `try`/`except`/`else`/`finally` and

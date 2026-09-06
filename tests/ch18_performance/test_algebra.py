@@ -6,6 +6,13 @@ Guarantees:
   - a ground algebra goal cannot bind a variable inside a stored candidate
     [tested: test_algebra_patterns_do_not_bind_variables_inside_stored_candidates;
     commit=6917bef7ca902671999eafcae3a7a86db8f69723]
+  - a MeTTa-defined operation is checked once in the space that declares its
+    algebra, and an actual counterexample keeps the AlgebraLawError API
+    [tested: test_a_law_is_checked_once_in_the_declaring_space,
+    test_a_false_declared_law_is_refused_by_name; commit=2e627a593413191cda3170f2eb716835f7f62543]
+  - direct algebra rows carry the annotation context that owns them [tested:
+    test_a_declared_semiring_quadruple_serves_annotations_like_a_builtin_one;
+    commit=2e627a593413191cda3170f2eb716835f7f62543]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -47,9 +54,12 @@ class _WeightedFacts(SpaceProvider):
             yield Answer(value=parse("(right b)"), k=3)
 
 
-def _join_annotation(metta, name: str, algebra: str) -> str:
+def _join_annotation(metta, name: str, algebra: str, **declaration) -> str:
     metta._register_space(_WeightedFacts(), name)
-    metta.annotations(name, algebra)
+    provider = metta._at(name)
+    if declaration:
+        provider.algebra(algebra, **declaration)
+    provider.annotations(algebra)
     result = metta.run(
         f"!(match {name} (, (left a) (right b)) (annotation))"
     )
@@ -60,19 +70,23 @@ def test_a_declared_semiring_quadruple_serves_annotations_like_a_builtin_one(
     metta,
 ):
     """A user quadruple and the shipped probability preset share one join."""
-    metta.algebra(
+    custom = _join_annotation(
+        metta,
+        "&p4-custom-product",
         "p4-user-product",
         combine="+",
         extend="*",
         zero=0,
         one=1,
     )
-    custom = _join_annotation(metta, "&p4-custom-product", "p4-user-product")
     shipped = _join_annotation(metta, "&p4-shipped-product", "prob")
     assert custom == shipped == "6"
 
     metta._at("&metta").add(
-        parse("(algebra p4-direct-product + * 0 1 (laws) (carrier) (requires))")
+        parse(
+            "(algebra p4-direct-product + * 0 1 (laws) (carrier) "
+            "(requires) &p4-direct-product)"
+        )
     )
     direct = _join_annotation(metta, "&p4-direct-product", "p4-direct-product")
     assert direct == shipped
@@ -80,14 +94,14 @@ def test_a_declared_semiring_quadruple_serves_annotations_like_a_builtin_one(
 
 def test_a_declared_algebra_without_laws_answers_in_order_and_unfused(metta):
     """Ordinary atomspace facts are authoritative and missing laws are visible."""
-    metta.algebra(
-        "p4-lawless-order",
-        combine="pair",
-        extend="pair",
-        zero=S.none,
-        one=S.unit,
-    )
     with metta._new_space() as lawless:
+        lawless.algebra(
+            "p4-lawless-order",
+            combine="pair",
+            extend="pair",
+            zero=S.none,
+            one=S.unit,
+        )
         lawless.add(parse("(fact first (choice same))"))
         lawless.add(parse("(fact second (choice same))"))
         answers = list(lawless.match(S.choice(S.same), under="p4-lawless-order"))
@@ -98,14 +112,15 @@ def test_a_declared_algebra_without_laws_answers_in_order_and_unfused(metta):
         assert answers[0].plan[0].applied is False
         assert answers[0].plan[0].missing_laws == ("combine-associative",)
 
-    metta.algebra(
-        "p4-handwritten-bisim",
-        combine="+",
-        extend="*",
-        zero=0,
-        one=1,
-    )
     with metta._new_space() as handwritten, metta._new_space() as generated:
+        for program in (handwritten, generated):
+            program.algebra(
+                "p4-handwritten-bisim",
+                combine="+",
+                extend="*",
+                zero=0,
+                one=1,
+            )
         handwritten.add(parse("(fact 2 (parent tom bob))"))
         handwritten.add(parse("(fact 3 (parent bob ann))"))
         handwritten.add(
@@ -135,14 +150,14 @@ def test_a_declared_algebra_without_laws_answers_in_order_and_unfused(metta):
 
 def test_algebra_patterns_do_not_bind_variables_inside_stored_candidates(metta):
     """Neither a final goal nor a rule premise may fill a stored variable."""
-    metta.algebra(
-        "p4-directional-goal",
-        combine="+",
-        extend="*",
-        zero=0,
-        one=1,
-    )
     with metta._new_space() as facts:
+        facts.algebra(
+            "p4-directional-goal",
+            combine="+",
+            extend="*",
+            zero=0,
+            one=1,
+        )
         facts.add_tagged_fact(1, S.edge(V.stored, S.b))
         facts.add_tagged_rule(
             1,
@@ -169,7 +184,10 @@ def test_a_false_declared_law_is_refused_by_name(metta):
     )
     with pytest.raises(
         AlgebraLawError,
-        match=r"algebra_law_violation\(p4-bad-associative, combine-associative",
+        match=(
+            r"algebra_law_violation: p4-bad-associative law "
+            r"combine-associative fails at"
+        ),
     ):
         metta.algebra(
             "p4-bad-associative",
@@ -180,6 +198,22 @@ def test_a_false_declared_law_is_refused_by_name(metta):
             laws=("associative",),
             carrier=(0, 1, 2),
         )
+
+
+def test_a_law_is_checked_once_in_the_declaring_space(metta):
+    """A local equation certifies its local algebra instead of being retried in &self."""
+    with metta._new_space() as scratch:
+        scratch.run("(= (p4-local-max $a $b) (if (> $a $b) $a $b))")
+        row = scratch.algebra(
+            "p4-local-certified",
+            combine="p4-local-max",
+            extend="*",
+            zero=0.0,
+            one=1.0,
+            laws=("combine-associative",),
+            carrier=(0.0, 1.0),
+        )
+    assert row.head == S.algebra
 
 
 @given(

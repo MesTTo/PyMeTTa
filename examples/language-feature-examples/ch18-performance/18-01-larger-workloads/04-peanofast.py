@@ -13,9 +13,10 @@ constructor `S.Z`.
 
 The count stays in the engine: `match(pattern, under=counting).one()` maps
 each derivation to one, preserves the bag, aggregates there, and crosses only
-the integer 2500. No depth-K Peano term is materialized in Python [tested:
-tools/twin_coverage.py --measure examples/ch18-performance/18-01-larger-workloads/04-peanofast.metta;
-commit=c7468b2789746bcf95c4bacc0e2d517ec4d972fa].
+one TaggedAnswer whose annotation is the integer 2500. No depth-K Peano term
+is materialized in Python [tested:
+tools/twin_coverage.py --measure --rounds 1 examples/ch18-performance/18-01-larger-workloads/04-peanofast.metta;
+commit=2e627a593413191cda3170f2eb716835f7f62543].
 """
 
 from metta import S, V, counting, fn
@@ -44,7 +45,7 @@ def twin(m):
         return expand_k(S.Z, k)
 
     assert demo_peano(2500) == [S.done]
-    assert m.match(S.num(V.stored), under=counting).one() == 2500
+    assert m.match(S.num(V.stored), under=counting).one().annotation == 2500
 
 
 #: Inferences this twin spends, its own tripwire. PLACEHOLDER: the wave's

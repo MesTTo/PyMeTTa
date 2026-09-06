@@ -32,6 +32,11 @@ Guarantees:
     test_answers_are_lazy_cached_and_cardinality_aware,
     test_answers_project_caller_variables_and_slices_stay_answers;
     commit=2d4d4583c2d82e90bb21a7e8671842f126edd4f4]
+  - a nonnegative bounded slice of an untouched view offers its stop as the
+    producer bound before either source starts, while any prior observation
+    keeps the original shared cursor [tested:
+    test_only_a_pristine_bounded_slice_offers_its_stop_to_the_source;
+    commit=2e627a593413191cda3170f2eb716835f7f62543]
   - evaluation values and their caller-binding rows are parallel faces of one
     Answers cursor [tested: test_calls_keep_values_and_binding_rows;
     commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
@@ -773,6 +778,7 @@ class Answers[T](Sequence[T]):
     """
 
     __slots__ = (
+        "_bound_source",
         "_cache",
         "_columns",
         "_count_source",
@@ -797,8 +803,14 @@ class Answers[T](Sequence[T]):
         target: object = None,
         count: Callable[..., int | None] | None = None,
         query: _QueryContext | None = None,
+        bound_source: Callable[
+            [int, Iterable[T | _AnswerItem]],
+            Iterable[T | _AnswerItem] | None,
+        ]
+        | None = None,
     ) -> None:
         self._source = iter(source)
+        self._bound_source = bound_source
         self._columns = tuple(columns)
         self._count_source = count
         self._known_length: int | None = None
@@ -966,19 +978,57 @@ class Answers[T](Sequence[T]):
             raise TypeError(msg)
         return self._at(key)
 
+    @property
+    def _pristine(self) -> bool:
+        """Whether nothing has yet been read out of this view.
+
+        A bound may be pushed into the producer only while every one of these
+        holds. A cached prefix, a finished cursor, a demand for values, an
+        error or a known length all mean answers or a count have already been
+        reported, and a narrower producer would answer a different prefix from
+        the one already given out.
+        """
+        return not (
+            self._cache
+            or self._done
+            or self._values_demanded
+            or self._error is not None
+            or self._known_length is not None
+        )
+
     def _slice(self, window: slice) -> Answers[T]:
         if window.step == 0:
             msg = "slice step cannot be zero"
             raise ValueError(msg)
 
+        base: Answers[T] = self
+        stop = window.stop
+        nonnegative = not any(
+            value is not None and value < 0
+            for value in (window.start, stop, window.step)
+        )
+        if (
+            stop is not None
+            and stop > 0
+            and nonnegative
+            and self._bound_source is not None
+            and self._pristine
+        ):
+            replacement = self._bound_source(stop, self._items())
+            if replacement is not None:
+                base = Answers(
+                    replacement,
+                    columns=self._columns,
+                    space=self._space,
+                    target=self._target,
+                    query=self._query,
+                )
+
         def selected() -> Iterator[T | _AnswerItem]:
-            if any(
-                value is not None and value < 0
-                for value in (window.start, window.stop, window.step)
-            ):
-                self._materialize()
-                for index in range(len(self._cache))[window]:
-                    yield _AnswerItem(self._cache[index], self._row_cache[index])
+            if not nonnegative:
+                base._materialize()
+                for index in range(len(base._cache))[window]:
+                    yield _AnswerItem(base._cache[index], base._row_cache[index])
                 return
             indices = itertools.islice(
                 itertools.count(),
@@ -987,9 +1037,9 @@ class Answers[T](Sequence[T]):
                 window.step or 1,
             )
             for index in indices:
-                if not self._pull(index):
+                if not base._pull(index):
                     return
-                yield _AnswerItem(self._cache[index], self._row_cache[index])
+                yield _AnswerItem(base._cache[index], base._row_cache[index])
 
         return Answers(
             selected(), columns=self._columns, space=self._space, target=self._target

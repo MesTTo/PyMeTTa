@@ -1,10 +1,11 @@
 """Purpose: prove the Fork 4 surface collapse deletes superseded doors.
 Guarantees:
-  - the renamed package surface has 102 names and keeps ``record`` and
+  - the package surface has 113 names, including every shipped semiring
+    object and the current algebra observer, and keeps ``record`` and
     ``order_key`` absent [tested: test_m7_narrow_core_surface;
-    commit=3f0a1d237a3c969b2d4ad0d48b2195ce196b631a]
+    commit=2e627a593413191cda3170f2eb716835f7f62543]
   - the published before/after counts are exact for ``MeTTa`` and ``metta``
-    [tested: test_m7_narrow_core_surface; commit=c7468b2789746bcf95c4bacc0e2d517ec4d972fa]
+    [tested: test_m7_narrow_core_surface; commit=2e627a593413191cda3170f2eb716835f7f62543]
   - every retired root, context, and atom name is absent rather than aliased
     [tested: test_m7_narrow_core_surface; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - all fifteen ``declare_*`` spellings are absent from both synchronous and
@@ -80,7 +81,7 @@ FINAL_METTA_METHODS = 35
 # and therefore needs no name; +1 for doc, the get-doc receiver verb on the
 # default context, landing beside match and eval; +2 for the library import
 # door, `lib` the catalog-generated namespace the write door consumes and
-# +6 for under, counting, tropical, prov, ranked and prob. The deliberate pin is
+# +11 for under and the ten generated-catalog semiring objects. The pin is
 # the algebra-carrier surface adopted in ai-python-first-revamp-discussion.md
 # lines 3024-3034 and 5471-5492; +1 for the exact ``metta.speculate()``
 # module-tier spelling required by style ledger
@@ -110,7 +111,9 @@ FINAL_METTA_METHODS = 35
 # rather than a document link because the document has to be reachable from an
 # INSTALL, where there is no checkout to open and no path a reader could guess;
 # setup.py ships the file into metta/_runtime/ for it.
-FINAL_METTA_EXPORTS = 107
+# +1 for ``current_algebra``, the context observer paired with
+# ``current_space``.
+FINAL_METTA_EXPORTS = 113
 
 SATELLITES = {
     "aio",

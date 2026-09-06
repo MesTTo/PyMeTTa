@@ -73,7 +73,11 @@ RUFF_FAMILY_BURN_DOWN = {
     # 35 -> 37 with the compiled dict story: _x_Set and _x_DictComp join the
     # _x_<Node> translator-dispatch family, whose suffix mirrors ast class
     # names by contract.
-    "N": 37,
+    # 37 -> 38 for metta.arrays.Shape, a type-metadata constructor used inside
+    # `Annotated[DLTensor, Shape(...)]`. Python spells that position with a
+    # type, so the name follows Annotated and Literal rather than a function's
+    # lower_snake, and the one site carries N802 with that reason.
+    "N": 38,
     # 8 -> 10 for metta.strategies: `id` and `all` must be the exact public
     # strategy atoms, while each line carries the narrow A001 explanation.
     # 10 -> 12 with the compiled-statement scenarios: two refused-or-compiled
@@ -81,9 +85,17 @@ RUFF_FAMILY_BURN_DOWN = {
     # 12 -> 17 for the requested trace(filter=...) keyword: Space, _trace,
     # AsyncMeTTa, MeTTa and the module mirror preserve that public name.
     # Each site suppresses only A002 with the public-selector reason.
+    # 17 -> 19 for the ten shipped semiring carriers as root objects: `bool`
+    # and `set` are the exact public carrier atoms, named by the catalog row
+    # the enum is generated from, so metta/algebra.py's two module-level
+    # bindings carry A001 with that reason. Same shape as the strategies rise
+    # above: a public name the engine chose, suppressed per line. It is two
+    # rather than four because metta/__init__.py deliberately does not import
+    # either name: binding them there would make every `bool` annotation in
+    # the root a variable annotation.
     # [tested: test_the_ruff_configuration_enables_every_family_or_records_why_not;
     # commit=a0580a1bf6c00fd0c6d790990555c345ac41f185]
-    "A": 17,
+    "A": 19,
     # 2112 -> 2114 at the p12-space-model merge: its two new test modules
     # carry the repository's obligation-header docstring convention, whose
     # Purpose/Guarantees block is a deliberate per-line D205 suppression.

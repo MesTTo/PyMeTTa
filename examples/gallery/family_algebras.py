@@ -35,7 +35,9 @@ def _under(space, pattern, carrier):
     """Render one algebra query as a deterministic, multiplicity-preserving bag."""
     answers = space.answers(pattern, under=carrier)
     if carrier is counting:
-        return [S.Count(answers.one())]
+        # counting crosses one engine aggregate and wears the shared protocol,
+        # so the number is the answer's annotation rather than the answer.
+        return [S.Count(answers.one().annotation)]
     tagged = list(answers)
     if pattern.vars:
         rows = list(answers.rows)

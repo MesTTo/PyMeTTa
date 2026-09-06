@@ -1,7 +1,7 @@
 """Purpose: the explicit answer form, end to end: a provider or operation
 answers bindings for the query's own variables, plain atoms and explicit
-answers mix in one stream, and the staged slots (residue, annotation)
-refuse loudly instead of dropping silently.
+answers mix in one stream, and residue and annotation execute while an
+undeclared annotation refuses instead of disappearing.
 Guarantees:
   - operations returning explicit bindings request evaluated Atom wrappers
     through `(arguments name atoms)` declarations [tested:
@@ -23,6 +23,9 @@ Guarantees:
     carrier's extend law [tested:
     test_two_annotated_operation_calls_multiply_all_four_joint_weights;
     commit=1208ea172e11560b2aaae238823514941aa5fe20]
+  - theta, value, residue, and k work together, and get-metatype observes the
+    encoded answer content [tested: test_every_answer_constructor_slot_is_live;
+    commit=2e627a593413191cda3170f2eb716835f7f62543]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -60,6 +63,35 @@ def test_answer_validates_eagerly():  # noqa: D103  -- pytest discovers or injec
         Answer({}, residue="not an atom")
     with pytest.raises(TypeError, match="annotation in the declared"):
         Answer({}, k=object())
+
+
+def test_every_answer_constructor_slot_is_live(metta):
+    """One provider answer exercises theta, value, residue, k, and metatype."""
+    def answer(pattern):
+        (n,) = _pattern_vars(pattern)
+        keeps = Expression([Symbol(">"), n, Grounded(1)])
+        yield Answer(
+            {n: 2},
+            value=parse("(item 2)"),
+            residue=keeps,
+            k=0.75,
+        )
+        yield Answer(
+            {n: 0},
+            value=parse("(item 0)"),
+            residue=keeps,
+            k=0.99,
+        )
+
+    metta._register_space(_AnswerProvider(answer), "&ap-live-slots")
+    metta.annotations("&ap-live-slots", "ranked")
+    answers = metta._at("&ap-live-slots").match(
+        S.item(V.n), under="ranked"
+    )
+    selected = answers.one()
+    assert selected.value.n == Grounded(2)
+    assert selected.annotation == 0.75
+    assert metta.eval(S["get-metatype"](selected.value.n)) == [S.Grounded]
 
 
 class _AnswerProvider(SpaceProvider):
@@ -1313,6 +1345,63 @@ def test_answers_project_caller_variables_and_slices_stay_answers(metta):  # noq
     assert list(colliding[V.first]) == [S.a, S.b]
     with pytest.raises(AttributeError, match="no answer variable"):
         _ = answers.typo
+
+
+def test_only_a_pristine_bounded_slice_offers_its_stop_to_the_source():
+    """The producer may replace an untouched prefix, never observed state."""
+    original_pulls = []
+    bounded_pulls = []
+    offered = []
+
+    def original():
+        for value in range(5):
+            original_pulls.append(value)
+            yield value
+
+    def bounded(stop, fallback):  # noqa: ARG001  -- this successful source does not need its exact fallback
+        offered.append(stop)
+
+        def source():
+            for value in range(stop):
+                bounded_pulls.append(value)
+                yield value
+
+        return source()
+
+    answers = Answers(original(), bound_source=bounded)
+    middle = answers[1:3]
+    assert offered == [3]
+    assert original_pulls == bounded_pulls == []
+    assert list(middle) == [1, 2]
+    assert bounded_pulls == [0, 1, 2]
+    assert original_pulls == []
+    assert list(answers) == [0, 1, 2, 3, 4]
+
+    shared_pulls = []
+
+    def shared_source():
+        for value in range(4):
+            shared_pulls.append(value)
+            yield value
+
+    def keep_shared(_stop, fallback):
+        return fallback
+
+    shared = Answers(shared_source(), bound_source=keep_shared)
+    assert list(shared[:2]) == [0, 1]
+    assert list(shared) == [0, 1, 2, 3]
+    assert shared_pulls == [0, 1, 2, 3]
+
+    offered.clear()
+    observed = Answers(original(), bound_source=bounded)
+    assert observed.first() == 0
+    assert list(observed[:2]) == [0, 1]
+    assert offered == []
+
+    untouched = Answers(original(), bound_source=bounded)
+    assert list(untouched[:0]) == []
+    assert list(untouched[-2:]) == [3, 4]
+    assert offered == []
 
 
 def test_answers_scalar_doors_raise_error_atoms_but_iteration_retains_them(metta):  # noqa: D103 -- the test name states the contract

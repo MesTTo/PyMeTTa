@@ -91,14 +91,19 @@ Guarantees:
     test_list_materializes_a_match_without_a_second_query;
     commit=5c9c97328472130cd30ad85b000e89c01556eb35]
   - match and call answers accept explicit or scoped algebra carriers;
-    counting uses engine aggregates, ordered carriers sort before slicing, and
-    tagged evaluation receives both public resource bounds
-    [tested:
+    counting keeps the shared TaggedAnswer protocol around its one engine
+    aggregate, ordered carriers sort before slicing, and tagged evaluation
+    receives both public resource bounds [tested:
     test_counting_counts_match_bag_duplicates_without_opening_a_row_cursor,
     test_counting_counts_duplicate_call_answers_inside_the_engine,
     test_ranked_and_tropical_slices_are_stable_best_prefixes,
     test_tagged_algebra_forwards_bounds_to_every_evaluating_door;
-    commit=51e719767e3dd322a9cf88bd096410bbc5647493]
+    commit=2e627a593413191cda3170f2eb716835f7f62543]
+  - a pristine bounded slice enters a repeatable foreign source only when that
+    source promises best-first emission in the selected ordered algebra
+    [tested:
+    test_pristine_ranked_slice_pushes_only_the_licensed_provider_bound;
+    commit=2e627a593413191cda3170f2eb716835f7f62543]
   - ``Space.pre_add`` declares one compiled unary judge through the engine's
     existing pre-add hook [tested: test_pre_add_compiles_the_four_verdict_judge;
     commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
@@ -2263,10 +2268,11 @@ class Space(Handle):
         no row has yet been pulled.
 
         ``under=`` interprets the same ask through an annotation algebra.
-        ``under=counting`` answers one integer computed by an engine
-        aggregate, including duplicate derivations without crossing their
-        rows into Python. Ordered carriers sort in their declared direction
-        before slicing, so ``m.match(q, under=ranked)[:3]`` is top-k and
+        ``under=counting`` answers one ``TaggedAnswer`` whose annotation is
+        the engine-computed count, including duplicate derivations without
+        crossing their rows into Python. Ordered carriers sort in their
+        declared direction before slicing, so
+        ``m.match(q, under=ranked)[:3]`` is top-k and
         ``under=tropical`` puts the cheapest annotation first. Other carriers
         answer ``TaggedAnswer`` values with ``annotation``, ``why()`` and
         ``under(other)``; the latter two reuse the retained derivation rather
@@ -2385,6 +2391,15 @@ class Space(Handle):
             atoms,
             guard_atom(where),
         )
+        tagged_route: bool | None = None
+
+        def has_tagged_program() -> bool:
+            nonlocal tagged_route
+            if tagged_route is None:
+                tagged_route = len(patterns) == 1 and algebra_api.has_tagged_program(
+                    self, patterns[0]
+                )
+            return tagged_route
 
         def tagged_source() -> Iterator[_AnswerItem]:
             if len(patterns) != 1:
@@ -2424,16 +2439,18 @@ class Space(Handle):
                 yielded += 1
                 yield _AnswerItem(answer, row)
 
-        def engine_source() -> Iterator[_AnswerItem]:
+        def engine_source(
+            *, cursor_limit: int | None = limit, cursor_order: Any = declaration.order
+        ) -> Iterator[_AnswerItem]:
             cursor = Cursor(
                 self,
                 patterns,
                 where,
                 timeout,
                 inferences,
-                limit=limit,
+                limit=cursor_limit,
                 under=declaration.name,
-                order=declaration.order,
+                order=cursor_order,
             )
             try:
                 for row in cursor:
@@ -2447,10 +2464,43 @@ class Space(Handle):
             finally:
                 cursor.close()
 
-        def source() -> Iterator[_AnswerItem]:
-            if len(patterns) == 1 and algebra_api.has_tagged_program(
-                self, patterns[0]
+        def bounded_engine_source(
+            stop: int, shared: Iterable[_AnswerItem]
+        ) -> Iterable[_AnswerItem]:
+            if (
+                len(patterns) != 1
+                or where is not None
+                or declaration.order is None
+                or limit == 0
             ):
+                return shared
+            bounded_limit = stop if limit is None else min(stop, limit)
+
+            def bounded() -> Iterator[_AnswerItem]:
+                promises = self._rt.once(
+                    "seam:foreign_space(Space), "
+                    "metta_emits(Space, 'best-first'), "
+                    "metta_source(Space, Kind), "
+                    "metta_effective_algebra(Space, Algebra)",
+                    Space=self._space,
+                )
+                if (
+                    not promises
+                    or str(promises["Kind"]) == "linear"
+                    or str(promises["Algebra"]) != declaration.name
+                    or has_tagged_program()
+                ):
+                    yield from shared
+                    return
+                yield from engine_source(
+                    cursor_limit=bounded_limit,
+                    cursor_order=None,
+                )
+
+            return bounded()
+
+        def source() -> Iterator[_AnswerItem]:
+            if has_tagged_program():
                 yield from tagged_source()
             else:
                 yield from engine_source()
@@ -2461,6 +2511,7 @@ class Space(Handle):
             space=self._space,
             target=patterns,
             query=query_context,
+            bound_source=bounded_engine_source,
         )
         if into is None:
             return answers
@@ -2480,13 +2531,13 @@ class Space(Handle):
         algebra_api: Any,
         declaration: Any,
         into: _builtins.type | None,
-    ) -> Answers[int]:
-        """Build the scalar engine-side counting view."""
+    ) -> Answers[Any]:
+        """Build the protocol-shaped engine-side counting view."""
         if into is not None:
-            msg = "under=counting answers one scalar and cannot use into="
+            msg = "under=counting answers one aggregate and cannot use into="
             raise TypeError(msg)
 
-        def counted() -> Iterator[int]:
+        def counted() -> Iterator[Any]:
             if len(patterns) == 1 and algebra_api.has_tagged_program(
                 self, patterns[0]
             ):
@@ -2504,15 +2555,19 @@ class Space(Handle):
                     inferences=inferences,
                 )
                 return
-            yield query_count(
-                self._rt,
-                self._space,
-                patterns,
-                where=where,
-                limit=limit,
-                timeout=timeout,
-                inferences=inferences,
-                under=declaration.name,
+            yield algebra_api.counting_answer(
+                self,
+                query_count(
+                    self._rt,
+                    self._space,
+                    patterns,
+                    where=where,
+                    limit=limit,
+                    timeout=timeout,
+                    inferences=inferences,
+                    under=declaration.name,
+                ),
+                declaration.name,
             )
 
         return Answers(
@@ -2555,7 +2610,7 @@ class Space(Handle):
         match() and the cursor underneath already carried both: a tagging
         algebra (ranked, tropical, prov) answers one TaggedAnswer per pull,
         the same value match() answers. `under='counting'` is refused by
-        name, because a counting fold is ONE number over the whole answer
+        name, because a counting fold is ONE aggregate over the whole answer
         set and a cursor exists not to have one.
 
         What this method does NOT take is match()'s `into=`, the same kind of
@@ -2567,13 +2622,15 @@ class Space(Handle):
         algebra_api = _satellite("algebra")
         declaration = algebra_api.resolve(self, carrier)
         if declaration.name == "counting":
-            # A counting fold is ONE value over the whole answer set, which is
-            # the thing a cursor exists not to have. Answering per-row would
-            # make under= mean a fold through match() and something else here.
+            # A counting fold is ONE aggregate over the whole answer set,
+            # which is the thing a cursor exists not to have. Answering
+            # per-row would make under= mean a fold through match() and
+            # something else here.
             msg = (
-                "under='counting' folds every answer into one number, so it "
-                "has nothing to stream; use match(under='counting'), which "
-                "answers that number, or stream under a tagging algebra "
+                "under='counting' folds every answer into one aggregate, so "
+                "it has nothing to stream; use match(under='counting'), "
+                "which answers a TaggedAnswer carrying that count, or "
+                "stream under a tagging algebra "
                 "(ranked, tropical, prov) for one tagged answer per pull"
             )
             raise TypeError(msg)
@@ -3022,8 +3079,9 @@ class Space(Handle):
         commit=2d4d4583c2d82e90bb21a7e8671842f126edd4f4].
 
         ``under=`` has the same carrier semantics as ``match``. In
-        particular, ``space.answers(call, under=counting).one()`` counts the
-        call's answer derivations inside the engine, and ordered carriers
+        particular, ``space.answers(call, under=counting).one()`` returns one
+        ``TaggedAnswer`` whose annotation counts the call's answer
+        derivations inside the engine, and ordered carriers
         order their annotated ``TaggedAnswer`` values before a slice pulls
         its prefix. A surrounding ``metta.under(carrier)`` is used only when
         this call does not pass an explicit carrier.
@@ -3087,7 +3145,7 @@ class Space(Handle):
             else (_to_atom(target))
         )
         if declaration.name == "counting":
-            def counted() -> Iterator[int]:
+            def counted() -> Iterator[Any]:
                 if algebra_api.has_tagged_program(self, tagged_target):
                     yield algebra_api.count_tagged(
                         self,
@@ -3101,15 +3159,19 @@ class Space(Handle):
                     # once and one integer crosses. Asking the repeatability
                     # question here instead sent an effect-bearing goal
                     # through a materializing pass that encoded and crossed
-                    # every answer to reach a number nobody kept.
-                    yield evaluate_count(
-                        self._rt,
-                        self._space,
-                        target,
-                        timeout,
-                        inferences,
-                        using=using,
-                        under=declaration.name,
+                    # every answer to reach an aggregate nobody kept.
+                    yield algebra_api.counting_answer(
+                        self,
+                        evaluate_count(
+                            self._rt,
+                            self._space,
+                            target,
+                            timeout,
+                            inferences,
+                            using=using,
+                            under=declaration.name,
+                        ),
+                        declaration.name,
                     )
 
             return Answers(counted(), space=self._space, target=target)
@@ -5766,10 +5828,11 @@ class MeTTa:
         no row has yet been pulled.
 
         ``under=`` interprets the same ask through an annotation algebra.
-        ``under=counting`` answers one integer computed by an engine
-        aggregate, including duplicate derivations without crossing their
-        rows into Python. Ordered carriers sort in their declared direction
-        before slicing, so ``m.match(q, under=ranked)[:3]`` is top-k and
+        ``under=counting`` answers one ``TaggedAnswer`` whose annotation is
+        the engine-computed count, including duplicate derivations without
+        crossing their rows into Python. Ordered carriers sort in their
+        declared direction before slicing, so
+        ``m.match(q, under=ranked)[:3]`` is top-k and
         ``under=tropical`` puts the cheapest annotation first. Other carriers
         answer ``TaggedAnswer`` values with ``annotation``, ``why()`` and
         ``under(other)``; the latter two reuse the retained derivation rather

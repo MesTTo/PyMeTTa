@@ -44,6 +44,12 @@ Guarantees:
     test_a_jax_tracer_crosses_a_binary_op_and_a_gradient_reaches_it]
   - install() takes a context or a space and registers into the space either
     way [tested: test_install_takes_a_context_as_well_as_a_space]
+  - Shape metadata survives Python ``Annotated`` reflection, shaped tensors
+    remain valid ``DLTensor`` arguments, broadcast arithmetic infers its
+    output through ``broadcast-shape``, and rank-two ``matmul`` unifies its
+    shared dimension before materialisation [tested:
+    test_annotated_tensor_shapes_flow_through_broadcast_and_matmul;
+    commit=2e627a593413191cda3170f2eb716835f7f62543]
 Guarded by:
   - _PROTOCOLS_LOCK serializes one-time protocol registration
     [tested test_array_protocol_registration_is_idempotent]
@@ -60,18 +66,30 @@ import itertools
 import operator
 import threading
 from collections.abc import Iterable
-from typing import Any, Final, Literal, NewType, cast
+from typing import Annotated, Any, Final, Literal, NewType, cast
 
 from . import integrate as _integrate
 from ._ops import REGISTRY
 from ._optional import optional_module, require_module
-from .atoms import Atom, Expression, Grounded, S, Variable, _decode, _expr, ground
+from .atoms import (
+    Atom,
+    Expression,
+    Grounded,
+    S,
+    V,
+    Variable,
+    _alpha_eq,
+    _decode,
+    _expr,
+    ground,
+)
 from .errors import MettaError
 
 __all__ = [
     "ARRAY_OPS",
     "DLTensor",
     "EmbeddingStore",
+    "Shape",
     "data_of",
     "install",
     "is_array",
@@ -122,6 +140,123 @@ metta_broadcast_dimension(D2, D1, D) :-
     D1 #\= 1 #/\ D1 #= D #\ D1 #= 1 #/\ D2 #= D,
     D2 #\= 1 #/\ D2 #= D #\ D2 #= 1 #/\ D1 #= D.
 """
+
+_SHAPED_TENSOR_RULE: Final[str] = (
+    "!(add-typing-rule! metta-arrays-shaped-dltensor-base ordinary "
+    "(Annotated DLTensor (Shape $shape)) DLTensor accept)"
+)
+
+
+def Shape(*dimensions: Any) -> Expression:  # noqa: N802  -- type-metadata constructors follow Python's type spelling
+    """Build tensor dimension metadata.
+
+    ``Annotated[DLTensor, Shape(...)]`` accepts integers or MeTTa variables.
+    The dimensions stay in one expression so the same metadata is both a
+    Python annotation claim and an input to ``broadcast-shape``.
+    """
+    return _expr(S.Shape, _expr(*dimensions))
+
+
+def _shape_metadata(shape: Atom) -> Expression:
+    """A Shape claim around an already assembled dimension expression."""
+    return _expr(S.Shape, shape)
+
+
+def _shaped_tensor(shape: Atom) -> Expression:
+    """The MeTTa type carried by one Shape claim."""
+    return _expr(S.Annotated, S.DLTensor, _shape_metadata(shape))
+
+
+#: The shape reader every inference equation goes through. It exists for its
+#: FIRST line: `(get-type $x)` is asked with an unbound subject as a matter of
+#: course, `!(get-type $subject)` is one of the engine's own pinned questions,
+#: and an equation whose head is `(get-type (t+ $l $r))` unifies with that
+#: subject and then asks `(get-type $l)` about a variable it has just invented.
+#: That descends forever. Reading the operand's metatype first refuses the
+#: variable and the whole equation fails, which is the answer a shape rule owes
+#: a subject that has no shape yet.
+_SHAPE_READER: Final[str] = "metta-arrays-tensor-shape"
+
+
+def _tensor_shape_equation() -> Expression:
+    """The guarded reader: a bound operand's Shape metadata, or no answer."""
+    subject = Variable("__arrays_subject")
+    shape = Variable("__arrays_shape")
+    return _expr(
+        S["="],
+        _expr(S[_SHAPE_READER], subject),
+        _expr(
+            S.let,
+            ground(value=False),
+            _expr(S["=="], _expr(S["get-metatype"], subject), S.Variable),
+            _expr(
+                S.let,
+                _shaped_tensor(shape),
+                _expr(S["get-type"], subject),
+                shape,
+            ),
+        ),
+    )
+
+
+def _broadcast_type_equation(name: str) -> Expression:
+    """Infer the shaped result of one elementwise binary operation."""
+    left = Variable("__arrays_left")
+    right = Variable("__arrays_right")
+    left_shape = Variable("__arrays_left_shape")
+    right_shape = Variable("__arrays_right_shape")
+    out_shape = Variable("__arrays_out_shape")
+    return _expr(
+        S["="],
+        _expr(S["get-type"], _expr(S[name], left, right)),
+        _expr(
+            S.let,
+            left_shape,
+            _expr(S[_SHAPE_READER], left),
+            _expr(
+                S.let,
+                right_shape,
+                _expr(S[_SHAPE_READER], right),
+                _expr(
+                    S.let,
+                    ground(value=True),
+                    _expr(S["broadcast-shape"], left_shape, right_shape, out_shape),
+                    _shaped_tensor(out_shape),
+                ),
+            ),
+        ),
+    )
+
+
+def _matmul_type_equation() -> Expression:
+    """Infer ``(rows, shared) x (shared, columns) -> (rows, columns)``."""
+    left = Variable("__arrays_left")
+    right = Variable("__arrays_right")
+    rows = Variable("__arrays_rows")
+    shared = Variable("__arrays_shared")
+    columns = Variable("__arrays_columns")
+    return _expr(
+        S["="],
+        _expr(S["get-type"], _expr(S.matmul, left, right)),
+        _expr(
+            S.let,
+            _expr(rows, shared),
+            _expr(S[_SHAPE_READER], left),
+            _expr(
+                S.let,
+                _expr(shared, columns),
+                _expr(S[_SHAPE_READER], right),
+                _shaped_tensor(_expr(rows, columns)),
+            ),
+        ),
+    )
+
+
+def _broadcast_annotations(fn, second: Any) -> None:
+    """Publish symbolic shape roles without changing the operation's base arrows."""
+    fn.__annotations__["a"] = Annotated[DLTensor, Shape(V.left_shape)]
+    fn.__annotations__["b"] = Annotated[second, Shape(V.right_shape)]
+    fn.__annotations__["return"] = Annotated[DLTensor, Shape(V.out_shape)]
 
 
 def _top_indices(xp: Any, scores: Any, count: int) -> list[int]:
@@ -293,6 +428,15 @@ def install(m, default: Any = None) -> list[str]:  # noqa: C901  -- install keep
     t-shape remains observation of an existing tensor. Use broadcast-shape
     when compatibility or inference must happen before materialisation.
 
+    ``Shape`` carries those expressions through Python ``Annotated`` claims.
+    A declared ``(Annotated DLTensor (Shape ...))`` remains a valid DLTensor
+    argument, elementwise binary operations derive their output shape with
+    ``broadcast-shape``, and rank-two matmul unifies the two inner dimensions:
+
+        (: image (Annotated DLTensor (Shape (4 1))))
+        (: bias  (Annotated DLTensor (Shape (3))))
+        !(get-type (t+ image bias))  ; (Annotated DLTensor (Shape (4 3)))
+
     m may be a context or a space. The operations are registered into the
     space either way, which is the object whose storage and introspection
     doors this needs; `install(m)` on a context used to raise
@@ -308,6 +452,20 @@ def install(m, default: Any = None) -> list[str]:  # noqa: C901  -- install keep
     registered: list[str] = []
 
     m.register_prolog(_BROADCAST_SHAPE_SOURCE)
+    typing_rule_result = m.run(_SHAPED_TENSOR_RULE)
+    if typing_rule_result != [[True]]:
+        msg = f"could not install the shaped DLTensor typing rule: {typing_rule_result!r}"
+        raise MettaError(msg)
+
+    def add_type_equation(equation: Expression) -> None:
+        if not any(_alpha_eq(equation, atom) for atom in m.atoms()):
+            # Definitions must pass through the source runner so the engine
+            # compiles them as reduction clauses. Space.add stores an ``=``
+            # atom as data, which looks identical in ``atoms()`` but cannot
+            # participate in ``get-type`` reduction.
+            m.run(str(equation))
+
+    add_type_equation(_tensor_shape_equation())
 
     def op(
         fn,
@@ -444,10 +602,19 @@ def install(m, default: Any = None) -> list[str]:  # noqa: C901  -- install keep
             a2, b2, xp = aligned(a, b)
             return fn(xp, a2, b2)
 
-        call.__annotations__["b"] = second
+        _broadcast_annotations(call, second)
+        add_type_equation(_broadcast_type_equation(name))
         op(call, name=name, effect="writesState")
 
-    binop(lambda xp, a, b: xp.matmul(a, b), "matmul", second=DLTensor)
+    def matmul(
+        a: Annotated[DLTensor, Shape(V.rows, V.shared)],
+        b: Annotated[DLTensor, Shape(V.shared, V.columns)],
+    ) -> Annotated[DLTensor, Shape(V.rows, V.columns)]:
+        a2, b2, xp = aligned(a, b)
+        return xp.matmul(a2, b2)
+
+    add_type_equation(_matmul_type_equation())
+    op(matmul, name="matmul", effect="writesState")
     binop(lambda xp, a, b: xp.add(a, b), "t+")
     binop(lambda xp, a, b: xp.subtract(a, b), "t-")
     binop(lambda xp, a, b: xp.multiply(a, b), "t*")
@@ -472,6 +639,8 @@ def install(m, default: Any = None) -> list[str]:  # noqa: C901  -- install keep
         a2, p2, xp = aligned(a, p)
         return xp.pow(a2, p2)
 
+    _broadcast_annotations(power, Any)
+    add_type_equation(_broadcast_type_equation("t-pow"))
     op(power, name="t-pow", effect="writesState")
 
     # ------------------------------------------------------------------ shape

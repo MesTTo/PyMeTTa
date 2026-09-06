@@ -1803,10 +1803,11 @@ class AsyncMeTTa:
         no row has yet been pulled.
 
         ``under=`` interprets the same ask through an annotation algebra.
-        ``under=counting`` answers one integer computed by an engine
-        aggregate, including duplicate derivations without crossing their
-        rows into Python. Ordered carriers sort in their declared direction
-        before slicing, so ``m.match(q, under=ranked)[:3]`` is top-k and
+        ``under=counting`` answers one ``TaggedAnswer`` whose annotation is
+        the engine-computed count, including duplicate derivations without
+        crossing their rows into Python. Ordered carriers sort in their
+        declared direction before slicing, so
+        ``m.match(q, under=ranked)[:3]`` is top-k and
         ``under=tropical`` puts the cheapest annotation first. Other carriers
         answer ``TaggedAnswer`` values with ``annotation``, ``why()`` and
         ``under(other)``; the latter two reuse the retained derivation rather

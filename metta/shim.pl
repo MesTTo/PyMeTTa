@@ -118,6 +118,9 @@
 %     source code before Python publishes an operation
 %     [tested: test_a_duplicate_declaration_names_the_first_one;
 %     commit=0d90e628b1f90c4b4464a2907efcb357d74b13d3]
+%   - metta_py_declare_algebra/2 runs the engine's sole finite-carrier law
+%     checker in the declaring space's equation module [tested:
+%     test_a_law_is_checked_once_in_the_declaring_space; commit=2e627a593413191cda3170f2eb716835f7f62543]
 %   - derivations descend through the default six-axis dispatch wrapper, so
 %     recursive proof depth remains bounded and one equation yields one proof
 %     [tested: test_depth_exhaustion_returns_a_partial_proof;
@@ -2088,6 +2091,15 @@ metta_py_add_strict_declaration(Space, Tagged) :-
         throw(error(metta_duplicate_declaration(Space, Term, Term), none))
     ;   metta_py_add(Space, Tagged)
     ).
+
+%The declaration itself remains catalog data in &metta, while the operations
+%its law certificate names belong to the space that declared it. Switch to
+%that equation module around the ordinary add door so catalog validation and
+%runtime annotation evaluation apply the same definitions.
+metta_py_declare_algebra(DeclaringSpace, Tagged) :-
+    metta_py_decode_shared(Tagged, Term, _),
+    metta_py_module(DeclaringSpace, Module),
+    metta_py_in_module(Module, 'add-atom'('&metta', Term, _)).
 
 metta_py_decode_for_add(Tagged, Term) :-
     metta_py_decode_shared(Tagged, Term, _).

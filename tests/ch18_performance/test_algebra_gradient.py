@@ -40,14 +40,14 @@ def test_a_declared_gradient_algebra_propagates_derivatives_through_a_derivation
     leaf = torch.tensor(2.0, requires_grad=True)
     scale = torch.tensor(3.0)
     one = torch.tensor(1.0)
-    metta.algebra(
-        "p4-gradient",
-        combine="t+",
-        extend="t*",
-        zero=torch.tensor(0.0),
-        one=one,
-    )
     with metta._new_space() as program:
+        program.algebra(
+            "p4-gradient",
+            combine="t+",
+            extend="t*",
+            zero=torch.tensor(0.0),
+            one=one,
+        )
         program.add_tagged_fact(ground(leaf), S.source(S.a))
         program.add_tagged_fact(ground(scale), S.scale(S.a))
         program.add_tagged_rule(ground(one), S.middle(V.x), S.source(V.x))

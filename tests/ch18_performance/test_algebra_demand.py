@@ -229,8 +229,17 @@ def test_demand_retains_custom_operation_effects(metta, monkeypatch):
         return left * right
 
     metta.op(extend, name="demand-effect-extend", effect="writesState")
-    metta.algebra("demand-effect-carrier", combine="+", extend="demand-effect-extend", zero=0, one=1)
     with metta._new_space() as program:
+        # An algebra row is owned by the space that declares it, so it is
+        # declared on the space the derivation runs in rather than on a
+        # sibling. The operation it names is a host op and stays engine-wide.
+        program.algebra(
+            "demand-effect-carrier",
+            combine="+",
+            extend="demand-effect-extend",
+            zero=0,
+            one=1,
+        )
         program.add_tagged_fact(1, S.seed(0))
         program.add_tagged_fact(1, S.wanted(0))
         program.add_tagged_rule(2, S.unrelated(V.x), S.seed(V.x))
@@ -289,8 +298,8 @@ def test_demand_differential_rejects_lost_and_duplicated_proofs(metta, monkeypat
 
 def test_demand_keeps_lawless_integer_proof_order(metta, monkeypatch):
     """A lawless carrier retains the same unfused derivation order."""
-    metta.algebra("demand-lawless-integers", combine="+", extend="*", zero=0, one=1)
     with metta._new_space() as program:
+        program.algebra("demand-lawless-integers", combine="+", extend="*", zero=0, one=1)
         program.add_tagged_fact(2, S.seed(S.a))
         program.add_tagged_fact(3, S.seed(S.b))
         program.add_tagged_rule(5, S.middle(V.x), S.seed(V.x))

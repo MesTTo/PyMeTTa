@@ -50,6 +50,27 @@ Guarantees:
     retaining complete proof bags and the full evaluator's refusal boundaries
     [tested: test_demand_preserves_complete_derivation_bags,
     test_demand_preserves_global_cycle_and_round_failures; commit=3c64e2e24787362a5a5081513bc24b880711a1d7]
+  - the generated Semiring vocabulary, preset descriptors, and public carrier
+    objects name the same ten shipped algebras [tested:
+    test_every_shipped_semiring_has_one_root_object_in_catalog_order;
+    commit=2e627a593413191cda3170f2eb716835f7f62543]
+  - arbitrary law-bearing declarations use the engine's one checker in the
+    declaring space's equation module [tested:
+    test_a_law_is_checked_once_in_the_declaring_space; commit=2e627a593413191cda3170f2eb716835f7f62543]
+  - custom algebra rows and their Python mirrors have the same context
+    lifetime as annotations, while shipped presets remain shared [tested:
+    test_custom_algebras_are_context_owned; commit=2e627a593413191cda3170f2eb716835f7f62543]
+  - calling the module constructor targets the ambient space rather than the
+    process-default home [tested:
+    test_algebra_module_constructor_targets_the_ambient_space; commit=2e627a593413191cda3170f2eb716835f7f62543]
+  - counting retains the common TaggedAnswer protocol while crossing only its
+    one engine-side aggregate [tested:
+    test_counting_counts_match_bag_duplicates_without_opening_a_row_cursor,
+    test_counting_counts_duplicate_call_answers_inside_the_engine;
+    commit=2e627a593413191cda3170f2eb716835f7f62543]
+  - ``current_algebra()`` observes the per-call carrier, surrounding task
+    scope, or current space declaration in that order [tested:
+    test_current_algebra_follows_each_selection_layer; commit=2e627a593413191cda3170f2eb716835f7f62543]
 Decides:
   - ``contraction`` is a capability, while the remaining public law names are
     equations checked exhaustively over the declared finite carrier.
@@ -61,21 +82,23 @@ Open Obligations:
 
 from __future__ import annotations
 
-import itertools
+import builtins
 import math
 import random
 import sys
 import time
-from collections.abc import Callable, Generator, Iterable, Mapping, Sequence
+from collections.abc import Generator, Iterable, Mapping, Sequence
 from dataclasses import dataclass, field, replace
 from fractions import Fraction
 from numbers import Real
 from types import ModuleType
 from typing import Any, Final
 
-from ._space import Space
+from ._engine import active_runtime
+from ._space import Space, current_space
 from ._space_execution import evaluate_accounted
 from ._space_objects import _limits, _validate_limit
+from ._under import selected as _selected_under
 from .atoms import (
     Atom,
     Expression,
@@ -89,7 +112,7 @@ from .atoms import (
     parse,
     substitute,
 )
-from .errors import InferenceLimitError, MettaError, TimeLimitError
+from .errors import EngineError, InferenceLimitError, MettaError, TimeLimitError
 from .vocabularies import EffectClass, Semiring, SemiringOrder
 
 __all__ = [
@@ -106,7 +129,12 @@ __all__ = [
     "PlanDecision",
     "RateDeclarationError",
     "TaggedAnswer",
+    "amplitude",
+    "bag",
+    "bool",
+    "budget",
     "counting",
+    "current_algebra",
     "declare",
     "evaluate",
     "prob",
@@ -114,6 +142,7 @@ __all__ = [
     "ranked",
     "resolve",
     "sample",
+    "set",
     "tagged_fact",
     "tagged_rule",
     "tropical",
@@ -268,14 +297,14 @@ class DeclaredAlgebra:
         left: Atom,
         right: Atom,
         *,
-        budget: _EvaluationBudget | None = None,
+        resources: _EvaluationBudget | None = None,
     ) -> Atom:
         """Apply a declared binary operation and require one answer."""
         if isinstance(left, Grounded) and isinstance(right, Grounded):
             left_value, right_value = _decode(left), _decode(right)
             if (
-                not isinstance(left_value, bool)
-                and not isinstance(right_value, bool)
+                not isinstance(left_value, builtins.bool)
+                and not isinstance(right_value, builtins.bool)
                 and isinstance(left_value, Real)
                 and isinstance(right_value, Real)
             ):
@@ -293,8 +322,8 @@ class DeclaredAlgebra:
         target = Expression((Symbol(name), left, right))
         answers = (
             metta.eval(target)
-            if budget is None
-            else budget.evaluate_operation(metta, target)
+            if resources is None
+            else resources.evaluate_operation(metta, target)
         )
         if len(answers) != 1:
             msg = (
@@ -317,7 +346,7 @@ class DeclaredAlgebra:
         left: Atom,
         right: Atom,
         *,
-        budget: _EvaluationBudget | None = None,
+        resources: _EvaluationBudget | None = None,
     ) -> Atom:
         """Combine alternative derivations."""
         return self.operation(
@@ -325,7 +354,7 @@ class DeclaredAlgebra:
             self.combine,
             left,
             right,
-            budget=budget,
+            resources=resources,
         )
 
     def extend_values(
@@ -334,7 +363,7 @@ class DeclaredAlgebra:
         left: Atom,
         right: Atom,
         *,
-        budget: _EvaluationBudget | None = None,
+        resources: _EvaluationBudget | None = None,
     ) -> Atom:
         """Extend one derivation through a premise."""
         return self.operation(
@@ -342,7 +371,7 @@ class DeclaredAlgebra:
             self.extend,
             left,
             right,
-            budget=budget,
+            resources=resources,
         )
 
 
@@ -351,7 +380,7 @@ class PlanDecision:
     """An evaluation choice, including a withheld law-gated optimization."""
 
     optimization: str
-    applied: bool
+    applied: builtins.bool
     missing_laws: tuple[str, ...] = ()
 
 
@@ -362,7 +391,7 @@ class _Trace:
     source: int
     raw: Atom
     children: tuple[_Trace, ...] = ()
-    is_rule: bool = False
+    is_rule: builtins.bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -536,11 +565,15 @@ _PRESETS: Final[dict[str, DeclaredAlgebra]] = {
     ),
 }
 
-_REGISTRY: dict[tuple[int, str], DeclaredAlgebra] = {}
+_REGISTRY: dict[tuple[int, str, str], DeclaredAlgebra] = {}
 
 
-def _key(metta: Space, name: str) -> tuple[int, str]:
-    return id(metta._rt), name
+def _context_name(metta: Space) -> str:
+    return str(metta.name)
+
+
+def _key(metta: Space, context: str, name: str) -> tuple[int, str, str]:
+    return id(metta._rt), context, name
 
 
 def _carrier_name(carrier: Any) -> str:
@@ -561,6 +594,26 @@ def _carrier_name(carrier: Any) -> str:
     raise TypeError(msg)
 
 
+def current_algebra() -> str | None:
+    """Return the selected algebra name, or ``None`` when none is declared.
+
+    An explicit carrier on the evaluating call wins over ``with under(...)``;
+    that task-local scope wins over the current space's annotations row.
+    """
+    scoped = _selected_under()
+    runtime = active_runtime()
+    if runtime is None:
+        return None if scoped is None else _carrier_name(scoped)
+    target = Space(current_space(), _runtime=runtime)
+    scope = [] if scoped is None else [_carrier_name(scoped)]
+    row = target.runtime.once(
+        "metta_current_algebra(Ctx, Scope, Algebra)",
+        Ctx=str(target.name),
+        Scope=scope,
+    )
+    return None if not row else str(row["Algebra"])
+
+
 def resolve(metta: Space, carrier: Any) -> DeclaredAlgebra:
     """Resolve any public carrier spelling against one runtime catalog."""
     if isinstance(carrier, DeclaredAlgebra):
@@ -570,10 +623,10 @@ def resolve(metta: Space, carrier: Any) -> DeclaredAlgebra:
 
 
 def _canonical_laws(laws: Iterable[str]) -> frozenset[str]:
-    out: set[str] = set()
+    out: builtins.set[str] = builtins.set()
     for law in laws:
         expanded = _LAW_ALIASES.get(law, (law,))
-        unknown = set(expanded) - _KNOWN_LAWS
+        unknown = builtins.set(expanded) - _KNOWN_LAWS
         if unknown:
             msg = f"algebra_law_unknown({sorted(unknown)!r})"
             raise AlgebraDeclarationError(msg)
@@ -581,60 +634,74 @@ def _canonical_laws(laws: Iterable[str]) -> frozenset[str]:
     return frozenset(out)
 
 
-def _catalog_declaration(metta: Space, name: str) -> DeclaredAlgebra | None:
+def _catalog_declaration(
+    metta: Space, context: str, name: str
+) -> DeclaredAlgebra | None:
     """Reify a direct ``&metta`` algebra row through the Python interface."""
+    # The context's own row, else the shipped global one: the same two-clause
+    # preference metta_algebra_descriptor_fresh/9 applies engine-side. At most
+    # one of each exists, because the catalog refuses a second row for one
+    # context and name.
+    owned: tuple[Atom, ...] | None = None
+    shared: tuple[Atom, ...] | None = None
     for atom in Space("&metta", _runtime=metta.runtime).atoms():
-        if not isinstance(atom, Expression) or len(atom.children) != 9:
+        if not isinstance(atom, Expression) or len(atom.children) != 10:
             continue
-        head, declared_name, combine, extend, zero, one, laws, carrier, requires = (
-            atom.children
-        )
+        head, declared_name = atom.children[:2]
         if head != Symbol("algebra") or declared_name != Symbol(name):
             continue
-        if not isinstance(combine, Symbol) or not isinstance(extend, Symbol):
-            msg = f"algebra_catalog_operations_malformed({name})"
-            raise AlgebraDeclarationError(msg)
-        if (
-            not isinstance(laws, Expression)
-            or not laws.children
-            or laws.children[0] != Symbol("laws")
-        ):
-            msg = f"algebra_catalog_fields_malformed({name})"
-            raise AlgebraDeclarationError(msg)
-        if (
-            not isinstance(carrier, Expression)
-            or not carrier.children
-            or carrier.children[0] != Symbol("carrier")
-        ):
-            msg = f"algebra_catalog_fields_malformed({name})"
-            raise AlgebraDeclarationError(msg)
-        if (
-            not isinstance(requires, Expression)
-            or not requires.children
-            or requires.children[0] != Symbol("requires")
-        ):
-            msg = f"algebra_catalog_fields_malformed({name})"
-            raise AlgebraDeclarationError(msg)
-        law_names = tuple(
-            law.name for law in laws.children[1:] if isinstance(law, Symbol)
-        )
-        requirement_names = tuple(
-            requirement.name
-            for requirement in requires.children[1:]
-            if isinstance(requirement, Symbol)
-        )
-        return DeclaredAlgebra(
-            name=name,
-            combine=combine.name,
-            extend=extend.name,
-            zero=zero,
-            one=one,
-            laws=_canonical_laws(law_names),
-            carrier=tuple(carrier.children[1:]),
-            requires=frozenset(requirement_names),
-            order=_catalog_order(metta, name),
-        )
-    return None
+        owner = atom.children[9]
+        if owner == Symbol(context):
+            owned = atom.children[:9]
+        elif owner == Symbol("global"):
+            shared = atom.children[:9]
+    children = owned if owned is not None else shared
+    if children is None:
+        return None
+    _, _, combine, extend, zero, one, laws, carrier, requires = children
+    if not isinstance(combine, Symbol) or not isinstance(extend, Symbol):
+        msg = f"algebra_catalog_operations_malformed({name})"
+        raise AlgebraDeclarationError(msg)
+    if (
+        not isinstance(laws, Expression)
+        or not laws.children
+        or laws.children[0] != Symbol("laws")
+    ):
+        msg = f"algebra_catalog_fields_malformed({name})"
+        raise AlgebraDeclarationError(msg)
+    if (
+        not isinstance(carrier, Expression)
+        or not carrier.children
+        or carrier.children[0] != Symbol("carrier")
+    ):
+        msg = f"algebra_catalog_fields_malformed({name})"
+        raise AlgebraDeclarationError(msg)
+    if (
+        not isinstance(requires, Expression)
+        or not requires.children
+        or requires.children[0] != Symbol("requires")
+    ):
+        msg = f"algebra_catalog_fields_malformed({name})"
+        raise AlgebraDeclarationError(msg)
+    law_names = tuple(
+        law.name for law in laws.children[1:] if isinstance(law, Symbol)
+    )
+    requirement_names = tuple(
+        requirement.name
+        for requirement in requires.children[1:]
+        if isinstance(requirement, Symbol)
+    )
+    return DeclaredAlgebra(
+        name=name,
+        combine=combine.name,
+        extend=extend.name,
+        zero=zero,
+        one=one,
+        laws=_canonical_laws(law_names),
+        carrier=tuple(carrier.children[1:]),
+        requires=frozenset(requirement_names),
+        order=_catalog_order(metta, name),
+    )
 
 
 def _catalog_order(
@@ -665,8 +732,9 @@ def get(metta: Space, name: str) -> DeclaredAlgebra | None:
     preset = _PRESETS.get(name)
     if preset is not None:
         return replace(preset)
-    catalog = _catalog_declaration(metta, name)
-    key = _key(metta, name)
+    context = _context_name(metta)
+    catalog = _catalog_declaration(metta, context, name)
+    key = _key(metta, context, name)
     if catalog is None:
         _REGISTRY.pop(key, None)
         return None
@@ -724,155 +792,16 @@ def _require_context_capabilities(
     raise AlgebraRequirementError(msg)
 
 
-def _same(left: Atom, right: Atom) -> bool:
+def _same(left: Atom, right: Atom) -> builtins.bool:
     try:
         result = left == right
-        return result if isinstance(result, bool) else bool(result)
+        return (
+            result
+            if isinstance(result, builtins.bool)
+            else builtins.bool(result)
+        )
     except (RuntimeError, TypeError, ValueError):
         return left is right
-
-
-def _member(value: Atom, carrier: Sequence[Atom]) -> bool:
-    return any(_same(value, candidate) for candidate in carrier)
-
-
-def _counterexample(
-    declaration: DeclaredAlgebra,
-    law: str,
-    inputs: tuple[Atom, ...],
-    left: Atom,
-    right: Atom,
-) -> AlgebraLawError:
-    return AlgebraLawError(
-        f"algebra_law_violation({declaration.name}, {law}, "
-        f"inputs={[str(value) for value in inputs]!r}, left={left}, right={right})"
-    )
-
-
-def _check_binary_closure(metta: Space, declaration: DeclaredAlgebra) -> None:
-    for operation in (declaration.combine, declaration.extend):
-        for left, right in itertools.product(declaration.carrier, repeat=2):
-            result = declaration.operation(metta, operation, left, right)
-            if not _member(result, declaration.carrier):
-                msg = (
-                    f"algebra_carrier_not_closed({declaration.name}, {operation}, "
-                    f"inputs=({left}, {right}), result={result})"
-                )
-                raise AlgebraLawError(msg)
-
-
-def _check_associative(
-    metta: Space,
-    declaration: DeclaredAlgebra,
-    law: str,
-    operation: Callable[[Space, Atom, Atom], Atom],
-) -> None:
-    for a, b, c in itertools.product(declaration.carrier, repeat=3):
-        left = operation(metta, operation(metta, a, b), c)
-        right = operation(metta, a, operation(metta, b, c))
-        if not _same(left, right):
-            raise _counterexample(declaration, law, (a, b, c), left, right)
-
-
-def _check_commutative(
-    metta: Space,
-    declaration: DeclaredAlgebra,
-    law: str,
-    operation: Callable[[Space, Atom, Atom], Atom],
-) -> None:
-    for a, b in itertools.product(declaration.carrier, repeat=2):
-        left = operation(metta, a, b)
-        right = operation(metta, b, a)
-        if not _same(left, right):
-            raise _counterexample(declaration, law, (a, b), left, right)
-
-
-def _check_idempotent(metta: Space, declaration: DeclaredAlgebra, law: str) -> None:
-    for value in declaration.carrier:
-        result = declaration.combine_values(metta, value, value)
-        if not _same(result, value):
-            raise _counterexample(declaration, law, (value,), result, value)
-
-
-def _check_distributive(
-    metta: Space, declaration: DeclaredAlgebra, law: str
-) -> None:
-    combine = declaration.combine_values
-    extend = declaration.extend_values
-    for a, b, c in itertools.product(declaration.carrier, repeat=3):
-        if law == "left-distributive":
-            left = extend(metta, a, combine(metta, b, c))
-            right = combine(metta, extend(metta, a, b), extend(metta, a, c))
-        else:
-            left = extend(metta, combine(metta, a, b), c)
-            right = combine(metta, extend(metta, a, c), extend(metta, b, c))
-        if not _same(left, right):
-            raise _counterexample(declaration, law, (a, b, c), left, right)
-
-
-def _check_identity(
-    metta: Space,
-    declaration: DeclaredAlgebra,
-    law: str,
-    operation: Callable[[Space, Atom, Atom], Atom],
-    identity: Atom,
-) -> None:
-    for value in declaration.carrier:
-        for left, right in (
-            (operation(metta, identity, value), value),
-            (operation(metta, value, identity), value),
-        ):
-            if not _same(left, right):
-                raise _counterexample(declaration, law, (value,), left, right)
-
-
-def _check_zero_annihilates(
-    metta: Space, declaration: DeclaredAlgebra, law: str
-) -> None:
-    extend = declaration.extend_values
-    for value in declaration.carrier:
-        for left, right in (
-            (extend(metta, declaration.zero, value), declaration.zero),
-            (extend(metta, value, declaration.zero), declaration.zero),
-        ):
-            if not _same(left, right):
-                raise _counterexample(declaration, law, (value,), left, right)
-
-
-def _check_law(metta: Space, declaration: DeclaredAlgebra, law: str) -> None:
-    combine = declaration.combine_values
-    extend = declaration.extend_values
-    operation = combine if law.startswith("combine-") else extend
-    if law.endswith("-associative"):
-        _check_associative(metta, declaration, law, operation)
-    elif law.endswith("-commutative"):
-        _check_commutative(metta, declaration, law, operation)
-    elif law == "combine-idempotent":
-        _check_idempotent(metta, declaration, law)
-    # policy-inventory-exempt: mechanism-internal; reason=these are the two law names that share one checker, so the dispatcher groups them where its other arms match a single name; evidence=extensions/python/metta/algebra.py:_check_distributive
-    elif law in {"left-distributive", "right-distributive"}:
-        _check_distributive(metta, declaration, law)
-    elif law == "combine-zero-identity":
-        _check_identity(metta, declaration, law, combine, declaration.zero)
-    elif law == "extend-one-identity":
-        _check_identity(metta, declaration, law, extend, declaration.one)
-    elif law == "extend-zero-annihilates":
-        _check_zero_annihilates(metta, declaration, law)
-
-
-def _validate_laws(metta: Space, declaration: DeclaredAlgebra) -> None:
-    equational = declaration.laws & _EQUATIONAL_LAWS
-    if equational and not declaration.carrier:
-        msg = (
-            f"algebra_law_uncheckable({declaration.name}, "
-            f"laws={sorted(equational)!r}, reason=finite_carrier_required)"
-        )
-        raise AlgebraLawError(msg)
-    if not equational:
-        return
-    _check_binary_closure(metta, declaration)
-    for law in sorted(equational):
-        _check_law(metta, declaration, law)
 
 
 def _list(head: str, values: Iterable[Any]) -> Expression:
@@ -909,7 +838,7 @@ def declare(
     if not extend or not isinstance(extend, str):
         msg = f"algebra_operation_invalid({name}, extend)"
         raise AlgebraDeclarationError(msg)
-    if order is not None and order not in set(SemiringOrder):
+    if order is not None and order not in builtins.set(SemiringOrder):
         msg = f"algebra_order_invalid({name}, {order!r})"
         raise AlgebraDeclarationError(msg)
     declaration = DeclaredAlgebra(
@@ -923,7 +852,7 @@ def declare(
         requires=frozenset(requires),
         order=order,
     )
-    _validate_laws(metta, declaration)
+    context = _context_name(metta)
     atom = Expression(
         (
             Symbol("algebra"),
@@ -935,10 +864,24 @@ def declare(
             _symbol_list("laws", sorted(declaration.laws)),
             _list("carrier", declaration.carrier),
             _symbol_list("requires", sorted(declaration.requires)),
+            Symbol(context),
         )
     )
-    Space("&metta", _runtime=metta.runtime).add(atom)
-    _REGISTRY[_key(metta, name)] = declaration
+    try:
+        metta.runtime.do_must(
+            "metta_py_declare_algebra", metta.name, atom.to_wire()
+        )
+    except EngineError as error:
+        if str(error).startswith(
+            (
+                "algebra_carrier_not_closed",
+                "algebra_law_uncheckable",
+                "algebra_law_violation",
+            )
+        ):
+            raise AlgebraLawError(str(error)) from error
+        raise
+    _REGISTRY[_key(metta, context, name)] = declaration
     return atom
 
 
@@ -974,7 +917,7 @@ def _coefficient(tag: Atom) -> Atom:
     return tag
 
 
-def _head(atom: Atom, name: str, arity: int | None = None) -> bool:
+def _head(atom: Atom, name: str, arity: int | None = None) -> builtins.bool:
     if not isinstance(atom, Expression) or not atom.children:
         return False
     first = atom.children[0]
@@ -1034,9 +977,9 @@ def _derive_rule(
     declaration: DeclaredAlgebra,
     rule: _Rule,
     available: Sequence[TaggedAnswer],
-    budget: _EvaluationBudget,
+    resources: _EvaluationBudget,
 ) -> list[TaggedAnswer]:
-    derivation = _derive_rule_steps(metta, declaration, rule, budget, {})
+    derivation = _derive_rule_steps(metta, declaration, rule, resources, {})
     # A generator's return value arrives through StopIteration, whose `value` is
     # untyped, so the declaration is what says what crosses that boundary. The
     # loop leaves only by that exception, which is why the name is bound there
@@ -1057,7 +1000,7 @@ def _derive_rule_steps(
     metta: Space,
     declaration: DeclaredAlgebra,
     rule: _Rule,
-    budget: _EvaluationBudget,
+    resources: _EvaluationBudget,
     initial: dict[str, Atom],
 ) -> Generator[Atom, Sequence[TaggedAnswer], list[TaggedAnswer]]:
     """Suspend at each premise so either evaluator supplies its candidate bag."""
@@ -1074,7 +1017,7 @@ def _derive_rule_steps(
     ]
     linear = "linear" in declaration.requires
     for premise in rule.premises:
-        budget.checkpoint()
+        resources.checkpoint()
         next_states: list[
             tuple[
                 dict[str, Atom],
@@ -1085,7 +1028,7 @@ def _derive_rule_steps(
             ]
         ] = []
         for bindings, tag, tokens, proof, child_traces in states:
-            budget.checkpoint()
+            resources.checkpoint()
             pattern = substitute(premise, bindings)
             # The suspension point, written as its own statement: a `yield`
             # inside a `for` header is the same generator and astroid reads the
@@ -1093,7 +1036,7 @@ def _derive_rule_steps(
             # caller's `.send`, `.close` and iteration a finding.
             candidates = yield pattern
             for candidate in candidates:
-                budget.checkpoint()
+                resources.checkpoint()
                 matched = _match(pattern, candidate.value)
                 if matched is None:
                     continue
@@ -1114,7 +1057,7 @@ def _derive_rule_steps(
                             metta,
                             tag,
                             candidate.tag,
-                            budget=budget,
+                            resources=resources,
                         ),
                         tokens | candidate.tokens,
                         proof + candidate.proof,
@@ -1158,12 +1101,12 @@ def _fuse(
     metta: Space,
     declaration: DeclaredAlgebra,
     answers: Sequence[TaggedAnswer],
-    budget: _EvaluationBudget,
+    resources: _EvaluationBudget,
 ) -> list[TaggedAnswer]:
     fused: list[TaggedAnswer] = []
     positions: dict[str, int] = {}
     for answer in answers:
-        budget.checkpoint()
+        resources.checkpoint()
         key = str(answer.value)
         position = positions.get(key)
         if position is None:
@@ -1177,7 +1120,7 @@ def _fuse(
                 metta,
                 previous.tag,
                 answer.tag,
-                budget=budget,
+                resources=resources,
             ),
             tokens=previous.tokens | answer.tokens,
             proof=previous.proof + answer.proof,
@@ -1186,10 +1129,10 @@ def _fuse(
     return fused
 
 
-def _headed_tag(atom: Atom, name: str) -> bool:
+def _headed_tag(atom: Atom, name: str) -> builtins.bool:
     return (
         isinstance(atom, Expression)
-        and bool(atom.children)
+        and builtins.bool(atom.children)
         and atom.children[0] == Symbol(name)
     )
 
@@ -1264,7 +1207,7 @@ def _demand_evaluate(
     *,
     goal: Atom,
     max_rounds: int,
-    budget: _EvaluationBudget,
+    resources: _EvaluationBudget,
 ) -> list[TaggedAnswer] | None:
     # The demand planner consumes the algebra's rule and proof types; importing
     # it here keeps that dependency out of this module's initialization cycle.
@@ -1272,7 +1215,7 @@ def _demand_evaluate(
 
     return evaluate_demand(
         metta, declaration, facts, rules,
-        goal=goal, max_rounds=max_rounds, budget=budget,
+        goal=goal, max_rounds=max_rounds, budget=resources,
     )
 
 
@@ -1286,11 +1229,11 @@ def evaluate(
     inferences: int | None = None,
 ) -> AlgebraEvaluation:
     """Evaluate finite tagged derivations under one call-wide resource budget."""
-    budget = _EvaluationBudget.from_call(timeout, inferences)
+    resources = _EvaluationBudget.from_call(timeout, inferences)
     declaration = require(metta, algebra)
     _require_context_capabilities(metta, declaration)
     goal = parse(query) if isinstance(query, str) else _encode(query)
-    budget.checkpoint()
+    resources.checkpoint()
     available, rules = _program(metta.atoms())
     # max_rounds bounds fixpoint HEIGHT, not how long one round can run. The
     # absolute deadline therefore gets checked between rounds and inside each
@@ -1302,19 +1245,19 @@ def evaluate(
     # commit=51e719767e3dd322a9cf88bd096410bbc5647493].
     demanded = _demand_evaluate(
         metta, declaration, available, rules,
-        goal=goal, max_rounds=max_rounds, budget=budget,
+        goal=goal, max_rounds=max_rounds, resources=resources,
     )
     if demanded is not None:
         available = demanded
     else:
         seen = {_signature(answer) for answer in available}
         for _ in range(max_rounds):
-            budget.checkpoint()
+            resources.checkpoint()
             added: list[TaggedAnswer] = []
             for rule in rules:
-                budget.checkpoint()
+                resources.checkpoint()
                 for answer in _derive_rule(
-                    metta, declaration, rule, available, budget
+                    metta, declaration, rule, available, resources
                 ):
                     signature = _signature(answer)
                     if signature not in seen:
@@ -1330,7 +1273,7 @@ def evaluate(
             raise AlgebraEvaluationError(msg)
     matched: list[TaggedAnswer] = []
     for answer in available:
-        budget.checkpoint()
+        resources.checkpoint()
         if _match(goal, answer.value) is not None:
             matched.append(answer)
     licence = "combine-associative"
@@ -1344,11 +1287,11 @@ def evaluate(
         PlanDecision("demand-directed-derivation", demanded is not None),
     )
     if can_fuse:
-        matched = _fuse(metta, declaration, matched, budget)
-    budget.checkpoint()
+        matched = _fuse(metta, declaration, matched, resources)
+    resources.checkpoint()
     retained = []
     for answer in _order_answers(declaration, matched):
-        budget.checkpoint()
+        resources.checkpoint()
         retained.append(
             replace(answer, _space=metta, _algebra=declaration.name, _plan=plan)
         )
@@ -1365,7 +1308,7 @@ def _rate(tag: Atom) -> float:
         value = tag.children[1]
     if isinstance(value, Grounded):
         value = _decode(value)
-    if isinstance(value, bool) or not isinstance(value, Real):
+    if isinstance(value, builtins.bool) or not isinstance(value, Real):
         msg = f"rate_not_numeric({tag})"
         raise RateDeclarationError(msg)
     numeric = float(value)
@@ -1389,7 +1332,7 @@ def sample(
     seed: int,
 ) -> tuple[Atom, ...]:
     """Draw a stable cumulative rate selection using isolated seeded state."""
-    if isinstance(draws, bool) or not isinstance(draws, int) or draws < 0:
+    if isinstance(draws, builtins.bool) or not isinstance(draws, int) or draws < 0:
         msg = "draws must be a nonnegative integer"
         raise ValueError(msg)
     evaluation = evaluate(metta, query, algebra=algebra)
@@ -1409,7 +1352,7 @@ def sample(
     return tuple(selected)
 
 
-def has_tagged_program(metta: Space, query: str | Atom) -> bool:
+def has_tagged_program(metta: Space, query: str | Atom) -> builtins.bool:
     """Ask whether a normative tagged fact or rule can answer this query."""
     encoded = query if isinstance(query, str) else _encode(query).to_wire()
     return metta.runtime.apply_must(
@@ -1425,9 +1368,9 @@ def count_tagged(
     limit: int | None = None,
     timeout: float | None = None,
     inferences: int | None = None,
-) -> int:
-    """Count tagged derivation trees wholly inside the engine."""
-    if isinstance(max_rounds, bool) or not isinstance(max_rounds, int):
+) -> TaggedAnswer:
+    """Count tagged derivation trees into one protocol-shaped answer."""
+    if isinstance(max_rounds, builtins.bool) or not isinstance(max_rounds, int):
         msg = "max_rounds must be a positive integer"
         raise TypeError(msg)
     if max_rounds <= 0:
@@ -1447,7 +1390,7 @@ def count_tagged(
         inputs,
         _limits(timeout, inferences),
     )
-    return int(output)
+    return counting_answer(metta, int(output))
 
 
 def captured_answer(
@@ -1466,6 +1409,29 @@ def captured_answer(
         (_Trace(-1, annotation),),
         metta,
         declaration.name,
+    )
+
+
+def counting_answer(
+    metta: Space,
+    count: int,
+    carrier: Any = "counting",
+) -> TaggedAnswer:
+    """Wrap one engine aggregate without manufacturing a proposition row.
+
+    Public beside `captured_answer` and `count_tagged` because `Space` is the
+    caller: the count doors under it stay scalar so that the core never
+    imports this satellite, and the layering contract stays kept.
+    """
+    annotation = _encode(count)
+    return TaggedAnswer(
+        (),
+        annotation,
+        frozenset(),
+        (),
+        (_Trace(-1, annotation),),
+        metta,
+        _carrier_name(carrier),
     )
 
 
@@ -1522,7 +1488,11 @@ def _construct(
     """Implement the functional and class-decorator constructor forms."""
     from . import engine  # noqa: PLC0415 -- the callable module stays lazy
 
-    target = engine().self
+    # The module-level `current_space`, the one `current_algebra` reads too,
+    # rather than the root door of the same name: the root's own spelling adds
+    # only the implementation-module rehide, and importing it here would shadow
+    # this module's.
+    target = engine().space(current_space())
     algebra_name = _algebra_name(subject)
     if isinstance(subject, type):
         plus = getattr(subject, "plus", plus)
@@ -1612,11 +1582,16 @@ class _AlgebraModule(ModuleType):
         )
 
 
+bool = replace(_PRESETS["bool"])  # noqa: A001 -- the catalog spelling is public
+bag = replace(_PRESETS["bag"])
 counting = replace(_PRESETS["counting"])
-tropical = replace(_PRESETS["tropical"])
-prov = replace(_PRESETS["prov"])
+set = replace(_PRESETS["set"])  # noqa: A001 -- the catalog spelling is public
 ranked = replace(_PRESETS["ranked"])
+tropical = replace(_PRESETS["tropical"])
 prob = replace(_PRESETS["prob"])
+prov = replace(_PRESETS["prov"])
+budget = replace(_PRESETS["budget"])
+amplitude = replace(_PRESETS["amplitude"])
 
 # PEP 562 preserves lazy import identity at the package; changing the real
 # module object's class adds construction without introducing a proxy.

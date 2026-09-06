@@ -8,9 +8,11 @@ Guarantees:
     test_counting_inference_growth_is_linear_when_answers_grow_in_depth;
     commit=c7468b2789746bcf95c4bacc0e2d517ec4d972fa]
   - ordered carriers determine answer order before an Answers slice selects
-    its prefix [tested:
-    test_ranked_and_tropical_slices_are_stable_best_prefixes;
-    commit=c7468b2789746bcf95c4bacc0e2d517ec4d972fa]
+    its prefix, and a pristine bounded slice reaches only a provider licensed
+    by Exact, matching ordered annotations, and best-first emission [tested:
+    test_ranked_and_tropical_slices_are_stable_best_prefixes,
+    test_pristine_ranked_slice_pushes_only_the_licensed_provider_bound;
+    commit=2e627a593413191cda3170f2eb716835f7f62543]
   - a retained derivation can be explained and reinterpreted without asking
     its provider again [tested:
     test_provenance_retains_a_derivation_for_no_requery_reinterpretation,
@@ -27,6 +29,20 @@ Guarantees:
   - tagged counts and ordinary matches share one positive-limit contract
     [tested: test_tagged_count_and_match_refuse_zero_with_the_same_message;
     commit=61e107a8105a5cdaea164f615812a684b12d8fe3]
+  - custom algebra declarations are visible only to their owning context and
+    distinct contexts may reuse one algebra name [tested:
+    test_custom_algebras_are_context_owned; commit=2e627a593413191cda3170f2eb716835f7f62543]
+  - the module-level algebra constructor follows the active space context
+    [tested: test_algebra_module_constructor_targets_the_ambient_space;
+    commit=2e627a593413191cda3170f2eb716835f7f62543]
+  - counting answers share TaggedAnswer's value, annotation, explanation, and
+    reinterpretation protocol [tested:
+    test_counting_counts_match_bag_duplicates_without_opening_a_row_cursor,
+    test_counting_counts_duplicate_call_answers_inside_the_engine;
+    commit=2e627a593413191cda3170f2eb716835f7f62543]
+  - current_algebra observes explicit, scoped, and context-declared carriers
+    in precedence order while leaving an undeclared context as None [tested:
+    test_current_algebra_follows_each_selection_layer; commit=2e627a593413191cda3170f2eb716835f7f62543]
 """
 
 from __future__ import annotations
@@ -37,7 +53,7 @@ import importlib
 import pytest
 
 import metta as metta_module
-from metta import Answer, S, V, aio, counting, prov, ranked, tropical
+from metta import Answer, S, V, aio, counting, prob, prov, ranked, tropical
 from metta.foreign import SpaceProvider
 from metta.vocabularies import Semiring
 
@@ -72,11 +88,16 @@ def test_counting_counts_match_bag_duplicates_without_opening_a_row_cursor(
         monkeypatch.setattr("metta._space.Cursor", cursor_must_not_open)
         counted = facts.match(S.edge(S.a, V.x), under=counting)
         with facts.stats() as measured:
-            assert counted.one() == 3
+            answer = counted.one()
 
+        assert answer.value == ()
+        assert answer.tag == metta_module.G(3)
+        assert answer.annotation == 3
+        assert answer.why().answer == ()
+        assert answer.under(prob).annotation == 3
         assert measured.inferences > 0
         assert len(counted._cache) == 1
-        assert facts.match(S.absent(V.x), under=counting).one() == 0
+        assert facts.match(S.absent(V.x), under=counting).one().annotation == 0
 
 
 def test_counting_counts_duplicate_call_answers_inside_the_engine(metta):
@@ -88,7 +109,9 @@ def test_counting_counts_duplicate_call_answers_inside_the_engine(metta):
             "(= (under-call) other)"
         )
         with program.stats() as measured:
-            assert program.answers(S.under_call(), under=counting).one() == 3
+            answer = program.answers(S.under_call(), under=counting).one()
+        assert answer.value == ()
+        assert answer.annotation == 3
         assert measured.inferences > 0
 
 
@@ -119,7 +142,10 @@ def test_counting_inference_growth_is_linear_when_answers_grow_in_depth(metta):
                 value = S.S(value)
             facts.add(*atoms)
             with facts.stats() as stats:
-                assert facts.match(S.num(V.value), under=counting).one() == size
+                assert (
+                    facts.match(S.num(V.value), under=counting).one().annotation
+                    == size
+                )
             return stats.inferences
 
     shallow = measured(128)
@@ -133,11 +159,11 @@ def test_scoped_under_is_task_local_and_explicit_under_wins(metta):
         facts.add(S.item(S.a), S.item(S.b))
         facts.run("(= (scoped-call) same)\n(= (scoped-call) same)")
         with metta_module_under(counting):
-            assert facts.match(S.item(V.x)).one() == 2
-            assert facts.fn.scoped_call().one() == 2
+            assert facts.match(S.item(V.x)).one().annotation == 2
+            assert facts.fn.scoped_call().one().annotation == 2
             with metta_module_under(tropical):
-                assert facts.match(S.item(V.x), under=counting).one() == 2
-            assert facts.match(S.item(V.x)).one() == 2
+                assert facts.match(S.item(V.x), under=counting).one().annotation == 2
+            assert facts.match(S.item(V.x)).one().annotation == 2
         assert [str(row.x) for row in facts.match(S.item(V.x))] == ["a", "b"]
 
 
@@ -150,7 +176,7 @@ def test_scoped_under_crosses_the_async_worker_context(metta):
             async with aio.AsyncMeTTa(metta=facts) as worker:
                 with metta_module_under(counting):
                     counted = await worker.match(S.item(V.x))
-                return counted.one()
+                return counted.one().annotation
 
         assert asyncio.run(ask()) == 2
 
@@ -169,6 +195,34 @@ def test_under_refuses_none_and_restores_after_an_exception(metta):
             with metta_module_under(counting):
                 raise ScopeError
         assert [str(row.x) for row in facts.match(S.item(V.x))] == ["a", "b"]
+
+
+def test_current_algebra_follows_each_selection_layer(metta):
+    """One observer follows the same precedence as an evaluating query."""
+    with metta._new_space() as first, metta._new_space() as second:
+        with first:
+            assert metta_module.current_algebra() is None
+
+        first.annotations("ranked")
+        second.annotations("tropical")
+        with first:
+            assert metta_module.current_algebra() == "ranked"
+            with metta_module.under(counting):
+                assert metta_module.current_algebra() == "counting"
+        with second:
+            assert metta_module.current_algebra() == "tropical"
+
+        def inspect_algebra() -> str:
+            return metta_module.current_algebra() or "none"
+
+        first.op(
+            inspect_algebra,
+            name="inspect-algebra",
+            effect="readOnlyLookup",
+        )
+        with metta_module.under(counting):
+            answer = first.answers(S.inspect_algebra(), under=prov).one()
+        assert answer.value == metta_module.G("prov")
 
 
 def metta_module_under(carrier):
@@ -207,6 +261,68 @@ def test_ranked_and_tropical_slices_are_stable_best_prefixes(metta):
         assert [answer.value for answer in best] == [S.best_a, S.best_b]
 
 
+def test_pristine_ranked_slice_pushes_only_the_licensed_provider_bound(metta):
+    """The slice reopens only a repeatable source whose declared order it can trust."""
+    class BestFirstRows(SpaceProvider):
+        def __init__(self):
+            self.rows = [(S.best, 9), (S.middle, 4), (S.low, 1)]
+            self.limits = []
+
+        def atoms(self):
+            return iter(())
+
+        def match(self, pattern, *, limit=None):  # noqa: ARG002 -- the provider protocol requires the pattern argument
+            self.limits.append(limit)
+            rows = self.rows if limit is None else self.rows[:limit]
+            for value, annotation in rows:
+                yield Answer(value=S.score(value), k=annotation)
+
+    provider = BestFirstRows()
+    metta._register_space(provider, "&slice-ranked")
+    scores = metta._at("&slice-ranked")
+    scores.annotations("ranked")
+    scores.handles("(score $x)", "Exact")
+    scores.emits("best-first")
+
+    all_answers = scores.match(S.score(V.x), under=ranked)
+    first_two = all_answers[:2]
+    assert provider.limits == []
+    assert [str(value) for value in first_two.x] == ["best", "middle"]
+    assert provider.limits == [2]
+    assert [str(value) for value in all_answers.x] == ["best", "middle", "low"]
+    assert provider.limits == [2, None]
+
+    provider.limits.clear()
+    assert [
+        str(value)
+        for value in scores.match(S.score(V.x), under=tropical)[:1].x
+    ] == ["low"]
+    assert provider.limits == [None]
+
+    no_order_promise = BestFirstRows()
+    metta._register_space(no_order_promise, "&slice-no-emits")
+    unpromised = metta._at("&slice-no-emits")
+    unpromised.annotations("ranked")
+    unpromised.handles("(score $x)", "Exact")
+    assert [
+        str(value)
+        for value in unpromised.match(S.score(V.x), under=ranked)[:1].x
+    ] == ["best"]
+    assert no_order_promise.limits == [None]
+
+    inexact = BestFirstRows()
+    metta._register_space(inexact, "&slice-inexact")
+    inexact_space = metta._at("&slice-inexact")
+    inexact_space.annotations("ranked")
+    inexact_space.handles("(score $x)", "Partial")
+    inexact_space.emits("best-first")
+    assert [
+        str(value)
+        for value in inexact_space.match(S.score(V.x), under=ranked)[:1].x
+    ] == ["best"]
+    assert inexact.limits == [None]
+
+
 def test_provenance_retains_a_derivation_for_no_requery_reinterpretation(metta):
     """why/under consume the captured carrier tree rather than the provider."""
     provider = _ScoredRows([("rain", S.src(S.weather_db))])
@@ -222,14 +338,14 @@ def test_tagged_derivations_flow_through_match_and_reinterpret_without_requery(
     metta,
 ):
     """The former evaluate_algebra capability lives behind match(under=)."""
-    metta.algebra(
-        "under-product",
-        combine="+",
-        extend="*",
-        zero=0,
-        one=1,
-    )
     with metta._new_space() as program:
+        program.algebra(
+            "under-product",
+            combine="+",
+            extend="*",
+            zero=0,
+            one=1,
+        )
         program.add_tagged_fact(2, S.parent(S.tom, S.bob))
         program.add_tagged_fact(3, S.parent(S.bob, S.ann))
         program.add_tagged_rule(
@@ -246,19 +362,19 @@ def test_tagged_derivations_flow_through_match_and_reinterpret_without_requery(
         assert "grandparent" in answer.why().render()
         assert program.match(
             S.grandparent(S.tom, S.ann), under=counting
-        ).one() == 1
+        ).one().annotation == 1
 
 
 def test_tagged_call_answers_use_the_carrier_without_hijacking_other_calls(metta):
     """Tagged routing is query-specific and both call kinds keep their values."""
-    metta.algebra(
-        "under-call-product",
-        combine="+",
-        extend="*",
-        zero=0,
-        one=1,
-    )
     with metta._new_space() as program:
+        program.algebra(
+            "under-call-product",
+            combine="+",
+            extend="*",
+            zero=0,
+            one=1,
+        )
         program.add_tagged_fact(7, S.tagged_call(S.yes))
         program.run("(= (ordinary-call) ordinary)")
 
@@ -267,7 +383,12 @@ def test_tagged_call_answers_use_the_carrier_without_hijacking_other_calls(metta
         )
         assert tagged.one().annotation == 7
         assert tagged.value.one() == S.yes
-        assert program.answers(S.tagged_call(V.value), under=counting).one() == 1
+        assert (
+            program.answers(S.tagged_call(V.value), under=counting)
+            .one()
+            .annotation
+            == 1
+        )
 
         ordinary = program.answers(S.ordinary_call(), under=ranked).one()
         assert ordinary.value == S.ordinary
@@ -322,6 +443,14 @@ def test_algebra_module_is_the_constructor_and_the_old_space_doors_are_retired(
 
     assert UnderDecorated.name == "UnderDecorated"
     with metta._new_space() as program:
+        program.algebra(
+            declared.name,
+            combine=declared.combine,
+            extend=declared.extend,
+            zero=declared.zero,
+            one=declared.one,
+            order=declared.order,
+        )
         program.add_tagged_fact(1, S.option(S.low))
         program.add_tagged_fact(9, S.option(S.high))
         program.add_tagged_fact(2, S.base(S.x))
@@ -333,6 +462,73 @@ def test_algebra_module_is_the_constructor_and_the_old_space_doors_are_retired(
     assert not hasattr(metta_module, "sample_rates")
     assert not hasattr(metta_module._space.Space, "evaluate_algebra")
     assert not hasattr(metta_module._space.Space, "sample_rates")
+
+
+def test_custom_algebras_are_context_owned(metta):
+    """Algebra rows and annotations use the same context lifetime key."""
+    algebra_module = importlib.import_module("metta.algebra")
+    with metta._new_space() as left, metta._new_space() as right:
+        left.algebra(
+            "same-local-name", combine="+", extend="*", zero=0, one=1
+        )
+        assert algebra_module.require(left, "same-local-name").one == metta_module.G(1)
+        with pytest.raises(
+            algebra_module.AlgebraDeclarationError,
+            match="algebra_not_declared",
+        ):
+            algebra_module.require(right, "same-local-name")
+        with metta_module.MeTTa() as isolated:
+            with pytest.raises(
+                algebra_module.AlgebraDeclarationError,
+                match="algebra_not_declared",
+            ):
+                algebra_module.require(isolated.self, "same-local-name")
+            assert algebra_module.require(isolated.self, "ranked").name == "ranked"
+
+        right.algebra(
+            "same-local-name", combine="+", extend="*", zero=0, one=9
+        )
+        assert algebra_module.require(right, "same-local-name").one == metta_module.G(9)
+        assert algebra_module.require(left, "same-local-name").one == metta_module.G(1)
+        assert str(left.annotations("same-local-name")) == (
+            f"(annotations {left.name} same-local-name)"
+        )
+        assert str(right.annotations("same-local-name")) == (
+            f"(annotations {right.name} same-local-name)"
+        )
+        assert left.runtime.must(
+            "metta_algebra_one(Ctx, One)", Ctx=left.name
+        )["One"] == 1
+        assert right.runtime.must(
+            "metta_algebra_one(Ctx, One)", Ctx=right.name
+        )["One"] == 9
+
+
+def test_algebra_module_constructor_targets_the_ambient_space(metta):
+    """The implicit constructor receiver is the current space, not ``&self``."""
+    algebra_module = importlib.import_module("metta.algebra")
+    with metta._new_space() as program:
+        with program:
+            declared = algebra_module(
+                "ambient-product",
+                plus=lambda left, right: left + right,
+                times=lambda left, right: left * right,
+                zero=0,
+                one=1,
+            )
+
+        assert algebra_module.require(program, "ambient-product") == declared
+        program.add_tagged_fact(3, S.ambient(S.value))
+        assert (
+            program.match(S.ambient(S.value), under=declared).one().annotation
+            == 3
+        )
+
+    with pytest.raises(
+        algebra_module.AlgebraDeclarationError,
+        match="algebra_not_declared",
+    ):
+        algebra_module.require(metta, "ambient-product")
 
 
 def test_space_sample_is_seeded_and_uses_k_vocabulary(metta):
@@ -348,17 +544,50 @@ def test_space_sample_is_seeded_and_uses_k_vocabulary(metta):
         assert {str(answer) for answer in first} <= {"(route slow)", "(route fast)"}
 
 
-@pytest.mark.parametrize("carrier", [counting, tropical, prov, ranked, metta_module.prob])
+@pytest.mark.parametrize(
+    "carrier",
+    [
+        metta_module.bool,
+        metta_module.bag,
+        counting,
+        metta_module.set,
+        ranked,
+        tropical,
+        metta_module.prob,
+        prov,
+        metta_module.budget,
+        metta_module.amplitude,
+    ],
+)
 def test_requested_carrier_spellings_are_declared(carrier):
     """The exact bare names from the algebra-tower cell are carrier objects."""
-    assert carrier.name in {"counting", "tropical", "prov", "ranked", "prob"}
+    assert carrier.name in {member.value for member in Semiring}
+
+
+def test_every_shipped_semiring_has_one_root_object_in_catalog_order():
+    """Each generated Semiring member is a root carrier object of that name.
+
+    ch20's test_every_algebra_the_catalog_defines_is_one_its_vocabulary_admits
+    compares the presets against the enum as sets. What that cannot see is the
+    third roster, `metta.<name>`, the objects a Python annotation reaches:
+    five of the ten were exported and five were reachable only as strings, so
+    `metta.budget` raised AttributeError for a carrier that already answered
+    `under="budget"`. The order is pinned here too, because the enum is
+    generated from the catalog row and the presets are written beside it.
+    """
+    algebra_module = importlib.import_module("metta.algebra")
+    names = tuple(member.value for member in Semiring)
+    assert names == tuple(algebra_module._PRESETS)
+    assert all(getattr(metta_module, name).name == name for name in names)
 
 
 def test_semiring_vocabulary_members_are_carrier_spellings(metta):
     """The generated catalog enum reaches the same resolver as bare objects."""
     with metta._new_space() as facts:
         facts.add(S.item(S.a), S.item(S.a))
-        assert facts.match(S.item(V.x), under=Semiring.counting).one() == 2
+        assert (
+            facts.match(S.item(V.x), under=Semiring.counting).one().annotation == 2
+        )
 
 
 def test_a_streamed_algebra_answers_what_a_matched_one_answers(metta):
@@ -377,7 +606,8 @@ def test_a_streamed_algebra_answers_what_a_matched_one_answers(metta):
         matched = list(space.match(S.streamed(V.x, V.n), under=carrier))
         with space.stream(S.streamed(V.x, V.n), under=carrier) as cursor:
             assert list(cursor) == matched
-    assert list(space.match(S.streamed(V.x, V.n), under="counting")) == [2]
+    counted = list(space.match(S.streamed(V.x, V.n), under="counting"))
+    assert [answer.annotation for answer in counted] == [2]
     with pytest.raises(TypeError, match="nothing to stream"):
         space.stream(S.streamed(V.x, V.n), under="counting")
 
@@ -394,9 +624,16 @@ def test_a_scoped_carrier_reaches_every_evaluating_door(metta):
     space = metta._at("&self")
     space.run("(= (scoped-path a) b) (= (scoped-path a) c)")
     assert space.eval(S["scoped-path"](S.a)) == [S.b, S.c]
-    assert space.eval(S["scoped-path"](S.a), under="counting") == [2]
+    assert [
+        answer.annotation
+        for answer in space.eval(S["scoped-path"](S.a), under="counting")
+    ] == [2]
     with metta_module.under("counting"):
-        assert space.eval(S["scoped-path"](S.a)) == [2]
-        assert list(space.answers(S["scoped-path"](S.a))) == [2]
+        assert [
+            answer.annotation for answer in space.eval(S["scoped-path"](S.a))
+        ] == [2]
+        assert [
+            answer.annotation for answer in space.answers(S["scoped-path"](S.a))
+        ] == [2]
     # And the scope ends where the block ends.
     assert space.eval(S["scoped-path"](S.a)) == [S.b, S.c]

@@ -12,6 +12,9 @@ Guarantees:
   - Construction validates shapes eagerly, so a malformed answer fails at
     the yield site it was written, not inside an engine callback
     [tested 2026-08-17: test_answer_validates_eagerly].
+  - theta, value, residue, and k compose in one provider answer; residue closes
+    in the engine and k becomes the selected carrier's annotation [tested:
+    test_every_answer_constructor_slot_is_live; commit=2e627a593413191cda3170f2eb716835f7f62543].
 Open Obligations:
   To Do: None
   Hacks: None
@@ -58,13 +61,18 @@ class Answer:
     execute_bindings, an answer atom together with the bindings it is
     returned under.
 
-    `residue` and `k` complete the wire form; the engine's support for
-    them lands by phase, and until it does a non-default value is a loud
-    error rather than a silently dropped one.
+    `residue` and `k` complete the live wire form. A residue is an Atom
+    evaluated by the engine under theta; a false closure drops that answer.
+    `k` is admitted when the provider or operation context declares a
+    non-Boolean annotation algebra: it orders under `ranked`, and a term-valued
+    k is the source tag under `prov`. An undeclared k is refused rather than
+    silently dropped.
 
     Theta values are encoded with the standard value encoder: atoms pass
     through, scalars become their atoms, and a value needing a registered
-    projection should be projected by the author.
+    projection should be projected by the author. The resulting value's
+    content type is its atom class, observable with `get-metatype` as Symbol,
+    Variable, Grounded, or Expression; it is not the Python class name.
     """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
 
     __slots__ = ("k", "residue", "theta", "value")
