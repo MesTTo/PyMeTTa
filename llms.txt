@@ -58,9 +58,11 @@ forms("(a b) (c d)")         # every top-level form, none evaluated
 `atom.metatype` answers `Symbol`, `Variable`, `Grounded` or `Expression`.
 Atoms are immutable, hashable and comparable; `a.alpha_eq(b)` is equality
 modulo variable renaming, and `a.alpha(b)` BUILDS the `(=alpha a b)` term
-instead of answering now. Operators build terms when an operand is a variable
-(`V.x + 1` is `(+ $x 1)`) and compute when nothing is: that is the one rule
-behind "the notation reveals the engine".
+instead of answering now. Arithmetic and bitwise operators on an atom always
+BUILD: `V.x + 1` is `(+ $x 1)` and `G(2) + G(3)` is `(+ 2 3)`, not `5`. Reach
+for `.value` when you meant Python's own arithmetic. Rich comparisons are the
+exception and answer Python booleans in the engine's term order; `a.lt(b)` and
+its siblings build the comparison term.
 
 ## Asking
 
@@ -100,32 +102,48 @@ equation(S.f(V.x)).to(V.x + 1)          # one equation, built
 rules(...)                              # a generator yielding equations
 ```
 
-Measured per call, 2026-09-01, on the extension-cost workload (`python -m
-benchmarks.extension_cost` from `extensions/python`):
+Measured per call on the extension-cost workload (`python -m
+benchmarks.extension_cost` from `extensions/python`), which subtracts the
+driver's own cost so a row is the marginal cost of one call:
 
 | door | inferences/call | microseconds/call |
 |---|---|---|
+| translator rule (a macro) | 0.00 | below the driver |
 | C foreign predicate | 1.00 | 0.02 |
-| Prolog grounded predicate | 2.00 | 0.04 |
-| translator rule (a macro) | 2.00 | 0.06 |
-| `@m.define` | 3.00 | 0.07 |
+| Prolog grounded predicate | 2.00 | 0.03 |
 | an ordinary MeTTa function | 3.00 | 0.06 |
-| `m.op`, `transport="raw"` | 12.00 | 1.12 |
-| `m.op`, encoded | 20.00 | 3.87 |
+| `@m.define`, annotated | 3.00 | 0.07 |
+| `m.op`, `transport="raw"` | 12.00 | 1.15 |
+| `m.op`, encoded | 20.00 | 4.29 |
+| `@m.define`, no annotations | 28.00 | 5.47 |
+
+Read the two columns differently. The inference column is deterministic, three
+identical samples per tier across two whole runs on 2026-09-06, and it is what
+the benchmark's committed baseline gates. The microsecond column came from the
+same run at load average 12, so take it for the magnitude of the crossing and
+not as a pin.
+
+The two `@m.define` rows are the same door and nine times apart. An annotated
+body compiles to a native operator and costs what an ordinary MeTTa function
+costs; without annotations the operators go through Python's live protocol at
+application time, which is a host crossing per operation. Annotate a compiled
+body you care about the cost of.
 
 So reach for `@m.define` when the body is expressible as MeTTa, and `m.op`
 when it must stay Python: it touches the network, holds a file, or calls a
 library you are not going to re-express. A called operation must DECLARE its
-effect class, because the engine cannot see inside it: `pure`, `reads`,
-`writes`, `io` are the shorthands, and only a pure one is cached without being
-asked. A written `!(memoize f)` or `!(tabled (f $x))` is honoured whatever the
-class says.
+effect class, because the engine cannot see inside it, and only a
+`pureStructural` one is cached without being asked. A written `!(memoize f)`,
+`!(memoize-exact f)`, `!(tabled (f $x))` or `(cache f force)` is honoured
+whatever the class says.
 
 The ordered `EffectClass` members are: `pureStructural`, `readOnlyLookup`,
-`nondeterministicReadOnly`, `writesState`, `oracleIO`. Those are the longhands
-`effect=` takes and the names reflection answers with. There is no shorthand
-for `nondeterministicReadOnly` because registering a generator lifts the class
-itself.
+`nondeterministicReadOnly`, `writesState`, `oracleIO`. Those five are what
+`effect=` takes and the names reflection answers with; there are no
+shorthands, and a spelling outside the five is refused by name. Three retired
+inputs still map in, `immutable`, `stable` and `volatile`, reaching
+`pureStructural`, `readOnlyLookup` and `oracleIO`. Registering a generator
+lifts the class to at least `nondeterministicReadOnly` by itself.
 
 ## What a compiled BODY may say
 
@@ -239,8 +257,8 @@ adds syntax that costs nothing at run time.
 
 **Extend it.** The engine CALLS your code: `m.op`, `m.register_prolog`,
 `m.register_foreign_library` and a reader token class each make a host
-callable or literal into an ordinary MeTTa one, priced 0.02 to 3.87
-microseconds by how far the value travels.
+callable or literal into an ordinary MeTTa one, priced 1 to 20 inferences a
+call by how far the value travels, in the table above.
 
 **Back it.** The atoms LIVE elsewhere: a space is an interface, so SQLite,
 DuckDB, NetworkX, a live Python object, another process or a MORK store can
@@ -250,9 +268,10 @@ The third is the one people underestimate. A table-backed space is one
 declaration, not a wrapper:
 
 ```python
-tables.declare(m, "&crm", "(bridge (edge $a $b) (row edges (a $a) (b $b)))")
-provider = TableBridge.from_context(m, "&crm", sqlite3.connect(":memory:"))
-m.self._register_space(provider, "&crm")
+kb = m.self                     # both take a SPACE, not the context
+tables.declare(kb, "&crm", "(bridge (edge $a $b) (row edges (a $a) (b $b)))")
+provider = TableBridge.from_context(kb, "&crm", sqlite3.connect(":memory:"))
+metta.attach("&crm", provider)  # the name is now a queryable space
 ```
 
 Every provider operation derives from that one declaration, both directions:
@@ -262,8 +281,10 @@ knowledge a program can query. `metta.foreign` is the hand-written form of
 the same seam, `metta.remote` puts a space in another process, and
 `metta.spaces.view` presents a live Python object as one.
 
-`extensions/python/examples/language-feature-examples/` is 219 runnable
-programs, one per MeTTa example, gated to agree with the MeTTa they mirror.
+`extensions/python/examples/language-feature-examples/` is 224 runnable
+programs, each mirroring one MeTTa example's path. The `twins` REPORT lane
+runs each against the MeTTa it mirrors and prints what a twin cannot yet say;
+an example without a twin is a backlog row rather than a gap in the corpus.
 They are the reference for idiomatic code on this surface.
 
 ## Types, and checking them
@@ -271,7 +292,7 @@ They are the reference for idiomatic code on this surface.
 ```python
 m += typed(S.f, arrow(S.Number, S.Number))   # (: f (-> Number Number))
 kb.type(atom)                                 # the first get-type answer
-casting.cast(value, S.Number)                 # runtime cast on the engine's rules
+kb.cast(value, S.Number)                      # runtime cast on the engine's rules
 ```
 
 Annotations on a `@m.define` become the declaration, and a local annotation
@@ -284,8 +305,9 @@ from metta import spawn, par_map, race, channel, parallel
 future = spawn(term)          # a FutureSpace; wait(), settled(), cancel()
 par_map(fn, items); race(a, b); channel()
 m.transaction(term)           # all-or-nothing; rollback delivers no events
+m.transaction(callable)       # the same boundary over Python-side writes
 with m.limits(inferences=10_000, timeout=1.0): ...
-with m.speculate(): ...       # run and discard
+with m.speculate(): ...       # run and discard: it scopes the sources
 ```
 
 An abandoned future warns rather than spinning silently.
@@ -323,7 +345,7 @@ knowledge (`metta.boot(path)` assembles an app), `metta.derivation` and
 and `metta.testing` ships hypothesis strategies for property-testing code
 built on this surface.
 
-`m += lib.x` imports one of the engine's 34 MeTTa libraries through the write
+`m += lib.x` imports one of the engine's 38 MeTTa libraries through the write
 door, because a library IS knowledge and the receiver is the target space.
 
 ## When it refuses
