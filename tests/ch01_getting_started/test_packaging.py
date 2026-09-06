@@ -22,7 +22,7 @@ Guarantees:
     list kept here [tested:
     test_optional_integrations_have_installable_extras,
     test_the_minimal_version_matrix_installs_no_optional_integration;
-    commit=WORKTREE]
+    commit=0800a2651599aec83dc553657aa94a567cd986fb]
   - every ``python -m`` target named by a check.sh command reaches a real
     entry point, so no lane can exit 0 having run nothing [tested:
     test_every_module_invocation_in_the_gate_reaches_an_entry_point;

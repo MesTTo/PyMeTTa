@@ -39,7 +39,7 @@ Guarantees:
     `--randomly-seed=4` is the order that read `%Undefined%` for
     `tensor--jax.numpy` before this
     [tested: test_every_array_operation_is_typed_and_a_shape_is_a_constraint;
-    commit=WORKTREE]
+    commit=0800a2651599aec83dc553657aa94a567cd986fb]
 Open Obligations:
   To Do: None
   Hacks: None

@@ -40,7 +40,7 @@ Guarantees:
   - head and args are Atom-level questions, so a leaf refuses with the leaf
     sentence its four sibling accessors give rather than a bare AttributeError
     [tested: test_a_leaf_refuses_head_and_args_the_way_it_refuses_children;
-    commit=WORKTREE]
+    commit=0800a2651599aec83dc553657aa94a567cd986fb]
   - two handles under <, <=, > or >= refuse naming spaces.diff and
     spaces.union, while a handle against any other atom keeps the standard
     order [tested: test_two_handles_refuse_to_be_ordered_and_name_the_algebra;
