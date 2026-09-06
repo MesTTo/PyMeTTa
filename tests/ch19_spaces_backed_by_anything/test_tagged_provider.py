@@ -18,7 +18,7 @@ Guarantees:
   - a provider generator that re-enters the engine and spends the caller's
     bound reports that bound on every door, direct and tagged alike [tested:
     test_a_reentrant_provider_generator_reports_the_budget_that_stopped_it;
-    commit=WORKTREE]
+    commit=0ee5a2dfee0e37a23b0eb9c765b477d7f90295fe]
 """
 
 from __future__ import annotations

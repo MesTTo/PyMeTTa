@@ -31,7 +31,7 @@ Guarantees:
     its MeTTa call, and a control signal out of one crosses as itself [tested:
     test_a_raising_inverse_generator_names_the_metta_call,
     test_an_interrupt_out_of_a_generator_operation_reaches_the_caller;
-    commit=WORKTREE]
+    commit=0ee5a2dfee0e37a23b0eb9c765b477d7f90295fe]
 Open Obligations:
   To Do: None
   Hacks: None

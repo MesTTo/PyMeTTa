@@ -32,7 +32,7 @@ Guarantees:
     themselves [tested:
     test_a_provider_generator_that_raises_names_the_space_and_the_provider,
     test_a_control_signal_out_of_a_python_stream_leaves_no_pending_exception,
-    test_a_raising_inverse_generator_names_the_metta_call; commit=WORKTREE]
+    test_a_raising_inverse_generator_names_the_metta_call; commit=0ee5a2dfee0e37a23b0eb9c765b477d7f90295fe]
   - CompileError renders a source path, function, line and exact caret span
     while retaining its machine-readable construct and coordinates, and
     with_coordinates derives that block for a statement wall raised with the
@@ -577,7 +577,7 @@ def stream_failure(error: BaseException) -> list:
     on with a silently truncated stream and the still-set Python exception
     surfaces at whatever crossing runs next [source: janus 1.5.3
     janus.c:py_iter3, the two ``state->next = PyIter_Next(state->iterator)``
-    calls, neither followed by ``check_error``; commit=WORKTREE]. What "whatever
+    calls, neither followed by ``check_error``; commit=0ee5a2dfee0e37a23b0eb9c765b477d7f90295fe]. What "whatever
     runs next" turned out to be was a provider match answering one atom instead
     of two and then dying inside janus's own error path with SIGSEGV, because
     ``py_record`` asks Python to build a ``Term`` while the indicator is set,
@@ -587,7 +587,7 @@ def stream_failure(error: BaseException) -> list:
     exception`` before vanishing [tested:
     test_an_inference_limit_spent_inside_a_provider_callback_is_an_inference_limit_error,
     test_a_control_signal_out_of_a_python_stream_leaves_no_pending_exception;
-    commit=WORKTREE].
+    commit=0ee5a2dfee0e37a23b0eb9c765b477d7f90295fe].
 
     So a stream this library hands to ``py_iter`` may not raise. It ends with
     this reserved frame instead, carrying the live exception object; the Prolog

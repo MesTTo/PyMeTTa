@@ -926,7 +926,7 @@ metta_control_signal_info(
 %own bound: both the nested call's exception and the outer door's carried the
 %term `inference_limit_exceeded` itself [tested:
 %test_a_reentrant_provider_generator_reports_the_budget_that_stopped_it;
-%commit=WORKTREE].
+%commit=0ee5a2dfee0e37a23b0eb9c765b477d7f90295fe].
 %
 %The bound itself is NOT recoverable here and is answered as absent rather
 %than guessed: the number lives in the frame that installed it,
@@ -4098,7 +4098,7 @@ metta_py_dispatch_many(Name, Args, Result) :-
 %still-set exception surfaces at whatever crossing runs next
 %[source: janus 1.5.3 janus.c:py_iter3, the two
 %`state->next = PyIter_Next(state->iterator)` calls, neither followed by
-%check_error; commit=WORKTREE]. What "whatever runs next" turned out to be was
+%check_error; commit=0ee5a2dfee0e37a23b0eb9c765b477d7f90295fe]. What "whatever runs next" turned out to be was
 %a provider match answering one atom instead of two and then taking SIGSEGV
 %inside janus's own error path, and a KeyboardInterrupt out of a
 %nondeterministic operation printing "foreign predicate
@@ -4106,7 +4106,7 @@ metta_py_dispatch_many(Name, Args, Result) :-
 %[tested:
 %test_an_inference_limit_spent_inside_a_provider_callback_is_an_inference_limit_error,
 %test_a_control_signal_out_of_a_python_stream_leaves_no_pending_exception;
-%commit=WORKTREE].
+%commit=0ee5a2dfee0e37a23b0eb9c765b477d7f90295fe].
 %
 %So every Python stream this file pulls ends a failure with this reserved frame
 %instead, and the live exception is handed straight back to Python to raise
@@ -4148,7 +4148,7 @@ metta_py_stream_failure(Call, Exception) :-
 %[measured 2026-09-06 over 2000 provider candidates: get-atoms 52,036
 %inferences unguarded, 58,036 through the if-then-else and 56,036 through these
 %two clauses; the same 2,000-candidate match through collapse 66,311, 70,311
-%and 68,311; commit=WORKTREE]. The remaining 2 per candidate are this call and
+%and 68,311; commit=0ee5a2dfee0e37a23b0eb9c765b477d7f90295fe]. The remaining 2 per candidate are this call and
 %metta_py_stream_frame/2's. Spelling that predicate's three goals into the
 %first clause head instead would take it to 1, and is deliberately not done:
 %one reservation rule serves five doors, and nothing measures this constant as

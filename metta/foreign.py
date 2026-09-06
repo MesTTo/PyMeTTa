@@ -54,13 +54,13 @@ Guarantees:
     test_a_provider_generator_that_raises_names_the_space_and_the_provider,
     test_a_provider_that_raises_our_own_error_keeps_its_own_sentence,
     test_an_enumeration_that_raises_mid_stream_names_its_provider;
-    commit=WORKTREE]
+    commit=0ee5a2dfee0e37a23b0eb9c765b477d7f90295fe]
   - a provider may query the engine from inside its own match, and a resource
     bound spent there stops the query as that bound [tested:
     test_a_provider_may_query_the_engine_from_inside_its_own_match,
     test_an_inference_limit_spent_inside_a_provider_callback_is_an_inference_limit_error,
     test_a_bound_the_provider_set_itself_crosses_as_that_bound;
-    commit=WORKTREE]
+    commit=0ee5a2dfee0e37a23b0eb9c765b477d7f90295fe]
 Guarded by:
   - _PROVIDER_LOCK serializes library registration and provider lookups
     [tested test_provider_registration_is_transactional]

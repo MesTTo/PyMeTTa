@@ -27,7 +27,7 @@ Guarantees:
     space, and leaves the engine clean for the next query [tested:
     test_a_provider_generator_that_raises_names_the_space_and_the_provider,
     test_an_inference_limit_spent_inside_a_provider_callback_is_an_inference_limit_error,
-    test_a_failed_provider_match_leaves_the_next_query_clean; commit=WORKTREE]
+    test_a_failed_provider_match_leaves_the_next_query_clean; commit=0ee5a2dfee0e37a23b0eb9c765b477d7f90295fe]
 Open Obligations:
   To Do: None
   Hacks: None
