@@ -76,13 +76,15 @@ Open Obligations:
 from __future__ import annotations
 
 import re
+import threading
 from collections import deque
 from collections.abc import Callable, Generator, Iterable, Iterator, Sequence
+from contextlib import contextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass
 from typing import Any, Self
 
-from ._engine import Runtime
+from ._engine import Runtime, defer_engine_call
 from ._space_objects import (
     _CHUNK_CAP,
     EngineProfile,
@@ -591,6 +593,68 @@ def _retain_and_count(
     return int(count), handle
 
 
+# Set only while a FINALISER is releasing a view. A cursor close reached that
+# way may not cross into Prolog: the cyclic collector runs a finaliser at a
+# point no caller chose, possibly while this thread is already inside another
+# crossing, and it finalises the members of one cycle in no defined order, so
+# the handle it wants can already be dead. The crash that shape produced, and
+# the SWI assertion it hit, are in
+# docs/journal/2026-09-06-finalisers-must-not-call-prolog.md.
+#
+# A thread-local, saved and restored rather than set and cleared, because one
+# finaliser can run inside another's body.
+_FINALISING = threading.local()
+
+
+@contextmanager
+def _finalising() -> Iterator[None]:
+    """Mark this thread as inside a finaliser, nestably."""
+    previous = getattr(_FINALISING, "active", False)
+    _FINALISING.active = True
+    try:
+        yield
+    finally:
+        _FINALISING.active = previous
+
+
+# Every open cursor handle, held from the moment it is opened until it is
+# closed. The handle is a janus Term, and a Term released by the collector goes
+# inert -- its record id is cleared -- so a handle reachable ONLY from the view
+# that owns it can be finalised BEFORE that view's own finaliser runs, because
+# the collector orders the members of one cycle however it likes. Measured
+# exactly that way: the deferred close then carried a handle whose _record was
+# already 0 and Prolog answered `Type error: engine expected, found
+# <py_Term>(0x...)`, leaving the engine open. A module-level reference is
+# outside every cycle, so the handle is never garbage while a cursor is open
+# and the ordering question does not arise.
+#
+# Keyed by id() and holding the object, so the key cannot be reused while the
+# entry lives.
+_OPEN_CURSORS: dict[int, Any] = {}
+
+
+def _hold_cursor(handle: Any) -> Any:
+    """Keep an open cursor's handle reachable from outside any cycle."""
+    _OPEN_CURSORS[id(handle)] = handle
+    return handle
+
+
+def _release_cursor(rt: Runtime, handle: Any) -> None:
+    """Close a cursor now, or hand it to the next crossing from a finaliser.
+
+    The queue holds the handle from here until the close runs, taking over from
+    _OPEN_CURSORS, so it is continuously reachable and never inert when used.
+    [tested: test_a_view_dropped_in_a_cycle_defers_its_cursor_close,
+    test_an_explicit_close_still_closes_its_cursor_immediately;
+    commit=WORKTREE]
+    """
+    _OPEN_CURSORS.pop(id(handle), None)
+    if getattr(_FINALISING, "active", False):
+        defer_engine_call("metta_py_cursor_close", handle)
+    else:
+        rt.do("metta_py_cursor_close", handle)
+
+
 class _RetainedAnswers:
     """An answer stream that owns the cursor a declined count left behind.
 
@@ -631,7 +695,17 @@ class _RetainedAnswers:
             self._answers.close()
         finally:
             while self._retained:
-                self._rt.do("metta_py_cursor_close", self._retained.pop())
+                _release_cursor(self._rt, self._retained.pop())
+
+    def close_deferred(self) -> None:
+        """close() reached from a finaliser: every cursor goes to the queue.
+
+        The generator's own finally releases a started cursor and this releases
+        an unstarted one, so the flag has to cover both; results.Answers.__del__
+        prefers this door over close() when the source offers it.
+        """
+        with _finalising():
+            self.close()
 
 
 def evaluate_answers(
@@ -719,7 +793,7 @@ def evaluate_answers(
             seconds,
             stack,
         )
-        retained.append(handle)
+        retained.append(_hold_cursor(handle))
         return count
 
     def stream() -> Generator[Any]:
@@ -741,8 +815,8 @@ def evaluate_answers(
             inputs.append(-1.0 if seconds is None else float(seconds))
             # engine_create/3 is inert, but the selected execution mode must
             # be embedded in its held goal before the first pull starts it.
-            handle = _controlled_run(
-                rt, predicate, inputs, None, policy=policy
+            handle = _hold_cursor(
+                _controlled_run(rt, predicate, inputs, None, policy=policy)
             )
         row_cls = _row_class(tuple(columns))
         reported_inferences = 0
@@ -814,7 +888,7 @@ def evaluate_answers(
                 else:
                     yield value
         finally:
-            rt.do("metta_py_cursor_close", handle)
+            _release_cursor(rt, handle)
 
     return Answers(
         _RetainedAnswers(stream(), retained, rt),

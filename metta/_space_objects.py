@@ -86,7 +86,7 @@ from contextvars import ContextVar
 from typing import TYPE_CHECKING, Any, Self, cast
 
 from ._call_binding import bind_positional_call, refuse_unknown_keywords
-from ._engine import Runtime
+from ._engine import Runtime, defer_engine_call
 from ._name_mapping import OperatorRecipe, operator_attribute_target
 from ._space_definitions import call_parameter_names
 from .atoms import (
@@ -685,11 +685,20 @@ class Cursor:
 
     @staticmethod
     def _reap(runtime: Runtime, handle: Any) -> None:
-        try:
-            runtime.do("metta_py_cursor_close", handle)
-        except EngineError:
-            # A finalizer has no caller; explicit close still reports failures.
-            logger.debug("cursor finalization found an unavailable engine", exc_info=True)
+        """The weakref.finalize callback: HAND OVER the close, never make it.
+
+        This runs from the collector, at a point no caller chose, possibly
+        while this thread is already inside a crossing. Closing the cursor here
+        is a crossing, and one taken that way aborted the process inside SWI's
+        copy_record [source:
+        docs/journal/2026-09-06-finalisers-must-not-call-prolog.md;
+        commit=WORKTREE]. _finish() disarms this and closes directly, so the
+        explicit path still reports its failures to the caller that asked.
+        [tested: test_a_dropped_cursor_defers_its_close_instead_of_crossing;
+        commit=WORKTREE]
+        """
+        del runtime  # the drain makes the call on its own runtime
+        defer_engine_call("metta_py_cursor_close", handle)
 
     def __iter__(self) -> Self:
         return self
@@ -718,9 +727,22 @@ class Cursor:
         )
 
     def _finish(self) -> None:
-        """Reap an opened engine; an inert, never-pulled cursor owns none."""
-        if self._finalizer is not None:
-            self._finalizer()
+        """Reap an opened engine; an inert, never-pulled cursor owns none.
+
+        Every caller of this is explicit -- exhaustion and close() -- so the
+        close is made here and now. detach() disarms the finalizer first, so
+        the collector cannot later defer a close of the same handle, and
+        returns None when it has already run, which keeps this idempotent.
+        """
+        finalizer, self._finalizer = self._finalizer, None
+        if finalizer is None or finalizer.detach() is None:
+            return
+        try:
+            self._rt.do("metta_py_cursor_close", self._handle)
+        except EngineError:
+            # Explicit close still reports failures through iteration; this
+            # arm is the exhaustion path, which has nothing to report to.
+            logger.debug("cursor close found an unavailable engine", exc_info=True)
 
     def _refill(self) -> None:
         """Cross once, for as many answers as this cursor has earned.

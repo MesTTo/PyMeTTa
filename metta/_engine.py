@@ -84,6 +84,7 @@ import logging
 import os
 import sys
 import threading
+from collections import deque
 from collections.abc import Iterator, Mapping
 from contextlib import AbstractContextManager, contextmanager, nullcontext, suppress
 from importlib import resources
@@ -243,6 +244,11 @@ class _EngineState:
     def __init__(self) -> None:
         self.janus: JanusBridge | None = None
         self.runtime: Runtime | None = None
+        # janus's own record release, captured when the deferred Term release
+        # is installed. Held here rather than reached through the bridge at
+        # drain time, because it is janus's PRIVATE primitive and the bridge
+        # protocol describes the public surface.
+        self.erase_record: Any = None
 
 
 _STATE = _EngineState()
@@ -362,6 +368,145 @@ def _no_engine(exc: ImportError) -> NoReturn:
     raise EngineError(msg) from exc
 
 
+# Work a finaliser handed over because it may not do it itself, drained by the
+# next engine crossing at a point the library chose.
+#
+# WHY A FINALISER MAY NOT CALL PROLOG AT ALL. Three crashes, all the same
+# shape. Two were janus_swi.Term.__del__ reaching PL_erase on a thread with no
+# engine, where signalGCThread dereferences a null LD. The third was the cyclic
+# collector running a finaliser that called rt.do/2 to close a cursor, in the
+# middle of a Hypothesis draw, and SWI aborting on
+# `assert(0)` at src/pl-rec.c:1560 in copy_record -- the default arm of its
+# switch over record tags, which is what reading an ALREADY ERASED record looks
+# like [source: SWI-Prolog 10.1.13 src/pl-rec.c:1560 copy_record, reached from
+# janus_swi 1.5.3 janus.c py_unify_record; commit=WORKTREE]. A finaliser runs
+# at a point no caller chooses -- inside a garbage collection pass, on any
+# thread, possibly while that thread is already inside another crossing -- and
+# within one cycle the collector finalises members in no defined order, so the
+# handle a finaliser wants to use can already be dead. None of that can be made
+# safe one call site at a time. So a finaliser only ever appends here.
+#
+# A deque because its append and popleft are single bytecodes under the
+# interpreter lock, so a finaliser never takes a lock and can never deadlock
+# against a caller that already holds one.
+_ERASE_RECORD = "erase"
+_CALL_PREDICATE = "call"
+_DEFERRED_WORK: deque[tuple[Any, ...]] = deque()
+_DRAINING = threading.local()
+
+
+def defer_engine_call(predicate: str, *inputs: Any) -> None:
+    """Hand a shim call to the next engine crossing. For finalisers only.
+
+    The queue holds a reference to every input, which is the point as much as
+    the deferral is: a cursor handle kept alive here cannot be finalised before
+    the call that uses it, which is the ordering the cyclic collector does not
+    give.
+    """
+    _DEFERRED_WORK.append((_CALL_PREDICATE, predicate, inputs))
+
+
+def _defer_record_erase(record: int) -> None:
+    """Hand a janus record to the next engine crossing. For finalisers only."""
+    _DEFERRED_WORK.append((_ERASE_RECORD, record))
+
+
+def _install_deferred_term_release(janus: Any) -> None:
+    """Make janus never call into Prolog from a finaliser.
+
+    THE DEFECT. janus_swi.Term.__del__ calls _swipl.erase, which is PL_erase,
+    which unregisters the record's atoms; when the last reference to one goes,
+    unregister_atom calls considerAGC, and once the margin is passed that calls
+    signalGCThread, whose first act is truePrologFlag(PLFLAG_GCTHREAD) --
+    LD->prolog_flag.mask.flags[..] with no null guard. On a thread with no
+    engine LD is null and the process dies with SIGSEGV
+    [source: SWI-Prolog 10.1.13 src/pl-incl.h:2839 truePrologFlag,
+    src/pl-thread.c:7353 signalGCThread, src/pl-atom.c:1475 considerAGC;
+    commit=WORKTREE].
+
+    THE SECOND DEFECT, in the same method. janus 1.5.3 clears `self.record`,
+    an attribute nothing reads, where it means `self._record`
+    [source: janus_swi 1.5.3 janus.py:485-488; commit=WORKTREE]. A released
+    Term therefore keeps a dangling record id, and anything that passes it back
+    to Prolog reaches PL_recorded on freed memory, which is the copy_record
+    assertion above. Clearing the attribute janus reads makes its own guard
+    real: py_unify_record starts with `(v=PyLong_AsLongLong(r)) && ...`, so a
+    zero record fails the crossing cleanly instead of reading freed memory.
+
+    _swipl.engine() is PL_thread_self(), which returns -1 exactly when LD is
+    null [source: SWI-Prolog 10.1.13 src/pl-thread.c:1739 PL_thread_self;
+    commit=WORKTREE]. That is the same variable whose nullness faults, read
+    through janus's own public API rather than a proxy for it; the deferral
+    does not consult it, because a finaliser on a thread that HAS an engine is
+    still a finaliser and still unsafe, but the drain does.
+
+    WHY A METHOD REPLACEMENT AND NOT A SUBCLASS. janus's C constructs every
+    Term by calling the class it reads once from the janus module and caches in
+    a static, and py_is_record tests a candidate with
+    `cls == py_term_constructor()`, an identity comparison
+    [source: janus_swi 1.5.3 janus.c:1547 py_term_constructor, :1627
+    py_is_record; commit=WORKTREE]. A subclass fails that test, so a Term of
+    ours would stop being recognised as a record on the way back into Prolog.
+    Replacing the method on the one class object janus already caches reaches
+    every instance, including the ones its C creates, and changes no identity.
+
+    This depends on janus PRIVATE structure -- the attribute name _record, and
+    Term.__del__ being a Python method that can be replaced -- so
+    test_the_janus_term_shape_the_deferred_release_depends_on fails loudly if a
+    janus release changes either.
+    [tested: test_the_janus_term_shape_the_deferred_release_depends_on,
+    test_a_finalised_term_defers_its_record_and_goes_inert,
+    test_deferred_work_is_drained_by_the_next_engine_crossing;
+    commit=WORKTREE]
+    """
+    term = getattr(janus, "Term", None)
+    if term is None:
+        # A bridge with no Term hands out no records, so there is nothing here
+        # that could reach PL_erase. That is the substituted bridge the startup
+        # tests install, and refusing it would make this repair decide whether
+        # the engine can boot at all. A REAL janus that renamed Term is caught
+        # by test_the_janus_term_shape_the_deferred_release_depends_on, which
+        # asserts the release is installed on the janus this engine ships with.
+        return
+    swipl = getattr(janus, "_swipl", None)
+    if swipl is None or not hasattr(term, "__del__"):
+        msg = (
+            "janus_swi exposes Term but not Term.__del__ and _swipl, which the "
+            "deferred record release replaces; this janus is not the one this "
+            "engine was written against (1.5.3)"
+        )
+        raise EngineError(msg)
+    # Captured whether or not the release is already installed, so a second
+    # bridge() over a fresh _STATE still has the primitive its queue needs.
+    _STATE.erase_record = swipl.erase
+    if getattr(term.__del__, "_metta_defers_to_a_crossing", False):
+        return
+
+    # _defer is bound as a default rather than read as a global, because a
+    # finaliser can run during interpreter shutdown after this module's
+    # namespace has been torn down. It is the same reason asyncio's transports
+    # write `def __del__(self, _warn=warnings.warn)`
+    # [source: https://github.com/python/cpython/blob/main/Lib/asyncio/proactor_events.py,
+    # _ProactorBasePipeTransport.__del__; commit=WORKTREE].
+    def released(
+        self: Any,
+        _defer: Any = _defer_record_erase,
+    ) -> None:
+        """Hand this Term's record to the next crossing and go inert."""
+        record = getattr(self, "_record", 0)
+        if not record:
+            return
+        self._record = 0
+        _defer(record)
+
+    # Named for what it does and renamed on installation, rather than defined
+    # as `__del__`, which reads as a module-level dunder to the linter.
+    released.__name__ = "__del__"
+    released.__qualname__ = "Term.__del__"
+    released._metta_defers_to_a_crossing = True  # type: ignore[attr-defined]
+    term.__del__ = released
+
+
 def bridge() -> JanusBridge:
     """Import and return janus without starting the MeTTa runtime."""
     janus = _STATE.janus
@@ -370,9 +515,11 @@ def bridge() -> JanusBridge:
     with _LOCK:
         if _STATE.janus is None:
             try:
-                _STATE.janus = cast(JanusBridge, importlib.import_module("janus_swi"))
+                module = importlib.import_module("janus_swi")
             except ImportError as exc:
                 _no_engine(exc)
+            _install_deferred_term_release(module)
+            _STATE.janus = cast(JanusBridge, module)
         return _STATE.janus
 
 
@@ -698,6 +845,10 @@ class Runtime:
         Bare foreign threads abort the process on apply_once and cmd
         (measured), which is why they answer None rather than a lock.
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+        # Every crossing consults this: apply and do directly, once and iter
+        # through _relational_lock. Draining here rather than at each of the
+        # four is one place a new crossing cannot forget.
+        self._drain_deferred()
         if threading.current_thread() is self._home_thread:
             return _LOCK
         if _CALL_LOCKS.lock is _NULL_LOCK:
@@ -717,6 +868,54 @@ class Runtime:
         """
         lock = self._thread_lock()
         return _NULL_LOCK if lock is None else lock
+
+    def _drain_deferred(self) -> None:
+        """Do the work finalisers handed over, here, where it is safe.
+
+        Called from _thread_lock, which every crossing consults before taking
+        any lock and before the crossing itself. That is the point this library
+        chose: ordinary Python on a thread whose engine is attached and which
+        is not inside a janus call.
+
+        Guarded three ways. It returns on a thread with no engine, because
+        erasing a record there is the crash the deferral exists to prevent. It
+        returns while already draining, because a deferred call re-enters this
+        through the crossing it makes. And a work item that raises is dropped
+        rather than requeued: it runs with no caller to answer to, and a failed
+        cursor close must not be able to fail the unrelated call that happened
+        to drain it, nor spin forever.
+
+        Popped one at a time inside try/except rather than tested with `while
+        queue`, because another thread can empty the queue between the test and
+        the pop; that is the shape jedi's CompiledSubprocess.run uses to drain
+        its own deletion queue
+        [source: https://github.com/davidhalter/jedi/blob/master/jedi/inference/compiled/subprocess/__init__.py,
+        CompiledSubprocess.run; commit=WORKTREE].
+        [tested: test_deferred_work_is_drained_by_the_next_engine_crossing,
+        test_a_failing_deferred_call_does_not_fail_the_crossing_that_drains_it;
+        commit=WORKTREE]
+        """
+        if not _DEFERRED_WORK or getattr(_DRAINING, "active", False):
+            return
+        if self._janus.engine() < 0:
+            return
+        _DRAINING.active = True
+        try:
+            while True:
+                try:
+                    item = _DEFERRED_WORK.popleft()
+                except IndexError:
+                    return
+                try:
+                    if item[0] is _ERASE_RECORD:
+                        _STATE.erase_record(item[1])
+                    else:
+                        self.do(item[1], *item[2])
+                except Exception:
+                    # A finaliser's work has no caller to raise to.
+                    logger.debug("deferred engine work failed", exc_info=True)
+        finally:
+            _DRAINING.active = False
 
     def apply(self, predicate: str, *inputs: Any) -> Any:
         """Run a shim predicate through janus's functional convention:
