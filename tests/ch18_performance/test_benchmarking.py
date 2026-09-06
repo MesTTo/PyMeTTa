@@ -44,12 +44,15 @@ from metta import S
 from metta.benchmarking import _run_perf
 from metta.testing import (
     CPU_SECONDS,
+    PERF_CONTROL_REFUSED,
     BenchmarkBaseline,
+    MeasurementRefusedError,
     benchmark_case,
     benchmark_counter_slope,
     count_atoms,
     measure_counters,
     measure_instructions,
+    measured_main,
 )
 
 
@@ -1001,3 +1004,64 @@ def test_the_recording_cpu_door_never_compares_where_the_gating_one_does(tmp_pat
         baseline.observe_cpu("crossing", 0.0)
     with pytest.raises(KeyError, match="no counter observation"):
         baseline.observe_cpu("never-measured", 0.400)
+
+
+def test_a_refused_window_is_told_apart_from_a_workload_that_failed(monkeypatch):
+    """The box refusing to count and the tree answering wrongly are two answers.
+
+    A controlled workload that never got perf's acknowledgement exits
+    PERF_CONTROL_REFUSED, and a run whose counter never armed reports
+    `<not counted>` where a number belongs. Both mean no measurement was
+    taken, so both raise MeasurementRefusedError. Every OTHER nonzero exit is the
+    workload's own failure and stays an ordinary RuntimeError, which is what
+    keeps a real regression from reading as contention and passing.
+    """
+    def refused(*_command, **_perf):
+        return PERF_CONTROL_REFUSED, "", "Events disabled\nworkload: perf did not acknowledge\n"
+
+    monkeypatch.setattr("metta.benchmarking._run_perf", refused)
+    with pytest.raises(MeasurementRefusedError, match="never opened"):
+        measure_instructions(["cases", "boot"], controlled=True)
+
+    def uncounted(*_command, **_perf):
+        return 0, "", "<not counted>,,instructions:u,0,100.00,,\n"
+
+    monkeypatch.setattr("metta.benchmarking._run_perf", uncounted)
+    with pytest.raises(MeasurementRefusedError, match="never armed"):
+        measure_instructions(["cases", "boot"])
+
+    def broken(*_command, **_perf):
+        return 3, "", "workload: the operation answered 0, expected 2000\n"
+
+    monkeypatch.setattr("metta.benchmarking._run_perf", broken)
+    with pytest.raises(RuntimeError, match="perf stat failed with exit 3") as failure:
+        measure_instructions(["cases", "boot"])
+    assert not isinstance(failure.value, MeasurementRefusedError)
+
+
+def test_a_benchmark_lane_skips_a_refusal_locally_and_refuses_it_in_ci(monkeypatch, capsys):
+    """One policy for every benchmark entry point, and it depends on CI alone.
+
+    A developer's box is shared, so a PMU another session holds is a note and
+    an exit 0; a CI runner that cannot count is a broken runner, so there the
+    same refusal is an error and an exit 1. An ordinary answer passes through
+    either way.
+    """
+    def refuses() -> int:
+        msg = "the measured window never opened"
+        raise MeasurementRefusedError(msg)
+
+    monkeypatch.delenv("CI", raising=False)
+    assert measured_main(refuses) == 0
+    local = capsys.readouterr()
+    assert "note: the box refused the measurement" in local.out
+    assert "never opened" in local.out
+
+    monkeypatch.setenv("CI", "true")
+    assert measured_main(refuses) == 1
+    continuous = capsys.readouterr()
+    assert "error: this benchmark lane measured nothing" in continuous.err
+    assert "never opened" in continuous.err
+
+    assert measured_main(lambda: 0) == 0
+    assert measured_main(lambda: 1) == 1

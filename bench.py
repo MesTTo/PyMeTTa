@@ -1,5 +1,10 @@
 """Purpose: run selected pytest-benchmark cases with committed baselines.
 Guarantees:
+  - a box that would not count is told apart from a tree that moved: this
+    lane exits 0 with a named skip on a developer's box and 1 where CI=true,
+    and never reports a refused measurement as a moved row
+    [tested: test_a_benchmark_lane_skips_a_refusal_locally_and_refuses_it_in_ci;
+    commit=WORKTREE]
   - every named case runs in a fresh process, so global engine state cannot
     make subset and suite counters disagree [tested
     test_benchmark_cli_spawns_each_case; commit=dcfc20be4933c19140ccb5759291401d13058301]
@@ -34,6 +39,8 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+
+from metta.benchmarking import measured_main
 
 CASES = {
     "add-batch": "test_add_batch",
@@ -316,4 +323,4 @@ def main(argv: Sequence[str] | None = None) -> int:
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    raise SystemExit(measured_main(main))

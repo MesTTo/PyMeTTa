@@ -22,6 +22,18 @@ Guarantees:
     test_baseline_without_configuration_stamp_refuses_counter_comparison]
   - perf instruction measurements fail loudly when perf or its event output
     fails [tested test_measure_instructions_parses_perf_csv]
+  - a box that would not count is a MeasurementRefusedError and not a moved
+    row: perf answering `<not counted>` for a requested event, and a controlled
+    workload exiting PERF_CONTROL_REFUSED because no acknowledgement arrived,
+    both raise it, while every other nonzero exit stays an ordinary
+    RuntimeError, which is the workload's own failure
+    [tested: test_a_refused_window_is_told_apart_from_a_workload_that_failed;
+    commit=WORKTREE]
+  - one policy decides what a benchmark lane does with that refusal, so no two
+    lanes can drift into disagreeing: measured_main skips it with a name and
+    exits 0 on a desk and refuses it with an error and exits 1 where CI=true
+    [tested: test_a_benchmark_lane_skips_a_refusal_locally_and_refuses_it_in_ci;
+    commit=WORKTREE]
   - one perf run may count several events, matched on the event NAME field so
     a unit-carrying event reads beside a bare one, and it hands back each
     run's own standard output so a workload can report a counter perf cannot
@@ -68,6 +80,7 @@ import json
 import os
 import shutil
 import signal
+import sys
 import tempfile
 import time
 from collections.abc import Callable, Mapping, Sequence
@@ -830,6 +843,80 @@ def benchmark_counter_slope(
     )
 
 
+#: What the kernel will let an unprivileged process count. Read when perf
+#: answers nothing, so a refusal names the knob that decides it rather than
+#: sending the reader into this harness: 2 or less is needed, and a container
+#: needs `--security-opt seccomp=unconfined` before perf_event_open is
+#: permitted at all.
+PARANOID = Path("/proc/sys/kernel/perf_event_paranoid")
+
+#: The status a CONTROLLED workload exits with when perf never acknowledged a
+#: control command: no window ever opened, so the process measured nothing.
+#: 125 is the status this tree and its tools already read as "the wrapper
+#: failed rather than the command" -- timeout(1) uses it for a failure in
+#: itself, `git bisect run` reads it as "this run says nothing about the
+#: commit", and bounded.sh refuses with it when the process that started a
+#: command had already exited [source: coreutils timeout(1) EXIT STATUS;
+#: git-bisect(1), "run <cmd>"; bounded.sh, the arming-race refusal].
+PERF_CONTROL_REFUSED = 125
+
+
+class MeasurementRefusedError(RuntimeError):
+    """The box would not take this measurement, so it says nothing about the tree.
+
+    Raised where perf could not count -- another session holding the PMU, a
+    kernel that will not let this process count itself, a container whose
+    seccomp profile denies perf_event_open, a control window that never opened
+    because an acknowledgement never came -- and never where a workload
+    answered wrongly. A lane that catches this reports a SKIP by name, because
+    reading contention as a regression is reading the box as a code change.
+    """
+
+
+def _paranoid_reading() -> str:
+    """What perf_event_paranoid says right now, or why it could not be read."""
+    try:
+        return PARANOID.read_text(encoding="utf-8").strip()
+    except OSError:
+        return "unreadable"
+
+
+def measured_main(entry: Callable[[], int]) -> int:
+    """Run a benchmark lane and turn a refused measurement into a named skip.
+
+    Every benchmark entry point in this tree goes through here rather than
+    catching for itself, so no two lanes can drift into disagreeing about when
+    a box that would not count is allowed to pass. The policy is the line
+    check.sh already draws for a prerequisite the repository cannot provide:
+    refuse where CI=true, because a runner that cannot count is a broken runner
+    and a lane that passes without measuring is worse than a red one; print a
+    named skip elsewhere, because a developer's box is shared and a PMU another
+    session holds is not a code change
+    [source: tests/checks/check_upstream_parity.py, upstream_prerequisite].
+    """
+    try:
+        return entry()
+    except MeasurementRefusedError as refusal:
+        #The verdict goes on its own line and the diagnosis under it, because
+        #the diagnosis carries perf's transcript and a reader scanning a gate
+        #log has to see which of the two words this lane said without reading
+        #the rest.
+        if os.environ.get("CI") == "true":
+            print(
+                "error: this benchmark lane measured nothing and will not pass "
+                "on that; a CI runner that cannot count is a broken runner.",
+                file=sys.stderr,
+            )
+            print(f"  {refusal}", file=sys.stderr)
+            return 1
+        print(
+            "note: the box refused the measurement, so nothing here says the "
+            "tree moved; re-run it where the PMU is free."
+        )
+        print(f"  {refusal}")
+        return 0
+
+
 def _counter_request(
     command: Sequence[str],
     events: Sequence[str],
@@ -857,6 +944,15 @@ def _counter_request(
 def _parse_counter_sample(
     returncode: int, stdout: str, stderr: str, events: Sequence[str]
 ) -> dict[str, float]:
+    if returncode == PERF_CONTROL_REFUSED:
+        detail = " ".join((stderr.strip() or stdout.strip()).split())
+        msg = (
+            "the measured window never opened: perf did not acknowledge a "
+            "control command, which is what it does when its counter failed to "
+            f"arm while another session held the PMU. {PARANOID} reads "
+            f"{_paranoid_reading()}. perf and the workload said: {detail[-300:]}"
+        )
+        raise MeasurementRefusedError(msg)
     if returncode != 0:
         detail = stderr.strip() or stdout.strip()
         msg = f"perf stat failed with exit {returncode}: {detail}"
@@ -882,8 +978,19 @@ def _parse_counter_sample(
             #a zero that would gate nothing.
             sample[event] = int(values[0]) if values[0].isdigit() else float(values[0])
         except ValueError as error:
-            msg = f"perf stat did not return a numeric {event} counter: {stderr.strip()}"
-            raise RuntimeError(msg) from error
+            #`<not counted>` and `<not supported>` are perf's own words for a
+            #counter that never armed, so this is the box refusing rather than
+            #the workload answering: nothing was measured and nothing here can
+            #say the tree moved.
+            msg = (
+                f"perf answered {values[0]!r} for {event} rather than a count, "
+                f"so its counter never armed. {PARANOID} reads "
+                f"{_paranoid_reading()}, where 2 or less is needed, and a "
+                "container needs --security-opt seccomp=unconfined before "
+                f"perf_event_open is permitted at all. perf said: "
+                f"{' '.join(stderr.split())[-300:]}"
+            )
+            raise MeasurementRefusedError(msg) from error
     return sample
 
 
@@ -1074,12 +1181,15 @@ def _run_perf(
 __all__ = [
     "CPU_SECONDS",
     "INSTRUCTIONS",
+    "PERF_CONTROL_REFUSED",
     "BenchmarkBaseline",
     "CounterRuns",
+    "MeasurementRefusedError",
     "Metric",
     "benchmark_case",
     "benchmark_counter_slope",
     "count_atoms",
     "measure_counters",
     "measure_instructions",
+    "measured_main",
 ]

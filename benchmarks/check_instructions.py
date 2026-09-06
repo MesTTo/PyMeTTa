@@ -1,6 +1,11 @@
 """Purpose: compare Python and primitive-heavy engine workloads with committed
 perf counters.
 Guarantees:
+  - a box that would not count is told apart from a tree that moved: this
+    lane exits 0 with a named skip on a developer's box and 1 where CI=true,
+    and never reports a refused measurement as a moved row
+    [tested: test_a_benchmark_lane_skips_a_refusal_locally_and_refuses_it_in_ci;
+    commit=WORKTREE]
   - each decision uses the minimum of at least three instructions:u samples
     [tested test_measure_instructions_parses_perf_csv]
   - the inventory reaches every primitive class named by the round-3 review
@@ -23,7 +28,7 @@ from pathlib import Path
 
 from benchmarks.configuration import counter_configuration
 from benchmarks.pure import _CASES
-from metta.testing import BenchmarkBaseline, measure_instructions
+from metta.testing import BenchmarkBaseline, measure_instructions, measured_main
 
 
 def observe_all(
@@ -82,4 +87,4 @@ def main(argv: Sequence[str] | None = None) -> int:
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    raise SystemExit(measured_main(main))

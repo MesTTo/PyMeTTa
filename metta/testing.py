@@ -96,14 +96,17 @@ from .atoms import parse as atoms_parse
 from .benchmarking import (
     CPU_SECONDS,
     INSTRUCTIONS,
+    PERF_CONTROL_REFUSED,
     BenchmarkBaseline,
     CounterRuns,
+    MeasurementRefusedError,
     Metric,
     benchmark_case,
     benchmark_counter_slope,
     count_atoms,
     measure_counters,
     measure_instructions,
+    measured_main,
 )
 from .convert import build as _build
 from .convert import project as _project
@@ -122,6 +125,7 @@ from .vocabularies import AlgebraLaw, EffectClass
 __all__ = [
     "CPU_SECONDS",
     "INSTRUCTIONS",
+    "PERF_CONTROL_REFUSED",
     "BenchmarkBaseline",
     "Case",
     "Cases",
@@ -129,6 +133,7 @@ __all__ = [
     "CounterRuns",
     "GatewayComplianceSuite",  # noqa: F822  resolved by __getattr__ below, PEP 562
     "Laws",
+    "MeasurementRefusedError",
     "Metric",
     "SpaceComplianceSuite",  # noqa: F822  resolved by __getattr__ below, PEP 562
     "atoms",
@@ -150,6 +155,7 @@ __all__ = [
     "laws",
     "measure_counters",
     "measure_instructions",
+    "measured_main",
     "names",
     "numbers",
     "numpy_scalars",
