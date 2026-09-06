@@ -16,7 +16,7 @@ Guarantees:
   - every path in ``repository/metta_examples.txt`` becomes one item, named for
     the example, that runs ``sh run.sh`` and reads its check marks
     [tested: test_the_manifest_collects_one_item_per_row,
-    test_a_listed_example_runs_as_its_own_item; commit=WORKTREE]
+    test_a_listed_example_runs_as_its_own_item; commit=59c3cbf1bc269dfa7194f78da34497f1757a9604]
 
 Open Obligations:
   To Do: None

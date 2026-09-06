@@ -34,7 +34,7 @@ Guarantees:
     under a caller that is mid-mint [tested:
     test_a_closed_world_releases_its_plan_image,
     test_a_collected_world_does_not_take_the_name_a_live_mint_released;
-    commit=WORKTREE]
+    commit=59c3cbf1bc269dfa7194f78da34497f1757a9604]
 Open Obligations:
   To Do: None
   Hacks: None

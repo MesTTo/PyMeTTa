@@ -41,7 +41,7 @@ Guarantees:
     commit=2421d06e697daffb0797c307a798131616ebdd8e]
   - a finaliser running at INTERPRETER SHUTDOWN, after this module's globals
     are cleared, still enqueues and still says nothing [tested:
-    test_a_finaliser_at_interpreter_shutdown_prints_nothing; commit=WORKTREE]
+    test_a_finaliser_at_interpreter_shutdown_prints_nothing; commit=59c3cbf1bc269dfa7194f78da34497f1757a9604]
 """
 
 import gc

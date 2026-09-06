@@ -7,7 +7,7 @@ Guarantees:
     forty forms cost against what one costs rather than as an absolute
     inference ceiling, because a restore's fixed cost follows the process
     [tested: test_fast_restore_batches_content_dependent_program_analysis;
-    commit=WORKTREE]
+    commit=59c3cbf1bc269dfa7194f78da34497f1757a9604]
   - fast caches rebase and restore translator rules, bound equation-world
     spaces, and repeat-load ownership while retaining the root atom count
     [tested: test_fast_cache_restores_translator_rules_and_bound_spaces;

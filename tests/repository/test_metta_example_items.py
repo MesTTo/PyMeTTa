@@ -8,9 +8,9 @@ Assumes:
       test_examples_attribution.py derives it
 Guarantees:
     - the collector yields exactly the manifest's rows, named for the example
-      [tested: test_the_manifest_collects_one_item_per_row; commit=WORKTREE]
+      [tested: test_the_manifest_collects_one_item_per_row; commit=59c3cbf1bc269dfa7194f78da34497f1757a9604]
     - an item runs the example rather than merely naming it
-      [tested: test_a_listed_example_runs_as_its_own_item; commit=WORKTREE]
+      [tested: test_a_listed_example_runs_as_its_own_item; commit=59c3cbf1bc269dfa7194f78da34497f1757a9604]
 Open Obligations:
   To Do: None
   Hacks: None

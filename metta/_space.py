@@ -5377,7 +5377,7 @@ def _release_abandoned_world(home: str) -> None:
     `Space.drop()`'s callers can actually reason about; the world itself is
     still released, which is all this backstop ever promised
     [tested: test_an_abandoned_context_releases_its_world,
-    test_a_dropped_handle_cannot_write_into_the_name_it_released; commit=WORKTREE].
+    test_a_dropped_handle_cannot_write_into_the_name_it_released; commit=59c3cbf1bc269dfa7194f78da34497f1757a9604].
     """
     defer_engine_call("metta_py_drop_space", home)
 

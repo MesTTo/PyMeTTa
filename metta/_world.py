@@ -123,7 +123,7 @@ def _abandon_world_plan(plan: str) -> None:
     scheduled path and still recycles, the way MeTTa.close() does beside
     _release_abandoned_world
     [tested: test_a_collected_world_does_not_take_the_name_a_live_mint_released,
-    test_a_closed_world_releases_its_plan_image; commit=WORKTREE].
+    test_a_closed_world_releases_its_plan_image; commit=59c3cbf1bc269dfa7194f78da34497f1757a9604].
     """
     defer_engine_call("metta_py_drop_space", plan)
 
