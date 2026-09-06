@@ -12,6 +12,11 @@ Guarantees:
   - AssertionFailure is a MettaError and NOT an EngineError, so a harness
     separates a false claim from a broken engine by type [tested
     test_a_failing_assertion_is_a_different_exception_from_an_engine_fault]
+  - AssertionFailure.missing and .excess carry the two directed bag
+    differences as decoded atoms, None where the failing form computed none,
+    which is a different answer from an empty tuple [tested:
+    test_a_two_sided_difference_arrives_as_two_bags,
+    test_a_form_with_no_bag_comparison_reports_neither_bag; commit=71de27a76dd16684941e3e090de0d17299d96493]
   - SpaceCapabilityError carries the refused space, operation, and capability
     as fields [tested:
     test_a_restricted_space_cannot_reach_what_its_base_does_not_publish;
@@ -51,7 +56,12 @@ import ast
 import functools
 from collections.abc import Callable, Iterable, Iterator
 from dataclasses import dataclass
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    # Annotation only. This module is the base layer atoms sits above, so the
+    # name crosses at type-check time and never at import time.
+    from .atoms import Atom
 
 __all__ = [
     "AssertionFailure",
@@ -300,6 +310,15 @@ class AssertionFailure(MettaError):  # noqa: N818  -- the exception name is a do
     the expression produced and `expected` what the source asked for, each
     None where the form carries no such value (a failed `assert` has a goal
     and no pair, and a `test` with no answer at all has no actual).
+
+    `missing` and `excess` are the two directed bag differences a failing
+    comparison over answers already computed, as tuples of atoms: the answers
+    expected and not produced, and the answers produced and not expected.
+    Both are None where the failing form computed no such difference, and
+    None is a different answer from an empty tuple -- `()` for both says the
+    two answer bags agree and the answers differ only in order. The message
+    carries the same two lines, because the engine's own sentence does; these
+    are the fields a harness reads instead of parsing it.
     """
 
     def __init__(  # noqa: D107  -- the enclosing class documents construction and the object invariants
@@ -309,10 +328,14 @@ class AssertionFailure(MettaError):  # noqa: N818  -- the exception name is a do
         operation: str,
         actual: object | None = None,
         expected: object | None = None,
+        missing: tuple[Atom, ...] | None = None,
+        excess: tuple[Atom, ...] | None = None,
     ):
         super().__init__(message, operation=operation, atom=actual)
         self.actual = actual
         self.expected = expected
+        self.missing = missing
+        self.excess = excess
 
 
 class SubscriberError(MettaError):

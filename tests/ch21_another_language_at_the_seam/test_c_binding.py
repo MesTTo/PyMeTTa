@@ -159,6 +159,13 @@ def test_the_c_binding_suite_passes(built: Path) -> None:
         f"the assertion failure was not reported at all; moving it off stdout "
         f"must not mean losing it: {done.stderr!r}"
     )
+    # The report is three lines and the two under the headline are the answers
+    # that differed. The C suite asks mt_errmsg() for the same three; this asks
+    # the HOST's stderr, the channel an embedding process reads.
+    assert "missing: (2)" in done.stderr, (
+        f"the assertion report reached the host's stderr without the answers "
+        f"its comparison computed: {done.stderr!r}"
+    )
 
 
 def test_the_c_binding_and_the_python_host_answer_the_same_programs(

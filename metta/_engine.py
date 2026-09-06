@@ -31,6 +31,11 @@ Guarantees:
   - a failed MeTTa assertion arrives as AssertionFailure and an engine fault
     as EngineError, neither an instance of the other [tested
     test_a_failing_assertion_is_a_different_exception_from_an_engine_fault]
+  - a failing comparison over answers carries its two directed bag differences
+    into .missing and .excess as decoded atoms, and a form that computed
+    neither reports None for both [tested:
+    test_a_two_sided_difference_arrives_as_two_bags,
+    test_a_form_with_no_bag_comparison_reports_neither_bag; commit=71de27a76dd16684941e3e090de0d17299d96493]
   - the restricted-space formal maps to SpaceCapabilityError before the
     generic operation and engine classifiers [tested:
     test_a_restricted_space_cannot_reach_what_its_base_does_not_publish;
@@ -104,6 +109,8 @@ from importlib import resources
 from pathlib import Path
 from typing import Any, NoReturn, Protocol, cast
 
+from ._atom_wire import _atom_from_wire
+from ._atoms_core import Atom
 from ._config import config
 from .errors import (
     AssertionFailure,
@@ -772,6 +779,19 @@ def _clean_message(exc: BaseException) -> str:
     return str(exc).strip()
 
 
+def _answer_bag(wires: object) -> tuple[Atom, ...] | None:
+    """One directed bag difference an assertion reported, as atoms.
+
+    None is the engine's own absence, an unbound bag, meaning the failing form
+    computed no such difference; an empty tuple is a computed and empty one,
+    and a harness reads the two differently. The elements arrive on the answer
+    wire, so they decode into the same atoms an answer would.
+    """
+    if wires is None:
+        return None
+    return tuple(_atom_from_wire(wire) for wire in cast("list[Any]", wires))
+
+
 class Runtime:
     """One consulted engine, shared by every space and operation.
 
@@ -1249,9 +1269,12 @@ class Runtime:
             # "Arguments are not sufficiently instantiated" rather than as
             # absence. metta_py_operation_part/2 maps that absence to None.
             row = self._janus.query_once(
-                "metta_assertion_failure(Error, Form, _Actual, _Expected), "
+                "metta_assertion_failure(Error, Form, _Actual, _Expected, "
+                "_Missing, _Excess), "
                 "metta_py_operation_part(_Actual, Actual), "
-                "metta_py_operation_part(_Expected, Expected)",
+                "metta_py_operation_part(_Expected, Expected), "
+                "metta_py_answer_bag(_Missing, Missing), "
+                "metta_py_answer_bag(_Excess, Excess)",
                 {"Error": term},
             )
         except self._janus.PrologError as classifier_error:
@@ -1272,6 +1295,8 @@ class Runtime:
             operation=form,
             actual=row.get("Actual"),
             expected=row.get("Expected"),
+            missing=_answer_bag(row.get("Missing")),
+            excess=_answer_bag(row.get("Excess")),
         ) from exc
 
     def _original_python_error(
