@@ -55,10 +55,9 @@ def test_get_type_does_not_run_its_arguments_effects():
 
 
 def test_get_type_of_an_application_answers_the_declared_return_type():
-    """LeaTTa's types-meta/20_atom_return_literal.metta, whose MEASURED block
-    records `[Atom]` from both the mechanised interpreter and hyperon 0.2.10:
-    the answer comes from the declaration, so it is the same whether or not
-    the body would reduce.
+    """The answer comes from the declaration, so it is the same whether or not
+    the body would reduce; `[Atom]` was recorded from both an earlier reference
+    interpreter and hyperon 0.2.10.
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     m = MeTTa().self
     m.run("(: literal-return (-> Number Atom))")
@@ -78,7 +77,7 @@ def test_one_untyped_component_makes_the_whole_expressions_type_undefined():
     about a tuple one of whose components is unknown, so reporting the shape
     while a hole sits inside it claims more than was derived.
 
-    Measured 2026-08-19 on hyperon 0.2.10 and on the LeaTTa mechanised
+    Measured 2026-08-19 on hyperon 0.2.10 and on an earlier reference
     interpreter, byte-identical across both. Before this,
     `!(get-type (aa))` answered `(%Undefined%)`, a one-element tuple.
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose

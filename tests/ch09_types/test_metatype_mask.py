@@ -5,9 +5,8 @@ AS WRITTEN or reduced, and the shipped expression family is asked the same
 question. The mask set is the arbiter's own one-line rule, not a set
 inferred from behaviour: a parameter is held back exactly when its declared
 evaluation view is `Atom`, `Variable` or `Expression`
-[source: LeaTTa MettaHyperonFull/Core/Modifiers.lean:118-124,
-`declaredTypeEvaluates`, consumed by `argMask` at
-MettaHyperonFull/Minimal/Interpreter.lean:3760-3784].
+[source: engine/translator/typing.pl, non_evaluated_parameter_type/1, which
+the argument mask consumes].
 Assumes:
   - `quote` freezes what it received, which is what makes the answers here
     discriminating; a body such as `(got $x)` re-reduces the member through
@@ -19,8 +18,9 @@ Assumes:
 Guarantees:
   - Symbol and Grounded parameters EVALUATE, which is the boundary a
     black-box probe is most likely to get wrong
-    [measured 2026-08-24 against LeaTTa 9ea9f9d: `(: sf (-> Symbol
-    %Undefined%))` with `(= foo bar)` answers `(quote bar)`]
+    [assumed 2026-08-24: `(: sf (-> Symbol %Undefined%))` with `(= foo bar)`
+    answering `(quote bar)` was measured against an earlier reference corpus at
+    that date, not re-measured against upstream PeTTa]
   - a type-position modifier holds its argument and checks its value type
     [measured 2026-08-24: `(: mf (-> (:Atom Number) %Undefined%))` answers
     `(quote (+ 1 2))` and refuses a String with `(BadArgType 1 Number String)`]
@@ -185,8 +185,8 @@ def test_atom_subst_refuses_a_second_operand_that_is_not_a_variable():
 
 # The three collection forms declare their list `Expression` and foldl-atom
 # declares its seed `Atom`, so both cross as written in either spelling and the
-# fold runs over the parts of an unrun call. Measured on LeaTTa 9ea9f9d on
-# 2026-08-24 through its default door.
+# fold runs over the parts of an unrun call. Measured on an earlier reference
+# runner on 2026-08-24 through its default door.
 COLLECTION_ROWS = [
     ("!(map-atom (cdr-atom (a b)) $y (q $y))", "((q b))"),
     ("!(map-atom (cdr-atom (a b)) (|-> ($y) (q $y)))", "((q b))"),
@@ -237,8 +237,8 @@ def test_add_reduct_reduces_a_plain_atom_and_an_equation_body():
     """It reduces what it stores, a plain atom included.
 
     A call nothing heads still reduces its members: `(total (+ 1 2))` is
-    stored `(total 3)`, which is what the arbiter stores
-    [measured 2026-08-24 against LeaTTa 9ea9f9d].
+    stored `(total 3)` [assumed 2026-08-24: measured against an earlier
+    reference corpus at that date, not re-measured against upstream PeTTa].
     """
     assert answers(
         "!(let $s (new-space) (let $w (add-reduct $s (total (+ 1 2)))"

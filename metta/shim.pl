@@ -753,8 +753,8 @@ metta_py_decode_indexed(Tagged, Term, Bindings) :-
 %for the query's variables, crossing beside plain atom wires in one
 %stream. Theta pairs are [Name, ValueWire]; the names are the ones
 %metta_py_encode/2 wrote for the query's variables, so binding by name is
-%binding the caller's own variable. This is Hyperon's execute_bindings,
-%LeaTTa's ReduceResult.okBind: an answer atom together with the bindings
+%binding the caller's own variable. This is Hyperon's execute_bindings: an
+%answer atom together with the bindings
 %it is returned under, each set merged into the current frame. The wire
 %is transport-agnostic; janus is one carrier of it, and a Prolog-side
 %provider needs none of it because unification already binds.
@@ -2533,9 +2533,9 @@ seam:host_remove_hooks_idle(Space, [OnlyRef]) :-
 metta_py_space_counter(0).
 
 %A SPACE THIS DOOR HANDS OUT IS ONE, with nothing written to it, which is the
-%property 'new-space'/1 has and LeaTTa requires: (chain (new-space) $s
-%(get-type $s)) is SpaceType [source: engine/metta/control.pl, 'new-space'/1
-%and its LeaTTa citation]. Minting only the NAME left metta.space() answering
+%property 'new-space'/1 has: (chain (new-space) $s (get-type $s)) is SpaceType
+%[source: engine/metta/control.pl, 'new-space'/1]. Minting only the NAME left
+%metta.space() answering
 %a handle whose get-type was %Undefined% and whose metatype was Symbol, so it
 %crossed the wire as an ordinary symbol and came home as one [measured
 %2026-08-27].
@@ -3574,8 +3574,9 @@ metta_py_eval_term(Space, Term, Encoded) :-
 %                  and a match with no candidates do
 %
 %MeTTa had no name for these, so the taxonomy was taken from the mechanised
-%Hyperon specification, which is the only part borrowed
-%[source: LeaTTa checkout, MettaHyperonFull/Core/Result.lean, EvalStatus].
+%Hyperon specification, which is the only part borrowed [assumed: the four
+%status names were taken from an earlier reference semantics, not re-measured
+%against upstream PeTTa].
 %The distinction that matters is the one that surface behaviour hides: empty
 %is a pruned branch and not-reducible is an unevaluated term, and reading
 %both as "nothing happened" is what made an earlier strict mode fire on

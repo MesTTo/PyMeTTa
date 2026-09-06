@@ -1,4 +1,4 @@
-"""Purpose: pin the canonical error-atom vocabulary as LeaTTa recorded it.
+"""Purpose: pin the canonical error-atom vocabulary this engine answers.
 Assumes: the engine answers through the ordinary MeTTa surface; no probe needs
   a named space, a backend or a file.
 Guarantees:
@@ -12,8 +12,8 @@ Guarantees:
     strict operand from literal, bound, and unevaluated Atom data.
   [tested: test_python_contract_matches_the_computed_error_boundary;
   commit=c293a0a09ee5d30f4550b51923c35931227f8f3f]
-Fails when: a probe is read as a claim about Hyperon rather than about LeaTTa;
-  every pin below cites the LeaTTa file it came from. Upstream PeTTa at
+Fails when: a probe is read as a claim about Hyperon. Each pin below names the
+  reference document it came from. Upstream PeTTa at
   ae66fa8e is the arbiter now, and the error vocabulary is one of the areas
   the 2026-09-05 differential recorded as diverging from it
   [source: docs/journal/2026-09-05-petta-alignment-authority.md].
@@ -27,9 +27,9 @@ import pytest
 
 from metta import MeTTa
 
-# The pins, file by file. Each names the LeaTTa program whose
-# MEASURED block carries the transcript this test asserts, all of them STATUS
-# conforms against the pinned Hyperon 0.2.10 binary:
+# The pins, file by file. Each names the reference document whose measured
+# transcript this test asserts, all of them recorded against the pinned Hyperon
+# 0.2.10 binary [assumed: not re-measured against upstream PeTTa]:
 #
 #   ai-brief-badargtype-multiplicity.md  the BadArgType cross product, ordered
 #                                        arrow-major and actual-minor
@@ -110,10 +110,10 @@ def test_the_error_vocabulary_answers_what_the_arbiter_answers() -> None:
     # siblings that finished. The bound is SCOPED, because a bare
     # `(pragma! max-stack-depth 20)` sets one engine-wide setting that outlives
     # the MeTTa object that wrote it: max-stack-depth is a runner setting
-    # rather than a per-module one [source: LeaTTa
-    # MettaHyperonFull/Minimal/Interpreter.lean:891-894, which keys
-    # interpreterModes by run context and deliberately does not key
-    # maxStackDepth], and this engine holds one runner per process.
+    # rather than a per-module one [assumed: the reference keys interpreter
+    # modes by run context and deliberately does not key the stack depth; not
+    # re-measured against upstream PeTTa], and this engine holds one runner per
+    # process.
     overflow = MeTTa().space("&errorvocab-overflow")
     overflow.run("(= (vocab-spin $n) (vocab-spin (- $n 1)))")
     answers = _answers(
@@ -189,8 +189,9 @@ def test_the_error_vocabulary_answers_what_the_arbiter_answers() -> None:
     ]
     assert _answers(metta, "!(return-on-error 5 6)") == ["6"]
     # The error side keeps one return instruction for an enclosing function
-    # frame, the reference's own double-return shape [measured 2026-08-25
-    # against the LeaTTa binary on this exact form].
+    # frame, the reference's own double-return shape [assumed 2026-08-25:
+    # measured against an earlier reference binary on this exact form at that
+    # date, not re-measured against upstream PeTTa].
     assert _answers(metta, '!(return-on-error (vocab-needs-number (+ 1 "bad")) 6)') == [
         f"(return {produced})"
     ]

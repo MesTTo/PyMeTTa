@@ -3,8 +3,9 @@ whose class defines match_ owns its matching logic inside (unify ...) with
 no registration, answering bindings for the operand it met, exactly
 Hyperon's CustomMatch; a space operand routes through the engine's own
 match. The ground cases mirror the arbiter's measured answers
-[source: LeaTTa tests/semantics/matching/grounded_value_matching.metta,
-unify_branch_evaluation.metta, measured 2026-08-11].
+[assumed 2026-08-11: grounded-value matching and unify branch evaluation were
+measured against an earlier reference corpus at that date, not re-measured
+against upstream PeTTa].
 Structured evaluation binds every ``&self`` occurrence to the receiving space,
 including the executable handle produced by ``parse``, under the same law as
 source execution [tested: test_atom_eval_rebinds_nested_self_to_the_receiver,
@@ -65,7 +66,7 @@ def test_unify_runs_only_the_selected_branch(m):  # noqa: D103  -- pytest discov
 def test_unify_binds_a_cyclic_pair_raw(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     # Bindings are raw under the petta alignment: the pair unifies as a
     # rational tree and the then-branch runs, the engine's one binding law
-    # (the LeaTTa-era occurs check left with that arbiter).
+    # (the earlier occurs check left with the reference that required it).
     assert m.run("!(unify $x (f $x) cyclic sound)") == [[S.cyclic]]
 
 

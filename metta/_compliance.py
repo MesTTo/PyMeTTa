@@ -134,8 +134,8 @@ def shaped_atom(stored: list) -> Any:
 
     The widest one rather than the first one enumerated, because a provider
     answers its atoms in no particular order: "Result order within one
-    directive's list is unspecified; result multiplicity is specified"
-    (LeaTTa wiki/Specification.md). Taking the first meant that a provider
+    directive's list is unspecified; result multiplicity is specified".
+    Taking the first meant that a provider
     holding both a one-argument and a two-argument atom either exercised
     test_a_repeated_variable_selects_equal_positions or skipped it depending on
     which one came out first, and adding a single never-called predicate to

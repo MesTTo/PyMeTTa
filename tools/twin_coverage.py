@@ -1814,15 +1814,16 @@ def _launch(source: str, root: Path) -> Run:
 #: It is PASSED to the child, never written into this process. Writing it into
 #: `os.environ` is what the first version did, and under pytest that escaped
 #: the lane: `test_twin_coverage.py` calls run_twin, so every later test in the
-#: same process lost `~/.elan/bin` from PATH and the two LeaTTa conformance
-#: tests failed to find `lake` [source: extensions/python/metta/benchmarking.py
+#: same process lost `~/.elan/bin` from PATH and the two conformance tests that
+#: shelled out to a toolchain there failed to find it
+#: [source: extensions/python/metta/benchmarking.py
 #: builds its child environment the same way and says why; commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22].
 MEASURED_PATH = (str(Path(sys.executable).resolve().parent), "/usr/bin", "/bin")
 
 #: What the child keeps from this process, beside the pinned PATH. HOME and the
 #: loader variables are what an engine launch needs; nothing else is inherited,
 #: so the environment BLOCK is the same size whoever runs the lane.
-MEASURED_ENVIRONMENT = ("HOME", "LD_LIBRARY_PATH", "SWI_HOME_DIR", "LEATTA_PATH")
+MEASURED_ENVIRONMENT = ("HOME", "LD_LIBRARY_PATH", "SWI_HOME_DIR")
 
 
 def _environment() -> dict[str, str]:

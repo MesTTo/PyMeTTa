@@ -1,16 +1,16 @@
-"""Purpose: a space whose matching runs in CeTTa, the C MeTTa runtime,
+"""Purpose: a space whose matching runs in cmetta, a C MeTTa runtime,
 reached as a subprocess: the same SpaceProvider seam that carries SQLite,
 DuckDB, Redis and remote engines carries a sibling MeTTa implementation.
 
 The bridge is STORAGE-level on purpose. The atoms live here as MeTTa
-atoms; CeTTa is consulted per query as a matcher over their text, its
+atoms; cmetta is consulted per query as a matcher over their text, its
 evaluator never runs, and the engine binds every answer through its own
-unification. A semantic quirk in CeTTa's matcher surfaces as a missing
+unification. A semantic quirk in cmetta's matcher surfaces as a missing
 or extra candidate that the conformance kit's pattern family catches,
 not as a silently wrong local answer.
 
 Guarantees:
-  - removal takes every stored occurrence CeTTa matches for the pattern,
+  - removal takes every stored occurrence cmetta matches for the pattern,
     decided in ONE subprocess run by tagging each stored atom with its
     index and matching (probe $i <pattern>) [tested
     test_cmetta_space.py::test_removal_is_by_unification]
@@ -38,7 +38,7 @@ _PROBE = "metta-cmetta-probe"
 
 
 class CMettaSpace(SpaceProvider):
-    """Atoms stored beside their text, pattern queries answered by CeTTa."""
+    """Atoms stored beside their text, pattern queries answered by cmetta."""
 
     def __init__(self, cmetta: str | None = None, timeout: float = 30.0):
         self._cmetta = cmetta or os.environ.get("METTA_CMETTA", "cmetta")
@@ -72,14 +72,14 @@ class CMettaSpace(SpaceProvider):
     def clear(self) -> None:
         self._atoms.clear()
 
-    # -- the CeTTa crossing ---------------------------------------------------
+    # -- the cmetta crossing --------------------------------------------------
 
     def _matching_indices(self, pattern) -> list[int]:
-        """Which stored atoms match, decided by CeTTa in one run.
+        """Which stored atoms match, decided by cmetta in one run.
 
         Every stored atom is asserted as (probe i atom), and the query
         (match &self (probe $i <pattern>) $i) answers exactly the indices
-        whose atom CeTTa matches against the pattern, with the pattern's
+        whose atom cmetta matches against the pattern, with the pattern's
         variables freshened per candidate by match itself.
         """
         if not self._atoms:
@@ -92,7 +92,7 @@ class CMettaSpace(SpaceProvider):
         ]
         answer, errors = self._run(program)
         if not answer:
-            #CeTTa prints nothing at all for an empty answer set, not an
+            #cmetta prints nothing at all for an empty answer set, not an
             #empty list, and refuses malformed input with a nonzero exit,
             #so silence here really is "no stored atom matches".
             return []
@@ -115,10 +115,10 @@ class CMettaSpace(SpaceProvider):
 
 
 class CMettaMatch:
-    """A grounded value whose matching IS CeTTa evaluation.
+    """A grounded value whose matching IS cmetta evaluation.
 
     Held in a MeTTa expression and unified against an operand, it yields
-    one answer atom per result CeTTa produced for its query, and the
+    one answer atom per result cmetta produced for its query, and the
     operand's variables bind by destructuring those answers: arbitrary
     bindings from a foreign evaluator, arriving through ordinary
     unification. This is the matcher tier of the seam, where the value's
@@ -147,7 +147,7 @@ class CMettaMatch:
 
 
 def _bracket_items(answer: str, errors: str = "") -> list[str]:
-    """Split CeTTa's `[a, b, c]` answer line at top-level commas."""
+    """Split cmetta's `[a, b, c]` answer line at top-level commas."""
     line = answer.splitlines()[-1].strip() if answer else ""
     if not (line.startswith("[") and line.endswith("]")):
         raise RuntimeError(
@@ -171,8 +171,8 @@ def _bracket_items(answer: str, errors: str = "") -> list[str]:
 
 
 def demo() -> None:
-    """The worked run: this engine's queries answered over atoms CeTTa
-    matches, and CeTTa evaluation results binding variables inside it."""
+    """The worked run: this engine's queries answered over atoms cmetta
+    matches, and cmetta evaluation results binding variables inside it."""
     cmetta = os.environ.get("METTA_CMETTA") or shutil.which("cmetta")
     if cmetta is None:
         skip("cmetta is not on PATH and METTA_CMETTA does not name it")
@@ -186,7 +186,7 @@ def demo() -> None:
     m.run("!(add-atom &cmetta (edge a b))")
     m.run("!(add-atom &cmetta (edge a c))")
     (group,) = m.run("!(collapse (match &cmetta (edge a $x) $x))")
-    check("CeTTa matches, this engine binds", sorted(str(a) for a in group[0]),
+    check("cmetta matches, this engine binds", sorted(str(a) for a in group[0]),
           ["b", "c"])
 
     matcher = CMettaMatch(
@@ -196,7 +196,7 @@ def demo() -> None:
         cmetta=cmetta,
     )
     rows = m.eval(Expression(S.unify, Grounded(matcher), Expression(S.sol, V.x), V.x, S.none))
-    check("CeTTa answers bind inside unify", sorted(str(a) for a in rows),
+    check("cmetta answers bind inside unify", sorted(str(a) for a in rows),
           ["-2", "2"])
     done("cmetta_space")
 

@@ -367,7 +367,7 @@ def test_the_empty_expressions_type_follows_the_arbiters_ruling():  # noqa: D103
     assert _answers(metta, "!(is-function (->))") == ["True"]
     assert _answers(metta, "!(get-type (h ()))") == ["Atom"]
 
-    # The observer type must not leak into argument classification. LeaTTa's
+    # The observer type must not leak into argument classification. The
     # classifier derives no type here, so the existing gradual fallback admits
     # the value at a concrete parameter instead of rejecting unit against it.
     assert _answers(metta, "!(classifier-control ())") == ["accepted"]

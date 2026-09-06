@@ -185,7 +185,8 @@ def test_an_unchanged_repeat_import_does_not_run_the_source_again(metta, source)
     """Import! is if(not_loaded) widened to if(changed), not to if(true).
     The arbiter measures a second import of an unchanged module reusing the
     loaded instance and executing its source once, and that still holds
-    [source: LeaTTa tests/semantics/modules/30-resolution-loaded, M30].
+    [assumed: measured against an earlier reference corpus, not re-measured
+    against upstream PeTTa].
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     marker = fresh("import-ran")
     source.write_text(f"!(add-atom &self ({marker} once))\n")

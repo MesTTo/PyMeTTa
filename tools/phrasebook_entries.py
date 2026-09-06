@@ -6,9 +6,9 @@ The rows are the MeTTa standard-library surface: 380 distinct names with their
 types and metatypes. They were transcribed once from a mechanised stdlib
 manifest and are this repository's own from here, checked against what this
 engine answers rather than against another implementation. The oracle
-comparison that used to sit beside them is gone (user, 2026-08-31: "there
-should not be any leatta tests"), finishing the migration commit 20cd107a began
-when it moved the conformance lane to upstream PeTTa.
+comparison that used to sit beside them is gone by the user's 2026-08-31
+ruling, finishing the migration commit 20cd107a began when it moved the
+conformance lane to upstream PeTTa.
 
 Assumes:
   - a row's MeTTa form is a whole program, so `bind!` and `(= ...)` inside one

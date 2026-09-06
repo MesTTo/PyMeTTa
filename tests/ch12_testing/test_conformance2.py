@@ -2,7 +2,7 @@
 
 Assumes: each test uses unique MeTTa names because the engine module outlives a
 Python handle. Guarantees: a call compiled into an equation body and the same
-term passed to `eval` produce the LeaTTa 9ea9f9d answer.
+term passed to `eval` produce the same pinned answer.
 """
 
 from __future__ import annotations

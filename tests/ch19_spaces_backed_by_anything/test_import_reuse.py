@@ -122,13 +122,14 @@ def test_missing_import_is_loud_and_names_the_file(metta, tmp_path):  # noqa: D1
 def test_an_import_into_a_named_space_registers_its_equations_there(
     metta, tmp_path
 ):
-    """An alias import admits nothing into the caller, on LeaTTa's rule.
+    """An alias import admits nothing into the caller.
 
-    grounded/29-builtin-module-alias-import pins it byte-exactly (MEASURED:
-    both alias probes stay unreduced data, and only the companion &self
-    import makes the tiers callable), and its model is World.moduleReady
-    testing the RUNNING CONTEXT's own space's import mark. The loader used
-    to compile an import's equations into &self's module whatever space the
+    Both alias probes stay unreduced data, and only the companion &self import
+    makes the tiers callable, because module readiness is tested against the
+    RUNNING CONTEXT's own space's import mark [assumed: measured against an
+    earlier reference corpus, not re-measured against upstream PeTTa]. The
+    loader used to compile an import's equations into &self's module whatever
+    space the
     atoms went to, so a top-level call reduced through a space it never
     imported; every receiving space compiles its own copy now.
     """

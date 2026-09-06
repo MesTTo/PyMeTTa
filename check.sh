@@ -126,7 +126,7 @@ run REPORT twins       sh -c "cd '$HERE' && '$PY' extensions/python/tools/twin_c
 # here, each against the answer frozen in phrasebook_answers.json and
 # re-measured only under --learn, so this needs no outside checkout and costs
 # 0.3s. A third column held an outside arbiter's answers until 2026-08-31 and
-# went with the LeaTTa lane; upstream PeTTa at ae66fa8e is the arbiter and
+# went with the lane that read it; upstream PeTTa at ae66fa8e is the arbiter and
 # tests/conformance/petta.py is what reads it. It enters as a GATE rather than
 # a REPORT because it was proven to see: breaking one row's executable Python
 # column, `e[0]` to `e[1]`, produces three findings, against the recorded

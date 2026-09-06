@@ -38,11 +38,11 @@ def error_text(answer):
 # The write path already refuses a first argument that is not a space, with a
 # diagnostic naming itself, and the read path raised SWI's bare
 # `Arguments are not sufficiently instantiated` instead, which names nothing.
-# LeaTTa answers all three the same way, and words `get-atoms` differently
-# because upstream does: pinned `space.rs:143` says "its argument" where
-# `:172` and `:199` say "the first argument"
-# [source: LeaTTa MettaHyperonFull/Minimal/Interpreter.lean, getAtomsStep at
-# 5450-5453, matchStep at 5144-5146, addAtomStep at 5384-5388].
+# All three are worded the same way, and `get-atoms` differently, because
+# upstream does: pinned `space.rs:143` says "its argument" where `:172` and
+# `:199` say "the first argument"
+# [source: hyperon-experimental lib/src/metta/runner/stdlib/space.rs:143, :172
+# and :199].
 def test_get_atoms_on_an_unbound_space_names_the_operation(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     add, atoms, matched = m.run(
         "!(add-atom $u (foo 1))\n!(get-atoms $u)\n!(match $u (foo $x) $x)"
@@ -74,8 +74,7 @@ def test_a_non_symbol_first_argument_is_refused_by_the_read_path(m):  # noqa: D1
 
 # The refusal is an answer rather than a throw, which is what makes it
 # collectable: a raise would have emptied the collapse instead
-# [source: LeaTTa tests/semantics/spaces/add_atom.metta, quoted at
-# engine/spaces.pl's metta_space_name/1].
+# [source: engine/spaces/foreign.pl, the note above space_argument_error/3].
 def test_the_read_refusal_is_data_a_collapse_can_hold(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     (collapsed,) = m.run("!(collapse (get-atoms $u))")
     assert len(collapsed[0]) == 1
@@ -86,9 +85,7 @@ def test_the_read_refusal_is_data_a_collapse_can_hold(m):  # noqa: D103  -- pyte
 # is-space states and evalc has always enforced: a space name begins with &.
 # Before this, `(add-atom not-a-space (bad add))` made a space called
 # `not-a-space` and `(get-atoms not-a-space)` read it back, while
-# `(is-space not-a-space)` answered False in the same program
-# [source: LeaTTa tests/semantics/spaces/add_atom.metta, get_atoms.metta and
-# match.metta, all STATUS conforms].
+# `(is-space not-a-space)` answered False in the same program.
 def test_any_symbol_names_a_space_the_moment_it_is_written_to(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     # The ampersand is a CONVENTION, not the rule: a bare symbol names a space
     # too, and writing to one creates it. Upstream answers exactly this

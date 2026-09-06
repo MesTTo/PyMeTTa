@@ -2260,7 +2260,7 @@ class _StatementPattern:
         fixed part left over, which is Kutsia's final-position fragment exactly:
         the gap is the last child of its own pattern, the arm's subject is a
         value and therefore carries no gap of its own, and the answer is unitary
-        [source: LeaTTa MettaHyperonFull/Core/SeqFragment.lean, seqFinitary?].
+        [source: engine/spaces/segment_matching.pl, metta_seq_classify/3].
         Python's own grammar gives us the linearity the law wants for free,
         since a sequence pattern admits at most one star.
 

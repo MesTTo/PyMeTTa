@@ -13,7 +13,7 @@ Guarantees:
   - Janus and the tagged n form carry BigInt values in both directions
     without changing a digit [tested test_janus_carries_bigint_losslessly]
 Open Obligations:
-  To Do: Re-verify these rules when LeaTTa adds its announced BigInt type.
+  To Do: Re-verify these rules if the arbiter gains a BigInt type.
   Hacks: None
   Future Enhancements: None.
 """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
@@ -53,7 +53,7 @@ def test_bigint_and_number_type_the_numeric_tower(metta):  # noqa: D103  -- pyte
 
 
 def test_integer_arithmetic_is_unbounded_where_hyperon_checks_i64(metta):
-    """The product past Hyperon's i64 boundary stays exact, per LeaTTa's unbounded integers."""
+    """The product past Hyperon's i64 boundary stays exact: integers are unbounded here."""
     assert metta.run("!(* 4611686018427387904 4)") == [
         [18_446_744_073_709_551_616]
     ]

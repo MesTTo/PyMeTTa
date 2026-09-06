@@ -1,8 +1,9 @@
 """Purpose: no tracked file cites an absolute workspace path. The repository
-may be published, and a reader's machine has no such user directory; a
-citation spells its source repo-relative (LeaTTa tests/...) and machinery
-reaches an outside checkout through the LEATTA_PATH environment override,
-whose three carriers are the one documented exception.
+may be published, and a reader's machine has no such user directory, so a
+citation spells its source repo-relative and anything that needs a checkout
+outside this repository derives it from this file's own position or takes it
+from an environment variable. There is no exemption: every tracked file is
+scanned.
 Open Obligations:
   To Do: None
   Hacks: None
@@ -13,12 +14,6 @@ import re
 import subprocess
 
 import pytest
-
-_FIXED_ORACLE_PATH_PATTERN = {
-    "tests/conformance/cetta.py",
-    "tests/conformance/cetta_corpus.py",
-    "extensions/python/tests/conformance/test_critical_pair_oracle.py",
-}
 
 # Built in pieces so the tracked scanner never matches its own needle.
 _WORKSPACE_ROOT = "/" + "home/"
@@ -41,8 +36,6 @@ def test_no_tracked_file_cites_an_absolute_workspace_path(repo_root):  # noqa: D
     tracked = listing.stdout.splitlines()
     offenders = []
     for name in tracked:
-        if name in _FIXED_ORACLE_PATH_PATTERN:
-            continue
         path = repo_root / name
         try:
             text = path.read_text()
@@ -53,6 +46,6 @@ def test_no_tracked_file_cites_an_absolute_workspace_path(repo_root):  # noqa: D
                 offenders.append(f"{name}:{number}: {line.strip()[:80]}")
     assert not offenders, (
         "a tracked file cites an absolute workspace path; respell it "
-        "repo-relative, or reach the oracle through LEATTA_PATH:\n"
+        "repo-relative, or derive it from the citing file's own position:\n"
         + "\n".join(offenders)
     )

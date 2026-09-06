@@ -364,8 +364,8 @@ def _float_text(value: float) -> str:
 
     The digits are repr's, the shortest decimal that reads back to the
     same binary64, which is also what the engine's writer starts from;
-    the LAYOUT is LeaTTa's law the engine implements [source: LeaTTa
-    RyuLean4/Runtime.lean:371-396, Decimal.formatMeTTa]: with D the
+    the LAYOUT is the one the engine implements
+    [source: engine/parser.pl, metta_float_layout/4]: with D the
     stripped significand and KK the exponent making the value 0.D*10^KK,
     print positionally while KK is in -4..16 and scientifically
     otherwise, exponent KK-1, minus sign only, never a plus, never
@@ -1677,8 +1677,9 @@ def _(value: Any) -> Atom:
     # and each occurrence is its own variable. The atom is the plain symbol,
     # because whether a marker is a live gap or ordinary data is decided by the
     # SIDE it sits on rather than by its shape: a pattern's `...` is a gap and a
-    # stored atom's is data [source: LeaTTa MettaHyperonFull/Core/SeqSyntax.lean,
-    # parseSeqAtom against parseConcreteAtom]. Before this it encoded as a
+    # stored atom's is data
+    # [source: engine/spaces/segment_matching.pl, metta_seq_parse/2]. Before
+    # this it encoded as a
     # grounded ellipsis object, so `space[(S.A, ..., S.D)]` answered nothing.
     del value
     return Symbol("...")

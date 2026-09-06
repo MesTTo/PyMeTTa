@@ -385,9 +385,9 @@ def test_an_answerless_translator_rule_body_behaves_as_ruled(repo_root, tmp_path
     skipped and the next clause tried, which is conditional-rule dispatch
     arriving by accident. Settled 2026-08-21 in favour of that behaviour,
     because it is what every system this rule set is modelled on does: the
-    arbiter's own oriented conditional rewriting fires a rule when its left
-    side matches and each condition holds (LeaTTa
-    MeTTaILProofs/ConditionalCP.lean), CHR tries the next rule when a guard
+    oriented conditional rewriting fires a rule when its left side matches and
+    each condition holds (Avenhaus and Loria-Saenz, LPAR 1994), CHR tries the
+    next rule when a guard
     fails, Haskell continues with the next alternative when every guard of one
     fails, and Rw-Prolog writes a rule as ``Pattern := Template :- Conditions``.
     """
