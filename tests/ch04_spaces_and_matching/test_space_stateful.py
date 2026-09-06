@@ -106,5 +106,4 @@ TestSpaceStateMachine = SpaceStateMachine.TestCase
 TestSpaceStateMachine.settings = settings(
     max_examples=25,
     stateful_step_count=20,
-    deadline=None,
 )

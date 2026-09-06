@@ -305,7 +305,7 @@ def test_aliases_compose_with_annotated_arrows(m):
     assert flattened(m.run("!(get-type annotated)")) == ["(-[det]-> Number Number)"]
 
 
-@settings(max_examples=30, deadline=None)
+@settings(max_examples=30)
 @given(st.recursive(st.sampled_from(["Number", "String", "Bool"]),
                     lambda child: st.tuples(child, child), max_leaves=6))
 def test_generated_nested_aliases_match_their_literal_type_tree(tree):

@@ -86,7 +86,7 @@ def test_python_wire_round_trip(atom):  # noqa: D103  -- pytest discovers or inj
 
 
 @given(_atoms())
-@settings(max_examples=60, deadline=None)
+@settings(max_examples=60)
 def test_engine_wire_round_trip(metta_session, atom):
     """Across the boundary and back: decode_shared then encode in Prolog."""
     rt = metta_session.runtime
@@ -116,7 +116,7 @@ def test_engine_wire_round_trip(metta_session, atom):
 @example(atom=Grounded("carriage\rreturn"))
 @example(atom=Expression(S.s, Grounded("nested\nnewline")))
 @given(_writer_atoms)
-@settings(max_examples=100, deadline=None)
+@settings(max_examples=100)
 def test_every_generated_atom_survives_the_write_parse_round_trip(
     metta_session, atom
 ):
@@ -222,7 +222,7 @@ def test_the_boolean_atoms_are_one_term_with_their_symbols(metta_session):
     assert parse("true") == Grounded(True)  # noqa: FBT003  -- the boolean literal is atom or wire data at this site, not a behavior switch
 
 
-@settings(max_examples=80, deadline=None)
+@settings(max_examples=80)
 @given(
     a=st.one_of(st.integers(-99, 99), st.floats(allow_nan=True, allow_infinity=False, width=32), st.booleans(), st.text("ab", max_size=3)),
     b=st.one_of(st.integers(-99, 99), st.floats(allow_nan=True, allow_infinity=False, width=32), st.booleans(), st.text("ab", max_size=3)),
@@ -256,7 +256,7 @@ def test_python_equality_is_engine_equality(metta, a, b):
         assert engine[0].value is False
 
 
-@settings(max_examples=80, deadline=None)
+@settings(max_examples=80)
 @given(
     a=st.one_of(st.integers(-99, 99), st.floats(allow_nan=True, allow_infinity=False, width=32), st.booleans(), st.text("ab", max_size=3)),
     b=st.one_of(st.integers(-99, 99), st.floats(allow_nan=True, allow_infinity=False, width=32), st.booleans(), st.text("ab", max_size=3)),
@@ -285,7 +285,7 @@ def test_ground_strategy_generates_no_variables(atom):  # noqa: D103  -- pytest 
     assert list(atom.vars) == []
 
 
-@settings(max_examples=40, deadline=None)
+@settings(max_examples=40)
 @given(
     pt.from_pattern(
         S.pair(Variable("shared"), S.nested(Variable("shared"), Variable("_")))

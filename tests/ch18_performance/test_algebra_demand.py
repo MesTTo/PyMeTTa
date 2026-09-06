@@ -181,7 +181,7 @@ def test_demand_preserves_all_four_duplicate_combinations(metta, monkeypatch):
     edges=st.lists(st.tuples(st.integers(0, 4), st.integers(0, 4)), max_size=5),
     fixed=st.integers(0, 5),
 )
-@settings(max_examples=35, deadline=None)
+@settings(max_examples=35)
 def test_demand_generated_acyclic_programs_match_full_closure(metta, seeds, edges, fixed):
     """Generated duplicates, absent joins, and aliases exercise the same gate."""
     with metta._new_space() as program, pytest.MonkeyPatch.context() as patch:

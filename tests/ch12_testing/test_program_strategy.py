@@ -49,7 +49,7 @@ from petta_capture import forms  # noqa: E402  -- the path is installed above
 #: shrinking (there is nothing failing to shrink), and no deadline, because a
 #: draw walks a census of fifty calls.
 DRAWS = settings(max_examples=60, phases=[Phase.generate], database=None,
-                 deadline=None, derandomize=True,
+                 derandomize=True,
                  suppress_health_check=list(HealthCheck))
 
 

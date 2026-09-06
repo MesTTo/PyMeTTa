@@ -24,7 +24,7 @@ from itertools import product
 from math import gcd
 
 import pytest
-from hypothesis import given, settings
+from hypothesis import given
 from hypothesis import strategies as st
 
 from metta import Expression, Grounded, Space, Symbol
@@ -162,7 +162,6 @@ def _exhaustive(
     return mass, [joint / mass for joint in selected_mass]
 
 
-@settings(deadline=None)
 @given(raw_rows=_ROWS, target=st.integers(min_value=0, max_value=15), scale=st.integers(1, 5))
 def test_weighted_subset_matches_exhaustive(subset_space, raw_rows, target, scale):
     """Every generated result agrees with a separately structured oracle."""
@@ -196,7 +195,6 @@ def test_weighted_subset_matches_exhaustive(subset_space, raw_rows, target, scal
     assert _posterior(subset_space, scaled_rows, target * scale) == (mass, marginals)
 
 
-@settings(deadline=None)
 @given(
     priors=st.lists(_interior_prior(), min_size=1, max_size=8),
     target=st.data(),

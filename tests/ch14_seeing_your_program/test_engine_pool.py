@@ -114,7 +114,7 @@ def test_pool_agrees_with_the_home_engine(m, p):
     assert worker == home
 
 
-@settings(max_examples=25, deadline=None)
+@settings(max_examples=25)
 @given(st.lists(st.integers(min_value=-500, max_value=500), min_size=1, max_size=12))
 def test_pool_agrees_with_the_home_engine_on_arbitrary_arithmetic(metta, values):
     """Property: whatever the home engine answers, a worker answers too."""

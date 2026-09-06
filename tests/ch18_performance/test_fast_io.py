@@ -632,7 +632,6 @@ else:
 
     @settings(
         max_examples=30,
-        deadline=None,
         suppress_health_check=[HealthCheck.function_scoped_fixture],
     )
     @given(st.lists(st.integers(-1_000_000, 1_000_000), max_size=40, unique=True))
@@ -646,7 +645,6 @@ else:
 
     @settings(
         max_examples=30,
-        deadline=None,
         suppress_health_check=[HealthCheck.function_scoped_fixture],
     )
     @given(

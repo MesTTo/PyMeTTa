@@ -18,7 +18,7 @@ Guarantees:
 from __future__ import annotations
 
 import pytest
-from hypothesis import given, settings
+from hypothesis import given
 from hypothesis import strategies as st
 
 from metta import Expression, Grounded, Space, Symbol
@@ -100,7 +100,6 @@ def test_petta_profile_matches_metta():
     assert hypothesis_settings.get_profile("petta") == hypothesis_settings.get_profile("metta")
 
 
-@settings(deadline=None)
 @given(confidence=st.floats(min_value=0.0, max_value=0.999, allow_nan=False), scale=_POSITIVE)
 def test_confidence_count_round_trip(pln2_space, confidence, scale):
     """Explicit evidence scale makes both directions reciprocal."""
@@ -109,7 +108,6 @@ def test_confidence_count_round_trip(pln2_space, confidence, scale):
     assert restored == pytest.approx(confidence, rel=2e-12, abs=2e-12)
 
 
-@settings(deadline=None)
 @given(alpha=_POSITIVE, beta=_POSITIVE)
 def test_beta_moments_match_definition(pln2_space, alpha, beta):
     """Generated shapes agree with the standard Beta moments."""
@@ -121,7 +119,6 @@ def test_beta_moments_match_definition(pln2_space, alpha, beta):
     assert 0 < variance <= mean * (1 - mean)
 
 
-@settings(deadline=None)
 @given(alpha=_POSITIVE, beta=_POSITIVE, successes=st.integers(0, 100), failures=st.integers(0, 100))
 def test_beta_update_adds_observations(pln2_space, alpha, beta, successes, failures):
     """The posterior shapes add exactly the two observed sufficient statistics."""
@@ -134,7 +131,6 @@ def test_beta_update_adds_observations(pln2_space, alpha, beta, successes, failu
     assert _number(updated_beta) == pytest.approx(beta + failures)
 
 
-@settings(deadline=None)
 @given(
     left_mean=_PROBABILITY,
     left_fraction=_PROBABILITY,
@@ -165,7 +161,6 @@ def test_supported_product_matches_the_formula(
     assert support == ["left-source", "right-source"]
 
 
-@settings(deadline=None)
 @given(
     true_mean=_PROBABILITY,
     true_fraction=_PROBABILITY,
@@ -209,7 +204,6 @@ def test_supported_total_probability_matches_the_formula(  # noqa: PLR0917  -- e
     assert support == ["if-true", "if-false", "condition"]
 
 
-@settings(deadline=None)
 @given(
     mean=_INTERIOR_PROBABILITY,
     confidence=st.floats(min_value=0.0, max_value=0.999, allow_nan=False),

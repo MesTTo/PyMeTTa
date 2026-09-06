@@ -128,7 +128,6 @@ else:
 
     @settings(
         max_examples=25,
-        deadline=None,
         suppress_health_check=[HealthCheck.function_scoped_fixture],
     )
     @given(expressions(max_leaves=6, ground=True))

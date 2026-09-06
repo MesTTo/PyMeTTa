@@ -322,7 +322,7 @@ def test_list_materializes_a_match_without_a_second_query(metta, monkeypatch) ->
     assert counts == ["metta_py_query_count_if_repeatable"]
 
 
-@settings(deadline=None, max_examples=25)
+@settings(max_examples=25)
 @given(
     st.lists(
         st.integers(min_value=-6, max_value=6),

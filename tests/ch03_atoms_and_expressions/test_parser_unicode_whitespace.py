@@ -62,7 +62,7 @@ _runs = st.text(alphabet=sorted(chr(c) for c in WHITE_SPACE), min_size=0, max_si
 
 
 @given(left=_names, right=_names, run=_runs)
-@settings(max_examples=25, deadline=None)
+@settings(max_examples=25)
 def test_every_unicode_whitespace_separates_atoms(left, right, run):
     """Every character in the class, in every generated run of the class,
     between any two names the tokeniser reads back whole.

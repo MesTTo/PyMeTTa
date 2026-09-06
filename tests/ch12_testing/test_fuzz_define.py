@@ -396,13 +396,13 @@ def _answers_agree(metta, tmp_path_factory, program, data, rounds: int) -> None:
         assert [_normalize(e) for e in engine] == [_normalize(twin)], source
 
 
-@settings(max_examples=60, deadline=None, suppress_health_check=[HealthCheck.too_slow])
+@settings(max_examples=60, suppress_health_check=[HealthCheck.too_slow])
 @given(program=programs(), data=st.data())
 def test_engine_and_twin_agree(metta, tmp_path_factory, program, data):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     _answers_agree(metta, tmp_path_factory, program, data, rounds=3)
 
 
-@settings(max_examples=40, deadline=None, suppress_health_check=[HealthCheck.too_slow])
+@settings(max_examples=40, suppress_health_check=[HealthCheck.too_slow])
 @given(program=nested_loop_programs(), data=st.data())
 def test_nested_loops_agree(metta, tmp_path_factory, program, data):
     """A loop inside a loop, every example. Each loop compiles to its own
@@ -424,7 +424,7 @@ def test_the_fuzzer_reaches_a_loop_inside_a_loop():
     # Generate only: find would otherwise shrink each witness to its minimal
     # form, which answers a question nobody asked and cost 13.12s of the
     # suite's 14.55s [measured 2026-08-18].
-    reachable = settings(max_examples=200, deadline=None, phases=[Phase.generate])
+    reachable = settings(max_examples=200, phases=[Phase.generate])
     for kind in ("for", "while"):
         find(
             nested_loop_programs(),
@@ -433,7 +433,7 @@ def test_the_fuzzer_reaches_a_loop_inside_a_loop():
         )
 
 
-@settings(max_examples=40, deadline=None, suppress_health_check=[HealthCheck.too_slow])
+@settings(max_examples=40, suppress_health_check=[HealthCheck.too_slow])
 @given(program=generator_programs(), data=st.data())
 def test_generator_answers_match_in_order(metta, tmp_path_factory, program, data):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     name, source = program
@@ -446,7 +446,7 @@ def test_generator_answers_match_in_order(metta, tmp_path_factory, program, data
     assert [_normalize(e) for e in engine] == [_normalize(v) for v in twin], source
 
 
-@settings(max_examples=30, deadline=None, suppress_health_check=[HealthCheck.too_slow])
+@settings(max_examples=30, suppress_health_check=[HealthCheck.too_slow])
 @given(program=collection_programs(), data=st.data())
 def test_collection_bridge_agrees(metta, tmp_path_factory, program, data):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     name, source = program
