@@ -254,9 +254,10 @@ The third is the one people underestimate. A table-backed space is one
 declaration, not a wrapper:
 
 ```python
-tables.declare(m, "&crm", "(bridge (edge $a $b) (row edges (a $a) (b $b)))")
-provider = TableBridge.from_context(m, "&crm", sqlite3.connect(":memory:"))
-m.self._register_space(provider, "&crm")
+kb = m.self                     # both take a SPACE, not the context
+tables.declare(kb, "&crm", "(bridge (edge $a $b) (row edges (a $a) (b $b)))")
+provider = TableBridge.from_context(kb, "&crm", sqlite3.connect(":memory:"))
+metta.attach("&crm", provider)  # the name is now a queryable space
 ```
 
 Every provider operation derives from that one declaration, both directions:
@@ -277,7 +278,7 @@ They are the reference for idiomatic code on this surface.
 ```python
 m += typed(S.f, arrow(S.Number, S.Number))   # (: f (-> Number Number))
 kb.type(atom)                                 # the first get-type answer
-casting.cast(value, S.Number)                 # runtime cast on the engine's rules
+kb.cast(value, S.Number)                      # runtime cast on the engine's rules
 ```
 
 Annotations on a `@m.define` become the declaration, and a local annotation
