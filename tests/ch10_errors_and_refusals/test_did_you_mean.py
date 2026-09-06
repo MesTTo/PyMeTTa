@@ -32,6 +32,8 @@ Open Obligations:
 
 from __future__ import annotations
 
+import subprocess
+import sys
 import traceback
 
 import pytest
@@ -168,14 +170,27 @@ def test_the_testing_module_names_both_suites_without_importing_them():
     A module's `__dir__` is its suggestion pool, and both suite names live
     behind PEP 562 until first use.
     """
-    # Imported HERE and not at module scope: the assertion is that a
-    # module's directory does not resolve either compliance import.
-    import sys
+    # A fresh interpreter, because the assertion is about what dir() does
+    # not import, and this process may already hold metta._compliance from
+    # any earlier test that ran a compliance suite; the shuffled order makes
+    # that a coin toss, and a check that is vacuous half the time is no check.
+    probe = subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            "import sys, metta.testing\n"
+            "names = set(dir(metta.testing))\n"
+            "assert {'SpaceComplianceSuite', 'GatewayComplianceSuite'} <= names, names\n"
+            "assert 'metta._compliance' not in sys.modules, 'dir() resolved an import'\n",
+        ],
+        capture_output=True,
+        text=True,
+        timeout=120,
+        check=False,
+    )
+    assert probe.returncode == 0, probe.stdout + probe.stderr
 
     import metta.testing
-
-    assert {"SpaceComplianceSuite", "GatewayComplianceSuite"} <= set(dir(metta.testing))
-    assert "metta._compliance" not in sys.modules, "dir() resolved an import"
 
     error, text = _rendered(lambda: metta.testing.SpaceComplianceSuit)
     assert error.name == "SpaceComplianceSuit"

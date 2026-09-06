@@ -15,6 +15,7 @@ Open Obligations:
 import functools
 import inspect
 import pydoc
+import traceback
 
 import pytest
 
@@ -121,3 +122,41 @@ def test_subscribe_is_the_function_watcher(m):  # noqa: D103  -- pytest discover
         subscription.cancel()
     assert [event.action for event in events] == ["add", "remove"]
     assert str(events[0].bindings["body"]) == "one"
+
+
+def test_a_namespace_lists_and_resolves_only_what_its_space_can_call(metta):
+    """A space's function namespace is what THAT space can call.
+
+    ``fun/1`` is process-wide by design, the translator's call-or-data
+    question, so a namespace built on it advertised heads whose equations
+    live in a module this space never sees, resolved them, and produced
+    calls that answered themselves unreduced. Past 750 names CPython also
+    stops offering a suggestion for a typo, which is how a long test process
+    lost every "Did you mean" (measured 2026-09-07: 1,107 names listed
+    against 306 for the same space alone).
+    """
+    with metta._new_space() as crowd, metta._new_space() as here:
+        crowd.run("\n".join(f"(= (fp-crowd-{i} $x) $x)" for i in range(800)))
+        here.run("(= (fp-dbl $x) (* 2 $x))")
+
+        assert "fp_crowd_5" in dir(crowd.fn)
+        assert "fp-crowd-5" in crowd.builtins()
+        assert "fp_crowd_5" not in dir(here.fn)
+        assert "fp-crowd-5" not in here.builtins()
+        assert "fp-dbl" in here.builtins()
+        assert here.is_function("fp-crowd-5"), "registered anywhere is the translator's question"
+        assert not here.is_function_here("fp-crowd-5")
+        with pytest.raises(AttributeError) as refused:
+            here.fn.fp_crowd_5  # noqa: B018  -- the refusal at access IS the scenario
+        assert refused.value.name == "fp_crowd_5"
+
+        assert len(dir(here.fn)) < 750, "the suggestion pool must stay inside CPython's cap"
+        with pytest.raises(AttributeError) as caught:
+            here.fn.fp_dbll  # noqa: B018  -- the refusal at access IS the scenario
+        rendered = "".join(traceback.format_exception(caught.value))
+        assert "Did you mean: 'fp_dbl'?" in rendered
+
+        with metta._new_space(inherits=here) as child:
+            assert "fp_dbl" in dir(child.fn), "an inherited head is callable here"
+            assert child.fn.fp_dbl.__name__ == "fp-dbl"
+            assert "fp_crowd_5" not in dir(child.fn)

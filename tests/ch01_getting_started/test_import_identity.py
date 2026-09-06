@@ -73,6 +73,7 @@ def test_callback_facade_owns_no_state_and_delegates():
             "release_context": "_task_context",
             "release_contexts": "_task_context",
             "stream_reraise": "errors",
+            "engine_message": "_engine",
             "type_names": "_ops",
             "construct_token": "_tokens",
             "foreign_add": "foreign",
@@ -119,7 +120,9 @@ def test_callback_facade_owns_no_state_and_delegates():
         for name, value in vars(facade).items()
         if not name.startswith("__") and name not in exported
     }
-    assert set(own_state) == {"_Any", "_CALLBACKS", "_importlib", "annotations"}
+    # `_sys` is the module reference a refusal names as its `obj` so the
+    # interpreter can offer a suggestion; a module import is not state.
+    assert set(own_state) == {"_Any", "_CALLBACKS", "_importlib", "_sys", "annotations"}
     assert all(
         isinstance(owner, tuple) and len(owner) == 2
         for owner in own_state["_CALLBACKS"].values()

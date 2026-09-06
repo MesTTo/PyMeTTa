@@ -1382,6 +1382,18 @@ class Runtime:
 
     # ------------------------------------------------------------------- helpers
 
-    def builtins(self) -> list[str]:
-        row = self.once("metta_py_builtins(Names)")
+    def builtins(self, space: str | None = None) -> list[str]:
+        """Function and special-form names, process-wide or callable from one space.
+
+        Without a space this is every name the translator knows as a
+        function anywhere in the engine, the pool a symbol completion or a
+        lint suggestion draws from. With a space it is what THAT space can
+        call: its own equations, the ones it inherits, ``&self``'s shared
+        ones and the builtins, which is what a space's function namespace
+        lists and resolves.
+        """
+        if space is None:
+            row = self.once("metta_py_builtins(Names)")
+        else:
+            row = self.once("metta_py_builtins(Space, Names)", Space=space)
         return list(row.get("Names", []))

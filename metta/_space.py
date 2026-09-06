@@ -495,17 +495,27 @@ def _deprecation(rt: Runtime, name: str) -> tuple[str, str] | None:
 def _function_generation(rt: Runtime) -> int:
     """Read the engine's fun/1 generation through its Janus bridge.
 
-    The service is SWI's ``last_modified_generation`` for exactly the dynamic
-    ``fun/1`` set read by ``metta_py_builtins/1``; translator rules are static
-    catalogue-neutral metadata [source:
-    engine/metta.pl:metta_host_function_generation/1;
-    commit=4c9a794750103e0a3a2e9d883adde337ffb501f0].
+    The service is the sum of SWI's ``last_modified_generation`` for the
+    dynamic facts the per-space catalogue reads, ``fun/1``, ``fun_in/2``,
+    ``fun_scoped/1`` and the exec-module parent chain, so a second space
+    defining an already-registered name advances it although ``fun/1`` did
+    not move; translator rules are static catalogue-neutral metadata
+    [source: engine/metta.pl:metta_host_function_generation/1;
+    commit=WORKTREE].
     """
     return int(rt.apply_must("metta_py_function_generation"))
 
 
 def _space_builtins(rt: Runtime, space_name: str) -> list[str]:
-    """Read one engine-generation-stamped per-space builtin catalogue."""
+    """Read one engine-generation-stamped per-space callable catalogue.
+
+    Keyed by space because the answer differs by space: a head whose
+    equations live in another space's module is registered process-wide
+    but is not callable from here, and a namespace that listed it resolved
+    calls that answered themselves unreduced [tested:
+    test_a_namespace_lists_and_resolves_only_what_its_space_can_call;
+    commit=WORKTREE].
+    """
     while True:
         observed_generation = _function_generation(rt)
         with _BUILTINS_CACHE_LOCK:
@@ -518,7 +528,7 @@ def _space_builtins(rt: Runtime, space_name: str) -> list[str]:
             cached = catalogues.get(space_name)
             if cached is not None:
                 return list(cached)
-        discovered = tuple(rt.builtins())
+        discovered = tuple(rt.builtins(space_name))
         confirmed_generation = _function_generation(rt)
         if confirmed_generation != observed_generation:
             continue
@@ -4186,7 +4196,15 @@ class Space(Handle):
     # -------------------------------------------------------------- inspection
 
     def builtins(self) -> list[str]:
-        """Every registered function and translator special-form name."""
+        """Every function callable from this space, plus every special form.
+
+        Its own equations, the ones it inherits, ``&self``'s shared ones and
+        the engine's builtins, with the translator's special-form heads,
+        sorted without duplicates. A head another space defines is
+        registered process-wide (the translator's call-or-data question,
+        which ``is_function`` answers) but is not callable here and is not
+        listed here.
+        """
         return _space_builtins(self._rt, str(self._space))
 
     def _invalidate_builtins(self) -> None:
@@ -4206,13 +4224,22 @@ class Space(Handle):
         )
 
     def is_function(self, name: str) -> bool:
-        """Report whether a function is visible from this space."""
+        """Report whether the name is registered as a function anywhere.
+
+        This is the translator's call-or-data question and holds wherever a
+        term compiles; ``is_function_here`` asks whether the head answers
+        from THIS space, and ``builtins()`` lists what this space can call.
+        """
         _require_name(name, "is_function")
         return bool(self._rt.once("metta_py_is_function(Name)", Name=name))
 
     def _is_catalogued(self, name: str) -> bool:
-        """Point membership in the builtins catalogue, no list build."""
-        return bool(self._rt.once("metta_py_catalogue_member(Name)", Name=name))
+        """Point membership in this space's callable catalogue, no list build."""
+        return bool(
+            self._rt.once(
+                "metta_py_catalogue_member(Space, Name)", Space=self._space, Name=name
+            )
+        )
 
     def is_function_here(self, name: str) -> bool:
         """Whether a function would answer from THIS space: it has clauses

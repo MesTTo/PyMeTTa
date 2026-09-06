@@ -296,7 +296,14 @@
 %     rather than only its callable registry [tested:
 %     test_builtins_equals_the_union_of_functions_and_special_forms;
 %     commit=bcf80e727923cce0e034f716d7eef01f9395c490]
-%   - metta_py_catalogue_member/1 answers membership in exactly that union
+%   - metta_py_builtins/2 answers that union narrowed to the functions ONE
+%     space can call (fun_here/1's rule with the module explicit), so a
+%     space's namespace never lists or resolves a head whose equations live
+%     in a module it cannot see, and its directory stays inside the 750
+%     candidates CPython's suggestion machinery accepts
+%     [tested: test_a_namespace_lists_and_resolves_only_what_its_space_can_call;
+%     commit=WORKTREE]
+%   - metta_py_catalogue_member/2 answers membership in exactly that union
 %     as a point probe, so the bound namespace resolves an attribute
 %     without rebuilding the catalogue after a definition [tested:
 %     test_catalogue_membership_answers_the_builtins_union;
@@ -4719,6 +4726,36 @@ metta_py_builtins(Names) :-
     sort(Language0, Language),
     maplist(atom_string, Language, Names).
 
+%The same union narrowed to what ONE space can call. fun/1 is process-wide by
+%design (the translator reads it to decide call against data wherever a term
+%compiles), so the union above lists a head every space has registered,
+%including one whose equations live in a module this space never sees. A
+%namespace built on it advertised those heads, resolved them, and produced
+%calls that answered themselves unreduced; and once the process had registered
+%more than 750 names CPython stopped offering a suggestion for a typo at all,
+%because its traceback machinery declines a candidate pool that large
+%[measured 2026-09-07: 800 equations in one space made another space's
+%namespace list 1,107 names and lose "Did you mean: 'dbl'?"; the same space
+%alone lists 306]. The rule is the engine's own fun_here/1 with the module
+%made explicit: an unscoped name (a builtin, a Python operation registered
+%into &self, a prelude rule) answers everywhere, a scoped one answers where
+%fun_here_in/2 says its clauses are visible from, which is its own module, a
+%parent it inherits from, or &self.
+metta_py_builtins(Space0, Names) :-
+    ( atom(Space0) -> Space = Space0 ; atom_string(Space, Space0) ),
+    metta_py_module(Space, Module),
+    findall(N, ( fun(N), metta_py_callable_from(Module, N) ), Functions),
+    metta_py_special_form_names(SpecialForms),
+    append(Functions, SpecialForms, Language0),
+    sort(Language0, Language),
+    maplist(atom_string, Language, Names).
+
+metta_py_callable_from(Module, N) :-
+    (   \+ fun_scoped(N)
+    ->  true
+    ;   fun_here_in(Module, N)
+    ).
+
 metta_py_function_generation(Generation) :-
     metta_host_function_generation(Generation).
 
@@ -4739,16 +4776,20 @@ metta_py_is_function(Name0) :-
     ( atom(Name0) -> Name = Name0 ; atom_string(Name, Name0) ),
     fun(Name).
 
-%Point membership in the catalogue metta_py_builtins/1 lists: one indexed
-%fun/1 probe, then the special-form heads, instead of materializing and
-%string-converting the whole catalogue. The bound namespace asks this on
-%every attribute resolution, and the full read it replaces measured 1,347
-%inferences on the first access after any definition where this probe is
-%double digits [measured 2026-08-24; consumer _FunctionNamespace._known].
-metta_py_catalogue_member(Name0) :-
+%Point membership in the catalogue metta_py_builtins/2 lists for one space:
+%one indexed fun/1 probe and the callable-from-here walk, then the
+%special-form heads, instead of materializing and string-converting the
+%whole catalogue. The bound namespace asks this on every attribute
+%resolution, and the full read it replaces measured 1,347 inferences on the
+%first access after any definition where this probe is double digits
+%[measured 2026-08-24; consumer _FunctionNamespace._known].
+metta_py_catalogue_member(Space0, Name0) :-
+    ( atom(Space0) -> Space = Space0 ; atom_string(Space, Space0) ),
     ( atom(Name0) -> Name = Name0 ; atom_string(Name, Name0) ),
-    ( fun(Name) -> true
-    ; once(metta_special_form_head(Name))
+    (   fun(Name)
+    ->  metta_py_module(Space, Module),
+        metta_py_callable_from(Module, Name)
+    ;   once(metta_special_form_head(Name))
     ).
 
 %Whether a function ANSWERS from this space: it has clauses its module can

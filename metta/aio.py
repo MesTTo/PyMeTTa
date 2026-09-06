@@ -2190,11 +2190,24 @@ class AsyncMeTTa:
         return await self.call(lambda m: m.unregister_op(name))
 
     async def builtins(self) -> list[str]:
-        """Every registered function and translator special-form name."""
+        """Every function callable from this space, plus every special form.
+
+        Its own equations, the ones it inherits, ``&self``'s shared ones and
+        the engine's builtins, with the translator's special-form heads,
+        sorted without duplicates. A head another space defines is
+        registered process-wide (the translator's call-or-data question,
+        which ``is_function`` answers) but is not callable here and is not
+        listed here.
+        """
         return await self.call(lambda m: m.builtins())
 
     async def is_function(self, name: str) -> bool:
-        """Report whether a function is visible from this space."""
+        """Report whether the name is registered as a function anywhere.
+
+        This is the translator's call-or-data question and holds wherever a
+        term compiles; ``is_function_here`` asks whether the head answers
+        from THIS space, and ``builtins()`` lists what this space can call.
+        """
         return await self.call(lambda m: m.is_function(name))
 
     async def is_function_here(self, name: str) -> bool:

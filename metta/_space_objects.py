@@ -1596,6 +1596,9 @@ class _FunctionNamespace:
         return self._resolve(name)
 
     def __dir__(self) -> list[str]:
+        # builtins() is what THIS space can call, so the directory, which is
+        # also the interpreter's suggestion pool, never names a head another
+        # space defines and stays inside the 750 candidates CPython accepts.
         names = {
             name.removesuffix("!").replace("-", "_")
             for name in self._space.builtins()
