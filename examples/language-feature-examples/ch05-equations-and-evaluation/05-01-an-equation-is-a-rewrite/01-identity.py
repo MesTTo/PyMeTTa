@@ -885,7 +885,7 @@ def twin(m):
 #: one of those arms, which is the control saying the work is unchanged: no
 #: reduction, clause or answer differs [measured 2026-09-06: min-of-3 serial
 #: fresh processes; command=python extensions/python/tools/twin_coverage.py
-#: --repin; commit=WORKTREE].
+#: --repin; commit=2e627a593413191cda3170f2eb716835f7f62543].
 #: RE-PINNED AGAIN 2026-09-06 on the base this branch finally sits on, petta at
 #: 7d9b66a1: 3402 to 3407. The row moved with the base and not with the branch,
 #: which is the fifth base to show it. Read arm against arm on that base, trunk
@@ -895,5 +895,5 @@ def twin(m):
 #: [measured 2026-09-06: min-of-3 serial fresh processes, both arms on petta at
 #: 7d9b66a1; command=python extensions/python/tools/twin_coverage.py --measure
 #: --rounds 3 examples/ch05-equations-and-evaluation/
-#: 05-01-an-equation-is-a-rewrite/01-identity.metta; commit=WORKTREE].
+#: 05-01-an-equation-is-a-rewrite/01-identity.metta; commit=2e627a593413191cda3170f2eb716835f7f62543].
 BUDGET = 3407

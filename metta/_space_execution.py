@@ -38,7 +38,7 @@ Guarantees:
     tagged-answer protocol is put on it by Space, one layer up, and nothing
     here reaches the algebra satellite [tested:
     test_counting_counts_duplicate_call_answers_inside_the_engine,
-    imports; commit=WORKTREE]
+    imports; commit=2e627a593413191cda3170f2eb716835f7f62543]
   - the held-evaluation cursor ships in the boot-consulted bridge rather than
     being consulted on the first answer pull [tested:
     test_first_answer_pull_has_no_late_consult_floor; commit=18b1135167d60396c41e63e42ded2f66d0eb1900]

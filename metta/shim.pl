@@ -120,7 +120,7 @@
 %     commit=0d90e628b1f90c4b4464a2907efcb357d74b13d3]
 %   - metta_py_declare_algebra/2 runs the engine's sole finite-carrier law
 %     checker in the declaring space's equation module [tested:
-%     test_a_law_is_checked_once_in_the_declaring_space; commit=WORKTREE]
+%     test_a_law_is_checked_once_in_the_declaring_space; commit=2e627a593413191cda3170f2eb716835f7f62543]
 %   - derivations descend through the default six-axis dispatch wrapper, so
 %     recursive proof depth remains bounded and one equation yields one proof
 %     [tested: test_depth_exhaustion_returns_a_partial_proof;

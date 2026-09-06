@@ -14,7 +14,7 @@ Guarantees:
     [tested 2026-08-17: test_answer_validates_eagerly].
   - theta, value, residue, and k compose in one provider answer; residue closes
     in the engine and k becomes the selected carrier's annotation [tested:
-    test_every_answer_constructor_slot_is_live; commit=WORKTREE].
+    test_every_answer_constructor_slot_is_live; commit=2e627a593413191cda3170f2eb716835f7f62543].
 Open Obligations:
   To Do: None
   Hacks: None

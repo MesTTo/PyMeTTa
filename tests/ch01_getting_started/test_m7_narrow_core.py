@@ -3,9 +3,9 @@ Guarantees:
   - the package surface has 113 names, including every shipped semiring
     object and the current algebra observer, and keeps ``record`` and
     ``order_key`` absent [tested: test_m7_narrow_core_surface;
-    commit=WORKTREE]
+    commit=2e627a593413191cda3170f2eb716835f7f62543]
   - the published before/after counts are exact for ``MeTTa`` and ``metta``
-    [tested: test_m7_narrow_core_surface; commit=WORKTREE]
+    [tested: test_m7_narrow_core_surface; commit=2e627a593413191cda3170f2eb716835f7f62543]
   - every retired root, context, and atom name is absent rather than aliased
     [tested: test_m7_narrow_core_surface; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - all fifteen ``declare_*`` spellings are absent from both synchronous and

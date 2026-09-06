@@ -25,7 +25,7 @@ Guarantees:
     commit=1208ea172e11560b2aaae238823514941aa5fe20]
   - theta, value, residue, and k work together, and get-metatype observes the
     encoded answer content [tested: test_every_answer_constructor_slot_is_live;
-    commit=WORKTREE]
+    commit=2e627a593413191cda3170f2eb716835f7f62543]
 Open Obligations:
   To Do: None
   Hacks: None

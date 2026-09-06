@@ -98,12 +98,12 @@ Guarantees:
     test_counting_counts_duplicate_call_answers_inside_the_engine,
     test_ranked_and_tropical_slices_are_stable_best_prefixes,
     test_tagged_algebra_forwards_bounds_to_every_evaluating_door;
-    commit=WORKTREE]
+    commit=2e627a593413191cda3170f2eb716835f7f62543]
   - a pristine bounded slice enters a repeatable foreign source only when that
     source promises best-first emission in the selected ordered algebra
     [tested:
     test_pristine_ranked_slice_pushes_only_the_licensed_provider_bound;
-    commit=WORKTREE]
+    commit=2e627a593413191cda3170f2eb716835f7f62543]
   - ``Space.pre_add`` declares one compiled unary judge through the engine's
     existing pre-add hook [tested: test_pre_add_compiles_the_four_verdict_judge;
     commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]

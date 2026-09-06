@@ -53,24 +53,24 @@ Guarantees:
   - the generated Semiring vocabulary, preset descriptors, and public carrier
     objects name the same ten shipped algebras [tested:
     test_every_shipped_semiring_has_one_root_object_in_catalog_order;
-    commit=WORKTREE]
+    commit=2e627a593413191cda3170f2eb716835f7f62543]
   - arbitrary law-bearing declarations use the engine's one checker in the
     declaring space's equation module [tested:
-    test_a_law_is_checked_once_in_the_declaring_space; commit=WORKTREE]
+    test_a_law_is_checked_once_in_the_declaring_space; commit=2e627a593413191cda3170f2eb716835f7f62543]
   - custom algebra rows and their Python mirrors have the same context
     lifetime as annotations, while shipped presets remain shared [tested:
-    test_custom_algebras_are_context_owned; commit=WORKTREE]
+    test_custom_algebras_are_context_owned; commit=2e627a593413191cda3170f2eb716835f7f62543]
   - calling the module constructor targets the ambient space rather than the
     process-default home [tested:
-    test_algebra_module_constructor_targets_the_ambient_space; commit=WORKTREE]
+    test_algebra_module_constructor_targets_the_ambient_space; commit=2e627a593413191cda3170f2eb716835f7f62543]
   - counting retains the common TaggedAnswer protocol while crossing only its
     one engine-side aggregate [tested:
     test_counting_counts_match_bag_duplicates_without_opening_a_row_cursor,
     test_counting_counts_duplicate_call_answers_inside_the_engine;
-    commit=WORKTREE]
+    commit=2e627a593413191cda3170f2eb716835f7f62543]
   - ``current_algebra()`` observes the per-call carrier, surrounding task
     scope, or current space declaration in that order [tested:
-    test_current_algebra_follows_each_selection_layer; commit=WORKTREE]
+    test_current_algebra_follows_each_selection_layer; commit=2e627a593413191cda3170f2eb716835f7f62543]
 Decides:
   - ``contraction`` is a capability, while the remaining public law names are
     equations checked exhaustively over the declared finite carrier.

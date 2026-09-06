@@ -26,7 +26,7 @@ Guarantees:
     inference, nested inference, and rank-two matmul unification before an
     array is built [tested:
     test_annotated_tensor_shapes_flow_through_broadcast_and_matmul;
-    commit=WORKTREE]
+    commit=2e627a593413191cda3170f2eb716835f7f62543]
 Open Obligations:
   To Do: None
   Hacks: None

@@ -10,7 +10,7 @@ The final count stays inside the engine:
 and returns one TaggedAnswer whose annotation is 1,063,919, rather than
 materializing that million atoms in Python [tested:
 tools/twin_coverage.py --measure --rounds 1 examples/ch22-a-reasoner-you-can-serve/22-03-search/03-matespace.metta;
-commit=WORKTREE].
+commit=2e627a593413191cda3170f2eb716835f7f62543].
 
 The three definitions whose bodies name `case` or `once` remain terms because
 neither translator form is in the function registry (residue, P14.4).

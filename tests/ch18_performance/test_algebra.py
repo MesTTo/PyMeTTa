@@ -9,10 +9,10 @@ Guarantees:
   - a MeTTa-defined operation is checked once in the space that declares its
     algebra, and an actual counterexample keeps the AlgebraLawError API
     [tested: test_a_law_is_checked_once_in_the_declaring_space,
-    test_a_false_declared_law_is_refused_by_name; commit=WORKTREE]
+    test_a_false_declared_law_is_refused_by_name; commit=2e627a593413191cda3170f2eb716835f7f62543]
   - direct algebra rows carry the annotation context that owns them [tested:
     test_a_declared_semiring_quadruple_serves_annotations_like_a_builtin_one;
-    commit=WORKTREE]
+    commit=2e627a593413191cda3170f2eb716835f7f62543]
 Open Obligations:
   To Do: None
   Hacks: None

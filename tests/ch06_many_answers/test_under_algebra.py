@@ -12,7 +12,7 @@ Guarantees:
     by Exact, matching ordered annotations, and best-first emission [tested:
     test_ranked_and_tropical_slices_are_stable_best_prefixes,
     test_pristine_ranked_slice_pushes_only_the_licensed_provider_bound;
-    commit=WORKTREE]
+    commit=2e627a593413191cda3170f2eb716835f7f62543]
   - a retained derivation can be explained and reinterpreted without asking
     its provider again [tested:
     test_provenance_retains_a_derivation_for_no_requery_reinterpretation,
@@ -31,18 +31,18 @@ Guarantees:
     commit=61e107a8105a5cdaea164f615812a684b12d8fe3]
   - custom algebra declarations are visible only to their owning context and
     distinct contexts may reuse one algebra name [tested:
-    test_custom_algebras_are_context_owned; commit=WORKTREE]
+    test_custom_algebras_are_context_owned; commit=2e627a593413191cda3170f2eb716835f7f62543]
   - the module-level algebra constructor follows the active space context
     [tested: test_algebra_module_constructor_targets_the_ambient_space;
-    commit=WORKTREE]
+    commit=2e627a593413191cda3170f2eb716835f7f62543]
   - counting answers share TaggedAnswer's value, annotation, explanation, and
     reinterpretation protocol [tested:
     test_counting_counts_match_bag_duplicates_without_opening_a_row_cursor,
     test_counting_counts_duplicate_call_answers_inside_the_engine;
-    commit=WORKTREE]
+    commit=2e627a593413191cda3170f2eb716835f7f62543]
   - current_algebra observes explicit, scoped, and context-declared carriers
     in precedence order while leaving an undeclared context as None [tested:
-    test_current_algebra_follows_each_selection_layer; commit=WORKTREE]
+    test_current_algebra_follows_each_selection_layer; commit=2e627a593413191cda3170f2eb716835f7f62543]
 """
 
 from __future__ import annotations

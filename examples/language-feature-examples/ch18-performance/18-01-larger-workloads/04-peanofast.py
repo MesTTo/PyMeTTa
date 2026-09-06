@@ -16,7 +16,7 @@ each derivation to one, preserves the bag, aggregates there, and crosses only
 one TaggedAnswer whose annotation is the integer 2500. No depth-K Peano term
 is materialized in Python [tested:
 tools/twin_coverage.py --measure --rounds 1 examples/ch18-performance/18-01-larger-workloads/04-peanofast.metta;
-commit=WORKTREE].
+commit=2e627a593413191cda3170f2eb716835f7f62543].
 """
 
 from metta import S, V, counting, fn

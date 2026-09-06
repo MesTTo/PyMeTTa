@@ -98,5 +98,5 @@ def twin(m):  # noqa: ARG001  -- the catalog lives in the reflection space; the 
 #: --measure --rounds 3
 #: examples/ch20-extending-the-engine/20-04-modules-and-the-catalog/09-carrier_vocabulary.metta;
 #: fixture=two worktrees, 903a42e6 and this tree, each with engine/*.so and
-#: libmork_ffi.so provisioned and the QLF warmed; commit=WORKTREE].
+#: libmork_ffi.so provisioned and the QLF warmed; commit=2e627a593413191cda3170f2eb716835f7f62543].
 BUDGET = 123

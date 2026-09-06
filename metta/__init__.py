@@ -63,11 +63,11 @@ Guarantees:
     semirings stay lazy root exports [tested:
     test_scoped_under_is_task_local_and_explicit_under_wins,
     test_every_shipped_semiring_has_one_root_object_in_catalog_order;
-    commit=WORKTREE]
+    commit=2e627a593413191cda3170f2eb716835f7f62543]
   - ``current_algebra()`` reports the explicit call, task scope, or current
     space declaration without turning the implicit Boolean default into a
     declaration [tested: test_current_algebra_follows_each_selection_layer;
-    commit=WORKTREE]
+    commit=2e627a593413191cda3170f2eb716835f7f62543]
   - ``speculate()`` is the exact module-tier spelling for the default
     receiver's discarded execution scope [tested:
     test_speculative_execution_discards_its_event_segment; commit=3ded7552797b66d78e666141eb51f3bc14686bd2]

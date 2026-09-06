@@ -49,7 +49,7 @@ Guarantees:
     output through ``broadcast-shape``, and rank-two ``matmul`` unifies its
     shared dimension before materialisation [tested:
     test_annotated_tensor_shapes_flow_through_broadcast_and_matmul;
-    commit=WORKTREE]
+    commit=2e627a593413191cda3170f2eb716835f7f62543]
 Guarded by:
   - _PROTOCOLS_LOCK serializes one-time protocol registration
     [tested test_array_protocol_registration_is_idempotent]

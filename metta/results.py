@@ -36,7 +36,7 @@ Guarantees:
     producer bound before either source starts, while any prior observation
     keeps the original shared cursor [tested:
     test_only_a_pristine_bounded_slice_offers_its_stop_to_the_source;
-    commit=WORKTREE]
+    commit=2e627a593413191cda3170f2eb716835f7f62543]
   - evaluation values and their caller-binding rows are parallel faces of one
     Answers cursor [tested: test_calls_keep_values_and_binding_rows;
     commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
