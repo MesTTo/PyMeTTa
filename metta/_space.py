@@ -36,7 +36,7 @@ Guarantees:
     name, and releases the same spaces whether or not their handles are still
     referenced [tested:
     test_a_context_closes_the_same_way_whether_a_base_space_handle_lives,
-    test_a_context_close_leaves_a_named_space_it_only_opened; commit=WORKTREE]
+    test_a_context_close_leaves_a_named_space_it_only_opened; commit=fad372b730e5c6e2d28274afa2f9e5a1d01b5670]
   - the same factory exposes a persistent journal's one-open schema rename,
     so migration does not require importing its private provider [tested:
     test_the_public_space_factory_exposes_replay_rename; commit=694dff934a11dbc2ee99267b60f39564053baf87]

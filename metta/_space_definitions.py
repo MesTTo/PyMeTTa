@@ -32,7 +32,7 @@ Guarantees:
   - clear_definitions removes process bookkeeping with the equations it
     describes, and leaves it alone when a speculative scope discards the
     clear [tested: test_reflection_facts_follow_a_dropped_space,
-    test_every_public_write_door_honours_the_execution_scopes; commit=WORKTREE]
+    test_every_public_write_door_honours_the_execution_scopes; commit=9104f9380b32925053ea39c5e8d1d1038c93cdb7]
   - a definition is exposed only after its first twin clause exists, and its
     canonical first-clause documentation follows replacement and clearing
     [tested: test_one_docstring_reaches_help_dot_doc_and_get_doc;

@@ -15,7 +15,7 @@ Guarantees:
     transfer or clear inside a scope obeys the scope the way a run in the same
     block does [tested:
     test_every_public_write_door_honours_the_execution_scopes,
-    test_an_atomic_scope_makes_one_python_write_one_transaction; commit=WORKTREE]
+    test_an_atomic_scope_makes_one_python_write_one_transaction; commit=9104f9380b32925053ea39c5e8d1d1038c93cdb7]
   - value() refuses zero, multiple, and undefined answers [tested
     test_value_answers_the_one_answer, test_value_refuses_undefined_truth]
   - ordinary evaluation returns an unreduced term directly and has no

@@ -14,7 +14,7 @@ Guarantees:
     test_async_result_hints_preserve_undefined_answers; commit=71f43dd54034363d3bf8b2d1a3189a63b9e4ce1a]
   - every public door that wants a space answers the same for a context and
     for that context's home space [tested:
-    test_every_space_door_takes_a_context_or_a_space; commit=WORKTREE]
+    test_every_space_door_takes_a_context_or_a_space; commit=f25ac80f93e7c3626b87e593117d09b9c9bc8c95]
 Open Obligations:
   To Do: None
   Hacks: None

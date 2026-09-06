@@ -44,7 +44,7 @@ Guarantees:
     test_a_jax_tracer_crosses_a_binary_op_and_a_gradient_reaches_it]
   - install() and EmbeddingStore take a context or a space and register into
     the space either way [tested: test_install_takes_a_context_as_well_as_a_space,
-    test_embedding_store_takes_a_context_as_well_as_a_space; commit=WORKTREE]
+    test_embedding_store_takes_a_context_as_well_as_a_space; commit=f25ac80f93e7c3626b87e593117d09b9c9bc8c95]
   - Shape metadata survives Python ``Annotated`` reflection, shaped tensors
     remain valid ``DLTensor`` arguments, broadcast arithmetic infers its
     output through ``broadcast-shape``, and rank-two ``matmul`` unifies its

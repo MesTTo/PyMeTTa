@@ -7,13 +7,13 @@ Guarantees:
     test_canonical_context_types_replace_public_newtypes; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - every public door that wants a space takes a context or a space and reaches
     the same space either way [tested:
-    test_every_space_door_takes_a_context_or_a_space; commit=WORKTREE]
+    test_every_space_door_takes_a_context_or_a_space; commit=f25ac80f93e7c3626b87e593117d09b9c9bc8c95]
 Assumes:
   - it imports nothing but ``typing``, which is what lets the LEAF modules use
     it: ``metta.casting`` costs 10.9ms to import and ``metta.integrate``, where
     the public ``space_of`` door lives, costs 41.2ms, so a leaf reaching the
     resolution through the satellite would have quadrupled its own import
-    [measured 2026-09-06 with ``python -X importtime``; commit=WORKTREE]
+    [measured 2026-09-06 with ``python -X importtime``; commit=f25ac80f93e7c3626b87e593117d09b9c9bc8c95]
 Open Obligations:
   To Do: None
   Hacks: None
