@@ -30,6 +30,7 @@ from contextlib import suppress
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, NoReturn
 
+from ._engine import defer_engine_call
 from ._space_objects import _apply_limited, _limits
 from .atoms import Atom, Undefined, _atom_from_wire, _from_wire, _to_atom
 from .errors import _EFFECT_SAFETY_GROUND, MettaError
@@ -107,10 +108,24 @@ _WORLD_EFFECT_ADMISSION: Callable[..., tuple[list[list[str]], EffectClass]] = (
 )
 
 
-def _drop_world_plan(plan: Space) -> None:
-    """Retire an anonymous plan image, tolerating interpreter shutdown."""
-    with suppress(BaseException):
-        plan.drop()
+def _abandon_world_plan(plan: str) -> None:
+    """The abandonment backstop: hand the drop over, never make it, never pool.
+
+    Reached only when a ReifiedWorld is collected without close(). It enqueues,
+    because a finaliser may only enqueue
+    [docs/journal/2026-09-06-finalisers-must-not-call-prolog.md], and it drops
+    without pooling, because the anonymous pool is served first-in-first-out and
+    a collection landing between another caller's mint and its release would
+    otherwise hand the next mint a name nobody released. Measured 2026-09-07:
+    an abandoned world collected inside a `with m._new_space()` block made the
+    next mint answer `&pyspace_1` for a released `&pyspace_2`, which is
+    test_new_spaces_drop_and_names_recycle's failure. close() below is the
+    scheduled path and still recycles, the way MeTTa.close() does beside
+    _release_abandoned_world
+    [tested: test_a_collected_world_does_not_take_the_name_a_live_mint_released,
+    test_a_closed_world_releases_its_plan_image; commit=59c3cbf1bc269dfa7194f78da34497f1757a9604].
+    """
+    defer_engine_call("metta_py_drop_space", plan)
 
 
 @dataclass(frozen=True, slots=True, weakref_slot=True)
@@ -129,12 +144,20 @@ class ReifiedWorld:
         object.__setattr__(
             self,
             "_finalizer",
-            weakref.finalize(self, _drop_world_plan, self._plan),
+            weakref.finalize(self, _abandon_world_plan, self._plan.name),
         )
 
     def close(self) -> None:
-        """Release this world's retained native program image."""
-        self._finalizer()
+        """Release this world's retained native program image.
+
+        The full drop, Python-side cleanup and the name back in the pool,
+        because this is the caller's own scheduled release. Detaching first
+        makes closing twice a no-op and leaves `_finalizer.alive` answering
+        False exactly as calling it did.
+        """
+        if self._finalizer.detach() is not None:
+            with suppress(BaseException):
+                self._plan.drop()
 
     def _require_open(self) -> None:
         if not self._finalizer.alive:

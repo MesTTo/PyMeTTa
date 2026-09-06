@@ -502,20 +502,42 @@ _DEFERRED_WORK: deque[tuple[Any, ...]] = deque()
 _DRAINING = threading.local()
 
 
-def defer_engine_call(predicate: str, *inputs: Any) -> None:
+def defer_engine_call(
+    predicate: str, *inputs: Any, _enqueue: Any = _DEFERRED_WORK.append
+) -> None:
     """Hand a shim call to the next engine crossing. For finalisers only.
 
     The queue holds a reference to every input, which is the point as much as
     the deferral is: a cursor handle kept alive here cannot be finalised before
     the call that uses it, which is the ordering the cyclic collector does not
     give.
+
+    The enqueue itself is a DEFAULT ARGUMENT, for the reason `released` below
+    binds this module's own function as one: see _defer_record_erase.
     """
-    _DEFERRED_WORK.append((_CALL_PREDICATE, predicate, inputs))
+    _enqueue((_CALL_PREDICATE, predicate, inputs))
 
 
-def _defer_record_erase(record: int) -> None:
-    """Hand a janus record to the next engine crossing. For finalisers only."""
-    _DEFERRED_WORK.append((_ERASE_RECORD, record))
+def _defer_record_erase(record: int, _enqueue: Any = _DEFERRED_WORK.append) -> None:
+    """Hand a janus record to the next engine crossing. For finalisers only.
+
+    The deque's own `append` is a DEFAULT ARGUMENT, bound at definition time,
+    because at
+    interpreter shutdown CPython clears this module's globals while finalisers
+    are still running. Reading the global instead, a Term that survived to that
+    point reached `None.append(...)` and printed
+    `AttributeError: 'NoneType' object has no attribute 'append'` out of a
+    deallocator -- after pytest's session had ended, so no filter, no
+    unraisable hook and no exit status could see it
+    [measured 2026-09-07: a cursor left open at exit printed it on every run].
+    `released` already binds THIS function the same way, citing asyncio's
+    `_ProactorBasePipeTransport.__del__`; the binding just stopped one level
+    too early. It binds the bound METHOD rather than the deque, which is what
+    `_warn=warnings.warn` does in the precedent and what keeps this out of
+    pylint's dangerous-default-value, a rule that is right about every mutable
+    default except one whose identity is the point.
+    """
+    _enqueue((_ERASE_RECORD, record))
 
 
 def _install_deferred_term_release(janus: Any) -> None:

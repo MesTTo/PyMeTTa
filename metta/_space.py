@@ -288,7 +288,7 @@ from typing import (
 
 from . import ops as _ops_module
 from ._api_types import _DEFAULT_SPACE, TemplateLike, _SpaceId
-from ._engine import Runtime, bridge, runtime, started
+from ._engine import Runtime, bridge, defer_engine_call, runtime, started
 from ._library import Library, import_library
 from ._lint_events import record_sync_engine_call as _record_sync_engine_call
 from ._rules import Rules as _Rules
@@ -2024,7 +2024,8 @@ class Space(Handle):
         argument `answers` and `eval` take; a string is still a string.
         What is traced executes for real, writes included, like run();
         the wrap exists only while tracing, so untraced calls pay
-        nothing. max_events bounds the RECORDING and timeout,
+        nothing and the wrapping itself is not charged to the bounds
+        below. max_events bounds the RECORDING and timeout,
         inferences and stack bound the RUN, defaulting to whatever
         `m.limits()` scopes; they are independent because a program can
         retire millions of inferences inside a handful of recorded
@@ -5643,10 +5644,32 @@ class Space(Handle):
         return MeTTa(self)
 
 
-def _release_abandoned_world(rt: Runtime, home: str) -> None:
-    """The finalize backstop: best-effort, late-shutdown-safe."""
-    with contextlib.suppress(Exception):
-        rt.must("metta_py_release_space(Space)", Space=home)
+def _release_abandoned_world(home: str) -> None:
+    """The finalize backstop: hand the drop over, never make it, never pool.
+
+    Enqueued rather than called, because a finaliser may only enqueue: it runs
+    at a point no caller chooses, on any thread, possibly inside a crossing
+    already [docs/journal/2026-09-06-finalisers-must-not-call-prolog.md]. This
+    one was the last `rt.must` left in a weakref callback, with its failure
+    swallowed by `contextlib.suppress` rather than deferred.
+
+    And it DROPS rather than releases, so an abandoned world's name is retired
+    instead of returning to the anonymous pool. The pool is a queue served
+    first-in-first-out (`retract(metta_py_free_space(C))` over clauses
+    `assertz` appends), and a garbage collection landing between another
+    caller's mint and its release inserts a name AHEAD of that caller's own,
+    so the next mint answers a name nobody just released. Measured 2026-09-07:
+    with an abandoned `MeTTa()` collected inside a `with m._new_space()` block,
+    the next mint answered `&pyspace_1` for a released `&pyspace_2`, which is
+    test_new_spaces_drop_and_names_recycle's failure exactly. Retiring the name
+    costs one counter value per LEAKED context and makes the pool's order a
+    function of program order alone, which is the property
+    `Space.drop()`'s callers can actually reason about; the world itself is
+    still released, which is all this backstop ever promised
+    [tested: test_an_abandoned_context_releases_its_world,
+    test_a_dropped_handle_cannot_write_into_the_name_it_released; commit=59c3cbf1bc269dfa7194f78da34497f1757a9604].
+    """
+    defer_engine_call("metta_py_drop_space", home)
 
 
 class MeTTa:
@@ -5717,7 +5740,7 @@ class MeTTa:
             # resource may not die while a reference handed out of it lives
             # [tested: test_a_home_handle_outliving_its_context_keeps_the_world].
             self._finalizer = weakref.finalize(
-                self._self, _release_abandoned_world, self._rt, self._self._space
+                self._self, _release_abandoned_world, self._self._space
             )
         else:
             self._self = Space(space, _runtime=self._rt)
@@ -6831,7 +6854,8 @@ class MeTTa:
         argument `answers` and `eval` take; a string is still a string.
         What is traced executes for real, writes included, like run();
         the wrap exists only while tracing, so untraced calls pay
-        nothing. max_events bounds the RECORDING and timeout,
+        nothing and the wrapping itself is not charged to the bounds
+        below. max_events bounds the RECORDING and timeout,
         inferences and stack bound the RUN, defaulting to whatever
         `m.limits()` scopes; they are independent because a program can
         retire millions of inferences inside a handful of recorded

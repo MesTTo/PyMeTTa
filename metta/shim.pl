@@ -2431,7 +2431,14 @@ metta_py_future_snapshot(Space, [Watermark, Encoded]) :-
 %to the RUN itself rather than taking it from the generic wrapper around the
 %whole door. Everything after the run -- harvesting the recorder and encoding
 %events for the wire -- is work proportional to Max, which the caller has
-%already bounded, and it is not small: measured 2026-09-04 on
+%already bounded, and everything BEFORE it -- arming the tracer over every
+%name the process has registered, twelve inferences each -- is proportional to
+%nothing the caller can see, which is why the bounds ride into the tracer as a
+%bounded/2 request rather than wrapping this door in metta_py_guarded/4
+%[measured 2026-09-07: 12,016 inferences of arming in a fresh process and
+%47,943 with three thousand more names defined, against 3,192 for the program
+%beside them, and `inferences=40_000` answering an empty prefix under the whole
+%suite in one process]. It is not small either: measured 2026-09-04 on
 %examples/ch07-control-flow/07-05-recursion/06-peano.metta's own head, the
 %traced run and harvest cost 686,743 inferences and encoding its 10,000
 %events cost 4,825,600, seven times more
@@ -2442,8 +2449,9 @@ metta_py_future_snapshot(Space, [Watermark, Encoded]) :-
 %budget was gone.
 metta_py_trace(Source, Space, Max, Bounds, [Stopped, Encoded]) :-
     Bounds = [TimeS, Inf, StackBytes],
-    metta_py_guarded(TimeS, Inf, StackBytes,
-                     metta_trace_source(Source, Space, Max, Events, Stopped)),
+    metta_trace_source(Source, Space,
+                       bounded(Max, run_bounds(TimeS, Inf, StackBytes)),
+                       Events, Stopped),
     maplist(metta_py_trace_event, Events, Encoded).
 
 metta_py_trace_event(event(Depth, call, Term, _, Names),
@@ -2703,8 +2711,23 @@ metta_py_space_untouched(Name) :-
     \+ metta_host_stored(Name, _),
     \+ spaces:space_parent_child_used(Name).
 
+%asserta, so the pool is a STACK and the next mint answers the name just
+%released. With assertz it was a queue, and `retract/1` takes the oldest free
+%clause, so `drop()` then `_new_space()` returned the same name only while
+%nothing else was free -- which is every test run alone and not a suite.
+%Measured 2026-09-07 under `--randomly-seed=13683517`: two earlier tests had
+%freed &pyspace_42 and &pyspace_43, the mint took 42, the drop put 42 back
+%BEHIND 43, and the next mint answered 43 for a released 42, failing
+%test_a_dropped_handle_cannot_write_into_the_name_it_released and
+%test_new_spaces_drop_and_names_recycle, which both state the property.
+%A queue promises nothing a caller can use; a stack promises exactly what they
+%assert. The scan below is unaffected: retract still backtracks past a revived
+%candidate, now from the newest free name rather than the oldest
+%[tested: test_a_dropped_handle_cannot_write_into_the_name_it_released,
+% test_new_spaces_drop_and_names_recycle,
+% test_a_second_context_does_not_reuse_a_revived_space_name].
 metta_py_pool_space(Name) :-
-    ( metta_py_free_space(Name) -> true ; assertz(metta_py_free_space(Name)) ).
+    ( metta_py_free_space(Name) -> true ; asserta(metta_py_free_space(Name)) ).
 
 metta_py_space_releasable(Name0) :-
     ( atom(Name0) -> Name = Name0

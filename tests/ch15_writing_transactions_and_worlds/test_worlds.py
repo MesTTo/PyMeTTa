@@ -29,6 +29,12 @@ Guarantees:
   - relative ``S.covers`` values written through ``+=`` install the receiver's
     effect coverage and remain absent from its stored atoms [tested:
     test_relative_coverage_declaration_governs_world_evaluation; commit=fdf3d1d7e7486dd8110bbf9b44b968960276a602]
+  - a world CLOSED releases its plan image and recycles the name, while a world
+    COLLECTED retires it, so a collection cannot reorder the anonymous pool
+    under a caller that is mid-mint [tested:
+    test_a_closed_world_releases_its_plan_image,
+    test_a_collected_world_does_not_take_the_name_a_live_mint_released;
+    commit=59c3cbf1bc269dfa7194f78da34497f1757a9604]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -851,3 +857,51 @@ def test_a_world_speaks_the_container_protocols_a_space_does(metta):
         assert sorted(str(a) for a in world) == ["(w-edge 1 2)", "(w-edge 2 3)"]
         assert S.w_edge(1, 2) in world
         assert S.w_edge(9, 9) not in world
+
+
+def test_a_closed_world_releases_its_plan_image(metta):
+    """close() is the scheduled path: it drops the plan and recycles its name.
+
+    Split from the abandonment backstop, which enqueues an engine-only drop and
+    does not pool. Both used to be one weakref callback, so the collector
+    decided when a name entered a queue every other caller reads.
+    """
+    with metta._new_space() as m:
+        m.add(S.w_closed(1))
+        m.covers("writesState")
+        world = m.reify()
+        plan = world._plan.name
+        world.close()
+        assert not world._finalizer.alive
+        world.close()  # idempotent, as closing twice is
+        # Minted INSIDE the block, because the pool is a stack: leaving `m`
+        # first would push its own name on top of the plan's.
+        with metta._new_space() as recycled:
+            assert recycled.name == plan
+
+
+def test_a_collected_world_does_not_take_the_name_a_live_mint_released(metta):
+    """A collected world may not jump the anonymous pool's queue.
+
+    The pool is served first-in-first-out, so a name pooled while another space
+    is alive is handed out ahead of the name that space releases. Measured
+    2026-09-07 before the split: an abandoned world collected inside a `with
+    metta._new_space()` block made the next mint answer `&pyspace_1` for a
+    released `&pyspace_2`.
+    """
+    import gc
+
+    with metta._new_space() as m:
+        m.add(S.w_collected(1))
+        m.covers("writesState")
+        abandoned = m.reify()
+        with metta._new_space() as scratch:
+            first = scratch.name
+            scratch.add(S.noted(S.here))
+            del abandoned
+            gc.collect()
+        with metta._new_space() as again:
+            assert again.name == first, (
+                f"{again.name} was minted where {first} was released, so a "
+                f"collected world reordered the anonymous pool"
+            )

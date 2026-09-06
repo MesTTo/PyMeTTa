@@ -11,8 +11,11 @@
 #     configuration lived in check.sh alone and a hand run silently used
 #     different settings.
 #   - arguments pass through, so `sh extensions/python/test.sh tests/ch04_spaces_and_matching`
-#     narrows the run without repeating the flags that make it correct, and a
-#     caller's own flag overrides a default, so `-n 0` runs in one process.
+#     narrows the run without repeating the flags that make it correct, a
+#     caller's own flag overrides a default, so `-n 0` runs in one process, and
+#     a caller who passes only FLAGS still gets the whole suite.
+#   - every process this starts has faulthandler armed for its whole life,
+#     interpreter shutdown included, which is where a finaliser fault lands.
 #   - the exit status is pytest's, unpiped.
 # Open Obligations:
 #   To Do: None
@@ -43,15 +46,33 @@ METTA_ROOT="$HERE/../.."
 # Spelled as the path rather than through a `bounded` function, because a
 # function cannot be exec'd and this file's exit status must stay pytest's.
 cd "$HERE"
+
+# faulthandler armed by the ENVIRONMENT, so it covers the whole life of every
+# interpreter this starts. pytest enables it in pytest_configure and disables it
+# again in pytest_unconfigure, re-enabling afterwards only what was enabled
+# BEFORE, so a fault raised during interpreter shutdown -- which is where this
+# week's finaliser crashes landed -- prints nothing at all unless the
+# environment armed it first
+# [source: _pytest/faulthandler.py, pytest_configure and pytest_unconfigure].
+# It also covers the xdist workers and every child conftest.py spawns, none of
+# which pytest's own ini value reaches before their own configure.
+PYTHONFAULTHANDLER=1
+export PYTHONFAULTHANDLER
+
+# ONE command. The defaults come BEFORE "$@" so that a caller's own flag wins:
+# pytest and xdist take the last value of a repeated option, and with the
+# defaults after the arguments a caller's `-n 0` was silently overridden, so
+# every "serial" run of this script stayed parallel [measured 2026-09-06: the
+# order-dependency inventory had to bypass this file to run in one process].
 #
-# The defaults come BEFORE "$@" so that a caller's own flag wins: pytest and
-# xdist take the last value of a repeated option, and with the defaults after
-# the arguments a caller's `-n 0` was silently overridden, so every "serial"
-# run of this script stayed parallel [measured 2026-09-06: the order-dependency
-# inventory had to bypass this file to run in one process].
-if [ "$#" -gt 0 ]; then
-    exec sh "$HERE/../../bounded.sh" \
-        "$PY" -m pytest -q -p no:benchmark -n 4 --dist loadfile --max-worker-restart=0 "$@"
-fi
+# The suite's root is `testpaths` in pyproject.toml rather than a trailing
+# argument here. Spelled here it had to be dropped whenever the caller passed
+# anything, so a caller who passed only FLAGS silently lost it: `sh
+# extensions/python/test.sh -n 0 --durations=25` collected the whole of
+# extensions/python, benchmarks/conftest.py included, and died in collection
+# with `PluginValidationError: unknown hook
+# 'pytest_benchmark_update_machine_info'` -- raised by the plugin this same
+# command disables [measured 2026-09-06]. pytest is the one that can tell a path
+# argument from a flag, so the default belongs in its configuration.
 exec sh "$HERE/../../bounded.sh" \
-    "$PY" -m pytest -q -p no:benchmark -n 4 --dist loadfile --max-worker-restart=0 tests
+    "$PY" -m pytest -q -p no:benchmark -n 4 --dist loadfile --max-worker-restart=0 "$@"

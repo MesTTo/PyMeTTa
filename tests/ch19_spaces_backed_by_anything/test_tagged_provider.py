@@ -375,7 +375,7 @@ def test_provider_carrier_predicate_shares_the_source_budget(metta, resource):
                 started.append(value)
                 assert helper.runtime.apply_must(
                     "metta_py_eval_all", helper.name,
-                    S.provider_carrier_spin(2_000_000).to_wire(),
+                    S.provider_carrier_spin(20_000_000).to_wire(),
                 ) == [G(value=True).to_wire()]
                 finished.append(value)
             return isinstance(value, int)
@@ -385,7 +385,17 @@ def test_provider_carrier_predicate_shares_the_source_budget(metta, resource):
         if resource == "inferences":
             options, error, message = {"inferences": 20_000}, InferenceLimitError, "the 20000 inference limit was reached"
         else:
-            options, error, message = {"timeout": 0.1}, TimeLimitError, r"the 0\.1 second time limit was reached"
+            # 0.5 rather than 0.1, and the spin ten times longer, because the
+            # budget has to sit BETWEEN two durations and both margins were
+            # thin. Measured 2026-09-07 at loadavg 40: reaching the carrier
+            # callback takes 0.0254s and the spin inside it 0.3377s for two
+            # million inferences, so 0.1 left 3.9x below and 3.4x above, and a
+            # load spike that pushed the first past 0.1 tripped the limit
+            # before `admits` ran at all -- `assert started == [2]` on a run at
+            # loadavg 55. At 0.5 with a twenty-million spin the margins are
+            # about 20x below and 7x above, and the arm still costs 0.5s
+            # because the budget trips rather than the spin finishing.
+            options, error, message = {"timeout": 0.5}, TimeLimitError, r"the 0\.5 second time limit was reached"
         with under(tropical):
             previous = space.runtime.once("metta_evaluation_context(Context)")
             with pytest.raises(error, match=message):
@@ -413,10 +423,18 @@ class ReentrantRules(SpaceProvider):
         return iter(self.rules)
 
     def match(self, pattern):
-        """Spend engine steps in the helper space, then answer."""
+        """Spend engine steps in the helper space, then answer.
+
+        A hundred million steps rather than two: the wall budget below has to
+        sit BETWEEN reaching this callback and leaving it, and the spin costs
+        nothing it does not spend, because the budget is what ends it. Two
+        million left the upper edge 2.4x away [measured 2026-09-07: reach
+        0.0130s, spin 0.2452s through the tagged door, which reaches here
+        through a rule rewrite].
+        """
         if pattern.children[0] == S.err:
             self.entered += 1
-            self.helper.eval(S.reentrant_spin(2_000_000))
+            self.helper.eval(S.reentrant_spin(100_000_000))
             self.finished += 1
         for value, weight in self.rows:
             yield Answer(value=value, k=weight)
@@ -457,8 +475,16 @@ def test_a_reentrant_provider_generator_reports_the_budget_that_stopped_it(
                     "inference limit",
                 )
             else:
+                # One second, not 0.1: the budget has to fall between reaching
+                # the provider and leaving its spin, and 0.1 was 7.7x above a
+                # reach measured at 0.0130s alone -- which was not enough
+                # under the gate's own four workers, where the deadline fired
+                # first and the provider was never entered at all [measured
+                # 2026-09-07, --randomly-seed=3095355100]. A second is 77x
+                # that reach and 2.4x inside the spin above, and it costs a
+                # second only because the bound trips.
                 options, expected, resource_word = (
-                    {"timeout": 0.1},
+                    {"timeout": 1.0},
                     TimeLimitError,
                     "time limit",
                 )

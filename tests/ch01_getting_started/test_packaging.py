@@ -300,6 +300,17 @@ def test_source_tree_fixtures_coexist_with_installed_plugin_metadata(tmp_path):
             "tests/ch16_events_and_standing_queries/test_events.py::"
             "test_an_abandoned_watch_cancels_itself",
             "-q",
+            # The gate's own flag, and this is the only child that needs it:
+            # the others set PYTEST_DISABLE_PLUGIN_AUTOLOAD, while this one
+            # POPS it, because autoload finding the entry point is the whole
+            # claim. That also loads pytest-benchmark, which warns
+            # "Benchmarks are automatically disabled because xdist plugin is
+            # active" during pytest_configure whenever it sees the
+            # PYTEST_XDIST_WORKER this child inherits from its worker -- and
+            # under `filterwarnings = error` a warning raised there is an
+            # INTERNALERROR before a single test runs [measured 2026-09-07].
+            "-p",
+            "no:benchmark",
         ],
         cwd=ROOT / "extensions" / "python",
         env=environment,

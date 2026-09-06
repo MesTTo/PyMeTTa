@@ -1,0 +1,25 @@
+# The .metta example files this library contributed, one repository-relative
+# PATH per line, then the reason it is here. Blank lines and lines starting
+# with # are ignored, which is the shape tests/data/example_skips.txt already
+# uses for the same kind of list.
+#
+# conftest.py collects this file and runs each line through `sh run.sh`, so
+# every !(test ...) in the file must print its check mark and none may print a
+# cross. The engine's full sweep over examples/ stays test.sh's job; these are
+# the ones the Python suite runs itself, so a developer who runs only
+# `sh extensions/python/test.sh` still runs the MeTTa-language tests this
+# library added.
+#
+# A path listed in tests/data/example_skips.txt is honoured here too, and the
+# item reports as skipped with that file's reason rather than disappearing. A
+# path that is not in the tree is a collection error, so a moved example says
+# so instead of going quiet.
+
+examples/ch22-a-reasoner-you-can-serve/22-02-weighted-answers/01-measure.metta                    the measure algebra over weighted alternatives
+examples/ch22-a-reasoner-you-can-serve/22-02-weighted-answers/02-soft.metta                       soft matching and closeness
+examples/ch22-a-reasoner-you-can-serve/22-02-weighted-answers/10-pln2-ctv.metta                   PLN2 confidence-truth values
+examples/ch22-a-reasoner-you-can-serve/22-02-weighted-answers/11-weighted_subset_posterior.metta  the exact weighted-subset posterior
+examples/ch22-a-reasoner-you-can-serve/22-02-weighted-answers/12-distribution.metta               finite-distribution composition
+examples/ch11-python-as-a-notation/02-python_booleans.metta                                       booleans across py-call, both ways
+examples/ch05-equations-and-evaluation/05-03-the-number-library/02-math_exp_random.metta           exp-math and log-math
+examples/ch07-control-flow/07-01-if-and-booleans/06-if_branch_binding.metta                       a conditional arm must not capture the clause output

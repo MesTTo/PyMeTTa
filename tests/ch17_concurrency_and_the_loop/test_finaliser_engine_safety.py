@@ -39,10 +39,17 @@ Guarantees:
     upgrade that moves it fails here rather than at a core dump [tested:
     test_the_janus_term_shape_the_deferred_release_depends_on;
     commit=2421d06e697daffb0797c307a798131616ebdd8e]
+  - a finaliser running at INTERPRETER SHUTDOWN, after this module's globals
+    are cleared, still enqueues and still says nothing [tested:
+    test_a_finaliser_at_interpreter_shutdown_prints_nothing; commit=59c3cbf1bc269dfa7194f78da34497f1757a9604]
 """
 
 import gc
 import itertools
+import os
+import subprocess
+import sys
+from pathlib import Path
 
 import pytest
 
@@ -279,3 +286,51 @@ def test_a_dropped_cursor_defers_its_close_instead_of_crossing(metta):
         "the cursor finalizer crossed into Prolog instead of deferring"
     )
     assert _live_engines(metta) == baseline, "the deferred close never ran"
+
+
+#: A cursor left open when the interpreter exits, which is the smallest program
+#: that keeps a janus Term alive into module teardown.
+_SHUTDOWN_PROBE = """
+from metta import S, V
+from metta._space import Space
+
+m = Space()
+m.add(S.edge(S.a, S.b))
+held = m.stream(S.edge(V.x, V.y))
+next(iter(held))
+print("probe done")
+"""
+
+
+def test_a_finaliser_at_interpreter_shutdown_prints_nothing(tmp_path):
+    """The last place a finaliser can still reach a torn-down module.
+
+    CPython clears a module's globals while finalisers are still running at
+    shutdown, so `_defer_record_erase` reading `_DEFERRED_WORK` as a global
+    reached `None.append(...)` and printed
+    `AttributeError: 'NoneType' object has no attribute 'append'` from a
+    deallocator. It happens after pytest's own session ends, so no warning
+    filter, no unraisable hook and no exit status could see it: only a child
+    process reading its own stderr can. Both enqueue functions bind the deque
+    as a default argument now, which is bound at definition time and outlives
+    the globals.
+    """
+    program = tmp_path / "held_cursor.py"
+    program.write_text(_SHUTDOWN_PROBE, encoding="utf-8")
+    repository = Path(__file__).resolve().parents[4]
+    result = subprocess.run(
+        [sys.executable, str(program)],
+        capture_output=True,
+        text=True,
+        timeout=120,
+        cwd=str(tmp_path),
+        env={
+            **os.environ,
+            "METTA_PATH": str(repository),
+            "PYTHONPATH": str(repository / "extensions" / "python"),
+        },
+        check=False,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "probe done" in result.stdout, result.stdout
+    assert "Exception ignored" not in result.stderr, result.stderr

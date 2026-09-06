@@ -17,6 +17,11 @@
 # Decides: `misc` is disabled for the BUILD, not for the comparison; stub and
 #   runtime disagreements are what this lane reports and they are unaffected.
 #   The `mypy` lane owns the package's own type errors and reads pyproject.
+#   The optional third-party imports are skipped here exactly as pyproject
+#   skips them, because a build that stops on an untyped optional dependency
+#   compares nothing [measured 2026-09-07: `metta/_arrow.py:370: Skipping
+#   analyzing "nanoarrow.c_array_stream"` ended the build on the tree that
+#   merged the Arrow doors, and the lane reported "not checking stubs"].
 [tool.mypy]
 python_version = "3.12"
 explicit_package_bases = true
@@ -24,3 +29,11 @@ mypy_path = "."
 no_site_packages = true
 check_untyped_defs = true
 disable_error_code = ["misc"]
+
+[[tool.mypy.overrides]]
+module = [
+    "array_api_compat", "faiss", "hypothesis", "numpy", "pandas",
+    "nanoarrow", "nanoarrow.*", "polars", "rich.*", "websocket",
+]
+ignore_missing_imports = true
+follow_imports = "skip"

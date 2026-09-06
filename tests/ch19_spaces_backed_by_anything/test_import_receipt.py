@@ -119,6 +119,31 @@ REMOVALS = {
 }
 
 
+#: Every space the crossed cases below mint, held until this module finishes.
+#:
+#: Dropping them returns their names to the anonymous pool, and a later case
+#: whose context home draws one of those names meets a defect that predates this
+#: branch: its timed `take-atom` finds nothing and times out, on a space that
+#: holds the atom. Measured 2026-09-07 as `[exact-self]` then `[wildcard-self]`,
+#: which the same pair reproduces on this file's base commit a8e5f0d1 with the
+#: library files reverted; holding the first case's target, so the second draws
+#: a fresh name, is the one change that makes it pass. Four carriers are ruled
+#: out by measurement and named in
+#: docs/journal/2026-09-06-a-suite-that-cannot-hide-a-crash.md; the engine-side
+#: cause is not found and this hold goes when it is.
+_HELD_UNTIL_MODULE_END: list = []
+
+
+@pytest.fixture(scope="module", autouse=True)
+def _release_held_spaces():
+    """Drop what the cases held, once nothing can draw their names again."""
+    yield
+    while _HELD_UNTIL_MODULE_END:
+        context, target = _HELD_UNTIL_MODULE_END.pop()
+        target.drop()
+        context.close()
+
+
 @pytest.mark.parametrize("scope", ["own", "self"])
 @pytest.mark.parametrize("removal", ["exact", "wildcard", "withdraw"])
 def test_public_import_rebuilds_when_a_receipt_dependency_disappears(
@@ -165,7 +190,7 @@ def test_public_import_rebuilds_when_a_receipt_dependency_disappears(
         finally:
             if scope == "self":
                 withdraw_source(owner)
-            target.drop()
+            _HELD_UNTIL_MODULE_END.append((context, target))
 
 
 def test_repeat_import_reuses_one_current_receipt_without_duplication() -> None:
