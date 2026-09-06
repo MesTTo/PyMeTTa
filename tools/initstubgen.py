@@ -15,13 +15,13 @@ Assumes:
 Guarantees:
   - the checked-in root stub mirrors every package function signature and
     public imported name, while dynamic exports retain mypy's existing module
-    or ``Any`` resolution [tested: init-stub; commit=WORKTREE]
+    or ``Any`` resolution [tested: init-stub; commit=5e0ae6c22d604c4b980766e3cc4811ee545e5c9e]
   - ``algebra`` is typed as a callable Protocol whose attributes are exactly
     the catalog's semiring members [tested: mypy-algebra-surface;
-    commit=WORKTREE]
+    commit=5e0ae6c22d604c4b980766e3cc4811ee545e5c9e]
   - the generated consumer probe rejects either a non-callable module type or
     an ``Any`` return while checking every carrier attribute [tested:
-    mypy-algebra-surface; commit=WORKTREE]
+    mypy-algebra-surface; commit=5e0ae6c22d604c4b980766e3cc4811ee545e5c9e]
 Fails when: a package callable needs a type contract that its implementation
   annotations do not express.  Add that deliberate refinement here, beside
   ``_algebra_protocol``, rather than silently weakening the whole root.
@@ -68,10 +68,10 @@ STUB_HEADER = '''# ruff: noqa: A001, A002, F822, I001 -- mirrored source names; 
 #
 # Guarantees:
 #   - package functions, overloads, imported exports, and ``__all__`` mirror the
-#     runtime root [tested: init-stub; commit=WORKTREE]
+#     runtime root [tested: init-stub; commit=5e0ae6c22d604c4b980766e3cc4811ee545e5c9e]
 #   - ``algebra`` is callable in both direct and decorator forms, returns
 #     ``DeclaredAlgebra``, and exposes every catalog carrier as that type
-#     [tested: mypy-algebra-surface; commit=WORKTREE]
+#     [tested: mypy-algebra-surface; commit=5e0ae6c22d604c4b980766e3cc4811ee545e5c9e]
 '''
 
 
@@ -93,7 +93,7 @@ Guarantees:
     generator, never an edit here
   - an ``Any`` result makes the guarded assignment's ignore unused and fails
     under the repository's ``warn_unused_ignores`` policy
-    [tested: mypy-algebra-surface; commit=WORKTREE]
+    [tested: mypy-algebra-surface; commit=5e0ae6c22d604c4b980766e3cc4811ee545e5c9e]
 """
 '''
 

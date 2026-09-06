@@ -16,7 +16,7 @@ Guarantees:
     generator, never an edit here
   - an ``Any`` result makes the guarded assignment's ignore unused and fails
     under the repository's ``warn_unused_ignores`` policy
-    [tested: mypy-algebra-surface; commit=WORKTREE]
+    [tested: mypy-algebra-surface; commit=5e0ae6c22d604c4b980766e3cc4811ee545e5c9e]
 """
 
 from collections.abc import Callable

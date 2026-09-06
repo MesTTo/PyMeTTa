@@ -12,7 +12,7 @@
 #   is a path the evidence gate cannot see.  Mypy checks the installed package
 #   surface, the shadowed root implementation, and the callable-algebra consumer
 #   independently [tested: mypy, mypy-root-impl, mypy-algebra-surface;
-#   commit=WORKTREE].
+#   commit=5e0ae6c22d604c4b980766e3cc4811ee545e5c9e].
 # Open Obligations:
 #   To Do: None
 #   Hacks: None

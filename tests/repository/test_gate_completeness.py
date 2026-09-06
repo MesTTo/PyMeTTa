@@ -99,7 +99,7 @@ RUFF_FAMILY_BURN_DOWN = {
     # metta/aio.py's two A002 rows already do, and the remedy for any of them is
     # an edit to metta/__init__.py rather than to the mirror.
     # [tested: test_the_ruff_configuration_enables_every_family_or_records_why_not;
-    # commit=WORKTREE]
+    # commit=5e0ae6c22d604c4b980766e3cc4811ee545e5c9e]
     "A": 22,
     # 2112 -> 2114 at the p12-space-model merge: its two new test modules
     # carry the repository's obligation-header docstring convention, whose

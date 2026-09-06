@@ -74,7 +74,7 @@ Guarantees:
   - accepted algebra-law names and alias expansions come from the catalog,
     and a refusal names the full accepted vocabulary [tested:
     test_algebra_law_vocabulary_drives_aliases_and_unknown_refusals,
-    test_equational_law_names_read_no_catalog; commit=WORKTREE]
+    test_equational_law_names_read_no_catalog; commit=5e0ae6c22d604c4b980766e3cc4811ee545e5c9e]
 Decides:
   - ``contraction`` is a capability, while the remaining public law names are
     equations checked exhaustively over the declared finite carrier.
@@ -654,10 +654,10 @@ def _canonical_laws(metta: Space, laws: Iterable[str]) -> frozenset[str]:
     # alias claim is named after an equation, so both paths answer the same set
     # [tested: catalog_self_description:algebra_law_vocabulary_and_alias_claims_are_exact,
     # test_algebra_law_vocabulary_drives_aliases_and_unknown_refusals;
-    # commit=WORKTREE].  declare() canonicalizes before it writes, so a stored
+    # commit=5e0ae6c22d604c4b980766e3cc4811ee545e5c9e].  declare() canonicalizes before it writes, so a stored
     # row reaches this with equations and pays nothing; a row written as MeTTa
     # source with an alias still asks the catalog
-    # [tested: test_equational_law_names_read_no_catalog; commit=WORKTREE].
+    # [tested: test_equational_law_names_read_no_catalog; commit=5e0ae6c22d604c4b980766e3cc4811ee545e5c9e].
     if all(law in _EQUATIONAL_LAWS for law in requested):
         return frozenset(requested)
     aliases = _catalog_law_aliases(metta)

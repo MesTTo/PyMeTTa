@@ -7,10 +7,10 @@
 #
 # Guarantees:
 #   - package functions, overloads, imported exports, and ``__all__`` mirror the
-#     runtime root [tested: init-stub; commit=WORKTREE]
+#     runtime root [tested: init-stub; commit=5e0ae6c22d604c4b980766e3cc4811ee545e5c9e]
 #   - ``algebra`` is callable in both direct and decorator forms, returns
 #     ``DeclaredAlgebra``, and exposes every catalog carrier as that type
-#     [tested: mypy-algebra-surface; commit=WORKTREE]
+#     [tested: mypy-algebra-surface; commit=5e0ae6c22d604c4b980766e3cc4811ee545e5c9e]
 
 import builtins as _builtins
 import functools as _functools

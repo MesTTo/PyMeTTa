@@ -59,11 +59,11 @@ Guarantees:
   - Rows and Answers project caller variables by attribute, Variable key, or
     exact string key, and group binding rows by an atom-valued column [tested:
     test_rows_share_the_answer_projection_contract,
-    test_binding_rows_group_by_their_column_atom; commit=WORKTREE]
+    test_binding_rows_group_by_their_column_atom; commit=5e0ae6c22d604c4b980766e3cc4811ee545e5c9e]
   - Answers.index retains the Sequence row-position contract and directs a
     missing string that names a column to column() [tested:
     test_answers_index_keeps_the_sequence_contract_and_explains_columns;
-    commit=WORKTREE]
+    commit=5e0ae6c22d604c4b980766e3cc4811ee545e5c9e]
   - len on an untouched engine-backed Answers view uses its engine count method
     without populating the Python cache [tested:
     test_len_counts_an_unmaterialised_view_engine_side; commit=18b1135167d60396c41e63e42ded2f66d0eb1900]

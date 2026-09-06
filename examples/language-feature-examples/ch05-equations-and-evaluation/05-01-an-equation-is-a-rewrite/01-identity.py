@@ -912,5 +912,5 @@ def twin(m):
 #: read +10, +15, -30 and +15 against four earlier bases, so the sign and the
 #: size of this class are both base-dependent, as the entries above already
 #: record [measured 2026-09-06: min-of-3 serial fresh processes; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+#: extensions/python/tools/twin_coverage.py --repin; commit=5e0ae6c22d604c4b980766e3cc4811ee545e5c9e].
 BUDGET = 3422

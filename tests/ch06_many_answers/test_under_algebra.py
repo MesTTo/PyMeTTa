@@ -46,10 +46,10 @@ Guarantees:
   - the generated AlgebraLaw vocabulary and catalog alias claims drive public
     declaration expansion and unknown-law remedies [tested:
     test_algebra_law_vocabulary_drives_aliases_and_unknown_refusals;
-    commit=WORKTREE]
+    commit=5e0ae6c22d604c4b980766e3cc4811ee545e5c9e]
   - a law list of equations expands without reading the alias claims, and
     answers what the reading path answers [tested:
-    test_equational_law_names_read_no_catalog; commit=WORKTREE]
+    test_equational_law_names_read_no_catalog; commit=5e0ae6c22d604c4b980766e3cc4811ee545e5c9e]
 """
 
 from __future__ import annotations

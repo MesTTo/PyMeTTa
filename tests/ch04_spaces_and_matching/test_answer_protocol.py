@@ -19,7 +19,7 @@ Guarantees:
   - Answers.index remains Sequence row lookup and explains when a missing
     string is instead a caller column [tested:
     test_answers_index_keeps_the_sequence_contract_and_explains_columns;
-    commit=WORKTREE]
+    commit=5e0ae6c22d604c4b980766e3cc4811ee545e5c9e]
   - the settled ``reacts`` declaration spelling installs an ``(on ...)``
     bridge that runs under matched bindings [tested:
     test_a_bridge_inserts_under_the_matched_bindings; commit=0cfc68a483d8d64fb499e53bbe9a3cc63f68990f]
