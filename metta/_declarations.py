@@ -16,13 +16,13 @@ Assumes:
 Guarantees:
   - one row per head the space declares, defines or documents, in the order
     the space first mentions each [tested:
-    test_declarations_carry_arrows_arities_and_documentation; commit=WORKTREE]
+    test_declarations_carry_arrows_arities_and_documentation; commit=dd4f82100a052e2c5254a2ef9e91f6eb9d2e0c49]
   - a head's declared types stay in the space's order, so an overload family
     reaches a renderer the way it was written [tested:
-    test_declarations_carry_arrows_arities_and_documentation; commit=WORKTREE]
+    test_declarations_carry_arrows_arities_and_documentation; commit=dd4f82100a052e2c5254a2ef9e91f6eb9d2e0c49]
   - reading is one `atoms()` call and no evaluation, so a projection cannot
     run the program it describes [tested: test_stubs_read_the_space_without_evaluating_it;
-    commit=WORKTREE]
+    commit=dd4f82100a052e2c5254a2ef9e91f6eb9d2e0c49]
 Open Obligations:
   To Do: None
   Hacks: None

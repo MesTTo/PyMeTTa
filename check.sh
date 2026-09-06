@@ -15,7 +15,7 @@
 #   commit=5e0ae6c22d604c4b980766e3cc4811ee545e5c9e], the class door's PEP 681
 #   declaration is executable in a consumer file, and stubtest holds the two
 #   generated stubs against the runtime [tested: mypy-class-door, stubtest;
-#   commit=WORKTREE].
+#   commit=dd4f82100a052e2c5254a2ef9e91f6eb9d2e0c49].
 # Open Obligations:
 #   To Do: None
 #   Hacks: None

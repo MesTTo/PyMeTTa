@@ -11,11 +11,11 @@ Guarantees:
     [tested: tests/ch06_many_answers/test_evaluation_context_types.py; commit=074dc0a88b1605c54824de677d586b6f60998bcf]
   - the class branch of ``define`` keeps the class it is handed and declares
     PEP 681's transform, so a checker synthesises the constructor
-    ``install_type`` builds [tested: mypy-class-door; commit=WORKTREE]
+    ``install_type`` builds [tested: mypy-class-door; commit=dd4f82100a052e2c5254a2ef9e91f6eb9d2e0c49]
   - ``_is_function_inherited`` answers only about heads reachable through THIS
     space's chain, so a builtin and an unrelated space's definition are both
     no [tested: test_an_engine_builtin_is_not_something_to_override;
-    commit=WORKTREE]
+    commit=dd4f82100a052e2c5254a2ef9e91f6eb9d2e0c49]
   - tagged guards retain scoped binding preparation while carrying their algebra
     [tested: sh extensions/python/test.sh
     tests/ch06_many_answers/test_evaluation_context_bindings.py -n 0;
@@ -4023,7 +4023,7 @@ class Space(Handle):
         `@typing.override` asks, and the reason `is_function` cannot answer
         it: that one is process-wide and says yes for a head defined in an
         unrelated space [tested: test_override_is_refused_when_nothing_is_shadowed;
-        commit=WORKTREE].
+        commit=dd4f82100a052e2c5254a2ef9e91f6eb9d2e0c49].
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         _require_name(name, "is_function_inherited")
         return bool(
@@ -4601,7 +4601,7 @@ class Space(Handle):
     # by offering the module-level spelling beside the method]
     # [measured 2026-09-07: mypy 2.3.0 reveals `def (self: object)` for the
     # method spelling and the whole constructor for the module one]
-    # [tested: mypy-class-door; commit=WORKTREE].
+    # [tested: mypy-class-door; commit=dd4f82100a052e2c5254a2ef9e91f6eb9d2e0c49].
     @overload
     @dataclass_transform(eq_default=False)
     def define(  # type: ignore[overload-overlap]

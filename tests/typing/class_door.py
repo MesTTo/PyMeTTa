@@ -16,12 +16,12 @@ same wall with ``registry.mapped_as_dataclass``].
 
 Guarantees:
   - the module door synthesises the constructor, so `Point(1.0, 2.0)` checks
-    and a wrong-arity call does not [tested: mypy-class-door; commit=WORKTREE]
+    and a wrong-arity call does not [tested: mypy-class-door; commit=dd4f82100a052e2c5254a2ef9e91f6eb9d2e0c49]
   - each ignore below is load-bearing under the repository's
     ``warn_unused_ignores``: the day mypy reads the declaration through a
     bound method, the two ignores on the method spelling go unused and this
     lane turns red, which is how the limitation gets retired rather than
-    remembered [tested: mypy-class-door; commit=WORKTREE]
+    remembered [tested: mypy-class-door; commit=dd4f82100a052e2c5254a2ef9e91f6eb9d2e0c49]
 """
 
 from typing import assert_type

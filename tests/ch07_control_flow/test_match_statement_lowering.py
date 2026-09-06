@@ -15,7 +15,7 @@ Guarantees:
     stacked clauses that spell a parameter differently still bind the same
     variable in the row's pattern and its body [tested:
     test_stacked_clauses_may_spell_their_parameters_differently;
-    commit=WORKTREE]
+    commit=dd4f82100a052e2c5254a2ef9e91f6eb9d2e0c49]
 """  # noqa: D205, D415 -- the obligation block is a searchable contract, not a prose module summary
 
 from __future__ import annotations

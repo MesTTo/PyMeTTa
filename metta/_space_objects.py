@@ -4,7 +4,7 @@ Guarantees:
     ``(@param (@type Number) (@desc "..."))``, reads its DESCRIPTION, so
     help() and every stub built from the same formatter print the prose
     [tested: test_a_structured_documentation_part_reads_its_description;
-    commit=WORKTREE]
+    commit=dd4f82100a052e2c5254a2ef9e91f6eb9d2e0c49]
   - algebra and demand cross internal evaluation without changing answer shape
     [tested: sh extensions/python/test.sh
     tests/ch06_many_answers/test_evaluation_context.py -n 0; commit=54cb2eee69c42c1ae685643cbe2578f8d617a265]

@@ -8,7 +8,7 @@ program the same way it does any other module.
 
 The projection is the annotation reader's table read backwards, one column at a
 time [source: extensions/python/metta/_type_annotations.py:_TYPE_NAMES,
-_METATYPE_NAMES, _direct_type_atoms; commit=WORKTREE]:
+_METATYPE_NAMES, _direct_type_atoms; commit=dd4f82100a052e2c5254a2ef9e91f6eb9d2e0c49]:
 
     %Undefined%         Any                 (-> A B) argument  Callable[[A], B]
     Number              int | float         (->) return        None
@@ -26,17 +26,17 @@ Assumes:
   - the parameter names are `x1..xn`, positional-only, which is what
     `_EngineFunction.__signature__` already answers for the same arrow, so the
     stub and `inspect.signature` agree [source:
-    extensions/python/metta/_space_objects.py:__signature__; commit=WORKTREE]
+    extensions/python/metta/_space_objects.py:__signature__; commit=dd4f82100a052e2c5254a2ef9e91f6eb9d2e0c49]
 Guarantees:
   - the text parses as Python, and a consumer calling a declared head with the
     wrong argument type fails `mypy --strict` while the right one passes
-    [tested: test_a_generated_stub_checks_its_consumer; commit=WORKTREE]
+    [tested: test_a_generated_stub_checks_its_consumer; commit=dd4f82100a052e2c5254a2ef9e91f6eb9d2e0c49]
   - a head whose MeTTa name Python cannot spell as an identifier is named in
     the trailing note with the bracket door that reaches it, rather than
     dropped [tested: test_a_head_python_cannot_spell_is_named_not_dropped;
-    commit=WORKTREE]
+    commit=dd4f82100a052e2c5254a2ef9e91f6eb9d2e0c49]
   - rendering reads rows only; nothing in the described program runs [tested:
-    test_stubs_read_the_space_without_evaluating_it; commit=WORKTREE]
+    test_stubs_read_the_space_without_evaluating_it; commit=dd4f82100a052e2c5254a2ef9e91f6eb9d2e0c49]
 Open Obligations:
   To Do: None
   Hacks: None

@@ -16,10 +16,10 @@ Guarantees:
     test_override_declares_a_shadow_of_an_inherited_definition,
     test_override_is_refused_when_nothing_is_shadowed,
     test_a_shadowing_definition_without_the_decorator_is_unchanged;
-    commit=WORKTREE]
+    commit=dd4f82100a052e2c5254a2ef9e91f6eb9d2e0c49]
   - a generated stub parses, and a consumer of it passes `mypy --strict` on
     the right argument type and fails on the wrong one [tested:
-    test_a_generated_stub_checks_its_consumer; commit=WORKTREE]
+    test_a_generated_stub_checks_its_consumer; commit=dd4f82100a052e2c5254a2ef9e91f6eb9d2e0c49]
 Open Obligations:
   To Do: None
   Hacks: None

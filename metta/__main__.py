@@ -38,7 +38,7 @@ Guarantees:
   - stubs calls the package's own ``metta.stubs()`` and keeps the loaded
     program's printing on stderr, so the artefact on stdout is the stub alone
     [tested: test_stubs_writes_a_pyi_and_keeps_the_programs_output_off_stdout;
-    commit=WORKTREE]
+    commit=dd4f82100a052e2c5254a2ef9e91f6eb9d2e0c49]
 Open Obligations:
   To Do: None
   Hacks: None

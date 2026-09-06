@@ -17,7 +17,7 @@ Guarantees:
     clauses that spell a parameter differently still bind one variable across
     a row's pattern and its body [tested:
     test_stacked_clauses_may_spell_their_parameters_differently;
-    commit=WORKTREE]
+    commit=dd4f82100a052e2c5254a2ef9e91f6eb9d2e0c49]
   - clauses at different arities under one MeTTa name stack instead of
     replacing one another [tested:
     test_define_supports_one_name_at_multiple_arities; commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
@@ -81,7 +81,7 @@ Guarantees:
     test_override_declares_a_shadow_of_an_inherited_definition,
     test_override_is_refused_when_nothing_is_shadowed,
     test_a_shadowing_definition_without_the_decorator_is_unchanged;
-    commit=WORKTREE]
+    commit=dd4f82100a052e2c5254a2ef9e91f6eb9d2e0c49]
 Guarded by:
   - _DEFINE_LOCK serializes equation installation, reflection, and process
     bookkeeping for every space [tested test_define_from_two_threads_is_serialized]
