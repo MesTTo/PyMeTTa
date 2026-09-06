@@ -7,7 +7,7 @@ Guarantees:
   - every raise site whose message NAMES a remedy passes remedy= at that site,
     and the walk is proved against a planted omission rather than an empty
     scan [tested: test_every_remedy_naming_raise_site_carries_a_remedy,
-    test_a_planted_site_without_a_remedy_is_reported; commit=WORKTREE]
+    test_a_planted_site_without_a_remedy_is_reported; commit=3fc5479961fd591b1884af118528c9a64a1afbb7]
   - the refusals the prose remedies were written for carry a Remedy object
     when actually raised, across TypeError, AttributeError, ValueError,
     CompileError and DeprecationWarning [tested:
@@ -21,7 +21,7 @@ Guarantees:
     test_a_cyclic_value_handed_to_the_json_codec_names_ground,
     test_an_error_answer_through_a_single_value_door_is_arbiter_grounded,
     test_a_deprecation_rows_term_remedy_decodes_to_an_edit;
-    commit=WORKTREE]
+    commit=3fc5479961fd591b1884af118528c9a64a1afbb7]
 
 Open Obligations:
   To Do: None

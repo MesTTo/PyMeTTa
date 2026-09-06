@@ -7,7 +7,7 @@ Guarantees:
   - a finding carrying a remedy renders that remedy's title in place of the
     bare autofix atom, still on one line, and its severity maps to LSP's own
     1..4 [tested: test_a_finding_renders_its_remedy_in_place_of_the_atom,
-    test_lint_json_prints_one_lsp_diagnostic_per_line; commit=WORKTREE]
+    test_lint_json_prints_one_lsp_diagnostic_per_line; commit=3fc5479961fd591b1884af118528c9a64a1afbb7]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -36,7 +36,7 @@ _LINT_DOCS = (
 #: LSP DiagnosticSeverity, which is an integer on the wire: Error 1, Warning 2,
 #: Information 3, Hint 4 [source: LSP 3.17 DiagnosticSeverity,
 #: https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#diagnostic;
-#: commit=WORKTREE].
+#: commit=3fc5479961fd591b1884af118528c9a64a1afbb7].
 LSP_SEVERITY = {"error": 1, "warning": 2, "information": 3, "hint": 4}
 
 

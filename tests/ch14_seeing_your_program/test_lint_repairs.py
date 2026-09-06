@@ -9,13 +9,13 @@ Guarantees:
     file relints clean, the author's variable names survive, and the
     remaining findings decide the exit code [tested:
     test_fix_removes_a_duplicate_equation_and_relints_clean,
-    test_the_cli_fixes_a_file_and_reports_what_it_left; commit=WORKTREE]
+    test_the_cli_fixes_a_file_and_reports_what_it_left; commit=3fc5479961fd591b1884af118528c9a64a1afbb7]
   - --json prints one LSP Diagnostic per line, zero-based, with the remedy
     under data [tested: test_lint_json_prints_one_lsp_diagnostic_per_line;
-    commit=WORKTREE]
+    commit=3fc5479961fd591b1884af118528c9a64a1afbb7]
   - a file that changed since lint read it is refused whole, with nothing
     written [tested: test_fix_refuses_a_file_that_changed_since_lint_read_it;
-    commit=WORKTREE]
+    commit=3fc5479961fd591b1884af118528c9a64a1afbb7]
 
 Open Obligations:
   To Do: None

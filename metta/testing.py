@@ -166,7 +166,7 @@ __all__ = [
 #: programs() draws only from heads the ARBITER reduces, so the census it
 #: refuses without is upstream PeTTa's own answer set rather than this
 #: engine's: the corpus under tests/conformance/petta/ is where that answer
-#: lives [source: tests/conformance/petta/MANIFEST.json; commit=WORKTREE].
+#: lives [source: tests/conformance/petta/MANIFEST.json; commit=3fc5479961fd591b1884af118528c9a64a1afbb7].
 _CENSUS_GROUND = Ground(
     "arbiter",
     "upstream PeTTa at the parity pin: tests/conformance/petta/ is the "

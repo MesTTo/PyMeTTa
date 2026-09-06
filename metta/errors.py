@@ -50,7 +50,7 @@ Guarantees:
     [tested: test_a_remedy_round_trips_through_its_atom,
     test_a_ground_round_trips_through_its_atom,
     test_a_remedy_that_names_no_act_refuses_naming_the_three_fields;
-    commit=WORKTREE]
+    commit=3fc5479961fd591b1884af118528c9a64a1afbb7]
   - refusing() carries a remedy and a ground on an error of ANY class,
     including a TypeError, an AttributeError, a ValueError and a
     DeprecationWarning, so `except TypeError` stays the caller's spelling
@@ -58,7 +58,7 @@ Guarantees:
     test_a_generated_namespace_miss_names_the_live_namespace,
     test_a_cyclic_value_handed_to_the_json_codec_names_ground,
     test_a_deprecation_rows_term_remedy_decodes_to_an_edit;
-    commit=WORKTREE]
+    commit=3fc5479961fd591b1884af118528c9a64a1afbb7]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -119,7 +119,7 @@ GROUND_KINDS = ("python-reference", "metta-law", "arbiter")
 #: repairs one diagnostic, "refactor" changes shape without changing meaning,
 #: "source" acts on a whole file or project [source: LSP 3.17 CodeActionKind,
 #: https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#codeActionKind;
-#: commit=WORKTREE].
+#: commit=3fc5479961fd591b1884af118528c9a64a1afbb7].
 REMEDY_KINDS = ("quickfix", "refactor", "source")
 
 #: rustc's Applicability, whose three useful levels this adopts: "machine" is
@@ -128,7 +128,7 @@ REMEDY_KINDS = ("quickfix", "refactor", "source")
 #: HasPlaceholders (the text shows the shape and a human fills it in)
 #: [source: rustc_lint_defs::Applicability,
 #: https://doc.rust-lang.org/nightly/nightly-rustc/rustc_lint_defs/enum.Applicability.html;
-#: commit=WORKTREE].
+#: commit=3fc5479961fd591b1884af118528c9a64a1afbb7].
 APPLICABILITIES = ("machine", "maybe", "prose")
 
 

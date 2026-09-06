@@ -8,11 +8,11 @@ Guarantees:
     a row that is not one refuses by name [tested:
     test_a_remedy_round_trips_through_its_atom,
     test_a_ground_round_trips_through_its_atom,
-    test_a_malformed_remedy_row_is_refused_by_name; commit=WORKTREE]
+    test_a_malformed_remedy_row_is_refused_by_name; commit=3fc5479961fd591b1884af118528c9a64a1afbb7]
   - a Remedy naming no act, an unknown kind, an unknown applicability and an
     unknown ground kind each refuse with the admitted set named [tested:
     test_a_remedy_that_names_no_act_refuses_naming_the_three_fields,
-    test_an_unknown_classifier_names_what_is_admitted; commit=WORKTREE]
+    test_an_unknown_classifier_names_what_is_admitted; commit=3fc5479961fd591b1884af118528c9a64a1afbb7]
 
 Open Obligations:
   To Do: None

@@ -9,14 +9,14 @@ Guarantees:
   - every finding lint_file answers carries the file it came from and the
     sha256 of the bytes that were read, so a repair can refuse a file that
     moved under it [tested: test_fix_refuses_a_file_that_changed_since_lint_read_it;
-    commit=WORKTREE]
+    commit=3fc5479961fd591b1884af118528c9a64a1afbb7]
   - apply() and fix_file() apply only "machine" remedies and answer every
     finding they did not apply with the reason [tested:
     test_apply_repairs_a_space_and_names_what_it_left,
-    test_fix_removes_a_duplicate_equation_and_relints_clean; commit=WORKTREE]
+    test_fix_removes_a_duplicate_equation_and_relints_clean; commit=3fc5479961fd591b1884af118528c9a64a1afbb7]
   - diagnostics() answers LSP 3.17 Diagnostic objects with zero-based
     positions and the remedy under data [tested:
-    test_lint_json_prints_one_lsp_diagnostic_per_line; commit=WORKTREE]
+    test_lint_json_prints_one_lsp_diagnostic_per_line; commit=3fc5479961fd591b1884af118528c9a64a1afbb7]
 
 Open Obligations:
   To Do: None
@@ -225,7 +225,7 @@ def fix_file(
     one the edit was computed against, and a held-then-stale diagnostic is
     exactly the case findings= drives [source: LSP 3.17 TextDocumentEdit,
     https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#textDocumentEdit;
-    commit=WORKTREE].
+    commit=3fc5479961fd591b1884af118528c9a64a1afbb7].
 
     findings defaults to lint_file(path, m=m), so `fix_file(path)` is
     diagnose-and-repair; its longhand is that call plus the splice, which
@@ -308,7 +308,7 @@ def diagnostics(findings: list[Finding]) -> list[dict[str, Any]]:
     remedy into a CodeAction without asking the server again [source: LSP
     3.17 Diagnostic.data,
     https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#diagnostic;
-    commit=WORKTREE].
+    commit=3fc5479961fd591b1884af118528c9a64a1afbb7].
 
     Its longhand is reading the fields off each Finding.
     """

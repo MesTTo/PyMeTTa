@@ -134,7 +134,7 @@ from .errors import EngineError, Ground, MettaResultError, Remedy, refusing
 #: accessors raise. The arbiter settles it: at the parity pin
 #: `!(return-on-error (Error 5 BadType) 6)` answers `(Error 5 BadType)`
 #: [source: tests/conformance/petta/expected/he_error.metta.out against
-#: tests/conformance/petta/examples/he_error.metta; commit=WORKTREE].
+#: tests/conformance/petta/examples/he_error.metta; commit=3fc5479961fd591b1884af118528c9a64a1afbb7].
 _ERROR_IS_A_VALUE = Ground(
     "arbiter",
     "upstream PeTTa at the parity pin: "
