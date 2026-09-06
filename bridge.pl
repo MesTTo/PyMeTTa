@@ -35,6 +35,8 @@
 %     test_nested_py_iter_reads_form_the_cartesian_product,
 %     test_compiled_for_keeps_one_shot_python_iteration;
 %     commit=0dc78c93461d6c7f5a83975abedf0f1a631095c3].
+%   - grounded algebra equality unwraps values and returns one truth value
+%     [tested: test_finite_tensor_semiring_checks_every_law; commit=074dc0a88b1605c54824de677d586b6f60998bcf].
 % Fails when:
 %   - a name does not resolve, which raises rather than answering nothing: a
 %     typo in a module path is a mistake, not an empty result.
@@ -51,6 +53,7 @@
 :- use_module(library(crypto), [crypto_data_hash/3]).
 
 :- multifile seam:grounded_apply/3.
+:- multifile seam:grounded_algebra_equal/3.
 :- multifile seam:grounded_numeric/1.
 :- multifile seam:grounded_numeric_operation/3.
 :- multifile seam:grounded_structure/2.
@@ -432,6 +435,14 @@ seam:grounded_class_type(X, T) :-
     py_call(metta_py:class_names(X), Names, [py_string_as(string)]),
     member(Name, Names),
     ( atom(Name) -> T = Name ; atom_string(T, Name) ).
+
+% Algebra equality asks Python for values, with one explicit negative answer.
+% [tested: test_finite_tensor_semiring_checks_every_law; commit=074dc0a88b1605c54824de677d586b6f60998bcf].
+seam:grounded_algebra_equal(Left, Right, Equal) :-
+    ( python_object_blob(Left) -> true ; python_object_blob(Right) ),
+    metta_py_bridge,
+    py_call(metta_py:algebra_equal(Left, Right), Truth),
+    ( Truth == @true -> Equal = true ; Equal = false ).
 
 %The standard numeric tower is the admission rule, rather than an MRO class
 %name: numpy.int64 is a Number without inheriting builtins.int. Execution goes

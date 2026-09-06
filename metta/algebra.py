@@ -4,6 +4,9 @@ Assumes:
   - facts and rules rest in a space as ordinary ``(fact tag proposition)``
     and ``(rule tag head (premises ...))`` atoms.
 Guarantees:
+  - carrier predicates and operations share the selected evaluation context,
+    including demand and ordering [tested:
+    tests/ch06_many_answers/test_evaluation_context_types.py; commit=074dc0a88b1605c54824de677d586b6f60998bcf]
   - binding preparation preserves literal values and host identity at custom
     operation crossings [tested: sh extensions/python/test.sh
     tests/ch06_many_answers/test_evaluation_context_bindings.py -n 0;
@@ -82,6 +85,28 @@ Guarantees:
     and a refusal names the full accepted vocabulary [tested:
     test_algebra_law_vocabulary_drives_aliases_and_unknown_refusals,
     test_equational_law_names_read_no_catalog; commit=5e0ae6c22d604c4b980766e3cc4811ee545e5c9e]
+  - typed carriers check every input and result, and only a finite enumeration
+    can license a law certificate [tested:
+    test_tensor_type_carrier_runs_max_product_and_reinterprets_provenance,
+    test_type_carrier_cannot_certify_laws; commit=074dc0a88b1605c54824de677d586b6f60998bcf]
+  - a failed operation raises its original Error atom before it can become a tag
+    [tested: test_bag_over_tensor_tags_reports_the_type_failure; commit=074dc0a88b1605c54824de677d586b6f60998bcf]
+  - carrier checks debit the tagged evaluation's remaining inference and time
+    budget at initial facts, initial rules, inputs, and results [tested:
+    test_carrier_predicate_inferences_are_bounded_at_every_phase,
+    test_carrier_checks_debit_one_quota_across_initial_facts,
+    test_carrier_predicate_respects_the_enclosing_time_limit; commit=074dc0a88b1605c54824de677d586b6f60998bcf]
+  - algebra mirrors restore their exact preimage when a transaction rolls back
+    [tested: test_rollback_releases_an_algebra_mirror,
+    test_rollback_restores_a_replaced_algebra_mirror; commit=074dc0a88b1605c54824de677d586b6f60998bcf]
+  - Python carrier predicates preserve symbols and expressions while decoding
+    grounded payloads [tested: test_carrier_preserves_text_and_symbol_types;
+    commit=074dc0a88b1605c54824de677d586b6f60998bcf]
+Owns resources:
+  - catalog mirrors retain declared predicates; Space.drop removes its mirrors
+    and transaction rollback restores their previous state [tested:
+    test_drop_retires_algebra_before_redeclaration,
+    test_rollback_releases_an_algebra_mirror; commit=074dc0a88b1605c54824de677d586b6f60998bcf]
 Decides:
   - ``contraction`` is a capability, while the remaining public law names are
     equations checked exhaustively over the declared finite carrier.
@@ -98,7 +123,7 @@ import math
 import random
 import sys
 import time
-from collections.abc import Generator, Iterable, Mapping, Sequence
+from collections.abc import Callable, Generator, Iterable, Mapping, Sequence
 from dataclasses import dataclass, field, replace
 from fractions import Fraction
 from numbers import Real
@@ -108,8 +133,8 @@ from typing import Any, Final, cast
 from ._api_types import space_of
 from ._engine import active_runtime
 from ._space import Space, current_space
+from ._space_execution import _controlled_run, evaluate_accounted
 from ._space_execution import evaluate as evaluate_operation
-from ._space_execution import evaluate_accounted
 from ._space_objects import _limits, _validate_limit
 from ._under import EvaluationContext
 from ._under import selected as _selected_under
@@ -122,11 +147,12 @@ from .atoms import (
     Variable,
     _decode,
     _encode,
+    _from_wire,
     _match,
     parse,
     substitute,
 )
-from .errors import EngineError, InferenceLimitError, MettaError, TimeLimitError
+from .errors import EngineError, InferenceLimitError, MettaError, ResourceLimitError, TimeLimitError
 from .vocabularies import AlgebraLaw, EffectClass, Semiring, SemiringOrder
 
 __all__ = [
@@ -227,42 +253,74 @@ class _EvaluationBudget:
         msg = f"the {self.inferences} inference limit was reached"
         return InferenceLimitError(msg)
 
-    def evaluate_operation(
-        self, metta: Space, target: Atom
-    ) -> list[Atom | Undefined]:
-        """Evaluate one algebra operation and debit its measured engine work."""
-        target, using = metta._prepared_ask(target, None)
-        if using:
-            target = target.subs({Symbol(name): _encode(value) for name, value in using.items()})
+    def _run_accounted(
+        self, metta: Space, action: Callable[[float | None, int | None], tuple[Any, int]]
+    ) -> Any:
+        """Share one remaining quota across operations and carrier checks."""
         remaining_time = self.checkpoint()
         remaining_steps = self.remaining_inferences
         if remaining_steps is not None and remaining_steps <= 0:
             raise self._inference_limit_error()
         try:
-            if remaining_steps is None:
-                return evaluate_operation(
-                    metta.runtime, metta.name, target, remaining_time, None,
-                    context=self.context,
-                )
-            # Each eager eval is a fresh engine crossing, so giving it the original
-            # quota would reset the caller's budget once per algebra operation.
-            # The accounted eval reports its own goal's inference delta in the SAME
-            # crossing. Sampling with Space.stats() here would add two crossings per
-            # operation and spend more on the meter than on a small operation.
-            answers, spent = evaluate_accounted(
-                metta.runtime,
-                metta.name,
-                target,
-                remaining_time,
-                remaining_steps,
-                context=self.context,
-            )
+            result, spent = action(remaining_time, remaining_steps)
         except TimeLimitError as error:
             raise self._time_limit_error() from error
         except InferenceLimitError as error:
             raise self._inference_limit_error() from error
-        self.remaining_inferences = remaining_steps - spent
-        return answers
+        except EngineError as error:
+            # A predicate can re-enter Janus before the outer guard catches its
+            # signal. Recover that exact term from the preserved exception.
+            term = getattr(error.__cause__, "term", None)
+            kind = (
+                metta.runtime.apply("metta_py_raw_limit_kind", term)
+                if term is not None else None
+            )
+            if kind == "time_limit" and self.timeout is not None:
+                raise self._time_limit_error() from error
+            if kind == "inference_limit" and self.inferences is not None:
+                raise self._inference_limit_error() from error
+            raise
+        if remaining_steps is not None:
+            self.remaining_inferences = remaining_steps - spent
+        self.checkpoint()
+        return result
+
+    def evaluate_operation(
+        self, metta: Space, target: Atom
+    ) -> list[Atom | Undefined]:
+        """Prepare bindings and evaluate within the same context and quota."""
+        target, using = metta._prepared_ask(target, None)
+        if using:
+            target = target.subs({Symbol(name): _encode(value) for name, value in using.items()})
+
+        def run(seconds: float | None, steps: int | None) -> tuple[list[Atom | Undefined], int]:
+            if steps is None:
+                return evaluate_operation(
+                    metta.runtime, metta.name, target, seconds, None,
+                    context=self.context,
+                ), 0
+            return evaluate_accounted(
+                metta.runtime, metta.name, target, seconds, steps,
+                context=self.context,
+            )
+
+        return cast("list[Atom | Undefined]", self._run_accounted(metta, run))
+
+    def check_values(
+        self, metta: Space, name: str, carrier: Atom, values: tuple[Atom, ...]
+    ) -> None:
+        """Meter carrier predicates in the same engine crossing as their guard."""
+        def run(seconds: float | None, steps: int | None) -> tuple[None, int]:
+            spent = _controlled_run(
+                metta.runtime,
+                "metta_py_check_algebra_values_accounted",
+                [metta.name, name, carrier.to_wire(), [value.to_wire() for value in values]],
+                _limits(seconds, steps),
+                context=self.context,
+            )
+            return None, int(spent)
+
+        self._run_accounted(metta, run)
 
 
 @dataclass(frozen=True, slots=True)
@@ -312,6 +370,33 @@ class DeclaredAlgebra:
     carrier: tuple[Atom, ...]
     requires: frozenset[str]
     order: SemiringOrder | None = None
+    type: Any = None
+
+    def _carrier_atom(self) -> Expression:
+        finite = _list("carrier", self.carrier)
+        if self.type is None:
+            return finite
+        specification = self.type
+        if not isinstance(specification, Atom):
+            specification = Grounded(_CarrierPredicate(specification))
+        return Expression((Symbol("type"), specification, finite))
+
+    def check_values(
+        self, metta: Space, *values: Atom, resources: _EvaluationBudget | None = None
+    ) -> None:
+        """Check inputs and results against the catalog's exact carrier contract."""
+        if self.type is None and not self.carrier:
+            return
+        try:
+            if resources is None:
+                resources = _EvaluationBudget.from_call(
+                    None, None, EvaluationContext(self.name, order=self.order)
+                )
+            resources.check_values(metta, self.name, self._carrier_atom(), values)
+        except ResourceLimitError:
+            raise
+        except EngineError as error:
+            raise AlgebraOperationError(str(error)) from error
 
     def operation(
         self,
@@ -322,7 +407,29 @@ class DeclaredAlgebra:
         *,
         resources: _EvaluationBudget | None = None,
     ) -> Atom:
-        """Apply a declared binary operation and require one answer."""
+        """Apply a declared binary operation and require one carrier value."""
+        if resources is None:
+            resources = _EvaluationBudget.from_call(
+                None, None, EvaluationContext(self.name, order=self.order)
+            )
+        for value in (left, right):
+            self._require_success(name, value)
+        self.check_values(metta, left, right, resources=resources)
+        result = self._operate(metta, name, left, right, resources=resources)
+        self._require_success(name, result)
+        self.check_values(metta, result, resources=resources)
+        return result
+
+    def _require_success(self, name: str, value: Atom) -> None:
+        if _head(value, "Error"):
+            msg = f"algebra_operation_error({self.name}, {name}): {value}"
+            raise AlgebraOperationError(msg, atom=value, operation=name)
+
+    def _operate(
+        self, metta: Space, name: str, left: Atom, right: Atom,
+        *, resources: _EvaluationBudget,
+    ) -> Atom:
+        """Evaluate the operation after its inputs passed the carrier check."""
         if isinstance(left, Grounded) and isinstance(right, Grounded):
             left_value, right_value = _decode(left), _decode(right)
             if (
@@ -343,10 +450,6 @@ class DeclaredAlgebra:
         if name in {"plus", "times"}:
             return Expression((Symbol(name), left, right))
         target = Expression((Symbol(name), left, right))
-        if resources is None:
-            resources = _EvaluationBudget.from_call(
-                None, None, EvaluationContext(self.name, order=self.order)
-            )
         answers = resources.evaluate_operation(metta, target)
         if len(answers) != 1:
             msg = (
@@ -585,7 +688,57 @@ _PRESETS: Final[dict[str, DeclaredAlgebra]] = {
     ),
 }
 
-_REGISTRY: dict[tuple[int, str, str], DeclaredAlgebra] = {}
+_REGISTRY: dict[tuple[int, str, str], tuple[Atom, DeclaredAlgebra]] = {}
+
+
+def _record_algebra_undo(key: tuple[int, str, str]) -> None:
+    """Enlist this mirror's preimage in the existing transaction undo log."""
+    from .ops import _record_registry_undo  # noqa: PLC0415
+
+    previous = _REGISTRY.get(key)
+
+    def restore() -> None:
+        if previous is None:
+            _REGISTRY.pop(key, None)
+        else:
+            _REGISTRY[key] = previous
+
+    _record_registry_undo(
+        restore, description=f"algebra registry entry {key!r}", key=("algebra", key),
+    )
+
+
+@dataclass(frozen=True, slots=True)
+class _CarrierPredicate:
+    """Retain Python carrier membership across the engine boundary."""
+
+    specification: Any
+
+    def __call__(self, value: Any) -> builtins.bool:
+        if isinstance(self.specification, builtins.type):
+            return isinstance(value, self.specification)
+        result = self.specification(value)
+        if not isinstance(result, builtins.bool):
+            msg = "an algebra type predicate must return one bool; use bool(...) or an explicit all(...) reduction"
+            raise TypeError(msg)
+        return result
+
+
+def _carrier_type_accepts(type_wire: Any, value_wire: Any) -> builtins.bool:
+    """Apply a host carrier predicate without erasing native atom kinds."""
+    predicate = _decode(_from_wire(type_wire))
+    if not isinstance(predicate, _CarrierPredicate):
+        predicate = _CarrierPredicate(predicate)
+    return predicate(_decode(_from_wire(value_wire)))
+
+
+def _forget_space(metta: Space) -> None:
+    """Release catalog mirrors when their owning Python space closes."""
+    prefix = id(metta._rt), _context_name(metta)
+    for key in tuple(_REGISTRY):
+        if key[:2] == prefix:
+            _record_algebra_undo(key)
+            del _REGISTRY[key]
 
 
 def _context_name(metta: Space) -> str:
@@ -696,14 +849,14 @@ def _canonical_laws(metta: Space, laws: Iterable[str]) -> frozenset[str]:
 
 def _catalog_declaration(
     metta: Space, context: str, name: str
-) -> DeclaredAlgebra | None:
+) -> tuple[DeclaredAlgebra, Atom] | None:
     """Reify a direct ``&metta`` algebra row through the Python interface."""
     # The context's own row, else the shipped global one: the same two-clause
     # preference metta_algebra_descriptor_fresh/9 applies engine-side. At most
     # one of each exists, because the catalog refuses a second row for one
     # context and name.
-    owned: tuple[Atom, ...] | None = None
-    shared: tuple[Atom, ...] | None = None
+    owned: Expression | None = None
+    shared: Expression | None = None
     for atom in Space("&metta", _runtime=metta.runtime).atoms():
         if not isinstance(atom, Expression) or len(atom.children) != 10:
             continue
@@ -712,13 +865,21 @@ def _catalog_declaration(
             continue
         owner = atom.children[9]
         if owner == Symbol(context):
-            owned = atom.children[:9]
+            owned = atom
         elif owner == Symbol("global"):
-            shared = atom.children[:9]
-    children = owned if owned is not None else shared
-    if children is None:
+            shared = atom
+    row = owned if owned is not None else shared
+    if row is None:
         return None
-    _, _, combine, extend, zero, one, laws, carrier, requires = children
+    _, _, combine, extend, zero, one, laws, carrier, requires, _ = row.children
+    specification = None
+    if _head(carrier, "type", 3):
+        specification = carrier.children[1]
+        if isinstance(specification, Grounded):
+            specification = _decode(specification)
+            if isinstance(specification, _CarrierPredicate):
+                specification = specification.specification
+        carrier = carrier.children[2]
     if not isinstance(combine, Symbol) or not isinstance(extend, Symbol):
         msg = f"algebra_catalog_operations_malformed({name})"
         raise AlgebraDeclarationError(msg)
@@ -761,7 +922,8 @@ def _catalog_declaration(
         carrier=tuple(carrier.children[1:]),
         requires=frozenset(requirement_names),
         order=_catalog_order(metta, name),
-    )
+        type=specification,
+    ), row
 
 
 def _catalog_order(
@@ -796,9 +958,13 @@ def get(metta: Space, name: str) -> DeclaredAlgebra | None:
     catalog = _catalog_declaration(metta, context, name)
     key = _key(metta, context, name)
     if catalog is None:
-        _REGISTRY.pop(key, None)
+        if key in _REGISTRY:
+            _record_algebra_undo(key)
+            del _REGISTRY[key]
         return None
-    return _REGISTRY.get(key, catalog)
+    declaration, row = catalog
+    cached = _REGISTRY.get(key)
+    return cached[1] if cached is not None and cached[0] == row else declaration
 
 
 def require(metta: Space, name: str) -> DeclaredAlgebra:
@@ -882,6 +1048,7 @@ def declare(
     one: Any,
     laws: Iterable[str] = (),
     carrier: Iterable[Any] = (),
+    type: Any = None,  # noqa: A002 -- the public carrier concept is a type
     requires: Iterable[str] = (),
     order: SemiringOrder | None = None,
 ) -> Atom:
@@ -905,6 +1072,19 @@ def declare(
     if order is not None and order not in builtins.set(SemiringOrder):
         msg = f"algebra_order_invalid({name}, {order!r})"
         raise AlgebraDeclarationError(msg)
+    if type is not None and not isinstance(type, (Symbol, Expression, builtins.type)) and not callable(type):
+        msg = "algebra type= needs a Python type, a MeTTa type atom, or a callable predicate; use carrier= for a finite enumeration"
+        raise AlgebraDeclarationError(msg)
+    if isinstance(type, Atom) and type.vars:
+        msg = "algebra type= must be ground; bind its type variables before declaring it"
+        raise AlgebraDeclarationError(msg)
+    # Atom classes spell their engine metatypes; Python strings remain text.
+    carrier_type = type
+    if type is str:
+        carrier_type = Symbol("String")
+    elif isinstance(type, builtins.type) and issubclass(type, Atom):
+        from ._type_annotations import type_atom_for  # noqa: PLC0415
+        carrier_type = type_atom_for(type)
     declaration = DeclaredAlgebra(
         name=name,
         combine=combine,
@@ -915,6 +1095,7 @@ def declare(
         carrier=tuple(_encode(value) for value in carrier),
         requires=frozenset(requires),
         order=order,
+        type=carrier_type,
     )
     context = _context_name(metta)
     atom = Expression(
@@ -926,7 +1107,7 @@ def declare(
             declaration.zero,
             declaration.one,
             _symbol_list("laws", sorted(declaration.laws)),
-            _list("carrier", declaration.carrier),
+            declaration._carrier_atom(),
             _symbol_list("requires", sorted(declaration.requires)),
             Symbol(context),
         )
@@ -944,8 +1125,12 @@ def declare(
             )
         ):
             raise AlgebraLawError(str(error)) from error
+        if str(error).startswith(("algebra_value_outside_carrier", "algebra_type_predicate")) or "algebra type predicate" in str(error):
+            raise AlgebraDeclarationError(str(error)) from error
         raise
-    _REGISTRY[_key(metta, context, name)] = declaration
+    key = _key(metta, context, name)
+    _record_algebra_undo(key)
+    _REGISTRY[key] = (atom, declaration)
     return atom
 
 
@@ -1227,6 +1412,7 @@ def _interpret_trace(
     resources: _EvaluationBudget,
 ) -> Atom:
     value = _carrier_input(declaration, trace)
+    declaration.check_values(metta, value, resources=resources)
     for child in trace.children:
         value = declaration.extend_values(
             metta, value, _interpret_trace(metta, declaration, child, resources),
@@ -1311,6 +1497,10 @@ def evaluate(
     goal = parse(query) if isinstance(query, str) else _encode(query)
     resources.checkpoint()
     available, rules = _program(metta.atoms())
+    for answer in available:
+        declaration.check_values(metta, answer.tag, resources=resources)
+    for rule in rules:
+        declaration.check_values(metta, rule.tag, resources=resources)
     # max_rounds bounds fixpoint HEIGHT, not how long one round can run. The
     # absolute deadline therefore gets checked between rounds and inside each
     # potentially large Python scan, while every engine operation receives the
@@ -1478,9 +1668,15 @@ def captured_answer(
     value: Any,
     annotation: Atom,
     carrier: Any,
+    *,
+    context: EvaluationContext | None = None,
 ) -> TaggedAnswer:
     """Build an output answer around one engine-captured annotation."""
     declaration = resolve(metta, carrier)
+    if context is None:
+        context = EvaluationContext(declaration.name, order=declaration.order)
+    resources = _EvaluationBudget.from_call(None, None, context)
+    declaration.check_values(metta, annotation, resources=resources)
     return TaggedAnswer(
         value,
         annotation,
@@ -1562,6 +1758,7 @@ def _construct(
     one: Any = _CONSTRUCTOR_MISSING,
     laws: Iterable[str] = (),
     carrier: Iterable[Any] = (),
+    type: Any = None,  # noqa: A002 -- the public carrier concept is a type
     requires: Iterable[str] = (),
     order: SemiringOrder | None = None,
 ) -> DeclaredAlgebra:
@@ -1574,7 +1771,8 @@ def _construct(
     # this module's.
     target = engine().space(current_space())
     algebra_name = _algebra_name(subject)
-    if isinstance(subject, type):
+    carrier_type = type
+    if isinstance(subject, builtins.type):
         plus = getattr(subject, "plus", plus)
         times = getattr(subject, "times", times)
         combine = getattr(subject, "combine", combine)
@@ -1583,6 +1781,7 @@ def _construct(
         one = getattr(subject, "one", one)
         laws = getattr(subject, "laws", laws)
         carrier = getattr(subject, "carrier", carrier)
+        carrier_type = getattr(subject, "type", type)
         requires = getattr(subject, "requires", requires)
         order = getattr(subject, "order", order)
     combine = plus if combine is None else combine
@@ -1595,21 +1794,25 @@ def _construct(
     if zero is _CONSTRUCTOR_MISSING or one is _CONSTRUCTOR_MISSING:
         msg = "algebra() needs both zero= and one="
         raise TypeError(msg)
-    combine_name = _operation_name(target, algebra_name, "plus", combine)
-    extend_name = _operation_name(target, algebra_name, "times", extend)
-    declare(
-        target,
-        algebra_name,
-        combine=combine_name,
-        extend=extend_name,
-        zero=zero,
-        one=one,
-        laws=laws,
-        carrier=carrier,
-        requires=requires,
-        order=order,
-    )
-    return require(target, algebra_name)
+    def install() -> DeclaredAlgebra:
+        combine_name = _operation_name(target, algebra_name, "plus", combine)
+        extend_name = _operation_name(target, algebra_name, "times", extend)
+        declare(
+            target,
+            algebra_name,
+            combine=combine_name,
+            extend=extend_name,
+            zero=zero,
+            one=one,
+            laws=laws,
+            carrier=carrier,
+            type=carrier_type,
+            requires=requires,
+            order=order,
+        )
+        return require(target, algebra_name)
+
+    return target.transaction(install)
 
 
 class _AlgebraModule(ModuleType):
@@ -1627,6 +1830,7 @@ class _AlgebraModule(ModuleType):
         one: Any = _CONSTRUCTOR_MISSING,
         laws: Iterable[str] = (),
         carrier: Iterable[Any] = (),
+        type: Any = None,  # noqa: A002 -- the public carrier concept is a type
         requires: Iterable[str] = (),
         order: SemiringOrder | None = None,
     ) -> Any:
@@ -1642,6 +1846,7 @@ class _AlgebraModule(ModuleType):
                     one=one,
                     laws=laws,
                     carrier=carrier,
+                    type=type,
                     requires=requires,
                     order=order,
                 )
@@ -1657,6 +1862,7 @@ class _AlgebraModule(ModuleType):
             one=one,
             laws=laws,
             carrier=carrier,
+            type=type,
             requires=requires,
             order=order,
         )

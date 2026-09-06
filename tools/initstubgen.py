@@ -22,6 +22,8 @@ Guarantees:
   - the generated consumer probe rejects either a non-callable module type or
     an ``Any`` return while checking every carrier attribute [tested:
     mypy-algebra-surface; commit=5e0ae6c22d604c4b980766e3cc4811ee545e5c9e]
+  - typed algebra declarations retain DeclaredAlgebra results in both callable
+    and decorator forms [tested: mypy-algebra-surface; commit=074dc0a88b1605c54824de677d586b6f60998bcf]
 Fails when: a package callable needs a type contract that its implementation
   annotations do not express.  Add that deliberate refinement here, beside
   ``_algebra_protocol``, rather than silently weakening the whole root.
@@ -259,6 +261,7 @@ def _algebra_protocol(carriers: list[str]) -> str:
         one: _Any = ...,
         laws: _Iterable[str] = ...,
         carrier: _Iterable[_Any] = ...,
+        type: _Any = ...,
         requires: _Iterable[str] = ...,
         order: _SemiringOrder | None = ...,"""
     return f"""class _AlgebraModule(_Protocol):
@@ -446,6 +449,14 @@ assert_type(metta.forms("(x)"), list[Atom])
 assert_type(metta.run("!(x)"), list[list[Atom]])
 assert_type(metta.algebra(int), DeclaredAlgebra)
 assert_type(metta.algebra(), Callable[[type], DeclaredAlgebra])
+assert_type(
+    metta.algebra(
+        "typed-int-product", plus=max, times=lambda a, b: a * b,
+        zero=0, one=1, type=int,
+    ),
+    DeclaredAlgebra,
+)
+assert_type(metta.algebra(type=int), Callable[[type], DeclaredAlgebra])
 {attributes}
 
 _not_an_integer: int = metta.algebra(int)  # type: ignore[assignment]

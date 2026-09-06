@@ -7,6 +7,8 @@ Assumes:
     _space_execution.py, _space_persistence.py, _space_objects.py, and
     _space_diagnostics.py; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
 Guarantees:
+  - captured annotation membership retains the cursor's evaluation context
+    [tested: tests/ch06_many_answers/test_evaluation_context_types.py; commit=074dc0a88b1605c54824de677d586b6f60998bcf]
   - tagged guards retain scoped binding preparation while carrying their algebra
     [tested: sh extensions/python/test.sh
     tests/ch06_many_answers/test_evaluation_context_bindings.py -n 0;
@@ -219,6 +221,10 @@ Owns resources:
   - ``Space.save`` owns its sibling temporary file and removes it after every
     failed operation [tested: test_save_failure_preserves_existing_file;
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
+  - algebra type validation shares the engine's carrier check, and drop retires
+    its Python catalog mirrors [tested:
+    test_drop_retires_algebra_before_redeclaration,
+    test_tensor_type_carrier_runs_max_product_and_reinterprets_provenance; commit=074dc0a88b1605c54824de677d586b6f60998bcf]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -1104,6 +1110,8 @@ class Space(Handle):
     def drop(self) -> None:
         """Clear this space and release an anonymous name for reuse.
 
+        Dropping retires every space-owned catalog declaration, including
+        algebra rows and their Python mirrors.
         Dropping unregisters a Python provider and closes only backing state
         owned by this handle. A foreign provider with a clear/drop lifecycle,
         such as MORK, releases its provider state.
@@ -1167,6 +1175,7 @@ class Space(Handle):
         _invalidate_builtins_cache(self._rt)
         release_definitions(cleanup)
         integrate._forget_space(name)
+        _satellite("algebra")._forget_space(cleanup)
         if self._ephemeral:
             self._rt.must(
                 "atom_string(_Name, Space), metta_py_pool_space(_Name)", Space=name
@@ -2469,6 +2478,7 @@ class Space(Handle):
                         row,
                         cursor.annotation,
                         declaration,
+                        context=evaluation_context,
                     )
                     yield _AnswerItem(answer, row)
             finally:
@@ -2639,15 +2649,16 @@ class Space(Handle):
                 "(ranked, tropical, prov) for one tagged answer per pull"
             )
             raise TypeError(msg)
+        context = EvaluationContext(declaration.name, limit, declaration.order)
         return Cursor(
             self,
             patterns,
             where,
             timeout,
             inferences,
-            context=EvaluationContext(declaration.name, limit, declaration.order),
+            context=context,
             capture=lambda row, annotation: algebra_api.captured_answer(
-                self, row, annotation, declaration
+                self, row, annotation, declaration, context=context
             ),
         )
 
@@ -3227,7 +3238,7 @@ class Space(Handle):
                 context=context,
                 annotation_factory=(
                     lambda value, annotation: algebra_api.captured_answer(
-                        self, value, annotation, declaration
+                        self, value, annotation, declaration, context=context
                     )
                 ),
             )
@@ -4872,15 +4883,17 @@ class Space(Handle):
         one: Any,
         laws: _abc.Iterable[str] = (),
         carrier: _abc.Iterable[Any] = (),
+        type: Any = None,  # noqa: A002 -- Python spells a carrier type as type
         requires: _abc.Iterable[str] = (),
         order: SemiringOrder | None = None,
     ) -> Atom:
-        """Declare operations and checked laws for an arbitrary atom carrier.
+        """Declare operations with carrier membership and optional checked laws.
 
-        Public laws are certificates, not wishes. When an equational law is
-        named, ``carrier`` must be finite and the operation tables are checked
-        exhaustively before the catalog atom lands. ``contraction`` is the
-        explicit resource-reuse capability and has no equation to sample.
+        ``type`` accepts a Python type, MeTTa type atom, or Boolean predicate
+        and checks every input and result. A type alone grants no laws or
+        fusion. ``carrier`` enumerates the finite domain required for exhaustive
+        law checking; it may accompany ``type`` to constrain that domain.
+        Use ``prov`` and ``.under()`` to reinterpret uncertified tensor traces.
         """
         return _satellite("algebra").declare(
             self,
@@ -4891,6 +4904,7 @@ class Space(Handle):
             one=one,
             laws=laws,
             carrier=carrier,
+            type=type,
             requires=requires,
             order=order,
         )

@@ -11,6 +11,8 @@ Assumes:
   - seam:kind rows in engine/ext_points.pl are the one authority for a
     seam's kind [tested: static_checks:every_seam_declares_one_kind]
 Guarantees:
+  - carrier membership uses the engine-owned validation door
+    [tested: test_the_host_service_scoreboard_matches_the_tree; commit=074dc0a88b1605c54824de677d586b6f60998bcf]
   - the manifest and the tree hold the same host_service set, compared as
     sets with both differences named
     [tested: test_the_host_service_scoreboard_matches_the_tree;
@@ -84,6 +86,10 @@ HOST_SERVICES = {
     # that held override without this door.
     "metta_current_algebra/3",
     "metta_algebra_one/2",
+    # Carrier membership is engine policy shared by declarations and native
+    # annotations. The host decodes values and asks this same door instead
+    # of implementing a second type and finite-domain checker.
+    "metta_require_algebra_value/3",
     "metta_annotation/2",
     "metta_k_extend/4",
     "match_foreign/5",
@@ -275,6 +281,7 @@ FLOOR_REASONS = {
     "metta_effective_algebra/2": "door",
     "metta_current_algebra/3": "door",
     "metta_algebra_one/2": "door",
+    "metta_require_algebra_value/3": "door",
     "metta_annotation/2": "door",
     "metta_k_extend/4": "door",
     "match_foreign/5": "door",

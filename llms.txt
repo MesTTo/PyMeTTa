@@ -247,6 +247,10 @@ kb.save("program.metta")      # writes exactly kb.source()
 kb.consumption("repeated")    # writes (source <space> repeated) in the catalog
 ```
 
+Dropping a space also retires its catalog declarations, including algebras,
+annotations and law certificates. Reusing its name, including an anonymous
+pooled name, starts a new life with no declarations inherited from the old one.
+
 `python -m metta convert program.py [-o out.metta]` imports the module against
 a fresh space and prints or writes its declarations as loadable MeTTa source.
 
@@ -311,6 +315,30 @@ kb.cast(value, S.Number)                      # runtime cast on the engine's rul
 Annotations on a `@m.define` become the declaration, and a local annotation
 becomes an enforceable in-place claim.
 
+## Declared algebras
+
+`space.algebra(name, combine=..., extend=..., zero=..., one=..., type=...)`
+checks every input and result against a Python type, a MeTTa type atom, or a
+predicate returning exactly one bool. Predicates receive symbols and
+expressions as atoms, and grounded values as their Python payloads. The callable `metta.algebra` module
+accepts the same `type=` and accepts Python callables as `plus=` and `times=`.
+It declares into the current space, so `with space:` chooses its owner.
+
+A type permits evaluation without a law certificate and grants no answer
+fusion. Any law claim, including contraction, requires the complete finite
+domain supplied with `carrier=`. Equational laws are checked by exhaustion,
+never by sampling. You may combine
+`type=` with `carrier=` to check both membership constraints. Tensor membership
+and law equality compare shape and exact element values, never blob identity.
+A law that cannot be checked is refused with the remedy: declare a finite
+carrier for the certificate, or evaluate under `prov` and use `.under()` to
+reinterpret the retained derivation, including for gradients.
+
+An out-of-carrier value raises a refusal naming the algebra, value and remedy.
+An operation returning an `Error` raises `algebra_operation_error`; the error
+cannot become a tag. A bad grounded numeric call answers one error carrying
+its specific type refusal.
+
 ## Concurrency, transactions, bounds
 
 ```python
@@ -360,6 +388,7 @@ Inferences are deterministic and wall clock is not; gate on the former.
 `Annotated[DLTensor, Shape(2, 3)]` refines an operation's arrow to
 `(Annotated DLTensor (Shape (2 3)))`. A `(4 1)` argument returns `BadArgType`;
 shared MeTTa dimension variables bind across parameters and the result.
+The single refusal retains the actual shape, including through an algebra operation.
 Live array values carry the same shaped type. `SHAPE_RULES` covers every
 registered head: unary elementwise operations preserve shape, binary
 operations use broadcasting, and rank-two `matmul` unifies inner dimensions.

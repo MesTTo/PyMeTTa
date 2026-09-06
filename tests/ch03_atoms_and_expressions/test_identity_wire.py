@@ -7,6 +7,8 @@ Guarantees:
   - Python numeric objects are admitted once and evaluated by their own
     operator protocol, retaining NumPy scalar result classes
     [tested: extensions/python/tests/ch03_atoms_and_expressions/test_identity_wire.py; commit=a0f1cc5f15a15e5ca6958fe02a20be8832c7237f]
+  - a rejected host value answers one refusal naming its concrete class
+    [tested: test_nonnumeric_objects_answer_one_concrete_type_refusal; commit=074dc0a88b1605c54824de677d586b6f60998bcf]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -219,8 +221,8 @@ def test_numeric_expression_reductions_preserve_the_selected_object(
     assert answers[0].value is values[selected]
 
 
-def test_nonnumeric_objects_keep_refusal_multiplicity_and_wording(metta):
-    """Host admission leaves the arbiter-pinned refusal rows unchanged."""
+def test_nonnumeric_objects_answer_one_concrete_type_refusal(metta):
+    """An object's inheritance witnesses do not multiply one refusal."""
     class RefusalBase:
         pass
 
@@ -230,7 +232,6 @@ def test_nonnumeric_objects_keep_refusal_multiplicity_and_wording(metta):
     answers = metta.eval(Expression(S["+"], ground(RefusalLeaf()), Grounded(1)))
     assert [str(answer) for answer in answers] == [
         "(Error (+ <RefusalLeaf> 1) (BadArgType 1 Number RefusalLeaf))",
-        "(Error (+ <RefusalLeaf> 1) (BadArgType 1 Number RefusalBase))",
     ]
 
 

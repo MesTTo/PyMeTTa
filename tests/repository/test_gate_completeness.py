@@ -12,6 +12,8 @@ Assumes:
       to [source: extensions/python/metta/space.py:MeTTa.disassemble;
       commit=f88aa8be03cb64cb59d3307515ded8701f418321]
 Guarantees:
+    - carrier type keywords retain their explicit public spelling
+      [tested: test_the_ruff_configuration_enables_every_family_or_records_why_not; commit=074dc0a88b1605c54824de677d586b6f60998bcf]
     - each test fails if its outcome is reverted, which is what makes it
       evidence rather than decoration
       [tested: test_the_ruff_configuration_enables_every_family_or_records_why_not;
@@ -100,7 +102,13 @@ RUFF_FAMILY_BURN_DOWN = {
     # an edit to metta/__init__.py rather than to the mirror.
     # [tested: test_the_ruff_configuration_enables_every_family_or_records_why_not;
     # commit=5e0ae6c22d604c4b980766e3cc4811ee545e5c9e]
-    "A": 22,
+    # 22 -> 27 for the carrier type keyword in Space.algebra, its generated
+    # asynchronous mirror, declare, _construct and _AlgebraModule.__call__.
+    # Each uses Python's public word type; internal normalization uses
+    # carrier_type and introduces no additional shadowing suppression.
+    # [tested: test_the_ruff_configuration_enables_every_family_or_records_why_not;
+    # commit=074dc0a88b1605c54824de677d586b6f60998bcf]
+    "A": 27,
     # 2112 -> 2114 at the p12-space-model merge: its two new test modules
     # carry the repository's obligation-header docstring convention, whose
     # Purpose/Guarantees block is a deliberate per-line D205 suppression.

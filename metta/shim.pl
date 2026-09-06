@@ -126,6 +126,17 @@
 %   - metta_py_declare_algebra/2 runs the engine's sole finite-carrier law
 %     checker in the declaring space's equation module [tested:
 %     test_a_law_is_checked_once_in_the_declaring_space; commit=2e627a593413191cda3170f2eb716835f7f62543]
+%   - host algebra predicates receive symbols and expressions as atoms, not
+%     Janus strings or lists [tested: test_carrier_preserves_text_and_symbol_types;
+%     commit=074dc0a88b1605c54824de677d586b6f60998bcf].
+%   - metta_py_check_algebra_values/4 decodes host values and checks them
+%     through metta_require_algebra_value/3 in the declaring equation module
+%     [source: engine/spaces/catalog.pl:metta_require_algebra_value/3;
+%     commit=074dc0a88b1605c54824de677d586b6f60998bcf].
+%   - metta_py_check_algebra_values_accounted/5 meters carrier predicates
+%     inside the evaluation's resource guard [tested:
+%     test_carrier_predicate_inferences_are_bounded_at_every_phase;
+%     commit=074dc0a88b1605c54824de677d586b6f60998bcf].
 %   - derivations descend through the default six-axis dispatch wrapper, so
 %     recursive proof depth remains bounded and one equation yields one proof
 %     [tested: test_depth_exhaustion_returns_a_partial_proof;
@@ -1042,6 +1053,7 @@ metta_py_wrappable(metta_py_query_count).
 metta_py_wrappable(metta_py_query_count_if_repeatable).
 metta_py_wrappable(metta_py_eval_all).
 metta_py_wrappable(metta_py_eval_accounted).
+metta_py_wrappable(metta_py_check_algebra_values_accounted).
 metta_py_wrappable(metta_py_eval_using_all).
 metta_py_wrappable(metta_py_eval_many_all).
 metta_py_wrappable(metta_py_eval_many_using_all).
@@ -2144,6 +2156,24 @@ metta_py_declare_algebra(DeclaringSpace, Tagged) :-
     metta_py_decode_shared(Tagged, Term, _),
     metta_py_module(DeclaringSpace, Module),
     metta_py_in_module(Module, 'add-atom'('&metta', Term, _)).
+
+metta_py_check_algebra_values(Space, Name0, CarrierWire, ValuesWire) :-
+    ( atom(Name0) -> Name = Name0 ; atom_string(Name, Name0) ),
+    metta_py_decode_shared(CarrierWire, Carrier, _),
+    maplist(metta_py_decode_for_add, ValuesWire, Values),
+    metta_py_module(Space, Module),
+    metta_py_in_module(Module,
+        maplist(metta_require_algebra_value(Name, Carrier), Values)).
+
+metta_py_check_algebra_values_accounted(Space, Name, CarrierWire, ValuesWire, Used) :-
+    statistics(inferences, Before),
+    metta_py_check_algebra_values(Space, Name, CarrierWire, ValuesWire),
+    statistics(inferences, After),
+    Used is After - Before.
+
+% A nested Janus call can see the raw signal before its enclosing guard does.
+metta_py_raw_limit_kind(Error, time_limit) :- Error == time_limit_exceeded.
+metta_py_raw_limit_kind(Error, inference_limit) :- Error == inference_limit_exceeded.
 
 metta_py_decode_for_add(Tagged, Term) :-
     metta_py_decode_shared(Tagged, Term, _).
@@ -5448,3 +5478,15 @@ metta_py_persist_result(digest(Hash), ["digest", Hash]).
 metta_py_digest(Space, Result) :-
     metta_host_digest(Space, Outcome),
     metta_py_persist_result(Outcome, Result).
+
+% Carrier predicates use the same atom codec as registered Python operations.
+% In particular, Symbol and Expression remain atoms while Grounded unwraps.
+% The direct call retains Python exceptions for the enclosing resource guard
+% [tested: test_carrier_preserves_text_and_symbol_types; commit=074dc0a88b1605c54824de677d586b6f60998bcf].
+:- multifile seam:grounded_algebra_type/3.
+seam:grounded_algebra_type(Type, Value, Truth) :-
+    py_is_object(Type),
+    metta_py_encode(Type, TypeWire),
+    metta_py_encode(Value, ValueWire),
+    py_call('metta.algebra':'_carrier_type_accepts'(TypeWire, ValueWire), Raw),
+    ( Raw == @(true) -> Truth = true ; Truth = false ).
