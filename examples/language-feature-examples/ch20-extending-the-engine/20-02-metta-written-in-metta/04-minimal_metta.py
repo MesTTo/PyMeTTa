@@ -53,8 +53,7 @@ def twin(m):
     ]  # rung: `return` is an instruction of `function`, not a function of its own
 
     failed_body = S.foo(S.bar)
-    # The diagnostic carries the ORIGINAL function frame, not the bare
-    # body: LeaTTa 9ea9f9d answers this exact form the same way.
+    # The diagnostic carries the ORIGINAL function frame, not the bare body.
     assert m.fn.function(failed_body) == [S.Error(S.function(failed_body), S.NoReturn)]
 
     otherwise = S["else"]

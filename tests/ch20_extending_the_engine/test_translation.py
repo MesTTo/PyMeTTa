@@ -103,9 +103,9 @@ def test_an_equation_head_is_matched_not_called(m):
 # parameter holds its argument as written. Fused as
 # `(unique-atom (collapse $s))` the collapse never runs and the operation reads
 # the literal `(collapse $s)`
-# [source: LeaTTa MettaHyperonFull/Minimal/Interpreter.lean:1543-1546, the
-# groundedTokens rows for that family; measured 2026-08-24:
-# `!(subtraction-atom ((+ 1 2) b) (b))` answers `((+ 1 2))` there].
+# [assumed 2026-08-24: `!(subtraction-atom ((+ 1 2) b) (b))` answering
+# `((+ 1 2))` was measured against an earlier reference corpus at that date,
+# not re-measured against upstream PeTTa].
 DERIVED_FORMS = {
     ("and-then", 2): (None, "(if {0} {1} False)"),
     ("or-else", 2): (None, "(if {0} True {1})"),

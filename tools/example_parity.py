@@ -288,10 +288,9 @@ def _read(text: str, returncode: int | None = 0) -> Outcome:
 #: command loop met EOF [source: tests/data/example_skips.txt]. 16 MiB is 33
 #: times the largest output a shipped example produces, greedy_chess's own
 #: 501,917 bytes when it is given its quit command, and it is the ceiling
-#: CeTTa's corpus generator settled on over the same corpus [source:
-#: CETTA_PATH/scripts/petta_corpus_manifest.py, MAX_CAPTURE_BYTES and
-#: run_bounded_process; CETTA_PATH is the override tests/conformance/cetta.py
-#: resolves the fork through].
+#: CeTTa's corpus generator settled on over the same corpus [source: CeTTa
+#: scripts/petta_corpus_manifest.py, MAX_CAPTURE_BYTES and run_bounded_process,
+#: at MesTTo/CeTTa@0ca2f4bad47205174608d7af54dd12a4c12b2e0b].
 MAX_CAPTURE_BYTES = 16 * 1024 * 1024
 
 

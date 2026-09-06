@@ -14,8 +14,8 @@ them against each other and against what each answered last time. So a row
 says whether the two surfaces agree today and whether either has moved since
 it was frozen, and every disagreement is named rather than averaged away.
 
-There was a third column once, an outside arbiter's answers, and it is gone
-(user, 2026-08-31: "there should not be any leatta tests"). It finished the
+There was a third column once, an outside arbiter's answers, and it is gone by
+the user's 2026-08-31 ruling. It finished the
 migration commit 20cd107a began when it moved the conformance lane to
 vendored upstream PeTTa: this engine follows upstream PeTTa, so a second
 implementation's answer is not evidence about this one. The rows themselves
@@ -726,7 +726,7 @@ def cost(engine: Any, entries: list[Entry]) -> list[tuple[str, int, int]]:
 
 
 def learn(engine: Any, entries: list[Entry], answers: dict[str, Any]) -> dict[str, Any]:
-    """Re-measure every side and freeze it, dropping a stale LeaTTa column."""
+    """Re-measure every side and freeze it."""
     return _learn(engine, entries, answers)
 
 
@@ -742,7 +742,6 @@ def _learn(
         if entry.metta is None and entry.python is None:
             continue
         record = dict(answers.get(entry.name, {}))
-        record.pop("leatta", None)
         record.update(measure(engine, entry, index))
         fresh[entry.name] = record
     for name, engine_side, python_side in cost(engine, entries):

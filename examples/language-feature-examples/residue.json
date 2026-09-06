@@ -5032,7 +5032,7 @@
       "row": "P14.9",
       "section": "\u00a79 risks: two sources of truth (the twins stay differential)",
       "detail": "AS FILED, superseded by the retirement line below. The same defect as the typing_rules entry, seen from the output side and measured 2026-08-22 on this example's own program: with `(: f (-> Type1 Type1))` and `(: f (-> Type2 Type2))` declared and `T3in` a Type1 only, the engine's own form answers nothing (`m.run(\"!(f T3in)\")` is `[]`, and `m.load` of the file answers `[]` for that form, which is what `test-no-answer` asserts), while `m.eval(S.f(S.T3in))` and `m.fn(\"f\").all(S.T3in)` answer `Tdefault`. Wrapping the same call in `collapse` restores the engine's answer, `()`. A twin that used the calling door here would pin the WRONG behaviour as a passing claim, which is the failure mode the differential exists to catch.",
-      "retired": "2026-08-25: the same gate routes the declared flat call through call-site typed dispatch, and the conformance-2 rewrite had already moved the example's own answer: LeaTTa 9ea9f9d answers Tdefault for (f T3in), so the engine form and the calling door now agree on Tdefault and the no-answer divergence this entry measured no longer exists on either side"
+      "retired": "2026-08-25: the same gate routes the declared flat call through call-site typed dispatch, and the conformance-2 rewrite had already moved the example's own answer is Tdefault for (f T3in), so the engine form and the calling door now agree on Tdefault and the no-answer divergence this entry measured no longer exists on either side"
     },
     {
       "kind": "friction",

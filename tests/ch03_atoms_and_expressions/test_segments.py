@@ -132,7 +132,7 @@ def test_a_mixed_role_pattern_refuses_naming_the_law(orders):  # noqa: D103  -- 
     message = str(refusal.value)
     assert "outside the proved finitary fragment" in message
     assert "mixed_roles" in message
-    assert "SeqFragment.lean" in message
+    assert "metta_seq_classify/3" in message
 
 
 def test_the_commuting_equation_refuses_naming_kutsia(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -149,8 +149,8 @@ def test_a_stored_marker_is_data_on_both_doors(metta):  # noqa: D103  -- pytest 
     # Which side a marker sits on decides what it means. STORED, it is the
     # symbol `...` and nothing else, so an ordinary variable matches it and an
     # ordinary pattern retrieves it; asked, the same glyph is a gap and consumes
-    # it as one child [source: LeaTTa MettaHyperonFull/Core/SeqSyntax.lean,
-    # parseConcreteAtom against parseSeqAtom].
+    # it as one child
+    # [source: engine/spaces/segment_matching.pl, metta_seq_parse/2].
     metta += (S.Marked, GAP, S.tail)
     assert [row.a for row in metta[(S.Marked, V.a, S.tail)]] == [S["..."]]
     assert len(list(metta[(S.Marked, GAP, S.tail)])) == 1

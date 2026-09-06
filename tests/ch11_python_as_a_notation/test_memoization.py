@@ -200,8 +200,8 @@ def test_a_cached_definition_preserves_duplicate_answers() -> None:
     """Caching preserves the language law that answer multiplicity is visible.
 
     "Result order within one directive's list is unspecified; result
-    multiplicity is specified" [source: LeaTTa wiki/Specification.md:22]. A
-    cache may change when an answer is computed, but cannot turn the bag
+    multiplicity is specified". A cache may change when an answer is
+    computed, but cannot turn the bag
     ``a, a, b`` into the set ``a, b``. This test used to assert that defect;
     it now pins the law on the public decorator itself.
     """

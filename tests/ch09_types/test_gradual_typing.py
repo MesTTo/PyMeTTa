@@ -47,7 +47,7 @@ def test_an_unknown_type_is_consistent_with_every_declared_type(typed):
     type is consistent with every type and every type with it, so neither
     direction is a violation. This engine had BOTH directions backwards.
 
-    Measured 2026-08-19 on hyperon 0.2.10 and on the LeaTTa mechanised
+    Measured 2026-08-19 on hyperon 0.2.10 and on an earlier reference
     interpreter, byte-identical across both: with
     `(: f2 (-> Number Number))`, `(f2 a)` and `(f2 (undeclared-call))` answer
     while `(f2 "s")` is a `BadArgType`, and with

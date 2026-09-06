@@ -10,8 +10,8 @@
 
     This was an AGREEMENT lane once, run against a kernel-checked enumerator in
     Lean and requiring the same family of pairs and the same verdict on each.
-    That half is gone (user, 2026-08-31: "there should not be any leatta
-    tests"), with the rest of the outside-arbiter machinery. What is lost is
+    That half is gone by the user's 2026-08-31 ruling, with the rest of the
+    outside-arbiter machinery. What is lost is
     named rather than glossed: nothing now cross-checks overlaps/2 against an
     independent implementation, so this lane pins that the enumerator RUNS over
     every corpus system and that its report parser is exact, and no longer that

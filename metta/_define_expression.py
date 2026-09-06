@@ -206,8 +206,8 @@ class ExpressionCompilerMixin(CompilerContext):
 
         map-atom, filter-atom and foldl-atom declare their list parameter
         `Expression`, and an Expression parameter is the evaluation mask: the
-        operand crosses AS WRITTEN [source: LeaTTa
-        MettaHyperonFull/Core/Modifiers.lean, declaredTypeEvaluates]. A
+        operand crosses AS WRITTEN
+        [source: engine/translator/typing.pl, non_evaluated_parameter_type/1]. A
         comprehension's source, and each stage's own answer, is a call, so
         writing one straight into the next stage's list position would fold
         over the parts of the unrun call. Naming it with `let` is what the

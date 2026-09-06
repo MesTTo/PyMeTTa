@@ -745,7 +745,7 @@ def install(m, default: Any = None) -> list[str]:  # noqa: C901  -- install keep
     # kind. `Expression` in a parameter position is the evaluation mask: it
     # hands the operand over AS WRITTEN, and `(cat ((tensor ((1 2)))) 0)` then
     # reaches the operation as two unrun `(tensor ...)` calls
-    # [source: LeaTTa MettaHyperonFull/Core/Modifiers.lean:118-124].
+    # [source: engine/translator/typing.pl, non_evaluated_parameter_type/1].
     def cat_op(tensors: Iterable[Atom], dim: int = 0) -> DLTensor:
         parts = [_decode(c) for c in tensors]
         dimension = _decode(dim) if isinstance(dim, Atom) else dim

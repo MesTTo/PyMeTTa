@@ -1026,9 +1026,8 @@ def test_a_bare_runnable_atom_answers_a_group(m):
 
     The arbiter's self-evaluating rule: a symbol nothing defines, a
     number, a string and a free variable each return themselves as one
-    answer group (LeaTTa eval-core/self-evaluating-atoms.metta, MEASURED
-    [untouched-symbol], [42], ["text"], [$free], hyperon 0.2.10
-    verbatim). The reader admitted the bare form first and the run half
+    answer group; [untouched-symbol], [42], ["text"] and [$free] are hyperon
+    0.2.10 verbatim. The reader admitted the bare form first and the run half
     answered nothing; the grouped runner treats every runnable form
     alike now, and this pins all four categories.
     """
@@ -1472,8 +1471,8 @@ def test_a_source_registers_every_signature_before_any_form_runs(metta):
 def test_a_bang_before_the_definition_answers_unreduced_not_a_host_error(metta):
     """A source executes in program order despite one-pass signature metadata.
 
-    LeaTTa's evalSequentialRun evaluates each bang against the current
-    knowledge-base prefix and extends that prefix only after a non-bang
+    A source run evaluates each bang against the current knowledge-base
+    prefix and extends that prefix only after a non-bang
     form, so the first call is data and the second reduces.
     """
     groups = metta.run(

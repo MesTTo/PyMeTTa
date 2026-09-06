@@ -507,7 +507,7 @@ def twin(m):
 #: commit=57f21ba9edf94bcf28cde11f938bce2c241a3709].
 #: RE-PINNED 2026-08-31, 2662 to 2421 (-241, -9.1%), the petta matcher
 #: adoption: the match door's entry scan, C classifier and per-candidate
-#: acyclic_term left with the LeaTTa occurs law, and let binds raw, the
+#: acyclic_term left with the earlier occurs law, and let binds raw, the
 #: shared constants every counter lane shed that evening [measured
 #: 2026-08-31: min-of-3 serial fresh processes; command=pytest
 #: test_twin_coverage.py -k 01-identity; commit=57f21ba9edf94bcf28cde11f938bce2c241a3709].

@@ -30,11 +30,10 @@ def test_get_type_over_an_encoded_heterogeneous_list_is_total(metta):
     evaluate its argument, so it was reading the property off a call the
     inspection itself made. Both arbiters answer %Undefined% for that
     spelling, since seam-hetero is undeclared and an undeclared head types
-    nothing, measured 2026-08-19 on hyperon 0.2.10 and on LeaTTa alike. The
-    property this file exists for is about the ENCODED VALUE, so the value
-    is produced first and then asked about, which is the arbiter's own
-    idiom [source: LeaTTa tests/semantics/types-meta/30_evaluation_control.metta,
-    "`let` evaluates the sum first, then substitutes"].
+    nothing, measured 2026-08-19 on hyperon 0.2.10 and on an earlier reference
+    interpreter alike. The property this file exists for is about the ENCODED
+    VALUE, so the value is produced first and then asked about: `let` evaluates
+    the sum first, then substitutes.
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     metta.op(
         lambda: [1, _Payload(), 2],

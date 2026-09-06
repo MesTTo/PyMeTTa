@@ -32,8 +32,9 @@ def m(metta):  # noqa: D103  -- pytest discovers or injects this callable; its d
 # [measured 2026-08-30 against PeTTa@ae66fa8: `!(remove-atom &self (never
 # there))` answers `true` there]. It answered
 # `(Error (remove-atom <space> <atom>) "remove-atom: atom is not in the
-# space")` here until then, on LeaTTa's Hacks-Register row 15, which answered
-# Hyperon's own `stdlib/space.rs:219` TODO -- "Is it necessary to distinguish
+# space")` here until then, on an earlier reference semantics' ruling, which
+# answered Hyperon's own `stdlib/space.rs:219` TODO -- "Is it necessary to
+# distinguish
 # whether the atom was removed or not?" -- with "Implement. Keep the
 # distinction". PeTTa is the arbiter now, and a different ANSWER to the same
 # call is the one thing the superset rule does not allow. The distinction is
@@ -99,8 +100,9 @@ def test_the_python_remove_door_still_reports_absence(m):  # noqa: D103  -- pyte
 # reading "Remove all same atoms", so three adds of `(dup 1)` and one removal
 # leave none [source: PeTTa@ae66fa8 src/spaces.pl:5-7 and :43-44; measured
 # 2026-08-30, where this engine left two]. It took ONE occurrence here until
-# then, as multiset subtraction, on LeaTTa's Properties.lean. Multiset
-# subtraction did not go anywhere: it is `space.remove(atom)` below, which is
+# then, as multiset subtraction, on an earlier reference semantics' ruling.
+# Multiset subtraction did not go anywhere: it is `space.remove(atom)` below,
+# which is
 # also the door the engine's own machinery uses.
 def test_remove_atom_drains_every_occurrence(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     m.run("!(add-atom &self (dup 1))\n!(add-atom &self (dup 1))\n!(add-atom &self (dup 1))")

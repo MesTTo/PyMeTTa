@@ -108,7 +108,7 @@ _PYTHON_RICH_COMPARISON_GROUND = _RefusalGround(
 )
 _EFFECT_SAFETY_GROUND = _RefusalGround(
     "metta-law",
-    "LeaTTa EffectSafety: a reified world admits only an effect plan covered by its handlers",
+    "EffectSafety: a reified world admits only an effect plan covered by its handlers",
 )
 
 _COMPILE_REFERENCE_BY_CONSTRUCT = (

@@ -4,7 +4,7 @@ Assumes: ``metta`` creates an isolated engine whose source runner compiles
 equations before executing each runnable.
 Guarantees: nested capture, empty capture, RHS splicing, variadic top-level
 arity, shortest-first splits, overlap, mixed-role projection, and
-variable-headed dispatch match LeaTTa 9ea9f9d.
+variable-headed dispatch answer the reference matrix below.
 """
 
 
@@ -14,7 +14,7 @@ def _groups(metta, source):
 
 
 def test_equation_head_segments_match_the_reference_matrix(metta):
-    """The compiled source door matches every discriminating LeaTTa row."""
+    """The compiled source door matches every discriminating row."""
     groups = _groups(
         metta,
         """

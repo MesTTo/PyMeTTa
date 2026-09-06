@@ -164,8 +164,8 @@ def test_non_finite_floats_print_the_arbiters_spellings(repo_root, tmp_path):
     """Printed answers spell inf, -inf and NaN, never 1.0Inf or 1.5NaN.
 
     The spellings are the arbiter's own: hyperon prints Rust f64 Display
-    forms and LeaTTa's Pretty.lean pins infinity by sign and an unsigned
-    NaN. The NaN answer arrives through the host, the one door the seam
+    forms, infinity by sign and an unsigned NaN. The NaN answer arrives
+    through the host, the one door the seam
     documents for non-finite construction.
     """
     program = tmp_path / "nonfinite.metta"
@@ -237,8 +237,8 @@ def test_float_zero_division_and_nan_agree_with_the_arbiter(metta):
 def test_integer_division_by_zero_answers_what_d1_decides(metta):
     """Integer zero division is an operation answer, not a host exception.
 
-    LeaTTa's regression/division_convention.metta pins the direct Error atom;
-    collapse then contains that one answer as its one-element expression.
+    The direct answer is the Error atom itself; collapse then contains that
+    one answer as its one-element expression.
     """
     direct = metta.run("!(/ 7 0)")
     assert str(direct[0][0]) == "(Error (/ 7 0) DivisionByZero)"
@@ -254,10 +254,10 @@ def test_finite_floats_print_the_arbiters_layout(metta):
     The digits always agreed, both sides printing the shortest decimal
     that reads back to the same binary64; the LAYOUT did not: SWI's
     number_codes writes 1.0e+16, 1.0e-05 and 1.5e+300 where the arbiter
-    writes 1e16, 0.00001 and 1.5e300 [source: LeaTTa
-    RyuLean4/Runtime.lean:371-396, Decimal.formatMeTTa, ryu's pretty
-    layout, its fallback proved dead]. The pins are the four measured
-    divergence witnesses plus one row per layout branch, each driven
+    writes 1e16, 0.00001 and 1.5e300 [source: engine/parser.pl,
+    metta_float_layout/4, which reproduces ryu's pretty layout]. The pins are
+    the four measured divergence witnesses plus one row per layout branch,
+    each driven
     through the public print surface, and each spelling reads back to
     the same value through the public reader.
     """

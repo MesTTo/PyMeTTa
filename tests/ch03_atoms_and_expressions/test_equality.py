@@ -46,7 +46,8 @@ def test_cross_kind_equality_answers_false(declared):
     R=false)` (PeTTa@ae66fa8 src/metta.pl:40-41), and its
     `(: == (-> $a $b Bool))` uses TWO independent type variables, so nothing
     constrains the pair. This engine refused these until 2026-08-30, through a
-    comparable_operands/2 guard written for LeaTTa's one-variable declaration.
+    comparable_operands/2 guard written for an earlier reference semantics'
+    one-variable declaration.
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     for query in (
         '(== 1 "S")',
@@ -89,8 +90,8 @@ def test_mixed_numeric_equality_is_term_equality(declared):
 
     Measured 2026-08-30 against upstream, byte-identical: `(== 1 1.0)` is
     False and `(!= 1 1.0)` is True there. This engine compared numbers by
-    value with `=:=/2` until then, on LeaTTa's `Ground.equiv` promoting the
-    integer with `Float.ofInt`.
+    value with `=:=/2` until then, on an earlier reference semantics' ground
+    equivalence, which promoted the integer to a float first.
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     assert _answer(declared, "(== 1 1.0)") == ["False"]
     assert _answer(declared, "(== 1.0 1)") == ["False"]
@@ -105,7 +106,8 @@ def test_an_expression_operand_is_left_alone(declared):
     guard does not touch them and the engine answers what it always did.
 
     Measured 2026-08-19: hyperon answers False for `(== () 1)`, `(== "s" ())`
-    and `(== (1 2) (1 2 3))` while LeaTTa raises BadArgType for the first two;
+    and `(== (1 2) (1 2 3))` while an earlier reference interpreter raised
+    BadArgType for the first two;
     both answer False for `(== (1 2 3) ())` and `(== (1 2) (a b))`, which is
     the shape a MeTTa program writes. The collapse-and-compare idiom is what
     hangs on this, so it is checked directly.

@@ -70,7 +70,7 @@ HOST_SERVICES = {
     # Its companion, and the ONLY new row: the plan a gap pattern is asked
     # under. It is one call per gap query and none at all for a gap-free one,
     # and the alternative is the host reimplementing the fragment classifier
-    # LeaTTa states and this engine already owns.
+    # this engine already owns.
     "metta_seq_query_plan/2",
     # The query carrier is engine policy: the host enters one dynamic scope,
     # reads its effective declaration, and initializes annotations from that

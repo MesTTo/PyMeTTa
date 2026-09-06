@@ -1,8 +1,9 @@
 """Purpose: pin the minimal metta-thread full evaluator at Python-facing doors.
 
 The expected rows are the type-directed argument fold, evaluated collapse
-carrier, and nondeterministic equation loop specified by LeaTTa's `mettaEval`
-[source: MettaHyperonFull/Minimal/Interpreter.lean:3682-3700, 7361-7524].
+carrier, and nondeterministic equation loop the engine's own full evaluator
+implements [assumed: the three were adopted from an earlier reference
+semantics, not re-measured against upstream PeTTa].
 """
 
 from __future__ import annotations
