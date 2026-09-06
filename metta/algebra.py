@@ -4,6 +4,10 @@ Assumes:
   - facts and rules rest in a space as ordinary ``(fact tag proposition)``
     and ``(rule tag head (premises ...))`` atoms.
 Guarantees:
+  - provider coefficients obey the explicit typed carrier and reentrant
+    membership shares source accounting [tested:
+    test_provider_conclusions_check_the_explicit_typed_carrier,
+    test_provider_carrier_predicate_shares_the_source_budget; commit=WORKTREE]
   - carrier predicates and operations share the selected evaluation context,
     including demand and ordering [tested:
     tests/ch06_many_answers/test_evaluation_context_types.py; commit=074dc0a88b1605c54824de677d586b6f60998bcf]
@@ -14,6 +18,19 @@ Guarantees:
   - algebra and demand cross internal evaluation without changing answer shape
     [tested: sh extensions/python/test.sh
     tests/ch06_many_answers/test_evaluation_context.py -n 0; commit=54cb2eee69c42c1ae685643cbe2578f8d617a265]
+  - provider premises retain the direct query's carrier, limit and order while
+    reading complete source bags [tested:
+    test_provider_premises_retain_the_direct_match_context; commit=WORKTREE]
+  - provider-backed premises and direct conclusions use engine match/4 with
+    their captured annotations and call-wide budgets; each evaluation retains
+    complete source bags [tested:
+    test_tagged_premise_keeps_the_direct_provider_annotation,
+    test_provider_duplicate_premises_keep_four_proofs_and_one_source_bag;
+    commit=WORKTREE]
+  - linear provider evidence is refused because Answer supplies no stable
+    source occurrence identity [tested:
+    test_tagged_provider_linear_evidence_requires_stable_occurrence_identity;
+    commit=WORKTREE]
   - only laws checked over a finite carrier, or trusted shipped preset laws,
     license answer fusion [tested:
     test_a_declared_algebra_without_laws_answers_in_order_and_unfused;
@@ -107,6 +124,10 @@ Owns resources:
     and transaction rollback restores their previous state [tested:
     test_drop_retires_algebra_before_redeclaration,
     test_rollback_releases_an_algebra_mirror; commit=074dc0a88b1605c54824de677d586b6f60998bcf]
+  - provider source bags and proof labels live only for one evaluate
+    call and retain no provider cursor [tested:
+    test_provider_proofs_reinterpret_without_requery_and_refresh_on_next_ask;
+    commit=WORKTREE]
 Decides:
   - ``contraction`` is a capability, while the remaining public law names are
     equations checked exhaustively over the declared finite carrier.
@@ -145,6 +166,7 @@ from .atoms import (
     Symbol,
     Undefined,
     Variable,
+    _atom_from_wire,
     _decode,
     _encode,
     _from_wire,
@@ -1221,12 +1243,71 @@ def _merge_bindings(
     return merged
 
 
+@dataclass(slots=True)
+class _ProviderSources:
+    """One evaluation's complete match bags and local proof labels."""
+
+    metta: Space
+    declaration: DeclaredAlgebra
+    resources: _EvaluationBudget
+    bags: dict[str, list[TaggedAnswer]] = field(default_factory=dict)
+    occurrences: dict[tuple[str, str, int], int] = field(default_factory=dict)
+
+    def match(self, pattern: Atom) -> list[TaggedAnswer]:
+        """Read through match/4 once per bound pattern, retaining every row."""
+        key = str(pattern)
+        if key in self.bags:
+            return self.bags[key]
+        def run(seconds: float | None, steps: int | None) -> tuple[Any, int]:
+            rows, spent = _controlled_run(
+                self.metta.runtime,
+                "metta_py_tagged_sources",
+                [self.metta.name, pattern.to_wire(), self.declaration.name],
+                _limits(seconds, steps),
+                context=self.resources.context,
+            )
+            return rows, int(spent)
+
+        rows = self.resources._run_accounted(self.metta, run)
+        if rows and "linear" in self.declaration.requires:
+            msg = (
+                f"linear_provider_occurrence_identity_missing({self.metta.name}, "
+                f"{self.declaration.name}); provider answers carry values and k, "
+                "not stable occurrence identities; use stored tagged facts for "
+                "linear evidence"
+            )
+            raise LinearEvidenceError(msg)
+        answers = []
+        counts: dict[tuple[str, str], int] = {}
+        for value_wire, tag_wire in rows:
+            self.resources.checkpoint()
+            value, tag = _atom_from_wire(value_wire), _atom_from_wire(tag_wire)
+            self.declaration.check_values(self.metta, tag, resources=self.resources)
+            row_key = str(value), str(tag)
+            ordinal = counts.get(row_key, 0)
+            counts[row_key] = ordinal + 1
+            # Equal rows retain bag multiplicity and repeated demands keep
+            # stable local proof labels, disjoint from stored declaration
+            # positions. These are not physical provider occurrence identities;
+            # the linear guard above refuses to infer those from values and k.
+            source = self.occurrences.setdefault(
+                (*row_key, ordinal), -1 - len(self.occurrences)
+            )
+            answers.append(TaggedAnswer(
+                value, tag, frozenset({source}), (source,), (_Trace(source, tag),)
+            ))
+        self.bags[key] = answers
+        return answers
+
+
 def _derive_rule(
     metta: Space,
     declaration: DeclaredAlgebra,
     rule: _Rule,
     available: Sequence[TaggedAnswer],
     resources: _EvaluationBudget,
+    *,
+    sources: _ProviderSources | None = None,
 ) -> list[TaggedAnswer]:
     derivation = _derive_rule_steps(metta, declaration, rule, resources, {})
     # A generator's return value arrives through StopIteration, whose `value` is
@@ -1235,9 +1316,12 @@ def _derive_rule(
     # and returned once after the close.
     answers: list[TaggedAnswer]
     try:
-        next(derivation)
+        pattern = next(derivation)
         while True:
-            derivation.send(available)
+            candidates = available if sources is None else [
+                *available, *sources.match(pattern)
+            ]
+            pattern = derivation.send(candidates)
     except StopIteration as completed:
         answers = completed.value
     finally:
@@ -1501,6 +1585,11 @@ def evaluate(
         declaration.check_values(metta, answer.tag, resources=resources)
     for rule in rules:
         declaration.check_values(metta, rule.tag, resources=resources)
+    sources = (
+        _ProviderSources(metta, declaration, resources)
+        if metta.runtime.once("seam:foreign_space(Space)", Space=metta.name)
+        else None
+    )
     # max_rounds bounds fixpoint HEIGHT, not how long one round can run. The
     # absolute deadline therefore gets checked between rounds and inside each
     # potentially large Python scan, while every engine operation receives the
@@ -1509,7 +1598,10 @@ def evaluate(
     # test_tagged_algebra_forwards_bounds_to_every_evaluating_door,
     # test_tagged_algebra_debits_inferences_across_operations;
     # commit=51e719767e3dd322a9cf88bd096410bbc5647493].
-    demanded = _demand_evaluate(
+    # Unread provider values and effects cannot satisfy the static integer
+    # certificate. The full evaluator shares their ordinary match door and
+    # caches complete bags for this evaluation's fixed point.
+    demanded = None if sources is not None else _demand_evaluate(
         metta, declaration, available, rules,
         goal=goal, max_rounds=max_rounds, resources=resources,
     )
@@ -1523,7 +1615,7 @@ def evaluate(
             for rule in rules:
                 resources.checkpoint()
                 for answer in _derive_rule(
-                    metta, declaration, rule, available, resources
+                    metta, declaration, rule, available, resources, sources=sources
                 ):
                     signature = _signature(answer)
                     if signature not in seen:
@@ -1537,7 +1629,7 @@ def evaluate(
                 f"algebra_derivation_did_not_reach_fixpoint({declaration.name}, rounds={max_rounds})"
             )
             raise AlgebraEvaluationError(msg)
-    matched: list[TaggedAnswer] = []
+    matched: list[TaggedAnswer] = [] if sources is None else list(sources.match(goal))
     for answer in available:
         resources.checkpoint()
         if _match(goal, answer.value) is not None:

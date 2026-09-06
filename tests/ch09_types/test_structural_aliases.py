@@ -3,6 +3,9 @@
 Guarantees: source, file, named-space and reflective calls share lexical
 substitution and live mutation repair [tested: test_structural_aliases.py;
 commit=acad923476d21110870f235192757281a737ee71].
+Guarantees: nominal lookup costs count only metta_py_eval_all/3 execution,
+excluding unrelated Python finalizer work between calls [tested:
+test_nominal_subtyping_does_not_scan_unrelated_declarations; commit=WORKTREE].
 Owns resources: fixtures close spaces and pytest removes temporary files.
 """
 
@@ -374,11 +377,20 @@ def test_nominal_subtyping_does_not_scan_unrelated_declarations(m):
     m.run("(: rex Dog) (:< Dog Animal)")
     query = S["get-type"](S.rex)
     assert m.eval(query) == [S.Dog, S.Animal]
-    with m.stats() as before:
+    # Measure inside the evaluator: Python collection between calls can
+    # release an unrelated abandoned world, which an outer stats block counts
+    # as query work. The accounted door runs the same metta_py_eval_all/3.
+    def measure():
+        total = 0
         for _ in range(100):
-            assert m.eval(query) == [S.Dog, S.Animal]
+            answers, spent = m.runtime.apply_must(
+                "metta_py_eval_accounted", m.name, query.to_wire()
+            )
+            assert answers == [S.Dog.to_wire(), S.Animal.to_wire()]
+            total += spent
+        return total
+
+    before = measure()
     m.add(*(typed(S[f"Unrelated{i}"], S.Payload) for i in range(1000)))
-    with m.stats() as after:
-        for _ in range(100):
-            assert m.eval(query) == [S.Dog, S.Animal]
-    assert abs(after.inferences - before.inferences) <= 4
+    after = measure()
+    assert abs(after - before) <= 4
