@@ -47,6 +47,7 @@ class _FunctionNamespace:
     asin_math: Symbol
     "asin-math: (-> Number Number)\n\n`math.asin`."
     assert_answers: Symbol
+    assert_includes_answers: Symbol
     atan_math: Symbol
     "atan-math: (-> Number Number)\n\n`math.atan`."
     atom_subst: Symbol
