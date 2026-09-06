@@ -1083,6 +1083,22 @@ metta_py_wrappable(metta_py_fast_load_unit).
 metta_py_wrappable(metta_py_atoms).
 metta_py_wrappable(metta_py_fast_save).
 metta_py_wrappable(metta_py_world_eval).
+%The WRITE doors. A scope is a per-CALL policy, and a write door is a call
+%like any other: inside `with m.speculative():` the write runs against the
+%frozen view and goes with it, exactly as `m.run("!(add-atom &self ...)")` in
+%the same block already did, and inside `with m.atomic():` it is its own
+%committing transaction, exactly as a whole run is. They crossed outside every
+%wrapper before this and simply persisted, which made the scopes cover the
+%source doors and silently miss the Python ones
+%[tested: test_every_public_write_door_honours_the_execution_scopes].
+metta_py_wrappable(metta_py_add).
+metta_py_wrappable(metta_py_add_many).
+metta_py_wrappable(metta_py_clear).
+metta_py_wrappable(metta_py_remove).
+metta_py_wrappable(metta_py_remove_many).
+metta_py_wrappable(metta_py_remove_everything).
+metta_py_wrappable(metta_py_drain).
+metta_py_wrappable(metta_py_transfer).
 
 metta_py_fast_load_unit(File, Space, []) :-
     metta_py_fast_load(File, Space).
@@ -2080,6 +2096,14 @@ metta_py_add(Space, Tagged) :-
     metta_py_decode_shared(Tagged, Term, _),
     'add-atom'(Space, Term, _).
 
+%The unit-answering face of the same door. An execution policy runs its goal
+%with an output argument appended (metta_py_wrapped_goal/4), so a write with
+%nothing to answer needs somewhere to put one; `true` is that answer and the
+%Python side discards it. Outside a scope the void face is what crosses, so a
+%write pays nothing for the scope it is not in.
+metta_py_add(Space, Tagged, true) :-
+    metta_py_add(Space, Tagged).
+
 %Python operation registration owns the declaration it retains. Ordinary
 %source loading deliberately treats an identical declaration as an idempotent
 %warning, but adopting somebody else's row here would let unregister remove
@@ -2111,6 +2135,10 @@ metta_py_decode_for_add(Tagged, Term) :-
 metta_py_add_many(Space, TaggedList) :-
     maplist(metta_py_decode_for_add, TaggedList, Terms),
     metta_add_atoms(Space, Terms).
+
+%The unit-answering face, as metta_py_add/3 is to metta_py_add/2.
+metta_py_add_many(Space, TaggedList, true) :-
+    metta_py_add_many(Space, TaggedList).
 
 %ONE LAW, ONE IMPLEMENTATION. Every one-occurrence door in this seat asks the
 %engine's own 'subtract-atom'/3 rather than the private service beneath it, so
@@ -2396,6 +2424,10 @@ metta_py_clear(Space) :-
     py_call(metta_ops:foreign_clear(SpaceStr), _).
 metta_py_clear(Space) :-
     metta_host_clear_space(Space).
+
+%The unit-answering face, as metta_py_add/3 is to metta_py_add/2.
+metta_py_clear(Space, true) :-
+    metta_py_clear(Space).
 
 %The host's clause of the hooks-idle ownership seams: the engine hands the
 %handler census in as clause references, and this side answers from the one

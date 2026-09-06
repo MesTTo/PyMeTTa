@@ -305,12 +305,23 @@ from metta import spawn, par_map, race, channel, parallel
 future = spawn(term)          # a FutureSpace; wait(), settled(), cancel()
 par_map(fn, items); race(a, b); channel()
 m.transaction(term)           # all-or-nothing; rollback delivers no events
-m.transaction(callable)       # the same boundary over Python-side writes
+m.transaction(callable)       # one boundary over SEVERAL calls, writes included
 with m.limits(inferences=10_000, timeout=1.0): ...
-with m.speculate(): ...       # run and discard: it scopes the sources
+with m.speculate(): ...       # run and discard, per CALL: the writes too
 ```
 
 An abandoned future warns rather than spinning silently.
+
+`with m.atomic():` and `with m.speculative():` are per-CALL policies over
+every door in the block, `add`, `remove`, `del m[pattern]`, `transfer` and
+`clear` included: a speculative block leaves nothing behind and an atomic one
+makes each call its own committing transaction. That is the whole contract,
+so a later call does not see what an earlier one wrote under speculation, and
+a raise does not undo a call an atomic block already committed. For
+all-or-nothing across several calls the door is `m.transaction(callable)`,
+and there is deliberately no `with m.transaction():`: SWI's transaction/1 and
+snapshot/1 take a closed goal, and an engine, the one thing that suspends a
+goal across host calls, refuses to yield inside either.
 
 ## Seeing what happened
 

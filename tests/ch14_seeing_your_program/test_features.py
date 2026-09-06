@@ -37,6 +37,7 @@ Open Obligations:
   Future Enhancements: None.
 """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
+import contextlib
 import dataclasses
 import enum
 import gc
@@ -62,6 +63,7 @@ from metta import (
     V,
     convert,
     ground,
+    parse,
     remote,
     tables,
 )
@@ -75,6 +77,7 @@ from metta.errors import (
     TimeLimitError,
 )
 from metta.events import Event, atom_added
+from metta.foreign import SpaceProvider
 from metta.integrate import install_reflection_ops
 from metta.subscribe import bridge
 
@@ -1284,6 +1287,9 @@ def test_speculative_run_answers_and_discards(m):  # noqa: D103  -- pytest disco
         groups = m.run("(ghost2 x) !(println! spec-out)")
     assert "spec-out" in output.text
     assert Expression(S.ghost2, S.x) not in m
+    with m.speculative():
+        m.add(S.ghost(2))         # discarded with the block's other writes
+    assert S.ghost(2) not in m
     with pytest.raises(ValueError):
         with m.atomic(), m.speculative():
             pass
@@ -1352,6 +1358,119 @@ def test_every_public_execution_door_honours_speculative_policy(m):
         with m.speculative():
             execute(f"discarded-{name}")
         assert discarded not in m, f"{name} escaped speculative()"
+
+class _HalfRefusingRows(SpaceProvider):
+    """A transactional provider that refuses the second row of one write.
+
+    It undoes its own batch on rollback, which is what a provider declared
+    `(writes <space> transactional)` promises, so what the engine tells it
+    decides whether the first row survives.
+    """
+
+    def __init__(self):
+        self.rows = []
+        self.saved = None
+        self.steps = []
+
+    def atoms(self):
+        return iter(list(self.rows))
+
+    def add(self, atom):
+        if len(self.rows) == 1:
+            msg = "the second row is refused"
+            raise RuntimeError(msg)
+        self.rows.append(atom)
+
+    def remove(self, atom):  # noqa: ARG002  -- the test double preserves the protocol method signature its caller exercises
+        return False
+
+    def clear(self):
+        self.rows.clear()
+
+    def begin(self):
+        self.steps.append("begin")
+        self.saved = list(self.rows)
+
+    def commit(self):
+        self.steps.append("commit")
+        self.saved = None
+
+    def rollback(self):
+        self.steps.append("rollback")
+        self.rows = [] if self.saved is None else self.saved
+
+
+#: Each write door as (name, mutate, seed), where mutate is the write and
+#: seed is what the space holds before it. The speculative scope must leave
+#: the seed exactly as it was, and the unscoped control must not.
+WRITE_DOORS = (
+    ("add", lambda s: s.add(S["write-mark"](3)), ()),
+    ("add-many", lambda s: s.add(S["write-mark"](3), S["write-mark"](4)), ()),
+    ("iadd", lambda s: s.__iadd__(S["write-mark"](3)), ()),
+    ("equation", lambda s: s.add(parse("(= (write-mark-fn) 9)")), ()),
+    ("remove", lambda s: s.remove(S["write-mark"](1)), (1, 2)),
+    ("remove-many", lambda s: s.remove(S["write-mark"](1), S["write-mark"](2)), (1, 2)),
+    ("remove-everything", lambda s: s.remove(V.anything), (1, 2)),
+    ("delitem", lambda s: s.__delitem__(S["write-mark"](V.n)), (1, 2)),
+    ("clear", lambda s: s.clear(), (1, 2)),
+)
+
+
+@pytest.mark.parametrize(("name", "mutate", "seed"), WRITE_DOORS)
+def test_every_public_write_door_honours_the_execution_scopes(metta, name, mutate, seed):
+    """A scope is a per-CALL policy, and a write door is a call like any other.
+
+    The Python write doors crossed outside every wrapper, so
+    `with m.speculative(): m.add(atom)` left the atom behind while
+    `m.run("!(add-atom &self ...)")` in the same block did not: the scope
+    covered the source doors and silently missed the Python ones. The
+    control proves each door really performs the write.
+    """
+
+    def seeded():
+        space = metta._new_space()
+        space.add(*[S["write-mark"](value) for value in seed])
+        return space
+
+    with seeded() as control:
+        before = sorted(str(atom) for atom in control.atoms())
+        mutate(control)
+        after = sorted(str(atom) for atom in control.atoms())
+        assert after != before, f"{name} performed no write to discard"
+
+    with seeded() as scoped:
+        with scoped.speculative():
+            mutate(scoped)
+        assert sorted(str(atom) for atom in scoped.atoms()) == before
+        assert scoped.eval(S["write-mark-fn"]()) == [S["write-mark-fn"]()]
+
+
+def test_an_atomic_scope_makes_one_python_write_one_transaction(metta):
+    """What `with m.atomic():` buys a write door: the transaction it runs in.
+
+    A transactional provider enlists at its first write and is finished by
+    the boundary around it. Without a scope there is no boundary, so the
+    provider is never told a transaction happened and the first row of a
+    write that fails on its second survives; the write door crossed outside
+    the wrapper, so the scope could not supply one either.
+    """
+    for scoped, expected_rows, expected_steps in (
+        (False, ["(row 1)"], []),
+        (True, [], ["begin", "rollback"]),
+    ):
+        provider = _HalfRefusingRows()
+        space = metta.metta.space(None, provider)
+        space.atomicity("transactional")
+        try:
+            with contextlib.ExitStack() as stack:
+                if scoped:
+                    stack.enter_context(space.atomic())
+                with pytest.raises(EngineError, match="the second row is refused"):
+                    space.add(S.row(1), S.row(2))
+            assert [str(row) for row in provider.rows] == expected_rows
+            assert provider.steps == expected_steps
+        finally:
+            space.drop()
 
 
 def test_derivation_speculation_fences_the_engine_global_self(metta):

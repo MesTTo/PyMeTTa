@@ -276,6 +276,8 @@ from ._space_execution import (
     profile_source,
     run_source,
     run_status,
+    run_void_write,
+    run_write,
     value_one,
 )
 from ._space_objects import (
@@ -1611,9 +1613,9 @@ class Space(Handle):
         if not wires:
             return
         if len(wires) == 1:
-            self._rt.do_must("metta_py_add", self._space, wires[0])
+            run_void_write(self._rt, "metta_py_add", self._space, wires[0])
         else:
-            self._rt.do_must("metta_py_add_many", self._space, wires)
+            run_void_write(self._rt, "metta_py_add_many", self._space, wires)
         _invalidate_builtins_cache(self._rt)
 
     def remove(self, atom: Any, *more: Any) -> bool | int:
@@ -1649,9 +1651,7 @@ class Space(Handle):
         _refuse_in_batch(self._space, "remove")
         if more:
             wires = [_to_atom(each).to_wire() for each in (atom, *more)]
-            found = self._rt.apply_must(
-                "metta_py_remove_many", self._space, wires
-            )
+            found = run_write(self._rt, "metta_py_remove_many", self._space, wires)
             _invalidate_builtins_cache(self._rt)
             return int(found)
         pattern = _to_atom(atom)
@@ -1660,12 +1660,10 @@ class Space(Handle):
             # than reached by handing an unbound term to the one-occurrence
             # one. The engine's `subtract-atom` refuses that term precisely
             # because it would otherwise mean two opposite things in one head.
-            removed = self._rt.apply_must(
-                "metta_py_remove_everything", self._space
-            )
+            removed = run_write(self._rt, "metta_py_remove_everything", self._space)
         else:
-            removed = self._rt.apply_must(
-                "metta_py_remove", self._space, pattern.to_wire()
+            removed = run_write(
+                self._rt, "metta_py_remove", self._space, pattern.to_wire()
             )
         result = _atom_from_wire(removed)
         _invalidate_builtins_cache(self._rt)
@@ -1686,8 +1684,8 @@ class Space(Handle):
         """
         _refuse_in_batch(self._space, "transfer")
         wires = [_to_atom(atom).to_wire() for atom in atoms]
-        moved = self._rt.apply_must(
-            "metta_py_transfer", self._space, to._space, wires
+        moved = run_write(
+            self._rt, "metta_py_transfer", self._space, to._space, wires
         )
         _invalidate_builtins_cache(self._rt)
         return int(moved)
@@ -2232,8 +2230,8 @@ class Space(Handle):
         crossing rather than one per removed atom.
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         _refuse_in_batch(self._space, "remove")
-        existed = self._rt.apply_must(
-            "metta_py_drain", self._space, _to_atom(pattern).to_wire()
+        existed = run_write(
+            self._rt, "metta_py_drain", self._space, _to_atom(pattern).to_wire()
         )
         _invalidate_builtins_cache(self._rt)
         if not bool(getattr(_atom_from_wire(existed), "value", True)):
@@ -2857,11 +2855,26 @@ class Space(Handle):
         return capture_output()
 
     def atomic(self) -> ScopedExecution:
-        """Make each run in the block one committing engine transaction."""
+        """Make each CALL in the block one committing engine transaction.
+
+        Per call, the write doors included: ``m.add(a, b)`` inside the block
+        is one transaction, so a provider that refuses the second atom takes
+        the first back with it. Across SEVERAL calls the boundary is
+        :meth:`transaction`, because SWI's transaction/1 takes a closed goal
+        and an engine cannot yield out of one, so no with-block can hold one
+        open; a raise later in the block does not undo a call that already
+        committed.
+        """
         return execution_scope("atomic")
 
     def speculative(self) -> ScopedExecution:
-        """Run each source against a snapshot and discard its writes."""
+        """Run each CALL against a snapshot and discard its writes.
+
+        Per call, the write doors included: ``m.add(atom)`` inside the block
+        leaves nothing behind, exactly as ``m.run("!(add-atom &self ...)")``
+        in the same block does, and a later call in the block does not see
+        what an earlier one wrote, because each call is its own what-if.
+        """
         return execution_scope("speculative")
 
     def batch(self) -> _Batch:
@@ -6435,8 +6448,12 @@ class MeTTa:
         return self._self.limits(timeout=timeout, inferences=inferences, stack=stack)
 
     def speculate(self) -> ScopedExecution:
-        """Run each source against a snapshot and discard its writes.
+        """Run each CALL against a snapshot and discard its writes.
 
+        Per call, the write doors included: ``m.add(atom)`` inside the block
+        leaves nothing behind, exactly as ``m.run("!(add-atom &self ...)")``
+        in the same block does, and a later call in the block does not see
+        what an earlier one wrote, because each call is its own what-if.
         Runs against this context's self space.
         """
         return self._self.speculative()

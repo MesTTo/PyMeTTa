@@ -30,7 +30,9 @@ Guarantees:
     not add a redundant host-truthiness operation [tested:
     test_compiled_boolean_call_is_a_direct_condition; commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
   - clear_definitions removes process bookkeeping with the equations it
-    describes [tested test_reflection_facts_follow_a_dropped_space]
+    describes, and leaves it alone when a speculative scope discards the
+    clear [tested: test_reflection_facts_follow_a_dropped_space,
+    test_every_public_write_door_honours_the_execution_scopes; commit=WORKTREE]
   - a definition is exposed only after its first twin clause exists, and its
     canonical first-clause documentation follows replacement and clearing
     [tested: test_one_docstring_reaches_help_dot_doc_and_get_doc;
@@ -145,10 +147,27 @@ def _convert_api():
 
 
 def clear_definitions(space: Any) -> None:
-    """Clear one space and the process state describing its definitions."""
+    """Clear one space and the process state describing its definitions.
+
+    Through the execution-policy wrapper, so a clear inside a scope obeys it
+    the way every other call in the block does. The process state follows the
+    engine rather than accompanying it: inside `with m.speculative():` the
+    snapshot discards the clear, and a registry emptied beside it would have
+    described a space that still holds its definitions
+    [tested: test_every_public_write_door_honours_the_execution_scopes].
+    """
+    # Deferred because _space_execution reaches _space_objects, which imports
+    # call_parameter_names from this module; a module-level import closes that
+    # cycle. Clearing a space is not a hot door.
+    from ._space_execution import (  # noqa: PLC0415 -- _space_objects imports this module
+        run_void_write,
+        speculative_enabled,
+    )
+
     with _DEFINE_LOCK:
-        space.runtime.must("metta_py_clear(Space)", Space=space.name)
-    release_definitions(space)
+        run_void_write(space.runtime, "metta_py_clear", space.name)
+    if not speculative_enabled():
+        release_definitions(space)
 
 
 def release_definitions(space: Any) -> None:

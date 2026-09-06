@@ -11,6 +11,11 @@ Guarantees:
   - eager eval follows the same atomic and speculative policy wrapper as run,
     so State property writes cannot bypass a speculative fence [tested:
     test_speculative_state_write_is_fenced; commit=3ded7552797b66d78e666141eb51f3bc14686bd2]
+  - the WRITE doors follow it too, so a Python-side add, remove, drain,
+    transfer or clear inside a scope obeys the scope the way a run in the same
+    block does [tested:
+    test_every_public_write_door_honours_the_execution_scopes,
+    test_an_atomic_scope_makes_one_python_write_one_transaction; commit=WORKTREE]
   - value() refuses zero, multiple, and undefined answers [tested
     test_value_answers_the_one_answer, test_value_refuses_undefined_truth]
   - ordinary evaluation returns an unreduced term directly and has no
@@ -289,6 +294,38 @@ def _controlled_run(
         output, text = output
         captured._append(str(text))
     return output
+
+
+def run_write(rt: Runtime, predicate: str, *inputs: Any) -> Any:
+    """Run one ANSWERING write door through the task's execution policy.
+
+    A scope is a per-CALL policy: `with m.speculative():` runs each call
+    against a frozen view and discards its writes, and `with m.atomic():`
+    makes each call one committing transaction. A write door is a call like
+    any other, and going through the same wrapper is what makes that true of
+    the Python doors as well as the source ones. `m.transaction(callable)`
+    remains the boundary that spans SEVERAL calls, because SWI's
+    transaction/1 and snapshot/1 take a closed goal.
+    """
+    return _controlled_run(rt, predicate, list(inputs), None)
+
+
+def run_void_write(rt: Runtime, predicate: str, *inputs: Any) -> None:
+    """run_write for a door with nothing to answer.
+
+    Outside a scope this is the void crossing the door has always taken,
+    janus.cmd, which is 6.7% fewer instructions per write than the
+    output-carrying one [measured 2026-09-06: 41,966 against 44,782
+    instructions:u per metta_py_add over 100,000 writes, control-subtracted,
+    min of 3]. Inside one the policy appends an output argument to the goal
+    it runs, so the door answers through its unit-carrying face of one
+    greater arity (metta_py_add/3 beside metta_py_add/2).
+    """
+    policy = _execution_policy()
+    if policy.mode is None and policy.captured is None:
+        rt.do_must(predicate, *inputs)
+        return
+    _controlled_run(rt, predicate, list(inputs), None, policy=policy)
 
 
 def _decode_groups(wires: Any) -> list[list[Atom]]:

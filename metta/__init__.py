@@ -1128,8 +1128,12 @@ def limits(
 
 
 def speculate() -> _ScopedExecution:
-    """Run each source against a snapshot and discard its writes.
+    """Run each CALL against a snapshot and discard its writes.
 
+    Per call, the write doors included: ``m.add(atom)`` inside the block
+    leaves nothing behind, exactly as ``m.run("!(add-atom &self ...)")``
+    in the same block does, and a later call in the block does not see
+    what an earlier one wrote, because each call is its own what-if.
     Runs against the default context's self space.
     """
     return engine().self.speculative()

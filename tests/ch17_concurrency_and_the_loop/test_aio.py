@@ -250,6 +250,26 @@ def test_aio_carries_bounds_and_errors_across_threads(m):  # noqa: D103  -- pyte
     assert "crossed" in asyncio.run(go())
 
 
+def test_an_async_write_door_inherits_the_scope_across_the_worker(m):
+    """The request carries the submitting task's contextvars, so the async
+    write doors inherit the execution scope the same way the async run doors
+    do; the thread hop is not a hole in it.
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
+
+    async def go():
+        am = await aio.connect(metta=m)
+        try:
+            with am.speculative():
+                await am.add(S["aio-write-mark"](1))
+            discarded = len(await am.match(S["aio-write-mark"](V.n)))
+            await am.add(S["aio-write-mark"](2))
+            return discarded, len(await am.match(S["aio-write-mark"](V.n)))
+        finally:
+            await am.aclose()
+
+    assert asyncio.run(go()) == (0, 1)
+
+
 def test_aio_spaces_borrow_the_owners_thread(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     async def go():
         am = await aio.connect(metta=m)

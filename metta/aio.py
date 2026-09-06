@@ -1146,11 +1146,21 @@ class AsyncMeTTa:
         return self._m.capture()
 
     def atomic(self):
-        """Make each awaited run in the block one engine transaction."""
+        """Make each awaited CALL in the block one engine transaction.
+
+        The write doors included: the request carries the submitting task's
+        contextvars to the worker, so the thread hop is not a hole in the
+        scope.
+        """
         return self._m.atomic()
 
     def speculative(self):
-        """Answer awaited runs while discarding their engine writes."""
+        """Answer awaited CALLS while discarding their engine writes.
+
+        The write doors included: `await am.add(atom)` inside the block
+        leaves nothing behind
+        [tested: test_an_async_write_door_inherits_the_scope_across_the_worker].
+        """
         return self._m.speculative()
 
     def batch(self) -> _AsyncBatch:
