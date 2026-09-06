@@ -221,7 +221,11 @@ RUFF_FAMILY_BURN_DOWN = {
     # runtime double, whose `goal` and `inputs` are the signature the double
     # has to present, and two ARG001 on scenario fixtures. The rows landing
     # here add none, and removed the one they briefly had.
-    "ARG": 151,
+    # 151 -> 152 with the audit-found library repairs: the transactional
+    # provider double in test_features.py gained a `remove` that answers False
+    # without reading its atom, because the scope test drives every write door
+    # through the provider and the protocol names the parameter.
+    "ARG": 152,
     "PERF": 0,
     # 24 -> 25 at the twins-wave merge: functions/specialize.py mirrors an
     # example that defines thirteen functions in a source order its
