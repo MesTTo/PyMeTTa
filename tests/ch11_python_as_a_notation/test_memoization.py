@@ -20,9 +20,14 @@ Guarantees:
    test_exact_cache_invalidation_crosses_a_live_pool_engine; commit=205f818240658af34bda4a383084c42cf1383275]
   - memoizing a registered operation is admitted whatever its declared effect
     class, for every seat, because the declaration is the caller's own word
-    about their own program.
-  [tested: test_memoizing_an_effectful_operation_is_the_callers_own_word;
-   commit=ccad9f6d588270ec2f0810fc56c30e9e59207e7c]
+    about their own program, and the cache SERVES: the operation runs once for
+    two calls, including through a caller compiled before the declaration.
+  [tested: test_memoizing_an_effectful_operation_is_the_callers_own_word,
+   test_memoizing_an_operation_caches_its_calls; commit=295f4c80ace06f6bf8e132ea936777afd79ac3d5]
+  - enabling a cache does not rewrite the space's stored program, so a body
+    that writes its own space keeps its one equation and runs once on a miss.
+  [tested: test_memoizing_a_body_that_writes_its_own_space_runs_it_once;
+   commit=295f4c80ace06f6bf8e132ea936777afd79ac3d5]
 Fails when: read as a fixed-size cache. The memo holds the answers for the calls
   that were made and has no maxsize.
   Also when a counter is read after a LAZY call. The exact store is an SWI
@@ -37,7 +42,7 @@ Open Obligations:
 
 from collections import Counter
 
-from metta import MeTTa, S, V
+from metta import MeTTa, S, V, space
 from metta.parallel import EnginePool
 
 
@@ -393,6 +398,78 @@ def test_exact_cache_invalidation_crosses_a_live_pool_engine() -> None:
         assert second == Counter({"(After seed)": 2, "(Extra seed)": 1})
 
 
+def test_memoizing_an_operation_caches_its_calls() -> None:
+    """A registered operation is cached where its calls actually look.
+
+    An operation has no equations, so two things that work for an ordinary
+    function do not work here by themselves. Its calls are keyed by the module
+    that REGISTERED it, not by the space that spoke the declaration, and its
+    call sites are its callers' bodies rather than its own. Enabling used to
+    record the declaration in the speaking space, where no call ever looked:
+    `memoize-exact` answered true, `is-memoized` answered true, and the
+    operation ran on every call.
+
+    The caller below is compiled BEFORE the declaration, which is the half that
+    needs the callers rebuilt, and the second space is the half that shows what
+    caching an operation means: one predicate, one cache, every space.
+    """
+    metta = MeTTa().space("&cache-op-reach")
+    metta.eval(S["import!"](metta, S.library(S["lib_memo"])))
+    calls = []
+
+    @metta.op(name="cache-reach-op", effect="pureStructural")
+    def reach(value):
+        calls.append(value)
+        return value
+
+    metta.run("(= (cache-reach-wrap $x) (cache-reach-op $x))")
+    assert metta.run("!(cache-reach-wrap 1)") == [[1]]
+    assert calls == [1]
+
+    assert metta.run("!(memoize-exact cache-reach-op)") == [[True]]
+    assert metta.run("!(cache-reach-wrap 4)") == metta.run("!(cache-reach-wrap 4)") == [[4]]
+    assert calls == [1, 4]
+
+    # One predicate, imported into every space's execution module, so its cache
+    # is process-wide. That is what caching an operation is.
+    elsewhere = space("&cache-op-elsewhere")
+    assert elsewhere.run("!(cache-reach-op 4)") == [[4]]
+    assert calls == [1, 4]
+    assert elsewhere.run("!(cache-reach-op 9)") == [[9]]
+    assert calls == [1, 4, 9]
+
+    metta.unregister_op("cache-reach-op")
+
+
+def test_memoizing_a_body_that_writes_its_own_space_runs_it_once() -> None:
+    """Enabling a cache must not rewrite the program it is enabled over.
+
+    Enabling used to remove each stored equation and add it back around the
+    enable. That is not the same term: the source says `(add-atom &self ...)`
+    and the retained form the compiler kept carries the space's resolved name,
+    so the removal matched nothing, the add left a second copy, and a
+    one-equation function became a two-equation one. It then wrote twice and
+    answered a doubled bag on its first call, which is a cache changing what
+    the program says rather than how often it runs.
+    """
+    metta = MeTTa().space("&cache-writer")
+    metta.eval(S["import!"](metta, S.library(S["lib_memo"])))
+    metta.run("(= (cache-writer $x) (let $_ (add-atom &self (cache-wrote $x)) $x))")
+    metta.run("!(cache-writer 1)")
+
+    def equations():
+        return [a for a in metta.atoms() if str(a).startswith("(= (cache-writer")]
+
+    before = equations()
+    assert metta.run("!(memoize cache-writer)") == [[True]]
+    assert len(equations()) == len(before) == 1
+
+    assert metta.run("!(cache-writer 7)") == [[7]]
+    assert metta.run("!(cache-writer 7)") == [[7]]
+    # The 1 is the uncached warm-up; 7 is written once for the two calls.
+    assert sorted(str(row.x) for row in metta.match(S.cache_wrote(V.x))) == ["1", "7"]
+
+
 def test_memoizing_an_effectful_operation_is_the_callers_own_word() -> None:
     """The effect class no longer decides, and no seat's door decides either.
 
@@ -404,9 +481,9 @@ def test_memoizing_an_effectful_operation_is_the_callers_own_word() -> None:
     is that both spellings behave the same wherever `memoize-exact` is written,
     which is what moving the rule off one host bought.
 
-    An `oracleIO` operation is the strongest case there is, and it is admitted.
-    The cache does not SERVE a bare operation, which has no equations to
-    recompile; that gap predates this and is the same for `pureStructural`.
+    An `oracleIO` operation is the strongest case there is, and it is admitted
+    and served; `test_memoizing_an_operation_caches_its_calls` is where the
+    serving is pinned.
     """
     metta = MeTTa().space("&cache-over-op")
     metta.eval(S["import!"](metta, S.library(S["lib_memo"])))
