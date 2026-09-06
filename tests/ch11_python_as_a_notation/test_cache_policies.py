@@ -9,21 +9,21 @@ Assumes: lib_tabling is imported into the space under test; nothing here
 Guarantees:
   - the vocabulary is generated: every word the engine's row names is a
     CachePolicy member that crosses as its symbol
-  [tested: test_the_cache_policy_vocabulary_is_generated; commit=WORKTREE]
+  [tested: test_the_cache_policy_vocabulary_is_generated; commit=eb6b4de8ea70a6b2fe8312a1a23d0593fa764d54]
   - a monotonic row propagates an add-atom at delta cost: the consequence is
     in the table before the next call, no invalidation, and that call costs
     less than the incremental twin's re-evaluation, in inferences
-  [tested: test_a_monotonic_table_propagates_an_add_at_delta_cost; commit=WORKTREE]
+  [tested: test_a_monotonic_table_propagates_an_add_at_delta_cost; commit=eb6b4de8ea70a6b2fe8312a1a23d0593fa764d54]
   - a lattice row answers the minimum over a cycle where plain evaluation
     spends its whole inference budget
   [tested: test_a_lattice_table_answers_the_minimum_where_plain_evaluation_loops;
-   commit=WORKTREE]
+   commit=eb6b4de8ea70a6b2fe8312a1a23d0593fa764d54]
   - a tripped restraint raises RestraintError under ResourceLimitError with
     the word, the bound and the call
   [tested: test_a_tripped_restraint_reaches_python_as_a_restraint_error;
-   commit=WORKTREE]
+   commit=eb6b4de8ea70a6b2fe8312a1a23d0593fa764d54]
   - every refusal names its remedy and leaves no row standing
-  [tested: test_the_refusals_name_their_remedy; commit=WORKTREE]
+  [tested: test_the_refusals_name_their_remedy; commit=eb6b4de8ea70a6b2fe8312a1a23d0593fa764d54]
 Fails when: a counter is read after a LAZY call; a private lattice table
   belongs to the engine that fills it, so a lazy answer cursor computes its
   own copy and the counters read here would not see it. Every assertion below
