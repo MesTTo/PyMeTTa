@@ -42,8 +42,9 @@ Guarantees:
     concrete array among them, cross untouched [tested:
     test_an_operand_of_the_same_library_is_not_converted_through_dlpack,
     test_a_jax_tracer_crosses_a_binary_op_and_a_gradient_reaches_it]
-  - install() takes a context or a space and registers into the space either
-    way [tested: test_install_takes_a_context_as_well_as_a_space]
+  - install() and EmbeddingStore take a context or a space and register into
+    the space either way [tested: test_install_takes_a_context_as_well_as_a_space,
+    test_embedding_store_takes_a_context_as_well_as_a_space; commit=WORKTREE]
   - Shape metadata survives Python ``Annotated`` reflection, shaped tensors
     remain valid ``DLTensor`` arguments, broadcast arithmetic infers its
     output through ``broadcast-shape``, and rank-two ``matmul`` unifies its
@@ -832,6 +833,8 @@ class EmbeddingStore:
     stored vector or nothing. Public operation names route through equations
     in this space to unique internal operations, so the same store name in a
     different space cannot retarget this store.
+
+    m may be a context or a space, as ``install`` takes either.
     """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
 
     def __init__(  # noqa: D107  -- the enclosing class documents construction and the object invariants
@@ -842,6 +845,7 @@ class EmbeddingStore:
             raise MettaError(msg)
         if backend == "faiss":
             _faiss()
+        m = _integrate.space_of(m)
         self._m = m
         self._name = name
         self._mirror = mirror

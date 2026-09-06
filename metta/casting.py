@@ -28,6 +28,7 @@ from __future__ import annotations
 
 from typing import Any, overload
 
+from ._api_types import space_of
 from ._convert_registry import _is_plain_class
 from .atoms import Atom, Grounded, Symbol, _atom_from_wire, _encode, parse
 from .errors import MettaError
@@ -97,7 +98,10 @@ def cast(space: Any, value: Any, type_: Any, /) -> Any:
         m.run("(: Ann Person)")
         assert m.cast(S.Ann, "Person") is S.Ann
         assert m.cast(3, int) == 3
+
+    space may be a context or a space.
     """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+    space = space_of(space)
     target = _type_atom(type_)
     if isinstance(target, Symbol) and str(target) in _UNCHECKED:
         return _narrow(value)

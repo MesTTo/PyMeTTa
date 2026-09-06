@@ -51,6 +51,7 @@ from collections.abc import Iterator, MutableMapping, MutableSet
 from operator import itemgetter
 from typing import Any, Self
 
+from ._api_types import space_of
 from .atoms import (
     Atom,
     Expression,
@@ -492,9 +493,12 @@ class TabledMap:
     map. A nondeterministic function does not fit a map; a key whose
     call answers several values raises, and one answering none is a
     KeyError.
+
+    space may be a context or a space.
     """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
 
     def __init__(self, space: Any, name: str, *, arity: int | None = None) -> None:  # noqa: D107  -- the enclosing class documents construction and the object invariants
+        space = space_of(space)
         self._space = space
         self._name = name
         _tabling_ready(space)
@@ -583,9 +587,12 @@ class LiveView:
     event. A space is a multiset and so is the view: len counts copies,
     iteration yields them, count(atom) answers multiplicity. close()
     cancels the subscription; a closed view keeps its last state.
+
+    space may be a context or a space.
     """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
 
     def __init__(self, space: Any, pattern: Any) -> None:  # noqa: D107  -- the enclosing class documents construction and the object invariants
+        space = space_of(space)
         self._space = space
         self._pattern = pattern
         self._lock = threading.Lock()
@@ -697,9 +704,12 @@ class ClosureView:
     without tabling that spelling never terminates, which is why the
     class always tables. Defines `<relation>-closure` (and its `-step`)
     in the space, named so a MeTTa program can call the same closure.
+
+    space may be a context or a space.
     """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
 
     def __init__(self, space: Any, relation: str, *, symmetric: bool = False) -> None:  # noqa: D107  -- the enclosing class documents construction and the object invariants
+        space = space_of(space)
         self._space = space
         self._relation = relation
         self._fn = f"{relation}-closure"

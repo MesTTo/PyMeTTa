@@ -18,6 +18,7 @@ import importlib as _importlib
 import os
 import pathlib
 
+from ._api_types import space_of
 from ._head_meaning import EngineRegistry
 from ._lint_analysis import analyze
 from ._lint_events import prepare_lint
@@ -36,8 +37,9 @@ def lint(space) -> list[Finding]:
 
     One of nine observability methods, the one for the silently-wrong
     class; rows.why() explains one empty answer, and the guide's
-    observability page maps the family.
+    observability page maps the family. space may be a context or a space.
     """
+    space = space_of(space)
     require_capability(space.name, "enumerate", "lint")
     invocation = prepare_lint(space)
     return analyze(
@@ -57,7 +59,7 @@ def lint_file(path: str | os.PathLike[str], *, m=None) -> list[Finding]:
     the reader's own verbatim form texts, so a tool prints path:line
     without the engine ever tracking positions on its hot path. A
     finding about an atom no single form wrote, or one a form computed,
-    stays unanchored rather than guessed.
+    stays unanchored rather than guessed. m may be a context or a space.
     """
     source = os.fspath(path)
     text = pathlib.Path(source).read_text(encoding="utf-8")
@@ -69,7 +71,7 @@ def lint_file(path: str | os.PathLike[str], *, m=None) -> list[Finding]:
     engine = (
         _importlib.import_module(f"{__package__}._space").Space()
         if m is None
-        else m
+        else space_of(m)
     )
     with engine._new_space() as scratch:
         scratch.load(source)

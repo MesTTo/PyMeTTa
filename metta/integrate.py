@@ -83,6 +83,7 @@ from . import _atoms_core as _atom_registry
 from . import _convert_registry as _type_registry
 from . import _ops as _operation_registry
 from . import convert
+from ._api_types import space_of as _space_of
 from ._object_fields import field_names as _field_names
 from .atoms import (
     Atom,
@@ -156,7 +157,7 @@ _INSTALLED_LOCK = threading.RLock()
 
 
 def space_of(m: Any) -> Any:
-    """The space an installer writes into, given a context or a space.
+    """The space a door works in, given a context or a space.
 
     An installer is handed a SPACE, because "equations and facts an installer
     writes land in the space it was handed" is what makes integrate()
@@ -166,13 +167,13 @@ def space_of(m: Any) -> Any:
     reached: `metta.arrays.install(m)` raised `MeTTa has no 'is_function'`
     with every array operation left unregistered.
 
-    Resolving once, here, is what lets `install(m)` work without erasing the
-    distinction the two classes draw, because the installer still receives a
-    space. A context is exactly the object that has a home space to give; a
-    space has none, and answers for itself.
+    Resolving once, at the door, is what lets `install(m)` work without
+    erasing the distinction the two classes draw, because the installer still
+    receives a space. A context is exactly the object that has a home space to
+    give; a space has none, and answers for itself. This is the public
+    spelling; every door in the library resolves the same way.
     """
-    home = getattr(m, "self", None)
-    return m if home is None else home
+    return _space_of(m)
 
 
 def integrate(m, target: Any) -> str:

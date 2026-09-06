@@ -422,6 +422,28 @@ def test_embedding_store_runs_on_numpy(am):  # noqa: D103  -- pytest discovers o
     assert scores == sorted(scores, reverse=True)
 
 
+def test_embedding_store_takes_a_context_as_well_as_a_space():
+    """install()'s sibling had the same hole: `MeTTa has no 'name'`.
+
+    The store registers its two internal operations into a space and keys
+    itself by that space's name, so a context died on the first Space door
+    the constructor reached, one line after the backend check.
+    """
+    context = MeTTa()
+    before = set(registered())
+    try:
+        store = arrays.EmbeddingStore(context, name="ctxk")
+        store.add(S.dog, numpy.array([1.0, 0.0]))
+        assert arrays._SPACE_STORES[(context.self.name, "ctxk")]
+        (group,) = context.run("!(collapse (ctxk-knn (tensor (1.0 0.0)) 1))")
+        assert [pair[0] for pair in group[0]] == [S.dog]
+    finally:
+        for name in sorted(set(registered()) - before, reverse=True):
+            if name in registered():
+                context.self.unregister_op(name)
+        context.close()
+
+
 def test_top_indices_match_full_order_and_stabilize_ties():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     xp = arrays.namespace_of(numpy.array([0.0]))
     scores = numpy.random.default_rng(7).normal(size=10_000)

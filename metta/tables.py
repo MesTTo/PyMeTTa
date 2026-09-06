@@ -91,6 +91,7 @@ import json
 from collections.abc import Callable, Iterable, Iterator, Mapping
 from typing import Any, Protocol, cast
 
+from ._api_types import space_of
 from ._atom_wire import _atom_from_wire
 from .atoms import (
     Atom,
@@ -127,7 +128,11 @@ def _row_values(row: Any, keys: list[Any]) -> Any:
 
 
 def add(space: Any, head: Any, data: Any) -> int:
-    """Add a tabular source to a space as ``(head column...)`` facts."""
+    """Add a tabular source to a space as ``(head column...)`` facts.
+
+    space may be a context or a space.
+    """
+    space = space_of(space)
     head_atom = head if isinstance(head, Atom) else Symbol(str(head))
     keys: list[Any] = []
     if hasattr(data, "iter_rows"):
@@ -461,7 +466,10 @@ class TableBridge(SpaceProvider):
         """The provider for every `(bridge <name> <shape> <row>)` atom in
         &metta, so a schema declared from MeTTa source, or by declare()
         below, becomes a provider in one line.
+
+        m may be a context or a space.
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+        m = space_of(m)
         (group,) = m.run(
             f"!(collapse (match &metta (bridge {name} $shape $row)"
             f" (bridge $shape $row)))"
@@ -617,7 +625,10 @@ class TableBridge(SpaceProvider):
 def declare(m: Any, name: str, declaration: Atom | str) -> Atom:
     """Write one ctx-scoped bridge declaration into &metta, where explain
     and any program can read the schema, and from_context will.
+
+    m may be a context or a space.
     """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+    m = space_of(m)
     parsed = m.parse(declaration) if isinstance(declaration, str) else declaration
     if not isinstance(parsed, Expression):
         raise _declaration_error(parsed)

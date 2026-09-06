@@ -12,6 +12,9 @@ Guarantees:
   - root persistence and async three-valued evaluation annotations retain the
     runtime value species [tested: test_root_space_hint_accepts_pathlike_journals,
     test_async_result_hints_preserve_undefined_answers; commit=71f43dd54034363d3bf8b2d1a3189a63b9e4ce1a]
+  - every public door that wants a space answers the same for a context and
+    for that context's home space [tested:
+    test_every_space_door_takes_a_context_or_a_space; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -25,7 +28,22 @@ from typing import Final, get_args, get_overloads, get_type_hints
 import pytest
 
 import metta
-from metta import MeTTa, _api_types, aio, arrays, convert
+from metta import (
+    MeTTa,
+    S,
+    V,
+    _api_types,
+    aio,
+    algebra,
+    arrays,
+    convert,
+    integrate,
+    lint,
+    parse,
+    remote,
+    structures,
+    tables,
+)
 from metta import _atom_namespace as atom_namespace
 from metta._ops import Operation
 from metta._space import Space, current_space
@@ -147,3 +165,175 @@ def test_a_handle_is_a_grounded_species():
         case _:
             msg = "a handle must match the Grounded pattern"
             raise AssertionError(msg)
+
+
+class _OneRow:
+    """The DB-API slice a table bridge stands on, answering one row."""
+
+    def execute(self, _sql, _parameters=()):
+        return [("a1", "b1")]
+
+    def commit(self):
+        return None
+
+    def rollback(self):
+        return None
+
+
+def _stub_integration(tag):
+    import types
+
+    module = types.ModuleType(f"api_types_probe_{tag}")
+    module.install_metta = lambda space: space.add(S["door-installed"]())
+    return module
+
+
+def _cast(receiver, _tag, _tmp_path):
+    return cast(receiver, 3, int)
+
+
+def _lint(receiver, _tag, _tmp_path):
+    receiver.run("(= (door-lint) (if True 1 1))")
+    return sorted({finding.kind for finding in lint.lint(receiver)})
+
+
+def _lint_file(receiver, _tag, tmp_path):
+    path = tmp_path / "door.metta"
+    path.write_text("(= (door-lint-file) (if True 1 1))\n", encoding="utf-8")
+    return sorted({finding.kind for finding in lint.lint_file(path, m=receiver)})
+
+
+def _tabled_map(receiver, _tag, _tmp_path):
+    receiver.run("(= (door-double $x) (* 2 $x))")
+    return structures.TabledMap(receiver, "door-double")[(4,)]
+
+
+def _live_view(receiver, _tag, _tmp_path):
+    receiver.add(S["door-alert"](S.red))
+    view = structures.LiveView(receiver, S["door-alert"](V.level))
+    try:
+        return len(view)
+    finally:
+        view.close()
+
+
+def _closure_view(receiver, tag, _tmp_path):
+    relation = f"door-rel-{tag}"
+    receiver.add(S[relation](S.a, S.b), S[relation](S.b, S.c))
+    return (S.a, S.c) in structures.ClosureView(receiver, relation)
+
+
+def _tables_declare(receiver, tag, _tmp_path):
+    stored = tables.declare(
+        receiver,
+        f"&door-{tag}",
+        "(bridge (edge $a $b) (row edges (a $a) (b $b)))",
+    )
+    return str(stored.children[2])
+
+
+def _tables_from_context(receiver, tag, _tmp_path):
+    tables.declare(
+        receiver,
+        f"&door-bridge-{tag}",
+        "(bridge (edge $a $b) (row edges (a $a) (b $b)))",
+    )
+    bridge = tables.TableBridge.from_context(
+        receiver, f"&door-bridge-{tag}", _OneRow()
+    )
+    return [str(atom) for atom in bridge.atoms()]
+
+
+def _tables_add(receiver, _tag, _tmp_path):
+    return tables.add(receiver, S["door-row"], [(1,), (2,)])
+
+
+def _algebra_declare(receiver, tag, _tmp_path):
+    declared = algebra.declare(
+        receiver, f"door-{tag}", combine="max", extend="min", zero=0, one=1
+    )
+    return str(declared.children[2])
+
+
+def _algebra_resolve(receiver, _tag, _tmp_path):
+    return algebra.resolve(receiver, "bool").name
+
+
+def _algebra_evaluate(receiver, _tag, _tmp_path):
+    receiver.add(algebra.tagged_fact(1, S["door-seed"](0)))
+    evaluation = algebra.evaluate(receiver, S["door-seed"](0), algebra="counting")
+    return [str(answer.tag) for answer in evaluation.answers]
+
+
+def _algebra_sample(receiver, tag, _tmp_path):
+    algebra.declare(
+        receiver, f"door-rates-{tag}", combine="+", extend="*", zero=0, one=1
+    )
+    receiver.add(
+        algebra.tagged_fact(parse("(rate 1)"), S["door-branch"](S.slow)),
+        algebra.tagged_fact(parse("(rate 3)"), S["door-branch"](S.fast)),
+    )
+    drawn = algebra.sample(
+        receiver,
+        S["door-branch"](V.which),
+        algebra=f"door-rates-{tag}",
+        draws=4,
+        seed=7,
+    )
+    return len(drawn)
+
+
+def _integrate(receiver, tag, _tmp_path):
+    installed = integrate.integrate(receiver, _stub_integration(tag))
+    return installed.removesuffix(tag)
+
+
+def _gateway(receiver, _tag, _tmp_path):
+    receiver.add(S["door-served"](1))
+    gateway = remote.Gateway(receiver)
+    try:
+        return gateway("atoms", {})["atoms"]
+    finally:
+        gateway.close()
+
+
+#: Every public door that wants a SPACE, with what it answers. A context is
+#: what a caller usually holds, and MeTTa refuses a Space door rather than
+#: forwarding it, so each of these used to die on the first Space door it
+#: reached: `MeTTa has no 'parse'` from tables.declare, `MeTTa has no 'name'`
+#: from lint, algebra and the closure view, `'MeTTa' object has no attribute
+#: '_space'` from cast. Keeping the inventory together is what makes a new
+#: door extend the property instead of drifting away from its siblings.
+SPACE_DOORS = {
+    "algebra.declare": (_algebra_declare, "max"),
+    "algebra.evaluate": (_algebra_evaluate, ["1"]),
+    "algebra.resolve": (_algebra_resolve, "bool"),
+    "algebra.sample": (_algebra_sample, 4),
+    "casting.cast": (_cast, 3),
+    "integrate.integrate": (_integrate, "api_types_probe_"),
+    "lint.lint": (_lint, ["constant-if-true"]),
+    "lint.lint_file": (_lint_file, ["constant-if-true"]),
+    "remote.Gateway": (_gateway, [["e", [["s", "door-served"], ["n", 1]]]]),
+    "structures.ClosureView": (_closure_view, True),
+    "structures.LiveView": (_live_view, 1),
+    "structures.TabledMap": (_tabled_map, 8),
+    "tables.TableBridge.from_context": (_tables_from_context, ["(edge a1 b1)"]),
+    "tables.add": (_tables_add, 2),
+    "tables.declare": (_tables_declare, "(edge $a $b)"),
+}
+
+
+@pytest.mark.parametrize("door", sorted(SPACE_DOORS))
+@pytest.mark.parametrize("receiver_kind", ["space", "context"])
+def test_every_space_door_takes_a_context_or_a_space(door, receiver_kind, tmp_path):
+    """One resolution, at every door: `_api_types.space_of`.
+
+    The distinction the two classes draw stays: a context still refuses a
+    Space door rather than forwarding it. What changes is that a door which
+    WANTS a space says so once, at its own boundary, instead of failing
+    somewhere inside on whichever Space door it happened to reach first.
+    """
+    exercise, expected = SPACE_DOORS[door]
+    with MeTTa() as context:
+        receiver = context.self if receiver_kind == "space" else context
+        assert exercise(receiver, receiver_kind, tmp_path) == expected

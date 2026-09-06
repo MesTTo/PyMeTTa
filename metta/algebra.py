@@ -98,6 +98,7 @@ from numbers import Real
 from types import ModuleType
 from typing import Any, Final, cast
 
+from ._api_types import space_of
 from ._engine import active_runtime
 from ._space import Space, current_space
 from ._space_execution import evaluate_accounted
@@ -611,7 +612,11 @@ def current_algebra() -> str | None:
 
 
 def resolve(metta: Space, carrier: Any) -> DeclaredAlgebra:
-    """Resolve any public carrier spelling against one runtime catalog."""
+    """Resolve any public carrier spelling against one runtime catalog.
+
+    metta may be a context or a space.
+    """
+    metta = space_of(metta)
     if isinstance(carrier, DeclaredAlgebra):
         registered = get(metta, carrier.name)
         return carrier if registered is None else registered
@@ -858,7 +863,11 @@ def declare(
     requires: Iterable[str] = (),
     order: SemiringOrder | None = None,
 ) -> Atom:
-    """Check and add one algebra catalog atom, without replacing an old one."""
+    """Check and add one algebra catalog atom, without replacing an old one.
+
+    metta may be a context or a space.
+    """
+    metta = space_of(metta)
     if not name or not isinstance(name, str):
         msg = "algebra_name_must_be_a_nonempty_symbol"
         raise AlgebraDeclarationError(msg)
@@ -1261,7 +1270,11 @@ def evaluate(
     timeout: float | None = None,
     inferences: int | None = None,
 ) -> AlgebraEvaluation:
-    """Evaluate finite tagged derivations under one call-wide resource budget."""
+    """Evaluate finite tagged derivations under one call-wide resource budget.
+
+    metta may be a context or a space.
+    """
+    metta = space_of(metta)
     resources = _EvaluationBudget.from_call(timeout, inferences)
     declaration = require(metta, algebra)
     _require_context_capabilities(metta, declaration)
@@ -1364,7 +1377,11 @@ def sample(
     draws: int,
     seed: int,
 ) -> tuple[Atom, ...]:
-    """Draw a stable cumulative rate selection using isolated seeded state."""
+    """Draw a stable cumulative rate selection using isolated seeded state.
+
+    metta may be a context or a space.
+    """
+    metta = space_of(metta)
     if isinstance(draws, builtins.bool) or not isinstance(draws, int) or draws < 0:
         msg = "draws must be a nonnegative integer"
         raise ValueError(msg)

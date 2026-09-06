@@ -126,6 +126,7 @@ from typing import Any, Self
 from urllib.parse import urlsplit
 
 from . import _json
+from ._api_types import space_of
 from ._atom_wire import _atom_from_wire
 from ._engine import bridge, runtime
 from ._network import HTTPEndpoint, validated_timeout
@@ -1321,6 +1322,8 @@ class Gateway:
     attached-engine worker, and a Gateway called directly runs on the
     calling thread, so a caller that shares one across threads owns that
     arrangement.
+
+    m may be a context or a space; the gateway serves the space either way.
     """
 
     def __init__(  # noqa: D107  -- the enclosing class documents construction and the object invariants
@@ -1341,7 +1344,7 @@ class Gateway:
         self._mutation_scope = secrets.token_urlsafe(24)
         self._mutations: dict[str, tuple[float, bytes, dict]] = {}
         self._mutation_expiries: list[tuple[float, str]] = []
-        self._metta = m
+        self._metta = space_of(m)
         self._allowed = None if spaces is None else set(spaces)
         self._cursors = _Cursors(cursor_idle, cursor_limit)
 
@@ -2087,6 +2090,8 @@ def serve(
     engine and need no wire. Gateway is the same protocol with no
     transport under it, for a test or a framework that wants the
     operations without a socket.
+
+    m may be a context or a space, as Gateway takes either.
     """
     gateway = Gateway(
         m, spaces, cursor_idle=cursor_idle, cursor_limit=cursor_limit,
