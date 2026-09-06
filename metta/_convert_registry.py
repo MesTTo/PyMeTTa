@@ -30,7 +30,7 @@ Guarantees:
     [tested: test_a_plain_class_with_match_args_destructures_by_default,
     test_an_attrs_class_destructures_by_default,
     test_match_args_registration_refuses_hidden_state;
-    commit=WORKTREE]
+    commit=19093dd75eda0102eb0329a71460e8a0c7a0c727]
 Guarded by:
   - _REGISTRY_LOCK protects registrations, constructors, and type owners
     [tested test_registration_collisions_are_serialized]

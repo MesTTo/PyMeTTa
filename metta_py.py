@@ -49,7 +49,7 @@ Guarantees:
   - a scalar comparison over a host numeric answers Python's bool, so it
     crosses as the MeTTa boolean `if` and `==` read, while an array comparison
     keeps its array [tested: test_a_numpy_scalar_comparison_answers_the_metta_boolean;
-    commit=WORKTREE]
+    commit=19093dd75eda0102eb0329a71460e8a0c7a0c727]
   - iterator objects crossing through resolve(), evaluate(), dot(), apply(), or
     a grounded transport envelope acquire one lazy shared cache; iterate()
     returns an independent cursor at index zero, while iterate_once() exposes

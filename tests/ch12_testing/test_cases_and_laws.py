@@ -5,24 +5,24 @@ Guarantees:
   - cases(head) draws inside the refinements and passes a head that keeps its
     contract, in every shape deal.cases has
     [tested: test_cases_passes_a_head_that_keeps_its_contract,
-    test_cases_is_a_decorator_an_iterable_and_a_pytest_test; commit=WORKTREE]
+    test_cases_is_a_decorator_an_iterable_and_a_pytest_test; commit=19093dd75eda0102eb0329a71460e8a0c7a0c727]
   - a violated return refinement, a write under a read-only effect class, and
     a MeTTa type with no inhabitants are each reported with the MeTTa call
     form [tested: test_cases_reports_the_call_that_violates_a_return_refinement,
     test_cases_reports_a_write_under_a_read_only_effect,
     test_cases_refuses_a_type_nothing_inhabits_and_takes_a_strategy;
-    commit=WORKTREE]
+    commit=19093dd75eda0102eb0329a71460e8a0c7a0c727]
   - a MeTTa-typed parameter draws its declared inhabitants and a Predicate
     over a defined head filters through the engine
     [tested: test_cases_draws_a_metta_type_from_its_declared_inhabitants,
     test_cases_filters_a_predicate_over_a_defined_head_through_the_engine;
-    commit=WORKTREE]
+    commit=19093dd75eda0102eb0329a71460e8a0c7a0c727]
   - every ghostwriter law name is an AlgebraLaw member and a catalog row, the
     boolean semiring passes every generated law, and a wrong carrier fails
     each named law with the counterexample
     [tested: test_every_ghostwriter_law_name_is_a_catalog_row,
     test_the_boolean_semiring_passes_every_generated_law,
-    test_a_wrong_carrier_fails_each_generated_law_by_name; commit=WORKTREE]
+    test_a_wrong_carrier_fails_each_generated_law_by_name; commit=19093dd75eda0102eb0329a71460e8a0c7a0c727]
 Open Obligations:
   To Do: None
   Hacks: None

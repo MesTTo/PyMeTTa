@@ -25,7 +25,7 @@ Guarantees:
     atom, when that atom's head is in the catalog's refinement vocabulary;
     ``doc`` and ``Timezone`` stay in the annotation claim alone
     [tested: test_a_refined_signature_declares_the_refined_arrow,
-    test_doc_and_timezone_stay_in_the_annotation_claim; commit=WORKTREE]
+    test_doc_and_timezone_stay_in_the_annotation_claim; commit=19093dd75eda0102eb0329a71460e8a0c7a0c727]
   - the public Space handle annotation denotes the engine's ``SpaceType``
     instead of declaring an unrelated user type [tested:
     test_compiled_removal_statements_preserve_one_many_missing_and_target_scope;

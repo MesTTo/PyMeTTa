@@ -21,7 +21,7 @@ Guarantees:
   - an Annotated target casts against its refined type: a value the base admits
     and a decided constraint refuses raises CastError naming that constraint
     and the value [tested: test_cast_honours_a_refinement_and_names_the_violated_constraint;
-    commit=WORKTREE]
+    commit=19093dd75eda0102eb0329a71460e8a0c7a0c727]
 Open Obligations:
   To Do: None
   Hacks: None

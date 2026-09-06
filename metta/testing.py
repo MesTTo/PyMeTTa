@@ -47,13 +47,13 @@ Guarantees:
     or an observed effect above the declared class, with the MeTTa call form
     in the failing example [tested: test_cases_passes_a_head_that_keeps_its_contract,
     test_cases_reports_the_call_that_violates_a_return_refinement,
-    test_cases_reports_a_write_under_a_read_only_effect; commit=WORKTREE]
+    test_cases_reports_a_write_under_a_read_only_effect; commit=19093dd75eda0102eb0329a71460e8a0c7a0c727]
   - laws(algebra, space) generates one property test per declared law row
     under the ghostwriter's names, passing for the boolean semiring and
     failing with the counterexample for a carrier that breaks a law
     [tested: test_every_ghostwriter_law_name_is_a_catalog_row,
     test_the_boolean_semiring_passes_every_generated_law,
-    test_a_wrong_carrier_fails_each_generated_law_by_name; commit=WORKTREE]
+    test_a_wrong_carrier_fails_each_generated_law_by_name; commit=19093dd75eda0102eb0329a71460e8a0c7a0c727]
 Open Obligations:
   To Do: None
   Hacks: None

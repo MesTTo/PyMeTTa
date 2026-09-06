@@ -8,27 +8,27 @@ Guarantees:
     projection carries exactly the vocabulary heads
     [tested: test_each_constraint_class_projects_to_its_atom,
     test_a_refined_signature_declares_the_refined_arrow,
-    test_doc_and_timezone_stay_in_the_annotation_claim; commit=WORKTREE]
+    test_doc_and_timezone_stay_in_the_annotation_claim; commit=19093dd75eda0102eb0329a71460e8a0c7a0c727]
   - a defined head refuses a violating argument with
     `(BadArgValue <position> <constraint> <value>)`, one per call, accepts the
     values the constraint admits, and keeps BadArgType for a base mismatch
     [tested: test_a_defined_head_refuses_a_violating_argument_by_name_and_accepts_the_rest;
-    commit=WORKTREE]
+    commit=19093dd75eda0102eb0329a71460e8a0c7a0c727]
   - a return refinement refuses at the crossing with `(BadReturnValue
     <constraint> <value>)` [tested: test_a_return_refinement_refuses_at_the_crossing;
-    commit=WORKTREE]
+    commit=19093dd75eda0102eb0329a71460e8a0c7a0c727]
   - MinLen reads a string and an expression, Predicate calls the grounded
     predicate at the seam or runs a defined head, Interval and MultipleOf
     decide numbers, Unit is a declaration
     [tested: test_min_len_reads_a_string_and_an_expression,
     test_a_predicate_refinement_calls_the_grounded_predicate_at_the_seam,
-    test_interval_multiple_of_and_unit; commit=WORKTREE]
+    test_interval_multiple_of_and_unit; commit=19093dd75eda0102eb0329a71460e8a0c7a0c727]
   - the engine and Python's own operators agree on every constraint over a
     value table [tested: test_the_engine_and_python_agree_on_each_constraint;
-    commit=WORKTREE]
+    commit=19093dd75eda0102eb0329a71460e8a0c7a0c727]
   - cast honours a refinement and names the violated constraint
     [tested: test_cast_honours_a_refinement_and_names_the_violated_constraint;
-    commit=WORKTREE]
+    commit=19093dd75eda0102eb0329a71460e8a0c7a0c727]
 Open Obligations:
   To Do: None
   Hacks: None

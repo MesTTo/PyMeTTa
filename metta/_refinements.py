@@ -17,22 +17,22 @@ travel in the annotation claim and never reach the type.
 Assumes:
   - ``annotated_types`` is importable; it is a declared dependency because a
     type reader that speaks a vocabulary has to import it
-    [source: extensions/python/pyproject.toml, dependencies; commit=WORKTREE]
+    [source: extensions/python/pyproject.toml, dependencies; commit=19093dd75eda0102eb0329a71460e8a0c7a0c727]
 Guarantees:
   - every annotated_types constraint class encodes to the atom the design
     names, and ``encode`` answers it directly as well as through a signature
-    [tested: test_each_constraint_class_projects_to_its_atom; commit=WORKTREE]
+    [tested: test_each_constraint_class_projects_to_its_atom; commit=19093dd75eda0102eb0329a71460e8a0c7a0c727]
   - ``refinement_atom`` admits an Atom, or metadata whose encoded head is in
     the refinement vocabulary, and answers None for everything else, so the
     type projection carries exactly the constraints the engine decides
     [tested: test_a_refined_signature_declares_the_refined_arrow,
-    test_doc_and_timezone_stay_in_the_annotation_claim; commit=WORKTREE]
+    test_doc_and_timezone_stay_in_the_annotation_claim; commit=19093dd75eda0102eb0329a71460e8a0c7a0c727]
   - ``holds`` decides Gt, Ge, Lt, Le, MultipleOf, MinLen, MaxLen and Predicate
     on a Python value with Python's own operators, answers None for a
     constraint that says nothing about values, and reads a comparison the
     value cannot make as False rather than raising
     [tested: test_holds_decides_each_constraint_the_way_the_engine_does;
-    commit=WORKTREE]
+    commit=19093dd75eda0102eb0329a71460e8a0c7a0c727]
 Open Obligations:
   To Do: None
   Hacks: None

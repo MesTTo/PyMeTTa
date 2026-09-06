@@ -5,13 +5,13 @@ Guarantees:
   - a plain class and an attrs class project to a constructor expression and
     rebuild through cls(*parts) with no registration
     [tested: test_a_plain_class_with_match_args_destructures_by_default,
-    test_an_attrs_class_destructures_by_default; commit=WORKTREE]
+    test_an_attrs_class_destructures_by_default; commit=19093dd75eda0102eb0329a71460e8a0c7a0c727]
   - hidden state is refused rather than lost, __metta__ outranks the default,
     and pydantic models and atoms keep their own images
     [tested: test_match_args_registration_refuses_hidden_state,
     test_dunder_metta_outranks_the_match_args_default,
     test_pydantic_and_atoms_are_untouched_by_the_match_args_default;
-    commit=WORKTREE]
+    commit=19093dd75eda0102eb0329a71460e8a0c7a0c727]
 Open Obligations:
   To Do: None
   Hacks: None

@@ -4,7 +4,7 @@ Guarantees:
     `typing.get_type_hints` resolves the definition's own annotations through
     `.py` exactly as through the source function
     [tested: test_a_twin_carries_the_definitions_resolved_annotations;
-    commit=WORKTREE]
+    commit=19093dd75eda0102eb0329a71460e8a0c7a0c727]
   - TwinDispatcher selects the first literal head that admits the arguments
     [tested test_literal_defaults_are_head_patterns_and_clauses_stack]
   - twin views see definitions added after an earlier twin was compiled
