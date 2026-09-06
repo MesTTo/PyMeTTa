@@ -16,6 +16,13 @@ Guarantees:
     test_optional_integrations_have_installable_extras,
     test_the_minimal_version_matrix_installs_no_optional_integration;
     commit=8bfe05c3850776543ece25a85038242f10b1d841]
+  - a roster is read by requirement NAME and a pin by its exact string, so
+    adding a floor to a member is not adding a member, and every integration
+    extra reaches the floor-matrix check from the manifest rather than from a
+    list kept here [tested:
+    test_optional_integrations_have_installable_extras,
+    test_the_minimal_version_matrix_installs_no_optional_integration;
+    commit=0800a2651599aec83dc553657aa94a567cd986fb]
   - every ``python -m`` target named by a check.sh command reaches a real
     entry point, so no lane can exit 0 having run nothing [tested:
     test_every_module_invocation_in_the_gate_reaches_an_entry_point;
@@ -49,9 +56,11 @@ import subprocess
 import sys
 import sysconfig
 import tomllib
+from collections.abc import Iterable
 from pathlib import Path
 
 import pytest
+from packaging.requirements import Requirement
 
 import metta.atoms as metta_atoms
 from metta import __version__
@@ -162,11 +171,27 @@ def _resolved_extra(extras: dict, name: str) -> set[str]:
     return resolved
 
 
+def _names(requirements: Iterable[str]) -> set[str]:
+    """The distribution names one requirement list installs.
+
+    An extra's members are REQUIREMENTS, and a version floor constrains a
+    member rather than adding one, so a ROSTER is compared by name and
+    `polars>=1.3` still reads as polars. PEP 508 owns that parse and
+    `packaging` implements it; every installer already ships it, pytest
+    depends on it, and the minimal version matrix therefore has it too. The
+    pin assertions below stay on the exact strings, which is the other half
+    of the same distinction: a roster says WHICH package, a pin says which
+    version of it.
+    """
+    return {Requirement(requirement).name for requirement in requirements}
+
+
 def test_optional_integrations_have_installable_extras():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     extras = _manifest()["project"]["optional-dependencies"]
-    assert set(extras["arrays"]) == {"array-api-compat", "faiss-cpu", "numpy"}
-    assert extras["das"] == ["websocket-client"]
-    assert set(extras["dataframes"]) == {"pandas", "polars"}
+    assert _names(extras["arrays"]) == {"array-api-compat", "faiss-cpu", "numpy"}
+    assert _names(extras["arrow"]) == {"nanoarrow"}
+    assert _names(extras["das"]) == {"websocket-client"}
+    assert _names(extras["dataframes"]) == {"pandas", "polars"}
     # No orjson extra: the JSON codec is the engine's library(json), and
     # no Python-side JSON implementation exists to accelerate.
     assert "orjson" not in extras
@@ -195,10 +220,19 @@ def test_the_minimal_version_matrix_installs_no_optional_integration():
     """
     matrix = _version_matrix_job()
     extras = _manifest()["project"]["optional-dependencies"]
-    integrations = set(extras["arrays"]) | set(extras["das"]) | set(extras["dataframes"])
-    integrations |= {"networkx>=3.6,<4"}
-    for package in integrations:
-        assert package.split(">")[0] not in matrix, package
+    # Every INTEGRATION extra, read from the manifest rather than listed here,
+    # so a new one cannot reach the floor unnoticed the way `arrow` would have:
+    # the three that were named by hand missed it the day it shipped.
+    integrations = set().union(
+        *(
+            _names(members)
+            for extra, members in extras.items()
+            if extra not in {"engine", "test", "checks"}
+        )
+    )
+    integrations |= {"networkx"}
+    for package in sorted(integrations):
+        assert package not in matrix, package
 
 
 def _version_matrix_job() -> str:
@@ -226,7 +260,7 @@ def test_the_minimal_version_matrix_installs_every_required_dependency():
     # `dependencies` would have stopped noticing the day it moved.
     required = [*manifest["dependencies"], *manifest["optional-dependencies"]["engine"]]
     for requirement in required:
-        name = re.split(r"[<>=!\[]", requirement)[0]
+        name = Requirement(requirement).name
         # janus-swi is spelled with the underscore its distribution uses,
         # because --no-binary names the same package again.
         assert {name, name.replace("-", "_")} & installed, requirement
