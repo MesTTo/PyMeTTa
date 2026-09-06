@@ -187,15 +187,16 @@ def test_a_boolean_operation_with_open_operands_answers_its_truth_table(metta): 
 @pytest.mark.parametrize(
     ("source", "operation", "expected", "culprit"),
     [
-        ("!(reduce a)", "reduce", "list", "a"),
         ("!(change-state! (State 5) 6)", "change-state!", "atom", ["State", 5]),
     ],
 )
 def test_operation_error_carries_its_parts(metta, source, operation, expected, culprit):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     # The engine names the written operation in the error term, so the parts
-    # arrive as data rather than as text a caller would have to parse. These
-    # two are structural refusals rather than a grounded operation declining a
-    # value, so they are still raises.
+    # arrive as data rather than as text a caller would have to parse. This is
+    # a structural refusal rather than a grounded operation declining a value,
+    # so it is still a raise. `!(reduce a)` used to be the second row and is
+    # not a raise any more: a scalar is not a call, so `reduce` has no answer
+    # for one, which is the row below.
     with pytest.raises(MettaOperationError) as failure:
         metta.run(source)
     assert failure.value.operation == operation
@@ -204,6 +205,16 @@ def test_operation_error_carries_its_parts(metta, source, operation, expected, c
     assert failure.value.culprit == culprit
     assert isinstance(failure.value, EngineError)
     assert "classifier failed" not in str(failure.value)
+
+
+# `reduce` reduces an APPLICATION. A scalar is not one, so there is no
+# reduction step to take and no answer to give — and no raise either, because
+# MeTTa's error channel is an answer and this door is one a program can knock
+# on: `!(foldall a (reduce a) 0)` used to end the whole file with
+# `reduce: list expected, found a` where the arbiter answers `0`.
+@pytest.mark.parametrize("source", ["!(reduce a)", "!(reduce 7)", '!(reduce "s")'])
+def test_a_scalar_reduce_has_no_answer(metta, source):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
+    assert metta.run(source) == [[]]
 
 
 def test_an_operation_error_keeps_the_variables_the_source_wrote(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
