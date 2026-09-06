@@ -127,7 +127,20 @@ from typing import Any, Final, NamedTuple, Self, SupportsIndex, cast, overload
 from ._config import config
 from ._optional import optional_module, require_module
 from .atoms import Atom, Expression, Grounded, Symbol, Undefined, Variable, _decode, _encode
-from .errors import EngineError, MettaResultError
+from .errors import EngineError, Ground, MettaResultError, Remedy, refusing
+
+#: `(Error culprit reason)` is a VALUE in MeTTa rather than a throw, which is
+#: why every aggregating door keeps it as data and only the single-value
+#: accessors raise. The arbiter settles it: at the parity pin
+#: `!(return-on-error (Error 5 BadType) 6)` answers `(Error 5 BadType)`
+#: [source: tests/conformance/petta/expected/he_error.metta.out against
+#: tests/conformance/petta/examples/he_error.metta; commit=WORKTREE].
+_ERROR_IS_A_VALUE = Ground(
+    "arbiter",
+    "upstream PeTTa at the parity pin: "
+    "tests/conformance/petta/expected/he_error.metta.out answers "
+    "(Error 5 BadType) as a value rather than a throw",
+)
 
 if typing.TYPE_CHECKING:
     from ._arrow import ArrowView, Projection
@@ -158,6 +171,13 @@ def error_answer(answer: object, *, space: str | None = None) -> MettaResultErro
         culprit=culprit,
         reason=reason,
         space=space,
+        ground=_ERROR_IS_A_VALUE,
+        remedy=Remedy(
+            "read the answers as a multiset, where an (Error ...) is a value",
+            "refactor",
+            "maybe",
+            python="m.eval(target)",
+        ),
     )
 
 
@@ -1127,7 +1147,15 @@ class Answers[T](Sequence[T]):
                     "`index` is the Sequence method and answers a row position; "
                     f"{value!r} is a column, read it with `.column({value!r})`"
                 )
-                raise ValueError(msg) from None
+                raise refusing(
+                    ValueError(msg),
+                    remedy=Remedy(
+                        f"read the column with .column({value!r})",
+                        "quickfix",
+                        "maybe",
+                        python=f"answers.column({value!r})",
+                    ),
+                ) from None
             raise
 
     @overload

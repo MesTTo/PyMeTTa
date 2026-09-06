@@ -57,6 +57,14 @@ from ._name_mapping import (
     generated_aliases,
     operator_attribute_target,
 )
+from .errors import Ground, Remedy, refusing
+
+#: Both closed-namespace refusals are Python's attribute grammar: a generated
+#: catalog is an object, and a name it does not carry is not an attribute.
+_ATTRIBUTE_GROUND = Ground(
+    "python-reference",
+    "Python Language Reference section 6.3.2, Attribute references",
+)
 
 NAMESPACE_CACHE_MAX: Final[int] = 512
 #: The fast tier in front of it, read without the lock and without
@@ -91,6 +99,7 @@ class _Namespace[AtomT: Atom]:
         "_cache",
         "_documentation",
         "_fast",
+        "_fix",
         "_kind",
         "_label",
         "_lock",
@@ -106,6 +115,7 @@ class _Namespace[AtomT: Atom]:
         documentation: dict[str, str] | None = None,
         label: str = "name",
         remedy: str = "",
+        fix: Remedy | None = None,
     ) -> None:
         object.__setattr__(self, "_kind", kind)
         object.__setattr__(self, "_allowed", allowed)
@@ -120,6 +130,9 @@ class _Namespace[AtomT: Atom]:
         #: since generation, and its refusal has to say where that name IS
         #: reachable rather than only that it is absent here.
         object.__setattr__(self, "_remedy", remedy)
+        #: The same repair as data. `remedy` is the sentence a reader gets;
+        #: this is what an editor offers, and both say one thing.
+        object.__setattr__(self, "_fix", fix)
         object.__setattr__(self, "_documentation", documentation or {})
         object.__setattr__(self, "_cache", {})
         object.__setattr__(self, "_fast", {})
@@ -201,7 +214,11 @@ class _Namespace[AtomT: Atom]:
                     f"no {label} attribute named {name!r} exists in the "
                     f"generated catalog{remedy}"
                 )
-                raise AttributeError(msg, name=name, obj=self) from None
+                raise refusing(
+                    AttributeError(msg, name=name, obj=self),
+                    ground=_ATTRIBUTE_GROUND,
+                    remedy=object.__getattribute__(self, "_fix"),
+                ) from None
         hit = self._resolve(target)
         lock = object.__getattribute__(self, "_lock")
         with lock:
@@ -228,7 +245,11 @@ class _Namespace[AtomT: Atom]:
             #refusal in the package sets them rather than the ones that need
             #to: which door a caller came through is not the raise site's
             #business, and the auto-fill is an interpreter internal.
-            raise AttributeError(msg, name=name, obj=self)
+            raise refusing(
+                AttributeError(msg, name=name, obj=self),
+                ground=_ATTRIBUTE_GROUND,
+                remedy=object.__getattribute__(self, "_fix"),
+            )
         fast = object.__getattribute__(self, "_fast")
         try:
             return fast[name]

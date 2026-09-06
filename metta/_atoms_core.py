@@ -155,7 +155,16 @@ from ._operator_lowerings import OPERATOR_LOWERINGS, OperatorLowering
 from .errors import (
     _PYTHON_COMPARISON_GROUND,
     _PYTHON_RICH_COMPARISON_GROUND,
+    Ground,
+    Remedy,
     _grounded_type_error,
+    refusing,
+)
+
+#: A handle applied is Python's call grammar refusing an object that defines
+#: no application, which is the same section the keyword refusals stand on.
+_CALL_GROUND = Ground(
+    "python-reference", "Python Language Reference section 6.3.4, Calls"
 )
 
 
@@ -1117,7 +1126,17 @@ class Handle(Grounded):
             f"engine object, so call its methods, or place it in a built "
             f"term as an operand"
         )
-        raise TypeError(msg)
+        raise refusing(
+            TypeError(msg),
+            ground=_CALL_GROUND,
+            remedy=Remedy(
+                "call a method on the handle, or place it in a built term "
+                "as an operand",
+                "quickfix",
+                "prose",
+                python="S.<head>(handle)",
+            ),
+        )
 
     # A handle is presence: its truth is that it exists, never a payload's.
     def __bool__(self) -> bool:
@@ -1150,6 +1169,13 @@ class Handle(Grounded):
         return _grounded_type_error(
             message,
             ground=_PYTHON_RICH_COMPARISON_GROUND,
+            remedy=Remedy(
+                "ask for containment with spaces.diff, or sort with "
+                "atoms.order_key",
+                "refactor",
+                "maybe",
+                python="spaces.diff(a, b)",
+            ),
         )
 
     def __lt__(self, other: Any) -> bool:
@@ -1434,6 +1460,12 @@ class Expression(Atom):
             raise _grounded_type_error(
                 msg,
                 ground=_PYTHON_COMPARISON_GROUND,
+                remedy=Remedy(
+                    "write the conjunction explicitly, then evaluate it",
+                    "refactor",
+                    "prose",
+                    python="S.le(1, V.x) & S.le(V.x, 10)",
+                ),
             )
         return True
 
@@ -1625,6 +1657,12 @@ def _atom_plain_order_error(atom: Atom, other: Any, operator: str) -> TypeError:
     return _grounded_type_error(
         message,
         ground=_PYTHON_RICH_COMPARISON_GROUND,
+        remedy=Remedy(
+            f"build the MeTTa relation with left.{method}(right)",
+            "refactor",
+            "prose",
+            python=f"left.{method}(right)",
+        ),
     )
 
 

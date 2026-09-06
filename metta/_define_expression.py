@@ -98,7 +98,7 @@ from ._name_mapping import (
 )
 from ._state import State
 from .atoms import Atom, Expression, Grounded, Handle, Symbol, Variable
-from .errors import CompileError, character_column
+from .errors import CompileError, Remedy, character_column
 
 # Python syntax to the exact ``operator`` protocol selector consumed by the
 # compiler-only py-operator operation. Operand kinds are application-time
@@ -1087,6 +1087,12 @@ class ExpressionCompilerMixin(CompilerContext):
             message,
             construct="unknown callee",
             line=self.first_line + call.lineno - 1,
+            remedy=Remedy(
+                "mark the host expression in place with py(...)",
+                "quickfix",
+                "maybe",
+                python=f"py({host_expression})",
+            ),
             path=self.source_path,
             source_line=source_line,
             column=start,

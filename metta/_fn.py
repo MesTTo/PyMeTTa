@@ -25,6 +25,7 @@ Open Obligations:
 
 from ._atom_namespace import _Namespace
 from .atoms import Symbol
+from .errors import Remedy
 
 _NAMES = frozenset(
     {
@@ -722,5 +723,11 @@ fn = _Namespace(
         "; that namespace is generated, so a name registered at run time is "
         "on the live one instead: space.fn.<name>, or build the term directly "
         "with S['<name>'](...)"
+    ),
+    fix=Remedy(
+        "reach the name on the live namespace, space.fn",
+        "quickfix",
+        "prose",
+        python="space.fn.<name>",
     ),
 )

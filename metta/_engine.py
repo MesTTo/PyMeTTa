@@ -396,8 +396,8 @@ def _reserved_message(kind: object, detail: object, fallback: str) -> str:
     return fallback
 
 
-def _restraint_fields(detail: object) -> dict[str, object]:
-    """The three fields a restraint signal carries, as RestraintError keywords.
+def _restraint_fields(detail: object) -> tuple[str | None, int | None, str | None]:
+    """The three fields a restraint signal carries, in RestraintError's order.
 
     lib_tabling throws `metta_control_signal(restraint, [Word, Bound, Call])`
     and janus hands the list over as a Python list; anything else is a
@@ -406,8 +406,8 @@ def _restraint_fields(detail: object) -> dict[str, object]:
     """
     if isinstance(detail, list) and len(detail) == 3:
         word, bound, call = detail
-        return {"restraint": word, "bound": bound, "call": call}
-    return {}
+        return str(word), int(bound), str(call)
+    return None, None, None
 
 
 def started() -> bool:
@@ -1291,8 +1291,12 @@ class Runtime:
                 )
                 if error_type is RestraintError:
                     detail = row.get("Detail")
+                    restraint, bound, call = _restraint_fields(detail)
                     raise RestraintError(
-                        _reserved_message(kind, detail, message), **_restraint_fields(detail)
+                        _reserved_message(kind, detail, message),
+                        restraint=restraint,
+                        bound=bound,
+                        call=call,
                     ) from exc
                 if error_type is not None:
                     raise error_type(_reserved_message(kind, row.get("Detail"), message)) from exc

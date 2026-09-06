@@ -383,7 +383,7 @@ from .atoms import (
     unify,
 )
 from .define import Defined, PrologBacked
-from .errors import EngineError, MettaError, SourceNotFound, Timeout
+from .errors import EngineError, MettaError, Remedy, SourceNotFound, Timeout, refusing
 from .results import (
     Answers,
     Rows,
@@ -436,7 +436,7 @@ _BUILTINS_CACHE: weakref.WeakKeyDictionary[
     Runtime, tuple[int, int, dict[str, tuple[str, ...]]]
 ] = weakref.WeakKeyDictionary()
 _DEPRECATION_CACHE: weakref.WeakKeyDictionary[
-    Runtime, dict[str, tuple[str, str] | None]
+    Runtime, dict[str, tuple[str, Remedy] | None]
 ] = weakref.WeakKeyDictionary()
 #: Whether the runtime holds ANY deprecation declaration at all. The catalog
 #: is almost always empty, and without this flag every distinct name's first
@@ -466,7 +466,25 @@ def _catalog_text(value: Any) -> str:
     return str(value)
 
 
-def _deprecation(rt: Runtime, name: str) -> tuple[str, str] | None:
+def _decoded_remedy(term: Any) -> Remedy:
+    """The catalog's remedy TERM as a Remedy, at the crossing that reads it.
+
+    `(deprecated old "0.2.0" (use new))` keeps its third part as a term on
+    purpose, so `explain` and a host warning render one declaration rather
+    than two stringly registries. This is where that term becomes the same
+    structured repair a Python-side refusal carries: `edit` is the term
+    itself, and the title is its own MeTTa spelling, which is exactly the
+    clause the warning already printed.
+
+    Applicability is `prose` because a deprecation names the new head and
+    not the call sites: writing `(use new)` into a program is a rename, and
+    the catalog row says nothing about the arguments.
+    """
+    text = _catalog_text(term)
+    return Remedy(text, "refactor", "prose", edit=parse(text))
+
+
+def _deprecation(rt: Runtime, name: str) -> tuple[str, Remedy] | None:
     """Read one live declaration and cache it until the next explicit write."""
     with _BUILTINS_CACHE_LOCK:
         cache = _DEPRECATION_CACHE.setdefault(rt, {})
@@ -485,7 +503,7 @@ def _deprecation(rt: Runtime, name: str) -> tuple[str, str] | None:
     declaration = (
         None
         if not row
-        else (_catalog_text(row["Since"]), _catalog_text(row["Remedy"]))
+        else (_catalog_text(row["Since"]), _decoded_remedy(row["Remedy"]))
     )
     with _BUILTINS_CACHE_LOCK:
         _DEPRECATION_CACHE.setdefault(rt, {})[name] = declaration
@@ -1699,6 +1717,13 @@ class Space(Handle):
             "it takes a PATH, and a hole is a binding a filename has nowhere "
             "to put. Use run() for program text with holes, or an f-string "
             "for a computed path.",
+            Remedy(
+                "run() takes program text with holes; an f-string builds a "
+                "computed path",
+                "quickfix",
+                "prose",
+                python="m.run(t'(= (f $x) {value})')",
+            ),
         )
         try:
             return load_space(
@@ -4218,9 +4243,16 @@ class Space(Handle):
         if declaration is None:
             return
         since, remedy = declaration
+        #: The warning is an instance rather than a class so the decoded
+        #: remedy rides on it: `warnings.warn` uses the instance's own class
+        #: as the category, so `pytest.warns(DeprecationWarning)` and
+        #: `except DeprecationWarning` are unchanged, and a caller recording
+        #: warnings reads `record[0].message.remedy`.
         warnings.warn(
-            f"{name} is deprecated since {since}; {remedy}",
-            DeprecationWarning,
+            refusing(
+                DeprecationWarning(f"{name} is deprecated since {since}; {remedy}"),
+                remedy=remedy,
+            ),
             stacklevel=stacklevel,
         )
 
