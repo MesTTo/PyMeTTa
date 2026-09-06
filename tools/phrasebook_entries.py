@@ -1845,8 +1845,9 @@ ENTRIES: list[Entry] = [
     ),
     Entry(
         "chain", ("(-> Atom Variable Atom %Undefined%)",), "Symbol", "instructions", "dissolves",
-        "Python assignment. Chain executes one instruction, binds, substitutes and "
-        "continues, which is exactly `x = m.eval(t)[0]` followed by use of `x`.",
+        "Python assignment, and `let`'s own instruction under a second name: it "
+        "runs the operand, binds the VALUE it produced once, and continues into "
+        "the template, which is exactly `x = m.eval(t)[0]` followed by use of `x`.",
         metta="!(chain (+ 1 2) $x (foo $x))", python="x = m.eval(S['+'](1, 2))[0]\nS.foo(x)",
     ),
     Entry(

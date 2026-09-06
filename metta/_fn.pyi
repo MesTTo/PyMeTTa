@@ -71,7 +71,7 @@ class _FunctionNamespace:
     ceil_math: Symbol
     "ceil-math: (-> Number Number)\n\n`math.ceil`, which answers an integer in Python 3 where a float-preserving float."
     chain: Symbol
-    "chain: (-> Atom Variable Atom %Undefined%)\n\nPython assignment. Chain executes one instruction, binds, substitutes and continues, which is exactly `x = m.eval(t)[0]` followed by use of `x`."
+    "chain: (-> Atom Variable Atom %Undefined%)\n\nPython assignment, and `let`'s own instruction under a second name: it runs the operand, binds the VALUE it produced once, and continues into the template, which is exactly `x = m.eval(t)[0]` followed by use of `x`."
     change_state: Symbol
     "change-state!: (-> (StateMonad $tcso) $tcso Bool)\n\nAssigning `state.value` writes the same typed engine cell and reading it back returns the replacement. The WRITE answers True rather than the cell, which is upstream's own answer -- `'change-state!'(Var, Value, true)` [source: PeTTa@ae66fa8 src/metta.pl:265] -- so the read is a separate step here as it is in Python."
     collapse: Symbol
