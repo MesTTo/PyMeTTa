@@ -57,8 +57,13 @@ Guarantees:
     encodes that answer as the operand [tested:
     test_answer_views_observe_when_used_as_operands; commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
   - Rows and Answers project caller variables by attribute, Variable key, or
-    exact string key
-    [tested: test_rows_share_the_answer_projection_contract; commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
+    exact string key, and group binding rows by an atom-valued column [tested:
+    test_rows_share_the_answer_projection_contract,
+    test_binding_rows_group_by_their_column_atom; commit=5e0ae6c22d604c4b980766e3cc4811ee545e5c9e]
+  - Answers.index retains the Sequence row-position contract and directs a
+    missing string that names a column to column() [tested:
+    test_answers_index_keeps_the_sequence_contract_and_explains_columns;
+    commit=5e0ae6c22d604c4b980766e3cc4811ee545e5c9e]
   - len on an untouched engine-backed Answers view uses its engine count method
     without populating the Python cache [tested:
     test_len_counts_an_unmaterialised_view_engine_side; commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
@@ -416,6 +421,20 @@ class Rows(UserList[Row]):
             )
         index = self.columns.index(name)
         return [row[index] for row in self]
+
+    def column(self, name: str) -> list[Any]:
+        """Project one exact column name."""
+        return self._column(name)
+
+    def group_by(self, column: str) -> dict[Atom, Rows]:
+        """Group rows by the atom in one exact column."""
+        keys = self.column(column)
+        grouped: dict[Atom, Rows] = {}
+        for key, row in zip(keys, self, strict=True):
+            grouped.setdefault(
+                cast(Atom, key), Rows(self.columns, (), _query=self._query)
+            ).append(row)
+        return grouped
 
     def first(self, *, default: Any = _MISSING) -> Row | Any:
         """Return the first row, or the caller's explicit default."""
@@ -951,6 +970,21 @@ class Answers[T](Sequence[T]):
                     self._known_length = counted
             return self._known_length
 
+    def index(self, value: T, start: int = 0, stop: int | None = None) -> int:
+        """Return a row position, with a remedy for column-name collisions."""
+        try:
+            if stop is None:
+                return super().index(value, start)
+            return super().index(value, start, stop)
+        except ValueError:
+            if isinstance(value, str) and value in self._columns:
+                msg = (
+                    "`index` is the Sequence method and answers a row position; "
+                    f"{value!r} is a column, read it with `.column({value!r})`"
+                )
+                raise ValueError(msg) from None
+            raise
+
     @overload
     def __getitem__(self, key: int) -> T: ...
 
@@ -1081,6 +1115,14 @@ class Answers[T](Sequence[T]):
                 position += 1
 
         return Answers(values(), space=self._space, target=self._target)
+
+    def column(self, name: str) -> Answers[Any]:
+        """Project one exact caller-variable column."""
+        return self._project(name)
+
+    def group_by(self, column: str) -> dict[Atom, Rows]:
+        """Materialize binding rows grouped by one atom-valued column."""
+        return self._eager_rows().group_by(column)
 
     @property
     def rows(self) -> Answers[Row]:

@@ -9,7 +9,10 @@
 # Guarantees: every path a lane runs is written literally. tests/checks/
 #   evidence_runners.py models which files a lane covers by READING this text
 #   and resolving $HERE/ and $PYDIR/, so a path reached through a local variable
-#   is a path the evidence gate cannot see.
+#   is a path the evidence gate cannot see.  Mypy checks the installed package
+#   surface, the shadowed root implementation, and the callable-algebra consumer
+#   independently [tested: mypy, mypy-root-impl, mypy-algebra-surface;
+#   commit=5e0ae6c22d604c4b980766e3cc4811ee545e5c9e].
 # Open Obligations:
 #   To Do: None
 #   Hacks: None
@@ -198,6 +201,13 @@ run REPORT determinism check_determinism_coverage
 run GATE   ruff        in_py "$PY" -m ruff check metta tests tools examples/language-feature-examples bench.py
 # ledger C2: 65 errors in 13 files
 run GATE   mypy        in_py "$PY" -m mypy
+# A colocated __init__.pyi is authoritative for package scans, so the general
+# lane above no longer reads __init__.py.  Keep the implementation itself in a
+# separate invocation: naming both files in one command is a duplicate module.
+run GATE   mypy-root-impl in_py "$PY" -m mypy metta/__init__.py
+# This is a consumer file on purpose.  It proves the package attribute is
+# callable, its two forms stay precise, and every catalog carrier is present.
+run GATE   mypy-algebra-surface in_py "$PY" -m mypy tests/typing/algebra_surface.py
 # ledger C2: 67 diagnostics, independent engine
 run GATE   ty          in_py "$PY" -m ty check --python "$(dirname "$(dirname "$PY")")" metta
 # Residual Pylint findings describe deliberate facades, compiler mixins,

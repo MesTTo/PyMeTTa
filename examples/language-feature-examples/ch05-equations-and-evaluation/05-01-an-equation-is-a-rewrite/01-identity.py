@@ -896,4 +896,21 @@ def twin(m):
 #: 7d9b66a1; command=python extensions/python/tools/twin_coverage.py --measure
 #: --rounds 3 examples/ch05-equations-and-evaluation/
 #: 05-01-an-equation-is-a-rewrite/01-identity.metta; commit=2e627a593413191cda3170f2eb716835f7f62543].
-BUDGET = 3407
+#: RE-PINNED 2026-09-06, 3407 to 3422 (+15), the catalog-owned algebra-law
+#: vocabulary. engine/spaces/catalog.pl gains metta_algebra_law_alias/2,
+#: metta_algebra_law_expansion/2 and metta_algebra_law_vocabulary/1, and turns
+#: two metta_catalog_preset/1 facts into rules; engine/metta/effects.pl gains
+#: metta_algebra_declares_law/2, its own metta_algebra_law_expansion/2 and the
+#: metta_algebra_accepted_laws//0 message tail. This row counts engine clause
+#: layout, which every added engine predicate moves, in either direction. Same-
+#: worktree A/B with the .qlf set cleared and rebuilt on both arms and min-of-3
+#: serial fresh processes: twin 3407 with petta's two engine files, which is
+#: this row's own pin exactly, and 3422 with these two. The MeTTa side reads
+#: 2357 on petta's and 2356 on these, inside the 4-inference deterministic
+#: allowance, and that control is what says the WORK is unchanged and only the
+#: layout moved: no reduction, clause or answer differs. The same two files
+#: read +10, +15, -30 and +15 against four earlier bases, so the sign and the
+#: size of this class are both base-dependent, as the entries above already
+#: record [measured 2026-09-06: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=5e0ae6c22d604c4b980766e3cc4811ee545e5c9e].
+BUDGET = 3422

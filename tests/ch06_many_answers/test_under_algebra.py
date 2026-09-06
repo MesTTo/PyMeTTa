@@ -43,6 +43,13 @@ Guarantees:
   - current_algebra observes explicit, scoped, and context-declared carriers
     in precedence order while leaving an undeclared context as None [tested:
     test_current_algebra_follows_each_selection_layer; commit=2e627a593413191cda3170f2eb716835f7f62543]
+  - the generated AlgebraLaw vocabulary and catalog alias claims drive public
+    declaration expansion and unknown-law remedies [tested:
+    test_algebra_law_vocabulary_drives_aliases_and_unknown_refusals;
+    commit=5e0ae6c22d604c4b980766e3cc4811ee545e5c9e]
+  - a law list of equations expands without reading the alias claims, and
+    answers what the reading path answers [tested:
+    test_equational_law_names_read_no_catalog; commit=5e0ae6c22d604c4b980766e3cc4811ee545e5c9e]
 """
 
 from __future__ import annotations
@@ -54,8 +61,9 @@ import pytest
 
 import metta as metta_module
 from metta import Answer, S, V, aio, counting, prob, prov, ranked, tropical
+from metta.algebra import AlgebraDeclarationError
 from metta.foreign import SpaceProvider
-from metta.vocabularies import Semiring
+from metta.vocabularies import AlgebraLaw, Semiring
 
 
 class _ScoredRows(SpaceProvider):
@@ -579,6 +587,65 @@ def test_every_shipped_semiring_has_one_root_object_in_catalog_order():
     names = tuple(member.value for member in Semiring)
     assert names == tuple(algebra_module._PRESETS)
     assert all(getattr(metta_module, name).name == name for name in names)
+
+
+def test_algebra_law_vocabulary_drives_aliases_and_unknown_refusals(metta):
+    """Alias expansion and the refusal remedy read the catalog vocabulary."""
+    module = importlib.import_module("metta.algebra")
+    expected_aliases = {
+        "associative": ("combine-associative", "extend-associative"),
+        "commutative": ("combine-commutative",),
+        "distributive": ("left-distributive", "right-distributive"),
+        "idempotent": ("combine-idempotent",),
+        "contraction": ("contraction",),
+    }
+    assert module._catalog_law_aliases(metta) == expected_aliases
+
+    metta.algebra(
+        "catalog-alias-laws",
+        combine="max",
+        extend="min",
+        zero=0,
+        one=1,
+        laws=("associative",),
+        carrier=(0, 1),
+    )
+    assert module.require(metta, "catalog-alias-laws").laws == frozenset(
+        {"combine-associative", "extend-associative"}
+    )
+
+    with pytest.raises(AlgebraDeclarationError) as refusal:
+        metta.algebra(
+            "catalog-unknown-law",
+            combine="max",
+            extend="min",
+            zero=0,
+            one=1,
+            laws=("identity",),
+        )
+    accepted = ", ".join(member.value for member in AlgebraLaw)
+    assert str(refusal.value) == (
+        "algebra_law_unknown(['identity']); accepted laws are " + accepted
+    )
+
+
+def test_equational_law_names_read_no_catalog(metta, monkeypatch):
+    """Equations answer without the catalog walk an alias needs, and agree."""
+    module = importlib.import_module("metta.algebra")
+    space_module = importlib.import_module("metta._space")
+    original = space_module.Space.atoms
+    walked: list[str] = []
+
+    def counting_atoms(self, *args, **kwargs):
+        walked.append(str(self.name))
+        return original(self, *args, **kwargs)
+
+    monkeypatch.setattr(space_module.Space, "atoms", counting_atoms)
+    equations = ("combine-associative", "extend-associative")
+    assert module._canonical_laws(metta, equations) == frozenset(equations)
+    assert walked == []
+    assert module._canonical_laws(metta, ("associative",)) == frozenset(equations)
+    assert walked == ["&metta"]
 
 
 def test_semiring_vocabulary_members_are_carrier_spellings(metta):

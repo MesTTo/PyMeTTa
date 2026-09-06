@@ -7,6 +7,9 @@ Guarantees:
     test_query_rows_explain_empty_results]
   - query comparison guards use explicit comparison heads [tested:
     test_query_rows_explain_empty_results; commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
+  - eager and lazy binding rows group by the selected atom-valued column while
+    retaining their row columns [tested:
+    test_binding_rows_group_by_their_column_atom; commit=5e0ae6c22d604c4b980766e3cc4811ee545e5c9e]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -64,6 +67,24 @@ def test_rows_to_dicts_returns_plain_records(m):  # noqa: D103  -- pytest discov
     native = Rows(("who", "points"), [("ada", 3)])
     assert native.to_dicts() == [{"who": "ada", "points": 3}]
     assert native.table() == {"who": ["ada"], "points": [3]}
+
+
+def test_binding_rows_group_by_their_column_atom(m):  # noqa: D103 -- the test name states the contract
+    m.add(S.fact(S.a, 1), S.fact(S.b, 2), S.fact(S.a, 3))
+    answers = m.match(S.fact(V.kind, V.value))
+
+    assert list(answers.column("kind")) == [S.a, S.b, S.a]
+    grouped = answers.group_by("kind")
+    assert list(grouped) == [S.a, S.b]
+    assert all(isinstance(rows, Rows) for rows in grouped.values())
+    assert all(rows.columns == ("kind", "value") for rows in grouped.values())
+    assert grouped[S.a].column("value") == [1, 3]
+    assert grouped[S.b].column("value") == [2]
+
+    eager = m.match(S.fact(V.kind, V.value), into=Rows)
+    assert eager.group_by("kind") == grouped
+    with pytest.raises(KeyError, match="no column 'missing'"):
+        eager.group_by("missing")
 
 
 def test_query_rows_explain_empty_results(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
