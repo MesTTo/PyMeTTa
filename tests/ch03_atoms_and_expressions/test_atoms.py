@@ -227,6 +227,31 @@ def test_expr_sequence_index_and_count():  # noqa: D103  -- pytest discovers or 
         atom.index(S.missing)
 
 
+def test_a_leaf_refuses_head_and_args_the_way_it_refuses_children():
+    """Six structural questions, one answer for a leaf: it is a leaf.
+
+    An engine answer is typed `Atom`, so `type_.head` is what a reader
+    writes over an answer list without knowing which kind arrived. A leaf
+    used to raise `AttributeError: 'Symbol' object has no attribute 'head'`
+    from wherever it was asked, which inside a generator expression
+    discarded the caller's own diagnostic and left nobody able to say which
+    answer was the leaf. It refuses with the leaf sentence now, the one
+    `children`, `len`, iteration and indexing have always given.
+    """
+    expression = Expression(S.f, S.a, S.b)
+    assert expression.head == S.f
+    assert expression.args == (S.a, S.b)
+
+    for leaf in (S.leaf, V.open, Grounded(3)):
+        for question, sentence in (
+            ("head", "has no head"),
+            ("args", "has no arguments"),
+            ("children", "has no children"),
+        ):
+            with pytest.raises(TypeError, match=sentence):
+                getattr(leaf, question)
+
+
 def test_expr_identity_equality():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     shared = Expression(S.node, S.leaf)
     atom = Expression(S.root, shared, shared)

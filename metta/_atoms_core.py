@@ -37,6 +37,10 @@ Guarantees:
     commit=012413efb73b4dd27c71354c7f654862f349c03f]
   - atom copy and pickle protocols preserve value and identity contracts
     [tested test_atoms_pickle_by_value, test_process_local_grounded_values_refuse_pickle]
+  - head and args are Atom-level questions, so a leaf refuses with the leaf
+    sentence its four sibling accessors give rather than a bare AttributeError
+    [tested: test_a_leaf_refuses_head_and_args_the_way_it_refuses_children;
+    commit=WORKTREE]
   - two handles under <, <=, > or >= refuse naming spaces.diff and
     spaces.union, while a handle against any other atom keeps the standard
     order [tested: test_two_handles_refuse_to_be_ordered_and_name_the_algebra;
@@ -446,11 +450,27 @@ class Atom:
     # query all return Atom, so without these the documented idiom does not
     # type-check: ten of the 41 diagnostics a downstream user saw over the
     # 16 example programs, across six files [measured 2026-08-17]. Expression
-    # overrides all four; a leaf refuses at the same point it always did,
+    # overrides all six; a leaf refuses at the same point it always did,
     # so the runtime is unchanged and the static story stops being a lie.
+    #
+    # head and args joined the four on 2026-09-07, for the second half of the
+    # same reason. `all(type_.head == S["->"] for type_ in am.run(...))` is
+    # the idiom a reader writes over an answer list, and a leaf among those
+    # answers raised a bare `AttributeError: 'Symbol' object has no attribute
+    # 'head'` from inside the generator, which discarded the assertion's own
+    # (name, types) diagnostic and left nobody able to say WHICH answer was a
+    # leaf. Refusing here says what the atom is, the way its four siblings do.
     @property
     def children(self) -> tuple[Atom, ...]:
         raise TypeError(_leaf_refusal_message(self, "has no children"))
+
+    @property
+    def head(self) -> Atom | None:
+        raise TypeError(_leaf_refusal_message(self, "has no head"))
+
+    @property
+    def args(self) -> tuple[Atom, ...]:
+        raise TypeError(_leaf_refusal_message(self, "has no arguments"))
 
     def __len__(self) -> int:
         raise TypeError(_leaf_refusal_message(self, "has no length"))

@@ -33,6 +33,13 @@ Guarantees:
     test_a_live_tensor_type_carries_its_current_shape,
     test_every_preserving_unary_head_keeps_symbolic_and_live_shapes;
     commit=4eaefdd8d40e53b2613722287302a14b41704662]
+  - a test that installs a SECOND backend restores the process-global
+    ARRAY_OPS roster it borrowed, so the typed roster always describes the
+    install the module's own space got, whatever order pytest-randomly picks.
+    `--randomly-seed=4` is the order that read `%Undefined%` for
+    `tensor--jax.numpy` before this
+    [tested: test_every_array_operation_is_typed_and_a_shape_is_a_constraint;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -88,6 +95,21 @@ def am(metta):  # noqa: D103  -- pytest discovers or injects this callable; its 
                 metta.remove(atom)
 
 
+# `install()` rewrites the process-global roster as its last act
+# (`arrays.py`: `ARRAY_OPS[:] = registered`), so a test that installs a
+# SECOND backend leaves every later test reading that backend's names. With
+# pytest-randomly shuffling this module, that is a coin toss:
+# `--randomly-seed=4` puts the JAX tracer test before
+# test_every_array_operation_is_typed_and_a_shape_is_a_constraint, which then
+# asked the numpy-installed `am` space for the type of `tensor--jax.numpy` and
+# got `%Undefined%` (measured 2026-09-07, and 3 of 5 full parallel runs).
+# These tests already snapshot and restore `registered()`; the roster is the
+# global they missed, and it restores the same way.
+def _own_roster():
+    """The current ARRAY_OPS, to be written back when an install borrows it."""
+    return list(arrays.ARRAY_OPS)
+
+
 def test_numpy_flows_through_the_same_ops(am):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     r = am.run(
         "!(t-tolist (matmul (tensor ((1.0 2.0 3.0) (4.0 5.0 6.0))) "
@@ -104,7 +126,14 @@ def test_every_array_operation_is_typed_and_a_shape_is_a_constraint(am):
     for name in arrays.ARRAY_OPS:
         types = [atom for group in am.run(f"!(get-type {name})") for atom in group]
         assert types, name
-        assert all(type_.head == S["->"] for type_ in types), (name, types)
+        # An answer that is not an expression is a FAILURE of this claim, not
+        # an error inside it: asking a leaf for its head raises, and raising
+        # from inside the generator threw away the (name, types) pair that
+        # says which op answered what. Classify first, then compare.
+        arrows = [
+            isinstance(type_, Expression) and type_.head == S["->"] for type_ in types
+        ]
+        assert all(arrows), (name, types)
 
     operations = {
         name: registered()[name]
@@ -207,6 +236,7 @@ def test_nested_backend_names_do_not_retarget_an_earlier_space():
     """A later NumPy install leaves an existing JAX space routed to JAX."""
     jax_numpy = pytest.importorskip("jax.numpy")
     before = set(registered())
+    roster = _own_roster()
     first_owner = MeTTa()
     second_owner = MeTTa()
     try:
@@ -227,6 +257,7 @@ def test_nested_backend_names_do_not_retarget_an_earlier_space():
     finally:
         for name in sorted(set(registered()) - before, reverse=True):
             first_owner.self.unregister_op(name)
+        arrays.ARRAY_OPS[:] = roster
         first_owner.close()
         second_owner.close()
 
@@ -369,6 +400,7 @@ def test_a_jax_tracer_crosses_a_binary_op_and_a_gradient_reaches_it():
     jax_numpy = pytest.importorskip("jax.numpy")
     context = MeTTa()
     before = set(registered())
+    roster = _own_roster()
     arrays.install(context, default=jax_numpy)
     try:
         concrete = jax_numpy.asarray([1.0, 2.0, 3.0])
@@ -384,6 +416,7 @@ def test_a_jax_tracer_crosses_a_binary_op_and_a_gradient_reaches_it():
         for name in sorted(set(registered()) - before, reverse=True):
             if name in registered():
                 context.self.unregister_op(name)
+        arrays.ARRAY_OPS[:] = roster
 
 
 def test_install_takes_a_context_as_well_as_a_space():
@@ -396,6 +429,7 @@ def test_install_takes_a_context_as_well_as_a_space():
     """
     context = MeTTa()
     before = set(registered())
+    roster = _own_roster()
     names = arrays.install(context, default=numpy)
     try:
         assert "t+" in names
@@ -405,6 +439,7 @@ def test_install_takes_a_context_as_well_as_a_space():
         for name in sorted(set(registered()) - before, reverse=True):
             if name in registered():
                 context.self.unregister_op(name)
+        arrays.ARRAY_OPS[:] = roster
 
 
 def test_embedding_store_runs_on_numpy(am):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
