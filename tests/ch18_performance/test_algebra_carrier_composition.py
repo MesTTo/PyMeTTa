@@ -3,9 +3,9 @@
 Guarantees:
   - native and Python types preserve text, symbols and declared type expressions
     [tested: test_carrier_preserves_text_and_symbol_types,
-    test_native_type_expression_uses_declaring_space_witnesses; commit=WORKTREE].
+    test_native_type_expression_uses_declaring_space_witnesses; commit=074dc0a88b1605c54824de677d586b6f60998bcf].
   - a type and finite enumeration jointly constrain certified runtime values
-    [tested: test_type_and_finite_carrier_check_both_constraints; commit=WORKTREE].
+    [tested: test_type_and_finite_carrier_check_both_constraints; commit=074dc0a88b1605c54824de677d586b6f60998bcf].
 """
 
 import numpy as np

@@ -2,9 +2,9 @@
 
 Guarantees:
   - tensor operations check input and output membership through both constructors
-    [tested: test_tensor_type_carrier_runs_max_product_and_reinterprets_provenance; commit=WORKTREE]
+    [tested: test_tensor_type_carrier_runs_max_product_and_reinterprets_provenance; commit=074dc0a88b1605c54824de677d586b6f60998bcf]
   - a type cannot confer a law certificate and every refusal names its remedy
-    [tested: test_type_carrier_cannot_certify_laws; commit=WORKTREE]
+    [tested: test_type_carrier_cannot_certify_laws; commit=074dc0a88b1605c54824de677d586b6f60998bcf]
 """
 import importlib
 

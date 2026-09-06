@@ -54,7 +54,7 @@ Guarantees:
     test_compiled_for_keeps_one_shot_python_iteration; commit=0dc78c93461d6c7f5a83975abedf0f1a631095c3]
   - algebra_equal() compares tensor shape and exact elements, including unequal
     NaNs [tested: test_finite_tensor_semiring_checks_every_law,
-    test_finite_tensor_nan_does_not_become_equal_by_identity; commit=WORKTREE].
+    test_finite_tensor_nan_does_not_become_equal_by_identity; commit=074dc0a88b1605c54824de677d586b6f60998bcf].
 Fails when:
   - a name does not resolve. It raises rather than answering None, because a
     typo in a module path is not a value.
@@ -442,7 +442,7 @@ def _array_namespace(values: tuple[Any, ...]) -> Any | None:
 # Exact shape plus all-elements equality follows numpy.array_equal, including
 # unequal NaNs. Backend operations retain device arrays instead of copying them.
 # [source: https://github.com/numpy/numpy/blob/v2.5.0/numpy/_core/numeric.py;
-# commit=WORKTREE].
+# commit=074dc0a88b1605c54824de677d586b6f60998bcf].
 def algebra_equal(left: Any, right: Any) -> bool:
     """Compare finite algebra carrier values without transport identity."""
     left, right = _unwrap(left), _unwrap(right)

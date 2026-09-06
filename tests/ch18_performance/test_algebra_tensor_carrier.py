@@ -3,7 +3,7 @@
 Guarantees:
   - both declaration doors certify the complete two-coordinate Boolean
     max-product semiring [tested: test_finite_tensor_semiring_checks_every_law;
-    commit=WORKTREE].
+    commit=074dc0a88b1605c54824de677d586b6f60998bcf].
 """
 
 from itertools import product

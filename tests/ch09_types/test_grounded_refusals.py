@@ -3,7 +3,7 @@
 Guarantees:
   - scalar multiplication reports the concrete array class once, and bag
     evaluation reports its type failure rather than a cardinality failure
-    [tested: this module; commit=WORKTREE]
+    [tested: this module; commit=074dc0a88b1605c54824de677d586b6f60998bcf]
 Owns resources: the protocol fixture removes its two registrations on every exit.
 """
 

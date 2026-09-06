@@ -128,15 +128,15 @@
 %     test_a_law_is_checked_once_in_the_declaring_space; commit=2e627a593413191cda3170f2eb716835f7f62543]
 %   - host algebra predicates receive symbols and expressions as atoms, not
 %     Janus strings or lists [tested: test_carrier_preserves_text_and_symbol_types;
-%     commit=WORKTREE].
+%     commit=074dc0a88b1605c54824de677d586b6f60998bcf].
 %   - metta_py_check_algebra_values/4 decodes host values and checks them
 %     through metta_require_algebra_value/3 in the declaring equation module
 %     [source: engine/spaces/catalog.pl:metta_require_algebra_value/3;
-%     commit=WORKTREE].
+%     commit=074dc0a88b1605c54824de677d586b6f60998bcf].
 %   - metta_py_check_algebra_values_accounted/5 meters carrier predicates
 %     inside the evaluation's resource guard [tested:
 %     test_carrier_predicate_inferences_are_bounded_at_every_phase;
-%     commit=WORKTREE].
+%     commit=074dc0a88b1605c54824de677d586b6f60998bcf].
 %   - derivations descend through the default six-axis dispatch wrapper, so
 %     recursive proof depth remains bounded and one equation yields one proof
 %     [tested: test_depth_exhaustion_returns_a_partial_proof;
@@ -5482,7 +5482,7 @@ metta_py_digest(Space, Result) :-
 % Carrier predicates use the same atom codec as registered Python operations.
 % In particular, Symbol and Expression remain atoms while Grounded unwraps.
 % The direct call retains Python exceptions for the enclosing resource guard
-% [tested: test_carrier_preserves_text_and_symbol_types; commit=WORKTREE].
+% [tested: test_carrier_preserves_text_and_symbol_types; commit=074dc0a88b1605c54824de677d586b6f60998bcf].
 :- multifile seam:grounded_algebra_type/3.
 seam:grounded_algebra_type(Type, Value, Truth) :-
     py_is_object(Type),

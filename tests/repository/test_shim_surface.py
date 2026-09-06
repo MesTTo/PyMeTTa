@@ -12,7 +12,7 @@ Assumes:
     seam's kind [tested: static_checks:every_seam_declares_one_kind]
 Guarantees:
   - carrier membership uses the engine-owned validation door
-    [tested: test_the_host_service_scoreboard_matches_the_tree; commit=WORKTREE]
+    [tested: test_the_host_service_scoreboard_matches_the_tree; commit=074dc0a88b1605c54824de677d586b6f60998bcf]
   - the manifest and the tree hold the same host_service set, compared as
     sets with both differences named
     [tested: test_the_host_service_scoreboard_matches_the_tree;

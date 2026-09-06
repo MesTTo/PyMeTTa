@@ -2,7 +2,7 @@
 
 Guarantees:
   - initial tags and operation inputs/results share one inference and time budget
-    [tested: this module; commit=WORKTREE]
+    [tested: this module; commit=074dc0a88b1605c54824de677d586b6f60998bcf]
 Owns resources: each test drops its temporary declaration space.
 """
 

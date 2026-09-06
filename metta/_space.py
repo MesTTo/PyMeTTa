@@ -8,7 +8,7 @@ Assumes:
     _space_diagnostics.py; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
 Guarantees:
   - captured annotation membership retains the cursor's evaluation context
-    [tested: tests/ch06_many_answers/test_evaluation_context_types.py; commit=WORKTREE]
+    [tested: tests/ch06_many_answers/test_evaluation_context_types.py; commit=074dc0a88b1605c54824de677d586b6f60998bcf]
   - tagged guards retain scoped binding preparation while carrying their algebra
     [tested: sh extensions/python/test.sh
     tests/ch06_many_answers/test_evaluation_context_bindings.py -n 0;
@@ -224,7 +224,7 @@ Owns resources:
   - algebra type validation shares the engine's carrier check, and drop retires
     its Python catalog mirrors [tested:
     test_drop_retires_algebra_before_redeclaration,
-    test_tensor_type_carrier_runs_max_product_and_reinterprets_provenance; commit=WORKTREE]
+    test_tensor_type_carrier_runs_max_product_and_reinterprets_provenance; commit=074dc0a88b1605c54824de677d586b6f60998bcf]
 Open Obligations:
   To Do: None
   Hacks: None

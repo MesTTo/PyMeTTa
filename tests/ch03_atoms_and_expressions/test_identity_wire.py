@@ -8,7 +8,7 @@ Guarantees:
     operator protocol, retaining NumPy scalar result classes
     [tested: extensions/python/tests/ch03_atoms_and_expressions/test_identity_wire.py; commit=a0f1cc5f15a15e5ca6958fe02a20be8832c7237f]
   - a rejected host value answers one refusal naming its concrete class
-    [tested: test_nonnumeric_objects_answer_one_concrete_type_refusal; commit=WORKTREE]
+    [tested: test_nonnumeric_objects_answer_one_concrete_type_refusal; commit=074dc0a88b1605c54824de677d586b6f60998bcf]
 Open Obligations:
   To Do: None
   Hacks: None

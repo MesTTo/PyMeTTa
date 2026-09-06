@@ -3,9 +3,9 @@
 Guarantees:
   - fixed shape carriers check operands, results and finite certificate values
     [tested: test_shaped_carrier_accepts_products_and_refuses_other_shapes,
-    test_shaped_finite_carrier_certifies_fresh_equal_arrays; commit=WORKTREE].
+    test_shaped_finite_carrier_certifies_fresh_equal_arrays; commit=074dc0a88b1605c54824de677d586b6f60998bcf].
   - a refined operation failure remains one specific Error across algebra calls
-    [tested: test_shaped_operation_refusal_is_one_algebra_error; commit=WORKTREE].
+    [tested: test_shaped_operation_refusal_is_one_algebra_error; commit=074dc0a88b1605c54824de677d586b6f60998bcf].
 Owns resources: fixtures remove their protocol entries and operation registrations
   and drop every declaring space.
 """

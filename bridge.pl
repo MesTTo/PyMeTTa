@@ -36,7 +36,7 @@
 %     test_compiled_for_keeps_one_shot_python_iteration;
 %     commit=0dc78c93461d6c7f5a83975abedf0f1a631095c3].
 %   - grounded algebra equality unwraps values and returns one truth value
-%     [tested: test_finite_tensor_semiring_checks_every_law; commit=WORKTREE].
+%     [tested: test_finite_tensor_semiring_checks_every_law; commit=074dc0a88b1605c54824de677d586b6f60998bcf].
 % Fails when:
 %   - a name does not resolve, which raises rather than answering nothing: a
 %     typo in a module path is a mistake, not an empty result.
@@ -437,7 +437,7 @@ seam:grounded_class_type(X, T) :-
     ( atom(Name) -> T = Name ; atom_string(T, Name) ).
 
 % Algebra equality asks Python for values, with one explicit negative answer.
-% [tested: test_finite_tensor_semiring_checks_every_law; commit=WORKTREE].
+% [tested: test_finite_tensor_semiring_checks_every_law; commit=074dc0a88b1605c54824de677d586b6f60998bcf].
 seam:grounded_algebra_equal(Left, Right, Equal) :-
     ( python_object_blob(Left) -> true ; python_object_blob(Right) ),
     metta_py_bridge,

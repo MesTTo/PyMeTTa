@@ -6,7 +6,7 @@ Assumes:
 Guarantees:
   - carrier predicates and operations share the selected evaluation context,
     including demand and ordering [tested:
-    tests/ch06_many_answers/test_evaluation_context_types.py; commit=WORKTREE]
+    tests/ch06_many_answers/test_evaluation_context_types.py; commit=074dc0a88b1605c54824de677d586b6f60998bcf]
   - binding preparation preserves literal values and host identity at custom
     operation crossings [tested: sh extensions/python/test.sh
     tests/ch06_many_answers/test_evaluation_context_bindings.py -n 0;
@@ -88,25 +88,25 @@ Guarantees:
   - typed carriers check every input and result, and only a finite enumeration
     can license a law certificate [tested:
     test_tensor_type_carrier_runs_max_product_and_reinterprets_provenance,
-    test_type_carrier_cannot_certify_laws; commit=WORKTREE]
+    test_type_carrier_cannot_certify_laws; commit=074dc0a88b1605c54824de677d586b6f60998bcf]
   - a failed operation raises its original Error atom before it can become a tag
-    [tested: test_bag_over_tensor_tags_reports_the_type_failure; commit=WORKTREE]
+    [tested: test_bag_over_tensor_tags_reports_the_type_failure; commit=074dc0a88b1605c54824de677d586b6f60998bcf]
   - carrier checks debit the tagged evaluation's remaining inference and time
     budget at initial facts, initial rules, inputs, and results [tested:
     test_carrier_predicate_inferences_are_bounded_at_every_phase,
     test_carrier_checks_debit_one_quota_across_initial_facts,
-    test_carrier_predicate_respects_the_enclosing_time_limit; commit=WORKTREE]
+    test_carrier_predicate_respects_the_enclosing_time_limit; commit=074dc0a88b1605c54824de677d586b6f60998bcf]
   - algebra mirrors restore their exact preimage when a transaction rolls back
     [tested: test_rollback_releases_an_algebra_mirror,
-    test_rollback_restores_a_replaced_algebra_mirror; commit=WORKTREE]
+    test_rollback_restores_a_replaced_algebra_mirror; commit=074dc0a88b1605c54824de677d586b6f60998bcf]
   - Python carrier predicates preserve symbols and expressions while decoding
     grounded payloads [tested: test_carrier_preserves_text_and_symbol_types;
-    commit=WORKTREE]
+    commit=074dc0a88b1605c54824de677d586b6f60998bcf]
 Owns resources:
   - catalog mirrors retain declared predicates; Space.drop removes its mirrors
     and transaction rollback restores their previous state [tested:
     test_drop_retires_algebra_before_redeclaration,
-    test_rollback_releases_an_algebra_mirror; commit=WORKTREE]
+    test_rollback_releases_an_algebra_mirror; commit=074dc0a88b1605c54824de677d586b6f60998bcf]
 Decides:
   - ``contraction`` is a capability, while the remaining public law names are
     equations checked exhaustively over the declared finite carrier.

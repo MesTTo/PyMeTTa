@@ -23,7 +23,7 @@ Guarantees:
     an ``Any`` return while checking every carrier attribute [tested:
     mypy-algebra-surface; commit=5e0ae6c22d604c4b980766e3cc4811ee545e5c9e]
   - typed algebra declarations retain DeclaredAlgebra results in both callable
-    and decorator forms [tested: mypy-algebra-surface; commit=WORKTREE]
+    and decorator forms [tested: mypy-algebra-surface; commit=074dc0a88b1605c54824de677d586b6f60998bcf]
 Fails when: a package callable needs a type contract that its implementation
   annotations do not express.  Add that deliberate refinement here, beside
   ``_algebra_protocol``, rather than silently weakening the whole root.

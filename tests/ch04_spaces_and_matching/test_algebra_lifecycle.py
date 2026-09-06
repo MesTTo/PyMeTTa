@@ -2,10 +2,10 @@
 
 Guarantees:
   - dropping a space removes its algebra before the name can be reused
-    [tested: test_drop_retires_algebra_before_redeclaration; commit=WORKTREE]
+    [tested: test_drop_retires_algebra_before_redeclaration; commit=074dc0a88b1605c54824de677d586b6f60998bcf]
   - transaction rollback restores the exact algebra mirror preimage, including
     nested declarations [tested: test_rollback_releases_an_algebra_mirror,
-    test_rollback_restores_a_replaced_algebra_mirror; commit=WORKTREE]
+    test_rollback_restores_a_replaced_algebra_mirror; commit=074dc0a88b1605c54824de677d586b6f60998bcf]
 """
 import importlib
 from contextlib import ExitStack

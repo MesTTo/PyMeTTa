@@ -3,7 +3,7 @@
 Guarantees:
   - callbacks observe the requested carrier and providers receive only licensed
     bounds [tested: sh extensions/python/test.sh
-    tests/ch06_many_answers/test_evaluation_context.py -n 0; commit=WORKTREE]
+    tests/ch06_many_answers/test_evaluation_context.py -n 0; commit=074dc0a88b1605c54824de677d586b6f60998bcf]
 """
 
 from __future__ import annotations

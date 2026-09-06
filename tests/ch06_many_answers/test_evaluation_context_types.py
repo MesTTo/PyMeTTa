@@ -3,11 +3,11 @@
 Guarantees:
   - source annotations, operands and results see the selected algebra and demand
     [tested: test_carrier_predicates_share_the_operation_evaluation_context;
-    commit=WORKTREE].
+    commit=074dc0a88b1605c54824de677d586b6f60998bcf].
   - refusals and retained interpretation restore the complete enclosing context
     [tested: test_carrier_refusal_restores_the_enclosing_evaluation_context,
     test_retained_interpretation_uses_the_explicit_typed_carrier_context;
-    commit=WORKTREE].
+    commit=074dc0a88b1605c54824de677d586b6f60998bcf].
 Owns resources:
   - fixtures drop their spaces and unregister their Python algebra operations.
 """
