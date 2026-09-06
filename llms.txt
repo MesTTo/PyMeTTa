@@ -305,8 +305,9 @@ from metta import spawn, par_map, race, channel, parallel
 future = spawn(term)          # a FutureSpace; wait(), settled(), cancel()
 par_map(fn, items); race(a, b); channel()
 m.transaction(term)           # all-or-nothing; rollback delivers no events
+m.transaction(callable)       # the same boundary over Python-side writes
 with m.limits(inferences=10_000, timeout=1.0): ...
-with m.speculate(): ...       # run and discard
+with m.speculate(): ...       # run and discard: it scopes the sources
 ```
 
 An abandoned future warns rather than spinning silently.
