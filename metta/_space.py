@@ -1749,10 +1749,15 @@ class Space(Handle):
 
     def add(self, *atoms: Any) -> None:
         """Add atoms to this space, one engine round-trip for the lot.
-        An (= ...) atom compiles as an equation. Every Atom shape the engine's
-        add-atom accepts crosses unchanged, including a bare Symbol, Grounded
-        value, and empty Expression; a free Variable receives the engine's own
-        insufficient-instantiation refusal.
+        An (= ...) atom compiles as an equation. Every Atom shape crosses
+        unchanged, including a bare Symbol, Grounded value, and empty
+        Expression; a free Variable receives the engine's own
+        insufficient-instantiation refusal. The MeTTa longhand is
+        `!(add-atoms <space> (<atom> ...))`. It is NOT `add-atom`, which is
+        upstream PeTTa's spelling and takes upstream's domain: a headless atom
+        cannot become a fact in a space there, so `!(add-atom &self b)` has no
+        answer on either engine. This space is wider and `add-atoms` is the
+        door onto the wider part.
 
         A variable's NAME is not stored. `(rule $x $y)` reads back as
         `(rule $_17902 $_17904)`, because a variable is an identity and not a
@@ -6264,10 +6269,15 @@ class MeTTa:
 
     def add(self, *atoms: Any) -> None:
         """Add atoms to this space, one engine round-trip for the lot.
-        An (= ...) atom compiles as an equation. Every Atom shape the engine's
-        add-atom accepts crosses unchanged, including a bare Symbol, Grounded
-        value, and empty Expression; a free Variable receives the engine's own
-        insufficient-instantiation refusal.
+        An (= ...) atom compiles as an equation. Every Atom shape crosses
+        unchanged, including a bare Symbol, Grounded value, and empty
+        Expression; a free Variable receives the engine's own
+        insufficient-instantiation refusal. The MeTTa longhand is
+        `!(add-atoms <space> (<atom> ...))`. It is NOT `add-atom`, which is
+        upstream PeTTa's spelling and takes upstream's domain: a headless atom
+        cannot become a fact in a space there, so `!(add-atom &self b)` has no
+        answer on either engine. This space is wider and `add-atoms` is the
+        door onto the wider part.
 
         A variable's NAME is not stored. `(rule $x $y)` reads back as
         `(rule $_17902 $_17904)`, because a variable is an identity and not a

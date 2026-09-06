@@ -54,13 +54,16 @@ def test_unify_binds_variables_both_ways(m):  # noqa: D103  -- pytest discovers 
 
 
 def test_unify_runs_only_the_selected_branch(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    # Branch non-evaluation, proven by markers as the arbiter proves it.
-    m.run("(= (then-probe) (chain (add-atom (context-space) then-ran) $_ 3))")
-    m.run("(= (else-probe) (chain (add-atom (context-space) else-ran) $_ 4))")
+    # Branch non-evaluation, proven by markers as the arbiter proves it. The
+    # marker is an EXPRESSION: `add-atom` stores an atom by its head, upstream's
+    # own domain, so a bare-symbol marker would have nothing to store and the
+    # chain nothing to bind.
+    m.run("(= (then-probe) (chain (add-atom (context-space) (then-ran)) $_ 3))")
+    m.run("(= (else-probe) (chain (add-atom (context-space) (else-ran)) $_ 4))")
     assert m.run("!(unify A A (then-probe) (else-probe))") == [[3]]
-    assert m.run("!(match (context-space) else-ran hit)") == [[]]
+    assert m.run("!(match (context-space) (else-ran) hit)") == [[]]
     assert m.run("!(unify A B (then-probe) (else-probe))") == [[4]]
-    assert m.run("!(match (context-space) then-ran hit)") == [[S.hit]]
+    assert m.run("!(match (context-space) (then-ran) hit)") == [[S.hit]]
 
 
 def test_unify_binds_a_cyclic_pair_raw(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract

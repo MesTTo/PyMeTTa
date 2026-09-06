@@ -867,9 +867,10 @@ ENTRIES: list[Entry] = [
     Entry(
         "add-atom", ("(-> SpaceType Atom (->))",), "Grounded", "spaces", "dissolves",
         "`space += atom`, the container protocol. A plain Python tuple encodes to "
-        "an expression on the way in, so a fact needs no builder ceremony. Bare "
-        "symbols, grounded values, and empty expressions cross when engine "
-        "`add-atom` accepts them too.",
+        "an expression on the way in, so a fact needs no builder ceremony. This "
+        "spelling takes upstream PeTTa's domain, an atom with a HEAD, and has no "
+        "answer for a bare symbol, a grounded value or the empty expression; "
+        "`add-atoms` is the door onto the wider space and `space += atom` uses it.",
         metta="!(bind! &pb (new-space))\n!(add-atom &pb (f 1))\n!(get-atoms &pb)",
         python="space += (S.f, 1)\nspace.atoms()",
     ),

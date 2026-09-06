@@ -601,7 +601,7 @@ _DOCUMENTATION = {
     ">=": ">=: (-> Number Number Bool)\n\nPython's own operator.",
     "abs-math": "abs-math: (-> Number Number)\n\nPython's builtin `abs`.",
     "acos-math": "acos-math: (-> Number Number)\n\n`math.acos`.",
-    "add-atom": "add-atom: (-> SpaceType Atom (->))\n\n`space += atom`, the container protocol. A plain Python tuple encodes to an expression on the way in, so a fact needs no builder ceremony. Bare symbols, grounded values, and empty expressions cross when engine `add-atom` accepts them too.",
+    "add-atom": "add-atom: (-> SpaceType Atom (->))\n\n`space += atom`, the container protocol. A plain Python tuple encodes to an expression on the way in, so a fact needs no builder ceremony. This spelling takes upstream PeTTa's domain, an atom with a HEAD, and has no answer for a bare symbol, a grounded value or the empty expression; `add-atoms` is the door onto the wider space and `space += atom` uses it.",
     "add-atoms": "add-atoms: (-> SpaceType Expression (->))\n\nThe same `+=` form, once per fact: anything that yields tuples is a fact stream. Lists, outer tuples of rows, generators, SQL cursors, and dataframe row iterators each write one atom per yielded item; a built Expression is always one atom.",
     "add-reduct": "add-reduct: (-> SpaceType %Undefined% (->))\n\nThere is no second form: `+=` adds what you give it, so adding a REDUCT is explicit composition, `space += m.eval(term)[0]`. Bare grounded answers use `+=` directly; this row wraps the evaluated sum only to retain its `total` relation head.",
     "add-reducts": "add-reducts: (-> SpaceType %Undefined% (->))\n\nThe plural of the same composition: evaluate, then write the answers.",

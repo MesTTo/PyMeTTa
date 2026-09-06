@@ -11,6 +11,11 @@ Guarantees:
   - the Python doors keep the finer grain the MeTTa door gave up:
     `space.remove(atom)` still subtracts ONE copy and reports whether it found
     one [tested test_the_python_remove_door_subtracts_one_copy]
+  - `add-atom` and `remove-atom` take upstream PeTTa's domain, an atom with a
+    HEAD, and have no answer for a headless one; the wider space is reached
+    through `add-atoms`, `subtract-atom` and the Python doors
+    [tested test_the_singular_space_doors_take_upstreams_domain,
+    test_the_python_add_door_still_takes_a_headless_atom]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -19,7 +24,7 @@ Open Obligations:
 
 import pytest
 
-from metta import TRUE, Expression, S, V
+from metta import FALSE, TRUE, Expression, S, V
 from metta.foreign import SpaceProvider
 
 
@@ -67,12 +72,43 @@ def test_a_removal_answers_once_and_a_collapse_holds_it(m):  # noqa: D103  -- py
 
 
 # A scalar atom lives in its own storage predicate, so it is a separate path
-# to the same answer.
+# to the same answer. It reaches that predicate through `add-atoms`, not
+# `add-atom`: the singular spelling is upstream PeTTa's and takes upstream's
+# domain, an atom with a HEAD, so it has no answer for a bare symbol at all.
 def test_a_scalar_removal_answers_true_too(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    m.run("!(add-atom &self lonely)")
-    present, absent = m.run("!(remove-atom &self lonely)\n!(remove-atom &self nobody)")
+    m.run("!(add-atoms &self (lonely))")
+    present, absent = m.run(
+        "!(subtract-atom &self lonely)\n!(subtract-atom &self nobody)"
+    )
     assert present == [TRUE]
-    assert absent == [TRUE]
+    assert absent == [FALSE]
+
+
+# The singular spellings' own domain, on the same path: no answer, and nothing
+# written, which is what upstream answers for the same three programs
+# [measured 2026-09-07 against PeTTa@ae66fa8].
+@pytest.mark.parametrize(
+    "source",
+    [
+        "!(add-atom &self lonely)",
+        "!(add-atom &self 1)",
+        "!(add-atom &self ())",
+        "!(remove-atom &self lonely)",
+        "!(remove-atom &self 1)",
+    ],
+)
+def test_the_singular_space_doors_take_upstreams_domain(m, source):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
+    assert m.run(source) == [[]]
+    assert list(m.atoms()) == []
+
+
+# The Python door is not the singular MeTTa spelling and keeps the wider space,
+# which is where a headless atom still has a door.
+def test_the_python_add_door_still_takes_a_headless_atom(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
+    m.add(S.lonely)
+    assert [str(a) for a in m.atoms()] == ["lonely"]
+    assert m.remove(S.lonely) is True
+    assert list(m.atoms()) == []
 
 
 # An equation removes through its own path, which un-compiles the clause as
@@ -129,9 +165,12 @@ def test_repeated_removal_is_idempotent(m):  # noqa: D103  -- pytest discovers o
 
 
 # Scalars live in their own storage predicate, so they are a separate path to
-# the same law.
+# the same law. `add-atoms` is the door onto it, and `del space[atom]` is the
+# Python drain; the singular MeTTa spellings take upstream's narrower domain.
 def test_a_scalar_removal_drains_its_copies(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    m.run("!(add-atom &self lone)\n!(add-atom &self lone)\n!(remove-atom &self lone)")
+    m.run("!(add-atoms &self (lone lone))")
+    assert [str(a) for a in m.atoms()] == ["lone", "lone"]
+    del m[S.lone]
     (left,) = m.run("!(collapse (get-atoms &self))")
     assert left == [Expression()]
 

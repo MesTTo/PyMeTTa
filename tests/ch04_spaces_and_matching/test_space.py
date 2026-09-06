@@ -977,18 +977,35 @@ def test_write_door_uses_the_iteration_protocol_not_only_the_iterable_abc(m):
 
 
 def test_the_write_doors_accept_the_same_atoms(metta):
-    """Python add and engine add-atom share scalar storage acceptance."""
+    """Python add and the engine's PLURAL door share scalar storage acceptance.
+
+    Not `add-atom`: that spelling is upstream PeTTa's and takes upstream's
+    domain, an atom with a HEAD, because upstream stores an atom as a fact
+    keyed on its head and a headless one cannot become one. `add-atoms` is
+    this engine's own door onto the wider space and is what `space += atom`
+    reaches.
+    """
     python_space = metta._new_space()
     engine_space = metta._new_space()
     accepted = (S.bare, Grounded(7), Expression())
     try:
         for atom in accepted:
             python_space.add(atom)
-            metta.eval(S["add-atom"](engine_space, atom))
+            metta.eval(S["add-atoms"](engine_space, Expression(atom)))
 
         assert python_space.atoms() == list(accepted)
         assert engine_space.atoms() == list(accepted)
         assert len(python_space) == len(engine_space) == 3
+
+        # The singular spelling has no answer for any of the three, and writes
+        # nothing, which is what upstream answers for the same programs.
+        narrow = metta._new_space()
+        try:
+            for atom in accepted:
+                assert metta.eval(S["add-atom"](narrow, atom)) == []
+            assert narrow.atoms() == []
+        finally:
+            narrow.drop()
 
         with pytest.raises(EngineError, match="sufficiently instantiated"):
             python_space.add(V.unbound)
