@@ -11,7 +11,8 @@
 #     configuration lived in check.sh alone and a hand run silently used
 #     different settings.
 #   - arguments pass through, so `sh extensions/python/test.sh tests/ch04_spaces_and_matching`
-#     narrows the run without repeating the flags that make it correct.
+#     narrows the run without repeating the flags that make it correct, and a
+#     caller's own flag overrides a default, so `-n 0` runs in one process.
 #   - the exit status is pytest's, unpiped.
 # Open Obligations:
 #   To Do: None
@@ -42,9 +43,15 @@ METTA_ROOT="$HERE/../.."
 # Spelled as the path rather than through a `bounded` function, because a
 # function cannot be exec'd and this file's exit status must stay pytest's.
 cd "$HERE"
+#
+# The defaults come BEFORE "$@" so that a caller's own flag wins: pytest and
+# xdist take the last value of a repeated option, and with the defaults after
+# the arguments a caller's `-n 0` was silently overridden, so every "serial"
+# run of this script stayed parallel [measured 2026-09-06: the order-dependency
+# inventory had to bypass this file to run in one process].
 if [ "$#" -gt 0 ]; then
     exec sh "$HERE/../../bounded.sh" \
-        "$PY" -m pytest "$@" -q -p no:benchmark -n 4 --dist loadfile --max-worker-restart=0
+        "$PY" -m pytest -q -p no:benchmark -n 4 --dist loadfile --max-worker-restart=0 "$@"
 fi
 exec sh "$HERE/../../bounded.sh" \
-    "$PY" -m pytest tests -q -p no:benchmark -n 4 --dist loadfile --max-worker-restart=0
+    "$PY" -m pytest -q -p no:benchmark -n 4 --dist loadfile --max-worker-restart=0 tests
