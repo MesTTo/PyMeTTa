@@ -3,7 +3,7 @@
 Guarantees:
   - callbacks observe the requested carrier and providers receive only licensed
     bounds [tested: sh extensions/python/test.sh
-    tests/ch06_many_answers/test_evaluation_context.py -n 0; commit=54cb2eee69c42c1ae685643cbe2578f8d617a265]
+    tests/ch06_many_answers/test_evaluation_context.py -n 0; commit=WORKTREE]
 """
 
 from __future__ import annotations
@@ -57,7 +57,7 @@ def test_tagged_callbacks_observe_the_requested_carrier(
         def extend(left: int, right: int) -> int:
             if recording:
                 observe("extend")
-            return left * right
+            return (left * right) % 16
 
         def guard(value: Atom) -> bool:
             observe("where")
@@ -66,10 +66,13 @@ def test_tagged_callbacks_observe_the_requested_carrier(
         space.op(combine, name="crossing-combine", effect="pureStructural")
         space.op(extend, name="crossing-extend", effect="pureStructural")
         space.op(guard, name="crossing-guard", effect="readOnlyLookup")
+        # The certificate covers every runtime tag. Multiplication modulo 16
+        # closes this complete finite carrier and preserves the observed
+        # products 2 * 5 = 10 and 3 * 5 = 15.
         space.algebra(
             carrier_name, combine="crossing-combine",
             extend="crossing-extend", zero=0, one=1,
-            laws=("combine-associative",), carrier=(0, 1), order="descending",
+            laws=("combine-associative",), carrier=range(16), order="descending",
         )
         space.add(
             algebra.tagged_fact(2, S.crossing_seed(S.a)),

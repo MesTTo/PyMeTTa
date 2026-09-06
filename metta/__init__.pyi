@@ -119,6 +119,7 @@ class _AlgebraModule(_Protocol):
         one: _Any = ...,
         laws: _Iterable[str] = ...,
         carrier: _Iterable[_Any] = ...,
+        type: _Any = ...,
         requires: _Iterable[str] = ...,
         order: _SemiringOrder | None = ...,
     ) -> _Callable[[type], _DeclaredAlgebra]: ...
@@ -136,6 +137,7 @@ class _AlgebraModule(_Protocol):
         one: _Any = ...,
         laws: _Iterable[str] = ...,
         carrier: _Iterable[_Any] = ...,
+        type: _Any = ...,
         requires: _Iterable[str] = ...,
         order: _SemiringOrder | None = ...,
     ) -> _DeclaredAlgebra: ...

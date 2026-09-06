@@ -36,6 +36,14 @@ assert_type(metta.forms("(x)"), list[Atom])
 assert_type(metta.run("!(x)"), list[list[Atom]])
 assert_type(metta.algebra(int), DeclaredAlgebra)
 assert_type(metta.algebra(), Callable[[type], DeclaredAlgebra])
+assert_type(
+    metta.algebra(
+        "typed-int-product", plus=max, times=lambda a, b: a * b,
+        zero=0, one=1, type=int,
+    ),
+    DeclaredAlgebra,
+)
+assert_type(metta.algebra(type=int), Callable[[type], DeclaredAlgebra])
 assert_type(metta.algebra.bool, DeclaredAlgebra)
 assert_type(metta.algebra.bag, DeclaredAlgebra)
 assert_type(metta.bag, DeclaredAlgebra)
