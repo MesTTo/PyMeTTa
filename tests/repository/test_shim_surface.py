@@ -14,11 +14,11 @@ Guarantees:
   - the manifest and the tree hold the same host_service set, compared as
     sets with both differences named
     [tested: test_the_host_service_scoreboard_matches_the_tree;
-    commit=2e627a593413191cda3170f2eb716835f7f62543]
+    commit=WORKTREE]
   - every remaining row carries a named floor reason, so the list is the
     transport floor rather than a smaller pile of orchestration
     [tested: test_the_shim_surface_shrank_to_the_transport_floor;
-    commit=2e627a593413191cda3170f2eb716835f7f62543]
+    commit=WORKTREE]
   - the host query door uses the engine's published pattern-modifier walk
     [tested: test_a_path_reaches_into_a_handle_without_converting_it;
     commit=a1b10566194f10c174101fdc05f956b33171613b]
@@ -74,6 +74,10 @@ HOST_SERVICES = {
     # reads its effective declaration, and initializes annotations from that
     # declaration's one rather than rebuilding those rules in the transport.
     "metta_with_under/2",
+    # Context transport and ranked-bound licensing are engine-owned policy.
+    "metta_with_evaluation_context/2",
+    "metta_evaluation_context/1",
+    "metta_ordered_match_limit/6",
     "metta_effective_algebra/2",
     # current_algebra reads an engine-held per-call override before the host's
     # task scope and an explicit context declaration. The host cannot observe
@@ -265,6 +269,9 @@ FLOOR_REASONS = {
     "lift_pattern_modifiers/4": "door",
     "metta_seq_query_plan/2": "door",
     "metta_with_under/2": "door",
+    "metta_with_evaluation_context/2": "door",
+    "metta_evaluation_context/1": "door",
+    "metta_ordered_match_limit/6": "host-orchestration",
     "metta_effective_algebra/2": "door",
     "metta_current_algebra/3": "door",
     "metta_algebra_one/2": "door",

@@ -87,6 +87,19 @@ preserve MULTIPLICITY and do not promise order. `len(space)`,
 is not a value that dwindles) are the container protocol; ask
 `bool(space.match(p))` when the question is emptiness.
 
+Tagged answers retain their derivation. `answer.under(algebra_object)`
+reinterprets it using that object directly, including its Python operations,
+without declaring it in the answer's space or querying again. A same-name local
+declaration does not replace the supplied object. Inside combine, extend and
+`where=` callbacks, `metta.current_algebra()` observes the selected carrier,
+including an explicit `under=` that overrides an annotations row.
+
+`kb.match(q, under=metta.ranked, limit=2)` offers the provider the same bound
+as `kb.match(q, under=metta.ranked)[:2]` and the language's `(top 2 ...)`.
+The engine checks Exact routing, matching algebra and ordering, best-first
+emission and repeatable consumption. A guarded or joined query keeps its full
+candidate stream so limiting cannot discard an eventual answer.
+
 ## Defining: two doors, and the price of each
 
 ```python

@@ -4,6 +4,9 @@
 %   derivations on top of an unmodified MeTTa engine. Consulted after
 %   engine/main.pl; only adds predicates, never redefines engine ones.
 % Guarantees:
+%   - internal and held evaluations install the same carrier and demand context
+%     [tested: sh extensions/python/test.sh
+%     tests/ch06_many_answers/test_evaluation_context.py -n 0; commit=WORKTREE].
 %   - transport failure subclasses retain their outcome across error policies
 %     [tested: test_protocol_errors_cannot_become_engine_answers; commit=089bc6036ae5039bce3963d8b4e80ecaf04dfb49]
 %   - async Python operations answer a future space immediately, publish their
@@ -1045,6 +1048,7 @@ metta_py_wrappable(metta_py_reducible).
 metta_py_wrappable(metta_py_eval_status_using_all).
 metta_py_wrappable(metta_py_run_status).
 metta_py_wrappable(metta_py_captured).
+metta_py_wrappable(metta_py_in_evaluation_context).
 metta_py_wrappable(metta_py_atomic).
 metta_py_wrappable(metta_py_speculative).
 metta_py_wrappable(metta_py_profiled).
@@ -1139,6 +1143,13 @@ metta_py_guarded(TimeS, Inf, Goal) :-
       ( Result == inference_limit_exceeded
         -> metta_py_raise(inference_limit, Inf)
       ; true ) ).
+
+%Internal execution carries the same context as an annotated cursor while
+%retaining the operation's plain answer wire.
+metta_py_in_evaluation_context([Algebra, Limit, Direction], Pred, Ins, Out) :-
+    metta_py_wrapped_goal(Pred, Ins, Out, Goal),
+    metta_with_evaluation_context(
+        evaluation_context(Algebra, Limit, Direction), Goal).
 
 metta_py_captured(Pred, Ins, [Out, Text]) :-
     metta_py_wrapped_goal(Pred, Ins, Out, Goal),
@@ -1292,8 +1303,14 @@ metta_py_cursor_open_under_controlled(
         Space, PatternsTagged, GuardTagged, VarNames, Limit, Inf, Algebra,
         Direction, TimeS, Policy, prolog(Engine)) :-
     (   Direction \== none
-    ->  metta_py_cursor_goal(Space, PatternsTagged, GuardTagged, VarNames, 0,
-                             Row, Producer),
+    ->  (   GuardTagged == [], PatternsTagged = [PatternTagged]
+        ->  metta_py_decode(PatternTagged, Pattern),
+            metta_ordered_match_limit(
+                Space, Pattern, Algebra, Limit, Direction, ProducerLimit)
+        ;   ProducerLimit = 0
+        ),
+        metta_py_cursor_goal(Space, PatternsTagged, GuardTagged, VarNames,
+                             ProducerLimit, Row, Producer),
         Core = metta_py_ordered_under_query(
                    Space, Direction, TimeS, Producer, Row, K),
         ( Limit > 0 -> Goal = limit(Limit, Core) ; Goal = Core )
@@ -1301,7 +1318,8 @@ metta_py_cursor_open_under_controlled(
                              Limit, Row, Producer),
         Goal = metta_py_under_query(Space, Producer, K)
     ),
-    Scoped = metta_with_under(Algebra, Goal),
+    Scoped = metta_with_evaluation_context(
+                 evaluation_context(Algebra, Limit, Direction), Goal),
     Encoded = ( Scoped, metta_py_encode(K, KWire) ),
     metta_host_time_budget(Encoded, TimeS, Timed),
     metta_host_inference_budget(Timed, Inf, Bounded),
@@ -3299,7 +3317,9 @@ metta_py_eval_cursor_open_under_controlled(
                  b_getval('$metta_answer_k', K),
                  statistics(inferences, Now), Used is Now - Before )
     ),
-    Goal = ( metta_with_under(Algebra, Core), metta_py_encode(K, KWire) ),
+    Goal = ( metta_with_evaluation_context(
+                 evaluation_context(Algebra, 0, Direction), Core),
+             metta_py_encode(K, KWire) ),
     metta_host_time_budget(Goal, TimeS, Timed),
     metta_host_inference_budget(Timed, Inf, Bounded),
     metta_py_open_controlled_cursor(

@@ -1,5 +1,8 @@
 """Purpose: execute, profile, and evaluate terms for one named space.
 Guarantees:
+  - algebra and demand cross internal evaluation without changing answer shape
+    [tested: sh extensions/python/test.sh
+    tests/ch06_many_answers/test_evaluation_context.py -n 0; commit=WORKTREE]
   - named host values retain object identity through source execution
     [tested test_run_using_carries_identity]
   - capture never changes an answer shape, and atomic, speculative, and
@@ -99,6 +102,7 @@ from ._space_objects import (
     _limits,
     _record_engine_inferences,
 )
+from ._under import EvaluationContext
 from .atoms import (
     Atom,
     Grounded,
@@ -248,6 +252,7 @@ def _controlled_run(
     limits: tuple[float, int, int] | None,
     *,
     policy: _ExecutionPolicy | None = None,
+    context: EvaluationContext | None = None,
 ) -> Any:
     """Execute one engine target through the complete task-local policy.
 
@@ -272,6 +277,10 @@ def _controlled_run(
             predicate, inputs = "metta_py_atomic", [predicate, inputs]
         elif policy.mode == "speculative":
             predicate, inputs = "metta_py_speculative", [predicate, inputs]
+    if context is not None:
+        predicate, inputs = "metta_py_in_evaluation_context", [
+            context.to_wire(), predicate, inputs,
+        ]
     if policy.captured is not None and not mode_is_held:
         predicate, inputs = "metta_py_captured", [predicate, inputs]
     has_outer_policy = not mode_is_held and (
@@ -455,6 +464,7 @@ def evaluate(
     inferences: int | None,
     *,
     using: dict[str, Any] | None = None,
+    context: EvaluationContext | None = None,
 ) -> list[Atom | Undefined]:
     predicate = "metta_py_eval_all"
     # Source text goes over as text. Parsing it here would cross to the engine's
@@ -471,7 +481,7 @@ def evaluate(
             [[name, _encode(value).to_wire()] for name, value in using.items()],
         ]
     wires = _controlled_run(
-        rt, predicate, inputs, _limits(timeout, inferences)
+        rt, predicate, inputs, _limits(timeout, inferences), context=context
     )
     return [_from_wire(wire) for wire in wires]
 
@@ -482,6 +492,8 @@ def evaluate_accounted(
     target: Any,
     timeout: float | None,
     inferences: int,
+    *,
+    context: EvaluationContext,
 ) -> tuple[list[Atom | Undefined], int]:
     """Evaluate once and return the engine work to debit from an outer quota."""
     encoded = target if isinstance(target, str) else _to_atom(target).to_wire()
@@ -490,6 +502,7 @@ def evaluate_accounted(
         "metta_py_eval_accounted",
         [space, encoded],
         _limits(timeout, inferences),
+        context=context,
     )
     return [_from_wire(wire) for wire in wires], int(spent)
 
@@ -753,8 +766,7 @@ def evaluate_answers(
     inferences: int | None,
     *,
     using: dict[str, Any] | None = None,
-    under: str | None = None,
-    order: str | None = None,
+    context: EvaluationContext | None = None,
     annotation_factory: Callable[[Any, Atom], Any] | None = None,
 ) -> Answers[Any]:
     """Return evaluation as a cached lazy answer sequence.
@@ -777,6 +789,8 @@ def evaluate_answers(
     test_a_retained_count_replays_the_bag_the_cursor_would_have_answered;
     commit=00a30179a1acd55aa969b44a977fb9a38e2e2df2].
     """
+    under = None if context is None else context.algebra
+    order = None if context is None else context.order
     encoded_target = target if isinstance(target, str) else _to_atom(target).to_wire()
     columns = [] if isinstance(target, str) else _column_names((_to_atom(target),))
     pairs = (

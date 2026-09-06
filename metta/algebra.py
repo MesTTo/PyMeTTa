@@ -4,6 +4,13 @@ Assumes:
   - facts and rules rest in a space as ordinary ``(fact tag proposition)``
     and ``(rule tag head (premises ...))`` atoms.
 Guarantees:
+  - binding preparation preserves literal values and host identity at custom
+    operation crossings [tested: sh extensions/python/test.sh
+    tests/ch06_many_answers/test_evaluation_context_bindings.py -n 0;
+    commit=WORKTREE]
+  - algebra and demand cross internal evaluation without changing answer shape
+    [tested: sh extensions/python/test.sh
+    tests/ch06_many_answers/test_evaluation_context.py -n 0; commit=WORKTREE]
   - only laws checked over a finite carrier, or trusted shipped preset laws,
     license answer fusion [tested:
     test_a_declared_algebra_without_laws_answers_in_order_and_unfused;
@@ -101,8 +108,10 @@ from typing import Any, Final, cast
 from ._api_types import space_of
 from ._engine import active_runtime
 from ._space import Space, current_space
+from ._space_execution import evaluate as evaluate_operation
 from ._space_execution import evaluate_accounted
 from ._space_objects import _limits, _validate_limit
+from ._under import EvaluationContext
 from ._under import selected as _selected_under
 from .atoms import (
     Atom,
@@ -182,6 +191,7 @@ class LinearEvidenceError(MettaError):
 class _EvaluationBudget:
     """One call's absolute wall deadline and remaining engine-step quota."""
 
+    context: EvaluationContext
     timeout: float | None
     inferences: int | None
     deadline: float | None
@@ -189,15 +199,16 @@ class _EvaluationBudget:
 
     @classmethod
     def from_call(
-        cls, timeout: float | None, inferences: int | None
+        cls, timeout: float | None, inferences: int | None,
+        context: EvaluationContext,
     ) -> _EvaluationBudget:
         limits = _limits(timeout, inferences)
         if limits is None:
-            return cls(None, None, None, None)
+            return cls(context, None, None, None, None)
         seconds = None if limits[0] < 0 else limits[0]
         steps = None if limits[1] < 0 else limits[1]
         deadline = None if seconds is None else time.monotonic() + seconds
-        return cls(seconds, steps, deadline, steps)
+        return cls(context, seconds, steps, deadline, steps)
 
     def checkpoint(self) -> float | None:
         """Raise at expiry, otherwise answer the time left for one engine call."""
@@ -220,13 +231,19 @@ class _EvaluationBudget:
         self, metta: Space, target: Atom
     ) -> list[Atom | Undefined]:
         """Evaluate one algebra operation and debit its measured engine work."""
+        target, using = metta._prepared_ask(target, None)
+        if using:
+            target = target.subs({Symbol(name): _encode(value) for name, value in using.items()})
         remaining_time = self.checkpoint()
         remaining_steps = self.remaining_inferences
         if remaining_steps is not None and remaining_steps <= 0:
             raise self._inference_limit_error()
         try:
             if remaining_steps is None:
-                return metta.eval(target, timeout=remaining_time)
+                return evaluate_operation(
+                    metta.runtime, metta.name, target, remaining_time, None,
+                    context=self.context,
+                )
             # Each eager eval is a fresh engine crossing, so giving it the original
             # quota would reset the caller's budget once per algebra operation.
             # The accounted eval reports its own goal's inference delta in the SAME
@@ -238,6 +255,7 @@ class _EvaluationBudget:
                 target,
                 remaining_time,
                 remaining_steps,
+                context=self.context,
             )
         except TimeLimitError as error:
             raise self._time_limit_error() from error
@@ -325,11 +343,11 @@ class DeclaredAlgebra:
         if name in {"plus", "times"}:
             return Expression((Symbol(name), left, right))
         target = Expression((Symbol(name), left, right))
-        answers = (
-            metta.eval(target)
-            if resources is None
-            else resources.evaluate_operation(metta, target)
-        )
+        if resources is None:
+            resources = _EvaluationBudget.from_call(
+                None, None, EvaluationContext(self.name, order=self.order)
+            )
+        answers = resources.evaluate_operation(metta, target)
         if len(answers) != 1:
             msg = (
                 f"algebra_operation_not_single({self.name}, {name}, "
@@ -463,7 +481,12 @@ class TaggedAnswer:
             raise AlgebraEvaluationError(msg)
         declaration = resolve(self._space, carrier)
         traces = self._derivations or (_Trace(-1, self.tag),)
-        annotation = _interpret_alternatives(self._space, declaration, traces)
+        resources = _EvaluationBudget.from_call(
+            None, None, EvaluationContext(declaration.name, order=declaration.order)
+        )
+        annotation = _interpret_alternatives(
+            self._space, declaration, traces, resources
+        )
         return replace(self, tag=annotation, _algebra=declaration.name)
 
 
@@ -618,8 +641,7 @@ def resolve(metta: Space, carrier: Any) -> DeclaredAlgebra:
     """
     metta = space_of(metta)
     if isinstance(carrier, DeclaredAlgebra):
-        registered = get(metta, carrier.name)
-        return carrier if registered is None else registered
+        return carrier
     return require(metta, _carrier_name(carrier))
 
 
@@ -1201,12 +1223,14 @@ def _carrier_input(declaration: DeclaredAlgebra, trace: _Trace) -> Atom:
 
 
 def _interpret_trace(
-    metta: Space, declaration: DeclaredAlgebra, trace: _Trace
+    metta: Space, declaration: DeclaredAlgebra, trace: _Trace,
+    resources: _EvaluationBudget,
 ) -> Atom:
     value = _carrier_input(declaration, trace)
     for child in trace.children:
         value = declaration.extend_values(
-            metta, value, _interpret_trace(metta, declaration, child)
+            metta, value, _interpret_trace(metta, declaration, child, resources),
+            resources=resources,
         )
     return value
 
@@ -1215,11 +1239,14 @@ def _interpret_alternatives(
     metta: Space,
     declaration: DeclaredAlgebra,
     alternatives: Sequence[_Trace],
+    resources: _EvaluationBudget,
 ) -> Atom:
     value = declaration.zero
     for trace in alternatives:
-        contribution = _interpret_trace(metta, declaration, trace)
-        value = declaration.combine_values(metta, value, contribution)
+        contribution = _interpret_trace(metta, declaration, trace, resources)
+        value = declaration.combine_values(
+            metta, value, contribution, resources=resources
+        )
     return value
 
 
@@ -1265,8 +1292,9 @@ def evaluate(
     metta: Space,
     query: str | Atom,
     *,
-    algebra: str,
+    algebra: str | DeclaredAlgebra,
     max_rounds: int = 64,
+    context: EvaluationContext | None = None,
     timeout: float | None = None,
     inferences: int | None = None,
 ) -> AlgebraEvaluation:
@@ -1275,8 +1303,10 @@ def evaluate(
     metta may be a context or a space.
     """
     metta = space_of(metta)
-    resources = _EvaluationBudget.from_call(timeout, inferences)
-    declaration = require(metta, algebra)
+    declaration = resolve(metta, algebra)
+    if context is None:
+        context = EvaluationContext(declaration.name, order=declaration.order)
+    resources = _EvaluationBudget.from_call(timeout, inferences, context)
     _require_context_capabilities(metta, declaration)
     goal = parse(query) if isinstance(query, str) else _encode(query)
     resources.checkpoint()
@@ -1314,7 +1344,7 @@ def evaluate(
             available.extend(added)
         else:
             msg = (
-                f"algebra_derivation_did_not_reach_fixpoint({algebra}, rounds={max_rounds})"
+                f"algebra_derivation_did_not_reach_fixpoint({declaration.name}, rounds={max_rounds})"
             )
             raise AlgebraEvaluationError(msg)
     matched: list[TaggedAnswer] = []

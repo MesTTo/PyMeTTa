@@ -1,5 +1,8 @@
 """Purpose: query, profiling, scope, and callable objects returned by MeTTa.
 Guarantees:
+  - algebra and demand cross internal evaluation without changing answer shape
+    [tested: sh extensions/python/test.sh
+    tests/ch06_many_answers/test_evaluation_context.py -n 0; commit=WORKTREE]
   - scoped timeout, inference, and stack-byte bounds are task-local and stack
     bounds select ``metta_py_limited/6`` while the unbounded path preserves
     ``metta_py_limited/5`` [tested:
@@ -89,6 +92,7 @@ from ._call_binding import bind_positional_call, refuse_unknown_keywords
 from ._engine import Runtime, defer_engine_call
 from ._name_mapping import OperatorRecipe, operator_attribute_target
 from ._space_definitions import call_parameter_names
+from ._under import EvaluationContext
 from .atoms import (
     TRUE,
     Atom,
@@ -626,10 +630,13 @@ class Cursor:
         inferences: int | None,
         *,
         limit: int | None = None,
-        under: str | None = None,
-        order: str | None = None,
+        context: EvaluationContext | None = None,
         capture: Any = None,
     ) -> None:
+        if context is not None:
+            limit = context.limit
+        under = None if context is None else context.algebra
+        order = None if context is None else context.order
         _validate_limit(limit)
         atoms = [_to_atom(p) for p in patterns]
         columns = _column_names(atoms)
