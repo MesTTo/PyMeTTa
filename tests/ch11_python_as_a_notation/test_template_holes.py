@@ -332,8 +332,8 @@ def test_an_unbound_field_is_refused_by_name(metta):
 
 def test_a_keyword_no_field_uses_is_refused(metta):
     """Otherwise a mistyped bound would be swallowed by the values face."""
-    with pytest.raises(TypeError, match=r"does not use: \['timout'\]"):
-        metta.run("!(+ {n} 1)", n=1, timout=5)
+    with pytest.raises(TypeError, match=r"does not use: \['nobody'\]"):
+        metta.run("!(+ {n} 1)", n=1, nobody=5)
 
 
 def test_a_positional_field_is_refused(metta):
@@ -358,8 +358,8 @@ def test_an_unknown_conversion_names_the_three(metta):
 
 def test_the_ascii_conversion_is_pythons_own(metta):
     """!a is ascii(), the third conversion PEP 750 records."""
-    assert metta.run(Tpl(("!(id ", ")"), (Interp("caf\u00e9", "v", "a"),))) == [
-        [Grounded("'caf\\xe9'")]
+    assert metta.run(Tpl(("!(id ", ")"), (Interp("\u00fcber", "v", "a"),))) == [
+        [Grounded("'\\xfcber'")]
     ]
 
 
