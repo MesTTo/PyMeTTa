@@ -149,13 +149,39 @@ def test_an_undefined_head_inside_arithmetic_refuses_by_name(metta):  # noqa: D1
         ("!(< 1 a)", '(Error (< 1 a) "< expects two numbers")'),
         ("!(min-atom (a b))",
          '(Error (min-atom (a b)) "Only numbers are allowed in expression: (a b)")'),
-        ("!(and True 5)", "(Error (and True 5) (BadArgType 2 Bool Number))"),
     ],
 )
 def test_an_operation_that_cannot_compute_answers_rather_than_raising(metta, source, answer):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     # MeTTa's error channel is an ANSWER, so the parts arrive as data and the
     # form after the refusal still runs.
     assert [str(a) for group in metta.run(source) for a in group] == [answer]
+
+
+# The five boolean operations are RELATIONS over the two booleans, so outside
+# that domain they have no answer at all rather than a refusal atom. That is
+# upstream PeTTa's own guard, `and(A,B,C) :- bool(A), bool(B), ...`, and every
+# one of these prints nothing there [measured 2026-09-07 against PeTTa@ae66fa8].
+@pytest.mark.parametrize(
+    "source",
+    [
+        "!(and True 5)",
+        "!(and a a)",
+        "!(and True a)",
+        "!(or False 5)",
+        "!(not 5)",
+        "!(xor True 5)",
+        "!(implies False 5)",
+    ],
+)
+def test_a_boolean_operation_outside_its_domain_has_no_answer(metta, source):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
+    assert metta.run(source) == [[]]
+
+
+# The relational reading is the other half of the same law and is upstream's
+# too: an unbound operand enumerates the booleans instead of refusing.
+def test_a_boolean_operation_with_open_operands_answers_its_truth_table(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
+    (row,) = metta.run("!(collapse (and $a $b))")
+    assert [str(a) for a in row] == ["(True False False False)"]
 
 
 @pytest.mark.parametrize(
