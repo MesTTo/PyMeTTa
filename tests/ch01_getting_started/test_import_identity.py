@@ -72,6 +72,7 @@ def test_callback_facade_owns_no_state_and_delegates():
             "fork_contexts": "_task_context",
             "release_context": "_task_context",
             "release_contexts": "_task_context",
+            "stream_reraise": "errors",
             "type_names": "_ops",
             "construct_token": "_tokens",
             "foreign_add": "foreign",

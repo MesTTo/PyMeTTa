@@ -15,6 +15,10 @@ Guarantees:
     prov expression and retained source trace [tested:
     test_grounded_provider_annotation_retains_host_object_identity;
     commit=4f2d6c0f8eb293b73f8dde30a1c84e24834f7393]
+  - a provider generator that re-enters the engine and spends the caller's
+    bound reports that bound on every door, direct and tagged alike [tested:
+    test_a_reentrant_provider_generator_reports_the_budget_that_stopped_it;
+    commit=0ee5a2dfee0e37a23b0eb9c765b477d7f90295fe]
 """
 
 from __future__ import annotations
@@ -391,3 +395,77 @@ def test_provider_carrier_predicate_shares_the_source_budget(metta, resource):
             assert current_algebra() == "tropical"
             assert space.runtime.once("metta_evaluation_context(Context)") == previous
         assert helper.eval(S["+"](1, 2)) == [3]
+
+
+class ReentrantRules(SpaceProvider):
+    """A provider whose match evaluates in another space before answering."""
+
+    def __init__(self, helper, rules, rows):
+        """Keep the space to consult beside the rules and weighted rows."""
+        self.helper = helper
+        self.rules = rules
+        self.rows = rows
+        self.entered = 0
+        self.finished = 0
+
+    def atoms(self):
+        """Expose the rule declarations, without re-entering anything."""
+        return iter(self.rules)
+
+    def match(self, pattern):
+        """Spend engine steps in the helper space, then answer."""
+        if pattern.children[0] == S.err:
+            self.entered += 1
+            self.helper.eval(S.reentrant_spin(2_000_000))
+            self.finished += 1
+        for value, weight in self.rows:
+            yield Answer(value=value, k=weight)
+
+
+@pytest.mark.parametrize("door", ["stream", "match", "tagged"])
+@pytest.mark.parametrize("resource", ["inferences", "timeout"])
+def test_a_reentrant_provider_generator_reports_the_budget_that_stopped_it(
+    metta, door, resource
+):
+    """The caller's bound names itself, on every door a provider answers.
+
+    A provider generator that re-enters the engine spends the caller's own
+    budget, and the resource error that follows used to reach the caller as
+    `EngineError: the engine could not accept this call's inputs: <built-in
+    function apply_once> returned a result with an exception set`: janus's
+    py_iter had left the limit exception set, so the next crossing found a
+    C function that had answered with one pending. The direct doors took it
+    for `inferences`, and the tagged door for both bounds.
+    """
+    with metta._new_space() as helper:
+        helper.run(
+            "(= (reentrant-spin $n) "
+            "(if (== $n 0) True (reentrant-spin (- $n 1))))"
+        )
+        provider = ReentrantRules(
+            helper,
+            [tagged_rule(1, S.bad(V.x), S.err(V.x))],
+            [(S.err(S.x), 2)],
+        )
+        with make_space(backing=provider) as space:
+            name = "reentrant-source-budget"
+            space.algebra(name, combine="max", extend="*", zero=0, one=1, type=int)
+            if resource == "inferences":
+                options, expected, resource_word = (
+                    {"inferences": 20_000},
+                    InferenceLimitError,
+                    "inference limit",
+                )
+            else:
+                options, expected, resource_word = (
+                    {"timeout": 0.1},
+                    TimeLimitError,
+                    "time limit",
+                )
+            head = S.bad if door == "tagged" else S.err
+            ask = space.stream if door == "stream" else space.match
+            with pytest.raises(expected) as stopped:
+                list(ask(head(S.x), under=name, **options))
+            assert resource_word in str(stopped.value)
+            assert provider.entered == 1
+            assert helper.eval(S["+"](1, 2)) == [3]

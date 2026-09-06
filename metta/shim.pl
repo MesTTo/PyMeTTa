@@ -915,6 +915,27 @@ metta_control_signal_info(
     memberchk(Kind, [syntax, time_limit, inference_limit, interrupted,
                      value, type]).
 
+%SWI's OWN resource balls, which the engine already names control exceptions
+%(engine/metta/registration.pl) and which reach this side unenveloped whenever
+%the goal that spent the budget was a NESTED query: janus's apply_once opens
+%one with PL_Q_CATCH_EXCEPTION, so it takes the ball before the enclosing
+%call_with_inference_limit/3 can see it and turn it into the envelope. A Python
+%callback that re-enters the engine is exactly that shape, and without these
+%its budget arrived at the Python door as `EngineError: Unknown message:
+%inference_limit_exceeded`, which names neither the resource nor the caller's
+%own bound: both the nested call's exception and the outer door's carried the
+%term `inference_limit_exceeded` itself [tested:
+%test_a_reentrant_provider_generator_reports_the_budget_that_stopped_it;
+%commit=0ee5a2dfee0e37a23b0eb9c765b477d7f90295fe].
+%
+%The bound itself is NOT recoverable here and is answered as absent rather
+%than guessed: the number lives in the frame that installed it,
+%metta_host_inference_budget/3's own Inferences, which has already unwound by
+%the time this classifier runs in a later janus query. The enveloped path,
+%which is every bound that expires in its own goal, still carries it.
+metta_control_signal_info(inference_limit_exceeded, inference_limit, @none).
+metta_control_signal_info(time_limit_exceeded, time_limit, @none).
+
 metta_control_signal_kind(Error, Kind) :-
     metta_control_signal_info(Error, Kind, _).
 
@@ -4062,8 +4083,8 @@ metta_py_dispatch_many(Name, Args, Result) :-
           Error, TR = '$metta_op_error'(Error)),
     (   TR = '$metta_op_error'(ManyError)
     ->  metta_py_op_erring(Name, Args, ManyError, Result)
-    ;   metta_py_stream_error(TR, StreamError)
-    ->  metta_py_failure([Name|Args], StreamError)
+    ;   metta_py_stream_frame(TR, StreamException)
+    ->  metta_py_stream_failure([Name|Args], StreamException)
     ;   metta_py_relation_form(TR, Fields)
     ->  metta_py_relation_result(Fields, Args, Table, Result)
     ;   TR = [_, _, _, _|_]
@@ -4071,15 +4092,75 @@ metta_py_dispatch_many(Name, Args, Result) :-
     ;   metta_py_decode_shared_(TR, Result, Table, _)
     ).
 
-%Python cannot raise from inside py_iter/2 without Janus replacing the real
-%exception with a bare SystemError. A generator therefore yields this reserved
-%terminal frame; reconstruct the ordinary Janus error term and pass it through
-%the same structured failure boundary as a deterministic operation.
-metta_py_stream_error([Tag, Raise, Class0, Exception],
-                      error(python_error(Class, Exception), none)) :-
+%A Python stream pulled through py_iter/2 cannot raise. py_iter reads a raising
+%pull as an exhausted one: it never consults the Python error indicator after
+%PyIter_Next, so the goal carries on over a SILENTLY TRUNCATED stream and the
+%still-set exception surfaces at whatever crossing runs next
+%[source: janus 1.5.3 janus.c:py_iter3, the two
+%`state->next = PyIter_Next(state->iterator)` calls, neither followed by
+%check_error; commit=0ee5a2dfee0e37a23b0eb9c765b477d7f90295fe]. What "whatever runs next" turned out to be was
+%a provider match answering one atom instead of two and then taking SIGSEGV
+%inside janus's own error path, and a KeyboardInterrupt out of a
+%nondeterministic operation printing "foreign predicate
+%system:$new_findall_bag/0 did not clear exception" and then vanishing
+%[tested:
+%test_an_inference_limit_spent_inside_a_provider_callback_is_an_inference_limit_error,
+%test_a_control_signal_out_of_a_python_stream_leaves_no_pending_exception;
+%commit=0ee5a2dfee0e37a23b0eb9c765b477d7f90295fe].
+%
+%So every Python stream this file pulls ends a failure with this reserved frame
+%instead, and the live exception is handed straight back to Python to raise
+%there. Nothing is reconstructed: janus's own check_error then converts it
+%exactly as it converts a deterministic py_call callback's exception, the
+%unwind forms for KeyboardInterrupt and SystemExit included, and
+%metta_py_original_exception/2 still finds the very object for the Python
+%boundary to re-raise. metta.errors.stream_failure is the other half.
+%
+%py_is_object/1 is what keeps the frame reserved on the RAW doors, whose items
+%are the operation author's own values rather than encoded wire.
+metta_py_stream_frame([Tag, Raise, _Class, Exception], Exception) :-
     metta_py_tag(Tag, x),
     metta_py_tag(Raise, raise),
-    metta_py_tag(Class0, Class).
+    py_is_object(Exception).
+
+%Hand the carried exception back and let Python raise it. Never returns: a
+%py_call that answered instead of raising means stream_reraise stopped doing
+%the one thing it exists for, which must not read as an empty stream.
+metta_py_stream_raise(Exception) :-
+    py_call(metta_ops:stream_reraise(Exception), _),
+    throw(error(metta_py_stream_reraise_returned(Exception), none)).
+
+%The same raise, reported through Call's structured boundary: what a
+%deterministic operation's failure already does, so an operation's answer
+%stream fails the way its single answer would. Never returns either.
+metta_py_stream_failure(Call, Exception) :-
+    catch(metta_py_stream_raise(Exception), Error, metta_py_failure(Call, Error)).
+
+%Succeeds for an ordinary stream item, for the provider seam, whose eager
+%refusals reach the caller as janus made them and whose lazy ones must read
+%identically.
+%
+%Two clauses rather than one if-then-else, which is the bounded cursor's own
+%shape and for the same measured reason: SWI charges an if-then-else one more
+%inference when its condition FAILS than when it succeeds, and the condition
+%here fails on every ordinary item. Both provider routes ask this PER
+%CANDIDATE, so that one inference is a third of the guard's whole price
+%[measured 2026-09-06 over 2000 provider candidates: get-atoms 52,036
+%inferences unguarded, 58,036 through the if-then-else and 56,036 through these
+%two clauses; the same 2,000-candidate match through collapse 66,311, 70,311
+%and 68,311; commit=0ee5a2dfee0e37a23b0eb9c765b477d7f90295fe]. The remaining 2 per candidate are this call and
+%metta_py_stream_frame/2's. Spelling that predicate's three goals into the
+%first clause head instead would take it to 1, and is deliberately not done:
+%one reservation rule serves five doors, and nothing measures this constant as
+%a bottleneck.
+metta_py_stream_item(Item) :-
+    metta_py_stream_frame(Item, Exception),
+    !,
+    metta_py_stream_raise(Exception).
+metta_py_stream_item(_).
+
+prolog:error_message(metta_py_stream_reraise_returned(Exception)) -->
+    [ 'metta_ops:stream_reraise answered ~q instead of raising it'-[Exception] ].
 
 %An encoded generator's exact tuple/dict yield is a relation row, tagged away
 %from the atom wire. Python has already mapped sparse parameter names to their
@@ -4175,8 +4256,8 @@ metta_py_dispatch_raw_det(Name, Args, Result) :-
 metta_py_dispatch_raw_many(Name, Args, Result) :-
     catch(metta_py_host_call(Name, metta_py_call_raw_many(Name, Args, R0)),
           Error, metta_py_failure([Name|Args], Error)),
-    (   metta_py_stream_error(R0, StreamError)
-    ->  metta_py_failure([Name|Args], StreamError)
+    (   metta_py_stream_frame(R0, StreamException)
+    ->  metta_py_stream_failure([Name|Args], StreamException)
     ;   true
     ),
     R0 \== '@'(none),
@@ -4374,12 +4455,19 @@ metta_py_raw_kind(raw_many).
 %The arity is checked here rather than trusted, because the inverse is the
 %author's own Python and a tuple of the wrong width would otherwise unify
 %against nothing and read as "no solution" rather than as the mistake it is.
+%The failure frame is read BEFORE the width check, because a frame is a
+%four-element list and a four-argument operation's preimage is one too, so
+%checking width first would report a raising inverse as an arity mistake.
 metta_py_dispatch_inverse(Name, Result, Args) :-
     metta_py_encode(Result, [], Table, TR),
     catch(metta_py_host_call(
               Name,
               metta_py_call_inverse(Name, TR, TArgs)),
           Error, metta_py_failure([Name, Result], Error)),
+    (   metta_py_stream_frame(TArgs, StreamException)
+    ->  metta_py_stream_failure([Name, Result], StreamException)
+    ;   true
+    ),
     metta_py_inverse_width(Name, Args, TArgs),
     metta_py_decode_arguments(TArgs, Table, Args).
 
@@ -4388,6 +4476,10 @@ metta_py_dispatch_inverse_raw(Name, Result, Args) :-
               Name,
               metta_py_call_inverse_raw(Name, Result, RawArgs)),
           Error, metta_py_failure([Name, Result], Error)),
+    (   metta_py_stream_frame(RawArgs, StreamException)
+    ->  metta_py_stream_failure([Name, Result], StreamException)
+    ;   true
+    ),
     metta_py_inverse_width(Name, Args, RawArgs),
     maplist(metta_py_raw_norm, RawArgs, Args).
 
@@ -5082,6 +5174,12 @@ seam:foreign_erring(Space, Pattern, Licensed, Mode, Item) :-
     py_iter(metta_ops:foreign_match(SpaceStr, W, Limit, ModeStr), CW),
     metta_py_erring_item(CW, Pattern, Limit, Table, Space, Item).
 
+metta_py_erring_item(CW, _, _, _, _, _) :-
+    metta_py_stream_frame(CW, Exception), !,
+    %A declared mode is enforced on the Python side, so a frame arriving here
+    %is what no mode may reinterpret: a transport failure, a control signal,
+    %or a failure of the mode enforcement itself.
+    metta_py_stream_raise(Exception).
 metta_py_erring_item([XTag, End], _, _, _, _, end) :-
     ( XTag == "x" ; XTag == x ),
     ( End == "end" ; End == end ), !.
@@ -5109,6 +5207,7 @@ seam:matchable_value(Blob) :-
 seam:custom_match(Blob, Other) :-
     metta_py_encode(Other, [], Table, W),
     py_iter(metta_ops:match_object(Blob, W), CW),
+    metta_py_stream_item(CW),
     metta_py_answer_match(CW, Other, Table, '$metta-matchable').
 
 %Transactional participation for Python providers, driven by (writes Ctx
@@ -5135,6 +5234,7 @@ seam:foreign_match(Space, Pattern, Options) :-
     metta_py_encode(Pattern, [], Table, W),
     atom_string(Space, SpaceStr),
     py_iter(metta_ops:foreign_match(SpaceStr, W, Limit), CW),
+    metta_py_stream_item(CW),
     metta_py_answer_match(CW, Pattern, Limit, Table, Space).
 
 %What the provider claims about its own filtering for this pattern, asked
@@ -5152,6 +5252,7 @@ seam:foreign_atoms(Space, Atom) :-
     metta_py_foreign(Space),
     atom_string(Space, SpaceStr),
     py_iter(metta_ops:foreign_atoms(SpaceStr), CW),
+    metta_py_stream_item(CW),
     metta_py_decode_shared(CW, Atom, _).
 
 seam:foreign_add(Space, Term) :-

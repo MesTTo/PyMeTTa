@@ -22,13 +22,22 @@ Guarantees:
     crossing, and an empty seam batch is a no-op
     [tested: test_a_batch_preflights_every_add_policy_before_one_bulk_write;
     commit=06e553e2a31cd7e54b49df9b7759c63c1a5455ea]
+  - a provider generator that raises mid-pull, re-enters the engine, or spends
+    the caller's bound reaches the caller as the exception it is, naming the
+    space, and leaves the engine clean for the next query [tested:
+    test_a_provider_generator_that_raises_names_the_space_and_the_provider,
+    test_an_inference_limit_spent_inside_a_provider_callback_is_an_inference_limit_error,
+    test_a_failed_provider_match_leaves_the_next_query_clean; commit=0ee5a2dfee0e37a23b0eb9c765b477d7f90295fe]
 Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None
 """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
+import subprocess
+import sys
 from collections.abc import Iterator
+from pathlib import Path
 from typing import Any, ClassVar
 
 import pytest
@@ -44,6 +53,8 @@ from metta import (
     parse,
     unify,
 )
+from metta import space as make_space
+from metta.errors import EngineError, InferenceLimitError, TimeLimitError
 from metta.foreign import (
     Adder,
     Clearer,
@@ -947,3 +958,258 @@ def test_an_eager_foreign_match_pulls_each_candidate_once(metta):
                 f"{type(provider).__name__} was pulled "
                 f"{provider.yields} times for 2000 candidates"
             )
+
+
+class Spinner(SpaceProvider):
+    """A provider whose match re-enters the engine between two answers.
+
+    The helper space holds the spin equation, so what runs inside the pull is
+    an ordinary engine evaluation made from Python, which is the shape every
+    real provider takes when it consults something the engine already knows.
+    """
+
+    def __init__(self, helper, steps=3_000_000, **bound):
+        """Record the helper to query and the bound to query it under."""
+        self.helper = helper
+        self.steps = steps
+        self.bound = bound
+        self.entered = 0
+        self.finished = 0
+
+    def match(self, _pattern):
+        """Answer once, spend engine steps, then answer again."""
+        self.entered += 1
+        yield S.item(S.one)
+        self.helper.eval(S.spin(self.steps), **self.bound)
+        self.finished += 1
+        yield S.item(S.two)
+
+
+@pytest.fixture
+def spinner(metta):
+    """A space that spends a measured number of engine steps on demand."""
+    with metta._new_space() as helper:
+        helper.run("(= (spin $n) (if (== $n 0) True (spin (- $n 1))))")
+        yield helper
+
+
+def test_a_provider_generator_that_raises_names_the_space_and_the_provider(metta):
+    """A provider's own exception, mid-pull, reaches the caller as a refusal.
+
+    janus's py_iter reads a raising pull as an exhausted one, so before this
+    the answer set was silently short and the exception surfaced at whatever
+    crossing ran next, wearing janus's own wording and naming no space.
+    """
+    del metta
+
+    class Raiser(SpaceProvider):
+        def match(self, _pattern):
+            yield S.item(S.one)
+            msg = "the provider generator blew up"
+            raise RuntimeError(msg)
+
+    with make_space(backing=Raiser()) as target:
+        # EngineError, not the bare MettaError a DECLINED request raises: the
+        # provider implements match and crashed inside it.
+        with pytest.raises(EngineError) as refused:
+            list(target.match(S.item(V.x)))
+        assert refused.value.space == target.name
+    assert "its Raiser provider raised RuntimeError" in str(refused.value)
+    assert "the provider generator blew up" in str(refused.value)
+    assert refused.value.operation == "match"
+    assert isinstance(refused.value.__cause__, RuntimeError)
+
+
+def test_a_provider_that_raises_our_own_error_keeps_its_own_sentence(metta):
+    """A provider speaking the library's language is not wrapped in ours."""
+    del metta
+
+    class Refusing(SpaceProvider):
+        def match(self, _pattern):
+            yield S.item(S.one)
+            msg = "this provider only serves ground patterns"
+            raise MettaError(msg)
+
+    with make_space(backing=Refusing()) as target:
+        with pytest.raises(MettaError) as refused:
+            list(target.match(S.item(V.x)))
+    assert str(refused.value) == "this provider only serves ground patterns"
+    assert not isinstance(refused.value, EngineError)
+
+
+def test_an_enumeration_that_raises_mid_stream_names_its_provider(metta):
+    """The atoms door crosses py_iter too, and fails the same way."""
+    del metta
+
+    class Raiser(SpaceProvider):
+        def atoms(self):
+            yield S.item(S.one)
+            msg = "the enumeration blew up"
+            raise RuntimeError(msg)
+
+    with make_space(backing=Raiser()) as target:
+        with pytest.raises(EngineError) as refused:
+            target.atoms()
+        assert refused.value.space == target.name
+    assert "get-atoms cannot use" in str(refused.value)
+    assert "its Raiser provider raised RuntimeError" in str(refused.value)
+    assert isinstance(refused.value.__cause__, RuntimeError)
+
+
+def test_a_provider_may_query_the_engine_from_inside_its_own_match(spinner):
+    """Re-entering the engine between two answers is allowed and complete."""
+    provider = Spinner(spinner, steps=1_000)
+    with make_space(backing=provider) as target:
+        answers = [row.x for row in target.match(S.item(V.x))]
+    assert answers == [S.one, S.two]
+    assert (provider.entered, provider.finished) == (1, 1)
+
+
+def test_an_inference_limit_spent_inside_a_provider_callback_is_an_inference_limit_error(
+    spinner,
+):
+    """The caller's own bound stops the query and says so.
+
+    Before this the whole process died: py_iter left the limit exception set,
+    janus's error path then asked Python to build a Term with that exception
+    still set, took the NULL its own py_record answers for that, and
+    dereferenced it.
+    """
+    provider = Spinner(spinner)
+    with make_space(backing=provider) as target:
+        with pytest.raises(InferenceLimitError):
+            list(target.match(S.item(V.x), inferences=20_000))
+        assert (provider.entered, provider.finished) == (1, 0)
+        # The poisoned-next-call control: the engine is clean for whoever
+        # calls next.
+        assert spinner.eval(S["+"](1, 2)) == [3]
+
+
+def test_a_time_limit_reached_during_a_provider_match_is_a_time_limit_error(spinner):
+    """The bound that stopped this call names itself.
+
+    A wall bound cannot fire while Python holds the thread, so it fires when
+    the callback returns rather than inside it, and it is still the caller's
+    own bound rather than an unattributed engine fault.
+    """
+    provider = Spinner(spinner)
+    with make_space(backing=provider) as target:
+        with pytest.raises(TimeLimitError, match=r"0\.1 second time limit"):
+            list(target.match(S.item(V.x), timeout=0.1))
+        assert spinner.eval(S["+"](1, 2)) == [3]
+
+
+@pytest.mark.parametrize(
+    ("bound", "expected"),
+    [({"inferences": 5_000}, InferenceLimitError), ({"timeout": 0.05}, TimeLimitError)],
+)
+def test_a_bound_the_provider_set_itself_crosses_as_that_bound(
+    spinner, bound, expected
+):
+    """A bound the provider set for itself reaches the caller as that bound.
+
+    The provider bounds its own nested query and does not catch the result,
+    so what escapes its generator is the resource error rather than a
+    crossing fault.
+    """
+    provider = Spinner(spinner, steps=30_000_000, **bound)
+    with make_space(backing=provider) as target:
+        with pytest.raises(expected):
+            list(target.match(S.item(V.x)))
+        assert (provider.entered, provider.finished) == (1, 0)
+        assert spinner.eval(S["+"](1, 2)) == [3]
+
+
+def test_a_failed_provider_match_leaves_the_next_query_clean(metta):
+    """The poisoned-next-call control, on the provider that failed.
+
+    A crossing may fail three ways: it may poison the NEXT call, it may leak
+    a raw Prolog error, or it may crash. Only the second is visible in the
+    failing call itself, so the same provider is asked again, and answers.
+    """
+
+    class Once(SpaceProvider):
+        def __init__(self):
+            self.asked = 0
+
+        def match(self, _pattern):
+            self.asked += 1
+            yield S.item(S.one)
+            if self.asked == 1:
+                msg = "the provider generator blew up once"
+                raise RuntimeError(msg)
+            yield S.item(S.two)
+
+    with make_space(backing=Once()) as target:
+        with pytest.raises(MettaError):
+            list(target.match(S.item(V.x)))
+        assert [row.x for row in target.match(S.item(V.x))] == [S.one, S.two]
+        assert metta.eval(S["+"](1, 2)) == [3]
+
+
+# The child that proves a control signal leaves nothing set. It runs both
+# streaming doors, the provider's match and a registered generator operation,
+# because both cross janus's py_iter and neither is reachable from the other's
+# chapter.
+_CONTROL_SIGNAL_CHILD = """
+import sys
+from metta import MeTTa, S, V, space
+from metta.foreign import SpaceProvider
+
+class Interrupting(SpaceProvider):
+    def match(self, pattern):
+        yield S.item(S.one)
+        raise KeyboardInterrupt
+
+m = MeTTa()
+
+@m.op(effect="nondeterministicReadOnly")
+def interrupting_op(n: int):
+    yield n
+    raise KeyboardInterrupt
+
+with space(backing=Interrupting()) as target:
+    try:
+        list(target.match(S.item(V.x)))
+    except KeyboardInterrupt:
+        pass
+    else:
+        raise AssertionError("the provider's interrupt never arrived")
+    assert m.eval(S["+"](1, 2)) == [3]
+
+try:
+    list(m.eval(S.interrupting_op(7)))
+except KeyboardInterrupt:
+    pass
+else:
+    raise AssertionError("the operation's interrupt never arrived")
+assert m.eval(S["+"](2, 2)) == [4]
+print("both signals crossed")
+"""
+
+
+def test_a_control_signal_out_of_a_python_stream_leaves_no_pending_exception():
+    """Neither streaming door leaves a Prolog exception uncleared behind it.
+
+    KeyboardInterrupt is a BaseException, outside the declared error modes by
+    construction, so before this it escaped into py_iter and SWI reported the
+    leak itself: `foreign predicate system:$new_findall_bag/0 did not clear
+    exception: unwind(keyboard_interrupt)` for the operation door and
+    `system:engine_destroy/1` twice for the provider's.
+
+    In a child process, because that diagnostic is written by SWI's own C
+    error stream: it reaches neither pytest's fd capture nor the library's
+    capture() [measured 2026-09-06], and a real terminal is the only place it
+    was ever visible.
+    """
+    done = subprocess.run(
+        [sys.executable, "-c", _CONTROL_SIGNAL_CHILD],
+        capture_output=True,
+        text=True,
+        timeout=120,
+        check=False,
+        cwd=Path(__file__).resolve().parents[2],
+    )
+    assert done.returncode == 0, done.stderr
+    assert "both signals crossed" in done.stdout
+    assert "did not clear exception" not in done.stderr, done.stderr
