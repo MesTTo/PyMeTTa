@@ -7,7 +7,7 @@ Guarantees:
   - provider coefficients obey the explicit typed carrier and reentrant
     membership shares source accounting [tested:
     test_provider_conclusions_check_the_explicit_typed_carrier,
-    test_provider_carrier_predicate_shares_the_source_budget; commit=WORKTREE]
+    test_provider_carrier_predicate_shares_the_source_budget; commit=4f2d6c0f8eb293b73f8dde30a1c84e24834f7393]
   - carrier predicates and operations share the selected evaluation context,
     including demand and ordering [tested:
     tests/ch06_many_answers/test_evaluation_context_types.py; commit=074dc0a88b1605c54824de677d586b6f60998bcf]
@@ -20,17 +20,17 @@ Guarantees:
     tests/ch06_many_answers/test_evaluation_context.py -n 0; commit=54cb2eee69c42c1ae685643cbe2578f8d617a265]
   - provider premises retain the direct query's carrier, limit and order while
     reading complete source bags [tested:
-    test_provider_premises_retain_the_direct_match_context; commit=WORKTREE]
+    test_provider_premises_retain_the_direct_match_context; commit=4f2d6c0f8eb293b73f8dde30a1c84e24834f7393]
   - provider-backed premises and direct conclusions use engine match/4 with
     their captured annotations and call-wide budgets; each evaluation retains
     complete source bags [tested:
     test_tagged_premise_keeps_the_direct_provider_annotation,
     test_provider_duplicate_premises_keep_four_proofs_and_one_source_bag;
-    commit=WORKTREE]
+    commit=4f2d6c0f8eb293b73f8dde30a1c84e24834f7393]
   - linear provider evidence is refused because Answer supplies no stable
     source occurrence identity [tested:
     test_tagged_provider_linear_evidence_requires_stable_occurrence_identity;
-    commit=WORKTREE]
+    commit=4f2d6c0f8eb293b73f8dde30a1c84e24834f7393]
   - only laws checked over a finite carrier, or trusted shipped preset laws,
     license answer fusion [tested:
     test_a_declared_algebra_without_laws_answers_in_order_and_unfused;
@@ -127,7 +127,7 @@ Owns resources:
   - provider source bags and proof labels live only for one evaluate
     call and retain no provider cursor [tested:
     test_provider_proofs_reinterpret_without_requery_and_refresh_on_next_ask;
-    commit=WORKTREE]
+    commit=4f2d6c0f8eb293b73f8dde30a1c84e24834f7393]
 Decides:
   - ``contraction`` is a capability, while the remaining public law names are
     equations checked exhaustively over the declared finite carrier.

@@ -5,7 +5,7 @@ substitution and live mutation repair [tested: test_structural_aliases.py;
 commit=acad923476d21110870f235192757281a737ee71].
 Guarantees: nominal lookup costs count only metta_py_eval_all/3 execution,
 excluding unrelated Python finalizer work between calls [tested:
-test_nominal_subtyping_does_not_scan_unrelated_declarations; commit=WORKTREE].
+test_nominal_subtyping_does_not_scan_unrelated_declarations; commit=4f2d6c0f8eb293b73f8dde30a1c84e24834f7393].
 Owns resources: fixtures close spaces and pytest removes temporary files.
 """
 

@@ -4,17 +4,17 @@ Guarantees:
   - typed provider tags retain the selected declaration and share the ask's
     context and remaining resource budget [tested:
     test_provider_conclusions_check_the_explicit_typed_carrier,
-    test_provider_carrier_predicate_shares_the_source_budget; commit=WORKTREE]
+    test_provider_carrier_predicate_shares_the_source_budget; commit=4f2d6c0f8eb293b73f8dde30a1c84e24834f7393]
   - direct and derived provider queries retain the same carrier, demand and
     order without clipping guarded candidates [tested:
-    test_provider_premises_retain_the_direct_match_context; commit=WORKTREE]
+    test_provider_premises_retain_the_direct_match_context; commit=4f2d6c0f8eb293b73f8dde30a1c84e24834f7393]
   - provider annotations, duplicate occurrences, failures and refreshed reads
     remain visible through native tagged rules [tested: this module;
-    commit=WORKTREE]
+    commit=4f2d6c0f8eb293b73f8dde30a1c84e24834f7393]
   - an opaque mutable provider k keeps the same host object in the derived
     prov expression and retained source trace [tested:
     test_grounded_provider_annotation_retains_host_object_identity;
-    commit=WORKTREE]
+    commit=4f2d6c0f8eb293b73f8dde30a1c84e24834f7393]
 """
 
 from __future__ import annotations

@@ -13,7 +13,7 @@
 %     and the controlled inference budget [tested:
 %     test_tagged_premise_keeps_the_direct_provider_annotation,
 %     test_provider_duplicate_premises_keep_four_proofs_and_one_source_bag;
-%     commit=WORKTREE].
+%     commit=4f2d6c0f8eb293b73f8dde30a1c84e24834f7393].
 %   - transport failure subclasses retain their outcome across error policies
 %     [tested: test_protocol_errors_cannot_become_engine_answers; commit=089bc6036ae5039bce3963d8b4e80ecaf04dfb49]
 %   - async Python operations answer a future space immediately, publish their
@@ -2832,7 +2832,7 @@ metta_py_tagged_count(Space, Target, MaxDepth, Limit, Count) :-
 % selected declaration; metta_annotation/2 would instead reselect a same-name
 % local carrier before the explicit declaration can check it.
 % [tested: test_provider_conclusions_check_the_explicit_typed_carrier;
-% commit=WORKTREE]
+% commit=4f2d6c0f8eb293b73f8dde30a1c84e24834f7393]
 metta_py_tagged_sources(Space, Target, Algebra, [Rows, Used]) :-
     statistics(inferences, Before),
     metta_py_eval_target(Space, Target, [], Pattern, _),
