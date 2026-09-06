@@ -37,6 +37,13 @@ Guarantees:
     commit=012413efb73b4dd27c71354c7f654862f349c03f]
   - atom copy and pickle protocols preserve value and identity contracts
     [tested test_atoms_pickle_by_value, test_process_local_grounded_values_refuse_pickle]
+  - two handles under <, <=, > or >= refuse naming spaces.diff and
+    spaces.union, while a handle against any other atom keeps the standard
+    order [tested: test_two_handles_refuse_to_be_ordered_and_name_the_algebra;
+    commit=6ef81c4dd8fe5fcdd7aec5eeb7d26b4c5a4ddf9d]
+  - an expression pretty-prints through IPython's protocol with the same
+    grouping __rich_repr__ gives rich [tested:
+    test_ipython_pretty_prints_an_expression_as_a_grouped_tree; commit=6ef81c4dd8fe5fcdd7aec5eeb7d26b4c5a4ddf9d]
   - Expression is a complete immutable Sequence with iterative equality and hashing
     [tested test_expr_sequence_index_and_count, test_expr_identity_equality]
   - Expression collects one generic iterable, snapshots a Space listing, and
@@ -1100,6 +1107,50 @@ class Handle(Grounded):
     def _ordered(self, other: Any):
         del other
 
+    # Two handles under `<`, `<=`, `>` or `>=` answered the engine's term
+    # order, a bool that is not subset and never raises, while `|` on the
+    # same pair builds `(or a b)`. A conflicting pair on one spelling is a
+    # loud defect rather than a coin toss, and term order between two live
+    # engine objects has no reading a program wants, so it refuses and names
+    # the doors that DO answer the question. A handle against any other atom
+    # keeps the standard order: that comparison sorts a mixed atom list and
+    # means what it says.
+    def _refuse_order(self, other: Any, operator: str) -> TypeError:
+        message = (
+            f"{operator} is not defined between {type(self).__name__} and "
+            f"{type(other).__name__}: it would answer the engine's term order, "
+            f"not containment, and Python Language Reference section 3.3.1 "
+            f"leaves an unsupported rich comparison to the type. Set algebra "
+            f"on spaces is spaces.diff(a, b) for what one holds and the other "
+            f"does not, with spaces.union(a, b), spaces.overlay(front, back) "
+            f"and spaces.readonly(inner) for the rest; a == b compares "
+            f"identity, and atoms.order_key sorts a mixed list."
+        )
+        return _grounded_type_error(
+            message,
+            ground=_PYTHON_RICH_COMPARISON_GROUND,
+        )
+
+    def __lt__(self, other: Any) -> bool:
+        if isinstance(other, Handle):
+            raise self._refuse_order(other, "<")
+        return super().__lt__(other)
+
+    def __le__(self, other: Any) -> bool:
+        if isinstance(other, Handle):
+            raise self._refuse_order(other, "<=")
+        return super().__le__(other)
+
+    def __gt__(self, other: Any) -> bool:
+        if isinstance(other, Handle):
+            raise self._refuse_order(other, ">")
+        return super().__gt__(other)
+
+    def __ge__(self, other: Any) -> bool:
+        if isinstance(other, Handle):
+            raise self._refuse_order(other, ">=")
+        return super().__ge__(other)
+
     @property
     def metatype(self) -> str:
         return "Grounded"
@@ -1285,6 +1336,30 @@ class Expression(Atom):
         rich consults this; plain repr() is unchanged.
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         yield from self.children
+
+    def _repr_pretty_(self, p, cycle):
+        """Expand an expression by its children for IPython's printer.
+
+        The same tree `__rich_repr__` gives rich and the same layout
+        `repr()` lays out at width 78: the head on the open line and each
+        remaining child two deeper when the term does not fit. Both printers
+        get the structure rather than a string, so IPython chooses the
+        width, and neither costs anything when it is absent because only it
+        calls its own method. The cycle guard is the protocol's, not a real
+        case: an atom is an immutable tree.
+        """
+        if cycle:
+            p.text("(...)")
+            return
+        children = self.children
+        if not children:
+            p.text("()")
+            return
+        with p.group(2, "(", ")"):
+            p.pretty(children[0])
+            for child in children[1:]:
+                p.breakable()
+                p.pretty(child)
 
     def __str__(self) -> str:
         # Iterative: deep expressions are ordinary data here, and a printer

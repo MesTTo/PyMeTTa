@@ -23,12 +23,14 @@ Open Obligations:
 from __future__ import annotations
 
 import json
+import operator
 from pathlib import Path
 
 import pytest
 
 import metta
 from metta import TRUE, Atom, Handle, S, Space, V, wire
+from metta.atoms import order_key
 
 
 @pytest.fixture
@@ -247,3 +249,29 @@ def test_linda_deadline_misses_raise_the_package_timeout(spaces):  # noqa: D103 
         target.take(S.job(V.state), deadline=0.001)
     with pytest.raises(package.Timeout):
         target.peek(S.job(V.state), deadline=0.001)
+
+
+def test_two_handles_refuse_to_be_ordered_and_name_the_algebra(spaces):
+    """`<` between two handles has no reading a program wants.
+
+    A space answers `|`, `&`, `-` and `^` as the terms `(or a b)` and friends,
+    because Space is an Atom, so the same spelling cannot also mean subset.
+    Term order between two live engine objects is the third meaning nobody
+    asked for, and it used to answer silently. It refuses now, naming the
+    doors that DO answer containment.
+    """
+    _context, host, target = spaces
+    for operation in (operator.lt, operator.le, operator.gt, operator.ge):
+        with pytest.raises(TypeError) as refused:
+            operation(host, target)
+        message = str(refused.value)
+        assert "spaces.diff(a, b)" in message, message
+        assert "spaces.union(a, b)" in message, message
+        assert refused.value.ground.kind == "python-reference"
+
+    # Identity still answers, and so does order against any other atom, which
+    # is what keeps a mixed list sortable.
+    assert (host == _context.space(host.name)) is True
+    assert (host == target) is False
+    assert sorted([S.zzz, host], key=order_key) == sorted([host, S.zzz], key=order_key)
+    assert isinstance(host < S.zzz, bool)

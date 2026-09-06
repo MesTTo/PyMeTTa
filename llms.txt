@@ -298,6 +298,16 @@ knowledge a program can query. `metta.foreign` is the hand-written form of
 the same seam, `metta.remote` puts a space in another process, and
 `metta.spaces.view` presents a live Python object as one.
 
+Both directions of that seam also speak Arrow. A bridge answers
+`__arrow_c_stream__`, so `pl.DataFrame(provider)` streams its declared columns
+out of the provider's own cursor, and `tables.add(kb, "row", relation)` reads
+any producer with that method a record batch at a time, which is how a DuckDB
+relation or a Parquet reader loads. Query results answer it too, so
+`pa.table(rows)` and `duckdb.sql("select * from rows")` read the answers
+themselves; the producer needs `pip install 'pymetta[arrow]'` and a consumer
+needs no pyarrow. `tables.sql_function(connection, kb.fn.dbl)` goes the other
+way and makes a MeTTa head a scalar SQL function.
+
 `extensions/python/examples/language-feature-examples/` is 224 runnable
 programs, each mirroring one MeTTa example's path. The `twins` REPORT lane
 runs each against the MeTTa it mirrors and prints what a twin cannot yet say;

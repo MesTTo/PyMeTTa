@@ -92,9 +92,9 @@ from contextvars import ContextVar
 from dataclasses import dataclass
 from typing import Any, Self
 
+from ._config import _CHUNK_CAP
 from ._engine import Runtime, defer_engine_call
 from ._space_objects import (
-    _CHUNK_CAP,
     EngineProfile,
     FunctionCost,
     _apply_limited,

@@ -1,4 +1,5 @@
-"""Purpose: validate and hold process-wide MeTTa runtime settings.
+"""Purpose: validate and hold process-wide MeTTa runtime settings, and the one
+crossing-chunk policy number every boundary door doubles up to.
 Assumes:
   - startup settings are configured before the first engine consult [tested
     test_runtime_settings_freeze_after_startup]
@@ -25,6 +26,25 @@ from typing import Any
 __all__ = ["Config", "config"]
 
 _UNSET = object()
+
+#: The largest chunk one crossing carries, for every door that pulls a
+#: sequence over a boundary: the engine cursor's janus crossings
+#: (`_space_objects.Cursor._refill`, `_space_execution.evaluate_answers`) and
+#: the record batches an Arrow capsule hands a consumer (`_arrow.batch_bounds`).
+#: Growth is geometric, so the cap only decides where doubling stops, and the
+#: sweep says it stops mattering at 16: speedup against a chunk of one, drained
+#: at four sizes, 1 / 1.24x / 1.53x / 1.86x / 1.80x / 1.91x / 1.88x / 1.91x for
+#: caps 1, 2, 4, 16, 64, 256, 1024, 4096 at ten thousand answers [tested:
+#: extensions/python/tests/ch18_performance/test_cursor_chunking.py::test_draining_amortises_the_crossing].
+#: Everything from 16 up is one flat band, so
+#: this takes the smallest cap comfortably past its start rather than the
+#: largest: 64 reaches the whole win while a refill holds a quarter of what
+#: 256 would. SQL Server's cursors pick 128 by the same reasoning and Lemire
+#: measures 64 as the batch where prefetching stops paying.
+#: It lives here rather than beside either consumer because a second copy of a
+#: measured policy number is a second thing to move.
+_CHUNK_CAP = 64
+
 _DEFAULTS = {
     "stack_limit": 8_000_000_000,
     "heartbeat_interval": 100_000,

@@ -41,3 +41,28 @@ def test_ipython_magic_uses_selected_space(shell, metta):  # noqa: D103  -- pyte
             assert selected.match(S["selected-fact"](V.x))[0].x == S.here
         finally:
             use(metta)
+
+
+def test_ipython_pretty_prints_an_expression_as_a_grouped_tree():
+    """IPython's printer gets the structure, not a pre-formatted string.
+
+    `_repr_pretty_` mirrors `__rich_repr__`: both hand over the children and
+    let the printer choose the width. At width 40 the layout is the one
+    `repr()` lays out at width 78, the head on the open line and each
+    remaining child two deeper; at a width the term fits, it is one line.
+    """
+    from IPython.lib.pretty import pretty
+
+    from metta import parse
+
+    term = parse("(likes Ada (best friend of Bob) a-long-symbol-name another-long-one)")
+    assert pretty(term, max_width=40) == (
+        "(likes\n"
+        "  Ada\n"
+        "  (best friend of Bob)\n"
+        "  a-long-symbol-name\n"
+        "  another-long-one)"
+    )
+    assert pretty(term, max_width=200) == str(term)
+    assert pretty(parse("(a b c)")) == "(a b c)"
+    assert pretty(S.leaf) == "leaf"
