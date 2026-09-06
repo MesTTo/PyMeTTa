@@ -6,6 +6,11 @@ Guarantees:
     instructions see primitive memberchk/2 work that SWI's inference counter
     cannot [tested: test_instruction_join_workload_checks_both_projection_shapes;
     commit=d843bb6d17a525c36afd21cab077d63b34447535]
+  - the cost-row case takes its workload from the ENGINE's catalog through
+    --head, because the set of declared rows exists only once an engine has
+    booted and this file must not boot one to build its case table
+    [tested: test_every_shipped_row_is_reachable_as_a_perf_sized_case;
+    commit=WORKTREE]
 Owns:
   - main releases the selected workload after success or failure
     [tested test_perf_workload_teardown_runs_after_failure]
@@ -37,6 +42,7 @@ from benchmarks.engine_workloads import (
     typed_call,
     typed_space,
 )
+from benchmarks.costs import cost_row_case
 from benchmarks.scaling import WORKLOADS as SCALING_WORKLOADS
 from benchmarks.subscription import (
     close_subscription_case,
@@ -140,6 +146,12 @@ _SIZED_CASES = {
     "memory-join-shared": lambda size: join_width_case(size, projection=False),
 } | {f"scaling-{family}": _scaling_case(family) for family in SCALING_WORKLOADS}
 
+#: The one sized case whose workload is not named by this file. A cost row is a
+#: catalog row any program may add, so the set of them is the ENGINE's and only
+#: exists once one has booted; `--head` is how the caller names which, and
+#: `benchmarks.costs` is the caller.
+COST_ROW_CASE = "cost-row"
+
 
 def _acknowledge(descriptor: int) -> None:
     response = bytearray()
@@ -210,11 +222,23 @@ _WARM_UP = frozenset({"alpha-unique", "subscription-dispatch"})
 def main(argv: Sequence[str] | None = None) -> int:
     """Run exactly one named workload."""
     parser = argparse.ArgumentParser()
-    parser.add_argument("case", choices=sorted(_CASES | _SIZED_CASES))
+    parser.add_argument(
+        "case", choices=sorted({*_CASES, *_SIZED_CASES, COST_ROW_CASE})
+    )
     parser.add_argument("--size", type=int)
+    parser.add_argument("--head", help=f"which (cost ...) row, for {COST_ROW_CASE}")
     parser.add_argument("--controlled", action="store_true")
     arguments = parser.parse_args(argv)
-    if arguments.case in _SIZED_CASES:
+    if arguments.head and arguments.case != COST_ROW_CASE:
+        parser.error(f"--head applies only to {COST_ROW_CASE}")
+    if arguments.case == COST_ROW_CASE:
+        if arguments.size is None or arguments.size < 1:
+            parser.error("a sized workload needs --size with a positive integer")
+        if not arguments.head:
+            parser.error(f"{COST_ROW_CASE} needs --head naming a declared row")
+        state = cost_row_case(arguments.head, arguments.size)
+        operation, teardown = state[1], lambda: close_engine_case(state)
+    elif arguments.case in _SIZED_CASES:
         if arguments.size is None or arguments.size < 1:
             parser.error("a sized workload needs --size with a positive integer")
         state = _SIZED_CASES[arguments.case](arguments.size)

@@ -53,6 +53,13 @@ Guarantees:
     catalog with the declared since/remedy [tested:
     test_deprecation_catalog_rows_drive_warnings_and_explanations;
     commit=d74e2e828cd9272882dcf907cfaf095d2d147ce0]
+  - a bound function's ``__doc__`` carries the cost class its ``(cost ...)``
+    catalog row declares, with the cost-rows ledger's measurement date, and
+    reads the class through the engine's own resolution rather than deriving
+    the measure a second time
+    [tested: test_the_docstring_carries_the_declared_cost,
+    test_the_docstring_dates_the_measurement_from_the_ledger;
+    commit=WORKTREE]
   - Prepared and Cursor reject every non-positive or non-integer limit before
     opening an engine query [tested:
     test_nonpositive_limits_are_refused_by_match_stream_and_prepared;
@@ -93,14 +100,17 @@ Open Obligations:
 from __future__ import annotations
 
 import contextlib
+import functools
 import inspect
+import json
 import logging
 import time
 import warnings
 import weakref
 from collections import deque
-from collections.abc import Iterable, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from contextvars import ContextVar
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, Self, cast
 
 from ._call_binding import bind_positional_call, refuse_unknown_keywords
@@ -1331,6 +1341,37 @@ def _format_doc_atom(doc: Expression) -> str:
     return "\n".join(lines)
 
 
+#: The cost-rows lane's ledger, the only place a MEASUREMENT date lives: the
+#: class itself is a catalog row and answers from the engine everywhere, while
+#: the date says when the lane last held the head to it. The ledger sits beside
+#: the benchmark that writes it and ships in no wheel, so an installed library
+#: reads no date and the line says `declared` instead of `measured <date>`. That
+#: is the safe direction: the row under-claims where it cannot see the ledger
+#: rather than dating a measurement it has no record of.
+_COST_LEDGER = Path(__file__).resolve().parents[1] / "benchmarks" / "cost-baseline.json"
+
+
+@functools.cache
+def _cost_measurement_dates() -> Mapping[str, str]:
+    """Each measured head's date from the ledger, empty when it is not on disk.
+
+    Read once per process. The ledger is a build artifact that a gate run
+    rewrites, not live state, so a process that started before a re-record
+    keeps showing the date it started with; `help()` in a fresh process shows
+    the new one.
+    """
+    try:
+        document = json.loads(_COST_LEDGER.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+    rows = document.get("rows", {})
+    return {
+        str(head): str(row["measured"])
+        for head, row in rows.items()
+        if isinstance(row, dict) and "measured" in row
+    }
+
+
 class _EngineFunction:
     """One engine function, callable the way Python callables are.
 
@@ -1487,16 +1528,38 @@ class _EngineFunction:
             parameters, return_annotation=str(parts[-1]) if parts else ""
         )
 
+    def _cost_line(self) -> str | None:
+        """`cost: <class> in $n (<measure>)`, when a (cost ...) row names this head.
+
+        The longhand is the row itself: `(match &metta (cost ($head $n) $class)
+        $class)` reads what this reports, and `(explain (<head> ...))` answers
+        the same pair beside every other declaration the call consults. What is
+        added here is the ledger's date, which says when the cost-rows lane last
+        measured the head against its claim rather than merely that the claim is
+        written down.
+        """
+        claim = self._space._rt.apply_must("metta_py_cost_declaration", self._name)
+        if not isinstance(claim, list):
+            return None
+        cost_class, measure = claim
+        measured = _cost_measurement_dates().get(self._name)
+        stamp = f"measured {measured}" if measured else "declared"
+        return f"cost: {cost_class} in $n ({measure}), {stamp}"
+
     @property
     def __doc__(self) -> str | None:  # type: ignore[override]
         """MeTTa's own documentation, formatted for help(): the space's
         `(@doc name ...)` atom when one exists (the engine's register
         documents every prelude form, so builtins answer too), else the
-        declaration and equations, else None as Python spells absence.
+        declaration and equations, else None as Python spells absence. A
+        declared cost class is appended to whichever of those answered, and is
+        documentation on its own for a head that has no other.
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+        cost = self._cost_line()
         answers = self._space.eval(Expression([Symbol("get-doc"), Symbol(self._name)]))
         if answers and isinstance(answers[0], Expression):
-            return _format_doc_atom(answers[0])
+            documented = _format_doc_atom(answers[0])
+            return f"{documented}\n\n{cost}" if cost else documented
         lines = []
         declared = self.type
         if declared is not None:
@@ -1507,6 +1570,10 @@ class _EngineFunction:
                 lines.append(self._name)
             lines.extend(("", "Equations:"))
             lines.extend(f"  {equation}" for equation in equations)
+        if cost:
+            if not lines:
+                lines.append(self._name)
+            lines.extend(("", cost))
         return "\n".join(lines) if lines else None
 
     def __repr__(self) -> str:

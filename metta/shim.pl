@@ -4,6 +4,10 @@
 %   derivations on top of an unmodified MeTTa engine. Consulted after
 %   engine/main.pl; only adds predicates, never redefines engine ones.
 % Guarantees:
+%   - a bound function's cost claim crosses as the class and the measure the
+%     ENGINE resolved, never a second derivation on this side
+%     [tested: test_the_measure_comes_from_the_arrow_at_the_holes_position;
+%     commit=WORKTREE]
 %   - internal and held evaluations install the same carrier and demand context
 %     [tested: sh extensions/python/test.sh
 %     tests/ch06_many_answers/test_evaluation_context.py -n 0; commit=54cb2eee69c42c1ae685643cbe2578f8d617a265].
@@ -4891,6 +4895,18 @@ metta_py_equations(Space, Name0, Encoded) :-
     Pattern = [=, [Name|_], _],
     findall(E, ( metta_host_stored(Space, Pattern),
                  metta_py_encode(Pattern, E) ), Encoded).
+
+%The (cost ...) row a head declares about itself, as the pair the engine
+%RESOLVED: the declared class, and the measure the row named or the head's
+%arrow decided. `none` when the head declares no row. The derivation stays in
+%the engine so the docstring here, (explain ...) and the cost-rows benchmark
+%lane all read one answer instead of three implementations of one rule.
+metta_py_cost_declaration(Name0, Claim) :-
+    ( atom(Name0) -> Name = Name0 ; atom_string(Name, Name0) ),
+    (   metta_cost_declaration(Name, _Witness, Class, Measure)
+    ->  Claim = [Class, Measure]
+    ;   Claim = none
+    ).
 
 %The Prolog clauses a name compiled to, dis for the translator: one
 %listing per registered arity, resolved in this space's module so a named

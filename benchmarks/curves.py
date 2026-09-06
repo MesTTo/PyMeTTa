@@ -3,19 +3,26 @@
 "Memory over sizes" and "any counter over sizes" fit their points the same way,
 and this is where that sameness lives.
 
-Three estimators live here and they answer different questions. ``least_squares``
-is ordinary linear regression and is the arithmetic underneath the other two.
+Four estimators live here and they answer different questions. ``least_squares``
+is ordinary linear regression and is the arithmetic underneath the other three.
 ``power_fit`` fits ``y = a*x^b`` in log-log space and reports the exponent with
 R-squared, which is what a declared-class gate compares against. ``select_model``
 is google/benchmark's ``Complexity()``: least squares against each of a fixed set
 of shapes with the lowest normalised RMS winning, which names a shape instead of
-producing a number.
+producing a number. ``exponential_fit`` fits ``y = a*b^x`` in semi-log space, the
+one shape no power law describes and google/benchmark's model set has no term
+for; it is what separates a recursion nothing memoises from a polynomial one.
 
-Both are needed because neither is sufficient alone. trend-prof found the same
+The first three are all needed because none is sufficient alone. trend-prof found the same
 linear cost was a defect in one program at R-squared 0.95 and not a defect in
 another at 0.65, so an exponent only decides against a DECLARED expectation; and
 a model name only says which of the offered shapes fits best, never whether the
-best one fits well.
+best one fits well. The fourth is needed because a log-log fit of an exponential
+curve reports whatever exponent the LADDER makes it look like: the same naive
+Fibonacci reads 6.887 over sizes 14 to 20 and 8.466 over 16 to 22, while its
+semi-log slope reads 0.650 either way
+[measured 2026-09-07; command=python -m benchmarks.costs cost-control-exponential;
+fixture=the fib control under (cache ... refuse); commit=WORKTREE].
 
 Assumes: sizes are positive and strictly increasing, and a caller that wants an
   exponent passes positive values, since log-log space has no other meaning.
@@ -33,6 +40,12 @@ Guarantees:
     size once the equations are compiled, so the whole ladder is one value
     [tested: test_curves_power_fit_reports_no_r_squared_for_a_flat_curve;
     commit=906a4057ac57a340a3544ad909e829f851f35af3]
+  - ``exponential_fit`` recovers a planted base and separates an exponential
+    curve from a cubic one on the same sizes: 0.650 against 0.230 in log-2
+    slope, where their log-log exponents are 8.466 and 3.000
+    [tested: test_curves_exponential_fit_recovers_a_planted_base,
+    test_curves_exponential_fit_separates_an_exponential_from_a_cubic;
+    commit=WORKTREE]
   - the arithmetic is pure: no counter is read and no process is spawned here
     [tested: test_curves_power_fit_recovers_a_planted_exponent; commit=906a4057ac57a340a3544ad909e829f851f35af3]
 Fails when: fewer than two points are supplied, which cannot determine a slope.
@@ -133,6 +146,51 @@ def power_fit(sizes: Sequence[int], values: Sequence[float]) -> PowerFit:
             math.log(after / before) / math.log(larger / smaller)
             for (smaller, before), (larger, after) in itertools.pairwise(points)
         ),
+    )
+
+
+@dataclass(frozen=True)
+class ExponentialFit:
+    """``y = coefficient * 2**(slope*size)`` fitted in semi-log space."""
+
+    slope: float
+    r_squared: float | None
+    coefficient: float
+
+
+def exponential_fit(sizes: Sequence[int], values: Sequence[float]) -> ExponentialFit:
+    """Fit ``log2(y) = a + b*size`` and report the per-unit doubling slope.
+
+    ``slope`` is how many times the value DOUBLES per unit of size, so it is
+    scale-free in a way a log-log exponent is not: a curve whose value grows by
+    a constant factor per step reads the same slope on any ladder, while its
+    log-log exponent moves with where the ladder sits. Every polynomial has a
+    slope tending to zero as the sizes grow, which is what makes a floor on it
+    a test for the exponential class rather than for a steep polynomial.
+    """
+    points = [
+        (float(size), float(value))
+        for size, value in zip(sizes, values, strict=True)
+        if value > 0
+    ]
+    if len(points) < 2:
+        msg = "an exponential fit needs at least two points with positive value"
+        raise ValueError(msg)
+    xs = [size for size, _ in points]
+    log_values = [math.log2(value) for _, value in points]
+    fit = least_squares(xs, log_values)
+    mean_log_value = fmean(log_values)
+    total = sum((value - mean_log_value) ** 2 for value in log_values)
+    residual = sum(
+        (value - (fit.intercept + fit.slope * size)) ** 2
+        for size, value in zip(xs, log_values, strict=True)
+    )
+    return ExponentialFit(
+        slope=fit.slope,
+        # The same reason power_fit reports None here: a flat curve has no
+        # variance for a ratio to explain.
+        r_squared=None if total == 0 else 1.0 - residual / total,
+        coefficient=2.0**fit.intercept,
     )
 
 
