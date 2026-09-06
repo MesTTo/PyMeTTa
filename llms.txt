@@ -58,9 +58,11 @@ forms("(a b) (c d)")         # every top-level form, none evaluated
 `atom.metatype` answers `Symbol`, `Variable`, `Grounded` or `Expression`.
 Atoms are immutable, hashable and comparable; `a.alpha_eq(b)` is equality
 modulo variable renaming, and `a.alpha(b)` BUILDS the `(=alpha a b)` term
-instead of answering now. Operators build terms when an operand is a variable
-(`V.x + 1` is `(+ $x 1)`) and compute when nothing is: that is the one rule
-behind "the notation reveals the engine".
+instead of answering now. Arithmetic and bitwise operators on an atom always
+BUILD: `V.x + 1` is `(+ $x 1)` and `G(2) + G(3)` is `(+ 2 3)`, not `5`. Reach
+for `.value` when you meant Python's own arithmetic. Rich comparisons are the
+exception and answer Python booleans in the engine's term order; `a.lt(b)` and
+its siblings build the comparison term.
 
 ## Asking
 
@@ -116,16 +118,18 @@ benchmarks.extension_cost` from `extensions/python`):
 So reach for `@m.define` when the body is expressible as MeTTa, and `m.op`
 when it must stay Python: it touches the network, holds a file, or calls a
 library you are not going to re-express. A called operation must DECLARE its
-effect class, because the engine cannot see inside it: `pure`, `reads`,
-`writes`, `io` are the shorthands, and only a pure one is cached without being
-asked. A written `!(memoize f)` or `!(tabled (f $x))` is honoured whatever the
-class says.
+effect class, because the engine cannot see inside it, and only a
+`pureStructural` one is cached without being asked. A written `!(memoize f)`,
+`!(memoize-exact f)`, `!(tabled (f $x))` or `(cache f force)` is honoured
+whatever the class says.
 
 The ordered `EffectClass` members are: `pureStructural`, `readOnlyLookup`,
-`nondeterministicReadOnly`, `writesState`, `oracleIO`. Those are the longhands
-`effect=` takes and the names reflection answers with. There is no shorthand
-for `nondeterministicReadOnly` because registering a generator lifts the class
-itself.
+`nondeterministicReadOnly`, `writesState`, `oracleIO`. Those five are what
+`effect=` takes and the names reflection answers with; there are no
+shorthands, and a spelling outside the five is refused by name. Three retired
+inputs still map in, `immutable`, `stable` and `volatile`, reaching
+`pureStructural`, `readOnlyLookup` and `oracleIO`. Registering a generator
+lifts the class to at least `nondeterministicReadOnly` by itself.
 
 ## What a compiled BODY may say
 
