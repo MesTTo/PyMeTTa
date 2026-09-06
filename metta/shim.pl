@@ -6,7 +6,7 @@
 % Guarantees:
 %   - internal and held evaluations install the same carrier and demand context
 %     [tested: sh extensions/python/test.sh
-%     tests/ch06_many_answers/test_evaluation_context.py -n 0; commit=WORKTREE].
+%     tests/ch06_many_answers/test_evaluation_context.py -n 0; commit=54cb2eee69c42c1ae685643cbe2578f8d617a265].
 %   - transport failure subclasses retain their outcome across error policies
 %     [tested: test_protocol_errors_cannot_become_engine_answers; commit=089bc6036ae5039bce3963d8b4e80ecaf04dfb49]
 %   - async Python operations answer a future space immediately, publish their

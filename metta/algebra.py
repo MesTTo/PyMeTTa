@@ -7,10 +7,10 @@ Guarantees:
   - binding preparation preserves literal values and host identity at custom
     operation crossings [tested: sh extensions/python/test.sh
     tests/ch06_many_answers/test_evaluation_context_bindings.py -n 0;
-    commit=WORKTREE]
+    commit=54cb2eee69c42c1ae685643cbe2578f8d617a265]
   - algebra and demand cross internal evaluation without changing answer shape
     [tested: sh extensions/python/test.sh
-    tests/ch06_many_answers/test_evaluation_context.py -n 0; commit=WORKTREE]
+    tests/ch06_many_answers/test_evaluation_context.py -n 0; commit=54cb2eee69c42c1ae685643cbe2578f8d617a265]
   - only laws checked over a finite carrier, or trusted shipped preset laws,
     license answer fusion [tested:
     test_a_declared_algebra_without_laws_answers_in_order_and_unfused;

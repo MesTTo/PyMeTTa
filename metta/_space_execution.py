@@ -2,7 +2,7 @@
 Guarantees:
   - algebra and demand cross internal evaluation without changing answer shape
     [tested: sh extensions/python/test.sh
-    tests/ch06_many_answers/test_evaluation_context.py -n 0; commit=WORKTREE]
+    tests/ch06_many_answers/test_evaluation_context.py -n 0; commit=54cb2eee69c42c1ae685643cbe2578f8d617a265]
   - named host values retain object identity through source execution
     [tested test_run_using_carries_identity]
   - capture never changes an answer shape, and atomic, speculative, and

@@ -5,7 +5,7 @@ Guarantees:
     including accounted execution and literal strings and host objects
     [tested: sh extensions/python/test.sh
     tests/ch06_many_answers/test_evaluation_context_bindings.py -n 0;
-    commit=WORKTREE]
+    commit=54cb2eee69c42c1ae685643cbe2578f8d617a265]
 """
 
 from __future__ import annotations
