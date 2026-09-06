@@ -167,10 +167,10 @@ _NUMPY_NUMERIC_FAMILY = (
     ("*", (np.float64(4), 2), np.float64),
     ("/", (np.float64(4), 2), np.float64),
     ("%", (np.float64(5), 2), np.float64),
-    ("<", (np.float64(1), 2), np.bool_),
-    ("<=", (np.float64(2), 2), np.bool_),
-    (">", (np.float64(3), 2), np.bool_),
-    (">=", (np.float64(2), 2), np.bool_),
+    ("<", (np.float64(1), 2), bool),
+    ("<=", (np.float64(2), 2), bool),
+    (">", (np.float64(3), 2), bool),
+    (">=", (np.float64(2), 2), bool),
     ("min", (np.float64(2), 4), np.float64),
     ("max", (np.float64(4), 2), np.float64),
     ("pow-math", (np.float64(4), 2), np.float64),
@@ -206,6 +206,15 @@ def test_numpy_numeric_family_keeps_python_result_types(
     answers = metta.eval(Expression(S[name], *(ground(value) for value in values)))
     assert len(answers) == 1
     assert type(answers[0].value) is result_type
+
+
+def test_a_numpy_scalar_comparison_answers_the_metta_boolean(metta):
+    """A host scalar compared against a number answers True or False, not np.True_."""
+    five = ground(np.int64(5))
+    assert metta.eval(Expression(S["<"], five, 6)) == [True]
+    assert metta.eval(Expression(S[">"], five, 6)) == [False]
+    assert [str(a) for a in metta.eval(Expression(S["if"], Expression(S["<"], five, 6), S.yes, S.no))] == ["yes"]
+    assert metta.eval(Expression(S["=="], Expression(S["<="], five, 5), True)) == [True]  # noqa: FBT003  -- the boolean literal is atom data at this site, not a behaviour switch
 
 
 @pytest.mark.parametrize("name,selected", [("min-atom", 0), ("max-atom", 1)])

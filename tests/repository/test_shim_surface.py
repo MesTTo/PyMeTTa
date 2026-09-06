@@ -229,6 +229,12 @@ HOST_SERVICES = {
     "metta_debug_begin/1",
     "metta_debug_run/3",
     "metta_debug_end/0",
+    # The one question a refined type adds to the cast: which constraint the
+    # value violates once the witness has declined it, so CastError names
+    # `(Gt 0)` and the value rather than the value's types. The relation is the
+    # engine's (engine/metta/refinements.pl) and the shim only asks it; the
+    # orchestration, get-type then get-metatype then this, was already here.
+    "metta_refinement_violation/3",
     "sread_with_names/3",
     "swrite_with_names/3",
     # Eval crosses through a cached translation template while source forms
@@ -284,6 +290,7 @@ FLOOR_REASONS = {
     "metta_require_algebra_value/3": "door",
     "metta_annotation/2": "door",
     "metta_k_extend/4": "door",
+    "metta_refinement_violation/3": "door",
     "match_foreign/5": "door",
     "metta_add_atoms/2": "door",
     "metta_assert_space_releasable/1": "door",

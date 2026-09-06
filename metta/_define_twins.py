@@ -1,5 +1,10 @@
 """Purpose: keep Python twins of compiled equations aligned with stacked clauses.
 Guarantees:
+  - a dispatcher and its guarded clause twins name what they wrap, so
+    `typing.get_type_hints` resolves the definition's own annotations through
+    `.py` exactly as through the source function
+    [tested: test_a_twin_carries_the_definitions_resolved_annotations;
+    commit=WORKTREE]
   - TwinDispatcher selects the first literal head that admits the arguments
     [tested test_literal_defaults_are_head_patterns_and_clauses_stack]
   - twin views see definitions added after an earlier twin was compiled
@@ -90,6 +95,31 @@ class TwinDispatcher:
         with _TWIN_LOCK:
             first = self._clauses[0] if self._clauses else None
         return bool(first is not None and getattr(first, "__no_type_check__", False))
+
+    @property
+    def __wrapped__(self) -> Callable[..., Any]:
+        """The canonical first clause, for the readers that follow wrappers.
+
+        `typing.get_type_hints` and `inspect.unwrap` walk `__wrapped__` to the
+        function whose globals resolve a postponed annotation, which is how a
+        dispatcher answers the signature's Annotated types by object rather
+        than by the text `__signature__` renders
+        [tested: test_a_twin_carries_the_definitions_resolved_annotations].
+        """
+        with _TWIN_LOCK:
+            first = self._clauses[0] if self._clauses else None
+        return self.__call__ if first is None else first
+
+    @property
+    def __annotations__(self) -> dict[str, Any]:  # type: ignore[override]
+        """The canonical first clause's annotations, as written.
+
+        `typing.get_type_hints` reads this attribute from the object itself
+        and follows `__wrapped__` only for the globals, so both are mirrored.
+        """
+        with _TWIN_LOCK:
+            first = self._clauses[0] if self._clauses else None
+        return {} if first is None else dict(getattr(first, "__annotations__", {}))
 
     def __repr__(self) -> str:
         with _TWIN_LOCK:
@@ -238,6 +268,10 @@ def _guard_twin(
     setattr(  # noqa: B010 -- mypyc rejects this non-standard function attribute as direct assignment
         guarded, "__no_type_check__", getattr(twin, "__no_type_check__", False)
     )
+    # What functools.wraps would have recorded: the twin is the function whose
+    # globals resolve a postponed annotation, and get_type_hints reads them
+    # through this attribute.
+    setattr(guarded, "__wrapped__", twin)  # noqa: B010 -- mypyc rejects this non-standard function attribute as direct assignment
     guarded.__signature__ = signature  # type: ignore[attr-defined]  # ty: ignore[unresolved-attribute]
     return guarded
 

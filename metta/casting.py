@@ -18,6 +18,10 @@ Guarantees:
     test_target_type_overloads_preserve_the_requested_class]
   - the target is positional-only, so its implementation name is not API
     [tested test_cast_target_is_positional_only]
+  - an Annotated target casts against its refined type: a value the base admits
+    and a decided constraint refuses raises CastError naming that constraint
+    and the value [tested: test_cast_honours_a_refinement_and_names_the_violated_constraint;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -26,10 +30,12 @@ Open Obligations:
 
 from __future__ import annotations
 
+import typing
 from typing import Any, overload
 
 from ._api_types import space_of
 from ._convert_registry import _is_plain_class
+from ._type_annotations import type_atom_for
 from .atoms import Atom, Grounded, Symbol, _atom_from_wire, _encode, parse
 from .errors import MettaError
 
@@ -65,9 +71,13 @@ def _type_atom(type_: Any) -> Atom:
             if type_ is spelled:
                 return Symbol(name)
         return Symbol(type_.__name__)
+    if typing.get_origin(type_) is typing.Annotated:
+        # A refined annotation spells `(Annotated Base C...)`, the reading a
+        # signature gives it, so the same declaration casts and declares.
+        return type_atom_for(type_)
     msg = (
-        "a cast target must be an Atom, MeTTa source text, or a Python "
-        f"type, got {type_!r}"
+        "a cast target must be an Atom, MeTTa source text, a Python type, "
+        f"or an Annotated type, got {type_!r}"
     )
     raise TypeError(
         msg
@@ -111,6 +121,15 @@ def cast(space: Any, value: Any, type_: Any, /) -> Any:
     )
     if answered[0] == "s" and answered[1] == "ok":
         return _narrow(value)
+    if answered[0] == "r":
+        # The base admits the value and one refinement does not: name that
+        # constraint and the value, the engine's own BadArgValue reading.
+        constraint = _atom_from_wire(answered[1])
+        msg = (
+            f"{atom} violates {constraint}, the refinement {target} declares, "
+            f"in {space._space}"
+        )
+        raise CastError(msg)
     candidates = ", ".join(str(_atom_from_wire(t)) for t in answered[1])
     msg = (
         f"{atom} does not admit type {target} in {space._space}: "
