@@ -7,6 +7,13 @@ Assumes:
     _space_execution.py, _space_persistence.py, _space_objects.py, and
     _space_diagnostics.py; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
 Guarantees:
+  - tagged guards retain scoped binding preparation while carrying their algebra
+    [tested: sh extensions/python/test.sh
+    tests/ch06_many_answers/test_evaluation_context_bindings.py -n 0;
+    commit=54cb2eee69c42c1ae685643cbe2578f8d617a265]
+  - algebra and demand cross internal evaluation without changing answer shape
+    [tested: sh extensions/python/test.sh
+    tests/ch06_many_answers/test_evaluation_context.py -n 0; commit=54cb2eee69c42c1ae685643cbe2578f8d617a265]
   - failed engine teardown retains subscriptions and provider ownership;
     unfinished cleanup retains the anonymous name until a later drop succeeds
     [tested: test_failed_engine_drop_keeps_subscriptions,
@@ -235,6 +242,7 @@ import weakref
 from collections import abc as _abc
 from collections.abc import Callable, Iterable, Iterator
 from contextvars import ContextVar
+from dataclasses import replace
 from pathlib import Path
 from typing import (
     TYPE_CHECKING,
@@ -309,7 +317,7 @@ from ._space_query import (
     query_count_if_repeatable,
     solve_rows,
 )
-from ._under import _UNSET
+from ._under import _UNSET, EvaluationContext
 from ._under import selected as _selected_under
 from ._version import __version__
 from .atoms import (
@@ -2375,6 +2383,7 @@ class Space(Handle):
         """Build one lazy carrier view over tagged or ordinary engine rows."""
         algebra_api = _satellite("algebra")
         declaration = algebra_api.resolve(self, under)
+        context = EvaluationContext(declaration.name, limit, declaration.order)
         if declaration.name == "counting":
             return self._match_counting_under(
                 patterns,
@@ -2411,7 +2420,8 @@ class Space(Handle):
             evaluation = algebra_api.evaluate(
                 self,
                 patterns[0],
-                algebra=declaration.name,
+                algebra=declaration,
+                context=context,
                 timeout=timeout,
                 inferences=inferences,
             )
@@ -2425,11 +2435,10 @@ class Space(Handle):
                 if bindings is None:
                     continue
                 if guard_template is not None:
-                    guard = guard_template.subs(bindings)
-                    guard_answers = self.eval(
-                        guard,
-                        timeout=timeout,
-                        inferences=inferences,
+                    guard, using = self._prepared_ask(guard_template.subs(bindings), None)
+                    guard_answers = evaluate(
+                        self._rt, self._space, guard, timeout, inferences,
+                        using=using, context=context,
                     )
                     if not any(
                         isinstance(value, Grounded) and _decode(value) is True
@@ -2443,7 +2452,7 @@ class Space(Handle):
                 yield _AnswerItem(answer, row)
 
         def engine_source(
-            *, cursor_limit: int | None = limit, cursor_order: Any = declaration.order
+            *, evaluation_context: EvaluationContext = context
         ) -> Iterator[_AnswerItem]:
             cursor = Cursor(
                 self,
@@ -2451,9 +2460,7 @@ class Space(Handle):
                 where,
                 timeout,
                 inferences,
-                limit=cursor_limit,
-                under=declaration.name,
-                order=cursor_order,
+                context=evaluation_context,
             )
             try:
                 for row in cursor:
@@ -2481,23 +2488,18 @@ class Space(Handle):
 
             def bounded() -> Iterator[_AnswerItem]:
                 promises = self._rt.once(
-                    "seam:foreign_space(Space), "
-                    "metta_emits(Space, 'best-first'), "
-                    "metta_source(Space, Kind), "
-                    "metta_effective_algebra(Space, Algebra)",
+                    "seam:foreign_space(Space), metta_source(Space, Kind)",
                     Space=self._space,
                 )
                 if (
                     not promises
                     or str(promises["Kind"]) == "linear"
-                    or str(promises["Algebra"]) != declaration.name
                     or has_tagged_program()
                 ):
                     yield from shared
                     return
                 yield from engine_source(
-                    cursor_limit=bounded_limit,
-                    cursor_order=None,
+                    evaluation_context=replace(context, limit=bounded_limit),
                 )
 
             return bounded()
@@ -2643,9 +2645,7 @@ class Space(Handle):
             where,
             timeout,
             inferences,
-            limit=limit,
-            under=declaration.name,
-            order=declaration.order,
+            context=EvaluationContext(declaration.name, limit, declaration.order),
             capture=lambda row, annotation: algebra_api.captured_answer(
                 self, row, annotation, declaration
             ),
@@ -3157,6 +3157,7 @@ class Space(Handle):
             )
         algebra_api = _satellite("algebra")
         declaration = algebra_api.resolve(self, carrier)
+        context = EvaluationContext(declaration.name, order=declaration.order)
         tagged_target = (
             _substituted(target, using)
             if using
@@ -3200,7 +3201,8 @@ class Space(Handle):
                 evaluation = algebra_api.evaluate(
                     self,
                     tagged_target,
-                    algebra=declaration.name,
+                    algebra=declaration,
+                    context=context,
                     timeout=timeout,
                     inferences=inferences,
                 )
@@ -3222,8 +3224,7 @@ class Space(Handle):
                 timeout,
                 inferences,
                 using=using,
-                under=declaration.name,
-                order=declaration.order,
+                context=context,
                 annotation_factory=(
                     lambda value, annotation: algebra_api.captured_answer(
                         self, value, annotation, declaration
