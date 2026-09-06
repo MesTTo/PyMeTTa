@@ -23,11 +23,11 @@ Guarantees:
     about their own program, and the cache SERVES: the operation runs once for
     two calls, including through a caller compiled before the declaration.
   [tested: test_memoizing_an_effectful_operation_is_the_callers_own_word,
-   test_memoizing_an_operation_caches_its_calls; commit=WORKTREE]
+   test_memoizing_an_operation_caches_its_calls; commit=295f4c80ace06f6bf8e132ea936777afd79ac3d5]
   - enabling a cache does not rewrite the space's stored program, so a body
     that writes its own space keeps its one equation and runs once on a miss.
   [tested: test_memoizing_a_body_that_writes_its_own_space_runs_it_once;
-   commit=WORKTREE]
+   commit=295f4c80ace06f6bf8e132ea936777afd79ac3d5]
 Fails when: read as a fixed-size cache. The memo holds the answers for the calls
   that were made and has no maxsize.
   Also when a counter is read after a LAZY call. The exact store is an SWI
