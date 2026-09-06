@@ -1356,6 +1356,21 @@ class Answers[T](Sequence[T]):
         # route hands over closes both; a bare generator's finally would never
         # run [source: metta/_space_execution.py, _RetainedAnswers.close; tested
         # test_a_counted_view_releases_its_engine_when_it_is_dropped].
-        close = getattr(self._source, "close", None)
+        #
+        # close_deferred, where the source has one, because THIS IS A
+        # FINALISER: the cyclic collector runs it at a point no caller chose,
+        # possibly while this thread is already inside an engine crossing, and
+        # it finalises the members of one cycle in no defined order. Closing
+        # the cursor synchronously from here aborted the process inside SWI's
+        # copy_record on a record another member's finaliser had already
+        # erased [source: docs/journal/2026-09-06-finalisers-must-not-call-prolog.md;
+        # commit=2421d06e697daffb0797c307a798131616ebdd8e]. Asked for by name rather
+        # than by a flag, so a
+        # source that has no engine behind it needs no changes and keeps its
+        # plain close().
+        # [tested: test_a_view_dropped_in_a_cycle_defers_its_cursor_close;
+        # commit=2421d06e697daffb0797c307a798131616ebdd8e]
+        source = self._source
+        close = getattr(source, "close_deferred", None) or getattr(source, "close", None)
         if callable(close):
             close()
