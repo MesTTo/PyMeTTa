@@ -45,7 +45,7 @@ Guarantees:
     the gate runs; and the site build refuses when the browser kit it serves has
     not been built [tested:
     test_every_run_fence_runs_the_corpus_file_it_names,
-    test_the_site_build_refuses_without_the_browser_kit; commit=WORKTREE]
+    test_the_site_build_refuses_without_the_browser_kit; commit=a8b50dae12518adb626bf2594258eeaaf4a7f76d]
 Open Obligations:
   To Do: None
   Hacks: None
