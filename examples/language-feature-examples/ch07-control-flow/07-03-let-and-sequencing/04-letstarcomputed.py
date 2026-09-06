@@ -190,4 +190,11 @@ RUNG = "a `let*` whose bindings arrive as a VALUE has no assignment spelling"
 #: policy-check fallbacks from space-local capture [measured 2026-09-02: min-
 #: of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=c00341f0ff9d83d1b9338ca86ad51708eaf07ebd].
-BUDGET = 11025
+#: RE-PINNED 2026-09-06, 11025 to 10224 (-801), the one pricing pass at the
+#: 0.8.0 release cut, and trunk's own movement rather than any mechanism in
+#: this twin: each pin was taken on the base its own branch had, and the
+#: September merge wave has moved the engine's clause layout, the evaluation
+#: path and the library's write doors since [measured 2026-09-06: min-of-3
+#: serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 10224
