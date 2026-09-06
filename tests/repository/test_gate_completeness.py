@@ -93,9 +93,14 @@ RUFF_FAMILY_BURN_DOWN = {
     # rather than four because metta/__init__.py deliberately does not import
     # either name: binding them there would make every `bool` annotation in
     # the root a variable annotation.
+    # 19 -> 22 for metta/__init__.pyi, which mirrors names the root already
+    # carries: the two `eval` overloads and `trace(filter=)`. This counter sees
+    # each twice because a generated mirror repeats its source's spellings, as
+    # metta/aio.py's two A002 rows already do, and the remedy for any of them is
+    # an edit to metta/__init__.py rather than to the mirror.
     # [tested: test_the_ruff_configuration_enables_every_family_or_records_why_not;
-    # commit=a0580a1bf6c00fd0c6d790990555c345ac41f185]
-    "A": 19,
+    # commit=WORKTREE]
+    "A": 22,
     # 2112 -> 2114 at the p12-space-model merge: its two new test modules
     # carry the repository's obligation-header docstring convention, whose
     # Purpose/Guarantees block is a deliberate per-line D205 suppression.
