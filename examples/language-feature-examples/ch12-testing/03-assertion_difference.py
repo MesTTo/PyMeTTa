@@ -133,5 +133,5 @@ RUNG = "the assert family's failure report is this file's subject, so each claim
 #: command=python extensions/python/tools/twin_coverage.py --measure --rounds 3
 #: examples/ch12-testing/03-assertion_difference.metta; fixture=worktree
 #: ai-tmp/wt-assertion-followups on fix/assertion-and-seam-followups, held to
-#: the corpus's own two-sided +-4 point tolerance; commit=WORKTREE].
+#: the corpus's own two-sided +-4 point tolerance; commit=2b1e14e9ba176f724e3d9676047f47b6fbbffa1b].
 BUDGET = 8295

@@ -675,7 +675,7 @@ metta_py_decode_(e, [Es], Term) :- maplist(metta_py_decode, Es, Term).
 %space operation is built as `Term =.. [Space, Rel|Args]`, so
 %`(= (space) my_space_name)` with a write through it registers `my_space_name`
 %and metta_space_names/1 lists it [source: engine/spaces/catalog.pl,
-%metta_space_writable_name/1, which accepts any atom; commit=WORKTREE]. The
+%metta_space_writable_name/1, which accepts any atom; commit=de8c99f0a6deedfc00e2a9fcb100e5ac3025d9be]. The
 %ampersand is how the engine SPELLS the spaces it mints, not a rule of the tag,
 %and demanding it here refused a name the engine's own registry had handed
 %out: a host that opened one and sent it back lost the whole term, because a
@@ -683,7 +683,7 @@ metta_py_decode_(e, [Es], Term) :- maplist(metta_py_decode, Es, Term).
 %Node seat carried the same demand in its own decoder and dropped it on
 %2026-09-07; this clause was the opposite ruling on the other seat
 %[source: extensions/node/bridge.pl, metta_node_decode_/5's p clause;
-%commit=WORKTREE].
+%commit=de8c99f0a6deedfc00e2a9fcb100e5ac3025d9be].
 %
 %The decode is the s tag's, and costs what it costs: -1.00 inference per p
 %leaf in both payload spellings, the sub_atom/5 that is gone
@@ -692,9 +692,9 @@ metta_py_decode_(e, [Es], Term) :- maplist(metta_py_decode, Es, Term).
 %atom 3.00 -> 2.00, string 4.00 -> 3.00, and a BARE name went from 4.00/5.00
 %spent failing to the same 2.00/3.00; fixture=the probe recorded in
 %docs/journal/2026-09-07-a-bare-name-poisons-the-plane.md;
-%commit=WORKTREE]. Every other tag is untouched and measured so
+%commit=de8c99f0a6deedfc00e2a9fcb100e5ac3025d9be]. Every other tag is untouched and measured so
 %[tested: shim_wire_decoding:every_tag_decodes,
-%shim_wire_decoding:a_bare_space_name_decodes_like_a_symbol; commit=WORKTREE].
+%shim_wire_decoding:a_bare_space_name_decodes_like_a_symbol; commit=de8c99f0a6deedfc00e2a9fcb100e5ac3025d9be].
 metta_py_decode_(p, [S], Space) :-
     ( atom(S) -> Space = S ; string(S), atom_string(Space, S) ).
 
