@@ -951,25 +951,35 @@ def test_an_unknown_bridge_head_is_loud(metta):  # noqa: D103  -- pytest discove
         metta.run("!(add-atom &br-bad (x 1))")
 
 
-def test_admission_types_the_pool(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
+def test_admission_types_the_pool(metta):
+    """A pool holds space HANDLES, which are bare symbols, so it is written
+    through `add-atoms`: `add-atom` is upstream PeTTa's spelling and takes
+    upstream's domain, an atom with a head. The admission check is the pool's
+    and fires through either door.
+    """  # noqa: D205  -- the contract is one continuous invariant, not summary-and-body prose
     metta._at("&pool").admits("Space")
     metta.run("!(add-atom &self (: &worker-a Space))")
-    metta.run("!(add-atom &pool &worker-a)")
+    metta.run("!(add-atoms &pool (&worker-a))")
     with pytest.raises(EngineError, match="does-not-carry"):
-        metta.run("!(add-atom &pool (not a space))")
+        metta.run("!(add-atoms &pool ((not a space)))")
+    out = metta.run("!(collapse (match &pool $s $s))")
+    assert str(out[0][0]) == "(&worker-a)"
+    # The singular spelling has no answer for a bare handle and writes nothing.
+    assert metta.run("!(add-atom &pool &worker-a)") == [[]]
     out = metta.run("!(collapse (match &pool $s $s))")
     assert str(out[0][0]) == "(&worker-a)"
 
 
-def test_capacity_bounds_the_pool(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
+def test_capacity_bounds_the_pool(metta):
+    """The bound is the pool's, and fires through the door a bare handle takes."""
     metta._at("&pool2").admits("Space")
     metta._at("&pool2").capacity(2)
     for name in ("&w1", "&w2"):
         metta.run(f"!(add-atom &self (: {name} Space))")
-        metta.run(f"!(add-atom &pool2 {name})")
+        metta.run(f"!(add-atoms &pool2 ({name}))")
     metta.run("!(add-atom &self (: &w3 Space))")
     with pytest.raises(EngineError, match="capacity"):
-        metta.run("!(add-atom &pool2 &w3)")
+        metta.run("!(add-atoms &pool2 (&w3))")
     # The pool stays queryable like anything else: how full, holding what.
     out = metta.run("!(collapse (match &pool2 $s $s))")
     assert str(out[0][0]) == "(&w1 &w2)"

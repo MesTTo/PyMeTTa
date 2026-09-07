@@ -149,7 +149,6 @@ def test_an_undefined_head_inside_arithmetic_refuses_by_name(metta):  # noqa: D1
         ("!(< 1 a)", '(Error (< 1 a) "< expects two numbers")'),
         ("!(min-atom (a b))",
          '(Error (min-atom (a b)) "Only numbers are allowed in expression: (a b)")'),
-        ("!(and True 5)", "(Error (and True 5) (BadArgType 2 Bool Number))"),
     ],
 )
 def test_an_operation_that_cannot_compute_answers_rather_than_raising(metta, source, answer):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -158,18 +157,46 @@ def test_an_operation_that_cannot_compute_answers_rather_than_raising(metta, sou
     assert [str(a) for group in metta.run(source) for a in group] == [answer]
 
 
+# The five boolean operations are RELATIONS over the two booleans, so outside
+# that domain they have no answer at all rather than a refusal atom. That is
+# upstream PeTTa's own guard, `and(A,B,C) :- bool(A), bool(B), ...`, and every
+# one of these prints nothing there [measured 2026-09-07 against PeTTa@ae66fa8].
+@pytest.mark.parametrize(
+    "source",
+    [
+        "!(and True 5)",
+        "!(and a a)",
+        "!(and True a)",
+        "!(or False 5)",
+        "!(not 5)",
+        "!(xor True 5)",
+        "!(implies False 5)",
+    ],
+)
+def test_a_boolean_operation_outside_its_domain_has_no_answer(metta, source):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
+    assert metta.run(source) == [[]]
+
+
+# The relational reading is the other half of the same law and is upstream's
+# too: an unbound operand enumerates the booleans instead of refusing.
+def test_a_boolean_operation_with_open_operands_answers_its_truth_table(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
+    (row,) = metta.run("!(collapse (and $a $b))")
+    assert [str(a) for a in row] == ["(True False False False)"]
+
+
 @pytest.mark.parametrize(
     ("source", "operation", "expected", "culprit"),
     [
-        ("!(reduce a)", "reduce", "list", "a"),
         ("!(change-state! (State 5) 6)", "change-state!", "atom", ["State", 5]),
     ],
 )
 def test_operation_error_carries_its_parts(metta, source, operation, expected, culprit):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     # The engine names the written operation in the error term, so the parts
-    # arrive as data rather than as text a caller would have to parse. These
-    # two are structural refusals rather than a grounded operation declining a
-    # value, so they are still raises.
+    # arrive as data rather than as text a caller would have to parse. This is
+    # a structural refusal rather than a grounded operation declining a value,
+    # so it is still a raise. `!(reduce a)` used to be the second row and is
+    # not a raise any more: a scalar is not a call, so `reduce` has no answer
+    # for one, which is the row below.
     with pytest.raises(MettaOperationError) as failure:
         metta.run(source)
     assert failure.value.operation == operation
@@ -178,6 +205,17 @@ def test_operation_error_carries_its_parts(metta, source, operation, expected, c
     assert failure.value.culprit == culprit
     assert isinstance(failure.value, EngineError)
     assert "classifier failed" not in str(failure.value)
+
+
+# `reduce` reduces an APPLICATION. A scalar is not one, so there is no
+# reduction step to take and no answer to give — and no raise either, because
+# MeTTa's error channel is an answer and this door is one a program can knock
+# on: `!(foldall a (reduce a) 0)` used to end the whole file with
+# `reduce: list expected, found a` where the arbiter answers `0`.
+@pytest.mark.parametrize("source", ["!(reduce a)", "!(reduce 7)", '!(reduce "s")'])
+def test_a_scalar_reduce_has_no_answer(metta, source):
+    """A scalar is not an application, so there is no reduction step to take."""
+    assert metta.run(source) == [[]]
 
 
 def test_an_operation_error_keeps_the_variables_the_source_wrote(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -964,18 +1002,35 @@ def test_write_door_uses_the_iteration_protocol_not_only_the_iterable_abc(m):
 
 
 def test_the_write_doors_accept_the_same_atoms(metta):
-    """Python add and engine add-atom share scalar storage acceptance."""
+    """Python add and the engine's PLURAL door share scalar storage acceptance.
+
+    Not `add-atom`: that spelling is upstream PeTTa's and takes upstream's
+    domain, an atom with a HEAD, because upstream stores an atom as a fact
+    keyed on its head and a headless one cannot become one. `add-atoms` is
+    this engine's own door onto the wider space and is what `space += atom`
+    reaches.
+    """
     python_space = metta._new_space()
     engine_space = metta._new_space()
     accepted = (S.bare, Grounded(7), Expression())
     try:
         for atom in accepted:
             python_space.add(atom)
-            metta.eval(S["add-atom"](engine_space, atom))
+            metta.eval(S["add-atoms"](engine_space, Expression(atom)))
 
         assert python_space.atoms() == list(accepted)
         assert engine_space.atoms() == list(accepted)
         assert len(python_space) == len(engine_space) == 3
+
+        # The singular spelling has no answer for any of the three, and writes
+        # nothing, which is what upstream answers for the same programs.
+        narrow = metta._new_space()
+        try:
+            for atom in accepted:
+                assert metta.eval(S["add-atom"](narrow, atom)) == []
+            assert narrow.atoms() == []
+        finally:
+            narrow.drop()
 
         with pytest.raises(EngineError, match="sufficiently instantiated"):
             python_space.add(V.unbound)
