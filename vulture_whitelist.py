@@ -245,3 +245,13 @@ _.sql_function
 # becomes later. Nothing in the package stores one yet, exactly as nothing in
 # it registers a SQL function above.
 _.as_atom
+
+# Pygments reads a lexer class by ATTRIBUTE after loading it through the
+# `pygments.lexers` entry point, and nothing in this package loads
+# metta/_pygments.py at all: `filenames` is what get_lexer_for_filename globs
+# against and `mimetypes` is what get_lexer_for_mimetype and a Jupyter
+# kernel's `language_info` key on. The class's other attributes -- name,
+# aliases, url, flags, tokens -- are spelled elsewhere in the tree and reach
+# vulture that way.
+_.filenames
+_.mimetypes

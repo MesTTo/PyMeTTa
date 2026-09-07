@@ -66,3 +66,35 @@ def test_ipython_pretty_prints_an_expression_as_a_grouped_tree():
     assert pretty(term, max_width=200) == str(term)
     assert pretty(parse("(a b c)")) == "(a b c)"
     assert pretty(S.leaf) == "leaf"
+
+
+def test_line_magic_runs_one_line_against_the_selection(shell, capsys):
+    """One line, printed the way the CLI prints and returned as groups."""
+    groups = shell.run_line_magic("metta", "!(+ 1 2)")
+    assert groups == [[3]]
+    assert "3" in capsys.readouterr().out
+
+
+def test_line_and_cell_magic_share_one_selected_space(shell, metta):
+    """One registration in IPython's line_cell form, so one selection.
+
+    `use(m)` is the rung below the line magic: a one-line evaluation has no
+    room to name a space, because the line IS the program, and this is what
+    points it somewhere other than the default.
+    """
+    with metta._new_space() as selected:
+        use(selected)
+        try:
+            shell.run_line_magic("metta", "(line-fact here)")
+            shell.run_cell_magic("metta", "", "(cell-fact here)")
+            assert selected.match(S["line-fact"](V.x))[0].x == S.here
+            assert selected.match(S["cell-fact"](V.x))[0].x == S.here
+        finally:
+            use(metta)
+
+
+def test_the_line_magic_refuses_an_empty_line(shell):
+    """A refusal that names the two spellings that do something."""
+    error = pytest.importorskip("IPython.core.error")
+    with pytest.raises(error.UsageError, match=r"%metta !\(\+ 1 2\)"):
+        shell.run_line_magic("metta", "   ")

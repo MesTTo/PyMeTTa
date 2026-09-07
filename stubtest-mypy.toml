@@ -34,6 +34,7 @@ disable_error_code = ["misc"]
 module = [
     "annotated_types", "array_api_compat", "faiss", "hypothesis", "numpy",
     "nanoarrow", "nanoarrow.*", "pandas", "polars", "rich.*", "websocket",
+    "IPython.*", "pygments", "pygments.*",
 ]
 ignore_missing_imports = true
 follow_imports = "skip"
