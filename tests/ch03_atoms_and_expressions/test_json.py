@@ -1,5 +1,11 @@
 """Purpose: pin the network JSON codec, which is the engine's own
 reader and writer behind a two-function Python surface.
+Guarantees:
+  - a refusal arrives as the engine's OWN sentence rather than the reserved
+    envelope around it, on both reader paths and for text and bytes alike
+    [tested: test_json_codec_refuses_duplicate_keys,
+    test_json_codec_refuses_non_finite_numbers,
+    test_a_refusal_reads_the_same_through_both_reader_paths; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -7,10 +13,47 @@ Open Obligations:
 """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
 import math
+import os
+import subprocess
+import sys
 
 import pytest
 
 from metta import _json
+
+#: What a child process runs to print one refusal's rendered sentence, so the
+#: two reader paths can be compared without two engines in one process:
+#: engine/json_codec.pl decides between the C reader and library(json) at LOAD
+#: time, reading METTA_C_JSON once.
+_REFUSAL_PROBE = """
+import sys
+from metta import _json
+for source in (sys.argv[1], sys.argv[1].encode("utf-8")):
+    try:
+        _json.loads(source)
+    except ValueError as refused:
+        print(f"{type(refused).__name__}: {refused}")
+    else:
+        print("no refusal")
+"""
+
+
+def _refusal_through(reader, document, repo_root):
+    """The refusal `document` draws, read through the named codec path."""
+    environment = {
+        **os.environ,
+        "METTA_C_JSON": "on" if reader == "c" else "off",
+        "PYTHONPATH": str(repo_root / "extensions" / "python"),
+    }
+    done = subprocess.run(
+        [sys.executable, "-c", _REFUSAL_PROBE, document],
+        capture_output=True,
+        text=True,
+        timeout=280,
+        check=True,
+        env=environment,
+    )
+    return done.stdout.splitlines()
 
 
 def test_json_codec_shares_bytes_round_trip():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -32,24 +75,68 @@ def test_json_codec_preserves_wide_integers():  # noqa: D103  -- pytest discover
 
 
 @pytest.mark.parametrize("value", [math.nan, math.inf, -math.inf])
-def test_json_codec_refuses_non_finite_numbers(value):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    with pytest.raises(ValueError):
+def test_json_codec_refuses_non_finite_numbers(value):
+    """JSON has no spelling for these, and the refusal says which number."""
+    with pytest.raises(ValueError) as written:
         _json.dumps({"number": value})
-    with pytest.raises(ValueError):
+    assert str(written.value).startswith("JSON cannot carry the non-finite number")
+    with pytest.raises(ValueError) as read:
         _json.loads(str(value).replace("inf", "Infinity").replace("nan", "NaN"))
+    assert str(read.value).startswith("not valid JSON: ")
 
 
-def test_json_codec_refuses_non_json_objects():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    with pytest.raises(TypeError):
+def test_json_codec_refuses_non_json_objects():
+    """A live host object is not JSON data, and the refusal says so."""
+    with pytest.raises(TypeError) as refused:
         _json.dumps({"object": object()})
+    assert "JSON cannot carry" in str(refused.value)
+    assert "which is not a json_term" in str(refused.value)
 
 
-def test_json_codec_refuses_duplicate_keys():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    # Stricter than Python's last-wins reading: a repeated key is a
-    # malformed object, and silently dropping the first value would let
-    # a wire peer smuggle one value past a reader that saw the other.
-    with pytest.raises(ValueError):
-        _json.loads('{"a": 1, "a": 2}')
+def test_json_codec_refuses_duplicate_keys():
+    """A repeated key is refused, and the refusal NAMES the key.
+
+    Stricter than Python's last-wins reading: a repeated key is a malformed
+    object, and silently dropping the first value would let a wire peer smuggle
+    one value past a reader that saw the other.
+
+    The sentence is asserted, not just the class. shim.pl's
+    metta_py_json_rethrow/1 has composed it since the codec existed, but the
+    reserved control envelope carrying it was classified by kind and not by
+    detail, so what a caller actually read was `metta: Unknown error term:
+    metta_control_signal(value,"JSON object repeats the key a") (value)` --
+    right class, no sentence. Nothing failed: every test here asked only for
+    ValueError [measured 2026-09-07 on 97c96e91, fixed by 8d673074].
+    """
+    for document in ('{"a": 1, "a": 2}', b'{"a": 1, "a": 2}'):
+        with pytest.raises(ValueError) as refused:
+            _json.loads(document)
+        assert str(refused.value) == "JSON object repeats the key a"
+
+    # The comparison is on the DECODED key, so an escaped spelling of the same
+    # key is the same key, and two sibling objects each naming one are not.
+    with pytest.raises(ValueError) as escaped:
+        _json.loads('{"a": 1, "\\u0061": 2}')
+    assert str(escaped.value) == "JSON object repeats the key a"
+    with pytest.raises(ValueError) as nested:
+        _json.loads('{"outer": {"b": 1, "b": 2}}')
+    assert str(nested.value) == "JSON object repeats the key b"
+    assert _json.loads('[{"a": 1}, {"a": 2}]') == [{"a": 1}, {"a": 2}]
+
+
+def test_a_refusal_reads_the_same_through_both_reader_paths(repo_root):
+    """The C reader and library(json) refuse in one voice, text and bytes.
+
+    engine/json_codec.pl picks between them at load time, so each path needs
+    its own process. The codec's own differential compares the two
+    implementations' TERMS over a corpus that includes this document
+    [tested: json_codec_differential:every_document_reads_the_same_through_both_paths];
+    what this adds is that the term becomes the same SENTENCE at the Python
+    door, which is where the envelope used to swallow it.
+    """
+    expected = ["ValueError: JSON object repeats the key a"] * 2
+    assert _refusal_through("c", '{"a": 1, "a": 2}', repo_root) == expected
+    assert _refusal_through("prolog", '{"a": 1, "a": 2}', repo_root) == expected
 
 
 def test_json_codec_refuses_trailing_content():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
