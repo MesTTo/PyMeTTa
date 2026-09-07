@@ -56,9 +56,33 @@ Guarantees:
     input shape [tested: test_declared_shape_variables_derive_the_result_without_execution,
     test_every_preserving_unary_head_keeps_symbolic_and_live_shapes;
     commit=4eaefdd8d40e53b2613722287302a14b41704662]
+  - what a space installed is a property of THAT space, one
+    (array-backend <space> <library> (ops ...)) row in &metta that ops() and
+    backend() read back, so two spaces on two libraries answer their own
+    rosters and constructor types in either install order, a second install
+    replaces the row with the aliases and the operations it alone named, and
+    dropping the space retires the row through the catalog's space-ownership
+    walk [tested: test_a_space_answers_its_own_roster_in_either_install_order,
+    test_a_second_install_replaces_the_roster_and_its_operations,
+    test_dropping_the_space_retires_its_installation_row;
+    commit=76dbea9f4bc10804a5ca19493972dfb7975bc4b0]
+  - uninstall() is install's inverse and keeps every operation another
+    space's row still claims, the registry being process-wide by name; a
+    space with no row, and a space with two, both refuse by name
+    [tested: test_uninstall_retires_the_installation_and_keeps_shared_operations,
+    test_the_roster_doors_refuse_an_uninstalled_space_and_a_doubled_row;
+    commit=76dbea9f4bc10804a5ca19493972dfb7975bc4b0]
 Guarded by:
   - _PROTOCOLS_LOCK serializes one-time protocol registration
     [tested test_array_protocol_registration_is_idempotent]
+  - _ROSTER_KIND_LOCK serializes the once-per-catalog declaration of the
+    (array-backend ...) kind and its ownership marker, which the engine
+    refuses a second time for one head. It guards the one piece of install
+    state two SPACES share; two threads installing into ONE space race on
+    that space's own atoms and are a caller error either way
+    [assumed: no test installs from two threads at once, so the race is
+    reasoned from the engine's one-kind-row-per-head refusal rather than
+    reproduced; commit=76dbea9f4bc10804a5ca19493972dfb7975bc4b0]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -77,13 +101,16 @@ from functools import wraps
 from typing import Annotated, Any, Final, Literal, NewType, cast
 
 from . import integrate as _integrate
+from . import ops as _ops
 from ._ops import REGISTRY
 from ._optional import optional_module, require_module
+from ._space import Space
 from .atoms import (
     Atom,
     Expression,
     Grounded,
     S,
+    Symbol,
     V,
     Variable,
     _alpha_eq,
@@ -94,18 +121,28 @@ from .atoms import (
 from .errors import MettaError
 
 __all__ = [
-    "ARRAY_OPS",
     "SHAPE_RULES",
     "DLTensor",
     "EmbeddingStore",
     "Shape",
+    "backend",
     "data_of",
     "install",
     "is_array",
     "namespace_of",
+    "ops",
+    "uninstall",
 ]
 
-ARRAY_OPS: list[str] = []
+#: The catalog head one install writes, and the shape of its row:
+#: ``(array-backend <space> <library> (ops <name> ...))``. The roster is a
+#: property of the SPACE because that is where the install happened: two
+#: spaces on two libraries answer their own rosters in either order, and the
+#: row dies with the space because ``install`` marks the head
+#: ``(owned-by-space array-backend)`` in the same catalog.
+_ROSTER_HEAD: Final[str] = "array-backend"
+_ROSTER_PAYLOAD: Final[str] = "ops"
+_CATALOG: Final[str] = "&metta"
 # Shape behavior for every logical head; backend constructor aliases use the
 # same entry. Only preserve, broadcast, and matmul derive unevaluated types.
 # Other rules describe the runtime transformation whose result is observed by
@@ -153,22 +190,23 @@ SHAPE_RULES: Final[dict[str, str]] = {
 DLTensor = NewType("DLTensor", Any)  # type: ignore[valid-newtype]  # ty: ignore[invalid-newtype]
 _PROTOCOLS_REGISTERED = threading.Event()
 _PROTOCOLS_LOCK = threading.Lock()
+_ROSTER_KIND_LOCK = threading.Lock()
 
-# Constructor names aliased per space: the operation registers once per
-# backend under name--lib, and each installed space carries equations
-# routing its own (tensor ...) to its own backend, so two spaces with two
-# default libraries coexist and a later install never retargets an earlier
-# space's constructors. Reinstalling a space with another default replaces
-# ITS aliases; (space, name) -> (library, arities) records what to remove.
-_CONSTRUCTOR_NAMES: Final[tuple[str, ...]] = (
-    "tensor",
-    "zeros",
-    "ones",
-    "randn",
-    "arange-t",
-    "eye",
-)
-_SPACE_CONSTRUCTORS: dict[tuple[str, str], tuple[str, list[int]]] = {}
+# Constructor names aliased per space, each with the arities it registers:
+# the operation registers once per backend under name--lib, and each installed
+# space carries equations routing its own (tensor ...) to its own backend, so
+# two spaces with two default libraries coexist and a later install never
+# retargets an earlier space's constructors. Reinstalling a space with another
+# default replaces ITS aliases, and the alias equations to withdraw follow
+# from this table and the library the space's own roster row names.
+_CONSTRUCTOR_ARITIES: Final[dict[str, tuple[int, ...]]] = {
+    "tensor": (1,),
+    "zeros": (1, 2, 3, 4),
+    "ones": (1, 2, 3, 4),
+    "randn": (1, 2, 3, 4),
+    "arange-t": (1,),
+    "eye": (1,),
+}
 _SPACE_STORES: dict[tuple[str, str], tuple[str, str]] = {}
 _STORE_SERIAL = itertools.count(1)
 
@@ -194,8 +232,11 @@ metta_broadcast_dimension(D2, D1, D) :-
     D2 #\= 1 #/\ D2 #= D #\ D2 #= 1 #/\ D1 #= D.
 """
 
+#: The typing rule install() declares and uninstall() withdraws, named once
+#: so the two spellings cannot drift apart.
+_SHAPED_TENSOR_RULE_NAME: Final[str] = "metta-arrays-shaped-dltensor-base"
 _SHAPED_TENSOR_RULE: Final[str] = (
-    "!(add-typing-rule! metta-arrays-shaped-dltensor-base ordinary "
+    f"!(add-typing-rule! {_SHAPED_TENSOR_RULE_NAME} ordinary "
     "(Annotated DLTensor (Shape $shape)) DLTensor accept)"
 )
 
@@ -305,6 +346,22 @@ def _matmul_type_equation() -> Expression:
     )
 
 
+def _type_equations() -> tuple[Expression, ...]:
+    """Every get-type equation an install adds, derived from SHAPE_RULES.
+
+    install() adds each one as it registers the head it belongs to and
+    uninstall() withdraws the same set; both classify from SHAPE_RULES, so a
+    head that gains a shape rule cannot leave its equation behind.
+    """
+    equations = [_tensor_shape_equation()]
+    for head, rule in SHAPE_RULES.items():
+        if rule == "broadcast":
+            equations.append(_broadcast_type_equation(head))
+        elif rule == "matmul":
+            equations.append(_matmul_type_equation())
+    return tuple(equations)
+
+
 def _top_indices(xp: Any, scores: Any, count: int) -> list[int]:
     """Top score indexes, best first, without sorting the full NumPy array."""
     size = int(scores.shape[0])
@@ -328,6 +385,28 @@ def _top_indices(xp: Any, scores: Any, count: int) -> list[int]:
         order = xp.argsort(scores)
         candidates = [int(order[-(offset + 1)]) for offset in range(count)]
     return sorted(candidates, key=lambda index: (-float(scores[index]), index))
+
+
+def _alias_types(name: str, library: str) -> list[Expression]:
+    """The bare-name arrow declarations one constructor's alias carries.
+
+    A constructor registers as `zeros--numpy` and the space routes `zeros`
+    there, so the bare name needs the same arrows the namespaced one declared,
+    one per accepted arity. install() adds whichever the space lacks and
+    uninstall() withdraws them, both reading them from the registration rather
+    than restating the arrow shapes.
+    """
+    operation = REGISTRY.get(f"{name}--{library}")
+    if operation is None:
+        return []
+    return [
+        _expr(S[":"], S[name], declaration.args[1])
+        for declaration in operation.declarations
+        if declaration.head == S[":"]
+        and declaration.args[0] == S[f"{name}--{library}"]
+        and isinstance(declaration.args[1], Expression)
+        and declaration.args[1].head == S["->"]
+    ]
 
 
 def _alias_equation(name: str, library: str, arity: int) -> Expression:
@@ -457,6 +536,202 @@ def data_of(a: Any) -> Any:
     return a
 
 
+# ------------------------------------------------------ the per-space roster
+#
+# What a space installed is a fact ABOUT that space, so it is stored where the
+# engine keeps every other per-space declaration: one row in the catalog,
+# retired by the same walk that retires (annotations ...) and (handles ...)
+# when the space is dropped. It replaced a module-level list rewritten by the
+# last install anywhere in the process, whose meaning therefore depended on
+# call order: installing jax in one space made a numpy space answer
+# %Undefined% for the type of a name it had never registered.
+
+
+def _catalog(m: Any) -> Space:
+    """The declaration space this space's runtime reads and writes."""
+    return Space(_CATALOG, _runtime=m.runtime)
+
+
+def _roster_pattern(m: Any) -> Expression:
+    """The rows one space's array installations occupy."""
+    return _expr(S[_ROSTER_HEAD], S[str(m.name)], V.library, V.ops)
+
+
+def _installations(m: Any) -> list[tuple[str, tuple[str, ...]]]:
+    """(library, names) for every installation row this space carries.
+
+    The row is ordinary catalog data, so a program can write one itself and
+    a malformed roster is refused here naming the row, rather than read as
+    an empty install.
+    """
+    found: list[tuple[str, tuple[str, ...]]] = []
+    for row in _catalog(m).match(_roster_pattern(m)):
+        payload = row.ops
+        if (
+            not isinstance(payload, Expression)
+            or payload.head != S[_ROSTER_PAYLOAD]
+            or not all(isinstance(name, Symbol) for name in payload.args)
+        ):
+            msg = (
+                f"({_ROSTER_HEAD} {m.name} {row.library} {payload}) declares no "
+                f"array roster: the third field must be "
+                f"({_ROSTER_PAYLOAD} <name> ...) naming symbols"
+            )
+            raise MettaError(msg)
+        found.append((str(row.library), tuple(str(name) for name in payload.args)))
+    return found
+
+
+def _installed(m: Any, door: str) -> tuple[str, tuple[str, ...]]:
+    """The one installation this space carries, or the refusal naming it."""
+    standing = _installations(m)
+    if not standing:
+        msg = (
+            f"no array backend is installed in {m.name}, so arrays.{door} has "
+            f"nothing to answer; arrays.install({m.name}) registers one"
+        )
+        raise MettaError(msg)
+    if len(standing) > 1:
+        libraries = ", ".join(library for library, _ in standing)
+        msg = (
+            f"{m.name} carries {len(standing)} array installation rows "
+            f"({libraries}), so arrays.{door} has no one answer; "
+            f"arrays.install({m.name}, default=...) replaces them with one and "
+            f"arrays.uninstall({m.name}) retires them all"
+        )
+        raise MettaError(msg)
+    return standing[0]
+
+
+def _claimed_ops(m: Any) -> set[str]:
+    """Every operation name a standing installation row still claims.
+
+    The operation registry is process-wide by NAME, so retiring one space's
+    roster may unregister only what no other space's row names: two spaces on
+    numpy share `zeros--numpy` and the whole backend-agnostic operation set.
+    """
+    claimed: set[str] = set()
+    for row in _catalog(m).match(_expr(S[_ROSTER_HEAD], V.space, V.library, V.ops)):
+        payload = row.ops
+        if isinstance(payload, Expression) and payload.head == S[_ROSTER_PAYLOAD]:
+            claimed.update(str(name) for name in payload.args)
+    return claimed
+
+
+def _retire_unclaimed(m: Any, names: Iterable[str]) -> list[str]:
+    """Unregister the named operations no standing row claims, and say which.
+
+    In the order given, which is the roster's, so the answer reads as the
+    install's own list minus what stayed. The bare constructor names never
+    reach the registry, being alias equations, and are skipped here.
+    """
+    claimed = _claimed_ops(m)
+    retired = [
+        name
+        for name in dict.fromkeys(names)
+        if name not in claimed and name in REGISTRY
+    ]
+    for name in retired:
+        m.unregister_op(name)
+    return retired
+
+
+def _clear_installation(m: Any, incoming: str | None = None) -> list[str]:
+    """Drop this space's rows and the constructor aliases they route through.
+
+    Returns the names those rows claimed, for the caller to retire once the
+    replacement row stands. The INCOMING library's aliases are removed too, so
+    a repeated install is idempotent: an install that failed part way through
+    leaves its aliases standing, and adding them again would give the space
+    the same equation twice.
+    """
+    previous = _installations(m)
+    if previous:
+        del _catalog(m)[_roster_pattern(m)]
+    libraries = {library for library, _ in previous}
+    if incoming is not None:
+        libraries.add(incoming)
+    for library in libraries:
+        for name, arities in _CONSTRUCTOR_ARITIES.items():
+            for arity in arities:
+                m.remove(_alias_equation(name, library, arity))
+    return [name for _, names in previous for name in names]
+
+
+def _declare_roster_kind(catalog: Space) -> None:
+    """Declare the row's shape and its space ownership, once per catalog.
+
+    The kind row makes the engine's own declaration checker refuse a
+    malformed roster at the write, and (owned-by-space array-backend) puts
+    the head in the retirement walk every space-owned declaration already
+    leaves through, so dropping a space takes its roster with it
+    [source: engine/spaces/catalog.pl, metta_retire_space_catalog/1;
+    commit=76dbea9f4bc10804a5ca19493972dfb7975bc4b0]. A program that has removed this kind row and declared a
+    wider one of its own owns the consequence: the next install meets the
+    engine's one-kind-row-per-head refusal, which names the row to remove.
+    """
+    declarations = (
+        _expr(S.kind, S[_ROSTER_HEAD], S.symbol, S.symbol, S.term),
+        _expr(S["owned-by-space"], S[_ROSTER_HEAD]),
+    )
+    # One catalog, one kind row: the engine refuses a second for the same
+    # head, so two threads installing into two spaces at once would have the
+    # loser raise on a check that had already passed. The same reason
+    # _PROTOCOLS_LOCK guards the other once-per-process registration here.
+    with _ROSTER_KIND_LOCK:
+        for declaration in declarations:
+            if declaration not in catalog:
+                catalog.add(declaration)
+
+
+def _record_installation(m: Any, library: str, names: Iterable[str]) -> None:
+    """Write the one row saying what this space installed."""
+    catalog = _catalog(m)
+    _declare_roster_kind(catalog)
+    catalog.add(
+        _expr(
+            S[_ROSTER_HEAD],
+            S[str(m.name)],
+            S[library],
+            _expr(S[_ROSTER_PAYLOAD], *(S[name] for name in names)),
+        )
+    )
+
+
+def ops(m) -> list[str]:
+    """The array operation names installed in this space, in install order.
+
+    `install` returns the same list; this reads it back from the space long
+    afterwards, so two spaces on two libraries answer their own rosters
+    whatever order they were installed in:
+
+        numpy_space, jax_space = m.space(), m.space()
+        arrays.install(jax_space, default=jax.numpy)
+        arrays.install(numpy_space, default=numpy)
+        arrays.ops(numpy_space)      # ... 'zeros--numpy' ...
+        arrays.backend(jax_space)    # 'jax.numpy'
+
+    m may be a context or a space. The longhand is the row itself, which is
+    ordinary matchable data: `!(match &metta (array-backend &s $lib $ops) $ops)`.
+    A space with no install refuses, naming install as the remedy.
+    """
+    _library, names = _installed(_integrate.space_of(m), "ops")
+    return list(names)
+
+
+def backend(m) -> str:
+    """The array library this space's constructors build in.
+
+    The fully qualified module name install() recorded, `numpy` or
+    `jax.numpy`, which is the same name its constructor registrations carry
+    after the `--` in `zeros--numpy`. `ops` answers the roster beside it, and
+    the row behind both is `(array-backend <space> <library> (ops ...))` in
+    `&metta`.
+    """
+    library, _names = _installed(_integrate.space_of(m), "backend")
+    return library
+
+
 def install(m, default: Any = None) -> list[str]:  # noqa: C901  -- install keeps the array backend registration table together so its branches share one state
     """Register the array operation set on the shared engine.
 
@@ -498,14 +773,27 @@ def install(m, default: Any = None) -> list[str]:  # noqa: C901  -- install keep
     space either way, which is the object whose storage and introspection
     doors this needs; `install(m)` on a context used to raise
     `MeTTa has no 'is_function'` and leave every operation unregistered.
+
+    What this space installed becomes one catalog row,
+    ``(array-backend <space> <library> (ops ...))`` in ``&metta``, which
+    ``ops(m)`` and ``backend(m)`` read back and a MeTTa program can match for
+    itself. Installing again REPLACES that row, the space's constructor
+    aliases, and every operation of the outgoing roster that no other space's
+    row still names; ``uninstall(m)`` retires the whole installation, and
+    dropping the space retires the row with it. Two spaces may therefore hold
+    two libraries at once, in either install order, each answering its own.
     """
     m = _integrate.space_of(m)
     _register_protocols()
-    backend = _numpy() if default is None else default
-    if isinstance(backend, str):
-        backend = importlib.import_module(backend)
-    xp_default = _default_namespace(backend)
-    library = _backend_name(backend)
+    default_module = _numpy() if default is None else default
+    if isinstance(default_module, str):
+        default_module = importlib.import_module(default_module)
+    xp_default = _default_namespace(default_module)
+    library = _backend_name(default_module)
+    # Before anything is registered, so a failure part way through leaves a
+    # space with no roster row, which every reader refuses loudly, rather than
+    # a standing row describing an install that did not finish.
+    outgoing = _clear_installation(m, library)
     registered: list[str] = []
 
     m.register_prolog(_BROADCAST_SHAPE_SOURCE)
@@ -536,7 +824,7 @@ def install(m, default: Any = None) -> list[str]:  # noqa: C901  -- install keep
         if (
             m.is_function(name)
             and name not in _known_ops()
-            and name not in _CONSTRUCTOR_NAMES
+            and name not in _CONSTRUCTOR_ARITIES
         ):
             msg = (
                 f"refusing to register {name!r}: the engine already has a "
@@ -573,7 +861,6 @@ def install(m, default: Any = None) -> list[str]:  # noqa: C901  -- install keep
         *,
         name: str,
         effect: str,
-        arities: list[int] | None = None,
         # policy-inventory-exempt: mechanism-internal; reason=encoded and raw are the registration transport's two wire-crossing modes, decoded once into the (op ...) kind; evidence=extensions/python/metta/ops.py:_operation_kind
         transport: Literal["encoded", "raw"] = "raw",
         **kw,
@@ -581,8 +868,11 @@ def install(m, default: Any = None) -> list[str]:  # noqa: C901  -- install keep
         """A constructor registers per backend as name--library, and THIS
         space routes its bare name there through per-space equations, so
         the default is the space's, never the process's. Installing the
-        space again with another default replaces its aliases.
+        space again with another default replaces its aliases, which
+        _clear_installation withdrew before this ran from the arities in
+        _CONSTRUCTOR_ARITIES and the library the outgoing row named.
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+        arities = list(_CONSTRUCTOR_ARITIES[name])
         namespaced = f"{name}--{library}"
         declarations = [
             _expr(declaration.head, S[namespaced], *declaration.args[1:])
@@ -603,26 +893,11 @@ def install(m, default: Any = None) -> list[str]:  # noqa: C901  -- install keep
             declarations=declarations,
             **kw,
         )
-        key = (m.name, name)
-        previous = _SPACE_CONSTRUCTORS.get(key)
-        if previous is not None:
-            old_library, old_arities = previous
-            for arity in old_arities:
-                m.remove(_alias_equation(name, old_library, arity))
-        for arity in arities or [1]:
+        for arity in arities:
             m.add(_alias_equation(name, library, arity))
-        _SPACE_CONSTRUCTORS[key] = (library, list(arities or [1]))
-        operation = REGISTRY[namespaced]
-        for declaration in operation.declarations:
-            if (
-                declaration.head == S[":"]
-                and declaration.args[0] == S[namespaced]
-                and isinstance(declaration.args[1], Expression)
-                and declaration.args[1].head == S["->"]
-            ):
-                alias_type = _expr(S[":"], S[name], declaration.args[1])
-                if alias_type not in m:
-                    m.add(alias_type)
+        for alias_type in _alias_types(name, library):
+            if alias_type not in m:
+                m.add(alias_type)
         registered.append(name)
         return fn
 
@@ -651,8 +926,6 @@ def install(m, default: Any = None) -> list[str]:  # noqa: C901  -- install keep
         declarations=[_expr(S.arguments, S.tensor, S.atoms)],
     )
 
-    dims = [1, 2, 3, 4]
-
     def zeros(*shape: int) -> DLTensor:
         return xp_default.zeros(tuple(int(dimension) for dimension in shape))
 
@@ -665,9 +938,9 @@ def install(m, default: Any = None) -> list[str]:  # noqa: C901  -- install keep
     def identity(n: int) -> DLTensor:
         return xp_default.eye(int(n))
 
-    constructor(zeros, name="zeros", effect="writesState", arities=dims)
-    constructor(ones, name="ones", effect="writesState", arities=dims)
-    constructor(_randn(xp_default), name="randn", effect="oracleIO", arities=dims)
+    constructor(zeros, name="zeros", effect="writesState")
+    constructor(ones, name="ones", effect="writesState")
+    constructor(_randn(xp_default), name="randn", effect="oracleIO")
     constructor(arange_tensor, name="arange-t", effect="writesState")
     constructor(identity, name="eye", effect="writesState")
 
@@ -856,8 +1129,79 @@ def install(m, default: Any = None) -> list[str]:  # noqa: C901  -- install keep
 
     op(convert, name="t-as", effect="oracleIO")
 
-    ARRAY_OPS[:] = registered
+    _record_installation(m, library, registered)
+    # After the replacement row stands, so an operation the new roster also
+    # names, and one another space's row names, both stay registered.
+    _retire_unclaimed(m, outgoing)
     return registered
+
+
+def uninstall(m) -> list[str]:
+    """Retire this space's array installation; answers what it unregistered.
+
+    The inverse of `install`. The space's roster row goes, with its
+    constructor aliases and the bare-name arrows those carried, the `get-type`
+    shape equations and the shaped-DLTensor typing rule; then every operation
+    the roster named is unregistered UNLESS another space's row still names
+    it, because the operation registry is process-wide by name and two spaces
+    on numpy share `zeros--numpy` and the whole backend-agnostic set. The
+    answer is therefore what actually left the registry, in roster order.
+
+        arrays.install(space, default=numpy)
+        arrays.uninstall(space)
+        arrays.ops(space)            # refuses: nothing is installed here
+
+    An operation another space claims stays registered, and this space stops
+    DECLARING it: `ops.withdraw` releases the rows that would otherwise keep
+    the space describing a function it no longer routes to.
+
+    Dropping the space retires the row without this call, the catalog
+    retiring a space's declarations with it, but the process-wide operations
+    are the registry's and only this door hands them back.
+
+    Two registrations deliberately survive, both keyed on the DLPack
+    predicate rather than on a space, so one registration serves every space
+    and withdrawing it here would change another space's answers: the
+    DLTensor type and array printing hooks, whose own doors are
+    `integrate.unregister_object_type` and `integrate.unregister_repr`, and
+    the `broadcast-shape` CLP(FD) relation, which `register_prolog` has no
+    withdrawal for.
+
+    m may be a context or a space, as `install` takes either.
+    """
+    m = _integrate.space_of(m)
+    standing = _installations(m)
+    if not standing:
+        msg = (
+            f"no array backend is installed in {m.name}, so there is nothing "
+            f"to uninstall; arrays.install({m.name}) registers one"
+        )
+        raise MettaError(msg)
+    # The typing rule first: it is the one step that can refuse, and refusing
+    # here leaves the installation whole rather than half retired.
+    rule_result = m.run(f"!(remove-typing-rule! {_SHAPED_TENSOR_RULE_NAME})")
+    if rule_result != [[True]]:
+        msg = (
+            f"could not retire the shaped DLTensor typing rule from {m.name}: "
+            f"{rule_result!r}"
+        )
+        raise MettaError(msg)
+    for equation in _type_equations():
+        m.remove(equation)
+    for library, _ in standing:
+        for name in _CONSTRUCTOR_ARITIES:
+            for alias_type in _alias_types(name, library):
+                m.remove(alias_type)
+    _clear_installation(m)
+    names = [name for _, names in standing for name in names]
+    retired = _retire_unclaimed(m, names)
+    # An operation another space still claims stays registered, but it may not
+    # go on being DECLARED here: its rows would keep the space describing a
+    # function it no longer routes to, and answering calls on it.
+    for name in dict.fromkeys(names):
+        if name not in retired and name in REGISTRY:
+            _ops.withdraw(m.runtime, name, str(m.name))
+    return retired
 
 
 def _randn(xp_default):

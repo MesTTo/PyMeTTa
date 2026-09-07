@@ -121,7 +121,7 @@ def test_internal_identifier_types_do_not_reopen_public_doors():
 def test_policy_constants_are_final():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     assert get_type_hints(aio)["DEFAULT_CLOSE_TIMEOUT"] == Final[float]
     assert get_type_hints(atom_namespace)["NAMESPACE_CACHE_MAX"] == Final[int]
-    assert get_type_hints(arrays)["_CONSTRUCTOR_NAMES"] == Final[tuple[str, ...]]
+    assert get_type_hints(arrays)["_CONSTRUCTOR_ARITIES"] == Final[dict[str, tuple[int, ...]]]
     assert get_type_hints(current_space)["return"] is _api_types._SpaceId
 
 

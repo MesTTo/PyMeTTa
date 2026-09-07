@@ -1353,6 +1353,7 @@ class Space(Handle):
         _invalidate_builtins_cache(self._rt)
         release_definitions(cleanup)
         integrate._forget_space(name)
+        _ops_module._forget_space(name)
         _satellite("algebra")._forget_space(cleanup)
         if self._ephemeral:
             self._rt.must(
