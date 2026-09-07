@@ -28,7 +28,7 @@ Guarantees:
     one guarded pull's own 0.213 microseconds [measured: command=cd
     extensions/python && PYTHONPATH=. python -m benchmarks.py_iter_guard
     --items 20000 --rounds 3; fixture=one range object pulled through
-    metta_py.iterate, loadavg 46.20; commit=WORKTREE]
+    metta_py.iterate, loadavg 46.20; commit=490cd97c382e5cafd0cf7b7ba2fc1aeecbf10b44]
 Open Obligations:
   To Do: None
   Hacks: None

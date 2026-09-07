@@ -25,9 +25,9 @@ Guarantees:
   - the kinds thrown across the tree, the kinds the live shim classifies and
     the kinds Python raises for are one set, with both differences named
     [tested: test_every_thrown_kind_reaches_python_as_its_own_exception,
-    test_the_shim_classifies_every_kind_python_names; commit=WORKTREE]
+    test_the_shim_classifies_every_kind_python_names; commit=490cd97c382e5cafd0cf7b7ba2fc1aeecbf10b44]
   - SWI's own unenveloped resource balls stay classified beside them
-    [tested: test_swis_own_resource_balls_are_classified_too; commit=WORKTREE]
+    [tested: test_swis_own_resource_balls_are_classified_too; commit=490cd97c382e5cafd0cf7b7ba2fc1aeecbf10b44]
 Open Obligations:
   To Do: None
   Hacks: None

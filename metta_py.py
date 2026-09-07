@@ -67,7 +67,7 @@ Guarantees:
     reports it at the same index instead of reading a truncated prefix
     [tested: test_a_raising_iterator_is_attributed_to_the_py_iter_that_pulled_it,
     test_a_failed_replay_source_reports_the_same_failure_to_every_cursor;
-    commit=WORKTREE]
+    commit=490cd97c382e5cafd0cf7b7ba2fc1aeecbf10b44]
   - algebra_equal() compares tensor shape and exact elements, including unequal
     NaNs [tested: test_finite_tensor_semiring_checks_every_law,
     test_finite_tensor_nan_does_not_become_equal_by_identity; commit=074dc0a88b1605c54824de677d586b6f60998bcf].
@@ -223,7 +223,7 @@ def _failed_during_generator_close(error: BaseException) -> bool:
     yielding while closing raises ``RuntimeError: generator ignored
     GeneratorExit`` and hides the resource failure [tested:
     test_a_release_failure_while_closing_a_guarded_stream_propagates;
-    commit=WORKTREE].
+    commit=490cd97c382e5cafd0cf7b7ba2fc1aeecbf10b44].
     """
     return isinstance(error.__context__, GeneratorExit)
 

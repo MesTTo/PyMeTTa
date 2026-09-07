@@ -5,7 +5,7 @@ Guarantees:
     envelope around it, on both reader paths and for text and bytes alike
     [tested: test_json_codec_refuses_duplicate_keys,
     test_json_codec_refuses_non_finite_numbers,
-    test_a_refusal_reads_the_same_through_both_reader_paths; commit=WORKTREE]
+    test_a_refusal_reads_the_same_through_both_reader_paths; commit=490cd97c382e5cafd0cf7b7ba2fc1aeecbf10b44]
 Open Obligations:
   To Do: None
   Hacks: None

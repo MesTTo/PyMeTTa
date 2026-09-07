@@ -42,7 +42,7 @@
 %     lost to CPython's "returned a result with an exception set" [tested:
 %     test_a_raising_iterator_is_attributed_to_the_py_iter_that_pulled_it,
 %     test_a_raising_iterator_carries_no_janus_framing,
-%     test_py_iter_once_reports_its_own_pull; commit=WORKTREE].
+%     test_py_iter_once_reports_its_own_pull; commit=490cd97c382e5cafd0cf7b7ba2fc1aeecbf10b44].
 %   - grounded algebra equality unwraps values and returns one truth value
 %     [tested: test_finite_tensor_semiring_checks_every_law; commit=074dc0a88b1605c54824de677d586b6f60998bcf].
 % Fails when:
@@ -671,7 +671,7 @@ metta_py_kwarg(Other, _) :-
 %unguarded and 60,004 guarded, 0.169 against 0.213 microseconds an item at
 %loadavg 46.20; command=cd extensions/python && PYTHONPATH=. python -m
 %benchmarks.py_iter_guard --items 20000 --rounds 3;
-%fixture=extensions/python/benchmarks/py_iter_guard.py; commit=WORKTREE].
+%fixture=extensions/python/benchmarks/py_iter_guard.py; commit=490cd97c382e5cafd0cf7b7ba2fc1aeecbf10b44].
 %
 %Named for the door rather than metta_py_*, which is this file's usual prefix,
 %because neither this file nor metta/shim.pl declares a module: both load into

@@ -23,7 +23,7 @@ Guarantees:
     test_a_failed_replay_source_reports_the_same_failure_to_every_cursor,
     test_an_iterator_of_pairs_is_not_read_as_a_terminal_failure,
     test_a_release_failure_while_closing_a_guarded_stream_propagates;
-    commit=WORKTREE].
+    commit=490cd97c382e5cafd0cf7b7ba2fc1aeecbf10b44].
 """  # noqa: D205  -- the contract is one continuous invariant
 
 from __future__ import annotations
