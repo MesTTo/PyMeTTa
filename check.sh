@@ -15,7 +15,13 @@
 #   commit=5e0ae6c22d604c4b980766e3cc4811ee545e5c9e], the class door's PEP 681
 #   declaration is executable in a consumer file, and stubtest holds the two
 #   generated stubs against the runtime [tested: mypy-class-door, stubtest;
-#   commit=dd4f82100a052e2c5254a2ef9e91f6eb9d2e0c49].
+#   commit=dd4f82100a052e2c5254a2ef9e91f6eb9d2e0c49]. The memray lane carries two
+#   planted controls over the same two hundred cursors and reports findings
+#   unless the kept half exceeds its bound and the clean half stays under it
+#   [measured 2026-09-07: 924.6 KiB retained at the largest single location when
+#   they are closed against 19,968.0 KiB when they are kept;
+#   command=sh check.sh memray; fixture=tests/checks/memray_plant.py;
+#   commit=WORKTREE].
 # Open Obligations:
 #   To Do: None
 #   Hacks: None
@@ -335,11 +341,11 @@ run GATE   audit       in_py "$PY" -m pip_audit --progress-spinner off
 run GATE   interrogate in_py "$PY" -m interrogate metta
 
 # ---------------------------------------------------------------------------
-# What the suite does not say about itself. Four REPORT lanes, each measuring a
+# What the suite does not say about itself. Five REPORT lanes, each measuring a
 # property no GATE above can see: which lines the suite reaches, how much of the
 # published surface a type checker can see a type for, whether the shipped stubs
-# still describe the runtime, and whether the tests would notice if the code
-# were wrong.
+# still describe the runtime, whether the tests would notice if the code were
+# wrong, and what a test is still holding when it ends.
 
 # Branch coverage over the library, printed, never gated. A percentage floor
 # rewards tests that touch lines; the mutation lane below is the one that asks
@@ -448,3 +454,69 @@ check_mutation() {
         "$metta_mutation_scratch/mutants/mutmut-cicd-stats.json" "$metta_mutation_target"
 }
 run REPORT mutation    check_mutation
+
+# What a test still holds when it ends, which every lane above is structurally
+# unable to see: the suite counts ENGINE-SIDE handles -- open cursors, live
+# subscriptions, registered spaces -- and a Python object that keeps one of
+# those alive after the engine has forgotten it is invisible to a count of the
+# engine's own tables. memray watches the allocator instead, so a handle nobody
+# released shows as memory the test never gave back.
+#
+# The five files are the seam's handle families: space handles, worlds, standing
+# subscriptions, engine handles and cursors. They run under plain `--memray`,
+# which reports each test's allocation growth and gates nothing, because a
+# threshold over a whole suite would be a number nobody measured.
+#
+# The threshold lives on the PLANT instead, where both sides of it are measured.
+# Two hundred cursors opened and closed retain 924.6 KiB at their largest single
+# location, repeatably; two hundred kept alive retain 19,968.0 KiB at theirs,
+# and the 8 MB bound in tests/checks/memray_plant.py sits between them
+# [measured 2026-09-07 at loadavg 58 to 66, three runs of the clean half all
+# 924.6 KiB]. The lane fails unless the kept half FAILS and the clean half
+# PASSES, so it cannot go quiet: an allocation lane that stopped seeing would
+# otherwise keep printing numbers on a green run.
+#
+# The plant is also where the only two `limit_leaks` marks in the tree are, and
+# that is measured rather than tidy. A mark is NOT inert without `--memray`:
+# pytest-memray 1.10.0 enforces it on a plain run whenever the plugin is
+# installed, so a mark on a collected test would put the whole GATE suite under
+# allocation tracking and make it depend on a `checks`-extra package
+# [measured 2026-09-07]. And the suite's other many-handle test, the two hundred
+# channels in tests/ch17_concurrency_and_the_loop/test_parallel.py, cannot carry
+# one usefully: kept and dropped both peak at 2,150.4 KiB with totals 1.1%
+# apart, because an SWI message queue is small beside the engine's own
+# retention, so a bound there could not fail. The engine-table half of the
+# cursor claim is a GATE test instead,
+# test_two_hundred_opened_and_closed_cursors_leave_no_engine_behind.
+check_memray() {
+    if ! bounded "$PY" -c 'import pytest_memray' >/dev/null 2>&1; then
+        echo "memray: pytest-memray is not installed here, and memray builds \
+for Linux and macOS only; install pymetta[checks] to run this lane" >&2
+        return 0
+    fi
+    metta_memray_status=0
+    in_py "$PY" -m pytest --memray -q -p no:benchmark -n 0 --rootdir=. -c pyproject.toml \
+        "$PYDIR/tests/ch04_spaces_and_matching/test_space_lifecycle.py" \
+        "$PYDIR/tests/ch15_writing_transactions_and_worlds/test_worlds.py" \
+        "$PYDIR/tests/ch16_events_and_standing_queries/test_events.py" \
+        "$PYDIR/tests/ch17_concurrency_and_the_loop/test_finaliser_engine_safety.py" \
+        "$PYDIR/tests/ch18_performance/test_cursor_chunking.py" \
+        || metta_memray_status=$?
+    # Each half of the plant on its own, so the verdict is an exit status
+    # rather than a line read out of a report.
+    in_py "$PY" -m pytest --memray -q -p no:benchmark -n 0 --rootdir=. -c pyproject.toml \
+        "$HERE/tests/checks/memray_plant.py::test_two_hundred_dropped_cursors_stay_under_the_bound" \
+        || {
+            echo "memray: the clean control failed its own bound, so the bound \
+is too tight to tell a leak from the engine's own retention" >&2
+            metta_memray_status=1
+        }
+    if in_py "$PY" -m pytest --memray -q -p no:benchmark -n 0 --rootdir=. -c pyproject.toml \
+        "$HERE/tests/checks/memray_plant.py::test_two_hundred_kept_cursors_are_reported"; then
+        echo "memray: the planted leak PASSED, so this lane can no longer \
+report one; two hundred retained cursors went unnoticed" >&2
+        metta_memray_status=1
+    fi
+    return "$metta_memray_status"
+}
+run REPORT memray      check_memray

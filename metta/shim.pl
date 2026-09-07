@@ -4,6 +4,13 @@
 %   derivations on top of an unmodified MeTTa engine. Consulted after
 %   engine/main.pl; only adds predicates, never redefines engine ones.
 % Guarantees:
+%   - metta_py_assert_answers/1 and metta_py_assert_includes/1 decide their
+%     verdict with the same subtraction-atom their MeTTa twins use and then
+%     report through the engine's own two assertion doors, so a Python
+%     assertion over answer bags and a MeTTa one cannot hold different
+%     relations or print different sentences [tested:
+%     extensions/python/tests/ch12_testing/test_assert_answers.py;
+%     commit=WORKTREE]
 %   - a bound function's cost claim crosses as the class and the measure the
 %     ENGINE resolved, never a second derivation on this side
 %     [tested: test_the_measure_comes_from_the_arrow_at_the_holes_position;
@@ -1038,6 +1045,60 @@ metta_py_operation_part(Part, Part).
 %extensions/python/tests/ch10_errors_and_refusals/test_assertion_difference.py].
 metta_py_answer_bag(Bag, @none) :- var(Bag), !.
 metta_py_answer_bag(Bag, Wires) :- maplist(metta_py_encode_answer, Bag, Wires).
+
+%The two ASSERTION doors a Python test reaches, one per relation, each of them
+%the engine door its MeTTa twin already reaches. A Python harness comparing two
+%answer bags could subtract them itself, and then the two faces would hold two
+%multiset relations agreeing only by review: 'subtraction-atom'/3 removes by
+%standard-order EQUALITY and never unifies, so two separately named variables
+%are two answers there where Python's Variable('x') == Variable('x') is one
+%[source: engine/metta/input_guards.pl, subtraction-atom/3 and the count_assoc
+%note above it]. Handing the bags over instead makes the agreement structural:
+%one relation, one difference, one sentence, and the same AssertionFailure
+%classifier metta_assertion_failure/6 above already answers for.
+%
+%ONE wire carries the whole call, `(assert-answers <actual> <expected>)` or the
+%same with a message, because that term is BOTH what the doors report as the
+%form the program wrote and where the two bags are read from. Decoding it once
+%shares a variable by NAME across the two bags, which is what one MeTTa source
+%writing the same two bags does.
+%
+%The verdict stays the caller's on the engine side, so it is computed here, and
+%it is the relation each door's MeTTa twin computes: assertEqualToResult's two
+%empty differences, and assertIncludes' one
+%[source: engine/prelude.metta, assertEqualToResult and assertIncludes;
+%tested: extensions/python/tests/ch12_testing/test_assert_answers.py].
+metta_py_assert_answers(Tagged) :-
+    metta_py_assertion_call(Tagged, Form, Actual, Expected),
+    'subtraction-atom'(Expected, Actual, Missing),
+    'subtraction-atom'(Actual, Expected, Excess),
+    (   Missing == [], Excess == []
+    ->  Verdict = true
+    ;   Verdict = false
+    ),
+    'assert-answers'(Verdict, Form, Actual, Expected, _).
+
+%The one-sided twin, containment rather than equality, so only the answers
+%missing from the expectation decide the verdict and only they are reported.
+metta_py_assert_includes(Tagged) :-
+    metta_py_assertion_call(Tagged, Form, Actual, Expected),
+    'subtraction-atom'(Expected, Actual, Missing),
+    (   Missing == []
+    ->  Verdict = true
+    ;   Verdict = false
+    ),
+    'assert-includes-answers'(Verdict, Form, Actual, Expected, _).
+
+%The call as the Python side wrote it, with its two bags read off it. Both are
+%proper LISTS, which is what the doors themselves check before computing a
+%difference; the Python side builds them out of its own two tuples, so failing
+%here is this file's bug rather than a caller's input, and the Python side
+%raises rather than reading the failure as a false verdict.
+metta_py_assertion_call(Tagged, Form, Actual, Expected) :-
+    metta_py_decode_shared(Tagged, Form, _),
+    Form = [_Head, Actual, Expected|_],
+    is_list(Actual),
+    is_list(Expected).
 
 metta_py_space_capability_error(
     error(metta_space_capability_required(Space, Operation, Capability), _),

@@ -1,16 +1,23 @@
-"""Purpose: exercise space behavior across generated operation histories.
+"""Purpose: exercise a NATIVE space across generated operation histories.
+
+The multiset laws themselves are `metta.testing.SpaceMachine`, exported for
+anybody's provider, and this runs that machine rather than a second copy of it:
+stored atoms, length, membership and exact queries follow a `Counter` after
+every generated operation, removal subtracts ONE copy and reports whether one
+was there, and a scoped write commits or is discarded with its scope. What this
+file adds is the one law that is not general, the save and load round trip,
+which no foreign provider is asked for.
+
 Guarantees:
-  - stored atoms, length, membership, and exact queries follow a multiset
-    model after every generated operation [tested TestSpaceStateMachine]
+  - the exported machine passes over a native space at the suite's own step
+    count [tested TestSpaceStateMachine]
   - text and fast saves load into a fresh space with the same multiset
     [tested TestSpaceStateMachine]
-  - remove subtracts ONE matching plain-fact copy, remove-atom's multiset
-    law, and reports whether one was there [tested TestSpaceStateMachine]
 Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
-"""  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
+"""
 
 from collections import Counter
 from tempfile import TemporaryDirectory
@@ -20,86 +27,38 @@ import pytest
 hypothesis = pytest.importorskip("hypothesis")
 from hypothesis import settings  # noqa: E402
 from hypothesis import strategies as st  # noqa: E402
-from hypothesis.stateful import RuleBasedStateMachine, invariant, rule  # noqa: E402
+from hypothesis.stateful import rule  # noqa: E402
 
-from metta import Expression, Space, Variable, testing, unify  # noqa: E402
-
-
-def _substitute(atom, bindings):
-    if isinstance(atom, Variable):
-        return bindings.get(atom.name, atom)
-    if isinstance(atom, Expression):
-        return Expression([_substitute(child, bindings) for child in atom])
-    return atom
+from metta import Space, testing  # noqa: E402
 
 
-class SpaceStateMachine(RuleBasedStateMachine):
-    """A real MeTTa space checked against a Counter reference model."""
+class SpaceStateMachine(testing.SpaceMachine):
+    """The exported machine over a native space, plus the native-only law.
 
-    def __init__(self):  # noqa: D107  -- the test double construction contract is local to its containing scenario
-        super().__init__()
+    Save and load stay HERE rather than in the export because a foreign
+    provider's store is its own and the engine's two image formats say nothing
+    about it. Everything else this used to spell out is inherited.
+    """
+
+    def __init__(self):
+        """Drive the exported machine over a fresh native space."""
         self._owner = Space()
-        self.space = self._owner._new_space()
-        self.model = Counter()
+        super().__init__(self._owner._new_space)
         self._temporary = TemporaryDirectory(prefix="metta-stateful-")
 
-    @rule(atom=testing.expressions(max_leaves=5, ground=True))
-    def add(self, atom):  # noqa: D102  -- the test double method is documented by its containing scenario and protocol
-        self.space.add(atom)
-        self.model[atom] += 1
-
-    @rule(atom=testing.expressions(max_leaves=5, ground=True))
-    def add_duplicate(self, atom):  # noqa: D102  -- the test double method is documented by its containing scenario and protocol
-        self.space.add(atom, atom)
-        self.model[atom] += 2
-
-    @rule(atom=testing.expressions(max_leaves=5, ground=True))
-    def remove(self, atom):
-        """Multiset subtraction: one copy leaves and the answer says whether
-        one did. The model used to pop the whole count, which is what the
-        engine used to do; hypothesis found the disagreement on the first
-        add_duplicate-then-remove history it generated.
-        """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
-        expected = atom in self.model
-        assert self.space.remove(atom) is expected
-        self.model -= Counter({atom: 1})
-
-    @rule()
-    def clear(self):  # noqa: D102  -- the test double method is documented by its containing scenario and protocol
-        self.space.clear()
-        self.model.clear()
-
-    @rule(pattern=testing.expressions(max_leaves=5))
-    def query_matches_the_reference_model(self, pattern):  # noqa: D102  -- the test double method is documented by its containing scenario and protocol
-        expected = Counter()
-        for atom, copies in self.model.items():
-            if unify(pattern, atom) is not None:
-                expected[atom] += copies
-
-        rows = self.space.match(pattern)
-        actual = Counter(
-            _substitute(pattern, dict(zip(rows.columns, row, strict=True))) for row in rows
-        )
-        assert actual == expected
-
     @rule(save_format=st.sampled_from(("metta", "fast")))
-    def save_load_round_trip(self, save_format):  # noqa: D102  -- the test double method is documented by its containing scenario and protocol
+    def save_load_round_trip(self, save_format):
+        """A saved space loads into a fresh one holding the same multiset."""
         path = f"{self._temporary.name}/space.{save_format}"
         assert self.space.save(path, format=save_format) == sum(self.model.values())
         with self._owner._new_space() as loaded:
             loaded.load(path)
             assert Counter(loaded.atoms()) == self.model
 
-    @invariant()
-    def storage_matches_the_reference_model(self):  # noqa: D102  -- the test double method is documented by its containing scenario and protocol
-        assert Counter(self.space.atoms()) == self.model
-        assert len(self.space) == sum(self.model.values())
-        for atom in self.model:
-            assert atom in self.space
-
-    def teardown(self):  # noqa: D102  -- the test double method is documented by its containing scenario and protocol
-        self.space.drop()
+    def teardown(self):
+        """Remove the temporary directory, then release the space."""
         self._temporary.cleanup()
+        super().teardown()
 
 
 TestSpaceStateMachine = SpaceStateMachine.TestCase
