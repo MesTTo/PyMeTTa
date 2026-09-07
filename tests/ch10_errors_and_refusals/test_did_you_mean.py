@@ -167,8 +167,8 @@ def test_a_solution_row_offers_its_own_variables(m):
 def test_the_testing_module_names_both_suites_without_importing_them():
     """Answer a lazily imported name before anything imports it.
 
-    A module's `__dir__` is its suggestion pool, and both suite names live
-    behind PEP 562 until first use.
+    A module's `__dir__` is its suggestion pool, and the two suites and the
+    state machine all live behind PEP 562 until first use.
     """
     # A fresh interpreter, because the assertion is about what dir() does
     # not import, and this process may already hold metta._compliance from
@@ -180,8 +180,15 @@ def test_the_testing_module_names_both_suites_without_importing_them():
             "-c",
             "import sys, metta.testing\n"
             "names = set(dir(metta.testing))\n"
-            "assert {'SpaceComplianceSuite', 'GatewayComplianceSuite'} <= names, names\n"
-            "assert 'metta._compliance' not in sys.modules, 'dir() resolved an import'\n",
+            "wanted = {'SpaceComplianceSuite', 'GatewayComplianceSuite', 'SpaceMachine'}\n"
+            "assert wanted <= names, names\n"
+            "assert 'metta._compliance' not in sys.modules, 'dir() resolved an import'\n"
+            # SpaceMachine is the third lazy name and the only one whose module
+            # needs a package the library does not depend on, so this is also
+            # what says importing metta.testing for the strategies alone starts
+            # no hypothesis.
+            "assert 'metta._space_machine' not in sys.modules, 'dir() resolved an import'\n"
+            "assert 'hypothesis' not in sys.modules, 'dir() imported hypothesis'\n",
         ],
         capture_output=True,
         text=True,

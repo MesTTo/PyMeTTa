@@ -253,3 +253,20 @@ _.sql_function
 # becomes later. Nothing in the package stores one yet, exactly as nothing in
 # it registers a SQL function above.
 _.as_atom
+
+# SpaceMachine's rules and its invariant. Hypothesis collects them off the
+# class and calls them by generating a history, so no attribute load in the
+# package names any of them; the decorators are the registration. `for_` binds
+# the machine to a factory and is called by whoever runs it, which is a test
+# suite outside this package by design.
+_.for_
+_.add_one
+_.add_a_second_copy
+_.remove_a_stored_atom
+_.remove_an_arbitrary_atom
+_.clear_everything
+_.query_answers_the_model
+_.a_speculative_write_leaves_nothing
+_.a_committed_transaction_keeps_its_write
+_.a_rolled_back_transaction_keeps_nothing
+_.storage_matches_the_model

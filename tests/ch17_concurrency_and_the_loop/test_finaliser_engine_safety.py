@@ -288,6 +288,37 @@ def test_a_dropped_cursor_defers_its_close_instead_of_crossing(metta):
     assert _live_engines(metta) == baseline, "the deferred close never ran"
 
 
+def test_two_hundred_opened_and_closed_cursors_leave_no_engine_behind(metta):
+    """The cycle at volume, counted rather than sampled.
+
+    One opened-and-closed cursor says the close ran; two hundred say the close
+    keeps running, which is the shape a per-cursor leak shows up in and a
+    single pass cannot. It counts SWI ENGINES, which is what a cursor holds and
+    what the engine table can answer exactly.
+
+    Its allocation-level twin is tests/checks/memray_plant.py, run by the
+    `memray` REPORT lane: the same two hundred cursors kept alive instead of
+    closed retain 19,968.0 KiB at one location against 924.6 KiB for this cycle
+    [measured 2026-09-07]. This half is here because the engine table is
+    exact and needs no allocator; that half is there because the bound it needs
+    is measured rather than exact.
+    """
+    metta.run("!(add-atom &self (churn-edge a b))")
+    metta.run("!(add-atom &self (churn-edge b c))")
+    gc.collect()
+    metta.runtime.do("true")
+    baseline = _live_engines(metta)
+
+    for _ in range(200):
+        cursor = metta.stream(S["churn-edge"](V.x, V.y))
+        next(iter(cursor))
+        cursor.close()
+
+    assert _live_engines(metta) == baseline, (
+        "a closed cursor left its engine open; two hundred of them did"
+    )
+
+
 #: A cursor left open when the interpreter exits, which is the smallest program
 #: that keeps a janus Term alive into module teardown.
 _SHUTDOWN_PROBE = """

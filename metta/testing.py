@@ -58,6 +58,20 @@ Guarantees:
     [tested: test_every_ghostwriter_law_name_is_a_catalog_row,
     test_the_boolean_semiring_passes_every_generated_law,
     test_a_wrong_carrier_fails_each_generated_law_by_name; commit=19093dd75eda0102eb0329a71460e8a0c7a0c727]
+  - assert_answers and assert_includes hand both bags to the engine's own two
+    assertion doors rather than computing a difference here, so the relation is
+    subtraction-atom's, the failure carries the same .missing and .excess, and
+    the report below the first line of the message is the engine's own text
+    [tested: test_the_report_is_the_engines_own_for_the_same_bags,
+    test_a_containment_reports_the_missing_bag_alone; commit=ef5b91d7950594a49e177d972a954841a6b8d6e0]
+  - one answer handed over as itself is refused with the sequence spelling
+    shown, a str included [tested:
+    test_a_single_answer_is_refused_with_the_sequence_spelled_out;
+    commit=ef5b91d7950594a49e177d972a954841a6b8d6e0]
+  - SpaceMachine resolves behind PEP 562 like the two suites, so importing this
+    module for the strategies needs neither pytest nor hypothesis [tested:
+    test_the_testing_module_names_both_suites_without_importing_them;
+    commit=ef5b91d7950594a49e177d972a954841a6b8d6e0]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -82,6 +96,7 @@ from ._api_types import space_of
 from ._atoms_core import decode
 from ._callable_mentions import CALLABLE_MENTIONS
 from ._codec_kit import CodecDriver, check_codec, codec_corpus, codec_plan
+from ._engine import runtime as _runtime
 from ._library import lib
 from ._ops import REGISTRY as _OPERATIONS
 from ._optional import require_module
@@ -108,7 +123,7 @@ from .benchmarking import (
 from .convert import build as _build
 from .convert import project as _project
 from .define import Defined
-from .errors import Ground, Remedy, refusing
+from .errors import EngineError, Ground, Remedy, refusing
 from .foreign import (
     Enumerable,
     MatchClassifier,
@@ -132,6 +147,9 @@ __all__ = [
     "Laws",
     "Metric",
     "SpaceComplianceSuite",  # noqa: F822  resolved by __getattr__ below, PEP 562
+    "SpaceMachine",  # noqa: F822  resolved by __getattr__ below, PEP 562
+    "assert_answers",
+    "assert_includes",
     "atoms",
     "benchmark_case",
     "benchmark_counter_slope",
@@ -175,12 +193,14 @@ _CENSUS_GROUND = Ground(
 
 
 def __getattr__(name: str):
-    """SpaceComplianceSuite on demand.
+    """The three classes that cannot be defined without their own dependency.
 
-    It is a pytest class, so importing it needs pytest at class-definition
-    time, and `import metta.testing` for the hypothesis strategies must not.
-    PEP 562 is what keeps both true: the name is in __all__ and resolves on
-    first use, raising the installation guidance if pytest is not there.
+    Two are pytest classes, so importing them needs pytest at class-definition
+    time; SpaceMachine subclasses hypothesis's RuleBasedStateMachine, so it
+    needs hypothesis at class-definition time. `import metta.testing` for the
+    strategies alone must need neither. PEP 562 is what keeps both true: the
+    name is in __all__ and resolves on first use, raising the installation
+    guidance if the package it needs is not there.
     """
     if name == "SpaceComplianceSuite":
         from ._compliance import SpaceComplianceSuite  # noqa: PLC0415
@@ -190,6 +210,10 @@ def __getattr__(name: str):
         from ._gateway_compliance import GatewayComplianceSuite  # noqa: PLC0415
 
         return GatewayComplianceSuite
+    if name == "SpaceMachine":
+        from ._space_machine import SpaceMachine  # noqa: PLC0415
+
+        return SpaceMachine
     msg = f"module {__name__!r} has no attribute {name!r}"
     raise AttributeError(msg, name=name, obj=sys.modules[__name__])
 
@@ -1325,6 +1349,124 @@ def check_twin(defined, cases) -> list[str]:
             raise AssertionError(msg)
         ran.append(f"{defined.name}{arguments!r}: {engine!r}")
     return ran
+
+
+# ----------------------------------------------- assertions over answer bags
+#
+# The Python face of the engine's own two assertion doors, and deliberately
+# nothing more than a face. What is NOT here is a second multiset difference:
+# `subtraction-atom` removes by the engine's standard-order equality, so two
+# separately named variables are two answers there where Python's
+# `Variable("x") == Variable("x")` is one, and a `Counter` written here would
+# agree with the MeTTa forms only by review. Both bags cross instead and the
+# engine decides the verdict, computes the difference, writes the sentence and
+# throws the ball the AssertionFailure classifier already reads.
+
+#: What to write when a bag arrives as one answer rather than as a sequence of
+#: them. A str is the case worth naming: it is iterable, so without this a
+#: message passed by mistake would be compared character by character.
+_BAG_REMEDY = Remedy(
+    "pass the answers as a sequence",
+    "quickfix",
+    "prose",
+    python="assert_answers([<answer>, ...], [<answer>, ...])",
+)
+
+
+def _bag(values: Any, side: str) -> list[Atom]:
+    """One answer bag as atoms, from whatever a query answered.
+
+    `Rows` iterates as rows, so each row becomes the expression of its values,
+    `(a b)` for a two-column answer and `(b)` for a one-column one; project a
+    single column with `rows.x` to compare the values themselves. Everything
+    else is encoded the way every other boundary here encodes it.
+    """
+    if isinstance(values, (Atom, str, bytes)):
+        msg = (
+            f"the {side} answers arrived as a single {type(values).__name__}; "
+            f"an answer bag is a sequence of answers, so one answer is [answer]"
+        )
+        raise refusing(TypeError(msg), remedy=_BAG_REMEDY)
+    if not isinstance(values, Iterable):
+        msg = (
+            f"the {side} answers arrived as {type(values).__name__}, which is "
+            f"not iterable; an answer bag is Rows, Answers, or any sequence of "
+            f"atoms or of values encode accepts"
+        )
+        raise refusing(TypeError(msg), remedy=_BAG_REMEDY)
+    return [_encode(value) for value in values]
+
+
+def _assert_over_bags(head: str, door: str, actual, expected, msg) -> None:
+    """Hand one written call to the engine door that decides `head`.
+
+    The call is ONE wire because it is both what the door reports as the form
+    the program wrote and where the door reads its two bags from: decoding it
+    once shares a variable by name across the two bags, which is what one MeTTa
+    source writing the same two bags does.
+    """
+    call = Expression(
+        [
+            Symbol(head),
+            Expression(_bag(actual, "actual")),
+            Expression(_bag(expected, "expected")),
+            *((_encode(msg),) if msg is not None else ()),
+        ]
+    )
+    if not _runtime().do(door, call.to_wire()):
+        refused = (
+            f"the engine refused {door}: an answer bag reached it as something "
+            f"other than a tuple of atoms, which this door builds and so cannot "
+            f"receive from a caller"
+        )
+        raise EngineError(refused)
+
+
+def assert_answers(actual, expected, *, msg=None) -> None:
+    """Assert that two answer bags are equal, ignoring order.
+
+    The Python face of MeTTa's `(assert-answers ...)`, which is the door
+    `assertEqualToResult` reaches: multiplicity counts and order does not, so
+    `(a a b)` is not `(a b b)` and `(1 2)` is `(2 1)`.
+
+        from metta import testing
+
+        def test_the_edges_are_what_the_program_stored():
+            testing.assert_answers(space.match(pattern).x, [S.b, S.c])
+
+    Each side is `Rows`, `Answers`, or any sequence of atoms or of values
+    `encode` accepts; a `Rows` compares row by row, each row the expression of
+    its values, so project one column with `rows.x` to compare values.
+
+    A false claim raises `AssertionFailure` carrying `.missing` and `.excess`,
+    the two directed bag differences as tuples of atoms, and a message whose
+    report reads exactly as the engine's own does for the same two bags. It is
+    printed on stderr as well as raised, which is what every MeTTa assertion
+    does and for the same reason: a ball any `except` can swallow says nothing
+    when it is swallowed.
+
+    pytest's assertion rewriting is not involved. This raises, so it reports
+    the same way inside a `unittest` case, a plain script or a notebook.
+    """
+    _assert_over_bags("assert-answers", "metta_py_assert_answers", actual, expected, msg)
+
+
+def assert_includes(actual, expected, *, msg=None) -> None:
+    """Assert that every expected answer was produced, and allow more.
+
+    The Python face of MeTTa's `(assert-includes-answers ...)`, which is the
+    door `assertIncludes` reaches. The relation is containment, so an answer in
+    excess of the expectation is LEGAL and the failure names only what was
+    wanted and never came: `.missing` carries that bag and `.excess` is None,
+    absence rather than an empty tuple, because a two-sided report of a
+    one-sided verdict points the reader at something that is not broken.
+
+    `assert_answers` is the two-sided relation. Everything else about the two
+    is the same, arguments included.
+    """
+    _assert_over_bags(
+        "assert-includes-answers", "metta_py_assert_includes", actual, expected, msg
+    )
 
 
 # ------------------------------------------------------- contracts as tests
