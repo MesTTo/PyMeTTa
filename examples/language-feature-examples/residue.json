@@ -9,6 +9,60 @@
   "entries": [
     {
       "kind": "friction",
+      "example": "examples/ch08-data/08-02-sequence-variables/04-the-two-sided-fragments.metta",
+      "form": null,
+      "missing": "a pattern door whose cost tracks the match rather than the crossing, so eight one-line asks price like the eight compiled forms they mirror",
+      "row": "P14.7",
+      "section": "\u00a75 inference budgets at crossings",
+      "detail": "Eight asks, each a pattern against a written subject, and nothing else in the file. The example compiles its eight `unify` forms once and spends 3,739 inferences; the twin crosses the seam eight times and spends 8,469, past the 10% band ceiling of 4,113, with no compiled definition to draw the authoring allowance. The idiomatic door is also the dearer one in a fresh process: `solve(pattern, subject)` costs 8,469 where the engine head `m.fn.unify(a, b, then, else)` costs 7,286 for the same eight claims and the same eight answers, and the gap is first-call warmup in the answer-row machinery rather than per-ask work, since warm in one process the ordering reverses (3,706 against 5,679, min of three) and `solve` costs 363 inferences an ask against `unify`'s 403 [measured 2026-09-07 on the tree with the .qlf set built]. The twin keeps `solve`, because a cost tax on the idiomatic spelling is a defect to fix rather than a reason to teach the rung below it. PERFECT: the answer-row machinery warming with the space rather than with the first ask, and a pattern door that prices one crossing per BATCH the way `m.prepare(*patterns)` already stages a repeated query."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/ch08-data/08-02-sequence-variables/02-in-an-equation-head.metta",
+      "form": null,
+      "missing": "a compiled parameter that stands for a RUN, so a variadic head has a `def` spelling",
+      "row": "P14.4",
+      "section": "\u00a74 surface gaps: the compiled subset",
+      "detail": "A gap in an equation head makes the head variadic, and `@m.define def allof(*xs)` is refused with \"a compiled function takes plain positional parameters; *args, **kwargs and keyword-only parameters have no MeTTa equivalent\" [measured 2026-09-07]. The twin therefore writes each of the eight heads as DATA, `m += equation(S.allof(seg(V.xs))).to(...)`, which is the rung below the decorator and stores exactly what the example stores. PERFECT: a star parameter that lowers to `(:seg $xs)` the way a `case` star pattern already does."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/ch08-data/08-02-sequence-variables/03-the-one-sided-fragment.metta",
+      "form": null,
+      "missing": "a solve whose pattern and subject are both ground, so a gap ask with nothing to project can still be asked at the pattern door",
+      "row": "P14.7",
+      "section": "\u00a74 surface gaps",
+      "detail": "Three claims in this file are `(let PATTERN VALUE done)` with anonymous gaps only, so no name is left to project and `solve` refuses with \"solve needs at least one variable in its pattern or subject\" [measured 2026-09-07]. The twin drops to the engine head, `m.fn.unify(pattern, subject, S.matched, S.no)`, which keeps the door and only loses the Python spelling. PERFECT: `solve` answering a ground pair with an empty Row per match, the way MeTTa's own `let` answers its template once per split."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/ch08-data/08-02-sequence-variables/05-the-fence.metta",
+      "form": null,
+      "missing": "a case arm binding one name in both the gap and the ordinary role",
+      "row": "P14.4",
+      "section": "\u00a74 surface gaps: the compiled subset",
+      "detail": "The example's carried-refusal claim needs an arm whose pattern is `(Order (:seg $m) $m)`, and Python's `match` statement makes that a SyntaxError before any decorator sees it: \"multiple assignments to name 'm' in pattern\". The twin builds the arm tower as a term and evaluates it, `m.eval(S.case(subject, arms))`. PERFECT: nothing at the Python level; the shape is one Python's own grammar rules out, so the term door IS the spelling and this entry records why."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/ch08-data/08-02-sequence-variables/05-the-fence.metta",
+      "form": null,
+      "missing": "the refusal's structured payload on the exception, the five children the MeTTa side reads with index-atom",
+      "row": "P14.10",
+      "section": "\u00a74 surface gaps",
+      "detail": "Caught in MeTTa the refusal is `(Error (metta_seq_outside_fragment <left> <right> <mixed> <reason>) none)`, and `index-atom` reads the rule, the two sides and the names caught in both roles. In Python it is an EngineError whose `atom`, `remedy`, `operation` and `space` are all None [measured 2026-09-07], so every claim the twin makes about the refusal is a substring of the message. PERFECT: the error atom on `EngineError.atom`, which the class already declares a slot for."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/ch18-performance/18-01-larger-workloads/06-a-gap-query-and-its-index.metta",
+      "form": null,
+      "missing": "a home-space handle that stores as `&self`, so an equation naming its own space digests the same from either side",
+      "row": "P14.10",
+      "section": "\u00a77 the examples-twin coverage lane",
+      "detail": "The bulk loader is an equation that writes to the space it lives in. Written in MeTTa it stores `(add-atom &self (node $n tag))`; written as data in a twin it stores `(add-atom &pyspace_1 (node $n tag))`, because the harness's home space is a minted one and `S.add_atom(m, ...)` encodes the handle by name. The equation multisets then differ by that one word and the stored-content check reports it [measured 2026-09-07 on this file and on 18-01-larger-workloads/01-scale.metta, which carries the same difference]. PERFECT: the handle encoding as `&self` when it IS the evaluation context's own space, or the digest comparing space references by identity."
+    },
+    {
+      "kind": "friction",
       "example": "examples/ch18-performance/18-02-memoisation-and-tabling/02-memo_aggregate.metta",
       "form": null,
       "missing": "a Python batch door that installs equations before an earlier memoize runnable executes",
