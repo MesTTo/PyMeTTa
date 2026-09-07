@@ -26,7 +26,7 @@
 #    to the submodule itself, which is the gap the `verifytypes` REPORT
 #    measures rather than something a stub declaration would settle here.
 metta\.__all__
-metta\.(aio|arrays|bool|casting|catalog|convert|derivation|events|foreign|importing|integrate|library|lint|manifest|parallel|paths|reflection|remote|set|spaces|strategies|structures|subscribe|tables|testing|vocabularies|wire)
+metta\.(aio|arrays|bool|casting|catalog|convert|derivation|events|foreign|importing|integrate|library|lint|manifest|parallel|paths|reflection|remote|set|spaces|strategies|structures|subscribe|tables|telemetry|testing|vocabularies|wire)
 
 # 3. The root's overloaded doors. Their implementations take `None` defaults
 #    that no overload accepts, which is how an optional-argument decorator is
