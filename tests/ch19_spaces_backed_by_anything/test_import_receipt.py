@@ -127,10 +127,21 @@ REMOVALS = {
 #: holds the atom. Measured 2026-09-07 as `[exact-self]` then `[wildcard-self]`,
 #: which the same pair reproduces on this file's base commit a8e5f0d1 with the
 #: library files reverted; holding the first case's target, so the second draws
-#: a fresh name, is the one change that makes it pass. Four carriers are ruled
-#: out by measurement and named in
-#: docs/journal/2026-09-06-a-suite-that-cannot-hide-a-crash.md; the engine-side
-#: cause is not found and this hold goes when it is.
+#: a fresh name, is the one change that makes it pass.
+#:
+#: The cause is now MEASURED, in a standalone reproduction that needs neither
+#: pytest nor this file (docs/journal/2026-09-07-the-gate-green-again.md carries
+#: it): the second case's target execution module resolves `take-atom`/4 to a
+#: RETIRED space's execution module, which holds no clauses, while its own
+#: import chain reaches the module that does hold them. SWI materialises a weak
+#: import at the first call and `abolish/1` in the source retargets nobody
+#: else's link to it, so a head that is removed and re-imported in one space
+#: leaves every space that had already resolved it pointing at a module whose
+#: life is over. `peek-atom`, the same shape in the same library and the one
+#: head these cases do not remove, answers throughout; so do `match`,
+#: `space_take/3` and `space_await/3` on the same space in the same state.
+#: The journal names the five repair sites tried and what each measured. The
+#: hold goes when the engine keeps that invariant.
 _HELD_UNTIL_MODULE_END: list = []
 
 
