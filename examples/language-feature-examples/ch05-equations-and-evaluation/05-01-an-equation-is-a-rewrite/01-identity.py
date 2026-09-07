@@ -934,7 +934,7 @@ def twin(m):
 #: base a0a34ea5, provisioned with every .so and its .qlf set rebuilt, reads
 #: twin=3457 metta=2320 against this tree's twin=3422 metta=2320 [measured
 #: 2026-09-07: min-of-3 serial fresh processes; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+#: extensions/python/tools/twin_coverage.py --repin; commit=52e95b50cc5acdc0e41f97b444ab244ad1301433].
 BUDGET = 3422
 #: BANDED 2026-09-06 rather than re-pinned an eighteenth time. Seventeen of
 #: the eighty-three re-pins above were written on 2026-09-05 and 2026-09-06

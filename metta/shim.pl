@@ -220,12 +220,12 @@
 %     parsing Janus's rendered exception [tested test_run_syntax_error_is_loud],
 %     and metta_control_signal_line/2 answers WHERE a reader failure stopped
 %     from the envelope's own context slot, failing where none was named
-%     [tested: error_kinds:a_syntax_envelope_carries_its_line; commit=WORKTREE].
+%     [tested: error_kinds:a_syntax_envelope_carries_its_line; commit=52e95b50cc5acdc0e41f97b444ab244ad1301433].
 %     Both read the engine's one refusal table
 %     (engine/metta/registration.pl, metta_host_error_kind_row/3), so this
 %     seat and the Node seat classify the same kinds
 %     [tested: extensions/python/tests/repository/test_error_kinds.py;
-%     commit=WORKTREE]
+%     commit=52e95b50cc5acdc0e41f97b444ab244ad1301433]
 %   - metta_py_infer_types/2 walks a space once and answers one
 %     [Head, Arity, KindWires, ResultWire] row per (head, arity) the space
 %     mentions and does not declare, naming the narrowest kind covering the
