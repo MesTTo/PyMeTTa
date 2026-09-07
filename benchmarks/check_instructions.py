@@ -1,6 +1,11 @@
 """Purpose: compare Python and primitive-heavy engine workloads with committed
 perf counters.
 Guarantees:
+  - a box that would not count is told apart from a tree that moved: this
+    lane exits 0 with a named skip on a developer's box and 1 where CI=true,
+    and never reports a refused measurement as a moved row
+    [tested: test_a_benchmark_lane_skips_a_refusal_locally_and_refuses_it_in_ci;
+    commit=11afdcdbad5bbbe37168b5d8528c23a21c42b4b6]
   - each decision uses the minimum of at least three instructions:u samples
     [tested test_measure_instructions_parses_perf_csv]
   - the inventory reaches every primitive class named by the round-3 review
@@ -17,13 +22,14 @@ Open Obligations:
 """
 
 import argparse
+import subprocess
 import sys
 from collections.abc import Callable, Sequence
 from pathlib import Path
 
 from benchmarks.configuration import counter_configuration
 from benchmarks.pure import _CASES
-from metta.testing import BenchmarkBaseline, measure_instructions
+from metta.testing import BenchmarkBaseline, measure_instructions, measured_main
 
 
 def observe_all(
@@ -45,6 +51,32 @@ def observe_all(
             continue
         print(f"{name}: samples={list(samples)} min={observed}")
     return failures
+
+
+def warm(case: str) -> None:
+    """Boot once, unmeasured, so no sample pays for a stale engine/*.qlf.
+
+    Both sibling harnesses have done this since they were written and this one
+    did not, and the cost of the gap is measured rather than argued: with the
+    .qlf set cleared, `let-heavy` reads 8,786,238,839 on its FIRST sample and
+    9,111,554,612 and 9,111,517,463 on the next two, and min-of-three takes the
+    first. Its committed pin is 8,786,354,108, which is that first sample, so
+    the row was pinned to a boot that COMPILED the artifact set and compared
+    ever after against boots that load it -- a different workload, 3.7% apart,
+    with nothing in the tree deciding which one a run gets
+    [source: engine/bench.py, whose header records the same hazard at
+    3,129,543 inferences against 612,598; extensions/cmetta/benchmarks/bench.py,
+    warm()].
+
+    One run of the first selected case is the whole fix: the .qlf set is shared,
+    so whichever case boots first warms it for every case after.
+    """
+    subprocess.run(  # noqa: S603  -- a fixed module of this package, named from _CASES
+        [sys.executable, "-m", "benchmarks.pure", case],
+        check=False,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -71,6 +103,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             controlled=True,
         )
 
+    warm(arguments.cases[0])
     failures = observe_all(baseline, arguments.cases, sampler)
     baseline.finish()
     if failures:
@@ -82,4 +115,4 @@ def main(argv: Sequence[str] | None = None) -> int:
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    raise SystemExit(measured_main(main))

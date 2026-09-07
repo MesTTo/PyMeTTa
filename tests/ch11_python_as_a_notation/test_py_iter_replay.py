@@ -59,7 +59,7 @@ def _raising_source(index, length=4):
 
 
 @given(st.lists(st.integers(min_value=-10, max_value=10), min_size=1, max_size=5))
-@settings(max_examples=25, deadline=None)
+@settings(max_examples=25)
 def test_nested_py_iter_reads_form_the_cartesian_product(metta, values):
     """Nested enumeration replays the same source from index zero."""
     source = (

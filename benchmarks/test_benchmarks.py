@@ -274,11 +274,35 @@ _ROWS = 2_000
 #: whose path is as long as the repository root with the C reader, writer,
 #: JSON codec, chapter-19 artifacts and libmork_ffi.so present and the QLF
 #: warmed, loadavg 12 to 15; commit=b96e1a15260b7538a8e42be613bcc5dd0dddd136].
+#: RE-PINNED 2026-09-07 after the September merge wave, by a ladder over the
+#: first-parent chain from 5aca9b64 with every component built at each point
+#: (`sh engine/build.sh` and each extension's own, then the .qlf set cleared
+#: and rebuilt). These pins carry no configuration stamp, so the ladder builds
+#: what the gate builds rather than what a worktree happens to have. The pins
+#: are unchanged across the whole chain, which makes the test its own probe: a
+#: PASS at a commit says the observed numbers still equal them and a FAIL
+#: prints what they became. Two steps, each a single commit:
+#:
+#:   468350eb  -37 plain, -37 automatic at n=12, and the same shape at every
+#:             size: the soft, provider and import doors merge, where symbol
+#:             similarity stopped asking whether a name is defined.
+#:   ab02d526  +3 plain, +8 automatic at n=12: the test-hygiene merge.
+#:
+#: The growth laws are unchanged and so is the separation this test exists for.
+#: [measured 2026-09-07; command=$PY -m pytest
+#: benchmarks/test_benchmarks.py::test_automatic_tabling_growth -q --rootdir=.
+#: -c pyproject.toml --benchmark-disable; fixture=ai-tmp/hy-tabling.sh in the
+#: branch's ladder worktree, nine points, and the same numbers read in the
+#: branch worktree and in a pristine worktree of 97c96e91; commit=11afdcdbad5bbbe37168b5d8528c23a21c42b4b6].
+#: Note for the next reader: `sh extensions/python/test.sh` carries
+#: `-p no:benchmark`, which makes benchmarks/conftest.py's
+#: pytest_benchmark_update_machine_info an unknown hook and turns the run into
+#: a pluggy INTERNALERROR rather than a measurement.
 _AUTOMATIC_TABLING_PINS = {
-    12: {"plain": 122_123, "automatic": 14_372},
-    15: {"plain": 953_645, "automatic": 15_506},
-    18: {"plain": 7_605_815, "automatic": 16_640},
-    20: {"plain": 30_413_255, "automatic": 17_396},
+    12: {"plain": 122_089, "automatic": 14_343},
+    15: {"plain": 953_611, "automatic": 15_473},
+    18: {"plain": 7_605_781, "automatic": 16_607},
+    20: {"plain": 30_413_221, "automatic": 17_365},
 }
 
 

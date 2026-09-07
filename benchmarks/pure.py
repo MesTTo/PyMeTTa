@@ -1,5 +1,9 @@
 """Purpose: run one benchmark workload for perf instructions:u.
 Guarantees:
+  - the handshake is bounded and a window that never opened exits 125, so the
+    driver reads it as "this run says nothing" rather than as a moved row
+    [tested: test_a_refused_window_is_told_apart_from_a_workload_that_failed;
+    commit=11afdcdbad5bbbe37168b5d8528c23a21c42b4b6]
   - setup and teardown stay outside perf's controlled measurement interval
     [tested test_perf_workload_setup_and_teardown_stay_outside_control]
   - sized memory/scale joins use that same controlled interval, so retired
@@ -22,6 +26,8 @@ Open Obligations:
 
 import argparse
 import os
+import select
+import sys
 from collections.abc import Callable, Sequence
 from typing import Literal
 
@@ -153,17 +159,40 @@ _SIZED_CASES = {
 COST_ROW_CASE = "cost-row"
 
 
+#: See metta.benchmarking.PERF_CONTROL_REFUSED, which reads this status back:
+#: a window that never opened measured nothing, so the run says nothing about
+#: the tree and the driver reports a named skip rather than a moved row.
+PERF_CONTROL_REFUSED = 125
+
+#: A bound on the handshake, the ten seconds the Prolog and C workloads also
+#: take. Without one, a perf that never armed leaves this process blocked in
+#: read(2) until the driver's own deadline, and the driver cannot say why. One
+#: select(2) on a descriptor is worth a few thousand instructions against rows
+#: of 2.3e8 to 2.6e10, so the bound is free at this resolution.
+_ACK_TIMEOUT = 10.0
+
+
+class _WindowRefused(RuntimeError):
+    """perf never acknowledged, so the window this process measured never opened."""
+
+
 def _acknowledge(descriptor: int) -> None:
     response = bytearray()
     while b"\n" not in response:
+        if not select.select([descriptor], [], [], _ACK_TIMEOUT)[0]:
+            msg = (
+                "perf did not acknowledge: it may have failed to open its "
+                "counter, which it does while another session holds the PMU"
+            )
+            raise _WindowRefused(msg)
         chunk = os.read(descriptor, 16 - len(response))
         if not chunk:
-            raise RuntimeError("perf control acknowledgement pipe closed")
+            raise _WindowRefused("perf control acknowledgement pipe closed")
         response.extend(chunk)
         if len(response) == 16 and b"\n" not in response:
-            raise RuntimeError(f"invalid perf control acknowledgement: {response!r}")
+            raise _WindowRefused(f"invalid perf control acknowledgement: {response!r}")
     if response.rstrip(b"\0") != b"ack\n":
-        raise RuntimeError(f"invalid perf control acknowledgement: {response!r}")
+        raise _WindowRefused(f"invalid perf control acknowledgement: {response!r}")
 
 
 def _controlled(operation) -> int:
@@ -251,6 +280,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         if arguments.case in _WARM_UP:
             operation()
         completed = _controlled(operation) if arguments.controlled else operation()
+    except _WindowRefused as refused:
+        print(f"pure.py: {refused}", file=sys.stderr)
+        return PERF_CONTROL_REFUSED
     finally:
         teardown()
     if completed <= 0:

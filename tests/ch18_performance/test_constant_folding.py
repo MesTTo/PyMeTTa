@@ -95,7 +95,7 @@ def _expression_source(expression, dynamic):
 
 
 @given(expression=_EXPRESSIONS, occurrences=st.lists(st.integers(0, 3), max_size=7))
-@settings(max_examples=50, deadline=None)
+@settings(max_examples=50)
 def test_generated_constant_expressions_preserve_answer_bags(expression, occurrences):
     """Variable leaves force the reference through runtime arithmetic and errors."""
     choices = " ".join(map(str, occurrences))

@@ -466,7 +466,7 @@ def test_refusals_name_construct_and_line(m, source, needle):  # noqa: D103  -- 
 
 
 @given(st.integers(min_value=0, max_value=12))
-@settings(max_examples=25, deadline=None)
+@settings(max_examples=25)
 def test_twin_agrees_on_ground_inputs(metta, n):
     """The differential the design promises: equations against the twin."""
     if not hasattr(test_twin_agrees_on_ground_inputs, "_defined"):

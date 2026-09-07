@@ -39,7 +39,7 @@ ROWS = st.lists(
     max_size=4,
 )
 BERNOULLI_P = st.sampled_from([0.0, 0.25, 0.5, 0.75, 1.0])
-LAW_SETTINGS = settings(max_examples=100, deadline=None)
+LAW_SETTINGS = settings(max_examples=100)
 
 
 @st.composite

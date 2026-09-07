@@ -42,16 +42,13 @@ Open Obligations:
 from __future__ import annotations
 
 from collections.abc import Callable, Iterable
-from typing import Any, cast
+from typing import Any
 
 import annotated_types as at
 
 from ._atoms_core import Atom, Expression, Symbol, encode
+from ._atoms_core import _encode_register as _register
 from .vocabularies import Refinement
-
-# Attached through the function's __dict__ in _atoms_core, which a type
-# checker cannot see on a Callable; the cast names the door once.
-_register = cast(Any, encode).register
 
 #: The bound kinds an Interval may carry, in the order the atom keeps them.
 _INTERVAL_BOUNDS: tuple[str, ...] = ("gt", "ge", "lt", "le")

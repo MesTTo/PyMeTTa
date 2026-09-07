@@ -535,7 +535,7 @@ def _build(recipe):
     return spaces.overlay(_build(children[0]), _build(children[1]))
 
 
-@settings(max_examples=120, deadline=None)
+@settings(max_examples=120)
 @given(_TREES)
 def test_random_combinator_trees_serve_what_they_claim(recipe):
     """A composed space's capability set says what it will actually do.

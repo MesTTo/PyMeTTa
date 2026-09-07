@@ -53,14 +53,14 @@ def call(space, name, *args):  # noqa: D103  -- pytest discovers or injects this
 # ------------------------------------------------------------------ strings
 
 
-@settings(max_examples=40, deadline=None)
+@settings(max_examples=40)
 @given(TEXT)
 def test_a_full_slice_is_the_original(text_space, text):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     length = call(text_space, "string-length", text)
     assert call(text_space, "string-slice", text, 0, length) == text
 
 
-@settings(max_examples=40, deadline=None)
+@settings(max_examples=40)
 @given(TEXT, st.integers(min_value=-50, max_value=90), st.integers(min_value=-50, max_value=90))
 def test_slice_never_raises_and_never_exceeds_the_input(text_space, text, start, end):
     """Clamping is the contract, so no index pair may raise or over-run."""
@@ -69,7 +69,7 @@ def test_slice_never_raises_and_never_exceeds_the_input(text_space, text, start,
     assert len(piece) <= len(text)
 
 
-@settings(max_examples=40, deadline=None)
+@settings(max_examples=40)
 @given(st.lists(TEXT, min_size=1, max_size=6), SEPARATOR)
 def test_split_and_join_invert_each_other(text_space, parts, separator):
     """Join then split returns the parts, provided no part contains the
@@ -83,21 +83,21 @@ def test_split_and_join_invert_each_other(text_space, parts, separator):
     assert back == Expression(*parts)
 
 
-@settings(max_examples=40, deadline=None)
+@settings(max_examples=40)
 @given(TEXT)
 def test_chars_round_trip(text_space, text):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     chars = call(text_space, "string-chars", text)
     assert call(text_space, "string-from-chars", chars) == text
 
 
-@settings(max_examples=40, deadline=None)
+@settings(max_examples=40)
 @given(TEXT, st.integers(min_value=0, max_value=6))
 def test_repeat_multiplies_the_length(text_space, text, times):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     repeated = call(text_space, "string-repeat", text, times)
     assert len(repeated) == len(text) * times
 
 
-@settings(max_examples=40, deadline=None)
+@settings(max_examples=40)
 @given(TEXT, st.integers(min_value=0, max_value=60))
 def test_padding_reaches_the_width_and_never_shortens(text_space, text, width):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     padded = call(text_space, "string-pad-left", text, width, "0")
@@ -105,7 +105,7 @@ def test_padding_reaches_the_width_and_never_shortens(text_space, text, width): 
     assert padded.endswith(text)
 
 
-@settings(max_examples=40, deadline=None)
+@settings(max_examples=40)
 @given(TEXT, TEXT)
 def test_index_of_and_contains_agree(text_space, haystack, needle):
     """Two ways of asking the same question must never disagree."""
@@ -114,14 +114,14 @@ def test_index_of_and_contains_agree(text_space, haystack, needle):
     assert (found >= 0) == (contains is True)
 
 
-@settings(max_examples=40, deadline=None)
+@settings(max_examples=40)
 @given(TEXT)
 def test_trim_is_idempotent(text_space, text):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     once = call(text_space, "string-trim", text)
     assert call(text_space, "string-trim", once) == once
 
 
-@settings(max_examples=30, deadline=None)
+@settings(max_examples=30)
 @given(TEXT, TEXT)
 def test_replacing_a_string_with_itself_changes_nothing(text_space, text, part):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     assert call(text_space, "string-replace", text, part, part) == text
@@ -130,14 +130,14 @@ def test_replacing_a_string_with_itself_changes_nothing(text_space, text, part):
 # --------------------------------------------------------------------- JSON
 
 
-@settings(max_examples=40, deadline=None)
+@settings(max_examples=40)
 @given(st.one_of(TEXT, st.integers(min_value=-10**6, max_value=10**6)))
 def test_json_round_trips_scalars(text_space, value):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     encoded = call(text_space, "json-encode", value)
     assert call(text_space, "json-decode", encoded) == value
 
 
-@settings(max_examples=30, deadline=None)
+@settings(max_examples=30)
 @given(st.lists(st.integers(min_value=-1000, max_value=1000), max_size=6))
 def test_json_round_trips_arrays(text_space, numbers):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     encoded = call(text_space, "json-encode", Expression(*numbers))
@@ -145,7 +145,7 @@ def test_json_round_trips_arrays(text_space, numbers):  # noqa: D103  -- pytest 
     assert [int(item) for item in decoded] == numbers
 
 
-@settings(max_examples=30, deadline=None)
+@settings(max_examples=30)
 @given(st.lists(st.tuples(st.sampled_from("abcdefg"), st.integers(0, 999)),
                 min_size=1, max_size=5, unique_by=lambda pair: pair[0]))
 def test_json_round_trips_objects_through_a_space(text_space, pairs):

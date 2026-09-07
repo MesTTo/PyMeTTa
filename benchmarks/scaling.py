@@ -35,6 +35,11 @@ Four things can fail a family, and they are separate on purpose:
 Assumes: the engine boots, and `benchmarks/scaling-policy.json` declares a class
   and a ladder for every family in `WORKLOADS`.
 Guarantees:
+  - a box that would not count is told apart from a tree that moved: this
+    lane exits 0 with a named skip on a developer's box and 1 where CI=true,
+    and never reports a refused measurement as a moved row
+    [tested: test_a_benchmark_lane_skips_a_refusal_locally_and_refuses_it_in_ci;
+    commit=11afdcdbad5bbbe37168b5d8528c23a21c42b4b6]
   - the verdict is inferences, which are deterministic and load-immune, so a
     busy box cannot make a run pass or fail. Every one of the eight seeded
     families returned the IDENTICAL count at every size across three fresh
@@ -119,7 +124,7 @@ from metta import S, Space, V, engine
 # `benchmarks.pure` imports this module to reach WORKLOADS and runs under perf,
 # and `metta.benchmarking` is stdlib plus `.atoms` where `metta.testing` also
 # pulls in the codec kit, the library loader, the space and the foreign seam.
-from metta.benchmarking import measure_instructions
+from metta.benchmarking import measure_instructions, measured_main
 
 SCHEMA_VERSION = 1
 DEFAULT_REPETITIONS = 3
@@ -1192,4 +1197,4 @@ def main(argv: Sequence[str] | None = None) -> int:
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    raise SystemExit(measured_main(main))

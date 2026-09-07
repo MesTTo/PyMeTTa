@@ -308,7 +308,6 @@ else:
 
     @settings(
         max_examples=40,
-        deadline=None,
         suppress_health_check=[HealthCheck.function_scoped_fixture],
     )
     @given(

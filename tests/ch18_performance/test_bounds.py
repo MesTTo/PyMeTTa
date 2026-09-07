@@ -11,12 +11,17 @@ Open Obligations:
 from __future__ import annotations
 
 import asyncio
+import importlib.util
+import os
+import subprocess
+import sys
+from pathlib import Path
 
 import pytest
 
 from metta import S, V, aio
 from metta._atom_namespace import NAMESPACE_CACHE_MAX
-from metta.errors import InferenceLimitError, SubscriberError, TimeLimitError
+from metta.errors import InferenceLimitError, SubscriberError
 from metta.subscribe import SUBSCRIPTION_QUEUE_MAX, Subscription
 
 
@@ -102,8 +107,7 @@ def test_the_subscription_queue_is_bounded_and_load_takes_a_budget(metta, tmp_pa
     )
     with pytest.raises(InferenceLimitError):
         metta.load(forever, inferences=20_000)
-    with pytest.raises(TimeLimitError):
-        metta.load(forever, timeout=0.3)
+    _the_wall_clock_door_holds_in_a_process_of_its_own(forever)
 
     # An unbounded load still works, and still resolves an import relative
     # to the loaded file rather than the process directory.
@@ -186,3 +190,70 @@ def test_the_async_queue_bound_is_refused_the_same_way(metta):
         asyncio.run(go())
     finally:
         space.drop()
+
+
+#: The `timeout=` door, proven in a process this test does not share.
+#:
+#: It used to be an in-process `pytest.raises(TimeLimitError)` beside the
+#: inference bound above, and the 2026-08-24 note in the body records the first
+#: half of why that does not hold: the alarm races SWI's stack cap, and when the
+#: cap wins the engine's own overflow recovery returns `(Error (spin)
+#: StackOverflow)` as an ANSWER instead of the bound raising. Flattening the
+#: loop and moving 0.05s to 0.3s bought headroom and did not close it. The
+#: second half is measured now: at the SAME position in the same serial
+#: ordering, the assertion passed at 60 to 80 runnable processes and failed at
+#: 90 to 100, where the load ran **66.170 seconds** against its 0.3-second bound
+#: and came back `[[(Error (spin) StackOverflow)]]`. A fresh process raises it
+#: twelve times out of twelve at 0.301s to 0.307s, and down to a 1-millisecond
+#: bound [measured 2026-09-07: two serial runs of the 182-file prefix, plus
+#: extensions/python/benchmarks/probes/time_bound_in_a_fresh_process.py;
+#: commit=11afdcdbad5bbbe37168b5d8528c23a21c42b4b6].
+#:
+#: So the door works and the shared process is what breaks it: after 2,670
+#: tests the loop grows enough that the cap can win, and no fixed number of
+#: seconds fixes a race. This repository's own rule is that wall clock advises
+#: and never decides, and the inference bound beside it still runs here,
+#: deterministic and in-process.
+#:
+#: OPEN, and not this test's to decide: a bound that loses its race comes back
+#: as an ANSWER rather than a refusal. Whether the engine should re-raise a
+#: resource abort inside a caller's bound is a surface question, because
+#: `(pragma! max-stack-depth N)` is a bound whose overflow the corpus
+#: deliberately prints as an answer -- the caller's `timeout=` and the
+#: program's own pragma are both "bounds" and only one of them wants a
+#: refusal.
+def _the_wall_clock_door_holds_in_a_process_of_its_own(forever: Path) -> None:
+    """Load an endless program under a wall bound, in a fresh interpreter."""
+    probe = forever.parent / "wall_bound_probe.py"
+    probe.write_text(
+        "import sys\n"
+        "from metta import Space\n"
+        "from metta.errors import TimeLimitError\n"
+        "space = Space()\n"
+        "try:\n"
+        f"    answers = space.load({str(forever)!r}, timeout=0.3)\n"
+        "except TimeLimitError:\n"
+        "    sys.exit(0)\n"
+        "print(f'the wall bound did not hold: {answers!r}', file=sys.stderr)\n"
+        "sys.exit(1)\n",
+        encoding="utf-8",
+    )
+    #The child is a FRESH interpreter, so it needs to be told where the
+    #package is the way any other consumer would be. find_spec answers from
+    #the import that is already live here rather than from a path this file
+    #would otherwise have to spell.
+    spec = importlib.util.find_spec("metta")
+    package_root = str(Path(spec.origin).resolve().parents[1])
+    completed = subprocess.run(
+        [sys.executable, str(probe)],
+        capture_output=True,
+        text=True,
+        timeout=120,
+        check=False,
+        env={**os.environ, "PYTHONPATH": package_root},
+    )
+    assert completed.returncode == 0, (
+        "load(timeout=) did not raise TimeLimitError in a process of its own, "
+        "where it is not racing a stack the rest of a suite has grown: "
+        f"{completed.stdout}{completed.stderr}"
+    )

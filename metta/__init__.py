@@ -721,7 +721,7 @@ def eval(  # noqa: A001 -- eval is the ruled public verb
 @_overload
 def eval(  # noqa: A001 -- eval is the ruled public verb
     target: _Any,
-    second: _Any,
+    _second: _Any,
     /,
     *more: _Any,
     timeout: float | None = ...,

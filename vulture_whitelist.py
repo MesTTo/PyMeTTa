@@ -313,3 +313,19 @@ _._catalog_of
 # not scan.
 _._carrier_type_accepts
 _.boot_seconds
+# The engine reaches this one from PROLOG, not from Python: shim.pl's
+# seam:grounded_algebra_type/3 clause calls
+# py_call('metta.algebra':'_carrier_type_accepts'(TypeWire, ValueWire), Raw)
+# so a host carrier predicate can decide an algebra's membership question. No
+# Python name load reaches it, which is what makes it invisible to a
+# reachability scan [source: extensions/python/metta/shim.pl,
+# seam:grounded_algebra_type/3; commit=11afdcdbad5bbbe37168b5d8528c23a21c42b4b6].
+_carrier_type_accepts
+
+# Read by a SIBLING SEAT, which this scan does not reach: the C seat's
+# benchmark driver asks its baseline what checkout length its pins were taken
+# at and refuses the boot instruction row from a different one, because that
+# row's count scales with the length of the engine path the process resolves
+# [source: extensions/cmetta/benchmarks/bench.py, observe_all's path_decides;
+# commit=11afdcdbad5bbbe37168b5d8528c23a21c42b4b6].
+_.pinned_checkout_path_length
