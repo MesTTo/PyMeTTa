@@ -965,7 +965,7 @@ def twin(m):
 #: tree, +39, with the first evaluation, the call and a MeTTa declaration
 #: unchanged, which is this twin's one definition [measured 2026-09-08: min-
 #: of-3 serial fresh processes; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+#: extensions/python/tools/twin_coverage.py --repin; commit=f31028aa45171c1e8c62767eb31235b84e2399c5].
 BUDGET = 3522
 #: BANDED 2026-09-06 rather than re-pinned an eighteenth time. Seventeen of
 #: the eighty-three re-pins above were written on 2026-09-05 and 2026-09-06
