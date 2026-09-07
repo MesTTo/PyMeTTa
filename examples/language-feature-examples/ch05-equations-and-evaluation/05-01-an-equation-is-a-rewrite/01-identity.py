@@ -942,7 +942,15 @@ def twin(m):
 #: layout did [measured 2026-09-07: min-of-3 serial fresh processes;
 #: command=python extensions/python/tools/twin_coverage.py --repin;
 #: commit=7dfc9ae929c0f67e9ab3bc3573d6509bfedb2f92].
-BUDGET = 3498
+#: RE-PINNED 2026-09-07, 3498 to 3528 (+30), the refusal-kinds package
+#: (feat/refusal-kinds-as-rows, merged 8824b5f1) presets thirteen (refusal ...)
+#: rows and four vocabularies into &metta at boot, which its own control priced
+#: at +38 inferences on source-load; the MeTTa side of this example is
+#: unchanged at 2368, so the twin's extra reads are the rows the catalog now
+#: holds, not this example's work [measured 2026-09-07: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+BUDGET = 3528
 #: BANDED 2026-09-06 rather than re-pinned an eighteenth time. Seventeen of
 #: the eighty-three re-pins above were written on 2026-09-05 and 2026-09-06
 #: alone, and every control taken with them left the MeTTa side of the same

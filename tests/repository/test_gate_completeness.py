@@ -261,7 +261,11 @@ RUFF_FAMILY_BURN_DOWN = {
     # obligation headers against 2233, and the merged tree carries exactly those
     # six on top of the measured 2222. Measured with --ignore-noqa over the
     # whole RUFF_SCOPE on the merged tree.
-    "D": 2228,
+    # 2228 -> 2230 on 2026-09-07 with the refusal-kinds package: the two
+    # obligation-header D205 forms in tests/repository/test_refusal_rows.py, its
+    # module header and its parametrised fixture, measured per file against the
+    # tree before that merge (every other file it touches reads the same).
+    "D": 2230,
     # 145, from 139 before the idiomatic twin corpus. Every one of the six new
     # sites is a `twin(m)` whose example needs no engine, because the form it
     # demonstrates is native Python (destructuring, `len`, `max`), or a
