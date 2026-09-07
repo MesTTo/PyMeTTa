@@ -13,7 +13,7 @@ Guarantees:
     a provider can declare a word a library registered against that open
     vocabulary [tested: test_every_vocabulary_is_typed_by_the_engine,
     test_an_open_vocabulary_accepts_a_registered_word,
-    test_provider_registration_is_transactional; commit=WORKTREE]
+    test_provider_registration_is_transactional; commit=7f9c810e5f4a2023ad98de34e848667dd72bc4a7]
   - subscribability is not derived: a provider declares what its change
     events promise through delivers(), registration publishes that as the
     space's (events ...) row, and one that declares nothing refuses a

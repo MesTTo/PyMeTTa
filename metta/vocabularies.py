@@ -28,12 +28,12 @@ Guarantees:
   - a class name IS the MeTTa type name the engine writes: `(: EffectClass
     Type)` and `(: pureStructural EffectClass)` are atoms in `&metta`, and the
     name comes from the row rather than from a map kept here
-    [tested: test_every_vocabulary_is_typed_by_the_engine; commit=WORKTREE]
+    [tested: test_every_vocabulary_is_typed_by_the_engine; commit=7f9c810e5f4a2023ad98de34e848667dd72bc4a7]
   - a class the engine declares OPEN accepts a word registered through
     `(add-atom &metta (vocabulary-member <vocab> <word>))`
-    [tested: test_an_open_vocabulary_accepts_a_registered_word; commit=WORKTREE]
+    [tested: test_an_open_vocabulary_accepts_a_registered_word; commit=7f9c810e5f4a2023ad98de34e848667dd72bc4a7]
   - WIRE_TAGS is the wire grammar as the engine states it, one row per tag
-    [tested: test_the_wire_tag_table_is_the_engines_own; commit=WORKTREE]
+    [tested: test_the_wire_tag_table_is_the_engines_own; commit=7f9c810e5f4a2023ad98de34e848667dd72bc4a7]
 Open Obligations:
   To Do: None
   Hacks: None

@@ -10,7 +10,7 @@
 %     (wire-tag ...) rows declare
 %     [tested: catalog_vocabulary_words:an_unknown_capability_word_is_refused,
 %     catalog_vocabulary_words:the_shim_speaks_the_declared_wire_tags;
-%     commit=WORKTREE]
+%     commit=7f9c810e5f4a2023ad98de34e848667dd72bc4a7]
 %   - metta_py_observe_begin/1 and metta_py_observe_end/1 hold ONE trace session
 %     across the host's own calls and answer what it recorded, so a Python
 %     with-block can instrument work it drives itself

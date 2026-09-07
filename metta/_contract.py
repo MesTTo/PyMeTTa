@@ -28,7 +28,7 @@ Guarantees:
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - the vocabulary types these arrows name are the ENGINE's own, written
     beside each `(vocabulary ...)` row rather than here
-    [tested: test_every_vocabulary_is_typed_by_the_engine; commit=WORKTREE]
+    [tested: test_every_vocabulary_is_typed_by_the_engine; commit=7f9c810e5f4a2023ad98de34e848667dd72bc4a7]
   - lint evidence and named suppression intent are typed declarations rather
     than comments lost after parsing [tested:
     test_lint_evidence_and_intent_are_typed_reflection_facts; commit=acb40f1912f131ae088083d1af29b4b283019bea]

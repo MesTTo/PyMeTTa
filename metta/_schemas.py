@@ -28,7 +28,7 @@ Guarantees:
   - one arm per term tag, built from the engine's own `(wire-tag ...)` rows
     with the row's own sentence as its description, so a tag the catalog gains
     reaches a served gateway with no edit here
-    [tested: test_the_atom_schema_is_one_arm_per_term_tag; commit=WORKTREE]
+    [tested: test_the_atom_schema_is_one_arm_per_term_tag; commit=7f9c810e5f4a2023ad98de34e848667dd72bc4a7]
   - the bearer scheme appears exactly when the server is configured with a token
     [tested: test_a_token_puts_a_bearer_scheme_in_the_document; commit=0fb68d75871c57f2421c335e9faef3561f8dfdd5]
 Open Obligations:

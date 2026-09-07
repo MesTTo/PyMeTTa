@@ -29,7 +29,7 @@ Guarantees:
   - WIRE_TAGS is the engine's own `(wire-tag ...)` rows filtered to the term
     class, in the catalog's order, so this and the OpenAPI `Atom` schema read
     one grammar rather than two tuples
-    [tested: test_the_wire_tag_table_is_the_engines_own; commit=WORKTREE]
+    [tested: test_the_wire_tag_table_is_the_engines_own; commit=7f9c810e5f4a2023ad98de34e848667dd72bc4a7]
   - a type outside the table projects to the Atom column of every target, which
     every value can be spelled in: canonical MeTTa text for Arrow, the recursive
     `Atom` schema for JSON, the `Atom` scalar for GraphQL

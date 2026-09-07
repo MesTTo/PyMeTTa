@@ -52,7 +52,7 @@ Guarantees:
     list against foreign.CAPABILITIES, which stopped being a check once both
     derived from the same catalog row
     [tested: test_the_suite_covers_every_declarable_capability;
-    commit=WORKTREE]
+    commit=7f9c810e5f4a2023ad98de34e848667dd72bc4a7]
   - provider enumeration and countability are separate: every Enumerable is
     checked through atoms(), while len(space) is checked only for Sized
     providers [tested: test_declared_length_answers_the_provider_size;

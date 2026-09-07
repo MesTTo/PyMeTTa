@@ -50,20 +50,20 @@ Guarantees:
     one is declared. The RENAMES dict this file used to carry for
     `on-error-mode` is now that row [tested:
     test_the_vocabulary_module_is_generated,
-    test_every_vocabulary_is_typed_by_the_engine; commit=WORKTREE]
+    test_every_vocabulary_is_typed_by_the_engine; commit=7f9c810e5f4a2023ad98de34e848667dd72bc4a7]
   - a vocabulary the engine declares OPEN renders as an enum that also
     accepts a word registered through `(add-atom &metta (vocabulary-member
     <vocab> <word>))`, in Python through `_missing_` and in TypeScript
     through the `| (string & {})` union [tested:
-    test_an_open_vocabulary_accepts_a_registered_word; commit=WORKTREE]
+    test_an_open_vocabulary_accepts_a_registered_word; commit=7f9c810e5f4a2023ad98de34e848667dd72bc4a7]
   - the wire tag table is generated from the engine's own `(wire-tag ...)`
     rows, so `metta._schemas` and `metta._projection` read one grammar
     instead of keeping an eight-tag and a nine-tag copy of it [tested:
-    test_the_wire_tag_table_is_the_engines_own; commit=WORKTREE]
+    test_the_wire_tag_table_is_the_engines_own; commit=7f9c810e5f4a2023ad98de34e848667dd72bc4a7]
   - the run FAILS when the engine's own `(: ...)` type atoms disagree with
     its vocabulary rows, so this lane covers the atoms as well as the
     generated files [tested: test_the_vocabulary_module_is_generated;
-    commit=WORKTREE]
+    commit=7f9c810e5f4a2023ad98de34e848667dd72bc4a7]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -138,12 +138,12 @@ Guarantees:
   - a class name IS the MeTTa type name the engine writes: `(: EffectClass
     Type)` and `(: pureStructural EffectClass)` are atoms in `&metta`, and the
     name comes from the row rather than from a map kept here
-    [tested: test_every_vocabulary_is_typed_by_the_engine; commit=WORKTREE]
+    [tested: test_every_vocabulary_is_typed_by_the_engine; commit=7f9c810e5f4a2023ad98de34e848667dd72bc4a7]
   - a class the engine declares OPEN accepts a word registered through
     `(add-atom &metta (vocabulary-member <vocab> <word>))`
-    [tested: test_an_open_vocabulary_accepts_a_registered_word; commit=WORKTREE]
+    [tested: test_an_open_vocabulary_accepts_a_registered_word; commit=7f9c810e5f4a2023ad98de34e848667dd72bc4a7]
   - WIRE_TAGS is the wire grammar as the engine states it, one row per tag
-    [tested: test_the_wire_tag_table_is_the_engines_own; commit=WORKTREE]
+    [tested: test_the_wire_tag_table_is_the_engines_own; commit=7f9c810e5f4a2023ad98de34e848667dd72bc4a7]
 Open Obligations:
   To Do: None
   Hacks: None

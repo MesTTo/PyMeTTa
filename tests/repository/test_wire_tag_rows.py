@@ -12,14 +12,14 @@ without an engine to ask; this file is what keeps it saying the same thing.
 Guarantees:
   - the corpus's tag block is exactly the engine's term and frame tags, with
     the same class, payload class and sentence [tested:
-    test_the_corpus_carries_the_engines_term_and_frame_tags; commit=WORKTREE]
+    test_the_corpus_carries_the_engines_term_and_frame_tags; commit=7f9c810e5f4a2023ad98de34e848667dd72bc4a7]
   - the reply tag is a row and deliberately not in the kit, because it is one
     door's answer shape rather than part of the atom grammar
-    [tested: test_the_reply_tag_is_a_row_and_not_a_codec_case; commit=WORKTREE]
+    [tested: test_the_reply_tag_is_a_row_and_not_a_codec_case; commit=7f9c810e5f4a2023ad98de34e848667dd72bc4a7]
   - the corpus's profiles name only declared tags [tested:
-    test_every_profile_names_declared_tags; commit=WORKTREE]
+    test_every_profile_names_declared_tags; commit=7f9c810e5f4a2023ad98de34e848667dd72bc4a7]
   - the OpenAPI atom schema has one arm per term tag, carrying the row's own
-    sentence [tested: test_the_atom_schema_is_one_arm_per_term_tag; commit=WORKTREE]
+    sentence [tested: test_the_atom_schema_is_one_arm_per_term_tag; commit=7f9c810e5f4a2023ad98de34e848667dd72bc4a7]
 Open Obligations:
   To Do: None
   Hacks: None
