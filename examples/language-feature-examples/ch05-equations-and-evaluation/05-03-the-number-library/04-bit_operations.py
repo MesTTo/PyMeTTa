@@ -1,0 +1,69 @@
+"""examples/ch05-equations-and-evaluation/05-03-the-number-library/04-bit_operations.metta in Python: masks over exact integers.
+
+Python's own `&`, `|`, `^` and `~` are what these operations exist to lower
+from inside a compiled body, so the twin says them BOTH ways: the function
+namespace for the engine's own names, and the operators for the spelling a
+Python author writes. They answer the same numbers, which is the claim the
+lowering rests on.
+
+A float earns the operation's own words rather than being truncated, and that
+answer is an error ATOM, so the twin compares it as data.
+Open Obligations:
+  To Do: None
+  Hacks: None
+  Future Enhancements: None.
+"""
+
+from metta import G, S
+
+
+def twin(m):
+    """The six bit operations, their operator spellings, and two refusals."""
+    f = m.fn
+
+    # 12 is 1100 and 10 is 1010, so the three binary operations read straight
+    # off the bits: 1000, 1110, 0110.
+    assert f.bit_and(12, 10) == [8]
+    assert f.bit_or(12, 10) == [14]
+    assert f.bit_xor(12, 10) == [6]
+    assert (12 & 10, 12 | 10, 12 ^ 10) == (8, 14, 6)
+
+    # `bit-not` is two's complement, not a boolean negation: -(n+1).
+    assert f.bit_not(0) == [-1]
+    assert f.bit_not(12) == [-13]
+    assert f.bit_not(f.bit_not(12)[0]) == [12]
+
+    # The shifts are multiplication and division by a power of two, and
+    # nothing is truncated at a word boundary: MeTTa's integers are unbounded.
+    assert f.bit_shift_left(1, 4) == [16]
+    assert f.bit_shift_right(16, 2) == [4]
+    assert f.bit_shift_left(3, 62) == [13835058055282163712]
+
+    # A right shift on a negative number keeps the sign, which follows from
+    # the unbounded representation: there is no top bit to shift a zero into.
+    assert f.bit_shift_right(-8, 1) == [-4]
+    assert f.bit_shift_right(-1, 40) == [-1]
+
+    # Exact integers only, and the refusal carries the operation's own words.
+    assert f.bit_and(1.5, 2) == [S.Error(S.bit_and(1.5, 2), G("bit-and expects two integers"))]
+    assert f.bit_shift_left(1.5, 2) == [
+        S.Error(
+            S.bit_shift_left(1.5, 2),
+            G(
+                "bit-shift-left expects two arguments: integer (value) and "
+                "non-negative integer (count)"
+            ),
+        )
+    ]
+
+    # A mask reads as a predicate: bit 2 of 12 is set, bit 1 is not.
+    assert f.bit_and(12, 4) == [4]
+    assert f.bit_and(12, 2) == [0]
+
+
+#: MEASURED on this branch rather than inherited: this twin is new, so there is
+#: no earlier pin to move
+#: [measured 2026-09-07: 3464 inferences, 0.4635x the example's 7473; command=python
+#: extensions/python/tools/twin_coverage.py --measure --rounds 3;
+#: fixture=docs/every-atom-has-an-example at its example commits; commit=WORKTREE].
+BUDGET = 3464
