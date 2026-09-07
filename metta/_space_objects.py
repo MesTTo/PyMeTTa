@@ -497,7 +497,7 @@ class _StatsBlock:
     [measured 2026-09-08: 51 of 4,000 measurements of one 659-inference
     evaluation read 667, and 2,568 of 4,000 did at an interval of 1,000;
     command=python extensions/python/benchmarks/probes/
-    interrupt_poll_accounting.py --raw; commit=WORKTREE].
+    interrupt_poll_accounting.py --raw; commit=5f92ecfb105f7a11d8f3b1a4c0a7e3b6d4b656a6].
 
     A thread the block JOINS inside its window is counted, because SWI adds an
     exited thread's inferences to the thread that joins it, and waiting for
@@ -505,7 +505,7 @@ class _StatsBlock:
     [measured 2026-09-08: a joined 2,000,000-inference thread moves the
     joiner's counter by 2,000,013 and a detached one by 7; command=python
     extensions/python/benchmarks/probes/interrupt_poll_accounting.py;
-    commit=WORKTREE].
+    commit=5f92ecfb105f7a11d8f3b1a4c0a7e3b6d4b656a6].
 
     A counter is a delta, so there is nothing to read before the block that
     measures it has closed, and reading one there raises rather than

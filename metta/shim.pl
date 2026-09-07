@@ -1457,7 +1457,7 @@ metta_py_captured(Pred, Ins, [Out, Text]) :-
 %659-inference evaluation read 667, and 2,568 of 4,000 did at an interval of
 %1,000 [measured 2026-09-08; command=python extensions/python/benchmarks/
 %probes/interrupt_poll_accounting.py --raw; fixture=three edges in a scratch
-%space, the poll at 0, 100,000 and 1,000 in one process; commit=WORKTREE]. Two
+%space, the poll at 0, 100,000 and 1,000 in one process; commit=5f92ecfb105f7a11d8f3b1a4c0a7e3b6d4b656a6]. Two
 %measurements of the SAME work therefore differed, in either direction
 %depending on which window the tick fell in, which is what
 %test_analyze_numbers_equal_the_stats_of_the_same_query read as an intermittent
@@ -1527,7 +1527,7 @@ metta_py_heartbeat_tick :-
 %before the measurement and the measurement needs two ticks; once warm, a
 %direct call and a tick the VM raises cost the same
 %[measured 2026-09-08: both 8 inferences; command=python extensions/python/
-%benchmarks/probes/interrupt_poll_accounting.py; commit=WORKTREE].
+%benchmarks/probes/interrupt_poll_accounting.py; commit=5f92ecfb105f7a11d8f3b1a4c0a7e3b6d4b656a6].
 :- dynamic metta_py_heartbeat_charge/1.
 metta_py_heartbeat_charge(0).
 
@@ -1604,7 +1604,7 @@ metta_py_heartbeat_bracket(Iterations, Spent, Ticks) :-
 %[measured 2026-09-08: an empty stats() block reads 6 inferences with the
 %term crossing and 10 with the subtraction spelled here, against 5 before the
 %poll was accounted at all; command=python extensions/python/benchmarks/
-%probes/interrupt_poll_accounting.py; commit=WORKTREE].
+%probes/interrupt_poll_accounting.py; commit=5f92ecfb105f7a11d8f3b1a4c0a7e3b6d4b656a6].
 metta_py_stats([Inferences, CpuTime, GcCount, GcFreed, GcTimeMs, TableBytes,
                 Ticks, Spent, At, Before]) :-
     statistics(inferences, Inferences),
