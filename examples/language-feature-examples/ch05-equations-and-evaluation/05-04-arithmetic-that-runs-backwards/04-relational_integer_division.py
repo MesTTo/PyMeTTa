@@ -62,4 +62,15 @@ def twin(m):
 #: [measured 2026-09-07: 8613 inferences, 0.9070x the example's 9496; command=python
 #: extensions/python/tools/twin_coverage.py --measure --rounds 3;
 #: fixture=docs/every-atom-has-an-example at its example commits; commit=98397cdd04679cbf40b2d515076dadc09c1b0a32].
-BUDGET = 8613
+#: RE-PINNED 2026-09-08, 8613 to 8582 (-31), the evaluation-fuel scope marker
+#: is a trailed write (fix/every-intermittent-root-caused, f6e05ca9):
+#: `$metta_fuel_scope` is written open with b_setval/2 at scope open and read
+#: with b_getval/2 where nb_current/2 used to answer, so an abandoned scope
+#: closes itself when an exception unwinds the trail and the cleanup is the
+#: fast ordinary exit, and every runnable form pays fewer inferences per scope;
+#: a twin drops by about the count of its runnables, and the engine bench reads
+#: evaluate and translate 1642 lower each on the same tree. Every twin here re-
+#: reads its budget on the merged tree, minimum of three fresh processes
+#: [measured 2026-09-08: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 8582

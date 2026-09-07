@@ -215,13 +215,15 @@ RUNG = "the assert family is this file's subject, so each claim names one of its
 #: tree, minimum of three fresh processes [measured 2026-09-08: min-of-3 serial
 #: fresh processes; command=python extensions/python/tools/twin_coverage.py
 #: --repin; commit=856434d7c1d381b3f3d7cbbd008f46c0d41b61aa].
-BUDGET = 17513
-
-#: OVERRUN 2026-09-07, 100: the twelve assert-family functions ARE its subject,
-#: so each claim is a Python assert ABOUT one of them rather than a dissolution
-#: of it, which its RUNG already records. Measured 17489 against a ceiling of
-#: 17452; a minimal twin of this example costs 15187, inside the ceiling's
-#: 17452, so the distance is this twin's own program [measured 2026-09-07: one
-#: fresh process per side; command=python
-#: extensions/python/benchmarks/probes/twin_floor.py; commit=9010a79b01c9b2a66b96a3952fa378fb3e939dc3].
-OVERRUN = 100
+#: RE-PINNED 2026-09-08, 17513 to 17475 (-38), the evaluation-fuel scope marker
+#: is a trailed write (fix/every-intermittent-root-caused, f6e05ca9):
+#: `$metta_fuel_scope` is written open with b_setval/2 at scope open and read
+#: with b_getval/2 where nb_current/2 used to answer, so an abandoned scope
+#: closes itself when an exception unwinds the trail and the cleanup is the
+#: fast ordinary exit, and every runnable form pays fewer inferences per scope;
+#: a twin drops by about the count of its runnables, and the engine bench reads
+#: evaluate and translate 1642 lower each on the same tree. Every twin here re-
+#: reads its budget on the merged tree, minimum of three fresh processes
+#: [measured 2026-09-08: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 17475

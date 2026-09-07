@@ -19,7 +19,6 @@ Open Obligations:
 import functools
 import inspect
 import pydoc
-import traceback
 
 import pytest
 
@@ -149,10 +148,16 @@ def test_a_namespace_lists_and_resolves_only_what_its_space_can_call(metta):
     ``fun/1`` is process-wide by design, the translator's call-or-data
     question, so a namespace built on it advertised heads whose equations
     live in a module this space never sees, resolved them, and produced
-    calls that answered themselves unreduced. Past 750 names CPython also
-    stops offering a suggestion for a typo, which is how a long test process
-    lost every "Did you mean" (measured 2026-09-07: 1,107 names listed
-    against 306 for the same space alone).
+    calls that answered themselves unreduced (measured 2026-09-07: 1,107
+    names listed against 306 for the same space alone).
+
+    The narrowing does not BOUND the roster and cannot: a space may legally
+    call more than the 750 candidates CPython's own suggestion renderer
+    accepts, and this one lists 1,034 in a full suite process because every
+    unscoped name the process registered is callable from every space
+    [measured 2026-09-07]. So the suggestion is the refusal's own sentence
+    rather than the interpreter's, and what is asserted here is that it
+    survives a roster past that cap.
     """
     with metta._new_space() as crowd, metta._new_space() as here:
         crowd.run("\n".join(f"(= (fp-crowd-{i} $x) $x)" for i in range(800)))
@@ -169,11 +174,16 @@ def test_a_namespace_lists_and_resolves_only_what_its_space_can_call(metta):
             here.fn.fp_crowd_5  # noqa: B018  -- the refusal at access IS the scenario
         assert refused.value.name == "fp_crowd_5"
 
-        assert len(dir(here.fn)) < 750, "the suggestion pool must stay inside CPython's cap"
         with pytest.raises(AttributeError) as caught:
             here.fn.fp_dbll  # noqa: B018  -- the refusal at access IS the scenario
-        rendered = "".join(traceback.format_exception(caught.value))
-        assert "Did you mean: 'fp_dbl'?" in rendered
+        assert "did you mean 'fp_dbl'?" in str(caught.value)
+        # And the same refusal from the CROWDED space, whose roster is past
+        # the cap: the interpreter renders nothing there, so a suggestion that
+        # relied on it disappeared exactly where a typo is hardest to spot.
+        assert len(dir(crowd.fn)) >= 750, "the crowding this case exists to create"
+        with pytest.raises(AttributeError) as crowded:
+            crowd.fn.fp_crowdd_5  # noqa: B018  -- the refusal at access IS the scenario
+        assert "did you mean 'fp_crowd_5'?" in str(crowded.value)
 
         with metta._new_space(inherits=here) as child:
             assert "fp_dbl" in dir(child.fn), "an inherited head is callable here"

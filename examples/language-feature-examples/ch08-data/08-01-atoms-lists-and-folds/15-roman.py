@@ -241,7 +241,18 @@ def twin(m):
 #: tree, minimum of three fresh processes [measured 2026-09-08: min-of-3 serial
 #: fresh processes; command=python extensions/python/tools/twin_coverage.py
 #: --repin; commit=856434d7c1d381b3f3d7cbbd008f46c0d41b61aa].
-BUDGET = 320392
+#: RE-PINNED 2026-09-08, 320392 to 318631 (-1761), the evaluation-fuel scope
+#: marker is a trailed write (fix/every-intermittent-root-caused, f6e05ca9):
+#: `$metta_fuel_scope` is written open with b_setval/2 at scope open and read
+#: with b_getval/2 where nb_current/2 used to answer, so an abandoned scope
+#: closes itself when an exception unwinds the trail and the cleanup is the
+#: fast ordinary exit, and every runnable form pays fewer inferences per scope;
+#: a twin drops by about the count of its runnables, and the engine bench reads
+#: evaluate and translate 1642 lower each on the same tree. Every twin here re-
+#: reads its budget on the merged tree, minimum of three fresh processes
+#: [measured 2026-09-08: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 318631
 
 #: OVERRUN 2026-09-07, 17700: it names every lib_roman function at every claim
 #: and runs the backwards `let` inverses beside them. Measured 320547 against a
@@ -250,7 +261,14 @@ BUDGET = 320392
 #: the ceiling's 302881, so no twin of it fits the band at all [measured
 #: 2026-09-07: one fresh process per side; command=python
 #: extensions/python/benchmarks/probes/twin_floor.py; commit=9010a79b01c9b2a66b96a3952fa378fb3e939dc3].
-OVERRUN = 17700
+#: OVERRUN 2026-09-08, 17768: both sides dropped under the trailed fuel scope
+#: marker (fix/every-intermittent-root-caused), the example by more, since a
+#: MeTTa runnable pays the scope where this twin's structured questions do not.
+#: Measured 318631 against a ceiling of 300863; a minimal twin costs 312023,
+#: above that ceiling, so no twin of it fits the band at all, as before
+#: [measured 2026-09-08: one fresh process per side; command=python
+#: extensions/python/benchmarks/probes/twin_floor.py; commit=WORKTREE].
+OVERRUN = 17768
 
 #: DIVERGED 2026-09-07, the example holds 9 atoms the twin does not (9 =) and
 #: the twin holds 9 the example does not (9 =): the twin is an ordinary Python

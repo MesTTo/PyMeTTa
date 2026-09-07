@@ -228,9 +228,18 @@ def twin(m):
 #: not a re-pin [measured 2026-09-08: python
 #: extensions/python/tools/twin_coverage.py --observe --rounds 10 and --rounds 15,
 #: ai-tmp/integrator-849a9e/law3-observe-10.log and -15.log; commit=856434d7c1d381b3f3d7cbbd008f46c0d41b61aa].
+#: RE-ENVELOPED 2026-09-08 under 'full-lane/277/workers=32', because the evaluation-fuel scope
+#: marker is a trailed write (fix/every-intermittent-root-caused, f6e05ca9) and
+#: every runnable form pays fewer inferences per scope, so this counter's whole
+#: envelope moved down by its runnables: 25 observations pooled from two
+#: `--observe` runs of 10 and 15 rounds read 427685..427713 where the 25 under
+#: 'full-lane/277/workers=32' read 427720..427720. A run outside this envelope is a re-observation,
+#: not a re-pin [measured 2026-09-08: python
+#: extensions/python/tools/twin_coverage.py --observe --rounds 10 and --rounds 15,
+#: ai-tmp/integrator-849a9e/mergeFL-observe-10.log and -15.log; commit=WORKTREE].
 BUDGET = {
-    "minimum": 427720,
-    "maximum": 427720,
+    "minimum": 427685,
+    "maximum": 427713,
     "observations": 25,
     "protocol": "full-lane/277/workers=32",
 }

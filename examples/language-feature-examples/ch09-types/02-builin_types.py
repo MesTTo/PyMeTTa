@@ -196,4 +196,15 @@ def twin(m):
 #: the merged tree, minimum of three fresh processes [measured 2026-09-08: min-
 #: of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=08f6f4df19a283bb84ba5f679c83944b42685b2e].
-BUDGET = 67625
+#: RE-PINNED 2026-09-08, 67625 to 67620 (-5), the evaluation-fuel scope marker
+#: is a trailed write (fix/every-intermittent-root-caused, f6e05ca9):
+#: `$metta_fuel_scope` is written open with b_setval/2 at scope open and read
+#: with b_getval/2 where nb_current/2 used to answer, so an abandoned scope
+#: closes itself when an exception unwinds the trail and the cleanup is the
+#: fast ordinary exit, and every runnable form pays fewer inferences per scope;
+#: a twin drops by about the count of its runnables, and the engine bench reads
+#: evaluate and translate 1642 lower each on the same tree. Every twin here re-
+#: reads its budget on the merged tree, minimum of three fresh processes
+#: [measured 2026-09-08: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 67620
