@@ -10,10 +10,10 @@ Guarantees:
   - `%metta <source>` and `%%metta [space]` are one registration in IPython's
     own line_cell form, so the two cannot drift apart the way `%time` and
     `%%time` cannot [tested: test_line_magic_runs_one_line_against_the_selection;
-    commit=WORKTREE]
+    commit=7ba114f280ec3b132658cacb562064d0bac23f41]
   - `%metta` with nothing after it refuses with the two spellings that do
     something, rather than running the empty program [tested:
-    test_the_line_magic_refuses_an_empty_line; commit=WORKTREE]
+    test_the_line_magic_refuses_an_empty_line; commit=7ba114f280ec3b132658cacb562064d0bac23f41]
 Open Obligations:
   To Do: None
   Hacks: None

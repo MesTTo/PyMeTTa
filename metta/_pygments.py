@@ -20,14 +20,14 @@ alias or MIME type and get this one.
 
 Guarantees:
   - this file is what pygmentsgen.py writes from the grammar
-    [tested: tests/checks/check_tokenisation_selftest.py; commit=WORKTREE]
+    [tested: tests/checks/check_tokenisation_selftest.py; commit=7ba114f280ec3b132658cacb562064d0bac23f41]
   - this lexer and the grammar scope every character of every `.metta` file in
     the tree identically [tested: tests/checks/check_tokenisation_parity.py;
-    commit=WORKTREE]
+    commit=7ba114f280ec3b132658cacb562064d0bac23f41]
   - `metta`, `*.metta` and `text/x-metta` all reach it, which is what a
     Jupyter kernel's `language_info` names [tested:
     test_pygments_finds_the_lexer_by_name_filename_and_mimetype;
-    commit=WORKTREE]
+    commit=7ba114f280ec3b132658cacb562064d0bac23f41]
 Open Obligations:
   To Do: None
   Hacks: None

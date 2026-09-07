@@ -40,17 +40,17 @@ Assumes:
     else is refused by name rather than guessed at
 Guarantees:
   - the checked-in module equals what this produces, gated on every run
-    [tested: tests/checks/check_tokenisation_selftest.py; commit=WORKTREE]
+    [tested: tests/checks/check_tokenisation_selftest.py; commit=7ba114f280ec3b132658cacb562064d0bac23f41]
   - every pattern is compiled with the flags the generated lexer uses, so a
     construct Python's `re` does not have is a refusal here and never an
     ImportError in a consumer's process [tested:
-    tests/checks/check_tokenisation_selftest.py; commit=WORKTREE]
+    tests/checks/check_tokenisation_selftest.py; commit=7ba114f280ec3b132658cacb562064d0bac23f41]
   - a grammar group whose scope has no token in SCOPE_TOKENS is refused by
     name, so a new group cannot reach the lexer uncoloured [tested:
-    tests/checks/check_tokenisation_selftest.py; commit=WORKTREE]
+    tests/checks/check_tokenisation_selftest.py; commit=7ba114f280ec3b132658cacb562064d0bac23f41]
   - the generated lexer and the grammar tokenise the whole `.metta` corpus
     identically, character by character [tested:
-    tests/checks/check_tokenisation_parity.py; commit=WORKTREE]
+    tests/checks/check_tokenisation_parity.py; commit=7ba114f280ec3b132658cacb562064d0bac23f41]
 Decides: `re.MULTILINE` alone, not `re.ASCII`. Measured against the grammar's
   own tokeniser, Oniguruma's `\s` and `\d` here are Unicode-aware, and the one
   place the two still disagree is `\s`, which `translate` below spells out.
@@ -142,7 +142,7 @@ FLAGS = re.MULTILINE
 #: number by both engines except at these four; command=the probe in
 #: docs/journal/2026-09-07-one-grammar-every-highlighter.md;
 #: fixture=website/scripts/tokenise.mjs against the same pattern under Python's
-#: re; commit=WORKTREE].
+#: re; commit=7ba114f280ec3b132658cacb562064d0bac23f41].
 NOT_UNICODE_SPACE = range(0x1C, 0x20)
 
 
@@ -439,14 +439,14 @@ alias or MIME type and get this one.
 
 Guarantees:
   - this file is what pygmentsgen.py writes from the grammar
-    [tested: tests/checks/check_tokenisation_selftest.py; commit=WORKTREE]
+    [tested: tests/checks/check_tokenisation_selftest.py; commit=7ba114f280ec3b132658cacb562064d0bac23f41]
   - this lexer and the grammar scope every character of every `.metta` file in
     the tree identically [tested: tests/checks/check_tokenisation_parity.py;
-    commit=WORKTREE]
+    commit=7ba114f280ec3b132658cacb562064d0bac23f41]
   - `metta`, `*.metta` and `text/x-metta` all reach it, which is what a
     Jupyter kernel's `language_info` names [tested:
     test_pygments_finds_the_lexer_by_name_filename_and_mimetype;
-    commit=WORKTREE]
+    commit=7ba114f280ec3b132658cacb562064d0bac23f41]
 Open Obligations:
   To Do: None
   Hacks: None
