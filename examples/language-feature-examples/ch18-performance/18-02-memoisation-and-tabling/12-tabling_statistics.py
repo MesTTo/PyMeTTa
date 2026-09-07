@@ -41,7 +41,7 @@ from metta import S, V, lib, match
 #: expect, because the two writes between them are writes the subgoal never read.
 UNTOUCHED = [
     S.tables(1), S.answers(1), S.complete_call(1),
-    S.invalidated(0), S.reevaluated(0),
+    S.invalidated(0), S.reevaluated(0), S.policy(S.incremental(S.shared)),
 ]
 
 
@@ -83,7 +83,7 @@ def twin(m):
     m += S.edge(S.a, S.c)
     assert stats() == [
         S.tables(1), S.answers(1), S.complete_call(1),
-        S.invalidated(1), S.reevaluated(0),
+        S.invalidated(1), S.reevaluated(0), S.policy(S.incremental(S.shared)),
     ]
 
     # Re-evaluation is on demand, so it takes a call. reevaluated LOWER than
@@ -93,7 +93,7 @@ def twin(m):
     assert sorted(reach(S.a, V.y)) == [S.b, S.c]
     assert stats() == [
         S.tables(1), S.answers(2), S.complete_call(2),
-        S.invalidated(1), S.reevaluated(1),
+        S.invalidated(1), S.reevaluated(1), S.policy(S.incremental(S.shared)),
     ]
 
 
@@ -197,4 +197,11 @@ def twin(m):
 #: path and the library's write doors since [measured 2026-09-06: min-of-3
 #: serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=b96e1a15260b7538a8e42be613bcc5dd0dddd136].
-BUDGET = 71884
+#: RE-PINNED 2026-09-07, 71884 to 132371 (+60487), the twin re-authored its
+#: markers as expressions, (then-ran) and (else-ran), after c144fcdb gave the
+#: MeTTa spelling add-atom upstream PeTTa's own domain (an atom with a head),
+#: under which a bare symbol has no answer; the twins lane was a REPORT lane
+#: and the failing claim went unreported until 2026-09-07 [measured 2026-09-07:
+#: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 132371

@@ -34,12 +34,16 @@ Guarantees:
     test_a_transaction_commits_async_launch_before_its_landing;
     commit=39092863ae34184a9f955f185ff57c1ff177ec40]
   - object decoding removes every __metta_wire_value__ carrier by protocol,
-    while retaining that carrier privately for later crossings, so transport
-    classes cannot replace the carried object's identity or lose metadata
+    while retaining an ENVELOPE (a payload that speaks the protocol)
+    privately for later crossings, so transport classes cannot replace the
+    carried object's identity or lose metadata
     [tested: test_bridge_answers_preserve_python_object_identity;
     commit=a0f1cc5f15a15e5ca6958fe02a20be8832c7237f]
     [tested: test_a_py_atom_declaration_dies_with_its_grounded_value;
-    commit=bbf02dd309d15e178a9c83d03b749eb7170b6a20]
+    commit=bbf02dd309d15e178a9c83d03b749eb7170b6a20]; a bare object payload
+    crosses boxed again exactly as a fresh Grounded of the same value does
+    [tested: test_a_returned_python_container_crosses_back_as_one_object;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -159,8 +163,20 @@ def _variable_from_wire(payload: Any) -> Atom:
 
 
 def _object_from_wire(payload: Any) -> Atom:
-    grounded = Grounded(_unbox_wire_value(payload))
-    object.__setattr__(grounded, "_wire_value", payload)
+    value = _unbox_wire_value(payload)
+    grounded = Grounded(value)
+    if value is not payload:
+        # The payload spoke __metta_wire_value__: it is an ENVELOPE, the thing
+        # that carries a declaration for a value that cannot be weakly
+        # referenced, so it is kept privately and re-sent as itself. A bare
+        # object payload carries nothing and crosses boxed again like a fresh
+        # value, because janus rewrites a bare dict, list or tuple into a
+        # Prolog term on the way in and the engine then never sees an object:
+        # re-sending the bare dict made `(py-call (.get prefs size))` answer
+        # nothing for a dict the engine had just handed back [tested:
+        # test_a_returned_python_container_crosses_back_as_one_object;
+        # commit=WORKTREE].
+        object.__setattr__(grounded, "_wire_value", payload)
     return grounded
 
 

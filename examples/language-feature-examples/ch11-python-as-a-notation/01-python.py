@@ -168,4 +168,11 @@ def twin(m):
 #: policy-check fallbacks from space-local capture [measured 2026-09-02: min-
 #: of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=c00341f0ff9d83d1b9338ca86ad51708eaf07ebd].
-BUDGET = 15857
+#: RE-PINNED 2026-09-07, 15857 to 15269 (-588), the twin re-authored its
+#: markers as expressions, (then-ran) and (else-ran), after c144fcdb gave the
+#: MeTTa spelling add-atom upstream PeTTa's own domain (an atom with a head),
+#: under which a bare symbol has no answer; the twins lane was a REPORT lane
+#: and the failing claim went unreported until 2026-09-07 [measured 2026-09-07:
+#: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 15269

@@ -64,26 +64,30 @@ def twin(m):
 
     @m.define
     def then_probe():
-        return S.chain(S.add_atom(S.context_space(), S.then_ran), V._, 3)
+        return S.chain(S.add_atom(S.context_space(), S.then_ran()), V._, 3)
 
     @m.define
     def else_probe():
-        return S.chain(S.add_atom(S.context_space(), S.else_ran), V._, 4)
+        return S.chain(S.add_atom(S.context_space(), S.else_ran()), V._, 4)
 
     @m.define
     def probe(left, right):
         return unify(left, right, S.then_probe(), S.else_probe())
 
     # Only the selected branch evaluates: each probe leaves a marker, and
-    # exactly one marker lands per query.
+    # exactly one marker lands per query. The marker is an EXPRESSION,
+    # `(then-ran)`, because `add-atom` is upstream PeTTa's own spelling and
+    # upstream stores an atom as a fact keyed on its head: a bare symbol has
+    # none, so `(add-atom &self then-ran)` has no answer there and none here,
+    # while the wider Python door `m += S.then_ran` still stores it.
     # !(test (unify A A (then-probe) (else-probe)) 3)
     assert probe(S.A, S.A) == [3]
-    # !(test (collapse (match &self else-ran hit)) ())
-    assert S.else_ran not in m
+    # !(test (collapse (match &self (else-ran) hit)) ())
+    assert S.else_ran() not in m
     # !(test (unify A B (then-probe) (else-probe)) 4)
     assert probe(S.A, S.B) == [4]
-    # !(test (collapse (match &self then-ran hit)) (hit))
-    assert S.then_ran in m
+    # !(test (collapse (match &self (then-ran) hit)) (hit))
+    assert S.then_ran() in m
 
     # A space is a grounded atom whose custom matching is query, so a space
     # operand routes through match: one then-answer per stored match, the
@@ -201,4 +205,11 @@ def twin(m):
 #: path and the library's write doors since [measured 2026-09-06: min-of-3
 #: serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=b96e1a15260b7538a8e42be613bcc5dd0dddd136].
-BUDGET = 10494
+#: RE-PINNED 2026-09-07, 10494 to 10597 (+103), the twin re-authored its
+#: markers as expressions, (then-ran) and (else-ran), after c144fcdb gave the
+#: MeTTa spelling add-atom upstream PeTTa's own domain (an atom with a head),
+#: under which a bare symbol has no answer; the twins lane was a REPORT lane
+#: and the failing claim went unreported until 2026-09-07 [measured 2026-09-07:
+#: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 10597

@@ -101,11 +101,14 @@ Guarantees:
     without importing the Python package [tested:
     test_a_python_tuple_answers_the_same_through_both_doors;
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
-  - Grounded keeps a returned object carrier privately while exposing its
+  - Grounded keeps a returned ENVELOPE privately while exposing its
     underlying value, so carrier-owned metadata survives a later engine
     crossing [tested:
     test_a_py_atom_declaration_dies_with_its_grounded_value;
-    commit=bbf02dd309d15e178a9c83d03b749eb7170b6a20]
+    commit=bbf02dd309d15e178a9c83d03b749eb7170b6a20], and a Grounded decoded
+    from a bare object payload carries no envelope and crosses boxed again
+    [tested: test_a_returned_python_container_crosses_back_as_one_object;
+    commit=WORKTREE]
   - Atom operator methods are installed from the immutable 22-entry lowering
     table, including explicit templates and named refusals [tested:
     test_the_operator_table_is_generated_from_one_source_with_no_holes;
@@ -901,7 +904,7 @@ class Grounded(Atom):
     """
 
     __slots__ = {
-        "_wire_value": "the private carrier to reuse on a later crossing",
+        "_wire_value": "the private envelope to re-send on a later crossing, None for a bare payload",
         "value": "the ground Python value this atom carries",
     }
     __match_args__ = ("value",)

@@ -1378,6 +1378,32 @@ def test_a_py_atom_declaration_dies_with_its_grounded_value(metta):
     assert not metta.runtime.once("current_predicate(metta_py_declared_type/2)")
 
 
+def test_a_returned_python_container_crosses_back_as_one_object(metta):
+    """A dict or list the engine handed back is still ONE object on its way in.
+
+    janus rewrites a bare dict, list or tuple into a Prolog term, so a
+    Grounded decoded from a bare object payload has to cross boxed again
+    exactly as a fresh Grounded of the same value does; only an ENVELOPE, the
+    carrier of a declaration on a value that cannot be weakly referenced, is
+    kept and re-sent as itself. Re-sending the bare dict made the method call
+    below answer nothing for a dict the engine had just answered.
+    """
+    prefs = metta.eval('(py-atom "dict(colour=\'green\', size=7)")')[0]
+    assert prefs.value == {"colour": "green", "size": 7}
+    assert metta.eval(S.py_call(S[".get"](prefs, S.size))) == [7]
+    assert metta.eval(S.py_call(S[".__len__"](prefs))) == [2]
+    items = metta.eval('(py-atom "[3, 1, 2]")')[0]
+    assert metta.eval(S.py_call(S[".count"](items, 1))) == [1]
+    # And the same object, not a copy: a write through one door shows through
+    # the other.
+    metta.eval(S.py_call(S[".__setitem__"](prefs, S.size, 8)))
+    assert prefs.value["size"] == 8
+    # The envelope case is unchanged: a declaration on a list survives the
+    # round trip because the envelope itself is re-sent.
+    declared = metta.eval('(py-atom "[1, 2]" Ephemeral)')[0]
+    assert S.Ephemeral in metta.eval(S.get_type(declared))
+
+
 def test_a_raising_inverse_generator_names_the_metta_call(metta):
     """An inverse enumerates through py_iter, so it needs the same guard.
 
