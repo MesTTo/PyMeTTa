@@ -303,7 +303,9 @@ from typing import (
 )
 
 from . import ops as _ops_module
+from . import seam as _seam
 from ._api_types import _DEFAULT_SPACE, TemplateLike, _SpaceId
+from ._api_types import space_of as _space_of
 from ._declarations import inferred
 from ._engine import Runtime, bridge, defer_engine_call, runtime, started
 from ._library import Library, import_library
@@ -1027,6 +1029,17 @@ _WRITING_EFFECTS = frozenset({EffectClass.writesState, EffectClass.oracleIO})
 _EXPLAINED_MATCH_HEADS = frozenset({"match", "match%"})
 #: The effect walk's name for a call it could not resolve.
 _UNRESOLVED_OPERATION = "<dynamic-operation>"
+
+
+@_seam.service(
+    "catalog",
+    "The declaration space a receiver's runtime reads and writes, given a "
+    "context or a space. Published here because a space is this module's, and "
+    "metta.seam sits below the base layer where it cannot import one.",
+)
+def _catalog_of(m: Any) -> Space:
+    """The `&metta` space of the runtime behind a context or a space."""
+    return Space("&metta", _runtime=_space_of(m).runtime)
 
 
 class Space(Handle):

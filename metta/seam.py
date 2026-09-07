@@ -29,6 +29,12 @@ clauses; it declares the seam, and Prolog's database holds the clauses. A point
 here may name `reader=` and `adder=`, so a registry that already exists keeps
 its storage and its hot path and is still one row table from out here.
 
+A point may also be DECLARED where its implementation lives. This module sits
+under the base layer, `metta.errors` reading its transport-error rows on every
+refusal, so it may not import a satellite; the six points whose readers are
+`metta.integrate`'s are declared there and named in `_DECLARING` here, and
+`seam.at` loads that module only when a name is not already declared.
+
 Assumes:
   - importlib.metadata.entry_points(group=...) answers an empty sequence for a
     group nothing advertises [source 2026-09-07:
@@ -102,16 +108,12 @@ __all__ = [
     "image",
     "image_of",
     "index",
-    "integration",
-    "library",
     "module",
+    "on_registration",
     "point",
     "points",
     "projection",
-    "provider",
     "publish",
-    "reflector",
-    "repr_",
     "rows",
     "service",
     "services",
@@ -120,7 +122,6 @@ __all__ = [
     "sql_arity",
     "sql_types",
     "transport_error",
-    "type_",
     "withdraw",
 ]
 
@@ -151,6 +152,15 @@ GROUP: Final = "metta.extensions"
 ENTRY_POINT_GROUP: Final = "metta.integrations"
 SPACES_GROUP: Final = "metta.spaces"
 LIBRARIES_GROUP: Final = "metta.libraries"
+
+#: The modules that DECLARE points this seam does not declare itself. Their
+#: readers and adders are their own, and they sit above this module in the
+#: layering, so a point whose implementation lives there is declared there and
+#: named here. Loaded lazily, and only when a caller asks for something this
+#: table does not already hold, so the dispatch path stays free: metta.errors
+#: reads the transport-error rows on every refusal and must not pay 41 ms for
+#: metta.integrate to do it [measured 2026-09-06, python -X importtime].
+_DECLARING: Final[tuple[str, ...]] = ("metta._space", "metta.integrate")
 
 #: A row's own attributes, which a field may therefore not be named.
 _RESERVED: Final[frozenset[str]] = frozenset({"point", "name", "fields", "source"})
@@ -351,6 +361,7 @@ _POINTS: Final[dict[str, Point]] = {}
 _ROWS: Final[dict[str, list[Row]]] = {}
 _LOCK: Final = threading.RLock()
 _LOADED: set[str] = set()
+_LISTENERS: list[Callable[[str, str, Callable[[], None]], None]] = []
 _LOADED_ENTRIES: set[tuple[str, str]] = set()
 
 
@@ -464,19 +475,42 @@ def at(name: str) -> Point:
 
     The general spelling. A shipped point is also an attribute of this module,
     `seam.frame`, which is the sugar over this.
+
+    A name this table does not hold loads the declaring modules once before
+    refusing, so a point declared where its implementation lives is found
+    without the caller having imported that module, and a point already here
+    costs the dictionary lookup and nothing else.
     """
-    try:
-        return _POINTS[name]
-    except KeyError:
+    point_of = _POINTS.get(name)
+    if point_of is None:
+        _load_declaring()
+        point_of = _POINTS.get(name)
+    if point_of is None:
         known = ", ".join(sorted(_POINTS)) or "none"
         msg = f"no extension point named {name!r}; this seat declares: {known}"
-        raise KeyError(msg) from None
+        raise KeyError(msg)
+    return point_of
 
 
 def points() -> dict[str, Point]:
-    """Every declared point, keyed by name: the seam as data."""
+    """Every declared point, keyed by name: the seam as data.
+
+    Everything means everything, so this loads the declaring modules.
+    """
+    _load_declaring()
     with _LOCK:
         return dict(_POINTS)
+
+
+def _load_declaring() -> None:
+    """Import the modules that declare points of their own, once each."""
+    for module in _DECLARING:
+        with _LOCK:
+            if module in _LOADED:
+                continue
+        importlib.import_module(module)
+        with _LOCK:
+            _LOADED.add(module)
 
 
 def rows(name: str | None = None) -> tuple[Row, ...]:
@@ -536,11 +570,9 @@ def publish(m: Any) -> int:
     and what packages advertise. Asking for the whole surface as data is
     exactly the request that cannot be answered without them.
     """
-    from ._api_types import space_of  # noqa: PLC0415  -- a context or a space, resolved at the door
-    from ._space import Space  # noqa: PLC0415  -- the catalog is a space of this runtime
     from .atoms import S, _expr  # noqa: PLC0415  -- atoms are the base layer
 
-    catalog = Space(_CATALOG, _runtime=space_of(m).runtime)
+    catalog = at("catalog").call()(m)
     written = 0
     for declaration in (
         _expr(S.kind, S[_POINT_HEAD], S.symbol, S.symbol, S.symbol, S.term),
@@ -640,13 +672,26 @@ def _restore(name: str, index: int, row: Row) -> None:
             held[index] = row
 
 
+def on_registration(callback: Callable[[str, str, Callable[[], None]], None]) -> None:
+    """Hear every registration, with the inverse that withdraws it.
+
+    The direction is deliberate. A registration made inside an integration's
+    installer has to be undone when that installer fails, and the frame that
+    records inverses lives in metta.ops, which the base layer may not reach;
+    a seam that imported it would drag metta.errors up the stack with it. So
+    the OWNER of the frame subscribes, the way metta._contract subscribes to
+    the conversion registry's own listener list.
+    """
+    _LISTENERS.append(callback)
+
+
 def _enlist(undo: Callable[[], None] | None, description: str) -> None:
-    """Undo this registration if the installing transaction rolls back."""
+    """Tell every listener how to withdraw this registration."""
     if undo is None:
         return
-    from .ops import _record_registry_undo  # noqa: PLC0415  -- ops is above errors in the layering
-
-    _record_registry_undo(undo, description=description)
+    point, _, name = description.partition(" registration ")
+    for callback in tuple(_LISTENERS):
+        callback(point, name.strip("'"), undo)
 
 
 def _unregister(declared: Point, name: str) -> bool:
@@ -866,172 +911,6 @@ image = point(
     ),
 )
 
-
-# The four points below are the doors this seat already had. Their rows live
-# where they always lived, so nothing about a hot lookup or a transactional
-# rollback changes; what the seam adds is that they are DECLARED, so "what can
-# I extend here" is one query, and that one door registers against any of
-# them. This is exactly what ext_points.pl does for a Prolog seam whose
-# clauses Prolog's own database holds.
-
-
-def _type_rows() -> Iterable[Row]:
-    from ._convert_registry import _REGISTRY  # noqa: PLC0415  -- it imports this
-
-    return [
-        Row(
-            "type",
-            registration.type_name,
-            {"type": cls, "image": registration.image, "parts": registration.fields},
-            "package",
-        )
-        for cls, registration in _REGISTRY.items()
-        if registration.explicit
-    ]
-
-
-def _add_type(row: Row) -> Callable[[], None]:
-    from .integrate import register_type, unregister_type  # noqa: PLC0415  -- the seat's own door
-
-    given = dict(row.fields)
-    cls = given.pop("type")
-    parts = given.pop("parts", ())
-    register_type(cls, name=row.name, fields=parts, **given)
-    return lambda: unregister_type(cls)
-
-
-def _repr_rows() -> Iterable[Row]:
-    from ._atoms_core import _PROTOCOL_REPRS  # noqa: PLC0415  -- the repr registry's own store
-
-    return [
-        Row("repr", _named(text), {"claims": predicate, "text": text}, "package")
-        for predicate, text in _PROTOCOL_REPRS
-    ]
-
-
-def _add_repr(row: Row) -> Callable[[], None]:
-    from .integrate import register_repr, unregister_repr  # noqa: PLC0415  -- the seat's own door
-
-    register_repr(row.claims, row.text)
-    return lambda: unregister_repr(row.claims, row.text)
-
-
-def _reflector_rows() -> Iterable[Row]:
-    from .integrate import _REFLECTORS  # noqa: PLC0415  -- the reflector registry's own store
-
-    return [
-        Row("reflector", _named(lower), {"claims": claims, "lower": lower}, "package")
-        for claims, lower in _REFLECTORS
-    ]
-
-
-def _add_reflector(row: Row) -> Callable[[], None]:
-    from .integrate import (  # noqa: PLC0415  -- the seat's own door
-        register_reflector,
-        unregister_reflector,
-    )
-
-    register_reflector(row.claims, row.lower)
-    return lambda: unregister_reflector(row.claims, row.lower)
-
-
-def _named(fn: Any) -> str:
-    """A callable's own name, for a registry that stored no name with it."""
-    return str(getattr(fn, "__qualname__", None) or getattr(fn, "__name__", fn))
-
-
-def _advertised_rows(point_name: str, group: str) -> Callable[[], Iterable[Row]]:
-    """Rows for one entry-point group, read without loading any of it."""
-
-    def read() -> Iterable[Row]:
-        return [
-            Row(point_name, name, {"entry": entry, "group": group}, name)
-            for name, entry in advertised(group).items()
-        ]
-
-    return read
-
-
-type_ = point(
-    "type",
-    "declaration",
-    fields=("type",),
-    optional=("to_atom", "from_atom", "image", "parts"),
-    reader=_type_rows,
-    adder=_add_type,
-    doc=(
-        "How a host class crosses, both ways, declared rather than derived. "
-        "The ROW's name is the MeTTa type name, so nothing is said twice; "
-        "`type` is the class, `to_atom`, `from_atom` and `image` are what "
-        "metta.integrate.register_type takes, and `parts` is its `fields`, "
-        "renamed because a row already carries its own fields. The rows are "
-        "metta.convert's own registrations, read where they live."
-    ),
-)
-
-repr_ = point(
-    "repr",
-    "ownership",
-    fields=("claims", "text"),
-    reader=_repr_rows,
-    adder=_add_repr,
-    doc=(
-        "How a host value PRINTS in MeTTa. `claims(value)` recognises the "
-        "values this row formats and `text(value)` renders one. "
-        "`metta.integrate.register_repr` is the same door."
-    ),
-)
-
-reflector = point(
-    "reflector",
-    "ownership",
-    fields=("claims", "lower"),
-    reader=_reflector_rows,
-    adder=_add_reflector,
-    doc=(
-        "How a host object's structure becomes facts. `claims(value)` "
-        "recognises what this row can lower and `lower(value, head, space)` "
-        "writes the facts. `metta.integrate.register_reflector` is the same "
-        "door."
-    ),
-)
-
-provider = point(
-    "provider",
-    "declaration",
-    fields=("entry", "group"),
-    reader=_advertised_rows("provider", SPACES_GROUP),
-    doc=(
-        f"A space backed by a library's own storage, advertised under the "
-        f"{SPACES_GROUP} entry-point group. The rows are what installed "
-        f"packages advertise, UNLOADED; `metta.integrate.load_entry_point` "
-        f"loads one by name."
-    ),
-)
-
-library = point(
-    "library",
-    "declaration",
-    fields=("entry", "group"),
-    reader=_advertised_rows("library", LIBRARIES_GROUP),
-    doc=(
-        f"A directory of MeTTa or Prolog sources a package ships, advertised "
-        f"under the {LIBRARIES_GROUP} entry-point group and importable as "
-        f"`(library <name>)` once its path is registered."
-    ),
-)
-
-integration = point(
-    "integration",
-    "declaration",
-    fields=("entry", "group"),
-    reader=_advertised_rows("integration", ENTRY_POINT_GROUP),
-    doc=(
-        f"A whole library wired into a space, advertised under the "
-        f"{ENTRY_POINT_GROUP} entry-point group. `metta.integrate.discover` "
-        f"installs them in dependency order."
-    ),
-)
 
 # ------------------------------------------------------------- the services
 
