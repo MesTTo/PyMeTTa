@@ -4,15 +4,15 @@ Guarantees:
   - the narrowest kind covering a position is what a proposal carries, with a
     variable contributing nothing and disagreeing children contributing Atom
     [tested: test_a_position_takes_the_narrowest_kind_covering_its_children,
-    test_disagreeing_children_make_a_position_an_atom; commit=WORKTREE]
+    test_disagreeing_children_make_a_position_an_atom; commit=8d67307403c1e41ccf058bd3c8d4c079dd7cf7d5]
   - a head the space declares is never proposed for, and `declare=True` adds
     exactly the proposals, after which there is nothing left to propose
     [tested: test_a_declared_head_is_skipped,
-    test_declaring_adds_exactly_the_proposals; commit=WORKTREE]
+    test_declaring_adds_exactly_the_proposals; commit=8d67307403c1e41ccf058bd3c8d4c079dd7cf7d5]
   - proposing changes nothing, and the one thing accepting a proposal CAN
     change is named where it can be read [tested:
     test_proposing_adds_nothing, test_an_atom_position_stops_evaluating_that_argument;
-    commit=WORKTREE]
+    commit=8d67307403c1e41ccf058bd3c8d4c079dd7cf7d5]
 Open Obligations:
   To Do: None
   Hacks: None

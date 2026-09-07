@@ -40,7 +40,7 @@ Guarantees:
   - a head the space defines and never declares is rendered from the arrow
     its stored atoms justify, with the proposal named in the docstring rather
     than presented as a declaration [tested:
-    test_the_signature_and_the_stub_both_say_inferred; commit=WORKTREE]
+    test_the_signature_and_the_stub_both_say_inferred; commit=8d67307403c1e41ccf058bd3c8d4c079dd7cf7d5]
 Open Obligations:
   To Do: None
   Hacks: None

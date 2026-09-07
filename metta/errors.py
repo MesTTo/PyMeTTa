@@ -10,7 +10,7 @@ Guarantees:
   - MettaSyntaxError carries the 1-based line the reader stopped at, or None
     where it named none, so a caller points at the line instead of parsing
     the sentence [tested: test_a_json_error_line_names_its_input_line;
-    commit=WORKTREE]
+    commit=8d67307403c1e41ccf058bd3c8d4c079dd7cf7d5]
   - MettaOperationError.operation is the base field, not a shadow
     [tested test_operation_error_operation_is_the_base_field]
   - AssertionFailure is a MettaError and NOT an EngineError, so a harness

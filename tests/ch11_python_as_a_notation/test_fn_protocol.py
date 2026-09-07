@@ -9,7 +9,7 @@ Guarantees:
   - a head with no declared arrow takes the arrow its stored atoms justify,
     and a head with neither a declaration nor an atom to read is still an
     honest (*args) [tested: test_signature_comes_from_the_arrow;
-    commit=WORKTREE]
+    commit=8d67307403c1e41ccf058bd3c8d4c079dd7cf7d5]
 Open Obligations:
   To Do: None
   Hacks: None

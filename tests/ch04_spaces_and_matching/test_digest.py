@@ -13,7 +13,7 @@ Guarantees:
     lines the engine writes for its atoms and their sha256, and this file
     rebuilds both from the stored atoms
     [tested: test_the_digest_is_sha256_over_the_lines_the_engine_writes;
-    commit=WORKTREE]
+    commit=8d67307403c1e41ccf058bd3c8d4c079dd7cf7d5]
 Open Obligations:
   To Do: None
   Hacks: None

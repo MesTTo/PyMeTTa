@@ -212,12 +212,12 @@
 %     and metta_control_signal_line/2 answers WHERE a reader failure stopped
 %     from the envelope's own context slot, failing where none was named
 %     [tested: shim_type_inference:a_syntax_envelope_carries_its_line;
-%     commit=WORKTREE]
+%     commit=8d67307403c1e41ccf058bd3c8d4c079dd7cf7d5]
 %   - metta_py_infer_types/2 walks a space once and answers one
 %     [Head, Arity, KindWires, ResultWire] row per (head, arity) the space
 %     mentions and does not declare, naming the narrowest kind covering the
 %     children observed at each position [tested: shim_type_inference;
-%     commit=WORKTREE]
+%     commit=8d67307403c1e41ccf058bd3c8d4c079dd7cf7d5]
 %   - metta_py_eval_status_all/3, metta_py_eval_status_using_all/4, and
 %     metta_py_run_status/3 report which of
 %     MeTTa's evaluation paths produced each answer, leaving the ordinary

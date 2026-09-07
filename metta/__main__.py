@@ -42,18 +42,18 @@ Guarantees:
   - run reads its program from standard input for the operand ``-`` and for no
     operand at all, and refuses when that would read a terminal [tested:
     test_run_reads_a_program_from_standard_input,
-    test_run_refuses_a_dash_on_a_terminal; commit=WORKTREE]
+    test_run_refuses_a_dash_on_a_terminal; commit=8d67307403c1e41ccf058bd3c8d4c079dd7cf7d5]
   - ``run --json`` writes one JSON object per ! group on stdout and one per
     error on stderr, one value a line, with the program's own printing moved
     to stderr so the stream stays parseable; the exit status is the one the
     same run without the flag would give [tested:
     test_json_lines_carry_the_query_and_its_answers,
     test_json_wire_answers_read_back_as_atoms,
-    test_a_json_error_line_names_its_input_line; commit=WORKTREE]
+    test_a_json_error_line_names_its_input_line; commit=8d67307403c1e41ccf058bd3c8d4c079dd7cf7d5]
   - doc keeps the loaded program's printing on stderr for the same reason
     stubs does, and ``doc --infer`` prints the declarations a program's own
     atoms justify rather than one head's documentation [tested:
-    test_doc_infer_prints_the_proposals; commit=WORKTREE]
+    test_doc_infer_prints_the_proposals; commit=8d67307403c1e41ccf058bd3c8d4c079dd7cf7d5]
 Open Obligations:
   To Do: None
   Hacks: None

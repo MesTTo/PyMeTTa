@@ -22,7 +22,7 @@ Guarantees:
     head is never both declared and proposed [tested:
     test_a_declared_head_is_skipped, test_a_catalogue_row_is_not_data_about_a_head,
     test_a_position_takes_the_narrowest_kind_covering_its_children,
-    shim_type_inference; commit=WORKTREE]
+    shim_type_inference; commit=8d67307403c1e41ccf058bd3c8d4c079dd7cf7d5]
   - a head's declared types stay in the space's order, so an overload family
     reaches a renderer the way it was written [tested:
     test_declarations_carry_arrows_arities_and_documentation; commit=dd4f82100a052e2c5254a2ef9e91f6eb9d2e0c49]
