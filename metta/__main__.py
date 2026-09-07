@@ -766,7 +766,9 @@ def _convert(arguments) -> int:
     return 0
 
 
-def _attached_values(argv: list[str] | None, option: str, absent: str) -> list[str]:
+def _attached_values(
+    argv: list[str] | None, option: str, absent: str, *, command: str
+) -> list[str]:
     """Give a bare `--option` its default value, without touching the next word.
 
     This is getopt_long's `optional_argument`, which argparse has no spelling
@@ -777,17 +779,26 @@ def _attached_values(argv: list[str] | None, option: str, absent: str) -> list[s
     read p.metta as the format and refused it as an invalid choice; rewriting
     the bare spelling here keeps `--json` a flag and `--json=wire` a choice,
     and leaves p.metta an operand. Everything after `--` is an operand by
-    definition and is left alone.
+    definition and is left alone. Only the words after the subcommand
+    `command` are rewritten: `lint --json` is a plain flag with no value to
+    attach, and rewriting it to `--json=text` made argparse refuse the
+    explicit argument the flag does not take.
     """
     # sys.argv rather than handing None to parse_args, because the rewrite has
     # to reach the real command line too.
     words = sys.argv[1:] if argv is None else argv
     rewritten: list[str] = []
+    subcommand: str | None = None
     for index, word in enumerate(words):
         if word == "--":
             rewritten.extend(words[index:])
             break
-        rewritten.append(f"{option}={absent}" if word == option else word)
+        if subcommand is None and not word.startswith("-"):
+            subcommand = word
+        if word == option and subcommand == command:
+            rewritten.append(f"{option}={absent}")
+        else:
+            rewritten.append(word)
     return rewritten
 
 
@@ -882,7 +893,7 @@ def main(argv: list[str] | None = None) -> int:  # noqa: D103  -- the package re
     )
     convert.set_defaults(entry=_convert)
 
-    arguments = parser.parse_args(_attached_values(argv, "--json", JSON_TEXT))
+    arguments = parser.parse_args(_attached_values(argv, "--json", JSON_TEXT, command="run"))
     if arguments.command == "run" and _reads_a_terminal(arguments.files):
         parser.error(
             f"`{STDIN_OPERAND}` reads the program from standard input and "

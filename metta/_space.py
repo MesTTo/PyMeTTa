@@ -1590,7 +1590,8 @@ class Space(Handle):
         engine inferences against the query's own 237,473, and the share falls
         as the data grows: 10.1%, 4.6% and 3.1% at 128, 512 and 2,048 rows
         [measured 2026-09-07; command=PYTHONPATH=extensions/python
-        $VENV/bin/python ai-tmp/aa_probe13.py; fixture=a two-out-degree ring of
+        python extensions/python/benchmarks/probes/explain_plan_cost.py;
+        fixture=a two-out-degree ring of
         1,024 nodes at loadavg 62].
 
         `analyze=True` is EXPLAIN ANALYZE: the same items plus `(inferences

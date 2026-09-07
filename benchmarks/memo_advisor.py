@@ -146,7 +146,8 @@ class Proposal:
 # the per-head counts. They cannot be one run, because profiling retires
 # inferences of its own: the same workload measured 20,538 inferences plain and
 # 145,284 profiled [measured 2026-09-07; command=PYTHONPATH=extensions/python
-# $VENV/bin/python ai-tmp/aa_probe11.py]. Both passes run in every
+# python extensions/python/benchmarks/probes/profiling_inference_cost.py]. Both
+# passes run in every
 # configuration, in the same order, so the warm-up each pays is the same and
 # the DIFFERENCE between configurations is the row's.
 

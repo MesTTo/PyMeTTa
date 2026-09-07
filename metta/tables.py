@@ -113,6 +113,7 @@ from typing import Any, Protocol, cast
 
 from ._api_types import space_of
 from ._atom_wire import _atom_from_wire
+from ._declarations import is_arrow
 from .atoms import (
     Atom,
     Expression,
@@ -849,16 +850,20 @@ def _sql_arity(signature: Any) -> int:
     return total
 
 
+def _undeclared_arrow_message(name: str) -> str:
+    """The refusal DuckDB gets for a head with no declared arrow."""
+    return (
+        f"DuckDB needs the types of {name} and cannot infer them; declare "
+        f"the head's arrow, `(: {name} (-> Number Number))`, and register "
+        f"again. sqlite3 needs only the arity and takes it undeclared"
+    )
+
+
 def _sql_signature(signature: Any, name: str) -> tuple[list[str], str]:
     """A head's SQL parameter and return types, from its declared arrow."""
     empty = inspect.Signature.empty
     if _sql_arity(signature) < 0:
-        msg = (
-            f"DuckDB needs the types of {name} and cannot infer them; declare "
-            f"the head's arrow, `(: {name} (-> Number Number))`, and register "
-            f"again. sqlite3 needs only the arity and takes it undeclared"
-        )
-        raise TypeError(msg)
+        raise TypeError(_undeclared_arrow_message(name))
     parameters = [
         _SQL_TYPE.get(str(parameter.annotation), _SQL_TEXT)
         for parameter in signature.parameters.values()
@@ -882,7 +887,8 @@ def sql_function(connection: Any, head: Any, name: str | None = None) -> str:
 
     Two drivers, told apart by what their `create_function` takes: sqlite3
     wants the arity and no types, DuckDB wants the types and reads them from
-    the head's declared arrow, refusing by name when there is none. A row that
+    the head's DECLARED arrow, refusing by name when there is none (an
+    arrow `inspect.signature` merely infers is a proposal, not a promise). A row that
     produces no answer is SQL NULL and one that produces several refuses,
     because a scalar function has one result per row; a SQL NULL argument
     reaches the head as `Grounded(None)` and MeTTa decides what it means.
@@ -911,6 +917,13 @@ def sql_function(connection: Any, head: Any, name: str | None = None) -> str:
     if isinstance(connection, sqlite3.Connection):
         create(sql_name, _sql_arity(signature), call)
     else:
+        # `inspect.signature` shows the arrow the stored atoms JUSTIFY when
+        # nothing is declared (`Space.infer_types`'s proposal), which is the
+        # right thing to show a reader and the wrong thing to build SQL types
+        # from: a proposal is not a promise. DuckDB reads the declaration.
+        declared = getattr(head, "type", None)
+        if declared is None or not is_arrow(declared):
+            raise TypeError(_undeclared_arrow_message(sql_name))
         parameters, returns = _sql_signature(signature, sql_name)
         # SPECIAL, so a head may answer nothing and get SQL NULL: under
         # DuckDB's DEFAULT a returned NULL is an error, and NULL arguments
