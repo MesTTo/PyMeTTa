@@ -45,10 +45,14 @@ Guarantees:
     demand a shape the backend has no table for
     [tested test_the_suite_leaves_a_writable_provider_as_it_found_it,
     test_a_write_round_trip_leaves_the_provider_as_it_was]
-  - CAPABILITIES matches foreign.CAPABILITIES exactly, so a capability a
-    provider can declare is either exercised or reported as skipped and never
-    silently outside the suite. `add-many` and `rules` were the two that were
-    [tested test_the_suite_covers_every_declarable_capability]
+  - every capability a provider can declare is either exercised or reported as
+    skipped by the end of a run, so one the suite has no case for is named
+    rather than silently outside it. `add-many` and `rules` were two that
+    were; the check used to compare this module's own copy of the capability
+    list against foreign.CAPABILITIES, which stopped being a check once both
+    derived from the same catalog row
+    [tested: test_the_suite_covers_every_declarable_capability;
+    commit=WORKTREE]
   - provider enumeration and countability are separate: every Enumerable is
     checked through atoms(), while len(space) is checked only for Sized
     providers [tested: test_declared_length_answers_the_provider_size;
@@ -84,7 +88,7 @@ from ._optional import require_module
 from ._space import MeTTa, Space
 from .atoms import Expression, Symbol, Variable, _expr
 from .errors import MettaError
-from .foreign import Enumerable
+from .foreign import CAPABILITIES, Enumerable
 
 pytest = require_module(
     "pytest",
@@ -92,10 +96,6 @@ pytest = require_module(
     "run it, or use check_space_provider(), which needs nothing",
 )
 
-CAPABILITIES = (
-    "match", "enumerate", "add", "add-many", "remove", "clear", "subscribe",
-    "plan", "rules",
-)
 MARKER = Symbol("metta-compliance-marker")
 
 _NAMES = itertools.count()
@@ -254,15 +254,21 @@ class SpaceComplianceSuite:
                     reporter.write_line(f"  {capability}: exercised")
                 elif capability in record["skipped"]:
                     reporter.write_line(f"  {capability}: not declared, skipped")
-        if not record["ran"]:
-            msg = (
-                "the compliance suite exercised no capability at all. A "
-                "provider that declares nothing cannot pass this suite by "
-                "skipping every test in it"
-            )
-            raise AssertionError(
-                msg
-            )
+        # The coverage claim is about a WHOLE run of the suite. A developer
+        # narrowing to one case with `-k` deselects the rest, and their record
+        # is short for that reason rather than because the suite has a hole,
+        # so the claim is only made when every case of this class was
+        # selected. `--dist loadfile` keeps a file on one worker, so the
+        # record is one class's whole run.
+        cases = sum(1 for name in dir(request.cls) if name.startswith("test_"))
+        selected = sum(
+            1 for item in request.session.items if getattr(item, "cls", None) is request.cls
+        )
+        if selected < cases:
+            return
+        refusal = SpaceComplianceSuite.coverage_refusal(record)
+        if refusal is not None:
+            raise AssertionError(refusal)
 
     @pytest.fixture()
     def space(self, provider, exercised):
@@ -278,9 +284,39 @@ class SpaceComplianceSuite:
 
     # ------------------------------------------------------------- helpers
 
-    def requires(self, provider, exercised, capability: str) -> None:
-        """Read the provider's own declaration, and record either way."""
-        if provider.can_run(capability):
+    @staticmethod
+    def coverage_refusal(record: dict[str, set[str]]) -> str | None:
+        """What is wrong with a finished run's capability record, or None.
+
+        Two things can be, and both are silence rather than a red test unless
+        somebody looks: a provider that declares nothing skips every case and
+        passes, and a capability the SUITE has no case for reaches neither set
+        and is simply never mentioned. `add-many` and `rules` were the second
+        kind for as long as nothing asked.
+        """
+        if not record["ran"]:
+            return (
+                "the compliance suite exercised no capability at all. A "
+                "provider that declares nothing cannot pass this suite by "
+                "skipping every test in it"
+            )
+        uncovered = sorted(set(CAPABILITIES) - record["ran"] - record["skipped"])
+        if uncovered:
+            return (
+                f"the compliance suite has no case for {', '.join(uncovered)}: "
+                f"a capability a provider can declare must be exercised or "
+                f"reported as skipped, never left without a verdict"
+            )
+        return None
+
+    def requires(self, provider, exercised, capability: str, **request: Any) -> None:
+        """Read the provider's own declaration, and record either way.
+
+        `request` is what `can_run` narrows a declaration by: `subscribe`
+        takes `on=`, because a store with no remove never emits a removal and
+        a watcher for one would wait forever.
+        """
+        if provider.can_run(capability, **request):
             exercised["ran"].add(capability)
             return
         exercised["skipped"].add(capability)
@@ -558,11 +594,45 @@ class SpaceComplianceSuite:
             if provider.can_run("remove"):
                 space.remove(rule)
 
+    def test_a_declared_event_promise_delivers_a_write(
+        self, provider, exercised, space
+    ):
+        """`subscribe` is the other capability no protocol can derive: it is a
+        promise about what the SPACE can deliver rather than about which
+        methods exist, because a remote store's contents change on the server
+        whether or not this process wrote them.
+
+        So the check is the promise, end to end: subscribe to a pattern, write
+        an atom that matches it through the space, and read the event back.
+        A provider that declares the promise and delivers nothing leaves a
+        watcher waiting forever, which is the failure a poll would never have
+        told anyone about.
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+        self.requires(provider, exercised, "subscribe", on="add")
+        if not provider.can_run("add"):
+            pytest.skip("a space that cannot be added to emits no add event")
+        announced = Expression([MARKER, Symbol("announced"), Symbol(str(next(_NAMES)))])
+        watcher = space.watch(announced, on="add", deadline=5.0)
+        try:
+            space.add(announced)
+            seen = next(iter(watcher))
+            assert seen is not None, (
+                f"the space declares an event promise and {announced!r} "
+                f"arrived with no event; a watcher would wait forever"
+            )
+        finally:
+            watcher.close()
+            if provider.can_run("remove"):
+                space.remove(announced)
+
     def test_clear_empties_the_space(self, provider, exercised, space):
         """Skipped unless a subclass sets destructive, because the provider
         under test is usually pointed at data somebody wants to keep.
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         if not self.destructive:
+            # Recorded before the skip, because a capability with no verdict at
+            # all is what the coverage check in `exercised` refuses.
+            exercised["skipped"].add("clear")
             pytest.skip("set destructive = True to exercise clear")
         self.requires(provider, exercised, "clear")
         space.clear()

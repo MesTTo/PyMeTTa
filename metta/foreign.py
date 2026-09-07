@@ -8,6 +8,12 @@ requirement.
 Guarantees:
   - capabilities derive from implemented narrow protocols and unknown
     operations are refused [tested test_capabilities_follow_implemented_methods]
+  - CAPABILITIES is the engine's own `(vocabulary provider-capability ...)`
+    row read through the generated enum, and registration asks the LIVE row so
+    a provider can declare a word a library registered against that open
+    vocabulary [tested: test_every_vocabulary_is_typed_by_the_engine,
+    test_an_open_vocabulary_accepts_a_registered_word,
+    test_provider_registration_is_transactional; commit=WORKTREE]
   - subscribability is not derived: a provider declares what its change
     events promise through delivers(), registration publishes that as the
     space's (events ...) row, and one that declares nothing refuses a
@@ -88,7 +94,7 @@ from .errors import (
     guarded,
     is_transport_failure,
 )
-from .vocabularies import Delivery, EventOrder
+from .vocabularies import Delivery, EventOrder, ProviderCapability
 
 __all__ = [
     "CAPABILITIES",
@@ -115,7 +121,8 @@ __all__ = [
 ]
 
 
-#: Every operation the provider interface names, in the engine's own vocabulary.
+#: Every operation the provider interface names, read from the engine's
+#: `(vocabulary provider-capability ...)` row rather than written out here.
 #:
 #: `rules` is the odd one and the one that matters most: it says this space's
 #: atoms include EQUATIONS, which in MeTTa is the difference between a data
@@ -123,10 +130,12 @@ __all__ = [
 #: stores any atom and the ENGINE compiles it, so a rule here is the same
 #: compiled clause a native one is. It is opt-in because no protocol can
 #: derive a promise about content from a method.
-CAPABILITIES = (
-    "match", "enumerate", "add", "add-many", "remove", "clear", "subscribe",
-    "plan", "rules",
-)
+#:
+#: The row is OPEN, so a seat or library may register a capability of its own
+#: beside a seam hook it declares. This tuple is what pymetta SHIPS;
+#: `ProviderCapability` accepts a registered word as well, and registration
+#: asks the live row so a provider can declare one.
+CAPABILITIES = tuple(ProviderCapability)
 
 
 @runtime_checkable
@@ -600,10 +609,27 @@ def register_provider(runtime, name: str, provider: SpaceProvider) -> None:  # n
         runtime.must(
             "metta_py_register_foreign(Space, Capabilities, Delivery)",
             Space=name,
-            Capabilities=[c for c in CAPABILITIES if provider.can_run(c)],
+            Capabilities=[
+                word for word in _declarable(runtime) if provider.can_run(word)
+            ],
             Delivery=list(promise) if promise is not None else [],
         )
         _PROVIDERS[name] = provider
+
+
+def _declarable(runtime) -> list[str]:
+    """Every word this engine's `provider-capability` row carries right now.
+
+    `CAPABILITIES` is what pymetta SHIPS and is what a reader of this module
+    sees; the row is open, so an engine a library has extended carries more,
+    and a provider answering `can_run` for one of those could otherwise never
+    declare it. One crossing per registration, which happens once per provider.
+    """
+    return list(
+        runtime.must(
+            "metta_vocabulary_values('provider-capability', Words)"
+        )["Words"]
+    )
 
 
 def unregister_provider(runtime, name: str) -> None:

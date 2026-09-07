@@ -25,6 +25,10 @@ Guarantees:
   - `components.schemas.Atom` admits exactly the tags the wire decoder accepts,
     so a tag added to one is missing from the other loudly
     [tested: test_the_atom_schema_covers_every_wire_tag; commit=0fb68d75871c57f2421c335e9faef3561f8dfdd5]
+  - one arm per term tag, built from the engine's own `(wire-tag ...)` rows
+    with the row's own sentence as its description, so a tag the catalog gains
+    reaches a served gateway with no edit here
+    [tested: test_the_atom_schema_is_one_arm_per_term_tag; commit=WORKTREE]
   - the bearer scheme appears exactly when the server is configured with a token
     [tested: test_a_token_puts_a_bearer_scheme_in_the_document; commit=0fb68d75871c57f2421c335e9faef3561f8dfdd5]
 Open Obligations:
@@ -44,7 +48,6 @@ from ._projection import (
     ATOM_REF,
     ATOM_SCALAR,
     NUMBER_SCALAR,
-    WIRE_TAGS,
     argument_types,
     graphql_type,
     json_schema,
@@ -53,6 +56,7 @@ from ._projection import (
 from ._space_objects import _format_doc_atom
 from .atoms import Atom, Expression, Grounded, Symbol, _decode, _encode, parse
 from .errors import MettaError
+from .vocabularies import WIRE_TAGS, WireClass, WirePayload
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -68,28 +72,26 @@ JSON_SCHEMA_DIALECT: Final = "https://json-schema.org/draft/2020-12/schema"
 #: `GET /health` answers [source: extensions/python/metta/remote.py:_health].
 PROTOCOL: Final = 3
 
-#: One entry per wire tag: the JSON Schema for its payload, and the sentence the
-#: document says about it. `e` is the recursive case and `h` is the one
-#: three-element shape [source: extensions/python/metta/_atom_wire.py,
-#: _leaf_from_wire/2 and _from_wire/1; commit=0fb68d75871c57f2421c335e9faef3561f8dfdd5].
-_TAG_PAYLOADS: Final[dict[str, tuple[dict[str, Any], str]]] = {
-    "s": ({"type": "string"}, "a symbol, spelled as the program spells it"),
-    "g": ({"type": "string"}, "a string value"),
-    "n": ({"type": "number"}, "a number, exact at any width the JSON carries"),
-    "b": (
-        {"anyOf": [{"type": "boolean"}, {"enum": ["true", "false"]}]},
-        "a boolean, as JSON's own or as the two words the engine writes",
-    ),
-    "v": ({"type": "string"}, "a variable, named without its leading $"),
-    "e": (
-        {"type": "array", "items": {"$ref": ATOM_REF}},
-        "an expression, its children in order",
-    ),
-    "p": ({"type": "string"}, "a space, named as the engine's registry names it"),
+#: JSON Schema for one class of wire payload. The engine's `(wire-tag ...)`
+#: rows say which class each tag carries and this is the seat's column for it,
+#: exactly as `_projection.TypeRow` carries one column per target for a MeTTa
+#: type. `terms` is the recursive case; `handle` is the one three-element shape
+#: and is spelled at its arm below rather than here.
+_PAYLOAD_SCHEMAS: Final[dict[WirePayload, dict[str, Any]]] = {
+    WirePayload.text: {"type": "string"},
+    WirePayload.number: {"type": "number"},
+    WirePayload.boolean: {"anyOf": [{"type": "boolean"}, {"enum": ["true", "false"]}]},
+    WirePayload.terms: {"type": "array", "items": {"$ref": ATOM_REF}},
+    WirePayload.host: {},
+}
+
+#: What a gateway over HTTP cannot carry, said once. The `o` tag's payload is a
+#: live host reference, so a JSON body has no spelling for it and the document
+#: says so beside the arm rather than leaving a reader to discover it.
+_TRANSPORT_NOTES: Final[dict[str, str]] = {
     "o": (
-        {},
-        "a host object, which only an in-process transport carries: a JSON body "
-        "cannot hold one, so a gateway over HTTP never answers this tag",
+        " -- only an in-process transport carries one: a JSON body cannot hold "
+        "it, so a gateway over HTTP never answers this tag"
     ),
 }
 
@@ -111,21 +113,27 @@ def atom_schema() -> dict[str, Any]:
 
     An atom is a tagged JSON array, so the schema is a `oneOf` over the tags and
     the `e` arm points back at this schema by reference, which is how JSON Schema
-    spells a recursive type. `CODEC.md` is the grammar's own authority; this is
-    that grammar as a machine reads it.
+    spells a recursive type. The arms come from the engine's own
+    `(wire-tag ...)` rows through `metta.vocabularies.WIRE_TAGS`, so this is
+    the grammar as a machine reads it rather than a copy of it; `CODEC.md`
+    states the same rows for a person.
     """
-    arms = [
-        _tagged(tag, payload, description)
-        for tag, (payload, description) in _TAG_PAYLOADS.items()
-    ]
-    arms.append({
-        "type": "array",
-        "prefixItems": [{"const": "h"}, {"type": "integer"}, {"type": "string"}],
-        "items": False,
-        "minItems": 3,
-        "maxItems": 3,
-        "description": "a native handle, its identity and the text it prints as",
-    })
+    arms = []
+    for tag, row in WIRE_TAGS.items():
+        if row.kind is not WireClass.term:
+            continue
+        note = _TRANSPORT_NOTES.get(tag, "")
+        if row.payload is WirePayload.handle:
+            arms.append({
+                "type": "array",
+                "prefixItems": [{"const": tag}, {"type": "integer"}, {"type": "string"}],
+                "items": False,
+                "minItems": 3,
+                "maxItems": 3,
+                "description": f"{row.means}, and the text it prints as{note}",
+            })
+            continue
+        arms.append(_tagged(tag, _PAYLOAD_SCHEMAS[row.payload], f"{row.means}{note}"))
     return {
         "title": "Atom",
         "description": (
@@ -782,8 +790,8 @@ def graphql_heads(spaces: Mapping[str, Space | Any]) -> tuple[_Head, ...]:
     return _catalog(spaces).heads
 
 
-#: Every wire tag the document's Atom schema must carry, re-exported so a test
-#: reads it from the projection rather than from a copy here.
+#: Every wire tag the document's Atom schema must carry, re-exported so a
+#: reader takes the engine's own table rather than a copy here.
 __all__ = [
     "WIRE_TAGS",
     "atom_schema",

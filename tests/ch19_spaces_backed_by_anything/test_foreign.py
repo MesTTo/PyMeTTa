@@ -315,10 +315,15 @@ def test_provider_registration_is_transactional():  # noqa: D103  -- pytest disc
     class Runtime:
         fail = False
 
-        def must(self, _goal, **_inputs):
+        def must(self, goal, **_inputs):
             if self.fail:
                 msg = "injected provider boundary failure"
                 raise RuntimeError(msg)
+            # Registration asks the live `provider-capability` row before it
+            # asks the provider, because that vocabulary is open and an engine
+            # a library extended carries words this build does not ship.
+            if goal.startswith("metta_vocabulary_values"):
+                return {"Words": [str(word) for word in foreign_module.CAPABILITIES]}
             return {"truth": True}
 
     provider = Empty()

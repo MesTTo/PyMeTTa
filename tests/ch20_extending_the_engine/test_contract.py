@@ -27,7 +27,8 @@ import uuid
 
 import pytest
 
-from metta import parse
+from metta import parse, vocabularies
+from metta._projection import WIRE_TAGS
 from metta.atoms import Expression, Variable
 from metta.errors import EngineError
 from metta.foreign import SpaceProvider
@@ -111,13 +112,89 @@ def test_the_effect_atom_is_matchable_from_metta(metta):  # noqa: D103  -- pytes
 def test_the_ontology_is_loaded_at_boot(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     metta_space = metta._at("&metta")
     assert parse("(: Declaration Type)") in metta_space
+    assert parse("(: OpDecl Type)") in metta_space
+    assert parse("(:< OpDecl Declaration)") in metta_space
+
+
+@pytest.mark.parametrize(
+    "vocabulary",
+    [getattr(vocabularies, name) for name in vocabularies.__all__ if name != "WIRE_TAGS"],
+    ids=lambda cls: cls.__name__,
+)
+def test_every_vocabulary_is_typed_by_the_engine(metta, vocabulary):
+    """The engine types its own words: one `(: <TypeName> Type)` per row and
+    one `(: <member> <TypeName>)` per member, written beside the
+    `(vocabulary ...)` row rather than by a seat.
+
+    The class name IS the MeTTa type name, which is what makes this one
+    assertion rather than two tables compared: the generated class is held to
+    the row by the `vocab-sync` lane, and this holds the ENGINE's atoms to the
+    generated class. Before it, eleven of these sets lived in
+    `metta._contract.ONTOLOGY` under names the seat had chosen, and one of
+    them (`Semiring`) had six members where the engine derived ten.
+    """  # noqa: D205  -- the contract is one continuous invariant, not summary-and-body prose
+    if vocabulary is vocabularies.WireTag:
+        pytest.skip("WireTag is the wire grammar's row type, not a vocabulary")
+    metta_space = metta._at("&metta")
+    assert parse(f"(: {vocabulary.__name__} Type)") in metta_space
+    for member in vocabulary:
+        assert parse(f"(: {member.value} {vocabulary.__name__})") in metta_space
+
+
+def test_a_declared_order_is_a_subtype_chain_and_nothing_more(metta):
+    """`(vocabulary-order fidelity Exact Partial Sound)` is the two edges the
+    engine writes, and a member left out of the row is deliberately outside
+    the chain: `Refuse` is a Fidelity that is not a weaker Sound.
+    """  # noqa: D205  -- the contract is one continuous invariant, not summary-and-body prose
+    metta_space = metta._at("&metta")
     assert parse("(:< Exact Partial)") in metta_space
     assert parse("(:< Partial Sound)") in metta_space
-    for effect in EffectClass:
-        assert parse(f"(: {effect.value} Effect)") in metta_space
-    # Refuse is a Fidelity but deliberately outside the chain.
     assert parse("(: Refuse Fidelity)") in metta_space
     assert parse("(:< Refuse Sound)") not in metta_space
+    assert parse("(:< Exact Sound)") not in metta_space
+
+
+def test_an_open_vocabulary_accepts_a_registered_word(metta):
+    """One door: `(add-atom &metta (vocabulary-member <vocab> <word>))`. On an
+    open row the word joins the vocabulary's values, answers as a typed atom
+    and passes the generated enum; on a closed row the write is refused with
+    the row and the property named.
+    """  # noqa: D205  -- the contract is one continuous invariant, not summary-and-body prose
+    metta_space = metta._at("&metta")
+    word = f"probe-capability-{uuid.uuid4().hex[:8]}"
+    row = parse(f"(vocabulary-member provider-capability {word})")
+    metta_space.add(row)
+    try:
+        assert parse(f"(: {word} ProviderCapability)") in metta_space
+        # The enum admits the registered word without listing it, which is
+        # what an open row means: the members are what the engine SHIPS.
+        assert vocabularies.ProviderCapability(word) == word
+        assert word not in {member.value for member in vocabularies.ProviderCapability}
+    finally:
+        metta_space.remove(row)
+    assert parse(f"(: {word} ProviderCapability)") not in metta_space
+
+    with pytest.raises(EngineError) as refused:
+        metta_space.add(parse("(vocabulary-member fidelity Approximate)"))
+    assert "fidelity is closed" in str(refused.value)
+    assert "(vocabulary-open fidelity" in str(refused.value)
+
+
+def test_the_wire_tag_table_is_the_engines_own(metta):
+    """The wire grammar is catalog rows, and the generated table is what the
+    OpenAPI schema and the decoder order both read.
+    """  # noqa: D205  -- the contract is one continuous invariant, not summary-and-body prose
+    metta_space = metta._at("&metta")
+    for tag, row in vocabularies.WIRE_TAGS.items():
+        found = metta_space.match(parse(f"(wire-tag {tag} $kind $payload $means)"))
+        assert len(found) == 1, tag
+        assert str(found[0].kind) == row.kind.value
+        assert str(found[0].payload) == row.payload.value
+    assert WIRE_TAGS == tuple(
+        tag
+        for tag, row in vocabularies.WIRE_TAGS.items()
+        if row.kind is vocabularies.WireClass.term
+    )
 
 
 def test_lint_evidence_and_intent_are_typed_reflection_facts(metta):

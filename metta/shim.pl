@@ -4,6 +4,13 @@
 %   derivations on top of an unmodified MeTTa engine. Consulted after
 %   engine/main.pl; only adds predicates, never redefines engine ones.
 % Guarantees:
+%   - a Python provider's declared capability words are checked against the
+%     catalog's (vocabulary provider-capability ...) row at the registration
+%     door, and the encoder and decoder speak exactly the term tags the
+%     (wire-tag ...) rows declare
+%     [tested: catalog_vocabulary_words:an_unknown_capability_word_is_refused,
+%     catalog_vocabulary_words:the_shim_speaks_the_declared_wire_tags;
+%     commit=WORKTREE]
 %   - metta_py_observe_begin/1 and metta_py_observe_end/1 hold ONE trace session
 %     across the host's own calls and answer what it recorded, so a Python
 %     with-block can instrument work it drives itself
@@ -6227,9 +6234,14 @@ metta_py_register_foreign(Space0, Capabilities, Delivery) :-
     %arrives through.
     metta_source_reset(Space),
     retractall(metta_py_capability(Space, _)),
+    %Each word against the engine's own (vocabulary provider-capability ...)
+    %row, at the one door a Python provider's set arrives through. A word
+    %outside it used to register happily and then gate nothing, which reads
+    %exactly like a provider that does not have the capability.
     forall(member(Capability0, Capabilities),
            ( ( atom(Capability0) -> Capability = Capability0
              ; atom_string(Capability, Capability0) ),
+             metta_require_foreign_capability(Space, Capability),
              assertz(metta_py_capability(Space, Capability)) )),
     metta_py_declare_delivery(Space, Delivery).
 

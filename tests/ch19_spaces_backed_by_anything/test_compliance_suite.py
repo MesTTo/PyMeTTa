@@ -167,6 +167,30 @@ class TestProgramSpaceComplies(SpaceComplianceSuite):  # noqa: D101  -- the loca
         return ProgramSpace(ROWS)
 
 
+class AnnouncingSpace(ListSpace):
+    """A provider that declares an event promise.
+
+    The suite's subscribe case then runs instead of skipping everywhere.
+    `subscribe` is the second capability no protocol can derive, and it was
+    the third one the suite had no case for at all: `add-many` and `rules`
+    were found and fixed when the coverage question was first asked, and this
+    one went on having no verdict until the check moved from comparing two
+    lists to reading what a run recorded.
+    """
+
+    def delivers(self):
+        """Every write through this space is one event, in order: the process
+        that holds the list is the one that writes it.
+        """  # noqa: D205  -- the test double method contract is one claim
+        return ("per-write-exactly", "ordered")
+
+
+class TestAnnouncingSpaceComplies(SpaceComplianceSuite):  # noqa: D101  -- the local test double is documented by the scenario that constructs it
+    @pytest.fixture()
+    def provider(self):  # noqa: D102  -- the test double method is documented by its containing scenario and protocol
+        return AnnouncingSpace(ROWS)
+
+
 # One shared instance, so the assertion below observes the provider the suite
 # actually drove. A fresh one per test would make the check vacuous.
 ROUND_TRIP = ListSpace(ROWS)
@@ -183,16 +207,27 @@ def test_the_suite_covers_every_declarable_capability():
     is neither exercised nor skipped, which is a hole rather than a policy.
 
     Two were: `add-many` and `rules` sat in foreign.CAPABILITIES and not in
-    the suite's, so a provider declaring either got no verdict at all. Read
-    from both lists rather than restated, so the next one added to the seam
-    fails here instead of going quietly unchecked.
+    the suite's, so a provider declaring either got no verdict at all. The
+    check used to compare a second capability list kept in `_compliance`
+    against `foreign.CAPABILITIES`; both now read the engine's
+    `(vocabulary provider-capability ...)` row, so comparing them proves
+    nothing. The verdict logic is asserted instead, with the hole planted in
+    it, and the suite's own `exercised` fixture runs it at the end of every
+    class in this file against a real provider.
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
-    from metta import _compliance, foreign
+    from metta.foreign import CAPABILITIES
+    from metta.testing import SpaceComplianceSuite
 
-    assert set(_compliance.CAPABILITIES) == set(foreign.CAPABILITIES), (
-        f"the suite does not cover "
-        f"{sorted(set(foreign.CAPABILITIES) - set(_compliance.CAPABILITIES))}"
-    )
+    words = {str(capability) for capability in CAPABILITIES}
+    complete = {"ran": {"match"}, "skipped": words - {"match"}}
+    assert SpaceComplianceSuite.coverage_refusal(complete) is None
+
+    nothing = {"ran": set(), "skipped": words}
+    assert "exercised no capability at all" in SpaceComplianceSuite.coverage_refusal(nothing)
+
+    hole = {"ran": {"match"}, "skipped": words - {"match", "rules"}}
+    refusal = SpaceComplianceSuite.coverage_refusal(hole)
+    assert "no case for rules" in refusal
 
 
 def test_a_space_without_rules_says_how_to_hold_one():

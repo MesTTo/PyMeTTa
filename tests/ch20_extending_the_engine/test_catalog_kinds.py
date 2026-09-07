@@ -173,8 +173,8 @@ def test_generated_alias_preserves_declared_camel_case(repo_root):  # noqa: D103
         import vocabgen
     finally:
         sys.path.pop(0)
-    assert vocabgen.alias_name("answer-policy") == "AnswerPolicy"
-    assert vocabgen.alias_name("ClauseFailedEnum") == "ClauseFailedEnum"
+    assert vocabgen.camel("answer-policy") == "AnswerPolicy"
+    assert vocabgen.camel("ClauseFailedEnum") == "ClauseFailedEnum"
 
 
 def test_visibility_is_a_generated_catalog_vocabulary():
@@ -208,7 +208,12 @@ def test_every_vocabulary_member_crosses_as_its_symbol():
 
     for name in vocabularies.__all__:
         cls = getattr(vocabularies, name)
-        assert issubclass(cls, StrEnum), name
+        # WIRE_TAGS is the wire grammar's table and WireTag its row type;
+        # neither is a vocabulary, and the wire-class and wire-payload
+        # vocabularies they read ARE enums checked like every other.
+        if not isinstance(cls, type) or not issubclass(cls, StrEnum):
+            assert name in {"WIRE_TAGS", "WireTag"}, name
+            continue
         for member in cls:
             assert member == member.value, (name, member)
             assert member.__metta__() == Symbol(member.value), (name, member)
@@ -281,22 +286,26 @@ def test_a_keyword_value_takes_a_trailing_underscore(repo_root):
     assert vocabgen.member_name("best-first") == "best_first"
 
 
-def test_the_ledger_rename_names_on_error(repo_root):
+def test_the_ledger_rename_names_on_error(metta):
     """on-error-mode exports as OnError, the design record's spelling beside
     Space.on_error; every other class keeps the mechanical CamelCase.
+
+    The exception is a `(vocabulary-type ...)` ROW now, not a dict in
+    `vocabgen`, so the same word is the MeTTa type name, the Python class and
+    the Node table: `(: keep OnError)` is an atom in `&metta` and
+    `(: keep OnErrorMode)` is not.
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
+    from metta import parse
     from metta.vocabularies import AnswerPolicy, OnError
 
     assert OnError.__name__ == "OnError"
     assert list(OnError) == ["keep", "empty", "abort"]
     assert AnswerPolicy.best_first.value == "best-first"
-    sys.path.insert(0, str(repo_root / "extensions" / "python" / "tools"))
-    try:
-        import vocabgen
-    finally:
-        sys.path.pop(0)
-    assert vocabgen.alias_name("on-error-mode") == "OnError"
-    assert vocabgen.alias_name("cache-policy") == "CachePolicy"
+    reflection = metta._at("&metta")
+    assert parse("(vocabulary-type on-error-mode OnError)") in reflection
+    assert parse("(: keep OnError)") in reflection
+    assert parse("(: keep OnErrorMode)") not in reflection
+    assert parse("(: depth AnswerPolicy)") in reflection
 
 
 def test_the_image_declaration_is_catalog_validated():
