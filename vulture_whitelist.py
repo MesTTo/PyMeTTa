@@ -170,6 +170,9 @@ _.test_the_lifecycle_streams_the_same_answers_the_eager_door_gives
 _.test_the_lifecycle_refuses_what_it_cannot_answer
 _.test_a_client_cursor_takes_two_answers_and_stops
 _.test_the_kit_certifies_the_attached_space
+# The event-promise law the catalog-types merge (1a3579fa) added to the same
+# kit, collected the same way and left without its row.
+_.test_a_declared_event_promise_delivers_a_write
 
 # The standard order of terms installs the full rich-comparison protocol on
 # Atom (appendix stamp 6); the interpreter calls these through the type slots
