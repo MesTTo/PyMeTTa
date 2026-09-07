@@ -16,15 +16,15 @@ Guarantees:
     direction or of no direction refuses naming what is there [tested:
     test_the_specs_render_documented_bytes,
     test_an_entry_spec_at_a_rendered_hole_names_the_reader,
-    test_an_unknown_render_spec_names_the_render_specs; commit=WORKTREE]
+    test_an_unknown_render_spec_names_the_render_specs; commit=adb831d29a48596d3068a3087115b216c18b5b38]
   - a rendered hole and the engine's own interpolation agree, with the
     boolean's source spelling the one recorded difference [tested:
     test_a_rendered_hole_is_what_format_args_interpolates,
     test_the_sexp_spec_is_what_repr_answers,
-    test_a_boolean_renders_its_source_spelling; commit=WORKTREE]
+    test_a_boolean_renders_its_source_spelling; commit=adb831d29a48596d3068a3087115b216c18b5b38]
   - a value rendered into a sexp position and the same value entered at a hole
     reach the same atom [tested: test_a_sexp_hole_round_trips_through_the_reader;
-    commit=WORKTREE]
+    commit=adb831d29a48596d3068a3087115b216c18b5b38]
 Open Obligations:
   To Do: None
   Hacks: None

@@ -66,14 +66,14 @@ Guarantees:
   - a rendered hole with no spec answers what the engine's own
     ``format-args`` puts at ``{}``, and ``{v:sexp}`` what ``repr`` answers
     [tested: test_a_rendered_hole_is_what_format_args_interpolates,
-    test_the_sexp_spec_is_what_repr_answers; commit=WORKTREE]
+    test_the_sexp_spec_is_what_repr_answers; commit=adb831d29a48596d3068a3087115b216c18b5b38]
   - the 3.14 literal and the keyword face render the same bytes [tested:
-    test_the_two_faces_render_identically; commit=WORKTREE]
+    test_the_two_faces_render_identically; commit=adb831d29a48596d3068a3087115b216c18b5b38]
   - a spec belonging to the other direction refuses naming that direction, and
     an unknown one names this direction's specs [tested:
     test_a_render_spec_at_an_entry_hole_names_the_render_door,
     test_an_entry_spec_at_a_rendered_hole_names_the_reader,
-    test_an_unknown_render_spec_names_the_render_specs; commit=WORKTREE]
+    test_an_unknown_render_spec_names_the_render_specs; commit=adb831d29a48596d3068a3087115b216c18b5b38]
 Fails when: the caller wants a loop. A template holds one level: PEP 750's
   grammar has no statement form, so ``{for row in rows}`` is a SyntaxError on
   the 3.14 face, and a literal's values are evaluated when the literal is,

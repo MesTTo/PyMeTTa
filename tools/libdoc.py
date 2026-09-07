@@ -32,14 +32,14 @@ Guarantees:
   - the page is byte-identical to the one the hand-assembled generator wrote
     [measured 2026-09-07: sha256 ccff738354c74cffaca4dda113f5a8c63af85760ead048eac8ecb512cf98d2e8
     before and after the rewrite; command=sha256sum website/reference/metta-libraries.md;
-    fixture=lib/ at this commit; commit=WORKTREE]
+    fixture=lib/ at this commit; commit=adb831d29a48596d3068a3087115b216c18b5b38]
   - the library roster comes from the runtime's shared `.metta`/`.pl` source
     discovery, with one row when a library has both halves
     [tested: test_metta_and_prolog_halves_share_one_library_row;
     commit=1bfad3db85807fff774cad370ff8e57f7400ae99]
   - `@doc` parts render in the order the atom writes them, so a library that
     puts `@return` before `@desc` reads as it was written
-    [tested: test_a_doc_atom_renders_its_parts_in_written_order; commit=WORKTREE]
+    [tested: test_a_doc_atom_renders_its_parts_in_written_order; commit=adb831d29a48596d3068a3087115b216c18b5b38]
 Fails when:
   - a library defines names only through runnable `!(...)` side effects;
     the static reading cannot see those, so they go uncounted

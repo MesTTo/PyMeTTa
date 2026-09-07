@@ -43,7 +43,7 @@ Guarantees:
     value slot is unset [tested:
     test_the_format_protocol_reaches_the_same_table,
     test_an_empty_spec_is_str_and_python_specs_still_work,
-    test_a_handle_formats_without_a_value_slot; commit=WORKTREE]
+    test_a_handle_formats_without_a_value_slot; commit=adb831d29a48596d3068a3087115b216c18b5b38]
   - head and args are Atom-level questions, so a leaf refuses with the leaf
     sentence its four sibling accessors give rather than a bare AttributeError
     [tested: test_a_leaf_refuses_head_and_args_the_way_it_refuses_children;
@@ -1097,7 +1097,7 @@ class Grounded(Atom):
         # because a Handle is a Grounded species whose value slot is
         # deliberately unset: `f"{space}"` reached `self.value` and raised
         # `'Space' object has no attribute 'value'`
-        # [tested: test_a_handle_formats_without_a_value_slot; commit=WORKTREE].
+        # [tested: test_a_handle_formats_without_a_value_slot; commit=adb831d29a48596d3068a3087115b216c18b5b38].
         from ._templates import formatted  # noqa: PLC0415  -- _templates reads this module
 
         if not spec:

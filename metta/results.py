@@ -25,11 +25,11 @@ Guarantees:
   - both result faces render a template with the receiver bound as ``rows``,
     and answer the same text for the same rows, so a report written over one
     renders the other [tested: test_a_table_renders_the_columns_and_every_row,
-    test_the_lazy_face_binds_the_same_name; commit=WORKTREE]
+    test_the_lazy_face_binds_the_same_name; commit=adb831d29a48596d3068a3087115b216c18b5b38]
   - ``format(result, spec)`` reaches the same rendering table as
     ``metta.render``, and ``format(result, "")`` stays ``str`` [tested:
     test_the_format_protocol_reaches_the_same_table,
-    test_an_empty_spec_is_str_and_python_specs_still_work; commit=WORKTREE]
+    test_an_empty_spec_is_str_and_python_specs_still_work; commit=adb831d29a48596d3068a3087115b216c18b5b38]
   - eager query results explain empty pattern, join, and guard outcomes [tested
     test_query_rows_explain_empty_results]
   - both query-result views re-explain the match form they came from, and the
