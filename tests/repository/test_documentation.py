@@ -802,3 +802,29 @@ def test_the_site_build_refuses_without_the_browser_kit(tmp_path):
     assert finished.returncode == 1, finished.stdout + finished.stderr
     assert "npm run build:browser --prefix extensions/node" in finished.stderr
     assert not any(tmp_path.iterdir()), "the refusal wrote into the directory it refused"
+
+
+def test_a_registered_head_is_counted_in_the_reference(tmp_path, monkeypatch):
+    """A head published by a runnable registration form is on the page.
+
+    The gap this closes: lib_memo declares nothing and defines nothing, so the
+    page counted it at zero names while nine of its heads were callable. The
+    planted library here is that shape in miniature, and the engine is what
+    says the form registers a head.
+    """
+    libdoc = _load_libdoc()
+    library = tmp_path / "lib" / "lib_planted"
+    library.mkdir(parents=True)
+    (library / "lib_planted.metta").write_text(
+        '(@doc planted-doc (@desc "A documented planted name."))\n'
+        "(: planted-doc (-> Atom))\n"
+        "!(import_prolog_function planted-registered)\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(libdoc, "_REPO", tmp_path)
+
+    generated = libdoc.page()
+
+    assert "| lib_planted | 2 | 1 |" in generated
+    assert "Undocumented: `planted-registered`" in generated
+    assert "A documented planted name." in generated

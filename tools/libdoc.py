@@ -1,4 +1,4 @@
-"""Purpose: generate the MeTTa-library reference as templates over a catalog query.
+"""Purpose: generate the MeTTa-library reference as templates over `metta.library.rows`.
 
 The page reads the `(@doc ...)` atoms the MeTTa libraries carry, the same
 true-by-construction promise reference.py makes for the Python modules:
@@ -6,12 +6,15 @@ both languages' docs come from their own sources through one pipeline.
 The coverage table is the burn-down surface, interrogate's role for the
 MeTTa side: a library gains entries here by gaining @doc atoms.
 
-The generator is in two halves and neither prints. `catalog()` is the QUERY: it
-answers three `Rows` -- one coverage row per library, one row per `@doc` atom,
-one row per name a library declares and does not document -- and no text at
-all. Everything below `_PAGE` is TEMPLATE: the page's own words are template
-literals, `{coverage:table}` renders the coverage rows as the Markdown table
-this file used to assemble a cell at a time, and every heading, prose line and
+The generator is in two halves and neither prints. `catalog()` is the QUERY,
+and the query is `metta.library.rows`, the one a library card renders too, so
+a card and this page cannot disagree about what a library declares
+[source: extensions/python/metta/library.py, rows]. It answers three `Rows`
+-- one coverage row per library, one row per documented head, one row per
+head a library carries and never documents -- and no text at all. Everything
+below `_PAGE` is TEMPLATE: the page's own words are template literals,
+`{coverage:table}` renders the coverage rows as the Markdown table this file
+used to assemble a cell at a time, and every heading, prose line and
 parameter is a hole. A second page over the same rows is a second template
 rather than a second generator.
 
@@ -21,18 +24,22 @@ joined, which is the composition `{parts:lines}` and a nested template do
 inside one template.
 
 Assumes:
-  - the engine's own reader parses each MeTTa implementation; forms are READ
-    and never run, while a Prolog-only implementation contributes an honest
-    zero-documentation row rather than being parsed as MeTTa
+  - the engine's own reader parses each MeTTa implementation through the
+    declarations reader; forms are READ and never run, while a Prolog-only
+    implementation contributes a zero-documentation row rather than being
+    parsed as MeTTa
     [tested: test_a_prolog_only_library_is_part_of_the_reference;
     commit=1bfad3db85807fff774cad370ff8e57f7400ae99]
 Guarantees:
   - the checked-in page equals what this produces, gated on every run
     [tested test_the_metta_library_page_is_up_to_date]
-  - the page is byte-identical to the one the hand-assembled generator wrote
-    [measured 2026-09-07: sha256 ccff738354c74cffaca4dda113f5a8c63af85760ead048eac8ecb512cf98d2e8
-    before and after the rewrite; command=sha256sum website/reference/metta-libraries.md;
-    fixture=lib/ at this commit; commit=adb831d29a48596d3068a3087115b216c18b5b38]
+  - the page renders the rows a library card renders, so the two cannot
+    disagree about a head, its type or where it was written
+    [tested: test_rows_are_the_query_the_reference_page_renders; commit=WORKTREE]
+  - a head published through a runnable registration form is counted and
+    named among the undocumented, which is what left lib_memo reading as an
+    empty library while nine of its heads were callable [tested:
+    test_a_registered_head_is_counted_in_the_reference; commit=WORKTREE]
   - the library roster comes from the runtime's shared `.metta`/`.pl` source
     discovery, with one row when a library has both halves
     [tested: test_metta_and_prolog_halves_share_one_library_row;
@@ -41,8 +48,9 @@ Guarantees:
     puts `@return` before `@desc` reads as it was written
     [tested: test_a_doc_atom_renders_its_parts_in_written_order; commit=adb831d29a48596d3068a3087115b216c18b5b38]
 Fails when:
-  - a library defines names only through runnable `!(...)` side effects;
-    the static reading cannot see those, so they go uncounted
+  - a library publishes names through a form whose name list is computed
+    rather than written: the engine reports nothing for such a form, so those
+    names go uncounted.
 Open Obligations:
   To Do: None
   Hacks: None
@@ -59,9 +67,8 @@ sys.path.insert(0, str(_REPO / "extensions" / "python"))
 
 from typing import Any  # noqa: E402
 
-from metta import Expression, Symbol, parse, render  # noqa: E402
-from metta._library import _library_source_files  # noqa: E402
-from metta._source_forms import positioned_forms  # noqa: E402
+from metta import Expression, Symbol, render  # noqa: E402
+from metta.library import roster, rows  # noqa: E402
 from metta.results import Rows  # noqa: E402
 
 _PAGE = _REPO / "website" / "reference" / "metta-libraries.md"
@@ -125,104 +132,59 @@ _ENTRY_COLUMNS = ("library", "name", "where", "parts")
 _GAP_COLUMNS = ("library", "name")
 
 
-def _forms(source: str) -> list[tuple]:
-    """Read every non-runnable form with its source line.
+def _where(row) -> tuple[str, int]:
+    """A documented head's own position, which is the page's reading order.
 
-    This is the engine reader the boot manifest uses, which lets a library
-    whose backend is absent still document itself.
+    The rows arrive in the order the library first MENTIONS each head, which
+    for a registered head is the line of the form that registers it, so a
+    library registering ten names in one form would order those ten by the
+    list rather than by their documentation. A documentation page reads in the
+    order its documentation was written.
     """
-    return [
-        (parse(form.text), form.line)
-        for form in positioned_forms(source)
-        if form.kind != "runnable"
-    ]
-
-
-def _named(atom) -> str | None:
-    """The name a (= ...) or (: ...) form defines or declares."""
-    if not isinstance(atom, Expression) or len(atom.children) < 3:
-        return None
-    head, subject = atom.children[0], atom.children[1]
-    if head == Symbol("="):
-        if isinstance(subject, Expression) and subject.children and isinstance(subject.children[0], Symbol):
-            return subject.children[0].name
-        if isinstance(subject, Symbol):
-            return subject.name
-    if head == Symbol(":") and isinstance(subject, Symbol):
-        return subject.name
-    return None
-
-
-def _sources(root: pathlib.Path) -> dict[str, list[pathlib.Path]]:
-    """Every discovered library implementation, by the name it is imported as."""
-    sources: dict[str, list[pathlib.Path]] = {}
-    for path in _library_source_files(root):
-        sources.setdefault(path.stem, []).append(path)
-    return sources
-
-
-def _metta_source(name: str, paths: list[pathlib.Path]) -> pathlib.Path | None:
-    """The one MeTTa half of a library, or None when it has only a Prolog one."""
-    metta_sources = [path for path in paths if path.suffix == ".metta"]
-    if len(metta_sources) > 1:
-        joined = ", ".join(str(path) for path in metta_sources)
-        message = f"{name} has multiple MeTTa documentation sources: {joined}"
-        raise ValueError(message)
-    return metta_sources[0] if metta_sources else None
+    at = row.documentation_origin or row.origin
+    return ("", 0) if at is None else (at.file, at.line or 0)
 
 
 def catalog(root: pathlib.Path) -> tuple[Rows, Rows, Rows]:
     """The library catalog as rows: coverage, documented entries, and gaps.
 
-    The query half of this generator. It reads every library's source once and
-    answers data, so the page below is a template over it: coverage counts one
-    row per library, entries one row per `@doc` atom carrying that atom's parts
-    in the order they were written, and gaps one row per declared name no
-    `@doc` covers.
+    The query half of this generator, `metta.library.rows` applied to every
+    library the runtime's own discovery names. Coverage counts one row per
+    library (the heads it declares, defines, documents or registers, and how
+    many carry a `@doc`), entries one row per documented head carrying that
+    head's `@doc` parts in the order they were written and the last type the
+    library declares for it, and gaps one row per head the library carries
+    (a type, an equation or a registration) and never documents.
     """
     coverage: list[tuple[Any, ...]] = []
     entries: list[tuple[Any, ...]] = []
     gaps: list[tuple[Any, ...]] = []
-    for name, paths in sorted(_sources(root).items()):
+    for name in roster(root):
         library = Symbol(name)
-        source = _metta_source(name, paths)
-        if source is None:
-            coverage.append((library, 0, 0))
-            continue
-        forms = _forms(source.read_text(encoding="utf-8"))
-        docs = [
-            (form, line)
-            for form, line in forms
-            if isinstance(form, Expression)
-            and form.children
-            and form.children[0] == Symbol("@doc")
-            and len(form.children) > 1
-        ]
-        declared = {
-            str(form.children[1]): form.children[2]
-            for form, _line in forms
-            if isinstance(form, Expression)
-            and len(form.children) == 3
-            and form.children[0] == Symbol(":")
-            and isinstance(form.children[1], Symbol)
-        }
-        defined = {name for form, _line in forms if (name := _named(form)) is not None}
-        documented = {str(doc.children[1]) for doc, _line in docs}
-        entries += [
-            (
-                library,
-                doc.children[1],
-                f"{source.name}:{line}",
-                (declared.get(str(doc.children[1])), doc.children[2:]),
+        declared = rows(name, root=root)
+        documented = sorted(
+            (row for row in declared if row.documentation is not None), key=_where
+        )
+        for row in documented:
+            at = row.documentation_origin or row.origin
+            where = f"{pathlib.Path(at.file).name}:{at.line}" if at is not None else row.name
+            entries.append(
+                (
+                    library,
+                    Symbol(row.name),
+                    where,
+                    (row.types[-1] if row.types else None, tuple(row.documentation.children[2:])),
+                )
             )
-            for doc, line in docs
-        ]
-        if docs:
+        if documented:
             gaps += [
-                (library, Symbol(missing))
-                for missing in sorted(defined - documented)
+                (library, Symbol(row.name))
+                for row in sorted(
+                    (row for row in declared if row.carried and row.documentation is None),
+                    key=lambda row: row.name,
+                )
             ]
-        coverage.append((library, len(defined | documented), len(documented)))
+        coverage.append((library, len(declared), len(documented)))
     return (
         Rows(_COVERAGE_COLUMNS, coverage),
         Rows(_ENTRY_COLUMNS, entries),
@@ -272,9 +234,9 @@ def sections(entries: Rows, gaps: Rows) -> str:
     by_library = entries.group_by("library")
     missing = gaps.group_by("library")
     text = ""
-    for library, rows in by_library.items():
+    for library, documented in by_library.items():
         text += render(_SECTION, library=library)
-        text += "".join(_entry(row) for row in rows)
+        text += "".join(_entry(row) for row in documented)
         absent = missing.get(library)
         if absent:
             text += render(

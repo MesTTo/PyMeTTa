@@ -48,6 +48,13 @@ HOST_SERVICES = {
     # measure an unnamed row takes from the head's arrow is resolved by the
     # engine so the docstring and (explain ...) cannot answer differently.
     "metta_cost_declaration/4",
+    # Which heads one MeTTa source REGISTERS, read from the source and never
+    # run. The registration spellings are the engine's own, and a host reading
+    # them itself would carry a table of engine forms that goes stale the day a
+    # sixth is added: the generated library reference did exactly that by not
+    # reading them at all, counting lib_memo at zero names while nine of its
+    # heads were callable.
+    "metta_string_registrations/2",
     # The callable doors' deprecation reads. The row lookup is the feature's
     # own consult, and the shim's apply-seam emptiness probe rides the same
     # published relation so an empty catalog costs one crossing per process
@@ -313,6 +320,7 @@ FLOOR_REASONS = {
     "catch_recover/2": "host-choice",
     "metta_deprecation/3": "door",
     "metta_cost_declaration/4": "door",
+    "metta_string_registrations/2": "door",
     "lift_pattern_modifiers/4": "door",
     "metta_seq_query_plan/2": "door",
     "metta_with_under/2": "door",

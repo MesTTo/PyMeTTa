@@ -131,6 +131,7 @@ if TYPE_CHECKING:
     # generated module tier renders its signatures from Space. Both stay
     # reachable at runtime and type as Any through __getattr__.
     from ._debug import Debugger as _Debugger
+    from ._lock import Drift, Lock
     from ._recording import Recording as _Recording
     from ._rules import equation, rules
     from ._space import _P, _R, _T, MeTTa, Space
@@ -215,6 +216,7 @@ _SATELLITES = frozenset(
         "foreign",
         "importing",
         "integrate",
+        "library",
         "lint",
         "manifest",
         "parallel",
@@ -235,6 +237,8 @@ _LAZY_ATTRIBUTES = {
     "Answer": ("answer", "Answer"),
     "Bindings": ("answer", "Bindings"),
     "Defined": ("define", "Defined"),
+    "Drift": ("_lock", "Drift"),
+    "Lock": ("_lock", "Lock"),
     "MeTTa": ("_space", "MeTTa"),
     "Space": ("_space", "Space"),
     "SpaceProvider": ("foreign", "SpaceProvider"),
@@ -1435,11 +1439,13 @@ __all__ = [
     "Bindings",
     "Config",
     "Defined",
+    "Drift",
     "Expression",
     "G",
     "Grounded",
     "Handle",
     "Library",
+    "Lock",
     "MeTTa",
     "MettaError",
     "NotReducible",
@@ -1494,6 +1500,7 @@ __all__ = [
     "integrate",
     "io",
     "lib",
+    "library",
     "limits",
     "lint",
     "llms",

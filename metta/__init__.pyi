@@ -22,6 +22,8 @@ from ._fn import fn as fn
 from ._host_island import py as py
 from ._library import Library as Library
 from ._library import lib as lib
+from ._lock import Drift as Drift
+from ._lock import Lock as Lock
 from ._recording import Recording as _Recording
 from ._rules import equation as equation
 from ._rules import rules as rules
@@ -159,11 +161,13 @@ __all__ = [
     "Bindings",
     "Config",
     "Defined",
+    "Drift",
     "Expression",
     "G",
     "Grounded",
     "Handle",
     "Library",
+    "Lock",
     "MeTTa",
     "MettaError",
     "NotReducible",
@@ -218,6 +222,7 @@ __all__ = [
     "integrate",
     "io",
     "lib",
+    "library",
     "limits",
     "lint",
     "llms",

@@ -27,6 +27,11 @@ Guarantees:
     test_run_status_refuses_program_text_with_holes; commit=4481c32eb0e922047199c54cea97c24995c6959e]
   - captured annotation membership retains the cursor's evaluation context
     [tested: tests/ch06_many_answers/test_evaluation_context_types.py; commit=074dc0a88b1605c54824de677d586b6f60998bcf]
+  - ``lock()`` pins what this context loaded and ``check()`` answers every
+    entry a tree no longer matches, neither loading anything to do it
+    [tested: test_a_lock_round_trips_through_its_file,
+    test_editing_one_source_flips_exactly_one_drift,
+    test_a_lock_pins_the_libraries_a_program_imported; commit=ff4257005f562786e3ef7a5a37ce94b7d80e782d]
   - the class branch of ``define`` keeps the class it is handed and declares
     PEP 681's transform, so a checker synthesises the constructor
     ``install_type`` builds [tested: mypy-class-door; commit=dd4f82100a052e2c5254a2ef9e91f6eb9d2e0c49]
@@ -432,6 +437,7 @@ if TYPE_CHECKING:
     # that reads it as a bare list cannot tell a complete trace from a cut one,
     # nor which of the five bounds cut it.
     from ._debug import Debugger
+    from ._lock import Drift, Lock
     from ._recording import Recording
     from ._trace import Trace
     from .lint import Finding
@@ -6189,6 +6195,49 @@ class MeTTa:
             ),
             "metta_path": self._rt.metta_path,
         }
+
+    def lock(self) -> Lock:
+        """Pin the knowledge this context has loaded, as a `Lock`.
+
+            m.load("kb/facts.metta")
+            m.lock().write("metta.lock")
+            python -m metta lock kb/facts.metta -o metta.lock
+
+        One `[[library]]` row per shipped library imported, one `[[source]]`
+        row per other file loaded with the space it landed in, one `[[pin]]`
+        row per repository revision acquired, and an `[engine]` table naming
+        this build and a digest over its own sources: what a second machine
+        needs to load exactly this program. `metta.Lock.read` reads one back
+        and :meth:`check` says what a tree no longer matches.
+
+        The scope is the PROCESS, not this context. The engine's loads,
+        registrations and git pins are process-wide, and a program that loads
+        knowledge into `&kb` from one place and reads it from another is one
+        program; a lock naming only one context's own loads would omit the
+        rest of what has to be reproduced. Two contexts in one process
+        therefore take the same lock.
+
+        A lock taken while a source is still loading is refused, because it
+        would record a program that is only half there.
+        """
+        from ._lock import take  # noqa: PLC0415  -- a lock is a rarely-taken door
+
+        return take(self._rt)
+
+    def check(self, lock: Lock) -> list[Drift]:
+        """Every entry of a lock this tree no longer matches, as `Drift` rows.
+
+            for drift in m.check(metta.Lock.read("metta.lock")):
+                print(drift)
+
+        An empty list is agreement. Nothing is loaded to answer it: each entry
+        names something on disk, so the answer is what a fresh process would
+        find rather than what this one happens to hold. `metta run --locked`
+        is the same check with a refusal instead of a list.
+        """
+        from ._lock import check  # noqa: PLC0415  -- a lock is a rarely-taken door
+
+        return check(self._rt, lock)
 
     def space(
         self,

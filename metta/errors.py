@@ -55,6 +55,10 @@ Guarantees:
     test_a_ground_round_trips_through_its_atom,
     test_a_remedy_that_names_no_act_refuses_naming_the_three_fields;
     commit=3fc5479961fd591b1884af118528c9a64a1afbb7]
+  - LockDrift carries every entry that differs as Drift rows AND names them in
+    its message with both repairs, so a caller reacts to the rows where it
+    used to parse the sentence [tested:
+    test_a_lock_drift_refusal_names_every_entry_and_its_repair; commit=ff4257005f562786e3ef7a5a37ce94b7d80e782d]
   - refusing() carries a remedy and a ground on an error of ANY class,
     including a TypeError, an AttributeError, a ValueError and a
     DeprecationWarning, so `except TypeError` stays the caller's spelling
@@ -89,6 +93,7 @@ __all__ = [
     "Ground",
     "InferenceLimitError",
     "Interrupted",
+    "LockDrift",
     "MettaError",
     "MettaOperationError",
     "MettaResultError",
@@ -603,6 +608,43 @@ class MettaResultError(MettaError):
         super().__init__(message, atom=atom, space=space, ground=ground, remedy=remedy)
         self.culprit = culprit
         self.reason = reason
+
+
+class LockDrift(MettaError):  # noqa: N818  -- the exception name is a domain outcome in the public protocol, not an implementation error suffix
+    """The tree no longer matches the lock a program was asked to run under.
+
+    `drifts` carries one entry per artefact that differs, each naming what the
+    lock recorded and what is here now, so a caller reports every difference
+    at once rather than discovering them one run at a time. The message names
+    the same entries in prose and states both repairs: re-pin, or restore what
+    was pinned.
+    """
+
+    def __init__(
+        self,
+        drifts: Iterable[object],
+        *,
+        source: object | None = None,
+        **fields: Any,
+    ):
+        """Build the refusal from the drift rows, naming `source` if given."""
+        entries = tuple(drifts)
+        listed = "; ".join(str(entry) for entry in entries)
+        named = str(source) if source is not None else "the lock"
+        repair = Remedy(
+            title="re-pin the lock from this tree",
+            kind="source",
+            applicability="maybe",
+            python="metta.engine().lock().write('metta.lock')",
+        )
+        message = (
+            f"{named} no longer describes this tree: {listed}. The remedy is "
+            f"to re-pin with `metta lock -o <lock>`, or to restore the pinned "
+            f"revision of what changed"
+        )
+        fields.setdefault("remedy", repair)
+        super().__init__(message, **fields)
+        self.drifts = entries
 
 
 class AssertionFailure(MettaError):  # noqa: N818  -- the exception name is a domain outcome in the public protocol, not an implementation error suffix

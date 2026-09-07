@@ -64,7 +64,11 @@ BASELINE_PACKAGE_EXPORTS = 152
 #: 36 on 2026-09-07: `record` joins them, beside `trace` and `debug` for the
 #: same reason -- it is the third door onto one run, and the one that keeps
 #: it as data.
-FINAL_METTA_METHODS = 36
+#: 38 on 2026-09-07: `lock` and `check` are context primitives, not space
+#: doors. What a lock pins is the set of sources this PROCESS loaded and the
+#: engine build under them, which no one space holds and which every space in
+#: the context shares, so the pair sits beside `info` for the same reason.
+FINAL_METTA_METHODS = 38
 # The class count: 21 before the context tier; +13 on 2026-09-01 when MeTTa
 # became the third generated mirror. The finding behind it was a context
 # that could define but not eval: the hand-written derived subset was typed
@@ -128,7 +132,12 @@ FINAL_METTA_METHODS = 36
 # already take: the same program text with holes, answering text instead of
 # running. It earns the root on the narrow-core ruling's own terms, a verb a
 # program calls, and it takes no space, so there is nowhere else it would sit.
-FINAL_METTA_EXPORTS = 116
+# +3 on 2026-09-07 for ``library``, ``Lock`` and ``Drift``. ``library`` is a
+# satellite like ``lint`` and ``tables``; ``Lock`` and ``Drift`` are root
+# names because a caller reads a lock a process never took
+# (``metta.Lock.read``) and reacts to the rows ``m.check`` answers, which is
+# the same shape ``State`` and ``Answer`` are here for.
+FINAL_METTA_EXPORTS = 119
 
 SATELLITES = {
     "aio",

@@ -1,7 +1,8 @@
 """Purpose: `python -m metta` subcommands, the stdlib "Command-line
 usage" chapter for the installed wheel: run a program, talk to a repl,
 serve spaces, boot a manifest, lint a file, read documentation, print
-`llms.txt` and write a program's `.pyi`, all without a checkout, or convert
+`llms.txt`, write a program's `.pyi`, read one library's card and pin what a
+program loads, all without a checkout, or convert
 a Python-authored program to MeTTa source. The bare `metta` console script keeps upstream's
 swipl-launcher contract exactly; the subcommands live here, on the
 library engine.
@@ -61,6 +62,11 @@ Guarantees:
     test_run_installs_the_import_hook_for_the_programs_directory,
     test_the_repl_installs_the_import_hook_for_its_working_directory,
     test_a_run_leaves_no_import_hook_behind; commit=d7ab3cb20fe2353872139ecb36710f7e880c1451]
+  - card prints one shipped library's own account of itself and lock keeps the
+    pinned programs' printing on stderr, so a lock written to stdout stays a
+    lock; ``run --locked`` checks BEFORE the program runs and exits nonzero on
+    drift [tested: test_the_cli_prints_a_card_and_a_lock,
+    test_a_locked_run_refuses_on_drift_and_runs_on_agreement; commit=ff4257005f562786e3ef7a5a37ce94b7d80e782d]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -168,6 +174,13 @@ def _run(arguments) -> int:
     from .importing import install  # noqa: PLC0415 -- version and help must not boot
 
     m = Space()
+    if arguments.locked is not None:
+        # BEFORE the program runs, which is uv's own rule for --locked: a lock
+        # that no longer describes the tree stops the command rather than
+        # being quietly brought up to date.
+        from ._lock import Lock, require  # noqa: PLC0415 -- version and help must not boot
+
+        require(m._rt, Lock.read(arguments.locked), arguments.locked)
     sources = _sources(arguments.files)
     # The hook lives exactly as long as the run: a program's `py-atom "import
     # rules"` finds `rules.metta` beside the program, and a test calling
@@ -700,6 +713,36 @@ def _stubs(arguments) -> int:
     return 0
 
 
+def _card(arguments) -> int:
+    """Print one shipped library's card, the same one `metta.library.card` answers."""
+    from .library import card  # noqa: PLC0415  deferred: --version and help must not boot
+
+    print(card(arguments.name))
+    return 0
+
+
+def _lock(arguments) -> int:
+    """Load the named programs, then write the lock that pins what they loaded.
+
+    The programs run, because a lock records what a program LOADS and an
+    import is a runnable form; their own printing goes to stderr so a lock
+    written to stdout stays a lock.
+    """
+    from ._lock import take  # noqa: PLC0415 -- version and help must not boot
+    from ._space import Space  # noqa: PLC0415 -- version and help must not boot
+
+    m = Space()
+    with _output_on_stderr():
+        for source in arguments.files:
+            _run_source(m, source)
+    lock = take(m._rt)
+    if arguments.output is None:
+        sys.stdout.write(lock.text())
+    else:
+        lock.write(arguments.output)
+    return 0
+
+
 def _llms(_arguments) -> int:
     # The package door itself, so the shell and Python faces cannot print
     # different documents. It boots nothing: the sheet is a file.
@@ -860,6 +903,13 @@ def main(argv: list[str] | None = None) -> int:  # noqa: D103  -- the package re
         help="write one JSON object per ! group instead of printing answers; "
         "--json=wire carries the tagged atom forms",
     )
+    run.add_argument(
+        "--locked",
+        type=Path,
+        metavar="metta.lock",
+        help="refuse to run unless this tree matches the lock, naming every "
+        "entry that differs",
+    )
     run.set_defaults(entry=_run)
 
     repl = commands.add_parser("repl", help="an interactive read-eval-print loop")
@@ -904,6 +954,21 @@ def main(argv: list[str] | None = None) -> int:  # noqa: D103  -- the package re
         "justify, instead of one name's documentation; every operand is a file",
     )
     doc.set_defaults(entry=_doc)
+
+    card = commands.add_parser(
+        "card", help="print one shipped library's card: heads, effects, costs, digest"
+    )
+    card.add_argument("name", metavar="lib_x")
+    card.set_defaults(entry=_card)
+
+    lock = commands.add_parser(
+        "lock", help="pin what these programs load, as a metta.lock"
+    )
+    lock.add_argument("files", nargs="*", metavar="file.metta")
+    lock.add_argument(
+        "-o", "--output", type=Path, metavar="metta.lock", help="write the lock here"
+    )
+    lock.set_defaults(entry=_lock)
 
     llms = commands.add_parser("llms", help="print llms.txt, the sheet that teaches this library")
     llms.set_defaults(entry=_llms)
