@@ -1216,6 +1216,37 @@ def test_a_measurement_is_the_same_with_the_poll_dense(m):
     )
 
 
+def test_the_accounted_door_leaves_the_poll_out_too(m):
+    """The door that reports what an evaluation SPENT is a measurement as well.
+
+    `metta_py_eval_accounted` prices one evaluation from inside the engine,
+    which is what an algebra operation's quota is charged against and what
+    `test_nominal_subtyping_does_not_scan_unrelated_declarations` compares two
+    hundred-evaluation runs of. It reads the same counter `stats()` does, so it
+    took the same interrupt poll with it until it took the poll's own record
+    out.
+    """
+    m.run("(= (accounted-probe $n) (if (== $n 0) done (accounted-probe (- $n 1))))")
+    query = parse("(accounted-probe 200)")
+    m.eval(query)  # warm: a first evaluation compiles as well as runs
+
+    def spent():
+        total = 0
+        for _ in range(20):
+            _answers, used = m.runtime.apply_must(
+                "metta_py_eval_accounted", m.name, query.to_wire()
+            )
+            total += used
+        return total
+
+    with polling_every(m, 0):
+        quiet = spent()
+    with polling_every(m, 100):
+        dense = spent()
+
+    assert dense == quiet
+
+
 def test_a_stats_counter_is_unreadable_until_its_block_closes(m):
     """A counter is a delta, so there is nothing to read before the block
     that measures it has closed. Raising there rather than answering None

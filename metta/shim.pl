@@ -1589,6 +1589,22 @@ metta_py_heartbeat_bracket(Iterations, Spent, Ticks) :-
     Spent is Raw1 - Raw0,
     Ticks is After - Before.
 
+%The counter with the interrupt poll's own spending already out of it, for the
+%doors that report a measurement FROM here rather than handing the pieces
+%across the way metta_py_stats/1 does. Same rule, same arithmetic: a tick
+%whose recorded reading is past this one spent its inferences after it, so
+%what the ticks BEFORE it had spent comes out instead. Without it a door that
+%reports `Used` charges its caller for the seat's Ctrl-C polling, which is one
+%tick's charge in about every fifty thousand inferences it measures
+%[tested: test_nominal_subtyping_does_not_scan_unrelated_declarations, which
+%compares two hundred-evaluation measurements of the same work and allows
+%four].
+metta_py_work(Work) :-
+    statistics(inferences, Raw),
+    metta_py_heartbeat_term(_, Spent, At, Before),
+    Late is max(0, sign(At - Raw)),
+    Work is Raw - Spent + Late * (Spent - Before).
+
 %One crossing for the engine's own counters: statistics/2 inferences and
 %cputime, the garbage_collection triple (collections, bytes freed,
 %milliseconds spent), the thread's answer-table bytes, which the tabling
@@ -2683,9 +2699,9 @@ metta_py_check_algebra_values(Space, Name0, CarrierWire, ValuesWire) :-
         maplist(metta_require_algebra_value(Name, Carrier), Values)).
 
 metta_py_check_algebra_values_accounted(Space, Name, CarrierWire, ValuesWire, Used) :-
-    statistics(inferences, Before),
+    metta_py_work(Before),
     metta_py_check_algebra_values(Space, Name, CarrierWire, ValuesWire),
-    statistics(inferences, After),
+    metta_py_work(After),
     Used is After - Before.
 
 % A nested Janus call can see the raw signal before its enclosing guard does.
@@ -3409,7 +3425,7 @@ metta_py_tagged_count(Space, Target, MaxDepth, Limit, Count) :-
 % [tested: test_provider_conclusions_check_the_explicit_typed_carrier;
 % commit=4f2d6c0f8eb293b73f8dde30a1c84e24834f7393]
 metta_py_tagged_sources(Space, Target, Algebra, [Rows, Used]) :-
-    statistics(inferences, Before),
+    metta_py_work(Before),
     metta_py_eval_target(Space, Target, [], Pattern, _),
     metta_with_under(Algebra,
         findall([ValueWire, KWire],
@@ -3417,7 +3433,7 @@ metta_py_tagged_sources(Space, Target, Algebra, [Rows, Used]) :-
                   Space, match(Space, Pattern, Pattern, Value), K),
               metta_py_encode(Value, ValueWire),
               metta_py_encode(K, KWire) ), Rows)),
-    statistics(inferences, After),
+    metta_py_work(After),
     Used is After - Before.
 
 metta_py_tagged_prove(Space, _, Query, _) :-
@@ -3875,9 +3891,9 @@ metta_py_eval_all(Space, Tagged, Encoded) :-
 %the observer cost more engine work than a small operation and then leaving
 %that observer work outside the quota it exists to enforce.
 metta_py_eval_accounted(Space, Tagged, [Encoded, Used]) :-
-    statistics(inferences, Before),
+    metta_py_work(Before),
     metta_py_eval_all(Space, Tagged, Encoded),
-    statistics(inferences, After),
+    metta_py_work(After),
     Used is After - Before.
 
 metta_py_eval_bounded(Space, Tagged, Encoded) :-
