@@ -58,7 +58,7 @@ Guarantees:
   - LockDrift carries every entry that differs as Drift rows AND names them in
     its message with both repairs, so a caller reacts to the rows where it
     used to parse the sentence [tested:
-    test_a_lock_drift_refusal_names_every_entry_and_its_repair; commit=WORKTREE]
+    test_a_lock_drift_refusal_names_every_entry_and_its_repair; commit=ff4257005f562786e3ef7a5a37ce94b7d80e782d]
   - refusing() carries a remedy and a ground on an error of ANY class,
     including a TypeError, an AttributeError, a ValueError and a
     DeprecationWarning, so `except TypeError` stays the caller's spelling

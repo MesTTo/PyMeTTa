@@ -29,17 +29,17 @@ Guarantees:
   - reading a library neither loads nor runs it: the sources are parsed, so a
     library whose Prolog half this build cannot load still describes itself,
     and asking for a card cannot register a head [tested:
-    test_a_card_reads_a_library_without_running_it; commit=WORKTREE]
+    test_a_card_reads_a_library_without_running_it; commit=ff4257005f562786e3ef7a5a37ce94b7d80e782d]
   - a head published only through a runnable registration form is on the card
     and in the coverage count, which is the gap that reported lib_memo as
     empty while nine of its heads were callable [tested:
-    test_a_card_lists_the_heads_a_registration_form_publishes; commit=WORKTREE]
+    test_a_card_lists_the_heads_a_registration_form_publishes; commit=ff4257005f562786e3ef7a5a37ce94b7d80e782d]
   - the effect class, cost class and deprecation of every head are the engine's
     own resolutions, read in ONE crossing for the whole roster, so a card and
     `(explain ...)` cannot answer differently [tested:
-    test_a_card_carries_the_engines_own_effect_and_cost_answers; commit=WORKTREE]
+    test_a_card_carries_the_engines_own_effect_and_cost_answers; commit=ff4257005f562786e3ef7a5a37ce94b7d80e782d]
   - a name outside the roster refuses with the roster [tested:
-    test_a_card_for_a_name_outside_the_roster_refuses_with_it; commit=WORKTREE]
+    test_a_card_for_a_name_outside_the_roster_refuses_with_it; commit=ff4257005f562786e3ef7a5a37ce94b7d80e782d]
 Fails when:
   - a library publishes heads through a form whose names are computed rather
     than written: the engine reports nothing for such a form and the card is

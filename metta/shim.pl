@@ -303,12 +303,12 @@
 %     [tested: test_a_card_reads_a_library_without_running_it,
 %     test_a_card_carries_the_engines_own_effect_and_cost_answers,
 %     test_a_card_names_what_the_library_needs_from_the_platform;
-%     commit=WORKTREE]
+%     commit=ff4257005f562786e3ef7a5a37ce94b7d80e782d]
 %   - metta_py_source_loads/2 reads the load table inside one transaction and
 %     answers `loading` with no rows while a load is in flight, so a lock
 %     cannot record a program that is only half loaded
 %     [tested: test_a_lock_refuses_while_a_load_is_in_flight,
-%     test_a_lock_round_trips_through_its_file; commit=WORKTREE]
+%     test_a_lock_round_trips_through_its_file; commit=ff4257005f562786e3ef7a5a37ce94b7d80e782d]
 %   - grouped runnable answers use their carried reader map when encoding free
 %     variables, so the public run surface retains source names
 %     [tested: test_variable_names_survive_to_the_printer; commit=916def0562c211143bb91cd0bd8b2c9dac7ab4fa]

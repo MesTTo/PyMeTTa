@@ -25,7 +25,7 @@ Guarantees:
     entry a tree no longer matches, neither loading anything to do it
     [tested: test_a_lock_round_trips_through_its_file,
     test_editing_one_source_flips_exactly_one_drift,
-    test_a_lock_pins_the_libraries_a_program_imported; commit=WORKTREE]
+    test_a_lock_pins_the_libraries_a_program_imported; commit=ff4257005f562786e3ef7a5a37ce94b7d80e782d]
   - the class branch of ``define`` keeps the class it is handed and declares
     PEP 681's transform, so a checker synthesises the constructor
     ``install_type`` builds [tested: mypy-class-door; commit=dd4f82100a052e2c5254a2ef9e91f6eb9d2e0c49]

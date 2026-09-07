@@ -25,20 +25,20 @@ Guarantees:
   - a lock written and read back describes the same artefacts, and rewriting
     it beside itself reproduces its own bytes [tested:
     test_a_lock_round_trips_through_its_file,
-    test_a_lock_is_readable_toml_with_the_documented_tables; commit=WORKTREE]
+    test_a_lock_is_readable_toml_with_the_documented_tables; commit=ff4257005f562786e3ef7a5a37ce94b7d80e782d]
   - editing one source flips exactly one Drift and leaves every other entry
     agreeing [tested: test_editing_one_source_flips_exactly_one_drift;
-    commit=WORKTREE]
+    commit=ff4257005f562786e3ef7a5a37ce94b7d80e782d]
   - a lock taken while a load is in flight is refused rather than written half
     complete [tested: test_a_lock_refuses_while_a_load_is_in_flight;
-    commit=WORKTREE]
+    commit=ff4257005f562786e3ef7a5a37ce94b7d80e782d]
   - a lock whose version this build does not know is refused by version rather
     than misread, and one that is not TOML is refused naming the file [tested:
     test_a_newer_lock_version_is_refused_by_number,
-    test_a_malformed_lock_is_refused_by_name; commit=WORKTREE]
+    test_a_malformed_lock_is_refused_by_name; commit=ff4257005f562786e3ef7a5a37ce94b7d80e782d]
   - `run --locked` gates the run BEFORE the program runs, refusing on drift
     with a nonzero exit [tested:
-    test_a_locked_run_refuses_on_drift_and_runs_on_agreement; commit=WORKTREE]
+    test_a_locked_run_refuses_on_drift_and_runs_on_agreement; commit=ff4257005f562786e3ef7a5a37ce94b7d80e782d]
 Fails when:
   - a program built its knowledge from text rather than from files: there is
     no source to digest, so nothing about it is pinned and the lock says so by

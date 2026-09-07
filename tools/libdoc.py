@@ -26,7 +26,7 @@ Guarantees:
   - a head published through a runnable registration form is counted and named
     among the undocumented, which is what left lib_memo reading as an empty
     library while nine of its heads were callable [tested:
-    test_a_registered_head_is_counted_in_the_reference; commit=WORKTREE]
+    test_a_registered_head_is_counted_in_the_reference; commit=ff4257005f562786e3ef7a5a37ce94b7d80e782d]
 Fails when:
   - a library publishes names through a form whose name list is computed
     rather than written: the engine reports nothing for such a form, so those

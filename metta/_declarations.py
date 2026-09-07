@@ -36,7 +36,7 @@ Guarantees:
     which is the same pass and the same cost it always had [tested:
     test_a_card_lists_the_heads_a_registration_form_publishes,
     test_rows_are_the_query_the_reference_page_renders,
-    test_a_registered_head_is_counted_in_the_reference; commit=WORKTREE]
+    test_a_registered_head_is_counted_in_the_reference; commit=ff4257005f562786e3ef7a5a37ce94b7d80e782d]
 Open Obligations:
   To Do: None
   Hacks: None

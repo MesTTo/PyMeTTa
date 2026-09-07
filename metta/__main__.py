@@ -59,7 +59,7 @@ Guarantees:
     pinned programs' printing on stderr, so a lock written to stdout stays a
     lock; ``run --locked`` checks BEFORE the program runs and exits nonzero on
     drift [tested: test_the_cli_prints_a_card_and_a_lock,
-    test_a_locked_run_refuses_on_drift_and_runs_on_agreement; commit=WORKTREE]
+    test_a_locked_run_refuses_on_drift_and_runs_on_agreement; commit=ff4257005f562786e3ef7a5a37ce94b7d80e782d]
 Open Obligations:
   To Do: None
   Hacks: None
