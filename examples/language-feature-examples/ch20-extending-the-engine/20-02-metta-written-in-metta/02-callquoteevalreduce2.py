@@ -183,7 +183,7 @@ def twin(m):
 #: library no longer loading eagerly. Every twin here re-reads its budget on
 #: the merged tree, minimum of three fresh processes [measured 2026-09-08: min-
 #: of-3 serial fresh processes; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+#: extensions/python/tools/twin_coverage.py --repin; commit=08f6f4df19a283bb84ba5f679c83944b42685b2e].
 BUDGET = 43491
 
 #: OVERRUN 2026-09-07, 1500: it names the six wrappers as definitions where the
@@ -200,7 +200,7 @@ BUDGET = 43491
 #: the lookup step every twin pays; the minimal twin costs 29826, inside the
 #: ceiling, so the distance is still this twin's own program [measured
 #: 2026-09-08: one fresh process per side; command=python
-#: extensions/python/benchmarks/probes/twin_floor.py; commit=WORKTREE].
+#: extensions/python/benchmarks/probes/twin_floor.py; commit=08f6f4df19a283bb84ba5f679c83944b42685b2e].
 OVERRUN = 1600
 
 #: DIVERGED 2026-09-07, the example holds 0 atoms the twin does not (none) and

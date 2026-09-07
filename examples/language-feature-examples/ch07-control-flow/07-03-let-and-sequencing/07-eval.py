@@ -176,7 +176,7 @@ def twin(m):
 #: library no longer loading eagerly. Every twin here re-reads its budget on
 #: the merged tree, minimum of three fresh processes [measured 2026-09-08: min-
 #: of-3 serial fresh processes; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+#: extensions/python/tools/twin_coverage.py --repin; commit=08f6f4df19a283bb84ba5f679c83944b42685b2e].
 BUDGET = 17722
 
 #: OVERRUN 2026-09-07, 2700: it reads the definition's body through the query

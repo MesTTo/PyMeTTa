@@ -164,7 +164,7 @@ def twin(m):
 #: library no longer loading eagerly. Every twin here re-reads its budget on
 #: the merged tree, minimum of three fresh processes [measured 2026-09-08: min-
 #: of-3 serial fresh processes; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+#: extensions/python/tools/twin_coverage.py --repin; commit=08f6f4df19a283bb84ba5f679c83944b42685b2e].
 BUDGET = 11709
 
 #: DIVERGED 2026-09-08, the example holds 7 atoms the twin does not (7 =) and
@@ -176,5 +176,5 @@ BUDGET = 11709
 #: and lowering shapes an idiomatic Python program compiles to [measured
 #: 2026-09-08: the two stored-atom surpluses, one fresh process per side;
 #: command=python extensions/python/tools/twin_coverage.py --repin;
-#: commit=WORKTREE].
+#: commit=08f6f4df19a283bb84ba5f679c83944b42685b2e].
 DIVERGENCE = "1a22f1d1d6ff3172a8c7bde1260abe1d6a7b97ea2d6f1c97e095de963c767345"

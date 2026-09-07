@@ -144,7 +144,7 @@ Decides:
     or is absent, with the lane saying so where it is not compared, so a
     budget measured with a capability present (a redis server, a seat's
     artifact, an importable package) stays a claim about that configuration
-    [tested: tests/checks/check_twin_coverage_selftest.py; commit=WORKTREE]
+    [tested: tests/checks/check_twin_coverage_selftest.py; commit=08f6f4df19a283bb84ba5f679c83944b42685b2e]
 Fails when:
   - an example's answers are nondeterministically ordered, which the same
     comparison in example_parity already documents: groups are compared in
@@ -306,7 +306,7 @@ BAND_PERCENT = 10.0
 #: inferences apart end to end exactly as before, and what moved is the
 #: once-per-file warmup, +36 [measured 2026-09-08: min-of-3 fresh processes
 #: per fixture; command=python extensions/python/benchmarks/probes/twin_authoring.py;
-#: commit=WORKTREE].
+#: commit=08f6f4df19a283bb84ba5f679c83944b42685b2e].
 DEFINITION_WARMUP = 1406
 DEFINITION_COST = 1309
 
@@ -2602,7 +2602,7 @@ def _budget_findings(
         # The claims and the stored content are still compared above; only
         # the price is not, and the lane says so rather than reading a green;
         # the selftest plants both answers in its capability plant
-        # [tested: tests/checks/check_twin_coverage_selftest.py; commit=WORKTREE].
+        # [tested: tests/checks/check_twin_coverage_selftest.py; commit=08f6f4df19a283bb84ba5f679c83944b42685b2e].
         print(
             f"{relative}: budget not compared here: the twin's available(m) "
             "answered False, so it took the path its example takes without "

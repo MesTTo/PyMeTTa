@@ -81,5 +81,5 @@ BUDGET = 10771
 #: apart and substitutes through the structured evaluation door. The 532
 #: above the floor is this twin's own program [measured 2026-09-08: one fresh
 #: process per side; command=python
-#: extensions/python/benchmarks/probes/twin_floor.py; commit=WORKTREE].
+#: extensions/python/benchmarks/probes/twin_floor.py; commit=08f6f4df19a283bb84ba5f679c83944b42685b2e].
 OVERRUN = 1400

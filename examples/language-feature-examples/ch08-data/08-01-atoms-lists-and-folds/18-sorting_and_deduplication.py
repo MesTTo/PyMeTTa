@@ -91,5 +91,5 @@ BUDGET = 16159
 #: twin's own program, which proves each claim through both the Python
 #: spelling and the engine's operation [measured 2026-09-08: one fresh
 #: process per side; command=python
-#: extensions/python/benchmarks/probes/twin_floor.py; commit=WORKTREE].
+#: extensions/python/benchmarks/probes/twin_floor.py; commit=08f6f4df19a283bb84ba5f679c83944b42685b2e].
 OVERRUN = 3500
