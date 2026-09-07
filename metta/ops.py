@@ -21,11 +21,11 @@ Guarantees:
     registered for the spaces that kept it, so a space that stopped using an
     operation stops describing it [tested:
     test_withdrawing_one_space_leaves_the_other_space_declaring_it;
-    commit=WORKTREE]
+    commit=76dbea9f4bc10804a5ca19493972dfb7975bc4b0]
   - a released space's declaration refcounts and holdings are forgotten with
     it, so the next life of a pooled name adds its own declarations instead
     of inheriting the claim that they are already there [tested:
-    test_a_recycled_space_name_declares_its_own_operations; commit=WORKTREE]
+    test_a_recycled_space_name_declares_its_own_operations; commit=76dbea9f4bc10804a5ca19493972dfb7975bc4b0]
   - full annotations become ordinary claims in the declaration space
     [tested: test_the_four_containers_share_one_parameterised_treatment;
      commit=f88aa8be03cb64cb59d3307515ded8701f418321]
@@ -1304,7 +1304,7 @@ def _forget_space(space: str) -> None:
     operations with 37 atoms where a fresh name gets 197, leaving them
     callable but declared nowhere [measured 2026-09-07,
     ai-tmp/probe-ao-pooled.py in the branch worktree; tested:
-    test_a_recycled_space_name_declares_its_own_operations; commit=WORKTREE].
+    test_a_recycled_space_name_declares_its_own_operations; commit=76dbea9f4bc10804a5ca19493972dfb7975bc4b0].
 
     Called from Space.drop beside integrate's and algebra's own, after the
     engine teardown, because it is bookkeeping about a space that is gone.

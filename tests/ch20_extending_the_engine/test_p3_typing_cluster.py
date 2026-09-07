@@ -20,7 +20,7 @@ Guarantees:
   - withdrawing one space releases only that space's declaration rows and
     leaves the operation registered and declared by the spaces that kept it.
   [tested: test_withdrawing_one_space_leaves_the_other_space_declaring_it;
-   commit=WORKTREE]
+   commit=76dbea9f4bc10804a5ca19493972dfb7975bc4b0]
 Open Obligations:
   To Do: None
   Hacks: None

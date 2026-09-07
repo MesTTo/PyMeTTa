@@ -41,14 +41,14 @@ Guarantees:
     [tested: test_a_space_answers_its_own_roster_in_either_install_order,
     test_a_second_install_replaces_the_roster_and_its_operations,
     test_dropping_the_space_retires_its_installation_row;
-    commit=WORKTREE]
+    commit=76dbea9f4bc10804a5ca19493972dfb7975bc4b0]
   - uninstall is install's inverse and keeps what another space still claims
     [tested: test_uninstall_retires_the_installation_and_keeps_shared_operations,
     test_the_roster_doors_refuse_an_uninstalled_space_and_a_doubled_row;
-    commit=WORKTREE]
+    commit=76dbea9f4bc10804a5ca19493972dfb7975bc4b0]
   - a repeated install writes nothing new and uninstall leaves the space
     empty [tested: test_install_is_idempotent_and_uninstall_empties_the_space;
-    commit=WORKTREE]
+    commit=76dbea9f4bc10804a5ca19493972dfb7975bc4b0]
 Open Obligations:
   To Do: None
   Hacks: None

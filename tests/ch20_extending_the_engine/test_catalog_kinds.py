@@ -18,7 +18,7 @@ Guarantees:
     space that owned them is dropped, keeps a sibling space's, and the
     marker refuses a head whose kind row does not start at the space
     [tested: test_a_third_party_space_owned_kind_retires_with_its_space;
-    commit=WORKTREE]
+    commit=76dbea9f4bc10804a5ca19493972dfb7975bc4b0]
 Open Obligations:
   To Do: None
   Hacks: None

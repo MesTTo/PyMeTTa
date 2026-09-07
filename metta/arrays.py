@@ -65,13 +65,13 @@ Guarantees:
     walk [tested: test_a_space_answers_its_own_roster_in_either_install_order,
     test_a_second_install_replaces_the_roster_and_its_operations,
     test_dropping_the_space_retires_its_installation_row;
-    commit=WORKTREE]
+    commit=76dbea9f4bc10804a5ca19493972dfb7975bc4b0]
   - uninstall() is install's inverse and keeps every operation another
     space's row still claims, the registry being process-wide by name; a
     space with no row, and a space with two, both refuse by name
     [tested: test_uninstall_retires_the_installation_and_keeps_shared_operations,
     test_the_roster_doors_refuse_an_uninstalled_space_and_a_doubled_row;
-    commit=WORKTREE]
+    commit=76dbea9f4bc10804a5ca19493972dfb7975bc4b0]
 Guarded by:
   - _PROTOCOLS_LOCK serializes one-time protocol registration
     [tested test_array_protocol_registration_is_idempotent]
@@ -82,7 +82,7 @@ Guarded by:
     that space's own atoms and are a caller error either way
     [assumed: no test installs from two threads at once, so the race is
     reasoned from the engine's one-kind-row-per-head refusal rather than
-    reproduced; commit=WORKTREE]
+    reproduced; commit=76dbea9f4bc10804a5ca19493972dfb7975bc4b0]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -666,7 +666,7 @@ def _declare_roster_kind(catalog: Space) -> None:
     the head in the retirement walk every space-owned declaration already
     leaves through, so dropping a space takes its roster with it
     [source: engine/spaces/catalog.pl, metta_retire_space_catalog/1;
-    commit=WORKTREE]. A program that has removed this kind row and declared a
+    commit=76dbea9f4bc10804a5ca19493972dfb7975bc4b0]. A program that has removed this kind row and declared a
     wider one of its own owns the consequence: the next install meets the
     engine's one-kind-row-per-head refusal, which names the row to remove.
     """

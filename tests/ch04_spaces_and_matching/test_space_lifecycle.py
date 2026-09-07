@@ -13,7 +13,7 @@ Guarantees:
   - nor the binding's own claim that an operation's declarations are already
     in the name, which made the new life register one with no rows at all
     [tested: test_a_recycled_space_name_declares_its_own_operations;
-    commit=WORKTREE]
+    commit=76dbea9f4bc10804a5ca19493972dfb7975bc4b0]
   - nor its past life's user typing rules, which are the declaration made by
     a call rather than by a stored atom and were the one kind that stayed
     [tested
