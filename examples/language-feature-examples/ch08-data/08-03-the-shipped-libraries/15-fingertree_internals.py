@@ -2,14 +2,16 @@
 
 A tree is one of three constructors and they are ordinary data, so a tree can
 be written out by hand as an atom and read back with the same operations that
-build one. `FTEmpty` is a VALUE, written bare, because it takes nothing.
+build one. `FTEmpty` is a VALUE, written bare, because it takes nothing; the
+four declarations behind the three are read back in chapter 9's
+`21-a_librarys_declared_types`.
 Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
 """
 
-from metta import S, arrow, lib
+from metta import S, lib
 
 EMPTY = S.FTEmpty
 
@@ -27,13 +29,6 @@ def twin(m):
     assert to_list(S.FTDeep((1, 2), EMPTY, (3, 4))) == [(1, 2, 3, 4)]
     assert m.fn["ft-is-empty"](EMPTY) == [True]
     assert m.fn["ft-is-empty"](S.FTSingle(1)) == [False]
-
-    # `FTree` is the type all three answer to, and `FTEmpty` is the only one
-    # that takes nothing, so it is written bare where the other two are
-    # applied. Neither is ever a call.
-    assert m.type(EMPTY) == S.FTree
-    assert m.type(S.FTSingle) == arrow(S.Atom, S.FTree)
-    assert m.type(S.FTDeep) == arrow(S.Expression, S.FTree, S.Expression, S.FTree)
 
     # A node re-enters the shallower level as a digit.
     assert digit(S.FTNode2(S.a, S.b)) == [(S.a, S.b)]
@@ -93,7 +88,7 @@ def twin(m):
 
 #: MEASURED on this branch rather than inherited: this twin is new, so there is
 #: no earlier pin to move
-#: [measured 2026-09-07: 210784 inferences, 1.0573x the example's 199370; command=python
+#: [measured 2026-09-07: 208634 inferences, 1.0578x the example's 197230; command=python
 #: extensions/python/tools/twin_coverage.py --measure --rounds 3;
 #: fixture=docs/every-atom-has-an-example at its example commits; commit=WORKTREE].
-BUDGET = 210784
+BUDGET = 208634
