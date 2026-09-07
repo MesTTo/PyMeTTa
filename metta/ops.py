@@ -1279,7 +1279,8 @@ def withdraw(runtime, name: str, space: str) -> bool:
     a space that stops using an operation but cannot unregister it kept
     DESCRIBING it: the rows stayed, `builtins()` still listed the name there,
     and the call still answered [measured 2026-09-07: after
-    `metta.arrays.uninstall` on a space sharing numpy with another, 160
+    `metta_arrays.uninstall` on a space sharing an array library with
+    another, 160
     declaration atoms remained and `!(t-shape (tensor--numpy (1.0 2.0)))`
     still answered from it]. Withdrawing the last space leaves the operation
     registered and declared nowhere, which is the caller's decision to make:
@@ -1317,7 +1318,7 @@ def _forget_space(space: str) -> None:
     this refcount and these holdings are the only things left claiming they
     are there, and both are keyed by a name the next `space()` can take. The
     refcount then suppressed the NEW life's own declaration adds, silently:
-    a space that installed metta.arrays and was dropped left 160 refcount
+    a space that installed the array layer and was dropped left 160 refcount
     entries, and the next space to take its name registered the same
     operations with 37 atoms where a fresh name gets 197, leaving them
     callable but declared nowhere [measured 2026-09-07: stale=160 and new=37
@@ -1366,6 +1367,6 @@ def registered() -> dict[str, Operation]:
     A name registers once however many spaces use it, so this is not the
     question "what does this space have": `space.builtins()` answers that,
     and a library that installs a set of operations answers its own
-    (`arrays.ops(space)` for the array roster).
+    (`metta_arrays.ops(space)` for the array roster).
     """
     return REGISTRY.copy()

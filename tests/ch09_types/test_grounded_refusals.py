@@ -7,9 +7,11 @@ Guarantees:
 Owns resources: the protocol fixture removes its two registrations on every exit.
 """
 
+import metta_arrays as arrays
+import metta_numpy  # noqa: F401  -- the default array row
 import pytest
 
-from metta import S, arrays, ground, integrate
+from metta import S, ground, integrate
 from metta.algebra import AlgebraOperationError
 
 numpy = pytest.importorskip("numpy")

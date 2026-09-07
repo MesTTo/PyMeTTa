@@ -9,3 +9,11 @@ metta/*.so
 # combined file.
 .coverage
 .coverage.*
+
+# setuptools' own scratch, written into a member's directory whenever one is
+# BUILT: the two shell proofs install a package with `uv pip install`, and the
+# backend leaves `build/` and an egg-info beside the source. Shipping either
+# would also shadow the module for every later run here, which is why the
+# mypyc rule above exists for the same reason.
+ext/*/build/
+ext/*/*.egg-info/

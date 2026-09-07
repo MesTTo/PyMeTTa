@@ -23,6 +23,8 @@ Open Obligations:
 
 from tempfile import TemporaryDirectory
 
+from metta_benchmarking import benchmark_case, benchmark_counter_slope, count_atoms
+
 from benchmarks.engine_workloads import (
     ALPHA_TERMS,
     DIGEST_ATOMS,
@@ -56,8 +58,7 @@ from benchmarks.workloads import (
     wire_atom,
     wire_codec,
 )
-from metta import Answer, MeTTa, S, V, Expression, tables
-from metta.testing import benchmark_case, benchmark_counter_slope, count_atoms
+from metta import Answer, Expression, MeTTa, S, V, tables
 
 _ROWS = 2_000
 

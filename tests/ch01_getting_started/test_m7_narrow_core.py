@@ -1,9 +1,11 @@
 """Purpose: prove the Fork 4 surface collapse deletes superseded doors.
 Guarantees:
-  - the package surface has 113 names, including every shipped semiring
-    object and the current algebra observer, and keeps ``record`` and
-    ``order_key`` absent [tested: test_m7_narrow_core_surface;
-    commit=2e627a593413191cda3170f2eb716835f7f62543]
+  - the package surface is exactly what ``__all__`` names and is narrower
+    than the surface M7 replaced, and keeps ``record`` and ``order_key``
+    absent [tested: test_m7_narrow_core_surface; commit=WORKTREE]
+  - no extension package is a name on the root: a member is reached as its own
+    module and no alias is left behind [tested: test_m7_narrow_core_surface;
+    commit=WORKTREE]
   - the published before/after counts are exact for ``MeTTa`` and ``metta``
     [tested: test_m7_narrow_core_surface; commit=2e627a593413191cda3170f2eb716835f7f62543]
   - every retired root, context, and atom name is absent rather than aliased
@@ -42,6 +44,7 @@ import importlib
 import os
 import subprocess
 import sys
+import tomllib
 from pathlib import Path
 
 import pytest
@@ -144,33 +147,17 @@ FINAL_METTA_METHODS = 38
 # like ``tables`` and ``lint``, and it earns the root because it is the door a
 # LIBRARY reaches for: a package registering against a point imports one name,
 # and a program asking what can be extended here asks it.
-FINAL_METTA_EXPORTS = 121
+# -2 on 2026-09-08 for ``arrays`` and ``telemetry``, which became the
+# distributions ``metta-arrays`` and ``metta-otel``. That is the last time a
+# number is written here: the count below is now a RELATION, because a
+# constant outlives its mechanism and this one had already been moved by six
+# separate branches for six separate reasons.
 
-SATELLITES = {
-    "aio",
-    "algebra",
-    "arrays",
-    "casting",
-    "convert",
-    "derivation",
-    "events",
-    "foreign",
-    "importing",
-    "integrate",
-    "lint",
-    "manifest",
-    "parallel",
-    "paths",
-    "remote",
-    "spaces",
-    "strategies",
-    "structures",
-    "subscribe",
-    "tables",
-    "testing",
-    "vocabularies",
-    "wire",
-}
+#: The satellites, DERIVED from the package's own roster rather than restated.
+#: What this file tests about them is laziness and identity, and a hand-copied
+#: list tests neither: it goes stale the moment one moves out, which is what
+#: happened when two of them became packages of their own.
+SATELLITES = frozenset(metta._SATELLITES) - {"seam"}
 
 # add, eval, fn, load, remove and run left this roster on 2026-09-01: the
 # generated context tier restores them as ruled doors (see
@@ -424,14 +411,38 @@ def _assert_absent(value, names: set[str]) -> None:
             getattr(value, name)
 
 
+def _workspace_members() -> list[str]:
+    """Every extension package's module name, read from the workspace itself.
+
+    `[tool.uv.workspace] members` is the roster, and it is a glob, so this
+    reads the directory the glob names rather than a second list.
+    """
+    root = Path(__file__).resolve().parents[4]
+    manifest = tomllib.loads((root / "pyproject.toml").read_text(encoding="utf-8"))
+    members = manifest["tool"]["uv"]["workspace"]["members"]
+    found = [path for pattern in members for path in sorted(root.glob(pattern))]
+    assert found, members
+    return [path.name.replace("-", "_") for path in found]
+
+
 def test_m7_narrow_core_surface():
     """Publish the M7 metric and prove every superseded name is gone."""
     from metta.aio import AsyncMeTTa
 
     assert len(_public_names(MeTTa)) == FINAL_METTA_METHODS
-    assert len(_public_names(metta)) == FINAL_METTA_EXPORTS
     assert BASELINE_METTA_METHODS > FINAL_METTA_METHODS
-    assert BASELINE_PACKAGE_EXPORTS > FINAL_METTA_EXPORTS
+    # The package surface as a RELATION: it is exactly what __all__ names,
+    # `__version__` excepted because it is a dunder and this reading is of the
+    # names that do not begin with one, and it is narrower than the surface M7
+    # replaced. A pinned integer here has been edited by six branches for six
+    # reasons and says nothing either of these two facts does not.
+    assert _public_names(metta) == set(metta.__all__) - {"__version__"}
+    assert BASELINE_PACKAGE_EXPORTS > len(metta.__all__)
+    # No extension package is a name on the root. A member reaches its own
+    # module, `import metta_arrays`, with no alias here, which is what makes
+    # deleting `ext/` leave the core whole.
+    for member in _workspace_members():
+        assert member not in dir(metta), member
     assert metta.__dir__() == sorted(metta.__all__)
     _assert_absent(MeTTa, REMOVED_FROM_METTA)
     _assert_absent(metta, REMOVED_FROM_ROOT)

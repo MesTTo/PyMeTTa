@@ -12,10 +12,12 @@ Owns resources: fixtures remove their protocol entries and operation registratio
 
 from typing import Annotated
 
+import metta_arrays as arrays
+import metta_numpy  # noqa: F401  -- the default array row
 import numpy as np
 import pytest
 
-from metta import S, algebra, arrays, ground, integrate
+from metta import S, algebra, ground, integrate
 from metta.algebra import AlgebraOperationError
 
 

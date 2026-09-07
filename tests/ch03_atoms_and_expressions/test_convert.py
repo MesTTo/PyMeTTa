@@ -15,6 +15,7 @@ from dataclasses import dataclass, field, make_dataclass
 from enum import Enum, IntEnum, StrEnum
 from typing import NamedTuple
 
+import metta_pydantic  # noqa: F401  -- the image row a model projects through
 import pytest
 
 from metta import Expression, Grounded, S, Symbol, V, ground

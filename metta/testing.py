@@ -108,18 +108,6 @@ from .algebra import DeclaredAlgebra, _canonical_laws
 from .algebra import require as _require_algebra
 from .atoms import Atom, Expression, Grounded, S, Symbol, Variable, _alpha_eq, _encode
 from .atoms import parse as atoms_parse
-from .benchmarking import (
-    CPU_SECONDS,
-    INSTRUCTIONS,
-    BenchmarkBaseline,
-    CounterRuns,
-    Metric,
-    benchmark_case,
-    benchmark_counter_slope,
-    count_atoms,
-    measure_counters,
-    measure_instructions,
-)
 from .convert import build as _build
 from .convert import project as _project
 from .define import Defined
@@ -136,23 +124,16 @@ from .results import error_answer
 from .vocabularies import AlgebraLaw, EffectClass
 
 __all__ = [
-    "CPU_SECONDS",
-    "INSTRUCTIONS",
-    "BenchmarkBaseline",
     "Case",
     "Cases",
     "CodecDriver",
-    "CounterRuns",
     "GatewayComplianceSuite",  # noqa: F822  resolved by __getattr__ below, PEP 562
     "Laws",
-    "Metric",
     "SpaceComplianceSuite",  # noqa: F822  resolved by __getattr__ below, PEP 562
     "SpaceMachine",  # noqa: F822  resolved by __getattr__ below, PEP 562
     "assert_answers",
     "assert_includes",
     "atoms",
-    "benchmark_case",
-    "benchmark_counter_slope",
     "cases",
     "check_codec",
     "check_minted_handles",
@@ -161,18 +142,14 @@ __all__ = [
     "check_twin",
     "codec_corpus",
     "codec_plan",
-    "count_atoms",
     "expressions",
     "from_pattern",
     "ground_atoms",
     "grounded",
     "laws",
     "library_scalars",
-    "measure_counters",
-    "measure_instructions",
     "names",
     "numbers",
-    "numpy_scalars",
     "patterns",
     "programs",
     "record_replay",
@@ -277,22 +254,6 @@ def numbers():
         st.integers(min_value=-(2**62), max_value=2**62),
         st.floats(allow_nan=False, allow_infinity=False, width=64),
     )
-
-
-def numpy_scalars():
-    """Generate NumPy integer and real scalar values.
-
-    These retain identity while MeTTa accepts them as Number operands and
-    dispatches through Python operators.
-
-    The values come from the `array` point's numpy row, which is what makes
-    this the shipped name for a generator every registered array library also
-    supplies: ``library_scalars(<module>)`` is the general spelling.
-
-    NumPy is optional. Install ``pymetta[arrays,test]`` before requesting this
-    strategy.
-    """
-    return library_scalars("numpy")
 
 
 def library_scalars(library: Any):

@@ -32,6 +32,12 @@ Guarantees:
     so a caller told a trace was cut can tell which bound to raise
     [tested: test_a_run_bound_keeps_the_events_it_recorded,
     test_each_bound_answers_its_prefix_and_names_itself]
+  - observed() holds the session for its block and releases it in a finally,
+    so a raising block leaves the wrappers off, and a session inside a trace
+    or debug session refuses naming this door rather than the engine's
+    [tested: ext/metta-otel/tests/test_otel.py::test_a_raising_block_still_releases_the_session,
+    ext/metta-otel/tests/test_otel.py::test_a_trace_inside_an_observed_block_refuses;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -41,16 +47,19 @@ Open Obligations:
 from __future__ import annotations
 
 from collections.abc import Iterable
+from contextlib import contextmanager
 from dataclasses import dataclass, field
 from typing import Any
 
+from . import seam
 from ._atom_wire import _atom_from_wire
 from ._space_execution import _controlled_run
 from ._space_objects import _limits
 from .atoms import Atom, Symbol, _to_atom
+from .errors import MettaError
 from .vocabularies import Limit
 
-__all__ = ["TraceEvent", "trace"]
+__all__ = ["TraceEvent", "observed", "trace"]
 
 
 @dataclass(frozen=True)
@@ -295,6 +304,82 @@ def _events(records) -> list[TraceEvent]:
             )
         )
     return events
+
+
+def _begin(space: Any, max_events: int, selected: list[str] | None) -> None:
+    """Arm the engine's trace session for a block, or say why it cannot be.
+
+    The engine refuses a second session by name, which is the rule that one
+    session holds the wrappers; the refusal is re-raised naming THIS door,
+    because the engine's own sentence names the trace door a caller of an
+    observed block never went near.
+    """
+    request: int | list = max_events if selected is None else [max_events, selected]
+    try:
+        space.runtime.do("metta_py_observe_begin", request)
+    except Exception as refusal:
+        if "nested" not in str(refusal):
+            raise
+        msg = (
+            "an observed block holds the engine's trace session, and a trace "
+            "or debug session already holds it: only one at a time owns the "
+            "wrappers on every compiled function. Close that session, or "
+            "observe without a trace, which arms nothing"
+        )
+        raise MettaError(msg) from refusal
+
+
+@seam.service(
+    "observe",
+    "Hold the engine's ONE trace session over a block and answer what it "
+    "recorded. The generic half of observability: a registrant that turns "
+    "reductions into spans, events or log lines gets the trace from here and "
+    "never arms the session itself. Declared HERE rather than in metta.seam, "
+    "because the seam sits under metta.errors and may not reach the execution "
+    "machinery this needs.",
+)
+@contextmanager
+def observed(
+    space: Any,
+    max_events: int | None = None,
+    selected: Any = None,
+    *,
+    arm: bool = True,
+):
+    """Hold the engine's trace session over a block, yielding what it records.
+
+    The generic half of observability, published as the seam's `observe`
+    service: a registrant that turns reductions into spans, log lines or
+    events takes the trace from here and never speaks to the engine itself.
+    The yielded `Trace` fills in as the block ENDS, because the engine's
+    tracer records into its own store and is read at the end, so reading it
+    inside the block answers nothing.
+
+    `max_events` and `selected` are the trace door's own two recording
+    controls, `None` taking DEFAULT_MAX_EVENTS and every function. `arm=False`
+    yields an empty trace and touches the engine not at all, which is the
+    meter-only case: a caller that wants a block's counters and not its
+    reductions must not pay for the wrappers.
+
+    The longhand for one program rather than a block is `space.record(source)`,
+    which records and answers in one step.
+    """
+    recorded = Trace()
+    if not arm:
+        yield recorded
+        return
+    _begin(
+        space,
+        DEFAULT_MAX_EVENTS if max_events is None else max_events,
+        _selected_names(selected, "filter"),
+    )
+    try:
+        yield recorded
+    finally:
+        stopped, records = space.runtime.apply_must("metta_py_observe_end")
+        session = _recorded(stopped, records)
+        recorded.extend(session)
+        recorded.stopped = session.stopped
 
 
 def _recorded(stopped, records) -> Trace:

@@ -1,4 +1,10 @@
 """Purpose: reusable benchmark plumbing for metta and sibling packages.
+
+A DISTRIBUTION of its own, `metta-benchmarking`, because nothing in the core
+needs it: it measures a workload from outside, reads the engine's counters
+through the public space surface and imports two atom classes and nothing
+else. `metta.testing` used to re-export its ten names; the compatibility
+ruling is that nothing binds, so a caller imports them from here.
 Guarantees:
   - benchmark_case uses fresh untimed setup for every counter sample,
     warmup, and timed round [tested test_benchmark_case_uses_fresh_state]
@@ -60,7 +66,7 @@ Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
-"""  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+"""
 
 from __future__ import annotations
 
@@ -76,7 +82,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from .atoms import Atom, Expression
+from metta.atoms import Atom, Expression
 
 _SCHEMA = 1
 _COUNTER_SAMPLES = 3

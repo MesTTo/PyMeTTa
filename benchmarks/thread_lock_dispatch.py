@@ -44,10 +44,11 @@ from collections.abc import Sequence
 from contextlib import AbstractContextManager
 from typing import Any
 
+from metta_benchmarking import measure_instructions
+
 from benchmarks.engine_workloads import close_engine_case, space_name_case
 from benchmarks.pure import _controlled
 from metta._engine import _CALL_LOCKS, _LOCK, Runtime
-from metta.testing import measure_instructions
 
 _MICRO_CALLS = 10_000_000
 _MICRO_ROUNDS = 7

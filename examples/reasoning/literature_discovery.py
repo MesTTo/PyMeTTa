@@ -41,12 +41,15 @@ Open Obligations:
 from _common import check, done, skip
 
 try:
+    # The store is metta-arrays' door; torch is the array library this program
+    # happens to use, which the layer reaches through the array API standard
+    # rather than by name.
     import torch
+    from metta_arrays import EmbeddingStore
 except ImportError:
-    skip("torch is not installed")
+    skip("metta-arrays and torch are needed")
 
 from metta import TRUE, G, S, V, counting, prov, space
-from metta.arrays import EmbeddingStore
 
 m = space()
 

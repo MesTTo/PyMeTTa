@@ -13,7 +13,7 @@ Guarantees:
      commit=3cfbe0d7417b1c453c2dc12d47e2e47e7de461f7]
   - the module fixture retires its process-global operation registrations, so
     later suites do not inherit array callables [tested: python -m pytest
-    extensions/python/tests/ch08_data/test_arrays.py
+    extensions/python/ext/metta-arrays/tests/test_arrays.py
     extensions/python/tests/repository/test_operator_documentation.py;
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - fully qualified backend names keep ``jax.numpy`` constructors separate
@@ -58,6 +58,11 @@ Open Obligations:
 import inspect
 import threading
 
+import metta_arrays as arrays
+
+# The default array library is a ROW, and metta-numpy is the package that
+# registers it; importing it here is the same door the entry point opens.
+import metta_numpy  # noqa: F401  -- imported for the row it registers
 import pytest
 from hypothesis import given
 from hypothesis import strategies as st
@@ -67,7 +72,6 @@ from metta import (
     MeTTa,
     S,
     V,
-    arrays,
     ground,
     wire,
 )

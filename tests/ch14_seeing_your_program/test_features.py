@@ -52,7 +52,10 @@ import threading
 import time
 from pathlib import Path
 
+import metta_faiss  # noqa: F401  -- the index row this scenario compares
+import metta_numpy  # noqa: F401  -- the array row the store builds through
 import pytest
+from metta_arrays import EmbeddingStore
 
 from metta import (
     TRUE,
@@ -67,7 +70,6 @@ from metta import (
     remote,
     tables,
 )
-from metta.arrays import EmbeddingStore
 from metta.atoms import Grounded, Symbol, Variable
 from metta.errors import (
     EngineError,

@@ -19,6 +19,11 @@ from __future__ import annotations
 
 import sqlite3
 
+import metta_duckdb  # noqa: F401  -- the sql row DuckDB registers through
+import metta_nanoarrow  # noqa: F401  -- the arrow row that builds the capsules
+import metta_pandas  # noqa: F401  -- the frame row the accessor scenario reads
+import metta_polars  # noqa: F401  -- the frame row the accessor scenario reads
+import metta_sqlite  # noqa: F401  -- the sql row sqlite3 registers through
 import pytest
 
 from metta import S, V, tables

@@ -78,25 +78,17 @@ __all__ = [
     "values_of",
 ]
 
-# The five column kinds. Four are native Arrow types; TEXT is utf8 too, and
-# differs from UTF8 only in what a cell renders as: UTF8 carries a String
-# atom's decoded value, TEXT carries any atom's canonical MeTTa text, which is
-# the representation that stays faithful when one column holds several kinds.
-INT64: Final = "int64"
-FLOAT64: Final = "float64"
-BOOL: Final = "bool"
-UTF8: Final = "utf8"
-TEXT: Final = "text"
+# The five column kinds, taken from the seam rather than restated, because a
+# registrant has to speak the same five and reads them there.
+INT64, FLOAT64, BOOL, UTF8, TEXT = seam.ARROW_KINDS
 _NULL: Final = "null"
 
 _INT64_MIN: Final = -(2**63)
 _INT64_MAX: Final = 2**63 - 1
 _NO_VALUE: Final = object()
 
-#: The Arrow C format string each kind produces, for reading a requested
-#: schema back the other way [source:
-#: https://arrow.apache.org/docs/format/CDataInterface.html#data-type-description-format-strings].
-_REQUESTED_KIND: Final = {"l": INT64, "g": FLOAT64, "b": BOOL, "u": TEXT}
+#: Which kind each Arrow C format string asks for, the seam's own table.
+_REQUESTED_KIND: Final = seam.ARROW_FORMAT
 
 def _raw(cell: Any) -> Any:
     """The Python payload behind one answer cell, or _NO_VALUE.

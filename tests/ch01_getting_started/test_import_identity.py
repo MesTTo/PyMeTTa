@@ -25,7 +25,7 @@ import sys
 
 import metta
 
-lazy = {'aio', 'algebra', 'arrays', 'remote', 'testing', 'wire'}
+lazy = {'aio', 'algebra', 'remote', 'testing', 'wire'}
 assert all(f'metta.{name}' not in sys.modules for name in lazy)
 assert 'asyncio' not in sys.modules
 assert 'urllib.request' not in sys.modules

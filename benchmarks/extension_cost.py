@@ -51,9 +51,10 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
+from metta_benchmarking import BenchmarkBaseline
+
 from benchmarks.configuration import counter_configuration
 from metta import Space
-from metta.testing import BenchmarkBaseline
 
 CALLS = 3_000
 # parents[3] is the repository root: benchmarks, python, the seat root, then

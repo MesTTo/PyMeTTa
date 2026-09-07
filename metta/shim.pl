@@ -7,7 +7,7 @@
 %   - metta_py_observe_begin/1 and metta_py_observe_end/1 hold ONE trace session
 %     across the host's own calls and answer what it recorded, so a Python
 %     with-block can instrument work it drives itself
-%     [tested: extensions/python/tests/ch14_seeing_your_program/test_telemetry.py::test_an_observed_block_hangs_its_reductions_under_one_span,
+%     [tested: extensions/python/ext/metta-otel/tests/test_otel.py::test_an_observed_block_hangs_its_reductions_under_one_span,
 %     tracer:a_held_session_records_across_separate_evaluations; commit=0fb68d75871c57f2421c335e9faef3561f8dfdd5].
 %   - metta_py_assert_answers/1 and metta_py_assert_includes/1 decide their
 %     verdict with the same subtraction-atom their MeTTa twins use and then

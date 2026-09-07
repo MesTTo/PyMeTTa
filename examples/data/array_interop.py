@@ -10,12 +10,17 @@ Open Obligations:
 from _common import check, done, skip
 
 try:
+    # The array layer is a package of its own, metta-arrays, and which library
+    # is its default is a row metta-numpy registers; both arrive with
+    # `pip install 'pymetta[arrays]'`.
     import array_api_compat  # noqa: F401
+    import metta_arrays as arrays
+    import metta_numpy  # noqa: F401  -- the row that makes numpy the default
     import numpy
 except ImportError:
-    skip("numpy and array-api-compat are needed")
+    skip("metta-arrays, numpy and array-api-compat are needed")
 
-from metta import MeTTa, S, V, arrays, Expression, ground, wire
+from metta import MeTTa, S, V, Expression, ground, wire
 
 m = MeTTa().space()
 arrays.install(m, default=numpy)

@@ -35,6 +35,13 @@ refusal, so it may not import a satellite; the six points whose readers are
 `metta.integrate`'s are declared there and named in `_DECLARING` here, and
 `seam.at` loads that module only when a name is not already declared.
 
+No row here is a library's. Every library the Python seat can be extended by
+lives in its own distribution under `extensions/python/ext/`, advertising one
+entry point in the `metta.extensions` group, found the way a stranger's package
+is found; this package ships the four structural images and nothing else. That
+is the ruling of 2026-09-07, and `tests/checks/check_hardcoded_integrations.py`
+is what keeps it true.
+
 Assumes:
   - importlib.metadata.entry_points(group=...) answers an empty sequence for a
     group nothing advertises [source 2026-09-07:
@@ -53,6 +60,16 @@ Guarantees:
     non-None answer wins; an event point runs every row
     [tested: test_ownership_stops_at_the_first_claim,
     test_an_event_runs_every_row]
+  - a row registered with fallback=True is consulted after every row that is
+    not one, whatever order the two loaded in, which is pluggy's trylast and
+    is what lets rows live in separate distributions: entry-point order is
+    not something a package can arrange [tested:
+    test_a_fallback_row_is_consulted_after_every_other_row,
+    test_a_fallback_row_keeps_registration_order_among_fallbacks;
+    commit=WORKTREE]
+  - a point that declares an extra ends its refusal in the install command
+    for the packages this repository ships against it [tested:
+    test_a_refusal_names_the_extra_that_fills_the_point; commit=WORKTREE]
   - discovery is lazy and free: advertised() loads nothing, and the
     `metta.extensions` group is loaded once, at the first dispatch that has no
     answer among the rows already present, which is how Pygments finds a
@@ -86,6 +103,8 @@ from importlib import metadata
 from typing import Any, Final, NamedTuple
 
 __all__ = [
+    "ARROW_FORMAT",
+    "ARROW_KINDS",
     "ENTRY_POINT_GROUP",
     "GROUP",
     "KINDS",
@@ -99,18 +118,27 @@ __all__ = [
     "Point",
     "Row",
     "advertised",
+    "alpha_eq",
     "array",
     "arrow",
+    "arrow_batches",
+    "arrow_schema",
+    "arrow_stream",
     "arrow_view",
     "at",
+    "batch_bounds",
     "discover",
+    "field_types",
     "frame",
+    "graphql",
     "image",
     "image_of",
     "index",
     "ipc",
+    "match",
     "module",
     "on_registration",
+    "optional_module",
     "point",
     "points",
     "projection",
@@ -161,10 +189,17 @@ LIBRARIES_GROUP: Final = "metta.libraries"
 #: table does not already hold, so the dispatch path stays free: metta.errors
 #: reads the transport-error rows on every refusal and must not pay 41 ms for
 #: metta.integrate to do it [measured 2026-09-06, python -X importtime].
-_DECLARING: Final[tuple[str, ...]] = ("metta._space", "metta.integrate")
+#: metta._trace is here rather than declaring its service from this file: the
+#: trace session reaches the execution machinery, and this module sits UNDER
+#: metta.errors, so an import of it from here -- even a function-local one --
+#: is an edge from the base layer up into the core that import-linter counts
+#: and that the layering exists to forbid.
+_DECLARING: Final[tuple[str, ...]] = ("metta._space", "metta._trace", "metta.integrate")
 
 #: A row's own attributes, which a field may therefore not be named.
-_RESERVED: Final[frozenset[str]] = frozenset({"point", "name", "fields", "source"})
+_RESERVED: Final[frozenset[str]] = frozenset(
+    {"point", "name", "fields", "source", "fallback"}
+)
 
 _CATALOG: Final = "&metta"
 _POINT_HEAD: Final = "extension-point"
@@ -186,6 +221,28 @@ SQL_TYPE: Final[Mapping[str, str]] = {
 }
 SQL_TEXT: Final = "VARCHAR"
 
+#: The five column kinds a projection carries, in the order `_arrow` unpacks
+#: them, for an `arrow` or `ipc` registrant mapping each to its own library's
+#: Arrow type. Here rather than beside the projection for the same reason
+#: SQL_TYPE is here: it is a vocabulary a REGISTRANT has to speak, so it
+#: belongs to the contract and not to the implementation. Four are native
+#: Arrow types; TEXT is utf8 too and differs from UTF8 only in what a cell
+#: renders as -- UTF8 carries a String atom's decoded value and TEXT carries
+#: any atom's canonical MeTTa text, which is what stays faithful when one
+#: column holds several kinds.
+ARROW_KINDS: Final[tuple[str, str, str, str, str]] = (
+    "int64",
+    "float64",
+    "bool",
+    "utf8",
+    "text",
+)
+
+#: Which kind each Arrow C format string asks for, for a producer reading a
+#: requested schema back the other way [source:
+#: https://arrow.apache.org/docs/format/CDataInterface.html#data-type-description-format-strings].
+ARROW_FORMAT: Final[Mapping[str, str]] = {"l": "int64", "g": "float64", "b": "bool", "u": "text"}
+
 
 class Row:
     """One registration: a point, who registered, and the fields they gave.
@@ -195,14 +252,23 @@ class Row:
     mapping for a caller that has the name as data.
     """
 
-    __slots__ = ("fields", "name", "point", "source")
+    __slots__ = ("fallback", "fields", "name", "point", "source")
 
-    def __init__(self, against: str, name: str, fields: Mapping[str, Any], source: str) -> None:
+    def __init__(
+        self,
+        against: str,
+        name: str,
+        fields: Mapping[str, Any],
+        source: str,
+        *,
+        fallback: bool = False,
+    ) -> None:
         """Hold one registration against the named point, under `name`."""
         self.point = against
         self.name = name
         self.fields = dict(fields)
         self.source = source
+        self.fallback = fallback
 
     def __getattr__(self, field: str) -> Any:
         """One declared field, or a refusal naming what this row carries."""
@@ -237,7 +303,17 @@ class Point:
     declaration is the thing the seam has to see.
     """
 
-    __slots__ = ("adder", "doc", "fields", "kind", "name", "optional", "reader", "shipped")
+    __slots__ = (
+        "adder",
+        "doc",
+        "extra",
+        "fields",
+        "kind",
+        "name",
+        "optional",
+        "reader",
+        "shipped",
+    )
 
     def __init__(
         self,
@@ -248,6 +324,7 @@ class Point:
         doc: str,
         optional: tuple[str, ...],
         shipped: str | None,
+        extra: str | None,
         reader: Callable[[], Iterable[Row]] | None,
         adder: Callable[[Row], Callable[[], None] | None] | None,
     ) -> None:
@@ -258,17 +335,34 @@ class Point:
         self.optional = optional
         self.doc = doc
         self.shipped = shipped
+        self.extra = extra
         self.reader = reader
         self.adder = adder
 
-    def register(self, name: str, /, source: str = "package", **fields: Any) -> Row:
+    def register(
+        self,
+        name: str,
+        /,
+        source: str = "package",
+        *,
+        fallback: bool = False,
+        **fields: Any,
+    ) -> Row:
         """Add one row to this point, answering it.
 
         Registering an existing name REPLACES that row in its original
         position, which is the registry's ordinary replacement and keeps
         ownership order stable across a reload.
+
+        `fallback` says this row answers only where no other row does, which is
+        pluggy's `trylast`. Registration order decides between rows of the same
+        rank and nothing else, so a general row (the Array API index backend, a
+        structural image) cannot shadow a specific one merely by having been
+        imported first. Load order across DISTRIBUTIONS is not a thing a
+        package can arrange: `importlib.metadata` promises no order over the
+        entry points of a group.
         """
-        return _register(self, name, source, fields)
+        return _register(self, name, source, fields, fallback=fallback)
 
     def unregister(self, name: str) -> bool:
         """Withdraw one row, answering whether there was one."""
@@ -328,15 +422,23 @@ class Point:
         """The sentence a caller gets when no row of this point answers.
 
         Names the door rather than the missing library, because the caller's
-        next move is a registration and the library is only an example of one.
+        next move is a registration and the library is only an example of one,
+        and ends in the install command for the packages this repository ships
+        against the point when the declaration named an extra.
         """
         registered = ", ".join(row.name for row in self.rows()) or "nothing"
+        install = (
+            ""
+            if self.extra is None
+            else f". The packages this repository ships for it install with "
+            f"`pip install \'pymetta[{self.extra}]\'`"
+        )
         return (
             f"no {self.name} registration handles {subject}; registered: "
             f"{registered}. A library registers with "
             f"metta.seam.at({self.name!r}).register(<name>, "
             f"{'=..., '.join(self.fields)}=...), or advertises the same call "
-            f"under the {GROUP} entry-point group"
+            f"under the {GROUP} entry-point group{install}"
         )
 
     def _expect(self, kind: str, spelling: str) -> None:
@@ -377,6 +479,7 @@ def point(
     doc: str,
     optional: tuple[str, ...] = (),
     shipped: str | None = None,
+    extra: str | None = None,
     reader: Callable[[], Iterable[Row]] | None = None,
     adder: Callable[[Row], Callable[[], None] | None] | None = None,
 ) -> Point:
@@ -389,6 +492,14 @@ def point(
     `shipped` names the module holding this seat's own first registrants; it is
     imported at the first dispatch, so a point nobody uses costs nothing and
     the shipped rows arrive by the same lazy path a stranger's do.
+
+    `extra` names THIS distribution's own extra whose requirements fill the
+    point, so a refusal can end in a command rather than in a shape. It is an
+    extra and never a library, which is the same split Airflow's providers keep:
+    the core declares `apache-airflow[amazon]` and knows no cloud
+    [source: https://airflow.apache.org/docs/apache-airflow-providers/, "Provider
+    packages"]. `tests/checks/check_layering.py` refuses an extra this
+    distribution does not declare.
 
     `reader` and `adder` are for a point whose rows already live somewhere: the
     reader answers them, and the adder performs a registration and answers the
@@ -433,6 +544,7 @@ def point(
             doc=doc,
             optional=optional,
             shipped=shipped,
+            extra=extra,
             reader=reader,
             adder=adder,
         )
@@ -565,7 +677,7 @@ def publish(m: Any) -> int:
         !(match &metta (extension python frame $who $fields) $who)
 
     Two kind rows make the engine's own declaration checker refuse a malformed
-    row at the write, the way metta.arrays declares (kind array-backend ...)
+    row at the write, the way the array layer declares (kind array-backend ...)
     for its roster. The rows carry the seat, the point and the registrant, not
     the callables: a callable is not knowledge, and what a program asks the
     catalog is who registered against what.
@@ -609,7 +721,14 @@ def publish(m: Any) -> int:
     return written
 
 
-def _register(declared: Point, name: str, source: str, fields: Mapping[str, Any]) -> Row:
+def _register(
+    declared: Point,
+    name: str,
+    source: str,
+    fields: Mapping[str, Any],
+    *,
+    fallback: bool = False,
+) -> Row:
     if WRITTEN_BY[declared.kind] != "registrant":
         msg = (
             f"{declared.name!r} is a {declared.kind} point, which the SEAT "
@@ -631,7 +750,7 @@ def _register(declared: Point, name: str, source: str, fields: Mapping[str, Any]
             f"the {name!r} registration also gave {', '.join(extra)}"
         )
         raise TypeError(msg)
-    row = Row(declared.name, name, fields, source)
+    row = Row(declared.name, name, fields, source, fallback=fallback)
     # The row is held here whatever else happens to it, so a registration keeps
     # the NAME it was given; a point whose store is elsewhere then performs the
     # side effect through its adder and hands back the inverse. Without this a
@@ -709,11 +828,18 @@ def _unregister(declared: Point, name: str) -> bool:
 
 
 def _rows_of(declared: Point, *, discover_first: bool = True) -> tuple[Row, ...]:
-    if discover_first:
+    # Discovery is for a kind a REGISTRANT writes. A service's one row is the
+    # seat's, written by the decorator, and no package can add another, so
+    # loading the group to read one would buy nothing and cost everything: it
+    # imports every installed package, and `seam.at("module").call()` is the
+    # first line of most of them [measured 2026-09-08: 124 ms and 196 modules
+    # for `import metta_pandas` with fourteen packages installed, against 5 ms
+    # and 38 modules once a service stopped discovering].
+    if discover_first and WRITTEN_BY[declared.kind] == "registrant":
         _load_shipped(declared)
         _load_advertised()
     with _LOCK:
-        held = tuple(_ROWS[declared.name])
+        held = _ranked(_ROWS[declared.name])
     if declared.reader is None:
         return held
     # A point whose rows live elsewhere still answers what was registered
@@ -721,6 +847,19 @@ def _rows_of(declared: Point, *, discover_first: bool = True) -> tuple[Row, ...]
     # already holds is not repeated, matched on the fields the store keeps.
     elsewhere = tuple(row for row in declared.reader() if not _holds(held, row))
     return held + elsewhere
+
+
+def _ranked(held: Iterable[Row]) -> tuple[Row, ...]:
+    """These rows, every non-fallback one first, each group in its own order.
+
+    A stable partition and not a sort, so registration order still decides
+    between two rows of the same rank; only the trylast rows move.
+    """
+    ranked = tuple(held)
+    fallbacks = tuple(row for row in ranked if row.fallback)
+    if not fallbacks:
+        return ranked
+    return tuple(row for row in ranked if not row.fallback) + fallbacks
 
 
 def _holds(held: tuple[Row, ...], row: Row) -> bool:
@@ -800,14 +939,17 @@ def _load_entries(group: str) -> list[str]:
 # gives for declaring every engine seam in one: the kind is the load-bearing
 # fact about a seam, and a kind that lives beside its implementation is a fact
 # nothing can enumerate. The implementations live in their own modules and the
-# first registrants live in metta._registrants, so no library is named here.
+# rows live in their own DISTRIBUTIONS, one per library, so no library is named
+# here or anywhere else in this package. `extra=` names this distribution's own
+# extra that installs the packages this repository ships for the point, which is
+# what a refusal ends in.
 
 frame = point(
     "frame",
     "declaration",
     fields=("module", "accessor", "build"),
     optional=("sugar",),
-    shipped="metta._registrants",
+    extra="dataframes",
     doc=(
         "A dataframe library. `accessor(module, name, door)` installs "
         "`df.<name>` the way that library spells an extension; "
@@ -825,7 +967,7 @@ sql = point(
     "ownership",
     fields=("claims", "define"),
     optional=("undeclared",),
-    shipped="metta._registrants",
+    extra="sql",
     doc=(
         "A SQL engine a MeTTa head can be registered into. "
         "`claims(connection)` answers the connection when this engine owns it "
@@ -841,17 +983,16 @@ array = point(
     "declaration",
     fields=("module", "default"),
     optional=("missing", "scalars"),
-    shipped="metta._registrants",
+    extra="arrays",
     doc=(
         "An array library reached through the Array API standard and DLPack. "
-        "A row is what makes one available as the DEFAULT for "
-        "`arrays.install(m)` with no default= given, and what lets "
-        "`Column.__array__` build an array at all; a library that only wants "
-        "to be usable needs no row, because `install(m, default=<module>)` "
-        "already takes any module the standard covers. `default` is whether "
-        "this row may be the no-argument default, `missing` the sentence its "
-        "absence raises, and `scalars()` a Hypothesis strategy of this "
-        "library's scalar values."
+        "A row is what makes one available as the DEFAULT where an installer "
+        "is given no default=, and what lets `Column.__array__` build an array "
+        "at all; a library that only wants to be usable needs no row, because "
+        "an explicit default= already takes any module the standard covers. "
+        "`default` is whether this row may be the no-argument default, "
+        "`missing` the sentence its absence raises, and `scalars()` a "
+        "Hypothesis strategy of this library's scalar values."
     ),
 )
 
@@ -860,15 +1001,15 @@ index = point(
     "declaration",
     fields=("available", "build", "search"),
     optional=("missing",),
-    shipped="metta._registrants",
+    extra="arrays",
     doc=(
-        "A nearest-neighbour backend for metta.arrays.EmbeddingStore. "
-        "`available()` says whether it can run here; `build(matrix)` prepares "
-        "whatever the backend searches, cached until the matrix changes; "
+        "A nearest-neighbour backend for an embedding store. `available()` "
+        "says whether it can run here; `build(matrix)` prepares whatever the "
+        "backend searches, cached until the matrix changes; "
         "`search(built, query, k)` answers (row, score) pairs best first over "
-        "a normalized matrix. `backend='auto'` takes the first available row "
-        "in registration order, so a library installs itself into the store "
-        "by registering."
+        "a normalized matrix. `backend='auto'` takes the first available row, "
+        "specific rows before fallback ones, so a library installs itself into "
+        "the store by registering and a general path registers as a fallback."
     ),
 )
 
@@ -877,7 +1018,7 @@ arrow = point(
     "ownership",
     fields=("claims", "schema", "stream", "batches"),
     optional=("missing",),
-    shipped="metta._registrants",
+    extra="arrow",
     doc=(
         "Who builds the Arrow C structs. `claims()` answers its library when "
         "that library is importable; then `schema(projection)`, "
@@ -893,7 +1034,7 @@ ipc = point(
     "ownership",
     fields=("claims", "schema", "stream", "read", "concat"),
     optional=("missing",),
-    shipped="metta._registrants",
+    extra="arrow",
     doc=(
         "Who writes and reads the Arrow IPC STREAMING format, the FlatBuffers "
         "envelope a gateway sends as a response body. nanoarrow builds the C "
@@ -911,7 +1052,7 @@ transport_error = point(
     "transport-error",
     "declaration",
     fields=("module", "classes"),
-    shipped="metta._registrants",
+    extra="das",
     doc=(
         "Exception classes that mean the backend is ABSENT rather than wrong. "
         "`classes(module)` answers the tuple this library raises for a timeout "
@@ -924,13 +1065,34 @@ image = point(
     "image",
     "ownership",
     fields=("claims",),
-    shipped="metta._registrants",
+    shipped="metta._images",
+    extra="models",
     doc=(
         "How a class of host types projects when nobody registered a "
         "conversion for it. `claims(cls)` answers the image for a class it "
-        "recognises, built with the `image` service, or None. Rows are "
-        "consulted in registration order, so a model framework's row is asked "
-        "before the structural ones."
+        "recognises, built with the `image` service, or None. The four "
+        "structural rows this seat ships are FALLBACKS, so a model "
+        "framework's row is asked first however the two loaded: a validated "
+        "model is also a class with __match_args__, and the specific reading "
+        "has to win."
+    ),
+)
+
+graphql = point(
+    "graphql",
+    "ownership",
+    fields=("claims", "schema", "execute"),
+    optional=("missing",),
+    extra="graphql",
+    doc=(
+        "Who EXECUTES a GraphQL document. The schema a served space publishes "
+        "is built as SDL text by this seat and needs nobody; running a query "
+        "against it needs an implementation of the language. `claims()` "
+        "answers its library when importable; `schema(sdl, scalars)` builds "
+        "the executable schema and attaches this engine's own serializers, "
+        "given `{name: (serialize, parse_value)}`; `execute(schema, root, "
+        "request)` runs one GraphQL-over-HTTP request and answers its `data` "
+        "and `errors`."
     ),
 )
 
@@ -987,6 +1149,36 @@ def module(name: str, guidance: str) -> Any:
 
 
 @service(
+    "field-types",
+    "A class's DECLARED field annotations, resolved and kept whole, for an "
+    "image row whose rebuild needs a part's own class: an Enum member above "
+    "all, but also an Enum inside list[Colour], which a bare-class filter "
+    "would erase. Refuses naming the class when an annotation does not "
+    "resolve, because that is a mistake in the declaration.",
+)
+def field_types(cls: type, names: tuple[str, ...]) -> tuple:
+    """One class's declared annotations, in `names` order."""
+    from ._convert_registry import _field_types  # noqa: PLC0415  -- the registry
+
+    return _field_types(cls, names)
+
+
+@service(
+    "optional-module",
+    "Import a library and answer it, or answer None when that library itself "
+    "is absent. The other half of `module`, for an ownership row's claims(), "
+    "which DECLINES by answering None rather than raising; an ImportError "
+    "raised INSIDE an installed library still propagates, because a broken "
+    "install is not an absent one.",
+)
+def optional_module(name: str) -> Any:
+    """The named module, or None when it is not installed."""
+    from ._optional import optional_module as probe  # noqa: PLC0415  -- the optional probe
+
+    return probe(name)
+
+
+@service(
     "sql-arity",
     "A head's SQL argument count, or -1 for a head with no declared arrow, "
     "for an engine that wants the arity and no types.",
@@ -1022,6 +1214,84 @@ def sql_types(head: Any, name: str, signature: Any, undeclared: Any) -> tuple[li
     returned = signature.return_annotation
     returns = SQL_TEXT if returned is empty else SQL_TYPE.get(str(returned), SQL_TEXT)
     return parameters, returns
+
+
+@service(
+    "batch-bounds",
+    "Row windows doubling from one up to the chunk cap: the engine cursor's "
+    "own policy, so a producer's record batches grow the way a cursor's "
+    "chunks do and a consumer that reads one batch pays for one row.",
+)
+def batch_bounds(length: int) -> Any:
+    """(start, stop) windows over `length` rows, doubling."""
+    from ._arrow import batch_bounds as bounds  # noqa: PLC0415  -- the shared batch policy
+
+    return bounds(length)
+
+
+@service(
+    "match",
+    "Match a pattern against an atom, binding only the pattern's variables: "
+    "the seat's directional primitive, where public unify() is symmetric. The "
+    "bindings are keyed by variable NAME, which is why this is a service and "
+    "not a second public spelling beside unify's variable-keyed mapping.",
+)
+def match(pattern: Any, atom: Any) -> Any:
+    """The pattern's bindings, or None when it does not match."""
+    from .atoms import _match as directional  # noqa: PLC0415  -- the atom primitive
+
+    return directional(pattern, atom)
+
+
+@service(
+    "alpha-eq",
+    "Whether two atoms are equal up to a consistent renaming of variables, "
+    "which is MeTTa's =alpha. A named service and not ==, because two atoms "
+    "must not compare differently for the variable names they happen to carry.",
+)
+def alpha_eq(left: Any, right: Any) -> bool:
+    """MeTTa's =alpha over two atoms."""
+    from .atoms import _alpha_eq as alpha  # noqa: PLC0415  -- the atom primitive
+
+    return alpha(left, right)
+
+
+@service(
+    "arrow-schema",
+    "The `arrow_schema` PyCapsule for a projection, through whichever library "
+    "claimed the `arrow` point. What a producer of the PyCapsule interface "
+    "answers from its own __arrow_c_schema__.",
+)
+def arrow_schema(projected: Any) -> Any:
+    """One projection's Arrow schema capsule."""
+    from ._arrow import schema_capsule  # noqa: PLC0415  -- the Arrow doors
+
+    return schema_capsule(projected)
+
+
+@service(
+    "arrow-stream",
+    "The `arrow_array_stream` PyCapsule for a projection, honouring a "
+    "requested schema where the claimant can. What a producer answers from "
+    "its own __arrow_c_stream__.",
+)
+def arrow_stream(projected: Any, requested_schema: Any = None) -> Any:
+    """One projection's Arrow stream capsule."""
+    from ._arrow import stream_capsule  # noqa: PLC0415  -- the Arrow doors
+
+    return stream_capsule(projected, requested_schema)
+
+
+@service(
+    "arrow-batches",
+    "An Arrow stream read back: its column names, and an iterator of its "
+    "record batches as row tuples. The inward half of the capsule doors.",
+)
+def arrow_batches(source: Any) -> Any:
+    """(column names, an iterator of batches) for one Arrow stream."""
+    from ._arrow import read_batches  # noqa: PLC0415  -- the Arrow doors
+
+    return read_batches(source)
 
 
 @service(

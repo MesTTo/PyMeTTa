@@ -19,12 +19,15 @@ import re
 from _common import check, done, skip
 
 try:
+    # An embedding store lives in metta-arrays, and metta-numpy is the row
+    # that makes NumPy its default library: `pip install 'pymetta[arrays]'`.
+    import metta_numpy  # noqa: F401  -- the row that makes numpy the default
     import numpy
+    from metta_arrays import EmbeddingStore
 except ImportError:
-    skip("numpy is not installed")
+    skip("metta-arrays and numpy are needed")
 
 from metta import Answer, Bindings, MeTTa, S, V, Expression
-from metta.arrays import EmbeddingStore
 from metta.atoms import Grounded
 
 m = MeTTa().space()

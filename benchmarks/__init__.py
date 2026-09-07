@@ -27,6 +27,14 @@ from collections.abc import Callable, Mapping
 from pathlib import Path
 from typing import Any
 
+from _workspace import on_path
+
+# Every driver here runs as its own process (`python -m benchmarks.axes`), so
+# the suite's conftest has not run and the extension packages are not on the
+# path. The measurement modules read `metta_benchmarking`, which is one of
+# them.
+on_path()
+
 
 def atomic_json(path: Path, document: Mapping[str, Any]) -> None:
     """Write `document` to `path` through a temporary file and one rename."""
