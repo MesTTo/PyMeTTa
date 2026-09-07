@@ -29,6 +29,10 @@ Guarantees:
   - reading is one `atoms()` call and no evaluation, so a projection cannot
     run the program it describes [tested: test_stubs_read_the_space_without_evaluating_it;
     commit=dd4f82100a052e2c5254a2ef9e91f6eb9d2e0c49]
+  - the projection is over ATOMS, so a space's store and a file's own forms
+    reach the same rows and a module can report what its FILE declares rather
+    than what the space it loaded into holds [tested:
+    test_a_metta_file_imports_as_a_module_of_its_own_heads; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -43,6 +47,8 @@ from typing import TYPE_CHECKING, Any, TypeGuard
 from .atoms import Atom, Expression, Symbol, _atom_from_wire
 
 if TYPE_CHECKING:
+    from collections.abc import Iterable
+
     from ._space import Space
 
 DECLARE = Symbol(":")
@@ -132,8 +138,19 @@ def declarations(space: Space | Any) -> tuple[Declaration, ...]:
     three row shapes are one read of one store, and because a projection that
     matched would evaluate nothing but would still cost a query per shape.
     """
+    return declarations_in(space.atoms())
+
+
+def declarations_in(atoms: Iterable[Atom]) -> tuple[Declaration, ...]:
+    """The same rows over any atoms, whatever holds them.
+
+    A space's store is one source of them, and `declarations(space)` is that
+    reading. A FILE's own forms are another: the import hook's module reports
+    the heads its file declares, which is a different set from the heads the
+    space it loaded into can call, and both are this one projection.
+    """
     collected: dict[str, _Rows] = {}
-    for atom in space.atoms():
+    for atom in atoms:
         if not isinstance(atom, Expression) or len(atom.children) < 2:
             continue
         head, *rest = atom.children

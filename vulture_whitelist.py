@@ -22,6 +22,14 @@ Open Obligations:
 
 
 # Public compatibility and plugin entry points.
+# The import system's own protocol: Python calls these four, by the finder's
+# position in sys.meta_path and through the spec it answers, never by a name
+# written in this tree
+# [source: https://docs.python.org/3.12/reference/import.html#the-meta-path].
+_.find_spec
+_.create_module
+_.exec_module
+_.get_source
 _.load_metta_file
 _.process_metta_string
 __dir__

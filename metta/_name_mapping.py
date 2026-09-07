@@ -10,6 +10,11 @@ Guarantees:
     through the same generated roster [tested:
     test_operator_words_precede_the_mechanical_name_map;
     commit=8ec44dec3cafba5981e7cf712749cca0e1bdcc45]
+  - ``python_name`` is ``attribute_name``'s inverse and lives beside it, so
+    the stub renderer and the import hook's module answer one rule for one
+    head and a name Python cannot spell is refused by both [tested:
+    test_a_head_python_cannot_spell_is_named_not_dropped,
+    test_a_head_python_cannot_spell_keeps_its_exact_name; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -112,6 +117,29 @@ def attribute_name(identifier: str) -> str:
         # does end in an underscore.
         identifier = identifier[:-1]
     return identifier.replace("_", "-")
+
+
+def python_name(head: str) -> str | None:
+    """The Python spelling of a MeTTa head, or None when there is none.
+
+    Python's convention is snake_case, so MeTTa's hyphens become underscores
+    and the map inverts exactly: `attribute_name` has to send the candidate
+    back to the head it came from, which is what keeps a program that declares
+    both `to-list` and `to_list` from silently answering one entry for two
+    heads. A head Python reserves takes PEP 8's own escape, `not` reaching
+    `not_`, because that spelling round-trips too.
+
+    This is the inverse of `attribute_name`, which is why it lives beside it:
+    the stub renderer and the import hook's module both need the same answer
+    for the same head, and a second copy of the rule could differ from this
+    one without anything saying so.
+    """
+    candidate = head.replace("-", "_")
+    if keyword.iskeyword(candidate):
+        candidate = f"{candidate}_"
+    if not candidate.isidentifier() or attribute_name(candidate) != head:
+        return None
+    return candidate
 
 
 def resolve_known_name(
