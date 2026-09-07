@@ -125,14 +125,14 @@ from itertools import islice
 from typing import Any, Self
 from urllib.parse import urlsplit
 
-from . import _json, _schemas
+from . import _json, _projection, _schemas
 from ._api_types import space_of
 from ._atom_wire import _atom_from_wire
 from ._engine import bridge, runtime
 from ._network import HTTPEndpoint, validated_timeout
 from ._space import Space as MeTTa
 from ._space_objects import Cursor
-from .atoms import Atom, Expression, Variable, substitute, unify
+from .atoms import Atom, Expression, Symbol, Variable, parse, substitute, unify
 from .errors import Interrupted, MettaError, TransportFailure
 from .foreign import SpaceProvider
 
@@ -188,7 +188,47 @@ _MUTATION_LIMIT = 4096
 #: tooling looks for `/openapi.json` by that exact path, and the door that builds
 #: it is `Gateway.openapi`, so the two are mapped here rather than either one
 #: being bent to the other.
-_GET_OPERATIONS = {"openapi.json": "openapi"}
+_GET_OPERATIONS = {"openapi.json": "openapi", "graphql": "graphql_schema"}
+
+#: The two documents a GET publishes, and the media type each is read as. SDL
+#: has no registered media type -- GraphQL's specification calls a schema a
+#: document of text -- so `text/plain` is what a fetch of it reads as, where the
+#: OpenAPI document is JSON like every other reply here.
+_DOCUMENTS = {
+    "openapi": "application/json",
+    "graphql_schema": "text/plain; charset=utf-8",
+}
+
+
+def _refusal(status: int, message: str) -> tuple[int, bytes, str]:
+    """A refused GET, which is JSON whichever document was asked for.
+
+    A client that cannot have the document needs the sentence rather than an
+    empty body of the type it asked for.
+    """
+    return status, _json.dumps({"error": message}), "application/json"
+
+
+def _get_reply(
+    worker: _RemoteWorker, operation: str, *, secured: bool
+) -> tuple[int, bytes, str]:
+    """What a GET answers: a status, a body and the media type it reads as.
+
+    Through the worker like every other engine call, because health counts the
+    engine's atoms and a document reads the served spaces' declarations.
+    """
+    if operation == "health":
+        answer, status = _worker_response(worker, "health", {})
+        return status, _json.dumps(answer), "application/json"
+    if operation not in _DOCUMENTS:
+        return _refusal(400, f"unknown operation {operation!r}")
+    payload = {"secured": secured} if operation == "openapi" else {}
+    answer, status = _worker_response(worker, operation, payload)
+    if status != 200:
+        return _refusal(status, str(answer.get("error", "")))
+    if operation == "graphql_schema":
+        return status, answer["schema"].encode("utf-8"), _DOCUMENTS[operation]
+    return status, _json.dumps(answer), _DOCUMENTS[operation]
 
 
 class OutcomeUnknown(TransportFailure):
@@ -1379,6 +1419,10 @@ class Gateway:
             return self._health()
         if operation == "openapi":
             return self.openapi(secured=bool(payload.get("secured")))
+        if operation == "graphql_schema":
+            return {"schema": self.graphql_schema()}
+        if operation == "graphql":
+            return self.graphql(payload)
         msg = f"unknown operation {operation!r}"
         raise MettaError(msg)
 
@@ -1489,6 +1533,127 @@ class Gateway:
         """
         return _schemas.openapi_document(self.served(), secured=secured)
 
+    def graphql_schema(self) -> str:
+        """This gateway's served spaces as GraphQL SDL, `GET /graphql`.
+
+            print(gateway.graphql_schema())
+
+        `scalar Atom` carries any atom as the canonical MeTTa text `parse` reads
+        back and `scalar Number` carries a MeTTa number, which no built-in
+        GraphQL scalar can. `Query.match` reaches every atom whatever a space
+        declares; each DECLARED head gains a field of its own answering typed
+        rows, whose fields are `x1..xn` because a `(@param ...)` row carries a
+        type and a description and never a name.
+
+        The text is built here, so a server publishes its schema whether or not
+        graphql-core is installed; only `graphql()` needs the package. A head
+        GraphQL cannot name is in the OpenAPI document's `x-metta-unnameable`
+        with the door that still reaches it.
+        """
+        return _schemas.graphql_sdl(self.served())
+
+    def graphql(self, request: dict) -> dict:
+        """Execute one GraphQL request, `POST /graphql`.
+
+            gateway.graphql({"query": "{ users { x1 x2 } }"})
+
+        The request is GraphQL over HTTP's own shape -- `query`, `variables`
+        and `operationName` -- and the answer is its `data` and `errors`.
+        Resolution goes through the same doors the wire operations use, so a
+        `match` query answers what `Gateway("match")` answers for the same
+        pattern. Refuses with the install guidance when graphql-core is absent.
+        """
+        spaces = self.served()
+        schema = _schemas.build_graphql_schema(_schemas.graphql_sdl(spaces))
+        return _schemas.execute_graphql(schema, self._resolvers(spaces), request)
+
+    def _resolvers(self, spaces: dict[str, MeTTa]) -> dict:
+        """The root object a GraphQL query resolves against.
+
+        graphql-core's default field resolver reads a field's name off a Mapping
+        and calls what it finds with `(info, **arguments)`
+        [source: https://github.com/graphql-python/graphql-core,
+        `default_field_resolver`], so the root is this dict and every field is
+        one closure.
+        """
+        root: dict[str, Any] = {
+            "match": self._resolve_match,
+            "add": self._resolve_add,
+            "remove": self._resolve_remove,
+        }
+        for head in _schemas.graphql_heads(spaces):
+            root[head.name] = self._head_resolver(head)
+        return root
+
+    def _resolve_match(
+        self, _info: Any, pattern: str, limit: int | None = None, space: str | None = None
+    ) -> list[Atom]:
+        """`Query.match`, which is `/match` with the pattern written as source.
+
+        `pattern` is a GraphQL String holding MeTTa source, so it is PARSED
+        rather than taken as a value: a Python string is a String atom
+        everywhere on this surface, and a pattern is a term.
+        """
+        payload: dict[str, Any] = {"pattern": parse(pattern).to_wire()}
+        if space is not None:
+            payload["space"] = space
+        if limit is not None:
+            payload["bound"] = limit
+        return self._matched(payload)
+
+    def _resolve_add(self, _info: Any, atom: str, space: str | None = None) -> bool:
+        """`Mutation.add`. The atom is MeTTa source, as `match`'s pattern is."""
+        payload: dict[str, Any] = {"atom": parse(atom).to_wire()}
+        if space is not None:
+            payload["space"] = space
+        self._space(payload).add(_atom_of(payload, "atom"))
+        return True
+
+    def _resolve_remove(self, _info: Any, atom: str, space: str | None = None) -> bool:
+        """`Mutation.remove`, which removes ONE stored atom unifying with this."""
+        payload: dict[str, Any] = {"atom": parse(atom).to_wire()}
+        if space is not None:
+            payload["space"] = space
+        return bool(self._remove(payload)["removed"])
+
+    def _head_resolver(self, head: Any) -> Callable:
+        """One declared head's field: its rows, each argument typed or an Atom.
+
+        An argument the query supplies fixes that position and leaves the
+        pattern's remaining variables to be bound; the row carries the supplied
+        value back under its own field, so a row is always as wide as the head.
+        """
+        kinds = [_projection.graphql_type(kind) for kind in head.arguments]
+
+        def resolve(_info: Any, space: str | None = None, **supplied: Any) -> list[dict]:
+            # A supplied argument arrives as an Atom already: the `Atom` scalar's
+            # own parse_value is `parse`, so the GraphQL input "(f 1)" is a term
+            # by the time a resolver sees it.
+            arguments: list[Atom] = [
+                supplied.get(f"x{position}") or Variable(f"x{position}")
+                for position in range(1, len(head.arguments) + 1)
+            ]
+            pattern = Expression([Symbol(head.name), *arguments])
+            rows = self._space({"space": space or head.space}).match(pattern)
+            cells = [
+                None if not isinstance(argument, Variable)
+                else rows.columns.index(argument.name)
+                for argument in arguments
+            ]
+            return [
+                {
+                    f"x{index + 1}": _schemas.graphql_value(
+                        argument if position is None else row[position], kind
+                    )
+                    for index, (argument, position, kind) in enumerate(
+                        zip(arguments, cells, kinds, strict=True)
+                    )
+                }
+                for row in rows
+            ]
+
+        return resolve
+
     def cursor_space(self, token: object) -> str | None:
         """Which space an open cursor's answers come from, so a transport
         can hand its authorization hook the space /next and /stop are
@@ -1535,31 +1700,38 @@ class Gateway:
         endpoint, and both take their candidates from _candidates, so the two
         answer the same set for every pattern.
         """
+        return {"atoms": _wire(self._matched(payload))}
+
+    def _matched(self, payload: dict) -> list[Atom]:
+        """The atoms /match answers, before they are put on the wire.
+
+        The GraphQL resolver wants the same answer set as ATOMS, so the two
+        share this rather than crossing the wire encoding and back for a call
+        that never leaves the process.
+        """
         space = self._space(payload)
         pattern = _atom_of(payload, "pattern")
         bound = _bound_of(payload)
         if bound == 0:
             # Zero answers wanted: the engine's query refuses a zero
             # limit, and no work is the exact honoring.
-            return {"atoms": []}
+            return []
         if _linear(pattern) is not None:
             # A repeated variable can make an instantiation infinite, so this
             # pattern's candidates come through the linearised cursor whether
             # the caller asked for all of them or a bounded page.
             cursor, answers = self._candidates(space, pattern)
             try:
-                atoms = list(answers if bound is None else islice(answers, bound))
+                return list(answers if bound is None else islice(answers, bound))
             finally:
                 cursor.close()
-            return {"atoms": _wire(atoms)}
         if bound is not None:
             rows = space.match(pattern, limit=bound)
-            atoms = [
+            return [
                 substitute(pattern, dict(zip(rows.columns, row, strict=True)))
                 for row in rows
             ]
-            return {"atoms": _wire(atoms)}
-        return {"atoms": _wire(self._collapsed(space, pattern))}
+        return self._collapsed(space, pattern)
 
     def _collapsed(self, space: MeTTa, pattern: Atom) -> list[Atom]:
         """One engine-side match, collapsed to the instantiations it answers.
@@ -2188,12 +2360,7 @@ def serve(
 
         def _refuse_unauthorized(self, operation: str) -> None:
             logger.warning("refused unauthorized remote engine operation %s", operation)
-            body = _json.dumps({"error": "not authorized"})
-            self.send_response(401)
-            self.send_header("content-type", "application/json")
-            self.send_header("content-length", str(len(body)))
-            self.end_headers()
-            self.wfile.write(body)
+            self._write(401, _json.dumps({"error": "not authorized"}), "application/json")
 
         def _collected_headers(self) -> dict[str, str]:
             headers: dict[str, str] = {}
@@ -2243,29 +2410,28 @@ def serve(
                 if authorize is not None and not authorize(request):
                     self._refuse_unauthorized(operation)
                     return
-                if operation == "health":
-                    answer, status = _worker_response(worker, "health", {})
-                elif operation == "openapi":
-                    # Through the worker like every other engine call: the
-                    # document reads the served spaces' declarations, and the
-                    # engine those spaces live in is the worker's.
-                    answer, status = _worker_response(
-                        worker, "openapi", {"secured": token is not None}
-                    )
-                else:
-                    answer, status = {"error": f"unknown operation {operation!r}"}, 400
+                reply = _get_reply(worker, operation, secured=token is not None)
             except _HTTPProblem as exc:
-                answer, status = {"error": str(exc)}, exc.status
+                reply = _refusal(exc.status, str(exc))
             except Exception as exc:  # the wire answers errors as JSON
                 logger.warning(
                     "remote engine HTTP handler rejected operation %s",
                     operation,
                     exc_info=True,
                 )
-                answer, status = {"error": str(exc)}, 400
-            body = _json.dumps(answer)
+                reply = _refusal(400, str(exc))
+            self._write(*reply)
+
+        def _write(self, status: int, body: bytes, content_type: str) -> None:
+            """One reply, whatever its media type.
+
+            Every response path went through the same four lines with
+            `application/json` written into each of them; the documents a
+            server publishes are not all JSON, so the media type is an
+            argument.
+            """
             self.send_response(status)
-            self.send_header("content-type", "application/json")
+            self.send_header("content-type", content_type)
             self.send_header("content-length", str(len(body)))
             self.end_headers()
             self.wfile.write(body)
@@ -2274,14 +2440,13 @@ def serve(
             # The protocol's own refusal: only POST operates (and GET
             # answers /health). BaseHTTPRequestHandler would say 501,
             # which reads as "not implemented yet" rather than "never".
-            body = _json.dumps(
-                {"error": f"method {self.command} is not supported; POST an operation"}
+            self._write(
+                405,
+                _json.dumps(
+                    {"error": f"method {self.command} is not supported; POST an operation"}
+                ),
+                "application/json",
             )
-            self.send_response(405)
-            self.send_header("content-type", "application/json")
-            self.send_header("content-length", str(len(body)))
-            self.end_headers()
-            self.wfile.write(body)
 
         do_PUT = _method_not_allowed  # noqa: N815  -- BaseHTTPRequestHandler dispatch requires the exact do_METHOD attribute spelling
         do_DELETE = _method_not_allowed  # noqa: N815  -- BaseHTTPRequestHandler dispatch requires the exact do_METHOD attribute spelling
@@ -2317,12 +2482,7 @@ def serve(
                     exc_info=True,
                 )
                 answer, status = {"error": str(exc)}, 400
-            body = _json.dumps(answer)
-            self.send_response(status)
-            self.send_header("content-type", "application/json")
-            self.send_header("content-length", str(len(body)))
-            self.end_headers()
-            self.wfile.write(body)
+            self._write(status, _json.dumps(answer), "application/json")
             logger.debug(
                 "served remote engine operation %s with HTTP %d",
                 operation,
