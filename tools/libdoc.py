@@ -35,11 +35,11 @@ Guarantees:
     [tested test_the_metta_library_page_is_up_to_date]
   - the page renders the rows a library card renders, so the two cannot
     disagree about a head, its type or where it was written
-    [tested: test_rows_are_the_query_the_reference_page_renders; commit=WORKTREE]
+    [tested: test_rows_are_the_query_the_reference_page_renders; commit=8bd4574fbc38b847d624ae1c75d9da3e18e0af69]
   - a head published through a runnable registration form is counted and
     named among the undocumented, which is what left lib_memo reading as an
     empty library while nine of its heads were callable [tested:
-    test_a_registered_head_is_counted_in_the_reference; commit=WORKTREE]
+    test_a_registered_head_is_counted_in_the_reference; commit=8bd4574fbc38b847d624ae1c75d9da3e18e0af69]
   - the library roster comes from the runtime's shared `.metta`/`.pl` source
     discovery, with one row when a library has both halves
     [tested: test_metta_and_prolog_halves_share_one_library_row;
