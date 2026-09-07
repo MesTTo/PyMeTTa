@@ -144,6 +144,15 @@ def test_no_binding_carries_its_own_verbosity_setter(metta, repo_root):
         # file included, under extensions/cmetta/build; a build artifact is
         # the engine's own copy, not a binding source growing a setter.
         and "build" not in path.parts
+        # The node seat stages the same tree under extensions/node/_runtime,
+        # which `npm run build:dist` writes and `npm pack` runs `prepare` to
+        # make, so anyone who has built that seat carries a second copy of
+        # engine/filereader.pl and this scan read it as a THIRD binding growing
+        # its own setter. Same reason as the line above, different seat's word
+        # for the same directory [measured 2026-09-07: `npm install` in
+        # extensions/node makes extensions/node/_runtime/engine/filereader.pl
+        # and this test fails naming it].
+        and "_runtime" not in path.parts
         and _WRITES_THE_FLAG.search(path.read_text(encoding="utf-8", errors="ignore"))
     )
     assert not offenders, (
