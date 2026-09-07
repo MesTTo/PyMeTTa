@@ -3,7 +3,7 @@ break when it does. A crossing costs about the same as an answer's engine
 work, so a cursor that crossed per answer spent half its time in the boundary:
 draining ten thousand answers cost 60,028 inferences and 27.3ms one at a time
 against 30,164 and 12.7ms in chunks, a 1.9x speedup with half the inferences
-[measured 2026-08-31, ai-tmp/lazycost.py and ai-tmp/capsweep.py].
+[measured 2026-08-31].
 
 What a chunk risks is the promise the lazy door exists for. Geometric growth
 from one keeps it with a constant rather than exactly: taking k answers

@@ -222,7 +222,7 @@ DECLINED = "-"
 #: the next whole point, so the band admits what was measured and nothing
 #: looser; the overrun itself is priced with its mechanism in
 #: ai-report-p14-coverage.md rather than hidden inside the band
-#: [measured 2026-08-22: `twin_coverage.py --measure`, ai-tmp/p14c-measure.log;
+#: [measured 2026-08-22: `twin_coverage.py --measure`;
 #: commit=c7191d87d9cbfce2870e586057168ec9103845ca].
 BAND_PERCENT = 10.0
 
@@ -261,8 +261,8 @@ TOLERANCE = 4
 #: engine/specializer.pl, engine/filereader.pl or engine/translator/analysis.pl
 #: moves it 3422 to 3432 while the MeTTa side reads 2356 in every arm
 #: [measured 2026-09-06: 0, 1, 2, 4, 8, 16 and 32 inert facts read
-#: 3422/3432/3432/3432/3432/3432/3432 with metta=2356 throughout; command=sh
-#: ai-tmp/layout-probe.sh]. A point pin on that number prices the engine's
+#: 3422/3432/3432/3432/3432/3432/3432 with metta=2356 throughout]. A point
+#: pin on that number prices the engine's
 #: predicate set, which no twin is a claim about.
 #:
 #: It applies to a POINT budget only. An empirical envelope already states its
