@@ -305,8 +305,11 @@ class Point:
     def each(self, *arguments: Any) -> tuple[str, ...]:
         """Run every row of this EVENT point, answering who ran.
 
-        Every row runs: an exception from one is the caller's, and stops the
-        rest, which is the one thing an event seam may not swallow.
+        Every row runs, and a row that RAISES stops the ones after it and the
+        exception reaches the caller. Swallowing it is the one thing an event
+        seam may not do: a handler that failed silently is a handler nothing
+        can find, which is the engine's own reason for keeping every clause of
+        an event seam reachable.
         """
         self._expect("event", "each()")
         ran = []
