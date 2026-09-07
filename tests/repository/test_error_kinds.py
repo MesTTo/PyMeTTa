@@ -17,23 +17,23 @@ happened both ways: the `restraint` signal reached callers as EngineError
 until the cache-policies branch added it by hand.
 Guarantees:
   - the fixture's signal rows and `_EXCEPTION_TYPES` are the same mapping,
-    compared both ways [tested: test_the_signal_rows_are_the_exception_table; commit=WORKTREE]
+    compared both ways [tested: test_the_signal_rows_are_the_exception_table; commit=10312d006b14e1fed7b84adc831574ddd554e6a8]
   - the fixture lists exactly the kinds the running engine declares, with the
-    same fields [tested: test_the_fixture_lists_exactly_the_engines_own_rows; commit=WORKTREE]
+    same fields [tested: test_the_fixture_lists_exactly_the_engines_own_rows; commit=10312d006b14e1fed7b84adc831574ddd554e6a8]
   - every listed ball classifies engine-side to its own kind and fields
-    [tested: test_every_listed_ball_classifies_to_its_own_kind; commit=WORKTREE]
+    [tested: test_every_listed_ball_classifies_to_its_own_kind; commit=10312d006b14e1fed7b84adc831574ddd554e6a8]
   - throwing a listed ball through this seat raises the class the fixture
     names, and the two kinds it records as unclassified here do arrive as
-    EngineError [tested: test_a_thrown_ball_raises_the_class_the_fixture_names; commit=WORKTREE]
+    EngineError [tested: test_a_thrown_ball_raises_the_class_the_fixture_names; commit=10312d006b14e1fed7b84adc831574ddd554e6a8]
   - a class the fixture names takes the attributes it lists
-    [tested: test_each_named_class_takes_the_attributes_the_fixture_lists; commit=WORKTREE]
+    [tested: test_each_named_class_takes_the_attributes_the_fixture_lists; commit=10312d006b14e1fed7b84adc831574ddd554e6a8]
   - the kinds the tree throws through the reserved envelope and the fixture's
     signal rows are one set, with both differences named
-    [tested: test_every_thrown_kind_is_a_listed_signal_row; commit=WORKTREE]
+    [tested: test_every_thrown_kind_is_a_listed_signal_row; commit=10312d006b14e1fed7b84adc831574ddd554e6a8]
   - the live shim admits every kind Python raises for, so no exception entry
     is unreachable, and SWI's own unenveloped resource balls stay classified
     beside them [tested: test_the_shim_classifies_every_kind_python_names,
-    test_swis_own_resource_balls_are_classified_too; commit=WORKTREE]
+    test_swis_own_resource_balls_are_classified_too; commit=10312d006b14e1fed7b84adc831574ddd554e6a8]
 Open Obligations:
   To Do: None
   Hacks: None
