@@ -9,12 +9,12 @@ Guarantees:
   - one span per reduction, nested by depth, at the recorded times [tested:
     test_a_trace_becomes_one_span_per_reduction,
     test_spans_nest_by_the_events_own_depth,
-    test_a_span_carries_the_time_the_engine_recorded; commit=WORKTREE]
+    test_a_span_carries_the_time_the_engine_recorded; commit=8cdcb4a74b13418097d56c29ac2d296f14c7940e]
   - a block's spans hang under one span and its counters become four histograms
     [tested: test_an_observed_block_hangs_its_reductions_under_one_span,
-    test_an_observed_block_records_four_histograms; commit=WORKTREE]
+    test_an_observed_block_records_four_histograms; commit=8cdcb4a74b13418097d56c29ac2d296f14c7940e]
   - the session is released whatever the block does, and a second session opens
-    after [tested: test_a_raising_block_still_releases_the_session; commit=WORKTREE]
+    after [tested: test_a_raising_block_still_releases_the_session; commit=8cdcb4a74b13418097d56c29ac2d296f14c7940e]
   - this file's footprint on the engine is the size of its subject and not of
     its scenario count: the two functions every reading scenario reduces are
     compiled ONCE, because a child space falls back to `&self` for equations
@@ -23,7 +23,7 @@ Guarantees:
     two [measured 2026-09-07: `pytest tests/ch14_seeing_your_program/test_telemetry.py
     tests/ch14_seeing_your_program/test_explain_plan.py -p no:randomly` failed
     test_analyze_numbers_equal_the_stats_of_the_same_query at 660 against 658,
-    and passes with the shared definition; commit=WORKTREE]
+    and passes with the shared definition; commit=8cdcb4a74b13418097d56c29ac2d296f14c7940e]
 Open Obligations:
   To Do: None
   Hacks: None
