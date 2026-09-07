@@ -196,9 +196,9 @@ class Row:
 
     __slots__ = ("fields", "name", "point", "source")
 
-    def __init__(self, point: str, name: str, fields: Mapping[str, Any], source: str) -> None:
-        """Hold one registration against `point` under `name`."""
-        self.point = point
+    def __init__(self, against: str, name: str, fields: Mapping[str, Any], source: str) -> None:
+        """Hold one registration against the named point, under `name`."""
+        self.point = against
         self.name = name
         self.fields = dict(fields)
         self.source = source
@@ -507,13 +507,13 @@ def points() -> dict[str, Point]:
 
 def _load_declaring() -> None:
     """Import the modules that declare points of their own, once each."""
-    for module in _DECLARING:
+    for declaring in _DECLARING:
         with _LOCK:
-            if module in _LOADED:
+            if declaring in _LOADED:
                 continue
-        importlib.import_module(module)
+        importlib.import_module(declaring)
         with _LOCK:
-            _LOADED.add(module)
+            _LOADED.add(declaring)
 
 
 def rows(name: str | None = None) -> tuple[Row, ...]:
@@ -639,11 +639,11 @@ def _register(declared: Point, name: str, source: str, fields: Mapping[str, Any]
     added = declared.adder(row) if declared.adder is not None else None
     with _LOCK:
         held = _ROWS[declared.name]
-        for index, standing in enumerate(held):
+        for position, standing in enumerate(held):
             if standing.name == name:
-                held[index] = row
+                held[position] = row
                 _enlist(
-                    _both(added, functools.partial(_restore, declared.name, index, standing)),
+                    _both(added, functools.partial(_restore, declared.name, position, standing)),
                     f"{declared.name} registration {name!r}",
                 )
                 return row
@@ -668,11 +668,11 @@ def _both(first: Callable[[], None] | None, second: Callable[[], None]) -> Calla
     return undo
 
 
-def _restore(name: str, index: int, row: Row) -> None:
+def _restore(name: str, position: int, row: Row) -> None:
     with _LOCK:
         held = _ROWS[name]
-        if index < len(held):
-            held[index] = row
+        if position < len(held):
+            held[position] = row
 
 
 def on_registration(callback: Callable[[str, str, Callable[[], None]], None]) -> None:
@@ -692,17 +692,17 @@ def _enlist(undo: Callable[[], None] | None, description: str) -> None:
     """Tell every listener how to withdraw this registration."""
     if undo is None:
         return
-    point, _, name = description.partition(" registration ")
+    declared, _, name = description.partition(" registration ")
     for callback in tuple(_LISTENERS):
-        callback(point, name.strip("'"), undo)
+        callback(declared, name.strip("'"), undo)
 
 
 def _unregister(declared: Point, name: str) -> bool:
     with _LOCK:
         held = _ROWS[declared.name]
-        for index, standing in enumerate(held):
+        for position, standing in enumerate(held):
             if standing.name == name:
-                del held[index]
+                del held[position]
                 return True
     return False
 
@@ -742,18 +742,18 @@ def _holds(held: tuple[Row, ...], row: Row) -> bool:
 
 def _load_shipped(declared: Point) -> None:
     """Import the module holding this point's first registrants, once."""
-    module = declared.shipped
-    if module is None:
+    shipped = declared.shipped
+    if shipped is None:
         return
     with _LOCK:
-        if module in _LOADED:
+        if shipped in _LOADED:
             return
     # Marked only after the import lands. Marking first would make a failed
     # import silent for the rest of the process: the point would answer no
     # rows forever and every refusal would name the wrong thing.
-    importlib.import_module(module)
+    importlib.import_module(shipped)
     with _LOCK:
-        _LOADED.add(module)
+        _LOADED.add(shipped)
 
 
 def _load_advertised(group: str = GROUP) -> None:

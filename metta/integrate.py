@@ -1019,11 +1019,6 @@ def _reflector_rows() -> list[seam.Row]:
 
 
 def _add_reflector(row: seam.Row) -> Callable[[], None]:
-    from .integrate import (  # noqa: PLC0415  -- the seat's own door
-        register_reflector,
-        unregister_reflector,
-    )
-
     register_reflector(row.claims, row.lower)
     return lambda: unregister_reflector(row.claims, row.lower)
 

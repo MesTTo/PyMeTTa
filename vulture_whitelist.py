@@ -279,3 +279,27 @@ _.storage_matches_the_model
 # vulture that way.
 _.filenames
 _.mimetypes
+# The seam's own doors, reached by NAME through metta.seam rather than by an
+# attribute load anywhere in this package. `_catalog_of` is the `catalog`
+# service metta._space publishes and metta.seam.publish calls through
+# `seam.at("catalog").call()`; the three Point objects are the declarations
+# metta.integrate makes for the doors whose rows it owns, held by the seam's
+# own table and spelled `seam.at("repr")` and friends at every call site. The
+# other three points it declares -- type_, provider and library -- are absent
+# here only because vulture matches a name across the whole scan and those
+# three words appear as ordinary locals elsewhere.
+_.repr_
+_.reflector
+_.integration
+_._catalog_of
+# Two names the package itself never loads, and neither is dead. PROLOG calls
+# `_carrier_type_accepts` by name through seam:grounded_algebra_type/3
+# (extensions/python/metta/shim.pl:6495, `py_call('metta.algebra':...)`), which
+# is the whole point of that seam: the owning host applies a carrier predicate
+# without the atom kinds being erased on the way. `boot_seconds` is a property
+# a CALLER reads off a pool it was handed, and the caller is outside this
+# package by design; the suite's own reader is
+# tests/ch17_concurrency_and_the_loop/test_process_pool.py, which vulture does
+# not scan.
+_._carrier_type_accepts
+_.boot_seconds
