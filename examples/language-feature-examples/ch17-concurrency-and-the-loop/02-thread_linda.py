@@ -244,7 +244,7 @@ def twin(m):
 #: path; the envelope widens with its evidence, as an extremal envelope does. A run
 #: outside it is a re-observation, not a re-pin [measured 2026-09-08: python
 #: extensions/python/tools/twin_coverage.py --observe --rounds 10,
-#: ai-tmp/integrator-849a9e/mergeFACE-observe-10.log; commit=WORKTREE].
+#: ai-tmp/integrator-849a9e/mergeFACE-observe-10.log; commit=4a6029296381da416c61a3b25d1609c72a3e062a].
 BUDGET = {
     "minimum": 427680,
     "maximum": 427713,

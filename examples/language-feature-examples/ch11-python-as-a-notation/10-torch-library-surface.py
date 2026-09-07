@@ -134,5 +134,5 @@ def twin(m):
 #: importing the library compiles and declares that much more before the first
 #: call. Measured on the merged tree, minimum of three fresh processes
 #: [measured 2026-09-08: min-of-3 serial fresh processes; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+#: extensions/python/tools/twin_coverage.py --repin; commit=4a6029296381da416c61a3b25d1609c72a3e062a].
 BUDGET = 143365
