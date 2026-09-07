@@ -95,7 +95,7 @@
       "missing": "a cast door that agrees with the engine's type-cast on an undeclared atom",
       "row": "P14.4",
       "section": "\u00a79e: cast, resolved against typing.cast",
-      "detail": "m.cast(S.B, S.type1) raises CastError, 'B does not admit type type1 in &self: its types are %Undefined%', where the engine answers B: an atom nobody declared has type %Undefined%, which the language's own rule treats as a wildcard matching any requested type (engine/prelude.metta, match-type-or and type-cast-holds). The ledger's design for cast is 'typing.cast plus truth', and the truth it adds here is stricter than the language's. The twin asks type-cast directly, which also keeps the refusal answer (Error 1 BadType) as the ATOM the example claims rather than as an exception."
+      "detail": "m.cast(S.B, S.type1) raises CastError, 'B does not admit type type1 in &self: its types are %Undefined%', where the engine answers B: an atom nobody declared has type %Undefined%, which the language's own rule treats as a wildcard matching any requested type (engine/prelude.pl, match-type-or and type-cast-holds). The ledger's design for cast is 'typing.cast plus truth', and the truth it adds here is stricter than the language's. The twin asks type-cast directly, which also keeps the refusal answer (Error 1 BadType) as the ATOM the example claims rather than as an exception."
     },
     {
       "kind": "friction",
