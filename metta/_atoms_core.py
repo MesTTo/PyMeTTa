@@ -108,7 +108,7 @@ Guarantees:
     commit=bbf02dd309d15e178a9c83d03b749eb7170b6a20], and a Grounded decoded
     from a bare object payload carries no envelope and crosses boxed again
     [tested: test_a_returned_python_container_crosses_back_as_one_object;
-    commit=WORKTREE]
+    commit=6cfa4d2afbfd867f91ee8eec5400a811aa365086]
   - Atom operator methods are installed from the immutable 22-entry lowering
     table, including explicit templates and named refusals [tested:
     test_the_operator_table_is_generated_from_one_source_with_no_holes;

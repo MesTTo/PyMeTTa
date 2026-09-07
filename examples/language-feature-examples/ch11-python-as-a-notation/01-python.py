@@ -174,5 +174,5 @@ def twin(m):
 #: under which a bare symbol has no answer; the twins lane was a REPORT lane
 #: and the failing claim went unreported until 2026-09-07 [measured 2026-09-07:
 #: min-of-3 serial fresh processes; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+#: extensions/python/tools/twin_coverage.py --repin; commit=6cfa4d2afbfd867f91ee8eec5400a811aa365086].
 BUDGET = 15269

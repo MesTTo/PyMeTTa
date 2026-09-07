@@ -43,7 +43,7 @@ Guarantees:
     commit=bbf02dd309d15e178a9c83d03b749eb7170b6a20]; a bare object payload
     crosses boxed again exactly as a fresh Grounded of the same value does
     [tested: test_a_returned_python_container_crosses_back_as_one_object;
-    commit=WORKTREE]
+    commit=6cfa4d2afbfd867f91ee8eec5400a811aa365086]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -175,7 +175,7 @@ def _object_from_wire(payload: Any) -> Atom:
         # re-sending the bare dict made `(py-call (.get prefs size))` answer
         # nothing for a dict the engine had just handed back [tested:
         # test_a_returned_python_container_crosses_back_as_one_object;
-        # commit=WORKTREE].
+        # commit=6cfa4d2afbfd867f91ee8eec5400a811aa365086].
         object.__setattr__(grounded, "_wire_value", payload)
     return grounded
 
