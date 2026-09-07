@@ -158,6 +158,21 @@ HOST_SERVICES = {
     "metta_host_native_fact/4",
     "metta_host_explain_match/3",
     "metta_host_operation_error/5",
+    # The rest of the refusal contract, which each seat used to hold its own
+    # copy of. This shim's copies of the kind list, the reader-failure line
+    # and the capability reading are GONE, replaced by these calls into the
+    # one engine-side table both seats read; the two seats had already
+    # drifted apart on which refusals had a class at all
+    # [source: docs/journal/2026-09-07-two-seats-one-error-taxonomy.md].
+    "metta_host_control_signal_info/3",
+    "metta_host_control_signal_line/2",
+    "metta_host_space_capability_error/4",
+    # The same table as the aggregate reading and as enumerable rows, which
+    # the Node bridge classifies with and both seats' suites read against
+    # tests/data/error-kinds.json. This seat calls neither: its own wire asks
+    # for the three above, one kind at a time.
+    "metta_host_error_kind/3",
+    "metta_host_error_kind_row/3",
     "metta_host_clear_space/1",
     "metta_host_clear_defined/1",
     "metta_host_fast_header/1",
@@ -325,6 +340,11 @@ FLOOR_REASONS = {
     "metta_host_native_fact/4": "host-orchestration",
     "metta_host_open_function/3": "host-orchestration",
     "metta_host_operation_error/5": "error-vocabulary",
+    "metta_host_control_signal_info/3": "error-vocabulary",
+    "metta_host_control_signal_line/2": "error-vocabulary",
+    "metta_host_space_capability_error/4": "error-vocabulary",
+    "metta_host_error_kind/3": "error-vocabulary",
+    "metta_host_error_kind_row/3": "error-vocabulary",
     "metta_host_read_forms/2": "host-orchestration",
     "metta_host_register_reader_token/2": "door",
     "metta_host_remove_reported/3": "host-orchestration",

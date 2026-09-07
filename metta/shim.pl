@@ -220,8 +220,12 @@
 %     parsing Janus's rendered exception [tested test_run_syntax_error_is_loud],
 %     and metta_control_signal_line/2 answers WHERE a reader failure stopped
 %     from the envelope's own context slot, failing where none was named
-%     [tested: shim_type_inference:a_syntax_envelope_carries_its_line;
-%     commit=8d67307403c1e41ccf058bd3c8d4c079dd7cf7d5]
+%     [tested: error_kinds:a_syntax_envelope_carries_its_line; commit=WORKTREE].
+%     Both read the engine's one refusal table
+%     (engine/metta/registration.pl, metta_host_error_kind_row/3), so this
+%     seat and the Node seat classify the same kinds
+%     [tested: extensions/python/tests/repository/test_error_kinds.py;
+%     commit=WORKTREE]
 %   - metta_py_infer_types/2 walks a space once and answers one
 %     [Head, Arity, KindWires, ResultWire] row per (head, arity) the space
 %     mentions and does not declare, naming the narrowest kind covering the
@@ -974,48 +978,40 @@ prolog:error_message(metta_answer_annotation_undeclared(Ctx, K)) -->
 metta_py_raise(Kind, Detail) :-
     throw(error(metta_control_signal(Kind, Detail), context(metta, Kind))).
 
-metta_control_signal_info(
-    error(metta_control_signal(Kind, Detail), context(metta, _)), Kind, Detail) :-
-    % policy-inventory-exempt: mechanism-internal; reason=these are the reserved control-envelope classifier tags shared with the Python exception bridge; evidence=extensions/python/metta/shim.pl:metta_control_signal_info/3
-    memberchk(Kind, [syntax, time_limit, inference_limit, interrupted,
-                     value, type, restraint]).
-
-%SWI's OWN resource balls, which the engine already names control exceptions
-%(engine/metta/registration.pl) and which reach this side unenveloped whenever
-%the goal that spent the budget was a NESTED query: janus's apply_once opens
-%one with PL_Q_CATCH_EXCEPTION, so it takes the ball before the enclosing
-%call_with_inference_limit/3 can see it and turn it into the envelope. A Python
-%callback that re-enters the engine is exactly that shape, and without these
-%its budget arrived at the Python door as `EngineError: Unknown message:
-%inference_limit_exceeded`, which names neither the resource nor the caller's
-%own bound: both the nested call's exception and the outer door's carried the
-%term `inference_limit_exceeded` itself [tested:
+%The reserved envelope's kind and payload, with this side's absence marker
+%put back. The kind list and both ball shapes are the engine's
+%(metta_host_control_signal_info/3), where every seat reads the same table;
+%the engine leaves a payload the ball does not carry UNBOUND, which is the
+%convention metta_py_operation_part/2 already maps to janus's None. Two of
+%the three shapes are SWI's own resource balls, which reach this side
+%unenveloped whenever the goal that spent the budget was a NESTED query:
+%janus's apply_once opens one with PL_Q_CATCH_EXCEPTION, so it takes the ball
+%before the enclosing call_with_inference_limit/3 can see it and turn it into
+%the envelope. A Python callback that re-enters the engine is exactly that
+%shape, and without them its budget arrived at the Python door as
+%`EngineError: Unknown message: inference_limit_exceeded`, naming neither the
+%resource nor the caller's own bound [tested:
 %test_a_reentrant_provider_generator_reports_the_budget_that_stopped_it;
 %commit=0ee5a2dfee0e37a23b0eb9c765b477d7f90295fe].
 %
-%The bound itself is NOT recoverable here and is answered as absent rather
-%than guessed: the number lives in the frame that installed it,
-%metta_host_inference_budget/3's own Inferences, which has already unwound by
-%the time this classifier runs in a later janus query. The enveloped path,
-%which is every bound that expires in its own goal, still carries it.
-metta_control_signal_info(inference_limit_exceeded, inference_limit, @none).
-metta_control_signal_info(time_limit_exceeded, time_limit, @none).
-
-metta_control_signal_kind(Error, Kind) :-
-    metta_control_signal_info(Error, Kind, _).
+%A SECOND copy of the kind list lived here until 2026-09-07, which is the
+%drift the metta_py_control_exception/1 note below records happening once
+%already; the Node seat meanwhile read the kinds out of the rendered message
+%and knew five of them.
+metta_control_signal_info(Error, Kind, Detail) :-
+    metta_host_control_signal_info(Error, Kind, Detail0),
+    metta_py_operation_part(Detail0, Detail).
 
 %WHERE a reader failure stopped, for the one control signal that has a place
-%as well as a sentence. engine/filereader.pl's metta_host_rethrow_syntax/1
-%puts the line in the envelope's context slot, and this reads it back, so a
-%caller pointing at the line never parses "starting at line ~w" out of the
-%message. Fails when no line was named, which is every other syntax refusal
-%in this tree (a single form read through metta_py_read_form/3, a numeric
-%literal past binary64), and the Python side then leaves MettaSyntaxError.line
-%None rather than guessing one.
-metta_control_signal_line(
-    error(metta_control_signal(syntax, _), context(metta, metta_source_line(Line))),
-    Line) :-
-    integer(Line).
+%as well as a sentence. The envelope's context slot is the engine's and
+%metta_host_control_signal_line/2 reads it; the name stays this side's
+%because it is what the Python door's own goal text asks for, and so does the
+%FAILURE where no line was named, which is every other syntax refusal in this
+%tree (a single form read through metta_py_read_form/3, a numeric literal past
+%binary64) and which the Python side reads as MettaSyntaxError.line staying
+%None rather than a guessed line.
+metta_control_signal_line(Error, Line) :-
+    metta_host_control_signal_line(Error, Line).
 
 %The classification is the engine's metta_host_operation_error/5; this side
 %maps its neutral absence, an unbound part, onto janus's None.
@@ -1039,9 +1035,11 @@ metta_py_operation_part(Part, Part).
 metta_py_answer_bag(Bag, @none) :- var(Bag), !.
 metta_py_answer_bag(Bag, Wires) :- maplist(metta_py_encode_answer, Bag, Wires).
 
-metta_py_space_capability_error(
-    error(metta_space_capability_required(Space, Operation, Capability), _),
-    Space, Operation, Capability).
+%The term is the engine's (engine/spaces/lifecycle.pl raises and renders it)
+%and so is the reading, metta_host_space_capability_error/4; this side keeps
+%the name its own goal text asks for.
+metta_py_space_capability_error(Error, Space, Operation, Capability) :-
+    metta_host_space_capability_error(Error, Space, Operation, Capability).
 
 %The Python side's contributions to the engine's control-signal seam. There
 %was a metta_py_control_exception/1 here holding a SECOND copy of the list,
