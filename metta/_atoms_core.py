@@ -37,6 +37,13 @@ Guarantees:
     commit=012413efb73b4dd27c71354c7f654862f349c03f]
   - atom copy and pickle protocols preserve value and identity contracts
     [tested test_atoms_pickle_by_value, test_process_local_grounded_values_refuse_pickle]
+  - ``format(atom, spec)`` answers ``str(atom)`` for an empty spec, the
+    library's own rendering for a spec of ``metta._templates``'s table, and
+    Python's presentation grammar otherwise, including for a Handle, whose
+    value slot is unset [tested:
+    test_the_format_protocol_reaches_the_same_table,
+    test_an_empty_spec_is_str_and_python_specs_still_work,
+    test_a_handle_formats_without_a_value_slot; commit=adb831d29a48596d3068a3087115b216c18b5b38]
   - head and args are Atom-level questions, so a leaf refuses with the leaf
     sentence its four sibling accessors give rather than a bare AttributeError
     [tested: test_a_leaf_refuses_head_and_args_the_way_it_refuses_children;
@@ -731,7 +738,13 @@ class Atom:
         raise TypeError(self._not_a_message("int"))
 
     def __format__(self, spec: str) -> str:
-        return str(self) if not spec else format(str(self), spec)
+        # An empty spec is str(self), Python's own law; the library's rendering
+        # specs (sexp, quoted, json, lines) are the table metta.render reads,
+        # so f"{atom:sexp}" and render(t"{atom:sexp}") cannot drift; anything
+        # else is Python's presentation grammar over the atom's text.
+        from ._templates import formatted  # noqa: PLC0415  -- _templates reads this module
+
+        return formatted(self, spec, str(self))
 
 
 class Symbol(Atom):
@@ -1076,9 +1089,21 @@ class Grounded(Atom):
         return v
 
     def __format__(self, spec: str) -> str:
+        # As Atom's, with one difference: a Python presentation spec acts on
+        # the VALUE where the value has one Python spelling, so f"{g:.2f}" is
+        # the number formatted rather than its text padded.
+        #
+        # The slot is read through getattr and only when a spec needs it,
+        # because a Handle is a Grounded species whose value slot is
+        # deliberately unset: `f"{space}"` reached `self.value` and raised
+        # `'Space' object has no attribute 'value'`
+        # [tested: test_a_handle_formats_without_a_value_slot; commit=adb831d29a48596d3068a3087115b216c18b5b38].
+        from ._templates import formatted  # noqa: PLC0415  -- _templates reads this module
+
         if not spec:
             return str(self)
-        return format(self.value, spec) if _is_primitive(self.value) else format(str(self), spec)
+        held = getattr(self, "value", None)
+        return formatted(self, spec, held if _is_primitive(held) else str(self))
 
     def __repr__(self) -> str:
         # Grounded(42) and Grounded('text'), not Grounded('42'): the repr shows the value it

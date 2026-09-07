@@ -452,6 +452,33 @@ def test_metta_and_prolog_halves_share_one_library_row(tmp_path, monkeypatch):
     assert "A planted name." in generated
 
 
+def test_a_doc_atom_renders_its_parts_in_written_order(tmp_path, monkeypatch):
+    """The entry template follows the atom, so an unusual order still reads.
+
+    The generator renders one block per part as the part is met, rather than
+    in a canonical desc-params-return order it would have to impose. A library
+    that answers before it describes is documented the way it was written, and
+    the burn-down line names what has no @doc at all.
+    """
+    libdoc = _load_libdoc()
+    library = tmp_path / "lib" / "lib_planted"
+    library.mkdir(parents=True)
+    (library / "lib_planted.metta").write_text(
+        '(@doc planted (@return "a planted answer") (@desc "A planted name."))\n'
+        "(= (planted) 1)\n"
+        "(= (unplanted) 2)\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(libdoc, "_REPO", tmp_path)
+
+    generated = libdoc.page()
+
+    assert generated.index("Returns: a planted answer") < generated.index(
+        "A planted name."
+    )
+    assert "Undocumented: `unplanted`" in generated
+
+
 def _lint_kinds() -> set[str]:
     """Every kind metta.lint can emit, read out of the analysis module.
 

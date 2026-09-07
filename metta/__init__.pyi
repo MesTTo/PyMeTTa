@@ -33,6 +33,7 @@ from ._space_execution import ScopedExecution as _ScopedExecution
 from ._space_objects import ScopedLimits as _ScopedLimits
 from ._space_objects import _StatsBlock
 from ._state import State as State
+from ._templates import render as render
 from ._trace import Trace as _Trace
 from ._version import __version__ as __version__
 from .algebra import DeclaredAlgebra as _DeclaredAlgebra
@@ -239,6 +240,7 @@ __all__ = [
     "refuse",
     "remote",
     "remove",
+    "render",
     "rules",
     "run",
     "seg",

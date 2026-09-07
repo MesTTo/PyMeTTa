@@ -1,4 +1,4 @@
-"""Purpose: read program text with holes into text and bindings.
+"""Purpose: read program text with holes into a program, or render it as text.
 
 The two things the engine needs are the text its own reader parses and the
 name-to-value pairs the holes ride in on, and the three faces that produce
@@ -9,15 +9,36 @@ A hole IS a binding. ``bind(name=value)`` substitutes a symbol with a value
 after the reader and before the run; a hole does the same by position, so the
 door generates a symbol nothing else can name, splices it where the hole was,
 and hands the pair to the mechanism that already exists. Nothing is rendered to
-text: a ``str`` value stays a String atom and never has to be escaped.
+text on that side: a ``str`` value stays a String atom and never has to be
+escaped.
+
+The OTHER direction is this module too. One template reads into a program and
+renders into text, so a card, a reference page or a documentation section is a
+template over a query rather than a program that prints. Both directions walk
+the same three faces through the same code and part company at one method: a
+hole's value becomes an atom at ``_Assembly`` and text at ``_Text``. The spec
+vocabulary is ONE table, ``_SPECS``, whose rows carry the direction they work
+in, so each door's refusal is derived from the other's rows and neither can
+name a vocabulary the other has moved on from.
 
 The architecture is tdom's, which splices a generated placeholder per
 interpolation, parses the assembled text with the real parser, and translates
 positions back for its errors [source:
 https://github.com/t-strings/tdom/blob/main/tdom/placeholders.py and
 tdom/parser_utils.py at the repository's main branch, read 2026-09-06]. The
-three format specs are psycopg 3.3's ``i``/``l``/``q`` under this library's own
-names [source: https://www.psycopg.org/psycopg3/docs/basic/tstrings.html].
+three entry specs are psycopg 3.3's ``i``/``l``/``q`` under this library's own
+names [source: https://www.psycopg.org/psycopg3/docs/basic/tstrings.html], and
+rendering follows PEP 750's own loop, ``convert`` then ``format`` per
+interpolation with the literal segments between [source:
+https://docs.python.org/3.14/library/string.templatelib.html, ``convert``;
+measured on 3.14.4 that the loop reproduces the f-string byte for byte,
+``{x=}`` included].
+
+A rendered hole is what the ENGINE puts at a ``format-args`` hole: a String's
+characters, any other atom's MeTTa text [source: engine/metta/operators.pl,
+metta_console_text/2, which is what upstream's formatArgsString interpolates].
+``{v:sexp}`` is the other engine rendering, ``sdisplay/2``, which is what
+``println!`` prints and ``repr`` answers, and which ``parse`` reads back.
 
 Assumes:
   - ``BOUNDARY`` is the engine reader's token boundary set, Unicode
@@ -42,8 +63,22 @@ Guarantees:
   - values enter through ``encode``, so an int is a Number, a str a String, an
     Atom itself and a Space its handle [tested:
     test_a_hole_enters_each_value_kind_through_encode; commit=4481c32eb0e922047199c54cea97c24995c6959e]
-Fails when: the caller wants the template rendered to a string. It is not a
-  formatter; ``format(...)`` and f-strings are Python's own answer for text.
+  - a rendered hole with no spec answers what the engine's own
+    ``format-args`` puts at ``{}``, and ``{v:sexp}`` what ``repr`` answers
+    [tested: test_a_rendered_hole_is_what_format_args_interpolates,
+    test_the_sexp_spec_is_what_repr_answers; commit=adb831d29a48596d3068a3087115b216c18b5b38]
+  - the 3.14 literal and the keyword face render the same bytes [tested:
+    test_the_two_faces_render_identically; commit=adb831d29a48596d3068a3087115b216c18b5b38]
+  - a spec belonging to the other direction refuses naming that direction, and
+    an unknown one names this direction's specs [tested:
+    test_a_render_spec_at_an_entry_hole_names_the_render_door,
+    test_an_entry_spec_at_a_rendered_hole_names_the_reader,
+    test_an_unknown_render_spec_names_the_render_specs; commit=adb831d29a48596d3068a3087115b216c18b5b38]
+Fails when: the caller wants a loop. A template holds one level: PEP 750's
+  grammar has no statement form, so ``{for row in rows}`` is a SyntaxError on
+  the 3.14 face, and a literal's values are evaluated when the literal is,
+  so no per-item binding could arrive later anyway. Iterate in Python and
+  compose the pieces, which ``{parts:lines}`` and a nested template do.
 Open Obligations:
   To Do: None
   Hacks: None
@@ -55,7 +90,7 @@ from __future__ import annotations
 import string as _string
 from typing import TYPE_CHECKING, Any, NamedTuple
 
-from ._atoms_core import Atom, Grounded, Symbol, encode
+from ._atoms_core import Atom, Grounded, Symbol, decode, encode
 from .errors import Remedy, refusing
 
 if TYPE_CHECKING:
@@ -83,14 +118,94 @@ _LAYOUT = frozenset(
 BOUNDARY = _LAYOUT | frozenset("();")
 
 #: The conversions PEP 750 records, applied here exactly as f-strings apply
-#: them, before the format spec. The result is a str and enters as a String.
+#: them, before the format spec. The result is a str: it enters as a String on
+#: the reading side and is the text itself on the rendering side, which is what
+#: makes ``{v!r}`` in a rendered template the f-string's own bytes.
 _CONVERSIONS: dict[str, Callable[[Any], str]] = {"r": repr, "s": str, "a": ascii}
 
-#: The three specs, each sugar for one atom constructor, which is the whole
-#: marker vocabulary: there is no other.
-_SPECS = ("sym", "expr", "py")
+#: The two directions a hole can work in: into a program, or into text.
+ENTRY = "entry"
+RENDER = "render"
+
+#: THE spec table, both directions in one place. A reading spec is sugar for
+#: one atom constructor and a rendering spec for one rendering the engine
+#: already has; each row's gloss is what a refusal calls it, so adding a spec
+#: to one direction puts it in the other's message without it being written
+#: twice. There is no third vocabulary: Python's own presentation specs stay
+#: Python's, applied to a RENDERED hole because a rendered hole is text.
+_SPECS: dict[str, tuple[str, str]] = {
+    "sym": (ENTRY, "Symbol"),
+    "expr": (ENTRY, "parse"),
+    "py": (ENTRY, "Grounded"),
+    "sexp": (RENDER, "canonical MeTTa text"),
+    "quoted": (RENDER, "a MeTTa string literal"),
+    "json": (RENDER, "one line of JSON"),
+    "table": (RENDER, "a Markdown table"),
+    "lines": (RENDER, "one value per line"),
+}
 
 _ELLIPSIS_AT = 60
+
+
+def _spec_list(direction: str) -> str:
+    """One direction's specs, spelled the way a refusal names them."""
+    named = [
+        f"{name} ({gloss})"
+        for name, (side, gloss) in _SPECS.items()
+        if side == direction
+    ]
+    return ", ".join(named[:-1]) + " and " + named[-1]
+
+
+def _spec_refusal(spec: str, shown: str, direction: str) -> ValueError:
+    """Refuse a spec this direction does not know, from the one table.
+
+    A spec of the OTHER direction is not unknown, it is misplaced, and the
+    message says which door owns it. Anything else is unknown and names this
+    direction's own specs.
+    """
+    known = _SPECS.get(spec)
+    if known is not None:
+        side, gloss = known
+        if side == RENDER:
+            wrong = (
+                f"the {spec} spec renders a value as text ({gloss}), and this "
+                f"hole enters a program"
+            )
+            # Named `door` rather than `remedy`: the refusal-remedy lane reads
+            # the word `remedy` in a raise's footprint as a promise that the
+            # repair is carried as DATA, and these sentences name a door rather
+            # than a repair an editor could apply.
+            door = (
+                "metta.render() is the door that renders; render first and "
+                "pass the answer as a value"
+            )
+        else:
+            wrong = (
+                f"the {spec} spec builds an atom ({gloss}), and this hole "
+                f"renders text"
+            )
+            door = (
+                "m.run() and its siblings are the doors that read a hole into "
+                "a program"
+            )
+        msg = f"{wrong}: {shown}. The specs here are {_spec_list(direction)}. {door}."
+        return ValueError(msg)
+    if direction == ENTRY:
+        tail = (
+            "For Python formatting, format in Python and pass the string, as "
+            "in {f'{value:.2f}'}."
+        )
+    else:
+        tail = (
+            "A Python format spec works here too, as in {value:.2f}, since a "
+            "rendered hole is text."
+        )
+    msg = (
+        f"unknown hole spec {spec!r} at {shown}: the specs are "
+        f"{_spec_list(direction)}. {tail}"
+    )
+    return ValueError(msg)
 
 
 def is_template(value: Any) -> bool:
@@ -172,13 +287,7 @@ def read_targets(
         else:
             out.append(target)
         assembly.separate()
-    unused = sorted(set(values) - assembly.used)
-    if unused:
-        msg = (
-            f"{called} was given values the program text does not use: "
-            f"{unused!r}. Every keyword names a {{field}} in the text."
-        )
-        raise TypeError(msg)
+    assembly.check_unused(values)
     assembly.check()
     return tuple(out), assembly.bindings()
 
@@ -213,7 +322,72 @@ class _Hole(NamedTuple):
     program_at: int
 
 
-class _Assembly:
+class _Holes:
+    """What both directions of one call share: the door, its keywords, its fields.
+
+    A subclass says what a hole's value BECOMES, in ``value``, and what the
+    literal text between holes becomes, in ``literal``. Everything else about
+    reading the three faces is written once, above this line and below it.
+    """
+
+    __slots__ = ("called", "reserved", "used")
+
+    #: Which half of ``_SPECS`` this sink's holes may spell. Declared without a
+    #: value, so a sink that forgot to choose is an error rather than a silent
+    #: direction.
+    DIRECTION: str
+
+    def __init__(self, called: str, reserved: tuple[str, ...] = ()) -> None:
+        self.called = called
+        #: The door's own keyword-only parameters, and the field names this
+        #: call's text actually consumed, so a keyword nothing uses can be
+        #: refused and a collision with a parameter can be named.
+        self.reserved = reserved
+        self.used: set[str] = set()
+
+    def literal(self, text: str) -> None:
+        """Author text, verbatim."""
+        raise NotImplementedError
+
+    def value(self, value: Any, conversion: str | None, spec: str, shown: str) -> None:
+        """One hole's value, converted and specced, into whatever is built."""
+        raise NotImplementedError
+
+    def prefix(self, segment: str, interpolation: InterpolationLike) -> str:
+        """Write the literal before a hole, answering how the hole was written.
+
+        The base is the rendering reading: PEP 750 folds a debug form's ``x=``
+        into the preceding segment, and writing the segment whole is exactly
+        what makes ``render(t"{x=}")`` the f-string's own bytes. ``_Assembly``
+        overrides it, because a program has atoms rather than text and the
+        label has to become one of them.
+        """
+        self.literal(segment)
+        return _written(
+            interpolation.expression,
+            interpolation.conversion,
+            interpolation.format_spec,
+        )
+
+    def check_unused(
+        self, values: Mapping[str, Any], implicit: frozenset[str] = frozenset()
+    ) -> None:
+        """Refuse a value the text never asked for, naming it.
+
+        ``implicit`` is what the DOOR supplied rather than the caller, such as
+        the receiver ``Rows.render`` binds: a template that does not mention it
+        is an ordinary template, not a mistake.
+        """
+        unused = sorted(set(values) - self.used - implicit)
+        if unused:
+            msg = (
+                f"{self.called} was given values the program text does not "
+                f"use: {unused!r}. Every keyword names a {{field}} in the text."
+            )
+            raise TypeError(msg)
+
+
+class _Assembly(_Holes):
     """The two texts under construction, the engine's and the author's.
 
     The engine's text carries the generated symbols and is what gets parsed;
@@ -229,24 +403,18 @@ class _Assembly:
         "_holes",
         "_plen",
         "_program",
-        "called",
-        "reserved",
-        "used",
     )
 
+    DIRECTION = ENTRY
+
     def __init__(self, called: str, reserved: tuple[str, ...] = ()) -> None:
-        self.called = called
+        super().__init__(called, reserved)
         self._program: list[str] = []
         self._display: list[str] = []
         self._holes: list[_Hole] = []
         self._plen = 0
         self._dlen = 0
         self._dbase = 0
-        #: The door's own keyword-only parameters, and the field names this
-        #: call's text actually consumed, so a keyword nothing uses can be
-        #: refused and a collision with a parameter can be named.
-        self.reserved = reserved
-        self.used: set[str] = set()
 
     def begin(self) -> int:
         """Start one target, answering its offset in the engine's text.
@@ -302,6 +470,31 @@ class _Assembly:
         if shows:
             self._display.append(shown)
             self._dlen += len(shown)
+
+    def value(self, value: Any, conversion: str | None, spec: str, shown: str) -> None:
+        """A hole's value as the atom it becomes, spliced in as a symbol."""
+        self.hole(_atom(value, conversion, spec, shown), shown)
+
+    def prefix(self, segment: str, interpolation: InterpolationLike) -> str:
+        """The literal before a hole, with a folded debug label taken out of it.
+
+        A program has atoms rather than text, so ``{x=}``'s label cannot stay
+        glued to the value: it enters as its own String and the value follows,
+        which is what makes ``!(log {x=})`` read ``(log "x=" "42")``.
+        """
+        label, kept = _debug_fold(segment, interpolation)
+        self.literal(kept)
+        shown = _written(
+            interpolation.expression,
+            interpolation.conversion,
+            interpolation.format_spec,
+        )
+        if label is None:
+            return shown
+        shown = "{" + interpolation.expression + "=}"
+        self.hole(encode(label), shown, shows=False)
+        self.gap()
+        return shown
 
     def gap(self) -> None:
         """A space the author did not write, between two holes of one fold."""
@@ -433,12 +626,14 @@ def _spans(text: str) -> list[tuple[int, int, str]]:
 
 
 def _template_parts(
-    template: TemplateLike, assembly: _Assembly, seen: tuple[int, ...]
+    template: TemplateLike, sink: _Holes, seen: tuple[int, ...]
 ) -> None:
     """The 3.14 literal and the backport, read structurally.
 
     ``seen`` carries the ids on the current nesting path, so a hand-built
-    object holding itself refuses instead of recursing forever.
+    object holding itself refuses instead of recursing forever. This is PEP
+    750's own rendering loop, segment then interpolation, with the sink
+    deciding what an interpolation becomes.
     """
     if id(template) in seen:
         msg = "a template cannot contain itself"
@@ -452,22 +647,12 @@ def _template_parts(
         raise ValueError(msg)
     for index, segment in enumerate(strings):
         if index >= len(interpolations):
-            assembly.literal(segment)
+            sink.literal(segment)
             continue
         interpolation = interpolations[index]
-        shown = _written(
-            interpolation.expression,
-            interpolation.conversion,
-            interpolation.format_spec,
-        )
-        label, kept = _debug_fold(segment, interpolation)
-        assembly.literal(kept)
-        if label is not None:
-            shown = "{" + interpolation.expression + "=}"
-            assembly.hole(encode(label), shown, shows=False)
-            assembly.gap()
+        shown = sink.prefix(segment, interpolation)
         _place(
-            assembly,
+            sink,
             interpolation.value,
             interpolation.conversion,
             interpolation.format_spec,
@@ -513,7 +698,7 @@ def _debug_fold(
 
 
 def _keyword_parts(
-    text: str, values: Mapping[str, Any], assembly: _Assembly
+    text: str, values: Mapping[str, Any], sink: _Holes
 ) -> None:
     """A plain string plus keyword values, split by ``string.Formatter``.
 
@@ -523,23 +708,23 @@ def _keyword_parts(
     """
     formatter = _string.Formatter()
     for literal, field, spec, conversion in formatter.parse(text):
-        assembly.literal(literal)
+        sink.literal(literal)
         if field is None:
             continue
         shown = _written(field, conversion, spec or "")
         if spec and "{" in spec:
             msg = (
-                f"{assembly.called}: a nested format spec is not a hole spec: "
-                f"{shown}. The specs are {', '.join(_SPECS)}."
+                f"{sink.called}: a nested format spec is not a hole spec: "
+                f"{shown}. The specs are {_spec_list(sink.DIRECTION)}."
             )
             raise ValueError(msg)
-        value = _field_value(field, values, assembly)
-        _place(assembly, value, conversion, spec or "", shown)
+        value = _field_value(field, values, sink)
+        _place(sink, value, conversion, spec or "", shown)
 
 
-def _field_value(field: str, values: Mapping[str, Any], assembly: _Assembly) -> Any:
+def _field_value(field: str, values: Mapping[str, Any], sink: _Holes) -> Any:
     """Resolve one field against the keywords, or refuse naming it."""
-    called = assembly.called
+    called = sink.called
     head = field.split(".", 1)[0].split("[", 1)[0]
     if head == "" or head.isdigit():
         msg = (
@@ -549,7 +734,7 @@ def _field_value(field: str, values: Mapping[str, Any], assembly: _Assembly) -> 
         )
         raise ValueError(msg)
     if head not in values:
-        if head in assembly.reserved:
+        if head in sink.reserved:
             msg = (
                 f"{called}: the field {{{field}}} cannot take a keyword value, "
                 f"because {called} takes {head}= as its own argument. Write the "
@@ -567,7 +752,7 @@ def _field_value(field: str, values: Mapping[str, Any], assembly: _Assembly) -> 
     except (AttributeError, IndexError, KeyError, TypeError) as exc:
         msg = f"{called}: the field {{{field}}} does not resolve: {exc}"
         raise ValueError(msg) from exc
-    assembly.used.add(head)
+    sink.used.add(head)
     return value
 
 
@@ -583,7 +768,7 @@ def _written(expression: str, conversion: str | None, spec: str) -> str:
 
 
 def _place(
-    assembly: _Assembly,
+    sink: _Holes,
     value: Any,
     conversion: str | None,
     spec: str,
@@ -591,19 +776,19 @@ def _place(
     *,
     seen: tuple[int, ...] = (),
 ) -> None:
-    """One hole's value into the assembly: spliced if text, bound otherwise.
+    """One hole's value into whatever is being built, in either direction.
 
-    A NESTED template with neither a conversion nor a spec composes: its text
-    becomes text and its holes become holes of this call. It is a literal the
-    author wrote, so it carries no injection risk, which is the distinction
-    psycopg draws between a composable statement snippet and a runtime string.
-    With a conversion or a spec the author has said "treat this as a value",
-    and it is one.
+    A NESTED template with neither a conversion nor a spec composes: reading,
+    its text becomes text and its holes become holes of this call; rendering,
+    it renders into this text. It is a literal the author wrote, so it carries
+    no injection risk, which is the distinction psycopg draws between a
+    composable statement snippet and a runtime string. With a conversion or a
+    spec the author has said "treat this as a value", and it is one.
     """
     if conversion is None and not spec and is_template(value):
-        _template_parts(value, assembly, seen)
+        _template_parts(value, sink, seen)
         return
-    assembly.hole(_atom(value, conversion, spec, shown), shown)
+    sink.value(value, conversion, spec, shown)
 
 
 def _atom(value: Any, conversion: str | None, spec: str, shown: str) -> Atom:
@@ -614,15 +799,7 @@ def _atom(value: Any, conversion: str | None, spec: str, shown: str) -> Atom:
     With no spec the value takes ``encode``'s ladder, so an int is a Number, a
     str a String, an Atom itself, a Space its handle.
     """
-    if conversion is not None:
-        convert = _CONVERSIONS.get(conversion)
-        if convert is None:
-            msg = (
-                f"unknown conversion {conversion!r} at {shown}: the "
-                f"conversions are !r, !s and !a, as in an f-string"
-            )
-            raise ValueError(msg)
-        value = convert(value)
+    value = _converted(value, conversion, shown)
     if not spec:
         return encode(value)
     if spec == "py":
@@ -642,12 +819,307 @@ def _atom(value: Any, conversion: str | None, spec: str, shown: str) -> Atom:
         from .atoms import parse  # noqa: PLC0415
 
         return parse(value)
-    msg = (
-        f"unknown hole spec {spec!r} at {shown}: the specs are sym (Symbol), "
-        f"expr (parse) and py (Grounded). For Python formatting, format in "
-        f"Python and pass the string, as in {{f'{{value:.2f}}'}}."
+    raise _spec_refusal(spec, shown, ENTRY)
+
+
+def _converted(value: Any, conversion: str | None, shown: str) -> Any:
+    """PEP 750's conversion, applied before the spec in both directions.
+
+    ``string.templatelib.convert``'s own three cases, written out because the
+    module they live in does not exist below 3.14 and this library's floor is
+    3.12 [source: https://docs.python.org/3.14/library/string.templatelib.html].
+    """
+    if conversion is None:
+        return value
+    convert = _CONVERSIONS.get(conversion)
+    if convert is None:
+        msg = (
+            f"unknown conversion {conversion!r} at {shown}: the "
+            f"conversions are !r, !s and !a, as in an f-string"
+        )
+        raise ValueError(msg)
+    return convert(value)
+
+
+# ------------------------------------------------------------------ rendering
+
+
+class _Text(_Holes):
+    """The other sink: a hole's value becomes text instead of an atom."""
+
+    __slots__ = ("_parts",)
+
+    DIRECTION = RENDER
+
+    def __init__(self, called: str, reserved: tuple[str, ...] = ()) -> None:
+        super().__init__(called, reserved)
+        self._parts: list[str] = []
+
+    def literal(self, text: str) -> None:
+        """Author text, verbatim: nothing is spliced, so nothing is reserved."""
+        self._parts.append(text)
+
+    def value(self, value: Any, conversion: str | None, spec: str, shown: str) -> None:
+        """A hole's value as the text it renders to."""
+        self._parts.append(_text(_converted(value, conversion, shown), spec, shown))
+
+    def text(self) -> str:
+        """Everything written so far, as one string."""
+        return "".join(self._parts)
+
+
+def render(source: Any, /, **values: Any) -> str:
+    """Program text with holes, rendered to finished text.
+
+    The same three faces the reading doors take, answering a ``str`` instead
+    of running anything: a 3.14 ``t"..."`` literal, any object with ``strings``
+    and ``interpolations``, or a string with ``{fields}`` and keyword values.
+
+    A hole with no spec renders the way the engine's own ``format-args``
+    renders one, so a String is its characters and any other atom its MeTTa
+    text; ``{v:sexp}`` is what ``repr`` answers and ``parse`` reads back,
+    ``{v:quoted}`` a MeTTa string literal, ``{v:json}`` one line of JSON,
+    ``{rows:table}`` a Markdown table and ``{rows:lines}`` one value per line.
+    Any other spec is Python's own, applied to the value, because a rendered
+    hole is text: ``{n:.2f}`` and ``{name:<20}`` mean here what they mean in an
+    f-string.
+
+    The longhand is the rung below: ``str(atom)`` for one atom's text,
+    ``rows.table()`` for the columns, ``metta._json.dumps`` for the JSON.
+    """
+    return render_with(source, values, called="render", implicit=frozenset())
+
+
+def render_with(
+    source: Any,
+    values: Mapping[str, Any],
+    *,
+    called: str,
+    implicit: frozenset[str],
+) -> str:
+    """``render``, with the values as a map and the door's own ones named.
+
+    ``implicit`` is what the DOOR supplied rather than the caller, which is
+    the receiver ``Rows.render`` binds as ``rows``: it is exempt from the
+    unused-value refusal, and passing anything ELSE beside a template is
+    refused here exactly as it is at ``render``.
+    """
+    given = sorted(set(values) - implicit)
+    sink = _Text(called)
+    if is_template(source):
+        if given:
+            msg = (
+                f"{called} takes a hole's value from the template itself; "
+                f"keyword values apply to the string form, so pass one or the "
+                f"other, not {given!r} beside a template"
+            )
+            raise TypeError(msg)
+        _template_parts(source, sink, ())
+    elif isinstance(source, str):
+        if not values:
+            # The keyword face engages only with values, exactly as it does at
+            # the reading doors: text holding a brace renders as itself. A
+            # method face always has one, its receiver, so its text is always
+            # read as fields.
+            return source
+        _keyword_parts(source, values, sink)
+    else:
+        msg = (
+            f"{called} takes text, or program text with holes (a t-string, or "
+            f"a string with {{fields}} and keyword values), got {source!r}. "
+            f"One atom's text is str(atom) or format(atom, 'sexp')."
+        )
+        raise TypeError(msg)
+    sink.check_unused(values, implicit)
+    return sink.text()
+
+
+def renders(spec: str) -> bool:
+    """Whether this spec is one of the rendering table's own."""
+    known = _SPECS.get(spec)
+    return known is not None and known[0] == RENDER
+
+
+def formatted(value: Any, spec: str, python: Any) -> str:
+    """``__format__`` for a type this library owns: the table, then Python's.
+
+    Three rules, in order. An EMPTY spec is ``str(value)``, which is Python's
+    own law for ``format``. A spec from the rendering table is that rendering,
+    so ``f"{rows:table}"`` needs no import and cannot drift from
+    ``render(t"{rows:table}")``. Anything else is Python's presentation
+    grammar, applied to ``python``: the value itself where the type has one
+    Python spelling (a Grounded number), its text otherwise, which is where
+    fill, alignment, width and precision act.
+    """
+    if not spec:
+        return str(value)
+    if renders(spec):
+        return _text(value, spec, f"format({type(value).__name__}, {spec!r})")
+    if spec in _SPECS:
+        raise _spec_refusal(spec, f"format({type(value).__name__}, {spec!r})", RENDER)
+    return format(python, spec)
+
+
+def _text(value: Any, spec: str, shown: str) -> str:
+    """The text a hole's value renders to under one spec.
+
+    Unknown here means "not this library's", not "wrong": a rendered hole is
+    text, so the spec falls through to the VALUE's own ``__format__`` and
+    Python's presentation grammar works unchanged. Only a spec Python refuses
+    too is refused, and it is refused naming this direction's specs.
+    """
+    if not spec:
+        return _console(value)
+    if spec == "sexp":
+        return str(_atom_of(value))
+    if spec == "quoted":
+        return str(Grounded(_console(value)))
+    if spec == "json":
+        return _json_text(value)
+    if spec == "table":
+        return _table_text(value, shown)
+    if spec == "lines":
+        return _lines_text(value, shown)
+    if spec in _SPECS:
+        raise _spec_refusal(spec, shown, RENDER)
+    try:
+        return format(value, spec)
+    except (TypeError, ValueError) as exc:
+        raise _spec_refusal(spec, shown, RENDER) from exc
+
+
+def _atom_of(value: Any) -> Atom:
+    """The atom behind a rendered value, which is ``encode``'s ladder again."""
+    return value if isinstance(value, Atom) else encode(value)
+
+
+def _console(value: Any) -> str:
+    """One value's text, which is what the engine interpolates at a ``{}``.
+
+    ``metta_console_text/2``: a String is its own characters and any other
+    atom is its MeTTa text [source: engine/metta/operators.pl, and upstream's
+    formatArgsString that it follows]. A Python ``str`` is text already and is
+    itself; anything else crosses through ``encode`` first, so a value with a
+    MeTTa reading renders in MeTTa's spelling rather than Python's.
+
+    This is why a bare hole differs from ``format(atom, "")``: Python's law
+    makes the empty spec ``str(atom)``, the quoted literal, while a hole in a
+    template is the engine's ``{}``, the characters.
+    """
+    if isinstance(value, str):
+        return value
+    atom = _atom_of(value)
+    inner = getattr(atom, "value", None)
+    return inner if isinstance(inner, str) else str(atom)
+
+
+def _json_text(value: Any) -> str:
+    """One line of JSON, through the engine's codec and nothing else.
+
+    Atoms are not JSON values, so each one takes the reading ``to_dicts`` and
+    ``table`` already take: a grounded value decodes and any other atom
+    becomes its text. Containers are walked, because a dict of atoms is the
+    shape a rendered payload arrives in.
+    """
+    from ._json import dumps  # noqa: PLC0415  -- the codec boots the engine
+
+    return dumps(_json_value(value)).decode("utf-8")
+
+
+def _json_value(value: Any) -> Any:
+    """A value in JSON's own vocabulary, atoms and query results included."""
+    if _is_table(value):
+        return value.to_dicts()
+    if isinstance(value, Atom):
+        plain = decode(value)
+        return str(plain) if isinstance(plain, Atom) else plain
+    if isinstance(value, dict):
+        return {str(key): _json_value(item) for key, item in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_json_value(item) for item in value]
+    return value
+
+
+def _is_table(value: Any) -> bool:
+    """Whether this value is a query result: named columns and plain records.
+
+    Structural, the way a template is: ``Rows`` and ``Answers`` answer True
+    here, and so would any other projection that grows the same two doors,
+    without this module importing the one that has them today.
+    """
+    return callable(getattr(value, "to_dicts", None)) and isinstance(
+        getattr(value, "columns", None), (tuple, list)
     )
-    raise ValueError(msg)
+
+
+def _table_text(value: Any, shown: str) -> str:
+    """A query result as a GitHub-flavoured Markdown pipe table.
+
+    The columns are the query's own variable names and each cell is the plain
+    value ``to_dicts`` answers, rendered as any other hole would be. Every row
+    the result holds is written: the display protocols bound themselves at
+    ``config.display_rows`` because a terminal is not a document, and a
+    document asked for these rows.
+
+    A cell escapes a backslash and then a pipe, and a newline becomes ``<br>``,
+    because a pipe table row is one line and a literal ``|`` would open a
+    column [source: https://github.github.com/gfm, example 200: "Include a pipe
+    in a cell's content by escaping it, including inside other inline spans"].
+    """
+    if not _is_table(value):
+        msg = (
+            f"the table spec renders a query result, one with named columns "
+            f"and rows, and {shown} has {type(value).__name__}. m.match(...) "
+            f"and m.answers(...) answer one; a list of values is {{v:lines}}."
+        )
+        raise TypeError(msg)
+    columns = [str(name) for name in value.columns]
+    records = value.to_dicts()
+    lines = [
+        "| " + " | ".join(_cell(name) for name in columns) + " |",
+        "|" + "|".join("---" for _ in columns) + "|",
+    ]
+    lines += [
+        "| " + " | ".join(_cell(record[name]) for name in columns) + " |"
+        for record in records
+    ]
+    return "\n".join(lines)
+
+
+def _cell(value: Any) -> str:
+    """One table cell: the value's text, with the table's own syntax escaped."""
+    text = _console(value)
+    return (
+        text.replace("\\", "\\\\").replace("|", "\\|").replace("\n", "<br>")
+    )
+
+
+def _lines_text(value: Any, shown: str) -> str:
+    """One value per line, each rendered as a bare hole renders it.
+
+    A nested template renders here too, which is what makes iteration a Python
+    comprehension over templates rather than a loop the grammar cannot spell:
+    ``render(t"{parts:lines}", ...)`` with ``parts`` a list of templates is the
+    one-level composition PEP 750 leaves room for.
+    """
+    if isinstance(value, (str, bytes, bytearray)):
+        msg = (
+            f"the lines spec renders one value per line and {shown} is "
+            f"{type(value).__name__}, which is ONE value. Drop the spec to "
+            f"render the text itself, or pass a list of values."
+        )
+        raise TypeError(msg)
+    try:
+        items = list(value)
+    except TypeError as exc:
+        msg = (
+            f"the lines spec renders one value per line and {shown} has "
+            f"{type(value).__name__}, which is not iterable: {exc}"
+        )
+        raise TypeError(msg) from exc
+    return "\n".join(
+        render(item) if is_template(item) else _console(item) for item in items
+    )
 
 
 def apply(atom: Atom, holes: Mapping[str, Atom]) -> Atom:
