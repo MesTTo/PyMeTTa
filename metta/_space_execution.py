@@ -21,6 +21,10 @@ Guarantees:
     test_an_atomic_scope_makes_one_python_write_one_transaction; commit=9104f9380b32925053ea39c5e8d1d1038c93cdb7]
   - value() refuses zero, multiple, and undefined answers [tested
     test_value_answers_the_one_answer, test_value_refuses_undefined_truth]
+  - profile_extension reports the counts profile() reports for the same run,
+    reading the profile row's own name and arity rather than re-reading the
+    way Prolog prints a module-qualified predicate
+    [tested: test_profile_extension_counts_a_compiled_head; commit=WORKTREE]
   - ordinary evaluation returns an unreduced term directly and has no
     residual-shape flag [tested:
     test_a_not_reducible_answer_is_the_unreduced_term_with_no_flag;
@@ -86,7 +90,6 @@ Open Obligations:
 
 from __future__ import annotations
 
-import re
 import threading
 from collections import deque
 from collections.abc import Callable, Generator, Iterable, Iterator, Sequence
@@ -378,28 +381,30 @@ def profile_source(
     return _decode_groups(output), EngineProfile(samples, ticks, seconds, nodes)
 
 
-# The profiler names a predicate the way Prolog writes it, module and arity
-# included, so `user:'vec-dot'/2` has to be read back apart to be matched
-# against a registered function's name.
-_PROFILED_PREDICATE = re.compile(r"^(?:[^:]+:)?'?(.*?)'?/(\d+)$")
+def _profiled_rows(nodes: Iterable[Any]) -> dict[tuple[str, int], tuple[int, int, int]]:
+    """calls, redos and self-ticks per (name, arity), from the sampler.
 
-
-def _profiled_rows(nodes: Iterable[Sequence[Any]]) -> dict[tuple[str, int], tuple[int, int, int]]:
-    """calls, redos and self-ticks per (name, arity), from the sampler."""
+    The name and arity are the profile row's own columns rather than a
+    re-reading of the printed predicate. Reading them back out of the spelling
+    is what made this answer zero for every compiled MeTTa head: those are
+    written `'$metta_exec:&pyspace_1':fib/2`, a quoted module atom carrying a
+    colon, and the pattern that stripped an unquoted module prefix took the
+    colon INSIDE the quotes as the separator and read the name as
+    `&pyspace_1':fib` [tested: test_profile_extension_counts_a_compiled_head].
+    """
     rows: dict[tuple[str, int], tuple[int, int, int]] = {}
     for node in nodes:
-        predicate, calls, redos, ticks_self = node[0], node[1], node[2], node[3]
-        found = _PROFILED_PREDICATE.match(str(predicate))
-        if found is None:
+        arity = int(node.arity)
+        if arity < 0:
             continue
-        key = (found.group(1), int(found.group(2)))
+        key = (str(node.name), arity)
         # A predicate can appear once per calling context; the function's cost
         # is their sum, not whichever the sampler listed first.
         previous = rows.get(key, (0, 0, 0))
         rows[key] = (
-            previous[0] + int(calls),
-            previous[1] + int(redos),
-            previous[2] + int(ticks_self),
+            previous[0] + int(node.calls),
+            previous[1] + int(node.redos),
+            previous[2] + int(node.ticks_self),
         )
     return rows
 

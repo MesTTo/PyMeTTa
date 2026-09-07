@@ -42,6 +42,13 @@ DERIVED: dict[str, str] = {
         "the structured `(@doc ...)` answer decoded into its parts, where "
         "`eval` of `get-doc` answers the raw term"
     ),
+    "explain": (
+        "the engine's decisions for one query as a keyed Mapping, where `eval` "
+        "of `(explain ...)` answers one expression a caller has to take apart "
+        "by position; and `analyze=` puts the `stats` block around the query "
+        "the items describe, which no caller can spell without repeating the "
+        "form and getting the two out of step"
+    ),
     "eval": (
         "the EAGER path. It delegates to `answers` only for the carrier, the "
         "theory and the interpreter, and the split is measured rather than "

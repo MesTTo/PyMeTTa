@@ -177,6 +177,29 @@ run GATE imports-selftest "$PY" "$HERE/tests/checks/check_imports_selftest.py"
 # to move, which is the same contract the other counter gates hold.
 run GATE extcost       in_py "$PY" -m benchmarks.extension_cost
 
+# Which (cache Name Policy) rows a workload's own call counts would justify,
+# and what each would actually cost. PostgreSQL's index advisors are the shape:
+# propose from how often a predicate was really asked, price the proposal
+# without creating anything, never apply. Every configuration is a fresh
+# process, because table and memo state survive inside one.
+#
+# A REPORT because a proposal is a reading of ONE workload and the row it
+# suggests belongs in a program, not in this tree; the lane's job is to keep
+# the reading current and visible. It prints the heads the workload called, the
+# rows it would propose, and the measured inferences before and after each.
+run REPORT memo-advisor in_py "$PY" -m benchmarks.memo_advisor
+
+# The discrimination, which is a GATE: two plants of the same shape, one pure
+# head called 1,000 times over three distinct arguments that MUST be proposed
+# with a positive measured delta, and one head declared oracleIO, called 300
+# times and declined as not recursive exactly like the first, that must NEVER
+# be proposed. A third plant calls no compiled head at all and must be refused
+# by name, and a fourth checks the run that DOES propose a winning row against
+# a digest of its workload, so "never applies" is held on the case where
+# applying would have been tempting. An advisor that stopped measuring, started
+# proposing on effect alone, or wrote a row, turns this red.
+run GATE memo-advisor-selftest "$PY" "$HERE/tests/checks/check_memo_advisor_selftest.py"
+
 # Which registered library predicates declare their determinism, and which do
 # not. A leftover choice point costs its caller about twice and is invisible to
 # the inference counter, and two things already catch one: plunit fails the
