@@ -16,7 +16,7 @@ Guarantees:
     test_an_unknown_classifier_names_what_is_admitted; commit=3fc5479961fd591b1884af118528c9a64a1afbb7]
   - a prose Remedy may be its title alone, and round trips that way, which is
     advice with no mechanical edit [tested:
-    test_a_prose_remedy_may_be_its_title_alone; commit=WORKTREE]
+    test_a_prose_remedy_may_be_its_title_alone; commit=f33b7ab0200e6dc74c88fb4c7f827bf545a447ed]
 
 Open Obligations:
   To Do: None

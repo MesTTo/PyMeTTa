@@ -33,7 +33,7 @@ Guarantees:
     filled from that very ball, and a kind whose row was removed still raises
     its own class with neither
     [tested: extensions/python/tests/repository/test_refusal_rows.py;
-    commit=WORKTREE]
+    commit=f33b7ab0200e6dc74c88fb4c7f827bf545a447ed]
   - a rehydrated MettaError keeps the __cause__ it was raised with, so the
     boundary term never displaces the diagnosis [tested
     test_a_watcher_failure_is_distinguishable_from_a_failed_write]

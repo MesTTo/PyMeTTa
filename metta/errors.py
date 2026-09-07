@@ -55,7 +55,7 @@ Guarantees:
     [tested: test_a_remedy_round_trips_through_its_atom,
     test_a_ground_round_trips_through_its_atom,
     test_a_remedy_that_names_no_act_refuses_naming_the_three_fields,
-    test_a_prose_remedy_may_be_its_title_alone; commit=WORKTREE]
+    test_a_prose_remedy_may_be_its_title_alone; commit=f33b7ab0200e6dc74c88fb4c7f827bf545a447ed]
   - refusing() carries a remedy and a ground on an error of ANY class,
     including a TypeError, an AttributeError, a ValueError and a
     DeprecationWarning, so `except TypeError` stays the caller's spelling

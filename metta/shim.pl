@@ -230,7 +230,7 @@
 %     and the remedy encoded the way every other atom crosses, so the Python
 %     side reads them back with Ground.from_atom/1 and Remedy.from_atom/1
 %     [tested: extensions/python/tests/repository/test_refusal_rows.py;
-%     commit=WORKTREE]
+%     commit=f33b7ab0200e6dc74c88fb4c7f827bf545a447ed]
 %   - metta_py_infer_types/2 walks a space once and answers one
 %     [Head, Arity, KindWires, ResultWire] row per (head, arity) the space
 %     mentions and does not declare, naming the narrowest kind covering the

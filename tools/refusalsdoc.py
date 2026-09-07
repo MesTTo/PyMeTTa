@@ -18,10 +18,10 @@ Assumes:
     cannot know [source: tests/data/error-kinds.json, its "//" block]
 Guarantees:
   - the checked-in page equals what this produces, gated on every run
-    [tested: refusals lane in check.sh; commit=WORKTREE]
+    [tested: refusals lane in check.sh; commit=f33b7ab0200e6dc74c88fb4c7f827bf545a447ed]
   - a kind whose row and fixture entry disagree about existing is a finding
     rather than a missing section
-    [tested: test_the_refusals_page_is_generated; commit=WORKTREE]
+    [tested: test_the_refusals_page_is_generated; commit=f33b7ab0200e6dc74c88fb4c7f827bf545a447ed]
 Open Obligations:
   To Do: None
   Hacks: None

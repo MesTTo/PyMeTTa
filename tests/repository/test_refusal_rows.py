@@ -10,23 +10,23 @@ and its row's remedy with the holes filled from that very ball.
 
 Guarantees:
   - the rows and the shared kind list name the same kinds
-    [tested: test_the_rows_and_the_fixture_name_the_same_kinds; commit=WORKTREE]
+    [tested: test_the_rows_and_the_fixture_name_the_same_kinds; commit=f33b7ab0200e6dc74c88fb4c7f827bf545a447ed]
   - each seat raises the row's class or the list says why, and no meaning
     wears two class names on either seat
     [tested: test_every_seat_raises_the_rows_class_or_says_why,
-    test_one_class_per_meaning; commit=WORKTREE]
+    test_one_class_per_meaning; commit=f33b7ab0200e6dc74c88fb4c7f827bf545a447ed]
   - GROUND_KINDS, REMEDY_KINDS and APPLICABILITIES are the catalog's three
     vocabularies, compared both ways
-    [tested: test_the_refusal_vocabularies_are_the_catalogs; commit=WORKTREE]
+    [tested: test_the_refusal_vocabularies_are_the_catalogs; commit=f33b7ab0200e6dc74c88fb4c7f827bf545a447ed]
   - a thrown ball arrives carrying its row's ground and a remedy whose holes
     are filled from that ball
-    [tested: test_a_thrown_ball_carries_its_rows_ground_and_remedy; commit=WORKTREE]
+    [tested: test_a_thrown_ball_carries_its_rows_ground_and_remedy; commit=f33b7ab0200e6dc74c88fb4c7f827bf545a447ed]
   - the thirteen refusals render thirteen different sentences, and the check
     sees a planted duplicate
     [tested: test_the_thirteen_refusals_are_thirteen_sentences,
-    test_the_duplicate_check_sees_a_planted_duplicate; commit=WORKTREE]
+    test_the_duplicate_check_sees_a_planted_duplicate; commit=f33b7ab0200e6dc74c88fb4c7f827bf545a447ed]
   - a row rewritten in the catalog reaches this seat with no change to any
-    Python source [tested: test_a_rewritten_row_reaches_this_seat_at_once; commit=WORKTREE]
+    Python source [tested: test_a_rewritten_row_reaches_this_seat_at_once; commit=f33b7ab0200e6dc74c88fb4c7f827bf545a447ed]
 Open Obligations:
   To Do: None
   Hacks: None
