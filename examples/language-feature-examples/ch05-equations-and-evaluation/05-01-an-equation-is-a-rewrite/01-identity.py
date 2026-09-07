@@ -941,7 +941,7 @@ def twin(m):
 #: example moved 2320 to 2368 in the same run, so the work did not change, its
 #: layout did [measured 2026-09-07: min-of-3 serial fresh processes;
 #: command=python extensions/python/tools/twin_coverage.py --repin;
-#: commit=WORKTREE].
+#: commit=7dfc9ae929c0f67e9ab3bc3573d6509bfedb2f92].
 BUDGET = 3498
 #: BANDED 2026-09-06 rather than re-pinned an eighteenth time. Seventeen of
 #: the eighty-three re-pins above were written on 2026-09-05 and 2026-09-06
