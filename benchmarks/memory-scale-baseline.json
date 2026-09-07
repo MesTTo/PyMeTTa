@@ -1299,48 +1299,49 @@
     "chain": [
      "bench.py --memory-scale spawns support-drop-spaces in a fresh process",
      "inferences is selected by minimum of repetitions",
-     "the intended complexity family is linear"
+     "the intended complexity family is linear",
+     "RE-PINNED 2026-09-07, inferences at the four sizes [3776, 36761, 366625, 3665257] to [7550, 74134, 739982, 7398446]. Three steps, each measured on its own ladder over the first-parent chain with every component rebuilt at each point (ai-tmp/hy-ladder2.sh in the branch's ladder worktree): 699c8b4a, the algebra-lifecycle merge, which retires every space-owned catalog declaration with its space and so charges every drop, [3987, 38540, 384062, 3839298] to [7037, 69363, 688777, 6886423]; then 80af155d to 7,158,434 and 5621c456 to 7,398,448 at the largest size. The fit is still linear at nrms 0.0000 and the case is still the drop cost it measures."
     ],
     "commit": "WORKTREE"
    },
    "expected": "linear",
    "fit": {
     "best_model": "linear",
-    "last_ratio": 9.99729151039891,
+    "last_ratio": 9.998143198077791,
     "models": {
      "capped_linear": {
-      "intercept": 110.23550372524187,
-      "nrms": 1.283747755163886e-07,
-      "slope": 3665.1467668632754
+      "intercept": 151.75186264980584,
+      "nrms": 7.275156159749012e-08,
+      "slope": 7398.294322726733
      },
      "constant": {
-      "intercept": 1018104.75,
-      "nrms": 0.41920345208573245,
+      "intercept": 2055028.0,
+      "nrms": 0.41920338270185314,
       "slope": 0.0
      },
      "linear": {
-      "intercept": 110.23550372524187,
-      "nrms": 1.283747755163886e-07,
-      "slope": 3665.1467668632754
+      "intercept": 151.75186264980584,
+      "nrms": 7.275156159749012e-08,
+      "slope": 7398.294322726733
      },
      "log_n": {
-      "intercept": -679041.2999999998,
-      "nrms": 0.23743063579152815,
-      "slope": 491374.10966593353
+      "intercept": -1370752.4,
+      "nrms": 0.23743051760038428,
+      "slope": 991865.0159548766
      },
      "n_log_n": {
-      "intercept": 49585.47099933098,
-      "nrms": 0.012566070328151453,
-      "slope": 524.1402847188867
+      "intercept": 100020.16397551075,
+      "nrms": 0.012566134320234533,
+      "slope": 1058.0051280536488
      },
      "quadratic": {
-      "intercept": 123096.54475119908,
-      "nrms": 0.03483068138498898,
-      "slope": 3.544232528227577
+      "intercept": 248406.201155056,
+      "nrms": 0.03483073517528792,
+      "slope": 7.154222394968202
      }
     },
-    "power_exponent": 0.9960052097776557,
-    "r_squared": 0.9999924062987011
+    "power_exponent": 0.9972784392033115,
+    "r_squared": 0.9999964888310078
    },
    "gated": true,
    "noise": {
@@ -1350,10 +1351,10 @@
    },
    "primary_metric": "inferences",
    "representative": [
-    3776,
-    36761,
-    366625,
-    3665257
+    7550,
+    74134,
+    739982,
+    7398446
    ],
    "sizes": [
     1,
