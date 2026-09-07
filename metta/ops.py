@@ -1306,7 +1306,7 @@ def _forget_space(space: str) -> None:
     at 70ac99da against stale=0 and new=197 with this hook;
     command=python extensions/python/benchmarks/probes/pooled_name_refcount.py;
     fixture=numpy, a keeper space and two lives of one pooled name; tested:
-    test_a_recycled_space_name_declares_its_own_operations; commit=WORKTREE].
+    test_a_recycled_space_name_declares_its_own_operations; commit=f0c6cf586120cfac43229fbff7b7e4f320629cfd].
 
     Called from Space.drop beside integrate's and algebra's own, after the
     engine teardown, because it is bookkeeping about a space that is gone.
