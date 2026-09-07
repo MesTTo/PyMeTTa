@@ -13,8 +13,13 @@ Guarantees:
     round-tripping one atom per tag [tested:
     test_the_atom_schema_covers_every_wire_tag; commit=WORKTREE]
   - deriving the document does not grow with the served space
-    [measured: 138 inferences at 200 and at 20,000 atoms;
-    tested: test_the_catalog_read_does_not_grow_with_the_space; commit=WORKTREE]
+    [measured 2026-09-07: 232 inferences over 200 atoms and 230 over 20,000,
+    against the walk's 3,911 and 340,525;
+    command=extensions/python/tests/ch19_spaces_backed_by_anything/test_remote_openapi.py::test_the_catalog_read_does_not_grow_with_the_space;
+    fixture=a space of N `(users i "n")` atoms, ten arrows and one document;
+    commit=WORKTREE]
+  - the same claim, held by a lane rather than by the number above
+    [tested: test_the_catalog_read_does_not_grow_with_the_space; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None

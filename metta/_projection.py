@@ -19,7 +19,7 @@ disagree, so the question is asked once here and each surface takes a column.
 The rows are `_type_annotations.py`'s forward table read backwards, so a type
 that gains a Python spelling gains the other three in the same edit
 [source: extensions/python/metta/_type_annotations.py:_TYPE_NAMES,
-_METATYPE_NAMES; commit=6c4d1f2b23e2b6b9d54c7ff88ba30ee5f1c6ba59].
+_METATYPE_NAMES; commit=WORKTREE].
 
 Assumes:
   - the caller has already reduced a type ATOM to this table's key where it can:

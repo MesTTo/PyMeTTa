@@ -263,6 +263,7 @@ __all__ = [
     "subscribe",
     "superpose",
     "tables",
+    "telemetry",
     "testing",
     "trace",
     "tropical",
