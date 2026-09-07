@@ -169,5 +169,5 @@ def twin(m):
 #: half, and the twin follows it: four round trips through the engine's own
 #: repr, two refusals, and the parse-command contrast under them [measured
 #: 2026-09-07: min-of-3 serial fresh processes; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+#: extensions/python/tools/twin_coverage.py --repin; commit=94b5190b3cb6f0d1aecf5327d20501cf4c5f3d86].
 BUDGET = 7430
