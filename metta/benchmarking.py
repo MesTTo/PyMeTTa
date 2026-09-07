@@ -36,7 +36,7 @@ Guarantees:
     where CI=true. It is NOT 0: a lane that measured nothing and exits 0 reads
     `ok`, indistinguishable from one that compared every row
     [tested: test_a_benchmark_lane_skips_a_refusal_locally_and_refuses_it_in_ci;
-    commit=WORKTREE]
+    commit=0e33a6c1666b3d28c546c252ecaa8eeb87bee759]
   - one perf run may count several events, matched on the event NAME field so
     a unit-carrying event reads beside a bare one, and it hands back each
     run's own standard output so a workload can report a counter perf cannot
@@ -1016,7 +1016,7 @@ def measured_main(entry: Callable[[], int]) -> int:
         #spells "this run says nothing", and check.sh renders it `skipped`
         #without failing the run
         #[tested: test_a_benchmark_lane_skips_a_refusal_locally_and_refuses_it_in_ci;
-        #commit=WORKTREE].
+        #commit=0e33a6c1666b3d28c546c252ecaa8eeb87bee759].
         return PERF_CONTROL_REFUSED
 
 
