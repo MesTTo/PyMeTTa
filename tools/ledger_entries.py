@@ -49,6 +49,14 @@ DERIVED: dict[str, str] = {
         "memoized definition's call keys unrecorded, 13 entries on the eager "
         "path against 0 through the cursor"
     ),
+    "infer_types": (
+        "the proposal itself. `add` stores atoms a caller already has, and the "
+        "atoms here are the ones a caller does NOT have: one engine walk names "
+        "the narrowest type covering each argument position, which is a "
+        "question no arrangement of the write door asks. `declare=True` is the "
+        "one call that reaches `add`, and it exists so accepting a proposal is "
+        "the same act as reading one"
+    ),
     "ne": (
         "the negated relation as one term, `(not (== a b))`, so a caller "
         "spells the relation rather than its expansion"

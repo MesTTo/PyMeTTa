@@ -39,6 +39,21 @@ Guarantees:
     program's printing on stderr, so the artefact on stdout is the stub alone
     [tested: test_stubs_writes_a_pyi_and_keeps_the_programs_output_off_stdout;
     commit=dd4f82100a052e2c5254a2ef9e91f6eb9d2e0c49]
+  - run reads its program from standard input for the operand ``-`` and for no
+    operand at all, and refuses when that would read a terminal [tested:
+    test_run_reads_a_program_from_standard_input,
+    test_run_refuses_a_dash_on_a_terminal; commit=8d67307403c1e41ccf058bd3c8d4c079dd7cf7d5]
+  - ``run --json`` writes one JSON object per ! group on stdout and one per
+    error on stderr, one value a line, with the program's own printing moved
+    to stderr so the stream stays parseable; the exit status is the one the
+    same run without the flag would give [tested:
+    test_json_lines_carry_the_query_and_its_answers,
+    test_json_wire_answers_read_back_as_atoms,
+    test_a_json_error_line_names_its_input_line; commit=8d67307403c1e41ccf058bd3c8d4c079dd7cf7d5]
+  - doc keeps the loaded program's printing on stderr for the same reason
+    stubs does, and ``doc --infer`` prints the declarations a program's own
+    atoms justify rather than one head's documentation [tested:
+    test_doc_infer_prints_the_proposals; commit=8d67307403c1e41ccf058bd3c8d4c079dd7cf7d5]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -54,6 +69,7 @@ import signal
 import sys
 import threading
 from pathlib import Path
+from typing import Any
 
 
 def _print_groups(groups) -> None:
@@ -61,13 +77,158 @@ def _print_groups(groups) -> None:
         print(" ".join(str(atom) for atom in group))
 
 
+#: The operand that means standard input, which is guideline 13 of the POSIX
+#: Utility Syntax Guidelines: a utility that names files reads standard input
+#: for `-` [source:
+#: https://pubs.opengroup.org/onlinepubs/9699919799/basedefs/V1_chap12.html].
+STDIN_OPERAND = "-"
+
+#: The two renderings `--json` chooses between. `text` prints each answer the
+#: way the plain run prints it, so the flag changes only the framing; `wire`
+#: prints the tagged form `metta.atoms._atom_from_wire` reads back, which
+#: keeps a number a number where text has only a spelling.
+JSON_TEXT = "text"
+JSON_WIRE = "wire"
+JSON_FORMS = (JSON_TEXT, JSON_WIRE)
+
+
+def _sources(files) -> list[str]:
+    """The operands to run, with no operand meaning standard input.
+
+    A utility that reads standard input when it is given no file is the shape
+    `cat`, `wc` and `grep` all have; `-` says the same thing explicitly, and
+    both reach the same reader here.
+    """
+    return list(files) if files else [STDIN_OPERAND]
+
+
+def _reads_a_terminal(files) -> bool:
+    """Whether running these operands would read a program off a terminal."""
+    return _sources(files) == [STDIN_OPERAND] and sys.stdin.isatty()
+
+
+def _stdin_program() -> str:
+    """The program on standard input, decoded the way the engine decodes a file.
+
+    Bytes rather than `sys.stdin.read()`, because a text stdin decodes with
+    the locale's encoding and the engine reads every source as UTF-8
+    (`read_file_to_string/3` with `encoding(utf8)`), so under `LC_ALL=C` the
+    two doors would disagree about the same program.
+    """
+    return sys.stdin.buffer.read().decode("utf-8")
+
+
+def _program_text(source: str) -> str:
+    """One operand's source text, for the position walk `--json` aligns to."""
+    from ._source_forms import _source_text  # noqa: PLC0415 -- version and help must not boot
+
+    return _stdin_program() if source == STDIN_OPERAND else _source_text(source)
+
+
+def _run_source(m, source: str, text: str | None = None):
+    """One operand, run the way that operand is run.
+
+    A file goes through `load`, which is a consult: it sets the working
+    directory to the file's own, so a relative `import!` inside it resolves
+    against the file rather than the shell's directory, and it replaces what
+    an earlier load of the same file put in the space. Standard input has no
+    file to be relative to and goes through `run`.
+    """
+    if source != STDIN_OPERAND:
+        return m.load(source)
+    return m.run(_stdin_program() if text is None else text)
+
+
 def _run(arguments) -> int:
     from ._space import Space  # noqa: PLC0415 -- version and help must not boot
 
     m = Space()
-    for path in arguments.files:
-        _print_groups(m.load(path))
-    return 0
+    sources = _sources(arguments.files)
+    if arguments.json is None:
+        for source in sources:
+            _print_groups(_run_source(m, source))
+        return 0
+    return _run_as_json(m, sources, arguments.json)
+
+
+def _write_json(payload: dict[str, Any], stream) -> None:
+    """One JSON value on one line, flushed, which is what JSON Lines is.
+
+    The codec is the engine's own, `metta._json`, and it writes at width 0, so
+    every value is one line by construction rather than by a post-pass
+    [source: engine/json_codec.pl, json_codec_write/3 answers what
+    json_write_dict/3 answers under width(0)]. The bytes go to the descriptor
+    rather than through the text stream because JSON Lines is UTF-8 and a text
+    stdout carries the locale's encoding [source: https://jsonlines.org].
+    """
+    from ._json import dumps  # noqa: PLC0415 -- version and help must not boot
+
+    stream.write(dumps(payload) + b"\n")
+    stream.flush()
+
+
+def _run_as_json(m, sources: list[str], form: str) -> int:
+    """Run each operand and write its ! groups as JSON Lines.
+
+    The framing changes and the execution does not: each operand runs exactly
+    once, through the same door the plain run uses. What the flag adds is the
+    position walk, which reads the source a second time WITHOUT evaluating it
+    and pairs each `!` form's own text with the group it produced; a source
+    the walk cannot read is reported and never run, the way a load that
+    cannot parse leaves the space untouched.
+
+    The program's own printing moves to stderr for the duration, at the
+    descriptor, because the engine prints from Prolog and the JSON stream
+    shares stdout with it otherwise.
+    """
+    from ._source_forms import positioned_forms  # noqa: PLC0415 -- version and help must not boot
+    from .errors import (  # noqa: PLC0415 -- version and help must not boot
+        MettaError,
+        MettaSyntaxError,
+    )
+
+    failed = False
+    for source in sources:
+        try:
+            text = _program_text(source)
+            runnables = [f for f in positioned_forms(text) if f.kind == "runnable"]
+            with _output_on_stderr():
+                groups = _run_source(m, source, text)
+            for runnable, group in _paired(runnables, groups):
+                _write_json(
+                    {"query": runnable.text, "answers": _answers(group, form)},
+                    sys.stdout.buffer,
+                )
+        except (MettaError, OSError, ValueError, TypeError) as error:
+            failed = True
+            line = error.line if isinstance(error, MettaSyntaxError) else None
+            _write_json({"error": str(error), "line": line}, sys.stderr.buffer)
+    return 1 if failed else 0
+
+
+def _paired(runnables, groups):
+    """Each ! form beside the group it produced, or a refusal naming both counts.
+
+    The reader and the run walk the same source, so the two lists are the same
+    length; a disagreement is a defect in one of them and never a stream that
+    quietly shifts by one, which is what an unchecked zip would give.
+    """
+    from .errors import MettaError  # noqa: PLC0415 -- version and help must not boot
+
+    if len(runnables) != len(groups):
+        msg = (
+            f"the reader found {len(runnables)} ! forms and the run answered "
+            f"{len(groups)} groups; they cannot be paired"
+        )
+        raise MettaError(msg)
+    return zip(runnables, groups, strict=True)
+
+
+def _answers(group, form: str) -> list:
+    """One ! group's answers, in the rendering `--json` was asked for."""
+    if form == JSON_WIRE:
+        return [atom.to_wire() for atom in group]
+    return [str(atom) for atom in group]
 
 
 def _scan_line(line: str, depth: int, *, in_string: bool) -> tuple[int, bool]:
@@ -424,8 +585,19 @@ def _doc(arguments) -> int:
     from ._space import Space  # noqa: PLC0415 -- version and help must not boot
 
     m = Space()
-    for path in arguments.files:
-        m.load(path)
+    # The loaded program's printing goes to stderr for the reason stubs gives:
+    # what lands on stdout is the answer this verb was asked for and nothing
+    # a program printed on its way in, so `metta doc ... > file` is an answer.
+    with _output_on_stderr():
+        for path in _doc_files(arguments):
+            m.load(path)
+    if arguments.infer:
+        proposals = m.infer_types()
+        for proposal in proposals:
+            print(proposal)
+        if not proposals:
+            print("no undeclared head here: every one this space mentions is declared")
+        return 0
     try:
         text = m.fn[arguments.name].__doc__
     except AttributeError:
@@ -435,6 +607,19 @@ def _doc(arguments) -> int:
         return 1
     print(text)
     return 0
+
+
+def _doc_files(arguments) -> list[str]:
+    """The sources `doc` loads first.
+
+    Under `--infer` there is no name to ask about, so every operand is a file
+    and the first one lands in `name` because argparse fills the optional
+    positional before the repeated one.
+    """
+    if not arguments.infer:
+        return list(arguments.files)
+    named = [] if arguments.name is None else [arguments.name]
+    return [*named, *arguments.files]
 
 
 @contextlib.contextmanager
@@ -581,6 +766,31 @@ def _convert(arguments) -> int:
     return 0
 
 
+def _attached_values(argv: list[str] | None, option: str, absent: str) -> list[str]:
+    """Give a bare `--option` its default value, without touching the next word.
+
+    This is getopt_long's `optional_argument`, which argparse has no spelling
+    for: the value of a long option that may take one attaches with `=` or is
+    absent, and the following argument is never consumed [source:
+    https://www.gnu.org/software/libc/manual/html_node/Getopt-Long-Options.html].
+    argparse's own `nargs="?"` DOES consume it, so `metta run --json p.metta`
+    read p.metta as the format and refused it as an invalid choice; rewriting
+    the bare spelling here keeps `--json` a flag and `--json=wire` a choice,
+    and leaves p.metta an operand. Everything after `--` is an operand by
+    definition and is left alone.
+    """
+    # sys.argv rather than handing None to parse_args, because the rewrite has
+    # to reach the real command line too.
+    words = sys.argv[1:] if argv is None else argv
+    rewritten: list[str] = []
+    for index, word in enumerate(words):
+        if word == "--":
+            rewritten.extend(words[index:])
+            break
+        rewritten.append(f"{option}={absent}" if word == option else word)
+    return rewritten
+
+
 def main(argv: list[str] | None = None) -> int:  # noqa: D103  -- the package reference and enclosing module document this exported entry point
     from ._version import __version__  # noqa: PLC0415  deferred: --version and help must not boot
 
@@ -592,7 +802,20 @@ def main(argv: list[str] | None = None) -> int:  # noqa: D103  -- the package re
     commands = parser.add_subparsers(dest="command", required=True)
 
     run = commands.add_parser("run", help="run MeTTa files and print each ! answer group")
-    run.add_argument("files", nargs="+", metavar="file.metta")
+    run.add_argument(
+        "files",
+        nargs="*",
+        metavar="file.metta",
+        help=f"programs to run; `{STDIN_OPERAND}`, or no operand, reads standard input",
+    )
+    run.add_argument(
+        "--json",
+        nargs="?",
+        const=JSON_TEXT,
+        choices=JSON_FORMS,
+        help="write one JSON object per ! group instead of printing answers; "
+        "--json=wire carries the tagged atom forms",
+    )
     run.set_defaults(entry=_run)
 
     repl = commands.add_parser("repl", help="an interactive read-eval-print loop")
@@ -628,8 +851,14 @@ def main(argv: list[str] | None = None) -> int:  # noqa: D103  -- the package re
     lint.set_defaults(entry=_lint)
 
     doc = commands.add_parser("doc", help="print a name's (@doc ...) documentation")
-    doc.add_argument("name")
+    doc.add_argument("name", nargs="?")
     doc.add_argument("files", nargs="*", metavar="file.metta", help="sources to load first")
+    doc.add_argument(
+        "--infer",
+        action="store_true",
+        help="print the (: head (-> ...)) declarations the program's own atoms "
+        "justify, instead of one name's documentation; every operand is a file",
+    )
     doc.set_defaults(entry=_doc)
 
     llms = commands.add_parser("llms", help="print llms.txt, the sheet that teaches this library")
@@ -653,7 +882,15 @@ def main(argv: list[str] | None = None) -> int:  # noqa: D103  -- the package re
     )
     convert.set_defaults(entry=_convert)
 
-    arguments = parser.parse_args(argv)
+    arguments = parser.parse_args(_attached_values(argv, "--json", JSON_TEXT))
+    if arguments.command == "run" and _reads_a_terminal(arguments.files):
+        parser.error(
+            f"`{STDIN_OPERAND}` reads the program from standard input and "
+            f"standard input here is a terminal: name a file, or pipe a "
+            f"program in"
+        )
+    if arguments.command == "doc" and not arguments.infer and arguments.name is None:
+        parser.error("doc needs a name, or --infer to propose declarations")
     if (
         arguments.command == "convert"
         and arguments.output is not None
