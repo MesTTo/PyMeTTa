@@ -11,7 +11,7 @@ Guarantees: prints one row per ring size, 128, 512 and 2,048 stored edges, with
   query itself, all measured through `stats()` in one process after a warm-up
   [measured 2026-09-07: explain 7,350 against the query's 237,473 at 2,048
   rows, 10.1%, 4.6% and 3.1% at 128, 512 and 2,048; the citation in
-  extensions/python/metta/_space.py's explain docstring reads this probe; commit=WORKTREE].
+  extensions/python/metta/_space.py's explain docstring reads this probe; commit=a05f6d22e483826ef023fdf350f6533581258f9c].
 Fails when: `plan-cyclic-joins` is off, which the probe switches on itself.
 """  # noqa: D205  -- the contract header is one continuous invariant, not summary-and-body prose
 

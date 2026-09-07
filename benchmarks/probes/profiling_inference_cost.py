@@ -8,7 +8,7 @@ Assumes: `metta` imports (PYTHONPATH=extensions/python) and the engine boots;
 Guarantees: prints the plain and the profiled inference counts of `!(twice 18)`
   over a naive fib, three fresh engines each [measured 2026-09-07: 20,538 plain
   against 145,284 profiled; extensions/python/benchmarks/memo_advisor.py's
-  worker cites this probe; commit=WORKTREE].
+  worker cites this probe; commit=a05f6d22e483826ef023fdf350f6533581258f9c].
 """  # noqa: D205  -- the contract header is one continuous invariant, not summary-and-body prose
 
 from metta import MeTTa

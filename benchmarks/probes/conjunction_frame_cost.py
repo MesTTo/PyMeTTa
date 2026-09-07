@@ -10,7 +10,7 @@ Guarantees: prints `chain=<n>` and `single=<n>`, the inferences of a
   extra frame on the conjunctive path is +1 inference, five over the harness's
   allowance on direct-join's five repeats, which is why both call sites read
   cyclic_join_planning_enabled/0 themselves; engine/spaces/generic_join.pl's
-  shape predicate cites this probe; commit=WORKTREE].
+  shape predicate cites this probe; commit=a05f6d22e483826ef023fdf350f6533581258f9c].
 """  # noqa: D205  -- the contract header is one continuous invariant, not summary-and-body prose
 
 from metta import MeTTa
