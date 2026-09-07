@@ -35,6 +35,14 @@
 %     test_nested_py_iter_reads_form_the_cartesian_product,
 %     test_compiled_for_keeps_one_shot_python_iteration;
 %     commit=0dc78c93461d6c7f5a83975abedf0f1a631095c3].
+%   - an iterator that RAISES is reported at the pull that raised, wearing the
+%     py-iter call and the iterator's own repr, exactly as a deterministic
+%     Python call's failure is reported; it is never attributed to the py-atom
+%     that resolved the object, never delivered one crossing late, and never
+%     lost to CPython's "returned a result with an exception set" [tested:
+%     test_a_raising_iterator_is_attributed_to_the_py_iter_that_pulled_it,
+%     test_a_raising_iterator_carries_no_janus_framing,
+%     test_py_iter_once_reports_its_own_pull; commit=WORKTREE].
 %   - grounded algebra equality unwraps values and returns one truth value
 %     [tested: test_finite_tensor_semiring_checks_every_law; commit=074dc0a88b1605c54824de677d586b6f60998bcf].
 % Fails when:
@@ -77,11 +85,21 @@
 %nothing to say once loading is over and this runs on first use.
 :- dynamic metta_py_ready/0.
 :- dynamic metta_py_dir/1.
+:- dynamic py_iter_tag/1.
 :- prolog_load_context(directory, Dir), assertz(metta_py_dir(Dir)).
 
+%The tag is read here, once, rather than lazily at the first iteration: every
+%caller of this predicate crosses into metta_py on its very next goal, so the
+%import is paid either way, and the iterator doors then read the tag as a plain
+%fact with no branch. Two threads racing the second clause assert the same
+%object twice and the first clause's cut takes the first; the tag is a module
+%singleton, so a duplicate fact holds the same blob.
 metta_py_bridge :- metta_py_ready, !.
 metta_py_bridge :- metta_py_dir(Dir),
                    py_add_lib_dir(Dir),
+                   metta_py_opts(Opts),
+                   py_call(metta_py:stream_tag(), Tag, Opts),
+                   assertz(py_iter_tag(Tag)),
                    assertz(metta_py_ready).
 
 %Everything crosses as an OBJECT. That is the whole policy of this surface and
@@ -599,7 +617,10 @@ metta_py_kwarg(Other, _) :-
 'py-iter'(Obj, Element) :-
     metta_py_bridge,
     metta_py_opts(Opts),
-    metta_py_guard(['py-iter', Obj], py_iter(metta_py:iterate(Obj), Raw, Opts)),
+    py_iter_tag(Tag),
+    metta_py_guard(['py-iter', Obj],
+                   ( py_iter(metta_py:iterate(Obj), Raw, Opts),
+                     py_iter_item(Raw, Tag) )),
     metta_py_result(Raw, Element).
 
 %Compiled Python needs the source iterator's real cursor: applying the same
@@ -609,9 +630,70 @@ metta_py_kwarg(Other, _) :-
 'py-iter-once'(Obj, Element) :-
     metta_py_bridge,
     metta_py_opts(Opts),
+    py_iter_tag(Tag),
     metta_py_guard(['py-iter-once', Obj],
-                   py_iter(metta_py:iterate_once(Obj), Raw, Opts)),
+                   ( py_iter(metta_py:iterate_once(Obj), Raw, Opts),
+                     py_iter_item(Raw, Tag) )),
     metta_py_result(Raw, Element).
+
+%A pull that RAISES must not reach py_iter/2. janus reads one as an exhausted
+%stream: neither `state->next = PyIter_Next(state->iterator)` in py_iter3 is
+%followed by check_error, so the goal carries on over a silently truncated
+%stream and the still-set Python exception surfaces at whatever crossing runs
+%next [source: janus 1.5.3 janus.c:py_iter3;
+%commit=0ee5a2dfee0e37a23b0eb9c765b477d7f90295fe]. On these two doors that was
+%three symptoms: `!(once (py-iter G))` over a generator raising on its FIRST
+%item answered `EngineError: the engine could not accept this call's inputs:
+%<built-in function apply_once> returned a result with an exception set`, which
+%is CPython's own _Py_CheckFunctionResult and keeps neither the class nor the
+%message nor the place; `collapse` over one raising later answered janus's
+%bare wording with a Python stack and no MeTTa call at all; and a MeTTa
+%`(catch ...)` could see neither, because neither came through
+%metta_py_guard/2 [measured 2026-09-07 on 70ac99da].
+%
+%So metta_py.py ends a failed enumeration with the reserved pair instead, and
+%this hands the live exception straight back to Python to raise there. Nothing
+%is reconstructed: janus's own check_error converts it exactly as it converts
+%any other py_call callback's exception, and because the raise happens INSIDE
+%metta_py_guard/2's goal the failure is reported at the pull that raised and
+%wears the py-iter call, not the py-atom that resolved the object.
+%
+%The reservation is the REPEATED VARIABLE in the first head: Tag binds from the
+%item's own first element and must then unify with the tag this process fetched
+%from metta_py, which is blob identity on a private module singleton. An
+%iterator's data cannot forge it, and an item that is not a pair at all never
+%enters the clause, because first-argument indexing on -/2 selects the second:
+%exactly ONE inference an item, and no py_call at all, which is why the frame
+%is a pair rather than the shim's four-element list -- under py_object(true) a
+%Python list crosses as an opaque blob that Prolog cannot take apart without a
+%second crossing per item, where an exact tuple crosses as -/2 with both
+%elements in hand [measured 2026-09-07 over 20,000 items: 40,004 inferences
+%unguarded and 60,004 guarded, 0.169 against 0.213 microseconds an item at
+%loadavg 46.20; command=cd extensions/python && PYTHONPATH=. python -m
+%benchmarks.py_iter_guard --items 20000 --rounds 3;
+%fixture=extensions/python/benchmarks/py_iter_guard.py; commit=WORKTREE].
+%
+%Named for the door rather than metta_py_*, which is this file's usual prefix,
+%because neither this file nor metta/shim.pl declares a module: both load into
+%user, and the shim's own metta_py_stream_raise/1, which hands the shim's
+%four-element frame back through metta_ops, collided with this outright
+%("Redefined static procedure metta_py_stream_raise/1"). The two seats do the
+%same job through different Python modules and may not share a name.
+py_iter_item(Tag-Exception, Tag) :-
+    !,
+    py_iter_raise(Exception).
+py_iter_item(_, _).
+
+%Hand the carried exception back and let Python raise it. Never returns: a
+%py_call that answered instead of raising would let the pair through to
+%metta_py_result/2, where it reads as an ordinary two-element MeTTa answer,
+%which is the silent corruption this whole mechanism exists to prevent.
+py_iter_raise(Exception) :-
+    py_call(metta_py:stream_reraise(Exception), _),
+    throw(error(py_iter_reraise_returned(Exception), none)).
+
+prolog:message(error(py_iter_reraise_returned(Exception), _)) -->
+    [ 'metta_py:stream_reraise answered ~q instead of raising it'-[Exception] ].
 
 
 %%%% The Python surface the engine used to carry %%%%
