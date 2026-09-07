@@ -170,8 +170,40 @@ def test_builtin_discovery_is_cached() -> None:
 
     assert first_handle.__name__ == "car-atom"
     assert second_handle.__name__ == "cdr-atom"
-    assert first.inferences < 400
-    assert second.inferences < 400
+    # A trip prints the price of every engine crossing a THIRD access makes
+    # on the same space, in the same process state, so the failure names the
+    # goal that enumerated rather than only the total: this bound tripped once
+    # at 3,070 in a four-worker battery and at 315 in every fresh process and
+    # under the same seed alone, so the cause is process state the total
+    # cannot name (2026-09-07).
+    assert first.inferences < 400, _priced_crossings(target, "cons_atom")
+    assert second.inferences < 400, _priced_crossings(target, "decons_atom")
+    # The explanation is proven on the green path too, so a trip never finds
+    # it broken: one access crosses the catalogue probe and nothing that costs
+    # a catalogue build.
+    priced = _priced_crossings(target, "cons_atom")
+    assert "metta_py_catalogue_member" in priced, priced
+    assert "metta_py_builtins" not in priced, priced
+
+
+def _priced_crossings(target, attribute: str) -> str:
+    """Each engine goal one namespace access crosses, with its inferences."""
+    runtime = target.runtime
+    original = runtime.once
+    priced: list[str] = []
+
+    def priced_once(goal: str, **inputs):
+        with target.stats() as crossing:
+            answer = original(goal, **inputs)
+        priced.append(f"{crossing.inferences:>7} {goal}")
+        return answer
+
+    runtime.once = priced_once
+    try:
+        getattr(target.fn, attribute)
+    finally:
+        runtime.once = original
+    return "engine crossings of one access, inferences then goal:\n" + "\n".join(priced)
 
 
 def test_builtin_cache_invalidates_after_a_miss(tmp_path: Path) -> None:
