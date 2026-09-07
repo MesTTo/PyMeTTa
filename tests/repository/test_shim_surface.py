@@ -43,6 +43,11 @@ import re
 #: reason beside the name.
 HOST_SERVICES = {
     "catch_recover/2",
+    # The callable doors' cost read, beside the deprecation one below: a bound
+    # function's docstring shows the class its (cost ...) row declares, and the
+    # measure an unnamed row takes from the head's arrow is resolved by the
+    # engine so the docstring and (explain ...) cannot answer differently.
+    "metta_cost_declaration/4",
     # The callable doors' deprecation reads. The row lookup is the feature's
     # own consult, and the shim's apply-seam emptiness probe rides the same
     # published relation so an empty catalog costs one crossing per process
@@ -283,6 +288,7 @@ def test_the_host_service_scoreboard_matches_the_tree(repo_root):  # noqa: D103 
 FLOOR_REASONS = {
     "catch_recover/2": "host-choice",
     "metta_deprecation/3": "door",
+    "metta_cost_declaration/4": "door",
     "lift_pattern_modifiers/4": "door",
     "metta_seq_query_plan/2": "door",
     "metta_with_under/2": "door",

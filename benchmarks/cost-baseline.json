@@ -1,0 +1,890 @@
+{
+  "configuration": {
+    "c_extension": true,
+    "c_json": true,
+    "c_reader": true,
+    "c_writer": true,
+    "mork_backend": "foreign",
+    "python_version": "3.14.4",
+    "swipl_version": "10.1.13"
+  },
+  "repetitions": 1,
+  "repin_rule": "A changed pin must name the first causal code change, carry the old and new counts, and say why the head still holds its declared class. The class itself lives in the engine's source as a (cost ...) row; this file is only what the lane measured and when. A control row pinned from another row is never re-recorded: the planted work failure IS the distance between them.",
+  "rows": {
+    "+": {
+      "answers": [
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      "cause": {
+        "chain": [
+          "python -m benchmarks.costs --record measured +",
+          "minimum of 1 fresh process(es), one fresh space per size",
+          "the declared class is constant in $n by int"
+        ],
+        "commit": "WORKTREE"
+      },
+      "class": "constant",
+      "counter": "inferences",
+      "fit": {
+        "best_model": "constant",
+        "coefficient": 415.29875336583916,
+        "doubling_r_squared": 0.06706850920316842,
+        "doubling_slope": -4.627305732305749e-05,
+        "exponent": -0.0031468951668905567,
+        "normalised_rms": {
+          "constant": 0.005421,
+          "cubic": 0.861952,
+          "linear": 0.661658,
+          "log_n": 0.275183,
+          "n_log_n": 0.724531,
+          "quadratic": 0.81718
+        },
+        "pair_slopes": [
+          -0.0175,
+          -0.0035,
+          0.0,
+          0.007
+        ],
+        "r_squared": 0.32571961206670963
+      },
+      "inferences": [
+        415,
+        410,
+        409,
+        409,
+        411
+      ],
+      "measure": "int",
+      "measured": "2026-09-07",
+      "sizes": [
+        8,
+        16,
+        32,
+        64,
+        128
+      ],
+      "spread": {
+        "absolute_max": 0,
+        "relative_max": 0.0
+      },
+      "witness": "(+ $_1 1)"
+    },
+    "alpha-unique": {
+      "answers": [
+        2048,
+        4096,
+        8192,
+        16384
+      ],
+      "cause": {
+        "chain": [
+          "python -m benchmarks.costs --record measured alpha-unique",
+          "minimum of 1 fresh process(es), one fresh space per size",
+          "the declared class is linearithmic in $n by length"
+        ],
+        "commit": "WORKTREE"
+      },
+      "class": "linearithmic",
+      "counter": "inferences",
+      "fit": {
+        "best_model": "n_log_n",
+        "coefficient": 57.6281538222352,
+        "doubling_r_squared": 0.9203852880113151,
+        "doubling_slope": 0.00020657601086005196,
+        "exponent": 1.0574449033118618,
+        "normalised_rms": {
+          "constant": 0.74963,
+          "cubic": 0.468814,
+          "linear": 0.030023,
+          "log_n": 0.662377,
+          "n_log_n": 0.026384,
+          "quadratic": 0.321981
+        },
+        "pair_slopes": [
+          1.0506,
+          1.0641,
+          1.0555
+        ],
+        "r_squared": 0.999994570903829
+      },
+      "inferences": [
+        183183,
+        379438,
+        793333,
+        1648880
+      ],
+      "measure": "length",
+      "measured": "2026-09-07",
+      "sizes": [
+        2048,
+        4096,
+        8192,
+        16384
+      ],
+      "spread": {
+        "absolute_max": 0,
+        "relative_max": 0.0
+      },
+      "witness": "(alpha-unique (superpose $_7))"
+    },
+    "car-atom": {
+      "answers": [
+        1,
+        1,
+        1,
+        1
+      ],
+      "cause": {
+        "chain": [
+          "python -m benchmarks.costs --record measured car-atom",
+          "minimum of 1 fresh process(es), one fresh space per size",
+          "the declared class is linear in $n by length"
+        ],
+        "commit": "WORKTREE"
+      },
+      "class": "linear",
+      "counter": "inferences",
+      "fit": {
+        "best_model": "linear",
+        "coefficient": 14.420080530241524,
+        "doubling_r_squared": 0.9242007417817117,
+        "doubling_slope": 0.0001903602841510282,
+        "exponent": 0.9723945022247107,
+        "normalised_rms": {
+          "constant": 0.702014,
+          "cubic": 0.49127,
+          "linear": 0.010499,
+          "log_n": 0.614546,
+          "n_log_n": 0.06506,
+          "quadratic": 0.350811
+        },
+        "pair_slopes": [
+          0.9525,
+          0.9758,
+          0.9878
+        ],
+        "r_squared": 0.9999329144605934
+      },
+      "inferences": [
+        24083,
+        46606,
+        91661,
+        181773
+      ],
+      "measure": "length",
+      "measured": "2026-09-07",
+      "sizes": [
+        2048,
+        4096,
+        8192,
+        16384
+      ],
+      "spread": {
+        "absolute_max": 0,
+        "relative_max": 0.0
+      },
+      "witness": "(car-atom $_2)"
+    },
+    "cdr-atom": {
+      "answers": [
+        1,
+        1,
+        1,
+        1
+      ],
+      "cause": {
+        "chain": [
+          "python -m benchmarks.costs --record measured cdr-atom",
+          "minimum of 1 fresh process(es), one fresh space per size",
+          "the declared class is linear in $n by length"
+        ],
+        "commit": "WORKTREE"
+      },
+      "class": "linear",
+      "counter": "inferences",
+      "fit": {
+        "best_model": "linear",
+        "coefficient": 16.380727693485774,
+        "doubling_r_squared": 0.9235931489641587,
+        "doubling_slope": 0.00019108457837423726,
+        "exponent": 0.9764242090087153,
+        "normalised_rms": {
+          "constant": 0.703927,
+          "cubic": 0.490581,
+          "linear": 0.008943,
+          "log_n": 0.61645,
+          "n_log_n": 0.063622,
+          "quadratic": 0.349847
+        },
+        "pair_slopes": [
+          0.9594,
+          0.9794,
+          0.9896
+        ],
+        "r_squared": 0.9999510799863572
+      },
+      "inferences": [
+        28185,
+        54804,
+        108051,
+        214547
+      ],
+      "measure": "length",
+      "measured": "2026-09-07",
+      "sizes": [
+        2048,
+        4096,
+        8192,
+        16384
+      ],
+      "spread": {
+        "absolute_max": 0,
+        "relative_max": 0.0
+      },
+      "witness": "(cdr-atom $_3)"
+    },
+    "cost-control-exponential": {
+      "answers": [
+        1,
+        1,
+        1,
+        1
+      ],
+      "cause": {
+        "chain": [
+          "python -m benchmarks.costs --record measured cost-control-exponential",
+          "minimum of 1 fresh process(es), one fresh space per size",
+          "the declared class is exponential in $n by int"
+        ],
+        "commit": "WORKTREE"
+      },
+      "class": "exponential",
+      "counter": "inferences",
+      "fit": {
+        "best_model": "cubic",
+        "coefficient": 9.379088790526934e-07,
+        "doubling_r_squared": 0.9998574130619257,
+        "doubling_slope": 0.673441797536616,
+        "exponent": 8.776773925161752,
+        "normalised_rms": {
+          "constant": 0.918293,
+          "cubic": 0.570374,
+          "linear": 0.80528,
+          "log_n": 0.880952,
+          "n_log_n": 0.76564,
+          "quadratic": 0.687292
+        },
+        "pair_slopes": [
+          7.6821,
+          8.9221,
+          10.0068
+        ],
+        "r_squared": 0.9964959289425941
+      },
+      "inferences": [
+        36846,
+        91065,
+        233134,
+        605081
+      ],
+      "measure": "int",
+      "measured": "2026-09-07",
+      "sizes": [
+        16,
+        18,
+        20,
+        22
+      ],
+      "spread": {
+        "absolute_max": 0,
+        "relative_max": 0.0
+      },
+      "witness": "(cost-control-exponential $n)"
+    },
+    "cost-control-overstated": {
+      "answers": [
+        1,
+        1,
+        1,
+        1
+      ],
+      "cause": {
+        "chain": [
+          "python -m benchmarks.costs --record measured cost-control-overstated",
+          "minimum of 1 fresh process(es), one fresh space per size",
+          "the declared class is quadratic in $n by length"
+        ],
+        "commit": "WORKTREE"
+      },
+      "class": "quadratic",
+      "counter": "inferences",
+      "fit": {
+        "best_model": "log_n",
+        "coefficient": 461.5986169787199,
+        "doubling_r_squared": 0.989460036899268,
+        "doubling_slope": 0.0031458548466976985,
+        "exponent": 0.47514141728870485,
+        "normalised_rms": {
+          "constant": 0.397709,
+          "cubic": 0.616739,
+          "linear": 0.258776,
+          "log_n": 0.258484,
+          "n_log_n": 0.327846,
+          "quadratic": 0.51806
+        },
+        "pair_slopes": [
+          0.2325,
+          0.5092,
+          0.6724
+        ],
+        "r_squared": 0.9583825186541527
+      },
+      "inferences": [
+        3608,
+        4239,
+        6033,
+        9615
+      ],
+      "measure": "length",
+      "measured": "2026-09-07",
+      "sizes": [
+        64,
+        128,
+        256,
+        512
+      ],
+      "spread": {
+        "absolute_max": 0,
+        "relative_max": 0.0
+      },
+      "witness": "(cost-control-overstated $n)"
+    },
+    "cost-control-quadratic": {
+      "answers": [
+        1,
+        1,
+        1,
+        1
+      ],
+      "cause": {
+        "chain": [
+          "python -m benchmarks.costs --record measured cost-control-quadratic",
+          "minimum of 1 fresh process(es), one fresh space per size",
+          "the declared class is quadratic in $n by length"
+        ],
+        "commit": "WORKTREE"
+      },
+      "class": "quadratic",
+      "counter": "inferences",
+      "fit": {
+        "best_model": "quadratic",
+        "coefficient": 9.066979865505287,
+        "doubling_r_squared": 0.9280384367580109,
+        "doubling_slope": 0.01212637028048704,
+        "exponent": 1.9315336516797172,
+        "normalised_rms": {
+          "constant": 1.180972,
+          "cubic": 0.204875,
+          "linear": 0.427406,
+          "log_n": 1.042402,
+          "n_log_n": 0.324449,
+          "quadratic": 0.006597
+        },
+        "pair_slopes": [
+          1.8464,
+          1.9553,
+          1.9849
+        ],
+        "r_squared": 0.9997262103361065
+      },
+      "inferences": [
+        28693,
+        103182,
+        400150,
+        1583926
+      ],
+      "measure": "length",
+      "measured": "2026-09-07",
+      "sizes": [
+        64,
+        128,
+        256,
+        512
+      ],
+      "spread": {
+        "absolute_max": 0,
+        "relative_max": 0.0
+      },
+      "witness": "(cost-control-quadratic $n)"
+    },
+    "cost-control-understated": {
+      "answers": [
+        1,
+        1,
+        1,
+        1
+      ],
+      "cause": {
+        "chain": [
+          "python -m benchmarks.costs --record measured cost-control-understated",
+          "minimum of 1 fresh process(es), one fresh space per size",
+          "the declared class is linear in $n by length"
+        ],
+        "commit": "WORKTREE"
+      },
+      "class": "linear",
+      "counter": "inferences",
+      "fit": {
+        "best_model": "quadratic",
+        "coefficient": 9.066979865505287,
+        "doubling_r_squared": 0.9280384367580109,
+        "doubling_slope": 0.01212637028048704,
+        "exponent": 1.9315336516797172,
+        "normalised_rms": {
+          "constant": 1.180972,
+          "cubic": 0.204875,
+          "linear": 0.427406,
+          "log_n": 1.042402,
+          "n_log_n": 0.324449,
+          "quadratic": 0.006597
+        },
+        "pair_slopes": [
+          1.8464,
+          1.9553,
+          1.9849
+        ],
+        "r_squared": 0.9997262103361065
+      },
+      "inferences": [
+        28693,
+        103182,
+        400150,
+        1583926
+      ],
+      "measure": "length",
+      "measured": "2026-09-07",
+      "sizes": [
+        64,
+        128,
+        256,
+        512
+      ],
+      "spread": {
+        "absolute_max": 0,
+        "relative_max": 0.0
+      },
+      "witness": "(cost-control-understated $n)"
+    },
+    "cost-control-work": {
+      "answers": [
+        1,
+        1,
+        1,
+        1
+      ],
+      "cause": {
+        "chain": [
+          "THE PLANT. Only `answers` is copied, from size-atom, whose call answers one atom where this control answers one per child.",
+          "The distance between the two is the planted work failure, so this field is never re-recorded from the control's own run.",
+          "Its class is untouched and true, so the control passes the class gate and fails only the work gate."
+        ],
+        "commit": "WORKTREE"
+      },
+      "class": "linear",
+      "counter": "inferences",
+      "fit": {
+        "best_model": "linear",
+        "coefficient": 26.633716272043916,
+        "doubling_r_squared": 0.9230511282326966,
+        "doubling_slope": 0.0001918220621727191,
+        "exponent": 0.9804870202542514,
+        "normalised_rms": {
+          "constant": 0.705909,
+          "cubic": 0.489843,
+          "linear": 0.007331,
+          "log_n": 0.618426,
+          "n_log_n": 0.062119,
+          "quadratic": 0.348824
+        },
+        "pair_slopes": [
+          0.9658,
+          0.9832,
+          0.9915
+        ],
+        "r_squared": 0.9999645287081732
+      },
+      "inferences": [
+        47231,
+        92246,
+        182362,
+        362592
+      ],
+      "measure": "length",
+      "measured": "2026-09-07",
+      "sizes": [
+        2048,
+        4096,
+        8192,
+        16384
+      ],
+      "spread": {
+        "absolute_max": 0,
+        "relative_max": 0.0
+      },
+      "witness": "(cost-control-work $n)"
+    },
+    "intersection": {
+      "answers": [
+        2048,
+        4096,
+        8192,
+        16384
+      ],
+      "cause": {
+        "chain": [
+          "python -m benchmarks.costs --record measured intersection",
+          "minimum of 1 fresh process(es), one fresh space per size",
+          "the declared class is linearithmic in $n by length"
+        ],
+        "commit": "WORKTREE"
+      },
+      "class": "linearithmic",
+      "counter": "inferences",
+      "fit": {
+        "best_model": "n_log_n",
+        "coefficient": 83.53954348462949,
+        "doubling_r_squared": 0.9196714046374145,
+        "doubling_slope": 0.00020959263516319486,
+        "exponent": 1.07330478689571,
+        "normalised_rms": {
+          "constant": 0.758636,
+          "cubic": 0.463629,
+          "linear": 0.037998,
+          "log_n": 0.671464,
+          "n_log_n": 0.01867,
+          "quadratic": 0.315751
+        },
+        "pair_slopes": [
+          1.0779,
+          1.0692,
+          1.0741
+        ],
+        "r_squared": 0.9999977676420787
+      },
+      "inferences": [
+        298859,
+        630893,
+        1323816,
+        2787183
+      ],
+      "measure": "length",
+      "measured": "2026-09-07",
+      "sizes": [
+        2048,
+        4096,
+        8192,
+        16384
+      ],
+      "spread": {
+        "absolute_max": 0,
+        "relative_max": 0.0
+      },
+      "witness": "(intersection (superpose $_9) (superpose $_9))"
+    },
+    "intersection-atom": {
+      "answers": [
+        1,
+        1,
+        1,
+        1
+      ],
+      "cause": {
+        "chain": [
+          "python -m benchmarks.costs --record measured intersection-atom",
+          "minimum of 1 fresh process(es), one fresh space per size",
+          "the declared class is linearithmic in $n by length"
+        ],
+        "commit": "WORKTREE"
+      },
+      "class": "linearithmic",
+      "counter": "inferences",
+      "fit": {
+        "best_model": "n_log_n",
+        "coefficient": 58.723885971566474,
+        "doubling_r_squared": 0.9192857489711027,
+        "doubling_slope": 0.00021288811559728985,
+        "exponent": 1.0904078512428237,
+        "normalised_rms": {
+          "constant": 0.768277,
+          "cubic": 0.458646,
+          "linear": 0.046328,
+          "log_n": 0.681176,
+          "n_log_n": 0.010654,
+          "quadratic": 0.309526
+        },
+        "pair_slopes": [
+          1.0976,
+          1.0853,
+          1.09
+        ],
+        "r_squared": 0.9999951243176157
+      },
+      "inferences": [
+        239159,
+        511803,
+        1085940,
+        2311731
+      ],
+      "measure": "length",
+      "measured": "2026-09-07",
+      "sizes": [
+        2048,
+        4096,
+        8192,
+        16384
+      ],
+      "spread": {
+        "absolute_max": 0,
+        "relative_max": 0.0
+      },
+      "witness": "(intersection-atom $_6 $_6)"
+    },
+    "size-atom": {
+      "answers": [
+        1,
+        1,
+        1,
+        1
+      ],
+      "cause": {
+        "chain": [
+          "python -m benchmarks.costs --record measured size-atom",
+          "minimum of 1 fresh process(es), one fresh space per size",
+          "the declared class is linear in $n by length"
+        ],
+        "commit": "WORKTREE"
+      },
+      "class": "linear",
+      "counter": "inferences",
+      "fit": {
+        "best_model": "linear",
+        "coefficient": 13.432413216002548,
+        "doubling_r_squared": 0.924576623368487,
+        "doubling_slope": 0.00018991482707518605,
+        "exponent": 0.969915652283799,
+        "normalised_rms": {
+          "constant": 0.700835,
+          "cubic": 0.491693,
+          "linear": 0.011458,
+          "log_n": 0.613372,
+          "n_log_n": 0.065946,
+          "quadratic": 0.351404
+        },
+        "pair_slopes": [
+          0.9483,
+          0.9736,
+          0.9866
+        ],
+        "r_squared": 0.9999202197161199
+      },
+      "inferences": [
+        22026,
+        42501,
+        83460,
+        165382
+      ],
+      "measure": "length",
+      "measured": "2026-09-07",
+      "sizes": [
+        2048,
+        4096,
+        8192,
+        16384
+      ],
+      "spread": {
+        "absolute_max": 0,
+        "relative_max": 0.0
+      },
+      "witness": "(size-atom $_4)"
+    },
+    "subtraction": {
+      "answers": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "cause": {
+        "chain": [
+          "python -m benchmarks.costs --record measured subtraction",
+          "minimum of 1 fresh process(es), one fresh space per size",
+          "the declared class is linearithmic in $n by length"
+        ],
+        "commit": "WORKTREE"
+      },
+      "class": "linearithmic",
+      "counter": "inferences",
+      "fit": {
+        "best_model": "n_log_n",
+        "coefficient": 77.5885059717522,
+        "doubling_r_squared": 0.919633728387226,
+        "doubling_slope": 0.00021023139146047996,
+        "exponent": 1.0765977132198623,
+        "normalised_rms": {
+          "constant": 0.760539,
+          "cubic": 0.462628,
+          "linear": 0.039652,
+          "log_n": 0.673383,
+          "n_log_n": 0.017076,
+          "quadratic": 0.314507
+        },
+        "pair_slopes": [
+          1.0815,
+          1.0724,
+          1.0773
+        ],
+        "r_squared": 0.999997508991451
+      },
+      "inferences": [
+        284602,
+        602298,
+        1266549,
+        2672566
+      ],
+      "measure": "length",
+      "measured": "2026-09-07",
+      "sizes": [
+        2048,
+        4096,
+        8192,
+        16384
+      ],
+      "spread": {
+        "absolute_max": 0,
+        "relative_max": 0.0
+      },
+      "witness": "(subtraction (superpose $_10) (superpose $_10))"
+    },
+    "union": {
+      "answers": [
+        4096,
+        8192,
+        16384,
+        32768
+      ],
+      "cause": {
+        "chain": [
+          "python -m benchmarks.costs --record measured union",
+          "minimum of 1 fresh process(es), one fresh space per size",
+          "the declared class is linear in $n by length"
+        ],
+        "commit": "WORKTREE"
+      },
+      "class": "linear",
+      "counter": "inferences",
+      "fit": {
+        "best_model": "linear",
+        "coefficient": 68.80187371850296,
+        "doubling_r_squared": 0.9208928546388763,
+        "doubling_slope": 0.00019427393994441217,
+        "exponent": 0.9941987744297316,
+        "normalised_rms": {
+          "constant": 0.712249,
+          "cubic": 0.487607,
+          "linear": 0.002173,
+          "log_n": 0.624735,
+          "n_log_n": 0.057409,
+          "quadratic": 0.345674
+        },
+        "pair_slopes": [
+          0.9899,
+          0.995,
+          0.9975
+        ],
+        "r_squared": 0.9999970181067502
+      },
+      "inferences": [
+        134999,
+        268112,
+        534359,
+        1066851
+      ],
+      "measure": "length",
+      "measured": "2026-09-07",
+      "sizes": [
+        2048,
+        4096,
+        8192,
+        16384
+      ],
+      "spread": {
+        "absolute_max": 0,
+        "relative_max": 0.0
+      },
+      "witness": "(union (superpose $_8) (superpose $_8))"
+    },
+    "union-atom": {
+      "answers": [
+        1,
+        1,
+        1,
+        1
+      ],
+      "cause": {
+        "chain": [
+          "python -m benchmarks.costs --record measured union-atom",
+          "minimum of 1 fresh process(es), one fresh space per size",
+          "the declared class is linear in $n by length"
+        ],
+        "commit": "WORKTREE"
+      },
+      "class": "linear",
+      "counter": "inferences",
+      "fit": {
+        "best_model": "linear",
+        "coefficient": 24.287719172980392,
+        "doubling_r_squared": 0.9222696153549097,
+        "doubling_slope": 0.00019265283990139995,
+        "exponent": 0.9851585513031299,
+        "normalised_rms": {
+          "constant": 0.70804,
+          "cubic": 0.489107,
+          "linear": 0.005597,
+          "log_n": 0.620545,
+          "n_log_n": 0.060542,
+          "quadratic": 0.34778
+        },
+        "pair_slopes": [
+          0.9743,
+          0.9871,
+          0.9935
+        ],
+        "r_squared": 0.999980620907961
+      },
+      "inferences": [
+        44577,
+        87580,
+        173595,
+        345627
+      ],
+      "measure": "length",
+      "measured": "2026-09-07",
+      "sizes": [
+        2048,
+        4096,
+        8192,
+        16384
+      ],
+      "spread": {
+        "absolute_max": 0,
+        "relative_max": 0.0
+      },
+      "witness": "(union-atom $_5 $_5)"
+    }
+  },
+  "schema": 1
+}

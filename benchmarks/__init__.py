@@ -6,6 +6,12 @@ Guarantees:
     compare against
     [tested: test_atomic_json_keeps_the_previous_document_when_a_write_fails;
     commit=906a4057ac57a340a3544ad909e829f851f35af3].
+  - `collect_worker` raises the worker's own failure text rather than a
+    truncated payload, and is the one process-collection both sized lanes use,
+    so a worker that exits without sending, sends a failure, or outlives its
+    bound reads the same way in either
+    [tested: test_a_family_that_left_its_route_is_refused_not_fitted,
+    test_a_worker_that_sends_nothing_is_a_named_failure; commit=6b4dceb61ccc78e308e6678af58f8daf43c31523].
 Open Obligations:
   To Do: None
   Hacks: None
@@ -17,7 +23,7 @@ from __future__ import annotations
 import json
 import os
 import tempfile
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from pathlib import Path
 from typing import Any
 
@@ -36,3 +42,40 @@ def atomic_json(path: Path, document: Mapping[str, Any]) -> None:
     except BaseException:
         Path(temporary).unlink(missing_ok=True)
         raise
+
+
+def collect_worker(
+    target: Callable[..., None],
+    arguments: tuple[Any, ...],
+    *,
+    label: str,
+    timeout: float,
+    context: Any,
+    finish_process: Callable[[Any, float], str | None],
+) -> Mapping[str, Any]:
+    """Run one measuring worker to completion and return its payload, or raise.
+
+    Both sized lanes measure in a child process for the same two reasons: a
+    ladder that accumulates state inside one process measures the accumulation
+    rather than the workload, and retired instruction counts move with code
+    layout across program images. The collection itself is the same either way,
+    so it is here rather than in each of them.
+    """
+    parent, child = context.Pipe(duplex=False)
+    process = context.Process(target=target, args=(*arguments, child), name=label)
+    process.start()
+    child.close()
+    failure = finish_process(process, timeout)
+    payload: Mapping[str, Any] | None = None
+    if failure is None and parent.poll():
+        payload = parent.recv()
+    parent.close()
+    if failure is None and payload is None:
+        failure = "worker exited without a measurement"
+    if failure is None and payload is not None and not payload["ok"]:
+        failure = str(payload["error"])
+    if failure is not None:
+        message = f"{label}: {failure}"
+        raise RuntimeError(message)
+    assert payload is not None
+    return payload

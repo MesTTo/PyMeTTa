@@ -64,6 +64,12 @@ Guarantees:
     ladder 200/400/800/1600; commit=75d75b1ea5ed229a598925111f8bdc759a3fbb6e]
     [tested: test_a_drifted_ledger_refuses_the_run_before_it_measures_anything;
     commit=75d75b1ea5ed229a598925111f8bdc759a3fbb6e]
+  - `paired_instructions` takes the whole `benchmarks.pure` invocation, so the
+    cost-rows lane measures a row by `--head` through the same perf window this
+    lane measures a family by name through, and the process collection both
+    lanes use is `benchmarks.collect_worker`
+    [tested: test_every_shipped_row_is_reachable_as_a_perf_sized_case;
+    commit=6b4dceb61ccc78e308e6678af58f8daf43c31523]
 Fails when: a family exceeds its declared exponent, costs more than its pinned
   row by more than the allowed factor, leaves its route, or produces the wrong
   work. Also when a control stops failing, and when the ledger's configuration
@@ -105,7 +111,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from benchmarks import atomic_json, curves
+from benchmarks import atomic_json, collect_worker, curves
 from benchmarks.configuration import counter_configuration
 from metta import S, Space, V, engine
 
@@ -740,9 +746,16 @@ def configuration_drift(
 
 
 def paired_instructions(
-    family: str, sizes: Sequence[int], *, rounds: int, timeout: float
+    case: Sequence[str], sizes: Sequence[int], *, rounds: int, timeout: float
 ) -> dict[str, Any]:
-    """Retired instructions across the same ladder, reported and never gated."""
+    """Retired instructions across the same ladder, reported and never gated.
+
+    `case` is the `benchmarks.pure` invocation minus `--size` and
+    `--controlled`, so a lane whose workload takes an argument of its own
+    passes it here: `["scaling-write-door"]` for a family, and
+    `["cost-row", "--head", "size-atom"]` for a declared cost row, whose set is
+    the engine's rather than this file's.
+    """
     representative = []
     for size in sizes:
         samples = measure_instructions(
@@ -753,7 +766,7 @@ def paired_instructions(
                 sys.executable,
                 "-m",
                 "benchmarks.pure",
-                f"scaling-{family}",
+                *case,
                 "--size",
                 str(size),
                 "--controlled",
@@ -851,36 +864,6 @@ def selfcheck() -> list[str]:
 
 
 # ------------------------------------------------------------------- the suite
-
-
-def _collect(
-    target: Callable[..., None],
-    arguments: tuple[Any, ...],
-    *,
-    label: str,
-    timeout: float,
-    context: Any,
-    finish_process: Callable[[Any, float], str | None],
-) -> Mapping[str, Any]:
-    """Run one worker to completion and return its payload, or raise its failure."""
-    parent, child = context.Pipe(duplex=False)
-    process = context.Process(target=target, args=(*arguments, child), name=label)
-    process.start()
-    child.close()
-    failure = finish_process(process, timeout)
-    payload: Mapping[str, Any] | None = None
-    if failure is None and parent.poll():
-        payload = parent.recv()
-    parent.close()
-    if failure is None and payload is None:
-        failure = "worker exited without a measurement"
-    if failure is None and payload is not None and not payload["ok"]:
-        failure = str(payload["error"])
-    if failure is not None:
-        message = f"{label}: {failure}"
-        raise RuntimeError(message)
-    assert payload is not None
-    return payload
 
 
 def _planted_row(
@@ -1028,7 +1011,7 @@ def run_suite(
     selected = [
         family for family in policy["families"] if not names or family["name"] in names
     ]
-    stamp = _collect(
+    stamp = collect_worker(
         stamp_worker,
         (),
         label="metta-scaling-stamp",
@@ -1062,7 +1045,7 @@ def run_suite(
         name = str(family["name"])
         sizes = [int(size) for size in family["sizes"]]
         repeated = [
-            _collect(
+            collect_worker(
                 sample_worker,
                 (name, sizes),
                 label=f"metta-scaling-{name}-{index}",
@@ -1106,7 +1089,7 @@ def run_suite(
         if paired and family.get("paired_counter"):
             try:
                 entry["paired"] = paired_instructions(
-                    name, sizes, rounds=max(repetitions, 3), timeout=timeout
+                    [f"scaling-{name}"], sizes, rounds=max(repetitions, 3), timeout=timeout
                 )
                 print(
                     f"{'':26s} paired instructions:u exponent="

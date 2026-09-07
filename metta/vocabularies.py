@@ -115,6 +115,7 @@ __all__ = [
     "Atomicity",
     "CachePolicy",
     "ClauseFailedEnum",
+    "CostClass",
     "Delivery",
     "Determinism",
     "EffectClass",
@@ -247,6 +248,16 @@ class CachePolicy(_AtomStrEnum):
     max_answers = "max-answers"
     subgoal_abstract = "subgoal-abstract"
     answer_abstract = "answer-abstract"
+
+#: (vocabulary cost-class constant log linear linearithmic quadratic exponential)
+class CostClass(_AtomStrEnum):
+    """Typed values of the cost-class vocabulary."""
+    constant = "constant"
+    log = "log"
+    linear = "linear"
+    linearithmic = "linearithmic"
+    quadratic = "quadratic"
+    exponential = "exponential"
 
 #: (vocabulary delivery at-most-once at-least-once per-write-exactly)
 class Delivery(_AtomStrEnum):

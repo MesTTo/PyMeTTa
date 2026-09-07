@@ -56,6 +56,31 @@ run GATE instructions in_py "$PY" -m benchmarks.check_instructions
 # work across the boundary rather than something every run should pay.
 run GATE scaling      in_py "$PY" -m benchmarks.scaling
 
+# The same question asked of the ENGINE's own claims rather than of a policy
+# file this repository writes. `(cost (car-atom $n) linear)` is a catalog row in
+# engine/prelude.metta and lib/lib_builtin_types/lib_builtin_types.metta, any
+# program can add one, and explain and every docstring print it; this lane is
+# what can fail it. Ten rows ship, and the class is checked in BOTH directions,
+# so a row that overstates its cost fails exactly as one that understates it
+# does.
+#
+# Three gates and five permanent controls, one per direction each: a quadratic
+# body declared linear must fail the class gate and the same body declared
+# quadratic must pass it; a linear body declared quadratic must fail it the
+# other way; a naive Fibonacci with the memo refused must pass the exponential
+# test, which is the only shape that test is for; and a body whose answer counts
+# are pinned from another row must fail the work gate while passing the class
+# one. The lane fails if any of them stops landing where it is planted.
+#
+# It gates on inferences, so it needs no quiet box: two full runs at loadavg 53
+# and 77 returned identical counts for every row at every size. About 23 to 31
+# seconds [measured 2026-09-07, four runs at loadavg 45 to 72]. The retired-
+# instruction curve LAW 2 wants beside a head whose work crosses into C is
+# `--paired`, deliberately not here for the reason the lane above gives; it is
+# what says unique-atom must not carry a row, and its verdict is recorded in
+# that head's own comment.
+run GATE cost-rows    in_py "$PY" -m benchmarks.costs
+
 # Run the complete fresh-process, min-of-three instrument once and reuse its
 # verdict for the adjacent gate. The report includes process PSS/private/RSS/
 # HWM metrics, but memory-scale-baseline.json promotes only exact SWI bytes,
