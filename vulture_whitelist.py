@@ -247,3 +247,11 @@ _.sql_function
 # reachability scan [source: extensions/python/metta/shim.pl,
 # seam:grounded_algebra_type/3; commit=WORKTREE].
 _carrier_type_accepts
+
+# Read by a SIBLING SEAT, which this scan does not reach: the C seat's
+# benchmark driver asks its baseline what checkout length its pins were taken
+# at and refuses the boot instruction row from a different one, because that
+# row's count scales with the length of the engine path the process resolves
+# [source: extensions/cmetta/benchmarks/bench.py, observe_all's path_decides;
+# commit=WORKTREE].
+_.pinned_checkout_path_length

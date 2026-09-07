@@ -104,6 +104,18 @@ _DEFAULT_EVENTS = ("instructions:u",)
 # magnitude below anything worth catching, while a real per-operation shift
 # still lands far above the allowance.
 _COUNTER_TOLERANCE = 4
+#: The key a row uses to declare a WIDER inference allowance than the four
+#: above, beside the measurement that justifies it. Symmetric with the
+#: instruction side, which has taken a per-row band since it was written, and
+#: added for the same reason: a row whose noise was MEASURED wider than the
+#: default is a row the default reports forever. The C seat's boot is the case
+#: it was added for, whose count moves about twenty-five with nothing but
+#: whether the tree has been written over
+#: [source: extensions/cmetta/benchmarks/baseline.json,
+#: release_0_8_0_boot_environment_note]. A row that declares nothing keeps the
+#: four, and a declaration without a measurement beside it is a defect this
+#: file cannot catch: say what moved the row and by how much, or leave it.
+_COUNTER_ALLOWANCE_KEY = "inference_allowance"
 # The band an instruction row gets when it declares none. It is a DEFAULT and
 # never a policy the measurement path imposes: a row whose layout noise was
 # measured wider declares its own percent beside the reason, and re-pinning
@@ -228,10 +240,14 @@ def _compare_counter(
     if isinstance(baseline, bool) or not isinstance(baseline, int):
         msg = f"{name} baseline has invalid inferences {baseline!r}"
         raise AssertionError(msg)  # noqa: TRY004  -- the harness is checking its own invariant, so AssertionError is the intended contract
-    if observed > baseline + _COUNTER_TOLERANCE:
+    allowance = expected.get(_COUNTER_ALLOWANCE_KEY, _COUNTER_TOLERANCE)
+    if not isinstance(allowance, int) or isinstance(allowance, bool) or allowance < 0:
+        msg = f"{name} baseline has invalid {_COUNTER_ALLOWANCE_KEY} {allowance!r}"
+        raise AssertionError(msg)
+    if observed > baseline + allowance:
         msg = (
             f"{name} inference regression: minimum of {sample_values!r} is "
-            f"{observed}, baseline {baseline} plus the {_COUNTER_TOLERANCE} "
+            f"{observed}, baseline {baseline} plus the {allowance} "
             f"inference allowance"
         )
         raise AssertionError(
@@ -253,11 +269,11 @@ def _compare_counter(
     #really improved has EVERY sample below the pin, so this still fails on
     #one and cannot be quieted by a noisy run.
     highest = max(sample_values) if sample_values else observed
-    if highest < baseline - _COUNTER_TOLERANCE:
+    if highest < baseline - allowance:
         msg = (
             f"{name} inference improvement left unpinned: every sample of "
             f"{sample_values!r} is under baseline {baseline} minus the "
-            f"{_COUNTER_TOLERANCE} inference allowance; re-pin with "
+            f"{allowance} inference allowance; re-pin with "
             f"--update-baseline and record the mechanism beside the pin"
         )
         raise AssertionError(
@@ -502,6 +518,25 @@ class BenchmarkBaseline:
     def cases(self) -> Mapping[str, Mapping[str, Any]]:  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
         return self._document["benchmarks"]
 
+    def pinned_checkout_path_length(self) -> int | None:
+        """How long the repository root was when this document's pins were taken.
+
+        None when the document does not say, which is every baseline that has
+        no counter sensitive to it. A seat whose numbers move with the path
+        records `measurement.checkout_path_length` and compares the live root
+        against it, so a pin taken at the repository root is not read from a
+        worktree as a regression
+        [source: extensions/cmetta/benchmarks/baseline.json,
+        measurement.checkout_path_length_note].
+        """
+        measurement = self._document.get("measurement")
+        if not isinstance(measurement, Mapping):
+            return None
+        length = measurement.get("checkout_path_length")
+        if isinstance(length, bool) or not isinstance(length, int):
+            return None
+        return length
+
     def observe_counter(
         self,
         name: str,
@@ -518,6 +553,9 @@ class BenchmarkBaseline:
 
         if self.update:
             previous = self._document["benchmarks"].get(name, {})
+            #`previous` first, so a declared inference_allowance and every
+            #other field a row carries SURVIVE a re-pin: re-pinning re-measures
+            #the count, it does not re-decide what the row's noise is.
             self._document["benchmarks"][name] = {
                 **previous,
                 "unit": unit,
@@ -881,6 +919,54 @@ def _paranoid_reading() -> str:
         return "unreadable"
 
 
+#: Above how many runnable processes per core a TIME-derived counter stops
+#: describing the tree.
+#:
+#: One per core is the point where every runnable process still has a core, so
+#: below it a task-clock reading prices the work and above it, it prices the
+#: queue. The figure is not invented for this constant: the C seat's baseline
+#: records its CPU pins as taken at loadavg 9 to 30 on a 32-core box, which is
+#: 0.28 to 0.94 of a core each, and records what happens further up -- at
+#: loadavg 30 a task-clock triple spread 38% to 64% while instructions:u over
+#: the same runs spread 0.00002% to 0.129%
+#: [source: extensions/cmetta/benchmarks/baseline.json, measurement_conditions].
+#:
+#: Normalised by core count on purpose. A raw loadavg means opposite things on
+#: a 32-core desk and a 2-core runner, and a ceiling that reads 30 as busy on
+#: one and idle on the other would refuse in the wrong place.
+LOAD_PER_CORE_CEILING = 1.0
+
+
+def load_per_core() -> float:
+    """The one-minute load average divided by the cores that can serve it."""
+    try:
+        return os.getloadavg()[0] / (os.cpu_count() or 1)
+    except OSError:
+        #A box that will not say is treated as quiet: refusing a measurement
+        #because a counter could not be READ would turn an unrelated platform
+        #into a red lane.
+        return 0.0
+
+
+def time_is_measurable() -> bool:
+    """Whether a task-clock reading on this box describes the tree."""
+    return load_per_core() <= LOAD_PER_CORE_CEILING
+
+
+def refusal_is_fatal() -> bool:
+    """Whether a box that would not measure should also fail the lane.
+
+    One definition, because three lanes draw this line and a lane that drew it
+    differently would pass in CI without measuring. It is the line check.sh
+    already draws for a prerequisite the repository cannot provide: a runner
+    that cannot measure is a broken runner, and a lane that passes without
+    measuring is worse than a red one, while a developer's box is shared and a
+    contended PMU is not a code change
+    [source: tests/checks/check_upstream_parity.py, upstream_prerequisite].
+    """
+    return os.environ.get("CI") == "true"
+
+
 def measured_main(entry: Callable[[], int]) -> int:
     """Run a benchmark lane and turn a refused measurement into a named skip.
 
@@ -901,7 +987,7 @@ def measured_main(entry: Callable[[], int]) -> int:
         #the diagnosis carries perf's transcript and a reader scanning a gate
         #log has to see which of the two words this lane said without reading
         #the rest.
-        if os.environ.get("CI") == "true":
+        if refusal_is_fatal():
             print(
                 "error: this benchmark lane measured nothing and will not pass "
                 "on that; a CI runner that cannot count is a broken runner.",
@@ -1181,6 +1267,7 @@ def _run_perf(
 __all__ = [
     "CPU_SECONDS",
     "INSTRUCTIONS",
+    "LOAD_PER_CORE_CEILING",
     "PERF_CONTROL_REFUSED",
     "BenchmarkBaseline",
     "CounterRuns",
@@ -1189,7 +1276,10 @@ __all__ = [
     "benchmark_case",
     "benchmark_counter_slope",
     "count_atoms",
+    "load_per_core",
     "measure_counters",
     "measure_instructions",
     "measured_main",
+    "refusal_is_fatal",
+    "time_is_measurable",
 ]

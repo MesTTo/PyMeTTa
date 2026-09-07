@@ -96,6 +96,7 @@ from .atoms import parse as atoms_parse
 from .benchmarking import (
     CPU_SECONDS,
     INSTRUCTIONS,
+    LOAD_PER_CORE_CEILING,
     PERF_CONTROL_REFUSED,
     BenchmarkBaseline,
     CounterRuns,
@@ -104,9 +105,12 @@ from .benchmarking import (
     benchmark_case,
     benchmark_counter_slope,
     count_atoms,
+    load_per_core,
     measure_counters,
     measure_instructions,
     measured_main,
+    refusal_is_fatal,
+    time_is_measurable,
 )
 from .convert import build as _build
 from .convert import project as _project
@@ -125,6 +129,7 @@ from .vocabularies import AlgebraLaw, EffectClass
 __all__ = [
     "CPU_SECONDS",
     "INSTRUCTIONS",
+    "LOAD_PER_CORE_CEILING",
     "PERF_CONTROL_REFUSED",
     "BenchmarkBaseline",
     "Case",
@@ -153,6 +158,7 @@ __all__ = [
     "ground_atoms",
     "grounded",
     "laws",
+    "load_per_core",
     "measure_counters",
     "measure_instructions",
     "measured_main",
@@ -162,8 +168,10 @@ __all__ = [
     "patterns",
     "programs",
     "record_replay",
+    "refusal_is_fatal",
     "symbols",
     "texts",
+    "time_is_measurable",
     "variables",
 ]
 
