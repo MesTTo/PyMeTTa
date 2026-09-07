@@ -99,7 +99,7 @@ def test_quote_is_a_scope_in_head_position_too(index, payload):
     quote: with the payload ``(cons 1 2)`` the head compiled the pattern
     ``[quote, [1|2]]``, an improper list, so the call had no answer at all.
     Upstream still compiles exactly that ``qh([quote, [1|2]], matched).``
-    [measured 2026-08-30, ai-tmp/qs3.metta], which is why this row is a
+    [measured 2026-08-30], which is why this row is a
     superset rather than a parity claim.
     """
     metta = MeTTa(verbose=False).self

@@ -15,7 +15,10 @@
 #   commit=5e0ae6c22d604c4b980766e3cc4811ee545e5c9e], the class door's PEP 681
 #   declaration is executable in a consumer file, and stubtest holds the two
 #   generated stubs against the runtime [tested: mypy-class-door, stubtest;
-#   commit=dd4f82100a052e2c5254a2ef9e91f6eb9d2e0c49].
+#   commit=dd4f82100a052e2c5254a2ef9e91f6eb9d2e0c49]. The TypeScript space
+#   example's own suite runs, which nothing ran before it, so the four
+#   claims citing one of its cases name a suite a lane reaches
+#   [tested: ts-space; commit=WORKTREE].
 # Open Obligations:
 #   To Do: None
 #   Hacks: None
@@ -147,6 +150,48 @@ run GATE packaged sh -c "cd '$HERE' && sh tests/shell/test_packaged_cli.sh"
 # a spelling and not an answer.
 run GATE   parity      sh -c "cd '$HERE' && '$PY' extensions/python/tools/example_parity.py"
 run REPORT twins       sh -c "cd '$HERE' && '$PY' extensions/python/tools/twin_coverage.py"
+
+# The TypeScript space example's own suite, which nothing ran until this lane.
+# The example ships a server and 15 cases stating what its two-sided unifier
+# does, what the HTTP boundary refuses, and when a cursor is released; the seat
+# drives the same server from MeTTa in
+# tests/ch19_spaces_backed_by_anything/test_typescript_space.py, which covers
+# the protocol from the outside and none of those cases from the inside. Four
+# of the example's own files cite one of them, and the citations read as backed
+# only because the evidence gate could not read a name written as a sentence.
+# With the gate reading them they name a suite no runner executes, which is the
+# reduce_dispatch.pl shape the evidence lane exists to end.
+#
+# It runs the CHECKED-IN bundle rather than compiling the source, so it needs
+# node and nothing else. The README bundles the .ts with esbuild, which is a
+# dependency of the Node seat and not of this one, and a gate that reaches for a
+# bundler is a gate that fails for a reason that is not the tree. Node's own
+# type stripping is not the way out either: it is compiled out of the Debian and
+# Ubuntu builds, and this box is one of them
+# [measured 2026-09-07: `node -p process.config.variables.node_use_amaro`
+# answers false on node v22.22.1, and `node --test space_server.test.ts` then
+# fails to load the file at all].
+#
+# The two pytest files above already run the SERVER bundle beside it, so the
+# bundles are what this example ships and what gets tested.
+# Limitation: nothing checks that space_server.test.js is current with
+# space_server.ts, because checking would need the bundler this deliberately
+# does not have.
+#
+# Same skip protocol the seats use: a box without node announces the missing
+# step and the lane passes
+# [measured 2026-09-07: 15 cases, 0 failures, min 1.58 s over three runs at
+# loadavg 97, and 0.92 s on a quieter one; no network].
+check_typescript_space() {
+    command -v node >/dev/null 2>&1 || {
+        echo "note: node not found, the TypeScript space example's suite will \
+not run" >&2
+        return 0
+    }
+    ( cd "$PYDIR/examples/integration/typescript_space" &&
+        bounded node --test space_server.test.js )
+}
+run GATE   ts-space    check_typescript_space
 
 # Every operation MeTTa's standard library declares, and what you write in
 # Python instead. The rows live in extensions/python/tools/phrasebook_entries.py,
