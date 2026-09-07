@@ -20,6 +20,10 @@ Guarantees:
   - a failing form that computed no bag difference reports None for both, so
     absence and emptiness stay tellable apart
     [tested: test_a_form_with_no_bag_comparison_reports_neither_bag]
+  - a one-sided comparison reports the one bag its verdict depended on and
+    None for the other, so an answer the relation ALLOWS is never named as a
+    reason for the failure
+    [tested: test_a_containment_reports_the_missing_bag_alone]
   - multiplicity survives the crossing: one occurrence on one side consumes
     exactly one on the other
     [tested: test_the_bags_keep_their_multiplicity]
@@ -108,6 +112,24 @@ def test_the_bags_keep_their_multiplicity(space):
 
     assert caught.missing == (S.b,)
     assert caught.excess == (S.a,)
+
+
+def test_a_containment_reports_the_missing_bag_alone(space):
+    """A containment asks a one-sided question and gets a one-sided answer.
+
+    7 was expected and never produced, which is the whole reason the claim
+    failed. 1 and 2 were produced and never expected, and this relation ALLOWS
+    that, so naming them would point the reader at something that is not
+    broken: the excess side is absent rather than empty, and absence is what
+    None says.
+    """
+    caught = failure(space, "!(assertIncludes (superpose (1 2)) (7))")
+
+    assert caught.missing == (7,)
+    assert caught.excess is None
+    assert "missing: (7)" in str(caught)
+    assert "excess" not in str(caught)
+    assert "(assertIncludes (superpose (1 2)) (7))" in str(caught)
 
 
 def test_a_form_with_no_bag_comparison_reports_neither_bag(space):

@@ -235,10 +235,28 @@ def test_space_handles_are_term_operands_and_round_trip(  # noqa: D103  -- pytes
         loaded.drop()
 
 
-@pytest.mark.parametrize("wire_value", [["p", "plain"], ["p", 1]])
-def test_malformed_space_handle_wire_payloads_are_refused(wire_value):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
+@pytest.mark.parametrize("wire_value", [["p", 1], ["p", ["nested"]]])
+def test_malformed_space_handle_wire_payloads_are_refused(wire_value):
+    """The tag is a claim about its payload, and the claim is TEXT.
+
+    It used to be ampersand-prefixed text, and that refused `["p", "plain"]` --
+    a name the engine registers the moment a program writes through it and
+    hands back from its own registry. What a `p` payload may not be is
+    something that is not a name at all.
+    """
     with pytest.raises(ValueError, match="wire space payload"):
         wire.atom_from_wire(wire_value)
+
+
+def test_a_bare_space_payload_decodes_into_a_handle():
+    """The ampersand is a spelling, not the rule.
+
+    `(= (space) plain)` with one write through it registers `plain`, so a
+    payload carrying that name is a space reference like any other.
+    """
+    decoded = wire.atom_from_wire(["p", "plain"])
+    assert isinstance(decoded, Space)
+    assert decoded.name == "plain"
 
 
 def test_linda_deadline_misses_raise_the_package_timeout(spaces):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract

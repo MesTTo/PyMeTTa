@@ -1104,17 +1104,41 @@ class Space(Handle):
             engine_name = name
         if not isinstance(engine_name, (str, list)):
             msg = (
-                f"a space name is an & string, Symbol, or ground Expression; "
+                f"a space name is a string, Symbol, or ground Expression; "
                 f"got {engine_name!r}"
             )
             raise TypeError(
                 msg
             )
-        if isinstance(engine_name, str) and not engine_name.startswith("&"):
+        # A STRING names the space exactly, which is the bracket door's rule
+        # everywhere else on this surface: `S["add"]` is the symbol `add` while
+        # `S.add` is the operator word. The Symbol door above still supplies
+        # the `&` for a name written as one, so `space(S.kb)` is `&kb`; a
+        # string is what says "this exact name". It has to be, because the
+        # engine registers a space under any symbol a program writes through
+        # (`(= (space) my_space_name)`) and `space_names()` LISTS that name --
+        # a listing door whose names the opening door refuses is one seat
+        # disagreeing with the engine, and the Node seat opens them.
+        #
+        # Two spellings are still refused, and they are the two the old
+        # message named as real. A `$` name reads back as a VARIABLE, so an
+        # atom carrying it would stop being the same term it crossed as; and
+        # the empty name is no name at all.
+        if isinstance(engine_name, str) and engine_name.startswith("$"):
             msg = (
-                f"a space name starts with &, as in &self or &kb; got {engine_name!r}. "
-                f"The prefix is load-bearing: is-space recognises it, and a $ "
-                f"name would read back as a variable."
+                f"a space name cannot start with $; got {engine_name!r}. A $ "
+                f"name reads back as a variable, so a term mentioning this "
+                f"space would not be the term it crossed as. Any other symbol "
+                f"is a space name, prefixed or not: space('&kb') and "
+                f"space('my_space_name') both name themselves."
+            )
+            raise ValueError(
+                msg
+            )
+        if isinstance(engine_name, str) and not engine_name:
+            msg = (
+                "a space name is a nonempty symbol; got ''. Use space() with "
+                "no argument for an anonymous space."
             )
             raise ValueError(
                 msg
