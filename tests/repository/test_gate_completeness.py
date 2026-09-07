@@ -214,7 +214,15 @@ RUFF_FAMILY_BURN_DOWN = {
     # Measured with --ignore-noqa over the whole RUFF_SCOPE at petta c0bb66c3
     # and after the last edit: 2229 -> 2233, the same four across the two petta
     # tips this branch was rebased onto.
-    "D": 2233,
+    # 2233 -> 2234 on 2026-09-07 with the import hook: the obligation-header
+    # D205 form on the one new module, metta/importing.py. Its eighteen other
+    # D205 sites, two method docstrings, fourteen scenario narratives in
+    # tests/ch11_python_as_a_notation/test_importing.py and two in
+    # tests/ch01_getting_started/test_main_module.py, were REPHRASED to open
+    # with a summary line rather than priced here. Measured with --ignore-noqa
+    # over the whole RUFF_SCOPE at petta b78dbd1f: 2252 as merged, 2234 after
+    # the rephrasing.
+    "D": 2234,
     # 145, from 139 before the idiomatic twin corpus. Every one of the six new
     # sites is a `twin(m)` whose example needs no engine, because the form it
     # demonstrates is native Python (destructuring, `len`, `max`), or a

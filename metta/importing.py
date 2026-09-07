@@ -16,10 +16,10 @@ Assumes:
     never shadow a `.py` [source:
     https://docs.python.org/3.12/reference/import.html#the-meta-path]
   - `importlib.reload` re-runs `find_spec` and then `exec_module` over the
-    SAME module object, and `_init_module_attrs` overwrites the import
-    attributes without clearing anything else the previous load set [source:
-    /usr/lib/python3.14/importlib/__init__.py reload, importlib._bootstrap
-    _exec and _init_module_attrs; commit=d7ab3cb20fe2353872139ecb36710f7e880c1451]
+    SAME module object, and "its dictionary (containing the module's global
+    variables) is retained", so what the previous load set survives until
+    this loader overwrites or drops it [source:
+    https://docs.python.org/3.12/library/importlib.html#importlib.reload]
 Guarantees:
   - a `.metta` file on the search path imports as a module whose attributes
     are the heads it declares, each an `_EngineFunction` on the loading space
@@ -172,10 +172,12 @@ def _leading_comment(text: str) -> str | None:
 
 
 def _module_doc(rows: Sequence[Declaration], name: str, text: str) -> str | None:
-    """`(@doc <module name> ...)` if the file documents itself, else its first
-    comment block. The doc atom is formatted the way `help()` formats it, so
-    one `(@doc ...)` reads the same through every door.
-    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+    """The file's own documentation: its doc atom, else its first comment block.
+
+    `(@doc <module name> ...)` wins when the file documents itself, formatted
+    the way `help()` formats a doc atom, so one `(@doc ...)` reads the same
+    through every door.
+    """
     for row in rows:
         if row.name == name and row.documentation is not None:
             return _format_doc_atom(row.documentation)
@@ -405,9 +407,10 @@ class Finder(importlib.abc.MetaPathFinder):
         exc: BaseException | None,
         traceback: TracebackType | None,
     ) -> None:
-        """Uninstall on every exit path, the way a hook installed for one
-        program's run must not outlive that run.
-        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+        """Uninstall on every exit path.
+
+        A hook installed for one program's run must not outlive that run.
+        """
         self.uninstall()
 
     def __repr__(self) -> str:

@@ -93,9 +93,10 @@ def test_run_installs_the_import_hook_for_the_programs_directory(tmp_path):
 
 
 def test_the_repl_installs_the_import_hook_for_its_working_directory(tmp_path):
-    """The session's directory is its program directory, the way an
-    interactive Python's is.
-    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
+    """The session's directory is its program directory.
+
+    An interactive Python's is the same.
+    """
     (tmp_path / "helper.metta").write_text("(= (from-the-session) 7)\n")
     finished = _metta(
         "repl",
@@ -107,11 +108,12 @@ def test_the_repl_installs_the_import_hook_for_its_working_directory(tmp_path):
 
 
 def test_a_run_leaves_no_import_hook_behind(tmp_path):
-    """The hook lives exactly as long as the run. In process, `main()` is
-    called by tests and by any program embedding the CLI, so a finder left on
-    `sys.meta_path` would change how every later import in that process
-    resolves.
-    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
+    """The hook lives exactly as long as the run.
+
+    In process, `main()` is called by tests and by any program embedding
+    the CLI, so a finder left on `sys.meta_path` would change how every
+    later import in that process resolves.
+    """
     from metta import importing
 
     (tmp_path / "prog.metta").write_text("!(+ 1 2)\n")

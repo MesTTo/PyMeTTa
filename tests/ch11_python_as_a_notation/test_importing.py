@@ -100,9 +100,11 @@ def test_a_metta_file_imports_as_a_module_of_its_own_heads(space, tmp_path):
 
 
 def test_a_module_attribute_and_the_namespace_build_one_term(space, tmp_path):
-    """`rules.answer` and `m.fn.answer` are the same function, so a call
-    through either builds the same term and the space answers it once.
-    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
+    """The module attribute and the namespace entry are one function.
+
+    A call through either builds the same term and the space answers it
+    once.
+    """
     name = fresh("same")
     (tmp_path / f"{name}.metta").write_text("(= (twice $x) (* 2 $x))\n", encoding="utf-8")
 
@@ -133,11 +135,13 @@ def test_the_import_statement_reaches_a_metta_file(space, tmp_path):
 
 
 def test_reload_is_the_digest_reload_under_pythons_word(space, tmp_path):
-    """Edit the file, reload the module: the same module object answers the
-    new bodies, a head the edit removed leaves both the module and the space,
-    and a head it added arrives. This is `import!`'s own lifecycle, which
-    withdraws what the file put in every space holding it and replaces it.
-    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
+    """Editing the file and reloading the module answers the new bodies.
+
+    The same module object answers them, a head the edit removed leaves
+    both the module and the space, and a head it added arrives. This is
+    `import!`'s own lifecycle, which withdraws what the file put in every
+    space holding it and replaces it.
+    """
     name = fresh("edited")
     source = tmp_path / f"{name}.metta"
     source.write_text("(= (answer) 1)\n(= (withdrawn) 7)\n", encoding="utf-8")
@@ -181,10 +185,11 @@ def test_a_module_reads_the_space_and_not_a_snapshot(space, tmp_path):
 
 
 def test_a_python_module_of_the_same_name_wins(space, tmp_path, monkeypatch):
-    """The finder is appended, never prepended, so Python's own finders answer
-    first and a name with both a `.py` and a `.metta` on one search path is
-    Python's. The deferral is by ORDER: the finder still resolves the file.
-    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
+    """A name with both a `.py` and a `.metta` on one search path is Python's.
+
+    The finder is appended, never prepended, so Python's own finders answer
+    first. The deferral is by ORDER: the finder still resolves the file.
+    """
     name = fresh("both")
     (tmp_path / f"{name}.py").write_text("VALUE = 'python'\n", encoding="utf-8")
     (tmp_path / f"{name}.metta").write_text("(= (value) metta)\n", encoding="utf-8")
@@ -203,9 +208,10 @@ def test_a_python_module_of_the_same_name_wins(space, tmp_path, monkeypatch):
 
 
 def test_a_file_that_cannot_load_raises_import_error(space, tmp_path):
-    """A load that fails is an import that fails, with the engine's own error
-    as the cause, and it leaves no half-made module in `sys.modules`.
-    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
+    """A failed load is a failed import, with the engine's error as its cause.
+
+    It leaves no half-made module in `sys.modules`.
+    """
     name = fresh("broken")
     (tmp_path / f"{name}.metta").write_text("(= (unclosed)\n", encoding="utf-8")
 
@@ -219,10 +225,11 @@ def test_a_file_that_cannot_load_raises_import_error(space, tmp_path):
 
 
 def test_reload_of_a_module_the_hook_did_not_load_is_pythons_own_refusal(space, tmp_path):
-    """There is no `reload` verb here. `importlib.reload` is the only door, so
-    a module this hook never loaded gets Python's own answer and nothing of
-    ours: the machinery decides, and the finder is not consulted at all.
-    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
+    """A module this hook never loaded gets Python's own answer to `reload`.
+
+    There is no `reload` verb here; `importlib.reload` is the only door, so
+    the machinery decides and the finder is not consulted at all.
+    """
     with importing.install(space, path=tmp_path):
         with pytest.raises(ImportError, match=r"not in sys\.modules"):
             importlib.reload(types.ModuleType(fresh("handmade")))
@@ -231,12 +238,14 @@ def test_reload_of_a_module_the_hook_did_not_load_is_pythons_own_refusal(space, 
 
 
 def test_a_package_declared_library_imports_by_its_declared_name(space, tmp_path, monkeypatch):
-    """A pip-installed package advertises a MeTTa library under the
+    """A package's declared library name becomes importable.
+
+    A pip-installed package advertises a MeTTa library under the
     `metta.libraries` entry-point group, the way a pytest plugin advertises
-    itself, and the declared NAME becomes importable. The target answers the
-    directory the sources live in, which is the group's existing contract, and
-    the file is found there under the engine's own library layout.
-    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
+    itself. The target answers the directory the sources live in, which is
+    the group's existing contract, and the file is found there under the
+    engine's own library layout.
+    """
     name = fresh("shipped")
     package = f"wheel_{uuid.uuid4().hex[:12]}"
     site = tmp_path / "site-packages"
@@ -274,10 +283,11 @@ def test_a_package_declared_library_imports_by_its_declared_name(space, tmp_path
 
 
 def test_a_declared_library_is_consulted_after_the_search_path(space, tmp_path, monkeypatch):
-    """Order, stated as a test: a file on the path wins over a package's
-    advertisement of the same name, and the advertisement is read only for a
-    name that matches, so an unrelated import loads nobody's entry point.
-    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
+    """A file on the path wins over a package's advertisement of the same name.
+
+    Order, stated as a test: the advertisement is read only for a name that
+    matches, so an unrelated import loads nobody's entry point.
+    """
     name = fresh("contested")
     site = tmp_path / "site-packages"
     metadata = site / "claimant-0.dist-info"
@@ -306,10 +316,12 @@ def test_a_declared_library_is_consulted_after_the_search_path(space, tmp_path, 
 
 
 def test_a_compressed_source_and_a_library_directory_are_both_found(space, tmp_path):
-    """The finder recognises what the engine loads: `.metta`, the `.metta.gz`
-    the CLI and `import!` already read under the same name, and the library
-    layout where a directory named for the library holds its surface.
-    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
+    """The finder recognises exactly what the engine loads.
+
+    `.metta`, the `.metta.gz` the CLI and `import!` already read under the
+    same name, and the library layout where a directory named for the
+    library holds its surface.
+    """
     zipped = fresh("zipped")
     with gzip.open(tmp_path / f"{zipped}.metta.gz", "wt", encoding="utf-8") as handle:
         handle.write("(= (compressed) 1)\n")
@@ -328,10 +340,12 @@ def test_a_compressed_source_and_a_library_directory_are_both_found(space, tmp_p
 
 
 def test_a_submodule_comes_from_its_python_packages_own_directory(space, tmp_path, monkeypatch):
-    """A `.metta` file has no `__path__`, so it is never a package; a DOTTED
-    name reaches one only when a Python package ships the file, and then the
-    search is that package's `__path__` and never the wider path.
-    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
+    """A dotted name reaches a `.metta` file only through a Python package.
+
+    A `.metta` file has no `__path__`, so it is never a package; when a
+    package ships the file, the search is that package's `__path__` and
+    never the wider path.
+    """
     package = f"carrier_{uuid.uuid4().hex[:12]}"
     (tmp_path / package).mkdir()
     (tmp_path / package / "__init__.py").write_text("", encoding="utf-8")
@@ -352,10 +366,12 @@ def test_a_submodule_comes_from_its_python_packages_own_directory(space, tmp_pat
 
 
 def test_a_head_python_cannot_spell_keeps_its_exact_name(space, tmp_path):
-    """`__all__` holds identifiers, because that is what `import *` binds. A
-    head Python cannot spell stays reachable by its exact name, through the
-    same `getattr` door every other attribute uses.
-    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
+    """A head Python cannot spell stays reachable by its exact name.
+
+    `__all__` holds identifiers, because that is what `import *` binds; the
+    exact name goes through the same `getattr` door every other attribute
+    uses.
+    """
     name = fresh("spelling")
     (tmp_path / f"{name}.metta").write_text(
         "(= (prime? $x) True)\n(= (plain) 1)\n", encoding="utf-8"
@@ -369,11 +385,12 @@ def test_a_head_python_cannot_spell_keeps_its_exact_name(space, tmp_path):
 
 
 def test_a_finder_is_a_value_installed_and_uninstalled(space, tmp_path):
-    """Two installs are two finders, asked in order, each removable on its
-    own; `installed()` reads `sys.meta_path` rather than a registry beside it,
+    """Two installs are two finders, asked in order and each removable alone.
+
+    `installed()` reads `sys.meta_path` rather than a registry beside it,
     and `uninstall()` takes this finder's modules with it so a later import
     cannot answer from a hook that is gone.
-    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
+    """
     name = fresh("owned")
     (tmp_path / f"{name}.metta").write_text("(= (owned) 1)\n", encoding="utf-8")
 
@@ -402,9 +419,10 @@ def test_a_finder_is_a_value_installed_and_uninstalled(space, tmp_path):
 
 
 def test_the_given_directories_are_searched_before_sys_path(space, tmp_path, monkeypatch):
-    """`path` is what `python script.py` does with the script's directory: it
-    goes in front, and `sys.path` itself is untouched and still read live.
-    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
+    """`path` goes in front, as `python script.py` does with the script's directory.
+
+    `sys.path` itself is untouched and still read live.
+    """
     name = fresh("ordered")
     front = tmp_path / "front"
     back = tmp_path / "back"
@@ -423,9 +441,11 @@ def test_the_given_directories_are_searched_before_sys_path(space, tmp_path, mon
 
 
 def test_a_stub_beside_the_file_is_reached_from_the_modules_origin(space, tmp_path):
-    """`__spec__.origin` is the file, so a checker finds `rules.pyi` beside it
-    the way it finds one beside a `.py`, and `metta stubs` is what writes it.
-    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
+    """`__spec__.origin` is the file, so a checker finds `rules.pyi` beside it.
+
+    That is how it finds one beside a `.py`, and `metta stubs` is what
+    writes it.
+    """
     name = fresh("typed")
     source = tmp_path / f"{name}.metta"
     source.write_text(
@@ -441,9 +461,10 @@ def test_a_stub_beside_the_file_is_reached_from_the_modules_origin(space, tmp_pa
 
 
 def test_a_file_that_declares_nothing_still_imports(space, tmp_path):
-    """A file of plain data declares no head, so the module carries none and
-    says so, rather than failing or inventing one.
-    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
+    """A file of plain data imports as a module that carries no head.
+
+    It says so, rather than failing or inventing one.
+    """
     name = fresh("data")
     (tmp_path / f"{name}.metta").write_text("(fact one)\n(fact two)\n", encoding="utf-8")
 
