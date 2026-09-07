@@ -17,21 +17,21 @@ one replay of k events, which is `debug(at=k)`.
 Guarantees:
   - a recording saves and loads round-trip: same header, same events, same
     answers [tested: test_a_recording_saves_and_loads_unchanged,
-    test_a_gzipped_recording_round_trips; commit=WORKTREE]
+    test_a_gzipped_recording_round_trips; commit=e54c3654b9e0d3d040560d12c105a54303f63af7]
   - replay refuses a space whose digest differs and a program that was not
     replayable, and reports the first event that diverged rather than the
     fact that something did [tested: test_replay_refuses_a_space_whose_content_differs,
     test_replay_refuses_a_program_that_reaches_the_host,
-    test_replay_reports_the_first_divergent_event; commit=WORKTREE]
+    test_replay_reports_the_first_divergent_event; commit=e54c3654b9e0d3d040560d12c105a54303f63af7]
   - navigation is by index and by head, and an index outside the range raises
     IndexError [tested: test_navigation_walks_backwards_and_forwards,
-    test_a_frame_outside_the_recording_refuses; commit=WORKTREE]
+    test_a_frame_outside_the_recording_refuses; commit=e54c3654b9e0d3d040560d12c105a54303f63af7]
   - a frame's stack is the chain of open calls at that event, agreeing with
     the depths [tested: test_a_frames_stack_agrees_with_the_depths;
-    commit=WORKTREE]
+    commit=e54c3654b9e0d3d040560d12c105a54303f63af7]
   - debug(at=k) hands back a session already stopped at the recording's k-th
     event, and refuses when the replay took another path
-    [tested: test_debug_at_stops_at_that_events_term; commit=WORKTREE]
+    [tested: test_debug_at_stops_at_that_events_term; commit=e54c3654b9e0d3d040560d12c105a54303f63af7]
 Open Obligations:
   To Do: None
   Hacks: None

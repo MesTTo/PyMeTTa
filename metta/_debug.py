@@ -25,7 +25,7 @@ Guarantees:
   - at= stops at the event with that sequence number, the same numbering a
     Recording indexes by, and a negative one refuses rather than running to
     the end [tested: test_a_count_breakpoint_stops_at_that_event,
-    test_a_negative_count_breakpoint_refuses; commit=WORKTREE]
+    test_a_negative_count_breakpoint_refuses; commit=e54c3654b9e0d3d040560d12c105a54303f63af7]
 Open Obligations:
   To Do: None
   Hacks: None

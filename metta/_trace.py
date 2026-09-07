@@ -10,10 +10,10 @@ Guarantees:
     began, and a reduction reaches exactly one of exit, fail, or neither
     when a bound cut it [tested: test_events_carry_a_sequence_and_a_time,
     test_a_reduction_that_answers_nothing_records_a_fail_event;
-    commit=WORKTREE]
+    commit=e54c3654b9e0d3d040560d12c105a54303f63af7]
   - a memoised head records the calls its cache answers, so a recording of a
     memoised program is not empty [tested:
-    test_a_memoised_head_records_the_calls_its_cache_answers; commit=WORKTREE]
+    test_a_memoised_head_records_the_calls_its_cache_answers; commit=e54c3654b9e0d3d040560d12c105a54303f63af7]
   - named filters select events before recording bounds without changing
     execution depth [tested: test_trace_filter_preserves_depth_and_budget;
     commit=504f8dddfa890ced97e795a13ab10e239b1de2ce]

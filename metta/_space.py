@@ -12,7 +12,7 @@ Guarantees:
     the seed its generator was pinned to, and whether the program stayed inside
     what those two capture [tested:
     test_a_recording_holds_the_run_and_the_state_that_produced_it,
-    test_replay_reproduces_the_run_in_another_engine; commit=WORKTREE]
+    test_replay_reproduces_the_run_in_another_engine; commit=e54c3654b9e0d3d040560d12c105a54303f63af7]
   - every text door takes program text with holes in all three faces, and the
     two with no engine binding channel put the values in the term instead
     [tested: test_every_text_door_takes_program_text_with_holes,
