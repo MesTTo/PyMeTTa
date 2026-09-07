@@ -122,17 +122,18 @@ from dataclasses import dataclass
 from http.client import HTTPException
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from itertools import islice
-from typing import Any, Self
+from typing import Any, NamedTuple, Self
 from urllib.parse import urlsplit
 
-from . import _json
+from . import _arrow, _json, _projection, _schemas
 from ._api_types import space_of
 from ._atom_wire import _atom_from_wire
+from ._declarations import declared
 from ._engine import bridge, runtime
 from ._network import HTTPEndpoint, validated_timeout
 from ._space import Space as MeTTa
 from ._space_objects import Cursor
-from .atoms import Atom, Expression, Variable, substitute, unify
+from .atoms import Atom, Expression, Symbol, Variable, parse, substitute, unify
 from .errors import Interrupted, MettaError, TransportFailure
 from .foreign import SpaceProvider
 
@@ -174,7 +175,13 @@ class _HTTPTransport:
     def __call__(self, operation: str, payload: dict) -> dict:
         if operation in _MUTATIONS:
             return _mutate(self._operate, self.health, operation, payload)
-        return _response(operation, self._operate(operation, payload), payload)
+        answer = self._operate(operation, payload)
+        if isinstance(answer, dict) and isinstance(answer.get("arrow"), (bytes, bytearray)):
+            # An Arrow chunk has no JSON envelope to validate; `_arrow_reply`
+            # on the cursor checks what a client relies on and the IPC reader
+            # refuses anything that is not a stream.
+            return answer
+        return _response(operation, answer, payload)
 
     def health(self) -> dict:
         return _response("health", self._health())
@@ -183,6 +190,66 @@ class _HTTPTransport:
 _MUTATIONS = frozenset({"add", "add_many", "remove"})
 _MUTATION_TTL = 300.0
 _MUTATION_LIMIT = 4096
+
+#: The GET paths whose spelling is not the gateway door's own name. A consumer's
+#: tooling looks for `/openapi.json` by that exact path, and the door that builds
+#: it is `Gateway.openapi`, so the two are mapped here rather than either one
+#: being bent to the other.
+_GET_OPERATIONS = {"openapi.json": "openapi", "graphql": "graphql_schema"}
+
+#: The two documents a GET publishes, and the media type each is read as. SDL
+#: has no registered media type -- GraphQL's specification calls a schema a
+#: document of text -- so `text/plain` is what a fetch of it reads as, where the
+#: OpenAPI document is JSON like every other reply here.
+_DOCUMENTS = {
+    "openapi": "application/json",
+    "graphql_schema": "text/plain; charset=utf-8",
+}
+
+
+#: One reply as the writer takes it: the status, the body, the media type, and
+#: whatever headers ride beside them.
+_Reply = tuple[int, bytes, str, "Mapping[str, str]"]
+
+
+def _refusal(status: int, message: str) -> _Reply:
+    """A refusal, which is JSON whichever representation was asked for.
+
+    A client that cannot have what it asked for needs the sentence rather than
+    an empty body of the type it wanted.
+    """
+    return status, _json.dumps({"error": message}), "application/json", _NO_HEADERS
+
+
+def _post_reply(worker: _RemoteWorker, operation: str, payload: dict) -> _Reply:
+    """What a POST answers, in the representation the request asked for."""
+    answer, status = _worker_response(worker, operation, payload)
+    streamed = _arrow_response(answer, status)
+    if streamed is not None:
+        return streamed
+    return status, _json.dumps(answer), "application/json", _NO_HEADERS
+
+
+def _get_reply(
+    worker: _RemoteWorker, operation: str, *, secured: bool
+) -> _Reply:
+    """What a GET answers: a status, a body and the media type it reads as.
+
+    Through the worker like every other engine call, because health counts the
+    engine's atoms and a document reads the served spaces' declarations.
+    """
+    if operation == "health":
+        answer, status = _worker_response(worker, "health", {})
+        return status, _json.dumps(answer), "application/json", _NO_HEADERS
+    if operation not in _DOCUMENTS:
+        return _refusal(400, f"unknown operation {operation!r}")
+    payload = {"secured": secured} if operation == "openapi" else {}
+    answer, status = _worker_response(worker, operation, payload)
+    if status != 200:
+        return _refusal(status, str(answer.get("error", "")))
+    if operation == "graphql_schema":
+        return status, answer["schema"].encode("utf-8"), _DOCUMENTS[operation], _NO_HEADERS
+    return status, _json.dumps(answer), _DOCUMENTS[operation], _NO_HEADERS
 
 
 class OutcomeUnknown(TransportFailure):
@@ -317,6 +384,32 @@ def _response(operation: str, body: Any, payload: dict | None = None) -> _Respon
             ):
                 refuse("malformed idempotency metadata")
     return answer
+
+
+def _arrow_reply(operation: str, answer: Any, streams: list[bytes]) -> str | None:
+    """Validate one Arrow chunk and keep its bytes; answer the continuation.
+
+    An Arrow answer has no envelope to validate the way a JSON one does, so
+    what is checked is what a client relies on: bytes under `arrow`, and a
+    cursor token that is a nonempty string or absent. The bytes themselves are
+    checked by the reader, which refuses anything that is not an IPC stream.
+    """
+    def refuse(detail: str) -> None:
+        msg = f"invalid remote {operation} response: {detail}"
+        raise ProtocolError(msg)
+
+    if not isinstance(answer, dict):
+        refuse("expected an object")
+    if isinstance(answer.get("error"), str):
+        msg = f"the remote engine refused {operation}: {answer['error']}"
+        raise MettaError(msg)
+    if not isinstance(answer.get("arrow"), (bytes, bytearray)):
+        refuse("an Arrow chunk without its bytes")
+    token = answer.get("cursor")
+    if token is not None and (not isinstance(token, str) or not token):
+        refuse("cursor must be a nonempty string or null")
+    streams.append(bytes(answer["arrow"]))
+    return token
 
 
 def _mutate(
@@ -471,7 +564,10 @@ class RemoteCursor:
     database driver's fetch size makes.
     """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
 
-    __slots__ = ("__weakref__", "_batch", "_buffer", "_closed", "_space", "_token", "_transport")
+    __slots__ = (
+        "__weakref__", "_arrow", "_batch", "_buffer", "_closed", "_space",
+        "_streams", "_token", "_transport",
+    )
 
     def __init__(  # noqa: D107  -- the enclosing class documents construction and the object invariants
         self,
@@ -481,6 +577,7 @@ class RemoteCursor:
         *,
         batch: int = _DEFAULT_BATCH,
         limit: int | None = None,
+        arrow: bool = False,
     ) -> None:
         if isinstance(batch, bool) or not isinstance(batch, int) or batch < 1:
             msg = f"batch must be a positive integer, got {batch!r}"
@@ -489,8 +586,11 @@ class RemoteCursor:
         self._space = space
         self._batch = batch
         self._closed = False
+        self._arrow = arrow
         self._token: str | None = None
         self._buffer: deque[Atom] = deque()
+        #: The Arrow chunks pulled so far, one complete IPC stream each.
+        self._streams: list[bytes] = []
         payload: dict[str, Any] = {
             "space": space,
             "pattern": pattern.to_wire(),
@@ -498,6 +598,8 @@ class RemoteCursor:
         }
         if limit is not None:
             payload["bound"] = limit
+        if arrow:
+            payload["format"] = "arrow"
         try:
             self._absorb(transport("ask", payload))
         except ProtocolError as response_error:
@@ -511,14 +613,70 @@ class RemoteCursor:
 
     def _absorb(self, answer: dict) -> None:
         operation = "ask" if self._token is None else "next"
+        if self._arrow:
+            self._token = _arrow_reply(operation, answer, self._streams)
+            return
         reply = _response(operation, answer, {"batch": self._batch, "cursor": self._token})
         self._token = reply["cursor"]
         self._buffer.extend(reply.atoms)
 
+    def __next__(self) -> Atom:  # noqa: D105  -- the Python data-model hook is defined by its name and enclosing type contract
+        if self._arrow:
+            msg = (
+                "this cursor answers Arrow record batches, so it has no atoms "
+                "to iterate; read it with to_arrow(), or open one without "
+                "arrow=True to iterate atoms"
+            )
+            raise MettaError(msg)
+        return self._next_atom()
+
+    def to_arrow(self) -> Any:
+        """The whole remaining stream as one pyarrow Table.
+
+            with space.stream(pattern, arrow=True) as answers:
+                table = answers.to_arrow()
+
+        Every chunk crosses as its own complete IPC stream at ONE schema, fixed
+        by the server when the cursor opened, so the batches concatenate. The
+        columns are the pattern's variables at the types the served space
+        declares for them, plus `atom`, the canonical text of each instantiated
+        answer, which stays exact where a typed column cannot hold a cell.
+
+        The longhand is the ask/next/stop lifecycle with
+        `Accept: application/vnd.apache.arrow.stream` and reading each body with
+        `pyarrow.ipc.open_stream`; this is that loop, drained.
+        """
+        if not self._arrow:
+            msg = (
+                "this cursor answers JSON atoms; open it with arrow=True to "
+                "read Arrow record batches, which is the format the server "
+                "fixes a schema for when the cursor opens"
+            )
+            raise MettaError(msg)
+        while self._token is not None:
+            self._absorb(
+                self._transport(
+                    "next",
+                    {"cursor": self._token, "batch": self._batch, "format": "arrow"},
+                )
+            )
+        pa = _arrow.pyarrow()
+        return pa.concat_tables([_arrow.read_ipc(chunk) for chunk in self._streams])
+
+    def __arrow_c_stream__(self, requested_schema: Any = None) -> Any:
+        """The drained stream as the Arrow PyCapsule Interface's own object.
+
+        Sugar over `to_arrow()`, so a consumer that dispatches on the protocol
+        rather than on a type reaches the same batches
+        [source: https://arrow.apache.org/docs/format/CDataInterface/PyCapsuleInterface.html].
+        """
+        return self.to_arrow().__arrow_c_stream__(requested_schema)
+
     def __iter__(self) -> Iterator[Atom]:  # noqa: D105  -- the Python data-model hook is defined by its name and enclosing type contract
         return self
 
-    def __next__(self) -> Atom:  # noqa: D105  -- the Python data-model hook is defined by its name and enclosing type contract
+    def _next_atom(self) -> Atom:
+        """The next atom of a JSON cursor, pulling a chunk when the buffer runs dry."""
         if self._closed:
             msg = "this cursor is closed"
             raise MettaError(msg)
@@ -687,6 +845,7 @@ class RemoteSpace(SpaceProvider):
         *,
         batch: int = _DEFAULT_BATCH,
         limit: int | None = None,
+        arrow: bool = False,
     ) -> RemoteCursor:
         """The lazy method: answers pulled a chunk at a time, so taking two
         of a large enumeration costs the server two answers' work instead
@@ -705,9 +864,17 @@ class RemoteSpace(SpaceProvider):
         the count is the under-approximation the protocol forbids. The
         first ask crosses when the cursor is built, as the in-process
         cursor opens its engine when it is built.
+
+        `arrow=True` asks for Arrow record batches instead of tagged atoms: the
+        server fixes ONE schema for the whole stream when the cursor opens, from
+        what it declares about the pattern's positions, and each chunk crosses
+        as a complete IPC stream at that schema. Such a cursor answers
+        `to_arrow()` and the PyCapsule protocol rather than atoms, because
+        converting a batch back to atoms would go through canonical text and
+        lose what the tagged wire carries exactly.
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         return RemoteCursor(
-            self._transport, self._space, pattern, batch=batch, limit=limit
+            self._transport, self._space, pattern, batch=batch, limit=limit, arrow=arrow
         )
 
     def server_capabilities(self) -> dict[str, Any]:
@@ -942,12 +1109,15 @@ def connect(
 
     def transport(operation: str, payload: dict) -> dict:
         logger.debug("sending remote engine operation %s", operation)
+        asked = sent if payload.get("format") != "arrow" else {
+            **sent, "accept": _arrow.IPC_MEDIA_TYPE
+        }
         try:
-            status, reason, raw = endpoint.request(
+            status, reason, raw, received = endpoint.request(
                 "POST",
                 operation,
                 body=_json.dumps(payload),
-                headers=sent,
+                headers=asked,
                 timeout=timeout,
             )
         except (HTTPException, OSError) as exc:
@@ -965,6 +1135,11 @@ def connect(
             operation,
             status,
         )
+        if received.get("content-type", "").split(";")[0].strip() == _arrow.IPC_MEDIA_TYPE:
+            # An Arrow answer is BYTES, and its cursor token rides in a header
+            # because an IPC stream has nowhere to put one. Both halves of the
+            # wire keep one transport signature by carrying it as this dict.
+            return {"arrow": raw, "cursor": received.get("x-metta-cursor") or None}
         try:
             answer = _json.loads(raw)
         except (UnicodeDecodeError, ValueError) as exc:
@@ -990,7 +1165,7 @@ def connect(
         count, capabilities, and whether /match honors bound.
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         try:
-            status, reason, raw = endpoint.request(
+            status, reason, raw, _received = endpoint.request(
                 "GET", "health", headers=sent, timeout=timeout
             )
         except (HTTPException, OSError) as exc:
@@ -1139,6 +1314,91 @@ def _atoms_of(payload: dict, name: str) -> list[Atom]:
     return [_atom_from_wire(wire) for wire in wires]
 
 
+#: No extra headers, the default for a reply that carries everything in its
+#: body. A module constant rather than a `None` default, so the writer has one
+#: shape and never has to ask.
+_NO_HEADERS: Mapping[str, str] = {}
+
+
+def _wants_arrow(headers: Mapping[str, str]) -> bool:
+    """Whether an Accept header asks for the Arrow IPC streaming format.
+
+    One media type, matched exactly among the header's comma-separated members
+    with their q-parameters dropped; a request that offers it alongside JSON
+    gets Arrow, which is the reading that makes `Accept: <arrow>, */*` work.
+    """
+    offered = headers.get("accept", "")
+    return any(
+        member.split(";")[0].strip() == _arrow.IPC_MEDIA_TYPE
+        for member in offered.split(",")
+    )
+
+
+def _requested(operation: str, headers: Mapping[str, str], payload: dict) -> dict:
+    """The payload a POST really asks for, once its Accept header is read.
+
+    The Accept header is HTTP's own way of asking for a representation, and it
+    sets the same `format` field a direct Gateway caller sets, so the two halves
+    of the wire ask for Arrow in one vocabulary. Only the two streaming
+    operations answer it; nothing else has rows to put in a batch.
+    """
+    if operation not in ("ask", "next") or not _wants_arrow(headers):
+        return payload
+    return {**payload, "format": "arrow"}
+
+
+def _arrow_response(answer: dict, status: int) -> _Reply | None:
+    """An Arrow reply as its status, bytes, media type and headers, or None.
+
+    The cursor token rides in a header because an IPC stream has nowhere to
+    carry one, and its absence is the end of the stream, exactly as a null
+    `cursor` is in the JSON reply.
+    """
+    if status != 200 or not isinstance(answer.get("arrow"), bytes):
+        return None
+    token = answer["cursor"]
+    return (
+        status,
+        answer["arrow"],
+        _arrow.IPC_MEDIA_TYPE,
+        {} if token is None else {"x-metta-cursor": token},
+    )
+
+
+def _arrow_of(payload: dict) -> bool:
+    """Whether this request asked for its answers as an Arrow IPC stream.
+
+    A `format` field rather than a second operation word, so the nine operations
+    stay nine and a Gateway called directly can ask for the same bytes the HTTP
+    Accept header asks for. Any other value is refused rather than treated as
+    JSON: a client that asked for something is owed that or a sentence.
+    """
+    asked = payload.get("format")
+    if asked is None or asked == "json":
+        return False
+    if asked == "arrow":
+        return True
+    msg = f"format must be 'json' or 'arrow', got {asked!r}"
+    raise MettaError(msg)
+
+
+def _arrow_chunk(entry: _OpenCursor, answers: list[_Candidate]) -> bytes:
+    """One chunk of a cursor as a complete Arrow IPC stream.
+
+    The columns are the cursor's own variables, each produced at the kind the
+    schema fixed, then `atom`. `values_of` is `_arrow`'s door for a kind a
+    CONSUMER asked for, and a declared column is exactly that: a cell the kind
+    cannot hold answers null there and stays exact in `atom`.
+    """
+    cells = tuple(zip(*(answer.cells for answer in answers), strict=True)) if answers else ()
+    columns = [
+        _arrow.values_of(cells[index] if index < len(cells) else (), kind)
+        for index, kind in enumerate(entry.kinds)
+    ]
+    columns.append([str(answer.atom) for answer in answers])
+    return _arrow.ipc_stream(entry.schema, columns)
+
+
 def _bound_of(payload: dict) -> int | None:
     """The caller's answer limit, honored EXACTLY or not at all.
 
@@ -1158,6 +1418,20 @@ def _bound_of(payload: dict) -> int | None:
     return value
 
 
+class _Candidate(NamedTuple):
+    """One answer, in both the shapes a reply is built from.
+
+    `atom` is the instantiated pattern the JSON reply carries; `cells` are the
+    bindings behind it, in the cursor's own column order, which is what an Arrow
+    batch's columns hold; `annotation` is the algebra tag a cursor under an
+    ambient carrier answers beside each row, and None otherwise.
+    """
+
+    atom: Atom
+    cells: tuple[Any, ...]
+    annotation: Atom | None
+
+
 @dataclass
 class _OpenCursor:
     """One answer stream a gateway holds open between requests."""
@@ -1165,9 +1439,19 @@ class _OpenCursor:
     #: The engine resource, closed on release; `answers` is what it answers,
     #: already instantiated and, for a linearised match, already filtered.
     cursor: Cursor
-    answers: Iterator[Atom]
+    answers: Iterator[_Candidate]
     space: str
     remaining: int | None
+    #: The Arrow schema every chunk of THIS stream is written at, built once
+    #: when the cursor opens. An IPC stream has one schema for every batch, so
+    #: it cannot be derived per chunk from the cells that chunk happened to
+    #: hold; it is derived from what the space DECLARES, and a column nothing
+    #: declares is canonical MeTTa text, which every atom can be written as.
+    #: None until an Arrow reply asks for it, so a JSON-only stream pays
+    #: nothing. `kinds` is the same decision as `_arrow`'s own kind words, one
+    #: per pattern variable, which is what each chunk's cells are produced at.
+    schema: Any = None
+    kinds: tuple[str, ...] = ()
     deadline: float = 0.0
 
 
@@ -1371,6 +1655,12 @@ class Gateway:
             return self._remove(payload)
         if operation == "health":
             return self._health()
+        if operation == "openapi":
+            return self.openapi(secured=bool(payload.get("secured")))
+        if operation == "graphql_schema":
+            return {"schema": self.graphql_schema()}
+        if operation == "graphql":
+            return self.graphql(payload)
         msg = f"unknown operation {operation!r}"
         raise MettaError(msg)
 
@@ -1444,6 +1734,164 @@ class Gateway:
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         return self._health()
 
+    def served(self) -> dict[str, MeTTa]:
+        """Every space this gateway serves, by the name a request calls it.
+
+        A gateway built with no `spaces` list serves one, the space it was made
+        from; a list names them, and each is opened on the same runtime, which
+        is what `_space` does for a request.
+        """
+        names = [self._metta.name] if self._allowed is None else sorted(self._allowed)
+        return {
+            name: (
+                self._metta
+                if name == self._metta.name
+                else MeTTa(name, _runtime=self._metta.runtime)
+            )
+            for name in names
+        }
+
+    def openapi(self, *, secured: bool = False) -> dict:
+        """This gateway as an OpenAPI 3.1.1 document, `GET /openapi.json`.
+
+            print(metta._json.dumps(gateway.openapi()))
+
+        One path per door, `components.schemas.Atom` as the wire's own tagged
+        grammar, and `x-metta-heads` listing what each served space DECLARES,
+        with every argument's and result's JSON Schema from the one type table.
+        A space that declares nothing publishes an empty list of heads.
+
+        `secured` puts the bearer scheme in the document, and `serve()` sets it
+        from its own token: a gateway is transport-free and knows nothing about
+        credentials, so the half that holds them is the half that says so.
+
+        Cost: one indexed read of each served space's `(: ...)` rows and one
+        `get-doc` per declared head, which is O(declarations) rather than
+        O(atoms) and is why this is derived per request instead of cached.
+        """
+        return _schemas.openapi_document(self.served(), secured=secured)
+
+    def graphql_schema(self) -> str:
+        """This gateway's served spaces as GraphQL SDL, `GET /graphql`.
+
+            print(gateway.graphql_schema())
+
+        `scalar Atom` carries any atom as the canonical MeTTa text `parse` reads
+        back and `scalar Number` carries a MeTTa number, which no built-in
+        GraphQL scalar can. `Query.match` reaches every atom whatever a space
+        declares; each DECLARED head gains a field of its own answering typed
+        rows, whose fields are `x1..xn` because a `(@param ...)` row carries a
+        type and a description and never a name.
+
+        The text is built here, so a server publishes its schema whether or not
+        graphql-core is installed; only `graphql()` needs the package. A head
+        GraphQL cannot name is in the OpenAPI document's `x-metta-unnameable`
+        with the door that still reaches it.
+        """
+        return _schemas.graphql_sdl(self.served())
+
+    def graphql(self, request: dict) -> dict:
+        """Execute one GraphQL request, `POST /graphql`.
+
+            gateway.graphql({"query": "{ users { x1 x2 } }"})
+
+        The request is GraphQL over HTTP's own shape -- `query`, `variables`
+        and `operationName` -- and the answer is its `data` and `errors`.
+        Resolution goes through the same doors the wire operations use, so a
+        `match` query answers what `Gateway("match")` answers for the same
+        pattern. Refuses with the install guidance when graphql-core is absent.
+        """
+        spaces = self.served()
+        schema = _schemas.build_graphql_schema(_schemas.graphql_sdl(spaces))
+        return _schemas.execute_graphql(schema, self._resolvers(spaces), request)
+
+    def _resolvers(self, spaces: dict[str, MeTTa]) -> dict:
+        """The root object a GraphQL query resolves against.
+
+        graphql-core's default field resolver reads a field's name off a Mapping
+        and calls what it finds with `(info, **arguments)`
+        [source: https://github.com/graphql-python/graphql-core,
+        `default_field_resolver`], so the root is this dict and every field is
+        one closure.
+        """
+        root: dict[str, Any] = {
+            "match": self._resolve_match,
+            "add": self._resolve_add,
+            "remove": self._resolve_remove,
+        }
+        for head in _schemas.graphql_heads(spaces):
+            root[head.name] = self._head_resolver(head)
+        return root
+
+    def _resolve_match(
+        self, _info: Any, pattern: str, limit: int | None = None, space: str | None = None
+    ) -> list[Atom]:
+        """`Query.match`, which is `/match` with the pattern written as source.
+
+        `pattern` is a GraphQL String holding MeTTa source, so it is PARSED
+        rather than taken as a value: a Python string is a String atom
+        everywhere on this surface, and a pattern is a term.
+        """
+        payload: dict[str, Any] = {"pattern": parse(pattern).to_wire()}
+        if space is not None:
+            payload["space"] = space
+        if limit is not None:
+            payload["bound"] = limit
+        return self._matched(payload)
+
+    def _resolve_add(self, _info: Any, atom: str, space: str | None = None) -> bool:
+        """`Mutation.add`. The atom is MeTTa source, as `match`'s pattern is."""
+        payload: dict[str, Any] = {"atom": parse(atom).to_wire()}
+        if space is not None:
+            payload["space"] = space
+        self._space(payload).add(_atom_of(payload, "atom"))
+        return True
+
+    def _resolve_remove(self, _info: Any, atom: str, space: str | None = None) -> bool:
+        """`Mutation.remove`, which removes ONE stored atom unifying with this."""
+        payload: dict[str, Any] = {"atom": parse(atom).to_wire()}
+        if space is not None:
+            payload["space"] = space
+        return bool(self._remove(payload)["removed"])
+
+    def _head_resolver(self, head: Any) -> Callable:
+        """One declared head's field: its rows, each argument typed or an Atom.
+
+        An argument the query supplies fixes that position and leaves the
+        pattern's remaining variables to be bound; the row carries the supplied
+        value back under its own field, so a row is always as wide as the head.
+        """
+        kinds = [_projection.graphql_type(kind) for kind in head.arguments]
+
+        def resolve(_info: Any, space: str | None = None, **supplied: Any) -> list[dict]:
+            # A supplied argument arrives as an Atom already: the `Atom` scalar's
+            # own parse_value is `parse`, so the GraphQL input "(f 1)" is a term
+            # by the time a resolver sees it.
+            arguments: list[Atom] = [
+                supplied.get(f"x{position}") or Variable(f"x{position}")
+                for position in range(1, len(head.arguments) + 1)
+            ]
+            pattern = Expression([Symbol(head.name), *arguments])
+            rows = self._space({"space": space or head.space}).match(pattern)
+            cells = [
+                None if not isinstance(argument, Variable)
+                else rows.columns.index(argument.name)
+                for argument in arguments
+            ]
+            return [
+                {
+                    f"x{index + 1}": _schemas.graphql_value(
+                        argument if position is None else row[position], kind
+                    )
+                    for index, (argument, position, kind) in enumerate(
+                        zip(arguments, cells, kinds, strict=True)
+                    )
+                }
+                for row in rows
+            ]
+
+        return resolve
+
     def cursor_space(self, token: object) -> str | None:
         """Which space an open cursor's answers come from, so a transport
         can hand its authorization hook the space /next and /stop are
@@ -1454,6 +1902,20 @@ class Gateway:
     def close(self) -> None:
         """Release every cursor still open, and the engine behind each."""
         self._cursors.close_all()
+
+    def __enter__(self) -> Self:
+        """A gateway owns cursors, so it is `with`-able like everything else here.
+
+        Server, RemoteCursor and Space are all context managers for one reason:
+        a handle that owns an engine resource and has to be closed by hand is
+        the one whose leak on an exception path is silent. A Gateway holds one
+        engine per open cursor and had that shape.
+        """
+        return self
+
+    def __exit__(self, *_exception: object) -> None:
+        """Release the cursors, whether the block ended well or not."""
+        self.close()
 
     # ------------------------------------------------------------ operations
 
@@ -1476,31 +1938,39 @@ class Gateway:
         endpoint, and both take their candidates from _candidates, so the two
         answer the same set for every pattern.
         """
+        return {"atoms": _wire(self._matched(payload))}
+
+    def _matched(self, payload: dict) -> list[Atom]:
+        """The atoms /match answers, before they are put on the wire.
+
+        The GraphQL resolver wants the same answer set as ATOMS, so the two
+        share this rather than crossing the wire encoding and back for a call
+        that never leaves the process.
+        """
         space = self._space(payload)
         pattern = _atom_of(payload, "pattern")
         bound = _bound_of(payload)
         if bound == 0:
             # Zero answers wanted: the engine's query refuses a zero
             # limit, and no work is the exact honoring.
-            return {"atoms": []}
+            return []
         if _linear(pattern) is not None:
             # A repeated variable can make an instantiation infinite, so this
             # pattern's candidates come through the linearised cursor whether
             # the caller asked for all of them or a bounded page.
             cursor, answers = self._candidates(space, pattern)
             try:
-                atoms = list(answers if bound is None else islice(answers, bound))
+                taken = answers if bound is None else islice(answers, bound)
+                return [candidate.atom for candidate in taken]
             finally:
                 cursor.close()
-            return {"atoms": _wire(atoms)}
         if bound is not None:
             rows = space.match(pattern, limit=bound)
-            atoms = [
+            return [
                 substitute(pattern, dict(zip(rows.columns, row, strict=True)))
                 for row in rows
             ]
-            return {"atoms": _wire(atoms)}
-        return {"atoms": _wire(self._collapsed(space, pattern))}
+        return self._collapsed(space, pattern)
 
     def _collapsed(self, space: MeTTa, pattern: Atom) -> list[Atom]:
         """One engine-side match, collapsed to the instantiations it answers.
@@ -1519,10 +1989,16 @@ class Gateway:
             raise MettaError(msg)
         return list(group)
 
-    def _candidates(self, space: MeTTa, pattern: Atom) -> tuple[Cursor, Iterator[Atom]]:
+    def _candidates(
+        self, space: MeTTa, pattern: Atom
+    ) -> tuple[Cursor, Iterator[_Candidate]]:
         """The engine cursor a pattern's candidates come from.
 
-        The second answer is the atoms that cursor makes.
+        The second answer is the candidates that cursor makes, each carrying
+        both the instantiated atom the JSON reply puts on the wire and the ROW
+        of cells behind it, which is what an Arrow batch's columns are. One walk
+        answers both because they are one match; deriving the row from the atom
+        afterwards would re-unify a candidate the cursor had already bound.
 
         Candidates cross as the pattern instantiated by each match. Matching
         binds raw, so a repeated pattern variable can bind to a term that
@@ -1538,17 +2014,35 @@ class Gateway:
         linear = _linear(pattern)
         template = pattern if linear is None else linear
         cursor = space.stream(template)
-        answers = (
-            substitute(template, dict(zip(cursor.columns, row, strict=True)))
-            for row in cursor
-        )
+        answers = (self._candidate(template, cursor.columns, row) for row in cursor)
         if linear is None:
             return cursor, answers
         return cursor, (
-            atom for atom in answers if unify(pattern, _apart(atom)) is not None
+            candidate for candidate in answers
+            if unify(pattern, _apart(candidate.atom)) is not None
         )
 
-    def _pull(self, entry: _OpenCursor, batch: int) -> tuple[list[Atom], bool]:
+    @staticmethod
+    def _candidate(template: Atom, columns: tuple[str, ...], row: Any) -> _Candidate:
+        """One pulled row as the candidate both reply formats are built from.
+
+        A cursor under an ambient `metta.under(<algebra>)` scope answers a
+        TaggedAnswer rather than a bare row, and this used to zip the columns
+        against the wrapper: `Gateway("ask", ...)` raised `TypeError:
+        'TaggedAnswer' object is not iterable` for every pattern whenever such a
+        scope reached the calling thread [measured 2026-09-07]. The value inside
+        it IS the row, and its annotation is what an Arrow answer's
+        `annotation` column carries, so unwrapping it here answers both.
+        """
+        annotation = getattr(row, "annotation", None)
+        cells = getattr(row, "value", row) if annotation is not None else row
+        return _Candidate(
+            substitute(template, dict(zip(columns, cells, strict=True))),
+            tuple(cells),
+            annotation,
+        )
+
+    def _pull(self, entry: _OpenCursor, batch: int) -> tuple[list[_Candidate], bool]:
         """Take at most `batch` answers, and not one more.
 
         A SHORT batch is the whole of the exhaustion signal, so nothing here
@@ -1563,8 +2057,23 @@ class Gateway:
             entry.remaining -= len(atoms)
         return atoms, len(atoms) < want or entry.remaining == 0
 
-    def _reply(self, atoms: list[Atom], token: str | None) -> dict:
-        return {"atoms": _wire(atoms), "cursor": token}
+    def _reply(
+        self,
+        entry: _OpenCursor,
+        answers: list[_Candidate],
+        token: str | None,
+        *,
+        arrow: bool,
+    ) -> dict:
+        """One chunk, in the format the request asked for.
+
+        JSON is the protocol's own; an Arrow reply is a complete IPC stream
+        whose bytes ride under `arrow`, and its cursor token rides beside them
+        because a stream has nowhere to carry one. Both are the same answers.
+        """
+        if not arrow:
+            return {"atoms": _wire([answer.atom for answer in answers]), "cursor": token}
+        return {"arrow": _arrow_chunk(entry, answers), "cursor": token}
 
     def _ask(self, payload: dict) -> dict:
         """Open a cursor and answer the first chunk for the streaming endpoint.
@@ -1578,31 +2087,79 @@ class Gateway:
         pattern = _atom_of(payload, "pattern")
         batch = _batch_of(payload)
         bound = _bound_of(payload)
+        arrow = _arrow_of(payload)
+        cursor, answers = self._candidates(space, pattern)
+        entry = _OpenCursor(cursor, answers, space.name, bound)
+        if arrow:
+            # The schema is fixed HERE, before the first batch, from what the
+            # space declares about the pattern's positions. Every later chunk of
+            # this cursor is written at it, which is what an IPC stream requires
+            # and what a kind derived per chunk could not promise.
+            try:
+                entry.schema, entry.kinds = self._arrow_schema(
+                    space, pattern, cursor.columns
+                )
+            except BaseException:
+                cursor.close()
+                raise
         if bound == 0:
-            return self._reply([], None)
-        entry = _OpenCursor(*self._candidates(space, pattern), space.name, bound)
+            cursor.close()
+            return self._reply(entry, [], None, arrow=arrow)
         try:
-            atoms, done = self._pull(entry, batch)
+            answered, done = self._pull(entry, batch)
             token = None if done else self._cursors.open(entry)
         except BaseException:
             entry.cursor.close()
             raise
         if done:
             entry.cursor.close()
-        return self._reply(atoms, token)
+        return self._reply(entry, answered, token, arrow=arrow)
+
+    def _arrow_schema(
+        self, space: MeTTa, pattern: Atom, columns: tuple[str, ...]
+    ) -> tuple[Any, tuple[str, ...]]:
+        """The Arrow schema a pattern's answers are written at.
+
+        One column per pattern variable at the type the space DECLARES for its
+        position, then `atom`, the canonical text of the whole instantiated
+        pattern, which is the lossless carrier that makes the typed columns
+        safe: a cell a declared column cannot hold is null there and exact here.
+        An undeclared position is `utf8` canonical text, marked
+        `metta.kind=mixed`, which is the same answer the DuckDB bridge gives an
+        undeclared head from the other side of the same question
+        [source: extensions/python/metta/tables.py, _undeclared_arrow_message].
+        """
+        arrows = _projection.arrows_of(declared(space))
+        types = _projection.column_types(pattern, columns, arrows)
+        kinds = tuple(_projection.arrow_kind(kind) for kind in types)
+        schema = _arrow.ipc_schema(
+            (*columns, "atom"),
+            (*kinds, _arrow.TEXT),
+            (*(str(kind) for kind in types), _projection.UNDEFINED),
+        )
+        return schema, kinds
 
     def _next(self, payload: dict) -> dict:
         token = payload.get("cursor")
         entry = self._cursors.take(token)
         batch = _batch_of(payload)
+        arrow = _arrow_of(payload)
+        if arrow and entry.schema is None:
+            self._cursors.release(token)
+            msg = (
+                "this cursor was opened for JSON answers, so its Arrow schema "
+                "was never fixed; ask for the Arrow format on /ask, which is "
+                "where a stream's one schema is decided"
+            )
+            raise MettaError(msg)
         try:
-            atoms, done = self._pull(entry, batch)
+            answered, done = self._pull(entry, batch)
         except BaseException:
             self._cursors.release(token)
             raise
         if done:
             self._cursors.release(token)
-        return self._reply(atoms, None if done else token)
+        return self._reply(entry, answered, None if done else token, arrow=arrow)
 
     def _stop(self, payload: dict) -> dict:
         """Release a cursor early. Answering whether there was one to
@@ -2129,12 +2686,7 @@ def serve(
 
         def _refuse_unauthorized(self, operation: str) -> None:
             logger.warning("refused unauthorized remote engine operation %s", operation)
-            body = _json.dumps({"error": "not authorized"})
-            self.send_response(401)
-            self.send_header("content-type", "application/json")
-            self.send_header("content-length", str(len(body)))
-            self.end_headers()
-            self.wfile.write(body)
+            self._write(401, _json.dumps({"error": "not authorized"}), "application/json")
 
         def _collected_headers(self) -> dict[str, str]:
             headers: dict[str, str] = {}
@@ -2161,7 +2713,13 @@ def serve(
             return str(payload.get("space", m.name))
 
         def do_GET(self) -> None:
-            operation = self.path.strip("/")
+            # A GET path is one word, except the document paths, whose spelling
+            # is what a consumer's tooling looks for: `/openapi.json` is where
+            # every OpenAPI client tries first. The gateway door's own name is
+            # the operation an authorize hook judges, which is what makes a
+            # policy over the documents spell the same words as a policy over
+            # the wire operations.
+            operation = _GET_OPERATIONS.get(self.path.strip("/"), self.path.strip("/"))
             headers = self._collected_headers()
             # The same gates as every POST, credential then policy hook:
             # health names what the server admits, which is not an
@@ -2178,23 +2736,37 @@ def serve(
                 if authorize is not None and not authorize(request):
                     self._refuse_unauthorized(operation)
                     return
-                if operation == "health":
-                    answer, status = _worker_response(worker, "health", {})
-                else:
-                    answer, status = {"error": f"unknown operation {operation!r}"}, 400
+                reply = _get_reply(worker, operation, secured=token is not None)
             except _HTTPProblem as exc:
-                answer, status = {"error": str(exc)}, exc.status
+                reply = _refusal(exc.status, str(exc))
             except Exception as exc:  # the wire answers errors as JSON
                 logger.warning(
                     "remote engine HTTP handler rejected operation %s",
                     operation,
                     exc_info=True,
                 )
-                answer, status = {"error": str(exc)}, 400
-            body = _json.dumps(answer)
+                reply = _refusal(400, str(exc))
+            self._write(*reply)
+
+        def _write(
+            self,
+            status: int,
+            body: bytes,
+            content_type: str,
+            extra: Mapping[str, str] = _NO_HEADERS,
+        ) -> None:
+            """One reply, whatever its media type and whatever it carries beside.
+
+            Every response path went through the same four lines with
+            `application/json` written into each of them; the documents a
+            server publishes are not all JSON, and an Arrow answer carries its
+            cursor token in a header, so both are arguments.
+            """
             self.send_response(status)
-            self.send_header("content-type", "application/json")
+            self.send_header("content-type", content_type)
             self.send_header("content-length", str(len(body)))
+            for name, value in extra.items():
+                self.send_header(name, value)
             self.end_headers()
             self.wfile.write(body)
 
@@ -2202,14 +2774,13 @@ def serve(
             # The protocol's own refusal: only POST operates (and GET
             # answers /health). BaseHTTPRequestHandler would say 501,
             # which reads as "not implemented yet" rather than "never".
-            body = _json.dumps(
-                {"error": f"method {self.command} is not supported; POST an operation"}
+            self._write(
+                405,
+                _json.dumps(
+                    {"error": f"method {self.command} is not supported; POST an operation"}
+                ),
+                "application/json",
             )
-            self.send_response(405)
-            self.send_header("content-type", "application/json")
-            self.send_header("content-length", str(len(body)))
-            self.end_headers()
-            self.wfile.write(body)
 
         do_PUT = _method_not_allowed  # noqa: N815  -- BaseHTTPRequestHandler dispatch requires the exact do_METHOD attribute spelling
         do_DELETE = _method_not_allowed  # noqa: N815  -- BaseHTTPRequestHandler dispatch requires the exact do_METHOD attribute spelling
@@ -2225,36 +2796,31 @@ def serve(
                 self._refuse_unauthorized(operation)
                 return
             try:
-                payload = self._payload()
+                payload = _requested(operation, headers, self._payload())
                 request = Request(operation, self._space_named(operation, payload), headers)
                 if authorize is not None and not authorize(request):
                     self._refuse_unauthorized(operation)
                     return
-                answer, status = _worker_response(worker, operation, payload)
+                reply = _post_reply(worker, operation, payload)
             except _HTTPProblem as exc:
                 logger.warning(
                     "remote engine HTTP handler rejected operation %s: %s",
                     operation,
                     exc,
                 )
-                answer, status = {"error": str(exc)}, exc.status
+                reply = _refusal(exc.status, str(exc))
             except Exception as exc:
                 logger.warning(
                     "remote engine HTTP handler rejected operation %s",
                     operation,
                     exc_info=True,
                 )
-                answer, status = {"error": str(exc)}, 400
-            body = _json.dumps(answer)
-            self.send_response(status)
-            self.send_header("content-type", "application/json")
-            self.send_header("content-length", str(len(body)))
-            self.end_headers()
-            self.wfile.write(body)
+                reply = _refusal(400, str(exc))
+            self._write(reply[0], reply[1], reply[2], extra=reply[3])
             logger.debug(
                 "served remote engine operation %s with HTTP %d",
                 operation,
-                status,
+                reply[0],
             )
 
         def log_message(self, format: str, *args: Any) -> None:  # noqa: A002 -- BaseHTTPRequestHandler fixes the keyword-capable override parameter name

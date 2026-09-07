@@ -6,17 +6,13 @@ becomes `def area(x1: int | float, /) -> int | float`, the `(@doc ...)` beside
 it becomes the docstring, and an editor completes and checks calls into a MeTTa
 program the same way it does any other module.
 
-The projection is the annotation reader's table read backwards, one column at a
-time [source: extensions/python/metta/_type_annotations.py:_TYPE_NAMES,
-_METATYPE_NAMES, _direct_type_atoms; commit=dd4f82100a052e2c5254a2ef9e91f6eb9d2e0c49]:
+The scalar half of the projection is the Python column of the one type table
+every surface reads [source: extensions/python/metta/_projection.py:TABLE;
+commit=0fb68d75871c57f2421c335e9faef3561f8dfdd5], and the shapes Python spells structurally are this file's own:
 
-    %Undefined%         Any                 (-> A B) argument  Callable[[A], B]
-    Number              int | float         (->) return        None
-    String              str                 $t $u              T1, T2
-    Bool                bool                (Literal 1 2)      Literal[1, 2]
-    Atom Symbol         the atom classes    NoneType           None
-    Variable Expression                     SpaceType          Space
-    Grounded                                (: X Type)         class X(Atom)
+    (-> A B) argument   Callable[[A], B]    (Literal 1 2)      Literal[1, 2]
+    (->) return         None                NoneType           None
+    $t $u               T1, T2              (: X Type)         class X(Atom)
 
 A symbol the space does not declare as a type is an atom to Python, and a
 non-arrow expression type is an `Expression`, which is where the forward table
@@ -62,6 +58,7 @@ from ._declarations import (
     is_arrow,
 )
 from ._name_mapping import python_name
+from ._projection import PYTHON as _SCALARS
 from ._space_objects import _format_doc_atom
 from ._version import __version__
 from .atoms import Atom, Expression, Grounded, Symbol, Variable, _decode
@@ -70,23 +67,6 @@ if TYPE_CHECKING:
     from collections.abc import Iterable, Sequence
 
     from ._space import Space
-
-#: The scalar column of the annotation reader's table, read backwards. The
-#: value is the annotation's TEXT, and the name it needs is imported by
-#: `_IMPORTS` below only when a rendered annotation actually mentions it.
-_SCALARS = {
-    "%Undefined%": "Any",
-    "Number": "int | float",
-    "String": "str",
-    "Bool": "bool",
-    "NoneType": "None",
-    "SpaceType": "Space",
-    "Atom": "Atom",
-    "Symbol": "Symbol",
-    "Variable": "Variable",
-    "Expression": "Expression",
-    "Grounded": "Grounded",
-}
 
 #: Which module each name a rendered stub can mention comes from. The order of
 #: the modules here is the order the imports are written, which is isort's:

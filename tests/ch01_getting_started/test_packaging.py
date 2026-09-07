@@ -189,9 +189,16 @@ def _names(requirements: Iterable[str]) -> set[str]:
 def test_optional_integrations_have_installable_extras():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     extras = _manifest()["project"]["optional-dependencies"]
     assert _names(extras["arrays"]) == {"array-api-compat", "faiss-cpu", "numpy"}
-    assert _names(extras["arrow"]) == {"nanoarrow"}
+    # Two producers answering two questions: nanoarrow builds the C structs a
+    # PyCapsule carries, pyarrow writes and reads the IPC streaming format that
+    # crosses the gateway as bytes.
+    assert _names(extras["arrow"]) == {"nanoarrow", "pyarrow"}
     assert _names(extras["das"]) == {"websocket-client"}
     assert _names(extras["dataframes"]) == {"pandas", "polars"}
+    assert _names(extras["graphql"]) == {"graphql-core"}
+    # The API package alone: the SDK, the exporters and the collector belong to
+    # the deployment, which is the split the API package exists for.
+    assert _names(extras["otel"]) == {"opentelemetry-api"}
     # No orjson extra: the JSON codec is the engine's library(json), and
     # no Python-side JSON implementation exists to accelerate.
     assert "orjson" not in extras

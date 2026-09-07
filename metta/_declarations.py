@@ -33,6 +33,14 @@ Guarantees:
     reach the same rows and a module can report what its FILE declares rather
     than what the space it loaded into holds [tested:
     test_a_metta_file_imports_as_a_module_of_its_own_heads; commit=d7ab3cb20fe2353872139ecb36710f7e880c1451]
+  - declared() reads the `(: ...)` and `(@doc ...)` rows through the engine's
+    own first-argument index, so a schema derived per request does not grow
+    with the served space: 232, 230 and 230 inferences over spaces of 200,
+    2,000 and 20,000 atoms holding the same ten declarations, against the
+    walk's 3,911, 34,511 and 340,525 [measured 2026-09-07;
+    command=extensions/python/tests/ch19_spaces_backed_by_anything/test_remote_openapi.py::test_the_catalog_read_does_not_grow_with_the_space;
+    fixture=a space of N `(users i "n")` atoms, ten arrows and one document;
+    commit=0fb68d75871c57f2421c335e9faef3561f8dfdd5]
   - a subject that knows where its atoms were written answers the same rows
     with an `origin` and a `documentation_origin` on each, and a head it
     publishes through one of the language's registration forms is a row like
@@ -52,7 +60,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, NamedTuple, TypeGuard
 
-from .atoms import Atom, Expression, Symbol, _atom_from_wire
+from .atoms import Atom, Expression, Symbol, Variable, _atom_from_wire, substitute
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Iterator
@@ -258,6 +266,87 @@ def declarations_in(items: Iterable[Atom | Written]) -> tuple[Declaration, ...]:
         )
         for name, rows in collected.items()
     )
+
+
+def declared(space: Space | Any) -> tuple[Declaration, ...]:
+    """The `(: name type)` rows alone, read through the engine's own index.
+
+        for row in declared(m):
+            print(row.name, row.arrows)
+
+    `declarations()` above answers the WHOLE projection and costs one pass over
+    every atom, which is what a stub or a card wants: they read a program once.
+    A SERVED schema is asked for on every request, and a declaration row is
+    stored as `'&self'(':', Name, Type)`, so `':'` selects it through SWI's
+    first-argument index [source: engine/spaces/catalog.pl, `add_sexp_in/4`'s
+    `':'` clause]. That is the whole difference in cost class: over spaces of
+    200, 2,000 and 20,000 atoms holding the same ten declarations, this read
+    stayed at 232, 230 and 230 inferences while the walk went 3,911, 34,511 and
+    340,525 [measured 2026-09-07;
+    command=extensions/python/tests/ch19_spaces_backed_by_anything/test_remote_openapi.py::test_the_catalog_read_does_not_grow_with_the_space;
+    fixture=a space of N `(users i "n")` atoms, ten arrows and one document;
+    commit=0fb68d75871c57f2421c335e9faef3561f8dfdd5].
+
+    `arities` is empty on every row and `origin` is None: equations are not read
+    here, because an arrow is what a schema publishes and reading equations is
+    the pass this door exists to avoid. `documentation` is the head's own
+    `(@doc ...)` atom, read the same indexed way at the arities
+    `_DOCUMENTED_ARITIES` names.
+    """
+    rows = space.match(Expression([DECLARE, Variable("name"), Variable("type")]))
+    types: dict[str, list[Atom]] = {}
+    for name, kind in rows:
+        if isinstance(name, Symbol):
+            types.setdefault(str(name), []).append(kind)
+    documented = _documentation_rows(space)
+    return tuple(
+        Declaration(name=name, types=tuple(kinds), documentation=documented.get(name))
+        for name, kinds in types.items()
+    )
+
+
+#: The MeTTa arities a `(@doc name ...)` row is read at here, one indexed match
+#: each. `(@doc ...)` is variadic, so a single pattern reaches none of it and the
+#: engine's own unary `get-doc` enumerates every atom instead
+#: [source: engine/metta/runtime.pl, `get-doc-space/3`'s `'get-atoms'(Space, Doc)`
+#: arm; commit=0fb68d75871c57f2421c335e9faef3561f8dfdd5], which is the O(atoms) read this door exists to avoid.
+#: The bound is measured rather than guessed: every `(@doc ...)` row in the
+#: shipped corpus -- the libraries, the examples, the extensions and the Prolog
+#: prelude's 24 registered documents -- is written at arity 2, 3 or 4, so 8
+#: leaves room for four `(@example ...)` rows beyond the longest one written
+#: [measured 2026-09-07 over `lib/**/*.metta`, `examples/**/*.metta`,
+#: `extensions/**/*.metta` and `engine/metta/prelude.pl`: arities {2: 6, 3: 10,
+#: 4: 35} and {4: 24}]. A longer row carries no description into a projection,
+#: which `get-doc` still answers in full.
+_DOCUMENTED_ARITIES = range(2, 9)
+
+
+def _documentation_rows(space: Space | Any) -> dict[str, Expression]:
+    """Every `(@doc name ...)` row of a space, by name, read through the index.
+
+    A stored row is `'<space>'('@doc', Name, ...)`, so `'@doc'` selects it by
+    first argument at each arity. The first row found for a name wins, which is
+    the rule `declarations()` above already applies to a name documented twice.
+    """
+    found: dict[str, Expression] = {}
+    for arity in _DOCUMENTED_ARITIES:
+        pattern = Expression([
+            DOCUMENTATION,
+            Variable("name"),
+            *(Variable(f"field{index}") for index in range(1, arity)),
+        ])
+        rows = space.match(pattern)
+        for row in rows:
+            name = row[0]
+            if not isinstance(name, Symbol):
+                continue
+            bindings = dict(zip(rows.columns, row, strict=True))
+            # Substituting an expression pattern answers an expression; the
+            # annotation says so where the general signature cannot.
+            documented = substitute(pattern, bindings)
+            if isinstance(documented, Expression):
+                found.setdefault(str(name), documented)
+    return found
 
 
 @dataclass(frozen=True)

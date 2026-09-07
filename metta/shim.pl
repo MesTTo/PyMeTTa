@@ -4,6 +4,11 @@
 %   derivations on top of an unmodified MeTTa engine. Consulted after
 %   engine/main.pl; only adds predicates, never redefines engine ones.
 % Guarantees:
+%   - metta_py_observe_begin/1 and metta_py_observe_end/1 hold ONE trace session
+%     across the host's own calls and answer what it recorded, so a Python
+%     with-block can instrument work it drives itself
+%     [tested: extensions/python/tests/ch14_seeing_your_program/test_telemetry.py::test_an_observed_block_hangs_its_reductions_under_one_span,
+%     tracer:a_held_session_records_across_separate_evaluations; commit=0fb68d75871c57f2421c335e9faef3561f8dfdd5].
 %   - metta_py_assert_answers/1 and metta_py_assert_includes/1 decide their
 %     verdict with the same subtraction-atom their MeTTa twins use and then
 %     report through the engine's own two assertion doors, so a Python
@@ -2673,6 +2678,37 @@ metta_py_trace_event(event(Seq, Time, Depth, Kind, Term, _, Names),
                      [Seq, Time, Depth, KindText, EncodedTerm]) :-
     atom_string(Kind, KindText),
     metta_py_encode_named(Term, Names, EncodedTerm).
+
+%An OBSERVE session: the same wrappers a trace arms, held across whatever calls
+%the host makes next, and the events harvested when it lets go. It exists
+%because the tracer does not stream -- an event is recorded into the store and
+%read at the end -- so instrumentation over a BLOCK of host-driven work is the
+%same recording with the host deciding where it starts and stops rather than one
+%source string deciding.
+%
+%Two things differ from metta_py_trace/5 and both follow from that. The bound
+%stops the RECORDING and not the work, because the work is the host's and a
+%telemetry budget must not become its error; and the teardown is the host's
+%`finally` rather than a setup_call_cleanup here, because the call that arms and
+%the call that disarms are two crossings with the host's block between them.
+%A second session, trace or debug, refuses through the tracer's own
+%permission_error, which is the rule that only one session holds the wrappers.
+%The request is metta_py_trace/5's own: a bound alone, or [Bound, Names].
+metta_py_observe_begin(Request) :-
+    (   nonvar(Request), Request = [Max, Filter]
+    ->  true
+    ;   Max = Request, Filter = all
+    ),
+    metta_trace_begin(Max, Filter, observe),
+    %After the arming, so an event's time measures the block and not the wrap,
+    %the same division metta_trace_session/7 makes for a traced run.
+    metta_trace_start_clock.
+
+metta_py_observe_end([Stopped, Encoded]) :-
+    setup_call_cleanup(true,
+                       ( metta_trace_harvest(Stopped, Events),
+                         maplist(metta_py_trace_event, Events, Encoded) ),
+                       metta_trace_end).
 
 %%%%%%%%%% The debugger %%%%%%%%%%
 %

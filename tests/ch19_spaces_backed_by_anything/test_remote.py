@@ -60,7 +60,7 @@ def test_remote_transport_logs_operation_without_payload(monkeypatch, caplog):  
     transport = remote.connect("http://example.test/api")
 
     def request(*args, **kwargs):  # noqa: ARG001  -- the test reflects this callable signature, so every declared parameter must remain visible
-        return 200, "OK", b'{"atoms": []}'
+        return network.Response(200, "OK", b'{"atoms": []}', {})
 
     monkeypatch.setattr(network.HTTPEndpoint, "request", request)
     sensitive_value = "payload-must-not-be-logged"
@@ -378,6 +378,9 @@ def test_http_endpoint_closes_transport_resources(monkeypatch, read_fails, overs
         def getheader(self, _name):
             return None
 
+        def getheaders(self):
+            return []
+
         def read(self, amount):
             if read_fails:
                 msg = "injected read failure"
@@ -426,11 +429,11 @@ def test_http_endpoint_closes_transport_resources(monkeypatch, read_fails, overs
         with pytest.raises(HTTPException, match="response body exceeds"):
             endpoint.request("GET", "/probe", timeout=1.0)
     else:
-        assert endpoint.request("GET", "/probe", timeout=1.0) == (
-            200,
-            "OK",
-            b"{}",
-        )
+        reply = endpoint.request("GET", "/probe", timeout=1.0)
+        assert (reply.status, reply.reason, reply.body) == (200, "OK", b"{}")
+        # The headers ride beside the body because an Arrow answer's media type
+        # and its cursor token are not in it.
+        assert dict(reply.headers) == {}
 
     assert connection.response.closed
     assert connection.closed

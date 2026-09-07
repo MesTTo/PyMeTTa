@@ -113,7 +113,14 @@ RUFF_FAMILY_BURN_DOWN = {
     # carrier_type and introduces no additional shadowing suppression.
     # [tested: test_the_ruff_configuration_enables_every_family_or_records_why_not;
     # commit=074dc0a88b1605c54824de677d586b6f60998bcf]
-    "A": 27,
+    # 27 -> 28 for metta.telemetry.observe's `filter` keyword, which is the same
+    # public selector `trace(filter=)` above already keeps in five places: the
+    # block door records the functions the trace door records, and spelling it
+    # differently would make one word mean one thing on two doors that do the
+    # same selecting. The one site suppresses only A002 with that reason.
+    # [tested: test_the_ruff_configuration_enables_every_family_or_records_why_not;
+    # commit=0fb68d75871c57f2421c335e9faef3561f8dfdd5]
+    "A": 28,
     # 2112 -> 2114 at the p12-space-model merge: its two new test modules
     # carry the repository's obligation-header docstring convention, whose
     # Purpose/Guarantees block is a deliberate per-line D205 suppression.

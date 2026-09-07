@@ -270,10 +270,17 @@ def trace(space, source: Atom | str,
         ],
         None,
     )
-    # Events cross as terms on the ordinary wire. Read back from their own
-    # text, a symbol whose spelling reads as something else arrived as
-    # something else: (holds $notvar) traced as a variable while run
-    # answered the symbol, and a tab inside a symbol split the record.
+    return _recorded(stopped, records)
+
+
+def _events(records) -> list[TraceEvent]:
+    """The wire's event rows as TraceEvents.
+
+    Events cross as terms on the ordinary wire. Read back from their own text, a
+    symbol whose spelling reads as something else arrived as something else:
+    `(holds $notvar)` traced as a variable while run answered the symbol, and a
+    tab inside a symbol split the record.
+    """
     events = []
     for record in records or []:
         seq, moment, depth, kind, term, *answer = record
@@ -287,8 +294,17 @@ def trace(space, source: Atom | str,
                 _atom_from_wire(answer[0]) if answer else None,
             )
         )
-    # The wire carries the bound's own word, or `false` when the run
-    # finished. An unknown word is a Limit() ValueError rather than a silently
-    # complete-looking trace, which is the failure a bool could not have.
+    return events
+
+
+def _recorded(stopped, records) -> Trace:
+    """One recording session's answer: its events and the bound that cut them.
+
+    The wire carries the bound's own word, or `false` when the run finished. An
+    unknown word is a `Limit()` ValueError rather than a silently
+    complete-looking trace, which is the failure a bool could not have. The
+    trace door and the held observe session both end this way, so the reading is
+    written once.
+    """
     stopped = str(stopped)
-    return Trace(events, stopped=None if stopped == "false" else Limit(stopped))
+    return Trace(_events(records), stopped=None if stopped == "false" else Limit(stopped))

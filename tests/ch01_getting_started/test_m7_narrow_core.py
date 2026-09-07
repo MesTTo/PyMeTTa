@@ -137,7 +137,10 @@ FINAL_METTA_METHODS = 38
 # names because a caller reads a lock a process never took
 # (``metta.Lock.read``) and reacts to the rows ``m.check`` answers, which is
 # the same shape ``State`` and ``Answer`` are here for.
-FINAL_METTA_EXPORTS = 119
+# +1 on 2026-09-07 for ``telemetry``, a satellite like ``lint`` and ``tables``:
+# it is a module of two verbs over the trace and the counters, and a lazy
+# satellite is what keeps `import metta` from loading the OpenTelemetry API.
+FINAL_METTA_EXPORTS = 120
 
 SATELLITES = {
     "aio",

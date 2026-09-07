@@ -160,8 +160,10 @@ def test_legacy_http_mutation_cannot_claim_failure_after_an_uncertain_reply(monk
     def request(_endpoint, method, _path, **_options):
         calls.append(method)
         if method == "GET":
-            return 200, "OK", _json.dumps({"ok": True, "atoms": 0, "protocol": 3})
-        return status, "injected reply", body
+            return network.Response(
+                200, "OK", _json.dumps({"ok": True, "atoms": 0, "protocol": 3}), {}
+            )
+        return network.Response(status, "injected reply", body, {})
 
     monkeypatch.setattr(network.HTTPEndpoint, "request", request)
     with pytest.raises(remote.OutcomeUnknown) as failure:

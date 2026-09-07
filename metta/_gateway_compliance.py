@@ -65,14 +65,14 @@ def _post(url: str, operation: str, payload: Any) -> tuple[int, Any]:
     raised, because reading them is half of what this suite is for.
     """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
     endpoint = HTTPEndpoint(url, subject="gateway under test", error_type=MettaError)
-    status, _, raw = endpoint.request(
+    reply = endpoint.request(
         "POST",
         operation,
         body=json.dumps(payload).encode("utf-8"),
         headers={"content-type": "application/json"},
         timeout=30.0,
     )
-    return status, json.loads(raw)
+    return reply.status, json.loads(reply.body)
 
 
 def _raw(url: str, request_text: str) -> int:
@@ -130,9 +130,9 @@ class GatewayComplianceSuite:
         endpoint = HTTPEndpoint(
             gateway_url, subject="gateway under test", error_type=MettaError
         )
-        status, _, raw = endpoint.request("GET", "health", timeout=30.0)
-        assert status == 200
-        health = json.loads(raw)
+        reply = endpoint.request("GET", "health", timeout=30.0)
+        assert reply.status == 200
+        health = json.loads(reply.body)
         assert health["ok"] is True
         assert health["protocol"] == 3
         assert isinstance(health["atoms"], int)
@@ -154,8 +154,8 @@ class GatewayComplianceSuite:
         endpoint = HTTPEndpoint(
             gateway_url, subject="gateway under test", error_type=MettaError
         )
-        _, _, raw = endpoint.request("GET", "health", timeout=30.0)
-        honors = json.loads(raw)["bound"]
+        reply = endpoint.request("GET", "health", timeout=30.0)
+        honors = json.loads(reply.body)["bound"]
         stored = [parse(f"(gc-bound {n})") for n in range(3)]
         scratch.add_many(stored)
         status, body = _post(

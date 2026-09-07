@@ -279,3 +279,13 @@ _.storage_matches_the_model
 # vulture that way.
 _.filenames
 _.mimetypes
+
+# graphql-core builds a custom scalar from SDL with the identity serializer and
+# no value parser, so `_schemas.build_graphql_schema` assigns both onto the
+# GraphQLScalarType it made [source:
+# https://github.com/graphql-python/graphql-core, GraphQLScalarType's
+# constructor assigning `serialize` and `parse_value` as plain attributes].
+# `serialize` is spelled elsewhere in that module and reaches vulture that way;
+# `parse_value` is written once, at the assignment, and read only by the
+# executor inside graphql-core.
+_.parse_value

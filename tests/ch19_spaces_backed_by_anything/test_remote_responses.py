@@ -30,7 +30,7 @@ def test_remote_rejects_malformed_response_fields(monkeypatch, operation, answer
     """The HTTP boundary rejects each malformed success envelope."""
     def request(_endpoint, _method, path, **_options):
         body = answer if path == operation else {"ok": True, "atoms": 0, "protocol": 3}
-        return 200, "OK", _json.dumps(body)
+        return _network.Response(200, "OK", _json.dumps(body), {})
 
     monkeypatch.setattr(_network.HTTPEndpoint, "request", request)
     transport = remote.connect("http://example.test")
@@ -81,7 +81,9 @@ def test_invalid_initial_reply_stops_its_cursor(monkeypatch, http):
         return {"atoms": [["n", "bad number"]], "cursor": "initial"}
 
     def request(_endpoint, _method, operation, **options):
-        return 200, "OK", _json.dumps(transport(operation, _json.loads(options["body"])))
+        return _network.Response(
+            200, "OK", _json.dumps(transport(operation, _json.loads(options["body"]))), {}
+        )
 
     monkeypatch.setattr(_network.HTTPEndpoint, "request", request)
     boundary = remote.connect("http://example.test") if http else transport
@@ -111,7 +113,7 @@ def test_invalid_initial_reply_keeps_the_token_when_cleanup_also_fails():
 def test_protocol_errors_cannot_become_engine_answers(metta, monkeypatch, mode, malformed):
     """Application error policies cannot turn a malformed transport into data."""
     def request(_endpoint, _method, _path, **_options):
-        return 200, "OK", malformed
+        return _network.Response(200, "OK", malformed, {})
 
     monkeypatch.setattr(_network.HTTPEndpoint, "request", request)
     transport = remote.connect("http://example.test") if malformed is not None else (
