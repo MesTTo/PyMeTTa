@@ -1,0 +1,68 @@
+"""examples/ch08-data/08-03-the-shipped-libraries/13-vector_lib.metta in Python: four operations a similarity search needs.
+
+There is no vector type: a vector is an ordinary expression, so every
+argument here is a Python tuple of floats and every list operation still
+applies to one.
+
+The random draws are checked to a TOLERANCE rather than to an equality,
+because a square root and a division are not exact.
+Open Obligations:
+  To Do: None
+  Hacks: None
+  Future Enhancements: None.
+"""
+
+from metta import lib
+
+TOLERANCE = 1e-6
+
+
+def twin(m):
+    """Dot, norm, cosine, the normalised shortcut, and a random direction."""
+    m += lib.vector
+    dot, norm = m.fn.dot, m.fn.norm
+    cosine, quick = m.fn.cosine, m.fn["cosine-of-normalized"]
+    draw = m.fn["random-normal-vector"]
+
+    # `dot` walks both expressions together, so it is defined exactly when
+    # they are the same length.
+    assert dot((1.0, 2.0), (3.0, 4.0)) == [11.0]
+    assert dot((), ()) == [0.0]
+    assert dot((1.0, 0.0), (0.0, 1.0)) == [0.0]
+
+    # `norm` is that product with itself under a square root.
+    assert norm((3.0, 4.0)) == [5.0]
+    assert norm((1.0, 0.0)) == [1.0]
+    assert norm(()) == [0.0]
+
+    # `cosine` divides by both lengths, so it measures ANGLE and ignores
+    # magnitude.
+    assert cosine((1.0, 0.0), (2.0, 0.0)) == [1.0]
+    assert cosine((1.0, 0.0), (0.0, 1.0)) == [0.0]
+    assert cosine((1.0, 0.0), (-2.0, 0.0)) == [-1.0]
+
+    # `cosine-of-normalized` skips both divisions, because on unit vectors
+    # the dot product IS the cosine.
+    assert quick((1.0, 0.0), (1.0, 0.0)) == [1.0]
+    assert quick((1.0, 0.0), (0.0, 1.0)) == [0.0]
+    assert quick((1.0, 0.0), (0.6, 0.8)) == cosine((1.0, 0.0), (0.6, 0.8))
+
+    # It says `of-normalized` rather than checking, so a caller who has not
+    # normalised gets a number that is not a cosine, and that is the trade
+    # the name is warning about.
+    assert quick((3.0, 4.0), (3.0, 4.0)) == [25.0]
+    assert cosine((3.0, 4.0), (3.0, 4.0)) == [1.0]
+
+    # A random DIRECTION, which is what the whole library is for.
+    assert len(draw(3)[0]) == 3
+    assert abs(norm(draw(5)[0])[0].value - 1.0) < TOLERANCE
+    unit = draw(4)[0]
+    assert abs(quick(unit, unit)[0].value - 1.0) < TOLERANCE
+
+
+#: MEASURED on this branch rather than inherited: this twin is new, so there is
+#: no earlier pin to move
+#: [measured 2026-09-07: 32171 inferences, 1.0066x the example's 31959; command=python
+#: extensions/python/tools/twin_coverage.py --measure --rounds 3;
+#: fixture=docs/every-atom-has-an-example at its example commits; commit=WORKTREE].
+BUDGET = 32171
