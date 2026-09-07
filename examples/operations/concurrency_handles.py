@@ -14,9 +14,11 @@ with MeTTa() as context:
     with space.pool(workers=2) as pool:
         check(
             "starmap spreads each argument tuple in input order",
-            pool.starmap(
-                lambda left, right: space.eval(S["+"](left, right))[0],
-                [(1, 2), (3, 4)],
+            list(
+                pool.starmap(
+                    lambda left, right: space.eval(S["+"](left, right))[0],
+                    [(1, 2), (3, 4)],
+                )
             ),
             [3, 7],
         )
