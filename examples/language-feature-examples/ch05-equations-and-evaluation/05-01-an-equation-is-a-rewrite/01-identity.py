@@ -949,7 +949,7 @@ def twin(m):
 #: unchanged at 2368, so the twin's extra reads are the rows the catalog now
 #: holds, not this example's work [measured 2026-09-07: min-of-3 serial fresh
 #: processes; command=python extensions/python/tools/twin_coverage.py --repin;
-#: commit=WORKTREE].
+#: commit=73d95f1aebe460580b123d20f82092ef60f41765].
 BUDGET = 3528
 #: BANDED 2026-09-06 rather than re-pinned an eighteenth time. Seventeen of
 #: the eighty-three re-pins above were written on 2026-09-05 and 2026-09-06
