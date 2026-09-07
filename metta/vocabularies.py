@@ -25,14 +25,25 @@ Guarantees:
     member [tested: test_effect_class_is_the_public_five_rank_join_lattice,
     test_effect_join_obeys_the_lattice_laws;
     commit=3cfbe0d7417b1c453c2dc12d47e2e47e7de461f7]
+  - a class name IS the MeTTa type name the engine writes: `(: EffectClass
+    Type)` and `(: pureStructural EffectClass)` are atoms in `&metta`, and the
+    name comes from the row rather than from a map kept here
+    [tested: test_every_vocabulary_is_typed_by_the_engine; commit=7f9c810e5f4a2023ad98de34e848667dd72bc4a7]
+  - a class the engine declares OPEN accepts a word registered through
+    `(add-atom &metta (vocabulary-member <vocab> <word>))`
+    [tested: test_an_open_vocabulary_accepts_a_registered_word; commit=7f9c810e5f4a2023ad98de34e848667dd72bc4a7]
+  - WIRE_TAGS is the wire grammar as the engine states it, one row per tag
+    [tested: test_the_wire_tag_table_is_the_engines_own; commit=7f9c810e5f4a2023ad98de34e848667dd72bc4a7]
 Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None
 """
 
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping
 from enum import StrEnum
+from types import MappingProxyType
+from typing import Final, NamedTuple
 
 from .atoms import Symbol
 
@@ -42,6 +53,33 @@ class _AtomStrEnum(StrEnum):
 
     def __metta__(self):
         return Symbol(self.value)
+
+
+class _OpenStrEnum(_AtomStrEnum):
+    """An option set the engine's row declares OPEN, so a word a library
+    registered is a member too.
+
+    The members written out below are what the engine ships. A word registered
+    through `(add-atom &metta (vocabulary-member <vocab> <word>))` reaches this
+    class through `_missing_`, which mints a member for it exactly as
+    `enum.IntFlag` mints one for a composite nobody wrote down.
+
+    The rung below is the engine's own refusal. This class does not ask the
+    engine whether the word is registered, because the catalog checks it at the
+    write and refuses an unregistered one there, naming the row; asking here
+    would buy a crossing per call to say the same thing earlier. Protocol
+    Buffers draws the same line for its open enums: an undeclared value is
+    carried, and what it means is the application's business.
+    """  # noqa: D205  -- the contract is one continuous invariant, not summary-and-body prose
+
+    @classmethod
+    def _missing_(cls, value):
+        if not isinstance(value, str):
+            return None
+        member = str.__new__(cls, value)
+        member._name_ = value
+        member._value_ = value
+        return cls._value2member_map_.setdefault(value, member)
 
 
 class _EffectStrEnum(_AtomStrEnum):
@@ -109,10 +147,12 @@ class _EffectStrEnum(_AtomStrEnum):
         return NotImplemented if rank is NotImplemented else self.rank >= rank
 
 __all__ = [
+    "WIRE_TAGS",
     "AgendaPolicy",
     "AlgebraLaw",
     "AnswerPolicy",
     "Applicability",
+    "ArgumentDelivery",
     "Atomicity",
     "CachePolicy",
     "ClauseFailedEnum",
@@ -137,6 +177,7 @@ __all__ = [
     "OnError",
     "OpKind",
     "OutOfClausesEnum",
+    "ProviderCapability",
     "Refinement",
     "RefusalKind",
     "RegistryImage",
@@ -150,6 +191,9 @@ __all__ = [
     "SubscriptionEdge",
     "Visibility",
     "Volatility",
+    "WireClass",
+    "WirePayload",
+    "WireTag",
     "World",
 ]
 
@@ -237,6 +281,12 @@ class Applicability(_AtomStrEnum):
     machine = "machine"
     maybe = "maybe"
     prose = "prose"
+
+#: (vocabulary argument-delivery atoms values)
+class ArgumentDelivery(_AtomStrEnum):
+    """Typed values of the argument-delivery vocabulary."""
+    atoms = "atoms"
+    values = "values"
 
 #: (vocabulary atomicity transactional atomic-single best-effort)
 class Atomicity(_AtomStrEnum):
@@ -383,6 +433,23 @@ class OpKind(_AtomStrEnum):
     raw_det = "raw_det"
     raw_many = "raw_many"
 
+#: (vocabulary provider-capability match enumerate add add-many remove clear subscribe plan rules)
+class ProviderCapability(_OpenStrEnum):
+    """Typed values of the provider-capability vocabulary, which the engine
+    declares OPEN: a word registered through
+    `(add-atom &metta (vocabulary-member provider-capability <word>))` is
+    accepted too, and the members below are the ones it ships.
+    """  # noqa: D205  -- the contract is one claim, not summary-and-body prose
+    match = "match"
+    enumerate = "enumerate"
+    add = "add"
+    add_many = "add-many"
+    remove = "remove"
+    clear = "clear"
+    subscribe = "subscribe"
+    plan = "plan"
+    rules = "rules"
+
 #: (vocabulary refinement Gt Ge Lt Le Interval MultipleOf MinLen MaxLen Len Predicate Unit)
 class Refinement(_AtomStrEnum):
     """Typed values of the refinement vocabulary."""
@@ -443,8 +510,12 @@ class SaveFormat(_AtomStrEnum):
     fast = "fast"
 
 #: (vocabulary semiring bool bag counting set ranked tropical prob prov budget amplitude)
-class Semiring(_AtomStrEnum):
-    """Typed values of the semiring vocabulary."""
+class Semiring(_OpenStrEnum):
+    """Typed values of the semiring vocabulary, which the engine
+    declares OPEN: a word registered through
+    `(add-atom &metta (vocabulary-member semiring <word>))` is
+    accepted too, and the members below are the ones it ships.
+    """  # noqa: D205  -- the contract is one claim, not summary-and-body prose
     bool = "bool"
     bag = "bag"
     counting = "counting"
@@ -496,8 +567,112 @@ class Volatility(_AtomStrEnum):
     stable = "stable"
     immutable = "immutable"
 
+#: (vocabulary wire-class term frame reply)
+class WireClass(_AtomStrEnum):
+    """Typed values of the wire-class vocabulary."""
+    term = "term"
+    frame = "frame"
+    reply = "reply"
+
+#: (vocabulary wire-payload text number boolean term terms host handle truth bindings control)
+class WirePayload(_AtomStrEnum):
+    """Typed values of the wire-payload vocabulary."""
+    text = "text"
+    number = "number"
+    boolean = "boolean"
+    term = "term"
+    terms = "terms"
+    host = "host"
+    handle = "handle"
+    truth = "truth"
+    bindings = "bindings"
+    control = "control"
+
 #: (vocabulary world closed-world open-world)
 class World(_AtomStrEnum):
     """Typed values of the world vocabulary."""
     closed_world = "closed-world"
     open_world = "open-world"
+
+class WireTag(NamedTuple):
+    """One tag of the wire grammar: what class of thing it is, what
+    class its payload is, and the sentence CODEC.md shows for it.
+    """  # noqa: D205  -- the row is one claim, not summary-and-body prose
+
+    kind: WireClass
+    payload: WirePayload
+    means: str
+
+
+#: Every wire tag, in the catalog's own order. A `term` tag nests inside an
+#: atom, a `frame` tag wraps a whole answer, and a `reply` tag is one door's
+#: answer shape. metta._projection reads the term tags for its OpenAPI atom
+#: schema and metta._schemas reads the payload class for each arm, so the
+#: shim's clauses and both of those follow one grammar.
+WIRE_TAGS: Final[Mapping[str, WireTag]] = MappingProxyType({
+    "s": WireTag(
+        WireClass.term,
+        WirePayload.text,
+        "a symbol: a name that denotes itself",
+    ),
+    "g": WireTag(
+        WireClass.term,
+        WirePayload.text,
+        "a grounded value carried as text; a string crosses this way",
+    ),
+    "n": WireTag(
+        WireClass.term,
+        WirePayload.number,
+        "a grounded Number or BigInt; signed-i64 width fixes an integer's language type",
+    ),
+    "b": WireTag(
+        WireClass.term,
+        WirePayload.boolean,
+        "a grounded boolean; the engine writes true and false, and reads True and False as the same two constants",
+    ),
+    "v": WireTag(
+        WireClass.term,
+        WirePayload.text,
+        "a variable, the payload an identity within this term",
+    ),
+    "e": WireTag(
+        WireClass.term,
+        WirePayload.terms,
+        "an expression, its children in order; the empty one is unit",
+    ),
+    "p": WireTag(
+        WireClass.term,
+        WirePayload.text,
+        "an executable space reference carried by its portable engine name, ampersand-prefixed or not; the tag is a species and a name that is no space keeps s",
+    ),
+    "o": WireTag(
+        WireClass.term,
+        WirePayload.host,
+        "a live host value crossing by reference, in process only",
+    ),
+    "h": WireTag(
+        WireClass.term,
+        WirePayload.handle,
+        "a native engine value held by reference",
+    ),
+    "u": WireTag(
+        WireClass.frame,
+        WirePayload.truth,
+        "an answer whose truth is undefined under the well-founded semantics",
+    ),
+    "a": WireTag(
+        WireClass.frame,
+        WirePayload.bindings,
+        "an answer together with the bindings it is returned under",
+    ),
+    "x": WireTag(
+        WireClass.frame,
+        WirePayload.control,
+        "stream control: exhaustion, no answer at all, or a failure kept as a value",
+    ),
+    "r": WireTag(
+        WireClass.reply,
+        WirePayload.term,
+        "the refinement constraint a cast violated, answered when the base type admits the value and the refinement does not",
+    ),
+})

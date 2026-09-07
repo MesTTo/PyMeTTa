@@ -11,7 +11,8 @@ surface by hand, and it reads the carrier attributes from the catalog's
 Assumes:
   - ``metta/__init__.py`` remains the source of truth for package imports,
     functions, overloads, and ``__all__``
-  - ``vocabgen.vocabularies`` returns the running catalog's declared order
+  - ``vocabgen.catalog`` answers the running catalog's rows, vocabularies
+    in their declared order
 Guarantees:
   - the checked-in root stub mirrors every package function signature and
     public imported name, while dynamic exports retain mypy's existing module
@@ -52,7 +53,7 @@ WIDTH = 100
 
 sys.path.insert(0, str(TOOLS))
 from reference import spaced_default, split_top_level  # noqa: E402
-from vocabgen import member_name, vocabularies  # noqa: E402
+from vocabgen import catalog, member_name  # noqa: E402
 
 # Every name in the stub is COPIED from metta/__init__.py, so a lint about a
 # name's choice cannot be actioned here: flake8-builtins fires on the shadowing
@@ -473,7 +474,7 @@ def main(argv: list[str]) -> int:
     parser.add_argument("--write", action="store_true", help="rewrite generated files")
     arguments = parser.parse_args(argv)
 
-    carriers = _carrier_names(vocabularies())
+    carriers = _carrier_names(catalog().vocabularies)
     source = SOURCE.read_text(encoding="utf-8")
     wanted = {
         STUB: stub_text(source, carriers),

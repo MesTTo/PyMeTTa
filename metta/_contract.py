@@ -1,10 +1,17 @@
-"""Purpose: the contract ontology, the typed vocabulary for every interface
-declaration. Loaded into &metta at boot, before any user
-declaration, so a declaration's kind, fidelity, effect, image, source,
-error-mode, atomicity, merge-policy and semiring names are ordinary typed
-atoms a program can match, get-type, and widen over. The fidelity chain
-Exact :< Partial :< Sound rides the engine's own subtype widening, which is
-what lets a stronger claim stand wherever a weaker one is required.
+"""Purpose: this seat's own DECLARATION KINDS, typed. Loaded into &metta at
+boot, before any user declaration, so a declaration's kind and every typed head
+are ordinary atoms a program can match, get-type, and widen over.
+
+The ENGINE's words are not here. Every closed value set this file used to
+restate -- the effect ranks, the fidelities and their Exact :< Partial :< Sound
+chain, the image modes, the registry images, the error modes, the atomicities,
+the answer policies, the source kinds, the determinisms, the operation kinds,
+the semirings and the argument deliveries -- is a `(vocabulary ...)` row the
+engine types itself, under the name the row gives it. The seat had chosen its
+own CamelCase for eleven of them, one of which (`Semiring`) listed six members
+while the engine derived ten, and one of which (`ArgumentDelivery`) is now an
+engine vocabulary of that exact name. What is left here is what this seat
+DECLARES and no other seat has.
 Assumes:
   - the &metta reflection space exists by the time install runs, which
     engine boot guarantees by installing the prelude operations first
@@ -19,8 +26,9 @@ Guarantees:
   - compiled-definition source, capture, and effect facts are typed ordinary
     declarations [tested: test_each_ast_derived_fact_replaces_the_flag_it_supersedes;
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
-  - Effect enumerates the same five canonical ranks as the engine catalog
-    [tested: test_every_effect_rank_registers_and_reflects; commit=acb40f1912f131ae088083d1af29b4b283019bea]
+  - the vocabulary types these arrows name are the ENGINE's own, written
+    beside each `(vocabulary ...)` row rather than here
+    [tested: test_every_vocabulary_is_typed_by_the_engine; commit=7f9c810e5f4a2023ad98de34e848667dd72bc4a7]
   - lint evidence and named suppression intent are typed declarations rather
     than comments lost after parsing [tested:
     test_lint_evidence_and_intent_are_typed_reflection_facts; commit=acb40f1912f131ae088083d1af29b4b283019bea]
@@ -59,8 +67,10 @@ _SUB = ":<"
 # refused the facts this ontology exists to type and
 # `!(get-type (op p5-async-1 1 async))` answered no type at all. `Atom` is
 # the metatype wildcard and the true claim; a field naming a CLOSED set keeps
-# its own type (`OpKind`, `Effect`, `ArgumentDelivery`, `ImageSetting`,
-# `TypeImage`).
+# the type the ENGINE gives that vocabulary (`OpKind`, `EffectClass`,
+# `ArgumentDelivery`, `ImageMode`, `RegistryImage`), which is the mechanical
+# CamelCase of the row's name or its declared `(vocabulary-type ...)`
+# exception.
 _OP_DECL_TYPE = Expression([Symbol("->"), Symbol("Atom"), Symbol("Number"), Symbol("OpKind"), Symbol("OpDecl")])
 _DEFINED_TYPE = Expression([Symbol("->"), Symbol("SpaceType"), Symbol("Atom"), Symbol("DefinitionFact")])
 _SOURCE_SPAN_TYPE = Expression(
@@ -85,15 +95,15 @@ _FREE_VARIABLE_TYPE = Expression(
         Symbol("DefinitionFact"),
     ]
 )
-_EFFECT_TYPE = Expression([Symbol("->"), Symbol("Atom"), Symbol("Effect"), Symbol("EffectDecl")])
+_EFFECT_TYPE = Expression([Symbol("->"), Symbol("Atom"), Symbol("EffectClass"), Symbol("EffectDecl")])
 _ARGUMENTS_TYPE = Expression(
     [Symbol("->"), Symbol("Atom"), Symbol("ArgumentDelivery"), Symbol("ArgumentsDecl")]
 )
 _CONTEXT_IMAGE_TYPE = Expression(
-    [Symbol("->"), Symbol("SpaceType"), Symbol("Atom"), Symbol("ImageSetting"), Symbol("ImageDecl")]
+    [Symbol("->"), Symbol("SpaceType"), Symbol("Atom"), Symbol("ImageMode"), Symbol("ImageDecl")]
 )
 _REGISTRY_IMAGE_TYPE = Expression(
-    [Symbol("->"), Symbol("Atom"), Symbol("TypeImage"), Symbol("ImageDecl")]
+    [Symbol("->"), Symbol("Atom"), Symbol("RegistryImage"), Symbol("ImageDecl")]
 )
 _LINT_EVIDENCE_TYPE = Expression(
     [
@@ -127,12 +137,6 @@ ONTOLOGY: tuple[tuple[str, str, str | Expression], ...] = (
     (_COLON, "Declaration", "Type"),
     (_COLON, "OpDecl", "Type"),
     (_SUB, "OpDecl", "Declaration"),
-    (_COLON, "OpKind", "Type"),
-    (_COLON, "det", "OpKind"),
-    (_COLON, "many", "OpKind"),
-    (_COLON, "raw_det", "OpKind"),
-    (_COLON, "raw_many", "OpKind"),
-    (_COLON, "async", "OpKind"),
     (_COLON, "op", _OP_DECL_TYPE),
     (_COLON, "DefinitionFact", "Type"),
     (_SUB, "DefinitionFact", "Declaration"),
@@ -143,9 +147,6 @@ ONTOLOGY: tuple[tuple[str, str, str | Expression], ...] = (
     (_SUB, "EffectDecl", "Declaration"),
     (_COLON, "ArgumentsDecl", "Type"),
     (_SUB, "ArgumentsDecl", "Declaration"),
-    (_COLON, "ArgumentDelivery", "Type"),
-    (_COLON, "atoms", "ArgumentDelivery"),
-    (_COLON, "values", "ArgumentDelivery"),
     (_COLON, "arguments", _ARGUMENTS_TYPE),
     (_COLON, "ImageDecl", "Type"),
     (_SUB, "ImageDecl", "Declaration"),
@@ -173,58 +174,7 @@ ONTOLOGY: tuple[tuple[str, str, str | Expression], ...] = (
     (_SUB, "MergeDecl", "Declaration"),
     (_COLON, "BridgeDecl", "Type"),
     (_SUB, "BridgeDecl", "Declaration"),
-    (_COLON, "Fidelity", "Type"),
-    (_COLON, "Exact", "Fidelity"),
-    (_COLON, "Partial", "Fidelity"),
-    (_COLON, "Sound", "Fidelity"),
-    (_COLON, "Refuse", "Fidelity"),
-    # Refuse is deliberately outside the chain: it is not a weaker claim,
-    # it is the absence of a stream.
-    (_SUB, "Exact", "Partial"),
-    (_SUB, "Partial", "Sound"),
-    (_COLON, "Effect", "Type"),
     (_COLON, "effect", _EFFECT_TYPE),
-    (_COLON, "pureStructural", "Effect"),
-    (_COLON, "readOnlyLookup", "Effect"),
-    (_COLON, "nondeterministicReadOnly", "Effect"),
-    (_COLON, "writesState", "Effect"),
-    (_COLON, "oracleIO", "Effect"),
-    (_COLON, "ImageSetting", "Type"),
-    (_COLON, "opaque", "ImageSetting"),
-    (_COLON, "transparent", "ImageSetting"),
-    (_COLON, "auto", "ImageSetting"),
-    (_COLON, "SourceKind", "Type"),
-    (_COLON, "linear", "SourceKind"),
-    (_COLON, "repeated", "SourceKind"),
-    (_COLON, "peek", "SourceKind"),
-    (_COLON, "ErrorMode", "Type"),
-    (_COLON, "keep", "ErrorMode"),
-    (_COLON, "empty", "ErrorMode"),
-    (_COLON, "abort", "ErrorMode"),
-    (_COLON, "Atomicity", "Type"),
-    (_COLON, "transactional", "Atomicity"),
-    (_COLON, "atomic-single", "Atomicity"),
-    (_COLON, "best-effort", "Atomicity"),
-    (_COLON, "MergePolicy", "Type"),
-    (_COLON, "depth", "MergePolicy"),
-    (_COLON, "fair", "MergePolicy"),
-    (_COLON, "best-first", "MergePolicy"),
-    (_COLON, "Semiring", "Type"),
-    (_COLON, "bool", "Semiring"),
-    (_COLON, "bag", "Semiring"),
-    (_COLON, "set", "Semiring"),
-    (_COLON, "ranked", "Semiring"),
-    (_COLON, "prob", "Semiring"),
-    (_COLON, "prov", "Semiring"),
-    (_COLON, "TypeImage", "Type"),
-    (_COLON, "symbol", "TypeImage"),
-    (_COLON, "expression", "TypeImage"),
-    (_COLON, "handle", "TypeImage"),
-    (_COLON, "operations", "TypeImage"),
-    (_COLON, "Determinism", "Type"),
-    (_COLON, "det", "Determinism"),
-    (_COLON, "semidet", "Determinism"),
-    (_COLON, "nondet", "Determinism"),
 )
 
 _SPACE = "&metta"

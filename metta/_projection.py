@@ -26,6 +26,10 @@ Assumes:
     an arrow, a `(Literal ...)` and a type variable are the caller's own reading
     (`_stubs.py` renders all three) and reach the fallback column here
 Guarantees:
+  - WIRE_TAGS is the engine's own `(wire-tag ...)` rows filtered to the term
+    class, in the catalog's order, so this and the OpenAPI `Atom` schema read
+    one grammar rather than two tuples
+    [tested: test_the_wire_tag_table_is_the_engines_own; commit=7f9c810e5f4a2023ad98de34e848667dd72bc4a7]
   - a type outside the table projects to the Atom column of every target, which
     every value can be spelled in: canonical MeTTa text for Arrow, the recursive
     `Atom` schema for JSON, the `Atom` scalar for GraphQL
@@ -52,6 +56,8 @@ from typing import TYPE_CHECKING, Final, NamedTuple
 
 from ._arrow import BOOL, FLOAT64, TEXT, UTF8
 from .atoms import Atom, Expression, Symbol, Variable
+from .vocabularies import WIRE_TAGS as _WIRE_TAGS
+from .vocabularies import WireClass
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Mapping, Sequence
@@ -68,11 +74,14 @@ NUMBER_SCALAR: Final = "Number"
 #: The name of the MeTTa type a projection uses when nothing declares one.
 UNDEFINED: Final = "%Undefined%"
 
-#: Every tag the wire decoder accepts, in the order the decoder tries them, so
-#: an OpenAPI document's `Atom` schema and the decoder cannot drift
-#: [source: extensions/python/metta/_atom_wire.py:_leaf_from_wire, _from_wire;
-#: commit=0fb68d75871c57f2421c335e9faef3561f8dfdd5].
-WIRE_TAGS: Final = ("s", "g", "n", "b", "v", "e", "p", "o", "h")
+#: Every tag that is part of an ATOM, in the catalog's own order, which is the
+#: order the decoder tries them in. Read from the engine's `(wire-tag ...)`
+#: rows rather than written out, so an OpenAPI document's `Atom` schema, the
+#: shim's decoder and this cannot drift; the frame and reply tags are in the
+#: same table and deliberately not here, because neither nests inside an atom.
+WIRE_TAGS: Final = tuple(
+    tag for tag, row in _WIRE_TAGS.items() if row.kind is WireClass.term
+)
 
 
 class TypeRow(NamedTuple):
