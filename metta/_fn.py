@@ -192,7 +192,6 @@ _NAMES = frozenset(
         "is-var",
         "isinf-math",
         "isnan-math",
-        "lambda_1",
         "last",
         "length",
         "let",

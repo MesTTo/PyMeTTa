@@ -935,7 +935,14 @@ def twin(m):
 #: twin=3457 metta=2320 against this tree's twin=3422 metta=2320 [measured
 #: 2026-09-07: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=52e95b50cc5acdc0e41f97b444ab244ad1301433].
-BUDGET = 3422
+#: RE-PINNED 2026-09-07, 3422 to 3498 (+76), the engine's prelude vocabulary
+#: became Prolog bodies (perf/prelude-in-prolog, merged e67e2db9), which moves
+#: the clause layout every twin's cost prices; the MeTTa side of this same
+#: example moved 2320 to 2368 in the same run, so the work did not change, its
+#: layout did [measured 2026-09-07: min-of-3 serial fresh processes;
+#: command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+BUDGET = 3498
 #: BANDED 2026-09-06 rather than re-pinned an eighteenth time. Seventeen of
 #: the eighty-three re-pins above were written on 2026-09-05 and 2026-09-06
 #: alone, and every control taken with them left the MeTTa side of the same
