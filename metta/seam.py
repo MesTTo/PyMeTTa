@@ -675,11 +675,21 @@ def _rows_of(declared: Point, *, discover_first: bool = True) -> tuple[Row, ...]
 
 
 def _holds(held: tuple[Row, ...], row: Row) -> bool:
-    """Whether one of these rows is the same registration read back."""
-    return any(
-        all(mine.fields.get(field) is value for field, value in row.fields.items())
-        for mine in held
-    )
+    """Whether one of these rows is the same registration read back.
+
+    Same NAME, or the same values under every field the two spell in common:
+    a store records what IT keeps, which is rarely what the registration
+    supplied, so `type` hands back `image` where the registration gave
+    `to_atom`. One shared field carrying the same object is the identity that
+    survives that.
+    """
+    for mine in held:
+        if mine.name == row.name:
+            return True
+        shared = set(mine.fields) & set(row.fields)
+        if shared and all(mine.fields[field] is row.fields[field] for field in shared):
+            return True
+    return False
 
 
 def _load_shipped(declared: Point) -> None:
