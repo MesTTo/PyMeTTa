@@ -37,7 +37,7 @@ Guarantees:
     or debug session refuses naming this door rather than the engine's
     [tested: ext/metta-otel/tests/test_otel.py::test_a_raising_block_still_releases_the_session,
     ext/metta-otel/tests/test_otel.py::test_a_trace_inside_an_observed_block_refuses;
-    commit=WORKTREE]
+    commit=94057a0f073c0fab0a35c42beff2c324d8a0addd]
 Open Obligations:
   To Do: None
   Hacks: None

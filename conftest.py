@@ -9,7 +9,7 @@ Assumes: this file's directory is importable, which pytest's `pythonpath = ["."]
   imported before that setting is applied in some invocations.
 Guarantees:
   - `import metta_<name>` works anywhere in this suite [tested:
-    ext/metta-pandas/tests/test_pandas.py; commit=WORKTREE]
+    ext/metta-pandas/tests/test_pandas.py; commit=94057a0f073c0fab0a35c42beff2c324d8a0addd]
 Open Obligations:
   To Do: None
   Hacks: None

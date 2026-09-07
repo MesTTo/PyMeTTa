@@ -15,7 +15,7 @@ Assumes: every member's module sits directly in its distribution directory,
   which `tests/checks/check_layering.py` holds it to.
 Guarantees:
   - `on_path()` is idempotent and answers the module names it made reachable
-    [tested: tests/checks/check_layering_selftest.py; commit=WORKTREE]
+    [tested: tests/checks/check_layering_selftest.py; commit=94057a0f073c0fab0a35c42beff2c324d8a0addd]
 Open Obligations:
   To Do: None
   Hacks: None

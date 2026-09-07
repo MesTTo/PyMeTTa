@@ -2,10 +2,10 @@
 Guarantees:
   - the package surface is exactly what ``__all__`` names and is narrower
     than the surface M7 replaced, and keeps ``record`` and ``order_key``
-    absent [tested: test_m7_narrow_core_surface; commit=WORKTREE]
+    absent [tested: test_m7_narrow_core_surface; commit=94057a0f073c0fab0a35c42beff2c324d8a0addd]
   - no extension package is a name on the root: a member is reached as its own
     module and no alias is left behind [tested: test_m7_narrow_core_surface;
-    commit=WORKTREE]
+    commit=94057a0f073c0fab0a35c42beff2c324d8a0addd]
   - the published before/after counts are exact for ``MeTTa`` and ``metta``
     [tested: test_m7_narrow_core_surface; commit=2e627a593413191cda3170f2eb716835f7f62543]
   - every retired root, context, and atom name is absent rather than aliased

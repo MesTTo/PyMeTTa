@@ -22,10 +22,10 @@ Assumes:
 Guarantees:
   - a class a package's row claims wins over the structural reading of the same
     class, whatever order the two registered in [tested:
-    test_a_fallback_row_is_consulted_after_every_other_row; commit=WORKTREE]
+    test_a_fallback_row_is_consulted_after_every_other_row; commit=94057a0f073c0fab0a35c42beff2c324d8a0addd]
   - the four keep the behaviour the chain had before the seam, the existing
     conversion suites being the differential [tested:
-    extensions/python/tests/ch03_atoms_and_expressions/test_convert.py; commit=WORKTREE]
+    extensions/python/tests/ch03_atoms_and_expressions/test_convert.py; commit=94057a0f073c0fab0a35c42beff2c324d8a0addd]
 Open Obligations:
   To Do: None
   Hacks: None

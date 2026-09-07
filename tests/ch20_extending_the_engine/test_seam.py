@@ -10,11 +10,11 @@ Guarantees:
     package for reaches its point from that package, so the 2026-09-08 ruling
     is a query rather than a reading [tested:
     test_this_package_ships_no_library_row, test_a_library_arrives_as_a_package;
-    commit=WORKTREE]
+    commit=94057a0f073c0fab0a35c42beff2c324d8a0addd]
   - a fallback row is consulted after every other row and keeps its order among
     fallbacks, which is what lets rows live in separate distributions [tested:
     test_a_fallback_row_is_consulted_after_every_other_row,
-    test_a_fallback_row_keeps_registration_order_among_fallbacks; commit=WORKTREE]
+    test_a_fallback_row_keeps_registration_order_among_fallbacks; commit=94057a0f073c0fab0a35c42beff2c324d8a0addd]
 Open Obligations:
   To Do: None
   Hacks: None

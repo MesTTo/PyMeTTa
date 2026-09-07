@@ -66,10 +66,10 @@ Guarantees:
     not something a package can arrange [tested:
     test_a_fallback_row_is_consulted_after_every_other_row,
     test_a_fallback_row_keeps_registration_order_among_fallbacks;
-    commit=WORKTREE]
+    commit=94057a0f073c0fab0a35c42beff2c324d8a0addd]
   - a point that declares an extra ends its refusal in the install command
     for the packages this repository ships against it [tested:
-    test_a_refusal_names_the_extra_that_fills_the_point; commit=WORKTREE]
+    test_a_refusal_names_the_extra_that_fills_the_point; commit=94057a0f073c0fab0a35c42beff2c324d8a0addd]
   - discovery is lazy and free: advertised() loads nothing, and the
     `metta.extensions` group is loaded once, at the first dispatch that has no
     answer among the rows already present, which is how Pygments finds a
