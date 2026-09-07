@@ -213,4 +213,36 @@ RUNG = (
 #: path and the library's write doors since [measured 2026-09-06: min-of-3
 #: serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=b96e1a15260b7538a8e42be613bcc5dd0dddd136].
-BUDGET = 24102512
+#: RE-PINNED 2026-09-07, 24102512 to 24107867 (+5355), trunk's own movement
+#: since each twin's pin was taken on the base its own branch had: twenty-two
+#: first-parent steps between the 0.8.0 release re-pin and this tree, the
+#: prelude's move into Prolog the largest of them at +39 to +115 a twin and
+#: -65,806 on the error algebra, the live-views merge -45 on every twin that
+#: writes, the catalog and get-type repairs +169 on the types chapter, and the
+#: rest SWI clause-indexing layout as the boot image grew; this tree also
+#: stores the compiled default space operand as &self rather than a (context-
+#: space) call [measured 2026-09-07: min-of-3 serial fresh processes;
+#: command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+BUDGET = 24107867
+
+#: OVERRUN 2026-09-07, 1434400: it names `expand` and `expandK` as definitions
+#: and asserts the atom count, where the example writes them as equations.
+#: Measured 24107867 against a ceiling of 22673518; a minimal twin of this
+#: example costs 19846949, inside the ceiling's 22673518, so the distance is
+#: this twin's own program [measured 2026-09-07: one fresh process per side;
+#: command=python extensions/python/benchmarks/probes/twin_floor.py;
+#: commit=WORKTREE].
+OVERRUN = 1434400
+
+#: DIVERGED 2026-09-07, the example holds 4 atoms the twin does not (4 =) and
+#: the twin holds 5 the example does not (1 :, 4 =): the twin is an ordinary
+#: Python program and its body lowers to the engine's own forms: a match
+#: statement is ONE equation whose body is a case tower where the example
+#: writes one clause per arm, a named intermediate is a let* the original does
+#: not have, a Python truth test wraps its condition in py-truthy, and the
+#: annotations and docstrings that come with it are stored beside them
+#: [measured 2026-09-07: the two stored-atom surpluses, one fresh process per
+#: side; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+DIVERGENCE = "f11cab2a09098d5a4a2150749e1dab72a3ddaa8d4a1aee0bee2b5203e7e1cac7"

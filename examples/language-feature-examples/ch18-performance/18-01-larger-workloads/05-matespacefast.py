@@ -154,4 +154,41 @@ def twin(m):
 #: path and the library's write doors since [measured 2026-09-06: min-of-3
 #: serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=b96e1a15260b7538a8e42be613bcc5dd0dddd136].
-BUDGET = 74201576
+#: RE-PINNED 2026-09-07, 74201576 to 74988457 (+786881), trunk's own movement
+#: since each twin's pin was taken on the base its own branch had: twenty-two
+#: first-parent steps between the 0.8.0 release re-pin and this tree, the
+#: prelude's move into Prolog the largest of them at +39 to +115 a twin and
+#: -65,806 on the error algebra, the live-views merge -45 on every twin that
+#: writes, the catalog and get-type repairs +169 on the types chapter, and the
+#: rest SWI clause-indexing layout as the boot image grew; this tree also
+#: stores the compiled default space operand as &self rather than a (context-
+#: space) call [measured 2026-09-07: min-of-3 serial fresh processes;
+#: command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+BUDGET = 74988457
+
+#: DIVERGED 2026-09-07, the example holds 1572864 atoms and the twin 1572864,
+#: over the 50000 this lane enumerates, so the difference is pinned as the two
+#: digests: trunk's own movement since each twin's pin was taken on the base
+#: its own branch had: twenty-two first-parent steps between the 0.8.0 release
+#: re-pin and this tree, the prelude's move into Prolog the largest of them at
+#: +39 to +115 a twin and -65,806 on the error algebra, the live-views merge
+#: -45 on every twin that writes, the catalog and get-type repairs +169 on the
+#: types chapter, and the rest SWI clause-indexing layout as the boot image
+#: grew; this tree also stores the compiled default space operand as &self
+#: rather than a (context-space) call [measured 2026-09-07: the two stored-atom
+#: surpluses, one fresh process per side; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+DIVERGENCE = "0b995b079c8509570d648f5387f6ba4787cc0739d4769a757e2b79974aed0179"
+
+#: OVERRUN 2026-09-08, 2900000: the count is Python's. `len(answers)` is what
+#: `(length (collapse X))` dissolves into and the answers here are 1,572,862
+#: atoms, so this twin MATERIALISES what the engine's own count never does; the
+#: door that would project or aggregate before crossing is residue P14.7, and
+#: until it exists the cost of not having it is the library's. Measured
+#: 74,988,457 against a ceiling of 72,106,898; a MINIMAL twin of this example
+#: -- its own forms stored and asked through the structured door, nothing else
+#: -- costs 62,402,666, inside that ceiling, so the distance is this twin's own
+#: program [measured 2026-09-08: one fresh process per side; command=python
+#: extensions/python/benchmarks/probes/twin_floor.py; commit=WORKTREE].
+OVERRUN = 2900000

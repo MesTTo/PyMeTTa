@@ -168,4 +168,36 @@ def twin(m):
 #: path and the library's write doors since [measured 2026-09-06: min-of-3
 #: serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=b96e1a15260b7538a8e42be613bcc5dd0dddd136].
-BUDGET = 47679
+#: RE-PINNED 2026-09-07, 47679 to 48289 (+610), trunk's own movement since each
+#: twin's pin was taken on the base its own branch had: twenty-two first-parent
+#: steps between the 0.8.0 release re-pin and this tree, the prelude's move
+#: into Prolog the largest of them at +39 to +115 a twin and -65,806 on the
+#: error algebra, the live-views merge -45 on every twin that writes, the
+#: catalog and get-type repairs +169 on the types chapter, and the rest SWI
+#: clause-indexing layout as the boot image grew; this tree also stores the
+#: compiled default space operand as &self rather than a (context-space) call
+#: [measured 2026-09-07: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 48289
+
+#: OVERRUN 2026-09-07, 27600: it proves seventeen claims where the example
+#: states four: the example's own comment leaves the HOST half of the nesting
+#: matrix to this side, and that half is the rules bundle, the op bodies and
+#: the construction-time fold. Measured 48289 against a ceiling of 20724; a
+#: minimal twin of this example costs 8007, inside the ceiling's 20724, so the
+#: distance is this twin's own program [measured 2026-09-07: one fresh process
+#: per side; command=python extensions/python/benchmarks/probes/twin_floor.py;
+#: commit=WORKTREE].
+OVERRUN = 27600
+
+#: DIVERGED 2026-09-07, the example holds 1 atom the twin does not (1 =) and
+#: the twin holds 17 the example does not (5 :, 6 =, 6 annotation): the twin is
+#: an ordinary Python program and its body lowers to the engine's own forms: a
+#: match statement is ONE equation whose body is a case tower where the example
+#: writes one clause per arm, a named intermediate is a let* the original does
+#: not have, a Python truth test wraps its condition in py-truthy, and the
+#: annotations and docstrings that come with it are stored beside them
+#: [measured 2026-09-07: the two stored-atom surpluses, one fresh process per
+#: side; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+DIVERGENCE = "522dd623c9129b776ac46ad0e3f1d6a2071ed06beee8bb19e9ad8b811b002e34"

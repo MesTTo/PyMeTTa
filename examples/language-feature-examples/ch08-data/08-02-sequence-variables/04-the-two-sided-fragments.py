@@ -58,4 +58,24 @@ def twin(m):  # noqa: ARG001  -- the engine is ambient here: solve is the one do
 #: introduced it with the engine's .qlf set built, which is what the
 #: gate leaves behind and what ships.
 #: [measured: 8469, 8469, 8469 inferences; command=PYTHONPATH=extensions/python:extensions/python/tools $VENV/bin/python -c "from pathlib import Path; from twin_coverage import run_twin; print(run_twin(Path('extensions/python/examples/language-feature-examples/ch08-data/08-02-sequence-variables/04-the-two-sided-fragments.py').resolve()).cost)"; fixture=three independent fresh harness processes at loadavg 46; commit=a403e56b4f33828834823338eb1fc316e3fea2a4]
-BUDGET = 8469
+#: RE-PINNED 2026-09-07, 8469 to 8629 (+160), trunk's own movement since each
+#: twin's pin was taken on the base its own branch had: twenty-two first-parent
+#: steps between the 0.8.0 release re-pin and this tree, the prelude's move
+#: into Prolog the largest of them at +39 to +115 a twin and -65,806 on the
+#: error algebra, the live-views merge -45 on every twin that writes, the
+#: catalog and get-type repairs +169 on the types chapter, and the rest SWI
+#: clause-indexing layout as the boot image grew; this tree also stores the
+#: compiled default space operand as &self rather than a (context-space) call
+#: [measured 2026-09-07: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 8629
+
+#: OVERRUN 2026-09-07, 4500: it asks through `solve`, the pattern door, where
+#: the example asks through `unify`, the one MeTTa form whose operands are both
+#: syntax; the door costs 367 inferences an ask against the form's 259.
+#: Measured 8629 against a ceiling of 4164; a MINIMAL twin of this example --
+#: its own forms stored and asked through the structured door, nothing else --
+#: costs 6467 against the ceiling's 4164, so no twin of it fits the band at all
+#: [measured 2026-09-07: one fresh process per side; command=python
+#: extensions/python/benchmarks/probes/twin_floor.py; commit=WORKTREE].
+OVERRUN = 4500

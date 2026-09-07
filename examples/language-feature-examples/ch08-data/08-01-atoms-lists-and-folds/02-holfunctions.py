@@ -207,4 +207,26 @@ def twin(m):
 #: path and the library's write doors since [measured 2026-09-06: min-of-3
 #: serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=b96e1a15260b7538a8e42be613bcc5dd0dddd136].
-BUDGET = 29949
+#: RE-PINNED 2026-09-07, 29949 to 30948 (+999), trunk's own movement since each
+#: twin's pin was taken on the base its own branch had: twenty-two first-parent
+#: steps between the 0.8.0 release re-pin and this tree, the prelude's move
+#: into Prolog the largest of them at +39 to +115 a twin and -65,806 on the
+#: error algebra, the live-views merge -45 on every twin that writes, the
+#: catalog and get-type repairs +169 on the types chapter, and the rest SWI
+#: clause-indexing layout as the boot image grew; this tree also stores the
+#: compiled default space operand as &self rather than a (context-space) call
+#: [measured 2026-09-07: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 30948
+
+#: DIVERGED 2026-09-07, the example holds 6 atoms the twin does not (6 =) and
+#: the twin holds 10 the example does not (3 :, 7 =): the twin is an ordinary
+#: Python program and its body lowers to the engine's own forms: a match
+#: statement is ONE equation whose body is a case tower where the example
+#: writes one clause per arm, a named intermediate is a let* the original does
+#: not have, a Python truth test wraps its condition in py-truthy, and the
+#: annotations and docstrings that come with it are stored beside them
+#: [measured 2026-09-07: the two stored-atom surpluses, one fresh process per
+#: side; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+DIVERGENCE = "b5fdfd8ba4dfc29b47c318fb85bd2c88df13e1ef2943ae7c4d5ebc3b81341355"

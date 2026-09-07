@@ -159,4 +159,22 @@ def twin(m):
 #: path and the library's write doors since [measured 2026-09-06: min-of-3
 #: serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=b96e1a15260b7538a8e42be613bcc5dd0dddd136].
-BUDGET = 37994
+#: RE-PINNED 2026-09-07, 37994 to 42187 (+4193), trunk's own movement since
+#: each twin's pin was taken on the base its own branch had: twenty-two first-
+#: parent steps between the 0.8.0 release re-pin and this tree, the prelude's
+#: move into Prolog the largest of them at +39 to +115 a twin and -65,806 on
+#: the error algebra, the live-views merge -45 on every twin that writes, the
+#: catalog and get-type repairs +169 on the types chapter, and the rest SWI
+#: clause-indexing layout as the boot image grew; this tree also stores the
+#: compiled default space operand as &self rather than a (context-space) call
+#: [measured 2026-09-07: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 42187
+
+#: OVERRUN 2026-09-07, 600: it stacks the two arities as two decorated clauses
+#: of one MeTTa name, where the example writes two equations. Measured 42187
+#: against a ceiling of 41655; a minimal twin of this example costs 34127,
+#: inside the ceiling's 41655, so the distance is this twin's own program
+#: [measured 2026-09-07: one fresh process per side; command=python
+#: extensions/python/benchmarks/probes/twin_floor.py; commit=WORKTREE].
+OVERRUN = 600

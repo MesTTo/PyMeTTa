@@ -3420,7 +3420,7 @@ metta_py_row(Names, Bindings, Row) :-
 %named the first variable of every column alike; (= $head $body) then answered
 %a head and a body whose distinct variables had collided, and the equation read
 %back with its head variable merged into a let* binder
-%[tested: test_a_twin_stores_the_equations_its_comments_claim].
+%[tested: test_a_twin_stores_the_atoms_its_example_stores].
 %
 %The map is NOT seeded with the query's variable names. Seeding it reads
 %well and is wrong: a column bound to a VARIABLE would then cross under the

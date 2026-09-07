@@ -71,4 +71,14 @@ def twin(m):
 #: introduced it with the engine's .qlf set built, which is what the
 #: gate leaves behind and what ships.
 #: [measured: 7851, 7851, 7851 inferences; command=PYTHONPATH=extensions/python:extensions/python/tools $VENV/bin/python -c "from pathlib import Path; from twin_coverage import run_twin; print(run_twin(Path('extensions/python/examples/language-feature-examples/ch08-data/08-02-sequence-variables/03-the-one-sided-fragment.py').resolve()).cost)"; fixture=three independent fresh harness processes at loadavg 46; commit=a403e56b4f33828834823338eb1fc316e3fea2a4]
-BUDGET = 7851
+#: RE-PINNED 2026-09-07, 7851 to 7868 (+17), trunk's own movement since each
+#: twin's pin was taken on the base its own branch had: twenty-two first-parent
+#: steps between the 0.8.0 release re-pin and this tree, the prelude's move
+#: into Prolog the largest of them at +39 to +115 a twin and -65,806 on the
+#: error algebra, the live-views merge -45 on every twin that writes, the
+#: catalog and get-type repairs +169 on the types chapter, and the rest SWI
+#: clause-indexing layout as the boot image grew; this tree also stores the
+#: compiled default space operand as &self rather than a (context-space) call
+#: [measured 2026-09-07: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 7868

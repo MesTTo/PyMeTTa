@@ -12,7 +12,7 @@ than to the author. Everything the claims ask goes through the handle:
 what the example spells `(metta term %Undefined% &space)`.
 """
 
-from metta import S, lib
+from metta import TRUE, S, V, lib
 
 #: The file both spaces import, from the repository root: a Python program has
 #: no importing file to resolve a relative import against.
@@ -46,6 +46,41 @@ def twin(m):
 
     # The caller imported nothing, so here the name is still data.
     assert m.eval(FUNCTION) == [FUNCTION]
+
+    # Imports are DATA, in a read-only view of the receiving space's own
+    # records, and the view is a space like any other: the same subscript
+    # door reads it.
+    # !(test (collapse (match (imports &import-space-a) (import $path) imported))
+    #        (imported))
+    m += lib["lib_import"]                      # rung: `import` is a Python keyword, so this library keeps the bracket door
+    assert len(m.fn.imports(a).one()[S["import"](V.path)]) == 1
+
+    # A caller's equal atom survives undo of the source's own occurrence: the
+    # space holds two markers, the import's and this one, and undoing the
+    # import takes exactly the one it wrote.
+    a += MARKER                                 # (add-atom &import-space-a (import-space-marker))
+    assert len(a[MARKER]) == 2
+    assert m.fn["unimport!"](a, PAYLOAD) == [TRUE]
+    # !(test (collapse (match &import-space-a (import-space-marker) present))
+    #        (present))
+    assert len(a[MARKER]) == 1
+    # !(test (collapse (match (imports &import-space-a) (import $path) $path)) ())
+    assert m.fn.imports(a).one()[S["import"](V.path)] == []
+
+    # Undo is idempotent, and the other space still owns its own program.
+    assert m.fn["unimport!"](a, PAYLOAD) == [TRUE]
+    # !(test (collapse (metta (import-space-function) %Undefined% &import-space-b))
+    #        (one-result))
+    assert b.eval(FUNCTION) == [S.one_result]
+    # !(test (collapse (metta (import-space-function) %Undefined% &import-space-a))
+    #        ((import-space-function)))
+    assert a.eval(FUNCTION) == [FUNCTION]
+
+    # Re-import restores one source occurrence beside the caller's atom.
+    a += lib(PAYLOAD)
+    # !(test (collapse (match &import-space-a (import-space-marker) present))
+    #        (present present))
+    assert len(a[MARKER]) == 2
 
 
 #: Inferences this twin spends, its own tripwire. PLACEHOLDER rather than a
@@ -129,4 +164,19 @@ def twin(m):
 #: library's write doors since [measured 2026-09-06: min-of-3 serial fresh
 #: processes; command=python extensions/python/tools/twin_coverage.py --repin;
 #: commit=b96e1a15260b7538a8e42be613bcc5dd0dddd136].
-BUDGET = 5538
+#: RE-PINNED 2026-09-07, 5538 to 5546 (+8), trunk's own movement since each
+#: twin's pin was taken on the base its own branch had: twenty-two first-parent
+#: steps between the 0.8.0 release re-pin and this tree, the prelude's move
+#: into Prolog the largest of them at +39 to +115 a twin and -65,806 on the
+#: error algebra, the live-views merge -45 on every twin that writes, the
+#: catalog and get-type repairs +169 on the types chapter, and the rest SWI
+#: clause-indexing layout as the boot image grew; this tree also stores the
+#: compiled default space operand as &self rather than a (context-space) call
+#: [measured 2026-09-07: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+#: RE-PINNED 2026-09-07, 5546 to 31684 (+26138), the twin gained the claims of
+#: its example it had been silently short of: this file's own count moves with
+#: the asks it now makes [measured 2026-09-07: min-of-3 serial fresh processes;
+#: command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+BUDGET = 31684

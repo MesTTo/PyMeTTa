@@ -63,13 +63,13 @@ def twin(m):
     )
 
     # The define door applies rung 4's underscore map like every other door,
-    # so a hyphenated MeTTa name needs nothing said twice. This one still
-    # takes `name=`: `range` is a Python builtin, so the def carries rung 2's
-    # trailing underscore, which the map would turn into a trailing hyphen.
+    # so a hyphenated MeTTa name needs nothing said twice, and this one needs
+    # nothing either: `range` is a Python builtin, so the def carries rung 2's
+    # trailing underscore, and the map ALREADY reads `range_` as `range`.
     # `def range` would consume the gate's zero A-family headroom and report
     # `P0.13 suppression burn-down increased (observed, maximum): {'N': (37,
     # 35), 'A': (9, 8)}`; it would also redirect recursion to `py-range`.
-    @m.define(name="range")
+    @m.define
     def range_(n: int):
         if fn.eq(n, 0):  # engine equality is intentional
             return ()
@@ -222,4 +222,27 @@ def twin(m):
 #: path and the library's write doors since [measured 2026-09-06: min-of-3
 #: serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=b96e1a15260b7538a8e42be613bcc5dd0dddd136].
-BUDGET = 34136479
+#: RE-PINNED 2026-09-07, 34136479 to 34137515 (+1036), trunk's own movement
+#: since each twin's pin was taken on the base its own branch had: twenty-two
+#: first-parent steps between the 0.8.0 release re-pin and this tree, the
+#: prelude's move into Prolog the largest of them at +39 to +115 a twin and
+#: -65,806 on the error algebra, the live-views merge -45 on every twin that
+#: writes, the catalog and get-type repairs +169 on the types chapter, and the
+#: rest SWI clause-indexing layout as the boot image grew; this tree also
+#: stores the compiled default space operand as &self rather than a (context-
+#: space) call [measured 2026-09-07: min-of-3 serial fresh processes;
+#: command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+BUDGET = 34137515
+
+#: DIVERGED 2026-09-07, the example holds 6 atoms the twin does not (6 =) and
+#: the twin holds 12 the example does not (6 :, 6 =): the twin is an ordinary
+#: Python program and its body lowers to the engine's own forms: a match
+#: statement is ONE equation whose body is a case tower where the example
+#: writes one clause per arm, a named intermediate is a let* the original does
+#: not have, a Python truth test wraps its condition in py-truthy, and the
+#: annotations and docstrings that come with it are stored beside them
+#: [measured 2026-09-07: the two stored-atom surpluses, one fresh process per
+#: side; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+DIVERGENCE = "24c90c96a2bda6bdbf28c255aa4cf95acef8da93c267598be1345bfa4607e150"

@@ -15,7 +15,7 @@ which is exactly what the example's `(let $probe ... ($probe $who))` says.
 """
 
 import metta
-from metta import Expression, S, V, lib
+from metta import Expression, S, V, equation, lib
 
 
 def twin(m):
@@ -49,6 +49,21 @@ def twin(m):
     assert soft_score(S.likes(S.cat, S.fish), S.hates(S.cat, S.fish)) == [0.0]
     assert soft_score(3, 3) == [1.0]
     assert soft_score(3, 4) == [0.0]
+
+    # A scorer does not RUN the program it is scoring: both operands are
+    # Atom, so an equation is compared as written and an evaluable argument
+    # stays the term it is. Undeclared, the first call below refused with
+    # "* ran backwards with more than one unknown", correct arithmetic met in
+    # the wrong place, and the atoms in a space that most deserve scoring are
+    # its equations.
+    # !(test (soft-score (= (likes cat $f) $body) (= (likes feline fish) tasty)) 0.8)
+    assert soft_score(
+        equation(S.likes(S.cat, V.f)).to(V.body),
+        equation(S.likes(S.feline, S.fish)).to(S.tasty),
+    ) == [0.8]
+    # !(test (soft-score (likes cat (+ 1 2)) (likes feline (+ 1 2))) 0.8)
+    total = S["+"](1, 2)  # rung: the operand is the unevaluated TERM, which is the claim
+    assert soft_score(S.likes(S.cat, total), S.likes(S.feline, total)) == [0.8]
 
     # A variable binds at degree one, and the binding is real.
     # !(test (soft-score $x anything) 1.0)
@@ -87,6 +102,33 @@ def twin(m):
     candidates = Expression(soft_match(zoo, S.likes(S.feline, V.f), 0.0))
     distribution = m.fn.ws_softmax(candidates, 1.0).one()
     assert abs(m.fn.ws_total(distribution).one() - 1.0) < 1.0e-9
+
+    # How the per-symbol degrees COMBINE is a second choice, separate from
+    # what they are. The default is min, the pessimistic reading: one symbol
+    # at zero takes the whole term to zero.
+    # !(test (soft-score (likes cat fish) (likes dog fish)) 0.0)
+    cat_fish, dog_fish = S.likes(S.cat, S.fish), S.likes(S.dog, S.fish)
+    assert soft_score(cat_fish, dog_fish) == [0.0]
+    # `soft-score-by` asks with one named aggregation without changing the
+    # space's own choice: mean over (1.0 0.0 1.0) is two thirds.
+    # !(test (< (abs-math (- (soft-score-by mean ...) 0.6666666666666666))
+    #           1.0e-9) true), and one more
+    by_mean = m.fn.soft_score_by(S.mean, cat_fish, dog_fish).one()
+    assert abs(by_mean - 0.6666666666666666) < 1.0e-9
+    assert m.fn.soft_score_by(S.mean, cat_fish, cat_fish) == [1.0]
+
+    # The choice is a DECLARATION in the space, Bousi~Prolog's own shape for
+    # the same decision, so every scorer in a program reads one atom. This
+    # goes last because it changes what soft-score means for everything
+    # after it.
+    # !(test (soft-aggregation) min), then (soft-aggregate mean)
+    assert m.fn.soft_aggregation() == [S.min]
+    m += S.soft_aggregate(S.mean)
+    # !(test (soft-aggregation) mean)
+    assert m.fn.soft_aggregation() == [S.mean]
+    # !(test (< (abs-math (- (soft-score (likes cat fish) (likes dog fish))
+    #                        0.6666666666666666)) 1.0e-9) true)
+    assert abs(soft_score(cat_fish, dog_fish).one() - 0.6666666666666666) < 1.0e-9
 
 
 #: Inferences this twin spends, its own tripwire. A PLACEHOLDER: the wave's
@@ -220,4 +262,19 @@ def twin(m):
 #: path and the library's write doors since [measured 2026-09-06: min-of-3
 #: serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=b96e1a15260b7538a8e42be613bcc5dd0dddd136].
-BUDGET = 269347
+#: RE-PINNED 2026-09-07, 269347 to 294927 (+25580), trunk's own movement since
+#: each twin's pin was taken on the base its own branch had: twenty-two first-
+#: parent steps between the 0.8.0 release re-pin and this tree, the prelude's
+#: move into Prolog the largest of them at +39 to +115 a twin and -65,806 on
+#: the error algebra, the live-views merge -45 on every twin that writes, the
+#: catalog and get-type repairs +169 on the types chapter, and the rest SWI
+#: clause-indexing layout as the boot image grew; this tree also stores the
+#: compiled default space operand as &self rather than a (context-space) call
+#: [measured 2026-09-07: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+#: RE-PINNED 2026-09-07, 294927 to 304126 (+9199), the twin gained the claims
+#: of its example it had been silently short of: this file's own count moves
+#: with the asks it now makes [measured 2026-09-07: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+BUDGET = 304126

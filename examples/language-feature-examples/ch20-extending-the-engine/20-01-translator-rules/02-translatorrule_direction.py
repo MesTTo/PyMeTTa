@@ -63,6 +63,17 @@ def twin(m):
     assert m.eval(small) == [small]
     assert m.eval(large_unpack) == [large_unpack]
 
+    # The measure holds at every DOOR, not only for the written call. A call
+    # that arrives as data reaches the same equations and the same cost
+    # comparison blocks the same up-rewrite there, which the engine asked
+    # only at the compile-time door until 2026-08-30: `(eval (twin 1 1))`
+    # answered `(unpack (wrap (box 1)))`, a rewrite UP the written spelling
+    # of the very same call refused. Both engine doors stay named, because
+    # both are the subject.
+    # !(test (eval (twin 1 1)) (twin 1 1)) and the same through reduce
+    assert m.fn.eval(small) == [small]
+    assert m.fn.reduce(small) == [small]
+
     # Withdrawing the rule withdraws the derived equation with it, so the
     # inverse never outlives the declaration that produced it.
     m.fn.remove_translator_rule(S.unpack)       # (remove-translator-rule! unpack)
@@ -138,4 +149,19 @@ def twin(m):
 #: path and the library's write doors since [measured 2026-09-06: min-of-3
 #: serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=b96e1a15260b7538a8e42be613bcc5dd0dddd136].
-BUDGET = 15622
+#: RE-PINNED 2026-09-07, 15622 to 15944 (+322), trunk's own movement since each
+#: twin's pin was taken on the base its own branch had: twenty-two first-parent
+#: steps between the 0.8.0 release re-pin and this tree, the prelude's move
+#: into Prolog the largest of them at +39 to +115 a twin and -65,806 on the
+#: error algebra, the live-views merge -45 on every twin that writes, the
+#: catalog and get-type repairs +169 on the types chapter, and the rest SWI
+#: clause-indexing layout as the boot image grew; this tree also stores the
+#: compiled default space operand as &self rather than a (context-space) call
+#: [measured 2026-09-07: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+#: RE-PINNED 2026-09-07, 15944 to 16944 (+1000), the twin gained the claims of
+#: its example it had been silently short of: this file's own count moves with
+#: the asks it now makes [measured 2026-09-07: min-of-3 serial fresh processes;
+#: command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+BUDGET = 16944

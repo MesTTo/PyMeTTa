@@ -216,4 +216,24 @@ def twin(m):
 #: path and the library's write doors since [measured 2026-09-06: min-of-3
 #: serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=b96e1a15260b7538a8e42be613bcc5dd0dddd136].
-BUDGET = 8249
+#: RE-PINNED 2026-09-07, 8249 to 8471 (+222), trunk's own movement since each
+#: twin's pin was taken on the base its own branch had: twenty-two first-parent
+#: steps between the 0.8.0 release re-pin and this tree, the prelude's move
+#: into Prolog the largest of them at +39 to +115 a twin and -65,806 on the
+#: error algebra, the live-views merge -45 on every twin that writes, the
+#: catalog and get-type repairs +169 on the types chapter, and the rest SWI
+#: clause-indexing layout as the boot image grew; this tree also stores the
+#: compiled default space operand as &self rather than a (context-space) call
+#: [measured 2026-09-07: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 8471
+
+#: DIVERGED 2026-09-07, the example holds 2 atoms the twin does not (2 @doc)
+#: and the twin holds 3 the example does not (1 :, 2 @doc): a Python annotation
+#: IS a (: name (-> ...)) row and a docstring on a compiled function IS an
+#: (@doc name ...) row, so the twin's space carries the declarations and the
+#: documentation its own file states where the example leaves both unsaid
+#: [measured 2026-09-07: the two stored-atom surpluses, one fresh process per
+#: side; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+DIVERGENCE = "4926bcbed6ed40537464c4a8548f434d010d6559c4a7327a091bb29f0f1ab151"

@@ -78,4 +78,25 @@ def twin(m):
 #: introduced it with the engine's .qlf set built, which is what the
 #: gate leaves behind and what ships.
 #: [measured: 51022, 51022, 51022 inferences; command=PYTHONPATH=extensions/python:extensions/python/tools $VENV/bin/python -c "from pathlib import Path; from twin_coverage import run_twin; print(run_twin(Path('extensions/python/examples/language-feature-examples/ch18-performance/18-01-larger-workloads/06-a-gap-query-and-its-index.py').resolve()).cost)"; fixture=three independent fresh harness processes at loadavg 46; commit=a403e56b4f33828834823338eb1fc316e3fea2a4]
-BUDGET = 51022
+#: RE-PINNED 2026-09-07, 51022 to 51381 (+359), trunk's own movement since each
+#: twin's pin was taken on the base its own branch had: twenty-two first-parent
+#: steps between the 0.8.0 release re-pin and this tree, the prelude's move
+#: into Prolog the largest of them at +39 to +115 a twin and -65,806 on the
+#: error algebra, the live-views merge -45 on every twin that writes, the
+#: catalog and get-type repairs +169 on the types chapter, and the rest SWI
+#: clause-indexing layout as the boot image grew; this tree also stores the
+#: compiled default space operand as &self rather than a (context-space) call
+#: [measured 2026-09-07: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 51381
+
+#: DIVERGED 2026-09-07, the example holds 1 atom the twin does not (1 =) and
+#: the twin holds 1 atom the example does not (1 =): the twin is an ordinary Python
+#: program and its body lowers to the engine's own forms: a match statement is
+#: ONE equation whose body is a case tower where the example writes one clause
+#: per arm, a named intermediate is a let* the original does not have, a Python
+#: truth test wraps its condition in py-truthy, and the annotations and
+#: docstrings that come with it are stored beside them [measured 2026-09-07:
+#: the two stored-atom surpluses, one fresh process per side; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+DIVERGENCE = "6432f460084a9fc4f17e994a1477271c0cbe72cad8ef7514e8504c6cdc1fffd8"

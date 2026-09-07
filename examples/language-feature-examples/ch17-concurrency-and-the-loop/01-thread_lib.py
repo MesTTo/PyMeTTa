@@ -261,9 +261,48 @@ def twin(m):
 #: maximum 603919 over 25 observations; command=python
 #: extensions/python/tools/twin_coverage.py --observe --rounds 25;
 #: fixture=full-lane/219/workers=32; commit=c00341f0ff9d83d1b9338ca86ad51708eaf07ebd].
+#: ENVELOPE 2026-09-08, 554438..770008 over 37 observations of 'full-
+#: lane/231/workers=32': twenty-seven claims over parallel collections, races,
+#: futures, timers, channels and bounded pools, and the loser of a race spends
+#: however many of its 300,000 spin inferences it reached before the winner
+#: finished; a point pin on it is a claim about a schedule and not about
+#: this twin. Spread 215570 [measured 2026-09-08: `python
+#: extensions/python/tools/twin_coverage.py --observe`, two runs of 12 and 25
+#: rounds pooled; commit=WORKTREE].
 BUDGET = {
-    "minimum": 543027,
-    "maximum": 603919,
-    "observations": 25,
-    "protocol": "full-lane/219/workers=32",
+    "minimum": 554438,
+    "maximum": 770008,
+    "observations": 37,
+    "protocol": "full-lane/231/workers=32",
 }
+
+#: OVERRUN 2026-09-07, 251100: it spins 300,000 inferences where the example
+#: sleeps for a second, because a twin is priced by a counter and a sleep costs
+#: nothing to count. Measured 561710 against a ceiling of 310696; a minimal
+#: twin of this example costs 283393, inside the ceiling's 310696, so the
+#: distance is this twin's own program [measured 2026-09-07: one fresh process
+#: per side; command=python extensions/python/benchmarks/probes/twin_floor.py;
+#: commit=WORKTREE].
+#: OVERRUN 2026-09-08, 460000, RE-DERIVED from the envelope above rather than
+#: from one run: this twin's count is what a race schedule leaves, and the 37
+#: pooled observations top out at 770,008 against a ceiling of 310,896 (the
+#: example's own cheapest of three runs, 276,664, plus its 10% and the 6,598
+#: four compiled definitions cost to author). 460,000 covers that top with
+#: 149,112 to spare, and it hides nothing: BUDGET is the envelope and a run
+#: outside it is red whatever this says [measured 2026-09-08: `python
+#: extensions/python/tools/twin_coverage.py --observe`, two runs of 12 and 25
+#: rounds pooled, beside three fresh-process runs of the example;
+#: commit=WORKTREE].
+OVERRUN = 460000
+
+#: DIVERGED 2026-09-07, the example holds 1 atom the twin does not (1 =) and
+#: the twin holds 5 the example does not (3 :, 2 =): the twin is an ordinary
+#: Python program and its body lowers to the engine's own forms: a match
+#: statement is ONE equation whose body is a case tower where the example
+#: writes one clause per arm, a named intermediate is a let* the original does
+#: not have, a Python truth test wraps its condition in py-truthy, and the
+#: annotations and docstrings that come with it are stored beside them
+#: [measured 2026-09-07: the two stored-atom surpluses, one fresh process per
+#: side; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+DIVERGENCE = "ed6553c84db2104e12f76c044cf5e4b46ae6ae3e18b51a55f7bf4672f97db5ea"

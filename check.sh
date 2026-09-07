@@ -156,7 +156,40 @@ run GATE packaged sh -c "cd '$HERE' && sh tests/shell/test_packaged_cli.sh"
 # engine's `true` against the library's `True` on 191 of 200 files, which is
 # a spelling and not an answer.
 run GATE   parity      sh -c "cd '$HERE' && '$PY' extensions/python/tools/example_parity.py"
-run REPORT twins       sh -c "cd '$HERE' && '$PY' extensions/python/tools/twin_coverage.py"
+
+# The same corpus written in PYTHON: every example under examples/ may gain a
+# twin proving with `assert` every claim its `(test ...)` forms make, priced by
+# the engine's counter against a two-sided budget in the twin file.
+#
+# It was REPORT from 2026-08-22, when the contract changed from "one yielded
+# answer group per runnable form" to "a count of claims against a count of
+# assertions". The old rule made TRANSLITERATION MANDATORY and the corpus that
+# grew under it held 1,313 yields and not one assert; the new rule observes
+# nothing about either file's shape, so a twin may loop where its example
+# repeats and name what its example leaves anonymous. What could not be
+# promoted with it was the BACKLOG the change exposed, which on 2026-09-07 read
+# 422 findings over 231 twins: 215 budgets pinned on a branch's own base before
+# the September merge wave and never re-pinned because nothing gated them, 112
+# stored-content digests disagreeing because the two sides are two programs,
+# and 38 twins past the 10% band ceiling. A lane promoted red is a lane
+# everyone learns to discount, so it stayed REPORT while three twins whose
+# claims had stopped holding went unreported for days
+# [source: docs/journal/2026-09-07-the-twins-lane-gates.md].
+#
+# What cleared it: the corpus re-priced in one pass with every move attributed
+# by a first-parent ladder to the merge that moved it; a DIVERGENCE declaration
+# pinning the stored-content difference a twin means to have, so a NEW
+# difference is still red; an OVERRUN declaration for the twins whose own
+# program costs more than their example's; the band's authoring constant
+# re-measured after it had gone stale by 71% per definition; and two library
+# repairs the burn-down found, `&self` resolved at the add-atom door the way
+# the source door already resolved it, and the compiled default space operand
+# stored as `&self` instead of a `(context-space)` call.
+run GATE   twins       sh -c "cd '$HERE' && '$PY' extensions/python/tools/twin_coverage.py"
+
+# A gate nobody has watched fail is a gate nobody knows the shape of, so each
+# of the four things the lane decides is planted and has to turn it red.
+run GATE   twins-selftest "$PY" "$HERE/tests/checks/check_twin_coverage_selftest.py"
 
 # The TypeScript space example's own suite, which nothing ran until this lane.
 # The example ships a server and 15 cases stating what its two-sided unifier

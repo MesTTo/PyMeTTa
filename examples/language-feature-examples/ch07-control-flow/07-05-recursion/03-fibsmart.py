@@ -141,4 +141,33 @@ def twin(m):
 #: path and the library's write doors since [measured 2026-09-06: min-of-3
 #: serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=b96e1a15260b7538a8e42be613bcc5dd0dddd136].
-BUDGET = 10574
+#: RE-PINNED 2026-09-07, 10574 to 10832 (+258), trunk's own movement since each
+#: twin's pin was taken on the base its own branch had: twenty-two first-parent
+#: steps between the 0.8.0 release re-pin and this tree, the prelude's move
+#: into Prolog the largest of them at +39 to +115 a twin and -65,806 on the
+#: error algebra, the live-views merge -45 on every twin that writes, the
+#: catalog and get-type repairs +169 on the types chapter, and the rest SWI
+#: clause-indexing layout as the boot image grew; this tree also stores the
+#: compiled default space operand as &self rather than a (context-space) call
+#: [measured 2026-09-07: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 10832
+
+#: OVERRUN 2026-09-07, 500: the example inlines fib and fib-tr and the twin
+#: names both, so a one-form example is priced against two definitions plus
+#: their call. Measured 10832 against a ceiling of 10351; a minimal twin of
+#: this example costs 4852, inside the ceiling's 10351, so the distance is this
+#: twin's own program [measured 2026-09-07: one fresh process per side;
+#: command=python extensions/python/benchmarks/probes/twin_floor.py;
+#: commit=WORKTREE].
+OVERRUN = 500
+
+#: DIVERGED 2026-09-07, the example holds 0 atoms the twin does not (none) and
+#: the twin holds 2 the example does not (2 :): a Python annotation IS a (:
+#: name (-> ...)) row and a docstring on a compiled function IS an (@doc name
+#: ...) row, so the twin's space carries the declarations and the documentation
+#: its own file states where the example leaves both unsaid [measured
+#: 2026-09-07: the two stored-atom surpluses, one fresh process per side;
+#: command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+DIVERGENCE = "c2c6880f0377877acaec369a34fef07357c8fb7a0abdec86873774852aee0947"

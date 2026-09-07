@@ -185,6 +185,23 @@ _INPLACE_BINOPS = {
 # and `empty` answers nothing.
 _MAGIC = ("accept", "collapse", "drop", "empty", "match", "refuse", "superpose", "unify")
 
+#: What a compiled body STORES where the author named no space: the engine's
+#: own symbol for the space a program is running in, which is what a MeTTa
+#: author writes at the same position. `(context-space)` is the same value --
+#: `'context-space'(Space) :- ( current_metta_space(Space) -> true ; Space =
+#: '&self' )` -- but it is a CALL, so the equation pays for it and the memo
+#: door refuses it as impure [source: engine/metta/runtime.pl,
+#: 'context-space'/1; commit=WORKTREE]. Measured equal on all three space
+#: kinds and 1142 inferences cheaper on first use, 11 per call after
+#: [measured 2026-09-07: `(= (q) (collapse (match X (r $x) $x)))` over one
+#: stored atom read 425/2000/3997 at 1/5/10 calls with `&self` against
+#: 1567/3197/5242 with `(context-space)`; the self space, a named space and
+#: two instances of a parametric family answered the same atoms under both;
+#: command=python extensions/python/benchmarks/probes/running_space.py;
+#: commit=WORKTREE]. `fn.context_space()` still stores the call, because there
+#: the author named the head.
+_RUNNING_SPACE = Symbol("&self")
+
 
 class ExpressionCompilerMixin(CompilerContext):
     def _stage(self, head: str, *rest: Atom) -> Callable[[Atom], Atom]:
@@ -1590,7 +1607,7 @@ class ExpressionCompilerMixin(CompilerContext):
                 line=node.lineno,
             )
         *operands, template_node = args
-        space: Atom = Expression([Symbol("context-space")])
+        space: Atom = _RUNNING_SPACE
         if len(operands) > 1:
             named = self._space_operand(operands[0])
             if named is not None:
