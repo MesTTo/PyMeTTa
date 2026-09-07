@@ -137,12 +137,17 @@ def test_a_mixed_role_pattern_refuses_naming_the_law(orders):  # noqa: D103  -- 
 
 def test_the_commuting_equation_refuses_naming_kutsia(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     # Kutsia's own infinitary witness: X u = u X has the family X = u^n for
-    # every n, so no complete finite answer set exists.
+    # every n, so no complete finite answer set exists. `unify` parses BOTH
+    # operands, so this pair has gaps on both sides and the refusal names the
+    # certificate it has none of; while the door parsed the left alone it
+    # refused for `mixed_roles`, which was the wrong reason for the right
+    # refusal.
     with pytest.raises(MettaError) as refusal:
         metta.run("!(unify (f (:seg $x) a) (f a (:seg $x)) matched none)")
     message = str(refusal.value)
     assert "Theorem 62" in message
     assert "outside the proved finitary fragment" in message
+    assert "no_certificate" in message
 
 
 def test_a_stored_marker_is_data_on_both_doors(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract

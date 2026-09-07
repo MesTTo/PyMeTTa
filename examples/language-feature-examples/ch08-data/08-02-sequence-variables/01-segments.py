@@ -99,4 +99,11 @@ def twin(m):
 #: introduced it with the engine's .qlf set built, which is what the
 #: gate leaves behind and what ships.
 #: [measured: 9502, 9502, 9502 inferences; command=PYTHONPATH=extensions/python:extensions/python/tools $VENV/bin/python -c "from pathlib import Path; from twin_coverage import run_twin; print(run_twin(Path('extensions/python/examples/language-feature-examples/ch08-data/08-02-sequence-variables/01-segments.py').resolve()).cost)"; fixture=three independent fresh harness processes at loadavg 46; commit=a403e56b4f33828834823338eb1fc316e3fea2a4]
-BUDGET = 9502
+#: RE-PINNED 2026-09-07, 9502 to 9703 (+201), 9664 of it is drift between
+#: a403e56b4, where the number was taken, and this branch's base, and 39 is
+#: this change: the twin's two m.fn.unify asks are translated at the ask, so
+#: parsing the right operand is counted here [measured 2026-09-07: min-of-3
+#: serial fresh processes, this branch against the same twin on its base
+#: 5a85f5602; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=f4ae837efd23791200846ba72556c2ce96a7d05a].
+BUDGET = 9703
