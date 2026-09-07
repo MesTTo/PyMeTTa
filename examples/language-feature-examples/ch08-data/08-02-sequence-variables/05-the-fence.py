@@ -107,5 +107,5 @@ def twin(m):
 #: the door parses both operands [measured 2026-09-07: min-of-3 serial fresh
 #: processes, this branch against the same twin on its base 5a85f5602;
 #: command=python extensions/python/tools/twin_coverage.py --repin;
-#: commit=WORKTREE].
+#: commit=f4ae837efd23791200846ba72556c2ce96a7d05a].
 BUDGET = 6199

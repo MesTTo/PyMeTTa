@@ -112,5 +112,5 @@ def twin(m):
 #: which is what the gate leaves behind and what ships. The twin it
 #: replaces asked through `solve` and priced 8469; the door changed, so the
 #: number is a fresh measurement rather than a re-pin of that one.
-#: [measured: 11233, 11233, 11233 inferences; command=PYTHONPATH=extensions/python:extensions/python/tools $VENV/bin/python -c "from pathlib import Path; from twin_coverage import run_twin; print(run_twin(Path('extensions/python/examples/language-feature-examples/ch08-data/08-02-sequence-variables/04-the-two-sided-fragments.py').resolve()).cost)"; fixture=three independent fresh harness processes at loadavg 77; commit=WORKTREE]
+#: [measured: 11233, 11233, 11233 inferences; command=PYTHONPATH=extensions/python:extensions/python/tools $VENV/bin/python -c "from pathlib import Path; from twin_coverage import run_twin; print(run_twin(Path('extensions/python/examples/language-feature-examples/ch08-data/08-02-sequence-variables/04-the-two-sided-fragments.py').resolve()).cost)"; fixture=three independent fresh harness processes at loadavg 77; commit=f4ae837efd23791200846ba72556c2ce96a7d05a]
 BUDGET = 11233
