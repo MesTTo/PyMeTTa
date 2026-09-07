@@ -232,7 +232,7 @@ def twin(m):
 #: clause-indexing layout as the boot image grew; this tree also stores the
 #: compiled default space operand as &self rather than a (context-space) call
 #: [measured 2026-09-07: min-of-3 serial fresh processes; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+#: extensions/python/tools/twin_coverage.py --repin; commit=9010a79b01c9b2a66b96a3952fa378fb3e939dc3].
 BUDGET = 8101
 
 #: DIVERGED 2026-09-07, the example holds 4 atoms the twin does not (4 =) and
@@ -243,5 +243,5 @@ BUDGET = 8101
 #: truth test wraps its condition in py-truthy, and the annotations and
 #: docstrings that come with it are stored beside them [measured 2026-09-07:
 #: the two stored-atom surpluses, one fresh process per side; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+#: extensions/python/tools/twin_coverage.py --repin; commit=9010a79b01c9b2a66b96a3952fa378fb3e939dc3].
 DIVERGENCE = "a2b8a46deb218410b5fce59a952c33180f900c6bdb0b1a8ff596a77b5aa02e05"

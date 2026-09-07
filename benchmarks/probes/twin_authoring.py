@@ -13,7 +13,7 @@ Guarantees: prints `definitions=<n> inferences=<m>` for n in 0..4 and the
   those two constants are re-derived from this output [measured 2026-09-07: 5,
   2682, 3974, 5282, 6602, the fit 1370 once plus 1307 each, against the
   1456-plus-765 measured on 2026-08-22, which had gone stale by 71% per
-  definition; commit=WORKTREE].
+  definition; commit=9010a79b01c9b2a66b96a3952fa378fb3e939dc3].
 Fails when: run from anywhere but the repository root, which is where the
   twins lane launches its own children.
 """  # noqa: D205  -- the contract header is one continuous invariant, not summary-and-body prose

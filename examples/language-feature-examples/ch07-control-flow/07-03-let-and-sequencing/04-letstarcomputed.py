@@ -206,7 +206,7 @@ RUNG = "a `let*` whose bindings arrive as a VALUE has no assignment spelling"
 #: clause-indexing layout as the boot image grew; this tree also stores the
 #: compiled default space operand as &self rather than a (context-space) call
 #: [measured 2026-09-07: min-of-3 serial fresh processes; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+#: extensions/python/tools/twin_coverage.py --repin; commit=9010a79b01c9b2a66b96a3952fa378fb3e939dc3].
 BUDGET = 10606
 
 #: OVERRUN 2026-09-07, 800: it asks the eight computed-binding claims one at a
@@ -214,5 +214,5 @@ BUDGET = 10606
 #: a minimal twin of this example costs 9470, inside the ceiling's 9833, so the
 #: distance is this twin's own program [measured 2026-09-07: one fresh process
 #: per side; command=python extensions/python/benchmarks/probes/twin_floor.py;
-#: commit=WORKTREE].
+#: commit=9010a79b01c9b2a66b96a3952fa378fb3e939dc3].
 OVERRUN = 800

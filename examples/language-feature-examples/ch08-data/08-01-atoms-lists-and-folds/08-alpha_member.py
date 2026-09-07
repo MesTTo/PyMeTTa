@@ -177,7 +177,7 @@ def twin(m):
 #: clause-indexing layout as the boot image grew; this tree also stores the
 #: compiled default space operand as &self rather than a (context-space) call
 #: [measured 2026-09-07: min-of-3 serial fresh processes; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+#: extensions/python/tools/twin_coverage.py --repin; commit=9010a79b01c9b2a66b96a3952fa378fb3e939dc3].
 BUDGET = 23710
 
 #: OVERRUN 2026-09-07, 3600: it puts Python's own `in` beside `is-alpha-member`
@@ -186,5 +186,5 @@ BUDGET = 23710
 #: stored and asked through the structured door, nothing else -- costs 23556
 #: against the ceiling's 20155, so no twin of it fits the band at all [measured
 #: 2026-09-07: one fresh process per side; command=python
-#: extensions/python/benchmarks/probes/twin_floor.py; commit=WORKTREE].
+#: extensions/python/benchmarks/probes/twin_floor.py; commit=9010a79b01c9b2a66b96a3952fa378fb3e939dc3].
 OVERRUN = 3600

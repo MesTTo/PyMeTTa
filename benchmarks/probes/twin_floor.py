@@ -18,7 +18,7 @@ Guarantees: prints one row per example with the example's own cost, the band
   library's own floor for that example's shape and not a twin's fault
   [measured 2026-09-07: examples/ch08-data/08-01-atoms-lists-and-folds/
   10-multiset_operations.metta costs 6121 with a ceiling of 6733, its floor
-  6985 and its twin 7290; commit=WORKTREE].
+  6985 and its twin 7290; commit=9010a79b01c9b2a66b96a3952fa378fb3e939dc3].
 Fails when: an example's forms cannot be parsed apart by balancing
   parentheses, which is the same reading `twin_coverage.example_forms` does.
 """  # noqa: D205  -- the contract header is one continuous invariant, not summary-and-body prose

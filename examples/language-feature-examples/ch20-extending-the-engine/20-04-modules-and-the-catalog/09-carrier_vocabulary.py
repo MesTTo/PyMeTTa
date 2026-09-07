@@ -128,5 +128,5 @@ def twin(m):  # noqa: ARG001  -- the catalog lives in the reflection space; the 
 #: example it had been silently short of: this file's own count moves with the
 #: asks it now makes [measured 2026-09-07: min-of-3 serial fresh processes;
 #: command=python extensions/python/tools/twin_coverage.py --repin;
-#: commit=WORKTREE].
+#: commit=9010a79b01c9b2a66b96a3952fa378fb3e939dc3].
 BUDGET = 147

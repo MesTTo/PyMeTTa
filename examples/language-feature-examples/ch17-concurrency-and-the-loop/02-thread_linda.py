@@ -204,13 +204,13 @@ def twin(m):
 #: clause-indexing layout as the boot image grew; this tree also stores the
 #: compiled default space operand as &self rather than a (context-space) call
 #: [measured 2026-09-07: min-of-3 serial fresh processes; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+#: extensions/python/tools/twin_coverage.py --repin; commit=9010a79b01c9b2a66b96a3952fa378fb3e939dc3].
 #: ENVELOPE 2026-09-08, 427772..427810 over 37 observations of 'full-
 #: lane/231/workers=32': every claim is a coordination between two sides the
 #: engine's own writes wake, so the count carries which side ran first, so a
 #: point pin on it is a claim about a schedule and not about this twin. Spread
 #: 38 [measured 2026-09-08: `python extensions/python/tools/twin_coverage.py
-#: --observe`, two runs of 12 and 25 rounds pooled; commit=WORKTREE].
+#: --observe`, two runs of 12 and 25 rounds pooled; commit=9010a79b01c9b2a66b96a3952fa378fb3e939dc3].
 BUDGET = {
     "minimum": 427772,
     "maximum": 427810,
@@ -224,7 +224,7 @@ BUDGET = {
 #: example costs 221118, inside the ceiling's 243859, so the distance is this
 #: twin's own program [measured 2026-09-07: one fresh process per side;
 #: command=python extensions/python/benchmarks/probes/twin_floor.py;
-#: commit=WORKTREE].
+#: commit=9010a79b01c9b2a66b96a3952fa378fb3e939dc3].
 OVERRUN = 184000
 
 #: DIVERGED 2026-09-07, the example holds 0 atoms the twin does not (none) and
@@ -234,5 +234,5 @@ OVERRUN = 184000
 #: its own file states where the example leaves both unsaid [measured
 #: 2026-09-07: the two stored-atom surpluses, one fresh process per side;
 #: command=python extensions/python/tools/twin_coverage.py --repin;
-#: commit=WORKTREE].
+#: commit=9010a79b01c9b2a66b96a3952fa378fb3e939dc3].
 DIVERGENCE = "2017524a1cb76351a1648426410b796419548382661d11cfbc6f3c2a279d533a"

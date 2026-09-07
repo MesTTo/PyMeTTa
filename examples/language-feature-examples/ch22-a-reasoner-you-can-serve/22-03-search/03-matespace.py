@@ -223,7 +223,7 @@ RUNG = (
 #: stores the compiled default space operand as &self rather than a (context-
 #: space) call [measured 2026-09-07: min-of-3 serial fresh processes;
 #: command=python extensions/python/tools/twin_coverage.py --repin;
-#: commit=WORKTREE].
+#: commit=9010a79b01c9b2a66b96a3952fa378fb3e939dc3].
 BUDGET = 24107867
 
 #: OVERRUN 2026-09-07, 1434400: it names `expand` and `expandK` as definitions
@@ -232,7 +232,7 @@ BUDGET = 24107867
 #: example costs 19846949, inside the ceiling's 22673518, so the distance is
 #: this twin's own program [measured 2026-09-07: one fresh process per side;
 #: command=python extensions/python/benchmarks/probes/twin_floor.py;
-#: commit=WORKTREE].
+#: commit=9010a79b01c9b2a66b96a3952fa378fb3e939dc3].
 OVERRUN = 1434400
 
 #: DIVERGED 2026-09-07, the example holds 4 atoms the twin does not (4 =) and
@@ -244,5 +244,5 @@ OVERRUN = 1434400
 #: annotations and docstrings that come with it are stored beside them
 #: [measured 2026-09-07: the two stored-atom surpluses, one fresh process per
 #: side; command=python extensions/python/tools/twin_coverage.py --repin;
-#: commit=WORKTREE].
+#: commit=9010a79b01c9b2a66b96a3952fa378fb3e939dc3].
 DIVERGENCE = "f11cab2a09098d5a4a2150749e1dab72a3ddaa8d4a1aee0bee2b5203e7e1cac7"

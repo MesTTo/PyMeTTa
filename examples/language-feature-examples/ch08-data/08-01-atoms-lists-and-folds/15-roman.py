@@ -205,7 +205,7 @@ def twin(m):
 #: clause-indexing layout as the boot image grew; this tree also stores the
 #: compiled default space operand as &self rather than a (context-space) call
 #: [measured 2026-09-07: min-of-3 serial fresh processes; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+#: extensions/python/tools/twin_coverage.py --repin; commit=9010a79b01c9b2a66b96a3952fa378fb3e939dc3].
 BUDGET = 320547
 
 #: OVERRUN 2026-09-07, 17700: it names every lib_roman function at every claim
@@ -214,7 +214,7 @@ BUDGET = 320547
 #: and asked through the structured door, nothing else -- costs 313903 against
 #: the ceiling's 302881, so no twin of it fits the band at all [measured
 #: 2026-09-07: one fresh process per side; command=python
-#: extensions/python/benchmarks/probes/twin_floor.py; commit=WORKTREE].
+#: extensions/python/benchmarks/probes/twin_floor.py; commit=9010a79b01c9b2a66b96a3952fa378fb3e939dc3].
 OVERRUN = 17700
 
 #: DIVERGED 2026-09-07, the example holds 9 atoms the twin does not (9 =) and
@@ -225,5 +225,5 @@ OVERRUN = 17700
 #: truth test wraps its condition in py-truthy, and the annotations and
 #: docstrings that come with it are stored beside them [measured 2026-09-07:
 #: the two stored-atom surpluses, one fresh process per side; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+#: extensions/python/tools/twin_coverage.py --repin; commit=9010a79b01c9b2a66b96a3952fa378fb3e939dc3].
 DIVERGENCE = "84a06c2dd74dcee6885a630031d4a25b42a5d68fc42ef679dddfb50551eb3348"

@@ -195,7 +195,7 @@ def twin(m):
 #: clause-indexing layout as the boot image grew; this tree also stores the
 #: compiled default space operand as &self rather than a (context-space) call
 #: [measured 2026-09-07: min-of-3 serial fresh processes; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+#: extensions/python/tools/twin_coverage.py --repin; commit=9010a79b01c9b2a66b96a3952fa378fb3e939dc3].
 BUDGET = 2246993
 
 #: OVERRUN 2026-09-07, 52200: it asserts the four premises the answer came from
@@ -204,5 +204,5 @@ BUDGET = 2246993
 #: forms stored and asked through the structured door, nothing else -- costs
 #: 2245397 against the ceiling's 2194862, so no twin of it fits the band at all
 #: [measured 2026-09-07: one fresh process per side; command=python
-#: extensions/python/benchmarks/probes/twin_floor.py; commit=WORKTREE].
+#: extensions/python/benchmarks/probes/twin_floor.py; commit=9010a79b01c9b2a66b96a3952fa378fb3e939dc3].
 OVERRUN = 52200

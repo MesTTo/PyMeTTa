@@ -191,14 +191,14 @@ _MAGIC = ("accept", "collapse", "drop", "empty", "match", "refuse", "superpose",
 #: `'context-space'(Space) :- ( current_metta_space(Space) -> true ; Space =
 #: '&self' )` -- but it is a CALL, so the equation pays for it and the memo
 #: door refuses it as impure [source: engine/metta/runtime.pl,
-#: 'context-space'/1; commit=WORKTREE]. Measured equal on all three space
+#: 'context-space'/1; commit=9010a79b01c9b2a66b96a3952fa378fb3e939dc3]. Measured equal on all three space
 #: kinds and 1142 inferences cheaper on first use, 11 per call after
 #: [measured 2026-09-07: `(= (q) (collapse (match X (r $x) $x)))` over one
 #: stored atom read 425/2000/3997 at 1/5/10 calls with `&self` against
 #: 1567/3197/5242 with `(context-space)`; the self space, a named space and
 #: two instances of a parametric family answered the same atoms under both;
 #: command=python extensions/python/benchmarks/probes/running_space.py;
-#: commit=WORKTREE]. `fn.context_space()` still stores the call, because there
+#: commit=9010a79b01c9b2a66b96a3952fa378fb3e939dc3]. `fn.context_space()` still stores the call, because there
 #: the author named the head.
 _RUNNING_SPACE = Symbol("&self")
 

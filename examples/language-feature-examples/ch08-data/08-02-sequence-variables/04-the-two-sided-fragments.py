@@ -67,7 +67,7 @@ def twin(m):  # noqa: ARG001  -- the engine is ambient here: solve is the one do
 #: clause-indexing layout as the boot image grew; this tree also stores the
 #: compiled default space operand as &self rather than a (context-space) call
 #: [measured 2026-09-07: min-of-3 serial fresh processes; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+#: extensions/python/tools/twin_coverage.py --repin; commit=9010a79b01c9b2a66b96a3952fa378fb3e939dc3].
 BUDGET = 8629
 
 #: OVERRUN 2026-09-07, 4500: it asks through `solve`, the pattern door, where
@@ -77,5 +77,5 @@ BUDGET = 8629
 #: its own forms stored and asked through the structured door, nothing else --
 #: costs 6467 against the ceiling's 4164, so no twin of it fits the band at all
 #: [measured 2026-09-07: one fresh process per side; command=python
-#: extensions/python/benchmarks/probes/twin_floor.py; commit=WORKTREE].
+#: extensions/python/benchmarks/probes/twin_floor.py; commit=9010a79b01c9b2a66b96a3952fa378fb3e939dc3].
 OVERRUN = 4500

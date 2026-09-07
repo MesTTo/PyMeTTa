@@ -150,7 +150,7 @@ def twin(m):
 #: clause-indexing layout as the boot image grew; this tree also stores the
 #: compiled default space operand as &self rather than a (context-space) call
 #: [measured 2026-09-07: min-of-3 serial fresh processes; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+#: extensions/python/tools/twin_coverage.py --repin; commit=9010a79b01c9b2a66b96a3952fa378fb3e939dc3].
 BUDGET = 10832
 
 #: OVERRUN 2026-09-07, 500: the example inlines fib and fib-tr and the twin
@@ -159,7 +159,7 @@ BUDGET = 10832
 #: this example costs 4852, inside the ceiling's 10351, so the distance is this
 #: twin's own program [measured 2026-09-07: one fresh process per side;
 #: command=python extensions/python/benchmarks/probes/twin_floor.py;
-#: commit=WORKTREE].
+#: commit=9010a79b01c9b2a66b96a3952fa378fb3e939dc3].
 OVERRUN = 500
 
 #: DIVERGED 2026-09-07, the example holds 0 atoms the twin does not (none) and
@@ -169,5 +169,5 @@ OVERRUN = 500
 #: its own file states where the example leaves both unsaid [measured
 #: 2026-09-07: the two stored-atom surpluses, one fresh process per side;
 #: command=python extensions/python/tools/twin_coverage.py --repin;
-#: commit=WORKTREE].
+#: commit=9010a79b01c9b2a66b96a3952fa378fb3e939dc3].
 DIVERGENCE = "c2c6880f0377877acaec369a34fef07357c8fb7a0abdec86873774852aee0947"

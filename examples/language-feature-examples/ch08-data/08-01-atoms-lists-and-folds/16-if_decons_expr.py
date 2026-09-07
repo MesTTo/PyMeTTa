@@ -50,7 +50,7 @@ def twin(m):
 #: clause-indexing layout as the boot image grew; this tree also stores the
 #: compiled default space operand as &self rather than a (context-space) call
 #: [measured 2026-09-07: min-of-3 serial fresh processes; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+#: extensions/python/tools/twin_coverage.py --repin; commit=9010a79b01c9b2a66b96a3952fa378fb3e939dc3].
 BUDGET = 8424
 
 #: OVERRUN 2026-09-07, 900: it puts Python starred unpacking beside the native
@@ -59,5 +59,5 @@ BUDGET = 8424
 #: structured door, nothing else -- costs 8866 against the ceiling's 7567, so
 #: no twin of it fits the band at all [measured 2026-09-07: one fresh process
 #: per side; command=python extensions/python/benchmarks/probes/twin_floor.py;
-#: commit=WORKTREE].
+#: commit=9010a79b01c9b2a66b96a3952fa378fb3e939dc3].
 OVERRUN = 900

@@ -16,7 +16,7 @@ Guarantees:
     test_stored_content_uses_the_digest_and_keeps_atom_multiplicity,
     test_a_space_over_the_cap_pins_its_difference_as_the_two_digests,
     test_a_digest_refusal_is_a_finding_and_never_an_atom_fallback;
-    commit=WORKTREE]
+    commit=9010a79b01c9b2a66b96a3952fa378fb3e939dc3]
   - point budgets remain two-sided with the deterministic tolerance stated
     separately [tested: test_a_budget_is_two_sided; commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22]
   - empirical envelopes are asymmetric, protocol-scoped, and falsified by

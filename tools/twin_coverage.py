@@ -88,7 +88,7 @@ Guarantees:
     enumeration the digest hashes [tested:
     test_a_twin_stores_the_atoms_its_example_stores,
     test_stored_content_uses_the_digest_and_keeps_atom_multiplicity;
-    commit=WORKTREE]
+    commit=9010a79b01c9b2a66b96a3952fa378fb3e939dc3]
   - a twin writing MeTTa in Python punctuation is a finding naming the Python
     spelling it should have used [tested:
     test_a_dissolved_head_names_the_python_spelling_it_replaces,
@@ -102,12 +102,12 @@ Guarantees:
     the one it declares, in both directions: a new one, a changed one and a
     stale one over two agreeing spaces are each a finding [tested:
     test_a_space_over_the_cap_pins_its_difference_as_the_two_digests,
-    test_a_twin_stores_the_atoms_its_example_stores; commit=WORKTREE]
+    test_a_twin_stores_the_atoms_its_example_stores; commit=9010a79b01c9b2a66b96a3952fa378fb3e939dc3]
   - a twin whose own program costs more than its example's band allows
     declares OVERRUN, which is added to the ceiling and hides nothing, because
     BUDGET already pins the exact count inside its allowance; a declaration
     the twin no longer needs is itself a finding [tested:
-    test_a_declared_overrun_widens_one_twins_ceiling_only; commit=WORKTREE]
+    test_a_declared_overrun_widens_one_twins_ceiling_only; commit=9010a79b01c9b2a66b96a3952fa378fb3e939dc3]
 Decides:
   - twins live under `extensions/python/examples/language-feature-examples/<folder>/<name>.py`, the
     example's own relative path with a Python suffix. The mapping is a pure
@@ -238,9 +238,9 @@ HELD = "P14C-HELD "
 #: `resource_error(stack)` at the enumeration, twice at loadavg 20;
 #: command=python extensions/python/tools/twin_coverage.py examples/
 #: ch18-performance/18-01-larger-workloads/05-matespacefast.metta;
-#: commit=WORKTREE]. The 8 GB is the library's own default
+#: commit=9010a79b01c9b2a66b96a3952fa378fb3e939dc3]. The 8 GB is the library's own default
 #: [source: extensions/python/metta/_config.py, stack_limit 8_000_000_000;
-#: commit=WORKTREE]. 50,000 is two orders above the largest surplus the corpus
+#: commit=9010a79b01c9b2a66b96a3952fa378fb3e939dc3]. 50,000 is two orders above the largest surplus the corpus
 #: has ever shown (the specializer clusters name eight atoms a side) and one
 #: and a half below the space that broke it.
 CONTENT_CAP = 50_000
@@ -284,7 +284,7 @@ BAND_PERCENT = 10.0
 #: charging every twin that authors a definition for the difference [measured
 #: 2026-09-07: min-of-3 fresh processes per fixture;
 #: command=python extensions/python/benchmarks/probes/twin_authoring.py;
-#: fixture=files holding 0 to 4 one-line `@m.define` bodies; commit=WORKTREE].
+#: fixture=files holding 0 to 4 one-line `@m.define` bodies; commit=9010a79b01c9b2a66b96a3952fa378fb3e939dc3].
 DEFINITION_WARMUP = 1370
 DEFINITION_COST = 1307
 
@@ -333,7 +333,7 @@ ALLOWANCE_NAME = "ALLOWANCE"
 #: 2026-09-07 corpus read 112 disagreements over 231 twins, 50 of them nothing
 #: but declaration and documentation rows and 51 the lowering of an idiomatic
 #: body [measured 2026-09-07: `twin_coverage.py` over the corpus, classified
-#: by the head of each surplus atom; commit=WORKTREE].
+#: by the head of each surplus atom; commit=9010a79b01c9b2a66b96a3952fa378fb3e939dc3].
 #:
 #: The value is a sha256 over the two surplus multisets, which is what makes
 #: it EXACT: an atom that joins the difference, leaves it, or changes shape
@@ -1450,7 +1450,7 @@ def idiom(twin: Path) -> list[str]:
     # line where the call OPENS [measured 2026-09-07: 37 idiom findings over
     # 12 twins, every one of them a call whose rung comment sat inside the
     # call's own span; command=python extensions/python/tools/twin_coverage.py;
-    # commit=WORKTREE].
+    # commit=9010a79b01c9b2a66b96a3952fa378fb3e939dc3].
     marked = [
         number
         for number, line in enumerate(twin.read_text(encoding="utf-8").splitlines(), 1)
@@ -2360,7 +2360,7 @@ def check(
 
 #: How the specializer names a clause it DERIVED, which no side authored
 #: [source: engine/specializer.pl, `atom_concat(HV, '_Spec_k', Prefix)`;
-#: commit=WORKTREE].
+#: commit=9010a79b01c9b2a66b96a3952fa378fb3e939dc3].
 DERIVED_MARK = "_Spec_"
 
 
@@ -2383,7 +2383,7 @@ def _visible(relative: str, left: Run, right: Run) -> list[str]:
     the threshold yet is not hiding anything; the stored-content oracle still
     sees every clause, and a twin whose set differs declares it as its
     DIVERGENCE [measured 2026-09-07: the two calls above under `m.stats()` at
-    1, 5 and 20 repetitions; commit=WORKTREE].
+    1, 5 and 20 repetitions; commit=9010a79b01c9b2a66b96a3952fa378fb3e939dc3].
     """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
     missing = {
         head
@@ -2434,7 +2434,7 @@ def _stored(relative: str, twin: Path, left: Run, right: Run) -> list[str]:
     The digest is the oracle and the atom lists are its diagnostics: both
     sides enumerate the same `get-atoms` the digest hashes
     [source: engine/filereader/source_lifecycle.pl, metta_host_digest/2 and
-    extensions/python/metta/shim.pl, metta_py_atoms/2; commit=WORKTREE], so
+    extensions/python/metta/shim.pl, metta_py_atoms/2; commit=9010a79b01c9b2a66b96a3952fa378fb3e939dc3], so
     the surplus each side holds over the other names the atoms that moved the
     hash. A twin that MEANS to hold something its example does not pins the
     whole difference as DIVERGENCE and passes only while the difference is

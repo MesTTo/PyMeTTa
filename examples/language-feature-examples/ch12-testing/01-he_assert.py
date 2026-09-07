@@ -179,7 +179,7 @@ RUNG = "the assert family is this file's subject, so each claim names one of its
 #: clause-indexing layout as the boot image grew; this tree also stores the
 #: compiled default space operand as &self rather than a (context-space) call
 #: [measured 2026-09-07: min-of-3 serial fresh processes; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+#: extensions/python/tools/twin_coverage.py --repin; commit=9010a79b01c9b2a66b96a3952fa378fb3e939dc3].
 BUDGET = 17489
 
 #: OVERRUN 2026-09-07, 100: the twelve assert-family functions ARE its subject,
@@ -188,5 +188,5 @@ BUDGET = 17489
 #: 17452; a minimal twin of this example costs 15187, inside the ceiling's
 #: 17452, so the distance is this twin's own program [measured 2026-09-07: one
 #: fresh process per side; command=python
-#: extensions/python/benchmarks/probes/twin_floor.py; commit=WORKTREE].
+#: extensions/python/benchmarks/probes/twin_floor.py; commit=9010a79b01c9b2a66b96a3952fa378fb3e939dc3].
 OVERRUN = 100

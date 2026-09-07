@@ -160,13 +160,13 @@ def twin(m):
 #: clause-indexing layout as the boot image grew; this tree also stores the
 #: compiled default space operand as &self rather than a (context-space) call
 #: [measured 2026-09-07: min-of-3 serial fresh processes; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+#: extensions/python/tools/twin_coverage.py --repin; commit=9010a79b01c9b2a66b96a3952fa378fb3e939dc3].
 #: ENVELOPE 2026-09-08, 16152..16164 over 37 observations of 'full-
 #: lane/231/workers=32': five OS threads take one mutex in turn, so the count
 #: carries the order they got it in; a point pin on it is a claim about a
 #: schedule and not about this twin. Spread 12 [measured 2026-09-08: `python
 #: extensions/python/tools/twin_coverage.py --observe`, two runs of 12 and 25
-#: rounds pooled; commit=WORKTREE].
+#: rounds pooled; commit=9010a79b01c9b2a66b96a3952fa378fb3e939dc3].
 BUDGET = {
     "minimum": 16152,
     "maximum": 16164,

@@ -268,7 +268,7 @@ def twin(m):
 #: finished; a point pin on it is a claim about a schedule and not about
 #: this twin. Spread 215570 [measured 2026-09-08: `python
 #: extensions/python/tools/twin_coverage.py --observe`, two runs of 12 and 25
-#: rounds pooled; commit=WORKTREE].
+#: rounds pooled; commit=9010a79b01c9b2a66b96a3952fa378fb3e939dc3].
 BUDGET = {
     "minimum": 554438,
     "maximum": 770008,
@@ -282,7 +282,7 @@ BUDGET = {
 #: twin of this example costs 283393, inside the ceiling's 310696, so the
 #: distance is this twin's own program [measured 2026-09-07: one fresh process
 #: per side; command=python extensions/python/benchmarks/probes/twin_floor.py;
-#: commit=WORKTREE].
+#: commit=9010a79b01c9b2a66b96a3952fa378fb3e939dc3].
 #: OVERRUN 2026-09-08, 460000, RE-DERIVED from the envelope above rather than
 #: from one run: this twin's count is what a race schedule leaves, and the 37
 #: pooled observations top out at 770,008 against a ceiling of 310,896 (the
@@ -292,7 +292,7 @@ BUDGET = {
 #: outside it is red whatever this says [measured 2026-09-08: `python
 #: extensions/python/tools/twin_coverage.py --observe`, two runs of 12 and 25
 #: rounds pooled, beside three fresh-process runs of the example;
-#: commit=WORKTREE].
+#: commit=9010a79b01c9b2a66b96a3952fa378fb3e939dc3].
 OVERRUN = 460000
 
 #: DIVERGED 2026-09-07, the example holds 1 atom the twin does not (1 =) and
@@ -304,5 +304,5 @@ OVERRUN = 460000
 #: annotations and docstrings that come with it are stored beside them
 #: [measured 2026-09-07: the two stored-atom surpluses, one fresh process per
 #: side; command=python extensions/python/tools/twin_coverage.py --repin;
-#: commit=WORKTREE].
+#: commit=9010a79b01c9b2a66b96a3952fa378fb3e939dc3].
 DIVERGENCE = "ed6553c84db2104e12f76c044cf5e4b46ae6ae3e18b51a55f7bf4672f97db5ea"

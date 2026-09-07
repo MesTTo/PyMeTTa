@@ -16,7 +16,7 @@ Guarantees: prints `equivalence` rows for the self space, a named space and
   spellings at one, five and ten calls [measured 2026-09-07: 425, 2000 and
   3997 inferences with `&self` against 1567, 3197 and 5242 with
   `(context-space)`, so the call costs 1142 on first use and 11 a call after;
-  commit=WORKTREE].
+  commit=9010a79b01c9b2a66b96a3952fa378fb3e939dc3].
 Fails when: the engine stops resolving `&self` against the space a clause is
   compiled into, which is what `engine/spaces/foreign.pl`'s add_function_atom
   substitutes for.

@@ -172,7 +172,7 @@ def twin(m):
 #: stores the compiled default space operand as &self rather than a (context-
 #: space) call [measured 2026-09-07: min-of-3 serial fresh processes;
 #: command=python extensions/python/tools/twin_coverage.py --repin;
-#: commit=WORKTREE].
+#: commit=9010a79b01c9b2a66b96a3952fa378fb3e939dc3].
 BUDGET = 23218554
 
 #: DIVERGED 2026-09-07, the example holds 1000007 atoms and the twin 1000007,
@@ -184,5 +184,5 @@ BUDGET = 23218554
 #: py-truthy, and the annotations and docstrings that come with it are stored
 #: beside them [measured 2026-09-07: the two stored-atom surpluses, one fresh
 #: process per side; command=python extensions/python/tools/twin_coverage.py
-#: --repin; commit=WORKTREE].
+#: --repin; commit=9010a79b01c9b2a66b96a3952fa378fb3e939dc3].
 DIVERGENCE = "45475e3c6b4bad84e8e1f4d6c887754c0906190103f1030b8b6fa759497c8ba2"

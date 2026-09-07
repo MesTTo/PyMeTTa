@@ -213,7 +213,7 @@ def twin(m):
 #: and three of the nineteen claims are about a draw, so a point pin on it is a
 #: claim about a schedule and not about this twin. Spread 99 [measured
 #: 2026-09-08: `python extensions/python/tools/twin_coverage.py --observe`, two
-#: runs of 12 and 25 rounds pooled; commit=WORKTREE].
+#: runs of 12 and 25 rounds pooled; commit=9010a79b01c9b2a66b96a3952fa378fb3e939dc3].
 BUDGET = {
     "minimum": 127527,
     "maximum": 127626,
@@ -230,11 +230,11 @@ BUDGET = {
 #: annotations and docstrings that come with it are stored beside them
 #: [measured 2026-09-07: the two stored-atom surpluses, one fresh process per
 #: side; command=python extensions/python/tools/twin_coverage.py --repin;
-#: commit=WORKTREE].
+#: commit=9010a79b01c9b2a66b96a3952fa378fb3e939dc3].
 #: DIVERGED 2026-09-07, the example holds 2 atoms the twin does not (2 =) and
 #: the twin holds 4 atoms the example does not (2 =, 2 @doc): the claims the
 #: twin gained bring the definitions and the library rows they ask through, so
 #: the two spaces differ by exactly those [measured 2026-09-07: the two stored-
 #: atom surpluses, one fresh process per side; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+#: extensions/python/tools/twin_coverage.py --repin; commit=9010a79b01c9b2a66b96a3952fa378fb3e939dc3].
 DIVERGENCE = "8703f431e0c562139c1cc3798e620e90a0460617385caa108ee856c1d191091d"
