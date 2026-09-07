@@ -39,7 +39,7 @@ Guarantees:
     lane exits 0 with a named skip on a developer's box and 1 where CI=true,
     and never reports a refused measurement as a moved row
     [tested: test_a_benchmark_lane_skips_a_refusal_locally_and_refuses_it_in_ci;
-    commit=WORKTREE]
+    commit=11afdcdbad5bbbe37168b5d8528c23a21c42b4b6]
   - the verdict is inferences, which are deterministic and load-immune, so a
     busy box cannot make a run pass or fail. Every one of the eight seeded
     families returned the IDENTICAL count at every size across three fresh

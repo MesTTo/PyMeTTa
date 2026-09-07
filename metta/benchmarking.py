@@ -28,12 +28,12 @@ Guarantees:
     both raise it, while every other nonzero exit stays an ordinary
     RuntimeError, which is the workload's own failure
     [tested: test_a_refused_window_is_told_apart_from_a_workload_that_failed;
-    commit=WORKTREE]
+    commit=11afdcdbad5bbbe37168b5d8528c23a21c42b4b6]
   - one policy decides what a benchmark lane does with that refusal, so no two
     lanes can drift into disagreeing: measured_main skips it with a name and
     exits 0 on a desk and refuses it with an error and exits 1 where CI=true
     [tested: test_a_benchmark_lane_skips_a_refusal_locally_and_refuses_it_in_ci;
-    commit=WORKTREE]
+    commit=11afdcdbad5bbbe37168b5d8528c23a21c42b4b6]
   - one perf run may count several events, matched on the event NAME field so
     a unit-carrying event reads beside a bare one, and it hands back each
     run's own standard output so a workload can report a counter perf cannot

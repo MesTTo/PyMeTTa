@@ -293,7 +293,7 @@ _ROWS = 2_000
 #: benchmarks/test_benchmarks.py::test_automatic_tabling_growth -q --rootdir=.
 #: -c pyproject.toml --benchmark-disable; fixture=ai-tmp/hy-tabling.sh in the
 #: branch's ladder worktree, nine points, and the same numbers read in the
-#: branch worktree and in a pristine worktree of 97c96e91; commit=WORKTREE].
+#: branch worktree and in a pristine worktree of 97c96e91; commit=11afdcdbad5bbbe37168b5d8528c23a21c42b4b6].
 #: Note for the next reader: `sh extensions/python/test.sh` carries
 #: `-p no:benchmark`, which makes benchmarks/conftest.py's
 #: pytest_benchmark_update_machine_info an unknown hook and turns the run into

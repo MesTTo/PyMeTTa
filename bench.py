@@ -4,7 +4,7 @@ Guarantees:
     lane exits 0 with a named skip on a developer's box and 1 where CI=true,
     and never reports a refused measurement as a moved row
     [tested: test_a_benchmark_lane_skips_a_refusal_locally_and_refuses_it_in_ci;
-    commit=WORKTREE]
+    commit=11afdcdbad5bbbe37168b5d8528c23a21c42b4b6]
   - every named case runs in a fresh process, so global engine state cannot
     make subset and suite counters disagree [tested
     test_benchmark_cli_spawns_each_case; commit=dcfc20be4933c19140ccb5759291401d13058301]

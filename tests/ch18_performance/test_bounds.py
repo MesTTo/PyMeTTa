@@ -206,7 +206,7 @@ def test_the_async_queue_bound_is_refused_the_same_way(metta):
 #: and came back `[[(Error (spin) StackOverflow)]]`. A fresh process raises it
 #: twelve times out of twelve at 0.301s to 0.307s, and down to a 1-millisecond
 #: bound [measured 2026-09-07: two serial runs of the 182-file prefix, plus
-#: ai-tmp/hy-bounds-probe.py; commit=WORKTREE].
+#: ai-tmp/hy-bounds-probe.py; commit=11afdcdbad5bbbe37168b5d8528c23a21c42b4b6].
 #:
 #: So the door works and the shared process is what breaks it: after 2,670
 #: tests the loop grows enough that the cap can win, and no fixed number of

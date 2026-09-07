@@ -3,7 +3,7 @@ Guarantees:
   - the handshake is bounded and a window that never opened exits 125, so the
     driver reads it as "this run says nothing" rather than as a moved row
     [tested: test_a_refused_window_is_told_apart_from_a_workload_that_failed;
-    commit=WORKTREE]
+    commit=11afdcdbad5bbbe37168b5d8528c23a21c42b4b6]
   - setup and teardown stay outside perf's controlled measurement interval
     [tested test_perf_workload_setup_and_teardown_stay_outside_control]
   - sized memory/scale joins use that same controlled interval, so retired
