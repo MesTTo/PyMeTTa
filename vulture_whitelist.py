@@ -270,3 +270,12 @@ _.a_speculative_write_leaves_nothing
 _.a_committed_transaction_keeps_its_write
 _.a_rolled_back_transaction_keeps_nothing
 _.storage_matches_the_model
+# Pygments reads a lexer class by ATTRIBUTE after loading it through the
+# `pygments.lexers` entry point, and nothing in this package loads
+# metta/_pygments.py at all: `filenames` is what get_lexer_for_filename globs
+# against and `mimetypes` is what get_lexer_for_mimetype and a Jupyter
+# kernel's `language_info` key on. The class's other attributes -- name,
+# aliases, url, flags, tokens -- are spelled elsewhere in the tree and reach
+# vulture that way.
+_.filenames
+_.mimetypes

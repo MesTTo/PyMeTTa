@@ -246,7 +246,22 @@ RUFF_FAMILY_BURN_DOWN = {
     # testing exports (5f950788, real docstrings where the old stateful machine
     # had suppressions), and 2222 with recordings' two obligation headers on
     # top. Pinned to the measurement, so the next site prices against the tree.
-    "D": 2222,
+    # 2233 -> 2239 on 2026-09-07 with the one-grammar highlighting work. All
+    # six are the obligation-header D205 form, one per new module: the
+    # generated metta/_pygments.py and its generator tools/pygmentsgen.py,
+    # the three tests/checks/ scripts behind the tokenisation and kernel
+    # lanes, and tests/ch11_python_as_a_notation/test_highlighting.py. Nothing
+    # else that work wrote is priced here: the five D103s its first draft
+    # carried became docstrings instead, and the three ARG001s became
+    # `@pytest.mark.usefixtures`, which is why ARG stayed at its own ceiling.
+    # Measured with --ignore-noqa over the whole RUFF_SCOPE before and after:
+    # 2233 -> 2244 as first written, 2239 after those eight were paid back.
+    # 2222 -> 2228 on 2026-09-07 when the highlighting package merged onto the
+    # tree the cards package had just joined: its record above priced six
+    # obligation headers against 2233, and the merged tree carries exactly those
+    # six on top of the measured 2222. Measured with --ignore-noqa over the
+    # whole RUFF_SCOPE on the merged tree.
+    "D": 2228,
     # 145, from 139 before the idiomatic twin corpus. Every one of the six new
     # sites is a `twin(m)` whose example needs no engine, because the form it
     # demonstrates is native Python (destructuring, `len`, `max`), or a
