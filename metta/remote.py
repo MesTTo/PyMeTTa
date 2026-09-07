@@ -125,7 +125,7 @@ from itertools import islice
 from typing import Any, Self
 from urllib.parse import urlsplit
 
-from . import _json
+from . import _json, _schemas
 from ._api_types import space_of
 from ._atom_wire import _atom_from_wire
 from ._engine import bridge, runtime
@@ -183,6 +183,12 @@ class _HTTPTransport:
 _MUTATIONS = frozenset({"add", "add_many", "remove"})
 _MUTATION_TTL = 300.0
 _MUTATION_LIMIT = 4096
+
+#: The GET paths whose spelling is not the gateway door's own name. A consumer's
+#: tooling looks for `/openapi.json` by that exact path, and the door that builds
+#: it is `Gateway.openapi`, so the two are mapped here rather than either one
+#: being bent to the other.
+_GET_OPERATIONS = {"openapi.json": "openapi"}
 
 
 class OutcomeUnknown(TransportFailure):
@@ -1371,6 +1377,8 @@ class Gateway:
             return self._remove(payload)
         if operation == "health":
             return self._health()
+        if operation == "openapi":
+            return self.openapi(secured=bool(payload.get("secured")))
         msg = f"unknown operation {operation!r}"
         raise MettaError(msg)
 
@@ -1444,6 +1452,43 @@ class Gateway:
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         return self._health()
 
+    def served(self) -> dict[str, MeTTa]:
+        """Every space this gateway serves, by the name a request calls it.
+
+        A gateway built with no `spaces` list serves one, the space it was made
+        from; a list names them, and each is opened on the same runtime, which
+        is what `_space` does for a request.
+        """
+        names = [self._metta.name] if self._allowed is None else sorted(self._allowed)
+        return {
+            name: (
+                self._metta
+                if name == self._metta.name
+                else MeTTa(name, _runtime=self._metta.runtime)
+            )
+            for name in names
+        }
+
+    def openapi(self, *, secured: bool = False) -> dict:
+        """This gateway as an OpenAPI 3.1.1 document, `GET /openapi.json`.
+
+            print(metta._json.dumps(gateway.openapi()))
+
+        One path per door, `components.schemas.Atom` as the wire's own tagged
+        grammar, and `x-metta-heads` listing what each served space DECLARES,
+        with every argument's and result's JSON Schema from the one type table.
+        A space that declares nothing publishes an empty list of heads.
+
+        `secured` puts the bearer scheme in the document, and `serve()` sets it
+        from its own token: a gateway is transport-free and knows nothing about
+        credentials, so the half that holds them is the half that says so.
+
+        Cost: one indexed read of each served space's `(: ...)` rows and one
+        `get-doc` per declared head, which is O(declarations) rather than
+        O(atoms) and is why this is derived per request instead of cached.
+        """
+        return _schemas.openapi_document(self.served(), secured=secured)
+
     def cursor_space(self, token: object) -> str | None:
         """Which space an open cursor's answers come from, so a transport
         can hand its authorization hook the space /next and /stop are
@@ -1454,6 +1499,20 @@ class Gateway:
     def close(self) -> None:
         """Release every cursor still open, and the engine behind each."""
         self._cursors.close_all()
+
+    def __enter__(self) -> Self:
+        """A gateway owns cursors, so it is `with`-able like everything else here.
+
+        Server, RemoteCursor and Space are all context managers for one reason:
+        a handle that owns an engine resource and has to be closed by hand is
+        the one whose leak on an exception path is silent. A Gateway holds one
+        engine per open cursor and had that shape.
+        """
+        return self
+
+    def __exit__(self, *_exception: object) -> None:
+        """Release the cursors, whether the block ended well or not."""
+        self.close()
 
     # ------------------------------------------------------------ operations
 
@@ -2161,7 +2220,13 @@ def serve(
             return str(payload.get("space", m.name))
 
         def do_GET(self) -> None:
-            operation = self.path.strip("/")
+            # A GET path is one word, except the document paths, whose spelling
+            # is what a consumer's tooling looks for: `/openapi.json` is where
+            # every OpenAPI client tries first. The gateway door's own name is
+            # the operation an authorize hook judges, which is what makes a
+            # policy over the documents spell the same words as a policy over
+            # the wire operations.
+            operation = _GET_OPERATIONS.get(self.path.strip("/"), self.path.strip("/"))
             headers = self._collected_headers()
             # The same gates as every POST, credential then policy hook:
             # health names what the server admits, which is not an
@@ -2180,6 +2245,13 @@ def serve(
                     return
                 if operation == "health":
                     answer, status = _worker_response(worker, "health", {})
+                elif operation == "openapi":
+                    # Through the worker like every other engine call: the
+                    # document reads the served spaces' declarations, and the
+                    # engine those spaces live in is the worker's.
+                    answer, status = _worker_response(
+                        worker, "openapi", {"secured": token is not None}
+                    )
                 else:
                     answer, status = {"error": f"unknown operation {operation!r}"}, 400
             except _HTTPProblem as exc:
