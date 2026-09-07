@@ -81,7 +81,7 @@
 %     touched a subscribed space [tested:
 %     test_a_transaction_delivers_one_progress_after_its_deltas,
 %     test_a_write_to_an_unwatched_space_costs_no_boundary_crossing;
-%     commit=WORKTREE].
+%     commit=0de0dc08d2fc77bee9dd132c41f1de23cda1e6c2].
 %   - held query and evaluation engines carry the same capture, atomic, or
 %     speculative policy for their complete lifetime as eager execution;
 %     speculation preserves every answer while discarding its writes

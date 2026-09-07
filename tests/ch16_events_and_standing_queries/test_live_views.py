@@ -4,28 +4,28 @@ Guarantees:
   - a pattern view delivers a signed delta per change and one progress delta
     per commit, so a transaction of two writes is two adds and ONE progress
     [tested: test_a_transaction_delivers_one_progress_after_its_deltas;
-    commit=WORKTREE]
+    commit=0de0dc08d2fc77bee9dd132c41f1de23cda1e6c2]
   - a conjunction view re-answers exactly once per touching commit, holds the
     join's multiset, and never re-answers for a write its heads do not name
     [tested: test_a_conjunction_view_re_answers_the_join_on_a_touching_commit,
     test_an_untouching_write_does_not_re_answer_a_conjunction_view;
-    commit=WORKTREE]
+    commit=0de0dc08d2fc77bee9dd132c41f1de23cda1e6c2]
   - a tabled view refreshes when a write to the relation its body reads moves
     the table's invalidation counter [tested:
-    test_a_tabled_view_refreshes_after_a_write_to_the_relation; commit=WORKTREE]
+    test_a_tabled_view_refreshes_after_a_write_to_the_relation; commit=0de0dc08d2fc77bee9dd132c41f1de23cda1e6c2]
   - the strategy chosen for a query is the one its shape names
-    [tested: test_the_chosen_strategy_is_the_one_the_shape_names; commit=WORKTREE]
+    [tested: test_the_chosen_strategy_is_the_one_the_shape_names; commit=0de0dc08d2fc77bee9dd132c41f1de23cda1e6c2]
   - the async face delivers the same deltas as the blocking one
-    [tested: test_the_async_face_sees_the_same_deltas; commit=WORKTREE]
+    [tested: test_the_async_face_sees_the_same_deltas; commit=0de0dc08d2fc77bee9dd132c41f1de23cda1e6c2]
   - the refusals: an unsubscribable provider, a query whose own head writes,
     and a tabled strategy over a head with no table
     [tested: test_a_provider_that_delivers_no_events_refuses_a_view,
     test_a_query_whose_head_writes_refuses,
     test_the_tabled_strategy_refuses_a_head_that_is_not_tabled;
-    commit=WORKTREE]
+    commit=0de0dc08d2fc77bee9dd132c41f1de23cda1e6c2]
   - a changes() stream that cannot take a delta refuses the write rather than
     dropping it, and every other open stream is offered it first [tested:
-    test_a_full_changes_stream_does_not_starve_another; commit=WORKTREE]
+    test_a_full_changes_stream_does_not_starve_another; commit=0de0dc08d2fc77bee9dd132c41f1de23cda1e6c2]
 Open Obligations:
   To Do: None
   Hacks: None

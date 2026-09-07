@@ -15,14 +15,14 @@ Assumes:
     (_as_atom, _canonical) and the tabling call spelling and counters
     (_call_spelling, _table_report), and imports nothing from here at module
     level [source: extensions/python/metta/structures.py:LiveView.__init__;
-    commit=WORKTREE]
+    commit=0de0dc08d2fc77bee9dd132c41f1de23cda1e6c2]
 Guarantees:
   - Live answers what match answers, through each of its three maintenance
     strategies, and the strategy a query's shape names is the one it gets
     [tested: test_a_pattern_view_holds_the_multiset_through_both_removal_shapes,
     test_a_conjunction_view_re_answers_the_join_on_a_touching_commit,
     test_a_tabled_view_refreshes_after_a_write_to_the_relation,
-    test_the_chosen_strategy_is_the_one_the_shape_names; commit=WORKTREE]
+    test_the_chosen_strategy_is_the_one_the_shape_names; commit=0de0dc08d2fc77bee9dd132c41f1de23cda1e6c2]
   - a pattern view's per-event cost does not move with what it holds, and a
     conjunction view's cost for a write its heads do not name does not either
     [measured 2026-09-07: 88, 90, 90 inferences per touching write over
@@ -31,21 +31,21 @@ Guarantees:
     command=extensions/python/benchmarks/probes/live_view_cost.py --costs;
     fixture=a ring of (edge n_i n_i+1) with (weight n_i i) at loadavg 92-104]
     [tested: test_an_untouching_write_does_not_re_answer_a_conjunction_view;
-    commit=WORKTREE]
+    commit=0de0dc08d2fc77bee9dd132c41f1de23cda1e6c2]
   - a Delta stream delivers a signed multiplicity per row and one progress
     marker per committed segment, and buffers only while it is open [tested:
     test_a_transaction_delivers_one_progress_after_its_deltas,
     test_a_view_matches_a_delta_structurally,
-    test_the_async_face_sees_the_same_deltas; commit=WORKTREE]
+    test_the_async_face_sees_the_same_deltas; commit=0de0dc08d2fc77bee9dd132c41f1de23cda1e6c2]
   - a stream whose buffer is full refuses the write rather than dropping the
     oldest delta, after every other open stream has been offered it [tested:
-    test_a_full_changes_stream_does_not_starve_another; commit=WORKTREE]
+    test_a_full_changes_stream_does_not_starve_another; commit=0de0dc08d2fc77bee9dd132c41f1de23cda1e6c2]
   - a view refuses a store that promises no events, a query whose own head is
     an operation that writes, and a tabled strategy with no invalidating table
     behind it [tested: test_a_provider_that_delivers_no_events_refuses_a_view,
     test_a_query_whose_head_writes_refuses,
     test_the_tabled_strategy_refuses_a_head_that_is_not_tabled;
-    commit=WORKTREE]
+    commit=0de0dc08d2fc77bee9dd132c41f1de23cda1e6c2]
 Decides:
   - a live view is keyed by ROWS, and its atom face is derived where the
     query has one atom, because a conjunction answers a row across several

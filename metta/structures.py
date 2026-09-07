@@ -40,7 +40,7 @@ Guarantees:
   - LiveView is metta.live's Live with the pattern strategy, read through
     its atoms, so the two cannot drift [tested:
     test_liveview_mirrors_the_space,
-    test_a_ground_removal_costs_the_view_nothing_that_grows; commit=WORKTREE]
+    test_a_ground_removal_costs_the_view_nothing_that_grows; commit=0de0dc08d2fc77bee9dd132c41f1de23cda1e6c2]
 Decides:
   - source text is NOT parsed here, because parsing needs the engine and
     this module's contract is engine-freedom; parse() first, or build

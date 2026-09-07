@@ -86,17 +86,17 @@ Guarantees:
     command=python -m benchmarks.check_instructions subscription-dispatch
     --rounds 3] [tested:
     test_a_segment_watch_hears_one_boundary_per_commit,
-    test_a_transaction_delivers_one_progress_after_its_deltas; commit=WORKTREE]
+    test_a_transaction_delivers_one_progress_after_its_deltas; commit=0de0dc08d2fc77bee9dd132c41f1de23cda1e6c2]
   - a provider's own published change is one committed segment, so a view
     maintained over an attached store advances with it [tested:
-    test_a_published_provider_change_closes_its_own_segment; commit=WORKTREE]
+    test_a_published_provider_change_closes_its_own_segment; commit=0de0dc08d2fc77bee9dd132c41f1de23cda1e6c2]
 Guarded by:
   - _FoldRegistry._lock protects fold state, the active runtime, delivery
     counts, and engine subscription snapshots [tested
     test_subscription_cancel_is_thread_safe]
   - _SegmentClock._lock protects the generation counter, the watch list and
     the engine's announcement flag [tested:
-    test_a_segment_watch_hears_one_boundary_per_commit; commit=WORKTREE]
+    test_a_segment_watch_hears_one_boundary_per_commit; commit=0de0dc08d2fc77bee9dd132c41f1de23cda1e6c2]
 Open Obligations:
   To Do: None
   Hacks: None
