@@ -60,6 +60,14 @@ Guarantees:
     Python's consumptive protocol for compiled for statements [tested:
     test_nested_py_iter_reads_form_the_cartesian_product,
     test_compiled_for_keeps_one_shot_python_iteration; commit=0dc78c93461d6c7f5a83975abedf0f1a631095c3]
+  - no iterator handed to janus's py_iter/2 raises: a pull that fails ends the
+    enumeration with the reserved (stream_tag(), exception) pair, which
+    extensions/python/bridge.pl turns back into the exception at the pull that
+    raised, and a replayable source remembers the failure so every later cursor
+    reports it at the same index instead of reading a truncated prefix
+    [tested: test_a_raising_iterator_is_attributed_to_the_py_iter_that_pulled_it,
+    test_a_failed_replay_source_reports_the_same_failure_to_every_cursor;
+    commit=490cd97c382e5cafd0cf7b7ba2fc1aeecbf10b44]
   - algebra_equal() compares tensor shape and exact elements, including unequal
     NaNs [tested: test_finite_tensor_semiring_checks_every_law,
     test_finite_tensor_nan_does_not_become_equal_by_identity; commit=074dc0a88b1605c54824de677d586b6f60998bcf].
@@ -136,6 +144,109 @@ class _GroundedTuple(tuple):
         return self.original
 
 
+class _StreamFailureTag:
+    """The head of the reserved terminal-failure pair, and nothing else.
+
+    A private class rather than a bare ``object()`` so the blob names itself
+    wherever janus prints one, and a private instance rather than a value any
+    caller could spell: the Prolog side tells the frame from an ordinary item
+    by this object's IDENTITY, so an iterator's own data cannot forge one.
+    """
+
+    __slots__ = ()
+
+    def __repr__(self) -> str:
+        return "<metta_py terminal failure>"
+
+
+#: The one tag object of this process. extensions/python/bridge.pl fetches it
+#: once through stream_tag() and compares every pulled item against the blob it
+#: got back, which is a pointer comparison and costs no crossing.
+_STREAM_FAILURE: Final = _StreamFailureTag()
+
+
+def stream_tag() -> _StreamFailureTag:
+    """The tag that opens a terminal-failure pair, for the Prolog side to hold.
+
+    Longhand for what bridge.pl's ``py_iter_tag/1`` caches; nothing else
+    calls it.
+    """
+    return _STREAM_FAILURE
+
+
+def stream_reraise(error: BaseException) -> None:
+    """Raise what a stream carried out, back on the Python side of the crossing.
+
+    Called from Prolog with the object ``_stream_failure`` put in the pair, so
+    the exception is raised inside an ordinary ``py_call``: janus maps
+    ``KeyboardInterrupt`` and ``SystemExit`` onto their unwind forms and every
+    other class onto ``error(python_error(Class, Object), context(...))``,
+    which bridge.pl's ``metta_py_guard/2`` already knows how to attribute. The
+    shim's ``metta.errors.stream_reraise`` is the same function for the
+    operation and provider doors; this file may not import it, because the
+    engine runs with janus alone.
+    """
+    raise error
+
+
+def _stream_failure(error: BaseException) -> tuple[_StreamFailureTag, BaseException]:
+    """Carry a terminal stream failure as data until Prolog can raise it.
+
+    Janus pulls a Python iterator with ``PyIter_Next`` inside ``py_iter/2`` and
+    never consults the error indicator afterwards, so an iterator that RAISES
+    is indistinguishable there from one that is exhausted: the Prolog goal
+    carries on over a silently truncated stream and the still-set Python
+    exception surfaces at whatever crossing runs next [source: janus 1.5.3
+    janus.c:py_iter3, the two ``state->next = PyIter_Next(state->iterator)``
+    calls, neither followed by ``check_error``;
+    commit=0ee5a2dfee0e37a23b0eb9c765b477d7f90295fe]. So no iterator this file
+    hands to ``py_iter`` may raise; each ends a failure with this pair instead.
+
+    A PAIR, where ``metta.errors.stream_failure`` uses the four-element list
+    ``["x", "raise", Class, Exception]``. The shape is forced by the options
+    each seat crosses under: bridge.pl asks for ``py_object(true)``, under
+    which a Python list arrives as an opaque blob that Prolog cannot take
+    apart without a second crossing, while an exact tuple arrives as ``-/2``
+    with both elements in hand [measured 2026-09-07 with a janus probe:
+    ``['x','raise',...]`` crossed as ``<py>(0x..,list)`` and ``(tag, exc)`` as
+    ``<py>(0x..,object)-<py>(0x..,'ValueError')``].
+    """
+    return (_STREAM_FAILURE, error)
+
+
+def _failed_during_generator_close(error: BaseException) -> bool:
+    """Tell a release failure from an ordinary mid-iteration failure.
+
+    ``yield from`` delegates ``close()`` to the source while handling
+    ``GeneratorExit``, so a source whose ``finally`` raises carries that
+    control signal as its direct context and must propagate rather than yield:
+    yielding while closing raises ``RuntimeError: generator ignored
+    GeneratorExit`` and hides the resource failure [tested:
+    test_a_release_failure_while_closing_a_guarded_stream_propagates;
+    commit=490cd97c382e5cafd0cf7b7ba2fc1aeecbf10b44].
+    """
+    return isinstance(error.__context__, GeneratorExit)
+
+
+def _guarded(source: Iterator[Any]) -> Iterator[Any]:
+    """One iterator, made total: it yields items and never raises into py_iter.
+
+    For the sources that keep no cache. ``_ReplayableIterator.replay`` carries
+    the same rule itself, because there the failure also has to be remembered.
+    """
+    try:
+        yield from source
+    except GeneratorExit:
+        raise
+    # Every class, because every class poisons the crossing equally: a narrower
+    # `except Exception` is what let KeyboardInterrupt through to py_iter on
+    # the operation doors.
+    except BaseException as error:
+        if _failed_during_generator_close(error):
+            raise
+        yield _stream_failure(error)
+
+
 class _ReplayableIterator:
     """One lazy source cache with a fresh index for every enumeration."""
 
@@ -153,7 +264,21 @@ class _ReplayableIterator:
         return self._source
 
     def replay(self) -> Iterator[Any]:
-        """Read from index zero, extending the shared cache only on demand."""
+        """Read from index zero, extending the shared cache only on demand.
+
+        A failure of the source is CACHED, as its last entry, so every cursor
+        replays the same items and then the same failure at the same index. The
+        source is spent once it has raised, so the alternative is not "try
+        again": it is a second enumeration reading a silently truncated prefix
+        as a complete answer, which is the defect the frame exists to close.
+        This is RxJava's rule for a shared sequence -- ``Single.cache()``
+        "caches its success or error event and replays it to all the downstream
+        subscribers" -- rather than ``itertools.tee``'s, whose ``_tee.__next__``
+        calls ``next(self.iterator)`` with no handler, so the failure reaches
+        whichever tee pulled it and the others read the prefix
+        [source: https://javadoc.io/doc/io.reactivex/rxjava/latest/rx/Single.html,
+        cache(); CPython 3.14 itertools documentation, the tee() equivalent].
+        """
         index = 0
         while True:
             with self._lock:
@@ -167,6 +292,10 @@ class _ReplayableIterator:
                     except StopIteration:
                         self._done = True
                         return
+                    # Every class, for the reason _guarded gives.
+                    except BaseException as error:  # noqa: BLE001
+                        self._done = True
+                        value = _stream_failure(error)
                     self._cache.append(value)
             index += 1
             yield value
@@ -734,6 +863,11 @@ def iterate(obj: Any) -> Any:
     [source: Python 3.14 itertools.tee documentation;
     https://docs.python.org/3.14/library/itertools.html#itertools.tee;
     commit=0dc78c93461d6c7f5a83975abedf0f1a631095c3]
+
+    A pull that RAISES ends the enumeration with ``_stream_failure``'s pair
+    rather than raising into ``py_iter``; the three cached paths carry that
+    themselves, in ``replay``, because there the failure must also be
+    remembered for the next cursor.
     """
     if isinstance(obj, _ReplayableIterator):
         return obj.replay()
@@ -742,12 +876,19 @@ def iterate(obj: Any) -> Any:
     wrapped, source = _wire_value(obj)
     if wrapped and isinstance(source, Iterator):
         return _transport_replay(obj, source).replay()
-    return iter(_unwrap(obj))
+    return _guarded(iter(_unwrap(obj)))
 
 
 def iterate_once(obj: Any) -> Iterator[Any]:
-    """Python's original consumptive iterator protocol for compiled loops."""
-    return iter(_unwrap(obj))
+    """Python's original consumptive iterator protocol for compiled loops.
+
+    Guarded like every other stream this file hands to ``py_iter`` and cached
+    like none of them: a source that has raised is spent, which is Python's own
+    consumptive rule, so a second ``py-iter-once`` over it reads the empty
+    remainder rather than the failure. ``py-iter`` is the replayable reading
+    and remembers.
+    """
+    return _guarded(iter(_unwrap(obj)))
 
 
 def render(obj: Any) -> str:
