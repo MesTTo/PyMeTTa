@@ -709,7 +709,9 @@ def _install_deferred_term_release(janus: Any) -> None:
 #:
 #: Typically, not always: a forked child on this box answered `!(+ 3 4)`,
 #: `!(hyperpose ((+ 1 1) (+ 2 2)))` and `garbage_collect_atoms`
-#: [measured 2026-09-07: ai-tmp/wn-probe-fork-break.py under load 44]. That is
+#: [measured 2026-09-07 with this handler removed; fixture=one boot, then
+#: os.fork(), the child running each program and writing its answer down a
+#: pipe; load 44 on 32 cores; commit=0179a14353a925115d545fc3ea0dc67eab4e4ecb]. That is
 #: exactly why the refusal is here rather than left to a crash: the inherited
 #: engine LOOKS fine, and a child that reads a plausible answer out of half a
 #: runtime is the silently-wrong class this library refuses. It is also why
