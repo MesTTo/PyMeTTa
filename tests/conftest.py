@@ -400,7 +400,7 @@ def engine_state_report(item) -> str:
 
 
 @pytest.hookimpl(hookwrapper=True, trylast=True)
-def pytest_runtest_makereport(item, call):  # noqa: ARG001  -- pytest's hook signature
+def pytest_runtest_makereport(item, call):
     """Attach the state report to every red, and never to a green.
 
     A hook rather than a fixture, and one hook rather than a line in each of
@@ -410,6 +410,7 @@ def pytest_runtest_makereport(item, call):  # noqa: ARG001  -- pytest's hook sig
     cannot raise, because a reporting hook that throws replaces the failure it
     was called to explain.
     """
+    del call  # pytest names the phase in the hook signature; the report reads the item
     outcome = yield
     report = outcome.get_result()
     if report.outcome != "failed":

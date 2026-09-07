@@ -30,6 +30,8 @@ import sys
 from pathlib import Path
 from typing import ClassVar
 
+import pytest
+
 from tests import conftest as suite_conftest
 
 REPO = Path(__file__).resolve().parents[4]
@@ -74,7 +76,8 @@ def test_a_failing_item_carries_the_state_that_decided_it(tmp_path):
     assert "metta=&self" in report, report[-3000:]
 
 
-def test_the_state_report_names_every_field_it_promises(metta):  # noqa: ARG001  -- the fixture is here to boot the engine the report reads
+@pytest.mark.usefixtures("metta")
+def test_the_state_report_names_every_field_it_promises():
     """Every promised row is present when the engine is up.
 
     Against a live engine rather than a stub, because the rows are engine
@@ -82,7 +85,8 @@ def test_the_state_report_names_every_field_it_promises(metta):  # noqa: ARG001 
     """
     class _Config:
         @staticmethod
-        def getoption(name, default=None):  # noqa: ARG004  -- the pytest Config signature
+        def getoption(name, default=None):
+            del name  # the pytest Config signature; every option here answers its default
             return default
 
     class _Item:
@@ -95,7 +99,8 @@ def test_the_state_report_names_every_field_it_promises(metta):  # noqa: ARG001 
         assert field in report, f"{field} missing from\n{report}"
 
 
-def test_a_reading_the_engine_refuses_is_reported_rather_than_dropped(metta, monkeypatch):  # noqa: ARG001  -- the fixture is here to boot the engine the report reads
+@pytest.mark.usefixtures("metta")
+def test_a_reading_the_engine_refuses_is_reported_rather_than_dropped(monkeypatch):
     """A goal the engine cannot answer says so, and the other rows still land.
 
     A report that silently drops the reading it could not take is a report
@@ -110,7 +115,8 @@ def test_a_reading_the_engine_refuses_is_reported_rather_than_dropped(metta, mon
 
     class _Config:
         @staticmethod
-        def getoption(name, default=None):  # noqa: ARG004  -- the pytest Config signature
+        def getoption(name, default=None):
+            del name  # the pytest Config signature; every option here answers its default
             return default
 
     class _Item:
