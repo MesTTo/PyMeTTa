@@ -18,7 +18,7 @@
 #   commit=dd4f82100a052e2c5254a2ef9e91f6eb9d2e0c49]. The TypeScript space
 #   example's own suite runs, which nothing ran before it, so the four
 #   claims citing one of its cases name a suite a lane reaches
-#   [tested: ts-space; commit=WORKTREE].
+#   [tested: ts-space; commit=45615fb15d8a1d041e3ce0698d789d4d1392a0eb].
 # Open Obligations:
 #   To Do: None
 #   Hacks: None
