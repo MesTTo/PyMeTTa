@@ -1302,9 +1302,11 @@ def _forget_space(space: str) -> None:
     a space that installed metta.arrays and was dropped left 160 refcount
     entries, and the next space to take its name registered the same
     operations with 37 atoms where a fresh name gets 197, leaving them
-    callable but declared nowhere [measured 2026-09-07,
-    ai-tmp/probe-ao-pooled.py in the branch worktree; tested:
-    test_a_recycled_space_name_declares_its_own_operations; commit=76dbea9f4bc10804a5ca19493972dfb7975bc4b0].
+    callable but declared nowhere [measured 2026-09-07: stale=160 and new=37
+    at 70ac99da against stale=0 and new=197 with this hook;
+    command=python extensions/python/benchmarks/probes/pooled_name_refcount.py;
+    fixture=numpy, a keeper space and two lives of one pooled name; tested:
+    test_a_recycled_space_name_declares_its_own_operations; commit=WORKTREE].
 
     Called from Space.drop beside integrate's and algebra's own, after the
     engine teardown, because it is bookkeeping about a space that is gone.
