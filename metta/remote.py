@@ -660,8 +660,7 @@ class RemoteCursor:
                     {"cursor": self._token, "batch": self._batch, "format": "arrow"},
                 )
             )
-        pa = _arrow.pyarrow()
-        return pa.concat_tables([_arrow.read_ipc(chunk) for chunk in self._streams])
+        return _arrow.ipc_concat([_arrow.read_ipc(chunk) for chunk in self._streams])
 
     def __arrow_c_stream__(self, requested_schema: Any = None) -> Any:
         """The drained stream as the Arrow PyCapsule Interface's own object.

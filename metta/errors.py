@@ -949,12 +949,15 @@ class TransportFailure(MettaError):  # noqa: N818  -- the exception name is a do
 def is_transport_failure(error: BaseException) -> bool:
     """Whether an error is the backend being ABSENT rather than wrong.
 
-    The obvious test does not separate them: a socket timeout raises
-    OSError, but websocket-client's own timeout does NOT subclass it, so
-    "is the cause an OSError" misses exactly the shape a broken event
-    stream takes under load. Hoisted from the DAS surface to the shared error
-    model, because every remote backend needs the same trichotomy.
+    The obvious test does not separate them: a socket timeout raises OSError,
+    and a transport whose own timeout does NOT subclass it misses exactly the
+    shape a broken event stream takes under load. Which classes those are is
+    the `transport-error` point's rows, one per transport library, so a client
+    with its own exception hierarchy declares it rather than being added here.
+    Hoisted from the DAS surface to the shared error model, because every
+    remote backend needs the same trichotomy.
     """
+    from . import seam  # noqa: PLC0415  -- the seam, which errors sits under
     from ._optional import optional_module  # noqa: PLC0415  optional probe
 
     cause = error.__cause__ if isinstance(error, MettaError) else error
@@ -962,13 +965,11 @@ def is_transport_failure(error: BaseException) -> bool:
         return True
     if isinstance(cause, (OSError, TimeoutError)):
         return True
-    module = optional_module("websocket")
-    if module is None:
-        return False
-    return isinstance(
-        cause,
-        (module.WebSocketTimeoutException, module.WebSocketConnectionClosedException),
-    )
+    for row in seam.transport_error.table().values():
+        module = optional_module(row.module)
+        if module is not None and isinstance(cause, row.classes(module)):
+            return True
+    return False
 
 
 class NotReducible(Exception):  # noqa: N818  -- the exception name is a domain outcome in the public protocol, not an implementation error suffix

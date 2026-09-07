@@ -106,6 +106,7 @@ from dataclasses import dataclass
 from dataclasses import replace as _replace
 from typing import Any, Literal
 
+from . import seam as _seam
 from ._api_types import _DEFAULT_SPACE, _OperationName, _SpaceId
 from ._documentation import documentation_atom
 from ._name_mapping import attribute_name
@@ -250,6 +251,23 @@ def _record_registry_undo(
     if key is not _NO_UNDO_KEY and any(record.key == key for record in frame):
         return
     frame.append(_RegistryUndo(callback, description, key))
+
+
+# A seam registration is process-wide state exactly as an operation
+# registration is, so it enlists in the same frame. The seam does not reach for
+# this: metta.errors reads its rows on every refusal and the base layer may not
+# import this module, so the OWNER of the frame subscribes instead, which is
+# the direction metta._contract takes with the conversion registry's listeners.
+def _record_seam_undo(point: str, name: str, undo: Callable[[], None]) -> None:
+    """Enlist one seam registration's inverse in the current frame."""
+    _record_registry_undo(
+        undo,
+        description=f"{point} registration {name!r}",
+        key=("seam", point, name),
+    )
+
+
+_seam.on_registration(_record_seam_undo)
 
 
 def _record_undo(name: str) -> None:

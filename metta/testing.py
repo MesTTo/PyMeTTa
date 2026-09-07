@@ -123,7 +123,7 @@ from .benchmarking import (
 from .convert import build as _build
 from .convert import project as _project
 from .define import Defined
-from .errors import EngineError, Ground, Remedy, refusing
+from .errors import EngineError, Ground, MettaError, Remedy, refusing
 from .foreign import (
     Enumerable,
     MatchClassifier,
@@ -167,6 +167,7 @@ __all__ = [
     "ground_atoms",
     "grounded",
     "laws",
+    "library_scalars",
     "measure_counters",
     "measure_instructions",
     "names",
@@ -284,20 +285,39 @@ def numpy_scalars():
     These retain identity while MeTTa accepts them as Number operands and
     dispatches through Python operators.
 
+    The values come from the `array` point's numpy row, which is what makes
+    this the shipped name for a generator every registered array library also
+    supplies: ``library_scalars(<module>)`` is the general spelling.
+
     NumPy is optional. Install ``pymetta[arrays,test]`` before requesting this
     strategy.
     """
-    st = _st()
-    np = require_module(
-        "numpy",
-        "metta.testing.numpy_scalars requires numpy; install pymetta[arrays,test]",
-    )
-    return st.one_of(
-        st.integers(-(2**31), 2**31 - 1).map(np.int32),
-        st.integers(-(2**62), 2**62).map(np.int64),
-        st.floats(allow_nan=False, allow_infinity=False, width=32).map(np.float32),
-        st.floats(allow_nan=False, allow_infinity=False, width=64).map(np.float64),
-    )
+    return library_scalars("numpy")
+
+
+def library_scalars(library: Any):
+    """Generate one registered array library's own scalar values.
+
+    ``library`` is the module or its name. A library registered against the
+    `array` point with a ``scalars`` field answers this; one without it is
+    refused naming the field, because a strategy nobody declared cannot be
+    invented from the module.
+    """
+    from . import seam  # noqa: PLC0415  -- the seam, read at call time
+
+    name = library if isinstance(library, str) else getattr(library, "__name__", library)
+    for row in seam.array.table().values():
+        if row.module == name:
+            scalars = row.fields.get("scalars")
+            if scalars is None:
+                msg = (
+                    f"the {name!r} array row declares no scalars field, so it "
+                    f"generates no scalar values; register it with "
+                    f"scalars=<a callable answering a strategy>"
+                )
+                raise MettaError(msg)
+            return scalars()
+    raise MettaError(seam.array.refusal(f"the array library {name!r}"))
 
 
 def texts():

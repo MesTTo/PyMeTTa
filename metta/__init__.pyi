@@ -249,6 +249,7 @@ __all__ = [
     "render",
     "rules",
     "run",
+    "seam",
     "seg",
     "set",
     "solve",

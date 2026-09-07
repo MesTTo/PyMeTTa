@@ -26,7 +26,8 @@ from __future__ import annotations
 import pytest
 
 from metta import S, V, remote
-from metta._arrow import _IPC_EXTRA, IPC_MEDIA_TYPE
+from metta._arrow import IPC_MEDIA_TYPE
+from metta._registrants import _IPC_MISSING
 from metta.atoms import _atom_from_wire
 from metta.errors import MettaError
 
@@ -262,12 +263,12 @@ def test_the_two_cursor_modes_refuse_each_others_doors(registry):
 
 
 def test_the_ipc_doors_name_the_extra_when_pyarrow_is_absent(registry, monkeypatch):
-    """The refusal says which package writes the format, and which extra has it."""
+    """The refusal is the ipc row's own missing sentence: the package and the extra."""
     monkeypatch.setattr("metta._optional.import_module", _no_pyarrow)
     with remote.Gateway(registry) as gateway, pytest.raises(ImportError) as refusal:
         gateway("ask", {"pattern": S.users(V.id, V.name).to_wire(), "format": "arrow"})
     assert "pymetta[arrow]" in str(refusal.value)
-    assert _IPC_EXTRA == str(refusal.value)
+    assert _IPC_MISSING == str(refusal.value)
 
 
 def test_an_arrow_answer_carries_its_cursor_in_a_header(registry):

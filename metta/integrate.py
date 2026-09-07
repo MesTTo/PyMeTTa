@@ -86,7 +86,7 @@ from typing import Any, Literal, Protocol, runtime_checkable
 from . import _atoms_core as _atom_registry
 from . import _convert_registry as _type_registry
 from . import _ops as _operation_registry
-from . import convert
+from . import convert, seam
 from ._api_types import space_of as _space_of
 from ._object_fields import field_names as _field_names
 from .atoms import (
@@ -959,3 +959,164 @@ def install_reflection_ops(m) -> list[str]:
         declarations=[_expr(S.arguments, S["py-field"], S.atoms)],
     )
     return ["py-attr", "py-field"]
+
+
+# ------------------------------------------------ this module's seam points
+#
+# The six points below are the doors this module already had. Their rows live
+# where they always lived, so nothing about a hot lookup or a transactional
+# rollback changes; what the seam adds is that they are DECLARED, so "what can
+# I extend here" is one query and one door registers against any of them. This
+# is exactly what ext_points.pl does for a Prolog seam whose clauses Prolog's
+# own database holds.
+#
+# They are declared HERE rather than in metta.seam because their readers and
+# adders are this module's own: metta.seam is below metta.errors in the
+# layering and a seam that imported this one would drag the base layer up the
+# stack with it. metta.seam names this module in its _DECLARING list and
+# imports it lazily when a caller asks for a point it does not already hold,
+# so the cheap path stays cheap and `seam.points()` still answers all of them.
+
+
+def _type_rows() -> list[seam.Row]:
+    return [
+        seam.Row(
+            "type",
+            registration.type_name,
+            {"type": cls, "image": registration.image, "parts": registration.fields},
+            "package",
+        )
+        for cls, registration in _type_registry._REGISTRY.items()
+        if registration.explicit
+    ]
+
+
+def _add_type(row: seam.Row) -> Callable[[], None]:
+    given = dict(row.fields)
+    cls = given.pop("type")
+    parts = given.pop("parts", ())
+    register_type(cls, name=row.name, fields=parts, **given)
+    return lambda: unregister_type(cls)
+
+
+def _repr_rows() -> list[seam.Row]:
+    return [
+        seam.Row("repr", _named(text), {"claims": predicate, "text": text}, "package")
+        for predicate, text in _atom_registry._PROTOCOL_REPRS
+    ]
+
+
+def _add_repr(row: seam.Row) -> Callable[[], None]:
+    register_repr(row.claims, row.text)
+    return lambda: unregister_repr(row.claims, row.text)
+
+
+def _reflector_rows() -> list[seam.Row]:
+    return [
+        seam.Row("reflector", _named(lower), {"claims": claims, "lower": lower}, "package")
+        for claims, lower in _REFLECTORS
+    ]
+
+
+def _add_reflector(row: seam.Row) -> Callable[[], None]:
+    register_reflector(row.claims, row.lower)
+    return lambda: unregister_reflector(row.claims, row.lower)
+
+
+def _named(fn: Any) -> str:
+    """A callable's own name, for a registry that stored no name with it."""
+    return str(getattr(fn, "__qualname__", None) or getattr(fn, "__name__", fn))
+
+
+def _advertised_rows(point_name: str, group: str) -> Callable[[], list[seam.Row]]:
+    """Rows for one entry-point group, read without loading any of it."""
+
+    def read() -> list[seam.Row]:
+        return [
+            seam.Row(point_name, name, {"entry": entry, "group": group}, name)
+            for name, entry in seam.advertised(group).items()
+        ]
+
+    return read
+
+
+type_ = seam.point(
+    "type",
+    "declaration",
+    fields=("type",),
+    optional=("to_atom", "from_atom", "image", "parts"),
+    reader=_type_rows,
+    adder=_add_type,
+    doc=(
+        "How a host class crosses, both ways, declared rather than derived. "
+        "The ROW's name is the MeTTa type name, so nothing is said twice; "
+        "`type` is the class, `to_atom`, `from_atom` and `image` are what "
+        "metta.integrate.register_type takes, and `parts` is its `fields`, "
+        "renamed because a row already carries its own fields. The rows are "
+        "metta.convert's own registrations, read where they live."
+    ),
+)
+
+repr_ = seam.point(
+    "repr",
+    "ownership",
+    fields=("claims", "text"),
+    reader=_repr_rows,
+    adder=_add_repr,
+    doc=(
+        "How a host value PRINTS in MeTTa. `claims(value)` recognises the "
+        "values this row formats and `text(value)` renders one. "
+        "`metta.integrate.register_repr` is the same door."
+    ),
+)
+
+reflector = seam.point(
+    "reflector",
+    "ownership",
+    fields=("claims", "lower"),
+    reader=_reflector_rows,
+    adder=_add_reflector,
+    doc=(
+        "How a host object's structure becomes facts. `claims(value)` "
+        "recognises what this row can lower and `lower(value, head, space)` "
+        "writes the facts. `metta.integrate.register_reflector` is the same "
+        "door."
+    ),
+)
+
+provider = seam.point(
+    "provider",
+    "declaration",
+    fields=("entry", "group"),
+    reader=_advertised_rows("provider", SPACES_GROUP),
+    doc=(
+        f"A space backed by a library's own storage, advertised under the "
+        f"{SPACES_GROUP} entry-point group. The rows are what installed "
+        f"packages advertise, UNLOADED; `metta.integrate.load_entry_point` "
+        f"loads one by name."
+    ),
+)
+
+library = seam.point(
+    "library",
+    "declaration",
+    fields=("entry", "group"),
+    reader=_advertised_rows("library", LIBRARIES_GROUP),
+    doc=(
+        f"A directory of MeTTa or Prolog sources a package ships, advertised "
+        f"under the {LIBRARIES_GROUP} entry-point group and importable as "
+        f"`(library <name>)` once its path is registered."
+    ),
+)
+
+integration = seam.point(
+    "integration",
+    "declaration",
+    fields=("entry", "group"),
+    reader=_advertised_rows("integration", ENTRY_POINT_GROUP),
+    doc=(
+        f"A whole library wired into a space, advertised under the "
+        f"{ENTRY_POINT_GROUP} entry-point group. `metta.integrate.discover` "
+        f"installs them in dependency order."
+    ),
+)

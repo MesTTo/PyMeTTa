@@ -44,13 +44,12 @@ from __future__ import annotations
 
 import dataclasses
 import inspect
-import sys
 import threading
 import typing
 from collections.abc import Callable
-from enum import Enum
 from typing import Any, NamedTuple
 
+from . import seam
 from ._atoms_core import Atom
 
 IMAGES = ("symbol", "expression", "handle", "operations")
@@ -367,71 +366,22 @@ def explicitly_registered(cls: type) -> bool:
 
 
 def _default_registration(cls: type) -> _Registration | None:
-    """The image common types get without being registered."""
-    # An atom IS the translation; its __match_args__ states destructuring
-    # for Python's match statement, not a constructor image.
+    """The image common types get without being registered.
+
+    An atom IS the translation; its __match_args__ states destructuring for
+    Python's match statement, not a constructor image, so it is refused here
+    rather than offered to the rows.
+
+    Everything else is the `image` point: rows are consulted in registration
+    order and the first that recognises the class answers, so a model
+    framework whose classes are also dataclasses is asked before the
+    structural rows and a framework this seat has never heard of registers
+    rather than being added to a chain here.
+    """
     if issubclass(cls, Atom):
         return None
-    if issubclass(cls, Enum):
-        return _Registration("symbol", None, None, cls.__name__, (), (), explicit=False)
-    # A pydantic model is a constructor expression like a dataclass, its
-    # fields read from model_fields and its rebuild through the class
-    # itself, so validation runs exactly where pydantic runs it. Detected
-    # through sys.modules: if pydantic was never imported, no BaseModel
-    # subclass can exist, and the library keeps zero dependency on it.
-    pydantic = sys.modules.get("pydantic")
-    if pydantic is not None and issubclass(cls, pydantic.BaseModel):
-        return _pydantic_registration(cls)
-    if dataclasses.is_dataclass(cls) and cls is not type(None):
-        return _dataclass_registration(cls)
-    if issubclass(cls, tuple) and hasattr(cls, "_fields"):  # NamedTuple
-        return _named_tuple_registration(cls)
-    match_args = getattr(cls, "__match_args__", None)
-    if (
-        isinstance(match_args, tuple)
-        and match_args
-        and all(isinstance(name, str) for name in match_args)
-        # A class that says how it crosses through __metta__ has spoken; a
-        # default derived beside it would claim the type name for a
-        # projection the hook never uses.
-        and inspect.getattr_static(cls, "__metta__", None) is None
-    ):
-        return _match_args_registration(cls, match_args)
-    return None
-
-
-def _pydantic_registration(cls: type) -> _Registration:
-    model_cls: Any = cls
-    names = tuple(model_cls.model_fields.keys())
-
-    def pydantic_parts(obj: Any) -> tuple[Any, ...]:
-        extras = getattr(obj, "__pydantic_extra__", None)
-        if extras:
-            extra_names = ", ".join(sorted(map(str, extras)))
-            msg = (
-                f"cannot project {cls.__name__}: its Pydantic extra fields "
-                f"would be lost ({extra_names}). Declare those fields on "
-                f"the model or register an explicit conversion."
-            )
-            raise TypeError(
-                msg
-            )
-        return tuple(getattr(obj, name) for name in names)
-
-    return _Registration(
-        "expression",
-        pydantic_parts,
-        # model_validate with by_name, not cls(**...): a field declared with
-        # an alias validates under the alias in the constructor, while
-        # projection read attribute names, and by_name accepts them directly.
-        lambda *parts: model_cls.model_validate(
-            dict(zip(names, parts, strict=True)), by_name=True
-        ),
-        cls.__name__,
-        names,
-        _field_types(cls, names),
-        explicit=False,
-    )
+    claim = seam.image.claim(cls)
+    return None if claim is None else claim.answer
 
 
 def _dataclass_registration(cls: type) -> _Registration:

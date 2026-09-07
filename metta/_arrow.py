@@ -60,8 +60,8 @@ from __future__ import annotations
 from collections.abc import Iterator, Sequence
 from typing import Any, Final, NamedTuple
 
+from . import seam
 from ._config import _CHUNK_CAP
-from ._optional import require_module
 from .atoms import Atom, Grounded, _encode
 
 __all__ = [
@@ -69,9 +69,9 @@ __all__ = [
     "ArrowView",
     "Projection",
     "batch_bounds",
+    "ipc_concat",
     "ipc_schema",
     "ipc_stream",
-    "pyarrow",
     "read_batches",
     "read_ipc",
     "resolve",
@@ -97,13 +97,6 @@ _NO_VALUE: Final = object()
 #: schema back the other way [source:
 #: https://arrow.apache.org/docs/format/CDataInterface.html#data-type-description-format-strings].
 _REQUESTED_KIND: Final = {"l": INT64, "g": FLOAT64, "b": BOOL, "u": TEXT}
-
-_ARROW_EXTRA: Final = (
-    "the Arrow doors build the C structs with nanoarrow, which is not "
-    "installed; install pymetta[arrow]. A consumer needs no pyarrow, only "
-    "its own Arrow support"
-)
-
 
 def _raw(cell: Any) -> Any:
     """The Python payload behind one answer cell, or _NO_VALUE.
@@ -316,87 +309,37 @@ def batch_bounds(length: int) -> Iterator[tuple[int, int]]:
         size = min(size * 2, _CHUNK_CAP)
 
 
-def _nanoarrow() -> Any:
-    return require_module("nanoarrow", _ARROW_EXTRA)
+def _builder() -> Any:
+    """The row that builds the Arrow C structs here, or a refusal.
 
-
-def _field_types(na: Any) -> dict[str, Any]:
-    return {
-        INT64: na.int64(),
-        FLOAT64: na.float64(),
-        BOOL: na.bool_(),
-        UTF8: na.string(),
-        TEXT: na.string(),
-    }
-
-
-def _schema(na: Any, projection: Projection) -> Any:
-    """The struct CSchema for a projection.
-
-    Fields are built one at a time rather than from a name-to-type mapping,
-    because a bridge declaration may name one table column twice and Arrow
-    allows the duplicate where a dict would silently drop it.
+    The `arrow` point is ownership: the first registered builder whose library
+    is importable claims, and with none the refusal is every registered
+    builder's own missing-library sentence. A CONSUMER of the capsules needs
+    no row; this is only who makes them.
     """
-    types = _field_types(na)
-    fields = [
-        na.Schema(types[kind], name=name)
-        for name, kind in zip(projection.names, projection.kinds, strict=True)
-    ]
-    return na.c_schema(na.struct(fields))
-
-
-def _honour(projection: Projection, requested_schema: Any) -> Projection:
-    """The projection a requested schema asks for, or the derived one.
-
-    Best-effort by the interface's own rule: a request this producer cannot
-    satisfy exactly is ignored rather than refused, and a consumer that cares
-    reads the schema it actually got.
-    """
-    if requested_schema is None:
-        return projection
-    na = _nanoarrow()
-    try:
-        wanted = na.c_schema(requested_schema)
-        children = list(wanted.children)
-    except Exception:  # noqa: BLE001  -- an unreadable request is a request this producer ignores
-        return projection
-    if wanted.format != "+s" or len(children) != len(projection.names):
-        return projection
-    if [child.name for child in children] != list(projection.names):
-        return projection
-    kinds = [_REQUESTED_KIND.get(child.format, "") for child in children]
-    return projection.retyped(kinds) or projection
+    claim = seam.arrow.claim()
+    if claim is not None:
+        return claim.row
+    registered = seam.arrow.rows()
+    if not registered:
+        raise ImportError(seam.arrow.refusal("the Arrow capsule doors"))
+    raise ImportError(" ".join(row.missing for row in registered))
 
 
 def schema_capsule(projection: Projection) -> Any:
     """The "arrow_schema" PyCapsule for a projection."""
-    na = _nanoarrow()
-    return _schema(na, projection).__arrow_c_schema__()
+    return _builder().schema(projection)
 
 
 def stream_capsule(projection: Projection, requested_schema: Any = None) -> Any:
-    """The "arrow_array_stream" PyCapsule for a projection."""
-    na = _nanoarrow()
-    from nanoarrow.c_array_stream import CArrayStream  # noqa: PLC0415  -- the Arrow extra
+    """The "arrow_array_stream" PyCapsule for a projection.
 
-    projection = _honour(projection, requested_schema)
-    schema = _schema(na, projection)
-    types = _field_types(na)
-    batches = [
-        na.c_array_from_buffers(
-            schema,
-            stop - start,
-            [None],
-            children=[
-                na.c_array(projection.values(index, start, stop), types[kind])
-                for index, kind in enumerate(projection.kinds)
-            ],
-        )
-        for start, stop in batch_bounds(projection.length)
-    ]
-    # Every batch was built from `schema` itself, so type equality holds by
-    # construction and the per-batch re-check would only re-derive it.
-    return CArrayStream.from_c_arrays(batches, schema, validate=False).__arrow_c_stream__()
+    A requested schema is honoured when every column can be produced at the
+    type asked for and ignored otherwise, which the interface allows; the
+    builder reads the request, because reading a foreign schema is its
+    library's job.
+    """
+    return _builder().stream(projection, requested_schema)
 
 
 def read_batches(source: Any) -> tuple[tuple[str, ...], Iterator[list[tuple[Any, ...]]]]:
@@ -406,47 +349,14 @@ def read_batches(source: Any) -> tuple[tuple[str, ...], Iterator[list[tuple[Any,
     its own head and then write one batch at a time. The iterator owns the
     stream and releases it when it finishes or is closed.
     """
-    na = _nanoarrow()
-    stream = na.ArrayStream(source)
-    schema = stream.schema
-    if schema.type != na.Type.STRUCT:
-        stream.close()
-        msg = (
-            f"an Arrow stream of rows is a stream of struct arrays; this one "
-            f"carries {schema.type}, which has no columns to become an atom's "
-            f"arguments"
-        )
-        raise TypeError(msg)
-    names = tuple(field.name for field in schema.fields)
-
-    def batches() -> Iterator[list[tuple[Any, ...]]]:
-        with stream:
-            for chunk in stream.iter_chunks():
-                yield list(chunk.iter_tuples())
-
-    return names, batches()
+    return _builder().batches(source)
 
 
-#: The Arrow IPC codec's own dependency. nanoarrow builds the C structs a
-#: PyCapsule carries and does not WRITE the streaming format, which is a
-#: FlatBuffers envelope; pyarrow writes and reads it, and is the reference
-#: implementation of it.
-_IPC_EXTRA: Final = (
-    "the Arrow IPC stream is encoded with pyarrow, which is not installed; "
-    "install pymetta[arrow]. The local capsule doors need only nanoarrow; a "
-    "stream of BYTES needs something that writes the format"
-)
+#: The IPC streaming format, a FlatBuffers envelope, is WRITTEN by the `ipc`
+#: point's claiming row and not by the capsule builder: nanoarrow builds the C
+#: structs a PyCapsule carries and does not write the envelope, pyarrow does.
+#: Every door below asks the point, so a second encoder is a row and no edit.
 
-#: The pyarrow constructor each kind's column is written at. TEXT and UTF8 are
-#: both utf8 and differ only in what a cell renders as, which `values_of`
-#: already decides.
-_IPC_TYPES: Final = {
-    INT64: "int64",
-    FLOAT64: "float64",
-    BOOL: "bool_",
-    UTF8: "string",
-    TEXT: "string",
-}
 
 #: The IANA-registered media type for the Arrow IPC streaming format, and the
 #: one a gateway's Accept header names
@@ -456,60 +366,51 @@ _IPC_TYPES: Final = {
 IPC_MEDIA_TYPE: Final = "application/vnd.apache.arrow.stream"
 
 
-def pyarrow() -> Any:
-    """The IPC codec's own package, or the install guidance naming its extra."""
-    return require_module("pyarrow", _IPC_EXTRA)
+def _ipc() -> Any:
+    """The row that encodes the IPC stream here, or a refusal.
+
+    The `ipc` point is ownership like `arrow`: the first registered encoder
+    whose library is importable claims, and with none the refusal is every
+    registered encoder's own missing-library sentence.
+    """
+    claim = seam.ipc.claim()
+    if claim is not None:
+        return claim.row
+    registered = seam.ipc.rows()
+    if not registered:
+        raise ImportError(seam.ipc.refusal("the Arrow IPC stream"))
+    raise ImportError(" ".join(row.missing for row in registered))
 
 
 def ipc_schema(names: Sequence[str], kinds: Sequence[str], declared: Sequence[str]) -> Any:
     """The Arrow schema for a set of columns, with what each says about itself.
 
-    `declared` is one MeTTa type name per column, which rides in the field's
-    metadata under `metta.type`; a column whose kind is text because nothing
-    declared it also carries `metta.kind=mixed`, the word for a column that
-    holds whatever its cells hold.
+    `declared` is one MeTTa type name per column, which the encoder writes into
+    the field's metadata under `metta.type`; a column whose kind is text
+    because nothing declared it also carries `metta.kind=mixed`.
     """
-    pa = pyarrow()
-    fields = []
-    for name, kind, kind_name in zip(names, kinds, declared, strict=True):
-        metadata = {"metta.type": kind_name}
-        if kind == TEXT:
-            metadata["metta.kind"] = "mixed"
-        fields.append(pa.field(name, getattr(pa, _IPC_TYPES[kind])(), metadata=metadata))
-    return pa.schema(fields)
+    return _ipc().schema(tuple(names), tuple(kinds), tuple(declared))
 
 
 def ipc_stream(schema: Any, columns: Sequence[Sequence[Any]]) -> bytes:
     """One complete IPC stream: the schema message, one batch, the end marker.
 
-    Complete rather than a fragment, because a response BODY is what
-    `pyarrow.ipc.open_stream` is handed and a fragment is not readable on its
-    own; a cursor's chunks are therefore one stream each with the same schema,
-    which is the shape Arrow Flight's DoGet already has
-    [source: https://arrow.apache.org/docs/format/Columnar.html#ipc-streaming-format].
-    An empty chunk is still a stream, so a consumer reads a schema either way.
+    Complete rather than a fragment, because a response BODY is what a reader
+    is handed and a fragment is not readable on its own; a cursor's chunks are
+    therefore one stream each with the same schema. An empty chunk is still a
+    stream, so a consumer reads a schema either way.
     """
-    pa = pyarrow()
-    sink = pa.BufferOutputStream()
-    with pa.ipc.new_stream(sink, schema) as writer:
-        if columns and columns[0]:
-            writer.write_batch(
-                pa.record_batch(
-                    [
-                        pa.array(values, type=field.type)
-                        for values, field in zip(columns, schema, strict=True)
-                    ],
-                    schema=schema,
-                )
-            )
-    return sink.getvalue().to_pybytes()
+    return _ipc().stream(schema, columns)
 
 
 def read_ipc(raw: bytes) -> Any:
-    """One IPC stream's record batches, as a pyarrow Table."""
-    pa = pyarrow()
-    with pa.ipc.open_stream(pa.BufferReader(raw)) as reader:
-        return reader.read_all()
+    """One IPC stream's record batches, as the encoder's own table."""
+    return _ipc().read(raw)
+
+
+def ipc_concat(tables: Sequence[Any]) -> Any:
+    """The drained chunks of one cursor as one table."""
+    return _ipc().concat(tables)
 
 
 class ArrowView:

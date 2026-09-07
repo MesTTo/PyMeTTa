@@ -140,7 +140,11 @@ FINAL_METTA_METHODS = 38
 # +1 on 2026-09-07 for ``telemetry``, a satellite like ``lint`` and ``tables``:
 # it is a module of two verbs over the trace and the counters, and a lazy
 # satellite is what keeps `import metta` from loading the OpenTelemetry API.
-FINAL_METTA_EXPORTS = 120
+# +1 on 2026-09-07 for ``seam``, this seat's extension seam. It is a satellite
+# like ``tables`` and ``lint``, and it earns the root because it is the door a
+# LIBRARY reaches for: a package registering against a point imports one name,
+# and a program asking what can be extended here asks it.
+FINAL_METTA_EXPORTS = 121
 
 SATELLITES = {
     "aio",

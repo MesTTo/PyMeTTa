@@ -106,14 +106,13 @@ from __future__ import annotations
 
 import inspect
 import json
-import sqlite3
 import sys
 from collections.abc import Callable, Iterable, Iterator, Mapping
 from typing import Any, Protocol, cast
 
+from . import seam
 from ._api_types import space_of
 from ._atom_wire import _atom_from_wire
-from ._declarations import is_arrow
 from .atoms import (
     Atom,
     Expression,
@@ -764,13 +763,14 @@ def declare(m: Any, name: str, declaration: Atom | str) -> Atom:
 
 #: `df.metta`, spelled the way each library spells an extension: pandas'
 #: registered accessor and polars' registered namespace are the same idea, so
-#: one class serves both.
+#: one class serves every registered frame library and the row says how that
+#: library installs it.
 _ACCESSOR = "metta"
 _ACCESSED: set[str] = set()
 
 
 class _FrameDoor:
-    """`df.metta`: this library's face on a pandas or polars frame."""
+    """`df.metta`: this library's face on any registered frame library's frame."""
 
     __slots__ = ("_frame",)
 
@@ -789,43 +789,34 @@ class _FrameDoor:
 
 
 def accessors() -> tuple[str, ...]:
-    """Install `df.metta` for every frame library already imported.
+    """Install `df.metta` for every registered frame library already imported.
 
     Answers the libraries that now carry it, so a program can ask.
 
-    Registration never imports pandas or polars itself. `import metta.tables`
-    costs 15 ms and `import pandas` costs 531 ms [measured 2026-09-06,
+    Registration never imports a frame library. `import metta.tables` costs
+    15 ms and `import pandas` costs 531 ms [measured 2026-09-06,
     time.perf_counter around each import in a fresh interpreter], so a module
     that registered by importing would charge every tables user for a library
-    the program may never touch. It registers what is in `sys.modules`, every
-    door in this module calls it first, and a program that imports a frame
-    library afterwards and touches nothing else here calls this by name.
-    Idempotent, because both libraries warn when an accessor name is replaced.
+    the program may never touch. It installs for whichever registered module
+    is in `sys.modules`, every door in this module calls it first, and a
+    program that imports a frame library afterwards and touches nothing else
+    here calls this by name. Idempotent, because a library warns when an
+    accessor name is replaced.
+
+    Which libraries these are is the `frame` point's rows, not a list here:
+    each row says which module it is and how that library spells an accessor,
+    so a third one installs `df.metta` by registering
+    (`metta.seam.frame.register(...)`, or the `metta.extensions` entry point).
     """
-    for library, install in (("pandas", _install_pandas), ("polars", _install_polars)):
-        module = sys.modules.get(library)
-        if module is not None and library not in _ACCESSED:
-            install(module)
-            _ACCESSED.add(library)
+    for row in seam.frame.table().values():
+        module = sys.modules.get(row.module)
+        if module is not None and row.name not in _ACCESSED:
+            row.accessor(module, _ACCESSOR, _FrameDoor)
+            _ACCESSED.add(row.name)
     return tuple(sorted(_ACCESSED))
 
 
-def _install_pandas(pandas: Any) -> None:
-    pandas.api.extensions.register_dataframe_accessor(_ACCESSOR)(_FrameDoor)
-
-
-def _install_polars(polars: Any) -> None:
-    polars.api.register_dataframe_namespace(_ACCESSOR)(_FrameDoor)
-
-
-# -- a head as a SQL function ------------------------------------------------
-
-#: MeTTa's types in SQL's vocabulary. `Number` is one type covering integers
-#: and floats, and DOUBLE is SQL's type that holds both; cast in the query
-#: when a column wants an integer. Everything else is text, because every atom
-#: has canonical MeTTa text and nothing else survives a SQL column intact.
-_SQL_TYPE = {"Number": "DOUBLE", "Bool": "BOOLEAN", "String": "VARCHAR"}
-_SQL_TEXT = "VARCHAR"
+# -- a head as a SQL function
 
 
 def _sql_answer(answers: Any) -> Any:
@@ -840,39 +831,6 @@ def _sql_answer(answers: Any) -> Any:
     return str(answer) if isinstance(answer, Atom) else answer
 
 
-def _sql_arity(signature: Any) -> int:
-    """A head's SQL argument count, or -1 for a head with no declared arrow."""
-    total = 0
-    for parameter in signature.parameters.values():
-        if parameter.kind is inspect.Parameter.VAR_POSITIONAL:
-            return -1
-        total += 1
-    return total
-
-
-def _undeclared_arrow_message(name: str) -> str:
-    """The refusal DuckDB gets for a head with no declared arrow."""
-    return (
-        f"DuckDB needs the types of {name} and cannot infer them; declare "
-        f"the head's arrow, `(: {name} (-> Number Number))`, and register "
-        f"again. sqlite3 needs only the arity and takes it undeclared"
-    )
-
-
-def _sql_signature(signature: Any, name: str) -> tuple[list[str], str]:
-    """A head's SQL parameter and return types, from its declared arrow."""
-    empty = inspect.Signature.empty
-    if _sql_arity(signature) < 0:
-        raise TypeError(_undeclared_arrow_message(name))
-    parameters = [
-        _SQL_TYPE.get(str(parameter.annotation), _SQL_TEXT)
-        for parameter in signature.parameters.values()
-    ]
-    declared = signature.return_annotation
-    returns = _SQL_TEXT if declared is empty else _SQL_TYPE.get(str(declared), _SQL_TEXT)
-    return parameters, returns
-
-
 def sql_function(connection: Any, head: Any, name: str | None = None) -> str:
     """Register a MeTTa head as a scalar SQL function, and answer its SQL name.
 
@@ -885,13 +843,15 @@ def sql_function(connection: Any, head: Any, name: str | None = None) -> str:
     function is restated here; `name=` is the escape for a SQL identifier the
     head's own name cannot be.
 
-    Two drivers, told apart by what their `create_function` takes: sqlite3
-    wants the arity and no types, DuckDB wants the types and reads them from
-    the head's DECLARED arrow, refusing by name when there is none (an
-    arrow `inspect.signature` merely infers is a proposal, not a promise). A row that
-    produces no answer is SQL NULL and one that produces several refuses,
-    because a scalar function has one result per row; a SQL NULL argument
-    reaches the head as `Grounded(None)` and MeTTa decides what it means.
+    WHICH engines are known is the `sql` point's rows, and the first row that
+    claims the connection declares the function its own way: sqlite3 wants the
+    arity and no types, DuckDB wants the types and reads them from the head's
+    DECLARED arrow, refusing by name when there is none (an arrow
+    `inspect.signature` merely infers is a proposal, not a promise). A third
+    engine registers rather than being added here. A row that produces no
+    answer is SQL NULL and one that produces several refuses, because a scalar
+    function has one result per row; a SQL NULL argument reaches the head as
+    `Grounded(None)` and MeTTa decides what it means.
     """
     accessors()
     if not callable(head):
@@ -901,34 +861,17 @@ def sql_function(connection: Any, head: Any, name: str | None = None) -> str:
         )
         raise TypeError(msg)
     sql_name = name if name is not None else str(getattr(head, "__name__", head))
-    create = getattr(connection, "create_function", None)
-    if create is None:
-        msg = (
-            f"{type(connection).__name__} has no create_function; "
-            f"sql_function registers on a sqlite3 or DuckDB connection"
+    claim = seam.sql.claim(connection)
+    if claim is None:
+        raise TypeError(
+            seam.sql.refusal(f"a connection of type {type(connection).__name__}")
         )
-        raise TypeError(msg)
 
     def call(*arguments: Any) -> Any:
         return _sql_answer(head(*arguments))
 
     call.__name__ = sql_name
-    signature = inspect.signature(head)
-    if isinstance(connection, sqlite3.Connection):
-        create(sql_name, _sql_arity(signature), call)
-    else:
-        # `inspect.signature` shows the arrow the stored atoms JUSTIFY when
-        # nothing is declared (`Space.infer_types`'s proposal), which is the
-        # right thing to show a reader and the wrong thing to build SQL types
-        # from: a proposal is not a promise. DuckDB reads the declaration.
-        declared = getattr(head, "type", None)
-        if declared is None or not is_arrow(declared):
-            raise TypeError(_undeclared_arrow_message(sql_name))
-        parameters, returns = _sql_signature(signature, sql_name)
-        # SPECIAL, so a head may answer nothing and get SQL NULL: under
-        # DuckDB's DEFAULT a returned NULL is an error, and NULL arguments
-        # never reach the function at all.
-        create(sql_name, call, parameters, returns, null_handling="special")
+    claim.row.define(connection, sql_name, call, head, inspect.signature(head))
     return sql_name
 
 
