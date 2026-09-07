@@ -43,21 +43,21 @@ Guarantees:
   - both pools ARE Executors: submit/map/shutdown/with are Python's own, and
     as_completed reads their Futures [tested:
     test_the_pool_is_an_executor_python_recognises,
-    test_as_completed_yields_every_future; commit=WORKTREE]
+    test_as_completed_yields_every_future; commit=0179a14353a925115d545fc3ea0dc67eab4e4ecb]
   - shutdown(cancel_futures=True) cancels what is queued and leaves what a
     worker started [tested: test_shutdown_cancels_queued_futures;
-    commit=WORKTREE]
+    commit=0179a14353a925115d545fc3ea0dc67eab4e4ecb]
   - a process worker boots its own engine once and answers what the parent
     answers for the same program [tested:
     test_the_process_pool_runs_three_programs_in_three_workers,
     test_a_process_pool_answers_what_the_sequential_run_answers;
-    commit=WORKTREE]
+    commit=0179a14353a925115d545fc3ea0dc67eab4e4ecb]
   - a call reaching an engine handle refuses at submit rather than opening a
     different space in the worker [tested:
     test_a_closure_over_a_space_refuses_at_submit,
-    test_a_module_global_space_refuses_at_submit; commit=WORKTREE]
+    test_a_module_global_space_refuses_at_submit; commit=0179a14353a925115d545fc3ea0dc67eab4e4ecb]
   - a handle refuses to cross a process boundary in either direction
-    [tested: test_a_space_answer_refuses_to_cross; commit=WORKTREE]
+    [tested: test_a_space_answer_refuses_to_cross; commit=0179a14353a925115d545fc3ea0dc67eab4e4ecb]
   - a worker exception is raised to the caller rather than swallowed: one
     plainly, several together as one ExceptionGroup in input order
     [tested test_map_raises_every_failure_in_input_order]
@@ -116,7 +116,7 @@ Decides:
     [measured 2026-09-07: 545.7M against 560.4M instructions:u, minimum of
     three; command=perf stat -e instructions:u python -c "import
     metta.parallel[, concurrent.futures.process]"; fixture=this checkout
-    under load 44; commit=WORKTREE].
+    under load 44; commit=0179a14353a925115d545fc3ea0dc67eab4e4ecb].
   - a fan-out door answers an ITERATOR over results that already exist, not
     a list: the whole input is submitted and taken before the door returns,
     which is what these pools have always done, while the type is
@@ -196,7 +196,7 @@ def _apply_chunk[R](fn: Callable[..., R], rows: Sequence[tuple[Any, ...]]) -> li
     A module-level function rather than a closure, because a process pool
     pickles what it submits BY REFERENCE and a closure has no reference to
     pickle. CPython's own ProcessPoolExecutor batches through the same shape
-    [source: Lib/concurrent/futures/process.py, _process_chunk; commit=WORKTREE].
+    [source: Lib/concurrent/futures/process.py, _process_chunk; commit=0179a14353a925115d545fc3ea0dc67eab4e4ecb].
     """
     return [fn(*row) for row in rows]
 
@@ -234,7 +234,7 @@ class _FanOut(Executor):
     for its side effects, which a lazy map silently never runs. Choosing
     laziness would have made that a silent no-op, which this library does
     not ship [tested: test_a_worker_can_write_and_the_home_engine_sees_it;
-    commit=WORKTREE].
+    commit=0179a14353a925115d545fc3ea0dc67eab4e4ecb].
     """
 
     @override
@@ -823,7 +823,7 @@ def _callable_edges(item: Any) -> list[Any]:
     not make those twenty suspect. Ray's serializability inspector walks a
     callable through the same call [source:
     https://github.com/ray-project/ray/blob/master/python/ray/util/check_serialize.py,
-    _inspect_func_serialization; commit=WORKTREE].
+    _inspect_func_serialization; commit=0179a14353a925115d545fc3ea0dc67eab4e4ecb].
 
     A module-level handle is the case only the global half sees: a function
     written `def work(n): return space.run(...)` beside `space = ...` has an
@@ -938,13 +938,13 @@ class ProcessPool(_FanOut, ProcessPoolExecutor):
     Guarantees:
       - each worker holds its own engine and its own spaces [tested:
         test_the_process_pool_runs_three_programs_in_three_workers;
-        commit=WORKTREE]
+        commit=0179a14353a925115d545fc3ea0dc67eab4e4ecb]
       - a callable reaching a Space, MeTTa, Runtime or EnginePool refuses at
         submit rather than opening a different space in the worker [tested:
-        test_a_closure_over_a_space_refuses_at_submit; commit=WORKTREE]
+        test_a_closure_over_a_space_refuses_at_submit; commit=0179a14353a925115d545fc3ea0dc67eab4e4ecb]
       - a worker whose engine did not boot says why on its first work unit,
         rather than breaking the pool with BrokenProcessPool [tested:
-        test_a_worker_that_cannot_boot_says_why; commit=WORKTREE]
+        test_a_worker_that_cannot_boot_says_why; commit=0179a14353a925115d545fc3ea0dc67eab4e4ecb]
     Owns:
       - one process, one Prolog engine and one boot per worker, from the
         first submit until shutdown(); and one SimpleQueue carrying the

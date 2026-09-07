@@ -4,28 +4,28 @@ Guarantees:
   - three programs really run in three worker processes, proved by a
     rendezvous every worker has to reach rather than by a clock [tested:
     test_the_process_pool_runs_three_programs_in_three_workers;
-    commit=WORKTREE]
+    commit=0179a14353a925115d545fc3ea0dc67eab4e4ecb]
   - a worker answers what the same program answers here, which is the
     differential the work unit's double life makes possible: program() is an
     ordinary function in this process too [tested:
     test_a_process_pool_answers_what_the_sequential_run_answers;
-    commit=WORKTREE]
+    commit=0179a14353a925115d545fc3ea0dc67eab4e4ecb]
   - every way of reaching a live engine handle refuses at submit, naming the
     remedy: a closure, a module global, a bound method, and an argument
     [tested: test_a_closure_over_a_space_refuses_at_submit,
     test_a_module_global_space_refuses_at_submit,
     test_a_bound_method_of_a_space_refuses_at_submit,
-    test_a_space_argument_refuses_at_submit; commit=WORKTREE]
+    test_a_space_argument_refuses_at_submit; commit=0179a14353a925115d545fc3ea0dc67eab4e4ecb]
   - a handle refuses to cross as an ANSWER too, where no submit-time walk
-    could see it [tested: test_a_space_answer_refuses_to_cross; commit=WORKTREE]
+    could see it [tested: test_a_space_answer_refuses_to_cross; commit=0179a14353a925115d545fc3ea0dc67eab4e4ecb]
   - a worker whose boot failed says why on its first work unit instead of
     breaking the pool with BrokenProcessPool [tested:
-    test_a_worker_that_cannot_boot_says_why; commit=WORKTREE]
+    test_a_worker_that_cannot_boot_says_why; commit=0179a14353a925115d545fc3ea0dc67eab4e4ecb]
   - fork is refused at construction, and a child that inherited an engine
     anyway refuses at its first crossing with its locks reset [tested:
     test_the_fork_start_method_is_refused_at_construction,
     test_a_forked_child_refuses_the_inherited_engine,
-    test_a_fork_resets_the_engine_locks; commit=WORKTREE]
+    test_a_fork_resets_the_engine_locks; commit=0179a14353a925115d545fc3ea0dc67eab4e4ecb]
 Open Obligations:
   To Do: None
   Hacks: None

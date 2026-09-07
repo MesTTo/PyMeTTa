@@ -89,7 +89,7 @@ Guarantees:
     half a runtime; the same handler resets the locks fork left held so the
     child reaches that refusal instead of deadlocking [tested:
     test_a_forked_child_refuses_the_inherited_engine,
-    test_a_fork_resets_the_engine_locks; commit=WORKTREE]
+    test_a_fork_resets_the_engine_locks; commit=0179a14353a925115d545fc3ea0dc67eab4e4ecb]
 Guarded by:
   - _LOCK serializes runtime creation and every call made on the HOME engine.
     A thread holding its own attached engine takes no process lock: it shares
@@ -696,14 +696,14 @@ def _install_deferred_term_release(janus: Any) -> None:
 #: "Forking a Prolog process with threads will typically deadlock because only
 #: the calling thread is cloned in the fork, while all thread synchronization
 #: are cloned" [source: https://www.swi-prolog.org/pldoc/doc_for?object=fork/1;
-#: commit=WORKTREE]. And the engine's own C, above `PL_cleanup_fork()`, the one
+#: commit=0179a14353a925115d545fc3ea0dc67eab4e4ecb]. And the engine's own C, above `PL_cleanup_fork()`, the one
 #: fork-related entry point it exposes: that call "must be called between
 #: fork() and exec() to remove traces of Prolog that are not supposed to leak
 #: into the new process ... the code cannot lock or unlock any mutex as the
 #: behaviour of mutexes is undefined over fork()", and its `pthread_atfork`
 #: repair sits behind an `O_ATFORK` its own comment marks "Not yet default"
 #: [source: https://github.com/SWI-Prolog/swipl-devel/blob/master/src/pl-thread.c,
-#: PL_cleanup_fork and reinit_threads_after_fork; commit=WORKTREE]. So the
+#: PL_cleanup_fork and reinit_threads_after_fork; commit=0179a14353a925115d545fc3ea0dc67eab4e4ecb]. So the
 #: supported shape is fork-then-exec, and a child that keeps running as a
 #: second Prolog is not a shape SWI has.
 #:
@@ -716,11 +716,11 @@ def _install_deferred_term_release(janus: Any) -> None:
 #: this hook only FLIPS state and never raises: an exception inside an
 #: after-fork handler is routed to sys.unraisablehook and the fork proceeds
 #: anyway [source: CPython Modules/posixmodule.c, run_at_forkers calling
-#: PyErr_FormatUnraisable; commit=WORKTREE], so the loud refusal has to wait
+#: PyErr_FormatUnraisable; commit=0179a14353a925115d545fc3ea0dc67eab4e4ecb], so the loud refusal has to wait
 #: for the next real crossing. PyTorch answers the same hazard the same way,
 #: with `torch.cuda._is_in_bad_fork()` read lazily rather than at the fork
 #: [source: https://github.com/pytorch/pytorch/blob/main/torch/csrc/utils/device_lazy_init.cpp,
-#: register_fork_handler_for_device_init; commit=WORKTREE].
+#: register_fork_handler_for_device_init; commit=0179a14353a925115d545fc3ea0dc67eab4e4ecb].
 _FORK_REFUSAL = (
     "this process inherited a Prolog engine across fork(), and SWI-Prolog "
     "does not survive one: the child clones only the forking thread while it "
