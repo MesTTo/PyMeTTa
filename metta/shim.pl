@@ -1393,14 +1393,30 @@ metta_py_guarded(TimeS, Inf, StackBytes, Goal) :-
     ).
 
 %The caller's own two bounds, and each of them REFUSES when it is exceeded
-%rather than answering. The alarm is the early stop and the deadline check is
-%the verdict, because a late signal lets a goal finish and hands its caller an
-%answer for work that ran past the bound: a 0.3-second load answered after
-%66.170 seconds at loadavg 90 to 100. metta_host_time_budget/3 is the same
-%builder the lazy cursors here already use, so an eager door and a held one
-%now enforce one rule
+%rather than answering. The signal is the early stop and the counter read is
+%the verdict, because a signal that never reaches this frame lets a goal
+%finish and hands its caller an answer for work that ran past the bound: a
+%0.3-second load answered after 66.170 seconds at loadavg 90 to 100.
+%
+%A wall bound loses that way when its alarm arrives late. An INFERENCE bound
+%loses it a second way, and this door had it: SWI raises the bare atom
+%`inference_limit_exceeded` inside the goal and disarms the limit before
+%raising it, so ANY catch inside the goal whose recovery does not re-throw
+%eats both the ball and the bound, and call_with_inference_limit/3 then
+%reports `!` for a goal that never stopped
+%[source: docs/journal/2026-09-04-bounded-trace-keeps-its-events.md, which
+%measured 200,000 further inferences running after such a catch]
+%[tested: inference_budget:a_swallowed_ball_defeats_the_limiter_alone, the
+%control case, and
+%inference_budget:a_swallowed_ball_still_refuses_at_the_python_door].
+%
+%So both halves are built the way the lazy cursors' are, by the engine's own
+%two budget builders: the signal stops the work early and the cumulative
+%read decides, and a bound whose ball was swallowed still refuses at the
+%answer.
 %[tested: test_a_wall_clock_bound_that_is_exceeded_refuses,
-%time_budget:the_language_timeout_form_refuses_a_bound_it_exceeded].
+%time_budget:the_language_timeout_form_refuses_a_bound_it_exceeded,
+%inference_budget:a_swallowed_ball_still_refuses_at_the_python_door].
 metta_py_guarded(TimeS, Inf, Goal) :-
     ( TimeS < 0 -> Timed = Goal
     ; metta_host_time_budget(Goal, TimeS, Deadlined),
@@ -1408,10 +1424,8 @@ metta_py_guarded(TimeS, Inf, Goal) :-
                     time_limit_exceeded,
                     metta_py_raise(time_limit, TimeS)) ),
     ( Inf < 0 -> call(Timed)
-    ; call_with_inference_limit(Timed, Inf, Result),
-      ( Result == inference_limit_exceeded
-        -> metta_py_raise(inference_limit, Inf)
-      ; true ) ).
+    ; metta_host_inference_budget(Timed, Inf, Counted),
+      call(Counted) ).
 
 %Internal execution carries the same context as an annotated cursor while
 %retaining the operation's plain answer wire.
@@ -1424,16 +1438,189 @@ metta_py_captured(Pred, Ins, [Out, Text]) :-
     metta_py_wrapped_goal(Pred, Ins, Out, Goal),
     with_output_to(string(Text), call(Goal)).
 
+%%%%%%%%%% The interrupt poll, and keeping it out of the counters %%%%%%%%%%
+%
+%SWI calls prolog:heartbeat/0 every `heartbeat` inferences of the running
+%thread. That hook is why a Ctrl-C reaches a program while the engine spins:
+%only CPython runs CPython's signal handlers, and nothing enters CPython while
+%Prolog is running, so the hook crosses into Python and CPython takes its
+%queued signals there. janus arms it with a clause of its own,
+%`prolog:heartbeat :- py_call(janus_swi:heartbeat_tick())`, whose Python side
+%has an empty body: the CROSSING is the whole mechanism
+%[source: janus_swi 1.5.3, janus.py, heartbeat/1].
+%
+%The hook is COUNTED WORK, and that is the defect this seat had. Its call port
+%and its body's are ordinary inferences in whatever thread the VM interrupted,
+%so they landed in whichever measurement was open and a stats() block that
+%happened to contain a tick read higher than the identical block beside it: at
+%the shipped 100,000-inference interval, 51 of 4,000 measurements of one
+%659-inference evaluation read 667, and 2,568 of 4,000 did at an interval of
+%1,000 [measured 2026-09-08; command=python extensions/python/benchmarks/
+%probes/interrupt_poll_accounting.py --raw; fixture=three edges in a scratch
+%space, the poll at 0, 100,000 and 1,000 in one process; commit=WORKTREE]. Two
+%measurements of the SAME work therefore differed, in either direction
+%depending on which window the tick fell in, which is what
+%test_analyze_numbers_equal_the_stats_of_the_same_query read as an intermittent
+%on two batteries.
+%
+%So the seat arms its OWN hook, which does the same crossing and records what
+%it spent, and the seat takes that out of the counters it reports. Turning the
+%poll off around a measurement was rejected instead: it would make Ctrl-C wait
+%for the block it is trying to interrupt, and writing the flag disturbs the
+%countdown, which measured half the ticks over a loop that rewrote it.
+%
+%The record is per THREAD, because an exited thread's inferences are added to
+%the thread that JOINS it while a running thread's are its own: a worker's
+%ticks must not be subtracted from the measurement its parent is taking.
+%nb_current/2 rather than a bare read, so a thread that reached the hook
+%without this file's thread_initialization/1 counts from zero instead of
+%raising inside the VM's hook.
+%
+%WHAT IT SPENT TRAVELS WITH THE COUNTER READING IT SPENT IT AT, in one term,
+%and that is how the correction stays exact. The seat has two numbers to read,
+%the engine's counter and this record, and no goal reads two things at one
+%instant, so a tick landing between the two reads would put its cost on one
+%side and its tally on the other: the same error the subtraction exists to
+%remove. A seqlock's answer is to detect the overlap and retry [source: Linux
+%kernel seqlock, read_seqbegin/read_seqretry], but a retry's own goals land
+%inside the measurement, which measured one reading in four thousand nine
+%inferences high. So the hook records WHERE it fired and what the ticks before
+%it had spent, and the seat leaves out a tick whose recorded reading is past
+%its own. One read, one comparison, no retry, and no window in which the pair
+%can disagree
+%[tested: heartbeat_accounting:a_tick_records_what_it_spent_and_where_it_happened,
+%test_a_reading_leaves_out_a_tick_that_fired_after_it].
+:- thread_initialization(
+       nb_setval('$metta_heartbeat_ticks', ticks(0, 0, 0, 0))).
+
+prolog:heartbeat :-
+    py_call(metta_ops:heartbeat_tick()),
+    metta_py_heartbeat_tick.
+
+%One term per thread: how many ticks, what they have spent, the counter
+%reading the LAST one happened at, and what the ticks before it had spent.
+%The last pair is what lets the door leave out a tick that fired after its own
+%reading without a second read to ask about it.
+metta_py_heartbeat_tick :-
+    statistics(inferences, At),
+    metta_py_heartbeat_charge(Charge),
+    (   nb_current('$metta_heartbeat_ticks', ticks(Count, Before, _, _))
+    ->  true
+    ;   Count = 0, Before = 0
+    ),
+    Next is Count + 1,
+    Total is Before + Charge,
+    nb_setval('$metta_heartbeat_ticks', ticks(Next, Total, At, Before)).
+
+%What one tick costs the counter, MEASURED THE WAY THE VM SPENDS IT rather
+%than written down: a constant here would be wrong the first time the hook's
+%body changes, and the body changes whenever the crossing does. The poll is
+%armed densely, one fixed loop is spent with it off and with it on, and the
+%difference is divided by the ticks it took, which is how a benchmark harness
+%prices its own overhead rather than assuming it [source: OpenJDK JMH,
+%org.openjdk.jmh.infra.Blackhole, calibrated per run].
+%
+%A calibration that priced ONE tick would price the wrong one: the first call
+%of a predicate in a process costs an inference more than the calls after it,
+%so a charge taken from it subtracts more than a tick spends and every window
+%that absorbs a tick then reads one LOW. The hook is therefore called once
+%before the measurement and the measurement needs two ticks; once warm, a
+%direct call and a tick the VM raises cost the same
+%[measured 2026-09-08: both 8 inferences; command=python extensions/python/
+%benchmarks/probes/interrupt_poll_accounting.py; commit=WORKTREE].
+:- dynamic metta_py_heartbeat_charge/1.
+metta_py_heartbeat_charge(0).
+
+%Arm the poll: calibrate first, then set the flag. Interval is the caller's
+%config.heartbeat_interval; 0 disarms, and the charge then measures nothing
+%because no tick can advance the record.
+%
+%The calibration spends about 3,400 inferences of the seat's boot, which the
+%engine's own boot benchmark does not see because it boots without this seat,
+%and buys counters that report the caller's work rather than the seat's
+%polling.
+metta_py_heartbeat_arm(Interval) :-
+    must_be(nonneg, Interval),
+    set_prolog_flag(heartbeat, 0),
+    retractall(metta_py_heartbeat_charge(_)),
+    assertz(metta_py_heartbeat_charge(0)),
+    prolog:heartbeat,
+    metta_py_heartbeat_calibrate(800, 4, Charge),
+    retractall(metta_py_heartbeat_charge(_)),
+    assertz(metta_py_heartbeat_charge(Charge)),
+    set_prolog_flag(heartbeat, Interval).
+
+%The same loop twice, and the difference divided by the ticks. Fewer than two
+%ticks is not a measurement and a difference that does not divide exactly did
+%not measure one uniform cost, so both grow the loop and try again; a
+%calibration that cannot be made cannot be guessed, and the seat says so
+%rather than reporting counters it cannot account for.
+%
+%The warm-up and the two-tick floor are the arming door's, above, and the
+%reason is there with them: a charge taken from a cold first call is one
+%inference too high.
+metta_py_heartbeat_calibrate(Iterations, Attempts, Charge) :-
+    set_prolog_flag(heartbeat, 0),
+    metta_py_heartbeat_bracket(Iterations, Bare, _),
+    set_prolog_flag(heartbeat, 1000),
+    metta_py_heartbeat_bracket(Iterations, Armed, Ticks),
+    set_prolog_flag(heartbeat, 0),
+    Spent is Armed - Bare,
+    (   Ticks > 1,
+        0 =:= Spent mod Ticks
+    ->  Charge is Spent // Ticks
+    ;   Attempts > 1
+    ->  Left is Attempts - 1,
+        Longer is Iterations * 2,
+        metta_py_heartbeat_calibrate(Longer, Left, Charge)
+    ;   throw(error(metta_py_heartbeat_uncalibrated(Spent, Ticks),
+                    context(metta_py_heartbeat_arm/1,
+                            'the interrupt poll spent no uniform cost over a \c
+                             loop of known size, so its charge cannot be \c
+                             taken out of the counters')))
+    ).
+
+metta_py_heartbeat_bracket(Iterations, Spent, Ticks) :-
+    statistics(inferences, Raw0),
+    metta_py_heartbeat_term(Before, _, _, _),
+    forall(between(1, Iterations, _), true),
+    statistics(inferences, Raw1),
+    metta_py_heartbeat_term(After, _, _, _),
+    Spent is Raw1 - Raw0,
+    Ticks is After - Before.
+
 %One crossing for the engine's own counters: statistics/2 inferences and
 %cputime, the garbage_collection triple (collections, bytes freed,
-%milliseconds spent), and the thread's answer-table bytes, which the
-%tabling review found reachable only through the lower-level runtime.
-%The Python side reads deltas around a with-block.
-metta_py_stats([Inferences, CpuTime, GcCount, GcFreed, GcTimeMs, TableBytes]) :-
+%milliseconds spent), the thread's answer-table bytes, which the tabling
+%review found reachable only through the lower-level runtime, and the
+%interrupt poll's four-field term. The Python side reads deltas around a
+%with-block and takes the poll's charge out there.
+%
+%The DECISION is Python's and the reading is this door's, because this door
+%is INSIDE every measurement it takes: what it spends between the two
+%readings is added to the work the caller measures, so a subtraction spelled
+%here would cost the caller inferences to be told what it cost him. The term
+%crosses whole, one read, and arithmetic on the other side is free
+%[measured 2026-09-08: an empty stats() block reads 6 inferences with the
+%term crossing and 10 with the subtraction spelled here, against 5 before the
+%poll was accounted at all; command=python extensions/python/benchmarks/
+%probes/interrupt_poll_accounting.py; commit=WORKTREE].
+metta_py_stats([Inferences, CpuTime, GcCount, GcFreed, GcTimeMs, TableBytes,
+                Ticks, Spent, At, Before]) :-
     statistics(inferences, Inferences),
+    metta_py_heartbeat_term(Ticks, Spent, At, Before),
     statistics(cputime, CpuTime),
     statistics(garbage_collection, [GcCount, GcFreed, GcTimeMs|_]),
     statistics(table_space_used, TableBytes).
+
+%The poll's own term, and zeros for a thread that reached this door without
+%this file's thread_initialization/1 rather than an exception from a counter
+%read.
+metta_py_heartbeat_term(Ticks, Spent, At, Before) :-
+    (   nb_current('$metta_heartbeat_ticks', ticks(Ticks0, Spent0, At0, Before0))
+    ->  Ticks = Ticks0, Spent = Spent0, At = At0, Before = Before0
+    ;   Ticks = 0, Spent = 0, At = 0, Before = 0
+    ).
 
 %Run the wrapped call through the engine's user-transaction coordinator:
 %dynamic state and enlisted providers finish first, then the buffered atom

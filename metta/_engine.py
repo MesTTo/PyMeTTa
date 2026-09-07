@@ -223,6 +223,25 @@ def engine_message(kind: str, text: str, file: str, line: int) -> bool:
     return True
 
 
+def heartbeat_tick() -> None:
+    """Enter Python so CPython can run the signal handlers it has queued.
+
+    The engine's interrupt poll, called by ``prolog:heartbeat/0`` every
+    ``config.heartbeat_interval`` inferences. The body is empty on purpose:
+    only CPython runs CPython's signal handlers, it runs them between
+    bytecodes on the main thread, and nothing enters CPython while Prolog is
+    spinning. Crossing at all is the whole mechanism, so a Ctrl-C during a
+    long evaluation raises KeyboardInterrupt instead of waiting for the
+    evaluation to end.
+
+    The rung below is janus's own ``janus_swi.heartbeat(N)``, which arms the
+    same SWI flag with a hook calling its own empty ``heartbeat_tick``. This
+    seat arms its own hook instead, because a hook that is not counted cannot
+    be subtracted, and ``MeTTa.stats()`` reports the block's work rather than
+    the poll's [tested: test_a_measurement_is_the_same_with_the_poll_dense].
+    """
+
+
 def _is_metta_failure(error: BaseException) -> bool:
     """Whether one exception, including every leaf of a group, is ours."""
     if isinstance(error, MettaError):
@@ -338,10 +357,6 @@ class JanusBridge(Protocol):
     def consult(self, path: str, data: str | None = None) -> Any: ...
     def detach_engine(self) -> Any: ...
     def engine(self) -> int: ...
-    def heartbeat(self, interval: int) -> Any:
-        del interval
-        raise NotImplementedError
-
     def prolog(self) -> Any: ...
     def query(
         self, goal: str, inputs: Mapping[str, Any] | None = None
@@ -1032,7 +1047,15 @@ class Runtime:
             # with no heartbeat at all; 10,000 cost ~2% on that loop.
             # config.heartbeat_interval exposes that latency/cost tradeoff
             # [tested: test_sigint_interrupts_a_running_evaluation].
-            self._janus.heartbeat(config.heartbeat_interval)
+            #
+            # Through the shim rather than janus.heartbeat(), which would
+            # install a hook of janus's own that no counter can see: the
+            # shim's hook does the same crossing and counts itself, so
+            # stats() reports the measured block's work and not the poll's
+            # [tested: test_a_measurement_is_the_same_with_the_poll_dense].
+            self._janus.cmd(
+                "user", "metta_py_heartbeat_arm", config.heartbeat_interval
+            )
 
     # ------------------------------------------------------------------ startup
 

@@ -1094,6 +1094,128 @@ def test_stats_block_counts_the_work(m):  # noqa: D103  -- pytest discovers or i
     assert "inferences" in repr(s)
 
 
+@contextlib.contextmanager
+def polling_every(space, inferences):
+    """Set the engine's interrupt-poll interval for a block and put it back.
+
+    The interval is ONE engine-wide flag, so it outlives the space that wrote
+    it and the suite runs in a shuffled order; every test that depends on it
+    names it here. `config.heartbeat_interval` is the caller's door and takes
+    effect when the engine boots, so a test that needs a different interval in
+    a booted process writes the flag the arming set.
+    """
+    before = space.runtime.once("current_prolog_flag(heartbeat, Value)")["Value"]
+    space.runtime.once(f"set_prolog_flag(heartbeat, {inferences})")
+    try:
+        yield
+    finally:
+        space.runtime.once(f"set_prolog_flag(heartbeat, {before})")
+
+
+@contextlib.contextmanager
+def planted_poll_state(space):
+    """Write the interrupt poll's own term for a block and put it back.
+
+    The term is per thread and CUMULATIVE -- ticks, what they have spent, the
+    counter reading the last one happened at, and what the ticks before it had
+    spent -- so a test that left a smaller total behind would make the next
+    measurement in this worker subtract a negative. The poll is off for the
+    whole block, which is what makes the save exact: nothing else can move the
+    term while the test owns it.
+    """
+    read = "nb_getval('$metta_heartbeat_ticks', ticks(T, S, A, B))"
+    with polling_every(space, 0):
+        held = space.runtime.once(read)
+
+        def plant(ticks, spent, at, before):
+            space.runtime.once(
+                f"nb_setval('$metta_heartbeat_ticks', "
+                f"ticks({ticks}, {spent}, {at}, {before}))"
+            )
+
+        try:
+            yield plant
+        finally:
+            plant(held["T"], held["S"], held["A"], held["B"])
+
+
+def test_a_reading_leaves_out_a_tick_that_fired_after_it(m):
+    """A counter reading and the poll's tally are two reads, not one instant.
+
+    A tick landing between them would put its cost on one side and its tally on
+    the other, which is the same two inferences the subtraction exists to
+    remove. So the hook records the counter reading it fired at: a tick
+    recorded PAST a reading is left out of it, and what the ticks before it had
+    spent is subtracted instead.
+
+    It happens about once in fifty thousand readings in a live process, and on
+    demand here. Two identical blocks each end by planting a fifth tick that
+    spent six inferences; the first records it BEHIND the reading, so its six
+    come out, and the second records it AHEAD, which is the state a tick
+    landing between the exit reading's two halves leaves, so its six stay in
+    and its tally is not counted either.
+    """
+    m.run("(= (poll-probe $n) (if (== $n 0) done (poll-probe (- $n 1))))")
+    m.eval("(poll-probe 50)")  # warm: a first evaluation compiles as well as runs
+
+    with planted_poll_state(m) as plant:
+        plant(4, 24, 0, 18)
+        with m.stats() as behind:
+            m.eval("(poll-probe 50)")
+            plant(5, 30, 0, 24)
+
+        plant(4, 24, 0, 18)
+        with m.stats() as ahead:
+            m.eval("(poll-probe 50)")
+            plant(5, 30, 10**12, 24)
+
+    assert behind.heartbeats == 1
+    assert ahead.heartbeats == 0, "a tick recorded past the reading is not in it"
+    assert ahead.inferences - behind.inferences == 6
+
+
+def test_a_measurement_is_the_same_with_the_poll_dense(m):
+    """The engine's interrupt poll is not the measured block's work.
+
+    SWI calls the seat's `prolog:heartbeat/0` every `config.heartbeat_interval`
+    inferences, and that hook crosses into Python so a Ctrl-C can land. Its own
+    call ports are ordinary inferences in the interrupted thread, so before
+    this they landed in whichever measurement was open and two readings of the
+    SAME work differed: the intermittent
+    `test_analyze_numbers_equal_the_stats_of_the_same_query` read on two
+    batteries.
+
+    So the same work is measured three times here -- with the poll off, at an
+    interval dense enough that dozens of ticks land inside the block, and off
+    again -- and all three read the same number, while `heartbeats` says how
+    many times the poll ran inside each. The dense arm asserts the ticks
+    actually happened, because an equality that held because nothing happened
+    would prove nothing.
+    """
+    m.run("(= (poll-probe $n) (if (== $n 0) done (poll-probe (- $n 1))))")
+    m.eval("(poll-probe 200)")  # warm: a first evaluation compiles as well as runs
+
+    def measured():
+        with m.stats() as counters:
+            for _ in range(5):
+                m.eval("(poll-probe 200)")
+        return counters.inferences, counters.heartbeats
+
+    with polling_every(m, 0):
+        quiet, quiet_ticks = measured()
+    with polling_every(m, 100):
+        dense, dense_ticks = measured()
+    with polling_every(m, 0):
+        again, again_ticks = measured()
+
+    assert (quiet_ticks, again_ticks) == (0, 0)
+    assert dense_ticks > 10, "the poll barely fired, so this measured nothing"
+    assert (dense, again) == (quiet, quiet), (
+        f"the same work read {quiet}, {dense} and {again} inferences with the "
+        f"poll off, dense ({dense_ticks} ticks) and off again"
+    )
+
+
 def test_a_stats_counter_is_unreadable_until_its_block_closes(m):
     """A counter is a delta, so there is nothing to read before the block
     that measures it has closed. Raising there rather than answering None
