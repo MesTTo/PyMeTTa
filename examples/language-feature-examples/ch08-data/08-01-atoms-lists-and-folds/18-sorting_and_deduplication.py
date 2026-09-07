@@ -15,7 +15,10 @@ Open Obligations:
   Future Enhancements: None.
 """
 
-from metta import S, V, fn
+from metta import G, S, V, fn
+
+#: The one string this file compares, as ground data rather than as source.
+G_TEXT = G("s")
 
 
 def twin(m):
@@ -72,15 +75,9 @@ def twin(m):
     assert mixed[1] == S.f(1)
 
 
-#: The one string this file compares, as ground data rather than as source.
-from metta import G  # noqa: E402  -- the value below is data the claims share
-
-G_TEXT = G("s")
-
-
 #: MEASURED on this branch rather than inherited: this twin is new, so there is
 #: no earlier pin to move
 #: [measured 2026-09-07: 16159 inferences, 1.3895x the example's 11629; command=python
 #: extensions/python/tools/twin_coverage.py --measure --rounds 3;
-#: fixture=docs/every-atom-has-an-example at its example commits; commit=98397cdd04679cbf40b2d515076dadc09c1b0a32].
+#: fixture=docs/every-atom-has-an-example at its example commits; commit=WORKTREE].
 BUDGET = 16159
