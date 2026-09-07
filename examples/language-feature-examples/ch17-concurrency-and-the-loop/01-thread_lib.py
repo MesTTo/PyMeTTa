@@ -288,7 +288,7 @@ def twin(m):
 #: and not by the engine: 51 observations read 552258..583831. A run outside it is a
 #: re-observation, not a re-pin [measured 2026-09-08: python
 #: extensions/python/tools/twin_coverage.py --observe --rounds 25,
-#: ai-tmp/integrator-849a9e/mergeEXT-observe-25.log and mergeEXT-twins3.log; commit=WORKTREE].
+#: ai-tmp/integrator-849a9e/mergeEXT-observe-25.log and mergeEXT-twins3.log; commit=4e0feaf6b8eb13cd17232f6e7d58679b6e22f2b9].
 BUDGET = {
     "minimum": 552258,
     "maximum": 583831,

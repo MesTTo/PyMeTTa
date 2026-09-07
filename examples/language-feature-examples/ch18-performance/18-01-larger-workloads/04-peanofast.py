@@ -200,7 +200,7 @@ def twin(m):
 #: dispatch of a point a twin crosses. Measured on the merged tree, minimum of
 #: three fresh processes [measured 2026-09-08: min-of-3 serial fresh processes;
 #: command=python extensions/python/tools/twin_coverage.py --repin;
-#: commit=WORKTREE].
+#: commit=4e0feaf6b8eb13cd17232f6e7d58679b6e22f2b9].
 BUDGET = 88832
 
 #: OVERRUN 2026-09-07, 17800: it asserts the atom count the example only

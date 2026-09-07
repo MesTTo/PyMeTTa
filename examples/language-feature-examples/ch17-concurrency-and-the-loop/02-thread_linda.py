@@ -252,7 +252,7 @@ def twin(m):
 #: rank) and nothing this twin spins on; the envelope widens with its evidence. A run
 #: outside it is a re-observation, not a re-pin [measured 2026-09-08: python
 #: extensions/python/tools/twin_coverage.py --observe --rounds 25,
-#: ai-tmp/integrator-849a9e/mergeEXT-observe-25.log; commit=WORKTREE].
+#: ai-tmp/integrator-849a9e/mergeEXT-observe-25.log; commit=4e0feaf6b8eb13cd17232f6e7d58679b6e22f2b9].
 BUDGET = {
     "minimum": 427675,
     "maximum": 427713,
