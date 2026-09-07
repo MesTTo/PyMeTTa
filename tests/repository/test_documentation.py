@@ -40,6 +40,12 @@ Guarantees:
   - every page in the site is reachable from the navigation rather than only
     from the search box [tested:
     test_every_site_page_is_reachable_from_the_navigation; commit=a7d2f292004fe06d7671b7931cfc2ce4620b7b35]
+  - every `::: run` fence names an example the corpus runner runs and carries
+    that file's own bytes, so the program the reader presses Run on is the one
+    the gate runs; and the site build refuses when the browser kit it serves has
+    not been built [tested:
+    test_every_run_fence_runs_the_corpus_file_it_names,
+    test_the_site_build_refuses_without_the_browser_kit; commit=a8b50dae12518adb626bf2594258eeaaf4a7f76d]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -49,6 +55,8 @@ Open Obligations:
 import ast
 import importlib.util
 import re
+import shutil
+import subprocess
 import sys
 from pathlib import Path
 
@@ -668,3 +676,102 @@ def test_the_extension_cost_tables_match_the_committed_pins():
         f"{sorted(pinned)}; a pinned tier missing from the page is a cost "
         f"nobody finds"
     )
+
+
+_RUN_FENCE = re.compile(
+    r"^::: run[ \t]+(?P<rest>[^\n]*)\n```(?P<language>[^\n]*)\n(?P<body>.*?)```\n:::[ \t]*$",
+    re.MULTILINE | re.DOTALL,
+)
+_RUN_OPEN = re.compile(r"^::: run\b", re.MULTILINE)
+
+
+def _corpus_examples() -> set[str]:
+    """Every example `sh test.sh` runs, as repository-relative paths.
+
+    The same two rules that runner applies, in the same order: every `.metta`
+    under `examples/` outside a `_fixtures/` directory, less the paths
+    `tests/data/example_skips.txt` names. A page may run any of them and only
+    them, so a fence over a skipped example -- one that needs a terminal, or
+    torch, or the network -- is refused here rather than hanging in a reader's
+    browser.
+    """
+    skipped = {
+        line.split()[0]
+        for line in (_REPO / "tests/data/example_skips.txt").read_text(encoding="utf-8").splitlines()
+        if line.strip() and not line.startswith("#")
+    }
+    return {
+        path.relative_to(_REPO).as_posix()
+        for path in (_REPO / "examples").rglob("*.metta")
+        if "_fixtures" not in path.parts
+        and path.relative_to(_REPO).as_posix() not in skipped
+    }
+
+
+def test_the_corpus_the_run_fences_draw_from_is_not_empty():
+    """A glob that stopped matching would make the check below vacuous."""
+    assert len(_corpus_examples()) >= 200
+
+
+def test_every_run_fence_runs_the_corpus_file_it_names():
+    """The page runs the bytes the gate runs, or the site build refuses.
+
+    `website/.vitepress/runnable.mjs` refuses the same two things while
+    rendering, which is what makes `npm run docs:build` red. This asks them
+    again from Python because the docs lane needs node and the site's
+    dependencies and this needs neither: a machine that cannot build the site
+    still finds a fence that has drifted from the file it names.
+
+    A fence carries the file's text plus the newline a fenced block always ends
+    in, which is the one difference a fence cannot avoid: two corpus files end
+    without one [measured 2026-09-07: ch07-control-flow/07-03-let-and-sequencing/06-chain.metta
+    and ch08-data/08-01-atoms-lists-and-folds/08-alpha_member.metta].
+    """
+    corpus = _corpus_examples()
+    fences = 0
+    for page in _site_pages():
+        text = page.read_text(encoding="utf-8")
+        opened = len(_RUN_OPEN.findall(text))
+        found = list(_RUN_FENCE.finditer(text))
+        assert len(found) == opened, (
+            f"{page.relative_to(_REPO)} opens {opened} ::: run block(s) and only "
+            f"{len(found)} hold one ```metta fence and nothing else"
+        )
+        for fence in found:
+            fences += 1
+            where = f"{page.relative_to(_REPO)}, ::: run {fence['rest']}"
+            assert fence["language"].strip() == "metta", (
+                f"{where}: the fence is tagged {fence['language'].strip()!r}, not metta"
+            )
+            example = fence["rest"].split()[0]
+            assert example in corpus, (
+                f"{where}: {example} is not an example the corpus runner runs"
+            )
+            wanted = (_REPO / example).read_text(encoding="utf-8")
+            if not wanted.endswith("\n"):
+                wanted += "\n"
+            assert fence["body"] == wanted, (
+                f"{where}: the fence is not that file's text; paste the file back into it"
+            )
+    assert fences >= 1, "no page runs an example, so this check passed vacuously"
+
+
+def test_the_site_build_refuses_without_the_browser_kit(tmp_path):
+    """The site serves the browser kit, and says so when it has not been built.
+
+    A site built without it would publish Run buttons that fetch a 404, which
+    is a page that looks live and is not.
+    """
+    if shutil.which("node") is None:
+        pytest.skip("node is not installed; the site's bundling script needs it")
+    finished = subprocess.run(
+        ["node", "scripts/bundle-browser.mjs", str(tmp_path)],
+        cwd=_SITE,
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=120,
+    )
+    assert finished.returncode == 1, finished.stdout + finished.stderr
+    assert "npm run build:browser --prefix extensions/node" in finished.stderr
+    assert not any(tmp_path.iterdir()), "the refusal wrote into the directory it refused"
