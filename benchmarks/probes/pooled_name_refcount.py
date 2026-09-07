@@ -15,7 +15,7 @@ Guarantees: installs metta.arrays on a keeper space and on a second space,
   where a fresh name gets 197, the declaration adds skipped because the dead
   life's refcounts were still counted; on the tree that added the hook,
   stale=0 and new=197; extensions/python/metta/ops.py's _forget_space cites
-  this probe; commit=WORKTREE].
+  this probe; commit=f0c6cf586120cfac43229fbff7b7e4f320629cfd].
 """  # noqa: D205  -- the contract header is one continuous invariant, not summary-and-body prose
 
 import numpy
