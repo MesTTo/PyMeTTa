@@ -10,7 +10,7 @@
 %     assertion over answer bags and a MeTTa one cannot hold different
 %     relations or print different sentences [tested:
 %     extensions/python/tests/ch12_testing/test_assert_answers.py;
-%     commit=WORKTREE]
+%     commit=ef5b91d7950594a49e177d972a954841a6b8d6e0]
 %   - a bound function's cost claim crosses as the class and the measure the
 %     ENGINE resolved, never a second derivation on this side
 %     [tested: test_the_measure_comes_from_the_arrow_at_the_holes_position;

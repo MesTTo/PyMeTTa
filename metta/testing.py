@@ -63,15 +63,15 @@ Guarantees:
     subtraction-atom's, the failure carries the same .missing and .excess, and
     the report below the first line of the message is the engine's own text
     [tested: test_the_report_is_the_engines_own_for_the_same_bags,
-    test_a_containment_reports_the_missing_bag_alone; commit=WORKTREE]
+    test_a_containment_reports_the_missing_bag_alone; commit=ef5b91d7950594a49e177d972a954841a6b8d6e0]
   - one answer handed over as itself is refused with the sequence spelling
     shown, a str included [tested:
     test_a_single_answer_is_refused_with_the_sequence_spelled_out;
-    commit=WORKTREE]
+    commit=ef5b91d7950594a49e177d972a954841a6b8d6e0]
   - SpaceMachine resolves behind PEP 562 like the two suites, so importing this
     module for the strategies needs neither pytest nor hypothesis [tested:
     test_the_testing_module_names_both_suites_without_importing_them;
-    commit=WORKTREE]
+    commit=ef5b91d7950594a49e177d972a954841a6b8d6e0]
 Open Obligations:
   To Do: None
   Hacks: None

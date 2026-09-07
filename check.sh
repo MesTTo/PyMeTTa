@@ -21,7 +21,7 @@
 #   [measured 2026-09-07: 924.6 KiB retained at the largest single location when
 #   they are closed against 19,968.0 KiB when they are kept;
 #   command=sh check.sh memray; fixture=tests/checks/memray_plant.py;
-#   commit=WORKTREE].
+#   commit=ef5b91d7950594a49e177d972a954841a6b8d6e0].
 # Open Obligations:
 #   To Do: None
 #   Hacks: None

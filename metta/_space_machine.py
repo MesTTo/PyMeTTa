@@ -36,19 +36,19 @@ Guarantees:
     the engine's own refusal as the reason, and the mapping is answerable
     ahead of a run through `SpaceMachine.skips(space)` [tested:
     test_a_provider_without_removal_skips_only_the_removal_rules;
-    commit=WORKTREE]
+    commit=ef5b91d7950594a49e177d972a954841a6b8d6e0]
   - transaction and speculation rules run only where the space's writes are
     undone with the engine's, which is every native space and a foreign one
     declaring `(writes <space> transactional)`; anything else skips, because a
     write a rollback cannot undo is not a bag law to check [tested:
-    test_the_transaction_rules_follow_the_spaces_own_promise; commit=WORKTREE]
+    test_the_transaction_rules_follow_the_spaces_own_promise; commit=ef5b91d7950594a49e177d972a954841a6b8d6e0]
   - the model is seeded from what the space already holds, so a provider
     pointed at a store with rows in it starts from those rather than from empty
     [tested: test_the_model_starts_from_what_the_space_already_holds;
-    commit=WORKTREE]
+    commit=ef5b91d7950594a49e177d972a954841a6b8d6e0]
   - a provider that drops a duplicate fails the run, and the failing rule is
     named [tested: test_a_provider_that_drops_a_duplicate_fails_the_machine;
-    commit=WORKTREE]
+    commit=ef5b91d7950594a49e177d972a954841a6b8d6e0]
 Fails when:
   - the space cannot enumerate or cannot be written to. The model would have
     nothing to compare against or nothing to change, so construction refuses
