@@ -77,5 +77,5 @@ def twin(m):
 #: What this twin spends, its own tripwire, taken on the tree that
 #: introduced it with the engine's .qlf set built, which is what the
 #: gate leaves behind and what ships.
-#: [measured: 51022, 51022, 51022 inferences; command=PYTHONPATH=extensions/python:extensions/python/tools $VENV/bin/python -c "from pathlib import Path; from twin_coverage import run_twin; print(run_twin(Path('extensions/python/examples/language-feature-examples/ch18-performance/18-01-larger-workloads/06-a-gap-query-and-its-index.py').resolve()).cost)"; fixture=three independent fresh harness processes at loadavg 46; commit=WORKTREE]
+#: [measured: 51022, 51022, 51022 inferences; command=PYTHONPATH=extensions/python:extensions/python/tools $VENV/bin/python -c "from pathlib import Path; from twin_coverage import run_twin; print(run_twin(Path('extensions/python/examples/language-feature-examples/ch18-performance/18-01-larger-workloads/06-a-gap-query-and-its-index.py').resolve()).cost)"; fixture=three independent fresh harness processes at loadavg 46; commit=a403e56b4f33828834823338eb1fc316e3fea2a4]
 BUDGET = 51022
