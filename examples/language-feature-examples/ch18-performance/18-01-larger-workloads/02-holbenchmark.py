@@ -63,13 +63,13 @@ def twin(m):
     )
 
     # The define door applies rung 4's underscore map like every other door,
-    # so a hyphenated MeTTa name needs nothing said twice. This one still
-    # takes `name=`: `range` is a Python builtin, so the def carries rung 2's
-    # trailing underscore, which the map would turn into a trailing hyphen.
+    # so a hyphenated MeTTa name needs nothing said twice, and this one needs
+    # nothing either: `range` is a Python builtin, so the def carries rung 2's
+    # trailing underscore, and the map ALREADY reads `range_` as `range`.
     # `def range` would consume the gate's zero A-family headroom and report
     # `P0.13 suppression burn-down increased (observed, maximum): {'N': (37,
     # 35), 'A': (9, 8)}`; it would also redirect recursion to `py-range`.
-    @m.define(name="range")
+    @m.define
     def range_(n: int):
         if fn.eq(n, 0):  # engine equality is intentional
             return ()
@@ -222,4 +222,47 @@ def twin(m):
 #: path and the library's write doors since [measured 2026-09-06: min-of-3
 #: serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=b96e1a15260b7538a8e42be613bcc5dd0dddd136].
-BUDGET = 34136479
+#: RE-PINNED 2026-09-07, 34136479 to 34137515 (+1036), trunk's own movement
+#: since each twin's pin was taken on the base its own branch had: twenty-two
+#: first-parent steps between the 0.8.0 release re-pin and this tree, the
+#: prelude's move into Prolog the largest of them at +39 to +115 a twin and
+#: -65,806 on the error algebra, the live-views merge -45 on every twin that
+#: writes, the catalog and get-type repairs +169 on the types chapter, and the
+#: rest SWI clause-indexing layout as the boot image grew; this tree also
+#: stores the compiled default space operand as &self rather than a (context-
+#: space) call [measured 2026-09-07: min-of-3 serial fresh processes;
+#: command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=9010a79b01c9b2a66b96a3952fa378fb3e939dc3].
+#: RE-PINNED 2026-09-08, 34137515 to 34137560 (+45), the merges between this
+#: lane's burn-down base (dfd5003f) and the tree that merged it, placed by a
+#: first-parent ladder through the lane's own driver over ten twins at
+#: f8c4b672, 4af59757, 90c08119, ad762ee7, 72f9cdf2 and 249389cb (ai-
+#: tmp/integrator-849a9e/mergeTW-twin-ladder.log): the catalog-types merge
+#: (1a3579fa) moves every twin by a lookup-and-layout step of about +5 for a
+#: twin that makes no typed call and about +35 for one that does, plus about +6
+#: per compiled definition through the argument-delivery check at the write
+#: (the authoring fit re-measured 1370+1307 to 1406+1309), and +1411 for the
+#: catalog twin that enumerates the 280 new rows; the two-sided-fragments merge
+#: (4af59757) moves the sequence-variable twins by what their fixed rows now
+#: compute (+2604 for the two-sided fragments, -217 for the fence, +19 for
+#: restricted spaces); the every-atom merge (90c08119) re-authored the reading-
+#: forms twin into the sread half (+3017) and added forty-six twins pinned on
+#: its own base 31d54e19, which the merges since moved by the same clusters;
+#: the gate-hygiene merge (ad762ee7) makes the tabling twins cheaper by the wfs
+#: library no longer loading eagerly. Every twin here re-reads its budget on
+#: the merged tree, minimum of three fresh processes [measured 2026-09-08: min-
+#: of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 34137560
+
+#: DIVERGED 2026-09-07, the example holds 6 atoms the twin does not (6 =) and
+#: the twin holds 12 the example does not (6 :, 6 =): the twin is an ordinary
+#: Python program and its body lowers to the engine's own forms: a match
+#: statement is ONE equation whose body is a case tower where the example
+#: writes one clause per arm, a named intermediate is a let* the original does
+#: not have, a Python truth test wraps its condition in py-truthy, and the
+#: annotations and docstrings that come with it are stored beside them
+#: [measured 2026-09-07: the two stored-atom surpluses, one fresh process per
+#: side; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=9010a79b01c9b2a66b96a3952fa378fb3e939dc3].
+DIVERGENCE = "24c90c96a2bda6bdbf28c255aa4cf95acef8da93c267598be1345bfa4607e150"

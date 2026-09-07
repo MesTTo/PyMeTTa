@@ -64,6 +64,31 @@ def twin(m):  # noqa: ARG001  -- the catalog lives in the reflection space; the 
             ]
         ] == [S.ascending], carrier
 
+    # A carrier NAMED in the vocabulary but never defined would answer
+    # nothing here, which is the failure the two rows exist to keep apart:
+    # budget shipped for five days usable through `metta.under` and absent
+    # from the vocabulary, so `Semiring.budget` raised AttributeError while
+    # `(algebra budget ...)` sat in the catalog. amplitude's zero is the
+    # complex origin.
+    # !(test (match &metta (algebra amplitude $c $e $z $o $l $ca $r $w) $z)
+    #        (complex 0 0))
+    assert [
+        row.zero
+        for row in reflection[
+            S.algebra(
+                S[Semiring.amplitude],
+                V.combine,
+                V.extend,
+                V.zero,
+                V.one,
+                V.laws,
+                V.carrier,
+                V.needs,
+                V.owner,
+            )
+        ]
+    ] == [S.complex(0, 0)]
+
     # The member IS its wire word, which is why S[member] above needed no
     # conversion: a StrEnum member crosses as the bare symbol it always was.
     assert S[Semiring.budget] == S.budget
@@ -99,4 +124,9 @@ def twin(m):  # noqa: ARG001  -- the catalog lives in the reflection space; the 
 #: examples/ch20-extending-the-engine/20-04-modules-and-the-catalog/09-carrier_vocabulary.metta;
 #: fixture=two worktrees, 903a42e6 and this tree, each with engine/*.so and
 #: libmork_ffi.so provisioned and the QLF warmed; commit=2e627a593413191cda3170f2eb716835f7f62543].
-BUDGET = 123
+#: RE-PINNED 2026-09-07, 123 to 147 (+24), the twin gained the claims of its
+#: example it had been silently short of: this file's own count moves with the
+#: asks it now makes [measured 2026-09-07: min-of-3 serial fresh processes;
+#: command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=9010a79b01c9b2a66b96a3952fa378fb3e939dc3].
+BUDGET = 147

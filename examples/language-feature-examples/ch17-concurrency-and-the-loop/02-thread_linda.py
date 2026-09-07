@@ -195,4 +195,52 @@ def twin(m):
 #: path and the library's write doors since [measured 2026-09-06: min-of-3
 #: serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=b96e1a15260b7538a8e42be613bcc5dd0dddd136].
-BUDGET = 419241
+#: RE-PINNED 2026-09-07, 419241 to 427810 (+8569), trunk's own movement since
+#: each twin's pin was taken on the base its own branch had: twenty-two first-
+#: parent steps between the 0.8.0 release re-pin and this tree, the prelude's
+#: move into Prolog the largest of them at +39 to +115 a twin and -65,806 on
+#: the error algebra, the live-views merge -45 on every twin that writes, the
+#: catalog and get-type repairs +169 on the types chapter, and the rest SWI
+#: clause-indexing layout as the boot image grew; this tree also stores the
+#: compiled default space operand as &self rather than a (context-space) call
+#: [measured 2026-09-07: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=9010a79b01c9b2a66b96a3952fa378fb3e939dc3].
+#: ENVELOPE 2026-09-08, 427772..427810 over 37 observations of 'full-
+#: lane/231/workers=32': every claim is a coordination between two sides the
+#: engine's own writes wake, so the count carries which side ran first, so a
+#: point pin on it is a claim about a schedule and not about this twin. Spread
+#: 38 [measured 2026-09-08: `python extensions/python/tools/twin_coverage.py
+#: --observe`, two runs of 12 and 25 rounds pooled; commit=9010a79b01c9b2a66b96a3952fa378fb3e939dc3].
+#: RE-ENVELOPED 2026-09-08 under 'full-lane/277/workers=32', because the every-atom merge widened
+#: the corpus from 231 to 277 twinned examples and the scheduler this counter
+#: answers to is the lane's own 32-worker pool over that corpus: 25 observations
+#: pooled from two `--observe` runs of 10 and 15 rounds read 427823..427856 where the
+#: 37 under 'full-lane/231/workers=32' read 427772..427810. A run outside this envelope is a
+#: re-observation, not a re-pin [measured 2026-09-08: python
+#: extensions/python/tools/twin_coverage.py --observe --rounds 10 and --rounds 15,
+#: ai-tmp/integrator-849a9e/mergeTW-observe-10.log and -15.log; commit=WORKTREE].
+BUDGET = {
+    "minimum": 427823,
+    "maximum": 427856,
+    "observations": 25,
+    "protocol": "full-lane/277/workers=32",
+}
+
+#: OVERRUN 2026-09-07, 184000: it drives both sides of every Linda coordination
+#: from Python, where the example lets the engine's own writes wake the waiting
+#: side. Measured 427810 against a ceiling of 243859; a minimal twin of this
+#: example costs 221118, inside the ceiling's 243859, so the distance is this
+#: twin's own program [measured 2026-09-07: one fresh process per side;
+#: command=python extensions/python/benchmarks/probes/twin_floor.py;
+#: commit=9010a79b01c9b2a66b96a3952fa378fb3e939dc3].
+OVERRUN = 184000
+
+#: DIVERGED 2026-09-07, the example holds 0 atoms the twin does not (none) and
+#: the twin holds 1 atom the example does not (1 :): a Python annotation IS a (:
+#: name (-> ...)) row and a docstring on a compiled function IS an (@doc name
+#: ...) row, so the twin's space carries the declarations and the documentation
+#: its own file states where the example leaves both unsaid [measured
+#: 2026-09-07: the two stored-atom surpluses, one fresh process per side;
+#: command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=9010a79b01c9b2a66b96a3952fa378fb3e939dc3].
+DIVERGENCE = "2017524a1cb76351a1648426410b796419548382661d11cfbc6f3c2a279d533a"

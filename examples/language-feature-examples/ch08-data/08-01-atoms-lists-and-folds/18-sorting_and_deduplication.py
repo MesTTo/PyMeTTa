@@ -81,3 +81,15 @@ def twin(m):
 #: extensions/python/tools/twin_coverage.py --measure --rounds 3;
 #: fixture=docs/every-atom-has-an-example at its example commits; commit=e04c24d15b80804a8db7bcf6f2b8e99135e84793].
 BUDGET = 16159
+
+#: OVERRUN 2026-09-08, 3500: the twin reads 16161 against a ceiling of 12794
+#: (the example's 11631 plus 10%, no definition to author), and the FLOOR any
+#: Python twin of this example can reach is 13451, above the ceiling itself:
+#: the band is tighter than the library's own floor for a program that sorts
+#: and deduplicates through the structured evaluation door, which is the
+#: class the burn-down found eleven times. The 2710 above the floor is this
+#: twin's own program, which proves each claim through both the Python
+#: spelling and the engine's operation [measured 2026-09-08: one fresh
+#: process per side; command=python
+#: extensions/python/benchmarks/probes/twin_floor.py; commit=WORKTREE].
+OVERRUN = 3500

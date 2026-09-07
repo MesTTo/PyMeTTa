@@ -113,4 +113,47 @@ def twin(m):
 #: replaces asked through `solve` and priced 8469; the door changed, so the
 #: number is a fresh measurement rather than a re-pin of that one.
 #: [measured: 11233, 11233, 11233 inferences; command=PYTHONPATH=extensions/python:extensions/python/tools $VENV/bin/python -c "from pathlib import Path; from twin_coverage import run_twin; print(run_twin(Path('extensions/python/examples/language-feature-examples/ch08-data/08-02-sequence-variables/04-the-two-sided-fragments.py').resolve()).cost)"; fixture=three independent fresh harness processes at loadavg 77; commit=f4ae837efd23791200846ba72556c2ce96a7d05a]
-BUDGET = 11233
+#: introduced it with the engine's .qlf set built, which is what the
+#: gate leaves behind and what ships.
+#: [measured: 8469, 8469, 8469 inferences; command=PYTHONPATH=extensions/python:extensions/python/tools $VENV/bin/python -c "from pathlib import Path; from twin_coverage import run_twin; print(run_twin(Path('extensions/python/examples/language-feature-examples/ch08-data/08-02-sequence-variables/04-the-two-sided-fragments.py').resolve()).cost)"; fixture=three independent fresh harness processes at loadavg 46; commit=a403e56b4f33828834823338eb1fc316e3fea2a4]
+#: RE-PINNED 2026-09-07, 8469 to 8629 (+160), trunk's own movement since each
+#: twin's pin was taken on the base its own branch had: twenty-two first-parent
+#: steps between the 0.8.0 release re-pin and this tree, the prelude's move
+#: into Prolog the largest of them at +39 to +115 a twin and -65,806 on the
+#: error algebra, the live-views merge -45 on every twin that writes, the
+#: catalog and get-type repairs +169 on the types chapter, and the rest SWI
+#: clause-indexing layout as the boot image grew; this tree also stores the
+#: compiled default space operand as &self rather than a (context-space) call
+#: [measured 2026-09-07: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=9010a79b01c9b2a66b96a3952fa378fb3e939dc3].
+#: RE-PINNED 2026-09-08, 8629 to 11232 (+2603), the merges between this lane's
+#: burn-down base (dfd5003f) and the tree that merged it, placed by a first-
+#: parent ladder through the lane's own driver over ten twins at f8c4b672,
+#: 4af59757, 90c08119, ad762ee7, 72f9cdf2 and 249389cb (ai-
+#: tmp/integrator-849a9e/mergeTW-twin-ladder.log): the catalog-types merge
+#: (1a3579fa) moves every twin by a lookup-and-layout step of about +5 for a
+#: twin that makes no typed call and about +35 for one that does, plus about +6
+#: per compiled definition through the argument-delivery check at the write
+#: (the authoring fit re-measured 1370+1307 to 1406+1309), and +1411 for the
+#: catalog twin that enumerates the 280 new rows; the two-sided-fragments merge
+#: (4af59757) moves the sequence-variable twins by what their fixed rows now
+#: compute (+2604 for the two-sided fragments, -217 for the fence, +19 for
+#: restricted spaces); the every-atom merge (90c08119) re-authored the reading-
+#: forms twin into the sread half (+3017) and added forty-six twins pinned on
+#: its own base 31d54e19, which the merges since moved by the same clusters;
+#: the gate-hygiene merge (ad762ee7) makes the tabling twins cheaper by the wfs
+#: library no longer loading eagerly. Every twin here re-reads its budget on
+#: the merged tree, minimum of three fresh processes [measured 2026-09-08: min-
+#: of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 11232
+
+#: OVERRUN 2026-09-07, 4500: it asks through `solve`, the pattern door, where
+#: the example asks through `unify`, the one MeTTa form whose operands are both
+#: syntax; the door costs 367 inferences an ask against the form's 259.
+#: Measured 8629 against a ceiling of 4164; a MINIMAL twin of this example --
+#: its own forms stored and asked through the structured door, nothing else --
+#: costs 6467 against the ceiling's 4164, so no twin of it fits the band at all
+#: [measured 2026-09-07: one fresh process per side; command=python
+#: extensions/python/benchmarks/probes/twin_floor.py; commit=9010a79b01c9b2a66b96a3952fa378fb3e939dc3].
+OVERRUN = 4500

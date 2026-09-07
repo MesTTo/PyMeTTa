@@ -73,3 +73,13 @@ def twin(m):
 #: extensions/python/tools/twin_coverage.py --measure --rounds 3;
 #: fixture=docs/every-atom-has-an-example at its example commits; commit=98397cdd04679cbf40b2d515076dadc09c1b0a32].
 BUDGET = 10771
+
+#: OVERRUN 2026-09-08, 1400: the twin reads 10771 against a ceiling of 9395 (the
+#: example's 8541 plus 10%, no definition to author), and the floor any Python
+#: twin of this example can reach is 10239, above the ceiling: the band is
+#: tighter than the library's floor for a program that takes expressions
+#: apart and substitutes through the structured evaluation door. The 532
+#: above the floor is this twin's own program [measured 2026-09-08: one fresh
+#: process per side; command=python
+#: extensions/python/benchmarks/probes/twin_floor.py; commit=WORKTREE].
+OVERRUN = 1400

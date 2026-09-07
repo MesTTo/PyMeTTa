@@ -146,4 +146,24 @@ def twin(m):
 #: library's write doors since [measured 2026-09-06: min-of-3 serial fresh
 #: processes; command=python extensions/python/tools/twin_coverage.py --repin;
 #: commit=b96e1a15260b7538a8e42be613bcc5dd0dddd136].
-BUDGET = 7054
+#: RE-PINNED 2026-09-07, 7054 to 7290 (+236), trunk's own movement since each
+#: twin's pin was taken on the base its own branch had: twenty-two first-parent
+#: steps between the 0.8.0 release re-pin and this tree, the prelude's move
+#: into Prolog the largest of them at +39 to +115 a twin and -65,806 on the
+#: error algebra, the live-views merge -45 on every twin that writes, the
+#: catalog and get-type repairs +169 on the types chapter, and the rest SWI
+#: clause-indexing layout as the boot image grew; this tree also stores the
+#: compiled default space operand as &self rather than a (context-space) call
+#: [measured 2026-09-07: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=9010a79b01c9b2a66b96a3952fa378fb3e939dc3].
+BUDGET = 7290
+
+#: OVERRUN 2026-09-07, 600: every claim asserts the Counter spelling AND the
+#: engine's own `-atom` operation agree, so each of the eight asks is made
+#: twice. Measured 7290 against a ceiling of 6733; a MINIMAL twin of this
+#: example -- its own forms stored and asked through the structured door,
+#: nothing else -- costs 6985 against the ceiling's 6733, so no twin of it fits
+#: the band at all [measured 2026-09-07: one fresh process per side;
+#: command=python extensions/python/benchmarks/probes/twin_floor.py;
+#: commit=9010a79b01c9b2a66b96a3952fa378fb3e939dc3].
+OVERRUN = 600

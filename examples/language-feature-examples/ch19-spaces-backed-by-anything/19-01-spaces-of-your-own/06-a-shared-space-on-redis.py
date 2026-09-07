@@ -14,7 +14,7 @@ Open Obligations:
   Future Enhancements: None.
 """
 
-from metta import G, S, V, lib
+from metta import G, MeTTa, S, V, lib
 from metta.errors import MettaError
 
 ADDRESS = G("127.0.0.1:6379")
@@ -27,6 +27,29 @@ def attached(space, address):
     except MettaError:
         return False
     return True
+
+
+def available(m):
+    """Whether this box has library(redis) and a server answering ADDRESS.
+
+    The lane asks this before `twin(m)` and compares the budget below only
+    where it answers True: the budget was measured against a running server,
+    and without one the twin takes the same guarded path its example takes,
+    whose count says nothing about it. The probe runs in an engine of its
+    own, so nothing it imports or attaches moves the count `twin(m)` spends
+    in the engine it is handed.
+    """
+    del m
+    engine = MeTTa()
+    try:
+        home = engine.self
+        try:
+            home += lib.redis
+        except MettaError:
+            return False
+        return attached(engine.space(S.probe), ADDRESS)
+    finally:
+        engine.close()
 
 
 def twin(m):

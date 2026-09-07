@@ -160,4 +160,53 @@ def twin(m):
 #: path and the library's write doors since [measured 2026-09-06: min-of-3
 #: serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=b96e1a15260b7538a8e42be613bcc5dd0dddd136].
-BUDGET = 52633
+#: RE-PINNED 2026-09-07, 52633 to 57334 (+4701), trunk's own movement since
+#: each twin's pin was taken on the base its own branch had: twenty-two first-
+#: parent steps between the 0.8.0 release re-pin and this tree, the prelude's
+#: move into Prolog the largest of them at +39 to +115 a twin and -65,806 on
+#: the error algebra, the live-views merge -45 on every twin that writes, the
+#: catalog and get-type repairs +169 on the types chapter, and the rest SWI
+#: clause-indexing layout as the boot image grew; this tree also stores the
+#: compiled default space operand as &self rather than a (context-space) call
+#: [measured 2026-09-07: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=9010a79b01c9b2a66b96a3952fa378fb3e939dc3].
+#: RE-PINNED 2026-09-08, 57334 to 57375 (+41), the merges between this lane's
+#: burn-down base (dfd5003f) and the tree that merged it, placed by a first-
+#: parent ladder through the lane's own driver over ten twins at f8c4b672,
+#: 4af59757, 90c08119, ad762ee7, 72f9cdf2 and 249389cb (ai-
+#: tmp/integrator-849a9e/mergeTW-twin-ladder.log): the catalog-types merge
+#: (1a3579fa) moves every twin by a lookup-and-layout step of about +5 for a
+#: twin that makes no typed call and about +35 for one that does, plus about +6
+#: per compiled definition through the argument-delivery check at the write
+#: (the authoring fit re-measured 1370+1307 to 1406+1309), and +1411 for the
+#: catalog twin that enumerates the 280 new rows; the two-sided-fragments merge
+#: (4af59757) moves the sequence-variable twins by what their fixed rows now
+#: compute (+2604 for the two-sided fragments, -217 for the fence, +19 for
+#: restricted spaces); the every-atom merge (90c08119) re-authored the reading-
+#: forms twin into the sread half (+3017) and added forty-six twins pinned on
+#: its own base 31d54e19, which the merges since moved by the same clusters;
+#: the gate-hygiene merge (ad762ee7) makes the tabling twins cheaper by the wfs
+#: library no longer loading eagerly. Every twin here re-reads its budget on
+#: the merged tree, minimum of three fresh processes [measured 2026-09-08: min-
+#: of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 57375
+
+#: OVERRUN 2026-09-07, 6400: it declares the cache policy and memoises by name
+#: through the library door, then reads the result twice. Measured 57334
+#: against a ceiling of 50995; a MINIMAL twin of this example -- its own forms
+#: stored and asked through the structured door, nothing else -- costs 51007
+#: against the ceiling's 50995, so no twin of it fits the band at all [measured
+#: 2026-09-07: one fresh process per side; command=python
+#: extensions/python/benchmarks/probes/twin_floor.py; commit=9010a79b01c9b2a66b96a3952fa378fb3e939dc3].
+OVERRUN = 6400
+
+#: DIVERGED 2026-09-07, the example holds 0 atoms the twin does not (none) and
+#: the twin holds 2 the example does not (1 :, 1 @doc): a Python annotation IS
+#: a (: name (-> ...)) row and a docstring on a compiled function IS an (@doc
+#: name ...) row, so the twin's space carries the declarations and the
+#: documentation its own file states where the example leaves both unsaid
+#: [measured 2026-09-07: the two stored-atom surpluses, one fresh process per
+#: side; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=9010a79b01c9b2a66b96a3952fa378fb3e939dc3].
+DIVERGENCE = "a1ada0a149d1e598cb9bd96cae55a8d468e21aa53669f164ab6e2e088030554c"

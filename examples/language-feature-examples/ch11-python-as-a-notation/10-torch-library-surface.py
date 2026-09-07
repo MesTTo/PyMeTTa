@@ -26,6 +26,24 @@ TOLERANCE = 1e-6
 AVAILABLE = S.if_error(S.catch(S.py_call(S["torch.zeros"](1))), S.no, S.yes)
 
 
+def available(m):
+    """Whether torch is importable and answers, asked without the engine.
+
+    The lane asks this before `twin(m)` and compares the budget below only
+    where it answers True: the budget was measured with torch installed, and
+    without it the twin takes the same guarded path its example takes. The
+    question is asked of Python directly, so the twin's own first evaluation
+    is still the first the counted engine makes.
+    """
+    del m
+    try:
+        import torch  # noqa: PLC0415  -- the capability this twin guards on
+    except ImportError:
+        return False
+    torch.zeros(1)
+    return True
+
+
 def twin(m):
     """Constructors, elementwise operations, a reduction, two activations."""
     m += lib.torch

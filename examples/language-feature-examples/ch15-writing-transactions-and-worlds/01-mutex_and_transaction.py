@@ -151,4 +151,33 @@ def twin(m):
 #: path and the library's write doors since [measured 2026-09-06: min-of-3
 #: serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=b96e1a15260b7538a8e42be613bcc5dd0dddd136].
-BUDGET = 15758
+#: RE-PINNED 2026-09-07, 15758 to 16163 (+405), trunk's own movement since each
+#: twin's pin was taken on the base its own branch had: twenty-two first-parent
+#: steps between the 0.8.0 release re-pin and this tree, the prelude's move
+#: into Prolog the largest of them at +39 to +115 a twin and -65,806 on the
+#: error algebra, the live-views merge -45 on every twin that writes, the
+#: catalog and get-type repairs +169 on the types chapter, and the rest SWI
+#: clause-indexing layout as the boot image grew; this tree also stores the
+#: compiled default space operand as &self rather than a (context-space) call
+#: [measured 2026-09-07: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=9010a79b01c9b2a66b96a3952fa378fb3e939dc3].
+#: ENVELOPE 2026-09-08, 16152..16164 over 37 observations of 'full-
+#: lane/231/workers=32': five OS threads take one mutex in turn, so the count
+#: carries the order they got it in; a point pin on it is a claim about a
+#: schedule and not about this twin. Spread 12 [measured 2026-09-08: `python
+#: extensions/python/tools/twin_coverage.py --observe`, two runs of 12 and 25
+#: rounds pooled; commit=9010a79b01c9b2a66b96a3952fa378fb3e939dc3].
+#: RE-ENVELOPED 2026-09-08 under 'full-lane/277/workers=32', because the every-atom merge widened
+#: the corpus from 231 to 277 twinned examples and the scheduler this counter
+#: answers to is the lane's own 32-worker pool over that corpus: 25 observations
+#: pooled from two `--observe` runs of 10 and 15 rounds read 16152..16165 where the
+#: 37 under 'full-lane/231/workers=32' read 16152..16164. A run outside this envelope is a
+#: re-observation, not a re-pin [measured 2026-09-08: python
+#: extensions/python/tools/twin_coverage.py --observe --rounds 10 and --rounds 15,
+#: ai-tmp/integrator-849a9e/mergeTW-observe-10.log and -15.log; commit=WORKTREE].
+BUDGET = {
+    "minimum": 16152,
+    "maximum": 16165,
+    "observations": 25,
+    "protocol": "full-lane/277/workers=32",
+}

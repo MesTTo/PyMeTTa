@@ -83,11 +83,12 @@ Guarantees:
     commit=8bfe05c3850776543ece25a85038242f10b1d841]
   - each example and twin reports Space.digest() from its own process; an
     unequal digest, a refusal, or a missing oracle result is a stored-content
-    finding with multiplicity-preserving equation and type-declaration
-    diagnostics [tested:
-    test_a_twin_stores_the_equations_its_comments_claim,
-    test_stored_content_uses_the_digest_and_keeps_equation_multiplicity;
-    commit=d0dfff1a3ee6c85472fd9b12d6e4aec007a9c301]
+    finding, and the diagnostic is the WHOLE stored-atom multiset each side
+    holds beyond the other, duplicate copies kept, over the same `get-atoms`
+    enumeration the digest hashes [tested:
+    test_a_twin_stores_the_atoms_its_example_stores,
+    test_stored_content_uses_the_digest_and_keeps_atom_multiplicity;
+    commit=9010a79b01c9b2a66b96a3952fa378fb3e939dc3]
   - a twin writing MeTTa in Python punctuation is a finding naming the Python
     spelling it should have used [tested:
     test_a_dissolved_head_names_the_python_spelling_it_replaces,
@@ -96,6 +97,17 @@ Guarantees:
     deterministic point tolerance never widens their observed extrema
     [tested: test_an_empirical_envelope_cannot_license_another_protocol;
     commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22]
+  - a twin whose space differs from its example's on purpose declares the
+    difference as DIVERGENCE and passes only while the difference is exactly
+    the one it declares, in both directions: a new one, a changed one and a
+    stale one over two agreeing spaces are each a finding [tested:
+    test_a_space_over_the_cap_pins_its_difference_as_the_two_digests,
+    test_a_twin_stores_the_atoms_its_example_stores; commit=9010a79b01c9b2a66b96a3952fa378fb3e939dc3]
+  - a twin whose own program costs more than its example's band allows
+    declares OVERRUN, which is added to the ceiling and hides nothing, because
+    BUDGET already pins the exact count inside its allowance; a declaration
+    the twin no longer needs is itself a finding [tested:
+    test_a_declared_overrun_widens_one_twins_ceiling_only; commit=9010a79b01c9b2a66b96a3952fa378fb3e939dc3]
 Decides:
   - twins live under `extensions/python/examples/language-feature-examples/<folder>/<name>.py`, the
     example's own relative path with a Python suffix. The mapping is a pure
@@ -127,6 +139,12 @@ Decides:
     observations can be reproduced with --observe [tested:
     test_the_full_lane_protocol_names_every_scheduling_input;
     commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22]
+  - a twin's module-level `available(m)` is asked before `twin(m)`, outside
+    the counted window, and its BUDGET is compared only where it answers True
+    or is absent, with the lane saying so where it is not compared, so a
+    budget measured with a capability present (a redis server, a seat's
+    artifact, an importable package) stays a claim about that configuration
+    [tested: tests/checks/check_twin_coverage_selftest.py; commit=WORKTREE]
 Fails when:
   - an example's answers are nondeterministically ordered, which the same
     comparison in example_parity already documents: groups are compared in
@@ -146,6 +164,7 @@ from __future__ import annotations
 import argparse
 import ast
 import datetime
+import hashlib
 import json
 import keyword
 import os
@@ -153,7 +172,7 @@ import re
 import sys
 import textwrap
 from collections import Counter, defaultdict
-from collections.abc import Iterable
+from collections.abc import Iterable, Sequence
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from pathlib import Path
@@ -208,8 +227,34 @@ COST = "P14C-COST "
 HEADS = "P14C-HEADS "
 DIGEST = "P14C-DIGEST "
 DIGEST_ERROR = "P14C-DIGEST-ERROR "
-EQUATIONS = "P14C-EQUATIONS "
-TYPE_DECLARATIONS = "P14C-TYPE-DECLARATIONS "
+CONTENT = "P14C-CONTENT "
+HELD = "P14C-HELD "
+#: A twin that guards on a capability its example also guards on says so through
+#: a module-level `available(m)`, asked before `twin(m)` on the same engine and
+#: outside the counted window; the driver reports the answer here, and a budget
+#: declared where the capability is present is not compared where it is absent.
+AVAILABLE = "P14C-AVAILABLE "
+
+#: How many stored atoms a side may hold before the lane stops ENUMERATING it.
+#: The digest is minted engine-side whatever the size, and the count always
+#: crosses; only the atom list is bounded, because it is a diagnostic and a
+#: 1.5-million-atom space is not one a reader wants named.
+#:
+#: The cap is not a preference. Enumerating one costs Prolog stack per atom,
+#: and `examples/ch18-performance/18-01-larger-workloads/05-matespacefast.metta`
+#: holds 1,572,862 atoms after its 65-million-inference run: asking for them
+#: exhausts the library's 8 GB stack_limit and the example that had just
+#: succeeded is reported as failing to run [measured 2026-09-07: the same
+#: example priced 65546858 with the equation-only diagnostic and answered
+#: `resource_error(stack)` at the enumeration, twice at loadavg 20;
+#: command=python extensions/python/tools/twin_coverage.py examples/
+#: ch18-performance/18-01-larger-workloads/05-matespacefast.metta;
+#: commit=9010a79b01c9b2a66b96a3952fa378fb3e939dc3]. The 8 GB is the library's own default
+#: [source: extensions/python/metta/_config.py, stack_limit 8_000_000_000;
+#: commit=9010a79b01c9b2a66b96a3952fa378fb3e939dc3]. 50,000 is two orders above the largest surplus the corpus
+#: has ever shown (the specializer clusters name eight atoms a side) and one
+#: and a half below the space that broke it.
+CONTENT_CAP = 50_000
 
 #: What a twin yields for a form it cannot say in Python. It is not a group,
 #: so it can never collide with one: a group is always parenthesised.
@@ -238,8 +283,32 @@ BAND_PERCENT = 10.0
 #: decorated definition could not fit and six control twins had to stay at the
 #: container door [found 2026-08-22 by the control agent, which said the rule
 #: was wrong and was right; commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22].
-DEFINITION_WARMUP = 1456
-DEFINITION_COST = 765
+#:
+#: RE-MEASURED 2026-09-07 on the same fixture, because a measured constant is
+#: only as true as the tree it was measured on and this one had gone stale by
+#: 71% per definition: 5, 2682, 3974, 5282, 6602 inferences at 0 to 4
+#: definitions, the fit 1370 once plus 1307 for each. The engine's own equation
+#: path did not slow down -- a definition through `@m.define` costs 1297 where
+#: the same equation through the source door costs 380 to store and 980 at its
+#: first call, so the two doors are 87 inferences apart end to end -- what grew
+#: is the number of engine crossings one install makes, and the band was
+#: charging every twin that authors a definition for the difference [measured
+#: 2026-09-07: min-of-3 fresh processes per fixture;
+#: command=python extensions/python/benchmarks/probes/twin_authoring.py;
+#: fixture=files holding 0 to 4 one-line `@m.define` bodies; commit=9010a79b01c9b2a66b96a3952fa378fb3e939dc3].
+#:
+#: RE-MEASURED 2026-09-08 on the tree that merged this lane's burn-down after
+#: the catalog-types merge, which checks a definition's `(arguments name
+#: delivery)` row against the `argument-delivery` vocabulary at the write:
+#: 2720, 4014, 5324, 6646 inferences at 1 to 4 definitions, the fit 1406 once
+#: plus 1309 for each; the source door reads 412 to store and 981 at its
+#: first call, the define door 2720 and 181, so the two doors are 87
+#: inferences apart end to end exactly as before, and what moved is the
+#: once-per-file warmup, +36 [measured 2026-09-08: min-of-3 fresh processes
+#: per fixture; command=python extensions/python/benchmarks/probes/twin_authoring.py;
+#: commit=WORKTREE].
+DEFINITION_WARMUP = 1406
+DEFINITION_COST = 1309
 
 #: The tree's own POINT-counter allowance. It applies to an integer BUDGET
 #: only; adding it to empirical extrema would silently widen what was observed
@@ -269,6 +338,51 @@ TOLERANCE = 4
 #: own extrema, and widening measured extrema by a declared number would
 #: report a spread nobody observed, which is the rule TOLERANCE follows above.
 ALLOWANCE_NAME = "ALLOWANCE"
+
+#: What a twin declares when its space and its example's do NOT hold the same
+#: atoms, and the difference is the point rather than a defect. The oracle
+#: stays the whole-space digest; this pins the DIFFERENCE, so a new one is
+#: still red.
+#:
+#: It exists because the two sides are two programs. A twin is an ordinary
+#: Python program and its shape is its own: a `match` statement over four
+#: constructors is ONE equation whose body is a `case` tower where the MeTTa
+#: file writes four clauses; a named intermediate is a `let*` the original
+#: does not have; a Python annotation IS a `(: name (-> ...))` row and a
+#: docstring IS an `(@doc name ...)` row, both knowledge the example leaves
+#: unsaid. Demanding one digest from both would demand one SHAPE from both,
+#: which is the transliteration the 2026-08-22 contract change removed: the
+#: 2026-09-07 corpus read 112 disagreements over 231 twins, 50 of them nothing
+#: but declaration and documentation rows and 51 the lowering of an idiomatic
+#: body [measured 2026-09-07: `twin_coverage.py` over the corpus, classified
+#: by the head of each surplus atom; commit=9010a79b01c9b2a66b96a3952fa378fb3e939dc3].
+#:
+#: The value is a sha256 over the two surplus multisets, which is what makes
+#: it EXACT: an atom that joins the difference, leaves it, or changes shape
+#: moves the digest and the twin goes red with the atoms printed beside it. It
+#: is written by `--repin`, never by hand, and its `#:` paragraph carries the
+#: census and the mechanism, so the value a reviewer cannot read is the one
+#: nobody has to. A twin whose spaces AGREE may not declare one: a stale
+#: divergence is a claim about a difference that no longer exists.
+DIVERGENCE_NAME = "DIVERGENCE"
+
+#: What a twin declares when it costs more than its example's band ALLOWS and
+#: the difference is its own program rather than the library being slower. The
+#: band's rule stands: a twin over the ceiling is the library slower than the
+#: engine at the same program, and the fix is in the library. This is for the
+#: case the rule does not cover, where the two programs are NOT the same:
+#: `ch17-.../01-thread_lib.py` spends 300,000 inferences spinning where its
+#: example sleeps for a second, because a twin is priced by a counter and a
+#: sleep costs nothing to count; `ch11-.../06-door_combinations.py` proves the
+#: whole nesting matrix where its example proves the engine half, which is what
+#: the example's own comment says it leaves to the twin.
+#:
+#: It is a MAXIMUM, added to the ceiling, and it hides nothing: BUDGET already
+#: pins the twin's exact count inside four inferences, so a twin that drifts is
+#: red at its budget whatever its overrun says. What this declaration decides
+#: is only which side of the band the gap is charged to, and its paragraph
+#: carries the measurement that says why.
+OVERRUN_NAME = "OVERRUN"
 
 #: A direct check is serial. The shipped lane fixes and names both its executor
 #: width and corpus size, so either scheduling change invalidates an old
@@ -383,10 +497,13 @@ NAMING_NAMESPACES = frozenset({"S", "V", "fn"})
 MINTING_NAMESPACES = frozenset({"S", "V"})
 
 #: Module-level constants a twin declares ABOUT itself rather than as
-#: program text: the inference pin, the allowance around it, and the reason it
-#: sits below the top rung. All three are read from source the way the lane
-#: reads BUDGET.
-DECLARATION_NAMES = frozenset({"BUDGET", "RUNG", "ALLOWANCE"})
+#: program text: the inference pin, the allowance around it, the stored-content
+#: difference it means to have, the band overrun its own program costs, and the
+#: reason it sits below the top rung. All five are read from source the way the
+#: lane reads BUDGET.
+DECLARATION_NAMES = frozenset(
+    {"BUDGET", "RUNG", "ALLOWANCE", DIVERGENCE_NAME, OVERRUN_NAME}
+)
 
 #: The example heads that STATE A CLAIM. Their Python image is the `assert`
 #: statement, so the lane counts them against the twin's assertions rather
@@ -1346,11 +1463,35 @@ def idiom(twin: Path) -> list[str]:
     # A line may state its own reason, for a twin that is idiomatic
     # everywhere else: `# rung: <reason>` reads like the noqa grammar the
     # rest of the tree uses, and keeps the exemption next to what it excuses.
-    excused = {
+    #
+    # It excuses the whole STATEMENT it sits in, not the one physical line.
+    # A comment can only be written at the end of a line, and which line that
+    # is inside a multi-line call is the FORMATTER's decision: twelve of the
+    # twins carried a `# rung:` on the closing paren of the call it excused
+    # and were reported anyway, because the head the finding names is on the
+    # line where the call OPENS [measured 2026-09-07: 37 idiom findings over
+    # 12 twins, every one of them a call whose rung comment sat inside the
+    # call's own span; command=python extensions/python/tools/twin_coverage.py;
+    # commit=9010a79b01c9b2a66b96a3952fa378fb3e939dc3].
+    marked = [
         number
         for number, line in enumerate(twin.read_text(encoding="utf-8").splitlines(), 1)
         if RUNG_LINE.search(line)
-    }
+    ]
+    spans = [
+        (node.lineno, node.end_lineno)
+        for node in ast.walk(tree)
+        if isinstance(node, ast.stmt) and node.end_lineno is not None
+    ]
+    excused = set(marked)
+    for line in marked:
+        # The INNERMOST statement holding the comment, so a rung excuses the
+        # call it is written in and not the `def twin(m)` that contains every
+        # call in the file.
+        holding = [span for span in spans if span[0] <= line <= span[1]]
+        if holding:
+            start, end = min(holding, key=lambda span: span[1] - span[0])
+            excused |= set(range(start, end + 1))
     # The operator rule below holds only where the compiler's exact numeric
     # proof makes syntax build the SAME engine term. Outside a lowered body,
     # or with a match-bound/untyped operand, the explicit head deliberately
@@ -1641,6 +1782,14 @@ _REPIN_TAG = (
 )
 _REPIN_COMMAND = "python extensions/python/tools/twin_coverage.py --repin"
 
+#: A divergence has no minimum to take: the two spaces are enumerated once
+#: each, in fresh processes, and their surplus is what it is. So the tag says
+#: what was compared instead of borrowing the point pin's min-of-N wording.
+_DIVERGE_TAG = (
+    "[{kind} {date}: the two stored-atom surpluses, one fresh process per "
+    f"side; command={{command}}; commit={_PLACEHOLDER}]"
+)
+
 
 def repinned(
     source: str, measured: int, reason: str, *, today: str, rounds: int = 3
@@ -1700,13 +1849,81 @@ def repinned(
         f"RE-PINNED {today}, {current} to {measured} ({delta:+d}), "
         f"{reason.strip().rstrip('.')} {tag}."
     )
+    return _declared(lines, node, "BUDGET", repr(measured), paragraph)
+
+
+def _declared(
+    lines: list[str],
+    node: ast.Assign | None,
+    name: str,
+    literal: str,
+    paragraph: str,
+) -> str:
+    """The source with `name = literal` written under its own `#:` paragraph.
+
+    Replacing an existing declaration keeps the chain above it and appends the
+    new paragraph at its foot; a first declaration lands at the END of the
+    file, where the layout rule already puts the pricing block.
+    """
     written = [
         f"#: {line}"
         for line in textwrap.wrap(paragraph, width=76, break_long_words=False)
     ]
+    if node is None:
+        return "\n".join([*lines, "", *written, f"{name} = {literal}"]) + "\n"
     head = lines[: node.lineno - 1]
     tail = lines[node.end_lineno :]
-    return "\n".join([*head, *written, f"BUDGET = {measured}", *tail]) + "\n"
+    return "\n".join([*head, *written, f"{name} = {literal}", *tail]) + "\n"
+
+
+def _assignment(tree: ast.Module, name: str) -> ast.Assign | None:
+    """The twin's module-level assignment of `name`, or None."""
+    for node in tree.body:
+        if isinstance(node, ast.Assign) and any(
+            isinstance(target, ast.Name) and target.id == name
+            for target in node.targets
+        ):
+            return node
+    return None
+
+
+def _comment_run_start(lines: list[str], lineno: int) -> int:
+    """The first line of the `#:` run directly above a declaration."""
+    start = lineno - 1
+    while start > 0 and lines[start - 1].lstrip().startswith("#:"):
+        start -= 1
+    return start
+
+
+def rediverged(
+    source: str, digest: str | None, reason: str, census: str, *, today: str
+) -> str:
+    """One twin's source with its stored-content divergence settled.
+
+    A `None` digest REMOVES the declaration and the `#:` run that documents
+    it, because a divergence that no longer exists is a false claim and the
+    paragraph explaining it is about nothing. Every other move rewrites the
+    value and appends the census and the mechanism, the way a re-pin does.
+    """
+    tree = ast.parse(source)
+    lines = source.splitlines()
+    node = _assignment(tree, DIVERGENCE_NAME)
+    if digest is None:
+        if node is None:
+            return source
+        start = _comment_run_start(lines, node.lineno)
+        kept = [*lines[:start], *lines[node.end_lineno :]]
+        while kept and not kept[-1].strip():
+            kept.pop()
+        return "\n".join(kept) + "\n"
+    if not reason.strip():
+        msg = "a divergence states why the two spaces differ"
+        raise ValueError(msg)
+    tag = _DIVERGE_TAG.format(kind="measured", date=today, command=_REPIN_COMMAND)
+    paragraph = (
+        f"DIVERGED {today}, {census}: {reason.strip().rstrip('.')} {tag}."
+    )
+    return _declared(lines, node, DIVERGENCE_NAME, json.dumps(digest), paragraph)
 
 
 # ---------------------------------------------------------------------- running
@@ -1724,8 +1941,10 @@ class Run:
     heads: tuple[str, ...]
     digest: str | None = None
     digest_error: str | None = None
-    equations: tuple[str, ...] = ()
-    type_declarations: tuple[str, ...] = ()
+    content: tuple[str, ...] | None = ()
+    held: int | None = None
+    #: None when the twin declares no `available(m)`; else what it answered.
+    available: bool | None = None
 
 
 _PREAMBLE = (
@@ -1747,13 +1966,11 @@ _EPILOGUE = (
     "print('" + COST + "' + str(spent.inferences))\n"
     "heads = {_key(row.head) for row in m.match(S['='](V.head, V.body))}\n"
     "print('" + HEADS + "' + ' '.join(sorted(heads)))\n"
-    "equations = sorted(str(_canonical(S['='](row.head, row.body))) "
-    "for row in m.match(S['='](V.head, V.body)))\n"
-    "print('" + EQUATIONS + "' + json.dumps(equations, separators=(',', ':')))\n"
-    "type_declarations = sorted(str(_canonical(S[':'](row.head, row.type))) "
-    "for row in m.match(S[':'](V.head, V.type)))\n"
-    "print('" + TYPE_DECLARATIONS + "' + "
-    "json.dumps(type_declarations, separators=(',', ':')))\n"
+    "held = len(m)\n"
+    "print('" + HELD + "' + str(held))\n"
+    f"if held <= {CONTENT_CAP}:\n"
+    "    content = sorted(str(_canonical(atom)) for atom in m.atoms())\n"
+    "    print('" + CONTENT + "' + json.dumps(content, separators=(',', ':')))\n"
     "try:\n"
     "    print('" + DIGEST + "' + m.digest())\n"
     "except Exception as error:\n"
@@ -1768,10 +1985,13 @@ def _read(text: str, outcome: parity.Outcome) -> Run:
     heads: tuple[str, ...] = ()
     digest: str | None = None
     digest_error: str | None = None
-    equations: tuple[str, ...] = ()
-    type_declarations: tuple[str, ...] = ()
+    content: tuple[str, ...] | None = None
+    held: int | None = None
+    available: bool | None = None
     for line in text.splitlines():
-        if line.startswith(COST):
+        if line.startswith(AVAILABLE):
+            available = json.loads(line[len(AVAILABLE):])
+        elif line.startswith(COST):
             cost = int(line[len(COST):].strip())
         elif line.startswith(HEADS):
             heads = tuple(line[len(HEADS):].split())
@@ -1779,19 +1999,11 @@ def _read(text: str, outcome: parity.Outcome) -> Run:
             digest = line[len(DIGEST):].strip()
         elif line.startswith(DIGEST_ERROR):
             digest_error = json.loads(line[len(DIGEST_ERROR):])
-        elif line.startswith(EQUATIONS):
-            equations = tuple(json.loads(line[len(EQUATIONS):]))
-        elif line.startswith(TYPE_DECLARATIONS):
-            type_declarations = tuple(json.loads(line[len(TYPE_DECLARATIONS):]))
-    return Run(
-        outcome,
-        cost,
-        heads,
-        digest,
-        digest_error,
-        equations,
-        type_declarations,
-    )
+        elif line.startswith(CONTENT):
+            content = tuple(json.loads(line[len(CONTENT):]))
+        elif line.startswith(HELD):
+            held = int(line[len(HELD):].strip())
+    return Run(outcome, cost, heads, digest, digest_error, content, held, available)
 
 
 def _launch(source: str, root: Path) -> Run:
@@ -1866,10 +2078,15 @@ def run_twin(twin: Path, root: Path = REPO) -> Run:
         f"_spec = importlib.util.spec_from_file_location('metta_twin', {str(twin)!r})\n"
         "_module = importlib.util.module_from_spec(_spec)\n"
         "_spec.loader.exec_module(_module)\n"
+        "_present = None\n"
+        "_available = getattr(_module, 'available', None)\n"
+        "if callable(_available):\n"
+        "    _present = bool(_available(m))\n"
         "groups = []\n"
         "with m.stats() as spent:\n"
         "    _module.twin(m)\n"
-        + _EPILOGUE,
+        + _EPILOGUE
+        + "print('" + AVAILABLE + "' + json.dumps(_present))\n",
         root,
     )
 
@@ -1941,22 +2158,76 @@ def _empirical_budget(value: dict, twin: Path) -> EmpiricalBudget:
     return EmpiricalBudget(minimum, maximum, observations, protocol)
 
 
-def allowance_of(twin: Path) -> int | None:
-    """The twin's own declared point allowance, or None for the tree's.
+def _declared_count(twin: Path, name: str) -> int | None:
+    """One non-negative integer a twin declares about itself, or None.
 
-    Read from source beside BUDGET and validated the same way, so a
-    negative, fractional or boolean declaration refuses instead of quietly
-    widening or narrowing the band it is supposed to state.
+    Read from source beside BUDGET, so a negative, fractional or boolean
+    declaration refuses instead of quietly widening the band it states.
     """
     tree = _parse(twin)
     for node in tree.body if tree else []:
         if not isinstance(node, ast.Assign):
             continue
         for target in node.targets:
-            if isinstance(target, ast.Name) and target.id == ALLOWANCE_NAME:
+            if isinstance(target, ast.Name) and target.id == name:
                 value = ast.literal_eval(node.value)
                 if isinstance(value, bool) or not isinstance(value, int) or value < 0:
-                    msg = f"{twin}: {ALLOWANCE_NAME} must be a non-negative integer"
+                    msg = f"{twin}: {name} must be a non-negative integer"
+                    raise ValueError(msg)
+                return value
+    return None
+
+
+def allowance_of(twin: Path) -> int | None:
+    """The twin's own declared point allowance, or None for the tree's."""
+    return _declared_count(twin, ALLOWANCE_NAME)
+
+
+def overrun_of(twin: Path) -> int | None:
+    """The band overrun the twin declares its own program costs, or None."""
+    return _declared_count(twin, OVERRUN_NAME)
+
+
+#: The shape a DIVERGENCE value has to have, so a typo, a truncation or a
+#: hand-written placeholder refuses instead of pinning nothing.
+_DIGEST = re.compile(r"\A[0-9a-f]{64}\Z")
+
+
+def content_divergence(example_only: Sequence[str], twin_only: Sequence[str]) -> str:
+    """One sha256 over the two stored-atom surpluses, in that order.
+
+    The surpluses arrive from `_surplus`, sorted with duplicate copies kept,
+    so the same difference digests the same in any process and one extra copy
+    of one atom is a different difference. JSON is the separator because an
+    atom's rendering may contain anything a Grounded string contains, newlines
+    included, and joining on one would let two differences collide.
+    """
+    payload = json.dumps(
+        [list(example_only), list(twin_only)], separators=(",", ":")
+    )
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+
+def divergence_of(twin: Path) -> str | None:
+    """The twin's own declared stored-content difference, or None.
+
+    Read from source beside BUDGET, exactly as `allowance_of` reads its
+    number, and validated to the digest shape `content_divergence` mints so a
+    declaration that pins nothing refuses at the door instead of passing every
+    difference.
+    """
+    tree = _parse(twin)
+    for node in tree.body if tree else []:
+        if not isinstance(node, ast.Assign):
+            continue
+        for target in node.targets:
+            if isinstance(target, ast.Name) and target.id == DIVERGENCE_NAME:
+                value = ast.literal_eval(node.value)
+                if not isinstance(value, str) or not _DIGEST.match(value):
+                    msg = (
+                        f"{twin}: {DIVERGENCE_NAME} must be the 64-character "
+                        f"sha256 `--repin` writes, not {value!r}"
+                    )
                     raise ValueError(msg)
                 return value
     return None
@@ -2105,7 +2376,7 @@ def check(
     )
     findings.extend(differences)
     findings.extend(_visible(relative, left, right))
-    findings.extend(_stored(relative, left, right))
+    findings.extend(_stored(relative, twin, left, right))
     stated = any(entry["example"] == relative for entry in entries)
     findings.extend(_price(relative, twin, left, right, stated, protocol=protocol))
     return Verdict(
@@ -2119,6 +2390,12 @@ def check(
     )
 
 
+#: How the specializer names a clause it DERIVED, which no side authored
+#: [source: engine/specializer.pl, `atom_concat(HV, '_Spec_k', Prefix)`;
+#: commit=9010a79b01c9b2a66b96a3952fa378fb3e939dc3].
+DERIVED_MARK = "_Spec_"
+
+
 def _visible(relative: str, left: Run, right: Run) -> list[str]:
     """The reflectivity check, and the one thing here that no restructuring
     may weaken: a Python-authored definition must land as an ordinary atom
@@ -2126,8 +2403,25 @@ def _visible(relative: str, left: Run, right: Run) -> list[str]:
     state [source: ai-python-first-revamp-discussion.md section 1b point 2,
     "any revamp design that would make a Python-defined function invisible
     to match is wrong by this test"; commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22].
+
+    A DERIVED clause is not a definition either side wrote, so its absence is
+    not a definition hidden in Python. The specializer keys one on the call it
+    saw, and the two doors reach that call at different moments: after
+    `m += lib.roman`, `!(map-flat (+ 1) (1 2 3 4 5 6 7 8))` derives its two
+    clauses on the FIRST call from source and on a later one through
+    `m.fn.map_flat(S.add(1), (1, 2, 3, 4, 5, 6, 7, 8))`, and twenty of the
+    latter cost 8,425 inferences against the source form's 21,067, both spaces
+    ending with the same two derived clauses. So the twin that has not reached
+    the threshold yet is not hiding anything; the stored-content oracle still
+    sees every clause, and a twin whose set differs declares it as its
+    DIVERGENCE [measured 2026-09-07: the two calls above under `m.stats()` at
+    1, 5 and 20 repetitions; commit=9010a79b01c9b2a66b96a3952fa378fb3e939dc3].
     """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
-    missing = set(left.heads) - set(right.heads)
+    missing = {
+        head
+        for head in set(left.heads) - set(right.heads)
+        if DERIVED_MARK not in head
+    }
     if not missing:
         return []
     return [
@@ -2146,19 +2440,38 @@ def _storage_status(left: Run, right: Run) -> str:
     return "equal" if left.digest == right.digest else "different"
 
 
-def _equation_surplus(
-    these: tuple[str, ...], those: tuple[str, ...]
-) -> list[str]:
-    """Keep every extra canonical equation, including duplicate copies."""
+def _surplus(these: tuple[str, ...], those: tuple[str, ...]) -> list[str]:
+    """Keep every atom `these` holds beyond `those`, duplicate copies included."""
     surplus = Counter(these) - Counter(those)
-    return [equation for equation in sorted(surplus) for _ in range(surplus[equation])]
+    return [atom for atom in sorted(surplus) for _ in range(surplus[atom])]
 
 
-def _stored(relative: str, left: Run, right: Run) -> list[str]:
+def _plural(count: int) -> str:
+    """`1 atom`, and `n atoms` for every other n."""
+    return f"{count} atom" if count == 1 else f"{count} atoms"
+
+
+def _census(atoms: Sequence[str]) -> str:
+    """How many surplus atoms of each head, in the order the heads sort."""
+    heads = Counter(
+        atom[1:].split(" ")[0].split(")")[0] if atom.startswith("(") else atom
+        for atom in atoms
+    )
+    return ", ".join(f"{count} {head}" for head, count in sorted(heads.items()))
+
+
+def _stored(relative: str, twin: Path, left: Run, right: Run) -> list[str]:
     """Compare the independently minted content digests and explain drift.
 
-    Equation strings are diagnostics only. They never replace a refused or
-    absent digest, because the adopted oracle is the whole-space digest.
+    The digest is the oracle and the atom lists are its diagnostics: both
+    sides enumerate the same `get-atoms` the digest hashes
+    [source: engine/filereader/source_lifecycle.pl, metta_host_digest/2 and
+    extensions/python/metta/shim.pl, metta_py_atoms/2; commit=9010a79b01c9b2a66b96a3952fa378fb3e939dc3], so
+    the surplus each side holds over the other names the atoms that moved the
+    hash. A twin that MEANS to hold something its example does not pins the
+    whole difference as DIVERGENCE and passes only while the difference is
+    exactly what it declared; every other twin owes an equal digest. Atom
+    strings never replace a refused or absent digest.
     """
     findings = []
     if left.digest_error:
@@ -2181,37 +2494,62 @@ def _stored(relative: str, left: Run, right: Run) -> list[str]:
         )
     if findings:
         return findings
+    try:
+        declared = divergence_of(twin)
+    except ValueError as error:
+        return [f"{relative}: {error}"]
     if left.digest == right.digest:
-        return []
+        if declared is None:
+            return []
+        return [
+            f"{relative}: the twin declares a stored-content divergence and "
+            f"the two spaces now hold the same atoms; drop {DIVERGENCE_NAME} "
+            f"and its paragraph, or re-settle it with "
+            f"`{_REPIN_COMMAND} --reason ...`"
+        ]
 
-    example_only = _equation_surplus(left.equations, right.equations)
-    twin_only = _equation_surplus(right.equations, left.equations)
-    example_types = _equation_surplus(
-        left.type_declarations, right.type_declarations
-    )
-    twin_types = _equation_surplus(
-        right.type_declarations, left.type_declarations
-    )
-    diagnostics = []
-    if example_only or twin_only:
-        diagnostics.append(
-            "equation multiset "
-            f"example-only={json.dumps(example_only, separators=(',', ':'))} "
-            f"twin-only={json.dumps(twin_only, separators=(',', ':'))}"
+    observed, detail = _difference(left, right)
+    if declared == observed:
+        return []
+    if declared is not None:
+        detail = (
+            f"the declared divergence {declared[:12]} is not the observed "
+            f"{observed[:12]}; {detail}"
         )
-    if example_types or twin_types:
-        diagnostics.append(
-            "type-declaration multiset "
-            f"example-only={json.dumps(example_types, separators=(',', ':'))} "
-            f"twin-only={json.dumps(twin_types, separators=(',', ':'))}"
-        )
-    detail = "; ".join(diagnostics) or (
-        "equations and type declarations agree, so other stored content differs"
-    )
     return [
         f"{relative}: stored content differs across processes: example digest "
         f"{left.digest}, twin digest {right.digest}; {detail}"
     ]
+
+
+def _difference(left: Run, right: Run) -> tuple[str, str]:
+    """What the two spaces' difference digests to, and how it reads.
+
+    Over `CONTENT_CAP` atoms neither side enumerates, so the difference is
+    pinned as the two space digests instead of as the surplus that produced
+    them. That is a weaker diagnostic and the SAME strength of pin: either
+    space changing moves it.
+    """
+    if left.content is None or right.content is None:
+        return (
+            content_divergence([left.digest or ""], [right.digest or ""]),
+            f"the example holds {left.held} atoms and the twin {right.held}, "
+            f"over the {CONTENT_CAP} this lane enumerates, so the difference "
+            f"is pinned as the two digests rather than named atom by atom",
+        )
+    example_only = _surplus(left.content, right.content)
+    twin_only = _surplus(right.content, left.content)
+    detail = (
+        f"atom multiset "
+        f"example-only={json.dumps(example_only, separators=(',', ':'))} "
+        f"twin-only={json.dumps(twin_only, separators=(',', ':'))}"
+        if example_only or twin_only
+        else (
+            "every enumerated atom agrees, so the two digests were minted "
+            "over content this lane cannot see"
+        )
+    )
+    return content_divergence(example_only, twin_only), detail
 
 
 #: Below this a twin did nothing an engine was needed for. Python's own
@@ -2256,6 +2594,21 @@ def _budget_findings(
         return [f"{relative}: {error}"]
     if budget is None:
         return [f"{relative}: the twin states no BUDGET"]
+    if right.available is False:
+        # The twin guards on a capability its example guards on too (a Redis
+        # server, a seat's artifact, an importable package) and its budget was
+        # measured where that capability was present; on a box without it the
+        # twin takes its guarded path, whose count says nothing about the pin.
+        # The claims and the stored content are still compared above; only
+        # the price is not, and the lane says so rather than reading a green;
+        # the selftest plants both answers in its capability plant
+        # [tested: tests/checks/check_twin_coverage_selftest.py; commit=WORKTREE].
+        print(
+            f"{relative}: budget not compared here: the twin's available(m) "
+            "answered False, so it took the path its example takes without "
+            "the capability"
+        )
+        return []
     if isinstance(budget, EmpiricalBudget):
         if budget.protocol != protocol:
             return [
@@ -2310,9 +2663,15 @@ def _price(
             f"example the library is never asked about is a residue entry"
         )
     if left.cost and right.cost is not None:
+        try:
+            declared_overrun = overrun_of(twin) or 0
+        except ValueError as error:
+            return [*findings, f"{relative}: {error}"]
         defined = definitions(twin)
         authoring = DEFINITION_WARMUP + DEFINITION_COST * defined if defined else 0
-        ceiling = left.cost * (1.0 + BAND_PERCENT / 100.0) + authoring
+        ceiling = (
+            left.cost * (1.0 + BAND_PERCENT / 100.0) + authoring + declared_overrun
+        )
         if right.cost > ceiling:
             allowed = (
                 f" plus {authoring} to author {defined} compiled "
@@ -2320,10 +2679,26 @@ def _price(
                 if authoring
                 else ""
             )
+            allowed += (
+                f" plus the {declared_overrun} this twin declares its own "
+                f"program costs"
+                if declared_overrun
+                else ""
+            )
             findings.append(
                 f"{relative}: the twin cost {right.cost} inferences against "
                 f"the example's {left.cost}, past the {BAND_PERCENT:g}% band "
                 f"ceiling of {ceiling:.0f}{allowed}"
+            )
+        elif declared_overrun and right.cost <= (
+            left.cost * (1.0 + BAND_PERCENT / 100.0) + authoring
+        ):
+            findings.append(
+                f"{relative}: the twin declares an overrun of "
+                f"{declared_overrun} and now costs {right.cost} against a "
+                f"ceiling of "
+                f"{left.cost * (1.0 + BAND_PERCENT / 100.0) + authoring:.0f} "
+                f"without it; drop {OVERRUN_NAME} and its paragraph"
             )
     return findings
 
@@ -2473,6 +2848,58 @@ def _observe(examples: list[Path], entries: list[dict], rounds: int) -> None:
             print(f"  {failure}")
 
 
+def _settle_divergence(
+    example: Path, twin: Path, right: Run, reason: str, today: str
+) -> str | None:
+    """Write, move or drop one twin's DIVERGENCE, and say what happened.
+
+    Answers None when nothing changed, including when either side produced no
+    digest: an absent oracle is not evidence that a declared difference is
+    gone, and clearing a declaration on it would turn a broken measurement
+    into a green twin.
+    """
+    left = run_example(example)
+    if left.digest is None or right.digest is None:
+        return None
+    declared = divergence_of(twin)
+    if left.digest == right.digest:
+        if declared is None:
+            return None
+        twin.write_text(
+            rediverged(
+                twin.read_text(encoding="utf-8"), None, reason, "", today=today
+            ),
+            encoding="utf-8",
+        )
+        return "the two spaces now agree; divergence dropped"
+    observed, _ = _difference(left, right)
+    if declared == observed:
+        return None
+    if left.content is None or right.content is None:
+        census = (
+            f"the example holds {left.held} atoms and the twin {right.held}, "
+            f"over the {CONTENT_CAP} this lane enumerates, so the difference "
+            f"is pinned as the two digests"
+        )
+    else:
+        example_only = _surplus(left.content, right.content)
+        twin_only = _surplus(right.content, left.content)
+        census = (
+            f"the example holds {_plural(len(example_only))} the twin does "
+            f"not ({_census(example_only) or 'none'}) and the twin holds "
+            f"{_plural(len(twin_only))} the example does not "
+            f"({_census(twin_only) or 'none'})"
+        )
+    twin.write_text(
+        rediverged(
+            twin.read_text(encoding="utf-8"), observed, reason, census, today=today
+        ),
+        encoding="utf-8",
+    )
+    was = "none" if declared is None else declared[:12]
+    return f"divergence {was} -> {observed[:12]}, {census}"
+
+
 def main() -> int:
     """Run the lane, or measure it."""
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
@@ -2491,6 +2918,14 @@ def main() -> int:
     )
     parser.add_argument("--rounds", type=int, default=3)
     parser.add_argument("--reason", default="", help="the mechanism a --repin records")
+    parser.add_argument(
+        "--divergence-reason",
+        default="",
+        help=(
+            "why the two spaces differ, when that is a different mechanism "
+            "from the one that moved the count; defaults to --reason"
+        ),
+    )
     parser.add_argument("paths", nargs="*", help="examples, default every twinned one")
     arguments = parser.parse_args()
 
@@ -2513,6 +2948,7 @@ def main() -> int:
     if arguments.repin:
         today = datetime.date.today().isoformat()
         moved = 0
+        diverged = 0
         unmeasured: list[str] = []
         for example in examples:
             twin = twin_for(example)
@@ -2520,7 +2956,8 @@ def main() -> int:
             # that failure with the integer 0 and WRITE it as a price: one
             # partial corpus pass pinned a healthy twin to 0 that way. A
             # failure is reported and skipped; it is never a measurement.
-            samples = [run_twin(twin).cost for _ in range(arguments.rounds)]
+            runs = [run_twin(twin) for _ in range(arguments.rounds)]
+            samples = [run.cost for run in runs]
             if any(sample is None for sample in samples):
                 unmeasured.append(str(twin.relative_to(REPO)))
                 print(
@@ -2530,6 +2967,21 @@ def main() -> int:
                     file=sys.stderr,
                 )
                 continue
+            # The stored-content difference is settled in the same pass and
+            # from the same run, because a twin whose count moved is a twin
+            # whose space may have moved with it, and two passes over 231
+            # engine boots to answer one question about one tree is the shape
+            # that leaves half a corpus priced against the other half.
+            settled = _settle_divergence(
+                example,
+                twin,
+                runs[-1],
+                arguments.divergence_reason or arguments.reason,
+                today,
+            )
+            if settled is not None:
+                print(f"{twin.relative_to(REPO)}: {settled}")
+                diverged += 1
             cost = min(samples)
             budget = budget_of(twin)
             if not isinstance(budget, int) or isinstance(budget, bool):
@@ -2572,7 +3024,10 @@ def main() -> int:
                 continue
             print(f"{twin.relative_to(REPO)}: {budget} -> {cost}")
             moved += 1
-        print(f"re-pinned {moved} of {len(examples)} twins")
+        print(
+            f"re-pinned {moved} and settled the stored-content divergence of "
+            f"{diverged} of {len(examples)} twins"
+        )
         if unmeasured:
             print(
                 f"{len(unmeasured)} twin(s) failed to measure and keep their "

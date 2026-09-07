@@ -9,12 +9,14 @@ Guarantees:
     multiplicity [tested:
     test_answer_multisets_ignore_order_and_alpha_names_but_keep_multiplicity;
     commit=8bfe05c3850776543ece25a85038242f10b1d841]
-  - stored-content comparison treats Space.digest() as authoritative and uses
-    canonical equations only to explain whole-space drift without losing
-    duplicate counts [tested:
-    test_stored_content_uses_the_digest_and_keeps_equation_multiplicity,
+  - stored-content comparison treats Space.digest() as authoritative and names
+    the whole stored-atom multiset each side holds beyond the other, duplicate
+    copies kept, to explain whole-space drift; a space over CONTENT_CAP atoms
+    pins its difference as the two digests instead [tested:
+    test_stored_content_uses_the_digest_and_keeps_atom_multiplicity,
+    test_a_space_over_the_cap_pins_its_difference_as_the_two_digests,
     test_a_digest_refusal_is_a_finding_and_never_an_atom_fallback;
-    commit=5d93a44cf4820717163bbf8dfaf667ae14e5e4ee]
+    commit=9010a79b01c9b2a66b96a3952fa378fb3e939dc3]
   - point budgets remain two-sided with the deterministic tolerance stated
     separately [tested: test_a_budget_is_two_sided; commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22]
   - empirical envelopes are asymmetric, protocol-scoped, and falsified by
@@ -100,12 +102,14 @@ def _run(
     *,
     digest=None,
     digest_error=None,
-    equations=(),
-    type_declarations=(),
+    content=(),
+    held=None,
 ):
     """One side's run, built rather than measured.
 
-    The comparison can then be exercised without starting an engine.
+    The comparison can then be exercised without starting an engine. `content`
+    is the whole stored-atom multiset the lane enumerates, and `None` is the
+    space that held more than CONTENT_CAP atoms for it to enumerate.
     """
     return coverage.Run(
         parity.Outcome(list(groups), error),
@@ -113,8 +117,8 @@ def _run(
         tuple(heads),
         digest,
         digest_error,
-        tuple(equations),
-        tuple(type_declarations),
+        None if content is None else tuple(content),
+        len(content) if held is None and content is not None else held,
     )
 
 
@@ -924,150 +928,94 @@ def test_a_hidden_definition_is_a_finding():
     assert coverage._visible("x.metta", _run([], heads=()), _run([], heads=("f/1",))) == []
 
 
-def test_stored_content_uses_the_digest_and_keeps_equation_multiplicity():
-    """A whole-space mismatch names each surplus equation and declaration."""
+def test_stored_content_uses_the_digest_and_keeps_atom_multiplicity(tmp_path):
+    """A whole-space mismatch names every surplus atom, duplicate copies kept."""
     equation = "(= (f $0) $0)"
     other = "(= (g $0) $0)"
     declaration = "(: f (-> Number Number))"
     left = _run(
         [],
         digest="a" * 64,
-        equations=(equation, equation, other),
-        type_declarations=(declaration, declaration),
+        content=(equation, equation, other, declaration, declaration),
     )
-    right = _run(
-        [],
-        digest="b" * 64,
-        equations=(equation,),
-        type_declarations=(declaration,),
-    )
+    right = _run([], digest="b" * 64, content=(equation, declaration))
+    twin = tmp_path / "plain.py"
+    twin.write_text("def twin(m):\n    assert m\n\n\nBUDGET = 1\n", encoding="utf-8")
 
-    findings = coverage._stored("x.metta", left, right)
+    findings = coverage._stored("x.metta", twin, left, right)
 
     assert len(findings) == 1
+    # Two copies on one side and one on the other leaves ONE in the surplus:
+    # the difference is a multiset difference, not a set one.
     assert findings[0].count(equation) == 1
-    assert f'example-only=["{equation}","{other}"]' in findings[0]
+    assert f'example-only=["{declaration}","{equation}","{other}"]' in findings[0]
     assert "twin-only=[]" in findings[0]
-    assert f'type-declaration multiset example-only=["{declaration}"]' in findings[0]
     assert coverage._storage_status(left, right) == "different"
 
+    tripled = _run([], digest="a" * 64, content=(equation, equation, equation))
+    single = _run([], digest="b" * 64, content=(equation,))
+    doubled = coverage._stored("x.metta", twin, tripled, single)
+    assert doubled[0].count(equation) == 2, doubled
 
-def test_a_digest_refusal_is_a_finding_and_never_an_atom_fallback():
-    """Matching equation diagnostics cannot license an unavailable oracle."""
-    equations = ("(= (f $0) $0)",)
-    left = _run(
-        [],
-        digest_error="ValueError: live object",
-        equations=equations,
+
+def test_a_space_over_the_cap_pins_its_difference_as_the_two_digests(tmp_path):
+    """A space too large to enumerate is still pinned, by its digest."""
+    left = _run([], digest="a" * 64, content=None, held=coverage.CONTENT_CAP + 1)
+    right = _run([], digest="b" * 64, content=None, held=coverage.CONTENT_CAP + 2)
+    twin = tmp_path / "huge.py"
+    twin.write_text("def twin(m):\n    assert m\n\n\nBUDGET = 1\n", encoding="utf-8")
+
+    findings = coverage._stored("x.metta", twin, left, right)
+    assert len(findings) == 1
+    assert "over the 50000 this lane enumerates" in findings[0]
+
+    settled = coverage.rediverged(
+        twin.read_text(encoding="utf-8"),
+        coverage.content_divergence(["a" * 64], ["b" * 64]),
+        "a planted divergence",
+        "the two spaces are too large to name",
+        today="2026-09-07",
     )
-    right = _run([], digest="c" * 64, equations=equations)
+    twin.write_text(settled, encoding="utf-8")
+    assert coverage._stored("x.metta", twin, left, right) == []
 
-    assert coverage._stored("x.metta", left, right) == [
+
+def test_a_digest_refusal_is_a_finding_and_never_an_atom_fallback(tmp_path):
+    """Matching atom diagnostics cannot license an unavailable oracle."""
+    content = ("(= (f $0) $0)",)
+    left = _run([], digest_error="ValueError: live object", content=content)
+    right = _run([], digest="c" * 64, content=content)
+    twin = tmp_path / "refused.py"
+    twin.write_text("def twin(m):\n    assert m\n\n\nBUDGET = 1\n", encoding="utf-8")
+
+    assert coverage._stored("x.metta", twin, left, right) == [
         "x.metta: the example's stored-content digest refused: "
         "ValueError: live object"
     ]
     assert coverage._storage_status(left, right) == "refused"
 
 
-def test_a_twin_stores_the_equations_its_comments_claim():
-    """Seven historical files document exact equation and declaration drift."""
-    historical = {
-        "ch07-control-flow/07-05-recursion/01-factorial.metta": (
-            (),
-            (),
-            ("(: facF (-> Number Number))",),
-            ("matches the source equation exactly", "publishes its type declaration"),
-        ),
-        "ch07-control-flow/07-05-recursion/03-fibsmart.metta": (
-            (),
-            (),
-            (
-                "(: fib (-> Number Number))",
-                "(: fib-tr (-> Number Number Number Number))",
-            ),
-            ("stores the source equation exactly", "publish their type declarations"),
-        ),
-        "ch05-equations-and-evaluation/05-03-the-number-library/02-math_exp_random.metta": (
-            (),
-            (),
-            ("(: in-range (-> Number Number Number Bool))",),
-            ("historical stored-equation divergence is lifted", "publishes its type declaration"),
-        ),
-        "ch07-control-flow/07-01-if-and-booleans/09-xor.metta": (
-            (),
-            (),
-            ("(: check_xor (-> Number Number Number))",),
-            ("matches the source equation", "publishes its type declaration"),
-        ),
-        "ch07-control-flow/07-03-let-and-sequencing/07-eval.metta": (
-            (
-                "(= (evalCustom $_alpha0) "
-                "(let* (($_alpha1 (add-atom &self (= (myfunc) $_alpha0))) "
-                "($_alpha2 (reduce (myfunc))) "
-                "($_alpha3 (remove-atom &self (= (myfunc) $_alpha0)))) $_alpha2))",
-                "(= (f $_alpha0 $_alpha1 $_alpha2) "
-                "(let $_alpha3 (+ $_alpha1 $_alpha2) "
-                "(append ($_alpha3) $_alpha0)))",
-            ),
-            (
-                "(= (evalCustom $_alpha0) "
-                "(let* (($_alpha1 (add-atom (context-space) "
-                "(= (myfunc) $_alpha0)))) "
-                "(let* (($_alpha2 (reduce (myfunc)))) "
-                "(let* (($_alpha3 (remove-atom (context-space) "
-                "(= (myfunc) $_alpha0)))) $_alpha2))))",
-                "(= (f $_alpha0 $_alpha1 $_alpha2) "
-                "(let* (($_alpha3 (+ $_alpha1 $_alpha2))) "
-                "(append ($_alpha3) $_alpha0)))",
-            ),
-            ("(: f (-> %Undefined% Number Number %Undefined%))",),
-            ("Source:", "Twin:", "nested one-binding `let*`"),
-        ),
-        "ch07-control-flow/07-04-bounded-and-committed-searches/02-metta4_streams.metta": (
-            (),
-            (),
-            ("(: range (-> Number Number Number))",),
-            (
-                "historical stored-equation divergence is lifted",
-                "publishes its type declaration",
-            ),
-        ),
-        "ch06-many-answers/07-tests.metta": (
-            (
-                "(= (program1 $_alpha0) (let $_alpha1 $_alpha0 "
-                "(collapse (superpose (12 (+ $_alpha1 4))))))",
-                "(= (program2 $_alpha0) (let $_alpha1 "
-                "(let $_alpha2 (1 2 3) (collapse (superpose $_alpha2))) "
-                "(superpose $_alpha1)))",
-                "(= (program3 $_alpha0) (if (== $_alpha0 2) "
-                "(let $_alpha1 (superpose ((if (< $_alpha0 10) "
-                "(superpose ((42 43))) 43))) $_alpha1) "
-                "(let $_alpha1 4 $_alpha1)))",
-            ),
-            (
-                "(= (program1 $_alpha0) (let* (($_alpha1 $_alpha0)) "
-                "(collapse (superpose (12 (+ $_alpha1 4))))))",
-                "(= (program2 $_alpha0) (let* (($_alpha1 (1 2 3))) "
-                "(let* (($_alpha2 (collapse (superpose $_alpha1)))) "
-                "(superpose $_alpha2))))",
-                "(= (program3 $_alpha0) (if (== $_alpha0 2) "
-                "(superpose ((if (< $_alpha0 10) "
-                "(superpose ((42 43))) 43))) 4))",
-            ),
-            (
-                "(: program1 (-> Number %Undefined%))",
-                "(: program3 (-> Number %Undefined%))",
-            ),
-            ("digest difference is deliberate", "Source:", "Twin:"),
-        ),
-    }
+def test_a_twin_stores_the_atoms_its_example_stores():
+    """Seven historical files, each holding its example's atoms or declaring why not.
 
-    for relative, (
-        example_only,
-        twin_only,
-        expected_twin_types,
-        comment_claims,
-    ) in historical.items():
+    They were chosen on 2026-09-06 because each had a documented stored-content
+    drift, and they are the strongest end-to-end reading of the oracle there
+    is: two engines, two processes, one digest each. What the file below pins
+    is not a list of atoms but the RULE: a twin whose spaces agree declares no
+    divergence, and a twin whose spaces differ declares exactly the difference
+    they have.
+    """
+    historical = (
+        "ch07-control-flow/07-05-recursion/01-factorial.metta",
+        "ch07-control-flow/07-05-recursion/03-fibsmart.metta",
+        "ch05-equations-and-evaluation/05-03-the-number-library/02-math_exp_random.metta",
+        "ch07-control-flow/07-01-if-and-booleans/09-xor.metta",
+        "ch07-control-flow/07-03-let-and-sequencing/07-eval.metta",
+        "ch07-control-flow/07-04-bounded-and-committed-searches/02-metta4_streams.metta",
+        "ch06-many-answers/07-tests.metta",
+    )
+
+    for relative in historical:
         example = REPO / "examples" / relative
         twin = coverage.twin_for(example)
         left = coverage.run_example(example)
@@ -1077,20 +1025,15 @@ def test_a_twin_stores_the_equations_its_comments_claim():
         assert right.outcome.error is None, (relative, right.outcome.error)
         assert left.digest_error is None, (relative, left.digest_error)
         assert right.digest_error is None, (relative, right.digest_error)
-        assert tuple(coverage._equation_surplus(left.equations, right.equations)) == example_only
-        assert tuple(coverage._equation_surplus(right.equations, left.equations)) == twin_only
-        assert tuple(
-            coverage._equation_surplus(
-                right.type_declarations, left.type_declarations
-            )
-        ) == expected_twin_types
-        if example_only or twin_only or expected_twin_types:
-            assert left.digest != right.digest, relative
-        else:
-            assert left.digest == right.digest, relative
-
+        declared = coverage.divergence_of(twin)
+        if left.digest == right.digest:
+            assert declared is None, relative
+            continue
+        observed, _ = coverage._difference(left, right)
+        assert declared == observed, relative
+        assert coverage._stored(relative, twin, left, right) == [], relative
         documented = " ".join(twin.read_text(encoding="utf-8").split())
-        assert all(claim in documented for claim in comment_claims), relative
+        assert "DIVERGED" in documented, relative
 
 
 # ---------------------------------------------------------------- the budgets
@@ -1319,6 +1262,43 @@ def test_a_declared_allowance_widens_one_twins_band_only(tmp_path):
         assert any("its own declared allowance of 40" in f for f in findings), outside
 
 
+def test_a_declared_overrun_widens_one_twins_ceiling_only(tmp_path):
+    """A twin whose own program costs more than its example's band allows.
+
+    The band's rule stands: a twin over the ceiling is the library slower than
+    the engine at the same program. This is for the case the rule does not
+    cover, where the two programs are NOT the same, and it is held to the two
+    things that keep it from being a loosening: a twin that declares nothing
+    is still refused, and a twin whose declaration it no longer needs is
+    refused too, so a stale one cannot sit there widening a band nobody is
+    testing.
+    """
+    left = _run(["(True)"], cost=1000)
+    ceiling = int(1000 * (1 + coverage.BAND_PERCENT / 100))
+    plain = _banded_twin(tmp_path, "plain.py", ceiling + 500)
+    declared = tmp_path / "declared.py"
+    declared.write_text(
+        plain.read_text(encoding="utf-8") + "OVERRUN = 500\n", encoding="utf-8"
+    )
+
+    over = _run([], cost=ceiling + 500)
+    assert any(
+        "band ceiling" in finding
+        for finding in coverage._price("x.metta", plain, left, over)
+    )
+    assert not any(
+        "band ceiling" in finding
+        for finding in coverage._price("x.metta", declared, left, over)
+    )
+    needless = _run([], cost=ceiling - 1)
+    assert any(
+        "drop OVERRUN" in finding
+        for finding in coverage._price("x.metta", declared, left, needless)
+    )
+    assert coverage.overrun_of(plain) is None
+    assert coverage.overrun_of(declared) == 500
+
+
 def test_a_declared_allowance_is_validated(tmp_path):
     """A malformed allowance is reported, never read as a wider band."""
     for index, bad in enumerate((-1, True, 4.5)):
@@ -1536,34 +1516,45 @@ def test_the_band_pays_for_authoring_but_only_what_was_measured(tmp_path):
 
 
 @pytest.mark.parametrize(
-    ("name", "expected_type"),
+    ("name", "declares"),
     [
         (
             "ch05-equations-and-evaluation/05-01-an-equation-is-a-rewrite/01-identity.metta",
-            "(: f (-> Number Number))",
+            True,
         ),
         (
             "ch04-spaces-and-matching/04-01-a-space-is-where-a-program-lives/03-spaces3.metta",
-            None,
+            False,
         ),
     ],
 )
-def test_a_shipped_twin_agrees_with_its_example_end_to_end(name, expected_type):
-    """Two twins run for real.
+def test_a_shipped_twin_agrees_with_its_example_end_to_end(name, declares):
+    """Two twins run for real, one of each kind.
 
     A change breaking the machinery itself is then caught rather than reading
-    as a corpus finding.
+    as a corpus finding. The first twin's space holds a `(: f (-> Number
+    Number))` its example never states, because the Python `def f(x: int) ->
+    int` IS that row, and it DECLARES the difference; the second's space is
+    equal to its example's and declares nothing. Both are silent, and what
+    the first one's silence rests on is checked here rather than assumed: the
+    declared digest is the observed one.
     """
-    verdict = coverage.check(REPO / "examples" / name, coverage.residue())
-    storage = [finding for finding in verdict.findings if "stored content differs" in finding]
-    other = [finding for finding in verdict.findings if finding not in storage]
-    assert other == [], other
-    if expected_type is None:
-        assert storage == []
-    else:
-        assert len(storage) == 1
-        assert f'twin-only=["{expected_type}"]' in storage[0]
+    example = REPO / "examples" / name
+    verdict = coverage.check(example, coverage.residue())
+    assert verdict.findings == (), verdict.findings
     assert verdict.covered == verdict.forms > 0
+
+    twin = coverage.twin_for(example)
+    declared = coverage.divergence_of(twin)
+    if not declares:
+        assert declared is None
+        assert verdict.storage == "equal"
+        return
+    assert verdict.storage == "different"
+    left, right = coverage.run_example(example), coverage.run_twin(twin)
+    observed, detail = coverage._difference(left, right)
+    assert declared == observed
+    assert '(: f (-> Number Number))' in detail
 
 
 def test_the_residue_json_is_the_one_definition_of_what_is_missing():

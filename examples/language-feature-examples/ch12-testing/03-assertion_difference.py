@@ -134,4 +134,14 @@ RUNG = "the assert family's failure report is this file's subject, so each claim
 #: examples/ch12-testing/03-assertion_difference.metta; fixture=worktree
 #: ai-tmp/wt-assertion-followups on fix/assertion-and-seam-followups, held to
 #: the corpus's own two-sided +-4 point tolerance; commit=2b1e14e9ba176f724e3d9676047f47b6fbbffa1b].
-BUDGET = 8295
+#: RE-PINNED 2026-09-07, 8295 to 9180 (+885), trunk's own movement since each
+#: twin's pin was taken on the base its own branch had: twenty-two first-parent
+#: steps between the 0.8.0 release re-pin and this tree, the prelude's move
+#: into Prolog the largest of them at +39 to +115 a twin and -65,806 on the
+#: error algebra, the live-views merge -45 on every twin that writes, the
+#: catalog and get-type repairs +169 on the types chapter, and the rest SWI
+#: clause-indexing layout as the boot image grew; this tree also stores the
+#: compiled default space operand as &self rather than a (context-space) call
+#: [measured 2026-09-07: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=9010a79b01c9b2a66b96a3952fa378fb3e939dc3].
+BUDGET = 9180

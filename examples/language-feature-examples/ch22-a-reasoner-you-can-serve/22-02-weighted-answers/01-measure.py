@@ -78,6 +78,32 @@ def twin(m):
     spread = ws_softmax(((2.0, S.a), (5.0, S.b), (1.0, S.c)), 0.7).one()
     assert abs(ws_total(spread).one() - 1.0) < 1.0e-9
 
+    # Shift invariance is the claim the max-subtraction inside ws-softmax
+    # exists for: the same two weights come back at 1.0 and 2.0, at 1000.0
+    # and 1001.0, and at -1000.0 and -999.0. Exponentiating directly gave NaN
+    # at the top end and an "ws-normalize requires positive total mass"
+    # refusal at the bottom, and the scores a network produces are exactly
+    # the ones that reach those ends.
+    # (= (both-weights $ps) ((first-weight $ps) (first-weight (cdr-atom $ps))))
+    @m.define
+    def both_weights(pairs):
+        """The first two weights, so a shift shows as one comparison."""
+        head, *rest = pairs
+        return (first_weight(pairs), first_weight(rest))
+
+    # !(test (both-weights (ws-softmax ((1.0 a) (2.0 b)) 1.0))
+    #        (both-weights (ws-softmax ((1000.0 a) (1001.0 b)) 1.0))), and one more
+    unshifted = both_weights(ws_softmax(((1.0, S.a), (2.0, S.b)), 1.0).one())
+    assert unshifted == both_weights(
+        ws_softmax(((1000.0, S.a), (1001.0, S.b)), 1.0).one()
+    )
+    assert unshifted == both_weights(
+        ws_softmax(((-1000.0, S.a), (-999.0, S.b)), 1.0).one()
+    )
+
+    # !(test (ws-peak ((1.0 a) (7.0 b) (3.0 c))) 7.0)
+    assert m.fn.ws_peak(((1.0, S.a), (7.0, S.b), (3.0, S.c))) == [7.0]
+
     # Sampling draws only values the superposition carries, every time.
     # !(test (is-member (ws-sample! ((0.5 heads) (0.5 tails))) (heads tails)) true)
     # ... and two more
@@ -182,9 +208,41 @@ def twin(m):
 #: maximum 88882 over 25 observations; command=python
 #: extensions/python/tools/twin_coverage.py --observe --rounds 25;
 #: fixture=full-lane/219/workers=32; commit=c00341f0ff9d83d1b9338ca86ad51708eaf07ebd].
+#: ENVELOPE 2026-09-08, 127527..127626 over 37 observations of 'full-
+#: lane/231/workers=32': `ws-sample!` draws from the distribution it is given,
+#: and three of the nineteen claims are about a draw, so a point pin on it is a
+#: claim about a schedule and not about this twin. Spread 99 [measured
+#: 2026-09-08: `python extensions/python/tools/twin_coverage.py --observe`, two
+#: runs of 12 and 25 rounds pooled; commit=9010a79b01c9b2a66b96a3952fa378fb3e939dc3].
+#: RE-ENVELOPED 2026-09-08 under 'full-lane/277/workers=32', because the every-atom merge widened
+#: the corpus from 231 to 277 twinned examples and the scheduler this counter
+#: answers to is the lane's own 32-worker pool over that corpus: 25 observations
+#: pooled from two `--observe` runs of 10 and 15 rounds read 127613..127679 where the
+#: 37 under 'full-lane/231/workers=32' read 127527..127626. A run outside this envelope is a
+#: re-observation, not a re-pin [measured 2026-09-08: python
+#: extensions/python/tools/twin_coverage.py --observe --rounds 10 and --rounds 15,
+#: ai-tmp/integrator-849a9e/mergeTW-observe-10.log and -15.log; commit=WORKTREE].
 BUDGET = {
-    "minimum": 88783,
-    "maximum": 88882,
+    "minimum": 127613,
+    "maximum": 127679,
     "observations": 25,
-    "protocol": "full-lane/219/workers=32",
+    "protocol": "full-lane/277/workers=32",
 }
+
+#: DIVERGED 2026-09-07, the example holds 2 atoms the twin does not (2 =) and
+#: the twin holds 2 the example does not (1 =, 1 @doc): the twin is an ordinary
+#: Python program and its body lowers to the engine's own forms: a match
+#: statement is ONE equation whose body is a case tower where the example
+#: writes one clause per arm, a named intermediate is a let* the original does
+#: not have, a Python truth test wraps its condition in py-truthy, and the
+#: annotations and docstrings that come with it are stored beside them
+#: [measured 2026-09-07: the two stored-atom surpluses, one fresh process per
+#: side; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=9010a79b01c9b2a66b96a3952fa378fb3e939dc3].
+#: DIVERGED 2026-09-07, the example holds 2 atoms the twin does not (2 =) and
+#: the twin holds 4 atoms the example does not (2 =, 2 @doc): the claims the
+#: twin gained bring the definitions and the library rows they ask through, so
+#: the two spaces differ by exactly those [measured 2026-09-07: the two stored-
+#: atom surpluses, one fresh process per side; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=9010a79b01c9b2a66b96a3952fa378fb3e939dc3].
+DIVERGENCE = "8703f431e0c562139c1cc3798e620e90a0460617385caa108ee856c1d191091d"

@@ -100,4 +100,36 @@ def twin(m):
 #: [measured 2026-09-07: 159093 inferences, 1.0002x the example's 159054; command=python
 #: extensions/python/tools/twin_coverage.py --measure --rounds 3;
 #: fixture=docs/every-atom-has-an-example at its example commits; commit=98397cdd04679cbf40b2d515076dadc09c1b0a32].
-BUDGET = 159093
+#: RE-PINNED 2026-09-08, 159093 to 159066 (-27), the merges between this lane's
+#: burn-down base (dfd5003f) and the tree that merged it, placed by a first-
+#: parent ladder through the lane's own driver over ten twins at f8c4b672,
+#: 4af59757, 90c08119, ad762ee7, 72f9cdf2 and 249389cb (ai-
+#: tmp/integrator-849a9e/mergeTW-twin-ladder.log): the catalog-types merge
+#: (1a3579fa) moves every twin by a lookup-and-layout step of about +5 for a
+#: twin that makes no typed call and about +35 for one that does, plus about +6
+#: per compiled definition through the argument-delivery check at the write
+#: (the authoring fit re-measured 1370+1307 to 1406+1309), and +1411 for the
+#: catalog twin that enumerates the 280 new rows; the two-sided-fragments merge
+#: (4af59757) moves the sequence-variable twins by what their fixed rows now
+#: compute (+2604 for the two-sided fragments, -217 for the fence, +19 for
+#: restricted spaces); the every-atom merge (90c08119) re-authored the reading-
+#: forms twin into the sread half (+3017) and added forty-six twins pinned on
+#: its own base 31d54e19, which the merges since moved by the same clusters;
+#: the gate-hygiene merge (ad762ee7) makes the tabling twins cheaper by the wfs
+#: library no longer loading eagerly. Every twin here re-reads its budget on
+#: the merged tree, minimum of three fresh processes [measured 2026-09-08: min-
+#: of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 159066
+
+#: DIVERGED 2026-09-08, the example holds 1 atom the twin does not (1 =) and
+#: the twin holds 1 atom the example does not (1 =): re-settled on the tree
+#: that merged the twins burn-down after the every-atom, gate-hygiene and
+#: catalog-types merges; the census below is what the two spaces hold apart on
+#: that tree, in the burn-down's own classes: knowledge rows the twin's file
+#: states (an annotation is a (: name ...) row, a docstring an (@doc ...) row)
+#: and lowering shapes an idiomatic Python program compiles to [measured
+#: 2026-09-08: the two stored-atom surpluses, one fresh process per side;
+#: command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+DIVERGENCE = "85dc77fd4e2f8d91d2c5f71e5b25057f731f109dce328ed2a16d6339d16dd92a"
