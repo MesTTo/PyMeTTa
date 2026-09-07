@@ -22,6 +22,7 @@ from ._fn import fn as fn
 from ._host_island import py as py
 from ._library import Library as Library
 from ._library import lib as lib
+from ._recording import Recording as _Recording
 from ._rules import equation as equation
 from ._rules import rules as rules
 from ._space import MeTTa as MeTTa
@@ -451,7 +452,22 @@ def trace(
     inferences: int | None = ...,
 ) -> _Trace: ...
 
-def debug(source: Atom | str, *, on: _Any = ..., inferences: int | None = ...) -> _Debugger: ...
+def debug(
+    source: Atom | str,
+    *,
+    on: _Any = ...,
+    inferences: int | None = ...,
+    at: int | None = ...,
+) -> _Debugger: ...
+
+def record(
+    source: Atom | str,
+    *,
+    seed: int | None = ...,
+    max_events: int | None = ...,
+    timeout: float | None = ...,
+    inferences: int | None = ...,
+) -> _Recording: ...
 
 def _ambient_space(): ...
 

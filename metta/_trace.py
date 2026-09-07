@@ -1,11 +1,19 @@
 """Purpose: the reduction trace as Python objects. m.trace(term) runs
 that term with every compiled MeTTa function wrapped engine-side, and
 answers TraceEvent records: a call carries the term entering reduction
-at its nesting depth, the matching exit carries the answer, and a call
-with no exit is a reduction that failed. Tracing wraps and unwraps per
+at its nesting depth, the matching exit carries the answer, and a fail
+carries a reduction that answered nothing. Tracing wraps and unwraps per
 run, so it costs nothing when off; what is traced executes for real,
 writes included, exactly like a run.
 Guarantees:
+  - every event carries its own seq and the wall nanoseconds since the run
+    began, and a reduction reaches exactly one of exit, fail, or neither
+    when a bound cut it [tested: test_events_carry_a_sequence_and_a_time,
+    test_a_reduction_that_answers_nothing_records_a_fail_event;
+    commit=e54c3654b9e0d3d040560d12c105a54303f63af7]
+  - a memoised head records the calls its cache answers, so a recording of a
+    memoised program is not empty [tested:
+    test_a_memoised_head_records_the_calls_its_cache_answers; commit=e54c3654b9e0d3d040560d12c105a54303f63af7]
   - named filters select events before recording bounds without changing
     execution depth [tested: test_trace_filter_preserves_depth_and_budget;
     commit=504f8dddfa890ced97e795a13ab10e239b1de2ce]
@@ -33,7 +41,7 @@ Open Obligations:
 from __future__ import annotations
 
 from collections.abc import Iterable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
 from ._atom_wire import _atom_from_wire
@@ -47,11 +55,28 @@ __all__ = ["TraceEvent", "trace"]
 
 @dataclass(frozen=True)
 class TraceEvent:
-    """One step: depth is the nesting level, kind is call or exit, term
-    is what reduced, answer carries the exit's result and stays None on
-    a call.
-    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+    """One step of a reduction.
 
+    ``seq`` numbers the events of one trace from 0 and ``time`` is the wall
+    nanoseconds since the run began, so an event says both where it is in the
+    order and how far into the run it happened. ``depth`` is the nesting level,
+    ``term`` is what reduced, and ``answer`` carries the exit's result.
+
+    ``kind`` is the port, and a reduction reaches exactly one of three
+    outcomes: ``exit`` once per answer, ``fail`` when it answered nothing, or
+    neither when a bound cut the run before it finished. ``answer`` is None on
+    every port but ``exit``.
+    """
+
+    seq: int
+    #: Excluded from equality, because it is WHEN the step happened and not
+    #: WHICH step it is: two runs of the same program produce the same
+    #: reduction at different moments, and an event that carried the clock
+    #: into its identity would make two traces of one program unequal and
+    #: every real difference between them invisible behind that. Every other
+    #: field counts, `seq` included, so a trace and a differently filtered
+    #: one are not equal. `Recording.replay` compares the same way.
+    time: int = field(compare=False)
     depth: int
     kind: str
     term: Atom
@@ -61,6 +86,8 @@ class TraceEvent:
         indent = "  " * self.depth
         if self.kind == "exit":
             return f"{indent}{self.term} = {self.answer}"
+        if self.kind == "fail":
+            return f"{indent}-> {self.term} fails"
         return f"{indent}-> {self.term}"
 
 
@@ -138,6 +165,11 @@ DEFAULT_MAX_EVENTS = 10_000
 #: guard takes, seconds, inferences and stack bytes.
 _NO_BOUND = (-1.0, -1, -1)
 
+#: The fourth run control the trace door takes beside those three: the seed the
+#: run's generator is pinned to, or -1 for the generator the engine already had.
+#: Negative is the same no-bound sentinel the three bounds use.
+_NO_SEED = -1
+
 
 class Trace(list):
     """The events, and which bound stopped the recording early.
@@ -176,7 +208,8 @@ def trace(space, source: Atom | str,
           *,
           filter: Symbol | str | Iterable[Symbol | str] | None = None,  # noqa: A002 -- public trace selector
           timeout: float | None = None,
-          inferences: int | None = None) -> Trace:
+          inferences: int | None = None,
+          seed: int | None = None) -> Trace:
     """Run a term, or source, in this space under the engine's reduction trace.
 
     filter selects exact function names before recording; None selects all
@@ -199,6 +232,11 @@ def trace(space, source: Atom | str,
     2026-09-04 on 06-peano.metta's own head, a 2,000,000-inference limit took
     a 10,000-event trace to an InferenceLimitError and nothing else, and the
     renderer reading it drew 4 frames where the events give 302.
+
+    seed pins the run's random generator and restores whatever state was in
+    force afterwards, so a traced run's draws come back the same. It is the
+    fourth run control, not a bound, and `record` is the door that always
+    sets it; the MeTTa spelling of the same scope is `(with-seed S expr)`.
     """
     # None means unspecified, and the number lives here alone: metta._space
     # may not import this module (import-linter, "the facade does not import
@@ -227,7 +265,8 @@ def trace(space, source: Atom | str,
             _as_source(source),
             space.name,
             request,
-            list(_limits(timeout, inferences) or _NO_BOUND),
+            [*(_limits(timeout, inferences) or _NO_BOUND),
+             _NO_SEED if seed is None else int(seed)],
         ],
         None,
     )
@@ -237,9 +276,11 @@ def trace(space, source: Atom | str,
     # answered the symbol, and a tab inside a symbol split the record.
     events = []
     for record in records or []:
-        depth, kind, term, *answer = record
+        seq, moment, depth, kind, term, *answer = record
         events.append(
             TraceEvent(
+                int(seq),
+                int(moment),
                 int(depth),
                 str(kind),
                 _atom_from_wire(term),

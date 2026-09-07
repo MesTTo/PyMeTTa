@@ -393,13 +393,29 @@ def test_encoding_a_bounded_trace_is_not_charged_to_the_run_bound(m):
     assert len(cut) == len(whole) == 40
 
 
+def _reduction(event):
+    """An event's own step, without which trace it belongs to.
+
+    `seq` numbers the events a trace RECORDED, so a filtered trace numbers
+    from 0 over the ones it kept while the whole trace numbers them where
+    they fall; the reduction they describe is the same either way. `time` is
+    already outside equality for the same reason.
+    """
+    return (event.depth, event.kind, event.term, event.answer)
+
+
 def test_trace_filter_preserves_depth_and_budget(m):
     """Selection precedes accounting and preserves excluded ancestor depth."""
     m.run("(= (tr-outer $x) (tr-inner $x)) (= (tr-inner $x) (+ $x 1))")
     whole = m.trace("!(tr-outer 2)")
     selected = m.trace("!(tr-outer 2)", filter=S["tr-inner"], max_events=2)
     expected = [event for event in whole if event.term.children[0] == S["tr-inner"]]
-    assert selected == expected
+    assert [_reduction(event) for event in selected] == [
+        _reduction(event) for event in expected
+    ]
+    # And the filtered trace numbers its OWN events, so a caller indexing a
+    # recording of it by seq indexes the events it holds.
+    assert [event.seq for event in selected] == list(range(len(selected)))
     assert [(event.depth, event.kind) for event in selected] == [(1, "call"), (1, "exit")]
     assert selected[-1].answer == 3
     assert selected.stopped is None
@@ -416,7 +432,10 @@ def test_trace_filter_is_exact_selection_of_the_whole_trace(m, names):
     m.run("(= (tr-outer $x) (tr-inner $x)) (= (tr-inner $x) (+ $x 1))")
     whole = m.trace("!(tr-outer 4)")
     selected = m.trace("!(tr-outer 4)", filter=(Symbol(name) for name in names))
-    assert selected == [event for event in whole if event.term.children[0].name in names]
+    assert [_reduction(event) for event in selected] == [
+        _reduction(event) for event in whole
+        if event.term.children[0].name in names
+    ]
     assert selected.stopped is None
 
 
@@ -473,3 +492,58 @@ def test_trace_filter_applies_inside_hyperpose_workers(m):
     assert len(events) == 4
     assert all(event.depth == 1 and event.term.children[0] == S["tr-inner"] for event in events)
     assert sorted(event.answer for event in events if event.kind == "exit") == [2, 3]
+
+
+def test_events_carry_a_sequence_and_a_time(m):
+    """Every event numbers itself and dates itself, and both run forward.
+
+    seq is the recording's own index, which is what `debug(at=k)` seeks and
+    what a saved recording is walked by; time is the wall nanoseconds since
+    the RUN began, so the first event is near zero however long the process
+    has been up.
+    """
+    m.run("(= (tr-clock $x) (+ $x 1))")
+    events = m.trace("!(tr-clock 1)")
+    assert [event.seq for event in events] == list(range(len(events)))
+    assert all(isinstance(event.time, int) for event in events)
+    assert [event.time for event in events] == sorted(event.time for event in events)
+
+
+def test_a_reduction_that_answers_nothing_records_a_fail_event(m):
+    """The fail port, and the reduction that does NOT reach it.
+
+    A call with no exit was how a failure showed before, which a consumer had
+    to infer from the next event's depth and could not infer at all for the
+    last call of a run. A reduction that ANSWERED is not also reported as
+    failing when its answers run out: the ports report the outcome, not the
+    Byrd box, so exit-then-fail never appears.
+    """
+    m.run("(= (tr-only-one 1) yes)")
+    assert [event.kind for event in m.trace("!(tr-only-one 2)")] == ["call", "fail"]
+
+    m.run("(= (tr-two $x) a)\n(= (tr-two $x) b)")
+    assert [event.kind for event in m.trace("!(tr-two 1)")] == ["call", "exit", "exit"]
+
+
+def test_a_memoised_head_records_the_calls_its_cache_answers(m):
+    """A cached call is a call, and it is recorded.
+
+    The memo binds a call site to a lookup of its own, so the wrapper on the
+    FUNCTION never runs for a call the cache answers: `!(fib 8)` under the
+    automatic memo recorded 0 events over 23,050 inferences. The dispatcher
+    declares itself now, so a hit is a call with its answer and no children
+    and a miss is the whole reduction underneath, each recorded once.
+    """
+    m.run("(= (tr-memo $n) (if (< $n 2) $n (+ (tr-memo (- $n 1)) (tr-memo (- $n 2)))))")
+    events = m.trace("!(tr-memo 6)")
+    calls = [event for event in events if event.kind == "call"]
+    exits = [event for event in events if event.kind == "exit"]
+    assert len(calls) == len(exits) > 4
+    assert str(calls[0].term) == "(tr-memo 6)"
+    assert exits[-1].answer == 8
+    # Every call the memo answered from its table is one call and one exit
+    # with nothing under it, which is what a cache hit IS.
+    warm = m.trace("!(tr-memo 6)")
+    assert [(event.kind, str(event.term)) for event in warm] == [
+        ("call", "(tr-memo 6)"), ("exit", "(tr-memo 6)"),
+    ]

@@ -1198,6 +1198,22 @@ metta_py_load(File, Space, Groups) :-
     metta_host_load_file(File, Space, TermGroups),
     maplist(metta_py_encode_group, TermGroups, Groups).
 
+%Ask every library to forget the answers it derived earlier, so a re-run takes
+%the path a first run takes. A replay needs it: the recording's digest pins the
+%space's atoms and its seed pins the draws, and this is the third piece of the
+%state a recorded run started from.
+metta_py_forget_derived :-
+    metta_forget_derived.
+
+%Every operation a pinned seed makes repeat, as the engine and its loaded
+%libraries declare it. A recording reads this to tell an oracleIO operation
+%whose draw its seed captured from one that reads something no seed can pin.
+metta_py_seeded_operations(Names) :-
+    findall(NameStr,
+            ( seam:seeded_operation(Name), atom_string(Name, NameStr) ),
+            Names0),
+    sort(Names0, Names).
+
 %Read every form in Source without processing any, the boot-manifest door
 %[tested test_a_manifest_neither_runs_nor_defines].
 metta_py_read_forms(Source, Forms) :-
@@ -2598,20 +2614,28 @@ metta_py_future_snapshot(Space, [Watermark, Encoded]) :-
 %its EVENT bound during the run and then died encoding events it had already
 %recorded, and the caller paid the whole budget to be told only that the
 %budget was gone.
+%Seed is the fourth run control beside the three bounds, and rides in for the
+%same reason they do: it belongs to the PROGRAM, and a caller who pins it is
+%recording a run whose draws have to come back the same on a replay. A negative
+%number is the no-seed sentinel, the same one the three bounds use.
 metta_py_trace(Source, Space, Max, Bounds, [Stopped, Encoded]) :-
-    Bounds = [TimeS, Inf, StackBytes],
+    Bounds = [TimeS, Inf, StackBytes, Seed],
     metta_trace_source(Source, Space,
-                       bounded(Max, run_bounds(TimeS, Inf, StackBytes)),
+                       bounded(Max, run_bounds(TimeS, Inf, StackBytes, Seed)),
                        Events, Stopped),
     maplist(metta_py_trace_event, Events, Encoded).
 
-metta_py_trace_event(event(Depth, call, Term, _, Names),
-                     [Depth, "call", EncodedTerm]) :- !,
-    metta_py_encode_named(Term, Names, EncodedTerm).
-metta_py_trace_event(event(Depth, exit, Term, Answer, Names),
-                     [Depth, "exit", EncodedTerm, EncodedAnswer]) :-
+%An exit carries the answer and nothing else does, so the shape splits there
+%rather than once per kind: a `fail` row is a `call` row wearing its own word.
+metta_py_trace_event(event(Seq, Time, Depth, exit, Term, Answer, Names),
+                     [Seq, Time, Depth, "exit", EncodedTerm,
+                      EncodedAnswer]) :- !,
     metta_py_encode_named(Term, Names, EncodedTerm),
     metta_py_encode_named(Answer, Names, EncodedAnswer).
+metta_py_trace_event(event(Seq, Time, Depth, Kind, Term, _, Names),
+                     [Seq, Time, Depth, KindText, EncodedTerm]) :-
+    atom_string(Kind, KindText),
+    metta_py_encode_named(Term, Names, EncodedTerm).
 
 %%%%%%%%%% The debugger %%%%%%%%%%
 %
@@ -2633,9 +2657,9 @@ metta_py_trace_event(event(Depth, exit, Term, Answer, Names),
 % engine, where the counter the budget reads is. There is no wall bound, and
 % that is deliberate rather than missing: a session is suspended by design,
 % so a clock would run while a person reads a stop.
-metta_py_debug_open_controlled(Source, Space, Armed, Inferences,
+metta_py_debug_open_controlled(Source, Space, Armed, Inferences, Count,
                                [Mode, _Capture], prolog(Engine)) :-
-    metta_debug_begin(Armed),
+    metta_debug_begin(Armed, Count),
     catch(( metta_py_execution_policy_goal(
                 Mode, metta_debug_run(Source, Space, Groups), Controlled),
             metta_host_inference_budget(Controlled, Inferences, Bounded),
@@ -2665,16 +2689,18 @@ metta_py_debug_close(Engine) :-
 %A stop carries what a trace event carries, in the same encoding, so a host
 %that renders one renders the other. `done` carries the run's answer groups,
 %encoded exactly as metta_py_run/3 encodes them.
-metta_py_debug_event(the(stop(Depth, call, Term, _, Names)),
-                     [Depth, "call", EncodedTerm]) :- !,
-    metta_py_encode_named(Term, Names, EncodedTerm).
-metta_py_debug_event(the(stop(Depth, exit, Term, Answer, Names)),
-                     [Depth, "exit", EncodedTerm, EncodedAnswer]) :- !,
+metta_py_debug_event(the(stop(Seq, Time, Depth, exit, Term, Answer, Names)),
+                     [Seq, Time, Depth, "exit", EncodedTerm,
+                      EncodedAnswer]) :- !,
     metta_py_encode_named(Term, Names, EncodedTerm),
     metta_py_encode_named(Answer, Names, EncodedAnswer).
-metta_py_debug_event(the(done(TermGroups)), [-1, "done", Groups]) :- !,
+metta_py_debug_event(the(stop(Seq, Time, Depth, Kind, Term, _, Names)),
+                     [Seq, Time, Depth, KindText, EncodedTerm]) :- !,
+    atom_string(Kind, KindText),
+    metta_py_encode_named(Term, Names, EncodedTerm).
+metta_py_debug_event(the(done(TermGroups)), [-1, -1, -1, "done", Groups]) :- !,
     maplist(metta_py_encode_group, TermGroups, Groups).
-metta_py_debug_event(no, [-1, "failed"]) :- !.
+metta_py_debug_event(no, [-1, -1, -1, "failed"]) :- !.
 metta_py_debug_event(throw(Error), _) :-
     throw(Error).
 

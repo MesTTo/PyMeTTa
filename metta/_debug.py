@@ -22,6 +22,10 @@ Guarantees:
     never reach another breakpoint stops [tested:
     test_an_inference_bound_stops_a_resume_that_would_never_return;
     commit=39dd4c9014bf8c38d78df8c8fdc9c114b372dc1f]
+  - at= stops at the event with that sequence number, the same numbering a
+    Recording indexes by, and a negative one refuses rather than running to
+    the end [tested: test_a_count_breakpoint_stops_at_that_event,
+    test_a_negative_count_breakpoint_refuses; commit=e54c3654b9e0d3d040560d12c105a54303f63af7]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -50,14 +54,17 @@ logger = logging.getLogger(__name__)
 class Stop:
     """Where the program is, halted.
 
-    The term entering or leaving reduction, its nesting depth, and on an exit
-    the answer it produced: the same four fields a TraceEvent carries,
-    because it is the same event;
-    what differs is that the program is still running underneath this one and
-    will carry on when the loop body ends. ``function`` is the head's name,
-    which is what a breakpoint is named after.
+    The term entering or leaving reduction, its nesting depth, the answer on
+    an exit, and the seq and time that number and date it: the same six fields
+    a TraceEvent carries, because it is the same event; what differs is that
+    the program is still running underneath this one and will carry on when
+    the loop body ends. The seq is the one a recording of the same program
+    indexes by, which is what ``at=`` seeks to. ``function`` is the head's
+    name, which is what a breakpoint is named after.
     """
 
+    seq: int
+    time: int
     depth: int
     kind: str
     term: Atom
@@ -72,6 +79,8 @@ class Stop:
         indent = "  " * self.depth
         if self.kind == "exit":
             return f"{indent}{self.term} = {self.answer}"
+        if self.kind == "fail":
+            return f"{indent}-> {self.term} fails"
         return f"{indent}-> {self.term}"
 
 
@@ -103,10 +112,12 @@ class Debugger:
         "_mode",
         "_rt",
         "_started",
+        "_stop",
         "breakpoints",
     )
 
-    def __init__(self, space, source: Atom | str, armed: list[str], inferences: int) -> None:
+    def __init__(self, space, source: Atom | str, armed: list[str], inferences: int,
+                 at: int = -1) -> None:
         #: The armed function names, as the engine spells them, and a live
         #: set: what it holds when the program resumes is what stops it next.
         #: on= is the door that takes a symbol, a bound function or a string
@@ -116,11 +127,13 @@ class Debugger:
         self._mode = "run"
         self._started = False
         self._closed = False
+        self._stop: Stop | None = None
         self._answers: list | None = None
         self._handle = _controlled_run(
             space.runtime,
             "metta_py_debug_open",
-            [_as_source(source), space.name, sorted(self.breakpoints), inferences],
+            [_as_source(source), space.name, sorted(self.breakpoints), inferences,
+             at],
             None,
         )
         # The last guard, not the contract: a Debugger dropped without
@@ -169,7 +182,7 @@ class Debugger:
         return self._read(record)
 
     def _read(self, record) -> Stop:
-        depth, kind, *rest = record
+        seq, moment, depth, kind, *rest = record
         if str(kind) == "done":
             self._answers = [
                 [_atom_from_wire(answer) for answer in group] for group in (rest[0] or [])
@@ -181,12 +194,15 @@ class Debugger:
         # Every resume is one advance: a mode chosen at a stop applies to the
         # next one and no further, which is set_step's own contract.
         self._mode = "run"
-        return Stop(
+        self._stop = Stop(
+            int(seq),
+            int(moment),
             int(depth),
             str(kind),
             _atom_from_wire(rest[0]),
             _atom_from_wire(rest[1]) if len(rest) > 1 else None,
         )
+        return self._stop
 
     def step(self) -> None:
         """Stop at the very next reduction, breakpoint or not.
@@ -205,6 +221,18 @@ class Debugger:
         where step() was already chosen and the caller changed its mind.
         """
         self._mode = "run"
+
+    @property
+    def stop(self) -> Stop | None:
+        """Where the program is suspended now, or None before it has started.
+
+        The same object the last advance answered, kept because a session
+        opened already stopped -- which is what `at=` and
+        `Recording.debug(at=k)` produce -- has nowhere else to say where it
+        landed, and because a helper handed the Debugger can ask without
+        advancing it.
+        """
+        return self._stop
 
     @property
     def answers(self) -> list:
@@ -263,7 +291,8 @@ class Debugger:
         return f"Debugger({state}, breakpoints={sorted(self.breakpoints)})"
 
 
-def debug(space, source: Atom | str, *, on: Any = None, inferences: int | None = None) -> Debugger:
+def debug(space, source: Atom | str, *, on: Any = None, inferences: int | None = None,
+          at: int | None = None) -> Debugger:
     """Run a term, or source, under breakpoints.
 
     on= names the functions that stop the program, the way every door here
@@ -283,13 +312,23 @@ def debug(space, source: Atom | str, *, on: Any = None, inferences: int | None =
     than running forever. There is no timeout, deliberately: a session is
     suspended by design and a clock would run while a person reads a stop.
 
+    at= is the third kind of breakpoint: it stops at the event with that
+    sequence number, counting reductions from 0 the way a Recording numbers
+    them, so `m.debug(src, at=200)` is "put me where event 200 is". It is what
+    `Recording.debug(at=k)` runs, and it fires once; the session then behaves
+    like any other, on whatever `on=` named.
+
     What is debugged executes for real, writes included, and inherits the
     caller's scope, so `with m.speculative():` around the session discards
     what it wrote.
     """
+    if at is not None and at < 0:
+        msg = f"at= counts events from 0, so it cannot be {at!r}"
+        raise ValueError(msg)
     return Debugger(
         space,
         source,
         _selected_names(on, "on") or [],
         -1 if inferences is None else int(inferences),
+        -1 if at is None else int(at),
     )

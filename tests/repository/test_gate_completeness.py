@@ -222,7 +222,26 @@ RUFF_FAMILY_BURN_DOWN = {
     # with a summary line rather than priced here. Measured with --ignore-noqa
     # over the whole RUFF_SCOPE at petta b78dbd1f: 2252 as merged, 2234 after
     # the rephrasing.
-    "D": 2234,
+    # 2233 -> 2235 on 2026-09-07 with recordings, and the ceiling had NO slack:
+    # 70ac99da stands at exactly 2233, measured by running the base version of
+    # every file this branch changes beside its own. The three new sites are
+    # the obligation-header D205 form on metta/_recording.py (+1) and on
+    # tests/ch14_seeing_your_program/test_recording.py (+2, its Purpose header
+    # and the D103 on the `m` fixture, both the shape test_debug.py already
+    # carries), less the one metta/_trace.py pays back by rewriting
+    # TraceEvent's docstring to open with a summary line now that it describes
+    # six fields and three ports. Four further docstrings those rows wrote were
+    # REPHRASED to a summary line rather than priced here.
+    # 2234 -> 2222 on 2026-09-07, measured rather than summed when the recordings
+    # package merged: the two records above each priced against 2233, but the
+    # merges between them moved the tree. Measured with --ignore-noqa over the
+    # whole RUFF_SCOPE at each first-parent point in a detached worktree: 2230
+    # after templates-render (e2ee9fc4, its rewrite of libdoc.py and results.py
+    # dropped four), 2230 after the evidence gate (4edf25e4), 2220 after the
+    # testing exports (5f950788, real docstrings where the old stateful machine
+    # had suppressions), and 2222 with recordings' two obligation headers on
+    # top. Pinned to the measurement, so the next site prices against the tree.
+    "D": 2222,
     # 145, from 139 before the idiomatic twin corpus. Every one of the six new
     # sites is a `twin(m)` whose example needs no engine, because the form it
     # demonstrates is native Python (destructuring, `len`, `max`), or a
