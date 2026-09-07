@@ -452,6 +452,32 @@ def test_metta_and_prolog_halves_share_one_library_row(tmp_path, monkeypatch):
     assert "A planted name." in generated
 
 
+def test_a_registered_head_is_counted_in_the_reference(tmp_path, monkeypatch):
+    """A head published by a runnable registration form is on the page.
+
+    The gap this closes: lib_memo declares nothing and defines nothing, so the
+    page counted it at zero names while nine of its heads were callable. The
+    planted library here is that shape in miniature, and the engine is what
+    says the form registers a head.
+    """
+    libdoc = _load_libdoc()
+    library = tmp_path / "lib" / "lib_planted"
+    library.mkdir(parents=True)
+    (library / "lib_planted.metta").write_text(
+        '(@doc planted-doc (@desc "A documented planted name."))\n'
+        "(: planted-doc (-> Atom))\n"
+        "!(import_prolog_function planted-registered)\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(libdoc, "_REPO", tmp_path)
+
+    generated = libdoc.page()
+
+    assert "| lib_planted | 2 | 1 |" in generated
+    assert "Undocumented: `planted-registered`" in generated
+    assert "A documented planted name." in generated
+
+
 def _lint_kinds() -> set[str]:
     """Every kind metta.lint can emit, read out of the analysis module.
 

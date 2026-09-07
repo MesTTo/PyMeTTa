@@ -6,9 +6,13 @@ both languages' docs come from their own sources through one pipeline.
 The coverage table is the burn-down surface, interrogate's role for the
 MeTTa side: a library gains entries here by gaining @doc atoms.
 
+It renders `metta.library.rows`, the one query a library card renders too, so
+a card and this page cannot disagree about what a library declares
+[source: extensions/python/metta/library.py, rows].
+
 Assumes:
   - the engine's own reader parses each MeTTa implementation; forms are READ
-    and never run, while a Prolog-only implementation contributes an honest
+    and never run, while a Prolog-only implementation contributes a
     zero-documentation row rather than being parsed as MeTTa
     [tested: test_a_prolog_only_library_is_part_of_the_reference;
     commit=1bfad3db85807fff774cad370ff8e57f7400ae99]
@@ -19,9 +23,14 @@ Guarantees:
     discovery, with one row when a library has both halves
     [tested: test_metta_and_prolog_halves_share_one_library_row;
     commit=1bfad3db85807fff774cad370ff8e57f7400ae99]
+  - a head published through a runnable registration form is counted and named
+    among the undocumented, which is what left lib_memo reading as an empty
+    library while nine of its heads were callable [tested:
+    test_a_registered_head_is_counted_in_the_reference; commit=WORKTREE]
 Fails when:
-  - a library defines names only through runnable `!(...)` side effects;
-    the static reading cannot see those, so they go uncounted
+  - a library publishes names through a form whose name list is computed
+    rather than written: the engine reports nothing for such a form, so those
+    names go uncounted.
 Open Obligations:
   To Do: None
   Hacks: None
@@ -36,9 +45,8 @@ import sys
 _REPO = pathlib.Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(_REPO / "extensions" / "python"))
 
-from metta import Expression, Grounded, Symbol, parse  # noqa: E402
-from metta._library import _library_source_files  # noqa: E402
-from metta._source_forms import positioned_forms  # noqa: E402
+from metta import Expression, Grounded, Symbol  # noqa: E402
+from metta.library import roster, rows  # noqa: E402
 
 _PAGE = _REPO / "website" / "reference" / "metta-libraries.md"
 
@@ -52,34 +60,6 @@ burn-down surface: a library appears below it by gaining `@doc` atoms
 beside its definitions."""
 
 
-def _forms(source: str) -> list[tuple]:
-    """Read every non-runnable form with its source line.
-
-    This is the engine reader the boot manifest uses, which lets a library
-    whose backend is absent still document itself.
-    """
-    return [
-        (parse(form.text), form.line)
-        for form in positioned_forms(source)
-        if form.kind != "runnable"
-    ]
-
-
-def _named(atom) -> str | None:
-    """The name a (= ...) or (: ...) form defines or declares."""
-    if not isinstance(atom, Expression) or len(atom.children) < 3:
-        return None
-    head, subject = atom.children[0], atom.children[1]
-    if head == Symbol("="):
-        if isinstance(subject, Expression) and subject.children and isinstance(subject.children[0], Symbol):
-            return subject.children[0].name
-        if isinstance(subject, Symbol):
-            return subject.name
-    if head == Symbol(":") and isinstance(subject, Symbol):
-        return subject.name
-    return None
-
-
 def _text(atom) -> str:
     """Render the prose inside a documentation part.
 
@@ -90,16 +70,19 @@ def _text(atom) -> str:
     return str(atom)
 
 
-def _entry(doc: Expression, declared: dict[str, str], where: str) -> list[str]:
-    """Render one ``@doc`` atom as Markdown.
+def _entry(row) -> list[str]:
+    """Render one documented head as Markdown.
 
     Include its heading, source line, declared type, description, parameters
     and return value, omitting parts that were not written.
     """
+    doc = row.documentation
     name = doc.children[1]
+    at = row.documentation_origin or row.origin
+    where = f"{pathlib.Path(at.file).name}:{at.line}" if at is not None else row.name
     lines = [f"### `{name}`", "", f"*{where}*", ""]
-    if str(name) in declared:
-        lines += [f"```metta\n(: {name} {declared[str(name)]})\n```", ""]
+    if row.types:
+        lines += [f"```metta\n(: {name} {row.types[-1]})\n```", ""]
     for part in doc.children[2:]:
         if not (isinstance(part, Expression) and part.children):
             continue
@@ -118,60 +101,52 @@ def _entry(doc: Expression, declared: dict[str, str], where: str) -> list[str]:
     return lines
 
 
-def _library(path: pathlib.Path) -> tuple[str, int, int, list[str]]:
+def _where(row) -> tuple[str, int]:
+    """A documented head's own position, which is the page's reading order.
+
+    The rows arrive in the order the library first MENTIONS each head, which
+    for a registered head is the line of the form that registers it, so a
+    library registering ten names in one form would order those ten by the
+    list rather than by their documentation. A documentation page reads in the
+    order its documentation was written.
+    """
+    at = row.documentation_origin or row.origin
+    return ("", 0) if at is None else (at.file, at.line or 0)
+
+
+def _library(name: str, root: pathlib.Path) -> tuple[str, int, int, list[str]]:
     """One library's coverage numbers and rendered section."""
-    forms = _forms(path.read_text(encoding="utf-8"))
-    docs = [
-        (f, line)
-        for f, line in forms
-        if isinstance(f, Expression) and f.children and f.children[0] == Symbol("@doc")
-    ]
-    declared = {
-        str(f.children[1]): str(f.children[2])
-        for f, _line in forms
-        if isinstance(f, Expression) and len(f.children) == 3 and f.children[0] == Symbol(":")
-        and isinstance(f.children[1], Symbol)
-    }
-    names = {name for form, _line in forms if (name := _named(form)) is not None}
-    documented = {str(d.children[1]) for d, _line in docs if len(d.children) > 1}
+    declared = rows(name, root=root)
+    documented = sorted(
+        (row for row in declared if row.documentation is not None), key=_where
+    )
     section: list[str] = []
-    if docs:
-        section = [f"## {path.stem}", ""]
-        for doc, line in docs:
-            section += _entry(doc, declared, f"{path.name}:{line}")
-        missing = sorted(names - documented)
+    if documented:
+        section = [f"## {name}", ""]
+        for row in documented:
+            section += _entry(row)
+        missing = sorted(
+            row.name
+            for row in declared
+            if row.carried and row.documentation is None
+        )
         if missing:
             section += [
-                "Undocumented: " + ", ".join(f"`{name}`" for name in missing),
+                "Undocumented: " + ", ".join(f"`{head}`" for head in missing),
                 "",
             ]
-    return path.stem, len(names | documented), len(documented), section
-
-
-def _libraries(root: pathlib.Path) -> list[tuple[str, int, int, list[str]]]:
-    """One documentation row per discovered library implementation name."""
-    sources: dict[str, list[pathlib.Path]] = {}
-    for path in _library_source_files(root):
-        sources.setdefault(path.stem, []).append(path)
-
-    rows: list[tuple[str, int, int, list[str]]] = []
-    for name, paths in sorted(sources.items()):
-        metta_sources = [path for path in paths if path.suffix == ".metta"]
-        if len(metta_sources) > 1:
-            joined = ", ".join(str(path) for path in metta_sources)
-            message = f"{name} has multiple MeTTa documentation sources: {joined}"
-            raise ValueError(message)
-        rows.append(_library(metta_sources[0]) if metta_sources else (name, 0, 0, []))
-    return rows
+    return name, len(declared), len(documented), section
 
 
 def page() -> str:
     """Render the complete checked-in library reference page."""
-    rows = _libraries(_REPO)
+    # _REPO is read at call time, not bound at import: the page's own tests
+    # generate it over a planted tree by rebinding it.
+    rendered = [_library(name, _REPO) for name in roster(_REPO)]
     table = ["| library | names | documented |", "|---|---|---|"]
-    table += [f"| {name} | {total} | {done} |" for name, total, done, _ in rows]
+    table += [f"| {name} | {total} | {done} |" for name, total, done, _ in rendered]
     body: list[str] = []
-    for _name, _total, _done, section in rows:
+    for _name, _total, _done, section in rendered:
         body += section
     return "\n".join([_PREAMBLE, "", *table, "", *body]).rstrip() + "\n"
 

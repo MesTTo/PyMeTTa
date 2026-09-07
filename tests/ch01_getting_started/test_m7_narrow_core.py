@@ -61,7 +61,11 @@ BASELINE_PACKAGE_EXPORTS = 152
 #: async mirror generate it beside `trace`, which is the door it belongs
 #: with. A generated door counts once here, on the class the generator
 #: renders it onto.
-FINAL_METTA_METHODS = 35
+#: 37 on 2026-09-07: `lock` and `check` are context primitives, not space
+#: doors. What a lock pins is the set of sources this PROCESS loaded and the
+#: engine build under them, which no one space holds and which every space in
+#: the context shares, so the pair sits beside `info` for the same reason.
+FINAL_METTA_METHODS = 37
 # The class count: 21 before the context tier; +13 on 2026-09-01 when MeTTa
 # became the third generated mirror. The finding behind it was a context
 # that could define but not eval: the hand-written derived subset was typed
@@ -117,7 +121,12 @@ FINAL_METTA_METHODS = 35
 # `.pyi`. It is a root door rather than a Space method for the same reason
 # ``llms`` is: it takes the space as an argument so a caller can project one
 # it does not own, and `python -m metta stubs` is the same generator.
-FINAL_METTA_EXPORTS = 114
+# +3 on 2026-09-07 for ``library``, ``Lock`` and ``Drift``. ``library`` is a
+# satellite like ``lint`` and ``tables``; ``Lock`` and ``Drift`` are root
+# names because a caller reads a lock a process never took
+# (``metta.Lock.read``) and reacts to the rows ``m.check`` answers, which is
+# the same shape ``State`` and ``Answer`` are here for.
+FINAL_METTA_EXPORTS = 117
 
 SATELLITES = {
     "aio",

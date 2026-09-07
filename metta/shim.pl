@@ -295,6 +295,20 @@
 %   - metta_py_read_forms/2 is the exception and stays one: it neither compiles
 %     nor stores nor runs, so it parses without preparing
 %     [tested test_a_manifest_neither_runs_nor_defines]
+%   - the library-description doors read and never run: metta_py_registrations/2
+%     parses a source for the heads its registration forms claim,
+%     metta_py_source_declarations/2 scans a Prolog half's directives, and
+%     metta_py_head_claims/2 answers the engine's own effect, cost and
+%     deprecation resolutions for a whole roster in one crossing
+%     [tested: test_a_card_reads_a_library_without_running_it,
+%     test_a_card_carries_the_engines_own_effect_and_cost_answers,
+%     test_a_card_names_what_the_library_needs_from_the_platform;
+%     commit=WORKTREE]
+%   - metta_py_source_loads/2 reads the load table inside one transaction and
+%     answers `loading` with no rows while a load is in flight, so a lock
+%     cannot record a program that is only half loaded
+%     [tested: test_a_lock_refuses_while_a_load_is_in_flight,
+%     test_a_lock_round_trips_through_its_file; commit=WORKTREE]
 %   - grouped runnable answers use their carried reader map when encoding free
 %     variables, so the public run surface retains source names
 %     [tested: test_variable_names_survive_to_the_printer; commit=916def0562c211143bb91cd0bd8b2c9dac7ab4fa]
@@ -4820,6 +4834,86 @@ metta_py_declared_exports(Source0, Names) :-
             Names0),
     sort(Names0, Names).
 
+%%%%%%%%%% What a library says about itself %%%%%%%%%%
+%
+%Everything one Prolog source declares, as [kind, value] pairs rather than the
+%coarse verdict metta_py_source_declares/2 answers: the caller here is building
+%a description of a library, and "exports" does not say WHICH names, which
+%capability the file needs, or what version it states. One scan either way,
+%and the source is read and never consulted
+%[source: engine/metta/interop.pl, metta_source_declarations/2].
+metta_py_source_declarations(Source0, Rows) :-
+    ( atom(Source0) -> Source = Source0 ; atom_string(Source, Source0) ),
+    metta_source_declarations(Source, Declarations),
+    findall([KindS, ValueS],
+            ( member(Declaration, Declarations),
+              Declaration =.. [Kind, Value],
+              atom_string(Kind, KindS),
+              metta_py_origin_part(Value, ValueS) ),
+            Rows).
+
+%Every head name one MeTTa source registers, with the index of the form that
+%registers it, so the caller pairs each with the line its own position walk
+%already knows. The engine owns which of its forms register a head; this
+%crosses that answer once per source instead of per form
+%[source: engine/metta/interop.pl, metta_string_registrations/2].
+metta_py_registrations(Source0, Rows) :-
+    ( string(Source0) -> Source = Source0 ; atom_string(Source0, Source) ),
+    metta_string_registrations(Source, Rows0),
+    findall([NameS, Index],
+            ( member([Name, Index], Rows0), atom_string(Name, NameS) ),
+            Rows).
+
+%The engine's own digest of a file on disk, which is the identity a reload
+%compares and therefore the identity a lockfile has to pin. Reading it here
+%rather than hashing in the host is what keeps the two answers the same for a
+%.gz source and for a fast image, whose digest is declared in its header
+%rather than computed over its bytes
+%[source: engine/filereader/source_lifecycle.pl, metta_source_digest/2].
+metta_py_source_digest(Path0, Digest) :-
+    ( atom(Path0) -> Path = Path0 ; atom_string(Path, Path0) ),
+    filereader:metta_source_digest(Path, Digest0),
+    atom_string(Digest0, Digest).
+
+%Every source this process has loaded, with the space it loaded into and the
+%digest it was loaded FROM, read inside one transaction so the table cannot
+%change under the walk.
+%
+%A load in flight answers `loading` and no rows. The table is written at
+%publish and a load that is still reading has no row yet, so a lock taken
+%during one would record a program that is half loaded and read back as
+%complete; refusing is the only honest answer, and the caller retries when the
+%load it is racing has finished
+%[source: engine/filereader/source_lifecycle.pl, with_source_load/3 asserts
+%active_source_load/1 for the duration and publish_source_load/3 writes the
+%row].
+metta_py_source_loads(Status, Rows) :-
+    transaction(
+        (   filereader:active_source_load(_)
+        ->  Status = "loading", Rows = []
+        ;   Status = "settled",
+            findall([PathS, SpaceS, DigestS],
+                    ( filereader:metta_source_load(Path, Space, _, Digest),
+                      atom_string(Path, PathS),
+                      metta_py_origin_part(Space, SpaceS),
+                      atom_string(Digest, DigestS) ),
+                    Rows)
+        )).
+
+%Every repository revision this process pinned, by either git route. The
+%predicate lives in lib/lib_gitimport/lib_gitimport.pl, which a build without
+%library(process) still loads, so the guard is about the predicate EXISTING
+%rather than about the platform.
+metta_py_git_pins(Rows) :-
+    (   current_predicate(git_pinned_dependency/2)
+    ->  findall([UrlS, RevS],
+                ( git_pinned_dependency(Url, Rev),
+                  atom_string(Url, UrlS),
+                  atom_string(Rev, RevS) ),
+                Rows)
+    ;   Rows = []
+    ).
+
 %The names one extension installed, asked before releasing them so the caller
 %can be told what went.
 metta_py_extension_members(Name0, Names) :-
@@ -4986,6 +5080,38 @@ metta_py_cost_declaration(Name0, Claim) :-
     ->  Claim = [Class, Measure]
     ;   Claim = none
     ).
+
+%Everything the engine currently claims about a LIST of heads: the effect class
+%it composes, the cost class and measure a (cost ...) row resolves to, and the
+%deprecation row if one stands. One crossing for a whole library's roster
+%rather than three per head, and every answer is the engine's own resolution,
+%which is what stops a library card and (explain ...) drifting apart.
+%
+%Absence is @(none), which janus makes Python's None, rather than a word: an
+%effect class, a cost class and a version are all open enough that a sentinel
+%spelling could collide with a real answer.
+metta_py_head_claims(Names, Rows) :-
+    findall([NameS, Effect, Class, Measure, Since, Remedy],
+            ( member(Name0, Names),
+              ( atom(Name0) -> Name = Name0 ; atom_string(Name, Name0) ),
+              atom_string(Name, NameS),
+              (   metta_operation_effect(Name, Effect0)
+              ->  atom_string(Effect0, Effect)
+              ;   Effect = @(none)
+              ),
+              (   metta_cost_declaration(Name, _, Class0, Measure0)
+              ->  atom_string(Class0, Class),
+                  atom_string(Measure0, Measure)
+              ;   Class = @(none),
+                  Measure = @(none)
+              ),
+              (   metta_deprecation(Name, Since0, Remedy0)
+              ->  metta_py_origin_part(Since0, Since),
+                  metta_py_origin_part(Remedy0, Remedy)
+              ;   Since = @(none),
+                  Remedy = @(none)
+              ) ),
+            Rows).
 
 %The Prolog clauses a name compiled to, dis for the translator: one
 %listing per registered arity, resolved in this space's module so a named

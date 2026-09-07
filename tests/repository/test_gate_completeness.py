@@ -79,7 +79,12 @@ RUFF_FAMILY_BURN_DOWN = {
     # `Annotated[DLTensor, Shape(...)]`. Python spells that position with a
     # type, so the name follows Annotated and Literal rather than a function's
     # lower_snake, and the one site carries N802 with that reason.
-    "N": 38,
+    # 38 -> 39 for LockDrift, which joins the six exception names already here
+    # whose spelling is the OUTCOME rather than an implementation error:
+    # Timeout, SourceNotFound, AssertionFailure, Interrupted, TransportFailure
+    # and NotReducible. A tree that has drifted from its lock is a state a
+    # caller reacts to, and the one site carries N818 with that reason.
+    "N": 39,
     # 8 -> 10 for metta.strategies: `id` and `all` must be the exact public
     # strategy atoms, while each line carries the narrow A001 explanation.
     # 10 -> 12 with the compiled-statement scenarios: two refused-or-compiled
