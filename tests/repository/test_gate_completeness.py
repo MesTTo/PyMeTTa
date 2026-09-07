@@ -181,7 +181,7 @@ RUFF_FAMILY_BURN_DOWN = {
     # reshape its source.
     # 2197 -> 2201 on 2026-09-03, recorded rather than authored: the sites
     # arrived with commits between 9ee20573 and dab559b9 and were found by
-    # this lane only after the `# noqa: ARG002,D102` on
+    # this lane only after the noqa directive `ARG002,D102` on
     # test_codec_conformance.py:214 was respelled with the comma-space the
     # canonical form requires -- that assertion fires first, so the count was
     # never reached and the ledger has been four behind since. The net is
