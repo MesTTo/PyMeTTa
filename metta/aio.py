@@ -2447,6 +2447,43 @@ class AsyncMeTTa:
         """
         return await self.call(lambda m: m.unregister_prolog(extension))
 
+    async def live(
+        self,
+        *query: Any,
+        on: str = "both",
+        strategy: str | None = None,
+    ) -> Any:
+        """A materialised view of a query, current with this space's writes.
+
+            alerts = m.live(S.alert(V.level))
+            len(alerts)                      # no engine call
+            S.alert(S.red) in alerts         # no engine call
+            alerts.rows                      # what m.match(...) would answer
+
+        The query is one pattern, a conjunction of patterns spelled the way
+        `match` spells one, or a call to a TABLED head, and the answer is a
+        multiset exactly as `match`'s is. `for delta in view.changes(timeout=)`
+        reads the same view as a stream of `metta.live.Delta`, where a
+        `progress` delta after each committed segment says which generation
+        the view is current to, and `async for` reads the same stream under
+        `aio`.
+
+        `strategy=` names the maintenance and defaults to the query's shape:
+        `pattern` maintains one pattern's multiset from the write events, O(1)
+        per event; `heads` watches the heads the query mentions and re-answers
+        it once per commit that touched one; `tabled` serves a call by
+        watching its own table's invalidation counter. `view.strategy` reports
+        which is in force.
+
+        `on=` is the subscription edge underneath, "both" by default because a
+        view that ignored removals would drift.
+
+        The longhand is `metta.live.Live(m, *query)`, and the rung below
+        that is `subscribe` plus `match`: a view is the subscription that
+        maintains what the match would have answered.
+        """
+        return await self.call(lambda m: m.live(*query, on=on, strategy=strategy))
+
     async def derivation(
         self,
         target: Any,

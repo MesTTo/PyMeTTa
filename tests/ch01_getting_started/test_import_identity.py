@@ -93,6 +93,7 @@ def test_callback_facade_owns_no_state_and_delegates():
             "path_value": "paths",
             "atom_added": "events",
             "atom_removed": "events",
+            "segment_committed": "events",
         }.items()
     }
     assert sorted(facade.__all__) == sorted(owners)

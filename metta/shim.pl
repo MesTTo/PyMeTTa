@@ -76,6 +76,12 @@
 %     test_atomic_scope_commits_or_discards_one_event_segment,
 %     test_speculative_execution_discards_its_event_segment,
 %     test_world_eval_fences_state_and_emits_nothing; commit=3ded7552797b66d78e666141eb51f3bc14686bd2].
+%   - the committed-segment boundary crosses to Python once per commit and only
+%     while metta_py_segments(true) has installed its clause and the segment
+%     touched a subscribed space [tested:
+%     test_a_transaction_delivers_one_progress_after_its_deltas,
+%     test_a_write_to_an_unwatched_space_costs_no_boundary_crossing;
+%     commit=WORKTREE].
 %   - held query and evaluation engines carry the same capture, atomic, or
 %     speculative policy for their complete lifetime as eager execution;
 %     speculation preserves every answer while discarding its writes
@@ -6122,6 +6128,48 @@ metta_py_subscriptions_locked(SpaceAtoms) :-
       -> metta_py_remove_subscription_hooks
     ; metta_py_install_subscription_hook(added),
       metta_py_install_subscription_hook(removed) ).
+
+%%%%%%%%%% Committed-segment boundaries %%%%%%%%%%
+%
+% The boundary of one commit, crossed once after its atom events. A Python
+% consumer that maintains a derived answer (metta.live.Live) re-answers
+% here rather than per event, because the whole diff is already committed when
+% the first event arrives. The clause exists only while some consumer asked for
+% boundaries, so a program that uses subscriptions alone never crosses here,
+% and the crossing itself is guarded on the segment having touched a WATCHED
+% space, so writes into an unwatched one cost the guard and no crossing.
+
+:- multifile seam:segment_committed/1.
+:- dynamic metta_py_segment_hook_ref/1.
+
+metta_py_notify_segment_committed(Spaces) :-
+    (   member(Space, Spaces),
+        metta_py_subscribed_space(Space)
+    ->  py_call(metta_ops:segment_committed(), _)
+    ;   true
+    ).
+
+metta_py_install_segment_hook :-
+    metta_py_segment_hook_ref(Ref),
+    \+ clause_property(Ref, erased), !.
+metta_py_install_segment_hook :-
+    retractall(metta_py_segment_hook_ref(_)),
+    assertz((seam:segment_committed(Spaces) :-
+                metta_py_notify_segment_committed(Spaces)), Ref),
+    assertz(metta_py_segment_hook_ref(Ref)).
+
+metta_py_remove_segment_hook :-
+    forall(retract(metta_py_segment_hook_ref(Ref)),
+           ( clause_property(Ref, erased) -> true ; erase(Ref) )).
+
+%A Python bool crosses as @(true) / @(false), janus's own convention for the
+%three values Prolog has no atom for [source: extensions/python/metta/shim.pl,
+%metta_py_json_options/1 and the capture flag at metta_py_run_options/2].
+metta_py_segments(Enabled) :-
+    with_mutex('$metta_py_subscriptions',
+               ( Enabled == @(true)
+                 -> metta_py_install_segment_hook
+                 ;  metta_py_remove_segment_hook )).
 
 %%%%%%%%%% Protocol types for host objects %%%%%%%%%%
 %

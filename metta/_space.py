@@ -4894,7 +4894,9 @@ class Space(Handle):
         for a pattern one: removal is multiset subtraction, so
         `remove(S.alert(V.q))` takes one of the alerts and the event
         cannot say which. Re-read the space when you need to know;
-        `metta.structures.LiveView` is the worked instance.
+        `m.live(pattern)` is the worked instance, and it is the rung above
+        this one: a view is this subscription maintaining what a match would
+        have answered.
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         subscriptions = _satellite("subscribe")
         guard = None if where is None else guard_atom(where)
@@ -4921,6 +4923,48 @@ class Space(Handle):
                 if guard is None
                 else subscriptions.guard_admits(guard, self.eval)
             ),
+        )
+
+    def live(
+        self,
+        *query: Any,
+        on: str = "both",
+        strategy: str | None = None,
+    ) -> Any:
+        """A materialised view of a query, current with this space's writes.
+
+            alerts = m.live(S.alert(V.level))
+            len(alerts)                      # no engine call
+            S.alert(S.red) in alerts         # no engine call
+            alerts.rows                      # what m.match(...) would answer
+
+        The query is one pattern, a conjunction of patterns spelled the way
+        `match` spells one, or a call to a TABLED head, and the answer is a
+        multiset exactly as `match`'s is. `for delta in view.changes(timeout=)`
+        reads the same view as a stream of `metta.live.Delta`, where a
+        `progress` delta after each committed segment says which generation
+        the view is current to, and `async for` reads the same stream under
+        `aio`.
+
+        `strategy=` names the maintenance and defaults to the query's shape:
+        `pattern` maintains one pattern's multiset from the write events, O(1)
+        per event; `heads` watches the heads the query mentions and re-answers
+        it once per commit that touched one; `tabled` serves a call by
+        watching its own table's invalidation counter. `view.strategy` reports
+        which is in force.
+
+        `on=` is the subscription edge underneath, "both" by default because a
+        view that ignored removals would drift.
+
+        The longhand is `metta.live.Live(m, *query)`, and the rung below
+        that is `subscribe` plus `match`: a view is the subscription that
+        maintains what the match would have answered.
+        """
+        return _satellite("live").Live(
+            self,
+            *(_to_atom(part) for part in query),
+            on=on,
+            strategy=strategy,
         )
 
     def _event_stream(self) -> Any:

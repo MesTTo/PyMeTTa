@@ -213,6 +213,7 @@ _SATELLITES = frozenset(
         "foreign",
         "integrate",
         "lint",
+        "live",
         "manifest",
         "parallel",
         "paths",

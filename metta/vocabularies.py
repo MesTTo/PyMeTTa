@@ -117,6 +117,7 @@ __all__ = [
     "ClauseFailedEnum",
     "CostClass",
     "Delivery",
+    "DeltaKind",
     "Determinism",
     "EffectClass",
     "EvaluationOrderEnum",
@@ -125,6 +126,7 @@ __all__ = [
     "FunctionResultEnum",
     "ImageMode",
     "Limit",
+    "LiveStrategy",
     "MemoAggregate",
     "MemoStrategy",
     "MismatchEnum",
@@ -266,6 +268,13 @@ class Delivery(_AtomStrEnum):
     at_least_once = "at-least-once"
     per_write_exactly = "per-write-exactly"
 
+#: (vocabulary delta-kind add remove progress)
+class DeltaKind(_AtomStrEnum):
+    """Typed values of the delta-kind vocabulary."""
+    add = "add"
+    remove = "remove"
+    progress = "progress"
+
 #: (vocabulary determinism det semidet nondet)
 class Determinism(_AtomStrEnum):
     """Typed values of the determinism vocabulary."""
@@ -311,6 +320,13 @@ class Limit(_AtomStrEnum):
     inferences = "inferences"
     timeout = "timeout"
     stack = "stack"
+
+#: (vocabulary live-strategy pattern heads tabled)
+class LiveStrategy(_AtomStrEnum):
+    """Typed values of the live-strategy vocabulary."""
+    pattern = "pattern"
+    heads = "heads"
+    tabled = "tabled"
 
 #: (vocabulary memo-aggregate none min max sum count)
 class MemoAggregate(_AtomStrEnum):
