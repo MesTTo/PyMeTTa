@@ -85,13 +85,13 @@ Guarantees:
     caller, so no consumer takes a quoted module-qualified name back apart
     [tested: test_a_profile_row_carries_its_predicate_name_and_arity_apart,
     test_a_recursive_head_reports_its_own_calls_beside_its_entries;
-    commit=WORKTREE]
+    commit=3287d4dd4928f09ce7c111d05a1c516808e226d5]
   - Explanation keys each item by its head while `.atoms` keeps every item in
     the engine's order, so a repeated head loses nothing and `.items()` stays
     Python's pairs view [tested:
     test_an_explanation_is_a_mapping_over_its_item_heads,
     test_an_explanation_is_data_a_space_stores_and_matches_back;
-    commit=WORKTREE]
+    commit=3287d4dd4928f09ce7c111d05a1c516808e226d5]
 Owns:
   - Cursor owns one engine query until exhaustion, close, or finalization
     and warns when finalization reaps an open query [tested

@@ -24,14 +24,14 @@ Guarantees:
   - no `(cache ...)` row is ever applied; a run that PROPOSES a winning row
     leaves every byte of its workload untouched, and the rows it writes go into
     the report and into `--json`
-    [tested: test_the_advisor_writes_no_row; commit=WORKTREE].
+    [tested: test_the_advisor_writes_no_row; commit=3287d4dd4928f09ce7c111d05a1c516808e226d5].
   - a workload that ran zero calls of any head is REFUSED by name rather than
     reported as having nothing to propose
-    [tested: test_a_workload_with_no_calls_is_refused; commit=WORKTREE].
+    [tested: test_a_workload_with_no_calls_is_refused; commit=3287d4dd4928f09ce7c111d05a1c516808e226d5].
   - every proposal carries the inference count before and after, measured in
     two fresh processes over the same files
     [tested: test_a_reused_pure_head_is_proposed_with_a_measured_gain;
-    commit=WORKTREE].
+    commit=3287d4dd4928f09ce7c111d05a1c516808e226d5].
 Fails when: the workload's files cannot be run at all. A file that RAISES is
   reported beside the proposals and its inferences still count, because the
   same failure happens identically in the baseline and in every what-if.

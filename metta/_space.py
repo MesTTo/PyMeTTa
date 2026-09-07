@@ -82,7 +82,7 @@ Guarantees:
     and its plan item names the join the matcher runs rather than the one the
     query's shape allows [tested: test_the_plan_names_the_join_the_engine_runs,
     test_the_metta_form_answers_the_same_items_as_the_python_door;
-    commit=WORKTREE]
+    commit=3287d4dd4928f09ce7c111d05a1c516808e226d5]
   - ``Space.effect_plan`` reports the current composite operation effects
     without executing the target [tested:
     test_effect_plan_reports_nested_calls_without_executing_them,

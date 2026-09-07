@@ -27,7 +27,7 @@ Guarantees:
   - both query-result views re-explain the match form they came from, and the
     lazy one pulls nothing to do it [tested:
     test_rows_explain_re_explains_the_query_that_produced_them,
-    test_a_rows_with_no_query_behind_it_refuses_to_explain; commit=WORKTREE]
+    test_a_rows_with_no_query_behind_it_refuses_to_explain; commit=3287d4dd4928f09ce7c111d05a1c516808e226d5]
   - error_answer recognizes (Error ...) by head symbol alone, so quoted and
     nested errors stay data, and raise_for_errors chains when clean [tested
     test_raise_for_errors_chains_when_clean_and_raises_one_plainly]

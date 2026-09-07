@@ -24,7 +24,7 @@ Guarantees:
   - profile_extension reports the counts profile() reports for the same run,
     reading the profile row's own name and arity rather than re-reading the
     way Prolog prints a module-qualified predicate
-    [tested: test_profile_extension_counts_a_compiled_head; commit=WORKTREE]
+    [tested: test_profile_extension_counts_a_compiled_head; commit=3287d4dd4928f09ce7c111d05a1c516808e226d5]
   - ordinary evaluation returns an unreduced term directly and has no
     residual-shape flag [tested:
     test_a_not_reducible_answer_is_the_unreduced_term_with_no_flag;

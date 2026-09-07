@@ -13,7 +13,7 @@
 %     SWI keeps on its '<recursive>' caller, so no host takes a quoted
 %     module-qualified spelling back apart [tested:
 %     test_a_profile_row_carries_its_predicate_name_and_arity_apart,
-%     test_profile_extension_counts_a_compiled_head; commit=WORKTREE]
+%     test_profile_extension_counts_a_compiled_head; commit=3287d4dd4928f09ce7c111d05a1c516808e226d5]
 %   - tagged provider premises and direct matches share match/4, annotations,
 %     and the controlled inference budget [tested:
 %     test_tagged_premise_keeps_the_direct_provider_annotation,
@@ -1568,7 +1568,7 @@ metta_py_profiled(Pred, Ins, [Out, Samples, Ticks, Seconds, Nodes]) :-
 %head is written, and the host's regular expression read its name as
 %`&pyspace_1':fib`, so profile_extension(names=["fib"]) reported 0 calls in the
 %same process where profile() reported 17
-%[tested: test_profile_extension_counts_a_compiled_head; commit=WORKTREE].
+%[tested: test_profile_extension_counts_a_compiled_head; commit=3287d4dd4928f09ce7c111d05a1c516808e226d5].
 %The profiler knows the parts; sending them is cheaper and total where
 %re-parsing Prolog syntax is neither. A predicate the profiler names in some
 %other shape keeps its whole spelling as the name and answers arity -1.
