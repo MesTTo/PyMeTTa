@@ -61,7 +61,10 @@ BASELINE_PACKAGE_EXPORTS = 152
 #: async mirror generate it beside `trace`, which is the door it belongs
 #: with. A generated door counts once here, on the class the generator
 #: renders it onto.
-FINAL_METTA_METHODS = 35
+#: 36 on 2026-09-07: `record` joins them, beside `trace` and `debug` for the
+#: same reason -- it is the third door onto one run, and the one that keeps
+#: it as data.
+FINAL_METTA_METHODS = 36
 # The class count: 21 before the context tier; +13 on 2026-09-01 when MeTTa
 # became the third generated mirror. The finding behind it was a context
 # that could define but not eval: the hand-written derived subset was typed
@@ -216,6 +219,11 @@ REMOVED_FROM_METTA = {
     "why",
 }
 
+#: `record` left this set on 2026-09-07. The spelling is a door again, and a
+#: different one: `metta.record(src)` is the module tier's mirror of
+#: `Space.record`, generated beside `trace` and `debug` because they are three
+#: doors onto one run. A superseded name staying gone is what this set proves;
+#: a new door that happens to spell the same way is not that name returning.
 REMOVED_FROM_ROOT = {
     "HERE",
     "cache",
@@ -244,7 +252,6 @@ REMOVED_FROM_ROOT = {
     "map_atoms",
     "pretty",
     "query",
-    "record",
     "register_object_repr_protocol",
     "sym",
     "sys",

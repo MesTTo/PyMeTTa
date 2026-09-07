@@ -214,7 +214,17 @@ RUFF_FAMILY_BURN_DOWN = {
     # Measured with --ignore-noqa over the whole RUFF_SCOPE at petta c0bb66c3
     # and after the last edit: 2229 -> 2233, the same four across the two petta
     # tips this branch was rebased onto.
-    "D": 2233,
+    # 2233 -> 2235 on 2026-09-07 with recordings, and the ceiling had NO slack:
+    # 70ac99da stands at exactly 2233, measured by running the base version of
+    # every file this branch changes beside its own. The three new sites are
+    # the obligation-header D205 form on metta/_recording.py (+1) and on
+    # tests/ch14_seeing_your_program/test_recording.py (+2, its Purpose header
+    # and the D103 on the `m` fixture, both the shape test_debug.py already
+    # carries), less the one metta/_trace.py pays back by rewriting
+    # TraceEvent's docstring to open with a summary line now that it describes
+    # six fields and three ports. Four further docstrings those rows wrote were
+    # REPHRASED to a summary line rather than priced here.
+    "D": 2235,
     # 145, from 139 before the idiomatic twin corpus. Every one of the six new
     # sites is a `twin(m)` whose example needs no engine, because the form it
     # demonstrates is native Python (destructuring, `len`, `max`), or a

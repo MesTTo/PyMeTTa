@@ -189,3 +189,31 @@ def test_a_breakpoint_inside_a_host_operation_refuses_with_its_remedy(m):
     with pytest.raises(EngineError, match="cannot suspend"):
         with m.debug(S["db-outer"](1), on=[S["db-inner"]]) as d:
             list(d)
+
+
+def test_a_count_breakpoint_stops_at_that_event(nested):
+    """at= is the third kind of breakpoint: a position rather than a name.
+
+    Replaying a recorded run to one of its events is how a recording becomes a
+    live session, and the event has no name to arm -- it is identified by
+    where it is. The numbering is the trace's own, so the k-th event of
+    `m.trace(src)` is where `m.debug(src, at=k)` stops, and `stop` is where
+    a session opened already stopped says it landed.
+    """
+    events = nested.trace("!(db-quad 3)")
+    for index in (0, 2, len(events) - 1):
+        with nested.debug("!(db-quad 3)", at=index) as session:
+            stop = next(session)
+            assert (stop.seq, stop.kind) == (events[index].seq, events[index].kind)
+            assert stop.term == events[index].term
+            assert session.stop is stop
+
+
+def test_a_negative_count_breakpoint_refuses(nested):
+    """A negative count refuses rather than reading as no breakpoint at all.
+
+    Counting from 0 has no event before the first one, and saying so beats
+    running the whole program because a minus sign read as "no breakpoint".
+    """
+    with pytest.raises(ValueError, match="counts events from 0"):
+        nested.debug("!(db-quad 3)", at=-1)

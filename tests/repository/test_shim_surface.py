@@ -231,9 +231,18 @@ HOST_SERVICES = {
     # around engine_next/2. What it cannot own is the WRAPPERS a breakpoint
     # needs: they are the tracer's, only one session may hold them, and
     # refusing a second is a decision no transport can make for the others.
-    "metta_debug_begin/1",
+    "metta_debug_begin/2",
     "metta_debug_run/3",
     "metta_debug_end/0",
+    # Ask every library to forget what it derived earlier. Engine-side because
+    # an event seam's clauses belong to the extensions and the TELLING belongs
+    # to the engine, which is the same division every other event here keeps;
+    # a host that fired the seam itself would be an extension calling the
+    # handlers of every other extension. The host asks for it before replaying
+    # a recorded run: the recording's digest pins the space's atoms and its
+    # seed pins the draws, and the answers a memo or a table holds are the
+    # third piece of the state that run started from.
+    "metta_forget_derived/0",
     # The one question a refined type adds to the cast: which constraint the
     # value violates once the witness has declined it, so CastError names
     # `(Gt 0)` and the value rather than the value's types. The relation is the
@@ -356,9 +365,10 @@ FLOOR_REASONS = {
     "metta_string_declarations/2": "codec",
     "metta_substitute_self/3": "door",
     "metta_trace_source/5": "door",
-    "metta_debug_begin/1": "door",
+    "metta_debug_begin/2": "door",
     "metta_debug_run/3": "door",
     "metta_debug_end/0": "door",
+    "metta_forget_derived/0": "door",
     "metta_annotations/2": "door",
     "metta_contract_fact/1": "door",
     "metta_error_answer/3": "error-vocabulary",

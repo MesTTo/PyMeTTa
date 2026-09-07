@@ -122,6 +122,7 @@ MODULE_DOORS: tuple[tuple[str, str], ...] = (
     ("speculate", "speculative"),
     ("trace", "trace"),
     ("debug", "debug"),
+    ("record", "record"),
 )
 
 #: The context's PROTOCOL methods, mirrored from Space the way the named methods
