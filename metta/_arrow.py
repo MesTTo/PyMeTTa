@@ -19,6 +19,11 @@ Assumes:
     plain values and `Column.__array__` need nothing beyond the standard
     library and (for the array) numpy [tested:
     test_the_arrow_doors_name_the_extra_when_nanoarrow_is_absent]
+  - pyarrow is installed for the IPC doors only, which are the ones that write
+    and read the streaming format as BYTES for the wire. nanoarrow builds the C
+    structs a PyCapsule carries and does not write that format, which is a
+    FlatBuffers envelope [tested:
+    test_the_ipc_doors_name_the_extra_when_pyarrow_is_absent; commit=WORKTREE]
 Guarantees:
   - a column of one wire kind carries that kind's Arrow type and its decoded
     values; a column mixing kinds, or holding a symbol, a variable, a nested
@@ -60,10 +65,15 @@ from ._optional import require_module
 from .atoms import Atom, Grounded, _encode
 
 __all__ = [
+    "IPC_MEDIA_TYPE",
     "ArrowView",
     "Projection",
     "batch_bounds",
+    "ipc_schema",
+    "ipc_stream",
+    "pyarrow",
     "read_batches",
+    "read_ipc",
     "resolve",
     "values_of",
 ]
@@ -415,6 +425,91 @@ def read_batches(source: Any) -> tuple[tuple[str, ...], Iterator[list[tuple[Any,
                 yield list(chunk.iter_tuples())
 
     return names, batches()
+
+
+#: The Arrow IPC codec's own dependency. nanoarrow builds the C structs a
+#: PyCapsule carries and does not WRITE the streaming format, which is a
+#: FlatBuffers envelope; pyarrow writes and reads it, and is the reference
+#: implementation of it.
+_IPC_EXTRA: Final = (
+    "the Arrow IPC stream is encoded with pyarrow, which is not installed; "
+    "install pymetta[arrow]. The local capsule doors need only nanoarrow; a "
+    "stream of BYTES needs something that writes the format"
+)
+
+#: The pyarrow constructor each kind's column is written at. TEXT and UTF8 are
+#: both utf8 and differ only in what a cell renders as, which `values_of`
+#: already decides.
+_IPC_TYPES: Final = {
+    INT64: "int64",
+    FLOAT64: "float64",
+    BOOL: "bool_",
+    UTF8: "string",
+    TEXT: "string",
+}
+
+#: The IANA-registered media type for the Arrow IPC streaming format, and the
+#: one a gateway's Accept header names
+#: [source: https://www.iana.org/assignments/media-types/media-types.xhtml#application,
+#: `application/vnd.apache.arrow.stream`, registered by the Apache Arrow
+#: Project; read 2026-09-07].
+IPC_MEDIA_TYPE: Final = "application/vnd.apache.arrow.stream"
+
+
+def pyarrow() -> Any:
+    """The IPC codec's own package, or the install guidance naming its extra."""
+    return require_module("pyarrow", _IPC_EXTRA)
+
+
+def ipc_schema(names: Sequence[str], kinds: Sequence[str], declared: Sequence[str]) -> Any:
+    """The Arrow schema for a set of columns, with what each says about itself.
+
+    `declared` is one MeTTa type name per column, which rides in the field's
+    metadata under `metta.type`; a column whose kind is text because nothing
+    declared it also carries `metta.kind=mixed`, the word for a column that
+    holds whatever its cells hold.
+    """
+    pa = pyarrow()
+    fields = []
+    for name, kind, kind_name in zip(names, kinds, declared, strict=True):
+        metadata = {"metta.type": kind_name}
+        if kind == TEXT:
+            metadata["metta.kind"] = "mixed"
+        fields.append(pa.field(name, getattr(pa, _IPC_TYPES[kind])(), metadata=metadata))
+    return pa.schema(fields)
+
+
+def ipc_stream(schema: Any, columns: Sequence[Sequence[Any]]) -> bytes:
+    """One complete IPC stream: the schema message, one batch, the end marker.
+
+    Complete rather than a fragment, because a response BODY is what
+    `pyarrow.ipc.open_stream` is handed and a fragment is not readable on its
+    own; a cursor's chunks are therefore one stream each with the same schema,
+    which is the shape Arrow Flight's DoGet already has
+    [source: https://arrow.apache.org/docs/format/Columnar.html#ipc-streaming-format].
+    An empty chunk is still a stream, so a consumer reads a schema either way.
+    """
+    pa = pyarrow()
+    sink = pa.BufferOutputStream()
+    with pa.ipc.new_stream(sink, schema) as writer:
+        if columns and columns[0]:
+            writer.write_batch(
+                pa.record_batch(
+                    [
+                        pa.array(values, type=field.type)
+                        for values, field in zip(columns, schema, strict=True)
+                    ],
+                    schema=schema,
+                )
+            )
+    return sink.getvalue().to_pybytes()
+
+
+def read_ipc(raw: bytes) -> Any:
+    """One IPC stream's record batches, as a pyarrow Table."""
+    pa = pyarrow()
+    with pa.ipc.open_stream(pa.BufferReader(raw)) as reader:
+        return reader.read_all()
 
 
 class ArrowView:

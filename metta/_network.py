@@ -7,6 +7,9 @@ Guarantees:
     test_http_endpoint_closes_transport_resources]
   - HTTPEndpoint.request closes its response and connection on success and
     failure [tested test_http_endpoint_closes_transport_resources]
+  - it answers the reply's HEADERS beside its body, which is where an Arrow
+    answer's media type and its cursor token live [tested:
+    test_an_arrow_answer_carries_its_cursor_in_a_header; commit=WORKTREE]
 Owns:
   - HTTPEndpoint.request owns each response and connection until the request
     returns or raises [tested test_http_endpoint_closes_transport_resources]
@@ -21,7 +24,7 @@ from __future__ import annotations
 import math
 from collections.abc import Mapping
 from http.client import HTTPConnection, HTTPException, HTTPResponse, HTTPSConnection
-from typing import Any
+from typing import Any, NamedTuple
 from urllib.parse import SplitResult, urlsplit
 
 MAX_HTTP_RESPONSE_BYTES = 16 * 1024 * 1024
@@ -136,6 +139,22 @@ def validated_http_base(
     return normalized, scheme
 
 
+class Response(NamedTuple):
+    """One HTTP reply: its status line, its body, and its headers by lower name.
+
+    The headers are here because a reply can carry meaning outside its body: the
+    Arrow answer's content type says how to read the bytes and `x-metta-cursor`
+    carries the continuation, neither of which is in an Arrow stream. Named
+    fields rather than a positional triple, so a fourth one is an addition and
+    not a rewrite of every call site.
+    """
+
+    status: int
+    reason: str
+    body: bytes
+    headers: Mapping[str, str]
+
+
 class HTTPEndpoint:
     """A validated endpoint that creates and closes one connection per call."""
 
@@ -170,8 +189,8 @@ class HTTPEndpoint:
         body: bytes | None = None,
         headers: Mapping[str, str] | None = None,
         timeout: float,
-    ) -> tuple[int, str, bytes]:
-        """Return status, reason and body after closing transport resources."""
+    ) -> Response:
+        """Return the whole reply after closing transport resources."""
         timeout = validated_timeout(timeout, subject="HTTP request timeout")
         connection: HTTPConnection
         if self.scheme == "https":
@@ -188,7 +207,13 @@ class HTTPEndpoint:
         try:
             connection.request(method, target, body=body, headers=dict(headers or {}))
             response = connection.getresponse()
-            return response.status, response.reason, _bounded_response_body(response)
+            received = {name.lower(): value for name, value in response.getheaders()}
+            return Response(
+                response.status,
+                response.reason,
+                _bounded_response_body(response),
+                received,
+            )
         finally:
             if response is not None:
                 response.close()
