@@ -170,6 +170,7 @@ from ._config import Config, config
 from ._fn import fn
 from ._host_island import py
 from ._library import Library, lib
+from ._templates import render
 from ._under import _UNSET
 from ._version import __version__
 from .atoms import (
@@ -1463,6 +1464,7 @@ __all__ = [
     "refuse",
     "remote",
     "remove",
+    "render",
     "rules",
     "run",
     "seg",

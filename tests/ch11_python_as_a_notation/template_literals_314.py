@@ -123,3 +123,67 @@ def malformed() -> Any:
         interpolations = ()
 
     return Broken()
+
+
+# The rendering half. Each literal has a twin in the keyword face, written in
+# test_template_render.py, and the suite renders both and compares the bytes.
+
+
+def rendered_pair(name: Any, count: Any) -> Any:
+    """Two plain holes in one line of text."""
+    return t"{name} has {count} names"
+
+
+def rendered_specs(value: Any) -> Any:
+    """One value through the two textual renderings of an atom."""
+    return t"{value} | {value:sexp} | {value:quoted}"
+
+
+def rendered_table(rows: Any) -> Any:
+    """A query result as a Markdown table."""
+    return t"{rows:table}"
+
+
+def rendered_lines(items: Any) -> Any:
+    """One value per line."""
+    return t"{items:lines}"
+
+
+def rendered_json(value: Any) -> Any:
+    """One value as JSON, through the engine's codec."""
+    return t"{value:json}"
+
+
+def rendered_python_spec(value: Any) -> Any:
+    """A Python presentation spec, which a rendered hole is text enough for."""
+    return t"{value:.2f}"
+
+
+def rendered_conversion(value: Any) -> Any:
+    """A conversion, applied before the spec exactly as an f-string applies it."""
+    return t"{value!r}"
+
+
+def rendered_debug(x: Any) -> Any:
+    """The debug fold, which rendering reproduces without unfolding."""
+    return t"{x=}"
+
+
+def rendered_entry_spec(value: Any) -> Any:
+    """A reading spec at a rendered hole, which belongs to the other door."""
+    return t"{value:sym}"
+
+
+def rendered_nested(inner: Any) -> Any:
+    """A template inside a rendered template renders into it."""
+    return t"[{inner}]"
+
+
+def rendered_inner(value: Any) -> Any:
+    """The inner half of the rendered nesting case."""
+    return t"<{value}>"
+
+
+def rendered_sexp_program(value: Any) -> Any:
+    """A hole in a sexp position, which reads back as the value it rendered."""
+    return t"!(id {value:sexp})"

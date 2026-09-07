@@ -121,7 +121,11 @@ FINAL_METTA_METHODS = 35
 # file a Python module through a ``sys.meta_path`` finder. It is a satellite
 # rather than a root verb because installing an import hook is a process-wide
 # act a program performs once, not a call the surface invites.
-FINAL_METTA_EXPORTS = 115
+# +1 for ``render``, the other direction of the door ``run`` and ``eval``
+# already take: the same program text with holes, answering text instead of
+# running. It earns the root on the narrow-core ruling's own terms, a verb a
+# program calls, and it takes no space, so there is nowhere else it would sit.
+FINAL_METTA_EXPORTS = 116
 
 SATELLITES = {
     "aio",

@@ -22,6 +22,14 @@ Guarantees:
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - Rows.to_dicts returns one Python-native mapping per row, including empty
     mappings for zero-column rows [tested test_rows_to_dicts_returns_plain_records]
+  - both result faces render a template with the receiver bound as ``rows``,
+    and answer the same text for the same rows, so a report written over one
+    renders the other [tested: test_a_table_renders_the_columns_and_every_row,
+    test_the_lazy_face_binds_the_same_name; commit=WORKTREE]
+  - ``format(result, spec)`` reaches the same rendering table as
+    ``metta.render``, and ``format(result, "")`` stays ``str`` [tested:
+    test_the_format_protocol_reaches_the_same_table,
+    test_an_empty_spec_is_str_and_python_specs_still_work; commit=WORKTREE]
   - eager query results explain empty pattern, join, and guard outcomes [tested
     test_query_rows_explain_empty_results]
   - both query-result views re-explain the match form they came from, and the
@@ -431,6 +439,35 @@ def _restore_rows(
     query: _QueryContext | None,
 ) -> Rows:
     return Rows(columns, values, _query=query)
+
+
+#: The name a result binds itself under when it renders a template. One name
+#: for both faces, so a report written over `m.match(...)` renders `m.answers(...)`
+#: unchanged; it is the field name of the STRING face, since a template
+#: carries its own values.
+_RECEIVER = "rows"
+
+
+def _render_receiver(
+    receiver: Any, source: Any, values: dict[str, Any], *, called: str
+) -> str:
+    """One result's `render`, for both faces: the receiver is a value it supplies."""
+    from ._templates import render_with  # noqa: PLC0415  -- the door's other half
+
+    if _RECEIVER in values:
+        msg = (
+            f"{called} binds {{{_RECEIVER}}} to the result it is called on, so "
+            f"it cannot take {_RECEIVER}= as well. Name the other one "
+            f"differently, or call metta.render(source, {_RECEIVER}=...) with "
+            f"the one you mean."
+        )
+        raise TypeError(msg)
+    return render_with(
+        source,
+        {_RECEIVER: receiver, **values},
+        called=called,
+        implicit=frozenset({_RECEIVER}),
+    )
 
 
 class Rows(UserList[Row]):
@@ -866,6 +903,34 @@ class Rows(UserList[Row]):
             m.match(pattern).pipe(clean).pipe(score, weight=2)
         """  # noqa: D205, D415  -- the API contract is one continuous invariant, not summary-and-body prose; the first line deliberately introduces the indented example that follows
         return fn(self, *args, **kwargs)
+
+    def render(self, source: Any, /, **values: Any) -> str:
+        """These rows through a template, as text: `metta.render` with `rows` bound.
+
+            rows.render("| {rows:table}")
+            rows.render(t"{len(rows)} answers")   # 3.14
+
+        The longhand is `metta.render(source, rows=rows)`. The receiver is
+        bound under the name `rows` on both result faces, so one template
+        renders an eager result and a lazy one alike; a template carries its
+        own values, so the binding is what the STRING face resolves `{rows}`
+        against. That binding is always there, so this door always reads its
+        text as fields, where `metta.render("{x}")` with no values leaves the
+        braces alone. Every row is written, where `__rich__` stops at
+        `config.display_rows`: a document is not a terminal.
+        """
+        return _render_receiver(self, source, values, called="Rows.render")
+
+    def __format__(self, spec: str) -> str:
+        """These rows under one format spec: `f"{rows:table}"` is `render`.
+
+        An empty spec is `str(self)`, Python's law; a rendering spec is that
+        rendering; anything else is Python's presentation grammar over the
+        text.
+        """
+        from ._templates import formatted  # noqa: PLC0415  -- the door's other half
+
+        return formatted(self, spec, str(self))
 
     def __rich__(self):
         """A real table in rich-using terminals. Only rich itself calls
@@ -1531,6 +1596,22 @@ class Answers[T](Sequence[T]):
         if self._pull(shown):
             lines.append("… more answers")
         return "\n".join(lines)
+
+    def render(self, source: Any, /, **values: Any) -> str:
+        """These answers through a template, as text: `Rows.render`'s lazy twin.
+
+        The receiver is bound under the same name, `rows`, so a template
+        written for one face renders the other unchanged. Rendering reads the
+        answers, so an unbounded view is bounded first, the way `to_dicts`
+        and `table` are.
+        """
+        return _render_receiver(self, source, values, called="Answers.render")
+
+    def __format__(self, spec: str) -> str:
+        """These answers under one format spec, exactly as `Rows.__format__`."""
+        from ._templates import formatted  # noqa: PLC0415  -- the door's other half
+
+        return formatted(self, spec, str(self))
 
     def __rich__(self):
         """Render binding answers as a table and term answers as a list."""

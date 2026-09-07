@@ -26,8 +26,9 @@ Guarantees:
 from string.templatelib import Interpolation, Template
 from typing import Any
 
-from metta import Space
+from metta import Space, render
 from metta.atoms import InterpolationLike, TemplateLike, parse
+from metta.results import Rows
 
 
 class Backported:
@@ -69,6 +70,16 @@ def check_doubles(backported: Backported, hole: Hole) -> None:
     as_hole: InterpolationLike = hole
     takes_source(backported)
     _ = (as_template, as_hole)
+
+
+def check_rendering(template: Template, backported: Backported, rows: Rows) -> None:
+    """The other direction takes the same three faces and answers text."""
+    literal: str = render(template)
+    double: str = render(backported)
+    keywords: str = render("{n} of {rows:table}", n=1, rows=rows)
+    method: str = rows.render("{rows:table}")
+    protocol: str = f"{rows:table}"
+    _ = (literal, double, keywords, method, protocol)
 
 
 def check_doors(space: Space, template: Template) -> None:

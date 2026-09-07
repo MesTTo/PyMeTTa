@@ -172,7 +172,11 @@ def test_guides_keep_documentation_law_explainers() -> None:
     atoms = _guide("atoms-terms.md")
     assert "## S and V are name factories" in atoms
     assert "including the 3.12 floor" in atoms
-    assert "`Space.run` accepts a `str`, not a `Template`" in atoms
+    # The sentence pinned here used to be "`Space.run` accepts a `str`, not a
+    # `Template`", which the template-hole door made false: both are accepted
+    # now, and both directions of that door are the page's boundary claim.
+    assert "`Space.run` accepts a `str` or a `Template`" in atoms
+    assert "A hole is a BINDING by position" in atoms
 
     locations = _guide("where-code-runs.md")
     assert "## Staged term construction" in locations
