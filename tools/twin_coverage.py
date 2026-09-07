@@ -42,7 +42,7 @@ Assumes:
     [tested: test_a_declared_allowance_widens_one_twins_band_only,
     test_a_declared_allowance_is_validated; commit=b96e1a15260b7538a8e42be613bcc5dd0dddd136]
   - an assert-family head states one claim, and Python's `assert` is its image
-    [source: engine/prelude.metta 56-103; ai-python-first-revamp-discussion.md
+    [source: tests/data/prelude-spec.metta, the assert family; ai-python-first-revamp-discussion.md
     section 9d rule 1, "assert and pytest for the assert family"]
 Guarantees:
   - a twin that reaches the engine through MeTTa source text is REFUSED, both
@@ -390,7 +390,7 @@ DECLARATION_NAMES = frozenset({"BUDGET", "RUNG", "ALLOWANCE"})
 
 #: The example heads that STATE A CLAIM. Their Python image is the `assert`
 #: statement, so the lane counts them against the twin's assertions rather
-#: than asking the twin to call them [source: engine/prelude.metta lines
+#: than asking the twin to call them [source: tests/data/prelude-spec.metta lines
 #: 56-103, the assert family; commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22].
 ASSERT_HEADS = frozenset({
     "test", "test-no-answer", "assert", "assertEqual", "assertAlphaEqual",

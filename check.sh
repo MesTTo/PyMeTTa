@@ -68,7 +68,7 @@ run GATE scaling      in_py "$PY" -m benchmarks.scaling
 
 # The same question asked of the ENGINE's own claims rather than of a policy
 # file this repository writes. `(cost (car-atom $n) linear)` is a catalog row in
-# engine/prelude.metta and lib/lib_builtin_types/lib_builtin_types.metta, any
+# the engine's own prelude and lib/lib_builtin_types/lib_builtin_types.metta, any
 # program can add one, and explain and every docstring print it; this lane is
 # what can fail it. Ten rows ship, and the class is checked in BOTH directions,
 # so a row that overstates its cost fails exactly as one that understates it
