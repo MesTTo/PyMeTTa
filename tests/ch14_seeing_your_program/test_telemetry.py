@@ -9,12 +9,21 @@ Guarantees:
   - one span per reduction, nested by depth, at the recorded times [tested:
     test_a_trace_becomes_one_span_per_reduction,
     test_spans_nest_by_the_events_own_depth,
-    test_a_span_carries_the_time_the_engine_recorded; commit=0fb68d75871c57f2421c335e9faef3561f8dfdd5]
+    test_a_span_carries_the_time_the_engine_recorded; commit=WORKTREE]
   - a block's spans hang under one span and its counters become four histograms
     [tested: test_an_observed_block_hangs_its_reductions_under_one_span,
-    test_an_observed_block_records_four_histograms; commit=0fb68d75871c57f2421c335e9faef3561f8dfdd5]
+    test_an_observed_block_records_four_histograms; commit=WORKTREE]
   - the session is released whatever the block does, and a second session opens
-    after [tested: test_a_raising_block_still_releases_the_session; commit=0fb68d75871c57f2421c335e9faef3561f8dfdd5]
+    after [tested: test_a_raising_block_still_releases_the_session; commit=WORKTREE]
+  - this file's footprint on the engine is the size of its subject and not of
+    its scenario count: the two functions every reading scenario reduces are
+    compiled ONCE, because a child space falls back to `&self` for equations
+    and a per-scenario definition leaves another copy of them there. Fifteen
+    copies were enough to move a neighbouring file's inference comparison by
+    two [measured 2026-09-07: `pytest tests/ch14_seeing_your_program/test_telemetry.py
+    tests/ch14_seeing_your_program/test_explain_plan.py -p no:randomly` failed
+    test_analyze_numbers_equal_the_stats_of_the_same_query at 660 against 658,
+    and passes with the shared definition; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -34,18 +43,26 @@ pytest.importorskip("opentelemetry.sdk.trace")
 
 
 @pytest.fixture()
-def metta(metta):
-    """Each scenario compiles its own functions into its own space."""
-    with metta._new_space() as space:
-        yield space
+def space(metta):
+    """Each scenario that compiles a function of its own gets its own space."""
+    with metta._new_space() as scratch:
+        yield scratch
 
 
-@pytest.fixture()
+@pytest.fixture(scope="module")
 def nested(metta):
-    """A two-level reduction, so depth is something the spans have to carry."""
-    metta.run("(= (tl-double $x) (* 2 $x))")
-    metta.run("(= (tl-quad $x) (tl-double (tl-double $x)))")
-    return metta
+    """A two-level reduction, so depth is something the spans have to carry.
+
+    ONE space for the scenarios that only read it. A child space falls back to
+    `&self` for equations, so a per-scenario definition would put another copy
+    of the same two equations in the process's home space for every scenario
+    here; the scenarios that need their own functions take the function-scoped
+    `metta` fixture above instead.
+    """
+    with metta._new_space() as shared:
+        shared.run("(= (tl-double $x) (* 2 $x))")
+        shared.run("(= (tl-quad $x) (tl-double (tl-double $x)))")
+        yield shared
 
 
 @pytest.fixture()
@@ -137,7 +154,7 @@ def test_a_span_carries_the_time_the_engine_recorded(nested, exporter):
     assert not open_at, "every reduction of this trace closed"
 
 
-def test_a_failed_reduction_is_an_error_span(metta, exporter):
+def test_a_failed_reduction_is_an_error_span(space, exporter):
     """A reduction that answered nothing is an ERROR span saying so.
 
     The `fail` port is the engine's own word for it, so the span carries
@@ -145,15 +162,15 @@ def test_a_failed_reduction_is_an_error_span(metta, exporter):
     """
     from opentelemetry.trace import StatusCode
 
-    metta.run("(= (tl-picky 1) yes)")
-    spans(metta.trace(S["tl-picky"](2)), tracer=exporter.tracer)
+    space.run("(= (tl-picky 1) yes)")
+    spans(space.trace(S["tl-picky"](2)), tracer=exporter.tracer)
     finished = exporter.get_finished_spans()
     failed = [span for span in finished if span.attributes.get("metta.exit") == "fail"]
     assert failed, [span.name for span in finished]
     assert failed[0].status.status_code is StatusCode.ERROR
 
 
-def test_a_reduction_a_bound_cut_ends_with_the_trace(metta, exporter):
+def test_a_reduction_a_bound_cut_ends_with_the_trace(space, exporter):
     """A call with neither exit nor fail is ERROR and ends where the trace does.
 
     A recording bound leaves the outermost reductions open, and a span left open
@@ -162,8 +179,8 @@ def test_a_reduction_a_bound_cut_ends_with_the_trace(metta, exporter):
     """
     from opentelemetry.trace import StatusCode
 
-    metta.run("(= (tl-deep $n) (if (== $n 0) 0 (tl-deep (- $n 1))))")
-    recorded = metta.trace(S["tl-deep"](6), max_events=3)
+    space.run("(= (tl-deep $n) (if (== $n 0) 0 (tl-deep (- $n 1))))")
+    recorded = space.trace(S["tl-deep"](6), max_events=3)
     assert recorded.truncated
     spans(recorded, tracer=exporter.tracer)
     finished = exporter.get_finished_spans()
@@ -204,10 +221,10 @@ def test_an_observed_block_records_four_histograms(nested, reader):
     }
 
 
-def test_observing_with_neither_instrument_refuses(metta):
+def test_observing_with_neither_instrument_refuses(space):
     """There would be nothing to observe with, and the refusal names the door."""
     with pytest.raises(MettaError) as refusal:
-        with observe(metta):
+        with observe(space):
             pass
     assert "tracer, a meter, or both" in str(refusal.value)
 
