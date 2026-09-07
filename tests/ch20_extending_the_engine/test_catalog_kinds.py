@@ -14,6 +14,11 @@ Guarantees:
   - visibility is generated as the exact PUBLIC/INTERNAL catalog vocabulary
     [tested: test_visibility_is_a_generated_catalog_vocabulary;
     commit=918e4eaae8b99077f8b8b293b4ec5c3e0e2b2cf6]
+  - a third-party kind marked (owned-by-space head) loses its rows when the
+    space that owned them is dropped, keeps a sibling space's, and the
+    marker refuses a head whose kind row does not start at the space
+    [tested: test_a_third_party_space_owned_kind_retires_with_its_space;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -108,6 +113,45 @@ def test_a_malformed_third_party_declaration_is_refused_at_the_add(tmp_path):  #
     m.run("!(add-atom &metta (kind mood symbol (one-of mood-level)))")
     with pytest.raises(EngineError, match="does not fit its declared kind"):
         m.run("!(add-atom &metta (mood &somewhere excited))")
+
+
+def test_a_third_party_space_owned_kind_retires_with_its_space():
+    """(owned-by-space head) puts a third-party kind in its space's lifetime.
+
+    The shape router is the other marker and it does not fit a kind whose
+    rows are a per-space FACT: a route forces `(head ctx pattern payload...)`
+    and there is nothing here to dispatch on. This marker names the head
+    alone, and the retirement walk reads position 1 as the owning space,
+    which is why it refuses a head whose kind row starts anywhere else.
+    """
+    context = MeTTa()
+    warmth = "(kind cache-warmth symbol symbol)"
+    shape = "(kind cache-shape pattern term)"
+    try:
+        context.run(f"!(add-atom &metta {warmth})")
+        context.run("!(add-atom &metta (owned-by-space cache-warmth))")
+        dying, keeper = context.space(), context.space()
+        # The name is read BEFORE the drop: a dropped handle refuses it, its
+        # name having gone back to the pool for another space to take.
+        dying_name, keeper_name = str(dying.name), str(keeper.name)
+        for name in (dying_name, keeper_name):
+            context.run(f"!(add-atom &metta (cache-warmth {name} warm))")
+        standing = "!(match &metta (cache-warmth {0} $level) $level)"
+        assert context.run(standing.format(dying_name)) == [[S.warm]]
+
+        dying.drop()
+        assert context.run(standing.format(dying_name)) == [[]]
+        assert context.run(standing.format(keeper_name)) == [[S.warm]]
+
+        context.run(f"!(add-atom &metta {shape})")
+        with pytest.raises(EngineError, match="does not fit its declared kind"):
+            context.run("!(add-atom &metta (owned-by-space cache-shape))")
+    finally:
+        # &metta is process-wide, so the declarations leave with the test.
+        context.run("!(remove-atom &metta (owned-by-space cache-warmth))")
+        context.run(f"!(remove-atom &metta {warmth})")
+        context.run(f"!(remove-atom &metta {shape})")
+        context.close()
 
 
 def test_the_vocabulary_module_is_generated(repo_root):

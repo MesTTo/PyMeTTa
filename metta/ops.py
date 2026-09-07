@@ -17,6 +17,15 @@ Guarantees:
   - implicit operation names apply the total underscore-to-hyphen map while
     explicit name= remains exact [tested: test_op_uses_the_define_name_ladder;
     commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
+  - withdraw() releases ONE space's declaration rows and leaves the operation
+    registered for the spaces that kept it, so a space that stopped using an
+    operation stops describing it [tested:
+    test_withdrawing_one_space_leaves_the_other_space_declaring_it;
+    commit=WORKTREE]
+  - a released space's declaration refcounts and holdings are forgotten with
+    it, so the next life of a pooled name adds its own declarations instead
+    of inheriting the claim that they are already there [tested:
+    test_a_recycled_space_name_declares_its_own_operations; commit=WORKTREE]
   - full annotations become ordinary claims in the declaration space
     [tested: test_the_four_containers_share_one_parameterised_treatment;
      commit=f88aa8be03cb64cb59d3307515ded8701f418321]
@@ -94,6 +103,7 @@ from collections.abc import Callable, Iterable, Iterator
 from contextlib import contextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass
+from dataclasses import replace as _replace
 from typing import Any, Literal
 
 from ._api_types import _DEFAULT_SPACE, _OperationName, _SpaceId
@@ -135,6 +145,7 @@ __all__ = [
     "type_atom_for",
     "type_atoms_for",
     "unregister",
+    "withdraw",
 ]
 
 
@@ -1237,6 +1248,81 @@ def unregister(runtime, name: str) -> None:
     REGISTRY.pop(name, None)
 
 
+def withdraw(runtime, name: str, space: str) -> bool:
+    """Stop ONE space declaring an operation, leaving it registered elsewhere.
+
+    `unregister` is the whole-process form: the callable goes and every space
+    that declared it is released. This is the per-space half, for a library
+    uninstalling from one space an operation ANOTHER space still uses. The
+    space's own declaration rows go, the implementation stays for the spaces
+    that kept it, and the answer says whether this space held anything.
+
+    An implementation is process-global and declarations are space-local, so
+    a space that stops using an operation but cannot unregister it kept
+    DESCRIBING it: the rows stayed, `builtins()` still listed the name there,
+    and the call still answered [measured 2026-09-07: after
+    `metta.arrays.uninstall` on a space sharing numpy with another, 160
+    declaration atoms remained and `!(t-shape (tensor--numpy (1.0 2.0)))`
+    still answered from it]. Withdrawing the last space leaves the operation
+    registered and declared nowhere, which is the caller's decision to make:
+    `unregister` is the door when nothing should keep it.
+
+    Raises KeyError for a name that is not registered, as `unregister` does.
+    """
+    operation = REGISTRY.get(name)
+    if operation is None:
+        msg = f"no operation named {name!r} is registered"
+        raise KeyError(msg)
+    held = [rows for held_space, rows in operation.holdings if held_space == space]
+    if not held:
+        return False
+    _record_undo(name)
+    for rows in held:
+        for declaration in rows:
+            _release_declaration(runtime, space, declaration)
+    kept = tuple(entry for entry in operation.holdings if entry[0] != space)
+    # `space` names where the type declarations were last added, so it may not
+    # go on naming a space that no longer holds any.
+    remaining = _SpaceId(kept[-1][0]) if kept else None
+    REGISTRY[name] = _replace(
+        operation,
+        holdings=kept,
+        space=remaining if operation.space == space else operation.space,
+    )
+    return True
+
+
+def _forget_space(space: str) -> None:
+    """Forget what a released space held; its name goes back to the pool.
+
+    The engine retires a released space's declarations with its module, so
+    this refcount and these holdings are the only things left claiming they
+    are there, and both are keyed by a name the next `space()` can take. The
+    refcount then suppressed the NEW life's own declaration adds, silently:
+    a space that installed metta.arrays and was dropped left 160 refcount
+    entries, and the next space to take its name registered the same
+    operations with 37 atoms where a fresh name gets 197, leaving them
+    callable but declared nowhere [measured 2026-09-07,
+    ai-tmp/probe-ao-pooled.py in the branch worktree; tested:
+    test_a_recycled_space_name_declares_its_own_operations; commit=WORKTREE].
+
+    Called from Space.drop beside integrate's and algebra's own, after the
+    engine teardown, because it is bookkeeping about a space that is gone.
+    """
+    for key in [key for key in _DECLARATION_REFS if key[0] == space]:
+        del _DECLARATION_REFS[key]
+    for name, operation in list(REGISTRY.items()):
+        kept = tuple(entry for entry in operation.holdings if entry[0] != space)
+        if len(kept) == len(operation.holdings):
+            continue
+        remaining = _SpaceId(kept[-1][0]) if kept else None
+        REGISTRY[name] = _replace(
+            operation,
+            holdings=kept,
+            space=remaining if operation.space == space else operation.space,
+        )
+
+
 def _declare_purity(runtime: Any, operation: Operation) -> None:
     """Say the operation has no effect a cache could hide, or take it back.
 
@@ -1255,5 +1341,11 @@ def _withdraw_purity(runtime: Any, operation: Operation) -> None:
 
 
 def registered() -> dict[str, Operation]:
-    """The live registry, name to operation."""
+    """The live registry, name to operation, for the whole PROCESS.
+
+    A name registers once however many spaces use it, so this is not the
+    question "what does this space have": `space.builtins()` answers that,
+    and a library that installs a set of operations answers its own
+    (`arrays.ops(space)` for the array roster).
+    """
     return REGISTRY.copy()

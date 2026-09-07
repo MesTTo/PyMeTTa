@@ -2,9 +2,9 @@
 array API standard, exercised with NumPy end to end, DLTensor as a protocol
 type the engine checks, protocol printing, cross-library conversion through
 DLPack, and the embedding store running on NumPy alone.
-Runs before test_pettorch alphabetically; the constructor default is
-process-global, so this suite installs NumPy as the default and the torch
-suite installs torch over it, each self-consistent.
+The install is a property of the space it happened in: this suite installs
+NumPy into the module space, the tests that need a second library install it
+into a space of their own, and neither can reach the other.
 Guarantees:
   - each installed array operation has an arrow and a cache-safe effect rank;
     broadcast-shape works forwards and backwards as a CLP(FD) relation
@@ -33,13 +33,22 @@ Guarantees:
     test_a_live_tensor_type_carries_its_current_shape,
     test_every_preserving_unary_head_keeps_symbolic_and_live_shapes;
     commit=4eaefdd8d40e53b2613722287302a14b41704662]
-  - a test that installs a SECOND backend restores the process-global
-    ARRAY_OPS roster it borrowed, so the typed roster always describes the
-    install the module's own space got, whatever order pytest-randomly picks.
-    `--randomly-seed=4` is the order that read `%Undefined%` for
-    `tensor--jax.numpy` before this
-    [tested: test_every_array_operation_is_typed_and_a_shape_is_a_constraint;
-    commit=0800a2651599aec83dc553657aa94a567cd986fb]
+  - a space answers its OWN roster, backend and constructor types whichever
+    order the two libraries were installed in, a second install replaces the
+    first, and dropping the space retires the row; `--randomly-seed=4` is the
+    order that read `%Undefined%` for `tensor--jax.numpy` when the roster was
+    one process-global list
+    [tested: test_a_space_answers_its_own_roster_in_either_install_order,
+    test_a_second_install_replaces_the_roster_and_its_operations,
+    test_dropping_the_space_retires_its_installation_row;
+    commit=WORKTREE]
+  - uninstall is install's inverse and keeps what another space still claims
+    [tested: test_uninstall_retires_the_installation_and_keeps_shared_operations,
+    test_the_roster_doors_refuse_an_uninstalled_space_and_a_doubled_row;
+    commit=WORKTREE]
+  - a repeated install writes nothing new and uninstall leaves the space
+    empty [tested: test_install_is_idempotent_and_uninstall_empties_the_space;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -71,43 +80,20 @@ pytest.importorskip("array_api_compat")
 
 
 @pytest.fixture(scope="module")
-def am(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    before = set(registered())
-    atoms_before = set(map(str, metta.atoms()))
+def am(metta):
+    """The module's own installed space, retired through the library's inverse.
+
+    This suite drives the process home space, so anything the install leaves
+    behind is left for every later test in this worker: the operations, the
+    `get-type` shape equations, the typing rule and the constructor aliases.
+    `arrays.uninstall` is the door that retires exactly those, so the teardown
+    is one call rather than a hand-rolled reconstruction of what install did.
+    """
     arrays.install(metta, default=numpy)
-    installed = set(registered()) - before
     try:
         yield metta
     finally:
-        for name in sorted(installed, reverse=True):
-            if name in registered():
-                metta.unregister_op(name)
-        # The shape rules are not operations, so the loop above does not reach
-        # them: install() adds `get-type` equations and one typing rule, and
-        # this suite drives the process home space, so anything left here is
-        # left for every later test in this worker.
-        metta.run("!(remove-typing-rule! metta-arrays-shaped-dltensor-base)")
-        for atom in metta.atoms():
-            text = str(atom)
-            if text in atoms_before or not text.startswith("(= ("):
-                continue
-            if text.startswith(("(= (get-type ", "(= (metta-arrays-")):
-                metta.remove(atom)
-
-
-# `install()` rewrites the process-global roster as its last act
-# (`arrays.py`: `ARRAY_OPS[:] = registered`), so a test that installs a
-# SECOND backend leaves every later test reading that backend's names. With
-# pytest-randomly shuffling this module, that is a coin toss:
-# `--randomly-seed=4` puts the JAX tracer test before
-# test_every_array_operation_is_typed_and_a_shape_is_a_constraint, which then
-# asked the numpy-installed `am` space for the type of `tensor--jax.numpy` and
-# got `%Undefined%` (measured 2026-09-07, and 3 of 5 full parallel runs).
-# These tests already snapshot and restore `registered()`; the roster is the
-# global they missed, and it restores the same way.
-def _own_roster():
-    """The current ARRAY_OPS, to be written back when an install borrows it."""
-    return list(arrays.ARRAY_OPS)
+        arrays.uninstall(metta)
 
 
 def test_numpy_flows_through_the_same_ops(am):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -122,8 +108,10 @@ def test_numpy_flows_through_the_same_ops(am):  # noqa: D103  -- pytest discover
 
 def test_every_array_operation_is_typed_and_a_shape_is_a_constraint(am):
     """Every installed array op carries an arrow type, and broadcast-shape solves both ways."""
-    assert len(arrays.ARRAY_OPS) == len(set(arrays.ARRAY_OPS)) == 44
-    for name in arrays.ARRAY_OPS:
+    roster = arrays.ops(am)
+    assert len(roster) == len(set(roster)) == 44
+    assert arrays.backend(am) == "numpy"
+    for name in roster:
         types = [atom for group in am.run(f"!(get-type {name})") for atom in group]
         assert types, name
         # An answer that is not an expression is a FAILURE of this claim, not
@@ -136,9 +124,7 @@ def test_every_array_operation_is_typed_and_a_shape_is_a_constraint(am):
         assert all(arrows), (name, types)
 
     operations = {
-        name: registered()[name]
-        for name in arrays.ARRAY_OPS
-        if name in registered()
+        name: registered()[name] for name in roster if name in registered()
     }
     assert operations
     assert all(operation.effect in EffectClass for operation in operations.values())
@@ -235,8 +221,6 @@ def test_the_constructor_builds_numpy_here(am):  # noqa: D103  -- pytest discove
 def test_nested_backend_names_do_not_retarget_an_earlier_space():
     """A later NumPy install leaves an existing JAX space routed to JAX."""
     jax_numpy = pytest.importorskip("jax.numpy")
-    before = set(registered())
-    roster = _own_roster()
     first_owner = MeTTa()
     second_owner = MeTTa()
     try:
@@ -254,12 +238,192 @@ def test_nested_backend_names_do_not_retarget_an_earlier_space():
         assert type(wire.decode(after_second[0])).__module__.startswith("jax")
         assert "zeros--jax.numpy" in registered()
         assert "zeros--numpy" in registered()
+        assert arrays.backend(first) == "jax.numpy"
+        assert arrays.backend(second) == "numpy"
     finally:
-        for name in sorted(set(registered()) - before, reverse=True):
-            first_owner.self.unregister_op(name)
-        arrays.ARRAY_OPS[:] = roster
+        arrays.uninstall(first)
+        arrays.uninstall(second)
         first_owner.close()
         second_owner.close()
+
+
+@pytest.mark.parametrize("jax_first", [True, False])
+def test_a_space_answers_its_own_roster_in_either_install_order(jax_first):
+    """Two spaces, two libraries, each answering its own, in either order.
+
+    The roster was one module-level list that every install rewrote, so
+    whichever library installed LAST described both spaces: the numpy space
+    was asked for the type of `tensor--jax.numpy`, a name it had never
+    registered, and answered `%Undefined%`. It is a row in the catalog now,
+    keyed by the space that installed it, and order cannot reach it.
+    """
+    jax_numpy = pytest.importorskip("jax.numpy")
+    libraries = (jax_numpy, numpy) if jax_first else (numpy, jax_numpy)
+    owner = MeTTa()
+    spaces = (owner.space(), owner.space())
+    try:
+        for space, library in zip(spaces, libraries, strict=True):
+            arrays.install(space, default=library)
+        for index, (space, library) in enumerate(zip(spaces, libraries, strict=True)):
+            other = libraries[1 - index]
+            assert arrays.backend(space) == library.__name__
+            assert f"tensor--{library.__name__}" in arrays.ops(space)
+            assert f"tensor--{other.__name__}" not in arrays.ops(space)
+            (types,) = space.run(f"!(get-type tensor--{library.__name__})")
+            assert types and all(
+                isinstance(type_, Expression) and type_.head == S["->"]
+                for type_ in types
+            ), (library.__name__, types)
+    finally:
+        for space in spaces:
+            arrays.uninstall(space)
+        owner.close()
+
+
+def test_a_second_install_replaces_the_roster_and_its_operations():
+    """Installing again retargets the space and retires what it dropped."""
+    jax_numpy = pytest.importorskip("jax.numpy")
+    owner = MeTTa()
+    space = owner.space()
+    try:
+        arrays.install(space, default=jax_numpy)
+        assert "zeros--jax.numpy" in registered()
+
+        arrays.install(space, default=numpy)
+        assert arrays.backend(space) == "numpy"
+        assert [name for name in arrays.ops(space) if "jax" in name] == []
+        # No other space's row claimed the JAX constructors, so they left the
+        # process-wide registry with the roster that named them.
+        assert "zeros--jax.numpy" not in registered()
+        (answer,) = space.run("!(zeros 2 2)")
+        assert isinstance(wire.decode(answer[0]), numpy.ndarray)
+        # One alias equation per accepted arity, not two installs' worth.
+        aliases = [
+            atom for atom in space.atoms() if str(atom).startswith("(= (zeros ")
+        ]
+        assert len(aliases) == 4, aliases
+    finally:
+        arrays.uninstall(space)
+        owner.close()
+
+
+def test_dropping_the_space_retires_its_installation_row():
+    """The row is a space-owned catalog declaration, so the drop takes it.
+
+    Only the row. The operations belong to the process-wide registry, which
+    the engine's space lifetime knows nothing about, and that is the division
+    the two doors draw: a drop retires the declaration saying which space had
+    them, `uninstall` hands the operations themselves back. The keeper here
+    still answers afterwards, and its own uninstall is what empties the
+    registry.
+    """
+    owner = MeTTa()
+    try:
+        keeper, dying = owner.space(), owner.space()
+        arrays.install(keeper, default=numpy)
+        arrays.install(dying, default=numpy)
+        standing = (
+            f"!(match &metta (array-backend {dying.name} $library $ops) $library)"
+        )
+        assert owner.run(standing) == [[S.numpy]]
+
+        dying.drop()
+        assert owner.run(standing) == [[]]
+        assert arrays.backend(keeper) == "numpy"
+        assert keeper.run("!(t-item (t-sum (tensor (1.0 2.0))))") == [[3.0]]
+        arrays.uninstall(keeper)
+    finally:
+        owner.close()
+
+
+def test_uninstall_retires_the_installation_and_keeps_shared_operations():
+    """Install's inverse, which may not take what another space still uses."""
+    jax_numpy = pytest.importorskip("jax.numpy")
+    owner = MeTTa()
+    try:
+        keeper, leaving = owner.space(), owner.space()
+        arrays.install(keeper, default=jax_numpy)
+        arrays.install(leaving, default=jax_numpy)
+
+        (routed,) = leaving.run("!(zeros 2 2)")
+        assert type(wire.decode(routed[0])).__module__.startswith("jax")
+
+        assert "zeros--jax.numpy" not in arrays.uninstall(leaving)
+        assert "zeros--jax.numpy" in registered()
+        assert arrays.backend(keeper) == "jax.numpy"
+        # The space that left routes nothing OF ITS OWN: its alias equations
+        # went with the roster. What a bare `(zeros ...)` reaches there now is
+        # whatever the inherited &self holds, which is another space's install.
+        assert [
+            atom for atom in leaving.atoms() if str(atom).startswith("(= (zeros ")
+        ] == []
+
+        assert "zeros--jax.numpy" in arrays.uninstall(keeper)
+        assert "zeros--jax.numpy" not in registered()
+        with pytest.raises(MettaError, match="nothing to uninstall"):
+            arrays.uninstall(keeper)
+    finally:
+        owner.close()
+
+
+def test_install_is_idempotent_and_uninstall_empties_the_space():
+    """Installing again writes nothing new, and uninstalling leaves nothing.
+
+    Every equation, alias and arrow lands only where the space lacks it, so a
+    repeated install is a no-op on the space, and `uninstall` withdraws each
+    of them by construction rather than by matching their text
+    [measured 2026-09-07 on this tree: a fresh space holds 0 atoms, 197 after
+    the first install, 197 after the third, and 0 after the uninstall].
+    """
+    owner = MeTTa()
+    space = owner.space()
+    try:
+        assert space.atoms() == []
+        first = arrays.install(space, default=numpy)
+        try:
+            settled = len(space.atoms())
+            assert settled > len(first)
+            for _ in range(2):
+                assert arrays.install(space, default=numpy) == first
+                assert len(space.atoms()) == settled
+            assert space.run("!(t-item (t-sum (tensor (1.0 2.0))))") == [[3.0]]
+        finally:
+            arrays.uninstall(space)
+        assert space.atoms() == []
+    finally:
+        owner.close()
+
+
+def test_the_roster_doors_refuse_an_uninstalled_space_and_a_doubled_row():
+    """Absence and ambiguity refuse by name, and install is the remedy.
+
+    The row is ordinary catalog data, so a program can write one itself and
+    both failures are reachable from MeTTa alone.
+    """
+    owner = MeTTa()
+    space = owner.space()
+    malformed = f"(array-backend {space.name} numpy nonsense)"
+    try:
+        for door in (arrays.ops, arrays.backend):
+            with pytest.raises(MettaError, match="no array backend is installed"):
+                door(space)
+
+        owner.run(f"!(add-atom &metta {malformed})")
+        with pytest.raises(MettaError, match="declares no array roster"):
+            arrays.ops(space)
+        owner.run(f"!(remove-atom &metta {malformed})")
+
+        arrays.install(space, default=numpy)
+        owner.run(f"!(add-atom &metta (array-backend {space.name} numpy (ops t+)))")
+        with pytest.raises(MettaError, match="carries 2 array installation rows"):
+            arrays.backend(space)
+
+        arrays.install(space, default=numpy)
+        assert arrays.backend(space) == "numpy"
+        assert len(arrays.ops(space)) == 44
+    finally:
+        arrays.uninstall(space)
+        owner.close()
 
 
 def test_randn_never_borrows_another_backends_random_state():
@@ -399,8 +563,6 @@ def test_a_jax_tracer_crosses_a_binary_op_and_a_gradient_reaches_it():
     jax = pytest.importorskip("jax")
     jax_numpy = pytest.importorskip("jax.numpy")
     context = MeTTa()
-    before = set(registered())
-    roster = _own_roster()
     arrays.install(context, default=jax_numpy)
     try:
         concrete = jax_numpy.asarray([1.0, 2.0, 3.0])
@@ -413,10 +575,8 @@ def test_a_jax_tracer_crosses_a_binary_op_and_a_gradient_reaches_it():
         assert float(jax.jit(through_metta)(concrete)) == 12.0
         assert list(jax.grad(through_metta)(concrete)) == [1.0, 1.0, 1.0]
     finally:
-        for name in sorted(set(registered()) - before, reverse=True):
-            if name in registered():
-                context.self.unregister_op(name)
-        arrays.ARRAY_OPS[:] = roster
+        arrays.uninstall(context)
+        context.close()
 
 
 def test_install_takes_a_context_as_well_as_a_space():
@@ -428,18 +588,15 @@ def test_install_takes_a_context_as_well_as_a_space():
     unregistered.
     """
     context = MeTTa()
-    before = set(registered())
-    roster = _own_roster()
     names = arrays.install(context, default=numpy)
     try:
         assert "t+" in names
         assert context.self.is_function("t+")
+        assert arrays.ops(context) == names
         assert context.run("!(t-item (t-sum (tensor (1.0 2.0 3.0))))") == [[6.0]]
     finally:
-        for name in sorted(set(registered()) - before, reverse=True):
-            if name in registered():
-                context.self.unregister_op(name)
-        arrays.ARRAY_OPS[:] = roster
+        arrays.uninstall(context)
+        context.close()
 
 
 def test_embedding_store_runs_on_numpy(am):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -469,7 +626,10 @@ def test_embedding_store_takes_a_context_as_well_as_a_space():
     the constructor reached, one line after the backend check.
     """
     context = MeTTa()
-    before = set(registered())
+    # The query is written `(tensor ...)`, so this context needs its OWN array
+    # install to reduce it. It used to reach one another test had left in the
+    # shared &self, which made it pass or fail on the shuffle.
+    arrays.install(context, default=numpy)
     try:
         store = arrays.EmbeddingStore(context, name="ctxk")
         store.add(S.dog, numpy.array([1.0, 0.0]))
@@ -477,9 +637,9 @@ def test_embedding_store_takes_a_context_as_well_as_a_space():
         (group,) = context.run("!(collapse (ctxk-knn (tensor (1.0 0.0)) 1))")
         assert [pair[0] for pair in group[0]] == [S.dog]
     finally:
-        for name in sorted(set(registered()) - before, reverse=True):
-            if name in registered():
-                context.self.unregister_op(name)
+        arrays.uninstall(context)
+        for name in arrays._SPACE_STORES.pop((context.self.name, "ctxk")):
+            context.self.unregister_op(name)
         context.close()
 
 
@@ -670,10 +830,9 @@ def test_every_preserving_unary_head_keeps_symbolic_and_live_shapes(am, head, di
     assert arrays.data_of(am.eval(S[head](argument, *extra))[0]).shape == dimensions
 
 
-@pytest.mark.usefixtures("am")
-def test_every_registered_head_has_a_shape_rule():
+def test_every_registered_head_has_a_shape_rule(am):
     """A newly registered head cannot omit its shape behavior."""
-    assert {name.split("--", 1)[0] for name in arrays.ARRAY_OPS} == set(arrays.SHAPE_RULES)
+    assert {name.split("--", 1)[0] for name in arrays.ops(am)} == set(arrays.SHAPE_RULES)
 
 
 @pytest.mark.parametrize(

@@ -17,6 +17,10 @@ Guarantees:
   [tested: test_an_underapplied_arrow_head_types_as_the_arbiter_does; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - empty-expression type observers report unit without changing classifiers.
   [tested: test_the_empty_expressions_type_follows_the_arbiters_ruling; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
+  - withdrawing one space releases only that space's declaration rows and
+    leaves the operation registered and declared by the spaces that kept it.
+  [tested: test_withdrawing_one_space_leaves_the_other_space_declaring_it;
+   commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -25,8 +29,9 @@ Open Obligations:
 
 import pytest
 
-from metta import MeTTa
+from metta import MeTTa, ops
 from metta.errors import EngineError
+from metta.ops import registered
 
 
 def _answers(metta: MeTTa, source: str) -> list[str]:
@@ -371,6 +376,50 @@ def test_the_empty_expressions_type_follows_the_arbiters_ruling():  # noqa: D103
     # classifier derives no type here, so the existing gradual fallback admits
     # the value at a concrete parameter instead of rejecting unit against it.
     assert _answers(metta, "!(classifier-control ())") == ["accepted"]
+
+
+def test_withdrawing_one_space_leaves_the_other_space_declaring_it():
+    """The per-space half of unregister: one space stops, the rest keep it.
+
+    An implementation is process-global while declarations are space-local, so
+    a library uninstalling from one space cannot unregister an operation
+    another space still uses. Without a per-space release the leaving space
+    kept DESCRIBING it: the rows stayed and the type answered there.
+    `unregister` remains the whole-process form.
+    """
+    def declarations(space, name):
+        return sorted(
+            str(atom)
+            for atom in space.atoms()
+            if name in str(atom)
+            and (str(atom).startswith("(:") or "annotation" in str(atom))
+        )
+
+    with MeTTa(verbose=False) as context:
+        with context.space("&hold-a") as a, context.space("&hold-b") as b:
+
+            def widen(value: int) -> int:
+                return value + 1
+
+            a.op(widen, name="withdraw-op", effect="pureStructural")
+            b.op(widen, name="withdraw-op", effect="pureStructural")
+            in_b = declarations(b, "withdraw-op")
+            assert len(in_b) == 3
+
+            assert ops.withdraw(a.runtime, "withdraw-op", str(a.name)) is True
+            assert declarations(a, "withdraw-op") == []
+            assert declarations(b, "withdraw-op") == in_b
+            # Registered, so it still reduces; B is the space that declares it.
+            assert _answers(b, "!(withdraw-op 1)") == ["2"]
+            assert "withdraw-op" in registered()
+
+            # Withdrawing twice is not an error, and says nothing was held.
+            assert ops.withdraw(a.runtime, "withdraw-op", str(a.name)) is False
+            with pytest.raises(KeyError):
+                ops.withdraw(a.runtime, "no-such-op-here", str(a.name))
+
+            b.unregister_op("withdraw-op")
+            assert "withdraw-op" not in registered()
 
 
 def test_a_second_space_registering_one_operation_keeps_both_contracts():

@@ -10,6 +10,10 @@ Guarantees:
   - a recycled name inherits no stored atom, no equation, no declaration and
     no tabling from its past life [tested
     test_a_recycled_space_name_inherits_no_clauses_from_its_past_life]
+  - nor the binding's own claim that an operation's declarations are already
+    in the name, which made the new life register one with no rows at all
+    [tested: test_a_recycled_space_name_declares_its_own_operations;
+    commit=WORKTREE]
   - nor its past life's user typing rules, which are the declaration made by
     a call rather than by a stored atom and were the one kind that stayed
     [tested
@@ -235,6 +239,39 @@ def _execution_module_owns(metta, space_name):
 # because the lambda counter is process-global and the specialization rebuilds,
 # so the harm was a module that grew by one dead predicate per lambda per life
 # and an escape hatch that reached into a finished one.
+def test_a_recycled_space_name_declares_its_own_operations(drained):
+    """The Python half of the same rule, and the third leak of this kind.
+
+    An operation's declarations are space-local and the binding refcounts
+    them by space NAME, so it can skip an add it believes is already there.
+    The engine retires the rows with the released module and the pool hands
+    the name on, so the count was the only thing still claiming them: the new
+    life registered the same operation and got NO declaration rows, leaving
+    it callable and typed nowhere. The count is dropped with the space now.
+    """
+    def declared(space, name):
+        return sorted(str(atom) for atom in space.atoms() if name in str(atom))
+
+    def widen(value: int) -> int:
+        return value + 1
+
+    first = drained._new_space()
+    name = first.name
+    first.op(widen, name="recycled-decl-op", effect="pureStructural")
+    in_first = declared(first, "recycled-decl-op")
+    assert in_first != []
+    first.drop()
+
+    second = drained._new_space()
+    assert second.name == name, "the point of the test is the reused name"
+    try:
+        second.op(widen, name="recycled-decl-op", effect="pureStructural")
+        assert declared(second, "recycled-decl-op") == in_first
+    finally:
+        second.unregister_op("recycled-decl-op")
+        second.drop()
+
+
 def test_a_recycled_space_name_inherits_no_clauses_from_its_past_life(drained):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     first = drained._new_space()
     name = first.name
