@@ -1049,16 +1049,22 @@ def test_a_benchmark_lane_skips_a_refusal_locally_and_refuses_it_in_ci(monkeypat
     """One policy for every benchmark entry point, and it depends on CI alone.
 
     A developer's box is shared, so a PMU another session holds is a note and
-    an exit 0; a CI runner that cannot count is a broken runner, so there the
-    same refusal is an error and an exit 1. An ordinary answer passes through
-    either way.
+    a SKIP; a CI runner that cannot count is a broken runner, so there the same
+    refusal is an error and an exit 1. An ordinary answer passes through either
+    way.
+
+    The local skip is PERF_CONTROL_REFUSED and not 0, because check.sh reads
+    that number as `skipped` and 0 as `ok`, and a lane that compared nothing
+    must not read the same as one that compared every row: mork-bench reported
+    `ok` on four of five full gate runs while another session held the PMU.
     """
     def refuses() -> int:
         msg = "the measured window never opened"
         raise MeasurementRefusedError(msg)
 
     monkeypatch.delenv("CI", raising=False)
-    assert measured_main(refuses) == 0
+    assert measured_main(refuses) == PERF_CONTROL_REFUSED
+    assert PERF_CONTROL_REFUSED != 0, "a skip that exits 0 reads as ok"
     local = capsys.readouterr()
     assert "note: the box refused the measurement" in local.out
     assert "never opened" in local.out

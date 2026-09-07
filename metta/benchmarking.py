@@ -31,9 +31,12 @@ Guarantees:
     commit=11afdcdbad5bbbe37168b5d8528c23a21c42b4b6]
   - one policy decides what a benchmark lane does with that refusal, so no two
     lanes can drift into disagreeing: measured_main skips it with a name and
-    exits 0 on a desk and refuses it with an error and exits 1 where CI=true
+    exits PERF_CONTROL_REFUSED on a desk, which check.sh's summary renders
+    `skipped` without failing the run, and refuses it with an error and exits 1
+    where CI=true. It is NOT 0: a lane that measured nothing and exits 0 reads
+    `ok`, indistinguishable from one that compared every row
     [tested: test_a_benchmark_lane_skips_a_refusal_locally_and_refuses_it_in_ci;
-    commit=11afdcdbad5bbbe37168b5d8528c23a21c42b4b6]
+    commit=WORKTREE]
   - one perf run may count several events, matched on the event NAME field so
     a unit-carrying event reads beside a bare one, and it hands back each
     run's own standard output so a workload can report a counter perf cannot
@@ -979,6 +982,11 @@ def measured_main(entry: Callable[[], int]) -> int:
     named skip elsewhere, because a developer's box is shared and a PMU another
     session holds is not a code change
     [source: tests/checks/check_upstream_parity.py, upstream_prerequisite].
+
+    The local skip exits PERF_CONTROL_REFUSED rather than 0, so check.sh's
+    summary says `skipped` for it instead of `ok`. Exit 0 made the two
+    indistinguishable in the one line a reader scans, and the difference is the
+    whole point: one of them compared every row.
     """
     try:
         return entry()
@@ -1000,7 +1008,16 @@ def measured_main(entry: Callable[[], int]) -> int:
             "tree moved; re-run it where the PMU is free."
         )
         print(f"  {refusal}")
-        return 0
+        #Not 0. A lane that measured nothing and exits 0 reads `ok` in
+        #check.sh's summary, indistinguishable from one that compared every row
+        #and passed, and that is not a small difference: mork-bench reported
+        #`ok` on four of five full gate runs while another session held the PMU
+        #and it compared not one row. 125 is the number this tree already
+        #spells "this run says nothing", and check.sh renders it `skipped`
+        #without failing the run
+        #[tested: test_a_benchmark_lane_skips_a_refusal_locally_and_refuses_it_in_ci;
+        #commit=WORKTREE].
+        return PERF_CONTROL_REFUSED
 
 
 def _counter_request(
