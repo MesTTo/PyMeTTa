@@ -60,7 +60,7 @@ Guarantees:
     `main()` leaves `sys.meta_path` as it found it [tested:
     test_run_installs_the_import_hook_for_the_programs_directory,
     test_the_repl_installs_the_import_hook_for_its_working_directory,
-    test_a_run_leaves_no_import_hook_behind; commit=WORKTREE]
+    test_a_run_leaves_no_import_hook_behind; commit=d7ab3cb20fe2353872139ecb36710f7e880c1451]
 Open Obligations:
   To Do: None
   Hacks: None

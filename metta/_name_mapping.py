@@ -14,7 +14,7 @@ Guarantees:
     the stub renderer and the import hook's module answer one rule for one
     head and a name Python cannot spell is refused by both [tested:
     test_a_head_python_cannot_spell_is_named_not_dropped,
-    test_a_head_python_cannot_spell_keeps_its_exact_name; commit=WORKTREE]
+    test_a_head_python_cannot_spell_keeps_its_exact_name; commit=d7ab3cb20fe2353872139ecb36710f7e880c1451]
 Open Obligations:
   To Do: None
   Hacks: None

@@ -32,7 +32,7 @@ Guarantees:
   - the projection is over ATOMS, so a space's store and a file's own forms
     reach the same rows and a module can report what its FILE declares rather
     than what the space it loaded into holds [tested:
-    test_a_metta_file_imports_as_a_module_of_its_own_heads; commit=WORKTREE]
+    test_a_metta_file_imports_as_a_module_of_its_own_heads; commit=d7ab3cb20fe2353872139ecb36710f7e880c1451]
 Open Obligations:
   To Do: None
   Hacks: None

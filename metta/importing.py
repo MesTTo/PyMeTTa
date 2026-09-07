@@ -10,7 +10,7 @@ Assumes:
     and skips one that is neither, and its withdrawal forgets a head the edit
     removed [source: engine/metta/interop.pl resolve_existing_import_path/3,
     import_when/4; engine/filereader/source_lifecycle.pl
-    replacing_previous_load/4; commit=WORKTREE]
+    replacing_previous_load/4; commit=d7ab3cb20fe2353872139ecb36710f7e880c1451]
   - the import system consults `sys.meta_path` in order and stops at the first
     finder that answers a spec, so a finder appended after Python's own can
     never shadow a `.py` [source:
@@ -19,27 +19,27 @@ Assumes:
     SAME module object, and `_init_module_attrs` overwrites the import
     attributes without clearing anything else the previous load set [source:
     /usr/lib/python3.14/importlib/__init__.py reload, importlib._bootstrap
-    _exec and _init_module_attrs; commit=WORKTREE]
+    _exec and _init_module_attrs; commit=d7ab3cb20fe2353872139ecb36710f7e880c1451]
 Guarantees:
   - a `.metta` file on the search path imports as a module whose attributes
     are the heads it declares, each an `_EngineFunction` on the loading space
     that builds the same term `m.fn` builds for that head [tested:
     test_a_metta_file_imports_as_a_module_of_its_own_heads,
-    test_a_module_attribute_and_the_namespace_build_one_term; commit=WORKTREE]
+    test_a_module_attribute_and_the_namespace_build_one_term; commit=d7ab3cb20fe2353872139ecb36710f7e880c1451]
   - `importlib.reload` performs the digest reload: an edited file's new bodies
     answer, a head the edit removed leaves `__all__` and the module, and a
     head it added arrives [tested:
-    test_reload_is_the_digest_reload_under_pythons_word; commit=WORKTREE]
+    test_reload_is_the_digest_reload_under_pythons_word; commit=d7ab3cb20fe2353872139ecb36710f7e880c1451]
   - a name that resolves to both a `.py` and a `.metta` on one search path is
     Python's, because the finder is appended and never prepended [tested:
-    test_a_python_module_of_the_same_name_wins; commit=WORKTREE]
+    test_a_python_module_of_the_same_name_wins; commit=d7ab3cb20fe2353872139ecb36710f7e880c1451]
   - a file whose load fails raises `ImportError` chaining the engine's own
     error, and leaves no module behind [tested:
-    test_a_file_that_cannot_load_raises_import_error; commit=WORKTREE]
+    test_a_file_that_cannot_load_raises_import_error; commit=d7ab3cb20fe2353872139ecb36710f7e880c1451]
   - a package advertising a directory under the `metta.libraries` entry-point
     group makes its own name importable, consulted only after the search path
     misses and only for that exact name [tested:
-    test_a_package_declared_library_imports_by_its_declared_name; commit=WORKTREE]
+    test_a_package_declared_library_imports_by_its_declared_name; commit=d7ab3cb20fe2353872139ecb36710f7e880c1451]
 Owns resources:
   - one `sys.meta_path` entry per `install()`, and the `sys.modules` entries
     the modules it loaded occupy. `Finder.uninstall()`, which the finder's own
@@ -48,7 +48,7 @@ Owns resources:
     An abandoned finder holds its space alive and answers imports until the
     process ends, which is what a process-wide hook means [tested:
     test_a_finder_is_a_value_installed_and_uninstalled,
-    test_a_run_leaves_no_import_hook_behind; commit=WORKTREE]
+    test_a_run_leaves_no_import_hook_behind; commit=d7ab3cb20fe2353872139ecb36710f7e880c1451]
 Decides:
   - the hook is not installed by `import metta`. Changing how every `import`
     statement in a process resolves is the program's decision to make, not a
@@ -92,7 +92,7 @@ __all__ = ["Finder", "Loader", "Module", "install", "installed"]
 #: The suffixes a MeTTa source file has, in the order a directory is searched.
 #: `.metta.gz` is the compressed form `import!` and the CLI already read under
 #: the same name, so the finder recognises exactly what the engine loads
-#: [source: engine/metta/interop.pl, ensure_metta_ext/2; commit=WORKTREE].
+#: [source: engine/metta/interop.pl, ensure_metta_ext/2; commit=d7ab3cb20fe2353872139ecb36710f7e880c1451].
 SUFFIXES = (".metta", ".metta.gz")
 
 
@@ -103,7 +103,7 @@ def _candidates(root: Path, name: str) -> Iterable[Path]:
     library layout, `rules/rules.metta`: a shipped library is a directory
     named for the library holding its surface, which is also the shape
     Python's own `FileFinder` gives a package in `<name>/__init__.py`
-    [source: engine/metta.pl, library_within/2; commit=WORKTREE].
+    [source: engine/metta.pl, library_within/2; commit=d7ab3cb20fe2353872139ecb36710f7e880c1451].
     """
     for suffix in SUFFIXES:
         yield root / f"{name}{suffix}"
@@ -144,7 +144,7 @@ def _file_rows(text: str) -> tuple[Declaration, ...]:
     atoms cross either way and only a RUNNABLE form's parse captures its
     variable names, so the whole-file terms arrive as `$_1 $_2` and pay to
     have those minted [measured 2026-09-07, three runs, no spread;
-    commit=WORKTREE]. The projection is 13,831 inferences against the 34,441
+    commit=d7ab3cb20fe2353872139ecb36710f7e880c1451]. The projection is 13,831 inferences against the 34,441
     that same file's load costs, once per import.
     """
     forms = positioned_forms(text)
