@@ -272,7 +272,17 @@ RUFF_FAMILY_BURN_DOWN = {
     # obligation-header D205 forms in tests/repository/test_refusal_rows.py, its
     # module header and its parametrised fixture, measured per file against the
     # tree before that merge (every other file it touches reads the same).
-    "D": 2230,
+    # 2230 -> 2245 on 2026-09-08 with the catalog-types merge (1a3579fa):
+    # eighteen new findings over ad762ee7 by a per-file diff, every one an
+    # obligation-header D205 form suppressed at its site (`ruff --select D`
+    # passes): one in metta/_compliance.py's subscribe case, four in the
+    # generated metta/vocabularies.py (the open-vocabulary, provider-capability,
+    # semiring and wire-tag class contracts the generator's template carries),
+    # three in tests/ch19_spaces_backed_by_anything/test_compliance_suite.py,
+    # four in tests/ch20_extending_the_engine/test_contract.py, four in
+    # tests/repository/test_wire_tag_rows.py and two in tools/vocabgen.py;
+    # this scope reads 2245 of them.
+    "D": 2245,
     # 145, from 139 before the idiomatic twin corpus. Every one of the six new
     # sites is a `twin(m)` whose example needs no engine, because the form it
     # demonstrates is native Python (destructuring, `len`, `max`), or a

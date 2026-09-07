@@ -957,7 +957,16 @@ def twin(m):
 #: dispatch, 45 inferences over the twin [measured 2026-09-07: min-of-3 serial
 #: fresh processes; command=python extensions/python/tools/twin_coverage.py
 #: --repin; commit=e84a8263d8181e9dee95b6924a11c10d5c6198b0].
-BUDGET = 3483
+#: RE-PINNED 2026-09-08, 3483 to 3522 (+39), the catalog-types merge (1a3579fa)
+#: checks a definition's (arguments name delivery) row against the argument-
+#: delivery vocabulary at the write, the one-of kind row that refuses a
+#: misspelt delivery word; measured on a fresh space, @m.define of one
+#: annotated function costs 2714 inferences on ad762ee7 and 2753 on the merged
+#: tree, +39, with the first evaluation, the call and a MeTTa declaration
+#: unchanged, which is this twin's one definition [measured 2026-09-08: min-
+#: of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 3522
 #: BANDED 2026-09-06 rather than re-pinned an eighteenth time. Seventeen of
 #: the eighty-three re-pins above were written on 2026-09-05 and 2026-09-06
 #: alone, and every control taken with them left the MeTTa side of the same
