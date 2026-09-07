@@ -8,12 +8,16 @@ says which strings are data and which would have been programs. The expected
 terms are built at the `S.` door, because a twin may not reach the engine
 through `parse` either.
 
-The last claim is where Python's own vocabulary takes over. One bracket too
+Every refusal here is where Python's own vocabulary takes over. One bracket too
 many cannot be repaired by more typing, so the reader refuses, and a refusal
 crosses into Python as an EXCEPTION rather than as an atom: the original's
 `(if-error (catch ...) Error NoError)` is a try/except here, and the `lib_he`
 import that form needed goes with it. `EngineError` is a detailed error, so it
 arrives from the errors satellite rather than from the narrow root.
+
+The round trip through `sread` compares MeTTa TEXT, so it goes through the
+engine's own `repr` and a `ground(...)` on both sides; Python's `repr` would
+answer the host's spelling of the atom, which is a different claim.
 """
 
 from metta import S, ground
@@ -21,7 +25,7 @@ from metta.errors import EngineError
 
 
 def twin(m):
-    """Read eleven fragments, and refuse the twelfth."""
+    """Read eleven fragments, refuse the twelfth, then ask the reader under it."""
     read = m.fn.parse_command
 
     assert read(ground("(f a)")) == [S.complete(S.f(S.a))]
@@ -57,6 +61,34 @@ def twin(m):
     except EngineError:
         refused = True
     assert refused
+
+    # `sread` is the reader `parse-command` is written over, and the one that
+    # answers a term or raises. They agree on everything that parses.
+    sread, text = m.fn.sread, m.fn["repr"]
+    assert text(sread(ground("(f a)")).one()) == [ground("(f a)")]
+    assert text(sread(ground("hello")).one()) == [ground("hello")]
+    assert text(sread(ground("42")).one()) == [ground("42")]
+    assert text(sread(ground('(f "a)b")')).one()) == [ground('(f "a)b")')]
+
+    # Which is the whole reason `parse-command` exists: `sread` cannot tell a
+    # half-typed form from a wrong one, because both of them raise.
+    half_typed = False
+    try:
+        sread(ground("(f a")).one()
+    except EngineError:
+        half_typed = True
+    assert half_typed
+
+    wrong = False
+    try:
+        sread(ground("(f a))")).one()
+    except EngineError:
+        wrong = True
+    assert wrong
+
+    # And the contrast is the same text one line up: what `sread` raises on,
+    # `parse-command` calls incomplete.
+    assert read(ground("(f a")) == [S.incomplete]
 
 
 #: Inferences this twin spends, its own tripwire.
@@ -133,4 +165,9 @@ def twin(m):
 #: library's write doors since [measured 2026-09-06: min-of-3 serial fresh
 #: processes; command=python extensions/python/tools/twin_coverage.py --repin;
 #: commit=b96e1a15260b7538a8e42be613bcc5dd0dddd136].
-BUDGET = 4205
+#: RE-PINNED 2026-09-07, 4205 to 7430 (+3225), the example gained the sread
+#: half, and the twin follows it: four round trips through the engine's own
+#: repr, two refusals, and the parse-command contrast under them [measured
+#: 2026-09-07: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 7430
