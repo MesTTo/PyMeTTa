@@ -173,6 +173,13 @@ HOST_SERVICES = {
     # for the three above, one kind at a time.
     "metta_host_error_kind/3",
     "metta_host_error_kind_row/3",
+    # The catalog's DECLARATION for whichever kind a ball is: the class name,
+    # the ground and the remedy with its holes filled from that ball. This
+    # seat calls the aggregate reading, metta_py_refusal/5 being one crossing
+    # on a path that is already raising; the rows themselves it reads through
+    # &metta like any other catalog data.
+    "metta_host_refusal/6",
+    "metta_host_refusal_row/4",
     "metta_host_clear_space/1",
     "metta_host_clear_defined/1",
     "metta_host_fast_header/1",
@@ -345,6 +352,8 @@ FLOOR_REASONS = {
     "metta_host_space_capability_error/4": "error-vocabulary",
     "metta_host_error_kind/3": "error-vocabulary",
     "metta_host_error_kind_row/3": "error-vocabulary",
+    "metta_host_refusal/6": "error-vocabulary",
+    "metta_host_refusal_row/4": "error-vocabulary",
     "metta_host_read_forms/2": "host-orchestration",
     "metta_host_register_reader_token/2": "door",
     "metta_host_remove_reported/3": "host-orchestration",

@@ -30,7 +30,7 @@ def m(metta):
 
 def _assert_python_ground(error: BaseException, section: str) -> None:
     ground = error.ground
-    assert ground.kind == "python-reference"
+    assert ground.kind == "host-reference"
     assert f"Python Language Reference section {section}" in ground.citation
 
 

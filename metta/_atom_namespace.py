@@ -62,7 +62,7 @@ from .errors import Ground, Remedy, refusing
 #: Both closed-namespace refusals are Python's attribute grammar: a generated
 #: catalog is an object, and a name it does not carry is not an attribute.
 _ATTRIBUTE_GROUND = Ground(
-    "python-reference",
+    "host-reference",
     "Python Language Reference section 6.3.2, Attribute references",
 )
 

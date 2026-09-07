@@ -112,6 +112,7 @@ __all__ = [
     "AgendaPolicy",
     "AlgebraLaw",
     "AnswerPolicy",
+    "Applicability",
     "Atomicity",
     "CachePolicy",
     "ClauseFailedEnum",
@@ -123,6 +124,7 @@ __all__ = [
     "EventOrder",
     "Fidelity",
     "FunctionResultEnum",
+    "GroundKind",
     "ImageMode",
     "Limit",
     "MemoAggregate",
@@ -134,7 +136,9 @@ __all__ = [
     "OpKind",
     "OutOfClausesEnum",
     "Refinement",
+    "RefusalKind",
     "RegistryImage",
+    "RemedyKind",
     "RouteKey",
     "SaveFormat",
     "Semiring",
@@ -225,6 +229,13 @@ class AnswerPolicy(_AtomStrEnum):
     fair = "fair"
     best_first = "best-first"
 
+#: (vocabulary applicability machine maybe prose)
+class Applicability(_AtomStrEnum):
+    """Typed values of the applicability vocabulary."""
+    machine = "machine"
+    maybe = "maybe"
+    prose = "prose"
+
 #: (vocabulary atomicity transactional atomic-single best-effort)
 class Atomicity(_AtomStrEnum):
     """Typed values of the atomicity vocabulary."""
@@ -296,6 +307,13 @@ class Fidelity(_AtomStrEnum):
     Sound = "Sound"
     Refuse = "Refuse"
 
+#: (vocabulary ground-kind host-reference metta-law arbiter)
+class GroundKind(_AtomStrEnum):
+    """Typed values of the ground-kind vocabulary."""
+    host_reference = "host-reference"
+    metta_law = "metta-law"
+    arbiter = "arbiter"
+
 #: (vocabulary image-mode opaque transparent auto)
 class ImageMode(_AtomStrEnum):
     """Typed values of the image-mode vocabulary."""
@@ -364,6 +382,23 @@ class Refinement(_AtomStrEnum):
     Predicate = "Predicate"
     Unit = "Unit"
 
+#: (vocabulary refusal-kind syntax time_limit inference_limit restraint interrupted value type assertion capability operation stack source engine)
+class RefusalKind(_AtomStrEnum):
+    """Typed values of the refusal-kind vocabulary."""
+    syntax = "syntax"
+    time_limit = "time_limit"
+    inference_limit = "inference_limit"
+    restraint = "restraint"
+    interrupted = "interrupted"
+    value = "value"
+    type = "type"
+    assertion = "assertion"
+    capability = "capability"
+    operation = "operation"
+    stack = "stack"
+    source = "source"
+    engine = "engine"
+
 #: (vocabulary registry-image expression symbol handle operations)
 class RegistryImage(_AtomStrEnum):
     """Typed values of the registry-image vocabulary."""
@@ -371,6 +406,13 @@ class RegistryImage(_AtomStrEnum):
     symbol = "symbol"
     handle = "handle"
     operations = "operations"
+
+#: (vocabulary remedy-kind quickfix refactor source)
+class RemedyKind(_AtomStrEnum):
+    """Typed values of the remedy-kind vocabulary."""
+    quickfix = "quickfix"
+    refactor = "refactor"
+    source = "source"
 
 #: (vocabulary route-key context global)
 class RouteKey(_AtomStrEnum):

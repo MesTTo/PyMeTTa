@@ -25,7 +25,7 @@ from .errors import Ground, Remedy, refusing
 #: MeTTa applications are positional, so both refusals here are Python's own
 #: call grammar refusing a keyword the callee cannot place.
 _CALL_GROUND = Ground(
-    "python-reference", "Python Language Reference section 6.3.4, Calls"
+    "host-reference", "Python Language Reference section 6.3.4, Calls"
 )
 
 

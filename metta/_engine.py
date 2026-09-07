@@ -28,6 +28,12 @@ Guarantees:
     test_engine_thread_owns_only_its_attachment,
     test_a_transaction_commits_async_launch_before_its_landing;
     commit=39092863ae34184a9f955f185ff57c1ff177ec40]
+  - every engine refusal this seat classifies arrives carrying the catalog
+    row's .ground and .remedy for its kind, with the remedy's <field> holes
+    filled from that very ball, and a kind whose row was removed still raises
+    its own class with neither
+    [tested: extensions/python/tests/repository/test_refusal_rows.py;
+    commit=WORKTREE]
   - a rehydrated MettaError keeps the __cause__ it was raised with, so the
     boundary term never displaces the diagnosis [tested
     test_a_watcher_failure_is_distinguishable_from_a_failed_write]
@@ -128,14 +134,17 @@ from ._config import config
 from .errors import (
     AssertionFailure,
     EngineError,
+    Ground,
     InferenceLimitError,
     Interrupted,
     MettaError,
     MettaOperationError,
     MettaSyntaxError,
+    Remedy,
     RestraintError,
     SpaceCapabilityError,
     TimeLimitError,
+    refusing,
 )
 
 logger = logging.getLogger(__name__)
@@ -1404,6 +1413,39 @@ class Runtime:
         )
         raise ValueError(msg) from None
 
+    def _refused[ExcT: BaseException](self, error: ExcT, term: object) -> ExcT:
+        """The same error, carrying the catalog's ground and remedy for its kind.
+
+        Its longhand is `refusing(error, ground=..., remedy=...)` at the raise
+        site, which is what a refusal this library makes on its OWN already
+        writes. An engine refusal has no such site here: the class is chosen
+        from the kind the engine read off the ball, so the two parts are read
+        from the same table, with the remedy's `<field>` holes filled from
+        this very ball [source: engine/spaces/catalog.pl, the (refusal ...)
+        rows; engine/metta/registration.pl, metta_host_refusal/6].
+
+        A ball whose kind carries no row, and a classifier that itself fails,
+        both leave the error exactly as it was: documentation missing is never
+        a reason for a refusal to arrive as something else.
+        """
+        from .atoms import _atom_from_wire  # noqa: PLC0415  -- atoms sits above this module
+
+        try:
+            row = self._janus.query_once(
+                "metta_py_refusal(Error, _Kind, _Class, Ground, Remedy)",
+                {"Error": term},
+            )
+        except self._janus.PrologError:
+            return error
+        if row is None or row.get("truth") is False:
+            return error
+        try:
+            ground = Ground.from_atom(_atom_from_wire(row["Ground"]))
+            remedy = Remedy.from_atom(_atom_from_wire(row["Remedy"]))
+        except (KeyError, TypeError, ValueError):
+            return error
+        return refusing(error, ground=ground, remedy=remedy)
+
     def _raise(self, exc: BaseException) -> NoReturn:
         message = _clean_message(exc)
         term = getattr(exc, "term", None)
@@ -1445,22 +1487,32 @@ class Runtime:
                 if error_type is RestraintError:
                     detail = row.get("Detail")
                     restraint, bound, call = _restraint_fields(detail)
-                    raise RestraintError(
-                        _reserved_message(kind, detail, message),
-                        restraint=restraint,
-                        bound=bound,
-                        call=call,
+                    raise self._refused(
+                        RestraintError(
+                            _reserved_message(kind, detail, message),
+                            restraint=restraint,
+                            bound=bound,
+                            call=call,
+                        ),
+                        term,
                     ) from exc
                 if error_type is MettaSyntaxError:
-                    raise MettaSyntaxError(
-                        _reserved_message(kind, row.get("Detail"), message),
-                        line=self._syntax_line(term),
+                    raise self._refused(
+                        MettaSyntaxError(
+                            _reserved_message(kind, row.get("Detail"), message),
+                            line=self._syntax_line(term),
+                        ),
+                        term,
                     ) from exc
                 if error_type is not None:
-                    raise error_type(_reserved_message(kind, row.get("Detail"), message)) from exc
+                    raise self._refused(
+                        error_type(_reserved_message(kind, row.get("Detail"), message)),
+                        term,
+                    ) from exc
             self._raise_assertion_failure(exc, term, message)
             self._raise_space_capability_error(exc, term, message)
             self._raise_operation_error(exc, term, message)
+            raise self._refused(EngineError(message), term) from exc
         raise EngineError(message) from exc
 
     def _syntax_line(self, term: object) -> int | None:
@@ -1518,13 +1570,16 @@ class Runtime:
         form = row.get("Form")
         if not isinstance(form, str):
             return
-        raise AssertionFailure(
-            message,
-            operation=form,
-            actual=row.get("Actual"),
-            expected=row.get("Expected"),
-            missing=_answer_bag(row.get("Missing")),
-            excess=_answer_bag(row.get("Excess")),
+        raise self._refused(
+            AssertionFailure(
+                message,
+                operation=form,
+                actual=row.get("Actual"),
+                expected=row.get("Expected"),
+                missing=_answer_bag(row.get("Missing")),
+                excess=_answer_bag(row.get("Excess")),
+            ),
+            term,
         ) from exc
 
     def _original_python_error(
@@ -1573,11 +1628,14 @@ class Runtime:
             or not isinstance(capability, str)
         ):
             return
-        raise SpaceCapabilityError(
-            message,
-            space=space,
-            operation=operation,
-            capability=capability,
+        raise self._refused(
+            SpaceCapabilityError(
+                message,
+                space=space,
+                operation=operation,
+                capability=capability,
+            ),
+            term,
         ) from exc
 
     def _raise_operation_error(self, exc: BaseException, term: object, message: str) -> None:
@@ -1600,12 +1658,15 @@ class Runtime:
         operation, kind = row.get("Operation"), row.get("Kind")
         if not isinstance(operation, str) or not isinstance(kind, str):
             return
-        raise MettaOperationError(
-            message,
-            operation=operation,
-            kind=kind,
-            expected=row.get("Expected"),
-            culprit=row.get("Culprit"),
+        raise self._refused(
+            MettaOperationError(
+                message,
+                operation=operation,
+                kind=kind,
+                expected=row.get("Expected"),
+                culprit=row.get("Culprit"),
+            ),
+            term,
         ) from exc
 
     # ------------------------------------------------------------------- helpers

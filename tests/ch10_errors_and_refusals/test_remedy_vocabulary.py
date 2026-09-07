@@ -9,10 +9,14 @@ Guarantees:
     test_a_remedy_round_trips_through_its_atom,
     test_a_ground_round_trips_through_its_atom,
     test_a_malformed_remedy_row_is_refused_by_name; commit=3fc5479961fd591b1884af118528c9a64a1afbb7]
-  - a Remedy naming no act, an unknown kind, an unknown applicability and an
-    unknown ground kind each refuse with the admitted set named [tested:
+  - a machine or maybe Remedy naming no act, an unknown kind, an unknown
+    applicability and an unknown ground kind each refuse with the admitted set
+    named [tested:
     test_a_remedy_that_names_no_act_refuses_naming_the_three_fields,
     test_an_unknown_classifier_names_what_is_admitted; commit=3fc5479961fd591b1884af118528c9a64a1afbb7]
+  - a prose Remedy may be its title alone, and round trips that way, which is
+    advice with no mechanical edit [tested:
+    test_a_prose_remedy_may_be_its_title_alone; commit=WORKTREE]
 
 Open Obligations:
   To Do: None
@@ -39,6 +43,7 @@ def test_a_remedy_round_trips_through_its_atom():
         Remedy("rewrite it", "refactor", "maybe", replace=(S.old(V.x), S.new(V.x))),
         Remedy("drop it", "quickfix", "machine", replace=(S.old(V.x), None)),
         Remedy("run it", "source", "prose", python="m.run(source)"),
+        Remedy("decide it yourself", "quickfix", "prose"),
         Remedy("both", "quickfix", "machine", edit=S.a, python="m.add(S.a)"),
     ):
         assert Remedy.from_atom(remedy.as_atom()) == remedy
@@ -47,7 +52,7 @@ def test_a_remedy_round_trips_through_its_atom():
 def test_a_ground_round_trips_through_its_atom():
     """One row per admitted authority, and the citation stays text."""
     for ground in (
-        Ground("python-reference", "Python Language Reference section 6.3.4, Calls"),
+        Ground("host-reference", "Python Language Reference section 6.3.4, Calls"),
         Ground("metta-law", "EffectSafety: a reified world admits only a covered plan"),
         Ground("arbiter", "upstream PeTTa: tests/conformance/petta/HEADS.json"),
     ):
@@ -56,13 +61,37 @@ def test_a_ground_round_trips_through_its_atom():
 
 
 def test_a_remedy_that_names_no_act_refuses_naming_the_three_fields():
-    """A repair that says nothing to do is a defect, not an empty remedy."""
-    with pytest.raises(ValueError, match="names no act") as refused:
-        Remedy("say nothing", "quickfix", "prose")
-    message = str(refused.value)
-    assert "edit=" in message
-    assert "replace=" in message
-    assert "python=" in message
+    """A repair promised as applicable and naming none is a defect.
+
+    `machine` and `maybe` both promise something an editor can apply, so a
+    remedy at either level with no act is refused with all three fields named
+    and the level it claimed.
+    """
+    for level in ("machine", "maybe"):
+        with pytest.raises(ValueError, match="names no act") as refused:
+            Remedy("say nothing", "quickfix", level)
+        message = str(refused.value)
+        assert level in message
+        assert "edit=" in message
+        assert "replace=" in message
+        assert "python=" in message
+
+
+def test_a_prose_remedy_may_be_its_title_alone():
+    """Advice with no mechanical edit is a repair, and reads back as one.
+
+    Nine of the thirteen refusal kinds in the `&metta` catalog are this shape,
+    because their repair is a decision; PostgreSQL's `errhint()` and clang's
+    `note:` carry the same category.
+    """
+    advice = Remedy("correct the claim, or the equations it reads", "quickfix", "prose")
+    assert advice.edit is None
+    assert advice.replace is None
+    assert advice.python is None
+    assert Remedy.from_atom(advice.as_atom()) == advice
+    assert str(advice.as_atom()) == (
+        '(remedy "correct the claim, or the equations it reads" quickfix prose)'
+    )
 
 
 def test_an_unknown_classifier_names_what_is_admitted():
@@ -90,8 +119,10 @@ def test_a_malformed_remedy_row_is_refused_by_name():
         Remedy.from_atom(S.fix(S.a))
     with pytest.raises(ValueError, match="is not a remedy act"):
         Remedy.from_atom(S.remedy(_TITLE, S.quickfix, S.machine, S.rewrite(S.a)))
-    with pytest.raises(ValueError, match="at least one act"):
+    with pytest.raises(ValueError, match="names no act"):
         Remedy.from_atom(S.remedy(_TITLE, S.quickfix, S.machine))
+    with pytest.raises(ValueError, match="then any acts"):
+        Remedy.from_atom(S.remedy(_TITLE, S.quickfix))
     with pytest.raises(ValueError, match="the title is text"):
         Remedy.from_atom(S.remedy(S.t, S.quickfix, S.machine, S.python(_TITLE)))
     with pytest.raises(ValueError, match="the python text is text"):
@@ -103,7 +134,7 @@ def test_a_malformed_remedy_row_is_refused_by_name():
     with pytest.raises(ValueError, match=not_a_ground_row):
         Ground.from_atom(S.remedy(_TITLE, S.quickfix, S.machine))
     with pytest.raises(ValueError, match="row carries 2 parts"):
-        Ground.from_atom(S.ground(S["python-reference"]))
+        Ground.from_atom(S.ground(S["host-reference"]))
 
 
 def test_both_rows_are_frozen_slotted_and_pattern_matchable():

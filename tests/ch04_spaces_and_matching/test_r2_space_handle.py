@@ -285,7 +285,7 @@ def test_two_handles_refuse_to_be_ordered_and_name_the_algebra(spaces):
         message = str(refused.value)
         assert "spaces.diff(a, b)" in message, message
         assert "spaces.union(a, b)" in message, message
-        assert refused.value.ground.kind == "python-reference"
+        assert refused.value.ground.kind == "host-reference"
 
     # Identity still answers, and so does order against any other atom, which
     # is what keeps a mixed list sortable.
