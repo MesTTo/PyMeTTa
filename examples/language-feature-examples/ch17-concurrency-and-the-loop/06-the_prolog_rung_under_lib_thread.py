@@ -123,7 +123,7 @@ def twin(m):
 #: no earlier pin to move
 #: [measured 2026-09-07: 257409..257768 inferences, about 0.983x the example's 262,000; command=python
 #: extensions/python/tools/twin_coverage.py --measure --rounds 3;
-#: fixture=docs/every-atom-has-an-example at its example commits; commit=WORKTREE].
+#: fixture=docs/every-atom-has-an-example at its example commits; commit=98397cdd04679cbf40b2d515076dadc09c1b0a32].
 BUDGET = 257600
 #: The count VARIES, because this twin starts threads, pools and timers and
 #: the engine charges what the scheduler actually ran. Three single-round
@@ -131,5 +131,5 @@ BUDGET = 257600
 #: 359, so the band is the midpoint plus a round 1,500 either side rather
 #: than the tree's deterministic 4
 #: [measured 2026-09-07: python extensions/python/tools/twin_coverage.py
-#: --measure --rounds 1, three times; commit=WORKTREE].
+#: --measure --rounds 1, three times; commit=98397cdd04679cbf40b2d515076dadc09c1b0a32].
 ALLOWANCE = 1500

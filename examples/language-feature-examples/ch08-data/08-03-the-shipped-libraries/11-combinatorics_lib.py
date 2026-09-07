@@ -65,5 +65,5 @@ def twin(m):
 #: no earlier pin to move
 #: [measured 2026-09-07: 119167 inferences, 1.0981x the example's 108518; command=python
 #: extensions/python/tools/twin_coverage.py --measure --rounds 3;
-#: fixture=docs/every-atom-has-an-example at its example commits; commit=WORKTREE].
+#: fixture=docs/every-atom-has-an-example at its example commits; commit=98397cdd04679cbf40b2d515076dadc09c1b0a32].
 BUDGET = 119167

@@ -51,5 +51,5 @@ def twin(m):
 #: [measured 2026-09-07: 3991 inferences, 0.5639x the example's 7077; command=python
 #: extensions/python/tools/twin_coverage.py --measure --rounds 3
 #: examples/ch05-equations-and-evaluation/05-03-the-number-library/03-exp_and_seeded_randomness.metta;
-#: fixture=docs/every-atom-has-an-example at its example commits; commit=WORKTREE].
+#: fixture=docs/every-atom-has-an-example at its example commits; commit=98397cdd04679cbf40b2d515076dadc09c1b0a32].
 BUDGET = 3991
