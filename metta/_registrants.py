@@ -29,9 +29,9 @@ Guarantees:
     existing suites being the differential [tested:
     extensions/python/tests/ch13_a_queryable_dataset/test_arrow_tables.py,
     extensions/python/tests/ch04_spaces_and_matching/test_arrow_doors.py,
-    extensions/python/tests/ch08_data/test_arrays.py; commit=WORKTREE]
+    extensions/python/tests/ch08_data/test_arrays.py; commit=50fc21b0179082d6aca1ac5fe2223d47baa2d828]
   - every name here sits inside one registration [tested:
-    tests/checks/check_hardcoded_integrations_selftest.py; commit=WORKTREE]
+    tests/checks/check_hardcoded_integrations_selftest.py; commit=50fc21b0179082d6aca1ac5fe2223d47baa2d828]
 Open Obligations:
   To Do: None
   Hacks: None
