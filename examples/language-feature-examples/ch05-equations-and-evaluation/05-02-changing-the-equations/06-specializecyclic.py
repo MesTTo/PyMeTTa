@@ -143,7 +143,22 @@ def twin(m):
 #: compiled default space operand as &self rather than a (context-space) call
 #: [measured 2026-09-07: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=9010a79b01c9b2a66b96a3952fa378fb3e939dc3].
-BUDGET = 26882
+#: RE-PINNED 2026-09-08, 26882 to 26673 (-209), metta_substitute_self/3 probes
+#: the term for the text &self before walking it, one C write and one C
+#: substring probe, where the twins-lane merge's one-equation door (08f6f4df)
+#: walked every natively added equation in a named space unconditionally, so
+#: every twin that adds or defines an equation in a named space drops by about
+#: that equation's size in inferences; the same probe now guards the reader's
+#: per-form door (record_translated_from/4), the deferred door's fallback
+#: (stored_equation_source/4), a batch's arriving equations
+#: (mark_or_translate_equation/5) and the removal probe (remove_equation/6),
+#: where the walk is new and skipped for a term that never says &self, and a
+#: twin that only removes or re-adds such equations pays the two-inference
+#: probe per door crossing instead. Every twin here re-reads its budget on this
+#: tree, minimum of three fresh processes [measured 2026-09-08: min-of-3 serial
+#: fresh processes; command=python extensions/python/tools/twin_coverage.py
+#: --repin; commit=WORKTREE].
+BUDGET = 26673
 
 #: OVERRUN 2026-09-07, 2400: the mutually recursive pair takes the `@m.rules`
 #: door, which stages two equations where the example writes two. Measured

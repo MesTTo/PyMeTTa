@@ -37,7 +37,7 @@ def available(m):
     """
     del m
     try:
-        import torch  # noqa: PLC0415  -- the capability this twin guards on
+        import torch
     except ImportError:
         return False
     torch.zeros(1)
@@ -100,4 +100,19 @@ def twin(m):
 #: [measured 2026-09-07: 38332 inferences, 0.8389x the example's 45695; command=python
 #: extensions/python/tools/twin_coverage.py --measure --rounds 3;
 #: fixture=docs/every-atom-has-an-example at its example commits; commit=98397cdd04679cbf40b2d515076dadc09c1b0a32].
-BUDGET = 38332
+#: RE-PINNED 2026-09-08, 38332 to 38260 (-72), metta_substitute_self/3 probes
+#: the term for the text &self before walking it, one C write and one C
+#: substring probe, where the twins-lane merge's one-equation door (08f6f4df)
+#: walked every natively added equation in a named space unconditionally, so
+#: every twin that adds or defines an equation in a named space drops by about
+#: that equation's size in inferences; the same probe now guards the reader's
+#: per-form door (record_translated_from/4), the deferred door's fallback
+#: (stored_equation_source/4), a batch's arriving equations
+#: (mark_or_translate_equation/5) and the removal probe (remove_equation/6),
+#: where the walk is new and skipped for a term that never says &self, and a
+#: twin that only removes or re-adds such equations pays the two-inference
+#: probe per door crossing instead. Every twin here re-reads its budget on this
+#: tree, minimum of three fresh processes [measured 2026-09-08: min-of-3 serial
+#: fresh processes; command=python extensions/python/tools/twin_coverage.py
+#: --repin; commit=WORKTREE].
+BUDGET = 38260

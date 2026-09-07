@@ -2139,10 +2139,17 @@ def _empirical_budget(value: dict, twin: Path) -> EmpiricalBudget:
         isinstance(bound, int) and not isinstance(bound, bool)
         for bound in (minimum, maximum)
     )
-    if not bounds_are_ints or minimum <= 0 or maximum <= minimum:
+    # Equal bounds are an envelope, not a defect: every observation under the
+    # protocol agreed, and the claim recorded is that spread, zero, keyed to
+    # its protocol and re-observed rather than re-pinned like a point budget
+    # with an allowance. Google Benchmark's max statistic equals its min when
+    # the repetitions agree, for the same reason. thread_linda read 427720 in
+    # all 25 rounds of 2026-09-08 [tested:
+    # test_an_empirical_envelope_may_have_zero_spread; commit=WORKTREE].
+    if not bounds_are_ints or minimum <= 0 or maximum < minimum:
         msg = (
             f"{twin}: BUDGET empirical envelope needs positive integer "
-            "minimum < maximum"
+            "minimum <= maximum"
         )
         raise ValueError(msg)
     if (

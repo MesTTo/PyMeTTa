@@ -197,7 +197,22 @@ def twin(m):
 #: compiled default space operand as &self rather than a (context-space) call
 #: [measured 2026-09-07: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=9010a79b01c9b2a66b96a3952fa378fb3e939dc3].
-BUDGET = 236074
+#: RE-PINNED 2026-09-08, 236074 to 235803 (-271), metta_substitute_self/3
+#: probes the term for the text &self before walking it, one C write and one C
+#: substring probe, where the twins-lane merge's one-equation door (08f6f4df)
+#: walked every natively added equation in a named space unconditionally, so
+#: every twin that adds or defines an equation in a named space drops by about
+#: that equation's size in inferences; the same probe now guards the reader's
+#: per-form door (record_translated_from/4), the deferred door's fallback
+#: (stored_equation_source/4), a batch's arriving equations
+#: (mark_or_translate_equation/5) and the removal probe (remove_equation/6),
+#: where the walk is new and skipped for a term that never says &self, and a
+#: twin that only removes or re-adds such equations pays the two-inference
+#: probe per door crossing instead. Every twin here re-reads its budget on this
+#: tree, minimum of three fresh processes [measured 2026-09-08: min-of-3 serial
+#: fresh processes; command=python extensions/python/tools/twin_coverage.py
+#: --repin; commit=WORKTREE].
+BUDGET = 235803
 
 #: OVERRUN 2026-09-07, 1300: it asks the eleven ft-* functions one at a time
 #: through the evaluation door. Measured 236074 against a ceiling of 234799; a
@@ -205,4 +220,11 @@ BUDGET = 236074
 #: the distance is this twin's own program [measured 2026-09-07: one fresh
 #: process per side; command=python
 #: extensions/python/benchmarks/probes/twin_floor.py; commit=9010a79b01c9b2a66b96a3952fa378fb3e939dc3].
-OVERRUN = 1300
+#: OVERRUN 2026-09-08, 1301: both sides dropped by the probed &self substitution,
+#: the example's library equations through the reader door and this twin's
+#: through the native door, the twin by one inference less. Measured 235803
+#: against a ceiling of 234502; a minimal twin costs 216991, inside it, so the
+#: distance is still this twin's own program, one wider [measured 2026-09-08:
+#: one fresh process per side; command=python
+#: extensions/python/benchmarks/probes/twin_floor.py; commit=WORKTREE].
+OVERRUN = 1301

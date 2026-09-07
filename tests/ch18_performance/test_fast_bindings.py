@@ -1,10 +1,15 @@
-"""Purpose: preserve stored equations and resolved bindings through fast images.
+"""Purpose: preserve stored equations and their compiled bindings through fast images.
 
 Guarantees:
-  - reader, native and mixed equation occurrences retain their answer bags,
-    source atoms and later recompilation behavior after relocation
+  - an equation reads the space it is stored in through either door, reader
+    or native, and reader, native and mixed occurrences retain their answer
+    bags, source atoms and later recompilation behavior after relocation
     [tested: test_fast_images_preserve_each_equations_binding;
-    commit=3c64e2e24787362a5a5081513bc24b880711a1d7]
+    commit=WORKTREE]
+  - a removal retires the clause of the occurrence it takes, whichever door
+    wrote it, and a fast image carries that ownership
+    [tested: test_removal_retires_the_same_stored_equation_after_recompilation;
+    commit=WORKTREE]
 """
 
 import hashlib
@@ -27,14 +32,14 @@ from metta.errors import EngineError
     ],
 )
 def test_fast_images_preserve_each_equations_binding(tmp_path, ingresses):
-    """Equal stored atoms can carry different resolved space references."""
+    """Equal stored atoms read their own space through either door, once each."""
     first = tmp_path / "bindings.fast"
     second = tmp_path / "recompiled.fast"
     definition = S["="](
         S.cache_binding(V.x, V.y),
         S.match(S["&self"], S.cache_edge(V.x, V.y), S.cache_box(V.y)),
     )
-    readers = ingresses.count("reader")
+    occurrences = len(ingresses)
     query = S.cache_binding(S.a, S.b)
     with MeTTa() as m, m.space() as source, m.space() as restored, m.space() as again:
         source.add(S.cache_edge(S.a, S.b), S.cache_edge(S.a, S.b))
@@ -44,19 +49,19 @@ def test_fast_images_preserve_each_equations_binding(tmp_path, ingresses):
             else:
                 source.add(definition)
 
-        expected = ["(cache-box b)"] * (2 * readers)
+        expected = ["(cache-box b)"] * (2 * occurrences)
         assert list(map(str, source.eval(query))) == expected
         original_atoms = source.source()
-        assert source.save(first, format="fast") == 2 + len(ingresses)
+        assert source.save(first, format="fast") == 2 + occurrences
         for _ in range(2):
             restored.load(first)
             assert restored.source() == original_atoms
             assert list(map(str, restored.eval(query))) == expected
 
         restored.add(S.cache_edge(S.a, S.b))
-        assert list(map(str, restored.eval(query))) == ["(cache-box b)"] * (3 * readers)
+        assert list(map(str, restored.eval(query))) == ["(cache-box b)"] * (3 * occurrences)
         restored.run("(= (cache-box $value) (cache-rebound $value))")
-        recompiled = ["(cache-rebound b)"] * (3 * readers)
+        recompiled = ["(cache-rebound b)"] * (3 * occurrences)
         assert list(map(str, restored.eval(query))) == recompiled
         restored.save(second, format="fast")
         again.load(second)
@@ -87,9 +92,10 @@ def test_fast_images_keep_pending_equations_beside_resolved_equations(
 
 
 def test_forcing_a_deferred_equation_keeps_a_resolved_sibling_once():
-    """The engine's literal self makes an accidental raw recompile visible."""
+    """A sibling compiled later reads its own space, never the engine root."""
     with MeTTa() as m, m.space() as source:
-        # The process root cannot be reached through this context's named self.
+        # An edge only the process root holds: a clause compiled from the raw
+        # stored atom would answer it, and nothing here may.
         m.runtime.must("'add-atom'('&self', ['binding-edge', a, global], _)")
         try:
             source.run(
@@ -108,13 +114,17 @@ def test_forcing_a_deferred_equation_keeps_a_resolved_sibling_once():
 def test_removal_retires_the_same_stored_equation_after_recompilation(
     tmp_path, ingresses
 ):
-    """A duplicate source atom can name either a local or a literal-self call."""
+    """A duplicate source atom retires with its own clause, whichever door wrote it."""
     path = tmp_path / "removal.fast"
+    # Its own file: overwriting `path` would make `restored`'s earlier load of
+    # it stale, and the loader refreshes every space holding a stale copy.
+    second = tmp_path / "removal-after.fast"
     equation = S["="](
         S.binding_remove(V.x),
         S.match(S["&self"], S.removal_edge(V.x, V.y), S.removal_box(V.y)),
     )
     with MeTTa() as m, m.space() as source, m.space() as restored:
+        # An edge only the process root holds, which no clause here may read.
         m.runtime.must("'add-atom'('&self', ['removal-edge', a, global], _)")
         try:
             source.add(S.removal_edge(S.a, S.local))
@@ -127,18 +137,27 @@ def test_removal_retires_the_same_stored_equation_after_recompilation(
             restored.load(path)
             restored.run("(= (removal-box $x) (changed $x))")
             assert Counter(map(str, restored.eval(S.binding_remove(S.a)))) == {
-                "(changed local)": 1, "(changed global)": 1
+                "(changed local)": 2
             }
+            # One removal takes one stored occurrence and exactly one clause,
+            # after the recompilation above rebuilt the function.
+            copies = "(= (binding-remove "
+            assert restored.source().count(copies) == 2
             assert restored.remove(equation) is True
-            expected = "global" if ingresses[0] == "reader" else "local"
+            assert restored.source().count(copies) == 1
             assert list(map(str, restored.eval(S.binding_remove(S.a)))) == [
-                f"(changed {expected})"
+                "(changed local)"
             ]
-            restored.save(path, format="fast")
+            restored.save(second, format="fast")
             source.clear()
-            source.load(path)
+            source.load(second)
+            # The same atoms; enumeration order is predicate-table order and
+            # not a promise once a removal and a recompile have run.
+            assert sorted(source.source().splitlines()) == sorted(
+                restored.source().splitlines()
+            )
             assert list(map(str, source.eval(S.binding_remove(S.a)))) == [
-                f"(changed {expected})"
+                "(changed local)"
             ]
         finally:
             m.runtime.must("'remove-atom'('&self', ['removal-edge', a, global], _)")
@@ -188,41 +207,37 @@ def test_source_replacement_retains_recompiled_binding_ownership(tmp_path):
 
 
 def test_binding_records_leave_with_failed_loads_clear_and_release(tmp_path):
-    """Reference ownership is private state, so inspect its resource rows."""
+    """Reference ownership is private state, so inspect its resource rows.
+
+    A binding row records what arrival-time rewriting did beyond resolving
+    `&self`, so it takes a bound token to earn one; an equation that only
+    says `&self` compiles against its space through the law and owns none.
+    """
     program = tmp_path / "failed.metta"
     program.write_text(
-        "(= (binding-failed $x) (match &self (failed-edge $x $y) $y)) "
+        "(= (binding-failed $x) (match &binding-token (failed-edge $x $y) $y)) "
         "!(+ $left $right)"
+    )
+    binding_rows = (
+        "aggregate_all(count, filereader:translated_equation_binding(Space, _, _), Count)"
     )
     with MeTTa() as m:
         with m.space() as source:
             name = str(source.name)
+            source.run("!(bind! &binding-token (new-space))")
             with pytest.raises(EngineError):
                 source.load(program)
             assert source.source() == ""
-            assert m.runtime.once(
-                "aggregate_all(count, "
-                "filereader:translated_equation_binding(Space, _, _), Count)",
-                Space=name,
-            )["Count"] == 0
-            source.run("(= (binding-cleared &self) held)")
-            assert m.runtime.once(
-                "aggregate_all(count, "
-                "filereader:translated_equation_binding(Space, _, _), Count)",
-                Space=name,
-            )["Count"] == 1
+            assert m.runtime.once(binding_rows, Space=name)["Count"] == 0
+            source.run("(= (binding-self &self) held)")
+            assert m.runtime.once(binding_rows, Space=name)["Count"] == 0
+            source.run("(= (binding-cleared &binding-token) held)")
+            assert m.runtime.once(binding_rows, Space=name)["Count"] == 1
             source.clear()
-            assert m.runtime.once(
-                "aggregate_all(count, "
-                "filereader:translated_equation_binding(Space, _, _), Count)",
-                Space=name,
-            )["Count"] == 0
-            source.run("(= (binding-released &self) held)")
-        assert m.runtime.once(
-            "aggregate_all(count, "
-            "filereader:translated_equation_binding(Space, _, _), Count)",
-            Space=name,
-        )["Count"] == 0
+            assert m.runtime.once(binding_rows, Space=name)["Count"] == 0
+            source.run("(= (binding-released &binding-token) held)")
+            assert m.runtime.once(binding_rows, Space=name)["Count"] == 1
+        assert m.runtime.once(binding_rows, Space=name)["Count"] == 0
 
 
 @pytest.mark.parametrize("change", ["remove", "clear", "recompile"])

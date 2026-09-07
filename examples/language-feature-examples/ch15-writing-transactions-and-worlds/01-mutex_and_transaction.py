@@ -175,9 +175,18 @@ def twin(m):
 #: re-observation, not a re-pin [measured 2026-09-08: python
 #: extensions/python/tools/twin_coverage.py --observe --rounds 10 and --rounds 15,
 #: ai-tmp/integrator-849a9e/mergeTW-observe-10.log and -15.log; commit=08f6f4df19a283bb84ba5f679c83944b42685b2e].
+#: RE-ENVELOPED 2026-09-08 under 'full-lane/277/workers=32', because metta_substitute_self/3 now
+#: probes a term for the text &self before walking it, where the twins-lane merge's
+#: one-equation door walked every natively added equation, so this counter's whole
+#: envelope moved down by the equations it adds: 25 observations pooled from two
+#: `--observe` runs of 10 and 15 rounds read 15888..15897 where the 25 under
+#: 'full-lane/277/workers=32' read 16152..16165. A run outside this envelope is a re-observation,
+#: not a re-pin [measured 2026-09-08: python
+#: extensions/python/tools/twin_coverage.py --observe --rounds 10 and --rounds 15,
+#: ai-tmp/integrator-849a9e/law3-observe-10.log and -15.log; commit=WORKTREE].
 BUDGET = {
-    "minimum": 16152,
-    "maximum": 16165,
+    "minimum": 15888,
+    "maximum": 15897,
     "observations": 25,
     "protocol": "full-lane/277/workers=32",
 }

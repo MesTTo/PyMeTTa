@@ -1420,6 +1420,36 @@ def test_an_empirical_envelope_requires_complete_measurement_metadata(
         coverage.budget_of(twin)
 
 
+def test_an_empirical_envelope_may_have_zero_spread(tmp_path):
+    """Every observation agreeing is a spread of zero, still an envelope.
+
+    thread_linda read one count in all 25 rounds of a re-observation, and the
+    claim is that agreement under its protocol: a run reading anything else is
+    a re-observation, never a point re-pin with an allowance.
+    """
+    declared = {
+        "minimum": 1_000,
+        "maximum": 1_000,
+        "observations": 25,
+        "protocol": "full-lane/204/workers=32",
+    }
+    twin = _empirical_twin(tmp_path, declared)
+    budget = coverage.budget_of(twin)
+    assert isinstance(budget, coverage.EmpiricalBudget)
+    assert budget.spread == 0
+
+    example = _run([], cost=2_000)
+    assert coverage._price(
+        "x.metta", twin, example, _run([], cost=1_000),
+        protocol="full-lane/204/workers=32",
+    ) == []
+    (finding,) = coverage._price(
+        "x.metta", twin, example, _run([], cost=1_001),
+        protocol="full-lane/204/workers=32",
+    )
+    assert "empirical budget 1000..1000" in finding
+
+
 def test_a_malformed_budget_is_reported_and_not_a_traceback(tmp_path):
     """A REPORT lane says what is wrong with a twin, here too.
 

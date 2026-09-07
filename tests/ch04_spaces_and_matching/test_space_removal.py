@@ -189,6 +189,22 @@ def test_removing_a_duplicated_equation_undefines_the_function(m):  # noqa: D103
     assert none == [Expression(S["twice-defined"]())]
 
 
+# THE CLAUSE FOLLOWS THE ATOM. An equation whose body says `&self` compiles
+# against the space it is stored in, whichever door stored it, so the probe
+# that finds its clause on removal has to say the same. Probing with the
+# written atom found nothing: `remove` took the stored atom and left the
+# clause answering, and the function outlived its only equation
+# [measured 2026-09-08 on 039974720f: `(own a)` still answered `(found a)`
+# after the removal].
+def test_removing_an_equation_that_names_its_own_space_retires_its_clause(m):
+    """An equation that names its own space leaves with its clause."""
+    equation = S["="](S.own(V.x), S.match(S["&self"], S.own_edge(V.x), S.found(V.x)))
+    m.add(S.own_edge(S.a), equation)
+    assert m.eval(S.own(S.a)) == [S.found(S.a)]
+    assert m.remove(equation) is True
+    assert m.eval(S.own(S.a)) == [S.own(S.a)]
+
+
 # A pattern with a variable drains every unifying occurrence, and the
 # pattern's variables come back as they went in, which is what lets the same
 # call be written twice.
