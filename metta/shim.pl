@@ -1580,6 +1580,15 @@ metta_py_heartbeat_calibrate(Iterations, Attempts, Charge) :-
                              taken out of the counters')))
     ).
 
+%The rendering, so a boot that cannot price the poll says what happened
+%rather than printing `Unknown error term:`.
+:- multifile prolog:error_message//1.
+prolog:error_message(metta_py_heartbeat_uncalibrated(Spent, Ticks)) -->
+    [ 'the engine\'s interrupt poll spent ~w inferences over ~w ticks of a \c
+       loop of known size, which is not one uniform cost a measurement can \c
+       be corrected by. The counters would report the seat\'s own polling as \c
+       the caller\'s work, so the engine refuses to arm it'-[Spent, Ticks] ].
+
 metta_py_heartbeat_bracket(Iterations, Spent, Ticks) :-
     statistics(inferences, Raw0),
     metta_py_heartbeat_term(Before, _, _, _),
