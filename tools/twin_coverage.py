@@ -2145,7 +2145,7 @@ def _empirical_budget(value: dict, twin: Path) -> EmpiricalBudget:
     # with an allowance. Google Benchmark's max statistic equals its min when
     # the repetitions agree, for the same reason. thread_linda read 427720 in
     # all 25 rounds of 2026-09-08 [tested:
-    # test_an_empirical_envelope_may_have_zero_spread; commit=WORKTREE].
+    # test_an_empirical_envelope_may_have_zero_spread; commit=856434d7c1d381b3f3d7cbbd008f46c0d41b61aa].
     if not bounds_are_ints or minimum <= 0 or maximum < minimum:
         msg = (
             f"{twin}: BUDGET empirical envelope needs positive integer "

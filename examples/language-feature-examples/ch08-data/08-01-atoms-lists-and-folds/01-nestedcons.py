@@ -170,7 +170,7 @@ def twin(m):
 #: probe per door crossing instead. Every twin here re-reads its budget on this
 #: tree, minimum of three fresh processes [measured 2026-09-08: min-of-3 serial
 #: fresh processes; command=python extensions/python/tools/twin_coverage.py
-#: --repin; commit=WORKTREE].
+#: --repin; commit=856434d7c1d381b3f3d7cbbd008f46c0d41b61aa].
 BUDGET = 3452
 
 #: DIVERGED 2026-09-07, the example holds 1 atom the twin does not (1 =) and

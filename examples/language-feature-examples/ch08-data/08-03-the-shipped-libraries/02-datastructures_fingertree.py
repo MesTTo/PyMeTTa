@@ -211,7 +211,7 @@ def twin(m):
 #: probe per door crossing instead. Every twin here re-reads its budget on this
 #: tree, minimum of three fresh processes [measured 2026-09-08: min-of-3 serial
 #: fresh processes; command=python extensions/python/tools/twin_coverage.py
-#: --repin; commit=WORKTREE].
+#: --repin; commit=856434d7c1d381b3f3d7cbbd008f46c0d41b61aa].
 BUDGET = 235803
 
 #: OVERRUN 2026-09-07, 1300: it asks the eleven ft-* functions one at a time
@@ -226,5 +226,5 @@ BUDGET = 235803
 #: against a ceiling of 234502; a minimal twin costs 216991, inside it, so the
 #: distance is still this twin's own program, one wider [measured 2026-09-08:
 #: one fresh process per side; command=python
-#: extensions/python/benchmarks/probes/twin_floor.py; commit=WORKTREE].
+#: extensions/python/benchmarks/probes/twin_floor.py; commit=856434d7c1d381b3f3d7cbbd008f46c0d41b61aa].
 OVERRUN = 1301

@@ -5,11 +5,11 @@ Guarantees:
     or native, and reader, native and mixed occurrences retain their answer
     bags, source atoms and later recompilation behavior after relocation
     [tested: test_fast_images_preserve_each_equations_binding;
-    commit=WORKTREE]
+    commit=856434d7c1d381b3f3d7cbbd008f46c0d41b61aa]
   - a removal retires the clause of the occurrence it takes, whichever door
     wrote it, and a fast image carries that ownership
     [tested: test_removal_retires_the_same_stored_equation_after_recompilation;
-    commit=WORKTREE]
+    commit=856434d7c1d381b3f3d7cbbd008f46c0d41b61aa]
 """
 
 import hashlib
