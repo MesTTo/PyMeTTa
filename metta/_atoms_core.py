@@ -175,7 +175,7 @@ from .errors import (
 #: A handle applied is Python's call grammar refusing an object that defines
 #: no application, which is the same section the keyword refusals stand on.
 _CALL_GROUND = Ground(
-    "python-reference", "Python Language Reference section 6.3.4, Calls"
+    "host-reference", "Python Language Reference section 6.3.4, Calls"
 )
 
 

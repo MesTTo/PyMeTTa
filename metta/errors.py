@@ -49,12 +49,13 @@ Guarantees:
     test_a_refusal_renders_the_file_line_function_and_exact_caret;
     commit=51b792423cec5787614d1488c0793b8a50eaa6fc]
   - Remedy and Ground are frozen, slotted rows that project to
-    (remedy ...) and (ground ...) atoms and read back, and a Remedy naming
-    none of edit, replace or python is a construction error naming all three
+    (remedy ...) and (ground ...) atoms and read back, and a machine or maybe
+    Remedy naming none of edit, replace or python is a construction error
+    naming all three, while a prose Remedy may be its title alone
     [tested: test_a_remedy_round_trips_through_its_atom,
     test_a_ground_round_trips_through_its_atom,
-    test_a_remedy_that_names_no_act_refuses_naming_the_three_fields;
-    commit=3fc5479961fd591b1884af118528c9a64a1afbb7]
+    test_a_remedy_that_names_no_act_refuses_naming_the_three_fields,
+    test_a_prose_remedy_may_be_its_title_alone; commit=f33b7ab0200e6dc74c88fb4c7f827bf545a447ed]
   - LockDrift carries every entry that differs as Drift rows AND names them in
     its message with both repairs, so a caller reacts to the rows where it
     used to parse the sentence [tested:
@@ -117,12 +118,15 @@ __all__ = [
 ]
 
 
-#: The three authorities a deliberate refusal can stand on. "python-reference"
-#: is a section of the Python Language Reference, "metta-law" a named law this
-#: engine states, and "arbiter" a measured answer of upstream PeTTa at the
-#: parity pin, which is what settles a question neither language's own
-#: documentation answers.
-GROUND_KINDS = ("python-reference", "metta-law", "arbiter")
+#: The three authorities a deliberate refusal can stand on. "host-reference"
+#: is the host language's own specification, which on this seat is a section of
+#: the Python Language Reference; "metta-law" a named law this engine states;
+#: and "arbiter" a measured answer of upstream PeTTa at the parity pin, which
+#: is what settles a question neither language's own documentation answers.
+#: The three are the catalog's own `ground-kind` vocabulary, held equal to this
+#: tuple by extensions/python/tests/repository/test_refusal_rows.py; the engine
+#: spells the first without naming a host because it names none.
+GROUND_KINDS = ("host-reference", "metta-law", "arbiter")
 
 #: LSP CodeActionKind, restricted to the three this library issues: "quickfix"
 #: repairs one diagnostic, "refactor" changes shape without changing meaning,
@@ -204,14 +208,21 @@ class Remedy:
     menu, `kind` is LSP's CodeActionKind and `applicability` is rustc's
     Applicability: only "machine" is applied without being asked.
 
-    The repair itself is one or more of three acts, and a Remedy naming none
-    of them is a construction error:
+    The repair itself is one or more of three acts:
 
     - `edit` is the atom the remedy names: what to write, or to add;
     - `replace` is a stored atom and what it becomes, with `None` in the
       second position for a removal, which is LSP's own `newText: ""`;
     - `python` is the host-side text to write instead, which carries
       `<placeholders>` exactly when `applicability` is "prose".
+
+    A "prose" remedy may name no act at all, and then the title IS the whole
+    repair: advice with no mechanical edit, which is what PostgreSQL's
+    `errhint()` and clang's `note:` carry [source: PostgreSQL documentation,
+    55.3.2 Error Message Style Guide]. Nine of the thirteen refusal kinds in
+    the `&metta` catalog are that shape, because their repair is a decision.
+    A "machine" or "maybe" remedy naming no act stays a construction error:
+    those two levels promise something an editor can apply.
 
     Its longhand is the sentence in the message, which never changes for this
     object's presence.
@@ -241,12 +252,17 @@ class Remedy:
                 f"admitted levels are {', '.join(APPLICABILITIES)}"
             )
             raise ValueError(msg)
-        if self.edit is None and self.replace is None and self.python is None:
+        if (
+            self.edit is None
+            and self.replace is None
+            and self.python is None
+            and self.applicability != "prose"
+        ):
             msg = (
-                f"the remedy {self.title!r} names no act: give it edit= (the "
-                f"atom to write), replace= (a stored atom and what it becomes, "
-                f"or None to remove it), or python= (the host text to write "
-                f"instead)"
+                f"the remedy {self.title!r} is {self.applicability} and names "
+                f"no act: give it edit= (the atom to write), replace= (a stored "
+                f"atom and what it becomes, or None to remove it), python= (the "
+                f"host text to write instead), or classify it as prose"
             )
             raise ValueError(msg)
 
@@ -293,10 +309,10 @@ class Remedy:
     def from_atom(cls, atom: Atom) -> Remedy:
         """Read back what `as_atom` wrote, refusing any other shape."""
         parts = _row_parts(atom, "remedy", None)
-        if len(parts) < 5:
+        if len(parts) < 4:
             msg = (
-                f"a (remedy ...) row carries a title, a kind, an applicability "
-                f"and at least one act; {atom} carries {len(parts) - 1}"
+                f"a (remedy ...) row carries a title, a kind and an "
+                f"applicability, then any acts; {atom} carries {len(parts) - 1}"
             )
             raise ValueError(msg)
         edit: Atom | None = None
@@ -397,11 +413,11 @@ def refusing[ExcT: BaseException](
 
 
 _PYTHON_COMPARISON_GROUND = Ground(
-    "python-reference",
+    "host-reference",
     "Python Language Reference section 6.10, Comparisons",
 )
 _PYTHON_RICH_COMPARISON_GROUND = Ground(
-    "python-reference",
+    "host-reference",
     "Python Language Reference section 3.3.1, Basic customization",
 )
 _EFFECT_SAFETY_GROUND = Ground(
@@ -438,7 +454,7 @@ def _compile_ground(construct: str | None) -> Ground:
         ),
         "Python Language Reference section 6, Expressions",
     )
-    return Ground("python-reference", citation)
+    return Ground("host-reference", citation)
 
 
 def _grounded_type_error(

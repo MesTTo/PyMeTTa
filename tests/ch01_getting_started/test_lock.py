@@ -205,7 +205,7 @@ def test_the_engine_digest_follows_the_engines_sources(tmp_path):
     for root, body in ((first, "a(1).\n"), (second, "a(2).\n")):
         (root / "engine").mkdir(parents=True)
         (root / "engine" / "unit.pl").write_text(body, encoding="utf-8")
-        (root / "engine" / "prelude.metta").write_text("(= (x) 1)\n", encoding="utf-8")
+        (root / "engine" / "prelude.pl").write_text("x(1).\n", encoding="utf-8")
 
     assert engine_digest(str(first)).startswith("sha256:")
     assert engine_digest(str(first)) != engine_digest(str(second))

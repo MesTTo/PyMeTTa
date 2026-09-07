@@ -310,7 +310,8 @@ def engine_digest(root: str) -> str:
 
         metta._lock.engine_digest(metta.engine().runtime.metta_path)
 
-    Every `engine/**/*.pl` and `engine/prelude.metta`, each hashed on its own
+    Every `engine/**/*.pl`, the vocabulary tier engine/prelude.pl among them
+    since the prelude is Prolog, each hashed on its own
     and listed under its path relative to the tree, then the listing hashed as
     one document: two checkouts agree exactly when every engine source agrees,
     and a file added or removed changes the answer as surely as an edit does.
@@ -326,9 +327,6 @@ def engine_digest(root: str) -> str:
     """
     tree = Path(root)
     sources = sorted(tree.joinpath("engine").rglob("*.pl"))
-    prelude = tree / "engine" / "prelude.metta"
-    if prelude.is_file():
-        sources.append(prelude)
     listing = "\n".join(
         f"{path.relative_to(tree).as_posix()}\t"
         f"{hashlib.sha256(path.read_bytes()).hexdigest()}"

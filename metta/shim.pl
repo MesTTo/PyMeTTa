@@ -233,6 +233,11 @@
 %     seat and the Node seat classify the same kinds
 %     [tested: extensions/python/tests/repository/test_error_kinds.py;
 %     commit=52e95b50cc5acdc0e41f97b444ab244ad1301433]
+%   - metta_py_refusal/5 puts that kind's catalog row on the wire, the ground
+%     and the remedy encoded the way every other atom crosses, so the Python
+%     side reads them back with Ground.from_atom/1 and Remedy.from_atom/1
+%     [tested: extensions/python/tests/repository/test_refusal_rows.py;
+%     commit=f33b7ab0200e6dc74c88fb4c7f827bf545a447ed]
 %   - metta_py_infer_types/2 walks a space once and answers one
 %     [Head, Arity, KindWires, ResultWire] row per (head, arity) the space
 %     mentions and does not declare, naming the narrowest kind covering the
@@ -1114,6 +1119,22 @@ metta_py_assertion_call(Tagged, Form, Actual, Expected) :-
     Form = [_Head, Actual, Expected|_],
     is_list(Actual),
     is_list(Expected).
+
+%The catalog's DECLARATION for whichever kind a raised ball is: the class name
+%the taxonomy gives that kind, the authority the refusal stands on and the
+%repair, with the remedy template's <field> holes already filled from this
+%ball. metta_host_refusal/6 is the one renderer; this side only puts the two
+%rows on the wire, encoded the way every other atom crosses, so the Python
+%side reads them back with Ground.from_atom/1 and Remedy.from_atom/1 rather
+%than parsing a rendered sentence.
+%
+%It FAILS for a ball whose kind carries no catalog row, which the row lane
+%forbids and a program that removed the row can still produce; the Python side
+%then raises the class it already chose, with no ground and no remedy.
+metta_py_refusal(Error, Kind, Class, Ground, Remedy) :-
+    metta_host_refusal(Error, Kind, _Fields, Class, GroundRow, RemedyRow),
+    metta_py_encode(GroundRow, Ground),
+    metta_py_encode(RemedyRow, Remedy).
 
 %The Python side's contributions to the engine's control-signal seam. There
 %was a metta_py_control_exception/1 here holding a SECOND copy of the list,
