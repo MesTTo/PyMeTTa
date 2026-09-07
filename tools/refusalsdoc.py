@@ -163,8 +163,8 @@ def entry(row: dict[str, str], seat: dict) -> list[str]:
         "",
         f"**Remedy.** {spelled(row['title'])}",
         "",
-        f"A {row['remedy']}, {row['applicability']}"
-        + (f", writing `{row['acts']}`." if row["acts"] else "."),
+        f"An LSP `{row['remedy']}` at rustc's `{row['applicability']}`"
+        + (f", whose act is `{row['acts']}`." if row["acts"] else ", with no act: the repair is a decision."),
         "",
     ]
     departures = [
@@ -174,8 +174,13 @@ def entry(row: dict[str, str], seat: dict) -> list[str]:
     ]
     for name, spelling, why in departures:
         surface = "Python" if name == "python" else "TypeScript"
-        raised = f"`{spelling}`" if spelling else "no class of its own"
-        lines += [f"On {surface} this is {raised}: {why}", ""]
+        said = why if why.endswith(".") else f"{why}."
+        opening = (
+            f"On {surface} this is `{spelling}`: "
+            if spelling
+            else f"{surface} does not classify this kind from the ball. "
+        )
+        lines += [opening + said, ""]
     return lines
 
 
