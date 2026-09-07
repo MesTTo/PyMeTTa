@@ -637,6 +637,32 @@ def test_fact_isolation_between_spaces(metta):  # noqa: D103  -- pytest discover
     assert len(b.match(S.fact(V.x))) == 0
 
 
+def test_a_prelude_name_shadows_at_its_own_arity_on_this_seat():
+    """`(= (if-equal $a $b) SHADOWED)` means the same thing here as in `&self`.
+
+    `engine/prelude.metta` promises a prelude name is "shadowable per named
+    space exactly as builtins are", and every `MeTTa()` mints a named space, so
+    this seat is the configuration that promise is about. It was not kept at a
+    DIFFERENT arity: the prelude declares `if-equal` with four inputs, a
+    definition here takes two, and the surviving declaration made the engine
+    compile a `declared_arity_refusal`, so the same file answered `SHADOWED`
+    through `sh run.sh` and `(Error (if-equal 1 1) IncorrectNumberOfArguments)`
+    here. `&self` never had the fault because a definition there EVICTS the
+    prelude's row outright; a named space cannot, so it shadows instead.
+
+    `throw` is the control that always worked, written at the prelude's own
+    arity, and the second engine is the other control: one space's shadow is
+    not another's.
+    """
+    with MeTTa() as m:
+        m.run("(= (if-equal $a $b) SHADOWED)")
+        assert m.run("!(if-equal 1 1)") == [[S.SHADOWED]]
+        m.run("(= (throw $a) SHADOWED)")
+        assert m.run("!(throw x)") == [[S.SHADOWED]]
+    with MeTTa() as untouched:
+        assert untouched.run("!(if-equal 1 1 yes no)") == [[S.yes]]
+
+
 def test_metta_contexts_are_isolated():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     with MeTTa() as first, MeTTa() as second:
         marker = S["isolated-context-atom"](S.value)
