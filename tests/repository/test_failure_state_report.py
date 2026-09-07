@@ -11,12 +11,12 @@ Assumes: this seat's pyproject.toml and an interpreter with janus_swi, the
 Guarantees:
   - a failing item carries the report, with the state the failure had rather
     than the state a later reader can reconstruct
-    [tested: test_a_failing_item_carries_the_state_that_decided_it; commit=WORKTREE]
+    [tested: test_a_failing_item_carries_the_state_that_decided_it; commit=f6e05ca933f4b79d2e5c148b45780a361d87f586]
   - the report names every field it promises, and says so when the engine
     cannot answer instead of dropping the row
     [tested: test_the_state_report_names_every_field_it_promises,
     test_a_reading_the_engine_refuses_is_reported_rather_than_dropped;
-    commit=WORKTREE]
+    commit=f6e05ca933f4b79d2e5c148b45780a361d87f586]
 Open Obligations:
   To Do: None
   Hacks: None

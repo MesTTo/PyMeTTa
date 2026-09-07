@@ -14,7 +14,7 @@ Guarantees:
     that decided it, so a red that passes alone is a finding with evidence
     rather than an "intermittent"
     [tested: test_a_failing_item_carries_the_state_that_decided_it,
-    test_the_state_report_names_every_field_it_promises; commit=WORKTREE]
+    test_the_state_report_names_every_field_it_promises; commit=f6e05ca933f4b79d2e5c148b45780a361d87f586]
   - ``HYPOTHESIS_PROFILE=petta`` is a supported alias of the ordinary
     exploratory ``metta`` profile [tested: test_petta_profile_matches_metta;
     commit=afc4024cef7d4b7bcdd194bb030a112187b676d0]

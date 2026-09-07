@@ -15,16 +15,16 @@ Assumes: the process runtime, and MeTTa objects whose spaces this file drops.
 Guarantees:
   - engine state a bounded abort touches does not cross a MeTTa object
     [tested: test_a_bounded_abort_leaves_the_next_contexts_stack_bound_working;
-    commit=WORKTREE]
+    commit=f6e05ca933f4b79d2e5c148b45780a361d87f586]
   - a caller's wall-clock bound that was exceeded is a refusal, whatever the
     alarm did [tested: test_a_wall_clock_bound_that_is_exceeded_refuses;
-    commit=WORKTREE]
+    commit=f6e05ca933f4b79d2e5c148b45780a361d87f586]
   - and `(pragma! max-stack-depth N)` stays the answer the corpus pins, which
     is the other half of the same rule [tested:
-    test_a_stack_depth_bound_stays_an_answer; commit=WORKTREE]
+    test_a_stack_depth_bound_stays_an_answer; commit=f6e05ca933f4b79d2e5c148b45780a361d87f586]
   - a host stack abort inside a caller's bound is raised rather than converted
     into an answer [tested: test_a_host_stack_abort_inside_a_bound_is_raised;
-    commit=WORKTREE]
+    commit=f6e05ca933f4b79d2e5c148b45780a361d87f586]
 Fails when: read as the mechanism's own coverage. The interruption that
   abandons a scope is swept budget by budget in
   tests/prolog/suites/evaluation/fuel.plt, and the missed alarm in
