@@ -926,7 +926,16 @@ def twin(m):
 #: inferences deterministic; command=python extensions/python/tools/twin_coverage.py
 #: --measure --rounds 1 examples/ch05-equations-and-evaluation/05-01-an-equation-is-a-rewrite/01-identity.metta;
 #: commit=a376df6dff8099d6145ace55132c7e30922ea1de].
-BUDGET = 3462
+#: RE-PINNED 2026-09-07, 3462 to 3422 (-40), the engine's clause layout again:
+#: this branch adds the refusal taxonomy to engine/metta/registration.pl, one
+#: classifier to engine/spaces/lifecycle.pl and five kind rows to
+#: engine/ext_points.pl, and the MeTTa side of the same run reads 2320 on both
+#: arms, which is the control that says the WORK did not move. The pristine
+#: base a0a34ea5, provisioned with every .so and its .qlf set rebuilt, reads
+#: twin=3457 metta=2320 against this tree's twin=3422 metta=2320 [measured
+#: 2026-09-07: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=52e95b50cc5acdc0e41f97b444ab244ad1301433].
+BUDGET = 3422
 #: BANDED 2026-09-06 rather than re-pinned an eighteenth time. Seventeen of
 #: the eighty-three re-pins above were written on 2026-09-05 and 2026-09-06
 #: alone, and every control taken with them left the MeTTa side of the same

@@ -17,7 +17,7 @@ Guarantees:
     wrapper text [tested test_run_syntax_error_is_loud], and a reader failure
     that named a line carries it as MettaSyntaxError.line rather than only
     inside that text [tested: test_a_json_error_line_names_its_input_line,
-    shim_type_inference:a_syntax_envelope_carries_its_line; commit=8d67307403c1e41ccf058bd3c8d4c079dd7cf7d5]
+    error_kinds:a_syntax_envelope_carries_its_line; commit=52e95b50cc5acdc0e41f97b444ab244ad1301433]
   - a value or type control signal reaches Python as the sentence its thrower
     composed, so the JSON codec's own refusal is what a caller reads
     [tested: test_a_json_run_refuses_a_live_host_object_with_the_codecs_sentence;
