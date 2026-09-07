@@ -8,7 +8,7 @@ program the same way it does any other module.
 
 The scalar half of the projection is the Python column of the one type table
 every surface reads [source: extensions/python/metta/_projection.py:TABLE;
-commit=WORKTREE], and the shapes Python spells structurally are this file's own:
+commit=0fb68d75871c57f2421c335e9faef3561f8dfdd5], and the shapes Python spells structurally are this file's own:
 
     (-> A B) argument   Callable[[A], B]    (Literal 1 2)      Literal[1, 2]
     (->) return         None                NoneType           None

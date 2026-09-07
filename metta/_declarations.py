@@ -40,7 +40,7 @@ Guarantees:
     walk's 3,911, 34,511 and 340,525 [measured 2026-09-07;
     command=extensions/python/tests/ch19_spaces_backed_by_anything/test_remote_openapi.py::test_the_catalog_read_does_not_grow_with_the_space;
     fixture=a space of N `(users i "n")` atoms, ten arrows and one document;
-    commit=WORKTREE]
+    commit=0fb68d75871c57f2421c335e9faef3561f8dfdd5]
   - a subject that knows where its atoms were written answers the same rows
     with an `origin` and a `documentation_origin` on each, and a head it
     publishes through one of the language's registration forms is a row like
@@ -285,7 +285,7 @@ def declared(space: Space | Any) -> tuple[Declaration, ...]:
     340,525 [measured 2026-09-07;
     command=extensions/python/tests/ch19_spaces_backed_by_anything/test_remote_openapi.py::test_the_catalog_read_does_not_grow_with_the_space;
     fixture=a space of N `(users i "n")` atoms, ten arrows and one document;
-    commit=WORKTREE].
+    commit=0fb68d75871c57f2421c335e9faef3561f8dfdd5].
 
     `arities` is empty on every row and `origin` is None: equations are not read
     here, because an arrow is what a schema publishes and reading equations is
@@ -309,7 +309,7 @@ def declared(space: Space | Any) -> tuple[Declaration, ...]:
 #: each. `(@doc ...)` is variadic, so a single pattern reaches none of it and the
 #: engine's own unary `get-doc` enumerates every atom instead
 #: [source: engine/metta/runtime.pl, `get-doc-space/3`'s `'get-atoms'(Space, Doc)`
-#: arm; commit=WORKTREE], which is the O(atoms) read this door exists to avoid.
+#: arm; commit=0fb68d75871c57f2421c335e9faef3561f8dfdd5], which is the O(atoms) read this door exists to avoid.
 #: The bound is measured rather than guessed: every `(@doc ...)` row in the
 #: shipped corpus -- the libraries, the examples, the extensions and the Prolog
 #: prelude's 24 registered documents -- is written at arity 2, 3 or 4, so 8

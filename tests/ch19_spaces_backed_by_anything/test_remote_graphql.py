@@ -8,13 +8,13 @@ Guarantees:
   - the SDL parses with graphql-core and a `match` query answers what
     `Gateway("match")` answers for the same pattern [tested:
     test_the_schema_parses, test_a_match_query_answers_what_the_wire_answers;
-    commit=WORKTREE]
+    commit=0fb68d75871c57f2421c335e9faef3561f8dfdd5]
   - the schema is served without graphql-core installed and only executing needs
     it [tested: test_the_schema_is_text_and_needs_no_graphql_package,
-    test_executing_without_graphql_core_refuses_with_the_extra; commit=WORKTREE]
+    test_executing_without_graphql_core_refuses_with_the_extra; commit=0fb68d75871c57f2421c335e9faef3561f8dfdd5]
   - a head outside GraphQL's name grammar is published under
     `x-metta-unnameable` with its remedy rather than dropped [tested:
-    test_a_head_graphql_cannot_name_is_published_not_dropped; commit=WORKTREE]
+    test_a_head_graphql_cannot_name_is_published_not_dropped; commit=0fb68d75871c57f2421c335e9faef3561f8dfdd5]
 Open Obligations:
   To Do: None
   Hacks: None

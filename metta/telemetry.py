@@ -28,22 +28,22 @@ Guarantees:
   - one span per recorded reduction, nested by the events' own depth, carrying
     the times the engine recorded rather than the times the spans were built
     [tested: test_a_trace_becomes_one_span_per_reduction,
-    test_spans_nest_by_the_events_own_depth; commit=WORKTREE]
+    test_spans_nest_by_the_events_own_depth; commit=0fb68d75871c57f2421c335e9faef3561f8dfdd5]
   - a reduction that answered nothing is an ERROR span and one a bound cut is an
     ERROR span ending where the trace does, so neither is silently missing
     [tested: test_a_failed_reduction_is_an_error_span,
-    test_a_reduction_a_bound_cut_ends_with_the_trace; commit=WORKTREE]
+    test_a_reduction_a_bound_cut_ends_with_the_trace; commit=0fb68d75871c57f2421c335e9faef3561f8dfdd5]
   - observe() holds the engine's ONE trace session, so a trace or debug session
     inside it refuses and so does an observe inside one of those
     [tested: test_a_trace_inside_an_observed_block_refuses,
-    test_observing_inside_a_debug_session_refuses; commit=WORKTREE]
+    test_observing_inside_a_debug_session_refuses; commit=0fb68d75871c57f2421c335e9faef3561f8dfdd5]
   - the recording bound stops the RECORDING and never the observed work, because
     the work is the caller's and a telemetry budget must not become its error
-    [tested: test_a_recording_bound_stops_the_recording_not_the_work; commit=WORKTREE]
+    [tested: test_a_recording_bound_stops_the_recording_not_the_work; commit=0fb68d75871c57f2421c335e9faef3561f8dfdd5]
 Owns resources:
   - observe() owns the engine's trace session for the block and releases it in a
     finally, so a raising block leaves the wrappers off
-    [tested: test_a_raising_block_still_releases_the_session; commit=WORKTREE]
+    [tested: test_a_raising_block_still_releases_the_session; commit=0fb68d75871c57f2421c335e9faef3561f8dfdd5]
 Fails when:
   - a caller wants spans to arrive WHILE the block runs. The engine's tracer
     records into its own store and is read at the end -- "Nothing here streams

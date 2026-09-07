@@ -9,7 +9,7 @@ Guarantees:
     failure [tested test_http_endpoint_closes_transport_resources]
   - it answers the reply's HEADERS beside its body, which is where an Arrow
     answer's media type and its cursor token live [tested:
-    test_an_arrow_answer_carries_its_cursor_in_a_header; commit=WORKTREE]
+    test_an_arrow_answer_carries_its_cursor_in_a_header; commit=0fb68d75871c57f2421c335e9faef3561f8dfdd5]
 Owns:
   - HTTPEndpoint.request owns each response and connection until the request
     returns or raises [tested test_http_endpoint_closes_transport_resources]

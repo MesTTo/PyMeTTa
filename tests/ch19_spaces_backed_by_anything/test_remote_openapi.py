@@ -8,18 +8,18 @@ store.
 Guarantees:
   - the document is whole and validates against the OpenAPI specification
     [tested: test_the_openapi_document_is_structurally_whole,
-    test_the_document_validates_against_the_openapi_specification; commit=WORKTREE]
+    test_the_document_validates_against_the_openapi_specification; commit=0fb68d75871c57f2421c335e9faef3561f8dfdd5]
   - the Atom schema admits exactly the tags the decoder accepts, checked by
     round-tripping one atom per tag [tested:
-    test_the_atom_schema_covers_every_wire_tag; commit=WORKTREE]
+    test_the_atom_schema_covers_every_wire_tag; commit=0fb68d75871c57f2421c335e9faef3561f8dfdd5]
   - deriving the document does not grow with the served space
     [measured 2026-09-07: 232 inferences over 200 atoms and 230 over 20,000,
     against the walk's 3,911 and 340,525;
     command=extensions/python/tests/ch19_spaces_backed_by_anything/test_remote_openapi.py::test_the_catalog_read_does_not_grow_with_the_space;
     fixture=a space of N `(users i "n")` atoms, ten arrows and one document;
-    commit=WORKTREE]
+    commit=0fb68d75871c57f2421c335e9faef3561f8dfdd5]
   - the same claim, held by a lane rather than by the number above
-    [tested: test_the_catalog_read_does_not_grow_with_the_space; commit=WORKTREE]
+    [tested: test_the_catalog_read_does_not_grow_with_the_space; commit=0fb68d75871c57f2421c335e9faef3561f8dfdd5]
 Open Obligations:
   To Do: None
   Hacks: None

@@ -19,7 +19,7 @@ disagree, so the question is asked once here and each surface takes a column.
 The rows are `_type_annotations.py`'s forward table read backwards, so a type
 that gains a Python spelling gains the other three in the same edit
 [source: extensions/python/metta/_type_annotations.py:_TYPE_NAMES,
-_METATYPE_NAMES; commit=WORKTREE].
+_METATYPE_NAMES; commit=0fb68d75871c57f2421c335e9faef3561f8dfdd5].
 
 Assumes:
   - the caller has already reduced a type ATOM to this table's key where it can:
@@ -29,17 +29,17 @@ Guarantees:
   - a type outside the table projects to the Atom column of every target, which
     every value can be spelled in: canonical MeTTa text for Arrow, the recursive
     `Atom` schema for JSON, the `Atom` scalar for GraphQL
-    [tested: test_every_row_projects_into_all_four_targets; commit=WORKTREE]
+    [tested: test_every_row_projects_into_all_four_targets; commit=0fb68d75871c57f2421c335e9faef3561f8dfdd5]
   - `Number` takes a GraphQL scalar of its own rather than `Float`, because
     GraphQL's `Int` is 32-bit and its `Float` is a double while MeTTa's `Number`
     is exact at any width, the reason Hasura and PostGraphile give Postgres
     `bigint` and `numeric` custom scalars
-    [tested: test_number_is_a_scalar_of_its_own; commit=WORKTREE]
+    [tested: test_number_is_a_scalar_of_its_own; commit=0fb68d75871c57f2421c335e9faef3561f8dfdd5]
   - `column_types` answers one declared type per query column, `%Undefined%`
     where the served space declares nothing, so a projection's schema is the
     space's own promise rather than a guess from the first rows
     [tested: test_column_types_read_the_declared_arrow,
-    test_an_undeclared_head_leaves_every_column_undefined; commit=WORKTREE]
+    test_an_undeclared_head_leaves_every_column_undefined; commit=0fb68d75871c57f2421c335e9faef3561f8dfdd5]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -71,7 +71,7 @@ UNDEFINED: Final = "%Undefined%"
 #: Every tag the wire decoder accepts, in the order the decoder tries them, so
 #: an OpenAPI document's `Atom` schema and the decoder cannot drift
 #: [source: extensions/python/metta/_atom_wire.py:_leaf_from_wire, _from_wire;
-#: commit=WORKTREE].
+#: commit=0fb68d75871c57f2421c335e9faef3561f8dfdd5].
 WIRE_TAGS: Final = ("s", "g", "n", "b", "v", "e", "p", "o", "h")
 
 

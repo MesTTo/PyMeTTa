@@ -119,7 +119,7 @@ RUFF_FAMILY_BURN_DOWN = {
     # differently would make one word mean one thing on two doors that do the
     # same selecting. The one site suppresses only A002 with that reason.
     # [tested: test_the_ruff_configuration_enables_every_family_or_records_why_not;
-    # commit=WORKTREE]
+    # commit=0fb68d75871c57f2421c335e9faef3561f8dfdd5]
     "A": 28,
     # 2112 -> 2114 at the p12-space-model merge: its two new test modules
     # carry the repository's obligation-header docstring convention, whose

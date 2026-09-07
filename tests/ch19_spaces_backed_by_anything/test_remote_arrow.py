@@ -7,14 +7,14 @@ cell a typed column cannot hold survive somewhere.
 
 Guarantees:
   - the batches carry the answers the JSON reply carries, chunk for chunk
-    [tested: test_the_batches_are_the_answers_the_json_reply_carries; commit=WORKTREE]
+    [tested: test_the_batches_are_the_answers_the_json_reply_carries; commit=0fb68d75871c57f2421c335e9faef3561f8dfdd5]
   - each chunk is a COMPLETE IPC stream, ending in the end-of-stream marker
-    [tested: test_every_chunk_is_a_complete_stream; commit=WORKTREE]
+    [tested: test_every_chunk_is_a_complete_stream; commit=0fb68d75871c57f2421c335e9faef3561f8dfdd5]
   - the schema comes from what the space declares and is the same for every
     chunk; an undeclared column is canonical text marked mixed
     [tested: test_a_declared_pattern_answers_typed_columns,
     test_an_undeclared_column_is_text_marked_mixed,
-    test_every_chunk_of_one_cursor_shares_one_schema; commit=WORKTREE]
+    test_every_chunk_of_one_cursor_shares_one_schema; commit=0fb68d75871c57f2421c335e9faef3561f8dfdd5]
 Open Obligations:
   To Do: None
   Hacks: None

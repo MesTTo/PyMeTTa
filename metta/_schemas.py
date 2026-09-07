@@ -21,12 +21,12 @@ Guarantees:
     path per gateway door, every operation carrying a request and a response
     schema [source: https://spec.openapis.org/oas/v3.1.1, sections 4.8.1.1,
     4.8.2.1 and 4.8.10.1; tested: test_the_openapi_document_is_structurally_whole,
-    test_the_document_validates_against_the_openapi_specification; commit=WORKTREE]
+    test_the_document_validates_against_the_openapi_specification; commit=0fb68d75871c57f2421c335e9faef3561f8dfdd5]
   - `components.schemas.Atom` admits exactly the tags the wire decoder accepts,
     so a tag added to one is missing from the other loudly
-    [tested: test_the_atom_schema_covers_every_wire_tag; commit=WORKTREE]
+    [tested: test_the_atom_schema_covers_every_wire_tag; commit=0fb68d75871c57f2421c335e9faef3561f8dfdd5]
   - the bearer scheme appears exactly when the server is configured with a token
-    [tested: test_a_token_puts_a_bearer_scheme_in_the_document; commit=WORKTREE]
+    [tested: test_a_token_puts_a_bearer_scheme_in_the_document; commit=0fb68d75871c57f2421c335e9faef3561f8dfdd5]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -71,7 +71,7 @@ PROTOCOL: Final = 3
 #: One entry per wire tag: the JSON Schema for its payload, and the sentence the
 #: document says about it. `e` is the recursive case and `h` is the one
 #: three-element shape [source: extensions/python/metta/_atom_wire.py,
-#: _leaf_from_wire/2 and _from_wire/1; commit=WORKTREE].
+#: _leaf_from_wire/2 and _from_wire/1; commit=0fb68d75871c57f2421c335e9faef3561f8dfdd5].
 _TAG_PAYLOADS: Final[dict[str, tuple[dict[str, Any], str]]] = {
     "s": ({"type": "string"}, "a symbol, spelled as the program spells it"),
     "g": ({"type": "string"}, "a string value"),

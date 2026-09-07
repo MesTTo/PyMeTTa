@@ -23,7 +23,7 @@ Assumes:
     and read the streaming format as BYTES for the wire. nanoarrow builds the C
     structs a PyCapsule carries and does not write that format, which is a
     FlatBuffers envelope [tested:
-    test_the_ipc_doors_name_the_extra_when_pyarrow_is_absent; commit=WORKTREE]
+    test_the_ipc_doors_name_the_extra_when_pyarrow_is_absent; commit=0fb68d75871c57f2421c335e9faef3561f8dfdd5]
 Guarantees:
   - a column of one wire kind carries that kind's Arrow type and its decoded
     values; a column mixing kinds, or holding a symbol, a variable, a nested

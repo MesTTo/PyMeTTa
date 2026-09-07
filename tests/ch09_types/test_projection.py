@@ -8,9 +8,9 @@ surface, plus the two rules that decide the awkward rows.
 Guarantees:
   - every row projects into all four targets, so a row added without a column
     fails here rather than at a consumer [tested:
-    test_every_row_projects_into_all_four_targets; commit=WORKTREE]
+    test_every_row_projects_into_all_four_targets; commit=0fb68d75871c57f2421c335e9faef3561f8dfdd5]
   - the Python column IS the stub's scalar table, so the two cannot drift
-    [tested: test_the_stub_reads_the_tables_python_column; commit=WORKTREE]
+    [tested: test_the_stub_reads_the_tables_python_column; commit=0fb68d75871c57f2421c335e9faef3561f8dfdd5]
 Open Obligations:
   To Do: None
   Hacks: None
