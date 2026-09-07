@@ -282,7 +282,12 @@ RUFF_FAMILY_BURN_DOWN = {
     # four in tests/ch20_extending_the_engine/test_contract.py, four in
     # tests/repository/test_wire_tag_rows.py and two in tools/vocabgen.py;
     # this scope reads 2245 of them.
-    "D": 2245,
+    # 2245 -> 2246 on 2026-09-08 with the face-generator merge: one D103 on
+    # tests/fixtures/face_source.py's `anything`, the fixture function whose
+    # point is that the module says nothing about it, so a docstring would
+    # unmake the shape it exists to carry. The branch's four module-docstring
+    # D205 forms were reflowed into a summary line and a body instead.
+    "D": 2246,
     # 145, from 139 before the idiomatic twin corpus. Every one of the six new
     # sites is a `twin(m)` whose example needs no engine, because the form it
     # demonstrates is native Python (destructuring, `len`, `max`), or a

@@ -237,10 +237,18 @@ def twin(m):
 #: not a re-pin [measured 2026-09-08: python
 #: extensions/python/tools/twin_coverage.py --observe --rounds 10 and --rounds 15,
 #: ai-tmp/integrator-849a9e/mergeFL-observe-10.log and -15.log; commit=3fc65f02ce807c359f1a52026f950f345da2a9af].
+#: RE-OBSERVED 2026-09-08 under 'full-lane/277/workers=32' and POOLED: the gate on the face-generator
+#: merge read 427680 against 427685..427713, a scheduler extreme the 25
+#: observations had not reached, so ten more full-lane rounds plus that reading join
+#: them: 36 observations read 427680..427713. Nothing in that merge runs on this twin's
+#: path; the envelope widens with its evidence, as an extremal envelope does. A run
+#: outside it is a re-observation, not a re-pin [measured 2026-09-08: python
+#: extensions/python/tools/twin_coverage.py --observe --rounds 10,
+#: ai-tmp/integrator-849a9e/mergeFACE-observe-10.log; commit=WORKTREE].
 BUDGET = {
-    "minimum": 427685,
+    "minimum": 427680,
     "maximum": 427713,
-    "observations": 25,
+    "observations": 36,
     "protocol": "full-lane/277/workers=32",
 }
 

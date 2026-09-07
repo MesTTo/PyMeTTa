@@ -88,6 +88,9 @@ from . import _convert_registry as _type_registry
 from . import _ops as _operation_registry
 from . import convert, seam
 from ._api_types import space_of as _space_of
+from ._face import Manifest as _Manifest
+from ._face import positional_arities as _positional_arities
+from ._face import render as _render
 from ._object_fields import field_names as _field_names
 from .atoms import (
     Atom,
@@ -114,6 +117,7 @@ __all__ = [
     "SpaceProvider",
     "discover",
     "entry_points",
+    "face",
     "facts",
     "install_reflection_ops",
     "installed",
@@ -539,6 +543,53 @@ def module_ops(
     return registered
 
 
+def face(
+    module: Any,
+    names: Iterable[str] | None = None,
+    *,
+    purpose: str,
+    prefix: str | None = None,
+    rename: Mapping[str, str] | None = None,
+    effects: Iterable[tuple[str, str, str]] = (),
+    signatures: Iterable[str] = (),
+) -> str:
+    """Selected callables of any module as MeTTa SOURCE, in one call.
+
+        source = metta.integrate.face(
+            math, ["sqrt", "gcd"], purpose="Arithmetic from the C library"
+        )
+        Path("lib/lib_math/lib_math.metta").write_text(source, encoding="utf-8")
+
+    module_ops is this act at run time: the same names, the same reachable
+    arities, the same map from a Python annotation to a MeTTa type. This
+    writes them out instead, as one arrow, one `(@doc ...)` atom and one
+    `py-call` equation per call form, so a MeTTa program imports the library
+    with no Python running first.
+
+    names is the selection and None takes the module whole; rename is the
+    `as` of the import it renders. A name whose signature neither the runtime
+    nor the docstring answers is refused: `signatures` declares it, one
+    Python signature line per call form. `effects` reviews a derived effect
+    class where the signature cannot show it, one (name, class, reason)
+    triple, random construction being the standing example.
+
+    The answer carries the header those arguments make, and
+    `extensions/python/tools/facegen.py` reads that header back to regenerate
+    the file, so a face stays checkable against the module it was read from.
+    """
+    return _render(
+        _Manifest.of(
+            module,
+            names,
+            purpose=purpose,
+            prefix=prefix,
+            rename=rename,
+            effects=effects,
+            signatures=signatures,
+        )
+    )
+
+
 def _spread(fn: Callable) -> Callable:
     def call(*args):
         return fn(*args)
@@ -548,7 +599,12 @@ def _spread(fn: Callable) -> Callable:
 
 
 def _callable_arities(name: str, target: Callable) -> list[int]:
-    """Derive every reachable positional arity from one callable signature."""
+    """Derive every reachable positional arity from one callable signature.
+
+    The rule itself is `_face.positional_arities`, which the written face
+    applies to the same signatures, so a registration and a generated face
+    cannot answer at different call forms.
+    """
     try:
         signature = inspect.signature(target)
     except (TypeError, ValueError) as exc:
@@ -559,31 +615,7 @@ def _callable_arities(name: str, target: Callable) -> list[int]:
         raise MettaError(
             msg
         ) from exc
-    positional = []
-    variadic = False
-    for parameter in signature.parameters.values():
-        if parameter.kind is inspect.Parameter.VAR_POSITIONAL:
-            variadic = True
-        elif parameter.kind is inspect.Parameter.KEYWORD_ONLY and (
-            parameter.default is inspect.Parameter.empty
-        ):
-            msg = (
-                f"{name}: required keyword-only parameter "
-                f"{parameter.name!r} is unreachable from a positional "
-                f"MeTTa call site"
-            )
-            raise MettaError(
-                msg
-            )
-        elif parameter.kind in (
-            inspect.Parameter.POSITIONAL_ONLY,
-            inspect.Parameter.POSITIONAL_OR_KEYWORD,
-        ):
-            positional.append(parameter)
-    required = sum(1 for parameter in positional if parameter.default is inspect.Parameter.empty)
-    if variadic:
-        return list(range(required, max(required + 1, 5)))
-    return list(range(required, len(positional) + 1))
+    return _positional_arities(name, signature)
 
 
 def wrap_callable(

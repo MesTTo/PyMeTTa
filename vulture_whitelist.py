@@ -329,3 +329,8 @@ _carrier_type_accepts
 # [source: extensions/cmetta/benchmarks/bench.py, observe_all's path_decides;
 # commit=11afdcdbad5bbbe37168b5d8528c23a21c42b4b6].
 _.pinned_checkout_path_length
+# A face reports the version its header pinned against the one installed here,
+# and the reader of that report is extensions/python/tools/facegen.py, which
+# vulture does not scan: the sync tool is the caller of every door on Face
+# that the package itself does not use.
+_.drifted_versions

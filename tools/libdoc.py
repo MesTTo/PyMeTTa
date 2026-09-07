@@ -47,6 +47,10 @@ Guarantees:
   - `@doc` parts render in the order the atom writes them, so a library that
     puts `@return` before `@desc` reads as it was written
     [tested: test_a_doc_atom_renders_its_parts_in_written_order; commit=adb831d29a48596d3068a3087115b216c18b5b38]
+  - a typed `(@param (@type T) (@desc D))` renders its DESCRIPTION, with the
+    type named before it when the type says something, so the shape every
+    Python-side doc atom is built in reads as prose rather than as an atom
+    [tested: test_a_typed_parameter_renders_its_description; commit=7229962705d199fb08796b3090ec5a8a3a0ae393]
 Fails when:
   - a library publishes names through a form whose name list is computed
     rather than written: the engine reports nothing for such a form, so those
@@ -192,6 +196,35 @@ def catalog(root: pathlib.Path) -> tuple[Rows, Rows, Rows]:
     )
 
 
+def _detail(parts) -> object:
+    """One `@param` or `@return` body as the text a reader wants.
+
+    Two shapes reach here. A hand-written library writes the description
+    itself, `(@param "a readable path")`, and the typed builder every Python
+    door shares writes `(@param (@type Number) (@desc "how wide"))`; both are
+    the same claim and this page had rendered the second one's TYPE ATOM as
+    the whole entry, which lost every description torch's own docstrings
+    carry. A parameter the source says nothing about renders as the type it
+    has, which is all that is left to say about it.
+    """
+    described = None
+    named = None
+    for part in parts:
+        if isinstance(part, Expression) and len(part.children) > 1:
+            head, value = part.children[0], part.children[1]
+            if head == Symbol("@desc"):
+                described = value
+            elif head == Symbol("@type"):
+                named = value
+    if described is None and named is None:
+        return parts[0]
+    #The TYPE is what the declaration block above prints in full, so an entry
+    #prints it only where the source described nothing and there is otherwise
+    #nothing left to say about that position.
+    empty = getattr(described, "value", str(described)) == ""
+    return named if described is None or empty else described
+
+
 def _entry(row) -> str:
     """One `@doc` atom as Markdown: its heading, then one block per part.
 
@@ -213,7 +246,7 @@ def _entry(row) -> str:
                 render(
                     _PARAMETER,
                     position=position,
-                    detail=parameter.children[1]
+                    detail=_detail(parameter.children[1:])
                     if (
                         isinstance(parameter, Expression)
                         and len(parameter.children) > 1
@@ -225,7 +258,7 @@ def _entry(row) -> str:
             if numbered:
                 text += render(_PARAMETERS, parameters=numbered)
         elif head == Symbol("@return") and rest:
-            text += render(_RETURNS, text=rest[0])
+            text += render(_RETURNS, text=_detail(rest))
     return text
 
 

@@ -126,4 +126,13 @@ def twin(m):
 #: reads its budget on the merged tree, minimum of three fresh processes
 #: [measured 2026-09-08: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=3fc65f02ce807c359f1a52026f950f345da2a9af].
-BUDGET = 38126
+#: RE-PINNED 2026-09-08, 38126 to 143365 (+105239), lib_torch is generated from
+#: torch's own signatures (feat/a-face-from-a-modules-own-signatures): the same
+#: twenty heads now carry thirty-nine equations, one per call form the
+#: signatures reach, thirty-nine arrows and nineteen (@doc ...) atoms where the
+#: hand-written file carried twenty-one equations and no declarations, so
+#: importing the library compiles and declares that much more before the first
+#: call. Measured on the merged tree, minimum of three fresh processes
+#: [measured 2026-09-08: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 143365

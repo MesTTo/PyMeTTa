@@ -3,6 +3,14 @@
 Assumes: structured callable prose uses Google docstring sections; examples
   intended for MeTTa start with ``!(`` and answer with a Python literal.
 Guarantees:
+  - a caller may supply the prose to read, so a face that has already read a
+    C function's docstring signature does not publish that line as the
+    description [tested: test_a_face_documents_what_the_docstring_says;
+    commit=7229962705d199fb08796b3090ec5a8a3a0ae393]
+  - a caller supplying annotations supplies the RETURN through the same
+    mapping, so a reader that resolved a postponed annotation does not have
+    its parameters honoured and its result read back off the raw signature
+    [tested: test_a_face_documents_what_the_docstring_says; commit=7229962705d199fb08796b3090ec5a8a3a0ae393]
   - docstring-parser owns Google section parsing while signature order owns
     positional ``@param`` order [tested:
     test_a_docstring_emits_the_whole_doc_vocabulary; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
@@ -41,7 +49,34 @@ from .atoms import Atom, Expression, S, _expr, parse
 DocstringStyle = _docstring_parser.DocstringStyle
 parse_docstring = _docstring_parser.parse
 
-__all__ = ["attribute_docstrings", "documentation_atom"]
+#: Every Google section title the parser knows, read from the parser rather
+#: than listed here, so a section it learns to read is a section this stops
+#: swallowing into a summary.
+_SECTION_TITLES = frozenset(
+    f"{section.title}:" for section in _docstring_parser.google.DEFAULT_SECTIONS
+)
+
+__all__ = ["attribute_docstrings", "documentation_atom", "first_paragraph"]
+
+
+def first_paragraph(documentation: str) -> str:
+    """One docstring with its opening paragraph joined into a single line.
+
+    The parser reads a summary as the first LINE when no blank line follows
+    it, so a sentence a module wrapped at eighty columns arrives cut in half:
+    torch's `zeros` summary ends at "with the shape defined". Joining the
+    paragraph puts the sentence back before the parse, and the paragraph ends
+    where the docstring's own structure does -- a blank line, or one of the
+    parser's section titles -- so nothing below it is drawn into the summary.
+    """
+    lines = documentation.splitlines()
+    opening: list[str] = []
+    for index, line in enumerate(lines):
+        stripped = line.strip()
+        if not stripped or stripped in _SECTION_TITLES:
+            return "\n".join([" ".join(opening), *lines[index:]])
+        opening.append(stripped)
+    return " ".join(opening)
 
 
 def _signature(source: object) -> inspect.Signature | None:
@@ -136,12 +171,21 @@ def documentation_atom(
     source: object,
     *,
     kind: str,
+    documentation: str | None = None,
     parameters: Sequence[str] | None = None,
     annotations: Mapping[str, Any] | None = None,
     parameter_descriptions: Mapping[str, str] | None = None,
 ) -> Expression | None:
-    """Return one complete portable ``@doc`` atom for ``source``."""
-    documentation = inspect.getdoc(source)
+    """Return one complete portable ``@doc`` atom for ``source``.
+
+    ``documentation`` is the prose to read instead of the source's own
+    docstring, for a caller that has already taken something out of it: a C
+    function states its SIGNATURE in the docstring's first lines, and a face
+    that has read those lines as the signature would otherwise publish them
+    again as the description.
+    """
+    if documentation is None:
+        documentation = inspect.getdoc(source)
     if not documentation:
         return None
     parsed = parse_docstring(documentation, style=DocstringStyle.GOOGLE)
@@ -162,9 +206,11 @@ def documentation_atom(
 
     signature = _signature(source)
     return_annotation = (
-        signature.return_annotation
+        annotations["return"]
+        if annotations is not None and "return" in annotations
+        else signature.return_annotation
         if signature is not None
-        else (annotations or {}).get("return", inspect.Parameter.empty)
+        else inspect.Parameter.empty
     )
     if kind != "record" and (
         parsed.returns is not None or return_annotation is not inspect.Parameter.empty
