@@ -123,5 +123,5 @@ def twin(m):
 #: evaluate and translate 1642 lower each on the same tree. Every twin here re-
 #: reads its budget on the merged tree, minimum of three fresh processes
 #: [measured 2026-09-08: min-of-3 serial fresh processes; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+#: extensions/python/tools/twin_coverage.py --repin; commit=3fc65f02ce807c359f1a52026f950f345da2a9af].
 BUDGET = 578

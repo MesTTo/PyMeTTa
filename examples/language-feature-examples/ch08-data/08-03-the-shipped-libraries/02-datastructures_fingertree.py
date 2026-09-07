@@ -222,7 +222,7 @@ def twin(m):
 #: evaluate and translate 1642 lower each on the same tree. Every twin here re-
 #: reads its budget on the merged tree, minimum of three fresh processes
 #: [measured 2026-09-08: min-of-3 serial fresh processes; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+#: extensions/python/tools/twin_coverage.py --repin; commit=3fc65f02ce807c359f1a52026f950f345da2a9af].
 BUDGET = 233973
 
 #: OVERRUN 2026-09-07, 1300: it asks the eleven ft-* functions one at a time
@@ -243,5 +243,5 @@ BUDGET = 233973
 #: Measured 233973 against a ceiling of 232642; a minimal twin costs 215301,
 #: inside it, so the distance is still this twin's own program [measured
 #: 2026-09-08: one fresh process per side; command=python
-#: extensions/python/benchmarks/probes/twin_floor.py; commit=WORKTREE].
+#: extensions/python/benchmarks/probes/twin_floor.py; commit=3fc65f02ce807c359f1a52026f950f345da2a9af].
 OVERRUN = 1331

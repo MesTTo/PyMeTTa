@@ -279,7 +279,7 @@ def twin(m):
 #: twin here re-reads its budget on the merged tree, minimum of three fresh
 #: processes [measured 2026-09-08: min-of-3 serial fresh processes;
 #: command=python extensions/python/tools/twin_coverage.py --repin;
-#: commit=WORKTREE].
+#: commit=3fc65f02ce807c359f1a52026f950f345da2a9af].
 BUDGET = 34135344
 
 #: DIVERGED 2026-09-07, the example holds 6 atoms the twin does not (6 =) and

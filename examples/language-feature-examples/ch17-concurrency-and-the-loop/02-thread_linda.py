@@ -236,7 +236,7 @@ def twin(m):
 #: 'full-lane/277/workers=32' read 427720..427720. A run outside this envelope is a re-observation,
 #: not a re-pin [measured 2026-09-08: python
 #: extensions/python/tools/twin_coverage.py --observe --rounds 10 and --rounds 15,
-#: ai-tmp/integrator-849a9e/mergeFL-observe-10.log and -15.log; commit=WORKTREE].
+#: ai-tmp/integrator-849a9e/mergeFL-observe-10.log and -15.log; commit=3fc65f02ce807c359f1a52026f950f345da2a9af].
 BUDGET = {
     "minimum": 427685,
     "maximum": 427713,
