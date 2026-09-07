@@ -479,6 +479,37 @@ def test_a_doc_atom_renders_its_parts_in_written_order(tmp_path, monkeypatch):
     assert "Undocumented: `unplanted`" in generated
 
 
+def test_a_typed_parameter_renders_its_description(tmp_path, monkeypatch):
+    """The typed doc shape is prose here, not the atom it is built from.
+
+    `(@param (@type T) (@desc D))` is what every Python-side doc atom carries,
+    and a generated face carries it into a MeTTa library. The page had printed
+    the TYPE atom as the whole entry, so a description the source really made
+    was rendered as `(@type %Undefined%)`; the declaration block above each
+    entry already prints every type, so the description is what this adds and
+    the type is what is left when there is no description.
+    """
+    libdoc = _load_libdoc()
+    library = tmp_path / "lib" / "lib_planted"
+    library.mkdir(parents=True)
+    (library / "lib_planted.metta").write_text(
+        "(@doc planted (@desc \"A planted name.\")"
+        ' (@params ((@param (@type Number) (@desc "how many"))'
+        ' (@param (@type Number) (@desc ""))))'
+        ' (@return (@type Bool) (@desc "")))\n'
+        "(= (planted $a $b) True)\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(libdoc, "_REPO", tmp_path)
+
+    generated = libdoc.page()
+
+    assert "1. how many" in generated
+    assert "2. Number" in generated
+    assert "Returns: Bool" in generated
+    assert "(@type" not in generated
+
+
 def _lint_kinds() -> set[str]:
     """Every kind metta.lint can emit, read out of the analysis module.
 

@@ -313,3 +313,8 @@ _._catalog_of
 # not scan.
 _._carrier_type_accepts
 _.boot_seconds
+# A face reports the version its header pinned against the one installed here,
+# and the reader of that report is extensions/python/tools/facegen.py, which
+# vulture does not scan: the sync tool is the caller of every door on Face
+# that the package itself does not use.
+_.drifted_versions
