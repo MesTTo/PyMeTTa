@@ -27,11 +27,11 @@ Assumes:
 Guarantees:
   - the shipped rows carry the behaviour their doors had before the seam, the
     existing suites being the differential [tested:
-    tests/ch13_a_queryable_dataset/test_arrow_tables.py,
-    tests/ch04_spaces_and_matching/test_arrow_doors.py,
-    tests/ch08_data/test_arrays.py, tests/ch11_python_as_a_notation]
+    extensions/python/tests/ch13_a_queryable_dataset/test_arrow_tables.py,
+    extensions/python/tests/ch04_spaces_and_matching/test_arrow_doors.py,
+    extensions/python/tests/ch08_data/test_arrays.py; commit=WORKTREE]
   - every name here sits inside one registration [tested:
-    check_hardcoded_integrations, and its selftest]
+    tests/checks/check_hardcoded_integrations_selftest.py; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None

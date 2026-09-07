@@ -260,6 +260,31 @@ def test_a_shipped_sugar_is_a_declared_row_and_not_a_privilege():
         assert callable(getattr(Rows, sugar))
 
 
+def test_a_registration_inside_a_failed_integration_is_undone_with_it(metta, scratch):
+    """A row registered by an installer that then fails is not left standing.
+
+    Installation is one unit of work, and a seam registration is process-wide
+    state exactly as an operation registration is, so it enlists in the same
+    transaction frame rather than in one of its own.
+    """
+    from metta import integrate
+
+    point = seam.point(scratch, "declaration", fields=("value",), doc="values")
+
+    class Doomed:
+        name = "seam_rollback_probe"
+
+        def install(self, m):
+            del m
+            point.register("solars", value="a star")
+            message = "this installer fails after registering"
+            raise RuntimeError(message)
+
+    with pytest.raises(RuntimeError, match="fails after registering"):
+        integrate.integrate(metta, Doomed())
+    assert point.table() == {}
+
+
 def test_the_seam_publishes_itself_into_the_catalog(metta):
     """A MeTTa program matches the extension surface it is running on."""
     seam.publish(metta)

@@ -52,7 +52,7 @@ Guarantees:
     answer among the rows already present, which is how Pygments finds a
     plugin lexer [source: https://pygments.org/docs/plugins; pygments/plugin.py
     find_plugin_lexers] [tested: test_advertised_loads_nothing,
-    test_a_dispatch_loads_the_advertised_group_once]
+    test_discovery_loads_an_advertised_registration_once]
   - publish(m) writes the whole seam into a catalog under declared kind rows,
     so a MeTTa program matches the extension surface it is running on
     [tested: test_the_seam_publishes_itself_into_the_catalog]
@@ -60,7 +60,7 @@ Owns:
   - _POINTS and _ROWS hold the process-wide seam; a registration made inside an
     integration's transaction frame is undone with it, through the same
     registry-undo the operation registry uses [tested:
-    test_a_failed_integration_unwinds_a_seam_registration]
+    test_a_registration_inside_a_failed_integration_is_undone_with_it]
 Guarded by:
   - _LOCK serializes declaration, registration and the one-shot discovery flag
 Open Obligations:
