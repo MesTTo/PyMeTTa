@@ -950,7 +950,14 @@ def twin(m):
 #: holds, not this example's work [measured 2026-09-07: min-of-3 serial fresh
 #: processes; command=python extensions/python/tools/twin_coverage.py --repin;
 #: commit=73d95f1aebe460580b123d20f82092ef60f41765].
-BUDGET = 3528
+#: RE-PINNED 2026-09-07, 3528 to 3483 (-45), the AE merge (5a85f560) made the
+#: engine's observation dispatch skip an EMPTY committed segment
+#: (engine/ext_points.pl, Current == [] -> true), so every write this twin
+#: makes while nothing observes it stops paying the reverse and the empty
+#: dispatch, 45 inferences over the twin [measured 2026-09-07: min-of-3 serial
+#: fresh processes; command=python extensions/python/tools/twin_coverage.py
+#: --repin; commit=WORKTREE].
+BUDGET = 3483
 #: BANDED 2026-09-06 rather than re-pinned an eighteenth time. Seventeen of
 #: the eighty-three re-pins above were written on 2026-09-05 and 2026-09-06
 #: alone, and every control taken with them left the MeTTa side of the same
