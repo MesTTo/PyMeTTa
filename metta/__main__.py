@@ -54,6 +54,13 @@ Guarantees:
     stubs does, and ``doc --infer`` prints the declarations a program's own
     atoms justify rather than one head's documentation [tested:
     test_doc_infer_prints_the_proposals; commit=8d67307403c1e41ccf058bd3c8d4c079dd7cf7d5]
+  - run and repl install a `.metta` import hook for the program's own
+    directory, the way `python script.py` puts the script's directory at the
+    front of `sys.path`, and uninstall it when the run ends, so an in-process
+    `main()` leaves `sys.meta_path` as it found it [tested:
+    test_run_installs_the_import_hook_for_the_programs_directory,
+    test_the_repl_installs_the_import_hook_for_its_working_directory,
+    test_a_run_leaves_no_import_hook_behind; commit=d7ab3cb20fe2353872139ecb36710f7e880c1451]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -139,16 +146,38 @@ def _run_source(m, source: str, text: str | None = None):
     return m.run(_stdin_program() if text is None else text)
 
 
+def _program_directories(sources) -> list[str]:
+    """Each operand's own directory, deduplicated in operand order.
+
+    This is what `python script.py` does when it puts the script's directory
+    at the front of `sys.path`: the program's neighbours are the first place
+    its own imports look. Standard input has no file to be beside, so it
+    contributes the working directory, which is what `python -` uses too.
+    """
+    roots: list[str] = []
+    for source in sources:
+        where = Path.cwd() if source == STDIN_OPERAND else Path(source).parent
+        root = str(where.resolve())
+        if root not in roots:
+            roots.append(root)
+    return roots
+
+
 def _run(arguments) -> int:
     from ._space import Space  # noqa: PLC0415 -- version and help must not boot
+    from .importing import install  # noqa: PLC0415 -- version and help must not boot
 
     m = Space()
     sources = _sources(arguments.files)
-    if arguments.json is None:
-        for source in sources:
-            _print_groups(_run_source(m, source))
-        return 0
-    return _run_as_json(m, sources, arguments.json)
+    # The hook lives exactly as long as the run: a program's `py-atom "import
+    # rules"` finds `rules.metta` beside the program, and a test calling
+    # main() in process leaves no finder and no sys.modules entry behind.
+    with install(m, path=_program_directories(sources)):
+        if arguments.json is None:
+            for source in sources:
+                _print_groups(_run_source(m, source))
+            return 0
+        return _run_as_json(m, sources, arguments.json)
 
 
 def _write_json(payload: dict[str, Any], stream) -> None:
@@ -418,6 +447,7 @@ def _repl(_arguments) -> int:
     from ._space import Space  # noqa: PLC0415 -- version and help must not boot
     from ._version import __version__  # noqa: PLC0415  deferred: --version and help must not boot
     from .errors import MettaError  # noqa: PLC0415  deferred: --version and help must not boot
+    from .importing import install  # noqa: PLC0415  deferred: --version and help must not boot
 
     m = Space()
     interactive = sys.stdin.isatty()
@@ -426,14 +456,17 @@ def _repl(_arguments) -> int:
     readline = _install_readline(m) if interactive else None
     if interactive:
         print(f"MeTTa {__version__}; a bare `exit` leaves, Ctrl-D too.")
-    try:
-        for source in _forms(interactive):
-            try:
-                _print_groups(m.run(source))
-            except MettaError as error:
-                print(f"error: {error}", file=sys.stderr)
-    finally:
-        _save_history(readline)
+    # The session's directory is its program directory, the way an
+    # interactive Python's is.
+    with install(m, path=[str(Path.cwd())]):
+        try:
+            for source in _forms(interactive):
+                try:
+                    _print_groups(m.run(source))
+                except MettaError as error:
+                    print(f"error: {error}", file=sys.stderr)
+        finally:
+            _save_history(readline)
     return 0
 
 

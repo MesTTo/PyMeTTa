@@ -49,7 +49,6 @@ Open Obligations:
 
 from __future__ import annotations
 
-import keyword
 import os
 from typing import TYPE_CHECKING, Any
 
@@ -62,7 +61,7 @@ from ._declarations import (
     inferred,
     is_arrow,
 )
-from ._name_mapping import attribute_name
+from ._name_mapping import python_name
 from ._space_objects import _format_doc_atom
 from ._version import __version__
 from .atoms import Atom, Expression, Grounded, Symbol, Variable, _decode
@@ -107,24 +106,6 @@ _IMPORTS = {
 _IMPORT_ORDER = ("collections.abc", "typing", "metta", "metta.atoms")
 
 _LITERAL = Symbol("Literal")
-
-
-def python_name(head: str) -> str | None:
-    """The Python spelling of a MeTTa head, or None when there is none.
-
-    Python's convention is snake_case, so MeTTa's hyphens become underscores
-    and the map inverts exactly: `attribute_name` has to send the candidate
-    back to the head it came from, which is what keeps a program that declares
-    both `to-list` and `to_list` from silently answering one stub entry for
-    two heads. A head Python reserves takes PEP 8's own escape, `not` reaching
-    `not_`, because that spelling round-trips too.
-    """
-    candidate = head.replace("-", "_")
-    if keyword.iskeyword(candidate):
-        candidate = f"{candidate}_"
-    if not candidate.isidentifier() or attribute_name(candidate) != head:
-        return None
-    return candidate
 
 
 def _literal_annotation(atom: Expression) -> str | None:

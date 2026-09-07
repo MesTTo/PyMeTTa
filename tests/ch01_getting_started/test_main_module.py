@@ -17,7 +17,11 @@ test_run_refuses_an_incomplete_file,
 test_repl_reports_an_error_and_keeps_going,
 test_llms_prints_the_root_cheat_sheet_and_answers_none,
 test_the_llms_verb_prints_the_same_cheat_sheet_the_package_door_prints;
-commit=d4f129e1d977239c2e25b5042e3b1df30d9d32d3].
+commit=d4f129e1d977239c2e25b5042e3b1df30d9d32d3]. Run and the repl install the
+`.metta` import hook for the program's own directory and leave none behind
+[tested: test_run_installs_the_import_hook_for_the_programs_directory,
+test_the_repl_installs_the_import_hook_for_its_working_directory,
+test_a_run_leaves_no_import_hook_behind; commit=d7ab3cb20fe2353872139ecb36710f7e880c1451].
 Open Obligations:
   To Do: None
   Hacks: None
@@ -58,7 +62,7 @@ def _environment():
     return environment
 
 
-def _metta(*arguments, stdin=None):
+def _metta(*arguments, stdin=None, cwd=None):
     return subprocess.run(
         [sys.executable, "-m", "metta", *arguments],
         capture_output=True,
@@ -66,7 +70,55 @@ def _metta(*arguments, stdin=None):
         timeout=240,
         env=_environment(),
         input=stdin,
+        cwd=cwd,
     )
+
+
+def test_run_installs_the_import_hook_for_the_programs_directory(tmp_path):
+    """A program's own Python can import the `.metta` file beside it.
+
+    `python script.py` puts the script's directory at the front of
+    `sys.path`, and this is that: the run installs a finder for each
+    operand's directory, so `__import__("helper")` inside the program finds
+    `helper.metta` there, loads it into the run's OWN space, and the head it
+    defines answers in the same program.
+    """
+    (tmp_path / "helper.metta").write_text("(= (from-the-neighbour) 99)\n")
+    (tmp_path / "prog.metta").write_text(
+        '!(py-atom "__import__(\'helper\').__name__")\n!(from-the-neighbour)\n'
+    )
+    finished = _metta("run", str(tmp_path / "prog.metta"))
+    assert finished.returncode == 0, finished.stderr
+    assert finished.stdout.split() == ['"helper"', "99"]
+
+
+def test_the_repl_installs_the_import_hook_for_its_working_directory(tmp_path):
+    """The session's directory is its program directory, the way an
+    interactive Python's is.
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
+    (tmp_path / "helper.metta").write_text("(= (from-the-session) 7)\n")
+    finished = _metta(
+        "repl",
+        stdin='!(py-atom "__import__(\'helper\').__name__")\n!(from-the-session)\nexit\n',
+        cwd=tmp_path,
+    )
+    assert finished.returncode == 0, finished.stderr
+    assert finished.stdout.split() == ['"helper"', "7"]
+
+
+def test_a_run_leaves_no_import_hook_behind(tmp_path):
+    """The hook lives exactly as long as the run. In process, `main()` is
+    called by tests and by any program embedding the CLI, so a finder left on
+    `sys.meta_path` would change how every later import in that process
+    resolves.
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
+    from metta import importing
+
+    (tmp_path / "prog.metta").write_text("!(+ 1 2)\n")
+    before = list(sys.meta_path)
+    assert module_main(["run", str(tmp_path / "prog.metta")]) == 0
+    assert importing.installed() == ()
+    assert sys.meta_path == before
 
 
 def test_run_prints_answer_groups(tmp_path):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract

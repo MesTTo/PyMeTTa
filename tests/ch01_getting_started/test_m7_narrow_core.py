@@ -117,7 +117,11 @@ FINAL_METTA_METHODS = 35
 # `.pyi`. It is a root door rather than a Space method for the same reason
 # ``llms`` is: it takes the space as an argument so a caller can project one
 # it does not own, and `python -m metta stubs` is the same generator.
-FINAL_METTA_EXPORTS = 114
+# +1 for ``importing``, the satellite whose ``install()`` makes a `.metta`
+# file a Python module through a ``sys.meta_path`` finder. It is a satellite
+# rather than a root verb because installing an import hook is a process-wide
+# act a program performs once, not a call the surface invites.
+FINAL_METTA_EXPORTS = 115
 
 SATELLITES = {
     "aio",
@@ -128,6 +132,7 @@ SATELLITES = {
     "derivation",
     "events",
     "foreign",
+    "importing",
     "integrate",
     "lint",
     "manifest",
