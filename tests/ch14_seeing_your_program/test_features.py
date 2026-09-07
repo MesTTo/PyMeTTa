@@ -1571,6 +1571,7 @@ def test_a_profile_is_the_same_table_every_other_door_answers(m):
     assert prof.nodes.columns == (
         "predicate", "calls", "redos", "ticks_self", "ticks_siblings",
         "file", "line", "seconds_self", "seconds_total",
+        "name", "arity", "recursive_calls",
     )
     assert isinstance(prof.top(3), Rows), "a slice keeps the table type"
 
@@ -1578,6 +1579,7 @@ def test_a_profile_is_the_same_table_every_other_door_answers(m):
     assert (
         row.predicate, row.calls, row.redos, row.ticks_self, row.ticks_siblings,
         row.file, row.line, row.seconds_self, row.seconds_total,
+        row.name, row.arity, row.recursive_calls,
     ) == tuple(row)
     assert prof.nodes.predicate[0] == row.predicate, "and the column projects"
 

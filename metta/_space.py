@@ -78,6 +78,11 @@ Guarantees:
     test_world_coverage_admits_the_joined_plan,
     test_committed_effects_leave_queryable_receipts_and_failed_steps_leave_none;
     commit=173eeed021beb360b5e5f9f8461889e27190affc]
+  - ``Space.explain`` answers the atoms the MeTTa `(explain ...)` form answers,
+    and its plan item names the join the matcher runs rather than the one the
+    query's shape allows [tested: test_the_plan_names_the_join_the_engine_runs,
+    test_the_metta_form_answers_the_same_items_as_the_python_door;
+    commit=3287d4dd4928f09ce7c111d05a1c516808e226d5]
   - ``Space.effect_plan`` reports the current composite operation effects
     without executing the target [tested:
     test_effect_plan_reports_nested_calls_without_executing_them,
@@ -323,6 +328,7 @@ from ._space_objects import (
     _ACTIVE_BATCHES,
     Cursor,
     EngineProfile,
+    Explanation,
     FunctionCost,
     Prepared,
     ScopedLimits,
@@ -423,7 +429,15 @@ if TYPE_CHECKING:
     from ._trace import Trace
     from .lint import Finding
 
-__all__ = ["Cursor", "EngineProfile", "MeTTa", "Prepared", "Space", "current_space"]
+__all__ = [
+    "Cursor",
+    "EngineProfile",
+    "Explanation",
+    "MeTTa",
+    "Prepared",
+    "Space",
+    "current_space",
+]
 
 _CastT = TypeVar("_CastT")
 _R = TypeVar("_R")
@@ -745,6 +759,7 @@ _TERM_KEYWORDS = (*_SOURCE_KEYWORDS, "under", "theory", "interpreter")
 _STATUS_KEYWORDS = (*_SOURCE_KEYWORDS, "theory", "interpreter")
 _MATCH_KEYWORDS = (*_SOURCE_KEYWORDS, "where", "limit", "under", "into")
 _EXTENSION_KEYWORDS = (*_SOURCE_KEYWORDS, "extension", "names")
+_EXPLAIN_KEYWORDS = ("analyze", "allow_writes")
 
 
 def _with_holes(
@@ -988,6 +1003,17 @@ def _fact_stream(value: Any) -> Iterator[Any] | None:
         return iter(value)
     except TypeError:
         return None
+
+
+#: The two effect classes that change state, which is what makes
+#: explain(analyze=True) refuse: writesState touches a space and oracleIO
+#: reaches outside the engine entirely.
+#: [source: extensions/python/metta/vocabularies.py, EffectClass]
+_WRITING_EFFECTS = frozenset({EffectClass.writesState, EffectClass.oracleIO})
+#: The match doors, whose own effect row explain(analyze=) reads past.
+_EXPLAINED_MATCH_HEADS = frozenset({"match", "match%"})
+#: The effect walk's name for a call it could not resolve.
+_UNRESOLVED_OPERATION = "<dynamic-operation>"
 
 
 class Space(Handle):
@@ -1503,6 +1529,126 @@ class Space(Handle):
             )
         finally:
             _invalidate_builtins_cache(self._rt)
+
+    def explain(
+        self,
+        query: Any,
+        /,
+        *,
+        analyze: bool = False,
+        allow_writes: bool = False,
+        **values: Any,
+    ) -> Explanation:
+        """What the engine will do with this query, reflected rather than run.
+
+            e = m.self.explain(
+                "(match &self (, (edge $x $y) (edge $y $z) (edge $z $x)) ($x $y $z))"
+            )
+            e.plan          # (plan generic-join (order ...) (relations ...))
+            e["writes"]     # (writes transactional)
+
+        SQL's EXPLAIN, over this engine's own decisions. A match form answers
+        which seam entry handles it and with what fidelity, whether a bound
+        pushes into the provider, the source, the context world, the
+        annotation semiring, emission, event delivery, writes, the error mode,
+        the merge policy, whether the space's source relations are
+        materialised, and the PLAN: `generic-join` with the variable order and
+        each conjunct's columns, `nested-loop` with the conjunct the matcher
+        leads with, or `empty-factor` with the conjunct that has no candidate.
+        An operation call answers its effect, whether it has an inverse, its
+        annotations, its error mode and the cache decision the memo made.
+
+        The plan names the join the engine RUNS. Deciding that costs the
+        query's shape and one scan of each conjunct's relation, because a
+        conjunction whose stored rows are not all ground declines the Generic
+        Join and must read `nested-loop`; nothing is sorted and no trie is
+        built, so explaining a triangle over 2,048 stored edges cost 7,350
+        engine inferences against the query's own 237,473, and the share falls
+        as the data grows: 10.1%, 4.6% and 3.1% at 128, 512 and 2,048 rows
+        [measured 2026-09-07; command=PYTHONPATH=extensions/python
+        $VENV/bin/python ai-tmp/aa_probe13.py; fixture=a two-out-degree ring of
+        1,024 nodes at loadavg 62].
+
+        `analyze=True` is EXPLAIN ANALYZE: the same items plus `(inferences
+        N)`, `(answers N)` and `(cputime S)` measured by running the query
+        inside `stats()`. It REFUSES the query when the engine can NAME an
+        operation in it that writes, because an analysis that mutates is not an
+        analysis; `allow_writes=True` says to measure it anyway. A match
+        TEMPLATE is evaluated once per answer, so `(match &s (edge $x $y)
+        (add-atom &s (seen $x)))` is a writing query.
+
+        The longhand is the MeTTa form: `m.run("!(explain <query>)")` answers
+        the same atoms, and `analyze=True` is that run with a `stats()` block
+        around `eval()` of the same query. A form that is neither a match nor
+        an operation call keeps the engine's own `type_error(explainable, ...)`.
+        """
+        (target,), holes = _read_targets(
+            (query,), values, called="explain", reserved=_EXPLAIN_KEYWORDS
+        )
+        subject = _to_atom(_held(target, holes, handed_on=True))
+        explained = self.eval(Symbol("explain")(subject))
+        raise_error_answers(explained, space=self._space, target=subject)
+        items = tuple(
+            child
+            for answer in explained
+            if isinstance(answer, Expression)
+            for child in answer.children
+        )
+        if not analyze:
+            return Explanation(subject, items, analyzed=False)
+        self._refuse_analysing_a_write(subject, allow_writes=allow_writes)
+        with self.stats() as measured:
+            answers = self.eval(subject)
+        return Explanation(
+            subject,
+            (
+                *items,
+                Symbol("inferences")(measured.inferences),
+                Symbol("answers")(len(answers)),
+                Symbol("cputime")(measured.cputime),
+            ),
+            analyzed=True,
+        )
+
+    def _refuse_analysing_a_write(self, subject: Atom, *, allow_writes: bool) -> None:
+        """Refuse to MEASURE a query that writes, naming it and the override.
+
+        The engine's own effect walk over the compiled target answers this, so
+        a template that writes is caught as readily as a direct call:
+        `(match &s (edge $x $y) (add-atom &s (seen $x)))` names `add-atom`,
+        because a match template IS evaluated, once per answer.
+
+        Two of the walk's rows are read past. `match` carries `writesState`
+        itself, because resolving a named space may create its execution module
+        [source: engine/metta/effects.pl, metta_semantic_effect(match,
+        writesState)]; that is the door being explained rather than the query's
+        mutation, and every match carries it. `<dynamic-operation>` is the walk
+        saying it could not resolve a call, which a variable-headed template
+        makes ordinary -- `($x $y $z)` is the commonest template there is -- so
+        it says unknown, not writes. The guard therefore sees every operation
+        the engine can NAME, and `allow_writes=True` is the answer for the rest.
+        """
+        if allow_writes:
+            return
+        ignored = {_UNRESOLVED_OPERATION}
+        if isinstance(subject, Expression) and subject.children:
+            head = str(subject.children[0])
+            if head in _EXPLAINED_MATCH_HEADS:
+                ignored.add(head)
+        writers = [
+            f"{name} is {effect.value}"
+            for name, effect in self.effect_plan(subject).operations
+            if effect in _WRITING_EFFECTS and name not in ignored
+        ]
+        if not writers:
+            return
+        msg = (
+            f"explain(analyze=True) RUNS the query to measure it, and this one "
+            f"writes: {', '.join(writers)}. An analysis that mutates is not an "
+            f"analysis; pass allow_writes=True to measure it anyway, or drop "
+            f"analyze= to read the plan without running anything"
+        )
+        raise ValueError(msg)
 
     def profile(
         self,

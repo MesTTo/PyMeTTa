@@ -13,6 +13,11 @@
 %     tests/ch06_many_answers/test_evaluation_context.py -n 0; commit=54cb2eee69c42c1ae685643cbe2578f8d617a265].
 %   - protocol type expressions use the atom wire and retain shared variables
 %     [tested: test_computed_protocol_types_are_live_and_removable; commit=4eaefdd8d40e53b2613722287302a14b41704662]
+%   - a profile row carries the predicate's own name and arity and the calls
+%     SWI keeps on its '<recursive>' caller, so no host takes a quoted
+%     module-qualified spelling back apart [tested:
+%     test_a_profile_row_carries_its_predicate_name_and_arity_apart,
+%     test_profile_extension_counts_a_compiled_head; commit=3287d4dd4928f09ce7c111d05a1c516808e226d5]
 %   - tagged provider premises and direct matches share match/4, annotations,
 %     and the controlled inference budget [tested:
 %     test_tagged_premise_keeps_the_direct_provider_annotation,
@@ -1583,6 +1588,18 @@ metta_py_profiled(Pred, Ins, [Out, Samples, Ticks, Seconds, Nodes]) :-
 %Each row also carries the file and line its predicate was defined at, from
 %the same two routes metta_py_origin/3 uses, so a profile exported to pstats
 %has the source key every Python profile viewer navigates by.
+%
+%And the name and arity APART from the spelling, plus the recursive-call count
+%SWI keeps on the '<recursive>' caller node. Both were reachable only by taking
+%the printed predicate back apart in Python, which a module atom carrying a
+%colon defeats: `'$metta_exec:&pyspace_1':fib/2` is how every compiled MeTTa
+%head is written, and the host's regular expression read its name as
+%`&pyspace_1':fib`, so profile_extension(names=["fib"]) reported 0 calls in the
+%same process where profile() reported 17
+%[tested: test_profile_extension_counts_a_compiled_head; commit=3287d4dd4928f09ce7c111d05a1c516808e226d5].
+%The profiler knows the parts; sending them is cheaper and total where
+%re-parsing Prolog syntax is neither. A predicate the profiler names in some
+%other shape keeps its whole spelling as the name and answers arity -1.
 metta_py_profile_rows(Samples, Ticks, Seconds, Nodes) :-
     profile_data(Data),
     get_dict(summary, Data, Summary),
@@ -1595,19 +1612,40 @@ metta_py_profile_rows(Samples, Ticks, Seconds, Nodes) :-
     %sort/4 keys index compounds, not lists, so the self-ticks ride in
     %front as the key of a pair and are stripped after the sort.
     findall(Self-[PredName, Calls, Redos, Self, Siblings, File, Line,
-                  SelfSeconds, TotalSeconds],
+                  SelfSeconds, TotalSeconds, Name, Arity, Recursive],
             ( member(Node, NodeDicts),
               get_dict(predicate, Node, P), term_string(P, PredName),
               get_dict(call, Node, Calls), get_dict(redo, Node, Redos),
               get_dict(ticks_self, Node, Self),
               get_dict(ticks_siblings, Node, Siblings),
               metta_py_predicate_source(P, File, Line),
+              metta_py_predicate_parts(P, Name, Arity),
+              metta_py_recursive_calls(Node, Recursive),
               metta_py_tick_seconds(Self, Net, Seconds, SelfSeconds),
               Both is Self + Siblings,
               metta_py_tick_seconds(Both, Net, Seconds, TotalSeconds) ),
             Keyed),
     sort(1, @>=, Keyed, SortedKeyed),
     findall(Row, member(_-Row, SortedKeyed), Nodes).
+
+%The predicate's own name and arity, whatever module wrapping it carries.
+metta_py_predicate_parts(Module:Name/Arity, Name, Arity) :-
+    atom(Module), atom(Name), integer(Arity), !.
+metta_py_predicate_parts(Name/Arity, Name, Arity) :-
+    atom(Name), integer(Arity), !.
+metta_py_predicate_parts(Other, Name, -1) :-
+    term_to_atom(Other, Name).
+
+%How many of a predicate's calls came from itself. SWI keeps them on a
+%'<recursive>' pseudo-caller rather than in the node's own call count, so a
+%directly recursive head reads `calls` as its ENTRY count and this as the rest
+%[source: SWI-Prolog 10.1.13 library/prolog_profile.pl, profile_data/1 callers].
+metta_py_recursive_calls(Node, Recursive) :-
+    (   get_dict(callers, Node, Callers),
+        memberchk(node('<recursive>', _, _, _, Calls, _, _), Callers)
+    ->  Recursive = Calls
+    ;   Recursive = 0
+    ).
 
 metta_py_tick_seconds(_, Net, _, 0.0) :- Net =< 0, !.
 metta_py_tick_seconds(Ticks, Net, Seconds, Answer) :-

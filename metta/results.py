@@ -24,6 +24,10 @@ Guarantees:
     mappings for zero-column rows [tested test_rows_to_dicts_returns_plain_records]
   - eager query results explain empty pattern, join, and guard outcomes [tested
     test_query_rows_explain_empty_results]
+  - both query-result views re-explain the match form they came from, and the
+    lazy one pulls nothing to do it [tested:
+    test_rows_explain_re_explains_the_query_that_produced_them,
+    test_a_rows_with_no_query_behind_it_refuses_to_explain; commit=3287d4dd4928f09ce7c111d05a1c516808e226d5]
   - error_answer recognizes (Error ...) by head symbol alone, so quoted and
     nested errors stay data, and raise_for_errors chains when clean [tested
     test_raise_for_errors_chains_when_clean_and_raises_one_plainly]
@@ -144,6 +148,7 @@ _ERROR_IS_A_VALUE = Ground(
 
 if typing.TYPE_CHECKING:
     from ._arrow import ArrowView, Projection
+    from ._space_objects import Explanation
 
 __all__ = ["Answers", "Column", "Row", "Rows"]
 
@@ -242,6 +247,48 @@ def _missing_column(name: str, columns: tuple[str, ...] | list[str]) -> str:
         f"no column {name!r}, but {twin!r} is one: attribute access maps _ to -"
         f" and the bracket door is exact, so V.{name.replace('-', '_')} and"
         f" V[{name!r}] are different variables"
+    )
+
+
+def _explain_query(
+    query: _QueryContext | None,
+    columns: tuple[str, ...],
+    called: str,
+    *,
+    analyze: bool,
+    allow_writes: bool,
+) -> Explanation:
+    """Rebuild the match form a query result came from and explain it.
+
+    The patterns and the space are what the call held; the template is its
+    caller-variable columns, which is the template the cursor asked the engine
+    for. A `where=` guard is NOT part of it: the guard filters answers after
+    the match, so it changes which rows survive and not which join runs.
+    """
+    if query is None:
+        msg = (
+            f"{called}() needs the match() result that retained its patterns; "
+            f"this one was constructed or transformed independently"
+        )
+        raise TypeError(msg)
+    # Resolve after package initialization, the way why() does, so eager query
+    # results stay in the core import layer without a static edge to the facade.
+    space_api = _importlib.import_module(f"{__package__}._space")
+    pattern = (
+        query.patterns[0]
+        if len(query.patterns) == 1
+        else Expression((Symbol(","), *query.patterns))
+    )
+    form = Expression(
+        (
+            Symbol("match"),
+            Symbol(query.space),
+            pattern,
+            Expression(tuple(Variable(name) for name in columns)),
+        )
+    )
+    return space_api.Space(query.space).explain(
+        form, analyze=analyze, allow_writes=allow_writes
     )
 
 
@@ -627,6 +674,32 @@ class Rows(UserList[Row]):
             space_api.Space(context.space),
             context.patterns,
             context.where,
+        )
+
+    def explain(
+        self, *, analyze: bool = False, allow_writes: bool = False
+    ) -> Explanation:
+        """What the engine did with the query that produced these rows.
+
+        The same answer `Space.explain` gives, over the match form this result
+        came from: the seam entry, pushdown, source, writes, error mode and the
+        PLAN, `generic-join` with its variable order and columns or
+        `nested-loop` with the conjunct the matcher leads with. Nothing is
+        pulled and nothing is re-matched.
+
+        `analyze=True` RE-RUNS the query inside `stats()` and adds
+        `(inferences N)`, `(answers N)` and `(cputime S)`; it refuses a query
+        whose operations write unless `allow_writes=True`.
+
+        The longhand is `m.explain(form)` on the match form itself, and under
+        that `m.run("!(explain <form>)")`.
+        """
+        return _explain_query(
+            self._query,
+            self.columns,
+            "explain",
+            analyze=analyze,
+            allow_writes=allow_writes,
         )
 
     @overload
@@ -1422,6 +1495,24 @@ class Answers[T](Sequence[T]):
     def why(self) -> str:
         """Explain an empty query after materializing it."""
         return self._eager_rows().why()
+
+    def explain(
+        self, *, analyze: bool = False, allow_writes: bool = False
+    ) -> Explanation:
+        """What the engine did with the query behind this view, pulling nothing.
+
+        `why()` materializes because an empty answer set is what it explains;
+        this one reads the query the view holds, so a lazy stream stays exactly
+        where it was and an infinite one is explainable at all. Otherwise it is
+        `Rows.explain` and answers the same `Explanation`.
+        """
+        return _explain_query(
+            self._query,
+            self._columns,
+            "explain",
+            analyze=analyze,
+            allow_writes=allow_writes,
+        )
 
     def _display_text(self) -> str:
         """Term answers as one line each, bounded by config.display_rows.

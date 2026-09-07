@@ -46,6 +46,7 @@ own.
 | [`operations/concurrency_handles.py`](operations/concurrency_handles.py) | multi-argument engine-pool work and nonblocking channel reads |
 | [`operations/engine_controls.py`](operations/engine_controls.py) | per-call and scoped time, inference, and stack bounds, engine stats, captured output, and DataFrame conversion |
 | [`operations/error_handling.py`](operations/error_handling.py) | structured assertion failures and the explicit row-data-to-exception bridge |
+| [`operations/explaining_a_query.py`](operations/explaining_a_query.py) | `explain()`: the join the matcher will run, the explanation as storable atoms, `analyze=` and its refusal |
 | [`operations/property_instances.py`](operations/property_instances.py) | ground Hypothesis instances that preserve named and anonymous variable laws |
 | [`operations/runtime_configuration.py`](operations/runtime_configuration.py) | inspected process settings, pre-start configuration, and the startup freeze |
 | [`operations/saga_compensation.py`](operations/saga_compensation.py) | committed effect receipts and reverse-order compensation on exceptional exit |

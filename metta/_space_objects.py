@@ -87,6 +87,18 @@ Guarantees:
     predicates' source locations, and an unsampled profile exports as an
     empty one rather than raising [tested: test_a_profile_exports_as_pstats,
     test_an_unsampled_profile_still_exports; commit=6375a7c8f3c035b04bc9d41c8f7f22e56b42fb41]
+  - EngineProfile rows carry the predicate's own name and arity beside the
+    printed spelling, and the recursive calls SWI keeps on a `<recursive>`
+    caller, so no consumer takes a quoted module-qualified name back apart
+    [tested: test_a_profile_row_carries_its_predicate_name_and_arity_apart,
+    test_a_recursive_head_reports_its_own_calls_beside_its_entries;
+    commit=3287d4dd4928f09ce7c111d05a1c516808e226d5]
+  - Explanation keys each item by its head while `.atoms` keeps every item in
+    the engine's order, so a repeated head loses nothing and `.items()` stays
+    Python's pairs view [tested:
+    test_an_explanation_is_a_mapping_over_its_item_heads,
+    test_an_explanation_is_data_a_space_stores_and_matches_back;
+    commit=3287d4dd4928f09ce7c111d05a1c516808e226d5]
 Owns:
   - Cursor owns one engine query until exhaustion, close, or finalization
     and warns when finalization reaps an open query [tested
@@ -99,8 +111,10 @@ Open Obligations:
 
 from __future__ import annotations
 
+import collections.abc as _abc
 import contextlib
 import functools
+import html as _html
 import inspect
 import json
 import logging
@@ -1029,7 +1043,15 @@ class EngineProfile:
     __slots__ = ("nodes", "samples", "seconds", "ticks")
 
     #: The sampler's own node shape, in its own order, then where the
-    #: predicate was defined and what its ticks are in seconds.
+    #: predicate was defined, what its ticks are in seconds, and the parts of
+    #: the predicate the spelling in `predicate` packs together.
+    #:
+    #: `name` and `arity` are the predicate's own, module wrapping removed, so
+    #: no reader takes `'$metta_exec:&pyspace_1':fib/2` back apart to find
+    #: `fib`. `recursive_calls` is what SWI keeps on the `<recursive>`
+    #: pseudo-caller: `calls` counts the ENTRIES into a directly recursive head
+    #: and this counts the rest, so `calls + recursive_calls` is what the head
+    #: was asked for in total.
     COLUMNS = (
         "predicate",
         "calls",
@@ -1040,6 +1062,9 @@ class EngineProfile:
         "line",
         "seconds_self",
         "seconds_total",
+        "name",
+        "arity",
+        "recursive_calls",
     )
 
     def __init__(self, samples: int, ticks: int, seconds: float, nodes: list) -> None:
@@ -1123,6 +1148,119 @@ class _ProfileSnapshot:
 
     def create_stats(self) -> None:
         """Already collected; the engine sampled before this object existed."""
+
+
+class Explanation(_abc.Mapping[str, Atom]):
+    """The engine's decisions for one query, as the atoms `(explain ...)` answers.
+
+        e = m.self.explain("(match &self (, (edge $x $y) (edge $y $z) (edge $z $x)) ($x $y $z))")
+        e.plan          # (plan generic-join (order $_1 $_2 $_3) (relations ...))
+        e["writes"]     # (writes transactional)
+        list(e)         # every item head, in the engine's order
+
+    A `Mapping` keyed by each item's HEAD, whose value is the whole item
+    atom, head included, because that is the atom the engine answered. An
+    explanation is data like anything else: `space.add(*e.atoms)` stores it
+    and `match` queries it afterwards. A number inside an item is an ordinary
+    grounded value, so `e["inferences"].children[1].value` is an `int`.
+
+    `.atoms` is every item in the engine's own order and the mapping is the
+    lookup over it. They differ when a head repeats: an operation registered
+    at two arities answers two `(op ...)` items, and the mapping keeps the
+    last, which is what a `{head: item}` comprehension over the MeTTa form
+    keeps too. `.items()` stays Python's pairs view, inherited from `Mapping`
+    and untouched.
+
+    The plan item names the join the conjunctive matcher RUNS, not the one
+    the query's shape would allow: `generic-join` appears exactly when the
+    engine's Generic Join answers the pattern, so a conjunction declined for
+    a non-ground stored row reads `nested-loop` like any other. `(order ...)`
+    for `nested-loop` names the conjunct the matcher leads with, which is
+    re-chosen at every level under the bindings above it, so it is exact
+    about the first level and silent about the rest.
+
+    The longhand is the MeTTa form: `m.run("!(explain <query>)")` answers the
+    same atoms, and `analyze=True` is that run plus the `m.stats()` block
+    around the query it explains.
+    """
+
+    __slots__ = ("_by_head", "analyzed", "atoms", "query")
+
+    def __init__(self, query: Atom, atoms: Sequence[Atom], *, analyzed: bool) -> None:
+        """Hold one query's items; `analyzed` says whether they were measured."""
+        self.query = query
+        self.atoms = tuple(atoms)
+        self.analyzed = analyzed
+        self._by_head = {_explanation_head(item): item for item in self.atoms}
+
+    def __getitem__(self, head: str) -> Atom:
+        return self._by_head[head]
+
+    def __iter__(self):
+        return iter(self._by_head)
+
+    def __len__(self) -> int:
+        return len(self._by_head)
+
+    @property
+    def plan(self) -> Atom | None:
+        """The `(plan ...)` item, or None for a form that has no join."""
+        return self._by_head.get("plan")
+
+    @property
+    def route(self) -> Atom | None:
+        """The `(handles ...)` item: which seam entry takes the query.
+
+        It carries the entry's fidelity and determinism beside it, or reads
+        `(handles none)` when the engine's own unification takes the query.
+        None for a form that reaches no seam at all.
+        """
+        return self._by_head.get("handles")
+
+    def __rich_repr__(self):
+        """rich.pretty expands an explanation by its items."""
+        yield from self.atoms
+
+    def _repr_pretty_(self, p, cycle) -> None:
+        """Expand an explanation by its items for IPython's printer."""
+        if cycle:
+            p.text("<explanation ...>")
+            return
+        with p.group(2, "<explanation ", ">"):
+            for index, item in enumerate(self.atoms):
+                if index:
+                    p.breakable()
+                p.pretty(item)
+
+    def _repr_html_(self) -> str:
+        """Notebook display: one row per item, its head beside its arguments."""
+        rows = "".join(
+            f"<tr><td><b>{_html.escape(head)}</b></td>"
+            f"<td>{_html.escape(' '.join(str(child) for child in _explanation_rest(item)))}</td></tr>"
+            for head, item in self._by_head.items()
+        )
+        measured = " (analyzed)" if self.analyzed else ""
+        return (
+            "<table style='font-family: monospace; border-collapse: collapse;'>"
+            f"<caption>explain {_html.escape(str(self.query))}{measured}</caption>"
+            f"<tbody>{rows}</tbody></table>"
+        )
+
+    def __repr__(self) -> str:
+        measured = ", analyzed" if self.analyzed else ""
+        return f"<explanation of {self.query} ({len(self.atoms)} items{measured})>"
+
+
+def _explanation_head(item: Atom) -> str:
+    """The item's head, which is the mapping key it arrives under."""
+    if isinstance(item, Expression) and item.children:
+        return str(item.children[0])
+    return str(item)
+
+
+def _explanation_rest(item: Atom) -> tuple[Atom, ...]:
+    """Everything the item says after its head."""
+    return item.children[1:] if isinstance(item, Expression) else ()
 
 
 class FunctionCost:

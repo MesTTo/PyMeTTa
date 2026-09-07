@@ -168,7 +168,7 @@ from ._api_types import _DEFAULT_SPACE, _SpaceId
 from ._engine import Runtime, bridge, runtime
 from ._name_mapping import OperatorRecipe, operator_attribute_target
 from ._space import Space, _creation_site
-from ._space_objects import EngineProfile, FunctionCost, require_deadline
+from ._space_objects import EngineProfile, Explanation, FunctionCost, require_deadline
 from ._under import _UNSET
 from ._under import selected as _selected_under
 from .atoms import Atom, Expression, Symbol, Undefined
@@ -1415,6 +1415,62 @@ class AsyncMeTTa:
         """
         return await self.call(
             lambda m: m.run(source, timeout=timeout, inferences=inferences, **values)
+        )
+
+    async def explain(
+        self,
+        query: Any,
+        /,
+        *,
+        analyze: bool = False,
+        allow_writes: bool = False,
+        **values: Any,
+    ) -> Explanation:
+        """What the engine will do with this query, reflected rather than run.
+
+            e = m.self.explain(
+                "(match &self (, (edge $x $y) (edge $y $z) (edge $z $x)) ($x $y $z))"
+            )
+            e.plan          # (plan generic-join (order ...) (relations ...))
+            e["writes"]     # (writes transactional)
+
+        SQL's EXPLAIN, over this engine's own decisions. A match form answers
+        which seam entry handles it and with what fidelity, whether a bound
+        pushes into the provider, the source, the context world, the
+        annotation semiring, emission, event delivery, writes, the error mode,
+        the merge policy, whether the space's source relations are
+        materialised, and the PLAN: `generic-join` with the variable order and
+        each conjunct's columns, `nested-loop` with the conjunct the matcher
+        leads with, or `empty-factor` with the conjunct that has no candidate.
+        An operation call answers its effect, whether it has an inverse, its
+        annotations, its error mode and the cache decision the memo made.
+
+        The plan names the join the engine RUNS. Deciding that costs the
+        query's shape and one scan of each conjunct's relation, because a
+        conjunction whose stored rows are not all ground declines the Generic
+        Join and must read `nested-loop`; nothing is sorted and no trie is
+        built, so explaining a triangle over 2,048 stored edges cost 7,350
+        engine inferences against the query's own 237,473, and the share falls
+        as the data grows: 10.1%, 4.6% and 3.1% at 128, 512 and 2,048 rows
+        [measured 2026-09-07; command=PYTHONPATH=extensions/python
+        $VENV/bin/python ai-tmp/aa_probe13.py; fixture=a two-out-degree ring of
+        1,024 nodes at loadavg 62].
+
+        `analyze=True` is EXPLAIN ANALYZE: the same items plus `(inferences
+        N)`, `(answers N)` and `(cputime S)` measured by running the query
+        inside `stats()`. It REFUSES the query when the engine can NAME an
+        operation in it that writes, because an analysis that mutates is not an
+        analysis; `allow_writes=True` says to measure it anyway. A match
+        TEMPLATE is evaluated once per answer, so `(match &s (edge $x $y)
+        (add-atom &s (seen $x)))` is a writing query.
+
+        The longhand is the MeTTa form: `m.run("!(explain <query>)")` answers
+        the same atoms, and `analyze=True` is that run with a `stats()` block
+        around `eval()` of the same query. A form that is neither a match nor
+        an operation call keeps the engine's own `type_error(explainable, ...)`.
+        """
+        return await self.call(
+            lambda m: m.explain(query, analyze=analyze, allow_writes=allow_writes, **values)
         )
 
     async def profile(
