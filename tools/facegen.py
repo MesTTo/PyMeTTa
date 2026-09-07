@@ -19,12 +19,12 @@ Assumes:
     read from, which is what `select-python.sh` arranges for every lane
 Guarantees:
   - the checked-in face equals what the module's own signatures produce, gated
-    on every run [tested: test_the_torch_face_is_generated; commit=WORKTREE]
+    on every run [tested: test_the_torch_face_is_generated; commit=7229962705d199fb08796b3090ec5a8a3a0ae393]
   - a face whose module is absent is named and skipped, so a box without the
     library reports what it could not check [tested:
-    test_a_face_whose_module_is_absent_is_reported_and_skipped; commit=WORKTREE]
+    test_a_face_whose_module_is_absent_is_reported_and_skipped; commit=7229962705d199fb08796b3090ec5a8a3a0ae393]
   - a planted signature change is reported with the lines that moved [tested:
-    test_a_planted_signature_change_is_reported; commit=WORKTREE]
+    test_a_planted_signature_change_is_reported; commit=7229962705d199fb08796b3090ec5a8a3a0ae393]
 Open Obligations:
   To Do: None
   Hacks: None

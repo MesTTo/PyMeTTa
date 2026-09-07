@@ -17,7 +17,7 @@ Guarantees:
     one for a keyword-only parameter no positional call reaches and one for a
     signature neither the runtime nor the docstring states [tested:
     test_a_required_keyword_only_parameter_refuses,
-    test_a_name_with_no_signature_anywhere_is_refused; commit=WORKTREE]
+    test_a_name_with_no_signature_anywhere_is_refused; commit=7229962705d199fb08796b3090ec5a8a3a0ae393]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -133,7 +133,7 @@ class _Clinic:
     ValueError there instead. This raises the same thing with the same words,
     so the ladder's second rung is exercised by an object rather than by a
     description of one [source: /usr/lib/python3.14/inspect.py:2321,
-    _signature_from_function's text-signature branch; commit=WORKTREE].
+    _signature_from_function's text-signature branch; commit=7229962705d199fb08796b3090ec5a8a3a0ae393].
     """
 
     def __init__(self, documentation: str) -> None:

@@ -10,14 +10,14 @@ Assumes:
 Guarantees:
   - the arities a face writes are the ones a `module_ops` registration
     ANSWERS, asked of a live engine rather than of the shared rule [tested:
-    test_a_face_serves_the_call_forms_a_registration_answers; commit=WORKTREE]
+    test_a_face_serves_the_call_forms_a_registration_answers; commit=7229962705d199fb08796b3090ec5a8a3a0ae393]
   - every refusal names the header line that answers it [tested:
     test_a_required_keyword_only_parameter_refuses,
     test_a_name_with_no_signature_anywhere_is_refused,
-    test_two_names_reaching_one_head_refuse; commit=WORKTREE]
+    test_two_names_reaching_one_head_refuse; commit=7229962705d199fb08796b3090ec5a8a3a0ae393]
   - the sync tool reports a planted signature change and skips a module that
     is not installed [tested: test_a_planted_signature_change_is_reported,
-    test_a_face_whose_module_is_absent_is_reported_and_skipped; commit=WORKTREE]
+    test_a_face_whose_module_is_absent_is_reported_and_skipped; commit=7229962705d199fb08796b3090ec5a8a3a0ae393]
 Open Obligations:
   To Do: None
   Hacks: None

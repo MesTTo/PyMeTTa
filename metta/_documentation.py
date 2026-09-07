@@ -6,11 +6,11 @@ Guarantees:
   - a caller may supply the prose to read, so a face that has already read a
     C function's docstring signature does not publish that line as the
     description [tested: test_a_face_documents_what_the_docstring_says;
-    commit=WORKTREE]
+    commit=7229962705d199fb08796b3090ec5a8a3a0ae393]
   - a caller supplying annotations supplies the RETURN through the same
     mapping, so a reader that resolved a postponed annotation does not have
     its parameters honoured and its result read back off the raw signature
-    [tested: test_a_face_documents_what_the_docstring_says; commit=WORKTREE]
+    [tested: test_a_face_documents_what_the_docstring_says; commit=7229962705d199fb08796b3090ec5a8a3a0ae393]
   - docstring-parser owns Google section parsing while signature order owns
     positional ``@param`` order [tested:
     test_a_docstring_emits_the_whole_doc_vocabulary; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]

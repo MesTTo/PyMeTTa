@@ -50,7 +50,7 @@ Guarantees:
   - a typed `(@param (@type T) (@desc D))` renders its DESCRIPTION, with the
     type named before it when the type says something, so the shape every
     Python-side doc atom is built in reads as prose rather than as an atom
-    [tested: test_a_typed_parameter_renders_its_description; commit=WORKTREE]
+    [tested: test_a_typed_parameter_renders_its_description; commit=7229962705d199fb08796b3090ec5a8a3a0ae393]
 Fails when:
   - a library publishes names through a form whose name list is computed
     rather than written: the engine reports nothing for such a form, so those

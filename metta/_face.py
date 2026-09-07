@@ -25,18 +25,18 @@ Assumes:
   - a docstring whose first lines read `name(...)` states the signature the
     runtime could not: CPython's own reader builds a Signature from that text
     by parsing `"def foo" + signature + ": pass"`
-    [source: /usr/lib/python3.14/inspect.py:2152, _signature_fromstr; commit=WORKTREE]
+    [source: /usr/lib/python3.14/inspect.py:2152, _signature_fromstr; commit=7229962705d199fb08796b3090ec5a8a3a0ae393]
 Guarantees:
   - a head is the import's module prefix and the tree's one Python-to-MeTTa
     name map, so `requires_grad_` reaches `torch-requires-grad` exactly as
     `S.not_` reaches `not`
-    [source: extensions/python/metta/_name_mapping.py:attribute_name; commit=WORKTREE]
-    [tested: test_a_head_is_the_prefix_and_the_one_name_map; commit=WORKTREE]
+    [source: extensions/python/metta/_name_mapping.py:attribute_name; commit=7229962705d199fb08796b3090ec5a8a3a0ae393]
+    [tested: test_a_head_is_the_prefix_and_the_one_name_map; commit=7229962705d199fb08796b3090ec5a8a3a0ae393]
   - the served arities are `integrate.module_ops`'s own rule, shared rather
     than restated, so the written face and the run-time registration answer at
     the same call forms
     [tested: test_a_face_serves_the_call_forms_a_registration_answers;
-    commit=WORKTREE]
+    commit=7229962705d199fb08796b3090ec5a8a3a0ae393]
   - a type is the projection table's Python column read backwards, which names
     the scalar rows and answers `%Undefined%` for everything else, the classes
     a module names for itself INCLUDED: a declared type is checked against the
@@ -44,15 +44,15 @@ Guarantees:
     refuses a list of numbers, and nothing in a signature says which of its
     module's values survive the crossing under the name it wrote
     [tested: test_a_declared_python_type_admits_one_value_and_refuses_another;
-    commit=WORKTREE]
+    commit=7229962705d199fb08796b3090ec5a8a3a0ae393]
   - rendering is deterministic: the selection keeps the import's own order, a
     whole module is taken in sorted order, and nothing reads the clock or the
     filesystem [tested: test_two_renders_of_one_face_are_the_same_text;
-    commit=WORKTREE]
+    commit=7229962705d199fb08796b3090ec5a8a3a0ae393]
   - a name the module cannot describe and the header does not declare is
     REFUSED by name, with the header line that answers it, rather than being
     dropped from the face [tested: test_a_name_with_no_signature_anywhere_is_refused;
-    commit=WORKTREE]
+    commit=7229962705d199fb08796b3090ec5a8a3a0ae393]
 Fails when:
   - a docstring signature uses the `[, optional]` bracket notation rather than
     Python defaults. It is not Python and this reader does not guess what the
@@ -690,7 +690,7 @@ def _signature_from_text(text: str, path: str, owner: Any) -> inspect.Signature:
     ...)`, which ast refuses with "* argument may appear only once";
     fixture=torch 2.13.0+cpu; command=python -c
     'import ast, inspect, torch; ast.parse("def " + inspect.getdoc(torch.zeros).splitlines()[0] + ": ...")';
-    commit=WORKTREE].
+    commit=7229962705d199fb08796b3090ec5a8a3a0ae393].
     """
     try:
         tree = ast.parse(f"def {_without_redundant_star(text)}: ...")
@@ -941,7 +941,7 @@ def _equation(name: Name, form: CallForm) -> str:
         #what it answers is applicable in head position, which is the same call
         #written where py-call cannot reach
         #[tested: test_py_call_reaches_one_dot_and_py_atom_reaches_any;
-        #commit=WORKTREE].
+        #commit=7229962705d199fb08796b3090ec5a8a3a0ae393].
         body = Expression(
             [Expression([Symbol("py-atom"), Symbol(name.path)]), *variables]
         )
@@ -957,7 +957,7 @@ def _equation(name: Name, form: CallForm) -> str:
         #and the same comparison is True
         #[tested:
         #test_a_tuple_crossing_py_call_unifies_with_nothing_until_it_is_listed;
-        #commit=WORKTREE].
+        #commit=7229962705d199fb08796b3090ec5a8a3a0ae393].
         body = Expression(
             [Symbol("py-call"), Expression([Symbol("list"), body])]
         )
