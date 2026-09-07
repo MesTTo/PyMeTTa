@@ -288,6 +288,7 @@ from typing import (
 
 from . import ops as _ops_module
 from ._api_types import _DEFAULT_SPACE, TemplateLike, _SpaceId
+from ._declarations import inferred
 from ._engine import Runtime, bridge, defer_engine_call, runtime, started
 from ._library import Library, import_library
 from ._lint_events import record_sync_engine_call as _record_sync_engine_call
@@ -4994,6 +4995,50 @@ class Space(Handle):
             msg = f"get-type returned no type for {atom!r}"
             raise EngineError(msg)
         return answers[0]
+
+    def infer_types(self, *, declare: bool = False) -> list[Atom]:
+        """Propose a `(: head (-> ...))` for every head here that has none.
+
+            m.infer_types()                 # the proposals, nothing added
+            m.infer_types(declare=True)     # add exactly those proposals
+
+        One walk of the stored atoms names the narrowest kind covering the
+        children observed at each argument position: all numbers `Number`,
+        all strings `String`, all booleans `Bool`, all symbols `Symbol`, all
+        expressions sharing one head that head's declared result type when it
+        has one and `Expression` otherwise, mixed `Atom`. A variable observed
+        at a position stands for anything and constrains nothing, so a
+        position with only variables is `%Undefined%`. That is
+        `pandas.api.types.infer_dtype` moved from a column's values to an
+        argument position's children, its `skipna` included.
+
+        An equation head's RESULT is what its body answers: a literal's own
+        type, or the declared result of the head the body calls, which is how
+        `(= (double $x) (* $x 2))` proposes `(-> %Undefined% Number)`.
+        Anything else, a bare symbol included, is `%Undefined%`, because a
+        symbol's own type is `%Undefined%` here too. A head observed at two
+        arities gets one proposal per arity, and a head this space already
+        declares gets none.
+
+        `declare=True` adds exactly the returned atoms and nothing else, so
+        `get-type` then answers them. One thing changes with the program's
+        BEHAVIOUR and is worth reading before a proposal is accepted: `Atom`
+        in an argument position is a metatype and stops the engine evaluating
+        that argument, so a mixed position turns `(f (+ 1 2))` from `3` into
+        the term `(+ 1 2)` [measured 2026-09-07]. Proposing and adding are
+        two calls for that reason.
+
+        Cost is O(atoms x arity): one pass over the space, plus one type
+        lookup per distinct head. `metta.stubs()` and `inspect.signature()`
+        show the same arrows, marked inferred, without adding anything.
+        """
+        _satellite("foreign").require_capability(
+            self._space, "enumerate", "infer_types"
+        )
+        proposals: list[Atom] = [row.declaration for row in inferred(self)]
+        if declare:
+            self.add(*proposals)
+        return proposals
 
     def doc(self, atom: Any) -> Atom:
         """Return this space's structured ``get-doc`` answer for one subject.

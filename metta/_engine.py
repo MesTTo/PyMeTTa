@@ -14,7 +14,14 @@ Guarantees:
     [tested test_exception_names_nested_in_other_terms_stay_engine_errors,
     test_reserved_exception_shape_maps_by_kind]
   - reader errors expose the reader's diagnostic instead of Janus's unknown
-    wrapper text [tested test_run_syntax_error_is_loud]
+    wrapper text [tested test_run_syntax_error_is_loud], and a reader failure
+    that named a line carries it as MettaSyntaxError.line rather than only
+    inside that text [tested: test_a_json_error_line_names_its_input_line,
+    shim_type_inference:a_syntax_envelope_carries_its_line; commit=WORKTREE]
+  - a value or type control signal reaches Python as the sentence its thrower
+    composed, so the JSON codec's own refusal is what a caller reads
+    [tested: test_a_json_run_refuses_a_live_host_object_with_the_codecs_sentence;
+    commit=WORKTREE]
   - engine_thread attaches only a bare foreign thread and detaches exactly
     the engine it attached; an async landing can attach without waiting for
     a home-engine call that is itself awaiting that landing [tested:
@@ -107,7 +114,7 @@ from collections.abc import Iterator, Mapping
 from contextlib import AbstractContextManager, contextmanager, nullcontext, suppress
 from importlib import resources
 from pathlib import Path
-from typing import Any, NoReturn, Protocol, cast
+from typing import Any, NoReturn, Protocol, TypedDict, cast
 
 from ._atom_wire import _atom_from_wire
 from ._atoms_core import Atom
@@ -374,7 +381,14 @@ def _reserved_message(kind: object, detail: object, fallback: str) -> str:
     unenveloped from a nested query and knows only which resource ran out;
     the sentence says exactly that rather than naming a limit of `None`.
     """
-    if kind == "syntax":
+    if kind in ("syntax", "value", "type"):
+        # The detail IS the refusal the thrower wrote: the reader's sentence,
+        # or the codec's "JSON cannot carry ...". Without this the value and
+        # type kinds fell through to the fallback, and a caller who asked the
+        # JSON codec to carry a live host object read `Unknown error term:
+        # metta_control_signal(type, "JSON cannot carry ...")` around the
+        # sentence shim.pl's metta_py_json_rethrow/1 had already composed
+        # [measured 2026-09-07].
         return detail if isinstance(detail, str) else fallback
     if kind == "time_limit":
         return (
@@ -396,17 +410,32 @@ def _reserved_message(kind: object, detail: object, fallback: str) -> str:
     return fallback
 
 
-def _restraint_fields(detail: object) -> dict[str, object]:
+class _RestraintFields(TypedDict, total=False):
+    """The keywords RestraintError takes, with the types it documents."""
+
+    restraint: str | None
+    bound: int | None
+    call: str | None
+
+
+def _restraint_fields(detail: object) -> _RestraintFields:
     """The three fields a restraint signal carries, as RestraintError keywords.
 
     lib_tabling throws `metta_control_signal(restraint, [Word, Bound, Call])`
     and janus hands the list over as a Python list; anything else is a
     detail this side does not know, and the error then carries only its
-    sentence.
+    sentence. Each field is checked against the type the exception declares
+    for it rather than splatted across as `object`: the class promises a
+    caller `str | None` and `int | None`, and a detail that does not carry
+    them fills the field with absence rather than with something else.
     """
     if isinstance(detail, list) and len(detail) == 3:
         word, bound, call = detail
-        return {"restraint": word, "bound": bound, "call": call}
+        return {
+            "restraint": word if isinstance(word, str) else None,
+            "bound": bound if isinstance(bound, int) else None,
+            "call": call if isinstance(call, str) else None,
+        }
     return {}
 
 
@@ -1294,12 +1323,37 @@ class Runtime:
                     raise RestraintError(
                         _reserved_message(kind, detail, message), **_restraint_fields(detail)
                     ) from exc
+                if error_type is MettaSyntaxError:
+                    raise MettaSyntaxError(
+                        _reserved_message(kind, row.get("Detail"), message),
+                        line=self._syntax_line(term),
+                    ) from exc
                 if error_type is not None:
                     raise error_type(_reserved_message(kind, row.get("Detail"), message)) from exc
             self._raise_assertion_failure(exc, term, message)
             self._raise_space_capability_error(exc, term, message)
             self._raise_operation_error(exc, term, message)
         raise EngineError(message) from exc
+
+    def _syntax_line(self, term: object) -> int | None:
+        """The 1-based line a reader failure named, or None when it named none.
+
+        A second query rather than a fourth argument on
+        metta_control_signal_info/3: only this one kind has a place as well as
+        a sentence, and the crossing is paid on a path that is already
+        raising. shim.pl's metta_control_signal_line/2 FAILS where no line was
+        recorded, which is what None means here.
+        """
+        try:
+            row = self._janus.query_once(
+                "metta_control_signal_line(Error, Line)", {"Error": term}
+            )
+        except self._janus.PrologError:
+            return None
+        if row is None or row.get("truth") is False:
+            return None
+        line = row.get("Line")
+        return line if isinstance(line, int) else None
 
     def _raise_assertion_failure(self, exc: BaseException, term: object, message: str) -> None:
         """Raise AssertionFailure when the program's own claim is what failed.

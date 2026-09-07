@@ -8,19 +8,47 @@ Guarantees:
     and digest, including all eight formerly unwritable names in
     examples/ch05-equations-and-evaluation/05-02-changing-the-equations/04-specialize.metta [tested:
     test_a_specialized_program_saves_and_digests; commit=5d93a44cf4820717163bbf8dfaf667ae14e5e4ee]
+  - the digest is pinned to the canonicalization it names, not merely to
+    itself: tests/fixtures/space_digest_vector.json carries one program, the
+    lines the engine writes for its atoms and their sha256, and this file
+    rebuilds both from the stored atoms
+    [tested: test_the_digest_is_sha256_over_the_lines_the_engine_writes;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
 """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
+import hashlib
+import json
 import os
+import re
 import subprocess
 import sys
+from pathlib import Path
 
 import pytest
 
 from metta import S, ground
+from metta.atoms import Atom, Expression, Grounded, Symbol, Variable, _decode
+
+#: The shared test vector every seat that answers digest() runs. Node's own
+#: suite reads the same file, so the two seats cannot drift apart quietly.
+VECTOR = json.loads(
+    (Path(__file__).resolve().parents[4] / "tests" / "fixtures" / "space_digest_vector.json").read_text(
+        encoding="utf-8"
+    )
+)
+
+#: The characters ISO gives their own token class, so a run of them is an atom
+#: a Prolog writer leaves unquoted: `=`, `*`, `->` and their kin
+#: [source: SWI-Prolog manual section 5, "Syntax Notes", symbol char set].
+_SYMBOL_CHARACTERS = set("+-*/\\^<>=~:.?@#&$")
+
+#: The atoms that are unquoted despite being neither of the two ordinary
+#: shapes, which is SWI's solo-character set plus the empty list.
+_SOLO_ATOMS = frozenset({"[]", "!", ";", "{}"})
 
 
 def test_digest_ignores_order_and_variable_names(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -179,3 +207,92 @@ def test_a_specialized_program_saves_and_digests(metta, repo_root, tmp_path):
             if str(atom).startswith("(= (") and "_Spec_" in str(atom)
         }
         assert names == loaded_names
+
+
+def _prolog_atom(name: str) -> str:
+    """One symbol as `write_term/2` with `quoted(true)` writes it."""
+    if re.fullmatch(r"[a-z][a-zA-Z0-9_]*", name) or name in _SOLO_ATOMS:
+        return name
+    if name and set(name) <= _SYMBOL_CHARACTERS:
+        return name
+    return "'" + name.replace("\\", "\\\\").replace("'", "\\'") + "'"
+
+
+def _prolog_number(value: float) -> str:
+    """One number as the writer writes it, refusing a shape this does not model.
+
+    Python and SWI agree on every literal this vector uses and disagree on
+    exponents (`1e+30` against `1.0e30`), so the mismatch is a refusal rather
+    than a line that silently differs from the engine's.
+    """
+    written = repr(value)
+    if "e" in written or "E" in written or written in ("inf", "-inf", "nan"):
+        msg = f"this rebuild does not model the written form of {value!r}"
+        raise AssertionError(msg)
+    return written
+
+
+def _canonical_line(atom: Atom, names: dict[str, str]) -> str:
+    """One stored atom as engine/filereader/source_lifecycle.pl writes it.
+
+    metta_host_digest_line/2 copies the atom, numbers its variables from zero
+    and writes it quoted, and an expression is a Prolog list here, so
+    `(user 1 ada)` is `[user,1,ada]`. This is the SECOND implementation of
+    that rule: the point of the test below is that two of them agree, so a
+    shape it does not model refuses instead of guessing.
+    """
+    if isinstance(atom, Expression):
+        return "[" + ",".join(_canonical_line(child, names) for child in atom.children) + "]"
+    if isinstance(atom, Variable):
+        spelled = str(atom)
+        if spelled not in names:
+            # numbervars/3 numbers by term order, which is first appearance,
+            # and '$VAR'(N) prints as the Nth letter with N//26 after it.
+            index = len(names)
+            names[spelled] = chr(ord("A") + index % 26) + ("" if index < 26 else str(index // 26))
+        return names[spelled]
+    if isinstance(atom, Grounded):
+        value = _decode(atom)
+        if isinstance(value, bool):
+            return "true" if value else "false"
+        if isinstance(value, (int, float)):
+            return _prolog_number(value)
+        if isinstance(value, str):
+            return '"' + value.replace("\\", "\\\\").replace('"', '\\"') + '"'
+        msg = f"this rebuild does not model a grounded {type(value).__name__}"
+        raise AssertionError(msg)
+    if isinstance(atom, Symbol):
+        return _prolog_atom(str(atom))
+    msg = f"this rebuild does not model {type(atom).__name__}"
+    raise AssertionError(msg)
+
+
+def test_the_digest_is_sha256_over_the_lines_the_engine_writes(metta):
+    """Pin the digest to its canonicalization, both doors rebuilt here.
+
+    digest() answering the same hex for the same atoms is what the tests
+    above check; this one checks WHICH hex, by writing the lines the engine
+    writes and hashing them the way it hashes them. A change to the
+    canonicalization, the sort, the separator or the encoding moves the
+    number and this goes red with the vector beside it.
+    """
+    with metta._new_space() as m:
+        m.run(VECTOR["program"])
+        rebuilt = sorted(_canonical_line(atom, {}) for atom in m.atoms())
+        assert rebuilt == VECTOR["lines"]
+        joined = "\n".join(VECTOR["lines"]).encode("utf-8")
+        assert hashlib.sha256(joined).hexdigest() == VECTOR["digest"]
+        assert m.digest() == VECTOR["digest"]
+
+
+def test_the_digest_rebuild_refuses_a_shape_it_does_not_model():
+    """The second implementation cannot pass by guessing.
+
+    A rebuild that answered something for every atom would agree with the
+    engine by construction on the shapes it got wrong, so the shapes it does
+    not model are refusals; this is the assertion that keeps that true.
+    """
+    with pytest.raises(AssertionError, match="does not model"):
+        _canonical_line(Grounded(object()), {})
+    with pytest.raises(AssertionError, match="does not model"):
+        _canonical_line(Grounded(1e30), {})

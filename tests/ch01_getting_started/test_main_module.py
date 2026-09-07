@@ -1,8 +1,11 @@
 """Purpose: the python -m metta subcommands, each driven as a real
 subprocess: run prints answer groups, the repl reads multi-line forms
 and exits cleanly, including after reporting a malformed or incomplete form;
-run refuses the same incomplete file with a nonzero exit, lint gates on
-findings, doc answers or refuses, stubs writes a program's declarations as a
+run refuses the same incomplete file with a nonzero exit, reads its program
+from standard input for `-` and for no operand at all, and frames its answers
+as JSON Lines under --json; lint gates on
+findings, doc answers or refuses or proposes declarations under --infer, stubs
+writes a program's declarations as a
 .pyi while its printing stays on stderr, and serve and boot expose spaces until
 interrupted. Convert imports a real Python file and emits source that reloads
 as the same program, and llms prints the repository root's cheat sheet, the
@@ -36,9 +39,10 @@ from pathlib import Path
 import pytest
 
 import metta as metta_package
-from metta import MeTTa, S
+from metta import MeTTa, S, ground
 from metta.__main__ import _completer, _history_path, _scan_line
 from metta.__main__ import main as module_main
+from metta.atoms import _atom_from_wire
 
 _PACKAGE_ROOT = str(Path(__file__).resolve().parents[2])
 _CONVERT_FIXTURE = Path(__file__).resolve().parents[1] / "fixtures" / "convert_program.py"
@@ -589,3 +593,119 @@ def test_the_repl_keeps_its_history_between_sessions(tmp_path):
     assert "!(+ 40 2)" in second
     assert "42" in second
     assert history.read_text() == "!(+ 40 2)\n"
+
+
+def test_run_reads_a_program_from_standard_input():
+    """`-` and no operand at all reach the same reader, which is what a
+    utility that names files does with standard input.
+    """  # noqa: D205  -- the contract is one sentence about two spellings
+    named = _metta("run", "-", stdin="!(+ 1 2)\n")
+    assert named.returncode == 0, named.stderr
+    assert named.stdout.strip() == "3"
+    # No operand at all is the same reader, which is what `cat` and `wc` do.
+    implied = _metta("run", stdin="!(+ 40 2)\n")
+    assert implied.returncode == 0, implied.stderr
+    assert implied.stdout.strip() == "42"
+
+
+class _Terminal:
+    """Standard input as a terminal, which subprocess cannot give a child here."""
+
+    def isatty(self) -> bool:
+        return True
+
+
+def test_run_refuses_a_dash_on_a_terminal(monkeypatch, capsys):
+    """The refusal names `-`, because that is the operand that would block."""
+    import metta.__main__ as module
+
+    monkeypatch.setattr(module.sys, "stdin", _Terminal())
+    with pytest.raises(SystemExit) as refused:
+        module.main(["run", "-"])
+    assert refused.value.code == 2
+    assert "`-` reads the program from standard input" in capsys.readouterr().err
+    # And with no operand at all, which is the same reader by another spelling.
+    with pytest.raises(SystemExit) as implied:
+        module.main(["run"])
+    assert implied.value.code == 2
+
+
+def test_json_lines_carry_the_query_and_its_answers(tmp_path):
+    """One object per ! group, and the program's own printing off the stream."""
+    program = '(= (m-json $x) (* $x 2))\n!(m-json 21)\n!(println! "aside")\n'
+    (tmp_path / "prog.metta").write_text(program)
+    finished = _metta("run", "--json", str(tmp_path / "prog.metta"))
+    assert finished.returncode == 0, finished.stderr
+    rows = [json.loads(line) for line in finished.stdout.splitlines()]
+    assert rows == [
+        {"query": "(m-json 21)", "answers": ["42"]},
+        {"query": '(println! "aside")', "answers": ["True"]},
+    ]
+    # Every line of stdout parsed as JSON above, which is the property the
+    # descriptor swap buys: the program's own printing is on stderr, where a
+    # line of it would otherwise have sat between two objects and broken the
+    # stream for `jq`.
+    assert '"aside"' in finished.stderr
+    # The same program without the flag answers the same atoms, so the flag
+    # frames rather than reruns. The engine prints "aside" as it loads, which
+    # is exactly the interleaving --json moves off stdout.
+    plain = _metta("run", str(tmp_path / "prog.metta"))
+    assert plain.returncode == 0, plain.stderr
+    assert plain.stdout.splitlines() == ['"aside"', "42", "True"]
+
+
+def test_json_wire_answers_read_back_as_atoms():
+    """The wire form is the atom, so a consumer decodes rather than parses."""
+    finished = _metta("run", "--json=wire", "-", stdin='!(+ 1 2)\n!(quote alpha)\n')
+    assert finished.returncode == 0, finished.stderr
+    rows = [json.loads(line) for line in finished.stdout.splitlines()]
+    assert [row["query"] for row in rows] == ["(+ 1 2)", "(quote alpha)"]
+    read_back = [
+        [_atom_from_wire(wire) for wire in row["answers"]] for row in rows
+    ]
+    assert read_back == [[ground(3)], [S.alpha]]
+
+
+def test_a_json_error_line_names_its_input_line(tmp_path):
+    """A reader failure points at the line, on stderr, with a nonzero exit."""
+    (tmp_path / "bad.metta").write_text("!(+ 1 2)\n!(oops\n")
+    finished = _metta("run", "--json", str(tmp_path / "bad.metta"))
+    assert finished.returncode == 1
+    assert finished.stdout == ""
+    (row,) = [json.loads(line) for line in finished.stderr.splitlines()]
+    assert row["line"] == 2
+    assert "missing ')'" in row["error"]
+
+
+def test_a_json_run_refuses_a_live_host_object_with_the_codecs_sentence():
+    """Text prints what the plain run prints; the wire has to carry the value."""
+    text = _metta("run", "--json", "-", stdin='!(py-atom "open")\n')
+    assert text.returncode == 0, text.stderr
+    assert json.loads(text.stdout)["answers"] == ["<builtin_function_or_method>"]
+    wire = _metta("run", "--json=wire", "-", stdin='!(py-atom "open")\n')
+    assert wire.returncode == 1
+    assert "JSON cannot carry" in json.loads(wire.stderr)["error"]
+
+
+def test_the_json_flag_never_eats_the_file_after_it(tmp_path):
+    """getopt_long's optional_argument: the value attaches with `=` or is absent."""
+    (tmp_path / "prog.metta").write_text("!(+ 2 2)\n")
+    finished = _metta("run", "--json", str(tmp_path / "prog.metta"))
+    assert finished.returncode == 0, finished.stderr
+    assert json.loads(finished.stdout)["answers"] == ["4"]
+
+
+def test_doc_infer_prints_the_proposals(tmp_path):
+    """The declarations a program's own atoms justify, one per line."""
+    (tmp_path / "prog.metta").write_text(
+        "(m-inferred-user 1 ada)\n(= (m-inferred-double $x) (* $x 2))\n"
+    )
+    finished = _metta("doc", "--infer", str(tmp_path / "prog.metta"))
+    assert finished.returncode == 0, finished.stderr
+    assert finished.stdout.splitlines() == [
+        "(: m-inferred-user (-> Number Symbol %Undefined%))",
+        "(: m-inferred-double (-> %Undefined% Number))",
+    ]
+    empty = _metta("doc", "--infer")
+    assert empty.returncode == 0, empty.stderr
+    assert "no undeclared head" in empty.stdout

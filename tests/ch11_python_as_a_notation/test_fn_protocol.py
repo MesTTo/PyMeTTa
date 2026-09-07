@@ -6,6 +6,10 @@ Guarantees:
     test_help_answers_from_mettas_own_documentation]
   - subscribe sees equation adds and removes, the function-watcher
     analogue [tested test_subscribe_is_the_function_watcher]
+  - a head with no declared arrow takes the arrow its stored atoms justify,
+    and a head with neither a declaration nor an atom to read is still an
+    honest (*args) [tested: test_signature_comes_from_the_arrow;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -48,16 +52,31 @@ def test_type_is_the_declared_arrow_or_none(m):  # noqa: D103  -- pytest discove
     assert m.fn.fp_undeclared.type is None
 
 
-def test_signature_comes_from_the_arrow(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
+def test_signature_comes_from_the_arrow(m):
+    """The declared arrow, then the inferred one, then an honest (*args)."""
     signature = inspect.signature(m.fn.fp_inc)
     parameters = list(signature.parameters.values())
     assert len(parameters) == 1
     assert parameters[0].kind is inspect.Parameter.POSITIONAL_ONLY
     assert parameters[0].annotation == "Number"
     assert signature.return_annotation == "Number"
-    # No arrow declared: an honest (*args), not a guessed arity.
-    fallback = inspect.signature(m.fn.fp_undeclared)
-    assert [p.kind for p in fallback.parameters.values()] == [
+    # No arrow DECLARED falls through to the arrow the space's own atoms
+    # justify, which `Space.infer_types()` proposes and `__doc__` marks as
+    # inferred. `(= (fp-undeclared $x) $x)` observes a variable at position
+    # one and answers a variable, so the proposal is the gradual unknown both
+    # ways: an arity the equations really have, not a guessed one.
+    inferred = inspect.signature(m.fn.fp_undeclared)
+    assert [p.kind for p in inferred.parameters.values()] == [
+        inspect.Parameter.POSITIONAL_ONLY
+    ]
+    assert next(iter(inferred.parameters.values())).annotation == "%Undefined%"
+    assert "(inferred from stored atoms, not declared)" in m.fn.fp_undeclared.__doc__
+    # A head with neither a declaration nor an atom to read is still (*args),
+    # which is what an honest absence looks like.
+    m.run("(= (fp-nothing) (fp-nothing))")
+    m.run("(: fp-nothing Number)")
+    bare = inspect.signature(m.fn.fp_nothing)
+    assert [p.kind for p in bare.parameters.values()] == [
         inspect.Parameter.VAR_POSITIONAL
     ]
 

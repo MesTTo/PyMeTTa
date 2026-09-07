@@ -105,6 +105,7 @@ from typing import TYPE_CHECKING, Any, Self, cast
 
 from ._call_binding import bind_positional_call, refuse_unknown_keywords
 from ._config import _CHUNK_CAP
+from ._declarations import INFERRED_NOTE, inferred, is_arrow
 from ._engine import Runtime, defer_engine_call
 from ._name_mapping import OperatorRecipe, operator_attribute_target
 from ._source_forms import Origin, head_origins
@@ -1463,14 +1464,21 @@ class _EngineFunction:
     def __signature__(self) -> inspect.Signature:
         """Built from the arrow type when one is declared, so
         inspect.signature() and completion show the arity with the
-        parameter types as annotations; no arrow means (*args).
+        parameter types as annotations.
+
+        A head nothing declares falls back to the arrow its stored atoms
+        justify, `Space.infer_types()`'s own proposal, and `__doc__` says
+        that one is inferred. A head with neither is (*args). Reading an
+        inferred signature walks the space once, the cost `infer_types`
+        states, and `origin` already prices introspection the same way.
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
-        arrow = self.type
-        if (
-            not isinstance(arrow, Expression)
-            or not arrow.children
-            or arrow.children[0] != Symbol("->")
-        ):
+        declared = self.type
+        arrow = (
+            declared
+            if declared is not None and is_arrow(declared)
+            else self._inferred_arrow()
+        )
+        if arrow is None:
             return inspect.Signature(
                 [inspect.Parameter("args", inspect.Parameter.VAR_POSITIONAL)]
             )
@@ -1493,6 +1501,9 @@ class _EngineFunction:
         `(@doc name ...)` atom when one exists (the engine's register
         documents every prelude form, so builtins answer too), else the
         declaration and equations, else None as Python spells absence.
+        A head with no declaration says the arrow its stored atoms justify
+        instead, marked inferred, so a reader can tell a proposal from a
+        promise; nothing is added to the space by reading it.
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         answers = self._space.eval(Expression([Symbol("get-doc"), Symbol(self._name)]))
         if answers and isinstance(answers[0], Expression):
@@ -1501,6 +1512,10 @@ class _EngineFunction:
         declared = self.type
         if declared is not None:
             lines.append(f"{self._name}: {declared}")
+        else:
+            proposed = self._inferred_arrow()
+            if proposed is not None:
+                lines.append(f"{self._name}: {proposed}   {INFERRED_NOTE}")
         equations = self.equations
         if equations:
             if not lines:
@@ -1508,6 +1523,18 @@ class _EngineFunction:
             lines.extend(("", "Equations:"))
             lines.extend(f"  {equation}" for equation in equations)
         return "\n".join(lines) if lines else None
+
+    def _inferred_arrow(self) -> Expression | None:
+        """The arrow this space's stored atoms justify for this head, or None.
+
+        The first row for the name, which for a head observed at two arities
+        is the arity the space mentions first; `metta.stubs()` renders every
+        row as its own overload where one signature cannot.
+        """
+        for row in inferred(self._space):
+            if row.name == self._name:
+                return row.arrow
+        return None
 
     def __repr__(self) -> str:
         return f"<engine function {self._name} on {self._space.name}>"

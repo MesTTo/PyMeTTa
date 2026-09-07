@@ -7,6 +7,10 @@ Guarantees:
   - every MettaError carries atom, space, operation and capability
     attributes, None by default, the message unchanged for their presence
     [tested test_base_fields_default_to_none]
+  - MettaSyntaxError carries the 1-based line the reader stopped at, or None
+    where it named none, so a caller points at the line instead of parsing
+    the sentence [tested: test_a_json_error_line_names_its_input_line;
+    commit=WORKTREE]
   - MettaOperationError.operation is the base field, not a shadow
     [tested test_operation_error_operation_is_the_base_field]
   - AssertionFailure is a MettaError and NOT an EngineError, so a harness
@@ -202,7 +206,26 @@ class Timeout(MettaError, TimeoutError):  # noqa: N818 -- a timeout is the publi
 
 
 class MettaSyntaxError(MettaError):
-    """The reader refused the source. Carries the engine's own message."""
+    """The reader refused the source. Carries the engine's own message.
+
+    `line` is the 1-based source line the reader stopped at when it named
+    one, and None when it did not. The message already says the line in
+    prose; the attribute is there so a caller that has to POINT at it reads
+    a number instead of parsing the sentence, which is the split CPython
+    makes between `SyntaxError`'s message and its `lineno`
+    [source: https://docs.python.org/3.14/library/exceptions.html#SyntaxError].
+    An unbalanced form names its line; a single form read on its own and a
+    numeric literal past binary64 do not, and answer None.
+    """
+
+    def __init__(  # noqa: D107  -- the enclosing class documents construction and the object invariants
+        self,
+        *args: object,
+        line: int | None = None,
+        **fields: Any,
+    ):
+        super().__init__(*args, **fields)
+        self.line = line
 
 
 class SourceNotFound(MettaError, FileNotFoundError):  # noqa: N818  -- the exception name is a domain outcome in the public protocol, not an implementation error suffix

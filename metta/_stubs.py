@@ -37,6 +37,10 @@ Guarantees:
     commit=dd4f82100a052e2c5254a2ef9e91f6eb9d2e0c49]
   - rendering reads rows only; nothing in the described program runs [tested:
     test_stubs_read_the_space_without_evaluating_it; commit=dd4f82100a052e2c5254a2ef9e91f6eb9d2e0c49]
+  - a head the space defines and never declares is rendered from the arrow
+    its stored atoms justify, with the proposal named in the docstring rather
+    than presented as a declaration [tested:
+    test_the_signature_and_the_stub_both_say_inferred; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -49,7 +53,15 @@ import keyword
 import os
 from typing import TYPE_CHECKING, Any
 
-from ._declarations import ARROW, Declaration, declarations, is_arrow
+from ._declarations import (
+    ARROW,
+    INFERRED_NOTE,
+    Declaration,
+    Inference,
+    declarations,
+    inferred,
+    is_arrow,
+)
 from ._name_mapping import attribute_name
 from ._space_objects import _format_doc_atom
 from ._version import __version__
@@ -227,11 +239,15 @@ def _is_unit(atom: Atom) -> bool:
     return isinstance(atom, Expression) and len(atom.children) == 1 and atom.children[0] == ARROW
 
 
-def _documentation_lines(row: Declaration, indent: str) -> list[str]:
+def _documentation_lines(
+    row: Declaration, indent: str, *, note: str | None = None
+) -> list[str]:
     """The head's docstring, which is the text `help()` prints for it.
 
     A head with no `(@doc ...)` row still says what it is: its declarations,
-    which is the same fallback `_EngineFunction.__doc__` gives.
+    which is the same fallback `_EngineFunction.__doc__` gives. `note` is the
+    one line an inferred signature adds, so the stub says which of its
+    signatures the program promised and which this library proposed.
     """
     if row.documentation is not None:
         text = _format_doc_atom(row.documentation)
@@ -239,6 +255,8 @@ def _documentation_lines(row: Declaration, indent: str) -> list[str]:
         text = "\n".join(f"{row.name}: {declared}" for declared in row.types)
     else:
         text = row.name
+    if note is not None:
+        text = f"{text}\n{note}"
     # The text is a MeTTa string and may hold anything. Backslashes escape
     # first, then the delimiter itself; a text ending in a quote takes the
     # multi-line form, whose closing delimiter is on a line of its own and
@@ -271,14 +289,31 @@ def _import_lines(needed: set[str]) -> list[str]:
     ]
 
 
-def _render_function(row: Declaration, name: str, projection: _Projection) -> list[str]:
-    """One head as `def`s: one per declared arrow, or one open signature."""
+def _render_function(
+    row: Declaration,
+    name: str,
+    projection: _Projection,
+    proposals: Sequence[Inference] = (),
+) -> list[str]:
+    """One head as `def`s: one per declared arrow, or one open signature.
+
+    A head the space never declares takes the arrows its stored atoms justify
+    instead, one overload each, and says so in its docstring; the same
+    proposal `Space.infer_types()` answers and `inspect.signature()` shows.
+    """
     arrows = row.arrows
     lines: list[str] = []
-    if not arrows:
-        # No arrow is `(*args)` in __signature__ too. The arities its
-        # equations answer at are still known, and each is its own overload,
-        # so a call with the wrong number of arguments is still caught.
+    note: str | None = None
+    if not arrows and proposals:
+        note = INFERRED_NOTE
+        signatures = []
+        for proposal in proposals:
+            arguments, returns = projection.signature(proposal.arrow)
+            signatures.append((arguments, returns, _type_parameters(projection.parameters)))
+    elif not arrows:
+        # No arrow and nothing observed is `(*args)` in __signature__ too. The
+        # arities its equations answer at are still known, and each is its own
+        # overload, so a call with the wrong number of arguments is caught.
         signatures = [
             (
                 ", ".join(f"x{position}: {projection.need('Any')}" for position in range(1, arity + 1))
@@ -297,7 +332,7 @@ def _render_function(row: Declaration, name: str, projection: _Projection) -> li
         if len(signatures) > 1:
             lines.append(f"@{projection.need('overload')}")
         lines.append(f"def {name}{parameters}({arguments}) -> {returns}:")
-        lines.extend(_documentation_lines(row, "    "))
+        lines.extend(_documentation_lines(row, "    ", note=note))
         lines.append("")
     return lines
 
@@ -354,6 +389,9 @@ def stubs(space: Space | Any, *, sources: Iterable[str | os.PathLike[str]] = ())
     """
     named = [os.fspath(source) for source in sources]
     rows = declarations(space)
+    proposals: dict[str, list[Inference]] = {}
+    for proposal in inferred(space):
+        proposals.setdefault(proposal.name, []).append(proposal)
     types = {row.name for row in rows if row.is_type}
     projection = _Projection(types)
     body: list[str] = []
@@ -379,7 +417,9 @@ def stubs(space: Space | Any, *, sources: Iterable[str | os.PathLike[str]] = ())
         if row.is_type:
             body.extend(_render_type(row, name, projection))
         elif row.arrows or row.defined:
-            body.extend(_render_function(row, name, projection))
+            body.extend(
+                _render_function(row, name, projection, proposals.get(row.name, []))
+            )
         else:
             # Declared as a plain type of something, `(: pi Number)`: a value,
             # not a head, and a value's stub declaration is its annotation.
