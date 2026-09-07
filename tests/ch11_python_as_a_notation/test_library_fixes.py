@@ -153,14 +153,31 @@ def test_atom_comparisons_are_only_ordering() -> None:
     assert pool.eval(guard) == [TRUE]
 
 
+def _access_cost(target, attribute: str) -> int:
+    """Engine inferences one namespace access spends."""
+    with target.stats() as crossing:
+        getattr(target.fn, attribute)
+    return crossing.inferences
+
+
 def test_builtin_discovery_is_cached() -> None:
     """No namespace lookup enumerates the engine catalogue.
 
-    The original contract let the FIRST access pay a full catalogue read
-    (about 1,350 inferences) and required the second to be under a tenth
-    of it. Resolution is a point membership probe now, so the claim
-    strengthens to an absolute bound on EVERY access: an enumeration
-    slipping back in costs over a thousand and trips either side.
+    The claim is FLATNESS, and the test measures it rather than pinning a
+    ceiling. Resolution is a point membership probe, so its cost does not
+    grow with the catalogue; an enumeration slipping back in grows with it
+    and this reads that growth directly.
+
+    An absolute bound could not say this. The same access costs 315
+    inferences the first time the process makes it and 20 every time after,
+    because SWI charges the first caller for work it then keeps, so what a
+    ceiling reads is how much of the suite ran before this test rather than
+    what resolution costs: the old `< 400` measured 315 in a fresh process
+    and tripped once at 3,070 in a four-worker battery, with no reading in
+    the failure that could name what the extra 2,755 were spent on
+    [measured 2026-09-07]. Both measurements below happen in this process,
+    in this state, with only the 4,000 definitions between them, so the
+    comparison means the same thing in every order.
     """
     target = space()
     with target.stats() as first:
@@ -170,20 +187,30 @@ def test_builtin_discovery_is_cached() -> None:
 
     assert first_handle.__name__ == "car-atom"
     assert second_handle.__name__ == "cdr-atom"
-    # A trip prints the price of every engine crossing a THIRD access makes
-    # on the same space, in the same process state, so the failure names the
-    # goal that enumerated rather than only the total: this bound tripped once
-    # at 3,070 in a four-worker battery and at 315 in every fresh process and
-    # under the same seed alone, so the cause is process state the total
-    # cannot name (2026-09-07).
-    assert first.inferences < 400, _priced_crossings(target, "cons_atom")
-    assert second.inferences < 400, _priced_crossings(target, "decons_atom")
-    # The explanation is proven on the green path too, so a trip never finds
-    # it broken: one access crosses the catalogue probe and nothing that costs
-    # a catalogue build.
+    assert first.inferences > 0 and second.inferences > 0, "the access reached the engine"
+
+    # One access crosses the catalogue probe and nothing that costs a
+    # catalogue build. This is the structural half of the claim, and it names
+    # the goal that enumerated where a total cannot.
     priced = _priced_crossings(target, "cons_atom")
     assert "metta_py_catalogue_member" in priced, priced
     assert "metta_py_builtins" not in priced, priced
+
+    # And the measured half: 4,000 further heads in another space move the
+    # cost by nothing at all [measured 2026-09-07: 20 inferences before and
+    # after, in the same process].
+    before = _access_cost(target, "space_atom_count")
+    crowd = space()
+    try:
+        crowd.run("\n".join(f"(= (libfix-crowd-{index} $x) $x)" for index in range(4_000)))
+        after = _access_cost(target, "get_metatype")
+    finally:
+        crowd.drop()
+    assert after == before, (
+        f"resolution grew with the catalogue: {before} inferences before "
+        f"4,000 further definitions and {after} after, so it is enumerating "
+        f"rather than probing\n{_priced_crossings(target, 'decons_atom')}"
+    )
 
 
 def _priced_crossings(target, attribute: str) -> str:
@@ -202,7 +229,16 @@ def _priced_crossings(target, attribute: str) -> str:
     try:
         getattr(target.fn, attribute)
     finally:
-        runtime.once = original
+        # DELETED, not re-assigned. `original` is a bound method, so putting it
+        # back leaves an INSTANCE attribute shadowing Runtime.once for the life
+        # of the process, and a later test's
+        # `monkeypatch.setattr(type(m.runtime), "once", ...)` then intercepts
+        # nothing: ch14's test_registry_queries_are_native_and_cached_per_name
+        # counted zero crossings and failed whenever this file ran before it
+        # [measured 2026-09-07: the two tests in that order fail, in the other
+        # order pass]. One Runtime serves the whole process, so the shadow is
+        # process-wide.
+        del runtime.once
     return "engine crossings of one access, inferences then goal:\n" + "\n".join(priced)
 
 

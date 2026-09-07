@@ -124,6 +124,7 @@ import weakref
 from collections import deque
 from collections.abc import Iterable, Mapping, Sequence
 from contextvars import ContextVar
+from difflib import get_close_matches
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Self, cast
 
@@ -1804,10 +1805,31 @@ class _FunctionNamespace:
                 # typo. This namespace is the LIVE one, so a miss here means the
                 # name is not defined or registered anywhere this space can
                 # see, which is a different answer from the generated namespace's.
+                #
+                # The SUGGESTION IS THE LIBRARY'S OWN, and that is the whole
+                # difference from every other refusal here, which sets `name`
+                # and `obj` and lets the interpreter render the sentence.
+                # CPython's renderer declines a candidate pool of 750 or more
+                # and answers nothing at all [source: CPython 3.14.4
+                # Lib/traceback.py _MAX_CANDIDATE_ITEMS, and _suggestions.
+                # _generate_suggestions, which answers None at 750 and a name
+                # at 749]. This pool is what THIS space can call, which
+                # includes every unscoped name the process has registered, so
+                # it crosses that line in any long-lived program: a suite
+                # measured 1,034 for a space that defines one function
+                # [measured 2026-09-07: tests/ch11_python_as_a_notation/
+                # test_fn_protocol.py, len(dir(here.fn))], and the sentence
+                # then disappeared on some orderings and not others. difflib
+                # is what results.py and _head_meaning.py already use for the
+                # same job, and it has no such ceiling. The two fields stay
+                # set, so the interpreter still adds its own line wherever it
+                # can.
+                close = get_close_matches(asked, dir(self), n=1, cutoff=0.6)
+                suggestion = f"; did you mean {close[0]!r}?" if close else ""
                 msg = (
                     f"{self._space.name}.fn has no function {asked!r}; define "
                     f"it with @space.define, register it with @space.op, or "
-                    f"build the term directly with S[{asked!r}](...)"
+                    f"build the term directly with S[{asked!r}](...){suggestion}"
                 )
                 raise AttributeError(msg, name=asked, obj=self)
         return _EngineFunction(self._space, resolved)

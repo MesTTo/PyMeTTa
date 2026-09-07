@@ -10,6 +10,11 @@ Guarantees:
     [tested: test_an_abandoned_watch_cancels_itself,
     test_source_tree_fixtures_coexist_with_installed_plugin_metadata;
     commit=993608c01049bcca7530931b680c416c81023543]
+  - every failing item carries the engine state, worker, order, seed and load
+    that decided it, so a red that passes alone is a finding with evidence
+    rather than an "intermittent"
+    [tested: test_a_failing_item_carries_the_state_that_decided_it,
+    test_the_state_report_names_every_field_it_promises; commit=WORKTREE]
   - ``HYPOTHESIS_PROFILE=petta`` is a supported alias of the ordinary
     exploratory ``metta`` profile [tested: test_petta_profile_matches_metta;
     commit=afc4024cef7d4b7bcdd194bb030a112187b676d0]
@@ -294,6 +299,127 @@ else:
     settings.register_profile("petta", parent=settings.get_profile("metta"))
     settings.register_profile("ci", print_blob=True, derandomize=True, deadline=None)
     settings.load_profile(os.environ.get("HYPOTHESIS_PROFILE", "metta"))
+
+
+#: What a failure has to say about the process it happened in. Each row is a
+#: goal answered against the live engine; a row that cannot be answered says
+#: so rather than being dropped, because "the engine refused to say" is itself
+#: evidence about the state at the failure.
+ENGINE_STATE_GOALS: tuple[tuple[str, str], ...] = (
+    ("pragmas", "findall(_K-_V, metta_pragma(_K, _V), _L), term_string(_L, Answer)"),
+    (
+        "fuel scope",
+        "(nb_current('$metta_fuel_scope', _S) -> true ; _S = absent), "
+        "(nb_current('$metta_fuel_remaining', _R) -> true ; _R = absent), "
+        "term_string(scope(_S, remaining(_R)), Answer)",
+    ),
+    (
+        "prolog flags",
+        "current_prolog_flag(autoload, _A), current_prolog_flag(stack_limit, _B), "
+        "term_string(autoload(_A)-stack_limit(_B), Answer)",
+    ),
+    (
+        "function generation",
+        "metta_host_function_generation(_G), term_string(_G, Answer)",
+    ),
+)
+
+
+def _engine_rows() -> list[str]:
+    """One line per engine reading, or the reason there is none.
+
+    Read through janus rather than through the library, because the library's
+    own doors are what a failing test was using and a door that is broken must
+    not swallow the reading that would say so.
+    """
+    try:
+        from metta import _engine
+    except Exception as unreachable:  # a report never raises, whatever the import did
+        return [f"engine: the package would not import ({unreachable!r})"]
+    if not _engine.booted():
+        return ["engine: never started in this process"]
+    rows = []
+    for label, goal in ENGINE_STATE_GOALS:
+        try:
+            answer = janus_swi.query_once(goal)
+        except janus_swi.PrologError as refused:
+            rows.append(f"{label}: the engine refused the reading ({refused})")
+            continue
+        rows.append(f"{label}: {answer['Answer'] if answer else 'no answer'}")
+    return rows
+
+
+def _spaces_in_play(item) -> list[str]:
+    """The engine handles this item was handed, named by their fixture.
+
+    A leaked pragma or a leaked fuel scope belongs to a SPACE, and which
+    spaces an item held is the difference between "the engine was in this
+    state" and "this test put it there".
+    """
+    named = []
+    for name, value in getattr(item, "funcargs", {}).items():
+        handle = getattr(value, "name", None)
+        if isinstance(handle, str) and handle.startswith("&"):
+            named.append(f"{name}={handle}")
+    return sorted(named)
+
+
+def engine_state_report(item) -> str:
+    """Everything about the process that a red item cannot be read without.
+
+    The shape is "arm the intermittent at the exception": a battery red that
+    passes alone is a claim about process state, and this is that state,
+    recorded by the run that failed rather than reconstructed afterwards by a
+    reader who no longer has it. Six things, because each has been the answer
+    at least once: the interpreter pragmas (one engine-wide setting outlives
+    the MeTTa object that wrote it), the evaluation fuel scope (an abandoned
+    one silently drops a StackOverflow answer), SWI's autoload and stack-limit
+    flags, which xdist worker ran it, where in the shuffled order it ran and
+    under which seed, and the load, without which no timing red can be
+    attributed at all.
+    """
+    lines = [
+        f"worker: {os.environ.get('PYTEST_XDIST_WORKER', 'master')}",
+        f"seed: {item.config.getoption('randomly_seed', default='unset')}",
+    ]
+    try:
+        items = item.session.items
+        position = items.index(item)
+        previous = items[position - 1].nodeid if position else "none"
+        lines.append(f"order: item {position + 1} of {len(items)}, after {previous}")
+    except (AttributeError, ValueError):  # collection-time failures have no list
+        lines.append("order: this item is not in a collected list")
+    try:
+        lines.append(f"load: {Path('/proc/loadavg').read_text(encoding='utf-8').strip()}")
+    except OSError:
+        lines.append("load: /proc/loadavg is not readable here")
+    spaces = _spaces_in_play(item)
+    lines.append(f"spaces: {', '.join(spaces) if spaces else 'none through a fixture'}")
+    lines.extend(_engine_rows())
+    return "\n".join(lines)
+
+
+@pytest.hookimpl(hookwrapper=True, trylast=True)
+def pytest_runtest_makereport(item, call):  # noqa: ARG001  -- pytest's hook signature
+    """Attach the state report to every red, and never to a green.
+
+    A hook rather than a fixture, and one hook rather than a line in each of
+    the 3,700 tests: the report is a property of the RUN, and a guarantee that
+    has to be remembered per test is one that will be forgotten. `trylast` so
+    the section lands after anything another plugin adds, and a wrapper that
+    cannot raise, because a reporting hook that throws replaces the failure it
+    was called to explain.
+    """
+    outcome = yield
+    report = outcome.get_result()
+    if report.outcome != "failed":
+        return
+    try:
+        report.sections.append(("engine state at failure", engine_state_report(item)))
+    except Exception as unreportable:  # a report never replaces the failure it explains
+        report.sections.append(
+            ("engine state at failure", f"the state report itself failed: {unreportable!r}")
+        )
 
 
 @pytest.fixture(autouse=True)

@@ -171,8 +171,55 @@ def test_save_keeps_every_symbol_it_accepts(metta, tmp_path, name):  # noqa: D10
         assert reader.atoms() == [S.container(S[name])]
 
 
+#: The example's eleven specializations, counted in a process of its own.
+#: The count is a property of a FIRST load: a second load of the same program
+#: in the same process stores five, answers identically and digests stably,
+#: because the specializer's own decisions read state the first load left
+#: [measured 2026-09-07: three loads in one process store 11, 5, 5, with the
+#: round trip holding in each; recorded in
+#: docs/journal/2026-09-07-every-intermittent-root-caused.md]. Asserting eleven
+#: in the shared suite process therefore asserted which file the worker had
+#: opened before, which is why it moved run to run.
+_SPECIALIZE_ROUND_TRIP = '''
+import sys
+from metta import MeTTa
+
+example, saved = sys.argv[1], sys.argv[2]
+names_of = lambda space: {
+    str(atom.children[1].children[0])
+    for atom in space.atoms()
+    if str(atom).startswith("(= (") and "_Spec_" in str(atom)
+}
+with MeTTa() as writer_context:
+    writer = writer_context.self
+    writer.load(example)
+    assert writer.run("!(trickyspec (+ 2))") == [[3]], "the example did not run"
+    names = names_of(writer)
+    assert len(names) == 11, f"{len(names)} specialization heads, not 11: {sorted(names)}"
+    assert sum("_Spec_k" in name for name in names) == 8, sorted(names)
+    before = writer.digest()
+    writer.save(saved)
+with MeTTa() as reader_context:
+    reader = reader_context.self
+    reader.load(saved)
+    assert reader.digest() == before, "the saved program digests differently"
+    assert str(reader.run("!(map-flat (+ 1) (1 2 3))")) == "[[(2 3 4)]]"
+    assert reader.run("!(trickyspec (+ 1))") == [[3]]
+    assert names_of(reader) == names, "a reloaded specialization was renamed"
+print("ROUND TRIP HELD")
+'''
+
+
 def test_a_specialized_program_saves_and_digests(metta, repo_root, tmp_path):
-    """The name minter, writer, parser, and digest agree on specializations."""
+    """The name minter, writer, parser, and digest agree on specializations.
+
+    The small program is measured here, in the suite's own process, because
+    nothing about it depends on what ran before. The example's ELEVEN is
+    measured in a process of its own: how many specializations a load stores
+    depends on what the process has already loaded, so the number means
+    "eleven on a first load" and only a first load can say it. The constant
+    above carries the measurement and the journal entry.
+    """
     exact = tmp_path / "map-flat.metta"
     with metta._new_space() as writer:
         writer.run("(= (map-flat $f $xs) (collapse ($f (superpose $xs))))")
@@ -183,23 +230,56 @@ def test_a_specialized_program_saves_and_digests(metta, repo_root, tmp_path):
         reader.load(exact)
         assert reader.digest() == before
 
-    measured = tmp_path / "specialize.metta"
+    example = (
+        repo_root / "examples" / "ch05-equations-and-evaluation"
+        / "05-02-changing-the-equations" / "04-specialize.metta"
+    )
+    env = dict(os.environ)
+    env["PYTHONPATH"] = os.pathsep.join(sys.path)
+    done = subprocess.run(
+        [sys.executable, "-c", _SPECIALIZE_ROUND_TRIP, str(example),
+         str(tmp_path / "specialize.metta")],
+        capture_output=True,
+        text=True,
+        timeout=300,
+        env=env,
+        check=False,
+    )
+    assert done.returncode == 0, done.stdout[-3000:] + done.stderr[-3000:]
+    assert "ROUND TRIP HELD" in done.stdout, done.stdout[-3000:]
+
+
+def test_a_second_load_of_a_specialized_program_still_round_trips(metta, repo_root, tmp_path):
+    """What DOES hold in every order: the round trip, whatever was stored.
+
+    A second load of the same program in one process stores fewer
+    specializations than the first, and the ones it stores still survive save,
+    reload and digest unchanged. That is the promise the digest owns; the
+    count is the specializer's own decision and is recorded as an open finding
+    rather than pinned here.
+    """
+    example = (
+        repo_root / "examples" / "ch05-equations-and-evaluation"
+        / "05-02-changing-the-equations" / "04-specialize.metta"
+    )
+    saved = tmp_path / "second-load.metta"
+    with metta._new_space() as first:
+        first.load(example)
+        first.run("!(trickyspec (+ 2))")
     with metta._new_space() as writer:
-        writer.load(repo_root / "examples" / "ch05-equations-and-evaluation" / "05-02-changing-the-equations" / "04-specialize.metta")
+        writer.load(example)
         assert writer.run("!(trickyspec (+ 2))") == [[3]]
         names = {
             str(atom.children[1].children[0])
             for atom in writer.atoms()
             if str(atom).startswith("(= (") and "_Spec_" in str(atom)
         }
-        assert len(names) == 11
-        assert sum("_Spec_k" in name for name in names) == 8
+        assert names, "a load that specializes nothing would make this vacuous"
         before = writer.digest()
-        writer.save(measured)
+        writer.save(saved)
     with metta._new_space() as reader:
-        reader.load(measured)
+        reader.load(saved)
         assert reader.digest() == before
-        assert str(reader.run("!(map-flat (+ 1) (1 2 3))")) == "[[(2 3 4)]]"
         assert reader.run("!(trickyspec (+ 1))") == [[3]]
         loaded_names = {
             str(atom.children[1].children[0])

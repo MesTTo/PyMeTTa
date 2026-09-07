@@ -24,6 +24,20 @@ round trip costs 296 ns against 462 ns and nobody reads the traceback
 [measured 2026-09-06: minimum of nine timeit rounds of 200,000 on CPython
 3.14.4, recorded in
 docs/journal/2026-09-06-a-head-knows-where-it-came-from.md].
+
+A THIRD thing was, and it is why the live function namespace names its own
+suggestion instead of leaving the sentence to the interpreter. CPython
+declines a candidate pool of 750 or more and renders nothing at all
+[source: CPython 3.14.4 ``_suggestions._generate_suggestions``, measured
+answering ``'dbl'`` at 749 candidates and ``None`` at 750]. A space's function
+namespace lists what that space can CALL, which includes every unscoped name
+the process has registered, so the pool crosses that line in any long-lived
+program: 1,034 names for a space defining one function, measured 2026-09-07 in
+``tests/ch11_python_as_a_notation/test_fn_protocol.py``. The sentence then
+vanished on some ``pytest-randomly`` orderings and not others. So the refusal
+composes the suggestion with ``difflib``, the spelling ``results.py`` and
+``_head_meaning.py`` already use, and the two fields stay set so the
+interpreter still adds its line wherever its own pool is small enough.
 Open Obligations:
   To Do: None
   Hacks: None
@@ -72,16 +86,28 @@ def test_the_generated_namespace_refusal_carries_both_fields():
 
 
 def test_the_live_function_namespace_refusal_suggests_a_defined_head(m):
-    """Suggest a head that exists in THIS space.
+    """Suggest a head that exists in THIS space, whatever the pool's size.
 
     The live namespace knows what the space defines, so the suggestion is a
-    definition rather than a name from a shipped roster.
+    definition rather than a name from a shipped roster. It is the REFUSAL's
+    own sentence here rather than the interpreter's, because this pool grows
+    with the process and the interpreter stops rendering at 750 candidates;
+    the module docstring above carries the measurement. The crowding case
+    below is the one that used to lose the sentence.
     """
     m.run("(= (dbl $x) (* 2 $x))")
-    error, text = _rendered(lambda: m.fn.dbll)
+    error, _text = _rendered(lambda: m.fn.dbll)
     assert error.name == "dbll"
     assert "define it with @space.define" in str(error)
-    assert "Did you mean: 'dbl'?" in text
+    assert "did you mean 'dbl'?" in str(error)
+
+    # The same refusal with the pool past CPython's cap. `dir()` of this
+    # namespace is what the interpreter would rank, and a suggestion that
+    # depended on it answered nothing here.
+    m.run("\n".join(f"(= (dym-crowd-{index} $x) $x)" for index in range(800)))
+    assert len(dir(m.fn)) >= 750, "the crowding this case exists to create"
+    crowded, _text = _rendered(lambda: m.fn.dbll)
+    assert "did you mean 'dbl'?" in str(crowded)
 
 
 def test_the_package_module_refusal_suggests_an_exported_name():
@@ -139,9 +165,11 @@ def test_a_bracket_door_suggests_where_the_interpreter_fills_nothing(m):
     assert (error.name, error.obj is not None) == ("car-atmo", True)
     assert "Did you mean:" in text
 
-    error, text = _rendered(lambda: m.fn["dbll"])
+    error, _text = _rendered(lambda: m.fn["dbll"])
     assert error.name == "dbll"
-    assert "Did you mean: 'dbl'?" in text
+    # The live namespace's own sentence, for the reason the module docstring
+    # gives; the interpreter fills nothing through a bracket door anyway.
+    assert "did you mean 'dbl'?" in str(error)
 
     m.add("(likes Ada coffee)")
     answers = m.match(S.likes(V.who, V.what))

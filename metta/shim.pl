@@ -1380,9 +1380,19 @@ metta_py_guarded(TimeS, Inf, StackBytes, Goal) :-
             StackBytes, metta_py_guarded(TimeS, Inf, Goal))
     ).
 
+%The caller's own two bounds, and each of them REFUSES when it is exceeded
+%rather than answering. The alarm is the early stop and the deadline check is
+%the verdict, because a late signal lets a goal finish and hands its caller an
+%answer for work that ran past the bound: a 0.3-second load answered after
+%66.170 seconds at loadavg 90 to 100. metta_host_time_budget/3 is the same
+%builder the lazy cursors here already use, so an eager door and a held one
+%now enforce one rule
+%[tested: test_a_wall_clock_bound_that_is_exceeded_refuses,
+%time_budget:the_language_timeout_form_refuses_a_bound_it_exceeded].
 metta_py_guarded(TimeS, Inf, Goal) :-
     ( TimeS < 0 -> Timed = Goal
-    ; Timed = catch(call_with_time_limit(TimeS, Goal),
+    ; metta_host_time_budget(Goal, TimeS, Deadlined),
+      Timed = catch(call_with_time_limit(TimeS, Deadlined),
                     time_limit_exceeded,
                     metta_py_raise(time_limit, TimeS)) ),
     ( Inf < 0 -> call(Timed)
