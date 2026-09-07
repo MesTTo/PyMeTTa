@@ -407,8 +407,11 @@ retain their host type. Unknown dimensions stay symbolic until argument or
 live-value typing binds them.
 `metta.structures` has the stores worth having with MeTTa's semantics at
 Python speed: `AlphaSet`, `PatternMap`, `MatchIndex`, `LiveView`,
-`ClosureView`, `TabledMap`. `metta.events` is the public event stream and
-`metta.subscribe` its two delivery models. `metta.convert` registers two-way
+`ClosureView`, `TabledMap`. `metta.live` is the general materialised view
+`m.live(*query)` answers, `Live` with `Delta` and `Changes` its stream, kept
+out of `metta.structures` so the stores do not pay to build it.
+`metta.events` is the public event stream, its clock and its commit
+boundaries, and `metta.subscribe` its two delivery models. `metta.convert` registers two-way
 conversions, `metta.casting` runtime casts, `metta.integrate` is the
 interface a library implements to work deeply with the engine, `metta.paths`
 builds cycle-safe lazy structural paths, `metta.manifest` makes deployment

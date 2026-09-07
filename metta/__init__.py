@@ -218,6 +218,7 @@ _SATELLITES = frozenset(
         "integrate",
         "library",
         "lint",
+        "live",
         "manifest",
         "parallel",
         "paths",

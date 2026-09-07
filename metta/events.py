@@ -78,10 +78,25 @@ Guarantees:
   - an event names its bindings in __dir__ and carries the asked name on a
     refusal, so a mistyped binding is suggested from the bindings [tested:
     test_a_projection_answers_its_columns_from_dir; commit=6375a7c8f3c035b04bc9d41c8f7f22e56b42fb41]
+  - the clock advances once per delivered change WHILE A WATCH IS LIVE and
+    stands still otherwise, and a segment watch hears one boundary per commit
+    carrying the generation that commit reached, with the engine announcing
+    boundaries only while a watch is live [measured 2026-09-07: ticking on
+    every delivery regardless cost 50,300,906 instructions against 49,752,551;
+    command=python -m benchmarks.check_instructions subscription-dispatch
+    --rounds 3] [tested:
+    test_a_segment_watch_hears_one_boundary_per_commit,
+    test_a_transaction_delivers_one_progress_after_its_deltas; commit=0de0dc08d2fc77bee9dd132c41f1de23cda1e6c2]
+  - a provider's own published change is one committed segment, so a view
+    maintained over an attached store advances with it [tested:
+    test_a_published_provider_change_closes_its_own_segment; commit=0de0dc08d2fc77bee9dd132c41f1de23cda1e6c2]
 Guarded by:
   - _FoldRegistry._lock protects fold state, the active runtime, delivery
     counts, and engine subscription snapshots [tested
     test_subscription_cancel_is_thread_safe]
+  - _SegmentClock._lock protects the generation counter, the watch list and
+    the engine's announcement flag [tested:
+    test_a_segment_watch_hears_one_boundary_per_commit; commit=0de0dc08d2fc77bee9dd132c41f1de23cda1e6c2]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -103,7 +118,16 @@ from .errors import MettaError, SubscriberError
 from .structures import MatchIndex
 from .vocabularies import SubscriptionEdge
 
-__all__ = ["STATELESS", "Event", "EventStream", "Fold", "publish", "stream"]
+__all__ = [
+    "STATELESS",
+    "Event",
+    "EventStream",
+    "Fold",
+    "SegmentWatch",
+    "publish",
+    "segment_committed",
+    "stream",
+]
 
 
 @dataclass(frozen=True)
@@ -563,6 +587,149 @@ class _FoldRegistry:
 _REGISTRY = _FoldRegistry()
 
 
+class SegmentWatch:
+    """One consumer of committed-segment boundaries; ``cancel()`` ends it."""
+
+    __slots__ = ("_callback", "_registry")
+
+    def __init__(self, registry: _SegmentClock, callback: Callable[[int], None]) -> None:
+        """Build the entry; registration is the clock's own step."""
+        self._registry = registry
+        self._callback = callback
+
+    def cancel(self) -> None:
+        """Stop hearing boundaries.
+
+        The engine stops announcing them when this was the last watch.
+        """
+        self._registry.forget(self)
+
+    def __enter__(self) -> Self:
+        """Enter a scope the watch is cancelled at the end of."""
+        return self
+
+    def __exit__(self, *_exc_info: object) -> None:
+        """Cancel the watch, whatever the scope did."""
+        self.cancel()
+
+
+class _SegmentClock:
+    """The stream's clock and its commit boundaries.
+
+    Two facts a fold cannot carry. The GENERATION counts changes delivered on
+    this stream, so a consumer can say WHEN it is current to; the BOUNDARY says
+    a commit is complete, so a consumer that recomputes knows to recompute once
+    rather than once per atom. The engine owns the boundary (a transaction's
+    whole diff is already applied when its first event is delivered) and
+    announces it through seam:segment_committed/1; this is where that crossing
+    lands.
+
+    Materialize publishes the pair the same way and for the same reason: its
+    SUBSCRIBE emits `mz_timestamp` on every row and, under `WITH (PROGRESS)`,
+    rows carrying only a timestamp, whose meaning is that "there are no more
+    updates for either timestamp 2 or 3"
+    [source: https://materialize.com/docs/sql/subscribe/].
+    """
+
+    __slots__ = ("_generation", "_lock", "_published", "_runtime", "_watches")
+
+    def __init__(self) -> None:
+        """Start at generation zero with nothing watching."""
+        self._lock = threading.RLock()
+        self._generation = 0
+        self._watches: list[SegmentWatch] = []
+        self._published = False
+        self._runtime: Any = None
+
+    @property
+    def generation(self) -> int:
+        """The clock: monotone, and advancing while a watch is live."""
+        with self._lock:
+            return self._generation
+
+    def tick(self) -> int:
+        """Count one delivered change, or answer 0 with nothing watching.
+
+        The clock belongs to the boundary watches: with none there is no
+        consumer to be current to, and nothing reads a generation. Advancing
+        it on every delivery regardless cost 1.10% of the
+        subscription-dispatch benchmark, most of it this lock
+        [measured 2026-09-07: 50,300,906 instructions against 49,752,551;
+        command=python -m benchmarks.check_instructions
+        subscription-dispatch --rounds 3].
+
+        The list attribute is read without the lock deliberately: listen and
+        forget REPLACE it rather than mutating it, so a reader sees one whole
+        list or the other, and the answer only decides whether this delivery
+        is counted at all.
+        """
+        if not self._watches:
+            return 0
+        with self._lock:
+            self._generation += 1
+            return self._generation
+
+    def listen(self, runtime: Any, callback: Callable[[int], None]) -> SegmentWatch:
+        """Hear every committed boundary from now on.
+
+        The engine announces boundaries only while something listens, so the
+        first watch turns the announcement on and the last one turns it off,
+        exactly as the first subscription publishes its space.
+        """
+        watch = SegmentWatch(self, callback)
+        with self._lock:
+            if self._runtime is not None and self._runtime is not runtime:
+                msg = "segment watches cannot span distinct engine runtimes in one process"
+                raise RuntimeError(msg)
+            candidate = [*self._watches, watch]
+            self._publish_locked(runtime, enabled=True)
+            self._runtime = runtime
+            self._watches = candidate
+        return watch
+
+    def forget(self, watch: SegmentWatch) -> None:
+        """Withdraw one watch; an already-cancelled one is a no-op."""
+        with self._lock:
+            remaining = [current for current in self._watches if current is not watch]
+            if len(remaining) == len(self._watches):
+                return
+            if not remaining:
+                self._publish_locked(self._runtime, enabled=False)
+            self._watches = remaining
+
+    def _publish_locked(self, runtime: Any, *, enabled: bool) -> None:
+        # The announcement is the engine's, so turning it on and off is one
+        # engine call, made only when the answer actually changes. A failed
+        # call leaves both the flag and the watch list where they were, which
+        # is what keeps a refused publication from claiming a watch nothing
+        # will ever feed.
+        if runtime is None or enabled == self._published:
+            return
+        runtime.must("metta_py_segments(Enabled)", Enabled=enabled)
+        self._published = enabled
+
+    def committed(self) -> None:
+        """One committed segment has finished dispatching its events."""
+        with self._lock:
+            watches = tuple(self._watches)
+            generation = self._generation
+        for watch in watches:
+            watch._callback(generation)
+
+
+_SEGMENTS = _SegmentClock()
+
+
+def segment_committed() -> bool:
+    """The engine's commit boundary, arriving from seam:segment_committed/1.
+
+    Public because the stream is: a host binding for another language taps in
+    here exactly as the Python shim does.
+    """
+    _SEGMENTS.committed()
+    return True
+
+
 class EventStream:
     """The engine's `(action, space, atom)` stream, as an object.
 
@@ -716,6 +883,37 @@ class EventStream:
         """Every live fold on one space, in registration order."""
         return _REGISTRY.for_space(space)
 
+    def generation(self) -> int:
+        """How many changes this stream has delivered, monotone.
+
+        The stream's clock. A consumer that has seen generation `g` has seen
+        every change committed up to `g`; `segments` is how it learns that a
+        commit reached one.
+        """
+        return _SEGMENTS.generation
+
+    def segments(self, callback: Callable[[int], None]) -> SegmentWatch:
+        """Run `callback(generation)` after every committed segment.
+
+        A segment is one commit's whole ordered diff: an unscoped write is a
+        segment of one and a transaction is a segment of everything it wrote,
+        while a rollback, a speculation and a world evaluation have none. Every
+        fold step for the segment's events has already run when the callback
+        does, and the space already held the whole diff when the FIRST of them
+        ran, so a consumer that recomputes recomputes here, once, instead of
+        once per atom over a state that is not moving.
+
+            done = []
+            watch = m.events().segments(done.append)
+            m.transaction(lambda: m.add(S.a, S.b))   # done == [2]
+
+        `metta.live.Live` is the worked instance and the rung above this
+        one: its `progress` deltas are this callback. The engine announces
+        boundaries only while something listens, so a stream nobody watches
+        this way costs one clause lookup per commit.
+        """
+        return _SEGMENTS.listen(self._runtime, callback)
+
     def publish(self, action: str, space: str, atom: Any) -> None:
         """Announce a change this process did not write.
 
@@ -723,11 +921,17 @@ class EventStream:
         whose store also changes elsewhere and that has a channel saying so,
         Redis pub/sub or PostgreSQL LISTEN/NOTIFY, announces those changes
         here, which is what its `(events ...)` declaration promised.
+
+        One announcement is one committed segment, because the provider's
+        store already holds the change: a consumer maintaining a derived
+        answer is told the boundary here exactly as the engine's own commit
+        tells it.
         """
         if action not in ("add", "remove"):
             msg = f"action is 'add' or 'remove', not {action!r}"
             raise ValueError(msg)
         _deliver(action, space, _to_atom(atom))
+        _SEGMENTS.committed()
 
 
 def stream(runtime: Any) -> EventStream:
@@ -754,6 +958,10 @@ def _deliver(
     atom: Atom,
     sequence: int | None = None,
 ) -> None:
+    # The clock advances for the CHANGE, before any fold sees it, so a
+    # generation a delta carries is the one at which that change landed and
+    # two folds watching one write agree on it.
+    generation = _SEGMENTS.tick()
     failures: list[SubscriberError] = []
     for fold in _REGISTRY.candidates(space, atom):
         if fold.on not in ("both", action):
@@ -763,10 +971,17 @@ def _deliver(
             continue
         try:
             event = Event(action, space, atom, bindings)
+            # Keep transport metadata outside the dataclass fields so
+            # construction, repr, equality, asdict(), and class matching
+            # retain Event's public four-field record. The generation rides
+            # here rather than as a property for a second reason: a watching
+            # pattern may bind a variable called $generation, and a property
+            # would silently answer the clock where __getattr__ answers the
+            # binding. Zero means nothing is watching boundaries, and the
+            # write costs a delivery that nobody would read it from.
+            if generation:
+                object.__setattr__(event, "_generation", generation)
             if sequence is not None:
-                # Keep transport metadata outside the dataclass fields so
-                # construction, repr, equality, asdict(), and class matching
-                # retain Event's public four-field record.
                 object.__setattr__(event, "_sequence", sequence)
             fold._run(event)
         # A control signal is BaseException and passes through untouched:

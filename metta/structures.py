@@ -1,9 +1,15 @@
-"""Purpose: data structures with MeTTa's semantics at Python speed, built on
-the boundary-free atom kernel (unify, alpha_eq, variables, order_key) and
-never touching the engine: importable and usable without janus. PatternMap
-answers "which entries apply to this atom", MatchIndex answers "which of
-many registered patterns match it" sublinearly, and AlphaSet holds atoms
-modulo variable renaming.
+"""Purpose: data structures with MeTTa's semantics at Python speed. The first
+three are built on the boundary-free atom kernel (unify, alpha_eq, variables,
+order_key) and never touch the engine, so they import and work without janus:
+PatternMap answers "which entries apply to this atom", MatchIndex answers
+"which of many registered patterns match it" sublinearly, and AlphaSet holds
+atoms modulo variable renaming. The rest take a live handle and cross
+deliberately, because the win IS the engine: LiveView materialises one pattern
+and keeps it current from the space's own writes, TabledMap is a computed cache
+the engine invalidates, and ClosureView a reachability relation tabled from
+birth. The general view -- several patterns, a tabled call, a stream of deltas
+-- is metta.live, which this module reaches only when a LiveView is made, so a
+program that wants the stores does not build it.
 Assumes:
   - metta.atoms._match is the private directional primitive every lookup
     here wants: stored patterns are the pattern side and probes are the atom
@@ -31,6 +37,10 @@ Guarantees:
   - LiveView holds exactly what the space holds for its pattern, through
     adds and through removals whose event cannot say which occurrence left
     [tested test_liveview_mirrors_the_space]
+  - LiveView is metta.live's Live with the pattern strategy, read through
+    its atoms, so the two cannot drift [tested:
+    test_liveview_mirrors_the_space,
+    test_a_ground_removal_costs_the_view_nothing_that_grows; commit=0de0dc08d2fc77bee9dd132c41f1de23cda1e6c2]
 Decides:
   - source text is NOT parsed here, because parsing needs the engine and
     this module's contract is engine-freedom; parse() first, or build
@@ -45,8 +55,6 @@ Open Obligations:
 
 from __future__ import annotations
 
-import threading
-from collections import Counter
 from collections.abc import Iterator, MutableMapping, MutableSet
 from operator import itemgetter
 from typing import Any, Self
@@ -182,7 +190,8 @@ class PatternMap(MutableMapping):
         for stored, _ in self._patterns.values():
             yield stored
 
-    def __len__(self) -> int:  # noqa: D105  -- the Python data-model hook is defined by its name and enclosing type contract
+    def __len__(self) -> int:
+        """How many answers the view holds, occurrences counted."""
         return len(self._ground) + len(self._patterns)
 
     def matching(self, atom: Any) -> Iterator[tuple[Atom, Any]]:
@@ -221,7 +230,8 @@ class PatternMap(MutableMapping):
             yield (None, len(probe.children))
         yield None
 
-    def __repr__(self) -> str:  # noqa: D105  -- the Python data-model hook is defined by its name and enclosing type contract
+    def __repr__(self) -> str:
+        """Name the buffer's fill against its bound, and the view it reads."""
         return (
             f"PatternMap({len(self._ground)} ground, "
             f"{len(self._patterns)} pattern entries)"
@@ -434,7 +444,8 @@ class AlphaSet(MutableSet):
         for item in items:
             self.add(item)
 
-    def __contains__(self, item: Any) -> bool:  # noqa: D105  -- the Python data-model hook is defined by its name and enclosing type contract
+    def __contains__(self, item: Any) -> bool:
+        """Whether the view holds this answer at all."""
         return _canonical(_as_atom(item)) in self._members
 
     def __iter__(self) -> Iterator[Atom]:  # noqa: D105  -- the Python data-model hook is defined by its name and enclosing type contract
@@ -470,6 +481,42 @@ def _tabling_ready(space: Any) -> None:
 
 def _call_expr(name: str, args: tuple) -> Expression:
     return Expression([Symbol(name), *(_encode(argument) for argument in args)])
+
+
+def _call_spelling(name: str, arity: int) -> str:
+    """`(name $x0 .. $xn)`: one call spelling per FUNCTION, holes and all.
+
+    `tabled`, `table-stats` and `table-clear` are about a function rather than
+    a call: the counters are the sum over every table the head has, so a
+    bound call and an all-holes one answer the same row [measured 2026-09-07:
+    `(probe-step $x0 $x1)`, `(probe-step a $y)` and `(probe-step b $y)` each
+    answered tables=2 over the same two tables;
+    command=extensions/python/benchmarks/probes/live_view_cost.py --forms].
+    Spelling it from the head and its arity is therefore what a caller holding
+    a particular call should ask with, and it is also the form
+    `TabledMap` declares with.
+    """
+    holes = " ".join(f"$x{position}" for position in range(arity))
+    return f"({name} {holes})" if holes else f"({name})"
+
+
+def _table_report(space: Any, spelled: str) -> dict[str, int | Expression]:
+    """The engine's own counters for one function's tables, as a mapping."""
+    (answer,) = space.eval(f"(table-stats {spelled})")
+    if not isinstance(answer, Expression):
+        msg = f"table-stats answered {answer!r}, not an expression"
+        raise MettaError(msg)
+    report: dict[str, int | Expression] = {}
+    for pair in answer.children:
+        if isinstance(pair, Expression) and len(pair.children) == 2:
+            name = str(pair.children[0])
+            value = pair.children[1]
+            if name == "policy" and isinstance(value, Expression):
+                report[name] = value
+            else:
+                report[name] = int(getattr(value, "value", value))
+    return report
+
 
 
 class TabledMap:
@@ -514,8 +561,7 @@ class TabledMap:
                 )
             arity = compiled[0] - 1
         self._arity = arity
-        holes = " ".join(f"$x{position}" for position in range(arity))
-        spelled = f"({name} {holes})" if holes else f"({name})"
+        spelled = _call_spelling(name, arity)
         self._call_pattern = spelled
         declared = space.run(f"!(tabled {spelled})")
         if declared != [[True]]:
@@ -557,20 +603,7 @@ class TabledMap:
         to, `(monotonic shared)` or `(plain private (lattice join))`; it is
         present while the table is declared.
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
-        (answer,) = self._space.eval(f"(table-stats {self._call_pattern})")
-        if not isinstance(answer, Expression):
-            msg = f"table-stats answered {answer!r}, not an expression"
-            raise MettaError(msg)
-        report: dict[str, int | Expression] = {}
-        for pair in answer.children:
-            if isinstance(pair, Expression) and len(pair.children) == 2:
-                name = str(pair.children[0])
-                value = pair.children[1]
-                if name == "policy" and isinstance(value, Expression):
-                    report[name] = value
-                else:
-                    report[name] = int(getattr(value, "value", value))
-        return report
+        return _table_report(self._space, self._call_pattern)
 
     def clear(self) -> None:
         """Drop this function's tables; the next read re-evaluates."""
@@ -597,88 +630,38 @@ class LiveView:
     iteration yields them, count(atom) answers multiplicity. close()
     cancels the subscription; a closed view keeps its last state.
 
+    This is `Live` with the `pattern` strategy, read through its ATOMS: one
+    mechanism, and this face is the one the engine's own atom-hook comment
+    names as the worked instance. `m.live(pattern)` is the rung below it and
+    answers rows, several patterns, a tabled call, and a stream of deltas.
+
     space may be a context or a space.
     """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
 
+    __slots__ = ("_live", "_pattern")
+
     def __init__(self, space: Any, pattern: Any) -> None:  # noqa: D107  -- the enclosing class documents construction and the object invariants
-        space = space_of(space)
-        self._space = space
+        from .live import Live  # noqa: PLC0415 -- the view face alone pays
+
         self._pattern = pattern
-        self._lock = threading.Lock()
-        self._held: Counter[Atom] = Counter()
-        self._subscription: Any = None
-
-        def setup() -> None:
-            self._subscription = space.subscribe(
-                pattern, self._deliver, on="both"
-            )
-            self._seed()
-
-        space.transaction(setup)
-
-    def _seed(self) -> None:
-        """Read the whole multiset from the space. The first read and the
-        answer to a removal the event cannot resolve are the same
-        computation, so they are one.
-        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
-        rows = self._space.match(self._pattern)
-        names = rows.columns
-        held: Counter[Atom] = Counter()
-        for row in rows:
-            held[substitute(_as_atom(self._pattern), dict(zip(names, row, strict=True)))] += 1
-        self._held = held
-
-    def _deliver(self, event: Any) -> None:
-        with self._lock:
-            if event.action == "add":
-                self._held[event.atom] += 1
-                return
-            # A removal event fires once per removal and carries the
-            # PATTERN asked for, not the occurrence that left (measured
-            # 2026-08-19: `(alert $q)` over {(alert red), (alert amber)}
-            # delivered `(alert $_610)` and the space kept amber). One
-            # removal is one occurrence, multiset subtraction, so the
-            # pattern alone no longer says what changed.
-            #
-            # It does say it when the pattern is ground and the only held
-            # atom unifying with it is the pattern itself: nothing else
-            # stored can unify with a ground atom, so exactly one copy of
-            # it left. That is every `remove(S.alert(S.red))`, and it stays
-            # a local decrement. Anything else re-reads the space, which
-            # is what the subscription's own contract asks of a handler
-            # that needs more than the event carries.
-            pattern = event.atom
-            stale = [held for held in self._held if _match(pattern, held) is not None]
-            if stale == [pattern] and _is_ground(pattern):
-                self._held[pattern] -= 1
-                if self._held[pattern] <= 0:
-                    del self._held[pattern]
-                return
-            self._seed()
+        self._live = Live(space, pattern, on="both", strategy="pattern")
 
     def __contains__(self, atom: Any) -> bool:  # noqa: D105  -- the Python data-model hook is defined by its name and enclosing type contract
-        with self._lock:
-            return self._held[_as_atom(atom)] > 0
+        return atom in self._live
 
     def count(self, atom: Any) -> int:
         """How many copies of this atom the view holds."""
-        with self._lock:
-            return self._held[_as_atom(atom)]
+        return self._live.count(atom)
 
     def __len__(self) -> int:  # noqa: D105  -- the Python data-model hook is defined by its name and enclosing type contract
-        with self._lock:
-            return sum(self._held.values())
+        return len(self._live)
 
     def __iter__(self) -> Iterator[Atom]:  # noqa: D105  -- the Python data-model hook is defined by its name and enclosing type contract
-        with self._lock:
-            snapshot = list(self._held.elements())
-        return iter(snapshot)
+        return iter(self._live.atoms())
 
     def close(self) -> None:
         """Cancel the subscription; the view stops updating."""
-        if self._subscription is not None:
-            self._subscription.cancel()
-            self._subscription = None
+        self._live.close()
 
     def __enter__(self) -> Self:  # noqa: D105  -- the Python data-model hook is defined by its name and enclosing type contract
         return self
@@ -687,7 +670,7 @@ class LiveView:
         self.close()
 
     def __repr__(self) -> str:  # noqa: D105  -- the Python data-model hook is defined by its name and enclosing type contract
-        return f"LiveView({self._pattern} on {self._space.name}, {len(self)} atoms)"
+        return f"LiveView({self._pattern} on {self._live.space.name}, {len(self)} atoms)"
 
 
 class ClosureView:
@@ -751,3 +734,4 @@ class ClosureView:
 
     def __repr__(self) -> str:  # noqa: D105  -- the Python data-model hook is defined by its name and enclosing type contract
         return f"ClosureView({self._relation} on {self._space.name})"
+

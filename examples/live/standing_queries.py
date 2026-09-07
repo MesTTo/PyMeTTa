@@ -11,6 +11,8 @@ Open Obligations:
 from _common import check, done
 
 from metta import MeTTa, S, V
+from metta.live import Delta
+from metta.vocabularies import LiveStrategy
 
 m = MeTTa().space()
 
@@ -60,4 +62,40 @@ for subscription in (ping, pong, audit, inbox):
 check("cancelled folds leave the live roster", event_stream.folds(str(m.name)), ())
 m.add(S.ping(99))
 check("no delivery after cancel", len(transcript), 5)
+
+# A subscription tells you what CHANGED. A live view keeps the ANSWER, so a
+# program that keeps consulting "the current set of X" stops asking.
+with m.live(S.alert(V.level)) as alerts:
+    m.add(S.alert(S.red), S.alert(S.red), S.alert(S.amber))
+    check("the view holds what the space holds", len(alerts), 3)
+    check("multiplicity, because a space is a multiset",
+          alerts.count(S.alert(S.red)), 2)
+    check("membership without an engine call", S.alert(S.red) in alerts, True)
+    m.remove(S.alert(S.red))
+    check("and it follows a removal", alerts.count(S.alert(S.red)), 1)
+
+# The query is one pattern, a conjunction spelled the way match spells one, or
+# a call to a tabled head, and the maintenance follows that shape.
+m.add(S.person(S.bob, 30), S.city(S.bob, S.nyc))
+with m.live(S.person(V.n, V.a), S.city(V.n, V.c)) as joined:
+    check("a join, materialised", len(joined), 1)
+    check("watched by its heads", joined.strategy, LiveStrategy.heads)
+    m.add(S.person(S.eve, 25), S.city(S.eve, S.la))
+    check("and current when the write returns", len(joined), 2)
+
+# The same view read as a stream: a signed delta per row, and a progress
+# marker after each commit saying which generation you have seen everything up
+# to. A commit is one boundary whatever it wrote.
+with m.live(S.tick(V.n)) as ticks, ticks.changes(timeout=5) as deltas:
+    m.transaction(lambda: m.add(S.tick(1), S.tick(2)))
+    read = []
+    for delta in deltas:
+        match delta:
+            case Delta("add", 1, row, _atom, _generation):
+                read.append(f"add {row['n']}")
+            case Delta("progress", _, None, None, _generation):
+                read.append("progress")
+                break
+    check("two adds and one progress, because a commit is one boundary",
+          read, ["add 1", "add 2", "progress"])
 done("standing_queries")

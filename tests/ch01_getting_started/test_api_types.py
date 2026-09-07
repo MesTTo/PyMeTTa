@@ -39,6 +39,7 @@ from metta import (
     convert,
     integrate,
     lint,
+    live,
     parse,
     remote,
     structures,
@@ -217,6 +218,15 @@ def _live_view(receiver, _tag, _tmp_path):
         view.close()
 
 
+def _live(receiver, _tag, _tmp_path):
+    receiver.add(S["door-live"](S.red))
+    view = live.Live(receiver, S["door-live"](V.level))
+    try:
+        return len(view)
+    finally:
+        view.close()
+
+
 def _closure_view(receiver, tag, _tmp_path):
     relation = f"door-rel-{tag}"
     receiver.add(S[relation](S.a, S.b), S[relation](S.b, S.c))
@@ -315,6 +325,7 @@ SPACE_DOORS = {
     "lint.lint_file": (_lint_file, ["constant-if-true"]),
     "remote.Gateway": (_gateway, [["e", [["s", "door-served"], ["n", 1]]]]),
     "structures.ClosureView": (_closure_view, True),
+    "live.Live": (_live, 1),
     "structures.LiveView": (_live_view, 1),
     "structures.TabledMap": (_tabled_map, 8),
     "tables.TableBridge.from_context": (_tables_from_context, ["(edge a1 b1)"]),

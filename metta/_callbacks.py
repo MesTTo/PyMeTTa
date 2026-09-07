@@ -68,6 +68,7 @@ _CALLBACKS = {
     "path_value": ("paths", "_path_value"),
     "release_context": ("_task_context", "release"),
     "release_contexts": ("_task_context", "release_many"),
+    "segment_committed": ("events", "segment_committed"),
     "stream_reraise": ("errors", "stream_reraise"),
     "type_names": ("_ops", "type_names"),
 }
@@ -115,6 +116,7 @@ path_step: _Any
 path_value: _Any
 release_context: _Any
 release_contexts: _Any
+segment_committed: _Any
 stream_reraise: _Any
 type_names: _Any
 
@@ -160,6 +162,7 @@ __all__ = [
     "path_value",
     "release_context",
     "release_contexts",
+    "segment_committed",
     "stream_reraise",
     "type_names",
 ]

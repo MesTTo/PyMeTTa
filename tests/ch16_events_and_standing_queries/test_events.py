@@ -544,3 +544,91 @@ def test_why_refuses_the_question_whose_premise_is_false(metta):
     with pytest.raises(ValueError, match="explains an empty query"):
         m.why(S.why_job(V.id, V.pri))
     assert "guard" in m.why(S.why_job(V.id, V.pri), where=V.pri.ge(100))
+
+
+def test_a_segment_watch_hears_one_boundary_per_commit(metta):
+    """The clock and the boundary, the two facts a fold cannot carry.
+
+    A commit is one boundary whatever it wrote, and it carries the generation
+    that commit reached, so a consumer that has heard `g` has seen every
+    change delivered up to `g`. Materialize publishes the same pair, a
+    timestamp on every row and progress rows that carry only a timestamp
+    [source: https://materialize.com/docs/sql/subscribe/].
+
+    The clock belongs to the watches: it stands still while none is live,
+    because there is then no consumer to be current to, and paying for it on
+    every delivery cost 1.10% of the subscription-dispatch benchmark.
+    """
+    with metta._new_space() as sp:
+        stream = sp.events()
+        boundaries: list[int] = []
+        seen: list[object] = []
+        with stream.segments(boundaries.append), sp.subscribe(
+            S.seg_p(V.x), seen.append, on="both"
+        ) as sub:
+            before = stream.generation()
+            sp.add(S.seg_p(1))
+            sp.transaction(lambda: sp.add(S.seg_p(2), S.seg_p(3)))
+            sp.remove(S.seg_p(1))
+            assert [boundary - before for boundary in boundaries] == [1, 3, 4]
+            assert stream.generation() - before == 4
+            assert len(seen) == 4
+            # A rolled-back transaction commits nothing, so it is no segment.
+            with pytest.raises(ZeroDivisionError):
+                sp.transaction(lambda: (sp.add(S.seg_p(9)), 1 / 0))
+            assert [boundary - before for boundary in boundaries] == [1, 3, 4]
+            assert sub is not None
+        # Cancelled, the engine stops announcing AND the clock stands still,
+        # while the write itself still delivers to its subscription.
+        with sp.subscribe(S.seg_p(V.x), seen.append, on="both"):
+            sp.add(S.seg_p(4))
+        assert [boundary - before for boundary in boundaries] == [1, 3, 4]
+        assert stream.generation() - before == 4
+        assert len(seen) == 5
+
+
+def test_a_discarded_segment_announces_no_boundary(metta):
+    """Speculation and rollback publish no events, so they close no segment."""
+    with metta._new_space() as sp:
+        stream = sp.events()
+        boundaries: list[int] = []
+        with stream.segments(boundaries.append), sp.subscribe(
+            S.seg_q(V.x), lambda _event: None, on="both"
+        ):
+            with sp.speculative():
+                sp.add(S.seg_q(1))
+            assert boundaries == []
+            sp.add(S.seg_q(2))
+            assert len(boundaries) == 1
+
+
+def test_a_write_to_an_unwatched_space_costs_no_boundary_crossing(metta):
+    """The crossing is guarded on the segment touching a subscribed space."""
+    with metta._new_space() as watched, metta._new_space() as elsewhere:
+        stream = watched.events()
+        boundaries: list[int] = []
+        with stream.segments(boundaries.append), watched.subscribe(
+            S.seg_r(V.x), lambda _event: None, on="both"
+        ):
+            elsewhere.add(S.seg_r(1))
+            assert boundaries == []
+            watched.add(S.seg_r(1))
+            assert len(boundaries) == 1
+
+
+def test_a_published_provider_change_closes_its_own_segment(metta):
+    """A published provider change is one committed segment on its own.
+
+    Its channel says the change is already in the provider's store, so there
+    is nothing further to wait for.
+    """
+    with metta._new_space() as sp:
+        stream = sp.events()
+        boundaries: list[int] = []
+        arrived: list[object] = []
+        with stream.segments(boundaries.append), sp.subscribe(
+            S.seg_s(V.x), arrived.append
+        ):
+            stream.publish("add", str(sp.name), S.seg_s(7))
+            assert [event.atom for event in arrived] == [S.seg_s(7)]
+            assert len(boundaries) == 1

@@ -19,7 +19,7 @@ from metta import S, V, seg, solve
 from metta.errors import EngineError
 
 
-def twin(m):
+def twin(m):  # noqa: ARG001  -- the engine is ambient here: solve is the one door this example asks through
     """Ask each two-sided shape and pin what the one-sided reading answers."""
     # A marker on the right is data: a gap on the left consumes it as one
     # child, and a named gap answers a run that still holds the marker.
