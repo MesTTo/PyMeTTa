@@ -24,10 +24,12 @@ Open Obligations:
 
 import threading
 import time
+from concurrent.futures import Executor, as_completed, wait
 
 import pytest
 
 from metta import MettaError, S, V
+from metta.errors import Timeout
 from metta.parallel import EnginePool, imap_unordered, pool
 
 hypothesis = pytest.importorskip("hypothesis")
@@ -68,7 +70,7 @@ def test_each_worker_holds_a_distinct_engine(p):
         barrier.wait()
         return bridge().engine()
 
-    ids = p.map(engine_id, range(p.workers))
+    ids = list(p.map(engine_id, range(p.workers)))
     seen.update(ids)
     assert len(seen) == p.workers, f"expected {p.workers} distinct engines, got {seen}"
     assert all(engine >= 0 for engine in ids)
@@ -121,7 +123,7 @@ def test_pool_agrees_with_the_home_engine_on_arbitrary_arithmetic(metta, values)
     space = metta._new_space()
     home = [space._one(f"(* {v} 3)") for v in values]
     with pool(workers=3) as engine_pool:
-        worker = engine_pool.map(lambda v: space._one(f"(* {v} 3)"), values)
+        worker = list(engine_pool.map(lambda v: space._one(f"(* {v} 3)"), values))
     assert worker == home
 
 
@@ -136,14 +138,14 @@ def test_a_worker_sees_what_the_home_engine_compiled(m, p):
     inherits them; only global-variable state is per-engine.
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     m.run("(= (pool-later $x) (+ $x 100))")
-    assert p.map(lambda n: m._one(f"(pool-later {n})"), [1, 2]) == [101, 102]
+    assert list(p.map(lambda n: m._one(f"(pool-later {n})"), [1, 2])) == [101, 102]
 
 
 def test_pool_composes_with_in_engine_parallel(m, p):
     """The two fan-outs nest: a pool worker may evaluate a hyperpose."""
     m.run("(= (pool-sq $x) (* $x $x))")
     branches = [f"(pool-sq {n})" for n in (1, 2, 3)]
-    results = p.map(lambda _: sorted(str(a) for a in m.parallel(*branches)), range(4))
+    results = list(p.map(lambda _: sorted(str(a) for a in m.parallel(*branches)), range(4)))
     assert results == [["1", "4", "9"]] * 4
 
 
@@ -158,7 +160,7 @@ def test_pool_runs_work_concurrently(p):  # noqa: D103  -- pytest discovers or i
     def arrive(_item):
         return barrier.wait()
 
-    seats = p.map(arrive, range(p.workers))
+    seats = list(p.map(arrive, range(p.workers)))
     assert sorted(seats) == list(range(p.workers))
 
 
@@ -167,15 +169,153 @@ def test_pool_runs_work_concurrently(p):  # noqa: D103  -- pytest discovers or i
 
 def test_map_answers_in_input_order(p):
     """Items that finish in reverse order still answer in input order."""
-    order = p.map(lambda n: (time.sleep((8 - n) * 0.01), n)[1], range(8))
+    order = list(p.map(lambda n: (time.sleep((8 - n) * 0.01), n)[1], range(8)))
     assert order == list(range(8))
 
 
 def test_starmap_spreads_the_arguments(m, p):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    assert p.starmap(lambda a, b: m._one(f"(+ {a} {b})"), [(1, 2), (3, 4)]) == [3, 7]
+    assert list(p.starmap(lambda a, b: m._one(f"(+ {a} {b})"), [(1, 2), (3, 4)])) == [3, 7]
 
 
 def test_imap_unordered_yields_every_result(p):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
+    assert sorted(imap_unordered(p, lambda n: n * 2, range(6))) == [0, 2, 4, 6, 8, 10]
+
+
+# ---------------------------------------------------------- the executor face
+
+
+def test_the_pool_is_an_executor_python_recognises(p):
+    """Not a lookalike: Python's own words read this pool's Futures."""
+    assert isinstance(p, Executor)
+    futures = [p.submit(lambda n=n: n * 3) for n in range(4)]
+    done, not_done = wait(futures, timeout=30)
+    assert not not_done
+    assert sorted(future.result() for future in done) == [0, 3, 6, 9]
+
+
+def test_as_completed_yields_every_future(p):
+    """Python's own completion-order reader over this pool's Futures."""
+    futures = [p.submit(lambda n=n: n * n) for n in range(6)]
+    assert sorted(future.result() for future in as_completed(futures, timeout=30)) == [
+        0,
+        1,
+        4,
+        9,
+        16,
+        25,
+    ]
+
+
+def test_shutdown_cancels_queued_futures():
+    """cancel_futures stops what is QUEUED and leaves what a worker started."""
+    engine_pool = pool(workers=1)
+    gate = threading.Event()
+    started = threading.Event()
+
+    def block():
+        started.set()
+        return gate.wait(60)
+
+    running = engine_pool.submit(block)
+    # The one worker must be INSIDE the blocker before the drain, or the
+    # blocker is still queued and cancel_futures would rightly cancel it too.
+    assert started.wait(30), "the pool worker never started the blocking task"
+    queued = [engine_pool.submit(lambda: 1) for _ in range(3)]
+    engine_pool.shutdown(wait=False, cancel_futures=True)
+    assert [future.cancelled() for future in queued] == [True, True, True]
+    gate.set()
+    engine_pool.shutdown(wait=True)
+    assert running.result(timeout=30) is True
+    assert engine_pool.closed
+
+
+def test_close_is_shutdowns_other_name():
+    """One teardown under two names, so a with-block and Executor agree."""
+    engine_pool = pool(workers=2)
+    engine_pool.close(wait=False)
+    engine_pool.shutdown(wait=True)
+    assert engine_pool.closed
+    with pytest.raises(MettaError, match=r"closed and cannot take new work"):
+        engine_pool.submit(int)
+
+
+def test_map_takes_several_iterables_like_executor_map(p):
+    """One iterable per argument, zipped, and an empty input answers nothing."""
+    assert list(p.map(lambda a, b: a + b, [1, 2, 3], [10, 20, 30])) == [11, 22, 33]
+    assert list(p.map(lambda n: n, [])) == []
+    assert list(p.map(int)) == []
+
+
+def test_chunksize_groups_items_into_one_task(p):
+    """A chunk is one submitted task, so its items share one worker in order."""
+    def seat(n):
+        return threading.get_ident(), n
+
+    whole = list(p.map(seat, range(8), chunksize=8))
+    assert [n for _, n in whole] == list(range(8))
+    assert len({thread for thread, _ in whole}) == 1, "one task ran on two threads"
+
+
+def test_buffersize_bounds_the_work_in_flight(p):
+    """buffersize=1 means one submitted task waiting at a time, so one runs."""
+    lock = threading.Lock()
+    live = [0]
+    peak = [0]
+
+    def watch(n):
+        with lock:
+            live[0] += 1
+            peak[0] = max(peak[0], live[0])
+        time.sleep(0.01)
+        with lock:
+            live[0] -= 1
+        return n
+
+    assert list(p.map(watch, range(6), buffersize=1)) == list(range(6))
+    assert peak[0] == 1, f"buffersize=1 let {peak[0]} items run at once"
+
+
+def test_a_map_timeout_stops_the_fan_out_and_leaves_the_pool_usable(p):
+    """The deadline is the map's, and it cancels what has not started."""
+    gate = threading.Event()
+    try:
+        with pytest.raises(Timeout, match=r"within 0.2 seconds") as caught:
+            list(p.map(lambda _: gate.wait(60), range(3), timeout=0.2))
+        assert isinstance(caught.value, TimeoutError)
+    finally:
+        gate.set()
+    assert list(p.map(lambda n: n, range(3))) == [0, 1, 2]
+
+
+def test_a_callables_own_timeout_is_not_the_maps(p):
+    """A callable's own Timeout is not the map's deadline.
+
+    metta.errors.Timeout IS a builtin TimeoutError, so the two are told
+    apart by whether the future finished, never by the exception class.
+    """
+    def refuse(_n):
+        msg = "the callable's own timeout"
+        raise Timeout(msg)
+
+    with pytest.raises(Timeout, match=r"the callable's own timeout"):
+        list(p.map(refuse, range(1), timeout=30))
+
+
+def test_a_fan_out_door_refuses_a_shape_it_cannot_hold(p):
+    """Executor's own two keywords are validated as Executor validates them."""
+    with pytest.raises(TypeError, match=r"chunksize must be an integer"):
+        list(p.map(int, range(2), chunksize="two"))
+    with pytest.raises(ValueError, match=r"chunksize must be > 0"):
+        list(p.map(int, range(2), chunksize=0))
+    with pytest.raises(TypeError, match=r"buffersize must be an integer"):
+        list(p.map(int, range(2), buffersize="two"))
+    with pytest.raises(ValueError, match=r"buffersize must be None or > 0"):
+        list(p.map(int, range(2), buffersize=0))
+
+
+def test_imap_unordered_is_a_method_and_the_function_that_names_it(p):
+    """One door under two spellings, so the older free function keeps working."""
+    assert sorted(p.imap_unordered(lambda n: n * 2, range(6))) == [0, 2, 4, 6, 8, 10]
     assert sorted(imap_unordered(p, lambda n: n * 2, range(6))) == [0, 2, 4, 6, 8, 10]
 
 
@@ -197,7 +337,7 @@ def test_map_raises_every_failure_in_input_order(p):  # noqa: D103  -- pytest di
 def test_a_worker_error_does_not_kill_the_pool(p):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     with pytest.raises(ZeroDivisionError):
         p.map(lambda n: 1 / 0 if n else n, range(2))
-    assert p.map(lambda n: n, range(3)) == [0, 1, 2]
+    assert list(p.map(lambda n: n, range(3))) == [0, 1, 2]
 
 
 def test_an_engine_error_crosses_to_the_caller(m, p):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -299,7 +439,7 @@ def test_the_context_manager_closes_on_an_exception():  # noqa: D103  -- pytest 
 def test_metta_pool_is_the_same_pool(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     with m.pool(workers=2) as engine_pool:
         assert isinstance(engine_pool, EnginePool)
-        assert engine_pool.map(lambda n: m._one(f"(+ {n} 1)"), [1, 2]) == [2, 3]
+        assert list(engine_pool.map(lambda n: m._one(f"(+ {n} 1)"), [1, 2])) == [2, 3]
 
 
 def test_several_failures_raise_together_one_raises_plain(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract

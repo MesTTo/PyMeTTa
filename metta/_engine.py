@@ -84,6 +84,12 @@ Guarantees:
     logging.lastResort and print a second copy of a line SWI already wrote
     [tested: test_the_package_root_carries_the_library_null_handler;
     commit=6375a7c8f3c035b04bc9d41c8f7f22e56b42fb41]
+  - a child that inherited a booted engine across fork() refuses at its first
+    crossing, naming the fork and the remedy, rather than answering out of
+    half a runtime; the same handler resets the locks fork left held so the
+    child reaches that refusal instead of deadlocking [tested:
+    test_a_forked_child_refuses_the_inherited_engine,
+    test_a_fork_resets_the_engine_locks; commit=WORKTREE]
 Guarded by:
   - _LOCK serializes runtime creation and every call made on the HOME engine.
     A thread holding its own attached engine takes no process lock: it shares
@@ -680,6 +686,131 @@ def _install_deferred_term_release(janus: Any) -> None:
     released.__name__ = "__del__"
     released.__qualname__ = "Term.__del__"
     term.__del__ = released
+
+
+# ------------------------------------------------------------------- fork
+
+#: What a forked child is told, once, wherever it touches the engine. SWI's
+#: own words are the ground, twice over. `fork/1` raises
+#: `permission_error(fork, process, main)` off the only thread, because
+#: "Forking a Prolog process with threads will typically deadlock because only
+#: the calling thread is cloned in the fork, while all thread synchronization
+#: are cloned" [source: https://www.swi-prolog.org/pldoc/doc_for?object=fork/1;
+#: commit=WORKTREE]. And the engine's own C, above `PL_cleanup_fork()`, the one
+#: fork-related entry point it exposes: that call "must be called between
+#: fork() and exec() to remove traces of Prolog that are not supposed to leak
+#: into the new process ... the code cannot lock or unlock any mutex as the
+#: behaviour of mutexes is undefined over fork()", and its `pthread_atfork`
+#: repair sits behind an `O_ATFORK` its own comment marks "Not yet default"
+#: [source: https://github.com/SWI-Prolog/swipl-devel/blob/master/src/pl-thread.c,
+#: PL_cleanup_fork and reinit_threads_after_fork; commit=WORKTREE]. So the
+#: supported shape is fork-then-exec, and a child that keeps running as a
+#: second Prolog is not a shape SWI has.
+#:
+#: Typically, not always: a forked child on this box answered `!(+ 3 4)`,
+#: `!(hyperpose ((+ 1 1) (+ 2 2)))` and `garbage_collect_atoms`
+#: [measured 2026-09-07: ai-tmp/wn-probe-fork-break.py under load 44]. That is
+#: exactly why the refusal is here rather than left to a crash: the inherited
+#: engine LOOKS fine, and a child that reads a plausible answer out of half a
+#: runtime is the silently-wrong class this library refuses. It is also why
+#: this hook only FLIPS state and never raises: an exception inside an
+#: after-fork handler is routed to sys.unraisablehook and the fork proceeds
+#: anyway [source: CPython Modules/posixmodule.c, run_at_forkers calling
+#: PyErr_FormatUnraisable; commit=WORKTREE], so the loud refusal has to wait
+#: for the next real crossing. PyTorch answers the same hazard the same way,
+#: with `torch.cuda._is_in_bad_fork()` read lazily rather than at the fork
+#: [source: https://github.com/pytorch/pytorch/blob/main/torch/csrc/utils/device_lazy_init.cpp,
+#: register_fork_handler_for_device_init; commit=WORKTREE].
+_FORK_REFUSAL = (
+    "this process inherited a Prolog engine across fork(), and SWI-Prolog "
+    "does not survive one: the child clones only the forking thread while it "
+    "clones every thread synchronisation, so the engine's own threads are "
+    "gone and its locks may be held by nobody. Start the child with the "
+    "forkserver or spawn start method, which metta.parallel.ProcessPool does "
+    "for you, or boot the engine in the child rather than before the fork."
+)
+
+
+class _ForkPoisonError(Exception):
+    """Never raised; it stands in for janus's PrologError on a dead bridge.
+
+    Runtime names ``self._janus.PrologError`` in its except clauses, and an
+    except clause is evaluated while an exception is already in flight, so
+    that attribute has to answer a real exception class rather than refuse.
+    """
+
+
+class _ForkedBridge:
+    """The bridge a forked child keeps: every janus entry point refuses.
+
+    Substitution rather than a flag every crossing tests. A boolean read in
+    ``Runtime.apply`` would be paid by every call in every process for a
+    hazard almost none of them meet; replacing the bridge object costs the
+    forked child alone and leaves the fast path exactly as it was.
+    """
+
+    #: Read, never called, so it stays a real attribute rather than a refusal.
+    PrologError = _ForkPoisonError
+
+    def __init__(self, parent: int) -> None:
+        """Remember the pid this child was forked from, for the refusal to name."""
+        self._parent = parent
+
+    def _refuse(self, *_args: Any, **_kwargs: Any) -> NoReturn:
+        msg = f"{_FORK_REFUSAL} (pid {os.getpid()} was forked from pid {self._parent})"
+        raise EngineError(msg)
+
+    def __getattr__(self, name: str) -> Any:
+        """Answer the refusal for every janus name, present and future.
+
+        Written as one hook rather than a dozen one-line methods because the
+        set it has to cover is janus's, not this file's: a bridge call added
+        to JanusBridge later is refused here without anyone remembering to.
+        """
+        if name.startswith("__"):
+            raise AttributeError(name)
+        return self._refuse
+
+
+def forked() -> bool:
+    """Whether this process inherited an engine across a fork, and so refuses."""
+    return isinstance(_STATE.janus, _ForkedBridge)
+
+
+def _refuse_inherited_engine() -> None:
+    """Poison an inherited engine in the child, and reset what fork left held.
+
+    Installed as ``os.register_at_fork(after_in_child=...)`` on this module's
+    import, so the hazard is answered where it belongs -- any fork of a
+    process that booted an engine -- rather than only for the pool that
+    happens to know about it.
+
+    The locks come first and are reset rather than released, the repair
+    CPython applies to its own after a fork (``logging`` reinitialises its
+    module and handler locks in ``_after_at_fork_child_reinit_locks``): only
+    the forking thread survives, so a lock another thread held at fork time
+    is held forever, and a child that deadlocked there would never reach the
+    refusal below.
+
+    The deferred queue is emptied rather than drained. Every record in it
+    belongs to the PARENT's engine, and erasing one here is
+    ``PL_erase`` against another process's memory.
+    """
+    global _LOCK, CONSULT_LOCK  # noqa: PLW0603  -- a fork leaves the old locks held by threads that no longer exist
+    _LOCK = threading.RLock()
+    _CallLocks.lock = _LOCK
+    CONSULT_LOCK = threading.Lock()
+    _DEFERRED_WORK.clear()
+    _STATE.erase_record = None
+    if _STATE.janus is None or isinstance(_STATE.janus, _ForkedBridge):
+        return
+    poison = cast("JanusBridge", _ForkedBridge(os.getppid()))
+    _STATE.janus = poison
+    if _STATE.runtime is not None:
+        _STATE.runtime._janus = poison
+
+
+os.register_at_fork(after_in_child=_refuse_inherited_engine)
 
 
 def bridge() -> JanusBridge:
