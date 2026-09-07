@@ -1101,10 +1101,6 @@ metta_py_assertion_call(Tagged, Form, Actual, Expected) :-
     is_list(Actual),
     is_list(Expected).
 
-metta_py_space_capability_error(
-    error(metta_space_capability_required(Space, Operation, Capability), _),
-    Space, Operation, Capability).
-
 %The Python side's contributions to the engine's control-signal seam. There
 %was a metta_py_control_exception/1 here holding a SECOND copy of the list,
 %and nothing ever called it: it had drifted from the engine's, missing
