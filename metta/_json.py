@@ -36,6 +36,7 @@ from __future__ import annotations
 from typing import Any
 
 from . import _engine
+from .errors import Remedy, refusing
 
 _CONTAINERS = (dict, list, tuple)
 
@@ -100,7 +101,15 @@ def dumps(value: Any) -> bytes:
             f"overruns the stack rather than answering. Break the cycle or the "
             f"depth, or hold the value whole with metta.ground(value)."
         )
-        raise ValueError(msg) from None
+        raise refusing(
+            ValueError(msg),
+            remedy=Remedy(
+                "hold the value whole with metta.ground(value)",
+                "quickfix",
+                "maybe",
+                python="metta.ground(value)",
+            ),
+        ) from None
     runtime = _engine.runtime()
     with _engine.engine_thread():
         row = runtime.must("metta_py_json_encode(Value, Text)", Value=value)

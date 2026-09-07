@@ -56,6 +56,7 @@ import string as _string
 from typing import TYPE_CHECKING, Any, NamedTuple
 
 from ._atoms_core import Atom, Grounded, Symbol, encode
+from .errors import Remedy, refusing
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Mapping
@@ -182,11 +183,15 @@ def read_targets(
     return tuple(out), assembly.bindings()
 
 
-def refuse_template(value: Any, called: str, remedy: str) -> None:
-    """Refuse a template at a door that has nowhere to put its holes."""
+def refuse_template(value: Any, called: str, remedy: str, fix: Remedy) -> None:
+    """Refuse a template at a door that has nowhere to put its holes.
+
+    ``remedy`` is the sentence the caller reads and ``fix`` is the same
+    repair as data, which is what an editor offers.
+    """
     if is_template(value):
         msg = f"{called} does not take program text with holes: {remedy}"
-        raise TypeError(msg)
+        raise refusing(TypeError(msg), remedy=fix)
 
 
 # ------------------------------------------------------------------- assembly

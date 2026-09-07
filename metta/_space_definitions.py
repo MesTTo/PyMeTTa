@@ -134,7 +134,7 @@ from .define import (
     canonical_aux_set,
     compile_function,
 )
-from .errors import CompileError
+from .errors import CompileError, Remedy
 from .ops import resolved_annotations
 from .vocabularies import EffectClass
 
@@ -424,7 +424,17 @@ def _validate_override_declaration(
         f"space under it, and (import! ...) into that space or into &self "
         f"puts the definition where this one can hide it."
     )
-    raise CompileError(msg, construct="override declaration")
+    raise CompileError(
+        msg,
+        construct="override declaration",
+        remedy=Remedy(
+            "drop @typing.override, or inherit from the space that defines "
+            "the name",
+            "quickfix",
+            "prose",
+            python="m.space(name, inherits=other)",
+        ),
+    )
 
 
 def _same_clause(clause: dict[str, Any], canonical: tuple[Expression, ...], name: str) -> bool:

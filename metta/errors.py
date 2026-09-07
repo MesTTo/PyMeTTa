@@ -44,6 +44,21 @@ Guarantees:
     line alone, the caret gutter width-matched to the number gutter [tested:
     test_a_refusal_renders_the_file_line_function_and_exact_caret;
     commit=51b792423cec5787614d1488c0793b8a50eaa6fc]
+  - Remedy and Ground are frozen, slotted rows that project to
+    (remedy ...) and (ground ...) atoms and read back, and a Remedy naming
+    none of edit, replace or python is a construction error naming all three
+    [tested: test_a_remedy_round_trips_through_its_atom,
+    test_a_ground_round_trips_through_its_atom,
+    test_a_remedy_that_names_no_act_refuses_naming_the_three_fields;
+    commit=3fc5479961fd591b1884af118528c9a64a1afbb7]
+  - refusing() carries a remedy and a ground on an error of ANY class,
+    including a TypeError, an AttributeError, a ValueError and a
+    DeprecationWarning, so `except TypeError` stays the caller's spelling
+    [tested: test_a_keyword_on_a_bare_symbol_names_the_positional_form,
+    test_a_generated_namespace_miss_names_the_live_namespace,
+    test_a_cyclic_value_handed_to_the_json_codec_names_ground,
+    test_a_deprecation_rows_term_remedy_decodes_to_an_edit;
+    commit=3fc5479961fd591b1884af118528c9a64a1afbb7]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -67,6 +82,7 @@ __all__ = [
     "AssertionFailure",
     "CompileError",
     "EngineError",
+    "Ground",
     "InferenceLimitError",
     "Interrupted",
     "MettaError",
@@ -74,6 +90,7 @@ __all__ = [
     "MettaResultError",
     "MettaSyntaxError",
     "NotReducible",
+    "Remedy",
     "ResourceLimitError",
     "RestraintError",
     "SourceNotFound",
@@ -85,39 +102,300 @@ __all__ = [
     "guarded",
     "guarding",
     "is_transport_failure",
+    "refusing",
     "stream_failure",
     "stream_reraise",
 ]
 
 
-@dataclass(frozen=True)
-class _RefusalGround:
-    """The semantics that requires one refusal, carried beside its prose."""
+#: The three authorities a deliberate refusal can stand on. "python-reference"
+#: is a section of the Python Language Reference, "metta-law" a named law this
+#: engine states, and "arbiter" a measured answer of upstream PeTTa at the
+#: parity pin, which is what settles a question neither language's own
+#: documentation answers.
+GROUND_KINDS = ("python-reference", "metta-law", "arbiter")
+
+#: LSP CodeActionKind, restricted to the three this library issues: "quickfix"
+#: repairs one diagnostic, "refactor" changes shape without changing meaning,
+#: "source" acts on a whole file or project [source: LSP 3.17 CodeActionKind,
+#: https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#codeActionKind;
+#: commit=3fc5479961fd591b1884af118528c9a64a1afbb7].
+REMEDY_KINDS = ("quickfix", "refactor", "source")
+
+#: rustc's Applicability, whose three useful levels this adopts: "machine" is
+#: MachineApplicable (definitely what was meant, apply it), "maybe" is
+#: MaybeIncorrect (valid, but it may not be what was meant), "prose" is
+#: HasPlaceholders (the text shows the shape and a human fills it in)
+#: [source: rustc_lint_defs::Applicability,
+#: https://doc.rust-lang.org/nightly/nightly-rustc/rustc_lint_defs/enum.Applicability.html;
+#: commit=3fc5479961fd591b1884af118528c9a64a1afbb7].
+APPLICABILITIES = ("machine", "maybe", "prose")
+
+
+@dataclass(frozen=True, slots=True)
+class Ground:
+    """The authority that requires one refusal, carried beside its prose.
+
+    `kind` is one of GROUND_KINDS and `citation` names the exact place: a
+    Python Language Reference section, a named MeTTa law, or the arbiter's
+    own captured answer under `tests/conformance/petta/`. Its longhand is
+    reading the message, which is why the message never changes for this
+    field's presence.
+    """
 
     kind: str
     citation: str
 
     def __post_init__(self) -> None:
-        if self.kind not in ("python-reference", "metta-law"):
-            msg = f"unknown refusal-ground kind {self.kind!r}"
+        """Refuse a ground that names no admitted authority or no place."""
+        if self.kind not in GROUND_KINDS:
+            msg = (
+                f"unknown refusal-ground kind {self.kind!r}; the admitted "
+                f"kinds are {', '.join(GROUND_KINDS)}"
+            )
             raise ValueError(msg)
         if not self.citation.strip():
             msg = "a refusal ground requires a nonempty citation"
             raise ValueError(msg)
 
     def __str__(self) -> str:
+        """The authority as one line: kind, then the place it names."""
         return f"{self.kind}: {self.citation}"
 
+    def as_atom(self) -> Atom:
+        """This ground as `(ground <kind> "<citation>")`, ordinary MeTTa data.
 
-_PYTHON_COMPARISON_GROUND = _RefusalGround(
+        The projection that lets a ground be stored, matched and later
+        published as a catalog row; `from_atom` is its inverse.
+        """
+        from .atoms import (  # noqa: PLC0415  -- atoms sits above this module
+            Expression,
+            Grounded,
+            Symbol,
+        )
+
+        return Expression(
+            [Symbol("ground"), Symbol(self.kind), Grounded(self.citation)]
+        )
+
+    @classmethod
+    def from_atom(cls, atom: Atom) -> Ground:
+        """Read back what `as_atom` wrote, refusing any other shape."""
+        parts = _row_parts(atom, "ground", 3)
+        return cls(_symbol_text(parts[1], "ground kind"), _text(parts[2], "citation"))
+
+
+@dataclass(frozen=True, slots=True)
+class Remedy:
+    """What to write instead, as data rather than as a sentence to parse.
+
+    A refusal that names its repair in prose leaves every reader to parse it;
+    this is the same repair as an edit, which is what a compiler fix-it hint
+    and an LSP code action are. `title` is the one line an editor puts in its
+    menu, `kind` is LSP's CodeActionKind and `applicability` is rustc's
+    Applicability: only "machine" is applied without being asked.
+
+    The repair itself is one or more of three acts, and a Remedy naming none
+    of them is a construction error:
+
+    - `edit` is the atom the remedy names: what to write, or to add;
+    - `replace` is a stored atom and what it becomes, with `None` in the
+      second position for a removal, which is LSP's own `newText: ""`;
+    - `python` is the host-side text to write instead, which carries
+      `<placeholders>` exactly when `applicability` is "prose".
+
+    Its longhand is the sentence in the message, which never changes for this
+    object's presence.
+    """
+
+    title: str
+    kind: str
+    applicability: str
+    edit: Atom | None = None
+    replace: tuple[Atom, Atom | None] | None = None
+    python: str | None = None
+
+    def __post_init__(self) -> None:
+        """Refuse a remedy that names no act, or an unknown classifier."""
+        if not self.title.strip():
+            msg = "a remedy requires a nonempty title"
+            raise ValueError(msg)
+        if self.kind not in REMEDY_KINDS:
+            msg = (
+                f"unknown remedy kind {self.kind!r}; the admitted kinds are "
+                f"{', '.join(REMEDY_KINDS)}"
+            )
+            raise ValueError(msg)
+        if self.applicability not in APPLICABILITIES:
+            msg = (
+                f"unknown remedy applicability {self.applicability!r}; the "
+                f"admitted levels are {', '.join(APPLICABILITIES)}"
+            )
+            raise ValueError(msg)
+        if self.edit is None and self.replace is None and self.python is None:
+            msg = (
+                f"the remedy {self.title!r} names no act: give it edit= (the "
+                f"atom to write), replace= (a stored atom and what it becomes, "
+                f"or None to remove it), or python= (the host text to write "
+                f"instead)"
+            )
+            raise ValueError(msg)
+
+    def __str__(self) -> str:
+        """The one line an editor puts in its menu, which is the title."""
+        return self.title
+
+    def as_atom(self) -> Atom:
+        """This remedy as `(remedy "<title>" <kind> <applicability> <act>...)`.
+
+        Each act is its own child expression, `(edit A)`, `(replace Old New)`,
+        `(remove Old)` or `(python "text")`, so a remedy carrying two acts is
+        one row with two act children and needs no second encoding.
+        """
+        from .atoms import (  # noqa: PLC0415  -- atoms sits above this module
+            Expression,
+            Grounded,
+            Symbol,
+        )
+
+        acts: list[Atom] = []
+        if self.edit is not None:
+            acts.append(Expression([Symbol("edit"), self.edit]))
+        if self.replace is not None:
+            stored, replacement = self.replace
+            acts.append(
+                Expression([Symbol("remove"), stored])
+                if replacement is None
+                else Expression([Symbol("replace"), stored, replacement])
+            )
+        if self.python is not None:
+            acts.append(Expression([Symbol("python"), Grounded(self.python)]))
+        return Expression(
+            [
+                Symbol("remedy"),
+                Grounded(self.title),
+                Symbol(self.kind),
+                Symbol(self.applicability),
+                *acts,
+            ]
+        )
+
+    @classmethod
+    def from_atom(cls, atom: Atom) -> Remedy:
+        """Read back what `as_atom` wrote, refusing any other shape."""
+        parts = _row_parts(atom, "remedy", None)
+        if len(parts) < 5:
+            msg = (
+                f"a (remedy ...) row carries a title, a kind, an applicability "
+                f"and at least one act; {atom} carries {len(parts) - 1}"
+            )
+            raise ValueError(msg)
+        edit: Atom | None = None
+        replace: tuple[Atom, Atom | None] | None = None
+        python: str | None = None
+        for act in parts[4:]:
+            head = _act_head(act, atom)
+            if head == "edit" and len(act) == 2:
+                edit = act[1]
+            elif head == "replace" and len(act) == 3:
+                replace = (act[1], act[2])
+            elif head == "remove" and len(act) == 2:
+                replace = (act[1], None)
+            elif head == "python" and len(act) == 2:
+                python = _text(act[1], "python text")
+            else:
+                msg = (
+                    f"{act} is not a remedy act; a (remedy ...) row carries "
+                    f"(edit A), (replace Old New), (remove Old) or (python T)"
+                )
+                raise ValueError(msg)
+        return cls(
+            _text(parts[1], "title"),
+            _symbol_text(parts[2], "remedy kind"),
+            _symbol_text(parts[3], "applicability"),
+            edit,
+            replace,
+            python,
+        )
+
+
+def _row_parts(atom: Atom, head: str, arity: int | None) -> tuple[Atom, ...]:
+    """The children of one `(head ...)` row, refusing anything else."""
+    from .atoms import Expression, Symbol  # noqa: PLC0415  -- atoms sits above this module
+
+    if (
+        not isinstance(atom, Expression)
+        or not atom.children
+        or atom.children[0] != Symbol(head)
+    ):
+        msg = f"{atom} is not a ({head} ...) row"
+        raise ValueError(msg)
+    if arity is not None and len(atom.children) != arity:
+        msg = f"a ({head} ...) row carries {arity - 1} parts; {atom} carries {len(atom.children) - 1}"
+        raise ValueError(msg)
+    return atom.children
+
+
+def _act_head(act: Atom, row: Atom) -> str:
+    """The head symbol of one remedy act, refusing an act that is not a call."""
+    from .atoms import Expression, Symbol  # noqa: PLC0415  -- atoms sits above this module
+
+    if isinstance(act, Expression) and isinstance(act.children[0], Symbol):
+        return act.children[0].name
+    msg = f"{act} in {row} is not a remedy act expression"
+    raise ValueError(msg)
+
+
+def _text(atom: Atom, what: str) -> str:
+    """The Python text a grounded string carries, refusing any other atom."""
+    value = getattr(atom, "value", None)
+    if isinstance(value, str):
+        return value
+    msg = f"the {what} is text, and {atom} is not a grounded string"
+    raise ValueError(msg)
+
+
+def _symbol_text(atom: Atom, what: str) -> str:
+    """The name a symbol carries, refusing any other atom."""
+    from .atoms import Symbol  # noqa: PLC0415  -- atoms sits above this module
+
+    if isinstance(atom, Symbol):
+        return atom.name
+    msg = f"the {what} is a symbol, and {atom} is not one"
+    raise ValueError(msg)
+
+
+def refusing[ExcT: BaseException](
+    error: ExcT, *, remedy: Remedy | None = None, ground: Ground | None = None
+) -> ExcT:
+    """Attach a refusal's structured parts to an error of ANY class.
+
+    Returns the error, so `raise refusing(TypeError(msg), remedy=...)` is one
+    line at the site that refuses.
+
+    MettaError takes both in its constructor; a refusal that is a TypeError,
+    an AttributeError or a ValueError because Python's own word for it is
+    that class has nowhere to put them, and inventing a subclass per builtin
+    would make `except TypeError` the wrong spelling. Every exception
+    instance carries a `__dict__`, so the parts ride there and a reader asks
+    `getattr(error, "remedy", None)` whatever the class is.
+    """
+    if remedy is not None:
+        error.remedy = remedy  # type: ignore[attr-defined]  # the carrier is the instance dict, which every exception has
+    if ground is not None:
+        error.ground = ground  # type: ignore[attr-defined]  # the carrier is the instance dict, which every exception has
+    return error
+
+
+_PYTHON_COMPARISON_GROUND = Ground(
     "python-reference",
     "Python Language Reference section 6.10, Comparisons",
 )
-_PYTHON_RICH_COMPARISON_GROUND = _RefusalGround(
+_PYTHON_RICH_COMPARISON_GROUND = Ground(
     "python-reference",
     "Python Language Reference section 3.3.1, Basic customization",
 )
-_EFFECT_SAFETY_GROUND = _RefusalGround(
+_EFFECT_SAFETY_GROUND = Ground(
     "metta-law",
     "EffectSafety: a reified world admits only an effect plan covered by its handlers",
 )
@@ -141,7 +419,7 @@ _COMPILE_REFERENCE_BY_CONSTRUCT = (
 )
 
 
-def _compile_ground(construct: str | None) -> _RefusalGround:
+def _compile_ground(construct: str | None) -> Ground:
     lowered = "" if construct is None else construct.lower()
     citation = next(
         (
@@ -151,20 +429,14 @@ def _compile_ground(construct: str | None) -> _RefusalGround:
         ),
         "Python Language Reference section 6, Expressions",
     )
-    return _RefusalGround("python-reference", citation)
+    return Ground("python-reference", citation)
 
 
-class _GroundedTypeError(TypeError):
-    """A Python-shaped TypeError whose semantic ground is machine-readable."""
-
-    def __init__(self, message: str, *, ground: _RefusalGround):
-        super().__init__(message)
-        self.ground = ground
-
-
-def _grounded_type_error(message: str, *, ground: _RefusalGround) -> TypeError:
+def _grounded_type_error(
+    message: str, *, ground: Ground, remedy: Remedy | None = None
+) -> TypeError:
     """Construct a TypeError without exposing a second public exception name."""
-    return _GroundedTypeError(message, ground=ground)
+    return refusing(TypeError(message), ground=ground, remedy=remedy)
 
 
 class MettaError(Exception):
@@ -175,7 +447,9 @@ class MettaError(Exception):
     the error is about, an `(Error ...)` answer or the offending term;
     `space` is the space name involved; `operation` the operation that
     refused; `capability` the capability that was missing; `ground` the
-    Python-reference or named MeTTa law that requires a semantic refusal.
+    Python-reference, named MeTTa law or arbiter answer that requires a
+    semantic refusal; `remedy` the repair the message spells in prose, as
+    the edit an editor can offer.
     Each defaults to None, and the message never changes for their presence, so a
     program reacts to the part where it used to parse the sentence.
     """
@@ -187,7 +461,8 @@ class MettaError(Exception):
         space: str | None = None,
         operation: str | None = None,
         capability: str | None = None,
-        ground: _RefusalGround | None = None,
+        ground: Ground | None = None,
+        remedy: Remedy | None = None,
     ):
         super().__init__(*args)
         self.atom = atom
@@ -195,6 +470,7 @@ class MettaError(Exception):
         self.operation = operation
         self.capability = capability
         self.ground = ground
+        self.remedy = remedy
 
 
 class Timeout(MettaError, TimeoutError):  # noqa: N818 -- a timeout is the public outcome, not an implementation error suffix
@@ -234,6 +510,8 @@ class SpaceCapabilityError(EngineError):
         space: str,
         operation: str,
         capability: str,
+        ground: Ground | None = None,
+        remedy: Remedy | None = None,
     ):
         """Carry the refusing space, operation, and missing capability as data."""
         super().__init__(
@@ -241,6 +519,8 @@ class SpaceCapabilityError(EngineError):
             space=space,
             operation=operation,
             capability=capability,
+            ground=ground,
+            remedy=remedy,
         )
 
 
@@ -262,8 +542,10 @@ class MettaOperationError(EngineError):
         kind: str,
         expected: object | None = None,
         culprit: object | None = None,
+        ground: Ground | None = None,
+        remedy: Remedy | None = None,
     ):
-        super().__init__(message, operation=operation)
+        super().__init__(message, operation=operation, ground=ground, remedy=remedy)
         self.kind = kind
         self.expected = expected
         self.culprit = culprit
@@ -292,8 +574,10 @@ class MettaResultError(MettaError):
         culprit: object | None = None,
         reason: object | None = None,
         space: str | None = None,
+        ground: Ground | None = None,
+        remedy: Remedy | None = None,
     ):
-        super().__init__(message, atom=atom, space=space)
+        super().__init__(message, atom=atom, space=space, ground=ground, remedy=remedy)
         self.culprit = culprit
         self.reason = reason
 
@@ -331,8 +615,12 @@ class AssertionFailure(MettaError):  # noqa: N818  -- the exception name is a do
         expected: object | None = None,
         missing: tuple[Atom, ...] | None = None,
         excess: tuple[Atom, ...] | None = None,
+        ground: Ground | None = None,
+        remedy: Remedy | None = None,
     ):
-        super().__init__(message, operation=operation, atom=actual)
+        super().__init__(
+            message, operation=operation, atom=actual, ground=ground, remedy=remedy
+        )
         self.actual = actual
         self.expected = expected
         self.missing = missing
@@ -365,8 +653,10 @@ class SubscriberError(MettaError):
         action: str,
         atom: object | None = None,
         space: str | None = None,
+        ground: Ground | None = None,
+        remedy: Remedy | None = None,
     ):
-        super().__init__(message, atom=atom, space=space)
+        super().__init__(message, atom=atom, space=space, ground=ground, remedy=remedy)
         self.subscription = subscription
         self.action = action
 
@@ -407,8 +697,10 @@ class RestraintError(ResourceLimitError):
         restraint: str | None = None,
         bound: int | None = None,
         call: str | None = None,
+        ground: Ground | None = None,
+        remedy: Remedy | None = None,
     ):
-        super().__init__(message)
+        super().__init__(message, ground=ground, remedy=remedy)
         self.restraint = restraint
         self.bound = bound
         self.call = call
@@ -436,7 +728,8 @@ class CompileError(MettaError):
         *,
         construct: str | None = None,
         line: int | None = None,
-        ground: _RefusalGround | None = None,
+        ground: Ground | None = None,
+        remedy: Remedy | None = None,
         path: str | None = None,
         source_line: str | None = None,
         column: int | None = None,
@@ -470,7 +763,9 @@ class CompileError(MettaError):
         else:
             where = f" (line {line})" if line is not None else ""
             rendered = f"{message}{where}"
-        super().__init__(rendered, ground=ground or _compile_ground(construct))
+        super().__init__(
+            rendered, ground=ground or _compile_ground(construct), remedy=remedy
+        )
         self.message = message
         self.construct = construct
         self.line = line
@@ -551,6 +846,7 @@ def with_coordinates(
         construct=error.construct,
         line=first_line + error.line - 1,
         ground=error.ground,
+        remedy=error.remedy,
         path=path,
         source_line=source_line,
         column=start,

@@ -238,3 +238,10 @@ _._repr_pretty_
 # Nothing inside the package registers one, the way nothing inside it builds a
 # DataFrame; the suite and the reference are its consumers.
 _.sql_function
+
+# The atom projection of a refusal's two rows. Its consumers are outside this
+# package by design: a caller reading a Remedy off an error, the suite that
+# round-trips both through from_atom, and the catalog row a refusal kind
+# becomes later. Nothing in the package stores one yet, exactly as nothing in
+# it registers a SQL function above.
+_.as_atom

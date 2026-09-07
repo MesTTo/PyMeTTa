@@ -360,18 +360,61 @@ def _boot(arguments) -> int:
     return 0
 
 
+def _where(path, finding) -> str:
+    """`path:line` when the finding is anchored, the path alone when not."""
+    line = (finding.payload or {}).get("line")
+    return f"{path}:{line}" if line is not None else str(path)
+
+
+def _lint_json(m, files) -> int:
+    """Print one LSP Diagnostic per line, through the engine's own JSON codec."""
+    from . import _json  # noqa: PLC0415  deferred: --version and help must not boot
+    from .lint import (  # noqa: PLC0415  deferred: --version and help must not boot
+        diagnostics,
+        lint_file,
+    )
+
+    found = 0
+    for path in files:
+        for diagnostic in diagnostics(lint_file(path, m=m)):
+            found += 1
+            print(_json.dumps({"uri": str(path), **diagnostic}).decode("utf-8"))
+    return 1 if found else 0
+
+
+def _lint_fix(m, files) -> int:
+    """Apply every machine remedy, and name what was left and why."""
+    from .lint import fix_file  # noqa: PLC0415  deferred: --version and help must not boot
+
+    remaining = 0
+    for path in files:
+        repair = fix_file(path, m=m)
+        if repair.refused is not None:
+            print(f"{path}: refused: {repair.refused}", file=sys.stderr)
+        for finding in repair.applied:
+            print(f"{_where(path, finding)}: fixed: {finding}")
+        for skipped in repair.skipped:
+            print(f"{_where(path, skipped.finding)}: {skipped}")
+        remaining += repair.remaining
+    if not remaining:
+        print("no findings remain")
+    return 1 if remaining else 0
+
+
 def _lint(arguments) -> int:
     from ._space import Space  # noqa: PLC0415 -- version and help must not boot
     from .lint import lint_file  # noqa: PLC0415  deferred: --version and help must not boot
 
     m = Space()
+    if arguments.json:
+        return _lint_json(m, arguments.files)
+    if arguments.fix:
+        return _lint_fix(m, arguments.files)
     failed = False
     for path in arguments.files:
         for finding in lint_file(path, m=m):
             failed = True
-            line = (finding.payload or {}).get("line")
-            where = f"{path}:{line}" if line is not None else str(path)
-            print(f"{where}: {finding}")
+            print(f"{_where(path, finding)}: {finding}")
     if not failed:
         print("no findings")
     return 1 if failed else 0
@@ -571,6 +614,17 @@ def main(argv: list[str] | None = None) -> int:  # noqa: D103  -- the package re
 
     lint = commands.add_parser("lint", help="diagnose files; nonzero exit on findings")
     lint.add_argument("files", nargs="+", metavar="file.metta")
+    reporting = lint.add_mutually_exclusive_group()
+    reporting.add_argument(
+        "--json",
+        action="store_true",
+        help="one LSP diagnostic per line, the remedy under data",
+    )
+    reporting.add_argument(
+        "--fix",
+        action="store_true",
+        help="apply every machine remedy in place; the rest are listed",
+    )
     lint.set_defaults(entry=_lint)
 
     doc = commands.add_parser("doc", help="print a name's (@doc ...) documentation")

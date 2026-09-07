@@ -108,6 +108,7 @@ from .benchmarking import (
 from .convert import build as _build
 from .convert import project as _project
 from .define import Defined
+from .errors import Ground, Remedy, refusing
 from .foreign import (
     Enumerable,
     MatchClassifier,
@@ -160,6 +161,17 @@ __all__ = [
     "texts",
     "variables",
 ]
+
+
+#: programs() draws only from heads the ARBITER reduces, so the census it
+#: refuses without is upstream PeTTa's own answer set rather than this
+#: engine's: the corpus under tests/conformance/petta/ is where that answer
+#: lives [source: tests/conformance/petta/MANIFEST.json; commit=3fc5479961fd591b1884af118528c9a64a1afbb7].
+_CENSUS_GROUND = Ground(
+    "arbiter",
+    "upstream PeTTa at the parity pin: tests/conformance/petta/ is the "
+    "captured answer set programs() draws its reducing heads from",
+)
 
 
 def __getattr__(name: str):
@@ -572,7 +584,19 @@ def programs(*, census=None, depth: int = 3, facts=(1, 4), queries=(1, 3)):
             "and this census records none. Write one with\n"
             "  python tests/conformance/petta_capture.py --upstream <checkout> --census"
         )
-        raise ValueError(msg)
+        raise refusing(
+            ValueError(msg),
+            ground=_CENSUS_GROUND,
+            remedy=Remedy(
+                "capture a census from an upstream PeTTa checkout",
+                "source",
+                "prose",
+                python=(
+                    "python tests/conformance/petta_capture.py "
+                    "--upstream <checkout> --census"
+                ),
+            ),
+        )
 
     @st.composite
     def draft(draw) -> str:

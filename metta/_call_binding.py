@@ -20,6 +20,14 @@ import inspect
 from collections.abc import Mapping, Sequence
 from typing import Any
 
+from .errors import Ground, Remedy, refusing
+
+#: MeTTa applications are positional, so both refusals here are Python's own
+#: call grammar refusing a keyword the callee cannot place.
+_CALL_GROUND = Ground(
+    "python-reference", "Python Language Reference section 6.3.4, Calls"
+)
+
 
 def bind_positional_call(
     name: str,
@@ -50,7 +58,16 @@ def bind_positional_call(
             f"{name} has positional signature ({declared}); {error}. "
             f"Write {name}({remedy}) in that order."
         )
-        raise TypeError(msg) from error
+        raise refusing(
+            TypeError(msg),
+            ground=_CALL_GROUND,
+            remedy=Remedy(
+                f"write {name}({remedy}) in the declared order",
+                "quickfix",
+                "prose",
+                python=f"{name}({remedy})",
+            ),
+        ) from error
     return bound.args
 
 
@@ -58,8 +75,17 @@ def refuse_unknown_keywords(name: str, keywords: Sequence[str]) -> TypeError:
     """Build the refusal for a keyword-bearing head with no parameter names."""
     written = ", ".join(f"<{keyword}>" for keyword in keywords)
     plural = "arguments" if len(keywords) != 1 else "argument"
-    return TypeError(
-        f"{name} has no known signature, so its keyword {plural} cannot be "
-        f"placed in a positional MeTTa application. Write {name}({written}) "
-        "positionally in the target's declared order."
+    return refusing(
+        TypeError(
+            f"{name} has no known signature, so its keyword {plural} cannot be "
+            f"placed in a positional MeTTa application. Write {name}({written}) "
+            "positionally in the target's declared order."
+        ),
+        ground=_CALL_GROUND,
+        remedy=Remedy(
+            f"write {name}({written}) positionally",
+            "quickfix",
+            "prose",
+            python=f"{name}({written})",
+        ),
     )

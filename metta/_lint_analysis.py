@@ -51,6 +51,7 @@ from ._lint_events import (
 )
 from ._lint_model import Finding
 from .atoms import Atom, Expression, Grounded, Symbol, Variable, _alpha_eq, _map_atoms, _variables
+from .errors import Remedy
 
 _BINDING_HEADS = {"let", "let*", "match", "unify", "case", "chain", "bind!"}
 
@@ -841,6 +842,12 @@ def _duplicate_findings(equations: list[Expression]) -> list[Finding]:
                     "call answers the duplicate as an extra result",
                     equation,
                     severity="warning",
+                    remedy=Remedy(
+                        "remove the duplicate equation",
+                        "quickfix",
+                        "machine",
+                        replace=(equation, None),
+                    ),
                 )
             )
     return findings
@@ -979,6 +986,7 @@ def _call_findings(
                     equation,
                     severity="hint",
                     suggestion=meaning.suggestion,
+                    remedy=_rename_remedy(equation, call, meaning.suggestion),
                 )
             )
     return findings
@@ -1126,6 +1134,26 @@ def _replaced(stored: Expression, target: Atom, replacement: Atom) -> Atom:
     return _map_atoms(stored, lambda a: replacement if a is target else a)
 
 
+def _rename_remedy(
+    equation: Expression, call: Expression, suggestion: str | None
+) -> Remedy | None:
+    """The near-miss rename as an edit, or None when nothing is near enough.
+
+    LSP's own shape for a "did you mean" hint: the diagnostic offers the
+    corrected spelling as a quickfix. `maybe` rather than `machine` because
+    the head may be data on purpose, which is why this finding is a hint.
+    """
+    if suggestion is None:
+        return None
+    corrected = Expression([Symbol(suggestion), *call.children[1:]])
+    return Remedy(
+        f"rename {call.children[0]} to {suggestion}",
+        "quickfix",
+        "maybe",
+        replace=(equation, _replaced(equation, call, corrected)),
+    )
+
+
 def _simplification_findings(equations: list[Expression]) -> list[Finding]:
     findings: list[Finding] = []
     for equation in equations:
@@ -1135,6 +1163,9 @@ def _simplification_findings(equations: list[Expression]) -> list[Finding]:
             if found is None:
                 continue
             kind, detail, replacement = found
+            autofix = (
+                None if replacement is None else _replaced(equation, call, replacement)
+            )
             findings.append(
                 Finding(
                     kind,
@@ -1143,7 +1174,17 @@ def _simplification_findings(equations: list[Expression]) -> list[Finding]:
                     equation,
                     severity="information",
                     payload={"expression": call, "replacement": replacement},
-                    autofix=None if replacement is None else _replaced(equation, call, replacement),
+                    autofix=autofix,
+                    remedy=(
+                        None
+                        if autofix is None
+                        else Remedy(
+                            f"rewrite {call} as {replacement}",
+                            "quickfix",
+                            "machine",
+                            replace=(equation, autofix),
+                        )
+                    ),
                 )
             )
     return findings
