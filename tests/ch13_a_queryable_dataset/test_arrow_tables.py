@@ -234,8 +234,14 @@ def test_a_sql_function_answers_null_for_no_answer_and_refuses_several(m):
         connection.execute("select both(1)").fetchall()
 
 
-def test_sql_function_refuses_a_connection_without_the_door(m):
-    """A driver with no create_function is named, not guessed at."""
+def test_sql_function_refuses_a_connection_no_engine_claims(m):
+    """An unclaimed connection is told the door, not guessed at.
+
+    Which engines are known is the `sql` point's rows, so the refusal names
+    them and the registration a third engine would make, rather than pushing a
+    stranger's connection down whichever branch happens to be last.
+    """
     m.run("(: dbl2 (-> Number Number))\n(= (dbl2 $x) (* 2 $x))")
-    with pytest.raises(TypeError, match="has no create_function"):
+    with pytest.raises(TypeError, match=r"no sql registration handles.*sqlite3") as raised:
         tables.sql_function(object(), m.fn.dbl2)
+    assert "claims=..., define=..." in str(raised.value)

@@ -55,8 +55,8 @@ from __future__ import annotations
 from collections.abc import Iterator, Sequence
 from typing import Any, Final, NamedTuple
 
+from . import seam
 from ._config import _CHUNK_CAP
-from ._optional import require_module
 from .atoms import Atom, Grounded, _encode
 
 __all__ = [
@@ -87,13 +87,6 @@ _NO_VALUE: Final = object()
 #: schema back the other way [source:
 #: https://arrow.apache.org/docs/format/CDataInterface.html#data-type-description-format-strings].
 _REQUESTED_KIND: Final = {"l": INT64, "g": FLOAT64, "b": BOOL, "u": TEXT}
-
-_ARROW_EXTRA: Final = (
-    "the Arrow doors build the C structs with nanoarrow, which is not "
-    "installed; install pymetta[arrow]. A consumer needs no pyarrow, only "
-    "its own Arrow support"
-)
-
 
 def _raw(cell: Any) -> Any:
     """The Python payload behind one answer cell, or _NO_VALUE.
@@ -306,87 +299,37 @@ def batch_bounds(length: int) -> Iterator[tuple[int, int]]:
         size = min(size * 2, _CHUNK_CAP)
 
 
-def _nanoarrow() -> Any:
-    return require_module("nanoarrow", _ARROW_EXTRA)
+def _builder() -> Any:
+    """The row that builds the Arrow C structs here, or a refusal.
 
-
-def _field_types(na: Any) -> dict[str, Any]:
-    return {
-        INT64: na.int64(),
-        FLOAT64: na.float64(),
-        BOOL: na.bool_(),
-        UTF8: na.string(),
-        TEXT: na.string(),
-    }
-
-
-def _schema(na: Any, projection: Projection) -> Any:
-    """The struct CSchema for a projection.
-
-    Fields are built one at a time rather than from a name-to-type mapping,
-    because a bridge declaration may name one table column twice and Arrow
-    allows the duplicate where a dict would silently drop it.
+    The `arrow` point is ownership: the first registered builder whose library
+    is importable claims, and with none the refusal is every registered
+    builder's own missing-library sentence. A CONSUMER of the capsules needs
+    no row; this is only who makes them.
     """
-    types = _field_types(na)
-    fields = [
-        na.Schema(types[kind], name=name)
-        for name, kind in zip(projection.names, projection.kinds, strict=True)
-    ]
-    return na.c_schema(na.struct(fields))
-
-
-def _honour(projection: Projection, requested_schema: Any) -> Projection:
-    """The projection a requested schema asks for, or the derived one.
-
-    Best-effort by the interface's own rule: a request this producer cannot
-    satisfy exactly is ignored rather than refused, and a consumer that cares
-    reads the schema it actually got.
-    """
-    if requested_schema is None:
-        return projection
-    na = _nanoarrow()
-    try:
-        wanted = na.c_schema(requested_schema)
-        children = list(wanted.children)
-    except Exception:  # noqa: BLE001  -- an unreadable request is a request this producer ignores
-        return projection
-    if wanted.format != "+s" or len(children) != len(projection.names):
-        return projection
-    if [child.name for child in children] != list(projection.names):
-        return projection
-    kinds = [_REQUESTED_KIND.get(child.format, "") for child in children]
-    return projection.retyped(kinds) or projection
+    claim = seam.arrow.claim()
+    if claim is not None:
+        return claim.row
+    registered = seam.arrow.rows()
+    if not registered:
+        raise ImportError(seam.arrow.refusal("the Arrow capsule doors"))
+    raise ImportError(" ".join(row.missing for row in registered))
 
 
 def schema_capsule(projection: Projection) -> Any:
     """The "arrow_schema" PyCapsule for a projection."""
-    na = _nanoarrow()
-    return _schema(na, projection).__arrow_c_schema__()
+    return _builder().schema(projection)
 
 
 def stream_capsule(projection: Projection, requested_schema: Any = None) -> Any:
-    """The "arrow_array_stream" PyCapsule for a projection."""
-    na = _nanoarrow()
-    from nanoarrow.c_array_stream import CArrayStream  # noqa: PLC0415  -- the Arrow extra
+    """The "arrow_array_stream" PyCapsule for a projection.
 
-    projection = _honour(projection, requested_schema)
-    schema = _schema(na, projection)
-    types = _field_types(na)
-    batches = [
-        na.c_array_from_buffers(
-            schema,
-            stop - start,
-            [None],
-            children=[
-                na.c_array(projection.values(index, start, stop), types[kind])
-                for index, kind in enumerate(projection.kinds)
-            ],
-        )
-        for start, stop in batch_bounds(projection.length)
-    ]
-    # Every batch was built from `schema` itself, so type equality holds by
-    # construction and the per-batch re-check would only re-derive it.
-    return CArrayStream.from_c_arrays(batches, schema, validate=False).__arrow_c_stream__()
+    A requested schema is honoured when every column can be produced at the
+    type asked for and ignored otherwise, which the interface allows; the
+    builder reads the request, because reading a foreign schema is its
+    library's job.
+    """
+    return _builder().stream(projection, requested_schema)
 
 
 def read_batches(source: Any) -> tuple[tuple[str, ...], Iterator[list[tuple[Any, ...]]]]:
@@ -396,25 +339,7 @@ def read_batches(source: Any) -> tuple[tuple[str, ...], Iterator[list[tuple[Any,
     its own head and then write one batch at a time. The iterator owns the
     stream and releases it when it finishes or is closed.
     """
-    na = _nanoarrow()
-    stream = na.ArrayStream(source)
-    schema = stream.schema
-    if schema.type != na.Type.STRUCT:
-        stream.close()
-        msg = (
-            f"an Arrow stream of rows is a stream of struct arrays; this one "
-            f"carries {schema.type}, which has no columns to become an atom's "
-            f"arguments"
-        )
-        raise TypeError(msg)
-    names = tuple(field.name for field in schema.fields)
-
-    def batches() -> Iterator[list[tuple[Any, ...]]]:
-        with stream:
-            for chunk in stream.iter_chunks():
-                yield list(chunk.iter_tuples())
-
-    return names, batches()
+    return _builder().batches(source)
 
 
 class ArrowView:

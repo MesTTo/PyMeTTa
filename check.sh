@@ -127,6 +127,13 @@ run GATE   memory-scale-gate memory_scale_gate
 
 run GATE packaged sh -c "cd '$HERE' && sh tests/shell/test_packaged_cli.sh"
 
+# The extension claim, proved rather than asserted: a library this repository
+# has never heard of is written, built, installed and used to extend the seat
+# through nine doors, with no edit here. A coupling coming back fails this even
+# when no gate above notices, because the fake library is the second member of
+# every class the shipped registrants are the first member of.
+run GATE stranger-python sh -c "cd '$HERE' && CHECK_PY='$PY' sh tests/shell/test_a_stranger_extends_the_python_seat.sh"
+
 # The example corpus is the executable semantics documentation, and until this
 # lane existed it only ever ran through the ENGINE: the examples gate below
 # invokes swipl on engine/main.pl, test.sh and the pytest items collected from

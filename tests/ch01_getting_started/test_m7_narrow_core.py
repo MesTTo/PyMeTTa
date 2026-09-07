@@ -137,7 +137,11 @@ FINAL_METTA_METHODS = 38
 # names because a caller reads a lock a process never took
 # (``metta.Lock.read``) and reacts to the rows ``m.check`` answers, which is
 # the same shape ``State`` and ``Answer`` are here for.
-FINAL_METTA_EXPORTS = 119
+# +1 on 2026-09-07 for ``seam``, this seat's extension seam. It is a satellite
+# like ``tables`` and ``lint``, and it earns the root because it is the door a
+# LIBRARY reaches for: a package registering against a point imports one name,
+# and a program asking what can be extended here asks it.
+FINAL_METTA_EXPORTS = 120
 
 SATELLITES = {
     "aio",

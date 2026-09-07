@@ -136,8 +136,9 @@ from difflib import get_close_matches
 from functools import lru_cache
 from typing import Any, Final, NamedTuple, Self, SupportsIndex, cast, overload
 
+from . import seam
 from ._config import config
-from ._optional import optional_module, require_module
+from ._optional import require_module
 from .atoms import Atom, Expression, Grounded, Symbol, Undefined, Variable, _decode, _encode
 from .errors import EngineError, Ground, MettaResultError, Remedy, refusing
 
@@ -400,21 +401,35 @@ class Column(list[Any]):
                 f"the default copy"
             )
             raise ValueError(msg)
-        numpy = require_module(
-            "numpy",
-            "np.asarray(column) builds a NumPy array and NumPy is not "
-            "installed; install pymetta[arrays], or read the column as a list",
-        )
+        library = _array_library("np.asarray(column) builds an array")
         kind, values = resolve(self)
         if dtype is None and not any(value is None for value in values):
-            dtype = _NUMPY_DTYPE.get(kind)
-        return numpy.array(values, dtype=dtype)
+            dtype = _ARRAY_DTYPE.get(kind)
+        return library.array(values, dtype=dtype)
 
 
-#: Only the fixed-width kinds name a dtype. Text is left to NumPy, whose own
-#: answer is a `<U` array sized to the longest value, and a column carrying
-#: nulls is left to it too, because none of these dtypes holds absence.
-_NUMPY_DTYPE: Final = {"int64": "int64", "float64": "float64", "bool": "bool"}
+#: Only the fixed-width kinds name a dtype. Text is left to the library, whose
+#: own answer for NumPy is a `<U` array sized to the longest value, and a
+#: column carrying nulls is left to it too, because none of these dtypes holds
+#: absence.
+_ARRAY_DTYPE: Final = {"int64": "int64", "float64": "float64", "bool": "bool"}
+
+
+def _array_library(what: str) -> Any:
+    """The registered default array library, imported, or a refusal.
+
+    Which library that is comes from the `array` point's rows and not from a
+    name here, so a second library becomes the default by registering with
+    `default=True` ahead of the shipped row.
+    """
+    for row in seam.array.table().values():
+        if row.default:
+            guidance = (
+                f"{what} and {row.module} is not installed; install "
+                f"pymetta[arrays], or read the column as a list"
+            )
+            return require_module(row.module, guidance)
+    raise TypeError(seam.array.refusal(what))
 
 
 class _AnswerItem(NamedTuple):
@@ -468,6 +483,26 @@ def _render_receiver(
         called=called,
         implicit=frozenset({_RECEIVER}),
     )
+
+
+def _frame_row(field: str, value: str) -> Any:
+    """The frame row whose `field` is `value`, or None."""
+    for row in seam.frame.table().values():
+        if row.fields.get(field) == value:
+            return row
+    return None
+
+
+def _sugar_row(sugar: str) -> Any:
+    """The frame row that asked for this method name, or a refusal.
+
+    A shipped sugar is a row's `sugar` field and not a privilege: withdraw the
+    row and the method says so rather than reaching a library nothing declares.
+    """
+    row = _frame_row("sugar", sugar)
+    if row is None:
+        raise TypeError(seam.frame.refusal(f"{sugar}()"))
+    return row
 
 
 class Rows(UserList[Row]):
@@ -855,46 +890,54 @@ class Rows(UserList[Row]):
 
         return ArrowView(self)
 
+    def to(self, library: Any):
+        """These rows as a frame of `library`: the general frame door.
+
+            rows.to(polars)          # the module itself, never its name
+            rows.to("polars")        # the escape, for a library not imported here
+
+        Sugar over `__arrow_c_stream__` where the library reads it, which is
+        typed BY the projection rather than inferred from Python objects, and
+        over the projected columns where it does not; either way the values
+        are the same. The library is the caller's dependency, and its absence
+        raises naming the need. Which libraries are reachable is the `frame`
+        point's rows: a library registers once and every rows object answers
+        it, with no method added here.
+        """
+        name = library if isinstance(library, str) else getattr(library, "__name__", library)
+        row = _frame_row("module", name)
+        if row is None:
+            raise TypeError(seam.frame.refusal(f"the frame library {name!r}"))
+        return self._frame(row)
+
+    def _frame(self, row: Any):
+        """One frame row's library, built from these rows.
+
+        The registrant takes the Arrow view when something builds the capsules
+        and the typed projection when nothing does, so it never has to ask
+        which situation the process is in.
+        """
+        from ._arrow import ArrowView  # noqa: PLC0415  -- the optional Arrow extra
+
+        view = ArrowView(self) if seam.arrow.claim() is not None else None
+        return row.build(self, self._projection(), view)
+
     def to_df(self):
         """The rows as a pandas DataFrame, DuckDB's own conversion naming.
 
-        Sugar over `__arrow_c_stream__` where pandas reads it, which is
-        `DataFrame.from_arrow` from pandas 3, so the columns are TYPED by the
-        projection rather than inferred from Python objects. Without pandas 3
-        or without the `arrow` extra it builds the same projected columns
-        through the frame constructor, which answers the same values.
-        pandas is the caller's dependency; its absence raises naming the
-        need, and table() stays the constructor-agnostic shape.
+        The declared sugar of the `frame` point's pandas row: this is
+        `rows.to(pandas)` under the name that row asked for, and a registered
+        library reaches the same door through `to` without a method here.
         """
-        pandas = require_module(
-            "pandas",
-            "to_df() builds a pandas DataFrame and pandas is not installed; "
-            "rows.table() is the plain dict any frame constructor takes",
-        )
-        from_arrow = getattr(pandas.DataFrame, "from_arrow", None)
-        if from_arrow is not None and optional_module("nanoarrow") is not None:
-            return from_arrow(self)
-        if self and not self.columns:
-            return pandas.DataFrame([{} for _ in self])
-        return pandas.DataFrame(self._projection().table())
+        return self._frame(_sugar_row("to_df"))
 
     def to_pl(self):
         """The rows as a polars DataFrame; the polars twin of to_df().
 
-        Sugar over `__arrow_c_stream__`, through the view that hides the
-        sequence protocol from polars' constructor; without the `arrow` extra
-        it builds the same projected columns directly.
+        The declared sugar of the `frame` point's polars row, and the same
+        door as `rows.to(polars)`.
         """
-        polars = require_module(
-            "polars",
-            "to_pl() builds a polars DataFrame and polars is not installed; "
-            "rows.table() is the plain dict any frame constructor takes",
-        )
-        if optional_module("nanoarrow") is not None:
-            return polars.DataFrame(self.arrow())
-        if self and not self.columns:
-            return polars.DataFrame([{} for _ in self])
-        return polars.DataFrame(self._projection().table())
+        return self._frame(_sugar_row("to_pl"))
 
     def pipe(self, fn: Callable[..., Any], *args: Any, **kwargs: Any) -> Any:
         """fn(self, *args, **kwargs), pandas' chaining shape, so a
@@ -1504,6 +1547,10 @@ class Answers[T](Sequence[T]):
     def table(self) -> dict[str, list[Any]]:
         """Materialize as a column mapping."""
         return self._eager_rows().table()
+
+    def to(self, library: Any):
+        """Materialize, then build a frame of `library`: Rows.to."""
+        return self._eager_rows().to(library)
 
     def to_df(self):
         """Materialize as a pandas DataFrame."""

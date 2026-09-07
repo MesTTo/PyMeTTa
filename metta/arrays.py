@@ -102,8 +102,9 @@ from typing import Annotated, Any, Final, Literal, NewType, cast
 
 from . import integrate as _integrate
 from . import ops as _ops
+from . import seam
 from ._ops import REGISTRY
-from ._optional import optional_module, require_module
+from ._optional import require_module
 from ._space import Space
 from .atoms import (
     Atom,
@@ -438,18 +439,22 @@ def _compat():
     )
 
 
-def _numpy():
-    return require_module(
-        "numpy",
-        "metta.arrays needs NumPy for default arrays and embedding storage; install pymetta[arrays]",
-    )
+def _default_library():
+    """The registered default array library, imported.
+
+    Which library that is comes from the `array` point's rows, so a second
+    library becomes the default by registering with `default=True` ahead of
+    the shipped row rather than by an edit here.
+    """
+    for row in seam.array.table().values():
+        if row.default:
+            return require_module(row.module, row.missing)
+    raise MettaError(seam.array.refusal("the default array library"))
 
 
-def _faiss():
-    return require_module(
-        "faiss",
-        "the faiss embedding backend needs faiss-cpu; install pymetta[arrays]",
-    )
+def _index_backends() -> dict[str, Any]:
+    """Every registered nearest-neighbour backend, in registration order."""
+    return seam.index.table()
 
 
 def namespace_of(x: Any):
@@ -483,8 +488,8 @@ def _into(namespace: Any, like: Any, value: Any):
 def _default_namespace(backend: Any):
     compat = _compat()
     if backend is None:
-        numpy = _numpy()
-        return compat.array_namespace(numpy.zeros(0))
+        library = _default_library()
+        return compat.array_namespace(library.zeros(0))
     if isinstance(backend, str):
         backend = importlib.import_module(backend)
     probe = backend.zeros(0) if hasattr(backend, "zeros") else backend.asarray([0])
@@ -785,7 +790,7 @@ def install(m, default: Any = None) -> list[str]:  # noqa: C901  -- install keep
     """
     m = _integrate.space_of(m)
     _register_protocols()
-    default_module = _numpy() if default is None else default
+    default_module = _default_library() if default is None else default
     if isinstance(default_module, str):
         default_module = importlib.import_module(default_module)
     xp_default = _default_namespace(default_module)
@@ -1254,11 +1259,13 @@ class EmbeddingStore:
     def __init__(  # noqa: D107  -- the enclosing class documents construction and the object invariants
         self, m, name: str = "emb", mirror: bool = True, backend: str = "auto"  # noqa: FBT001, FBT002  -- the boolean is established API data and positional compatibility is part of the call shape
     ) -> None:
-        if backend not in ("auto", "argsort", "faiss"):
-            msg = f"backend is auto, argsort or faiss, not {backend!r}"
+        registered = _index_backends()
+        if backend != "auto" and backend not in registered:
+            known = ", ".join(registered) or "nothing"
+            msg = f"backend is auto or one of {known}, not {backend!r}"
             raise MettaError(msg)
-        if backend == "faiss":
-            _faiss()
+        if backend != "auto" and not registered[backend].available():
+            raise ImportError(registered[backend].missing)
         m = _integrate.space_of(m)
         self._m = m
         self._name = name
@@ -1267,7 +1274,7 @@ class EmbeddingStore:
         self._keys: list[Atom] = []
         self._vectors: list[Any] = []
         self._matrix = None
-        self._index = None
+        self._index: tuple[Any, Any] | None = None
         self._width: int | None = None
 
         def knn(query, k):
@@ -1327,8 +1334,8 @@ class EmbeddingStore:
 
     def _checked_vector(self, vector: Any, *, copy: bool = False) -> Any:
         if not is_array(vector):
-            numpy = _numpy()
-            vector = numpy.asarray(vector, dtype=numpy.float32)
+            library = _default_library()
+            vector = library.asarray(vector, dtype=library.float32)
         if vector.ndim != 1:
             msg = f"embedding vectors must be one-dimensional, got shape {tuple(vector.shape)}"
             raise ValueError(
@@ -1378,20 +1385,28 @@ class EmbeddingStore:
         q = xp.reshape(xp.astype(q, xp.float32), (-1,))
         return xp, q / xp.sqrt(xp.sum(q * q))
 
-    def _use_faiss(self) -> bool:
-        if self._backend == "argsort":
-            return False
-        if self._backend == "faiss":
-            return True
-        return optional_module("faiss") is not None
+    def _backend_row(self) -> Any:
+        """The index backend this store searches through.
+
+        `auto` takes the first registered row that can run here, which is the
+        registration order of the `index` point, so a library installs itself
+        into every auto store by registering ahead of the fallback.
+        """
+        registered = _index_backends()
+        if self._backend != "auto":
+            return registered[self._backend]
+        for row in registered.values():
+            if row.available():
+                return row
+        raise MettaError(seam.index.refusal("this store"))
 
     def ranked(self, query: Any, k: int):
         """(key atom, cosine) pairs best first: the raw retrieval every
-        surface (knn, the matcher) formats its own way. With faiss present
-        (or asked for), an exact IndexFlatIP over the normalized matrix
-        answers, byte-agreeing with the array path by a differential test.
-        NumPy-like namespaces use argpartition for the candidate set;
-        namespaces exposing only the Array API use argsort.
+        surface (knn, the matcher) formats its own way. The backend is the
+        first available row of the `index` point, whose shipped rows are an
+        exact inner-product faiss index and this seat's own Array API path,
+        the two byte-agreeing by a differential test; what a row is built into
+        is cached until the matrix changes.
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         if isinstance(k, bool):
             msg = f"k must be a positive integer, got {k!r}"
@@ -1406,32 +1421,13 @@ class EmbeddingStore:
             raise ValueError(msg)
         if not self._keys:
             return
-        xp, q = self._normalized_query(self._resolve(query))
+        _, q = self._normalized_query(self._resolve(query))
         count = min(k, len(self._keys))
-        if self._use_faiss():
-            faiss = _faiss()
-            numpy = _numpy()
-            if self._index is None:
-                matrix = numpy.ascontiguousarray(
-                    numpy.asarray(self._matrix, dtype=numpy.float32)
-                )
-                built_index = faiss.IndexFlatIP(matrix.shape[1])
-                built_index.add(matrix)
-                self._index = built_index
-            index = self._index
-            if index is None:
-                msg = "FAISS index construction produced no index"
-                raise RuntimeError(msg)
-            probe = numpy.ascontiguousarray(
-                numpy.asarray(q, dtype=numpy.float32).reshape(1, -1)
-            )
-            scores, indexes = index.search(probe, count)
-            for score, index in zip(scores[0], indexes[0], strict=True):
-                yield self._keys[int(index)], round(float(score), 6)
-            return
-        scores = self._matrix @ q
-        for index in _top_indices(xp, scores, count):
-            yield self._keys[index], round(float(scores[index]), 6)
+        row = self._backend_row()
+        if self._index is None or self._index[0] is not row:
+            self._index = (row, row.build(self._matrix))
+        for position, score in row.search(self._index[1], q, count):
+            yield self._keys[position], round(float(score), 6)
 
     def _search(self, query: Any, k: int):
         for key, score in self.ranked(query, k):
