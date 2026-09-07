@@ -213,7 +213,8 @@ def test_operation_error_carries_its_parts(metta, source, operation, expected, c
 # on: `!(foldall a (reduce a) 0)` used to end the whole file with
 # `reduce: list expected, found a` where the arbiter answers `0`.
 @pytest.mark.parametrize("source", ["!(reduce a)", "!(reduce 7)", '!(reduce "s")'])
-def test_a_scalar_reduce_has_no_answer(metta, source):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
+def test_a_scalar_reduce_has_no_answer(metta, source):
+    """A scalar is not an application, so there is no reduction step to take."""
     assert metta.run(source) == [[]]
 
 
