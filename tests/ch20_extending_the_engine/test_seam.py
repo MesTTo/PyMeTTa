@@ -6,9 +6,15 @@ discovery is lazy and free, and the whole thing reads back as data both in
 Python and in the catalog.
 
 Guarantees:
-  - every shipped coupling this package moved is a ROW, so the audit's
-    "nothing is named but the first registrant" is a query rather than a
-    reading [tested: test_every_shipped_library_is_a_row]
+  - this package ships no library row at all, and every library it ships a
+    package for reaches its point from that package, so the 2026-09-08 ruling
+    is a query rather than a reading [tested:
+    test_this_package_ships_no_library_row, test_a_library_arrives_as_a_package;
+    commit=94057a0f073c0fab0a35c42beff2c324d8a0addd]
+  - a fallback row is consulted after every other row and keeps its order among
+    fallbacks, which is what lets rows live in separate distributions [tested:
+    test_a_fallback_row_is_consulted_after_every_other_row,
+    test_a_fallback_row_keeps_registration_order_among_fallbacks; commit=94057a0f073c0fab0a35c42beff2c324d8a0addd]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -16,6 +22,8 @@ Open Obligations:
 """
 
 from __future__ import annotations
+
+import importlib
 
 import pytest
 
@@ -220,22 +228,58 @@ def test_discovery_loads_an_advertised_registration_once(monkeypatch, scratch):
     assert point.table()["solars"].source == "solars"
 
 
-def test_every_shipped_library_is_a_row():
-    """The audit's claim, as a query: each moved coupling is a registration."""
-    registered = {(row.point, row.name) for row in seam.rows()}
-    assert {
-        ("frame", "pandas"),
-        ("frame", "polars"),
-        ("sql", "sqlite3"),
-        ("sql", "duckdb"),
-        ("array", "numpy"),
-        ("index", "faiss"),
-        ("index", "argsort"),
-        ("arrow", "nanoarrow"),
-        ("transport-error", "websocket"),
-        ("image", "pydantic"),
-    } <= registered
-    assert all(row.source == "shipped" for row in seam.rows() if row.point == "frame")
+def test_this_package_ships_no_library_row():
+    """The ruling, as a query: every row here reads a class's own structure.
+
+    Nothing in pymetta names a library any more. The four rows it does ship
+    are structural -- an Enum, a dataclass, a NamedTuple, a class that states
+    `__match_args__` -- and each is a FALLBACK, so a package's reading of the
+    same class is asked first.
+    """
+    # A service's one row is the SEAT's by construction; the claim is about the
+    # three kinds a REGISTRANT writes.
+    shipped = {
+        (row.point, row.name)
+        for row in seam.rows()
+        if row.source == "shipped"
+        and seam.WRITTEN_BY[seam.at(row.point).kind] == "registrant"
+    }
+    assert shipped == {
+        ("image", "enum"),
+        ("image", "dataclass"),
+        ("image", "namedtuple"),
+        ("image", "match-args"),
+    }
+    assert all(row.fallback for row in seam.image.rows() if row.source == "shipped")
+
+
+def test_a_library_arrives_as_a_package(scratch):
+    """The other half: a library reaches a point from its OWN distribution.
+
+    Every library this repository ships a package for registers exactly the
+    way a stranger's does, and the rows they add carry `source="package"`
+    rather than any privileged word.
+    """
+    for module, expected in (
+        ("metta_pandas", ("frame", "pandas")),
+        ("metta_polars", ("frame", "polars")),
+        ("metta_sqlite", ("sql", "sqlite3")),
+        ("metta_duckdb", ("sql", "duckdb")),
+        ("metta_numpy", ("array", "numpy")),
+        ("metta_faiss", ("index", "faiss")),
+        ("metta_arrays", ("index", "argsort")),
+        ("metta_nanoarrow", ("arrow", "nanoarrow")),
+        ("metta_pyarrow", ("ipc", "pyarrow")),
+        ("metta_websocket", ("transport-error", "websocket")),
+        ("metta_pydantic", ("image", "pydantic")),
+        ("metta_graphql", ("graphql", "graphql-core")),
+    ):
+        importlib.import_module(module)
+        point, name = expected
+        row = seam.at(point).find(name)
+        assert row is not None, expected
+        assert row.source == "package", expected
+    del scratch
 
 
 def test_a_shipped_sugar_is_a_declared_row_and_not_a_privilege():
@@ -245,6 +289,9 @@ def test_a_shipped_sugar_is_a_declared_row_and_not_a_privilege():
     method exists because a row asked for it, so `rows.to(<module>)` is what a
     registrant gets and the two shipped names are that door under a name.
     """
+    import metta_pandas  # noqa: F401  -- the frame row that asked for to_df
+    import metta_polars  # noqa: F401  -- the frame row that asked for to_pl
+
     sugars = {
         row.fields["sugar"]
         for row in seam.frame.table().values()
@@ -258,6 +305,58 @@ def test_a_shipped_sugar_is_a_declared_row_and_not_a_privilege():
     assert sugars == methods - {"to_dicts"}
     for sugar in sugars:
         assert callable(getattr(Rows, sugar))
+
+
+def test_a_fallback_row_is_consulted_after_every_other_row(scratch):
+    """The trylast rank, and the property that lets rows live in packages.
+
+    Before the split, `index`'s `backend="auto"` took the first available row
+    in REGISTRATION order, which was one file's reading order. Across
+    distributions there is no such order: `importlib.metadata` promises none
+    over the entry points of a group, and whichever package imported first
+    would win. A fallback row answers only where no other row does, so the
+    general path cannot shadow a specific one by having loaded first.
+    """
+    point = seam.point(scratch, "ownership", fields=("claims",), doc="who owns it")
+    point.register("general", fallback=True, claims=lambda subject: f"general {subject}")
+    point.register("specific", claims=lambda subject: f"specific {subject}")
+    assert [row.name for row in point.rows()] == ["specific", "general"]
+    assert point.claim("x").name == "specific"
+
+    # And with the specific row withdrawn, the fallback still answers: it is a
+    # rank, not a refusal.
+    point.unregister("specific")
+    assert point.claim("x").name == "general"
+
+
+def test_a_fallback_row_keeps_registration_order_among_fallbacks(scratch):
+    """A stable partition, not a sort: two fallbacks keep their own order.
+
+    The four structural images this package ships are all fallbacks and their
+    reading order is load-bearing among themselves -- a NamedTuple is also a
+    tuple -- so the rank may not disturb it.
+    """
+    point = seam.point(scratch, "declaration", fields=("value",), doc="values")
+    point.register("first", fallback=True, value=1)
+    point.register("second", value=2)
+    point.register("third", fallback=True, value=3)
+    assert [row.name for row in point.rows()] == ["second", "first", "third"]
+
+
+def test_a_refusal_names_the_extra_that_fills_the_point(scratch):
+    """A refusal ends in a command, when the declaration named one.
+
+    The extra is this DISTRIBUTION's own and never a library: the packages it
+    installs are what fill the point, which is the shape
+    `apache-airflow[amazon]` has for the same reason.
+    """
+    named = seam.point(
+        scratch, "ownership", fields=("claims",), doc="a door", extra="dataframes"
+    )
+    assert "pip install 'pymetta[dataframes]'" in named.refusal("a frame")
+    bare = seam.point(f"{scratch}-bare", "ownership", fields=("claims",), doc="a door")
+    assert "pip install" not in bare.refusal("a frame")
+    assert "metta.extensions" in bare.refusal("a frame")
 
 
 def test_a_registration_inside_a_failed_integration_is_undone_with_it(metta, scratch):
@@ -287,6 +386,9 @@ def test_a_registration_inside_a_failed_integration_is_undone_with_it(metta, scr
 
 def test_the_seam_publishes_itself_into_the_catalog(metta):
     """A MeTTa program matches the extension surface it is running on."""
+    import metta_pandas  # noqa: F401  -- the frame row this query expects
+    import metta_polars  # noqa: F401  -- the second frame row
+
     seam.publish(metta)
     frames = metta.run("!(match &metta (extension python frame $who $fields) $who)")
     assert {str(atom) for group in frames for atom in group} == {"pandas", "polars"}

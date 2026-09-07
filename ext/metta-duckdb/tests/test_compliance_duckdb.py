@@ -23,13 +23,14 @@ import importlib.util
 import sys
 from pathlib import Path
 
+import metta_duckdb  # noqa: F401  -- imported for the sql row it registers
 import pytest
 
 from metta.testing import SpaceComplianceSuite
 
 duckdb = pytest.importorskip("duckdb")
 
-_EXAMPLES = Path(__file__).resolve().parents[2] / "examples"
+_EXAMPLES = Path(__file__).resolve().parents[3] / "examples"
 
 
 def _duckdb_space_module():

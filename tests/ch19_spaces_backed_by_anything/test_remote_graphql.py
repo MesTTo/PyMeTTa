@@ -25,10 +25,11 @@ from __future__ import annotations
 
 import urllib.request
 
+import metta_graphql  # noqa: F401  -- the graphql executor row
 import pytest
 
-from metta import S, V, _json, remote
-from metta._schemas import _GRAPHQL_EXTRA, graphql_sdl
+from metta import S, V, _json, remote, seam
+from metta._schemas import graphql_sdl
 from metta.atoms import _atom_from_wire
 from metta.errors import MettaError
 
@@ -95,7 +96,7 @@ def test_executing_without_graphql_core_refuses_with_the_extra(registry, monkeyp
     with remote.Gateway(registry) as gateway, pytest.raises(ImportError) as refusal:
         gateway.graphql({"query": "{ users { x1 } }"})
     assert "pymetta[graphql]" in str(refusal.value)
-    assert _GRAPHQL_EXTRA == str(refusal.value)
+    assert seam.graphql.find("graphql-core").missing == str(refusal.value)
 
 
 def test_a_declared_head_answers_typed_rows(registry):

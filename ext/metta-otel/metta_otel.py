@@ -8,9 +8,18 @@ and does the same for what happened inside it.
 
     from opentelemetry import trace, metrics
 
-    with metta.telemetry.observe(m, tracer=trace.get_tracer("app"),
-                                 meter=metrics.get_meter("app")):
+    import metta_otel
+
+    with metta_otel.observe(m, tracer=trace.get_tracer("app"),
+                            meter=metrics.get_meter("app")):
         m.run("!(solve puzzle)")
+
+This is a DISTRIBUTION of its own, `metta-otel`, because every line of it is
+the OpenTelemetry API and pymetta names no library. Install it beside pymetta,
+or take `pymetta[otel]`, which is what that extra now installs. Holding the
+engine's trace session is NOT OpenTelemetry's, so that half stayed behind as
+the seam's `observe` service and this package calls it; a registrant that emits
+log lines or events instead of spans calls the same service.
 
 Only `opentelemetry-api` is imported. The SDK, the exporters and the collector
 are the deployment's, which is the split the API package exists for.
@@ -33,17 +42,19 @@ Guarantees:
     ERROR span ending where the trace does, so neither is silently missing
     [tested: test_a_failed_reduction_is_an_error_span,
     test_a_reduction_a_bound_cut_ends_with_the_trace; commit=0fb68d75871c57f2421c335e9faef3561f8dfdd5]
-  - observe() holds the engine's ONE trace session, so a trace or debug session
-    inside it refuses and so does an observe inside one of those
+  - observe() holds the engine's ONE trace session through the seam's
+    `observe` service, so a trace or debug session inside it refuses and so
+    does an observe inside one of those
     [tested: test_a_trace_inside_an_observed_block_refuses,
-    test_observing_inside_a_debug_session_refuses; commit=0fb68d75871c57f2421c335e9faef3561f8dfdd5]
+    test_observing_inside_a_debug_session_refuses; commit=94057a0f073c0fab0a35c42beff2c324d8a0addd]
   - the recording bound stops the RECORDING and never the observed work, because
     the work is the caller's and a telemetry budget must not become its error
     [tested: test_a_recording_bound_stops_the_recording_not_the_work; commit=0fb68d75871c57f2421c335e9faef3561f8dfdd5]
 Owns resources:
-  - observe() owns the engine's trace session for the block and releases it in a
-    finally, so a raising block leaves the wrappers off
-    [tested: test_a_raising_block_still_releases_the_session; commit=0fb68d75871c57f2421c335e9faef3561f8dfdd5]
+  - observe() owns the engine's trace session for the block through the seam's
+    `observe` service, which releases it in a finally, so a raising block
+    leaves the wrappers off
+    [tested: test_a_raising_block_still_releases_the_session; commit=94057a0f073c0fab0a35c42beff2c324d8a0addd]
 Fails when:
   - a caller wants spans to arrive WHILE the block runs. The engine's tracer
     records into its own store and is read at the end -- "Nothing here streams
@@ -60,18 +71,23 @@ Open Obligations:
 from __future__ import annotations
 
 import time
-from contextlib import contextmanager
+from contextlib import ExitStack, contextmanager
 from typing import TYPE_CHECKING, Any, Final
 
-from ._optional import require_module
-from ._trace import DEFAULT_MAX_EVENTS, Trace, _recorded, _selected_names
-from .atoms import Expression
-from .errors import MettaError
+from metta import seam
+from metta.atoms import Expression
+from metta.errors import MettaError
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
 
 __all__ = ["observe", "spans"]
+
+#: The two seat services this package calls: the optional import with this
+#: package's own guidance, and the held trace session. Bound at import, because
+#: a service lookup is two dictionary reads and `spans` runs per trace.
+require_module = seam.at("module").call()
+_observed = seam.at("observe").call()
 
 _OTEL_EXTRA: Final = (
     "the telemetry doors speak the OpenTelemetry API, which is not installed; "
@@ -186,29 +202,6 @@ def _histograms(meter: Any) -> list[tuple[Any, str]]:
     ]
 
 
-def _begin(space: Any, max_events: int, selected: list[str] | None) -> None:
-    """Arm the engine's trace session for a block, or say why it cannot be.
-
-    The engine refuses a second session by name, which is the rule that one
-    session holds the wrappers; the refusal is re-raised naming THIS door,
-    because the engine's own sentence names the trace door a caller of
-    `observe()` never went near.
-    """
-    request: int | list = max_events if selected is None else [max_events, selected]
-    try:
-        space.runtime.do("metta_py_observe_begin", request)
-    except Exception as refusal:
-        if "nested" not in str(refusal):
-            raise
-        msg = (
-            "observe() holds the engine's trace session for its block, and a "
-            "trace or debug session already holds it: only one at a time owns "
-            "the wrappers on every compiled function. Close that session, or "
-            "observe with meter= alone, which arms nothing"
-        )
-        raise MettaError(msg) from refusal
-
-
 @contextmanager
 def observe(
     m: Any,
@@ -218,7 +211,7 @@ def observe(
     name: str = "metta",
     max_events: int | None = None,
     filter: Any = None,  # noqa: A002 -- the trace door's own selector spelling
-) -> Iterator[Trace]:
+) -> Iterator[Any]:
     """Observe a block of engine work: its reductions as spans, its counters as metrics.
 
         with metta.telemetry.observe(m, tracer=tracer, meter=meter) as recorded:
@@ -248,17 +241,23 @@ def observe(
     if tracer is None and meter is None:
         msg = (
             "observe() needs a tracer, a meter, or both: with neither there is "
-            "nothing for it to observe with. metta.telemetry.spans(trace, "
+            "nothing for it to observe with. metta_otel.spans(trace, "
             "tracer=...) is the door for a trace you already have"
         )
         raise MettaError(msg)
-    recorded = Trace()
     instruments = _histograms(meter) if meter is not None else []
     attributes = {"metta.space": str(m.name), "metta.workload": name}
     origin = time.time_ns()
-    if tracer is not None:
-        _begin(m, DEFAULT_MAX_EVENTS if max_events is None else max_events,
-               _selected_names(filter, "filter"))
+    # The session is entered by hand rather than with a `with`, because the
+    # spans can only be built AFTER it closes -- the engine's tracer records
+    # into its own store and is read at the end -- and they must still be
+    # built when the caller's block raised. arm= is the meter-only case: the
+    # wrappers on every compiled function are not paid for by a caller who
+    # asked for no spans, and the service yields an empty trace either way.
+    session = ExitStack()
+    recorded = session.enter_context(
+        _observed(m, max_events, filter, arm=tracer is not None)
+    )
     block = None if tracer is None else tracer.start_span(
         name, start_time=origin, attributes=attributes
     )
@@ -267,11 +266,7 @@ def observe(
             yield recorded
     finally:
         try:
-            if tracer is not None:
-                stopped, records = m.runtime.apply_must("metta_py_observe_end")
-                session = _recorded(stopped, records)
-                recorded.extend(session)
-                recorded.stopped = session.stopped
+            session.close()
         finally:
             if block is not None:
                 spans(

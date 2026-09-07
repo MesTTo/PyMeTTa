@@ -245,10 +245,18 @@ def twin(m):
 #: outside it is a re-observation, not a re-pin [measured 2026-09-08: python
 #: extensions/python/tools/twin_coverage.py --observe --rounds 10,
 #: ai-tmp/integrator-849a9e/mergeFACE-observe-10.log; commit=4a6029296381da416c61a3b25d1609c72a3e062a].
+#: RE-OBSERVED 2026-09-08 under 'full-lane/277/workers=32' and POOLED again: twenty-five full-lane rounds
+#: on the extension-package merge read 427675..427713, one scheduler extreme under the
+#: 36 observations' floor, so they join them: 61 observations read 427675..427713. The
+#: merge changes the Python seat's dispatch (a point's rows partitioned by fallback
+#: rank) and nothing this twin spins on; the envelope widens with its evidence. A run
+#: outside it is a re-observation, not a re-pin [measured 2026-09-08: python
+#: extensions/python/tools/twin_coverage.py --observe --rounds 25,
+#: ai-tmp/integrator-849a9e/mergeEXT-observe-25.log; commit=WORKTREE].
 BUDGET = {
-    "minimum": 427680,
+    "minimum": 427675,
     "maximum": 427713,
-    "observations": 36,
+    "observations": 61,
     "protocol": "full-lane/277/workers=32",
 }
 

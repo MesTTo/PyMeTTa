@@ -20,7 +20,7 @@ Guarantees:
     compiled ONCE, because a child space falls back to `&self` for equations
     and a per-scenario definition leaves another copy of them there. Fifteen
     copies were enough to move a neighbouring file's inference comparison by
-    two [measured 2026-09-07: `pytest tests/ch14_seeing_your_program/test_telemetry.py
+    two [measured 2026-09-07: `pytest ext/metta-otel/tests/test_otel.py
     tests/ch14_seeing_your_program/test_explain_plan.py -p no:randomly` failed
     test_analyze_numbers_equal_the_stats_of_the_same_query at 660 against 658,
     and passes with the shared definition; commit=8cdcb4a74b13418097d56c29ac2d296f14c7940e]
@@ -33,10 +33,10 @@ Open Obligations:
 from __future__ import annotations
 
 import pytest
+from metta_otel import observe, spans
 
 from metta import S
 from metta.errors import MettaError
-from metta.telemetry import observe, spans
 
 pytest.importorskip("opentelemetry.trace")
 pytest.importorskip("opentelemetry.sdk.trace")
@@ -223,17 +223,15 @@ def test_an_observed_block_records_four_histograms(nested, reader):
 
 def test_observing_with_neither_instrument_refuses(space):
     """There would be nothing to observe with, and the refusal names the door."""
-    with pytest.raises(MettaError) as refusal:
-        with observe(space):
-            pass
+    with pytest.raises(MettaError) as refusal, observe(space):
+        pass
     assert "tracer, a meter, or both" in str(refusal.value)
 
 
 def test_a_trace_inside_an_observed_block_refuses(nested, exporter):
     """One session holds the wrappers, and observe() is holding them."""
-    with observe(nested, tracer=exporter.tracer):
-        with pytest.raises(Exception, match="nested"):
-            nested.trace(S["tl-quad"](2))
+    with observe(nested, tracer=exporter.tracer), pytest.raises(Exception, match="nested"):
+        nested.trace(S["tl-quad"](2))
 
 
 def test_observing_inside_a_debug_session_refuses(nested, exporter):
@@ -262,10 +260,9 @@ def test_a_meter_alone_arms_nothing(nested, reader):
 def test_a_raising_block_still_releases_the_session(nested, exporter):
     """A block that raises leaves the wrappers off, so the next one arms."""
     marker = "the block's own failure"
-    with pytest.raises(RuntimeError, match=marker):
-        with observe(nested, tracer=exporter.tracer):
-            nested.run("!(tl-double 1)")
-            raise RuntimeError(marker)
+    with pytest.raises(RuntimeError, match=marker), observe(nested, tracer=exporter.tracer):
+        nested.run("!(tl-double 1)")
+        raise RuntimeError(marker)
     with observe(nested, tracer=exporter.tracer) as recorded:
         nested.run("!(tl-double 2)")
     assert len(recorded) == 2

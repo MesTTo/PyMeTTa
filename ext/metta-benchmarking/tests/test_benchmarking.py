@@ -16,6 +16,23 @@ import signal
 from types import SimpleNamespace
 
 import pytest
+from metta_benchmarking import (
+    CPU_SECONDS,
+    LOAD_PER_CORE_CEILING,
+    PERF_CONTROL_REFUSED,
+    BenchmarkBaseline,
+    MeasurementRefusedError,
+    _run_perf,
+    benchmark_case,
+    benchmark_counter_slope,
+    count_atoms,
+    load_per_core,
+    measure_counters,
+    measure_instructions,
+    measured_main,
+    refusal_is_fatal,
+    time_is_measurable,
+)
 
 from bench import CASES, _write_merged_json
 from bench import main as benchmark_main
@@ -41,23 +58,6 @@ from benchmarks.subscription import (
 )
 from benchmarks.workloads import json_payload, json_wire, term_operators, wire_atom, wire_codec
 from metta import S
-from metta.benchmarking import _run_perf
-from metta.testing import (
-    CPU_SECONDS,
-    LOAD_PER_CORE_CEILING,
-    PERF_CONTROL_REFUSED,
-    BenchmarkBaseline,
-    MeasurementRefusedError,
-    benchmark_case,
-    benchmark_counter_slope,
-    count_atoms,
-    load_per_core,
-    measure_counters,
-    measure_instructions,
-    measured_main,
-    refusal_is_fatal,
-    time_is_measurable,
-)
 
 
 class _Stats:
@@ -366,7 +366,7 @@ def test_measure_instructions_parses_perf_csv(monkeypatch):  # noqa: D103  -- py
         calls.append((command, environment, controlled, timeout, events))
         return 0, "", "12345,,instructions:u,1000,100.00,,\n"
 
-    monkeypatch.setattr("metta.benchmarking._run_perf", run)
+    monkeypatch.setattr("metta_benchmarking._run_perf", run)
     assert measure_instructions(["python", "work.py"]) == (12345, 12345, 12345)
     assert all(
         call[0] == ["python", "work.py"]
@@ -395,7 +395,7 @@ def test_measure_counters_reads_every_requested_event(monkeypatch):
             "56.42,msec,task-clock,57673473,100.00,,\n"
         )
 
-    monkeypatch.setattr("metta.benchmarking._run_perf", run)
+    monkeypatch.setattr("metta_benchmarking._run_perf", run)
     runs = measure_counters(
         ["cases", "boot"], events=("instructions:u", "task-clock"), controlled=True
     )
@@ -413,7 +413,7 @@ def test_measure_counters_refuses_a_counter_perf_did_not_produce(monkeypatch):
     def run(*_arguments, **_keywords):
         return 0, "", "<not counted>,,instructions:u,0,0.00,,\n"
 
-    monkeypatch.setattr("metta.benchmarking._run_perf", run)
+    monkeypatch.setattr("metta_benchmarking._run_perf", run)
     # `<not counted>` is the box refusing rather than the workload answering, so
     # the refusal carries its own type and names the knob that decides it.
     with pytest.raises(MeasurementRefusedError, match="never armed"):
@@ -476,21 +476,21 @@ def test_perf_timeout_kills_and_reaps_process_group(monkeypatch):  # noqa: D103 
     waits = []
     killed = []
 
-    monkeypatch.setattr("metta.benchmarking.os.posix_spawn", lambda *_args, **_kwargs: 42)
+    monkeypatch.setattr("metta_benchmarking.os.posix_spawn", lambda *_args, **_kwargs: 42)
     # This test substitutes the whole act of running a process; the tools it
     # would have run are part of that, and requiring them installed would make
     # a timeout-and-reap test depend on the machine having perf.
-    monkeypatch.setattr("metta.benchmarking.shutil.which", lambda name: f"/usr/bin/{name}")
-    monkeypatch.setattr("metta.benchmarking.os.access", lambda _path, _mode: True)
+    monkeypatch.setattr("metta_benchmarking.shutil.which", lambda name: f"/usr/bin/{name}")
+    monkeypatch.setattr("metta_benchmarking.os.access", lambda _path, _mode: True)
 
     def waitpid(process, options):
         waits.append((process, options))
         return (0, 0) if options == os.WNOHANG else (process, signal.SIGKILL)
 
     ticks = iter([0.0, 2.0])
-    monkeypatch.setattr("metta.benchmarking.os.waitpid", waitpid)
-    monkeypatch.setattr("metta.benchmarking.os.killpg", lambda *args: killed.append(args))
-    monkeypatch.setattr("metta.benchmarking.time.monotonic", lambda: next(ticks))
+    monkeypatch.setattr("metta_benchmarking.os.waitpid", waitpid)
+    monkeypatch.setattr("metta_benchmarking.os.killpg", lambda *args: killed.append(args))
+    monkeypatch.setattr("metta_benchmarking.time.monotonic", lambda: next(ticks))
 
     with pytest.raises(TimeoutError, match="1 second limit"):
         _run_perf(
@@ -770,7 +770,7 @@ def test_the_benchmark_suite_prices_a_file_load():
     import json
     from pathlib import Path
 
-    root = Path(__file__).resolve().parents[4]
+    root = Path(__file__).resolve().parents[5]
     registry = (root / "extensions" / "python" / "bench.py").read_text()
     assert '"file-load": "test_file_load"' in registry
     suite = (root / "extensions" / "python" / "benchmarks" / "test_benchmarks.py").read_text()
@@ -826,7 +826,7 @@ def test_the_json_wire_row_is_not_registered_engine_free():
         "engine doing the work"
     )
 
-    root = Path(__file__).resolve().parents[4]
+    root = Path(__file__).resolve().parents[5]
     assert '"json-wire": "test_json_wire"' in (
         root / "extensions" / "python" / "bench.py"
     ).read_text()
@@ -849,11 +849,12 @@ def test_check_instructions_reports_every_failing_case(tmp_path):
     import json
     from pathlib import Path
 
+    from metta_benchmarking import BenchmarkBaseline
+
     from benchmarks.check_instructions import observe_all
-    from metta.testing import BenchmarkBaseline
 
     real = json.loads(
-        (Path(__file__).resolve().parents[2] / "benchmarks" / "baseline.json")
+        (Path(__file__).resolve().parents[3] / "benchmarks" / "baseline.json")
         .read_text()
     )
     document = {
@@ -1025,21 +1026,21 @@ def test_a_refused_window_is_told_apart_from_a_workload_that_failed(monkeypatch)
     def refused(*_command, **_perf):
         return PERF_CONTROL_REFUSED, "", "Events disabled\nworkload: perf did not acknowledge\n"
 
-    monkeypatch.setattr("metta.benchmarking._run_perf", refused)
+    monkeypatch.setattr("metta_benchmarking._run_perf", refused)
     with pytest.raises(MeasurementRefusedError, match="never opened"):
         measure_instructions(["cases", "boot"], controlled=True)
 
     def uncounted(*_command, **_perf):
         return 0, "", "<not counted>,,instructions:u,0,100.00,,\n"
 
-    monkeypatch.setattr("metta.benchmarking._run_perf", uncounted)
+    monkeypatch.setattr("metta_benchmarking._run_perf", uncounted)
     with pytest.raises(MeasurementRefusedError, match="never armed"):
         measure_instructions(["cases", "boot"])
 
     def broken(*_command, **_perf):
         return 3, "", "workload: the operation answered 0, expected 2000\n"
 
-    monkeypatch.setattr("metta.benchmarking._run_perf", broken)
+    monkeypatch.setattr("metta_benchmarking._run_perf", broken)
     with pytest.raises(RuntimeError, match="perf stat failed with exit 3") as failure:
         measure_instructions(["cases", "boot"])
     assert not isinstance(failure.value, MeasurementRefusedError)

@@ -64,9 +64,10 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Literal
 
+from metta_benchmarking import measure_instructions
+
 from benchmarks import atomic_json, curves
 from metta import MeTTa, S, Space, V, ground
-from metta.testing import measure_instructions
 
 STANDARD_SIZES = (10, 100, 1_000, 10_000)
 WIDE_SIZES = (1, 10, 100, 1_000)

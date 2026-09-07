@@ -24,6 +24,10 @@ import operator
 import sys
 from contextlib import contextmanager
 
+import metta_nanoarrow  # noqa: F401  -- the arrow row that builds the capsules
+import metta_numpy  # noqa: F401  -- the array row Column.__array__ reads
+import metta_pandas  # noqa: F401  -- the frame row to_df() reads
+import metta_polars  # noqa: F401  -- the frame row to_pl() reads
 import pytest
 from hypothesis import given
 from hypothesis import strategies as st

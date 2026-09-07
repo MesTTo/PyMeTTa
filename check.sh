@@ -134,6 +134,12 @@ run GATE packaged sh -c "cd '$HERE' && sh tests/shell/test_packaged_cli.sh"
 # every class the shipped registrants are the first member of.
 run GATE stranger-python sh -c "cd '$HERE' && CHECK_PY='$PY' sh tests/shell/test_a_stranger_extends_the_python_seat.sh"
 
+# The stranger proof from the other side: the core with ZERO extension packages
+# installed, and then with one. It builds its own environment, so it is the one
+# check that can say what a plain `pip install pymetta` actually does -- every
+# other lane runs in a checkout where every package is on the path.
+run GATE no-packages sh -c "cd '$HERE' && CHECK_PY='$PY' sh tests/shell/test_the_core_names_no_library.sh"
+
 # The example corpus is the executable semantics documentation, and until this
 # lane existed it only ever ran through the ENGINE: the examples gate below
 # invokes swipl on engine/main.pl, test.sh and the pytest items collected from
@@ -344,7 +350,7 @@ run REPORT determinism check_determinism_coverage
 # tools/ is this component's generators and it was in NO lane: not here, and
 # not in the root gate's ruff-drivers, which excludes extensions/python/
 # wholesale. 38 findings had accumulated there unseen [measured 2026-09-04].
-run GATE   ruff        in_py "$PY" -m ruff check metta tests tools examples/language-feature-examples bench.py
+run GATE   ruff        in_py "$PY" -m ruff check metta tests tools examples/language-feature-examples bench.py ext conftest.py _workspace.py
 # ledger C2: 65 errors in 13 files
 run GATE   mypy        in_py "$PY" -m mypy
 # A colocated __init__.pyi is authoritative for package scans, so the general
@@ -381,6 +387,11 @@ run GATE   stubtest    in_py "$PY" -m mypy.stubtest --mypy-config-file stubtest-
 run GATE   ty          in_py "$PY" -m ty check --python "$(dirname "$(dirname "$PY")")" metta
 # Residual Pylint findings describe deliberate facades, compiler mixins,
 # resource cleanup catches, and public compatibility surfaces.
+# `ext` is NOT here, where ruff, mypy, vulture and bandit all read it: pylint
+# and refurb RESOLVE imports, and a member's module is importable only through
+# the workspace path helper, which neither tool runs. Asking anyway reports
+# `E0401 Unable to import 'metta_websocket'` for every member's own test, which
+# is a finding about the checkout rather than about the code.
 run GATE   pylint      in_py "$PY" -m pylint metta --score=n
 # Perflint remains a measured queue. A suggestion moves only after the exact
 # instruction counter proves a win; the first attractive rewrite regressed.
@@ -418,13 +429,13 @@ run REPORT xenon       in_py "$PY" -m xenon metta --max-absolute D --max-modules
 # equivalents at the package boundaries they flag.
 run GATE   refurb      in_py "$PY" -m refurb metta bench.py
 # Both Bandit findings are the fixed swipl argv call with shell mode disabled.
-run GATE   bandit      in_py "$PY" -m bandit -q -c pyproject.toml -r metta
+run GATE   bandit      in_py "$PY" -m bandit -q -c pyproject.toml -r metta ext
 # These packages enter through deliberate lazy imports, which deptry cannot
 # observe statically; each one is declared in its matching extra.
 run GATE   deptry      in_py "$PY" -m deptry .
 run GATE   audit       in_py "$PY" -m pip_audit --progress-spinner off
 # ledger F: public API documentation is held above the 80% target
-run GATE   interrogate in_py "$PY" -m interrogate metta
+run GATE   interrogate in_py "$PY" -m interrogate metta ext
 
 # ---------------------------------------------------------------------------
 # What the suite does not say about itself. Five REPORT lanes, each measuring a

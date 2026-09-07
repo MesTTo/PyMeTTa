@@ -281,7 +281,7 @@ def test_an_integration_installed_on_a_context_reaches_its_home_space():
 
     MeTTa refuses a Space door rather than forwarding it, deliberately, so
     every installer that reached one died on a context: `integrate(m, target)`
-    raised on `m.name` before calling anything, and `metta.arrays.install(m)`
+    raised on `m.name` before calling anything, and `metta_arrays.install(m)`
     raised `MeTTa has no 'is_function'` with every operation unregistered.
     The context resolves to its home space once, here, so the installer still
     receives the object whose storage it writes into.

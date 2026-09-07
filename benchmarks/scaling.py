@@ -116,15 +116,15 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+# The direct home rather than the `metta.testing` re-export memory_scale uses:
+# `benchmarks.pure` imports this module to reach WORKLOADS and runs under perf,
+# and `metta_benchmarking` is stdlib plus `.atoms` where `metta.testing` also
+# pulls in the codec kit, the library loader, the space and the foreign seam.
+from metta_benchmarking import measure_instructions, measured_main
+
 from benchmarks import atomic_json, collect_worker, curves
 from benchmarks.configuration import counter_configuration
 from metta import S, Space, V, engine
-
-# The direct home rather than the `metta.testing` re-export memory_scale uses:
-# `benchmarks.pure` imports this module to reach WORKLOADS and runs under perf,
-# and `metta.benchmarking` is stdlib plus `.atoms` where `metta.testing` also
-# pulls in the codec kit, the library loader, the space and the foreign seam.
-from metta.benchmarking import measure_instructions, measured_main
 
 SCHEMA_VERSION = 1
 DEFAULT_REPETITIONS = 3

@@ -13,14 +13,14 @@ Guarantees:
     nothing but the engine binding and the runner. The claim here said the
     matrix installed them too and named a test asserting the opposite of what
     the one in the tree asserts [tested:
-    test_optional_integrations_have_installable_extras,
+    test_every_extra_installs_packages_and_never_a_library,
     test_the_minimal_version_matrix_installs_no_optional_integration;
     commit=8bfe05c3850776543ece25a85038242f10b1d841]
   - a roster is read by requirement NAME and a pin by its exact string, so
     adding a floor to a member is not adding a member, and every integration
     extra reaches the floor-matrix check from the manifest rather than from a
     list kept here [tested:
-    test_optional_integrations_have_installable_extras,
+    test_every_extra_installs_packages_and_never_a_library,
     test_the_minimal_version_matrix_installs_no_optional_integration;
     commit=0800a2651599aec83dc553657aa94a567cd986fb]
   - every ``python -m`` target named by a check.sh command reaches a real
@@ -159,13 +159,17 @@ def _resolved_extra(extras: dict, name: str) -> set[str]:
     `checks` is a strict superset of `test` and says so with the PEP 508
     self-reference rather than repeating six pins, so a membership test against
     the literal list would now read false for every one of them. What the extra
-    INSTALLS is the contract; how it spells the overlap is not.
+    INSTALLS is the contract; how it spells the overlap is not. `test` uses the
+    same spelling to pull in every extension package this repository ships.
     """
     resolved: set[str] = set()
     for requirement in extras[name]:
-        reference = re.fullmatch(r"pymetta\[([\w-]+)\]", requirement)
+        # One reference may name several extras, which is how `test` pulls in
+        # every extension package at once.
+        reference = re.fullmatch(r"pymetta\[([\w,\s-]+)\]", requirement)
         if reference:
-            resolved |= _resolved_extra(extras, reference.group(1))
+            for referenced in reference.group(1).split(","):
+                resolved |= _resolved_extra(extras, referenced.strip())
         else:
             resolved.add(requirement)
     return resolved
@@ -186,19 +190,31 @@ def _names(requirements: Iterable[str]) -> set[str]:
     return {Requirement(requirement).name for requirement in requirements}
 
 
-def test_optional_integrations_have_installable_extras():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
+def test_every_extra_installs_packages_and_never_a_library():
+    """The ruling, read off the manifest: an extra names our own packages.
+
+    Every library the Python seat can be extended by is its own distribution
+    under `extensions/python/ext/`, and an extra is the convenience name for a
+    set of them, the shape `apache-airflow[amazon]` has. So the command a user
+    types does not change and this file names no third-party library; that
+    every name here IS a workspace member is what
+    `tests/checks/check_layering.py` holds.
+    """
     extras = _manifest()["project"]["optional-dependencies"]
-    assert _names(extras["arrays"]) == {"array-api-compat", "faiss-cpu", "numpy"}
-    # Two producers answering two questions: nanoarrow builds the C structs a
-    # PyCapsule carries, pyarrow writes and reads the IPC streaming format that
-    # crosses the gateway as bytes.
-    assert _names(extras["arrow"]) == {"nanoarrow", "pyarrow"}
-    assert _names(extras["das"]) == {"websocket-client"}
-    assert _names(extras["dataframes"]) == {"pandas", "polars"}
-    assert _names(extras["graphql"]) == {"graphql-core"}
-    # The API package alone: the SDK, the exporters and the collector belong to
-    # the deployment, which is the split the API package exists for.
-    assert _names(extras["otel"]) == {"opentelemetry-api"}
+    assert _names(extras["arrays"]) == {"metta-arrays", "metta-faiss", "metta-numpy"}
+    # Two producers answering two questions: one builds the C structs a
+    # PyCapsule carries, the other writes and reads the IPC streaming format
+    # that crosses the gateway as bytes.
+    assert _names(extras["arrow"]) == {"metta-nanoarrow", "metta-pyarrow"}
+    assert _names(extras["das"]) == {"metta-websocket"}
+    assert _names(extras["dataframes"]) == {"metta-pandas", "metta-polars"}
+    assert _names(extras["graphql"]) == {"metta-graphql"}
+    assert _names(extras["models"]) == {"metta-pydantic"}
+    assert _names(extras["otel"]) == {"metta-otel"}
+    assert _names(extras["sql"]) == {"metta-duckdb", "metta-sqlite"}
+    # The engine is the one dependency that is not a package of ours: it is
+    # the bridge this seat embeds, not a library it integrates with.
+    assert _names(extras["engine"]) == {"janus-swi"}
     # No orjson extra: the JSON codec is the engine's library(json), and
     # no Python-side JSON implementation exists to accelerate.
     assert "orjson" not in extras
@@ -209,7 +225,7 @@ def test_optional_integrations_have_installable_extras():  # noqa: D103  -- pyte
     # replaced: those could all hold while a seventh pin drifted between the
     # two lists, and this cannot.
     assert test_requirements <= checks_requirements
-    assert {"pytest-xdist>=3.8,<4", "networkx>=3.6,<4", "numpy"} <= test_requirements
+    assert {"pytest-xdist>=3.8,<4", "networkx>=3.6,<4"} <= test_requirements
     assert "pylint>=3.3,<4" in checks_requirements
     assert "pylint>=3.3,<4" not in test_requirements
     # No literal duplication survives: every shared pin reaches `checks` through

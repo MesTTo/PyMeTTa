@@ -25,6 +25,7 @@ import inspect
 import os
 from typing import Final, get_args, get_overloads, get_type_hints
 
+import metta_arrays as arrays
 import pytest
 
 import metta
@@ -35,7 +36,6 @@ from metta import (
     _api_types,
     aio,
     algebra,
-    arrays,
     convert,
     integrate,
     lint,

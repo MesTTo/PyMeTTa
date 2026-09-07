@@ -27,9 +27,10 @@ import sys
 from collections.abc import Callable, Sequence
 from pathlib import Path
 
+from metta_benchmarking import BenchmarkBaseline, measure_instructions, measured_main
+
 from benchmarks.configuration import counter_configuration
 from benchmarks.pure import _CASES
-from metta.testing import BenchmarkBaseline, measure_instructions, measured_main
 
 
 def observe_all(

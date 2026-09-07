@@ -5,7 +5,7 @@ Assumes: `metta` imports (PYTHONPATH=extensions/python), numpy is installed and
   the engine boots; run as
   `python extensions/python/benchmarks/probes/pooled_name_refcount.py` from the
   repository root.
-Guarantees: installs metta.arrays on a keeper space and on a second space,
+Guarantees: installs metta_arrays on a keeper space and on a second space,
   drops the second WITHOUT uninstalling, then installs on the next pooled
   space, and prints `dying=<n>`, `stale=<n>`, `reused=<bool>` and `new=<n>`:
   the atoms the dying space held, the refcount entries left under its name

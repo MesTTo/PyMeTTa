@@ -23,6 +23,9 @@ import itertools
 import operator
 import pickle
 
+import metta_numpy  # noqa: F401  -- the array row a column builds through
+import metta_pandas  # noqa: F401  -- the frame row to_df() reads
+import metta_polars  # noqa: F401  -- the frame row to_pl() reads
 import pytest
 
 from metta import S, V, config, equation, parse, tables

@@ -58,8 +58,15 @@ RUFF_CONFIGS = (REPO / "pyproject.toml", PYTHON_ROOT / "pyproject.toml")
 # tools/ and the repository's tests/checks/ were in no ruff lane at all until
 # 2026-09-04, so their suppressions were counted by nothing: a burn-down that
 # cannot see a directory is a ceiling with a door under it.
+# `ext`, the seat's conftest and the workspace helper joined on 2026-09-08 with
+# the extension packages: the lane checks them, and a scope this test cannot see
+# is a burn-down with a door under it, which is the reason the line above says
+# tools/ and tests/checks/ joined for.
 RUFF_SCOPES = (
-    (PYTHON_ROOT, ("metta", "tests", "bench.py", "tools")),
+    (
+        PYTHON_ROOT,
+        ("metta", "tests", "bench.py", "tools", "ext", "conftest.py", "_workspace.py"),
+    ),
     (REPO, ("tests/checks",)),
 )
 REQUIRED_RUFF_FAMILIES = frozenset({"FBT", "N", "A", "D", "ARG", "PERF", "C90", "TRY", "EM"})
@@ -75,7 +82,7 @@ RUFF_FAMILY_BURN_DOWN = {
     # 35 -> 37 with the compiled dict story: _x_Set and _x_DictComp join the
     # _x_<Node> translator-dispatch family, whose suffix mirrors ast class
     # names by contract.
-    # 37 -> 38 for metta.arrays.Shape, a type-metadata constructor used inside
+    # 37 -> 38 for metta_arrays.Shape, a type-metadata constructor used inside
     # `Annotated[DLTensor, Shape(...)]`. Python spells that position with a
     # type, so the name follows Annotated and Literal rather than a function's
     # lower_snake, and the one site carries N802 with that reason.
@@ -113,7 +120,7 @@ RUFF_FAMILY_BURN_DOWN = {
     # carrier_type and introduces no additional shadowing suppression.
     # [tested: test_the_ruff_configuration_enables_every_family_or_records_why_not;
     # commit=074dc0a88b1605c54824de677d586b6f60998bcf]
-    # 27 -> 28 for metta.telemetry.observe's `filter` keyword, which is the same
+    # 27 -> 28 for metta_otel.observe's `filter` keyword, which is the same
     # public selector `trace(filter=)` above already keeps in five places: the
     # block door records the functions the trace door records, and spelling it
     # differently would make one word mean one thing on two doors that do the

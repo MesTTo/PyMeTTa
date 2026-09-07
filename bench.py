@@ -40,7 +40,11 @@ from typing import Any
 
 import pytest
 
-from metta.benchmarking import measured_main
+from _workspace import on_path
+
+on_path()
+
+from metta_benchmarking import measured_main  # noqa: E402  -- the path is arranged just above
 
 CASES = {
     "add-batch": "test_add_batch",

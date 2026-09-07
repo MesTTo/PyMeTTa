@@ -268,7 +268,14 @@ BUDGET = 318631
 #: above that ceiling, so no twin of it fits the band at all, as before
 #: [measured 2026-09-08: one fresh process per side; command=python
 #: extensions/python/benchmarks/probes/twin_floor.py; commit=3fc65f02ce807c359f1a52026f950f345da2a9af].
-OVERRUN = 17768
+#: OVERRUN 2026-09-08, 17770: the seam partitions a point's rows by fallback
+#: rank at dispatch (feat/the-core-names-no-library), two inferences on this
+#: twin's first crossing and none on the example's. Measured 318633 against a
+#: ceiling of 300863; a minimal twin costs 312023, above that ceiling, so no
+#: twin of it fits the band at all, as before [measured 2026-09-08: one fresh
+#: process per side; command=python
+#: extensions/python/benchmarks/probes/twin_floor.py; commit=WORKTREE].
+OVERRUN = 17770
 
 #: DIVERGED 2026-09-07, the example holds 9 atoms the twin does not (9 =) and
 #: the twin holds 9 the example does not (9 =): the twin is an ordinary Python

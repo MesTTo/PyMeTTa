@@ -172,7 +172,7 @@ def space_of(m: Any) -> Any:
     idempotent per space. What a caller holds is usually a context, and MeTTa
     refuses a Space door rather than forwarding it, deliberately, so an
     installer written the natural way failed on the first storage door it
-    reached: `metta.arrays.install(m)` raised `MeTTa has no 'is_function'`
+    reached: `metta_arrays.install(m)` raised `MeTTa has no 'is_function'`
     with every array operation left unregistered.
 
     Resolving once, at the door, is what lets `install(m)` work without

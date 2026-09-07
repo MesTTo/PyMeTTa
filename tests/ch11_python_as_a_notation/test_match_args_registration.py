@@ -18,6 +18,7 @@ Open Obligations:
   Future Enhancements: None.
 """
 
+import metta_pydantic  # noqa: F401  -- the image row asked before match-args
 import pytest
 
 from metta import convert

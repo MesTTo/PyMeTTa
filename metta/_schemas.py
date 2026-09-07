@@ -42,8 +42,8 @@ from __future__ import annotations
 import re
 from typing import TYPE_CHECKING, Any, Final, NamedTuple
 
+from . import seam
 from ._declarations import Declaration, declared
-from ._optional import require_module
 from ._projection import (
     ATOM_REF,
     ATOM_SCALAR,
@@ -55,7 +55,6 @@ from ._projection import (
 )
 from ._space_objects import _format_doc_atom
 from .atoms import Atom, Expression, Grounded, Symbol, _decode, _encode, parse
-from .errors import MettaError
 from .vocabularies import WIRE_TAGS, WireClass, WirePayload
 
 if TYPE_CHECKING:
@@ -683,12 +682,6 @@ def graphql_sdl(spaces: Mapping[str, Space | Any]) -> str:
     return "\n".join(lines)
 
 
-_GRAPHQL_EXTRA: Final = (
-    "executing a GraphQL query needs graphql-core, which is not installed; "
-    "install pymetta[graphql]. GET /graphql still answers the schema without it"
-)
-
-
 def graphql_value(cell: Atom, kind: str) -> Any:
     """One answer cell as the value its field's GraphQL scalar can carry.
 
@@ -726,30 +719,36 @@ def _serialize_number(value: Any) -> Any:
     return value
 
 
-def build_graphql_schema(sdl: str) -> Any:
-    """The executable schema for one SDL text, with this engine's scalars on it.
+#: The two scalars this seat's SDL declares, each with how a value of it
+#: renders and, where it reads back, how it parses. The EXECUTOR attaches
+#: them; how a scalar carries a serializer is its library's business and how
+#: an atom renders is ours, which is exactly where the two halves part.
+def _scalars() -> dict[str, tuple[Any, Any]]:
+    """`{scalar name: (serialize, parse_value)}` for an executor to attach."""
+    return {ATOM_SCALAR: (_serialize_atom, parse), NUMBER_SCALAR: (_serialize_number, None)}
 
-    `build_schema` gives a custom scalar the identity serializer, which would
-    hand an atom object to a JSON encoder; the two scalars this schema declares
-    are given theirs here [source:
-    https://github.com/graphql-python/graphql-core, GraphQLScalarType's
-    constructor assigning `serialize` and `parse_value` as plain attributes].
+
+def _executor() -> Any:
+    """The row that executes a GraphQL document here, or a refusal.
+
+    The `graphql` point is ownership like `arrow` and `ipc`: the first
+    registered executor whose library is importable claims, and with none the
+    refusal is every registered executor's own missing-library sentence. The
+    SDL is built as text and needs no row at all; this is only who RUNS a
+    query against it.
     """
-    graphql = require_module("graphql", _GRAPHQL_EXTRA)
-    schema = graphql.build_schema(sdl)
-    for name, serializer in ((ATOM_SCALAR, _serialize_atom), (NUMBER_SCALAR, _serialize_number)):
-        scalar = schema.type_map.get(name)
-        if scalar is None:
-            continue
-        # graphql-core 3.2 calls `serialize`; 3.3 renames it `coerce_output_value`
-        # and keeps both on the class, so whichever exists is set.
-        for attribute in ("serialize", "coerce_output_value"):
-            if hasattr(scalar, attribute):
-                setattr(scalar, attribute, serializer)
-    atom = schema.type_map.get(ATOM_SCALAR)
-    if atom is not None:
-        atom.parse_value = parse
-    return schema
+    claim = seam.graphql.claim()
+    if claim is not None:
+        return claim.row
+    registered = seam.graphql.rows()
+    if not registered:
+        raise ImportError(seam.graphql.refusal("executing a GraphQL query"))
+    raise ImportError(" ".join(row.missing for row in registered))
+
+
+def build_graphql_schema(sdl: str) -> Any:
+    """The executable schema for one SDL text, with this engine's scalars on it."""
+    return _executor().schema(sdl, _scalars())
 
 
 def execute_graphql(
@@ -757,32 +756,8 @@ def execute_graphql(
     root: Mapping[str, Any],
     request: Mapping[str, Any],
 ) -> dict[str, Any]:
-    """Run one GraphQL request against a schema and answer the response body.
-
-    The request is GraphQL over HTTP's own shape, `query`, `variables` and
-    `operationName` [source: https://graphql.github.io/graphql-over-http/draft/,
-    the POST request body], and the answer is its `data` and `errors`.
-    """
-    graphql = require_module("graphql", _GRAPHQL_EXTRA)
-    query = request.get("query")
-    if not isinstance(query, str) or not query.strip():
-        msg = "a GraphQL request needs a `query` field holding the document text"
-        raise MettaError(msg)
-    variables = request.get("variables")
-    if variables is not None and not isinstance(variables, dict):
-        msg = f"GraphQL variables must be an object, got {type(variables).__name__}"
-        raise MettaError(msg)
-    result = graphql.graphql_sync(
-        schema,
-        query,
-        root_value=dict(root),
-        variable_values=variables,
-        operation_name=request.get("operationName"),
-    )
-    answer: dict[str, Any] = {"data": result.data}
-    if result.errors:
-        answer["errors"] = [error.formatted for error in result.errors]
-    return answer
+    """Run one GraphQL request against a schema and answer the response body."""
+    return _executor().execute(schema, root, request)
 
 
 def graphql_heads(spaces: Mapping[str, Space | Any]) -> tuple[_Head, ...]:

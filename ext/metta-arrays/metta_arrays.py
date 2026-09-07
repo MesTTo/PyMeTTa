@@ -5,9 +5,14 @@ set serves NumPy, PyTorch, CuPy, JAX, Dask and whatever conforms next, and a
 mixed-library call converts through from_dlpack. Arrays cross the boundary
 by reference with identity, DLTensor joins each array's own classes as a
 type, and printing shows shape, dtype and device whatever the library.
-Built entirely on the public integration interface; pettorch instantiates it
-with torch as the constructor default and proves nothing here is
-torch-shaped.
+
+This is a DISTRIBUTION of its own, `metta-arrays`, and it names no array
+library: which one is the default comes from a row against the seat's `array`
+point, so `metta-numpy` is one package among the ones a user may install and
+`install(m, default=<module>)` already takes any module the standard covers.
+It reaches pymetta through public names and the seam's published services and
+through nothing private, which is what makes it the same kind of thing as a
+stranger's package.
 Guarantees:
   - _top_indices returns the highest finite scores first and resolves equal
     scores by insertion order [tested test_top_indices_match_full_order_and_stabilize_ties]
@@ -83,6 +88,11 @@ Guarded by:
     [assumed: no test installs from two threads at once, so the race is
     reasoned from the engine's one-kind-row-per-head refusal rather than
     reproduced; commit=76dbea9f4bc10804a5ca19493972dfb7975bc4b0]
+  - the Array API index backend is a FALLBACK row, so a library's own
+    nearest-neighbour backend wins `backend="auto"` whatever order the two
+    distributions loaded in [tested:
+    ext/metta-faiss/tests/test_faiss.py::test_faiss_wins_auto_over_the_array_api_fallback;
+    commit=94057a0f073c0fab0a35c42beff2c324d8a0addd]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -100,26 +110,25 @@ from collections.abc import Iterable
 from functools import wraps
 from typing import Annotated, Any, Final, Literal, NewType, cast
 
-from . import integrate as _integrate
-from . import ops as _ops
-from . import seam
-from ._ops import REGISTRY
-from ._optional import require_module
-from ._space import Space
-from .atoms import (
-    Atom,
-    Expression,
-    Grounded,
-    S,
-    Symbol,
-    V,
-    Variable,
-    _alpha_eq,
-    _decode,
-    _expr,
-    ground,
-)
-from .errors import MettaError
+from metta import Space, seam
+from metta import integrate as _integrate
+from metta import ops as _ops
+from metta.atoms import Atom, Expression, Grounded, S, Symbol, V, Variable, ground
+from metta.errors import MettaError
+from metta.wire import decode as _decode
+
+#: Bound once, because these are per-call on the hot paths and a service lookup
+#: is two dictionary reads. `alpha-eq` is MeTTa's =alpha and `module` is the
+#: optional import with the caller's own guidance, both published by the seam
+#: for exactly this: a registrant calls a service instead of importing a
+#: private module.
+_alpha_eq = seam.at("alpha-eq").call()
+require_module = seam.at("module").call()
+
+
+def _expr(*children: Any) -> Expression:
+    """A variadic Expression: `Expression` encodes its children identically."""
+    return Expression(list(children))
 
 __all__ = [
     "SHAPE_RULES",
@@ -410,7 +419,7 @@ def _alias_types(name: str, library: str) -> list[Expression]:
     uninstall() withdraws them, both reading them from the registration rather
     than restating the arrow shapes.
     """
-    operation = REGISTRY.get(f"{name}--{library}")
+    operation = _ops.registered().get(f"{name}--{library}")
     if operation is None:
         return []
     return [
@@ -644,10 +653,11 @@ def _retire_unclaimed(m: Any, names: Iterable[str]) -> list[str]:
     reach the registry, being alias equations, and are skipped here.
     """
     claimed = _claimed_ops(m)
+    known = _ops.registered()
     retired = [
         name
         for name in dict.fromkeys(names)
-        if name not in claimed and name in REGISTRY
+        if name not in claimed and name in known
     ]
     for name in retired:
         m.unregister_op(name)
@@ -1275,8 +1285,9 @@ def uninstall(m) -> list[str]:
     # An operation another space still claims stays registered, but it may not
     # go on being DECLARED here: its rows would keep the space describing a
     # function it no longer routes to, and answering calls on it.
+    known = _ops.registered()
     for name in dict.fromkeys(names):
-        if name not in retired and name in REGISTRY:
+        if name not in retired and name in known:
             _ops.withdraw(m.runtime, name, str(m.name))
     return retired
 
@@ -1306,7 +1317,7 @@ def _swap(xp, a, d0: int, d1: int):
 
 
 def _known_ops() -> set[str]:
-    return set(REGISTRY)
+    return set(_ops.registered())
 
 
 class EmbeddingStore:
@@ -1511,3 +1522,42 @@ class EmbeddingStore:
         if is_array(query) or isinstance(query, (list, tuple)):
             return query
         return self.vector_for(query)
+
+
+# ---------------------------------------------------- the Array API index row
+#
+# This package's own nearest-neighbour backend, over the standard rather than
+# over any library: it is available wherever the default array library is, and
+# it is registered as a FALLBACK so that a specific backend a library ships
+# wins `backend="auto"` whatever order the two distributions loaded in. That
+# ordering used to be one file's reading order and cannot be any more.
+
+def _argsort_available() -> bool:
+    """Always: the Array API path is this package's own and needs no library."""
+    return True
+
+
+def _argsort_build(matrix: Any) -> tuple[Any, Any]:
+    """The matrix beside its own namespace; there is nothing else to build."""
+    return namespace_of(matrix), matrix
+
+
+def _argsort_search(built: tuple[Any, Any], query: Any, count: int) -> list[tuple[int, float]]:
+    """(row, score) pairs best first, over the normalized matrix.
+
+    NumPy-like namespaces use argpartition for the candidate set; namespaces
+    exposing only the Array API use argsort.
+    """
+    xp, matrix = built
+    scores = matrix @ query
+    return [(index, float(scores[index])) for index in _top_indices(xp, scores, count)]
+
+
+seam.index.register(
+    "argsort",
+    source="package",
+    fallback=True,
+    available=_argsort_available,
+    build=_argsort_build,
+    search=_argsort_search,
+)

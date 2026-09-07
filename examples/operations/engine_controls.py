@@ -69,6 +69,12 @@ check(
 )
 
 try:
+    # The frame door is a PACKAGE: `pip install 'pymetta[dataframes]'` brings
+    # metta-polars, whose row is what makes `to_pl()` mean anything. An
+    # installed reader needs no import here, because the package advertises an
+    # entry point the seat loads on the first frame dispatch; a checkout has no
+    # dist-info, so this program names it.
+    import metta_polars  # noqa: F401
     import polars  # noqa: F401
 
     check("rows cross into a polars frame", rows.to_pl().columns, ["a", "b", "c"])

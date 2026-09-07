@@ -16,6 +16,8 @@ from pathlib import Path
 
 import pytest
 
+import _workspace
+
 EXAMPLES_ROOT = Path(__file__).resolve().parents[2] / "examples"
 
 # The language-feature examples are the SAME corpus in a different key: one
@@ -36,6 +38,21 @@ def _example_id(path: Path) -> str:
     return path.relative_to(EXAMPLES_ROOT).with_suffix("").as_posix()
 
 
+def _example_path() -> str:
+    """PYTHONPATH for an example: this corpus, and every extension package.
+
+    An INSTALLED reader has the packages from `pip install 'pymetta[...]'`; a
+    checkout has directories, so the members go on the path the same way the
+    suite's own conftest puts them there. An example that uses a package's door
+    still IMPORTS that package, because a checkout writes no `dist-info` and
+    entry-point discovery has nothing to find.
+    """
+    members = [str(path) for path in _workspace.members()]
+    return os.pathsep.join(
+        [str(EXAMPLES_ROOT), *members, os.environ.get("PYTHONPATH", "")]
+    )
+
+
 @pytest.mark.parametrize("example", EXAMPLES, ids=_example_id)
 def test_example_runs_and_verifies_itself(example):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     repo = EXAMPLES_ROOT.parents[2]
@@ -49,9 +66,7 @@ def test_example_runs_and_verifies_itself(example):  # noqa: D103  -- pytest dis
             **os.environ,
             "METTA_PATH": str(repo),
             "JAX_PLATFORMS": "cpu",
-            "PYTHONPATH": str(EXAMPLES_ROOT)
-            + os.pathsep
-            + os.environ.get("PYTHONPATH", ""),
+            "PYTHONPATH": _example_path(),
         },
     )
     output = result.stdout
@@ -78,9 +93,7 @@ def _run_example_source(tmp_path, source: str, *flags: str):
         env={
             **os.environ,
             "METTA_PATH": str(EXAMPLES_ROOT.parents[2]),
-            "PYTHONPATH": str(EXAMPLES_ROOT)
-            + os.pathsep
-            + os.environ.get("PYTHONPATH", ""),
+            "PYTHONPATH": _example_path(),
         },
     )
 

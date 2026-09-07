@@ -277,10 +277,22 @@ def twin(m):
 #: re-observation, not a re-pin [measured 2026-09-08: python
 #: extensions/python/tools/twin_coverage.py --observe --rounds 10 and --rounds 15,
 #: ai-tmp/integrator-849a9e/mergeTW-observe-10.log and -15.log; commit=08f6f4df19a283bb84ba5f679c83944b42685b2e].
+#: RE-OBSERVED 2026-09-08 under 'full-lane/277/workers=32' and POOLED: this twin races two
+#: `slow` branches whose loser is cut wherever the winner lands, so its count is the
+#: scheduler's and not the engine's, and an envelope over it is a claim about how far
+#: a losing spin gets on a loaded box. The trailed fuel scope (fix/every-intermittent-
+#: root-caused, f6e05ca9) made each spin step cheaper, and the extension-package merge's
+#: gate read 552971 under the 25 observations' floor of 554467; twenty-five fresh
+#: full-lane rounds read 552258..573907 and the gate after them read 580293, inside the
+#: earlier top. The union keeps that top as evidence, because the ceiling is set by load
+#: and not by the engine: 51 observations read 552258..583831. A run outside it is a
+#: re-observation, not a re-pin [measured 2026-09-08: python
+#: extensions/python/tools/twin_coverage.py --observe --rounds 25,
+#: ai-tmp/integrator-849a9e/mergeEXT-observe-25.log and mergeEXT-twins3.log; commit=WORKTREE].
 BUDGET = {
-    "minimum": 554467,
+    "minimum": 552258,
     "maximum": 583831,
-    "observations": 25,
+    "observations": 51,
     "protocol": "full-lane/277/workers=32",
 }
 

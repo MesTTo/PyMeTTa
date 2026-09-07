@@ -23,11 +23,12 @@ Open Obligations:
 
 from __future__ import annotations
 
+import metta_nanoarrow  # noqa: F401  -- the arrow capsule row
+import metta_pyarrow  # noqa: F401  -- the ipc row this scenario reads back
 import pytest
 
-from metta import S, V, remote
+from metta import S, V, remote, seam
 from metta._arrow import IPC_MEDIA_TYPE
-from metta._registrants import _IPC_MISSING
 from metta.atoms import _atom_from_wire
 from metta.errors import MettaError
 
@@ -268,7 +269,7 @@ def test_the_ipc_doors_name_the_extra_when_pyarrow_is_absent(registry, monkeypat
     with remote.Gateway(registry) as gateway, pytest.raises(ImportError) as refusal:
         gateway("ask", {"pattern": S.users(V.id, V.name).to_wire(), "format": "arrow"})
     assert "pymetta[arrow]" in str(refusal.value)
-    assert _IPC_MISSING == str(refusal.value)
+    assert seam.ipc.find("pyarrow").missing == str(refusal.value)
 
 
 def test_an_arrow_answer_carries_its_cursor_in_a_header(registry):

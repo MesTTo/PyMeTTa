@@ -16,9 +16,9 @@ import os
 from pathlib import Path
 
 import pytest
+from metta_benchmarking import BenchmarkBaseline
 
 from benchmarks.configuration import counter_configuration
-from metta.testing import BenchmarkBaseline
 
 
 def pytest_benchmark_update_machine_info(config, machine_info):

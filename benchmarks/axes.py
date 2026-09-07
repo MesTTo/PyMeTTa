@@ -38,11 +38,12 @@ import argparse
 import os
 import subprocess
 import sys
-from pathlib import Path
 from collections.abc import Callable
+from pathlib import Path
+
+from metta_benchmarking import measure_instructions
 
 from metta import MeTTa, S, Space
-from metta.testing import measure_instructions
 
 # Enough crossings that the difference dominates process-to-process variation,
 # and few enough that one case stays well inside the measurement timeout.

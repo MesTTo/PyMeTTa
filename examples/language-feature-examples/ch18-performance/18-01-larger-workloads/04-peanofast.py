@@ -193,7 +193,15 @@ def twin(m):
 #: tree, minimum of three fresh processes [measured 2026-09-08: min-of-3 serial
 #: fresh processes; command=python extensions/python/tools/twin_coverage.py
 #: --repin; commit=856434d7c1d381b3f3d7cbbd008f46c0d41b61aa].
-BUDGET = 88838
+#: RE-PINNED 2026-09-08, 88838 to 88832 (-6), the seam partitions a point's
+#: rows by fallback rank at dispatch (feat/the-core-names-no-library): a row
+#: may declare itself a fallback and is consulted after every row that is not
+#: one, so the stable partition costs or saves a few inferences on the first
+#: dispatch of a point a twin crosses. Measured on the merged tree, minimum of
+#: three fresh processes [measured 2026-09-08: min-of-3 serial fresh processes;
+#: command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+BUDGET = 88832
 
 #: OVERRUN 2026-09-07, 17800: it asserts the atom count the example only
 #: writes, so the space is read once more than the example reads it. Measured

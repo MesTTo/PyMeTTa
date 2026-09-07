@@ -159,7 +159,7 @@ _SIZED_CASES = {
 COST_ROW_CASE = "cost-row"
 
 
-#: See metta.benchmarking.PERF_CONTROL_REFUSED, which reads this status back:
+#: See metta_benchmarking.PERF_CONTROL_REFUSED, which reads this status back:
 #: a window that never opened measured nothing, so the run says nothing about
 #: the tree and the driver reports a named skip rather than a moved row.
 PERF_CONTROL_REFUSED = 125
