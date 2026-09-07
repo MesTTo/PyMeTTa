@@ -10,7 +10,7 @@ Guarantees:
     --head, because the set of declared rows exists only once an engine has
     booted and this file must not boot one to build its case table
     [tested: test_every_shipped_row_is_reachable_as_a_perf_sized_case;
-    commit=WORKTREE]
+    commit=6b4dceb61ccc78e308e6678af58f8daf43c31523]
 Owns:
   - main releases the selected workload after success or failure
     [tested test_perf_workload_teardown_runs_after_failure]

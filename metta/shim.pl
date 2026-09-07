@@ -7,7 +7,7 @@
 %   - a bound function's cost claim crosses as the class and the measure the
 %     ENGINE resolved, never a second derivation on this side
 %     [tested: test_the_measure_comes_from_the_arrow_at_the_holes_position;
-%     commit=WORKTREE]
+%     commit=6b4dceb61ccc78e308e6678af58f8daf43c31523]
 %   - internal and held evaluations install the same carrier and demand context
 %     [tested: sh extensions/python/test.sh
 %     tests/ch06_many_answers/test_evaluation_context.py -n 0; commit=54cb2eee69c42c1ae685643cbe2578f8d617a265].

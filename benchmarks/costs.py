@@ -54,28 +54,28 @@ Guarantees:
     loadavg 47
     [measured 2026-09-07; command=python -m benchmarks.costs --json a.json,
     twice; fixture=the shipped rows on the provisioned MORK and C-reader
-    configuration; commit=WORKTREE]
+    configuration; commit=6b4dceb61ccc78e308e6678af58f8daf43c31523]
   - the two class controls the design asks for stay armed: a quadratic witness
     DECLARED linear fails the class gate, and the same witness declared
     quadratic passes it
     [tested: test_the_understated_control_fails_only_the_class_gate,
-    test_the_quadratic_control_passes_every_gate; commit=WORKTREE]
+    test_the_quadratic_control_passes_every_gate; commit=6b4dceb61ccc78e308e6678af58f8daf43c31523]
   - the other direction is armed too: a linear witness declared quadratic fails
     the same gate, which is what makes the band a band rather than a ceiling
-    [tested: test_the_overstated_control_fails_only_the_class_gate; commit=WORKTREE]
+    [tested: test_the_overstated_control_fails_only_the_class_gate; commit=6b4dceb61ccc78e308e6678af58f8daf43c31523]
   - the exponential class is checked by the semi-log slope and not by the
     log-log exponent, because that exponent moves with the ladder: the fib
     control reads 6.887 over 14 to 20 and 8.466 over 16 to 22 while its slope
     reads 0.650 either way
     [measured 2026-09-07; command=python -m benchmarks.costs cost-control-exponential;
-    fixture=the fib control under (cache ... refuse); commit=WORKTREE]
+    fixture=the fib control under (cache ... refuse); commit=6b4dceb61ccc78e308e6678af58f8daf43c31523]
   - the work gate is armed by a control whose pinned answer counts come from
     ANOTHER row, so a head that stopped answering cannot pass
-    [tested: test_the_work_control_fails_only_the_work_gate; commit=WORKTREE]
+    [tested: test_the_work_control_fails_only_the_work_gate; commit=6b4dceb61ccc78e308e6678af58f8daf43c31523]
   - a ledger recorded under another configuration refuses the whole run before
     any row is measured, through the same stamp and the same comparison
     `benchmarks.scaling` uses [tested: test_a_drifted_ledger_refuses_the_cost_run;
-    commit=WORKTREE]
+    commit=6b4dceb61ccc78e308e6678af58f8daf43c31523]
 Fails when: a declared class disagrees with the measurement in either
   direction, a row cannot be measured, a call's answers left their pinned
   counts, a control stops failing in its declared way, or the ledger's
@@ -130,7 +130,7 @@ LEDGER_PATH = Path(__file__).resolve().parent / "cost-baseline.json"
 #: over 512 to 4096, where the gap is 0.15 and the fit is still climbing, and
 #: 0.970 and 1.090 over these four, where the pair slopes have settled
 #: [measured 2026-09-07; command=python -m benchmarks.costs size-atom
-#: intersection-atom; fixture=the shipped rows; commit=WORKTREE].
+#: intersection-atom; fixture=the shipped rows; commit=6b4dceb61ccc78e308e6678af58f8daf43c31523].
 #:
 #: The design's `MAX_FLAT_CHILDREN` ceiling of 1024 does NOT apply and the
 #: ladder deliberately passes it: that ceiling is SWI's `max_procedure_arity`,
@@ -149,7 +149,7 @@ INT_LADDER = (8, 16, 32, 64, 128)
 #: the semi-log slope reads 0.088 against the 0.650 these four read
 #: [measured 2026-09-07; command=python -m benchmarks.costs cost-control-exponential
 #: with each ladder; fixture=the fib control under (cache ... refuse);
-#: commit=WORKTREE].
+#: commit=6b4dceb61ccc78e308e6678af58f8daf43c31523].
 EXPONENTIAL_LADDER = (16, 18, 20, 22)
 
 
@@ -169,7 +169,7 @@ class Band:
 #: not from the sibling project's, for the reason `scaling-policy.json` records
 #: about its own bounds. Every number below was read on the ladders above
 #: [measured 2026-09-07; command=python -m benchmarks.costs --json;
-#: fixture=the ten shipped rows and the five controls; commit=WORKTREE]:
+#: fixture=the ten shipped rows and the five controls; commit=6b4dceb61ccc78e308e6678af58f8daf43c31523]:
 #:
 #:   constant       `(+ $n 1)` reads -0.005 flat at 409 inferences
 #:   linear         the six linear rows read 0.962 to 0.990
@@ -189,7 +189,7 @@ class Band:
 #: for it, and stretching the two bands together would let such a head declare
 #: the cheaper of the two. Ciao has no gap here because its `steps_o` takes an
 #: arbitrary cost function where this takes one of six names
-#: [tested: test_the_gap_below_quadratic_is_deliberate; commit=WORKTREE].
+#: [tested: test_the_gap_below_quadratic_is_deliberate; commit=6b4dceb61ccc78e308e6678af58f8daf43c31523].
 CLASS_BANDS: Mapping[str, Band] = {
     "constant": Band(-math.inf, 0.25),
     "log": Band(0.02, 0.60),
@@ -215,7 +215,7 @@ EXPONENTIAL_MINIMUM_EXPONENT = 3.5
 #: whatever the head then does with it. Measured: a call that never even LOOKS
 #: at its argument, `(if-equal a a 1 $n)`, still reads exponent 0.781 over 512
 #: to 4096 and 4,412 to 22,314 inferences, all of it the argument arriving
-#: [measured 2026-09-07; fixture=the same length fixture; commit=WORKTREE].
+#: [measured 2026-09-07; fixture=the same length fixture; commit=6b4dceb61ccc78e308e6678af58f8daf43c31523].
 #: Declaring a cheaper class on a length measure is therefore unmeasurable
 #: rather than merely wrong, and it is refused with the remedy: a head whose
 #: cost really is constant in a size takes that size as a NUMBER.

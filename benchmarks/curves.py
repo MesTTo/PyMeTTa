@@ -22,7 +22,7 @@ curve reports whatever exponent the LADDER makes it look like: the same naive
 Fibonacci reads 6.887 over sizes 14 to 20 and 8.466 over 16 to 22, while its
 semi-log slope reads 0.650 either way
 [measured 2026-09-07; command=python -m benchmarks.costs cost-control-exponential;
-fixture=the fib control under (cache ... refuse); commit=WORKTREE].
+fixture=the fib control under (cache ... refuse); commit=6b4dceb61ccc78e308e6678af58f8daf43c31523].
 
 Assumes: sizes are positive and strictly increasing, and a caller that wants an
   exponent passes positive values, since log-log space has no other meaning.
@@ -45,7 +45,7 @@ Guarantees:
     slope, where their log-log exponents are 8.466 and 3.000
     [tested: test_curves_exponential_fit_recovers_a_planted_base,
     test_curves_exponential_fit_separates_an_exponential_from_a_cubic;
-    commit=WORKTREE]
+    commit=6b4dceb61ccc78e308e6678af58f8daf43c31523]
   - the arithmetic is pure: no counter is read and no process is spawned here
     [tested: test_curves_power_fit_recovers_a_planted_exponent; commit=906a4057ac57a340a3544ad909e829f851f35af3]
 Fails when: fewer than two points are supplied, which cannot determine a slope.

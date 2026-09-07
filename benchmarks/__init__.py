@@ -11,7 +11,7 @@ Guarantees:
     so a worker that exits without sending, sends a failure, or outlives its
     bound reads the same way in either
     [tested: test_a_family_that_left_its_route_is_refused_not_fitted,
-    test_a_worker_that_sends_nothing_is_a_named_failure; commit=WORKTREE].
+    test_a_worker_that_sends_nothing_is_a_named_failure; commit=6b4dceb61ccc78e308e6678af58f8daf43c31523].
 Open Obligations:
   To Do: None
   Hacks: None

@@ -59,7 +59,7 @@ Guarantees:
     the measure a second time
     [tested: test_the_docstring_carries_the_declared_cost,
     test_the_docstring_dates_the_measurement_from_the_ledger;
-    commit=WORKTREE]
+    commit=6b4dceb61ccc78e308e6678af58f8daf43c31523]
   - Prepared and Cursor reject every non-positive or non-integer limit before
     opening an engine query [tested:
     test_nonpositive_limits_are_refused_by_match_stream_and_prepared;

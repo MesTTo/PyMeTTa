@@ -69,7 +69,7 @@ Guarantees:
     lane measures a family by name through, and the process collection both
     lanes use is `benchmarks.collect_worker`
     [tested: test_every_shipped_row_is_reachable_as_a_perf_sized_case;
-    commit=WORKTREE]
+    commit=6b4dceb61ccc78e308e6678af58f8daf43c31523]
 Fails when: a family exceeds its declared exponent, costs more than its pinned
   row by more than the allowed factor, leaves its route, or produces the wrong
   work. Also when a control stops failing, and when the ledger's configuration
