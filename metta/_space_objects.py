@@ -355,6 +355,45 @@ def guard_atom(where: Any | None) -> Atom | None:
     )
 
 
+#: How many numbers metta_py_stats/1 answers: inferences, cputime, the
+#: garbage-collection triple, answer-table bytes, and the interrupt poll's
+#: four-field term (ticks, what they have spent, the counter reading the last
+#: one happened at, and what the ticks before it had spent).
+_SNAPSHOT_WIDTH = 10
+
+
+def _without_the_interrupt_poll(
+    raw: float,
+    ticks: float,
+    spent: float,
+    at: float,
+    before: float,
+) -> tuple[int | float, int | float]:
+    """One counter reading with the engine's interrupt poll taken out of it.
+
+    SWI calls the seat's ``prolog:heartbeat/0`` every
+    ``config.heartbeat_interval`` inferences so a Ctrl-C can reach Python
+    while the engine runs, and the hook's own call ports are ordinary
+    inferences in the interrupted thread. They are not the measured block's
+    work, so they come out: ``spent`` is what the polls have cost this thread
+    and it is subtracted from the counter.
+
+    ``at`` is why this is exact rather than nearly right. The counter and the
+    poll's tally are two reads, and no goal reads two things at one instant,
+    so a tick landing between them would put its cost on one side and its
+    tally on the other -- the same two inferences the subtraction exists to
+    remove. The hook therefore records the counter reading it fired at, in the
+    same term as the tally, and a tick recorded PAST this reading is a tick
+    whose cost is not in it: `before`, what the ticks up to that one had
+    spent, is subtracted instead
+    [tested: test_a_reading_leaves_out_a_tick_that_fired_after_it,
+    test_a_measurement_is_the_same_with_the_poll_dense].
+    """
+    if at > raw:
+        return raw - before, ticks - 1
+    return raw - spent, ticks
+
+
 def _stats_snapshot(
     rt: Runtime,
 ) -> tuple[
@@ -364,10 +403,11 @@ def _stats_snapshot(
     int | float,
     int | float,
     int | float,
+    int | float,
 ]:
-    """Read and validate the six counters supplied by the engine shim."""
+    """Read and validate the counters supplied by the engine shim."""
     raw = rt.apply_must("metta_py_stats")
-    if not isinstance(raw, (list, tuple)) or len(raw) != 6:
+    if not isinstance(raw, (list, tuple)) or len(raw) != _SNAPSHOT_WIDTH:
         msg = f"engine statistics returned an invalid snapshot: {raw!r}"
         raise EngineError(msg)
     values: list[int | float] = []
@@ -376,7 +416,18 @@ def _stats_snapshot(
             msg = f"engine statistics returned a non-numeric counter: {value!r}"
             raise EngineError(msg)
         values.append(value)
-    return values[0], values[1], values[2], values[3], values[4], values[5]
+    inferences, ticks = _without_the_interrupt_poll(
+        values[0], values[6], values[7], values[8], values[9]
+    )
+    return (
+        inferences,
+        values[1],
+        values[2],
+        values[3],
+        values[4],
+        values[5],
+        ticks,
+    )
 
 
 def _column_names(atoms: Iterable[Atom]) -> list[str]:
@@ -422,6 +473,7 @@ _COUNTERS = frozenset(
         "gc_freed",
         "gc_time",
         "table_bytes",
+        "heartbeats",
     }
 )
 
@@ -431,9 +483,29 @@ class _StatsBlock:
 
     After exit the fields carry the deltas the block spent: inferences
     (int), cputime (seconds), walltime (seconds, Python's perf_counter),
-    gc_count, gc_freed (bytes), gc_time (seconds), and table_bytes
+    gc_count, gc_freed (bytes), gc_time (seconds), table_bytes
     (answer-table bytes the block grew or, negative, released; tabling's
-    memory made visible where the counters live).
+    memory made visible where the counters live), and heartbeats.
+
+    `inferences` is the block's own work. The engine's interrupt poll, which
+    crosses into Python every `config.heartbeat_interval` inferences so a
+    Ctrl-C can land, costs inferences of its own in whatever thread the VM
+    interrupts, and those are NOT the block's: they are subtracted, and
+    `heartbeats` says how many times the poll ran inside the block. Without
+    that subtraction two measurements of the same work differed, one time in
+    eighty at the shipped interval and two times in three at a dense one
+    [measured 2026-09-08: 51 of 4,000 measurements of one 659-inference
+    evaluation read 667, and 2,568 of 4,000 did at an interval of 1,000;
+    command=python extensions/python/benchmarks/probes/
+    interrupt_poll_accounting.py --raw; commit=5f92ecfb105f7a11d8f3b1a4c0a7e3b6d4b656a6].
+
+    A thread the block JOINS inside its window is counted, because SWI adds an
+    exited thread's inferences to the thread that joins it, and waiting for
+    that work is doing it; a detached thread finishing beside the block is not
+    [measured 2026-09-08: a joined 2,000,000-inference thread moves the
+    joiner's counter by 2,000,013 and a detached one by 7; command=python
+    extensions/python/benchmarks/probes/interrupt_poll_accounting.py;
+    commit=5f92ecfb105f7a11d8f3b1a4c0a7e3b6d4b656a6].
 
     A counter is a delta, so there is nothing to read before the block that
     measures it has closed, and reading one there raises rather than
@@ -454,6 +526,7 @@ class _StatsBlock:
         "gc_count",
         "gc_freed",
         "gc_time",
+        "heartbeats",
         "inferences",
         "table_bytes",
         "walltime",
@@ -469,6 +542,7 @@ class _StatsBlock:
     gc_freed: int
     gc_time: float
     table_bytes: int
+    heartbeats: int
 
     def __init__(self, rt: Runtime) -> None:
         self._rt = rt
@@ -507,7 +581,7 @@ class _StatsBlock:
             raise RuntimeError(msg)
         wall = time.perf_counter() - started_at
         after = _stats_snapshot(self._rt)
-        inferences, cputime, gc_count, gc_freed, gc_ms, table_bytes = (
+        inferences, cputime, gc_count, gc_freed, gc_ms, table_bytes, heartbeats = (
             a - b for a, b in zip(after, before, strict=True)
         )
         # The two metta_py_stats crossings themselves sit inside the
@@ -525,6 +599,7 @@ class _StatsBlock:
         self.gc_freed = int(gc_freed)
         self.gc_time = float(gc_ms) / 1000.0
         self.table_bytes = int(table_bytes)
+        self.heartbeats = int(heartbeats)
         self._counted = True
 
     def __repr__(self) -> str:

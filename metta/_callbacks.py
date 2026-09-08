@@ -61,6 +61,7 @@ _CALLBACKS = {
     "foreign_transaction": ("foreign", "foreign_transaction"),
     "fork_context": ("_task_context", "fork"),
     "fork_contexts": ("_task_context", "fork_many"),
+    "heartbeat_tick": ("_engine", "heartbeat_tick"),
     "is_matchable": ("foreign", "is_matchable"),
     "match_object": ("foreign", "match_object"),
     "path_begin": ("paths", "_path_begin"),
@@ -109,6 +110,7 @@ foreign_remove: _Any
 foreign_transaction: _Any
 fork_context: _Any
 fork_contexts: _Any
+heartbeat_tick: _Any
 is_matchable: _Any
 match_object: _Any
 path_begin: _Any
@@ -155,6 +157,7 @@ __all__ = [
     "foreign_transaction",
     "fork_context",
     "fork_contexts",
+    "heartbeat_tick",
     "is_matchable",
     "match_object",
     "path_begin",

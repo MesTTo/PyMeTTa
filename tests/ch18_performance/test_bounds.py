@@ -105,8 +105,22 @@ def test_the_subscription_queue_is_bounded_and_load_takes_a_budget(metta, tmp_pa
         "!(with-pragma! ((max-stack-depth 300000000)) (spin))\n",
         encoding="utf-8",
     )
-    with pytest.raises(InferenceLimitError):
-        metta.load(forever, inferences=20_000)
+    # ARMED, because this read `DID NOT RAISE` once on a battery and once is
+    # a finding rather than an intermittent: a bounded load of an endless spin
+    # can only return by having its bound lost, and SWI loses an inference
+    # bound whenever a catch inside the goal eats the ball it raises there. The
+    # answers say which happened -- error atoms mean the spin ran to some other
+    # stop, an unevaluated `(spin)` means it never ran -- and the door refuses
+    # from a counter read now rather than from that ball alone
+    # [tested: inference_budget:a_swallowed_ball_still_refuses_at_the_python_door].
+    try:
+        answered = metta.load(forever, inferences=20_000)
+    except InferenceLimitError:
+        answered = None
+    assert answered is None, (
+        f"a 20,000-inference bound over an endless (spin) returned "
+        f"{answered!r} instead of refusing"
+    )
     _the_wall_clock_door_holds_in_a_process_of_its_own(forever)
 
     # An unbounded load still works, and still resolves an import relative
