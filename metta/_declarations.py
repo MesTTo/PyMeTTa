@@ -277,9 +277,9 @@ def declared(space: Space | Any) -> tuple[Declaration, ...]:
     `declarations()` above answers the WHOLE projection and costs one pass over
     every atom, which is what a stub or a card wants: they read a program once.
     A SERVED schema is asked for on every request, and a declaration row is
-    stored as `'&self'(':', Name, Type)`, so `':'` selects it through SWI's
-    first-argument index [source: engine/spaces/catalog.pl, `add_sexp_in/4`'s
-    `':'` clause]. That is the whole difference in cost class: over spaces of
+    stored as `'&self'(':', Name, Type, Token)`, so `':'` selects it through SWI's
+    first-argument index [source: engine/spaces/catalog.pl:add_sexp_in/5;
+    commit=WORKTREE]. That is the whole difference in cost class: over spaces of
     200, 2,000 and 20,000 atoms holding the same ten declarations, this read
     stayed at 232, 230 and 230 inferences while the walk went 3,911, 34,511 and
     340,525 [measured 2026-09-07;
@@ -324,7 +324,7 @@ _DOCUMENTED_ARITIES = range(2, 9)
 def _documentation_rows(space: Space | Any) -> dict[str, Expression]:
     """Every `(@doc name ...)` row of a space, by name, read through the index.
 
-    A stored row is `'<space>'('@doc', Name, ...)`, so `'@doc'` selects it by
+    A stored row is `'<space>'('@doc', Name, ..., Token)`, so `'@doc'` selects it by
     first argument at each arity. The first row found for a name wins, which is
     the rule `declarations()` above already applies to a name documented twice.
     """

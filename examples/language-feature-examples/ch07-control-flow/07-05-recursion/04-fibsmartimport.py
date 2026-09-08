@@ -1,4 +1,4 @@
-"""examples/ch07-control-flow/07-05-recursion/04-fibsmartimport.metta in Python: importing another file.
+"""Purpose: examples/ch07-control-flow/07-05-recursion/04-fibsmartimport.metta in Python: importing another file.
 
 `m += lib(PATH)` performs the import: the call door on the lib namespace is
 the exact-module-form escape a path import crosses as, the receiver is the
@@ -160,4 +160,10 @@ def twin(m):
 #: carries both, so this entry is where the two chains meet [measured
 #: 2026-09-08: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=f1038acdcaf5230b6431c112f38a719d3dc9ef19].
-BUDGET = 6974
+#: RE-PINNED 2026-09-08, 6974 to 7083 (+109), Trailing occurrence arguments,
+#: token allocation in native writes, exact source withdrawal and transaction-
+#: safe shared-table guards change the engine work priced by this twin; answer
+#: bags retain the upstream law [measured 2026-09-08: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+BUDGET = 7083

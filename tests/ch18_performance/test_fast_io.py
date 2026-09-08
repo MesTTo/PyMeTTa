@@ -599,9 +599,9 @@ def test_fast_file_starts_with_the_magic_header(m, tmp_path):  # noqa: D103  -- 
     m.add(S.header(S.fact))
     m.save(path, format="fast")
     data = path.read_bytes()
-    assert data.startswith(b"METTA-CACHE\tMETTA-FAST\t4\t")
+    assert data.startswith(b"METTA-CACHE\tMETTA-FAST\t5\t")
     header = data.split(b"\n", 1)[0] + b"\n"
-    assert re.fullmatch(rb"METTA-CACHE\tMETTA-FAST\t4\t\d+\.\d+\.\d+\t[0-9a-f]{64}\n", header)
+    assert re.fullmatch(rb"METTA-CACHE\tMETTA-FAST\t5\t\d+\.\d+\.\d+\t[0-9a-f]{64}\n", header)
     assert header[:-1].split(b"\t")[3].decode() == engine().info()["swi_prolog"]
 
 

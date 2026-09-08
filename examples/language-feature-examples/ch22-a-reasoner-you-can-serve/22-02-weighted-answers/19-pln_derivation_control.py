@@ -1,4 +1,4 @@
-"""examples/ch22-a-reasoner-you-can-serve/22-02-weighted-answers/19-pln_derivation_control.metta in Python: the same five ideas, written a second time inside lib_pln.
+"""Purpose: examples/ch22-a-reasoner-you-can-serve/22-02-weighted-answers/19-pln_derivation_control.metta in Python: the same five ideas, written a second time inside lib_pln.
 
 NARS's queue and PLN's are separate definitions of the same shape, over each
 library's own tuple helpers, so this twin is `17-nars_derivation_control.py`
@@ -161,4 +161,10 @@ def twin(m):
 #: carries both, so this entry is where the two chains meet [measured
 #: 2026-09-08: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=f1038acdcaf5230b6431c112f38a719d3dc9ef19].
-BUDGET = 341555
+#: RE-PINNED 2026-09-08, 341555 to 345741 (+4186), Trailing occurrence
+#: arguments, token allocation in native writes, exact source withdrawal and
+#: transaction-safe shared-table guards change the engine work priced by this
+#: twin; answer bags retain the upstream law [measured 2026-09-08: min-of-3
+#: serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 345741

@@ -9,12 +9,12 @@ Assumes:
 Guarantees:
   - `--costs` reports inferences per touching write at three relation sizes
     for each of the three strategies beside the equivalent uncached recompute
-    [measured 2026-09-07: pattern 88/90/90, heads 167/445/3173, tabled
-    1163/1696/7096 and the recompute 149/425/3153 inferences per touching
+    [measured 2026-09-08: pattern 90/90/90, heads 200/575/4245, tabled
+    1156/1689/7089 and recompute 178/553/4223 inferences per touching
     write at 10, 100 and 1,000 rows, minimum of three;
     command=python extensions/python/benchmarks/probes/live_view_cost.py --costs;
-    fixture=an edge ring with a weight per node and a tabled probe-total,
-    loadavg 92-104]
+    fixture=an edge ring with a weight per node and private tabled probe-total;
+    commit=WORKTREE]
   - `--forms`, `--effects` and `--naming` each print the one fact
     `metta.structures` cites them for
     [measured 2026-09-07: --forms prints tables=2 answers=2 for the three
@@ -33,6 +33,7 @@ Open Obligations:
 from __future__ import annotations
 
 import argparse
+from contextlib import contextmanager
 import sys
 from pathlib import Path
 
@@ -52,6 +53,17 @@ def _cost(context, work, repeats: int = 3) -> int:
     return min(counts)
 
 
+@contextmanager
+def _private_total(sp):
+    """Keep the view's transaction-safe table policy scoped to the probe."""
+    row = "(cache probe-total (incremental private))"
+    sp.run(f"!(add-atom &metta {row})")
+    try:
+        yield
+    finally:
+        sp.run(f"!(remove-atom &metta {row})")
+
+
 def costs() -> None:
     """Inferences per touching write for each strategy, and the recompute.
 
@@ -66,7 +78,7 @@ def costs() -> None:
     print(f"{'measurement':<34}{'10':>8}{'100':>8}{'1000':>8}")
     readings: dict[str, list[int]] = {}
     for size in (10, 100, 1000):
-        with space() as sp:
+        with space() as sp, _private_total(sp):
             sp.run("!(import! &self (library lib_tabling))")
             for index in range(size):
                 sp.add(S.edge(S[f"n{index}"], S[f"n{(index + 1) % size}"]))

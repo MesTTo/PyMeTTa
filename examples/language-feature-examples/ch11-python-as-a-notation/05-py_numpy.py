@@ -1,4 +1,4 @@
-"""examples/ch11-python-as-a-notation/05-py_numpy.metta in Python: numpy through the seam.
+"""Purpose: examples/ch11-python-as-a-notation/05-py_numpy.metta in Python: numpy through the seam.
 
 The example is the language's own tutorial for holding Python objects in MeTTa
 [source: metta-lang.dev/docs/learn/tutorials/python_use/py_atom]. Every
@@ -175,4 +175,10 @@ def twin(m):
 #: carries both, so this entry is where the two chains meet [measured
 #: 2026-09-08: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=f1038acdcaf5230b6431c112f38a719d3dc9ef19].
-BUDGET = 4840
+#: RE-PINNED 2026-09-08, 4840 to 4885 (+45), Trailing occurrence arguments,
+#: token allocation in native writes, exact source withdrawal and transaction-
+#: safe shared-table guards change the engine work priced by this twin; answer
+#: bags retain the upstream law [measured 2026-09-08: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+BUDGET = 4885

@@ -441,7 +441,7 @@ class OpKind(_AtomStrEnum):
     raw_det = "raw_det"
     raw_many = "raw_many"
 
-#: (vocabulary provider-capability match enumerate add add-many remove clear subscribe plan rules)
+#: (vocabulary provider-capability match enumerate add add-many remove clear subscribe plan rules tokens)
 class ProviderCapability(_OpenStrEnum):
     """Typed values of the provider-capability vocabulary, which the engine
     declares OPEN: a word registered through
@@ -457,6 +457,7 @@ class ProviderCapability(_OpenStrEnum):
     subscribe = "subscribe"
     plan = "plan"
     rules = "rules"
+    tokens = "tokens"
 
 #: (vocabulary refinement Gt Ge Lt Le Interval MultipleOf MinLen MaxLen Len Predicate Unit)
 class Refinement(_AtomStrEnum):

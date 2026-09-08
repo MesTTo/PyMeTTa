@@ -1,4 +1,4 @@
-"""examples/ch20-extending-the-engine/20-03-prolog-underneath/03-foreign_rules.metta in Python: a foreign space holding RULES.
+"""Purpose: examples/ch20-extending-the-engine/20-03-prolog-underneath/03-foreign_rules.metta in Python: a foreign space holding RULES.
 
 In MeTTa a space is BOTH a data source and where the program lives, so an
 equation added to a foreign space has to evaluate rather than sit there inert.
@@ -265,4 +265,17 @@ def twin(m):
 #: returned callback goals [measured 2026-09-08: min-of-3 serial fresh
 #: processes; command=python extensions/python/tools/twin_coverage.py --repin;
 #: commit=ede2ac57e213a0d4502c6bbbca6227f97015b720].
-BUDGET = 38639
+#: RE-PINNED 2026-09-08, 38639 to 39800 (+1161), Trailing occurrence arguments,
+#: token allocation in native writes, exact source withdrawal and transaction-
+#: safe shared-table guards change the engine work priced by this twin; answer
+#: bags retain the upstream law [measured 2026-09-08: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+#: RE-PINNED 2026-09-08, 39800 to 39740 (-60), Sharing the fast-image
+#: hexadecimal validator changes the engine predicate layout. The identity twin
+#: moves below its declared band while the seven engine work counters move only
+#: at boot; the native add and read slopes remain unchanged. Token storage and
+#: source ownership retain their earlier measured costs and answer bags
+#: [measured 2026-09-08: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 39740

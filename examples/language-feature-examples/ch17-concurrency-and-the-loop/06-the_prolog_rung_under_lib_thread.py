@@ -1,4 +1,4 @@
-"""examples/ch17-concurrency-and-the-loop/06-the_prolog_rung_under_lib_thread.metta in Python: lib_thread's own lower rung.
+"""Purpose: examples/ch17-concurrency-and-the-loop/06-the_prolog_rung_under_lib_thread.metta in Python: lib_thread's own lower rung.
 
 Every operation the two files before this one use is one equation over a
 Prolog predicate imported by name, and these underscore spellings are those
@@ -140,7 +140,13 @@ def twin(m):
 #: carries both, so this entry is where the two chains meet [measured
 #: 2026-09-08: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=f1038acdcaf5230b6431c112f38a719d3dc9ef19].
-BUDGET = 276317
+#: RE-PINNED 2026-09-08, 276317 to 278452 (+2135), Trailing occurrence
+#: arguments, token allocation in native writes, exact source withdrawal and
+#: transaction-safe shared-table guards change the engine work priced by this
+#: twin; answer bags retain the upstream law [measured 2026-09-08: min-of-3
+#: serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 278452
 #: The count VARIES, because this twin starts threads, pools and timers and
 #: the engine charges what the scheduler actually ran. Three single-round
 #: measurements on this branch gave 257426, 257768 and 257409, a spread of

@@ -1,4 +1,4 @@
-"""examples/ch20-extending-the-engine/20-07-tokens-and-the-reader/01-reader-tokens.metta in Python: the reader as an extension seam.
+"""Purpose: examples/ch20-extending-the-engine/20-07-tokens-and-the-reader/01-reader-tokens.metta in Python: the reader as an extension seam.
 
 A token pattern IS text, a regular expression, and a constructor IS a name,
 so the two arguments are `G(...)` and `S...` respectively, which is the whole
@@ -126,4 +126,10 @@ def twin(m):
 #: carries both, so this entry is where the two chains meet [measured
 #: 2026-09-08: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=f1038acdcaf5230b6431c112f38a719d3dc9ef19].
-BUDGET = 7741
+#: RE-PINNED 2026-09-08, 7741 to 7764 (+23), Trailing occurrence arguments,
+#: token allocation in native writes, exact source withdrawal and transaction-
+#: safe shared-table guards change the engine work priced by this twin; answer
+#: bags retain the upstream law [measured 2026-09-08: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+BUDGET = 7764

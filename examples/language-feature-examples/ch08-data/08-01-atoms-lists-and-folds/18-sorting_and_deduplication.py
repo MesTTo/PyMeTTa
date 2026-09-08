@@ -1,4 +1,4 @@
-"""examples/ch08-data/08-01-atoms-lists-and-folds/18-sorting_and_deduplication.metta in Python: four ways to tidy a collection.
+"""Purpose: examples/ch08-data/08-01-atoms-lists-and-folds/18-sorting_and_deduplication.metta in Python: four ways to tidy a collection.
 
 `sort`, `msort` and `list_to_set` keep their Prolog underscores and come
 through the exact subscript door; `sort-atom` is a MeTTa name and takes the
@@ -107,7 +107,20 @@ def twin(m):
 #: carries both, so this entry is where the two chains meet [measured
 #: 2026-09-08: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=f1038acdcaf5230b6431c112f38a719d3dc9ef19].
-BUDGET = 16705
+#: RE-PINNED 2026-09-08, 16705 to 16817 (+112), Trailing occurrence arguments,
+#: token allocation in native writes, exact source withdrawal and transaction-
+#: safe shared-table guards change the engine work priced by this twin; answer
+#: bags retain the upstream law [measured 2026-09-08: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+#: RE-PINNED 2026-09-08, 16817 to 16021 (-796), Sharing the fast-image
+#: hexadecimal validator changes the engine predicate layout. The identity twin
+#: moves below its declared band while the seven engine work counters move only
+#: at boot; the native add and read slopes remain unchanged. Token storage and
+#: source ownership retain their earlier measured costs and answer bags
+#: [measured 2026-09-08: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 16021
 
 #: OVERRUN 2026-09-08, 3500: the twin reads 16161 against a ceiling of 12794
 #: (the example's 11631 plus 10%, no definition to author), and the FLOOR any

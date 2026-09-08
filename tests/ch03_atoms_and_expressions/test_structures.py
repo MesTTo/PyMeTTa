@@ -278,7 +278,7 @@ def test_a_ground_removal_costs_the_view_nothing_that_grows(metta):
     """
     from metta.structures import LiveView
 
-    def removal_cost(size, atom):
+    def removal_cost(size, atom, *, watched=True):
         # Minimum of three, the repository's own measurement rule: the
         # session-scoped engine carries whatever state earlier files in the
         # xdist worker left, and a one-off transition wobbled a single
@@ -288,15 +288,24 @@ def test_a_ground_removal_costs_the_view_nothing_that_grows(metta):
         for _ in range(3):
             with metta._new_space() as sp:
                 sp.add(*[S.alert(S.red) for _ in range(size)])
-                with LiveView(sp, S.alert(V.level)) as view, metta.stats() as spent:
-                    sp.remove(atom)
-                assert len(view) == size - 1
+                if watched:
+                    with LiveView(sp, S.alert(V.level)) as view, metta.stats() as spent:
+                        sp.remove(atom)
+                    assert len(view) == size - 1
+                else:
+                    with metta.stats() as spent:
+                        sp.remove(atom)
             costs.append(spent.inferences)
         return min(costs)
 
-    small, large = removal_cost(10, S.alert(S.red)), removal_cost(200, S.alert(S.red))
-    assert small == large, "a ground removal does not read the space"
-    assert removal_cost(200, S.alert(V.q)) > large, "a pattern removal does"
+    # Token-ordered subtraction scans the matching occurrences in either arm.
+    # Subtract that shared storage cost to measure the view's own maintenance.
+    def view_cost(size, atom):
+        return removal_cost(size, atom) - removal_cost(size, atom, watched=False)
+
+    small, large = view_cost(10, S.alert(S.red)), view_cost(200, S.alert(S.red))
+    assert small == large, "a ground removal adds no growing view cost"
+    assert view_cost(200, S.alert(V.q)) > large, "a pattern removal re-reads"
 
 
 def test_closureview_terminates_and_stays_fresh(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract

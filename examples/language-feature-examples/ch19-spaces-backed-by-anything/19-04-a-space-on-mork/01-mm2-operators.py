@@ -1,4 +1,4 @@
-"""examples/ch19-spaces-backed-by-anything/19-04-a-space-on-mork/01-mm2-operators.metta in Python: five operators over MORK's Rust trie.
+"""Purpose: examples/ch19-spaces-backed-by-anything/19-04-a-space-on-mork/01-mm2-operators.metta in Python: five operators over MORK's Rust trie.
 
 lib_mm2's names are full-width plus and minus and an arrow, which Python's
 grammar will not take, so every one of them comes through the exact subscript
@@ -192,4 +192,10 @@ def twin(m):
 #: carries both, so this entry is where the two chains meet [measured
 #: 2026-09-08: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=f1038acdcaf5230b6431c112f38a719d3dc9ef19].
-BUDGET = 124877
+#: RE-PINNED 2026-09-08, 124877 to 126593 (+1716), Trailing occurrence
+#: arguments, token allocation in native writes, exact source withdrawal and
+#: transaction-safe shared-table guards change the engine work priced by this
+#: twin; answer bags retain the upstream law [measured 2026-09-08: min-of-3
+#: serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 126593

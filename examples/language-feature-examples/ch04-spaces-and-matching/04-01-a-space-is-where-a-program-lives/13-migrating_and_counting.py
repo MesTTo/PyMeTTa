@@ -1,4 +1,4 @@
-"""examples/ch04-spaces-and-matching/04-01-a-space-is-where-a-program-lives/13-migrating_and_counting.metta in Python: counting without listing, and a filtered drain.
+"""Purpose: examples/ch04-spaces-and-matching/04-01-a-space-is-where-a-program-lives/13-migrating_and_counting.metta in Python: counting without listing, and a filtered drain.
 
 `match-count` folds `+` over a match answering 1 per solution, so nothing is
 materialised; a Python `len()` over the answer list would materialise exactly
@@ -97,4 +97,10 @@ from metta import Expression  # noqa: E402  -- read after the claims it serves
 #: carries both, so this entry is where the two chains meet [measured
 #: 2026-09-08: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=f1038acdcaf5230b6431c112f38a719d3dc9ef19].
-BUDGET = 15020
+#: RE-PINNED 2026-09-08, 15020 to 15455 (+435), Trailing occurrence arguments,
+#: token allocation in native writes, exact source withdrawal and transaction-
+#: safe shared-table guards change the engine work priced by this twin; answer
+#: bags retain the upstream law [measured 2026-09-08: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+BUDGET = 15455

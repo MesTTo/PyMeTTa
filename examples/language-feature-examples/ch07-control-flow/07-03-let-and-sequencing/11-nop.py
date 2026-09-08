@@ -1,4 +1,4 @@
-"""examples/ch07-control-flow/07-03-let-and-sequencing/11-nop.metta in Python: the step whose answer you do not want.
+"""Purpose: examples/ch07-control-flow/07-03-let-and-sequencing/11-nop.metta in Python: the step whose answer you do not want.
 
 `nop` evaluates every argument and answers the unit. `UNIT` is the package's
 own value for `()`, so the claims compare against it rather than against a
@@ -80,4 +80,10 @@ def twin(m):
 #: carries both, so this entry is where the two chains meet [measured
 #: 2026-09-08: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=f1038acdcaf5230b6431c112f38a719d3dc9ef19].
-BUDGET = 3545
+#: RE-PINNED 2026-09-08, 3545 to 3624 (+79), Trailing occurrence arguments,
+#: token allocation in native writes, exact source withdrawal and transaction-
+#: safe shared-table guards change the engine work priced by this twin; answer
+#: bags retain the upstream law [measured 2026-09-08: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+BUDGET = 3624

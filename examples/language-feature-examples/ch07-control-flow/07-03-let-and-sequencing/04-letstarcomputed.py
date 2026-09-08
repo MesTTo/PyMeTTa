@@ -251,7 +251,13 @@ RUNG = "a `let*` whose bindings arrive as a VALUE has no assignment spelling"
 #: carries both, so this entry is where the two chains meet [measured
 #: 2026-09-08: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=f1038acdcaf5230b6431c112f38a719d3dc9ef19].
-BUDGET = 10593
+#: RE-PINNED 2026-09-08, 10593 to 10754 (+161), Trailing occurrence arguments,
+#: token allocation in native writes, exact source withdrawal and transaction-
+#: safe shared-table guards change the engine work priced by this twin; answer
+#: bags retain the upstream law [measured 2026-09-08: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+BUDGET = 10754
 
 #: OVERRUN 2026-09-07, 800: it asks the eight computed-binding claims one at a
 #: time through the evaluation door. Measured 10606 against a ceiling of 9833;

@@ -35,6 +35,7 @@ Open Obligations:
 from __future__ import annotations
 
 import asyncio
+from contextlib import contextmanager
 
 import pytest
 
@@ -53,6 +54,18 @@ def _tabling(space):
     first.
     """
     space.run("!(import! &self (library lib_tabling))")
+
+
+@contextmanager
+def _private_table(space, name):
+    """A view's atomic seed requires a private incremental table."""
+    _tabling(space)
+    row = f"(cache {name} (incremental private))"
+    space.run(f"!(add-atom &metta {row})")
+    try:
+        yield
+    finally:
+        space.run(f"!(remove-atom &metta {row})")
 
 
 def test_a_transaction_delivers_one_progress_after_its_deltas(metta):
@@ -157,8 +170,7 @@ def test_an_untouching_write_does_not_re_answer_a_conjunction_view(metta):
 
 def test_a_tabled_view_refreshes_after_a_write_to_the_relation(metta):
     """The TabledMap shape: the computed answer follows the read relation."""
-    with metta._new_space() as sp:
-        _tabling(sp)
+    with metta._new_space() as sp, _private_table(sp, "live-cheapest"):
         sp.add(S.price(S.apple, 3), S.price(S.pear, 4))
         sp.run(
             f"(= (live-cheapest) (min-atom (collapse "
@@ -182,8 +194,7 @@ def test_a_tabled_view_refreshes_after_a_write_to_the_relation(metta):
 
 def test_the_chosen_strategy_is_the_one_the_shape_names(metta):
     """One atom is a pattern, a tabled head is a call, several are a join."""
-    with metta._new_space() as sp:
-        _tabling(sp)
+    with metta._new_space() as sp, _private_table(sp, "live-shape"):
         sp.add(S.edge(S.a, S.b))
         sp.run("(= (live-shape) 1)")
         assert sp.run("!(tabled (live-shape))") == [[True]]
@@ -197,6 +208,16 @@ def test_the_chosen_strategy_is_the_one_the_shape_names(metta):
         with sp.live(S.edge(V.x, V.y), strategy="heads") as forced:
             assert forced.strategy is LiveStrategy.heads
             assert len(forced) == 1
+
+
+def test_a_shared_tabled_view_refuses_its_transactional_seed(metta):
+    """The view keeps atomic seeding and exposes the engine's private remedy."""
+    with metta._new_space() as sp:
+        _tabling(sp)
+        sp.run("(= (live-shared) 1) !(tabled (live-shared))")
+        with pytest.raises(MettaError, match="incremental private"):
+            sp.live(S["live-shared"]())
+        assert sp.eval(S["live-shared"]()) == [1]
 
 
 def test_the_async_face_sees_the_same_deltas(metta):

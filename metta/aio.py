@@ -1944,6 +1944,14 @@ class AsyncMeTTa:
         """
         return await self.call(lambda m: m.effect_plan(target))
 
+    async def blame(self, atom: Any) -> list[Atom]:
+        """Return each matching occurrence's ``(t actor generation)`` identity.
+
+        Results are ordered by generation then actor. Equal atoms have separate
+        tokens. A provider must implement the ``tokens`` capability.
+        """
+        return await self.call(lambda m: m.blame(atom))
+
     async def digest(self) -> str:
         """A sha256 hex digest of this space's content: every stored atom,
         equations included, canonicalized (variables numbered, multiset

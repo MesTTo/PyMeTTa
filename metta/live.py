@@ -17,6 +17,9 @@ Assumes:
     level [source: extensions/python/metta/structures.py:LiveView.__init__;
     commit=0de0dc08d2fc77bee9dd132c41f1de23cda1e6c2]
 Guarantees:
+  - a shared table refuses the transactional seed and names the private policy
+    [tested: test_a_shared_tabled_view_refuses_its_transactional_seed;
+    commit=WORKTREE]
   - Live answers what match answers, through each of its three maintenance
     strategies, and the strategy a query's shape names is the one it gets
     [tested: test_a_pattern_view_holds_the_multiset_through_both_removal_shapes,
@@ -25,13 +28,11 @@ Guarantees:
     test_the_chosen_strategy_is_the_one_the_shape_names; commit=0de0dc08d2fc77bee9dd132c41f1de23cda1e6c2]
   - a pattern view's per-event cost does not move with what it holds, and a
     conjunction view's cost for a write its heads do not name does not either
-    [measured 2026-09-07: 88, 90, 90 inferences per touching write over
+    [measured 2026-09-08: 90, 90, 90 inferences per touching write over
     relations of 10, 100 and 1,000 against a recompute-per-event consumer's
-    149, 425, 3,153, and 91 flat for an untouching write;
-    command=extensions/python/benchmarks/probes/live_view_cost.py --costs;
-    fixture=a ring of (edge n_i n_i+1) with (weight n_i i) at loadavg 92-104]
-    [tested: test_an_untouching_write_does_not_re_answer_a_conjunction_view;
-    commit=0de0dc08d2fc77bee9dd132c41f1de23cda1e6c2]
+    178, 553, 4,223, and 95 flat for an untouching write;
+    command=python extensions/python/benchmarks/probes/live_view_cost.py --costs;
+    fixture=a ring of (edge n_i n_i+1) with (weight n_i i); commit=WORKTREE]
   - a Delta stream delivers a signed multiplicity per row and one progress
     marker per committed segment, and buffers only while it is open [tested:
     test_a_transaction_delivers_one_progress_after_its_deltas,
@@ -537,7 +538,9 @@ class Live:
     writes refuses, because a view MATCHES its query and never calls it, so a
     call written where a pattern belongs would materialise nothing forever. A
     ``tabled`` strategy refuses a head that is not tabled, and one whose policy
-    does not invalidate, naming the policy.
+    does not invalidate, naming the policy. Its atomic seed runs inside a
+    transaction, so a shared table is refused by the engine. Declare
+    ``(cache f (incremental private))`` in ``&metta`` for a tabled view of ``f``.
 
     space may be a context or a space.
     """

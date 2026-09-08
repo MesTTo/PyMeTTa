@@ -1,4 +1,4 @@
-"""examples/ch08-data/08-03-the-shipped-libraries/03-text_lib.metta in Python: lib_string and lib_file.
+"""Purpose: examples/ch08-data/08-03-the-shipped-libraries/03-text_lib.metta in Python: lib_string and lib_file.
 
 Both libraries are the subject, so every function here is named through the
 function namespace, where a typo raises on the line that writes it. What Python
@@ -256,4 +256,10 @@ def twin(m):
 #: carries both, so this entry is where the two chains meet [measured
 #: 2026-09-08: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=f1038acdcaf5230b6431c112f38a719d3dc9ef19].
-BUDGET = 111921
+#: RE-PINNED 2026-09-08, 111921 to 113264 (+1343), Trailing occurrence
+#: arguments, token allocation in native writes, exact source withdrawal and
+#: transaction-safe shared-table guards change the engine work priced by this
+#: twin; answer bags retain the upstream law [measured 2026-09-08: min-of-3
+#: serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 113264

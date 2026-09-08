@@ -1,4 +1,4 @@
-"""examples/ch22-a-reasoner-you-can-serve/22-02-weighted-answers/15-independent_supports.metta in Python: the check every independence formula runs first.
+"""Purpose: examples/ch22-a-reasoner-you-can-serve/22-02-weighted-answers/15-independent_supports.metta in Python: the check every independence formula runs first.
 
 `pln2-require-independent-supports` answers True or RAISES, so the refusals
 read through `except` rather than through `catch` and `unify`: the ball's
@@ -112,4 +112,10 @@ def twin(m):
 #: carries both, so this entry is where the two chains meet [measured
 #: 2026-09-08: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=f1038acdcaf5230b6431c112f38a719d3dc9ef19].
-BUDGET = 59539
+#: RE-PINNED 2026-09-08, 59539 to 60498 (+959), Trailing occurrence arguments,
+#: token allocation in native writes, exact source withdrawal and transaction-
+#: safe shared-table guards change the engine work priced by this twin; answer
+#: bags retain the upstream law [measured 2026-09-08: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+BUDGET = 60498

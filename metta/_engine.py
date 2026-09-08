@@ -1055,7 +1055,7 @@ class Runtime:
     # ------------------------------------------------------------------ startup
 
     def _consult_engine(self, metta_path: str, stack_limit: int) -> JanusBridge:
-        """Configure the stack limit, load extensions, and consult main.pl.
+        """Configure the stack limit, load extensions, and call the engine boot door.
 
         `extensions` asks the engine to read every extension's control file
         and load what each declares. This names none of them: which extensions
@@ -1072,7 +1072,7 @@ class Runtime:
         janus = bridge()
         janus.query_once(f"set_prolog_flag(stack_limit, {stack_limit})")
         janus.query_once("set_prolog_flag(argv, ['extensions'])")
-        main_file = root / "engine" / "main.pl"
+        main_file = root / "engine" / "qlf_boot.pl"
         helper_file = root / "extensions" / "python" / "helper.pl"
         if not main_file.is_file():
             msg = (
@@ -1083,6 +1083,7 @@ class Runtime:
                 msg
             )
         janus.consult(str(main_file))
+        janus.query_once("metta_qlf_boot:qlf_load_engine")
         if helper_file.is_file():
             janus.consult(str(helper_file))
         logger.debug("consulted the MeTTa engine")

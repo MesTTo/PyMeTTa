@@ -1,4 +1,4 @@
-"""examples/ch20-extending-the-engine/20-01-translator-rules/02-translatorrule_direction.metta in Python: which way a rule fires.
+"""Purpose: examples/ch20-extending-the-engine/20-01-translator-rules/02-translatorrule_direction.metta in Python: which way a rule fires.
 
 A rule is left-to-right by default and saying so explicitly changes nothing. A
 BIDIRECTIONAL rule is one declaration from which the engine derives the inverse
@@ -206,4 +206,10 @@ def twin(m):
 #: carries both, so this entry is where the two chains meet [measured
 #: 2026-09-08: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=f1038acdcaf5230b6431c112f38a719d3dc9ef19].
-BUDGET = 16944
+#: RE-PINNED 2026-09-08, 16944 to 17861 (+917), Trailing occurrence arguments,
+#: token allocation in native writes, exact source withdrawal and transaction-
+#: safe shared-table guards change the engine work priced by this twin; answer
+#: bags retain the upstream law [measured 2026-09-08: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+BUDGET = 17861

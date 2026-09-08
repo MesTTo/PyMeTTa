@@ -1,4 +1,4 @@
-"""examples/ch04-spaces-and-matching/04-02-patterns-and-bindings/06-listhead.metta in Python: list structure, twice over.
+"""Purpose: examples/ch04-spaces-and-matching/04-02-patterns-and-bindings/06-listhead.metta in Python: list structure, twice over.
 
 `(cons $Head $Tail)` is how MeTTa takes an expression apart, and `head, *tail =
 e` is how Python does, at no engine cost at all: the first claim is that
@@ -234,7 +234,20 @@ def twin(m):
 #: carries both, so this entry is where the two chains meet [measured
 #: 2026-09-08: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=f1038acdcaf5230b6431c112f38a719d3dc9ef19].
-BUDGET = 4980
+#: RE-PINNED 2026-09-08, 4980 to 5133 (+153), Trailing occurrence arguments,
+#: token allocation in native writes, exact source withdrawal and transaction-
+#: safe shared-table guards change the engine work priced by this twin; answer
+#: bags retain the upstream law [measured 2026-09-08: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+#: RE-PINNED 2026-09-08, 5133 to 5073 (-60), Sharing the fast-image hexadecimal
+#: validator changes the engine predicate layout. The identity twin moves below
+#: its declared band while the seven engine work counters move only at boot;
+#: the native add and read slopes remain unchanged. Token storage and source
+#: ownership retain their earlier measured costs and answer bags [measured
+#: 2026-09-08: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 5073
 
 #: DIVERGED 2026-09-07, the example holds 2 atoms the twin does not (2 =) and
 #: the twin holds 1 atom the example does not (1 =): the twin is an ordinary Python

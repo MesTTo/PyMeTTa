@@ -1,4 +1,4 @@
-"""examples/ch17-concurrency-and-the-loop/05-channels_pools_and_the_machine.metta in Python: the rest of lib_thread's MeTTa surface.
+"""Purpose: examples/ch17-concurrency-and-the-loop/05-channels_pools_and_the_machine.metta in Python: the rest of lib_thread's MeTTa surface.
 
 `try-recv` answers NOTHING on an empty channel rather than blocking, so an
 empty answer list is "nothing was there" and a one-element one is the
@@ -124,7 +124,13 @@ def twin(m):
 #: carries both, so this entry is where the two chains meet [measured
 #: 2026-09-08: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=f1038acdcaf5230b6431c112f38a719d3dc9ef19].
-BUDGET = 248203
+#: RE-PINNED 2026-09-08, 248203 to 250569 (+2366), Trailing occurrence
+#: arguments, token allocation in native writes, exact source withdrawal and
+#: transaction-safe shared-table guards change the engine work priced by this
+#: twin; answer bags retain the upstream law [measured 2026-09-08: min-of-3
+#: serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 250569
 #: The count VARIES, because this twin starts threads and timers and the
 #: engine charges what the scheduler actually ran. Three single-round
 #: measurements on this branch gave 230223, 231001 and 230880, a spread of

@@ -1,4 +1,4 @@
-"""examples/ch08-data/08-01-atoms-lists-and-folds/03-holfunctions_intrinsicop.metta in Python: a builtin, half applied.
+"""Purpose: examples/ch08-data/08-01-atoms-lists-and-folds/03-holfunctions_intrinsicop.metta in Python: a builtin, half applied.
 
 `mymap` is written out rather than borrowed: an empty expression answers an
 empty expression and a cons cell rebuilds itself around the applied function.
@@ -245,7 +245,20 @@ def twin(m):
 #: carries both, so this entry is where the two chains meet [measured
 #: 2026-09-08: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=f1038acdcaf5230b6431c112f38a719d3dc9ef19].
-BUDGET = 12486
+#: RE-PINNED 2026-09-08, 12486 to 12768 (+282), Trailing occurrence arguments,
+#: token allocation in native writes, exact source withdrawal and transaction-
+#: safe shared-table guards change the engine work priced by this twin; answer
+#: bags retain the upstream law [measured 2026-09-08: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+#: RE-PINNED 2026-09-08, 12768 to 12708 (-60), Sharing the fast-image
+#: hexadecimal validator changes the engine predicate layout. The identity twin
+#: moves below its declared band while the seven engine work counters move only
+#: at boot; the native add and read slopes remain unchanged. Token storage and
+#: source ownership retain their earlier measured costs and answer bags
+#: [measured 2026-09-08: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 12708
 
 #: DIVERGED 2026-09-07, the example holds 6 atoms the twin does not (6 =) and
 #: the twin holds 3 the example does not (3 =): the twin is an ordinary Python

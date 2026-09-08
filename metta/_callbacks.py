@@ -53,6 +53,7 @@ _CALLBACKS = {
     "foreign_add": ("foreign", "foreign_add"),
     "foreign_add_many": ("foreign", "foreign_add_many"),
     "foreign_atoms": ("foreign", "foreign_atoms"),
+    "foreign_tokens": ("foreign", "foreign_tokens"),
     "foreign_clear": ("foreign", "foreign_clear"),
     "foreign_match": ("foreign", "foreign_match"),
     "foreign_plan": ("foreign", "foreign_plan"),
@@ -102,6 +103,7 @@ dispatch_raw_many_context: _Any
 foreign_add: _Any
 foreign_add_many: _Any
 foreign_atoms: _Any
+foreign_tokens: _Any
 foreign_clear: _Any
 foreign_match: _Any
 foreign_plan: _Any
@@ -155,6 +157,7 @@ __all__ = [
     "foreign_pushdown",
     "foreign_refuse",
     "foreign_remove",
+    "foreign_tokens",
     "foreign_transaction",
     "fork_context",
     "fork_contexts",

@@ -1,4 +1,4 @@
-"""examples/ch22-a-reasoner-you-can-serve/22-02-weighted-answers/13-the_measure_algebra_underneath.metta in Python: the five steps the measure algebra folds.
+"""Purpose: examples/ch22-a-reasoner-you-can-serve/22-02-weighted-answers/13-the_measure_algebra_underneath.metta in Python: the five steps the measure algebra folds.
 
 A weighted superposition is a tuple of `(weight value)` pairs, so every
 argument here is an ordinary Python tuple of atoms and every claim is one
@@ -115,4 +115,10 @@ def twin(m):
 #: carries both, so this entry is where the two chains meet [measured
 #: 2026-09-08: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=f1038acdcaf5230b6431c112f38a719d3dc9ef19].
-BUDGET = 43560
+#: RE-PINNED 2026-09-08, 43560 to 44241 (+681), Trailing occurrence arguments,
+#: token allocation in native writes, exact source withdrawal and transaction-
+#: safe shared-table guards change the engine work priced by this twin; answer
+#: bags retain the upstream law [measured 2026-09-08: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+BUDGET = 44241

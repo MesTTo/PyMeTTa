@@ -1,4 +1,4 @@
-"""examples/ch08-data/08-02-sequence-variables/05-the-fence.metta in Python: the refusal, and what it says.
+"""Purpose: examples/ch08-data/08-02-sequence-variables/05-the-fence.metta in Python: the refusal, and what it says.
 
 A refusal arrives as an EngineError, and its message is what Python can read:
 the pattern it refused, the rule it broke, and the classifier that decides.
@@ -177,4 +177,10 @@ def twin(m):
 #: carries both, so this entry is where the two chains meet [measured
 #: 2026-09-08: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=f1038acdcaf5230b6431c112f38a719d3dc9ef19].
-BUDGET = 6279
+#: RE-PINNED 2026-09-08, 6279 to 6381 (+102), Trailing occurrence arguments,
+#: token allocation in native writes, exact source withdrawal and transaction-
+#: safe shared-table guards change the engine work priced by this twin; answer
+#: bags retain the upstream law [measured 2026-09-08: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+BUDGET = 6381

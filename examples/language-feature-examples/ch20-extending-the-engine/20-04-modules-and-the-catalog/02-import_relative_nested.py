@@ -1,4 +1,4 @@
-"""examples/ch20-extending-the-engine/20-04-modules-and-the-catalog/02-import_relative_nested.metta in Python: one import, two files deep.
+"""Purpose: examples/ch20-extending-the-engine/20-04-modules-and-the-catalog/02-import_relative_nested.metta in Python: one import, two files deep.
 
 `root.metta` imports a sibling and a file in a subdirectory, and both of those
 imports resolve against the FILE that wrote them rather than against the
@@ -146,4 +146,10 @@ def twin(m):
 #: carries both, so this entry is where the two chains meet [measured
 #: 2026-09-08: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=f1038acdcaf5230b6431c112f38a719d3dc9ef19].
-BUDGET = 8115
+#: RE-PINNED 2026-09-08, 8115 to 8222 (+107), Trailing occurrence arguments,
+#: token allocation in native writes, exact source withdrawal and transaction-
+#: safe shared-table guards change the engine work priced by this twin; answer
+#: bags retain the upstream law [measured 2026-09-08: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+BUDGET = 8222

@@ -1,4 +1,4 @@
-"""examples/ch20-extending-the-engine/20-04-modules-and-the-catalog/05-import_space_identity.metta in Python: one identity per space.
+"""Purpose: examples/ch20-extending-the-engine/20-04-modules-and-the-catalog/05-import_space_identity.metta in Python: one identity per space.
 
 Two spaces import the same file. Each gets its own copy of what the file
 defines, exactly once, and the space that did the importing gets nothing: in
@@ -221,4 +221,10 @@ def twin(m):
 #: carries both, so this entry is where the two chains meet [measured
 #: 2026-09-08: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=f1038acdcaf5230b6431c112f38a719d3dc9ef19].
-BUDGET = 31838
+#: RE-PINNED 2026-09-08, 31838 to 33234 (+1396), Trailing occurrence arguments,
+#: token allocation in native writes, exact source withdrawal and transaction-
+#: safe shared-table guards change the engine work priced by this twin; answer
+#: bags retain the upstream law [measured 2026-09-08: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+BUDGET = 33234

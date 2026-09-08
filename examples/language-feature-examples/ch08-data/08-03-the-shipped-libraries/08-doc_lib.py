@@ -1,4 +1,4 @@
-"""examples/ch08-data/08-03-the-shipped-libraries/08-doc_lib.metta in Python: documentation is atoms in a space.
+"""Purpose: examples/ch08-data/08-03-the-shipped-libraries/08-doc_lib.metta in Python: documentation is atoms in a space.
 
 MeTTa HE's design, and the mettafied one: a `(@doc ...)` form is an ordinary
 atom, so retrieval is a match and a program can reason about its own
@@ -306,7 +306,20 @@ def twin(m):
 #: carries both, so this entry is where the two chains meet [measured
 #: 2026-09-08: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=f1038acdcaf5230b6431c112f38a719d3dc9ef19].
-BUDGET = 8593
+#: RE-PINNED 2026-09-08, 8593 to 8851 (+258), Trailing occurrence arguments,
+#: token allocation in native writes, exact source withdrawal and transaction-
+#: safe shared-table guards change the engine work priced by this twin; answer
+#: bags retain the upstream law [measured 2026-09-08: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+#: RE-PINNED 2026-09-08, 8851 to 8780 (-71), Sharing the fast-image hexadecimal
+#: validator changes the engine predicate layout. The identity twin moves below
+#: its declared band while the seven engine work counters move only at boot;
+#: the native add and read slopes remain unchanged. Token storage and source
+#: ownership retain their earlier measured costs and answer bags [measured
+#: 2026-09-08: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 8780
 
 #: DIVERGED 2026-09-07, the example holds 2 atoms the twin does not (2 @doc)
 #: and the twin holds 3 the example does not (1 :, 2 @doc): a Python annotation

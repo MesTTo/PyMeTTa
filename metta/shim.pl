@@ -6251,6 +6251,7 @@ metta_py_goal_term(E, ["e", [["s", "call"], E, ["s", "?"]]]).
 :- multifile seam:foreign_plan/5.
 :- multifile seam:foreign_remove/3.
 :- multifile seam:foreign_atoms/2.
+:- multifile seam:foreign_token/3.
 :- multifile seam:foreign_pushdown/3.
 :- multifile seam:foreign_capability/2.
 :- multifile seam:foreign_refuse/2.
@@ -6390,6 +6391,18 @@ seam:foreign_atoms(Space, Atom) :-
     py_iter(metta_ops:foreign_atoms(SpaceStr), CW),
     metta_py_stream_item(CW),
     metta_py_decode_shared(CW, Atom, _).
+
+seam:foreign_token(Space, Pattern, Token) :-
+    metta_py_foreign(Space),
+    atom_string(Space, SpaceStr),
+    metta_py_encode(Pattern, Wire),
+    py_iter(metta_ops:foreign_tokens(SpaceStr, Wire), CW),
+    metta_py_stream_item(CW),
+    metta_py_decode_shared(CW, Pair, _),
+    (   Pair = [[t, Actor, Generation], Candidate]
+    ->  Token = t(Actor, Generation), Pattern = Candidate
+    ;   throw(error(domain_error(occurrence_pair, Pair), none))
+    ).
 
 seam:foreign_add(Space, Term) :-
     metta_py_foreign(Space),
@@ -6865,6 +6878,11 @@ metta_py_persist_result(digest(Hash), ["digest", Hash]).
 metta_py_digest(Space, Result) :-
     metta_host_digest(Space, Outcome),
     metta_py_persist_result(Outcome, Result).
+
+metta_py_blame(Space, Wire, Rows) :-
+    metta_py_decode_shared(Wire, Pattern, _),
+    metta_host_blame(Space, Pattern, Tokens),
+    maplist(metta_py_encode, Tokens, Rows).
 
 % Carrier predicates use the same atom codec as registered Python operations.
 % In particular, Symbol and Expression remain atoms while Grounded unwraps.

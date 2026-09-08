@@ -57,4 +57,10 @@ def twin(m):
 #: compiled default space operand as &self rather than a (context-space) call
 #: [measured 2026-09-07: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=9010a79b01c9b2a66b96a3952fa378fb3e939dc3].
-BUDGET = 265
+#: RE-PINNED 2026-09-08, 265 to 271 (+6), Trailing occurrence arguments, token
+#: allocation in native writes, exact source withdrawal and transaction-safe
+#: shared-table guards change the engine work priced by this twin; answer bags
+#: retain the upstream law [measured 2026-09-08: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+BUDGET = 271

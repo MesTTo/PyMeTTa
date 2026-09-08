@@ -1,4 +1,4 @@
-"""examples/ch05-equations-and-evaluation/05-01-an-equation-is-a-rewrite/02-twostage.metta in Python: a call before its callee exists.
+"""Purpose: examples/ch05-equations-and-evaluation/05-01-an-equation-is-a-rewrite/02-twostage.metta in Python: a call before its callee exists.
 
 Three nullary equations, and the order they are written in is the subject. `f`
 is stored before `g`, so its body names something the engine does not yet know;
@@ -190,4 +190,17 @@ def twin(m):
 #: returned callback goals [measured 2026-09-08: min-of-3 serial fresh
 #: processes; command=python extensions/python/tools/twin_coverage.py --repin;
 #: commit=ede2ac57e213a0d4502c6bbbca6227f97015b720].
-BUDGET = 7051
+#: RE-PINNED 2026-09-08, 7051 to 7504 (+453), Trailing occurrence arguments,
+#: token allocation in native writes, exact source withdrawal and transaction-
+#: safe shared-table guards change the engine work priced by this twin; answer
+#: bags retain the upstream law [measured 2026-09-08: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+#: RE-PINNED 2026-09-08, 7504 to 7444 (-60), Sharing the fast-image hexadecimal
+#: validator changes the engine predicate layout. The identity twin moves below
+#: its declared band while the seven engine work counters move only at boot;
+#: the native add and read slopes remain unchanged. Token storage and source
+#: ownership retain their earlier measured costs and answer bags [measured
+#: 2026-09-08: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 7444

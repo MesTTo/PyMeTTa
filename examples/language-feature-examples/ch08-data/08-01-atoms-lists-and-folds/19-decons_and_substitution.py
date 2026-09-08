@@ -1,4 +1,4 @@
-"""examples/ch08-data/08-01-atoms-lists-and-folds/19-decons_and_substitution.metta in Python: one step apart, one value in.
+"""Purpose: examples/ch08-data/08-01-atoms-lists-and-folds/19-decons_and_substitution.metta in Python: one step apart, one value in.
 
 `decons-atom` answers the head and the tail together, which Python reads as
 an unpackable pair, so the twin destructures it the way any Python program
@@ -99,7 +99,13 @@ def twin(m):
 #: carries both, so this entry is where the two chains meet [measured
 #: 2026-09-08: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=f1038acdcaf5230b6431c112f38a719d3dc9ef19].
-BUDGET = 11244
+#: RE-PINNED 2026-09-08, 11244 to 11369 (+125), Trailing occurrence arguments,
+#: token allocation in native writes, exact source withdrawal and transaction-
+#: safe shared-table guards change the engine work priced by this twin; answer
+#: bags retain the upstream law [measured 2026-09-08: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+BUDGET = 11369
 
 #: OVERRUN 2026-09-08, 1400: the twin reads 10771 against a ceiling of 9395 (the
 #: example's 8541 plus 10%, no definition to author), and the floor any Python

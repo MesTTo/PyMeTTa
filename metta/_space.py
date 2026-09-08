@@ -2447,6 +2447,15 @@ class Space(Handle):
 
         commit_world(self, world)
 
+    def blame(self, atom: Any) -> list[Atom]:
+        """Return each matching occurrence's ``(t actor generation)`` identity.
+
+        Results are ordered by generation then actor. Equal atoms have separate
+        tokens. A provider must implement the ``tokens`` capability.
+        """
+        rows = self._rt.apply_must("metta_py_blame", self._space, _to_atom(atom).to_wire())
+        return [_atom_from_wire(row) for row in rows]
+
     def digest(self) -> str:
         """A sha256 hex digest of this space's content: every stored atom,
         equations included, canonicalized (variables numbered, multiset
@@ -6260,7 +6269,7 @@ class MeTTa:
         """The engine bridge itself, for callers going under the surface."""
         return self._rt
 
-    def info(self) -> dict[str, str | None]:
+    def info(self) -> dict[str, str | int | None]:
         """Return backend versions and the consulted MeTTa runtime tree."""
         janus_bridge = bridge()
         version_row = janus_bridge.query_once(
@@ -6270,6 +6279,9 @@ class MeTTa:
             msg = "janus did not report the running SWI-Prolog version"
             raise EngineError(msg)
         swi_version_num = version_row["SwiVersion"]
+        identity = self._rt.must(
+            "metta_actor(Actor), flag('$metta_generation', Next, Next)"
+        )
         return {
             "metta": __version__,
             "janus": janus_bridge.version_str(),
@@ -6279,6 +6291,8 @@ class MeTTa:
                 f"{sys.version_info.micro}"
             ),
             "metta_path": self._rt.metta_path,
+            "actor": str(identity["Actor"]),
+            "next_generation": int(identity["Next"]),
         }
 
     def lock(self) -> Lock:

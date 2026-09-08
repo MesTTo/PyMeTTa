@@ -1,4 +1,4 @@
-"""examples/ch20-extending-the-engine/20-04-modules-and-the-catalog/04-import_error_surface.metta in Python: an import that fails.
+"""Purpose: examples/ch20-extending-the-engine/20-04-modules-and-the-catalog/04-import_error_surface.metta in Python: an import that fails.
 
 A file that does not parse and a file that does not exist both surface the same
 way: the import raises, `catch` turns the raise into an `(Error ...)` atom, and
@@ -134,4 +134,10 @@ def twin(m):
 #: carries both, so this entry is where the two chains meet [measured
 #: 2026-09-08: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=f1038acdcaf5230b6431c112f38a719d3dc9ef19].
-BUDGET = 4231
+#: RE-PINNED 2026-09-08, 4231 to 4260 (+29), Trailing occurrence arguments,
+#: token allocation in native writes, exact source withdrawal and transaction-
+#: safe shared-table guards change the engine work priced by this twin; answer
+#: bags retain the upstream law [measured 2026-09-08: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+BUDGET = 4260

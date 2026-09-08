@@ -1,4 +1,4 @@
-"""examples/ch09-types/20-type_casts_that_hold.metta in Python: the Bool a cast decides on.
+"""Purpose: examples/ch09-types/20-type_casts_that_hold.metta in Python: the Bool a cast decides on.
 
 `type-cast-holds` answers whether any declared type of an atom, in a space,
 unifies with the one asked about. It takes the space as an argument, so the
@@ -152,4 +152,17 @@ G_TEXT = G("text")
 #: carries both, so this entry is where the two chains meet [measured
 #: 2026-09-08: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=f1038acdcaf5230b6431c112f38a719d3dc9ef19].
-BUDGET = 10892
+#: RE-PINNED 2026-09-08, 10892 to 11078 (+186), Trailing occurrence arguments,
+#: token allocation in native writes, exact source withdrawal and transaction-
+#: safe shared-table guards change the engine work priced by this twin; answer
+#: bags retain the upstream law [measured 2026-09-08: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+#: RE-PINNED 2026-09-08, 11078 to 11018 (-60), Sharing the fast-image
+#: hexadecimal validator changes the engine predicate layout. The identity twin
+#: moves below its declared band while the seven engine work counters move only
+#: at boot; the native add and read slopes remain unchanged. Token storage and
+#: source ownership retain their earlier measured costs and answer bags
+#: [measured 2026-09-08: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 11018

@@ -1,4 +1,4 @@
-"""examples/ch18-performance/18-02-memoisation-and-tabling/05-memo_variant_nonground.metta in Python: keying on structure.
+"""Purpose: examples/ch18-performance/18-02-memoisation-and-tabling/05-memo_variant_nonground.metta in Python: keying on structure.
 
 `shape-kind` answers `pair` for anything shaped like a Pair, whatever the
 variable inside is called, so two non-ground calls that differ only in variable
@@ -161,4 +161,10 @@ def twin(m):
 #: carries both, so this entry is where the two chains meet [measured
 #: 2026-09-08: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=f1038acdcaf5230b6431c112f38a719d3dc9ef19].
-BUDGET = 33591
+#: RE-PINNED 2026-09-08, 33591 to 34671 (+1080), Trailing occurrence arguments,
+#: token allocation in native writes, exact source withdrawal and transaction-
+#: safe shared-table guards change the engine work priced by this twin; answer
+#: bags retain the upstream law [measured 2026-09-08: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+BUDGET = 34671

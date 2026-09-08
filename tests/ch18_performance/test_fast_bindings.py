@@ -301,8 +301,9 @@ def test_fast_load_refuses_malformed_equation_bindings(tmp_path, bindings):
             "setup_call_cleanup(open(Path, write, _Out, [type(binary)]), "
             "fast_write(_Out, _Image), close(_Out))",
             Text=(
-                "metta_fast_image([space(0, root, [[=, [f, X], X]], "
-                f"{bindings})], [], [], [])"
+                "metta_fast_image(identity(image, 2), "
+                "[space(0, root, [[=, [f, X], X]], "
+                f"{bindings}, [1])], [], [], [])"
             ),
             Path=str(payload_path),
         )

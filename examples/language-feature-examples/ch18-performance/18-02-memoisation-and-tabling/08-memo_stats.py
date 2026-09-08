@@ -1,4 +1,4 @@
-"""examples/ch18-performance/18-02-memoisation-and-tabling/08-memo_stats.metta in Python: one miss, then two hits.
+"""Purpose: examples/ch18-performance/18-02-memoisation-and-tabling/08-memo_stats.metta in Python: one miss, then two hits.
 
 `sq` is an ordinary compiled definition and `memoize` is lib_memo's own
 declaration, so it stays named: caching by dependency-aware invalidation is
@@ -209,7 +209,20 @@ def twin(m):
 #: carries both, so this entry is where the two chains meet [measured
 #: 2026-09-08: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=f1038acdcaf5230b6431c112f38a719d3dc9ef19].
-BUDGET = 38192
+#: RE-PINNED 2026-09-08, 38192 to 39352 (+1160), Trailing occurrence arguments,
+#: token allocation in native writes, exact source withdrawal and transaction-
+#: safe shared-table guards change the engine work priced by this twin; answer
+#: bags retain the upstream law [measured 2026-09-08: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+#: RE-PINNED 2026-09-08, 39352 to 39292 (-60), Sharing the fast-image
+#: hexadecimal validator changes the engine predicate layout. The identity twin
+#: moves below its declared band while the seven engine work counters move only
+#: at boot; the native add and read slopes remain unchanged. Token storage and
+#: source ownership retain their earlier measured costs and answer bags
+#: [measured 2026-09-08: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 39292
 
 #: OVERRUN 2026-09-07, 800: it reads the cache statistics through the term door
 #: beside every claim. Measured 38155 against a ceiling of 37417; a minimal

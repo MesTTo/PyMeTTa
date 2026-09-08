@@ -1,4 +1,4 @@
-"""examples/ch12-testing/04-assert_answers.metta in Python: the door every assertion reports through.
+"""Purpose: examples/ch12-testing/04-assert_answers.metta in Python: the door every assertion reports through.
 
 `assert-answers` and `assert-includes-answers` take a verdict, the call to
 report, and two answer bags, and RAISE on a false verdict. Python already has
@@ -185,4 +185,10 @@ def twin(m):
 #: carries both, so this entry is where the two chains meet [measured
 #: 2026-09-08: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=f1038acdcaf5230b6431c112f38a719d3dc9ef19].
-BUDGET = 10431
+#: RE-PINNED 2026-09-08, 10431 to 10518 (+87), Trailing occurrence arguments,
+#: token allocation in native writes, exact source withdrawal and transaction-
+#: safe shared-table guards change the engine work priced by this twin; answer
+#: bags retain the upstream law [measured 2026-09-08: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+BUDGET = 10518

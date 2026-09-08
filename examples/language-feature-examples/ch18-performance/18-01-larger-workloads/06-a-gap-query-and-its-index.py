@@ -1,4 +1,4 @@
-"""examples/ch18-performance/18-01-larger-workloads/06-a-gap-query-and-its-index.metta in Python: what a gap query reads.
+"""Purpose: examples/ch18-performance/18-01-larger-workloads/06-a-gap-query-and-its-index.metta in Python: what a gap query reads.
 
 A gap pattern cannot use the store's arity-keyed read, so the candidate set is
 enumerated per admissible arity with the pattern's own leading child written
@@ -149,7 +149,13 @@ def twin(m):
 #: carries both, so this entry is where the two chains meet [measured
 #: 2026-09-08: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=f1038acdcaf5230b6431c112f38a719d3dc9ef19].
-BUDGET = 53836
+#: RE-PINNED 2026-09-08, 53836 to 67112 (+13276), Trailing occurrence
+#: arguments, token allocation in native writes, exact source withdrawal and
+#: transaction-safe shared-table guards change the engine work priced by this
+#: twin; answer bags retain the upstream law [measured 2026-09-08: min-of-3
+#: serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 67112
 
 #: DIVERGED 2026-09-07, the example holds 1 atom the twin does not (1 =) and
 #: the twin holds 1 atom the example does not (1 =): the twin is an ordinary Python

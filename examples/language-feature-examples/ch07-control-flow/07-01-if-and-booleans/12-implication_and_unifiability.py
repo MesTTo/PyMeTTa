@@ -1,4 +1,4 @@
-"""examples/ch07-control-flow/07-01-if-and-booleans/12-implication_and_unifiability.metta in Python: three questions about two atoms.
+"""Purpose: examples/ch07-control-flow/07-01-if-and-booleans/12-implication_and_unifiability.metta in Python: three questions about two atoms.
 
 `implies` is the connective `and`, `or` and `not` leave out. `=?` asks
 whether two atoms COULD be made equal without making them so, and
@@ -153,4 +153,10 @@ def twin(m):
 #: carries both, so this entry is where the two chains meet [measured
 #: 2026-09-08: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=f1038acdcaf5230b6431c112f38a719d3dc9ef19].
-BUDGET = 13121
+#: RE-PINNED 2026-09-08, 13121 to 13466 (+345), Trailing occurrence arguments,
+#: token allocation in native writes, exact source withdrawal and transaction-
+#: safe shared-table guards change the engine work priced by this twin; answer
+#: bags retain the upstream law [measured 2026-09-08: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+BUDGET = 13466

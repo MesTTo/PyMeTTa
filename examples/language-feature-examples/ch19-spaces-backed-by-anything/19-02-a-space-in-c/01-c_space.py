@@ -1,4 +1,4 @@
-"""examples/ch19-spaces-backed-by-anything/19-02-a-space-in-c/01-c_space.metta in Python: a space whose atoms live in C.
+"""Purpose: examples/ch19-spaces-backed-by-anything/19-02-a-space-in-c/01-c_space.metta in Python: a space whose atoms live in C.
 
 `cstore.c` holds the atoms and `cstore.pl` puts four clauses on the
 foreign-space seam, so `&cstore` is a space like any other and nothing above it
@@ -265,4 +265,10 @@ def twin(m):
 #: carries both, so this entry is where the two chains meet [measured
 #: 2026-09-08: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=f1038acdcaf5230b6431c112f38a719d3dc9ef19].
-BUDGET = 149315
+#: RE-PINNED 2026-09-08, 149315 to 150705 (+1390), Trailing occurrence
+#: arguments, token allocation in native writes, exact source withdrawal and
+#: transaction-safe shared-table guards change the engine work priced by this
+#: twin; answer bags retain the upstream law [measured 2026-09-08: min-of-3
+#: serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 150705

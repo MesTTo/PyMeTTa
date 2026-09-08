@@ -1,4 +1,4 @@
-"""examples/ch20-extending-the-engine/20-02-metta-written-in-metta/03-myinterpreter.metta in Python: an interpreter in three lines.
+"""Purpose: examples/ch20-extending-the-engine/20-02-metta-written-in-metta/03-myinterpreter.metta in Python: an interpreter in three lines.
 
 A parameter typed `Atom` receives its argument UNREDUCED, so `myinterpreter`
 gets the `(if ...)` term itself and decides when to evaluate it. That is the
@@ -229,7 +229,20 @@ def twin(m):
 #: returned callback goals [measured 2026-09-08: min-of-3 serial fresh
 #: processes; command=python extensions/python/tools/twin_coverage.py --repin;
 #: commit=ede2ac57e213a0d4502c6bbbca6227f97015b720].
-BUDGET = 6718
+#: RE-PINNED 2026-09-08, 6718 to 7017 (+299), Trailing occurrence arguments,
+#: token allocation in native writes, exact source withdrawal and transaction-
+#: safe shared-table guards change the engine work priced by this twin; answer
+#: bags retain the upstream law [measured 2026-09-08: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+#: RE-PINNED 2026-09-08, 7017 to 6957 (-60), Sharing the fast-image hexadecimal
+#: validator changes the engine predicate layout. The identity twin moves below
+#: its declared band while the seven engine work counters move only at boot;
+#: the native add and read slopes remain unchanged. Token storage and source
+#: ownership retain their earlier measured costs and answer bags [measured
+#: 2026-09-08: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 6957
 
 #: DIVERGED 2026-09-07, the example holds 1 atom the twin does not (1 =) and
 #: the twin holds 1 atom the example does not (1 =): the twin is an ordinary Python

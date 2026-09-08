@@ -1,4 +1,4 @@
-"""examples/ch08-data/08-03-the-shipped-libraries/01-library.metta in Python: lib_roman's flat map.
+"""Purpose: examples/ch08-data/08-03-the-shipped-libraries/01-library.metta in Python: lib_roman's flat map.
 
 One claim, and both halves of it are MeTTa's own: `map-flat` is the library
 function under test and `(+ 1)` is a partial application, which Python spells
@@ -184,7 +184,13 @@ def twin(m):
 #: carries both, so this entry is where the two chains meet [measured
 #: 2026-09-08: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=f1038acdcaf5230b6431c112f38a719d3dc9ef19].
-BUDGET = 17774
+#: RE-PINNED 2026-09-08, 17774 to 18555 (+781), Trailing occurrence arguments,
+#: token allocation in native writes, exact source withdrawal and transaction-
+#: safe shared-table guards change the engine work priced by this twin; answer
+#: bags retain the upstream law [measured 2026-09-08: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+BUDGET = 18555
 
 #: DIVERGED 2026-09-07, the example holds 2 atoms the twin does not (2 =) and
 #: the twin holds 2 the example does not (2 =): the twin is an ordinary Python

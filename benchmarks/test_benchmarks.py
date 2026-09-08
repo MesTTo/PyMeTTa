@@ -10,7 +10,7 @@ Guarantees:
     inference growth from exponential to linear, with both improvements and
     regressions pinned to the measured floor [tested:
     test_automatic_tabling_growth;
-    commit=bbb512316280110a747e31c26adfc31e8c5104be]
+    commit=WORKTREE]
   - the native-handle case reaches the chapter-19 artifact that the worktree
     build produces instead of skipping behind its pre-reorganisation path
     [tested: test_handle_benchmark_reaches_the_built_chapter_19_library;
@@ -330,11 +330,22 @@ _ROWS = 2_000
 #: `-p no:benchmark`, which makes benchmarks/conftest.py's
 #: pytest_benchmark_update_machine_info an unknown hook and turns the run into
 #: a pluggy INTERNALERROR rather than a measurement.
+# RE-PINNED 2026-09-08 for occurrence storage and equation provenance.
+# The pristine f0d33dcad control reads plain 122157/953645/7605549/30412077
+# and automatic 14488/15618/16752/17508. Token storage adds exactly 37 plain
+# and 120 automatic inferences at each size, fixed first-force compilation
+# and token-link work. The old pins already differ at the cut; that part is
+# not attributed to tokens. Growth bounds and the four-inference band stay
+# unchanged; the n=20 separation is 1725x against the 900x floor.
+# [measured 2026-09-08: minimum of three samples per size and mode;
+# command=python bench.py --counter-only automatic-tabling;
+# fixture=provisioned cut and token worktrees with the same native artifacts;
+# commit=WORKTREE]
 _AUTOMATIC_TABLING_PINS = {
-    12: {"plain": 122_123, "automatic": 14_412},
-    15: {"plain": 953_645, "automatic": 15_542},
-    18: {"plain": 7_605_815, "automatic": 16_676},
-    20: {"plain": 30_413_255, "automatic": 17_434},
+    12: {"plain": 122_194, "automatic": 14_608},
+    15: {"plain": 953_682, "automatic": 15_738},
+    18: {"plain": 7_605_586, "automatic": 16_872},
+    20: {"plain": 30_412_114, "automatic": 17_628},
 }
 
 

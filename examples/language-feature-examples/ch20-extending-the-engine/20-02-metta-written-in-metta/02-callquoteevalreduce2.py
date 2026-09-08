@@ -1,4 +1,4 @@
-"""examples/ch20-extending-the-engine/20-02-metta-written-in-metta/02-callquoteevalreduce2.metta in Python: four ways to not reduce.
+"""Purpose: examples/ch20-extending-the-engine/20-02-metta-written-in-metta/02-callquoteevalreduce2.metta in Python: four ways to not reduce.
 
 One inner term, `(fib (myfunc))`, under four wrappers. `call`, `eval` and
 `reduce` all get to 5; `quote` holds the term as it was written. Each claim
@@ -244,7 +244,20 @@ def twin(m):
 #: carries both, so this entry is where the two chains meet [measured
 #: 2026-09-08: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=f1038acdcaf5230b6431c112f38a719d3dc9ef19].
-BUDGET = 43436
+#: RE-PINNED 2026-09-08, 43436 to 44110 (+674), Trailing occurrence arguments,
+#: token allocation in native writes, exact source withdrawal and transaction-
+#: safe shared-table guards change the engine work priced by this twin; answer
+#: bags retain the upstream law [measured 2026-09-08: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+#: RE-PINNED 2026-09-08, 44110 to 44050 (-60), Sharing the fast-image
+#: hexadecimal validator changes the engine predicate layout. The identity twin
+#: moves below its declared band while the seven engine work counters move only
+#: at boot; the native add and read slopes remain unchanged. Token storage and
+#: source ownership retain their earlier measured costs and answer bags
+#: [measured 2026-09-08: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 44050
 
 #: OVERRUN 2026-09-07, 1500: it names the six wrappers as definitions where the
 #: example writes one inner term under four of them. Measured 43396 against a

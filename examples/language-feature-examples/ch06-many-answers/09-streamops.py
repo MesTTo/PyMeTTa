@@ -1,4 +1,4 @@
-"""examples/ch06-many-answers/09-streamops.metta in Python: the same algebra over ANSWERS.
+"""Purpose: examples/ch06-many-answers/09-streamops.metta in Python: the same algebra over ANSWERS.
 
 `superpose` fans an expression out into one answer per element, and the four
 operations here work over those answers rather than over children. In Python
@@ -152,4 +152,10 @@ def twin(m):
 #: carries both, so this entry is where the two chains meet [measured
 #: 2026-09-08: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=f1038acdcaf5230b6431c112f38a719d3dc9ef19].
-BUDGET = 5447
+#: RE-PINNED 2026-09-08, 5447 to 5502 (+55), Trailing occurrence arguments,
+#: token allocation in native writes, exact source withdrawal and transaction-
+#: safe shared-table guards change the engine work priced by this twin; answer
+#: bags retain the upstream law [measured 2026-09-08: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+BUDGET = 5502

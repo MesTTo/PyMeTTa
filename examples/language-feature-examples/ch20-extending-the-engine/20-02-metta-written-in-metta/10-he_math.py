@@ -1,4 +1,4 @@
-"""examples/ch20-extending-the-engine/20-02-metta-written-in-metta/10-he_math.metta in Python: the engine's numeric library, checked.
+"""Purpose: examples/ch20-extending-the-engine/20-02-metta-written-in-metta/10-he_math.metta in Python: the engine's numeric library, checked.
 
 Twenty-four claims about the `*-math` family and the two atom-level extrema.
 Real-valued math promotes integers, `pow-math` answers a Float while enforcing
@@ -197,4 +197,10 @@ RUNG = "min-atom and max-atom are two of the stdlib numeric operations this file
 #: carries both, so this entry is where the two chains meet [measured
 #: 2026-09-08: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=f1038acdcaf5230b6431c112f38a719d3dc9ef19].
-BUDGET = 6179
+#: RE-PINNED 2026-09-08, 6179 to 6186 (+7), Trailing occurrence arguments,
+#: token allocation in native writes, exact source withdrawal and transaction-
+#: safe shared-table guards change the engine work priced by this twin; answer
+#: bags retain the upstream law [measured 2026-09-08: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+BUDGET = 6186

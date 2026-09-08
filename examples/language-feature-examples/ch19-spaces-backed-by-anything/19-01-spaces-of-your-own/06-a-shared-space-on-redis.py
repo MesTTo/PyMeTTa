@@ -1,4 +1,4 @@
-"""examples/ch19-spaces-backed-by-anything/19-01-spaces-of-your-own/06-a-shared-space-on-redis.metta in Python: a space whose atoms live in Redis.
+"""Purpose: examples/ch19-spaces-backed-by-anything/19-01-spaces-of-your-own/06-a-shared-space-on-redis.metta in Python: a space whose atoms live in Redis.
 
 Once attached, `&shared` is a space HANDLE like any other, so the writes are
 `space += atom`, the reads are `space[pattern]` and nothing above the seam
@@ -137,7 +137,13 @@ def twin(m):
 #: facade; compiled program lookup crosses the added metta_engine tier
 #: [measured 2026-09-08: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=ede2ac57e213a0d4502c6bbbca6227f97015b720].
-BUDGET = 49056
+#: RE-PINNED 2026-09-08, 49056 to 49911 (+855), Trailing occurrence arguments,
+#: token allocation in native writes, exact source withdrawal and transaction-
+#: safe shared-table guards change the engine work priced by this twin; answer
+#: bags retain the upstream law [measured 2026-09-08: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+BUDGET = 49911
 #: The count VARIES by a few tens, because every read and write crosses a
 #: socket and the subscription thread's own work lands in the same counter.
 #: Three single-round measurements on this branch gave 113484, 113469 and

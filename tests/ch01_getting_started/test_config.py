@@ -276,7 +276,7 @@ def test_a_bound_this_seat_does_not_know_forgets_every_mirrored_bound(metta):
 
 def test_backend_startup_does_not_change_process_working_directory(monkeypatch, tmp_path):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     runtime_root = tmp_path / "runtime"
-    main_file = runtime_root / "engine" / "main.pl"
+    main_file = runtime_root / "engine" / "qlf_boot.pl"
     main_file.parent.mkdir(parents=True)
     main_file.touch()
 
@@ -313,4 +313,5 @@ def test_backend_startup_does_not_change_process_working_directory(monkeypatch, 
     # host used to test for MORK's shared library and pass `mork`.
     assert "set_prolog_flag(argv, ['extensions'])" in bridge.queries
     assert bridge.consulted == [str(main_file)]
+    assert "metta_qlf_boot:qlf_load_engine" in bridge.queries
     assert consulted is bridge

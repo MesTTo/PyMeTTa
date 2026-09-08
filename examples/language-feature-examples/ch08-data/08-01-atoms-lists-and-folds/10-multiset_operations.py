@@ -1,4 +1,4 @@
-"""examples/ch08-data/08-01-atoms-lists-and-folds/10-multiset_operations.metta in Python: Counter is the algebra.
+"""Purpose: examples/ch08-data/08-01-atoms-lists-and-folds/10-multiset_operations.metta in Python: Counter is the algebra.
 
 Every one of these operations is MULTISET, not set: `(a a a)` minus `(a)` is
 `(a a)`, and an intersection keeps as many copies as both sides can afford.
@@ -183,7 +183,13 @@ def twin(m):
 #: carries both, so this entry is where the two chains meet [measured
 #: 2026-09-08: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=f1038acdcaf5230b6431c112f38a719d3dc9ef19].
-BUDGET = 7477
+#: RE-PINNED 2026-09-08, 7477 to 7560 (+83), Trailing occurrence arguments,
+#: token allocation in native writes, exact source withdrawal and transaction-
+#: safe shared-table guards change the engine work priced by this twin; answer
+#: bags retain the upstream law [measured 2026-09-08: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+BUDGET = 7560
 
 #: OVERRUN 2026-09-07, 600: every claim asserts the Counter spelling AND the
 #: engine's own `-atom` operation agree, so each of the eight asks is made
