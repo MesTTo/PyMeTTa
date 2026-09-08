@@ -85,8 +85,10 @@ from .foreign import SpaceProvider as SpaceProvider
 from .manifest import boot as boot
 from .parallel import channel as channel
 from .parallel import every as every
+from .parallel import move_on_after as move_on_after
 from .parallel import par_map as par_map
 from .parallel import race as race
+from .parallel import scope as scope
 from .parallel import spawn as spawn
 from .results import Answers as _Answers
 from .spaces import view as view
@@ -226,6 +228,7 @@ __all__ = [
     "llms",
     "manifest",
     "match",
+    "move_on_after",
     "not_",
     "op",
     "or_",
@@ -247,6 +250,7 @@ __all__ = [
     "render",
     "rules",
     "run",
+    "scope",
     "seam",
     "seg",
     "set",

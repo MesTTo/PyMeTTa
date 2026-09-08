@@ -12,6 +12,9 @@ the engine's own write hooks deliver. Every write consults the folds on its
 space, so the dispatch is on the write path and its cost is the write's;
 metta.events owns that dispatch and its discrimination tree.
 Guarantees:
+  - a new subscription enrols through lib_thread:scope_host_resource/4 and
+    is cancelled when its scope leaves, including on a borrowed space
+    [tested: test_scope_closes_subscriptions_on_borrowed_spaces; commit=WORKTREE].
   - subscription publication and cancellation update registry state, engine
     write guards, and reflection facts together or restore the prior state
     [tested test_subscription_lifecycle_rolls_back_failed_boundaries]
@@ -299,6 +302,13 @@ def subscribe(  # noqa: D103  -- the package reference and enclosing module docu
                     [publication_error, *rollback_errors],
                 ) from None
             raise
+    from . import _scope  # noqa: PLC0415 -- enrol only after publication succeeds
+
+    try:
+        _scope.own("cleanup", subscription.cancel)
+    except BaseException:
+        subscription.cancel()
+        raise
     return subscription
 
 

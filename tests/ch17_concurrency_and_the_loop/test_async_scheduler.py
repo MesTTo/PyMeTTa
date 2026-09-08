@@ -42,7 +42,7 @@ Guarantees:
     nondeterministic bodies hand off for every pull without losing answers [tested:
     test_a_blocking_oracle_uses_the_dirty_lane_without_pinning_normal_work,
     test_an_oracle_generator_preserves_all_answers_across_dirty_handoffs;
-    commit=39092863ae34184a9f955f185ff57c1ff177ec40]
+    commit=WORKTREE]
   - every public coordination or worker spawn door copies its launch Context,
     including scheduler engines, timer and race threads, EnginePool workers,
     AsyncMeTTa, coroutine tasks, and a nested spawn after child-local mutation [tested:
@@ -70,8 +70,10 @@ import subprocess
 import sys
 import textwrap
 import threading
+import time
 import uuid
 from collections.abc import Callable
+from concurrent.futures import ThreadPoolExecutor
 from typing import Any
 
 import pytest
@@ -911,6 +913,7 @@ def test_a_blocking_oracle_uses_the_dirty_lane_without_pinning_normal_work(metta
     entered_count = 0
     all_entered = threading.Event()
     release = threading.Event()
+    cancelled_body_returned = threading.Event()
 
     def blocking_oracle(value: int) -> int:
         nonlocal entered_count
@@ -921,6 +924,10 @@ def test_a_blocking_oracle_uses_the_dirty_lane_without_pinning_normal_work(metta
         if not release.wait(20):
             msg = "dirty-lane blocker was never released"
             raise RuntimeError(msg)
+        # The request is already pending before this foreign sleep starts.
+        time.sleep(0.02)
+        if value == 0:
+            cancelled_body_returned.set()
         return value
 
     metta.op(blocking_oracle, name=name, effect="oracleIO")
@@ -936,11 +943,26 @@ def test_a_blocking_oracle_uses_the_dirty_lane_without_pinning_normal_work(metta
             try:
                 blockers = [spawn(S[name](index)) for index in range(blocker_count)]
                 assert all_entered.wait(10)
-                assert blockers[0].cancel() is False
-                assert blockers[0].settled() is False
-
-                normal = spawn(S["+"](20, 22))
-                assert _bounded_call(lambda: list(normal.wait())) == [42]
+                with ThreadPoolExecutor(1) as canceller:
+                    cancellation = canceller.submit(blockers[0].cancel)
+                    try:
+                        runtime().must(
+                            "lib_thread:thread_wait((metta_future(Space, scheduler(_Task), _), "
+                            "metta_scheduler_task(_Task, _, _, _, _, cancelling(_, _))), "
+                            "[wait_preds([metta_scheduler_task/6])])",
+                            Space=blockers[0].name,
+                        )
+                        assert not cancellation.done()
+                        assert blockers[0].settled() is False
+                        normal = spawn(S["+"](20, 22))
+                        try:
+                            assert _bounded_call(lambda: list(normal.wait())) == [42]
+                        finally:
+                            normal.drop()
+                    finally:
+                        release.set()
+                    assert cancellation.result() is True
+                    assert cancelled_body_returned.is_set()
             finally:
                 release.set()
                 for index, future in enumerate(blockers):
@@ -950,6 +972,8 @@ def test_a_blocking_oracle_uses_the_dirty_lane_without_pinning_normal_work(metta
 
                     expected = [] if index == 0 else [index]
                     assert _bounded_call(await_future) == expected
+                    future.drop()
+                warmup.drop()
     finally:
         release.set()
         metta.unregister_op(name)

@@ -18,6 +18,9 @@ Assumes:
   - a reason names the MECHANISM that makes the sync shape impossible across
     the worker, not a preference. "Simpler" is not one.
 Guarantees:
+  - scope is a context manager on its entering host thread, so the async
+    worker does not manufacture a second owner [tested:
+    test_every_async_counterpart_has_the_sync_parameters; commit=WORKTREE].
   - every name here resolves to a synchronous method; generated counterparts
     carry its signature, return annotation and docstring verbatim except for
     the DIVERGENT replacement signatures, while
@@ -34,6 +37,11 @@ from __future__ import annotations
 
 #: Space methods with NO async counterpart, and why the async surface omits them.
 EXCLUDED: dict[str, str] = {
+    "scope": (
+        "a synchronous context manager confines exit to its entering host thread; "
+        "use metta.scope() around the caller's block, not a manager constructed "
+        "by a remote async worker"
+    ),
     "pool": (
         "asyncio's fan-out is N workers and asyncio.gather; a pool of engine "
         "threads is the synchronous spelling of the same thing"

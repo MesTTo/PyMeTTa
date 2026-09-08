@@ -2,13 +2,24 @@
 proxies a MeTTa space onto one dedicated worker thread that holds an
 attached Prolog engine, the aiosqlite architecture (one thread per
 connection, a request queue, results delivered back through the loop), so
-awaiting a long query lets every other coroutine keep running. One engine
-per process stays the rule: calls are serialized, and the win is a live
-event loop, never parallel evaluation. interrupt() stops the running
+awaiting a long query lets every other coroutine keep running. Requests on
+one worker are serialized; separate workers share the runtime through private
+engines. interrupt() stops the running
 evaluation through the engine's own thread_signal, the sqlite3 reading,
 and a cancelled task fires it on its own call, so asyncio timeouts stop
 the engine instead of abandoning it.
 Guarantees:
+  - scope-owned workers and requests use lib_thread's cleanup and completion
+    rows; exit joins abandoned foreign calls before releasing their inputs
+    [tested: test_scope_owns_an_async_worker_and_its_requests,
+    test_scope_joins_a_cancelled_request_on_a_borrowed_async_worker;
+    commit=WORKTREE].
+  - subscription acquisition publishes on the worker, so synchronous scope
+    cleanup does not wait for an event-loop continuation and closes waiting
+    consumers [tested:
+    test_async_subscription_stop_needs_only_the_workers_acquisition_receipt,
+    test_scope_closes_an_async_subscription_on_a_borrowed_worker;
+    commit=WORKTREE].
   - Prolog-backed definitions require their reference function and construct
     and apply the synchronous decorator on the owning worker
     [tested: test_async_prolog_define_requires_the_reference_function,
@@ -150,6 +161,7 @@ import atexit
 import builtins as _builtins
 import contextlib
 import contextvars
+import functools
 import logging
 import math
 import os
@@ -163,6 +175,7 @@ from collections.abc import Callable, Coroutine, Iterable, Mapping
 from types import TracebackType
 from typing import TYPE_CHECKING, Any, Final, Literal, Self, TypeVar, overload
 
+from . import _scope
 from . import ops as _ops_module
 from ._api_types import _DEFAULT_SPACE, _SpaceId
 from ._engine import Runtime, bridge, runtime
@@ -226,19 +239,33 @@ def _set_future_result(future: asyncio.Future[None]) -> None:
 
 
 class _Request:
-    __slots__ = ("abandoned", "context", "fn", "future", "loop", "target")
+    __slots__ = ("abandoned", "context", "fn", "future", "loop", "scope", "target", "worker")
 
-    def __init__(self, fn, target, loop, future) -> None:
+    def __init__(self, fn, target, loop, future, worker) -> None:
         self.fn = fn
         self.target = target
         self.loop = loop
         self.future = future
         self.abandoned = threading.Event()
+        self.worker = worker
         # The submitting task's contextvars, so scoped state (limits(),
         # an open batch) crosses to the worker thread with the request,
         # which is what makes the with-blocks async-correct THROUGH the
         # thread hop and not only beside it.
         self.context = contextvars.copy_context()
+        self.scope = _scope.own("future", self.cancel)
+
+    def cancel(self, scope: str | None = None) -> None:
+        """Abandon queued work or signal this exact running request."""
+        self.abandoned.set()
+        if scope is not None:
+            # A scope can cancel from its timer thread. A closed loop has no
+            # waiter to wake; the worker still publishes its completion receipt.
+            with contextlib.suppress(RuntimeError):
+                self.loop.call_soon_threadsafe(
+                    _set_future_exception, self.future, _scope.Cancelled(scope)
+                )
+        self.worker.interrupt_if_running(self)
 
 
 class _EngineThread:
@@ -348,6 +375,7 @@ class _EngineThread:
                     if request is None:
                         return
                     if request.abandoned.is_set():
+                        _scope.finished(request.scope)
                         continue  # cancelled while queued: never runs
                     with self._transition:
                         with self._state_lock:
@@ -557,9 +585,10 @@ class _EngineThread:
             logger.debug("rejected %d queued AsyncMeTTa request(s)", len(pending))
         return thread
 
-    def stop(self, timeout: float = DEFAULT_CLOSE_TIMEOUT) -> None:
+    def stop(self, timeout: float | None = DEFAULT_CLOSE_TIMEOUT) -> None:
         """Synchronously stop this worker and detach its Prolog engine."""
-        timeout = _close_timeout(timeout)
+        if timeout is not None:
+            timeout = _close_timeout(timeout)
         thread = self.close_soon()
         if thread is None or not thread.is_alive():
             return
@@ -748,6 +777,10 @@ def _deliver(request: _Request, payload, *, failed: bool) -> None:
         # The loop closed while the engine worked: the coroutine that
         # asked no longer exists, so there is nowhere to deliver to.
         logger.warning("could not deliver an AsyncMeTTa result: event loop closed")
+    finally:
+        _scope.finished(
+            request.scope, payload if failed and not request.abandoned.is_set() else None
+        )
 
 
 class AsyncMeTTa:
@@ -782,6 +815,7 @@ class AsyncMeTTa:
         self._owner = True
         self._subscriptions: set[Any] = set()
         self._subscriptions_lock = threading.RLock()
+        _scope.own("cleanup", functools.partial(self.stop, timeout=None))
 
     @classmethod
     def _sharing(cls, metta: Space, worker: _EngineThread) -> AsyncMeTTa:
@@ -861,36 +895,41 @@ class AsyncMeTTa:
     async def _submit(self, fn: Callable[[Space], Any], *, during_close: bool) -> Any:
         await self._worker.start()
         loop = asyncio.get_running_loop()
-        request = _Request(fn, self._m, loop, loop.create_future())
-        if during_close:
-            self._worker.submit(request)
-        else:
-            # Publication of a request and publication of close are ordered.
-            # A request already accepted is rejected or interrupted by the
-            # worker close; one that lost this race never enters the queue.
-            with self._subscriptions_lock:
-                self._require_open_locked()
+        request = _Request(fn, self._m, loop, loop.create_future(), self._worker)
+        try:
+            if during_close:
                 self._worker.submit(request)
+            else:
+                # Publication of a request and publication of close are ordered.
+                # A request already accepted is rejected or interrupted by the
+                # worker close; one that lost this race never enters the queue.
+                with self._subscriptions_lock:
+                    self._require_open_locked()
+                    self._worker.submit(request)
+        except BaseException:
+            _scope.finished(request.scope)
+            raise
         try:
             return await request.future
         except asyncio.CancelledError:
             # The listener is gone; stop the engine working for it. A
             # request still queued is skipped, a running one is signalled.
-            request.abandoned.set()
-            self._worker.interrupt_if_running(request)
+            request.cancel()
             raise
 
     async def _resource_call(self, fn: Callable[[Space], Any]) -> Any:
         """Release an acquired child while its parent is closing."""
-        return await self._submit(fn, during_close=True)
+        with _scope.suspend():
+            return await self._submit(fn, during_close=True)
 
     async def _subscription_call(self, fn: Callable[[Space], Any]) -> Any:
         """Use the public crossing unless parent close already claimed it."""
         with self._subscriptions_lock:
             closing = self._closing
-        if closing:
-            return await self._resource_call(fn)
-        return await self.call(fn)
+        with _scope.suspend():
+            if closing:
+                return await self._resource_call(fn)
+            return await self.call(fn)
 
     async def call(self, fn: Callable[[Space], Any]) -> Any:
         """Run fn(m) on the engine's thread and await its result: the
@@ -1328,7 +1367,7 @@ class AsyncMeTTa:
         return await self.call(lambda m: m.space_names())
 
     async def drop(self) -> None:
-        """Clear this space and release an anonymous name for reuse.
+        """Clear this space and release its owned resources.
 
         Dropping retires every space-owned catalog declaration, including
         algebra rows and their Python mirrors.
@@ -1339,6 +1378,8 @@ class AsyncMeTTa:
         enters the anonymous pool. The engine-owned &self and &metta roots
         refuse before any Python-side state changes; drop the caller's own
         context or a named space instead.
+        Anonymous names outside a lifetime scope return to the pool. Scoped
+        names remain revoked, including after ownership transfers to a caller.
         Subscriptions on the space cancel with it: a pooled name reused later
         must not deliver to the old life's watchers. The handle itself dies
         here, and dropping twice is a no-op, as closing twice is.
@@ -3060,9 +3101,10 @@ class AsyncMeTTa:
                     msg
                 )
 
-    def stop(self, timeout: float = DEFAULT_CLOSE_TIMEOUT) -> None:
-        """Synchronously cancel streams and stop without an event loop."""
-        timeout = _close_timeout(timeout)
+    def stop(self, timeout: float | None = DEFAULT_CLOSE_TIMEOUT) -> None:
+        """Synchronously cancel streams and stop; None waits until the worker exits."""
+        if timeout is not None:
+            timeout = _close_timeout(timeout)
         subscriptions = self._begin_close()
         try:
             self._stop_subscriptions(subscriptions)
@@ -3464,6 +3506,7 @@ class _AsyncSubscription:
         self._queue_max = _capacity(queue_max)
         self._subscription: Any = None
         self._queue: asyncio.Queue[Any] | None = None
+        self._loop: asyncio.AbstractEventLoop | None = None
         self._closed = False
         self._orphaned = False
         self._dropped = 0
@@ -3546,6 +3589,7 @@ class _AsyncSubscription:
         async with self._opening:
             if self._queue is None:
                 loop = asyncio.get_running_loop()
+                self._loop = loop
                 events: asyncio.Queue[Any] = asyncio.Queue(maxsize=self._queue_max)
 
                 def deliver(event: Any) -> None:
@@ -3559,32 +3603,23 @@ class _AsyncSubscription:
                             raise
                         self._retire_closed_loop()
 
-                pattern, on, am = self._pattern, self._on, self._am
-                where = self._where
+                am = self._am
                 am._track_subscription(self)
-                with self._state_changed:
-                    self._acquiring = True
                 try:
-                    subscription = await _acquire(
-                        am.call(
-                            lambda m: m.subscribe(
-                                pattern, deliver, on=on, where=where
-                            )
-                        ),
+                    await _acquire(
+                        am.call(lambda m: self._register(m, deliver)),
                         lambda acquired: am._subscription_call(
                             lambda _m: acquired.cancel()
                         ),
                     )
-                    with self._state_changed:
-                        self._subscription = subscription
-                        orphaned = self._orphaned
                 except BaseException:
                     am._forget_subscription(self)
                     raise
-                finally:
-                    with self._state_changed:
-                        self._acquiring = False
-                        self._state_changed.notify_all()
+                with self._state_changed:
+                    if self._closed:
+                        msg = "this subscription closed during registration"
+                        raise MettaError(msg)
+                    orphaned = self._orphaned
                 if orphaned:
                     self._retire_closed_loop()
                 # A queue reachable before its registration succeeded is one a
@@ -3593,6 +3628,35 @@ class _AsyncSubscription:
                 # [tested test_aio_a_failed_subscription_publishes_no_queue].
                 self._queue = events
             return self._queue
+
+    def _register(self, space: Space, deliver: Callable[..., Any]) -> Any:
+        """Publish ownership before the worker acknowledges acquisition."""
+        with self._state_changed:
+            if self._closed:
+                msg = "this subscription closed before registration"
+                raise MettaError(msg)
+            self._acquiring = True
+        subscription = None
+        try:
+            subscription = space.subscribe(
+                self._pattern, deliver, on=self._on, where=self._where
+            )
+            with self._state_changed:
+                self._subscription = subscription
+            _scope.own("cleanup", self._stop)
+        except BaseException:
+            if subscription is not None:
+                with _scope.suspend():
+                    subscription.cancel()
+                with self._state_changed:
+                    self._subscription = None
+            raise
+        else:
+            return subscription
+        finally:
+            with self._state_changed:
+                self._acquiring = False
+                self._state_changed.notify_all()
 
     def __aiter__(self) -> Self:
         return self
@@ -3664,6 +3728,9 @@ class _AsyncSubscription:
             self._closed = True
             self._state_changed.notify_all()
         self._am._forget_subscription(self)
+        if self._loop is not None and self._queue is not None:
+            with contextlib.suppress(RuntimeError):
+                self._loop.call_soon_threadsafe(self._end, self._queue)
 
     async def __aenter__(self) -> Self:
         await self._ensure()

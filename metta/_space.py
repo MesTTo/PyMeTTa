@@ -7,6 +7,12 @@ Assumes:
     _space_execution.py, _space_persistence.py, _space_objects.py, and
     _space_diagnostics.py; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
 Guarantees:
+  - scoped mints attach their creating handle's drop to lib_thread's lifetime
+    row; aliases revoke together and failed cleanup can retry [tested:
+    test_scope_releases_mints_and_refuses_every_alias,
+    test_alias_drop_releases_the_creating_handles_owned_journal,
+    test_cleanup_failure_revokes_aliases_attempts_all_and_can_retry;
+    commit=WORKTREE].
   - ``Space.record`` answers a Recording whose header pins the state its events
     were produced in, so they replay rather than only read: the space's digest,
     the seed its generator was pinned to, and whether the program stayed inside
@@ -446,6 +452,7 @@ if TYPE_CHECKING:
     from ._recording import Recording
     from ._trace import Trace
     from .lint import Finding
+    from .parallel import Scope
 
 __all__ = [
     "Cursor",
@@ -1183,6 +1190,7 @@ class Space(Handle):
         self._owns_backing = False
         self._created_at = _created_at
         self._context_tokens: list[Any] = []
+        self._scoped = _satellite("_scope").attach(self)
 
     @property
     def _space(self) -> _SpaceId:
@@ -1206,6 +1214,12 @@ class Space(Handle):
         if self._drop_engine_done:
             msg = f"{self._name} finished engine teardown; call drop() again to finish cleanup"
             raise MettaError(msg)
+        scope_context = _satellite("_scope")
+        if not self._scoped and scope_context.current() is not None:
+            self._scoped = scope_context.attach(self)
+        if self._scoped:
+            with _satellite("_scope").suspend():
+                self._rt.must("lib_thread:scope_space_live(Name)", Name=self._name)
         return self._name
 
     # ------------------------------------------------------------------ naming
@@ -1292,7 +1306,8 @@ class Space(Handle):
 
         Works as a context manager: leaving the block drops the space, so a
         churn of short-lived spaces reuses names instead of growing the
-        engine's module table.
+        engine's module table. A lifetime scope retains revoked names so an
+        escaped alias cannot address a later allocation.
 
             with m._new_space() as scratch:
                 scratch.add(...)
@@ -1323,12 +1338,12 @@ class Space(Handle):
             _runtime=self._rt,
             _created_at=_creation_site() if _created_at is None else _created_at,
         )
-        fresh._ephemeral = True
+        fresh._ephemeral = not fresh._scoped
         fresh._autodrop = True
         return fresh
 
     def drop(self) -> None:
-        """Clear this space and release an anonymous name for reuse.
+        """Clear this space and release its owned resources.
 
         Dropping retires every space-owned catalog declaration, including
         algebra rows and their Python mirrors.
@@ -1339,6 +1354,8 @@ class Space(Handle):
         enters the anonymous pool. The engine-owned &self and &metta roots
         refuse before any Python-side state changes; drop the caller's own
         context or a named space instead.
+        Anonymous names outside a lifetime scope return to the pool. Scoped
+        names remain revoked, including after ownership transfers to a caller.
         Subscriptions on the space cancel with it: a pooled name reused later
         must not deliver to the old life's watchers. The handle itself dies
         here, and dropping twice is a no-op, as closing twice is.
@@ -1350,6 +1367,14 @@ class Space(Handle):
         """
         if self._dropped:
             return
+        self._scoped = _satellite("_scope").attach(self)
+        if self._scoped:
+            with _satellite("_scope").suspend():
+                if not self._rt.once("lib_thread:scope_cleanup"):
+                    self._rt.must("lib_thread:scope_drop_space(Name)", Name=self._name)
+                    return
+                if self._rt.once("lib_thread:scope_engine_released(Name)", Name=self._name):
+                    self._drop_engine_done = True
         name = self._name
         subscriptions = _satellite("subscribe")
         foreign = _satellite("foreign")
@@ -1382,6 +1407,7 @@ class Space(Handle):
         # or repeat engine teardown. The bookkeeping handle carries only the
         # name/runtime needed to retire satellites; it creates no engine state.
         cleanup = Space(name, _runtime=self._rt)
+        cleanup._scoped = False
         for subscription in subscriptions._subscriptions_for(name):
             subscription.cancel()
         if foreign.has_provider(name):
@@ -1402,11 +1428,21 @@ class Space(Handle):
                 "atom_string(_Name, Space), metta_py_pool_space(_Name)", Space=name
             )
         self._dropped = True
+        self._scoped = _satellite("_scope").attach(self)
+        if self._scoped:
+            with _satellite("_scope").suspend():
+                self._rt.must("lib_thread:scope_forget_space(Name)", Name=name)
 
     @property
     def dropped(self) -> bool:
         """Whether :meth:`drop` has released this handle's space."""
-        return self._dropped
+        if self._dropped:
+            return True
+        self._scoped = _satellite("_scope").attach(self)
+        if self._scoped:
+            with _satellite("_scope").suspend():
+                return bool(self._rt.once("lib_thread:scope_space_dead(Name)", Name=self._name))
+        return False
 
     def __enter__(self) -> Self:
         self._context_tokens.append(_ACTIVE_SPACE.set(self._space))
@@ -3356,6 +3392,16 @@ class Space(Handle):
         assert output.text == "hello\n"
         """
         return capture_output()
+
+    def scope(self) -> Scope:
+        """Join children and release resources created in this block.
+
+        ``with m.scope() as scope:`` owns newly minted spaces, channels,
+        futures, pools and subscriptions. ``scope.keep(value)`` transfers
+        spaces on successful exit. Child failure cancels siblings. Foreign
+        calls must return before an engine checkpoint can stop them.
+        """
+        return _satellite("parallel").Scope(self)
 
     def atomic(self) -> ScopedExecution:
         """Make each CALL in the block one committing engine transaction.
@@ -6180,7 +6226,7 @@ class MeTTa:
     @property
     def closed(self) -> bool:
         """Whether :meth:`close` has released this context's own home."""
-        return self._owns_self and self._self._dropped
+        return self._owns_self and self._self.dropped
 
     def __enter__(self) -> Self:
         return self
@@ -6362,7 +6408,9 @@ class MeTTa:
         The context OWNS what it mints and BORROWS what it opens by name:
         :meth:`close` releases the anonymous mints and leaves ``&kb``,
         ``&metta`` and every other named space exactly as it found them,
-        whether or not the handle is still referenced.
+        whether or not the handle is still referenced. Inside a lifetime
+        scope, that scope owns newly created spaces and their cleanup;
+        ``scope.keep(value)`` transfers returned spaces on successful exit.
         """
         if sync != "none" and journal is None:
             msg = "space(sync=...) paces a journal; pass journal= as well"
@@ -6480,7 +6528,8 @@ class MeTTa:
             if minted_fresh:
                 handle.drop()
             raise
-        if minted_fresh:
+        handle._scoped = _satellite("_scope").attach(handle)
+        if minted_fresh and not handle._scoped:
             # ONLY the mints. A named open is a BORROW: the name may be a
             # space that already existed, one another context is reading, or
             # an engine-owned root, and close() releasing it destroyed the
@@ -6510,6 +6559,10 @@ class MeTTa:
     def atomic(self) -> ScopedExecution:
         """Scope source execution to committing transactions."""
         return self._self.atomic()
+
+    def scope(self) -> Scope:
+        """Own this block's children through the home space's library scope."""
+        return self._self.scope()
 
     @overload
     def transaction(self, target: Callable[[], _R], /) -> _R: ...

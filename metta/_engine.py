@@ -8,6 +8,15 @@ Assumes:
     [source 2026-08-14:
     https://www.swi-prolog.org/pldoc/man?section=janus-thread-call-prolog]
 Guarantees:
+  - runtime() with no configuration request reads the published runtime
+    without acquiring the home-engine lock, so a child can finish while its
+    scope joins on that engine [tested:
+    test_scope_joins_a_cancelled_request_on_a_borrowed_async_worker;
+    commit=WORKTREE].
+  - Runtime.once/iter/apply/do install lib_thread:scope_call/2 at engine
+    boundaries and preserve its reserved cancellation identity [tested:
+    test_deadline_uses_the_library_scope_and_stops_a_running_engine,
+    test_an_outer_deadline_is_not_lost_at_a_nested_scope; commit=WORKTREE].
   - importing metta does not import janus_swi until an engine-backed API is
     used [tested test_package_import_does_not_require_janus]
   - Runtime classifies only the shim's exact reserved exception term shape
@@ -128,6 +137,7 @@ from importlib import resources
 from pathlib import Path
 from typing import Any, NoReturn, Protocol, cast
 
+from . import _scope
 from ._atom_wire import _atom_from_wire
 from ._atoms_core import Atom
 from ._config import config
@@ -955,6 +965,10 @@ def runtime(metta_path: str | None = None, verbose: bool | None = None) -> Runti
     old always-applied False default did (minting a context home did exactly
     that, and the published verbosity setting went quiet).
     """
+    if metta_path is None and verbose is None:
+        ready = active_runtime()
+        if ready is not None:
+            return ready
     with _LOCK:
         if _STATE.runtime is None:
             logger.debug("starting the shared MeTTa runtime")
@@ -1130,7 +1144,7 @@ class Runtime:
         """
         with self._relational_lock():
             try:
-                row = self._janus.query_once(goal, inputs)
+                row = self._janus.query_once(*_scope.bind(goal, inputs))
             except self._janus.PrologError as exc:
                 self._raise(exc)
             except SystemError as exc:
@@ -1284,7 +1298,14 @@ class Runtime:
             return row.get("Out") if row else None
         with lock:
             try:
-                value = self._janus.apply_once("user", predicate, *inputs, fail=_FAILED)
+                scope = _scope.CURRENT.get()
+                value = (
+                    self._janus.apply_once("user", predicate, *inputs, fail=_FAILED)
+                    if scope is None else self._janus.apply_once(
+                        "lib_thread", "scope_apply", scope, predicate,
+                        list(inputs), fail=_FAILED,
+                    )
+                )
             except self._janus.PrologError as exc:
                 self._resynchronise()
                 self._raise(exc)
@@ -1322,7 +1343,13 @@ class Runtime:
             return bool(self.once(goal, **dict(zip(names, inputs, strict=True))))
         with lock:
             try:
-                truth = self._janus.cmd("user", predicate, *inputs)
+                scope = _scope.CURRENT.get()
+                truth = (
+                    self._janus.cmd("user", predicate, *inputs)
+                    if scope is None else self._janus.cmd(
+                        "lib_thread", "scope_do", scope, predicate, list(inputs)
+                    )
+                )
             except self._janus.PrologError as exc:
                 self._resynchronise()
                 self._raise(exc)
@@ -1374,7 +1401,7 @@ class Runtime:
         """
         with self._relational_lock():
             try:
-                rows = list(self._janus.query(goal, inputs))
+                rows = list(self._janus.query(*_scope.bind(goal, inputs)))
             except self._janus.PrologError as exc:
                 self._raise(exc)
             except SystemError as exc:
@@ -1548,6 +1575,9 @@ class Runtime:
                 ) from exc
             if row is not None and row.get("truth") is not False:
                 kind = row.get("Kind")
+                detail = row.get("Detail")
+                if kind == "interrupted" and isinstance(detail, list) and len(detail) == 2 and detail[0] == "scope":
+                    raise _scope.Cancelled(str(detail[1])) from exc
                 error_type = (
                     _EXCEPTION_TYPES.get(kind) if isinstance(kind, str) else None
                 )
