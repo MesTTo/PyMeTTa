@@ -11,6 +11,10 @@ Assumes:
     and never imports: a page can be regenerated without a working janus
     [assumed 2026-08-16]
 Guarantees:
+  - class declarations generated under TYPE_CHECKING document the same public
+    doors as their runtime aliases [tested:
+    test_every_door_projection_is_current,
+    test_door_sync_detects_a_planted_change_in_each_projection; commit=WORKTREE]
   - the checked-in pages equal what this produces, gated on every run
     [tested test_the_reference_pages_are_up_to_date]
   - prose continuations indented beneath a list item still escape HTML-shaped
@@ -25,8 +29,8 @@ Guarantees:
     retaining the purpose and reader-facing text [tested:
     test_reference_publishes_reader_prose_only; commit=9c03403aaaca9f1a1ec52e5898dd547eb80c8e82]
 Fails when:
-  - a page documents a module with runtime-generated members; those are
-    invisible to the AST and would silently go missing
+  - a page documents runtime-generated members with no static declaration;
+    those are invisible to the AST and would silently go missing
 Open Obligations:
   To Do: None
   Hacks: None
@@ -218,6 +222,9 @@ def entries(tree: ast.Module) -> list[str]:
     out = []
     for node in tree.body:
         if isinstance(node, ast.ClassDef) and not node.name.startswith("_"):
+            declarations = [child for item in node.body for child in (
+                item.body if isinstance(item, ast.If) and ast.unparse(item.test) == "TYPE_CHECKING" else [item]
+            )]
             out.append(
                 entry(f"## `{node.name}`", class_line(node), ast.get_docstring(node))
             )
@@ -227,7 +234,7 @@ def entries(tree: ast.Module) -> list[str]:
                     signature(sub),
                     ast.get_docstring(sub),
                 )
-                for sub in node.body
+                for sub in declarations
                 if isinstance(sub, (ast.FunctionDef, ast.AsyncFunctionDef))
                 and not sub.name.startswith("_")
                 and not is_overload(sub)

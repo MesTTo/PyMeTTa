@@ -31,6 +31,11 @@ Assumes:
     an arrow, a `(Literal ...)` and a type variable are the caller's own reading
     (`_stubs.py` renders all three) and reach the fallback column here
 Guarantees:
+  - host argument delivery comes from the type table's delivery column;
+    optional atom alternatives retain atoms, while callbacks and containers
+    remain host values [tested:
+    test_argument_delivery_follows_the_outer_projected_type,
+    test_argument_delivery_reads_the_shared_projection_table; commit=WORKTREE]
   - WIRE_TAGS is the engine's own `(wire-tag ...)` rows filtered to the term
     class, in the catalog's order, so this and the OpenAPI `Atom` schema read
     one grammar rather than two tuples
@@ -57,12 +62,13 @@ Open Obligations:
 
 from __future__ import annotations
 
+import ast
 from typing import TYPE_CHECKING, Final, NamedTuple
 
 from ._arrow import BOOL, FLOAT64, TEXT, UTF8
 from .atoms import Atom, Expression, Symbol, Variable
 from .vocabularies import WIRE_TAGS as _WIRE_TAGS
-from .vocabularies import WireClass
+from .vocabularies import ArgumentDelivery, WireClass
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Mapping, Sequence
@@ -110,6 +116,7 @@ class TypeRow(NamedTuple):
     graphql: str
     arrow: str
     strategy: str | None = None
+    delivery: ArgumentDelivery = ArgumentDelivery.values
 
 
 #: The table. One row per MeTTa type, one column per target.
@@ -125,12 +132,12 @@ TABLE: Final[dict[str, TypeRow]] = {
         TypeRow("String", "str", "string", "String", UTF8, "texts"),
         TypeRow("Bool", "bool", "boolean", "Boolean", BOOL),
         TypeRow("NoneType", "None", "null", ATOM_SCALAR, TEXT),
-        TypeRow("SpaceType", "Space", None, ATOM_SCALAR, TEXT),
-        TypeRow("Atom", "Atom", None, ATOM_SCALAR, TEXT, "atoms"),
-        TypeRow("Symbol", "Symbol", None, ATOM_SCALAR, TEXT, "symbols"),
-        TypeRow("Variable", "Variable", None, ATOM_SCALAR, TEXT, "variables"),
-        TypeRow("Expression", "Expression", None, ATOM_SCALAR, TEXT, "expressions"),
-        TypeRow("Grounded", "Grounded", None, ATOM_SCALAR, TEXT, "grounded"),
+        TypeRow("SpaceType", "Space", None, ATOM_SCALAR, TEXT, delivery=ArgumentDelivery.atoms),
+        TypeRow("Atom", "Atom", None, ATOM_SCALAR, TEXT, "atoms", ArgumentDelivery.atoms),
+        TypeRow("Symbol", "Symbol", None, ATOM_SCALAR, TEXT, "symbols", ArgumentDelivery.atoms),
+        TypeRow("Variable", "Variable", None, ATOM_SCALAR, TEXT, "variables", ArgumentDelivery.atoms),
+        TypeRow("Expression", "Expression", None, ATOM_SCALAR, TEXT, "expressions", ArgumentDelivery.atoms),
+        TypeRow("Grounded", "Grounded", None, ATOM_SCALAR, TEXT, "grounded", ArgumentDelivery.atoms),
     )
 }
 
@@ -249,3 +256,71 @@ def _walk(atom: Atom, arrows: Mapping[str, Expression], found: dict[str, Atom]) 
                 found.setdefault(argument.name, declared[position])
         else:
             _walk(argument, arrows, found)
+
+
+def host_type(annotation: str, module: str) -> Atom:
+    """Project a host annotation through this table and explicit host types.
+
+    Scalar and atom names use TABLE. Containers, unions, literals and named
+    host classes retain their structure and declaring scope instead of
+    claiming that an unknown host class is an ordinary MeTTa Atom.
+    """
+    from .atoms import Grounded  # noqa: PLC0415  -- string literal values
+
+    def project(node: ast.AST) -> Atom:
+        if isinstance(node, ast.Constant):
+            if node.value is None:
+                return Symbol("NoneType")
+            if node.value is Ellipsis:
+                return Symbol("...")
+            if isinstance(node.value, str):
+                return project(ast.parse(node.value, mode="eval").body)
+            return Grounded(node.value)
+        if isinstance(node, ast.Name):
+            for row in TABLE.values():
+                if node.id == row.python or node.id in row.python.split(" | "):
+                    return Symbol(row.metta)
+            return Expression([Symbol("host-type"), Symbol(module), Symbol(node.id)])
+        if isinstance(node, ast.BinOp) and isinstance(node.op, ast.BitOr):
+            return Expression([Symbol("host-union"), Expression([project(node.left), project(node.right)])])
+        if isinstance(node, ast.Subscript):
+            items = node.slice.elts if isinstance(node.slice, ast.Tuple) else [node.slice]
+            if isinstance(node.value, ast.Name) and node.value.id == "Literal":
+                values = [Grounded(item.value) if isinstance(item, ast.Constant) else project(item) for item in items]
+                return Expression([Symbol("host-literal"), Expression(values)])
+            return Expression([Symbol("host-apply"), project(node.value), Expression([project(item) for item in items])])
+        if isinstance(node, (ast.List, ast.Tuple)):
+            return Expression([project(item) for item in node.elts])
+        if isinstance(node, ast.Attribute):
+            return Expression([Symbol("host-type"), Symbol(module), Symbol(ast.unparse(node))])
+        message = f"unsupported Python door type expression: {ast.unparse(node)}"
+        raise TypeError(message)
+
+    return project(ast.parse(annotation, mode="eval").body)
+
+
+def host_delivery(type_atom: Atom) -> ArgumentDelivery:
+    """Read the outer argument's delivery from its projected type.
+
+    Optional atom alternatives retain atom delivery. A callback or container
+    remains a host value even when its parameters mention atoms. This follows
+    the union and Annotated rules used by _ops._receives_atom.
+    """
+    alternatives = None
+    if isinstance(type_atom, Expression) and type_atom.children:
+        if type_atom.head == Symbol("host-union"):
+            alternatives = type_atom.children[1].children
+        elif type_atom.head == Symbol("host-apply"):
+            constructor, parameters = type_atom.children[1:]
+            if isinstance(constructor, Expression) and constructor.head == Symbol("host-type"):
+                name = str(constructor.children[-1]).rpartition(".")[2]
+                if name == "Annotated":
+                    return host_delivery(parameters.children[0])
+                if name in {"Optional", "Union"}:
+                    alternatives = parameters.children
+    if alternatives is not None:
+        members = [member for member in alternatives if member != Symbol("NoneType")]
+        return (ArgumentDelivery.atoms if members and all(
+            host_delivery(member) is ArgumentDelivery.atoms for member in members
+        ) else ArgumentDelivery.values)
+    return row_for(type_atom).delivery

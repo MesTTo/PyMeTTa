@@ -7,7 +7,7 @@ Guarantees:
     the registration transaction, replacement, ownership, and unregister
     lifecycle [tested:
     test_every_register_op_writes_its_declaration_and_get_doc_answers;
-    commit=acb40f1912f131ae088083d1af29b4b283019bea]
+    commit=WORKTREE]
   - every Python operation owns one canonical five-rank effect fact throughout
     registration, replacement, reflection, and unregister
     [tested: test_structural_registration_reflects_an_effect_atom;
@@ -271,7 +271,8 @@ def test_every_register_op_writes_its_declaration_and_get_doc_answers(metta, mon
     )
     reflection = metta._at("&metta")
     assert parse("(: OpKind Type)") in reflection
-    assert reflection.run("!(get-type async)") == [[parse("OpKind")]]
+    # A symbol can inhabit several vocabularies; async is also a DoorTier.
+    assert parse("OpKind") in reflection.run("!(get-type async)")[0]
     # The name position is `Atom`, not `Symbol`: registering the operation is
     # what makes its name Grounded, so a Symbol position refused the very
     # facts this ontology types.

@@ -335,7 +335,6 @@ from ._space_execution import (
     run_status,
     run_void_write,
     run_write,
-    value_one,
 )
 from ._space_objects import (
     _ACTIVE_BATCHES,
@@ -403,6 +402,7 @@ from .atoms import (
     unify,
 )
 from .define import Defined, PrologBacked
+from .doors import EvaluationAnswer, _bind_public
 from .errors import EngineError, MettaError, Remedy, Timeout, refuse, refusing
 from .results import (
     Answers,
@@ -416,6 +416,7 @@ from .results import (
 from .vocabularies import (
     AgendaPolicy,
     AnswerPolicy,
+    ArgumentDelivery,
     Atomicity,
     Delivery,
     Determinism,
@@ -435,6 +436,8 @@ from .vocabularies import (
 )
 
 if TYPE_CHECKING:
+    from . import _door_namespaces
+
     # Named only by `trace`'s return annotation, which `from __future__ import
     # annotations` keeps as text, so the satellite stays as lazy as
     # _satellite("_trace") makes it while the annotation still says which
@@ -773,7 +776,10 @@ def _require_source(source: Any, called: str) -> None:
 #: reached by keyword, because the named parameter takes the value first, so
 #: the reader names the collision instead of reporting a missing value.
 _SOURCE_KEYWORDS = ("timeout", "inferences")
-_TERM_KEYWORDS = (*_SOURCE_KEYWORDS, "under", "theory", "interpreter")
+# begin generated evaluation keywords
+# closed-set: generated; by=extensions/python/tools/doorgen.py; lane=door-sync
+_TERM_KEYWORDS = ('timeout', 'inferences', 'under', 'theory', 'interpreter', 'answer', 'delivery', 'limit', 'image', 'on_error', 'determinism')
+# end generated evaluation keywords
 _STATUS_KEYWORDS = (*_SOURCE_KEYWORDS, "theory", "interpreter")
 _MATCH_KEYWORDS = (*_SOURCE_KEYWORDS, "where", "limit", "under", "into")
 _EXTENSION_KEYWORDS = (*_SOURCE_KEYWORDS, "extension", "names")
@@ -1211,12 +1217,12 @@ class Space(Handle):
     # ------------------------------------------------------------------ naming
 
     @property
-    def name(self) -> _SpaceId:
+    def _door_name(self) -> _SpaceId:
         """The live engine name represented by this handle."""
         return self._space
 
     @property
-    def self(self) -> Space:
+    def _door_self(self) -> Space:
         """The space this receiver's doors work in, which for a space is itself.
 
         MeTTa's own `&self` is the space a form is evaluated in, and a form
@@ -1268,7 +1274,7 @@ class Space(Handle):
             )
         return handle
 
-    def space_names(self) -> list[str]:
+    def _door_space_names(self) -> list[str]:
         """Every space name this engine registers, sorted: '&self' and
         '&metta' from boot, every native space something created or wrote to,
         and every foreign space currently bound. (new-space) and (spawn ...)
@@ -1327,7 +1333,7 @@ class Space(Handle):
         fresh._autodrop = True
         return fresh
 
-    def drop(self) -> None:
+    def _door_drop(self) -> None:
         """Clear this space and release an anonymous name for reuse.
 
         Dropping retires every space-owned catalog declaration, including
@@ -1404,7 +1410,7 @@ class Space(Handle):
         self._dropped = True
 
     @property
-    def dropped(self) -> bool:
+    def _door_dropped(self) -> bool:
         """Whether :meth:`drop` has released this handle's space."""
         return self._dropped
 
@@ -1456,14 +1462,14 @@ class Space(Handle):
             return hash(self._name_atom)
         return hash(("sym", self._name))
 
-    def to_wire(self) -> list:
+    def _door_to_wire(self) -> list:
         """Encode the live engine reference as a portable space operand."""
         if isinstance(self._name_atom, Expression):
             return self._name_atom.to_wire()
         return ["p", str(self._space)]
 
     @property
-    def metatype(self) -> str:
+    def _door_metatype(self) -> str:
         return "Grounded"
 
     def __reduce__(self):
@@ -1478,7 +1484,7 @@ class Space(Handle):
         )
         raise TypeError(msg)
 
-    def bind(
+    def _door_bind(
         self,
         values: _abc.Mapping[str, Any] | None = None,
         /,
@@ -1515,7 +1521,7 @@ class Space(Handle):
 
     # ----------------------------------------------------------------- running
 
-    def run(
+    def _door_run(
         self,
         source: str | TemplateLike,
         /,
@@ -1597,7 +1603,7 @@ class Space(Handle):
         finally:
             _invalidate_builtins_cache(self._rt)
 
-    def explain(
+    def _door_explain(
         self,
         query: Any,
         /,
@@ -1718,7 +1724,7 @@ class Space(Handle):
         )
         raise ValueError(msg)
 
-    def profile(
+    def _door_profile(
         self,
         source: str | TemplateLike,
         /,
@@ -1758,7 +1764,7 @@ class Space(Handle):
             inferences=inferences,
         )
 
-    def profile_extension(
+    def _door_profile_extension(
         self,
         source: str | TemplateLike,
         /,
@@ -1831,7 +1837,7 @@ class Space(Handle):
             )["Names"]
         )
 
-    def save(
+    def _door_save(
         self,
         path: str | os.PathLike[str],
         *,
@@ -1873,7 +1879,7 @@ class Space(Handle):
             inferences=inferences,
         )
 
-    def source(self) -> str:
+    def _door_source(self) -> str:
         """Return this space's directly stored atoms as loadable MeTTa text.
 
         This is exactly the text that ``save(path, format="metta")`` writes:
@@ -1887,7 +1893,7 @@ class Space(Handle):
         """
         return source_space(self._rt, self._space)
 
-    def load(
+    def _door_load(
         self,
         path: str | os.PathLike[str],
         *,
@@ -1947,7 +1953,7 @@ class Space(Handle):
         finally:
             _invalidate_builtins_cache(self._rt)
 
-    def parse(self, source: str | TemplateLike, /, **values: Any) -> Atom:
+    def _door_parse(self, source: str | TemplateLike, /, **values: Any) -> Atom:
         """Read one form into an atom without evaluating it.
 
         Holes work here as they do at run(), and land in the term this
@@ -1957,7 +1963,7 @@ class Space(Handle):
         """
         return parse(source, **values)
 
-    def register_token(
+    def _door_register_token(
         self,
         pattern: str | _re.Pattern[str],
         constructor: Callable[[str], Any],
@@ -1979,7 +1985,7 @@ class Space(Handle):
             Constructor=constructor,
         )
 
-    def unregister_token(self, pattern: str | _re.Pattern[str]) -> None:
+    def _door_unregister_token(self, pattern: str | _re.Pattern[str]) -> None:
         """Remove a reader-token class; an absent pattern is already removed."""
         self._rt.must(
             "metta_py_unregister_token(Pattern)", Pattern=_reader_pattern(pattern)
@@ -1987,7 +1993,7 @@ class Space(Handle):
 
     # ------------------------------------------------------------- space edits
 
-    def add(self, *atoms: Any) -> None:
+    def _door_add(self, *atoms: Any) -> None:
         """Add atoms to this space, one engine round-trip for the lot.
         An (= ...) atom compiles as an equation. Every Atom shape crosses
         unchanged, including a bare Symbol, Grounded value, and empty
@@ -2056,7 +2062,7 @@ class Space(Handle):
             run_void_write(self._rt, "metta_py_add_many", self._space, wires)
         _invalidate_builtins_cache(self._rt)
 
-    def remove(self, atom: Any, *more: Any) -> bool | int:
+    def _door_remove(self, atom: Any, *more: Any) -> bool | int:
         """Remove ONE unifying occurrence and say whether one was there,
         which is Python's own `list.remove` grain.
 
@@ -2107,7 +2113,7 @@ class Space(Handle):
         _invalidate_builtins_cache(self._rt)
         return bool(getattr(result, "value", True))
 
-    def transfer(self, *atoms: Any, to: Space) -> int:
+    def _door_transfer(self, *atoms: Any, to: Space) -> int:
         """Move ONE unifying occurrence of each atom into another space.
 
         Variadic and atomic: however many atoms ride the call, one engine
@@ -2128,12 +2134,12 @@ class Space(Handle):
         _invalidate_builtins_cache(self._rt)
         return int(moved)
 
-    def atoms(self) -> list[Atom]:
+    def _door_atoms(self) -> list[Atom]:
         """Every stored atom in this space."""
         wires = self._rt.apply_must("metta_py_atoms", self._space)
         return [_atom_from_wire(w) for w in wires]
 
-    def peek(
+    def _door_peek(
         self, pattern: Any, *, where: Any | None = None, deadline: float | None = None
     ) -> Atom:
         """Wait for one matching atom and leave it in this space.
@@ -2149,7 +2155,7 @@ class Space(Handle):
         """
         return self._wait_for_atom("peek-atom", pattern, where, deadline)
 
-    def take(
+    def _door_take(
         self, pattern: Any, *, where: Any | None = None, deadline: float | None = None
     ) -> Atom:
         """Wait for and remove exactly one matching atom from this space.
@@ -2231,18 +2237,18 @@ class Space(Handle):
     # https://github.com/python/typing/blob/44f42629df028aebb783917a393172e4234ad2e7/docs/spec/overload.rst#L150-L160;
     # commit=162214d7a703e9108dd2422f4f18f3b9c007d367]
     @overload
-    def cast(self, type_: _builtins.type[_CastT], /) -> _CastT: ...
+    def _door_cast(self, type_: _builtins.type[_CastT], /) -> _CastT: ...
 
     @overload
-    def cast(self, type_: Atom | str, /) -> Any: ...
+    def _door_cast(self, type_: Atom | str, /) -> Any: ...
 
     @overload
-    def cast(self, value: Any, type_: _builtins.type[_CastT], /) -> _CastT: ...
+    def _door_cast(self, value: Any, type_: _builtins.type[_CastT], /) -> _CastT: ...
 
     @overload
-    def cast(self, value: Any, type_: Atom | str, /) -> Any: ...
+    def _door_cast(self, value: Any, type_: Atom | str, /) -> Any: ...
 
-    def cast(self, value: Any, type_: Any = ..., /) -> Any:
+    def _door_cast(self, value: Any, type_: Any = ..., /) -> Any:
         """Cast this space atom ambiently with one argument, or answer value
         narrowed by this space's type discipline with two arguments. The
         explicit form has the same acceptance a typed call compiles, ':'
@@ -2253,7 +2259,7 @@ class Space(Handle):
             return super().cast(value)
         return _satellite("convert").cast(self, value, type_)
 
-    def trace(
+    def _door_trace(
         self,
         source: Atom | str,
         max_events: int | None = None,
@@ -2286,7 +2292,7 @@ class Space(Handle):
             timeout=timeout, inferences=inferences
         )
 
-    def debug(
+    def _door_debug(
         self,
         source: Atom | str,
         *,
@@ -2331,7 +2337,7 @@ class Space(Handle):
         )
 
 
-    def record(
+    def _door_record(
         self,
         source: Atom | str,
         *,
@@ -2373,7 +2379,7 @@ class Space(Handle):
             bound=_RUN_BINDINGS.get(),
         )
 
-    def lint(self) -> list[Finding]:
+    def _door_lint(self) -> list[Finding]:
         """Diagnose this space for the silently-wrong class: declared
         types nothing defines, arity mismatches, unbound body variables,
         duplicate equations, and references no function or fact carries.
@@ -2382,7 +2388,7 @@ class Space(Handle):
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         return _satellite("lint").lint(self)
 
-    def effect_plan(self, target: Any) -> _ops_module.EffectPlan:
+    def _door_effect_plan(self, target: Any) -> _ops_module.EffectPlan:
         """Return operations the target may execute and their joined effect.
 
         The engine translates the same atom or source form ``eval`` accepts,
@@ -2402,7 +2408,7 @@ class Space(Handle):
         )
         return _ops_module.EffectPlan(operations, EffectClass(str(effect)))
 
-    def copy(self) -> Space:
+    def _door_copy(self) -> Space:
         """This space's contents in a new anonymous space, cloned through
         one bulk write, so equations copy as equations and keep running:
         "a scratch space set up like production" is one line. The handle
@@ -2433,21 +2439,21 @@ class Space(Handle):
                 raise
         return clone
 
-    __copy__ = copy
+    __copy__ = _door_copy
 
-    def reify(self):
+    def _door_reify(self):
         """Capture this space as an immutable, independently evaluable world."""
         from ._world import reify_space  # noqa: PLC0415 -- avoids the Space type cycle
 
         return reify_space(self)
 
-    def commit(self, world: Any) -> None:
+    def _door_commit(self, world: Any) -> None:
         """Apply one reified world's diff through this originating space."""
         from ._world import commit_world  # noqa: PLC0415 -- avoids the Space type cycle
 
         commit_world(self, world)
 
-    def digest(self) -> str:
+    def _door_digest(self) -> str:
         """A sha256 hex digest of this space's content: every stored atom,
         equations included, canonicalized (variables numbered, multiset
         sorted) so the same atoms answer the same digest in any insertion
@@ -2478,14 +2484,14 @@ class Space(Handle):
             raise EngineError(msg)
         return str(value)
 
-    def __len__(self) -> int:
+    def _door___len__(self) -> int:
         provider_length = _satellite("foreign")._provider_length(self._space)
         if provider_length is not None:
             return provider_length
         row = self._rt.once("metta_py_count(Space, N)", Space=self._space)
         return int(row["N"])
 
-    def __bool__(self) -> bool:
+    def _door___bool__(self) -> bool:
         """Always true: a space is a handle to a store, not a value that
         dwindles. Without this, bool() falls through to __len__ and an
         empty space is falsy, so `if space:` skips a perfectly good empty
@@ -2495,10 +2501,10 @@ class Space(Handle):
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         return True
 
-    def __contains__(self, atom: Any) -> bool:
+    def _door___contains__(self, atom: Any) -> bool:
         return self._rt.do("metta_py_contains", self._space, _to_atom(atom).to_wire())
 
-    def clear(self) -> None:
+    def _door_clear(self) -> None:
         """Remove everything stored here, compiled equations included."""
         _refuse_in_batch(self._space, "clear")
         clear_definitions(self)
@@ -2506,7 +2512,7 @@ class Space(Handle):
         _invalidate_builtins_cache(self._rt)
 
     # A handle mutates its store while an atom's + constructs a term.
-    def __iadd__(self, atom: Any) -> Self:  # type: ignore[override]
+    def _door___iadd__(self, atom: Any) -> Self:
         """add()'s operator spelling for one atom or one fact stream.
 
         ``m += (S.Edge, a, b)`` adds one fact. ``m += [(S.Edge, a, b),
@@ -2564,7 +2570,7 @@ class Space(Handle):
         return False
 
     # A handle mutates its store while an atom's - constructs a term.
-    def __isub__(self, atom: Any) -> Self:  # type: ignore[override]
+    def _door___isub__(self, atom: Any) -> Self:
         # -= is in-place DIFFERENCE over a MULTISET, and Python's own multiset
         # is collections.Counter, whose -= subtracts the multiplicity given
         # rather than clearing the key: Counter(a=3) -= Counter(a=1) leaves
@@ -2599,7 +2605,7 @@ class Space(Handle):
         return self
 
     # A handle merges stores while an atom's | constructs a term.
-    def __ior__(self, other: Any) -> Self:  # type: ignore[override]
+    def _door___ior__(self, other: Any) -> Self:
         """Merge into this space in one bulk crossing: every atom of
         another space, of a registered space name, or of an iterable.
 
@@ -2653,7 +2659,7 @@ class Space(Handle):
         self.add(*merged)
         return self
 
-    def __iter__(self):
+    def _door___iter__(self):
         """Iterate one assembly-order snapshot of the stored atoms.
 
         A native or inherited-native space materializes its readable chain
@@ -2665,7 +2671,7 @@ class Space(Handle):
         """
         return iter(self.atoms())
 
-    def __getitem__(self, i: Any) -> Rows:
+    def _door___getitem__(self, i: Any) -> Rows:
         """Subscription is query. A tuple headed by an atom is one built
         expression pattern; a tuple of complete expression patterns is a join:
 
@@ -2706,7 +2712,7 @@ class Space(Handle):
             return self.match(*pattern)
         return self.match(pattern)
 
-    def __delitem__(self, pattern: Any) -> None:
+    def _door___delitem__(self, pattern: Any) -> None:
         """Del m[pattern] removes every unifying occurrence, the bulk
         spelling of remove()'s multiset subtraction: m[pattern] is a
         query answering many rows, so deleting it deletes them all, the
@@ -2727,7 +2733,7 @@ class Space(Handle):
 
     # ----------------------------------------------------------------- queries
 
-    def match(
+    def _door_match(
         self,
         *patterns: Any,
         where: Any | None = None,
@@ -3081,7 +3087,7 @@ class Space(Handle):
             target=patterns,
         )
 
-    def stream(
+    def _door_stream(
         self,
         *patterns: Any,
         where: Any | None = None,
@@ -3152,7 +3158,7 @@ class Space(Handle):
             ),
         )
 
-    def assuming(self, *facts: Any) -> _Assuming:
+    def _door_assuming(self, *facts: Any) -> _Assuming:
         """Facts held only inside a with-block: the assumptions reading of
         a what-if query, added on entry, removed on exit, exceptions
         included.
@@ -3163,12 +3169,12 @@ class Space(Handle):
         return _Assuming(self, [_to_atom(f) for f in facts])
 
     @overload
-    def transaction(self, target: Callable[[], _R], /) -> _R: ...
+    def _door_transaction(self, target: Callable[[], _R], /) -> _R: ...
 
     @overload
-    def transaction(self, target: Atom | str, /) -> list[Atom | Undefined]: ...
+    def _door_transaction(self, target: Atom | str, /) -> list[Atom | Undefined]: ...
 
-    def transaction(self, target: Callable[[], _R] | Any, /) -> Any:
+    def _door_transaction(self, target: Callable[[], _R] | Any, /) -> Any:
         """Run one callable or term inside a closed engine transaction.
 
         The two inputs preserve their native failure laws. A zero-argument
@@ -3246,7 +3252,7 @@ class Space(Handle):
                 )
         return cast("_R", answer[0] if answer else None)
 
-    def saga(self, receipts: Space):
+    def _door_saga(self, receipts: Space):
         """Open a committed-receipt saga over this execution space.
 
         ``receipts`` is an ordinary space that stores ``(did op args result)``
@@ -3272,7 +3278,7 @@ class Space(Handle):
             raise TypeError(msg)
         return Saga(self, receipts)
 
-    def solve(self, pattern: Any, subject: Any) -> Any:
+    def _door_solve(self, pattern: Any, subject: Any) -> Any:
         """Run relational ``let`` and return bindings keyed by its variables.
 
         ``solve(4, V.x - 1).x`` places the known value on let's pattern side,
@@ -3298,7 +3304,7 @@ class Space(Handle):
         )
         return solve_rows(columns, cast(list[Atom], answers))
 
-    def watch(
+    def _door_watch(
         self,
         pattern: Any,
         *,
@@ -3319,7 +3325,7 @@ class Space(Handle):
             deadline,
         )
 
-    def limits(
+    def _door_limits(
         self,
         *,
         timeout: float | None = None,
@@ -3345,7 +3351,7 @@ class Space(Handle):
         """  # noqa: D415  -- the first line deliberately introduces the indented example that follows
         return ScopedLimits(timeout, inferences, stack)
 
-    def capture(self) -> CapturedOutput:
+    def _door_capture(self) -> CapturedOutput:
         r"""Collect printed engine text without changing answer shapes.
 
         with m.capture() as output:
@@ -3355,7 +3361,7 @@ class Space(Handle):
         """
         return capture_output()
 
-    def atomic(self) -> ScopedExecution:
+    def _door_atomic(self) -> ScopedExecution:
         """Make each CALL in the block one committing engine transaction.
 
         Per call, the write doors included: ``m.add(a, b)`` inside the block
@@ -3368,7 +3374,7 @@ class Space(Handle):
         """
         return execution_scope("atomic")
 
-    def speculative(self) -> ScopedExecution:
+    def _door_speculative(self) -> ScopedExecution:
         """Run each CALL against a snapshot and discard its writes.
 
         Per call, the write doors included: ``m.add(atom)`` inside the block
@@ -3378,7 +3384,7 @@ class Space(Handle):
         """
         return execution_scope("speculative")
 
-    def batch(self) -> _Batch:
+    def _door_batch(self) -> _Batch:
         """Collect this space's add() calls and cross once at exit:
 
             with m.batch():
@@ -3400,7 +3406,7 @@ class Space(Handle):
         """  # noqa: D415  -- the first line deliberately introduces the indented example that follows
         return _Batch(self)
 
-    def transactional(self, fn: Callable[_P, _R], /) -> Callable[_P, _R]:
+    def _door_transactional(self, fn: Callable[_P, _R], /) -> Callable[_P, _R]:
         """transaction()'s decorator twin, the atomic shape Django made
         familiar: each CALL of the wrapped function runs inside its own
         engine transaction. Decorating runs nothing, exactly as a
@@ -3421,7 +3427,7 @@ class Space(Handle):
 
         return wrapper
 
-    def prepare(self, *patterns: Any, where: Any | None = None) -> Prepared:
+    def _door_prepare(self, *patterns: Any, where: Any | None = None) -> Prepared:
         """A query whose shape is fixed and whose facts are not: the wire
         form and columns build once, and each solve() may bring per-call
         facts (given=) that leave nothing behind.
@@ -3439,46 +3445,83 @@ class Space(Handle):
     # -------------------------------------------------------------- evaluation
 
     @overload
-    def eval(
+    def _door_eval(
+        self, target: Any, /, *more: Any,
+        timeout: float | None = None, inferences: int | None = None,
+        under: Any = _UNSET, theory: Any | None = None,
+        interpreter: Any | None = None, answer: EvaluationAnswer | str = "all",
+        delivery: ArgumentDelivery | str, limit: int | None = None,
+        image: ImageMode | str | None = None, on_error: OnError | str = "keep",
+        determinism: Determinism | str = "nondet", **values: Any,
+    ) -> Any: ...
+
+    @overload
+    def _door_eval(
+        self,
+        target: Any,
+        /,
+        *more: Any,
+        timeout: float | None=None,
+        inferences: int | None=None,
+        under: Any=_UNSET,
+        theory: Any | None=None,
+        interpreter: Any | None=None,
+        answer: EvaluationAnswer | str,
+        delivery: ArgumentDelivery | str = "atoms",
+        limit: int | None = None,
+        image: ImageMode | str | None = None,
+        on_error: OnError | str = "keep",
+        determinism: Determinism | str = "nondet",
+        **values: Any,
+    ) -> Any: ...
+
+    @overload
+    def _door_eval(
         self,
         target: Any,
         /,
         *,
-        timeout: float | None = ...,
-        inferences: int | None = ...,
-        under: Any = ...,
-        theory: Any | None = ...,
-        interpreter: Any | None = ...,
+        timeout: float | None=...,
+        inferences: int | None=...,
+        under: Any=...,
+        theory: Any | None=...,
+        interpreter: Any | None=...,
         **values: Any,
     ) -> list[Atom | Undefined]: ...
 
     @overload
-    def eval(
+    def _door_eval(
         self,
         target: Any,
         _second: Any,
         /,
         *more: Any,
-        timeout: float | None = ...,
-        inferences: int | None = ...,
-        under: Any = ...,
-        theory: Any | None = ...,
-        interpreter: Any | None = ...,
+        timeout: float | None=...,
+        inferences: int | None=...,
+        under: Any=...,
+        theory: Any | None=...,
+        interpreter: Any | None=...,
         **values: Any,
     ) -> list[list[Atom | Undefined]]: ...
 
-    def eval(
+    def _door_eval(
         self,
         target: Any,
         /,
         *more: Any,
-        timeout: float | None = None,
-        inferences: int | None = None,
-        under: Any = _UNSET,
-        theory: Any | None = None,
-        interpreter: Any | None = None,
+        timeout: float | None=None,
+        inferences: int | None=None,
+        under: Any=_UNSET,
+        theory: Any | None=None,
+        interpreter: Any | None=None,
+        answer: EvaluationAnswer | str = "all",
+        delivery: ArgumentDelivery | str = "atoms",
+        limit: int | None = None,
+        image: ImageMode | str | None = None,
+        on_error: OnError | str = "keep",
+        determinism: Determinism | str = "nondet",
         **values: Any,
-    ) -> list[Atom | Undefined] | list[list[Atom | Undefined]]:
+    ) -> Any:
         """Evaluate a term, returning every answer.
 
         This is what !(...) runs, minus the printing: the engine's
@@ -3528,11 +3571,38 @@ class Space(Handle):
         surrounding `with metta.under(carrier)` reaches here too, which it did
         not before: match() and answers() both honoured such a scope while
         eval() ignored it in silence.
+
+        The answer, delivery, limit, image, on_error and determinism options
+        select one evaluation contract. answer=answers retains a replayable
+        cursor; answer=stream returns a closable single-pass stream. count,
+        exists and none consume only the requested shape. A determinism
+        promise is checked before a limit truncates the answers. Image
+        projection publishes the type declarations its values require.
         """
         _record_sync_engine_call(self, "eval", sys._getframe(1))
         grouped, holes = _read_targets(
             (target, *more), values, called="eval", reserved=_TERM_KEYWORDS
         )
+        if (answer != "all" or delivery != "atoms" or limit is not None
+                or image is not None or on_error != "keep" or determinism != "nondet"):
+            from ._evaluation_door import (  # noqa: PLC0415 -- load selection policies only for explicit options
+                evaluate as select_evaluation,
+            )
+
+            prepared = [self._prepared_ask(_held(each, holes, handed_on=True), None) for each in grouped]
+            targets = tuple(_substituted(each, using) if using else each for each, using in prepared)
+            # Capture bindings once before a cursor can outlive their scope.
+            # Applying an alias chain twice would turn a -> b into a -> c.
+            token = _RUN_BINDINGS.set(None)
+            try:
+                return select_evaluation(
+                    self, targets, answer=answer, delivery=delivery, limit=limit,
+                    image=image, on_error=on_error, determinism=determinism,
+                    timeout=timeout, inferences=inferences, under=under,
+                    theory=theory, interpreter=interpreter,
+                )
+            finally:
+                _RUN_BINDINGS.reset(token)
         handed_on = (
             theory is not None
             or interpreter is not None
@@ -3596,7 +3666,7 @@ class Space(Handle):
             self._rt, self._space, target, timeout, inferences, using=using
         )
 
-    def answers(
+    def _door_answers(
         self,
         target: Any,
         /,
@@ -3933,7 +4003,7 @@ class Space(Handle):
             msg = f"theory= contains a value that is not an atom: {error}"
             raise TypeError(msg) from error
 
-    def parallel(
+    def _door_parallel(
         self,
         *targets: Any,
         timeout: float | None = None,
@@ -3984,7 +4054,7 @@ class Space(Handle):
             None,
         )
 
-    def pool(self, workers: int | None = None) -> Any:
+    def _door_pool(self, workers: int | None = None) -> Any:
         """A pool of worker threads that each hold their own Prolog engine.
 
         The Python-side twin of `parallel()`. Each worker attaches its own
@@ -4005,7 +4075,7 @@ class Space(Handle):
         """
         return _satellite("parallel").EnginePool(workers)
 
-    def reducible(self, target: Any) -> bool:
+    def _door_reducible(self, target: Any) -> bool:
         """Whether a head reduces here, asked without evaluating anything.
 
             m.reducible(S.double(4))     # True
@@ -4030,7 +4100,7 @@ class Space(Handle):
             == "true"
         )
 
-    def eval_status(
+    def _door_eval_status(
         self,
         target: Any,
         /,
@@ -4095,7 +4165,7 @@ class Space(Handle):
             )
         raise AssertionError  # pragma: no cover -- _in_theory always yields once
 
-    def run_status(
+    def _door_run_status(
         self,
         source: str,
         *,
@@ -4136,9 +4206,10 @@ class Space(Handle):
         failure, and failure outranks the count. eval() is the method
         that keeps errors as data.
         """
-        answers = self.eval(target, timeout=timeout, inferences=inferences)
-        raise_error_answers(answers, space=self._space, target=target)
-        return value_one(target, answers)
+        return self.eval(
+            target, timeout=timeout, inferences=inferences,
+            answer="one", delivery="values", on_error="abort",
+        )
 
     def _first(
         self,
@@ -4158,13 +4229,12 @@ class Space(Handle):
         does, because None must keep meaning "no answers" and an error
         used as a value is the silent kind of wrong.
         """
-        answers = self.eval(target, timeout=timeout, inferences=inferences)
-        if not answers:
-            return None
-        raise_error_answers(answers[:1], space=self._space, target=target)
-        return value_one(target, answers[:1])
+        return self.eval(
+            target, timeout=timeout, inferences=inferences,
+            answer="first", delivery="values", on_error="abort",
+        )
 
-    def stats(self) -> _StatsBlock:
+    def _door_stats(self) -> _StatsBlock:
         """The engine's own counters over a with-block, as deltas.
 
             with m.stats() as s:
@@ -4200,7 +4270,7 @@ class Space(Handle):
     # "breed(a, b) takes one argument" in evolutionary_search.py
     # [measured 2026-08-17].
     @overload
-    def op(
+    def _door_op(
         self,
         fn: Callable[_P, _R],
         /,
@@ -4215,7 +4285,7 @@ class Space(Handle):
     ) -> Callable[_P, _R]: ...
 
     @overload
-    def op(
+    def _door_op(
         self,
         *,
         name: str | None = ...,
@@ -4227,7 +4297,7 @@ class Space(Handle):
         inverse: Callable | None = ...,
     ) -> Callable[[Callable[_P, _R]], Callable[_P, _R]]: ...
 
-    def op(
+    def _door_op(
         self,
         fn: Callable | None = None,
         *,
@@ -4413,7 +4483,7 @@ class Space(Handle):
             return self.op(effect=effect, **options)
         return self.op(fn, effect=effect, **options)
 
-    def pure(self, fn: Callable | None = None, /, **options: Any) -> Any:
+    def _door_pure(self, fn: Callable | None = None, /, **options: Any) -> Any:
         """An operation whose answer depends only on its arguments.
 
             @m.pure
@@ -4439,7 +4509,7 @@ class Space(Handle):
         """
         return self._classified(fn, EffectClass.pureStructural, options)
 
-    def reads(self, fn: Callable | None = None, /, **options: Any) -> Any:
+    def _door_reads(self, fn: Callable | None = None, /, **options: Any) -> Any:
         """An operation that reads stable state without changing it.
 
         Every ``op`` keyword applies: ``name``, ``arities``,
@@ -4449,7 +4519,7 @@ class Space(Handle):
         """
         return self._classified(fn, EffectClass.readOnlyLookup, options)
 
-    def writes(self, fn: Callable | None = None, /, **options: Any) -> Any:
+    def _door_writes(self, fn: Callable | None = None, /, **options: Any) -> Any:
         """An operation that changes engine or host state.
 
         Every ``op`` keyword applies: ``name``, ``arities``,
@@ -4459,7 +4529,7 @@ class Space(Handle):
         """
         return self._classified(fn, EffectClass.writesState, options)
 
-    def io(self, fn: Callable | None = None, /, **options: Any) -> Any:
+    def _door_io(self, fn: Callable | None = None, /, **options: Any) -> Any:
         """An operation that observes an external oracle.
 
         A clock, randomness, a network, a file, another runtime.
@@ -4478,7 +4548,7 @@ class Space(Handle):
         """
         return self._classified(fn, EffectClass.oracleIO, options)
 
-    def unregister_op(self, name: str) -> None:
+    def _door_unregister_op(self, name: str) -> None:
         """Remove a registered operation, every arity of it.
 
         An absent name raises KeyError, as convert.unregister_type does:
@@ -4490,7 +4560,7 @@ class Space(Handle):
 
     # -------------------------------------------------------------- inspection
 
-    def builtins(self) -> list[str]:
+    def _door_builtins(self) -> list[str]:
         """Every function callable from this space, plus every special form.
 
         Its own equations, the ones it inherits, ``&self``'s shared ones and
@@ -4525,7 +4595,7 @@ class Space(Handle):
             stacklevel=stacklevel,
         )
 
-    def is_function(self, name: str) -> bool:
+    def _door_is_function(self, name: str) -> bool:
         """Report whether the name is registered as a function anywhere.
 
         This is the translator's call-or-data question and holds wherever a
@@ -4543,7 +4613,7 @@ class Space(Handle):
             )
         )
 
-    def is_function_here(self, name: str) -> bool:
+    def _door_is_function_here(self, name: str) -> bool:
         """Whether a function would answer from THIS space: it has clauses
         this space's module sees, its own or the shared ones in user.
         Another space's equations are invisible here and do not count.
@@ -4575,7 +4645,7 @@ class Space(Handle):
             )
         )
 
-    def arities(self, name: str) -> list[int]:
+    def _door_arities(self, name: str) -> list[int]:
         """Compiled predicate arities for a name: MeTTa arity plus one each."""
         row = self._rt.once("metta_py_arities(Name, As)", Name=name)
         return list(row.get("As", []))
@@ -4602,7 +4672,7 @@ class Space(Handle):
             )
         return str(row["Text"])
 
-    def register_prolog(
+    def _door_register_prolog(
         self,
         source: str | None = None,
         *,
@@ -4844,7 +4914,7 @@ class Space(Handle):
             )
         return declared
 
-    def register_foreign_library(
+    def _door_register_foreign_library(
         self,
         path: str | os.PathLike[str],
         *,
@@ -4892,7 +4962,7 @@ class Space(Handle):
             f":- use_module(library(shlib)).\n:- {load}.\n", names=names
         )
 
-    def register_library_path(self, directory: Any, name: str) -> None:
+    def _door_register_library_path(self, directory: Any, name: str) -> None:
         """Point MeTTa at a directory of files your package ships.
 
             # in your package's __init__
@@ -4919,7 +4989,7 @@ class Space(Handle):
             Directory=os.fspath(directory),
         )
 
-    def unregister_prolog(self, extension: str) -> tuple[str, ...]:
+    def _door_unregister_prolog(self, extension: str) -> tuple[str, ...]:
         """Release everything one extension registered, and its clauses.
 
         The unit is the extension, not the name. `register_prolog` used to
@@ -4954,7 +5024,7 @@ class Space(Handle):
 
     # ----------------------------------------------------------- subscriptions
 
-    def subscribe(
+    def _door_subscribe(
         self,
         pattern: Any,
         callback: Callable | None = None,
@@ -5016,47 +5086,6 @@ class Space(Handle):
             ),
         )
 
-    def live(
-        self,
-        *query: Any,
-        on: SubscriptionEdge = SubscriptionEdge.both,
-        strategy: str | None = None,
-    ) -> Any:
-        """A materialised view of a query, current with this space's writes.
-
-            alerts = m.live(S.alert(V.level))
-            len(alerts)                      # no engine call
-            S.alert(S.red) in alerts         # no engine call
-            alerts.rows                      # what m.match(...) would answer
-
-        The query is one pattern, a conjunction of patterns spelled the way
-        `match` spells one, or a call to a TABLED head, and the answer is a
-        multiset exactly as `match`'s is. `for delta in view.changes(timeout=)`
-        reads the same view as a stream of `metta.live.Delta`, where a
-        `progress` delta after each committed segment says which generation
-        the view is current to, and `async for` reads the same stream under
-        `aio`.
-
-        `strategy=` names the maintenance and defaults to the query's shape:
-        `pattern` maintains one pattern's multiset from the write events, O(1)
-        per event; `heads` watches the heads the query mentions and re-answers
-        it once per commit that touched one; `tabled` serves a call by
-        watching its own table's invalidation counter. `view.strategy` reports
-        which is in force.
-
-        `on=` is the subscription edge underneath, "both" by default because a
-        view that ignored removals would drift.
-
-        The longhand is `metta.live.Live(m, *query)`, and the rung below
-        that is `subscribe` plus `match`: a view is the subscription that
-        maintains what the match would have answered.
-        """
-        return _satellite("live").Live(
-            self,
-            *(_to_atom(part) for part in query),
-            on=on,
-            strategy=strategy,
-        )
 
     def _event_stream(self) -> Any:
         """This engine's stream of `(action, space, atom)` changes.
@@ -5078,7 +5107,7 @@ class Space(Handle):
         """
         return _satellite("events").stream(self._rt)
 
-    def prolog(self) -> None:
+    def _door_prolog(self) -> None:
         """Drop into the engine's own interactive Prolog toplevel, the
         deepest debugging lever there is: listing/1 shows compiled
         equations, trace/0 steps through them, and quitting the toplevel
@@ -5096,7 +5125,7 @@ class Space(Handle):
 
     # ------------------------------------------------------------- diagnostics
 
-    def derivation(
+    def _door_derivation(
         self,
         target: Any,
         depth: int | None = None,
@@ -5142,7 +5171,7 @@ class Space(Handle):
             inferences=inferences,
         )
 
-    def why(self, pattern: Any, *, where: Any | None = None) -> str:
+    def _door_why(self, pattern: Any, *, where: Any | None = None) -> str:
         """Why a pattern matches nothing here, in words.
 
         Checks the cheap explanations in order: unknown function, wrong
@@ -5187,7 +5216,7 @@ class Space(Handle):
     # [tested: mypy-class-door; commit=dd4f82100a052e2c5254a2ef9e91f6eb9d2e0c49].
     @overload
     @dataclass_transform(eq_default=False)
-    def define(  # type: ignore[overload-overlap]
+    def _door_define(  # type: ignore[overload-overlap]
         self,
         fn: _builtins.type[_T],
         /,
@@ -5197,7 +5226,7 @@ class Space(Handle):
     ) -> _builtins.type[_T]: ...
 
     @overload
-    def define(
+    def _door_define(
         self,
         fn: Callable[_P, _R],
         /,
@@ -5208,16 +5237,16 @@ class Space(Handle):
     ) -> Defined[_P, _R]: ...
 
     @overload
-    def define(
+    def _door_define(
         self, *, name: str
     ) -> Callable[[Callable[_P, _R]], Defined[_P, _R]]: ...
 
     @overload
-    def define(
+    def _door_define(
         self, *, prolog: str | os.PathLike[str], name: str | None = None
     ) -> Callable[[Callable[_P, _R]], PrologBacked[_P, _R]]: ...
 
-    def define(
+    def _door_define(
         self,
         fn: Callable[..., Any] | None = None,
         *,
@@ -5306,13 +5335,13 @@ class Space(Handle):
         # [tested test_define_refuses_callable_objects].
         return install_define(self, fn, name)
 
-    def rules(self, fn: Callable[..., Any]) -> _Rules:
+    def _door_rules(self, fn: Callable[..., Any]) -> _Rules:
         """Collect and land a non-exclusive equation bundle in this space."""
         bundle = _collect_rules(fn)
         self += bundle
         return bundle
 
-    def pre_add(self, fn: Defined[..., Any] | Callable[..., Any]) -> Defined[..., Any]:
+    def _door_pre_add(self, fn: Defined[..., Any] | Callable[..., Any]) -> Defined[..., Any]:
         """Compile or accept one unary judge and claim this space's write hook.
 
         The common decorator stack places ``@pre_add`` above ``@define``, so
@@ -5330,7 +5359,7 @@ class Space(Handle):
         )
         return handler
 
-    def type(self, atom: Any) -> Atom:
+    def _door_type(self, atom: Any) -> Atom:
         """Return this space's first ``get-type`` answer, including undefined."""
         answers = self.eval(Expression([Symbol("get-type"), _to_atom(atom)]))
         if not answers or not isinstance(answers[0], Atom):
@@ -5338,7 +5367,7 @@ class Space(Handle):
             raise EngineError(msg)
         return answers[0]
 
-    def infer_types(self, *, declare: bool = False) -> list[Atom]:
+    def _door_infer_types(self, *, declare: bool = False) -> list[Atom]:
         """Propose a `(: head (-> ...))` for every head here that has none.
 
             m.infer_types()                 # the proposals, nothing added
@@ -5382,7 +5411,7 @@ class Space(Handle):
             self.add(*proposals)
         return proposals
 
-    def doc(self, atom: Any) -> Atom:
+    def _door_doc(self, atom: Any) -> Atom:
         """Return this space's structured ``get-doc`` answer for one subject.
 
         The answer is the ``(@doc ...)`` atom the engine holds for the
@@ -5404,7 +5433,7 @@ class Space(Handle):
         return answers[0]
 
     @property
-    def fn(self) -> _FunctionNamespace:
+    def _door_fn(self) -> _FunctionNamespace:
         """Functions visible here, as bound attribute or exact-name handles.
 
             car = m.fn.car_atom
@@ -5419,7 +5448,7 @@ class Space(Handle):
 
     # ---------------------------------------------------------- integrations
 
-    def integrate(self, target: Any) -> str:
+    def _door_integrate(self, target: Any) -> str:
         """Install a library integration; see metta.integrate."""
         return _satellite("integrate").integrate(self, target)
 
@@ -5440,7 +5469,7 @@ class Space(Handle):
         """Remove a registered Python-backed space."""
         _satellite("foreign").unregister_provider(self._rt, name)
 
-    def handles(
+    def _door_handles(
         self,
         pattern: str | Atom,
         fidelity: Fidelity,
@@ -5488,7 +5517,7 @@ class Space(Handle):
         )
         return atom
 
-    def annotations(
+    def _door_annotations(
         self,
         subject_or_algebra: str,
         algebra: str | None = None,
@@ -5551,7 +5580,7 @@ class Space(Handle):
         catalog.add(atom)
         return atom
 
-    def algebra(
+    def _door_algebra(
         self,
         name: str,
         *,
@@ -5651,7 +5680,7 @@ class Space(Handle):
 
         return self._at("&metta").transaction(supersede)
 
-    def covers(self, effect: EffectClass | str) -> Atom:
+    def _door_covers(self, effect: EffectClass | str) -> Atom:
         """Declare the strongest effect this reified world can handle.
 
         Coverage is a catalog fact ``(covers <space> <effect>)``. World
@@ -5672,7 +5701,7 @@ class Space(Handle):
             "covers", (subject,), (Symbol(str(declared)),)
         )
 
-    def compensates(self, operation: str, compensation: str) -> Atom:
+    def _door_compensates(self, operation: str, compensation: str) -> Atom:
         """Declare one recovery operation for an effectful operation.
 
         The catalog row is ``(compensates operation compensation)``. The
@@ -5691,19 +5720,19 @@ class Space(Handle):
             "compensates", (Symbol(operation_name),), (Symbol(compensation_name),)
         )
 
-    def add_tagged_fact(self, tag: Any, proposition: Any) -> Atom:
+    def _door_add_tagged_fact(self, tag: Any, proposition: Any) -> Atom:
         """Store ``(fact tag proposition)``, the normative annotation form."""
         atom = _satellite("algebra").tagged_fact(tag, proposition)
         self.add(atom)
         return atom
 
-    def add_tagged_rule(self, tag: Any, head: Any, *premises: Any) -> Atom:
+    def _door_add_tagged_rule(self, tag: Any, head: Any, *premises: Any) -> Atom:
         """Store one rule generated by the algebra-agnostic tag threader."""
         atom = _satellite("algebra").tagged_rule(tag, head, *premises)
         self.add(atom)
         return atom
 
-    def image(
+    def _door_image(
         self,
         type_name: str,
         setting: ImageMode,
@@ -5724,7 +5753,7 @@ class Space(Handle):
             (Symbol(setting),)
         )
 
-    def sample(
+    def _door_sample(
         self,
         query: str | Atom,
         *,
@@ -5747,7 +5776,7 @@ class Space(Handle):
             )
         )
 
-    def consumption(
+    def _door_consumption(
         self,
         kind: SourceKind,
     ) -> Atom:
@@ -5768,7 +5797,7 @@ class Space(Handle):
             "source", (Symbol(str(self.name)),), (Symbol(kind),)
         )
 
-    def on_error(
+    def _door_on_error(
         self,
         subject_or_pattern: str | Atom,
         pattern_or_mode: str | Atom,
@@ -5797,7 +5826,7 @@ class Space(Handle):
         )
         return atom
 
-    def merge(
+    def _door_merge(
         self,
         pattern: str | Atom,
         policy: AnswerPolicy,
@@ -5820,7 +5849,7 @@ class Space(Handle):
         )
         return atom
 
-    def context(
+    def _door_context(
         self,
         world: World,
     ) -> Atom:
@@ -5837,7 +5866,7 @@ class Space(Handle):
             "context", (Symbol(str(self.name)),), (Symbol(world),)
         )
 
-    def agenda(
+    def _door_agenda(
         self,
         policy: AgendaPolicy,
         function: str | None = None,
@@ -5870,7 +5899,7 @@ class Space(Handle):
             "agenda", (Symbol(str(self.name)),), tuple(values), supersedes=(1, 2)
         )
 
-    def reacts(
+    def _door_reacts(
         self,
         pattern: str | Atom,
         operation: str | Atom,
@@ -5908,7 +5937,7 @@ class Space(Handle):
         self._rt.must("metta_install_bridges")
         return atom
 
-    def admits(self, type_name: str) -> Atom:
+    def _door_admits(self, type_name: str) -> Atom:
         """Type a pool's membership: only TYPE-carrying atoms enter.
 
         A thread pool is a space whose atoms are spaces, and this is its
@@ -5926,7 +5955,7 @@ class Space(Handle):
         )
         return atom
 
-    def capacity(self, limit: int) -> Atom:
+    def _door_capacity(self, limit: int) -> Atom:
         """Bound a pool: an add beyond LIMIT atoms is refused loudly."""
         if not isinstance(limit, int) or isinstance(limit, bool) or limit < 1:
             msg = f"capacity is a positive integer, not {limit!r}"
@@ -5941,7 +5970,7 @@ class Space(Handle):
         )
         return atom
 
-    def atomicity(
+    def _door_atomicity(
         self,
         atomicity: Atomicity,
     ) -> Atom:
@@ -5965,7 +5994,7 @@ class Space(Handle):
             "writes", (Symbol(str(self.name)),), (Symbol(atomicity),)
         )
 
-    def emits(
+    def _door_emits(
         self,
         policy: AnswerPolicy,
     ) -> Atom:
@@ -5981,7 +6010,7 @@ class Space(Handle):
             "emits", (Symbol(str(self.name)),), (Symbol(policy),)
         )
 
-    def events(
+    def _door_events(
         self,
         delivery: Delivery | None = None,
         order: EventOrder = EventOrder.unordered,
@@ -6014,12 +6043,12 @@ class Space(Handle):
     # ------------------------------------------------------------ interop
 
     @property
-    def runtime(self) -> Runtime:
+    def _door_runtime(self) -> Runtime:
         """The engine bridge itself, for callers going under the surface."""
         return self._rt
 
     @property
-    def metta(self) -> MeTTa:
+    def _door_metta(self) -> MeTTa:
         """The owning evaluation context, so a handle can reach every
         context-level method: ``m.metta.space(S.kb)`` creates a sibling space
         in THIS handle's own context rather than the process default, which
@@ -6029,6 +6058,2754 @@ class Space(Handle):
         runtime and the home.
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         return MeTTa(self)
+
+
+    if not TYPE_CHECKING:
+        def __getattr__(self, name):
+            """Resolve an installed package's namespace on first access."""
+            if name.startswith("_"):
+                raise AttributeError(name)
+            from .doors import namespace  # noqa: PLC0415  -- the current registrant rows
+
+            return namespace(self, name)
+
+    # begin generated doors: Space
+    # Generated from metta.doors by tools/doorgen.py.
+    if TYPE_CHECKING:
+        @property
+        def name(self) -> _SpaceId:
+            """The live engine name represented by this handle."""
+            return self._door_name
+
+        @property
+        def self(self) -> Space:
+            """The space this receiver's doors work in, which for a space is itself.
+
+            MeTTa's own `&self` is the space a form is evaluated in, and a form
+            stored in a space is evaluated in THAT space, so a space's `&self` is
+            the space. `MeTTa.self` answers the same question for a context, whose
+            answer is its home space, which is what makes `m.self` one attribute
+            read at every door that takes either [source:
+            extensions/python/metta/_api_types.py, SpaceLike].
+            """
+            return self._door_self
+
+        def space_names(self) -> list[str]:
+            """Every space name this engine registers, sorted: '&self' and
+            '&metta' from boot, every native space something created or wrote to,
+            and every foreign space currently bound. (new-space) and (spawn ...)
+            create, so their answers are here at once; naming a space never
+            registers it, so Space('&kb') is not here until a write, and a bind!
+            token's target appears once something is stored under it.
+            """  # noqa: D205 -- preserve the declared documentation
+            return self._door_space_names()
+
+        def drop(self) -> None:
+            """Clear this space and release an anonymous name for reuse.
+
+            Dropping retires every space-owned catalog declaration, including
+            algebra rows and their Python mirrors.
+            Dropping unregisters a Python provider and closes only backing state
+            owned by this handle. A foreign provider with a clear/drop lifecycle,
+            such as MORK, releases its provider state.
+            A named space's public name is not an anonymous allocation and never
+            enters the anonymous pool. The engine-owned &self and &metta roots
+            refuse before any Python-side state changes; drop the caller's own
+            context or a named space instead.
+            Subscriptions on the space cancel with it: a pooled name reused later
+            must not deliver to the old life's watchers. The handle itself dies
+            here, and dropping twice is a no-op, as closing twice is.
+
+            Engine teardown must succeed before Python cleanup is discarded.
+            If later cleanup fails, call drop() again to finish it. The handle
+            refuses other operations in that state and retains its anonymous name
+            until cleanup succeeds; retrying does not repeat engine teardown.
+            """
+            return self._door_drop()
+
+        @property
+        def dropped(self) -> bool:
+            """Whether :meth:`drop` has released this handle's space."""
+            return self._door_dropped
+
+        def to_wire(self) -> list:
+            """Encode the live engine reference as a portable space operand."""
+            return self._door_to_wire()
+
+        @property
+        def metatype(self) -> str:
+            """Read Space.metatype."""
+            return self._door_metatype
+
+        def bind(self, values: _abc.Mapping[str, Any] | None=None, /, **named: Any) -> _BoundValues:
+            """Scope named host values for :meth:`run` without a call flag."""
+            return self._door_bind(values, **named)
+
+        def run(
+            self,
+            source: str | TemplateLike,
+            /,
+            *,
+            timeout: float | None=None,
+            inferences: int | None=None,
+            **values: Any,
+        ) -> list[list[Atom]]:
+            """Run MeTTa source: one list of answers per ! directive.
+
+            The pipeline is the engine's own reader, compiler and evaluator, so
+            the answers are exactly what the CLI would print, kept grouped per
+            directive instead of flattened. Equations and facts in the source
+            land in this space.
+
+            The source may carry HOLES, which are bindings by position:
+
+                m.run(t"!(fib {n})")            # a 3.14 t-string literal
+                m.run("!(fib {n})", n=10)       # the same on every version
+
+            Each hole is spliced into the text as a generated symbol and bound to
+            its value, so a str stays one String atom and never has to be escaped.
+            Values enter through `encode`: an int is a Number, a str a String, an
+            Atom itself, a Space its handle. The markers at a hole are the atom
+            constructors, `{Symbol(name)}`, `{Grounded(obj)}` and `{parse(text)}`,
+            with the specs `:sym`, `:py` and `:expr` as their short forms; `!r`
+            and `!s` convert in Python first and enter the result as text. A hole
+            inside a string literal, a comment or a symbol is refused with its
+            line and column.
+
+            `bind()` is the same substitution by NAME, for a value several calls
+            share, the way DuckDB reads a local dataframe by its variable name:
+
+                with m.bind({"graph": my_graph}):
+                    m.run("!(py-len graph)")
+
+            Each named symbol substitutes to its value (objects by identity),
+            after reading, before anything runs. It is a BLOCK rather than a
+            keyword because a binding mapping is the kind of value that grows,
+            and a block grows down the page where a keyword has to fit beside
+            everything else on the call. Every call that accepts a target reads the
+            same scope, so one block covers run(), eval(), and answers() together.
+            A binding names a symbol and so replaces EVERY occurrence of it,
+            including one the author meant as a symbol; a hole is positional and
+            cannot reach anything but itself.
+
+            `timeout` (seconds) and `inferences` (engine steps) bound the call
+            with the engine's own guards; passing either raises TimeLimitError
+            or InferenceLimitError when the bound is hit, and whatever the
+            source completed before the stop, writes included, stands.
+
+            `with m.capture() as output` collects printed text in `output.text`
+            without changing this method's return shape. `with m.atomic()`
+            and `with m.speculative()` scope execution policy without boolean
+            combinations on each call. Atomic commits or rolls
+            back each complete source; speculative answers and discards its
+            writes. Both cover engine state; Python side effects and subscription
+            callbacks already fired stay where they happened.
+
+            A term the engine hands back unevaluated is an ordinary MeTTa value,
+            not a failure: `!(hello world)` answers `(hello world)` and that is
+            the whole of hello world in this language. eval_status() reports
+            which answers reduced and which did not, as data, for a caller who
+            wants to decide about it.
+            """
+            return self._door_run(source, timeout=timeout, inferences=inferences, **values)
+
+        def explain(
+            self,
+            query: Any,
+            /,
+            *,
+            analyze: bool=False,
+            allow_writes: bool=False,
+            **values: Any,
+        ) -> Explanation:
+            """What the engine will do with this query, reflected rather than run.
+
+                e = m.self.explain(
+                    "(match &self (, (edge $x $y) (edge $y $z) (edge $z $x)) ($x $y $z))"
+                )
+                e.plan          # (plan generic-join (order ...) (relations ...))
+                e["writes"]     # (writes transactional)
+
+            SQL's EXPLAIN, over this engine's own decisions. A match form answers
+            which seam entry handles it and with what fidelity, whether a bound
+            pushes into the provider, the source, the context world, the
+            annotation semiring, emission, event delivery, writes, the error mode,
+            the merge policy, whether the space's source relations are
+            materialised, and the PLAN: `generic-join` with the variable order and
+            each conjunct's columns, `nested-loop` with the conjunct the matcher
+            leads with, or `empty-factor` with the conjunct that has no candidate.
+            An operation call answers its effect, whether it has an inverse, its
+            annotations, its error mode and the cache decision the memo made.
+
+            The plan names the join the engine RUNS. Deciding that costs the
+            query's shape and one scan of each conjunct's relation, because a
+            conjunction whose stored rows are not all ground declines the Generic
+            Join and must read `nested-loop`; nothing is sorted and no trie is
+            built, so explaining a triangle over 2,048 stored edges cost 7,350
+            engine inferences against the query's own 237,473, and the share falls
+            as the data grows: 10.1%, 4.6% and 3.1% at 128, 512 and 2,048 rows
+            [measured 2026-09-07; command=PYTHONPATH=extensions/python
+            python extensions/python/benchmarks/probes/explain_plan_cost.py;
+            fixture=a two-out-degree ring of
+            1,024 nodes at loadavg 62].
+
+            `analyze=True` is EXPLAIN ANALYZE: the same items plus `(inferences
+            N)`, `(answers N)` and `(cputime S)` measured by running the query
+            inside `stats()`. It REFUSES the query when the engine can NAME an
+            operation in it that writes, because an analysis that mutates is not an
+            analysis; `allow_writes=True` says to measure it anyway. A match
+            TEMPLATE is evaluated once per answer, so `(match &s (edge $x $y)
+            (add-atom &s (seen $x)))` is a writing query.
+
+            The longhand is the MeTTa form: `m.run("!(explain <query>)")` answers
+            the same atoms, and `analyze=True` is that run with a `stats()` block
+            around `eval()` of the same query. A form that is neither a match nor
+            an operation call keeps the engine's own `type_error(explainable, ...)`.
+            """
+            return self._door_explain(query, analyze=analyze, allow_writes=allow_writes, **values)
+
+        def profile(
+            self,
+            source: str | TemplateLike,
+            /,
+            *,
+            timeout: float | None=None,
+            inferences: int | None=None,
+            **values: Any,
+        ) -> tuple[list[list[Atom]], EngineProfile]:
+            """Run source under the engine's statistical profiler, answering
+            (groups, profile): the groups exactly as run() answers them, and
+            the profile carrying sample counters plus one row per predicate,
+            self-ticks first.
+
+                groups, prof = m.profile("!(big-computation)")
+                prof.top(5)     # the five predicates the samples landed in
+
+            A row carries the predicate's calls and redos, its ticks, the file
+            and line its clauses were defined at, and its share of the sampled
+            seconds. `prof.as_stats()` answers the same run as a `pstats.Stats`,
+            so `sort_stats("cumulative").print_stats()` reads it and
+            `dump_stats(path)` writes what snakeviz and tuna open.
+
+            The sampler is statistical: a program that finishes in
+            milliseconds carries few samples, so profile something that runs.
+            Profiling changes execution; it is a debugging surface, not a
+            mode to leave on.
+            """  # noqa: D205 -- preserve the declared documentation
+            return self._door_profile(source, timeout=timeout, inferences=inferences, **values)
+
+        def profile_extension(
+            self,
+            source: str | TemplateLike,
+            /,
+            *,
+            extension: str | None=None,
+            names: _abc.Sequence[str] | None=None,
+            timeout: float | None=None,
+            inferences: int | None=None,
+            **values: Any,
+        ) -> tuple[list[list[Atom]], list[FunctionCost]]:
+            """Run source under the profiler, reporting only YOUR functions.
+
+            `profile()` answers "which predicate did the samples land in", over
+            every predicate in the process. The question a library author has is
+            narrower: of the functions my library registered, which one is
+            costing me, and is anything wrong with how it was installed.
+
+                groups, costs = m.profile_extension("!(my-workload)",
+                                                    extension="mylib")
+                for cost in costs:
+                    print(cost)
+                # <mylib-join/3 prolog: 40100 calls, 39900 redos, 812 ticks, index 1x>
+
+            Name the `extension` and its registered members are looked up, or
+            pass `names` for an explicit list. Each row carries the tier that
+            installed the function and where from, its exact call and redo
+            counts, the sampler's ticks, and its clause index.
+
+            The two columns worth reading first are `redos` and `speedup`. Redos
+            on a function meant to be deterministic are a leftover choice point,
+            which costs the caller about twice and is invisible to the inference
+            counter. A `speedup` of 1 means no argument discriminates, so every
+            call walks the clause list; `indexed` False on a function nothing has
+            called much only means SWI has not built one yet.
+
+            The sampler is statistical, so profile something that runs, and
+            profiling changes execution: this is a debugging surface.
+            """
+            return self._door_profile_extension(source, extension=extension, names=names, timeout=timeout, inferences=inferences, **values)
+
+        def save(
+            self,
+            path: str | os.PathLike[str],
+            *,
+            format: SaveFormat=SaveFormat.metta,  # noqa: A002 -- the declared public parameter spelling
+            timeout: float | None=None,
+            inferences: int | None=None,
+        ) -> int:
+            """Write every stored atom of this space, equations included, as
+            MeTTa source by default. ``format="fast"`` writes a version-pinned
+            image of the receiver's equation world: its own atoms, owned child
+            spaces, aliases bound to those spaces, and translator rules. Loading
+            the image mints fresh runtime space identities and preserves their
+            graph relationships. The returned count remains the receiver's own
+            atom count. Text variables are numbered by first occurrence within
+            each atom, so saving unchanged content twice is byte-stable. A path
+            ending .gz writes gzip compressed in either format, and load and
+            import! read it back under the same name. The completed sibling file
+            is synced and then atomically replaces the target, so a failed save
+            leaves the old file intact. Atoms carrying live host objects cannot
+            survive either file and are refused.
+
+            `timeout` (seconds) and `inferences` (engine steps) bound the save with
+            the engine's own guards, exactly as they bound load(). A text save
+            examines the receiver; a fast save also traverses its reachable
+            equation-world graph and registries. Those guards therefore bound all
+            state the chosen format writes, and the atomic replace above makes a
+            stopped save safe: the sibling is never moved into place.
+
+            There is no `format` on load(), and that is not an omission. When you
+            save, the file does not exist and something has to say which of the two
+            to write; when you load, load() reads which it is, `.gz` included.
+            """  # noqa: D205 -- preserve the declared documentation
+            return self._door_save(path, format=format, timeout=timeout, inferences=inferences)
+
+        def source(self) -> str:
+            """Return this space's directly stored atoms as loadable MeTTa text.
+
+            This is exactly the text that ``save(path, format="metta")`` writes:
+            one atom per line, including equations, with a final newline when the
+            space is nonempty. Variables are numbered by first occurrence within
+            each atom, making independent views of unchanged content byte-stable.
+            Inherited prelude and library atoms, the global
+            ``&metta`` catalog, and child spaces are outside that save boundary.
+            Live host objects and atoms whose printed form cannot round-trip are
+            refused for the same reason a text save refuses them.
+            """
+            return self._door_source()
+
+        def load(
+            self,
+            path: str | os.PathLike[str],
+            *,
+            timeout: float | None=None,
+            inferences: int | None=None,
+        ) -> list[list[Atom]]:
+            """Add a text program or trusted fast cache to this space.
+
+            This is a consult, so it always loads and what it loads REPLACES
+            what the same file put in this space before. Edit the file, load it
+            again, and the space holds the new definitions and not both; the
+            engine says on stderr which file it replaced and how many atoms
+            went. Atoms from other sources, and ones you added yourself, stay.
+            A load that raises leaves the previous definitions standing, so a
+            broken edit costs nothing but the error.
+
+            `!(import! &self path)` is the other form and loads a file that is
+            new or edited, skipping one that is neither. The two agree on what
+            a reload means and differ only in whether an unchanged file runs
+            again, which is SWI's consult/1 against its if(changed).
+
+            A .gz path is detected and read through the decompressed bytes.
+
+            `timeout` (seconds) and `inferences` (engine steps) bound the load
+            with the engine's own guards, raising TimeLimitError or
+            InferenceLimitError. A load is all or nothing: a stop takes back
+            everything the file had put in a space, the same way a load that
+            fails on a bad form does, because a file the space holds half of is
+            not a file it can replace later. run() is the entry point that
+            keeps finished work when a bound stops it. This is the one most
+            likely to be handed code the caller did not write, since a file can
+            carry `!` directives and an import graph, so it takes the same pair
+            its siblings take.
+
+            Program text with holes is refused here. A hole is a binding, and a
+            PATH has nowhere to bind one: run() takes holes, and an f-string or a
+            Path builds a computed filename.
+            """
+            return self._door_load(path, timeout=timeout, inferences=inferences)
+
+        def parse(self, source: str | TemplateLike, /, **values: Any) -> Atom:
+            """Read one form into an atom without evaluating it.
+
+            Holes work here as they do at run(), and land in the term this
+            answers rather than crossing to the engine, since nothing runs:
+            `m.parse(t"(person {name} 36)")` is the built term with the value
+            already in it.
+            """
+            return self._door_parse(source, **values)
+
+        def register_token(
+            self,
+            pattern: str | _re.Pattern[str],
+            constructor: Callable[[str], Any],
+        ) -> None:
+            """Register a full-token regex and its Atom constructor.
+
+            The constructor receives the complete matched lexeme. It may return an
+            Atom or any value accepted by :func:`metta.ground`. A later registration
+            of the same pattern replaces the constructor. Only future parses read
+            the new mapping; atoms already returned are immutable values.
+            """
+            return self._door_register_token(pattern, constructor)
+
+        def unregister_token(self, pattern: str | _re.Pattern[str]) -> None:
+            """Remove a reader-token class; an absent pattern is already removed."""
+            return self._door_unregister_token(pattern)
+
+        def add(self, *atoms: Any) -> None:
+            """Add atoms to this space, one engine round-trip for the lot.
+            An (= ...) atom compiles as an equation. Every Atom shape crosses
+            unchanged, including a bare Symbol, Grounded value, and empty
+            Expression; a free Variable receives the engine's own
+            insufficient-instantiation refusal. The MeTTa longhand is
+            `!(add-atoms <space> (<atom> ...))`. It is NOT `add-atom`, which is
+            upstream PeTTa's spelling and takes upstream's domain: a headless atom
+            cannot become a fact in a space there, so `!(add-atom &self b)` has no
+            answer on either engine. This space is wider and `add-atoms` is the
+            door onto the wider part.
+
+            A variable's NAME is not stored. `(rule $x $y)` reads back as
+            `(rule $_17902 $_17904)`, because a variable is an identity and not a
+            spelling. That is the right property for a logic engine and it is the
+            one thing about storage that surprises everybody once.
+
+            A library IS knowledge, so the same operator imports it: ``m += lib.he``
+            performs ``!(import! <m> (library lib_he))`` with this space as the
+            target. An import is an effect, so it refuses to hide inside an atom
+            batch or share a call with stored atoms.
+            """  # noqa: D205 -- preserve the declared documentation
+            return self._door_add(*atoms)
+
+        def remove(self, atom: Any, *more: Any) -> bool | int:
+            """Remove ONE unifying occurrence and say whether one was there,
+            which is Python's own `list.remove` grain.
+
+            Variadic like `add` and `transfer`: several atoms ride one engine
+            crossing inside one transaction, and the answer counts the found,
+            so the one-atom call still reads as the truth value it always
+            was.
+
+            `space -= atom` is this same grain without the report, the way
+            `+=` is `add` without one: Python's in-place difference over a
+            MULTISET, whose own Python spelling is `collections.Counter`,
+            subtracts the multiplicity given rather than clearing the key.
+            That is the only reading under which the operators are inverses,
+            so `s += a; s -= a` leaves the space it found. `-=` classifies its
+            operand exactly as `+=` does, so `-=` subtracts the same fact stream
+            `+=` stores, one occurrence per element, in one
+            transactional crossing.
+
+            `del m[pattern]` is the draining form: it takes every
+            unifying occurrence in one crossing and raises when nothing
+            matched, as Python's `del` does, and MeTTa spells it `remove-atom`
+            [source: engine/spaces/foreign.pl, remove_matching_atoms/2].
+            MeTTa spells this method's grain `subtract-atom`. This is the one
+            method that reports absence.
+
+            A bare variable is the remove-everything reading a multiset space
+            gives it, each atom leaving through its own proper path, equations
+            and their compiled clauses included.
+            """  # noqa: D205 -- preserve the declared documentation
+            return self._door_remove(atom, *more)
+
+        def transfer(self, *atoms: Any, to: Space) -> int:
+            """Move ONE unifying occurrence of each atom into another space.
+
+            Variadic and atomic: however many atoms ride the call, one engine
+            transaction moves them in one crossing, so a mid-move failure
+            rolls every side back and nothing is lost between the spaces. The
+            answer counts the moved; an absent atom moves nothing and counts
+            nothing, which is ``remove``'s own found-reporting grain, so the
+            one-atom call still reads as a truth value. The longhand stays
+            reachable: a :meth:`transaction` around ``remove`` and ``add``
+            says the same thing one atom at a time. :meth:`take` is the
+            WAITING kin for a pattern.
+            """
+            return self._door_transfer(*atoms, to=to)
+
+        def atoms(self) -> list[Atom]:
+            """Every stored atom in this space."""
+            return self._door_atoms()
+
+        def peek(
+            self,
+            pattern: Any,
+            *,
+            where: Any | None=None,
+            deadline: float | None=None,
+        ) -> Atom:
+            """Wait for one matching atom and leave it in this space.
+
+            A finite deadline raises ``Timeout`` when no match arrives.
+
+            `where` is match()'s guard on a blocking wait: a term over the
+            pattern's variables, evaluated once a candidate binds them and
+            required true, so "wait for a job whose priority is above five" is one
+            call. Without it the guard had to live in the caller, as a wait and a
+            re-wait around every candidate the guard rejected, and the deadline
+            restarted each time round [measured 2026-08-31].
+            """
+            return self._door_peek(pattern, where=where, deadline=deadline)
+
+        def take(
+            self,
+            pattern: Any,
+            *,
+            where: Any | None=None,
+            deadline: float | None=None,
+        ) -> Atom:
+            """Wait for and remove exactly one matching atom from this space.
+
+            Competing takers cannot receive the same occurrence. A finite
+            deadline raises ``TimeoutError`` when no match arrives. `where` is
+            peek()'s guard, and it is checked BEFORE the removal, so an atom the
+            guard rejects stays where it is for whoever does want it.
+            """
+            return self._door_take(pattern, where=where, deadline=deadline)
+
+        @overload
+        def cast(self, type_: _builtins.type[_CastT], /) -> _CastT: ...
+        @overload
+        def cast(self, type_: Atom | str, /) -> Any: ...
+        @overload
+        def cast(self, value: Any, type_: _builtins.type[_CastT], /) -> _CastT: ...
+        @overload
+        def cast(self, value: Any, type_: Atom | str, /) -> Any: ...
+        def cast(self, value: Any, type_: Any=..., /) -> Any:
+            """Cast this space atom ambiently with one argument, or answer value
+            narrowed by this space's type discipline with two arguments. The
+            explicit form has the same acceptance a typed call compiles, ':'
+            declarations here and &self in scope, protocol types included. A
+            refusal raises metta.CastError naming the value's actual types.
+            """  # noqa: D205 -- preserve the declared documentation
+            return cast("Any", self._door_cast)(value, type_)
+
+        def trace(
+            self,
+            source: Atom | str,
+            max_events: int | None=None,
+            *,
+            filter: Symbol | str | Iterable[Symbol | str] | None=None,  # noqa: A002 -- the declared public parameter spelling
+            timeout: float | None=None,
+            inferences: int | None=None,
+        ) -> Trace:
+            """Run a TERM, or source, under the engine's reduction trace and
+            answer TraceEvent records: what entered reduction at which depth,
+            what it answered, and which reductions failed (a call with no
+            exit). `m.trace(S.fib(10))` is the ordinary spelling, the same
+            argument `answers` and `eval` take; a string is still a string.
+            What is traced executes for real, writes included, like run();
+            the wrap exists only while tracing, so untraced calls pay
+            nothing and the wrapping itself is not charged to the bounds
+            below. max_events bounds the RECORDING and timeout,
+            inferences and stack bound the RUN, defaulting to whatever
+            `m.limits()` scopes; they are independent because a program can
+            retire millions of inferences inside a handful of recorded
+            events. Whichever one stops it, the events already recorded are
+            ANSWERED and `stopped` names the bound, so a caller told a trace
+            was cut knows which bound to raise.
+            filter selects exact function Symbols or names, singly or in an iterable.
+            None records all functions; [] records none. Selection happens before
+            the recording bounds, while excluded calls still execute and add depth.
+            """  # noqa: D205 -- preserve the declared documentation
+            return self._door_trace(source, max_events, filter=filter, timeout=timeout, inferences=inferences)
+
+        def debug(
+            self,
+            source: Atom | str,
+            *,
+            on: Any=None,
+            inferences: int | None=None,
+            at: int | None=None,
+        ) -> Debugger:
+            """Run a TERM, or source, under breakpoints, stepped from Python.
+
+            Iterating the Debugger runs the program to each breakpoint, the loop
+            body is where the program is SUSPENDED, and leaving the body resumes
+            that same execution:
+
+                with m.debug(S.quad(3), on=[S.double]) as d:
+                    for stop in d:
+                        print(stop)      # halted here
+                        if stop.depth > 2:
+                            d.step()     # stop at the next reduction instead
+                    print(d.answers)
+
+            on= names the functions that stop it, the way every door here names a
+            head; naming none runs the program to the end in one advance.
+            `step()` stops at the very next reduction, breakpoint or not, and
+            lasts one advance. `breakpoints` is a live set, so one added while
+            the program is suspended stops it.
+
+            at= is the third kind of breakpoint, a COUNT: it stops at the event
+            with that sequence number, numbering reductions from 0 the way a
+            Recording numbers them, so `at=200` is "put me where event 200 is".
+            `Recording.debug(at=k)` is the convenience over this one.
+
+            inferences bound the WHOLE session cumulatively, so a resume that
+            would never reach another breakpoint stops. There is no timeout:
+            the session is suspended by design and a clock would run while a
+            person reads a stop. What is debugged executes for real, writes
+            included, and inherits the caller's scope. Close it, or leave its
+            with-block: the session holds a wrapper on every compiled function
+            until it does.
+            """
+            return self._door_debug(source, on=on, inferences=inferences, at=at)
+
+        def record(
+            self,
+            source: Atom | str,
+            *,
+            seed: int | None=None,
+            max_events: int | None=None,
+            timeout: float | None=None,
+            inferences: int | None=None,
+        ) -> Recording:
+            """Run a TERM, or source, and keep the whole run as data.
+
+            The data walks backwards, saves to a file, and re-runs.
+            `m.trace` is the rung below: it answers the events alone. A Recording
+            is those events plus the state that produced them, which is what makes
+            them re-runnable rather than only readable:
+
+                rec = m.record(S.fib(12))
+                rec.save("fib.metta-rec.json")
+                rec.at(-1)               # the last event, with its call stack
+                rec.back()               # a step backwards costs a lookup
+                rec.replay(other)        # the same run, in another engine
+                with rec.debug(at=17) as d:   # live, stopped where event 17 is
+                    print(d.stop)
+
+            A recorded run always has a seed, minted when you do not name one,
+            because a replay that cannot reproduce the draws is not a replay; the
+            generator is restored afterwards. `(with-seed S expr)` is the MeTTa
+            spelling of the same scope.
+
+            max_events bounds the RECORDING and timeout and inferences bound the
+            RUN, exactly as on trace(); a cut recording says so through
+            `rec.events.stopped` and replays to the same length. A program whose
+            effect plan reaches oracleIO is recorded with `replayable` false and
+            the reason naming what it reached, and replay() then refuses rather
+            than re-reading the host.
+            """
+            return self._door_record(source, seed=seed, max_events=max_events, timeout=timeout, inferences=inferences)
+
+        def lint(self) -> list[Finding]:
+            """Diagnose this space for the silently-wrong class: declared
+            types nothing defines, arity mismatches, unbound body variables,
+            duplicate equations, and references no function or fact carries.
+            Answers metta.lint.Finding records, empty when nothing looks
+            wrong.
+            """  # noqa: D205 -- preserve the declared documentation
+            return self._door_lint()
+
+        def effect_plan(self, target: Any) -> _ops_module.EffectPlan:
+            """Return operations the target may execute and their joined effect.
+
+            The engine translates the same atom or source form ``eval`` accepts,
+            follows nested compiled calls, and reads current operation metadata.
+            It does not execute the target. A later registration change is visible
+            on the next call. This is the analysis reified-world admission uses.
+            """
+            return self._door_effect_plan(target)
+
+        def copy(self) -> Space:
+            """This space's contents in a new anonymous space, cloned through
+            one bulk write, so equations copy as equations and keep running:
+            "a scratch space set up like production" is one line. The handle
+            is ``space()``'s kind, so drop it, or use it as a context
+            manager, to return the name. copy.copy(m) answers the same
+            through the copy protocol. There is deliberately no __deepcopy__:
+            stored Python objects keep their identity across the clone, the
+            shallow reading, and a deep clone of a live engine handle has no
+            meaning to promise.
+            """  # noqa: D205 -- preserve the declared documentation
+            return self._door_copy()
+
+        def reify(self):
+            """Capture this space as an immutable, independently evaluable world."""
+            return self._door_reify()
+
+        def commit(self, world: Any) -> None:
+            """Apply one reified world's diff through this originating space."""
+            return self._door_commit(world)
+
+        def digest(self) -> str:
+            """A sha256 hex digest of this space's content: every stored atom,
+            equations included, canonicalized (variables numbered, multiset
+            sorted) so the same atoms answer the same digest in any insertion
+            order and in any process. Two spaces agree on digest() exactly
+            when save() would write the same content. Live host objects have
+            no cross-process identity and are refused, like save().
+            """  # noqa: D205 -- preserve the declared documentation
+            return self._door_digest()
+
+        def __len__(self) -> int:
+            """Read Space.__len__."""
+            return self._door___len__()
+
+        def __bool__(self) -> bool:
+            """Always true: a space is a handle to a store, not a value that
+            dwindles. Without this, bool() falls through to __len__ and an
+            empty space is falsy, so `if space:` skips a perfectly good empty
+            space, the bug class that made datetime stop treating midnight as
+            false in 3.5. Existence is an ask: use
+            ``bool(space.match(V.x))`` rather than ``bool(space)``.
+            """  # noqa: D205 -- preserve the declared documentation
+            return self._door___bool__()
+
+        def __contains__(self, atom: Any) -> bool:
+            """Read Space.__contains__."""
+            return self._door___contains__(atom)
+
+        def clear(self) -> None:
+            """Remove everything stored here, compiled equations included."""
+            return self._door_clear()
+
+        def __iadd__(self, atom: Any) -> Self:  # type: ignore[override]
+            """add()'s operator spelling for one atom or one fact stream.
+
+            ``m += (S.Edge, a, b)`` adds one fact. ``m += [(S.Edge, a, b),
+            (S.Edge, b, c)]`` and a generator yielding those rows add two. A built
+            Expression is always one atom even though it implements Sequence.
+            Dataframes use ``iter_rows`` or ``itertuples(index=False)``. The
+            explicit ``add(list_value)`` method remains available when a list itself
+            is intended as one transparent expression.
+
+            Relative ``S.admits(Type)``, ``S.capacity(n)``, and
+            ``S.covers(effect)`` values are declared data: they install the same
+            contract as the receiver methods and are not stored in this space.
+            Explicit ``add(...)`` remains the raw storage method for those shapes.
+            """
+            return self._door___iadd__(atom)
+
+        def __isub__(self, atom: Any) -> Self:  # type: ignore[override]
+            """Read Space.__isub__."""
+            return self._door___isub__(atom)
+
+        def __ior__(self, other: Any) -> Self:  # type: ignore[override]
+            """Merge into this space in one bulk crossing: every atom of
+            another space, of a registered space name, or of an iterable.
+
+                m |= other_space     # every atom, equations included
+                m |= "&kb"           # the space registered under this name
+                m |= [a, b, c]       # each element becomes one atom
+
+            Equations in the merge compile on arrival, the same rule add()
+            enforces. A space is a multiset, so merging a space into itself
+            doubles every atom. A Mapping is refused because add(d) reads the
+            same dict as ONE grounded atom and its values would silently
+            vanish here; spell the reading you mean. Strings name spaces, so
+            an unregistered name is a KeyError rather than a parse.
+            """  # noqa: D205 -- preserve the declared documentation
+            return self._door___ior__(other)
+
+        def __iter__(self):
+            """Iterate one assembly-order snapshot of the stored atoms.
+
+            A native or inherited-native space materializes its readable chain
+            when ``iter(space)`` is called, so later additions and removals do not
+            alter that iterator. A Python-backed space likewise materializes its
+            provider's ``atoms()`` result before returning the iterator; the
+            provider owns and must document how concurrent mutation behaves while
+            that one enumeration itself is being produced.
+            """
+            return self._door___iter__()
+
+        def __getitem__(self, i: Any) -> Rows:
+            """Subscription is query. A tuple headed by an atom is one built
+            expression pattern; a tuple of complete expression patterns is a join:
+
+                m[(S.Parent, V.x, S.Bob)]
+                m[S.edge(V.a, V.b), S.edge(V.b, V.c)]
+
+            Python hands both spellings to ``__getitem__`` as a tuple, so shape is
+            the visible classifier. A mixed tuple beginning with a complete
+            pattern and followed by a bare atom can only be the tuple mistake; it
+            raises and names the one-pattern and join spellings instead of
+            silently asking an impossible bare-atom conjunct.
+
+            A str key parses first, matching match()'s tolerance. A slice is
+            refused: a slice of a space has no one meaning, and the bounded
+            readings have their own methods, match(limit=) for a bounded answer
+            set and stream() for rows pulled until you have seen enough.
+            """  # noqa: D415, D205 -- preserve the declared documentation
+            return self._door___getitem__(i)
+
+        def __delitem__(self, pattern: Any) -> None:
+            """Del m[pattern] removes every unifying occurrence, the bulk
+            spelling of remove()'s multiset subtraction: m[pattern] is a
+            query answering many rows, so deleting it deletes them all, the
+            way DELETE WHERE does. Nothing unifying raises KeyError, as
+            del d[k] does on a missing key; remove() is the method that
+            reports absence as False instead.
+
+            It asks the engine's own drain, so the whole pattern costs ONE
+            crossing rather than one per removed atom.
+            """  # noqa: D205 -- preserve the declared documentation
+            return self._door___delitem__(pattern)
+
+        def match(
+            self,
+            *patterns: Any,
+            where: Any | None=None,
+            limit: int | None=None,
+            timeout: float | None=None,
+            inferences: int | None=None,
+            under: Any=_UNSET,
+            into: _builtins.type | None=None,
+            **values: Any,
+        ) -> Any:
+            """Lazily match patterns against this space as one conjunction.
+
+            Variables shared between patterns join, the engine's own match/4
+            doing the joining. Columns are the variable names in first
+            appearance order. `where` is a guard term over the same variables,
+            evaluated per join and required true, so restrictions a pattern
+            cannot spell (an inequality) compose onto the match:
+
+                m.match(S.person(V.name, V.age), where=V.age.ge(18))
+
+            `limit` bounds the answers, the engine stopping at the count
+            rather than trimming afterwards. `timeout` (seconds) and
+            `inferences` (engine steps) bound the whole call, raising
+            TimeLimitError or InferenceLimitError when hit, for joins whose
+            size is not known in advance.
+
+            The returned Answers view pulls only what Python observes. ``bool``
+            pulls one row, exact-one operations pull at most two, and slicing
+            retains an Answers view. ``len`` uses an engine-side aggregate when
+            no row has yet been pulled.
+
+            ``under=`` interprets the same ask through an annotation algebra.
+            ``under=counting`` answers one ``TaggedAnswer`` whose annotation is
+            the engine-computed count, including duplicate derivations without
+            crossing their rows into Python. Ordered carriers sort in their
+            declared direction before slicing, so
+            ``m.match(q, under=ranked)[:3]`` is top-k and
+            ``under=tropical`` puts the cheapest annotation first. Other carriers
+            answer ``TaggedAnswer`` values with ``annotation``, ``why()`` and
+            ``under(other)``; the latter two reuse the retained derivation rather
+            than querying the space again. ``with metta.under(carrier)`` supplies
+            the carrier when this call has no explicit ``under=``.
+
+            `into=Rows` explicitly chooses the eager Rows face. Other `into=`
+            values shape each row into a dataclass, NamedTuple, or
+            TypedDict matched by field name, sqlite3's row_factory reading:
+            `m.match(S.edge(V.a, V.b), into=Edge)` answers `list[Edge]`,
+            and Rows stays the default so nothing is lost. A one-variable query
+            whose column holds complete constructor expressions rebuilds those
+            expressions instead: `m.match(V.edge, into=Edge)`.
+
+                m.match(S.Edge(V.x, V.y), S.Edge(V.y, V.z))
+
+            A text pattern may carry HOLES, as run()'s source may:
+            `m.match(t"(person {name} $age)")` matches the value itself, so a name
+            holding a space stays one String atom rather than reading as two
+            symbols. Keyword values apply across every pattern of the call.
+            """
+            return self._door_match(*patterns, where=where, limit=limit, timeout=timeout, inferences=inferences, under=under, into=into, **values)
+
+        def stream(
+            self,
+            *patterns: Any,
+            where: Any | None=None,
+            limit: int | None=None,
+            timeout: float | None=None,
+            inferences: int | None=None,
+            under: Any=_UNSET,
+        ) -> Cursor:
+            """match(), pulled: the same conjunction and guard, answered one
+            row at a time through a cursor the engine holds open.
+
+                with m.stream(S.edge(V.a, V.b), S.edge(V.b, V.c)) as rows:
+                    for row in rows:
+                        if wanted(row):
+                            break            # nothing further is even joined
+
+            The join's state lives inside an SWI engine between pulls, each
+            pull is one ordinary call, and unrelated calls interleave freely,
+            so a huge join costs one row of work per row actually taken where
+            match() computes and decodes every answer up front. `timeout`
+            bounds each pull's wall time; `inferences` is one budget for the
+            cursor's whole engine work, spent across pulls, and the cursor
+            stops on the answer that passes it. Because the budget counts the
+            cursor's own engine, it is not the number ``stats()`` reports for
+            the same work: ``stats()`` reads the calling thread's counters,
+            which see the pull loop rather than the engine. The cursor
+            enumerates under the engine's logical update view: writes made
+            after the first pull are not seen by this cursor.
+
+            `limit` and `under` mean what they mean on match(), because this is
+            match() and the cursor underneath already carried both: a tagging
+            algebra (ranked, tropical, prov) answers one TaggedAnswer per pull,
+            the same value match() answers. `under='counting'` is refused by
+            name, because a counting fold is ONE aggregate over the whole answer
+            set and a cursor exists not to have one.
+
+            What this method does NOT take is match()'s `into=`, the same kind of
+            difference: `into` builds a container out of every row.
+            """  # noqa: D205 -- preserve the declared documentation
+            return self._door_stream(*patterns, where=where, limit=limit, timeout=timeout, inferences=inferences, under=under)
+
+        def assuming(self, *facts: Any) -> _Assuming:
+            """Facts held only inside a with-block: the assumptions reading of
+            a what-if query, added on entry, removed on exit, exceptions
+            included.
+
+                with m.assuming(S.closed(S.bridge)):
+                    detour = m.match(S.route(V.r), where=...)
+            """  # noqa: D205 -- preserve the declared documentation
+            return self._door_assuming(*facts)
+
+        @overload
+        def transaction(self, target: Callable[[], _R], /) -> _R: ...
+        @overload
+        def transaction(self, target: Atom | str, /) -> list[Atom | Undefined]: ...
+        def transaction(self, target: Callable[[], _R] | Any, /) -> Any:
+            """Run one callable or term inside a closed engine transaction.
+
+            The two inputs preserve their native failure laws. A zero-argument
+            Python callable commits its return value and rolls back on a Python
+            exception. A term returns its engine answers and rolls back when that
+            answer set is empty, exactly like ``(transaction ...)``.
+
+                m.transaction(lambda: migrate(m))
+                m.transaction(S.progn(write, verify))
+
+            Every engine write the callable makes, stored atoms, equations
+            and their compiled clauses included, commits or rolls back
+            together. An exception is the callable's rollback trigger, because a
+            Python callable cannot fail the Prolog way, and it re-raises AS
+            ITSELF: your ValueError arrives as ValueError with the engine
+            boundary in its chain. Only the engine's dynamic state rolls
+            back; what the callable did on the Python side (a list appended,
+            a file written) is yours to undo, SWI transactions being
+            database-scoped.
+
+            Transactions nest, SWI's own semantics: an inner commit is
+            relative to its outer transaction, so an outer rollback discards
+            inner work too.
+
+            There is deliberately no `with m.transaction():` form. SWI's
+            transaction/1 takes a closed goal; there is no open begin/commit
+            to hold across a block, and pretending otherwise would lie about
+            the isolation actually provided. transactional() is the
+            decorator twin.
+            """
+            return cast("Any", self._door_transaction)(target)
+
+        def saga(self, receipts: Space):
+            """Open a committed-receipt saga over this execution space.
+
+            ``receipts`` is an ordinary space that stores ``(did op args result)``
+            atoms. Run each forward term with the returned context manager's
+            ``run`` method. A normal exit keeps its work and receipts; an
+            exceptional exit invokes declared compensations in reverse commit
+            order and removes each successfully recovered receipt.
+
+                with orders.saga(receipts) as saga:
+                    saga.run(S.charge(S.order_7))
+
+            Operations ranked writesState or oracleIO leave receipts. Declare a
+            handler with ``compensates`` before recovery. Handlers receive the
+            complete receipt, written at the call site as ``(quote <receipt>)`` so
+            it is not evaluated on the way in, and must be idempotent, because a
+            failed compensation remains queryable and is retried by
+            ``rollback()``.
+            """
+            return self._door_saga(receipts)
+
+        def solve(self, pattern: Any, subject: Any) -> Any:
+            """Run relational ``let`` and return bindings keyed by its variables.
+
+            ``solve(4, V.x - 1).x`` places the known value on let's pattern side,
+            lets the arithmetic relation solve backwards, and projects ``x``.
+            The answer template is derived from the pattern's variables followed
+            by any new subject variables, so either relational direction can
+            introduce the bindings and the third hand-written ``let`` argument
+            disappears.
+            """
+            return self._door_solve(pattern, subject)
+
+        def watch(
+            self,
+            pattern: Any,
+            *,
+            on: SubscriptionEdge=SubscriptionEdge.add,
+            where: Any | None=None,
+            deadline: float | None=None,
+            queue_max: int | None=None,
+        ):
+            """Yield matching changes, raising Timeout after each quiet deadline.
+
+            `queue_max` bounds the subscription underneath, the same bound
+            subscribe() takes; a watch could not name it before, though the
+            subscription it builds always had one.
+            """
+            return self._door_watch(pattern, on=on, where=where, deadline=deadline, queue_max=queue_max)
+
+        def limits(
+            self,
+            *,
+            timeout: float | None=None,
+            inferences: int | None=None,
+            stack: int | None=None,
+        ) -> ScopedLimits:
+            """Scoped default bounds for every call in the with-block:
+
+                with m.limits(inferences=1_000_000, timeout=2.0):
+                    m.match(...)      # bounded without saying so again
+
+            decimal.localcontext's shape, contextvars underneath, so the
+            scope is async-correct and per-task. A per-call timeout= or
+            inferences= still overrides, which is the whole ladder: one
+            block replaces the parameter forest, and the forest remains
+            for whoever wants per-call control.
+
+            stack= is SWI's combined stack ceiling in BYTES, the bound a
+            runaway recursion hits as a StackOverflow error atom. It is NOT
+            MeTTa's reduction depth: that is the max-stack-depth pragma,
+            `(with-pragma! ((max-stack-depth N)) expr)`, which counts
+            reduction steps and is scoped in the program text.
+            """  # noqa: D415 -- preserve the declared documentation
+            return self._door_limits(timeout=timeout, inferences=inferences, stack=stack)
+
+        def capture(self) -> CapturedOutput:
+            """Collect printed engine text without changing answer shapes.
+
+            with m.capture() as output:
+                groups = m.run("!(println! hello) !(+ 1 2)")
+            assert groups == [[3]]
+            assert output.text == "hello\\n"
+            """  # noqa: D301 -- preserve the declared documentation
+            return self._door_capture()
+
+        def atomic(self) -> ScopedExecution:
+            """Make each CALL in the block one committing engine transaction.
+
+            Per call, the write doors included: ``m.add(a, b)`` inside the block
+            is one transaction, so a provider that refuses the second atom takes
+            the first back with it. Across SEVERAL calls the boundary is
+            :meth:`transaction`, because SWI's transaction/1 takes a closed goal
+            and an engine cannot yield out of one, so no with-block can hold one
+            open; a raise later in the block does not undo a call that already
+            committed.
+            """
+            return self._door_atomic()
+
+        def speculative(self) -> ScopedExecution:
+            """Run each CALL against a snapshot and discard its writes.
+
+            Per call, the write doors included: ``m.add(atom)`` inside the block
+            leaves nothing behind, exactly as ``m.run("!(add-atom &self ...)")``
+            in the same block does, and a later call in the block does not see
+            what an earlier one wrote, because each call is its own what-if.
+            """
+            return self._door_speculative()
+
+        def batch(self) -> _Batch:
+            """Collect this space's add() calls and cross once at exit:
+
+                with m.batch():
+                    for edge in edges:
+                        m.add(edge)          # collected, no crossing yet
+                # one add_many crossing happened here
+
+            The write forms are add for one or several atoms, batch for a region,
+            transaction for all-or-nothing work, and a provider's bulk method
+            underneath them. A batch is a transport economy and must not invent
+            semantics, so the sharp edges are stated and enforced: reads
+            inside the block see the space WITHOUT the pending adds; a
+            remove() or clear() on this space inside the block refuses,
+            because it would otherwise silently order around writes the
+            program already made; and an exception discards the pending
+            batch rather than landing writes the code after the raise never
+            saw. Compose with transaction() for atomicity: batch for
+            economy, transaction for all-or-nothing, or both.
+            """  # noqa: D415 -- preserve the declared documentation
+            return self._door_batch()
+
+        def transactional(self, fn: Callable[_P, _R], /) -> Callable[_P, _R]:
+            """transaction()'s decorator twin, the atomic shape Django made
+            familiar: each CALL of the wrapped function runs inside its own
+            engine transaction. Decorating runs nothing, exactly as a
+            decorator should not; reach for transaction() to run one
+            callable now.
+
+                @m.transactional
+                def migrate():
+                    m.add(...)
+                    m.remove(...)
+
+                migrate()     # one transaction; a raise rolls it all back
+            """  # noqa: D205 -- preserve the declared documentation
+            return self._door_transactional(fn)
+
+        def prepare(self, *patterns: Any, where: Any | None=None) -> Prepared:
+            """A query whose shape is fixed and whose facts are not: the wire
+            form and columns build once, and each solve() may bring per-call
+            facts (given=) that leave nothing behind.
+
+                route = m.prepare(S.path(V.a, V.b), where=V.a != ...)
+                route.solve()
+                route.solve(given=[S.edge(S.x, S.y)])
+            """  # noqa: D205 -- preserve the declared documentation
+            return self._door_prepare(*patterns, where=where)
+
+        @overload
+        def eval(
+            self,
+            target: Any,
+            /,
+            *more: Any,
+            timeout: float | None=None,
+            inferences: int | None=None,
+            under: Any=_UNSET,
+            theory: Any | None=None,
+            interpreter: Any | None=None,
+            answer: EvaluationAnswer | str = "all",
+            delivery: ArgumentDelivery | str,
+            limit: int | None = None,
+            image: ImageMode | str | None = None,
+            on_error: OnError | str = "keep",
+            determinism: Determinism | str = "nondet",
+            **values: Any,
+        ) -> Any: ...
+        @overload
+        def eval(
+            self,
+            target: Any,
+            /,
+            *more: Any,
+            timeout: float | None=None,
+            inferences: int | None=None,
+            under: Any=_UNSET,
+            theory: Any | None=None,
+            interpreter: Any | None=None,
+            answer: EvaluationAnswer | str,
+            delivery: ArgumentDelivery | str = "atoms",
+            limit: int | None = None,
+            image: ImageMode | str | None = None,
+            on_error: OnError | str = "keep",
+            determinism: Determinism | str = "nondet",
+            **values: Any,
+        ) -> Any: ...
+        @overload
+        def eval(
+            self,
+            target: Any,
+            /,
+            *,
+            timeout: float | None=...,
+            inferences: int | None=...,
+            under: Any=...,
+            theory: Any | None=...,
+            interpreter: Any | None=...,
+            **values: Any,
+        ) -> list[Atom | Undefined]: ...
+        @overload
+        def eval(
+            self,
+            target: Any,
+            _second: Any,
+            /,
+            *more: Any,
+            timeout: float | None=...,
+            inferences: int | None=...,
+            under: Any=...,
+            theory: Any | None=...,
+            interpreter: Any | None=...,
+            **values: Any,
+        ) -> list[list[Atom | Undefined]]: ...
+        def eval(
+            self,
+            target: Any,
+            /,
+            *more: Any,
+            timeout: float | None=None,
+            inferences: int | None=None,
+            under: Any=_UNSET,
+            theory: Any | None=None,
+            interpreter: Any | None=None,
+            answer: EvaluationAnswer | str = "all",
+            delivery: ArgumentDelivery | str = "atoms",
+            limit: int | None = None,
+            image: ImageMode | str | None = None,
+            on_error: OnError | str = "keep",
+            determinism: Determinism | str = "nondet",
+            **values: Any,
+        ) -> Any:
+            """Evaluate a term, returning every answer.
+
+            This is what !(...) runs, minus the printing: the engine's
+            translate_expr over the term, then its goals. Nondeterminism means
+            the list can hold any number of answers, including none.
+
+            Variadic, and that is how evaluation BATCHES: several terms ride
+            one engine crossing and the answer is one group per term in call
+            order, run()'s own grouping carried to the term form. One term
+            keeps its flat list, so the scalar reading never changes shape.
+
+            Every answer carries its truth: an answer that is undefined under
+            Well Founded Semantics (a tabled loop through tnot, reachable via
+            translatePredicate or injected Prolog) arrives as an Undefined
+            holding the answer and the delay condition that makes it
+            undefined, never as an ordinary-looking value. A term to which no
+            rule applies is the ordinary answer itself; `eval_status()` names
+            that path `not-reducible`. run() does not carry the third truth
+            value; evaluate through eval() when it matters.
+
+            A text target may carry HOLES, exactly as run()'s source may:
+            `m.eval(t"(decide {tensor})")` and `m.eval("(decide {x})", x=tensor)`
+            hand the object itself to the rule, by identity. One call's holes are
+            numbered together, so a batch and a nested template cannot collide.
+
+            `bind()` binds named host values into the term before it evaluates,
+            exactly as it does for run(): inside `with m.bind({"x": tensor})`,
+            `m.eval("(decide x)")` hands the tensor itself to the rule, by
+            identity, rather than a printed form of it. The name is the SYMBOL x
+            and not the variable $x, in this call and the source form alike. The
+            evaluation calls take the same vocabulary as the source form, so using
+            a term instead of source text costs no change of spelling.
+
+            A key may be a NAME or an ATOM. A name means the symbol of that name,
+            which is what the engine's own substitution matches and what run()
+            takes. An atom means exactly that atom, so `bind({V.x: 5})` fills a
+            VARIABLE hole -- the one substitution `unify` reports and the one no
+            evaluation call could apply, because a variable crosses the wire as ['v', 'x']
+            where a symbol crosses as ['s', 'x'] and the engine matches names.
+
+            `timeout` (seconds) and `inferences` (engine steps) bound the call,
+            raising TimeLimitError or InferenceLimitError when hit. A surrounding
+            `capture()` scope collects printed text without changing the list.
+
+            `under`, `theory` and `interpreter` are answers()' three, and mean
+            exactly what they mean there; `eval()` materialises that query as a list. A
+            surrounding `with metta.under(carrier)` reaches here too, which it did
+            not before: match() and answers() both honoured such a scope while
+            eval() ignored it in silence.
+
+            The answer, delivery, limit, image, on_error and determinism options
+            select one evaluation contract. answer=answers retains a replayable
+            cursor; answer=stream returns a closable single-pass stream. count,
+            exists and none consume only the requested shape. A determinism
+            promise is checked before a limit truncates the answers. Image
+            projection publishes the type declarations its values require.
+            """
+            return cast("Any", self._door_eval)(target, *more, timeout=timeout, inferences=inferences, under=under, theory=theory, interpreter=interpreter, answer=answer, delivery=delivery, limit=limit, image=image, on_error=on_error, determinism=determinism, **values)
+
+        def answers(
+            self,
+            target: Any,
+            /,
+            *,
+            timeout: float | None=None,
+            inferences: int | None=None,
+            under: Any=_UNSET,
+            theory: Any | None=None,
+            interpreter: Any | None=None,
+            **values: Any,
+        ) -> Answers[Any]:
+            """Evaluate lazily as an immutable, cached and replayable view.
+
+            Creating the view performs no engine work. Existence pulls at most
+            one answer, ``one()`` at most two, and ordinary iteration resumes the
+            same held evaluation [tested:
+            test_function_calls_pull_engine_answers_only_as_demanded;
+            commit=2d4d4583c2d82e90bb21a7e8671842f126edd4f4].
+
+            ``under=`` has the same carrier semantics as ``match``. In
+            particular, ``space.answers(call, under=counting).one()`` returns one
+            ``TaggedAnswer`` whose annotation counts the call's answer
+            derivations inside the engine, and ordered carriers
+            order their annotated ``TaggedAnswer`` values before a slice pulls
+            its prefix. A surrounding ``metta.under(carrier)`` is used only when
+            this call does not pass an explicit carrier.
+
+            ``theory=`` treats an atom or iterable of atoms as the theory value for
+            this ask. That value replaces the receiver's own equational program.
+            Engine builtins and the shared ``&self`` session space remain in scope
+            exactly as they are for every space, and names the theory defines
+            shadow inherited ones. It installs the theory in an isolated scratch
+            space on the first pull, evaluates there, and drops the space when the
+            view is exhausted or abandoned. The receiver is unchanged. This
+            mirrors reflective descent functions whose inputs are a reified module
+            and term [source:
+            https://maude.cs.illinois.edu/maude1/manual/maude-manual-html/maude-manual_24.html;
+            commit=0d49980b03d507f9bae0354786ab826a146c20df].
+
+            ``interpreter=`` instead evaluates the explicit full-interpreter
+            application ``(interpreter target %Undefined% space)`` for this ask,
+            which is the shape MeTTa's own evaluation function has: it says
+            "reduce with YOURS rather than the engine's".
+
+            The two COMPOSE, and are the head and the third argument of one
+            application rather than rival answers to one question: with both, the
+            interpreter is handed the theory's space, so it interprets the theory
+            [measured 2026-08-31: an interpreter tracing its delegate answered
+            `(Traced base)` alone and `(Traced left), (Traced right)` over a
+            two-equation theory]. They used to refuse together.
+
+            The INTERPRETER must declare its first parameter `Atom`, MeTTa's own
+            way to receive an argument unevaluated, or the engine reduces the
+            target before the interpreter ever sees it; and its RETURN metatype
+            `%Undefined%`, or the interpreter's own answer is not reduced either.
+            `(: e (-> Atom Atom Atom %Undefined%))` is the declaration.
+
+            A text target may carry HOLES, as run()'s source may:
+            `m.answers(t"(near {point})")`. A theory, an interpreter or a carrier
+            makes this view ask through another door, so the holes are read into
+            the term itself there rather than sent as pairs a hand-off would drop.
+            """
+            return self._door_answers(target, timeout=timeout, inferences=inferences, under=under, theory=theory, interpreter=interpreter, **values)
+
+        def parallel(self, *targets: Any, timeout: float | None=None) -> list[Atom | Undefined]:
+            """Evaluate every target concurrently, answering every branch's answers.
+
+            This is the engine's `hyperpose`, the parallel twin of `superpose`:
+            one SWI thread per branch through concurrent_and/2, so independent
+            branches cost about one branch's wall clock rather than their sum.
+
+                m.run("(= (sq $x) (* $x $x))")
+                m.parallel(S.sq(1), S.sq(2), S.sq(3))    # 1, 4 and 9, in any order
+
+            This is the **in-engine** fan-out: one janus call, the branches split
+            below it. The other route is `pool()`, the **Python-side** fan-out
+            across several engines. Reach for this one when the fan-out is a MeTTa
+            expression, and for `pool()` when it is a Python loop. They compose,
+            so a pool worker may itself evaluate a `parallel()`.
+
+            (Before 2026-08-15 this docstring said in-engine fan-out was the only
+            route to a second core, because every janus call took one process-wide
+            lock. That lock is now per-engine, and Python threads holding their own
+            engine measured 1.94x, 3.90x and 7.26x at 2, 4 and 8 threads.)
+
+            **Answers arrive in completion order, not argument order**, because
+            the branches race. Compare sets rather than sequences, and evaluate a
+            `superpose` instead when order carries meaning.
+
+            Each target is a term or its source text, as everywhere else. No
+            targets answers nothing without calling the engine.
+
+            `timeout` bounds the call and is the bound to use here. There is
+            deliberately no `inferences=`: the engine's inference limit counts
+            the calling thread, and `concurrent_and/2` runs every branch in a
+            worker, so a limit of 50,000 does not stop two branches spending six
+            million [measured 2026-08-15]. An unenforceable bound is worse than
+            an absent one, so eval() over a `superpose` is the way to bound this
+            work by inferences, at the cost of running it on one core.
+            """
+            return self._door_parallel(*targets, timeout=timeout)
+
+        def pool(self, workers: int | None=None) -> Any:
+            """A pool of worker threads that each hold their own Prolog engine.
+
+            The Python-side twin of `parallel()`. Each worker attaches its own
+            engine, so the process lock that serialises the home engine does not
+            apply to it and the calls genuinely run at once [measured 2026-08-15:
+            1.94x, 3.90x and 7.26x at 2, 4 and 8 workers].
+
+                m.run("(= (sq $x) (* $x $x))")
+                with m.pool(workers=4) as p:
+                    list(p.map(lambda n: m.eval(S.sq(n))[0], range(64)))
+
+            Use it as a context manager so every engine is released. `workers`
+            defaults to os.cpu_count(). This handle stays usable from the workers:
+            a MeTTa is a space name over the process runtime, not thread-owned.
+
+            Reach for `parallel()` instead when the fan-out is a MeTTa expression
+            rather than a Python loop; the two compose.
+            """
+            return self._door_pool(workers)
+
+        def reducible(self, target: Any) -> bool:
+            """Whether a head reduces here, asked without evaluating anything.
+
+                m.reducible(S.double(4))     # True
+                m.reducible(S.Point(1, 2))   # False, nothing applies to that head
+
+            The same head test eval_status() uses, published on its own because a
+            caller who wants to DECIDE about an unreduced term should not have to
+            run the term to find out. That decision is the caller's: a term
+            nothing applies to is its own answer, which is ordinary MeTTa and how
+            `!(hello world)` works, so there is no scope here that refuses one.
+
+            The Node extension has had m.reducible() since it existed; Python had
+            only eval_status(), which evaluates to tell you [measured 2026-08-31].
+            """
+            return self._door_reducible(target)
+
+        def eval_status(
+            self,
+            target: Any,
+            /,
+            *,
+            timeout: float | None=None,
+            inferences: int | None=None,
+            theory: Any | None=None,
+            interpreter: Any | None=None,
+            **values: Any,
+        ) -> list[tuple[str, Atom | Undefined | None]]:
+            """Evaluate a term, pairing each answer with how it was produced.
+
+                m.eval_status(S.double(4))       # [("value", Grounded(8))]
+                m.eval_status(S.Point(1, 2))     # [("not-reducible", Expression(...))]
+                m.eval_status(S.empty())         # [("empty", None)]
+
+            `value` means an equation, builtin or special form applied.
+            `not-reducible` means no rule applied, so the answer is the term
+            itself, which is what MeTTa does with any head it cannot call.
+            `empty` means the goal produced no answer at all, and its atom is
+            None. Reading the last two as the same thing is the mistake this
+            exists to prevent: an unevaluated term and a pruned branch look
+            alike from the answers alone. An error is not a status here,
+            because it arrives as an exception.
+
+            A `bind()` scope binds host values into the term exactly as it
+            does for eval(), and it has to: the substitution lands BEFORE the
+            reducibility question, so the status of an evaluation that binds
+            anything was unaskable without it. Name keys mean symbols and atom
+            keys mean themselves, so `bind({V.x: 5})` fills a variable hole.
+
+            `theory` and `interpreter` are eval()'s own, and mean the same here.
+            This is the method that says which evaluation path produced an answer, so
+            being unable to point it at an alternative evaluation relation was the
+            sharpest form of the gap: `m.eval_status(target, interpreter=my_eval)`
+            is how you see whether an explicit interpreter reduced a term or handed
+            it back. `under=` is deliberately NOT here: a carrier annotates every
+            answer with an algebra value, so it would make a status row a triple
+            rather than the pair it is, which is a question about what a status IS.
+            """
+            return self._door_eval_status(target, timeout=timeout, inferences=inferences, theory=theory, interpreter=interpreter, **values)
+
+        def run_status(
+            self,
+            source: str,
+            *,
+            timeout: float | None=None,
+            inferences: int | None=None,
+        ) -> list[list[tuple[str, Atom | Undefined | None]]]:
+            """run(), with each directive's answers paired with how they arose.
+
+            The grouping and the answers are run()'s own; see eval_status() for
+            what the three paths mean.
+            """
+            return self._door_run_status(source, timeout=timeout, inferences=inferences)
+
+        def stats(self) -> _StatsBlock:
+            """The engine's own counters over a with-block, as deltas.
+
+                with m.stats() as s:
+                    m.match(S.edge(V.x, V.y), S.edge(V.y, V.z))
+                s.inferences        # engine steps the block spent
+                s.cputime           # engine CPU seconds
+                s.walltime          # wall seconds, Python's clock
+                s.gc_count, s.gc_freed, s.gc_time
+                s.table_bytes       # answer-table bytes grown, tabling's memory
+
+            The counters are SWI's statistics/2 read on the CALLING thread, so
+            a block that runs other threads' engine work counts that work too;
+            the honest reading is "what this thread saw the engine do while the
+            block ran". A lazy cursor is the exception, and a large one: its
+            goal runs in an SWI engine, an engine counts its own inferences,
+            and this thread cannot see them. Draining 20,000 rows through the
+            match cursor reports 40,049 inferences against about 381,000 the
+            cursor's engine really spent, 10.5% of the work; the real cost is
+            readable off the `inferences` budget, which does count the engine
+            [measured 2026-08-27]. The evaluation cursor behind `answers()`
+            does report its engine's spend, so that one is whole. The z3py
+            Solver.statistics() reading, on the engine this library actually
+            has.
+            """
+            return self._door_stats()
+
+        @overload
+        def op(
+            self,
+            fn: Callable[_P, _R],
+            /,
+            *,
+            name: str | None=...,
+            transport: Literal['encoded', 'raw']=...,
+            effect: EffectClass | str,
+            declarations: Iterable[Atom]=...,
+            arities: list[int] | None=...,
+            inverse: Callable | None=...,
+        ) -> Callable[_P, _R]: ...
+        @overload
+        def op(
+            self,
+            *,
+            name: str | None=...,
+            transport: Literal['encoded', 'raw']=...,
+            effect: EffectClass | str,
+            declarations: Iterable[Atom]=...,
+            arities: list[int] | None=...,
+            inverse: Callable | None=...,
+        ) -> Callable[[Callable[_P, _R]], Callable[_P, _R]]: ...
+        def op(
+            self,
+            fn: Callable | None=None,
+            *,
+            name: str | None=None,
+            transport: Literal['encoded', 'raw']='encoded',
+            effect: EffectClass | str | None=None,
+            declarations: Iterable[Atom]=(),
+            arities: list[int] | None=None,
+            inverse: Callable | None=None,
+        ) -> Any:
+            """Register a Python callable as a MeTTa function, decorator-style.
+
+                @m.op(effect=EffectClass.pureStructural)
+                def double(x: int) -> int:
+                    return 2 * x                    # !(double 21) -> 42
+
+                @m.op(effect=EffectClass.nondeterministicReadOnly)
+                def neighbours(n: int):
+                    yield n - 1                     # a generator is nondeterministic
+                    yield n + 1
+
+            An implicit Python name maps underscores to MeTTa hyphens. ``name=``
+            is exact, for source vocabularies that deliberately use underscores.
+
+            A name must read back as one MeTTa symbol. A space, parenthesis,
+            quote, comment opener, variable spelling, number, boolean, or another
+            registered reader token is refused before any registry changes, with
+            the name and the conflicting character in the error.
+
+            Annotations become ordinary `(: ...)` declarations. An unannotated
+            callable makes no type claim. `transport="raw"` skips wire encoding
+            both ways and is reflected as raw_det or raw_many in `(op ...)`;
+            symbols then reach Python as strings, so encoded transport is the
+            fidelity-preserving default. unregister_op(name) removes every
+            registered arity and every declaration the registration owns.
+
+            An `Atom` parameter changes evaluation order. The declaration tells
+            the compiler to pass the argument as written, before it reduces:
+
+                @m.op(effect=EffectClass.pureStructural)
+                def anyatom(term: Atom) -> Atom:
+                    return term
+
+                # with (= (side) 42), !(anyatom (side)) answers (side)
+
+            An unconstrained parameter receives the evaluated value instead, so
+            the otherwise identical `def anyval(term): return term` answers 42.
+            Use `Atom` only when the operation deliberately implements syntax or
+            a control form; it is not just a static hint.
+
+            An encoded generator may instead yield exact tuples as positional
+            relation rows, or exact dicts keyed by parameter name as sparse rows.
+            The engine unifies each candidate against the written call, so one
+            implementation serves free, partially bound, and ground arguments:
+
+                @m.op
+                def route(origin, destination):
+                    yield (S.paris, S.lyon)
+                    yield {"destination": S.nice}  # origin is unconstrained
+
+                # route(V.origin, S.lyon).rows[0].origin == S.paris
+
+            Each matching occurrence answers unit and duplicate yields remain
+            duplicate answers. Use `Answer(value=...)` when an exact tuple or dict
+            is the result value rather than a parameter row. Relational rows
+            require encoded transport; raw calls cannot carry unbound argument
+            positions.
+
+            When evaluation order stays ordinary but the callable needs the
+            resulting Atom wrappers, declare that policy as data:
+
+                m.op(
+                    inspect_atom,
+                    name="inspect-atom",
+                    effect=EffectClass.pureStructural,
+                    declarations=[parse("(arguments inspect-atom atoms)")],
+                )
+
+            The declaration is matchable in &metta and is retired with the
+            operation. Raw transport refuses this declaration because it bypasses
+            the atom codec entirely.
+
+            The cost ladder, measured on the maintained box in inferences per
+            call, explains the transport choice:
+
+                native MeTTa function            9.11   the floor
+                transport="raw"                10.11   opaque handles, near-native
+                encoded                        17.11   encoded values
+                encoded, typed literal         17.11   the check hoists to compile
+                py-call, dotted                 22.11   the ad-hoc escape hatch
+
+            The ergonomic default (encoded, typed) costs about 1.7x raw on the
+            counter and more on wall clock, since encoding walks the value both
+            ways; a registered raw operation measured 0.85us against 2.26us
+            encoded. Bulk data should stay opaque: one transparent 64-float
+            crossing costs 330 inferences where the handle costs 10.
+
+            `inverse=` remains the distinct-output form. Use it when the forward
+            operation returns a result and a separate callable must recover the
+            arguments from that result:
+
+                m.op(
+                    cons,
+                    name="cons",
+                    inverse=uncons,
+                    effect=EffectClass.pureStructural,
+                )
+                # !(let (cons $h $t) (1 2 3) ($h $t))  ->  (1 (2 3))
+
+            It takes the result and returns the arguments, as a tuple, or the
+            bare value at arity one; a generator enumerates every preimage, and
+            None or NotReducible means there is none. It runs only when the arguments
+            are not ground and the result is, so a forward call never reaches it,
+            and an operation without one compiles exactly what it did before.
+
+            A parameter annotated `metta.MeTTa` is the framework's to fill,
+            FastAPI's Depends read with the house convention that the
+            annotation is the request. The engine injects itself bound to the
+            CALLING context's space, so an operation invoked from a program
+            running in &kb queries &kb; the slot never counts toward MeTTa
+            arities or the declared arrow, and only operations that ask pay
+            the weaving:
+
+                @m.op(effect=EffectClass.nondeterministicReadOnly)
+                def related(term, engine: metta.MeTTa):
+                    for row in engine.match(Expression(S.link, term, V.x)):
+                        yield row[0]
+
+            Every operation declares its strongest observable effect. The five
+            ordered choices are ``pureStructural``, ``readOnlyLookup``,
+            ``nondeterministicReadOnly``, ``writesState``, and ``oracleIO``:
+
+                m.op(
+                    len,
+                    name="size",
+                    effect=EffectClass.pureStructural,
+                )
+                # (= (count-of $x) (size $x))  is cacheable
+
+            It is an allow-list on purpose. An operation that does not say so is
+            refused by name in a cached body, loudly, rather than cached and
+            quietly wrong.
+            """
+            return cast("Any", self._door_op)(fn, name=name, transport=transport, effect=effect, declarations=declarations, arities=arities, inverse=inverse)
+
+        def pure(self, fn: Callable | None=None, /, **options: Any) -> Any:
+            """An operation whose answer depends only on its arguments.
+
+                @m.pure
+                def double(x: int) -> int:
+                    return 2 * x
+
+            The cache-safe class, and the only one memoization and tabling admit
+            without an explicit policy.
+
+            A GENERATOR written this way is lifted to `nondeterministicReadOnly`,
+            because a generator is nondeterministic whatever it declares, and the
+            registration reads that off the function rather than asking. The lift
+            only ever raises the rank, so it widens the answer-count claim and
+            never weakens the effect claim -- but it does mean a generator is not
+            cache-safe, which is the whole reason it is lifted out of this class
+            [tested: test_a_generator_is_lifted_to_the_nondeterministic_rank;
+            commit=7e5091540a8dc0903bcee24f3e5b8b85a19f805f].
+
+            Every ``op`` keyword applies: ``name``, ``arities``,
+            ``declarations``, ``inverse`` and ``transport``. They arrive as
+            ``**options`` and forward unchanged, so the signature above shows
+            the mechanism and this line shows the surface.
+            """
+            return self._door_pure(fn, **options)
+
+        def reads(self, fn: Callable | None=None, /, **options: Any) -> Any:
+            """An operation that reads stable state without changing it.
+
+            Every ``op`` keyword applies: ``name``, ``arities``,
+            ``declarations``, ``inverse`` and ``transport``. They arrive as
+            ``**options`` and forward unchanged, so the signature above shows
+            the mechanism and this line shows the surface.
+            """
+            return self._door_reads(fn, **options)
+
+        def writes(self, fn: Callable | None=None, /, **options: Any) -> Any:
+            """An operation that changes engine or host state.
+
+            Every ``op`` keyword applies: ``name``, ``arities``,
+            ``declarations``, ``inverse`` and ``transport``. They arrive as
+            ``**options`` and forward unchanged, so the signature above shows
+            the mechanism and this line shows the surface.
+            """
+            return self._door_writes(fn, **options)
+
+        def io(self, fn: Callable | None=None, /, **options: Any) -> Any:
+            """An operation that observes an external oracle.
+
+            A clock, randomness, a network, a file, another runtime.
+
+                @m.io
+                def now() -> float:
+                    return time.time()
+
+            The fail-closed top of the lattice. Declare it when what the operation
+            reaches is decided at run time or by a library the engine cannot bound.
+
+            Every ``op`` keyword applies: ``name``, ``arities``,
+            ``declarations``, ``inverse`` and ``transport``. They arrive as
+            ``**options`` and forward unchanged, so the signature above shows
+            the mechanism and this line shows the surface.
+            """
+            return self._door_io(fn, **options)
+
+        def unregister_op(self, name: str) -> None:
+            """Remove a registered operation, every arity of it.
+
+            An absent name raises KeyError, as convert.unregister_type does:
+            removing something that was never there is a mistake worth hearing
+            about, not a no-op to absorb.
+            """
+            return self._door_unregister_op(name)
+
+        def builtins(self) -> list[str]:
+            """Every function callable from this space, plus every special form.
+
+            Its own equations, the ones it inherits, ``&self``'s shared ones and
+            the engine's builtins, with the translator's special-form heads,
+            sorted without duplicates. A head another space defines is
+            registered process-wide (the translator's call-or-data question,
+            which ``is_function`` answers) but is not callable here and is not
+            listed here.
+            """
+            return self._door_builtins()
+
+        def is_function(self, name: str) -> bool:
+            """Report whether the name is registered as a function anywhere.
+
+            This is the translator's call-or-data question and holds wherever a
+            term compiles; ``is_function_here`` asks whether the head answers
+            from THIS space, and ``builtins()`` lists what this space can call.
+            """
+            return self._door_is_function(name)
+
+        def is_function_here(self, name: str) -> bool:
+            """Whether a function would answer from THIS space: it has clauses
+            this space's module sees, its own or the shared ones in user.
+            Another space's equations are invisible here and do not count.
+            """  # noqa: D205 -- preserve the declared documentation
+            return self._door_is_function_here(name)
+
+        def arities(self, name: str) -> list[int]:
+            """Compiled predicate arities for a name: MeTTa arity plus one each."""
+            return self._door_arities(name)
+
+        def register_prolog(
+            self,
+            source: str | None=None,
+            *,
+            path: str | os.PathLike[str] | None=None,
+            names: _abc.Sequence[str] | _abc.Mapping[str, str]=(),
+        ) -> tuple[str, ...]:
+            """Register Prolog predicates as MeTTa functions, at native speed.
+
+            This is the extension point for a library that wants to run fast.
+            op() is the one most people find first, and every call it
+            serves crosses the janus boundary: 25.16 inferences and 2.34us per
+            call, against 7.16 inferences and 0.13us for the same operation
+            written in Prolog [measured 2026-08-15, 3000 calls in one harness].
+
+            Read the microseconds, not the inferences. The crossing counts as ONE
+            inference and costs real time, so inferences say a Python operation is
+            3.1x a Prolog one while wall clock says 18x. That is a fine price for
+            reaching NumPy or an LLM and a bad one for arithmetic in a loop.
+
+            A registered predicate keeps its nondeterminism: one that offers three
+            solutions gives the MeTTa function three answers.
+
+            A predicate follows the compiled calling convention, inputs first and
+            one output last:
+
+                m.register_prolog(
+                    "'vec-dot'(A, B, Out) :- ... .",
+                    names=["vec-dot"],
+                )
+                m.eval("(vec-dot (1 2) (3 4))")[0]
+
+            or, for a library shipping a file beside its Python:
+
+                m.register_prolog(path=Path(__file__).parent / "fast.pl",
+                                  names=["vec-dot", "vec-norm"])
+
+            Every name is registered explicitly rather than discovered, because
+            registering a name whose predicate is absent records no arity and then
+            compiles every call to it into a partial application instead of
+            failing, which is a silent wrong answer rather than an error. This
+            raises instead: a name with no predicate behind it is refused before
+            it can do that.
+
+            The refusals are the engine's, through check_prolog_function_names/3
+            and import_prolog_functions/2, so this and the MeTTa spelling enforce
+            one rule rather than two copies of it. Three names are refused: one
+            with no predicate behind it, a builtin, and a special form.
+
+            Nothing is registered unless every name can be, so a typo in the list
+            changes nothing. The consulted SOURCE does stay loaded on failure,
+            which is deliberate rather than overlooked: loading it again is the
+            retry, and it is idempotent, since the source is identified by a hash
+            of its own content.
+
+            **This is a method on a space and it registers PROCESS-WIDE.** So do
+            op and define. Only equations are space-scoped, so an anonymous
+            space() isolates one of the three things you can register and
+            shares the other two. That is deliberate rather than overlooked: a
+            Prolog predicate lives in `user`, every space has to be able to call
+            it, and a library loaded inside a named space would define itself
+            where the registration could not see it. The method sits on the space
+            because that is where the rest of the surface is, not because the
+            registration is scoped to it.
+
+            The name is owned by one tier. A second registration of the same name
+            from another tier is refused, in both directions, naming the owner, so
+            two libraries cannot silently take the same name from each other.
+
+            A parameter a MeTTa caller should reach unevaluated needs a type
+            declaration, which this call does not take yet:
+
+                m.register_prolog("'shape-of'(A, Out) :- Out = [shape, A].",
+                                  names=["shape-of"])
+                m.run("(: shape-of (-> Atom Atom))")
+                m.eval("(shape-of (+ 1 2))")[0] # (shape (+ 1 2)), not (shape 3)
+
+            Declare it BEFORE anything calls the function. A call site compiled
+            while the declaration is absent keeps evaluating the argument even
+            after it lands.
+            """
+            return self._door_register_prolog(source, path=path, names=names)
+
+        def register_foreign_library(
+            self,
+            path: str | os.PathLike[str],
+            *,
+            entry: str | None=None,
+            names: _abc.Sequence[str]=(),
+        ) -> tuple[str, ...]:
+            """Load a compiled `.so` and register its predicates as MeTTa functions.
+
+            The C tier is the cheapest one on this page's cost table, one
+            inference per call, and reaching it used to mean hand-writing two
+            Prolog directives into `register_prolog`:
+
+                m.register_foreign_library(Path(__file__).parent / "cbump.so",
+                                           entry="install_cbump", names=["c-bump"])
+
+            `entry` is the C initialiser, `install_cbump` in
+            `install_t install_cbump(void)`; leave it out for a library whose
+            entry is plain `install`.
+
+            The path is resolved to an ABSOLUTE one here, which is the trap this
+            exists to close: `use_foreign_library/2` accepts a path relative to
+            the working directory, resolves it, and SWI deprecates that and warns
+            on every load, so a library that shipped one worked from the repo root
+            and warned or failed anywhere else. A file that is not there is
+            refused here rather than inside the engine's loader.
+
+            Everything after the load is `register_prolog`, so the same refusals
+            apply: a name with no predicate behind it, a builtin, a special form,
+            and a name another tier owns.
+            """
+            return self._door_register_foreign_library(path, entry=entry, names=names)
+
+        def register_library_path(self, directory: Any, name: str) -> None:
+            """Point MeTTa at a directory of files your package ships.
+
+                # in your package's __init__
+                m.register_library_path(Path(__file__).parent / "prolog", "pettorch")
+
+            Subject first, as every register_* call: the directory being
+            registered, then the library name it serves.
+
+            `(library pettorch fast.pl)` then resolves, from MeTTa and from
+            `register_prolog(path=...)`. Without it a pip-installed library is
+            under neither `<engine>/../lib` nor a git checkout, so it has to pass
+            absolute paths and compute them from `__file__` by hand.
+
+            This is SWI's own `file_search_path/2`, so an alias registered here is
+            one every SWI tool already understands, and aliases compose: the
+            second argument of one may be another alias. Registering the same
+            directory twice is a no-op; a directory that is not there is refused
+            here rather than at the first import that needs it.
+            """
+            return self._door_register_library_path(directory, name)
+
+        def unregister_prolog(self, extension: str) -> tuple[str, ...]:
+            """Release everything one extension registered, and its clauses.
+
+            The unit is the extension, not the name. `register_prolog` used to
+            load a bunch of loose predicates: the engine recorded that each name
+            was a function and nothing at all about the library it came from, so
+            there was no uninstall to write and a partly-failed registration left
+            debris nobody could enumerate.
+
+                :- metta_extension(pettorch, [version('0.3.1')]).
+                :- metta_export("(: vec-dot (-> Number Number Number))").
+
+                m.register_prolog(path="fast.pl")     # names come from the file
+                m.unregister_prolog("pettorch")       # everything it installed
+
+            PostgreSQL's rule, and its reason: an individual member cannot be
+            dropped on its own, only the whole extension, which is what stops one
+            registry keeping a claim on a name another route already replaced.
+            The clauses go too, through SWI's own `unload_file/1`, so a name is
+            not left callable through a predicate nothing records.
+
+            Answers the names it released. Raises when no extension of that name
+            is loaded, rather than reporting success for a no-op.
+            """
+            return self._door_unregister_prolog(extension)
+
+        def subscribe(
+            self,
+            pattern: Any,
+            callback: Callable | None=None,
+            *,
+            on: SubscriptionEdge=SubscriptionEdge.add,
+            where: Any | None=None,
+            queue_max: int | None=None,
+        ):
+            """A standing query on this space: every added (or removed, or
+            both) atom unifying with the pattern becomes an Event.
+
+                seen = []
+                sub = m.subscribe(S.order(V.id), lambda e: seen.append(e))
+                m.add(S.order(1))          # seen[0].bindings["id"] == 1
+                sub.cancel()
+
+            With a callback, delivery is synchronous. An unscoped write delivers
+            before it returns; a transaction delivers its ordered segment only
+            after the complete commit, while rollback and speculation deliver
+            nothing. The callback may write back; the engine re-enters cleanly,
+            and an infinite add-triggers-add loop is the author's own.
+            Without one, events queue on the subscription and drain() empties
+            them: the mailbox reading. That queue is bounded by `queue_max`,
+            and a write arriving at a full queue raises SubscriberError rather
+            than discarding the oldest event: nobody draining is a bug in the
+            consumer, and a silently shortened history is how it stays hidden.
+            A removal event fires only when something was removed, and carries
+            the pattern that was asked for rather than the occurrence that
+            left. The two are the same atom for a ground removal and differ
+            for a pattern one: removal is multiset subtraction, so
+            `remove(S.alert(V.q))` takes one of the alerts and the event
+            cannot say which. Re-read the space when you need to know;
+            `m.live(pattern)` is the worked instance, and it is the rung above
+            this one: a view is this subscription maintaining what a match would
+            have answered.
+            """  # noqa: D205 -- preserve the declared documentation
+            return self._door_subscribe(pattern, callback, on=on, where=where, queue_max=queue_max)
+
+        def prolog(self) -> None:
+            """Drop into the engine's own interactive Prolog toplevel, the
+            deepest debugging lever there is: listing/1 shows compiled
+            equations, trace/0 steps through them, and quitting the toplevel
+            returns here with the session intact. janus's own janus.prolog(),
+            surfaced where the debugging happens.
+
+            This is the only Prolog-facing surface here besides register_prolog,
+            and that is a decision rather than a gap. There is no public
+            "call any Prolog goal" method: the supported way to reach your own
+            Prolog from Python is to register it and call it as a MeTTa function,
+            which keeps one set of conversion rules, one error taxonomy and one
+            lock. A raw goal is janus's job and janus is importable directly.
+            """  # noqa: D205 -- preserve the declared documentation
+            return self._door_prolog()
+
+        def derivation(
+            self,
+            target: Any,
+            depth: int | None=None,
+            *,
+            timeout: float | None=None,
+            inferences: int | None=None,
+        ) -> list[Any]:
+            """Every proof of an answer, as trees in MeTTa terms.
+
+            Each tree names the equations that fired and the stored atoms at the
+            leaves, read from the translated_from links the engine keeps for
+            every compiled clause. Meta-interpreted, so slower than evaluation;
+            a diagnostic, not an evaluation path. The default walks each proof
+            without a depth cutoff. A positive depth returns a partial tree with
+            Truncated nodes when its budget ends, so an empty list means no proof.
+            `timeout` and `inferences` guard the whole search. An evaluation error
+            inside a proof surfaces as itself rather than as an empty proof list.
+
+            Building a proof executes every premise it records, including
+            effectful operations. Engine writes persist and repeated derivations
+            accumulate them, just as repeated evaluations do. Use
+            ``with space.speculative():`` when the proof should return while its
+            engine writes are discarded. That scope cannot undo Python side
+            effects, I/O, or subscription callbacks that already fired, so do not
+            derive an effectful target when those effects must not happen.
+
+            A `bind()` scope binds host values into the term, for the reason
+            eval_status needs it: the substitution lands BEFORE the search, so the
+            proof of an evaluation that binds anything was unaskable. Name keys
+            mean symbols and atom keys mean themselves, so `bind({V.x: 5})` fills
+            a variable hole. It takes no `theory` or
+            `interpreter`, because a meta-interpreted diagnostic does not select an
+            evaluation relation.
+            """
+            return self._door_derivation(target, depth, timeout=timeout, inferences=inferences)
+
+        def why(self, pattern: Any, *, where: Any | None=None) -> str:
+            """Why a pattern matches nothing here, in words.
+
+            Checks the cheap explanations in order: unknown function, wrong
+            arity, no stored atoms with that head. Honest when it cannot tell,
+            and honest about the PREMISE too: a pattern that does match is a
+            question with a false premise, and this refuses it the way
+            Answers.why() always did rather than answering it. Asking why
+            `(job $id $pri)` matched nothing, when it matches two atoms, used to
+            answer "2 job atom(s) exist here but none unifies with it"
+            [measured 2026-08-31].
+
+            `where` is match()'s guard, and asking with one is where the answer
+            gets interesting: a query can be empty because the pattern found
+            nothing OR because the guard rejected everything it found, and only
+            the guarded question can tell you which.
+
+            One implementation, because there were two and they agreed word for
+            word on every genuine miss while disagreeing about the premise.
+            """
+            return self._door_why(pattern, where=where)
+
+        @overload
+        @dataclass_transform(eq_default=False)
+        def define(  # type: ignore[overload-overlap]
+            self,
+            fn: _builtins.type[_T],
+            /,
+            *,
+            accessors: bool=...,
+            methods: bool=...,
+        ) -> _builtins.type[_T]: ...
+        @overload
+        def define(
+            self,
+            fn: Callable[_P, _R],
+            /,
+            *,
+            name: str | None=...,
+            accessors: bool=...,
+            methods: bool=...,
+        ) -> Defined[_P, _R]: ...
+        @overload
+        def define(self, *, name: str) -> Callable[[Callable[_P, _R]], Defined[_P, _R]]: ...
+        @overload
+        def define(
+            self,
+            *,
+            prolog: str | os.PathLike[str],
+            name: str | None=None,
+        ) -> Callable[[Callable[_P, _R]], PrologBacked[_P, _R]]: ...
+        def define(
+            self,
+            fn: Callable[..., Any] | None=None,
+            *,
+            prolog: str | os.PathLike[str] | None=None,
+            name: str | None=None,
+            accessors: bool=True,
+            methods: bool=True,
+        ) -> Any:
+            """Compile a Python function into MeTTa equations, decorator-style.
+
+            With `prolog=`, the Prolog file is registered and becomes the
+            function, and the Python stays as the reference twin rather than
+            being compiled:
+
+                @m.define(prolog=Path(__file__).parent / "fast.pl")
+                def vec_dot(a, b):
+                    return sum(x * y for x, y in zip(a, b))
+
+                m.eval("(vec-dot (1 2) (3 4))")[0] # the Prolog answer
+                vec_dot.py((1, 2), (3, 4))          # the reference answers
+
+            Rewriting a defined function in Prolog for speed used to mean
+            deleting the Python and the differential oracle with it. Here both
+            are declared together and `metta.testing.check_twin` proves they
+            agree on ground inputs. The file must register the function's own
+            MeTTa name and at the twin's arity, inputs then one output, and
+            says so if it does not; its `metta_export` declaration owns the
+            types, so annotations on the Python are documentation only.
+
+            Written for whoever is fluent in Python rather than s-expressions:
+            the body is read as syntax and lowered deterministically, refusals
+            name the construct, the line and what to write instead, and the
+            original stays reachable as .py, a twin the equations can be checked
+            against on any ground input.
+
+                @m.define
+                def add_one(n):
+                    return n + 1
+
+                add_one(5)                  # [6], evaluated by the engine
+                S.add_one(5)                # (add_one 5), staged as data
+                add_one.py(5)               # 6, ordinary Python
+
+            The equation's implicit name applies the factories' total mechanical
+            map, replacing each underscore with a hyphen. ``name=`` is the exact
+            quoted-name escape for punctuation that map cannot preserve:
+
+                @m.define(name="add-one")
+                def add_one(n):
+                    return n + 1
+
+            The same attribute mapping applies to the definition name itself:
+            ``def not_provable`` lands as ``not-provable``. An authored
+            MeTTa underscore therefore uses explicit ``name="not_provable"``.
+
+            A generator compiles to nondeterminism (each yield one answer), a
+            lambda to the engine's own |->, a comprehension to map-atom and
+            filter-atom, and match(Pattern(x, y), template) to a match against
+            the running space, lowercase free names in the pattern binding as
+            variables.
+            """
+            return cast("Any", self._door_define)(fn, prolog=prolog, name=name, accessors=accessors, methods=methods)
+
+        def rules(self, fn: Callable[..., Any]) -> _Rules:
+            """Collect and land a non-exclusive equation bundle in this space."""
+            return self._door_rules(fn)
+
+        def pre_add(self, fn: Defined[..., Any] | Callable[..., Any]) -> Defined[..., Any]:
+            """Compile or accept one unary judge and claim this space's write hook.
+
+            The common decorator stack places ``@pre_add`` above ``@define``, so
+            an existing Defined keeps the module that owns its equations. A raw
+            function is compiled into this space before claiming the hook.
+            """
+            return self._door_pre_add(fn)
+
+        def type(self, atom: Any) -> Atom:
+            """Return this space's first ``get-type`` answer, including undefined."""
+            return self._door_type(atom)
+
+        def infer_types(self, *, declare: bool=False) -> list[Atom]:
+            """Propose a `(: head (-> ...))` for every head here that has none.
+
+                m.infer_types()                 # the proposals, nothing added
+                m.infer_types(declare=True)     # add exactly those proposals
+
+            One walk of the stored atoms names the narrowest kind covering the
+            children observed at each argument position: all numbers `Number`,
+            all strings `String`, all booleans `Bool`, all symbols `Symbol`, all
+            expressions sharing one head that head's declared result type when it
+            has one and `Expression` otherwise, mixed `Atom`. A variable observed
+            at a position stands for anything and constrains nothing, so a
+            position with only variables is `%Undefined%`. That is
+            `pandas.api.types.infer_dtype` moved from a column's values to an
+            argument position's children, its `skipna` included.
+
+            An equation head's RESULT is what its body answers: a literal's own
+            type, or the declared result of the head the body calls, which is how
+            `(= (double $x) (* $x 2))` proposes `(-> %Undefined% Number)`.
+            Anything else, a bare symbol included, is `%Undefined%`, because a
+            symbol's own type is `%Undefined%` here too. A head observed at two
+            arities gets one proposal per arity, and a head this space already
+            declares gets none.
+
+            `declare=True` adds exactly the returned atoms and nothing else, so
+            `get-type` then answers them. One thing changes with the program's
+            BEHAVIOUR and is worth reading before a proposal is accepted: `Atom`
+            in an argument position is a metatype and stops the engine evaluating
+            that argument, so a mixed position turns `(f (+ 1 2))` from `3` into
+            the term `(+ 1 2)` [measured 2026-09-07]. Proposing and adding are
+            two calls for that reason.
+
+            Cost is O(atoms x arity): one pass over the space, plus one type
+            lookup per distinct head. `metta.stubs()` and `inspect.signature()`
+            show the same arrows, marked inferred, without adding anything.
+            """
+            return self._door_infer_types(declare=declare)
+
+        def doc(self, atom: Any) -> Atom:
+            """Return this space's structured ``get-doc`` answer for one subject.
+
+            The answer is the ``(@doc ...)`` atom the engine holds for the
+            subject, whether it was documented in MeTTa source or built from a
+            Python docstring:
+
+                m.doc(S.area)
+                # (@doc-formal (@item area) (@kind function) (@desc "Circle area.") ...)
+
+            A subject with no documentation raises, exactly as ``type`` raises
+            for a subject ``get-type`` cannot answer.
+            """
+            return self._door_doc(atom)
+
+        @property
+        def fn(self) -> _FunctionNamespace:
+            """Functions visible here, as bound attribute or exact-name handles.
+
+                car = m.fn.car_atom
+                car(m.parse("(1 2 3)"))     # [1]
+                m.fn["=="](1, 1).one()      # True
+
+            Underscores transliterate to hyphens. Brackets preserve exact
+            punctuation, and an unknown name raises at access rather than
+            becoming a later empty evaluation.
+            """
+            return self._door_fn
+
+        def integrate(self, target: Any) -> str:
+            """Install a library integration; see metta.integrate."""
+            return self._door_integrate(target)
+
+        def handles(
+            self,
+            pattern: str | Atom,
+            fidelity: Fidelity,
+            *,
+            det: Determinism | None=None,
+        ) -> Atom:
+            """Declare how faithfully a space answers queries of one shape.
+
+            The declaration is one (handles ...) atom in &metta, and queries
+            are routed by the most specific declared shape that matches:
+            Exact licenses pushing the caller's bound to the provider, Partial
+            and Sound stay candidates the engine re-unifies, and Refuse makes
+            the query a loud error instead of a silent partial answer. Write
+            (in $x) at a position to match only queries arriving with it
+            bound, so a scan-only source is three words:
+
+                rows.handles("(edge (in $a) $b)", "Refuse")
+
+            Coherence is checked eagerly in the same transaction as the
+            write: a new entry that can disagree with an existing one on some
+            query fails here, naming both, rather than on the first query
+            that falls into their overlap. The atom is returned; removing it
+            from &metta withdraws the declaration.
+            """
+            return self._door_handles(pattern, fidelity, det=det)
+
+        def annotations(
+            self,
+            subject_or_algebra: str,
+            algebra: str | None=None,
+            *,
+            capabilities: _abc.Iterable[str]=(),
+        ) -> Atom:
+            """Declare the algebra a context's answer annotations live in.
+
+            A context is a space name or an operation name. bool is the
+            default at which everything vanishes; ranked admits ordered
+            annotations, which is what (top k ...) consumes. A custom name must
+            first be introduced with :meth:`algebra`. A one-argument call uses
+            this space as the context; the two-argument form keeps an operation
+            context as the explicit first subject. Capabilities are
+            checked against the algebra's requirements before the catalog write;
+            amplitude programs, for example, must explicitly declare ``finite``,
+            ``contractive`` and ``staged`` [tested:
+            test_amplitudes_interfere_inside_the_fragment_and_are_refused_outside;
+            commit=f88aa8be03cb64cb59d3307515ded8701f418321]. Declaring replaces any earlier row for the
+            context, so the reader never meets two disagreeing atoms.
+            """
+            return self._door_annotations(subject_or_algebra, algebra, capabilities=capabilities)
+
+        def algebra(
+            self,
+            name: str,
+            *,
+            combine: str,
+            extend: str,
+            zero: Any,
+            one: Any,
+            laws: _abc.Iterable[str]=(),
+            carrier: _abc.Iterable[Any]=(),
+            type: Any=None,  # noqa: A002 -- the declared public parameter spelling
+            requires: _abc.Iterable[str]=(),
+            order: SemiringOrder | None=None,
+        ) -> Atom:
+            """Declare operations with carrier membership and optional checked laws.
+
+            ``type`` accepts a Python type, MeTTa type atom, or Boolean predicate
+            and checks every input and result. A type alone grants no laws or
+            fusion. ``carrier`` enumerates the finite domain required for exhaustive
+            law checking; it may accompany ``type`` to constrain that domain.
+            Use ``prov`` and ``.under()`` to reinterpret uncertified tensor traces.
+            """
+            return self._door_algebra(name, combine=combine, extend=extend, zero=zero, one=one, laws=laws, carrier=carrier, type=type, requires=requires, order=order)
+
+        def covers(self, effect: EffectClass | str) -> Atom:
+            """Declare the strongest effect this reified world can handle.
+
+            Coverage is a catalog fact ``(covers <space> <effect>)``. World
+            evaluation always admits pureStructural plans. A stronger joined plan
+            runs only when this declaration is at least as strong; redeclaring
+            replaces the previous row atomically.
+
+                orders.covers("writesState")
+                world = orders.reify()
+            """
+            return self._door_covers(effect)
+
+        def compensates(self, operation: str, compensation: str) -> Atom:
+            """Declare one recovery operation for an effectful operation.
+
+            The catalog row is ``(compensates operation compensation)``. The
+            source operation must already be registered at writesState or
+            oracleIO, because weaker operations leave no saga receipt. The
+            recovery name must already be a host operation or compiled MeTTa
+            function. It receives the complete ``(did ...)`` receipt. The runner writes
+            the call as ``(quote <receipt>)`` so the receipt is not evaluated
+            on the way in; the quote is a barrier and does not survive, so the
+            handler is handed the receipt itself.
+            Redeclaring replaces the old row atomically.
+            """
+            return self._door_compensates(operation, compensation)
+
+        def add_tagged_fact(self, tag: Any, proposition: Any) -> Atom:
+            """Store ``(fact tag proposition)``, the normative annotation form."""
+            return self._door_add_tagged_fact(tag, proposition)
+
+        def add_tagged_rule(self, tag: Any, head: Any, *premises: Any) -> Atom:
+            """Store one rule generated by the algebra-agnostic tag threader."""
+            return self._door_add_tagged_rule(tag, head, *premises)
+
+        def image(self, type_name: str, setting: ImageMode) -> Atom:
+            """Choose how one Python type crosses one context boundary.
+
+            opaque carries the live object by identity; transparent projects its
+            structural MeTTa image; auto makes that choice from the value's size
+            and replayability. A later declaration for the same context and type
+            replaces the earlier one, so an attached provider reads one policy.
+            Use ``_`` as the type name for a context-wide fallback.
+            """
+            return self._door_image(type_name, setting)
+
+        def sample(self, query: str | Atom, *, k: int=10, seed: int=7) -> list[Atom]:
+            """Choose ``k`` tagged alternatives with replacement by ``(rate n)``.
+
+            The argument names and list result follow ``random.choices``. A local
+            seeded generator makes repeated calls reproducible without changing
+            Python's process-global random state.
+            """
+            return self._door_sample(query, k=k, seed=seed)
+
+        def consumption(self, kind: SourceKind) -> Atom:
+            """Declare a space's consumption discipline.
+
+            repeated is the default: the source re-enumerates. linear is a
+            one-shot source, a cursor or a feed: its SECOND consumption is a
+            loud error naming the space, where the undeclared floor answers a
+            silently empty set from the drained object; re-registering the
+            provider resets the mark, because a fresh provider is a fresh
+            source. peek promises reads do not consume, which the conformance
+            kit checks by enumerating twice. The Python door is named
+            ``consumption`` so ``source()`` can show program text; the MeTTa
+            catalog row deliberately keeps its language-level ``source`` head.
+            """
+            return self._door_consumption(kind)
+
+        def on_error(
+            self,
+            subject_or_pattern: str | Atom,
+            pattern_or_mode: str | Atom,
+            mode: OnError | None=None,
+        ) -> Atom:
+            """Declare what a context's failure becomes, per query shape.
+
+            abort is the undeclared floor: the provider's error propagates.
+            keep delivers the failure as one (Error <query> <reason>) answer
+            beside the answers that already streamed, the language's own
+            error-as-alternative reading. empty ends the stream silently, BY
+            declaration, which is what separates it from a swallowed error.
+            Shapes route most-specific-first exactly as (handles ...) entries
+            do. Control signals and transport failures are never kept or
+            emptied: an interrupt is the caller's, and an absent backend has
+            said nothing about the data.
+            """
+            return self._door_on_error(subject_or_pattern, pattern_or_mode, mode)
+
+        def merge(self, pattern: str | Atom, policy: AnswerPolicy) -> Atom:
+            """Declare how the engine merges one query shape's answers
+            ACROSS contexts, for the multi-context idiom
+            (match (superpose (&a &b)) ...).
+
+            depth is today's space-after-space order and the undeclared
+            floor. fair interleaves the streams round-robin. best-first is a
+            k-way ordered merge by annotation, sound only when every merged
+            context declares (emits <ctx> best-first), and loudly refused
+            without. Shapes route most-specific-first as everywhere.
+            """  # noqa: D205 -- preserve the declared documentation
+            return self._door_merge(pattern, policy)
+
+        def context(self, world: World) -> Atom:
+            """Record what a space's absence means.
+
+            Negation as failure reads absence as falsity, which is only
+            sound over a world the answerer holds whole, so a negated goal
+            may consult a foreign space only when it declares closed-world;
+            an undeclared one refuses under negation loudly. Native spaces
+            are the engine's own database and closed by construction.
+            """
+            return self._door_context(world)
+
+        def agenda(self, policy: AgendaPolicy, function: str | None=None) -> Atom:
+            """Declare which reaction fires first when several match one write.
+
+            declaration is the default and the order they were declared, which is
+            what the engine produced by accident before this was a policy;
+            recency is the most recently declared first; specificity is the most
+            tests in the pattern first; priority reads each reaction's own
+            declared number, highest first; and user names a MeTTa function that
+            SCORES a reaction, highest first. Every policy breaks ties on
+            declaration order.
+
+                alarms.reacts("(alert $w)", "(insert &log (all $w))")
+                alarms.reacts("(alert fire)", "(insert &log (fire))", priority=9)
+                alarms.agenda("priority")
+            """
+            return self._door_agenda(policy, function)
+
+        def reacts(
+            self,
+            pattern: str | Atom,
+            operation: str | Atom,
+            priority: int | None=None,
+        ) -> Atom:
+            """Declare a reaction, stored as an (on ...) atom: when an atom
+            matching PATTERN lands in the space, OPERATION runs under the
+            match's bindings.
+
+            The managed heads are (insert <ctx> <atom>), (retract <ctx>
+            <atom>) and (revise <ctx> <old> <new>), engine-routed rules
+            going through the same write paths as direct writes. Declaring
+            installs the engine's write hook, which is why reactions go
+            through here or metta_install_bridges rather than a bare
+            add-atom.
+
+            A subscription bridge is the NEIGHBOUR, not a special case of this:
+            a reaction's operation runs engine-side, so it reaches registered
+            spaces, while the bridge rule delivers Python-side to anything
+            with add and remove, an unregistered or remote target included.
+            Same multi-context-systems idea, two delivery tiers.
+            """  # noqa: D205 -- preserve the declared documentation
+            return self._door_reacts(pattern, operation, priority)
+
+        def admits(self, type_name: str) -> Atom:
+            """Type a pool's membership: only TYPE-carrying atoms enter.
+
+            A thread pool is a space whose atoms are spaces, and this is its
+            declaration: (admits &pool Space) plus per-atom (: <space> Space)
+            declarations make membership a type judgement the ontology
+            already knows how to make.
+            """
+            return self._door_admits(type_name)
+
+        def capacity(self, limit: int) -> Atom:
+            """Bound a pool: an add beyond LIMIT atoms is refused loudly."""
+            return self._door_capacity(limit)
+
+        def atomicity(self, atomicity: Atomicity) -> Atom:
+            """Declare what a space's writes promise inside a transaction.
+
+            Named for what it declares rather than for the atom it stores, which
+            stays `(writes <ctx> ...)`: `writes` on a Space is the effect
+            decorator for an OPERATION, and one object cannot spell two concepts
+            one way.
+
+            transactional providers implement metta.foreign.Transactional and
+            are committed or rolled back WITH the engine's transaction;
+            best-effort is the author's declared acceptance of a write that
+            survives a rollback; atomic-single refuses transactional writes.
+            Undeclared spaces refuse them loudly too, because a foreign write
+            silently surviving a rolled-back transaction is the wrong answer
+            the declaration exists to replace.
+            """
+            return self._door_atomicity(atomicity)
+
+        def emits(self, policy: AnswerPolicy) -> Atom:
+            """Declare the order a context emits its own answers in.
+
+            best-first is the promise (top k ...) needs before its bound may
+            reach the provider: the first k of a best-first emission ARE the
+            k best. Distinct from the (merge <pattern> <policy>) strategy,
+            which is how the ENGINE merges answers across several contexts.
+            """
+            return self._door_emits(policy)
+
+        def events(
+            self,
+            delivery: Delivery | None=None,
+            order: EventOrder=EventOrder.unordered,
+        ) -> Atom | Any:
+            """Return the event stream, or declare what this context promises.
+
+            Subscribability is a promise about the context, not something its
+            methods alone establish. A native space needs no declaration:
+            every write into it runs the engine's own hooks, so it delivers
+            per-write-exactly and ordered by construction. A FOREIGN context
+            declares, and one that declares nothing refuses a subscription
+            instead of serving one that silently misses writes.
+
+                shared.events("at-most-once")   # redis pub/sub
+                mirror.events("per-write-exactly", "ordered")
+
+            delivery is at-most-once, at-least-once or per-write-exactly, and
+            order is ordered or unordered, defaulting to unordered because an
+            omitted promise is the weaker one. A Python provider says the same
+            thing by overriding delivers(), which registration writes here.
+            """
+            return self._door_events(delivery, order)
+
+        @property
+        def runtime(self) -> Runtime:
+            """The engine bridge itself, for callers going under the surface."""
+            return self._door_runtime
+
+        @property
+        def metta(self) -> MeTTa:
+            """The owning evaluation context, so a handle can reach every
+            context-level method: ``m.metta.space(S.kb)`` creates a sibling space
+            in THIS handle's own context rather than the process default, which
+            is the creation method the twins' known-issue asked for. The context
+            BORROWS this handle's space as its home, so answering it mints
+            nothing, and two answers compare equal because they share the
+            runtime and the home.
+            """  # noqa: D205 -- preserve the declared documentation
+            return self._door_metta
+
+        arrays: _door_namespaces.ArraysSync
+        live: _door_namespaces.LiveSync
+        remote: _door_namespaces.RemoteSync
+        tables: _door_namespaces.TablesSync
+
+    else:
+        name = _door_name
+        _bind_public(name, 'Space', 'name')
+        self = _door_self
+        _bind_public(self, 'Space', 'self')
+        space_names = _door_space_names
+        _bind_public(space_names, 'Space', 'space_names')
+        drop = _door_drop
+        _bind_public(drop, 'Space', 'drop')
+        dropped = _door_dropped
+        _bind_public(dropped, 'Space', 'dropped')
+        to_wire = _door_to_wire
+        _bind_public(to_wire, 'Space', 'to_wire')
+        metatype = _door_metatype
+        _bind_public(metatype, 'Space', 'metatype')
+        bind = _door_bind
+        _bind_public(bind, 'Space', 'bind')
+        run = _door_run
+        _bind_public(run, 'Space', 'run')
+        explain = _door_explain
+        _bind_public(explain, 'Space', 'explain')
+        profile = _door_profile
+        _bind_public(profile, 'Space', 'profile')
+        profile_extension = _door_profile_extension
+        _bind_public(profile_extension, 'Space', 'profile_extension')
+        save = _door_save
+        _bind_public(save, 'Space', 'save')
+        source = _door_source
+        _bind_public(source, 'Space', 'source')
+        load = _door_load
+        _bind_public(load, 'Space', 'load')
+        parse = _door_parse
+        _bind_public(parse, 'Space', 'parse')
+        register_token = _door_register_token
+        _bind_public(register_token, 'Space', 'register_token')
+        unregister_token = _door_unregister_token
+        _bind_public(unregister_token, 'Space', 'unregister_token')
+        add = _door_add
+        _bind_public(add, 'Space', 'add')
+        remove = _door_remove
+        _bind_public(remove, 'Space', 'remove')
+        transfer = _door_transfer
+        _bind_public(transfer, 'Space', 'transfer')
+        atoms = _door_atoms
+        _bind_public(atoms, 'Space', 'atoms')
+        peek = _door_peek
+        _bind_public(peek, 'Space', 'peek')
+        take = _door_take
+        _bind_public(take, 'Space', 'take')
+        cast = _door_cast
+        _bind_public(cast, 'Space', 'cast')
+        trace = _door_trace
+        _bind_public(trace, 'Space', 'trace')
+        debug = _door_debug
+        _bind_public(debug, 'Space', 'debug')
+        record = _door_record
+        _bind_public(record, 'Space', 'record')
+        lint = _door_lint
+        _bind_public(lint, 'Space', 'lint')
+        effect_plan = _door_effect_plan
+        _bind_public(effect_plan, 'Space', 'effect_plan')
+        copy = _door_copy
+        _bind_public(copy, 'Space', 'copy')
+        reify = _door_reify
+        _bind_public(reify, 'Space', 'reify')
+        commit = _door_commit
+        _bind_public(commit, 'Space', 'commit')
+        digest = _door_digest
+        _bind_public(digest, 'Space', 'digest')
+        __len__ = _door___len__
+        _bind_public(__len__, 'Space', '__len__')
+        __bool__ = _door___bool__
+        _bind_public(__bool__, 'Space', '__bool__')
+        __contains__ = _door___contains__
+        _bind_public(__contains__, 'Space', '__contains__')
+        clear = _door_clear
+        _bind_public(clear, 'Space', 'clear')
+        __iadd__ = _door___iadd__
+        _bind_public(__iadd__, 'Space', '__iadd__')
+        __isub__ = _door___isub__
+        _bind_public(__isub__, 'Space', '__isub__')
+        __ior__ = _door___ior__
+        _bind_public(__ior__, 'Space', '__ior__')
+        __iter__ = _door___iter__
+        _bind_public(__iter__, 'Space', '__iter__')
+        __getitem__ = _door___getitem__
+        _bind_public(__getitem__, 'Space', '__getitem__')
+        __delitem__ = _door___delitem__
+        _bind_public(__delitem__, 'Space', '__delitem__')
+        match = _door_match
+        _bind_public(match, 'Space', 'match')
+        stream = _door_stream
+        _bind_public(stream, 'Space', 'stream')
+        assuming = _door_assuming
+        _bind_public(assuming, 'Space', 'assuming')
+        transaction = _door_transaction
+        _bind_public(transaction, 'Space', 'transaction')
+        saga = _door_saga
+        _bind_public(saga, 'Space', 'saga')
+        solve = _door_solve
+        _bind_public(solve, 'Space', 'solve')
+        watch = _door_watch
+        _bind_public(watch, 'Space', 'watch')
+        limits = _door_limits
+        _bind_public(limits, 'Space', 'limits')
+        capture = _door_capture
+        _bind_public(capture, 'Space', 'capture')
+        atomic = _door_atomic
+        _bind_public(atomic, 'Space', 'atomic')
+        speculative = _door_speculative
+        _bind_public(speculative, 'Space', 'speculative')
+        batch = _door_batch
+        _bind_public(batch, 'Space', 'batch')
+        transactional = _door_transactional
+        _bind_public(transactional, 'Space', 'transactional')
+        prepare = _door_prepare
+        _bind_public(prepare, 'Space', 'prepare')
+        eval = _door_eval
+        _bind_public(eval, 'Space', 'eval')  # noqa: A003 -- bind the declared public door
+        answers = _door_answers
+        _bind_public(answers, 'Space', 'answers')
+        parallel = _door_parallel
+        _bind_public(parallel, 'Space', 'parallel')
+        pool = _door_pool
+        _bind_public(pool, 'Space', 'pool')
+        reducible = _door_reducible
+        _bind_public(reducible, 'Space', 'reducible')
+        eval_status = _door_eval_status
+        _bind_public(eval_status, 'Space', 'eval_status')
+        run_status = _door_run_status
+        _bind_public(run_status, 'Space', 'run_status')
+        stats = _door_stats
+        _bind_public(stats, 'Space', 'stats')
+        op = _door_op
+        _bind_public(op, 'Space', 'op')
+        pure = _door_pure
+        _bind_public(pure, 'Space', 'pure')
+        reads = _door_reads
+        _bind_public(reads, 'Space', 'reads')
+        writes = _door_writes
+        _bind_public(writes, 'Space', 'writes')
+        io = _door_io
+        _bind_public(io, 'Space', 'io')
+        unregister_op = _door_unregister_op
+        _bind_public(unregister_op, 'Space', 'unregister_op')
+        builtins = _door_builtins
+        _bind_public(builtins, 'Space', 'builtins')
+        is_function = _door_is_function
+        _bind_public(is_function, 'Space', 'is_function')
+        is_function_here = _door_is_function_here
+        _bind_public(is_function_here, 'Space', 'is_function_here')
+        arities = _door_arities
+        _bind_public(arities, 'Space', 'arities')
+        register_prolog = _door_register_prolog
+        _bind_public(register_prolog, 'Space', 'register_prolog')
+        register_foreign_library = _door_register_foreign_library
+        _bind_public(register_foreign_library, 'Space', 'register_foreign_library')
+        register_library_path = _door_register_library_path
+        _bind_public(register_library_path, 'Space', 'register_library_path')
+        unregister_prolog = _door_unregister_prolog
+        _bind_public(unregister_prolog, 'Space', 'unregister_prolog')
+        subscribe = _door_subscribe
+        _bind_public(subscribe, 'Space', 'subscribe')
+        prolog = _door_prolog
+        _bind_public(prolog, 'Space', 'prolog')
+        derivation = _door_derivation
+        _bind_public(derivation, 'Space', 'derivation')
+        why = _door_why
+        _bind_public(why, 'Space', 'why')
+        define = _door_define
+        _bind_public(define, 'Space', 'define')
+        rules = _door_rules
+        _bind_public(rules, 'Space', 'rules')
+        pre_add = _door_pre_add
+        _bind_public(pre_add, 'Space', 'pre_add')
+        type = _door_type
+        _bind_public(type, 'Space', 'type')  # noqa: A003 -- bind the declared public door
+        infer_types = _door_infer_types
+        _bind_public(infer_types, 'Space', 'infer_types')
+        doc = _door_doc
+        _bind_public(doc, 'Space', 'doc')
+        fn = _door_fn
+        _bind_public(fn, 'Space', 'fn')
+        integrate = _door_integrate
+        _bind_public(integrate, 'Space', 'integrate')
+        handles = _door_handles
+        _bind_public(handles, 'Space', 'handles')
+        annotations = _door_annotations
+        _bind_public(annotations, 'Space', 'annotations')
+        algebra = _door_algebra
+        _bind_public(algebra, 'Space', 'algebra')
+        covers = _door_covers
+        _bind_public(covers, 'Space', 'covers')
+        compensates = _door_compensates
+        _bind_public(compensates, 'Space', 'compensates')
+        add_tagged_fact = _door_add_tagged_fact
+        _bind_public(add_tagged_fact, 'Space', 'add_tagged_fact')
+        add_tagged_rule = _door_add_tagged_rule
+        _bind_public(add_tagged_rule, 'Space', 'add_tagged_rule')
+        image = _door_image
+        _bind_public(image, 'Space', 'image')
+        sample = _door_sample
+        _bind_public(sample, 'Space', 'sample')
+        consumption = _door_consumption
+        _bind_public(consumption, 'Space', 'consumption')
+        on_error = _door_on_error
+        _bind_public(on_error, 'Space', 'on_error')
+        merge = _door_merge
+        _bind_public(merge, 'Space', 'merge')
+        context = _door_context
+        _bind_public(context, 'Space', 'context')
+        agenda = _door_agenda
+        _bind_public(agenda, 'Space', 'agenda')
+        reacts = _door_reacts
+        _bind_public(reacts, 'Space', 'reacts')
+        admits = _door_admits
+        _bind_public(admits, 'Space', 'admits')
+        capacity = _door_capacity
+        _bind_public(capacity, 'Space', 'capacity')
+        atomicity = _door_atomicity
+        _bind_public(atomicity, 'Space', 'atomicity')
+        emits = _door_emits
+        _bind_public(emits, 'Space', 'emits')
+        events = _door_events
+        _bind_public(events, 'Space', 'events')
+        runtime = _door_runtime
+        _bind_public(runtime, 'Space', 'runtime')
+        metta = _door_metta
+        _bind_public(metta, 'Space', 'metta')
+    # end generated doors: Space
 
 
 def _release_abandoned_world(home: str) -> None:
@@ -6133,7 +8910,7 @@ class MeTTa:
             self._self = Space(space, _runtime=self._rt)
             self._owns_self = False
 
-    def close(self) -> None:
+    def _door_close(self) -> None:
         """Release the context's own home space; closing twice is a no-op.
 
         A borrowed home, the process default included, is the caller's
@@ -6164,7 +8941,7 @@ class MeTTa:
             self._self.drop()
 
     @property
-    def closed(self) -> bool:
+    def _door_closed(self) -> bool:
         """Whether :meth:`close` has released this context's own home."""
         return self._owns_self and self._self._dropped
 
@@ -6224,6 +9001,16 @@ class MeTTa:
             # whose raises AttributeError(name, name=name, obj=self);
             # recorded in docs/journal/2026-09-06-a-head-knows-where-it-came-from.md].
             private = name.startswith("_")
+            if not private:
+                from .doors import (  # noqa: PLC0415  -- context accessors declared by rows
+                    Tier,
+                    namespace,
+                )
+
+                try:
+                    return namespace(self, name, Tier.context)
+                except AttributeError:
+                    pass
             if not private and hasattr(Space, name):
                 msg = (
                     f"{type(self).__name__} has no {name!r}: it is a Space door, "
@@ -6237,16 +9024,16 @@ class MeTTa:
             raise AttributeError(msg, name=name, obj=self)
 
     @property
-    def self(self) -> Space:
+    def _door_self(self) -> Space:
         """The context's home space handle, its own ``&self``."""
         return self._self
 
     @property
-    def runtime(self) -> Runtime:
+    def _door_runtime(self) -> Runtime:
         """The engine bridge itself, for callers going under the surface."""
         return self._rt
 
-    def info(self) -> dict[str, str | None]:
+    def _door_info(self) -> dict[str, str | None]:
         """Return backend versions and the consulted MeTTa runtime tree."""
         janus_bridge = bridge()
         version_row = janus_bridge.query_once(
@@ -6267,7 +9054,7 @@ class MeTTa:
             "metta_path": self._rt.metta_path,
         }
 
-    def lock(self) -> Lock:
+    def _door_lock(self) -> Lock:
         """Pin the knowledge this context has loaded, as a `Lock`.
 
             m.load("kb/facts.metta")
@@ -6295,7 +9082,7 @@ class MeTTa:
 
         return take(self._rt)
 
-    def check(self, lock: Lock) -> list[Drift]:
+    def _door_check(self, lock: Lock) -> list[Drift]:
         """Every entry of a lock this tree no longer matches, as `Drift` rows.
 
             for drift in m.check(metta.Lock.read("metta.lock")):
@@ -6310,7 +9097,7 @@ class MeTTa:
 
         return check(self._rt, lock)
 
-    def space(
+    def _door_space(
         self,
         name: str | Symbol | Expression | Space | None = None,
         backing: Any = None,
@@ -6481,29 +9268,29 @@ class MeTTa:
         return handle
 
     @property
-    def fn(self) -> _FunctionNamespace:
+    def _door_fn(self) -> _FunctionNamespace:
         """The bound function namespace of this context's self space."""
         return self._self.fn
 
-    def unregister_op(self, name: str) -> None:
+    def _door_unregister_op(self, name: str) -> None:
         """Release an operation installed through :meth:`op`."""
         self._self.unregister_op(name)
 
-    def capture(self) -> CapturedOutput:
+    def _door_capture(self) -> CapturedOutput:
         """Capture printed engine text across this context."""
         return self._self.capture()
 
-    def atomic(self) -> ScopedExecution:
+    def _door_atomic(self) -> ScopedExecution:
         """Scope source execution to committing transactions."""
         return self._self.atomic()
 
     @overload
-    def transaction(self, target: Callable[[], _R], /) -> _R: ...
+    def _door_transaction(self, target: Callable[[], _R], /) -> _R: ...
 
     @overload
-    def transaction(self, target: Atom | str, /) -> list[Atom | Undefined]: ...
+    def _door_transaction(self, target: Atom | str, /) -> list[Atom | Undefined]: ...
 
-    def transaction(self, target: Any, /) -> Any:
+    def _door_transaction(self, target: Any, /) -> Any:
         """Run one callable or term in an engine transaction."""
         return self._self.transaction(target)
 
@@ -6522,8 +9309,8 @@ class MeTTa:
         source: str | TemplateLike,
         /,
         *,
-        timeout: float | None = None,
-        inferences: int | None = None,
+        timeout: float | None=None,
+        inferences: int | None=None,
         **values: Any,
     ) -> list[list[Atom]]:
         """Run MeTTa source: one list of answers per ! directive.
@@ -6590,8 +9377,8 @@ class MeTTa:
         self,
         path: str | os.PathLike[str],
         *,
-        timeout: float | None = None,
-        inferences: int | None = None,
+        timeout: float | None=None,
+        inferences: int | None=None,
     ) -> list[list[Atom]]:
         """Add a text program or trusted fast cache to this space.
 
@@ -6628,15 +9415,190 @@ class MeTTa:
         """
         return self._self.load(path, timeout=timeout, inferences=inferences)
 
+    def add(self, *atoms: Any) -> None:
+        """Add atoms to this space, one engine round-trip for the lot.
+        An (= ...) atom compiles as an equation. Every Atom shape crosses
+        unchanged, including a bare Symbol, Grounded value, and empty
+        Expression; a free Variable receives the engine's own
+        insufficient-instantiation refusal. The MeTTa longhand is
+        `!(add-atoms <space> (<atom> ...))`. It is NOT `add-atom`, which is
+        upstream PeTTa's spelling and takes upstream's domain: a headless atom
+        cannot become a fact in a space there, so `!(add-atom &self b)` has no
+        answer on either engine. This space is wider and `add-atoms` is the
+        door onto the wider part.
+
+        A variable's NAME is not stored. `(rule $x $y)` reads back as
+        `(rule $_17902 $_17904)`, because a variable is an identity and not a
+        spelling. That is the right property for a logic engine and it is the
+        one thing about storage that surprises everybody once.
+
+        A library IS knowledge, so the same operator imports it: ``m += lib.he``
+        performs ``!(import! <m> (library lib_he))`` with this space as the
+        target. An import is an effect, so it refuses to hide inside an atom
+        batch or share a call with stored atoms.
+        Runs against this context's self space.
+        """  # noqa: D205 -- preserve the declared documentation
+        return self._self.add(*atoms)
+
+    def remove(self, atom: Any, *more: Any) -> bool | int:
+        """Remove ONE unifying occurrence and say whether one was there,
+        which is Python's own `list.remove` grain.
+
+        Variadic like `add` and `transfer`: several atoms ride one engine
+        crossing inside one transaction, and the answer counts the found,
+        so the one-atom call still reads as the truth value it always
+        was.
+
+        `space -= atom` is this same grain without the report, the way
+        `+=` is `add` without one: Python's in-place difference over a
+        MULTISET, whose own Python spelling is `collections.Counter`,
+        subtracts the multiplicity given rather than clearing the key.
+        That is the only reading under which the operators are inverses,
+        so `s += a; s -= a` leaves the space it found. `-=` classifies its
+        operand exactly as `+=` does, so `-=` subtracts the same fact stream
+        `+=` stores, one occurrence per element, in one
+        transactional crossing.
+
+        `del m[pattern]` is the draining form: it takes every
+        unifying occurrence in one crossing and raises when nothing
+        matched, as Python's `del` does, and MeTTa spells it `remove-atom`
+        [source: engine/spaces/foreign.pl, remove_matching_atoms/2].
+        MeTTa spells this method's grain `subtract-atom`. This is the one
+        method that reports absence.
+
+        A bare variable is the remove-everything reading a multiset space
+        gives it, each atom leaving through its own proper path, equations
+        and their compiled clauses included.
+        Runs against this context's self space.
+        """  # noqa: D205 -- preserve the declared documentation
+        return self._self.remove(atom, *more)
+
+    def trace(
+        self,
+        source: Atom | str,
+        max_events: int | None=None,
+        *,
+        filter: Symbol | str | Iterable[Symbol | str] | None=None,  # noqa: A002 -- the declared public parameter spelling
+        timeout: float | None=None,
+        inferences: int | None=None,
+    ) -> Trace:
+        """Run a TERM, or source, under the engine's reduction trace and
+        answer TraceEvent records: what entered reduction at which depth,
+        what it answered, and which reductions failed (a call with no
+        exit). `m.trace(S.fib(10))` is the ordinary spelling, the same
+        argument `answers` and `eval` take; a string is still a string.
+        What is traced executes for real, writes included, like run();
+        the wrap exists only while tracing, so untraced calls pay
+        nothing and the wrapping itself is not charged to the bounds
+        below. max_events bounds the RECORDING and timeout,
+        inferences and stack bound the RUN, defaulting to whatever
+        `m.limits()` scopes; they are independent because a program can
+        retire millions of inferences inside a handful of recorded
+        events. Whichever one stops it, the events already recorded are
+        ANSWERED and `stopped` names the bound, so a caller told a trace
+        was cut knows which bound to raise.
+        filter selects exact function Symbols or names, singly or in an iterable.
+        None records all functions; [] records none. Selection happens before
+        the recording bounds, while excluded calls still execute and add depth.
+        Runs against this context's self space.
+        """  # noqa: D205 -- preserve the declared documentation
+        return self._self.trace(
+            source, max_events, filter=filter, timeout=timeout, inferences=inferences
+        )
+
+    def debug(
+        self,
+        source: Atom | str,
+        *,
+        on: Any=None,
+        inferences: int | None=None,
+        at: int | None=None,
+    ) -> Debugger:
+        """Run a TERM, or source, under breakpoints, stepped from Python.
+
+        Iterating the Debugger runs the program to each breakpoint, the loop
+        body is where the program is SUSPENDED, and leaving the body resumes
+        that same execution:
+
+            with m.debug(S.quad(3), on=[S.double]) as d:
+                for stop in d:
+                    print(stop)      # halted here
+                    if stop.depth > 2:
+                        d.step()     # stop at the next reduction instead
+                print(d.answers)
+
+        on= names the functions that stop it, the way every door here names a
+        head; naming none runs the program to the end in one advance.
+        `step()` stops at the very next reduction, breakpoint or not, and
+        lasts one advance. `breakpoints` is a live set, so one added while
+        the program is suspended stops it.
+
+        at= is the third kind of breakpoint, a COUNT: it stops at the event
+        with that sequence number, numbering reductions from 0 the way a
+        Recording numbers them, so `at=200` is "put me where event 200 is".
+        `Recording.debug(at=k)` is the convenience over this one.
+
+        inferences bound the WHOLE session cumulatively, so a resume that
+        would never reach another breakpoint stops. There is no timeout:
+        the session is suspended by design and a clock would run while a
+        person reads a stop. What is debugged executes for real, writes
+        included, and inherits the caller's scope. Close it, or leave its
+        with-block: the session holds a wrapper on every compiled function
+        until it does.
+        Runs against this context's self space.
+        """
+        return self._self.debug(source, on=on, inferences=inferences, at=at)
+
+    def record(
+        self,
+        source: Atom | str,
+        *,
+        seed: int | None=None,
+        max_events: int | None=None,
+        timeout: float | None=None,
+        inferences: int | None=None,
+    ) -> Recording:
+        """Run a TERM, or source, and keep the whole run as data.
+
+        The data walks backwards, saves to a file, and re-runs.
+        `m.trace` is the rung below: it answers the events alone. A Recording
+        is those events plus the state that produced them, which is what makes
+        them re-runnable rather than only readable:
+
+            rec = m.record(S.fib(12))
+            rec.save("fib.metta-rec.json")
+            rec.at(-1)               # the last event, with its call stack
+            rec.back()               # a step backwards costs a lookup
+            rec.replay(other)        # the same run, in another engine
+            with rec.debug(at=17) as d:   # live, stopped where event 17 is
+                print(d.stop)
+
+        A recorded run always has a seed, minted when you do not name one,
+        because a replay that cannot reproduce the draws is not a replay; the
+        generator is restored afterwards. `(with-seed S expr)` is the MeTTa
+        spelling of the same scope.
+
+        max_events bounds the RECORDING and timeout and inferences bound the
+        RUN, exactly as on trace(); a cut recording says so through
+        `rec.events.stopped` and replays to the same length. A program whose
+        effect plan reaches oracleIO is recorded with `replayable` false and
+        the reason naming what it reached, and replay() then refuses rather
+        than re-reading the host.
+        Runs against this context's self space.
+        """
+        return self._self.record(
+            source, seed=seed, max_events=max_events, timeout=timeout, inferences=inferences
+        )
+
     def match(
         self,
         *patterns: Any,
-        where: Any | None = None,
-        limit: int | None = None,
-        timeout: float | None = None,
-        inferences: int | None = None,
-        under: Any = _UNSET,
-        into: _builtins.type | None = None,
+        where: Any | None=None,
+        limit: int | None=None,
+        timeout: float | None=None,
+        inferences: int | None=None,
+        under: Any=_UNSET,
+        into: _builtins.type | None=None,
         **values: Any,
     ) -> Any:
         """Lazily match patterns against this space as one conjunction.
@@ -6692,75 +9654,106 @@ class MeTTa:
             *patterns, where=where, limit=limit, timeout=timeout, inferences=inferences, under=under, into=into, **values
         )
 
-    def add(self, *atoms: Any) -> None:
-        """Add atoms to this space, one engine round-trip for the lot.
-        An (= ...) atom compiles as an equation. Every Atom shape crosses
-        unchanged, including a bare Symbol, Grounded value, and empty
-        Expression; a free Variable receives the engine's own
-        insufficient-instantiation refusal. The MeTTa longhand is
-        `!(add-atoms <space> (<atom> ...))`. It is NOT `add-atom`, which is
-        upstream PeTTa's spelling and takes upstream's domain: a headless atom
-        cannot become a fact in a space there, so `!(add-atom &self b)` has no
-        answer on either engine. This space is wider and `add-atoms` is the
-        door onto the wider part.
+    def solve(self, pattern: Any, subject: Any) -> Any:
+        """Run relational ``let`` and return bindings keyed by its variables.
 
-        A variable's NAME is not stored. `(rule $x $y)` reads back as
-        `(rule $_17902 $_17904)`, because a variable is an identity and not a
-        spelling. That is the right property for a logic engine and it is the
-        one thing about storage that surprises everybody once.
-
-        A library IS knowledge, so the same operator imports it: ``m += lib.he``
-        performs ``!(import! <m> (library lib_he))`` with this space as the
-        target. An import is an effect, so it refuses to hide inside an atom
-        batch or share a call with stored atoms.
+        ``solve(4, V.x - 1).x`` places the known value on let's pattern side,
+        lets the arithmetic relation solve backwards, and projects ``x``.
+        The answer template is derived from the pattern's variables followed
+        by any new subject variables, so either relational direction can
+        introduce the bindings and the third hand-written ``let`` argument
+        disappears.
         Runs against this context's self space.
-        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
-        return self._self.add(*atoms)
+        """
+        return self._self.solve(pattern, subject)
 
-    def remove(self, atom: Any, *more: Any) -> bool | int:
-        """Remove ONE unifying occurrence and say whether one was there,
-        which is Python's own `list.remove` grain.
+    def limits(
+        self,
+        *,
+        timeout: float | None=None,
+        inferences: int | None=None,
+        stack: int | None=None,
+    ) -> ScopedLimits:
+        """Scoped default bounds for every call in the with-block:
 
-        Variadic like `add` and `transfer`: several atoms ride one engine
-        crossing inside one transaction, and the answer counts the found,
-        so the one-atom call still reads as the truth value it always
-        was.
+            with m.limits(inferences=1_000_000, timeout=2.0):
+                m.match(...)      # bounded without saying so again
 
-        `space -= atom` is this same grain without the report, the way
-        `+=` is `add` without one: Python's in-place difference over a
-        MULTISET, whose own Python spelling is `collections.Counter`,
-        subtracts the multiplicity given rather than clearing the key.
-        That is the only reading under which the operators are inverses,
-        so `s += a; s -= a` leaves the space it found. `-=` classifies its
-        operand exactly as `+=` does, so `-=` subtracts the same fact stream
-        `+=` stores, one occurrence per element, in one
-        transactional crossing.
+        decimal.localcontext's shape, contextvars underneath, so the
+        scope is async-correct and per-task. A per-call timeout= or
+        inferences= still overrides, which is the whole ladder: one
+        block replaces the parameter forest, and the forest remains
+        for whoever wants per-call control.
 
-        `del m[pattern]` is the draining form: it takes every
-        unifying occurrence in one crossing and raises when nothing
-        matched, as Python's `del` does, and MeTTa spells it `remove-atom`
-        [source: engine/spaces/foreign.pl, remove_matching_atoms/2].
-        MeTTa spells this method's grain `subtract-atom`. This is the one
-        method that reports absence.
-
-        A bare variable is the remove-everything reading a multiset space
-        gives it, each atom leaving through its own proper path, equations
-        and their compiled clauses included.
+        stack= is SWI's combined stack ceiling in BYTES, the bound a
+        runaway recursion hits as a StackOverflow error atom. It is NOT
+        MeTTa's reduction depth: that is the max-stack-depth pragma,
+        `(with-pragma! ((max-stack-depth N)) expr)`, which counts
+        reduction steps and is scoped in the program text.
         Runs against this context's self space.
-        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
-        return self._self.remove(atom, *more)
+        """  # noqa: D415 -- preserve the declared documentation
+        return self._self.limits(timeout=timeout, inferences=inferences, stack=stack)
+
+    def speculate(self) -> ScopedExecution:
+        """Run each CALL against a snapshot and discard its writes.
+
+        Per call, the write doors included: ``m.add(atom)`` inside the block
+        leaves nothing behind, exactly as ``m.run("!(add-atom &self ...)")``
+        in the same block does, and a later call in the block does not see
+        what an earlier one wrote, because each call is its own what-if.
+        Runs against this context's self space.
+        """
+        return self._self.speculative()
 
     @overload
     def eval(
         self,
         target: Any,
         /,
+        *more: Any,
+        timeout: float | None=None,
+        inferences: int | None=None,
+        under: Any=_UNSET,
+        theory: Any | None=None,
+        interpreter: Any | None=None,
+        answer: EvaluationAnswer | str = "all",
+        delivery: ArgumentDelivery | str,
+        limit: int | None = None,
+        image: ImageMode | str | None = None,
+        on_error: OnError | str = "keep",
+        determinism: Determinism | str = "nondet",
+        **values: Any,
+    ) -> Any: ...
+    @overload
+    def eval(
+        self,
+        target: Any,
+        /,
+        *more: Any,
+        timeout: float | None=None,
+        inferences: int | None=None,
+        under: Any=_UNSET,
+        theory: Any | None=None,
+        interpreter: Any | None=None,
+        answer: EvaluationAnswer | str,
+        delivery: ArgumentDelivery | str = "atoms",
+        limit: int | None = None,
+        image: ImageMode | str | None = None,
+        on_error: OnError | str = "keep",
+        determinism: Determinism | str = "nondet",
+        **values: Any,
+    ) -> Any: ...
+    @overload
+    def eval(
+        self,
+        target: Any,
+        /,
         *,
-        timeout: float | None = ...,
-        inferences: int | None = ...,
-        under: Any = ...,
-        theory: Any | None = ...,
-        interpreter: Any | None = ...,
+        timeout: float | None=...,
+        inferences: int | None=...,
+        under: Any=...,
+        theory: Any | None=...,
+        interpreter: Any | None=...,
         **values: Any,
     ) -> list[Atom | Undefined]: ...
     @overload
@@ -6770,11 +9763,11 @@ class MeTTa:
         _second: Any,
         /,
         *more: Any,
-        timeout: float | None = ...,
-        inferences: int | None = ...,
-        under: Any = ...,
-        theory: Any | None = ...,
-        interpreter: Any | None = ...,
+        timeout: float | None=...,
+        inferences: int | None=...,
+        under: Any=...,
+        theory: Any | None=...,
+        interpreter: Any | None=...,
         **values: Any,
     ) -> list[list[Atom | Undefined]]: ...
     def eval(
@@ -6782,13 +9775,19 @@ class MeTTa:
         target: Any,
         /,
         *more: Any,
-        timeout: float | None = None,
-        inferences: int | None = None,
-        under: Any = _UNSET,
-        theory: Any | None = None,
-        interpreter: Any | None = None,
+        timeout: float | None=None,
+        inferences: int | None=None,
+        under: Any=_UNSET,
+        theory: Any | None=None,
+        interpreter: Any | None=None,
+        answer: EvaluationAnswer | str = "all",
+        delivery: ArgumentDelivery | str = "atoms",
+        limit: int | None = None,
+        image: ImageMode | str | None = None,
+        on_error: OnError | str = "keep",
+        determinism: Determinism | str = "nondet",
         **values: Any,
-    ) -> list[Atom | Undefined] | list[list[Atom | Undefined]]:
+    ) -> Any:
         """Evaluate a term, returning every answer.
 
         This is what !(...) runs, minus the printing: the engine's
@@ -6838,131 +9837,44 @@ class MeTTa:
         surrounding `with metta.under(carrier)` reaches here too, which it did
         not before: match() and answers() both honoured such a scope while
         eval() ignored it in silence.
+
+        The answer, delivery, limit, image, on_error and determinism options
+        select one evaluation contract. answer=answers retains a replayable
+        cursor; answer=stream returns a closable single-pass stream. count,
+        exists and none consume only the requested shape. A determinism
+        promise is checked before a limit truncates the answers. Image
+        projection publishes the type declarations its values require.
         Runs against this context's self space.
         """
-        return cast("Any", self._self).eval(target, *more, timeout=timeout, inferences=inferences, under=under, theory=theory, interpreter=interpreter, **values)
+        return cast("Any", self._self).eval(target, *more, timeout=timeout, inferences=inferences, under=under, theory=theory, interpreter=interpreter, answer=answer, delivery=delivery, limit=limit, image=image, on_error=on_error, determinism=determinism, **values)
 
-    def solve(self, pattern: Any, subject: Any) -> Any:
-        """Run relational ``let`` and return bindings keyed by its variables.
+    def stats(self) -> _StatsBlock:
+        """The engine's own counters over a with-block, as deltas.
 
-        ``solve(4, V.x - 1).x`` places the known value on let's pattern side,
-        lets the arithmetic relation solve backwards, and projects ``x``.
-        The answer template is derived from the pattern's variables followed
-        by any new subject variables, so either relational direction can
-        introduce the bindings and the third hand-written ``let`` argument
-        disappears.
+            with m.stats() as s:
+                m.match(S.edge(V.x, V.y), S.edge(V.y, V.z))
+            s.inferences        # engine steps the block spent
+            s.cputime           # engine CPU seconds
+            s.walltime          # wall seconds, Python's clock
+            s.gc_count, s.gc_freed, s.gc_time
+            s.table_bytes       # answer-table bytes grown, tabling's memory
+
+        The counters are SWI's statistics/2 read on the CALLING thread, so
+        a block that runs other threads' engine work counts that work too;
+        the honest reading is "what this thread saw the engine do while the
+        block ran". A lazy cursor is the exception, and a large one: its
+        goal runs in an SWI engine, an engine counts its own inferences,
+        and this thread cannot see them. Draining 20,000 rows through the
+        match cursor reports 40,049 inferences against about 381,000 the
+        cursor's engine really spent, 10.5% of the work; the real cost is
+        readable off the `inferences` budget, which does count the engine
+        [measured 2026-08-27]. The evaluation cursor behind `answers()`
+        does report its engine's spend, so that one is whole. The z3py
+        Solver.statistics() reading, on the engine this library actually
+        has.
         Runs against this context's self space.
         """
-        return self._self.solve(pattern, subject)
-
-    def doc(self, atom: Any) -> Atom:
-        """Return this space's structured ``get-doc`` answer for one subject.
-
-        The answer is the ``(@doc ...)`` atom the engine holds for the
-        subject, whether it was documented in MeTTa source or built from a
-        Python docstring:
-
-            m.doc(S.area)
-            # (@doc-formal (@item area) (@kind function) (@desc "Circle area.") ...)
-
-        A subject with no documentation raises, exactly as ``type`` raises
-        for a subject ``get-type`` cannot answer.
-        Runs against this context's self space.
-        """
-        return self._self.doc(atom)
-
-    @overload
-    @dataclass_transform(eq_default=False)
-    def define(  # type: ignore[overload-overlap]
-        self,
-        fn: _builtins.type[_T],
-        /,
-        *,
-        accessors: bool = ...,
-        methods: bool = ...,
-    ) -> _builtins.type[_T]: ...
-    @overload
-    def define(
-        self,
-        fn: Callable[_P, _R],
-        /,
-        *,
-        name: str | None = ...,
-        accessors: bool = ...,
-        methods: bool = ...,
-    ) -> Defined[_P, _R]: ...
-    @overload
-    def define(
-        self, *, name: str
-    ) -> Callable[[Callable[_P, _R]], Defined[_P, _R]]: ...
-    @overload
-    def define(
-        self, *, prolog: str | os.PathLike[str], name: str | None = None
-    ) -> Callable[[Callable[_P, _R]], PrologBacked[_P, _R]]: ...
-    def define(
-        self,
-        fn: Callable[..., Any] | None = None,
-        *,
-        prolog: str | os.PathLike[str] | None = None,
-        name: str | None = None,
-        accessors: bool = True,
-        methods: bool = True,
-    ) -> Any:
-        """Compile a Python function into MeTTa equations, decorator-style.
-
-        With `prolog=`, the Prolog file is registered and becomes the
-        function, and the Python stays as the reference twin rather than
-        being compiled:
-
-            @m.define(prolog=Path(__file__).parent / "fast.pl")
-            def vec_dot(a, b):
-                return sum(x * y for x, y in zip(a, b))
-
-            m.eval("(vec-dot (1 2) (3 4))")[0] # the Prolog answer
-            vec_dot.py((1, 2), (3, 4))          # the reference answers
-
-        Rewriting a defined function in Prolog for speed used to mean
-        deleting the Python and the differential oracle with it. Here both
-        are declared together and `metta.testing.check_twin` proves they
-        agree on ground inputs. The file must register the function's own
-        MeTTa name and at the twin's arity, inputs then one output, and
-        says so if it does not; its `metta_export` declaration owns the
-        types, so annotations on the Python are documentation only.
-
-        Written for whoever is fluent in Python rather than s-expressions:
-        the body is read as syntax and lowered deterministically, refusals
-        name the construct, the line and what to write instead, and the
-        original stays reachable as .py, a twin the equations can be checked
-        against on any ground input.
-
-            @m.define
-            def add_one(n):
-                return n + 1
-
-            add_one(5)                  # [6], evaluated by the engine
-            S.add_one(5)                # (add_one 5), staged as data
-            add_one.py(5)               # 6, ordinary Python
-
-        The equation's implicit name applies the factories' total mechanical
-        map, replacing each underscore with a hyphen. ``name=`` is the exact
-        quoted-name escape for punctuation that map cannot preserve:
-
-            @m.define(name="add-one")
-            def add_one(n):
-                return n + 1
-
-        The same attribute mapping applies to the definition name itself:
-        ``def not_provable`` lands as ``not-provable``. An authored
-        MeTTa underscore therefore uses explicit ``name="not_provable"``.
-
-        A generator compiles to nondeterminism (each yield one answer), a
-        lambda to the engine's own |->, a comprehension to map-atom and
-        filter-atom, and match(Pattern(x, y), template) to a match against
-        the running space, lowercase free names in the pattern binding as
-        variables.
-        Runs against this context's self space.
-        """
-        return cast("Any", self._self).define(fn, prolog=prolog, name=name, accessors=accessors, methods=methods)
+        return self._self.stats()
 
     @overload
     def op(
@@ -6970,37 +9882,34 @@ class MeTTa:
         fn: Callable[_P, _R],
         /,
         *,
-        name: str | None = ...,
-        # policy-inventory-exempt: mechanism-internal; reason=encoded and raw are the registration transport's two wire-crossing modes, decoded once into the (op ...) kind; evidence=extensions/python/metta/ops.py:_operation_kind
-        transport: Literal["encoded", "raw"] = ...,
+        name: str | None=...,
+        transport: Literal['encoded', 'raw']=...,
         effect: EffectClass | str,
-        declarations: Iterable[Atom] = ...,
-        arities: list[int] | None = ...,
-        inverse: Callable | None = ...,
+        declarations: Iterable[Atom]=...,
+        arities: list[int] | None=...,
+        inverse: Callable | None=...,
     ) -> Callable[_P, _R]: ...
     @overload
     def op(
         self,
         *,
-        name: str | None = ...,
-        # policy-inventory-exempt: mechanism-internal; reason=encoded and raw are the registration transport's two wire-crossing modes, decoded once into the (op ...) kind; evidence=extensions/python/metta/ops.py:_operation_kind
-        transport: Literal["encoded", "raw"] = ...,
+        name: str | None=...,
+        transport: Literal['encoded', 'raw']=...,
         effect: EffectClass | str,
-        declarations: Iterable[Atom] = ...,
-        arities: list[int] | None = ...,
-        inverse: Callable | None = ...,
+        declarations: Iterable[Atom]=...,
+        arities: list[int] | None=...,
+        inverse: Callable | None=...,
     ) -> Callable[[Callable[_P, _R]], Callable[_P, _R]]: ...
     def op(
         self,
-        fn: Callable | None = None,
+        fn: Callable | None=None,
         *,
-        name: str | None = None,
-        # policy-inventory-exempt: mechanism-internal; reason=encoded and raw are the registration transport's two wire-crossing modes, decoded once into the (op ...) kind; evidence=extensions/python/metta/ops.py:_operation_kind
-        transport: Literal["encoded", "raw"] = "encoded",
-        effect: EffectClass | str | None = None,
-        declarations: Iterable[Atom] = (),
-        arities: list[int] | None = None,
-        inverse: Callable | None = None,
+        name: str | None=None,
+        transport: Literal['encoded', 'raw']='encoded',
+        effect: EffectClass | str | None=None,
+        declarations: Iterable[Atom]=(),
+        arities: list[int] | None=None,
+        inverse: Callable | None=None,
     ) -> Any:
         """Register a Python callable as a MeTTa function, decorator-style.
 
@@ -7138,7 +10047,7 @@ class MeTTa:
         """
         return cast("Any", self._self).op(fn, name=name, transport=transport, effect=effect, declarations=declarations, arities=arities, inverse=inverse)
 
-    def pure(self, fn: Callable | None = None, /, **options: Any) -> Any:
+    def pure(self, fn: Callable | None=None, /, **options: Any) -> Any:
         """An operation whose answer depends only on its arguments.
 
             @m.pure
@@ -7165,7 +10074,7 @@ class MeTTa:
         """
         return self._self.pure(fn, **options)
 
-    def reads(self, fn: Callable | None = None, /, **options: Any) -> Any:
+    def reads(self, fn: Callable | None=None, /, **options: Any) -> Any:
         """An operation that reads stable state without changing it.
 
         Every ``op`` keyword applies: ``name``, ``arities``,
@@ -7176,7 +10085,7 @@ class MeTTa:
         """
         return self._self.reads(fn, **options)
 
-    def writes(self, fn: Callable | None = None, /, **options: Any) -> Any:
+    def writes(self, fn: Callable | None=None, /, **options: Any) -> Any:
         """An operation that changes engine or host state.
 
         Every ``op`` keyword applies: ``name``, ``arities``,
@@ -7187,7 +10096,7 @@ class MeTTa:
         """
         return self._self.writes(fn, **options)
 
-    def io(self, fn: Callable | None = None, /, **options: Any) -> Any:
+    def io(self, fn: Callable | None=None, /, **options: Any) -> Any:
         """An operation that observes an external oracle.
 
         A clock, randomness, a network, a file, another runtime.
@@ -7207,188 +10116,122 @@ class MeTTa:
         """
         return self._self.io(fn, **options)
 
-    def stats(self) -> _StatsBlock:
-        """The engine's own counters over a with-block, as deltas.
-
-            with m.stats() as s:
-                m.match(S.edge(V.x, V.y), S.edge(V.y, V.z))
-            s.inferences        # engine steps the block spent
-            s.cputime           # engine CPU seconds
-            s.walltime          # wall seconds, Python's clock
-            s.gc_count, s.gc_freed, s.gc_time
-            s.table_bytes       # answer-table bytes grown, tabling's memory
-
-        The counters are SWI's statistics/2 read on the CALLING thread, so
-        a block that runs other threads' engine work counts that work too;
-        the honest reading is "what this thread saw the engine do while the
-        block ran". A lazy cursor is the exception, and a large one: its
-        goal runs in an SWI engine, an engine counts its own inferences,
-        and this thread cannot see them. Draining 20,000 rows through the
-        match cursor reports 40,049 inferences against about 381,000 the
-        cursor's engine really spent, 10.5% of the work; the real cost is
-        readable off the `inferences` budget, which does count the engine
-        [measured 2026-08-27]. The evaluation cursor behind `answers()`
-        does report its engine's spend, so that one is whole. The z3py
-        Solver.statistics() reading, on the engine this library actually
-        has.
-        Runs against this context's self space.
-        """
-        return self._self.stats()
-
-    def limits(
+    @overload
+    @dataclass_transform(eq_default=False)
+    def define(  # type: ignore[overload-overlap]
+        self,
+        fn: _builtins.type[_T],
+        /,
+        *,
+        accessors: bool=...,
+        methods: bool=...,
+    ) -> _builtins.type[_T]: ...
+    @overload
+    def define(
+        self,
+        fn: Callable[_P, _R],
+        /,
+        *,
+        name: str | None=...,
+        accessors: bool=...,
+        methods: bool=...,
+    ) -> Defined[_P, _R]: ...
+    @overload
+    def define(self, *, name: str) -> Callable[[Callable[_P, _R]], Defined[_P, _R]]: ...
+    @overload
+    def define(
         self,
         *,
-        timeout: float | None = None,
-        inferences: int | None = None,
-        stack: int | None = None,
-    ) -> ScopedLimits:
-        """Scoped default bounds for every call in the with-block:
+        prolog: str | os.PathLike[str],
+        name: str | None=None,
+    ) -> Callable[[Callable[_P, _R]], PrologBacked[_P, _R]]: ...
+    def define(
+        self,
+        fn: Callable[..., Any] | None=None,
+        *,
+        prolog: str | os.PathLike[str] | None=None,
+        name: str | None=None,
+        accessors: bool=True,
+        methods: bool=True,
+    ) -> Any:
+        """Compile a Python function into MeTTa equations, decorator-style.
 
-            with m.limits(inferences=1_000_000, timeout=2.0):
-                m.match(...)      # bounded without saying so again
+        With `prolog=`, the Prolog file is registered and becomes the
+        function, and the Python stays as the reference twin rather than
+        being compiled:
 
-        decimal.localcontext's shape, contextvars underneath, so the
-        scope is async-correct and per-task. A per-call timeout= or
-        inferences= still overrides, which is the whole ladder: one
-        block replaces the parameter forest, and the forest remains
-        for whoever wants per-call control.
+            @m.define(prolog=Path(__file__).parent / "fast.pl")
+            def vec_dot(a, b):
+                return sum(x * y for x, y in zip(a, b))
 
-        stack= is SWI's combined stack ceiling in BYTES, the bound a
-        runaway recursion hits as a StackOverflow error atom. It is NOT
-        MeTTa's reduction depth: that is the max-stack-depth pragma,
-        `(with-pragma! ((max-stack-depth N)) expr)`, which counts
-        reduction steps and is scoped in the program text.
-        Runs against this context's self space.
-        """  # noqa: D415  -- the first line deliberately introduces the indented example that follows
-        return self._self.limits(timeout=timeout, inferences=inferences, stack=stack)
+            m.eval("(vec-dot (1 2) (3 4))")[0] # the Prolog answer
+            vec_dot.py((1, 2), (3, 4))          # the reference answers
 
-    def speculate(self) -> ScopedExecution:
-        """Run each CALL against a snapshot and discard its writes.
+        Rewriting a defined function in Prolog for speed used to mean
+        deleting the Python and the differential oracle with it. Here both
+        are declared together and `metta.testing.check_twin` proves they
+        agree on ground inputs. The file must register the function's own
+        MeTTa name and at the twin's arity, inputs then one output, and
+        says so if it does not; its `metta_export` declaration owns the
+        types, so annotations on the Python are documentation only.
 
-        Per call, the write doors included: ``m.add(atom)`` inside the block
-        leaves nothing behind, exactly as ``m.run("!(add-atom &self ...)")``
-        in the same block does, and a later call in the block does not see
-        what an earlier one wrote, because each call is its own what-if.
+        Written for whoever is fluent in Python rather than s-expressions:
+        the body is read as syntax and lowered deterministically, refusals
+        name the construct, the line and what to write instead, and the
+        original stays reachable as .py, a twin the equations can be checked
+        against on any ground input.
+
+            @m.define
+            def add_one(n):
+                return n + 1
+
+            add_one(5)                  # [6], evaluated by the engine
+            S.add_one(5)                # (add_one 5), staged as data
+            add_one.py(5)               # 6, ordinary Python
+
+        The equation's implicit name applies the factories' total mechanical
+        map, replacing each underscore with a hyphen. ``name=`` is the exact
+        quoted-name escape for punctuation that map cannot preserve:
+
+            @m.define(name="add-one")
+            def add_one(n):
+                return n + 1
+
+        The same attribute mapping applies to the definition name itself:
+        ``def not_provable`` lands as ``not-provable``. An authored
+        MeTTa underscore therefore uses explicit ``name="not_provable"``.
+
+        A generator compiles to nondeterminism (each yield one answer), a
+        lambda to the engine's own |->, a comprehension to map-atom and
+        filter-atom, and match(Pattern(x, y), template) to a match against
+        the running space, lowercase free names in the pattern binding as
+        variables.
         Runs against this context's self space.
         """
-        return self._self.speculative()
+        return cast("Any", self._self).define(fn, prolog=prolog, name=name, accessors=accessors, methods=methods)
 
-    def trace(
-        self,
-        source: Atom | str,
-        max_events: int | None = None,
-        *,
-        filter: Symbol | str | Iterable[Symbol | str] | None = None,  # noqa: A002 -- public trace selector
-        timeout: float | None = None,
-        inferences: int | None = None,
-    ) -> Trace:
-        """Run a TERM, or source, under the engine's reduction trace and
-        answer TraceEvent records: what entered reduction at which depth,
-        what it answered, and which reductions failed (a call with no
-        exit). `m.trace(S.fib(10))` is the ordinary spelling, the same
-        argument `answers` and `eval` take; a string is still a string.
-        What is traced executes for real, writes included, like run();
-        the wrap exists only while tracing, so untraced calls pay
-        nothing and the wrapping itself is not charged to the bounds
-        below. max_events bounds the RECORDING and timeout,
-        inferences and stack bound the RUN, defaulting to whatever
-        `m.limits()` scopes; they are independent because a program can
-        retire millions of inferences inside a handful of recorded
-        events. Whichever one stops it, the events already recorded are
-        ANSWERED and `stopped` names the bound, so a caller told a trace
-        was cut knows which bound to raise.
-        filter selects exact function Symbols or names, singly or in an iterable.
-        None records all functions; [] records none. Selection happens before
-        the recording bounds, while excluded calls still execute and add depth.
-        Runs against this context's self space.
-        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
-        return self._self.trace(
-            source, max_events, filter=filter, timeout=timeout, inferences=inferences
-        )
+    def doc(self, atom: Any) -> Atom:
+        """Return this space's structured ``get-doc`` answer for one subject.
 
-    def debug(
-        self,
-        source: Atom | str,
-        *,
-        on: Any = None,
-        inferences: int | None = None,
-        at: int | None = None,
-    ) -> Debugger:
-        """Run a TERM, or source, under breakpoints, stepped from Python.
+        The answer is the ``(@doc ...)`` atom the engine holds for the
+        subject, whether it was documented in MeTTa source or built from a
+        Python docstring:
 
-        Iterating the Debugger runs the program to each breakpoint, the loop
-        body is where the program is SUSPENDED, and leaving the body resumes
-        that same execution:
+            m.doc(S.area)
+            # (@doc-formal (@item area) (@kind function) (@desc "Circle area.") ...)
 
-            with m.debug(S.quad(3), on=[S.double]) as d:
-                for stop in d:
-                    print(stop)      # halted here
-                    if stop.depth > 2:
-                        d.step()     # stop at the next reduction instead
-                print(d.answers)
-
-        on= names the functions that stop it, the way every door here names a
-        head; naming none runs the program to the end in one advance.
-        `step()` stops at the very next reduction, breakpoint or not, and
-        lasts one advance. `breakpoints` is a live set, so one added while
-        the program is suspended stops it.
-
-        at= is the third kind of breakpoint, a COUNT: it stops at the event
-        with that sequence number, numbering reductions from 0 the way a
-        Recording numbers them, so `at=200` is "put me where event 200 is".
-        `Recording.debug(at=k)` is the convenience over this one.
-
-        inferences bound the WHOLE session cumulatively, so a resume that
-        would never reach another breakpoint stops. There is no timeout:
-        the session is suspended by design and a clock would run while a
-        person reads a stop. What is debugged executes for real, writes
-        included, and inherits the caller's scope. Close it, or leave its
-        with-block: the session holds a wrapper on every compiled function
-        until it does.
+        A subject with no documentation raises, exactly as ``type`` raises
+        for a subject ``get-type`` cannot answer.
         Runs against this context's self space.
         """
-        return self._self.debug(source, on=on, inferences=inferences, at=at)
+        return self._self.doc(atom)
 
-    def record(
-        self,
-        source: Atom | str,
-        *,
-        seed: int | None = None,
-        max_events: int | None = None,
-        timeout: float | None = None,
-        inferences: int | None = None,
-    ) -> Recording:
-        """Run a TERM, or source, and keep the whole run as data.
+    def __len__(self) -> int:
+        """Read Space.__len__.
 
-        The data walks backwards, saves to a file, and re-runs.
-        `m.trace` is the rung below: it answers the events alone. A Recording
-        is those events plus the state that produced them, which is what makes
-        them re-runnable rather than only readable:
-
-            rec = m.record(S.fib(12))
-            rec.save("fib.metta-rec.json")
-            rec.at(-1)               # the last event, with its call stack
-            rec.back()               # a step backwards costs a lookup
-            rec.replay(other)        # the same run, in another engine
-            with rec.debug(at=17) as d:   # live, stopped where event 17 is
-                print(d.stop)
-
-        A recorded run always has a seed, minted when you do not name one,
-        because a replay that cannot reproduce the draws is not a replay; the
-        generator is restored afterwards. `(with-seed S expr)` is the MeTTa
-        spelling of the same scope.
-
-        max_events bounds the RECORDING and timeout and inferences bound the
-        RUN, exactly as on trace(); a cut recording says so through
-        `rec.events.stopped` and replays to the same length. A program whose
-        effect plan reaches oracleIO is recorded with `replayable` false and
-        the reason naming what it reached, and replay() then refuses rather
-        than re-reading the host.
         Runs against this context's self space.
         """
-        return self._self.record(
-            source, seed=seed, max_events=max_events, timeout=timeout, inferences=inferences
-        )
+        return self._self.__len__()
 
     def __bool__(self) -> bool:
         """Always true: a space is a handle to a store, not a value that
@@ -7398,8 +10241,15 @@ class MeTTa:
         false in 3.5. Existence is an ask: use
         ``bool(space.match(V.x))`` rather than ``bool(space)``.
         Runs against this context's self space.
-        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+        """  # noqa: D205 -- preserve the declared documentation
         return self._self.__bool__()
+
+    def __contains__(self, atom: Any) -> bool:
+        """Read Space.__contains__.
+
+        Runs against this context's self space.
+        """
+        return self._self.__contains__(atom)
 
     def __iadd__(self, atom: Any) -> Self:
         """add()'s operator spelling for one atom or one fact stream.
@@ -7421,7 +10271,10 @@ class MeTTa:
         return self
 
     def __isub__(self, atom: Any) -> Self:
-        """Runs against this context's self space."""
+        """Read Space.__isub__.
+
+        Runs against this context's self space.
+        """
         self._self.__isub__(atom)
         return self
 
@@ -7440,13 +10293,9 @@ class MeTTa:
         vanish here; spell the reading you mean. Strings name spaces, so
         an unregistered name is a KeyError rather than a parse.
         Runs against this context's self space.
-        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+        """  # noqa: D205 -- preserve the declared documentation
         self._self.__ior__(other)
         return self
-
-    def __contains__(self, atom: Any) -> bool:
-        """Runs against this context's self space."""
-        return self._self.__contains__(atom)
 
     def __iter__(self):
         """Iterate one assembly-order snapshot of the stored atoms.
@@ -7460,10 +10309,6 @@ class MeTTa:
         Runs against this context's self space.
         """
         return self._self.__iter__()
-
-    def __len__(self) -> int:
-        """Runs against this context's self space."""
-        return self._self.__len__()
 
     def __getitem__(self, i: Any) -> Rows:
         """Subscription is query. A tuple headed by an atom is one built
@@ -7483,7 +10328,7 @@ class MeTTa:
         readings have their own methods, match(limit=) for a bounded answer
         set and stream() for rows pulled until you have seen enough.
         Runs against this context's self space.
-        """  # noqa: D205, D415  -- the API contract is one continuous invariant, not summary-and-body prose; the first line deliberately introduces the indented example that follows
+        """  # noqa: D415, D205 -- preserve the declared documentation
         return self._self.__getitem__(i)
 
     def __delitem__(self, pattern: Any) -> None:
@@ -7497,27 +10342,239 @@ class MeTTa:
         It asks the engine's own drain, so the whole pattern costs ONE
         crossing rather than one per removed atom.
         Runs against this context's self space.
-        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+        """  # noqa: D205 -- preserve the declared documentation
         return self._self.__delitem__(pattern)
 
     # ------------------------------------------ end of generated context tier
 
-    def register_prolog(self, *args: Any, **kwargs: Any) -> tuple[str, ...]:
+    def _door_register_prolog(self, *args: Any, **kwargs: Any) -> tuple[str, ...]:
         """Install a declared Prolog extension."""
         return self._self.register_prolog(*args, **kwargs)
 
-    def register_foreign_library(self, *args: Any, **kwargs: Any) -> tuple[str, ...]:
+    def _door_register_foreign_library(self, *args: Any, **kwargs: Any) -> tuple[str, ...]:
         """Install a compiled SWI foreign library."""
         return self._self.register_foreign_library(*args, **kwargs)
 
-    def register_library_path(self, directory: Any, name: str) -> None:
+    def _door_register_library_path(self, directory: Any, name: str) -> None:
         """Register one named Prolog library directory."""
         self._self.register_library_path(directory, name)
 
-    def unregister_prolog(self, extension: str) -> tuple[str, ...]:
+    def _door_unregister_prolog(self, extension: str) -> tuple[str, ...]:
         """Release one declared Prolog extension."""
         return self._self.unregister_prolog(extension)
 
-    def prolog(self) -> None:
+    def _door_prolog(self) -> None:
         """Enter SWI-Prolog's interactive toplevel."""
         self._self.prolog()
+
+
+    # begin generated doors: MeTTa
+    # Generated from metta.doors by tools/doorgen.py.
+    if TYPE_CHECKING:
+        def close(self) -> None:
+            """Release the context's own home space; closing twice is a no-op.
+
+            A borrowed home, the process default included, is the caller's
+            and survives; only a home this context minted is dropped, and the
+            drop takes the whole world with it: every space minted inside the
+            context, by this object or by the program's own new-space, is
+            released first, since it read the home's equations and cannot
+            outlive it. A space the program declared with (inherits ...) still
+            refuses, naming the heir, because that relationship is the
+            program's own.
+
+            What a context OPENED by name it borrows and leaves alone, the way
+            it leaves a borrowed home alone: ``m.space("&kb")`` may be a space
+            that already existed, that another context is reading, or that the
+            engine owns, and closing a reader is not how any of those end.
+            """
+            return self._door_close()
+
+        @property
+        def closed(self) -> bool:
+            """Whether :meth:`close` has released this context's own home."""
+            return self._door_closed
+
+        @property
+        def self(self) -> Space:
+            """The context's home space handle, its own ``&self``."""
+            return self._door_self
+
+        @property
+        def runtime(self) -> Runtime:
+            """The engine bridge itself, for callers going under the surface."""
+            return self._door_runtime
+
+        def info(self) -> dict[str, str | None]:
+            """Return backend versions and the consulted MeTTa runtime tree."""
+            return self._door_info()
+
+        def lock(self) -> Lock:
+            """Pin the knowledge this context has loaded, as a `Lock`.
+
+                m.load("kb/facts.metta")
+                m.lock().write("metta.lock")
+                python -m metta lock kb/facts.metta -o metta.lock
+
+            One `[[library]]` row per shipped library imported, one `[[source]]`
+            row per other file loaded with the space it landed in, one `[[pin]]`
+            row per repository revision acquired, and an `[engine]` table naming
+            this build and a digest over its own sources: what a second machine
+            needs to load exactly this program. `metta.Lock.read` reads one back
+            and :meth:`check` says what a tree no longer matches.
+
+            The scope is the PROCESS, not this context. The engine's loads,
+            registrations and git pins are process-wide, and a program that loads
+            knowledge into `&kb` from one place and reads it from another is one
+            program; a lock naming only one context's own loads would omit the
+            rest of what has to be reproduced. Two contexts in one process
+            therefore take the same lock.
+
+            A lock taken while a source is still loading is refused, because it
+            would record a program that is only half there.
+            """
+            return self._door_lock()
+
+        def check(self, lock: Lock) -> list[Drift]:
+            """Every entry of a lock this tree no longer matches, as `Drift` rows.
+
+                for drift in m.check(metta.Lock.read("metta.lock")):
+                    print(drift)
+
+            An empty list is agreement. Nothing is loaded to answer it: each entry
+            names something on disk, so the answer is what a fresh process would
+            find rather than what this one happens to hold. `metta run --locked`
+            is the same check with a refusal instead of a list.
+            """
+            return self._door_check(lock)
+
+        def space(
+            self,
+            name: str | Symbol | Expression | Space | None=None,
+            backing: Any=None,
+            *,
+            inherits: Space | None=None,
+            restricted: bool=False,
+            grants: _abc.Iterable[str]=(),
+            journal: str | os.PathLike[str] | None=None,
+            schema: _abc.Mapping[str, Any] | None=None,
+            sync: JournalSync=JournalSync.none,
+            rename: _abc.Mapping[str, str] | None=None,
+            _created_at: tuple[str, int] | None=None,
+        ) -> Space:
+            """Create one native, provider-backed, remote, or journaled space.
+
+            The BACKING value derives the implementation, so the common calls
+            carry no options at all: with no name the engine mints an anonymous
+            handle; a ``Space`` reopens that same space, which is what an engine
+            answer naming one arrives as; a ``SpaceProvider`` backing is
+            attached directly; an HTTP(S) URL becomes a remote provider (build
+            the transport with ``metta.remote.connect`` when it needs a token,
+            headers, or its own timeout, and hand THAT in as the backing); and
+            ``journal=`` constructs ``PersistentFactSpace`` from ``schema=`` or
+            a schema mapping supplied as the backing. ``sync`` paces the
+            journal and ``rename`` performs its one-open schema migration; neither
+            means anything without ``journal``, so either refuses alone.
+
+            ``inherits``, ``restricted`` and ``grants`` choose the space MODEL and
+            are independent of whether the space is named. MeTTa's own
+            ``!(new-space &locked (restricted))`` names a restricted space, and
+            ``metta.space(S.locked, restricted=True)`` is that call. Declaring a
+            model on a name that already carries the same one is a no-op; a
+            different one raises, because a space cannot have two models.
+
+            The context OWNS what it mints and BORROWS what it opens by name:
+            :meth:`close` releases the anonymous mints and leaves ``&kb``,
+            ``&metta`` and every other named space exactly as it found them,
+            whether or not the handle is still referenced.
+            """
+            return self._door_space(name, backing, inherits=inherits, restricted=restricted, grants=grants, journal=journal, schema=schema, sync=sync, rename=rename, _created_at=_created_at)
+
+        @property
+        def fn(self) -> _FunctionNamespace:
+            """The bound function namespace of this context's self space."""
+            return self._door_fn
+
+        def unregister_op(self, name: str) -> None:
+            """Release an operation installed through :meth:`op`."""
+            return self._door_unregister_op(name)
+
+        def capture(self) -> CapturedOutput:
+            """Capture printed engine text across this context."""
+            return self._door_capture()
+
+        def atomic(self) -> ScopedExecution:
+            """Scope source execution to committing transactions."""
+            return self._door_atomic()
+
+        @overload
+        def transaction(self, target: Callable[[], _R], /) -> _R: ...
+        @overload
+        def transaction(self, target: Atom | str, /) -> list[Atom | Undefined]: ...
+        def transaction(self, target: Any, /) -> Any:
+            """Run one callable or term in an engine transaction."""
+            return cast("Any", self._door_transaction)(target)
+
+        def register_prolog(self, *args: Any, **kwargs: Any) -> tuple[str, ...]:
+            """Install a declared Prolog extension."""
+            return self._door_register_prolog(*args, **kwargs)
+
+        def register_foreign_library(self, *args: Any, **kwargs: Any) -> tuple[str, ...]:
+            """Install a compiled SWI foreign library."""
+            return self._door_register_foreign_library(*args, **kwargs)
+
+        def register_library_path(self, directory: Any, name: str) -> None:
+            """Register one named Prolog library directory."""
+            return self._door_register_library_path(directory, name)
+
+        def unregister_prolog(self, extension: str) -> tuple[str, ...]:
+            """Release one declared Prolog extension."""
+            return self._door_unregister_prolog(extension)
+
+        def prolog(self) -> None:
+            """Enter SWI-Prolog's interactive toplevel."""
+            return self._door_prolog()
+
+        arrays: _door_namespaces.ArraysContext
+        live: _door_namespaces.LiveContext
+        remote: _door_namespaces.RemoteContext
+        tables: _door_namespaces.TablesContext
+
+    else:
+        close = _door_close
+        _bind_public(close, 'MeTTa', 'close')
+        closed = _door_closed
+        _bind_public(closed, 'MeTTa', 'closed')
+        self = _door_self
+        _bind_public(self, 'MeTTa', 'self')
+        runtime = _door_runtime
+        _bind_public(runtime, 'MeTTa', 'runtime')
+        info = _door_info
+        _bind_public(info, 'MeTTa', 'info')
+        lock = _door_lock
+        _bind_public(lock, 'MeTTa', 'lock')
+        check = _door_check
+        _bind_public(check, 'MeTTa', 'check')
+        space = _door_space
+        _bind_public(space, 'MeTTa', 'space')
+        fn = _door_fn
+        _bind_public(fn, 'MeTTa', 'fn')
+        unregister_op = _door_unregister_op
+        _bind_public(unregister_op, 'MeTTa', 'unregister_op')
+        capture = _door_capture
+        _bind_public(capture, 'MeTTa', 'capture')
+        atomic = _door_atomic
+        _bind_public(atomic, 'MeTTa', 'atomic')
+        transaction = _door_transaction
+        _bind_public(transaction, 'MeTTa', 'transaction')
+        register_prolog = _door_register_prolog
+        _bind_public(register_prolog, 'MeTTa', 'register_prolog')
+        register_foreign_library = _door_register_foreign_library
+        _bind_public(register_foreign_library, 'MeTTa', 'register_foreign_library')
+        register_library_path = _door_register_library_path
+        _bind_public(register_library_path, 'MeTTa', 'register_library_path')
+        unregister_prolog = _door_unregister_prolog
+        _bind_public(unregister_prolog, 'MeTTa', 'unregister_prolog')
+        prolog = _door_prolog
+        _bind_public(prolog, 'MeTTa', 'prolog')
+    # end generated doors: MeTTa

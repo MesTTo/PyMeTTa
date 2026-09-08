@@ -222,7 +222,12 @@ def twin(m):
 #: mirror those bounds are read from [measured 2026-09-08: min-of-3 serial
 #: fresh processes; command=python extensions/python/tools/twin_coverage.py
 #: --repin; commit=c26b6a4d28ef8fb50742440feed2c0578ebb0f58].
-BUDGET = 636023
+#: RE-PINNED 2026-09-08, 636023 to 636076 (+53), The typed host door catalog is
+#: published before user code. Its declarations change catalog lookup indexes;
+#: generated public names bind directly to their existing bodies [measured
+#: 2026-09-08: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 636076
 
 #: OVERRUN 2026-09-07, 36900: it names the recursion and the trial division as
 #: two definitions where the example inlines the pair. Measured 636086 against

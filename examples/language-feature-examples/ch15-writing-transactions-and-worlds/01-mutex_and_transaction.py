@@ -192,9 +192,16 @@ def twin(m):
 #: outside it is a re-observation, not a re-pin [measured 2026-09-08: python
 #: extensions/python/tools/twin_coverage.py --observe --rounds 10,
 #: ai-tmp/integrator-849a9e/mergeFACE-observe-10.log; commit=4a6029296381da416c61a3b25d1609c72a3e062a].
+#: RE-OBSERVED 2026-09-08 after typed host doors joined the boot catalog.
+#: Ten observation rounds read 15888..15898; the subsequent complete gate
+#: read 15886. These eleven observations replace the earlier boot state's
+#: envelope and retain the mutex's scheduling spread [measured: exact extrema
+#: over 11 full-lane observations; command=python
+#: extensions/python/tools/twin_coverage.py --observe --rounds 10 and
+#: sh check.sh twins; fixture=full-lane/277/workers=32; commit=WORKTREE].
 BUDGET = {
-    "minimum": 15888,
-    "maximum": 15903,
-    "observations": 36,
+    "minimum": 15886,
+    "maximum": 15898,
+    "observations": 11,
     "protocol": "full-lane/277/workers=32",
 }

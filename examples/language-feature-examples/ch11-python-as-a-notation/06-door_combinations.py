@@ -237,7 +237,12 @@ def twin(m):
 #: are read from [measured 2026-09-08: min-of-3 serial fresh processes;
 #: command=python extensions/python/tools/twin_coverage.py --repin;
 #: commit=c26b6a4d28ef8fb50742440feed2c0578ebb0f58].
-BUDGET = 48138
+#: RE-PINNED 2026-09-08, 48138 to 48213 (+75), The typed host door catalog is
+#: published before user code. Its declarations change catalog lookup indexes;
+#: generated public names bind directly to their existing bodies [measured
+#: 2026-09-08: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 48213
 
 #: OVERRUN 2026-09-07, 27600: it proves seventeen claims where the example
 #: states four: the example's own comment leaves the HOST half of the nesting

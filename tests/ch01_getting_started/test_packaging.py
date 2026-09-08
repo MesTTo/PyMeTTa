@@ -15,7 +15,7 @@ Guarantees:
     the one in the tree asserts [tested:
     test_every_extra_installs_packages_and_never_a_library,
     test_the_minimal_version_matrix_installs_no_optional_integration;
-    commit=8bfe05c3850776543ece25a85038242f10b1d841]
+    commit=WORKTREE]
   - a roster is read by requirement NAME and a pin by its exact string, so
     adding a floor to a member is not adding a member, and every integration
     extra reaches the floor-matrix check from the manifest rather than from a
@@ -207,11 +207,13 @@ def test_every_extra_installs_packages_and_never_a_library():
     # that crosses the gateway as bytes.
     assert _names(extras["arrow"]) == {"metta-nanoarrow", "metta-pyarrow"}
     assert _names(extras["das"]) == {"metta-websocket"}
-    assert _names(extras["dataframes"]) == {"metta-pandas", "metta-polars"}
+    assert _names(extras["dataframes"]) == {"metta-pandas", "metta-polars", "metta-tables"}
     assert _names(extras["graphql"]) == {"metta-graphql"}
     assert _names(extras["models"]) == {"metta-pydantic"}
     assert _names(extras["otel"]) == {"metta-otel"}
-    assert _names(extras["sql"]) == {"metta-duckdb", "metta-sqlite"}
+    assert _names(extras["sql"]) == {"metta-duckdb", "metta-sqlite", "metta-tables"}
+    assert _names(extras["live"]) == {"metta-live"}
+    assert _names(extras["remote"]) == {"metta-remote"}
     # The engine is the one dependency that is not a package of ours: it is
     # the bridge this seat embeds, not a library it integrates with.
     assert _names(extras["engine"]) == {"janus-swi"}
@@ -427,7 +429,7 @@ def test_the_codec_builds_under_mypyc_as_an_option(tmp_path):
 
     # Asked for, and delivered: exactly the codec, nothing else of metta's.
     compiled = _build_ext(tmp_path / "compiled", {"PYMETTA_USE_MYPYC": "1"})
-    assert compiled.returncode == 0, compiled.stderr
+    assert compiled.returncode == 0, compiled.stdout + compiled.stderr
     built = sorted(
         path.name.split(".")[0]
         for path in (tmp_path / "compiled" / "lib" / "metta").rglob("*.so")

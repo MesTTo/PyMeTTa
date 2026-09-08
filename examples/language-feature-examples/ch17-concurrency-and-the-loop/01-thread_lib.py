@@ -289,10 +289,17 @@ def twin(m):
 #: re-observation, not a re-pin [measured 2026-09-08: python
 #: extensions/python/tools/twin_coverage.py --observe --rounds 25,
 #: ai-tmp/integrator-849a9e/mergeEXT-observe-25.log and mergeEXT-twins3.log; commit=4e0feaf6b8eb13cd17232f6e7d58679b6e22f2b9].
+#: RE-OBSERVED 2026-09-08 after typed host doors joined the boot catalog.
+#: Ten complete rounds observed 557650..596814. The race's losing branch
+#: still contributes the work its schedule permits; these observations replace
+#: the earlier catalog's envelope rather than pooling different boot states
+#: [measured: exact extrema over 10 successful observations; command=python
+#: extensions/python/tools/twin_coverage.py --observe --rounds 10;
+#: fixture=full-lane/277/workers=32; commit=WORKTREE].
 BUDGET = {
-    "minimum": 552258,
-    "maximum": 583831,
-    "observations": 51,
+    "minimum": 557650,
+    "maximum": 596814,
+    "observations": 10,
     "protocol": "full-lane/277/workers=32",
 }
 

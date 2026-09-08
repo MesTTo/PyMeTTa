@@ -78,6 +78,7 @@ from .atoms import typed as typed
 from .define import Defined as Defined
 from .define import Defined as _Defined
 from .define import PrologBacked as _PrologBacked
+from .doors import EvaluationAnswer as _EvaluationAnswer
 from .errors import MettaError as MettaError
 from .errors import NotReducible as NotReducible
 from .errors import Timeout as Timeout
@@ -90,7 +91,11 @@ from .parallel import race as race
 from .parallel import spawn as spawn
 from .results import Answers as _Answers
 from .spaces import view as view
+from .vocabularies import ArgumentDelivery as _ArgumentDelivery
+from .vocabularies import Determinism as _Determinism
 from .vocabularies import EffectClass as _EffectClass
+from .vocabularies import ImageMode as _ImageMode
+from .vocabularies import OnError as _OnError
 from .vocabularies import SemiringOrder as _SemiringOrder
 from collections.abc import Callable as _Callable
 from collections.abc import Iterable as _Iterable
@@ -326,6 +331,36 @@ def load(
     inferences: int | None = ...,
 ) -> list[list[Atom]]: ...
 
+def add(*atoms: _Any) -> None: ...
+
+def remove(atom: _Any, *more: _Any) -> _builtins.bool | int: ...
+
+def trace(
+    source: Atom | str,
+    max_events: int | None = ...,
+    *,
+    filter: Symbol | str | _Iterable[Symbol | str] | None = ...,
+    timeout: float | None = ...,
+    inferences: int | None = ...,
+) -> _Trace: ...
+
+def debug(
+    source: Atom | str,
+    *,
+    on: _Any = ...,
+    inferences: int | None = ...,
+    at: int | None = ...,
+) -> _Debugger: ...
+
+def record(
+    source: Atom | str,
+    *,
+    seed: int | None = ...,
+    max_events: int | None = ...,
+    timeout: float | None = ...,
+    inferences: int | None = ...,
+) -> _Recording: ...
+
 def match(
     *patterns: _Any,
     where: _Any | None = ...,
@@ -337,9 +372,54 @@ def match(
     **values: _Any,
 ) -> _Any: ...
 
-def add(*atoms: _Any) -> None: ...
+def solve(pattern: _Any, subject: _Any) -> _Any: ...
 
-def remove(atom: _Any, *more: _Any) -> _builtins.bool | int: ...
+def limits(
+    *,
+    timeout: float | None = ...,
+    inferences: int | None = ...,
+    stack: int | None = ...,
+) -> _ScopedLimits: ...
+
+def speculate() -> _ScopedExecution: ...
+
+@_overload
+def eval(
+    target: _Any,
+    /,
+    *more: _Any,
+    timeout: float | None = ...,
+    inferences: int | None = ...,
+    under: _Any = ...,
+    theory: _Any | None = ...,
+    interpreter: _Any | None = ...,
+    answer: _EvaluationAnswer | str = ...,
+    delivery: _ArgumentDelivery | str,
+    limit: int | None = ...,
+    image: _ImageMode | str | None = ...,
+    on_error: _OnError | str = ...,
+    determinism: _Determinism | str = ...,
+    **values: _Any,
+) -> _Any: ...
+
+@_overload
+def eval(
+    target: _Any,
+    /,
+    *more: _Any,
+    timeout: float | None = ...,
+    inferences: int | None = ...,
+    under: _Any = ...,
+    theory: _Any | None = ...,
+    interpreter: _Any | None = ...,
+    answer: _EvaluationAnswer | str,
+    delivery: _ArgumentDelivery | str = ...,
+    limit: int | None = ...,
+    image: _ImageMode | str | None = ...,
+    on_error: _OnError | str = ...,
+    determinism: _Determinism | str = ...,
+    **values: _Any,
+) -> _Any: ...
 
 @_overload
 def eval(
@@ -368,39 +448,7 @@ def eval(
     **values: _Any,
 ) -> list[list[Atom | Undefined]]: ...
 
-def solve(pattern: _Any, subject: _Any) -> _Any: ...
-
-def doc(atom: _Any) -> Atom: ...
-
-@_overload
-@_dataclass_transform(eq_default=False)
-def define(  # type: ignore[overload-overlap]
-    fn: _builtins.type[_T],
-    /,
-    *,
-    accessors: _builtins.bool = ...,
-    methods: _builtins.bool = ...,
-) -> _builtins.type[_T]: ...
-
-@_overload
-def define(
-    fn: _Callable[_P, _R],
-    /,
-    *,
-    name: str | None = ...,
-    accessors: _builtins.bool = ...,
-    methods: _builtins.bool = ...,
-) -> _Defined[_P, _R]: ...
-
-@_overload
-def define(*, name: str) -> _Callable[[_Callable[_P, _R]], _Defined[_P, _R]]: ...
-
-@_overload
-def define(
-    *,
-    prolog: str | _os.PathLike[str],
-    name: str | None = ...,
-) -> _Callable[[_Callable[_P, _R]], _PrologBacked[_P, _R]]: ...
+def stats() -> _StatsBlock: ...
 
 @_overload
 def op(
@@ -434,42 +482,37 @@ def writes(fn: _Callable | None = ..., /, **options: _Any) -> _Any: ...
 
 def io(fn: _Callable | None = ..., /, **options: _Any) -> _Any: ...
 
-def stats() -> _StatsBlock: ...
-
-def limits(
+@_overload
+@_dataclass_transform(eq_default=False)
+def define(  # type: ignore[overload-overlap]
+    fn: _builtins.type[_T],
+    /,
     *,
-    timeout: float | None = ...,
-    inferences: int | None = ...,
-    stack: int | None = ...,
-) -> _ScopedLimits: ...
+    accessors: _builtins.bool = ...,
+    methods: _builtins.bool = ...,
+) -> _builtins.type[_T]: ...
 
-def speculate() -> _ScopedExecution: ...
-
-def trace(
-    source: Atom | str,
-    max_events: int | None = ...,
+@_overload
+def define(
+    fn: _Callable[_P, _R],
+    /,
     *,
-    filter: Symbol | str | _Iterable[Symbol | str] | None = ...,
-    timeout: float | None = ...,
-    inferences: int | None = ...,
-) -> _Trace: ...
+    name: str | None = ...,
+    accessors: _builtins.bool = ...,
+    methods: _builtins.bool = ...,
+) -> _Defined[_P, _R]: ...
 
-def debug(
-    source: Atom | str,
-    *,
-    on: _Any = ...,
-    inferences: int | None = ...,
-    at: int | None = ...,
-) -> _Debugger: ...
+@_overload
+def define(*, name: str) -> _Callable[[_Callable[_P, _R]], _Defined[_P, _R]]: ...
 
-def record(
-    source: Atom | str,
+@_overload
+def define(
     *,
-    seed: int | None = ...,
-    max_events: int | None = ...,
-    timeout: float | None = ...,
-    inferences: int | None = ...,
-) -> _Recording: ...
+    prolog: str | _os.PathLike[str],
+    name: str | None = ...,
+) -> _Callable[[_Callable[_P, _R]], _PrologBacked[_P, _R]]: ...
+
+def doc(atom: _Any) -> Atom: ...
 
 def _ambient_space(): ...
 

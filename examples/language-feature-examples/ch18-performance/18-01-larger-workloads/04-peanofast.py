@@ -214,7 +214,12 @@ def twin(m):
 #: are read from [measured 2026-09-08: min-of-3 serial fresh processes;
 #: command=python extensions/python/tools/twin_coverage.py --repin;
 #: commit=c26b6a4d28ef8fb50742440feed2c0578ebb0f58].
-BUDGET = 88856
+#: RE-PINNED 2026-09-08, 88856 to 88909 (+53), The typed host door catalog is
+#: published before user code. Its declarations change catalog lookup indexes;
+#: generated public names bind directly to their existing bodies [measured
+#: 2026-09-08: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 88909
 
 #: OVERRUN 2026-09-07, 17800: it asserts the atom count the example only
 #: writes, so the space is read once more than the example reads it. Measured

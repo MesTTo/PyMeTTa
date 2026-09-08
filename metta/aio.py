@@ -95,10 +95,17 @@ Guarantees:
     test_aio_plain_methods_forward_on_the_worker and
     test_async_anonymous_space_repr_keeps_the_submitting_site;
     commit=50d1de4d0ead4a0c3997f9b2ef58631bbafaede3]
-  - async eval mirrors the synchronous single answer shape without a
-    residuals flag [tested:
-    test_a_not_reducible_answer_is_the_unreduced_term_with_no_flag;
-    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
+  - eval carries every synchronous option, with lazy pulls and releases kept
+    on the worker and unfinished selections owned by the connection [tested:
+    test_async_evaluation_options_reach_the_same_engine_choices,
+    test_async_evaluation_cleanup_is_owned_and_retryable; commit=WORKTREE]
+  - one stop signal per active request preserves error translation; pending
+    writes lose to close while child releases remain admitted, and closing a
+    borrower leaves another connection's work running [tested:
+    test_async_evaluation_repeated_stops_share_one_transition_signal,
+    test_async_evaluation_parent_cleanup_rejects_an_already_queued_write,
+    test_async_evaluation_borrower_cleanup_leaves_the_other_connection_running;
+    commit=WORKTREE]
   - direct, saga, and reified-world evaluations expose Undefined in their
     return types wherever Well Founded Semantics can return it [tested:
     test_async_result_hints_preserve_undefined_answers; commit=71f43dd54034363d3bf8b2d1a3189a63b9e4ce1a]
@@ -172,12 +179,14 @@ from ._space_objects import EngineProfile, Explanation, FunctionCost, require_de
 from ._under import _UNSET
 from ._under import selected as _selected_under
 from .atoms import Atom, Expression, Symbol, Undefined
+from .doors import EvaluationAnswer
 from .errors import Interrupted, MettaError, Timeout
 from .results import Rows
 from .subscribe import _capacity
 from .vocabularies import (
     AgendaPolicy,
     AnswerPolicy,
+    ArgumentDelivery,
     Atomicity,
     Delivery,
     Determinism,
@@ -199,6 +208,7 @@ if TYPE_CHECKING:
     # annotations` keeps as text. Space reaches both through _satellite(), so
     # importing them here at runtime would make `import metta.aio` pay for
     # surfaces the caller may never touch.
+    from ._aio_evaluation import _EvaluationGroup
     from ._api_types import TemplateLike
     from ._debug import Debugger
     from ._recording import Recording
@@ -226,11 +236,14 @@ def _set_future_result(future: asyncio.Future[None]) -> None:
 
 
 class _Request:
-    __slots__ = ("abandoned", "context", "fn", "future", "loop", "target")
+    __slots__ = ("abandoned", "context", "during_close", "fn", "future", "interrupted", "loop", "owner", "target")
 
-    def __init__(self, fn, target, loop, future) -> None:
+    def __init__(self, fn, owner, loop, future, *, during_close=False) -> None:
         self.fn = fn
-        self.target = target
+        self.owner = weakref.ref(owner)
+        self.target = owner._m
+        self.during_close = during_close
+        self.interrupted = False
         self.loop = loop
         self.future = future
         self.abandoned = threading.Event()
@@ -352,6 +365,18 @@ class _EngineThread:
                     with self._transition:
                         with self._state_lock:
                             closing = self._state == "closing"
+                        # A close with child resources keeps the worker alive
+                        # for their releases. Accepted ordinary work still
+                        # loses to close before it starts, as an executor's
+                        # set_running_or_notify_cancel checks at dispatch:
+                        # https://github.com/python/cpython/blob/v3.14.4/Lib/concurrent/futures/thread.py
+                        owner = request.owner()
+                        if owner is None:
+                            closing = True
+                        else:
+                            with owner._subscriptions_lock:
+                                closing |= not request.during_close and (owner._closing or owner._closed)
+                        del owner
                         if closing:
                             request.abandoned.set()
                         else:
@@ -497,16 +522,20 @@ class _EngineThread:
             except Interrupted:
                 logger.debug("discarded a stale AsyncMeTTa interrupt: %s", exc)
 
-    def interrupt_if_running(self, request: _Request | None) -> bool:
+    def interrupt_if_running(self, request: _Request | None, *, owner: AsyncMeTTa | None = None) -> bool:
         """Signal the engine thread if `request` is the one running now,
         or if anything is running when request is None. Answers whether a
-        signal was sent.
+        signal was sent. Repeated stops of one request coalesce until its
+        transition drain completes; a second signal could interrupt the
+        first refusal's own engine-backed error translation.
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         with self._state_lock:
             swi_thread = self._swi_thread
         with self._transition:
             current = self._current
             if current is None or (request is not None and current is not request):
+                return False
+            if current.interrupted or (owner is not None and current.owner() is not owner):
                 return False
             if swi_thread is None:
                 msg = "the async worker has a request but no published Prolog engine"
@@ -521,6 +550,7 @@ class _EngineThread:
                 "context(metta, interrupted))))",
                 {"T": swi_thread},
             )
+            current.interrupted = True
             logger.debug("sent an interrupt to the AsyncMeTTa worker")
             return True
 
@@ -801,17 +831,17 @@ class AsyncMeTTa:
             msg = f"this AsyncMeTTa is {state}"
             raise MettaError(msg)
 
-    def _track_subscription(self, stream: _AsyncSubscription) -> None:
+    def _track_subscription(self, stream: _AsyncSubscription | _EvaluationGroup) -> None:
         """Make an acquired stream part of this connection's close scope."""
         with self._subscriptions_lock:
             self._require_open_locked()
             self._subscriptions.add(stream)
 
-    def _forget_subscription(self, stream: _AsyncSubscription) -> None:
+    def _forget_subscription(self, stream: _AsyncSubscription | _EvaluationGroup) -> None:
         with self._subscriptions_lock:
             self._subscriptions.discard(stream)
 
-    def _begin_close(self) -> tuple[_AsyncSubscription, ...]:
+    def _begin_close(self) -> tuple[_AsyncSubscription | _EvaluationGroup, ...]:
         with self._subscriptions_lock:
             if self._closing:
                 msg = "this AsyncMeTTa is already closing"
@@ -861,7 +891,7 @@ class AsyncMeTTa:
     async def _submit(self, fn: Callable[[Space], Any], *, during_close: bool) -> Any:
         await self._worker.start()
         loop = asyncio.get_running_loop()
-        request = _Request(fn, self._m, loop, loop.create_future())
+        request = _Request(fn, self, loop, loop.create_future(), during_close=during_close)
         if during_close:
             self._worker.submit(request)
         else:
@@ -921,12 +951,52 @@ class AsyncMeTTa:
         self,
         target: Any,
         /,
+        *more: Any,
+        timeout: float | None=None,
+        inferences: int | None=None,
+        under: Any=_UNSET,
+        theory: Any | None=None,
+        interpreter: Any | None=None,
+        answer: EvaluationAnswer | str = "all",
+        delivery: ArgumentDelivery | str,
+        limit: int | None = None,
+        image: ImageMode | str | None = None,
+        on_error: OnError | str = "keep",
+        determinism: Determinism | str = "nondet",
+        **values: Any,
+    ) -> Any: ...
+
+    @overload
+    async def eval(
+        self,
+        target: Any,
+        /,
+        *more: Any,
+        timeout: float | None=None,
+        inferences: int | None=None,
+        under: Any=_UNSET,
+        theory: Any | None=None,
+        interpreter: Any | None=None,
+        answer: EvaluationAnswer | str,
+        delivery: ArgumentDelivery | str = "atoms",
+        limit: int | None = None,
+        image: ImageMode | str | None = None,
+        on_error: OnError | str = "keep",
+        determinism: Determinism | str = "nondet",
+        **values: Any,
+    ) -> Any: ...
+
+    @overload
+    async def eval(
+        self,
+        target: Any,
+        /,
         *,
-        timeout: float | None = ...,
-        inferences: int | None = ...,
-        under: Any = ...,
-        theory: Any | None = ...,
-        interpreter: Any | None = ...,
+        timeout: float | None=...,
+        inferences: int | None=...,
+        under: Any=...,
+        theory: Any | None=...,
+        interpreter: Any | None=...,
         **values: Any,
     ) -> list[Atom | Undefined]: ...
 
@@ -937,11 +1007,11 @@ class AsyncMeTTa:
         _second: Any,
         /,
         *more: Any,
-        timeout: float | None = ...,
-        inferences: int | None = ...,
-        under: Any = ...,
-        theory: Any | None = ...,
-        interpreter: Any | None = ...,
+        timeout: float | None=...,
+        inferences: int | None=...,
+        under: Any=...,
+        theory: Any | None=...,
+        interpreter: Any | None=...,
         **values: Any,
     ) -> list[list[Atom | Undefined]]: ...
 
@@ -950,40 +1020,48 @@ class AsyncMeTTa:
         target: Any,
         /,
         *more: Any,
-        timeout: float | None = None,
-        inferences: int | None = None,
-        under: Any = _UNSET,
-        theory: Any | None = None,
-        interpreter: Any | None = None,
+        timeout: float | None=None,
+        inferences: int | None=None,
+        under: Any=_UNSET,
+        theory: Any | None=None,
+        interpreter: Any | None=None,
+        answer: EvaluationAnswer | str = "all",
+        delivery: ArgumentDelivery | str = "atoms",
+        limit: int | None = None,
+        image: ImageMode | str | None = None,
+        on_error: OnError | str = "keep",
+        determinism: Determinism | str = "nondet",
         **values: Any,
-    ) -> list[Atom | Undefined] | list[list[Atom | Undefined]]:
-        """Evaluate a term and return every answer.
+    ) -> Any:
+        """Evaluate on the worker with the synchronous door's option product.
 
-        `under`, `theory` and `interpreter` are the synchronous eval()'s, and
-        they matter more here: answers() is excluded from this surface because
-        a replayable cross-thread iterator is not what an await gives you, so
-        without them there was no way to annotate an EVALUATION asynchronously
-        at all -- match(under=) covered patterns and nothing covered calls
-        [measured 2026-08-31].
+        Eager and scalar choices return their values after one awaited request.
+        The answers choice returns a replayable asynchronous view; stream
+        returns a single-pass asynchronous view. Pull and close stay on this
+        worker, and the parent owns any unfinished selection. Use async with
+        on a returned view when stopping iteration early.
 
-        A text target may carry HOLES, as the synchronous eval()'s may:
-        `await m.eval(t"(decide {tensor})")`. `target` is positional-only for
-        the same reason it is there, so `{target}` is a field name a caller can
-        use.
+        Holes, bindings, algebra, theory, interpreter, delivery, images, bounds,
+        error-answer policy and cardinality keep their synchronous meanings.
         """
         carrier = _selected_under(under)
-        return await self.call(
-            lambda m: m.eval(
-                target,
-                *more,
-                timeout=timeout,
-                inferences=inferences,
-                under=_UNSET if carrier is None else carrier,
-                theory=theory,
-                interpreter=interpreter,
-                **values,
+
+        def evaluate(space: Space) -> Any:
+            return space.eval(
+                target, *more, timeout=timeout, inferences=inferences,
+                under=carrier if carrier is not None else _UNSET,
+                theory=theory, interpreter=interpreter,
+                answer=answer, delivery=delivery, limit=limit, image=image,
+                on_error=on_error, determinism=determinism, **values,
             )
-        )
+
+        if answer in (EvaluationAnswer.answers, EvaluationAnswer.stream):
+            from ._aio_evaluation import (  # noqa: PLC0415 -- lazy worker-owned results depend on this module
+                _EvaluationGroup,
+            )
+
+            return await _EvaluationGroup(self).open(evaluate, batch=bool(more))
+        return await self.call(evaluate)
 
     async def copy(self) -> AsyncMeTTa:
         """This space's contents in a new anonymous space; Space.copy,
@@ -1309,13 +1387,11 @@ class AsyncMeTTa:
         return _AsyncFunctionNamespace(self)
 
     # ---------------------------------------------- generated mirror
-    # Every method below is GENERATED by tools/aiogen.py from the synchronous
-    # Space method of the same name, whose signature, return annotation and
-    # docstring it carries verbatim. Each is one worker round trip. Do not
-    # edit them here: change Space, or hand-write the method above this block
-    # and the generator will yield to it. Handwritten counterparts still pass
-    # parameter parity against Space or MeTTa. tools/aio_divergences.py records
-    # exclusions and worker mechanisms that require different signatures.
+    # Generated by tools/doorgen.py through its aiogen backend, from metta.doors.
+    # Each method preserves its row's signature and documentation in one worker
+    # round trip. Change the row and its implementation, then regenerate.
+    # Handwritten worker methods stay above this region and pass row parity;
+    # async_signature and async_reason declare an intentional difference.
 
     async def space_names(self) -> list[str]:
         """Every space name this engine registers, sorted: '&self' and
@@ -1324,7 +1400,7 @@ class AsyncMeTTa:
         create, so their answers are here at once; naming a space never
         registers it, so Space('&kb') is not here until a write, and a bind!
         token's target appears once something is stored under it.
-        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+        """  # noqa: D205 -- preserve the declared documentation
         return await self.call(lambda m: m.space_names())
 
     async def drop(self) -> None:
@@ -1355,8 +1431,8 @@ class AsyncMeTTa:
         source: str | TemplateLike,
         /,
         *,
-        timeout: float | None = None,
-        inferences: int | None = None,
+        timeout: float | None=None,
+        inferences: int | None=None,
         **values: Any,
     ) -> list[list[Atom]]:
         """Run MeTTa source: one list of answers per ! directive.
@@ -1425,8 +1501,8 @@ class AsyncMeTTa:
         query: Any,
         /,
         *,
-        analyze: bool = False,
-        allow_writes: bool = False,
+        analyze: bool=False,
+        allow_writes: bool=False,
         **values: Any,
     ) -> Explanation:
         """What the engine will do with this query, reflected rather than run.
@@ -1482,8 +1558,8 @@ class AsyncMeTTa:
         source: str | TemplateLike,
         /,
         *,
-        timeout: float | None = None,
-        inferences: int | None = None,
+        timeout: float | None=None,
+        inferences: int | None=None,
         **values: Any,
     ) -> tuple[list[list[Atom]], EngineProfile]:
         """Run source under the engine's statistical profiler, answering
@@ -1504,7 +1580,7 @@ class AsyncMeTTa:
         milliseconds carries few samples, so profile something that runs.
         Profiling changes execution; it is a debugging surface, not a
         mode to leave on.
-        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+        """  # noqa: D205 -- preserve the declared documentation
         return await self.call(
             lambda m: m.profile(source, timeout=timeout, inferences=inferences, **values)
         )
@@ -1514,10 +1590,10 @@ class AsyncMeTTa:
         source: str | TemplateLike,
         /,
         *,
-        extension: str | None = None,
-        names: _abc.Sequence[str] | None = None,
-        timeout: float | None = None,
-        inferences: int | None = None,
+        extension: str | None=None,
+        names: _abc.Sequence[str] | None=None,
+        timeout: float | None=None,
+        inferences: int | None=None,
         **values: Any,
     ) -> tuple[list[list[Atom]], list[FunctionCost]]:
         """Run source under the profiler, reporting only YOUR functions.
@@ -1563,9 +1639,9 @@ class AsyncMeTTa:
         self,
         path: str | os.PathLike[str],
         *,
-        format: SaveFormat = SaveFormat.metta,  # noqa: A002  -- format is the documented public save keyword
-        timeout: float | None = None,
-        inferences: int | None = None,
+        format: SaveFormat=SaveFormat.metta,  # noqa: A002 -- the declared public parameter spelling
+        timeout: float | None=None,
+        inferences: int | None=None,
     ) -> int:
         """Write every stored atom of this space, equations included, as
         MeTTa source by default. ``format="fast"`` writes a version-pinned
@@ -1591,7 +1667,7 @@ class AsyncMeTTa:
         There is no `format` on load(), and that is not an omission. When you
         save, the file does not exist and something has to say which of the two
         to write; when you load, load() reads which it is, `.gz` included.
-        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+        """  # noqa: D205 -- preserve the declared documentation
         return await self.call(
             lambda m: m.save(path, format=format, timeout=timeout, inferences=inferences)
         )
@@ -1614,8 +1690,8 @@ class AsyncMeTTa:
         self,
         path: str | os.PathLike[str],
         *,
-        timeout: float | None = None,
-        inferences: int | None = None,
+        timeout: float | None=None,
+        inferences: int | None=None,
     ) -> list[list[Atom]]:
         """Add a text program or trusted fast cache to this space.
 
@@ -1700,7 +1776,7 @@ class AsyncMeTTa:
         performs ``!(import! <m> (library lib_he))`` with this space as the
         target. An import is an effect, so it refuses to hide inside an atom
         batch or share a call with stored atoms.
-        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+        """  # noqa: D205 -- preserve the declared documentation
         return await self.call(lambda m: m.add(*atoms))
 
     async def remove(self, atom: Any, *more: Any) -> bool | int:
@@ -1732,7 +1808,7 @@ class AsyncMeTTa:
         A bare variable is the remove-everything reading a multiset space
         gives it, each atom leaving through its own proper path, equations
         and their compiled clauses included.
-        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+        """  # noqa: D205 -- preserve the declared documentation
         return await self.call(lambda m: m.remove(atom, *more))
 
     async def transfer(self, *atoms: Any, to: Space) -> int:
@@ -1754,9 +1830,7 @@ class AsyncMeTTa:
         """Every stored atom in this space."""
         return await self.call(lambda m: m.atoms())
 
-    async def peek(
-        self, pattern: Any, *, where: Any | None = None, deadline: float | None = None
-    ) -> Atom:
+    async def peek(self, pattern: Any, *, where: Any | None=None, deadline: float | None=None) -> Atom:
         """Wait for one matching atom and leave it in this space.
 
         A finite deadline raises ``Timeout`` when no match arrives.
@@ -1770,9 +1844,7 @@ class AsyncMeTTa:
         """
         return await self.call(lambda m: m.peek(pattern, where=where, deadline=deadline))
 
-    async def take(
-        self, pattern: Any, *, where: Any | None = None, deadline: float | None = None
-    ) -> Atom:
+    async def take(self, pattern: Any, *, where: Any | None=None, deadline: float | None=None) -> Atom:
         """Wait for and remove exactly one matching atom from this space.
 
         Competing takers cannot receive the same occurrence. A finite
@@ -1790,23 +1862,23 @@ class AsyncMeTTa:
     async def cast(self, value: Any, type_: _builtins.type[_CastT], /) -> _CastT: ...
     @overload
     async def cast(self, value: Any, type_: Atom | str, /) -> Any: ...
-    async def cast(self, value: Any, type_: Any = ..., /) -> Any:
+    async def cast(self, value: Any, type_: Any=..., /) -> Any:
         """Cast this space atom ambiently with one argument, or answer value
         narrowed by this space's type discipline with two arguments. The
         explicit form has the same acceptance a typed call compiles, ':'
         declarations here and &self in scope, protocol types included. A
         refusal raises metta.CastError naming the value's actual types.
-        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+        """  # noqa: D205 -- preserve the declared documentation
         return await self.call(lambda m: m.cast(value, type_))
 
     async def trace(
         self,
         source: Atom | str,
-        max_events: int | None = None,
+        max_events: int | None=None,
         *,
-        filter: Symbol | str | Iterable[Symbol | str] | None = None,  # noqa: A002 -- public trace selector
-        timeout: float | None = None,
-        inferences: int | None = None,
+        filter: Symbol | str | Iterable[Symbol | str] | None=None,  # noqa: A002 -- the declared public parameter spelling
+        timeout: float | None=None,
+        inferences: int | None=None,
     ) -> Trace:
         """Run a TERM, or source, under the engine's reduction trace and
         answer TraceEvent records: what entered reduction at which depth,
@@ -1826,7 +1898,7 @@ class AsyncMeTTa:
         filter selects exact function Symbols or names, singly or in an iterable.
         None records all functions; [] records none. Selection happens before
         the recording bounds, while excluded calls still execute and add depth.
-        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+        """  # noqa: D205 -- preserve the declared documentation
         return await self.call(
             lambda m: m.trace(
                 source,
@@ -1841,9 +1913,9 @@ class AsyncMeTTa:
         self,
         source: Atom | str,
         *,
-        on: Any = None,
-        inferences: int | None = None,
-        at: int | None = None,
+        on: Any=None,
+        inferences: int | None=None,
+        at: int | None=None,
     ) -> Debugger:
         """Run a TERM, or source, under breakpoints, stepped from Python.
 
@@ -1883,10 +1955,10 @@ class AsyncMeTTa:
         self,
         source: Atom | str,
         *,
-        seed: int | None = None,
-        max_events: int | None = None,
-        timeout: float | None = None,
-        inferences: int | None = None,
+        seed: int | None=None,
+        max_events: int | None=None,
+        timeout: float | None=None,
+        inferences: int | None=None,
     ) -> Recording:
         """Run a TERM, or source, and keep the whole run as data.
 
@@ -1931,7 +2003,7 @@ class AsyncMeTTa:
         duplicate equations, and references no function or fact carries.
         Answers metta.lint.Finding records, empty when nothing looks
         wrong.
-        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+        """  # noqa: D205 -- preserve the declared documentation
         return await self.call(lambda m: m.lint())
 
     async def effect_plan(self, target: Any) -> _ops_module.EffectPlan:
@@ -1951,7 +2023,7 @@ class AsyncMeTTa:
         order and in any process. Two spaces agree on digest() exactly
         when save() would write the same content. Live host objects have
         no cross-process identity and are refused, like save().
-        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+        """  # noqa: D205 -- preserve the declared documentation
         return await self.call(lambda m: m.digest())
 
     async def clear(self) -> None:
@@ -1961,12 +2033,12 @@ class AsyncMeTTa:
     async def match(
         self,
         *patterns: Any,
-        where: Any | None = None,
-        limit: int | None = None,
-        timeout: float | None = None,
-        inferences: int | None = None,
-        under: Any = _UNSET,
-        into: _builtins.type | None = None,
+        where: Any | None=None,
+        limit: int | None=None,
+        timeout: float | None=None,
+        inferences: int | None=None,
+        under: Any=_UNSET,
+        into: _builtins.type | None=None,
         **values: Any,
     ) -> Any:
         """Lazily match patterns against this space as one conjunction.
@@ -2042,11 +2114,7 @@ class AsyncMeTTa:
         """
         return await self.call(lambda m: m.solve(pattern, subject))
 
-    async def parallel(
-        self,
-        *targets: Any,
-        timeout: float | None = None,
-    ) -> list[Atom | Undefined]:
+    async def parallel(self, *targets: Any, timeout: float | None=None) -> list[Atom | Undefined]:
         """Evaluate every target concurrently, answering every branch's answers.
 
         This is the engine's `hyperpose`, the parallel twin of `superpose`:
@@ -2106,10 +2174,10 @@ class AsyncMeTTa:
         target: Any,
         /,
         *,
-        timeout: float | None = None,
-        inferences: int | None = None,
-        theory: Any | None = None,
-        interpreter: Any | None = None,
+        timeout: float | None=None,
+        inferences: int | None=None,
+        theory: Any | None=None,
+        interpreter: Any | None=None,
         **values: Any,
     ) -> list[tuple[str, Atom | Undefined | None]]:
         """Evaluate a term, pairing each answer with how it was produced.
@@ -2157,8 +2225,8 @@ class AsyncMeTTa:
         self,
         source: str,
         *,
-        timeout: float | None = None,
-        inferences: int | None = None,
+        timeout: float | None=None,
+        inferences: int | None=None,
     ) -> list[list[tuple[str, Atom | Undefined | None]]]:
         """run(), with each directive's answers paired with how they arose.
 
@@ -2169,13 +2237,7 @@ class AsyncMeTTa:
             lambda m: m.run_status(source, timeout=timeout, inferences=inferences)
         )
 
-    async def one(
-        self,
-        target: Any,
-        *,
-        timeout: float | None = None,
-        inferences: int | None = None,
-    ) -> Any:
+    async def one(self, target: Any, *, timeout: float | None=None, inferences: int | None=None) -> Any:
         """Return the sole answer as a plain Python value for internal callers.
 
             m.eval(S.fact(5))[0]         # Grounded(120)
@@ -2201,8 +2263,8 @@ class AsyncMeTTa:
         self,
         target: Any,
         *,
-        timeout: float | None = None,
-        inferences: int | None = None,
+        timeout: float | None=None,
+        inferences: int | None=None,
     ) -> Any:
         """The first answer as a plain Python value, or None for no answers.
 
@@ -2332,7 +2394,7 @@ class AsyncMeTTa:
         """Whether a function would answer from THIS space: it has clauses
         this space's module sees, its own or the shared ones in user.
         Another space's equations are invisible here and do not count.
-        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+        """  # noqa: D205 -- preserve the declared documentation
         return await self.call(lambda m: m.is_function_here(name))
 
     async def arities(self, name: str) -> list[int]:
@@ -2341,10 +2403,10 @@ class AsyncMeTTa:
 
     async def register_prolog(
         self,
-        source: str | None = None,
+        source: str | None=None,
         *,
-        path: str | os.PathLike[str] | None = None,
-        names: _abc.Sequence[str] | _abc.Mapping[str, str] = (),
+        path: str | os.PathLike[str] | None=None,
+        names: _abc.Sequence[str] | _abc.Mapping[str, str]=(),
     ) -> tuple[str, ...]:
         """Register Prolog predicates as MeTTa functions, at native speed.
 
@@ -2426,8 +2488,8 @@ class AsyncMeTTa:
         self,
         path: str | os.PathLike[str],
         *,
-        entry: str | None = None,
-        names: _abc.Sequence[str] = (),
+        entry: str | None=None,
+        names: _abc.Sequence[str]=(),
     ) -> tuple[str, ...]:
         """Load a compiled `.so` and register its predicates as MeTTa functions.
 
@@ -2503,50 +2565,13 @@ class AsyncMeTTa:
         """
         return await self.call(lambda m: m.unregister_prolog(extension))
 
-    async def live(
-        self,
-        *query: Any,
-        on: SubscriptionEdge = SubscriptionEdge.both,
-        strategy: str | None = None,
-    ) -> Any:
-        """A materialised view of a query, current with this space's writes.
-
-            alerts = m.live(S.alert(V.level))
-            len(alerts)                      # no engine call
-            S.alert(S.red) in alerts         # no engine call
-            alerts.rows                      # what m.match(...) would answer
-
-        The query is one pattern, a conjunction of patterns spelled the way
-        `match` spells one, or a call to a TABLED head, and the answer is a
-        multiset exactly as `match`'s is. `for delta in view.changes(timeout=)`
-        reads the same view as a stream of `metta.live.Delta`, where a
-        `progress` delta after each committed segment says which generation
-        the view is current to, and `async for` reads the same stream under
-        `aio`.
-
-        `strategy=` names the maintenance and defaults to the query's shape:
-        `pattern` maintains one pattern's multiset from the write events, O(1)
-        per event; `heads` watches the heads the query mentions and re-answers
-        it once per commit that touched one; `tabled` serves a call by
-        watching its own table's invalidation counter. `view.strategy` reports
-        which is in force.
-
-        `on=` is the subscription edge underneath, "both" by default because a
-        view that ignored removals would drift.
-
-        The longhand is `metta.live.Live(m, *query)`, and the rung below
-        that is `subscribe` plus `match`: a view is the subscription that
-        maintains what the match would have answered.
-        """
-        return await self.call(lambda m: m.live(*query, on=on, strategy=strategy))
-
     async def derivation(
         self,
         target: Any,
-        depth: int | None = None,
+        depth: int | None=None,
         *,
-        timeout: float | None = None,
-        inferences: int | None = None,
+        timeout: float | None=None,
+        inferences: int | None=None,
     ) -> list[Any]:
         """Every proof of an answer, as trees in MeTTa terms.
 
@@ -2579,7 +2604,7 @@ class AsyncMeTTa:
             lambda m: m.derivation(target, depth, timeout=timeout, inferences=inferences)
         )
 
-    async def why(self, pattern: Any, *, where: Any | None = None) -> str:
+    async def why(self, pattern: Any, *, where: Any | None=None) -> str:
         """Why a pattern matches nothing here, in words.
 
         Checks the cheap explanations in order: unknown function, wrong
@@ -2605,7 +2630,7 @@ class AsyncMeTTa:
         """Return this space's first ``get-type`` answer, including undefined."""
         return await self.call(lambda m: m.type(atom))
 
-    async def infer_types(self, *, declare: bool = False) -> list[Atom]:
+    async def infer_types(self, *, declare: bool=False) -> list[Atom]:
         """Propose a `(: head (-> ...))` for every head here that has none.
 
             m.infer_types()                 # the proposals, nothing added
@@ -2667,7 +2692,7 @@ class AsyncMeTTa:
         pattern: str | Atom,
         fidelity: Fidelity,
         *,
-        det: Determinism | None = None,
+        det: Determinism | None=None,
     ) -> Atom:
         """Declare how faithfully a space answers queries of one shape.
 
@@ -2692,9 +2717,9 @@ class AsyncMeTTa:
     async def annotations(
         self,
         subject_or_algebra: str,
-        algebra: str | None = None,
+        algebra: str | None=None,
         *,
-        capabilities: _abc.Iterable[str] = (),
+        capabilities: _abc.Iterable[str]=(),
     ) -> Atom:
         """Declare the algebra a context's answer annotations live in.
 
@@ -2723,11 +2748,11 @@ class AsyncMeTTa:
         extend: str,
         zero: Any,
         one: Any,
-        laws: _abc.Iterable[str] = (),
-        carrier: _abc.Iterable[Any] = (),
-        type: Any = None,  # noqa: A002 -- Python spells a carrier type as type
-        requires: _abc.Iterable[str] = (),
-        order: SemiringOrder | None = None,
+        laws: _abc.Iterable[str]=(),
+        carrier: _abc.Iterable[Any]=(),
+        type: Any=None,  # noqa: A002 -- the declared public parameter spelling
+        requires: _abc.Iterable[str]=(),
+        order: SemiringOrder | None=None,
     ) -> Atom:
         """Declare operations with carrier membership and optional checked laws.
 
@@ -2788,11 +2813,7 @@ class AsyncMeTTa:
         """Store one rule generated by the algebra-agnostic tag threader."""
         return await self.call(lambda m: m.add_tagged_rule(tag, head, *premises))
 
-    async def image(
-        self,
-        type_name: str,
-        setting: ImageMode,
-    ) -> Atom:
+    async def image(self, type_name: str, setting: ImageMode) -> Atom:
         """Choose how one Python type crosses one context boundary.
 
         opaque carries the live object by identity; transparent projects its
@@ -2803,13 +2824,7 @@ class AsyncMeTTa:
         """
         return await self.call(lambda m: m.image(type_name, setting))
 
-    async def sample(
-        self,
-        query: str | Atom,
-        *,
-        k: int = 10,
-        seed: int = 7,
-    ) -> list[Atom]:
+    async def sample(self, query: str | Atom, *, k: int=10, seed: int=7) -> list[Atom]:
         """Choose ``k`` tagged alternatives with replacement by ``(rate n)``.
 
         The argument names and list result follow ``random.choices``. A local
@@ -2818,10 +2833,7 @@ class AsyncMeTTa:
         """
         return await self.call(lambda m: m.sample(query, k=k, seed=seed))
 
-    async def consumption(
-        self,
-        kind: SourceKind,
-    ) -> Atom:
+    async def consumption(self, kind: SourceKind) -> Atom:
         """Declare a space's consumption discipline.
 
         repeated is the default: the source re-enumerates. linear is a
@@ -2840,7 +2852,7 @@ class AsyncMeTTa:
         self,
         subject_or_pattern: str | Atom,
         pattern_or_mode: str | Atom,
-        mode: OnError | None = None,
+        mode: OnError | None=None,
     ) -> Atom:
         """Declare what a context's failure becomes, per query shape.
 
@@ -2856,11 +2868,7 @@ class AsyncMeTTa:
         """
         return await self.call(lambda m: m.on_error(subject_or_pattern, pattern_or_mode, mode))
 
-    async def merge(
-        self,
-        pattern: str | Atom,
-        policy: AnswerPolicy,
-    ) -> Atom:
+    async def merge(self, pattern: str | Atom, policy: AnswerPolicy) -> Atom:
         """Declare how the engine merges one query shape's answers
         ACROSS contexts, for the multi-context idiom
         (match (superpose (&a &b)) ...).
@@ -2870,13 +2878,10 @@ class AsyncMeTTa:
         k-way ordered merge by annotation, sound only when every merged
         context declares (emits <ctx> best-first), and loudly refused
         without. Shapes route most-specific-first as everywhere.
-        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+        """  # noqa: D205 -- preserve the declared documentation
         return await self.call(lambda m: m.merge(pattern, policy))
 
-    async def context(
-        self,
-        world: World,
-    ) -> Atom:
+    async def context(self, world: World) -> Atom:
         """Record what a space's absence means.
 
         Negation as failure reads absence as falsity, which is only
@@ -2887,11 +2892,7 @@ class AsyncMeTTa:
         """
         return await self.call(lambda m: m.context(world))
 
-    async def agenda(
-        self,
-        policy: AgendaPolicy,
-        function: str | None = None,
-    ) -> Atom:
+    async def agenda(self, policy: AgendaPolicy, function: str | None=None) -> Atom:
         """Declare which reaction fires first when several match one write.
 
         declaration is the default and the order they were declared, which is
@@ -2908,12 +2909,7 @@ class AsyncMeTTa:
         """
         return await self.call(lambda m: m.agenda(policy, function))
 
-    async def reacts(
-        self,
-        pattern: str | Atom,
-        operation: str | Atom,
-        priority: int | None = None,
-    ) -> Atom:
+    async def reacts(self, pattern: str | Atom, operation: str | Atom, priority: int | None=None) -> Atom:
         """Declare a reaction, stored as an (on ...) atom: when an atom
         matching PATTERN lands in the space, OPERATION runs under the
         match's bindings.
@@ -2930,7 +2926,7 @@ class AsyncMeTTa:
         spaces, while the bridge rule delivers Python-side to anything
         with add and remove, an unregistered or remote target included.
         Same multi-context-systems idea, two delivery tiers.
-        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+        """  # noqa: D205 -- preserve the declared documentation
         return await self.call(lambda m: m.reacts(pattern, operation, priority))
 
     async def admits(self, type_name: str) -> Atom:
@@ -2947,10 +2943,7 @@ class AsyncMeTTa:
         """Bound a pool: an add beyond LIMIT atoms is refused loudly."""
         return await self.call(lambda m: m.capacity(limit))
 
-    async def atomicity(
-        self,
-        atomicity: Atomicity,
-    ) -> Atom:
+    async def atomicity(self, atomicity: Atomicity) -> Atom:
         """Declare what a space's writes promise inside a transaction.
 
         Named for what it declares rather than for the atom it stores, which
@@ -2968,10 +2961,7 @@ class AsyncMeTTa:
         """
         return await self.call(lambda m: m.atomicity(atomicity))
 
-    async def emits(
-        self,
-        policy: AnswerPolicy,
-    ) -> Atom:
+    async def emits(self, policy: AnswerPolicy) -> Atom:
         """Declare the order a context emits its own answers in.
 
         best-first is the promise (top k ...) needs before its bound may
@@ -2983,8 +2973,8 @@ class AsyncMeTTa:
 
     async def events(
         self,
-        delivery: Delivery | None = None,
-        order: EventOrder = EventOrder.unordered,
+        delivery: Delivery | None=None,
+        order: EventOrder=EventOrder.unordered,
     ) -> Atom | Any:
         """Return the event stream, or declare what this context promises.
 
@@ -3005,12 +2995,26 @@ class AsyncMeTTa:
         """
         return await self.call(lambda m: m.events(delivery, order))
 
+    async def live(
+        self,
+        *query: Any,
+        on: SubscriptionEdge=SubscriptionEdge.both,
+        strategy: str | None=None,
+    ) -> Any:
+        """Maintain a query's multiset through this space's committed writes.
+
+        The returned Live owns its subscriptions. close() releases them, and
+        changes() reads its progress and deltas. strategy selects pattern, heads,
+        or tabled maintenance; omitting it selects from the query's shape.
+        """
+        return await self.call(lambda m: m.live(*query, on=on, strategy=strategy))
+
     # ------------------------------------------ end of generated mirror
 
     # -------------------------------------------------------------- lifecycle
 
     async def _release_subscriptions(
-        self, subscriptions: tuple[_AsyncSubscription, ...]
+        self, subscriptions: tuple[_AsyncSubscription | _EvaluationGroup, ...]
     ) -> None:
         """Release every acquired stream before reporting any failure."""
         failures: list[BaseException] = []
@@ -3023,7 +3027,7 @@ class AsyncMeTTa:
         _raise_lifecycle_failures(msg, failures)
 
     def _stop_subscriptions(
-        self, subscriptions: tuple[_AsyncSubscription, ...]
+        self, subscriptions: tuple[_AsyncSubscription | _EvaluationGroup, ...]
     ) -> None:
         """Synchronous counterpart used when no event loop is running."""
         failures: list[BaseException] = []
@@ -3040,6 +3044,8 @@ class AsyncMeTTa:
         timeout = _close_timeout(timeout)
         subscriptions = self._begin_close()
         try:
+            if subscriptions:
+                self._worker.interrupt_if_running(None, owner=None if self._owner else self)
             await _shielded(self._release_subscriptions(subscriptions))
         except BaseException:
             # A child that failed to cancel remains tracked, and the live
@@ -3065,6 +3071,8 @@ class AsyncMeTTa:
         timeout = _close_timeout(timeout)
         subscriptions = self._begin_close()
         try:
+            if subscriptions:
+                self._worker.interrupt_if_running(None, owner=None if self._owner else self)
             self._stop_subscriptions(subscriptions)
         except BaseException:
             self._abort_close()

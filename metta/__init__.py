@@ -161,12 +161,17 @@ if TYPE_CHECKING:
     from .define import Defined
     from .define import Defined as _Defined
     from .define import PrologBacked as _PrologBacked
+    from .doors import EvaluationAnswer as _EvaluationAnswer
     from .foreign import SpaceProvider
     from .manifest import boot
     from .parallel import channel, every, par_map, race, spawn
     from .results import Answers as _Answers
     from .spaces import view
+    from .vocabularies import ArgumentDelivery as _ArgumentDelivery
+    from .vocabularies import Determinism as _Determinism
     from .vocabularies import EffectClass as _EffectClass
+    from .vocabularies import ImageMode as _ImageMode
+    from .vocabularies import OnError as _OnError
 
 from ._config import Config, config
 from ._fn import fn
@@ -581,6 +586,183 @@ def load(
     return engine().self.load(path, timeout=timeout, inferences=inferences)
 
 
+def add(*atoms: _Any) -> None:
+    """Add atoms to this space, one engine round-trip for the lot.
+    An (= ...) atom compiles as an equation. Every Atom shape crosses
+    unchanged, including a bare Symbol, Grounded value, and empty
+    Expression; a free Variable receives the engine's own
+    insufficient-instantiation refusal. The MeTTa longhand is
+    `!(add-atoms <space> (<atom> ...))`. It is NOT `add-atom`, which is
+    upstream PeTTa's spelling and takes upstream's domain: a headless atom
+    cannot become a fact in a space there, so `!(add-atom &self b)` has no
+    answer on either engine. This space is wider and `add-atoms` is the
+    door onto the wider part.
+
+    A variable's NAME is not stored. `(rule $x $y)` reads back as
+    `(rule $_17902 $_17904)`, because a variable is an identity and not a
+    spelling. That is the right property for a logic engine and it is the
+    one thing about storage that surprises everybody once.
+
+    A library IS knowledge, so the same operator imports it: ``m += lib.he``
+    performs ``!(import! <m> (library lib_he))`` with this space as the
+    target. An import is an effect, so it refuses to hide inside an atom
+    batch or share a call with stored atoms.
+    Runs against the default context's self space.
+    """  # noqa: D205 -- preserve the declared documentation
+    return engine().self.add(*atoms)
+
+
+def remove(atom: _Any, *more: _Any) -> bool | int:
+    """Remove ONE unifying occurrence and say whether one was there,
+    which is Python's own `list.remove` grain.
+
+    Variadic like `add` and `transfer`: several atoms ride one engine
+    crossing inside one transaction, and the answer counts the found,
+    so the one-atom call still reads as the truth value it always
+    was.
+
+    `space -= atom` is this same grain without the report, the way
+    `+=` is `add` without one: Python's in-place difference over a
+    MULTISET, whose own Python spelling is `collections.Counter`,
+    subtracts the multiplicity given rather than clearing the key.
+    That is the only reading under which the operators are inverses,
+    so `s += a; s -= a` leaves the space it found. `-=` classifies its
+    operand exactly as `+=` does, so `-=` subtracts the same fact stream
+    `+=` stores, one occurrence per element, in one
+    transactional crossing.
+
+    `del m[pattern]` is the draining form: it takes every
+    unifying occurrence in one crossing and raises when nothing
+    matched, as Python's `del` does, and MeTTa spells it `remove-atom`
+    [source: engine/spaces/foreign.pl, remove_matching_atoms/2].
+    MeTTa spells this method's grain `subtract-atom`. This is the one
+    method that reports absence.
+
+    A bare variable is the remove-everything reading a multiset space
+    gives it, each atom leaving through its own proper path, equations
+    and their compiled clauses included.
+    Runs against the default context's self space.
+    """  # noqa: D205 -- preserve the declared documentation
+    return engine().self.remove(atom, *more)
+
+
+def trace(
+    source: Atom | str,
+    max_events: int | None = None,
+    *,
+    filter: Symbol | str | _Iterable[Symbol | str] | None = None,  # noqa: A002 -- public trace selector
+    timeout: float | None = None,
+    inferences: int | None = None,
+) -> _Trace:
+    """Run a TERM, or source, under the engine's reduction trace and
+    answer TraceEvent records: what entered reduction at which depth,
+    what it answered, and which reductions failed (a call with no
+    exit). `m.trace(S.fib(10))` is the ordinary spelling, the same
+    argument `answers` and `eval` take; a string is still a string.
+    What is traced executes for real, writes included, like run();
+    the wrap exists only while tracing, so untraced calls pay
+    nothing and the wrapping itself is not charged to the bounds
+    below. max_events bounds the RECORDING and timeout,
+    inferences and stack bound the RUN, defaulting to whatever
+    `m.limits()` scopes; they are independent because a program can
+    retire millions of inferences inside a handful of recorded
+    events. Whichever one stops it, the events already recorded are
+    ANSWERED and `stopped` names the bound, so a caller told a trace
+    was cut knows which bound to raise.
+    filter selects exact function Symbols or names, singly or in an iterable.
+    None records all functions; [] records none. Selection happens before
+    the recording bounds, while excluded calls still execute and add depth.
+    Runs against the default context's self space.
+    """  # noqa: D205 -- preserve the declared documentation
+    return engine().self.trace(
+        source, max_events, filter=filter, timeout=timeout, inferences=inferences
+    )
+
+
+def debug(
+    source: Atom | str,
+    *,
+    on: _Any = None,
+    inferences: int | None = None,
+    at: int | None = None,
+) -> _Debugger:
+    """Run a TERM, or source, under breakpoints, stepped from Python.
+
+    Iterating the Debugger runs the program to each breakpoint, the loop
+    body is where the program is SUSPENDED, and leaving the body resumes
+    that same execution:
+
+        with m.debug(S.quad(3), on=[S.double]) as d:
+            for stop in d:
+                print(stop)      # halted here
+                if stop.depth > 2:
+                    d.step()     # stop at the next reduction instead
+            print(d.answers)
+
+    on= names the functions that stop it, the way every door here names a
+    head; naming none runs the program to the end in one advance.
+    `step()` stops at the very next reduction, breakpoint or not, and
+    lasts one advance. `breakpoints` is a live set, so one added while
+    the program is suspended stops it.
+
+    at= is the third kind of breakpoint, a COUNT: it stops at the event
+    with that sequence number, numbering reductions from 0 the way a
+    Recording numbers them, so `at=200` is "put me where event 200 is".
+    `Recording.debug(at=k)` is the convenience over this one.
+
+    inferences bound the WHOLE session cumulatively, so a resume that
+    would never reach another breakpoint stops. There is no timeout:
+    the session is suspended by design and a clock would run while a
+    person reads a stop. What is debugged executes for real, writes
+    included, and inherits the caller's scope. Close it, or leave its
+    with-block: the session holds a wrapper on every compiled function
+    until it does.
+    Runs against the default context's self space.
+    """
+    return engine().self.debug(source, on=on, inferences=inferences, at=at)
+
+
+def record(
+    source: Atom | str,
+    *,
+    seed: int | None = None,
+    max_events: int | None = None,
+    timeout: float | None = None,
+    inferences: int | None = None,
+) -> _Recording:
+    """Run a TERM, or source, and keep the whole run as data.
+
+    The data walks backwards, saves to a file, and re-runs.
+    `m.trace` is the rung below: it answers the events alone. A Recording
+    is those events plus the state that produced them, which is what makes
+    them re-runnable rather than only readable:
+
+        rec = m.record(S.fib(12))
+        rec.save("fib.metta-rec.json")
+        rec.at(-1)               # the last event, with its call stack
+        rec.back()               # a step backwards costs a lookup
+        rec.replay(other)        # the same run, in another engine
+        with rec.debug(at=17) as d:   # live, stopped where event 17 is
+            print(d.stop)
+
+    A recorded run always has a seed, minted when you do not name one,
+    because a replay that cannot reproduce the draws is not a replay; the
+    generator is restored afterwards. `(with-seed S expr)` is the MeTTa
+    spelling of the same scope.
+
+    max_events bounds the RECORDING and timeout and inferences bound the
+    RUN, exactly as on trace(); a cut recording says so through
+    `rec.events.stopped` and replays to the same length. A program whose
+    effect plan reaches oracleIO is recorded with `replayable` false and
+    the reason naming what it reached, and replay() then refuses rather
+    than re-reading the host.
+    Runs against the default context's self space.
+    """
+    return engine().self.record(
+        source, seed=seed, max_events=max_events, timeout=timeout, inferences=inferences
+    )
+
+
 def match(
     *patterns: _Any,
     where: _Any | None = None,
@@ -645,66 +827,95 @@ def match(
     )
 
 
-def add(*atoms: _Any) -> None:
-    """Add atoms to this space, one engine round-trip for the lot.
-    An (= ...) atom compiles as an equation. Every Atom shape crosses
-    unchanged, including a bare Symbol, Grounded value, and empty
-    Expression; a free Variable receives the engine's own
-    insufficient-instantiation refusal. The MeTTa longhand is
-    `!(add-atoms <space> (<atom> ...))`. It is NOT `add-atom`, which is
-    upstream PeTTa's spelling and takes upstream's domain: a headless atom
-    cannot become a fact in a space there, so `!(add-atom &self b)` has no
-    answer on either engine. This space is wider and `add-atoms` is the
-    door onto the wider part.
+def solve(pattern: _Any, subject: _Any) -> _Any:
+    """Run relational ``let`` and return bindings keyed by its variables.
 
-    A variable's NAME is not stored. `(rule $x $y)` reads back as
-    `(rule $_17902 $_17904)`, because a variable is an identity and not a
-    spelling. That is the right property for a logic engine and it is the
-    one thing about storage that surprises everybody once.
-
-    A library IS knowledge, so the same operator imports it: ``m += lib.he``
-    performs ``!(import! <m> (library lib_he))`` with this space as the
-    target. An import is an effect, so it refuses to hide inside an atom
-    batch or share a call with stored atoms.
+    ``solve(4, V.x - 1).x`` places the known value on let's pattern side,
+    lets the arithmetic relation solve backwards, and projects ``x``.
+    The answer template is derived from the pattern's variables followed
+    by any new subject variables, so either relational direction can
+    introduce the bindings and the third hand-written ``let`` argument
+    disappears.
     Runs against the default context's self space.
-    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
-    return engine().self.add(*atoms)
+    """
+    return engine().self.solve(pattern, subject)
 
 
-def remove(atom: _Any, *more: _Any) -> bool | int:
-    """Remove ONE unifying occurrence and say whether one was there,
-    which is Python's own `list.remove` grain.
+def limits(
+    *,
+    timeout: float | None = None,
+    inferences: int | None = None,
+    stack: int | None = None,
+) -> _ScopedLimits:
+    """Scoped default bounds for every call in the with-block:
 
-    Variadic like `add` and `transfer`: several atoms ride one engine
-    crossing inside one transaction, and the answer counts the found,
-    so the one-atom call still reads as the truth value it always
-    was.
+        with m.limits(inferences=1_000_000, timeout=2.0):
+            m.match(...)      # bounded without saying so again
 
-    `space -= atom` is this same grain without the report, the way
-    `+=` is `add` without one: Python's in-place difference over a
-    MULTISET, whose own Python spelling is `collections.Counter`,
-    subtracts the multiplicity given rather than clearing the key.
-    That is the only reading under which the operators are inverses,
-    so `s += a; s -= a` leaves the space it found. `-=` classifies its
-    operand exactly as `+=` does, so `-=` subtracts the same fact stream
-    `+=` stores, one occurrence per element, in one
-    transactional crossing.
+    decimal.localcontext's shape, contextvars underneath, so the
+    scope is async-correct and per-task. A per-call timeout= or
+    inferences= still overrides, which is the whole ladder: one
+    block replaces the parameter forest, and the forest remains
+    for whoever wants per-call control.
 
-    `del m[pattern]` is the draining form: it takes every
-    unifying occurrence in one crossing and raises when nothing
-    matched, as Python's `del` does, and MeTTa spells it `remove-atom`
-    [source: engine/spaces/foreign.pl, remove_matching_atoms/2].
-    MeTTa spells this method's grain `subtract-atom`. This is the one
-    method that reports absence.
-
-    A bare variable is the remove-everything reading a multiset space
-    gives it, each atom leaving through its own proper path, equations
-    and their compiled clauses included.
+    stack= is SWI's combined stack ceiling in BYTES, the bound a
+    runaway recursion hits as a StackOverflow error atom. It is NOT
+    MeTTa's reduction depth: that is the max-stack-depth pragma,
+    `(with-pragma! ((max-stack-depth N)) expr)`, which counts
+    reduction steps and is scoped in the program text.
     Runs against the default context's self space.
-    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
-    return engine().self.remove(atom, *more)
+    """  # noqa: D415 -- preserve the declared documentation
+    return engine().self.limits(timeout=timeout, inferences=inferences, stack=stack)
 
 
+def speculate() -> _ScopedExecution:
+    """Run each CALL against a snapshot and discard its writes.
+
+    Per call, the write doors included: ``m.add(atom)`` inside the block
+    leaves nothing behind, exactly as ``m.run("!(add-atom &self ...)")``
+    in the same block does, and a later call in the block does not see
+    what an earlier one wrote, because each call is its own what-if.
+    Runs against the default context's self space.
+    """
+    return engine().self.speculative()
+
+
+@_overload
+def eval(  # noqa: A001 -- eval is the ruled public verb
+    target: _Any,
+    /,
+    *more: _Any,
+    timeout: float | None = None,
+    inferences: int | None = None,
+    under: _Any = _UNSET,
+    theory: _Any | None = None,
+    interpreter: _Any | None = None,
+    answer: _EvaluationAnswer | str = 'all',
+    delivery: _ArgumentDelivery | str,
+    limit: int | None = None,
+    image: _ImageMode | str | None = None,
+    on_error: _OnError | str = 'keep',
+    determinism: _Determinism | str = 'nondet',
+    **values: _Any,
+) -> _Any: ...
+@_overload
+def eval(  # noqa: A001 -- eval is the ruled public verb
+    target: _Any,
+    /,
+    *more: _Any,
+    timeout: float | None = None,
+    inferences: int | None = None,
+    under: _Any = _UNSET,
+    theory: _Any | None = None,
+    interpreter: _Any | None = None,
+    answer: _EvaluationAnswer | str,
+    delivery: _ArgumentDelivery | str = 'atoms',
+    limit: int | None = None,
+    image: _ImageMode | str | None = None,
+    on_error: _OnError | str = 'keep',
+    determinism: _Determinism | str = 'nondet',
+    **values: _Any,
+) -> _Any: ...
 @_overload
 def eval(  # noqa: A001 -- eval is the ruled public verb
     target: _Any,
@@ -739,8 +950,14 @@ def eval(  # noqa: A001 -- eval is the ruled public verb
     under: _Any = _UNSET,
     theory: _Any | None = None,
     interpreter: _Any | None = None,
+    answer: _EvaluationAnswer | str = 'all',
+    delivery: _ArgumentDelivery | str = 'atoms',
+    limit: int | None = None,
+    image: _ImageMode | str | None = None,
+    on_error: _OnError | str = 'keep',
+    determinism: _Determinism | str = 'nondet',
     **values: _Any,
-) -> list[Atom | Undefined] | list[list[Atom | Undefined]]:
+) -> _Any:
     """Evaluate a term, returning every answer.
 
     This is what !(...) runs, minus the printing: the engine's
@@ -790,133 +1007,47 @@ def eval(  # noqa: A001 -- eval is the ruled public verb
     surrounding `with metta.under(carrier)` reaches here too, which it did
     not before: match() and answers() both honoured such a scope while
     eval() ignored it in silence.
+
+    The answer, delivery, limit, image, on_error and determinism options
+    select one evaluation contract. answer=answers retains a replayable
+    cursor; answer=stream returns a closable single-pass stream. count,
+    exists and none consume only the requested shape. A determinism
+    promise is checked before a limit truncates the answers. Image
+    projection publishes the type declarations its values require.
     Runs against the default context's self space.
     """
     return engine().self.eval(
-        target, *more, timeout=timeout, inferences=inferences, under=under, theory=theory, interpreter=interpreter, **values
+        target, *more, timeout=timeout, inferences=inferences, under=under, theory=theory, interpreter=interpreter, answer=answer, delivery=delivery, limit=limit, image=image, on_error=on_error, determinism=determinism, **values
     )
 
 
-def solve(pattern: _Any, subject: _Any) -> _Any:
-    """Run relational ``let`` and return bindings keyed by its variables.
+def stats() -> _StatsBlock:
+    """The engine's own counters over a with-block, as deltas.
 
-    ``solve(4, V.x - 1).x`` places the known value on let's pattern side,
-    lets the arithmetic relation solve backwards, and projects ``x``.
-    The answer template is derived from the pattern's variables followed
-    by any new subject variables, so either relational direction can
-    introduce the bindings and the third hand-written ``let`` argument
-    disappears.
+        with m.stats() as s:
+            m.match(S.edge(V.x, V.y), S.edge(V.y, V.z))
+        s.inferences        # engine steps the block spent
+        s.cputime           # engine CPU seconds
+        s.walltime          # wall seconds, Python's clock
+        s.gc_count, s.gc_freed, s.gc_time
+        s.table_bytes       # answer-table bytes grown, tabling's memory
+
+    The counters are SWI's statistics/2 read on the CALLING thread, so
+    a block that runs other threads' engine work counts that work too;
+    the honest reading is "what this thread saw the engine do while the
+    block ran". A lazy cursor is the exception, and a large one: its
+    goal runs in an SWI engine, an engine counts its own inferences,
+    and this thread cannot see them. Draining 20,000 rows through the
+    match cursor reports 40,049 inferences against about 381,000 the
+    cursor's engine really spent, 10.5% of the work; the real cost is
+    readable off the `inferences` budget, which does count the engine
+    [measured 2026-08-27]. The evaluation cursor behind `answers()`
+    does report its engine's spend, so that one is whole. The z3py
+    Solver.statistics() reading, on the engine this library actually
+    has.
     Runs against the default context's self space.
     """
-    return engine().self.solve(pattern, subject)
-
-
-def doc(atom: _Any) -> Atom:
-    """Return this space's structured ``get-doc`` answer for one subject.
-
-    The answer is the ``(@doc ...)`` atom the engine holds for the
-    subject, whether it was documented in MeTTa source or built from a
-    Python docstring:
-
-        m.doc(S.area)
-        # (@doc-formal (@item area) (@kind function) (@desc "Circle area.") ...)
-
-    A subject with no documentation raises, exactly as ``type`` raises
-    for a subject ``get-type`` cannot answer.
-    Runs against the default context's self space.
-    """
-    return engine().self.doc(atom)
-
-
-@_overload
-@_dataclass_transform(eq_default=False)
-def define(  # type: ignore[overload-overlap]
-    fn: _builtins.type[_T],
-    /,
-    *,
-    accessors: bool = ...,
-    methods: bool = ...,
-) -> _builtins.type[_T]: ...
-@_overload
-def define(
-    fn: _Callable[_P, _R],
-    /,
-    *,
-    name: str | None = ...,
-    accessors: bool = ...,
-    methods: bool = ...,
-) -> _Defined[_P, _R]: ...
-@_overload
-def define(*, name: str) -> _Callable[[_Callable[_P, _R]], _Defined[_P, _R]]: ...
-@_overload
-def define(
-    *,
-    prolog: str | _os.PathLike[str],
-    name: str | None = None,
-) -> _Callable[[_Callable[_P, _R]], _PrologBacked[_P, _R]]: ...
-def define(
-    fn: _Callable[..., _Any] | None = None,
-    *,
-    prolog: str | _os.PathLike[str] | None = None,
-    name: str | None = None,
-    accessors: bool = True,
-    methods: bool = True,
-) -> _Any:
-    """Compile a Python function into MeTTa equations, decorator-style.
-
-    With `prolog=`, the Prolog file is registered and becomes the
-    function, and the Python stays as the reference twin rather than
-    being compiled:
-
-        @m.define(prolog=Path(__file__).parent / "fast.pl")
-        def vec_dot(a, b):
-            return sum(x * y for x, y in zip(a, b))
-
-        m.eval("(vec-dot (1 2) (3 4))")[0] # the Prolog answer
-        vec_dot.py((1, 2), (3, 4))          # the reference answers
-
-    Rewriting a defined function in Prolog for speed used to mean
-    deleting the Python and the differential oracle with it. Here both
-    are declared together and `metta.testing.check_twin` proves they
-    agree on ground inputs. The file must register the function's own
-    MeTTa name and at the twin's arity, inputs then one output, and
-    says so if it does not; its `metta_export` declaration owns the
-    types, so annotations on the Python are documentation only.
-
-    Written for whoever is fluent in Python rather than s-expressions:
-    the body is read as syntax and lowered deterministically, refusals
-    name the construct, the line and what to write instead, and the
-    original stays reachable as .py, a twin the equations can be checked
-    against on any ground input.
-
-        @m.define
-        def add_one(n):
-            return n + 1
-
-        add_one(5)                  # [6], evaluated by the engine
-        S.add_one(5)                # (add_one 5), staged as data
-        add_one.py(5)               # 6, ordinary Python
-
-    The equation's implicit name applies the factories' total mechanical
-    map, replacing each underscore with a hyphen. ``name=`` is the exact
-    quoted-name escape for punctuation that map cannot preserve:
-
-        @m.define(name="add-one")
-        def add_one(n):
-            return n + 1
-
-    The same attribute mapping applies to the definition name itself:
-    ``def not_provable`` lands as ``not-provable``. An authored
-    MeTTa underscore therefore uses explicit ``name="not_provable"``.
-
-    A generator compiles to nondeterminism (each yield one answer), a
-    lambda to the engine's own |->, a comprehension to map-atom and
-    filter-atom, and match(Pattern(x, y), template) to a match against
-    the running space, lowercase free names in the pattern binding as
-    variables.
-    Runs against the default context's self space.
-    """
-    return engine().self.define(fn, prolog=prolog, name=name, accessors=accessors, methods=methods)
+    return engine().self.stats()
 
 
 @_overload
@@ -1166,189 +1297,112 @@ def io(fn: _Callable | None = None, /, **options: _Any) -> _Any:
     return engine().self.io(fn, **options)
 
 
-def stats() -> _StatsBlock:
-    """The engine's own counters over a with-block, as deltas.
+@_overload
+@_dataclass_transform(eq_default=False)
+def define(  # type: ignore[overload-overlap]
+    fn: _builtins.type[_T],
+    /,
+    *,
+    accessors: bool = ...,
+    methods: bool = ...,
+) -> _builtins.type[_T]: ...
+@_overload
+def define(
+    fn: _Callable[_P, _R],
+    /,
+    *,
+    name: str | None = ...,
+    accessors: bool = ...,
+    methods: bool = ...,
+) -> _Defined[_P, _R]: ...
+@_overload
+def define(*, name: str) -> _Callable[[_Callable[_P, _R]], _Defined[_P, _R]]: ...
+@_overload
+def define(
+    *,
+    prolog: str | _os.PathLike[str],
+    name: str | None = None,
+) -> _Callable[[_Callable[_P, _R]], _PrologBacked[_P, _R]]: ...
+def define(
+    fn: _Callable[..., _Any] | None = None,
+    *,
+    prolog: str | _os.PathLike[str] | None = None,
+    name: str | None = None,
+    accessors: bool = True,
+    methods: bool = True,
+) -> _Any:
+    """Compile a Python function into MeTTa equations, decorator-style.
 
-        with m.stats() as s:
-            m.match(S.edge(V.x, V.y), S.edge(V.y, V.z))
-        s.inferences        # engine steps the block spent
-        s.cputime           # engine CPU seconds
-        s.walltime          # wall seconds, Python's clock
-        s.gc_count, s.gc_freed, s.gc_time
-        s.table_bytes       # answer-table bytes grown, tabling's memory
+    With `prolog=`, the Prolog file is registered and becomes the
+    function, and the Python stays as the reference twin rather than
+    being compiled:
 
-    The counters are SWI's statistics/2 read on the CALLING thread, so
-    a block that runs other threads' engine work counts that work too;
-    the honest reading is "what this thread saw the engine do while the
-    block ran". A lazy cursor is the exception, and a large one: its
-    goal runs in an SWI engine, an engine counts its own inferences,
-    and this thread cannot see them. Draining 20,000 rows through the
-    match cursor reports 40,049 inferences against about 381,000 the
-    cursor's engine really spent, 10.5% of the work; the real cost is
-    readable off the `inferences` budget, which does count the engine
-    [measured 2026-08-27]. The evaluation cursor behind `answers()`
-    does report its engine's spend, so that one is whole. The z3py
-    Solver.statistics() reading, on the engine this library actually
-    has.
+        @m.define(prolog=Path(__file__).parent / "fast.pl")
+        def vec_dot(a, b):
+            return sum(x * y for x, y in zip(a, b))
+
+        m.eval("(vec-dot (1 2) (3 4))")[0] # the Prolog answer
+        vec_dot.py((1, 2), (3, 4))          # the reference answers
+
+    Rewriting a defined function in Prolog for speed used to mean
+    deleting the Python and the differential oracle with it. Here both
+    are declared together and `metta.testing.check_twin` proves they
+    agree on ground inputs. The file must register the function's own
+    MeTTa name and at the twin's arity, inputs then one output, and
+    says so if it does not; its `metta_export` declaration owns the
+    types, so annotations on the Python are documentation only.
+
+    Written for whoever is fluent in Python rather than s-expressions:
+    the body is read as syntax and lowered deterministically, refusals
+    name the construct, the line and what to write instead, and the
+    original stays reachable as .py, a twin the equations can be checked
+    against on any ground input.
+
+        @m.define
+        def add_one(n):
+            return n + 1
+
+        add_one(5)                  # [6], evaluated by the engine
+        S.add_one(5)                # (add_one 5), staged as data
+        add_one.py(5)               # 6, ordinary Python
+
+    The equation's implicit name applies the factories' total mechanical
+    map, replacing each underscore with a hyphen. ``name=`` is the exact
+    quoted-name escape for punctuation that map cannot preserve:
+
+        @m.define(name="add-one")
+        def add_one(n):
+            return n + 1
+
+    The same attribute mapping applies to the definition name itself:
+    ``def not_provable`` lands as ``not-provable``. An authored
+    MeTTa underscore therefore uses explicit ``name="not_provable"``.
+
+    A generator compiles to nondeterminism (each yield one answer), a
+    lambda to the engine's own |->, a comprehension to map-atom and
+    filter-atom, and match(Pattern(x, y), template) to a match against
+    the running space, lowercase free names in the pattern binding as
+    variables.
     Runs against the default context's self space.
     """
-    return engine().self.stats()
+    return engine().self.define(fn, prolog=prolog, name=name, accessors=accessors, methods=methods)
 
 
-def limits(
-    *,
-    timeout: float | None = None,
-    inferences: int | None = None,
-    stack: int | None = None,
-) -> _ScopedLimits:
-    """Scoped default bounds for every call in the with-block:
+def doc(atom: _Any) -> Atom:
+    """Return this space's structured ``get-doc`` answer for one subject.
 
-        with m.limits(inferences=1_000_000, timeout=2.0):
-            m.match(...)      # bounded without saying so again
+    The answer is the ``(@doc ...)`` atom the engine holds for the
+    subject, whether it was documented in MeTTa source or built from a
+    Python docstring:
 
-    decimal.localcontext's shape, contextvars underneath, so the
-    scope is async-correct and per-task. A per-call timeout= or
-    inferences= still overrides, which is the whole ladder: one
-    block replaces the parameter forest, and the forest remains
-    for whoever wants per-call control.
+        m.doc(S.area)
+        # (@doc-formal (@item area) (@kind function) (@desc "Circle area.") ...)
 
-    stack= is SWI's combined stack ceiling in BYTES, the bound a
-    runaway recursion hits as a StackOverflow error atom. It is NOT
-    MeTTa's reduction depth: that is the max-stack-depth pragma,
-    `(with-pragma! ((max-stack-depth N)) expr)`, which counts
-    reduction steps and is scoped in the program text.
-    Runs against the default context's self space.
-    """  # noqa: D415  -- the first line deliberately introduces the indented example that follows
-    return engine().self.limits(timeout=timeout, inferences=inferences, stack=stack)
-
-
-def speculate() -> _ScopedExecution:
-    """Run each CALL against a snapshot and discard its writes.
-
-    Per call, the write doors included: ``m.add(atom)`` inside the block
-    leaves nothing behind, exactly as ``m.run("!(add-atom &self ...)")``
-    in the same block does, and a later call in the block does not see
-    what an earlier one wrote, because each call is its own what-if.
+    A subject with no documentation raises, exactly as ``type`` raises
+    for a subject ``get-type`` cannot answer.
     Runs against the default context's self space.
     """
-    return engine().self.speculative()
-
-
-def trace(
-    source: Atom | str,
-    max_events: int | None = None,
-    *,
-    filter: Symbol | str | _Iterable[Symbol | str] | None = None,  # noqa: A002 -- public trace selector
-    timeout: float | None = None,
-    inferences: int | None = None,
-) -> _Trace:
-    """Run a TERM, or source, under the engine's reduction trace and
-    answer TraceEvent records: what entered reduction at which depth,
-    what it answered, and which reductions failed (a call with no
-    exit). `m.trace(S.fib(10))` is the ordinary spelling, the same
-    argument `answers` and `eval` take; a string is still a string.
-    What is traced executes for real, writes included, like run();
-    the wrap exists only while tracing, so untraced calls pay
-    nothing and the wrapping itself is not charged to the bounds
-    below. max_events bounds the RECORDING and timeout,
-    inferences and stack bound the RUN, defaulting to whatever
-    `m.limits()` scopes; they are independent because a program can
-    retire millions of inferences inside a handful of recorded
-    events. Whichever one stops it, the events already recorded are
-    ANSWERED and `stopped` names the bound, so a caller told a trace
-    was cut knows which bound to raise.
-    filter selects exact function Symbols or names, singly or in an iterable.
-    None records all functions; [] records none. Selection happens before
-    the recording bounds, while excluded calls still execute and add depth.
-    Runs against the default context's self space.
-    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
-    return engine().self.trace(
-        source, max_events, filter=filter, timeout=timeout, inferences=inferences
-    )
-
-
-def debug(
-    source: Atom | str,
-    *,
-    on: _Any = None,
-    inferences: int | None = None,
-    at: int | None = None,
-) -> _Debugger:
-    """Run a TERM, or source, under breakpoints, stepped from Python.
-
-    Iterating the Debugger runs the program to each breakpoint, the loop
-    body is where the program is SUSPENDED, and leaving the body resumes
-    that same execution:
-
-        with m.debug(S.quad(3), on=[S.double]) as d:
-            for stop in d:
-                print(stop)      # halted here
-                if stop.depth > 2:
-                    d.step()     # stop at the next reduction instead
-            print(d.answers)
-
-    on= names the functions that stop it, the way every door here names a
-    head; naming none runs the program to the end in one advance.
-    `step()` stops at the very next reduction, breakpoint or not, and
-    lasts one advance. `breakpoints` is a live set, so one added while
-    the program is suspended stops it.
-
-    at= is the third kind of breakpoint, a COUNT: it stops at the event
-    with that sequence number, numbering reductions from 0 the way a
-    Recording numbers them, so `at=200` is "put me where event 200 is".
-    `Recording.debug(at=k)` is the convenience over this one.
-
-    inferences bound the WHOLE session cumulatively, so a resume that
-    would never reach another breakpoint stops. There is no timeout:
-    the session is suspended by design and a clock would run while a
-    person reads a stop. What is debugged executes for real, writes
-    included, and inherits the caller's scope. Close it, or leave its
-    with-block: the session holds a wrapper on every compiled function
-    until it does.
-    Runs against the default context's self space.
-    """
-    return engine().self.debug(source, on=on, inferences=inferences, at=at)
-
-
-def record(
-    source: Atom | str,
-    *,
-    seed: int | None = None,
-    max_events: int | None = None,
-    timeout: float | None = None,
-    inferences: int | None = None,
-) -> _Recording:
-    """Run a TERM, or source, and keep the whole run as data.
-
-    The data walks backwards, saves to a file, and re-runs.
-    `m.trace` is the rung below: it answers the events alone. A Recording
-    is those events plus the state that produced them, which is what makes
-    them re-runnable rather than only readable:
-
-        rec = m.record(S.fib(12))
-        rec.save("fib.metta-rec.json")
-        rec.at(-1)               # the last event, with its call stack
-        rec.back()               # a step backwards costs a lookup
-        rec.replay(other)        # the same run, in another engine
-        with rec.debug(at=17) as d:   # live, stopped where event 17 is
-            print(d.stop)
-
-    A recorded run always has a seed, minted when you do not name one,
-    because a replay that cannot reproduce the draws is not a replay; the
-    generator is restored afterwards. `(with-seed S expr)` is the MeTTa
-    spelling of the same scope.
-
-    max_events bounds the RECORDING and timeout and inferences bound the
-    RUN, exactly as on trace(); a cut recording says so through
-    `rec.events.stopped` and replays to the same length. A program whose
-    effect plan reaches oracleIO is recorded with `replayable` false and
-    the reason naming what it reached, and replay() then refuses rather
-    than re-reading the host.
-    Runs against the default context's self space.
-    """
-    return engine().self.record(
-        source, seed=seed, max_events=max_events, timeout=timeout, inferences=inferences
-    )
+    return engine().self.doc(atom)
 
 
 # ------------------------------------------ end of generated module tier

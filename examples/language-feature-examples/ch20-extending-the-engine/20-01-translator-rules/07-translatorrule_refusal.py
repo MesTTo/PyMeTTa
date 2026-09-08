@@ -168,4 +168,9 @@ def twin(m):
 #: reads its budget on the merged tree, minimum of three fresh processes
 #: [measured 2026-09-08: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=3fc65f02ce807c359f1a52026f950f345da2a9af].
-BUDGET = 6364
+#: RE-PINNED 2026-09-08, 6364 to 6386 (+22), The typed host door catalog is
+#: published before user code. Its declarations change catalog lookup indexes;
+#: generated public names bind directly to their existing bodies [measured
+#: 2026-09-08: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 6386

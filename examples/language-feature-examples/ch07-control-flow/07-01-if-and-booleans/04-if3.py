@@ -193,7 +193,12 @@ def twin(m):
 #: are read from [measured 2026-09-08: min-of-3 serial fresh processes;
 #: command=python extensions/python/tools/twin_coverage.py --repin;
 #: commit=c26b6a4d28ef8fb50742440feed2c0578ebb0f58].
-BUDGET = 4620
+#: RE-PINNED 2026-09-08, 4620 to 4655 (+35), The typed host door catalog is
+#: published before user code. Its declarations change catalog lookup indexes;
+#: generated public names bind directly to their existing bodies [measured
+#: 2026-09-08: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 4655
 
 #: OVERRUN 2026-09-07, 300: the example inlines its `if` in a runnable and the
 #: twin gives it a name, so a one-form example is priced against a definition

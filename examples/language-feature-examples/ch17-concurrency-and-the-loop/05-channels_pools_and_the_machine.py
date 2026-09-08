@@ -108,7 +108,12 @@ def twin(m):
 #: [measured 2026-09-07: 230223..231001 inferences, about 0.965x the example's 238680; command=python
 #: extensions/python/tools/twin_coverage.py --measure --rounds 3;
 #: fixture=docs/every-atom-has-an-example at its example commits; commit=98397cdd04679cbf40b2d515076dadc09c1b0a32].
-BUDGET = 230630
+#: RE-PINNED 2026-09-08, 230630 to 232646 (+2016), The typed host door catalog
+#: is published before user code. Its declarations change catalog lookup
+#: indexes; generated public names bind directly to their existing bodies
+#: [measured 2026-09-08: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 232646
 #: The count VARIES, because this twin starts threads and timers and the
 #: engine charges what the scheduler actually ran. Three single-round
 #: measurements on this branch gave 230223, 231001 and 230880, a spread of

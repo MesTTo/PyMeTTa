@@ -251,10 +251,17 @@ def twin(m):
 #: envelope states is a claim about ONE [measured 2026-09-08: python
 #: extensions/python/tools/twin_coverage.py --observe --rounds 15,
 #: ai-tmp/ai-derive-observe.log; commit=c26b6a4d28ef8fb50742440feed2c0578ebb0f58].
+#: RE-OBSERVED 2026-09-08 after typed host doors joined the boot catalog.
+#: Ten complete rounds observed 125695..125794. Sampling still selects
+#: different alternatives; catalog lookup now includes the declared doors.
+#: These observations replace the earlier catalog's envelope
+#: [measured: exact extrema over 10 successful observations; command=python
+#: extensions/python/tools/twin_coverage.py --observe --rounds 10;
+#: fixture=full-lane/277/workers=32; commit=WORKTREE].
 BUDGET = {
-    "minimum": 125673,
-    "maximum": 125739,
-    "observations": 15,
+    "minimum": 125695,
+    "maximum": 125794,
+    "observations": 10,
     "protocol": "full-lane/277/workers=32",
 }
 

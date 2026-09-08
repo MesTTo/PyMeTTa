@@ -264,10 +264,17 @@ def twin(m):
 #: envelope states is a claim about ONE [measured 2026-09-08: python
 #: extensions/python/tools/twin_coverage.py --observe --rounds 15,
 #: ai-tmp/ai-derive-observe.log; commit=c26b6a4d28ef8fb50742440feed2c0578ebb0f58].
+#: RE-OBSERVED 2026-09-08 after typed host doors joined the boot catalog.
+#: Ten complete rounds observed 432905..432930. Catalog lookup and context
+#: setup now see the declared doors; the rendezvous retains its scheduling
+#: spread. These observations replace the earlier catalog's envelope
+#: [measured: exact extrema over 10 successful observations; command=python
+#: extensions/python/tools/twin_coverage.py --observe --rounds 10;
+#: fixture=full-lane/277/workers=32; commit=WORKTREE].
 BUDGET = {
-    "minimum": 427703,
-    "maximum": 427730,
-    "observations": 15,
+    "minimum": 432905,
+    "maximum": 432930,
+    "observations": 10,
     "protocol": "full-lane/277/workers=32",
 }
 
@@ -278,7 +285,20 @@ BUDGET = {
 #: twin's own program [measured 2026-09-07: one fresh process per side;
 #: command=python extensions/python/benchmarks/probes/twin_floor.py;
 #: commit=9010a79b01c9b2a66b96a3952fa378fb3e939dc3].
-OVERRUN = 184000
+#: OVERRUN 2026-09-08, 186171: the published host catalog changes lookup and
+#: context setup costs on both sides. The example costs 221859, giving the
+#: band a ceiling of 246759.9. The current envelope's maximum is 432930, so
+#: its difference rounds up to 186171 [measured: the full-lane maximum above
+#: and a fresh-process example; command=python ai-tmp/ai-door-band-cost.py
+#: ch17-concurrency-and-the-loop/02-thread_linda.metta; commit=WORKTREE].
+#: OVERRUN 2026-09-08, 186191: the example also has a scheduling spread.
+#: Ten fresh example runs read 221840..221859, so its observed floor gives
+#: a ceiling of 246739. Against the twin envelope's maximum 432930 the
+#: required difference is 186191 [measured: ten fresh
+#: example processes and the twin's full-lane envelope above;
+#: command=python ai-tmp/ai-door-example-extrema.py;
+#: fixture=example extrema 221840..221859; commit=WORKTREE].
+OVERRUN = 186191
 
 #: DIVERGED 2026-09-07, the example holds 0 atoms the twin does not (none) and
 #: the twin holds 1 atom the example does not (1 :): a Python annotation IS a (:

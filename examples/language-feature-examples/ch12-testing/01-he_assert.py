@@ -239,7 +239,12 @@ RUNG = "the assert family is this file's subject, so each claim names one of its
 #: are read from [measured 2026-09-08: min-of-3 serial fresh processes;
 #: command=python extensions/python/tools/twin_coverage.py --repin;
 #: commit=c26b6a4d28ef8fb50742440feed2c0578ebb0f58].
-BUDGET = 17492
+#: RE-PINNED 2026-09-08, 17492 to 17529 (+37), The typed host door catalog is
+#: published before user code. Its declarations change catalog lookup indexes;
+#: generated public names bind directly to their existing bodies [measured
+#: 2026-09-08: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 17529
 
 #: OVERRUN 2026-09-08, 9: the twin names each of the twelve assert-family
 #: members through `m.fn` and compares every answer in Python, where the
@@ -252,4 +257,11 @@ BUDGET = 17492
 #: example, against a ceiling it sat 9 under [measured 2026-09-08: one fresh
 #: process per side; command=python
 #: extensions/python/benchmarks/probes/twin_floor.py; commit=c26b6a4d28ef8fb50742440feed2c0578ebb0f58].
-OVERRUN = 9
+#: OVERRUN 2026-09-08, 48: publishing typed host door declarations changes
+#: catalog lookup indexes on both sides. The example costs 13424, the twin
+#: 17529, and the band's ceiling is 17481.4. The difference rounds up to 48;
+#: stored contents remain unchanged [measured: two fresh-process measurements
+#: per side agreed; command=python ai-tmp/ai-door-band-cost.py;
+#: fixture=run_example and run_twin with the full corpus band;
+#: commit=WORKTREE].
+OVERRUN = 48

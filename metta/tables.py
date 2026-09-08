@@ -789,7 +789,7 @@ class _FrameDoor:
 
 
 def accessors() -> tuple[str, ...]:
-    """Install `df.metta` for every registered frame library already imported.
+    """Install the metta accessor for every registered frame library already imported.
 
     Answers the libraries that now carry it, so a program can ask.
 
