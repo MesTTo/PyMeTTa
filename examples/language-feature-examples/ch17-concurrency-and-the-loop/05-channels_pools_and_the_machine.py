@@ -137,7 +137,14 @@ def twin(m):
 #: on the merged tree [measured 2026-09-09: min-of-3 serial fresh processes;
 #: command=python extensions/python/tools/twin_coverage.py --repin;
 #: commit=aeb46b14152274db84f6415c8a3dd8c98a9c9eb1].
-BUDGET = 248227
+#: RE-PINNED 2026-09-09, 248227 to 378597 (+130370), channel-close refuses a
+#: closed channel again (the door checks known_channel_ before releasing the
+#: space, as recv and send do), so the channel example and its twin price
+#: rather than fail their claim, and a twin closing a channel pays the check;
+#: measured on the merged tree [measured 2026-09-09: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+BUDGET = 378597
 #: The count VARIES, because this twin starts threads and timers and the
 #: engine charges what the scheduler actually ran. Three single-round
 #: measurements on this branch gave 230223, 231001 and 230880, a spread of

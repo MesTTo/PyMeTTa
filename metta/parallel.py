@@ -1421,7 +1421,9 @@ class Channel(Space):
             # temporary SWI engine has detached.
             rt.apply_must("channel_close", handle)
         except MettaError:
-            logger.debug("channel finalization found an unavailable engine", exc_info=True)
+            # Closed already, released by its scope, or the engine is gone:
+            # each is a channel that needs no reaping.
+            logger.debug("channel finalization found the channel gone", exc_info=True)
 
     def send(self, term: Any) -> bool:
         """Block until capacity admits one copied term."""
