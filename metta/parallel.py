@@ -34,12 +34,12 @@ Guarantees:
     scope_keep/3, scope_cancel/2 and scope_close/4. That library owns child
     membership, cancellation, deadlines and cleanup policy [tested:
     extensions/python/tests/ch17_concurrency_and_the_loop/test_scopes.py;
-    commit=WORKTREE].
+    commit=c6e1198c490a824b96f6fc6e1c0622a542917024].
   - FutureSpace.cancel() waits for a running body's stop, including coroutine
     finalizers; foreign calls acknowledge only after returning [tested:
     test_async_cancellation_waits_for_the_coroutines_finalizer,
     test_a_blocking_oracle_uses_the_dirty_lane_without_pinning_normal_work;
-    commit=WORKTREE].
+    commit=c6e1198c490a824b96f6fc6e1c0622a542917024].
   - a waiting close joins owned workers after nonwaiting close or join failure
     [tested: test_waiting_close_joins_after_nonwaiting_close; commit=089bc6036ae5039bce3963d8b4e80ecaf04dfb49]
   - package coordination functions evaluate lib_thread in the ambient space;
@@ -115,7 +115,7 @@ Owns:
     finalizer retaining its runtime and name; a scope retains owned channels
     through its library resource rows [tested:
     test_body_failure_cancels_a_pending_timer_and_releases_its_channel;
-    commit=WORKTREE].
+    commit=c6e1198c490a824b96f6fc6e1c0622a542917024].
 Guarded by:
   - _state_lock publishes the pool's state and worker list; the work queue is
     a queue.Queue and needs no further locking.

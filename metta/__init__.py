@@ -7,7 +7,7 @@ Assumes:
 Guarantees:
   - scope() and move_on_after() lazily project lib_thread ownership through
     metta.parallel.Scope [tested:
-    extensions/python/tests/ch17_concurrency_and_the_loop/test_scopes.py; commit=WORKTREE].
+    extensions/python/tests/ch17_concurrency_and_the_loop/test_scopes.py; commit=c6e1198c490a824b96f6fc6e1c0622a542917024].
   - the R5 root exports the term builders, relational solve, and lazy State
     handle while ``record`` and atom-specialist ``order_key`` stay absent
     [tested: test_m7_narrow_core_surface,

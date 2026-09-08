@@ -7,7 +7,7 @@
 %   - metta_py_space_untouched/1 rejects registered and revoked names before
 %     probing their contents, including a free-name row restored by rollback
 %     [tested: test_a_rolled_back_allocation_cannot_recycle_a_revoked_name;
-%     commit=WORKTREE].
+%     commit=c6e1198c490a824b96f6fc6e1c0622a542917024].
 %   - cursor and function work opened in a transaction belongs to it; capture
 %     returns the eager enumeration's text once, and budgets bind that work
 %     [tested: extensions/python/tests/ch15_writing_transactions_and_worlds/test_cursor_transaction.py,
@@ -3041,7 +3041,7 @@ metta_py_debug_close(Engine) :-
 % Reify its pull as SWI's engine_next_reified/2 does, preserving the same
 % debugger and dirty-lane result protocol [source:
 % https://github.com/SWI-Prolog/swipl-devel/blob/V10.1.13/boot/engines.pl#L82-L89;
-% commit=WORKTREE].
+% commit=c6e1198c490a824b96f6fc6e1c0622a542917024].
 metta_py_hold_reified(Handle, Event) :-
     catch(( metta_host_hold_next(Handle, Row)
           -> Event = the(Row) ; Event = no ), Error, Event = throw(Error)).

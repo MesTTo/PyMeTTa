@@ -14,7 +14,7 @@ metta.events owns that dispatch and its discrimination tree.
 Guarantees:
   - a new subscription enrols through lib_thread:scope_host_resource/4 and
     is cancelled when its scope leaves, including on a borrowed space
-    [tested: test_scope_closes_subscriptions_on_borrowed_spaces; commit=WORKTREE].
+    [tested: test_scope_closes_subscriptions_on_borrowed_spaces; commit=c6e1198c490a824b96f6fc6e1c0622a542917024].
   - subscription publication and cancellation update registry state, engine
     write guards, and reflection facts together or restore the prior state
     [tested test_subscription_lifecycle_rolls_back_failed_boundaries]

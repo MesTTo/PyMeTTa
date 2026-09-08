@@ -12,7 +12,7 @@ Guarantees:
     test_scope_releases_mints_and_refuses_every_alias,
     test_alias_drop_releases_the_creating_handles_owned_journal,
     test_cleanup_failure_revokes_aliases_attempts_all_and_can_retry;
-    commit=WORKTREE].
+    commit=c6e1198c490a824b96f6fc6e1c0622a542917024].
   - ``Space.record`` answers a Recording whose header pins the state its events
     were produced in, so they replay rather than only read: the space's digest,
     the seed its generator was pinned to, and whether the program stayed inside

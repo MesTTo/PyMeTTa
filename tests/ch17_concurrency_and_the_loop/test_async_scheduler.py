@@ -42,7 +42,7 @@ Guarantees:
     nondeterministic bodies hand off for every pull without losing answers [tested:
     test_a_blocking_oracle_uses_the_dirty_lane_without_pinning_normal_work,
     test_an_oracle_generator_preserves_all_answers_across_dirty_handoffs;
-    commit=WORKTREE]
+    commit=c6e1198c490a824b96f6fc6e1c0622a542917024]
   - every public coordination or worker spawn door copies its launch Context,
     including scheduler engines, timer and race threads, EnginePool workers,
     AsyncMeTTa, coroutine tasks, and a nested spawn after child-local mutation [tested:

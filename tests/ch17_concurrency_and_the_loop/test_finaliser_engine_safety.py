@@ -46,7 +46,7 @@ Guarantees:
     a replacement engine is detected by identity [tested:
     test_two_hundred_opened_and_closed_cursors_leave_no_engine_behind,
     test_the_engine_snapshot_allows_retirement_but_detects_a_replacement;
-    commit=WORKTREE]
+    commit=c6e1198c490a824b96f6fc6e1c0622a542917024]
 """
 
 import gc

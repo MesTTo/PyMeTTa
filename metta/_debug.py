@@ -7,7 +7,7 @@ Guarantees:
   - a scope closes both unstarted and suspended sessions and retires their
     tracing wrappers [tested:
     test_scope_closes_held_debuggers_and_retires_their_wrappers;
-    commit=WORKTREE].
+    commit=c6e1198c490a824b96f6fc6e1c0622a542917024].
   - a breakpoint suspends the program and the loop body observes it, then
     resuming carries the same execution on to the next one [tested:
     test_a_breakpoint_suspends_the_program_and_resuming_carries_it_on;

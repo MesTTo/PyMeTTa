@@ -12,11 +12,11 @@ Guarantees:
     without acquiring the home-engine lock, so a child can finish while its
     scope joins on that engine [tested:
     test_scope_joins_a_cancelled_request_on_a_borrowed_async_worker;
-    commit=WORKTREE].
+    commit=c6e1198c490a824b96f6fc6e1c0622a542917024].
   - Runtime.once/iter/apply/do install lib_thread:scope_call/2 at engine
     boundaries and preserve its reserved cancellation identity [tested:
     test_deadline_uses_the_library_scope_and_stops_a_running_engine,
-    test_an_outer_deadline_is_not_lost_at_a_nested_scope; commit=WORKTREE].
+    test_an_outer_deadline_is_not_lost_at_a_nested_scope; commit=c6e1198c490a824b96f6fc6e1c0622a542917024].
   - importing metta does not import janus_swi until an engine-backed API is
     used [tested test_package_import_does_not_require_janus]
   - Runtime classifies only the shim's exact reserved exception term shape

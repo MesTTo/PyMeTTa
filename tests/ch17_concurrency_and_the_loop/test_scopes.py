@@ -1,7 +1,7 @@
 """Purpose: prove that Python projects lib_thread scope ownership and joins.
 
 Owns resources: scopes release their children; fixtures drop borrowed spaces
-and unregister their test operations [tested: test_scopes.py; commit=WORKTREE].
+and unregister their test operations [tested: test_scopes.py; commit=c6e1198c490a824b96f6fc6e1c0622a542917024].
 """
 
 # ruff: noqa: D103 -- pytest names state each fixture and behavioral contract

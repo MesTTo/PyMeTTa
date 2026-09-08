@@ -13,13 +13,13 @@ Guarantees:
     rows; exit joins abandoned foreign calls before releasing their inputs
     [tested: test_scope_owns_an_async_worker_and_its_requests,
     test_scope_joins_a_cancelled_request_on_a_borrowed_async_worker;
-    commit=WORKTREE].
+    commit=c6e1198c490a824b96f6fc6e1c0622a542917024].
   - subscription acquisition publishes on the worker, so synchronous scope
     cleanup does not wait for an event-loop continuation and closes waiting
     consumers [tested:
     test_async_subscription_stop_needs_only_the_workers_acquisition_receipt,
     test_scope_closes_an_async_subscription_on_a_borrowed_worker;
-    commit=WORKTREE].
+    commit=c6e1198c490a824b96f6fc6e1c0622a542917024].
   - Prolog-backed definitions require their reference function and construct
     and apply the synchronous decorator on the owning worker
     [tested: test_async_prolog_define_requires_the_reference_function,

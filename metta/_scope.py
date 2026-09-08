@@ -2,10 +2,10 @@
 
 Guarantees: ownership, deadlines, cancellation and joins reside in lib_thread;
 Python carries one ContextVar and translates completion receipts [tested:
-extensions/python/tests/ch17_concurrency_and_the_loop/test_scopes.py; commit=WORKTREE].
+extensions/python/tests/ch17_concurrency_and_the_loop/test_scopes.py; commit=c6e1198c490a824b96f6fc6e1c0622a542917024].
 Owns resources: ContextVar tokens are restored by suspend(); host resources
 are retained and released by lib_thread:scope_host_resource/4 [tested:
-extensions/python/tests/ch17_concurrency_and_the_loop/test_scopes.py; commit=WORKTREE].
+extensions/python/tests/ch17_concurrency_and_the_loop/test_scopes.py; commit=c6e1198c490a824b96f6fc6e1c0622a542917024].
 """
 
 from __future__ import annotations

@@ -20,7 +20,7 @@ Assumes:
 Guarantees:
   - scope is a context manager on its entering host thread, so the async
     worker does not manufacture a second owner [tested:
-    test_every_async_counterpart_has_the_sync_parameters; commit=WORKTREE].
+    test_every_async_counterpart_has_the_sync_parameters; commit=c6e1198c490a824b96f6fc6e1c0622a542917024].
   - every name here resolves to a synchronous method; generated counterparts
     carry its signature, return annotation and docstring verbatim except for
     the DIVERGENT replacement signatures, while

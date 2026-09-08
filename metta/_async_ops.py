@@ -7,7 +7,7 @@ Guarantees:
     test_async_cancellation_waits_for_the_coroutines_finalizer,
     test_a_refused_coroutine_signal_does_not_claim_a_stopped_body,
     test_scope_waits_for_async_landing_observers_and_owns_their_mints;
-    commit=WORKTREE].
+    commit=c6e1198c490a824b96f6fc6e1c0622a542917024].
   - preparation creates no coroutine and performs no host work; ``start``
     schedules it on one process event loop only after the engine publishes the
     launch event [tested:
