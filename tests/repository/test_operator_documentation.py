@@ -155,28 +155,29 @@ def test_the_operator_table_is_generated_from_one_source_with_no_holes():
     assert str(S.x << 2) == "(bit-shift-left x 2)"
     assert str(S.x >> 2) == "(bit-shift-right x 2)"
 
-    metta = MeTTa().space()
-    assert metta.eval(Atom.__floordiv__(Grounded(7), 2)) == [3]
-    assert metta.eval(Atom.__neg__(Grounded(7))) == [-7]
-    assert metta.eval(Atom.__abs__(Grounded(-7))) == [7]
-    provided = Atom.__matmul__(Grounded(6), 7)
-    assert metta.eval(provided) == [provided]
-    metta.run("(= (matmul $left $right) (* $left $right))")
-    assert metta.eval(provided) == [42]
+    with MeTTa() as context:
+        metta = context.space()
+        assert metta.eval(Atom.__floordiv__(Grounded(7), 2)) == [3]
+        assert metta.eval(Atom.__neg__(Grounded(7))) == [-7]
+        assert metta.eval(Atom.__abs__(Grounded(-7))) == [7]
+        provided = Atom.__matmul__(Grounded(6), 7)
+        assert metta.eval(provided) == [provided]
+        metta.run("(= (matmul $left $right) (* $left $right))")
+        assert metta.eval(provided) == [42]
 
-    assert Grounded(7) // 2 == S["floor-math"](S["/"](7, 2))
-    assert -Grounded(7) == S["-"](0, 7)
-    assert abs(Grounded(-7)) == S["abs-math"](-7)
-    assert Grounded(3) << 2 == S["bit-shift-left"](3, 2)
-    assert Grounded(12) >> 2 == S["bit-shift-right"](12, 2)
-    assert metta.eval(Grounded(3) << 2) == [12]
-    assert metta.eval(Grounded(12) >> 2) == [3]
-    # Non-negative counts only: SWI answers 0 for `1 << -1`, silently reading
-    # a left shift as a right one, and the engine refuses instead.
-    refused = metta.eval(Grounded(1) << -1)
-    assert "must not be negative" in str(refused[0])
-    assert (S.x == S.x) is True
-    assert str(S.x.eq(S.y)) == "(== x y)"
+        assert Grounded(7) // 2 == S["floor-math"](S["/"](7, 2))
+        assert -Grounded(7) == S["-"](0, 7)
+        assert abs(Grounded(-7)) == S["abs-math"](-7)
+        assert Grounded(3) << 2 == S["bit-shift-left"](3, 2)
+        assert Grounded(12) >> 2 == S["bit-shift-right"](12, 2)
+        assert metta.eval(Grounded(3) << 2) == [12]
+        assert metta.eval(Grounded(12) >> 2) == [3]
+        # Non-negative counts only: SWI answers 0 for `1 << -1`, silently reading
+        # a left shift as a right one, and the engine refuses instead.
+        refused = metta.eval(Grounded(1) << -1)
+        assert "must not be negative" in str(refused[0])
+        assert (S.x == S.x) is True
+        assert str(S.x.eq(S.y)) == "(== x y)"
 
 
 def test_every_operator_projection_is_this_table():
