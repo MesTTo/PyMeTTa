@@ -321,7 +321,23 @@ BUDGET = {
 #: example processes and the twin's full-lane envelope above;
 #: command=python ai-tmp/ai-door-example-extrema.py;
 #: fixture=example extrema 221840..221859; commit=b615b5a33b43252ef9826e5387da7c9bd7f6b543].
-OVERRUN = 186191
+#: OVERRUN 2026-09-09, 186191 to 199545 (+13354): the door table landed
+#: (feat/space-as-a-projection-of-door-rows merged at 6471faa37, its
+#: reconciliation fixes at 58bf75947): every Space door is a generated alias
+#: over its body, the catalog publishes the door contracts at boot as typed
+#: atoms, and the seam's listeners publish on every registration, so boot
+#: content and clause layout moved; every crossing this twin makes pays it and
+#: the example pays none. Measured 462847 against a ceiling of 449493; a
+#: minimal twin costs 238745 against the band's 263308, within that ceiling,
+#: so the rest is this twin's own program [measured 2026-09-09: one fresh
+#: process per side; command=python
+#: extensions/python/benchmarks/probes/twin_floor.py; commit=WORKTREE].
+#: The example's own count moves between lane runs (236892 to 236904 on
+#: the module-boundary tree, 236897 here) while the twin's 462847 holds, so
+#: the raise covers the lowest reading of the example plus the four-inference
+#: allowance the module-boundary pins recorded [measured 2026-09-09: the
+#: twins lane, three runs on the re-pinned tree; commit=WORKTREE].
+OVERRUN = 199556
 
 #: DIVERGED 2026-09-07, the example holds 0 atoms the twin does not (none) and
 #: the twin holds 1 atom the example does not (1 :): a Python annotation IS a (:

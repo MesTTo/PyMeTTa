@@ -183,7 +183,16 @@ def twin(m):
 #: published before user code. Its declarations change catalog lookup indexes;
 #: generated public names bind directly to their existing bodies [measured
 #: extensions/python/tools/twin_coverage.py --repin; commit=b615b5a33b43252ef9826e5387da7c9bd7f6b543].
-BUDGET = 9669
+#: RE-PINNED 2026-09-09, 9669 to 9954 (+285), the door table landed
+#: (feat/space-as-a-projection-of-door-rows merged at 6471faa37, its
+#: reconciliation fixes at 58bf75947): every Space door is a generated alias
+#: over its body, the catalog publishes the door contracts at boot as typed
+#: atoms, and the seam's listeners publish on every registration, so boot
+#: content and clause layout moved, which shifts a twin count by tens; measured
+#: on the merged tree [measured 2026-09-09: min-of-3 serial fresh processes;
+#: command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+BUDGET = 9954
 
 #: OVERRUN 2026-09-07, 600: it asks `find` a fourth time for the claim the
 #: example does not state, that one row comes back per solution bound. Measured
@@ -200,4 +209,15 @@ BUDGET = 9669
 #: 9132, within that ceiling, so the rest is this twin's own program [measured
 #: 2026-09-08: one fresh process per side; command=python
 #: extensions/python/benchmarks/probes/twin_floor.py; commit=f1038acdcaf5230b6431c112f38a719d3dc9ef19].
-OVERRUN = 802
+#: OVERRUN 2026-09-09, 802 to 824 (+22): the door table landed
+#: (feat/space-as-a-projection-of-door-rows merged at 6471faa37, its
+#: reconciliation fixes at 58bf75947): every Space door is a generated alias
+#: over its body, the catalog publishes the door contracts at boot as typed
+#: atoms, and the seam's listeners publish on every registration, so boot
+#: content and clause layout moved; every crossing this twin makes pays it and
+#: the example pays none. Measured 9954 against a ceiling of 9932; a minimal
+#: twin costs 8353 against the band's 9130, within that ceiling, so the rest
+#: is this twin's own program [measured 2026-09-09: one fresh process per
+#: side; command=python extensions/python/benchmarks/probes/twin_floor.py;
+#: commit=WORKTREE].
+OVERRUN = 824

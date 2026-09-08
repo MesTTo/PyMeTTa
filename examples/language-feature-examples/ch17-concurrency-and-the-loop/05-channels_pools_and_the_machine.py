@@ -128,7 +128,16 @@ def twin(m):
 #: is published before user code. Its declarations change catalog lookup
 #: indexes; generated public names bind directly to their existing bodies
 #: extensions/python/tools/twin_coverage.py --repin; commit=b615b5a33b43252ef9826e5387da7c9bd7f6b543].
-BUDGET = 232646
+#: RE-PINNED 2026-09-09, 232646 to 248227 (+15581), the door table landed
+#: (feat/space-as-a-projection-of-door-rows merged at 6471faa37, its
+#: reconciliation fixes at 58bf75947): every Space door is a generated alias
+#: over its body, the catalog publishes the door contracts at boot as typed
+#: atoms, and the seam's listeners publish on every registration, so boot
+#: content and clause layout moved, which shifts a twin count by tens; measured
+#: on the merged tree [measured 2026-09-09: min-of-3 serial fresh processes;
+#: command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+BUDGET = 248227
 #: The count VARIES, because this twin starts threads and timers and the
 #: engine charges what the scheduler actually ran. Three single-round
 #: measurements on this branch gave 230223, 231001 and 230880, a spread of

@@ -239,7 +239,16 @@ def twin(m):
 #: published before user code. Its declarations change catalog lookup indexes;
 #: generated public names bind directly to their existing bodies [measured
 #: extensions/python/tools/twin_coverage.py --repin; commit=b615b5a33b43252ef9826e5387da7c9bd7f6b543].
-BUDGET = 88909
+#: RE-PINNED 2026-09-09, 88909 to 89221 (+312), the door table landed
+#: (feat/space-as-a-projection-of-door-rows merged at 6471faa37, its
+#: reconciliation fixes at 58bf75947): every Space door is a generated alias
+#: over its body, the catalog publishes the door contracts at boot as typed
+#: atoms, and the seam's listeners publish on every registration, so boot
+#: content and clause layout moved, which shifts a twin count by tens; measured
+#: on the merged tree [measured 2026-09-09: min-of-3 serial fresh processes;
+#: command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+BUDGET = 89221
 
 #: OVERRUN 2026-09-07, 17800: it asserts the atom count the example only
 #: writes, so the space is read once more than the example reads it. Measured
@@ -256,7 +265,18 @@ BUDGET = 88909
 #: 71247, within that ceiling, so the rest is this twin's own program
 #: [measured 2026-09-08: one fresh process per side; command=python
 #: extensions/python/benchmarks/probes/twin_floor.py; commit=f1038acdcaf5230b6431c112f38a719d3dc9ef19].
-OVERRUN = 17936
+#: OVERRUN 2026-09-09, 17936 to 17975 (+39): the door table landed
+#: (feat/space-as-a-projection-of-door-rows merged at 6471faa37, its
+#: reconciliation fixes at 58bf75947): every Space door is a generated alias
+#: over its body, the catalog publishes the door contracts at boot as typed
+#: atoms, and the seam's listeners publish on every registration, so boot
+#: content and clause layout moved; every crossing this twin makes pays it and
+#: the example pays none. Measured 89221 against a ceiling of 89182; a minimal
+#: twin costs 55075 against the band's 71246, within that ceiling, so the rest
+#: is this twin's own program [measured 2026-09-09: one fresh process per
+#: side; command=python extensions/python/benchmarks/probes/twin_floor.py;
+#: commit=WORKTREE].
+OVERRUN = 17975
 
 #: DIVERGED 2026-09-07, the example holds 1 atom the twin does not (1 =) and
 #: the twin holds 3 the example does not (1 :, 1 =, 1 @doc): the twin is an

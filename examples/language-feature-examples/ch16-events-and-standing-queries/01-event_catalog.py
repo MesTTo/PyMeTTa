@@ -232,4 +232,12 @@ def twin(m):  # noqa: ARG001  -- the declarations live in the reflection space; 
 #: carries both, so this entry is where the two chains meet [measured
 #: 2026-09-08: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=f1038acdcaf5230b6431c112f38a719d3dc9ef19].
-BUDGET = 2307
+#: RE-PINNED 2026-09-09, 2307 to 2347 (+40), the door table landed (feat/space-
+#: as-a-projection-of-door-rows merged at 6471faa37, its reconciliation fixes
+#: at 58bf75947): every Space door is a generated alias over its body, the
+#: catalog publishes the door contracts at boot as typed atoms, and the seam's
+#: listeners publish on every registration, so boot content and clause layout
+#: moved, which shifts a twin count by tens; measured on the merged tree
+#: [measured 2026-09-09: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 2347

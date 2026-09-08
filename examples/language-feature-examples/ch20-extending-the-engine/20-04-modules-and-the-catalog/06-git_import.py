@@ -230,4 +230,13 @@ def twin(m):
 #: changes name lookup while the git fixture registers its Prolog entry and
 #: imports the cloned library [measured 2026-09-08: min-of-3 serial fresh
 #: commit=b615b5a33b43252ef9826e5387da7c9bd7f6b543].
-BUDGET = 38583
+#: RE-PINNED 2026-09-09, 38583 to 38559 (-24), the door table landed
+#: (feat/space-as-a-projection-of-door-rows merged at 6471faa37, its
+#: reconciliation fixes at 58bf75947): every Space door is a generated alias
+#: over its body, the catalog publishes the door contracts at boot as typed
+#: atoms, and the seam's listeners publish on every registration, so boot
+#: content and clause layout moved, which shifts a twin count by tens; measured
+#: on the merged tree [measured 2026-09-09: min-of-3 serial fresh processes;
+#: command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+BUDGET = 38559

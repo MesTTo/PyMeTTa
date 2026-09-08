@@ -1016,7 +1016,15 @@ def twin(m):
 #: generated public names bind directly to their existing bodies [measured
 #: 2026-09-08: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=b615b5a33b43252ef9826e5387da7c9bd7f6b543].
-BUDGET = 3580
+#: RE-PINNED 2026-09-09, 3580 to 3542 (-38), the door table landed (feat/space-
+#: as-a-projection-of-door-rows merged at 6471faa37, its reconciliation fixes
+#: at 58bf75947): every Space door is a generated alias over its body, the
+#: catalog publishes the door contracts at boot as typed atoms, and the seam's
+#: listeners publish on every registration, so boot content and clause layout
+#: moved, which shifts a twin count by tens; measured on the merged tree
+#: [measured 2026-09-09: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 3542
 #: BANDED 2026-09-06 rather than re-pinned an eighteenth time. Seventeen of
 #: the eighty-three re-pins above were written on 2026-09-05 and 2026-09-06
 #: alone, and every control taken with them left the MeTTa side of the same

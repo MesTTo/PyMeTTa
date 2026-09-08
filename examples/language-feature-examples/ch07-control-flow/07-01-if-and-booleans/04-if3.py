@@ -218,7 +218,16 @@ def twin(m):
 #: published before user code. Its declarations change catalog lookup indexes;
 #: generated public names bind directly to their existing bodies [measured
 #: extensions/python/tools/twin_coverage.py --repin; commit=b615b5a33b43252ef9826e5387da7c9bd7f6b543].
-BUDGET = 4655
+#: RE-PINNED 2026-09-09, 4655 to 4802 (+147), the door table landed
+#: (feat/space-as-a-projection-of-door-rows merged at 6471faa37, its
+#: reconciliation fixes at 58bf75947): every Space door is a generated alias
+#: over its body, the catalog publishes the door contracts at boot as typed
+#: atoms, and the seam's listeners publish on every registration, so boot
+#: content and clause layout moved, which shifts a twin count by tens; measured
+#: on the merged tree [measured 2026-09-09: min-of-3 serial fresh processes;
+#: command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+BUDGET = 4802
 
 #: OVERRUN 2026-09-07, 300: the example inlines its `if` in a runnable and the
 #: twin gives it a name, so a one-form example is priced against a definition
@@ -237,7 +246,22 @@ BUDGET = 4655
 #: 4384, within that ceiling, so the rest is this twin's own program [measured
 #: 2026-09-08: one fresh process per side; command=python
 #: extensions/python/benchmarks/probes/twin_floor.py; commit=f1038acdcaf5230b6431c112f38a719d3dc9ef19].
-OVERRUN = 404
+#: OVERRUN 2026-09-09, 404 to 420 (+16): the door table landed
+#: (feat/space-as-a-projection-of-door-rows merged at 6471faa37, its
+#: reconciliation fixes at 58bf75947): every Space door is a generated alias
+#: over its body, the catalog publishes the door contracts at boot as typed
+#: atoms, and the seam's listeners publish on every registration, so boot
+#: content and clause layout moved; every crossing this twin makes pays it and
+#: the example pays none. Measured 4802 against a ceiling of 4786; a minimal
+#: twin costs 1024 against the band's 4382, within that ceiling, so the rest
+#: is this twin's own program [measured 2026-09-09: one fresh process per
+#: side; command=python extensions/python/benchmarks/probes/twin_floor.py;
+#: commit=WORKTREE].
+#: The band is met exactly at that figure and the lane refuses a ceiling met
+#: exactly (it prints the ceiling rounded), so the four-inference allowance
+#: the module-boundary pins recorded is added here too [measured 2026-09-09:
+#: the twins lane on the re-pinned tree; commit=WORKTREE].
+OVERRUN = 424
 
 #: DIVERGED 2026-09-07, the example holds 0 atoms the twin does not (none) and
 #: the twin holds 1 atom the example does not (1 =): the twin is an ordinary Python

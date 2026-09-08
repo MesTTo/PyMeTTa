@@ -277,4 +277,20 @@ BUDGET = 235064
 #: command=python ai-tmp/ai-door-band-cost.py
 #: ch08-data/08-03-the-shipped-libraries/02-datastructures_fingertree.metta;
 #: commit=b615b5a33b43252ef9826e5387da7c9bd7f6b543].
-OVERRUN = 1344
+#: OVERRUN 2026-09-09, 1344 to 1915 (+571): the door table landed
+#: (feat/space-as-a-projection-of-door-rows merged at 6471faa37, its
+#: reconciliation fixes at 58bf75947): every Space door is a generated alias
+#: over its body, the catalog publishes the door contracts at boot as typed
+#: atoms, and the seam's listeners publish on every registration, so boot
+#: content and clause layout moved; every crossing this twin makes pays it and
+#: the example pays none. Measured 235064 against a ceiling of 234493; a
+#: minimal twin costs 215764 against the band's 233149, within that ceiling,
+#: so the rest is this twin's own program [measured 2026-09-09: one fresh
+#: process per side; command=python
+#: extensions/python/benchmarks/probes/twin_floor.py; commit=WORKTREE].
+#: The example's own count moves by one between lane runs (211953 and 211954
+#: on this tree) and the band is met exactly at the higher reading, so the
+#: four-inference allowance the module-boundary pins recorded is added
+#: [measured 2026-09-09: the twins lane, three runs on the re-pinned tree;
+#: commit=WORKTREE].
+OVERRUN = 1919

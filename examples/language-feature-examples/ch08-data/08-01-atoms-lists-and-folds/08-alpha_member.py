@@ -223,4 +223,15 @@ BUDGET = 24383
 #: 20474, above that ceiling, so no twin of it fits the band at all, as before
 #: [measured 2026-09-08: one fresh process per side; command=python
 #: extensions/python/benchmarks/probes/twin_floor.py; commit=f1038acdcaf5230b6431c112f38a719d3dc9ef19].
-OVERRUN = 3909
+#: OVERRUN 2026-09-09, 3909 to 3911 (+2): the door table landed
+#: (feat/space-as-a-projection-of-door-rows merged at 6471faa37, its
+#: reconciliation fixes at 58bf75947): every Space door is a generated alias
+#: over its body, the catalog publishes the door contracts at boot as typed
+#: atoms, and the seam's listeners publish on every registration, so boot
+#: content and clause layout moved; every crossing this twin makes pays it and
+#: the example pays none. Measured 24383 against a ceiling of 24381; a minimal
+#: twin costs 23834 against the band's 20472, above that ceiling, so no twin
+#: of it fits the band at all, as before [measured 2026-09-09: one fresh
+#: process per side; command=python
+#: extensions/python/benchmarks/probes/twin_floor.py; commit=WORKTREE].
+OVERRUN = 3911
