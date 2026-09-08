@@ -4,6 +4,9 @@
 %   derivations on top of an unmodified MeTTa engine. Consulted after
 %   engine/main.pl; only adds predicates, never redefines engine ones.
 % Guarantees:
+%   - fresh decode frames index variable names while returning ordered pairs;
+%     a prebound occurrence cannot change an earlier name's identity
+%     [tested: shared_decode_index; commit=WORKTREE].
 %   - cursor and function work opened in a transaction belongs to it; capture
 %     returns the eager enumeration's text once, and budgets bind that work
 %     [tested: extensions/python/tests/ch15_writing_transactions_and_worlds/test_cursor_transaction.py,
@@ -452,6 +455,12 @@
 :- use_module(library(prolog_wrap), [wrap_predicate/4, unwrap_predicate/2]).
 :- use_module(library(wfs)).
 
+% Resolve the name index's dependencies during bridge loading. Its first
+% insertion otherwise autoloads code during the caller's first decode
+% [tested: shared_decode_index:the_first_decode_does_not_pay_for_dependency_loading;
+% commit=WORKTREE]. The temporary backtrackable table retains no shared state.
+:- ht_new(Index), ht_put(Index, '', _).
+
 %translated_from/2 is engine/filereader.pl's, declared dynamic and exported
 %there, so a read before the first equation finds nothing rather than raising.
 %A `:- dynamic translated_from/2.` here used to supply that guarantee and now
@@ -774,10 +783,13 @@ metta_py_decode_(e, [Es], Term) :- maplist(metta_py_decode, Es, Term).
 metta_py_decode_(p, [S], Space) :-
     ( atom(S) -> Space = S ; string(S), atom_string(Space, S) ).
 
-%Decode sharing variables by name, so the $x in a head and in a body unify.
-%Bindings comes back as Name-Var pairs for reading answers off a query:
+% Index names once per term and retain the ordered answer bindings.
+% library(hashtable) uses backtrackable updates, so failure rolls back both
+% the index and the term. The existing wide-query decoder owns that frame
+% [source: extensions/python/metta/shim.pl:metta_py_decode_indexed/3;
+% commit=WORKTREE].
 metta_py_decode_shared(Tagged, Term, Bindings) :-
-    metta_py_decode_shared_(Tagged, Term, [], Bindings).
+    metta_py_decode_shared_(Tagged, Term, indexed([], Index), indexed(Bindings, Index)).
 
 metta_py_decode_shared_([T0|Rest], Term, B0, B) :-
     ( atom(T0) -> T = T0 ; string(T0) -> atom_string(T, T0) ),
@@ -790,8 +802,7 @@ metta_py_decode_shared_tagged(v, [Name0], Var,
                               indexed(B0, Index), indexed(B, Index)) :- !,
     ( string(Name0) -> atom_string(Name, Name0) ; atom(Name0), Name = Name0 ),
     ( Name == '_' -> Var = _, B = B0
-    ; ht_get(Index, Name, Shared) -> Var = Shared, B = B0
-    ; ht_put(Index, Name, Var), B = [Name-Var|B0] ).
+    ; metta_py_index_variable(Name, Var, B0, B, Index) ).
 metta_py_decode_shared_tagged(v, [Name0], Var, Table, B) :- !,
     %The atom branch carries the payload check with it: a name arriving as
     %anything but text has no identity to share by, and testing it here
@@ -802,12 +813,27 @@ metta_py_decode_shared_tagged(v, [Name0], Var, Table, B) :- !,
     %exactly as the reader treats $_ in source; recording it would make two
     %underscores constrain each other.
     ( Name == '_' -> Var = _, B = Table
-    ; memberchk(Name-Var, Table) -> B = Table
+    ; memberchk(Name-Shared, Table) -> Var = Shared, B = Table
     ; B = [Name-Var|Table] ).
 metta_py_decode_shared_tagged(e, [Es], Term, B0, B) :- !,
     foldl_decode(Es, Term, B0, B).
 metta_py_decode_shared_tagged(T, Rest, Term, B, B) :-
     metta_py_decode_(T, Rest, Term).
+
+% The existing pair answers a singleton lookup without a hash allocation.
+% On the second distinct name, move that first binding into the index once.
+% A supplied wide-query index remains complete even for a singleton query
+% [tested: shared_decode_index; commit=WORKTREE].
+metta_py_index_variable(Name, Var, [], [Name-Var], Index) :- !,
+    ( var(Index) -> true ; ht_put(Index, Name, Var) ).
+metta_py_index_variable(Name, Var, B0, B, Index) :-
+    B0 = [First-Shared|_],
+    (   Name == First
+    ->  Var = Shared, B = B0
+    ;   ( var(Index) -> ht_new(Index), ht_put(Index, First, Shared) ; true ),
+        ( ht_get(Index, Name, Known) -> Var = Known, B = B0
+        ; ht_put(Index, Name, Var), B = [Name-Var|B0] )
+    ).
 
 foldl_decode([], [], B, B).
 foldl_decode([E|Es], [T|Ts], B0, B) :-
@@ -825,12 +851,13 @@ foldl_decode([E|Es], [T|Ts], B0, B) :-
 %shared variable table [source:
 %extensions/python/benchmarks/target_self_decode.py;
 %commit=f8453b013a603de9f9d4c7606c95ca7210229e78]. The
-%current and target complexity are both O(n); this removes the duplicate
-%traversal rather than changing the class.
+%replacement walk is linear; variable identity uses the same index as the
+%ordinary decoder.
 metta_py_decode_target('&self', Tagged, Term, Bindings) :- !,
     metta_py_decode_shared(Tagged, Term, Bindings).
 metta_py_decode_target(Space, Tagged, Term, Bindings) :-
-    metta_py_decode_target_(Tagged, Space, Term, [], Bindings).
+    metta_py_decode_target_(Tagged, Space, Term,
+                           indexed([], Index), indexed(Bindings, Index)).
 
 metta_py_decode_target_([T0|Rest], Space, Term, B0, B) :-
     ( atom(T0) -> T = T0 ; string(T0) -> atom_string(T, T0) ),

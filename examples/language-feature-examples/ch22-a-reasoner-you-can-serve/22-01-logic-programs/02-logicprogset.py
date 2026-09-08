@@ -122,4 +122,10 @@ def twin(m):
 #: compiled program lookup crosses the added metta_engine tier [measured
 #: 2026-09-08: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=ede2ac57e213a0d4502c6bbbca6227f97015b720].
-BUDGET = 4629
+#: RE-PINNED 2026-09-09, 4629 to 4622 (-7), Compile shipped typing decisions
+#: and initial vocabulary facts, index vocabulary membership, and reuse the
+#: first Python variable binding before indexing additional names; retain type,
+#: transaction and variable-identity checks [measured 2026-09-09: min-of-3
+#: serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 4622

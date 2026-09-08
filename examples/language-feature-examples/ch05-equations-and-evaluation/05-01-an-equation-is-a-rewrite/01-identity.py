@@ -1011,7 +1011,14 @@ def twin(m):
 #: tree, minimum of three fresh processes [measured 2026-09-08: min-of-3 serial
 #: fresh processes; command=python extensions/python/tools/twin_coverage.py
 #: --repin; commit=856434d7c1d381b3f3d7cbbd008f46c0d41b61aa].
-BUDGET = 3529
+#: RE-PINNED 2026-09-08, 3529 to 3560 (+31), Compiled shipped typing decisions
+#: and initial vocabulary facts remove repeated interpretation; indexed
+#: vocabulary membership replaces member-list scans; catalog reference checks
+#: now respect transaction-local erasure. Paired controls and cut counts are
+#: recorded in docs/journal/2026-09-08-what-the-waivers-were-paying-for.md
+#: [measured 2026-09-08: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 3560
 #: BANDED 2026-09-06 rather than re-pinned an eighteenth time. Seventeen of
 #: the eighty-three re-pins above were written on 2026-09-05 and 2026-09-06
 #: alone, and every control taken with them left the MeTTa side of the same

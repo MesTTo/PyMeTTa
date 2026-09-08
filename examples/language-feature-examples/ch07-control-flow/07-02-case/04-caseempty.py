@@ -214,4 +214,11 @@ def twin(m):
 #: returned callback goals [measured 2026-09-08: min-of-3 serial fresh
 #: processes; command=python extensions/python/tools/twin_coverage.py --repin;
 #: commit=ede2ac57e213a0d4502c6bbbca6227f97015b720].
-BUDGET = 5454
+#: RE-PINNED 2026-09-08, 5454 to 5504 (+50), Compiled shipped typing decisions
+#: and initial vocabulary facts remove repeated interpretation; indexed
+#: vocabulary membership replaces member-list scans; catalog reference checks
+#: now respect transaction-local erasure. Paired controls and cut counts are
+#: recorded in docs/journal/2026-09-08-what-the-waivers-were-paying-for.md
+#: [measured 2026-09-08: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 5504

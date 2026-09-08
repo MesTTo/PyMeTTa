@@ -10,7 +10,7 @@ Guarantees:
     inference growth from exponential to linear, with both improvements and
     regressions pinned to the measured floor [tested:
     test_automatic_tabling_growth;
-    commit=bbb512316280110a747e31c26adfc31e8c5104be]
+    commit=WORKTREE]
   - the native-handle case reaches the chapter-19 artifact that the worktree
     build produces instead of skipping behind its pre-reorganisation path
     [tested: test_handle_benchmark_reaches_the_built_chapter_19_library;
@@ -330,11 +330,21 @@ _ROWS = 2_000
 #: `-p no:benchmark`, which makes benchmarks/conftest.py's
 #: pytest_benchmark_update_machine_info an unknown hook and turns the run into
 #: a pluggy INTERNALERROR rather than a measurement.
+#: Re-pinned 2026-09-08. The pristine f0d33dcad cut reads plain
+#: 122157/953645/7605549/30412077 and automatic 14488/15618/16752/17508.
+#: This tree adds four plain and six automatic inferences at every size.
+#: Catalog reference checks now distinguish transaction-local clause erasure;
+#: the catalog membership and prelude controls are recorded in
+#: docs/journal/2026-09-08-what-the-waivers-were-paying-for.md. The prior pin
+#: already differs from the cut; that difference is not this change's cost.
+#: [measured: min of three observations per size and mode;
+#: command=python bench.py automatic-tabling --counter-only;
+#: fixture=provisioned cut and branch with warm QLF; commit=WORKTREE].
 _AUTOMATIC_TABLING_PINS = {
-    12: {"plain": 122_123, "automatic": 14_412},
-    15: {"plain": 953_645, "automatic": 15_542},
-    18: {"plain": 7_605_815, "automatic": 16_676},
-    20: {"plain": 30_413_255, "automatic": 17_434},
+    12: {"plain": 122_161, "automatic": 14_494},
+    15: {"plain": 953_649, "automatic": 15_624},
+    18: {"plain": 7_605_553, "automatic": 16_758},
+    20: {"plain": 30_412_081, "automatic": 17_514},
 }
 
 

@@ -239,7 +239,13 @@ def twin(m):
 #: carries both, so this entry is where the two chains meet [measured
 #: 2026-09-08: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=f1038acdcaf5230b6431c112f38a719d3dc9ef19].
-BUDGET = 57484
+#: RE-PINNED 2026-09-09, 57484 to 57544 (+60), Compile shipped typing decisions
+#: and initial vocabulary facts, index vocabulary membership, and reuse the
+#: first Python variable binding before indexing additional names; retain type,
+#: transaction and variable-identity checks [measured 2026-09-09: min-of-3
+#: serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 57544
 
 #: OVERRUN 2026-09-07, 6400: it declares the cache policy and memoises by name
 #: through the library door, then reads the result twice. Measured 57334

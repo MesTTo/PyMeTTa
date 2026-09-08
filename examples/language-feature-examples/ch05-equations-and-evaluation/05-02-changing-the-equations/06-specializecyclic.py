@@ -174,7 +174,20 @@ def twin(m):
 #: facade; compiled program lookup crosses the added metta_engine tier
 #: [measured 2026-09-08: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=ede2ac57e213a0d4502c6bbbca6227f97015b720].
-BUDGET = 25182
+#: RE-PINNED 2026-09-08, 25182 to 25191 (+9), Compiled shipped typing decisions
+#: and initial vocabulary facts remove repeated interpretation; indexed
+#: vocabulary membership replaces member-list scans; catalog reference checks
+#: now respect transaction-local erasure. Paired controls and cut counts are
+#: recorded in docs/journal/2026-09-08-what-the-waivers-were-paying-for.md
+#: [measured 2026-09-08: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+#: RE-PINNED 2026-09-09, 25191 to 25369 (+178), Compile shipped typing
+#: decisions and initial vocabulary facts, index vocabulary membership, and
+#: reuse the first Python variable binding before indexing additional names;
+#: retain type, transaction and variable-identity checks [measured 2026-09-09:
+#: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 25369
 
 #: OVERRUN 2026-09-07, 2400: the mutually recursive pair takes the `@m.rules`
 #: door, which stages two equations where the example writes two. Measured

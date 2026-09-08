@@ -134,4 +134,11 @@ def twin(m):
 #: carries both, so this entry is where the two chains meet [measured
 #: 2026-09-08: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=f1038acdcaf5230b6431c112f38a719d3dc9ef19].
-BUDGET = 239566
+#: RE-PINNED 2026-09-08, 239566 to 239667 (+101), Compiled shipped typing
+#: decisions and initial vocabulary facts remove repeated interpretation;
+#: indexed vocabulary membership replaces member-list scans; catalog reference
+#: checks now respect transaction-local erasure. Paired controls and cut counts
+#: are recorded in docs/journal/2026-09-08-what-the-waivers-were-paying-for.md
+#: [measured 2026-09-08: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 239667

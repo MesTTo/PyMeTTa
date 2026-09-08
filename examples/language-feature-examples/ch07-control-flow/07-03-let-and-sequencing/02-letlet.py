@@ -129,4 +129,10 @@ RUNG = "a `let*` binding whose left side is a PATTERN has no assignment spelling
 #: tree, minimum of three fresh processes [measured 2026-09-08: min-of-3 serial
 #: fresh processes; command=python extensions/python/tools/twin_coverage.py
 #: --repin; commit=856434d7c1d381b3f3d7cbbd008f46c0d41b61aa].
-BUDGET = 986
+#: RE-PINNED 2026-09-09, 986 to 1099 (+113), Compile shipped typing decisions
+#: and initial vocabulary facts, index vocabulary membership, and reuse the
+#: first Python variable binding before indexing additional names; retain type,
+#: transaction and variable-identity checks [measured 2026-09-09: min-of-3
+#: serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 1099

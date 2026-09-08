@@ -241,7 +241,20 @@ def twin(m):
 #: carries both, so this entry is where the two chains meet [measured
 #: 2026-09-08: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=f1038acdcaf5230b6431c112f38a719d3dc9ef19].
-BUDGET = 38754
+#: RE-PINNED 2026-09-08, 38754 to 38775 (+21), Compiled shipped typing
+#: decisions and initial vocabulary facts remove repeated interpretation;
+#: indexed vocabulary membership replaces member-list scans; catalog reference
+#: checks now respect transaction-local erasure. Paired controls and cut counts
+#: are recorded in docs/journal/2026-09-08-what-the-waivers-were-paying-for.md
+#: [measured 2026-09-08: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+#: RE-PINNED 2026-09-09, 38775 to 38766 (-9), Compile shipped typing decisions
+#: and initial vocabulary facts, index vocabulary membership, and reuse the
+#: first Python variable binding before indexing additional names; retain type,
+#: transaction and variable-identity checks [measured 2026-09-09: min-of-3
+#: serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 38766
 
 #: DIVERGED 2026-09-07, the example holds 0 atoms the twin does not (none) and
 #: the twin holds 1 atom the example does not (1 :): a Python annotation IS a (:
