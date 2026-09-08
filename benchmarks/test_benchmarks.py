@@ -295,15 +295,46 @@ _ROWS = 2_000
 #: -c pyproject.toml --benchmark-disable; fixture=ai-tmp/hy-tabling.sh in the
 #: branch's ladder worktree, nine points, and the same numbers read in the
 #: branch worktree and in a pristine worktree of 97c96e91; commit=11afdcdbad5bbbe37168b5d8528c23a21c42b4b6].
+#: RE-PINNED 2026-09-08 by a twenty-eight-point first-parent ladder from
+#: 97c96e91d to the tip, three fresh processes per size and mode at each point
+#: with every seat's artifacts rebuilt from that commit's sources and the .qlf
+#: set cleared. The ladder's control holds at its base: all eight pins above
+#: read exactly at 97c96e91d, which is where the chore/trunk-gate-hygiene
+#: branch measured them and where they were right; the merge that WROTE them,
+#: ad762ee7e, reads 122,130 and 14,419 at n=12 instead, because trunk took
+#: fifty-eight first-parent commits while that branch measured. Three steps,
+#: and one of them is nearly all of it:
+#:
+#:   e67e2db94  +38 plain and +67 automatic at n=12, +36 and +69 at n=15, +36
+#:              and +71 at n=18, +36 and +69 at n=20: the prelude's move into
+#:              Prolog. Its own merge message names the cause and prices it for
+#:              two other rows -- "the one extra module link every first
+#:              resolution in a fresh space module walks" -- and c99dbb40b, the
+#:              commit before it, reads every pin above unchanged.
+#:   9b5847e86  +3 plain and +5 to +7 automatic at every size, within the
+#:              e67e2db94..9b5847e86 bracket.
+#:   856434d7c  -5 plain and -3 to -7 automatic at every size: an equation
+#:              reads the space it is stored in through every compile path.
+#:
+#: The growth laws are unchanged: plain stays exponential at 7.8x, 8.0x and
+#: 4.0x per step, automatic stays linear, and the n=20 separation is 1,745x
+#: against the 900x floor below.
+#: [measured 2026-09-08: min of three fresh processes per size and mode;
+#: command=$CHECK_PY -c "from benchmarks.test_benchmarks import
+#: _automatic_tabling_observations; print(_automatic_tabling_observations())";
+#: fixture=a throwaway checkout beside the repository whose path is exactly as
+#: long as the repository root, with the C reader, writer, JSON codec,
+#: chapter-19 artifacts and libmork_ffi.so present and the QLF cleared and
+#: rebuilt; commit=WORKTREE].
 #: Note for the next reader: `sh extensions/python/test.sh` carries
 #: `-p no:benchmark`, which makes benchmarks/conftest.py's
 #: pytest_benchmark_update_machine_info an unknown hook and turns the run into
 #: a pluggy INTERNALERROR rather than a measurement.
 _AUTOMATIC_TABLING_PINS = {
-    12: {"plain": 122_089, "automatic": 14_343},
-    15: {"plain": 953_611, "automatic": 15_473},
-    18: {"plain": 7_605_781, "automatic": 16_607},
-    20: {"plain": 30_413_221, "automatic": 17_365},
+    12: {"plain": 122_123, "automatic": 14_412},
+    15: {"plain": 953_645, "automatic": 15_542},
+    18: {"plain": 7_605_815, "automatic": 16_676},
+    20: {"plain": 30_413_255, "automatic": 17_434},
 }
 
 
