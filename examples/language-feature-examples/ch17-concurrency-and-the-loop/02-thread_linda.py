@@ -249,7 +249,7 @@ def twin(m):
 #: [measured 2026-09-08: python extensions/python/tools/twin_coverage.py
 #: --observe --rounds 10 and --rounds 15,
 #: ai-tmp/integrator-849a9e/merged68-observe-10.log and
-#: merged68-observe-15.log; commit=WORKTREE].
+#: merged68-observe-15.log; commit=f1038acdcaf5230b6431c112f38a719d3dc9ef19].
 BUDGET = {
     "minimum": 462787,
     "maximum": 462825,
@@ -273,7 +273,7 @@ BUDGET = {
 #: against a ceiling of 447303; a minimal twin costs 238746 against the band's
 #: 263309, within that ceiling, so the rest is this twin's own program
 #: [measured 2026-09-08: one fresh process per side; command=python
-#: extensions/python/benchmarks/probes/twin_floor.py; commit=WORKTREE].
+#: extensions/python/benchmarks/probes/twin_floor.py; commit=f1038acdcaf5230b6431c112f38a719d3dc9ef19].
 OVERRUN = 199526
 
 #: DIVERGED 2026-09-07, the example holds 0 atoms the twin does not (none) and

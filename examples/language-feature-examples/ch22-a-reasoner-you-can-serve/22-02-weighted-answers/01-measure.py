@@ -252,7 +252,7 @@ def twin(m):
 #: [measured 2026-09-08: python extensions/python/tools/twin_coverage.py
 #: --observe --rounds 10 and --rounds 15,
 #: ai-tmp/integrator-849a9e/merged68-observe-10.log and
-#: merged68-observe-15.log; commit=WORKTREE].
+#: merged68-observe-15.log; commit=f1038acdcaf5230b6431c112f38a719d3dc9ef19].
 BUDGET = {
     "minimum": 126937,
     "maximum": 127036,

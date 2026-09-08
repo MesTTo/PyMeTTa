@@ -271,7 +271,7 @@ RUNG = "the assert family is this file's subject, so each claim names one of its
 #: twins for the packages that landed after that cut, and only the merged tree
 #: carries both, so this entry is where the two chains meet [measured
 #: 2026-09-08: min-of-3 serial fresh processes; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+#: extensions/python/tools/twin_coverage.py --repin; commit=f1038acdcaf5230b6431c112f38a719d3dc9ef19].
 BUDGET = 17998
 #: OVERRUN 2026-09-08, 9 to 285 (+276, four of them the deterministic
 #: allowance the point pins carry, because a band met exactly is refused): the module boundary merged with trunk
@@ -282,5 +282,5 @@ BUDGET = 17998
 #: of 17726; a minimal twin costs 15383 against the band's 17717, within that
 #: ceiling, so the rest is this twin's own program [measured 2026-09-08: one
 #: fresh process per side; command=python
-#: extensions/python/benchmarks/probes/twin_floor.py; commit=WORKTREE].
+#: extensions/python/benchmarks/probes/twin_floor.py; commit=f1038acdcaf5230b6431c112f38a719d3dc9ef19].
 OVERRUN = 285

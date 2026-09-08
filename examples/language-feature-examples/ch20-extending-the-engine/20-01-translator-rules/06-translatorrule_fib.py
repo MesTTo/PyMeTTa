@@ -239,7 +239,7 @@ BUDGET = 15685
 #: of 15668; a minimal twin costs 8297 against the band's 15668, within that
 #: ceiling, so the rest is this twin's own program [measured 2026-09-08: one
 #: fresh process per side; command=python
-#: extensions/python/benchmarks/probes/twin_floor.py; commit=WORKTREE].
+#: extensions/python/benchmarks/probes/twin_floor.py; commit=f1038acdcaf5230b6431c112f38a719d3dc9ef19].
 OVERRUN = 25
 
 #: DIVERGED 2026-09-07, the example holds 0 atoms the twin does not (none) and

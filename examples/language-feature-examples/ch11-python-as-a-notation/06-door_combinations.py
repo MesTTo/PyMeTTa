@@ -257,7 +257,7 @@ def twin(m):
 #: twins for the packages that landed after that cut, and only the merged tree
 #: carries both, so this entry is where the two chains meet [measured
 #: 2026-09-08: min-of-3 serial fresh processes; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+#: extensions/python/tools/twin_coverage.py --repin; commit=f1038acdcaf5230b6431c112f38a719d3dc9ef19].
 BUDGET = 48479
 
 #: OVERRUN 2026-09-07, 27600: it proves seventeen claims where the example
@@ -276,7 +276,7 @@ BUDGET = 48479
 #: against a ceiling of 48337; a minimal twin costs 7956 against the band's
 #: 20737, within that ceiling, so the rest is this twin's own program
 #: [measured 2026-09-08: one fresh process per side; command=python
-#: extensions/python/benchmarks/probes/twin_floor.py; commit=WORKTREE].
+#: extensions/python/benchmarks/probes/twin_floor.py; commit=f1038acdcaf5230b6431c112f38a719d3dc9ef19].
 OVERRUN = 27742
 
 #: DIVERGED 2026-09-07, the example holds 1 atom the twin does not (1 =) and

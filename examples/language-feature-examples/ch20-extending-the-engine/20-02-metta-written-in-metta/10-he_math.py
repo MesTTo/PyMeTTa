@@ -196,5 +196,5 @@ RUNG = "min-atom and max-atom are two of the stdlib numeric operations this file
 #: twins for the packages that landed after that cut, and only the merged tree
 #: carries both, so this entry is where the two chains meet [measured
 #: 2026-09-08: min-of-3 serial fresh processes; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+#: extensions/python/tools/twin_coverage.py --repin; commit=f1038acdcaf5230b6431c112f38a719d3dc9ef19].
 BUDGET = 6179
