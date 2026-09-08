@@ -24,7 +24,7 @@ Guarantees:
   - a door row registered or withdrawn after boot is in the catalog at once,
     with no refresh asked for: the catalog is a function of the door registry
     [tested: test_door_catalog_publication_is_atomic_and_idempotent;
-    commit=WORKTREE]
+    commit=58bf75947fc58ec32b2372ef0d2c14a00aa2390a]
   - install is idempotent per engine process: the ontology enters once
     [tested test_the_ontology_loads_once]
   - registered synchronous and coroutine operation kinds inhabit OpKind and

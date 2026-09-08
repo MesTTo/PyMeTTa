@@ -57,7 +57,7 @@ Guarantees:
   - a withdrawal notifies every registration listener with the inverse that
     restores the row, as a registration does with the inverse that withdraws it
     [tested: test_door_catalog_publication_is_atomic_and_idempotent;
-    commit=WORKTREE]
+    commit=58bf75947fc58ec32b2372ef0d2c14a00aa2390a]
   - frame builders and accessor door contracts are separate registrations
     [tested: test_the_row_is_registered_against_the_frame_point; commit=b615b5a33b43252ef9826e5387da7c9bd7f6b543]
   - a point is declared once with one kind, and a second declaration of the

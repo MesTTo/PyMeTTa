@@ -24,7 +24,7 @@ Guarantees:
   - after `on_path()`, `importlib.metadata.entry_points(group="metta.extensions")`
     names every member and each entry point loads its module [tested:
     test_a_checkout_advertises_its_members_through_importlib_metadata;
-    commit=WORKTREE]
+    commit=58bf75947fc58ec32b2372ef0d2c14a00aa2390a]
 Open Obligations:
   To Do: None
   Hacks: None

@@ -17,7 +17,7 @@ Guarantees:
     checkout's members advertised by `_workspace.on_path()`, never by importing
     the package [tested:
     tests/repository/test_examples.py::test_example_runs_and_verifies_itself[live/standing_queries];
-    commit=WORKTREE]
+    commit=58bf75947fc58ec32b2372ef0d2c14a00aa2390a]
 Open Obligations:
   To Do: None
   Hacks: None
