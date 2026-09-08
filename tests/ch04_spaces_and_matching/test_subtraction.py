@@ -2,7 +2,7 @@
 
 Guarantees: a missing occurrence returns False, each successful call consumes
 one copy, and rollback restores every consumed copy [tested:
-test_subtraction_in_a_transaction_preserves_multiplicity; commit=WORKTREE].
+test_subtraction_in_a_transaction_preserves_multiplicity; commit=8806bbf1f5fb8ff233e2ed4868190757d4fb7041].
 Owns resources: each generated case creates and drops its own space.
 """
 
