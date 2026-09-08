@@ -95,5 +95,5 @@ def twin(m):  # noqa: ARG001  -- the twin works in its own named space; the defa
 #: MeTTa example stays at 3768. The previous pin of 262 was within its
 #: allowance on the base [measured 2026-09-08: min-of-3 serial fresh processes;
 #: command=python extensions/python/tools/twin_coverage.py --repin;
-#: commit=WORKTREE].
+#: commit=ea2c1bde39a7b002b1e5948cf6c53bc469dac084].
 BUDGET = 294

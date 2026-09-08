@@ -3,20 +3,20 @@
 Guarantees:
   - installer imports are visible at once and disappear on rollback
     [tested: test_installer_imports_into_home_and_staging_are_visible,
-    test_failed_installer_imports_leave_no_equations; commit=WORKTREE].
+    test_failed_installer_imports_leave_no_equations; commit=ea2c1bde39a7b002b1e5948cf6c53bc469dac084].
   - every read door sees earlier writes and cursor writes in the same unit
     [tested: test_answers_and_fn_see_the_transactions_writes,
-    test_cursor_transactions_preserve_the_bag; commit=WORKTREE].
+    test_cursor_transactions_preserve_the_bag; commit=ea2c1bde39a7b002b1e5948cf6c53bc469dac084].
   - held cursors refuse another thread and outside cursors remain lazy
     [tested: test_held_cursor_refuses_a_pull_from_another_thread,
     test_outside_cursor_is_lazy_and_keeps_its_logical_update_view;
-    commit=WORKTREE].
+    commit=ea2c1bde39a7b002b1e5948cf6c53bc469dac084].
   - capture, nested policies and both bounds retain their contracts
     [tested: test_held_capture_delivers_all_output_on_the_first_pull,
     test_held_atomic_work_dies_with_outer_rollback,
     test_held_speculation_returns_all_answers_without_writes,
     test_cursor_inference_budget_refuses_inside_and_outside,
-    test_cursor_time_budget_refuses_inside_and_outside; commit=WORKTREE].
+    test_cursor_time_budget_refuses_inside_and_outside; commit=ea2c1bde39a7b002b1e5948cf6c53bc469dac084].
 Owns resources: tests close spaces and views, unregister their library aliases
   and operations, and join the one worker used to test thread ownership.
 """

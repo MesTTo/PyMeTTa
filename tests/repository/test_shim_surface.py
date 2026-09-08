@@ -13,7 +13,7 @@ Assumes:
 Guarantees:
   - host cursor services share transaction ownership and lifecycle across seats
     [tested: test_the_host_service_scoreboard_matches_the_tree,
-    test_the_shim_surface_shrank_to_the_transport_floor; commit=WORKTREE]
+    test_the_shim_surface_shrank_to_the_transport_floor; commit=ea2c1bde39a7b002b1e5948cf6c53bc469dac084]
   - carrier membership uses the engine-owned validation door
     [tested: test_the_host_service_scoreboard_matches_the_tree; commit=074dc0a88b1605c54824de677d586b6f60998bcf]
   - the manifest and the tree hold the same host_service set, compared as

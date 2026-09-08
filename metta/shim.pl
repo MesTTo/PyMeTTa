@@ -7,7 +7,7 @@
 %   - cursor and function work opened in a transaction belongs to it; capture
 %     returns the eager enumeration's text once, and budgets bind that work
 %     [tested: extensions/python/tests/ch15_writing_transactions_and_worlds/test_cursor_transaction.py,
-%     host_hold; commit=WORKTREE].
+%     host_hold; commit=ea2c1bde39a7b002b1e5948cf6c53bc469dac084].
 %   - metta_py_mirror_bounds/0 turns the catalog's own watch point on for the
 %     (limit ...) head, so a bound the seat mirrors is invalidated by whoever
 %     writes the row, a MeTTa program's own add-atom included

@@ -3628,7 +3628,7 @@ class Space(Handle):
         the cursor from the transaction's thread, or open it outside the
         transaction to step it from another thread [tested:
         extensions/python/tests/ch15_writing_transactions_and_worlds/test_cursor_transaction.py;
-        commit=WORKTREE].
+        commit=ea2c1bde39a7b002b1e5948cf6c53bc469dac084].
 
         ``under=`` has the same carrier semantics as ``match``. In
         particular, ``space.answers(call, under=counting).one()`` returns one
