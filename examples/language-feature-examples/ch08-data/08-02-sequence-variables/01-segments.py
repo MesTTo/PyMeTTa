@@ -277,7 +277,19 @@ def twin(m):
 #: measured on this tree with the artifacts warm [measured 2026-09-09: min-of-3
 #: serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=f26de01fbf3e0e3c64bb691c66a59fa959fee7f3].
-BUDGET = 10640
+#: RE-PINNED 2026-09-09, 10640 to 10650 (+10), engine/qlf_boot.pl gained the
+#: hermetic child that writes the engine's own artifact set and every library
+#: half's (qlf_child/2, qlf_regenerate_aside/1, qlf_child_boot/0,
+#: qlf_shell_words/2), so no process's flags, initialisation file or packs
+#: shape an artifact the tree shares; the boot file's added predicates move the
+#: first definition's warm-up by ten, the load-structure movement its header
+#: records for any boot-content change, and the lane's authoring constant moves
+#: with it (warmup 1482); a twin importing a half pays the claim's freshness
+#: check besides; measured on this tree with the artifacts warm, against the
+#: pins of f26de01fb [measured 2026-09-09: min-of-3 serial fresh processes;
+#: command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+BUDGET = 10650
 #: OVERRUN 2026-09-09, 0 to 140 (+140): the compiled vocabulary seed, the
 #: membership index, base-module type lookups and the singleton decoder landed
 #: (perf/cross-engine-waivers merged): a Python decode with one named variable

@@ -227,8 +227,9 @@ BUDGET = 21065
 #: constants are re-derived on this tree in the same change; against the run
 #: before the compiled halves (b4341ae38) the twin moved -13686 and the
 #: example -13659, and the twin sat 824 within its ceiling there. Measured
-#: 21065 against a ceiling of 20550; a minimal twin costs 18523 against the
+#: 21065 against a ceiling of 21065; a minimal twin costs 18523 against the
 #: band's 20550, within that ceiling, so the rest is this twin's own program
 #: [measured 2026-09-09: one fresh process per side; command=python
-#: extensions/python/benchmarks/probes/twin_floor.py; commit=f26de01fbf3e0e3c64bb691c66a59fa959fee7f3].
+#: extensions/python/benchmarks/probes/twin_floor.py;
+#: commit=f26de01fbf3e0e3c64bb691c66a59fa959fee7f3].
 OVERRUN = 515

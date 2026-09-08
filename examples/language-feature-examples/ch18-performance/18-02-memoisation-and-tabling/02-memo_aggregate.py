@@ -323,7 +323,19 @@ def twin(m):
 #: measured on this tree with the artifacts warm [measured 2026-09-09: min-of-3
 #: serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=f26de01fbf3e0e3c64bb691c66a59fa959fee7f3].
-BUDGET = 26595
+#: RE-PINNED 2026-09-09, 26595 to 26605 (+10), engine/qlf_boot.pl gained the
+#: hermetic child that writes the engine's own artifact set and every library
+#: half's (qlf_child/2, qlf_regenerate_aside/1, qlf_child_boot/0,
+#: qlf_shell_words/2), so no process's flags, initialisation file or packs
+#: shape an artifact the tree shares; the boot file's added predicates move the
+#: first definition's warm-up by ten, the load-structure movement its header
+#: records for any boot-content change, and the lane's authoring constant moves
+#: with it (warmup 1482); a twin importing a half pays the claim's freshness
+#: check besides; measured on this tree with the artifacts warm, against the
+#: pins of f26de01fb [measured 2026-09-09: min-of-3 serial fresh processes;
+#: command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+BUDGET = 26605
 #: OVERRUN 2026-09-09, 0 to 1089 (+1089): a library's Prolog half compiles
 #: beside itself on its first import and loads from the artifact after
 #: (metta_load_source/2, seam:compiled_source/1): the example imports one, so
@@ -333,10 +345,11 @@ BUDGET = 26595
 #: constants are re-derived on this tree in the same change; against the run
 #: before the compiled halves (b4341ae38) the twin moved -13626 and the
 #: example -13659, and the twin sat 186 within its ceiling there. Measured
-#: 26595 against a ceiling of 25507; a minimal twin costs 21942 against the
-#: band's 25507, within that ceiling, so the rest is this twin's own program
+#: 26605 against a ceiling of 26606; a minimal twin costs 21942 against the
+#: band's 25517, within that ceiling, so the rest is this twin's own program
 #: [measured 2026-09-09: one fresh process per side; command=python
-#: extensions/python/benchmarks/probes/twin_floor.py; commit=f26de01fbf3e0e3c64bb691c66a59fa959fee7f3].
+#: extensions/python/benchmarks/probes/twin_floor.py;
+#: commit=f26de01fbf3e0e3c64bb691c66a59fa959fee7f3].
 OVERRUN = 1089
 
 #: DIVERGED 2026-09-07, the example holds 0 atoms the twin does not (none) and

@@ -330,7 +330,19 @@ def twin(m):
 #: measured on this tree with the artifacts warm [measured 2026-09-09: min-of-3
 #: serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=f26de01fbf3e0e3c64bb691c66a59fa959fee7f3].
-BUDGET = 30106
+#: RE-PINNED 2026-09-09, 30106 to 30116 (+10), engine/qlf_boot.pl gained the
+#: hermetic child that writes the engine's own artifact set and every library
+#: half's (qlf_child/2, qlf_regenerate_aside/1, qlf_child_boot/0,
+#: qlf_shell_words/2), so no process's flags, initialisation file or packs
+#: shape an artifact the tree shares; the boot file's added predicates move the
+#: first definition's warm-up by ten, the load-structure movement its header
+#: records for any boot-content change, and the lane's authoring constant moves
+#: with it (warmup 1482); a twin importing a half pays the claim's freshness
+#: check besides; measured on this tree with the artifacts warm, against the
+#: pins of f26de01fb [measured 2026-09-09: min-of-3 serial fresh processes;
+#: command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+BUDGET = 30116
 
 #: OVERRUN 2026-09-07, 600: it stacks the two arities as two decorated clauses
 #: of one MeTTa name, where the example writes two equations. Measured 42187
@@ -358,9 +370,10 @@ BUDGET = 30106
 #: them, which shows the twin's own excess whole; the lane's authoring
 #: constants are re-derived on this tree in the same change; against the run
 #: before the compiled halves (b4341ae38) the twin moved -13626 and the
-#: example -13659, and the twin sat 0 within its ceiling there. Measured 30106
-#: against a ceiling of 28892; a minimal twin costs 21773 against the band's
-#: 27997, within that ceiling, so the rest is this twin's own program
+#: example -13659, and the twin sat 0 within its ceiling there. Measured 30116
+#: against a ceiling of 30117; a minimal twin costs 21773 against the band's
+#: 28007, within that ceiling, so the rest is this twin's own program
 #: [measured 2026-09-09: one fresh process per side; command=python
-#: extensions/python/benchmarks/probes/twin_floor.py; commit=f26de01fbf3e0e3c64bb691c66a59fa959fee7f3].
+#: extensions/python/benchmarks/probes/twin_floor.py;
+#: commit=f26de01fbf3e0e3c64bb691c66a59fa959fee7f3].
 OVERRUN = 2110

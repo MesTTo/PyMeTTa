@@ -353,11 +353,20 @@ BUDGET = 50837
 #: constants are re-derived on this tree in the same change; against the run
 #: before the compiled halves (b4341ae38) the twin moved -111158 and the
 #: example -111018, and the twin sat 6767 within its ceiling there. Measured
-#: 50837 against a ceiling of 46767; a minimal twin costs 45339 against the
-#: band's 46767, within that ceiling, so the rest is this twin's own program
+#: 50837 against a ceiling of 50836; a minimal twin costs 45329 against the
+#: band's 46766, within that ceiling, so the rest is this twin's own program
 #: [measured 2026-09-09: one fresh process per side; command=python
-#: extensions/python/benchmarks/probes/twin_floor.py; commit=f26de01fbf3e0e3c64bb691c66a59fa959fee7f3].
-OVERRUN = 4070
+#: extensions/python/benchmarks/probes/twin_floor.py;
+#: commit=f26de01fbf3e0e3c64bb691c66a59fa959fee7f3].
+#: OVERRUN 2026-09-09, 4070 to 4071 (+1): engine/qlf_boot.pl gained the
+#: hermetic child that writes the engine's artifact set, and the load-structure
+#: movement its header records moved this example's own count from 39934 to
+#: 39924 while the twin held at 50837 (its first-definition warm-up rose by the
+#: ten the re-derived authoring constant carries), so the ceiling fell by one
+#: under the twin. Measured 50837 against a ceiling of 50836 [measured
+#: 2026-09-09: python extensions/python/tools/twin_coverage.py, one full-lane
+#: run on this tree; commit=WORKTREE].
+OVERRUN = 4071
 
 #: DIVERGED 2026-09-07, the example holds 0 atoms the twin does not (none) and
 #: the twin holds 1 atom the example does not (1 :): a Python annotation IS a (:
