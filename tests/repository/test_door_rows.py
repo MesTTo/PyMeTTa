@@ -24,9 +24,12 @@ import pytest
 from metta import MeTTa, S, Space, V, seam
 from metta.doors import (
     DOORS,
+    AnswerForm,
     AnswersAs,
     Body,
     Door,
+    EvaluationAnswer,
+    Family,
     Kind,
     Owner,
     Provider,
@@ -174,6 +177,36 @@ def test_argument_delivery_reads_the_shared_projection_table(monkeypatch):
     monkeypatch.setitem(_projection.TABLE, "Number", original._replace(delivery=ArgumentDelivery.atoms))
     assert Signature("item: int").arguments(__name__)[0].delivery is ArgumentDelivery.atoms
 
+
+
+def test_answer_forms_and_owner_families_are_the_declared_partitions():
+    """The two classifications the door bodies dispatch on, member by member.
+
+    The mappings beside the enums are asserted total over their members at
+    import; this states which member has which form and family, so a swapped
+    pair cannot pass as a total table.
+    """
+    assert {choice: choice.form for choice in EvaluationAnswer} == {
+        EvaluationAnswer.all: AnswerForm.materialised,
+        EvaluationAnswer.atom: AnswerForm.materialised,
+        EvaluationAnswer.one: AnswerForm.materialised,
+        EvaluationAnswer.first: AnswerForm.materialised,
+        EvaluationAnswer.answers: AnswerForm.view,
+        EvaluationAnswer.rows: AnswerForm.view,
+        EvaluationAnswer.count: AnswerForm.aggregate,
+        EvaluationAnswer.exists: AnswerForm.aggregate,
+        EvaluationAnswer.none: AnswerForm.aggregate,
+        EvaluationAnswer.stream: AnswerForm.stream,
+    }
+    assert {owner: owner.family for owner in Owner} == {
+        Owner.space: Family.core,
+        Owner.context: Family.core,
+        Owner.rows: Family.result,
+        Owner.answers: Family.result,
+        Owner.remote_space: Family.remote,
+        Owner.remote_cursor: Family.remote,
+        Owner.namespace: Family.namespace,
+    }
 
 def test_every_door_projection_is_current():
     """Every door projection is current."""
