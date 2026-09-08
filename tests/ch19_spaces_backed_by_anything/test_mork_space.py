@@ -5,6 +5,9 @@ digest, and MM2 exec all run the ordinary metta surface with MORK as
 the store. Writes queue inside MORK and every read flushes first, so
 read-your-writes holds without an explicit flush. Skips whole when the
 native library is not built.
+Guarantees: generated unique ground graphs preserve projected join bags across
+native and MORK stores [tested: test_generated_joins_preserve_projected_bags;
+commit=6da518669cb9e39557d537857c0aa7190dd2e78f].
 Open Obligations:
   To Do: None
   Hacks: None
@@ -63,7 +66,7 @@ def test_remove_and_atoms_enumeration(mork):  # noqa: D103  -- pytest discovers 
 
 def test_subscriptions_see_mork_writes(mork):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     seen = []
-    sub = mork.subscribe(S.watched(V.x), lambda e: seen.append(e))
+    sub = mork.subscribe(S.watched(V.x), seen.append)
     try:
         mork.add(S.watched(S.one), S.other(S.two))
         assert len(seen) == 1
@@ -105,7 +108,7 @@ def test_mork_answers_the_whole_rule_set(mork):
 
 
 def test_mork_answers_a_whole_conjunction_with_its_own_join(mork, metta):
-    """A conjunction reaches MORK whole, so its worst-case-optimal join answers
+    """A conjunction reaches MORK whole, so its product join answers
     it instead of the engine splitting it one pattern at a time. The oracle is
     a native space holding the same atoms: whatever MORK claims, the engine's
     own split must answer too. A claim is the one place in the seam where a
@@ -256,10 +259,36 @@ def test_mork_bulk_add_refuses_an_unsafe_symbol_before_any_write(metta):  # noqa
 
 try:
     from hypothesis import HealthCheck, given, settings
+    from hypothesis import strategies as st
 except ModuleNotFoundError:
     pass
 else:
     from metta.testing import expressions
+
+    @settings(
+        max_examples=25,
+        suppress_health_check=[HealthCheck.function_scoped_fixture],
+    )
+    @given(st.lists(st.tuples(st.integers(0, 4), st.integers(0, 4)), unique=True, max_size=10))
+    def test_generated_joins_preserve_projected_bags(metta, edges):
+        """Different witnesses may project the same value; retain every occurrence."""
+        space = metta._at("&mork:generated-joins")
+        try:
+            atoms = [S.edge(x, y) for x, y in edges]
+            space.add(*atoms)
+            with metta._new_space() as native:
+                native.add(*atoms)
+                queries = [
+                    (S.edge(V.x, V.y), S.edge(V.y, V.z)),
+                    (S.edge(V.x, V.y), S.edge(V.x, V.y)),
+                    (S.edge(V.x, V.y), S.edge(V.y, V.z), S.edge(V.z, V.x)),
+                ]
+                for query in queries:
+                    actual = sorted(str(row.x) for row in space.match(*query))
+                    expected = sorted(str(row.x) for row in native.match(*query))
+                    assert actual == expected
+        finally:
+            space.drop()
 
     @settings(
         max_examples=25,
