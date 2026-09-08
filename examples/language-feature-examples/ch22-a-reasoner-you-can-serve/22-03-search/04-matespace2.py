@@ -294,7 +294,12 @@ RUNG = (
 #: carries both, so this entry is where the two chains meet [measured
 #: 2026-09-08: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=f1038acdcaf5230b6431c112f38a719d3dc9ef19].
-BUDGET = 39629919
+#: RE-PINNED 2026-09-08, 39631320 to 39629789 (-1531), The typed host door
+#: catalog is published before user code. Its declarations change catalog
+#: lookup indexes; generated public names bind directly to their existing
+#: bodies [measured 2026-09-08: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=b615b5a33b43252ef9826e5387da7c9bd7f6b543].
+BUDGET = 39629789
 
 #: OVERRUN 2026-09-07, 6197400: it names `expand`, `mate` and `rewriteK` as
 #: definitions and asserts the atom count, where the example writes them as

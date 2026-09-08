@@ -239,6 +239,12 @@ RUNG = "the assert family is this file's subject, so each claim names one of its
 #: are read from [measured 2026-09-08: min-of-3 serial fresh processes;
 #: command=python extensions/python/tools/twin_coverage.py --repin;
 #: commit=c26b6a4d28ef8fb50742440feed2c0578ebb0f58].
+#: RE-PINNED 2026-09-08, 17492 to 17529 (+37), The typed host door catalog is
+#: published before user code. Its declarations change catalog lookup indexes;
+#: generated public names bind directly to their existing bodies [measured
+#: 2026-09-08: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=b615b5a33b43252ef9826e5387da7c9bd7f6b543].
+BUDGET = 17529
 
 #: OVERRUN 2026-09-08, 9: the twin names each of the twelve assert-family
 #: members through `m.fn` and compares every answer in Python, where the
@@ -272,7 +278,6 @@ RUNG = "the assert family is this file's subject, so each claim names one of its
 #: carries both, so this entry is where the two chains meet [measured
 #: 2026-09-08: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=f1038acdcaf5230b6431c112f38a719d3dc9ef19].
-BUDGET = 17998
 #: OVERRUN 2026-09-08, 9 to 285 (+276, four of them the deterministic
 #: allowance the point pins carry, because a band met exactly is refused): the module boundary merged with trunk
 #: (refactor/engine-and-libraries-as-modules at b64291369): the twin's host
@@ -283,4 +288,11 @@ BUDGET = 17998
 #: ceiling, so the rest is this twin's own program [measured 2026-09-08: one
 #: fresh process per side; command=python
 #: extensions/python/benchmarks/probes/twin_floor.py; commit=f1038acdcaf5230b6431c112f38a719d3dc9ef19].
-OVERRUN = 285
+#: OVERRUN 2026-09-08, 48: publishing typed host door declarations changes
+#: catalog lookup indexes on both sides. The example costs 13424, the twin
+#: 17529, and the band's ceiling is 17481.4. The difference rounds up to 48;
+#: stored contents remain unchanged [measured: two fresh-process measurements
+#: per side agreed; command=python ai-tmp/ai-door-band-cost.py;
+#: fixture=run_example and run_twin with the full corpus band;
+#: commit=b615b5a33b43252ef9826e5387da7c9bd7f6b543].
+OVERRUN = 48

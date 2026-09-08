@@ -134,12 +134,13 @@ from collections import UserList
 from collections.abc import Callable, Iterable, Iterator, Sequence
 from difflib import get_close_matches
 from functools import lru_cache
-from typing import Any, Final, NamedTuple, Self, SupportsIndex, cast, overload
+from typing import TYPE_CHECKING, Any, Final, NamedTuple, Self, SupportsIndex, cast, overload
 
 from . import seam
 from ._config import config
 from ._optional import require_module
 from .atoms import Atom, Expression, Grounded, Symbol, Undefined, Variable, _decode, _encode
+from .doors import _bind_public
 from .errors import EngineError, Ground, MettaResultError, Remedy, refusing
 
 #: `(Error culprit reason)` is a VALUE in MeTTa rather than a throw, which is
@@ -493,16 +494,6 @@ def _frame_row(field: str, value: str) -> Any:
     return None
 
 
-def _sugar_row(sugar: str) -> Any:
-    """The frame row that asked for this method name, or a refusal.
-
-    A shipped sugar is a row's `sugar` field and not a privilege: withdraw the
-    row and the method says so rather than reaching a library nothing declares.
-    """
-    row = _frame_row("sugar", sugar)
-    if row is None:
-        raise TypeError(seam.frame.refusal(f"{sugar}()"))
-    return row
 
 
 class Rows(UserList[Row]):
@@ -564,13 +555,24 @@ class Rows(UserList[Row]):
         return self.data[i]
 
     def __getattr__(self, name: str) -> Column:  # noqa: D105  -- projection is the documented data-model extension
+        if name.startswith("_"):
+            raise AttributeError(name)
         try:
             return self._column(name)
         except KeyError as exc:
+            from .doors import Owner, sugar  # noqa: PLC0415  -- declared package sugars
+
+            try:
+                return sugar(self, Owner.rows, name)
+            except AttributeError:
+                pass
             raise AttributeError(str(exc), name=name, obj=self) from None
 
     def __dir__(self) -> list[str]:  # noqa: D105  -- the Python data-model hook is defined by its name and enclosing type contract
-        return sorted(set(super().__dir__()) | set(self.columns))
+        from .doors import Owner, table  # noqa: PLC0415  -- current registered sugars
+
+        names = {row.python for row in table().values() if row.owner is Owner.rows and row.sugar_of}
+        return sorted(set(super().__dir__()) | set(self.columns) | names)
 
     def __setitem__(  # noqa: D105  -- the Python data-model hook is defined by its name and enclosing type contract
         self,
@@ -582,17 +584,17 @@ class Rows(UserList[Row]):
         else:
             self.data[i] = self._coerce_row(item)
 
-    def insert(self, i: int, item: Iterable[Any]) -> None:  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
+    def _door_insert(self, i: int, item: Iterable[Any]) -> None:
         self.data.insert(i, self._coerce_row(item))
 
-    def append(self, item: Iterable[Any]) -> None:  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
+    def _door_append(self, item: Iterable[Any]) -> None:
         self.data.append(self._coerce_row(item))
 
-    def extend(self, other: Iterable[Iterable[Any]]) -> None:  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
+    def _door_extend(self, other: Iterable[Iterable[Any]]) -> None:
         checked = [self._coerce_row(row) for row in other]
         self.data.extend(checked)
 
-    def copy(self) -> Rows:  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
+    def _door_copy(self) -> Rows:
         return Rows(self.columns, self.data, _query=self._query)
 
     def __copy__(self) -> Rows:  # noqa: D105  -- the Python data-model hook is defined by its name and enclosing type contract
@@ -645,11 +647,11 @@ class Rows(UserList[Row]):
         index = self.columns.index(name)
         return Column(name, (row[index] for row in self))
 
-    def column(self, name: str) -> Column:
+    def _door_column(self, name: str) -> Column:
         """Project one exact column name."""
         return self._column(name)
 
-    def group_by(self, column: str) -> dict[Atom, Rows]:
+    def _door_group_by(self, column: str) -> dict[Atom, Rows]:
         """Group rows by the atom in one exact column."""
         keys = self.column(column)
         grouped: dict[Atom, Rows] = {}
@@ -659,7 +661,7 @@ class Rows(UserList[Row]):
             ).append(row)
         return grouped
 
-    def first(self, *, default: Any = _MISSING) -> Row | Any:
+    def _door_first(self, *, default: Any = _MISSING) -> Row | Any:
         """Return the first row, or the caller's explicit default."""
         if self:
             return self[0]
@@ -668,7 +670,7 @@ class Rows(UserList[Row]):
         msg = "first() found no rows; pass default= for absence"
         raise EngineError(msg)
 
-    def one(self, *, default: Any = _MISSING) -> Row | Any:
+    def _door_one(self, *, default: Any = _MISSING) -> Row | Any:
         """THE row, when the query is asserted to have exactly one answer;
         none or several raise naming the count, so a lookup that silently
         picked an arbitrary row cannot hide.
@@ -685,7 +687,7 @@ class Rows(UserList[Row]):
             )
         return self[0]
 
-    def raise_for_errors(self) -> Self:
+    def _door_raise_for_errors(self) -> Self:
         """Raise when any cell carries an `(Error ...)` atom; answer self
         otherwise, so the call chains.
 
@@ -712,7 +714,7 @@ class Rows(UserList[Row]):
             msg, errors
         )
 
-    def why(self) -> str:
+    def _door_why(self) -> str:
         """Explain why this eager query returned no rows.
 
         The explanation reads the space's current state. A nonempty result
@@ -748,7 +750,7 @@ class Rows(UserList[Row]):
             context.where,
         )
 
-    def explain(
+    def _door_explain(
         self, *, analyze: bool = False, allow_writes: bool = False
     ) -> Explanation:
         """What the engine did with the query that produced these rows.
@@ -775,12 +777,12 @@ class Rows(UserList[Row]):
         )
 
     @overload
-    def build[BuildT](self, cls: type[BuildT], /) -> list[BuildT]: ...
+    def _door_build[BuildT](self, cls: type[BuildT], /) -> list[BuildT]: ...
 
     @overload
-    def build[BuildT](self, column: str, cls: type[BuildT]) -> list[BuildT]: ...
+    def _door_build[BuildT](self, column: str, cls: type[BuildT]) -> list[BuildT]: ...
 
-    def build(self, column: str | type, cls: type | None = None) -> list:
+    def _door_build(self, column: str | type, cls: type | None = None) -> list:
         """Rebuild constructor atoms through the two-way translator.
 
         ``build(column, cls)`` projects a named column. ``build(cls)`` is the
@@ -805,7 +807,7 @@ class Rows(UserList[Row]):
         convert = _importlib.import_module(f"{__package__}.convert")
         return [convert.build(value, cls) for value in self._column(column)]
 
-    def into(self, cls: type) -> list:
+    def _door_into(self, cls: type) -> list:
         """Each row as one ``cls``, matched by field name.
 
         ``match(..., into=cls)`` is sugar for this and says so: the
@@ -818,7 +820,7 @@ class Rows(UserList[Row]):
         """
         return rows_into(self, cls)
 
-    def to_dicts(self) -> list[dict[str, Any]]:
+    def _door_to_dicts(self) -> list[dict[str, Any]]:
         """Return one Python-native column-to-value mapping per row."""
         return [
             {
@@ -828,7 +830,7 @@ class Rows(UserList[Row]):
             for row in self
         ]
 
-    def table(self) -> dict[str, list[Any]]:
+    def _door_table(self) -> dict[str, list[Any]]:
         """The columns as a dict of plain values, the one shape every
         DataFrame constructor takes: pl.DataFrame(rows.table()),
         pd.DataFrame(rows.table()). Grounded values unwrap to Python;
@@ -877,7 +879,7 @@ class Rows(UserList[Row]):
 
         return stream_capsule(self._projection(), requested_schema)
 
-    def arrow(self) -> ArrowView:
+    def _door_arrow(self) -> ArrowView:
         """These rows wearing nothing but the Arrow protocol.
 
         `Rows` is a sequence, and polars' `DataFrame()` constructor tests for
@@ -890,7 +892,7 @@ class Rows(UserList[Row]):
 
         return ArrowView(self)
 
-    def to(self, library: Any):
+    def _door_to(self, library: Any):
         """These rows as a frame of `library`: the general frame door.
 
             rows.to(polars)          # the module itself, never its name
@@ -922,24 +924,9 @@ class Rows(UserList[Row]):
         view = ArrowView(self) if seam.arrow.claim() is not None else None
         return row.build(self, self._projection(), view)
 
-    def to_df(self):
-        """The rows as a pandas DataFrame, DuckDB's own conversion naming.
 
-        The declared sugar of the `frame` point's pandas row: this is
-        `rows.to(pandas)` under the name that row asked for, and a registered
-        library reaches the same door through `to` without a method here.
-        """
-        return self._frame(_sugar_row("to_df"))
 
-    def to_pl(self):
-        """The rows as a polars DataFrame; the polars twin of to_df().
-
-        The declared sugar of the `frame` point's polars row, and the same
-        door as `rows.to(polars)`.
-        """
-        return self._frame(_sugar_row("to_pl"))
-
-    def pipe(self, fn: Callable[..., Any], *args: Any, **kwargs: Any) -> Any:
+    def _door_pipe(self, fn: Callable[..., Any], *args: Any, **kwargs: Any) -> Any:
         """fn(self, *args, **kwargs), pandas' chaining shape, so a
         pipeline reads left to right instead of inside out:
 
@@ -947,7 +934,7 @@ class Rows(UserList[Row]):
         """  # noqa: D205, D415  -- the API contract is one continuous invariant, not summary-and-body prose; the first line deliberately introduces the indented example that follows
         return fn(self, *args, **kwargs)
 
-    def render(self, source: Any, /, **values: Any) -> str:
+    def _door_render(self, source: Any, /, **values: Any) -> str:
         """These rows through a template, as text: `metta.render` with `rows` bound.
 
             rows.render("| {rows:table}")
@@ -1034,6 +1021,230 @@ class Rows(UserList[Row]):
 
     def __iter__(self) -> Iterator[Row]:  # noqa: D105  -- the Python data-model hook is defined by its name and enclosing type contract
         return iter(self.data)
+
+
+    # begin generated doors: Rows
+    # Generated from metta.doors by tools/doorgen.py.
+    if TYPE_CHECKING:
+        def insert(self, i: int, item: Iterable[Any]) -> None:
+            """Read Rows.insert."""
+            return self._door_insert(i, item)
+
+        def append(self, item: Iterable[Any]) -> None:
+            """Read Rows.append."""
+            return self._door_append(item)
+
+        def extend(self, other: Iterable[Iterable[Any]]) -> None:
+            """Read Rows.extend."""
+            return self._door_extend(other)
+
+        def copy(self) -> Rows:
+            """Read Rows.copy."""
+            return self._door_copy()
+
+        def column(self, name: str) -> Column:
+            """Project one exact column name."""
+            return self._door_column(name)
+
+        def group_by(self, column: str) -> dict[Atom, Rows]:
+            """Group rows by the atom in one exact column."""
+            return self._door_group_by(column)
+
+        def first(self, *, default: Any=_MISSING) -> Row | Any:
+            """Return the first row, or the caller's explicit default."""
+            return self._door_first(default=default)
+
+        def one(self, *, default: Any=_MISSING) -> Row | Any:
+            """THE row, when the query is asserted to have exactly one answer;
+            none or several raise naming the count, so a lookup that silently
+            picked an arbitrary row cannot hide.
+            """  # noqa: D205 -- preserve the declared documentation
+            return self._door_one(default=default)
+
+        def raise_for_errors(self) -> Self:
+            """Raise when any cell carries an `(Error ...)` atom; answer self
+            otherwise, so the call chains.
+
+                m.match(pattern).raise_for_errors()
+
+            Query rows are BINDINGS, not evaluation answers, so a stored
+            error record stays data through every Rows method, one() and
+            first() included; this is the explicit bridge for callers who
+            want the raise_for_status reading. One error raises it plainly,
+            several raise one ExceptionGroup carrying each.
+            """  # noqa: D205 -- preserve the declared documentation
+            return self._door_raise_for_errors()
+
+        def why(self) -> str:
+            """Explain why this eager query returned no rows.
+
+            The explanation reads the space's current state. A nonempty result
+            has nothing to explain, and a manually constructed or transformed
+            Rows has no query to inspect, so both uses fail loudly.
+
+            One of nine observability methods: metta.derivation answers HOW a
+            result was derived, and prepare(...).explain() answers what a
+            query will do before it runs; the guide's observability page maps
+            the family.
+            """
+            return self._door_why()
+
+        def explain(self, *, analyze: bool=False, allow_writes: bool=False) -> Explanation:
+            """What the engine did with the query that produced these rows.
+
+            The same answer `Space.explain` gives, over the match form this result
+            came from: the seam entry, pushdown, source, writes, error mode and the
+            PLAN, `generic-join` with its variable order and columns or
+            `nested-loop` with the conjunct the matcher leads with. Nothing is
+            pulled and nothing is re-matched.
+
+            `analyze=True` RE-RUNS the query inside `stats()` and adds
+            `(inferences N)`, `(answers N)` and `(cputime S)`; it refuses a query
+            whose operations write unless `allow_writes=True`.
+
+            The longhand is `m.explain(form)` on the match form itself, and under
+            that `m.run("!(explain <form>)")`.
+            """
+            return self._door_explain(analyze=analyze, allow_writes=allow_writes)
+
+        @overload
+        def build[BuildT](self, cls: type[BuildT], /) -> list[BuildT]: ...
+        @overload
+        def build[BuildT](self, column: str, cls: type[BuildT]) -> list[BuildT]: ...
+        def build(self, column: str | type, cls: type | None=None) -> list:
+            """Rebuild constructor atoms through the two-way translator.
+
+            ``build(column, cls)`` projects a named column. ``build(cls)`` is the
+            query reconstruction form when exactly one column holds complete
+            constructor expressions.
+            """
+            return cast("Any", self._door_build)(column, cls)
+
+        def into(self, cls: type) -> list:
+            """Each row as one ``cls``, matched by field name.
+
+            ``match(..., into=cls)`` is sugar for this and says so: the
+            conversion was only ever reachable through that keyword, so a
+            prepared query's solve(), or any other Rows, could not ask for it
+            even though rows_into() never cared where the rows came from
+            [measured 2026-08-31]. build(cls) is the neighbouring method and a
+            different question: it rebuilds ONE column of complete constructor
+            expressions, where this maps every column onto a field.
+            """
+            return self._door_into(cls)
+
+        def to_dicts(self) -> list[dict[str, Any]]:
+            """Return one Python-native column-to-value mapping per row."""
+            return self._door_to_dicts()
+
+        def table(self) -> dict[str, list[Any]]:
+            """The columns as a dict of plain values, the one shape every
+            DataFrame constructor takes: pl.DataFrame(rows.table()),
+            pd.DataFrame(rows.table()). Grounded values unwrap to Python;
+            symbols and structure become their text.
+            """  # noqa: D205 -- preserve the declared documentation
+            return self._door_table()
+
+        def arrow(self) -> ArrowView:
+            """These rows wearing nothing but the Arrow protocol.
+
+            `Rows` is a sequence, and polars' `DataFrame()` constructor tests for
+            a sequence before it looks for the capsule, so `pl.DataFrame(rows)`
+            reads the atoms row by row instead. `pl.DataFrame(rows.arrow())` is
+            the stream. Consumers that ask for the protocol first, pyarrow,
+            DuckDB, pandas 3 and `pl.scan_arrow_c_stream`, take `rows` itself.
+            """
+            return self._door_arrow()
+
+        def to(self, library: Any):
+            """These rows as a frame of `library`: the general frame door.
+
+                rows.to(polars)          # the module itself, never its name
+                rows.to("polars")        # the escape, for a library not imported here
+
+            Sugar over `__arrow_c_stream__` where the library reads it, which is
+            typed BY the projection rather than inferred from Python objects, and
+            over the projected columns where it does not; either way the values
+            are the same. The library is the caller's dependency, and its absence
+            raises naming the need. Which libraries are reachable is the `frame`
+            point's rows: a library registers once and every rows object answers
+            it, with no method added here.
+            """
+            return self._door_to(library)
+
+        def pipe(self, fn: Callable[..., Any], *args: Any, **kwargs: Any) -> Any:
+            """fn(self, *args, **kwargs), pandas' chaining shape, so a
+            pipeline reads left to right instead of inside out:
+
+                m.match(pattern).pipe(clean).pipe(score, weight=2)
+            """  # noqa: D415, D205 -- preserve the declared documentation
+            return self._door_pipe(fn, *args, **kwargs)
+
+        def render(self, source: Any, /, **values: Any) -> str:
+            """These rows through a template, as text: `metta.render` with `rows` bound.
+
+                rows.render("| {rows:table}")
+                rows.render(t"{len(rows)} answers")   # 3.14
+
+            The longhand is `metta.render(source, rows=rows)`. The receiver is
+            bound under the name `rows` on both result faces, so one template
+            renders an eager result and a lazy one alike; a template carries its
+            own values, so the binding is what the STRING face resolves `{rows}`
+            against. That binding is always there, so this door always reads its
+            text as fields, where `metta.render("{x}")` with no values leaves the
+            braces alone. Every row is written, where `__rich__` stops at
+            `config.display_rows`: a document is not a terminal.
+            """
+            return self._door_render(source, **values)
+
+        def to_df(self) -> Any:
+            """These rows as a pandas DataFrame; the declared point rows.to('pandas')."""
+            ...
+
+        def to_pl(self) -> Any:
+            """These rows as a polars DataFrame; the declared point rows.to('polars')."""
+            ...
+
+    else:
+        insert = _door_insert
+        _bind_public(insert, 'Rows', 'insert')
+        append = _door_append
+        _bind_public(append, 'Rows', 'append')
+        extend = _door_extend
+        _bind_public(extend, 'Rows', 'extend')
+        copy = _door_copy
+        _bind_public(copy, 'Rows', 'copy')
+        column = _door_column
+        _bind_public(column, 'Rows', 'column')
+        group_by = _door_group_by
+        _bind_public(group_by, 'Rows', 'group_by')
+        first = _door_first
+        _bind_public(first, 'Rows', 'first')
+        one = _door_one
+        _bind_public(one, 'Rows', 'one')
+        raise_for_errors = _door_raise_for_errors
+        _bind_public(raise_for_errors, 'Rows', 'raise_for_errors')
+        why = _door_why
+        _bind_public(why, 'Rows', 'why')
+        explain = _door_explain
+        _bind_public(explain, 'Rows', 'explain')
+        build = _door_build
+        _bind_public(build, 'Rows', 'build')
+        into = _door_into
+        _bind_public(into, 'Rows', 'into')
+        to_dicts = _door_to_dicts
+        _bind_public(to_dicts, 'Rows', 'to_dicts')
+        table = _door_table
+        _bind_public(table, 'Rows', 'table')
+        arrow = _door_arrow
+        _bind_public(arrow, 'Rows', 'arrow')
+        to = _door_to
+        _bind_public(to, 'Rows', 'to')
+        pipe = _door_pipe
+        _bind_public(pipe, 'Rows', 'pipe')
+        render = _door_render
+        _bind_public(render, 'Rows', 'render')
+    # end generated doors: Rows
 
 
 def _into_fields(cls: type) -> dict[str, Any]:
@@ -1199,7 +1410,7 @@ class Answers[T](Sequence[T]):
         self._lock = threading.RLock()
 
     @property
-    def columns(self) -> tuple[str, ...]:
+    def _door_columns(self) -> tuple[str, ...]:
         """Caller-variable names available for projection."""
         return self._columns
 
@@ -1316,7 +1527,7 @@ class Answers[T](Sequence[T]):
                     self._known_length = counted
             return self._known_length
 
-    def index(self, value: T, start: int = 0, stop: int | None = None) -> int:
+    def _door_index(self, value: T, start: int = 0, stop: int | None = None) -> int:
         """Return a row position, with a remedy for column-name collisions."""
         try:
             if stop is None:
@@ -1470,16 +1681,16 @@ class Answers[T](Sequence[T]):
 
         return Answers(values(), space=self._space, target=self._target)
 
-    def column(self, name: str) -> Answers[Any]:
+    def _door_column(self, name: str) -> Answers[Any]:
         """Project one exact caller-variable column."""
         return self._project(name)
 
-    def group_by(self, column: str) -> dict[Atom, Rows]:
+    def _door_group_by(self, column: str) -> dict[Atom, Rows]:
         """Materialize binding rows grouped by one atom-valued column."""
         return self._eager_rows().group_by(column)
 
     @property
-    def rows(self) -> Answers[Row]:
+    def _door_rows(self) -> Answers[Row]:
         """The caller-binding row paired with each evaluation answer."""
 
         def values() -> Iterator[Row]:
@@ -1495,10 +1706,22 @@ class Answers[T](Sequence[T]):
         return Answers(values(), columns=self._columns, space=self._space, target=self._target)
 
     def __getattr__(self, name: str) -> Answers[Any]:  # noqa: D105 -- projection is documented by the type
+        if name.startswith("_"):
+            raise AttributeError(name)
+        if name not in self._columns:
+            from .doors import Owner, sugar  # noqa: PLC0415  -- declared package sugars
+
+            try:
+                return sugar(self, Owner.answers, name)
+            except AttributeError:
+                pass
         return self._project(name)
 
     def __dir__(self) -> list[str]:  # noqa: D105  -- the Python data-model hook is defined by its name and enclosing type contract
-        return sorted(set(super().__dir__()) | set(self._columns))
+        from .doors import Owner, table  # noqa: PLC0415  -- current registered sugars
+
+        names = {row.python for row in table().values() if row.owner is Owner.answers and row.sugar_of}
+        return sorted(set(super().__dir__()) | set(self._columns) | names)
 
     def _answers_are_terms(self) -> bool:
         """Whether these answers are evaluation terms, not caller bindings.
@@ -1532,33 +1755,27 @@ class Answers[T](Sequence[T]):
         rows = cast(Iterable[Iterable[Any]], self)
         return Rows(self._columns, rows, _query=self._query)
 
-    def into(self, cls: type) -> list:
+    def _door_into(self, cls: type) -> list:
         """Materialize, then convert through Rows.into."""
         return self._eager_rows().into(cls)
 
-    def build(self, *args: Any) -> list[Any]:
+    def _door_build(self, *args: Any) -> list[Any]:
         """Materialize, then rebuild one column through Rows.build."""
         return self._eager_rows().build(*args)
 
-    def to_dicts(self) -> list[dict[str, Any]]:
+    def _door_to_dicts(self) -> list[dict[str, Any]]:
         """Materialize as plain column-to-value records."""
         return self._eager_rows().to_dicts()
 
-    def table(self) -> dict[str, list[Any]]:
+    def _door_table(self) -> dict[str, list[Any]]:
         """Materialize as a column mapping."""
         return self._eager_rows().table()
 
-    def to(self, library: Any):
+    def _door_to(self, library: Any):
         """Materialize, then build a frame of `library`: Rows.to."""
         return self._eager_rows().to(library)
 
-    def to_df(self):
-        """Materialize as a pandas DataFrame."""
-        return self._eager_rows().to_df()
 
-    def to_pl(self):
-        """Materialize as a polars DataFrame."""
-        return self._eager_rows().to_pl()
 
     def __arrow_c_schema__(self):
         """Materialize as binding rows and answer their Arrow schema.
@@ -1574,7 +1791,7 @@ class Answers[T](Sequence[T]):
         """Materialize as binding rows and answer their Arrow stream."""
         return self._eager_rows().__arrow_c_stream__(requested_schema)
 
-    def arrow(self) -> ArrowView:
+    def _door_arrow(self) -> ArrowView:
         """These answers wearing nothing but the Arrow protocol."""
         return self._eager_rows().arrow()
 
@@ -1595,20 +1812,20 @@ class Answers[T](Sequence[T]):
                 return self._known_length
         return NotImplemented
 
-    def pipe(self, fn: Callable[..., Any], *args: Any, **kwargs: Any) -> Any:
+    def _door_pipe(self, fn: Callable[..., Any], *args: Any, **kwargs: Any) -> Any:
         """Materialize and pass the eager Rows face to ``fn``."""
         return self._eager_rows().pipe(fn, *args, **kwargs)
 
-    def raise_for_errors(self) -> Self:
+    def _door_raise_for_errors(self) -> Self:
         """Raise stored error cells after materializing the row view."""
         self._eager_rows().raise_for_errors()
         return self
 
-    def why(self) -> str:
+    def _door_why(self) -> str:
         """Explain an empty query after materializing it."""
         return self._eager_rows().why()
 
-    def explain(
+    def _door_explain(
         self, *, analyze: bool = False, allow_writes: bool = False
     ) -> Explanation:
         """What the engine did with the query behind this view, pulling nothing.
@@ -1644,7 +1861,7 @@ class Answers[T](Sequence[T]):
             lines.append("… more answers")
         return "\n".join(lines)
 
-    def render(self, source: Any, /, **values: Any) -> str:
+    def _door_render(self, source: Any, /, **values: Any) -> str:
         """These answers through a template, as text: `Rows.render`'s lazy twin.
 
         The receiver is bound under the same name, `rows`, so a template
@@ -1686,7 +1903,7 @@ class Answers[T](Sequence[T]):
             raise EngineError(msg)
         return _decode(answer) if isinstance(answer, Grounded) else answer
 
-    def one(self, *, default: Any = _MISSING) -> Any:
+    def _door_one(self, *, default: Any = _MISSING) -> Any:
         """Return at most one decoded value, defaulting only on absence."""
         if not self._pull(0):
             if default is not _MISSING:
@@ -1700,7 +1917,7 @@ class Answers[T](Sequence[T]):
             raise EngineError(msg)
         return self._scalar(first)
 
-    def first(self, *, default: Any = _MISSING) -> Any:
+    def _door_first(self, *, default: Any = _MISSING) -> Any:
         """Return the first decoded value, or the caller's explicit default."""
         if not self._pull(0):
             if default is _MISSING:
@@ -1740,7 +1957,7 @@ class Answers[T](Sequence[T]):
         del memo
         return self
 
-    def close(self) -> None:
+    def _door_close(self) -> None:
         """Release the engine cursor this view holds, now rather than later.
 
             with metta.answers(S.fact(V.n)) as rows:
@@ -1802,3 +2019,168 @@ class Answers[T](Sequence[T]):
         close = getattr(source, "close_deferred", None) or getattr(source, "close", None)
         if callable(close):
             close()
+
+
+    # begin generated doors: Answers
+    # Generated from metta.doors by tools/doorgen.py.
+    if TYPE_CHECKING:
+        @property
+        def columns(self) -> tuple[str, ...]:
+            """Caller-variable names available for projection."""
+            return self._door_columns
+
+        def index(self, value: T, start: int=0, stop: int | None=None) -> int:
+            """Return a row position, with a remedy for column-name collisions."""
+            return self._door_index(value, start, stop)
+
+        def column(self, name: str) -> Answers[Any]:
+            """Project one exact caller-variable column."""
+            return self._door_column(name)
+
+        def group_by(self, column: str) -> dict[Atom, Rows]:
+            """Materialize binding rows grouped by one atom-valued column."""
+            return self._door_group_by(column)
+
+        @property
+        def rows(self) -> Answers[Row]:
+            """The caller-binding row paired with each evaluation answer."""
+            return self._door_rows
+
+        def into(self, cls: type) -> list:
+            """Materialize, then convert through Rows.into."""
+            return self._door_into(cls)
+
+        def build(self, *args: Any) -> list[Any]:
+            """Materialize, then rebuild one column through Rows.build."""
+            return self._door_build(*args)
+
+        def to_dicts(self) -> list[dict[str, Any]]:
+            """Materialize as plain column-to-value records."""
+            return self._door_to_dicts()
+
+        def table(self) -> dict[str, list[Any]]:
+            """Materialize as a column mapping."""
+            return self._door_table()
+
+        def to(self, library: Any):
+            """Materialize, then build a frame of `library`: Rows.to."""
+            return self._door_to(library)
+
+        def arrow(self) -> ArrowView:
+            """These answers wearing nothing but the Arrow protocol."""
+            return self._door_arrow()
+
+        def pipe(self, fn: Callable[..., Any], *args: Any, **kwargs: Any) -> Any:
+            """Materialize and pass the eager Rows face to ``fn``."""
+            return self._door_pipe(fn, *args, **kwargs)
+
+        def raise_for_errors(self) -> Self:
+            """Raise stored error cells after materializing the row view."""
+            return self._door_raise_for_errors()
+
+        def why(self) -> str:
+            """Explain an empty query after materializing it."""
+            return self._door_why()
+
+        def explain(self, *, analyze: bool=False, allow_writes: bool=False) -> Explanation:
+            """What the engine did with the query behind this view, pulling nothing.
+
+            `why()` materializes because an empty answer set is what it explains;
+            this one reads the query the view holds, so a lazy stream stays exactly
+            where it was and an infinite one is explainable at all. Otherwise it is
+            `Rows.explain` and answers the same `Explanation`.
+            """
+            return self._door_explain(analyze=analyze, allow_writes=allow_writes)
+
+        def render(self, source: Any, /, **values: Any) -> str:
+            """These answers through a template, as text: `Rows.render`'s lazy twin.
+
+            The receiver is bound under the same name, `rows`, so a template
+            written for one face renders the other unchanged. Rendering reads the
+            answers, so an unbounded view is bounded first, the way `to_dicts`
+            and `table` are.
+            """
+            return self._door_render(source, **values)
+
+        def one(self, *, default: Any=_MISSING) -> Any:
+            """Return at most one decoded value, defaulting only on absence."""
+            return self._door_one(default=default)
+
+        def first(self, *, default: Any=_MISSING) -> Any:
+            """Return the first decoded value, or the caller's explicit default."""
+            return self._door_first(default=default)
+
+        def close(self) -> None:
+            """Release the engine cursor this view holds, now rather than later.
+
+                with metta.answers(S.fact(V.n)) as rows:
+                    for row in rows:
+                        if enough(row):
+                            break
+
+            A lazy view owns a cursor and the engine behind it, and a view that is
+            abandoned part-way holds both until the collector runs. `Space` has
+            owned a resource and said so from the start, with `drop()` and the
+            `with` form; this is the same vocabulary for the other type that owns
+            one, which had only a finalizer.
+
+            The finalizer stays as the backstop, and being only a backstop is the
+            point: a `__del__` runs during interpreter shutdown with module globals
+            already cleared, which is how an abandoned cursor printed
+            "Exception ignored ... catching classes that do not inherit from
+            BaseException" out of a torn-down module [measured 2026-08-31].
+
+            Closing twice is a no-op, as it is for `drop()`. Answers already pulled
+            stay readable, because they are cached values rather than engine state;
+            only what has NOT been pulled is given up.
+            """
+            return self._door_close()
+
+        def to_df(self) -> Any:
+            """These rows as a pandas DataFrame; the declared point rows.to('pandas')."""
+            ...
+
+        def to_pl(self) -> Any:
+            """These rows as a polars DataFrame; the declared point rows.to('polars')."""
+            ...
+
+    else:
+        columns = _door_columns
+        _bind_public(columns, 'Answers', 'columns')
+        index = _door_index
+        _bind_public(index, 'Answers', 'index')
+        column = _door_column
+        _bind_public(column, 'Answers', 'column')
+        group_by = _door_group_by
+        _bind_public(group_by, 'Answers', 'group_by')
+        rows = _door_rows
+        _bind_public(rows, 'Answers', 'rows')
+        into = _door_into
+        _bind_public(into, 'Answers', 'into')
+        build = _door_build
+        _bind_public(build, 'Answers', 'build')
+        to_dicts = _door_to_dicts
+        _bind_public(to_dicts, 'Answers', 'to_dicts')
+        table = _door_table
+        _bind_public(table, 'Answers', 'table')
+        to = _door_to
+        _bind_public(to, 'Answers', 'to')
+        arrow = _door_arrow
+        _bind_public(arrow, 'Answers', 'arrow')
+        pipe = _door_pipe
+        _bind_public(pipe, 'Answers', 'pipe')
+        raise_for_errors = _door_raise_for_errors
+        _bind_public(raise_for_errors, 'Answers', 'raise_for_errors')
+        why = _door_why
+        _bind_public(why, 'Answers', 'why')
+        explain = _door_explain
+        _bind_public(explain, 'Answers', 'explain')
+        render = _door_render
+        _bind_public(render, 'Answers', 'render')
+        one = _door_one
+        _bind_public(one, 'Answers', 'one')
+        first = _door_first
+        _bind_public(first, 'Answers', 'first')
+        close = _door_close
+        _bind_public(close, 'Answers', 'close')
+    # end generated doors: Answers

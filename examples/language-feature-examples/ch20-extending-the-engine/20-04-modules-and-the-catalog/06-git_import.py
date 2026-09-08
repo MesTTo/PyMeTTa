@@ -222,4 +222,12 @@ def twin(m):
 #: carries both, so this entry is where the two chains meet [measured
 #: 2026-09-08: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=f1038acdcaf5230b6431c112f38a719d3dc9ef19].
-BUDGET = 38559
+#: RE-PINNED 2026-09-08, 38583 to 37099 (-1484), The typed host door catalog is
+#: published before user code. Its declarations change catalog lookup indexes;
+#: generated public names bind directly to their existing bodies [measured
+#: extensions/python/tools/twin_coverage.py --repin; commit=b615b5a33b43252ef9826e5387da7c9bd7f6b543].
+#: RE-PINNED 2026-09-08, 37099 to 38583 (+1484), The published host catalog
+#: changes name lookup while the git fixture registers its Prolog entry and
+#: imports the cloned library [measured 2026-09-08: min-of-3 serial fresh
+#: commit=b615b5a33b43252ef9826e5387da7c9bd7f6b543].
+BUDGET = 38583

@@ -433,7 +433,11 @@ def twin(m):
 #: carries both, so this entry is where the two chains meet [measured
 #: 2026-09-08: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=f1038acdcaf5230b6431c112f38a719d3dc9ef19].
-BUDGET = 81272
+#: RE-PINNED 2026-09-08, 80975 to 81028 (+53), The typed host door catalog is
+#: published before user code. Its declarations change catalog lookup indexes;
+#: generated public names bind directly to their existing bodies [measured
+#: extensions/python/tools/twin_coverage.py --repin; commit=b615b5a33b43252ef9826e5387da7c9bd7f6b543].
+BUDGET = 81028
 
 #: DIVERGED 2026-09-07, the example holds 12 atoms the twin does not (12 =) and
 #: the twin holds 36 the example does not (1 :, 16 =, 19 @doc): the twin is an

@@ -26,6 +26,10 @@ Guarantees:
       language names shadow Python builtins [tested:
       test_the_ruff_configuration_enables_every_family_or_records_why_not;
       commit=0d37dd6b24fe916e44cdbfb4efc6a1d5ffaf74aa]
+    - generated door declarations preserve public names and documentation,
+      with every additional suppression counted and reviewed [tested:
+      test_the_ruff_configuration_enables_every_family_or_records_why_not;
+      commit=b615b5a33b43252ef9826e5387da7c9bd7f6b543]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -135,7 +139,9 @@ RUFF_FAMILY_BURN_DOWN = {
     # same selecting. The one site suppresses only A002 with that reason.
     # [tested: test_the_ruff_configuration_enables_every_family_or_records_why_not;
     # commit=0fb68d75871c57f2421c335e9faef3561f8dfdd5]
-    "A": 28,
+    # 28 -> 35 for row projections: public eval/type bindings, eval overloads,
+    # and the repeated filter, format and type parameters keep their names.
+    "A": 35,
     # 2112 -> 2114 at the p12-space-model merge: its two new test modules
     # carry the repository's obligation-header docstring convention, whose
     # Purpose/Guarantees block is a deliberate per-line D205 suppression.
@@ -304,7 +310,10 @@ RUFF_FAMILY_BURN_DOWN = {
     # D205 forms were reflowed into a summary line and a body instead.
     # +1 for metta/typing.py, whose module contract is one continuous
     # invariant in the convention every other module header uses.
-    "D": 2247,
+    # 2247 -> 2277 for verbatim contract projections into Space, remote and
+    # result declarations and namespace protocols. The differential has 43
+    # copied documentation findings and removes 13 superseded suppressions.
+    "D": 2277,
     # 145, from 139 before the idiomatic twin corpus. Every one of the six new
     # sites is a `twin(m)` whose example needs no engine, because the form it
     # demonstrates is native Python (destructuring, `len`, `max`), or a
@@ -323,8 +332,12 @@ RUFF_FAMILY_BURN_DOWN = {
     # provider double in test_features.py gained a `remove` that answers False
     # without reading its atom, because the scope test drives every write door
     # through the provider and the protocol names the parameter.
-    "ARG": 152,
-    "PERF": 0,
+    # 152 -> 154: RemoteCursor's private __exit__ body keeps the public
+    # exception triple; Ruff no longer recognizes that private name as a hook.
+    "ARG": 154,
+    # The evaluation batch retains each acquired cursor before acquiring the
+    # next one, so a failed acquisition can release the complete prefix.
+    "PERF": 1,
     # 24 -> 25 at the twins-wave merge: functions/specialize.py mirrors an
     # example that defines thirteen functions in a source order its
     # interleaved claims depend on, so the twin is one function by fidelity
@@ -336,7 +349,9 @@ RUFF_FAMILY_BURN_DOWN = {
     # 23 -> 24 with the bare-reraise scenario, whose useless-looking
     # try/except IS the construct under test.
     # 24 -> 25 on 2026-09-04, the one TRY site in the newly scanned tools/.
-    "TRY": 25,
+    # 25 -> 26: _Selection signals normal exhaustion inside the same cleanup
+    # boundary as producer errors, so both release its owned source.
+    "TRY": 26,
     # 0 -> 3 with the compiled raise scenarios: the raised literals are the
     # constructs under test, not messages to extract.
     "EM": 3,

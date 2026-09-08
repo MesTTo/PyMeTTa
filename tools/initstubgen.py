@@ -53,7 +53,7 @@ WIDTH = 100
 
 sys.path.insert(0, str(TOOLS))
 from reference import spaced_default, split_top_level  # noqa: E402
-from vocabgen import catalog, member_name  # noqa: E402
+from vocabgen import member_name  # noqa: E402
 
 # Every name in the stub is COPIED from metta/__init__.py, so a lint about a
 # name's choice cannot be actioned here: flake8-builtins fires on the shadowing
@@ -474,7 +474,12 @@ def main(argv: list[str]) -> int:
     parser.add_argument("--write", action="store_true", help="rewrite generated files")
     arguments = parser.parse_args(argv)
 
-    carriers = _carrier_names(catalog().vocabularies)
+    sys.path.insert(0, str(ROOT / "extensions/python"))
+    from metta.vocabularies import (  # noqa: PLC0415 -- import the catalog after preparing the seat path
+        Semiring,
+    )
+
+    carriers = _carrier_names([("semiring", [str(value) for value in Semiring])])
     source = SOURCE.read_text(encoding="utf-8")
     wanted = {
         STUB: stub_text(source, carriers),

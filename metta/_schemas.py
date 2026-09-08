@@ -302,55 +302,59 @@ def _components(*, secured: bool) -> dict[str, Any]:
 #: `operationId` IS the door's name, so a reader who has the Python surface and
 #: a reader who has the document are naming the same thing.
 # closed-set: decides; policy=which operations the remote protocol publishes, and what each answers; reads=none, it is the source the OpenAPI document and the client both read
+# begin generated remote operations
+# closed-set: generated; by=extensions/python/tools/doorgen.py; lane=door-sync
 _OPERATIONS: Final[tuple[tuple[str, str, str, str], ...]] = (
     (
-        "match",
-        "MatchRequest",
-        "Atoms",
-        "Every candidate for a pattern in one reply; the eager door, which "
-        "computes the whole answer set before anything crosses.",
+        'match',
+        'MatchRequest',
+        'Atoms',
+        'Every candidate for a pattern in one reply; the eager door, which computes the whole answer set before anything crosses.',
     ),
     (
-        "ask",
-        "AskRequest",
-        "Answer",
-        "Open an answer stream and take its first chunk. The reply's cursor is "
-        "the continuation and doubles as the more-flag.",
+        'ask',
+        'AskRequest',
+        'Answer',
+        "Open an answer stream and take its first chunk. The reply's cursor is the continuation and doubles as the more-flag.",
     ),
     (
-        "next",
-        "NextRequest",
-        "Answer",
-        "The next chunk of an open stream. A short chunk ends it.",
+        'atoms',
+        'SpaceRequest',
+        'Atoms',
+        'Every atom the named space holds, duplicates included.',
     ),
     (
-        "stop",
-        "StopRequest",
-        "Stopped",
-        "Release a stream early, and say whether there was one to release.",
+        'add',
+        'AddRequest',
+        'Added',
+        'Store one atom in the named space.',
     ),
     (
-        "atoms",
-        "SpaceRequest",
-        "Atoms",
-        "Every atom the named space holds, duplicates included.",
-    ),
-    ("add", "AddRequest", "Added", "Store one atom in the named space."),
-    (
-        "add_many",
-        "AddManyRequest",
-        "AddedCount",
-        "Store a batch in one request. A batch is a transport optimisation and "
-        "never a semantic one.",
+        'add_many',
+        'AddManyRequest',
+        'AddedCount',
+        'Store a batch in one request. A batch is a transport optimisation and never a semantic one.',
     ),
     (
-        "remove",
-        "RemoveRequest",
-        "Removed",
-        "Remove ONE stored atom unifying with this one. Two copies need two "
-        "removals.",
+        'remove',
+        'RemoveRequest',
+        'Removed',
+        'Remove ONE stored atom unifying with this one. Two copies need two removals.',
+    ),
+    (
+        'next',
+        'NextRequest',
+        'Answer',
+        'The next chunk of an open stream. A short chunk ends it.',
+    ),
+    (
+        'stop',
+        'StopRequest',
+        'Stopped',
+        'Release a stream early, and say whether there was one to release.',
     ),
 )
+# end generated remote operations
 
 
 def _json_body(schema: str) -> dict[str, Any]:

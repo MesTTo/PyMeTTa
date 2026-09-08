@@ -250,6 +250,40 @@ def twin(m):
 #: --observe --rounds 10 and --rounds 15,
 #: ai-tmp/integrator-849a9e/merged68-observe-10.log and
 #: merged68-observe-15.log; commit=f1038acdcaf5230b6431c112f38a719d3dc9ef19].
+#: RE-OBSERVED 2026-09-08 under 'full-lane/277/workers=32' and POOLED: the gate on the face-generator
+#: merge read 427680 against 427685..427713, a scheduler extreme the 25
+#: observations had not reached, so ten more full-lane rounds plus that reading join
+#: them: 36 observations read 427680..427713. Nothing in that merge runs on this twin's
+#: path; the envelope widens with its evidence, as an extremal envelope does. A run
+#: outside it is a re-observation, not a re-pin [measured 2026-09-08: python
+#: extensions/python/tools/twin_coverage.py --observe --rounds 10,
+#: ai-tmp/integrator-849a9e/mergeFACE-observe-10.log; commit=4a6029296381da416c61a3b25d1609c72a3e062a].
+#: RE-OBSERVED 2026-09-08 under 'full-lane/277/workers=32' and POOLED again: twenty-five full-lane rounds
+#: on the extension-package merge read 427675..427713, one scheduler extreme under the
+#: 36 observations' floor, so they join them: 61 observations read 427675..427713. The
+#: merge changes the Python seat's dispatch (a point's rows partitioned by fallback
+#: rank) and nothing this twin spins on; the envelope widens with its evidence. A run
+#: outside it is a re-observation, not a re-pin [measured 2026-09-08: python
+#: extensions/python/tools/twin_coverage.py --observe --rounds 25,
+#: ai-tmp/integrator-849a9e/mergeEXT-observe-25.log; commit=4e0feaf6b8eb13cd17232f6e7d58679b6e22f2b9].
+#: RE-OBSERVED 2026-09-08 under 'full-lane/277/workers=32', 427675..427713
+#: over 61 observations to 427703..427730 over 15: boot content moved
+#: with the every-closed-set-derived branch -- the refusal table and the typing
+#: point are modules this package did not have, three convert doors became one,
+#: per-library faces are projections, and the engine gained a catalog watch
+#: point -- which shifts SWI clause-indexing shape and moves a twin count by
+#: tens. The observations are this tree's own rather than pooled with the
+#: earlier ones, because pooling would mix two boot images and the spread an
+#: envelope states is a claim about ONE [measured 2026-09-08: python
+#: extensions/python/tools/twin_coverage.py --observe --rounds 15,
+#: ai-tmp/ai-derive-observe.log; commit=c26b6a4d28ef8fb50742440feed2c0578ebb0f58].
+#: RE-OBSERVED 2026-09-08 after typed host doors joined the boot catalog.
+#: Ten complete rounds observed 432905..432930. Catalog lookup and context
+#: setup now see the declared doors; the rendezvous retains its scheduling
+#: spread. These observations replace the earlier catalog's envelope
+#: [measured: exact extrema over 10 successful observations; command=python
+#: extensions/python/tools/twin_coverage.py --observe --rounds 10;
+#: fixture=full-lane/277/workers=32; commit=b615b5a33b43252ef9826e5387da7c9bd7f6b543].
 BUDGET = {
     "minimum": 462787,
     "maximum": 462825,
@@ -274,7 +308,20 @@ BUDGET = {
 #: 263309, within that ceiling, so the rest is this twin's own program
 #: [measured 2026-09-08: one fresh process per side; command=python
 #: extensions/python/benchmarks/probes/twin_floor.py; commit=f1038acdcaf5230b6431c112f38a719d3dc9ef19].
-OVERRUN = 199526
+#: OVERRUN 2026-09-08, 186171: the published host catalog changes lookup and
+#: context setup costs on both sides. The example costs 221859, giving the
+#: band a ceiling of 246759.9. The current envelope's maximum is 432930, so
+#: its difference rounds up to 186171 [measured: the full-lane maximum above
+#: and a fresh-process example; command=python ai-tmp/ai-door-band-cost.py
+#: ch17-concurrency-and-the-loop/02-thread_linda.metta; commit=b615b5a33b43252ef9826e5387da7c9bd7f6b543].
+#: OVERRUN 2026-09-08, 186191: the example also has a scheduling spread.
+#: Ten fresh example runs read 221840..221859, so its observed floor gives
+#: a ceiling of 246739. Against the twin envelope's maximum 432930 the
+#: required difference is 186191 [measured: ten fresh
+#: example processes and the twin's full-lane envelope above;
+#: command=python ai-tmp/ai-door-example-extrema.py;
+#: fixture=example extrema 221840..221859; commit=b615b5a33b43252ef9826e5387da7c9bd7f6b543].
+OVERRUN = 186191
 
 #: DIVERGED 2026-09-07, the example holds 0 atoms the twin does not (none) and
 #: the twin holds 1 atom the example does not (1 :): a Python annotation IS a (:

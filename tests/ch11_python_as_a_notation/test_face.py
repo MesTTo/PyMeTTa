@@ -22,7 +22,7 @@ Guarantees:
     test_two_names_reaching_one_head_refuse; commit=7229962705d199fb08796b3090ec5a8a3a0ae393]
   - the sync tool reports a planted signature change and skips a module that
     is not installed [tested: test_a_planted_signature_change_is_reported,
-    test_a_face_whose_module_is_absent_is_reported_and_skipped; commit=7229962705d199fb08796b3090ec5a8a3a0ae393]
+    test_a_face_whose_module_is_absent_is_reported_and_skipped; commit=b615b5a33b43252ef9826e5387da7c9bd7f6b543]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -423,10 +423,11 @@ def test_a_planted_signature_change_is_reported(tmp_path, monkeypatch):
     assert facegen.review([face], rewrite=False) == ([], [])
 
 
-def test_a_face_whose_module_is_absent_is_reported_and_skipped(tmp_path):
+def test_a_face_whose_module_is_absent_is_reported_and_skipped(tmp_path, monkeypatch):
     """A library this box has not got is named as unchecked, not as drift."""
     facegen = _load_facegen()
     face = tmp_path / "lib_absent.metta"
+    monkeypatch.setattr(facegen, "_REPO", tmp_path)
     face.write_text(
         ";Purpose: a face over a module nobody has\n"
         ";Import: from a_library_nobody_has import anything\n",
@@ -443,10 +444,11 @@ def test_a_face_whose_module_is_absent_is_reported_and_skipped(tmp_path):
     ]
 
 
-def test_a_version_bump_alone_is_a_note_rather_than_drift(tmp_path):
+def test_a_version_bump_alone_is_a_note_rather_than_drift(tmp_path, monkeypatch):
     """The header pins the version it was READ from, so a bump is not drift."""
     facegen = _load_facegen()
     face = tmp_path / "lib_pinned.metta"
+    monkeypatch.setattr(facegen, "_REPO", tmp_path)
     face.write_text(
         _face(["area"]).replace(
             f";Read from: tests.fixtures.face_source {_VERSION}",

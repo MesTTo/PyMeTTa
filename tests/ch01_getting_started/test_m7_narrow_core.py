@@ -7,7 +7,7 @@ Guarantees:
     module and no alias is left behind [tested: test_m7_narrow_core_surface;
     commit=94057a0f073c0fab0a35c42beff2c324d8a0addd]
   - the published before/after counts are exact for ``MeTTa`` and ``metta``
-    [tested: test_m7_narrow_core_surface; commit=2e627a593413191cda3170f2eb716835f7f62543]
+    [tested: test_m7_narrow_core_surface; commit=b615b5a33b43252ef9826e5387da7c9bd7f6b543]
   - every retired root, context, and atom name is absent rather than aliased
     [tested: test_m7_narrow_core_surface; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - all fifteen ``declare_*`` spellings are absent from both synchronous and
@@ -409,63 +409,22 @@ def _workspace_members() -> list[str]:
 
 
 def _context_doors() -> set[str]:
-    """What the context tier IS: the generated doors plus the hand-written ones.
+    """Every direct context door and every Space door projected to that tier."""
+    from metta.doors import DOORS, Owner, Tier
 
-    A pinned integer here was edited by four branches for four reasons and said
-    nothing this relation does not. `MODULE_DOORS` is the roster the generator
-    renders onto MeTTa, and a method MeTTa writes for itself sits outside the
-    generated region and is read from the source, so the answer moves with the
-    generator rather than with whoever remembers to change a number.
-    """
-    import ast
-    import sys
-    from pathlib import Path
-
-    import metta._space
-
-    tools = Path(__file__).resolve().parents[2] / "tools"
-    if str(tools) not in sys.path:
-        sys.path.insert(0, str(tools))
-    from aio_divergences import MODULE_DOORS
-    from aiogen import METTA_END, METTA_START
-
-    source = Path(metta._space.__file__).read_text(encoding="utf-8").splitlines()
-    first, last = source.index(METTA_START), source.index(METTA_END)
-    tree = ast.parse("\n".join(source))
-    context = next(
-        node
-        for node in ast.walk(tree)
-        if isinstance(node, ast.ClassDef) and node.name == "MeTTa"
-    )
-    handwritten = {
-        node.name
-        for node in context.body
-        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
-        and not node.name.startswith("_")
-        and not (first < node.lineno <= last)
-    } | {
-        node.target.id if isinstance(node, ast.AnnAssign) else node.targets[0].id
-        for node in context.body
-        if isinstance(node, ast.AnnAssign)
-        and isinstance(node.target, ast.Name)
-        and not node.target.id.startswith("_")
+    return {
+        row.alias or row.python for row in DOORS
+        if not row.python.startswith("_")
+        and (row.owner is Owner.context
+             or (row.owner is Owner.space and Tier.context in row.tiers))
     }
-    properties = {
-        node.name
-        for node in context.body
-        if isinstance(node, ast.FunctionDef)
-        and any("property" in ast.unparse(one) for one in node.decorator_list)
-        and not node.name.startswith("_")
-    }
-    return {name for name, _ in MODULE_DOORS} | handwritten | properties
 
 
 def test_m7_narrow_core_surface():
     """Publish the M7 metric and prove every superseded name is gone."""
     from metta.aio import AsyncMeTTa
 
-    # The context surface as a RELATION: exactly the doors the generator
-    # renders onto MeTTa plus the ones MeTTa writes for itself, and narrower
+    # The context surface is exactly its declared rows and remains narrower
     # than the surface M7 replaced.
     doors = _context_doors()
     assert _public_names(MeTTa) == doors

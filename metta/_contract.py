@@ -17,6 +17,10 @@ Assumes:
     engine boot guarantees by installing the prelude operations first
     [tested test_the_ontology_is_loaded_at_boot]
 Guarantees:
+  - host door contracts and their typed constructors are present at boot;
+    publication refuses invalid rows atomically [tested:
+    test_boot_publishes_complete_typed_door_rows,
+    test_door_catalog_publication_is_atomic_and_idempotent; commit=b615b5a33b43252ef9826e5387da7c9bd7f6b543]
   - install is idempotent per engine process: the ontology enters once
     [tested test_the_ontology_loads_once]
   - registered synchronous and coroutine operation kinds inhabit OpKind and
@@ -201,7 +205,10 @@ def install(runtime) -> None:
     unregister. The registry stays engine-free; this listener is the whole
     coupling, and it hears the past (the snapshot) before the future.
     """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+    from .doors import publish as _publish_doors  # noqa: PLC0415  -- host contracts at boot
+
     if runtime.do("metta_py_contains", _SPACE, _SENTINEL.to_wire()):
+        _publish_doors(runtime)
         return
     for head, subject, obj in ONTOLOGY:
         atom = Expression([Symbol(head), Symbol(subject), obj if isinstance(obj, Expression) else Symbol(obj)])
@@ -219,3 +226,5 @@ def install(runtime) -> None:
 
     for _cls, registration in subscribe_registrations(listener):
         _reflect_image(runtime, None, registration)
+
+    _publish_doors(runtime)

@@ -197,6 +197,21 @@ def twin(m):
 #: --observe --rounds 10 and --rounds 15,
 #: ai-tmp/integrator-849a9e/merged68-observe-10.log and
 #: merged68-observe-15.log; commit=f1038acdcaf5230b6431c112f38a719d3dc9ef19].
+#: RE-OBSERVED 2026-09-08 under 'full-lane/277/workers=32' and POOLED: the gate on the face-generator
+#: merge read 15899 against 15888..15897, a scheduler extreme the 25
+#: observations had not reached, so ten more full-lane rounds plus that reading join
+#: them: 36 observations read 15888..15903. Nothing in that merge runs on this twin's
+#: path; the envelope widens with its evidence, as an extremal envelope does. A run
+#: outside it is a re-observation, not a re-pin [measured 2026-09-08: python
+#: extensions/python/tools/twin_coverage.py --observe --rounds 10,
+#: ai-tmp/integrator-849a9e/mergeFACE-observe-10.log; commit=4a6029296381da416c61a3b25d1609c72a3e062a].
+#: RE-OBSERVED 2026-09-08 after typed host doors joined the boot catalog.
+#: Ten observation rounds read 15888..15898; the subsequent complete gate
+#: read 15886. These eleven observations replace the earlier boot state's
+#: envelope and retain the mutex's scheduling spread [measured: exact extrema
+#: over 11 full-lane observations; command=python
+#: extensions/python/tools/twin_coverage.py --observe --rounds 10 and
+#: sh check.sh twins; fixture=full-lane/277/workers=32; commit=b615b5a33b43252ef9826e5387da7c9bd7f6b543].
 BUDGET = {
     "minimum": 16096,
     "maximum": 16107,

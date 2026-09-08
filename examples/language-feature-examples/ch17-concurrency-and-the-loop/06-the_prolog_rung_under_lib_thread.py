@@ -140,7 +140,11 @@ def twin(m):
 #: carries both, so this entry is where the two chains meet [measured
 #: 2026-09-08: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=f1038acdcaf5230b6431c112f38a719d3dc9ef19].
-BUDGET = 276317
+#: RE-PINNED 2026-09-08, 257600 to 260711 (+3111), The typed host door catalog
+#: is published before user code. Its declarations change catalog lookup
+#: indexes; generated public names bind directly to their existing bodies
+#: extensions/python/tools/twin_coverage.py --repin; commit=b615b5a33b43252ef9826e5387da7c9bd7f6b543].
+BUDGET = 260711
 #: The count VARIES, because this twin starts threads, pools and timers and
 #: the engine charges what the scheduler actually ran. Three single-round
 #: measurements on this branch gave 257426, 257768 and 257409, a spread of

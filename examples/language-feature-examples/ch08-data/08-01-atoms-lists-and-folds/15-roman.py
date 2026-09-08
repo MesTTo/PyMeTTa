@@ -286,7 +286,11 @@ def twin(m):
 #: carries both, so this entry is where the two chains meet [measured
 #: 2026-09-08: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=f1038acdcaf5230b6431c112f38a719d3dc9ef19].
-BUDGET = 320353
+#: RE-PINNED 2026-09-08, 318650 to 318685 (+35), The typed host door catalog is
+#: published before user code. Its declarations change catalog lookup indexes;
+#: generated public names bind directly to their existing bodies [measured
+#: extensions/python/tools/twin_coverage.py --repin; commit=b615b5a33b43252ef9826e5387da7c9bd7f6b543].
+BUDGET = 318685
 
 #: OVERRUN 2026-09-07, 17700: it names every lib_roman function at every claim
 #: and runs the backwards `let` inverses beside them. Measured 320547 against a
@@ -326,7 +330,14 @@ BUDGET = 320353
 #: 302152, above that ceiling, so no twin of it fits the band at all, as
 #: before [measured 2026-09-08: one fresh process per side; command=python
 #: extensions/python/benchmarks/probes/twin_floor.py; commit=f1038acdcaf5230b6431c112f38a719d3dc9ef19].
-OVERRUN = 18202
+#: OVERRUN 2026-09-08, 17835: publishing typed host door declarations changes
+#: catalog lookup indexes on both sides. The example costs 271032, the twin
+#: 318685, and the band's ceiling is 300850.2. The difference rounds up to
+#: 17835; stored contents remain unchanged [measured: two fresh-process
+#: measurements per side agreed; command=python ai-tmp/ai-door-band-cost.py;
+#: fixture=run_example and run_twin with the full corpus band;
+#: commit=b615b5a33b43252ef9826e5387da7c9bd7f6b543].
+OVERRUN = 17835
 
 #: DIVERGED 2026-09-07, the example holds 9 atoms the twin does not (9 =) and
 #: the twin holds 9 the example does not (9 =): the twin is an ordinary Python

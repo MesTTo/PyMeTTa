@@ -122,7 +122,7 @@ from dataclasses import dataclass
 from http.client import HTTPException
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from itertools import islice
-from typing import Any, NamedTuple, Self
+from typing import TYPE_CHECKING, Any, NamedTuple, Self
 from urllib.parse import urlsplit
 
 from . import _arrow, _json, _projection, _schemas
@@ -134,6 +134,7 @@ from ._network import HTTPEndpoint, validated_timeout
 from ._space import Space as MeTTa
 from ._space_objects import Cursor
 from .atoms import Atom, Expression, Symbol, Variable, parse, substitute, unify
+from .doors import _bind_public
 from .errors import Interrupted, MettaError, TransportFailure
 from .foreign import SpaceProvider
 
@@ -620,7 +621,7 @@ class RemoteCursor:
         self._token = reply["cursor"]
         self._buffer.extend(reply.atoms)
 
-    def __next__(self) -> Atom:  # noqa: D105  -- the Python data-model hook is defined by its name and enclosing type contract
+    def _door___next__(self) -> Atom:
         if self._arrow:
             msg = (
                 "this cursor answers Arrow record batches, so it has no atoms "
@@ -630,7 +631,7 @@ class RemoteCursor:
             raise MettaError(msg)
         return self._next_atom()
 
-    def to_arrow(self) -> Any:
+    def _door_to_arrow(self) -> Any:
         """The whole remaining stream as one pyarrow Table.
 
             with space.stream(pattern, arrow=True) as answers:
@@ -662,7 +663,7 @@ class RemoteCursor:
             )
         return _arrow.ipc_concat([_arrow.read_ipc(chunk) for chunk in self._streams])
 
-    def __arrow_c_stream__(self, requested_schema: Any = None) -> Any:
+    def _door___arrow_c_stream__(self, requested_schema: Any = None) -> Any:
         """The drained stream as the Arrow PyCapsule Interface's own object.
 
         Sugar over `to_arrow()`, so a consumer that dispatches on the protocol
@@ -671,7 +672,7 @@ class RemoteCursor:
         """
         return self.to_arrow().__arrow_c_stream__(requested_schema)
 
-    def __iter__(self) -> Iterator[Atom]:  # noqa: D105  -- the Python data-model hook is defined by its name and enclosing type contract
+    def _door___iter__(self) -> Iterator[Atom]:
         return self
 
     def _next_atom(self) -> Atom:
@@ -687,7 +688,7 @@ class RemoteCursor:
             )
         return self._buffer.popleft()
 
-    def close(self) -> None:
+    def _door_close(self) -> None:
         """Release the server's cursor; idempotent, and distinct from
         exhaustion, which released it already.
 
@@ -706,10 +707,10 @@ class RemoteCursor:
         self._closed = True
         self._buffer.clear()
 
-    def __enter__(self) -> Self:  # noqa: D105  -- the Python data-model hook is defined by its name and enclosing type contract
+    def _door___enter__(self) -> Self:
         return self
 
-    def __exit__(self, exc_type, exc, tb) -> None:
+    def _door___exit__(self, exc_type, exc, tb) -> None:  # noqa: ARG002 -- preserve the declared context-manager signature
         """Stop the server's cursor without letting the stop displace the
         diagnosis: a transport that broke mid-stream breaks the /stop too,
         and the failure a caller needs to read is the first one. Both are
@@ -752,6 +753,86 @@ class RemoteCursor:
         return f"<remote cursor {state} on {self._space}>"
 
 
+    # begin generated doors: RemoteCursor
+    # Generated from metta.doors by tools/doorgen.py.
+    if TYPE_CHECKING:
+        def __next__(self) -> Atom:
+            """Read the next remote answer."""
+            return self._door___next__()
+
+        def to_arrow(self) -> Any:
+            """The whole remaining stream as one pyarrow Table.
+
+                with space.stream(pattern, arrow=True) as answers:
+                    table = answers.to_arrow()
+
+            Every chunk crosses as its own complete IPC stream at ONE schema, fixed
+            by the server when the cursor opened, so the batches concatenate. The
+            columns are the pattern's variables at the types the served space
+            declares for them, plus `atom`, the canonical text of each instantiated
+            answer, which stays exact where a typed column cannot hold a cell.
+
+            The longhand is the ask/next/stop lifecycle with
+            `Accept: application/vnd.apache.arrow.stream` and reading each body with
+            `pyarrow.ipc.open_stream`; this is that loop, drained.
+            """
+            return self._door_to_arrow()
+
+        def __arrow_c_stream__(self, requested_schema: Any=None) -> Any:
+            """The drained stream as the Arrow PyCapsule Interface's own object.
+
+            Sugar over `to_arrow()`, so a consumer that dispatches on the protocol
+            rather than on a type reaches the same batches
+            [source: https://arrow.apache.org/docs/format/CDataInterface/PyCapsuleInterface.html].
+            """
+            return self._door___arrow_c_stream__(requested_schema)
+
+        def __iter__(self) -> Iterator[Atom]:
+            """Iterate the receiver."""
+            return self._door___iter__()
+
+        def close(self) -> None:
+            """Release the server's cursor; idempotent, and distinct from
+            exhaustion, which released it already.
+
+            The token survives a failed /stop and the cursor stays open, because
+            a close that discarded it first could never release the server's
+            cursor afterwards: every later close returned at the flag while the
+            server held the engine to its idle deadline [tested
+            test_a_failed_stop_leaves_the_remote_cursor_retryable].
+            """  # noqa: D205 -- preserve the declared documentation
+            return self._door_close()
+
+        def __enter__(self) -> Self:
+            """Enter the receiver lifetime."""
+            return self._door___enter__()
+
+        def __exit__(self, exc_type, exc, tb) -> None:
+            """Stop the server's cursor without letting the stop displace the
+            diagnosis: a transport that broke mid-stream breaks the /stop too,
+            and the failure a caller needs to read is the first one. Both are
+            raised together, the same shape serve()'s own startup path uses.
+            """  # noqa: D205 -- preserve the declared documentation
+            return self._door___exit__(exc_type, exc, tb)
+
+    else:
+        __next__ = _door___next__
+        _bind_public(__next__, 'RemoteCursor', '__next__')
+        to_arrow = _door_to_arrow
+        _bind_public(to_arrow, 'RemoteCursor', 'to_arrow')
+        __arrow_c_stream__ = _door___arrow_c_stream__
+        _bind_public(__arrow_c_stream__, 'RemoteCursor', '__arrow_c_stream__')
+        __iter__ = _door___iter__
+        _bind_public(__iter__, 'RemoteCursor', '__iter__')
+        close = _door_close
+        _bind_public(close, 'RemoteCursor', 'close')
+        __enter__ = _door___enter__
+        _bind_public(__enter__, 'RemoteCursor', '__enter__')
+        __exit__ = _door___exit__
+        _bind_public(__exit__, 'RemoteCursor', '__exit__')
+    # end generated doors: RemoteCursor
+
+
 class RemoteSpace(SpaceProvider):
     """A space served by another engine, reached through a transport.
 
@@ -789,7 +870,7 @@ class RemoteSpace(SpaceProvider):
         self._space = space
         self._batch = batch
 
-    def delivers(self) -> tuple[str, str] | None:
+    def _door_delivers(self) -> tuple[str, str] | None:
         """Nothing: the wire carries no event.
 
         The wire has four operations, match, enumerate, add and remove, and
@@ -803,7 +884,7 @@ class RemoteSpace(SpaceProvider):
         """
         return None
 
-    def refusal(self, capability: str, /, **_request: Any) -> str | None:  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
+    def _door_refusal(self, capability: str, /, **_request: Any) -> str | None:
         if capability != "subscribe":
             return None
         return (
@@ -815,7 +896,7 @@ class RemoteSpace(SpaceProvider):
             "and remove on this side"
         )
 
-    def match(self, pattern: Atom, *, limit: int | None = None) -> Iterator[Atom]:
+    def _door_match(self, pattern: Atom, *, limit: int | None = None) -> Iterator[Atom]:
         """Candidates for a pattern; `limit` crosses as the wire's optional
         `bound` field. Sending it is sound whatever the server does: a
         server that honors it exactly saves the work, one that ignores it
@@ -838,7 +919,7 @@ class RemoteSpace(SpaceProvider):
         answer = _response("match", self._transport("match", payload), payload)
         yield from answer.atoms
 
-    def stream(
+    def _door_stream(
         self,
         pattern: Atom,
         *,
@@ -876,7 +957,7 @@ class RemoteSpace(SpaceProvider):
             self._transport, self._space, pattern, batch=batch, limit=limit, arrow=arrow
         )
 
-    def server_capabilities(self) -> dict[str, Any]:
+    def _door_server_capabilities(self) -> dict[str, Any]:
         """The server's own advertisement from GET /health: `capabilities`
         names the protocol operations it admits, so a client can ask before
         writing, and `bound` says whether /match honors the bound field
@@ -905,11 +986,11 @@ class RemoteSpace(SpaceProvider):
             "protocol": body.get("protocol"),
         }
 
-    def atoms(self) -> Iterator[Atom]:  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
+    def _door_atoms(self) -> Iterator[Atom]:
         answer = _response("atoms", self._transport("atoms", {"space": self._space}))
         yield from answer.atoms
 
-    def add(self, atom: Atom) -> None:
+    def _door_add(self, atom: Atom) -> None:
         """Store one atom on the serving side.
 
         A lost response raises OutcomeUnknown. Its retry() replays the
@@ -919,7 +1000,7 @@ class RemoteSpace(SpaceProvider):
         """
         self._mutate("add", {"space": self._space, "atom": atom.to_wire()})
 
-    def add_many(self, atoms: list[Atom]) -> None:
+    def _door_add_many(self, atoms: list[Atom]) -> None:
         """One request carries the batch, the engine's own bulk-write law on
         the wire: a batch is a transport optimisation and never a semantic
         one, and the engine already routes only plain stores through it.
@@ -929,7 +1010,7 @@ class RemoteSpace(SpaceProvider):
             {"space": self._space, "atoms": [atom.to_wire() for atom in atoms]},
         )
 
-    def remove(self, atom: Atom) -> bool:  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
+    def _door_remove(self, atom: Atom) -> bool:
         answer = self._mutate("remove", {"space": self._space, "atom": atom.to_wire()})
         return answer["removed"]
 
@@ -940,6 +1021,135 @@ class RemoteSpace(SpaceProvider):
         return _mutate(
             self._transport, getattr(self._transport, "health", None), operation, payload
         )
+
+
+    # begin generated doors: RemoteSpace
+    # Generated from metta.doors by tools/doorgen.py.
+    if TYPE_CHECKING:
+        def delivers(self) -> tuple[str, str] | None:
+            """Nothing: the wire carries no event.
+
+            The wire has four operations, match, enumerate, add and remove, and
+            none of them carries an event, while a remote space's contents change
+            on the server, which is the whole reason it is remote. So a watcher
+            here would hear only the writes this process made and silently miss
+            every other one [measured 2026-08-19: an attached space delivered the
+            one atom this process wrote and nothing for the atom the server
+            added]. Declaring nothing is what refuses the subscription; the
+            sentence below is what a caller reads.
+            """
+            return self._door_delivers()
+
+        def refusal(self, capability: str, /, **_request: Any) -> str | None:
+            """Read RemoteSpace.refusal."""
+            return self._door_refusal(capability, **_request)
+
+        def match(self, pattern: Atom, *, limit: int | None=None) -> Iterator[Atom]:
+            """Candidates for a pattern; `limit` crosses as the wire's optional
+            `bound` field. Sending it is sound whatever the server does: a
+            server that honors it exactly saves the work, one that ignores it
+            over-answers, and the local engine re-unifies and truncates either
+            way. Whether it is honored is advertised in
+            `server_capabilities()`.
+
+            One crossing carries the whole answer set unless this space was
+            built with a `batch`, in which case the ask/next/stop lifecycle
+            carries it a chunk at a time and an engine that stops pulling
+            stops the server.
+            """  # noqa: D205 -- preserve the declared documentation
+            return self._door_match(pattern, limit=limit)
+
+        def stream(
+            self,
+            pattern: Atom,
+            *,
+            batch: int=_DEFAULT_BATCH,
+            limit: int | None=None,
+            arrow: bool=False,
+        ) -> RemoteCursor:
+            """The lazy method: answers pulled a chunk at a time, so taking two
+            of a large enumeration costs the server two answers' work instead
+            of the whole join's.
+
+            match() remains eager, matching the in-process split between match()
+            and stream(). Reach for this to take answers
+            until you have seen enough, or when the answer set is larger than
+            one HTTP body.
+
+            `limit` is the wire's `bound` and carries the same advice it
+            carries on match(): a server that can honor it exactly stops at
+            the count, one that cannot ignores it and over-answers. It is not
+            truncated again here, because a server may answer candidates
+            rather than answers, and cutting an over-approximated stream at
+            the count is the under-approximation the protocol forbids. The
+            first ask crosses when the cursor is built, as the in-process
+            cursor opens its engine when it is built.
+
+            `arrow=True` asks for Arrow record batches instead of tagged atoms: the
+            server fixes ONE schema for the whole stream when the cursor opens, from
+            what it declares about the pattern's positions, and each chunk crosses
+            as a complete IPC stream at that schema. Such a cursor answers
+            `to_arrow()` and the PyCapsule protocol rather than atoms, because
+            converting a batch back to atoms would go through canonical text and
+            lose what the tagged wire carries exactly.
+            """  # noqa: D205 -- preserve the declared documentation
+            return self._door_stream(pattern, batch=batch, limit=limit, arrow=arrow)
+
+        def server_capabilities(self) -> dict[str, Any]:
+            """The server's own advertisement from GET /health: `capabilities`
+            names the protocol operations it admits, so a client can ask before
+            writing, and `bound` says whether /match honors the bound field
+            exactly. A transport built by connect() knows its URL; a
+            hand-built transport must carry its own `health` callable, or
+            this refuses rather than guessing.
+            """  # noqa: D205 -- preserve the declared documentation
+            return self._door_server_capabilities()
+
+        def atoms(self) -> Iterator[Atom]:
+            """Read RemoteSpace.atoms."""
+            return self._door_atoms()
+
+        def add(self, atom: Atom) -> None:
+            """Store one atom on the serving side.
+
+            A lost response raises OutcomeUnknown. Its retry() replays the
+            original acknowledgement when the server advertised idempotency;
+            otherwise retry refuses to send and the caller must reconcile with
+            the server. Calling add again starts a NEW logical mutation.
+            """
+            return self._door_add(atom)
+
+        def add_many(self, atoms: list[Atom]) -> None:
+            """One request carries the batch, the engine's own bulk-write law on
+            the wire: a batch is a transport optimisation and never a semantic
+            one, and the engine already routes only plain stores through it.
+            """  # noqa: D205 -- preserve the declared documentation
+            return self._door_add_many(atoms)
+
+        def remove(self, atom: Atom) -> bool:
+            """Read RemoteSpace.remove."""
+            return self._door_remove(atom)
+
+    else:
+        delivers = _door_delivers
+        _bind_public(delivers, 'RemoteSpace', 'delivers')
+        refusal = _door_refusal
+        _bind_public(refusal, 'RemoteSpace', 'refusal')
+        match = _door_match
+        _bind_public(match, 'RemoteSpace', 'match')
+        stream = _door_stream
+        _bind_public(stream, 'RemoteSpace', 'stream')
+        server_capabilities = _door_server_capabilities
+        _bind_public(server_capabilities, 'RemoteSpace', 'server_capabilities')
+        atoms = _door_atoms
+        _bind_public(atoms, 'RemoteSpace', 'atoms')
+        add = _door_add
+        _bind_public(add, 'RemoteSpace', 'add')
+        add_many = _door_add_many
+        _bind_public(add_many, 'RemoteSpace', 'add_many')
+        remove = _door_remove
+        _bind_public(remove, 'RemoteSpace', 'remove')
+    # end generated doors: RemoteSpace
 
 
 #: Every live server in THIS process, keyed by the address it accepts on.

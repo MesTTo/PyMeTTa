@@ -15,6 +15,11 @@ Guarantees:
     [tested: test_a_provider_that_drops_a_duplicate_fails_the_machine]
   - a provider that removes every copy instead of one fails on the removal rule
     [tested: test_a_provider_that_removes_every_copy_fails_the_machine]
+  - each planted defect is exercised before random rules, and the same
+    histories pass for a correct provider
+    [tested: test_a_provider_that_drops_a_duplicate_fails_the_machine,
+    test_a_provider_that_removes_every_copy_fails_the_machine,
+    test_the_planted_histories_pass_for_a_correct_provider; commit=b615b5a33b43252ef9826e5387da7c9bd7f6b543]
   - a capability the provider does not declare skips exactly its own rules, by
     name, with the engine's own refusal as the reason
     [tested: test_a_provider_without_removal_skips_only_the_removal_rules]
@@ -43,17 +48,16 @@ import pytest
 
 hypothesis = pytest.importorskip("hypothesis")
 from hypothesis import HealthCheck, settings  # noqa: E402
-from hypothesis.stateful import run_state_machine_as_test  # noqa: E402
+from hypothesis.stateful import initialize, run_state_machine_as_test  # noqa: E402
 
 import metta as metta_package  # noqa: E402
 from metta import S, testing  # noqa: E402
 from metta.errors import MettaError  # noqa: E402
 from metta.foreign import SpaceProvider  # noqa: E402
 
-#: Short runs. What these check is that the machine finds a planted break and
-#: does not invent one, and both answers arrive in a handful of histories; the
-#: long sweep over the native space is the suite's own
-#: tests/ch04_spaces_and_matching/test_space_stateful.py.
+#: Short random walks check passing providers. Planted providers exercise
+#: their counterexample in an initialization rule, before any random rule.
+#: The longer native sweep is tests/ch04_spaces_and_matching/test_space_stateful.py.
 SHORT = settings(
     max_examples=10,
     stateful_step_count=12,
@@ -125,6 +129,26 @@ class Sweeping(Bag):
             return False
         self.items[:] = [held for held in self.items if held != atom]
         return True
+
+
+class DuplicateWitness(testing.SpaceMachine):
+    """Exercise the duplicate law before random rules can clear the space."""
+
+    @initialize(atom=testing.expressions(max_leaves=5, ground=True))
+    def write_two_copies(self, atom):
+        """Let the inherited invariant check the inherited duplicate rule."""
+        self.add_a_second_copy(atom)
+
+
+class RemovalWitness(testing.SpaceMachine):
+    """Exercise removal while two copies are known to be present."""
+
+    @initialize(atom=testing.expressions(max_leaves=5, ground=True))
+    def remove_one_of_two(self, atom):
+        """Establish the duplicate bag before checking one-copy subtraction."""
+        self.add_a_second_copy(atom)
+        self.storage_matches_the_model()
+        self.remove_a_stored_atom(atom)
 
 
 class WriteOnly(Bag):
@@ -216,8 +240,8 @@ def test_a_provider_that_drops_a_duplicate_fails_the_machine():
     def fresh():
         return metta_package.space(f"&machine-dedupe-{next(_NAMES)}", Deduping())
 
-    history = failing_history(testing.SpaceMachine.for_(fresh))
-    assert "add_a_second_copy" in history or "add_one" in history
+    history = failing_history(DuplicateWitness.for_(fresh))
+    assert "write_two_copies" in history
 
 
 def test_a_provider_that_removes_every_copy_fails_the_machine():
@@ -226,8 +250,18 @@ def test_a_provider_that_removes_every_copy_fails_the_machine():
     def fresh():
         return metta_package.space(f"&machine-sweep-{next(_NAMES)}", Sweeping())
 
-    history = failing_history(testing.SpaceMachine.for_(fresh))
-    assert "remove" in history
+    history = failing_history(RemovalWitness.for_(fresh))
+    assert "remove_one_of_two" in history
+
+
+@pytest.mark.parametrize("machine", (DuplicateWitness, RemovalWitness))
+def test_the_planted_histories_pass_for_a_correct_provider(machine):
+    """A forced history detects the provider defect without inventing one."""
+
+    def fresh():
+        return metta_package.space(f"&machine-witness-{next(_NAMES)}", Bag())
+
+    run_state_machine_as_test(machine.for_(fresh), settings=SHORT)
 
 
 def test_a_provider_without_removal_skips_only_the_removal_rules(foreign):

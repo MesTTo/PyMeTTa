@@ -253,6 +253,24 @@ def twin(m):
 #: --observe --rounds 10 and --rounds 15,
 #: ai-tmp/integrator-849a9e/merged68-observe-10.log and
 #: merged68-observe-15.log; commit=f1038acdcaf5230b6431c112f38a719d3dc9ef19].
+#: RE-OBSERVED 2026-09-08 under 'full-lane/277/workers=32', 125619..125718
+#: over 25 observations to 125673..125739 over 15: boot content moved
+#: with the every-closed-set-derived branch -- the refusal table and the typing
+#: point are modules this package did not have, three convert doors became one,
+#: per-library faces are projections, and the engine gained a catalog watch
+#: point -- which shifts SWI clause-indexing shape and moves a twin count by
+#: tens. The observations are this tree's own rather than pooled with the
+#: earlier ones, because pooling would mix two boot images and the spread an
+#: envelope states is a claim about ONE [measured 2026-09-08: python
+#: extensions/python/tools/twin_coverage.py --observe --rounds 15,
+#: ai-tmp/ai-derive-observe.log; commit=c26b6a4d28ef8fb50742440feed2c0578ebb0f58].
+#: RE-OBSERVED 2026-09-08 after typed host doors joined the boot catalog.
+#: Ten complete rounds observed 125695..125794. Sampling still selects
+#: different alternatives; catalog lookup now includes the declared doors.
+#: These observations replace the earlier catalog's envelope
+#: [measured: exact extrema over 10 successful observations; command=python
+#: extensions/python/tools/twin_coverage.py --observe --rounds 10;
+#: fixture=full-lane/277/workers=32; commit=b615b5a33b43252ef9826e5387da7c9bd7f6b543].
 BUDGET = {
     "minimum": 126937,
     "maximum": 127036,

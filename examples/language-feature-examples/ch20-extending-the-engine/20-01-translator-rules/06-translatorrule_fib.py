@@ -229,7 +229,6 @@ def twin(m):
 #: returned callback goals [measured 2026-09-08: min-of-3 serial fresh
 #: processes; command=python extensions/python/tools/twin_coverage.py --repin;
 #: commit=ede2ac57e213a0d4502c6bbbca6227f97015b720].
-BUDGET = 15685
 #: OVERRUN 2026-09-08, 0 to 25 (+25, four of them the deterministic
 #: allowance the point pins carry, because a band met exactly is refused): the module boundary merged with trunk
 #: (refactor/engine-and-libraries-as-modules at b64291369): the twin's host
@@ -240,6 +239,12 @@ BUDGET = 15685
 #: ceiling, so the rest is this twin's own program [measured 2026-09-08: one
 #: fresh process per side; command=python
 #: extensions/python/benchmarks/probes/twin_floor.py; commit=f1038acdcaf5230b6431c112f38a719d3dc9ef19].
+#: RE-PINNED 2026-09-08, 15484 to 15537 (+53), The typed host door catalog is
+#: published before user code. Its declarations change catalog lookup indexes;
+#: generated public names bind directly to their existing bodies [measured
+#: 2026-09-08: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=b615b5a33b43252ef9826e5387da7c9bd7f6b543].
+BUDGET = 15537
 OVERRUN = 25
 
 #: DIVERGED 2026-09-07, the example holds 0 atoms the twin does not (none) and

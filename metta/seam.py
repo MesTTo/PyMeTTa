@@ -47,6 +47,14 @@ Assumes:
     group nothing advertises [source 2026-09-07:
     https://docs.python.org/3/library/importlib.metadata.html#entry-points]
 Guarantees:
+  - concurrent discovery waits for registration to finish, failed entries
+    remain retryable, and cycles among discovery waits refuse [tested:
+    test_concurrent_discovery_waits_for_complete_registration,
+    test_recursive_discovery_does_not_publish_an_incomplete_group,
+    test_a_discovery_wait_cycle_refuses_and_releases_its_entries,
+    test_a_failed_entry_point_can_be_retried; commit=b615b5a33b43252ef9826e5387da7c9bd7f6b543]
+  - frame builders and accessor door contracts are separate registrations
+    [tested: test_the_row_is_registered_against_the_frame_point; commit=b615b5a33b43252ef9826e5387da7c9bd7f6b543]
   - a point is declared once with one kind, and a second declaration of the
     same name is refused naming the first [tested:
     test_a_point_is_declared_once_with_one_kind]
@@ -70,12 +78,11 @@ Guarantees:
   - a point that declares an extra ends its refusal in the install command
     for the packages this repository ships against it [tested:
     test_a_refusal_names_the_extra_that_fills_the_point; commit=94057a0f073c0fab0a35c42beff2c324d8a0addd]
-  - discovery is lazy and free: advertised() loads nothing, and the
-    `metta.extensions` group is loaded once, at the first dispatch that has no
-    answer among the rows already present, which is how Pygments finds a
-    plugin lexer [source: https://pygments.org/docs/plugins; pygments/plugin.py
-    find_plugin_lexers] [tested: test_advertised_loads_nothing,
-    test_discovery_loads_an_advertised_registration_once]
+  - advertised() loads nothing. Discovery or dispatch loads each registration
+    once; publishing the boot catalog requests every point [tested:
+    test_advertised_loads_nothing,
+    test_discovery_loads_an_advertised_registration_once,
+    test_boot_publishes_complete_typed_door_rows; commit=b615b5a33b43252ef9826e5387da7c9bd7f6b543]
   - publish(m) writes the whole seam into a catalog under declared kind rows,
     so a MeTTa program matches the extension surface it is running on
     [tested: test_the_seam_publishes_itself_into_the_catalog]
@@ -128,6 +135,7 @@ __all__ = [
     "at",
     "batch_bounds",
     "discover",
+    "door",
     "field_types",
     "frame",
     "graphql",
@@ -318,6 +326,7 @@ class Point:
         "optional",
         "reader",
         "shipped",
+        "validator",
     )
 
     def __init__(
@@ -332,6 +341,7 @@ class Point:
         extra: str | None,
         reader: Callable[[], Iterable[Row]] | None,
         adder: Callable[[Row], Callable[[], None] | None] | None,
+        validator: Callable[[Row, tuple[Row, ...]], None] | None,
     ) -> None:
         """Record one declaration; `seam.point` validates before calling this."""
         self.name = name
@@ -343,6 +353,7 @@ class Point:
         self.extra = extra
         self.reader = reader
         self.adder = adder
+        self.validator = validator
 
     def register(
         self,
@@ -475,6 +486,9 @@ _LOCK: Final = threading.RLock()
 _LOADED: set[str] = set()
 _LISTENERS: list[Callable[[str, str, Callable[[], None]], None]] = []
 _LOADED_ENTRIES: set[tuple[str, str]] = set()
+_ENTRY_CHANGED = threading.Condition(_LOCK)
+_LOADING_ENTRIES: dict[tuple[str, str], int] = {}
+_WAITING_ENTRIES: dict[int, tuple[str, str]] = {}
 
 
 def point(
@@ -488,6 +502,7 @@ def point(
     extra: str | None = None,
     reader: Callable[[], Iterable[Row]] | None = None,
     adder: Callable[[Row], Callable[[], None] | None] | None = None,
+    validator: Callable[[Row, tuple[Row, ...]], None] | None = None,
 ) -> Point:
     """Declare one extension point, answering it.
 
@@ -510,10 +525,17 @@ def point(
     `reader` and `adder` are for a point whose rows already live somewhere: the
     reader answers them, and the adder performs a registration and answers the
     inverse to undo it. A point with neither keeps its rows here.
+
+    `validator` checks a proposed declaration against the other registrants
+    under the registry lock. It belongs to a point whose rows live here;
+    foreign stores must validate inside their own atomic registration.
     """
     if kind not in KINDS:
         msg = f"an extension point is one of {', '.join(KINDS)}, not {kind!r}"
         raise ValueError(msg)
+    if validator is not None and (adder is not None or reader is not None):
+        msg_0 = "a validated point owns its rows in the seam registry"
+        raise ValueError(msg_0)
     reserved = _RESERVED.intersection(fields + optional)
     if reserved:
         msg = (
@@ -553,6 +575,7 @@ def point(
             extra=extra,
             reader=reader,
             adder=adder,
+            validator=validator,
         )
         _POINTS[name] = declared
         _ROWS.setdefault(name, [])
@@ -673,7 +696,8 @@ def discover(group: str = GROUP) -> tuple[str, ...]:
     """
     loaded = sorted(_load_entries(group))
     with _LOCK:
-        _LOADED.add(group)
+        if all((group, name) in _LOADED_ENTRIES for name in loaded):
+            _LOADED.add(group)
     return tuple(loaded)
 
 
@@ -724,7 +748,11 @@ def publish(m: Any) -> int:
             if registered not in catalog:
                 catalog.add(registered)
                 written += 1
-    return written
+    from .doors import (  # noqa: PLC0415 -- publish the complete host contract catalog after discovery
+        publish as publish_doors,
+    )
+
+    return written + publish_doors(space_of(catalog)._rt)
 
 
 def _register(
@@ -765,6 +793,8 @@ def _register(
     added = declared.adder(row) if declared.adder is not None else None
     with _LOCK:
         held = _ROWS[declared.name]
+        if declared.validator is not None:
+            declared.validator(row, tuple(item for item in held if item.name != name))
         for position, standing in enumerate(held):
             if standing.name == name:
                 held[position] = row
@@ -912,9 +942,10 @@ def _load_advertised(group: str = GROUP) -> None:
     with _LOCK:
         if group in _LOADED:
             return
-    _load_entries(group)
+    loaded = _load_entries(group)
     with _LOCK:
-        _LOADED.add(group)
+        if all((group, name) in _LOADED_ENTRIES for name in loaded):
+            _LOADED.add(group)
 
 
 def _load_entries(group: str) -> list[str]:
@@ -929,13 +960,37 @@ def _load_entries(group: str) -> list[str]:
     names = []
     for name, entry in advertised(group).items():
         names.append(name)
-        with _LOCK:
-            if (group, name) in _LOADED_ENTRIES:
+        key = group, name
+        thread = threading.get_ident()
+        with _ENTRY_CHANGED:
+            while key in _LOADING_ENTRIES and _LOADING_ENTRIES[key] != thread:
+                # CPython's module lock follows the waiting-owner graph before
+                # blocking. Registration imports must stay outside this lock.
+                # https://github.com/python/cpython/blob/v3.14.4/Lib/importlib/_bootstrap.py
+                owner: int | None = _LOADING_ENTRIES[key]
+                while owner in _WAITING_ENTRIES:
+                    owner = _LOADING_ENTRIES.get(_WAITING_ENTRIES[owner])
+                    if owner == thread:
+                        msg = f"cyclic entry-point discovery while waiting for {group}:{name}"
+                        raise RuntimeError(msg)
+                _WAITING_ENTRIES[thread] = key
+                try:
+                    _ENTRY_CHANGED.wait()
+                finally:
+                    del _WAITING_ENTRIES[thread]
+            if key in _LOADED_ENTRIES or _LOADING_ENTRIES.get(key) == thread:
                 continue
-            _LOADED_ENTRIES.add((group, name))
-        target = entry.load()
-        if callable(target):
-            target()
+            _LOADING_ENTRIES[key] = thread
+        try:
+            target = entry.load()
+            if callable(target):
+                target()
+            with _LOCK:
+                _LOADED_ENTRIES.add(key)
+        finally:
+            with _ENTRY_CHANGED:
+                del _LOADING_ENTRIES[key]
+                _ENTRY_CHANGED.notify_all()
     return names
 
 
@@ -954,17 +1009,15 @@ frame = point(
     "frame",
     "declaration",
     fields=("module", "accessor", "build"),
-    optional=("sugar",),
     extra="dataframes",
     doc=(
         "A dataframe library. `accessor(module, name, door)` installs "
         "`df.<name>` the way that library spells an extension; "
         "`build(source, projection, view)` makes a frame from a typed "
         "projection, taking the Arrow view instead when the library reads one "
-        "and there is a builder. `sugar` names the Rows method that answers "
-        "this library's frame, so `to_df` and `to_pl` are rows rather than "
-        "privileges; `rows.to(<module>)` is the general spelling every "
-        "registrant gets."
+        "and there is a builder. `rows.to(<module>)` is the general spelling "
+        "every registrant gets. Short receiver methods are separate contracts "
+        "on the door point, fixing that conversion's library argument."
     ),
 )
 
@@ -1357,3 +1410,16 @@ def image_of(
     from ._convert_registry import _Registration  # noqa: PLC0415  -- it imports this
 
     return _Registration(kind, parts, rebuild, name, fields, types, explicit=False)
+
+
+def _validate_door_registration(row: Row, standing: tuple[Row, ...]) -> None:
+    from .doors import validate_registration  # noqa: PLC0415  -- engine-free row grammar
+
+    validate_registration(row, standing)
+
+
+door = point(
+    "door", "declaration", fields=("doors",),
+    doc="Typed host doors contributed as namespace members or declared receiver sugars.",
+    validator=_validate_door_registration,
+)

@@ -270,4 +270,11 @@ BUDGET = 235064
 #: 233152, within that ceiling, so the rest is this twin's own program
 #: [measured 2026-09-08: one fresh process per side; command=python
 #: extensions/python/benchmarks/probes/twin_floor.py; commit=f1038acdcaf5230b6431c112f38a719d3dc9ef19].
-OVERRUN = 1916
+#: OVERRUN 2026-09-08, 1344: typed host declarations change catalog lookup
+#: on both sides. The example costs 211483 and the twin 233975; the 10%
+#: ceiling is 232631.3. The twin's eleven separate function calls and its
+#: program are unchanged [measured: one fresh process per side;
+#: command=python ai-tmp/ai-door-band-cost.py
+#: ch08-data/08-03-the-shipped-libraries/02-datastructures_fingertree.metta;
+#: commit=b615b5a33b43252ef9826e5387da7c9bd7f6b543].
+OVERRUN = 1344
