@@ -114,7 +114,7 @@ def twin(m):
 #: name, measured on a pristine control as 32 per mint, 2 per write and 44 per
 #: drop with none per read; measured on the merged tree [measured 2026-09-09:
 #: min-of-3 serial fresh processes; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+#: extensions/python/tools/twin_coverage.py --repin; commit=0f53926c2fd9f28e188814c84253ad82e13258f7].
 BUDGET = 16978
 
 #: OVERRUN 2026-09-08, 3500: the twin reads 16161 against a ceiling of 12794
