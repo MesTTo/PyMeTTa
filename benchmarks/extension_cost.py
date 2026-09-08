@@ -254,14 +254,23 @@ def space_door_rows(calls: int = SPACE_CALLS, rounds: int = ROUNDS) -> list[Row]
 
     space.run("(= (hk-accept-all $incoming) (accept))")
     space.run("!(declare-pre-add! &hk-guard hk-accept-all)")
-    space.run("(: hk-probe HKAdmitted)")
+    # The probe is an EXPRESSION, not a bare symbol. add-atom took upstream
+    # PeTTa's domain at 12121e3c, an atom with a head, so the symbol this row
+    # used to offer is now outside it: the write answers nothing, stores
+    # nothing and raises nothing, and the driver's recursion stops on the
+    # first call. It took the whole lane down rather than this row
+    # [tested: sh check.sh extcost; commit=b6039d8cb441cad9dbf83435b071a8decb169421]. The shape is
+    # examples/ch15-writing-transactions-and-worlds/04-admission_pools.metta's
+    # own, `(: (ticket a) Ticket)` offered as `(ticket a)`, so the row still
+    # measures a typed atom entering a typed pool.
+    space.run("(: (hk-probe a) HKAdmitted)")
     space._at("&hk-admit").admits("HKAdmitted")
     space._at("&hk-cap").capacity(10_000_000)
 
     bodies = {
         "plainadd": "(add-atom &hk-plain (hk-item $n))",
         "guardmetta": "(add-atom &hk-guard (hk-item $n))",
-        "admits": "(add-atom &hk-admit hk-probe)",
+        "admits": "(add-atom &hk-admit (hk-probe a))",
         "capacity": "(add-atom &hk-cap (hk-item $n))",
     }
     _install_drivers(space, "hk-tier", bodies)
