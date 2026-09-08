@@ -143,7 +143,7 @@ def twin(m):
 #: rather than fail their claim, and a twin closing a channel pays the check;
 #: measured on the merged tree [measured 2026-09-09: min-of-3 serial fresh
 #: processes; command=python extensions/python/tools/twin_coverage.py --repin;
-#: commit=WORKTREE].
+#: commit=f75df8e1c17a6c700e8d3700e440fe1ee535ea9f].
 BUDGET = 378597
 #: The count VARIES, because this twin starts threads and timers and the
 #: engine charges what the scheduler actually ran. Three single-round
