@@ -266,7 +266,7 @@ def twin(m):
 #: index; per-operation costs of a mint, write, read, drop, run, save and load
 #: are unchanged against the trunk in fresh processes; measured on the merged
 #: tree [measured 2026-09-09: min-of-3 serial fresh processes; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+#: extensions/python/tools/twin_coverage.py --repin; commit=b4341ae382c48ef225f4a52e566af6a9a71757c4].
 BUDGET = 31763
 
 #: DIVERGED 2026-09-07, the example holds 0 atoms the twin does not (none) and

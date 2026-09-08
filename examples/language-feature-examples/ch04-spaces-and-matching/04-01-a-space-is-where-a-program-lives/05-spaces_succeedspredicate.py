@@ -192,5 +192,5 @@ def twin(m):
 #: on the trunk between the cut f0d33dcad and da0e5755d, tokens as storage
 #: above all [measured 2026-09-09: min-of-3 serial fresh processes;
 #: command=python extensions/python/tools/twin_coverage.py --repin;
-#: commit=WORKTREE].
+#: commit=b4341ae382c48ef225f4a52e566af6a9a71757c4].
 BUDGET = 8035

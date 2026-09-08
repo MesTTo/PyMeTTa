@@ -128,7 +128,7 @@ def twin(m):
 #: on the trunk between the cut f0d33dcad and da0e5755d, tokens as storage
 #: above all [measured 2026-09-09: min-of-3 serial fresh processes;
 #: command=python extensions/python/tools/twin_coverage.py --repin;
-#: commit=WORKTREE].
+#: commit=b4341ae382c48ef225f4a52e566af6a9a71757c4].
 BUDGET = 9269
 
 #: OVERRUN 2026-09-07, 900: it puts Python starred unpacking beside the native
@@ -169,5 +169,5 @@ BUDGET = 9269
 #: ceiling of 8780; a minimal twin costs 9387 against the band's 7692, above
 #: that ceiling, so no twin of it fits the band at all, as before [measured
 #: 2026-09-09: one fresh process per side; command=python
-#: extensions/python/benchmarks/probes/twin_floor.py; commit=WORKTREE].
+#: extensions/python/benchmarks/probes/twin_floor.py; commit=b4341ae382c48ef225f4a52e566af6a9a71757c4].
 OVERRUN = 1577

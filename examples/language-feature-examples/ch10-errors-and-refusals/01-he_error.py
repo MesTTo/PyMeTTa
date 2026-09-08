@@ -247,7 +247,7 @@ def twin(m):
 #: on the trunk between the cut f0d33dcad and da0e5755d, tokens as storage
 #: above all [measured 2026-09-09: min-of-3 serial fresh processes;
 #: command=python extensions/python/tools/twin_coverage.py --repin;
-#: commit=WORKTREE].
+#: commit=b4341ae382c48ef225f4a52e566af6a9a71757c4].
 BUDGET = 10360
 
 #: OVERRUN 2026-09-07, 500: it unpacks each error-algebra answer as a one-
@@ -288,5 +288,5 @@ BUDGET = 10360
 #: ceiling of 10057; a minimal twin costs 8805 against the band's 9392, within
 #: that ceiling, so the rest is this twin's own program [measured 2026-09-09:
 #: one fresh process per side; command=python
-#: extensions/python/benchmarks/probes/twin_floor.py; commit=WORKTREE].
+#: extensions/python/benchmarks/probes/twin_floor.py; commit=b4341ae382c48ef225f4a52e566af6a9a71757c4].
 OVERRUN = 969

@@ -238,5 +238,5 @@ BUDGET = 7697
 #: ceiling of 7483; a minimal twin costs 7167 against the band's 6843, above
 #: that ceiling, so no twin of it fits the band at all, as before [measured
 #: 2026-09-09: one fresh process per side; command=python
-#: extensions/python/benchmarks/probes/twin_floor.py; commit=WORKTREE].
+#: extensions/python/benchmarks/probes/twin_floor.py; commit=b4341ae382c48ef225f4a52e566af6a9a71757c4].
 OVERRUN = 854

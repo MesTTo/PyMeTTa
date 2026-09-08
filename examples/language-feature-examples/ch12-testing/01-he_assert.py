@@ -280,7 +280,7 @@ RUNG = "the assert family is this file's subject, so each claim names one of its
 #: index; per-operation costs of a mint, write, read, drop, run, save and load
 #: are unchanged against the trunk in fresh processes; measured on the merged
 #: tree [measured 2026-09-09: min-of-3 serial fresh processes; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+#: extensions/python/tools/twin_coverage.py --repin; commit=b4341ae382c48ef225f4a52e566af6a9a71757c4].
 BUDGET = 18654
 
 #: OVERRUN 2026-09-08, 9: the twin names each of the twelve assert-family
@@ -383,5 +383,5 @@ BUDGET = 18654
 #: ceiling of 18008; a minimal twin costs 15768 against the band's 17701,
 #: within that ceiling, so the rest is this twin's own program [measured
 #: 2026-09-09: one fresh process per side; command=python
-#: extensions/python/benchmarks/probes/twin_floor.py; commit=WORKTREE].
+#: extensions/python/benchmarks/probes/twin_floor.py; commit=b4341ae382c48ef225f4a52e566af6a9a71757c4].
 OVERRUN = 953

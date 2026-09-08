@@ -284,7 +284,7 @@ def twin(m):
 #: on the trunk between the cut f0d33dcad and da0e5755d, tokens as storage
 #: above all [measured 2026-09-09: min-of-3 serial fresh processes;
 #: command=python extensions/python/tools/twin_coverage.py --repin;
-#: commit=WORKTREE].
+#: commit=b4341ae382c48ef225f4a52e566af6a9a71757c4].
 BUDGET = 4897
 
 #: OVERRUN 2026-09-07, 300: the example inlines its `if` in a runnable and the
@@ -330,7 +330,7 @@ BUDGET = 4897
 #: ceiling of 4806; a minimal twin costs 1034 against the band's 4382, within
 #: that ceiling, so the rest is this twin's own program [measured 2026-09-09:
 #: one fresh process per side; command=python
-#: extensions/python/benchmarks/probes/twin_floor.py; commit=WORKTREE].
+#: extensions/python/benchmarks/probes/twin_floor.py; commit=b4341ae382c48ef225f4a52e566af6a9a71757c4].
 OVERRUN = 516
 
 #: DIVERGED 2026-09-07, the example holds 0 atoms the twin does not (none) and
