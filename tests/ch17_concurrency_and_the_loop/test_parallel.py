@@ -45,7 +45,7 @@ SPIN = "(= (par-spin $n) (if (> $n 0) (par-spin (- $n 1)) done))"
 def _live_channels() -> int:
     """The engine-side channel table, one row per owned SWI queue."""
     return runtime().once(
-        "aggregate_all(count, metta_channel(_Id, _Queue), N)"
+        "aggregate_all(count, lib_thread:metta_channel(_Id, _Queue), N)"
     )["N"]
 
 
@@ -95,7 +95,7 @@ def test_a_bare_thread_blocking_in_the_engine_does_not_freeze_other_calls(metta)
         try:
             with engine_thread():
                 while not rt.once(
-                    "metta_channel(Id, _Queue), "
+                    "lib_thread:metta_channel(Id, _Queue), "
                     "message_queue_property(_Queue, waiting(_Count)), _Count > 0",
                     Id=mailbox._handle,
                 ):

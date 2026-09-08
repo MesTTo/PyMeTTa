@@ -177,7 +177,17 @@ def twin(m):
 #: tree, minimum of three fresh processes [measured 2026-09-08: min-of-3 serial
 #: fresh processes; command=python extensions/python/tools/twin_coverage.py
 #: --repin; commit=856434d7c1d381b3f3d7cbbd008f46c0d41b61aa].
-BUDGET = 4680
+#: RE-PINNED 2026-09-08, 4680 to 4693 (+13), The engine and library predicates
+#: now resolve through their owning modules and the explicit engine facade;
+#: compiled program lookup crosses the added metta_engine tier [measured
+#: 2026-09-08: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+#: RE-PINNED 2026-09-08, 4693 to 4703 (+10), The engine and library module
+#: boundaries retain explicit lookup owners, including host registration and
+#: returned callback goals [measured 2026-09-08: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+BUDGET = 4703
 
 #: DIVERGED 2026-09-07, the example holds 1 atom the twin does not (1 =) and
 #: the twin holds 2 the example does not (1 :, 1 =): the twin is an ordinary

@@ -192,7 +192,17 @@ def twin(m):
 #: tree, minimum of three fresh processes [measured 2026-09-08: min-of-3 serial
 #: fresh processes; command=python extensions/python/tools/twin_coverage.py
 #: --repin; commit=856434d7c1d381b3f3d7cbbd008f46c0d41b61aa].
-BUDGET = 17519
+#: RE-PINNED 2026-09-08, 17519 to 17663 (+144), The engine and library
+#: predicates now resolve through their owning modules and the explicit engine
+#: facade; compiled program lookup crosses the added metta_engine tier
+#: [measured 2026-09-08: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+#: RE-PINNED 2026-09-08, 17663 to 17673 (+10), The engine and library module
+#: boundaries retain explicit lookup owners, including host registration and
+#: returned callback goals [measured 2026-09-08: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+BUDGET = 17673
 
 #: OVERRUN 2026-09-07, 2700: it reads the definition's body through the query
 #: door and reduces it through the evaluation door, which the example does in

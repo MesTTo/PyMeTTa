@@ -231,4 +231,9 @@ def twin(m):  # noqa: ARG001  -- both spaces are created here; the default handl
 #: tree, minimum of three fresh processes [measured 2026-09-08: min-of-3 serial
 #: fresh processes; command=python extensions/python/tools/twin_coverage.py
 #: --repin; commit=856434d7c1d381b3f3d7cbbd008f46c0d41b61aa].
-BUDGET = 75293
+#: RE-PINNED 2026-09-08, 75293 to 51998 (-23295), The engine and library
+#: predicates now resolve through their owning modules and the explicit engine
+#: facade; compiled program lookup crosses the added metta_engine tier
+#: [measured 2026-09-08: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 51998

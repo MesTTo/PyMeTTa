@@ -62,7 +62,12 @@ def twin(m):
 #: reads its budget on the merged tree, minimum of three fresh processes
 #: [measured 2026-09-08: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=3fc65f02ce807c359f1a52026f950f345da2a9af].
-BUDGET = 8398
+#: RE-PINNED 2026-09-08, 8398 to 8681 (+283), The engine and library predicates
+#: now resolve through their owning modules and the explicit engine facade;
+#: compiled program lookup crosses the added metta_engine tier [measured
+#: 2026-09-08: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 8681
 
 #: OVERRUN 2026-09-07, 900: it puts Python starred unpacking beside the native
 #: decons call at every claim. Measured 8424 against a ceiling of 7567; a

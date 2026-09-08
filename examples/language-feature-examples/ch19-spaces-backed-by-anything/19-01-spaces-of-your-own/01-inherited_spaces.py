@@ -195,4 +195,9 @@ def twin(m):
 #: the merged tree, minimum of three fresh processes [measured 2026-09-08: min-
 #: of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=08f6f4df19a283bb84ba5f679c83944b42685b2e].
-BUDGET = 1421
+#: RE-PINNED 2026-09-08, 1421 to 1430 (+9), The engine and library module
+#: boundaries retain explicit lookup owners, including host registration and
+#: returned callback goals [measured 2026-09-08: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+BUDGET = 1430

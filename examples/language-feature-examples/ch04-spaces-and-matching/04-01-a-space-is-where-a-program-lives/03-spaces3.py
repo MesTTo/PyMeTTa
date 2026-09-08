@@ -89,4 +89,9 @@ def twin(m):  # noqa: ARG001  -- the twin works in its own named space; the defa
 #: relational engine heads [measured 2026-09-01: min-of-3 serial fresh
 #: processes; command=python extensions/python/tools/twin_coverage.py --repin;
 #: commit=e3787593132a7ece2d300397045f7415709847c9].
-BUDGET = 262
+#: RE-PINNED 2026-09-08, 262 to 421 (+159), The engine and library predicates
+#: now resolve through their owning modules and the explicit engine facade;
+#: compiled program lookup crosses the added metta_engine tier [measured
+#: 2026-09-08: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 421

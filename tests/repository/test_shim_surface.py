@@ -11,6 +11,9 @@ Assumes:
   - seam:kind rows in engine/ext_points.pl are the one authority for a
     seam's kind [tested: static_checks:every_seam_declares_one_kind]
 Guarantees:
+  - metta_platform_absent/1 classifies the shim's existing platform census
+    query as a host service [tested:
+    test_the_host_service_scoreboard_matches_the_tree; commit=WORKTREE]
   - carrier membership uses the engine-owned validation door
     [tested: test_the_host_service_scoreboard_matches_the_tree; commit=074dc0a88b1605c54824de677d586b6f60998bcf]
   - the manifest and the tree hold the same host_service set, compared as
@@ -238,6 +241,9 @@ HOST_SERVICES = {
     # that cannot read it recovers the same knowledge by parsing SWI's boot
     # transcript, which is what extensions/node does today.
     "metta_platform/4",
+    # The shim already asks which declared capability is absent when refusing
+    # an unavailable spelling. Exporting the core makes that dependency explicit.
+    "metta_platform_absent/1",
     # The recursion charge the translator writes in front of every recursive
     # equation's body, recognised in a clause body a host is WALKING rather
     # than running. It is engine-side for the shrink's own reason: every
@@ -423,6 +429,7 @@ FLOOR_REASONS = {
     "metta_with_state_write_fence/1": "door",
     "metta_live_state_cell/1": "door",
     "metta_platform/4": "census",
+    "metta_platform_absent/1": "census",
     "sread_with_names/3": "codec",
     "swrite_with_names/3": "codec",
     "translate_cached_expr/3": "codec",

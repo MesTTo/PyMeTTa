@@ -54,6 +54,11 @@
 %   Future Enhancements: None
 
 :- use_module(library(janus)).
+% Host code owns these imports after the engine moves into metta_engine
+% [tested: sh check.sh no-autoload; commit=WORKTREE].
+:- use_module(library(lists), [append/3, member/2, memberchk/2, nth1/3]).
+:- use_module(library(apply), [maplist/3]).
+:- use_module(library(error), [must_be/2]).
 %crypto_data_hash/3 names a Python import's cached module key below. It used
 %to arrive through engine/filereader.pl's import into the one namespace the
 %whole engine shared; a binding declares what it calls, so it is declared here

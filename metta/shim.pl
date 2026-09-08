@@ -1159,8 +1159,16 @@ metta_py_refusal(Error, Kind, Class, Ground, Remedy) :-
 %and nothing ever called it: it had drifted from the engine's, missing
 %metta_host_interrupted and both of this side's limit errors, so anyone who found it
 %and used it would have swallowed exactly the signals this side raises.
-:- multifile control_exception/1.
-control_exception(error(metta_control_signal(_, _), context(metta, _))).
+%metta_engine: because this shim is consulted into `user` and the seam's home is
+%the engine core's module: control_exception/1 is the one seam the translator
+%emits into compiled bodies, so protect_engine_emitted/1 imports it into every
+%space from there [source: engine/ext_points.pl:kind/2; commit=WORKTREE]. Unqualified here it would create
+%user:control_exception/1, SWI would report `Local definition of
+%user:control_exception/1 overrides weak import from metta_engine`, and the
+%engine's recovery sites would read the host's one clause instead of the
+%engine's whole list [tested: extensions/python/tests/ch07_control_flow/test_control_signals.py; commit=WORKTREE].
+:- multifile metta_engine:control_exception/1.
+metta_engine:control_exception(error(metta_control_signal(_, _), context(metta, _))).
 
 %%%%%%%%%% Run and load %%%%%%%%%%
 %
@@ -4943,7 +4951,7 @@ metta_py_unregister_op(Name0, Arity) :-
 %[tested test_a_prolog_registration_is_not_silently_replaced].
 metta_py_name_still_defined(Name) :-
     spaces:metta_ensure_compiled(Name),
-    ( metta_py_module('&self', Module) ; metta_engine_module(Module) ),
+    ( metta_py_module('&self', Module) ; Module = user ),
     current_predicate(Module:Name/A),
     functor(Head, Name, A),
     \+ predicate_property(Module:Head, built_in),

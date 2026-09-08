@@ -294,7 +294,7 @@ def test_remove_and_refill_commit_does_not_late_abolish_the_refill() -> None:
             "transaction((user:metta_remove_atom("
             f"{space}, [=, [{name}], ready], true), "
             f"user:metta_add_atom({space}, [=, [{name}], ready], true))), "
-            "user:metta_repair_emptied_shadows, R = committed"
+            "filereader:metta_repair_emptied_shadows, R = committed"
         )
         assert target.eval(S[function]()) == [S.ready]
     finally:

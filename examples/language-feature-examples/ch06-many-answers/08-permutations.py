@@ -122,4 +122,9 @@ def twin(m):
 #: path and the library's write doors since [measured 2026-09-06: min-of-3
 #: serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=b96e1a15260b7538a8e42be613bcc5dd0dddd136].
-BUDGET = 23886199
+#: RE-PINNED 2026-09-08, 23886199 to 23886354 (+155), The engine and library
+#: predicates now resolve through their owning modules and the explicit engine
+#: facade; compiled program lookup crosses the added metta_engine tier
+#: [measured 2026-09-08: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 23886354

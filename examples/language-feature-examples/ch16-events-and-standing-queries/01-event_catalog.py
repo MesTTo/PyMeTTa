@@ -203,4 +203,9 @@ def twin(m):  # noqa: ARG001  -- the declarations live in the reflection space; 
 #: the merged tree, minimum of three fresh processes [measured 2026-09-08: min-
 #: of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=08f6f4df19a283bb84ba5f679c83944b42685b2e].
-BUDGET = 2210
+#: RE-PINNED 2026-09-08, 2210 to 2221 (+11), The engine and library module
+#: boundaries retain explicit lookup owners, including host registration and
+#: returned callback goals [measured 2026-09-08: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+BUDGET = 2221

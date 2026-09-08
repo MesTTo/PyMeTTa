@@ -224,9 +224,9 @@ def test_a_translator_rule_declares_its_direction_and_a_bidirectional_rule_is_on
             "metta_host_set_silent(true), "
             f"load_metta_file('{planted}', _), "
             "forall(member(N, [unpack, twin]), "
-            "       ( translator_rule(N, D), format('ROW ~w ~q~n', [N, D]) )), "
+            "       ( translator_rules:translator_rule(N, D), format('ROW ~w ~q~n', [N, D]) )), "
             "'remove-translator-rule!'(unpack, _), "
-            "( translator_rule(twin, _) -> writeln('INVERSE KEPT') "
+            "( translator_rules:translator_rule(twin, _) -> writeln('INVERSE KEPT') "
             "; writeln('INVERSE WITHDRAWN') ), "
             "( 'get-atoms'('&self', ['=', [twin|_], _]) -> writeln('EQUATION KEPT') "
             "; writeln('EQUATION WITHDRAWN') )",

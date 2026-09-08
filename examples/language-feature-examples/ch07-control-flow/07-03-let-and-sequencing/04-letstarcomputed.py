@@ -222,7 +222,12 @@ RUNG = "a `let*` whose bindings arrive as a VALUE has no assignment spelling"
 #: tree, minimum of three fresh processes [measured 2026-09-08: min-of-3 serial
 #: fresh processes; command=python extensions/python/tools/twin_coverage.py
 #: --repin; commit=856434d7c1d381b3f3d7cbbd008f46c0d41b61aa].
-BUDGET = 10558
+#: RE-PINNED 2026-09-08, 10558 to 10578 (+20), The engine and library
+#: predicates now resolve through their owning modules and the explicit engine
+#: facade; compiled program lookup crosses the added metta_engine tier
+#: [measured 2026-09-08: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 10578
 
 #: OVERRUN 2026-09-07, 800: it asks the eight computed-binding claims one at a
 #: time through the evaluation door. Measured 10606 against a ceiling of 9833;

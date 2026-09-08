@@ -1,6 +1,8 @@
 """Purpose: engine-backed tests for the MeTTa runtime surface: run, load,
 space edits, queries, eval, parse, and the semantics matching the CLI's own.
 Guarantees:
+  - the load restoration probe reads filereader:working_dir/1 in its owner
+    [tested: test_load_restores_the_working_directory; commit=WORKTREE]
   - a guarded defined head with no matching clause answers NOTHING, which is
     upstream's own answer for it [measured 2026-08-30 against PeTTa@ae66fa8:
     `(= (only-zero 0) yes)` then `(collapse (only-zero 7))` is `()` there and
@@ -1323,9 +1325,9 @@ def test_load_restores_the_working_directory(metta, tmp_path):
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     inner = tmp_path / "prog.metta"
     inner.write_text("!(+ 1 1)\n")
-    before = janus_swi.query_once("working_dir(D)")
+    before = janus_swi.query_once("filereader:working_dir(D)")
     metta.load(str(inner))
-    after = janus_swi.query_once("working_dir(D)")
+    after = janus_swi.query_once("filereader:working_dir(D)")
     assert (before or {}).get("D") == (after or {}).get("D")
 
 

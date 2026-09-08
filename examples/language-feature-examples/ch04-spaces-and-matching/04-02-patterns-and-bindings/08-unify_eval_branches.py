@@ -150,7 +150,12 @@ def twin(m):
 #: compiled default space operand as &self rather than a (context-space) call
 #: [measured 2026-09-07: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=9010a79b01c9b2a66b96a3952fa378fb3e939dc3].
-BUDGET = 6672
+#: RE-PINNED 2026-09-08, 6672 to 6700 (+28), The engine and library predicates
+#: now resolve through their owning modules and the explicit engine facade;
+#: compiled program lookup crosses the added metta_engine tier [measured
+#: 2026-09-08: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 6700
 
 #: OVERRUN 2026-09-07, 1300: it asks the five branches through the evaluation
 #: door where the example evaluates them inside one `unify` form. Measured 6672

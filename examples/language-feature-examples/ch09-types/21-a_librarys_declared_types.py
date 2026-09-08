@@ -68,4 +68,9 @@ def twin(m):
 #: [measured 2026-09-07: 22672 inferences, 0.9700x the example's 23372; command=python
 #: extensions/python/tools/twin_coverage.py --measure --rounds 3;
 #: fixture=docs/every-atom-has-an-example at its example commits; commit=98397cdd04679cbf40b2d515076dadc09c1b0a32].
-BUDGET = 22672
+#: RE-PINNED 2026-09-08, 22672 to 22926 (+254), The engine and library
+#: predicates now resolve through their owning modules and the explicit engine
+#: facade; compiled program lookup crosses the added metta_engine tier
+#: [measured 2026-09-08: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 22926

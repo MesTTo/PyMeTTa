@@ -169,7 +169,12 @@ def twin(m):
 #: reads its budget on the merged tree, minimum of three fresh processes
 #: [measured 2026-09-08: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=3fc65f02ce807c359f1a52026f950f345da2a9af].
-BUDGET = 24982
+#: RE-PINNED 2026-09-08, 24982 to 25182 (+200), The engine and library
+#: predicates now resolve through their owning modules and the explicit engine
+#: facade; compiled program lookup crosses the added metta_engine tier
+#: [measured 2026-09-08: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 25182
 
 #: OVERRUN 2026-09-07, 2400: the mutually recursive pair takes the `@m.rules`
 #: door, which stages two equations where the example writes two. Measured
