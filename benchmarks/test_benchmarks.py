@@ -325,7 +325,7 @@ _ROWS = 2_000
 #: fixture=a throwaway checkout beside the repository whose path is exactly as
 #: long as the repository root, with the C reader, writer, JSON codec,
 #: chapter-19 artifacts and libmork_ffi.so present and the QLF cleared and
-#: rebuilt; commit=WORKTREE].
+#: rebuilt; commit=b6039d8cb441cad9dbf83435b071a8decb169421].
 #: Note for the next reader: `sh extensions/python/test.sh` carries
 #: `-p no:benchmark`, which makes benchmarks/conftest.py's
 #: pytest_benchmark_update_machine_info an unknown hook and turns the run into

@@ -259,7 +259,7 @@ def space_door_rows(calls: int = SPACE_CALLS, rounds: int = ROUNDS) -> list[Row]
     # used to offer is now outside it: the write answers nothing, stores
     # nothing and raises nothing, and the driver's recursion stops on the
     # first call. It took the whole lane down rather than this row
-    # [tested: sh check.sh extcost; commit=WORKTREE]. The shape is
+    # [tested: sh check.sh extcost; commit=b6039d8cb441cad9dbf83435b071a8decb169421]. The shape is
     # examples/ch15-writing-transactions-and-worlds/04-admission_pools.metta's
     # own, `(: (ticket a) Ticket)` offered as `(ticket a)`, so the row still
     # measures a typed atom entering a typed pool.

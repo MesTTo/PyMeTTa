@@ -17,7 +17,7 @@ driver is covered with no edit here, which is the property the sibling check
 Guarantees:
   - every `bench.py` the repository tracks answers `--help` with status 0,
     which runs its module body and therefore its imports
-    [tested: test_every_benchmark_driver_imports; commit=WORKTREE]
+    [tested: test_every_benchmark_driver_imports; commit=b6039d8cb441cad9dbf83435b071a8decb169421]
 Open Obligations:
   To Do: None
   Hacks: None
