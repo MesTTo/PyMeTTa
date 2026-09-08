@@ -252,7 +252,7 @@ def twin(m):
 #: content and clause layout moved, which shifts a twin count by tens; measured
 #: on the merged tree [measured 2026-09-09: min-of-3 serial fresh processes;
 #: command=python extensions/python/tools/twin_coverage.py --repin;
-#: commit=WORKTREE].
+#: commit=aeb46b14152274db84f6415c8a3dd8c98a9c9eb1].
 BUDGET = 15727
 #: OVERRUN 2026-09-09, 25 to 62 (+37): the door table landed
 #: (feat/space-as-a-projection-of-door-rows merged at 6471faa37, its
@@ -264,7 +264,7 @@ BUDGET = 15727
 #: twin costs 8295 against the band's 15665, within that ceiling, so the rest
 #: is this twin's own program [measured 2026-09-09: one fresh process per
 #: side; command=python extensions/python/benchmarks/probes/twin_floor.py;
-#: commit=WORKTREE].
+#: commit=aeb46b14152274db84f6415c8a3dd8c98a9c9eb1].
 OVERRUN = 62
 
 #: DIVERGED 2026-09-07, the example holds 0 atoms the twin does not (none) and

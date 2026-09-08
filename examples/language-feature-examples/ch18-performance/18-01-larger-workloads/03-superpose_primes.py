@@ -255,7 +255,7 @@ def twin(m):
 #: content and clause layout moved, which shifts a twin count by tens; measured
 #: on the merged tree [measured 2026-09-09: min-of-3 serial fresh processes;
 #: command=python extensions/python/tools/twin_coverage.py --repin;
-#: commit=WORKTREE].
+#: commit=aeb46b14152274db84f6415c8a3dd8c98a9c9eb1].
 BUDGET = 636304
 
 #: OVERRUN 2026-09-07, 36900: it names the recursion and the trial division as
@@ -274,11 +274,11 @@ BUDGET = 636304
 #: minimal twin costs 540768 against the band's 599384, within that ceiling,
 #: so the rest is this twin's own program [measured 2026-09-09: one fresh
 #: process per side; command=python
-#: extensions/python/benchmarks/probes/twin_floor.py; commit=WORKTREE].
+#: extensions/python/benchmarks/probes/twin_floor.py; commit=aeb46b14152274db84f6415c8a3dd8c98a9c9eb1].
 #: The band is met exactly at that figure and the lane refuses a ceiling met
 #: exactly (it prints the ceiling rounded), so the four-inference allowance
 #: the module-boundary pins recorded is added here too [measured 2026-09-09:
-#: the twins lane on the re-pinned tree; commit=WORKTREE].
+#: the twins lane on the re-pinned tree; commit=aeb46b14152274db84f6415c8a3dd8c98a9c9eb1].
 OVERRUN = 36924
 
 #: DIVERGED 2026-09-07, the example holds 0 atoms the twin does not (none) and

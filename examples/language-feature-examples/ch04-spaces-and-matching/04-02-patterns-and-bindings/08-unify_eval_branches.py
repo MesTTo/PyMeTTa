@@ -194,9 +194,9 @@ BUDGET = 6715
 #: twin costs 6610 against the band's 5410, above that ceiling, so no twin of
 #: it fits the band at all, as before [measured 2026-09-09: one fresh process
 #: per side; command=python extensions/python/benchmarks/probes/twin_floor.py;
-#: commit=WORKTREE].
+#: commit=aeb46b14152274db84f6415c8a3dd8c98a9c9eb1].
 #: The band is met exactly at that figure and the lane refuses a ceiling met
 #: exactly (it prints the ceiling rounded), so the four-inference allowance
 #: the module-boundary pins recorded is added here too [measured 2026-09-09:
-#: the twins lane on the re-pinned tree; commit=WORKTREE].
+#: the twins lane on the re-pinned tree; commit=aeb46b14152274db84f6415c8a3dd8c98a9c9eb1].
 OVERRUN = 1309

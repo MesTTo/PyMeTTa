@@ -298,7 +298,7 @@ def twin(m):
 #: content and clause layout moved, which shifts a twin count by tens; measured
 #: on the merged tree [measured 2026-09-09: min-of-3 serial fresh processes;
 #: command=python extensions/python/tools/twin_coverage.py --repin;
-#: commit=WORKTREE].
+#: commit=aeb46b14152274db84f6415c8a3dd8c98a9c9eb1].
 BUDGET = 320373
 
 #: OVERRUN 2026-09-07, 17700: it names every lib_roman function at every claim
@@ -356,7 +356,7 @@ BUDGET = 320373
 #: minimal twin costs 313468 against the band's 302149, above that ceiling, so
 #: no twin of it fits the band at all, as before [measured 2026-09-09: one
 #: fresh process per side; command=python
-#: extensions/python/benchmarks/probes/twin_floor.py; commit=WORKTREE].
+#: extensions/python/benchmarks/probes/twin_floor.py; commit=aeb46b14152274db84f6415c8a3dd8c98a9c9eb1].
 OVERRUN = 18224
 
 #: DIVERGED 2026-09-07, the example holds 9 atoms the twin does not (9 =) and

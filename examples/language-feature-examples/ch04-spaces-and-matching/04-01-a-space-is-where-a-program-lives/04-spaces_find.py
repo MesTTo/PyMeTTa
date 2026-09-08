@@ -191,7 +191,7 @@ def twin(m):
 #: content and clause layout moved, which shifts a twin count by tens; measured
 #: on the merged tree [measured 2026-09-09: min-of-3 serial fresh processes;
 #: command=python extensions/python/tools/twin_coverage.py --repin;
-#: commit=WORKTREE].
+#: commit=aeb46b14152274db84f6415c8a3dd8c98a9c9eb1].
 BUDGET = 9954
 
 #: OVERRUN 2026-09-07, 600: it asks `find` a fourth time for the claim the
@@ -219,5 +219,5 @@ BUDGET = 9954
 #: twin costs 8353 against the band's 9130, within that ceiling, so the rest
 #: is this twin's own program [measured 2026-09-09: one fresh process per
 #: side; command=python extensions/python/benchmarks/probes/twin_floor.py;
-#: commit=WORKTREE].
+#: commit=aeb46b14152274db84f6415c8a3dd8c98a9c9eb1].
 OVERRUN = 824

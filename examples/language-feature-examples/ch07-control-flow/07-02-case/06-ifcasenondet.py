@@ -242,7 +242,7 @@ def twin(m):
 #: listeners publish on every registration, so boot content and clause layout
 #: moved, which shifts a twin count by tens; measured on the merged tree
 #: [measured 2026-09-09: min-of-3 serial fresh processes; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+#: extensions/python/tools/twin_coverage.py --repin; commit=aeb46b14152274db84f6415c8a3dd8c98a9c9eb1].
 BUDGET = 7111
 
 #: DIVERGED 2026-09-07, the example holds 1 atom the twin does not (1 =) and

@@ -272,5 +272,5 @@ def twin(m):  # noqa: ARG001  -- both spaces are created here; the default handl
 #: content and clause layout moved, which shifts a twin count by tens; measured
 #: on the merged tree [measured 2026-09-09: min-of-3 serial fresh processes;
 #: command=python extensions/python/tools/twin_coverage.py --repin;
-#: commit=WORKTREE].
+#: commit=aeb46b14152274db84f6415c8a3dd8c98a9c9eb1].
 BUDGET = 52362

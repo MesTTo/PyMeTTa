@@ -270,7 +270,7 @@ def twin(m):
 #: content and clause layout moved, which shifts a twin count by tens; measured
 #: on the merged tree [measured 2026-09-09: min-of-3 serial fresh processes;
 #: command=python extensions/python/tools/twin_coverage.py --repin;
-#: commit=WORKTREE].
+#: commit=aeb46b14152274db84f6415c8a3dd8c98a9c9eb1].
 BUDGET = 48539
 
 #: OVERRUN 2026-09-07, 27600: it proves seventeen claims where the example
@@ -300,7 +300,7 @@ BUDGET = 48539
 #: twin costs 7954 against the band's 20736, within that ceiling, so the rest
 #: is this twin's own program [measured 2026-09-09: one fresh process per
 #: side; command=python extensions/python/benchmarks/probes/twin_floor.py;
-#: commit=WORKTREE].
+#: commit=aeb46b14152274db84f6415c8a3dd8c98a9c9eb1].
 OVERRUN = 27803
 
 #: DIVERGED 2026-09-07, the example holds 1 atom the twin does not (1 =) and

@@ -331,12 +331,12 @@ BUDGET = {
 #: minimal twin costs 238745 against the band's 263308, within that ceiling,
 #: so the rest is this twin's own program [measured 2026-09-09: one fresh
 #: process per side; command=python
-#: extensions/python/benchmarks/probes/twin_floor.py; commit=WORKTREE].
+#: extensions/python/benchmarks/probes/twin_floor.py; commit=aeb46b14152274db84f6415c8a3dd8c98a9c9eb1].
 #: The example's own count moves between lane runs (236892 to 236904 on
 #: the module-boundary tree, 236897 here) while the twin's 462847 holds, so
 #: the raise covers the lowest reading of the example plus the four-inference
 #: allowance the module-boundary pins recorded [measured 2026-09-09: the
-#: twins lane, three runs on the re-pinned tree; commit=WORKTREE].
+#: twins lane, three runs on the re-pinned tree; commit=aeb46b14152274db84f6415c8a3dd8c98a9c9eb1].
 OVERRUN = 199556
 
 #: DIVERGED 2026-09-07, the example holds 0 atoms the twin does not (none) and
