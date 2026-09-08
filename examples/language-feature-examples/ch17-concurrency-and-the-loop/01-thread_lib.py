@@ -309,10 +309,21 @@ def twin(m):
 #: [measured: exact extrema over 10 successful observations; command=python
 #: extensions/python/tools/twin_coverage.py --observe --rounds 10;
 #: fixture=full-lane/277/workers=32; commit=b615b5a33b43252ef9826e5387da7c9bd7f6b543].
+#: RE-OBSERVED 2026-09-09 after a library's Prolog half compiles beside itself
+#: on its first import (metta_load_source/2, seam:compiled_source/1), POOLED
+#: over every full-lane sample on this tree: two --observe runs of ten rounds
+#: and 4 plain lane runs read 282220..313661 (spread 31441) over 24
+#: observations, replacing the earlier envelope of the tree before this one.
+#: Its count is the scheduler's, it races two `slow` branches whose loser is
+#: cut wherever the winner lands, so the envelope is exact extrema and a run
+#: outside it is a re-observation under --observe, not a re-pin [measured
+#: 2026-09-09: python extensions/python/tools/twin_coverage.py --observe
+#: --rounds 10, twice, beside the plain lane runs ai-tmp records; fixture=full-
+#: lane/277/workers=32; commit=WORKTREE].
 BUDGET = {
-    "minimum": 589444,
-    "maximum": 618249,
-    "observations": 26,
+    "minimum": 282220,
+    "maximum": 313661,
+    "observations": 24,
     "protocol": "full-lane/277/workers=32",
 }
 
@@ -333,7 +344,17 @@ BUDGET = {
 #: extensions/python/tools/twin_coverage.py --observe`, two runs of 12 and 25
 #: rounds pooled, beside three fresh-process runs of the example;
 #: commit=9010a79b01c9b2a66b96a3952fa378fb3e939dc3].
-OVERRUN = 460000
+#: OVERRUN 2026-09-09, 460000 to 159568 (-300432), RE-DERIVED from the pooled
+#: envelope above after a library's Prolog half compiles beside itself on its
+#: first import: the lib_thread consult this twin paid in every process left it
+#: and its example alike, and the pooled observations top out at 313661 against
+#: a ceiling of 154093 (the example's cheapest plain-lane run, 133772, plus its
+#: 10% and the 6944 four compiled definitions cost to author under the
+#: constants re-derived on this tree). The spin where the example sleeps is
+#: still this twin's own program, and BUDGET is the envelope: a run outside it
+#: is red whatever this says [measured 2026-09-09: the pooled --observe runs
+#: above, beside the plain lane's example cost; commit=WORKTREE].
+OVERRUN = 159568
 
 #: DIVERGED 2026-09-07, the example holds 1 atom the twin does not (1 =) and
 #: the twin holds 5 the example does not (3 :, 2 =): the twin is an ordinary

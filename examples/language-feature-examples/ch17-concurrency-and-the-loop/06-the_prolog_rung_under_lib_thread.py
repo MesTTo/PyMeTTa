@@ -177,7 +177,35 @@ def twin(m):
 #: repairs; measured on the merged tree [measured 2026-09-09: min-of-3 serial
 #: fresh processes; command=python extensions/python/tools/twin_coverage.py
 #: --repin; commit=50e34286f66c938d89d5d367c6370ad44164c97f].
-BUDGET = 409097
+#: RE-PINNED 2026-09-09, 409097 to 122527 (-286570), a library's Prolog half
+#: compiles beside itself on its first import and loads from the artifact after
+#: (metta_load_source/2, seam:compiled_source/1): a twin whose example imports
+#: a library with a Prolog half pays the artifact load where both sides paid
+#: the source consult and its compile-time expansion in every process,
+#: lib_thread's import 278,309 to 5,925 inferences; every import now resolves
+#: its spec and asks the boot's claim, about 180 inferences an import, and the
+#: boot's content moved (the door, the seam and the three library imports the
+#: tokens, receipts and seed units gained), which shifts clause layout by tens;
+#: measured on this tree with the artifacts warm [measured 2026-09-09: min-of-3
+#: serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+#: RE-OBSERVED 2026-09-09 after a library's Prolog half compiles beside itself
+#: on its first import (metta_load_source/2, seam:compiled_source/1), POOLED
+#: over every full-lane sample on this tree: two --observe runs of ten rounds
+#: and 4 plain lane runs read 121278..123532 (spread 2254) over 24
+#: observations, replacing the earlier envelope of the tree before this one.
+#: Its count is the scheduler's, it drives lib_thread's pools from the Prolog
+#: rung, so the envelope is exact extrema and a run outside it is a re-
+#: observation under --observe, not a re-pin [measured 2026-09-09: python
+#: extensions/python/tools/twin_coverage.py --observe --rounds 10, twice,
+#: beside the plain lane runs ai-tmp records; fixture=full-lane/277/workers=32;
+#: commit=WORKTREE].
+BUDGET = {
+    "minimum": 121278,
+    "maximum": 123532,
+    "observations": 24,
+    "protocol": "full-lane/277/workers=32",
+}
 #: The count VARIES, because this twin starts threads, pools and timers and
 #: the engine charges what the scheduler actually ran. Three single-round
 #: measurements on this branch gave 257426, 257768 and 257409, a spread of

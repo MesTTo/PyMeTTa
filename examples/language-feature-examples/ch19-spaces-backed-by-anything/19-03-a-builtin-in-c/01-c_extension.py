@@ -193,4 +193,16 @@ def twin(m):
 #: repairs; measured on the merged tree [measured 2026-09-09: min-of-3 serial
 #: fresh processes; command=python extensions/python/tools/twin_coverage.py
 #: --repin; commit=50e34286f66c938d89d5d367c6370ad44164c97f].
-BUDGET = 103588
+#: RE-PINNED 2026-09-09, 103588 to 26993 (-76595), a library's Prolog half
+#: compiles beside itself on its first import and loads from the artifact after
+#: (metta_load_source/2, seam:compiled_source/1): a twin whose example imports
+#: a library with a Prolog half pays the artifact load where both sides paid
+#: the source consult and its compile-time expansion in every process,
+#: lib_thread's import 278,309 to 5,925 inferences; every import now resolves
+#: its spec and asks the boot's claim, about 180 inferences an import, and the
+#: boot's content moved (the door, the seam and the three library imports the
+#: tokens, receipts and seed units gained), which shifts clause layout by tens;
+#: measured on this tree with the artifacts warm [measured 2026-09-09: min-of-3
+#: serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 26993

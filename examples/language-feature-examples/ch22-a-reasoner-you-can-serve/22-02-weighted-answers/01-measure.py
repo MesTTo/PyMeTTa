@@ -271,10 +271,21 @@ def twin(m):
 #: [measured: exact extrema over 10 successful observations; command=python
 #: extensions/python/tools/twin_coverage.py --observe --rounds 10;
 #: fixture=full-lane/277/workers=32; commit=b615b5a33b43252ef9826e5387da7c9bd7f6b543].
+#: RE-OBSERVED 2026-09-09 after a library's Prolog half compiles beside itself
+#: on its first import (metta_load_source/2, seam:compiled_source/1), POOLED
+#: over every full-lane sample on this tree: two --observe runs of ten rounds
+#: and 4 plain lane runs read 130379..130488 (spread 109) over 24 observations,
+#: replacing the earlier envelope of the tree before this one. Its count is the
+#: scheduler's, three of its claims are about a sampled draw, so the envelope
+#: is exact extrema and a run outside it is a re-observation under --observe,
+#: not a re-pin [measured 2026-09-09: python
+#: extensions/python/tools/twin_coverage.py --observe --rounds 10, twice,
+#: beside the plain lane runs ai-tmp records; fixture=full-lane/277/workers=32;
+#: commit=WORKTREE].
 BUDGET = {
-    "minimum": 126937,
-    "maximum": 127036,
-    "observations": 27,
+    "minimum": 130379,
+    "maximum": 130488,
+    "observations": 24,
     "protocol": "full-lane/277/workers=32",
 }
 

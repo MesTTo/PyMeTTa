@@ -278,20 +278,19 @@ def twin(m):
 #: above all [measured 2026-09-09: min-of-3 serial fresh processes;
 #: command=python extensions/python/tools/twin_coverage.py --repin;
 #: commit=b4341ae382c48ef225f4a52e566af6a9a71757c4].
-BUDGET = 4722
-#: OVERRUN 2026-09-09, 0 to 36 (+36): the compiled vocabulary seed, the
-#: membership index, base-module type lookups and the singleton decoder landed
-#: (perf/cross-engine-waivers merged): a Python decode with one named variable
-#: builds no index and one with more builds it at the second distinct name,
-#: which moves a twin's engine-side cost while its example, which decodes
-#: nothing, holds; boot content and clause layout moved the rest; against the
-#: trunk's own run at da0e5755d the twin moved -65 and the example +0, and the
-#: twin sat 101 over its ceiling there already. Measured 4722 against a
-#: ceiling of 4686; a minimal twin costs 1284 against the band's 4686, within
-#: that ceiling, so the rest is this twin's own program [measured 2026-09-09:
-#: one fresh process per side; command=python
-#: extensions/python/benchmarks/probes/twin_floor.py; commit=b4341ae382c48ef225f4a52e566af6a9a71757c4].
-OVERRUN = 36
+#: RE-PINNED 2026-09-09, 4722 to 4782 (+60), a library's Prolog half compiles
+#: beside itself on its first import and loads from the artifact after
+#: (metta_load_source/2, seam:compiled_source/1): a twin whose example imports
+#: a library with a Prolog half pays the artifact load where both sides paid
+#: the source consult and its compile-time expansion in every process,
+#: lib_thread's import 278,309 to 5,925 inferences; every import now resolves
+#: its spec and asks the boot's claim, about 180 inferences an import, and the
+#: boot's content moved (the door, the seam and the three library imports the
+#: tokens, receipts and seed units gained), which shifts clause layout by tens;
+#: measured on this tree with the artifacts warm [measured 2026-09-09: min-of-3
+#: serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 4782
 
 #: DIVERGED 2026-09-07, the example holds 0 atoms the twin does not (none) and
 #: the twin holds 1 atom the example does not (1 =): the twin is an ordinary Python

@@ -307,8 +307,23 @@ BAND_PERCENT = 10.0
 #: once-per-file warmup, +36 [measured 2026-09-08: min-of-3 fresh processes
 #: per fixture; command=python extensions/python/benchmarks/probes/twin_authoring.py;
 #: commit=08f6f4df19a283bb84ba5f679c83944b42685b2e].
-DEFINITION_WARMUP = 1406
-DEFINITION_COST = 1309
+#: RE-MEASURED 2026-09-09 on the tree that compiles a runtime-loaded Prolog
+#: unit beside its source (metta_load_source/2, seam:compiled_source/1):
+#: 2847, 4200, 5569, 6950 inferences at 1 to 4 definitions, the fit 1472
+#: once plus 1368 for each; the source door reads 434 to store and 1023 at
+#: its first call, the define door 2847 and 182. The per-definition cost had
+#: drifted +59 across the merges since the pin above (the control at the
+#: commit before this tree reads 2787, 4140, 5509, 6890, the fit 1412 plus
+#: 1368), and this tree moves the once-per-file warmup +60, the
+#: load-structure movement engine/qlf_boot.pl's header records for any
+#: boot-content change: A/B on this tree, the boot file's governance
+#: predicates alone +30, its pattern table alone 0, both +70 before the
+#: child-compile predicates joined them, +60 with them, and no other file of
+#: the change moves it [measured 2026-09-09: min-of-3 fresh processes per
+#: fixture; command=python extensions/python/benchmarks/probes/twin_authoring.py;
+#: commit=WORKTREE].
+DEFINITION_WARMUP = 1472
+DEFINITION_COST = 1368
 
 #: The tree's own POINT-counter allowance. It applies to an integer BUDGET
 #: only; adding it to empirical extrema would silently widen what was observed

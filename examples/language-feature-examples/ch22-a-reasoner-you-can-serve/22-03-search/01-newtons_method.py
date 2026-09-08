@@ -303,7 +303,19 @@ def twin(m):
 #: storage above all [measured 2026-09-09: min-of-3 serial fresh processes;
 #: command=python extensions/python/tools/twin_coverage.py --repin;
 #: commit=b4341ae382c48ef225f4a52e566af6a9a71757c4].
-BUDGET = 58808
+#: RE-PINNED 2026-09-09, 58808 to 45182 (-13626), a library's Prolog half
+#: compiles beside itself on its first import and loads from the artifact after
+#: (metta_load_source/2, seam:compiled_source/1): a twin whose example imports
+#: a library with a Prolog half pays the artifact load where both sides paid
+#: the source consult and its compile-time expansion in every process,
+#: lib_thread's import 278,309 to 5,925 inferences; every import now resolves
+#: its spec and asks the boot's claim, about 180 inferences an import, and the
+#: boot's content moved (the door, the seam and the three library imports the
+#: tokens, receipts and seed units gained), which shifts clause layout by tens;
+#: measured on this tree with the artifacts warm [measured 2026-09-09: min-of-3
+#: serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 45182
 
 #: OVERRUN 2026-09-07, 6400: it declares the cache policy and memoises by name
 #: through the library door, then reads the result twice. Measured 57334
@@ -324,7 +336,20 @@ BUDGET = 58808
 #: within that ceiling, so the rest is this twin's own program [measured
 #: 2026-09-09: one fresh process per side; command=python
 #: extensions/python/benchmarks/probes/twin_floor.py; commit=b4341ae382c48ef225f4a52e566af6a9a71757c4].
-OVERRUN = 6443
+#: OVERRUN 2026-09-09, 6443 to 7717 (+1274): a library's Prolog half compiles
+#: beside itself on its first import and loads from the artifact after
+#: (metta_load_source/2, seam:compiled_source/1): the example imports one, so
+#: the import's consult and its compile-time expansion left both sides in
+#: equal measure and the tenth of it that padded this twin's ceiling left with
+#: them, which shows the twin's own excess whole; the lane's authoring
+#: constants are re-derived on this tree in the same change; against the run
+#: before the compiled halves (b4341ae38) the twin moved -13626 and the
+#: example -13659, and the twin sat 1 within its ceiling there. Measured 45182
+#: against a ceiling of 43909; a minimal twin costs 38674 against the band's
+#: 37466, above that ceiling, so no twin of it fits the band at all, as before
+#: [measured 2026-09-09: one fresh process per side; command=python
+#: extensions/python/benchmarks/probes/twin_floor.py; commit=WORKTREE].
+OVERRUN = 7717
 
 #: DIVERGED 2026-09-07, the example holds 0 atoms the twin does not (none) and
 #: the twin holds 2 the example does not (1 :, 1 @doc): a Python annotation IS

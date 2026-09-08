@@ -289,4 +289,31 @@ def twin(m):
 #: storage above all [measured 2026-09-09: min-of-3 serial fresh processes;
 #: command=python extensions/python/tools/twin_coverage.py --repin;
 #: commit=b4341ae382c48ef225f4a52e566af6a9a71757c4].
-BUDGET = 39573
+#: RE-PINNED 2026-09-09, 39573 to 26066 (-13507), a library's Prolog half
+#: compiles beside itself on its first import and loads from the artifact after
+#: (metta_load_source/2, seam:compiled_source/1): a twin whose example imports
+#: a library with a Prolog half pays the artifact load where both sides paid
+#: the source consult and its compile-time expansion in every process,
+#: lib_thread's import 278,309 to 5,925 inferences; every import now resolves
+#: its spec and asks the boot's claim, about 180 inferences an import, and the
+#: boot's content moved (the door, the seam and the three library imports the
+#: tokens, receipts and seed units gained), which shifts clause layout by tens;
+#: measured on this tree with the artifacts warm [measured 2026-09-09: min-of-3
+#: serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+#: RE-OBSERVED 2026-09-09 after a library's Prolog half compiles beside itself
+#: on its first import (metta_load_source/2, seam:compiled_source/1), POOLED
+#: over every full-lane sample on this tree: two --observe runs of ten rounds
+#: and 4 plain lane runs read 26022..26066 (spread 44) over 24 observations,
+#: replacing a point pin of 26066. Its count is the scheduler's, its cost
+#: follows the git repository it imports from, so the envelope is exact extrema
+#: and a run outside it is a re-observation under --observe, not a re-pin
+#: [measured 2026-09-09: python extensions/python/tools/twin_coverage.py
+#: --observe --rounds 10, twice, beside the plain lane runs ai-tmp records;
+#: fixture=full-lane/277/workers=32; commit=WORKTREE].
+BUDGET = {
+    "minimum": 26022,
+    "maximum": 26066,
+    "observations": 24,
+    "protocol": "full-lane/277/workers=32",
+}
