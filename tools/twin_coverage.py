@@ -321,7 +321,7 @@ BAND_PERCENT = 10.0
 #: library child's predicates joined them and +70 again with the engine
 #: set's; no other file of the change moves it [measured 2026-09-09:
 #: min-of-3 fresh processes per fixture; command=python
-#: extensions/python/benchmarks/probes/twin_authoring.py; commit=WORKTREE].
+#: extensions/python/benchmarks/probes/twin_authoring.py; commit=5f8a823d23fbed5c7395912a89ba32760e2df4b1].
 DEFINITION_WARMUP = 1482
 DEFINITION_COST = 1368
 

@@ -327,7 +327,7 @@ def twin(m):
 #: check besides; measured on this tree with the artifacts warm, against the
 #: pins of f26de01fb [measured 2026-09-09: min-of-3 serial fresh processes;
 #: command=python extensions/python/tools/twin_coverage.py --repin;
-#: commit=WORKTREE].
+#: commit=5f8a823d23fbed5c7395912a89ba32760e2df4b1].
 BUDGET = 104576
 
 #: OVERRUN 2026-09-07, 17800: it asserts the atom count the example only

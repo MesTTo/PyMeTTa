@@ -365,7 +365,7 @@ BUDGET = 50837
 #: ten the re-derived authoring constant carries), so the ceiling fell by one
 #: under the twin. Measured 50837 against a ceiling of 50836 [measured
 #: 2026-09-09: python extensions/python/tools/twin_coverage.py, one full-lane
-#: run on this tree; commit=WORKTREE].
+#: run on this tree; commit=5f8a823d23fbed5c7395912a89ba32760e2df4b1].
 OVERRUN = 4071
 
 #: DIVERGED 2026-09-07, the example holds 0 atoms the twin does not (none) and
