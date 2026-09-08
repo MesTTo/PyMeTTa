@@ -27,7 +27,7 @@ from ._space_execution import evaluate as evaluate_eager
 from ._space_execution import evaluate_count, value_one
 from ._under import _UNSET, selected
 from .atoms import Atom, Grounded, Handle, Undefined, _decode, ground
-from .doors import EvaluationAnswer
+from .doors import AnswerForm, EvaluationAnswer
 from .errors import EngineError, refuse
 from .results import Answers, Rows, _AnswerItem, error_answer, raise_error_answers
 from .vocabularies import ArgumentDelivery, Determinism, ImageMode, OnError, RefusalKind
@@ -234,7 +234,7 @@ def evaluate(
         target = _target_image(target, image_mode, space)
         # The eager cardinality spellings retain the existing _one/_first
         # behavior, including effects after the selected first answer.
-        eager = shape in {EvaluationAnswer.all, EvaluationAnswer.one, EvaluationAnswer.first, EvaluationAnswer.atom} and limit is None
+        eager = shape.form is AnswerForm.materialised and limit is None
         if eager:
             if theory is not None or interpreter is not None or selected(under) is not None:
                 with space._door_answers(target, **options) as answers:
@@ -266,7 +266,7 @@ def evaluate(
                             errors=errors, determinism=promise, limit=limit)
         if shape is EvaluationAnswer.stream:
             return _Stream(source)
-        if shape in {EvaluationAnswer.count, EvaluationAnswer.exists, EvaluationAnswer.none}:
+        if shape.form is AnswerForm.aggregate:
             with _Stream(source) as stream:
                 if shape is EvaluationAnswer.count:
                     return sum(1 for _ in stream)

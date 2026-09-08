@@ -563,10 +563,13 @@ def _callable_code(fn: Callable) -> Any:
     return None
 
 
-# policy-inventory-exempt: mechanism-internal; reason=encoded and raw are the two wire-crossing modes a registration can ask for, and this decoder turns them into the (op ...) kind; evidence=extensions/python/metta/ops.py:register
-def _operation_kind(fn: Callable, transport: Literal["encoded", "raw"]) -> str:
-    if transport not in ("encoded", "raw"):
-        msg = f"transport must be 'encoded' or 'raw', got {transport!r}"
+# policy-inventory-exempt: mechanism-internal; reason=the two ways an operation's arguments cross the seam, encoded through the atom codec or as raw wire terms, decoded once into the (op ...) kind; evidence=extensions/python/metta/ops.py:_operation_kind
+Transport = Literal["encoded", "raw"]
+
+
+def _operation_kind(fn: Callable, transport: Transport) -> str:
+    if transport not in typing.get_args(Transport):
+        msg = f"transport must be one of {typing.get_args(Transport)}, got {transport!r}"
         raise ValueError(msg)
     code = _callable_code(fn)
     flags = code.co_flags if code is not None else 0
@@ -993,8 +996,7 @@ def register[**P, R](
     fn: Callable[P, R],
     *,
     name: str | None = None,
-    # policy-inventory-exempt: mechanism-internal; reason=encoded and raw are the registration transport's two wire-crossing modes, decoded once into the (op ...) kind; evidence=extensions/python/metta/ops.py:_operation_kind
-    transport: Literal["encoded", "raw"] = "encoded",
+    transport: Transport = "encoded",
     effect: EffectClass | str | None = None,
     declarations: Iterable[Atom] = (),
     space: str = _DEFAULT_SPACE,

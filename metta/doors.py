@@ -88,6 +88,42 @@ class EvaluationAnswer(StrEnum):
     none = "none"
     stream = "stream"
 
+    @property
+    def form(self) -> AnswerForm:
+        """What this choice hands back: the door dispatches on the form."""
+        return _ANSWER_FORMS[self]
+
+
+class AnswerForm(StrEnum):
+    """What the evaluation door hands back for an answer choice.
+
+    Materialised choices compute every answer before the call returns; a view
+    is a lazy source the caller consumes; an aggregate is one fact about the
+    answer set; a stream is consumed answer by answer.
+    """
+
+    materialised = "materialised"
+    view = "view"
+    aggregate = "aggregate"
+    stream = "stream"
+
+
+#: The one statement of each choice's form. `EvaluationAnswer.form` reads it,
+#: so no door restates which choices share a form.
+_ANSWER_FORMS: Mapping[EvaluationAnswer, AnswerForm] = MappingProxyType({
+    EvaluationAnswer.all: AnswerForm.materialised,
+    EvaluationAnswer.atom: AnswerForm.materialised,
+    EvaluationAnswer.one: AnswerForm.materialised,
+    EvaluationAnswer.first: AnswerForm.materialised,
+    EvaluationAnswer.answers: AnswerForm.view,
+    EvaluationAnswer.rows: AnswerForm.view,
+    EvaluationAnswer.count: AnswerForm.aggregate,
+    EvaluationAnswer.exists: AnswerForm.aggregate,
+    EvaluationAnswer.none: AnswerForm.aggregate,
+    EvaluationAnswer.stream: AnswerForm.stream,
+})
+assert set(_ANSWER_FORMS) == set(EvaluationAnswer)
+
 
 class Tier(StrEnum):
     """Host projections which carry a door."""
@@ -109,6 +145,39 @@ class Owner(StrEnum):
     remote_space = "remote-space"
     remote_cursor = "remote-cursor"
     namespace = "namespace"
+
+    @property
+    def family(self) -> Family:
+        """Which family of receivers this owner belongs to."""
+        return _OWNER_FAMILIES[self]
+
+
+class Family(StrEnum):
+    """The families the owners fall into, which the table's rules read.
+
+    Core owners are the receivers whose doors are Space and MeTTa methods, so
+    their Python names are the ones a namespace may not shadow; result owners
+    are the answer containers a package may add sugar to; remote owners are
+    the client's projections; a namespace is a package's own door set.
+    """
+
+    core = "core"
+    result = "result"
+    remote = "remote"
+    namespace = "namespace"
+
+
+#: The one statement of each owner's family. `Owner.family` reads it.
+_OWNER_FAMILIES: Mapping[Owner, Family] = MappingProxyType({
+    Owner.space: Family.core,
+    Owner.context: Family.core,
+    Owner.rows: Family.result,
+    Owner.answers: Family.result,
+    Owner.remote_space: Family.remote,
+    Owner.remote_cursor: Family.remote,
+    Owner.namespace: Family.namespace,
+})
+assert set(_OWNER_FAMILIES) == set(Owner)
 
 
 class Receiver(StrEnum):
@@ -524,7 +593,7 @@ def validate(rows: Iterable[Door]) -> tuple[Door, ...]:
                     raise ValueError(msg)
                 namespaces[name] = row.key
         by_key[row.key] = row
-    core_names = {row.python for row in result if row.owner in {Owner.space, Owner.context}}
+    core_names = {row.python for row in result if row.owner.family is Family.core}
     for row in result:
         if row.owner is Owner.namespace and row.provider and row.provider.namespace in core_names:
             msg = f"namespace {row.provider.namespace!r} collides with a core door"
@@ -626,7 +695,7 @@ def validate_registration(row: Any, standing: tuple[Any, ...]) -> None:
             msg = "each package door must name the registrant that owns it"
             raise ValueError(msg)
         if door.owner is not Owner.namespace and (
-            door.owner not in {Owner.rows, Owner.answers} or door.sugar_of is None
+            door.owner.family is not Family.result or door.sugar_of is None
         ):
             msg = "package doors belong to namespaces or explicit Rows/Answers sugars"
             raise ValueError(msg)
@@ -2985,9 +3054,9 @@ DOORS: tuple[Door, ...] = (
         name='op',
         kind=Kind.provider,
         signatures=(
-            Signature("self, fn: Callable[_P, _R], /, *, name: str | None=..., transport: Literal['encoded', 'raw']=..., effect: EffectClass | str, declarations: Iterable[Atom]=..., arities: list[int] | None=..., inverse: Callable | None=...", returns='Callable[_P, _R]', declarations=('overload',)),
-            Signature("self, *, name: str | None=..., transport: Literal['encoded', 'raw']=..., effect: EffectClass | str, declarations: Iterable[Atom]=..., arities: list[int] | None=..., inverse: Callable | None=...", returns='Callable[[Callable[_P, _R]], Callable[_P, _R]]', declarations=('overload',)),
-            Signature("self, fn: Callable | None=None, *, name: str | None=None, transport: Literal['encoded', 'raw']='encoded', effect: EffectClass | str | None=None, declarations: Iterable[Atom]=(), arities: list[int] | None=None, inverse: Callable | None=None", returns='Any'),
+            Signature("self, fn: Callable[_P, _R], /, *, name: str | None=..., transport: Transport=..., effect: EffectClass | str, declarations: Iterable[Atom]=..., arities: list[int] | None=..., inverse: Callable | None=...", returns='Callable[_P, _R]', declarations=('overload',)),
+            Signature("self, *, name: str | None=..., transport: Transport=..., effect: EffectClass | str, declarations: Iterable[Atom]=..., arities: list[int] | None=..., inverse: Callable | None=...", returns='Callable[[Callable[_P, _R]], Callable[_P, _R]]', declarations=('overload',)),
+            Signature("self, fn: Callable | None=None, *, name: str | None=None, transport: Transport='encoded', effect: EffectClass | str | None=None, declarations: Iterable[Atom]=(), arities: list[int] | None=None, inverse: Callable | None=None", returns='Any'),
         ),
         answers=AnswersAs.value,
         effect=EffectClass.writesState,

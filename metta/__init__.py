@@ -122,7 +122,6 @@ from typing import overload as _overload
 if TYPE_CHECKING:
     from collections.abc import Callable as _Callable
     from collections.abc import Iterable as _Iterable
-    from typing import Literal as _Literal
 
     # The static faces of _LAZY_ATTRIBUTES below, name for name: the lazy
     # __getattr__ keeps `import metta` narrow at runtime, and without these
@@ -167,6 +166,7 @@ if TYPE_CHECKING:
     from .doors import EvaluationAnswer as _EvaluationAnswer
     from .foreign import SpaceProvider
     from .manifest import boot
+    from .ops import Transport as _Transport
     from .parallel import channel, every, move_on_after, par_map, race, scope, spawn
     from .results import Answers as _Answers
     from .spaces import view
@@ -1061,8 +1061,7 @@ def op(
     /,
     *,
     name: str | None = ...,
-    # policy-inventory-exempt: mechanism-internal; reason=mirrored from the Space method of the same name, whose adjacent exemption carries the reason; evidence=extensions/python/metta/ops.py:_operation_kind
-    transport: _Literal['encoded', 'raw'] = ...,
+    transport: _Transport = ...,
     effect: _EffectClass | str,
     declarations: _Iterable[Atom] = ...,
     arities: list[int] | None = ...,
@@ -1072,8 +1071,7 @@ def op(
 def op(
     *,
     name: str | None = ...,
-    # policy-inventory-exempt: mechanism-internal; reason=mirrored from the Space method of the same name, whose adjacent exemption carries the reason; evidence=extensions/python/metta/ops.py:_operation_kind
-    transport: _Literal['encoded', 'raw'] = ...,
+    transport: _Transport = ...,
     effect: _EffectClass | str,
     declarations: _Iterable[Atom] = ...,
     arities: list[int] | None = ...,
@@ -1083,8 +1081,7 @@ def op(
     fn: _Callable | None = None,
     *,
     name: str | None = None,
-    # policy-inventory-exempt: mechanism-internal; reason=mirrored from the Space method of the same name, whose adjacent exemption carries the reason; evidence=extensions/python/metta/ops.py:_operation_kind
-    transport: _Literal['encoded', 'raw'] = 'encoded',
+    transport: _Transport = 'encoded',
     effect: _EffectClass | str | None = None,
     declarations: _Iterable[Atom] = (),
     arities: list[int] | None = None,

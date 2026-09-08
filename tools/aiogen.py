@@ -280,6 +280,7 @@ MODULE_ALIASES = (
     ("ScopedLimits", "_ScopedLimits"),
     ("EffectClass", "_EffectClass"),
     ("EvaluationAnswer", "_EvaluationAnswer"),
+    ("Transport", "_Transport"),
     ("ArgumentDelivery", "_ArgumentDelivery"),
     ("ImageMode", "_ImageMode"),
     ("OnError", "_OnError"),

@@ -84,6 +84,7 @@ from .errors import NotReducible as NotReducible
 from .errors import Timeout as Timeout
 from .foreign import SpaceProvider as SpaceProvider
 from .manifest import boot as boot
+from .ops import Transport as _Transport
 from .parallel import channel as channel
 from .parallel import every as every
 from .parallel import move_on_after as move_on_after
@@ -103,7 +104,6 @@ from collections.abc import Callable as _Callable
 from collections.abc import Iterable as _Iterable
 from collections.abc import Mapping as _Mapping
 from typing import Any as _Any
-from typing import Literal as _Literal
 from typing import Protocol as _Protocol
 from typing import dataclass_transform as _dataclass_transform
 from typing import overload as _overload
@@ -460,7 +460,7 @@ def op(
     /,
     *,
     name: str | None = ...,
-    transport: _Literal['encoded', 'raw'] = ...,
+    transport: _Transport = ...,
     effect: _EffectClass | str,
     declarations: _Iterable[Atom] = ...,
     arities: list[int] | None = ...,
@@ -471,7 +471,7 @@ def op(
 def op(
     *,
     name: str | None = ...,
-    transport: _Literal['encoded', 'raw'] = ...,
+    transport: _Transport = ...,
     effect: _EffectClass | str,
     declarations: _Iterable[Atom] = ...,
     arities: list[int] | None = ...,

@@ -298,7 +298,6 @@ from pathlib import Path
 from typing import (
     TYPE_CHECKING,
     Any,
-    Literal,
     NamedTuple,
     ParamSpec,
     Self,
@@ -410,6 +409,7 @@ from .atoms import (
 from .define import Defined, PrologBacked
 from .doors import EvaluationAnswer, _bind_public
 from .errors import EngineError, MettaError, Remedy, Timeout, refuse, refusing
+from .ops import Transport
 from .results import (
     Answers,
     Rows,
@@ -4345,8 +4345,7 @@ class Space(Handle):
         /,
         *,
         name: str | None = ...,
-        # policy-inventory-exempt: mechanism-internal; reason=encoded and raw are the registration transport's two wire-crossing modes, decoded once into the (op ...) kind; evidence=extensions/python/metta/ops.py:_operation_kind
-        transport: Literal["encoded", "raw"] = ...,
+        transport: Transport = ...,
         effect: EffectClass | str,
         declarations: Iterable[Atom] = ...,
         arities: list[int] | None = ...,
@@ -4358,8 +4357,7 @@ class Space(Handle):
         self,
         *,
         name: str | None = ...,
-        # policy-inventory-exempt: mechanism-internal; reason=encoded and raw are the registration transport's two wire-crossing modes, decoded once into the (op ...) kind; evidence=extensions/python/metta/ops.py:_operation_kind
-        transport: Literal["encoded", "raw"] = ...,
+        transport: Transport = ...,
         effect: EffectClass | str,
         declarations: Iterable[Atom] = ...,
         arities: list[int] | None = ...,
@@ -4371,8 +4369,7 @@ class Space(Handle):
         fn: Callable | None = None,
         *,
         name: str | None = None,
-        # policy-inventory-exempt: mechanism-internal; reason=encoded and raw are the registration transport's two wire-crossing modes, decoded once into the (op ...) kind; evidence=extensions/python/metta/ops.py:_operation_kind
-        transport: Literal["encoded", "raw"] = "encoded",
+        transport: Transport = "encoded",
         effect: EffectClass | str | None = None,
         declarations: Iterable[Atom] = (),
         arities: list[int] | None = None,
@@ -7631,7 +7628,7 @@ class Space(Handle):
             /,
             *,
             name: str | None=...,
-            transport: Literal['encoded', 'raw']=...,
+            transport: Transport=...,
             effect: EffectClass | str,
             declarations: Iterable[Atom]=...,
             arities: list[int] | None=...,
@@ -7642,7 +7639,7 @@ class Space(Handle):
             self,
             *,
             name: str | None=...,
-            transport: Literal['encoded', 'raw']=...,
+            transport: Transport=...,
             effect: EffectClass | str,
             declarations: Iterable[Atom]=...,
             arities: list[int] | None=...,
@@ -7653,7 +7650,7 @@ class Space(Handle):
             fn: Callable | None=None,
             *,
             name: str | None=None,
-            transport: Literal['encoded', 'raw']='encoded',
+            transport: Transport='encoded',
             effect: EffectClass | str | None=None,
             declarations: Iterable[Atom]=(),
             arities: list[int] | None=None,
@@ -10002,7 +9999,7 @@ class MeTTa:
         /,
         *,
         name: str | None=...,
-        transport: Literal['encoded', 'raw']=...,
+        transport: Transport=...,
         effect: EffectClass | str,
         declarations: Iterable[Atom]=...,
         arities: list[int] | None=...,
@@ -10013,7 +10010,7 @@ class MeTTa:
         self,
         *,
         name: str | None=...,
-        transport: Literal['encoded', 'raw']=...,
+        transport: Transport=...,
         effect: EffectClass | str,
         declarations: Iterable[Atom]=...,
         arities: list[int] | None=...,
@@ -10024,7 +10021,7 @@ class MeTTa:
         fn: Callable | None=None,
         *,
         name: str | None=None,
-        transport: Literal['encoded', 'raw']='encoded',
+        transport: Transport='encoded',
         effect: EffectClass | str | None=None,
         declarations: Iterable[Atom]=(),
         arities: list[int] | None=None,

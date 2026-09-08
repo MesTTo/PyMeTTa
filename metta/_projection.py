@@ -316,6 +316,7 @@ def host_delivery(type_atom: Atom) -> ArgumentDelivery:
                 name = str(constructor.children[-1]).rpartition(".")[2]
                 if name == "Annotated":
                     return host_delivery(parameters.children[0])
+                # policy-inventory-exempt: mechanism-internal; reason=typing's two spellings of a union of alternatives, beside the PEP 604 form the host-union head already carries; evidence=extensions/python/metta/_projection.py:host_delivery
                 if name in {"Optional", "Union"}:
                     alternatives = parameters.children
     if alternatives is not None:
