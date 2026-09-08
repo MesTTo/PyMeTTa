@@ -19,7 +19,7 @@ Guarantees:
     histories pass for a correct provider
     [tested: test_a_provider_that_drops_a_duplicate_fails_the_machine,
     test_a_provider_that_removes_every_copy_fails_the_machine,
-    test_the_planted_histories_pass_for_a_correct_provider; commit=WORKTREE]
+    test_the_planted_histories_pass_for_a_correct_provider; commit=b615b5a33b43252ef9826e5387da7c9bd7f6b543]
   - a capability the provider does not declare skips exactly its own rules, by
     name, with the engine's own refusal as the reason
     [tested: test_a_provider_without_removal_skips_only_the_removal_rules]

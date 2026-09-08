@@ -269,7 +269,7 @@ def twin(m):
 #: published before user code. Its declarations change catalog lookup indexes;
 #: generated public names bind directly to their existing bodies [measured
 #: 2026-09-08: min-of-3 serial fresh processes; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+#: extensions/python/tools/twin_coverage.py --repin; commit=b615b5a33b43252ef9826e5387da7c9bd7f6b543].
 BUDGET = 318685
 
 #: OVERRUN 2026-09-07, 17700: it names every lib_roman function at every claim
@@ -307,7 +307,7 @@ BUDGET = 318685
 #: 17835; stored contents remain unchanged [measured: two fresh-process
 #: measurements per side agreed; command=python ai-tmp/ai-door-band-cost.py;
 #: fixture=run_example and run_twin with the full corpus band;
-#: commit=WORKTREE].
+#: commit=b615b5a33b43252ef9826e5387da7c9bd7f6b543].
 OVERRUN = 17835
 
 #: DIVERGED 2026-09-07, the example holds 9 atoms the twin does not (9 =) and

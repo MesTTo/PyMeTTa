@@ -2,7 +2,7 @@
 
 Guarantees: catalog publication, registry replacement, generated protocols,
   and the projection gate are exercised through their observable boundaries
-  [tested: this file; commit=WORKTREE].
+  [tested: this file; commit=b615b5a33b43252ef9826e5387da7c9bd7f6b543].
 Owns resources: each fixture withdraws its registrations and each engine
   context or cursor is closed by its test.
 """

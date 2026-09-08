@@ -7,7 +7,7 @@ Guarantees:
     the registration transaction, replacement, ownership, and unregister
     lifecycle [tested:
     test_every_register_op_writes_its_declaration_and_get_doc_answers;
-    commit=WORKTREE]
+    commit=b615b5a33b43252ef9826e5387da7c9bd7f6b543]
   - every Python operation owns one canonical five-rank effect fact throughout
     registration, replacement, reflection, and unregister
     [tested: test_structural_registration_reflects_an_effect_atom;

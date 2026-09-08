@@ -15,12 +15,12 @@ tools/generate_proxy_methods.py rewrites a marked region INSIDE the real file
 rather than emitting a base class, so the methods stay where a reader and an IDE
 find them [source:
 https://github.com/sqlalchemy/sqlalchemy/blob/rel_2_0_43/tools/generate_proxy_methods.py;
-commit=WORKTREE].
+commit=b615b5a33b43252ef9826e5387da7c9bd7f6b543].
 
 Assumes:
   - `metta.doors` is the source of truth. doorgen.virtual_class supplies its
     syntax projection without loading an engine [tested:
-    test_door_rows_need_no_engine; commit=WORKTREE]
+    test_door_rows_need_no_engine; commit=b615b5a33b43252ef9826e5387da7c9bd7f6b543]
   - generation yields to methods AsyncMeTTa defines itself. Handwritten
     counterparts still pass parameter-name parity against Space or MeTTa;
     a different shape requires async_signature and async_reason in its row
@@ -28,9 +28,9 @@ Guarantees:
   - every generated method carries Space's signature, return annotation and
     docstring VERBATIM, except those in DIVERGENT which carry their stated
     reason beside them [tested:
-    test_the_async_mirror_is_generated_from_the_sync_surface; commit=WORKTREE]
+    test_the_async_mirror_is_generated_from_the_sync_surface; commit=b615b5a33b43252ef9826e5387da7c9bd7f6b543]
   - every Space door states its async tier or exclusion in its row
-    [tested: test_aio_mirrors_the_surface; commit=WORKTREE]
+    [tested: test_aio_mirrors_the_surface; commit=b615b5a33b43252ef9826e5387da7c9bd7f6b543]
   - handwritten counterparts cannot escape the shared parameter-name gate
     [tested: test_every_async_counterpart_has_the_sync_parameters; commit=d263b1f05e3ca3a0621122c1fc60d295b87692b0]
 Fails when: a method needs its own worker body. Hand-write it in AsyncMeTTa;

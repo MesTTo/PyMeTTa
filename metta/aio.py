@@ -98,14 +98,14 @@ Guarantees:
   - eval carries every synchronous option, with lazy pulls and releases kept
     on the worker and unfinished selections owned by the connection [tested:
     test_async_evaluation_options_reach_the_same_engine_choices,
-    test_async_evaluation_cleanup_is_owned_and_retryable; commit=WORKTREE]
+    test_async_evaluation_cleanup_is_owned_and_retryable; commit=b615b5a33b43252ef9826e5387da7c9bd7f6b543]
   - one stop signal per active request preserves error translation; pending
     writes lose to close while child releases remain admitted, and closing a
     borrower leaves another connection's work running [tested:
     test_async_evaluation_repeated_stops_share_one_transition_signal,
     test_async_evaluation_parent_cleanup_rejects_an_already_queued_write,
     test_async_evaluation_borrower_cleanup_leaves_the_other_connection_running;
-    commit=WORKTREE]
+    commit=b615b5a33b43252ef9826e5387da7c9bd7f6b543]
   - direct, saga, and reified-world evaluations expose Undefined in their
     return types wherever Well Founded Semantics can return it [tested:
     test_async_result_hints_preserve_undefined_answers; commit=71f43dd54034363d3bf8b2d1a3189a63b9e4ce1a]

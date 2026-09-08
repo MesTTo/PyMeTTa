@@ -2,12 +2,12 @@
 % Assumes: metta_py_add/2 and metta_py_remove_many/3 are loaded by shim.pl.
 % Guarantees: repeated publication is idempotent and a refused replacement
 %   preserves the prior snapshot [tested:
-%   test_door_catalog_publication_is_atomic_and_idempotent; commit=WORKTREE].
+%   test_door_catalog_publication_is_atomic_and_idempotent; commit=b615b5a33b43252ef9826e5387da7c9bd7f6b543].
 % Owns resources: metta_py_door_snapshot/1 retains the last published wire
 %   values until replacement or engine shutdown.
 % Guarded by: '$metta_py_door_catalog' serializes publication. metta_transaction/1
 %   rolls the stored atoms and snapshot back together [tested:
-%   test_door_catalog_publication_is_atomic_and_idempotent; commit=WORKTREE].
+%   test_door_catalog_publication_is_atomic_and_idempotent; commit=b615b5a33b43252ef9826e5387da7c9bd7f6b543].
 
 :- dynamic metta_py_door_snapshot/1.
 

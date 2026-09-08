@@ -2,10 +2,10 @@
 
 Guarantees: each row's arguments, axes, implementation, refusals, tiers,
   documentation, and evidence remain queryable [tested:
-  test_boot_publishes_complete_typed_door_rows; commit=WORKTREE].
+  test_boot_publishes_complete_typed_door_rows; commit=b615b5a33b43252ef9826e5387da7c9bd7f6b543].
   Nested constructors have distinct names, fixed arities and type
   arrows, including each optional variant [tested:
-  test_nested_door_records_have_declared_types; commit=WORKTREE].
+  test_nested_door_records_have_declared_types; commit=b615b5a33b43252ef9826e5387da7c9bd7f6b543].
 Owns resources: none. atoms() constructs values; door_catalog.pl owns the
   transactional publication and its previous snapshot.
 """

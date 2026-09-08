@@ -3,23 +3,23 @@
 Assumes: body references name Python implementations with the declared signature.
 Guarantees: the table imports without starting an engine, and every public
   projection is checked against it [tested: test_door_rows_need_no_engine,
-  test_every_door_projection_is_current; commit=WORKTREE].
+  test_every_door_projection_is_current; commit=b615b5a33b43252ef9826e5387da7c9bd7f6b543].
   Nested values are checked against the record fields before registration
   [tested: test_door_registration_refuses_mutable_or_untyped_nested_fields;
-  commit=WORKTREE]. Public aliases preserve runtime overload lookup [tested:
-  test_target_type_overloads_preserve_the_requested_class; commit=WORKTREE].
+  commit=b615b5a33b43252ef9826e5387da7c9bd7f6b543]. Public aliases preserve runtime overload lookup [tested:
+  test_target_type_overloads_preserve_the_requested_class; commit=b615b5a33b43252ef9826e5387da7c9bd7f6b543].
 Owns resources: namespace objects borrow their receiver. They acquire no engine
   cursor and retain no registration after it is withdrawn [tested:
-  test_a_retained_namespace_observes_replacement_and_withdrawal; commit=WORKTREE].
+  test_a_retained_namespace_observes_replacement_and_withdrawal; commit=b615b5a33b43252ef9826e5387da7c9bd7f6b543].
  Guarded by: the seam lock serializes registry validation and replacement. The
   lookup cache holds immutable snapshots under _CACHE_LOCK [tested:
-  test_concurrent_door_claims_have_one_winner; commit=WORKTREE].
+  test_concurrent_door_claims_have_one_winner; commit=b615b5a33b43252ef9826e5387da7c9bd7f6b543].
   Lookup, retained calls and generated annotations respect the receiving tier
   [tested: test_namespace_tiers_control_lookup_retained_calls_and_annotations;
-  commit=WORKTREE].
+  commit=b615b5a33b43252ef9826e5387da7c9bd7f6b543].
 Decides: a package publishes namespace members or explicit receiver sugars.
   It cannot replace a core door or duplicate an existing sugar point [tested:
-  test_door_registration_refuses_collisions_and_duplicate_points; commit=WORKTREE].
+  test_door_registration_refuses_collisions_and_duplicate_points; commit=b615b5a33b43252ef9826e5387da7c9bd7f6b543].
 """
 
 from __future__ import annotations

@@ -1,7 +1,7 @@
 """Purpose: verify evaluation options across the asynchronous worker boundary.
 
 Guarantees: lazy selections keep their demand, replay, caller rows and cleanup
-  on the owner thread [tested: this file; commit=WORKTREE].
+  on the owner thread [tested: this file; commit=b615b5a33b43252ef9826e5387da7c9bd7f6b543].
 Owns resources: every test closes its engine context and worker. Blocking
   probes are released in finally blocks, including failed assertions.
 """

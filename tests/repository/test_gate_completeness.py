@@ -29,7 +29,7 @@ Guarantees:
     - generated door declarations preserve public names and documentation,
       with every additional suppression counted and reviewed [tested:
       test_the_ruff_configuration_enables_every_family_or_records_why_not;
-      commit=WORKTREE]
+      commit=b615b5a33b43252ef9826e5387da7c9bd7f6b543]
 Open Obligations:
   To Do: None
   Hacks: None

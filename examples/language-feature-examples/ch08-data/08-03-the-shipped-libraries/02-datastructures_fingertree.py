@@ -250,5 +250,5 @@ BUDGET = 233973
 #: program are unchanged [measured: one fresh process per side;
 #: command=python ai-tmp/ai-door-band-cost.py
 #: ch08-data/08-03-the-shipped-libraries/02-datastructures_fingertree.metta;
-#: commit=WORKTREE].
+#: commit=b615b5a33b43252ef9826e5387da7c9bd7f6b543].
 OVERRUN = 1344

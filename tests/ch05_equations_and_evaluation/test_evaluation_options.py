@@ -4,7 +4,7 @@ Guarantees: selecting a consumption shape preserves the engine's ordered bag,
   scoped bindings, annotations, and third truth value [tested:
   test_evaluation_options_compose_without_losing_answers,
   test_evaluation_options_preserve_annotations_and_caller_rows,
-  test_evaluation_options_preserve_undefined_truth; commit=WORKTREE].
+  test_evaluation_options_preserve_undefined_truth; commit=b615b5a33b43252ef9826e5387da7c9bd7f6b543].
 Owns resources: fixtures close spaces; lazy results are consumed or closed;
   failure and abandonment tests check the source's release explicitly.
 """

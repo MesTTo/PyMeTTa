@@ -14,7 +14,7 @@ Guarantees:
   - class declarations generated under TYPE_CHECKING document the same public
     doors as their runtime aliases [tested:
     test_every_door_projection_is_current,
-    test_door_sync_detects_a_planted_change_in_each_projection; commit=WORKTREE]
+    test_door_sync_detects_a_planted_change_in_each_projection; commit=b615b5a33b43252ef9826e5387da7c9bd7f6b543]
   - the checked-in pages equal what this produces, gated on every run
     [tested test_the_reference_pages_are_up_to_date]
   - prose continuations indented beneath a list item still escape HTML-shaped

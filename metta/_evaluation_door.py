@@ -4,16 +4,16 @@ Assumes: Space has prepared each target and captured its bindings.
 Guarantees: ordinary eager evaluation keeps its existing kernel; explicit lazy
   consumption preserves order, multiplicity, undefined truth, and annotations
   [tested: test_evaluation_options_preserve_the_eager_kernel,
-  test_evaluation_options_compose_without_losing_answers; commit=WORKTREE].
+  test_evaluation_options_compose_without_losing_answers; commit=b615b5a33b43252ef9826e5387da7c9bd7f6b543].
   First selects a retained answer consistently across bounds while ordinary
   eager execution keeps its effects [tested:
   test_first_selects_the_first_retained_answer,
   test_evaluation_selection_preserves_eager_effects_and_bounded_demand;
-  commit=WORKTREE].
+  commit=b615b5a33b43252ef9826e5387da7c9bd7f6b543].
 Owns resources: each lazy selection owns its underlying Answers. Exhaustion,
   an error, or explicit close releases it; abandonment releases references so
   Answers' existing finalizer defers engine cleanup [tested:
-  test_evaluation_selections_close_on_every_exit; commit=WORKTREE].
+  test_evaluation_selections_close_on_every_exit; commit=b615b5a33b43252ef9826e5387da7c9bd7f6b543].
 """
 
 from __future__ import annotations

@@ -1,7 +1,7 @@
 """Purpose: plant the invalid inputs and replies declared by door contracts.
 
 Guarantees: each witness reaches a public door and asserts its declared refusal
-  class [tested: this file; commit=WORKTREE].
+  class [tested: this file; commit=b615b5a33b43252ef9826e5387da7c9bd7f6b543].
 Owns resources: each test borrows the context fixture; answer sources close
   through their context managers and patched engine replies restore on exit.
 """

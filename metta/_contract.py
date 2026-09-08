@@ -20,7 +20,7 @@ Guarantees:
   - host door contracts and their typed constructors are present at boot;
     publication refuses invalid rows atomically [tested:
     test_boot_publishes_complete_typed_door_rows,
-    test_door_catalog_publication_is_atomic_and_idempotent; commit=WORKTREE]
+    test_door_catalog_publication_is_atomic_and_idempotent; commit=b615b5a33b43252ef9826e5387da7c9bd7f6b543]
   - install is idempotent per engine process: the ontology enters once
     [tested test_the_ontology_loads_once]
   - registered synchronous and coroutine operation kinds inhabit OpKind and

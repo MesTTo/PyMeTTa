@@ -276,7 +276,7 @@ RUNG = (
 #: catalog is published before user code. Its declarations change catalog
 #: lookup indexes; generated public names bind directly to their existing
 #: bodies [measured 2026-09-08: min-of-3 serial fresh processes; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+#: extensions/python/tools/twin_coverage.py --repin; commit=b615b5a33b43252ef9826e5387da7c9bd7f6b543].
 BUDGET = 24106514
 
 #: OVERRUN 2026-09-07, 1434400: it names `expand` and `expandK` as definitions

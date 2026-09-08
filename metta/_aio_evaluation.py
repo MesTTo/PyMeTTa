@@ -3,11 +3,11 @@
 Assumes: an evaluation returns Answers or a closable stream for each target.
 Guarantees: iteration, refusal and cleanup run on the owning worker; Answers
   replay their cached prefix while streams consume once [tested:
-  test_async_evaluation_choices_preserve_demand_and_replay; commit=WORKTREE].
+  test_async_evaluation_choices_preserve_demand_and_replay; commit=b615b5a33b43252ef9826e5387da7c9bd7f6b543].
 Owns resources: one tracked group owns every source in an acquired batch.
   Closing a view releases its source; closing the parent releases the group.
   Failed cleanup remains tracked for retry [tested:
-  test_async_evaluation_cleanup_is_owned_and_retryable; commit=WORKTREE].
+  test_async_evaluation_cleanup_is_owned_and_retryable; commit=b615b5a33b43252ef9826e5387da7c9bd7f6b543].
 Guarded by: the worker serializes source access. _opening orders acquisition
   and asynchronous release; _state_changed protects synchronous shutdown.
 """

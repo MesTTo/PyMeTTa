@@ -52,9 +52,9 @@ Guarantees:
     test_concurrent_discovery_waits_for_complete_registration,
     test_recursive_discovery_does_not_publish_an_incomplete_group,
     test_a_discovery_wait_cycle_refuses_and_releases_its_entries,
-    test_a_failed_entry_point_can_be_retried; commit=WORKTREE]
+    test_a_failed_entry_point_can_be_retried; commit=b615b5a33b43252ef9826e5387da7c9bd7f6b543]
   - frame builders and accessor door contracts are separate registrations
-    [tested: test_the_row_is_registered_against_the_frame_point; commit=WORKTREE]
+    [tested: test_the_row_is_registered_against_the_frame_point; commit=b615b5a33b43252ef9826e5387da7c9bd7f6b543]
   - a point is declared once with one kind, and a second declaration of the
     same name is refused naming the first [tested:
     test_a_point_is_declared_once_with_one_kind]
@@ -82,7 +82,7 @@ Guarantees:
     once; publishing the boot catalog requests every point [tested:
     test_advertised_loads_nothing,
     test_discovery_loads_an_advertised_registration_once,
-    test_boot_publishes_complete_typed_door_rows; commit=WORKTREE]
+    test_boot_publishes_complete_typed_door_rows; commit=b615b5a33b43252ef9826e5387da7c9bd7f6b543]
   - publish(m) writes the whole seam into a catalog under declared kind rows,
     so a MeTTa program matches the extension surface it is running on
     [tested: test_the_seam_publishes_itself_into_the_catalog]

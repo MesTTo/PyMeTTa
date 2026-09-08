@@ -35,7 +35,7 @@ Guarantees:
     optional atom alternatives retain atoms, while callbacks and containers
     remain host values [tested:
     test_argument_delivery_follows_the_outer_projected_type,
-    test_argument_delivery_reads_the_shared_projection_table; commit=WORKTREE]
+    test_argument_delivery_reads_the_shared_projection_table; commit=b615b5a33b43252ef9826e5387da7c9bd7f6b543]
   - WIRE_TAGS is the engine's own `(wire-tag ...)` rows filtered to the term
     class, in the catalog's order, so this and the OpenAPI `Atom` schema read
     one grammar rather than two tuples

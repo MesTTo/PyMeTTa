@@ -270,7 +270,7 @@ def twin(m):
 #: spread. These observations replace the earlier catalog's envelope
 #: [measured: exact extrema over 10 successful observations; command=python
 #: extensions/python/tools/twin_coverage.py --observe --rounds 10;
-#: fixture=full-lane/277/workers=32; commit=WORKTREE].
+#: fixture=full-lane/277/workers=32; commit=b615b5a33b43252ef9826e5387da7c9bd7f6b543].
 BUDGET = {
     "minimum": 432905,
     "maximum": 432930,
@@ -290,14 +290,14 @@ BUDGET = {
 #: band a ceiling of 246759.9. The current envelope's maximum is 432930, so
 #: its difference rounds up to 186171 [measured: the full-lane maximum above
 #: and a fresh-process example; command=python ai-tmp/ai-door-band-cost.py
-#: ch17-concurrency-and-the-loop/02-thread_linda.metta; commit=WORKTREE].
+#: ch17-concurrency-and-the-loop/02-thread_linda.metta; commit=b615b5a33b43252ef9826e5387da7c9bd7f6b543].
 #: OVERRUN 2026-09-08, 186191: the example also has a scheduling spread.
 #: Ten fresh example runs read 221840..221859, so its observed floor gives
 #: a ceiling of 246739. Against the twin envelope's maximum 432930 the
 #: required difference is 186191 [measured: ten fresh
 #: example processes and the twin's full-lane envelope above;
 #: command=python ai-tmp/ai-door-example-extrema.py;
-#: fixture=example extrema 221840..221859; commit=WORKTREE].
+#: fixture=example extrema 221840..221859; commit=b615b5a33b43252ef9826e5387da7c9bd7f6b543].
 OVERRUN = 186191
 
 #: DIVERGED 2026-09-07, the example holds 0 atoms the twin does not (none) and

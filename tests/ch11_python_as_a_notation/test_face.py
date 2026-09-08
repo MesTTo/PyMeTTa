@@ -18,7 +18,7 @@ Guarantees:
     test_two_names_reaching_one_head_refuse; commit=7229962705d199fb08796b3090ec5a8a3a0ae393]
   - the sync tool reports a planted signature change and skips a module that
     is not installed [tested: test_a_planted_signature_change_is_reported,
-    test_a_face_whose_module_is_absent_is_reported_and_skipped; commit=WORKTREE]
+    test_a_face_whose_module_is_absent_is_reported_and_skipped; commit=b615b5a33b43252ef9826e5387da7c9bd7f6b543]
 Open Obligations:
   To Do: None
   Hacks: None

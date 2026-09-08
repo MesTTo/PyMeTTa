@@ -7,7 +7,7 @@ Guarantees:
     module and no alias is left behind [tested: test_m7_narrow_core_surface;
     commit=94057a0f073c0fab0a35c42beff2c324d8a0addd]
   - the published before/after counts are exact for ``MeTTa`` and ``metta``
-    [tested: test_m7_narrow_core_surface; commit=WORKTREE]
+    [tested: test_m7_narrow_core_surface; commit=b615b5a33b43252ef9826e5387da7c9bd7f6b543]
   - every retired root, context, and atom name is absent rather than aliased
     [tested: test_m7_narrow_core_surface; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - all fifteen ``declare_*`` spellings are absent from both synchronous and

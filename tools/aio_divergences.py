@@ -2,7 +2,7 @@
 
 Guarantees: membership and worker exceptions come from the same rows that
   declare the synchronous surface [tested:
-  test_every_async_counterpart_has_the_sync_parameters; commit=WORKTREE].
+  test_every_async_counterpart_has_the_sync_parameters; commit=b615b5a33b43252ef9826e5387da7c9bd7f6b543].
 """
 
 from __future__ import annotations

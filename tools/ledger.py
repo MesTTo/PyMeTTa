@@ -2,7 +2,7 @@
 
 Guarantees: the ledger shares the door generator's contracts and rendering
   [tested: test_the_shrink_ledger_covers_every_derived_door,
-  test_the_shrink_ledger_page_is_up_to_date; commit=WORKTREE].
+  test_the_shrink_ledger_page_is_up_to_date; commit=b615b5a33b43252ef9826e5387da7c9bd7f6b543].
 Decides: a sugar is an explicit parameter point. Calls between public
   methods do not classify ownership, transactions, or query composition.
 """

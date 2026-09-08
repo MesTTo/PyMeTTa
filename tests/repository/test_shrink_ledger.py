@@ -1,7 +1,7 @@
 """Purpose: verify the shrink ledger as a query over typed door rows.
 
 Guarantees: a missing base, duplicate point, or empty contract is refused
-  [tested: test_the_shrink_ledger_catches_a_planted_gap; commit=WORKTREE].
+  [tested: test_the_shrink_ledger_catches_a_planted_gap; commit=b615b5a33b43252ef9826e5387da7c9bd7f6b543].
 """
 
 from __future__ import annotations

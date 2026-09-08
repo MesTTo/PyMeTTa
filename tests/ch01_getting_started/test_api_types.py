@@ -11,7 +11,7 @@ Guarantees:
     test_policy_constants_are_final]
   - root persistence and async three-valued evaluation annotations retain the
     runtime value species [tested: test_root_space_hint_accepts_pathlike_journals,
-    test_async_result_hints_preserve_undefined_answers; commit=WORKTREE]
+    test_async_result_hints_preserve_undefined_answers; commit=b615b5a33b43252ef9826e5387da7c9bd7f6b543]
   - every public door that wants a space answers the same for a context and
     for that context's home space [tested:
     test_every_space_door_takes_a_context_or_a_space; commit=f25ac80f93e7c3626b87e593117d09b9c9bc8c95]

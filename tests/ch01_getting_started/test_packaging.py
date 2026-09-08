@@ -15,7 +15,7 @@ Guarantees:
     the one in the tree asserts [tested:
     test_every_extra_installs_packages_and_never_a_library,
     test_the_minimal_version_matrix_installs_no_optional_integration;
-    commit=WORKTREE]
+    commit=b615b5a33b43252ef9826e5387da7c9bd7f6b543]
   - a roster is read by requirement NAME and a pin by its exact string, so
     adding a floor to a member is not adding a member, and every integration
     extra reaches the floor-matrix check from the manifest rather than from a

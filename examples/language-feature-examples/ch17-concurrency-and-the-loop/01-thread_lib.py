@@ -295,7 +295,7 @@ def twin(m):
 #: the earlier catalog's envelope rather than pooling different boot states
 #: [measured: exact extrema over 10 successful observations; command=python
 #: extensions/python/tools/twin_coverage.py --observe --rounds 10;
-#: fixture=full-lane/277/workers=32; commit=WORKTREE].
+#: fixture=full-lane/277/workers=32; commit=b615b5a33b43252ef9826e5387da7c9bd7f6b543].
 BUDGET = {
     "minimum": 557650,
     "maximum": 596814,
