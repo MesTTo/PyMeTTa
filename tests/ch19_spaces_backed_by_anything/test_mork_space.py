@@ -7,7 +7,7 @@ read-your-writes holds without an explicit flush. Skips whole when the
 native library is not built.
 Guarantees: generated unique ground graphs preserve projected join bags across
 native and MORK stores [tested: test_generated_joins_preserve_projected_bags;
-commit=WORKTREE].
+commit=6da518669cb9e39557d537857c0aa7190dd2e78f].
 Open Obligations:
   To Do: None
   Hacks: None
