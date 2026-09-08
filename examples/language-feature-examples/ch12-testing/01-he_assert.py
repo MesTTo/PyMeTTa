@@ -271,7 +271,17 @@ RUNG = "the assert family is this file's subject, so each claim names one of its
 #: repairs; measured on the merged tree [measured 2026-09-09: min-of-3 serial
 #: fresh processes; command=python extensions/python/tools/twin_coverage.py
 #: --repin; commit=50e34286f66c938d89d5d367c6370ad44164c97f].
-BUDGET = 18460
+#: RE-PINNED 2026-09-09, 18460 to 18654 (+194), the compiled vocabulary seed,
+#: the membership index, base-module type lookups and the singleton decoder
+#: landed (perf/cross-engine-waivers merged): boot publishes the initial
+#: vocabulary types from a compiled payload through the tokenized funnel, a
+#: warm membership read touches only its own clauses, a base-module type lookup
+#: skips the prelude, and a Python decode with one named variable builds no
+#: index; per-operation costs of a mint, write, read, drop, run, save and load
+#: are unchanged against the trunk in fresh processes; measured on the merged
+#: tree [measured 2026-09-09: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 18654
 
 #: OVERRUN 2026-09-08, 9: the twin names each of the twelve assert-family
 #: members through `m.fn` and compares every answer in Python, where the
@@ -318,6 +328,18 @@ BUDGET = 18460
 #: source ownership retain their earlier measured costs and answer bags
 #: [measured 2026-09-08: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=7f00ac7932fefa6f380fc8d14ec583ea0c58eff4].
+#: RE-PINNED 2026-09-08, 17998 to 17975 (-23), Compiled shipped typing
+#: decisions and initial vocabulary facts remove repeated interpretation;
+#: indexed vocabulary membership replaces member-list scans; catalog reference
+#: checks now respect transaction-local erasure. Paired controls and cut counts
+#: are recorded in docs/journal/2026-09-08-what-the-waivers-were-paying-for.md
+#: extensions/python/tools/twin_coverage.py --repin; commit=32650f9ff4d1c4aa0749d8eb8b153e5bb448ee5c].
+#: RE-PINNED 2026-09-09, 17975 to 18287 (+312), Compile shipped typing
+#: decisions and initial vocabulary facts, index vocabulary membership, and
+#: reuse the first Python variable binding before indexing additional names;
+#: retain type, transaction and variable-identity checks [measured 2026-09-09:
+#: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=32650f9ff4d1c4aa0749d8eb8b153e5bb448ee5c].
 #: OVERRUN 2026-09-08, 9 to 285 (+276, four of them the deterministic
 #: allowance the point pins carry, because a band met exactly is refused): the module boundary merged with trunk
 #: (refactor/engine-and-libraries-as-modules at b64291369): the twin's host
@@ -350,4 +372,16 @@ BUDGET = 18460
 #: exactly (it prints the ceiling rounded), so the four-inference allowance
 #: the module-boundary pins recorded is added here too [measured 2026-09-09:
 #: the twins lane on the re-pinned tree; commit=aeb46b14152274db84f6415c8a3dd8c98a9c9eb1].
-OVERRUN = 307
+#: OVERRUN 2026-09-09, 307 to 953 (+646): the compiled vocabulary seed, the
+#: membership index, base-module type lookups and the singleton decoder landed
+#: (perf/cross-engine-waivers merged): a Python decode with one named variable
+#: builds no index and one with more builds it at the second distinct name,
+#: which moves a twin's engine-side cost while its example, which decodes
+#: nothing, holds; boot content and clause layout moved the rest; against the
+#: trunk's own run at da0e5755d the twin moved +194 and the example -70, and
+#: the twin sat 375 over its ceiling there already. Measured 18654 against a
+#: ceiling of 18008; a minimal twin costs 15768 against the band's 17701,
+#: within that ceiling, so the rest is this twin's own program [measured
+#: 2026-09-09: one fresh process per side; command=python
+#: extensions/python/benchmarks/probes/twin_floor.py; commit=WORKTREE].
+OVERRUN = 953

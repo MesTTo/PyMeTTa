@@ -267,7 +267,28 @@ def twin(m):
 #: repairs; measured on the merged tree [measured 2026-09-09: min-of-3 serial
 #: fresh processes; command=python extensions/python/tools/twin_coverage.py
 #: --repin; commit=50e34286f66c938d89d5d367c6370ad44164c97f].
-BUDGET = 3983
+#: RE-PINNED 2026-09-08, 3789 to 3836 (+47), Compiled shipped typing decisions
+#: and initial vocabulary facts remove repeated interpretation; indexed
+#: vocabulary membership replaces member-list scans; catalog reference checks
+#: now respect transaction-local erasure. Paired controls and cut counts are
+#: recorded in docs/journal/2026-09-08-what-the-waivers-were-paying-for.md
+#: [measured 2026-09-08: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=32650f9ff4d1c4aa0749d8eb8b153e5bb448ee5c].
+#: RE-PINNED 2026-09-09, 3836 to 3935 (+99), the compiled vocabulary seed, the
+#: membership index, base-module type lookups and the singleton decoder landed
+#: (perf/cross-engine-waivers merged): boot publishes the initial vocabulary
+#: types from a compiled payload through the tokenized funnel, a warm
+#: membership read touches only its own clauses, a base-module type lookup
+#: skips the prelude, and a Python decode with one named variable builds no
+#: index; per-operation costs of a mint, write, read, drop, run, save and load
+#: are unchanged against the trunk in fresh processes; measured on the merged
+#: tree, -48 against the trunk's own pin of 3983 at da0e5755d; the previous
+#: number is the branch's cut-time price, and the remaining +147 is what landed
+#: on the trunk between the cut f0d33dcad and da0e5755d, tokens as storage
+#: above all [measured 2026-09-09: min-of-3 serial fresh processes;
+#: command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+BUDGET = 3935
 
 #: DIVERGED 2026-09-07, the example holds 0 atoms the twin does not (none) and
 #: the twin holds 1 atom the example does not (1 @doc): a Python annotation IS a (:

@@ -216,4 +216,36 @@ def twin(m):
 #: repairs; measured on the merged tree [measured 2026-09-09: min-of-3 serial
 #: fresh processes; command=python extensions/python/tools/twin_coverage.py
 #: --repin; commit=50e34286f66c938d89d5d367c6370ad44164c97f].
-BUDGET = 14687
+#: RE-PINNED 2026-09-09, 14332 to 14954 (+622), Compile shipped typing
+#: decisions and initial vocabulary facts, index vocabulary membership, and
+#: reuse the first Python variable binding before indexing additional names;
+#: retain type, transaction and variable-identity checks [measured 2026-09-09:
+#: extensions/python/tools/twin_coverage.py --repin; commit=32650f9ff4d1c4aa0749d8eb8b153e5bb448ee5c].
+#: RE-PINNED 2026-09-09, 14954 to 15309 (+355), the compiled vocabulary seed,
+#: the membership index, base-module type lookups and the singleton decoder
+#: landed (perf/cross-engine-waivers merged): boot publishes the initial
+#: vocabulary types from a compiled payload through the tokenized funnel, a
+#: warm membership read touches only its own clauses, a base-module type lookup
+#: skips the prelude, and a Python decode with one named variable builds no
+#: index; per-operation costs of a mint, write, read, drop, run, save and load
+#: are unchanged against the trunk in fresh processes; measured on the merged
+#: tree, +622 against the trunk's own pin of 14687 at da0e5755d; the previous
+#: number is the branch's cut-time price, and the remaining -267 is what landed
+#: on the trunk between the cut f0d33dcad and da0e5755d, tokens as storage
+#: above all [measured 2026-09-09: min-of-3 serial fresh processes;
+#: command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+BUDGET = 15309
+#: OVERRUN 2026-09-09, 0 to 256 (+256): the compiled vocabulary seed, the
+#: membership index, base-module type lookups and the singleton decoder landed
+#: (perf/cross-engine-waivers merged): a Python decode with one named variable
+#: builds no index and one with more builds it at the second distinct name,
+#: which moves a twin's engine-side cost while its example, which decodes
+#: nothing, holds; boot content and clause layout moved the rest; against the
+#: trunk's own run at da0e5755d the twin moved +622 and the example +0, and
+#: the twin sat 367 within its ceiling there. Measured 15309 against a ceiling
+#: of 15054; a minimal twin costs 22650 against the band's 15054, above that
+#: ceiling, so no twin of it fits the band at all [measured 2026-09-09: one
+#: fresh process per side; command=python
+#: extensions/python/benchmarks/probes/twin_floor.py; commit=WORKTREE].
+OVERRUN = 256

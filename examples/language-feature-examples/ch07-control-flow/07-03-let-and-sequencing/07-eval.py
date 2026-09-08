@@ -270,7 +270,32 @@ def twin(m):
 #: repairs; measured on the merged tree [measured 2026-09-09: min-of-3 serial
 #: fresh processes; command=python extensions/python/tools/twin_coverage.py
 #: --repin; commit=50e34286f66c938d89d5d367c6370ad44164c97f].
-BUDGET = 18640
+#: RE-PINNED 2026-09-08, 17663 to 17710 (+47), Compiled shipped typing
+#: decisions and initial vocabulary facts remove repeated interpretation;
+#: indexed vocabulary membership replaces member-list scans; catalog reference
+#: checks now respect transaction-local erasure. Paired controls and cut counts
+#: are recorded in docs/journal/2026-09-08-what-the-waivers-were-paying-for.md
+#: extensions/python/tools/twin_coverage.py --repin; commit=32650f9ff4d1c4aa0749d8eb8b153e5bb448ee5c].
+#: RE-PINNED 2026-09-09, 17710 to 17973 (+263), Compile shipped typing
+#: decisions and initial vocabulary facts, index vocabulary membership, and
+#: reuse the first Python variable binding before indexing additional names;
+#: retain type, transaction and variable-identity checks [measured 2026-09-09:
+#: extensions/python/tools/twin_coverage.py --repin; commit=32650f9ff4d1c4aa0749d8eb8b153e5bb448ee5c].
+#: RE-PINNED 2026-09-09, 17973 to 18855 (+882), the compiled vocabulary seed,
+#: the membership index, base-module type lookups and the singleton decoder
+#: landed (perf/cross-engine-waivers merged): boot publishes the initial
+#: vocabulary types from a compiled payload through the tokenized funnel, a
+#: warm membership read touches only its own clauses, a base-module type lookup
+#: skips the prelude, and a Python decode with one named variable builds no
+#: index; per-operation costs of a mint, write, read, drop, run, save and load
+#: are unchanged against the trunk in fresh processes; measured on the merged
+#: tree, +215 against the trunk's own pin of 18640 at da0e5755d; the previous
+#: number is the branch's cut-time price, and the remaining +667 is what landed
+#: on the trunk between the cut f0d33dcad and da0e5755d, tokens as storage
+#: above all [measured 2026-09-09: min-of-3 serial fresh processes;
+#: command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+BUDGET = 18855
 
 #: OVERRUN 2026-09-07, 2700: it reads the definition's body through the query
 #: door and reduces it through the evaluation door, which the example does in
@@ -279,7 +304,19 @@ BUDGET = 18640
 #: twin's own program [measured 2026-09-07: one fresh process per side;
 #: command=python extensions/python/benchmarks/probes/twin_floor.py;
 #: commit=9010a79b01c9b2a66b96a3952fa378fb3e939dc3].
-OVERRUN = 2700
+#: OVERRUN 2026-09-09, 2700 to 2821 (+121): the compiled vocabulary seed, the
+#: membership index, base-module type lookups and the singleton decoder landed
+#: (perf/cross-engine-waivers merged): a Python decode with one named variable
+#: builds no index and one with more builds it at the second distinct name,
+#: which moves a twin's engine-side cost while its example, which decodes
+#: nothing, holds; boot content and clause layout moved the rest; against the
+#: trunk's own run at da0e5755d the twin moved +215 and the example -1, and
+#: the twin sat 96 within its ceiling there. Measured 18855 against a ceiling
+#: of 18735; a minimal twin costs 14159 against the band's 16035, within that
+#: ceiling, so the rest is this twin's own program [measured 2026-09-09: one
+#: fresh process per side; command=python
+#: extensions/python/benchmarks/probes/twin_floor.py; commit=WORKTREE].
+OVERRUN = 2821
 
 #: DIVERGED 2026-09-07, the example holds 2 atoms the twin does not (2 =) and
 #: the twin holds 3 the example does not (1 :, 2 =): the twin is an ordinary

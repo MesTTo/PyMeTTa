@@ -337,7 +337,20 @@ BUDGET = {
 #: the raise covers the lowest reading of the example plus the four-inference
 #: allowance the module-boundary pins recorded [measured 2026-09-09: the
 #: twins lane, three runs on the re-pinned tree; commit=aeb46b14152274db84f6415c8a3dd8c98a9c9eb1].
-OVERRUN = 199556
+#: OVERRUN 2026-09-09, 199556 to 306483 (+106927): the compiled vocabulary
+#: seed, the membership index, base-module type lookups and the singleton
+#: decoder landed (perf/cross-engine-waivers merged): a Python decode with one
+#: named variable builds no index and one with more builds it at the second
+#: distinct name, which moves a twin's engine-side cost while its example,
+#: which decodes nothing, holds; boot content and clause layout moved the
+#: rest; against the trunk's own run at da0e5755d the twin moved -449 and the
+#: example -280, and the twin sat 107068 over its ceiling there already.
+#: Measured 704473 against a ceiling of 597546; a minimal twin costs 361658
+#: against the band's 397997, within that ceiling, so the rest is this twin's
+#: own program [measured 2026-09-09: one fresh process per side;
+#: command=python extensions/python/benchmarks/probes/twin_floor.py;
+#: commit=WORKTREE].
+OVERRUN = 306483
 
 #: DIVERGED 2026-09-07, the example holds 0 atoms the twin does not (none) and
 #: the twin holds 1 atom the example does not (1 :): a Python annotation IS a (:

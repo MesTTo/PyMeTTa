@@ -242,6 +242,18 @@ def twin(m):
 #: source ownership retain their earlier measured costs and answer bags
 #: [measured 2026-09-08: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=7f00ac7932fefa6f380fc8d14ec583ea0c58eff4].
+#: RE-PINNED 2026-09-08, 15685 to 15698 (+13), Compiled shipped typing
+#: decisions and initial vocabulary facts remove repeated interpretation;
+#: indexed vocabulary membership replaces member-list scans; catalog reference
+#: checks now respect transaction-local erasure. Paired controls and cut counts
+#: are recorded in docs/journal/2026-09-08-what-the-waivers-were-paying-for.md
+#: extensions/python/tools/twin_coverage.py --repin; commit=32650f9ff4d1c4aa0749d8eb8b153e5bb448ee5c].
+#: RE-PINNED 2026-09-09, 15698 to 15812 (+114), Compile shipped typing
+#: decisions and initial vocabulary facts, index vocabulary membership, and
+#: reuse the first Python variable binding before indexing additional names;
+#: retain type, transaction and variable-identity checks [measured 2026-09-09:
+#: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=32650f9ff4d1c4aa0749d8eb8b153e5bb448ee5c].
 #: OVERRUN 2026-09-08, 0 to 25 (+25, four of them the deterministic
 #: allowance the point pins carry, because a band met exactly is refused): the module boundary merged with trunk
 #: (refactor/engine-and-libraries-as-modules at b64291369): the twin's host
@@ -284,7 +296,17 @@ def twin(m):
 #: repairs; measured on the merged tree [measured 2026-09-09: min-of-3 serial
 #: fresh processes; command=python extensions/python/tools/twin_coverage.py
 #: --repin; commit=50e34286f66c938d89d5d367c6370ad44164c97f].
-BUDGET = 16161
+#: RE-PINNED 2026-09-09, 16161 to 16189 (+28), the compiled vocabulary seed,
+#: the membership index, base-module type lookups and the singleton decoder
+#: landed (perf/cross-engine-waivers merged): boot publishes the initial
+#: vocabulary types from a compiled payload through the tokenized funnel, a
+#: warm membership read touches only its own clauses, a base-module type lookup
+#: skips the prelude, and a Python decode with one named variable builds no
+#: index; per-operation costs of a mint, write, read, drop, run, save and load
+#: are unchanged against the trunk in fresh processes; measured on the merged
+#: tree [measured 2026-09-09: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 16189
 #: OVERRUN 2026-09-09, 25 to 62 (+37): the door table landed
 #: (feat/space-as-a-projection-of-door-rows merged at 6471faa37, its
 #: reconciliation fixes at 58bf75947): every Space door is a generated alias
@@ -296,7 +318,19 @@ BUDGET = 16161
 #: is this twin's own program [measured 2026-09-09: one fresh process per
 #: side; command=python extensions/python/benchmarks/probes/twin_floor.py;
 #: commit=aeb46b14152274db84f6415c8a3dd8c98a9c9eb1].
-OVERRUN = 62
+#: OVERRUN 2026-09-09, 62 to 283 (+221): the compiled vocabulary seed, the
+#: membership index, base-module type lookups and the singleton decoder landed
+#: (perf/cross-engine-waivers merged): a Python decode with one named variable
+#: builds no index and one with more builds it at the second distinct name,
+#: which moves a twin's engine-side cost while its example, which decodes
+#: nothing, holds; boot content and clause layout moved the rest; against the
+#: trunk's own run at da0e5755d the twin moved +28 and the example +1, and the
+#: twin sat 194 over its ceiling there already. Measured 16189 against a
+#: ceiling of 15968; a minimal twin costs 8630 against the band's 15906,
+#: within that ceiling, so the rest is this twin's own program [measured
+#: 2026-09-09: one fresh process per side; command=python
+#: extensions/python/benchmarks/probes/twin_floor.py; commit=WORKTREE].
+OVERRUN = 283
 
 #: DIVERGED 2026-09-07, the example holds 0 atoms the twin does not (none) and
 #: the twin holds 4 the example does not (4 :): a Python annotation IS a (:

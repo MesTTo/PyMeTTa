@@ -10,7 +10,7 @@ Guarantees:
     inference growth from exponential to linear, with both improvements and
     regressions pinned to the measured floor [tested:
     test_automatic_tabling_growth;
-    commit=7f00ac7932fefa6f380fc8d14ec583ea0c58eff4]
+    commit=WORKTREE]
   - the native-handle case reaches the chapter-19 artifact that the worktree
     build produces instead of skipping behind its pre-reorganisation path
     [tested: test_handle_benchmark_reaches_the_built_chapter_19_library;
@@ -341,11 +341,29 @@ _ROWS = 2_000
 # command=python bench.py --counter-only automatic-tabling;
 # fixture=provisioned cut and token worktrees with the same native artifacts;
 # commit=7f00ac7932fefa6f380fc8d14ec583ea0c58eff4]
+#: Re-pinned 2026-09-08. The pristine f0d33dcad cut reads plain
+#: 122157/953645/7605549/30412077 and automatic 14488/15618/16752/17508.
+#: This tree adds four plain and six automatic inferences at every size.
+#: Catalog reference checks now distinguish transaction-local clause erasure;
+#: the catalog membership and prelude controls are recorded in
+#: docs/journal/2026-09-08-what-the-waivers-were-paying-for.md. The prior pin
+#: already differs from the cut; that difference is not this change's cost.
+#: [measured: min of three observations per size and mode;
+#: command=python bench.py automatic-tabling --counter-only;
+#: fixture=provisioned cut and branch with warm QLF; commit=32650f9ff4d1c4aa0749d8eb8b153e5bb448ee5c].
+# Re-pinned 2026-09-09 on the tree where both landed: the token storage
+# above adds 37 plain and 120 automatic, the catalog reference checks add 4
+# plain and 6 automatic, and the merged tree reads exactly their sum over the
+# cut at every size [measured 2026-09-09: min of three observations per size
+# and mode; command=python -c "import test_benchmarks as t;
+# print(t._automatic_tabling_observations())" from extensions/python with the
+# benchmarking member on the path; fixture=the merged tree with fresh QLF;
+# commit=WORKTREE].
 _AUTOMATIC_TABLING_PINS = {
-    12: {"plain": 122_194, "automatic": 14_608},
-    15: {"plain": 953_682, "automatic": 15_738},
-    18: {"plain": 7_605_586, "automatic": 16_872},
-    20: {"plain": 30_412_114, "automatic": 17_628},
+    12: {"plain": 122_198, "automatic": 14_614},
+    15: {"plain": 953_686, "automatic": 15_744},
+    18: {"plain": 7_605_590, "automatic": 16_878},
+    20: {"plain": 30_412_118, "automatic": 17_634},
 }
 
 

@@ -227,4 +227,16 @@ BUDGET = 7697
 #: ceiling, so no twin of it fits the band at all, as before [measured
 #: 2026-09-08: one fresh process per side; command=python
 #: extensions/python/benchmarks/probes/twin_floor.py; commit=f1038acdcaf5230b6431c112f38a719d3dc9ef19].
-OVERRUN = 640
+#: OVERRUN 2026-09-09, 640 to 854 (+214): the compiled vocabulary seed, the
+#: membership index, base-module type lookups and the singleton decoder landed
+#: (perf/cross-engine-waivers merged): a Python decode with one named variable
+#: builds no index and one with more builds it at the second distinct name,
+#: which moves a twin's engine-side cost while its example, which decodes
+#: nothing, holds; boot content and clause layout moved the rest; against the
+#: trunk's own run at da0e5755d the twin moved +0 and the example +0, and the
+#: twin sat 214 over its ceiling there already. Measured 7697 against a
+#: ceiling of 7483; a minimal twin costs 7167 against the band's 6843, above
+#: that ceiling, so no twin of it fits the band at all, as before [measured
+#: 2026-09-09: one fresh process per side; command=python
+#: extensions/python/benchmarks/probes/twin_floor.py; commit=WORKTREE].
+OVERRUN = 854
