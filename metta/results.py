@@ -163,7 +163,6 @@ __all__ = ["Answers", "Column", "Row", "Rows"]
 
 _ERROR_HEAD = Symbol("Error")
 _MISSING: Final[object] = object()
-_REPR_ITEMS = 4
 
 
 def error_answer(answer: object, *, space: str | None = None) -> MettaResultError | None:
@@ -412,6 +411,7 @@ class Column(list[Any]):
 #: own answer for NumPy is a `<U` array sized to the longest value, and a
 #: column carrying nulls is left to it too, because none of these dtypes holds
 #: absence.
+# closed-set: decides; policy=which Arrow column kinds have a NumPy dtype of the same width, the rest being left to NumPy's own answer; reads=none, the kinds are metta.seam.ARROW_KINDS and this is the dtype each maps to
 _ARRAY_DTYPE: Final = {"int64": "int64", "float64": "float64", "bool": "bool"}
 
 
@@ -569,7 +569,7 @@ class Rows(UserList[Row]):
         except KeyError as exc:
             raise AttributeError(str(exc), name=name, obj=self) from None
 
-    def __dir__(self) -> list[str]:  # noqa: D105  -- completion exposes the documented projection columns
+    def __dir__(self) -> list[str]:  # noqa: D105  -- the Python data-model hook is defined by its name and enclosing type contract
         return sorted(set(super().__dir__()) | set(self.columns))
 
     def __setitem__(  # noqa: D105  -- the Python data-model hook is defined by its name and enclosing type contract
@@ -1159,7 +1159,7 @@ class Answers[T](Sequence[T]):
         "_values_demanded",
     )
 
-    def __init__(  # noqa: D107 -- the enclosing type documents construction
+    def __init__(  # noqa: D107  -- the enclosing class documents construction and the object invariants
         self,
         source: Iterable[T | _AnswerItem],
         *,
@@ -1351,7 +1351,7 @@ class Answers[T](Sequence[T]):
     @overload
     def __getitem__(self, key: str) -> Answers[Any]: ...
 
-    def __getitem__(  # noqa: D105 -- Python's sequence protocol names the contract
+    def __getitem__(  # noqa: D105  -- the Python data-model hook is defined by its name and enclosing type contract
         self, key: int | slice | Variable | str
     ) -> T | Answers[T] | Answers[Any]:
         if isinstance(key, (Variable, str)):
@@ -1497,7 +1497,7 @@ class Answers[T](Sequence[T]):
     def __getattr__(self, name: str) -> Answers[Any]:  # noqa: D105 -- projection is documented by the type
         return self._project(name)
 
-    def __dir__(self) -> list[str]:  # noqa: D105 -- completion extends Python's standard directory
+    def __dir__(self) -> list[str]:  # noqa: D105  -- the Python data-model hook is defined by its name and enclosing type contract
         return sorted(set(super().__dir__()) | set(self._columns))
 
     def _answers_are_terms(self) -> bool:
@@ -1721,14 +1721,15 @@ class Answers[T](Sequence[T]):
     def __hash__(self) -> int:  # noqa: D105 -- Python's hash protocol names the contract
         return hash(self._materialize())
 
-    def __repr__(self) -> str:  # noqa: D105 -- Python's representation protocol names the contract
+    def __repr__(self) -> str:  # noqa: D105  -- the Python data-model hook is defined by its name and enclosing type contract
         shown: list[Any] = []
-        for index in range(_REPR_ITEMS + 1):
+        shown_items = config.repr_items
+        for index in range(shown_items + 1):
             if not self._pull(index):
                 break
             shown.append(self._cache[index])
-        if len(shown) > _REPR_ITEMS:
-            inner = ", ".join(repr(value) for value in shown[:_REPR_ITEMS])
+        if len(shown) > shown_items:
+            inner = ", ".join(repr(value) for value in shown[:shown_items])
             return f"[{inner}, ...]"
         return repr(shown)
 

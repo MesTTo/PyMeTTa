@@ -226,4 +226,30 @@ RUNG = "the assert family is this file's subject, so each claim names one of its
 #: reads its budget on the merged tree, minimum of three fresh processes
 #: [measured 2026-09-08: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=3fc65f02ce807c359f1a52026f950f345da2a9af].
-BUDGET = 17475
+#: RE-PINNED 2026-09-08, 17475 to 17492 (+17), boot content moved: the refusal
+#: table and the typing point are modules this package did not have, three
+#: convert doors became one, per-library faces are projections, and the engine
+#: gained a catalog watch point, and SWI clause-indexing shape shifts a twin
+#: count by tens whenever boot content moves, the mechanism every earlier entry
+#: in these chains names. The watch point itself is one inference per &metta
+#: write, which a twin that defines a function pays three of (2239 against 2236
+#: on ch03 01-comments with the two announcement clauses taken out), and the
+#: (limit ...) rows it exists for cost nothing at all: 2239 either way with
+#: every row-backed bound removed, because boot seeds the mirror those bounds
+#: are read from [measured 2026-09-08: min-of-3 serial fresh processes;
+#: command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+BUDGET = 17492
+
+#: OVERRUN 2026-09-08, 9: the twin names each of the twelve assert-family
+#: members through `m.fn` and compares every answer in Python, where the
+#: example writes twelve runnables the engine evaluates for itself. Measured
+#: 17492 against a ceiling of 17484; a MINIMAL twin of this example -- its own
+#: forms stored and asked through the structured door, nothing else -- costs
+#: 15175, inside that ceiling, so the distance is this twin's own program and
+#: not the band being tighter than the library's floor. What tipped it over is
+#: the branch's own boot-content move, +17 on this twin and none on the
+#: example, against a ceiling it sat 9 under [measured 2026-09-08: one fresh
+#: process per side; command=python
+#: extensions/python/benchmarks/probes/twin_floor.py; commit=WORKTREE].
+OVERRUN = 9

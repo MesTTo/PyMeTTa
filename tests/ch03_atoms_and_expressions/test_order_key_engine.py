@@ -19,7 +19,7 @@ Open Obligations:
 
 import pytest
 
-from metta import Expression, Grounded, Symbol, Variable, wire
+from metta import Expression, Grounded, Symbol, Variable, convert
 from metta.atoms import _alpha_eq, order_key
 
 hypothesis = pytest.importorskip("hypothesis")
@@ -56,7 +56,7 @@ def _engine_msort(metta, atoms):
         "msort(_Terms, _Sorted), metta_py_encode(_Sorted, Out)",
         W=Expression(atoms).to_wire(),
     )
-    return wire.atom_from_wire(row["Out"])
+    return convert.atom_from_wire(row["Out"])
 
 
 @given(st.permutations(_ATOMS))

@@ -48,8 +48,9 @@ from __future__ import annotations
 
 import threading
 from collections.abc import Callable, Mapping
-from typing import Any, Final, Self
+from typing import Any, Self
 
+from ._config import config
 from .atoms import Atom, Expression, Symbol, Variable, _map_atoms, _to_atom
 from .errors import EngineError, MettaError
 from .events import _REGISTRY, STATELESS, Event, Fold
@@ -57,19 +58,30 @@ from .foreign import require_capability
 from .ops import _REFLECTION_SPACE, _reflect_add, _reflect_remove
 from .vocabularies import SubscriptionEdge
 
-__all__ = ["Event", "Subscription", "bridge", "subscribe"]
+__all__ = ["Event", "Subscription", "bridge", "queue_bound", "subscribe"]
 
 
-#: How many undrained events one subscription holds before it refuses more.
-#: A queue nobody drains grew for the life of the process; this is what
-#: replaces that. queue.Queue is the precedent for the POLICY: put_nowait on
-#: a full queue raises rather than dropping, where collections.deque(maxlen=)
-#: discards the oldest without telling anyone.
-SUBSCRIPTION_QUEUE_MAX: Final[int] = 10_000
+def queue_bound() -> int:
+    """How many undrained events one subscription holds before it refuses more.
+
+    The standing `(limit subscription-queue <n>)` row, read when a subscription
+    is MADE rather than held as a constant here, so a program that rewrites the
+    row bounds every subscription opened after the write. A queue nobody drains
+    grew for the life of the process; this is what replaces that.
+    `queue.Queue` is the precedent for the POLICY: put_nowait on a full queue
+    raises rather than dropping, where `collections.deque(maxlen=)` discards
+    the oldest without telling anyone.
+    """
+    return config.subscription_queue
 
 
 def _capacity(queue_max: Any) -> int:
     """The queue bound, refused unless it is a count of events.
+
+    `None` is the standing bound, which is the `(limit subscription-queue ...)`
+    row the catalog holds, so a caller who names no bound gets whatever the
+    program decided rather than a number frozen into a default argument at
+    import time.
 
     The type comes first because a refusal written as a comparison lets
     through whatever the comparison is false about, and every comparison
@@ -80,6 +92,8 @@ def _capacity(queue_max: Any) -> int:
     `metta.remote._Cursors.__init__` among them, in the same order and with
     the same two exception types.
     """
+    if queue_max is None:
+        return queue_bound()
     if isinstance(queue_max, bool) or not isinstance(queue_max, int):
         msg = f"queue_max must be a positive integer, got {queue_max!r}"
         raise TypeError(msg)
@@ -103,8 +117,8 @@ class Subscription(Fold):
         space: str,
         pattern: Atom,
         callback: Callable[[Event], None] | None,
-        on: str,
-        queue_max: int = SUBSCRIPTION_QUEUE_MAX,
+        on: SubscriptionEdge,
+        queue_max: int | None = None,
         *,
         admits: Callable[[Event], bool] | None = None,
     ) -> None:
@@ -245,9 +259,9 @@ def subscribe(  # noqa: D103  -- the package reference and enclosing module docu
     space: str,
     pattern: Atom,
     callback: Callable[[Event], None] | None = None,
-    on: str = "add",
+    on: SubscriptionEdge = SubscriptionEdge.add,
     *,
-    queue_max: int = SUBSCRIPTION_QUEUE_MAX,
+    queue_max: int | None = None,
     admits: Callable[[Event], bool] | None = None,
 ) -> Subscription:
     if on not in SubscriptionEdge:
@@ -309,7 +323,9 @@ def _instantiate(template: Atom, bindings: Mapping[str, Atom]) -> Atom:
     )
 
 
-def bridge(source, pattern, target, template=None, on: str = "add") -> Subscription:
+def bridge(
+    source, pattern, target, template=None, on: SubscriptionEdge = SubscriptionEdge.add
+) -> Subscription:
     """A bridge rule between spaces, the multi-context-systems reading:
     when an atom unifying with pattern arrives in source, the template's
     instantiation under the match's bindings lands in target, and with

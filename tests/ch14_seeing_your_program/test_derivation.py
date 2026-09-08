@@ -19,6 +19,8 @@ Open Obligations:
   Future Enhancements: None.
 """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
+from unittest import mock
+
 import pytest
 
 from metta import Expression, S, V, Variable
@@ -400,3 +402,35 @@ def test_deep_proof_consumers_treat_depth_as_data():
     rendered = str(proof)
     assert len(rendered.splitlines()) == 2 * depth + 2
     assert proof.children[0].render(1) == "\n".join(rendered.splitlines()[1:])
+
+
+def test_a_node_class_and_its_row_declare_the_same_fields():
+    """One grammar, one class: the parser reads the row and nothing else.
+
+    Each node class used to be built by counting positions in the atom by
+    hand, so a field added to the grammar and not to the class, or the other
+    way round, was a wrong answer rather than a refusal. The row IS the field
+    list now, and `_check_rows()` holds the pair to each other at import --
+    which is why every one of the five agrees here, and why planting a
+    disagreement is refused with both sides named.
+    """
+    from dataclasses import fields as dataclass_fields
+
+    from metta.derivation import _DERIVATION, _LEAVES, _STEP, _check_rows
+
+    for row in (_DERIVATION, _STEP, *_LEAVES):
+        declared = tuple(
+            one.name for one in dataclass_fields(row.node) if one.name != "children"
+        )
+        assert declared == row.names, row.head
+
+    # The row's own field list, one field longer than the class it projects
+    # to. `names` is derived from `fields`, so the plant goes in the source.
+    planted = _STEP._replace(fields=(*_STEP.fields, ("invented", str)))
+    with (
+        mock.patch("metta.derivation._STEP", planted),
+        pytest.raises(
+            ValueError, match=r"the step row declares .*invented.*Step carries"
+        ),
+    ):
+        _check_rows()

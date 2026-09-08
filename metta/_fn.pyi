@@ -22,6 +22,7 @@ from typing import Final
 from .atoms import Expression, Symbol
 
 class _FunctionNamespace:
+    Predicate: Symbol
     abs_math: Symbol
     "abs-math: (-> Number Number)\n\nPython's builtin `abs`."
     acos_math: Symbol
@@ -40,14 +41,38 @@ class _FunctionNamespace:
     add_typing_rule: Symbol
     alpha_unique: Symbol
     alpha_unique_atom: Symbol
+    and_: Symbol
+    "and: (-> Bool Bool Bool)\n\nPython's own keyword. On atoms `&` builds the MeTTa `and` instead, because the keyword cannot be overloaded."
     and_then: Symbol
     annotation: Symbol
     append: Symbol
     argv: Symbol
     asin_math: Symbol
     "asin-math: (-> Number Number)\n\n`math.asin`."
+    assertAlphaEqual: Symbol  # noqa: N815  -- the member keeps the catalog's public wire spelling; the head is the engine's word, not one this package chose
+    "assertAlphaEqual: (-> Atom Atom (->))\n\n`assert a.alpha_eq(b)`: the assertion is Python's, the relation is MeTTa's."
+    assertAlphaEqualMsg: Symbol  # noqa: N815  -- the member keeps the catalog's public wire spelling; the head is the engine's word, not one this package chose
+    "assertAlphaEqualMsg: (-> Atom Atom Atom (->))\n\nThe same with Python's assertion message."
+    assertAlphaEqualToResult: Symbol  # noqa: N815  -- the member keeps the catalog's public wire spelling; the head is the engine's word, not one this package chose
+    "assertAlphaEqualToResult: (-> Atom Atom (->))\n\nThe answer-list form compared modulo renaming."
+    assertAlphaEqualToResultMsg: Symbol  # noqa: N815  -- the member keeps the catalog's public wire spelling; the head is the engine's word, not one this package chose
+    "assertAlphaEqualToResultMsg: (-> Atom Atom Atom (->))\n\nThe same with Python's assertion message."
+    assertEqual: Symbol  # noqa: N815  -- the member keeps the catalog's public wire spelling; the head is the engine's word, not one this package chose
+    "assertEqual: (-> Atom Atom (->))\n\n`assert a == b`, and pytest's own assertion rewriting prints the halves."
+    assertEqualMsg: Symbol  # noqa: N815  -- the member keeps the catalog's public wire spelling; the head is the engine's word, not one this package chose
+    "assertEqualMsg: (-> Atom Atom Atom (->))\n\n`assert a == b, message`, which is Python's own second argument."
+    assertEqualToResult: Symbol  # noqa: N815  -- the member keeps the catalog's public wire spelling; the head is the engine's word, not one this package chose
+    "assertEqualToResult: (-> Atom Atom (->))\n\nThe right-hand side is a LIST of expected answers rather than one, which is `assert list(answers) == [...]`."
+    assertEqualToResultMsg: Symbol  # noqa: N815  -- the member keeps the catalog's public wire spelling; the head is the engine's word, not one this package chose
+    "assertEqualToResultMsg: (-> Atom Atom Atom (->))\n\nThe same with Python's assertion message."
+    assertIncludes: Symbol  # noqa: N815  -- the member keeps the catalog's public wire spelling; the head is the engine's word, not one this package chose
+    "assertIncludes: (-> Atom Expression (->))\n\nPython's own `in`."
+    assert_: Symbol
+    "assert: (-> Atom (->))\n\nPython's own `assert`. A twin or a test states its claims this way and the run proves them, because a false assertion raises."
     assert_answers: Symbol
     assert_includes_answers: Symbol
+    assertaPredicate: Symbol  # noqa: N815  -- the member keeps the catalog's public wire spelling; the head is the engine's word, not one this package chose
+    assertzPredicate: Symbol  # noqa: N815  -- the member keeps the catalog's public wire spelling; the head is the engine's word, not one this package chose
     atan_math: Symbol
     "atan-math: (-> Number Number)\n\n`math.atan`."
     atom_subst: Symbol
@@ -62,6 +87,7 @@ class _FunctionNamespace:
     bit_shift_right: Symbol
     bit_xor: Symbol
     call: Symbol
+    callPredicate: Symbol  # noqa: N815  -- the member keeps the catalog's public wire spelling; the head is the engine's word, not one this package chose
     car_atom: Symbol
     "car-atom: (-> Expression %Undefined%)\n\nIndexing. An expression is a sequence in Python, so its head is `e[0]`."
     case: Symbol
@@ -106,6 +132,7 @@ class _FunctionNamespace:
     "eval: (-> Atom Atom)\n\nONE step. `m.eval(term)` is the same one step and answers every result, and `space.eval(term)` is `evalc`, the same step in a named space."
     evalc: Symbol
     "evalc: (-> Atom SpaceType Atom)\n\nOne step WITH an explicit context space, which is `space.eval(term)`: the signature IS term plus space."
+    except_: Symbol
     exclude_item: Symbol
     exp: Symbol
     exp_math: Symbol
@@ -154,6 +181,8 @@ class _FunctionNamespace:
     hyperpose: Symbol
     id: Symbol
     "id: (-> $t $t)\n\nThe identity function, which Python writes as the value itself."
+    if_: Symbol
+    "if: (-> Bool Atom Atom $t)\n\nPython's own `if`, and its conditional expression where a value is wanted. Both arms stay unevaluated in MeTTa because the parameters are Atom-typed, which is exactly what Python's own short-circuit does."
     if_decons_expr: Symbol
     "if-decons-expr: (-> (:Atom Expression) (:Atom Variable) (:Atom Variable) Atom Atom %Undefined%)\n\nStarred unpacking inside an `if`: the empty case is the `else` branch."
     if_equal: Symbol
@@ -162,6 +191,8 @@ class _FunctionNamespace:
     if_error: Symbol
     "if-error: (-> Atom Atom Atom %Undefined%)\n\n`try`/`except`, or a conditional over the value. It is the railway combinator over Error atoms."
     implies: Symbol
+    import_: Symbol
+    "import!: (-> Atom Atom (->))\n\nPython's own `import`, and for a MeTTa library the boot manifest or `m.load(path)`. The module catalog IS Python packaging."
     include: Symbol
     "include: (-> Atom %Undefined%)\n\n`space.load(path)` reads a file into that space, which is what include does; Python's own `import` is the spelling for a Python module."
     index_atom: Symbol
@@ -230,8 +261,12 @@ class _FunctionNamespace:
     "nop: (-> (%Rest% %Undefined%) (->))\n\nPython's `pass`, or simply not writing the call. It answers the unit."
     noreduce_eq: Symbol
     "noreduce-eq: (-> Atom Atom Bool)\n\nComparing two atoms WITHOUT reducing them is what Python's `==` on atoms already does: building a term never evaluates it."
+    not_: Symbol
+    "not: (-> Bool Bool)\n\nPython's own keyword; `~` is the operator form on atoms."
     not_provable: Symbol
     once: Symbol
+    or_: Symbol
+    "or: (-> Bool Bool Bool)\n\nPython's own keyword; `|` is the operator form on atoms."
     or_else: Symbol
     parse: Symbol
     parse_command: Symbol
@@ -288,6 +323,9 @@ class _FunctionNamespace:
     repra: Symbol
     require_extension: Symbol
     residual_goals: Symbol
+    retractPredicate: Symbol  # noqa: N815  -- the member keeps the catalog's public wire spelling; the head is the engine's word, not one this package chose
+    return_: Symbol
+    "return: (-> $t $t)\n\nThe core's return, paired with `function`: it is what closes the frame, so it only ever appears inside one."
     return_on_error: Symbol
     "return-on-error: (-> Atom Atom %Undefined%)\n\nEarly return, which is Python's own `return` inside an `if`. Indexing needs the guard because a leaf atom is not indexable here."
     reverse: Symbol
@@ -337,6 +375,7 @@ class _FunctionNamespace:
     trace: Symbol
     "trace!: (-> %Undefined% Atom %Undefined%)\n\n`print` or `logging` beside the value; `m.trace()` is the engine's own reduction trace, a different and deeper thing."
     transaction: Symbol
+    translatePredicate: Symbol  # noqa: N815  -- the member keeps the catalog's public wire spelling; the head is the engine's word, not one this package chose
     truediv: Symbol
     "/: (-> Number Number Number)\n\nPython's `/` is true division, and so is this engine's. An integer `/` is EUCLIDEAN by its own ruling, so `(/ 7 2)` is 3 there and 3.5 here; on floats all three agree."
     trunc_math: Symbol

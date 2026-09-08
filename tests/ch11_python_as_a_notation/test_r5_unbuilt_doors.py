@@ -189,8 +189,8 @@ MATH_MENTIONS = (
 @pytest.mark.parametrize(("callable_value", "head"), MATH_MENTIONS)
 def test_callable_mentions_share_operator_and_fourteen_math_names(metta, callable_value, head):
     """R5.7: operator.add and the builtin-types math family become mentions."""
-    assert pymetta.wire.encode(operator.add) == S["+"]
-    assert pymetta.wire.encode(callable_value) == S[head]
+    assert pymetta.convert.encode(operator.add) == S["+"]
+    assert pymetta.convert.encode(callable_value) == S[head]
 
     @metta.define(name="r5-math-sqrt")
     def r5_math_sqrt(x):
@@ -215,7 +215,7 @@ def test_callable_mentions_require_identity_even_when_equality_is_spoofed():
 
     spoof = AddSpoof()
     assert spoof == operator.add
-    encoded = pymetta.wire.encode(spoof)
+    encoded = pymetta.convert.encode(spoof)
     assert isinstance(encoded, pymetta.Grounded)
     assert encoded.value is spoof
 

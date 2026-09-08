@@ -286,6 +286,24 @@ def test_an_empty_group_is_an_observation():
     assert outcome.error is None
 
 
+def test_a_verdict_is_read_by_its_shape_and_not_by_a_word_in_it():
+    """A doc row that says "should" is not a fifteenth test verdict.
+
+    The engine configuration echoes the source of every library an example
+    imports, so a generated `(@doc ...)` row travels through this reader. One
+    of lib_torch's says "if autograd should record operations on this tensor",
+    and reading a verdict as "the line contains ` should `" counted it,
+    reporting `10-torch-library-surface.metta` as engine 15 against library 14
+    when both print the same fourteen.
+    """
+    text = (
+        "(@doc torch-requires-grad (@kind function) (@desc \"Change if "
+        "autograd should record operations on this tensor.\"))\n"
+        "is 1, should 1. \u2705\n"
+    )
+    assert parity._read(text).verdicts == ("is 1, should 1. \u2705",)
+
+
 def test_an_error_line_is_not_an_empty_run():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     outcome = parity._read("ANSWER-ERROR something broke\n")
     assert outcome.error == "something broke"

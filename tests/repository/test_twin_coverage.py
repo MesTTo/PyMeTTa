@@ -722,9 +722,9 @@ def test_a_retired_module_import_is_a_finding(tmp_path):
 
 #: The retired names a recommendation may still contain, because only the ROOT
 #: spelling died and the name itself moved house: `atom_from_wire` is written
-#: `metta.wire.atom_from_wire(x)` and `alpha_eq` is the atom's own method
+#: `metta.convert.atom_from_wire(x)` and `alpha_eq` is the atom's own method
 #: [measured 2026-08-24: `metta.alpha_eq` and `metta.atom_from_wire` are gone
-#: while `Atom.alpha_eq` and `metta.wire.atom_from_wire` are live; source:
+#: while `Atom.alpha_eq` and `metta.convert.atom_from_wire` are live; source:
 #: ai-narrow-core-renames.md, the wire-functions and alpha_eq rows;
 #: commit=5c67147566907276a95a5fbf059cf8f98b6685f1].
 RELOCATED = frozenset({"alpha_eq", "atom_from_wire"})

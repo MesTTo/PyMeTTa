@@ -47,7 +47,7 @@ if sys.version_info < (3, 13):
 
 from typing import TypeIs  # guarded above; 3.13 or later only
 
-from metta import Atom, Expression, Grounded, MeTTa, S, Symbol, Variable, ground, wire
+from metta import Atom, Expression, Grounded, MeTTa, S, Symbol, Variable, convert, ground
 from metta import integrate as pi
 from metta.convert import build, project, register_type, unregister_type
 from metta.ops import annotation_atom_for, type_atoms_for
@@ -272,7 +272,7 @@ def test_dunder_metta_is_read_off_the_class_not_the_instance():
 
     proxy = Proxy()
     assert project(proxy).atom == ground(proxy)
-    assert wire.encode(proxy) == ground(proxy)
+    assert convert.encode(proxy) == ground(proxy)
     assert looked_up == []
 
     class Tagged:
@@ -280,7 +280,7 @@ def test_dunder_metta_is_read_off_the_class_not_the_instance():
             return S.tagged
 
     assert project(Tagged()).atom == S.tagged
-    assert wire.encode(Tagged()) == S.tagged
+    assert convert.encode(Tagged()) == S.tagged
 
     class PropertyTrap:
         @property
@@ -290,7 +290,7 @@ def test_dunder_metta_is_read_off_the_class_not_the_instance():
 
     trapped = PropertyTrap()
     assert project(trapped).atom == ground(trapped)
-    assert wire.encode(trapped) == ground(trapped)
+    assert convert.encode(trapped) == ground(trapped)
     assert looked_up == []
 
 

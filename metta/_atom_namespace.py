@@ -103,6 +103,7 @@ class _Namespace[AtomT: Atom]:
         "_kind",
         "_label",
         "_lock",
+        "_operators",
         "_remedy",
     )
 
@@ -116,13 +117,22 @@ class _Namespace[AtomT: Atom]:
         label: str = "name",
         remedy: str = "",
         fix: Remedy | None = None,
+        operators: bool = True,
     ) -> None:
         object.__setattr__(self, "_kind", kind)
         object.__setattr__(self, "_allowed", allowed)
+        #: Whether Python's `operator` module words reach this namespace's
+        #: atoms. True for a namespace over the ENGINE's catalog, where
+        #: `fn.add` naming `+` is the point; False for one over a single
+        #: library's heads, where it would name heads that library never
+        #: declares and would shadow one it did.
+        object.__setattr__(self, "_operators", operators)
         object.__setattr__(
             self,
             "_aliases",
-            aliases if aliases is not None else generated_aliases(allowed or ()),
+            aliases
+            if aliases is not None
+            else generated_aliases(allowed or (), operators=operators),
         )
         object.__setattr__(self, "_label", label)
         #: What to reach for when a CLOSED namespace does not carry a name.
@@ -188,7 +198,11 @@ class _Namespace[AtomT: Atom]:
             pass
         aliases = object.__getattribute__(self, "_aliases")
         kind = object.__getattribute__(self, "_kind")
-        operator_target = operator_attribute_target(name) if kind is Symbol else None
+        operator_target = (
+            operator_attribute_target(name)
+            if kind is Symbol and object.__getattribute__(self, "_operators")
+            else None
+        )
         if isinstance(operator_target, OperatorRecipe):
             hit = operator_target
             lock = object.__getattribute__(self, "_lock")
@@ -305,7 +319,11 @@ class _Namespace[AtomT: Atom]:
     def __dir__(self):
         if object.__getattribute__(self, "_allowed") is not None:
             return list(object.__getattribute__(self, "_aliases"))
-        return list(generated_aliases(self._known()))
+        return list(
+            generated_aliases(
+                self._known(), operators=object.__getattribute__(self, "_operators")
+            )
+        )
 
     def _ipython_key_completions_(self):
         # Most engine names carry a hyphen, so S["<TAB>"] is where they live.

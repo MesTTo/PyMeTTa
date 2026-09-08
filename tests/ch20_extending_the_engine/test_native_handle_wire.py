@@ -24,7 +24,7 @@ from pathlib import Path
 
 import pytest
 
-from metta import S, wire
+from metta import S, convert
 from metta._atoms_core import _NativeHandle
 from metta.tables import TableBridge
 
@@ -45,8 +45,8 @@ def test_native_handles_round_trip_through_the_public_wire_codec():
     handle = _NativeHandle(29_001, "<fixture-native-handle>")
 
     encoded = json.loads(json.dumps(handle.to_wire()))
-    decoded = wire.atom_from_wire(encoded)
-    nested = wire.atom_from_wire(S.row(handle).to_wire())
+    decoded = convert.atom_from_wire(encoded)
+    nested = convert.atom_from_wire(S.row(handle).to_wire())
 
     assert encoded == ["h", 29_001, "<fixture-native-handle>"]
     assert decoded == handle
@@ -68,7 +68,7 @@ def test_three_field_native_handle_returns_to_its_engine(metta):
         names=["vector-new", "vector-nth", "vector-bump", "vector-length"],
     )
     (handle,) = metta.eval(S["vector-new"](4))
-    restored = wire.atom_from_wire(handle.to_wire())
+    restored = convert.atom_from_wire(handle.to_wire())
     assert isinstance(restored, _NativeHandle)
     try:
         assert metta.eval(S["vector-nth"](restored, 3)) == [3]

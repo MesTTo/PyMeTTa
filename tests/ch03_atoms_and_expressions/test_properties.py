@@ -35,9 +35,9 @@ from metta import (
     S,
     Symbol,
     Variable,
+    convert,
     parse,
     unify,
-    wire,
 )
 
 # The generators are the library's own public ones: metta.testing carries
@@ -82,7 +82,7 @@ _writer_atoms = st.recursive(
 
 @given(_atoms())
 def test_python_wire_round_trip(atom):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    assert wire.from_wire(atom.to_wire()) == atom
+    assert convert.from_wire(atom.to_wire()) == atom
 
 
 @given(_atoms())
@@ -95,7 +95,7 @@ def test_engine_wire_round_trip(metta_session, atom):
     row = rt.once(
         "metta_py_decode_shared(W, _T, _), metta_py_encode(_T, W2)", W=atom.to_wire()
     )
-    assert wire.from_wire(row["W2"]).alpha_eq(atom)
+    assert convert.from_wire(row["W2"]).alpha_eq(atom)
 
 
 # Counterexamples this project already paid for, pinned so they run on every
@@ -130,7 +130,7 @@ def test_every_generated_atom_survives_the_write_parse_round_trip(
         assert "read back as a different value" in message
         return
     reread = rt.once("metta_py_parse(Src, W2)", Src=printed)["W2"]
-    assert wire.from_wire(reread).alpha_eq(atom)
+    assert convert.from_wire(reread).alpha_eq(atom)
 
 
 def test_swrite_writes_the_engines_own_boolean_literal(metta_session):
@@ -218,7 +218,7 @@ def test_the_boolean_atoms_are_one_term_with_their_symbols(metta_session):
         "metta_py_decode_shared(W, _T, _), metta_py_encode(_T, W2)",
         W=Symbol("true").to_wire(),
     )
-    assert wire.from_wire(row["W2"]) == Grounded(True)  # noqa: FBT003  -- the boolean literal is atom or wire data at this site, not a behavior switch
+    assert convert.from_wire(row["W2"]) == Grounded(True)  # noqa: FBT003  -- the boolean literal is atom or wire data at this site, not a behavior switch
     assert parse("true") == Grounded(True)  # noqa: FBT003  -- the boolean literal is atom or wire data at this site, not a behavior switch
 
 

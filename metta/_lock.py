@@ -272,6 +272,7 @@ def _string(value: str) -> str:
     return "".join(out)
 
 
+# closed-set: decides; policy=which characters a lock's TOML string escapes, which is TOML's own basic-string grammar; reads=none, it is the source
 _ESCAPES = {
     "\\": "\\\\",
     '"': '\\"',

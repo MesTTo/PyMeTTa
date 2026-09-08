@@ -28,6 +28,8 @@ from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from typing import Final
 
+from . import _operator_lowerings as _lowerings
+
 
 @dataclass(frozen=True)
 class OperatorRecipe:
@@ -60,25 +62,20 @@ class OperatorRecipe:
 
 _NEG: Final[OperatorRecipe] = OperatorRecipe("neg", "-", (0,), "(- 0 x)")
 
-# Python's operator module owns these public words. A word maps to a single
-# engine head when it has one and to an immutable recipe when its settled
-# image is composite. ``floordiv`` remains refused because its requested word
-# door has not been settled. [source:
-# https://docs.python.org/3.14/library/operator.html; commit=8ec44dec3cafba5981e7cf712749cca0e1bdcc45]
+# Python's operator module owns these public words, and WHICH words is the one
+# operator table's `word` column: a row marked there opens `S.<selector>` onto
+# that row's own MeTTa head, so the head is spelled once. `neg`'s settled image
+# is composite, which is what the recipe above carries; `floordiv`'s composite
+# image has not been settled, so its row is not marked and the door stays
+# refused [source: https://docs.python.org/3.14/library/operator.html;
+# extensions/python/metta/_operator_lowerings.py, OperatorLowering.word;
+# commit=WORKTREE]
 OPERATOR_WORDS: Final[dict[str, str | OperatorRecipe]] = {
-    "eq": "==",
-    "ne": "!=",
-    "lt": "<",
-    "le": "<=",
-    "gt": ">",
-    "ge": ">=",
-    "add": "+",
-    "sub": "-",
-    "mul": "*",
-    "mod": "%",
-    "pow": "pow-math",
-    "truediv": "/",
-    "neg": _NEG,
+    _lowerings.selector(entry): (
+        _NEG if entry.dunder == "__neg__" else entry.word_head or str(entry.form)
+    )
+    for entry in _lowerings.OPERATOR_LOWERINGS
+    if entry.word
 }
 
 _COMPOSITE_OPERATOR_IMAGES: Final[dict[str, str]] = {
@@ -162,7 +159,9 @@ def resolve_known_name(
     return None
 
 
-def generated_aliases(names: Iterable[str]) -> dict[str, str]:
+def generated_aliases(
+    names: Iterable[str], *, operators: bool = True
+) -> dict[str, str]:
     """Return the collision-free attributes a closed generated namespace exposes.
 
     Python normalizes identifiers to NFKC while parsing. Omitting unstable
@@ -170,6 +169,13 @@ def generated_aliases(names: Iterable[str]) -> dict[str, str]:
     the exact bracket door remains available for every omitted catalog name.
     [source: https://docs.python.org/3/reference/lexical_analysis.html#identifiers;
     commit=6b77b811c44e1819ed9cd99f3809c0667f289e2e]
+
+    `operators` says whether Python's own `operator` module words map into this
+    namespace. They do for a namespace over the ENGINE's catalog, where `add`
+    naming `+` is the whole point. They do not for a namespace over ONE
+    library's own heads: the words would name heads that library never
+    declares, and a library that declares `add` itself would find `+` answering
+    in its place.
     """
     catalog = set(names)
     candidates: dict[str, list[str]] = {}
@@ -178,16 +184,16 @@ def generated_aliases(names: Iterable[str]) -> dict[str, str]:
         if target.endswith("!") and source in catalog:
             # The unbanged target wins before rung 4's bang fallback.
             continue
-        alias = source.replace("-", "_")
-        safe = (
-            alias.isidentifier(),
-            not keyword.iskeyword(alias),
-            not alias.startswith("_"),
-            alias == alias.lower(),
-            alias.isascii(),
-            attribute_name(alias) == source,
-        )
-        if not all(safe):
+        # `python_name` is the one rule, so a closed namespace accepts exactly
+        # the spellings the open factory does. It used to be restated here as
+        # five conditions, and two of them were narrower than the rule: a head
+        # Python reserves was dropped instead of taking PEP 8's trailing
+        # underscore, and a head already in CamelCase was dropped for not being
+        # lowercase. `S.not_` and `S.assertEqual` both answered while `fn.not_`
+        # and `fn.assertEqual` refused, over seven keyword heads and fifteen
+        # CamelCase ones in the shipped catalog [measured 2026-09-08].
+        alias = python_name(source)
+        if alias is None or alias.startswith("_") or not alias.isascii():
             continue
         candidates.setdefault(alias, []).append(target)
 
@@ -203,9 +209,10 @@ def generated_aliases(names: Iterable[str]) -> dict[str, str]:
         msg = f"catalog names have ambiguous Python aliases: {details}"
         raise ValueError(msg)
     aliases = {alias: targets[0] for alias, targets in sorted(candidates.items())}
-    aliases.update(
-        (word, word if isinstance(target, OperatorRecipe) else target)
-        for word, target in OPERATOR_WORDS.items()
-        if isinstance(target, OperatorRecipe) or target in catalog
-    )
+    if operators:
+        aliases.update(
+            (word, word if isinstance(target, OperatorRecipe) else target)
+            for word, target in OPERATOR_WORDS.items()
+            if isinstance(target, OperatorRecipe) or target in catalog
+        )
     return dict(sorted(aliases.items()))

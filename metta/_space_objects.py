@@ -129,7 +129,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Self, cast
 
 from ._call_binding import bind_positional_call, refuse_unknown_keywords
-from ._config import _CHUNK_CAP
+from ._config import config
 from ._declarations import INFERRED_NOTE, inferred, is_arrow
 from ._engine import Runtime, defer_engine_call
 from ._name_mapping import OperatorRecipe, operator_attribute_target
@@ -413,6 +413,7 @@ class _Assuming:
 
 #: The counters a stats block fills on exit, named here so __getattr__ can
 #: tell "read too early" from an ordinary typo.
+# closed-set: decides; policy=which counters a stats block fills, so a read before the block ends is told apart from a typo; reads=none, it is the source
 _COUNTERS = frozenset(
     {
         "inferences",
@@ -632,6 +633,7 @@ class Cursor:
         "_annotation",
         "_atoms",
         "_buffer",
+        "_cap",
         "_capture",
         "_chunk",
         "_closed",
@@ -715,6 +717,14 @@ class Cursor:
         self._exhausted = False
         self._buffer: deque = deque()
         self._chunk = 1
+        # The doubling ceiling, read ONCE per cursor rather than per refill,
+        # which is the granularity a chunk sequence can honour: a cap that
+        # moved mid-drain would make one cursor's own doubling incoherent. A
+        # program that rewrites the `(limit chunk-cap ...)` row therefore
+        # reaches every cursor opened after the write. The read is the seat's
+        # mirror of that row and costs no crossing; the engine announces the
+        # write instead [source: extensions/python/metta/_config.py, _MIRROR].
+        self._cap = config.chunk_cap
         self._drained = False
         # The finalizer is the last guard, not the contract: it destroys
         # the engine if a cursor is dropped unclosed, from whichever
@@ -838,7 +848,7 @@ class Cursor:
         # looks past the last answer it was asked for.
         if len(answers) < want:
             self._drained = True
-        self._chunk = min(want * 2, _CHUNK_CAP)
+        self._chunk = min(want * 2, self._cap)
 
     def __next__(self):
         if self._closed:

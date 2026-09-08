@@ -143,4 +143,17 @@ def twin(m):
 #: tree, minimum of three fresh processes [measured 2026-09-08: min-of-3 serial
 #: fresh processes; command=python extensions/python/tools/twin_coverage.py
 #: --repin; commit=856434d7c1d381b3f3d7cbbd008f46c0d41b61aa].
-BUDGET = 2334
+#: RE-PINNED 2026-09-08, 2334 to 2351 (+17), boot content moved: the refusal
+#: table and the typing point are modules this package did not have, three
+#: convert doors became one, per-library faces are projections, and the engine
+#: gained a catalog watch point, and SWI clause-indexing shape shifts a twin
+#: count by tens whenever boot content moves, the mechanism every earlier entry
+#: in these chains names. The watch point itself is one inference per &metta
+#: write, which a twin that defines a function pays three of (2239 against 2236
+#: on ch03 01-comments with the two announcement clauses taken out), and the
+#: (limit ...) rows it exists for cost nothing at all: 2239 either way with
+#: every row-backed bound removed, because boot seeds the mirror those bounds
+#: are read from [measured 2026-09-08: min-of-3 serial fresh processes;
+#: command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+BUDGET = 2351

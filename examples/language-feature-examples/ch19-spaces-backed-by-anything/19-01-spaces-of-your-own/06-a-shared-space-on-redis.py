@@ -119,7 +119,20 @@ def twin(m):
 #: [measured 2026-09-07: 113469 inferences, 0.9558x the example's 118714; command=python
 #: extensions/python/tools/twin_coverage.py --measure --rounds 3;
 #: fixture=docs/every-atom-has-an-example at its example commits; commit=98397cdd04679cbf40b2d515076dadc09c1b0a32].
-BUDGET = 113476
+#: RE-PINNED 2026-09-08, 113476 to 46265 (-67211), boot content moved: the
+#: refusal table and the typing point are modules this package did not have,
+#: three convert doors became one, per-library faces are projections, and the
+#: engine gained a catalog watch point, and SWI clause-indexing shape shifts a
+#: twin count by tens whenever boot content moves, the mechanism every earlier
+#: entry in these chains names. The watch point itself is one inference per
+#: &metta write, which a twin that defines a function pays three of (2239
+#: against 2236 on ch03 01-comments with the two announcement clauses taken
+#: out), and the (limit ...) rows it exists for cost nothing at all: 2239
+#: either way with every row-backed bound removed, because boot seeds the
+#: mirror those bounds are read from [measured 2026-09-08: min-of-3 serial
+#: fresh processes; command=python extensions/python/tools/twin_coverage.py
+#: --repin; commit=WORKTREE].
+BUDGET = 46265
 #: The count VARIES by a few tens, because every read and write crosses a
 #: socket and the subscription thread's own work lands in the same counter.
 #: Three single-round measurements on this branch gave 113484, 113469 and

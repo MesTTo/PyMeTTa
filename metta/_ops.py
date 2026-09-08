@@ -109,7 +109,7 @@ from .errors import (
     is_transport_failure,
     stream_failure,
 )
-from .vocabularies import EffectClass
+from .vocabularies import EffectClass, OnError
 
 __all__ = [
     "OPERATION_REGISTRATION",
@@ -476,7 +476,7 @@ def _preimages(name: str, result: Any):
 
 
 @guarding
-def dispatch_many(name: str, tagged_args: list, mode: str = "abort"):
+def dispatch_many(name: str, tagged_args: list, mode: OnError = OnError.abort):
     """A generator of encoded answers; each yield is one MeTTa answer.
 
     A declared error mode is enforced here, where the exceptions are
@@ -547,7 +547,7 @@ def dispatch_many_context(
     token: int,
     name: str,
     tagged_args: list,
-    mode: str = "abort",
+    mode: OnError = OnError.abort,
 ):
     """Pull every encoded stream item in the spawned child Context."""
     yield from _context_stream(token, dispatch_many(name, tagged_args, mode))

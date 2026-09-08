@@ -71,7 +71,7 @@ from contextlib import suppress
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Self
 
-from ._api_types import space_of
+from ._api_types import SpaceLike
 from .atoms import (
     Atom,
     Expression,
@@ -309,7 +309,7 @@ class Changes:
 
     Deltas buffer only while a consumer is open, which is what keeps a view
     nobody reads deltas from free; the buffer holds
-    `metta.subscribe.SUBSCRIPTION_QUEUE_MAX` of them and then REFUSES the write
+    `metta.subscribe.queue_bound()` of them and then REFUSES the write
     that would overflow it, the same policy a subscription queue takes and for
     the same reason: dropping the oldest silently is how a gap stays hidden.
     """
@@ -329,16 +329,13 @@ class Changes:
         self, live: Live, timeout: float | None, queue_max: int | None
     ) -> None:
         """Build the consumer; `Live.changes` attaches it."""
-        from .subscribe import (  # noqa: PLC0415 -- one queue policy
-            SUBSCRIPTION_QUEUE_MAX,
-            _capacity,
-        )
+        from .subscribe import _capacity  # noqa: PLC0415 -- avoids a cycle
 
         self._live = live
         self._timeout = timeout
-        self._bound = _capacity(
-            SUBSCRIPTION_QUEUE_MAX if queue_max is None else queue_max
-        )
+        # None is the standing `(limit subscription-queue ...)` bound, which
+        # _capacity resolves; the two consumers share one policy.
+        self._bound = _capacity(queue_max)
         self._pending: deque[Delta] = deque()
         self._changed = threading.Condition()
         self._closed = False
@@ -547,28 +544,28 @@ class Live:
 
     def __init__(
         self,
-        space: Any,
+        space: SpaceLike,
         *query: Any,
-        on: str = SubscriptionEdge.both,
+        on: SubscriptionEdge = SubscriptionEdge.both,
         strategy: str | None = None,
     ) -> None:
         """Choose the maintenance, then seed and install it atomically."""
-        space = space_of(space)
+        home = space.self
         if not query:
             msg = (
                 "a live view needs a query: one pattern, a conjunction of "
                 "patterns, or a call to a tabled head"
             )
-            raise MettaError(msg, space=space.name)
+            raise MettaError(msg, space=home.name)
         atoms = tuple(_as_atom(part) for part in query)
         if on not in SubscriptionEdge:
             msg = f"on must be one of {', '.join(SubscriptionEdge)}, not {on!r}"
             raise ValueError(msg)
-        _require_subscribable(space, atoms[0], on)
-        self._space = space
+        _require_subscribable(home, atoms[0], on)
+        self._space = home
         self._query = atoms
         self._on = on
-        self._strategy = _live_strategy(space, atoms, strategy)
+        self._strategy = _live_strategy(home, atoms, strategy)
         # The engine names the columns of its own answer, so the view reads
         # them from the first one rather than deriving them a second way that
         # could drift; _open sets them with the seed.
@@ -599,7 +596,7 @@ class Live:
         # ENGINE back, and a live subscription or segment watch left behind
         # would be a consumer of a view that does not exist.
         try:
-            space.transaction(self._open)
+            home.transaction(self._open)
         except BaseException:
             self.close()
             raise
@@ -961,7 +958,7 @@ class Live:
         from costs nothing for them. `timeout` (seconds) ends the stream after
         a quiet interval, the way `Subscription.events` does, and `queue_max`
         bounds the buffer, the bound `subscribe` takes and defaulting to the
-        same `metta.subscribe.SUBSCRIPTION_QUEUE_MAX`. A full buffer refuses
+        same `metta.subscribe.queue_bound()`. A full buffer refuses
         the write that would overflow it rather than dropping the oldest
         delta, and every other open stream is still offered that delta first.
         """

@@ -78,8 +78,9 @@ from __future__ import annotations
 
 import ast
 import functools
-from collections.abc import Callable, Iterable, Iterator
+from collections.abc import Callable, Iterable, Iterator, Mapping
 from dataclasses import dataclass
+from types import MappingProxyType
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
@@ -105,6 +106,7 @@ __all__ = [
     "RestraintError",
     "SourceNotFound",
     "SpaceCapabilityError",
+    "StackLimitError",
     "SubscriberError",
     "TimeLimitError",
     "Timeout",
@@ -112,6 +114,8 @@ __all__ = [
     "guarded",
     "guarding",
     "is_transport_failure",
+    "refusal_classes",
+    "refuse",
     "refusing",
     "stream_failure",
     "stream_reraise",
@@ -412,6 +416,142 @@ def refusing[ExcT: BaseException](
     return error
 
 
+def refuse(kind: str, message: str, /, **fields: Any) -> BaseException:
+    """Build the refusal one catalog kind declares, ready to raise.
+
+        raise refuse("capability", f"{operation} cannot use {space}",
+                     space=space, operation=operation, capability=capability)
+
+    The engine declares one `(refusal <kind> <class> <ground> <remedy>)` row
+    per kind it can refuse for. This is the seat's door onto those rows: the
+    CLASS comes from the row, the GROUND comes from the row, and the REMEDY is
+    the row's own template with its `<field>` holes filled from `fields`, so a
+    site writes the sentence and nothing else. The engine renders the same
+    template for a ball it raises itself, through `metta_host_refusal/6`, and
+    the two are held equal for every kind by
+    extensions/python/tests/repository/test_refusal_rows.py.
+
+    `fields` are the names that kind declares, and they are used twice: they
+    fill the remedy's holes, and they are the keywords the class carries, so
+    `SpaceCapabilityError.capability` is the same word the remedy names. A
+    keyword the kind does not declare is refused by name rather than dropped.
+
+    A remedy whose holes are not all filled is lowered to `prose`, which is
+    rustc's HasPlaceholders and is exactly what the engine's own renderer
+    does: the text shows the shape and a reader fills it in.
+
+    Its longhand is constructing the class and calling `refusing(error,
+    ground=..., remedy=...)` at the site, which is what a refusal with no
+    catalog kind still does.
+    """
+    from ._refusals import REFUSALS  # noqa: PLC0415  -- atoms sits above this module
+
+    row = REFUSALS.get(kind)
+    if row is None:
+        known = ", ".join(sorted(REFUSALS))
+        msg = f"no refusal kind named {kind!r}; the engine declares: {known}"
+        raise ValueError(msg)
+    unknown = sorted(set(fields) - set(row.fields))
+    if unknown:
+        declared = ", ".join(row.fields) or "none"
+        msg = (
+            f"the {kind} refusal declares {declared}; "
+            f"{', '.join(unknown)} is not one of them"
+        )
+        raise TypeError(msg)
+    error_class = _refusal_class(row)
+    ground = Ground(row.ground_kind, row.citation)
+    remedy = _refusal_remedy(row, fields)
+    if issubclass(error_class, MettaError):
+        return error_class(message, ground=ground, remedy=remedy, **fields)
+    # A kind this seat spells with a builtin, because Python's own word for the
+    # condition is that class and `except ValueError` has to stay the caller's
+    # spelling. The parts ride on the instance instead of in the constructor.
+    return refusing(error_class(message), ground=ground, remedy=remedy)
+
+
+def refusal_classes() -> Mapping[str, type[BaseException]]:
+    """Every refusal kind's class on this seat, keyed by the engine's word.
+
+    The map the crossing classifies a raised ball with. It is DERIVED from the
+    `(refusal ...)` rows rather than kept beside them, which is what stopped a
+    seat-side table of seven kinds from standing beside the engine's thirteen
+    and silently reporting the other six as a bare EngineError.
+    """
+    from ._refusals import REFUSALS  # noqa: PLC0415  -- atoms sits above this module
+
+    return MappingProxyType(
+        {kind: _refusal_class(row) for kind, row in REFUSALS.items()}
+    )
+
+
+def _refusal_class(row: Any) -> type[BaseException]:
+    """The class one row names, from this module or from builtins."""
+    import builtins  # noqa: PLC0415  -- atoms sits above this module
+
+    found = globals().get(row.cls) or getattr(builtins, row.cls, None)
+    if not (isinstance(found, type) and issubclass(found, BaseException)):
+        msg = (
+            f"the {row.kind} refusal names the class {row.cls}, which is "
+            f"neither in metta.errors nor a builtin exception"
+        )
+        raise TypeError(msg)
+    return found
+
+
+def _fill_text(text: str, fields: Mapping[str, Any]) -> str:
+    """One template's `<name>` holes, replaced by the values a site gave."""
+    for name, value in fields.items():
+        text = text.replace(f"<{name}>", str(value))
+    return text
+
+
+def _fill_act(act: Any, fields: Mapping[str, Any]) -> Any:
+    """One remedy act's holes, filled, as the atom the act denotes."""
+    from .atoms import Expression, Symbol  # noqa: PLC0415  -- atoms sits above this module
+
+    if isinstance(act, str):
+        return Symbol(_fill_text(act, fields))
+    return Expression([_fill_act(part, fields) for part in act])
+
+
+def _has_hole(text: str) -> bool:
+    """Whether a filled template still shows a `<name>` placeholder."""
+    opening = text.find("<")
+    # A closing bracket AFTER the opening one, which `find` answers -1 for when
+    # there is none, and -1 is below every opening position.
+    return 0 <= opening < text.find(">", opening)
+
+
+def _refusal_remedy(row: Any, fields: Mapping[str, Any]) -> Remedy:
+    """One row's remedy template, filled from the fields a site gave.
+
+    The engine's own renderer, on this side of the crossing: a hole the
+    fields do not fill lowers the applicability to `prose`, because what is
+    left is a shape rather than an edit [source: engine/metta/registration.pl,
+    metta_host_refusal_remedy/3].
+    """
+    title = _fill_text(row.title, fields)
+    acts = [_fill_act(act, fields) for act in row.acts]
+    applicability = row.applicability
+    if _has_hole(title) or any(_has_hole(str(act)) for act in acts):
+        applicability = "prose"
+    edit = None
+    replace: tuple[Any, Any | None] | None = None
+    python = None
+    for act in acts:
+        head = str(act.children[0]) if act.children else ""
+        if head == "edit" and len(act) == 2:
+            edit = act[1]
+        elif head == "replace" and len(act) == 3:
+            replace = (act[1], act[2])
+        elif head == "remove" and len(act) == 2:
+            replace = (act[1], None)
+        elif head == "python" and len(act) == 2:
+            python = str(act[1])
+    return Remedy(title, row.remedy_kind, applicability, edit, replace, python)
+
+
 _PYTHON_COMPARISON_GROUND = Ground(
     "host-reference",
     "Python Language Reference section 6.10, Comparisons",
@@ -425,23 +565,69 @@ _EFFECT_SAFETY_GROUND = Ground(
     "EffectSafety: a reified world admits only an effect plan covered by its handlers",
 )
 
+#: Which section of the Python Language Reference governs each construct the
+#: compiler refuses. The CONSTRUCTS are not written here: they are whatever the
+#: compiler's own `CompileError(construct=...)` sites name, plus the `ast` node
+#: class names its `type(node).__name__` sites produce, and
+#: extensions/python/tests/ch10_errors_and_refusals/test_refusal_grounds.py
+#: derives that list from the source and holds this table to it both ways. A
+#: construct with no row here is a finding unless _EXPRESSION_CONSTRUCTS names
+#: it, and a term here that governs no construct is a finding too.
+# closed-set: decides; policy=which section of the Python Language Reference governs each construct the compiler refuses; reads=none, the CONSTRUCTS are derived from the compiler's own sites by test_every_construct_the_compiler_refuses_has_a_citation and only the citations are decided here
 _COMPILE_REFERENCE_BY_CONSTRUCT = (
-    (("match", "pattern", "case"), "Python Language Reference section 8.6, The match statement"),
-    (("loop", "for", "while"), "Python Language Reference section 8.2-8.3, while and for statements"),
+    (("match", "pattern", "case", "capture"), "Python Language Reference section 8.6, The match statement"),
+    (("for", "while"), "Python Language Reference section 8.2-8.3, while and for statements"),
     (("with",), "Python Language Reference section 8.5, The with statement"),
     (("yield", "generator"), "Python Language Reference section 6.2.9, Yield expressions"),
-    (("call", "callee", "keyword", "function", "def", "twin"), "Python Language Reference section 6.3.4, Calls"),
+    (("call", "callee", "keyword", "function", "def", "twin", "argument", "overload"), "Python Language Reference section 6.3.4, Calls"),
     (("attribute",), "Python Language Reference section 6.3.2, Attribute references"),
     (("subscript", "slice"), "Python Language Reference section 6.3.3, Subscriptions"),
-    (("comparison", "boolean"), "Python Language Reference section 6.10-6.11, Comparisons and Boolean operations"),
-    (("arithmetic", "floor", "binary", "reduce"), "Python Language Reference section 6.7, Binary arithmetic operations"),
-    (("name", "ambiguous"), "Python Language Reference section 4.2, Naming and binding"),
+    (("compare", "boolop"), "Python Language Reference section 6.10-6.11, Comparisons and Boolean operations"),
+    (("floor", "reduce", "binop"), "Python Language Reference section 6.7, Binary arithmetic operations"),
+    (("name", "ambiguous", "identifier", "binding"), "Python Language Reference section 4.2, Naming and binding"),
     (("raise",), "Python Language Reference section 7.8, The raise statement"),
     (("try", "except", "finally"), "Python Language Reference section 8.4, The try statement"),
     (("global", "nonlocal"), "Python Language Reference section 7.12-7.13, The global and nonlocal statements"),
     (("type alias",), "Python Language Reference section 7.15, The type statement"),
     (("class",), "Python Language Reference section 8.7, Class definitions"),
+    (("assignment", "assign", "walrus", "annotation", "annassign", "augassign"), "Python Language Reference section 7.2, Assignment statements"),
+    (("delete", "del",), "Python Language Reference section 7.5, The del statement"),
+    (("return",), "Python Language Reference section 7.6, The return statement"),
+    (("if",), "Python Language Reference section 8.1, The if statement"),
+    (("lambda",), "Python Language Reference section 6.14, Lambdas"),
+    (("comprehension", "listcomp", "setcomp", "dictcomp"), "Python Language Reference section 6.2.8, Displays for lists, sets and dictionaries"),
+    (("f-string", "joinedstr", "constant", "literal", "list", "tuple", "dict", "set"), "Python Language Reference section 6.2.2, Literals"),
+    (("import",), "Python Language Reference section 7.11, The import statement"),
+    (("assert",), "Python Language Reference section 7.3, The assert statement"),
+    (("await", "async"), "Python Language Reference section 8.8.2, Coroutines"),
+    (("operator word",), "Python Language Reference section 6.7, Binary arithmetic operations"),
 )
+
+#: Constructs the DEFAULT citation governs, named rather than left to fall
+#: through it. Every one is a whole EXPRESSION this compiler refuses for a
+#: reason of its own rather than for a rule the grammar states about a
+#: particular form: what the library will and will not compile is the library's
+#: own subset, and section 6 is the part of the reference that says what an
+#: expression is at all.
+# closed-set: decides; policy=which constructs the expressions section governs, named rather than left to fall through to it; reads=none, it is the source the same drift test reads
+_EXPRESSION_CONSTRUCTS = frozenset(
+    {
+        "None",
+        "body",
+        "clause order",
+        "host binding",
+        "py host island",
+        "override declaration",
+        "range",
+        "round",
+        "source",
+        "sum",
+        "structural capture",
+    }
+)
+
+#: What a construct with no row of its own stands on.
+_EXPRESSION_REFERENCE = "Python Language Reference section 6, Expressions"
 
 
 def _compile_ground(construct: str | None) -> Ground:
@@ -452,7 +638,7 @@ def _compile_ground(construct: str | None) -> Ground:
             for terms, reference in _COMPILE_REFERENCE_BY_CONSTRUCT
             if any(term in lowered for term in terms)
         ),
-        "Python Language Reference section 6, Expressions",
+        _EXPRESSION_REFERENCE,
     )
     return Ground("host-reference", citation)
 
@@ -533,7 +719,19 @@ class SourceNotFound(MettaError, FileNotFoundError):  # noqa: N818  -- the excep
     writes `except MettaError`; one exception answering to both is what
     stops the second reading from silently missing this case, which is what
     a plain FileNotFoundError did.
+
+    `source` is the path that is not there, which is the field the `source`
+    refusal row declares and the one the remedy names.
     """
+
+    def __init__(  # noqa: D107  -- the enclosing class documents construction and the object invariants
+        self,
+        *args: object,
+        source: str | None = None,
+        **fields: Any,
+    ):
+        super().__init__(*args, **fields)
+        self.source = source
 
 
 class EngineError(MettaError):
@@ -748,7 +946,22 @@ class ResourceLimitError(EngineError):
     The guard is the caller's own timeout= or inferences= bound. Whatever
     the goal completed before the stop, writes included, stands; that is
     what stopping a computation mid-way means everywhere.
+
+    `limit` is the bound that was reached, None where the ball named none:
+    SWI's own `inference_limit_exceeded` and `time_limit_exceeded` arrive
+    unenveloped from a nested query and know only which resource ran out.
+    It is the field the three limit rows declare and the one their remedies
+    name, so a caller reads the number instead of the sentence around it.
     """
+
+    def __init__(  # noqa: D107  -- the enclosing class documents construction and the object invariants
+        self,
+        *args: object,
+        limit: object | None = None,
+        **fields: Any,
+    ):
+        super().__init__(*args, **fields)
+        self.limit = limit
 
 
 class TimeLimitError(ResourceLimitError):
@@ -757,6 +970,18 @@ class TimeLimitError(ResourceLimitError):
 
 class InferenceLimitError(ResourceLimitError):
     """inferences= engine steps were spent before the call finished."""
+
+
+class StackLimitError(ResourceLimitError):
+    """The evaluation ran out of the stack ceiling in force when it did.
+
+    SWI reports the ceiling as part of the ball, and it is the ceiling that
+    was IN FORCE when the stack ran out, not the one in force now: a program
+    that raises `(pragma! stack-limit ...)` after the fact still reads the
+    number the refusal happened under. Its two siblings bound a caller's own
+    keyword; this one bounds the engine's own memory, which is why the remedy
+    the row carries names a pragma rather than a keyword.
+    """
 
 
 class RestraintError(ResourceLimitError):
@@ -785,6 +1010,7 @@ class RestraintError(ResourceLimitError):
         self.restraint = restraint
         self.bound = bound
         self.call = call
+
 
 
 class Interrupted(EngineError):  # noqa: N818  -- the exception name is a domain outcome in the public protocol, not an implementation error suffix

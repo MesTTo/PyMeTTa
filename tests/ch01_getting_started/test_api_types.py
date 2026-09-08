@@ -48,7 +48,7 @@ from metta import (
 from metta import _atom_namespace as atom_namespace
 from metta._ops import Operation
 from metta._space import Space, current_space
-from metta.casting import cast
+from metta.convert import cast
 from metta.vocabularies import SaveFormat
 
 
@@ -319,7 +319,7 @@ SPACE_DOORS = {
     "algebra.evaluate": (_algebra_evaluate, ["1"]),
     "algebra.resolve": (_algebra_resolve, "bool"),
     "algebra.sample": (_algebra_sample, 4),
-    "casting.cast": (_cast, 3),
+    "convert.cast": (_cast, 3),
     "integrate.integrate": (_integrate, "api_types_probe_"),
     "lint.lint": (_lint, ["constant-if-true"]),
     "lint.lint_file": (_lint_file, ["constant-if-true"]),

@@ -80,19 +80,20 @@ from metta import (
     Space,
     V,
     _engine,
+    convert,
     current_space,
     engine,
     ground,
     parse,
     tables,
     unify,
-    wire,
 )
 from metta.atoms import Grounded, Variable
 from metta.errors import (
     EngineError,
     MettaOperationError,
     MettaSyntaxError,
+    SourceNotFound,
     TimeLimitError,
 )
 from metta.foreign import SpaceProvider, register_provider, unregister_provider
@@ -235,12 +236,20 @@ def test_an_operation_error_keeps_the_variables_the_source_wrote(m):  # noqa: D1
     assert absent.value.culprit is None
 
 
-def test_engine_error_without_an_operation_stays_plain(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    # A missing import carries an operation name in its context too, but it is
-    # not a builtin refusing a value, so classification must not claim it.
-    with pytest.raises(EngineError) as failure:
+def test_a_missing_source_is_a_source_refusal_not_an_operation_one(metta):
+    """A missing import carries an operation name and is not an operation error.
+
+    It is the `source` kind, which the catalog names `SourceNotFound` and this
+    seat classified as a bare EngineError until the class map became a
+    projection of the refusal rows. The class carries the path as a field and
+    the row's own remedy, and `except FileNotFoundError` reaches it too.
+    """
+    with pytest.raises(SourceNotFound) as failure:
         metta.run('!(import! &self "definitely-not-here.metta")')
     assert not isinstance(failure.value, MettaOperationError)
+    assert isinstance(failure.value, FileNotFoundError)
+    assert failure.value.source == "definitely-not-here.metta"
+    assert "correct the path" in str(failure.value.remedy)
 
 
 def test_reserved_kinds_win_over_operation_classification(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -620,13 +629,13 @@ def test_live_object_identity(m):  # noqa: D103  -- pytest discovers or injects 
     model = Model()
     m.add(S.model(S.main, ground(model)))
     back = m.match(S.model(S.main, V.m))[0].m
-    assert wire.decode(back) is model
+    assert convert.decode(back) is model
 
 
 def test_boxed_container_identity(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     payload = {"weights": [1, 2]}
     m.add(S.blob(ground(payload)))
-    assert wire.decode(m.match(S.blob(V.d))[0].d) is payload
+    assert convert.decode(m.match(S.blob(V.d))[0].d) is payload
 
 
 def test_fact_isolation_between_spaces(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract

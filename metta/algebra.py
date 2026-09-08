@@ -151,7 +151,7 @@ from numbers import Real
 from types import ModuleType
 from typing import Any, Final, cast
 
-from ._api_types import space_of
+from ._api_types import SpaceLike
 from ._engine import active_runtime
 from ._space import Space, current_space
 from ._space_execution import _controlled_run, evaluate_accounted
@@ -631,6 +631,7 @@ class _Rule:
     premises: tuple[Atom, ...]
 
 
+# closed-set: decides; policy=which algebra laws are equational, so a declaration that names one gets the equational check; reads=algebra-law, the engine's own vocabulary, which test_under_algebra holds this to
 _EQUATIONAL_LAWS: Final[frozenset[str]] = frozenset(
     {
         "combine-associative",
@@ -645,6 +646,7 @@ _EQUATIONAL_LAWS: Final[frozenset[str]] = frozenset(
         "extend-zero-annihilates",
     }
 )
+# closed-set: decides; policy=which laws a semiring must satisfy to be one; reads=algebra-law, the engine's own vocabulary, which test_under_algebra holds this to
 _SEMIRING_LAWS: Final[frozenset[str]] = frozenset(
     {
         "combine-associative",
@@ -684,6 +686,7 @@ def _preset(
     )
 
 
+# closed-set: decides; policy=the carriers this seat ships ready-declared; reads=semiring, the engine's own vocabulary, which test_catalog_kinds holds this to
 _PRESETS: Final[dict[str, DeclaredAlgebra]] = {
     "bool": _preset("bool", "max", "*", 0, 1),
     "bag": _preset("bag", "+", "*", 0, 1),
@@ -809,15 +812,15 @@ def current_algebra() -> str | None:
     return None if not row else str(row["Algebra"])
 
 
-def resolve(metta: Space, carrier: Any) -> DeclaredAlgebra:
+def resolve(metta: SpaceLike, carrier: Any) -> DeclaredAlgebra:
     """Resolve any public carrier spelling against one runtime catalog.
 
     metta may be a context or a space.
     """
-    metta = space_of(metta)
+    home = metta.self
     if isinstance(carrier, DeclaredAlgebra):
         return carrier
-    return require(metta, _carrier_name(carrier))
+    return require(home, _carrier_name(carrier))
 
 
 def _catalog_law_aliases(metta: Space) -> dict[str, tuple[str, ...]]:
@@ -1078,11 +1081,11 @@ def declare(
 
     metta may be a context or a space.
     """
-    metta = space_of(metta)
+    home = metta.self
     if not name or not isinstance(name, str):
         msg = "algebra_name_must_be_a_nonempty_symbol"
         raise AlgebraDeclarationError(msg)
-    if name in _PRESETS or get(metta, name) is not None:
+    if name in _PRESETS or get(home, name) is not None:
         msg = f"algebra_already_declared({name})"
         raise AlgebraDeclarationError(msg)
     if not combine or not isinstance(combine, str):
@@ -1113,13 +1116,13 @@ def declare(
         extend=extend,
         zero=_encode(zero),
         one=_encode(one),
-        laws=_canonical_laws(metta, laws),
+        laws=_canonical_laws(home, laws),
         carrier=tuple(_encode(value) for value in carrier),
         requires=frozenset(requires),
         order=order,
         type=carrier_type,
     )
-    context = _context_name(metta)
+    context = _context_name(home)
     atom = Expression(
         (
             Symbol("algebra"),
@@ -1135,8 +1138,8 @@ def declare(
         )
     )
     try:
-        metta.runtime.do_must(
-            "metta_py_declare_algebra", metta.name, atom.to_wire()
+        home.runtime.do_must(
+            "metta_py_declare_algebra", home.name, atom.to_wire()
         )
     except EngineError as error:
         if str(error).startswith(
@@ -1150,7 +1153,7 @@ def declare(
         if str(error).startswith(("algebra_value_outside_carrier", "algebra_type_predicate")) or "algebra type predicate" in str(error):
             raise AlgebraDeclarationError(str(error)) from error
         raise
-    key = _key(metta, context, name)
+    key = _key(home, context, name)
     _record_algebra_undo(key)
     _REGISTRY[key] = (atom, declaration)
     return atom
@@ -1572,22 +1575,22 @@ def evaluate(
 
     metta may be a context or a space.
     """
-    metta = space_of(metta)
-    declaration = resolve(metta, algebra)
+    home = metta.self
+    declaration = resolve(home, algebra)
     if context is None:
         context = EvaluationContext(declaration.name, order=declaration.order)
     resources = _EvaluationBudget.from_call(timeout, inferences, context)
-    _require_context_capabilities(metta, declaration)
+    _require_context_capabilities(home, declaration)
     goal = parse(query) if isinstance(query, str) else _encode(query)
     resources.checkpoint()
-    available, rules = _program(metta.atoms())
+    available, rules = _program(home.atoms())
     for answer in available:
-        declaration.check_values(metta, answer.tag, resources=resources)
+        declaration.check_values(home, answer.tag, resources=resources)
     for rule in rules:
-        declaration.check_values(metta, rule.tag, resources=resources)
+        declaration.check_values(home, rule.tag, resources=resources)
     sources = (
-        _ProviderSources(metta, declaration, resources)
-        if metta.runtime.once("seam:foreign_space(Space)", Space=metta.name)
+        _ProviderSources(home, declaration, resources)
+        if home.runtime.once("seam:foreign_space(Space)", Space=home.name)
         else None
     )
     # max_rounds bounds fixpoint HEIGHT, not how long one round can run. The
@@ -1602,7 +1605,7 @@ def evaluate(
     # certificate. The full evaluator shares their ordinary match door and
     # caches complete bags for this evaluation's fixed point.
     demanded = None if sources is not None else _demand_evaluate(
-        metta, declaration, available, rules,
+        home, declaration, available, rules,
         goal=goal, max_rounds=max_rounds, resources=resources,
     )
     if demanded is not None:
@@ -1615,7 +1618,7 @@ def evaluate(
             for rule in rules:
                 resources.checkpoint()
                 for answer in _derive_rule(
-                    metta, declaration, rule, available, resources, sources=sources
+                    home, declaration, rule, available, resources, sources=sources
                 ):
                     signature = _signature(answer)
                     if signature not in seen:
@@ -1645,13 +1648,13 @@ def evaluate(
         PlanDecision("demand-directed-derivation", demanded is not None),
     )
     if can_fuse:
-        matched = _fuse(metta, declaration, matched, resources)
+        matched = _fuse(home, declaration, matched, resources)
     resources.checkpoint()
     retained = []
     for answer in _order_answers(declaration, matched):
         resources.checkpoint()
         retained.append(
-            replace(answer, _space=metta, _algebra=declaration.name, _plan=plan)
+            replace(answer, _space=home, _algebra=declaration.name, _plan=plan)
         )
     return AlgebraEvaluation(tuple(retained), plan)
 
@@ -1693,11 +1696,11 @@ def sample(
 
     metta may be a context or a space.
     """
-    metta = space_of(metta)
+    home = metta.self
     if isinstance(draws, builtins.bool) or not isinstance(draws, int) or draws < 0:
         msg = "draws must be a nonnegative integer"
         raise ValueError(msg)
-    evaluation = evaluate(metta, query, algebra=algebra)
+    evaluation = evaluate(home, query, algebra=algebra)
     weighted = [(answer, _rate(answer.tag)) for answer in evaluation.answers]
     total = math.fsum(rate for _, rate in weighted)
     if not math.isfinite(total):

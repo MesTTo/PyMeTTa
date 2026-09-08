@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import pytest
 
-from metta import S, V, remote, wire
+from metta import S, V, convert, remote
 from metta.errors import MettaError
 from metta.subscribe import bridge
 
@@ -20,10 +20,10 @@ def _store_transport(store: list):
 
     def transport(operation: str, payload: dict) -> dict:
         if operation == "add":
-            store.append(wire.atom_from_wire(payload["atom"]))
+            store.append(convert.atom_from_wire(payload["atom"]))
             return {"added": True}
         if operation == "remove":
-            atom = wire.atom_from_wire(payload["atom"])
+            atom = convert.atom_from_wire(payload["atom"])
             if atom not in store:
                 return {"removed": False}
             store.remove(atom)

@@ -19,7 +19,7 @@ Open Obligations:
 
 import pytest
 
-from metta import Expression, G, MettaError, S, V, wire
+from metta import Expression, G, MettaError, S, V, convert
 from metta.errors import EngineError, MettaOperationError, MettaResultError
 from metta.foreign import SpaceProvider
 
@@ -59,7 +59,7 @@ def test_one_raises_a_structured_error_on_an_error_answer(m):  # noqa: D103  -- 
     error = failure.value
     assert str(error.atom) == '(Error (err-div 1 0) "division by zero")'
     assert str(error.culprit) == "(err-div 1 0)"
-    assert wire.decode(error.reason) == "division by zero"
+    assert convert.decode(error.reason) == "division by zero"
     assert error.space == m.name
     # The call rides as a note, so the message stays one sentence.
     assert any("err-div" in note for note in error.__notes__)

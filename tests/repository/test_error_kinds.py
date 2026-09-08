@@ -17,14 +17,15 @@ happened both ways: the `restraint` signal reached callers as EngineError
 until the cache-policies branch added it by hand.
 Guarantees:
   - the fixture's signal rows and `_EXCEPTION_TYPES` are the same mapping,
-    compared both ways [tested: test_the_signal_rows_are_the_exception_table; commit=10312d006b14e1fed7b84adc831574ddd554e6a8]
+    compared both ways [tested: test_every_kind_is_in_the_exception_table; commit=10312d006b14e1fed7b84adc831574ddd554e6a8]
   - the fixture lists exactly the kinds the running engine declares, with the
     same fields [tested: test_the_fixture_lists_exactly_the_engines_own_rows; commit=10312d006b14e1fed7b84adc831574ddd554e6a8]
   - every listed ball classifies engine-side to its own kind and fields
     [tested: test_every_listed_ball_classifies_to_its_own_kind; commit=10312d006b14e1fed7b84adc831574ddd554e6a8]
   - throwing a listed ball through this seat raises the class the fixture
-    names, and the two kinds it records as unclassified here do arrive as
-    EngineError [tested: test_a_thrown_ball_raises_the_class_the_fixture_names; commit=10312d006b14e1fed7b84adc831574ddd554e6a8]
+    names, for every kind: the two this list recorded as unclassified were
+    closed once the class map became a projection of the rows
+    [tested: test_a_thrown_ball_raises_the_class_the_fixture_names; commit=WORKTREE]
   - a class the fixture names takes the attributes it lists
     [tested: test_each_named_class_takes_the_attributes_the_fixture_lists; commit=10312d006b14e1fed7b84adc831574ddd554e6a8]
   - the kinds the tree throws through the reserved envelope and the fixture's
@@ -137,13 +138,16 @@ def engine():
         yield space
 
 
-def test_the_signal_rows_are_the_exception_table():
-    """The signal rows and `_EXCEPTION_TYPES` are one mapping, both ways."""
-    listed = {
-        name: row["python"]["error"]
-        for name, row in KINDS.items()
-        if row["origin"] == "signal"
-    }
+def test_every_kind_is_in_the_exception_table():
+    """The shared list and `_EXCEPTION_TYPES` are one mapping, both ways.
+
+    Every kind, not only the signal rows. The seat's table used to hold the
+    seven kinds that arrive through the reserved control envelope, and a ball
+    of any other kind fell through to a bare EngineError; it is now a
+    projection of the engine's own `(refusal ...)` rows, so the two are the
+    same set by construction.
+    """
+    listed = {name: row["python"]["error"] for name, row in KINDS.items()}
     mapped = {name: kind.__name__ for name, kind in _EXCEPTION_TYPES.items()}
     assert listed == mapped, f"the shared kind list and _EXCEPTION_TYPES disagree; {_ADD_A_KIND}"
 
@@ -224,13 +228,20 @@ def test_each_named_class_takes_the_attributes_the_fixture_lists(name):
 
 
 def test_the_shim_classifies_every_kind_python_names(engine):
-    """The live shim admits each kind, so no Python entry is unreachable.
+    """The live shim admits each SIGNAL kind, so no Python entry is unreachable.
 
     Asked of the running engine rather than read out of shim.pl, because what
     matters is what metta_control_signal_info/3 DOES with a term of that kind,
     which is also what _engine._raise asks it at the moment of the failure.
+
+    Signal kinds only: a `term`-origin kind is a ball the engine classifies by
+    its own shape and never wears the reserved envelope, and it reaches its
+    class through metta_py_refusal/5 at the tail of the same chain.
     """
-    for kind in sorted(_EXCEPTION_TYPES):
+    signals = sorted(
+        name for name, row in KINDS.items() if row["origin"] == "signal"
+    )
+    for kind in signals:
         row = engine.runtime.once(
             "atom_string(Kind, KindText), "
             "metta_control_signal_info("

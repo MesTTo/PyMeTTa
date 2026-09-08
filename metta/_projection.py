@@ -16,6 +16,11 @@ disagree, so the question is asked once here and each surface takes a column.
     Variable Expression
     Grounded
 
+A fifth column names the `metta.testing` strategy that draws values of each
+type, so `cases()` over a typed signature reads the same table every other
+projection does. Three rows draw nothing: `Bool`, `NoneType` and `SpaceType`
+have no strategy of their own, and a signature naming one is told so there.
+
 The rows are `_type_annotations.py`'s forward table read backwards, so a type
 that gains a Python spelling gains the other three in the same edit
 [source: extensions/python/metta/_type_annotations.py:_TYPE_NAMES,
@@ -90,6 +95,13 @@ class TypeRow(NamedTuple):
     `json` is the JSON Schema `type` keyword's value, or None for a type whose
     values cross as whole atoms and whose schema is therefore the recursive
     `Atom` reference. `arrow` is one of `_arrow`'s kind constants.
+
+    `strategy` is the fifth target: the name of the `metta.testing` factory
+    that DRAWS values of this type, or None for a type nothing draws. It is a
+    name rather than the factory because this module is the base layer and the
+    strategies need Hypothesis, exactly as `python` is the annotation's source
+    text rather than the class; `metta.testing` resolves it against itself and
+    a name that does not resolve is a refusal there.
     """
 
     metta: str
@@ -97,32 +109,40 @@ class TypeRow(NamedTuple):
     json: str | None
     graphql: str
     arrow: str
+    strategy: str | None = None
 
 
 #: The table. One row per MeTTa type, one column per target.
 TABLE: Final[dict[str, TypeRow]] = {
     row.metta: row
     for row in (
-        TypeRow(UNDEFINED, "Any", None, ATOM_SCALAR, TEXT),
+        TypeRow(UNDEFINED, "Any", None, ATOM_SCALAR, TEXT, "ground_atoms"),
         # float64 rather than int64: a declared Number column holds integers and
         # floats alike and float64 is the one Arrow type covering both. The
         # `atom` column beside it carries the exact value as canonical text, so
         # the widening loses nothing from the stream.
-        TypeRow("Number", "int | float", "number", NUMBER_SCALAR, FLOAT64),
-        TypeRow("String", "str", "string", "String", UTF8),
+        TypeRow("Number", "int | float", "number", NUMBER_SCALAR, FLOAT64, "numbers"),
+        TypeRow("String", "str", "string", "String", UTF8, "texts"),
         TypeRow("Bool", "bool", "boolean", "Boolean", BOOL),
         TypeRow("NoneType", "None", "null", ATOM_SCALAR, TEXT),
         TypeRow("SpaceType", "Space", None, ATOM_SCALAR, TEXT),
-        TypeRow("Atom", "Atom", None, ATOM_SCALAR, TEXT),
-        TypeRow("Symbol", "Symbol", None, ATOM_SCALAR, TEXT),
-        TypeRow("Variable", "Variable", None, ATOM_SCALAR, TEXT),
-        TypeRow("Expression", "Expression", None, ATOM_SCALAR, TEXT),
-        TypeRow("Grounded", "Grounded", None, ATOM_SCALAR, TEXT),
+        TypeRow("Atom", "Atom", None, ATOM_SCALAR, TEXT, "atoms"),
+        TypeRow("Symbol", "Symbol", None, ATOM_SCALAR, TEXT, "symbols"),
+        TypeRow("Variable", "Variable", None, ATOM_SCALAR, TEXT, "variables"),
+        TypeRow("Expression", "Expression", None, ATOM_SCALAR, TEXT, "expressions"),
+        TypeRow("Grounded", "Grounded", None, ATOM_SCALAR, TEXT, "grounded"),
     )
 }
 
 #: The Python column alone, which is what a stub renders from.
 PYTHON: Final[dict[str, str]] = {name: row.python for name, row in TABLE.items()}
+
+#: The strategy column alone, which is what `metta.testing` resolves against
+#: its own module. A row that draws nothing is absent rather than None, so a
+#: consumer's membership test IS the question "can this type be drawn".
+STRATEGIES: Final[dict[str, str]] = {
+    name: row.strategy for name, row in TABLE.items() if row.strategy
+}
 
 
 def row_for(atom: Atom) -> TypeRow:

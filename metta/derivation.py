@@ -17,6 +17,11 @@ Guarantees:
     _from_wire and psf/black pytree.py post_order at upstream commit
     8947c48ef2077c3a301b03c1e814dc2e3f78436e;
     commit=9903250d082ab019535ab0c10b742053f9e640f0]
+  - every node class is a projection of one declared row: the parser reads the
+    row's field list rather than counting positions by hand, and `_check_rows()`
+    holds each class's dataclass fields to that list at import, both ways, so a
+    field added to one and not the other refuses on the way in [tested:
+    test_a_node_class_and_its_row_declare_the_same_fields; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -28,8 +33,8 @@ from __future__ import annotations
 import html
 import string
 from collections.abc import Callable, Iterator
-from dataclasses import dataclass, field
-from typing import TypeGuard
+from dataclasses import dataclass, field, fields
+from typing import Any, Final, NamedTuple, TypeGuard
 
 from .atoms import Atom, Expression, Grounded, Symbol, Variable, _map_atoms
 
@@ -98,28 +103,11 @@ class Derivation:
 
     @staticmethod
     def from_atom(tree: Atom) -> Derivation:
-        """Parse the (derivation (answer Call Out) Steps...) atom."""
-        if not (
-            isinstance(tree, Expression)
-            and _headed(tree, "derivation")
-            and len(tree) >= 2
-        ):
-            msg = (
-                f"malformed derivation node {tree}: expected "
-                f"(derivation (answer Call Out) Step...)"
-            )
-            raise ValueError(
-                msg
-            )
-        answer_expr = tree[1]
-        if not (_headed(answer_expr, "answer") and len(answer_expr) == 3):
-            msg = f"malformed answer node {answer_expr}: expected (answer Call Out)"
-            raise ValueError(
-                msg
-            )
-        call, out = answer_expr[1], answer_expr[2]
-        children = _nodes(tree.children[2:])
-        return Derivation(call=call, answer=out, children=children)
+        """Parse the (derivation (answer Call Answer) Step...) atom."""
+        return Derivation(
+            **_parts(tree, _DERIVATION),
+            children=_nodes(tree.children[_DERIVATION.arity :]),
+        )
 
     @property
     def facts(self) -> list[Fact]:  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
@@ -184,59 +172,157 @@ def _headed(e: Atom, name: str) -> TypeGuard[Expression]:
     )
 
 
-def _step_parts(
-    node: Expression,
-) -> tuple[Atom, Atom, Atom, tuple[Atom, ...]]:
-    if len(node) < 3:
-        msg = (
-            f"malformed step node {node}: expected "
-            f"(step (call Call Out) Equation Child...)"
+def _atom(part: Atom) -> Atom:
+    """A field carried as the atom it is."""
+    return part
+
+
+def _name(part: Atom) -> str:
+    """A field carried as a symbol, read as its name."""
+    return part.name if isinstance(part, Symbol) else str(part)
+
+
+def _text(part: Atom) -> str:
+    """A field carried as the engine's own text, grounded or symbolic."""
+    value = getattr(part, "value", None) if isinstance(part, Grounded) else None
+    return str(value if value is not None else part)
+
+
+class _Pair(NamedTuple):
+    """A nested `(head A B)` row, read as two named fields of its parent.
+
+    `(step (call Call Out) Equation ...)` and
+    `(derivation (answer Call Out) ...)` both carry their two subjects one
+    level down, which is where the head that names the pair lives.
+    """
+
+    head: str
+    names: tuple[str, str]
+
+
+class _Row(NamedTuple):
+    """One row of the derivation grammar, and the node it projects to.
+
+    `fields` is the row's own field list, in the order the engine writes them:
+    a `(name, reader)` pair for a field carried in place, a `_Pair` for one
+    carried as a nested two-part row. `children` says the row ends in a
+    variable number of child nodes, which only `step` and `derivation` do.
+
+    The node classes above are these field lists, typed. `_check_rows()`
+    holds the two together at import, so a field added to `Step` without a
+    field added here -- or the reverse -- is a refusal on the first import
+    rather than a node built with a hole in it.
+    """
+
+    head: str
+    #: `type[Any]` rather than `type`: every node is a dataclass and
+    #: `dataclasses.fields` takes one, which a bare `type` does not satisfy.
+    node: type[Any]
+    fields: tuple[tuple[str, Callable[[Atom], Any]] | _Pair, ...]
+    children: bool = False
+
+    @property
+    def names(self) -> tuple[str, ...]:
+        """Every field name this row carries, nested pairs flattened."""
+        found: list[str] = []
+        for field_of in self.fields:
+            if isinstance(field_of, _Pair):
+                found.extend(field_of.names)
+            else:
+                found.append(field_of[0])
+        return tuple(found)
+
+    @property
+    def arity(self) -> int:
+        """How many children a well-formed row of this shape has, head included."""
+        return len(self.fields) + 1
+
+    def spelling(self) -> str:
+        """The row as its grammar, for a refusal that names what was expected."""
+        parts = [
+            f"({field_of.head} {' '.join(name.title() for name in field_of.names)})"
+            if isinstance(field_of, _Pair)
+            else field_of[0].title()
+            for field_of in self.fields
+        ]
+        tail = " Child..." if self.children else ""
+        return f"({self.head} {' '.join(parts)}{tail})"
+
+
+#: The proof grammar, one row per node the meta-interpreter writes. Every
+#: reader below walks THIS rather than a shape of its own, which is the model
+#: `metta._projection` uses for the type table: one table, a column per target.
+_DERIVATION: Final = _Row(
+    "derivation", Derivation, (_Pair("answer", ("call", "answer")),), children=True
+)
+_STEP: Final = _Row(
+    "step",
+    Step,
+    (_Pair("call", ("call", "answer")), ("equation", _atom)),
+    children=True,
+)
+# closed-set: decides; policy=the proof grammar's leaf rows and the node class each projects to; reads=none, it is the source, and `_check_rows()` holds every class to its row at import
+_LEAVES: Final[tuple[_Row, ...]] = (
+    _Row("fact", Fact, (("space", _name), ("atom", _atom))),
+    _Row("builtin", Builtin, (("text", _text),)),
+    _Row("truncated", Truncated, (("text", _text),)),
+)
+
+
+def _check_rows() -> None:
+    """Hold every node class to its row, both ways, at import."""
+    for row in (_DERIVATION, _STEP, *_LEAVES):
+        declared = tuple(
+            field_of.name
+            for field_of in fields(row.node)
+            if field_of.name != "children"
         )
-        raise ValueError(
-            msg
-        )
-    call_expr = node[1]
-    if not (_headed(call_expr, "call") and len(call_expr) == 3):
-        msg = f"malformed call node {call_expr}: expected (call Call Out)"
+        if declared != row.names:
+            msg = (
+                f"the {row.head} row declares {row.names} and "
+                f"{row.node.__name__} carries {declared}; one grammar, one class"
+            )
+            raise ValueError(msg)
+
+
+_check_rows()
+
+
+def _parts(node: Atom, row: _Row) -> dict[str, Any]:
+    """One row read into its declared fields, refusing any other shape."""
+    if not (_headed(node, row.head) and len(node) >= row.arity):
+        msg = f"malformed {row.head} node {node}: expected {row.spelling()}"
         raise ValueError(msg)
-    call, out = call_expr[1], call_expr[2]
-    return call, out, node[2], node.children[3:]
-
-
-def _fact_node(node: Expression) -> Fact:
-    if len(node) != 3:
-        msg = f"malformed fact node {node}: expected (fact Space Atom)"
+    if not row.children and len(node) != row.arity:
+        msg = f"malformed {row.head} node {node}: expected {row.spelling()}"
         raise ValueError(msg)
-    space = node[1]
-    name = space.name if isinstance(space, Symbol) else str(space)
-    return Fact(space=name, atom=node[2])
-
-
-def _text_node(
-    node: Expression,
-    name: str,
-    constructor: Callable[[str], Node],
-) -> Node:
-    if len(node) != 2:
-        msg = f"malformed {name} node {node}: expected ({name} Text)"
-        raise ValueError(msg)
-    payload = node[1]
-    value = getattr(payload, "value", None) if isinstance(payload, Grounded) else None
-    text = value if value is not None else str(payload)
-    return constructor(str(text))
+    read: dict[str, Any] = {}
+    for position, field_of in enumerate(row.fields, start=1):
+        part = node[position]
+        if isinstance(field_of, _Pair):
+            if not (_headed(part, field_of.head) and len(part) == 3):
+                msg = (
+                    f"malformed {field_of.head} node {part}: expected "
+                    f"({field_of.head} "
+                    f"{' '.join(name.title() for name in field_of.names)})"
+                )
+                raise ValueError(msg)
+            read[field_of.names[0]] = part[1]
+            read[field_of.names[1]] = part[2]
+        else:
+            name, reader = field_of
+            read[name] = reader(part)
+    return read
 
 
 def _leaf_node(e: Atom) -> Node:
-    if _headed(e, "fact"):
-        return _fact_node(e)
-    if _headed(e, "builtin"):
-        return _text_node(e, "builtin", Builtin)
-    if _headed(e, "truncated"):
-        return _text_node(e, "truncated", Truncated)
-    msg = f"malformed derivation node {e}: expected step, fact, builtin, or truncated"
-    raise ValueError(
-        msg
-    )
+    """One leaf, built from whichever row of the grammar it is."""
+    for row in _LEAVES:
+        if _headed(e, row.head):
+            return row.node(**_parts(e, row))
+    expected = ", ".join(row.head for row in (_STEP, *_LEAVES))
+    msg = f"malformed derivation node {e}: expected {expected}"
+    raise ValueError(msg)
 
 
 @dataclass(frozen=True, slots=True)
@@ -262,9 +348,14 @@ def _nodes(nodes: tuple[Atom, ...]) -> tuple[Node, ...]:
                 del built[-item.width :]
             built.append(Step(item.call, item.answer, item.equation, children))
             continue
-        if _headed(item, "step"):
-            call, answer, equation, child_atoms = _step_parts(item)
-            stack.append(_PendingStep(call, answer, equation, len(child_atoms)))
+        if _headed(item, _STEP.head):
+            read = _parts(item, _STEP)
+            child_atoms = item.children[_STEP.arity :]
+            stack.append(
+                _PendingStep(
+                    read["call"], read["answer"], read["equation"], len(child_atoms)
+                )
+            )
             stack.extend(reversed(child_atoms))
             continue
         built.append(_leaf_node(item))

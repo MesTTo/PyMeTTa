@@ -43,7 +43,7 @@ import pytest
 from metta import S, V
 from metta._refinements import holds
 from metta.atoms import Expression
-from metta.casting import CastError
+from metta.convert import CastError
 from metta.ops import annotation_atom_for, type_atoms_for
 from metta.vocabularies import Refinement
 

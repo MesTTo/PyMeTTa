@@ -12,6 +12,10 @@ Guarantees:
       provided, or refusing operator method [tested:
       test_the_operator_table_is_generated_from_one_source_with_no_holes;
       commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
+    - and every OTHER table for the same relation is a projection of it: the
+      runtime dispatch map, the word door, and the compiler's five
+      `ast`-keyed tables [tested:
+      test_every_operator_projection_is_this_table; commit=WORKTREE]
 Assumes:
     - Python's operator dunders are a closed universe, so enumerating a
       fixed list of them IS deriving the surface: a new overload lands in
@@ -173,3 +177,82 @@ def test_the_operator_table_is_generated_from_one_source_with_no_holes():
     assert "must not be negative" in str(refused[0])
     assert (S.x == S.x) is True
     assert str(S.x.eq(S.y)) == "(== x y)"
+
+
+def test_every_operator_projection_is_this_table():
+    """Every table for "how a Python operator spells in MeTTa" is one table.
+
+    There were eight, keyed four different ways, each holding its own copy of
+    the MeTTa heads. Each is derived now, and this is the relation that says
+    so: a row's selector, its augmented selector, its `ast` node and its heads
+    are what every consumer reads, so a head that moves moves once.
+    """
+    import ast
+
+    from metta._define_expression import (
+        _BINOPS,
+        _COMPARE,
+        _INPLACE_BINOPS,
+        _MEMBERSHIP,
+        _NATIVE_BINOPS,
+        _NATIVE_COMPARE,
+        _SOURCE_COMPARE,
+    )
+    from metta._name_mapping import OPERATOR_WORDS, OperatorRecipe
+    from metta._operator_lowerings import (
+        OPERATOR_LOWERINGS,
+        augmented_selector,
+        selector,
+    )
+    from metta._prelude import _EXTRA_OPERATORS, _PYTHON_OPERATORS
+
+    rows = {selector(entry): entry for entry in OPERATOR_LOWERINGS}
+
+    # The compiler's five tables are the rows with an `ast` node, split by
+    # whether the operator has an augmented form.
+    binary = {name: entry for name, entry in rows.items() if entry.augmented}
+    compared = {
+        name: entry
+        for name, entry in rows.items()
+        if not entry.augmented and entry.kind == "taken"
+    }
+    assert {getattr(ast, entry.node): name for name, entry in binary.items()} == _BINOPS
+    assert {
+        getattr(ast, entry.node): entry.native
+        for name, entry in binary.items()
+        if entry.native
+    } == _NATIVE_BINOPS
+    assert {
+        getattr(ast, entry.node): name for name, entry in compared.items()
+    } == _COMPARE
+    assert {
+        getattr(ast, entry.node): entry.native
+        for entry in compared.values()
+        if entry.native
+    } == _NATIVE_COMPARE
+    assert {
+        getattr(ast, entry.node): augmented_selector(entry)
+        for entry in binary.values()
+    } == _INPLACE_BINOPS
+    # The two comparison nodes with no operator protocol behind them are the
+    # only entries `_SOURCE_COMPARE` adds beyond the table.
+    assert set(_SOURCE_COMPARE) - set(_MEMBERSHIP) == {
+        getattr(ast, entry.node) for entry in compared.values()
+    }
+
+    # The word door is the rows marked `word`, reaching each row's own form.
+    assert set(OPERATOR_WORDS) == {name for name, entry in rows.items() if entry.word}
+    for name, target in OPERATOR_WORDS.items():
+        if isinstance(target, OperatorRecipe):
+            continue
+        entry = rows[name]
+        assert target == (entry.word_head or str(entry.form))
+
+    # The runtime dispatch map is every selector `operator` has a function
+    # for, every augmented selector, and the five that no operator covers.
+    assert set(_PYTHON_OPERATORS) - set(_EXTRA_OPERATORS) == {
+        name
+        for name in rows
+        if getattr(operator, name, None) is not None
+        or getattr(operator, f"{name}_", None) is not None
+    } | {augmented_selector(entry) for entry in binary.values()}

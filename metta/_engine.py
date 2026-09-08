@@ -135,15 +135,14 @@ from .errors import (
     AssertionFailure,
     EngineError,
     Ground,
-    InferenceLimitError,
-    Interrupted,
     MettaError,
     MettaOperationError,
     MettaSyntaxError,
     Remedy,
+    ResourceLimitError,
     RestraintError,
     SpaceCapabilityError,
-    TimeLimitError,
+    refusal_classes,
     refusing,
 )
 
@@ -369,19 +368,14 @@ class _EngineState:
 
 _STATE = _EngineState()
 
-_EXCEPTION_TYPES = {
-    "syntax": MettaSyntaxError,
-    "time_limit": TimeLimitError,
-    "inference_limit": InferenceLimitError,
-    "restraint": RestraintError,
-    "interrupted": Interrupted,
-    #The engine's JSON codec classifies its own refusals: a value JSON
-    #cannot carry is a ValueError, a term that is not JSON data at all
-    #is a TypeError. Plain built-ins, because the refusal is about the
-    #caller's data, not about MeTTa.
-    "value": ValueError,
-    "type": TypeError,
-}
+#: Which class this seat raises for each refusal kind, DERIVED from the
+#: engine's own `(refusal ...)` rows through the generated table rather than
+#: written out here. It used to be seven kinds against the engine's thirteen,
+#: and the six it omitted -- `stack` and `source` among them -- arrived as a
+#: bare EngineError with the ball's own sentence and nothing to react to
+#: [source: extensions/python/metta/_refusals.py; the two gaps were recorded in
+#: tests/data/error-kinds.json until this table stopped being hand-written].
+_EXCEPTION_TYPES = refusal_classes()
 
 
 def _reserved_message(kind: object, detail: object, fallback: str) -> str:
@@ -464,6 +458,7 @@ def booted() -> bool:
 
 #: How each platform's package manager installs SWI-Prolog, so the refusal
 #: below can name a command rather than a requirement. Keyed by sys.platform.
+# closed-set: decides; policy=how each platform's package manager installs SWI-Prolog, so a refusal names a command; reads=none, it is the source
 _SWI_INSTALL = {
     "linux": "sudo apt install swi-prolog   (or your distribution's equivalent)",
     "darwin": "brew install swi-prolog",
@@ -1432,13 +1427,62 @@ class Runtime:
 
         try:
             row = self._janus.query_once(
-                "metta_py_refusal(Error, _Kind, _Class, Ground, Remedy)",
+                "metta_py_refusal(Error, _Kind, _Fields, _Class, Ground, Remedy)",
                 {"Error": term},
             )
         except self._janus.PrologError:
             return error
         if row is None or row.get("truth") is False:
             return error
+        try:
+            ground = Ground.from_atom(_atom_from_wire(row["Ground"]))
+            remedy = Remedy.from_atom(_atom_from_wire(row["Remedy"]))
+        except (KeyError, TypeError, ValueError):
+            return error
+        return refusing(error, ground=ground, remedy=remedy)
+
+    def _classified(self, message: str, term: object) -> BaseException:
+        """The class the ball's own KIND names, dressed with its row.
+
+        The tail of the classifier chain. Every branch above it takes a shape
+        apart that the row does not carry -- an assertion's two answer bags, a
+        builtin refusal's culprit -- and builds a class with more fields than
+        the kind declares. What is left is a ball the engine has already
+        classified and whose class the row already names, and reading that here
+        is what stopped a stack overflow and a missing source arriving as a
+        bare EngineError with nothing to react to [source:
+        engine/metta/registration.pl, metta_host_error_kind/3; the two were
+        recorded as gaps in tests/data/error-kinds.json until this existed].
+
+        A ball whose kind carries no row, and a classifier that itself fails,
+        both answer EngineError with the ball's own message: documentation
+        missing is never a reason for a refusal to arrive as something else.
+        """
+        from .atoms import _atom_from_wire  # noqa: PLC0415  -- atoms sits above this module
+
+        try:
+            row = self._janus.query_once(
+                "metta_py_refusal(Error, Kind, Fields, _Class, Ground, Remedy)",
+                {"Error": term},
+            )
+        except self._janus.PrologError:
+            return EngineError(message)
+        if row is None or row.get("truth") is False:
+            return EngineError(message)
+        kind = row.get("Kind")
+        error_class = (
+            _EXCEPTION_TYPES.get(kind, EngineError)
+            if isinstance(kind, str)
+            else EngineError
+        )
+        # The parts the ball carried, under the names its kind declares, which
+        # are the keywords the class takes: `refusal-sync` holds every class to
+        # its row's field list, so this cannot pass one the class refuses.
+        carried = {
+            str(name): value
+            for name, value in row.get("Fields") or ()
+        }
+        error = error_class(message, **carried)
         try:
             ground = Ground.from_atom(_atom_from_wire(row["Ground"]))
             remedy = Remedy.from_atom(_atom_from_wire(row["Remedy"]))
@@ -1505,14 +1549,24 @@ class Runtime:
                         term,
                     ) from exc
                 if error_type is not None:
+                    detail = row.get("Detail")
+                    # The bound the ball named IS the `limit` field its row
+                    # declares, so the caller reads the number rather than the
+                    # sentence around it; every other kind here declares none.
+                    carried = (
+                        {"limit": detail}
+                        if issubclass(error_type, ResourceLimitError)
+                        and detail is not None
+                        else {}
+                    )
                     raise self._refused(
-                        error_type(_reserved_message(kind, row.get("Detail"), message)),
+                        error_type(_reserved_message(kind, detail, message), **carried),
                         term,
                     ) from exc
             self._raise_assertion_failure(exc, term, message)
             self._raise_space_capability_error(exc, term, message)
             self._raise_operation_error(exc, term, message)
-            raise self._refused(EngineError(message), term) from exc
+            raise self._classified(message, term) from exc
         raise EngineError(message) from exc
 
     def _syntax_line(self, term: object) -> int | None:

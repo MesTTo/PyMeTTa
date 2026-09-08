@@ -60,6 +60,7 @@ from .errors import EngineError, ResourceLimitError
 from .vocabularies import SaveFormat
 
 _FAST_PREFIX = b"METTA-CACHE\t"
+# closed-set: decides; policy=which engine failures of the fast save format mean the cache is unusable rather than the write broken; reads=none, it is the source
 _FAST_ERRORS = (
     "metta_fast_header_mismatch",
     "metta_fast_integrity_header",

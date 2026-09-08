@@ -16,7 +16,7 @@ import random
 
 from _common import check, done
 
-from metta import MeTTa, S, V, Expression, wire
+from metta import MeTTa, S, V, Expression, convert
 
 random.seed(11)
 TARGET = [1, 0, 1, 1, 0, 1, 0, 1]
@@ -29,15 +29,15 @@ for index in range(16):
 
 @m.pure
 def fitness(genome) -> int:
-    bits = [int(wire.decode(b)) for b in genome]
+    bits = [int(convert.decode(b)) for b in genome]
     return sum(1 for got, want in zip(bits, TARGET) if got == want)
 
 
 @m.io
 def breed(a, b):
     cut = random.randrange(1, len(TARGET))
-    bits_a = [int(wire.decode(x)) for x in a]
-    bits_b = [int(wire.decode(x)) for x in b]
+    bits_a = [int(convert.decode(x)) for x in a]
+    bits_b = [int(convert.decode(x)) for x in b]
     child = bits_a[:cut] + bits_b[cut:]
     slot = random.randrange(len(child))
     if random.random() < 0.3:

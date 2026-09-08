@@ -56,7 +56,7 @@ from metta import (
     ground,
 )
 from metta._persistent import PersistentFactSpace
-from metta.errors import EngineError
+from metta.errors import EngineError, SourceNotFound
 
 
 def test_registered_space_writes_queries_and_persists_remove(metta, tmp_path):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -650,7 +650,9 @@ def test_failed_append_rolls_back_memory_and_refuses_more_writes(tmp_path):  # n
         space.add(first)
         journal.replace(saved)
         journal.mkdir()
-        with pytest.raises(EngineError, match="source_sink"):
+        # SourceNotFound rather than a bare EngineError: the ball's kind IS
+        # `source`, and the class its refusal row names is what arrives.
+        with pytest.raises(SourceNotFound, match="source_sink"):
             space.add(rejected)
         assert list(space.atoms()) == [first]
         with pytest.raises(MettaError, match=r"unusable for writes.*earlier add"):
@@ -680,7 +682,8 @@ def test_failed_retract_append_rolls_back_every_memory_change(tmp_path, operatio
             space.add(fact)
         journal.replace(saved)
         journal.mkdir()
-        with pytest.raises(EngineError, match="source_sink"):
+        # SourceNotFound, for the reason the sibling above gives.
+        with pytest.raises(SourceNotFound, match="source_sink"):
             if operation == "remove":
                 space.remove(facts[0])
             else:

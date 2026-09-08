@@ -175,11 +175,12 @@ def space_of(m: Any) -> Any:
     reached: `metta_arrays.install(m)` raised `MeTTa has no 'is_function'`
     with every array operation left unregistered.
 
-    Resolving once, at the door, is what lets `install(m)` work without
-    erasing the distinction the two classes draw, because the installer still
-    receives a space. A context is exactly the object that has a home space to
-    give; a space has none, and answers for itself. This is the public
-    spelling; every door in the library resolves the same way.
+    Its longhand is `m.self`: a context answers its home space and a space
+    answers itself, which is MeTTa's own `&self` reading and is why this
+    resolution is an attribute read rather than a branch. A receiver that
+    answers neither IS the space, which is what lets an object standing in for
+    one reach a door. This is the public spelling; every door in the library
+    resolves the same way.
     """
     return _space_of(m)
 

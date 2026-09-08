@@ -133,6 +133,7 @@ RENDER = "render"
 #: to one direction puts it in the other's message without it being written
 #: twice. There is no third vocabulary: Python's own presentation specs stay
 #: Python's, applied to a RENDERED hole because a rendered hole is text.
+# closed-set: decides; policy=which MeTTa presentation specs a template hole admits, and what a refusal calls each; reads=none, it is the source both directions read
 _SPECS: dict[str, tuple[str, str]] = {
     "sym": (ENTRY, "Symbol"),
     "expr": (ENTRY, "parse"),

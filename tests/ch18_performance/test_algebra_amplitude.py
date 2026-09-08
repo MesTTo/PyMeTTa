@@ -16,7 +16,7 @@ Open Obligations:
 
 import pytest
 
-from metta import S, wire
+from metta import S, convert
 from metta.algebra import AlgebraRequirementError, Amplitude
 
 
@@ -53,5 +53,5 @@ def test_amplitudes_interfere_inside_the_fragment_and_are_refused_outside(metta)
         )
         answers = list(program.match(S.detect(S.dark_port), under="amplitude"))
         assert len(answers) == 1
-        assert wire.decode(answers[0].tag) == Amplitude(0)
+        assert convert.decode(answers[0].tag) == Amplitude(0)
         assert answers[0].plan[0].applied is True

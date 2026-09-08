@@ -133,6 +133,7 @@ _LINT_INTENT_TYPE = Expression(
     ]
 )
 
+# closed-set: decides; policy=this seat's own DECLARATION KINDS and their types, which no other seat has; reads=none, it is the source, and every engine vocabulary it used to restate is now typed by the engine itself
 ONTOLOGY: tuple[tuple[str, str, str | Expression], ...] = (
     (_COLON, "Declaration", "Type"),
     (_COLON, "OpDecl", "Type"),
@@ -205,6 +206,13 @@ def install(runtime) -> None:
     for head, subject, obj in ONTOLOGY:
         atom = Expression([Symbol(head), Symbol(subject), obj if isinstance(obj, Expression) else Symbol(obj)])
         runtime.must("metta_py_add(Space, W)", Space=_SPACE, W=atom.to_wire())
+    # The seat's own bounds, as rows a program can read and replace. Here
+    # because this is the one place a boot already writes the seat's
+    # declarations into &metta [source: extensions/python/metta/_config.py,
+    # publish].
+    from ._config import publish as _publish_limits  # noqa: PLC0415  -- the bounds table
+
+    _publish_limits(runtime)
 
     def listener(_cls, old, new, _runtime=runtime):
         _reflect_image(_runtime, old, new)

@@ -1688,6 +1688,7 @@ _install_operator_lowerings()
 #: The term-building method for each comparison operator. A refusal names this
 #: concise method first and the exact bracket form second, so callers see the
 #: method that exists without losing the fallback.
+# closed-set: decides; policy=which term-building method a refused comparison names first; reads=none, it is the four comparison rows of the operator table read as their method names
 _ORDER_METHOD = {"<": "lt", "<=": "le", ">": "gt", ">=": "ge"}
 
 

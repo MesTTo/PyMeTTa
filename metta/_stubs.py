@@ -71,6 +71,7 @@ if TYPE_CHECKING:
 #: Which module each name a rendered stub can mention comes from. The order of
 #: the modules here is the order the imports are written, which is isort's:
 #: the standard library, then this package.
+# closed-set: decides; policy=which module each name a rendered stub can mention comes from, in isort's own order; reads=none, it is the source
 _IMPORTS = {
     "Callable": "collections.abc",
     "Any": "typing",

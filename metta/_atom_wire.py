@@ -113,6 +113,11 @@ def _handle_from_wire(ident: Any, text: Any) -> Atom:
 
 
 def _text_payload(payload: Any, kind: str, expected: str = "text") -> str:
+    # The word is `metta.vocabularies.WirePayload.text` and is spelled as text
+    # here on purpose: this module is BELOW the vocabulary layer, which imports
+    # metta.atoms, which imports this. It reaches the reader as part of a
+    # sentence rather than as a classifier, which is the one place a word may
+    # cross as a string.
     if not isinstance(payload, str):
         msg = f"wire {kind} payload must be {expected}, got {payload!r}"
         raise ValueError(msg)  # noqa: TRY004  -- malformed serialized or configured content is a ValueError even when its runtime type reveals it

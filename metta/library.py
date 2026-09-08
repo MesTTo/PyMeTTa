@@ -59,16 +59,18 @@ import os
 import re
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
+from ._atom_namespace import _Namespace
 from ._declarations import Declaration, Written, declarations, is_arrow
 from ._engine import _resolve_metta_path, runtime
 from ._library import _library_source_files
+from ._name_mapping import generated_aliases
 from ._source_forms import Origin, positioned_forms
 from ._space_objects import _format_doc_atom
 from ._version import __version__
 from .atoms import Atom, Expression, Symbol, parse
-from .errors import MettaError
+from .errors import MettaError, Remedy
 
 if TYPE_CHECKING:
     from collections.abc import Iterator, Mapping
@@ -197,6 +199,67 @@ def rows(
     is cached, so an edited library answers its new rows.
     """
     return declarations(LibrarySource(_files(name, root)))
+
+
+def face(name: str, *, root: str | os.PathLike[str] | None = None) -> Any:
+    """One library's heads as Python names, projected from its own rows.
+
+        strategy = metta.library.face("lib_strategy")
+        m += metta.lib.strategy
+        m.eval(strategy.strategy_apply(strategy.try_(S.step), S.a))
+
+    Every head the library declares, defines, documents or registers is an
+    attribute here under Python's own casing of it, so `try_` reaches `try` and
+    `stratego_all` reaches `stratego-all`; `face("lib_strategy")["◁"]` is the
+    exact door for a head outside identifier grammar, and `dir()` lists what
+    there is. A name the library does not declare refuses with the library's
+    own roster, which is the whole reason to hold a face rather than to write
+    `S["try"]`: the typo is caught on the line that makes the atom.
+
+    Its longhand is `S[<head>]`, which mints the same symbol and checks
+    nothing. The rung above is `m.fn[<head>]`, the LIVE namespace, which sees
+    every head the running engine knows including the ones no library wrote:
+    `id` is the engine's own identity operation and is not in `lib_strategy`'s
+    face, because the library says in its own source that it does not define it.
+
+    The face is the same `_Namespace` machinery `metta.fn` is, over one
+    library's catalog instead of the engine's, with Python's operator words
+    left OUT: they name engine heads, and a library that declared `add` itself
+    would otherwise find `+` answering in its place. A head's `(@doc ...)`
+    prose rides on the minted symbol, so `help(strategy.seq)` prints what the
+    library wrote with no engine running.
+
+    Cost: one `rows()` read per call, which is the library's source bytes.
+    Nothing is cached, so an edited library answers its new heads; bind the
+    result once rather than calling it in a loop.
+    """
+    heads = rows(name, root=root)
+    aliases = generated_aliases([row.name for row in heads], operators=False)
+    documentation = {
+        row.name: _format_doc_atom(row.documentation)
+        for row in heads
+        if row.documentation is not None
+    }
+    return _Namespace(
+        Symbol,
+        allowed=frozenset(row.name for row in heads),
+        aliases=aliases,
+        documentation=documentation,
+        label=f"{name} head",
+        remedy=(
+            f"; {name} declares "
+            f"{', '.join(sorted(row.name for row in heads)) or 'nothing'}. A head "
+            f"the running engine knows and this library does not write is "
+            f"m.fn[<head>]"
+        ),
+        fix=Remedy(
+            title=f"reach a head outside {name} through the live namespace",
+            kind="quickfix",
+            applicability="prose",
+            python="m.fn['<head>']",
+        ),
+        operators=False,
+    )
 
 
 @dataclass(frozen=True)
@@ -615,6 +678,7 @@ __all__ = [
     "LibrarySource",
     "card",
     "digest",
+    "face",
     "is_arrow",
     "roster",
     "rows",

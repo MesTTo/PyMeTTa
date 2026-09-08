@@ -93,8 +93,8 @@ def main(argv=None):
         # only element this file chooses is "swipl", resolved on PATH the way
         # every launcher resolves the interpreter it wraps.
         if upstream:
-            return subprocess.call(command, env=environment)  # noqa: S603  # nosec B603
-        return subprocess.call(command)  # noqa: S603  # nosec B603
+            return subprocess.call(command, env=environment)  # nosec B603  # noqa: S603  # nosec B603
+        return subprocess.call(command)  # nosec B603  # noqa: S603  # nosec B603
     except FileNotFoundError as exc:
         msg = "MeTTa's command-line launcher needs the SWI-Prolog 'swipl' binary on PATH"
         raise FileNotFoundError(

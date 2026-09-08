@@ -31,13 +31,13 @@ from metta import (
     S,
     V,
     Variable,
+    convert,
     current_algebra,
     prob,
     prov,
     ranked,
     tropical,
     under,
-    wire,
 )
 from metta import space as make_space
 from metta.algebra import AlgebraOperationError, LinearEvidenceError, evaluate, require, tagged_rule
@@ -241,16 +241,16 @@ def test_grounded_provider_annotation_retains_host_object_identity():
         assert direct.annotation is prediction
         assert derived.value == S.bad(S.x)
         assert derived.tag.children[:2] == (S.times, G(1))
-        assert wire.decode(derived.tag.children[2]) is prediction
+        assert convert.decode(derived.tag.children[2]) is prediction
         source = derived.why().alternatives[0].children[0]
-        assert wire.decode(source.raw) is prediction
+        assert convert.decode(source.raw) is prediction
         asks = len(provider.asked)
         provider.rows.clear()
         prediction["error"] = 0.3
-        assert wire.decode(derived.why().alternatives[0].children[0].raw) is prediction
-        assert wire.decode(derived.tag.children[2])["error"] == 0.3
+        assert convert.decode(derived.why().alternatives[0].children[0].raw) is prediction
+        assert convert.decode(derived.tag.children[2])["error"] == 0.3
         assert len(provider.asked) == asks
-    assert wire.decode(source.raw) is prediction
+    assert convert.decode(source.raw) is prediction
 
 
 @pytest.mark.parametrize("inferences", [None, 1_000_000])

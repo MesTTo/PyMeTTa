@@ -416,13 +416,26 @@ def test_internal_catalog_names_stay_exact_but_leave_public_outputs(repo_root: P
 
 
 def test_generated_aliases_keep_exact_only_spellings_on_the_bracket_door():
-    """Genuine underscores and non-Python-style names remain exact-only."""
+    """A name that does not round-trip stays exact-only; every other rung maps.
+
+    The ladder in order: a head whose EXACT spelling is a Python identifier
+    keeps it, which is `mixedCase` and is why `fn.assertEqual` answers; a head
+    Python reserves takes PEP 8's trailing underscore, which is `try_`; a
+    hyphenated head takes the mechanical map. `same_name` beside `same-name`
+    is the one that stays exact-only: the two would map to one attribute, so
+    the underscored one does not round-trip through `attribute_name` and is
+    dropped rather than made ambiguous.
+    """
     from metta._name_mapping import generated_aliases
 
-    assert generated_aliases(["same-name", "same_name", "mixedCase", "pragma!"]) == {
+    assert generated_aliases(
+        ["same-name", "same_name", "mixedCase", "pragma!", "try"]
+    ) == {
+        "mixedCase": "mixedCase",
         "neg": "neg",
         "pragma": "pragma!",
         "same_name": "same-name",
+        "try_": "try",
     }
 
 

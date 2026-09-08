@@ -104,4 +104,4 @@ class _HostIsland:
         # process, not input crossing a boundary. ast.literal_eval cannot
         # stand in: an island is an expression, not a literal.
         # pylint: disable-next=eval-used
-        return eval(self._code, namespace, namespace)  # noqa: S307  # nosec B307
+        return eval(self._code, namespace, namespace)  # nosec B307  # noqa: S307  # nosec B307

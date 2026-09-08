@@ -113,6 +113,7 @@ _ROLLBACK = "rollback"
 #: Which requirement each rule needs, in one place, so that what `skips` says a
 #: run will not check and what the run actually skips cannot disagree. Every
 #: key is checked against the class below at import.
+# closed-set: decides; policy=which provider capability each compliance rule needs, so what `skips` reports and what the run skips cannot differ; reads=none, it is the source, checked against the rule class at import
 _RULE_REQUIREMENTS = {
     "remove_a_stored_atom": "remove",
     "remove_an_arbitrary_atom": "remove",

@@ -72,7 +72,7 @@ import types
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Self
 
-from ._api_types import space_of
+from ._api_types import SpaceLike
 from ._declarations import declarations_in
 from ._name_mapping import python_name
 from ._source_forms import _source_text, positioned_forms
@@ -419,7 +419,7 @@ class Finder(importlib.abc.MetaPathFinder):
         return f"<metta import finder for {self.space.name} over {where}>"
 
 
-def install(space: Any = None, *, path: Any = None) -> Finder:
+def install(space: SpaceLike | None = None, *, path: Any = None) -> Finder:
     """Make `.metta` files importable, and answer the finder that does it.
 
         with metta.importing.install(m):
@@ -452,7 +452,7 @@ def install(space: Any = None, *, path: Any = None) -> Finder:
         roots = (path,)
     else:
         roots = tuple(path)
-    finder = Finder(space_of(space), roots)
+    finder = Finder(space.self, roots)
     sys.meta_path.append(finder)
     return finder
 

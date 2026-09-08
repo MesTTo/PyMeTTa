@@ -9,7 +9,7 @@ Open Obligations:
 import pytest
 
 from metta import Expression, Grounded, S
-from metta.errors import EngineError
+from metta.errors import EngineError, SourceNotFound
 
 DATETIME_IMPORT = "!(import! (context-space) (library lib_datetime))"
 FORMAT_DATE_CALL = '!(format-date 1735689600 "%B")'
@@ -113,10 +113,13 @@ def test_imported_source_error_names_the_file(metta, tmp_path):  # noqa: D103  -
 def test_missing_import_is_loud_and_names_the_file(metta, tmp_path):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     missing = tmp_path / "missing-import.metta"
 
-    with metta._new_space() as scratch, pytest.raises(EngineError) as caught:
+    # SourceNotFound rather than EngineError: the ball's kind IS `source`, and
+    # the class its catalog row names carries the path as a field.
+    with metta._new_space() as scratch, pytest.raises(SourceNotFound) as caught:
         scratch.run(f'!(import! (context-space) "{missing}")')
 
     assert str(missing) in str(caught.value)
+    assert caught.value.source == str(missing)
 
 
 def test_an_import_into_a_named_space_registers_its_equations_there(

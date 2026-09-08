@@ -15,7 +15,7 @@ Open Obligations:
 
 import pytest
 
-from metta import S, V, ground, wire
+from metta import S, V, convert, ground
 
 
 def test_a_declared_gradient_algebra_propagates_derivatives_through_a_derivation(
@@ -59,7 +59,7 @@ def test_a_declared_gradient_algebra_propagates_derivatives_through_a_derivation
         )
         answers = list(program.match(S.output(S.a), under="p4-gradient"))
         assert len(answers) == 1
-        result = wire.decode(answers[0].tag)
+        result = convert.decode(answers[0].tag)
         assert result.item() == pytest.approx(6.0)
         assert hasattr(result, "__dlpack__")
         assert result.grad_fn is not None
