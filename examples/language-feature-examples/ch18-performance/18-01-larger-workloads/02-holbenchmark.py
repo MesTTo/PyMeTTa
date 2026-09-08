@@ -280,7 +280,20 @@ def twin(m):
 #: processes [measured 2026-09-08: min-of-3 serial fresh processes;
 #: command=python extensions/python/tools/twin_coverage.py --repin;
 #: commit=3fc65f02ce807c359f1a52026f950f345da2a9af].
-BUDGET = 34135344
+#: RE-PINNED 2026-09-08, 34135344 to 34135374 (+30), boot content moved: the
+#: refusal table and the typing point are modules this package did not have,
+#: three convert doors became one, per-library faces are projections, and the
+#: engine gained a catalog watch point, and SWI clause-indexing shape shifts a
+#: twin count by tens whenever boot content moves, the mechanism every earlier
+#: entry in these chains names. The watch point itself is one inference per
+#: &metta write, which a twin that defines a function pays three of (2239
+#: against 2236 on ch03 01-comments with the two announcement clauses taken
+#: out), and the (limit ...) rows it exists for cost nothing at all: 2239
+#: either way with every row-backed bound removed, because boot seeds the
+#: mirror those bounds are read from [measured 2026-09-08: min-of-3 serial
+#: fresh processes; command=python extensions/python/tools/twin_coverage.py
+#: --repin; commit=c26b6a4d28ef8fb50742440feed2c0578ebb0f58].
+BUDGET = 34135374
 
 #: DIVERGED 2026-09-07, the example holds 6 atoms the twin does not (6 =) and
 #: the twin holds 12 the example does not (6 :, 6 =): the twin is an ordinary

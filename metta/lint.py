@@ -34,7 +34,7 @@ import pathlib
 from dataclasses import dataclass
 from typing import Any
 
-from ._api_types import space_of
+from ._api_types import SpaceLike
 from ._head_meaning import EngineRegistry
 from ._lint_analysis import analyze
 from ._lint_events import prepare_lint
@@ -97,25 +97,27 @@ class Repair:
         return len(self.skipped)
 
 
-def lint(space) -> list[Finding]:
+def lint(space: SpaceLike) -> list[Finding]:
     """Diagnose a space and return an empty list when no check fires.
 
     One of nine observability methods, the one for the silently-wrong
     class; rows.why() explains one empty answer, and the guide's
     observability page maps the family. space may be a context or a space.
     """
-    space = space_of(space)
-    require_capability(space.name, "enumerate", "lint")
-    invocation = prepare_lint(space)
+    home = space.self
+    require_capability(home.name, "enumerate", "lint")
+    invocation = prepare_lint(home)
     return analyze(
-        space,
-        space.atoms(),
-        EngineRegistry(space.runtime),
+        home,
+        home.atoms(),
+        EngineRegistry(home.runtime),
         invocation,
     )
 
 
-def lint_file(path: str | os.PathLike[str], *, m=None) -> list[Finding]:
+def lint_file(
+    path: str | os.PathLike[str], *, m: SpaceLike | None = None
+) -> list[Finding]:
     """Diagnose one source file, each finding anchored to its line.
 
     The file loads into a scratch space and lint() runs there; every
@@ -140,7 +142,7 @@ def lint_file(path: str | os.PathLike[str], *, m=None) -> list[Finding]:
     engine = (
         _importlib.import_module(f"{__package__}._space").Space()
         if m is None
-        else space_of(m)
+        else m.self
     )
     with engine._new_space() as scratch:
         scratch.load(source)
@@ -179,7 +181,7 @@ def apply(space, findings: list[Finding] | None = None) -> Repair:
     `skipped` with its reason, which is what `cargo fix` does with rustc's
     non-MachineApplicable suggestions.
     """
-    target = space_of(space)
+    target = space.self
     found = lint(target) if findings is None else findings
     applied: list[Finding] = []
     skipped: list[Skipped] = []

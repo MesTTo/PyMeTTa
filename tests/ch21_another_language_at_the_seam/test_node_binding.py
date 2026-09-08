@@ -58,7 +58,7 @@ from typing import Any
 import pytest
 
 import metta
-from metta import parse, wire
+from metta import convert, parse
 
 _BINDING = Path(__file__).resolve().parents[4] / "extensions" / "node"
 _CORPUS = json.loads((_BINDING / "kit" / "corpus.json").read_text(encoding="utf-8"))
@@ -379,7 +379,7 @@ def test_the_node_binding_and_the_python_host_answer_the_same_programs(node_repo
         transport = case["transport"]
         assert crossed["transport"] == transport
         assert "error" not in crossed, crossed.get("error")
-        atom = wire.atom_from_wire(_materialise(transport))
+        atom = convert.atom_from_wire(_materialise(transport))
         expected = _comparable(atom.to_wire())
         assert crossed["wire"] == expected, transport
         assert crossed["roundTrip"] == expected, f"{transport} did not survive the engine"
@@ -428,7 +428,7 @@ def test_the_two_seats_answer_the_golden_corpus_identically(node_driver, metta) 
         here = _materialise_corpus(case["wire"])
         compared["roundtrip"] += 1
         node_round = _comparable(node_driver.roundtrip(here))
-        python_round = _comparable(wire.atom_from_wire(here).to_wire())
+        python_round = _comparable(convert.atom_from_wire(here).to_wire())
         if node_round != python_round:
             round_trips.append((case["id"], python_round, node_round))
         if set(case.get("tags", ())) - json_tags or case.get("requires") == "non_finite":
@@ -518,7 +518,7 @@ def test_a_node_client_reads_every_number_class_from_a_python_gateway(metta) -> 
 
     with metta._new_space() as scratch:
         for term in _EXCHANGED:
-            scratch.add(wire.atom_from_wire(term))
+            scratch.add(convert.atom_from_wire(term))
         server = remote.serve(scratch, spaces=[scratch.name])
         try:
             finished = subprocess.run(

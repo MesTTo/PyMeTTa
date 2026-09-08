@@ -566,72 +566,97 @@ def page(entries: list[Entry], answers: dict[str, Any]) -> str:
     return "\n".join(out) + "\n"
 
 
+#: What each of lib_strategy's own heads MEANS, one line per head. The names,
+#: the MeTTa forms and the Python spellings are DERIVED from the library's own
+#: rows below; this is the half a row cannot carry, and a head with no line
+#: here, or a line here naming no head, stops the run rather than quietly
+#: shortening the table.
+_STRATEGY_LAWS: dict[str, str] = {
+    "fail": "answers no result",
+    "seq": "`s2(s1(t))`",
+    "choice": (
+        "complete left result bag, or `right(t)` only when that bag is empty"
+    ),
+    "try": "`choice(s, id)`",
+    "gtry": "`gtry(s, t) = try(s)(t)`, the direct call form",
+    "repeat": "`try(seq(s, repeat(s)))`",
+    "all": "apply `s` to every immediate child",
+    "one": "enumerate each successful one-child rewrite",
+    "topdown": "`seq(s, all(topdown(s)))`",
+    "bottomup": "`seq(all(bottomup(s)), s)`",
+    "innermost": "`bottomup(try(seq(s, innermost(s))))`",
+    "stratego-all": "public alias of `all(s)`",
+    "stratego-one": "public alias of `one(s)`",
+    "TP": "type-preserving strategy scheme",
+    "TU": "type-unifying strategy scheme",
+    "◁": "apply only when the declared strategy arrow fits the scheme",
+    "strategy-apply": "translator-lowers to the atom `(strategy-eval s t)`",
+    "strategy-eval": "the evaluator every plan is applied through",
+    "strategy-all": "the evaluator's own all-children step",
+    "strategy-all-tail": "the evaluator's own child-list recursion",
+    "strategy-one": "the evaluator's own one-child step",
+    "strategy-typed-tp": "the evaluator's `TP` scheme check",
+    "strategy-typed-tu": "the evaluator's `TU` scheme check",
+    "strategy-typed-apply": "the evaluator's scheme-checked application",
+}
+
+#: The one head this section shows that lib_strategy does NOT declare. The
+#: library says so in its own source: `id` is the engine's identity operation,
+#: so the library defines none [source: lib/lib_strategy/lib_strategy.metta,
+#: "`id` itself is already the engine's identity operation"].
+_STRATEGY_ENGINE_HEAD = ("id", "`id`", "`fn.id`", "`id(t) = t`")
+
+
 def _strategy_basis_section() -> list[str]:
-    """Every public lib_strategy constructor and application/type method."""
-    rows = (
-        ("id", "`id`", "`strategies.id`", "`id(t) = t`"),
-        ("fail", "`fail`", "`strategies.fail`", "answers no result"),
-        ("seq", "`(seq s1 s2)`", "`strategies.seq(s1, s2)`", "`s2(s1(t))`"),
-        (
-            "choice",
-            "`(choice left right)`",
-            "`strategies.choice(left, right)`",
-            "complete left result bag, or `right(t)` only when that bag is empty",
-        ),
-        ("try", "`(try s)`", "`strategies.try_(s)`", "`choice(s, id)`"),
-        ("repeat", "`(repeat s)`", "`strategies.repeat(s)`", "`try(seq(s, repeat(s)))`"),
-        ("all", "`(all s)`", "`strategies.all(s)`", "apply `s` to every immediate child"),
-        ("one", "`(one s)`", "`strategies.one(s)`", "enumerate each successful one-child rewrite"),
-        (
-            "topdown",
-            "`(topdown s)`",
-            "`strategies.topdown(s)`",
-            "`seq(s, all(topdown(s)))`",
-        ),
-        (
-            "bottomup",
-            "`(bottomup s)`",
-            "`strategies.bottomup(s)`",
-            "`seq(all(bottomup(s)), s)`",
-        ),
-        (
-            "innermost",
-            "`(innermost s)`",
-            "`strategies.innermost(s)`",
-            "`bottomup(try(seq(s, innermost(s))))`",
-        ),
-        (
-            "stratego-all",
-            "`(stratego-all s)`",
-            "`strategies.stratego_all(s)`",
-            "public alias of `all(s)`",
-        ),
-        (
-            "stratego-one",
-            "`(stratego-one s)`",
-            "`strategies.stratego_one(s)`",
-            "public alias of `one(s)`",
-        ),
-        ("gtry", "direct call only", "`S.gtry`", "`gtry(s, t) = try(s)(t)`"),
-        (
-            "strategy-apply",
-            "`(strategy-apply s t)`",
-            "`S['strategy-apply'](s, t)`",
-            "translator-lowers to the atom `(strategy-eval s t)`",
-        ),
-        ("TP", "`TP`", "`strategies.TP`", "type-preserving strategy scheme"),
-        ("TU", "`(TU result-type)`", "`strategies.TU(result_type)`", "type-unifying strategy scheme"),
-        (
-            "◁",
-            "`(◁ s TP t)` or `(◁ s (TU r) t)`",
-            "`S['◁'](s, scheme, t)`",
-            "apply only when the declared strategy arrow fits the scheme",
-        ),
-    )
+    """Every lib_strategy head, projected from the library's own rows.
+
+    The names, their declared arrows and their Python spellings all come from
+    `metta.library.rows`/`face`, so a head the library gains or renames moves
+    this table by itself. This used to be eighteen rows written out here, which
+    is the same defect `metta.strategies` was: a second copy of one library's
+    constructor list, with nothing holding it to the library.
+    """
+    from metta import library  # noqa: PLC0415  -- the tool's own lazy import
+
+    heads = library.rows("lib_strategy")
+    aliases = {
+        target: alias
+        for alias, target in _face_aliases(library.face("lib_strategy")).items()
+    }
+    declared = [row.name for row in heads]
+    missing = sorted(set(declared) - set(_STRATEGY_LAWS))
+    if missing:
+        msg = (
+            f"lib_strategy declares {', '.join(missing)} and the phrasebook "
+            f"says nothing about them; add a line to _STRATEGY_LAWS"
+        )
+        raise SystemExit(msg)
+    stale = sorted(set(_STRATEGY_LAWS) - set(declared))
+    if stale:
+        msg = (
+            f"_STRATEGY_LAWS names {', '.join(stale)}, which lib_strategy no "
+            f"longer declares; remove the line"
+        )
+        raise SystemExit(msg)
+    rows = [_STRATEGY_ENGINE_HEAD]
+    for row in heads:
+        alias = aliases.get(row.name)
+        python = (
+            f"`face.{alias}`" if alias is not None else f"`face[{row.name!r}]`"
+        )
+        rows.append(
+            (row.name, _strategy_form(row), python, _STRATEGY_LAWS[row.name])
+        )
     out = [
         "MeTTa's complete shipped basis is reified below. Every plan cell is ordinary",
         "queryable atom data, and every row is exercised by",
         "`examples/ch20-extending-the-engine/20-02-metta-written-in-metta/11-strategy.metta` through the normal library runner.",
+        "",
+        "Each row is projected from the library's own source: the name and the form",
+        "from its `(: ...)` declaration, one argument per position of the declared",
+        "arrow, and the Python spelling from the face's own attribute map. `face` is",
+        "`metta.library.face(\"lib_strategy\")`, the library's own heads as Python",
+        "names; `fn` is `metta.fn`, the engine's.",
         "",
         "| public name | reified plan or MeTTa form | Python atom | law |",
         "|---|---|---|---|",
@@ -639,6 +664,27 @@ def _strategy_basis_section() -> list[str]:
     out += [f"| `{name}` | {plan} | {python} | {law} |" for name, plan, python, law in rows]
     out.append("")
     return out
+
+
+def _face_aliases(face: Any) -> dict[str, str]:
+    """One face's attribute-to-head map, read off the namespace itself."""
+    return dict(object.__getattribute__(face, "_aliases"))
+
+
+def _strategy_form(row: Any) -> str:
+    """One head's MeTTa call form, one argument per declared arrow position.
+
+    `(: seq (-> Atom Atom Atom %Undefined%))` is three arguments and a result,
+    so the form is `(seq $a $b $c)`. A head with no declared arrow, which is
+    every type scheme here, is the bare name.
+    """
+    if not row.arrows:
+        return f"`{row.name}`"
+    arity = max(len(row.arrows[0].children) - 2, 0)
+    if arity == 0:
+        return f"`{row.name}`"
+    arguments = " ".join(f"${chr(ord('a') + index)}" for index in range(arity))
+    return f"`({row.name} {arguments})`"
 
 
 def _priced(answers: dict[str, Any], name: str) -> str:

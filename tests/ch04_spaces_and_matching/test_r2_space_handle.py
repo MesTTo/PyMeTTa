@@ -29,7 +29,7 @@ from pathlib import Path
 import pytest
 
 import metta
-from metta import TRUE, Atom, Handle, S, Space, V, wire
+from metta import TRUE, Atom, Handle, S, Space, V, convert
 from metta.atoms import order_key
 
 
@@ -162,10 +162,10 @@ def test_the_s_tag_stays_a_symbol_however_it_is_spelled(spaces):  # noqa: D103  
     # The tag decides alone: a host that means the symbol writes s and gets
     # the Symbol back, at the root and inside an expression alike. The decoder
     # used to re-read an ampersand payload against a Python-side registry.
-    assert type(wire.atom_from_wire(["s", target.name])) is metta.Symbol
-    nested = wire.atom_from_wire(["e", [["s", "f"], ["s", target.name]]])
+    assert type(convert.atom_from_wire(["s", target.name])) is metta.Symbol
+    nested = convert.atom_from_wire(["e", [["s", "f"], ["s", target.name]]])
     assert type(nested.children[1]) is metta.Symbol
-    assert wire.atom_from_wire(["p", target.name]) == target
+    assert convert.atom_from_wire(["p", target.name]) == target
 
 
 def test_a_space_the_engine_made_crosses_as_a_space(spaces):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -214,7 +214,7 @@ def test_space_handles_are_term_operands_and_round_trip(  # noqa: D103  -- pytes
     before = host.digest()
 
     encoded = json.loads(json.dumps(carried.to_wire()))
-    decoded = wire.atom_from_wire(encoded)
+    decoded = convert.atom_from_wire(encoded)
     assert decoded == carried
     assert isinstance(decoded.children[1], Space)
     assert host.runtime.apply_must("metta_py_swrite", encoded) == str(carried)
@@ -245,7 +245,7 @@ def test_malformed_space_handle_wire_payloads_are_refused(wire_value):
     something that is not a name at all.
     """
     with pytest.raises(ValueError, match="wire space payload"):
-        wire.atom_from_wire(wire_value)
+        convert.atom_from_wire(wire_value)
 
 
 def test_a_bare_space_payload_decodes_into_a_handle():
@@ -254,7 +254,7 @@ def test_a_bare_space_payload_decodes_into_a_handle():
     `(= (space) plain)` with one write through it registers `plain`, so a
     payload carrying that name is a space reference like any other.
     """
-    decoded = wire.atom_from_wire(["p", "plain"])
+    decoded = convert.atom_from_wire(["p", "plain"])
     assert isinstance(decoded, Space)
     assert decoded.name == "plain"
 

@@ -94,7 +94,7 @@ from .errors import (
     guarded,
     is_transport_failure,
 )
-from .vocabularies import Delivery, EventOrder, ProviderCapability
+from .vocabularies import Delivery, EventOrder, OnError, ProviderCapability
 
 __all__ = [
     "CAPABILITIES",
@@ -876,7 +876,7 @@ def _provider_failure(
 
 
 def foreign_match(
-    space: str, pattern_wire: list, limit: int | None = None, mode: str = "abort"
+    space: str, pattern_wire: list, limit: int | None = None, mode: OnError = OnError.abort
 ):
     """The shim's py_iter enumerates this: candidate atoms, encoded.
 

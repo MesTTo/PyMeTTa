@@ -44,12 +44,14 @@ import operator
 from collections.abc import Callable
 from typing import Any
 
+from . import _operator_lowerings as _lowerings
 from . import ops as _ops_module
 from ._api_types import _OperationName
 from .atoms import Expression, Grounded, S, Symbol, _expr
 
 __all__ = ["NAMES", "install", "pythonic"]
 
+# closed-set: decides; policy=which MeTTa heads compiled Python lowers to, which this module registers and shim.pl implements; reads=none, it is the source, held to install()'s own registration table by test_the_prelude_names_are_what_install_registers
 NAMES = (
     "py-truthy",
     "py-eq",
@@ -77,47 +79,47 @@ NAMES = (
 # The compiler's spelling for an absent slice bound; never user-visible.
 _NO_BOUND = Symbol("py-no-bound")
 
-_PYTHON_OPERATORS: dict[str, Callable[..., Any]] = {
-    "abs": operator.abs,
-    "add": operator.add,
-    "and": operator.and_,
-    "eq": operator.eq,
-    "floordiv": operator.floordiv,
-    "ge": operator.ge,
-    "gt": operator.gt,
-    "iadd": operator.iadd,
-    "iand": operator.iand,
-    "ifloordiv": operator.ifloordiv,
-    "ilshift": operator.ilshift,
-    "imatmul": operator.imatmul,
-    "imod": operator.imod,
-    "imul": operator.imul,
-    "invert": operator.invert,
-    "ior": operator.ior,
-    "ipow": operator.ipow,
-    "irshift": operator.irshift,
-    "isub": operator.isub,
-    "itruediv": operator.itruediv,
-    "ixor": operator.ixor,
-    "le": operator.le,
-    "lshift": operator.lshift,
-    "lt": operator.lt,
-    "matmul": operator.matmul,
+#: Which Python callable each `py-operator` selector dispatches to. DERIVED
+#: from the one operator table: the protocol selectors and their augmented
+#: forms are its rows, `operator` owns every function of those names, and the
+#: five below are the ones no operator protocol covers.
+#:
+#: `pos` has a dunder Python defines and this library's atom surface does not
+#: lower, so it has no row in that table and reaches the runtime through here;
+#: the four builtins are functions a compiled body calls rather than operators
+#: at all, and `_PYBUILTIN_CALLS` in the compiler is where their lowering is
+#: decided.
+_EXTRA_OPERATORS: dict[str, Callable[..., Any]] = {
+    "pos": operator.pos,
     "max": builtins.max,
     "min": builtins.min,
-    "mod": operator.mod,
-    "mul": operator.mul,
-    "ne": operator.ne,
-    "neg": operator.neg,
-    "or": operator.or_,
-    "pos": operator.pos,
-    "pow": operator.pow,
-    "rshift": operator.rshift,
     "sorted": builtins.sorted,
-    "sub": operator.sub,
     "sum": builtins.sum,
-    "truediv": operator.truediv,
-    "xor": operator.xor,
+}
+
+
+def _operator_function(name: str) -> Callable[..., Any]:
+    """One selector's `operator` function, with Python's own keyword escape.
+
+    `and`, `or` and `not` are keywords, so `operator` spells them with a
+    trailing underscore; every other selector is the function's own name
+    [source: https://docs.python.org/3/library/operator.html].
+    """
+    return getattr(operator, name, None) or getattr(operator, f"{name}_")
+
+
+_PYTHON_OPERATORS: dict[str, Callable[..., Any]] = {
+    **{
+        name: _operator_function(name)
+        for name in _lowerings.selectors()
+        if getattr(operator, name, None) is not None
+        or getattr(operator, f"{name}_", None) is not None
+    },
+    **{
+        name: _operator_function(name)
+        for name in _lowerings.selectors(augmented=True)
+    },
+    **_EXTRA_OPERATORS,
 }
 
 # What a reified engine error means in Python's exception lattice. The
@@ -126,6 +128,7 @@ _PYTHON_OPERATORS: dict[str, Callable[..., Any]] = {
 # error-data reasons from the he algebra, (Error culprit BadType). A
 # compiled `except ZeroDivisionError` must catch the engine's zero divide
 # exactly as Python's would, and `except Exception` catches every error.
+# closed-set: decides; policy=which Python exception class a compiled `except` catches for each reified engine error, which is a reading of Python's lattice rather than of the engine's kinds; reads=none, the engine's `(refusal ...)` rows classify a raised BALL and say nothing about an error VALUE inside MeTTa
 _ENGINE_ERROR_FUNCTORS: dict[str, type[BaseException]] = {
     "type_error": TypeError,
     "domain_error": ValueError,

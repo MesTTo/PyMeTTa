@@ -22,7 +22,7 @@ import pytest
 from metta import S, V, aio
 from metta._atom_namespace import NAMESPACE_CACHE_MAX
 from metta.errors import InferenceLimitError, SubscriberError
-from metta.subscribe import SUBSCRIPTION_QUEUE_MAX, Subscription
+from metta.subscribe import Subscription, queue_bound
 
 
 def test_the_subscription_queue_is_bounded_and_load_takes_a_budget(metta, tmp_path):
@@ -52,7 +52,8 @@ def test_the_subscription_queue_is_bounded_and_load_takes_a_budget(metta, tmp_pa
     the one that runs a file the caller did not write took neither.
     """
     # ---------------------------------------------------------------- queue
-    assert isinstance(SUBSCRIPTION_QUEUE_MAX, int) and SUBSCRIPTION_QUEUE_MAX > 0
+    bound = queue_bound()
+    assert isinstance(bound, int) and bound > 0
 
     space = metta._new_space()
     try:

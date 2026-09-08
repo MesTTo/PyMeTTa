@@ -1162,7 +1162,7 @@ from metta import MeTTa, S, V, space
 from metta.foreign import SpaceProvider
 
 class Interrupting(SpaceProvider):
-    def match(self, pattern):
+    def match(self, pattern):  # noqa: ARG002  -- the test double preserves the protocol method signature its caller exercises
         yield S.item(S.one)
         raise KeyboardInterrupt
 

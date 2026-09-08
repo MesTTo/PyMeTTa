@@ -26,6 +26,7 @@ import importlib as _importlib
 import sys as _sys
 from typing import Any as _Any
 
+# closed-set: decides; policy=which host callbacks this seat offers the engine, and where each lives, resolved lazily; reads=none, it is the source, and `__all__` below is `tuple(sorted(_CALLBACKS))` rather than a second list
 _CALLBACKS = {
     "async_cancel": ("_async_ops", "cancel"),
     "async_discard": ("_async_ops", "discard"),

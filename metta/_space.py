@@ -403,7 +403,7 @@ from .atoms import (
     unify,
 )
 from .define import Defined, PrologBacked
-from .errors import EngineError, MettaError, Remedy, SourceNotFound, Timeout, refusing
+from .errors import EngineError, MettaError, Remedy, Timeout, refuse, refusing
 from .results import (
     Answers,
     Rows,
@@ -423,11 +423,14 @@ from .vocabularies import (
     EventOrder,
     Fidelity,
     ImageMode,
+    JournalSync,
     OnError,
+    RefusalKind,
     SaveFormat,
     SemiringOrder,
     SourceKind,
     SpaceCapability,
+    SubscriptionEdge,
     World,
 )
 
@@ -1211,6 +1214,19 @@ class Space(Handle):
     def name(self) -> _SpaceId:
         """The live engine name represented by this handle."""
         return self._space
+
+    @property
+    def self(self) -> Space:
+        """The space this receiver's doors work in, which for a space is itself.
+
+        MeTTa's own `&self` is the space a form is evaluated in, and a form
+        stored in a space is evaluated in THAT space, so a space's `&self` is
+        the space. `MeTTa.self` answers the same question for a context, whose
+        answer is its home space, which is what makes `m.self` one attribute
+        read at every door that takes either [source:
+        extensions/python/metta/_api_types.py, SpaceLike].
+        """
+        return self
 
     def _at(self, name: str) -> Space:
         """Return another handle in this runtime for internal composition."""
@@ -2235,7 +2251,7 @@ class Space(Handle):
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         if type_ is ...:
             return super().cast(value)
-        return _satellite("casting").cast(self, value, type_)
+        return _satellite("convert").cast(self, value, type_)
 
     def trace(
         self,
@@ -3286,7 +3302,7 @@ class Space(Handle):
         self,
         pattern: Any,
         *,
-        on: str = "add",
+        on: SubscriptionEdge = SubscriptionEdge.add,
         where: Any | None = None,
         deadline: float | None = None,
         queue_max: int | None = None,
@@ -4801,7 +4817,7 @@ class Space(Handle):
             source_path = os.fspath(path)
             if not Path(source_path).is_file():
                 msg = f"no Prolog source at {source_path!r}"
-                raise SourceNotFound(msg)
+                raise refuse(RefusalKind.source, msg, source=source_path)
             self._rt.consult(source_path)
             return source_path
         # The name the load runs under, not a constant. A declaration inside
@@ -4866,7 +4882,7 @@ class Space(Handle):
         resolved = str(Path(os.fspath(path)).resolve())
         if not Path(resolved).is_file():
             msg = f"no compiled library at {resolved!r}"
-            raise SourceNotFound(msg)
+            raise refuse(RefusalKind.source, msg, source=resolved)
         load = (
             f"use_foreign_library('{resolved}')"
             if entry is None
@@ -4943,7 +4959,7 @@ class Space(Handle):
         pattern: Any,
         callback: Callable | None = None,
         *,
-        on: str = "add",
+        on: SubscriptionEdge = SubscriptionEdge.add,
         where: Any | None = None,
         queue_max: int | None = None,
     ):
@@ -4986,11 +5002,9 @@ class Space(Handle):
             _to_atom(pattern),
             callback,
             on,
-            queue_max=(
-                subscriptions.SUBSCRIPTION_QUEUE_MAX
-                if queue_max is None
-                else queue_max
-            ),
+            # None is the standing `(limit subscription-queue ...)` bound,
+            # resolved where the subscription is made rather than here.
+            queue_max=queue_max,
             # The guard becomes ONE admission test over the event, built by
             # the module that owns the instantiation and given this space's
             # own evaluation method, so a guard means on an event exactly what
@@ -5005,7 +5019,7 @@ class Space(Handle):
     def live(
         self,
         *query: Any,
-        on: str = "both",
+        on: SubscriptionEdge = SubscriptionEdge.both,
         strategy: str | None = None,
     ) -> Any:
         """A materialised view of a query, current with this space's writes.
@@ -6306,7 +6320,7 @@ class MeTTa:
         grants: _abc.Iterable[str] = (),
         journal: str | os.PathLike[str] | None = None,
         schema: _abc.Mapping[str, Any] | None = None,
-        sync: str = "none",
+        sync: JournalSync = JournalSync.none,
         rename: _abc.Mapping[str, str] | None = None,
         _created_at: tuple[str, int] | None = None,
     ) -> Space:

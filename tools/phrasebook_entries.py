@@ -278,7 +278,10 @@ NUMBER1 = "(-> Number Number)"
 NUMBERB = "(-> Number Number Bool)"
 BOOL2 = "(-> Bool Bool Bool)"
 STRATEGY_SETUP = "!(import! (context-space) (library lib_strategy))"
-PY_STRATEGY_SETUP = "space += metta.lib.strategy\n"
+PY_STRATEGY_SETUP = (
+    "space += metta.lib.strategy\n"
+    "strategy = metta.library.face('lib_strategy')\n"
+)
 STRATEGY_INFERENCES = 20_000_000
 
 ENTRIES: list[Entry] = [
@@ -805,7 +808,7 @@ ENTRIES: list[Entry] = [
         "the guarded try is lib_strategy's binary failure-to-identity "
         "spelling. Python builds the same gtry atom and evaluates it in the space.",
         metta="!(gtry id a)",
-        python=PY_STRATEGY_SETUP + "space.eval(S.gtry(metta.strategies.id, S.a))",
+        python=PY_STRATEGY_SETUP + "space.eval(S.gtry(metta.fn.id, S.a))",
         metta_setup=STRATEGY_SETUP,
         metta_fuel=STRATEGY_INFERENCES,
     ),
@@ -1084,18 +1087,18 @@ ENTRIES: list[Entry] = [
     Entry(
         "TP", ("Type",), "Symbol", "types", "method",
         "Lämmel's type-preserving strategy scheme, exported as the reified "
-        "`metta.strategies.TP` symbol.",
+        "`strategy.TP` symbol.",
         metta="!(get-type TP)",
-        python=PY_STRATEGY_SETUP + "space.eval(S['get-type'](metta.strategies.TP))",
+        python=PY_STRATEGY_SETUP + "space.eval(S['get-type'](strategy.TP))",
         metta_setup=STRATEGY_SETUP,
         metta_fuel=STRATEGY_INFERENCES,
     ),
     Entry(
         "TU", ("(-> Type Type)",), "Symbol", "types", "method",
         "Lämmel's type-unifying scheme constructor, exported as the reified "
-        "`metta.strategies.TU` symbol.",
+        "`strategy.TU` symbol.",
         metta="!(get-type TU)",
-        python=PY_STRATEGY_SETUP + "space.eval(S['get-type'](metta.strategies.TU))",
+        python=PY_STRATEGY_SETUP + "space.eval(S['get-type'](strategy.TU))",
         metta_setup=STRATEGY_SETUP,
         metta_fuel=STRATEGY_INFERENCES,
     ),
@@ -1619,7 +1622,7 @@ ENTRIES: list[Entry] = [
             PY_STRATEGY_SETUP
             + "space.run('(= (pb-try-step strategy-a) strategy-b) "
               "(= (pb-try-step $x) Empty)')\n"
-              "space.eval(S['strategy-apply'](metta.strategies.try_(S['pb-try-step']), "
+              "space.eval(S['strategy-apply'](strategy.try_(S['pb-try-step']), "
               "S['strategy-a']))"
         ),
         metta_setup=STRATEGY_SETUP,
@@ -1638,7 +1641,7 @@ ENTRIES: list[Entry] = [
             + "space.run('(= (pb-repeat-step strategy-a) strategy-b) "
               "(= (pb-repeat-step strategy-b) strategy-c) "
               "(= (pb-repeat-step $x) Empty)')\n"
-              "space.eval(S['strategy-apply'](metta.strategies.repeat(S['pb-repeat-step']), "
+              "space.eval(S['strategy-apply'](strategy.repeat(S['pb-repeat-step']), "
               "S['strategy-a']))"
         ),
         metta_setup=STRATEGY_SETUP,
@@ -1657,8 +1660,8 @@ ENTRIES: list[Entry] = [
             PY_STRATEGY_SETUP
             + "space.run('(= (pb-topdown-step strategy-a) strategy-b) "
               "(= (pb-topdown-step $x) Empty)')\n"
-              "plan = metta.strategies.topdown("
-              "metta.strategies.try_(S['pb-topdown-step']))\n"
+              "plan = strategy.topdown("
+              "strategy.try_(S['pb-topdown-step']))\n"
               "space.eval(S['strategy-apply'](plan, S['strategy-node'](S['strategy-a'])))"
         ),
         metta_setup=STRATEGY_SETUP,
@@ -1681,8 +1684,8 @@ ENTRIES: list[Entry] = [
             + "space.run('(= (pb-bottomup-step strategy-a) strategy-b) "
               "(= (pb-bottomup-step (strategy-node strategy-b)) "
               "strategy-bottomup-root) (= (pb-bottomup-step $x) Empty)')\n"
-              "plan = metta.strategies.bottomup("
-              "metta.strategies.try_(S['pb-bottomup-step']))\n"
+              "plan = strategy.bottomup("
+              "strategy.try_(S['pb-bottomup-step']))\n"
               "space.eval(S['strategy-apply'](plan, S['strategy-node'](S['strategy-a'])))"
         ),
         metta_setup=STRATEGY_SETUP,
@@ -1707,7 +1710,7 @@ ENTRIES: list[Entry] = [
               "(= (pb-innermost-step strategy-b) strategy-c) "
               "(= (pb-innermost-step (strategy-node strategy-c)) "
               "strategy-innermost-root) (= (pb-innermost-step $x) Empty)')\n"
-              "plan = metta.strategies.innermost(S['pb-innermost-step'])\n"
+              "plan = strategy.innermost(S['pb-innermost-step'])\n"
               "space.eval(S['strategy-apply'](plan, S['strategy-node'](S['strategy-a'])))"
         ),
         metta_setup=STRATEGY_SETUP,
@@ -1722,7 +1725,7 @@ ENTRIES: list[Entry] = [
         metta="!(stratego-all id (f a b))",
         python=(
             PY_STRATEGY_SETUP
-            + "plan = metta.strategies.stratego_all(metta.strategies.id)\n"
+            + "plan = strategy.stratego_all(metta.fn.id)\n"
               "space.eval(S['strategy-apply'](plan, S.f(S.a, S.b)))"
         ),
         metta_setup=STRATEGY_SETUP,
@@ -1736,7 +1739,7 @@ ENTRIES: list[Entry] = [
         metta="!(stratego-one id (f a b))",
         python=(
             PY_STRATEGY_SETUP
-            + "plan = metta.strategies.stratego_one(metta.strategies.id)\n"
+            + "plan = strategy.stratego_one(metta.fn.id)\n"
               "space.eval(S['strategy-apply'](plan, S.f(S.a, S.b)))"
         ),
         metta_setup=STRATEGY_SETUP,

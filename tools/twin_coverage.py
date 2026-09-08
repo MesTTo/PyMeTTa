@@ -605,7 +605,7 @@ RETIRED_ROOT = {
     "_HERE": "the space handle itself; match(...) reads the ambient space",
     "REFLECTION_SPACE": "metta.reflection",
     "alpha_eq": "a.alpha_eq(b)",
-    "atom_from_wire": "metta.wire.atom_from_wire(x)",
+    "atom_from_wire": "metta.convert.atom_from_wire(x)",
     "backend_info": "metta.engine().info()",
     "bridge": "a declaration, a fold, or the += pipe",
     "default_engine": "metta.engine()",

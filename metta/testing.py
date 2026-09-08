@@ -92,7 +92,9 @@ from typing import Any
 
 import annotated_types as _at
 
-from ._api_types import space_of
+from . import _projection
+from . import seam as _seam
+from ._api_types import SpaceLike
 from ._atoms_core import decode
 from ._callable_mentions import CALLABLE_MENTIONS
 from ._codec_kit import CodecDriver, check_codec, codec_corpus, codec_plan
@@ -1460,17 +1462,36 @@ def assert_includes(actual, expected, *, msg=None) -> None:
 # and Hypothesis writes the sweep, shrinks the failure and prints it.
 
 
-#: The atom types a signature may name and the strategy each draws from.
-_TYPE_STRATEGIES: dict[str, Callable[[], Any]] = {
-    "Number": numbers,
-    "String": texts,
-    "Atom": atoms,
-    "Symbol": symbols,
-    "Expression": expressions,
-    "Grounded": grounded,
-    "Variable": variables,
-    "%Undefined%": ground_atoms,
-}
+def _type_strategies() -> dict[str, Callable[[], Any]]:
+    """The atom types a signature may name, and the strategy each draws from.
+
+    The STRATEGY column of the one type table, resolved against this module.
+    It was a dict here, keyed by the same type names the table already spells
+    for four other targets, and it went stale the way any second copy does: a
+    type that gains a strategy gains it in the table now, beside its Python,
+    JSON, GraphQL and Arrow spellings.
+    """
+    module = sys.modules[__name__]
+    found: dict[str, Callable[[], Any]] = {}
+    for name, factory in _projection.STRATEGIES.items():
+        drawn = getattr(module, factory, None)
+        if drawn is None:
+            msg = (
+                f"the type table names {factory!r} as the strategy for "
+                f"{name}, and metta.testing publishes no such factory"
+            )
+            raise AttributeError(msg)
+        if not callable(drawn):
+            msg = (
+                f"the type table names {factory!r} as the strategy for "
+                f"{name}, and metta.testing's {factory} is not callable"
+            )
+            raise TypeError(msg)
+        found[name] = drawn
+    return found
+
+
+_TYPE_STRATEGIES: dict[str, Callable[[], Any]] = _type_strategies()
 
 
 @functools.cache
@@ -1951,9 +1972,14 @@ class _Law(typing.NamedTuple):
     same: Callable[[Any, Any], bool] = _same
 
 
-#: The arity is how many carrier values the property needs; a pair of sides
-#: the law's own equality refuses is the counterexample.
-_LAWS: dict[str, _Law] = {
+#: The laws this seat ships, registered on the seam's `law` point so a PROVIDER
+#: whose carrier obeys one nobody wrote down adds it the same way. The arity is
+#: how many carrier values the property needs; a pair of sides the law's own
+#: equality refuses is the counterexample. The names are the engine's
+#: `algebra-law` vocabulary, which test_every_ghostwriter_law_name_is_a_catalog_row
+#: holds them to.
+# closed-set: seam; point=law; reason=a provider whose carrier obeys a law nobody wrote down registers it with metta.seam.law.register and metta.testing.laws runs it beside these
+_SHIPPED_LAWS: dict[str, _Law] = {
     "combine-associative": _Law(
         3, lambda c, a, b, x: (c.combine(c.combine(a, b), x), c.combine(a, c.combine(b, x)))
     ),
@@ -1992,7 +2018,39 @@ def _equivalent(carrier: _Carrier, left: Any, right: Any) -> tuple[Any, Any] | N
     return None
 
 
-_LAWS["equivalent"] = _Law(2, _equivalent)
+_SHIPPED_LAWS["equivalent"] = _Law(2, _equivalent)
+
+
+def _register_laws() -> None:
+    """Put the shipped laws on the seam, once per process.
+
+    Registering the same name twice REPLACES the row in place, so this is a
+    no-op after the first call and a provider's own law is untouched by it.
+    """
+    for name, shipped in _SHIPPED_LAWS.items():
+        _seam.law.register(
+            name, arity=shipped.arity, sides=shipped.sides, same=shipped.same
+        )
+
+
+def _law_row(name: str) -> _Law:
+    """One law by name: the seat's own, or one a provider registered.
+
+    The point is the roster, so a law a provider added is here beside the
+    shipped ones and the runner cannot tell them apart. A name with no row
+    refuses with the roster.
+    """
+    _register_laws()
+    row = _seam.law.table().get(name)
+    if row is None:
+        known = ", ".join(sorted(_seam.law.table())) or "nothing"
+        msg = (
+            f"no algebra law named {name!r}; registered: {known}. A provider "
+            f"registers one with metta.seam.law.register(<name>, arity=..., "
+            f"sides=...)"
+        )
+        raise KeyError(msg)
+    return _Law(row.arity, row.sides, row.fields.get("same", _same))
 
 
 class Laws:
@@ -2008,7 +2066,7 @@ class Laws:
     def __init__(  # pylint: disable=redefined-outer-name
         self,
         algebra: Any,
-        space: Any,
+        space: SpaceLike,
         *,
         laws: Iterable[str] | None,
         values: Any,
@@ -2016,7 +2074,7 @@ class Laws:
         seed: int | None,
     ) -> None:
         """Resolve the declaration and canonicalise the requested laws through the catalog."""
-        self.space = space_of(space)
+        self.space = space.self
         self.declaration = (
             algebra
             if isinstance(algebra, DeclaredAlgebra)
@@ -2064,7 +2122,7 @@ class Laws:
         raise TypeError(msg)
 
     def _test(self, law: str) -> Callable[[], None]:
-        arity, sides, same = _LAWS[law]
+        arity, sides, same = _law_row(law)
         carrier = self._carrier
         name = self.declaration.name
         parameters = ("a", "b", "c")[:arity]

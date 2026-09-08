@@ -25,7 +25,7 @@ except ImportError:
     skip("duckdb is not installed")
 
 from metta import MeTTa, S, V, Expression
-from metta import wire
+from metta import convert
 from metta.atoms import Atom, Expression, Grounded, Symbol, Variable
 from metta.errors import MettaError
 from metta.foreign import SpaceProvider
@@ -55,7 +55,7 @@ def _to_sql_value(atom: Atom) -> Any:
     """One pattern or row position as a SQL parameter; None for NULL."""
     if isinstance(atom, Symbol):
         return None if atom == NULL else atom.name
-    return wire.decode(atom)
+    return convert.decode(atom)
 
 
 class DuckDBSpace(SpaceProvider):

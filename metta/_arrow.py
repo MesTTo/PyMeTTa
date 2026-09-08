@@ -32,7 +32,7 @@ Guarantees:
     test_an_out_of_range_integer_column_crosses_as_text]
   - `Grounded(None)` is Arrow null in every kind, so absence never becomes the
     text "None" [tested: test_nulls_cross_as_arrow_nulls]
-  - batches double from one up to _CHUNK_CAP, the same policy the engine
+  - batches double from one up to the `chunk-cap` bound, the same policy the engine
     cursor pulls with [tested: test_the_stream_batches_double_to_the_chunk_cap]
   - a requested schema is honoured when every column can be produced at the
     requested type and ignored otherwise, never refused
@@ -61,7 +61,7 @@ from collections.abc import Iterator, Sequence
 from typing import Any, Final, NamedTuple
 
 from . import seam
-from ._config import _CHUNK_CAP
+from ._config import config
 from .atoms import Atom, Grounded, _encode
 
 __all__ = [
@@ -287,18 +287,20 @@ class Projection(NamedTuple):
 
 
 def batch_bounds(length: int) -> Iterator[tuple[int, int]]:
-    """Row windows doubling from one up to _CHUNK_CAP.
+    """Row windows doubling from one up to the `chunk-cap` bound.
 
     The engine cursor's policy, applied to record batches: a consumer that
     reads one batch and stops pays for one row, and one that reads everything
-    pays a bounded number of batch boundaries.
+    pays a bounded number of batch boundaries. The ceiling is read once per
+    walk, for the reason Cursor gives.
     """
     start, size = 0, 1
+    cap = config.chunk_cap
     while start < length:
         stop = min(start + size, length)
         yield start, stop
         start = stop
-        size = min(size * 2, _CHUNK_CAP)
+        size = min(size * 2, cap)
 
 
 def _builder() -> Any:

@@ -4,6 +4,11 @@
 %   derivations on top of an unmodified MeTTa engine. Consulted after
 %   engine/main.pl; only adds predicates, never redefines engine ones.
 % Guarantees:
+%   - metta_py_mirror_bounds/0 turns the catalog's own watch point on for the
+%     (limit ...) head, so a bound the seat mirrors is invalidated by whoever
+%     writes the row, a MeTTa program's own add-atom included
+%     [tested: extensions/python/tests/ch01_getting_started/test_config.py::test_a_bound_a_program_rewrites_reaches_the_next_read;
+%     commit=c26b6a4d28ef8fb50742440feed2c0578ebb0f58]
 %   - a Python provider's declared capability words are checked against the
 %     catalog's (vocabulary provider-capability ...) row at the registration
 %     door, and the encoder and decoder speak exactly the term tags the
@@ -251,7 +256,7 @@
 %     seat and the Node seat classify the same kinds
 %     [tested: extensions/python/tests/repository/test_error_kinds.py;
 %     commit=52e95b50cc5acdc0e41f97b444ab244ad1301433]
-%   - metta_py_refusal/5 puts that kind's catalog row on the wire, the ground
+%   - metta_py_refusal/6 puts that kind's catalog row on the wire, the ground
 %     and the remedy encoded the way every other atom crosses, so the Python
 %     side reads them back with Ground.from_atom/1 and Remedy.from_atom/1
 %     [tested: extensions/python/tests/repository/test_refusal_rows.py;
@@ -1139,20 +1144,30 @@ metta_py_assertion_call(Tagged, Form, Actual, Expected) :-
     is_list(Expected).
 
 %The catalog's DECLARATION for whichever kind a raised ball is: the class name
-%the taxonomy gives that kind, the authority the refusal stands on and the
-%repair, with the remedy template's <field> holes already filled from this
-%ball. metta_host_refusal/6 is the one renderer; this side only puts the two
-%rows on the wire, encoded the way every other atom crosses, so the Python
-%side reads them back with Ground.from_atom/1 and Remedy.from_atom/1 rather
-%than parsing a rendered sentence.
+%the taxonomy gives that kind, the FIELDS that kind carries in this very ball,
+%the authority the refusal stands on and the repair, with the remedy template's
+%<field> holes already filled. metta_host_refusal/6 is the one renderer; this
+%side only puts the rows on the wire, encoded the way every other atom crosses,
+%so the Python side reads them back with Ground.from_atom/1 and
+%Remedy.from_atom/1 rather than parsing a rendered sentence.
+%
+%The fields cross as [Name, Value] pairs rather than as Prolog's Name-Value,
+%which janus has no Python spelling for. They are what lets the seat build the
+%class its row names with the parts that class declares: a stack overflow
+%carries its ceiling and a missing source carries its path, where before both
+%arrived as a sentence with nothing to read off it.
 %
 %It FAILS for a ball whose kind carries no catalog row, which the row lane
 %forbids and a program that removed the row can still produce; the Python side
 %then raises the class it already chose, with no ground and no remedy.
-metta_py_refusal(Error, Kind, Class, Ground, Remedy) :-
-    metta_host_refusal(Error, Kind, _Fields, Class, GroundRow, RemedyRow),
+metta_py_refusal(Error, Kind, Fields, Class, Ground, Remedy) :-
+    metta_host_refusal(Error, Kind, Pairs, Class, GroundRow, RemedyRow),
+    maplist(metta_py_refusal_field, Pairs, Fields),
     metta_py_encode(GroundRow, Ground),
     metta_py_encode(RemedyRow, Remedy).
+
+%One Name-Value pair as the two-element list janus has a Python spelling for.
+metta_py_refusal_field(Name-Value, [Name, Value]).
 
 %The Python side's contributions to the engine's control-signal seam. There
 %was a metta_py_control_exception/1 here holding a SECOND copy of the list,
@@ -3034,6 +3049,26 @@ seam:host_transport_failure(error(python_error(Class, Obj), _)) :-
     Class \== 'TransportFailure',
     py_is_object(Obj),
     py_call('metta.errors':is_transport_failure(Obj), @(true)).
+
+%The seat MIRRORS the `(limit <name> <value>)` bounds it reads, because a
+%cursor reads its chunk cap when it opens and asking the catalog per read
+%cost 21 inferences and 3.2 microseconds of the 35 a one-answer match takes
+%[measured 2026-09-08;
+%command=python extensions/python/benchmarks/probes/bound_row_cost.py --read;
+%fixture=a 50-atom space, 20,000 matches per arm, min of five]. A mirror is only
+%correct if the write says so, and `!(add-atom &metta (limit chunk-cap 8))`
+%is a write this side never sees, so the engine announces it. This clause and
+%the door below are the whole of that coupling; metta._config holds the
+%mirror and decides what a changed row means.
+:- multifile seam:catalog_row_changed/2.
+seam:catalog_row_changed(_Event, [limit, Name|_]) :-
+    py_call('metta._config':bound_row_changed(Name), _).
+
+%Turn the announcement on. Called once per engine by the seat's own boot,
+%beside the write that publishes the rows, so an engine whose host never
+%loads this file is not announcing to anybody.
+metta_py_mirror_bounds :-
+    spaces:watch_catalog_rows(limit).
 
 %Run a Python callable inside one engine transaction: the same
 %metta_transaction/1 the MeTTa (transaction ...) form compiles to, so

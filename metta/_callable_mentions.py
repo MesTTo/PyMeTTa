@@ -22,6 +22,7 @@ from typing import Any, Final
 
 from ._operator_lowerings import OPERATOR_LOWERINGS
 
+# closed-set: decides; policy=which `operator` function each dunder IS, for a compiled body that mentions one by value rather than by syntax; reads=none, the dunders are the operator table's own rows and this is the callable each names
 _OPERATOR_CALLABLES: Final[dict[str, Any]] = {
     "__abs__": operator.abs,
     "__add__": operator.add,
@@ -50,6 +51,7 @@ _SYMBOL_OPERATOR_MENTIONS: Final[dict[Any, str]] = {
     and isinstance(entry.form, str)
 }
 
+# closed-set: decides; policy=which `math` function has a MeTTa head of the same meaning, which the engine's `-math` family is; reads=none, it is the source
 MATH_CALLABLE_MENTIONS: Final[dict[Any, str]] = {
     math.pow: "pow-math",
     math.sqrt: "sqrt-math",

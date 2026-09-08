@@ -337,3 +337,19 @@ _.pinned_checkout_path_length
 # vulture does not scan: the sync tool is the caller of every door on Face
 # that the package itself does not use.
 _.drifted_versions
+
+# The engine reaches this one from PROLOG too: shim.pl's
+# seam:catalog_row_changed/2 clause calls
+# py_call('metta._config':bound_row_changed(Name)) for every `(limit ...)` row
+# that lands in or leaves `&metta`, which is what keeps the seat's mirror of
+# the bounds in step with a write it never saw. No Python name load reaches it
+# [source: extensions/python/metta/shim.pl, seam:catalog_row_changed/2;
+# commit=c26b6a4d28ef8fb50742440feed2c0578ebb0f58].
+bound_row_changed
+# A generated row's own field, read by the suite this scan does not walk:
+# tests/repository/test_refusal_rows.py's
+# test_a_class_this_seat_spells_differently_carries_its_reason asks every
+# refusal row why this seat spells its class differently from the name the
+# engine's row declares, and `tools/refusalgen.py` refuses to generate a
+# departure without one.
+_.departure

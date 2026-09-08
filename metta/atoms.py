@@ -172,7 +172,7 @@ def ground(value: Any) -> Grounded:
     """Carry a Python value whole, whatever it is.
 
     This is the FFI boxing form. Structural wire conversion lives in
-    :mod:`metta.wire`; ``ground([1, 2, 3])`` therefore carries one list by
+    :mod:`metta.convert`; ``ground([1, 2, 3])`` therefore carries one list by
     identity instead of turning it into an expression.
     """
     return Grounded(value)

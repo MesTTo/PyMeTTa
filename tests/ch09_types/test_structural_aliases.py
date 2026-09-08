@@ -198,7 +198,7 @@ def test_alias_and_literal_checks_agree_with_discharge_verification(m, alias):
 
 def test_aliases_expand_in_python_and_source_cast_targets(m):
     """Casts keep their existing failure and unchecked-target behavior."""
-    from metta.casting import CastError
+    from metta.convert import CastError
 
     m.run("(: Count (Alias Number)) (: Held (Alias Atom)) (: value Count)")
     assert m.cast(S.value, "Count") is S.value
@@ -213,7 +213,7 @@ def test_aliases_expand_in_python_and_source_cast_targets(m):
 
 def test_alias_casts_keep_the_strict_witness_and_obey_user_refusals(m):
     """Unknown actuals stay unknown; aliases do not bypass ordinary policy."""
-    from metta.casting import CastError
+    from metta.convert import CastError
 
     m.run("(: Count (Alias Number)) (: Any (Alias %Undefined%))")
     with pytest.raises(CastError, match="Count"):
@@ -241,7 +241,7 @@ def test_aliases_of_unchecked_cast_targets_stay_unchecked(m, target):
 
 def test_a_resolved_inherited_type_is_not_expanded_in_the_callers_scope(m):
     """An opaque terminal stays opaque even when the caller aliases its name."""
-    from metta.casting import CastError
+    from metta.convert import CastError
 
     root = MeTTa("&self").self
     suffix = uuid4().hex

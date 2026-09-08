@@ -76,6 +76,7 @@ PROTOCOL: Final = 3
 #: exactly as `_projection.TypeRow` carries one column per target for a MeTTa
 #: type. `terms` is the recursive case; `handle` is the one three-element shape
 #: and is spelled at its arm below rather than here.
+# closed-set: decides; policy=the JSON Schema fragment each wire payload class carries, which is this seat's column of the engine's `(wire-tag ...)` grammar; reads=wire-tag, whose payload class is the key
 _PAYLOAD_SCHEMAS: Final[dict[WirePayload, dict[str, Any]]] = {
     WirePayload.text: {"type": "string"},
     WirePayload.number: {"type": "number"},
@@ -300,6 +301,7 @@ def _components(*, secured: bool) -> dict[str, Any]:
 #: response schema, and the sentence the document says about it. The
 #: `operationId` IS the door's name, so a reader who has the Python surface and
 #: a reader who has the document are naming the same thing.
+# closed-set: decides; policy=which operations the remote protocol publishes, and what each answers; reads=none, it is the source the OpenAPI document and the client both read
 _OPERATIONS: Final[tuple[tuple[str, str, str, str], ...]] = (
     (
         "match",

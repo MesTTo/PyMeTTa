@@ -55,6 +55,7 @@ _LINT_CATALOGUE = (
     "https://github.com/MesTTo/MeTTa-Kernel/blob/"
     "7de3d32d25a7166b12f7c68c179e9cbb931ac044/website/guide/run-query.md#lint-a-space"
 )
+# closed-set: decides; policy=which written authority each lint event stands on; reads=none, it is the source
 _AUTHORITIES: dict[str, str] = {
     "operation-crossing-in-loop": f"P14-14-02/GG-004; {_LINT_CATALOGUE}",
     "first-letter-role-convention": f"P14-39-05; {_LINT_CATALOGUE}",

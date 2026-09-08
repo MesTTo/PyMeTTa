@@ -57,12 +57,12 @@ from metta import (
     V,
     Variable,
     _engine,
+    convert,
     fresh,
     ground,
     integrate,
     parse,
     unify,
-    wire,
 )
 from metta import _atoms_core as _core
 from metta.atoms import (
@@ -351,11 +351,11 @@ def test_printing_is_source_spelling():  # noqa: D103  -- pytest discovers or in
 
 
 def test_encode_python_values():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    assert wire.encode(3) == Grounded(3)
-    assert wire.encode("s") == Grounded("s")
-    assert wire.encode([1, 2]) == Expression(1, 2)
-    assert wire.encode((S.a, S.b)) == Expression(S.a, S.b)
-    assert wire.encode(S.a) is S.a
+    assert convert.encode(3) == Grounded(3)
+    assert convert.encode("s") == Grounded("s")
+    assert convert.encode([1, 2]) == Expression(1, 2)
+    assert convert.encode((S.a, S.b)) == Expression(S.a, S.b)
+    assert convert.encode(S.a) is S.a
 
 
 def test_the_type_fast_path_precedes_encode_and_survives_a_register():
@@ -381,47 +381,47 @@ def test_the_type_fast_path_precedes_encode_and_survives_a_register():
 
     # Unregistered: carried whole, the generic rule.
     reading = Celsius(20)
-    assert wire.encode(reading) == Grounded(reading)
+    assert convert.encode(reading) == Grounded(reading)
 
     # A type ALREADY in the fast table. Re-registering it must take effect,
     # which is the half a stale table gets wrong.
     # Each replacement answers a bare symbol, so nothing here re-enters
     # encode while its own type is registered differently.
-    original_int = wire.encode.registry[int]
-    original_str = wire.encode.registry[str]
+    original_int = convert.encode.registry[int]
+    original_str = convert.encode.registry[str]
     try:
-        wire.encode.register(int, lambda value: Symbol(f"counted-{value}"))
-        assert wire.encode(7) == Symbol("counted-7")
+        convert.encode.register(int, lambda value: Symbol(f"counted-{value}"))
+        assert convert.encode(7) == Symbol("counted-7")
 
-        @wire.encode.register(Celsius)
+        @convert.encode.register(Celsius)
         def _(value):
             return Symbol(f"celsius-{value.degrees}")
 
-        assert wire.encode(Celsius(20)) == Symbol("celsius-20")
+        assert convert.encode(Celsius(20)) == Symbol("celsius-20")
 
-        @wire.encode.register
+        @convert.encode.register
         def _(value: str) -> Symbol:
             return Symbol(f"text-{len(value)}")
 
-        assert wire.encode("abcd") == Symbol("text-4")
+        assert convert.encode("abcd") == Symbol("text-4")
 
-        assert _core._ENCODE_FAST[int] is wire.encode.dispatch(int)
-        assert _core._ENCODE_FAST[Celsius] is wire.encode.dispatch(Celsius)
-        assert _core._ENCODE_FAST[str] is wire.encode.dispatch(str)
+        assert _core._ENCODE_FAST[int] is convert.encode.dispatch(int)
+        assert _core._ENCODE_FAST[Celsius] is convert.encode.dispatch(Celsius)
+        assert _core._ENCODE_FAST[str] is convert.encode.dispatch(str)
     finally:
-        wire.encode.register(int, original_int)
-        wire.encode.register(str, original_str)
+        convert.encode.register(int, original_int)
+        convert.encode.register(str, original_str)
 
-    assert wire.encode(7) == Grounded(7)
-    assert wire.encode("abcd") == Grounded("abcd")
-    assert wire.encode(2.5) == Grounded(2.5)
-    assert wire.encode(True) == Grounded(True)  # noqa: FBT003  -- the boolean literal is atom or wire data at this site, not a behavior switch
-    assert wire.encode([1, 2]) == Expression(1, 2)
-    assert wire.encode((S.a,)) == Expression(S.a)
-    assert wire.encode(S.a) is S.a
-    assert wire.encode(V.x) is V.x
+    assert convert.encode(7) == Grounded(7)
+    assert convert.encode("abcd") == Grounded("abcd")
+    assert convert.encode(2.5) == Grounded(2.5)
+    assert convert.encode(True) == Grounded(True)  # noqa: FBT003  -- the boolean literal is atom or wire data at this site, not a behavior switch
+    assert convert.encode([1, 2]) == Expression(1, 2)
+    assert convert.encode((S.a,)) == Expression(S.a)
+    assert convert.encode(S.a) is S.a
+    assert convert.encode(V.x) is V.x
     shared = Expression(S.f, 1)
-    assert wire.encode(shared) is shared
+    assert convert.encode(shared) is shared
 
 
 def test_encode_metta_hook():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -432,14 +432,14 @@ def test_encode_metta_hook():  # noqa: D103  -- pytest discovers or injects this
         def __metta__(self):
             return S.Point(self.x, self.y)
 
-    assert wire.encode(Point(1, 2)) == S.Point(1, 2)
+    assert convert.encode(Point(1, 2)) == S.Point(1, 2)
 
 
 def test_val_keeps_containers_whole_via_boxing():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     data = [1, 2, 3]
     encoded = ground(data).to_wire()
     assert encoded[0] == "o" and isinstance(encoded[1], Box) and encoded[1].value is data
-    assert wire.from_wire(encoded).value is data
+    assert convert.from_wire(encoded).value is data
 
 
 def test_every_object_crosses_boxed():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -451,7 +451,7 @@ def test_every_object_crosses_boxed():  # noqa: D103  -- pytest discovers or inj
     thing = Thing()
     encoded = ground(thing).to_wire()
     assert encoded[0] == "o" and isinstance(encoded[1], Box) and encoded[1].value is thing
-    assert wire.from_wire(encoded).value is thing
+    assert convert.from_wire(encoded).value is thing
     already = ground(thing)
     assert ground(already.value).to_wire()[1].value is thing
 
@@ -475,7 +475,7 @@ def test_wire_round_trip():  # noqa: D103  -- pytest discovers or injects this c
         Expression(),
     ]
     for a in atoms:
-        assert wire.from_wire(a.to_wire()) == a
+        assert convert.from_wire(a.to_wire()) == a
 
 
 def test_expr_defers_its_wire_form_until_asked():
@@ -503,7 +503,7 @@ def test_expr_defers_its_wire_form_until_asked():
     # rather than rebuilding one that compares equal.
     assert getattr(atom, "_wire", unset) is encoded
     assert atom.to_wire() is encoded
-    assert wire.from_wire(encoded) == atom
+    assert convert.from_wire(encoded) == atom
 
     # A child expression stays deferred until it is crossed on its own.
     inner = atom.children[2]
@@ -557,10 +557,10 @@ def test_the_intern_cache_evicts_in_constant_time(monkeypatch):
         monkeypatch.setattr(_core, "_WIRE_CACHE_MAX", bound)
         _core._wire_intern_clear()
         for index in range(bound):
-            wire.from_wire(["s", f"{prefix}-fill-{index}"])
+            convert.from_wire(["s", f"{prefix}-fill-{index}"])
         start = time.process_time()
         for index in range(churn):
-            wire.from_wire(["s", f"{prefix}-churn-{index}"])
+            convert.from_wire(["s", f"{prefix}-churn-{index}"])
         return (time.process_time() - start) / churn * 1e9
 
     try:
@@ -600,20 +600,20 @@ def test_wire_intern_tables_are_bounded(monkeypatch):  # noqa: D103  -- pytest d
     monkeypatch.setattr(_core, "_WIRE_CACHE_MAX", 64)
     _core._wire_intern_clear()
 
-    first_sym = wire.from_wire(["s", "evicted"])
-    first_var = wire.from_wire(["v", "evicted"])
+    first_sym = convert.from_wire(["s", "evicted"])
+    first_var = convert.from_wire(["v", "evicted"])
     for index in range(64 + 10):
-        wire.from_wire(["s", f"symbol-{index}"])
-        wire.from_wire(["v", f"variable-{index}"])
+        convert.from_wire(["s", f"symbol-{index}"])
+        convert.from_wire(["v", f"variable-{index}"])
 
     assert len(_WIRE_SYMS) <= 64
     assert len(_WIRE_VARS) <= 64
-    assert wire.from_wire(["s", "symbol-73"]) is wire.from_wire(["s", "symbol-73"])
-    assert wire.from_wire(["v", "variable-73"]) is wire.from_wire(["v", "variable-73"])
-    assert wire.from_wire(["s", "evicted"]) == first_sym
-    assert wire.from_wire(["s", "evicted"]) is not first_sym
-    assert wire.from_wire(["v", "evicted"]) == first_var
-    assert wire.from_wire(["v", "evicted"]) is not first_var
+    assert convert.from_wire(["s", "symbol-73"]) is convert.from_wire(["s", "symbol-73"])
+    assert convert.from_wire(["v", "variable-73"]) is convert.from_wire(["v", "variable-73"])
+    assert convert.from_wire(["s", "evicted"]) == first_sym
+    assert convert.from_wire(["s", "evicted"]) is not first_sym
+    assert convert.from_wire(["v", "evicted"]) == first_var
+    assert convert.from_wire(["v", "evicted"]) is not first_var
     _core._wire_intern_clear()
 
 
@@ -814,7 +814,7 @@ def test_atom_identity_caches_are_thread_safe():  # noqa: D103  -- pytest discov
     thing = object()
     with ThreadPoolExecutor(max_workers=8) as workers:
         boxes = list(workers.map(boxed, [thing] * 64))
-        symbols = list(workers.map(wire.from_wire, [["s", "threaded"]] * 64))
+        symbols = list(workers.map(convert.from_wire, [["s", "threaded"]] * 64))
 
     assert all(box is boxes[0] for box in boxes)
     assert all(symbol is symbols[0] for symbol in symbols)
@@ -847,7 +847,7 @@ def test_deep_terms_cross_and_print():
     atom = Grounded(1)
     for _ in range(5000):
         atom = Expression(S.wrap, atom)
-    assert wire.from_wire(atom.to_wire()) == atom
+    assert convert.from_wire(atom.to_wire()) == atom
     assert str(atom).startswith("(wrap (wrap")
     assert atom.vars == ()
 
@@ -866,12 +866,12 @@ def test_malformed_wire_is_refused():  # noqa: D103  -- pytest discovers or inje
         ["zz", 1],
     ):
         with pytest.raises(ValueError):
-            wire.from_wire(bad)
+            convert.from_wire(bad)
 
 
 def test_atom_from_wire_rejects_undefined_truth():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     with pytest.raises(ValueError, match="valid only as a complete evaluation answer"):
-        wire.atom_from_wire(["u", ["s", "answer"], "delayed_goal"])
+        convert.atom_from_wire(["u", ["s", "answer"], "delayed_goal"])
 
 
 def test_anonymous_variable_is_fresh_per_occurrence():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -932,7 +932,7 @@ def test_an_atom_round_trips_through_json():  # noqa: D103  -- pytest discovers 
     atom = S.edge(S.a, 1, V.x)
     text = json.dumps(atom.to_wire())
     assert text == '["e", [["s", "edge"], ["s", "a"], ["n", 1], ["v", "x"]]]'
-    back = wire.atom_from_wire(json.loads(text))
+    back = convert.atom_from_wire(json.loads(text))
     assert atom.alpha_eq(back)
     assert str(back) == "(edge a 1 $x)"
 

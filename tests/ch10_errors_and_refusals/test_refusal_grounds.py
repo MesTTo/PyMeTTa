@@ -11,6 +11,12 @@ Guarantees:
   - compiler refusals carry their Python-reference ground as data without
     rewriting the sibling-owned unknown-callee message [tested:
     test_compile_refusals_derive_a_python_reference_ground; commit=acb40f1912f131ae088083d1af29b4b283019bea]
+  - the CONSTRUCT list is the compiler's own: every construct its sites name
+    reaches a citation or is named as one the expression section governs, and
+    every term in the citation table governs a construct that exists
+    [tested: test_every_construct_the_compiler_refuses_has_a_citation,
+    test_no_citation_term_governs_a_construct_that_does_not_exist;
+    commit=c26b6a4d28ef8fb50742440feed2c0578ebb0f58]
 """
 
 from __future__ import annotations
@@ -171,3 +177,76 @@ def test_a_space_door_on_the_context_names_the_self_spelling():
             getattr(context, "no_such_door_anywhere")  # noqa: B009  -- the attribute read IS the scenario
         assert "no attribute 'no_such_door_anywhere'" in str(unknown.value)
         assert "m.self." not in str(unknown.value)
+
+
+def _refused_constructs() -> set[str]:
+    """Every construct the compiler's own CompileError sites can name.
+
+    The literal `construct=` values, plus the `ast` node class names the sites
+    that pass `type(node).__name__` produce. This is what makes the citation
+    table's CONSTRUCT list derived: a construct the compiler stops refusing
+    leaves it by itself, and a new one arrives with no citation and is a
+    finding here rather than a silent fall through to section 6.
+    """
+    import ast
+    from pathlib import Path
+
+    import metta
+
+    package = Path(metta.__file__).resolve().parent
+    found: set[str] = set()
+    computed = False
+    for path in sorted(package.glob("*.py")):
+        tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+        for call in (node for node in ast.walk(tree) if isinstance(node, ast.Call)):
+            function = call.func
+            name = getattr(function, "id", None) or getattr(function, "attr", None)
+            if name != "CompileError":
+                continue
+            for keyword in call.keywords:
+                if keyword.arg != "construct":
+                    continue
+                if isinstance(keyword.value, ast.Constant):
+                    found.add(str(keyword.value.value))
+                elif "__name__" in ast.unparse(keyword.value):
+                    computed = True
+    assert found, "the walk found no CompileError construct at all"
+    assert computed, (
+        "no site passes type(node).__name__ any more; the ast half of the "
+        "construct universe is stale and this walk should drop it"
+    )
+    return found
+
+
+def test_every_construct_the_compiler_refuses_has_a_citation():
+    """A construct with no row, and no exemption, is a finding."""
+    from metta.errors import _COMPILE_REFERENCE_BY_CONSTRUCT, _EXPRESSION_CONSTRUCTS
+
+    terms = [term for group, _ in _COMPILE_REFERENCE_BY_CONSTRUCT for term in group]
+    uncited = sorted(
+        construct
+        for construct in _refused_constructs()
+        if construct not in _EXPRESSION_CONSTRUCTS
+        and not any(term in construct.lower() for term in terms)
+    )
+    assert not uncited, (
+        f"these constructs fall through to the expressions section with no "
+        f"row and no exemption: {uncited}"
+    )
+
+
+def test_no_citation_term_governs_a_construct_that_does_not_exist():
+    """A term matching nothing the compiler names is a stale row."""
+    import ast
+
+    from metta.errors import _COMPILE_REFERENCE_BY_CONSTRUCT
+
+    universe = {construct.lower() for construct in _refused_constructs()}
+    universe |= {name.lower() for name in dir(ast)}
+    dead = sorted(
+        term
+        for group, _ in _COMPILE_REFERENCE_BY_CONSTRUCT
+        for term in group
+        if not any(term in construct for construct in universe)
+    )
+    assert not dead, f"these citation terms govern no construct that exists: {dead}"

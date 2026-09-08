@@ -53,8 +53,10 @@ from ._lint_model import Finding
 from .atoms import Atom, Expression, Grounded, Symbol, Variable, _alpha_eq, _map_atoms, _variables
 from .errors import Remedy
 
+# closed-set: decides; policy=which of the engine's special forms BIND a name, which is what makes a variable in their body local; reads=none, it is the source, held to the engine's own head roster by test_the_binding_heads_are_heads_the_engine_knows
 _BINDING_HEADS = {"let", "let*", "match", "unify", "case", "chain", "bind!"}
 
+# closed-set: decides; policy=what each lint event this seat raises says about itself; reads=none, it is the source, and `_AUTHORITIES` names the same keys
 _EVENT_DETAILS = {
     "operation-crossing-in-loop": (
         "calls the Python operation once per engine-loop item; move the work "
@@ -1232,6 +1234,7 @@ def _inconsistent_arity_findings(
 
 #: Declared slots these names admit anything of their kind, so a concrete
 #: argument type can never contradict them.
+# closed-set: decides; policy=which declared type slots admit anything of their kind, so a concrete argument type cannot contradict one; reads=none, it is the engine's four metatypes plus the wildcard and Type, held to `get-metatype`'s own answers by test_the_metatypes_are_the_engines_own
 _METATYPES = frozenset(
     {"Atom", "Expression", "Symbol", "Grounded", "Variable", "%Undefined%", "Type"}
 )

@@ -1,5 +1,5 @@
-"""Purpose: runtime typecasting against the engine's own type discipline.
-cast(space, value, type) answers value, narrowed to its Python-most
+"""Purpose: the cast verb of the convert door, against the engine's own type
+discipline. cast(space, value, type) answers value, narrowed to its Python-most
 spelling, when the engine admits it as that type: the exact
 ('get-type' then 'get-metatype') acceptance the translator compiles
 for a typed argument position, run in the space's scope so its ':'
@@ -33,13 +33,16 @@ from __future__ import annotations
 import typing
 from typing import Any, overload
 
-from ._api_types import space_of
+from ._api_types import SpaceLike
 from ._convert_registry import _is_plain_class
 from ._type_annotations import type_atom_for
 from .atoms import Atom, Grounded, Symbol, _atom_from_wire, _encode, parse
 from .errors import MettaError
 
-__all__ = ["CastError", "cast"]
+#: Empty on purpose: `metta.convert` is where the two names are published,
+#: beside encode, decode and the projection doors, because casting is the
+#: third verb of one crossing rather than a door of its own.
+__all__: list[str] = []
 
 
 # Targets the translator compiles no check for; a cast mirrors that.
@@ -94,14 +97,14 @@ def _narrow(value: Any) -> Any:
 
 
 @overload
-def cast[CastT](space: Any, value: Any, type_: type[CastT], /) -> CastT: ...
+def cast[CastT](space: SpaceLike, value: Any, type_: type[CastT], /) -> CastT: ...
 
 
 @overload
-def cast(space: Any, value: Any, type_: Atom | str, /) -> Any: ...
+def cast(space: SpaceLike, value: Any, type_: Atom | str, /) -> Any: ...
 
 
-def cast(space: Any, value: Any, type_: Any, /) -> Any:
+def cast(space: SpaceLike, value: Any, type_: Any, /) -> Any:
     """Answer value, narrowed, when space's type discipline admits it as
     type_; raise CastError naming its actual types otherwise.
 
@@ -111,13 +114,13 @@ def cast(space: Any, value: Any, type_: Any, /) -> Any:
 
     space may be a context or a space.
     """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
-    space = space_of(space)
+    home = space.self
     target = _type_atom(type_)
     if isinstance(target, Symbol) and str(target) in _UNCHECKED:
         return _narrow(value)
     atom = value if isinstance(value, Atom) else _encode(value)
-    answered = space.runtime.apply_must(
-        "metta_py_cast", space._space, atom.to_wire(), target.to_wire()
+    answered = home.runtime.apply_must(
+        "metta_py_cast", home._space, atom.to_wire(), target.to_wire()
     )
     if answered[0] == "s" and answered[1] == "ok":
         return _narrow(value)
@@ -127,12 +130,12 @@ def cast(space: Any, value: Any, type_: Any, /) -> Any:
         constraint = _atom_from_wire(answered[1])
         msg = (
             f"{atom} violates {constraint}, the refinement {target} declares, "
-            f"in {space._space}"
+            f"in {home._space}"
         )
         raise CastError(msg)
     candidates = ", ".join(str(_atom_from_wire(t)) for t in answered[1])
     msg = (
-        f"{atom} does not admit type {target} in {space._space}: "
+        f"{atom} does not admit type {target} in {home._space}: "
         f"its types are {candidates}"
     )
     raise CastError(

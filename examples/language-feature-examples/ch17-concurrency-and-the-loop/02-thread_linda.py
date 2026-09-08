@@ -253,10 +253,21 @@ def twin(m):
 #: outside it is a re-observation, not a re-pin [measured 2026-09-08: python
 #: extensions/python/tools/twin_coverage.py --observe --rounds 25,
 #: ai-tmp/integrator-849a9e/mergeEXT-observe-25.log; commit=4e0feaf6b8eb13cd17232f6e7d58679b6e22f2b9].
+#: RE-OBSERVED 2026-09-08 under 'full-lane/277/workers=32', 427675..427713
+#: over 61 observations to 427703..427730 over 15: boot content moved
+#: with the every-closed-set-derived branch -- the refusal table and the typing
+#: point are modules this package did not have, three convert doors became one,
+#: per-library faces are projections, and the engine gained a catalog watch
+#: point -- which shifts SWI clause-indexing shape and moves a twin count by
+#: tens. The observations are this tree's own rather than pooled with the
+#: earlier ones, because pooling would mix two boot images and the spread an
+#: envelope states is a claim about ONE [measured 2026-09-08: python
+#: extensions/python/tools/twin_coverage.py --observe --rounds 15,
+#: ai-tmp/ai-derive-observe.log; commit=c26b6a4d28ef8fb50742440feed2c0578ebb0f58].
 BUDGET = {
-    "minimum": 427675,
-    "maximum": 427713,
-    "observations": 61,
+    "minimum": 427703,
+    "maximum": 427730,
+    "observations": 15,
     "protocol": "full-lane/277/workers=32",
 }
 

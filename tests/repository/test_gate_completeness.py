@@ -91,7 +91,15 @@ RUFF_FAMILY_BURN_DOWN = {
     # Timeout, SourceNotFound, AssertionFailure, Interrupted, TransportFailure
     # and NotReducible. A tree that has drifted from its lock is a state a
     # caller reacts to, and the one site carries N818 with that reason.
-    "N": 39,
+    # 39 -> 53 when the closed-namespace alias map became `python_name`, the
+    # one rule the open factory already used: fourteen CamelCase heads the
+    # engine ships (`assertEqual`, `Predicate`, the `*Predicate` family) reach
+    # `fn` by their exact spelling now, where they were bracket-only, and each
+    # generated stub member carries N815 with the reason that the head is the
+    # engine's word rather than one this package chose. Seven keyword heads
+    # (`not`, `and`, `or`, `if`, `assert`, `except`, `return`) joined them by
+    # PEP 8's trailing underscore and need no suppression.
+    "N": 53,
     # 8 -> 10 for metta.strategies: `id` and `all` must be the exact public
     # strategy atoms, while each line carries the narrow A001 explanation.
     # 10 -> 12 with the compiled-statement scenarios: two refused-or-compiled
@@ -294,7 +302,9 @@ RUFF_FAMILY_BURN_DOWN = {
     # point is that the module says nothing about it, so a docstring would
     # unmake the shape it exists to carry. The branch's four module-docstring
     # D205 forms were reflowed into a summary line and a body instead.
-    "D": 2246,
+    # +1 for metta/typing.py, whose module contract is one continuous
+    # invariant in the convention every other module header uses.
+    "D": 2247,
     # 145, from 139 before the idiomatic twin corpus. Every one of the six new
     # sites is a `twin(m)` whose example needs no engine, because the form it
     # demonstrates is native Python (destructuring, `len`, `max`), or a

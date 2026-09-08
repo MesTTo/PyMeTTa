@@ -267,7 +267,10 @@ def stub_text(
         )
         row = f"    {alias}: {annotation}"
         if alias[:1].islower() and alias != alias.lower():
-            row += "  # noqa: N815"
+            row += (
+                "  # noqa: N815  -- the member keeps the catalog's public wire "
+                "spelling; the head is the engine's word, not one this package chose"
+            )
         if target in documentation:
             row += f"\n    {json.dumps(documentation[target])}"
         rows.append(row)

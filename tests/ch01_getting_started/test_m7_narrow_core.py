@@ -55,23 +55,6 @@ from metta import atoms as atom_module
 
 BASELINE_METTA_METHODS = 90
 BASELINE_PACKAGE_EXPORTS = 152
-#: 22 since the ownership model of 2026-08-30: a context OWNS the anonymous
-#: home it mints, and close()/closed are the two context primitives that say
-#: so (the with form rides them). Both delegate lifecycle to Space.drop, so
-#: Space keeps the lifecycle verbs and MeTTa still carries only context
-#: primitives.
-#: 35 on 2026-09-05: `debug` joins MODULE_DOORS, so the context tier and the
-#: async mirror generate it beside `trace`, which is the door it belongs
-#: with. A generated door counts once here, on the class the generator
-#: renders it onto.
-#: 36 on 2026-09-07: `record` joins them, beside `trace` and `debug` for the
-#: same reason -- it is the third door onto one run, and the one that keeps
-#: it as data.
-#: 38 on 2026-09-07: `lock` and `check` are context primitives, not space
-#: doors. What a lock pins is the set of sources this PROCESS loaded and the
-#: engine build under them, which no one space holds and which every space in
-#: the context shares, so the pair sits beside `info` for the same reason.
-FINAL_METTA_METHODS = 38
 # The class count: 21 before the context tier; +13 on 2026-09-01 when MeTTa
 # became the third generated mirror. The finding behind it was a context
 # that could define but not eval: the hand-written derived subset was typed
@@ -160,8 +143,8 @@ FINAL_METTA_METHODS = 38
 SATELLITES = frozenset(metta._SATELLITES) - {"seam"}
 
 # add, eval, fn, load, remove and run left this roster on 2026-09-01: the
-# generated context tier restores them as ruled doors (see
-# FINAL_METTA_METHODS above), so their absence is no longer the claim.
+# generated context tier restores them as ruled doors (`_context_doors`
+# below is what the tier IS), so their absence is no longer the claim.
 REMOVED_FROM_METTA = {
     "add_table",
     "add_tagged_fact",
@@ -425,12 +408,68 @@ def _workspace_members() -> list[str]:
     return [path.name.replace("-", "_") for path in found]
 
 
+def _context_doors() -> set[str]:
+    """What the context tier IS: the generated doors plus the hand-written ones.
+
+    A pinned integer here was edited by four branches for four reasons and said
+    nothing this relation does not. `MODULE_DOORS` is the roster the generator
+    renders onto MeTTa, and a method MeTTa writes for itself sits outside the
+    generated region and is read from the source, so the answer moves with the
+    generator rather than with whoever remembers to change a number.
+    """
+    import ast
+    import sys
+    from pathlib import Path
+
+    import metta._space
+
+    tools = Path(__file__).resolve().parents[2] / "tools"
+    if str(tools) not in sys.path:
+        sys.path.insert(0, str(tools))
+    from aio_divergences import MODULE_DOORS
+    from aiogen import METTA_END, METTA_START
+
+    source = Path(metta._space.__file__).read_text(encoding="utf-8").splitlines()
+    first, last = source.index(METTA_START), source.index(METTA_END)
+    tree = ast.parse("\n".join(source))
+    context = next(
+        node
+        for node in ast.walk(tree)
+        if isinstance(node, ast.ClassDef) and node.name == "MeTTa"
+    )
+    handwritten = {
+        node.name
+        for node in context.body
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+        and not node.name.startswith("_")
+        and not (first < node.lineno <= last)
+    } | {
+        node.target.id if isinstance(node, ast.AnnAssign) else node.targets[0].id
+        for node in context.body
+        if isinstance(node, ast.AnnAssign)
+        and isinstance(node.target, ast.Name)
+        and not node.target.id.startswith("_")
+    }
+    properties = {
+        node.name
+        for node in context.body
+        if isinstance(node, ast.FunctionDef)
+        and any("property" in ast.unparse(one) for one in node.decorator_list)
+        and not node.name.startswith("_")
+    }
+    return {name for name, _ in MODULE_DOORS} | handwritten | properties
+
+
 def test_m7_narrow_core_surface():
     """Publish the M7 metric and prove every superseded name is gone."""
     from metta.aio import AsyncMeTTa
 
-    assert len(_public_names(MeTTa)) == FINAL_METTA_METHODS
-    assert BASELINE_METTA_METHODS > FINAL_METTA_METHODS
+    # The context surface as a RELATION: exactly the doors the generator
+    # renders onto MeTTa plus the ones MeTTa writes for itself, and narrower
+    # than the surface M7 replaced.
+    doors = _context_doors()
+    assert _public_names(MeTTa) == doors
+    assert BASELINE_METTA_METHODS > len(doors)
     # The package surface as a RELATION: it is exactly what __all__ names,
     # `__version__` excepted because it is a dunder and this reading is of the
     # names that do not begin with one, and it is narrower than the surface M7

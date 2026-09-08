@@ -81,6 +81,7 @@ import math
 import types
 from collections.abc import Callable
 
+from . import _operator_lowerings as _lowerings
 from ._call_binding import bind_positional_call, refuse_unknown_keywords
 from ._callable_mentions import (
     callable_arities,
@@ -100,89 +101,98 @@ from ._state import State
 from .atoms import Atom, Expression, Grounded, Handle, Symbol, Variable
 from .errors import CompileError, Remedy, character_column
 
-# Python syntax to the exact ``operator`` protocol selector consumed by the
-# compiler-only py-operator operation. Operand kinds are application-time
-# facts, so choosing a numeric engine head here would silently bypass Python's
-# container and reflected methods.
-_BINOPS = {
-    ast.Add: "add",
-    ast.Sub: "sub",
-    ast.Mult: "mul",
-    ast.Div: "truediv",
-    ast.FloorDiv: "floordiv",
-    ast.Mod: "mod",
-    ast.Pow: "pow",
-    ast.MatMult: "matmul",
-    ast.BitAnd: "and",
-    ast.BitOr: "or",
-    ast.BitXor: "xor",
-    ast.LShift: "lshift",
-    ast.RShift: "rshift",
-}
+# Every table below is a PROJECTION of the one operator table, keyed by the
+# `ast` node class the compiler dispatches on. They were five hand-written
+# dicts holding their own copies of the selectors and the MeTTa heads; the
+# table's own rows carry both, so a head that moves moves once
+# [source: extensions/python/metta/_operator_lowerings.py, BY_NODE].
 
-# Exact int/float annotations are a semantic promise strong enough to retain
-# the engine's pure numeric heads. Untyped operands cannot use these: Python
-# may dispatch a reflected or container protocol at application time. Power
-# stays on the protocol path because an integral negative exponent changes
-# the result species, the divergence that repaired check_twin exposed.
-_NATIVE_BINOPS = {
-    ast.Add: "+",
-    ast.Sub: "-",
-    ast.Mult: "*",
-    ast.Div: "/",
-    ast.FloorDiv: "floor-div",
-    ast.Mod: "%",
-}
 
-# Comparison syntax also follows the Python protocol. Equality is included:
-# __eq__ and __ne__ may return arbitrary objects, and only a surrounding test
-# position is entitled to ask for their truth value.
-_COMPARE = {
-    ast.Eq: "eq",
-    ast.NotEq: "ne",
-    ast.Lt: "lt",
-    ast.Gt: "gt",
-    ast.LtE: "le",
-    ast.GtE: "ge",
-}
+def _by_node(pick) -> dict[type, str]:
+    """One projection of the operator table, keyed by the live `ast` class.
 
-_NATIVE_COMPARE = {
-    ast.Lt: "<",
-    ast.Gt: ">",
-    ast.LtE: "<=",
-    ast.GtE: ">=",
-}
+    `pick` answers the spelling this projection wants for a row, or None to
+    leave the row out, which is how `_NATIVE_*` omits every operator with no
+    exactly-numeric head.
+    """
+    found: dict[type, str] = {}
+    for name, entry in _lowerings.BY_NODE.items():
+        spelling = pick(entry)
+        node = getattr(ast, name, None)
+        if spelling is not None and node is not None:
+            found[node] = spelling
+    return found
+
+
+def _binary(entry) -> bool:
+    """Whether one row is a binary operator with an augmented form.
+
+    Which is exactly the set `x + y`, `x += y` and `operator.iadd` share, and
+    is what separates the arithmetic and bitwise rows from the comparisons.
+    """
+    return entry.augmented
+
+
+#: Python syntax to the exact ``operator`` protocol selector consumed by the
+#: compiler-only py-operator operation. Operand kinds are application-time
+#: facts, so choosing a numeric engine head here would silently bypass Python's
+#: container and reflected methods.
+_BINOPS = _by_node(
+    lambda entry: _lowerings.selector(entry) if _binary(entry) else None
+)
+
+#: Exact int/float annotations are a semantic promise strong enough to retain
+#: the engine's pure numeric heads. Untyped operands cannot use these: Python
+#: may dispatch a reflected or container protocol at application time. Power
+#: stays on the protocol path because an integral negative exponent changes
+#: the result species, the divergence that repaired check_twin exposed, and
+#: carries no `native` for that reason.
+_NATIVE_BINOPS = _by_node(
+    lambda entry: entry.native if _binary(entry) else None
+)
+
+#: Comparison syntax also follows the Python protocol. Equality is included:
+#: __eq__ and __ne__ may return arbitrary objects, and only a surrounding test
+#: position is entitled to ask for their truth value.
+_COMPARE = _by_node(
+    lambda entry: None if _binary(entry) or entry.kind != "taken" else _lowerings.selector(entry)
+)
+
+_NATIVE_COMPARE = _by_node(
+    lambda entry: None if _binary(entry) or entry.kind != "taken" else entry.native
+)
 # Equality stays on Python's protocol path even for exact numeric annotations:
-# 1 == 1.0, nan == nan, and -0.0 == 0.0 disagree with the engine relation.
+# 1 == 1.0, nan == nan, and -0.0 == 0.0 disagree with the engine relation, so
+# neither row carries a `native` spelling.
 # [tested: test_compiled_operators_follow_python_protocols_and_result_species;
 # commit=d0dfff1a3ee6c85472fd9b12d6e4aec007a9c301]
 
-_SOURCE_COMPARE = _NATIVE_COMPARE | {
-    ast.Eq: "==",
-    ast.NotEq: "!=",
-    ast.In: "in",
-    ast.NotIn: "not-in",
-}
+#: `in` and `not-in` are the two comparison NODES Python defines with no
+#: operator protocol behind them: there is no `__in__`, and `__contains__` is
+#: the container's own question rather than the operator's. So they are named
+#: here, beside the table rather than in it.
+_MEMBERSHIP = {ast.In: "in", ast.NotIn: "not-in"}
 
-_INPLACE_BINOPS = {
-    ast.Add: "iadd",
-    ast.Sub: "isub",
-    ast.Mult: "imul",
-    ast.Div: "itruediv",
-    ast.FloorDiv: "ifloordiv",
-    ast.Mod: "imod",
-    ast.Pow: "ipow",
-    ast.MatMult: "imatmul",
-    ast.BitAnd: "iand",
-    ast.BitOr: "ior",
-    ast.BitXor: "ixor",
-    ast.LShift: "ilshift",
-    ast.RShift: "irshift",
-}
+_SOURCE_COMPARE = (
+    _NATIVE_COMPARE
+    | _by_node(
+        lambda entry: None
+        if _binary(entry) or entry.kind != "taken"
+        else entry.word_head or str(entry.form)
+    )
+    | _MEMBERSHIP
+)
+
+#: `x += y` reaches `operator.iadd`, whose name is the selector with an `i` in
+#: front: Python's own rule, applied rather than restated.
+_INPLACE_BINOPS = _by_node(
+    lambda entry: _lowerings.augmented_selector(entry) if _binary(entry) else None
+)
 
 # Names with special meaning inside a compiled body. `match` runs a pattern
 # against the running space, nondeterminism and verdict forms pass through,
 # and `empty` answers nothing.
+# closed-set: decides; policy=which NAMES have a meaning of their own inside a compiled body rather than being a call; reads=none, it is the source
 _MAGIC = ("accept", "collapse", "drop", "empty", "match", "refuse", "superpose", "unify")
 
 #: What a compiled body STORES where the author named no space: the engine's
@@ -1880,6 +1890,7 @@ class _PatternScope:
 # Python builtin -> its lowering. Consulted for a call to one of these names
 # when no parameter shadows it; each maps to the engine function that means
 # the same thing on the values this subset computes.
+# closed-set: decides; policy=which Python builtin a compiled body lowers, and to which compiler method; reads=none, it is the source
 _PYBUILTIN_CALLS: dict[str, Callable] = {
     "len": ExpressionCompilerMixin._py_len,
     "list": ExpressionCompilerMixin._py_list,

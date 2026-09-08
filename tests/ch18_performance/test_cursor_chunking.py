@@ -36,7 +36,7 @@ from __future__ import annotations
 
 from itertools import islice
 
-from metta import Grounded, S, V, _space_objects
+from metta import Grounded, S, V, config
 
 
 def _fill(home, name, count):
@@ -104,12 +104,16 @@ def test_draining_amortises_the_crossing(metta):
             best = run.inferences if best is None else min(best, run.inferences)
         return best
 
-    original = _space_objects._CHUNK_CAP
+    # The control turns the chunk off through the bound itself, which is the
+    # `(limit chunk-cap ...)` row every cursor reads when it opens: writing 1
+    # there is exactly what a program does to switch the feature off, so the
+    # control and the door are the same mechanism.
+    original = config.chunk_cap
     try:
-        _space_objects._CHUNK_CAP = 1
+        config.configure(chunk_cap=1)
         one_at_a_time = drained()
     finally:
-        _space_objects._CHUNK_CAP = original
+        config.configure(chunk_cap=original)
     chunked = drained()
 
     # A crossing costs three Prolog inferences of wrapper, so a cursor that

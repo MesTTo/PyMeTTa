@@ -111,7 +111,7 @@ from collections.abc import Callable, Iterable, Iterator, Mapping
 from typing import Any, Protocol, cast
 
 from . import seam
-from ._api_types import space_of
+from ._api_types import SpaceLike
 from ._atom_wire import _atom_from_wire
 from .atoms import (
     Atom,
@@ -147,7 +147,7 @@ def _row_values(row: Any, keys: list[Any]) -> Any:
     return row.values()
 
 
-def add(space: Any, head: Any, data: Any) -> int:
+def add(space: SpaceLike, head: Any, data: Any) -> int:
     """Add a tabular source to a space as ``(head column...)`` facts.
 
     space may be a context or a space.
@@ -165,7 +165,7 @@ def add(space: Any, head: Any, data: Any) -> int:
     than memory loads, and the writes are one transaction each; wrap the call
     in ``m.transaction(...)`` to make the whole load one.
     """
-    space = space_of(space)
+    home = space.self
     head_atom = head if isinstance(head, Atom) else Symbol(str(head))
     accessors()
     keys: list[Any] = []
@@ -176,7 +176,7 @@ def add(space: Any, head: Any, data: Any) -> int:
     elif isinstance(data, Mapping):
         rows = zip(*data.values(), strict=True)
     elif hasattr(data, "__arrow_c_stream__"):
-        return _add_arrow_stream(space, head_atom, data)
+        return _add_arrow_stream(home, head_atom, data)
     elif isinstance(data, Iterable):
         rows = iter(data)
     else:
@@ -190,7 +190,7 @@ def add(space: Any, head: Any, data: Any) -> int:
         Expression([head_atom, *(_encode(value) for value in _row_values(row, keys))])
         for row in rows
     ]
-    space.add(*facts)
+    home.add(*facts)
     return len(facts)
 
 
@@ -516,7 +516,7 @@ class TableBridge(SpaceProvider):
     @classmethod
     def from_context(
         cls,
-        m: Any,
+        m: SpaceLike,
         name: str,
         connection: Executes,
     ) -> TableBridge:
@@ -526,8 +526,8 @@ class TableBridge(SpaceProvider):
 
         m may be a context or a space.
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
-        m = space_of(m)
-        (group,) = m.run(
+        home = m.self
+        (group,) = home.run(
             f"!(collapse (match &metta (bridge {name} $shape $row)"
             f" (bridge $shape $row)))"
         )
@@ -535,7 +535,7 @@ class TableBridge(SpaceProvider):
         if not declarations:
             msg = f"&metta declares no (bridge {name} ...) schema"
             raise ValueError(msg)
-        (image_group,) = m.run(
+        (image_group,) = home.run(
             f"!(collapse (match &metta (image {name} $type $setting)"
             f" ($type $setting)))"
         )
@@ -551,7 +551,7 @@ class TableBridge(SpaceProvider):
                     f"{prior} and {setting}"
                 )
                 raise ValueError(msg)
-        return cls(m.parse, connection, declarations, images=images)
+        return cls(home.parse, connection, declarations, images=images)
 
     # -- the provider surface, all of it derived -----------------------------
 
@@ -732,7 +732,7 @@ class TableBridge(SpaceProvider):
         arguments: list[Any],
         limit: int | None = None,
     ) -> list[Any]:
-        sql = f"SELECT {shape.column_list()} FROM {shape.table}"  # noqa: S608  # nosec B608 - identifiers from the trusted declaration
+        sql = f"SELECT {shape.column_list()} FROM {shape.table}"  # nosec B608 - identifiers from the trusted declaration  # noqa: S608 - identifiers from the trusted declaration  # nosec B608
         if where:
             sql += " WHERE " + " AND ".join(where)
         if limit is not None:
@@ -741,21 +741,21 @@ class TableBridge(SpaceProvider):
         return list(self.connection.execute(sql, arguments))
 
 
-def declare(m: Any, name: str, declaration: Atom | str) -> Atom:
+def declare(m: SpaceLike, name: str, declaration: Atom | str) -> Atom:
     """Write one ctx-scoped bridge declaration into &metta, where explain
     and any program can read the schema, and from_context will.
 
     m may be a context or a space.
     """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
-    m = space_of(m)
-    parsed = m.parse(declaration) if isinstance(declaration, str) else declaration
+    home = m.self
+    parsed = home.parse(declaration) if isinstance(declaration, str) else declaration
     if not isinstance(parsed, Expression):
         raise _declaration_error(parsed)
     _Shape(parsed)  # validated before it is stored, the declaration discipline
     _, atom_shape, row_shape = parsed.children
-    stored = m.parse(f"(bridge {name} {atom_shape} {row_shape})")
-    with m.bind(decl=stored):
-        m.run("!(add-atom &metta decl)")
+    stored = home.parse(f"(bridge {name} {atom_shape} {row_shape})")
+    with home.bind(decl=stored):
+        home.run("!(add-atom &metta decl)")
     return stored
 
 

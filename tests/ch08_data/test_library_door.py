@@ -17,7 +17,8 @@ Guarantees:
     in: nested in a term, mixed with stored atoms, or inside a batch
     [tested: test_a_library_handle_refuses_atom_positions]
   - a missing library refuses with the engine's own existence error
-    naming the path [tested: test_a_missing_library_refuses_loudly]
+    naming the path, as the SourceNotFound its own refusal row names
+    [tested: test_a_missing_library_refuses_loudly]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -27,7 +28,7 @@ Open Obligations:
 import pytest
 
 from metta import MeTTa, S, lib
-from metta.errors import EngineError, MettaError
+from metta.errors import MettaError, SourceNotFound
 
 
 def test_the_attribute_map_is_the_family_prefix():
@@ -82,7 +83,12 @@ def test_a_library_handle_refuses_atom_positions():
 
 
 def test_a_missing_library_refuses_loudly():
-    """The engine's own existence error crosses whole, naming the path."""
+    """The engine's own existence error crosses whole, naming the path.
+
+    As `SourceNotFound`, which is the class the `source` refusal row names and
+    which carries the path as a field, rather than as the bare EngineError this
+    seat used to give every ball it did not classify.
+    """
     m = MeTTa().space()
-    with pytest.raises(EngineError, match="nosuchlibrary"):
+    with pytest.raises(SourceNotFound, match="nosuchlibrary"):
         m += lib.nosuchlibrary

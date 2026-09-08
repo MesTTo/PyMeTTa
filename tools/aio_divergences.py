@@ -50,6 +50,13 @@ EXCLUDED: dict[str, str] = {
     ),
     "metatype": "Space's Atom/Handle operand protocol, not an engine call",
     "to_wire": "Space's Atom/Handle operand protocol, not an engine call",
+    "self": (
+        "the space a receiver's doors work in, which for a space IS the "
+        "receiver: mirroring it would give the async tier a property whose "
+        "answer is the SYNCHRONOUS space, which is the one thing the async "
+        "surface exists not to hand out. AsyncMeTTa answers its own home "
+        "through the context tier, and an async space is already itself"
+    ),
 }
 
 #: Methods whose async signature CANNOT be the sync one, with the mechanism that

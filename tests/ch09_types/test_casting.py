@@ -19,7 +19,7 @@ Open Obligations:
 import pytest
 
 from metta import Grounded, S, V, integrate
-from metta.casting import CastError, cast
+from metta.convert import CastError, cast
 
 
 @pytest.fixture()

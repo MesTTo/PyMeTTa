@@ -167,6 +167,7 @@ __all__ = [
     "FunctionResultEnum",
     "GroundKind",
     "ImageMode",
+    "JournalSync",
     "Limit",
     "LiveStrategy",
     "MemoAggregate",
@@ -379,6 +380,13 @@ class ImageMode(_AtomStrEnum):
     opaque = "opaque"
     transparent = "transparent"
     auto = "auto"
+
+#: (vocabulary journal-sync none flush close)
+class JournalSync(_AtomStrEnum):
+    """Typed values of the journal-sync vocabulary."""
+    none = "none"
+    flush = "flush"
+    close = "close"
 
 #: (vocabulary limit events memory inferences timeout stack)
 class Limit(_AtomStrEnum):

@@ -279,3 +279,43 @@ def _rewrite(engine, row_text):
         "sread(RowText, _Row), add_sexp('&metta', _Row, _)",
         RowText=row_text,
     )
+
+
+def test_the_refusal_table_is_generated():
+    """The seat's own refusal table has to equal what the rows produce.
+
+    The same question `vocab-sync` asks of the vocabularies, of the join this
+    seat makes between the engine's `(refusal ...)` rows and its own class
+    spellings: the checked-in `metta/_refusals.py` is what
+    `tools/refusalgen.py` writes from them, and the classes it names exist and
+    take the fields their kinds declare.
+    """
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "tools"))
+    try:
+        import refusalgen
+    finally:
+        sys.path.pop(0)
+    assert refusalgen.main([]) == 0
+
+
+def test_a_class_this_seat_spells_differently_carries_its_reason():
+    """A departure from the row's own class name is stated, not just made.
+
+    Two of the thirteen depart, and each is a name Python already owns:
+    `value` raises Python's `ValueError` where the row declares `WireError`,
+    and `type` raises Python's `TypeError` where the row declares `CastError`,
+    which this seat has already given to a `cast()` refusal. The reason rides
+    in the row rather than in a comment, so a program that asks why gets an
+    answer -- `REFUSALS["type"].departure` is the sentence.
+    """
+    from metta._refusals import REFUSALS
+
+    departing = {kind: row for kind, row in REFUSALS.items() if row.cls != row.declared}
+    assert set(departing) == {"value", "type"}
+    for kind, row in REFUSALS.items():
+        if kind in departing:
+            assert row.departure, f"{kind} departs to {row.cls} with no reason"
+        else:
+            assert row.departure is None, (
+                f"{kind} spells its row's own class and still carries a reason"
+            )

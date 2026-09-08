@@ -71,10 +71,10 @@ Guarantees:
   - ``speculate()`` is the exact module-tier spelling for the default
     receiver's discarded execution scope [tested:
     test_speculative_execution_discards_its_event_segment; commit=3ded7552797b66d78e666141eb51f3bc14686bd2]
-  - ``strategies`` is a lazy satellite whose exports are reified Symbols rather
-    than promoted root callbacks [tested:
-    test_m7_satellites_are_lazy_and_identity_stable and
-    test_strategy_exports_are_reified_atoms; commit=0d37dd6b24fe916e44cdbfb4efc6a1d5ffaf74aa]
+  - ``library.face(<name>)`` is one shipped library's own heads as Python
+    names, projected from its rows rather than listed here, which is what
+    retired the hand-written ``strategies`` satellite [tested:
+    test_a_library_face_is_its_own_rows; commit=c26b6a4d28ef8fb50742440feed2c0578ebb0f58]
   - ``catalog`` names the queryable ``&metta`` space and ``fresh()`` supplies
     hygienic variables for helper-authored patterns [tested:
     test_catalog_is_the_root_queryable_reflection_space and
@@ -204,11 +204,11 @@ from .atoms import (
 from .atoms import unify as _unify_atoms
 from .errors import MettaError, NotReducible, Timeout
 
+# closed-set: decides; policy=which submodules load on first access rather than during `import metta`, which is the narrow core's own roster; reads=none, it is the source `metta.__getattr__` reads and `test_m7_narrow_core` derives its own list from
 _SATELLITES = frozenset(
     {
         "aio",
         "algebra",
-        "casting",
         "convert",
         "derivation",
         "events",
@@ -224,16 +224,15 @@ _SATELLITES = frozenset(
         "remote",
         "seam",
         "spaces",
-        "strategies",
         "structures",
         "subscribe",
         "tables",
         "testing",
         "vocabularies",
-        "wire",
     }
 )
 
+# closed-set: decides; policy=which NAMES the root answers by loading a satellite, and which satellite each is in; reads=none, it is the source, and `initstubgen` renders the stub from it
 _LAZY_ATTRIBUTES = {
     "Answer": ("answer", "Answer"),
     "Bindings": ("answer", "Bindings"),
@@ -265,6 +264,7 @@ _LAZY_ATTRIBUTES = {
     "view": ("spaces", "view"),
 }
 
+# closed-set: decides; policy=which modules are implementation rather than surface, so the root refuses them as attributes; reads=none, it is the source
 _HIDDEN_IMPLEMENTATION_MODULES = {
     "answer",
     "atoms",
@@ -354,6 +354,7 @@ def engine():
     return __getattr__("MeTTa")(__getattr__("Space")())
 
 
+# enum-parameter: enum=JournalSync; reason=the root forwards to Space.space, whose sync IS typed JournalSync; importing metta.vocabularies here to spell the annotation costs every `import metta` 1.87 ms against its own 11.7 ms [measured 2026-09-08, python -X importtime], which the narrow core exists to prevent
 def space(
     name: str | Atom | None = None,
     backing: _Any = None,
@@ -1472,7 +1473,6 @@ __all__ = [
     "bool",
     "boot",
     "budget",
-    "casting",
     "catalog",
     "channel",
     "config",
@@ -1536,7 +1536,6 @@ __all__ = [
     "spawn",
     "speculate",
     "stats",
-    "strategies",
     "structures",
     "stubs",
     "subscribe",
@@ -1550,7 +1549,6 @@ __all__ = [
     "unify",
     "view",
     "vocabularies",
-    "wire",
     "writes",
 ]
 

@@ -160,6 +160,7 @@ from .atoms import (
     _to_atom,
 )
 from .errors import MettaError, Timeout
+from .vocabularies import SubscriptionEdge
 
 logger = logging.getLogger(__name__)
 
@@ -1143,7 +1144,9 @@ class FutureSpace(Space):
 
     def __iter__(self) -> Iterator[Atom]:
         """Yield each answer occurrence after it lands, until settlement."""
-        subscription = self.subscribe(Variable("_future_answer"), on="add")
+        subscription = self.subscribe(
+            Variable("_future_answer"), on=SubscriptionEdge.add
+        )
         try:
             current, watermark = self._iteration_snapshot()
             yielded = list(current)
@@ -1281,7 +1284,7 @@ class Channel:
         """Take one waiting term or return None without blocking."""
         return _call(self._owner, "try-recv", self._handle).first(default=None)
 
-    def __len__(self) -> int:  # noqa: D105 -- the enclosing channel contract supplies the size meaning
+    def __len__(self) -> int:  # noqa: D105  -- the Python data-model hook is defined by its name and enclosing type contract
         return int(_call(self._owner, "channel-size", self._handle).one())
 
     def close(self) -> None:
@@ -1292,10 +1295,10 @@ class Channel:
         self._closed = True
         self._finalizer.detach()
 
-    def __enter__(self) -> Self:  # noqa: D105 -- context entry returns the live mailbox
+    def __enter__(self) -> Self:  # noqa: D105  -- the Python data-model hook is defined by its name and enclosing type contract
         return self
 
-    def __exit__(self, *_exc_info: object) -> None:  # noqa: D105 -- context exit closes the mailbox
+    def __exit__(self, *_exc_info: object) -> None:  # noqa: D105  -- the Python data-model hook is defined by its name and enclosing type contract
         self.close()
 
 

@@ -28,7 +28,7 @@ from typing import Any
 from _common import check, done
 
 from metta import MeTTa, S, V, Expression
-from metta import wire
+from metta import convert
 from metta.atoms import Expression, Grounded, Symbol, Variable, unify
 
 #: FastAPI's path converters: the caster runs after the structural match,
@@ -109,7 +109,7 @@ class Router:
                  V.pattern, V.handler, V.k)
         )
         matched = False
-        for row in sorted(table, key=lambda r: int(wire.decode(r.k))):
+        for row in sorted(table, key=lambda r: int(convert.decode(r.k))):
             pattern = row.pattern
             if not isinstance(pattern, Expression) or len(pattern) != len(request):
                 continue
@@ -118,7 +118,7 @@ class Router:
                 continue
             matched = True
             casters = self._casters.get(
-                int(wire.decode(row.k)),
+                int(convert.decode(row.k)),
                 tuple(str for c in pattern.children if isinstance(c, Variable)),
             )
             try:
@@ -133,7 +133,7 @@ class Router:
             except (ValueError, TypeError):
                 continue  # the parameter refused; a later route may accept
             answers = self._m.eval(Expression(Symbol(str(row.handler)),
-                                        *[wire.encode(v) for v in values]))
+                                        *[convert.encode(v) for v in values]))
             # Exactly one. A handler that answers nothing is not a 404, and a
             # handler that answers twice is not its first answer; both used to
             # be rewritten into a response the caller could not tell from a
@@ -144,7 +144,7 @@ class Router:
                     f"{method} {path}; a route handler answers exactly once"
                 )
             body = answers[0]
-            return Response(200, wire.decode(body) if isinstance(body, Grounded) else body)
+            return Response(200, convert.decode(body) if isinstance(body, Grounded) else body)
         return Response(422 if matched else 404,
                         "unprocessable" if matched else "not found")
 

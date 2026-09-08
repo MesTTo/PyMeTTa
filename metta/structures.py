@@ -59,7 +59,7 @@ from collections.abc import Iterator, MutableMapping, MutableSet
 from operator import itemgetter
 from typing import Any, Self
 
-from ._api_types import space_of
+from ._api_types import SpaceLike
 from .atoms import (
     Atom,
     Expression,
@@ -73,6 +73,7 @@ from .atoms import (
     substitute,
 )
 from .errors import MettaError
+from .vocabularies import SubscriptionEdge
 
 __all__ = [
     "AlphaSet",
@@ -544,13 +545,13 @@ class TabledMap:
     space may be a context or a space.
     """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
 
-    def __init__(self, space: Any, name: str, *, arity: int | None = None) -> None:  # noqa: D107  -- the enclosing class documents construction and the object invariants
-        space = space_of(space)
-        self._space = space
+    def __init__(self, space: SpaceLike, name: str, *, arity: int | None = None) -> None:  # noqa: D107  -- the enclosing class documents construction and the object invariants
+        home = space.self
+        self._space = home
         self._name = name
-        _tabling_ready(space)
+        _tabling_ready(home)
         if arity is None:
-            compiled = space.arities(name)
+            compiled = home.arities(name)
             if len(compiled) != 1:
                 msg = (
                     f"{name!r} has {len(compiled)} compiled arities; pass "
@@ -563,7 +564,7 @@ class TabledMap:
         self._arity = arity
         spelled = _call_spelling(name, arity)
         self._call_pattern = spelled
-        declared = space.run(f"!(tabled {spelled})")
+        declared = home.run(f"!(tabled {spelled})")
         if declared != [[True]]:
             msg = f"tabling {spelled} was not accepted: {declared!r}"
             raise MettaError(msg)
@@ -644,7 +645,7 @@ class LiveView:
         from .live import Live  # noqa: PLC0415 -- the view face alone pays
 
         self._pattern = pattern
-        self._live = Live(space, pattern, on="both", strategy="pattern")
+        self._live = Live(space, pattern, on=SubscriptionEdge.both, strategy="pattern")
 
     def __contains__(self, atom: Any) -> bool:  # noqa: D105  -- the Python data-model hook is defined by its name and enclosing type contract
         return atom in self._live
@@ -700,21 +701,21 @@ class ClosureView:
     space may be a context or a space.
     """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
 
-    def __init__(self, space: Any, relation: str, *, symmetric: bool = False) -> None:  # noqa: D107  -- the enclosing class documents construction and the object invariants
-        space = space_of(space)
-        self._space = space
+    def __init__(self, space: SpaceLike, relation: str, *, symmetric: bool = False) -> None:  # noqa: D107  -- the enclosing class documents construction and the object invariants
+        home = space.self
+        self._space = home
         self._relation = relation
         self._fn = f"{relation}-closure"
         step = f"{relation}-step"
-        _tabling_ready(space)
-        name = space.name
-        space.run(f"(= ({step} $x $y) (match {name} ({relation} $x $y) $y))")
+        _tabling_ready(home)
+        name = home.name
+        home.run(f"(= ({step} $x $y) (match {name} ({relation} $x $y) $y))")
         if symmetric:
-            space.run(f"(= ({step} $x $y) (match {name} ({relation} $y $x) $y))")
-        space.run(f"(= ({self._fn} $x $y) ({step} $x $y))")
-        space.run(f"(= ({self._fn} $x $z) (let $y ({step} $x $y) ({self._fn} $y $z)))")
+            home.run(f"(= ({step} $x $y) (match {name} ({relation} $y $x) $y))")
+        home.run(f"(= ({self._fn} $x $y) ({step} $x $y))")
+        home.run(f"(= ({self._fn} $x $z) (let $y ({step} $x $y) ({self._fn} $y $z)))")
         for declared in (step, self._fn):
-            accepted = space.run(f"!(tabled ({declared} $a $b))")
+            accepted = home.run(f"!(tabled ({declared} $a $b))")
             if accepted != [[True]]:
                 msg = f"tabling ({declared} ...) was not accepted: {accepted!r}"
                 raise MettaError(

@@ -98,7 +98,7 @@ from contextvars import ContextVar
 from dataclasses import dataclass
 from typing import Any, Self
 
-from ._config import _CHUNK_CAP
+from ._config import config
 from ._engine import Runtime, defer_engine_call
 from ._space_objects import (
     EngineProfile,
@@ -212,6 +212,7 @@ def _execution_policy() -> _ExecutionPolicy:
     return _ExecutionPolicy(mode, _CAPTURED_OUTPUT.get())
 
 
+# closed-set: decides; policy=which engine openers have a controlled twin a deferred execution scope routes to; reads=none, it is the source
 _DEFERRED_EXECUTION_OPENERS = {
     "metta_py_cursor_open": "metta_py_cursor_open_controlled",
     "metta_py_cursor_open_under": "metta_py_cursor_open_under_controlled",
@@ -886,6 +887,9 @@ def evaluate_answers(
         # capture()'s block-scoped contract never promised more finely.
         buffered: deque[Any] = deque()
         want = 1
+        # Read once per stream, for the reason Cursor gives: the pull is a
+        # crossing and the cap decides only where the doubling stops.
+        cap = config.chunk_cap
         drained = False
         try:
             while True:
@@ -906,7 +910,7 @@ def evaluate_answers(
                     )
                     if len(output) < want:
                         drained = True
-                    want = min(want * 2, _CHUNK_CAP)
+                    want = min(want * 2, cap)
                     if not output:
                         return
                     buffered.extend(output)

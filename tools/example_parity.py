@@ -30,6 +30,12 @@ Guarantees:
     test_compare_reports_a_planted_exit_status_difference,
     test_compare_reports_a_planted_verdict_difference,
     test_compare_accepts_equivalent_passing_verdicts; commit=835925ee1c55d2267aa54f0a5ccbdfcdb6fc003c]
+  - a verdict is read by its own shape, `is X, should Y.`, so a line that
+    merely contains the word is not one: the engine configuration echoes the
+    source of every library an example imports, and a generated `(@doc ...)`
+    row saying "if autograd should record operations" was being counted
+    [tested: test_a_verdict_is_read_by_its_shape_and_not_by_a_word_in_it;
+    commit=c26b6a4d28ef8fb50742440feed2c0578ebb0f58]
   - the library configuration closes the MeTTa engine after loading each
     example, and a teardown failure is part of that configuration's outcome
     [tested: test_the_library_runner_reports_a_teardown_failure;
@@ -90,6 +96,7 @@ from __future__ import annotations
 import argparse
 import contextlib
 import os
+import re
 import selectors
 import signal
 import subprocess
@@ -101,7 +108,16 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[3]
 SKIPS = REPO / "tests" / "data" / "example_skips.txt"
-VERDICT = " should "
+#: A verdict line, by its SHAPE rather than by a word inside it. Both
+#: configurations print `is X, should Y. <mark>` per `!(test ...)`, and reading
+#: it as "the line contains ` should `" counted the wrong lines: the engine arm
+#: echoes the source of every library an example imports, and one generated
+#: `(@doc torch-requires-grad ...)` row whose description says "if autograd
+#: should record operations on this tensor" read as a fifteenth verdict where
+#: the example prints fourteen, which is the whole of what
+#: examples/ch11-python-as-a-notation/10-torch-library-surface.metta was
+#: reported as disagreeing about.
+VERDICT = re.compile(r"^is .*, should .*\.")
 
 #: How long one example may take in one configuration: a wall ceiling one cost
 #: class above the corpus's slowest member on a QUIET box, which is where this
@@ -272,7 +288,11 @@ def _read(text: str, returncode: int | None = 0) -> Outcome:
          if line.startswith(FAILED)),
         None,
     )
-    verdicts = tuple(line.strip() for line in text.splitlines() if VERDICT in line)
+    verdicts = tuple(
+        stripped
+        for stripped in (line.strip() for line in text.splitlines())
+        if VERDICT.match(stripped)
+    )
     return Outcome(groups, failure, verdicts, returncode)
 
 

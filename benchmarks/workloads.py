@@ -16,7 +16,7 @@ Open Obligations:
 from metta_benchmarking import count_atoms
 
 from metta import Expression, S, V
-from metta.wire import from_wire
+from metta.convert import from_wire
 
 TERM_COUNT = 20_000
 WIRE_TRIPS = 2_000

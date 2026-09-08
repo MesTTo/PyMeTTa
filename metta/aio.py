@@ -174,7 +174,7 @@ from ._under import selected as _selected_under
 from .atoms import Atom, Expression, Symbol, Undefined
 from .errors import Interrupted, MettaError, Timeout
 from .results import Rows
-from .subscribe import SUBSCRIPTION_QUEUE_MAX, _capacity
+from .subscribe import _capacity
 from .vocabularies import (
     AgendaPolicy,
     AnswerPolicy,
@@ -185,10 +185,12 @@ from .vocabularies import (
     EventOrder,
     Fidelity,
     ImageMode,
+    JournalSync,
     OnError,
     SaveFormat,
     SemiringOrder,
     SourceKind,
+    SubscriptionEdge,
     World,
 )
 
@@ -1028,7 +1030,7 @@ class AsyncMeTTa:
         grants: _abc.Iterable[str] = (),
         journal: str | os.PathLike[str] | None = None,
         schema: _abc.Mapping[str, Any] | None = None,
-        sync: str = "none",
+        sync: JournalSync = JournalSync.none,
         rename: _abc.Mapping[str, str] | None = None,
         _created_at: tuple[str, int] | None = None,
     ) -> AsyncMeTTa:
@@ -1258,9 +1260,9 @@ class AsyncMeTTa:
         self,
         pattern: Any,
         *,
-        on: str = "add",
+        on: SubscriptionEdge = SubscriptionEdge.add,
         where: Any | None = None,
-        queue_max: int = SUBSCRIPTION_QUEUE_MAX,
+        queue_max: int | None = None,
     ) -> _AsyncSubscription:
         """A standing query as an async event stream: every matching
         write becomes an Event on an asyncio queue, consumed with
@@ -1277,10 +1279,10 @@ class AsyncMeTTa:
         self,
         pattern: Any,
         *,
-        on: str = "add",
+        on: SubscriptionEdge = SubscriptionEdge.add,
         where: Any | None = None,
         deadline: float | None = None,
-        queue_max: int = SUBSCRIPTION_QUEUE_MAX,
+        queue_max: int | None = None,
     ) -> _AsyncSubscription:
         """Observe matching writes, raising Timeout after each quiet deadline.
 
@@ -2504,7 +2506,7 @@ class AsyncMeTTa:
     async def live(
         self,
         *query: Any,
-        on: str = "both",
+        on: SubscriptionEdge = SubscriptionEdge.both,
         strategy: str | None = None,
     ) -> Any:
         """A materialised view of a query, current with this space's writes.
@@ -3444,8 +3446,8 @@ class _AsyncSubscription:
         self,
         am: AsyncMeTTa,
         pattern: Any,
-        on: str,
-        queue_max: int = SUBSCRIPTION_QUEUE_MAX,
+        on: SubscriptionEdge,
+        queue_max: int | None = None,
         *,
         deadline: float | None = None,
         where: Any | None = None,

@@ -91,6 +91,7 @@ from ._engine import Runtime, runtime
 from .atoms import Atom, Expression, Grounded, Symbol, _atom_from_wire, _is_ground
 from .errors import EngineError, MettaError
 from .foreign import SpaceProvider
+from .vocabularies import JournalSync
 
 logger = logging.getLogger(__name__)
 
@@ -107,6 +108,7 @@ _MODULE_POOL: dict[tuple[tuple[str, int], ...], list[str]] = {}
 #: name rather than letting an import error stand in for the explanation.
 _FCNTL = importlib.import_module("fcntl") if os.name == "posix" else None
 
+# closed-set: decides; policy=which predicates of SWI's library(persistency) a journalled space uses, and at which arity, so a missing one is named at attach rather than at the first write; reads=none, it is that library's surface rather than this engine's
 _PERSISTENCY_API = {
     ("persistent", 1),
     ("current_persistent_predicate", 1),
@@ -117,6 +119,7 @@ _PERSISTENCY_API = {
     ("db_sync_all", 1),
 }
 
+# closed-set: decides; policy=which Prolog helpers this module GENERATES for one journalled space, and at which arity; reads=none, it is the source the generated source is written from
 _HELPER_ARITIES = {
     "decode": 2,
     "encode": 2,
@@ -863,8 +866,6 @@ class PersistentFactSpace(SpaceProvider):
     journal costs half.
     """
 
-    _SYNC_MODES = ("none", "flush", "close")
-
     def delivers(self) -> tuple[str, str]:
         """Declare the engine hooks as this exclusively attached store's stream."""
         return ("per-write-exactly", "ordered")
@@ -873,12 +874,12 @@ class PersistentFactSpace(SpaceProvider):
         self,
         path: str | os.PathLike[str],
         schema: Mapping[str, int],
-        sync: str = "none",
+        sync: JournalSync = JournalSync.none,
         *,
         rename: Mapping[str, str] | None = None,
     ) -> None:
-        if sync not in self._SYNC_MODES:
-            msg = f"sync must be one of {list(self._SYNC_MODES)}, got {sync!r}"
+        if sync not in JournalSync:
+            msg = f"sync must be one of {list(JournalSync)}, got {sync!r}"
             raise ValueError(msg)
         self._sync_mode = sync
         self._path = _journal_path(path)

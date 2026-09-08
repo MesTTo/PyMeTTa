@@ -48,7 +48,7 @@ from metta import (
     ground,
 )
 from metta import integrate as pi
-from metta.casting import CastError
+from metta.convert import CastError
 
 
 def test_module_ops_bulk_registers_a_stdlib_module(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract

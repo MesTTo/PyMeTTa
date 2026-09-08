@@ -42,7 +42,7 @@ from typing import Any
 
 import pytest
 
-from metta import _json, parse, testing, wire
+from metta import _json, convert, parse, testing
 from metta.testing import check_codec, codec_corpus, codec_plan
 
 CORE = frozenset({"s", "v", "n", "g", "e"})
@@ -81,7 +81,7 @@ class JanusCodec:
 
     def roundtrip(self, payload):  # noqa: D102  -- the test double method is documented by its containing scenario and protocol
         if payload[:1] == ["h"]:
-            host_atom = wire.atom_from_wire(payload)
+            host_atom = convert.atom_from_wire(payload)
             host_back = host_atom.to_wire()
             if host_back != payload:
                 msg = f"the Python host changed native handle {payload!r} into {host_back!r}"
@@ -187,17 +187,17 @@ class JsonWireCodec:
         return parse(text).to_wire()
 
     def roundtrip(self, payload):  # noqa: D102  -- the test double method is documented by its containing scenario and protocol
-        return wire.atom_from_wire(payload).to_wire()
+        return convert.atom_from_wire(payload).to_wire()
 
     def render(self, payload):  # noqa: D102  -- the test double method is documented by its containing scenario and protocol
-        return str(wire.atom_from_wire(payload))
+        return str(convert.atom_from_wire(payload))
 
     def transport(self, payload):  # noqa: D102  -- the test double method is documented by its containing scenario and protocol
         return _json.loads(_json.dumps(payload))
 
     def frame(self, payload):  # noqa: D102  -- the test double method is documented by its containing scenario and protocol
         # The u frame is not an atom, so it is read below atom_from_wire.
-        undefined = wire.from_wire(payload)
+        undefined = convert.from_wire(payload)
         return {
             "value": undefined.value.to_wire(),
             "why": undefined.why,

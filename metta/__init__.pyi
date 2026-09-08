@@ -193,7 +193,6 @@ __all__ = [
     "bool",
     "boot",
     "budget",
-    "casting",
     "catalog",
     "channel",
     "config",
@@ -257,7 +256,6 @@ __all__ = [
     "spawn",
     "speculate",
     "stats",
-    "strategies",
     "structures",
     "stubs",
     "subscribe",
@@ -271,7 +269,6 @@ __all__ = [
     "unify",
     "view",
     "vocabularies",
-    "wire",
     "writes",
 ]
 

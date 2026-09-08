@@ -36,6 +36,9 @@ Open Obligations:
 
 import re
 
+import metta
+import metta._prelude
+
 #: Every published host_service, exactly as declared. Deleting a row here
 #: must accompany deleting its declaration (the shrink working as
 #: intended); adding one means the shim grew a NEW dependency on the
@@ -458,3 +461,81 @@ def test_the_shim_surface_shrank_to_the_transport_floor():
     stray = {name: why for name, why in FLOOR_REASONS.items()
              if why not in allowed}
     assert not stray, f"a reason outside the floor taxonomy: {stray}"
+
+
+def test_the_prelude_names_are_what_install_registers():
+    """`_prelude.NAMES` and the table `install()` registers are one roster.
+
+    The names are written twice by construction -- the tuple is read by the
+    compiler before any engine exists, and the registration table pairs each
+    with the closure that implements it -- so this is what holds the two
+    together. A head added to one and not the other used to be found at run
+    time, when a compiled body lowered to a name nothing had registered.
+    """
+    import ast
+    from pathlib import Path
+
+    from metta._prelude import NAMES
+
+    source = Path(metta._prelude.__file__).read_text(encoding="utf-8")
+    tree = ast.parse(source)
+    install = next(
+        node
+        for node in ast.walk(tree)
+        if isinstance(node, ast.FunctionDef) and node.name == "install"
+    )
+    table = next(
+        node.value
+        for node in ast.walk(install)
+        if isinstance(node, ast.AnnAssign)
+        and isinstance(node.target, ast.Name)
+        and node.target.id == "prelude"
+    )
+    registered = [
+        element.elts[1].value
+        for element in table.elts
+        if isinstance(element, ast.Tuple) and isinstance(element.elts[1], ast.Constant)
+    ]
+    assert registered == list(NAMES)
+
+
+def test_the_binding_heads_are_heads_the_engine_knows(metta):
+    """Every head `_lint_analysis` treats as binding is one the engine has.
+
+    The set is a CHOICE -- which of the engine's heads bind a name in their
+    body -- so it is not derived from the engine's roster; what is derived is
+    that it cannot name a head the engine does not have, which is the way it
+    could go stale without anything saying so. `bind!` is a FUNCTION rather
+    than a special form and binds all the same, which is why the roster this
+    reads is both.
+    """
+    from metta._lint_analysis import _BINDING_HEADS
+
+    known = set(
+        metta.runtime.must(
+            "findall(_Head, (spaces:metta_special_form_head(_Head) ; fun(_Head)), Heads)"
+        )["Heads"]
+    )
+    assert _BINDING_HEADS <= known, sorted(_BINDING_HEADS - known)
+
+
+def test_the_metatypes_are_the_engines_own(metta):
+    """`_lint_analysis._METATYPES` is what `get-metatype` can answer, plus two.
+
+    The four `get-metatype` answers are the engine's. The three beside them
+    are the ones no value ever IS: `Atom` is their supertype, `%Undefined%` is
+    the wildcard a declaration writes for "anything", and `Type` is the type of
+    a type. All three admit anything of their kind for the same reason the four
+    do. A fifth metatype in the engine and not here would leave a declaration
+    this lint could contradict.
+    """
+    from metta import G, S
+    from metta._lint_analysis import _METATYPES
+
+    answered = {
+        str(metta.eval(S["get-metatype"](subject))[0])
+        for subject in (S.a, S.a(S.b), G(1), metta.parse("$x"))
+    }
+    assert answered == {"Symbol", "Expression", "Grounded", "Variable"}
+    assert answered <= _METATYPES, sorted(answered - _METATYPES)
+    assert _METATYPES - answered == {"Atom", "%Undefined%", "Type"}

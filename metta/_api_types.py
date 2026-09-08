@@ -23,7 +23,7 @@ Guarantees:
     test_canonical_context_types_replace_public_newtypes; commit=bd8689098b4720411b94ea620b7d973ecea46409]
 Assumes:
   - it imports nothing but ``typing``, which is what lets the LEAF modules use
-    it: ``metta.casting`` costs 10.9ms to import and ``metta.integrate``, where
+    it: ``metta.convert`` costs 10.9ms to import and ``metta.integrate``, where
     the public ``space_of`` door lives, costs 41.2ms, so a leaf reaching the
     resolution through the satellite would have quadrupled its own import
     [measured 2026-09-06 with ``python -X importtime``; commit=f25ac80f93e7c3626b87e593117d09b9c9bc8c95]
@@ -93,24 +93,51 @@ class TemplateLike(Protocol):
         """The holes, in the order they appear."""
 
 
-def space_of(m: Any) -> Any:
-    """The space a door works in, given a context or a space.
+class SpaceLike(Protocol):
+    """Anything a door that wants a space accepts: it answers its own ``&self``.
 
-    A door that reads, writes, declares or introspects wants a SPACE, and
-    what a caller holds is usually a context. ``MeTTa`` refuses a Space door
-    rather than forwarding it, deliberately, so a door written the natural
-    way failed on the first storage or introspection door it reached:
+    A door that reads, writes, declares or introspects wants a SPACE, and what
+    a caller holds is usually a context. ``MeTTa`` refuses a Space door rather
+    than forwarding it, deliberately, so a door written the natural way failed
+    on the first storage or introspection door it reached:
     ``metta.lint.lint(m)`` raised ``MeTTa has no 'name'`` and
     ``metta.tables.declare(m, ...)`` raised ``MeTTa has no 'parse'``.
 
-    Duck-typed rather than an isinstance, because the leaf modules that use
-    it deliberately do not import the facade. A context is exactly the object
-    with a home space to give; a space has none, and answers for itself.
+    The resolution used to be a branch: ask for a ``self`` attribute, take the
+    receiver itself when there is none. There is no branch now, because a
+    ``Space`` answers ``self`` with ITSELF. That is MeTTa's own reading of
+    ``&self`` -- the space a form is evaluated in, which for a space is that
+    space -- so ``m.self`` is one attribute read whichever a caller holds, and
+    a door annotates what it takes instead of taking ``Any``.
+
+    Structural rather than a base class, because the leaf modules that use it
+    deliberately do not import the facade, and because a foreign receiver that
+    answers its own home space is as good a subject as ours.
+    """
+
+    @property
+    def self(self) -> Any:
+        """The space this receiver's doors work in."""
+
+
+def space_of(m: Any) -> Any:
+    """The space a door works in, given a context or a space.
+
+    Sugar over ``m.self``, which is the longhand and is what every door in this
+    package writes: both classes answer it, so a door inside the library takes
+    ``SpaceLike`` and reads the attribute.
+
+    This is the TOLERANT spelling, and the tolerance is the contract rather
+    than a leftover: a receiver that answers neither IS the space, which is
+    what lets an object standing in for one -- a gateway's minimal store, a
+    provider under test -- reach a door that only ever asks it for atoms.
+    Published because a caller holding a value typed ``Any`` has nowhere to say
+    which it is, and because a registrant reaches the same resolution through
+    the seam's ``space-of`` service.
 
     ``metta.integrate.space_of`` is this resolution's public spelling.
     """
-    home = getattr(m, "self", None)
-    return m if home is None else home
+    return getattr(m, "self", m)
 
 
 #: Empty on purpose: this module is where the boundary types are DEFINED, not

@@ -195,6 +195,7 @@ def alpha_equal(left: Any, right: Any) -> bool:
 
 # ------------------------------------------------------------- materialising
 
+# closed-set: decides; policy=the three non-finite floats the codec corpus materialises by name, because JSON carries none of them; reads=none, it is the source
 _FLOATS = {"inf": float("inf"), "-inf": float("-inf"), "nan": float("nan")}
 
 
@@ -287,7 +288,7 @@ def _refused(operation, *arguments) -> str | None:
     """The refusal an operation raised, or None when it accepted."""
     try:
         operation(*arguments)
-    except Exception as exc:  # noqa: BLE001  a driver refuses in its host's own way
+    except Exception as exc:  # noqa: BLE001
         return f"{type(exc).__name__}: {exc}"
     return None
 

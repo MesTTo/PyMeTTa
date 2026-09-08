@@ -957,7 +957,7 @@ _LOOPBACK = frozenset({"127.0.0.1", "::1", "localhost"})
 #: the operating system instead. "::" is dual-stack wherever this runs, so it
 #: carries IPv4 too.
 _WILDCARD_FAMILIES: dict[str, frozenset[int]] = {
-    "0.0.0.0": frozenset({socket.AF_INET}),  # noqa: S104  # nosec B104 -- recognising a wildcard bind, not making one
+    "0.0.0.0": frozenset({socket.AF_INET}),  # nosec B104 -- recognising a wildcard bind, not making one  # noqa: S104  # nosec B104 -- recognising a wildcard bind, not making one
     "": frozenset({socket.AF_INET}),
     "::": frozenset({socket.AF_INET, socket.AF_INET6}),
 }
@@ -1573,7 +1573,7 @@ def _close_every(entries: list[_OpenCursor]) -> None:
     for entry in entries:
         try:
             entry.cursor.close()
-        except BaseException as exc:  # noqa: BLE001  -- every cursor closes before any failure leaves
+        except BaseException as exc:  # noqa: BLE001
             failures.append(exc)
     if failures:
         _raise_failures("releasing remote answer cursors failed", failures)
@@ -2451,7 +2451,7 @@ class _RemoteWorker:
                 try:
                     if request.interrupted:
                         self._drain()
-                except BaseException as exc:  # noqa: BLE001 -- an unexpected transition failure poisons the worker
+                except BaseException as exc:  # noqa: BLE001
                     fatal = (
                         exc
                         if fatal is None

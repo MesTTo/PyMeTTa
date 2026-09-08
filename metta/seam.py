@@ -135,6 +135,7 @@ __all__ = [
     "image_of",
     "index",
     "ipc",
+    "law",
     "match",
     "module",
     "on_registration",
@@ -151,6 +152,7 @@ __all__ = [
     "sql_arity",
     "sql_types",
     "transport_error",
+    "typing",
     "withdraw",
 ]
 
@@ -160,6 +162,7 @@ KINDS: Final[tuple[str, ...]] = ("declaration", "ownership", "event", "service")
 #: Who writes a kind's rows. The engine's clauses_from/2 twin, and the reason
 #: the dispatch rules below are derived rather than restated: only a kind whose
 #: rows a REGISTRANT writes can have a row that declines.
+# closed-set: decides; policy=who writes each seat kind's rows, which is what decides whether a row may decline; reads=none, it is the engine's own clauses_from/2 split read for this seat's four kinds
 WRITTEN_BY: Final[Mapping[str, str]] = {
     "declaration": "registrant",
     "ownership": "registrant",
@@ -214,6 +217,7 @@ _EMPTY_ANNOTATION: Final = inspect.Signature.empty
 #: that holds both; cast in the query when a column wants an integer.
 #: Everything else is text, because every atom has canonical MeTTa text and
 #: nothing else survives a SQL column intact.
+# closed-set: decides; policy=how a MeTTa type spells in SQL, for every engine that wants types; reads=none, it is the source a `sql` registrant speaks
 SQL_TYPE: Final[Mapping[str, str]] = {
     "Number": "DOUBLE",
     "Bool": "BOOLEAN",
@@ -241,6 +245,7 @@ ARROW_KINDS: Final[tuple[str, str, str, str, str]] = (
 #: Which kind each Arrow C format string asks for, for a producer reading a
 #: requested schema back the other way [source:
 #: https://arrow.apache.org/docs/format/CDataInterface.html#data-type-description-format-strings].
+# closed-set: decides; policy=which Arrow kind each C format string asks for, which is Arrow's own grammar; reads=none, it is the source
 ARROW_FORMAT: Final[Mapping[str, str]] = {"l": "int64", "g": "float64", "b": "bool", "u": "text"}
 
 
@@ -456,6 +461,7 @@ class Point:
 
 
 #: How each kind is read, for the refusal a wrong-kind dispatch raises.
+# closed-set: decides; policy=how each seat kind is READ, for the refusal a wrong-kind dispatch raises; reads=none, it is the source
 _DISPATCH: Final[Mapping[str, str]] = {
     "declaration": "table()",
     "ownership": "claim(...)",
@@ -1075,6 +1081,45 @@ image = point(
         "framework's row is asked first however the two loaded: a validated "
         "model is also a class with __match_args__, and the specific reading "
         "has to win."
+    ),
+)
+
+law = point(
+    "law",
+    "declaration",
+    fields=("arity", "sides"),
+    optional=("same",),
+    doc=(
+        "One ALGEBRA LAW a declared carrier can be held to. `arity` is how "
+        "many carrier values the property draws; `sides(carrier, *values)` "
+        "answers the two things the law says are equal, or None where this "
+        "carrier gives it nothing to compare; `same(left, right)` is the "
+        "equality the law is stated under, defaulting to the seat's own. A "
+        "provider whose carrier obeys a law nobody wrote down registers it "
+        "here and `metta.testing.laws(...)` runs it beside the shipped ones. "
+        "The NAMES are the engine's `algebra-law` vocabulary, so a law with "
+        "no word there is one no declaration can ask for."
+    ),
+)
+
+typing = point(
+    "typing",
+    "declaration",
+    fields=("equations", "doc"),
+    doc=(
+        "A TYPE-EQUATION TEMPLATE, named by the rule kind it is. A row is a "
+        "shape rule over an indexed carrier -- `preserve` keeps the operand's "
+        "shape, `broadcast` is NumPy's rule, `reduce-all` answers a scalar -- "
+        "and none of that is about arrays: a dataframe's rows by columns and "
+        "an image's height by width by channels are the same algebra. "
+        "`equations` is a tuple of TEMPLATE atoms carrying `$head` where the "
+        "head this rule is declared for goes and `$arg1`, `$arg2`, ... where "
+        "the row's own arguments go, so a rule is DATA rather than Python that "
+        "assembles expressions; a rule whose result the runtime observes "
+        "rather than derives carries an empty tuple. `doc` is the sentence "
+        "that says which shape the rule gives. "
+        "`metta.typing.declare(space, head, kind, *arguments)` applies one and "
+        "answers the inverse."
     ),
 )
 
