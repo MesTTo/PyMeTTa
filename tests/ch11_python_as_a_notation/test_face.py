@@ -9,6 +9,10 @@ Assumes:
   - `tests.fixtures.face_source` is importable, which the suite's own root on
     `sys.path` arranges [source: extensions/python/pyproject.toml, pythonpath]
 Guarantees:
+  - version and missing-module notes name fixtures under a checkout-relative
+    TMPDIR as well as fixtures outside the checkout
+    [tested: test_a_version_bump_alone_is_a_note_rather_than_drift,
+    test_a_face_whose_module_is_absent_is_reported_and_skipped; commit=ea2c1bde39a7b002b1e5948cf6c53bc469dac084]
   - the arities a face writes are the ones a `module_ops` registration
     ANSWERS, asked of a live engine rather than of the shared rule [tested:
     test_a_face_serves_the_call_forms_a_registration_answers; commit=7229962705d199fb08796b3090ec5a8a3a0ae393]
@@ -433,7 +437,8 @@ def test_a_face_whose_module_is_absent_is_reported_and_skipped(tmp_path):
 
     assert findings == []
     assert notes == [
-        "lib_absent.metta: a_library_nobody_has is not installed here, so "
+        f"{face.relative_to(_REPO) if face.is_relative_to(_REPO) else face.name}: "
+        "a_library_nobody_has is not installed here, so "
         "this face was not checked against it"
     ]
 
@@ -454,7 +459,8 @@ def test_a_version_bump_alone_is_a_note_rather_than_drift(tmp_path):
 
     assert findings == []
     assert notes == [
-        "lib_pinned.metta: read from tests.fixtures.face_source 0.0.1, and "
+        f"{face.relative_to(_REPO) if face.is_relative_to(_REPO) else face.name}: "
+        "read from tests.fixtures.face_source 0.0.1, and "
         f"{_VERSION} is installed here; `--write` moves the pin"
     ]
 

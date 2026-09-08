@@ -201,7 +201,9 @@ def integrate(m, target: Any) -> str:
     them is the registry's ordinary replacement.
 
     Installation is one unit of work. A failure restores engine state and each
-    framework-owned Python registry to the state before this call. A home space
+    framework-owned Python registry to the state before this call. The
+    installer's MeTTa library imports and cursors run in its transaction:
+    their writes are visible immediately and roll back with it. A home space
     declaring best-effort writes is refused before the installer runs because
     those writes explicitly survive rollback.
 

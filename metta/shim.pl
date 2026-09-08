@@ -4,6 +4,10 @@
 %   derivations on top of an unmodified MeTTa engine. Consulted after
 %   engine/main.pl; only adds predicates, never redefines engine ones.
 % Guarantees:
+%   - cursor and function work opened in a transaction belongs to it; capture
+%     returns the eager enumeration's text once, and budgets bind that work
+%     [tested: extensions/python/tests/ch15_writing_transactions_and_worlds/test_cursor_transaction.py,
+%     host_hold; commit=ea2c1bde39a7b002b1e5948cf6c53bc469dac084].
 %   - metta_py_mirror_bounds/0 turns the catalog's own watch point on for the
 %     (limit ...) head, so a bound the seat mirrors is invalidated by whoever
 %     writes the row, a MeTTa program's own add-atom included
@@ -1715,12 +1719,28 @@ metta_py_captured_engine(Template, Goal) :-
 %speculative one used to need its own findall-then-member because
 %metta_speculate/1 ran its goal as once/1, and it answers every answer itself
 %now, so a cursor takes the same construction the eager doors take.
+metta_py_open_controlled_cursor(none, Template, Goal, Handle) :- !,
+    metta_host_hold(Template, Goal, Handle).
 metta_py_open_controlled_cursor([Mode, Capture], Template, Goal, Handle) :-
     metta_py_execution_policy_goal(Mode, Goal, Controlled),
-    (   Capture == @(true)
-    ->  engine_create(_, metta_py_captured_engine(Template, Controlled), Engine),
+    (   Capture == @(true), current_transaction(_)
+    ->  metta_host_hold(
+            Packet, metta_py_hold_captured(Template, Controlled, Packet), Held),
+        Handle = metta_py_captured_cursor(rows(Held))
+    ;   Capture == @(true)
+    ->  metta_host_hold(_, metta_py_captured_engine(Template, Controlled), Engine),
         Handle = metta_py_captured_cursor(Engine)
-    ;   engine_create(Template, Controlled, Handle)
+    ;   metta_host_hold(Template, Controlled, Handle)
+    ).
+
+% The service owns holding; this predicate selects the capture transport for
+% an enumeration that cannot suspend. An empty enumeration still has output.
+metta_py_hold_captured(Template, Goal, Packet) :-
+    with_output_to(string(Text), findall(Template, Goal, Rows)),
+    (   Rows = [First|Rest]
+    ->  ( Packet = [[First], Text]
+        ; member(Row, Rest), Packet = [[Row], ""] )
+    ;   Packet = [[], Text]
     ).
 
 %%%%%%%%%% Lazy cursors %%%%%%%%%%
@@ -1730,7 +1750,10 @@ metta_py_open_controlled_cursor([Mode, Capture], Template, Goal, Handle) :-
 % pulls, and unrelated calls interleave freely, which a raw janus cursor
 % forbids (its frames nest LIFO and it dies crossing threads; probed).
 % The handle crosses to Python opaquely inside prolog/1, and both
-% stepping and destroying work from any thread (probed). The engine runs
+% stepping and destroying work from any thread outside a transaction. A
+% cursor opened inside a transaction is evaluated eagerly on its thread by
+% metta_host_hold/3; only that thread may step its held rows. Close from another
+% thread queues cleanup on the owner. The engine runs
 % under the logical update view: a fact added after the first pull is not
 % seen by this cursor, the snapshot-like enumeration contract.
 
@@ -1855,8 +1878,13 @@ metta_py_ordered_pairs(_, Pairs, Ordered) :-
 
 %[] is exhaustion, [Row] one answer, so Python needs no sentinel value.
 metta_py_cursor_next(Engine, Answer) :-
-    ( engine_next(Engine, Row) -> Answer = [Row] ; Answer = [] ).
+    ( metta_host_hold_next(Engine, Row) -> Answer = [Row] ; Answer = [] ).
 
+metta_py_captured_cursor_next(rows(Handle), Answer, Text) :- !,
+    (   metta_host_hold_next(Handle, [Answer, Text])
+    ->  true
+    ;   Answer = [], Text = ""
+    ).
 metta_py_captured_cursor_next(Engine, Answer, Text) :-
     setup_call_cleanup(
         new_memory_file(Memory),
@@ -1864,8 +1892,7 @@ metta_py_captured_cursor_next(Engine, Answer, Text) :-
               open_memory_file(
                   Memory, write, Stream,
                   [free_on_close(false), encoding(utf8)]),
-              ( engine_post(Engine, Stream),
-                ( engine_next(Engine, Row)
+              ( ( metta_host_hold_post(Engine, Stream, Row)
                 -> Answer = [Row]
                 ;  Answer = [] ),
                 flush_output(Stream) ),
@@ -1892,15 +1919,8 @@ metta_py_cursor_next_controlled(Engine, [Answer, ""]) :-
 %the last one asked for is never computed. Count is what Python asked for and
 %Python is what decides it may ask for more than one; see _Chunk in
 %_space_objects.py for when that is sound.
-metta_py_cursor_chunk(_, Count, []) :-
-    Count =< 0, !.
 metta_py_cursor_chunk(Engine, Count, Answers) :-
-    (   engine_next(Engine, Row)
-    ->  Answers = [Row|Rest],
-        Left is Count - 1,
-        metta_py_cursor_chunk(Engine, Left, Rest)
-    ;   Answers = []
-    ).
+    metta_host_hold_chunk(Engine, Count, Answers).
 
 metta_py_captured_cursor_chunk(_, Count, [], []) :-
     Count =< 0, !.
@@ -1925,8 +1945,10 @@ metta_py_cursor_chunk_controlled(Engine, Count, [Answers, ""]) :-
 %Idempotent close: a second destroy finds no engine and is at peace.
 metta_py_cursor_close(metta_py_captured_cursor(Engine)) :- !,
     metta_py_cursor_close(Engine).
+metta_py_cursor_close(rows(Handle)) :- !,
+    metta_host_hold_close(Handle).
 metta_py_cursor_close(Engine) :-
-    catch(engine_destroy(Engine), error(existence_error(_, _), _), true).
+    metta_host_hold_close(Engine).
 
 %%%%%%%%%% Profiling %%%%%%%%%%
 %
@@ -4117,7 +4139,7 @@ metta_py_eval_count_retaining(Space, Target, Pairs, VarNames, Inf,
                member(Held-HeldRow, Bag),
                metta_py_retained_encoded(Held, Encoded),
                statistics(inferences, Now), Used is Now - Before ),
-    engine_create([Encoded, HeldRow, Used], Replay, Engine).
+    metta_host_hold([Encoded, HeldRow, Used], Replay, Engine).
 
 %One held answer: the fuel-scope result before its wire form exists.
 metta_py_eval_retained(Space, Term, Retained) :-

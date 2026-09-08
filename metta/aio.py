@@ -2459,12 +2459,12 @@ class AsyncMeTTa:
         """Point MeTTa at a directory of files your package ships.
 
             # in your package's __init__
-            m.register_library_path(Path(__file__).parent / "prolog", "pettorch")
+            m.register_library_path(Path(__file__).parent / "prolog", "example_package")
 
         Subject first, as every register_* call: the directory being
         registered, then the library name it serves.
 
-        `(library pettorch fast.pl)` then resolves, from MeTTa and from
+        `(library example_package fast.pl)` then resolves, from MeTTa and from
         `register_prolog(path=...)`. Without it a pip-installed library is
         under neither `<engine>/../lib` nor a git checkout, so it has to pass
         absolute paths and compute them from `__file__` by hand.
