@@ -11,6 +11,9 @@ Assumes:
   - seam:kind rows in engine/ext_points.pl are the one authority for a
     seam's kind [tested: static_checks:every_seam_declares_one_kind]
 Guarantees:
+  - host cursor services share transaction ownership and lifecycle across seats
+    [tested: test_the_host_service_scoreboard_matches_the_tree,
+    test_the_shim_surface_shrank_to_the_transport_floor; commit=WORKTREE]
   - carrier membership uses the engine-owned validation door
     [tested: test_the_host_service_scoreboard_matches_the_tree; commit=074dc0a88b1605c54824de677d586b6f60998bcf]
   - the manifest and the tree hold the same host_service set, compared as
@@ -134,6 +137,14 @@ HOST_SERVICES = {
     # so a host wrapping its own pull loop waits for the current pull to
     # return before the alarm is ever seen.
     "metta_host_time_budget/3",
+    # A suspended engine cannot join its creating thread's transaction. The
+    # engine owns eager holding there, lazy engines elsewhere, thread access,
+    # capture replies and cleanup; every seat uses the same opaque handle.
+    "metta_host_hold/3",
+    "metta_host_hold_next/2",
+    "metta_host_hold_chunk/3",
+    "metta_host_hold_post/3",
+    "metta_host_hold_close/1",
     # Cache validation reads the function registry's engine-owned generation.
     "metta_host_function_generation/1",
     # The one row here that makes the floor SHRINK by being added. The engine
@@ -392,6 +403,11 @@ FLOOR_REASONS = {
     "metta_host_save_fast/3": "host-orchestration",
     "metta_host_stored/2": "host-orchestration",
     "metta_host_time_budget/3": "host-orchestration",
+    "metta_host_hold/3": "host-orchestration",
+    "metta_host_hold_next/2": "host-orchestration",
+    "metta_host_hold_chunk/3": "host-orchestration",
+    "metta_host_hold_post/3": "host-orchestration",
+    "metta_host_hold_close/1": "host-orchestration",
     "metta_host_substitute/3": "host-orchestration",
     "metta_host_unregister_reader_token/1": "door",
     "metta_reducible_head/2": "door",

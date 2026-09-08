@@ -3188,6 +3188,8 @@ class Space(Handle):
         back; what the callable did on the Python side (a list appended,
         a file written) is yours to undo, SWI transactions being
         database-scoped.
+        A cursor or ``fn`` call opened inside the transaction evaluates
+        eagerly on its thread and belongs to that transaction.
 
         Transactions nest, SWI's own semantics: an inner commit is
         relative to its outer transaction, so an outer rollback discards
@@ -3608,13 +3610,25 @@ class Space(Handle):
         interpreter: Any | None = None,
         **values: Any,
     ) -> Answers[Any]:
-        """Evaluate lazily as an immutable, cached and replayable view.
+        """Evaluate as an immutable, cached and replayable view.
 
-        Creating the view performs no engine work. Existence pulls at most
-        one answer, ``one()`` at most two, and ordinary iteration resumes the
-        same held evaluation [tested:
+        Creating the view performs no engine work. The first demand opens
+        its cursor. Outside a transaction, existence pulls at most one
+        answer, ``one()`` at most two, and ordinary iteration resumes the
+        same lazy evaluation [tested:
         test_function_calls_pull_engine_answers_only_as_demanded;
         commit=2d4d4583c2d82e90bb21a7e8671842f126edd4f4].
+
+        Inside a transaction, opening the cursor evaluates all answers
+        eagerly on that transaction's thread, so its reads see earlier
+        writes and its own writes commit or roll back with the transaction.
+        Holding costs memory proportional to the answer bag. Budgets apply
+        during that enumeration; captured output arrives with the first
+        pull. Unread rows survive commit and disappear on rollback. Step
+        the cursor from the transaction's thread, or open it outside the
+        transaction to step it from another thread [tested:
+        extensions/python/tests/ch15_writing_transactions_and_worlds/test_cursor_transaction.py;
+        commit=WORKTREE].
 
         ``under=`` has the same carrier semantics as ``match``. In
         particular, ``space.answers(call, under=counting).one()`` returns one
@@ -4896,12 +4910,12 @@ class Space(Handle):
         """Point MeTTa at a directory of files your package ships.
 
             # in your package's __init__
-            m.register_library_path(Path(__file__).parent / "prolog", "pettorch")
+            m.register_library_path(Path(__file__).parent / "prolog", "example_package")
 
         Subject first, as every register_* call: the directory being
         registered, then the library name it serves.
 
-        `(library pettorch fast.pl)` then resolves, from MeTTa and from
+        `(library example_package fast.pl)` then resolves, from MeTTa and from
         `register_prolog(path=...)`. Without it a pip-installed library is
         under neither `<engine>/../lib` nor a git checkout, so it has to pass
         absolute paths and compute them from `__file__` by hand.

@@ -89,4 +89,11 @@ def twin(m):  # noqa: ARG001  -- the twin works in its own named space; the defa
 #: relational engine heads [measured 2026-09-01: min-of-3 serial fresh
 #: processes; command=python extensions/python/tools/twin_coverage.py --repin;
 #: commit=e3787593132a7ece2d300397045f7415709847c9].
-BUDGET = 262
+#: RE-PINNED 2026-09-08, 262 to 294 (+32), Cursor open, chunk, next and close
+#: now use the shared transaction-aware host hold services. With MORK
+#: provisioned on both trees, the base reads 266 and this tree reads 294; the
+#: MeTTa example stays at 3768. The previous pin of 262 was within its
+#: allowance on the base [measured 2026-09-08: min-of-3 serial fresh processes;
+#: command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+BUDGET = 294
