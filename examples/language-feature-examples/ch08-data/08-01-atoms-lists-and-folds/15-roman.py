@@ -275,7 +275,18 @@ def twin(m):
 #: returned callback goals [measured 2026-09-08: min-of-3 serial fresh
 #: processes; command=python extensions/python/tools/twin_coverage.py --repin;
 #: commit=ede2ac57e213a0d4502c6bbbca6227f97015b720].
-BUDGET = 320096
+#: RE-PINNED 2026-09-08, 320096 to 320353 (+257), the module boundary merged
+#: with trunk's later packages (refactor/engine-and-libraries-as-modules at
+#: b64291369): every space now resolves through one more chain link, prelude ->
+#: metta_engine -> user, the engine's measured export list is imported into the
+#: host tier at boot, the closed-sets watch point costs one inference per
+#: &metta write, and a cursor opened by a host pays one transaction check at
+#: its door; the branch pinned its budgets on its cut, trunk re-pinned the same
+#: twins for the packages that landed after that cut, and only the merged tree
+#: carries both, so this entry is where the two chains meet [measured
+#: 2026-09-08: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 320353
 
 #: OVERRUN 2026-09-07, 17700: it names every lib_roman function at every claim
 #: and runs the backwards `let` inverses beside them. Measured 320547 against a
@@ -306,7 +317,16 @@ BUDGET = 320096
 #: twin of it fits the band at all, as before [measured 2026-09-08: one fresh
 #: process per side; command=python
 #: extensions/python/benchmarks/probes/twin_floor.py; commit=c26b6a4d28ef8fb50742440feed2c0578ebb0f58].
-OVERRUN = 17787
+#: OVERRUN 2026-09-08, 17787 to 18202 (+415): the module boundary merged with
+#: trunk (refactor/engine-and-libraries-as-modules at b64291369): the twin's
+#: host crossings each resolve through one more chain link, prelude ->
+#: metta_engine -> user, while the example runs inside the engine; every
+#: crossing this twin makes pays it and the example pays none. Measured 320353
+#: against a ceiling of 319938; a minimal twin costs 313470 against the band's
+#: 302152, above that ceiling, so no twin of it fits the band at all, as
+#: before [measured 2026-09-08: one fresh process per side; command=python
+#: extensions/python/benchmarks/probes/twin_floor.py; commit=WORKTREE].
+OVERRUN = 18202
 
 #: DIVERGED 2026-09-07, the example holds 9 atoms the twin does not (9 =) and
 #: the twin holds 9 the example does not (9 =): the twin is an ordinary Python

@@ -194,7 +194,18 @@ def twin(m):
 #: facade; compiled program lookup crosses the added metta_engine tier
 #: [measured 2026-09-08: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=ede2ac57e213a0d4502c6bbbca6227f97015b720].
-BUDGET = 24060
+#: RE-PINNED 2026-09-08, 24060 to 24383 (+323), the module boundary merged with
+#: trunk's later packages (refactor/engine-and-libraries-as-modules at
+#: b64291369): every space now resolves through one more chain link, prelude ->
+#: metta_engine -> user, the engine's measured export list is imported into the
+#: host tier at boot, the closed-sets watch point costs one inference per
+#: &metta write, and a cursor opened by a host pays one transaction check at
+#: its door; the branch pinned its budgets on its cut, trunk re-pinned the same
+#: twins for the packages that landed after that cut, and only the merged tree
+#: carries both, so this entry is where the two chains meet [measured
+#: 2026-09-08: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 24383
 
 #: OVERRUN 2026-09-07, 3600: it puts Python's own `in` beside `is-alpha-member`
 #: at every claim, which is the difference the file is about. Measured 23710
@@ -203,4 +214,13 @@ BUDGET = 24060
 #: against the ceiling's 20155, so no twin of it fits the band at all [measured
 #: 2026-09-07: one fresh process per side; command=python
 #: extensions/python/benchmarks/probes/twin_floor.py; commit=9010a79b01c9b2a66b96a3952fa378fb3e939dc3].
-OVERRUN = 3600
+#: OVERRUN 2026-09-08, 3600 to 3909 (+309): the module boundary merged with
+#: trunk (refactor/engine-and-libraries-as-modules at b64291369): the twin's
+#: host crossings each resolve through one more chain link, prelude ->
+#: metta_engine -> user, while the example runs inside the engine; every
+#: crossing this twin makes pays it and the example pays none. Measured 24383
+#: against a ceiling of 24074; a minimal twin costs 23836 against the band's
+#: 20474, above that ceiling, so no twin of it fits the band at all, as before
+#: [measured 2026-09-08: one fresh process per side; command=python
+#: extensions/python/benchmarks/probes/twin_floor.py; commit=WORKTREE].
+OVERRUN = 3909

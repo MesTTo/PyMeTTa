@@ -237,37 +237,23 @@ def twin(m):
 #: not a re-pin [measured 2026-09-08: python
 #: extensions/python/tools/twin_coverage.py --observe --rounds 10 and --rounds 15,
 #: ai-tmp/integrator-849a9e/mergeFL-observe-10.log and -15.log; commit=3fc65f02ce807c359f1a52026f950f345da2a9af].
-#: RE-OBSERVED 2026-09-08 under 'full-lane/277/workers=32' and POOLED: the gate on the face-generator
-#: merge read 427680 against 427685..427713, a scheduler extreme the 25
-#: observations had not reached, so ten more full-lane rounds plus that reading join
-#: them: 36 observations read 427680..427713. Nothing in that merge runs on this twin's
-#: path; the envelope widens with its evidence, as an extremal envelope does. A run
-#: outside it is a re-observation, not a re-pin [measured 2026-09-08: python
-#: extensions/python/tools/twin_coverage.py --observe --rounds 10,
-#: ai-tmp/integrator-849a9e/mergeFACE-observe-10.log; commit=4a6029296381da416c61a3b25d1609c72a3e062a].
-#: RE-OBSERVED 2026-09-08 under 'full-lane/277/workers=32' and POOLED again: twenty-five full-lane rounds
-#: on the extension-package merge read 427675..427713, one scheduler extreme under the
-#: 36 observations' floor, so they join them: 61 observations read 427675..427713. The
-#: merge changes the Python seat's dispatch (a point's rows partitioned by fallback
-#: rank) and nothing this twin spins on; the envelope widens with its evidence. A run
-#: outside it is a re-observation, not a re-pin [measured 2026-09-08: python
-#: extensions/python/tools/twin_coverage.py --observe --rounds 25,
-#: ai-tmp/integrator-849a9e/mergeEXT-observe-25.log; commit=4e0feaf6b8eb13cd17232f6e7d58679b6e22f2b9].
-#: RE-OBSERVED 2026-09-08 under 'full-lane/277/workers=32', 427675..427713
-#: over 61 observations to 427703..427730 over 15: boot content moved
-#: with the every-closed-set-derived branch -- the refusal table and the typing
-#: point are modules this package did not have, three convert doors became one,
-#: per-library faces are projections, and the engine gained a catalog watch
-#: point -- which shifts SWI clause-indexing shape and moves a twin count by
-#: tens. The observations are this tree's own rather than pooled with the
-#: earlier ones, because pooling would mix two boot images and the spread an
-#: envelope states is a claim about ONE [measured 2026-09-08: python
-#: extensions/python/tools/twin_coverage.py --observe --rounds 15,
-#: ai-tmp/ai-derive-observe.log; commit=c26b6a4d28ef8fb50742440feed2c0578ebb0f58].
+#: RE-OBSERVED 2026-09-08 under 'full-lane/277/workers=32', 427703..427730
+#: over 15 observations to 462787..462825 over 27: the module boundary merged
+#: with trunk (refactor/engine-and-libraries-as-modules at b64291369): the
+#: twin's host crossings each resolve through one more chain link, prelude ->
+#: metta_engine -> user, while the example runs inside the engine. The
+#: observations are this tree's own rather than pooled with the earlier ones,
+#: because pooling would mix two boot images and the spread an envelope states
+#: is a claim about ONE; ten rounds, then fifteen, plus the gate's own
+#: readings between them, all under the same protocol on the same tree
+#: [measured 2026-09-08: python extensions/python/tools/twin_coverage.py
+#: --observe --rounds 10 and --rounds 15,
+#: ai-tmp/integrator-849a9e/merged68-observe-10.log and
+#: merged68-observe-15.log; commit=WORKTREE].
 BUDGET = {
-    "minimum": 427703,
-    "maximum": 427730,
-    "observations": 15,
+    "minimum": 462787,
+    "maximum": 462825,
+    "observations": 27,
     "protocol": "full-lane/277/workers=32",
 }
 
@@ -278,7 +264,17 @@ BUDGET = {
 #: twin's own program [measured 2026-09-07: one fresh process per side;
 #: command=python extensions/python/benchmarks/probes/twin_floor.py;
 #: commit=9010a79b01c9b2a66b96a3952fa378fb3e939dc3].
-OVERRUN = 184000
+#: OVERRUN 2026-09-08, 184000 to 199526 (+15526, four of them the deterministic
+#: allowance the point pins carry, because a band met exactly is refused): the module boundary merged
+#: with trunk (refactor/engine-and-libraries-as-modules at b64291369): the
+#: twin's host crossings each resolve through one more chain link, prelude ->
+#: metta_engine -> user, while the example runs inside the engine; every
+#: crossing this twin makes pays it and the example pays none. Measured 462825
+#: against a ceiling of 447303; a minimal twin costs 238746 against the band's
+#: 263309, within that ceiling, so the rest is this twin's own program
+#: [measured 2026-09-08: one fresh process per side; command=python
+#: extensions/python/benchmarks/probes/twin_floor.py; commit=WORKTREE].
+OVERRUN = 199526
 
 #: DIVERGED 2026-09-07, the example holds 0 atoms the twin does not (none) and
 #: the twin holds 1 atom the example does not (1 :): a Python annotation IS a (:

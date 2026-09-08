@@ -277,22 +277,23 @@ def twin(m):
 #: re-observation, not a re-pin [measured 2026-09-08: python
 #: extensions/python/tools/twin_coverage.py --observe --rounds 10 and --rounds 15,
 #: ai-tmp/integrator-849a9e/mergeTW-observe-10.log and -15.log; commit=08f6f4df19a283bb84ba5f679c83944b42685b2e].
-#: RE-OBSERVED 2026-09-08 under 'full-lane/277/workers=32' and POOLED: this twin races two
-#: `slow` branches whose loser is cut wherever the winner lands, so its count is the
-#: scheduler's and not the engine's, and an envelope over it is a claim about how far
-#: a losing spin gets on a loaded box. The trailed fuel scope (fix/every-intermittent-
-#: root-caused, f6e05ca9) made each spin step cheaper, and the extension-package merge's
-#: gate read 552971 under the 25 observations' floor of 554467; twenty-five fresh
-#: full-lane rounds read 552258..573907 and the gate after them read 580293, inside the
-#: earlier top. The union keeps that top as evidence, because the ceiling is set by load
-#: and not by the engine: 51 observations read 552258..583831. A run outside it is a
-#: re-observation, not a re-pin [measured 2026-09-08: python
-#: extensions/python/tools/twin_coverage.py --observe --rounds 25,
-#: ai-tmp/integrator-849a9e/mergeEXT-observe-25.log and mergeEXT-twins3.log; commit=4e0feaf6b8eb13cd17232f6e7d58679b6e22f2b9].
+#: RE-OBSERVED 2026-09-08 under 'full-lane/277/workers=32', 552258..583831
+#: over 51 observations to 589444..618249 over 26: the module boundary merged
+#: with trunk (refactor/engine-and-libraries-as-modules at b64291369): the
+#: twin's host crossings each resolve through one more chain link, prelude ->
+#: metta_engine -> user, while the example runs inside the engine. The
+#: observations are this tree's own rather than pooled with the earlier ones,
+#: because pooling would mix two boot images and the spread an envelope states
+#: is a claim about ONE; ten rounds, then fifteen, plus the gate's own
+#: readings between them, all under the same protocol on the same tree
+#: [measured 2026-09-08: python extensions/python/tools/twin_coverage.py
+#: --observe --rounds 10 and --rounds 15,
+#: ai-tmp/integrator-849a9e/merged68-observe-10.log and
+#: merged68-observe-15.log; commit=WORKTREE].
 BUDGET = {
-    "minimum": 552258,
-    "maximum": 583831,
-    "observations": 51,
+    "minimum": 589444,
+    "maximum": 618249,
+    "observations": 26,
     "protocol": "full-lane/277/workers=32",
 }
 

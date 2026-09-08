@@ -230,6 +230,17 @@ def twin(m):
 #: processes; command=python extensions/python/tools/twin_coverage.py --repin;
 #: commit=ede2ac57e213a0d4502c6bbbca6227f97015b720].
 BUDGET = 15685
+#: OVERRUN 2026-09-08, 0 to 25 (+25, four of them the deterministic
+#: allowance the point pins carry, because a band met exactly is refused): the module boundary merged with trunk
+#: (refactor/engine-and-libraries-as-modules at b64291369): the twin's host
+#: crossings each resolve through one more chain link, prelude -> metta_engine
+#: -> user, while the example runs inside the engine; every crossing this twin
+#: makes pays it and the example pays none. Measured 15689 against a ceiling
+#: of 15668; a minimal twin costs 8297 against the band's 15668, within that
+#: ceiling, so the rest is this twin's own program [measured 2026-09-08: one
+#: fresh process per side; command=python
+#: extensions/python/benchmarks/probes/twin_floor.py; commit=WORKTREE].
+OVERRUN = 25
 
 #: DIVERGED 2026-09-07, the example holds 0 atoms the twin does not (none) and
 #: the twin holds 4 the example does not (4 :): a Python annotation IS a (:

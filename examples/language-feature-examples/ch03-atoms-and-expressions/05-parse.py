@@ -124,4 +124,15 @@ def twin(m):
 #: reads its budget on the merged tree, minimum of three fresh processes
 #: [measured 2026-09-08: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=3fc65f02ce807c359f1a52026f950f345da2a9af].
-BUDGET = 578
+#: RE-PINNED 2026-09-08, 578 to 621 (+43), the module boundary merged with
+#: trunk's later packages (refactor/engine-and-libraries-as-modules at
+#: b64291369): every space now resolves through one more chain link, prelude ->
+#: metta_engine -> user, the engine's measured export list is imported into the
+#: host tier at boot, the closed-sets watch point costs one inference per
+#: &metta write, and a cursor opened by a host pays one transaction check at
+#: its door; the branch pinned its budgets on its cut, trunk re-pinned the same
+#: twins for the packages that landed after that cut, and only the merged tree
+#: carries both, so this entry is where the two chains meet [measured
+#: 2026-09-08: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 621

@@ -247,7 +247,18 @@ def twin(m):
 #: returned callback goals [measured 2026-09-08: min-of-3 serial fresh
 #: processes; command=python extensions/python/tools/twin_coverage.py --repin;
 #: commit=ede2ac57e213a0d4502c6bbbca6227f97015b720].
-BUDGET = 48418
+#: RE-PINNED 2026-09-08, 48418 to 48479 (+61), the module boundary merged with
+#: trunk's later packages (refactor/engine-and-libraries-as-modules at
+#: b64291369): every space now resolves through one more chain link, prelude ->
+#: metta_engine -> user, the engine's measured export list is imported into the
+#: host tier at boot, the closed-sets watch point costs one inference per
+#: &metta write, and a cursor opened by a host pays one transaction check at
+#: its door; the branch pinned its budgets on its cut, trunk re-pinned the same
+#: twins for the packages that landed after that cut, and only the merged tree
+#: carries both, so this entry is where the two chains meet [measured
+#: 2026-09-08: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 48479
 
 #: OVERRUN 2026-09-07, 27600: it proves seventeen claims where the example
 #: states four: the example's own comment leaves the HOST half of the nesting
@@ -257,7 +268,16 @@ BUDGET = 48418
 #: distance is this twin's own program [measured 2026-09-07: one fresh process
 #: per side; command=python extensions/python/benchmarks/probes/twin_floor.py;
 #: commit=9010a79b01c9b2a66b96a3952fa378fb3e939dc3].
-OVERRUN = 27600
+#: OVERRUN 2026-09-08, 27600 to 27742 (+142): the module boundary merged with
+#: trunk (refactor/engine-and-libraries-as-modules at b64291369): the twin's
+#: host crossings each resolve through one more chain link, prelude ->
+#: metta_engine -> user, while the example runs inside the engine; every
+#: crossing this twin makes pays it and the example pays none. Measured 48479
+#: against a ceiling of 48337; a minimal twin costs 7956 against the band's
+#: 20737, within that ceiling, so the rest is this twin's own program
+#: [measured 2026-09-08: one fresh process per side; command=python
+#: extensions/python/benchmarks/probes/twin_floor.py; commit=WORKTREE].
+OVERRUN = 27742
 
 #: DIVERGED 2026-09-07, the example holds 1 atom the twin does not (1 =) and
 #: the twin holds 17 the example does not (5 :, 6 =, 6 annotation): the twin is
