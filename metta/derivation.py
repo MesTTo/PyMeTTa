@@ -21,7 +21,7 @@ Guarantees:
     row's field list rather than counting positions by hand, and `_check_rows()`
     holds each class's dataclass fields to that list at import, both ways, so a
     field added to one and not the other refuses on the way in [tested:
-    test_a_node_class_and_its_row_declare_the_same_fields; commit=WORKTREE]
+    test_a_node_class_and_its_row_declare_the_same_fields; commit=c26b6a4d28ef8fb50742440feed2c0578ebb0f58]
 Open Obligations:
   To Do: None
   Hacks: None

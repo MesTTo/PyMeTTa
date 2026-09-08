@@ -31,13 +31,13 @@ Guarantees:
   - every row-backed setting is a `(limit ...)` row once an engine runs, a
     program that rewrites the row changes what the seat reads, and the two
     startup settings are absent from the rows [tested:
-    test_the_bounds_are_rows_a_program_can_read_and_replace; commit=WORKTREE]
+    test_the_bounds_are_rows_a_program_can_read_and_replace; commit=c26b6a4d28ef8fb50742440feed2c0578ebb0f58]
   - a bound costs no crossing to read after the first, and a row a program
     adds or removes reaches the next read whatever wrote it [tested:
     test_a_bound_read_after_the_first_costs_no_crossing,
     test_a_bound_a_program_rewrites_reaches_the_next_read,
     test_a_bound_this_seat_does_not_know_forgets_every_mirrored_bound;
-    commit=WORKTREE]
+    commit=c26b6a4d28ef8fb50742440feed2c0578ebb0f58]
   - reading a bound costs 0 inferences where the catalog read it replaced cost
     21, and a one-answer `match` is back to what it cost with the bound as a
     module constant [measured 2026-09-08: 24.0 inferences either way, and 33.5
@@ -45,7 +45,7 @@ Guarantees:
     the catalog read measured 45.1 inferences and 42.0 microseconds;
     command=python extensions/python/benchmarks/probes/bound_row_cost.py --read;
     fixture=a 50-atom space, 20,000 matches per arm, min of five, two runs;
-    commit=WORKTREE]
+    commit=c26b6a4d28ef8fb50742440feed2c0578ebb0f58]
 Guarded by: Config._lock protects settings and the startup freeze;
   _MIRROR_LOCK protects the mirror and the change count it moves with.
 Decides:

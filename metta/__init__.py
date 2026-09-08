@@ -74,7 +74,7 @@ Guarantees:
   - ``library.face(<name>)`` is one shipped library's own heads as Python
     names, projected from its rows rather than listed here, which is what
     retired the hand-written ``strategies`` satellite [tested:
-    test_a_library_face_is_its_own_rows; commit=WORKTREE]
+    test_a_library_face_is_its_own_rows; commit=c26b6a4d28ef8fb50742440feed2c0578ebb0f58]
   - ``catalog`` names the queryable ``&metta`` space and ``fresh()`` supplies
     hygienic variables for helper-authored patterns [tested:
     test_catalog_is_the_root_queryable_reflection_space and

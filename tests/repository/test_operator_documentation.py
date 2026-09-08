@@ -15,7 +15,7 @@ Guarantees:
     - and every OTHER table for the same relation is a projection of it: the
       runtime dispatch map, the word door, and the compiler's five
       `ast`-keyed tables [tested:
-      test_every_operator_projection_is_this_table; commit=WORKTREE]
+      test_every_operator_projection_is_this_table; commit=c26b6a4d28ef8fb50742440feed2c0578ebb0f58]
 Assumes:
     - Python's operator dunders are a closed universe, so enumerating a
       fixed list of them IS deriving the surface: a new overload lands in

@@ -12,13 +12,13 @@ module name to do it. The two other names are gone with no alias.
 Guarantees:
   - encode, decode, from_wire and atom_from_wire are the codec verbs and atom
     construction stays in metta.atoms [tested:
-    test_m7_satellites_are_lazy_and_identity_stable; commit=WORKTREE]
+    test_m7_satellites_are_lazy_and_identity_stable; commit=c26b6a4d28ef8fb50742440feed2c0578ebb0f58]
   - the projection half round-trips and a registration can be withdrawn
     without leaving constructor or name ownership behind [tested:
     test_build_reverses_the_projection, test_registered_custom_type_round_trips,
     test_type_registration_can_be_removed_and_its_name_reclaimed]
   - cast and CastError are this door's third verb and are reached nowhere else
-    [tested: extensions/python/tests/ch09_types/test_casting.py; commit=WORKTREE]
+    [tested: extensions/python/tests/ch09_types/test_casting.py; commit=c26b6a4d28ef8fb50742440feed2c0578ebb0f58]
 Open Obligations:
   To Do: None
   Hacks: None

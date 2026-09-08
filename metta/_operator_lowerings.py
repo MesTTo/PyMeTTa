@@ -25,7 +25,7 @@ Guarantees:
   - every projection this table publishes -- by selector, by `ast` node, the
     word door, the exactly-numeric heads and the augmented forms -- is derived
     from these rows rather than restated
-    [tested: test_every_operator_projection_is_this_table; commit=WORKTREE]
+    [tested: test_every_operator_projection_is_this_table; commit=c26b6a4d28ef8fb50742440feed2c0578ebb0f58]
 Decides:
   - ``@`` always lowers to the library-provided name ``matmul``; libraries
     define that MeTTa name rather than remapping Python syntax [tested:

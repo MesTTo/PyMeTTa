@@ -35,7 +35,7 @@ Guarantees:
     source of every library an example imports, and a generated `(@doc ...)`
     row saying "if autograd should record operations" was being counted
     [tested: test_a_verdict_is_read_by_its_shape_and_not_by_a_word_in_it;
-    commit=WORKTREE]
+    commit=c26b6a4d28ef8fb50742440feed2c0578ebb0f58]
   - the library configuration closes the MeTTa engine after loading each
     example, and a teardown failure is part of that configuration's outcome
     [tested: test_the_library_runner_reports_a_teardown_failure;

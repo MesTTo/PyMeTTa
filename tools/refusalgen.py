@@ -26,13 +26,13 @@ Assumes:
     which is how every generator lane already runs it
 Guarantees:
   - the checked-in module equals what this produces, gated on every run
-    [tested: tests/checks/check_refusal_sync_selftest.py; commit=WORKTREE]
+    [tested: tests/checks/check_refusal_sync_selftest.py; commit=c26b6a4d28ef8fb50742440feed2c0578ebb0f58]
   - every class a row names exists in metta.errors or in builtins, and a
     seat spelling that differs from the row's carries its reason
-    [tested: tests/checks/check_refusal_sync_selftest.py; commit=WORKTREE]
+    [tested: tests/checks/check_refusal_sync_selftest.py; commit=c26b6a4d28ef8fb50742440feed2c0578ebb0f58]
   - output is deterministic: kinds in the catalog's own order
     [tested: extensions/python/tests/repository/test_refusal_rows.py::test_the_refusal_table_is_generated;
-    commit=WORKTREE]
+    commit=c26b6a4d28ef8fb50742440feed2c0578ebb0f58]
 Fails when:
   - the engine answers no rows, a kind in the fixture has no row or the
     reverse, or a named class is nowhere to be found

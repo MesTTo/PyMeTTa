@@ -238,7 +238,7 @@ RUNG = "the assert family is this file's subject, so each claim names one of its
 #: every row-backed bound removed, because boot seeds the mirror those bounds
 #: are read from [measured 2026-09-08: min-of-3 serial fresh processes;
 #: command=python extensions/python/tools/twin_coverage.py --repin;
-#: commit=WORKTREE].
+#: commit=c26b6a4d28ef8fb50742440feed2c0578ebb0f58].
 BUDGET = 17492
 
 #: OVERRUN 2026-09-08, 9: the twin names each of the twelve assert-family
@@ -251,5 +251,5 @@ BUDGET = 17492
 #: the branch's own boot-content move, +17 on this twin and none on the
 #: example, against a ceiling it sat 9 under [measured 2026-09-08: one fresh
 #: process per side; command=python
-#: extensions/python/benchmarks/probes/twin_floor.py; commit=WORKTREE].
+#: extensions/python/benchmarks/probes/twin_floor.py; commit=c26b6a4d28ef8fb50742440feed2c0578ebb0f58].
 OVERRUN = 9

@@ -8,7 +8,7 @@
 %     (limit ...) head, so a bound the seat mirrors is invalidated by whoever
 %     writes the row, a MeTTa program's own add-atom included
 %     [tested: extensions/python/tests/ch01_getting_started/test_config.py::test_a_bound_a_program_rewrites_reaches_the_next_read;
-%     commit=WORKTREE]
+%     commit=c26b6a4d28ef8fb50742440feed2c0578ebb0f58]
 %   - a Python provider's declared capability words are checked against the
 %     catalog's (vocabulary provider-capability ...) row at the registration
 %     door, and the encoder and decoder speak exactly the term tags the

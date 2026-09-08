@@ -43,16 +43,16 @@ Guarantees:
     `(owned-by-space typing)` so it dies with the space, and the equations it
     added are withdrawn by the inverse `declare` answers [tested:
     test_the_declaration_is_a_row,
-    test_the_inverse_withdraws_the_row_and_its_equations; commit=WORKTREE]
+    test_the_inverse_withdraws_the_row_and_its_equations; commit=c26b6a4d28ef8fb50742440feed2c0578ebb0f58]
   - a kind nobody registered refuses by name, listing the kinds that are
     registered [tested: test_an_unregistered_kind_refuses_by_name;
-    commit=WORKTREE]
+    commit=c26b6a4d28ef8fb50742440feed2c0578ebb0f58]
   - a row whose argument count does not fill the template's holes refuses
     naming both counts [tested: test_a_row_that_does_not_fill_the_template_refuses;
-    commit=WORKTREE]
+    commit=c26b6a4d28ef8fb50742440feed2c0578ebb0f58]
   - a stranger's rule kind reaches the point exactly as the shipped ones do
     [tested: extensions/python/tests/ch20_extending_the_engine/test_typing_point.py;
-    commit=WORKTREE]
+    commit=c26b6a4d28ef8fb50742440feed2c0578ebb0f58]
 Open Obligations:
   To Do: None
   Hacks: None

@@ -263,7 +263,7 @@ def twin(m):
 #: earlier ones, because pooling would mix two boot images and the spread an
 #: envelope states is a claim about ONE [measured 2026-09-08: python
 #: extensions/python/tools/twin_coverage.py --observe --rounds 15,
-#: ai-tmp/ai-derive-observe.log; commit=WORKTREE].
+#: ai-tmp/ai-derive-observe.log; commit=c26b6a4d28ef8fb50742440feed2c0578ebb0f58].
 BUDGET = {
     "minimum": 427703,
     "maximum": 427730,

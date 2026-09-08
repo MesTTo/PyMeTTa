@@ -18,10 +18,10 @@ carried either object would be a cycle.
 
 Guarantees:
   - every row here is the engine's own, in the catalog's order
-    [tested: test_the_refusal_table_is_generated; commit=WORKTREE]
+    [tested: test_the_refusal_table_is_generated; commit=c26b6a4d28ef8fb50742440feed2c0578ebb0f58]
   - `cls` is the class THIS seat raises and `departure` says why when it is
     not the row's own name [tested: test_every_seat_raises_the_rows_class_or_says_why;
-    commit=WORKTREE]
+    commit=c26b6a4d28ef8fb50742440feed2c0578ebb0f58]
 Open Obligations:
   To Do: None
   Hacks: None

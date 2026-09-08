@@ -219,7 +219,7 @@ RUNG = "a `case` whose branches arrive as a VALUE has no Python spelling: match'
 #: every row-backed bound removed, because boot seeds the mirror those bounds
 #: are read from [measured 2026-09-08: min-of-3 serial fresh processes;
 #: command=python extensions/python/tools/twin_coverage.py --repin;
-#: commit=WORKTREE].
+#: commit=c26b6a4d28ef8fb50742440feed2c0578ebb0f58].
 BUDGET = 11251
 
 #: DIVERGED 2026-09-07, the example holds 1 atom the twin does not (1 =) and

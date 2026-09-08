@@ -234,7 +234,7 @@ RUNG = "a `let*` whose bindings arrive as a VALUE has no assignment spelling"
 #: every row-backed bound removed, because boot seeds the mirror those bounds
 #: are read from [measured 2026-09-08: min-of-3 serial fresh processes;
 #: command=python extensions/python/tools/twin_coverage.py --repin;
-#: commit=WORKTREE].
+#: commit=c26b6a4d28ef8fb50742440feed2c0578ebb0f58].
 BUDGET = 10570
 
 #: OVERRUN 2026-09-07, 800: it asks the eight computed-binding claims one at a

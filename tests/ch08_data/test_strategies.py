@@ -6,11 +6,11 @@ normal library door.
 Guarantees:
   - a library face is exactly the library's own declared heads, spelled Python's
     way, and every one of them is a Symbol rather than a host object [tested:
-    test_a_library_face_is_its_own_rows; commit=WORKTREE]
+    test_a_library_face_is_its_own_rows; commit=c26b6a4d28ef8fb50742440feed2c0578ebb0f58]
   - a head the library does not declare refuses on the line that names it, and
     says where it IS reachable; `id` is that case, because lib_strategy's own
     source says the engine supplies it [tested:
-    test_a_head_the_library_does_not_declare_refuses; commit=WORKTREE]
+    test_a_head_the_library_does_not_declare_refuses; commit=c26b6a4d28ef8fb50742440feed2c0578ebb0f58]
   - a Python-built plan remains queryable as stored data and executes through
     strategy-apply with the library's left-biased composition semantics
     [tested: test_python_strategy_terms_use_the_shipped_basis; commit=0d37dd6b24fe916e44cdbfb4efc6a1d5ffaf74aa]

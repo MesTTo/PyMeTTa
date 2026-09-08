@@ -12,16 +12,16 @@ Guarantees:
   - a rule kind registered from outside the package reaches the point, its
     template is instantiated with the head and the row's arguments, and the
     engine answers the type it derives [tested:
-    test_a_strangers_rule_kind_types_its_own_head; commit=WORKTREE]
+    test_a_strangers_rule_kind_types_its_own_head; commit=c26b6a4d28ef8fb50742440feed2c0578ebb0f58]
   - the declaration is a row a program reads and writes as ordinary data, and
     it dies with the space [tested: test_the_declaration_is_a_row,
-    test_a_dropped_space_takes_its_typing_rows_with_it; commit=WORKTREE]
+    test_a_dropped_space_takes_its_typing_rows_with_it; commit=c26b6a4d28ef8fb50742440feed2c0578ebb0f58]
   - a kind nobody registered, and a row whose arguments do not fill the
     template's holes, each refuse by name [tested:
     test_an_unregistered_kind_refuses_by_name,
-    test_a_row_that_does_not_fill_the_template_refuses; commit=WORKTREE]
+    test_a_row_that_does_not_fill_the_template_refuses; commit=c26b6a4d28ef8fb50742440feed2c0578ebb0f58]
   - the inverse withdraws both the row and the equations
-    [tested: test_the_inverse_withdraws_the_row_and_its_equations; commit=WORKTREE]
+    [tested: test_the_inverse_withdraws_the_row_and_its_equations; commit=c26b6a4d28ef8fb50742440feed2c0578ebb0f58]
 Open Obligations:
   To Do: None
   Hacks: None

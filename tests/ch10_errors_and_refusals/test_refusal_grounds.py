@@ -16,7 +16,7 @@ Guarantees:
     every term in the citation table governs a construct that exists
     [tested: test_every_construct_the_compiler_refuses_has_a_citation,
     test_no_citation_term_governs_a_construct_that_does_not_exist;
-    commit=WORKTREE]
+    commit=c26b6a4d28ef8fb50742440feed2c0578ebb0f58]
 """
 
 from __future__ import annotations

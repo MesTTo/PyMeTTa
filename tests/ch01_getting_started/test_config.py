@@ -187,7 +187,7 @@ def test_the_first_bound_read_in_a_process_costs_no_crossing(tmp_path):
     way for a one-match twin, against 123 before the seed; command=python
     extensions/python/tools/twin_coverage.py --measure
     examples/ch03-atoms-and-expressions/05-parse.metta; fixture=one twin in a
-    fresh process; commit=WORKTREE].
+    fresh process; commit=c26b6a4d28ef8fb50742440feed2c0578ebb0f58].
 
     A fresh interpreter is the only place a FIRST read exists, so this takes
     one, the way the wall-bound probe in ch18 does.

@@ -344,7 +344,7 @@ _.drifted_versions
 # that lands in or leaves `&metta`, which is what keeps the seat's mirror of
 # the bounds in step with a write it never saw. No Python name load reaches it
 # [source: extensions/python/metta/shim.pl, seam:catalog_row_changed/2;
-# commit=WORKTREE].
+# commit=c26b6a4d28ef8fb50742440feed2c0578ebb0f58].
 bound_row_changed
 # A generated row's own field, read by the suite this scan does not walk:
 # tests/repository/test_refusal_rows.py's

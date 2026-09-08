@@ -25,7 +25,7 @@ Guarantees:
   - throwing a listed ball through this seat raises the class the fixture
     names, for every kind: the two this list recorded as unclassified were
     closed once the class map became a projection of the rows
-    [tested: test_a_thrown_ball_raises_the_class_the_fixture_names; commit=WORKTREE]
+    [tested: test_a_thrown_ball_raises_the_class_the_fixture_names; commit=c26b6a4d28ef8fb50742440feed2c0578ebb0f58]
   - a class the fixture names takes the attributes it lists
     [tested: test_each_named_class_takes_the_attributes_the_fixture_lists; commit=10312d006b14e1fed7b84adc831574ddd554e6a8]
   - the kinds the tree throws through the reserved envelope and the fixture's
