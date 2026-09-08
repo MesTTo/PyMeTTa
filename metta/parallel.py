@@ -30,6 +30,16 @@ Assumes:
     process_metta_string in filereader.pl, and a per-function mutex in
     lib_memo.pl [source 2026-08-15]
 Guarantees:
+  - Scope, scope() and move_on_after() project lib_thread:scope_open/4,
+    scope_keep/3, scope_cancel/2 and scope_close/4. That library owns child
+    membership, cancellation, deadlines and cleanup policy [tested:
+    extensions/python/tests/ch17_concurrency_and_the_loop/test_scopes.py;
+    commit=c6e1198c490a824b96f6fc6e1c0622a542917024].
+  - FutureSpace.cancel() waits for a running body's stop, including coroutine
+    finalizers; foreign calls acknowledge only after returning [tested:
+    test_async_cancellation_waits_for_the_coroutines_finalizer,
+    test_a_blocking_oracle_uses_the_dirty_lane_without_pinning_normal_work;
+    commit=c6e1198c490a824b96f6fc6e1c0622a542917024].
   - a waiting close joins owned workers after nonwaiting close or join failure
     [tested: test_waiting_close_joins_after_nonwaiting_close; commit=089bc6036ae5039bce3963d8b4e80ecaf04dfb49]
   - package coordination functions evaluate lib_thread in the ambient space;
@@ -101,8 +111,11 @@ Owns:
   - one process, one booted engine and one boot program per ProcessPool
     worker, from the first submit until shutdown(), plus the SimpleQueue
     carrying those workers' boot timings.
-  - one SWI message queue per Channel, released by close(), context exit, or a
-    finalizer that retains only the runtime and engine handle.
+  - a Channel's foreign space, released by drop(), close(), context exit or a
+    finalizer retaining its runtime and name; a scope retains owned channels
+    through its library resource rows [tested:
+    test_body_failure_cancels_a_pending_timer_and_releases_its_channel;
+    commit=c6e1198c490a824b96f6fc6e1c0622a542917024].
 Guarded by:
   - _state_lock publishes the pool's state and worker list; the work queue is
     a queue.Queue and needs no further locking.
@@ -143,10 +156,12 @@ import weakref as _weakref
 from collections import Counter, deque
 from collections.abc import Callable, Iterable, Iterator, Sequence
 from concurrent.futures import Executor, Future, ProcessPoolExecutor, as_completed
+from contextlib import suppress
 from itertools import batched
-from types import FunctionType, MethodType
+from types import FunctionType, MethodType, TracebackType
 from typing import Any, Self, override
 
+from . import _scope
 from ._engine import Runtime, engine_thread, forked, runtime
 from ._space import MeTTa, Space
 from .atoms import (
@@ -159,7 +174,7 @@ from .atoms import (
     _atom_from_wire,
     _to_atom,
 )
-from .errors import MettaError, Timeout
+from .errors import EngineError, MettaError, Timeout
 from .vocabularies import SubscriptionEdge
 
 logger = logging.getLogger(__name__)
@@ -170,14 +185,17 @@ __all__ = [
     "EnginePool",
     "FutureSpace",
     "ProcessPool",
+    "Scope",
     "call",
     "channel",
     "every",
+    "move_on_after",
     "par_map",
     "pool",
     "process_pool",
     "program",
     "race",
+    "scope",
     "spawn",
 ]
 
@@ -434,6 +452,11 @@ class EnginePool(_FanOut):
         self._ready = threading.Barrier(workers + 1, timeout=60)
         self._start_error: BaseException | None = None
         self._start()
+        try:
+            _scope.own("cleanup", self.shutdown)
+        except BaseException:
+            self.shutdown()
+            raise
 
     # ------------------------------------------------------------------ startup
 
@@ -516,6 +539,7 @@ class EnginePool(_FanOut):
             # ThreadPoolExecutor uses the same transition: accepting work and
             # inserting it precede shutdown's sentinel under one state lock.
             future: Future[R] = Future()
+            _scope.own_future(future)
             self._work.put((future, contextvars.copy_context(), fn, args, kwargs))
         return future
 
@@ -526,8 +550,8 @@ class EnginePool(_FanOut):
         """Executor's teardown: stop taking work, then release every engine.
 
         wait=False returns while the owned workers drain. A later waiting
-        shutdown still joins them, including after an earlier join timed
-        out. Cancelling a Future skips only that queued task, not worker
+        shutdown still joins them after an earlier join failed.
+        Cancelling a Future skips only that queued task, not worker
         teardown.
 
         cancel_futures=True cancels every task still QUEUED, leaving what a
@@ -557,13 +581,7 @@ class EnginePool(_FanOut):
             msg = "a pool worker cannot join itself; use close(wait=False)"
             raise MettaError(msg)
         for thread in self._started:
-            thread.join(timeout=30)
-        still_running = [t.name for t in self._started if t.is_alive()]
-        if still_running:
-            msg = f"pool workers did not stop within 30s: {', '.join(still_running)}"
-            raise MettaError(
-                msg
-            )
+            thread.join()
 
     @property
     def workers(self) -> int:
@@ -1000,6 +1018,11 @@ class ProcessPool(_FanOut, ProcessPoolExecutor):
             initializer=_boot_worker,
             initargs=(boot, self._reports),
         )
+        try:
+            _scope.own("cleanup", self.shutdown)
+        except BaseException:
+            self.shutdown()
+            raise
 
     @override
     def submit[R](self, fn: Callable[..., R], /, *args: Any, **kwargs: Any) -> Future[R]:
@@ -1011,7 +1034,15 @@ class ProcessPool(_FanOut, ProcessPoolExecutor):
         worker's own space.
         """
         _refuse_engine_capture(fn, args, kwargs)
-        return super().submit(fn, *args, **kwargs)
+        future = super().submit(fn, *args, **kwargs)
+        try:
+            _scope.own_future(future)
+        except BaseException:
+            future.cancel()
+            with suppress(BaseException):
+                future.result()
+            raise
+        return future
 
     @override
     def shutdown(self, wait: bool = True, *, cancel_futures: bool = False) -> None:
@@ -1104,6 +1135,128 @@ def _call(owner: Space, head: str, *arguments: Any):
     return owner.answers(Expression([Symbol(head), *(_to_atom(arg) for arg in arguments)]))
 
 
+class Scope:
+    """A lib_thread scope that joins children before releasing their resources.
+
+    ``keep(value)`` transfers returned spaces on successful exit. A body or
+    child failure cancels siblings; foreign calls stop at their next engine
+    checkpoint after returning. The entering thread owns close and keep.
+    """
+
+    def __init__(self, home: Space, seconds: float | None = None) -> None:
+        """Prepare a scope; entering it allocates the library's lifetime row."""
+        self._home = home
+        self._seconds = seconds
+        self._id: str | None = None
+        self._token: contextvars.Token[str | None] | None = None
+        self._released = False
+        self._reason = "none"
+
+    def __enter__(self) -> Self:
+        """Open the scope in the entering thread and inherit its parent."""
+        if self._id is not None:
+            msg = "a scope can be entered once"
+            raise MettaError(msg)
+        _ensure_thread_library(Space("&self", _runtime=self._home.runtime))
+        parent = _scope.current()
+        owner = threading.current_thread()
+        with _scope.suspend():
+            row = self._home.runtime.must(
+                "lib_thread:scope_open(Parent, Owner, Seconds, Id)",
+                Parent="none" if parent is None else parent, Owner=owner,
+                Seconds="infinite" if self._seconds is None else self._seconds,
+            )
+        self._id = str(row["Id"])
+        self._token = _scope.CURRENT.set(self._id)
+        return self
+
+    def keep[T](self, value: T) -> T:
+        """Return value and transfer its spaces when the scope exits successfully."""
+        with _scope.suspend():
+            self._home.runtime.must(
+                "metta_py_decode(Wire, _Value), "
+                "lib_thread:scope_keep(Id, Owner, _Value)",
+                Id=self._id, Owner=threading.current_thread(),
+                Wire=_to_atom(value).to_wire(),
+            )
+        return value
+
+    def cancel(self) -> None:
+        """Request cancellation; this scope consumes its own checkpoint signal."""
+        if self._id is None:
+            msg = "enter a scope before cancelling it"
+            raise MettaError(msg)
+        with _scope.suspend():
+            self._home.runtime.must(
+                "lib_thread:scope_cancel(Id, cancelled)", Id=self._id
+            )
+
+    @property
+    def cancelled(self) -> bool:
+        """Whether the completed scope reports cancellation."""
+        return self._reason != "none"
+
+    def close(self) -> None:
+        """Join and release resources; retry cleanup after a cleanup failure."""
+        self._finish(None)
+
+    def _finish(self, body_error: BaseException | None) -> bool:
+        if self._id is None:
+            msg = "enter a scope before closing it"
+            raise MettaError(msg)
+        if self._released:
+            return False
+        with _scope.suspend():
+            row = self._home.runtime.must(
+                "lib_thread:scope_close(Id, Owner, Disposition, Report)",
+                Id=self._id, Owner=threading.current_thread(),
+                Disposition="success" if body_error is None else "failure",
+            )
+        self._reason, errors, released = row["Report"]
+        self._released = released in (True, "true")
+        own_cancellation = (
+            isinstance(body_error, _scope.Cancelled) and body_error.scope == self._id
+        )
+        failures = [
+            error if kind == "python" else EngineError(str(error))
+            for kind, error in errors
+        ]
+        if failures:
+            if body_error is not None and not own_cancellation:
+                failures.insert(0, body_error)
+            if len(failures) == 1:
+                raise failures[0]
+            msg = "scope body, children or cleanup failed"
+            raise BaseExceptionGroup(msg, failures)
+        return own_cancellation
+
+    def __exit__(
+        self, exc_type: type[BaseException] | None,
+        exc: BaseException | None, tb: TracebackType | None,
+    ) -> bool:
+        """Settle the library scope and restore the caller's ambient handle."""
+        try:
+            return self._finish(exc)
+        finally:
+            if self._token is not None:
+                _scope.CURRENT.reset(self._token)
+                self._token = None
+
+
+def scope() -> Scope:
+    """Own spaces, channels, futures, pools and subscriptions created in the block."""
+    return Scope(_ambient_space())
+
+
+def move_on_after(seconds: float) -> Scope:
+    """Cancel at a lib_thread deadline and suppress only this scope's cancellation.
+
+    A foreign call, including Python sleep, must return before cancellation
+    can reach an engine checkpoint. Exit always joins children.
+    """
+    return Scope(_ambient_space(), seconds)
+
+
 class FutureSpace(Space):
     """A spawned computation's ordinary answer space with lifecycle verbs.
 
@@ -1121,7 +1274,8 @@ class FutureSpace(Space):
         # The finalizer must not touch self or the engine at interpreter
         # shutdown, so settlement observation rides a shared cell.
         self._settlement = {"observed": False}
-        _weakref.finalize(self, _warn_abandoned, space.name, self._settlement)
+        if not self._scoped:
+            _weakref.finalize(self, _warn_abandoned, space.name, self._settlement)
 
     def wait(self):
         """Wait until evaluation settles, then lazily expose every stored answer."""
@@ -1137,7 +1291,11 @@ class FutureSpace(Space):
         return finished
 
     def cancel(self) -> bool:
-        """Stop a pending computation, answering whether it was stopped."""
+        """Stop and join a computation, returning True only for an acknowledged stop.
+
+        A foreign call, including Python sleep, must return before its engine
+        can deliver cancellation. False means the computation already finished.
+        """
         stopped = bool(_call(self._owner, "cancel", self).one())
         self._settlement["observed"] = True
         return stopped
@@ -1235,20 +1393,23 @@ def par_map(function: Any, items: Iterable[Any]) -> Expression:
     return result
 
 
-class Channel:
-    """A bounded or unbounded lib_thread mailbox in Python dress."""
+class Channel(Space):
+    """A lib_thread FIFO space whose capacity blocks full senders."""
 
     def __init__(self, owner: Space, handle: Any) -> None:  # noqa: D107 -- channel() is the public constructor and documents this state
+        super().__init__(handle, _runtime=owner.runtime)
         self._owner = owner
-        self._handle = handle
-        self._closed = False
         # weakref.finalize keeps the callback alive without keeping this
         # Channel alive. A static callback is load-bearing: a bound method
         # would retain self and therefore prevent the collection it awaits.
         # https://docs.python.org/3.14/library/weakref.html#weakref.finalize
         self._finalizer = _weakref.finalize(
-            self, Channel._reap, self._owner.runtime, self._handle
+            self, Channel._reap, self._owner.runtime, self._name
         )
+
+    @property
+    def _handle(self) -> str:
+        return str(self._space)
 
     @staticmethod
     def _reap(rt: Runtime, handle: Any) -> None:
@@ -1264,11 +1425,11 @@ class Channel:
 
     def send(self, term: Any) -> bool:
         """Block until capacity admits one copied term."""
-        return bool(_call(self._owner, "send", self._handle, term).one())
+        return bool(_call(self._owner, "send", self, term).one())
 
     def recv(self, *, deadline: float | None = None) -> Any:
         """Take one term, raising Timeout when a finite wait is quiet."""
-        arguments = (self._handle,) if deadline is None else (self._handle, deadline)
+        arguments = (self,) if deadline is None else (self, deadline)
         answers = _call(self._owner, "recv", *arguments)
         sentinel = object()
         result = answers.first(default=sentinel)
@@ -1282,17 +1443,16 @@ class Channel:
 
     def try_recv(self) -> Any | None:
         """Take one waiting term or return None without blocking."""
-        return _call(self._owner, "try-recv", self._handle).first(default=None)
+        return _call(self._owner, "try-recv", self).first(default=None)
 
     def __len__(self) -> int:  # noqa: D105  -- the Python data-model hook is defined by its name and enclosing type contract
-        return int(_call(self._owner, "channel-size", self._handle).one())
+        return int(_call(self._owner, "channel-size", self).one())
 
     def close(self) -> None:
         """Destroy this mailbox. Closing twice is a no-op."""
-        if self._closed:
+        if self.dropped:
             return
-        _call(self._owner, "channel-close", self._handle).one()
-        self._closed = True
+        self.drop()
         self._finalizer.detach()
 
     def __enter__(self) -> Self:  # noqa: D105  -- the Python data-model hook is defined by its name and enclosing type contract

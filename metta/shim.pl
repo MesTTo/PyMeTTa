@@ -4,6 +4,10 @@
 %   derivations on top of an unmodified MeTTa engine. Consulted after
 %   engine/main.pl; only adds predicates, never redefines engine ones.
 % Guarantees:
+%   - metta_py_space_untouched/1 rejects registered and revoked names before
+%     probing their contents, including a free-name row restored by rollback
+%     [tested: test_a_rolled_back_allocation_cannot_recycle_a_revoked_name;
+%     commit=c6e1198c490a824b96f6fc6e1c0622a542917024].
 %   - cursor and function work opened in a transaction belongs to it; capture
 %     returns the eager enumeration's text once, and budgets bind that work
 %     [tested: extensions/python/tests/ch15_writing_transactions_and_worlds/test_cursor_transaction.py,
@@ -3010,7 +3014,7 @@ metta_py_debug_open_controlled(Source, Space, Armed, Inferences, Count,
     catch(( metta_py_execution_policy_goal(
                 Mode, metta_debug_run(Source, Space, Groups), Controlled),
             metta_host_inference_budget(Controlled, Inferences, Bounded),
-            engine_create(done(Groups), Bounded, Engine) ),
+            metta_host_hold(done(Groups), Bounded, Engine) ),
           Error,
           ( metta_debug_end, throw(Error) )).
 
@@ -3021,17 +3025,26 @@ metta_py_debug_open_controlled(Source, Space, Armed, Inferences, Count,
 %breakpoint added or dropped between stops needs no second protocol and
 %leaves no edit to lose.
 metta_py_debug_next(Engine, Answer) :-
-    engine_next_reified(Engine, Event),
+    metta_py_hold_reified(Engine, Event),
     metta_py_debug_event(Event, Answer).
 
 metta_py_debug_resume(Engine, Mode, Armed, Answer) :-
-    engine_post(Engine, resume(Mode, Armed)),
-    engine_next_reified(Engine, Event),
+    ( metta_host_hold_post(Engine, resume(Mode, Armed), Row)
+    -> Event = the(Row) ; Event = no ),
     metta_py_debug_event(Event, Answer).
 
 metta_py_debug_close(Engine) :-
-    catch(engine_destroy(Engine), error(existence_error(_, _), _), true),
+    metta_host_hold_close(Engine),
     metta_debug_end.
+
+% The host hold service owns both suspended engines and transaction-held rows.
+% Reify its pull as SWI's engine_next_reified/2 does, preserving the same
+% debugger and dirty-lane result protocol [source:
+% https://github.com/SWI-Prolog/swipl-devel/blob/V10.1.13/boot/engines.pl#L82-L89;
+% commit=c6e1198c490a824b96f6fc6e1c0622a542917024].
+metta_py_hold_reified(Handle, Event) :-
+    catch(( metta_host_hold_next(Handle, Row)
+          -> Event = the(Row) ; Event = no ), Error, Event = throw(Error)).
 
 %A stop carries what a trace event carries, in the same encoding, so a host
 %that renders one renders the other. `done` carries the run's answer groups,
@@ -3251,9 +3264,9 @@ metta_py_next_space(Name) :-
 %[tested test_a_second_context_does_not_reuse_a_revived_space_name,
 %test_a_recycled_space_name_inherits_no_clauses_from_its_past_life].
 metta_py_space_untouched(Name) :-
+    \+ spaces:space_parent_child_used(Name),
     \+ metta_py_foreign(Name),
-    \+ metta_host_stored(Name, _),
-    \+ spaces:space_parent_child_used(Name).
+    \+ metta_host_stored(Name, _).
 
 %asserta, so the pool is a STACK and the next mint answers the name just
 %released. With assertz it was a queue, and `retract/1` takes the oldest free
@@ -4478,11 +4491,11 @@ metta_py_dirty_many(Goal) :-
     ;   Context = none
     ),
     setup_call_cleanup(
-        engine_create(Variables,
+        metta_host_hold(Variables,
                       metta_py_dirty_inner(Context, Goal, Variables),
                       HostEngine),
         metta_py_dirty_many_next(HostEngine, Variables),
-        engine_destroy(HostEngine)).
+        metta_host_hold_close(HostEngine)).
 
 metta_py_dirty_inner(none, Goal, _) :- !,
     call(Goal).
@@ -4492,7 +4505,7 @@ metta_py_dirty_inner(Context, Goal, _) :-
 
 metta_py_dirty_many_next(HostEngine, Variables) :-
     engine_yield('$metta_scheduler_lane'(dirty)),
-    engine_next_reified(HostEngine, Event),
+    metta_py_hold_reified(HostEngine, Event),
     metta_py_dirty_many_event(Event, HostEngine, Variables).
 
 metta_py_dirty_many_event(the(Values), HostEngine, Variables) :-

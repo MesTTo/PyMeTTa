@@ -1,6 +1,13 @@
 """Purpose: launch coroutine operations after their engine transaction commits.
 
 Guarantees:
+  - cancel reports whether an accepted request still needs a running Task's
+    terminal receipt; the library waits for that receipt. scope_publish/2
+    retains the landing producer until its observers finish [tested:
+    test_async_cancellation_waits_for_the_coroutines_finalizer,
+    test_a_refused_coroutine_signal_does_not_claim_a_stopped_body,
+    test_scope_waits_for_async_landing_observers_and_owns_their_mints;
+    commit=c6e1198c490a824b96f6fc6e1c0622a542917024].
   - preparation creates no coroutine and performs no host work; ``start``
     schedules it on one process event loop only after the engine publishes the
     launch event [tested:
@@ -68,7 +75,7 @@ import time
 from dataclasses import dataclass, field
 from typing import Any
 
-from . import _task_context
+from . import _scope, _task_context
 from ._engine import Runtime, active_runtime, engine_thread
 from .errors import NotReducible
 
@@ -211,34 +218,30 @@ def discard(token: int) -> bool:
     return True
 
 
-def cancel(token: int) -> bool:
-    """Request cancellation of a pending or running coroutine operation."""
+def cancel(token: int, joining: bool = False) -> tuple[bool, bool]:  # noqa: FBT001, FBT002 -- the library supplies whether its caller will join
+    """Return acceptance and whether a running Task needs an acknowledgement."""
     with _LOCK:
         pending = _PENDING.get(token)
         if pending is not None:
             _CANCELLED_PENDING.add(token)
-            return True
+            return True, False
         pending = _STARTING.pop(token, None)
         running = _RUNNING.get(token)
     if pending is not None:
         _queue_landing(token, pending, "cancelled", None)
-        return True
+        return True, False
     with _LOCK:
         if running is None or _RUNNING.get(token) is not running or running.task.done():
-            return False
+            return False, False
+        if joining and threading.current_thread() is _LOOP_STATE.thread:
+            message = "a coroutine loop cannot wait for its own cancellation; cancel from another thread"
+            raise RuntimeError(message)
         # Task.cancel() is a request a coroutine may suppress. This marker is
         # the public operation's accepted terminal decision and therefore wins.
         # https://docs.python.org/3.14/library/asyncio-task.html#task-cancellation
-        _CANCELLING.add(token)
-    try:
         running.task.get_loop().call_soon_threadsafe(running.task.cancel)
-    except RuntimeError:
-        with _LOCK:
-            claimed = _RUNNING.pop(token, None) is running
-            _CANCELLING.discard(token)
-        if claimed:
-            _queue_landing(token, running.pending, "cancelled", None)
-    return True
+        _CANCELLING.add(token)
+    return True, True
 
 
 def _completed(token: int, pending: _Pending, task: asyncio.Task[Any]) -> None:
@@ -310,7 +313,12 @@ def _land(token: int, pending: _Pending, status: str, payload: Any) -> None:
 
 def _publish_landing(engine: Runtime, token: int, status: str, payload: Any) -> None:
     """Settle through the runtime retained by the operation's calling space."""
-    engine.do_must("metta_py_async_land", token, status, payload)
+    with _scope.suspend():
+        engine.must(
+            "lib_thread:metta_async_future(Token, _, _Space, _), "
+            "lib_thread:scope_publish(_Space, metta_py_async_land(Token, Status, Payload))",
+            Token=token, Status=status, Payload=payload,
+        )
 
 
 def _settle_failed_landing(engine: Runtime, token: int, error: Exception) -> None:
@@ -318,12 +326,10 @@ def _settle_failed_landing(engine: Runtime, token: int, error: Exception) -> Non
     # Future.set_exception follows the same rule: failure is terminal and
     # wakes waiters rather than leaving a senderless future pending.
     # https://docs.python.org/3.14/library/concurrent.futures.html#concurrent.futures.Future.set_exception
-    engine.do_must(
-        "metta_py_async_fail_landing",
-        token,
-        type(error).__name__,
-        error,
-    )
+    with _scope.suspend():
+        engine.do_must(
+            "metta_py_async_fail_landing", token, type(error).__name__, error,
+        )
 
 
 def _event_loop() -> asyncio.AbstractEventLoop:

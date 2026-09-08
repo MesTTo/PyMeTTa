@@ -42,6 +42,11 @@ Guarantees:
   - a finaliser running at INTERPRETER SHUTDOWN, after this module's globals
     are cleared, still enqueues and still says nothing [tested:
     test_a_finaliser_at_interpreter_shutdown_prints_nothing; commit=59c3cbf1bc269dfa7194f78da34497f1757a9604]
+  - cursor churn leaves no new engine, even when an older engine retires;
+    a replacement engine is detected by identity [tested:
+    test_two_hundred_opened_and_closed_cursors_leave_no_engine_behind,
+    test_the_engine_snapshot_allows_retirement_but_detects_a_replacement;
+    commit=c6e1198c490a824b96f6fc6e1c0622a542917024]
 """
 
 import gc
@@ -85,6 +90,22 @@ def _lazy_view(metta, prefix):
 def _live_engines(metta):
     """SWI engines held by open answer cursors."""
     return metta.runtime.once("aggregate_all(count, current_engine(_), N)")["N"]
+
+
+def _engine_snapshot(metta):
+    """Retain the engine blobs so identity cannot be reused after retirement."""
+    return metta.runtime.must(
+        "findall(_Engine, current_engine(_Engine), _Engines), "
+        "Engines = prolog(_Engines)"
+    )["Engines"]
+
+
+def _new_engines(metta, before):
+    return metta.runtime.must(
+        "aggregate_all(count, "
+        "(current_engine(_Engine), \\+ memberchk(_Engine, Before)), N)",
+        Before=before,
+    )["N"]
 
 
 @pytest.fixture
@@ -289,12 +310,13 @@ def test_a_dropped_cursor_defers_its_close_instead_of_crossing(metta):
 
 
 def test_two_hundred_opened_and_closed_cursors_leave_no_engine_behind(metta):
-    """The cycle at volume, counted rather than sampled.
+    """The cycle at volume, checked by engine identity.
 
     One opened-and-closed cursor says the close ran; two hundred say the close
     keeps running, which is the shape a per-cursor leak shows up in and a
-    single pass cannot. It counts SWI ENGINES, which is what a cursor holds and
-    what the engine table can answer exactly.
+    single pass cannot. It checks SWI ENGINES, which is what a cursor holds.
+    Older engines may retire during the cycle, so count equality rejects valid
+    cleanup and a count ceiling can hide a replacement leak.
 
     Its allocation-level twin is tests/checks/memray_plant.py, run by the
     `memray` REPORT lane: the same two hundred cursors kept alive instead of
@@ -307,16 +329,37 @@ def test_two_hundred_opened_and_closed_cursors_leave_no_engine_behind(metta):
     metta.run("!(add-atom &self (churn-edge b c))")
     gc.collect()
     metta.runtime.do("true")
-    baseline = _live_engines(metta)
+    baseline = _engine_snapshot(metta)
 
     for _ in range(200):
         cursor = metta.stream(S["churn-edge"](V.x, V.y))
         next(iter(cursor))
         cursor.close()
 
-    assert _live_engines(metta) == baseline, (
+    assert _new_engines(metta, baseline) == 0, (
         "a closed cursor left its engine open; two hundred of them did"
     )
+
+
+def test_the_engine_snapshot_allows_retirement_but_detects_a_replacement(metta):
+    """Retiring an older engine cannot mask one newly left open."""
+    metta.run("!(add-atom &self (snapshot-edge a b))")
+    metta.run("!(add-atom &self (snapshot-edge b c))")
+    first = metta.stream(S["snapshot-edge"](V.x, V.y))
+    try:
+        next(iter(first))
+        baseline = _engine_snapshot(metta)
+    finally:
+        first.close()
+    assert _new_engines(metta, baseline) == 0
+
+    replacement = metta.stream(S["snapshot-edge"](V.x, V.y))
+    try:
+        next(iter(replacement))
+        assert _new_engines(metta, baseline) == 1
+    finally:
+        replacement.close()
+    assert _new_engines(metta, baseline) == 0
 
 
 #: A cursor left open when the interpreter exits, which is the smallest program

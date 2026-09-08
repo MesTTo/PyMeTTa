@@ -885,7 +885,7 @@ DOORS: tuple[Door, ...] = (
         tiers=(Tier.sync, Tier.async_,),
         body=Body('metta._space', 'Space._door_drop'),
         docs=(
-            'Clear this space and release an anonymous name for reuse.\n'
+            'Clear this space and release its owned resources.\n'
             '\n'
             'Dropping retires every space-owned catalog declaration, including\n'
             'algebra rows and their Python mirrors.\n'
@@ -896,6 +896,8 @@ DOORS: tuple[Door, ...] = (
             'enters the anonymous pool. The engine-owned &self and &metta roots\n'
             "refuse before any Python-side state changes; drop the caller's own\n"
             'context or a named space instead.\n'
+            'Anonymous names outside a lifetime scope return to the pool. Scoped\n'
+            'names remain revoked, including after ownership transfers to a caller.\n'
             'Subscriptions on the space cancel with it: a pooled name reused later\n'
             "must not deliver to the old life's watchers. The handle itself dies\n"
             'here, and dropping twice is a no-op, as closing twice is.\n'
@@ -903,7 +905,7 @@ DOORS: tuple[Door, ...] = (
             'Engine teardown must succeed before Python cleanup is discarded.\n'
             'If later cleanup fails, call drop() again to finish it. The handle\n'
             'refuses other operations in that state and retains its anonymous name\n'
-            'until cleanup succeeds; retrying does not repeat engine teardown.\n'
+            'until cleanup succeeds; retrying does not repeat engine teardown.'
         ),
         evidence=('extensions/python/ext/metta-arrays/tests/test_arrays.py::test_dropping_the_space_retires_its_installation_row', 'extensions/python/tests/ch04_spaces_and_matching/test_algebra_lifecycle.py::test_drop_retires_algebra_before_redeclaration', 'extensions/python/tests/ch04_spaces_and_matching/test_drop_recovery.py::test_backing_close_failure_keeps_the_name_and_cleanup_retryable'),
         state=State.any,
@@ -2269,6 +2271,29 @@ DOORS: tuple[Door, ...] = (
         refuses=(
             Refusal(RefusalKind.engine, 'extensions/python/tests/repository/test_door_refusals.py::test_transaction_refuses_an_unreported_engine_failure'),
         ),
+    ),
+    Door(
+        owner=Owner.space,
+        name='scope',
+        kind=Kind.scope,
+        signatures=(
+            Signature('self', returns='Scope'),
+        ),
+        answers=AnswersAs.value,
+        effect=EffectClass.oracleIO,
+        determinism=Determinism.det,
+        tiers=(Tier.sync, Tier.context,),
+        body=Body('metta._space', 'Space._door_scope'),
+        docs=(
+            'Join children and release resources created in this block.\n'
+            '\n'
+            '``with m.scope() as scope:`` owns newly minted spaces, channels,\n'
+            'futures, pools and subscriptions. ``scope.keep(value)`` transfers\n'
+            'spaces on successful exit. Child failure cancels siblings. Foreign\n'
+            'calls must return before an engine checkpoint can stop them.'
+        ),
+        evidence=('extensions/python/tests/ch17_concurrency_and_the_loop/test_scopes.py::test_scope_releases_mints_and_refuses_every_alias', 'extensions/python/tests/ch17_concurrency_and_the_loop/test_scopes.py::test_scope_joins_three_children_before_releasing_their_spaces', 'extensions/python/tests/ch17_concurrency_and_the_loop/test_scopes.py::test_scope_owner_confines_keep_and_close'),
+        async_excluded='a synchronous context manager confines exit to its entering host thread; use metta.scope() around the caller\'s block, not a manager constructed by a remote async worker',
     ),
     Door(
         owner=Owner.space,
@@ -5056,7 +5081,9 @@ DOORS: tuple[Door, ...] = (
             'The context OWNS what it mints and BORROWS what it opens by name:\n'
             ':meth:`close` releases the anonymous mints and leaves ``&kb``,\n'
             '``&metta`` and every other named space exactly as it found them,\n'
-            'whether or not the handle is still referenced.\n'
+            'whether or not the handle is still referenced. Inside a lifetime\n'
+            'scope, that scope owns newly created spaces and their cleanup;\n'
+            '``scope.keep(value)`` transfers returned spaces on successful exit.'
         ),
         evidence=('extensions/python/tests/ch04_spaces_and_matching/test_space.py::test_a_context_owns_and_releases_its_minted_home', 'extensions/python/tests/repository/test_door_rows.py::test_remote_storage_doors_use_the_declared_operation_protocol'),
         refuses=(
@@ -5150,6 +5177,23 @@ DOORS: tuple[Door, ...] = (
             'Run one callable or term in an engine transaction.\n'
         ),
         evidence=('extensions/python/tests/ch11_python_as_a_notation/test_ladder.py::test_batch_composes_with_transaction', 'extensions/python/tests/ch11_python_as_a_notation/test_r5_unbuilt_doors.py::test_transaction_term_uses_empty_answer_rollback_law', 'extensions/python/tests/ch15_writing_transactions_and_worlds/test_saga.py::test_saga_refuses_transaction_speculation_and_batch_boundaries'),
+    ),
+    Door(
+        owner=Owner.context,
+        name='scope',
+        kind=Kind.scope,
+        signatures=(
+            Signature('self', returns='Scope'),
+        ),
+        answers=AnswersAs.value,
+        effect=EffectClass.oracleIO,
+        determinism=Determinism.det,
+        tiers=(Tier.sync,),
+        body=Body('metta._space', 'MeTTa._door_scope'),
+        docs=(
+            "Own this block's children through the home space's library scope.\n"
+        ),
+        evidence=('extensions/python/tests/ch17_concurrency_and_the_loop/test_scopes.py::test_scope_owner_confines_keep_and_close',),
     ),
     Door(
         owner=Owner.context,

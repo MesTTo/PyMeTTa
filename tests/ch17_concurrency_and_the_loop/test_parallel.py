@@ -15,7 +15,7 @@ Guarantees:
     Janus engine without holding the home-engine lock, so unrelated work can
     complete before the blocker is released [tested:
     test_a_bare_thread_blocking_in_the_engine_does_not_freeze_other_calls;
-    commit=6ffd7e3bbfc653f10817c48f30cd56572960e43f]
+    commit=c6e1198c490a824b96f6fc6e1c0622a542917024]
   - an abandoned Channel destroys its SWI message queue from whichever thread
     collects it [tested:
     test_abandoned_channels_destroy_their_swi_queues_from_collector_thread;
@@ -95,7 +95,7 @@ def test_a_bare_thread_blocking_in_the_engine_does_not_freeze_other_calls(metta)
         try:
             with engine_thread():
                 while not rt.once(
-                    "lib_thread:metta_channel(Id, _Queue), "
+                    "lib_thread:metta_channel_waiter(Id, recv, host(_Queue)), "
                     "message_queue_property(_Queue, waiting(_Count)), _Count > 0",
                     Id=mailbox._handle,
                 ):

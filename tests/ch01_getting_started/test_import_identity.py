@@ -114,7 +114,8 @@ def test_callback_facade_owns_no_state_and_delegates():
         "release_contexts": "release_many",
     }
     for name, owner in owners.items():
-        assert getattr(facade, name) is getattr(owner, owner_names.get(name, name))
+        # One frame marks the engine's entry; behind it is the owner's exact object.
+        assert getattr(facade, name).__wrapped__ is getattr(owner, owner_names.get(name, name))
 
     exported = set(facade.__all__)
     own_state = {
@@ -124,7 +125,10 @@ def test_callback_facade_owns_no_state_and_delegates():
     }
     # `_sys` is the module reference a refusal names as its `obj` so the
     # interpreter can offer a suggestion; a module import is not state.
-    assert set(own_state) == {"_Any", "_CALLBACKS", "_importlib", "_sys", "annotations"}
+    assert set(own_state) == {
+        "_Any", "_CALLBACKS", "_Callable", "_ENTERED", "_entry", "_functools", "_importlib",
+        "_sys", "_threading", "annotations", "entered",
+    }
     assert all(
         isinstance(owner, tuple) and len(owner) == 2
         for owner in own_state["_CALLBACKS"].values()

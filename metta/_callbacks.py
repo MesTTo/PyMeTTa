@@ -1,9 +1,16 @@
 """Purpose: expose engine callbacks lazily under the ``metta_ops`` alias.
 
 Guarantees:
-  - the facade owns no registry state and each callback is the exact object
-    from its owning module [tested: test_callback_facade_owns_no_state_and_delegates;
-    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
+  - the facade owns no registry state; each callback is the owning module's
+    exact object behind one frame that marks the engine's entry, and
+    `__wrapped__` names that object [tested:
+    test_callback_facade_owns_no_state_and_delegates; commit=WORKTREE]
+  - `entered()` answers True exactly while a callback frame is open on the
+    running thread, which is how a scope lookup knows the engine may hold a
+    scope the host does not, and an ordinary door access makes no engine
+    call to find out [tested: test_the_engine_scope_is_read_inside_a_callback,
+    test_a_space_accessor_costs_no_engine_call_outside_a_callback;
+    commit=WORKTREE]
   - importing the callback facade does not import event, provider, or path
     satellites [tested: test_m7_satellites_are_lazy_and_identity_stable;
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
@@ -22,8 +29,11 @@ Open Obligations:
 
 from __future__ import annotations
 
+import functools as _functools
 import importlib as _importlib
 import sys as _sys
+import threading as _threading
+from collections.abc import Callable as _Callable
 from typing import Any as _Any
 
 # closed-set: decides; policy=which host callbacks this seat offers the engine, and where each lives, resolved lazily; reads=none, it is the source, and `__all__` below is `tuple(sorted(_CALLBACKS))` rather than a second list
@@ -172,6 +182,31 @@ __all__ = [
 ]
 
 
+# The one boundary the engine crosses into Python. A frame is counted per
+# thread while a callback runs, so code that may run on the engine's behalf
+# (an operation's body, a provider, a subscription handler) can ask whether it
+# does, and the scope it runs under is the engine's own then rather than the
+# host's ambient one.
+_ENTERED = _threading.local()
+
+
+def entered() -> bool:
+    """Whether the running thread is inside a callback the engine made."""
+    return getattr(_ENTERED, "depth", 0) > 0
+
+
+def _entry(target: _Callable[..., _Any]) -> _Callable[..., _Any]:
+    @_functools.wraps(target)
+    def callback(*args: _Any, **kwargs: _Any) -> _Any:
+        _ENTERED.depth = getattr(_ENTERED, "depth", 0) + 1
+        try:
+            return target(*args, **kwargs)
+        finally:
+            _ENTERED.depth -= 1
+
+    return callback
+
+
 def __getattr__(name: str) -> _Any:
     """Resolve a callback only when Janus first requests it."""
     try:
@@ -180,7 +215,7 @@ def __getattr__(name: str) -> _Any:
         msg = f"module {__name__!r} has no attribute {name!r}"
         raise AttributeError(msg, name=name, obj=_sys.modules[__name__]) from None
     module = _importlib.import_module(f"{__package__}.{module_name}")
-    value = getattr(module, attribute)
+    value = _entry(getattr(module, attribute))
     globals()[name] = value
     return value
 

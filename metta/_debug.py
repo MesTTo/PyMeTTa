@@ -4,6 +4,10 @@ a breakpoint, the loop body is where the program is SUSPENDED, and leaving the
 body resumes it. The program is a real run, writes included, held inside an
 SWI engine that the host steps.
 Guarantees:
+  - a scope closes both unstarted and suspended sessions and retires their
+    tracing wrappers [tested:
+    test_scope_closes_held_debuggers_and_retires_their_wrappers;
+    commit=c6e1198c490a824b96f6fc6e1c0622a542917024].
   - a breakpoint suspends the program and the loop body observes it, then
     resuming carries the same execution on to the next one [tested:
     test_a_breakpoint_suspends_the_program_and_resuming_carries_it_on;
@@ -39,6 +43,7 @@ import weakref
 from dataclasses import dataclass
 from typing import Any
 
+from . import _scope
 from ._atom_wire import _atom_from_wire
 from ._space_execution import _controlled_run
 from ._trace import _as_source, _selected_names
@@ -141,6 +146,11 @@ class Debugger:
         # function and refuse the next session, so the engine is reaped from
         # whichever thread collection runs on.
         self._finalizer = weakref.finalize(self, self._reap, self._rt, self._handle)
+        try:
+            _scope.own("cleanup", self.close)
+        except BaseException:
+            self.close()
+            raise
 
     @staticmethod
     def _reap(runtime, handle) -> None:
@@ -275,10 +285,10 @@ class Debugger:
         """
         if self._closed:
             return
+        self._rt.do("metta_py_debug_close", self._handle)
         self._closed = True
         if self._finalizer is not None:
             self._finalizer.detach()
-        self._rt.do("metta_py_debug_close", self._handle)
 
     def __enter__(self):
         return self

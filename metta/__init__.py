@@ -5,6 +5,9 @@ Assumes:
     owns storage and query verbs [source:
     extensions/python/metta/_space.py:306 and :3090; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
 Guarantees:
+  - scope() and move_on_after() lazily project lib_thread ownership through
+    metta.parallel.Scope [tested:
+    extensions/python/tests/ch17_concurrency_and_the_loop/test_scopes.py; commit=c6e1198c490a824b96f6fc6e1c0622a542917024].
   - the R5 root exports the term builders, relational solve, and lazy State
     handle while ``record`` and atom-specialist ``order_key`` stay absent
     [tested: test_m7_narrow_core_surface,
@@ -164,7 +167,7 @@ if TYPE_CHECKING:
     from .doors import EvaluationAnswer as _EvaluationAnswer
     from .foreign import SpaceProvider
     from .manifest import boot
-    from .parallel import channel, every, par_map, race, spawn
+    from .parallel import channel, every, move_on_after, par_map, race, scope, spawn
     from .results import Answers as _Answers
     from .spaces import view
     from .vocabularies import ArgumentDelivery as _ArgumentDelivery
@@ -263,8 +266,10 @@ _LAZY_ATTRIBUTES = {
     "rules": ("_rules", "rules"),
     "channel": ("parallel", "channel"),
     "every": ("parallel", "every"),
+    "move_on_after": ("parallel", "move_on_after"),
     "par_map": ("parallel", "par_map"),
     "race": ("parallel", "race"),
+    "scope": ("parallel", "scope"),
     "spawn": ("parallel", "spawn"),
     "view": ("spaces", "view"),
 }
@@ -1560,6 +1565,7 @@ __all__ = [
     "llms",
     "manifest",
     "match",
+    "move_on_after",
     "not_",
     "op",
     "or_",
@@ -1581,6 +1587,7 @@ __all__ = [
     "render",
     "rules",
     "run",
+    "scope",
     "seam",
     "seg",
     "set",
