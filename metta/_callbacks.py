@@ -4,13 +4,13 @@ Guarantees:
   - the facade owns no registry state; each callback is the owning module's
     exact object behind one frame that marks the engine's entry, and
     `__wrapped__` names that object [tested:
-    test_callback_facade_owns_no_state_and_delegates; commit=WORKTREE]
+    test_callback_facade_owns_no_state_and_delegates; commit=f80cc416ddcadaf710caafd08f3f1f9ae7791e36]
   - `entered()` answers True exactly while a callback frame is open on the
     running thread, which is how a scope lookup knows the engine may hold a
     scope the host does not, and an ordinary door access makes no engine
     call to find out [tested: test_the_engine_scope_is_read_inside_a_callback,
     test_a_space_accessor_costs_no_engine_call_outside_a_callback;
-    commit=WORKTREE]
+    commit=f80cc416ddcadaf710caafd08f3f1f9ae7791e36]
   - importing the callback facade does not import event, provider, or path
     satellites [tested: test_m7_satellites_are_lazy_and_identity_stable;
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
