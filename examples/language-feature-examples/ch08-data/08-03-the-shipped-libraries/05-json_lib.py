@@ -193,4 +193,12 @@ def twin(m):
 #: carries both, so this entry is where the two chains meet [measured
 #: 2026-09-08: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=f1038acdcaf5230b6431c112f38a719d3dc9ef19].
-BUDGET = 69791
+#: RE-PINNED 2026-09-09, 69791 to 70392 (+601), structured concurrency landed
+#: (feat/structured-concurrency merged at f80cc416d): every space mint records
+#: its allocation in the library's lifetime rows, every write and run pays the
+#: ownership hook and every drop asks the library whether a scope owns the
+#: name, measured on a pristine control as 32 per mint, 2 per write and 44 per
+#: drop with none per read; measured on the merged tree [measured 2026-09-09:
+#: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 70392

@@ -227,7 +227,15 @@ def twin(m):
 #: on the merged tree [measured 2026-09-09: min-of-3 serial fresh processes;
 #: command=python extensions/python/tools/twin_coverage.py --repin;
 #: commit=aeb46b14152274db84f6415c8a3dd8c98a9c9eb1].
-BUDGET = 4802
+#: RE-PINNED 2026-09-09, 4802 to 4830 (+28), structured concurrency landed
+#: (feat/structured-concurrency merged at f80cc416d): every space mint records
+#: its allocation in the library's lifetime rows, every write and run pays the
+#: ownership hook and every drop asks the library whether a scope owns the
+#: name, measured on a pristine control as 32 per mint, 2 per write and 44 per
+#: drop with none per read; measured on the merged tree [measured 2026-09-09:
+#: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 4830
 
 #: OVERRUN 2026-09-07, 300: the example inlines its `if` in a runnable and the
 #: twin gives it a name, so a one-form example is priced against a definition

@@ -446,7 +446,15 @@ def twin(m):
 #: on the merged tree [measured 2026-09-09: min-of-3 serial fresh processes;
 #: command=python extensions/python/tools/twin_coverage.py --repin;
 #: commit=aeb46b14152274db84f6415c8a3dd8c98a9c9eb1].
-BUDGET = 81312
+#: RE-PINNED 2026-09-09, 81312 to 81408 (+96), structured concurrency landed
+#: (feat/structured-concurrency merged at f80cc416d): every space mint records
+#: its allocation in the library's lifetime rows, every write and run pays the
+#: ownership hook and every drop asks the library whether a scope owns the
+#: name, measured on a pristine control as 32 per mint, 2 per write and 44 per
+#: drop with none per read; measured on the merged tree [measured 2026-09-09:
+#: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 81408
 
 #: DIVERGED 2026-09-07, the example holds 12 atoms the twin does not (12 =) and
 #: the twin holds 36 the example does not (1 :, 16 =, 19 @doc): the twin is an

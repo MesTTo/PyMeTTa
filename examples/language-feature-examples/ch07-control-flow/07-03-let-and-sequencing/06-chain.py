@@ -228,7 +228,15 @@ def twin(m):
 #: published before user code. Its declarations change catalog lookup indexes;
 #: generated public names bind directly to their existing bodies [measured
 #: extensions/python/tools/twin_coverage.py --repin; commit=b615b5a33b43252ef9826e5387da7c9bd7f6b543].
-BUDGET = 5148
+#: RE-PINNED 2026-09-09, 5148 to 5192 (+44), structured concurrency landed
+#: (feat/structured-concurrency merged at f80cc416d): every space mint records
+#: its allocation in the library's lifetime rows, every write and run pays the
+#: ownership hook and every drop asks the library whether a scope owns the
+#: name, measured on a pristine control as 32 per mint, 2 per write and 44 per
+#: drop with none per read; measured on the merged tree [measured 2026-09-09:
+#: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 5192
 
 #: DIVERGED 2026-09-07, the example holds 0 atoms the twin does not (none) and
 #: the twin holds 2 the example does not (2 =): the twin is an ordinary Python
