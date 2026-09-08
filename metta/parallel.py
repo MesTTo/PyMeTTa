@@ -1269,13 +1269,31 @@ class FutureSpace(Space):
     """
 
     def __init__(self, space: Space, owner: Space) -> None:  # noqa: D107 -- the enclosing type defines the future-space construction boundary
-        super().__init__(space.name, _runtime=space.runtime)
+        # The raw name, not the `name` door: a handle is built for every
+        # future reference an atom carries, including one to a future its
+        # scope has already released, and the door asks the engine whether
+        # the name is live. Liveness is a use-time question, asked by the
+        # doors that reach the engine.
+        super().__init__(space._name, _runtime=space.runtime)
         self._owner = owner
-        # The finalizer must not touch self or the engine at interpreter
-        # shutdown, so settlement observation rides a shared cell.
+        # Settlement observation rides a shared cell because the abandonment
+        # finalizer must not touch self or the engine at interpreter shutdown.
         self._settlement = {"observed": False}
+
+    def _created(self, owner: Space) -> Self:
+        """Return this handle as the one its creating door hands out.
+
+        The wire decoder builds a handle for every future reference an atom
+        carries; only the handle a `spawn` or `every` door returns stands for
+        a computation someone started, so only that one warns when it dies
+        unobserved. Building a second handle around the decoded one left the
+        decoded one to die at once, warning about a future that had in fact
+        been awaited.
+        """
+        self._owner = owner
         if not self._scoped:
-            _weakref.finalize(self, _warn_abandoned, space.name, self._settlement)
+            _weakref.finalize(self, _warn_abandoned, self._name, self._settlement)
+        return self
 
     def wait(self):
         """Wait until evaluation settles, then lazily expose every stored answer."""
@@ -1358,10 +1376,10 @@ def _unseen_occurrences(current: list[Atom], seen: list[Atom]) -> Iterator[Atom]
 
 def _future(owner: Space, head: str, *arguments: Any) -> FutureSpace:
     result = _call(owner, head, *arguments).one()
-    if not isinstance(result, Space):
+    if not isinstance(result, FutureSpace):
         msg = f"{head} returned {result!r}, not its promised future space"
         raise MettaError(msg)
-    return FutureSpace(result, owner)
+    return result._created(owner)
 
 
 def spawn(expression: Any) -> FutureSpace:

@@ -152,4 +152,10 @@ def twin(m):
 #: on the merged tree [measured 2026-09-09: min-of-3 serial fresh processes;
 #: command=python extensions/python/tools/twin_coverage.py --repin;
 #: commit=aeb46b14152274db84f6415c8a3dd8c98a9c9eb1].
-BUDGET = 23885402
+#: RE-PINNED 2026-09-08, 23885402 to 23885792 (+390), Trailing occurrence
+#: arguments, token allocation in native writes, exact source withdrawal and
+#: transaction-safe shared-table guards change the engine work priced by this
+#: twin; answer bags retain the upstream law [measured 2026-09-08: min-of-3
+#: serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=7f00ac7932fefa6f380fc8d14ec583ea0c58eff4].
+BUDGET = 23885792

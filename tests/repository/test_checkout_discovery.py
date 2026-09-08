@@ -1,13 +1,14 @@
-"""Purpose: a checkout advertises its extension distributions the way an
-install does. `_workspace.on_path()` makes every member importable and adds
-the finder that answers `importlib.metadata` from the members' own manifests,
-so entry-point discovery, the seam's `advertised()` and every example reach a
-package's door without importing the package by name.
+"""Purpose: a checkout advertises its extension distributions the way an install does.
+
+`_workspace.on_path()` makes every member importable and adds the finder that
+answers `importlib.metadata` from the members' own manifests, so entry-point
+discovery, the seam's `advertised()` and every example reach a package's door
+without importing the package by name.
 Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
-"""  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
+"""
 
 from __future__ import annotations
 
@@ -30,7 +31,8 @@ def _declared() -> dict[str, str]:
     return out
 
 
-def test_a_checkout_advertises_its_members_through_importlib_metadata():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
+def test_a_checkout_advertises_its_members_through_importlib_metadata():
+    """The checkout's members answer entry-point discovery from their manifests, with PEP 503 names."""
     names = _workspace.on_path()
     declared = _declared()
     assert declared, "the workspace declares at least one extension entry point"

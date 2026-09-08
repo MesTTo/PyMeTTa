@@ -236,7 +236,13 @@ RUNG = "a `case` whose branches arrive as a VALUE has no Python spelling: match'
 #: carries both, so this entry is where the two chains meet [measured
 #: 2026-09-08: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=f1038acdcaf5230b6431c112f38a719d3dc9ef19].
-BUDGET = 11281
+#: RE-PINNED 2026-09-08, 11281 to 11581 (+300), Trailing occurrence arguments,
+#: token allocation in native writes, exact source withdrawal and transaction-
+#: safe shared-table guards change the engine work priced by this twin; answer
+#: bags retain the upstream law [measured 2026-09-08: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=7f00ac7932fefa6f380fc8d14ec583ea0c58eff4].
+BUDGET = 11581
 
 #: DIVERGED 2026-09-07, the example holds 1 atom the twin does not (1 =) and
 #: the twin holds 1 atom the example does not (1 =): the twin is an ordinary Python

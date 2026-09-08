@@ -54,6 +54,9 @@ class SpaceStateMachine(testing.SpaceMachine):
         with self._owner._new_space() as loaded:
             loaded.load(path)
             assert Counter(loaded.atoms()) == self.model
+            if save_format == "fast":
+                for atom in self.model:
+                    assert loaded.blame(atom) == self.space.blame(atom)
 
     def teardown(self):
         """Remove the temporary directory, then release the space."""

@@ -3,6 +3,8 @@ from returned data, in any suite order, and never starts the MeTTa
 runtime just to answer; a subprocess pins the no-start guarantee in a
 fresh interpreter where it is deterministic.
 Guarantees:
+  - reloading the storage module preserves its constructor, actor and rows
+    [tested: test_reloading_storage_preserves_occurrences; commit=7f00ac7932fefa6f380fc8d14ec583ea0c58eff4]
   - a bare thread whose recycled identifier equals the runtime's boot-thread
     identifier is still classified by its live Janus attachment [tested:
     test_a_recycled_thread_identifier_never_selects_the_janus_fast_path;
@@ -86,6 +88,25 @@ print("PYTHON-RUNTIME-INSTALL-RETRIED")
     assert completed.stdout.strip() == "PYTHON-RUNTIME-INSTALL-RETRIED"
 
 
+def test_reloading_storage_preserves_occurrences(repo_root):
+    """A native constructor still writes after a forced source reload."""
+    goal = (
+        "consult('engine/metta.pl'), metta_actor(Actor), "
+        "spaces:add_sexp('&self', [reload_row,1], Before, _), "
+        "load_files('engine/spaces.pl', [if(true)]), metta_actor(Actor), "
+        "spaces:add_sexp('&self', [reload_row,2], After, _), After > Before, "
+        "findall(N-T, spaces:metta_native_pair('&self', [reload_row,N], T, _), "
+        "[1-Before,2-After]), writeln('STORAGE-RELOADED'), halt"
+    )
+    done = subprocess.run(
+        ["swipl", "-q", "-g", goal, "-t", "halt"], cwd=repo_root,
+        capture_output=True, text=True, check=False,
+    )
+    assert done.returncode == 0, done.stdout + done.stderr
+    assert done.stdout.strip() == "STORAGE-RELOADED"
+    assert done.stderr == ""
+
+
 def test_backend_info_reports_versions_and_consulted_tree():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     info = metta.engine().info()
 
@@ -96,9 +117,13 @@ def test_backend_info_reports_versions_and_consulted_tree():  # noqa: D103  -- p
         "swi_prolog",
         "python",
         "metta_path",
+        "actor",
+        "next_generation",
     }
     for key in ("metta", "janus", "swi_prolog", "python"):
         assert re.fullmatch(r"\d+(?:\.\d+)+", info[key])
+    assert isinstance(info["actor"], str) and info["actor"]
+    assert isinstance(info["next_generation"], int) and info["next_generation"] >= 0
     assert info["python"] == ".".join(map(str, sys.version_info[:3]))
     metta_path = metta.engine().info()["metta_path"]
 

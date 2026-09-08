@@ -111,6 +111,7 @@ __all__ = [
     "Remover",
     "Snapshotter",
     "SpaceProvider",
+    "TokenProvider",
     "Transactional",
     "WorldCommitter",
     "delivery_promise",
@@ -249,6 +250,19 @@ class Snapshotter(Protocol):
 
 
 @runtime_checkable
+class TokenProvider(Protocol):
+    """A provider with stable row identities, separate from row contents."""
+
+    def tokens(self, pattern: Atom) -> Iterable[tuple[Atom, Atom]]:
+        """Yield ``(token, atom)`` pairs, with each token shaped ``(t actor row_id)``.
+
+        Row IDs are nonnegative integers within the engine's ``flag/3`` range
+        and remain stable for an occurrence's lifetime. Distinct occurrences have distinct identities.
+        The engine unifies returned candidates against the offered pattern.
+        """
+
+
+@runtime_checkable
 class WorldCommitter(Protocol):
     """A provider that lands one checked base-relative world diff.
 
@@ -363,6 +377,7 @@ class SpaceProvider:
     _PROTOCOLS: ClassVar[dict[str, tuple[type, ...]]] = {
         "match": (Matcher, Enumerable),
         "enumerate": (Enumerable,),
+        "tokens": (TokenProvider,),
         "add": (Adder,),
         "add-many": (BulkAdder,),
         "plan": (Planner,),
@@ -920,6 +935,30 @@ def foreign_atoms(space: str):
     return guarded(
         _wire_stream(iter(cast(Enumerable, provider).atoms()), answers=False),
         lambda error: _provider_failure(error, space, "get-atoms", provider),
+    )
+
+
+def foreign_tokens(space: str, pattern_wire: list):
+    """Serve stable occurrence pairs through the existing guarded wire stream."""
+    provider = _provider(space)
+    pattern = _atom_from_wire(pattern_wire)
+    _require_provider(provider, space, "tokens", "blame", pattern=pattern)
+
+    def rows():
+        iterator = iter(cast(TokenProvider, provider).tokens(pattern))
+        try:
+            yield from _wire_stream(
+                (Expression(token, atom) for token, atom in iterator),
+                answers=False,
+            )
+        finally:
+            close = getattr(iterator, "close", None)
+            if close is not None:
+                close()
+
+    return guarded(
+        rows(),
+        lambda error: _provider_failure(error, space, "blame", provider),
     )
 
 

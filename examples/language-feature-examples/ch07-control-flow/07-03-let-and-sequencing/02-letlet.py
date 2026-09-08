@@ -129,4 +129,10 @@ RUNG = "a `let*` binding whose left side is a PATTERN has no assignment spelling
 #: tree, minimum of three fresh processes [measured 2026-09-08: min-of-3 serial
 #: fresh processes; command=python extensions/python/tools/twin_coverage.py
 #: --repin; commit=856434d7c1d381b3f3d7cbbd008f46c0d41b61aa].
-BUDGET = 986
+#: RE-PINNED 2026-09-08, 986 to 1044 (+58), Trailing occurrence arguments,
+#: token allocation in native writes, exact source withdrawal and transaction-
+#: safe shared-table guards change the engine work priced by this twin; answer
+#: bags retain the upstream law [measured 2026-09-08: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=7f00ac7932fefa6f380fc8d14ec583ea0c58eff4].
+BUDGET = 1044

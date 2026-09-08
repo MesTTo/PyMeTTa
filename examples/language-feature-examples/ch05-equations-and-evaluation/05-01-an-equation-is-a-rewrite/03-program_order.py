@@ -1,4 +1,4 @@
-"""examples/ch05-equations-and-evaluation/05-01-an-equation-is-a-rewrite/03-program_order.metta in Python: source order counts.
+"""Purpose: examples/ch05-equations-and-evaluation/05-01-an-equation-is-a-rewrite/03-program_order.metta in Python: source order counts.
 
 The call comes before its equation and stays unreduced; the same call after
 the equation reduces. A Python twin reads the same way for the same reason,
@@ -116,4 +116,10 @@ def twin(m):
 #: tree, minimum of three fresh processes [measured 2026-09-08: min-of-3 serial
 #: fresh processes; command=python extensions/python/tools/twin_coverage.py
 #: --repin; commit=856434d7c1d381b3f3d7cbbd008f46c0d41b61aa].
-BUDGET = 1002
+#: RE-PINNED 2026-09-08, 1002 to 1068 (+66), Trailing occurrence arguments,
+#: token allocation in native writes, exact source withdrawal and transaction-
+#: safe shared-table guards change the engine work priced by this twin; answer
+#: bags retain the upstream law [measured 2026-09-08: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=7f00ac7932fefa6f380fc8d14ec583ea0c58eff4].
+BUDGET = 1068

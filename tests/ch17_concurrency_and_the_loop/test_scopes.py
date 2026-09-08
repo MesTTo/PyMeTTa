@@ -1,26 +1,35 @@
 """Purpose: prove that Python projects lib_thread scope ownership and joins.
 
+Guarantees:
+  - an atom naming a future its scope has released still decodes, and the
+    decoded handle refuses at use, not at construction [tested:
+    test_an_atom_naming_a_released_future_still_decodes; commit=WORKTREE]
+  - the handle spawn returns is the one decoded from the engine's answer, so
+    an awaited future does not warn as abandoned [tested:
+    test_an_awaited_future_does_not_warn_as_abandoned; commit=WORKTREE]
 Owns resources: scopes release their children; fixtures drop borrowed spaces
 and unregister their test operations [tested: test_scopes.py; commit=c6e1198c490a824b96f6fc6e1c0622a542917024].
 """
 
-# ruff: noqa: D103 -- pytest names state each fixture and behavioral contract
 
 from __future__ import annotations
 
 import asyncio
+import gc
 import threading
 import time
+import warnings
 from collections import deque
 from random import Random
 
 import pytest
 
 import metta
-from metta import S, Space
+from metta import G, S, Space
 from metta import _scope as scope_context
 from metta import aio as aio_module
 from metta.aio import AsyncMeTTa
+from metta.atoms import Expression
 from metta.errors import MettaError
 from metta.foreign import SpaceProvider
 from metta.parallel import EnginePool, ProcessPool, program
@@ -28,6 +37,7 @@ from metta.parallel import EnginePool, ProcessPool, program
 
 @pytest.fixture
 def native_ops():
+    """Register the sc-probe and sc-test Prolog operations the scope tests call, and unregister them after."""
     with metta.MeTTa() as m:
         m.register_prolog("""
             :- metta_extension(sc_scope_tests, [version('1')]).
@@ -43,6 +53,7 @@ def native_ops():
 
 
 def test_scope_releases_mints_and_refuses_every_alias():
+    """A scope releases the spaces minted inside it and every alias of them refuses afterwards."""
     with metta.scope():
         child = metta.space()
         child.add(S.owned(1))
@@ -57,6 +68,7 @@ def test_scope_releases_mints_and_refuses_every_alias():
 
 
 def test_keep_transfers_to_the_parent_and_borrowed_spaces_survive():
+    """keep() transfers a child to the parent scope, and a borrowed space outlives the scope untouched."""
     with metta.space() as borrowed:
         with metta.scope():
             with metta.scope() as inner:
@@ -76,6 +88,7 @@ def test_keep_transfers_to_the_parent_and_borrowed_spaces_survive():
 
 
 def test_channel_and_space_operations_share_one_fifo():
+    """A channel's send and receive and its space doors read and write one FIFO."""
     with metta.channel(max=3) as channel:
         assert isinstance(channel, Space)
         channel.send(S.item(1))
@@ -90,6 +103,7 @@ def test_channel_and_space_operations_share_one_fifo():
 
 
 def test_scope_joins_three_children_before_releasing_their_spaces():
+    """A scope joins its three spawned children before it releases their spaces."""
     with metta.space() as output:
         with metta.scope():
             children = [
@@ -101,6 +115,7 @@ def test_scope_joins_three_children_before_releasing_their_spaces():
 
 
 def test_body_failure_cancels_a_pending_timer_and_releases_its_channel():
+    """A body failure cancels a timer still pending and releases the channel the body opened."""
     with pytest.raises(ValueError, match="body failed"), metta.scope():
         future = metta.every(100, S.unreachable())
         channel = metta.channel()
@@ -111,6 +126,7 @@ def test_body_failure_cancels_a_pending_timer_and_releases_its_channel():
 
 
 def test_scope_owns_an_executor_and_its_three_futures():
+    """A scope owns an executor started inside it and the three futures it submitted."""
     with metta.scope():
         pool = EnginePool(3)
         futures = [pool.submit(lambda n: (time.sleep(0.02), n)[1], n) for n in range(3)]
@@ -120,6 +136,7 @@ def test_scope_owns_an_executor_and_its_three_futures():
 
 
 def test_executor_failure_cancels_its_engine_sibling(native_ops):
+    """An executor's failure cancels the engine started beside it in the same scope."""
     m = native_ops
     with m.self:
         with pytest.raises(ValueError, match="child failed"), m.scope():
@@ -136,6 +153,7 @@ def test_executor_failure_cancels_its_engine_sibling(native_ops):
 
 
 def test_deadline_uses_the_library_scope_and_stops_a_running_engine(native_ops):
+    """move_on_after() is the library's scope deadline, and it stops an engine still running."""
     m = native_ops
     with m.self:
         with metta.move_on_after(0.02) as scope:
@@ -145,6 +163,7 @@ def test_deadline_uses_the_library_scope_and_stops_a_running_engine(native_ops):
 
 
 def test_scope_closes_subscriptions_on_borrowed_spaces():
+    """A scope closes the subscriptions it opened on a borrowed space without dropping the space."""
     with metta.space() as borrowed:
         seen = []
         with metta.scope():
@@ -157,6 +176,7 @@ def test_scope_closes_subscriptions_on_borrowed_spaces():
 
 @pytest.mark.parametrize("started", [False, True])
 def test_scope_closes_held_debuggers_and_retires_their_wrappers(started):
+    """A scope closes a debugger it holds, started or not, and retires the wrapper the debugger installed."""
     with metta.space() as home:
         home.run("(= (sc-debug-double $x) (* 2 $x))")
         with metta.scope():
@@ -173,6 +193,7 @@ def test_scope_closes_held_debuggers_and_retires_their_wrappers(started):
 
 
 def test_scope_owner_confines_keep_and_close():
+    """Only the thread that entered a scope may keep() out of it or close it."""
     errors = []
     with metta.scope() as scope:
         def foreign_owner():
@@ -191,6 +212,7 @@ def test_scope_owner_confines_keep_and_close():
 
 @pytest.mark.parametrize("kind", ["state", "lifetime"])
 def test_scope_readers_cannot_observe_a_writers_record_replacement(kind):
+    """A reader never sees a half-replaced state or lifetime record while a writer replaces it."""
     with metta.scope() as scope:
         space = metta.space()
         with scope_context.suspend():
@@ -213,6 +235,7 @@ def test_scope_readers_cannot_observe_a_writers_record_replacement(kind):
 
 
 def test_a_cancel_refusal_does_not_skip_later_siblings(monkeypatch):
+    """A child that refuses cancellation does not stop the scope from asking every later sibling."""
     started = threading.Event()
     release = threading.Event()
 
@@ -240,6 +263,7 @@ def test_a_cancel_refusal_does_not_skip_later_siblings(monkeypatch):
 
 
 def test_host_failure_publishes_completion_when_a_sibling_refuses_cancel():
+    """A host worker's failure publishes its completion receipt even when a sibling refuses to cancel."""
     refusing = True
     receipt = False
 
@@ -277,12 +301,14 @@ def test_host_failure_publishes_completion_when_a_sibling_refuses_cancel():
 
 
 def test_normal_exit_stops_a_repeating_timer():
+    """Leaving a scope normally stops a repeating timer started inside it."""
     with metta.scope():
         timer = metta.every(100, S.unreachable())
     assert timer.dropped
 
 
 def test_a_repeating_child_failure_stops_the_scope(native_ops):
+    """A repeating timer's failure cancels the scope that owns it."""
     with native_ops.self, pytest.raises(MettaError, match="scope_test_failure"):
         with native_ops.scope():
             timer = metta.every(0.001, S['sc-test-error']())
@@ -291,6 +317,7 @@ def test_a_repeating_child_failure_stops_the_scope(native_ops):
 
 
 def test_a_borrowed_executor_survives_its_scoped_submission():
+    """An executor borrowed from outside survives a submission made inside a scope."""
     with EnginePool(1) as pool:
         with metta.scope():
             future = pool.submit(lambda: (time.sleep(0.01), 42)[1])
@@ -300,6 +327,7 @@ def test_a_borrowed_executor_survives_its_scoped_submission():
 
 
 def test_scope_releases_a_partly_consumed_host_engine():
+    """A scope releases a host engine whose answers were only partly consumed."""
     with metta.space() as space:
         space.add(*(S.item(n) for n in range(3)))
         with metta.scope():
@@ -317,12 +345,14 @@ def test_scope_releases_a_partly_consumed_host_engine():
 
 
 def test_scoped_async_publication_refuses_inside_a_transaction():
+    """An async publication into a scoped space refuses while a transaction is open."""
     with metta.space() as space, metta.scope():
         with pytest.raises(MettaError, match="scope_in_transaction"):
             space.transaction(lambda: metta.spawn(S['+'](1, 2)))
 
 
 def test_a_rolled_back_allocation_still_belongs_to_its_scope():
+    """A space allocated in a transaction that rolls back still belongs to its scope and is released with it."""
     with metta.space() as borrowed:
         children = []
 
@@ -340,6 +370,7 @@ def test_a_rolled_back_allocation_still_belongs_to_its_scope():
 
 
 def test_a_rolled_back_allocation_cannot_recycle_a_revoked_name():
+    """A rolled-back allocation cannot hand a revoked space name out again."""
     with metta.space() as borrowed:
         children = []
 
@@ -360,6 +391,7 @@ def test_a_rolled_back_allocation_cannot_recycle_a_revoked_name():
 
 
 def test_alias_drop_releases_the_creating_handles_owned_journal(tmp_path):
+    """Dropping an alias releases the journal owned by the handle that created the space."""
     path = tmp_path / "owned.db"
     with metta.scope():
         child = metta.space(journal=path, schema={"item": 1})
@@ -372,6 +404,7 @@ def test_alias_drop_releases_the_creating_handles_owned_journal(tmp_path):
 
 
 def test_cleanup_failure_revokes_aliases_attempts_all_and_can_retry(tmp_path, monkeypatch):
+    """A cleanup that fails still revokes every alias, attempts every release, and can be retried."""
     scope = metta.scope()
     path = tmp_path / "retry.db"
     with pytest.raises(MettaError, match="scope cleanup failed"), scope:
@@ -401,6 +434,7 @@ def test_cleanup_failure_revokes_aliases_attempts_all_and_can_retry(tmp_path, mo
 
 
 def test_named_foreign_creation_is_owned_and_an_existing_provider_is_borrowed():
+    """A foreign space created by name in a scope is owned by it; one registered before is borrowed."""
     class Provider(SpaceProvider):
         def atoms(self):
             return [S.item(3)]
@@ -420,6 +454,7 @@ def test_named_foreign_creation_is_owned_and_an_existing_provider_is_borrowed():
 
 
 def test_scope_owns_a_process_pool_and_joins_its_results():
+    """A scope owns a process pool started inside it and joins its results before releasing it."""
     with metta.scope():
         pool = ProcessPool(2)
         futures = [pool.submit(program, f"!(+ {n} 1)") for n in range(3)]
@@ -428,6 +463,7 @@ def test_scope_owns_a_process_pool_and_joins_its_results():
 
 
 def test_explicit_cancellation_is_consumed_by_its_own_scope():
+    """An explicit cancel() is consumed by the scope it names and does not escape to the parent."""
     reached = []
     with metta.scope() as scope:
         scope.cancel()
@@ -439,6 +475,7 @@ def test_explicit_cancellation_is_consumed_by_its_own_scope():
 
 
 def test_an_outer_deadline_is_not_lost_at_a_nested_scope(native_ops):
+    """An outer scope's deadline still fires while a nested scope is open."""
     with native_ops.self, metta.move_on_after(0.02) as outer:
         with metta.scope():
             native_ops.eval("(sc-test-loop)")
@@ -447,6 +484,7 @@ def test_an_outer_deadline_is_not_lost_at_a_nested_scope(native_ops):
 
 
 def test_async_cancellation_waits_for_the_coroutines_finalizer():
+    """Cancelling an async child waits for the coroutine's finalizer to run."""
     entered = threading.Event()
     finalized = threading.Event()
 
@@ -473,6 +511,7 @@ def test_async_cancellation_waits_for_the_coroutines_finalizer():
 
 
 def test_a_refused_coroutine_signal_does_not_claim_a_stopped_body(monkeypatch):
+    """A coroutine that refuses the cancellation signal is not reported as a stopped body."""
     entered = threading.Event()
     finalized = threading.Event()
     tasks = []
@@ -515,6 +554,7 @@ def test_a_refused_coroutine_signal_does_not_claim_a_stopped_body(monkeypatch):
 
 
 def test_scope_waits_for_async_landing_observers_and_owns_their_mints():
+    """A scope waits for async landing observers and owns the spaces they mint."""
     observed = threading.Event()
     finished = threading.Event()
     minted = []
@@ -545,6 +585,7 @@ def test_scope_waits_for_async_landing_observers_and_owns_their_mints():
 
 
 def test_scope_owns_an_async_worker_and_its_requests():
+    """A scope owns an async worker started inside it and every request it accepted."""
     async def check():
         with metta.scope():
             am = await AsyncMeTTa().start()
@@ -559,6 +600,7 @@ def test_scope_owns_an_async_worker_and_its_requests():
 
 
 def test_scope_joins_a_cancelled_request_on_a_borrowed_async_worker():
+    """A scope joins a request it cancelled on a borrowed async worker before leaving."""
     entered = threading.Event()
     finished = threading.Event()
 
@@ -582,6 +624,7 @@ def test_scope_joins_a_cancelled_request_on_a_borrowed_async_worker():
 
 
 def test_a_scope_deadline_wakes_the_task_awaiting_an_async_worker(native_ops):
+    """A scope deadline wakes a task parked on an async worker's request."""
     async def check():
         async with AsyncMeTTa(metta=native_ops.self) as am:
             with metta.move_on_after(0.02) as scope:
@@ -593,6 +636,7 @@ def test_a_scope_deadline_wakes_the_task_awaiting_an_async_worker(native_ops):
 
 
 def test_async_subscription_stop_needs_only_the_workers_acquisition_receipt(monkeypatch):
+    """Stopping an async subscription needs only the worker's acquisition receipt, never a second round trip."""
     async def check():
         acquired = asyncio.Event()
         release = asyncio.Event()
@@ -627,6 +671,7 @@ def test_async_subscription_stop_needs_only_the_workers_acquisition_receipt(monk
 
 
 def test_scope_closes_an_async_subscription_on_a_borrowed_worker():
+    """A scope closes an async subscription it opened on a borrowed worker."""
     async def check():
         async with AsyncMeTTa() as am:
             with metta.scope():
@@ -644,6 +689,7 @@ def test_scope_closes_an_async_subscription_on_a_borrowed_worker():
 
 @pytest.mark.parametrize("capacity", [1, 2, 7])
 def test_channel_space_and_mailbox_share_a_randomized_bag_and_fifo(capacity):
+    """A channel's space view and mailbox agree on one bag and one FIFO order under random traffic."""
     rng = Random(430)
     model = deque()
     with metta.channel(max=capacity) as channel:
@@ -693,3 +739,34 @@ def test_the_engine_scope_is_read_inside_a_callback():
         assert m.eval("(scope (sc-probe))")
         assert seen and seen[-1] is not None
         assert scope_context.current() is None
+
+
+def test_an_atom_naming_a_released_future_still_decodes():
+    """A decoded reference to a released future is data; its doors refuse at use."""
+    with metta.space() as holder:
+        with metta.scope():
+            future = metta.spawn(S["+"](1, 2))
+            assert list(future.wait()) == [G(3)]
+            holder.add(S.note(future))
+        assert future.dropped
+        # Reading the holder decodes every atom it holds, the library's rows
+        # spawn imported included, and the note's child names the released
+        # future; that decode used to ask the engine whether it was live.
+        [note] = [
+            atom for atom in holder.atoms()
+            if isinstance(atom, Expression) and atom.children and atom.children[0] == S.note
+        ]
+        assert note.children[1] == future
+        with pytest.raises(MettaError, match=r"dropped|released_scope_space"):
+            note.children[1].atoms()
+
+
+def test_an_awaited_future_does_not_warn_as_abandoned():
+    """The handle spawn returns is the decoded one, so awaiting it observes settlement."""
+    with warnings.catch_warnings(record=True) as seen:
+        warnings.simplefilter("always", ResourceWarning)
+        future = metta.spawn(S["+"](1, 2))
+        assert list(future.wait()) == [G(3)]
+        del future
+        gc.collect()
+    assert [str(w.message) for w in seen if issubclass(w.category, ResourceWarning)] == []

@@ -1,4 +1,4 @@
-"""examples/ch03-atoms-and-expressions/02-string.metta in Python: a string is a value, not structure.
+"""Purpose: examples/ch03-atoms-and-expressions/02-string.metta in Python: a string is a value, not structure.
 
 The parentheses in the text are characters, which is the whole point of the
 original: evaluating a string literal answers that same string. `ground(text)`
@@ -54,4 +54,10 @@ def twin(m):
 #: compiled default space operand as &self rather than a (context-space) call
 #: [measured 2026-09-07: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=9010a79b01c9b2a66b96a3952fa378fb3e939dc3].
-BUDGET = 173
+#: RE-PINNED 2026-09-08, 173 to 179 (+6), Trailing occurrence arguments, token
+#: allocation in native writes, exact source withdrawal and transaction-safe
+#: shared-table guards change the engine work priced by this twin; answer bags
+#: retain the upstream law [measured 2026-09-08: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=7f00ac7932fefa6f380fc8d14ec583ea0c58eff4].
+BUDGET = 179

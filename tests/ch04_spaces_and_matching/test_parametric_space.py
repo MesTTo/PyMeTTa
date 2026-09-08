@@ -152,7 +152,7 @@ def test_a_parametric_fact_leaf_names_its_space(metta):
         metta.run("!(add-atom (cache &p12-param-leaf 1) (entry left))")
         row = metta.runtime.must(
             f"_Name={name}, native_storage_module(_Name, _Module), "
-            "_Goal = '$metta_parametric_atom'(entry, left), "
+            "_Goal = '$metta_parametric_atom'(entry, left, _), "
             "metta_py_leaf(_Module, _Goal, _Tree), term_string(_Tree, Text)"
         )
         assert row["Text"] == "[fact([cache,'&p12-param-leaf',1],[entry,left])]"

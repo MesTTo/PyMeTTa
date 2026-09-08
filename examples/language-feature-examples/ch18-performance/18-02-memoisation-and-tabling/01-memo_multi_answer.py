@@ -1,4 +1,4 @@
-"""examples/ch18-performance/18-02-memoisation-and-tabling/01-memo_multi_answer.metta in Python: caching a function that answers twice.
+"""Purpose: examples/ch18-performance/18-02-memoisation-and-tabling/01-memo_multi_answer.metta in Python: caching a function that answers twice.
 
 Two equations share one head, so they are two ALTERNATIVES rather than a
 redefinition, and `yield` is the door that says so: each independent yield in a
@@ -239,4 +239,27 @@ def twin(m):
 #: drop with none per read; measured on the merged tree [measured 2026-09-09:
 #: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=0f53926c2fd9f28e188814c84253ad82e13258f7].
-BUDGET = 35661
+#: RE-PINNED 2026-09-08, 35579 to 36861 (+1282), Trailing occurrence arguments,
+#: token allocation in native writes, exact source withdrawal and transaction-
+#: safe shared-table guards change the engine work priced by this twin; answer
+#: bags retain the upstream law [measured 2026-09-08: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=7f00ac7932fefa6f380fc8d14ec583ea0c58eff4].
+#: RE-PINNED 2026-09-08, 36861 to 36801 (-60), Sharing the fast-image
+#: hexadecimal validator changes the engine predicate layout. The identity twin
+#: moves below its declared band while the seven engine work counters move only
+#: at boot; the native add and read slopes remain unchanged. Token storage and
+#: source ownership retain their earlier measured costs and answer bags
+#: [measured 2026-09-08: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=7f00ac7932fefa6f380fc8d14ec583ea0c58eff4].
+#: RE-PINNED 2026-09-09, 36801 to 36928 (+127), tokens as storage landed
+#: (feat/tokens-as-storage merged): every native occurrence carries a (t actor
+#: generation) token as the trailing argument of its storage clause, minted
+#: through flag/3 at the write funnel, and every clause read decodes it,
+#: measured on a pristine control of trunk cbf7a958d as 8 more inferences per
+#: add, 31 more per remove, 4 more per atom saved and 54 more per atom loaded
+#: from a fast image, none per match, plus the merged tree's own lib_thread
+#: repairs; measured on the merged tree [measured 2026-09-09: min-of-3 serial
+#: fresh processes; command=python extensions/python/tools/twin_coverage.py
+#: --repin; commit=WORKTREE].
+BUDGET = 36928

@@ -1874,6 +1874,14 @@ class AsyncMeTTa:
         """Every stored atom in this space."""
         return await self.call(lambda m: m.atoms())
 
+    async def blame(self, atom: Any) -> list[Atom]:
+        """Return each matching occurrence's ``(t actor generation)`` identity.
+
+        Results are ordered by generation then actor. Equal atoms have separate
+        tokens. A provider must implement the ``tokens`` capability.
+        """
+        return await self.call(lambda m: m.blame(atom))
+
     async def peek(self, pattern: Any, *, where: Any | None=None, deadline: float | None=None) -> Atom:
         """Wait for one matching atom and leave it in this space.
 

@@ -1,4 +1,4 @@
-"""examples/ch07-control-flow/07-01-if-and-booleans/01-ifsimple.metta in Python: `if` with no else branch.
+"""Purpose: examples/ch07-control-flow/07-01-if-and-booleans/01-ifsimple.metta in Python: `if` with no else branch.
 
 MeTTa's two-argument `if` answers nothing when its condition is false, and
 Python's conditional expression cannot mean that, because it always has an
@@ -228,7 +228,30 @@ def twin(m):
 #: drop with none per read; measured on the merged tree [measured 2026-09-09:
 #: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=0f53926c2fd9f28e188814c84253ad82e13258f7].
-BUDGET = 3740
+#: RE-PINNED 2026-09-08, 3675 to 3810 (+135), Trailing occurrence arguments,
+#: token allocation in native writes, exact source withdrawal and transaction-
+#: safe shared-table guards change the engine work priced by this twin; answer
+#: bags retain the upstream law [measured 2026-09-08: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=7f00ac7932fefa6f380fc8d14ec583ea0c58eff4].
+#: RE-PINNED 2026-09-08, 3810 to 3750 (-60), Sharing the fast-image hexadecimal
+#: validator changes the engine predicate layout. The identity twin moves below
+#: its declared band while the seven engine work counters move only at boot;
+#: the native add and read slopes remain unchanged. Token storage and source
+#: ownership retain their earlier measured costs and answer bags [measured
+#: 2026-09-08: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=7f00ac7932fefa6f380fc8d14ec583ea0c58eff4].
+#: RE-PINNED 2026-09-09, 3750 to 3860 (+110), tokens as storage landed
+#: (feat/tokens-as-storage merged): every native occurrence carries a (t actor
+#: generation) token as the trailing argument of its storage clause, minted
+#: through flag/3 at the write funnel, and every clause read decodes it,
+#: measured on a pristine control of trunk cbf7a958d as 8 more inferences per
+#: add, 31 more per remove, 4 more per atom saved and 54 more per atom loaded
+#: from a fast image, none per match, plus the merged tree's own lib_thread
+#: repairs; measured on the merged tree [measured 2026-09-09: min-of-3 serial
+#: fresh processes; command=python extensions/python/tools/twin_coverage.py
+#: --repin; commit=WORKTREE].
+BUDGET = 3860
 
 #: DIVERGED 2026-09-07, the example holds 0 atoms the twin does not (none) and
 #: the twin holds 1 atom the example does not (1 =): the twin is an ordinary Python

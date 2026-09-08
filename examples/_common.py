@@ -16,7 +16,7 @@ Guarantees:
   - an example reaches an extension package's door through discovery, the
     checkout's members advertised by `_workspace.on_path()`, never by importing
     the package [tested:
-    tests/repository/test_examples.py::test_example_runs_and_verifies_itself[live/standing_queries];
+    tests/repository/test_examples.py::test_example_runs_and_verifies_itself, on the standing-queries example of the live extension;
     commit=58bf75947fc58ec32b2372ef0d2c14a00aa2390a]
 Open Obligations:
   To Do: None

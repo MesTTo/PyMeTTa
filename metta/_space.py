@@ -2489,6 +2489,15 @@ class Space(Handle):
 
         commit_world(self, world)
 
+    def _door_blame(self, atom: Any) -> list[Atom]:
+        """Return each matching occurrence's ``(t actor generation)`` identity.
+
+        Results are ordered by generation then actor. Equal atoms have separate
+        tokens. A provider must implement the ``tokens`` capability.
+        """
+        rows = self._rt.apply_must("metta_py_blame", self._space, _to_atom(atom).to_wire())
+        return [_atom_from_wire(row) for row in rows]
+
     def _door_digest(self) -> str:
         """A sha256 hex digest of this space's content: every stored atom,
         equations included, canonicalized (variables numbered, multiset
@@ -6590,6 +6599,14 @@ class Space(Handle):
             """Every stored atom in this space."""
             return self._door_atoms()
 
+        def blame(self, atom: Any) -> list[Atom]:
+            """Return each matching occurrence's ``(t actor generation)`` identity.
+
+            Results are ordered by generation then actor. Equal atoms have separate
+            tokens. A provider must implement the ``tokens`` capability.
+            """
+            return self._door_blame(atom)
+
         def peek(
             self,
             pattern: Any,
@@ -8707,6 +8724,8 @@ class Space(Handle):
         _bind_public(transfer, 'Space', 'transfer')
         atoms = _door_atoms
         _bind_public(atoms, 'Space', 'atoms')
+        blame = _door_blame
+        _bind_public(blame, 'Space', 'blame')
         peek = _door_peek
         _bind_public(peek, 'Space', 'peek')
         take = _door_take
@@ -9121,7 +9140,7 @@ class MeTTa:
         """The engine bridge itself, for callers going under the surface."""
         return self._rt
 
-    def _door_info(self) -> dict[str, str | None]:
+    def _door_info(self) -> dict[str, str | int | None]:
         """Return backend versions and the consulted MeTTa runtime tree."""
         janus_bridge = bridge()
         version_row = janus_bridge.query_once(
@@ -9131,6 +9150,9 @@ class MeTTa:
             msg = "janus did not report the running SWI-Prolog version"
             raise EngineError(msg)
         swi_version_num = version_row["SwiVersion"]
+        identity = self._rt.must(
+            "metta_actor(Actor), flag('$metta_generation', Next, Next)"
+        )
         return {
             "metta": __version__,
             "janus": janus_bridge.version_str(),
@@ -9140,6 +9162,8 @@ class MeTTa:
                 f"{sys.version_info.micro}"
             ),
             "metta_path": self._rt.metta_path,
+            "actor": str(identity["Actor"]),
+            "next_generation": int(identity["Next"]),
         }
 
     def _door_lock(self) -> Lock:
@@ -10500,7 +10524,7 @@ class MeTTa:
             """The engine bridge itself, for callers going under the surface."""
             return self._door_runtime
 
-        def info(self) -> dict[str, str | None]:
+        def info(self) -> dict[str, str | int | None]:
             """Return backend versions and the consulted MeTTa runtime tree."""
             return self._door_info()
 

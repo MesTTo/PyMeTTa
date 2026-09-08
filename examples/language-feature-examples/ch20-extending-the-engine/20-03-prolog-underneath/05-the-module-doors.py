@@ -1,4 +1,7 @@
-"""examples/ch20-extending-the-engine/20-03-prolog-underneath/05-the-module-doors.metta in Python: six doors that load Prolog.
+"""Purpose: exercise the six Prolog loading doors beside 05-the-module-doors.metta.
+
+Guarantees: static-import! writes and cleans the versioned inert image cache
+[tested: python extensions/python/tools/twin_coverage.py --measure --rounds 3 examples/ch20-extending-the-engine/20-03-prolog-underneath/05-the-module-doors.metta; commit=7f00ac7932fefa6f380fc8d14ec583ea0c58eff4].
 
 The split is `consult` against `use_module`: a consult loads every clause a
 file has, a use_module takes only its export list, and the hidden predicate
@@ -37,8 +40,8 @@ PRED_MODULE = _REPO / _FIXTURES / "rung_pred_module.pl"
 #: relative to the repository root because that is what it resolves against.
 STATIC = str(_FIXTURES / "static_rows")
 GENERATED = (
-    G(str(_REPO / _FIXTURES / "static_rows.pl")),
-    G(str(_REPO / _FIXTURES / "static_rows.qlf")),
+    G(str(_REPO / _FIXTURES / "static_rows.tokens-v1.pl")),
+    G(str(_REPO / _FIXTURES / "static_rows.tokens-v1.qlf")),
 )
 
 
@@ -104,9 +107,9 @@ def twin(m):
     assert m.fn["use-module!"](S.lists) == [True]
 
     # `static-import!` is the odd one out, and it is for DATA rather than
-    # code: one Prolog fact per form, compiled to a .qlf and loaded, so a
-    # large table costs one compile rather than one parse per run. Every fact
-    # lands in the space, which is what makes it an import.
+    # code: an inert image carries each form and its occurrence identity.
+    # The QLF cache avoids reparsing, and the loader restores its rows through
+    # the space storage door.
     assert m.fn["static-import!"](m, G(STATIC)) == [True]
     assert sorted((row.c for row in m[S.city(V.c, S.france)]), key=str) == [
         S.lyon,
@@ -196,4 +199,26 @@ def twin(m):
 #: drop with none per read; measured on the merged tree [measured 2026-09-09:
 #: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=0f53926c2fd9f28e188814c84253ad82e13258f7].
-BUDGET = 141817
+#: RE-PINNED 2026-09-08, 141374 to 135358 (-6016), Static imports now restore
+#: the tokens-v1 inert occurrence image through the native storage funnel and
+#: clean its versioned cache files [measured 2026-09-08: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=7f00ac7932fefa6f380fc8d14ec583ea0c58eff4].
+#: RE-PINNED 2026-09-08, 135358 to 149160 (+13802), Sharing the fast-image
+#: hexadecimal validator changes the engine predicate layout. The identity twin
+#: moves below its declared band while the seven engine work counters move only
+#: at boot; the native add and read slopes remain unchanged. Token storage and
+#: source ownership retain their earlier measured costs and answer bags
+#: [measured 2026-09-08: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=7f00ac7932fefa6f380fc8d14ec583ea0c58eff4].
+#: RE-PINNED 2026-09-09, 149160 to 150104 (+944), tokens as storage landed
+#: (feat/tokens-as-storage merged): every native occurrence carries a (t actor
+#: generation) token as the trailing argument of its storage clause, minted
+#: through flag/3 at the write funnel, and every clause read decodes it,
+#: measured on a pristine control of trunk cbf7a958d as 8 more inferences per
+#: add, 31 more per remove, 4 more per atom saved and 54 more per atom loaded
+#: from a fast image, none per match, plus the merged tree's own lib_thread
+#: repairs; measured on the merged tree [measured 2026-09-09: min-of-3 serial
+#: fresh processes; command=python extensions/python/tools/twin_coverage.py
+#: --repin; commit=WORKTREE].
+BUDGET = 150104

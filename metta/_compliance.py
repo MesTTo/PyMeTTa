@@ -45,6 +45,9 @@ Guarantees:
     demand a shape the backend has no table for
     [tested test_the_suite_leaves_a_writable_provider_as_it_found_it,
     test_a_write_round_trip_leaves_the_provider_as_it_was]
+  - token identities are distinct, stable across reads and complete for the
+    stored bag [tested: TestTokenRowsComply,
+    test_compliance_rejects_unstable_tokens; commit=7f00ac7932fefa6f380fc8d14ec583ea0c58eff4].
   - every capability a provider can declare is either exercised or reported as
     skipped by the end of a run, so one the suite has no case for is named
     rather than silently outside it. `add-many` and `rules` were two that
@@ -360,6 +363,16 @@ class SpaceComplianceSuite:
         """get-atoms reads the provider rather than a cache of it."""
         self.requires(provider, exercised, "enumerate")
         assert len(space.atoms()) == len(stored)
+
+    def test_tokens_identify_each_stored_occurrence_stably(
+        self, provider, exercised, space, stored
+    ):
+        """Identity reads preserve the stored bag and survive an unchanged read."""
+        self.requires(provider, exercised, "tokens")
+        tokens = space.blame(Variable("occurrence"))
+        assert len(tokens) == len(stored)
+        assert len(set(tokens)) == len(tokens)
+        assert tokens == space.blame(Variable("occurrence"))
 
     def test_declared_length_answers_the_provider_size(
         self, provider, space, stored

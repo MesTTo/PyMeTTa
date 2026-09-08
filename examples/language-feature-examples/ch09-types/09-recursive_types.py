@@ -157,4 +157,20 @@ def twin(m):
 #: drop with none per read; measured on the merged tree [measured 2026-09-09:
 #: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=0f53926c2fd9f28e188814c84253ad82e13258f7].
-BUDGET = 4520
+#: RE-PINNED 2026-09-08, 4470 to 4509 (+39), Trailing occurrence arguments,
+#: token allocation in native writes, exact source withdrawal and transaction-
+#: safe shared-table guards change the engine work priced by this twin; answer
+#: bags retain the upstream law [measured 2026-09-08: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=7f00ac7932fefa6f380fc8d14ec583ea0c58eff4].
+#: RE-PINNED 2026-09-09, 4509 to 4559 (+50), tokens as storage landed
+#: (feat/tokens-as-storage merged): every native occurrence carries a (t actor
+#: generation) token as the trailing argument of its storage clause, minted
+#: through flag/3 at the write funnel, and every clause read decodes it,
+#: measured on a pristine control of trunk cbf7a958d as 8 more inferences per
+#: add, 31 more per remove, 4 more per atom saved and 54 more per atom loaded
+#: from a fast image, none per match, plus the merged tree's own lib_thread
+#: repairs; measured on the merged tree [measured 2026-09-09: min-of-3 serial
+#: fresh processes; command=python extensions/python/tools/twin_coverage.py
+#: --repin; commit=WORKTREE].
+BUDGET = 4559

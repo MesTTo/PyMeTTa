@@ -52,6 +52,9 @@ import metta._prelude
 #: reason beside the name.
 HOST_SERVICES = {
     "catch_recover/2",
+    # Actor inspection and occurrence blame are engine-owned identity reads.
+    "metta_actor/1",
+    "metta_host_blame/3",
     # The callable doors' cost read, beside the deprecation one below: a bound
     # function's docstring shows the class its (cost ...) row declares, and the
     # measure an unnamed row takes from the head's arrow is resolved by the
@@ -344,6 +347,8 @@ def test_the_host_service_scoreboard_matches_the_tree(repo_root):  # noqa: D103 
 #: is a fact about the running build that the engine alone observes and a
 #: host would otherwise recover by parsing the boot transcript.
 FLOOR_REASONS = {
+    "metta_actor/1": "door",
+    "metta_host_blame/3": "host-orchestration",
     "catch_recover/2": "host-choice",
     "metta_deprecation/3": "door",
     "metta_cost_declaration/4": "door",

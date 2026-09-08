@@ -1518,6 +1518,26 @@ DOORS: tuple[Door, ...] = (
     ),
     Door(
         owner=Owner.space,
+        name='blame',
+        kind=Kind.introspection,
+        signatures=(
+            Signature('self, atom: Any', returns='list[Atom]'),
+        ),
+        answers=AnswersAs.sequence,
+        effect=EffectClass.oracleIO,
+        determinism=Determinism.det,
+        tiers=(Tier.sync, Tier.async_,),
+        body=Body('metta._space', 'Space._door_blame'),
+        docs=(
+            "Return each matching occurrence's ``(t actor generation)`` identity.\n"
+            '\n'
+            'Results are ordered by generation then actor. Equal atoms have separate\n'
+            'tokens. A provider must implement the ``tokens`` capability.'
+        ),
+        evidence=('extensions/python/tests/ch19_spaces_backed_by_anything/test_occurrence_tokens.py::test_provider_tokens_keep_multiplicity_order_and_identity', 'extensions/python/tests/ch19_spaces_backed_by_anything/test_occurrence_tokens.py::test_tokenless_provider_refuses_blame_and_fast_save'),
+    ),
+    Door(
+        owner=Owner.space,
         name='peek',
         kind=Kind.query,
         signatures=(
@@ -4966,7 +4986,7 @@ DOORS: tuple[Door, ...] = (
         name='info',
         kind=Kind.introspection,
         signatures=(
-            Signature('self', returns='dict[str, str | None]'),
+            Signature('self', returns='dict[str, str | int | None]'),
         ),
         answers=AnswersAs.mapping,
         effect=EffectClass.readOnlyLookup,

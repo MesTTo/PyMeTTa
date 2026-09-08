@@ -1,4 +1,4 @@
-"""examples/ch07-control-flow/07-04-bounded-and-committed-searches/05-foldall.metta in Python: ten spellings of one fold.
+"""Purpose: examples/ch07-control-flow/07-04-bounded-and-committed-searches/05-foldall.metta in Python: ten spellings of one fold.
 
 `foldall` takes an aggregator, a GENERATOR TERM and a seed, and folds every
 answer the generator gives. The term is what makes the file: `(f)` answers 2
@@ -289,7 +289,30 @@ def twin(m):
 #: drop with none per read; measured on the merged tree [measured 2026-09-09:
 #: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=0f53926c2fd9f28e188814c84253ad82e13258f7].
-BUDGET = 23981
+#: RE-PINNED 2026-09-08, 23782 to 24478 (+696), Trailing occurrence arguments,
+#: token allocation in native writes, exact source withdrawal and transaction-
+#: safe shared-table guards change the engine work priced by this twin; answer
+#: bags retain the upstream law [measured 2026-09-08: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=7f00ac7932fefa6f380fc8d14ec583ea0c58eff4].
+#: RE-PINNED 2026-09-08, 24478 to 24418 (-60), Sharing the fast-image
+#: hexadecimal validator changes the engine predicate layout. The identity twin
+#: moves below its declared band while the seven engine work counters move only
+#: at boot; the native add and read slopes remain unchanged. Token storage and
+#: source ownership retain their earlier measured costs and answer bags
+#: [measured 2026-09-08: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=7f00ac7932fefa6f380fc8d14ec583ea0c58eff4].
+#: RE-PINNED 2026-09-09, 24418 to 24662 (+244), tokens as storage landed
+#: (feat/tokens-as-storage merged): every native occurrence carries a (t actor
+#: generation) token as the trailing argument of its storage clause, minted
+#: through flag/3 at the write funnel, and every clause read decodes it,
+#: measured on a pristine control of trunk cbf7a958d as 8 more inferences per
+#: add, 31 more per remove, 4 more per atom saved and 54 more per atom loaded
+#: from a fast image, none per match, plus the merged tree's own lib_thread
+#: repairs; measured on the merged tree [measured 2026-09-09: min-of-3 serial
+#: fresh processes; command=python extensions/python/tools/twin_coverage.py
+#: --repin; commit=WORKTREE].
+BUDGET = 24662
 
 #: DIVERGED 2026-09-07, the example holds 0 atoms the twin does not (none) and
 #: the twin holds 1 atom the example does not (1 :): a Python annotation IS a (:

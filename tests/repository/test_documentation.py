@@ -104,11 +104,19 @@ _SEAMS = _REPO / "engine" / "ext_points.pl"
 _PAGE = _REPO / "EXTENDING.md"
 
 # `:- multifile name/2.` and `:- multifile prolog:error_message//1.`
-_DECLARATION = re.compile(r"^:-\s*multifile\s+([\w:]+)//?\d+\.", re.MULTILINE)
+# One directive may declare several seams, `:- multifile a/1, b/2.` across
+# lines; a pattern that read one head per line tested 67 of 73 and let the
+# scope lifetime events go undocumented.
+_DECLARATION = re.compile(r"^:-\s*multifile\s+(.*?)\.\s*$", re.MULTILINE | re.DOTALL)
+_HEAD = re.compile(r"([\w:]+)//?\d+")
 
 
 def _declared_seams() -> list[str]:
-    return _DECLARATION.findall(_SEAMS.read_text(encoding="utf-8"))
+    return [
+        head
+        for directive in _DECLARATION.findall(_SEAMS.read_text(encoding="utf-8"))
+        for head in _HEAD.findall(directive)
+    ]
 
 
 def test_the_seam_list_is_not_empty():
