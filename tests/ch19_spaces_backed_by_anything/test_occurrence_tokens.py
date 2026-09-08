@@ -2,7 +2,7 @@
 
 Guarantees: blame preserves occurrence multiplicity and orders provider tokens;
     invalid or failed streams close [tested: test_provider_token_streams_close;
-    commit=WORKTREE].
+    commit=7f00ac7932fefa6f380fc8d14ec583ea0c58eff4].
 """
 
 from contextlib import contextmanager

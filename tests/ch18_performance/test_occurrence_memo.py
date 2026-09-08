@@ -1,7 +1,7 @@
 """Purpose: preserve recursive answer multiplicity through memoization.
 
 Guarantees: automatic and forced memoization preserve the plain recursive bag
-    [tested: test_recursive_memo_coefficients; commit=WORKTREE].
+    [tested: test_recursive_memo_coefficients; commit=7f00ac7932fefa6f380fc8d14ec583ea0c58eff4].
 """
 
 from collections import Counter

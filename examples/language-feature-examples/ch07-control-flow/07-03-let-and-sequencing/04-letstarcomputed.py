@@ -256,7 +256,7 @@ RUNG = "a `let*` whose bindings arrive as a VALUE has no assignment spelling"
 #: safe shared-table guards change the engine work priced by this twin; answer
 #: bags retain the upstream law [measured 2026-09-08: min-of-3 serial fresh
 #: processes; command=python extensions/python/tools/twin_coverage.py --repin;
-#: commit=WORKTREE].
+#: commit=7f00ac7932fefa6f380fc8d14ec583ea0c58eff4].
 BUDGET = 10754
 
 #: OVERRUN 2026-09-07, 800: it asks the eight computed-binding claims one at a

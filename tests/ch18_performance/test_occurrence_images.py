@@ -2,7 +2,7 @@
 
 Guarantees: colliding copies retain bag multiplicity and receive distinct tokens;
     empty targets retain every token [tested: test_image_collision_rule;
-    commit=WORKTREE].
+    commit=7f00ac7932fefa6f380fc8d14ec583ea0c58eff4].
 """
 
 import asyncio

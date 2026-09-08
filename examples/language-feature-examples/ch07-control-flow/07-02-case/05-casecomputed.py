@@ -241,7 +241,7 @@ RUNG = "a `case` whose branches arrive as a VALUE has no Python spelling: match'
 #: safe shared-table guards change the engine work priced by this twin; answer
 #: bags retain the upstream law [measured 2026-09-08: min-of-3 serial fresh
 #: processes; command=python extensions/python/tools/twin_coverage.py --repin;
-#: commit=WORKTREE].
+#: commit=7f00ac7932fefa6f380fc8d14ec583ea0c58eff4].
 BUDGET = 11581
 
 #: DIVERGED 2026-09-07, the example holds 1 atom the twin does not (1 =) and

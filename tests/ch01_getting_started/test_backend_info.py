@@ -4,7 +4,7 @@ runtime just to answer; a subprocess pins the no-start guarantee in a
 fresh interpreter where it is deterministic.
 Guarantees:
   - reloading the storage module preserves its constructor, actor and rows
-    [tested: test_reloading_storage_preserves_occurrences; commit=WORKTREE]
+    [tested: test_reloading_storage_preserves_occurrences; commit=7f00ac7932fefa6f380fc8d14ec583ea0c58eff4]
   - a bare thread whose recycled identifier equals the runtime's boot-thread
     identifier is still classified by its live Janus attachment [tested:
     test_a_recycled_thread_identifier_never_selects_the_janus_fast_path;

@@ -47,7 +47,7 @@ Guarantees:
     test_a_write_round_trip_leaves_the_provider_as_it_was]
   - token identities are distinct, stable across reads and complete for the
     stored bag [tested: TestTokenRowsComply,
-    test_compliance_rejects_unstable_tokens; commit=WORKTREE].
+    test_compliance_rejects_unstable_tokens; commit=7f00ac7932fefa6f380fc8d14ec583ea0c58eff4].
   - every capability a provider can declare is either exercised or reported as
     skipped by the end of a run, so one the suite has no case for is named
     rather than silently outside it. `add-many` and `rules` were two that

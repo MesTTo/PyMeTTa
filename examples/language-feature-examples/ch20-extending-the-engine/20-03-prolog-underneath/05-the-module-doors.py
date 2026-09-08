@@ -1,7 +1,7 @@
 """Purpose: exercise the six Prolog loading doors beside 05-the-module-doors.metta.
 
 Guarantees: static-import! writes and cleans the versioned inert image cache
-[tested: python extensions/python/tools/twin_coverage.py --measure --rounds 3 examples/ch20-extending-the-engine/20-03-prolog-underneath/05-the-module-doors.metta; commit=WORKTREE].
+[tested: python extensions/python/tools/twin_coverage.py --measure --rounds 3 examples/ch20-extending-the-engine/20-03-prolog-underneath/05-the-module-doors.metta; commit=7f00ac7932fefa6f380fc8d14ec583ea0c58eff4].
 
 The split is `consult` against `use_module`: a consult loads every clause a
 file has, a use_module takes only its export list, and the hidden predicate
@@ -195,12 +195,12 @@ def twin(m):
 #: the tokens-v1 inert occurrence image through the native storage funnel and
 #: clean its versioned cache files [measured 2026-09-08: min-of-3 serial fresh
 #: processes; command=python extensions/python/tools/twin_coverage.py --repin;
-#: commit=WORKTREE].
+#: commit=7f00ac7932fefa6f380fc8d14ec583ea0c58eff4].
 #: RE-PINNED 2026-09-08, 135358 to 149160 (+13802), Sharing the fast-image
 #: hexadecimal validator changes the engine predicate layout. The identity twin
 #: moves below its declared band while the seven engine work counters move only
 #: at boot; the native add and read slopes remain unchanged. Token storage and
 #: source ownership retain their earlier measured costs and answer bags
 #: [measured 2026-09-08: min-of-3 serial fresh processes; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+#: extensions/python/tools/twin_coverage.py --repin; commit=7f00ac7932fefa6f380fc8d14ec583ea0c58eff4].
 BUDGET = 149160

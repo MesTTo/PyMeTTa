@@ -279,7 +279,7 @@ def declared(space: Space | Any) -> tuple[Declaration, ...]:
     A SERVED schema is asked for on every request, and a declaration row is
     stored as `'&self'(':', Name, Type, Token)`, so `':'` selects it through SWI's
     first-argument index [source: engine/spaces/catalog.pl:add_sexp_in/5;
-    commit=WORKTREE]. That is the whole difference in cost class: over spaces of
+    commit=7f00ac7932fefa6f380fc8d14ec583ea0c58eff4]. That is the whole difference in cost class: over spaces of
     200, 2,000 and 20,000 atoms holding the same ten declarations, this read
     stayed at 232, 230 and 230 inferences while the walk went 3,911, 34,511 and
     340,525 [measured 2026-09-07;

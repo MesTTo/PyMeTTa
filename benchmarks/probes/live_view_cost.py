@@ -14,7 +14,7 @@ Guarantees:
     write at 10, 100 and 1,000 rows, minimum of three;
     command=python extensions/python/benchmarks/probes/live_view_cost.py --costs;
     fixture=an edge ring with a weight per node and private tabled probe-total;
-    commit=WORKTREE]
+    commit=7f00ac7932fefa6f380fc8d14ec583ea0c58eff4]
   - `--forms`, `--effects` and `--naming` each print the one fact
     `metta.structures` cites them for
     [measured 2026-09-07: --forms prints tables=2 answers=2 for the three

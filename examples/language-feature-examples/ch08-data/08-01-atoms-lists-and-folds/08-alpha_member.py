@@ -210,7 +210,7 @@ def twin(m):
 #: safe shared-table guards change the engine work priced by this twin; answer
 #: bags retain the upstream law [measured 2026-09-08: min-of-3 serial fresh
 #: processes; command=python extensions/python/tools/twin_coverage.py --repin;
-#: commit=WORKTREE].
+#: commit=7f00ac7932fefa6f380fc8d14ec583ea0c58eff4].
 BUDGET = 24572
 
 #: OVERRUN 2026-09-07, 3600: it puts Python's own `in` beside `is-alpha-member`

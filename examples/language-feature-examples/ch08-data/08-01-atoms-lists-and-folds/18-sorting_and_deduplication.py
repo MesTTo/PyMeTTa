@@ -112,14 +112,14 @@ def twin(m):
 #: safe shared-table guards change the engine work priced by this twin; answer
 #: bags retain the upstream law [measured 2026-09-08: min-of-3 serial fresh
 #: processes; command=python extensions/python/tools/twin_coverage.py --repin;
-#: commit=WORKTREE].
+#: commit=7f00ac7932fefa6f380fc8d14ec583ea0c58eff4].
 #: RE-PINNED 2026-09-08, 16817 to 16021 (-796), Sharing the fast-image
 #: hexadecimal validator changes the engine predicate layout. The identity twin
 #: moves below its declared band while the seven engine work counters move only
 #: at boot; the native add and read slopes remain unchanged. Token storage and
 #: source ownership retain their earlier measured costs and answer bags
 #: [measured 2026-09-08: min-of-3 serial fresh processes; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+#: extensions/python/tools/twin_coverage.py --repin; commit=7f00ac7932fefa6f380fc8d14ec583ea0c58eff4].
 BUDGET = 16021
 
 #: OVERRUN 2026-09-08, 3500: the twin reads 16161 against a ceiling of 12794

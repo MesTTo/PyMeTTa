@@ -19,7 +19,7 @@ Assumes:
 Guarantees:
   - a shared table refuses the transactional seed and names the private policy
     [tested: test_a_shared_tabled_view_refuses_its_transactional_seed;
-    commit=WORKTREE]
+    commit=7f00ac7932fefa6f380fc8d14ec583ea0c58eff4]
   - Live answers what match answers, through each of its three maintenance
     strategies, and the strategy a query's shape names is the one it gets
     [tested: test_a_pattern_view_holds_the_multiset_through_both_removal_shapes,
@@ -32,7 +32,7 @@ Guarantees:
     relations of 10, 100 and 1,000 against a recompute-per-event consumer's
     178, 553, 4,223, and 95 flat for an untouching write;
     command=python extensions/python/benchmarks/probes/live_view_cost.py --costs;
-    fixture=a ring of (edge n_i n_i+1) with (weight n_i i); commit=WORKTREE]
+    fixture=a ring of (edge n_i n_i+1) with (weight n_i i); commit=7f00ac7932fefa6f380fc8d14ec583ea0c58eff4]
   - a Delta stream delivers a signed multiplicity per row and one progress
     marker per committed segment, and buffers only while it is open [tested:
     test_a_transaction_delivers_one_progress_after_its_deltas,
