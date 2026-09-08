@@ -321,7 +321,7 @@ BAND_PERCENT = 10.0
 #: child-compile predicates joined them, +60 with them, and no other file of
 #: the change moves it [measured 2026-09-09: min-of-3 fresh processes per
 #: fixture; command=python extensions/python/benchmarks/probes/twin_authoring.py;
-#: commit=WORKTREE].
+#: commit=f26de01fbf3e0e3c64bb691c66a59fa959fee7f3].
 DEFINITION_WARMUP = 1472
 DEFINITION_COST = 1368
 

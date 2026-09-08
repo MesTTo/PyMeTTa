@@ -394,7 +394,7 @@ def twin(m):
 #: tokens, receipts and seed units gained), which shifts clause layout by tens;
 #: measured on this tree with the artifacts warm [measured 2026-09-09: min-of-3
 #: serial fresh processes; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+#: extensions/python/tools/twin_coverage.py --repin; commit=f26de01fbf3e0e3c64bb691c66a59fa959fee7f3].
 BUDGET = 8757
 
 #: DIVERGED 2026-09-07, the example holds 4 atoms the twin does not (4 =) and

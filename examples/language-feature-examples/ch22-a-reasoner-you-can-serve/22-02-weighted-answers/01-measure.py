@@ -281,7 +281,7 @@ def twin(m):
 #: not a re-pin [measured 2026-09-09: python
 #: extensions/python/tools/twin_coverage.py --observe --rounds 10, twice,
 #: beside the plain lane runs ai-tmp records; fixture=full-lane/277/workers=32;
-#: commit=WORKTREE].
+#: commit=f26de01fbf3e0e3c64bb691c66a59fa959fee7f3].
 BUDGET = {
     "minimum": 130379,
     "maximum": 130488,

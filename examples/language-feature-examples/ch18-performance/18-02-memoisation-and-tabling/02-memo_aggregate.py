@@ -322,7 +322,7 @@ def twin(m):
 #: tokens, receipts and seed units gained), which shifts clause layout by tens;
 #: measured on this tree with the artifacts warm [measured 2026-09-09: min-of-3
 #: serial fresh processes; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+#: extensions/python/tools/twin_coverage.py --repin; commit=f26de01fbf3e0e3c64bb691c66a59fa959fee7f3].
 BUDGET = 26595
 #: OVERRUN 2026-09-09, 0 to 1089 (+1089): a library's Prolog half compiles
 #: beside itself on its first import and loads from the artifact after
@@ -336,7 +336,7 @@ BUDGET = 26595
 #: 26595 against a ceiling of 25507; a minimal twin costs 21942 against the
 #: band's 25507, within that ceiling, so the rest is this twin's own program
 #: [measured 2026-09-09: one fresh process per side; command=python
-#: extensions/python/benchmarks/probes/twin_floor.py; commit=WORKTREE].
+#: extensions/python/benchmarks/probes/twin_floor.py; commit=f26de01fbf3e0e3c64bb691c66a59fa959fee7f3].
 OVERRUN = 1089
 
 #: DIVERGED 2026-09-07, the example holds 0 atoms the twin does not (none) and

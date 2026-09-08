@@ -317,7 +317,7 @@ def twin(m):
 #: tokens, receipts and seed units gained), which shifts clause layout by tens;
 #: measured on this tree with the artifacts warm [measured 2026-09-09: min-of-3
 #: serial fresh processes; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+#: extensions/python/tools/twin_coverage.py --repin; commit=f26de01fbf3e0e3c64bb691c66a59fa959fee7f3].
 BUDGET = 16249
 #: OVERRUN 2026-09-09, 25 to 62 (+37): the door table landed
 #: (feat/space-as-a-projection-of-door-rows merged at 6471faa37, its

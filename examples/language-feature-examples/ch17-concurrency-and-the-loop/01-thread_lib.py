@@ -319,7 +319,7 @@ def twin(m):
 #: outside it is a re-observation under --observe, not a re-pin [measured
 #: 2026-09-09: python extensions/python/tools/twin_coverage.py --observe
 #: --rounds 10, twice, beside the plain lane runs ai-tmp records; fixture=full-
-#: lane/277/workers=32; commit=WORKTREE].
+#: lane/277/workers=32; commit=f26de01fbf3e0e3c64bb691c66a59fa959fee7f3].
 BUDGET = {
     "minimum": 282220,
     "maximum": 313661,
@@ -353,7 +353,7 @@ BUDGET = {
 #: constants re-derived on this tree). The spin where the example sleeps is
 #: still this twin's own program, and BUDGET is the envelope: a run outside it
 #: is red whatever this says [measured 2026-09-09: the pooled --observe runs
-#: above, beside the plain lane's example cost; commit=WORKTREE].
+#: above, beside the plain lane's example cost; commit=f26de01fbf3e0e3c64bb691c66a59fa959fee7f3].
 OVERRUN = 159568
 
 #: DIVERGED 2026-09-07, the example holds 1 atom the twin does not (1 =) and

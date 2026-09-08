@@ -314,7 +314,7 @@ def twin(m):
 #: tokens, receipts and seed units gained), which shifts clause layout by tens;
 #: measured on this tree with the artifacts warm [measured 2026-09-09: min-of-3
 #: serial fresh processes; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+#: extensions/python/tools/twin_coverage.py --repin; commit=f26de01fbf3e0e3c64bb691c66a59fa959fee7f3].
 BUDGET = 45182
 
 #: OVERRUN 2026-09-07, 6400: it declares the cache policy and memoises by name
@@ -348,7 +348,7 @@ BUDGET = 45182
 #: against a ceiling of 43909; a minimal twin costs 38674 against the band's
 #: 37466, above that ceiling, so no twin of it fits the band at all, as before
 #: [measured 2026-09-09: one fresh process per side; command=python
-#: extensions/python/benchmarks/probes/twin_floor.py; commit=WORKTREE].
+#: extensions/python/benchmarks/probes/twin_floor.py; commit=f26de01fbf3e0e3c64bb691c66a59fa959fee7f3].
 OVERRUN = 7717
 
 #: DIVERGED 2026-09-07, the example holds 0 atoms the twin does not (none) and

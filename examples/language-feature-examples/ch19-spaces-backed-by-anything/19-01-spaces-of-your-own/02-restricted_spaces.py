@@ -335,5 +335,5 @@ def twin(m):  # noqa: ARG001  -- both spaces are created here; the default handl
 #: tokens, receipts and seed units gained), which shifts clause layout by tens;
 #: measured on this tree with the artifacts warm [measured 2026-09-09: min-of-3
 #: serial fresh processes; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+#: extensions/python/tools/twin_coverage.py --repin; commit=f26de01fbf3e0e3c64bb691c66a59fa959fee7f3].
 BUDGET = 53141

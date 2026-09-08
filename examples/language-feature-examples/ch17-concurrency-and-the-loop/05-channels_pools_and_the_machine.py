@@ -171,7 +171,7 @@ def twin(m):
 #: tokens, receipts and seed units gained), which shifts clause layout by tens;
 #: measured on this tree with the artifacts warm [measured 2026-09-09: min-of-3
 #: serial fresh processes; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+#: extensions/python/tools/twin_coverage.py --repin; commit=f26de01fbf3e0e3c64bb691c66a59fa959fee7f3].
 #: RE-OBSERVED 2026-09-09 after a library's Prolog half compiles beside itself
 #: on its first import (metta_load_source/2, seam:compiled_source/1), POOLED
 #: over every full-lane sample on this tree: two --observe runs of ten rounds
@@ -183,7 +183,7 @@ def twin(m):
 #: same load, an intermittent of its own recorded in the journal and not a cost
 #: [measured 2026-09-09: python extensions/python/tools/twin_coverage.py
 #: --observe --rounds 10, twice, beside the plain lane runs ai-tmp records;
-#: fixture=full-lane/277/workers=32; commit=WORKTREE].
+#: fixture=full-lane/277/workers=32; commit=f26de01fbf3e0e3c64bb691c66a59fa959fee7f3].
 BUDGET = {
     "minimum": 96306,
     "maximum": 96786,
