@@ -90,5 +90,5 @@ def twin(m):
 #: checks now respect transaction-local erasure. Paired controls and cut counts
 #: are recorded in docs/journal/2026-09-08-what-the-waivers-were-paying-for.md
 #: [measured 2026-09-08: min-of-3 serial fresh processes; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+#: extensions/python/tools/twin_coverage.py --repin; commit=32650f9ff4d1c4aa0749d8eb8b153e5bb448ee5c].
 BUDGET = 22870

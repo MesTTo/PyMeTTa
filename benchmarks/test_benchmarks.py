@@ -10,7 +10,7 @@ Guarantees:
     inference growth from exponential to linear, with both improvements and
     regressions pinned to the measured floor [tested:
     test_automatic_tabling_growth;
-    commit=WORKTREE]
+    commit=32650f9ff4d1c4aa0749d8eb8b153e5bb448ee5c]
   - the native-handle case reaches the chapter-19 artifact that the worktree
     build produces instead of skipping behind its pre-reorganisation path
     [tested: test_handle_benchmark_reaches_the_built_chapter_19_library;
@@ -339,7 +339,7 @@ _ROWS = 2_000
 #: already differs from the cut; that difference is not this change's cost.
 #: [measured: min of three observations per size and mode;
 #: command=python bench.py automatic-tabling --counter-only;
-#: fixture=provisioned cut and branch with warm QLF; commit=WORKTREE].
+#: fixture=provisioned cut and branch with warm QLF; commit=32650f9ff4d1c4aa0749d8eb8b153e5bb448ee5c].
 _AUTOMATIC_TABLING_PINS = {
     12: {"plain": 122_161, "automatic": 14_494},
     15: {"plain": 953_649, "automatic": 15_624},

@@ -263,7 +263,7 @@ def twin(m):
 #: reuse the first Python variable binding before indexing additional names;
 #: retain type, transaction and variable-identity checks [measured 2026-09-09:
 #: min-of-3 serial fresh processes; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+#: extensions/python/tools/twin_coverage.py --repin; commit=32650f9ff4d1c4aa0749d8eb8b153e5bb448ee5c].
 BUDGET = 48582
 
 #: OVERRUN 2026-09-07, 27600: it proves seventeen claims where the example

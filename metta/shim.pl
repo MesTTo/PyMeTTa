@@ -6,7 +6,7 @@
 % Guarantees:
 %   - fresh decode frames index variable names while returning ordered pairs;
 %     a prebound occurrence cannot change an earlier name's identity
-%     [tested: shared_decode_index; commit=WORKTREE].
+%     [tested: shared_decode_index; commit=32650f9ff4d1c4aa0749d8eb8b153e5bb448ee5c].
 %   - cursor and function work opened in a transaction belongs to it; capture
 %     returns the eager enumeration's text once, and budgets bind that work
 %     [tested: extensions/python/tests/ch15_writing_transactions_and_worlds/test_cursor_transaction.py,
@@ -458,7 +458,7 @@
 % Resolve the name index's dependencies during bridge loading. Its first
 % insertion otherwise autoloads code during the caller's first decode
 % [tested: shared_decode_index:the_first_decode_does_not_pay_for_dependency_loading;
-% commit=WORKTREE]. The temporary backtrackable table retains no shared state.
+% commit=32650f9ff4d1c4aa0749d8eb8b153e5bb448ee5c]. The temporary backtrackable table retains no shared state.
 :- ht_new(Index), ht_put(Index, '', _).
 
 %translated_from/2 is engine/filereader.pl's, declared dynamic and exported
@@ -787,7 +787,7 @@ metta_py_decode_(p, [S], Space) :-
 % library(hashtable) uses backtrackable updates, so failure rolls back both
 % the index and the term. The existing wide-query decoder owns that frame
 % [source: extensions/python/metta/shim.pl:metta_py_decode_indexed/3;
-% commit=WORKTREE].
+% commit=32650f9ff4d1c4aa0749d8eb8b153e5bb448ee5c].
 metta_py_decode_shared(Tagged, Term, Bindings) :-
     metta_py_decode_shared_(Tagged, Term, indexed([], Index), indexed(Bindings, Index)).
 
@@ -823,7 +823,7 @@ metta_py_decode_shared_tagged(T, Rest, Term, B, B) :-
 % The existing pair answers a singleton lookup without a hash allocation.
 % On the second distinct name, move that first binding into the index once.
 % A supplied wide-query index remains complete even for a singleton query
-% [tested: shared_decode_index; commit=WORKTREE].
+% [tested: shared_decode_index; commit=32650f9ff4d1c4aa0749d8eb8b153e5bb448ee5c].
 metta_py_index_variable(Name, Var, [], [Name-Var], Index) :- !,
     ( var(Index) -> true ; ht_put(Index, Name, Var) ).
 metta_py_index_variable(Name, Var, B0, B, Index) :-

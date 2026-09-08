@@ -240,13 +240,13 @@ def twin(m):
 #: checks now respect transaction-local erasure. Paired controls and cut counts
 #: are recorded in docs/journal/2026-09-08-what-the-waivers-were-paying-for.md
 #: [measured 2026-09-08: min-of-3 serial fresh processes; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+#: extensions/python/tools/twin_coverage.py --repin; commit=32650f9ff4d1c4aa0749d8eb8b153e5bb448ee5c].
 #: RE-PINNED 2026-09-09, 74985273 to 74985612 (+339), Compile shipped typing
 #: decisions and initial vocabulary facts, index vocabulary membership, and
 #: reuse the first Python variable binding before indexing additional names;
 #: retain type, transaction and variable-identity checks [measured 2026-09-09:
 #: min-of-3 serial fresh processes; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+#: extensions/python/tools/twin_coverage.py --repin; commit=32650f9ff4d1c4aa0749d8eb8b153e5bb448ee5c].
 BUDGET = 74985612
 
 #: DIVERGED 2026-09-07, the example holds 1572864 atoms and the twin 1572864,
