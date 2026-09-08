@@ -1162,11 +1162,11 @@ metta_py_refusal(Error, Kind, Class, Ground, Remedy) :-
 %metta_engine: because this shim is consulted into `user` and the seam's home is
 %the engine core's module: control_exception/1 is the one seam the translator
 %emits into compiled bodies, so protect_engine_emitted/1 imports it into every
-%space from there [source: engine/ext_points.pl:kind/2; commit=WORKTREE]. Unqualified here it would create
+%space from there [source: engine/ext_points.pl:kind/2; commit=ede2ac57e213a0d4502c6bbbca6227f97015b720]. Unqualified here it would create
 %user:control_exception/1, SWI would report `Local definition of
 %user:control_exception/1 overrides weak import from metta_engine`, and the
 %engine's recovery sites would read the host's one clause instead of the
-%engine's whole list [tested: extensions/python/tests/ch07_control_flow/test_control_signals.py; commit=WORKTREE].
+%engine's whole list [tested: extensions/python/tests/ch07_control_flow/test_control_signals.py; commit=ede2ac57e213a0d4502c6bbbca6227f97015b720].
 :- multifile metta_engine:control_exception/1.
 metta_engine:control_exception(error(metta_control_signal(_, _), context(metta, _))).
 

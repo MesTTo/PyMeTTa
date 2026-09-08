@@ -25,7 +25,7 @@ test_a_run_leaves_no_import_hook_behind; commit=d7ab3cb20fe2353872139ecb36710f7e
 Guarantees: the CLI reader differential calls parser:command_wants_more/1
 in its owning module [tested:
 test_the_cli_reader_agrees_with_the_engine_on_when_to_stop,
-test_the_cli_reader_agrees_with_the_engine_over_a_random_corpus; commit=WORKTREE].
+test_the_cli_reader_agrees_with_the_engine_over_a_random_corpus; commit=ede2ac57e213a0d4502c6bbbca6227f97015b720].
 Open Obligations:
   To Do: None
   Hacks: None

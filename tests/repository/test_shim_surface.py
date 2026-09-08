@@ -13,7 +13,7 @@ Assumes:
 Guarantees:
   - metta_platform_absent/1 classifies the shim's existing platform census
     query as a host service [tested:
-    test_the_host_service_scoreboard_matches_the_tree; commit=WORKTREE]
+    test_the_host_service_scoreboard_matches_the_tree; commit=ede2ac57e213a0d4502c6bbbca6227f97015b720]
   - carrier membership uses the engine-owned validation door
     [tested: test_the_host_service_scoreboard_matches_the_tree; commit=074dc0a88b1605c54824de677d586b6f60998bcf]
   - the manifest and the tree hold the same host_service set, compared as

@@ -2,7 +2,7 @@
 
 Assumes:
   - private future and scheduler probes name their owner, lib_thread
-    [source: lib/lib_thread/lib_thread.pl:metta_future/3; commit=WORKTREE]
+    [source: lib/lib_thread/lib_thread.pl:metta_future/3; commit=ede2ac57e213a0d4502c6bbbca6227f97015b720]
 Guarantees:
   - coroutine operations answer typed FutureSpace handles and settle success,
     failure, accepted cancellation, and independent repeated calls through the

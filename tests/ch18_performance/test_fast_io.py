@@ -4,7 +4,7 @@ corrupt-cache failures.
 Guarantees:
   - token introspection names metta_engine, the private registry owner
     [tested: test_fast_cache_restores_translator_rules_and_bound_spaces;
-    commit=WORKTREE]
+    commit=ede2ac57e213a0d4502c6bbbca6227f97015b720]
   - restoring recursive program content reconciles its call graph once per
     image while preserving every atom and a callable equation, priced as what
     forty forms cost against what one costs rather than as an absolute

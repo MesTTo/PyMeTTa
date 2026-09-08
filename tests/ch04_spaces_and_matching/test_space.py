@@ -2,7 +2,7 @@
 space edits, queries, eval, parse, and the semantics matching the CLI's own.
 Guarantees:
   - the load restoration probe reads filereader:working_dir/1 in its owner
-    [tested: test_load_restores_the_working_directory; commit=WORKTREE]
+    [tested: test_load_restores_the_working_directory; commit=ede2ac57e213a0d4502c6bbbca6227f97015b720]
   - a guarded defined head with no matching clause answers NOTHING, which is
     upstream's own answer for it [measured 2026-08-30 against PeTTa@ae66fa8:
     `(= (only-zero 0) yes)` then `(collapse (only-zero 7))` is `()` there and

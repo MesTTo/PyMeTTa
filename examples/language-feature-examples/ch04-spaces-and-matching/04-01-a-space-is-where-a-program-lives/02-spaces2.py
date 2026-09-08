@@ -202,5 +202,5 @@ def twin(m):
 #: boundaries retain explicit lookup owners, including host registration and
 #: returned callback goals [measured 2026-09-08: min-of-3 serial fresh
 #: processes; command=python extensions/python/tools/twin_coverage.py --repin;
-#: commit=WORKTREE].
+#: commit=ede2ac57e213a0d4502c6bbbca6227f97015b720].
 BUDGET = 2834

@@ -55,7 +55,7 @@
 
 :- use_module(library(janus)).
 % Host code owns these imports after the engine moves into metta_engine
-% [tested: sh check.sh no-autoload; commit=WORKTREE].
+% [tested: sh check.sh no-autoload; commit=ede2ac57e213a0d4502c6bbbca6227f97015b720].
 :- use_module(library(lists), [append/3, member/2, memberchk/2, nth1/3]).
 :- use_module(library(apply), [maplist/3]).
 :- use_module(library(error), [must_be/2]).
