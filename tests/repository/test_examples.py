@@ -16,8 +16,6 @@ from pathlib import Path
 
 import pytest
 
-import _workspace
-
 EXAMPLES_ROOT = Path(__file__).resolve().parents[2] / "examples"
 
 # The language-feature examples are the SAME corpus in a different key: one
@@ -39,18 +37,15 @@ def _example_id(path: Path) -> str:
 
 
 def _example_path() -> str:
-    """PYTHONPATH for an example: this corpus, and every extension package.
+    """PYTHONPATH for an example: this corpus, on top of the caller's.
 
-    An INSTALLED reader has the packages from `pip install 'pymetta[...]'`; a
-    checkout has directories, so the members go on the path the same way the
-    suite's own conftest puts them there. An example that uses a package's door
-    still IMPORTS that package, because a checkout writes no `dist-info` and
-    entry-point discovery has nothing to find.
+    The extension packages are not listed here. An example's `_common` calls
+    the checkout's `_workspace.on_path()`, which puts every member on the path
+    AND answers their entry points, so an example reaches a package's door the
+    way an installed reader does, through discovery, and never by importing the
+    package itself.
     """
-    members = [str(path) for path in _workspace.members()]
-    return os.pathsep.join(
-        [str(EXAMPLES_ROOT), *members, os.environ.get("PYTHONPATH", "")]
-    )
+    return os.pathsep.join([str(EXAMPLES_ROOT), os.environ.get("PYTHONPATH", "")])
 
 
 @pytest.mark.parametrize("example", EXAMPLES, ids=_example_id)

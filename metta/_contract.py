@@ -21,6 +21,10 @@ Guarantees:
     publication refuses invalid rows atomically [tested:
     test_boot_publishes_complete_typed_door_rows,
     test_door_catalog_publication_is_atomic_and_idempotent; commit=b615b5a33b43252ef9826e5387da7c9bd7f6b543]
+  - a door row registered or withdrawn after boot is in the catalog at once,
+    with no refresh asked for: the catalog is a function of the door registry
+    [tested: test_door_catalog_publication_is_atomic_and_idempotent;
+    commit=WORKTREE]
   - install is idempotent per engine process: the ontology enters once
     [tested test_the_ontology_loads_once]
   - registered synchronous and coroutine operation kinds inhabit OpKind and
@@ -54,6 +58,7 @@ from __future__ import annotations
 
 from ._convert_registry import subscribe_registrations
 from .atoms import Expression, Symbol
+from .seam import on_registration
 
 __all__ = ["ONTOLOGY", "install"]
 
@@ -228,3 +233,25 @@ def install(runtime) -> None:
         _reflect_image(runtime, None, registration)
 
     _publish_doors(runtime)
+
+
+def _doors_changed(point: str, _name: str, _undo: object) -> None:
+    """Keep the door catalog a function of the door registry.
+
+    A door row registered or withdrawn after boot is published to the live
+    engine at once, through the same transactional, idempotent publication
+    boot uses, so a package discovered late or withdrawn early is never in the
+    table and absent from the catalog. Before boot there is no engine to
+    publish to and boot's own publication reads the registry as it stands.
+    """
+    if point != "door":
+        return
+    from ._engine import booted, runtime  # noqa: PLC0415  -- the engine sits above this seat's base
+
+    if booted():
+        from .doors import publish  # noqa: PLC0415  -- the door projection
+
+        publish(runtime())
+
+
+on_registration(_doors_changed)

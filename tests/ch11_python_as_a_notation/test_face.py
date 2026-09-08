@@ -438,7 +438,7 @@ def test_a_face_whose_module_is_absent_is_reported_and_skipped(tmp_path, monkeyp
 
     assert findings == []
     assert notes == [
-        f"{face.relative_to(_REPO) if face.is_relative_to(_REPO) else face.name}: "
+        f"{facegen._named(face)}: "
         "a_library_nobody_has is not installed here, so "
         "this face was not checked against it"
     ]
@@ -461,7 +461,7 @@ def test_a_version_bump_alone_is_a_note_rather_than_drift(tmp_path, monkeypatch)
 
     assert findings == []
     assert notes == [
-        f"{face.relative_to(_REPO) if face.is_relative_to(_REPO) else face.name}: "
+        f"{facegen._named(face)}: "
         "read from tests.fixtures.face_source 0.0.1, and "
         f"{_VERSION} is installed here; `--write` moves the pin"
     ]

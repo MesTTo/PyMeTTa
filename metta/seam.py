@@ -44,7 +44,8 @@ is what keeps it true.
 
 Assumes:
   - importlib.metadata.entry_points(group=...) answers an empty sequence for a
-    group nothing advertises [source 2026-09-07:
+    group nothing advertises, and a checkout advertises its members through
+    the finder `extensions/python/_workspace.py` installs [source 2026-09-07:
     https://docs.python.org/3/library/importlib.metadata.html#entry-points]
 Guarantees:
   - concurrent discovery waits for registration to finish, failed entries
@@ -53,6 +54,10 @@ Guarantees:
     test_recursive_discovery_does_not_publish_an_incomplete_group,
     test_a_discovery_wait_cycle_refuses_and_releases_its_entries,
     test_a_failed_entry_point_can_be_retried; commit=b615b5a33b43252ef9826e5387da7c9bd7f6b543]
+  - a withdrawal notifies every registration listener with the inverse that
+    restores the row, as a registration does with the inverse that withdraws it
+    [tested: test_door_catalog_publication_is_atomic_and_idempotent;
+    commit=WORKTREE]
   - frame builders and accessor door contracts are separate registrations
     [tested: test_the_row_is_registered_against_the_frame_point; commit=b615b5a33b43252ef9826e5387da7c9bd7f6b543]
   - a point is declared once with one kind, and a second declaration of the
@@ -859,8 +864,18 @@ def _unregister(declared: Point, name: str) -> bool:
         for position, standing in enumerate(held):
             if standing.name == name:
                 del held[position]
-                return True
-    return False
+                break
+        else:
+            return False
+    # A withdrawal is a registry change like a registration: every listener
+    # hears it, with the inverse that puts the row back where it stood, so a
+    # projection of the registry (the door catalog) and an installer's undo
+    # frame follow the registry in both directions.
+    _enlist(
+        functools.partial(_restore, declared.name, position, standing),
+        f"{declared.name} registration {name!r}",
+    )
+    return True
 
 
 def _rows_of(declared: Point, *, discover_first: bool = True) -> tuple[Row, ...]:

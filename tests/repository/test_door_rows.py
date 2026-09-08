@@ -465,12 +465,15 @@ def test_door_catalog_publication_is_atomic_and_idempotent(registrations):
         row = _record()
         registrations(row)
         try:
-            assert seam.publish(context) > 0
-            assert publish(context.runtime) == 0
+            # A row registered after boot is in the catalog at once: the seam's
+            # listener publishes on every registry change, so no refresh is
+            # asked for and a second publication has nothing left to change.
             assert any("door_fixture" in str(atom) for atom in context.space("&metta").atoms())
+            assert publish(context.runtime) == 0
         finally:
             seam.door.unregister(row.provider.registrant)
-            publish(context.runtime)
+        # The withdrawal reached the catalog the same way.
+        assert not any("door_fixture" in str(atom) for atom in context.space("&metta").atoms())
         assert context.runtime.must("metta_py_door_snapshot(Wires)")["Wires"] == baseline
 
 

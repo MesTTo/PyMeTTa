@@ -13,6 +13,11 @@ Guarantees:
   - claim() binds runtime emission and execution to adjacent checked comments,
     while doctest() verifies emitted examples in both languages
     [tested: test_a_gallery_program_runs; commit=ee43d4a0585593b4f40d0c3c0557db8214688829]
+  - an example reaches an extension package's door through discovery, the
+    checkout's members advertised by `_workspace.on_path()`, never by importing
+    the package [tested:
+    tests/repository/test_examples.py::test_example_runs_and_verifies_itself[live/standing_queries];
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -39,6 +44,12 @@ REPO = _find_repo(Path(__file__))
 sys.path.insert(0, str(REPO / "extensions" / "python"))
 sys.path.insert(0, str(REPO / "extensions" / "python" / "tools"))
 os.environ.setdefault("METTA_PATH", str(REPO))
+from _workspace import on_path  # noqa: E402  -- the seat's directory is on the path just above
+
+# The extension distributions, importable and DISCOVERABLE: an example reaches
+# a package's door the way an installed reader does, through the entry point
+# the checkout's finder answers, and never by importing the package itself.
+on_path()
 
 from executable_docs import (  # noqa: E402  -- checkout paths must be installed first
     render_answers,
