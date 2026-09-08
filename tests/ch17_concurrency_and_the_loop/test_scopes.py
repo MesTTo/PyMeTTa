@@ -3,10 +3,10 @@
 Guarantees:
   - an atom naming a future its scope has released still decodes, and the
     decoded handle refuses at use, not at construction [tested:
-    test_an_atom_naming_a_released_future_still_decodes; commit=WORKTREE]
+    test_an_atom_naming_a_released_future_still_decodes; commit=50e34286f66c938d89d5d367c6370ad44164c97f]
   - the handle spawn returns is the one decoded from the engine's answer, so
     an awaited future does not warn as abandoned [tested:
-    test_an_awaited_future_does_not_warn_as_abandoned; commit=WORKTREE]
+    test_an_awaited_future_does_not_warn_as_abandoned; commit=50e34286f66c938d89d5d367c6370ad44164c97f]
 Owns resources: scopes release their children; fixtures drop borrowed spaces
 and unregister their test operations [tested: test_scopes.py; commit=c6e1198c490a824b96f6fc6e1c0622a542917024].
 """

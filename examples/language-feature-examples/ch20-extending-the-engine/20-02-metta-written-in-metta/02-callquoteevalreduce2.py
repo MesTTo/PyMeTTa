@@ -287,7 +287,7 @@ def twin(m):
 #: from a fast image, none per match, plus the merged tree's own lib_thread
 #: repairs; measured on the merged tree [measured 2026-09-09: min-of-3 serial
 #: fresh processes; command=python extensions/python/tools/twin_coverage.py
-#: --repin; commit=WORKTREE].
+#: --repin; commit=50e34286f66c938d89d5d367c6370ad44164c97f].
 BUDGET = 44214
 
 #: OVERRUN 2026-09-07, 1500: it names the six wrappers as definitions where the

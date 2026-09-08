@@ -270,7 +270,7 @@ RUNG = "the assert family is this file's subject, so each claim names one of its
 #: from a fast image, none per match, plus the merged tree's own lib_thread
 #: repairs; measured on the merged tree [measured 2026-09-09: min-of-3 serial
 #: fresh processes; command=python extensions/python/tools/twin_coverage.py
-#: --repin; commit=WORKTREE].
+#: --repin; commit=50e34286f66c938d89d5d367c6370ad44164c97f].
 BUDGET = 18460
 
 #: OVERRUN 2026-09-08, 9: the twin names each of the twelve assert-family
