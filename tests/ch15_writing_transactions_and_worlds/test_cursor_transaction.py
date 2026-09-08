@@ -156,8 +156,8 @@ def test_held_cursor_refuses_a_pull_from_another_thread(metta, rollback):
     """Refusal releases rows even when the caller catches it and commits."""
     with metta._new_space() as space:
         counts = (
-            "aggregate_all(count, metta_host_held_position(_,_,_), Positions), "
-            "aggregate_all(count, metta_host_held_row(_,_,_,_), Rows)"
+            "aggregate_all(count, metta_engine:metta_host_held_position(_,_,_), Positions), "
+            "aggregate_all(count, metta_engine:metta_host_held_row(_,_,_,_), Rows)"
         )
         before = metta.runtime.must(counts)
         remedy = (

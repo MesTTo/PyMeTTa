@@ -96,4 +96,9 @@ def twin(m):  # noqa: ARG001  -- the twin works in its own named space; the defa
 #: allowance on the base [measured 2026-09-08: min-of-3 serial fresh processes;
 #: command=python extensions/python/tools/twin_coverage.py --repin;
 #: commit=ea2c1bde39a7b002b1e5948cf6c53bc469dac084].
-BUDGET = 294
+#: RE-PINNED 2026-09-08, 262 to 421 (+159), The engine and library predicates
+#: now resolve through their owning modules and the explicit engine facade;
+#: compiled program lookup crosses the added metta_engine tier [measured
+#: 2026-09-08: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=ede2ac57e213a0d4502c6bbbca6227f97015b720].
+BUDGET = 421

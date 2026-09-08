@@ -273,7 +273,17 @@ RUNG = (
 #: mirror those bounds are read from [measured 2026-09-08: min-of-3 serial
 #: fresh processes; command=python extensions/python/tools/twin_coverage.py
 #: --repin; commit=c26b6a4d28ef8fb50742440feed2c0578ebb0f58].
-BUDGET = 39631320
+#: RE-PINNED 2026-09-08, 39631301 to 39631522 (+221), The engine and library
+#: predicates now resolve through their owning modules and the explicit engine
+#: facade; compiled program lookup crosses the added metta_engine tier
+#: [measured 2026-09-08: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=ede2ac57e213a0d4502c6bbbca6227f97015b720].
+#: RE-PINNED 2026-09-08, 39631522 to 39631532 (+10), The engine and library
+#: module boundaries retain explicit lookup owners, including host registration
+#: and returned callback goals [measured 2026-09-08: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=ede2ac57e213a0d4502c6bbbca6227f97015b720].
+BUDGET = 39631532
 
 #: OVERRUN 2026-09-07, 6197400: it names `expand`, `mate` and `rewriteK` as
 #: definitions and asserts the atom count, where the example writes them as

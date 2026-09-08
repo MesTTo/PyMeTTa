@@ -221,7 +221,17 @@ def twin(m):
 #: mirror those bounds are read from [measured 2026-09-08: min-of-3 serial
 #: fresh processes; command=python extensions/python/tools/twin_coverage.py
 #: --repin; commit=c26b6a4d28ef8fb50742440feed2c0578ebb0f58].
-BUDGET = 23218044
+#: RE-PINNED 2026-09-08, 23218030 to 23218097 (+67), The engine and library
+#: predicates now resolve through their owning modules and the explicit engine
+#: facade; compiled program lookup crosses the added metta_engine tier
+#: [measured 2026-09-08: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=ede2ac57e213a0d4502c6bbbca6227f97015b720].
+#: RE-PINNED 2026-09-08, 23218097 to 23218107 (+10), The engine and library
+#: module boundaries retain explicit lookup owners, including host registration
+#: and returned callback goals [measured 2026-09-08: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=ede2ac57e213a0d4502c6bbbca6227f97015b720].
+BUDGET = 23218107
 
 #: DIVERGED 2026-09-07, the example holds 1000007 atoms and the twin 1000007,
 #: over the 50000 this lane enumerates, so the difference is pinned as the two

@@ -170,7 +170,12 @@ def twin(m):
 #: are read from [measured 2026-09-08: min-of-3 serial fresh processes;
 #: command=python extensions/python/tools/twin_coverage.py --repin;
 #: commit=c26b6a4d28ef8fb50742440feed2c0578ebb0f58].
-BUDGET = 11209
+#: RE-PINNED 2026-09-08, 11197 to 11360 (+163), The engine and library
+#: predicates now resolve through their owning modules and the explicit engine
+#: facade; compiled program lookup crosses the added metta_engine tier
+#: [measured 2026-09-08: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=ede2ac57e213a0d4502c6bbbca6227f97015b720].
+BUDGET = 11360
 
 #: OVERRUN 2026-09-07, 4500: it asks through `solve`, the pattern door, where
 #: the example asks through `unify`, the one MeTTa form whose operands are both

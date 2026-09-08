@@ -22,6 +22,10 @@ commit=d4f129e1d977239c2e25b5042e3b1df30d9d32d3]. Run and the repl install the
 [tested: test_run_installs_the_import_hook_for_the_programs_directory,
 test_the_repl_installs_the_import_hook_for_its_working_directory,
 test_a_run_leaves_no_import_hook_behind; commit=d7ab3cb20fe2353872139ecb36710f7e880c1451].
+Guarantees: the CLI reader differential calls parser:command_wants_more/1
+in its owning module [tested:
+test_the_cli_reader_agrees_with_the_engine_on_when_to_stop,
+test_the_cli_reader_agrees_with_the_engine_over_a_random_corpus; commit=ede2ac57e213a0d4502c6bbbca6227f97015b720].
 Open Obligations:
   To Do: None
   Hacks: None
@@ -293,7 +297,7 @@ def _engine_stops_reading(runtime, text: str) -> bool:
     """
     answer = runtime.once(
         "atom_codes(T, Codes),"
-        " ( command_wants_more(Codes) -> Verdict = keep ; Verdict = stop )",
+        " ( parser:command_wants_more(Codes) -> Verdict = keep ; Verdict = stop )",
         T=text,
     )
     return answer["Verdict"] == "stop"

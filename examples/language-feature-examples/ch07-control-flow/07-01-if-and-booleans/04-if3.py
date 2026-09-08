@@ -193,7 +193,17 @@ def twin(m):
 #: are read from [measured 2026-09-08: min-of-3 serial fresh processes;
 #: command=python extensions/python/tools/twin_coverage.py --repin;
 #: commit=c26b6a4d28ef8fb50742440feed2c0578ebb0f58].
-BUDGET = 4620
+#: RE-PINNED 2026-09-08, 4607 to 4797 (+190), The engine and library predicates
+#: now resolve through their owning modules and the explicit engine facade;
+#: compiled program lookup crosses the added metta_engine tier [measured
+#: 2026-09-08: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=ede2ac57e213a0d4502c6bbbca6227f97015b720].
+#: RE-PINNED 2026-09-08, 4797 to 4807 (+10), The engine and library module
+#: boundaries retain explicit lookup owners, including host registration and
+#: returned callback goals [measured 2026-09-08: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=ede2ac57e213a0d4502c6bbbca6227f97015b720].
+BUDGET = 4807
 
 #: OVERRUN 2026-09-07, 300: the example inlines its `if` in a runnable and the
 #: twin gives it a name, so a one-form example is priced against a definition

@@ -2,6 +2,9 @@
 equation recompilation, batched program analysis, live-object refusal, and
 corrupt-cache failures.
 Guarantees:
+  - token introspection names metta_engine, the private registry owner
+    [tested: test_fast_cache_restores_translator_rules_and_bound_spaces;
+    commit=ede2ac57e213a0d4502c6bbbca6227f97015b720]
   - restoring recursive program content reconciles its call graph once per
     image while preserving every atom and a callable equation, priced as what
     forty forms cost against what one costs rather than as an absolute
@@ -142,7 +145,7 @@ def test_fast_cache_restores_translator_rules_and_bound_spaces(tmp_path, capfd):
         donor.run("!(bind! &also &kept)")
         donor.run("!(add-atom &kept (a 1))")
         donor.run("!(add-atom &kept (a 2))")
-        old_child = donor.runtime.once("metta_token('&kept', Child)")["Child"]
+        old_child = donor.runtime.once("metta_engine:metta_token('&kept', Child)")["Child"]
         assert donor.self.save(cache, format="fast") == 2
 
     with MeTTa() as restored:
@@ -152,8 +155,8 @@ def test_fast_cache_restores_translator_rules_and_bound_spaces(tmp_path, capfd):
             module = restored.runtime.once(
                 "space_module(Space, Module)", Space=home
             )["Module"]
-            child = restored.runtime.once("metta_token('&kept', Child)")["Child"]
-            alias = restored.runtime.once("metta_token('&also', Child)")["Child"]
+            child = restored.runtime.once("metta_engine:metta_token('&kept', Child)")["Child"]
+            alias = restored.runtime.once("metta_engine:metta_token('&also', Child)")["Child"]
             children = list(
                 restored.runtime.iter(
                     "spaces:space_equation_home(Child, Home)", Home=home
@@ -183,9 +186,9 @@ def test_fast_cache_restores_translator_rules_and_bound_spaces(tmp_path, capfd):
         )
         with pytest.raises(EngineError, match="metta_fast_token_conflict"):
             restored.self.load(cache)
-        alias = restored.runtime.once("metta_token('&also', Child)")["Child"]
+        alias = restored.runtime.once("metta_engine:metta_token('&also', Child)")["Child"]
         assert alias == child
-        assert restored.runtime.once("metta_token('&kept', Value)")["Value"] == 99
+        assert restored.runtime.once("metta_engine:metta_token('&kept', Value)")["Value"] == 99
         assert restored.run("!(space-atom-count &also)") == [[2]]
         assert restored.run("!(pick (1 2) $head $tail $head empty)") == [[1]]
         assert restored.runtime.once(
@@ -201,7 +204,7 @@ def test_fast_cache_rebases_nested_space_graph_references(tmp_path):
     with MeTTa() as donor:
         donor.run("!(bind! &kept (new-space))")
         donor.run("!(bind! &sibling (new-space))")
-        old_child = donor.runtime.once("metta_token('&kept', Child)")["Child"]
+        old_child = donor.runtime.once("metta_engine:metta_token('&kept', Child)")["Child"]
         donor.runtime.must(
             "metta_py_declare_space(scoped, Grand, Child)",
             Grand=grand_name,
@@ -217,9 +220,9 @@ def test_fast_cache_rebases_nested_space_graph_references(tmp_path):
     with MeTTa() as restored:
         restored.self.load(cache)
         home = str(restored.self.name)
-        child = restored.runtime.once("metta_token('&kept', Child)")["Child"]
-        deep = restored.runtime.once("metta_token('&deep', Deep)")["Deep"]
-        sibling = restored.runtime.once("metta_token('&sibling', Side)")["Side"]
+        child = restored.runtime.once("metta_engine:metta_token('&kept', Child)")["Child"]
+        deep = restored.runtime.once("metta_engine:metta_token('&deep', Deep)")["Deep"]
+        sibling = restored.runtime.once("metta_engine:metta_token('&sibling', Side)")["Side"]
         edge = restored.runtime.once(
             "spaces:space_equation_home(Deep, Child)", Child=child, Deep=deep
         )
