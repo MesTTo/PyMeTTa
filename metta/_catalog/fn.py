@@ -259,7 +259,7 @@ if TYPE_CHECKING:
         noeval: Symbol
         "noeval: (-> Atom Atom)\n\nThe same point as `quote`: a built term is already unevaluated."
         nop: Symbol
-        "nop: (-> (%Rest% %Undefined%) (->))\n\nPython's `pass`, or simply not writing the call. It answers the unit."
+        "nop: (-> (:seg %Undefined%) (->))\n\nPython's `pass`, or simply not writing the call. It answers the unit."
         noreduce_eq: Symbol
         "noreduce-eq: (-> Atom Atom Bool)\n\nComparing two atoms WITHOUT reducing them is what Python's `==` on atoms already does: building a term never evaluates it."
         not_: Symbol
@@ -1077,7 +1077,7 @@ _DOCUMENTATION = {
     "new-space": "new-space: (-> SpaceType)\n\n`metta.space()`. A constructor call is Python's own spelling for `make me a fresh one`, and the row asks the fresh space for its atoms because the NAME a space gets differs per engine.",
     "new-state": "new-state: (-> $t (StateMonad $t))\n\n`metta.State[T](value, space=space)` creates the typed Python handle. The row reads `.value` because the engine cell itself is deliberately hidden behind that handle. An event `fold(..., into=state)` passes this same process-shared cell to its step; individual reads and writes are thread-safe, but a compound read-modify-write needs coordination.",
     "noeval": "noeval: (-> Atom Atom)\n\nThe same point as `quote`: a built term is already unevaluated.",
-    "nop": "nop: (-> (%Rest% %Undefined%) (->))\n\nPython's `pass`, or simply not writing the call. It answers the unit.",
+    "nop": "nop: (-> (:seg %Undefined%) (->))\n\nPython's `pass`, or simply not writing the call. It answers the unit.",
     "noreduce-eq": "noreduce-eq: (-> Atom Atom Bool)\n\nComparing two atoms WITHOUT reducing them is what Python's `==` on atoms already does: building a term never evaluates it.",
     "not": "not: (-> Bool Bool)\n\nPython's own keyword; `~` is the operator form on atoms.",
     "or": "or: (-> Bool Bool Bool)\n\nPython's own keyword; `|` is the operator form on atoms.",

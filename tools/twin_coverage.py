@@ -319,7 +319,16 @@ BAND_PERCENT = 10.0
 #: set's; no other file of the change moves it [measured 2026-09-09:
 #: min-of-3 fresh processes per fixture; command=python
 #: extensions/python/benchmarks/probes/twin_authoring.py; commit=5f8a823d23fbed5c7395912a89ba32760e2df4b1].
-DEFINITION_WARMUP = 1482
+#: RE-MEASURED 2026-09-09 after the segment-family compiler and qualified
+#: policy dispatch: 7, 2841, 4423, 5563, 6944 at zero through four definitions,
+#: giving 1466 once plus 1368 each. The pristine cut reads 7, 2857, 4210,
+#: 5579, 6960. The second-definition sample includes the pre-existing 229
+#: alternative; the other nonzero rows move by the same -16 startup constant.
+#: The per-definition fit is unchanged and this tightens the band; no twin's
+#: overrun is increased [measured 2026-09-10: min-of-3 fresh processes; command=python
+#: extensions/python/benchmarks/probes/twin_authoring.py;
+#: fixture=provisioned cut and worktree; commit=WORKTREE].
+DEFINITION_WARMUP = 1466
 DEFINITION_COST = 1368
 
 #: The tree's own POINT-counter allowance. It applies to an integer BUDGET

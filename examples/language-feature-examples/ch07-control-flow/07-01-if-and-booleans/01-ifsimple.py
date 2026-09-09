@@ -303,20 +303,6 @@ def twin(m):
 #: command=python extensions/python/tools/twin_coverage.py --repin;
 #: commit=5f8a823d23fbed5c7395912a89ba32760e2df4b1].
 BUDGET = 3920
-#: OVERRUN 2026-09-09, 0 to 67 (+67): the compiled vocabulary seed, the
-#: membership index, base-module type lookups and the singleton decoder landed
-#: (perf/cross-engine-waivers merged): a Python decode with one named variable
-#: builds no index and one with more builds it at the second distinct name,
-#: which moves a twin's engine-side cost while its example, which decodes
-#: nothing, holds; boot content and clause layout moved the rest; against the
-#: trunk's own run at da0e5755d the twin moved -10 and the example +0, and the
-#: twin sat 77 over its ceiling there already. Measured 3850 against a ceiling
-#: of 3783; a minimal twin costs 276 against the band's 3783, within that
-#: ceiling, so the rest is this twin's own program [measured 2026-09-09: one
-#: fresh process per side; command=python
-#: extensions/python/benchmarks/probes/twin_floor.py; commit=b4341ae382c48ef225f4a52e566af6a9a71757c4].
-OVERRUN = 67
-
 #: DIVERGED 2026-09-07, the example holds 0 atoms the twin does not (none) and
 #: the twin holds 1 atom the example does not (1 =): the twin is an ordinary Python
 #: program and its body lowers to the engine's own forms: a match statement is

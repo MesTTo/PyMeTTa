@@ -305,7 +305,18 @@ RUNG = "the assert family is this file's subject, so each claim names one of its
 #: pins of f26de01fb [measured 2026-09-09: min-of-3 serial fresh processes;
 #: command=python extensions/python/tools/twin_coverage.py --repin;
 #: commit=5f8a823d23fbed5c7395912a89ba32760e2df4b1].
-BUDGET = 18723
+#: RE-PINNED 2026-09-09, 18723 to 18689 (-34), The fixed diagnostic reader now
+#: consumes parameter and argument spines together, and segment families
+#: compile once per shape. Fixed-arrow presentation and warmed single-run
+#: callees keep their controls. Fused syntax admission adds 44 inferences for a
+#: cold prepare/admit type shape versus the old annotation scan and eight per
+#: source-preflight declaration; repeated shapes reuse the analysis. The
+#: authoring control moves by -16 once, with its per-definition slope
+#: unchanged. Cold family generation is included. See
+#: docs/journal/2026-09-09-the-splice-in-an-arrow.md [measured 2026-09-09: min-
+#: of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 18689
 
 #: OVERRUN 2026-09-08, 9: the twin names each of the twelve assert-family
 #: members through `m.fn` and compares every answer in Python, where the

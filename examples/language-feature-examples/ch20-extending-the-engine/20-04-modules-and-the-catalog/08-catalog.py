@@ -314,4 +314,15 @@ def twin(m):  # noqa: ARG001  -- the catalog lives in the reflection space; the 
 #: dependence is scheduled for removal [measured 2026-09-09: min-of-3 serial
 #: fresh processes; command=python extensions/python/tools/twin_coverage.py
 #: --repin; commit=81c4b096ac735153bf523eb885ae855769e74958].
-BUDGET = 3038
+#: RE-PINNED 2026-09-09, 3038 to 3048 (+10), The fixed diagnostic reader now
+#: consumes parameter and argument spines together, and segment families
+#: compile once per shape. Fixed-arrow presentation and warmed single-run
+#: callees keep their controls. Fused syntax admission adds 44 inferences for a
+#: cold prepare/admit type shape versus the old annotation scan and eight per
+#: source-preflight declaration; repeated shapes reuse the analysis. The
+#: authoring control moves by -16 once, with its per-definition slope
+#: unchanged. Cold family generation is included. See
+#: docs/journal/2026-09-09-the-splice-in-an-arrow.md [measured 2026-09-09: min-
+#: of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 3048

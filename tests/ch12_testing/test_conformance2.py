@@ -3,6 +3,7 @@
 Assumes: each test uses unique MeTTa names because the engine module outlives a
 Python handle. Guarantees: a call compiled into an equation body and the same
 term passed to `eval` produce the same pinned answer.
+[tested: test_conformance2.py; commit=WORKTREE]
 """
 
 from __future__ import annotations
@@ -67,7 +68,7 @@ def test_declared_parameter_and_result_rules_match_the_arbiter() -> None:
         "(= (c2-py-grounded $x) (quote $x))\n"
         "(: c2-py-variable-result (-> Atom Variable))\n"
         "(= (c2-py-variable-result $x) $x)\n"
-        "(: c2-py-rest (-> Symbol (%Rest% Atom) %Undefined%))\n"
+        "(: c2-py-rest (-> Symbol (:seg Atom) %Undefined%))\n"
         "(= (c2-py-rest $tag $x $y $z) (quote ($tag $x $y $z)))\n"
         "(: c2-py-arity (-> Atom Atom %Undefined%))\n"
         "(= (c2-py-arity $x) (quote $x))"

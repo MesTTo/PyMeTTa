@@ -1,6 +1,8 @@
 """Purpose: one row per MeTTa standard-library name: what the MeTTa form is,
 what you write in Python instead, and which bucket the translation falls in.
 `phrasebook.py` runs both sides of every row; this file is only the rows.
+The nop and arrow entries use the same final splice as the runtime catalog
+[tested: extensions/python/tools/phrasebook.py; commit=WORKTREE].
 
 The rows are the MeTTa standard-library surface: 380 distinct names with their
 types and metatypes. They were transcribed once from a mechanised stdlib
@@ -772,7 +774,7 @@ ENTRIES: list[Entry] = [
         metta="!(id 5)", python="5",
     ),
     Entry(
-        "nop", ("(-> (%Rest% %Undefined%) (->))",), "Grounded", "control", "dissolves",
+        "nop", ("(-> (:seg %Undefined%) (->))",), "Grounded", "control", "dissolves",
         "Python's `pass`, or simply not writing the call. It answers the unit.",
         metta="!(nop 1 2)", python="metta.Expression()",
     ),
@@ -1059,7 +1061,7 @@ ENTRIES: list[Entry] = [
         python="t = S['->'](S.Number, S.Number)\nt[0] == S['->']",
     ),
     Entry(
-        "->", ("(-> (%Rest% Type) Type)",), "Symbol", "types", "dissolves",
+        "->", ("(-> (:seg Type) Type)",), "Symbol", "types", "dissolves",
         "Annotations. A parameter and return annotation on a decorated function "
         "emits the arrow, and `Callable[[int], int]` maps through the same one "
         "table; `S['->']` stays for a hand-built arrow.",

@@ -5,6 +5,7 @@ equations before executing each runnable.
 Guarantees: nested capture, empty capture, RHS splicing, variadic top-level
 arity, shortest-first splits, overlap, mixed-role projection, and
 variable-headed dispatch answer the reference matrix below.
+[tested: test_segment_equations.py; commit=WORKTREE]
 """
 
 
@@ -31,7 +32,7 @@ def test_equation_head_segments_match_the_reference_matrix(metta):
            (rebuilt before (:seg $xs) after))
         !(py-seg-splice (head a b tail))
 
-        (: py-seg-all (-> (%Rest% Atom) Atom))
+        (: py-seg-all (-> (:seg Atom) Atom))
         (= (py-seg-all (:seg $xs)) (quote $xs))
         !(py-seg-all)
         !(py-seg-all a b)

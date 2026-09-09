@@ -200,11 +200,29 @@ def twin(m):
 #: extensions/python/tools/twin_coverage.py --observe --rounds 10, twice,
 #: beside the plain lane runs ai-tmp records; fixture=full-lane/277/workers=32;
 #: commit=f26de01fbf3e0e3c64bb691c66a59fa959fee7f3].
+#: RE-OBSERVED 2026-09-10 after fused syntax admission and shape compilation.
+#: Ten complete-lane rounds supplied 10 successful observations under
+#: full-lane/279/workers=32.
+#: Samples: [122938, 123133, 123861, 123430, 123045, 123861, 123923, 123932, 123158, 122319].
+#: Bounds are the observed extrema, with no added margin
+#: [measured 2026-09-10: minimum 122319, maximum 123932;
+#: command=python extensions/python/tools/twin_coverage.py --observe --rounds 10;
+#: fixture=full-lane/279/workers=32; commit=WORKTREE].
+#: RE-OBSERVED 2026-09-10 after the next complete lane exposed a new
+#: channels/pools minimum. Two exact --observe --rounds 10 runs and
+#: all three other final-code complete-lane receipts are pooled under
+#: full-lane/279/workers=32: 23 successful costs and 0 failed observations.
+#: Failed observations contribute no cost; no margin is added.
+#: Samples: [122938, 123133, 123861, 123430, 123045, 123861, 123923, 123932, 123158, 122319, 122586, 122708, 123663, 123348, 123428, 123829, 124124, 123387, 123345, 123651, 123337, 123566, 122406].
+#: [measured 2026-09-10: minimum 122319, maximum 124124;
+#: command=python extensions/python/tools/twin_coverage.py --observe --rounds 10;
+#: fixture=full-lane/279/workers=32, two observation runs and three plain lane receipts;
+#: commit=WORKTREE].
 BUDGET = {
-    "minimum": 121278,
-    "maximum": 123532,
-    "observations": 24,
-    "protocol": "full-lane/277/workers=32",
+    "minimum": 122319,
+    "maximum": 124124,
+    "observations": 23,
+    "protocol": "full-lane/279/workers=32",
 }
 #: The count VARIES, because this twin starts threads, pools and timers and
 #: the engine charges what the scheduler actually ran. Three single-round

@@ -165,7 +165,18 @@ def twin(m):
 #: measured on this tree with the artifacts warm [measured 2026-09-09: min-of-3
 #: serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=f26de01fbf3e0e3c64bb691c66a59fa959fee7f3].
-BUDGET = 87047
+#: RE-PINNED 2026-09-09, 87047 to 87076 (+29), The fixed diagnostic reader now
+#: consumes parameter and argument spines together, and segment families
+#: compile once per shape. Fixed-arrow presentation and warmed single-run
+#: callees keep their controls. Fused syntax admission adds 44 inferences for a
+#: cold prepare/admit type shape versus the old annotation scan and eight per
+#: source-preflight declaration; repeated shapes reuse the analysis. The
+#: authoring control moves by -16 once, with its per-definition slope
+#: unchanged. Cold family generation is included. See
+#: docs/journal/2026-09-09-the-splice-in-an-arrow.md [measured 2026-09-09: min-
+#: of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 87076
 #: OVERRUN 2026-09-09, 0 to 242 (+242): the compiled vocabulary seed, the
 #: membership index, base-module type lookups and the singleton decoder landed
 #: (perf/cross-engine-waivers merged): a Python decode with one named variable

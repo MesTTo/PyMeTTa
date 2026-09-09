@@ -295,11 +295,29 @@ def twin(m):
 #: extensions/python/tools/twin_coverage.py --observe --rounds 10, twice,
 #: beside the plain lane runs ai-tmp records; fixture=full-lane/277/workers=32;
 #: commit=f26de01fbf3e0e3c64bb691c66a59fa959fee7f3].
+#: RE-OBSERVED 2026-09-10 after fused syntax admission and shape compilation.
+#: Ten complete-lane rounds supplied 10 successful observations under
+#: full-lane/279/workers=32.
+#: Samples: [136106, 135798, 135798, 135798, 135798, 135798, 136101, 136101, 135794, 135794].
+#: Bounds are the observed extrema, with no added margin
+#: [measured 2026-09-10: minimum 135794, maximum 136106;
+#: command=python extensions/python/tools/twin_coverage.py --observe --rounds 10;
+#: fixture=full-lane/279/workers=32; commit=WORKTREE].
+#: RE-OBSERVED 2026-09-10 after the next complete lane exposed a new
+#: channels/pools minimum. Two exact --observe --rounds 10 runs and
+#: all three other final-code complete-lane receipts are pooled under
+#: full-lane/279/workers=32: 23 successful costs and 0 failed observations.
+#: Failed observations contribute no cost; no margin is added.
+#: Samples: [136106, 135798, 135798, 135798, 135798, 135798, 136101, 136101, 135794, 135794, 135798, 135798, 135783, 136101, 136101, 135798, 136106, 136101, 135798, 135798, 136101, 136101, 135794].
+#: [measured 2026-09-10: minimum 135783, maximum 136106;
+#: command=python extensions/python/tools/twin_coverage.py --observe --rounds 10;
+#: fixture=full-lane/279/workers=32, two observation runs and three plain lane receipts;
+#: commit=WORKTREE].
 BUDGET = {
-    "minimum": 134847,
-    "maximum": 134989,
-    "observations": 24,
-    "protocol": "full-lane/277/workers=32",
+    "minimum": 135783,
+    "maximum": 136106,
+    "observations": 23,
+    "protocol": "full-lane/279/workers=32",
 }
 
 #: OVERRUN 2026-09-07, 184000: it drives both sides of every Linda coordination
