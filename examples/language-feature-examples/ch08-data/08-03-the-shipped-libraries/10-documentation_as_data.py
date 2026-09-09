@@ -299,5 +299,5 @@ def twin(m):
 #: same load-structure class the layout profiled on the catalog twin; the
 #: lookup's order dependence is scheduled for removal [measured 2026-09-09:
 #: min-of-3 serial fresh processes; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+#: extensions/python/tools/twin_coverage.py --repin; commit=81c4b096ac735153bf523eb885ae855769e74958].
 BUDGET = 49849

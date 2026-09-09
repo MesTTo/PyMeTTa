@@ -313,5 +313,5 @@ def twin(m):  # noqa: ARG001  -- the catalog lives in the reflection space; the 
 #: structure class the layout profiled on the catalog twin; the lookup's order
 #: dependence is scheduled for removal [measured 2026-09-09: min-of-3 serial
 #: fresh processes; command=python extensions/python/tools/twin_coverage.py
-#: --repin; commit=WORKTREE].
+#: --repin; commit=81c4b096ac735153bf523eb885ae855769e74958].
 BUDGET = 3038
