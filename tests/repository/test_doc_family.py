@@ -158,7 +158,7 @@ def test_the_doc_verb_answers_the_structured_atom(metta):  # noqa: D103  -- pyte
 
     import metta as package
     from metta import S
-    from metta.errors import EngineError
+    from metta._errors.errors import EngineError
 
     with metta._new_space() as m:
         m.run(
@@ -192,7 +192,7 @@ def test_a_function_documented_without_parameters_reaches_the_scoped_door(metta)
     arrow-typed callables that way and every one of them raised here.
     """
     from metta import S
-    from metta.errors import EngineError
+    from metta._errors.errors import EngineError
 
     with metta._new_space() as kb:
         kb.run('(: fpc.test (-> Number Number))\n(@doc fpc.test (@desc "Portable"))')

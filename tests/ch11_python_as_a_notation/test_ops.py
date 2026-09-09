@@ -49,7 +49,8 @@ from collections import Counter
 
 import pytest
 
-import metta_py
+import metta._binding.host as metta_py
+import metta.aio as _aio_surface
 from metta import (
     TRUE,
     UNIT,
@@ -62,12 +63,11 @@ from metta import (
     Symbol,
     V,
     Variable,
-    aio,
     ground,
     reflection,
 )
-from metta._space import Space
-from metta.errors import EngineError
+from metta._errors.errors import EngineError
+from metta._faces.space import Space
 
 
 def unique(prefix: str) -> str:  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -129,16 +129,16 @@ def test_no_decorator_flag_changes_the_return_shape_and_declarations_are_atoms(
     metta,
 ):
     """Execution policy scopes compose; callable policy is queryable data."""
-    from metta._prelude import NAMES as PRELUDE_NAMES
+    from metta._declare.prelude import NAMES as PRELUDE_NAMES
 
     for method, removed in (
         (Space.run, {"capture", "atomic", "speculative", "strict", "using"}),
         (Space.eval, {"capture", "residuals"}),
         (Space.op, {"typed", "raw", "pass_atoms", "pure"}),
-        (aio.AsyncMeTTa.run, {"capture", "atomic", "speculative", "strict"}),
-        (aio.AsyncMeTTa.eval, {"capture", "residuals"}),
-        (aio.AsyncMeTTa.op, {"typed", "raw", "pass_atoms", "pure"}),
-        (aio.AsyncMeTTa.op, {"typed", "raw", "pass_atoms", "pure"}),
+        (_aio_surface.AsyncMeTTa.run, {"capture", "atomic", "speculative", "strict"}),
+        (_aio_surface.AsyncMeTTa.eval, {"capture", "residuals"}),
+        (_aio_surface.AsyncMeTTa.op, {"typed", "raw", "pass_atoms", "pure"}),
+        (_aio_surface.AsyncMeTTa.op, {"typed", "raw", "pass_atoms", "pure"}),
     ):
         assert removed.isdisjoint(inspect.signature(method).parameters)
 
@@ -150,7 +150,7 @@ def test_no_decorator_flag_changes_the_return_shape_and_declarations_are_atoms(
     assert output.text == "p5-captured\n"
 
     async def async_capture():
-        async with aio.AsyncMeTTa(metta=metta) as asynchronous:
+        async with _aio_surface.AsyncMeTTa(metta=metta) as asynchronous:
             with asynchronous.capture() as async_output:
                 async_groups = await asynchronous.run("!(println! p5-async)")
             return async_groups, async_output.text
@@ -470,7 +470,7 @@ def test_raw_generators_refuse_relational_rows(metta) -> None:
 
 def test_register_op_reads_co_flags_and_refuses_or_awaits(metta):
     """Coroutine functions route to futures; unsupported async shapes refuse."""
-    from metta.ops import registered
+    from metta._declare.operations import registered
     from metta.parallel import FutureSpace
 
     async def coroutine(value):

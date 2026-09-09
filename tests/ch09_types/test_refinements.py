@@ -41,10 +41,10 @@ import annotated_types as at
 import pytest
 
 from metta import S, V
-from metta._refinements import holds
-from metta.atoms import Expression
+from metta._atoms.factories import Expression
+from metta._catalog.refinements import holds
+from metta._declare.operations import annotation_atom_for, type_atoms_for
 from metta.convert import CastError
-from metta.ops import annotation_atom_for, type_atoms_for
 from metta.vocabularies import Refinement
 
 
@@ -69,7 +69,7 @@ from metta.vocabularies import Refinement
 )
 def test_each_constraint_class_projects_to_its_atom(constraint, atom):
     """Each constraint encodes to the atom whose head is its own name."""
-    from metta.atoms import _encode
+    from metta._atoms.factories import _encode
 
     assert str(_encode(constraint)) == atom
 

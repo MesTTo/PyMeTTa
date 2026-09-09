@@ -53,11 +53,11 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 import metta
+import metta._catalog.bounds as config_module
 from metta import MeTTa, S, V
-from metta import _config as config_module
 
 #: What the constant was before the bound became a row [source:
-#: extensions/python/metta/_config.py, _DEFAULTS].
+#: extensions/python/metta/_catalog/bounds.py:206, _DEFAULTS; commit=WORKTREE].
 SHIPPED_CHUNK_CAP = 64
 
 

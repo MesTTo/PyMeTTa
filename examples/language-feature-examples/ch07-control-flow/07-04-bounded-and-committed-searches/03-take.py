@@ -28,7 +28,7 @@ Open Obligations:
 """
 
 from metta import S, V, superpose
-from metta.errors import EngineError
+from metta._errors.errors import EngineError
 
 
 def twin(m):

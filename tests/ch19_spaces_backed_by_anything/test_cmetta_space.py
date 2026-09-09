@@ -17,6 +17,7 @@ import pytest
 
 import metta
 from metta import S, V, testing
+from metta._declare import declarations as _space_declarations
 
 _MODULE_PATH = Path(__file__).resolve().parents[2] / "examples" / "integration" / "cmetta_space.py"
 
@@ -54,14 +55,14 @@ def cmetta_space():  # noqa: D103  -- pytest discovers or injects this callable;
 def test_metta_reaches_atoms_matched_by_cmetta(cmetta_space):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     m = metta.MeTTa().space()
     try:
-        m._register_space(cmetta_space, "&cmetta")
+        _space_declarations._register_space(m, cmetta_space, "&cmetta")
         m.run("!(add-atom &cmetta (edge a b))")
         m.run("!(add-atom &cmetta (edge a c))")
         m.run("!(add-atom &cmetta (edge b c))")
         (group,) = m.run("!(collapse (match &cmetta (edge a $x) $x))")
         assert sorted(str(atom) for atom in group[0]) == ["b", "c"]
     finally:
-        m._unregister_space("&cmetta")
+        _space_declarations._unregister_space(m, "&cmetta")
         m.drop()
 
 
@@ -106,7 +107,7 @@ def test_cmetta_answers_bind_inside_metta_unification():  # noqa: D103  -- pytes
     if binary is None:
         pytest.skip("METTA_CMETTA does not name a cmetta binary and none is on PATH")
     from metta import Expression
-    from metta.atoms import Grounded
+    from metta._atoms.factories import Grounded
 
     m = metta.MeTTa().space()
     try:

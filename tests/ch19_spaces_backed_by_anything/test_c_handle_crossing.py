@@ -14,7 +14,7 @@ import pytest
 
 import metta
 from metta import Handle
-from metta.errors import EngineError
+from metta._errors.errors import EngineError
 
 _LIBRARY = (
     Path(__file__).resolve().parents[4]

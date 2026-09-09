@@ -58,6 +58,9 @@ from typing import Any
 import pytest
 
 import metta
+import metta.remote._client as _moved_metta_remote__client
+import metta.remote._gateway as _moved_metta_remote__gateway
+import metta.remote._transport as _moved_metta_remote__transport
 from metta import convert, parse
 
 _BINDING = Path(__file__).resolve().parents[4] / "extensions" / "node"
@@ -300,7 +303,7 @@ def test_a_second_language_binding_passes_the_same_conformance_kit(node_driver) 
     occurrence, so (f $x $x) came back as (f $x $y).
     """
     pytest.importorskip(
-        "metta._codec_kit",
+        "metta.testing._codec_kit",
         reason="the codec kit is not in this tree yet; this runs once it merges",
     )
     from metta.testing import check_codec
@@ -318,7 +321,7 @@ def test_the_binding_runs_every_leg_and_says_which_cases_it_does_not(node_driver
     given up would be.
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     pytest.importorskip(
-        "metta._codec_kit",
+        "metta.testing._codec_kit",
         reason="the codec kit is not in this tree yet; this runs once it merges",
     )
     from metta.testing import codec_plan
@@ -395,7 +398,7 @@ def test_the_node_binding_and_the_python_host_answer_the_same_programs(node_repo
     assert divergences == _KNOWN_TEXT_DIVERGENCES
 
 
-def test_the_two_seats_answer_the_golden_corpus_identically(node_driver, metta) -> None:  # noqa: ARG001  -- the engine fixture is what supplies metta._json and Atom.to_wire a runtime; the body reaches them by import rather than through the argument
+def test_the_two_seats_answer_the_golden_corpus_identically(node_driver, metta) -> None:  # noqa: ARG001  -- the engine fixture is what supplies metta._binding.json and Atom.to_wire a runtime; the body reaches them by import rather than through the argument
     """Every case of tests/codec/corpus.json, through both seats, both ways.
 
     `check_codec` above holds the Node binding to the WRITTEN grammar. This
@@ -409,10 +412,10 @@ def test_the_two_seats_answer_the_golden_corpus_identically(node_driver, metta) 
     in-process one, decode to an atom and encode back, and it carries
     everything including the booleans and the non-finite floats. `transport`
     is the JSON one, and it is compared over what JSON can carry: the Python
-    half is `metta._json`, the engine's own codec, which is what the remote
+    half is `metta._binding.json`, the engine's own codec, which is what the remote
     wire reads and writes.
     """
-    from metta import _json
+    import metta._binding.json as _json
     from metta.testing import codec_corpus, codec_plan
 
     corpus = codec_corpus()
@@ -491,11 +494,10 @@ def test_a_python_client_reads_every_number_class_from_a_node_gateway() -> None:
     _need_node()
     if not (_BINDING / "build" / "kit" / "remote.js").is_file():
         pytest.skip("run npm ci in extensions/node to build its TypeScript")
-    from metta import remote
 
     process, url = _node_gateway(_EXCHANGED)
     try:
-        space = remote.RemoteSpace(remote.connect(url), space="&served")
+        space = _moved_metta_remote__client.RemoteSpace(_moved_metta_remote__transport.connect(url), space="&served")
         read = sorted(
             (_comparable(atom.to_wire()) for atom in space.atoms()),
             key=repr,
@@ -514,12 +516,11 @@ def test_a_node_client_reads_every_number_class_from_a_python_gateway(metta) -> 
     _need_node()
     if not (_BINDING / "build" / "kit" / "remote.js").is_file():
         pytest.skip("run npm ci in extensions/node to build its TypeScript")
-    from metta import remote
 
     with metta._new_space() as scratch:
         for term in _EXCHANGED:
             scratch.add(convert.atom_from_wire(term))
-        server = remote.serve(scratch, spaces=[scratch.name])
+        server = _moved_metta_remote__gateway.serve(scratch, spaces=[scratch.name])
         try:
             finished = subprocess.run(
                 [
@@ -555,7 +556,7 @@ def test_both_seats_refuse_a_non_finite_float_on_the_json_wire() -> None:
     _need_node()
     if not (_BINDING / "build" / "kit" / "remote.js").is_file():
         pytest.skip("run npm ci in extensions/node to build its TypeScript")
-    from metta import _json
+    import metta._binding.json as _json
 
     finished = subprocess.run(
         ["node", str(_BINDING / "build" / "kit" / "remote.js"), "refuses"],

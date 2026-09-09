@@ -32,6 +32,7 @@ from typing import Any
 
 from _common import check, done, skip
 
+from metta._declare import declarations as _space_declarations
 from metta.foreign import SpaceProvider
 
 _PROBE = "metta-cmetta-probe"
@@ -177,12 +178,12 @@ def demo() -> None:
     if cmetta is None:
         skip("cmetta is not on PATH and METTA_CMETTA does not name it")
     import metta
-    from metta import S, V, Expression
-    from metta.atoms import Grounded
+    from metta import Expression, S, V
+    from metta._atoms.factories import Grounded
 
     m = metta.MeTTa().space()
     space = CMettaSpace(cmetta=cmetta)
-    m._register_space(space, "&cmetta")
+    _space_declarations._register_space(m, space, "&cmetta")
     m.run("!(add-atom &cmetta (edge a b))")
     m.run("!(add-atom &cmetta (edge a c))")
     (group,) = m.run("!(collapse (match &cmetta (edge a $x) $x))")

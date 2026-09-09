@@ -5,7 +5,7 @@ The example
 corpus is the executable semantics documentation, and until this existed it
 was only ever executed by the engine: check.sh ran `swipl -s engine/main.pl`,
 test.sh and the metta_examples.txt items shelled to run.sh, and the plunit suites
-loaded engine/metta.pl without extensions/python/metta/shim.pl. So the configuration most
+loaded engine/metta.pl without extensions/python/metta/_binding/shim.pl. So the configuration most
 users come through was gated by unit tests alone, and two defects lived
 there with green lanes above them [source: ai-audit-md-review.md section 4].
 
@@ -525,7 +525,9 @@ def _value(written: str):
     group compares as its own text, which keeps malformed output visible
     instead of collapsing it to equal.
     """
-    from metta.atoms import parse  # noqa: PLC0415  -- the package is imported only to compare
+    from metta._atoms.factories import (  # noqa: PLC0415 -- the package is imported only to compare
+        parse,
+    )
 
     try:
         return parse(written)

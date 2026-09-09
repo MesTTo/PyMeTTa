@@ -21,7 +21,7 @@ itself evaluate a hyperpose.
         answers = list(p.map(metta.parallel.program, programs))
 
 Assumes:
-  - metta._engine.engine_thread attaches an engine to a bare foreign thread
+  - metta._binding.runtime.engine_thread attaches an engine to a bare foreign thread
     and detaches exactly the engine it attached [tested
     test_engine_thread_owns_only_its_attachment]
   - MeTTa's shared Prolog structures carry their own mutexes, so concurrent
@@ -159,12 +159,10 @@ from concurrent.futures import Executor, Future, ProcessPoolExecutor, as_complet
 from contextlib import suppress
 from itertools import batched
 from types import FunctionType, MethodType, TracebackType
-from typing import Any, Self, override
+from typing import TYPE_CHECKING, Any, Self, override
 
-from . import _scope
-from ._engine import Runtime, engine_thread, forked, runtime
-from ._space import MeTTa, Space
-from .atoms import (
+import metta._spaces.lifetime as _scope
+from metta._atoms.factories import (
     Atom,
     Expression,
     Handle,
@@ -174,8 +172,17 @@ from .atoms import (
     _atom_from_wire,
     _to_atom,
 )
-from .errors import EngineError, MettaError, Timeout
-from .vocabularies import SubscriptionEdge
+from metta._binding.runtime import Runtime, engine_thread, forked, runtime
+from metta._errors.errors import EngineError, MettaError, Timeout
+from metta._faces.metta import MeTTa
+from metta._faces.space import Space
+from metta._lazy import lazy
+from metta.vocabularies import SubscriptionEdge
+
+if TYPE_CHECKING:
+    import metta as _root
+else:
+    _root = lazy('metta')
 
 logger = logging.getLogger(__name__)
 
@@ -389,7 +396,7 @@ class _FanOut(Executor):
         how an interrupt gets swallowed.
 
         A TimeoutError is the one exception this has to read twice, because
-        metta.errors.Timeout IS a builtin TimeoutError and a callable may
+        metta._errors.errors.Timeout IS a builtin TimeoutError and a callable may
         raise one of its own. `future.done()` separates them exactly: a
         finished future raised the callable's, an unfinished one lost the
         wait.
@@ -1113,9 +1120,8 @@ def process_pool(
 
 
 def _ambient_space() -> Space:
-    from . import current_space, engine  # noqa: PLC0415 -- root owns the lazy default context
 
-    return engine().space(current_space())
+    return _root.engine().space(_root.current_space())
 
 
 def _ensure_thread_library(owner: Space) -> None:

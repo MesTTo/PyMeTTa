@@ -42,7 +42,8 @@ from typing import Any
 
 import pytest
 
-from metta import _json, convert, parse, testing
+import metta._binding.json as _json
+from metta import convert, parse, testing
 from metta.testing import check_codec, codec_corpus, codec_plan
 
 CORE = frozenset({"s", "v", "n", "g", "e"})
@@ -361,7 +362,7 @@ def test_alpha_comparison_refuses_a_collapsed_variable():
     """The renaming is a bijection, so it accepts the two shipped naming
     schemes and still separates (f $x $x) from (f $x $y).
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
-    from metta._codec_kit import alpha_equal
+    from metta.testing._codec_kit import alpha_equal
 
     repeated = ["e", [["s", "f"], ["v", "x"], ["v", "x"]]]
     distinct = ["e", [["s", "f"], ["v", "x"], ["v", "y"]]]

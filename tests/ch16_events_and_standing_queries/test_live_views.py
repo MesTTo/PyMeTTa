@@ -40,8 +40,9 @@ from contextlib import contextmanager
 import pytest
 
 import metta as metta_module
-from metta import S, V, aio
-from metta.errors import MettaError
+import metta.aio as _aio_surface
+from metta import S, V
+from metta._errors.errors import MettaError
 from metta.foreign import SpaceProvider
 from metta.live import Delta, Live
 from metta.vocabularies import LiveStrategy
@@ -223,7 +224,7 @@ def test_a_shared_tabled_view_refuses_its_transactional_seed(metta):
 def test_the_async_face_sees_the_same_deltas(metta):
     """`async for` over the same view, through the generated aio mirror."""
     async def go():
-        async with aio.AsyncMeTTa(metta=metta) as am:
+        async with _aio_surface.AsyncMeTTa(metta=metta) as am:
             scratch = await am.space()
             try:
                 live = await scratch.live(S.beacon(V.n))

@@ -10,8 +10,10 @@ from __future__ import annotations
 
 import pytest
 
-from metta import S, V, convert, remote
-from metta.errors import MettaError
+import metta.remote._client as _moved_metta_remote__client
+from metta import S, V, convert
+from metta._declare import declarations as _space_declarations
+from metta._errors.errors import MettaError
 from metta.subscribe import bridge
 
 
@@ -56,8 +58,8 @@ def test_remote_space_claims_subscribe_only_if_the_channel_exists(metta):
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     space = "&remote-caps"
     store: list = []
-    provider = remote.RemoteSpace(_store_transport(store))
-    metta._register_space(provider, space)
+    provider = _moved_metta_remote__client.RemoteSpace(_store_transport(store))
+    _space_declarations._register_space(metta, provider, space)
     try:
         # The channel does not exist: the wire carries four operations and
         # asking it for a fifth is a hole, not a slow path.
@@ -92,4 +94,4 @@ def test_remote_space_claims_subscribe_only_if_the_channel_exists(metta):
             rule.cancel()
             local.drop()
     finally:
-        metta._unregister_space(space)
+        _space_declarations._unregister_space(metta, space)

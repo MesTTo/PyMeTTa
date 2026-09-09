@@ -13,7 +13,7 @@ from collections import Counter
 import pytest
 
 from metta import MeTTa, S, V
-from metta.errors import EngineError
+from metta._errors.errors import EngineError
 
 
 def _assert_projection(space):

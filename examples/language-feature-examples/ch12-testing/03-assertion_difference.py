@@ -25,7 +25,7 @@ Open Obligations:
 """
 
 from metta import G, S
-from metta.errors import AssertionFailure
+from metta._errors.errors import AssertionFailure
 
 
 def refused(claim, *arguments):

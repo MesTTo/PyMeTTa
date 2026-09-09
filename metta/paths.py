@@ -18,8 +18,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-from ._atoms_core import Box
-from .atoms import Expression, Grounded, Symbol, _atom_from_wire, _encode
+from metta._atoms.factories import Expression, Grounded, Symbol, _atom_from_wire, _encode
+from metta._atoms.model import Box
 
 
 @dataclass(frozen=True, slots=True)

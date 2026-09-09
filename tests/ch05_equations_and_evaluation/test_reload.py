@@ -24,7 +24,7 @@ import pytest
 
 import metta as metta_module
 from metta import S, V
-from metta.errors import InferenceLimitError, MettaSyntaxError
+from metta._errors.errors import InferenceLimitError, MettaSyntaxError
 from metta.structures import LiveView
 
 
@@ -369,7 +369,7 @@ def test_a_fresh_python_name_redefining_a_head_is_refused_by_name(metta):
     """
     import pytest
 
-    from metta.errors import CompileError
+    from metta._errors.errors import CompileError
 
     with metta._new_space() as m:
 

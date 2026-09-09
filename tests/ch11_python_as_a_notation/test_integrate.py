@@ -37,17 +37,9 @@ from dataclasses import dataclass
 
 import pytest
 
-from metta import (
-    Expression,
-    MeTTa,
-    MettaError,
-    S,
-    Symbol,
-    V,
-    convert,
-    ground,
-)
-from metta import integrate as pi
+import metta.integrate as pi
+from metta import Expression, MeTTa, MettaError, S, Symbol, V, convert, ground
+from metta._declare import declarations as _space_declarations
 from metta.convert import CastError
 
 
@@ -309,7 +301,7 @@ def test_a_failed_integration_unwinds_every_framework_registration(
     """The reporter's operation, marker, library fact, and type all disappear."""
     import importlib
 
-    ops = importlib.import_module("metta.ops")
+    ops = importlib.import_module("metta._declare.operations")
     operation_name = "failed-integration-operation"
     integration_name = "failed_integration_rollback_probe"
     library_alias = "failed.integration.rollback"
@@ -572,7 +564,7 @@ def test_an_integration_refuses_a_best_effort_home_before_installing(metta):
 
     store = Store()
     space_name = "&best_effort_integration_probe"
-    metta._register_space(store, space_name)
+    _space_declarations._register_space(metta, store, space_name)
     space = metta._at(space_name)
     space.atomicity("best-effort")
     calls = []
@@ -592,7 +584,7 @@ def test_an_integration_refuses_a_best_effort_home_before_installing(metta):
         assert not getattr(caught.value, "__notes__", ())
         assert (space.name, integration.__name__) not in pi.installed()
     finally:
-        metta._unregister_space(space_name)
+        _space_declarations._unregister_space(metta, space_name)
 
 
 def test_a_failed_prolog_integration_names_its_possible_source_residue(

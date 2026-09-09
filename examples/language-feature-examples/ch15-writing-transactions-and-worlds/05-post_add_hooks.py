@@ -22,7 +22,7 @@ Open Obligations:
 """
 
 from metta import S, V, accept, drop, refuse
-from metta.errors import EngineError
+from metta._errors.errors import EngineError
 
 #: The two sentences this file's refusals print, in the Python door's own
 #: wording rather than the Error atom the original reads with `repr`.

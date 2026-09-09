@@ -15,7 +15,7 @@ Open Obligations:
 from __future__ import annotations
 
 from metta import S, V, ground
-from metta.atoms import _match
+from metta._atoms.factories import _match
 
 
 def _scan(registered, space, atom, action="add"):

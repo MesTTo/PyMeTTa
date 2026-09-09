@@ -20,7 +20,7 @@ carries the theorem, since the structured payload the MeTTa side reads with
 """
 
 from metta import S, V, seg, solve
-from metta.errors import EngineError
+from metta._errors.errors import EngineError
 
 
 def twin(m):

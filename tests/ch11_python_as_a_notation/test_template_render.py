@@ -41,8 +41,8 @@ from typing import Any
 import pytest
 
 from metta import Grounded, S, Symbol, V, render
-from metta.atoms import parse
-from metta.results import Rows
+from metta._atoms.factories import parse
+from metta._spaces.results import Rows
 
 needs_314 = pytest.mark.skipif(
     sys.version_info < (3, 14), reason="t-string literals are 3.14 syntax"
@@ -134,7 +134,7 @@ def test_a_boolean_renders_its_source_spelling(metta):
 
     This library prints `True`, the source spelling its own reader accepts,
     where the engine prints the atom it holds, `true`
-    [source: metta._atoms_core.Grounded.__str__, which chose the source
+    [source: metta._atoms.model.Grounded.__str__, which chose the source
     spelling deliberately]. Both read back as the same atom, so the difference
     is a spelling and not a divergence; it is pinned here so that a change to
     either side is a decision rather than a surprise.

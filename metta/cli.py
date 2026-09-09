@@ -13,7 +13,6 @@ Open Obligations:
   Hacks: None
   Future Enhancements: None.
 """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
-
 # A launcher runs a program, which is the job rather than a risk; the call
 # below says why the specific one is safe.
 import os
@@ -21,8 +20,8 @@ import subprocess  # nosec B404
 import sys
 from pathlib import Path
 
-from . import _resolve_metta_path
-from ._config import config
+from metta._catalog.bounds import config
+from metta._spaces.ambient import _resolve_metta_path
 
 #: The two flags the launcher answers itself. Everything else is forwarded,
 #: because this command keeps UPSTREAM'S LAUNCHER CONTRACT: it runs a file
@@ -55,7 +54,7 @@ def main(argv=None):
 
     if len(argv) == 1 and argv[0] in SELF_ANSWERED:
         # Deferred, so answering a flag boots nothing.
-        from ._version import __version__  # noqa: PLC0415
+        from metta._version import __version__  # noqa: PLC0415
 
         print(f"metta {__version__}" if argv[0] in ("--version", "-V") else USAGE)
         return 0

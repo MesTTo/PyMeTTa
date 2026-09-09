@@ -25,7 +25,7 @@ Open Obligations:
 """
 
 from metta import S, V, equation
-from metta.errors import MettaOperationError
+from metta._errors.errors import MettaOperationError
 
 
 def twin(m):

@@ -1,8 +1,8 @@
 """Purpose: the wire grammar has one authority, and every copy of it is held here.
 
 The grammar used to live in four places at once: the shim's clauses, an
-eight-tag JSON payload table in `metta._schemas`, a nine-tag decoder-order
-tuple in `metta._projection`, and the twelve-tag block in
+eight-tag JSON payload table in `metta.remote._schemas`, a nine-tag decoder-order
+tuple in `metta._catalog.types`, and the twelve-tag block in
 `tests/codec/corpus.json` that generates `CODEC.md`'s table. The first three
 now read the engine's own `(wire-tag ...)` rows. The corpus stays hand-written
 because it is the artifact a third party downloads to check a codec written in
@@ -32,7 +32,7 @@ from pathlib import Path
 import pytest
 
 from metta import MeTTa
-from metta._schemas import atom_schema
+from metta.remote._schemas import atom_schema
 from metta.vocabularies import WIRE_TAGS, WireClass
 
 REPO = Path(__file__).resolve().parents[4]

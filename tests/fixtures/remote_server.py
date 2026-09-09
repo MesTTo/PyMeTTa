@@ -10,11 +10,12 @@ Open Obligations:
 import json
 import time
 
-from metta import MeTTa, S, remote
+import metta.remote._gateway as _moved_metta_remote__gateway
+from metta import MeTTa, S
 
 m = MeTTa().space()
 m.add(S.users(1, "Ada"), S.users(2, "Bob"))
-server = remote.serve(m, spaces=[m.name])
+server = _moved_metta_remote__gateway.serve(m, spaces=[m.name])
 print(json.dumps({"url": server.url, "space": m.name}), flush=True)
 while True:
     time.sleep(3600)

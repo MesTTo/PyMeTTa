@@ -45,7 +45,7 @@ from enum import StrEnum
 from types import MappingProxyType
 from typing import Final, NamedTuple
 
-from .atoms import Symbol
+from ._atoms.factories import Symbol
 
 
 class _AtomStrEnum(StrEnum):
@@ -615,8 +615,8 @@ class WireTag(NamedTuple):
 
 #: Every wire tag, in the catalog's own order. A `term` tag nests inside an
 #: atom, a `frame` tag wraps a whole answer, and a `reply` tag is one door's
-#: answer shape. metta._projection reads the term tags for its OpenAPI atom
-#: schema and metta._schemas reads the payload class for each arm, so the
+#: answer shape. metta._catalog.types reads the term tags for its OpenAPI atom
+#: schema and metta.remote._schemas reads the payload class for each arm, so the
 #: shim's clauses and both of those follow one grammar.
 WIRE_TAGS: Final[Mapping[str, WireTag]] = MappingProxyType({
     "s": WireTag(

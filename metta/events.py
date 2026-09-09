@@ -111,12 +111,12 @@ from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from typing import Any, Final, Self
 
-from ._under import _UNSET
-from ._under import selected as _selected_under
-from .atoms import Atom, _atom_from_wire, _is_ground, _match, _to_atom
-from .errors import MettaError, SubscriberError
-from .structures import MatchIndex
-from .vocabularies import SubscriptionEdge
+from metta._atoms.designation import _UNSET
+from metta._atoms.factories import Atom, _atom_from_wire, _is_ground, _match, _to_atom
+from metta._errors.errors import MettaError, SubscriberError
+from metta._spaces.scope import selected as _selected_under
+from metta.structures import MatchIndex
+from metta.vocabularies import SubscriptionEdge
 
 __all__ = [
     "STATELESS",
@@ -797,7 +797,7 @@ class EventStream:
             raise ValueError(
                 msg
             )
-        from ._state import State  # noqa: PLC0415 -- keep State lazy at import
+        from metta._atoms.state import State  # noqa: PLC0415 -- keep State lazy at import
 
         carrier = _selected_under(under)
         if into is not None and not isinstance(into, State):
@@ -811,9 +811,14 @@ class EventStream:
             raise TypeError(msg)
 
         if carrier is not None:
-            from ._space import Space  # noqa: PLC0415 -- avoid the space/events cycle
-            from .algebra import resolve  # noqa: PLC0415 -- lazy algebra namespace
-            from .atoms import Expression, Grounded, _decode, _encode  # noqa: PLC0415
+            from metta._atoms.factories import (  # noqa: PLC0415
+                Expression,
+                Grounded,
+                _decode,
+                _encode,
+            )
+            from metta._faces.space import Space  # noqa: PLC0415 -- avoid the space/events cycle
+            from metta.algebra import resolve  # noqa: PLC0415 -- lazy algebra namespace
 
             owner = Space(space, _runtime=self._runtime)
             declaration = resolve(owner, carrier)

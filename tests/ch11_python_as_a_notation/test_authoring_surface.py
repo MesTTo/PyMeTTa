@@ -31,7 +31,7 @@ from metta import (
     equation,
     rules,
 )
-from metta.errors import CompileError, EngineError
+from metta._errors.errors import CompileError, EngineError
 
 
 def test_calling_a_defined_object_evaluates_and_an_unmatched_call_answers_itself(

@@ -8,7 +8,7 @@ caller the provider's reason when it is not.
 from _common import check, done
 
 from metta import MeTTa, S
-from metta.errors import MettaError
+from metta._errors.errors import MettaError
 from metta.foreign import SpaceProvider
 
 

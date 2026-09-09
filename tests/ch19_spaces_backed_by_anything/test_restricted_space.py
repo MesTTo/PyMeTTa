@@ -22,8 +22,9 @@ import asyncio
 
 import pytest
 
-from metta import MeTTa, S, V, aio
-from metta.errors import MettaError, SpaceCapabilityError
+import metta.aio as _aio_surface
+from metta import MeTTa, S, V
+from metta._errors.errors import MettaError, SpaceCapabilityError
 
 
 def test_a_restricted_space_cannot_reach_what_its_base_does_not_publish(metta, tmp_path):
@@ -117,7 +118,7 @@ def test_async_space_forwards_restriction_and_grants(metta, tmp_path):
     path.write_text("visible")
 
     async def exercise():
-        async with aio.AsyncMeTTa(metta=metta) as runtime:
+        async with _aio_surface.AsyncMeTTa(metta=metta) as runtime:
             locked = await runtime.space(restricted=True)
             try:
                 with pytest.raises(SpaceCapabilityError):
@@ -186,7 +187,7 @@ def test_an_async_named_space_takes_a_model(metta):
     """The async door drops the same refusal, through the same declaration."""
 
     async def exercise():
-        async with aio.AsyncMeTTa(metta=metta) as runtime:
+        async with _aio_surface.AsyncMeTTa(metta=metta) as runtime:
             locked = await runtime.space("&asyncnamedlocked", restricted=True)
             assert str(locked.name) == "&asyncnamedlocked"
             with pytest.raises(SpaceCapabilityError):

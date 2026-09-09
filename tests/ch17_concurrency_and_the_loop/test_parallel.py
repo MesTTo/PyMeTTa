@@ -34,9 +34,9 @@ import weakref
 import pytest
 
 from metta import G, S, channel, parse
-from metta._engine import engine_thread, runtime
-from metta.atoms import Expression
-from metta.errors import EngineError, TimeLimitError
+from metta._atoms.factories import Expression
+from metta._binding.runtime import engine_thread, runtime
+from metta._errors.errors import EngineError, TimeLimitError
 
 SQUARE = "(= (par-sq $x) (* $x $x))"
 SPIN = "(= (par-spin $n) (if (> $n 0) (par-spin (- $n 1)) done))"

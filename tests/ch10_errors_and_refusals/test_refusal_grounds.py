@@ -24,7 +24,7 @@ from __future__ import annotations
 import pytest
 
 from metta import G, S, V
-from metta.errors import CompileError
+from metta._errors.errors import CompileError
 
 
 @pytest.fixture()
@@ -196,7 +196,7 @@ def _refused_constructs() -> set[str]:
     package = Path(metta.__file__).resolve().parent
     found: set[str] = set()
     computed = False
-    for path in sorted(package.glob("*.py")):
+    for path in sorted(package.rglob("*.py")):
         tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
         for call in (node for node in ast.walk(tree) if isinstance(node, ast.Call)):
             function = call.func
@@ -220,7 +220,7 @@ def _refused_constructs() -> set[str]:
 
 def test_every_construct_the_compiler_refuses_has_a_citation():
     """A construct with no row, and no exemption, is a finding."""
-    from metta.errors import _COMPILE_REFERENCE_BY_CONSTRUCT, _EXPRESSION_CONSTRUCTS
+    from metta._errors.errors import _COMPILE_REFERENCE_BY_CONSTRUCT, _EXPRESSION_CONSTRUCTS
 
     terms = [term for group, _ in _COMPILE_REFERENCE_BY_CONSTRUCT for term in group]
     uncited = sorted(
@@ -239,7 +239,7 @@ def test_no_citation_term_governs_a_construct_that_does_not_exist():
     """A term matching nothing the compiler names is a stale row."""
     import ast
 
-    from metta.errors import _COMPILE_REFERENCE_BY_CONSTRUCT
+    from metta._errors.errors import _COMPILE_REFERENCE_BY_CONSTRUCT
 
     universe = {construct.lower() for construct in _refused_constructs()}
     universe |= {name.lower() for name in dir(ast)}

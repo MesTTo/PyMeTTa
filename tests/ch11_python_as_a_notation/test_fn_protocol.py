@@ -23,6 +23,7 @@ import pydoc
 import pytest
 
 from metta import MettaError
+from metta._declare import functions as _space_functions
 
 
 @pytest.fixture()
@@ -116,10 +117,10 @@ def test_help_answers_from_mettas_own_documentation(m):  # noqa: D103  -- pytest
 
 def test_compiled_and_disassemble_show_the_prolog(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     text = m.fn.fp_inc.compiled
-    assert text == m._disassemble("fp-inc")
+    assert text == _space_functions._disassemble(m, "fp-inc")
     assert "'fp-inc'(" in text  # the translator's clause head, Prolog-quoted
     with pytest.raises(MettaError, match="no compiled clauses"):
-        m._disassemble("fp-never-compiled")
+        _space_functions._disassemble(m, "fp-never-compiled")
 
 
 def test_partial_composes_with_stdlib_machinery(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract

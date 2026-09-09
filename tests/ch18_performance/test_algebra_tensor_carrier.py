@@ -11,8 +11,8 @@ from itertools import product
 import numpy as np
 import pytest
 
+import metta.algebra as algebra_module
 from metta import S
-from metta import algebra as algebra_module
 from metta.algebra import AlgebraDeclarationError, AlgebraLawError
 
 

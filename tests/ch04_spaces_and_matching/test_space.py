@@ -74,6 +74,7 @@ import janus_swi
 import pytest
 
 import metta
+import metta._binding.runtime as _engine
 from metta import (
     Expression,
     MeTTa,
@@ -81,7 +82,6 @@ from metta import (
     S,
     Space,
     V,
-    _engine,
     convert,
     current_space,
     engine,
@@ -90,16 +90,16 @@ from metta import (
     tables,
     unify,
 )
-from metta.atoms import Grounded, Variable
-from metta.errors import (
+from metta._atoms.factories import Grounded, Variable
+from metta._errors.errors import (
     EngineError,
     MettaOperationError,
     MettaSyntaxError,
     SourceNotFound,
     TimeLimitError,
 )
+from metta._spaces.results import Rows
 from metta.foreign import SpaceProvider, register_provider, unregister_provider
-from metta.results import Rows
 
 
 @pytest.fixture()
@@ -1622,7 +1622,7 @@ def test_a_source_registers_every_signature_before_any_form_runs(metta):
     before processing any of its forms, so a `!` may name a function the same
     source defines lower down [source: engine/filereader.pl
     register_parsed_signatures/1]. run() and load() reach the engine through
-    extensions/python/metta/shim.pl rather than through that reader, and until this they
+    extensions/python/metta/_binding/shim.pl rather than through that reader, and until this they
     skipped the pass: seven shipped examples passed in the engine and failed
     here with `Domain error: function_symbol expected` [measured 2026-08-18].
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose

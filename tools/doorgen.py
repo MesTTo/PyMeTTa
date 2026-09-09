@@ -21,7 +21,7 @@ import subprocess
 import sys
 from collections import Counter
 from collections.abc import Iterable
-from dataclasses import is_dataclass, replace
+from dataclasses import replace
 from enum import Enum
 from functools import lru_cache
 from pathlib import Path
@@ -34,9 +34,11 @@ sys.path[:0] = [str(SEAT), str(TOOLS)]
 
 from reference import quote, split_top_level  # noqa: E402
 
-from metta import doors, vocabularies  # noqa: E402  -- the engine-free row grammar
-from metta._refusals import REFUSALS  # noqa: E402
+from metta import doors, vocabularies  # noqa: E402 -- the engine-free row grammar
+from metta._errors.refusals import REFUSALS  # noqa: E402
 from metta.doors import Door, Owner, Signature, Tier  # noqa: E402
+from metta.doors._scan import core, is_mark, scan  # noqa: E402 -- the shared declaration reader
+from metta.doors._scan import signature as _signature  # noqa: E402 -- the shared declaration reader
 
 START = "    # begin generated doors: "
 END = "    # end generated doors: "
@@ -53,6 +55,9 @@ def module_path(name: str, root: Path = ROOT) -> Path:
         path = seat / (name.replace(".", "/") + ".py")
         if path.is_file():
             return path
+        package = seat / name.replace(".", "/") / "__init__.py"
+        if package.is_file():
+            return package
     found = [path for path in (seat / "ext").glob("metta-*/*.py") if path.stem == name]
     if len(found) != 1:
         msg = f"door implementation module {name!r} has {len(found)} source files"
@@ -61,63 +66,20 @@ def module_path(name: str, root: Path = ROOT) -> Path:
 
 
 def package_rows(root: Path = ROOT) -> tuple[Door, ...]:
-    """Read literal DOORS declarations without executing package imports."""
-    scope = {name: value for name, value in vars(doors).items()
-             if isinstance(value, type) and (is_dataclass(value) or issubclass(value, Enum))}
-    result: list[Door] = []
-    for path in sorted((root / "extensions/python/ext").glob("metta-*/*.py")):
-        stat = path.stat()
-        _, tree = _source(path, stat.st_mtime_ns, stat.st_size)
-        for node in tree.body:
-            if ((isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name) and node.target.id == "DOORS")
-                    or (isinstance(node, ast.Assign) and any(isinstance(target, ast.Name) and target.id == "DOORS" for target in node.targets))):
-                expression = node.value
-            else:
-                continue
-            if expression is None:
-                msg = f"{path}: DOORS has no records"
-                raise ValueError(msg)
-            for item in ast.walk(expression):
-                if isinstance(item, ast.Call) and (
-                    not isinstance(item.func, ast.Name) or item.func.id not in scope
-                ):
-                    msg = f"{path}: door metadata calls outside the row grammar"
-                    raise ValueError(msg)
-                if isinstance(item, ast.Attribute) and (
-                    not isinstance(item.value, ast.Name) or item.value.id not in scope
-                    or not issubclass(scope[item.value.id], Enum) or item.attr.startswith('_')
-                ):
-                    msg = f"{path}: door metadata reads outside the row grammar"
-                    raise ValueError(msg)
-                if not isinstance(item, (ast.Tuple, ast.List, ast.Constant, ast.Call, ast.Name,
-                                         ast.Load, ast.Attribute, ast.keyword)):
-                    msg = f"{path}: DOORS must contain literal records"
-                    raise TypeError(msg)
-            value = eval(compile(ast.Expression(expression), str(path), "eval"), {"__builtins__": {}, **scope})  # noqa: S307  -- constructors are checked above; no package code executes
-            if not isinstance(value, tuple) or any(not isinstance(row, Door) for row in value):
-                msg = f"{path}: DOORS must be a tuple of Door records"
-                raise TypeError(msg)
-            result.extend(value)
-    return tuple(result)
+    """Read extension marks with the same source reader used by core discovery."""
+    return tuple(row for path in sorted((root / "extensions/python/ext").glob("metta-*/*.py"))
+                 for row in scan(path, path.stem))
 
 
 def all_rows(root: Path = ROOT) -> tuple[Door, ...]:
-    """The declared core and every workspace contributor."""
-    return doors.validate((*doors.DOORS, *package_rows(root)))
+    """Discover core and workspace declarations without loading their bodies."""
+    return doors.validate((*core(root / "extensions/python/metta"), *package_rows(root)))
 
 
 def _canonical(text: str | None) -> str | None:
     if text is None:
         return None
     return ast.unparse(ast.parse(text, mode="eval").body)
-
-
-def _signature(node: ast.FunctionDef | ast.AsyncFunctionDef) -> Signature:
-    return Signature(
-        ast.unparse(node.args), ast.unparse(node.returns) if node.returns else None,
-        ", ".join(ast.unparse(param) for param in node.type_params),
-        tuple(ast.unparse(decorator) for decorator in node.decorator_list),
-    )
 
 
 def _same_signature(left: Signature, right: Signature, *, receiver: bool = False) -> bool:
@@ -151,6 +113,11 @@ def body_nodes(row: Door, root: Path = ROOT) -> tuple[list[ast.FunctionDef | ast
             raise ValueError(msg)
         held = cls.body
     nodes = [node for node in held if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.name == parts[-1]]
+    if row.is_property:
+        nodes = [node for node in nodes if not any(
+            isinstance(item, ast.Attribute) and item.attr in {'setter', 'deleter'}
+            for item in node.decorator_list
+        )]
     declared_slot = row.inherited and any(
         isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name)
         and node.target.id == parts[-1] for node in held
@@ -190,28 +157,23 @@ def local_refusal_kinds(nodes: Iterable[ast.AST]) -> set[str]:
 
 
 def undeclared_members(rows: Iterable[Door], root: Path = ROOT) -> list[str]:
-    """A public method added beside a generated class must become a row."""
-    from aiogen import (  # noqa: PLC0415 -- that backend owns the context region
-        METTA_END,
-        METTA_START,
-    )
-
+    """A public method on a door-owning class carries its contract beside it."""
     classes = {(row.body.module, row.body.symbol.rpartition('.')[0]) for row in rows
-               if row.body and row.owner is not Owner.namespace and not row.inherited}
+               if row.body and '.' in row.body.symbol and row.owner is not Owner.namespace}
     found = []
     for module, name in sorted(classes):
         path = module_path(module, root)
-        lines = path.read_text(encoding="utf-8").splitlines()
-        regions = [(lines.index(START + name) + 1, lines.index(END + name) + 1)]
-        if name == 'MeTTa':
-            regions.append((lines.index(METTA_START) + 1, lines.index(METTA_END) + 1))
-        tree = ast.parse('\n'.join(lines), filename=str(path))
-        cls = next(node for node in tree.body if isinstance(node, ast.ClassDef) and node.name == name)
-        for node in cls.body:
-            if any(start <= node.lineno <= end for start, end in regions):
-                continue
-            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and not node.name.startswith('_'):
-                found.append(f"{module}:{name}.{node.name}: public implementation has no generated door declaration")
+        held = ast.parse(path.read_text(encoding="utf-8"), filename=str(path)).body
+        for part in name.split('.'):
+            held = next(node.body for node in held if isinstance(node, ast.ClassDef) and node.name == part)
+        found.extend(
+            f"{module}:{name}.{node.name}: public implementation has no door mark"
+            for node in held
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and not node.name.startswith('_')
+            and not any(is_mark(item) or ast.unparse(item) == 'overload'
+                        or (isinstance(item, ast.Attribute) and item.attr in {'setter', 'deleter'})
+                        for item in node.decorator_list)
+        )
     return found
 
 
@@ -294,10 +256,13 @@ def signature_lines(signature: Signature, name: str, indent: str = "    ") -> li
     shadowed = {arg.arg for arg in (*args.posonlyargs, *args.args, *args.kwonlyargs)
                 if arg.arg in vars(builtins)}
     shadow_note = "  # noqa: A002 -- the declared public parameter spelling"
+    definition_shadow = name in vars(builtins) and not indent
     if len(head) <= 100:
-        return [head + ignored + (shadow_note if shadowed else "")]
+        codes = [*(('A001',) if definition_shadow else ()), *(('A002',) if shadowed else ())]
+        note = f"  # noqa: {', '.join(codes)} -- the declared public spelling" if codes else ""
+        return [head + ignored + note]
     return [
-        f"{indent}def {name}{generics}(" + ignored,
+        f"{indent}def {name}{generics}(" + ignored + ("  # noqa: A001 -- the declared public spelling" if definition_shadow else ""),
         *(f"{indent}    {part.strip()}," + (shadow_note if part.strip().split(':')[0] in shadowed else "")
           for part in split_top_level(signature.parameters) if part.strip()),
         f"{indent}){answer}:",
@@ -329,57 +294,8 @@ def _doc_lines(doc: str, indent: str) -> list[str]:
     return [f'{indent}"""{escaped[0]}', *(indent + line if line else "" for line in escaped[1:]), indent + end]
 
 
-def _forward(signature: Signature) -> str:
-    args = signature.node.args
-    positional = [arg.arg for arg in (*args.posonlyargs, *args.args)][1:]
-    if args.vararg:
-        positional.append(f"*{args.vararg.arg}")
-    positional.extend(f"{arg.arg}={arg.arg}" for arg in args.kwonlyargs)
-    if args.kwarg:
-        positional.append(f"**{args.kwarg.arg}")
-    return ", ".join(positional)
 
 
-def class_block(class_name: str, rows: Iterable[Door]) -> list[str]:
-    """Static declarations and direct runtime bindings for one class."""
-    rows = tuple(rows)
-    selected = [row for row in rows if not row.inherited and row.body and row.body.symbol.rpartition('.')[0] == class_name and (Tier.sync in row.tiers or Tier.remote in row.tiers)]
-    out = [START + class_name, "    # Generated from metta.doors by tools/doorgen.py.", "    if TYPE_CHECKING:"]
-    for row in selected:
-        for signature in row.signatures:
-            out.extend("        @" + declaration for declaration in signature.declarations)
-            out.extend(signature_lines(signature, row.python, "        "))
-            if "overload" in signature.declarations:
-                out[-1] = out[-1].replace(":  # type:", ": ...  # type:") if "# type:" in out[-1] else out[-1] + " ..."
-                continue
-            out.extend(_doc_lines(row.docs, "            "))
-            name = row.body.symbol.rpartition('.')[2]
-            implementation = f'cast("Any", self.{name})' if len(row.signatures) > 1 else f"self.{name}"
-            expression = f"self.{name}" if row.is_property else f"{implementation}({_forward(signature)})"
-            out.append(f"            return {expression}")
-        out.append("")
-    if class_name in {"Space", "MeTTa"}:
-        tier = Tier.sync if class_name == "Space" else Tier.context
-        names = sorted({row.provider.namespace for row in rows if row.owner is Owner.namespace and row.provider and tier in row.tiers})
-        out.extend(f"        {name}: _door_namespaces.{_namespace_type(name, tier)}" for name in names)
-        if names:
-            out.append("")
-    owner = Owner.rows if class_name == "Rows" else Owner.answers if class_name == "Answers" else None
-    for row in rows:
-        if row.owner is owner and row.body is None:
-            for signature in row.signatures:
-                out.extend(signature_lines(signature, row.python, "        "))
-                out.extend(_doc_lines(row.docs, "            "))
-                out.append("            ...")
-            out.append("")
-    out.append("    else:")
-    for row in selected:
-        name = row.body.symbol.rpartition('.')[2]
-        note = "  # noqa: A003 -- bind the declared public door" if row.python in vars(builtins) else ""
-        out.append(f"        {row.python} = {name}")
-        out.append(f"        _bind_public({row.python}, {class_name!r}, {row.python!r}){note}")
-    out.append(END + class_name)
-    return out
 
 
 def _namespace_type(name: str, tier: Tier) -> str:
@@ -399,14 +315,20 @@ class _QualifyAnnotation(ast.NodeTransformer):
 
 def namespace_types(rows: Iterable[Door]) -> str:
     """Static accessor protocols, with annotations scoped to their providers."""
-    selected = [row for row in rows if row.owner is Owner.namespace and row.body]
-    modules = {name: f"_body_{index}" for index, name in enumerate(sorted({row.body.module for row in selected}))}
+    records = tuple(rows)
+    selected = [row for row in records if row.owner is Owner.namespace and row.body]
+    result_rows = [row for row in records if row.owner in {Owner.rows, Owner.answers}
+                   and row.body and not row.body.module.startswith('metta.')]
+    modules = {name: f"_body_{index}" for index, name in enumerate(sorted({row.body.module for row in (*selected, *result_rows)}))}
     out = [
         '"""Purpose: type the accessor namespaces declared by installed workspace packages.',
         '', 'Generated by tools/doorgen.py from door rows.', '"""', '',
         'from __future__ import annotations', '', 'from typing import TYPE_CHECKING, Protocol', '',
-        'if TYPE_CHECKING:',
     ]
+    if modules or result_rows:
+        out.append('if TYPE_CHECKING:')
+    if result_rows:
+        out.append('    import metta._spaces.results as _results')
     for local in (False, True):
         # Optional packages can be absent in a core-only typing environment.
         # The specific import guard preserves their types when installed:
@@ -444,12 +366,28 @@ def namespace_types(rows: Iterable[Door]) -> str:
                     out.extend(_doc_lines(row.docs, '        '))
                     out.append('        ...')
                     out.append('')
-    return '\n'.join(out)
+    for row in result_rows:
+        for signature in row.signatures:
+            node = copy.deepcopy(signature.node)
+            qualifier = _QualifyAnnotation(modules[row.body.module])
+            args = qualifier.visit(node.args)
+            first = (args.posonlyargs or args.args)[0]
+            first.annotation = ast.parse('_results.' + row.owner.value.title(), mode='eval').body
+            args.defaults = [ast.Constant(Ellipsis) for _ in args.defaults]
+            args.kw_defaults = [None if value is None else ast.Constant(Ellipsis) for value in args.kw_defaults]
+            projected = replace(signature, parameters=ast.unparse(args), returns=ast.unparse(qualifier.visit(node.returns)) if node.returns else None)
+            out.extend(['', *signature_lines(projected, '_' + row.owner.value + '_' + row.python, '')])
+            out.extend(_doc_lines(row.docs, '    '))
+            out.append('    ...')
+    # The emitter reads this tool's source helpers.
+    from doorfaces import clean_imports  # noqa: PLC0415
+
+    return clean_imports('\n'.join(out) + '\n', CORE / 'doors/_namespaces.py')
 
 
 def declared_annotation_imports(path: Path) -> set[tuple[str, int]]:
     """Provider imports belong only to the exact generated annotation file."""
-    if path != CORE / '_door_namespaces.py':
+    if path != CORE / 'doors/_namespaces.py':
         return set()
     expected = namespace_types(all_rows())
     if path.read_text(encoding='utf-8') != expected:
@@ -473,42 +411,8 @@ def replace_region(text: str, start: str, end: str, content: Iterable[str]) -> s
     return '\n'.join([*lines[:first], *content, *lines[last + 1:]]) + '\n'
 
 
-def class_projection(text: str, class_name: str, rows: Iterable[Door]) -> str:
-    """The class projection; implementation functions stay outside its marks."""
-    return replace_region(text, START + class_name, END + class_name, class_block(class_name, rows))
 
 
-def virtual_class(owner: Owner) -> tuple[ast.ClassDef, list[str]]:
-    """A row projection for the existing mirror and reference emitters."""
-    selected = [row for row in all_rows() if row.owner is owner and not row.inherited]
-    if owner is Owner.space:
-        selected += [row for row in all_rows() if row.owner is Owner.namespace and row.alias and Tier.async_ in row.tiers]
-    name = next(row.body.symbol.rpartition('.')[0] for row in selected if row.body and not row.inherited)
-    lines = [f"class {name}:"]
-    for row in selected:
-        public = row.python
-        if row.owner is Owner.namespace:
-            public = row.alias or public
-        elif Tier.sync not in row.tiers and Tier.async_ in row.tiers and row.body:
-            public = row.body.symbol.rpartition('.')[2]
-        for signature in row.signatures:
-            projected_signature = signature
-            if row.owner is Owner.namespace and row.body and row.body.receiver is not doors.Receiver.none:
-                node = copy.deepcopy(signature.node)
-                positional = [*node.args.posonlyargs, *node.args.args]
-                positional[0].arg = "self"
-                positional[0].annotation = None
-                projected_signature = replace(signature, parameters=ast.unparse(node.args))
-            lines.extend("    @" + declaration for declaration in projected_signature.declarations)
-            lines.extend(signature_lines(projected_signature, public))
-            if "overload" in projected_signature.declarations:
-                lines[-1] = lines[-1].replace(":  # type:", ": ...  # type:") if "# type:" in lines[-1] else lines[-1] + " ..."
-            else:
-                lines.extend(_doc_lines(row.docs, "        "))
-                lines.append("        pass")
-        lines.append("")
-    tree = ast.parse('\n'.join(lines) + '\n')
-    return tree.body[0], lines
 
 
 def operations(rows: Iterable[Door]) -> list[str]:
@@ -579,7 +483,7 @@ def vocabulary_arguments(row: Door) -> list[str]:
 
 def door_reference(rows: Iterable[Door]) -> str:
     """All receiver families, with complete contracts and named longhands."""
-    out = ["# Python door contracts", "", "Generated from `metta.doors` and workspace packages' `DOORS` declarations.", "", "The same contracts are typed `(door ...)` atoms in `&metta` at boot. `seam.publish(context)` refreshes the snapshot after registration or withdrawal.", ""]
+    out = ["# Python door contracts", "", "Generated by `extensions/python/tools/doorgen.py` from `@door` marks beside core and provider bodies.", "", "The same contracts are typed `(door ...)` atoms in `&metta` at boot. `seam.publish(context)` refreshes the snapshot after registration or withdrawal.", ""]
     for row in rows:
         out.extend([f"## {row.key}", "", "```python", *public_declarations(row), "```", "", f"Kind: `{row.kind}`. Answer: `{row.answers}`. Effect: `{row.effect}`. Determinism: `{row.determinism}`.", "", f"Tiers: {', '.join(f'`{tier}`' for tier in row.tiers)}.", ""])
         options = vocabulary_arguments(row)
@@ -633,30 +537,30 @@ def sheet(rows: Iterable[Door]) -> list[str]:
 
 
 def projections(rows: tuple[Door, ...]) -> dict[Path, str]:
-    """Direct projections, before mirror, stub, and reference dependencies."""
-    out: dict[Path, str] = {}
-    groups: dict[Path, set[str]] = {}
-    for row in rows:
-        if row.owner is Owner.namespace or row.inherited or row.body is None:
-            continue
-        path = module_path(row.body.module)
-        name = row.body.symbol.rpartition('.')[0]
-        if name and (Tier.sync in row.tiers or Tier.remote in row.tiers):
-            groups.setdefault(path, set()).add(name)
-    for path, classes in groups.items():
-        text = path.read_text(encoding="utf-8")
-        for name in sorted(classes):
-            text = class_projection(text, name, rows)
-        out[path] = text
-    path = CORE / "_schemas.py"
+    """Project marked implementations through the one face emitter."""
+    import doorfaces  # noqa: PLC0415 -- the emitter reads this tool's source helpers
+    import rootgen  # noqa: PLC0415 -- root declarations share the same emitter
+
+    out = {**doorfaces.synchronous(rows, ROOT), **doorfaces.asynchronous(rows, ROOT), **rootgen.projections(rows)}
+    path = CORE / 'remote/_schemas.py'
     out[path] = replace_region(path.read_text(encoding="utf-8"), SCHEMA_START, SCHEMA_END, operations(rows))
     out[ROOT / "website/reference/shrink-ledger.md"] = ledger_page(rows)
     out[ROOT / "website/reference/python-door-contracts.md"] = door_reference(rows)
-    out[CORE / "_door_namespaces.py"] = namespace_types(rows)
-    path = CORE / "_space.py"
+    out[CORE / 'doors/_namespaces.py'] = namespace_types(rows)
+    path = CORE / '_spaces/results.py'
+    text = path.read_text(encoding='utf-8')
+    for owner in (Owner.rows, Owner.answers):
+        name = owner.value.title()
+        start, end = f'    # begin generated extension declarations: {name}', f'    # end generated extension declarations: {name}'
+        aliases = [f'        {row.python} = _door_types._{owner.value}_{row.python}' for row in rows
+                   if row.owner is owner and row.body and not row.body.module.startswith('metta.')]
+        content = [start, '    # Generated by tools/doorgen.py from extension door marks.', '    if TYPE_CHECKING:', *(aliases or ['        pass']), end]
+        text = replace_region(text, start, end, content)
+    out[path] = text
+    path = CORE / '_spaces/execution.py'
     keywords = next(row for row in rows if row.key == "space:eval").signature.node.args.kwonlyargs
     start, end = "# begin generated evaluation keywords", "# end generated evaluation keywords"
-    out[path] = replace_region(out[path], start, end, [start,
+    out[path] = replace_region(path.read_text(encoding='utf-8'), start, end, [start,
         '# closed-set: generated; by=extensions/python/tools/doorgen.py; lane=door-sync',
         "_TERM_KEYWORDS = " + repr(tuple(arg.arg for arg in keywords)), end])
     path = ROOT / "llms.txt"
@@ -693,12 +597,10 @@ def main(argv: list[str] | None = None) -> int:
             path.write_text(wanted, encoding="utf-8")
         else:
             stale.append(str(path.relative_to(ROOT)))
-    import aiogen  # noqa: PLC0415  -- the mirror backend
-    import initstubgen  # noqa: PLC0415  -- the stub backend
     import reference  # noqa: PLC0415  -- the reference backend
 
     flags = ["--write"] if args.write else []
-    for name, backend in (("mirrors", aiogen), ("stub", initstubgen), ("reference", reference)):
+    for name, backend in (("reference", reference),):
         if backend.main(flags):
             stale.append(name)
     if stale:

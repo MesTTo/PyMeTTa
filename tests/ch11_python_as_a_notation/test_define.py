@@ -59,7 +59,7 @@ from pathlib import Path
 import pytest
 
 from metta import Expression, S, Space, V, parse
-from metta.errors import CompileError, EngineError
+from metta._errors.errors import CompileError, EngineError
 from metta.vocabularies import EffectClass
 
 hypothesis = pytest.importorskip("hypothesis")
@@ -1589,7 +1589,7 @@ def test_augmented_assignment_on_a_space_is_the_write_door(metta):
     import pytest
 
     from metta import S, V
-    from metta.errors import CompileError
+    from metta._errors.errors import CompileError
 
     with metta._new_space() as m:
 
@@ -1665,7 +1665,7 @@ def test_walrus_bindings_hoist_as_let(metta):
     """
     import pytest
 
-    from metta.errors import CompileError
+    from metta._errors.errors import CompileError
 
     with metta._new_space() as m:
 

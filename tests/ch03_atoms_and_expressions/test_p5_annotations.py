@@ -47,10 +47,10 @@ if sys.version_info < (3, 13):
 
 from typing import TypeIs  # guarded above; 3.13 or later only
 
+import metta.integrate as pi
 from metta import Atom, Expression, Grounded, MeTTa, S, Symbol, Variable, convert, ground
-from metta import integrate as pi
+from metta._declare.operations import annotation_atom_for, type_atoms_for
 from metta.convert import build, project, register_type, unregister_type
-from metta.ops import annotation_atom_for, type_atoms_for
 
 
 def test_the_four_metatypes_stay_distinct_across_the_seam():
@@ -437,7 +437,7 @@ def test_undefined_annotates_as_the_metatype_symbol():
 
     import metta
     from metta import parse
-    from metta.atoms import Atom, Undefined
+    from metta._atoms.factories import Atom, Undefined
 
     assert metta.arrow(Atom, Atom, Undefined) == parse("(-> Atom Atom %Undefined%)")
     assert metta.arrow(Atom, Atom, Any) == metta.arrow(Atom, Atom, Undefined)
@@ -478,7 +478,7 @@ def test_an_atom_in_annotation_position_is_the_type_itself(metta):
 def test_an_atom_annotation_reaches_the_documented_type_field():
     """A doc's (@type ...) carries the atom rather than %Undefined%."""
     from metta import S
-    from metta._documentation import documentation_atom
+    from metta._catalog.documentation import documentation_atom
 
     def speak(a: S.Animal) -> S.Sound:
         """Make a noise.

@@ -25,7 +25,7 @@ from pathlib import Path
 import pytest
 
 from metta import S, convert
-from metta._atoms_core import _NativeHandle
+from metta._atoms.model import _NativeHandle
 from metta.tables import TableBridge
 
 

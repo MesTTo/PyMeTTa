@@ -18,6 +18,7 @@ from typing import Any
 import pytest
 
 from metta import S, V
+from metta._declare import declarations as _space_declarations
 from metta.foreign import SpaceProvider
 
 
@@ -53,8 +54,8 @@ class _EnumerableFacts(SpaceProvider):
 def test_provider_length_requires_and_uses_sized(metta):  # noqa: D103 -- the test name states the behavioral contract
     sized = _SizedFacts(S.fact(1), S.fact(2))
     unsized = _EnumerableFacts(S.fact(1), S.fact(2))
-    metta._register_space(sized, "&sized-container")
-    metta._register_space(unsized, "&unsized-container")
+    _space_declarations._register_space(metta, sized, "&sized-container")
+    _space_declarations._register_space(metta, unsized, "&unsized-container")
     try:
         assert len(metta._at("&sized-container")) == 2
         assert sized.count_reads == 1
@@ -64,13 +65,13 @@ def test_provider_length_requires_and_uses_sized(metta):  # noqa: D103 -- the te
             len(metta._at("&unsized-container"))
         assert unsized.enumeration_reads == 0
     finally:
-        metta._unregister_space("&sized-container")
-        metta._unregister_space("&unsized-container")
+        _space_declarations._unregister_space(metta, "&sized-container")
+        _space_declarations._unregister_space(metta, "&unsized-container")
 
 
 def test_space_truth_does_not_ask_for_emptiness(metta):  # noqa: D103 -- the test name states the behavioral contract
     provider = _SizedFacts()
-    metta._register_space(provider, "&empty-container")
+    _space_declarations._register_space(metta, provider, "&empty-container")
     try:
         space = metta._at("&empty-container")
         assert bool(space) is True
@@ -78,7 +79,7 @@ def test_space_truth_does_not_ask_for_emptiness(metta):  # noqa: D103 -- the tes
         assert bool(space.match(V.x)) is False
         assert provider.count_reads == 0
     finally:
-        metta._unregister_space("&empty-container")
+        _space_declarations._unregister_space(metta, "&empty-container")
 
 
 def test_native_iteration_snapshots_before_mutation(metta):  # noqa: D103 -- the test name states the behavioral contract

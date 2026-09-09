@@ -10,7 +10,7 @@ Open Obligations:
 """
 
 from metta import S, lib
-from metta.errors import MettaError
+from metta._errors.errors import MettaError
 
 REMEDY = (
     "factor shared support in an owned reasoner with stable signed evidence "

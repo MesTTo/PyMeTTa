@@ -55,8 +55,9 @@ from metta import (
     V,
     ground,
 )
-from metta._persistent import PersistentFactSpace
-from metta.errors import EngineError, SourceNotFound
+from metta._declare import declarations as _space_declarations
+from metta._errors.errors import EngineError, SourceNotFound
+from metta.foreign._persistent import PersistentFactSpace
 
 
 def test_registered_space_writes_queries_and_persists_remove(metta, tmp_path):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -64,7 +65,7 @@ def test_registered_space_writes_queries_and_persists_remove(metta, tmp_path):  
     schema = {"edge": 2, "other": 1}
     provider = PersistentFactSpace(journal, schema)
     name = f"&persistent{id(provider)}"
-    metta._register_space(provider, name)
+    _space_declarations._register_space(metta, provider, name)
     try:
         provider.add(S.edge(S.a, S.b))
         provider.add(S.edge(S.b, S.c))
@@ -93,7 +94,7 @@ def test_registered_space_writes_queries_and_persists_remove(metta, tmp_path):  
         # removal above took the edge, so the second one finds nothing.
         assert not provider.remove(S.edge(S.a, S.b))
     finally:
-        metta._unregister_space(name)
+        _space_declarations._unregister_space(metta, name)
         provider.close()
 
     reopened = PersistentFactSpace(journal, schema)
@@ -457,7 +458,7 @@ def _crash_writer(journal, sync_mode, checkpoint):
         f"""
         import os, signal
         from metta import S
-        from metta._persistent import PersistentFactSpace
+        from metta.foreign._persistent import PersistentFactSpace
 
         space = PersistentFactSpace({str(journal)!r}, {{"survivor": 1}}, sync={sync_mode!r})
         space.add(S.survivor(1))
@@ -519,7 +520,7 @@ def test_a_journal_migration_cannot_replace_a_journal_another_process_holds(
         f"""
         import sys
         from metta import S
-        from metta._persistent import PersistentFactSpace
+        from metta.foreign._persistent import PersistentFactSpace
 
         space = PersistentFactSpace({str(journal)!r}, {{"old": 1}}, sync="flush")
         space.add(S.old(S.first))
@@ -720,7 +721,7 @@ def test_incomplete_terminal_record_is_backed_up_and_removed(tmp_path, caplog): 
     with journal.open("ab") as stream:
         stream.write(incomplete_tail)
 
-    with caplog.at_level(logging.WARNING, logger="metta._persistent"):
+    with caplog.at_level(logging.WARNING, logger="metta.foreign._persistent"):
         recovered = PersistentFactSpace(journal, {"edge": 2}, sync="close")
     try:
         assert list(recovered.atoms()) == prefix_facts
@@ -748,7 +749,7 @@ def test_tail_backup_is_durable_before_truncation(tmp_path, monkeypatch):  # noq
         synced.append("directory" if stat.S_ISDIR(mode) else "file")
         real_fsync(descriptor)
 
-    monkeypatch.setattr("metta._persistent.os.fsync", record_fsync)
+    monkeypatch.setattr("metta.foreign._persistent.os.fsync", record_fsync)
     recovered = PersistentFactSpace(journal, {"edge": 2}, sync="close")
     recovered.close()
 

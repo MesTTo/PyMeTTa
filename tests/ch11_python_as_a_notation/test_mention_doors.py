@@ -7,7 +7,7 @@ Guarantees:
     unknown or shadowed host calls refuse without execution [tested:
     test_bare_callees_ask_exact_then_mapped,
     test_rejected_attributes_never_execute_host_objects; commit=6b77b811c44e1819ed9cd99f3809c0667f289e2e]
-  - the runtime fn namespace and its typed stub come from one deterministic
+  - the runtime fn namespace and its inline typing declaration come from one deterministic
     catalog snapshot [tested: test_the_fn_namespace_is_generated;
     commit=6b77b811c44e1819ed9cd99f3809c0667f289e2e]
   - INTERNAL catalog names remain exact S/fn mentions but are absent from the
@@ -43,7 +43,8 @@ import pytest
 
 import metta as metta_package
 from metta import Expression, S, V, Variable, fn
-from metta.errors import CompileError
+from metta._declare.functions import _is_catalogued
+from metta._errors.errors import CompileError
 from metta.vocabularies import EffectClass
 
 
@@ -361,9 +362,9 @@ def test_the_fn_namespace_is_generated(repo_root: Path):
     with pytest.raises(AttributeError, match="no target function"):
         getattr(fn, missing)
 
-    stub = (repo_root / "extensions" / "python" / "metta" / "_fn.pyi").read_text(encoding="utf-8")
-    assert "car_atom: Symbol" in stub
-    assert "def __getattr__" not in stub
+    declaration = (repo_root / "extensions/python/metta/_catalog/fn.py").read_text(encoding="utf-8")
+    assert "car_atom: Symbol" in declaration
+    assert "def __getattr__" not in declaration
 
     manifest = tomllib.loads((repo_root / "pyproject.toml").read_text(encoding="utf-8"))
     assert "*.pyi" in manifest["tool"]["setuptools"]["package-data"]["metta"]
@@ -374,7 +375,7 @@ def test_the_fn_namespace_is_generated(repo_root: Path):
             sys.executable,
             "-c",
             "import sys; from metta import fn; "
-            "assert 'metta._engine' not in sys.modules; print(fn.car_atom)",
+            "assert 'metta._binding.runtime' not in sys.modules; print(fn.car_atom)",
         ],
         cwd=repo_root,
         env=environment,
@@ -401,18 +402,51 @@ def test_internal_catalog_names_stay_exact_but_leave_public_outputs(repo_root: P
     for name in internal:
         assert fn[name] == S[name]
 
-    stub = (repo_root / "extensions" / "python" / "metta" / "_fn.pyi").read_text(
+    declaration = (repo_root / "extensions/python/metta/_catalog/fn.py").read_text(
         encoding="utf-8"
     )
     aliases = {name.replace("-", "_").removesuffix("!") for name in internal}
     for alias in aliases:
-        assert f"    {alias}:" not in stub
+        assert f"    {alias}:" not in declaration
 
     reference = (
         repo_root / "website" / "reference" / "stdlib-phrasebook.md"
     ).read_text(encoding="utf-8")
     for name in internal:
         assert f"`{name}`" not in reference
+
+
+def test_function_catalog_changes_reach_runtime_and_closed_declarations(repo_root, tmp_path, monkeypatch):
+    """Each generated half rejects drift, with aliases and visibility independent."""
+    monkeypatch.syspath_prepend(str(repo_root / "extensions/python/tools"))
+    generator = importlib.import_module("fngen")
+    names = ["fixture-head", "fixture_head", "hidden-head"]
+    visibility = {name: "INTERNAL" if name == "hidden-head" else "PUBLIC" for name in names}
+    module = tmp_path / "fn.py"
+    monkeypatch.setattr(generator, "MODULE", module)
+    monkeypatch.setattr(generator, "catalog_snapshot", lambda: (names, visibility))
+    assert generator.main(["--write"]) == 0
+    assert generator.main([]) == 0
+    generated = module.read_text()
+    assert "fixture_head: Symbol" in generated
+    assert "hidden_head: Symbol" not in generated
+    assert "def __getattr__" not in generated
+    assert not module.with_suffix(".pyi").exists()
+    namespace = {"__name__": "fixture_fn"}
+    exec(compile(generated, str(module), "exec"), namespace)
+    assert namespace["fn"].fixture_head == S["fixture-head"]
+    assert namespace["fn"]["fixture_head"] == S["fixture_head"]
+    assert namespace["fn"]["hidden-head"] == S["hidden-head"]
+    for fragment in ("        fixture_head: Symbol\n", '        ("fixture_head", "fixture-head"),\n'):
+        assert fragment in generated
+        module.write_text(generated.replace(fragment, "", 1))
+        assert generator.main([]) == 1
+    module.write_text(generated)
+    names.append("another-head")
+    visibility["another-head"] = "PUBLIC"
+    assert generator.main([]) == 1
+    assert generator.main(["--write"]) == 0
+    assert "another_head: Symbol" in module.read_text()
 
 
 def test_generated_aliases_keep_exact_only_spellings_on_the_bracket_door():
@@ -426,7 +460,7 @@ def test_generated_aliases_keep_exact_only_spellings_on_the_bracket_door():
     the underscored one does not round-trip through `attribute_name` and is
     dropped rather than made ambiguous.
     """
-    from metta._name_mapping import generated_aliases
+    from metta._atoms.names import generated_aliases
 
     assert generated_aliases(
         ["same-name", "same_name", "mixedCase", "pragma!", "try"]
@@ -503,7 +537,7 @@ def test_a_defined_and_a_bound_function_mention_as_their_head():
     the explicit box.
     """
     from metta import G, MeTTa, S
-    from metta.atoms import Grounded
+    from metta._atoms.factories import Grounded
 
     m = MeTTa().self
 
@@ -531,9 +565,9 @@ def test_catalogue_membership_answers_the_builtins_union(metta):
     """
     names = metta.builtins()
     assert names
-    missing = [n for n in names if not metta._is_catalogued(n)]
+    missing = [n for n in names if not _is_catalogued(metta, n)]
     assert missing == []
-    assert not metta._is_catalogued("no-such-catalogue-name-xyz")
+    assert not _is_catalogued(metta, "no-such-catalogue-name-xyz")
     # A special form resolves at the attribute door exactly as before.
     assert metta.fn["collapse"] is not None
     import pytest

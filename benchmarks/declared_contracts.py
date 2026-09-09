@@ -46,6 +46,7 @@ from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 
 from metta import MeTTa, Space
+from metta._spaces import evaluate as _space_evaluate
 
 
 @dataclass(frozen=True)
@@ -140,7 +141,7 @@ def _compiled_runner(space: Space, arm: str, calls: int) -> Callable[[], Sample]
 
     def run() -> Sample:
         with space.stats() as stats:
-            value = space._one(source)
+            value = _space_evaluate.one(space, source)
         if arm.endswith("number-drive"):
             if value != 1:
                 message = f"{arm} answered {value!r}, expected 1"
@@ -161,7 +162,7 @@ def _reflective_runner(
         value: object | None = None
         with space.stats() as stats:
             for _ in range(calls):
-                value = space._one(source)
+                value = _space_evaluate.one(space, source)
         _assert_value(value, arm)
         return Sample(int(stats.inferences), float(stats.cputime))
 

@@ -11,8 +11,8 @@ from collections import Counter
 import pytest
 
 from metta import S
+from metta._errors.errors import EngineError, InferenceLimitError, TimeLimitError
 from metta.algebra import AlgebraOperationError, evaluate
-from metta.errors import EngineError, InferenceLimitError, TimeLimitError
 
 
 @pytest.mark.parametrize("phase", ["fact", "rule", "input", "result"])

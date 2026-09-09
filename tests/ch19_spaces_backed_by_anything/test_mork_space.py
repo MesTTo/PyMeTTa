@@ -19,7 +19,7 @@ from pathlib import Path
 import pytest
 
 from metta import S, V, ground, parse
-from metta.errors import EngineError
+from metta._errors.errors import EngineError
 from metta.foreign import SpaceProvider, register_provider
 
 _MORKLIB = (

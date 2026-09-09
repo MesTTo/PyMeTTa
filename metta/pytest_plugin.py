@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import pytest
 
-from ._space import Space
+from metta._faces.space import Space
 
 
 @pytest.fixture(scope="session")

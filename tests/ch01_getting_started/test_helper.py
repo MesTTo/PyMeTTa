@@ -10,7 +10,7 @@ import uuid
 
 import pytest
 
-from metta.errors import EngineError
+from metta._errors.errors import EngineError
 
 
 def _silent_state(runtime):

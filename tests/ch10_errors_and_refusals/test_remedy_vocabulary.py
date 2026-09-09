@@ -31,7 +31,7 @@ import pickle
 import pytest
 
 from metta import Grounded, S, V
-from metta.errors import APPLICABILITIES, GROUND_KINDS, REMEDY_KINDS, Ground, Remedy
+from metta._errors.errors import APPLICABILITIES, GROUND_KINDS, REMEDY_KINDS, Ground, Remedy
 
 _TITLE = Grounded("t")
 

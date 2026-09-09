@@ -13,7 +13,7 @@ Owns resources: one named family space; drop() releases it after all carrier
 from _common import claim, doctest, done
 
 from metta import MeTTa, S, V, counting, match, prob, prov, ranked, tropical
-from metta.atoms import substitute
+from metta._atoms.factories import substitute
 
 
 def family_ancestor(ancestor, descendant):

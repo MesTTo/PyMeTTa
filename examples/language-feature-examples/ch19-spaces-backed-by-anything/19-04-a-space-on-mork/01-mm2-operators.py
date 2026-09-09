@@ -16,7 +16,7 @@ Open Obligations:
 from pathlib import Path
 
 from metta import S, V, lib
-from metta.errors import MettaError
+from metta._errors.errors import MettaError
 
 _REPO = Path(__file__).resolve().parents[6]
 LIBMORK = _REPO / Path("extensions/mork/mork_ffi/target/release/libmork_ffi.so")

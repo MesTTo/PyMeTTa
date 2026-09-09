@@ -43,7 +43,7 @@ from threading import Barrier, Lock
 import pytest
 
 from metta import Expression, MeTTa, S, State, V
-from metta.errors import MettaResultError
+from metta._errors.errors import MettaResultError
 
 _REPOSITORY = Path(__file__).resolve().parents[4]
 

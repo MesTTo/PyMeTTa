@@ -110,10 +110,9 @@ import sys
 from collections.abc import Callable, Iterable, Iterator, Mapping
 from typing import Any, Protocol, cast
 
-from . import seam
-from ._api_types import SpaceLike
-from ._atom_wire import _atom_from_wire
-from .atoms import (
+from metta import seam
+from metta._atoms.designation import SpaceLike
+from metta._atoms.factories import (
     Atom,
     Expression,
     Grounded,
@@ -125,8 +124,9 @@ from .atoms import (
     ground,
     substitute,
 )
-from .convert import auto_image, project
-from .foreign import SpaceProvider
+from metta._atoms.wire import _atom_from_wire
+from metta.convert import auto_image, project
+from metta.foreign import SpaceProvider
 
 _ATOM_CELL_PREFIX = "\x00metta-atom-v1\x00"
 _NO_GROUNDED_VALUE = object()
@@ -196,7 +196,7 @@ def add(space: SpaceLike, head: Any, data: Any) -> int:
 
 def _add_arrow_stream(space: Any, head_atom: Atom, data: Any) -> int:
     """Write one Arrow stream's record batches as facts, a batch per write."""
-    from ._arrow import read_batches  # noqa: PLC0415  -- the optional Arrow extra
+    from metta._catalog.arrow import read_batches  # noqa: PLC0415  -- the optional Arrow extra
 
     _names, batches = read_batches(data)
     written = 0
@@ -657,7 +657,7 @@ class TableBridge(SpaceProvider):
         image catalog, so the stream carries exactly the values `atoms()`
         would have built atoms from.
         """
-        from ._arrow import Projection  # noqa: PLC0415  -- the one projection
+        from metta._catalog.arrow import Projection  # noqa: PLC0415  -- the one projection
 
         names = self._shapes[0].column_names()
         for shape in self._shapes[1:]:
@@ -678,7 +678,9 @@ class TableBridge(SpaceProvider):
 
     def __arrow_c_schema__(self):
         """The declared columns as an "arrow_schema" PyCapsule."""
-        from ._arrow import schema_capsule  # noqa: PLC0415  -- the optional Arrow extra
+        from metta._catalog.arrow import (  # noqa: PLC0415 -- the optional Arrow extra
+            schema_capsule,
+        )
 
         return schema_capsule(self._projection())
 
@@ -702,7 +704,9 @@ class TableBridge(SpaceProvider):
         opt-in; polars and pyarrow read on the calling thread and need
         neither.
         """
-        from ._arrow import stream_capsule  # noqa: PLC0415  -- the optional Arrow extra
+        from metta._catalog.arrow import (  # noqa: PLC0415 -- the optional Arrow extra
+            stream_capsule,
+        )
 
         return stream_capsule(self._projection(), requested_schema)
 

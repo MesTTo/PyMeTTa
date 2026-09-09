@@ -51,8 +51,11 @@ from hypothesis import HealthCheck, settings  # noqa: E402
 from hypothesis.stateful import initialize, run_state_machine_as_test  # noqa: E402
 
 import metta as metta_package  # noqa: E402
-from metta import S, testing  # noqa: E402
-from metta.errors import MettaError  # noqa: E402
+from metta import (  # noqa: E402 -- import follows its initialization prerequisite
+    S,
+    testing,
+)
+from metta._errors.errors import MettaError  # noqa: E402
 from metta.foreign import SpaceProvider  # noqa: E402
 
 #: Short random walks check passing providers. Planted providers exercise

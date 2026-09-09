@@ -8,7 +8,7 @@ Guarantees:
   - a record field's attribute docstring becomes that constructor parameter's
     description [tested: test_record_attribute_docstrings_describe_parameters;
     commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
-  - generated fn mentions carry offline runtime and stub documentation [tested:
+  - generated fn mentions carry offline runtime and typing documentation [tested:
     test_generated_fn_help_is_offline; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
 Open Obligations:
   To Do: None
@@ -139,10 +139,10 @@ def test_record_attribute_docstrings_describe_parameters() -> None:
 
 
 def test_generated_fn_help_is_offline() -> None:
-    """Generated mentions and stubs carry inert catalog documentation."""
+    """Generated mentions and declarations carry inert catalog documentation."""
     source = (
         "import json\n"
-        "from metta import _engine, fn\n"
+        'from metta import fn\nimport metta._binding.runtime as _engine\n'
         "print(json.dumps([_engine.started(), fn.car_atom.__doc__, "
         "_engine.started()]))\n"
     )
@@ -159,8 +159,8 @@ def test_generated_fn_help_is_offline() -> None:
     assert "head" in completed.stdout.lower()
     assert completed.stdout.rstrip().endswith("false]")
 
-    stub = Path(__file__).parents[2] / "metta" / "_fn.pyi"
-    text = stub.read_text(encoding="utf-8")
-    marker = "    car_atom: Symbol\n"
+    declaration = Path(__file__).parents[2] / "metta/_catalog/fn.py"
+    text = declaration.read_text(encoding="utf-8")
+    marker = "        car_atom: Symbol\n"
     assert marker in text
-    assert text[text.index(marker) + len(marker) :].startswith('    "')
+    assert text[text.index(marker) + len(marker) :].startswith('        "')

@@ -14,8 +14,8 @@ import pytest
 
 import metta
 from metta import MeTTa, S, V
-from metta._engine import bridge
-from metta.errors import MettaSyntaxError
+from metta._binding.runtime import bridge
+from metta._errors.errors import MettaSyntaxError
 
 
 def quote(value: str) -> str:

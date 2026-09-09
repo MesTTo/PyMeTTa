@@ -44,7 +44,7 @@ import time
 import pytest
 
 from metta import MeTTa
-from metta.errors import EngineError, ResourceLimitError, TimeLimitError
+from metta._errors.errors import EngineError, ResourceLimitError, TimeLimitError
 
 
 def test_a_bounded_abort_leaves_the_next_contexts_stack_bound_working():

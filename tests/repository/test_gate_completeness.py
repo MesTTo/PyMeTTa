@@ -6,11 +6,10 @@ generated Prolog contains no cut, Ruff's added families remain enabled with
 reviewed line-level suppressions, and the compiler still threads its state by
 hand because measuring the DCG alternative said to.
 Assumes:
-    - the repository root is two directories above this file, the same way
-      test_example_parity.py derives it
-    - `m.disassemble/1` answers the Prolog text a MeTTa equation compiled
-      to [source: extensions/python/metta/space.py:MeTTa.disassemble;
-      commit=f88aa8be03cb64cb59d3307515ded8701f418321]
+    - REPO locates the repository through this file's ancestry
+    - `_disassemble` answers the Prolog text a MeTTa equation compiled
+      to [source: extensions/python/metta/_declare/functions.py:722;
+      commit=WORKTREE]
 Guarantees:
     - carrier type keywords retain their explicit public spelling
       [tested: test_the_ruff_configuration_enables_every_family_or_records_why_not; commit=074dc0a88b1605c54824de677d586b6f60998bcf]
@@ -48,6 +47,8 @@ from collections import Counter
 from pathlib import Path
 
 import pytest
+
+from metta._declare import functions as _space_functions
 
 REPO = Path(__file__).resolve().parents[4]
 PYTHON_ROOT = REPO / "extensions" / "python"
@@ -103,7 +104,11 @@ RUFF_FAMILY_BURN_DOWN = {
     # engine's word rather than one this package chose. Seven keyword heads
     # (`not`, `and`, `or`, `if`, `assert`, `except`, `return`) joined them by
     # PEP 8's trailing underscore and need no suppression.
-    "N": 53,
+    # 53 -> 62: nine Python protocol bodies now live as marked module
+    # functions. Their __len__/__iter__/mutation spellings remain exact.
+    # Generated callback protocols use self and a positional body receiver,
+    # so their signatures introduce no naming exemption.
+    "N": 62,
     # 8 -> 10 for metta.strategies: `id` and `all` must be the exact public
     # strategy atoms, while each line carries the narrow A001 explanation.
     # 10 -> 12 with the compiled-statement scenarios: two refused-or-compiled
@@ -141,7 +146,10 @@ RUFF_FAMILY_BURN_DOWN = {
     # commit=0fb68d75871c57f2421c335e9faef3561f8dfdd5]
     # 28 -> 35 for row projections: public eval/type bindings, eval overloads,
     # and the repeated filter, format and type parameters keep their names.
-    "A": 35,
+    # 35 -> 43: the five eval declarations and type body moved from methods
+    # to module functions; the root's typed exports also name bool and set.
+    # These eight sites preserve existing public spellings.
+    "A": 43,
     # 2112 -> 2114 at the p12-space-model merge: its two new test modules
     # carry the repository's obligation-header docstring convention, whose
     # Purpose/Guarantees block is a deliberate per-line D205 suppression.
@@ -334,7 +342,10 @@ RUFF_FAMILY_BURN_DOWN = {
     # through the provider and the protocol names the parameter.
     # 152 -> 154: RemoteCursor's private __exit__ body keeps the public
     # exception triple; Ruff no longer recognizes that private name as a hook.
-    "ARG": 154,
+    # 154 -> 152: the cursor's exception triple is a protocol method again.
+    # Context-wide doors name an unused body receiver _space; their public
+    # methods still expose self through the generated signature.
+    "ARG": 152,
     # The evaluation batch retains each acquired cursor before acquiring the
     # next one, so a failed acquisition can release the complete prefix.
     "PERF": 1,
@@ -588,7 +599,7 @@ def test_a_generated_clause_carries_no_cut(metta):
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     metta.run("(= (metta-cut-probe 0) zero)")
     metta.run("(= (metta-cut-probe $x) other)")
-    compiled = metta._disassemble("metta-cut-probe")
+    compiled = _space_functions._disassemble(metta, "metta-cut-probe")
     assert "!" not in compiled, f"a generated clause contains a cut:\n{compiled}"
     answers = [str(a) for group in metta.run("!(metta-cut-probe 0)") for a in group]
     assert answers == ["zero", "other"], (

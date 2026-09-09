@@ -633,7 +633,7 @@ def test_a_retired_name_is_a_finding_naming_its_replacement(tmp_path):
         '"""Doc."""\n'
         "import metta\n"
         "from metta import Expr, S, alpha_eq, sym, val, var\n"
-        "from metta.atoms import _HERE as HERE\n"
+        "from metta._atoms.factories import _HERE as HERE\n"
         "BUDGET = 1\n"
         "def twin(m):\n"
         '    kb = m.new_space("&kb")\n'

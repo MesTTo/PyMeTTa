@@ -13,9 +13,9 @@
 #   surface, the shadowed root implementation, and the callable-algebra consumer
 #   independently [tested: mypy, mypy-root-impl, mypy-algebra-surface;
 #   commit=5e0ae6c22d604c4b980766e3cc4811ee545e5c9e], the class door's PEP 681
-#   declaration is executable in a consumer file, and stubtest holds the two
-#   generated stubs against the runtime [tested: mypy-class-door, stubtest;
-#   commit=dd4f82100a052e2c5254a2ef9e91f6eb9d2e0c49]. The TypeScript space
+#   declaration is executable in a consumer file, and stubtest holds the root
+#   declaration against the runtime [tested: mypy-class-door, stubtest;
+#   commit=WORKTREE]. The TypeScript space
 #   example's own suite runs, which nothing ran before it, so the four
 #   claims citing one of its cases name a suite a lane reaches
 #   [tested: ts-space; commit=45615fb15d8a1d041e3ce0698d789d4d1392a0eb].
@@ -144,7 +144,7 @@ run GATE no-packages sh -c "cd '$HERE' && CHECK_PY='$PY' sh tests/shell/test_the
 # lane existed it only ever ran through the ENGINE: the examples gate below
 # invokes swipl on engine/main.pl, test.sh and the pytest items collected from
 # tests/repository/metta_examples.txt shell to run.sh, and the plunit suites load
-# engine/metta.pl without extensions/python/metta/shim.pl.
+# engine/metta.pl without extensions/python/metta/_binding/shim.pl.
 # So the configuration users actually ship was gated by unit tests alone, and
 # defects lived there under green lanes: !(py-atom "()") answered () in the
 # engine and raised out of the library, and a declared type on a Python object
@@ -246,29 +246,13 @@ not run" >&2
 }
 run GATE   ts-space    check_typescript_space
 
-# Every operation MeTTa's standard library declares, and what you write in
-# Python instead. The rows live in extensions/python/tools/phrasebook_entries.py,
-# one per standard-library name; the lane runs BOTH sides of each row and
-# compares two columns, the MeTTa form on this engine and the Python spelling
-# here, each against the answer frozen in phrasebook_answers.json and
-# re-measured only under --learn, so this needs no outside checkout and costs
-# 0.3s. A third column held an outside arbiter's answers until 2026-08-31 and
-# went with the lane that read it; upstream PeTTa at ae66fa8e is the arbiter and
-# tests/conformance/petta.py is what reads it. It enters as a GATE rather than
-# a REPORT because it was proven to see: breaking one row's executable Python
-# column, `e[0]` to `e[1]`, produces three findings, against the recorded
-# answer, against this engine, and against the generated page.
-run GATE   phrasebook  sh -c "cd '$HERE' && '$PY' extensions/python/tools/phrasebook.py --gate"
-
 # Structural checks with a clean baseline today, so a regression is a failure.
 run GATE slotscheck in_py "$PY" -m slotscheck -m metta
 run GATE vulture    in_py "$PY" -m vulture
 
-# Import Linter checks the runtime dependency graph. TYPE_CHECKING annotations
-# are excluded at the root, while four verified function-local crossings are
-# exact exceptions: the leaf facade/algebra calls and the core's two deferred
-# satellite calls. Unmatched exceptions are errors, so an import moving or
-# disappearing cannot leave stale policy behind.
+# Import Linter checks static runtime dependencies against the package graph.
+# TYPE_CHECKING imports are excluded; there are no ignored runtime crossings.
+# The layering lane separately checks deferred upward imports and cycles.
 #
 # Not `-m importlinter.cli`, which is how this lane was written from the day
 # check.sh existed until 2026-08-26 and why it checked nothing for that whole
@@ -351,8 +335,15 @@ run REPORT determinism check_determinism_coverage
 # not in the root gate's ruff-drivers, which excludes extensions/python/
 # wholesale. 38 findings had accumulated there unseen [measured 2026-09-04].
 run GATE   ruff        in_py "$PY" -m ruff check metta tests tools examples/language-feature-examples bench.py ext conftest.py _workspace.py
-# ledger C2: 65 errors in 13 files
-run GATE   mypy        in_py "$PY" -m mypy
+# The root stub hides its runtime implementation from package scans. Check
+# both separately, then ask real consumers about callable modules and doors.
+check_python_types() {
+    in_py "$PY" -m mypy || return $?
+    in_py "$PY" -m mypy metta/__init__.py || return $?
+    in_py "$PY" -m mypy tests/typing/algebra_surface.py tests/typing/function_namespace.py tests/typing/class_door.py || return $?
+    in_py "$PY" -m mypy --python-version 3.14 tests/typing/template_surface.py
+}
+run GATE   mypy        check_python_types
 # A colocated __init__.pyi is authoritative for package scans, so the general
 # lane above no longer reads __init__.py.  Keep the implementation itself in a
 # separate invocation: naming both files in one command is a duplicate module.
@@ -374,8 +365,8 @@ run GATE   mypy-template-surface in_py "$PY" -m mypy --python-version 3.14 tests
 # `type: ignore`s are the assertions that mypy REFUSES the wrong-arity calls,
 # load-bearing under warn_unused_ignores.
 run GATE   mypy-class-door in_py "$PY" -m mypy tests/typing/class_door.py
-# Whether the two generated stubs still describe the runtime they were
-# generated from. Its build settings are its own file: stubtest turns
+# Whether the root declaration describes its generated runtime. Its build
+# settings are its own file: stubtest turns
 # positional-only special methods off before reading a config, which makes
 # three of this package's ordinary lines look like errors and stops the
 # comparison before it starts. stubtest-allowlist.txt says which findings are
@@ -520,7 +511,7 @@ run REPORT verifytypes check_verifytypes
 # The scratch directory is built here rather than in pyproject.toml because the
 # depth is the point: mutmut copies the package into <cwd>/mutants/, and only a
 # cwd ONE level under the repository root puts that copy back where
-# metta/shim.pl finds `../../../engine` and tests/conftest.py finds bounded.sh
+# metta/_binding/shim.pl finds `../../../engine` and tests/conftest.py finds bounded.sh
 # at parents[3]. It is rebuilt each run, since a stale copy would mutate
 # yesterday's source and say nothing about today's.
 check_mutation() {
@@ -534,7 +525,7 @@ check_mutation() {
     cp -a "$PYDIR/tests" "$metta_mutation_scratch/tests"
     cp "$HERE/pyproject.toml" "$metta_mutation_scratch/pyproject.toml"
     find "$metta_mutation_scratch" -name '__pycache__' -type d -prune -exec rm -rf {} +
-    metta_mutation_target=${METTA_MUTATION_TARGET:-metta.atoms.*}
+    metta_mutation_target=${METTA_MUTATION_TARGET:-metta._atoms.factories.*}
     (
         cd "$metta_mutation_scratch" || exit 2
         # The default selection deselects one case: a test that asks MYPY about

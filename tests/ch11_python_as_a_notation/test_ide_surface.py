@@ -34,9 +34,10 @@ from typing import override
 
 import pytest
 
-from metta._declarations import declarations
-from metta._stubs import stubs
-from metta.errors import CompileError
+from metta._catalog.declarations import declarations
+from metta._declare import functions as _space_functions
+from metta._declare.stubs import stubs
+from metta._errors.errors import CompileError
 
 _PACKAGE_ROOT = Path(__file__).resolve().parents[2]
 
@@ -116,8 +117,8 @@ def test_override_holds_for_every_clause_of_the_definition_it_declared(metta, ba
 def test_an_engine_builtin_is_not_something_to_override(metta):
     """`fun_here_in/2` admits every builtin; the shadow question must not."""
     space = metta._new_space()
-    assert not space._is_function_inherited("+")
-    assert not space._is_function_inherited("ide-nothing-of-this-name")
+    assert not _space_functions._is_function_inherited(space, "+")
+    assert not _space_functions._is_function_inherited(space, "ide-nothing-of-this-name")
 
 
 def test_declarations_carry_arrows_arities_and_documentation(metta):
@@ -181,7 +182,7 @@ def test_the_stub_projects_the_type_table(metta):
     # Only what the annotations mention is imported.
     assert "from collections.abc import Callable" in text
     assert "from typing import Any" in text
-    assert "from metta.atoms import Atom, Expression, Grounded, Symbol, Variable" in text
+    assert "from metta._atoms.factories import Atom, Expression, Grounded, Symbol, Variable" in text
 
 
 def test_a_declared_type_becomes_a_class_with_its_constructor(metta):

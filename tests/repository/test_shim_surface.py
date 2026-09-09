@@ -43,7 +43,7 @@ Open Obligations:
 import re
 
 import metta
-import metta._prelude
+import metta._declare.prelude
 
 #: Every published host_service, exactly as declared. Deleting a row here
 #: must accompany deleting its declaration (the shrink working as
@@ -503,9 +503,9 @@ def test_the_prelude_names_are_what_install_registers():
     import ast
     from pathlib import Path
 
-    from metta._prelude import NAMES
+    from metta._declare.prelude import NAMES
 
-    source = Path(metta._prelude.__file__).read_text(encoding="utf-8")
+    source = Path(metta._declare.prelude.__file__).read_text(encoding="utf-8")
     tree = ast.parse(source)
     install = next(
         node
@@ -537,7 +537,7 @@ def test_the_binding_heads_are_heads_the_engine_knows(metta):
     than a special form and binds all the same, which is why the roster this
     reads is both.
     """
-    from metta._lint_analysis import _BINDING_HEADS
+    from metta.lint._analysis import _BINDING_HEADS
 
     known = set(
         metta.runtime.must(
@@ -558,7 +558,7 @@ def test_the_metatypes_are_the_engines_own(metta):
     this lint could contradict.
     """
     from metta import G, S
-    from metta._lint_analysis import _METATYPES
+    from metta.lint._analysis import _METATYPES
 
     answered = {
         str(metta.eval(S["get-metatype"](subject))[0])

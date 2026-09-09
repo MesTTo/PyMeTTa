@@ -10,11 +10,11 @@ Assumes:
   - metta.remote._refuse_this_process holds the registry of this process's
     live servers, takes the addresses a caller is about to serve, and raises
     MettaError for a URL either set covers; the manifest calls it rather than
-    repeating it [source: metta/remote.py _refuse_this_process;
-    commit=57f21ba9edf94bcf28cde11f938bce2c241a3709]
+    repeating it [source: extensions/python/metta/remote/_transport.py:304 _refuse_this_process;
+    commit=WORKTREE]
   - metta.remote._raise_failures raises one failure on its own and several
     as a BaseExceptionGroup, the shape Server.close() already gives a
-    caller [source: metta/remote.py _raise_failures; commit=57f21ba9edf94bcf28cde11f938bce2c241a3709]
+    caller [source: extensions/python/metta/remote/_transport.py:261 _raise_failures; commit=WORKTREE]
 Guarantees:
   - the vocabulary is closed (load, attach, bridge, serve) and every form
     is validated before ANY form performs; a bad manifest changes nothing
@@ -68,12 +68,14 @@ from collections.abc import Callable, Iterable, Mapping
 from pathlib import Path
 from typing import Any, Self, cast
 
-from . import remote as _remote
-from . import tables as _tables
-from ._engine import runtime
-from ._space import Space
-from .atoms import Atom, Expression, Grounded, Symbol, _expr, parse
-from .errors import MettaError
+import metta.remote as _remote
+import metta.remote._transport as _remote_transport
+import metta.tables as _tables
+from metta._atoms.factories import Atom, Expression, Grounded, Symbol, _expr, parse
+from metta._binding.runtime import runtime
+from metta._declare.declarations import _register_space
+from metta._errors.errors import MettaError
+from metta._faces.space import Space
 
 _VOCABULARY = ("load", "attach", "bridge", "serve")
 
@@ -186,7 +188,7 @@ def _served_addresses(
     are known before the attach forms perform; handing them to the guard is
     what makes an attach form refused whether it stands above or below the
     serve form that binds its port
-    [source: metta/remote.py _refuse_this_process; commit=57f21ba9edf94bcf28cde11f938bce2c241a3709].
+    [source: extensions/python/metta/remote/_transport.py:304 _refuse_this_process; commit=WORKTREE].
     """
     return tuple(
         (host, cast(Grounded, directive.children[2]).value)
@@ -247,7 +249,7 @@ class Boot:
         """
         failures = _close_all(self.servers)
         if failures:
-            _remote._raise_failures("boot close failed", failures)
+            _remote_transport._raise_failures("boot close failed", failures)
 
     def __enter__(self) -> Self:  # noqa: D105  -- the Python data-model hook is defined by its name and enclosing type contract
         return self
@@ -319,7 +321,7 @@ def boot(
         if cleanup:
             # Two independent failures, so neither is the other's cause: the
             # form that failed, and the cleanup that could not finish after
-            # it. metta._saga.Saga.__exit__ carries the same pair the same way.
+            # it. metta._history.saga.Saga.__exit__ carries the same pair the same way.
             msg = "the boot form and the cleanup after it did not both complete"
             raise BaseExceptionGroup(msg, [failure, exc, *cleanup]) from None
         raise failure from exc
@@ -467,14 +469,14 @@ class _Assembler:
         The same refusal the direct attach method applies runs first.
         """
         name, url = str(arguments[0]), cast(Grounded, arguments[1]).value
-        # metta._space.MeTTa.space() calls this before it builds a RemoteSpace,
+        # metta._spaces.handle.MeTTa.space() calls this before it builds a RemoteSpace,
         # and calling it rather than repeating it is what keeps the two attach
         # paths under one law. A URL this process serves cannot be reached from
         # inside an evaluation, and remote.py holds both the live-server
         # registry that decides it and the reason.
-        _remote._refuse_this_process(url, name, self.pending)
+        _remote_transport._refuse_this_process(url, name, self.pending)
         remote_space = str(arguments[2]) if len(arguments) == 3 else "&self"
-        self.m._register_space(
+        _register_space(self.m,
             _remote.RemoteSpace(_remote.connect(url), remote_space), name
         )
 
@@ -489,7 +491,7 @@ class _Assembler:
         for declaration in self.declarations[name]:
             _tables.declare(self.m, name, declaration)
         provider = _tables.TableBridge.from_context(self.m, name, self.connections[name])
-        self.m._register_space(provider, name)
+        _register_space(self.m, provider, name)
 
     def abandon(self) -> list[BaseException]:
         """The failure path: stop every server this run started.

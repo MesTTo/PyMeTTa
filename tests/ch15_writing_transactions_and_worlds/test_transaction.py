@@ -23,7 +23,8 @@ Open Obligations:
 import pytest
 
 from metta import G, S, V, parse
-from metta.errors import EngineError, MettaResultError
+from metta._errors.errors import EngineError, MettaResultError
+from metta._spaces import evaluate as _space_evaluate
 
 
 @pytest.fixture()
@@ -67,7 +68,7 @@ def test_the_librarys_own_errors_pass_through_unchanged(m):  # noqa: D103  -- py
     m.run('(= (tx-err) (Error (tx-err) "boom"))')
 
     def body():
-        m._one("(tx-err)")
+        _space_evaluate.one(m, "(tx-err)")
 
     with pytest.raises(MettaResultError):
         m.transaction(body)
@@ -249,7 +250,7 @@ def test_a_rolled_back_registration_leaves_no_registry_claiming_it(m):
     """
     import importlib
 
-    ops = importlib.import_module("metta.ops")
+    ops = importlib.import_module("metta._declare.operations")
 
     def install():
         @m.op(effect="pureStructural")
@@ -295,7 +296,7 @@ def test_an_inner_registration_dies_with_the_outer_rollback(m):
     """Nesting follows SWI's rule: an inner commit is relative to its outer."""
     import importlib
 
-    ops = importlib.import_module("metta.ops")
+    ops = importlib.import_module("metta._declare.operations")
 
     def inner():
         @m.op(effect="pureStructural")

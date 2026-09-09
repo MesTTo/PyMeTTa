@@ -41,7 +41,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Any
 
-import metta_py
+import metta._binding.host as metta_py
 
 DEPTHS = (4, 16, 64)
 REPETITIONS = 5_000

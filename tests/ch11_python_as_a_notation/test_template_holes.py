@@ -30,8 +30,8 @@ from typing import Any
 import pytest
 
 from metta import Grounded, S, Symbol, V
-from metta._templates import BOUNDARY, HOLE_PREFIX
-from metta.atoms import parse
+from metta._atoms.factories import parse
+from metta._atoms.templates import BOUNDARY, HOLE_PREFIX
 
 needs_314 = pytest.mark.skipif(
     sys.version_info < (3, 14), reason="t-string literals are 3.14 syntax"
@@ -148,15 +148,16 @@ def test_a_hand_built_template_object_reaches_the_same_door(metta):
 
 
 def test_the_template_protocols_are_public_through_metta_atoms():
-    """The two protocols are `metta.atoms`' surface, not the package root's.
+    """The two protocols are `metta._atoms.factories`' surface, not the package root's.
 
     They name the type of the first argument of eight doors, so they have to
     be reachable; the root is held to a narrow-core count and a hole's markers
-    are the atom constructors this module already exports, so `metta.atoms` is
+    are the atom constructors this module already exports, so `metta._atoms.factories` is
     where they land. `_api_types` DEFINES them and publishes nothing.
     """
     import metta
-    from metta import _api_types, atoms
+    import metta._atoms.designation as _api_types
+    import metta._atoms.factories as atoms
 
     assert {"TemplateLike", "InterpolationLike"} <= set(atoms.__all__)
     assert atoms.TemplateLike is _api_types.TemplateLike

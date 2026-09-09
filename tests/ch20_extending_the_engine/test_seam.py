@@ -28,8 +28,8 @@ import importlib
 import pytest
 
 from metta import seam
-from metta.errors import EngineError
-from metta.results import Rows
+from metta._errors.errors import EngineError
+from metta._spaces.results import Rows
 
 
 @pytest.fixture

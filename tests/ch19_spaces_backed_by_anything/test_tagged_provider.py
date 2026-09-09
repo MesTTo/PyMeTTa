@@ -40,8 +40,8 @@ from metta import (
     under,
 )
 from metta import space as make_space
+from metta._errors.errors import EngineError, InferenceLimitError, TimeLimitError
 from metta.algebra import AlgebraOperationError, LinearEvidenceError, evaluate, require, tagged_rule
-from metta.errors import EngineError, InferenceLimitError, TimeLimitError
 from metta.foreign import SpaceProvider
 
 pytestmark = pytest.mark.usefixtures("metta")

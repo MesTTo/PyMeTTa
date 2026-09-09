@@ -161,7 +161,7 @@ def test_a_spent_budget_raises_and_a_raised_budget_delivers_more(metta):
     inside it, measured at 210 delivered one at a time against 191 chunked
     for the same 3000-inference budget.
     """
-    from metta.errors import InferenceLimitError
+    from metta._errors.errors import InferenceLimitError
 
     space = _fill(metta.metta, "&chunk_bounded", 5000)
 

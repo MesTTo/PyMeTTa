@@ -15,8 +15,9 @@ import sys
 
 import pytest
 
-from metta import MeTTa, S, V, aio
-from metta.errors import EngineError
+import metta.aio as _aio_surface
+from metta import MeTTa, S, V
+from metta._errors.errors import EngineError
 
 
 @pytest.mark.parametrize("suffix", ["fast", "fast.gz"])
@@ -146,7 +147,7 @@ def test_async_blame_keeps_the_synchronous_identity():
         with MeTTa() as context, context.space() as space:
             space.add(S.row(1), S.row(1))
             before = space.blame(S.row(1))
-            async with aio.AsyncMeTTa(metta=space) as mirrored:
+            async with _aio_surface.AsyncMeTTa(metta=space) as mirrored:
                 assert await mirrored.blame(S.row(1)) == before
                 await mirrored.remove(S.row(1))
                 assert await mirrored.blame(S.row(1)) == before[1:]

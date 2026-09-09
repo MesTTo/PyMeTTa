@@ -7,8 +7,11 @@ the process exits.
 
 from _common import check, done
 
-from metta import MeTTa, S, V, remote
-from metta.errors import MettaError, is_transport_failure
+import metta.remote._client as _moved_metta_remote__client
+import metta.remote._gateway as _moved_metta_remote__gateway
+import metta.remote._transport as _moved_metta_remote__transport
+from metta import MeTTa, S, V
+from metta._errors.errors import MettaError, is_transport_failure
 
 check("a backend outage is a transport failure", is_transport_failure(ConnectionError("down")))
 check("an application refusal is not a transport failure", not is_transport_failure(ValueError("bad row")))
@@ -19,7 +22,7 @@ with MeTTa() as context:
     served_name = str(served.name)
     seen_requests = []
 
-    def read_only(request: remote.Request) -> bool:
+    def read_only(request: _moved_metta_remote__gateway.Request) -> bool:
         """Admit health and reads of one named space; refuse every write."""
         seen_requests.append((request.operation, request.space))
         return request.operation == "health" or (
@@ -27,15 +30,15 @@ with MeTTa() as context:
             and request.operation in {"match", "atoms", "ask", "next", "stop"}
         )
 
-    with remote.serve(
+    with _moved_metta_remote__gateway.serve(
         served,
         spaces=[served_name],
         authorize=read_only,
         cursor_idle=30,
         cursor_limit=1,
     ) as server:
-        transport = remote.connect(server.url, timeout=5)
-        client = remote.RemoteSpace(transport, served_name)
+        transport = _moved_metta_remote__transport.connect(server.url, timeout=5)
+        client = _moved_metta_remote__client.RemoteSpace(transport, served_name)
         capabilities = client.server_capabilities()
         check("the client can inspect the server before writing", capabilities["bound"])
 

@@ -4,12 +4,12 @@
 # findings not findings. An entry that stops matching is reported as unused,
 # so a group that becomes wrong says so.
 #
-# The lane's subject is the two GENERATED stubs, metta/__init__.pyi and
-# metta/_fn.pyi, and whether they still describe the runtime they were
-# generated from.
+# The lane compares the root declaration, metta/__init__.pyi, with the
+# runtime generated from it. The function namespace uses an inline Protocol;
+# the mypy consumer lane checks its declared calls.
 
-# 1. Every module that ships no stub of its own, which is all of them but the
-#    two above. stubtest compares such a module with ITSELF and then reports
+# 1. Every module below the root ships no stub of its own. stubtest compares
+#    such a module with ITSELF and then reports
 #    what source text cannot state about a live object: a NamedTuple is not a
 #    tuple subclass, a TypeAlias "is not a type", an overload's implementation
 #    takes defaults its overloads do not, a decorator changes a callable's
@@ -17,26 +17,10 @@
 #    __replace__ and PEP 695's __type_params__ exist at run time and not in
 #    typeshed's model of them. 109 of the 138 findings on 2026-09-07 were
 #    these, and none of them is about a stub.
-(?!metta\._fn\b)metta\.[A-Za-z_]+\..*
+metta\.[A-Za-z_]+\..*
 
-# 2. The root stub's lazily reached names. `import metta` stays narrow: a
-#    satellite arrives through __getattr__ on first access and the stub
-#    deliberately declares no member for it, so the runtime exports names the
-#    stub does not. metta.__all__ names them and mypy resolves each to Any or
-#    to the submodule itself, which is the gap the `verifytypes` REPORT
-#    measures rather than something a stub declaration would settle here.
-metta\.__all__
-metta\.(aio|arrays|bool|catalog|convert|derivation|events|foreign|importing|integrate|library|lint|manifest|parallel|paths|reflection|remote|seam|set|spaces|structures|subscribe|tables|telemetry|testing|vocabularies)
-
-# 3. The root's overloaded doors. Their implementations take `None` defaults
+# 2. The root's overloaded doors. Their implementations take `None` defaults
 #    that no overload accepts, which is how an optional-argument decorator is
 #    written, and stubtest reads the pair as a disagreement. `engine` is
 #    @functools.cache, whose wrapper answers (*args, **kwargs) at run time.
 metta\.(define|op|engine)
-
-# 4. metta/_fn.pyi's generated namespace class. The runtime object is one
-#    _Namespace instance; the stub declares a class listing every safe alias
-#    explicitly, because a catch-all __getattr__ would erase typo checking on
-#    the closed catalog. The precision is the point of the file, and
-#    tests/typing/algebra_surface.py asserts the stub's type at the door.
-metta\._fn\.fn

@@ -10,7 +10,8 @@ from contextlib import contextmanager
 import pytest
 
 from metta import MeTTa, S
-from metta.errors import EngineError, SpaceCapabilityError
+from metta._declare import declarations as _space_declarations
+from metta._errors.errors import EngineError, SpaceCapabilityError
 from metta.foreign import SpaceProvider, TokenProvider
 from metta.testing import SpaceComplianceSuite
 
@@ -43,11 +44,11 @@ class TokenRows(SpaceProvider):
 def provider_space(m, provider):
     """Keep process-wide registration scoped to one test."""
     name = f"&occurrence-provider-{id(provider)}"
-    m.self._register_space(provider, name)
+    _space_declarations._register_space(m.self, provider, name)
     try:
         yield m.self._at(name)
     finally:
-        m.self._unregister_space(name)
+        _space_declarations._unregister_space(m.self, name)
 
 
 def test_provider_tokens_keep_multiplicity_order_and_identity(tmp_path):

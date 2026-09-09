@@ -54,7 +54,7 @@ from collections import Counter
 import pytest
 
 from metta import Atom, Expression, Grounded, S, Symbol, V, ground
-from metta.errors import MettaError
+from metta._errors.errors import MettaError
 from metta.foreign import SpaceProvider
 from metta.vocabularies import Atomicity
 

@@ -25,7 +25,7 @@ import time
 import pytest
 
 from metta import parse
-from metta.ops import registered
+from metta._declare.operations import registered
 from metta.vocabularies import EffectClass
 
 

@@ -15,7 +15,7 @@ Open Obligations:
 """
 
 from metta import G, MeTTa, S, V, lib
-from metta.errors import MettaError
+from metta._errors.errors import MettaError
 
 ADDRESS = G("127.0.0.1:6379")
 

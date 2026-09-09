@@ -14,8 +14,8 @@ from typing import Annotated
 import pytest
 
 from metta import S, V, ground, integrate
-from metta.errors import EngineError
-from metta.ops import annotation_atom_for, type_atoms_for
+from metta._declare.operations import annotation_atom_for, type_atoms_for
+from metta._errors.errors import EngineError
 
 
 def test_atom_metadata_refines_annotation_alternatives():

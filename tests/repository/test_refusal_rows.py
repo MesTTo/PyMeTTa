@@ -4,7 +4,7 @@
 rows in `&metta` carry the seat-independent class, the authority the refusal
 stands on and the repair. This file holds the two together: a seat that spells
 a class differently says why, one meaning never wears two class names, the
-three closed sets `metta.errors` validates against are the catalog's own, and
+three closed sets `metta._errors.errors` validates against are the catalog's own, and
 every listed ball thrown through this seat arrives carrying its row's ground
 and its row's remedy with the holes filled from that very ball.
 
@@ -41,7 +41,7 @@ from pathlib import Path
 import pytest
 
 from metta import MeTTa
-from metta.errors import APPLICABILITIES, GROUND_KINDS, REMEDY_KINDS
+from metta._errors.errors import APPLICABILITIES, GROUND_KINDS, REMEDY_KINDS
 
 #: Read at import, like its neighbour: the cases below are one test per kind
 #: and parametrize runs at collection time.
@@ -143,7 +143,7 @@ def test_the_duplicate_check_sees_a_planted_duplicate():
 
 
 def test_the_refusal_vocabularies_are_the_catalogs(engine):
-    """metta.errors' three closed sets are the catalog's three rows, both ways."""
+    """metta._errors.errors' three closed sets are the catalog's three rows, both ways."""
     assert _vocabulary(engine, "ground-kind") == GROUND_KINDS
     assert _vocabulary(engine, "remedy-kind") == REMEDY_KINDS
     assert _vocabulary(engine, "applicability") == APPLICABILITIES
@@ -308,7 +308,7 @@ def test_a_class_this_seat_spells_differently_carries_its_reason():
     in the row rather than in a comment, so a program that asks why gets an
     answer -- `REFUSALS["type"].departure` is the sentence.
     """
-    from metta._refusals import REFUSALS
+    from metta._errors.refusals import REFUSALS
 
     departing = {kind: row for kind, row in REFUSALS.items() if row.cls != row.declared}
     assert set(departing) == {"value", "type"}

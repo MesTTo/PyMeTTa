@@ -38,17 +38,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 import twin_coverage
 
-from metta._documentation import documentation_atom
-from metta.atoms import (
-    Atom,
-    Expression,
-    Grounded,
-    S,
-    Symbol,
-    _decode,
-    _encode,
-    parse,
-)
+from metta._atoms.factories import Atom, Expression, Grounded, S, Symbol, _decode, _encode, parse
+from metta._catalog.documentation import documentation_atom
 
 TRANSLATION = "# ->"
 OUTPUT = "# =>"

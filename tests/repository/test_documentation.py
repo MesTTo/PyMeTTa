@@ -16,7 +16,7 @@ Guarantees:
     status, and issue forms GitHub can parse
     [tested 2026-08-19: test_the_repository_ships_its_governance_documents]
   - reference generation follows the public Space handle even though its
-    implementation lives in the private metta._space module, and neither
+    implementation lives in the private metta._spaces.handle module, and neither
     reference generator can restore the deleted DAS or persistent module doors
     [tested: test_an_overloaded_method_is_documented_once,
     test_the_legacy_reference_generator_tracks_the_narrow_public_modules;
@@ -154,9 +154,9 @@ def test_every_reference_page_names_its_source():
 def test_the_reference_pages_are_up_to_date():
     """Require every generated reference page to match its source."""
     stale = [
-        page.name
-        for page, module_path, title in _reference.sources()
-        if page.read_text(encoding="utf-8") != _reference.page_for(module_path, title)
+        path.relative_to(_ROOT).as_posix()
+        for path, wanted in _reference.projections().items()
+        if not path.is_file() or path.read_text(encoding="utf-8") != wanted
     ]
     assert not stale, (
         f"{stale} no longer match their source; run "
@@ -185,7 +185,7 @@ def test_an_overloaded_method_is_documented_once():
     """@overload declares a type, not a definition. All four gave Space.run
     four identical reference entries.
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
-    page = _reference.page_for("extensions/python/metta/_space.py", "metta.Space")
+    page = _reference.page_for("extensions/python/metta/_faces/space.py", "metta.Space")
     assert page.count("### `Space.run`") == 1
 
 
@@ -211,18 +211,17 @@ Reader-facing detail {measured_tag}.
     )
 
 
-def test_the_legacy_reference_generator_tracks_the_narrow_public_modules():
-    """Both checked-in generators must agree on deleted and private doors."""
-    modules = {spec.name: spec.source for spec in _site_reference_generator.MODULES}
-    assert modules["metta.Space"] == "extensions/python/metta/_space.py"
-    assert "metta.space" not in modules
-    assert "metta.das" not in modules
-    assert "metta.persistent" not in modules
-    assert "metta.matching" not in modules
-    assert "metta.measure" not in modules
-    assert not (_REPO / "website" / "reference" / "metta-das.md").exists()
-    assert not (_REPO / "website" / "reference" / "metta-persistent.md").exists()
-    assert not (_REPO / "website" / "live" / "das.md").exists()
+def test_the_legacy_reference_generator_tracks_the_narrow_public_modules(monkeypatch):
+    """The legacy command delegates discovery and rendering to the same source."""
+    called = []
+    def load(path):
+        called.append(Path(path))
+        return {"main": lambda flags: called.append(flags) or 0}
+    monkeypatch.setattr(_site_reference_generator.runpy, "run_path", load)
+    assert _site_reference_generator.main() == 0
+    assert called == [_REPO / "extensions/python/tools/reference.py", ["--write"]]
+    assert not (_REPO / "website/reference/metta-das.md").exists()
+    assert not (_REPO / "website/reference/metta-persistent.md").exists()
 
 
 _SITE = _REPO / "website"
@@ -336,7 +335,7 @@ def test_every_site_page_is_reachable_from_the_navigation():
 
     Five shipped pages were reachable only through the search box when this was
     first checked: guide/contract.md, integrations/sqlite-blobs.md, and the
-    generated reference pages for metta.paths, metta.events and metta.answer.
+    generated reference pages for metta.paths, metta.events and metta._atoms.answer.
 
     A page that is deliberately unlisted says so in its own frontmatter, which
     is where VitePress already keeps a page's per-page settings. A draft, a
@@ -526,14 +525,14 @@ def _lint_kinds() -> set[str]:
     argument and through a simplifier's (kind, detail, replacement) triple,
     and both shapes are matched here.
     """
-    tree = ast.parse((_REPO / "extensions" / "python" / "metta" / "_lint_analysis.py").read_text())
+    tree = ast.parse((_REPO / "extensions" / "python" / "metta" / "lint" / "_analysis.py").read_text())
     kinds: set[str] = set()
     for node in ast.walk(tree):
         first = None
         if isinstance(node, ast.Call) and getattr(node.func, "id", "") == "Finding":
             first = node.args[0] if node.args else None
-        elif isinstance(node, ast.Tuple) and len(node.elts) == 3:
-            first = node.elts[0]
+        elif isinstance(node, ast.Return) and isinstance(node.value, ast.Tuple) and len(node.value.elts) == 3:
+            first = node.value.elts[0]
         if isinstance(first, ast.Constant) and isinstance(first.value, str):
             kinds.add(first.value)
     return kinds

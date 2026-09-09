@@ -50,7 +50,7 @@ import metta as metta_package
 from metta import MeTTa, S, ground
 from metta.__main__ import _completer, _history_path, _scan_line
 from metta.__main__ import main as module_main
-from metta.atoms import _atom_from_wire
+from metta._atoms.factories import _atom_from_wire
 
 _PACKAGE_ROOT = str(Path(__file__).resolve().parents[2])
 _CONVERT_FIXTURE = Path(__file__).resolve().parents[1] / "fixtures" / "convert_program.py"

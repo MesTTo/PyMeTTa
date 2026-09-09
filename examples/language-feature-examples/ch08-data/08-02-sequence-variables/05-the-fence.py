@@ -13,7 +13,7 @@ as a term and evaluated.
 """
 
 from metta import S, V, equation, seg, solve
-from metta.errors import EngineError
+from metta._errors.errors import EngineError
 
 
 def twin(m):

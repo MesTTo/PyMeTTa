@@ -27,9 +27,8 @@ from typing import Any
 
 from _common import check, done
 
-from metta import MeTTa, S, V, Expression
-from metta import convert
-from metta.atoms import Expression, Grounded, Symbol, Variable, unify
+from metta import Expression, MeTTa, S, V, convert
+from metta._atoms.factories import Expression, Grounded, Symbol, Variable, unify
 
 #: FastAPI's path converters: the caster runs after the structural match,
 #: the pydantic-after-match order, so /users/abc against /users/{id:int}

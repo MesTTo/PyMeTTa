@@ -29,7 +29,10 @@ from hypothesis import settings  # noqa: E402
 from hypothesis import strategies as st  # noqa: E402
 from hypothesis.stateful import rule  # noqa: E402
 
-from metta import Space, testing  # noqa: E402
+from metta import (  # noqa: E402 -- import follows its initialization prerequisite
+    Space,
+    testing,
+)
 
 
 class SpaceStateMachine(testing.SpaceMachine):

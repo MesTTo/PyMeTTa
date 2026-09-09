@@ -24,9 +24,10 @@ import inspect
 import pytest
 
 from metta import S, stubs
-from metta._declarations import inferred
-from metta._space import Space
-from metta.errors import MettaError
+from metta._catalog.declarations import inferred
+from metta._declare import declarations as _space_declarations
+from metta._errors.errors import MettaError
+from metta._faces.space import Space
 from metta.foreign import SpaceProvider
 
 
@@ -170,14 +171,14 @@ def test_a_space_that_cannot_be_enumerated_refuses(metta):
             return super().can_run(capability, **request)
 
     name = "&inf-no-enumerate"
-    metta._register_space(NoEnumerate(), name)
+    _space_declarations._register_space(metta, NoEnumerate(), name)
     try:
         backed = Space(name, _runtime=metta._rt)
         with pytest.raises(MettaError, match="declines this enumerate request"):
             backed.infer_types()
         assert not NoEnumerate.called
     finally:
-        metta._unregister_space(name)
+        _space_declarations._unregister_space(metta, name)
 
 
 def test_the_signature_and_the_stub_both_say_inferred(metta):

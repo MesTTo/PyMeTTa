@@ -72,7 +72,7 @@ def json_payload() -> dict:
 
 def json_wire(payload: dict, trips: int = JSON_TRIPS) -> int:
     """Encode and decode a DAS-shaped payload, returning round trips."""
-    from metta import _json
+    import metta._binding.json as _json
 
     decoded = None
     for _ in range(trips):
@@ -92,7 +92,7 @@ def term_operators(terms: int = TERM_COUNT) -> int:
 def structures_dispatch(patterns: int = 200, probes: int = 2_000) -> int:
     """Route ground probes through PatternMap and MatchIndex, returning
     hits: the pure-Python structures priced at their dispatch job."""
-    from metta.atoms import Grounded, Symbol, Variable, _expression_atoms
+    from metta._atoms.factories import Grounded, Symbol, Variable, _expression_atoms
     from metta.structures import MatchIndex, PatternMap
 
     routing = PatternMap()

@@ -50,13 +50,13 @@ from pathlib import Path
 
 import pytest
 
+import metta._errors.errors as error_classes
 from metta import MeTTa
-from metta import errors as error_classes
 
 # The private table IS the subject: this file exists to pin it against the
 # shared list, so reading it here is the point rather than a way around a
 # public door. Nothing else in the suite touches it.
-from metta._engine import _EXCEPTION_TYPES
+from metta._binding.runtime import _EXCEPTION_TYPES
 
 #: Read at import rather than through the repo_root fixture, because the cases
 #: below are one test per kind and parametrize runs at collection time. Same

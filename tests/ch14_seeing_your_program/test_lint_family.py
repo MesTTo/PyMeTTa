@@ -18,8 +18,9 @@ import asyncio
 
 import pytest
 
-from metta import Expression, Grounded, S, V, aio, equation
-from metta._lint_events import _AUTHORITIES, _INTENT_AUTHORITY, _LINT_CATALOGUE
+import metta.aio as _aio_surface
+from metta import Expression, Grounded, S, V, equation
+from metta._spaces.intents import _AUTHORITIES, _INTENT_AUTHORITY, _LINT_CATALOGUE
 
 
 @pytest.fixture()
@@ -530,7 +531,7 @@ def test_a_sync_engine_call_inside_async_def_is_linted_not_refused(m):
 def test_async_metta_engine_driving_is_allowed(m):
     """The asynchronous facade keeps synchronous engine work off the loop."""
     async def drive():
-        async with aio.AsyncMeTTa(metta=m) as async_metta:
+        async with _aio_surface.AsyncMeTTa(metta=m) as async_metta:
             await async_metta.run("(= (lint-async-control) 8)")
             return await async_metta.eval(S["lint-async-control"]())
 
@@ -600,7 +601,7 @@ def test_lint_evidence_and_intent_follow_space_clear(m):
 
 def test_a_retired_operation_is_not_named_by_the_wrapper_it_left_behind(m):
     """One reader answers both doors, and only while the registry owns it."""
-    from metta._ops import OPERATION_REGISTRATION, live_registration
+    from metta._binding.dispatch import OPERATION_REGISTRATION, live_registration
 
     @m.op(name="lint_retired_crossing", effect="pureStructural")
     def lint_retired_crossing(value: int) -> int:

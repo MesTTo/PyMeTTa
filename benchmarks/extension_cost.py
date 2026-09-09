@@ -55,6 +55,7 @@ from metta_benchmarking import BenchmarkBaseline
 
 from benchmarks.configuration import counter_configuration
 from metta import Space
+from metta._spaces import evaluate as _space_evaluate
 
 CALLS = 3_000
 # parents[3] is the repository root: benchmarks, python, the seat root, then
@@ -89,10 +90,10 @@ class Row:
 
 def _drive(space: Space, prefix: str, name: str, calls: int) -> tuple[int, float]:
     source = f"({prefix}-{name} {calls})"
-    space._one(source)  # warm the compiled path
+    _space_evaluate.one(space, source)  # warm the compiled path
     start = time.perf_counter()
     with space.stats() as counted:
-        space._one(source)
+        _space_evaluate.one(space, source)
     return counted.inferences, time.perf_counter() - start
 
 

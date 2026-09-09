@@ -83,8 +83,8 @@ from pathlib import Path
 import pytest
 
 from metta import FALSE, TRUE, Expression, G, S, V, fn, if_, space
-from metta.atoms import order_key
-from metta.errors import EngineError
+from metta._atoms.factories import order_key
+from metta._errors.errors import EngineError
 from metta.vocabularies import SpaceCapability
 
 

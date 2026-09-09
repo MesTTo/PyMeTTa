@@ -53,13 +53,13 @@ import threading
 from collections.abc import Callable, Mapping
 from typing import Any, Self
 
-from ._config import config
-from .atoms import Atom, Expression, Symbol, Variable, _map_atoms, _to_atom
-from .errors import EngineError, MettaError
-from .events import _REGISTRY, STATELESS, Event, Fold
-from .foreign import require_capability
-from .ops import _REFLECTION_SPACE, _reflect_add, _reflect_remove
-from .vocabularies import SubscriptionEdge
+from metta._atoms.factories import Atom, Expression, Symbol, Variable, _map_atoms, _to_atom
+from metta._catalog.bounds import config
+from metta._declare.operations import _REFLECTION_SPACE, _reflect_add, _reflect_remove
+from metta._errors.errors import EngineError, MettaError
+from metta.events import _REGISTRY, STATELESS, Event, Fold
+from metta.foreign import require_capability
+from metta.vocabularies import SubscriptionEdge
 
 __all__ = ["Event", "Subscription", "bridge", "queue_bound", "subscribe"]
 
@@ -91,7 +91,7 @@ def _capacity(queue_max: Any) -> int:
     against NaN is false: `queue_max < 1` passed float("nan") and the step's
     own `len(held) >= self.queue_max` then never fired, which is the
     unbounded queue this bound exists to replace. This is the same check the
-    library's other counts take, `metta._config._positive_integer` and
+    library's other counts take, `metta._catalog.bounds._positive_integer` and
     `metta.remote._Cursors.__init__` among them, in the same order and with
     the same two exception types.
     """
@@ -302,7 +302,7 @@ def subscribe(  # noqa: D103  -- the package reference and enclosing module docu
                     [publication_error, *rollback_errors],
                 ) from None
             raise
-    from . import _scope  # noqa: PLC0415 -- enrol only after publication succeeds
+    import metta._spaces.lifetime as _scope  # noqa: PLC0415 -- enrol only after publication succeeds
 
     try:
         _scope.own("cleanup", subscription.cancel)

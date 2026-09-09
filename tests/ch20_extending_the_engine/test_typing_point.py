@@ -33,7 +33,7 @@ from __future__ import annotations
 import pytest
 
 from metta import Expression, S, V, seam, typing
-from metta.errors import MettaError
+from metta._errors.errors import MettaError
 
 #: The fixture library's own rule: a projection of n columns has n columns.
 #: `$head` is the head it is declared for and `$arg1` the row's own argument,

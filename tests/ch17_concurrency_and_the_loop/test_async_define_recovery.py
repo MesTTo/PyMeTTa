@@ -10,14 +10,15 @@ import threading
 
 import pytest
 
-from metta import MeTTa, Space, aio
+import metta.aio as _aio_surface
+from metta import MeTTa, Space
 
 
 def test_async_prolog_define_requires_the_reference_function(tmp_path):
     """No callable may escape that registers after its worker has closed."""
     async def run():
         with MeTTa() as context:
-            async with aio.AsyncMeTTa(metta=context.self) as am:
+            async with _aio_surface.AsyncMeTTa(metta=context.self) as am:
                 with pytest.raises(TypeError, match="reference function"):
                     await am.define(prolog=tmp_path / "not-read.pl")
 
@@ -46,7 +47,7 @@ def test_async_prolog_define_registers_and_applies_on_its_worker(tmp_path, monke
 
     async def run():
         with MeTTa() as context:
-            async with aio.AsyncMeTTa(metta=context.self) as am:
+            async with _aio_surface.AsyncMeTTa(metta=context.self) as am:
                 worker = await am.call(lambda _space: threading.get_ident())
                 twin = await am.define(reference, prolog=source, name="async-lifecycle-twin")
                 assert twin.py(4) == 5

@@ -21,7 +21,8 @@ Open Obligations:
 
 import pytest
 
-from metta import MeTTa, _json
+import metta._binding.json as _json
+from metta import MeTTa
 
 # What a surrogateescape decode leaves behind. UTF-8 has no encoding for a
 # lone surrogate, so this is the smallest input the seam genuinely cannot

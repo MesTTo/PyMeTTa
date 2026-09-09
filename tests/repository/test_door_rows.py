@@ -3,6 +3,9 @@
 Guarantees: catalog publication, registry replacement, generated protocols,
   and the projection gate are exercised through their observable boundaries
   [tested: this file; commit=b615b5a33b43252ef9826e5387da7c9bd7f6b543].
+  Typed body order metadata preserves the existing outer catalog query
+  [tested: test_boot_publishes_complete_typed_door_rows,
+  test_nested_door_records_have_declared_types; commit=WORKTREE].
 Owns resources: each fixture withdraws its registrations and each engine
   context or cursor is closed by its test.
 """
@@ -22,8 +25,8 @@ from pathlib import Path
 import pytest
 
 from metta import MeTTa, S, Space, V, seam
+from metta._errors.errors import EngineError, MettaError
 from metta.doors import (
-    DOORS,
     AnswerForm,
     AnswersAs,
     Body,
@@ -38,16 +41,17 @@ from metta.doors import (
     Signature,
     Sugar,
     Tier,
+    core_rows,
     namespace,
     publish,
     table,
     validate,
 )
-from metta.errors import EngineError, MettaError
 from metta.vocabularies import ArgumentDelivery, Determinism, EffectClass, RefusalKind
 
 ROOT = Path(__file__).resolve().parents[4]
 sys.path.insert(0, str(ROOT / "extensions/python/tools"))
+import doorfaces  # noqa: E402 -- the shared face emitter
 import doorgen  # noqa: E402  -- the generator is checked as a public build tool
 
 
@@ -135,12 +139,12 @@ import importlib.abc
 import sys
 class RefuseEngine(importlib.abc.MetaPathFinder):
     def find_spec(self, fullname, path=None, target=None):
-        if fullname in {'janus_swi', 'metta._space', 'metta._engine'}:
+        if fullname in {'janus_swi', 'metta._spaces.handle', 'metta._binding.runtime'}:
             raise AssertionError('engine import: ' + fullname)
 sys.meta_path.insert(0, RefuseEngine())
-from metta.doors import DOORS, table, validate
-assert len(validate(DOORS)) > 200
-assert len(table(discover=False)) == len(DOORS)
+from metta.doors import core_rows, table, validate
+assert len(validate(core_rows())) > 200
+assert len(table(discover=False)) == len(core_rows())
 print('engine-free')
 """
     completed = subprocess.run(
@@ -171,7 +175,7 @@ def test_argument_delivery_follows_the_outer_projected_type(annotation, delivery
 
 def test_argument_delivery_reads_the_shared_projection_table(monkeypatch):
     """Argument delivery reads the shared projection table."""
-    from metta import _projection
+    import metta._catalog.types as _projection
 
     original = _projection.TABLE["Number"]
     monkeypatch.setitem(_projection.TABLE, "Number", original._replace(delivery=ArgumentDelivery.atoms))
@@ -266,11 +270,11 @@ def test_door_registration_refuses_collisions_and_duplicate_points(registrations
         registrations(replace(row, name="__class__"))
     with pytest.raises(TypeError, match="Kind"):
         registrations(replace(row, kind="invented"))
-    ordinary = next(record for record in DOORS if record.key == "space:answers")
+    ordinary = next(record for record in core_rows() if record.key == "space:answers")
     with pytest.raises(ValueError, match="existing parameter point"):
-        validate((*DOORS, replace(ordinary, name="another-answers")))
+        validate((*core_rows(), replace(ordinary, name="another-answers")))
     with pytest.raises(ValueError, match="cyclic"):
-        validate((*DOORS, replace(row, sugar_of=Sugar(row.key, ()))))
+        validate((*core_rows(), replace(row, sugar_of=Sugar(row.key, ()))))
     assert namespace(object(), "door_fixture").identity(8)[1] == 8
 
 
@@ -297,9 +301,10 @@ def test_namespace_tiers_control_lookup_retained_calls_and_annotations(registrat
         generated = doorgen.namespace_types((row,))
         assert "class DoorFixtureContext(Protocol):" in generated
         assert "class DoorFixtureSync(Protocol):" not in generated
-        declarations = doorgen.class_block("MeTTa", (*DOORS, row))
-        assert "        door_fixture: _door_namespaces.DoorFixtureContext" in declarations
-        assert all("door_fixture:" not in line for line in doorgen.class_block("Space", (*DOORS, row)))
+        faces = doorfaces.synchronous((*core_rows(), row), ROOT)
+        declarations = faces[doorgen.CORE / "_faces/metta.py"]
+        assert "    door_fixture: _namespaces.DoorFixtureContext" in declarations
+        assert "door_fixture:" not in faces[doorgen.CORE / "_faces/space.py"]
         registrations(replace(row, tiers=(Tier.sync,)))
         assert context.self.door_fixture.identity(5) == (context.self, 5)
         assert dir(accessor) == []
@@ -471,7 +476,7 @@ def test_a_discovery_wait_cycle_refuses_and_releases_its_entries(monkeypatch):
 
 def test_boot_publishes_complete_typed_door_rows():
     """Boot publishes complete typed door rows."""
-    from metta._door_catalog import atoms
+    from metta.doors._catalog import atoms
 
     with MeTTa() as context:
         catalog = context.space("&metta")
@@ -513,11 +518,13 @@ def test_door_catalog_publication_is_atomic_and_idempotent(registrations):
 def test_nested_door_records_have_declared_types():
     """Nested door records have declared types."""
     from metta import Expression
-    from metta._door_catalog import _contract, atoms
+    from metta.doors._catalog import _contract, atoms
+    from metta.doors._order import orders
 
     with MeTTa() as context:
         catalog = context.space("&metta")
         records = tuple(table().values())
+        derived = orders(records)
         arrows = {
             str(atom.children[1]): atom.children[2]
             for atom in atoms(records)
@@ -540,7 +547,10 @@ def test_nested_door_records_have_declared_types():
                 visit(child)
 
         for record in records:
-            visit(_contract(record))
+            visit(_contract(record, derived[record.key]))
+        # Every marked body now has a reference. The wire grammar still
+        # represents the explicit absent-body variant for imported records.
+        visit(_contract(replace(records[0], body=None), derived[records[0].key]))
         assert checked == {head for head in arrows if head == "door" or head.startswith("door-")}
         original = S.kind(S.arguments, S.symbol, S["one-of"](S["argument-delivery"]))
         assert original in catalog
@@ -575,9 +585,9 @@ def test_generated_space_protocols_preserve_storage_and_identity():
 
 def test_inherited_atom_doors_remain_declared():
     """Inherited atom doors remain declared."""
-    from metta.atoms import Grounded
+    from metta._atoms.factories import Grounded
 
-    inherited = [row for row in DOORS if row.owner is Owner.space and row.inherited]
+    inherited = [row for row in core_rows() if row.owner is Owner.space and row.inherited]
     assert len(inherited) == 16
     for row in inherited:
         assert hasattr(Space, row.python)
@@ -648,9 +658,9 @@ def test_the_interactive_door_reaches_the_owned_runtime(monkeypatch):
 @pytest.mark.parametrize("name", ("pure", "reads", "writes", "io"))
 def test_effect_sugars_are_their_declared_parameter_points(name):
     """Effect sugars are their declared parameter points."""
-    from metta.ops import registered
+    from metta._declare.operations import registered
 
-    row = next(row for row in DOORS if row.key == f"space:{name}")
+    row = next(row for row in core_rows() if row.key == f"space:{name}")
     assert row.sugar_of.base == "space:op"
     effect = EffectClass(dict(row.sugar_of.fixed)["effect"])
     operation = f"door-effect-{name}"
@@ -672,7 +682,7 @@ class _DoorRecord:
 @pytest.mark.parametrize("lazy", (False, True))
 def test_result_door_projections_preserve_fields_and_host_conversions(lazy):
     """Result door projections preserve fields and host conversions."""
-    from metta.results import Answers, Rows
+    from metta._spaces.results import Answers, Rows
 
     with MeTTa() as context, ExitStack() as held:
         space = context.self
@@ -722,7 +732,7 @@ def test_result_door_projections_preserve_fields_and_host_conversions(lazy):
 
 def test_remote_door_contracts_preserve_capability_refusals():
     """Remote door contracts preserve capability refusals."""
-    from metta.remote import RemoteSpace
+    from metta.remote._client import RemoteSpace
 
     remote = RemoteSpace(lambda _operation, _payload: {"atoms": []}, "&data")
     assert remote.delivers() is None
@@ -732,7 +742,8 @@ def test_remote_door_contracts_preserve_capability_refusals():
 
 def test_remote_storage_doors_use_the_declared_operation_protocol():
     """Remote storage doors use the declared operation protocol."""
-    from metta.remote import Gateway, RemoteSpace
+    from metta.remote._client import RemoteSpace
+    from metta.remote._gateway import Gateway
 
     with MeTTa() as context:
         gateway = Gateway(context)
@@ -750,7 +761,7 @@ def test_remote_storage_doors_use_the_declared_operation_protocol():
 
 def test_remote_generated_doors_release_their_cursor():
     """Remote generated doors release their cursor."""
-    from metta.remote import RemoteSpace
+    from metta.remote._client import RemoteSpace
 
     called = []
 
@@ -776,22 +787,21 @@ def test_remote_generated_doors_release_their_cursor():
 
 def test_door_sync_detects_a_planted_change_in_each_projection(monkeypatch, capsys):
     """Door sync detects a planted change in each projection."""
-    import aiogen
-    import initstubgen
     import reference
 
     generated = dict.fromkeys(doorgen.projections(doorgen.all_rows()))
-    generated[doorgen.CORE / "_schemas.py"] = doorgen.SCHEMA_END
-    generated[doorgen.ROOT / "llms.txt"] = doorgen.SHEET_END
-    generated.update({aiogen.AIO: aiogen.END, aiogen.INIT: aiogen.MODULE_END, initstubgen.STUB: None})
-    generated.update(dict.fromkeys(page for page, source, _ in reference.sources() if source.endswith(('_space.py', 'results.py', 'remote.py', '__init__.py'))))
+    generated.update({
+        doorgen.CORE / "remote/_schemas.py": doorgen.SCHEMA_END,
+        doorgen.ROOT / "llms.txt": doorgen.SHEET_END,
+        doorgen.CORE / "__init__.pyi": "# end generated root declarations",
+        doorgen.CORE / "_spaces/results.py": "    # end generated extension declarations: Rows",
+        doorgen.CORE / "_spaces/execution.py": "# end generated evaluation keywords",
+    })
+    generated.update(dict.fromkeys(page for page, _source, _title in reference.sources()))
     real_read = Path.read_text
     for path in generated:
         original = real_read(path)
-        if path.suffix == ".py" and path.name in {"_space.py", "results.py", "remote.py"}:
-            marker = next(line for line in original.splitlines() if line.startswith(doorgen.END))
-        else:
-            marker = generated[path]
+        marker = generated[path]
         planted = original.replace(marker, "    # planted projection change\n" + marker, 1) if marker else original + "\n# planted projection change\n"
 
         def read(candidate, *args, _path=path, _planted=planted, **kwargs):
@@ -806,35 +816,35 @@ def test_door_sync_detects_a_planted_change_in_each_projection(monkeypatch, caps
 
 def test_contract_checks_detect_signature_and_evidence_drift():
     """Contract checks detect signature and evidence drift."""
-    row = next(row for row in DOORS if row.key == "space:parse")
+    row = next(row for row in core_rows() if row.key == "space:parse")
     bad_signature = replace(row, signatures=(Signature("self, invented: int"),))
     bad_evidence = replace(row, evidence=("extensions/python/tests/repository/test_door_rows.py::test_missing",))
     for changed, message in ((bad_signature, "signature differs"), (bad_evidence, "does not exist")):
-        rows = tuple(changed if current.key == row.key else current for current in DOORS)
+        rows = tuple(changed if current.key == row.key else current for current in core_rows())
         assert any(message in finding for finding in doorgen.contract_findings(rows))
 
 
 def test_documentation_parity_checks_the_evidence_snapshot():
     """Changing only a citation cannot silently change a row's evidence."""
-    row = next(row for row in DOORS if row.key == "space:answers")
+    row = next(row for row in core_rows() if row.key == "space:answers")
     changed = replace(row, docs=row.docs.replace(
         "2d4d4583c2d82e90bb21a7e8671842f126edd4f4", "unresolved-evidence",
     ))
     assert changed.docs != row.docs
-    rows = tuple(changed if current.key == row.key else current for current in DOORS)
+    rows = tuple(changed if current.key == row.key else current for current in core_rows())
     assert any("documentation differs" in finding for finding in doorgen.contract_findings(rows))
 
 
 def test_contract_checks_refuse_missing_coverage_and_unbacked_refusals():
     """Contract checks refuse missing coverage and unbacked refusals."""
-    row = next(row for row in DOORS if row.key == "space:bind")
+    row = next(row for row in core_rows() if row.key == "space:bind")
     wrong = Refusal(RefusalKind.type, "extensions/python/tests/repository/test_door_refusals.py::test_door_value_refusals[space:capacity]")
     for changed, message in (
         (replace(row, evidence=()), "needs signatures, documentation, and evidence"),
         (replace(row, refuses=()), "local refusal 'type' has no declared witness"),
         (replace(row, refuses=(wrong,)), "witness must assert pytest.raises(TypeError)"),
     ):
-        rows = tuple(changed if current.key == row.key else current for current in DOORS)
+        rows = tuple(changed if current.key == row.key else current for current in core_rows())
         assert any(message in finding for finding in doorgen.contract_findings(rows))
     with pytest.raises(ValueError, match="repeats a refusal kind"):
         validate((replace(row, refuses=(wrong, wrong)),))
@@ -842,10 +852,11 @@ def test_contract_checks_refuse_missing_coverage_and_unbacked_refusals():
 
 def test_contract_checks_refuse_a_handwritten_public_parameter_point(monkeypatch):
     """Contract checks refuse a handwritten public parameter point."""
-    path = doorgen.CORE / "_space.py"
+    path = doorgen.CORE / "_spaces/handle.py"
     original = path.read_text()
-    marker = doorgen.START + "Space"
-    planted = original.replace(marker, "    def extra_answer_point(self, target):\n        return self.eval(target, answer='all')\n\n" + marker, 1)
+    marker = "class SpaceHandle(Handle):"
+    planted = original.replace(marker, marker + "\n    def extra_answer_point(self, target):\n        return self.eval(target, answer='all')\n", 1)
+    assert planted != original
     real_read = Path.read_text
 
     def read(candidate, *args, **kwargs):
@@ -857,16 +868,16 @@ def test_contract_checks_refuse_a_handwritten_public_parameter_point(monkeypatch
 
 def test_contract_checks_require_an_inherited_slot_to_exist():
     """Contract checks require an inherited slot to exist."""
-    row = next(row for row in DOORS if row.key == "space:value")
-    missing = replace(row, body=Body("metta._atoms_core", "Grounded.missing_door_slot"))
+    row = next(row for row in core_rows() if row.key == "space:value")
+    missing = replace(row, body=Body("metta._atoms.model", "Grounded.missing_door_slot"))
     assert any("implementation" in finding and "is absent" in finding for finding in doorgen.contract_findings((missing,)))
 
 
 def test_operation_rows_generate_the_complete_remote_wire_contract():
     """Operation rows generate the complete remote wire contract."""
-    from metta import _schemas
+    from metta.remote import _schemas
 
-    rows = [row.remote for row in DOORS if row.remote is not None]
+    rows = [row.remote for row in core_rows() if row.remote is not None]
     expected = [(row.operation, row.request, row.response, row.summary) for row in rows]
     assert list(_schemas._OPERATIONS) == expected
     assert len({row.operation for row in rows}) == 8

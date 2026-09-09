@@ -37,7 +37,7 @@ import sys
 import pytest
 
 from metta import Expression, S, V, testing
-from metta.errors import AssertionFailure
+from metta._errors.errors import AssertionFailure
 
 
 def failure(call) -> AssertionFailure:
@@ -214,9 +214,9 @@ def test_the_first_line_of_a_test_file_can_be_an_assertion():
         [
             sys.executable,
             "-c",
-            "from metta import testing\n"
+            'import metta.testing as testing\n'
             "testing.assert_answers([1, 2], [2, 1])\n"
-            "from metta.errors import AssertionFailure\n"
+            "from metta._errors.errors import AssertionFailure\n"
             "try:\n"
             "    testing.assert_includes([1], [2])\n"
             "except AssertionFailure as failure:\n"

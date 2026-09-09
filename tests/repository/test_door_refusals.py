@@ -11,8 +11,8 @@ from __future__ import annotations
 import pytest
 
 from metta import G, MeTTa, S, V, lib
-from metta.errors import EngineError, SourceNotFound
-from metta.results import Answers, Rows
+from metta._errors.errors import EngineError, SourceNotFound
+from metta._spaces.results import Answers, Rows
 
 
 @pytest.fixture
@@ -76,7 +76,7 @@ def test_door_value_refusals(context, invoke):
 
 def test_bind_refuses_the_reserved_template_namespace(context):
     """Caller bindings cannot replace symbols allocated for template holes."""
-    from metta._space import _HOLE_PREFIX
+    from metta._spaces.handle import _HOLE_PREFIX
 
     with pytest.raises(ValueError, match="cannot be bound"):
         context.self.bind({_HOLE_PREFIX + "0": 1})
@@ -128,7 +128,7 @@ def test_transaction_refuses_an_unreported_engine_failure(context, monkeypatch):
 
 def test_info_refuses_an_unreported_engine_version(context, monkeypatch):
     """Version reflection rejects a reply without the version it promises."""
-    from metta import _space
+    import metta._spaces.handle as _space
 
     with monkeypatch.context() as patch:
         patch.setattr(_space.bridge(), "query_once", lambda *_args, **_kwargs: None)

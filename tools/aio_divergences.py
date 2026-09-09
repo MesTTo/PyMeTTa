@@ -11,27 +11,31 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from metta.doors import DOORS, Owner, Tier
+from metta.doors import Owner, Tier, core_rows
+
+_rows = core_rows()
 
 EXCLUDED = {
-    row.python: row.async_excluded for row in DOORS
+    row.python: row.async_excluded for row in _rows
     if row.owner is Owner.space and row.async_excluded is not None
 }
 DIVERGENT = {
     row.python: (row.async_signature.parameters, row.async_reason)
-    for row in DOORS if row.owner is Owner.space and row.async_signature is not None
+    for row in _rows if row.owner is Owner.space and row.async_signature is not None
 }
 PRIVATE_TARGET = {
-    row.python: row.body.symbol.rpartition(".")[2]
-    for row in DOORS if row.owner is Owner.space and row.body is not None
-    and Tier.async_ in row.tiers and Tier.sync not in row.tiers
+    (row.alias or row.python): (
+        row.python if Tier.sync in row.tiers else row.body.symbol.rpartition(".")[2]
+    )
+    for row in _rows if row.owner is Owner.space and row.body is not None
+    and Tier.async_ in row.tiers and (row.alias or Tier.sync not in row.tiers)
 }
 MODULE_DOORS = tuple(
-    (row.alias or row.python, row.python) for row in DOORS
+    (row.alias or row.python, row.python) for row in _rows
     if row.owner is Owner.space and Tier.module in row.tiers
 )
 CONTEXT_DUNDERS = tuple(
-    row.python for row in DOORS
+    row.python for row in _rows
     if row.owner is Owner.space and Tier.context in row.tiers and row.python.startswith("__")
 )
-INPLACE_DUNDERS = frozenset(row.python for row in DOORS if row.context_inplace)
+INPLACE_DUNDERS = frozenset(row.python for row in _rows if row.context_inplace)

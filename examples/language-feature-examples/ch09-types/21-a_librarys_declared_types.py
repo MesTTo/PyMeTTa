@@ -16,7 +16,7 @@ Open Obligations:
 """
 
 from metta import Expression, S, Symbol, arrow, lib
-from metta.errors import EngineError
+from metta._errors.errors import EngineError
 
 EMPTY = S.FTEmpty
 

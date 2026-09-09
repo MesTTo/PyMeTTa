@@ -17,7 +17,8 @@ import asyncio
 
 import pytest
 
-from metta import MeTTa, S, Space, V, aio
+import metta.aio as _aio_surface
+from metta import MeTTa, S, Space, V
 from metta.foreign import SpaceProvider
 
 
@@ -25,7 +26,7 @@ def test_a_journaled_async_space_round_trips_a_fact(tmp_path):
     """Drop closes the owned journal so another async handle can replay it."""
     async def go():
         with MeTTa() as context:
-            async with aio.AsyncMeTTa(metta=context.self) as am:
+            async with _aio_surface.AsyncMeTTa(metta=context.self) as am:
                 journal = tmp_path / "explicit-schema.jnl"
                 stored = await am.space(journal=journal, schema={"edge": 2}, sync="close")
                 try:
@@ -56,7 +57,7 @@ def test_async_sync_without_journal_has_the_sync_refusal():
         with MeTTa() as context:
             with pytest.raises(TypeError) as sync_error:
                 context.space("&async-no-journal", sync="batch")
-            async with aio.AsyncMeTTa(metta=context.self) as am:
+            async with _aio_surface.AsyncMeTTa(metta=context.self) as am:
                 with pytest.raises(TypeError) as async_error:
                     await am.space("&async-no-journal", sync="batch")
             assert str(async_error.value) == str(sync_error.value)
@@ -71,7 +72,7 @@ def test_async_schema_mapping_backing_matches_sync(tmp_path):
             journal = tmp_path / "mapping-schema.jnl"
             with context.space(backing={"edge": 2}, journal=journal) as sync_space:
                 sync_space.add(S.edge(S.a, S.b))
-            async with aio.AsyncMeTTa(metta=context.self) as am:
+            async with _aio_surface.AsyncMeTTa(metta=context.self) as am:
                 stored = await am.space(backing={"edge": 2}, journal=journal)
                 try:
                     assert await stored.atoms() == [S.edge(S.a, S.b)]
@@ -91,7 +92,7 @@ def test_the_async_space_factory_exposes_replay_rename(tmp_path):
         with MeTTa() as context:
             with context.space(backing={"old": 1}, journal=journal, sync="close") as old:
                 old.add(S.old(S.value))
-            async with aio.AsyncMeTTa(metta=context.self) as am:
+            async with _aio_surface.AsyncMeTTa(metta=context.self) as am:
                 migrated = await am.space(
                     backing={"new": 1},
                     journal=journal,
@@ -119,7 +120,7 @@ def test_async_bare_transport_has_the_sync_refusal():
             transport = lambda _operation, _payload: None  # noqa: E731
             with pytest.raises(TypeError) as sync_error:
                 context.space(backing=transport)
-            async with aio.AsyncMeTTa(metta=context.self) as am:
+            async with _aio_surface.AsyncMeTTa(metta=context.self) as am:
                 names_before = set(await am.space_names())
                 with pytest.raises(TypeError) as async_error:
                     await am.space(backing=transport)
@@ -140,7 +141,7 @@ def test_a_failed_async_space_construction_leaks_nothing(tmp_path, monkeypatch, 
 
     async def go():
         with MeTTa() as context:
-            async with aio.AsyncMeTTa(metta=context.self) as am:
+            async with _aio_surface.AsyncMeTTa(metta=context.self) as am:
                 before = set(await am.space_names())
                 journal = tmp_path / "failed-construction.jnl"
                 if stage == "validation":
@@ -193,7 +194,7 @@ def test_an_anonymous_async_space_resolves_equations_through_its_home():
         with MeTTa() as context:
             context.self.run("(= (async-context-equation) 41)")
             context.self.add(S.home_fact(S.private))
-            async with aio.AsyncMeTTa(metta=context.self) as am:
+            async with _aio_surface.AsyncMeTTa(metta=context.self) as am:
                 sibling = await am.space()
                 try:
                     assert await sibling.eval(S.async_context_equation()) == [41]
@@ -225,7 +226,7 @@ def test_async_space_provider_backing_attaches_and_remains_borrowed():
 
     async def go():
         with MeTTa() as context:
-            async with aio.AsyncMeTTa(metta=context.self) as am:
+            async with _aio_surface.AsyncMeTTa(metta=context.self) as am:
                 provider = Provider()
                 attached = await am.space(backing=provider)
                 try:
@@ -268,7 +269,7 @@ def test_async_space_consumes_grants_on_the_callers_loop(name):
     """Capture caller iterables before the worker validates and declares a model."""
     async def go():
         with MeTTa() as context:
-            async with aio.AsyncMeTTa(metta=context.self) as am:
+            async with _aio_surface.AsyncMeTTa(metta=context.self) as am:
                 loop = asyncio.get_running_loop()
 
                 def grants():

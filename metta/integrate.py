@@ -83,16 +83,12 @@ from importlib import metadata
 from pathlib import Path
 from typing import Any, Literal, Protocol, runtime_checkable
 
-from . import _atoms_core as _atom_registry
-from . import _convert_registry as _type_registry
-from . import _ops as _operation_registry
-from . import convert, seam
-from ._api_types import space_of as _space_of
-from ._face import Manifest as _Manifest
-from ._face import positional_arities as _positional_arities
-from ._face import render as _render
-from ._object_fields import field_names as _field_names
-from .atoms import (
+import metta._atoms.model as _atom_registry
+import metta._atoms.registry as _type_registry
+import metta._binding.dispatch as _operation_registry
+from metta import convert, seam
+from metta._atoms.designation import space_of as _space_of
+from metta._atoms.factories import (
     Atom,
     Expression,
     Grounded,
@@ -104,10 +100,14 @@ from .atoms import (
     _expr,
     ground,
 )
-from .errors import MettaError
-from .foreign import SpaceProvider
-from .ops import _record_registry_undo
-from .vocabularies import EffectClass
+from metta._atoms.fields import field_names as _field_names
+from metta._declare.operations import _record_registry_undo
+from metta._errors.errors import MettaError
+from metta.foreign import SpaceProvider
+from metta.library._face import Manifest as _Manifest
+from metta.library._face import positional_arities as _positional_arities
+from metta.library._face import render as _render
+from metta.vocabularies import EffectClass
 
 __all__ = [
     "ENTRY_POINT_GROUP",
@@ -373,7 +373,7 @@ def load_entry_point(name: str, /, *args: Any, group: str = SPACES_GROUP, **kwar
     """Load one advertised entry point by name, calling a callable target
     with the given arguments, the factory contract:
 
-        m._register_space(integrate.load_entry_point("duck"), "&duck")
+        metta.space("&duck", backing=integrate.load_entry_point("duck"))
         m.register_library_path(
             integrate.load_entry_point("nars", group=integrate.LIBRARIES_GROUP),
             "nars",
@@ -496,7 +496,7 @@ def _register_module_callable(
     name: str,
     *,
     effect: EffectClass | str,
-    # policy-inventory-exempt: mechanism-internal; reason=encoded and raw are the registration transport's two wire-crossing modes, decoded once into the (op ...) kind; evidence=extensions/python/metta/ops.py:_operation_kind
+    # policy-inventory-exempt: mechanism-internal; reason=encoded and raw are the registration transport's two wire-crossing modes, decoded once into the (op ...) kind; evidence=extensions/python/metta/_declare/operations.py:_operation_kind
     transport: Literal["encoded", "raw"],
 ) -> None:
     if _spreads_positional_calls(target):
@@ -519,7 +519,7 @@ def module_ops(
     effect: EffectClass | str,
     prefix: str | None = None,
     rename: dict[str, str] | None = None,
-    # policy-inventory-exempt: mechanism-internal; reason=encoded and raw are the registration transport's two wire-crossing modes, decoded once into the (op ...) kind; evidence=extensions/python/metta/ops.py:_operation_kind
+    # policy-inventory-exempt: mechanism-internal; reason=encoded and raw are the registration transport's two wire-crossing modes, decoded once into the (op ...) kind; evidence=extensions/python/metta/_declare/operations.py:_operation_kind
     transport: Literal["encoded", "raw"] = "raw",
 ) -> list[str]:
     """Selected callables of any module as MeTTa functions, in one call.
@@ -1006,7 +1006,7 @@ def install_reflection_ops(m) -> list[str]:
 # own database holds.
 #
 # They are declared HERE rather than in metta.seam because their readers and
-# adders are this module's own: metta.seam is below metta.errors in the
+# adders are this module's own: metta.seam is below metta._errors.errors in the
 # layering and a seam that imported this one would drag the base layer up the
 # stack with it. metta.seam names this module in its _DECLARING list and
 # imports it lazily when a caller asks for a point it does not already hold,

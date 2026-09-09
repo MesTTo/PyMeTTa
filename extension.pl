@@ -1,3 +1,5 @@
+% Purpose: declare the Python seat's entry points and required Prolog library.
+%
 % This seat's control file: facts the engine READS and never consults, the
 % PostgreSQL control-file model the runtime import scan already follows. The
 % engine's loader (engine/metta.pl) checks every needs/1 and loads every
@@ -17,7 +19,7 @@ needs(prolog_library(janus)).
 % bridge/shim naming: entry(engine, ...) is the ENGINE reaching Python (py-atom
 % resolves, py-call applies; consulted here at boot), and entry(host, ...) is
 % Python reaching the ENGINE (the metta library's transport, consulted by
-% _engine.py when the library boots -- the engine's loader records it and never
+% metta/_binding/runtime.py when the library boots -- the engine's loader records it and never
 % loads it).
-entry(engine, 'bridge.pl').
-entry(host, 'metta/shim.pl').
+entry(engine, 'metta/_binding/surface.pl').
+entry(host, 'metta/_binding/shim.pl').

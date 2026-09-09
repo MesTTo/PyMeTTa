@@ -32,9 +32,9 @@ from hypothesis import strategies as st
 
 import metta as metta_package
 from metta import S, V, lib, testing
-from metta._engine import engine_thread
-from metta.atoms import TRUE
-from metta.errors import EngineError, InferenceLimitError, TimeLimitError
+from metta._atoms.factories import TRUE
+from metta._binding.runtime import engine_thread
+from metta._errors.errors import EngineError, InferenceLimitError, TimeLimitError
 from metta.integrate import installed, integrate
 
 

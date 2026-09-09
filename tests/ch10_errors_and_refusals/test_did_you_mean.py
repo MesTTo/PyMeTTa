@@ -199,7 +199,7 @@ def test_the_testing_module_names_both_suites_without_importing_them():
     state machine all live behind PEP 562 until first use.
     """
     # A fresh interpreter, because the assertion is about what dir() does
-    # not import, and this process may already hold metta._compliance from
+    # not import, and this process may already hold metta.testing._providers from
     # any earlier test that ran a compliance suite; the shuffled order makes
     # that a coin toss, and a check that is vacuous half the time is no check.
     probe = subprocess.run(
@@ -210,12 +210,12 @@ def test_the_testing_module_names_both_suites_without_importing_them():
             "names = set(dir(metta.testing))\n"
             "wanted = {'SpaceComplianceSuite', 'GatewayComplianceSuite', 'SpaceMachine'}\n"
             "assert wanted <= names, names\n"
-            "assert 'metta._compliance' not in sys.modules, 'dir() resolved an import'\n"
+            "assert 'metta.testing._providers' not in sys.modules, 'dir() resolved an import'\n"
             # SpaceMachine is the third lazy name and the only one whose module
             # needs a package the library does not depend on, so this is also
             # what says importing metta.testing for the strategies alone starts
             # no hypothesis.
-            "assert 'metta._space_machine' not in sys.modules, 'dir() resolved an import'\n"
+            "assert 'metta.testing._machine' not in sys.modules, 'dir() resolved an import'\n"
             "assert 'hypothesis' not in sys.modules, 'dir() imported hypothesis'\n",
         ],
         capture_output=True,

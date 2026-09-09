@@ -31,7 +31,8 @@ from hypothesis import strategies as st
 
 import metta
 from metta import S, testing
-from metta.errors import EngineError
+from metta._declare import declarations as _space_declarations
+from metta._errors.errors import EngineError
 from metta.tables import TableBridge
 
 _MODULE_PATH = (
@@ -106,7 +107,7 @@ def attached(request):  # noqa: D103  -- pytest discovers or injects this callab
     finally:
         m.run(f"!(remove-atom &metta (bridge {name} $shape $row))")
         m.run(f"!(remove-atom &metta (image {name} $type $setting))")
-        m._unregister_space(name)
+        _space_declarations._unregister_space(m, name)
         m.drop()
 
 
@@ -180,14 +181,14 @@ def test_an_opaque_blob_column_is_reached_by_a_lazy_path_without_crossing(
         )
     assert rows.to_dicts() == [{"byte": 17}]
 
-    m._unregister_space(name)
+    _space_declarations._unregister_space(m, name)
     transparent_image = m._at(name).image("Blob", "transparent")
     assert image not in m._at("&metta")
     assert transparent_image in m._at("&metta")
     transparent_provider = metta.tables.TableBridge.from_context(
         m, name, opaque_provider.connection
     )
-    m._register_space(transparent_provider, name)
+    _space_declarations._register_space(m, transparent_provider, name)
     transparent_inferences, transparent_rows = measured_caller_inferences(m._at(name))
     assert str(transparent_rows[0].blob).startswith("(Blob 0 1 2 3 ")
     # Both provider queries now execute in held engines. Space.stats() reads

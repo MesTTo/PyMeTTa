@@ -32,8 +32,8 @@ from __future__ import annotations
 
 import threading
 
-from ._api_types import _SpaceId
-from ._space import Space as MeTTa
+from metta._atoms.designation import _SpaceId
+from metta._faces.space import Space as MeTTa
 
 
 class _MagicSession:

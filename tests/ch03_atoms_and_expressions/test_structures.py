@@ -19,7 +19,7 @@ from hypothesis import given
 from hypothesis import strategies as st
 
 from metta import Expression, Handle, S, V, ground
-from metta.atoms import unify
+from metta._atoms.factories import unify
 from metta.structures import AlphaSet, MatchIndex, PatternMap
 from metta.testing import atoms as atom_strategy
 
@@ -171,7 +171,7 @@ def test_structures_are_engine_free():  # noqa: D103  -- pytest discovers or inj
     code = (
         "import sys\n"
         "from metta.structures import PatternMap, MatchIndex, AlphaSet\n"
-        "from metta.atoms import Symbol, Variable, Expression\n"
+        "from metta._atoms.factories import Symbol, Variable, Expression\n"
         "pm = PatternMap(); pm[Expression([Symbol('r'), Variable('x')])] = 1\n"
         "assert list(pm.matching(Expression([Symbol('r'), Symbol('a')])))\n"
         "mi = MatchIndex(); mi.add(Expression([Symbol('r'), Variable('x')]), 'h')\n"

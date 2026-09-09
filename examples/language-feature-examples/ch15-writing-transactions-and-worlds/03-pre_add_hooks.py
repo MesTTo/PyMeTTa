@@ -37,7 +37,7 @@ Open Obligations:
 
 import metta
 from metta import S, V, accept, drop, refuse
-from metta.errors import EngineError
+from metta._errors.errors import EngineError
 
 #: The three sentences this file's refusals print. Each is the Python door's
 #: own wording rather than the Error atom the original reads with `repr`, and

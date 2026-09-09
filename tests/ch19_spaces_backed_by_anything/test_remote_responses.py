@@ -7,8 +7,13 @@ Guarantees:
 
 import pytest
 
-from metta import S, V, _json, _network, remote
-from metta.errors import MettaError
+import metta._binding.json as _json
+import metta.remote._client as _moved_metta_remote__client
+import metta.remote._transport as _moved_metta_remote__transport
+from metta import S, V
+from metta._declare import declarations as _space_declarations
+from metta._errors.errors import MettaError
+from metta.remote import _network
 
 
 @pytest.mark.parametrize(("operation", "answer"), [
@@ -33,7 +38,7 @@ def test_remote_rejects_malformed_response_fields(monkeypatch, operation, answer
         return _network.Response(200, "OK", _json.dumps(body), {})
 
     monkeypatch.setattr(_network.HTTPEndpoint, "request", request)
-    transport = remote.connect("http://example.test")
+    transport = _moved_metta_remote__transport.connect("http://example.test")
     with pytest.raises(MettaError, match=r"response|outcome"):
         if operation == "health":
             transport.health()
@@ -44,7 +49,7 @@ def test_remote_rejects_malformed_response_fields(monkeypatch, operation, answer
 @pytest.mark.parametrize("operation", ["match", "atoms"])
 def test_custom_transport_validates_the_whole_atom_list_before_yield(operation):
     """No prefix can be consumed as a result of a malformed reply."""
-    space = remote.RemoteSpace(lambda *_: {"atoms": [["s", "valid"], ["n", "invalid"]]})
+    space = _moved_metta_remote__client.RemoteSpace(lambda *_: {"atoms": [["s", "valid"], ["n", "invalid"]]})
     answers = space.match(V.x) if operation == "match" else space.atoms()
     with pytest.raises(MettaError, match="response"):
         next(answers)
@@ -60,7 +65,7 @@ def test_failed_stop_schema_keeps_the_cursor_retryable():
         stops.append(payload["cursor"])
         return {} if len(stops) == 1 else {"stopped": True}
 
-    cursor = remote.RemoteCursor(transport, "&self", V.x)
+    cursor = _moved_metta_remote__client.RemoteCursor(transport, "&self", V.x)
     try:
         with pytest.raises(MettaError, match="response"):
             cursor.close()
@@ -86,9 +91,9 @@ def test_invalid_initial_reply_stops_its_cursor(monkeypatch, http):
         )
 
     monkeypatch.setattr(_network.HTTPEndpoint, "request", request)
-    boundary = remote.connect("http://example.test") if http else transport
-    with pytest.raises(remote.ProtocolError, match="response"):
-        remote.RemoteCursor(boundary, "&self", V.x)
+    boundary = _moved_metta_remote__transport.connect("http://example.test") if http else transport
+    with pytest.raises(_moved_metta_remote__transport.ProtocolError, match="response"):
+        _moved_metta_remote__client.RemoteCursor(boundary, "&self", V.x)
     assert stops == ["initial"], "initial response rejection must release its acquired token"
 
 
@@ -101,9 +106,9 @@ def test_invalid_initial_reply_keeps_the_token_when_cleanup_also_fails():
         return {"atoms": [[]], "cursor": "initial"}
 
     with pytest.raises(ExceptionGroup) as failure:
-        remote.RemoteCursor(transport, "&self", V.x)
+        _moved_metta_remote__client.RemoteCursor(transport, "&self", V.x)
     response, cleanup = failure.value.exceptions
-    assert isinstance(response, remote.ProtocolError)
+    assert isinstance(response, _moved_metta_remote__transport.ProtocolError)
     assert response.cursor == "initial"
     assert str(cleanup) == "injected initial cleanup failure"
 
@@ -116,15 +121,15 @@ def test_protocol_errors_cannot_become_engine_answers(metta, monkeypatch, mode, 
         return _network.Response(200, "OK", malformed, {})
 
     monkeypatch.setattr(_network.HTTPEndpoint, "request", request)
-    transport = remote.connect("http://example.test") if malformed is not None else (
+    transport = _moved_metta_remote__transport.connect("http://example.test") if malformed is not None else (
         lambda *_: {"atoms": {}}
     )
-    backing = remote.RemoteSpace(transport)
+    backing = _moved_metta_remote__client.RemoteSpace(transport)
     space = metta._open(f"&remote-schema-{mode}")
-    metta._register_space(backing, space.name)
+    _space_declarations._register_space(metta, backing, space.name)
     try:
         declaration = space.on_error("(edge $x)", mode)
-        with pytest.raises(remote.ProtocolError, match=r"response|invalid JSON"):
+        with pytest.raises(_moved_metta_remote__transport.ProtocolError, match=r"response|invalid JSON"):
             metta.run(f"!(match {space.name} (edge $x) $x)")
     finally:
         metta._at("&metta").remove(declaration)

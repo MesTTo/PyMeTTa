@@ -30,7 +30,7 @@ import pytest
 
 import metta
 from metta import TRUE, Atom, Handle, S, Space, V, convert
-from metta.atoms import order_key
+from metta._atoms.factories import order_key
 
 
 @pytest.fixture

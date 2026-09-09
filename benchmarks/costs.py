@@ -107,7 +107,6 @@ import json
 import math
 import multiprocessing
 import os
-import sys
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
 from datetime import date
@@ -117,7 +116,7 @@ from typing import Any
 from benchmarks import atomic_json, collect_worker, curves
 from benchmarks.scaling import configuration_drift, stamp_worker
 from metta import engine
-from metta.atoms import Expression, Symbol, V, Variable
+from metta._atoms.factories import Expression, Symbol, V, Variable
 
 SCHEMA_VERSION = 1
 DEFAULT_REPETITIONS = 1

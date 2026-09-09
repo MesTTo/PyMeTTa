@@ -65,8 +65,8 @@ from benchmarks.costs import (
     shuffled,
 )
 from metta import MeTTa
-from metta.atoms import Symbol
-from metta.errors import EngineError
+from metta._atoms.factories import Symbol
+from metta._errors.errors import EngineError
 from metta.vocabularies import CostClass
 
 _REPOSITORY = Path(__file__).resolve().parents[4]

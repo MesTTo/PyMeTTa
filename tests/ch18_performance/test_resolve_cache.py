@@ -35,7 +35,7 @@ from typing import Any
 
 import pytest
 
-import metta_py
+import metta._binding.host as metta_py
 
 
 def _clear_cache() -> None:

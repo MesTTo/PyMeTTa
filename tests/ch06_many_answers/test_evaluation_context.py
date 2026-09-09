@@ -12,8 +12,9 @@ import pytest
 
 import metta as m
 from metta import Answer, Atom, S, V, algebra, prov, ranked, tropical
+from metta._declare import declarations as _space_declarations
+from metta._errors.errors import EngineError
 from metta.algebra import AlgebraEvaluationError
-from metta.errors import EngineError
 from metta.foreign import SpaceProvider
 
 
@@ -116,7 +117,7 @@ def test_ranked_demand_reaches_the_provider_through_each_door(metta, door):
     """Explicit match limits offer the same bound as a slice and engine top."""
     provider = _OrderedScores()
     name = f"&context-ranked-demand-{door}"
-    metta._register_space(provider, name)
+    _space_declarations._register_space(metta, provider, name)
     try:
         scores = metta._at(name)
         scores.annotations("ranked")
@@ -133,7 +134,7 @@ def test_ranked_demand_reaches_the_provider_through_each_door(metta, door):
         assert list(answers) == [S.best, S.middle]
         assert provider.limits == [2]
     finally:
-        metta._unregister_space(name)
+        _space_declarations._unregister_space(metta, name)
 
 
 @pytest.mark.parametrize("door", ["limit", "slice"])
@@ -142,7 +143,7 @@ def test_ranked_demand_stays_above_an_unsafe_provider_crossing(metta, door, barr
     """A bound cannot discard candidates before filtering, joining, or sorting."""
     provider = _OrderedScores()
     name = f"&context-demand-barrier-{door}-{barrier}"
-    metta._register_space(provider, name)
+    _space_declarations._register_space(metta, provider, name)
     try:
         scores = metta._at(name)
         scores.annotations("ranked")
@@ -162,7 +163,7 @@ def test_ranked_demand_stays_above_an_unsafe_provider_crossing(metta, door, barr
         assert list(answers.x) == [S.low if barrier in {"guard", "mismatch"} else S.best]
         assert provider.limits and all(limit is None for limit in provider.limits)
     finally:
-        metta._unregister_space(name)
+        _space_declarations._unregister_space(metta, name)
 
 
 @pytest.mark.parametrize("local_conflict", [False, True])

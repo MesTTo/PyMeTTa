@@ -5,7 +5,7 @@ from typing import overload
 import pytest
 
 from metta import Expression, S, V, arrow, fn, typed
-from metta.errors import CompileError
+from metta._errors.errors import CompileError
 
 
 def test_stored_control_builders_include_nested_arguments(scratch_space):

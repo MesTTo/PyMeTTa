@@ -36,8 +36,8 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
 
-from metta import _source_forms
-from metta._source_forms import SourceForm
+import metta._binding.positions as _source_forms
+from metta._binding.positions import SourceForm
 
 SIZES = (500, 1_000, 2_000, 4_000)
 ROUNDS = 3

@@ -545,7 +545,7 @@ class _IdentityPayload:
 
 
 def _object_reclamation(size: int) -> dict[str, int]:
-    from metta._atoms_core import _BOXES  # noqa: PLC0415  -- this cache is the measurement target
+    from metta._atoms.model import _BOXES  # noqa: PLC0415  -- this cache is the measurement target
 
     root = MeTTa().self
     box_floor = len(_BOXES)
@@ -699,12 +699,7 @@ def _table_reclamation(size: int) -> dict[str, int]:
 
 
 def _wire_intern(size: int, *, variables: bool) -> dict[str, int]:
-    from metta._atoms_core import (  # noqa: PLC0415  -- the instrument measures this owned cache
-        _WIRE_CACHE_MAX,
-        _WIRE_SYMS,
-        _WIRE_VARS,
-        _wire_intern_clear,
-    )
+    from metta._atoms.model import _WIRE_CACHE_MAX, _WIRE_SYMS, _WIRE_VARS, _wire_intern_clear
 
     _wire_intern_clear()
     space = MeTTa().self

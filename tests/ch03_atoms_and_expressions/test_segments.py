@@ -29,7 +29,7 @@ from hypothesis import given
 from hypothesis import strategies as st
 
 from metta import Expression, Grounded, S, V, seg, solve
-from metta.errors import MettaError
+from metta._errors.errors import MettaError
 
 # The gap glyph the law grants and Python already spells. Kept as a value so a
 # reader sees WHAT is being asserted rather than an Ellipsis literal buried in a

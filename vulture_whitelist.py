@@ -294,7 +294,7 @@ _.mimetypes
 _.parse_value
 # The seam's own doors, reached by NAME through metta.seam rather than by an
 # attribute load anywhere in this package. `_catalog_of` is the `catalog`
-# service metta._space publishes and metta.seam.publish calls through
+# service metta._spaces.handle publishes and metta.seam.publish calls through
 # `seam.at("catalog").call()`; the three Point objects are the declarations
 # metta.integrate makes for the doors whose rows it owns, held by the seam's
 # own table and spelled `seam.at("repr")` and friends at every call site. The
@@ -307,7 +307,7 @@ _.integration
 _._catalog_of
 # Two names the package itself never loads, and neither is dead. PROLOG calls
 # `_carrier_type_accepts` by name through seam:grounded_algebra_type/3
-# (extensions/python/metta/shim.pl:6495, `py_call('metta.algebra':...)`), which
+# [source: extensions/python/metta/_binding/algebra.pl:9; commit=WORKTREE], which
 # is the whole point of that seam: the owning host applies a carrier predicate
 # without the atom kinds being erased on the way. `boot_seconds` is a property
 # a CALLER reads off a pool it was handed, and the caller is outside this
@@ -321,8 +321,8 @@ _.boot_seconds
 # py_call('metta.algebra':'_carrier_type_accepts'(TypeWire, ValueWire), Raw)
 # so a host carrier predicate can decide an algebra's membership question. No
 # Python name load reaches it, which is what makes it invisible to a
-# reachability scan [source: extensions/python/metta/shim.pl,
-# seam:grounded_algebra_type/3; commit=11afdcdbad5bbbe37168b5d8528c23a21c42b4b6].
+# reachability scan [source: extensions/python/metta/_binding/algebra.pl:9,
+# seam:grounded_algebra_type/3; commit=WORKTREE].
 _carrier_type_accepts
 
 # Read by a SIBLING SEAT, which this scan does not reach: the C seat's
@@ -340,11 +340,11 @@ _.drifted_versions
 
 # The engine reaches this one from PROLOG too: shim.pl's
 # seam:catalog_row_changed/2 clause calls
-# py_call('metta._config':bound_row_changed(Name)) for every `(limit ...)` row
+# py_call('metta._catalog.bounds':bound_row_changed(Name)) for every `(limit ...)` row
 # that lands in or leaves `&metta`, which is what keeps the seat's mirror of
 # the bounds in step with a write it never saw. No Python name load reaches it
-# [source: extensions/python/metta/shim.pl, seam:catalog_row_changed/2;
-# commit=c26b6a4d28ef8fb50742440feed2c0578ebb0f58].
+# [source: extensions/python/metta/_binding/bounds.pl:24, seam:catalog_row_changed/2;
+# commit=WORKTREE].
 bound_row_changed
 # A generated row's own field, read by the suite this scan does not walk:
 # tests/repository/test_refusal_rows.py's
@@ -353,3 +353,56 @@ bound_row_changed
 # engine's row declares, and `tools/refusalgen.py` refuses to generate a
 # departure without one.
 _.departure
+
+# The Python import protocol calls the callback module's lazy resolver.
+# [source: extensions/python/metta/_binding/callbacks.py:__getattr__; commit=WORKTREE].
+__getattr__
+
+# The native host adapter calls these through Janus and its checked goal door.
+# [source: extensions/python/metta/_binding/surface.pl:metta_py_call/3; commit=WORKTREE].
+stream_tag
+declare_type
+declared_type_texts
+class_names
+is_numeric
+numeric_operation
+resolve_grounded
+evaluate_grounded
+dot
+is_callable
+unboxed
+build_list
+build_tuple
+build_dict
+iterate
+iterate_once
+sequence_length
+
+# Native transaction frames keep the Python mirror aligned with rollback.
+# [source: extensions/python/metta/_binding/bounds.pl:metta_py_bound_transaction/0, metta_py_bound_frame_finished/1; commit=WORKTREE].
+bound_transaction_started
+bound_transaction_finished
+
+# Public configuration and collected marks are read by consumers and tests.
+# [tested: tests/ch01_getting_started/test_config.py, tests/repository/test_door_marks.py; commit=WORKTREE].
+_.configure
+_.__door_members__
+
+# Generators consume package order and the row fields outside this scan.
+# [source: extensions/python/tools/doorfaces.py:Emitter, extensions/python/tools/layergen.py:projections, extensions/python/tools/aio_divergences.py; commit=WORKTREE].
+binding_mode
+layer_groups
+_.async_signature
+_.async_reason
+_.async_excluded
+_.context_inplace
+_.is_property
+
+# Source discovery reads these marked class bodies without constructing them.
+# [source: extensions/python/metta/doors/_scan.py:_read; commit=WORKTREE].
+_RowsSugar
+_AnswersSugar
+
+# A provider name is a generated descriptor resolved from its live door rows.
+# [tested: tests/repository/test_door_rows.py::test_a_retained_namespace_observes_replacement_and_withdrawal; commit=WORKTREE].
+_.arrays
