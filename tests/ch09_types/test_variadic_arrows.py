@@ -1,7 +1,7 @@
 """Purpose: exercise variadic arrows through public Python atom and source doors.
 
 Guarantees: arbitrary argument runs retain values, holding and refusal positions
-[tested: test_variadic_arrows.py; commit=WORKTREE].
+[tested: test_variadic_arrows.py; commit=6031c83ab3002b5703cb6fcb10e70a60a89f4ad7].
 Owns resources: every generated example closes its declaration space.
 """
 

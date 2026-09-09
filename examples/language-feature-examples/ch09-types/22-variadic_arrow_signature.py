@@ -3,7 +3,7 @@
 The declaration and equation atoms are the rung below compiled def, whose
 parameter syntax does not admit a segment. S[":seg"] builds type syntax;
 seg(V.args) builds the pattern's variable capture.
-[tested: variadic_arrows; commit=WORKTREE]
+[tested: variadic_arrows; commit=6031c83ab3002b5703cb6fcb10e70a60a89f4ad7]
 """
 
 from metta import Expression, S, V, arrow, equation, seg, typed
@@ -28,7 +28,7 @@ def twin(m):
 #: once-per-arity segment compilation and positional type diagnostics; the no-
 #: work compiled-call matrix matches fixed callees and no allowance is widened
 #: [measured 2026-09-09: min-of-3 serial fresh processes; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+#: extensions/python/tools/twin_coverage.py --repin; commit=6031c83ab3002b5703cb6fcb10e70a60a89f4ad7].
 #: RE-PINNED 2026-09-09, 16386 to 16435 (+49), The fixed diagnostic reader now
 #: consumes parameter and argument spines together, and segment families
 #: compile once per shape. Fixed-arrow presentation and warmed single-run
@@ -39,5 +39,5 @@ def twin(m):
 #: unchanged. Cold family generation is included. See
 #: docs/journal/2026-09-09-the-splice-in-an-arrow.md [measured 2026-09-09: min-
 #: of-3 serial fresh processes; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+#: extensions/python/tools/twin_coverage.py --repin; commit=6031c83ab3002b5703cb6fcb10e70a60a89f4ad7].
 BUDGET = 16435

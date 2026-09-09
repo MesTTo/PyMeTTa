@@ -2,7 +2,7 @@
 what you write in Python instead, and which bucket the translation falls in.
 `phrasebook.py` runs both sides of every row; this file is only the rows.
 The nop and arrow entries use the same final splice as the runtime catalog
-[tested: extensions/python/tools/phrasebook.py; commit=WORKTREE].
+[tested: extensions/python/tools/phrasebook.py; commit=6031c83ab3002b5703cb6fcb10e70a60a89f4ad7].
 
 The rows are the MeTTa standard-library surface: 380 distinct names with their
 types and metatypes. They were transcribed once from a mechanised stdlib

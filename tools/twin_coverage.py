@@ -327,7 +327,7 @@ BAND_PERCENT = 10.0
 #: The per-definition fit is unchanged and this tightens the band; no twin's
 #: overrun is increased [measured 2026-09-10: min-of-3 fresh processes; command=python
 #: extensions/python/benchmarks/probes/twin_authoring.py;
-#: fixture=provisioned cut and worktree; commit=WORKTREE].
+#: fixture=provisioned cut and worktree; commit=6031c83ab3002b5703cb6fcb10e70a60a89f4ad7].
 DEFINITION_WARMUP = 1466
 DEFINITION_COST = 1368
 

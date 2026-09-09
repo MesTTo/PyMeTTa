@@ -5,7 +5,7 @@ equations before executing each runnable.
 Guarantees: nested capture, empty capture, RHS splicing, variadic top-level
 arity, shortest-first splits, overlap, mixed-role projection, and
 variable-headed dispatch answer the reference matrix below.
-[tested: test_segment_equations.py; commit=WORKTREE]
+[tested: test_segment_equations.py; commit=6031c83ab3002b5703cb6fcb10e70a60a89f4ad7]
 """
 
 

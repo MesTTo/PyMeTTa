@@ -3,7 +3,7 @@
 Assumes: each test uses unique MeTTa names because the engine module outlives a
 Python handle. Guarantees: a call compiled into an equation body and the same
 term passed to `eval` produce the same pinned answer.
-[tested: test_conformance2.py; commit=WORKTREE]
+[tested: test_conformance2.py; commit=6031c83ab3002b5703cb6fcb10e70a60a89f4ad7]
 """
 
 from __future__ import annotations

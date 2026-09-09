@@ -207,7 +207,7 @@ def twin(m):
 #: Bounds are the observed extrema, with no added margin
 #: [measured 2026-09-10: minimum 122319, maximum 123932;
 #: command=python extensions/python/tools/twin_coverage.py --observe --rounds 10;
-#: fixture=full-lane/279/workers=32; commit=WORKTREE].
+#: fixture=full-lane/279/workers=32; commit=6031c83ab3002b5703cb6fcb10e70a60a89f4ad7].
 #: RE-OBSERVED 2026-09-10 after the next complete lane exposed a new
 #: channels/pools minimum. Two exact --observe --rounds 10 runs and
 #: all three other final-code complete-lane receipts are pooled under
@@ -217,7 +217,7 @@ def twin(m):
 #: [measured 2026-09-10: minimum 122319, maximum 124124;
 #: command=python extensions/python/tools/twin_coverage.py --observe --rounds 10;
 #: fixture=full-lane/279/workers=32, two observation runs and three plain lane receipts;
-#: commit=WORKTREE].
+#: commit=6031c83ab3002b5703cb6fcb10e70a60a89f4ad7].
 BUDGET = {
     "minimum": 122319,
     "maximum": 124124,

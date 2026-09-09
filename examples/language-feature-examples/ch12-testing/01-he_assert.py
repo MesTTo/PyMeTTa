@@ -315,7 +315,7 @@ RUNG = "the assert family is this file's subject, so each claim names one of its
 #: unchanged. Cold family generation is included. See
 #: docs/journal/2026-09-09-the-splice-in-an-arrow.md [measured 2026-09-09: min-
 #: of-3 serial fresh processes; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+#: extensions/python/tools/twin_coverage.py --repin; commit=6031c83ab3002b5703cb6fcb10e70a60a89f4ad7].
 BUDGET = 18689
 
 #: OVERRUN 2026-09-08, 9: the twin names each of the twelve assert-family

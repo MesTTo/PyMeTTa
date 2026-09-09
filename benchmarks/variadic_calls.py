@@ -9,7 +9,7 @@ Owns resources: each case releases its space; measure_instructions owns and
 reaps each perf child. Missing counters and failed answer checks raise.
 Guarantees: the complete matrix compares trailing and prefixed runs at
 0/1/2/4/8 and two-run cut families at 2/4/8 through public Space.stats().
-[tested: python -m benchmarks.variadic_calls --matrix; commit=WORKTREE]
+[tested: python -m benchmarks.variadic_calls --matrix; commit=6031c83ab3002b5703cb6fcb10e70a60a89f4ad7]
 """
 
 from __future__ import annotations
