@@ -31,7 +31,7 @@ from pathlib import Path
 import pytest
 
 from metta import S, ground
-from metta.atoms import Atom, Expression, Grounded, Symbol, Variable, _decode
+from metta._atoms.factories import Atom, Expression, Grounded, Symbol, Variable, _decode
 
 #: The shared test vector every seat that answers digest() runs. Node's own
 #: suite reads the same file, so the two seats cannot drift apart quietly.

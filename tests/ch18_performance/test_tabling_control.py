@@ -23,7 +23,7 @@ Open Obligations:
 import pytest
 
 from metta import S, V, catalog, match, reflection
-from metta.errors import EngineError
+from metta._errors.errors import EngineError
 
 
 @pytest.fixture()

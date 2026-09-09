@@ -19,17 +19,17 @@ import pytest
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
+import metta._spaces.evaluate as selection
 from metta import Expression, G, MeTTa, S, Space, V, equation
-from metta import _evaluation_door as selection
-from metta.atoms import Undefined
-from metta.errors import (
+from metta._atoms.factories import Undefined
+from metta._errors.errors import (
     AssertionFailure,
     EngineError,
     InferenceLimitError,
     MettaResultError,
     TimeLimitError,
 )
-from metta.results import Answers, Rows, _AnswerItem
+from metta._spaces.results import Answers, Rows, _AnswerItem
 
 
 @pytest.fixture
@@ -45,19 +45,19 @@ def test_evaluation_options_preserve_the_eager_kernel(space, monkeypatch):
         msg = "an eager call opened a replayable cursor"
         raise AssertionError(msg)
 
-    native = selection.evaluate_eager
+    native = selection._spaces_execution_module.evaluate
     eager = []
 
     def observe(*args, **kwargs):
         eager.append(args[2])
         return native(*args, **kwargs)
 
-    monkeypatch.setattr(Space, "_door_answers", refuse_cursor)
-    monkeypatch.setattr(selection, "evaluate_eager", observe)
+    monkeypatch.setattr(Space, "answers", refuse_cursor)
+    monkeypatch.setattr(selection._spaces_execution_module, "evaluate", observe)
     assert space.eval("(+ 2 3)") == [G(5)]
     assert space.eval("(+ 2 3)", delivery="values") == [5]
     assert space.eval("(+ 2 3)", answer="one", delivery="values") == 5
-    assert len(eager) == 2
+    assert len(eager) == 3
     assert space.eval("(superpose (2 2 3))", answer="count") == 3
 
 
@@ -329,7 +329,7 @@ class TrackedSource:
 
 def _supply(monkeypatch, source):
     raw = Answers(source)
-    monkeypatch.setattr(Space, "_door_answers", lambda *_args, **_kwargs: raw)
+    monkeypatch.setattr(Space, "answers", lambda *_args, **_kwargs: raw)
     return raw
 
 
@@ -395,7 +395,7 @@ def test_selected_answers_replay_bindings_once(space, monkeypatch):
     row = Rows(("x",), [(G(3),)]).one()
     source = TrackedSource([_AnswerItem(S.row(3), row)])
     raw = Answers(source, columns=("x",))
-    monkeypatch.setattr(Space, "_door_answers", lambda *_args, **_kwargs: raw)
+    monkeypatch.setattr(Space, "answers", lambda *_args, **_kwargs: raw)
     with space.eval(S.row(V.x), answer="answers", limit=1) as answers:
         assert list(answers) == list(answers) == [S.row(3)]
         assert answers.rows.one() == row
@@ -419,7 +419,7 @@ def test_a_failed_batch_closes_every_acquired_selection(space, monkeypatch, answ
         return next(pending)
 
     opened = []
-    monkeypatch.setattr(Space, "_door_answers", open_source)
+    monkeypatch.setattr(Space, "answers", open_source)
     try:
         with pytest.raises(BaseExceptionGroup if cleanup_fails else EngineError) as failure:
             space.eval(S.first, S.second, S.third, answer=answer)

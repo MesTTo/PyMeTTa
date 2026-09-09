@@ -199,7 +199,7 @@ def test_a_run_bound_stops_a_trace_the_way_it_stops_a_run(m):
     program run to completion while the same program under `run` stopped in
     the same scope.
     """
-    from metta.errors import InferenceLimitError
+    from metta._errors.errors import InferenceLimitError
 
     m.run("(= (loop $n) (if (> $n 0) (loop (- $n 1)) done))")
 

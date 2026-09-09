@@ -14,8 +14,8 @@ Assumes:
   - metta.structures owns the atom-kernel helpers this file builds on
     (_as_atom, _canonical) and the tabling call spelling and counters
     (_call_spelling, _table_report), and imports nothing from here at module
-    level [source: extensions/python/metta/structures.py:LiveView.__init__;
-    commit=0de0dc08d2fc77bee9dd132c41f1de23cda1e6c2]
+    level [source: extensions/python/metta/structures.py:653;
+    commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e]
 Guarantees:
   - a shared table refuses the transactional seed and names the private policy
     [tested: test_a_shared_tabled_view_refuses_its_transactional_seed;
@@ -72,8 +72,8 @@ from contextlib import suppress
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Self
 
-from ._api_types import SpaceLike
-from .atoms import (
+from metta._atoms.designation import SpaceLike
+from metta._atoms.factories import (
     Atom,
     Expression,
     Symbol,
@@ -83,12 +83,13 @@ from .atoms import (
     _variables,
     substitute,
 )
-from .errors import MettaError
-from .structures import _as_atom, _call_spelling, _canonical, _table_report
-from .vocabularies import DeltaKind, EffectClass, LiveStrategy, SubscriptionEdge
+from metta._errors.errors import MettaError
+from metta._lazy import lazy
+from metta.structures import _as_atom, _call_spelling, _canonical, _table_report
+from metta.vocabularies import DeltaKind, EffectClass, LiveStrategy, SubscriptionEdge
 
 if TYPE_CHECKING:
-    from .results import Rows
+    import metta.subscribe  # noqa: F401 -- child of the deferred package namespace
 
 __all__ = ["Changes", "Delta", "Live"]
 
@@ -101,7 +102,7 @@ def _require_subscribable(space: Any, pattern: Atom, on: str) -> None:
     that silently stops tracking. The check is the one `subscribe` itself
     makes, asked in this door's own name.
     """
-    from .foreign import require_capability  # noqa: PLC0415 -- avoids a cycle
+    from metta.foreign import require_capability  # noqa: PLC0415 -- avoids a cycle
 
     require_capability(space.name, "subscribe", "live", pattern=pattern, on=on)
 
@@ -141,7 +142,9 @@ def _tabled_here(space: Any, named: tuple[str, int]) -> bool:
     rather than a query [source: lib/lib_tabling/lib_tabling.pl, "Live
     declarations reflect into &metta as (tabled space name arity) facts"].
     """
-    from .ops import _REFLECTION_SPACE  # noqa: PLC0415 -- avoids the ops/structures import cycle
+    from metta._declare.operations import (  # noqa: PLC0415 -- avoids the ops/structures import cycle
+        _REFLECTION_SPACE,
+    )
 
     name, arity = named
     fact = Expression([Symbol("tabled"), Symbol(space.name), Symbol(name), arity])
@@ -330,13 +333,11 @@ class Changes:
         self, live: Live, timeout: float | None, queue_max: int | None
     ) -> None:
         """Build the consumer; `Live.changes` attaches it."""
-        from .subscribe import _capacity  # noqa: PLC0415 -- avoids a cycle
-
         self._live = live
         self._timeout = timeout
         # None is the standing `(limit subscription-queue ...)` bound, which
         # _capacity resolves; the two consumers share one policy.
-        self._bound = _capacity(queue_max)
+        self._bound = _root.subscribe._capacity(queue_max)
         self._pending: deque[Delta] = deque()
         self._changed = threading.Condition()
         self._closed = False
@@ -707,15 +708,15 @@ class Live:
         return self._strategy
 
     @property
-    def rows(self) -> Rows:
+    def rows(self) -> _root.Rows:
         """The current answers, one row per occurrence."""
-        # Lazy, because metta.results pulls a display and conversion chain
+        # Lazy, because metta._spaces.results pulls a display and conversion chain
         # this module is otherwise free of: importing it at the top cost
         # 0.60% of the structures-dispatch benchmark, which pays the import
         # [measured 2026-09-07: 597,042,654 instructions against 593,464,324;
         # command=python -m benchmarks.check_instructions structures-dispatch
         # --rounds 3].
-        from .results import Rows  # noqa: PLC0415 -- the display face alone pays
+        from metta._spaces.results import Rows  # noqa: PLC0415 -- the display face alone pays
 
         with self._lock:
             return Rows(self._columns, list(self._held.elements()))
@@ -1046,3 +1047,9 @@ class Live:
             f"<code>{self._strategy.value}</code></div>"
             f"{self.rows._repr_html_()}"
         )
+
+# Resolve annotations after definitions so peer imports can finish.
+if TYPE_CHECKING:
+    import metta as _root
+else:
+    _root = lazy('metta')

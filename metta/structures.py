@@ -11,9 +11,9 @@ birth. The general view -- several patterns, a tabled call, a stream of deltas
 -- is metta.live, which this module reaches only when a LiveView is made, so a
 program that wants the stores does not build it.
 Assumes:
-  - metta.atoms._match is the private directional primitive every lookup
+  - metta._atoms.factories._match is the private directional primitive every lookup
     here wants: stored patterns are the pattern side and probes are the atom
-    side [source: extensions/python/metta/atoms.py:_match; commit=6917bef7ca902671999eafcae3a7a86db8f69723]
+    side [source: extensions/python/metta/_atoms/factories.py:586; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e]
 Guarantees:
   - PatternMap's ground keys behave exactly like dict keys, the no-tax
     rule [tested test_patternmap_ground_keys_are_dict_keys]
@@ -57,10 +57,10 @@ from __future__ import annotations
 
 from collections.abc import Iterator, MutableMapping, MutableSet
 from operator import itemgetter
-from typing import Any, Self
+from typing import TYPE_CHECKING, Any, Self
 
-from ._api_types import SpaceLike
-from .atoms import (
+from metta._atoms.designation import SpaceLike
+from metta._atoms.factories import (
     Atom,
     Expression,
     Grounded,
@@ -72,8 +72,17 @@ from .atoms import (
     _variables,
     substitute,
 )
-from .errors import MettaError
-from .vocabularies import SubscriptionEdge
+from metta._errors.errors import MettaError
+from metta._lazy import lazy
+from metta._spaces import evaluate as _space_evaluate
+from metta.vocabularies import SubscriptionEdge
+
+if TYPE_CHECKING:
+    import metta.live  # noqa: F401 -- child of the deferred package namespace
+if TYPE_CHECKING:
+    import metta as _root
+else:
+    _root = lazy('metta')
 
 __all__ = [
     "AlphaSet",
@@ -584,7 +593,7 @@ class TabledMap:
         if not self._space.eval(call):
             raise KeyError(key)
         # The second crossing answers from the table the first one built.
-        return self._space._one(call)
+        return _space_evaluate.one(self._space, call)
 
     def __contains__(self, key: Any) -> bool:  # noqa: D105  -- the Python data-model hook is defined by its name and enclosing type contract
         try:
@@ -642,10 +651,9 @@ class LiveView:
     __slots__ = ("_live", "_pattern")
 
     def __init__(self, space: Any, pattern: Any) -> None:  # noqa: D107  -- the enclosing class documents construction and the object invariants
-        from .live import Live  # noqa: PLC0415 -- the view face alone pays
 
         self._pattern = pattern
-        self._live = Live(space, pattern, on=SubscriptionEdge.both, strategy="pattern")
+        self._live = _root.live.Live(space, pattern, on=SubscriptionEdge.both, strategy="pattern")
 
     def __contains__(self, atom: Any) -> bool:  # noqa: D105  -- the Python data-model hook is defined by its name and enclosing type contract
         return atom in self._live
@@ -735,4 +743,3 @@ class ClosureView:
 
     def __repr__(self) -> str:  # noqa: D105  -- the Python data-model hook is defined by its name and enclosing type contract
         return f"ClosureView({self._relation} on {self._space.name})"
-

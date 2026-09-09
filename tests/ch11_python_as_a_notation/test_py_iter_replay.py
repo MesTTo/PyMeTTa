@@ -35,9 +35,9 @@ import weakref
 
 import pytest
 
-import metta_py
+import metta._binding.host as metta_py
 from metta import Grounded, MeTTa, S
-from metta.errors import EngineError
+from metta._errors.errors import EngineError
 
 hypothesis = pytest.importorskip("hypothesis")
 given = hypothesis.given

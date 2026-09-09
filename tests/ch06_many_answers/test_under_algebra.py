@@ -60,7 +60,9 @@ import importlib
 import pytest
 
 import metta as metta_module
-from metta import Answer, S, V, aio, counting, prob, prov, ranked, tropical
+import metta.aio as _aio_surface
+from metta import Answer, S, V, counting, prob, prov, ranked, tropical
+from metta._declare import declarations as _space_declarations
 from metta.algebra import AlgebraDeclarationError
 from metta.foreign import SpaceProvider
 from metta.vocabularies import AlgebraLaw, Semiring
@@ -93,7 +95,7 @@ def test_counting_counts_match_bag_duplicates_without_opening_a_row_cursor(
             msg = "under=counting opened the materialising cursor"
             raise AssertionError(msg)
 
-        monkeypatch.setattr("metta._space.Cursor", cursor_must_not_open)
+        monkeypatch.setattr("metta._spaces.cursor.Cursor", cursor_must_not_open)
         counted = facts.match(S.edge(S.a, V.x), under=counting)
         with facts.stats() as measured:
             answer = counted.one()
@@ -181,7 +183,7 @@ def test_scoped_under_crosses_the_async_worker_context(metta):
         facts.add(S.item(S.a), S.item(S.b))
 
         async def ask():
-            async with aio.AsyncMeTTa(metta=facts) as worker:
+            async with _aio_surface.AsyncMeTTa(metta=facts) as worker:
                 with metta_module_under(counting):
                     counted = await worker.match(S.item(V.x))
                 return counted.one().annotation
@@ -242,7 +244,7 @@ def test_ranked_and_tropical_slices_are_stable_best_prefixes(metta):
     """Descending rank and ascending cost both preserve emission-order ties."""
     rows = [(S.low, 1), (S.best_a, 9), (S.best_b, 9), (S.middle, 4)]
     provider = _ScoredRows(rows)
-    metta._register_space(provider, "&under-ranked")
+    _space_declarations._register_space(metta, provider, "&under-ranked")
     scores = metta._at("&under-ranked")
 
     assert [str(value) for value in scores.match(S.score(V.x), under=ranked)[:2].x] == [
@@ -255,7 +257,7 @@ def test_ranked_and_tropical_slices_are_stable_best_prefixes(metta):
     ]
 
     duplicates = _ScoredRows([(S.same, 5), (S.same, 5)])
-    metta._register_space(duplicates, "&under-ranked-duplicates")
+    _space_declarations._register_space(metta, duplicates, "&under-ranked-duplicates")
     repeated = metta._at("&under-ranked-duplicates")
     assert len(list(repeated.match(S.score(V.x), under=ranked))) == 2
 
@@ -286,7 +288,7 @@ def test_pristine_ranked_slice_pushes_only_the_licensed_provider_bound(metta):
                 yield Answer(value=S.score(value), k=annotation)
 
     provider = BestFirstRows()
-    metta._register_space(provider, "&slice-ranked")
+    _space_declarations._register_space(metta, provider, "&slice-ranked")
     scores = metta._at("&slice-ranked")
     scores.annotations("ranked")
     scores.handles("(score $x)", "Exact")
@@ -308,7 +310,7 @@ def test_pristine_ranked_slice_pushes_only_the_licensed_provider_bound(metta):
     assert provider.limits == [None]
 
     no_order_promise = BestFirstRows()
-    metta._register_space(no_order_promise, "&slice-no-emits")
+    _space_declarations._register_space(metta, no_order_promise, "&slice-no-emits")
     unpromised = metta._at("&slice-no-emits")
     unpromised.annotations("ranked")
     unpromised.handles("(score $x)", "Exact")
@@ -319,7 +321,7 @@ def test_pristine_ranked_slice_pushes_only_the_licensed_provider_bound(metta):
     assert no_order_promise.limits == [None]
 
     inexact = BestFirstRows()
-    metta._register_space(inexact, "&slice-inexact")
+    _space_declarations._register_space(metta, inexact, "&slice-inexact")
     inexact_space = metta._at("&slice-inexact")
     inexact_space.annotations("ranked")
     inexact_space.handles("(score $x)", "Partial")
@@ -334,7 +336,7 @@ def test_pristine_ranked_slice_pushes_only_the_licensed_provider_bound(metta):
 def test_provenance_retains_a_derivation_for_no_requery_reinterpretation(metta):
     """why/under consume the captured carrier tree rather than the provider."""
     provider = _ScoredRows([("rain", S.src(S.weather_db))])
-    metta._register_space(provider, "&under-prov")
+    _space_declarations._register_space(metta, provider, "&under-prov")
     answer = metta._at("&under-prov").match(S.score(V.x), under=prov).first()
 
     assert "weather-db" in answer.why().render()
@@ -468,8 +470,8 @@ def test_algebra_module_is_the_constructor_and_the_old_space_doors_are_retired(
         assert program.match(S.derived(S.x), under=declared).one().annotation == 5
     assert not hasattr(metta_module, "evaluate_algebra")
     assert not hasattr(metta_module, "sample_rates")
-    assert not hasattr(metta_module._space.Space, "evaluate_algebra")
-    assert not hasattr(metta_module._space.Space, "sample_rates")
+    assert not hasattr(metta_module.Space, "evaluate_algebra")
+    assert not hasattr(metta_module.Space, "sample_rates")
 
 
 def test_custom_algebras_are_context_owned(metta):
@@ -634,7 +636,7 @@ def test_algebra_law_vocabulary_drives_aliases_and_unknown_refusals(metta):
 def test_equational_law_names_read_no_catalog(metta, monkeypatch):
     """Equations answer without the catalog walk an alias needs, and agree."""
     module = importlib.import_module("metta.algebra")
-    space_module = importlib.import_module("metta._space")
+    space_module = importlib.import_module("metta._faces.space")
     original = space_module.Space.atoms
     walked: list[str] = []
 

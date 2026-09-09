@@ -28,10 +28,12 @@ import urllib.request
 import metta_graphql  # noqa: F401  -- the graphql executor row
 import pytest
 
-from metta import S, V, _json, remote, seam
-from metta._schemas import graphql_sdl
-from metta.atoms import _atom_from_wire
-from metta.errors import MettaError
+import metta._binding.json as _json
+import metta.remote._gateway as _moved_metta_remote__gateway
+from metta import S, V, seam
+from metta._atoms.factories import _atom_from_wire
+from metta._errors.errors import MettaError
+from metta.remote._schemas import graphql_sdl
 
 
 @pytest.fixture()
@@ -60,7 +62,7 @@ def registry(metta):
 def test_the_schema_parses(registry):
     """graphql-core reads the SDL this builds, which is the whole promise of it."""
     graphql = pytest.importorskip("graphql")
-    with remote.Gateway(registry) as gateway:
+    with _moved_metta_remote__gateway.Gateway(registry) as gateway:
         sdl = gateway.graphql_schema()
     schema = graphql.build_schema(sdl)
     assert set(schema.query_type.fields) == {"match", "users"}
@@ -85,15 +87,15 @@ def test_the_schema_is_text_and_needs_no_graphql_package(registry, monkeypatch):
     that has no GraphQL package at all; that is what makes the schema a
     description of the server rather than a feature of one dependency.
     """
-    monkeypatch.setattr("metta._optional.import_module", _no_graphql)
-    with remote.Gateway(registry) as gateway:
+    monkeypatch.setattr("metta._lazy.import_module", _no_graphql)
+    with _moved_metta_remote__gateway.Gateway(registry) as gateway:
         assert "type Query {" in gateway.graphql_schema()
 
 
 def test_executing_without_graphql_core_refuses_with_the_extra(registry, monkeypatch):
     """The refusal names the package and the extra that installs it."""
-    monkeypatch.setattr("metta._optional.import_module", _no_graphql)
-    with remote.Gateway(registry) as gateway, pytest.raises(ImportError) as refusal:
+    monkeypatch.setattr("metta._lazy.import_module", _no_graphql)
+    with _moved_metta_remote__gateway.Gateway(registry) as gateway, pytest.raises(ImportError) as refusal:
         gateway.graphql({"query": "{ users { x1 } }"})
     assert "pymetta[graphql]" in str(refusal.value)
     assert seam.graphql.find("graphql-core").missing == str(refusal.value)
@@ -107,7 +109,7 @@ def test_a_declared_head_answers_typed_rows(registry):
     to.
     """
     pytest.importorskip("graphql")
-    with remote.Gateway(registry) as gateway:
+    with _moved_metta_remote__gateway.Gateway(registry) as gateway:
         answer = gateway.graphql({"query": "{ users { x1 x2 } }"})
     assert answer == {"data": {"users": [{"x1": 1, "x2": "Ada"}, {"x1": 2, "x2": "Bob"}]}}
 
@@ -115,7 +117,7 @@ def test_a_declared_head_answers_typed_rows(registry):
 def test_an_argument_fixes_a_position_and_comes_back_in_the_row(registry):
     """A supplied argument is a term, and the row is still as wide as the head."""
     pytest.importorskip("graphql")
-    with remote.Gateway(registry) as gateway:
+    with _moved_metta_remote__gateway.Gateway(registry) as gateway:
         answer = gateway.graphql({"query": '{ users(x1: "2") { x1 x2 } }'})
     assert answer == {"data": {"users": [{"x1": 2, "x2": "Bob"}]}}
 
@@ -128,7 +130,7 @@ def test_a_match_query_answers_what_the_wire_answers(registry):
     """
     pytest.importorskip("graphql")
     pattern = S.users(V.a, V.b)
-    with remote.Gateway(registry) as gateway:
+    with _moved_metta_remote__gateway.Gateway(registry) as gateway:
         through_graphql = gateway.graphql(
             {"query": '{ match(pattern: "(users $a $b)") }'}
         )
@@ -141,7 +143,7 @@ def test_a_match_query_answers_what_the_wire_answers(registry):
 def test_a_bound_travels_as_the_limit_argument(registry):
     """`limit` is the wire's `bound`, honoured exactly by this server."""
     pytest.importorskip("graphql")
-    with remote.Gateway(registry) as gateway:
+    with _moved_metta_remote__gateway.Gateway(registry) as gateway:
         answer = gateway.graphql(
             {"query": '{ match(pattern: "(users $a $b)", limit: 1) }'}
         )
@@ -151,7 +153,7 @@ def test_a_bound_travels_as_the_limit_argument(registry):
 def test_the_mutations_write_through(registry):
     """`add` and `remove` are the wire's own mutations under GraphQL's word."""
     pytest.importorskip("graphql")
-    with remote.Gateway(registry) as gateway:
+    with _moved_metta_remote__gateway.Gateway(registry) as gateway:
         assert gateway.graphql(
             {"query": 'mutation { add(atom: "(users 3 \\"Cid\\")") }'}
         ) == {"data": {"add": True}}
@@ -170,7 +172,7 @@ def test_a_head_graphql_cannot_name_is_published_not_dropped(registry):
     same bracket escape a generated Python stub gives a name Python cannot
     spell.
     """
-    with remote.Gateway(registry) as gateway:
+    with _moved_metta_remote__gateway.Gateway(registry) as gateway:
         sdl = gateway.graphql_schema()
         unnameable = gateway.openapi()["x-metta-unnameable"]
     assert "prime?" not in sdl
@@ -183,7 +185,7 @@ def test_a_head_graphql_cannot_name_is_published_not_dropped(registry):
 def test_a_head_that_would_shadow_match_is_unnameable(metta):
     """`match` is the field every schema carries, so a head cannot take it."""
     metta.run("(: match (-> Number Number))")
-    with remote.Gateway(metta) as gateway:
+    with _moved_metta_remote__gateway.Gateway(metta) as gateway:
         assert "match" in gateway.openapi()["x-metta-unnameable"]
         assert "MatchRow" not in gateway.graphql_schema()
 
@@ -192,7 +194,7 @@ def test_an_undeclared_space_publishes_match_alone(metta):
     """No declaration is no field; `match` still reaches every atom."""
     pytest.importorskip("graphql")
     metta.add(S.users(1, "Ada"))
-    with remote.Gateway(metta) as gateway:
+    with _moved_metta_remote__gateway.Gateway(metta) as gateway:
         sdl = gateway.graphql_schema()
         answer = gateway.graphql({"query": '{ match(pattern: "(users $a $b)") }'})
     assert "type Query {" in sdl
@@ -203,7 +205,7 @@ def test_an_undeclared_space_publishes_match_alone(metta):
 def test_a_bad_query_answers_graphqls_own_error(registry):
     """A query error is data in the response, which is GraphQL's own contract."""
     pytest.importorskip("graphql")
-    with remote.Gateway(registry) as gateway:
+    with _moved_metta_remote__gateway.Gateway(registry) as gateway:
         answer = gateway.graphql({"query": "{ nope }"})
     assert answer["data"] is None
     assert "Cannot query field 'nope'" in answer["errors"][0]["message"]
@@ -211,7 +213,7 @@ def test_a_bad_query_answers_graphqls_own_error(registry):
 
 def test_a_request_without_a_query_refuses_by_name(registry):
     """The refusal names the field, not a KeyError."""
-    with remote.Gateway(registry) as gateway, pytest.raises(MettaError) as refusal:
+    with _moved_metta_remote__gateway.Gateway(registry) as gateway, pytest.raises(MettaError) as refusal:
         gateway.graphql({"variables": {}})
     assert "`query` field" in str(refusal.value)
 
@@ -219,7 +221,7 @@ def test_a_request_without_a_query_refuses_by_name(registry):
 def test_the_bundled_server_serves_the_schema_and_executes(registry):
     """`GET /graphql` is the schema and `POST /graphql` runs a query."""
     pytest.importorskip("graphql")
-    with remote.serve(registry) as server:
+    with _moved_metta_remote__gateway.serve(registry) as server:
         with urllib.request.urlopen(f"{server.url}/graphql") as reply:
             assert reply.headers["content-type"] == "text/plain; charset=utf-8"
             sdl = reply.read().decode()

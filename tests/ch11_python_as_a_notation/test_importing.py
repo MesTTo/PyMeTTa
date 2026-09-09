@@ -25,9 +25,9 @@ from pathlib import Path
 import pytest
 
 import metta as metta_module
-from metta import __main__ as command_line
+import metta.__main__ as command_line
 from metta import importing
-from metta.errors import MettaError
+from metta._errors.errors import MettaError
 
 
 def fresh(stem):

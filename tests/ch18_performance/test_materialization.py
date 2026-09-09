@@ -18,8 +18,9 @@ from contextlib import contextmanager
 import janus_swi
 import pytest
 
-from metta import MeTTa, S, Variable, _engine
-from metta.errors import InferenceLimitError
+import metta._binding.runtime as _engine
+from metta import MeTTa, S, Variable
+from metta._errors.errors import InferenceLimitError
 
 _RULES = """
 (= (materialized-reach $x $y) (match &self (materialized-edge $x $y) True))

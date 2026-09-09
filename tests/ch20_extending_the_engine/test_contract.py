@@ -28,9 +28,10 @@ import uuid
 import pytest
 
 from metta import parse, vocabularies
-from metta._projection import WIRE_TAGS
-from metta.atoms import Expression, Variable
-from metta.errors import EngineError
+from metta._atoms.factories import Expression, Variable
+from metta._catalog.types import WIRE_TAGS
+from metta._declare import declarations as _space_declarations
+from metta._errors.errors import EngineError
 from metta.foreign import SpaceProvider
 from metta.vocabularies import EffectClass
 
@@ -130,7 +131,7 @@ def test_every_vocabulary_is_typed_by_the_engine(metta, vocabulary):
     assertion rather than two tables compared: the generated class is held to
     the row by the `vocab-sync` lane, and this holds the ENGINE's atoms to the
     generated class. Before it, eleven of these sets lived in
-    `metta._contract.ONTOLOGY` under names the seat had chosen, and one of
+    `metta._catalog.kinds.ONTOLOGY` under names the seat had chosen, and one of
     them (`Semiring`) had six members where the engine derived ten.
     """  # noqa: D205  -- the contract is one continuous invariant, not summary-and-body prose
     if vocabulary is vocabularies.WireTag:
@@ -208,7 +209,7 @@ def test_lint_evidence_and_intent_are_typed_reflection_facts(metta):
 
 
 def test_the_ontology_loads_once(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    from metta import _contract
+    import metta._catalog.kinds as _contract
 
     _contract.install(metta.runtime)
     _contract.install(metta.runtime)
@@ -546,7 +547,7 @@ def test_a_pre_boot_registration_is_reflected_by_the_snapshot(repo_root):  # noq
     script = (
         "import sys; sys.path.insert(0, 'extensions/python')\n"
         "import metta\n"
-        "from metta import convert, parse\n"
+        'from metta import parse\nimport metta.convert as convert\n'
         "class Early: pass\n"
         "convert.register_type(Early, image='handle', name='CtSnapshot')\n"
         "m = metta.MeTTa(metta_path='.')\n"
@@ -616,7 +617,7 @@ _EDGES = ["(edge a b)", "(edge b c)", "(edge c d)", "(edge d d)"]
 
 def _routed(metta, name, entries):
     provider = _RecordingProvider(_EDGES)
-    metta._register_space(provider, name)
+    _space_declarations._register_space(metta, provider, name)
     for entry in entries:
         metta.run(f"!(add-atom &metta (handles {name} {entry}))")
     return provider
@@ -721,7 +722,7 @@ def test_a_declared_route_outranks_the_provider_pushdown_method(metta):  # noqa:
             return "exact"
 
     provider = _Claimer(_EDGES)
-    metta._register_space(provider, "&hr-rank")
+    _space_declarations._register_space(metta, provider, "&hr-rank")
     metta.run("!(add-atom &metta (handles &hr-rank (edge $x $x) Sound))")
     # The method says exact for everything; the declaration says Sound for
     # the repeated-variable shape, and the declaration wins there.
@@ -824,7 +825,7 @@ def test_a_sql_backed_space_under_declared_handles(metta):
             rows = connection.execute(sql, arguments)
             return (parse(f"(edge {a} {b})") for a, b in rows)
 
-    metta._register_space(SqlEdges(), "&sql")
+    _space_declarations._register_space(metta, SqlEdges(), "&sql")
     metta._at("&sql").handles("(edge $x $y)", "Exact")
     metta._at("&sql").handles("(edge $x $x)", "Sound")
 
@@ -871,7 +872,7 @@ class _StreamProvider(SpaceProvider):
 
 
 def test_a_linear_source_refuses_its_second_consumption(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    metta._register_space(_StreamProvider(), "&sd-lin")
+    _space_declarations._register_space(metta, _StreamProvider(), "&sd-lin")
     metta._at("&sd-lin").consumption("linear")
     out = metta.run("!(collapse (match &sd-lin (edge $x $y) $y))")
     assert str(out[0][0]) == "(b c d)"
@@ -880,14 +881,14 @@ def test_a_linear_source_refuses_its_second_consumption(metta):  # noqa: D103  -
     with pytest.raises(EngineError, match="second consumption"):
         metta.run("!(collapse (match &sd-lin (edge $x $y) $y))")
     # A fresh provider is a fresh source: re-registration resets the mark.
-    metta._unregister_space("&sd-lin")
-    metta._register_space(_StreamProvider(), "&sd-lin")
+    _space_declarations._unregister_space(metta, "&sd-lin")
+    _space_declarations._register_space(metta, _StreamProvider(), "&sd-lin")
     out = metta.run("!(collapse (match &sd-lin (edge $x $y) $y))")
     assert str(out[0][0]) == "(b c d)"
 
 
 def test_a_join_over_a_linear_source_is_refused(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    metta._register_space(_StreamProvider(), "&sd-join")
+    _space_declarations._register_space(metta, _StreamProvider(), "&sd-join")
     metta._at("&sd-join").consumption("linear")
     # The nested loop's inner conjunct is a second physical touch: today's
     # floor answers a wrong empty join from the drained generator.
@@ -899,7 +900,7 @@ def test_a_join_over_a_linear_source_is_refused(metta):  # noqa: D103  -- pytest
 
 
 def test_the_undeclared_floor_keeps_todays_behaviour(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    metta._register_space(_StreamProvider(), "&sd-floor")
+    _space_declarations._register_space(metta, _StreamProvider(), "&sd-floor")
     assert str(metta.run("!(collapse (match &sd-floor (edge $x $y) $y))")[0][0]) == "(b c d)"
     assert str(metta.run("!(collapse (match &sd-floor (edge $x $y) $y))")[0][0]) == "()"
 

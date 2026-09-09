@@ -30,7 +30,7 @@ here may name `reader=` and `adder=`, so a registry that already exists keeps
 its storage and its hot path and is still one row table from out here.
 
 A point may also be DECLARED where its implementation lives. This module sits
-under the base layer, `metta.errors` reading its transport-error rows on every
+under the base layer, `metta._errors.errors` reading its transport-error rows on every
 refusal, so it may not import a satellite; the six points whose readers are
 `metta.integrate`'s are declared there and named in `_DECLARING` here, and
 `seam.at` loads that module only when a name is not already declared.
@@ -112,7 +112,29 @@ import inspect
 import threading
 from collections.abc import Callable, Iterable, Mapping
 from importlib import metadata
-from typing import Any, Final, NamedTuple
+from typing import TYPE_CHECKING, Any, Final, NamedTuple
+
+from metta._lazy import lazy
+
+if TYPE_CHECKING:
+    import metta._atoms.designation
+    import metta._atoms.factories
+    import metta._atoms.registry
+    import metta._catalog.arrow
+    import metta._catalog.declarations
+    import metta.doors  # noqa: F401 -- child of the deferred package namespace
+if TYPE_CHECKING:
+    import metta as _root
+else:
+    _root = lazy('metta')
+if TYPE_CHECKING:
+    from metta import _atoms
+else:
+    _atoms = lazy('metta._atoms')
+if TYPE_CHECKING:
+    from metta import _catalog
+else:
+    _catalog = lazy('metta._catalog')
 
 __all__ = [
     "ARROW_FORMAT",
@@ -202,15 +224,15 @@ LIBRARIES_GROUP: Final = "metta.libraries"
 #: readers and adders are their own, and they sit above this module in the
 #: layering, so a point whose implementation lives there is declared there and
 #: named here. Loaded lazily, and only when a caller asks for something this
-#: table does not already hold, so the dispatch path stays free: metta.errors
+#: table does not already hold, so the dispatch path stays free: metta._errors.errors
 #: reads the transport-error rows on every refusal and must not pay 41 ms for
 #: metta.integrate to do it [measured 2026-09-06, python -X importtime].
-#: metta._trace is here rather than declaring its service from this file: the
+#: metta._observe.trace is here rather than declaring its service from this file: the
 #: trace session reaches the execution machinery, and this module sits UNDER
-#: metta.errors, so an import of it from here -- even a function-local one --
+#: metta._errors.errors, so an import of it from here -- even a function-local one --
 #: is an edge from the base layer up into the core that import-linter counts
 #: and that the layering exists to forbid.
-_DECLARING: Final[tuple[str, ...]] = ("metta._space", "metta._trace", "metta.integrate")
+_DECLARING: Final[tuple[str, ...]] = ("metta._spaces.handle", "metta._observe.trace", "metta.integrate")
 
 #: A row's own attributes, which a field may therefore not be named.
 _RESERVED: Final[frozenset[str]] = frozenset(
@@ -721,43 +743,38 @@ def publish(m: Any) -> int:
     and what packages advertise. Asking for the whole surface as data is
     exactly the request that cannot be answered without them.
     """
-    from .atoms import S, _expr  # noqa: PLC0415  -- atoms are the base layer
-
     catalog = at("catalog").call()(m)
     written = 0
     for declaration in (
-        _expr(S.kind, S[_POINT_HEAD], S.symbol, S.symbol, S.symbol, S.term),
-        _expr(S.kind, S[_ROW_HEAD], S.symbol, S.symbol, S.symbol, S.term),
+        _atoms.factories._expr(_root.S.kind, _root.S[_POINT_HEAD], _root.S.symbol, _root.S.symbol, _root.S.symbol, _root.S.term),
+        _atoms.factories._expr(_root.S.kind, _root.S[_ROW_HEAD], _root.S.symbol, _root.S.symbol, _root.S.symbol, _root.S.term),
     ):
         if declaration not in catalog:
             catalog.add(declaration)
     for name, declared in sorted(points().items()):
-        row = _expr(
-            S[_POINT_HEAD],
-            S[SEAT],
-            S[name],
-            S[declared.kind],
-            _expr(S[_FIELDS], *(S[field] for field in declared.fields)),
+        row = _atoms.factories._expr(
+            _root.S[_POINT_HEAD],
+            _root.S[SEAT],
+            _root.S[name],
+            _root.S[declared.kind],
+            _atoms.factories._expr(_root.S[_FIELDS], *(_root.S[field] for field in declared.fields)),
         )
         if row not in catalog:
             catalog.add(row)
             written += 1
         for registration in _rows_of(declared):
-            registered = _expr(
-                S[_ROW_HEAD],
-                S[SEAT],
-                S[name],
-                S[registration.name],
-                _expr(S[_FIELDS], *(S[field] for field in sorted(registration.fields))),
+            registered = _atoms.factories._expr(
+                _root.S[_ROW_HEAD],
+                _root.S[SEAT],
+                _root.S[name],
+                _root.S[registration.name],
+                _atoms.factories._expr(_root.S[_FIELDS], *(_root.S[field] for field in sorted(registration.fields))),
             )
             if registered not in catalog:
                 catalog.add(registered)
                 written += 1
-    from .doors import (  # noqa: PLC0415 -- publish the complete host contract catalog after discovery
-        publish as publish_doors,
-    )
 
-    return written + publish_doors(space_of(catalog)._rt)
+    return written + _root.doors.publish(space_of(catalog)._rt)
 
 
 def _register(
@@ -841,9 +858,9 @@ def on_registration(callback: Callable[[str, str, Callable[[], None]], None]) ->
 
     The direction is deliberate. A registration made inside an integration's
     installer has to be undone when that installer fails, and the frame that
-    records inverses lives in metta.ops, which the base layer may not reach;
-    a seam that imported it would drag metta.errors up the stack with it. So
-    the OWNER of the frame subscribes, the way metta._contract subscribes to
+    records inverses lives in metta._declare.operations, which the base layer may not reach;
+    a seam that imported it would drag metta._errors.errors up the stack with it. So
+    the OWNER of the frame subscribes, the way metta._catalog.kinds subscribes to
     the conversion registry's own listener list.
     """
     _LISTENERS.append(callback)
@@ -1139,7 +1156,7 @@ image = point(
     "image",
     "ownership",
     fields=("claims",),
-    shipped="metta._images",
+    shipped="metta._catalog.images",
     extra="models",
     doc=(
         "How a class of host types projects when nobody registered a "
@@ -1219,9 +1236,7 @@ graphql = point(
 )
 def projection(names: Iterable[str], values: Iterable[tuple[Any, ...]]) -> Any:
     """A typed projection over named columns of answer cells."""
-    from ._arrow import Projection  # noqa: PLC0415  -- the one projection
-
-    return Projection.of(tuple(names), list(values))
+    return _catalog.arrow.Projection.of(tuple(names), list(values))
 
 
 @service(
@@ -1232,9 +1247,7 @@ def projection(names: Iterable[str], values: Iterable[tuple[Any, ...]]) -> Any:
 )
 def arrow_view(source: Any) -> Any:
     """`source` with only its Arrow capsule methods showing."""
-    from ._arrow import ArrowView  # noqa: PLC0415  -- the optional Arrow extra
-
-    return ArrowView(source)
+    return _catalog.arrow.ArrowView(source)
 
 
 @service(
@@ -1244,9 +1257,7 @@ def arrow_view(source: Any) -> Any:
 )
 def space_of(m: Any) -> Any:
     """A context's home space, or the space itself."""
-    from ._api_types import space_of as resolve  # noqa: PLC0415  -- the shared resolver
-
-    return resolve(m)
+    return _atoms.designation.space_of(m)
 
 
 @service(
@@ -1256,7 +1267,7 @@ def space_of(m: Any) -> Any:
 )
 def module(name: str, guidance: str) -> Any:
     """The named module, or ImportError carrying `guidance`."""
-    from ._optional import require_module  # noqa: PLC0415  -- the optional probe
+    from metta._lazy import optional as require_module  # noqa: PLC0415  -- the optional probe
 
     return require_module(name, guidance)
 
@@ -1271,9 +1282,7 @@ def module(name: str, guidance: str) -> Any:
 )
 def field_types(cls: type, names: tuple[str, ...]) -> tuple:
     """One class's declared annotations, in `names` order."""
-    from ._convert_registry import _field_types  # noqa: PLC0415  -- the registry
-
-    return _field_types(cls, names)
+    return _atoms.registry._field_types(cls, names)
 
 
 @service(
@@ -1286,7 +1295,7 @@ def field_types(cls: type, names: tuple[str, ...]) -> tuple:
 )
 def optional_module(name: str) -> Any:
     """The named module, or None when it is not installed."""
-    from ._optional import optional_module as probe  # noqa: PLC0415  -- the optional probe
+    from metta._lazy import optional_module as probe  # noqa: PLC0415  -- the optional probe
 
     return probe(name)
 
@@ -1314,10 +1323,8 @@ def sql_arity(signature: Any) -> int:
 )
 def sql_types(head: Any, name: str, signature: Any, undeclared: Any) -> tuple[list[str], str]:
     """(parameter types, return type) in SQL's vocabulary."""
-    from ._declarations import is_arrow  # noqa: PLC0415  -- the declared-arrow test
-
     declared = getattr(head, "type", None)
-    if declared is None or not is_arrow(declared) or sql_arity(signature) < 0:
+    if declared is None or not _catalog.declarations.is_arrow(declared) or sql_arity(signature) < 0:
         raise TypeError(undeclared(name))
     empty = _EMPTY_ANNOTATION
     parameters = [
@@ -1337,9 +1344,7 @@ def sql_types(head: Any, name: str, signature: Any, undeclared: Any) -> tuple[li
 )
 def batch_bounds(length: int) -> Any:
     """(start, stop) windows over `length` rows, doubling."""
-    from ._arrow import batch_bounds as bounds  # noqa: PLC0415  -- the shared batch policy
-
-    return bounds(length)
+    return _catalog.arrow.batch_bounds(length)
 
 
 @service(
@@ -1351,9 +1356,7 @@ def batch_bounds(length: int) -> Any:
 )
 def match(pattern: Any, atom: Any) -> Any:
     """The pattern's bindings, or None when it does not match."""
-    from .atoms import _match as directional  # noqa: PLC0415  -- the atom primitive
-
-    return directional(pattern, atom)
+    return _atoms.factories._match(pattern, atom)
 
 
 @service(
@@ -1364,9 +1367,7 @@ def match(pattern: Any, atom: Any) -> Any:
 )
 def alpha_eq(left: Any, right: Any) -> bool:
     """MeTTa's =alpha over two atoms."""
-    from .atoms import _alpha_eq as alpha  # noqa: PLC0415  -- the atom primitive
-
-    return alpha(left, right)
+    return _atoms.factories._alpha_eq(left, right)
 
 
 @service(
@@ -1377,9 +1378,7 @@ def alpha_eq(left: Any, right: Any) -> bool:
 )
 def arrow_schema(projected: Any) -> Any:
     """One projection's Arrow schema capsule."""
-    from ._arrow import schema_capsule  # noqa: PLC0415  -- the Arrow doors
-
-    return schema_capsule(projected)
+    return _catalog.arrow.schema_capsule(projected)
 
 
 @service(
@@ -1390,9 +1389,7 @@ def arrow_schema(projected: Any) -> Any:
 )
 def arrow_stream(projected: Any, requested_schema: Any = None) -> Any:
     """One projection's Arrow stream capsule."""
-    from ._arrow import stream_capsule  # noqa: PLC0415  -- the Arrow doors
-
-    return stream_capsule(projected, requested_schema)
+    return _catalog.arrow.stream_capsule(projected, requested_schema)
 
 
 @service(
@@ -1402,9 +1399,7 @@ def arrow_stream(projected: Any, requested_schema: Any = None) -> Any:
 )
 def arrow_batches(source: Any) -> Any:
     """(column names, an iterator of batches) for one Arrow stream."""
-    from ._arrow import read_batches  # noqa: PLC0415  -- the Arrow doors
-
-    return read_batches(source)
+    return _catalog.arrow.read_batches(source)
 
 
 @service(
@@ -1422,15 +1417,12 @@ def image_of(
     types: tuple[Any, ...] = (),
 ) -> Any:
     """One default image for a class of host types."""
-    from ._convert_registry import _Registration  # noqa: PLC0415  -- it imports this
-
-    return _Registration(kind, parts, rebuild, name, fields, types, explicit=False)
+    return _atoms.registry._Registration(kind, parts, rebuild, name, fields, types, explicit=False)
 
 
 def _validate_door_registration(row: Row, standing: tuple[Row, ...]) -> None:
-    from .doors import validate_registration  # noqa: PLC0415  -- engine-free row grammar
 
-    validate_registration(row, standing)
+    _root.doors.validate_registration(row, standing)
 
 
 door = point(

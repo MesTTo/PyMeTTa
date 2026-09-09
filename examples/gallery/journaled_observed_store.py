@@ -14,7 +14,7 @@ from tempfile import TemporaryDirectory
 from _common import claim, doctest, done
 
 from metta import MeTTa, S, V, accept, refuse
-from metta.errors import EngineError
+from metta._errors.errors import EngineError
 
 
 def total_is_valid(total: int) -> bool:

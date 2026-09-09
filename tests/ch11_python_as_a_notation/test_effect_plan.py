@@ -21,8 +21,9 @@ import asyncio
 import uuid
 from typing import get_type_hints
 
-from metta import S, aio
-from metta.ops import EffectPlan, registered
+import metta.aio as _aio_surface
+from metta import S
+from metta._declare.operations import EffectPlan, registered
 from metta.vocabularies import EffectClass
 
 
@@ -118,7 +119,7 @@ def test_async_effect_plan_retains_the_sync_contract(metta):
     called = []
 
     async def inspect():
-        async with aio.AsyncMeTTa(metta=metta._new_space()) as async_metta:
+        async with _aio_surface.AsyncMeTTa(metta=metta._new_space()) as async_metta:
             def implementation(value):
                 called.append(value)
                 return value
@@ -136,7 +137,7 @@ def test_async_effect_plan_retains_the_sync_contract(metta):
             finally:
                 await async_metta.unregister_op(operation_name)
 
-    assert get_type_hints(aio.AsyncMeTTa.effect_plan)["return"] is EffectPlan
+    assert get_type_hints(_aio_surface.AsyncMeTTa.effect_plan)["return"] is EffectPlan
     plan = asyncio.run(inspect())
     assert plan.operations == ((operation_name, EffectClass.readOnlyLookup),)
     assert plan.effect is EffectClass.readOnlyLookup

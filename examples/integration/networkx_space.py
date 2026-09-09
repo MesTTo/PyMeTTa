@@ -27,12 +27,14 @@ from itertools import pairwise
 
 from _common import check, done, skip
 
+from metta._declare import declarations as _space_declarations
+
 try:
     import networkx as nx
 except ImportError:
     skip("networkx is not installed")
 
-from metta import Expression, MeTTa, Variable, parse, tables, ground
+from metta import Expression, MeTTa, Variable, ground, parse, tables
 
 _PROJECTIONS = ("pairwise", "bipartite")
 
@@ -97,7 +99,7 @@ def main() -> None:
         "INSERT INTO nxedges VALUES (?, ?)", [("p", "q"), ("q", "r")]
     )
     tables.declare(m, "&nxdb", "(bridge (edge $a $b) (row nxedges (a $a) (b $b)))")
-    m._register_space(tables.TableBridge.from_context(m, "&nxdb", connection), "&nxdb")
+    _space_declarations._register_space(m, tables.TableBridge.from_context(m, "&nxdb", connection), "&nxdb")
     bridged = to_graph(m._at("&nxdb"), "(edge $x $y)")
     check("SQL rows graph identically", sorted(str(n) for n in bridged), ["p", "q", "r"])
 

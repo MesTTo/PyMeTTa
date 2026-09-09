@@ -25,6 +25,7 @@ Open Obligations:
 import pytest
 
 from metta import FALSE, TRUE, Expression, S, V
+from metta._declare import declarations as _space_declarations
 from metta.foreign import SpaceProvider
 
 
@@ -284,12 +285,12 @@ def test_a_python_provider_drains(metta):
 
     provider = ListSpace()
     name = f"&lawlist{id(provider) % 100000}"
-    metta._register_space(provider, name)
+    _space_declarations._register_space(metta, provider, name)
     try:
         assert drains(name, metta) == (3, 0)
         assert provider.stored == []
     finally:
-        metta._unregister_space(name)
+        _space_declarations._unregister_space(metta, name)
 
 
 def test_a_persistent_space_drains_like_a_native_one(metta, tmp_path):
@@ -297,11 +298,11 @@ def test_a_persistent_space_drains_like_a_native_one(metta, tmp_path):
     removed rather than a single sweep, so a replay reconstructs the same
     counts.
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
-    from metta._persistent import PersistentFactSpace
+    from metta.foreign._persistent import PersistentFactSpace
 
     provider = PersistentFactSpace(tmp_path / "law.db", {"law": 1})
     name = f"&lawstore{id(provider) % 100000}"
-    metta._register_space(provider, name)
+    _space_declarations._register_space(metta, provider, name)
     try:
         assert drains(name, metta) == (3, 0)
         # The provider's OWN door is still one-at-a-time, which is what the
@@ -312,5 +313,5 @@ def test_a_persistent_space_drains_like_a_native_one(metta, tmp_path):
         assert provider.remove(S.law(1)) is True
         assert provider.remove(S.law(1)) is False
     finally:
-        metta._unregister_space(name)
+        _space_declarations._unregister_space(metta, name)
         provider.close()

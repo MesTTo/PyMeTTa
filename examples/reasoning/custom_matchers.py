@@ -27,8 +27,8 @@ try:
 except ImportError:
     skip("metta-arrays and numpy are needed")
 
-from metta import Answer, Bindings, MeTTa, S, V, Expression
-from metta.atoms import Grounded
+from metta import Answer, Bindings, Expression, MeTTa, S, V
+from metta._atoms.factories import Grounded
 
 m = MeTTa().space()
 

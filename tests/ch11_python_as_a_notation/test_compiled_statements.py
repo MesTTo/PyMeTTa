@@ -36,7 +36,7 @@ from __future__ import annotations
 import pytest
 
 from metta import MeTTa, S, Space
-from metta.errors import CompileError
+from metta._errors.errors import CompileError
 
 
 @pytest.fixture

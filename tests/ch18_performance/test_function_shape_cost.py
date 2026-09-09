@@ -64,7 +64,7 @@ def test_asking_the_shape_of_an_absent_name_costs_what_a_present_one_costs(metta
 
     Asked with the bare property, the absent name cost 1,030 inferences
     against 8 for the planted one; the guard in
-    `extensions/python/metta/shim.pl` reads 37 against 9.
+    `extensions/python/metta/_binding/shim.pl` reads 37 against 9.
     """
     answer = metta.runtime.once(_COST)
     present, missing, speedup = (

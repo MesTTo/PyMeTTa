@@ -27,8 +27,8 @@ from string.templatelib import Interpolation, Template
 from typing import Any
 
 from metta import Space, render
-from metta.atoms import InterpolationLike, TemplateLike, parse
-from metta.results import Rows
+from metta._atoms.factories import InterpolationLike, TemplateLike, parse
+from metta._spaces.results import Rows
 
 
 class Backported:

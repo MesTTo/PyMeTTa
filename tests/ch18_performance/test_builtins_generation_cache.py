@@ -13,8 +13,8 @@ from __future__ import annotations
 from typing import cast
 
 from metta import S, V, space
-from metta._engine import Runtime
-from metta._space import _space_builtins
+from metta._binding.runtime import Runtime
+from metta._declare.functions import _space_builtins
 
 
 class _GenerationRuntime:

@@ -34,16 +34,18 @@ from __future__ import annotations
 import dataclasses
 import importlib.util
 import re
+import sys
 from pathlib import Path
+from types import ModuleType
 
 import pytest
 
 import metta.integrate as pi
 import tests.fixtures.face_source as source
-from metta._face import Manifest, imports_from, read, render
-from metta._name_mapping import attribute_name
-from metta.atoms import parse
-from metta.errors import EngineError, MettaError
+from metta._atoms.factories import parse
+from metta._atoms.names import attribute_name
+from metta._errors.errors import EngineError, MettaError
+from metta.library._face import Manifest, imports_from, read, render
 
 _REPO = Path(__file__).resolve().parents[4]
 _PURPOSE = "A module the face tests read"
@@ -421,6 +423,25 @@ def test_a_planted_signature_change_is_reported(tmp_path, monkeypatch):
 
     facegen.review([face], rewrite=True)
     assert facegen.review([face], rewrite=False) == ([], [])
+
+
+def test_a_changed_header_module_is_checked_at_its_new_path(tmp_path, monkeypatch):
+    """A relocated import must describe the API at its new module path."""
+    relocated = ModuleType("relocated_face_fixture")
+
+    def scale(value: float, factor: float, offset: float = 0.0) -> float:
+        return value * factor + offset
+
+    relocated.scale = scale
+    monkeypatch.setitem(sys.modules, relocated.__name__, relocated)
+    text = _face(["scale"])
+    old = f"from {source.__name__} import"
+    assert old in text
+    face = tmp_path / "lib_relocated.metta"
+    face.write_text(text.replace(old, f"from {relocated.__name__} import"), encoding="utf-8")
+    findings, _notes = _load_facegen().review([face], rewrite=False)
+    assert len(findings) == 1
+    assert "$value $factor $offset" in findings[0]
 
 
 def test_a_face_whose_module_is_absent_is_reported_and_skipped(tmp_path, monkeypatch):

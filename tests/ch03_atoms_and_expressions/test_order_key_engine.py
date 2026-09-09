@@ -20,7 +20,7 @@ Open Obligations:
 import pytest
 
 from metta import Expression, Grounded, Symbol, Variable, convert
-from metta.atoms import _alpha_eq, order_key
+from metta._atoms.factories import _alpha_eq, order_key
 
 hypothesis = pytest.importorskip("hypothesis")
 given = hypothesis.given

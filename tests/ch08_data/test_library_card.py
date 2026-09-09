@@ -39,7 +39,7 @@ from pathlib import Path
 import pytest
 
 from metta import library
-from metta.errors import MettaError
+from metta._errors.errors import MettaError
 
 _MEMO_HEADS = (
     "memoize",

@@ -49,8 +49,7 @@ from collections.abc import Iterator, Mapping, Sequence
 from collections.abc import Set as AbstractSet
 from typing import Any
 
-from ._object_fields import field_names
-from .atoms import (
+from metta._atoms.factories import (
     Atom,
     Expression,
     Grounded,
@@ -64,15 +63,10 @@ from .atoms import (
     ground,
     substitute,
 )
-from .errors import MettaError
-from .foreign import (
-    Matcher,
-    Snapshotter,
-    SpaceProvider,
-    _refusal_detail,
-    _require_provider,
-)
-from .structures import _canonical
+from metta._atoms.fields import field_names
+from metta._errors.errors import MettaError
+from metta.foreign import Matcher, Snapshotter, SpaceProvider, _refusal_detail, _require_provider
+from metta.structures import _canonical
 
 __all__ = [
     "ObjectView",
@@ -197,7 +191,9 @@ def view(obj: Any):
     if not supported:
         msg = "view expects a dict, set, or non-string sequence"
         raise TypeError(msg)
-    from ._space import MeTTa, Space  # noqa: PLC0415 -- the satellite stays lazy at root import
+    # the satellite resolves its public classes on use
+    from metta._faces.metta import MeTTa  # noqa: PLC0415
+    from metta._faces.space import Space  # noqa: PLC0415 -- the satellite stays lazy at root import
 
     return MeTTa(Space()).space(backing=_LiveDataView(obj))
 
@@ -530,7 +526,7 @@ class _Union(_Composed):
 def union(*spaces: Any) -> _Union:
     """A set of spaces read as one, writes refused by capability.
 
-        m._register_space(metta.spaces.union(kb, rules), "&all")
+        metta.space("&all", backing=metta.spaces.union(kb, rules))
         m.run("!(match &all (edge $a $b) $b)")
 
     Every member's candidates answer; duplicates across members are

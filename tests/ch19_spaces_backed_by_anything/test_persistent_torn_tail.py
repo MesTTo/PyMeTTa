@@ -14,8 +14,8 @@ from pathlib import Path
 import pytest
 
 from metta import MettaError, S, ground
-from metta._persistent import PersistentFactSpace
-from metta.errors import EngineError
+from metta._errors.errors import EngineError
+from metta.foreign._persistent import PersistentFactSpace
 
 SCHEMA = {"edge": 2}
 

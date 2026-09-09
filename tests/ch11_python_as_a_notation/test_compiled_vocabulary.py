@@ -13,7 +13,7 @@ from hypothesis import given
 from hypothesis import strategies as st
 
 from metta import Expression, Grounded, S, V, Variable, match, py, superpose
-from metta.errors import CompileError
+from metta._errors.errors import CompileError
 
 
 @pytest.fixture

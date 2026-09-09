@@ -34,7 +34,8 @@ import pytest
 
 import metta as metta_module
 from metta import S, State, V, counting, tropical
-from metta.errors import MettaError
+from metta._declare import declarations as _space_declarations
+from metta._errors.errors import MettaError
 from metta.foreign import SpaceProvider, delivery_promise
 from metta.subscribe import bridge
 
@@ -95,8 +96,8 @@ def test_a_context_that_declares_events_serves_them_and_one_that_does_not_refuse
     than reporting a missing method it demonstrably has.
     """
     loud, quiet = Announcing(), Dictionary()
-    metta._register_space(loud, "&ev-declared")
-    metta._register_space(quiet, "&ev-silent")
+    _space_declarations._register_space(metta, loud, "&ev-declared")
+    _space_declarations._register_space(metta, quiet, "&ev-silent")
     target = metta._new_space()
     try:
         # The promise is an ordinary declaration atom, so a MeTTa program
@@ -142,8 +143,8 @@ def test_a_context_that_declares_events_serves_them_and_one_that_does_not_refuse
         assert S.tick(2) in quiet.stored
         assert metta._at("&ev-silent").match(S.tick(V.n))
     finally:
-        metta._unregister_space("&ev-silent")
-        metta._unregister_space("&ev-declared")
+        _space_declarations._unregister_space(metta, "&ev-silent")
+        _space_declarations._unregister_space(metta, "&ev-declared")
 
 
 def test_a_native_space_needs_no_declaration_to_be_watched(metta):
@@ -430,8 +431,8 @@ def test_a_fold_binds_its_own_pattern_and_never_a_stored_event_variable(metta):
 def test_an_abandoned_watch_cancels_itself(scratch_space):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     import gc
 
+    import metta.subscribe as _subscribe
     from metta import S, V
-    from metta import subscribe as _subscribe
 
     space = scratch_space
     before = len(_subscribe._subscriptions_for(space._space))

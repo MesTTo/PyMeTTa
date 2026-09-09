@@ -22,7 +22,7 @@ import logging
 
 import pytest
 
-from metta.errors import EngineError
+from metta._errors.errors import EngineError
 
 #: A Prolog registration claims its name for the whole process, so each
 #: scenario writes its own predicate rather than racing a sibling for one.
@@ -152,7 +152,7 @@ def test_the_kind_map_covers_swis_own_levels():
     `silent` is dropped engine-side, and a kind with no row is INFO rather
     than absent.
     """
-    from metta._engine import _MESSAGE_LEVELS, engine_message
+    from metta._binding.runtime import _MESSAGE_LEVELS, engine_message
 
     assert _MESSAGE_LEVELS["error"] == logging.ERROR
     assert _MESSAGE_LEVELS["warning"] == logging.WARNING

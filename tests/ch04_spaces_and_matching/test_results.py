@@ -29,7 +29,7 @@ import metta_polars  # noqa: F401  -- the frame row to_pl() reads
 import pytest
 
 from metta import S, V, config, equation, parse, tables
-from metta.results import Answers, Rows, _row_class
+from metta._spaces.results import Answers, Rows, _row_class
 
 
 @pytest.fixture()

@@ -5,7 +5,7 @@ import importlib.util
 import pytest
 
 from metta import Expression, S, superpose
-from metta.errors import CompileError
+from metta._errors.errors import CompileError
 
 
 def _atom_size(atom):

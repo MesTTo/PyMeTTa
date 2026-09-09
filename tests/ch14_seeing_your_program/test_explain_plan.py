@@ -17,8 +17,8 @@ import re
 import pytest
 
 from metta import S, V, parse
-from metta.errors import EngineError
-from metta.results import Rows
+from metta._errors.errors import EngineError
+from metta._spaces.results import Rows
 
 TRIANGLE = "(match {space} (, (edge $x $y) (edge $y $z) (edge $z $x)) ($x $y $z))"
 CHAIN = "(match {space} (, (edge $x $y) (edge $y $z)) ($x $z))"

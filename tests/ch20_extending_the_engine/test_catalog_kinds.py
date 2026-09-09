@@ -30,7 +30,8 @@ import sys
 import pytest
 
 from metta import MeTTa, S, V
-from metta.errors import EngineError
+from metta._declare import declarations as _space_declarations
+from metta._errors.errors import EngineError
 from metta.foreign import SpaceProvider
 from metta.vocabularies import Fidelity, Semiring, Visibility
 
@@ -75,7 +76,7 @@ def test_a_third_party_declaration_kind_changes_routing_through_published_seams(
 ):
     m = MeTTa().self
     provider = _Recording()
-    m._register_space(provider, "&fr-rows")
+    _space_declarations._register_space(m, provider, "&fr-rows")
     m._at("&fr-rows").handles("(edge $a $b)", "Exact")
 
     rows = m._at("&fr-rows").match(S.edge(V.x, V.y), limit=2)
@@ -204,7 +205,7 @@ def test_every_vocabulary_member_crosses_as_its_symbol():
     from enum import StrEnum
 
     from metta import vocabularies
-    from metta.atoms import Symbol
+    from metta._atoms.factories import Symbol
 
     for name in vocabularies.__all__:
         cls = getattr(vocabularies, name)
@@ -313,7 +314,7 @@ def test_the_image_declaration_is_catalog_validated():
     and a direct &metta write refuse the same junk word, and a member crosses
     as the symbol the vocabulary declares.
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
-    from metta.errors import EngineError
+    from metta._errors.errors import EngineError
     from metta.vocabularies import ImageMode
 
     m = MeTTa().self

@@ -32,9 +32,10 @@ import pytest
 from hypothesis import given
 from hypothesis import strategies as st
 
-from metta import S, V, _arrow, equation
-from metta.atoms import Atom, G, Grounded
-from metta.results import Answers, Column, Rows
+import metta._catalog.arrow as _arrow
+from metta import S, V, equation
+from metta._atoms.factories import Atom, G, Grounded
+from metta._spaces.results import Answers, Column, Rows
 
 nanoarrow = pytest.importorskip("nanoarrow")
 

@@ -35,7 +35,7 @@ import pytest
 
 import metta as pymetta
 from metta import Expression, Grounded, S, V, equation
-from metta.atoms import order_key
+from metta._atoms.factories import order_key
 
 
 def test_solve_retires_the_five_relational_let_workarounds(metta):
@@ -146,7 +146,7 @@ def test_unary_plus_is_atom_identity():
 
 def test_define_absorbs_class_declaration_and_frees_space_type(metta):
     """R5.5: one decorator replaces the second spelling under appendix 8."""
-    import metta.ops as op_module
+    import metta._declare.operations as op_module
 
     @metta.define
     @dataclass

@@ -18,7 +18,7 @@ handles, because a space is an ordinary term operand.
 
 import metta
 from metta import S, V
-from metta.errors import EngineError
+from metta._errors.errors import EngineError
 from metta.vocabularies import AgendaPolicy, Delivery, EventOrder
 
 

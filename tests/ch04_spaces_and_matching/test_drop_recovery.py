@@ -8,7 +8,7 @@ Guarantees:
 import pytest
 
 from metta import MeTTa, S, V, foreign
-from metta.errors import MettaError
+from metta._errors.errors import MettaError
 
 
 @pytest.mark.parametrize("stage", ["metta_py_clear_for_release", "metta_py_drop_space"])

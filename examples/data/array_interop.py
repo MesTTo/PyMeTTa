@@ -20,7 +20,7 @@ try:
 except ImportError:
     skip("metta-arrays, numpy and array-api-compat are needed")
 
-from metta import MeTTa, S, V, Expression, ground, convert
+from metta import Expression, MeTTa, S, V, convert, ground
 
 m = MeTTa().space()
 arrays.install(m, default=numpy)

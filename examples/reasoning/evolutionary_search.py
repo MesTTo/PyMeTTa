@@ -16,7 +16,7 @@ import random
 
 from _common import check, done
 
-from metta import MeTTa, S, V, Expression, convert
+from metta import Expression, MeTTa, S, V, convert
 
 random.seed(11)
 TARGET = [1, 0, 1, 1, 0, 1, 0, 1]

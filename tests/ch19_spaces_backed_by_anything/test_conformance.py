@@ -27,7 +27,7 @@ Open Obligations:
 import pytest
 
 from metta import MeTTa, Space, testing
-from metta.atoms import Expression, Variable, parse
+from metta._atoms.factories import Expression, Variable, parse
 from metta.foreign import SpaceProvider
 from metta.spaces import view
 

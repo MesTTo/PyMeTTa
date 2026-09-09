@@ -37,8 +37,8 @@ from typing import Any, get_overloads, get_type_hints
 import pytest
 
 from metta import MeTTa, S, V, accept, drop, match, refuse, space, superpose, unify
-from metta.errors import EngineError
-from metta.results import Answers
+from metta._errors.errors import EngineError
+from metta._spaces.results import Answers
 
 
 def test_subscript_one_pattern_and_bulk_delete_laws() -> None:

@@ -12,7 +12,7 @@ from dataclasses import dataclass
 from _common import check, done
 
 from metta import MeTTa, S, equation, rules
-from metta.errors import CompileError
+from metta._errors.errors import CompileError
 
 m = MeTTa().space()
 

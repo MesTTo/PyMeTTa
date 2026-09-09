@@ -20,8 +20,9 @@ Open Obligations:
 from __future__ import annotations
 
 from metta import S, V
-from metta._arrow import BOOL, FLOAT64, TEXT, UTF8
-from metta._projection import (
+from metta._atoms.factories import Expression, Symbol
+from metta._catalog.arrow import BOOL, FLOAT64, TEXT, UTF8
+from metta._catalog.types import (
     ATOM_REF,
     ATOM_SCALAR,
     NUMBER_SCALAR,
@@ -35,7 +36,6 @@ from metta._projection import (
     json_schema,
     row_for,
 )
-from metta.atoms import Expression, Symbol
 
 
 def test_every_row_projects_into_all_four_targets():
@@ -83,7 +83,7 @@ def test_number_is_a_scalar_of_its_own():
 
 def test_the_stub_reads_the_tables_python_column():
     """One table, two readers: the stub renderer takes its scalars from here."""
-    from metta import _stubs
+    import metta._declare.stubs as _stubs
 
     assert _stubs._SCALARS is PYTHON
     assert PYTHON["Number"] == "int | float"
@@ -133,7 +133,7 @@ def test_an_arrow_of_another_arity_types_no_position():
 
 def _declaration(name, arrow):
     """One declaration row, as `_declarations` answers it."""
-    from metta._declarations import Declaration
-    from metta.atoms import parse
+    from metta._atoms.factories import parse
+    from metta._catalog.declarations import Declaration
 
     return Declaration(name=name, types=(parse(arrow),))

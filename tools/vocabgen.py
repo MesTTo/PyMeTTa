@@ -57,7 +57,7 @@ Guarantees:
     through the `| (string & {})` union [tested:
     test_an_open_vocabulary_accepts_a_registered_word; commit=7f9c810e5f4a2023ad98de34e848667dd72bc4a7]
   - the wire tag table is generated from the engine's own `(wire-tag ...)`
-    rows, so `metta._schemas` and `metta._projection` read one grammar
+    rows, so `metta.remote._schemas` and `metta._catalog.types` read one grammar
     instead of keeping an eight-tag and a nine-tag copy of it [tested:
     test_the_wire_tag_table_is_the_engines_own; commit=7f9c810e5f4a2023ad98de34e848667dd72bc4a7]
   - the run FAILS when the engine's own `(: ...)` type atoms disagree with
@@ -155,7 +155,7 @@ from enum import StrEnum
 from types import MappingProxyType
 from typing import Final, NamedTuple
 
-from .atoms import Symbol
+from ._atoms.factories import Symbol
 
 
 class _AtomStrEnum(StrEnum):
@@ -490,8 +490,8 @@ def wire_tag_text(known: Catalog) -> str:
         "\n"
         "#: Every wire tag, in the catalog's own order. A `term` tag nests inside an\n"
         "#: atom, a `frame` tag wraps a whole answer, and a `reply` tag is one door's\n"
-        "#: answer shape. metta._projection reads the term tags for its OpenAPI atom\n"
-        "#: schema and metta._schemas reads the payload class for each arm, so the\n"
+        "#: answer shape. metta._catalog.types reads the term tags for its OpenAPI atom\n"
+        "#: schema and metta.remote._schemas reads the payload class for each arm, so the\n"
         "#: shim's clauses and both of those follow one grammar.\n"
         "WIRE_TAGS: Final[Mapping[str, WireTag]] = MappingProxyType({\n"
         f"{rows}"

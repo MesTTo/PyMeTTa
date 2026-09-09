@@ -21,7 +21,7 @@ import inspect
 import pytest
 
 from metta import Expression, S, V, Variable, forms, parse
-from metta.errors import EngineError
+from metta._errors.errors import EngineError
 
 
 @pytest.mark.parametrize("source", ["", "(a b) (c d)"], ids=["empty", "two-forms"])

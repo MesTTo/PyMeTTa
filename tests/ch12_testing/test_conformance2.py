@@ -10,7 +10,7 @@ from __future__ import annotations
 import pytest
 
 from metta import MeTTa
-from metta.errors import AssertionFailure
+from metta._errors.errors import AssertionFailure
 
 
 def answers(space, program: str) -> list[str]:

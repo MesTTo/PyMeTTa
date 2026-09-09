@@ -23,10 +23,10 @@ import pytest
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
+import metta.algebra as carrier
 from metta import S, V, parse
-from metta import algebra as carrier
-from metta._algebra_demand import _certified_shape, _DemandEvaluator
 from metta.algebra import AlgebraEvaluationError, evaluate
+from metta.algebra._demand import _certified_shape, _DemandEvaluator
 
 
 def _snapshot(result):

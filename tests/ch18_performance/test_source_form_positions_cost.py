@@ -16,7 +16,7 @@ from __future__ import annotations
 from operator import index
 from typing import Any, SupportsIndex
 
-from metta import _source_forms
+import metta._binding.positions as _source_forms
 
 
 class _ChargedSource(str):

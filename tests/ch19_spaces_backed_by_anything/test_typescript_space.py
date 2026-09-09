@@ -23,8 +23,10 @@ from pathlib import Path
 import pytest
 
 import metta
-from metta import S, V, aio, remote, testing
-from metta.remote import RemoteSpace
+import metta.remote._transport as _moved_metta_remote__transport
+from metta import S, V, aio, testing
+from metta._declare import declarations as _space_declarations
+from metta.remote._client import RemoteSpace
 
 _SERVER_DIR = Path(__file__).resolve().parents[2] / "examples" / "integration" / "typescript_space"
 _NODE = shutil.which("node")
@@ -92,12 +94,12 @@ def test_metta_reaches_atoms_held_by_typescript(ts_server):  # noqa: D103  -- py
         (group,) = m.run("!(collapse (match &ts-basics (edge $x $y) ($x $y)))")
         assert [str(atom) for atom in group[0]] == ["(a c)"]
     finally:
-        m._unregister_space("&ts-basics")
+        _space_declarations._unregister_space(m, "&ts-basics")
         m.drop()
 
 
 def test_the_conformance_kit_certifies_the_typescript_provider(ts_server):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    provider = RemoteSpace(remote.connect(ts_server), "&self")
+    provider = RemoteSpace(_moved_metta_remote__transport.connect(ts_server), "&self")
     report = testing.check_space_provider(
         provider,
         atoms_to_store=[S.edge(S.a, S.b), S.edge(S.a, S.c), S.fact(S.f(V.x), V.x)],
@@ -122,7 +124,7 @@ def test_threaded_clients_interleave_whole_operations(ts_server):  # noqa: D103 
             counts = list(pool.map(read, range(8)))
         assert all(count == 32 for count in counts)
     finally:
-        m._unregister_space("&ts-threads")
+        _space_declarations._unregister_space(m, "&ts-threads")
         m.drop()
 
 
@@ -140,7 +142,7 @@ def test_async_clients_reach_the_typescript_space(ts_server):  # noqa: D103  -- 
                 ]
                 return await asyncio.gather(*waits)
         finally:
-            m._unregister_space("&async-ts")
+            _space_declarations._unregister_space(m, "&async-ts")
             m.drop()
 
     answers = asyncio.run(drive())
@@ -149,7 +151,7 @@ def test_async_clients_reach_the_typescript_space(ts_server):  # noqa: D103  -- 
 
 
 def test_the_wire_round_trip_is_fast_enough_to_matter(ts_server):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    transport = remote.connect(ts_server)
+    transport = _moved_metta_remote__transport.connect(ts_server)
     provider = RemoteSpace(transport, "&self")
     provider.add(S.probe(S.x))
     start = time.perf_counter()
@@ -171,20 +173,20 @@ def test_mettascript_holds_the_atoms_when_named(mettascript_server):  # noqa: D1
         m.run("!(add-atom &ms (edge a c))")
         (group,) = m.run("!(collapse (match &ms (edge a $x) $x))")
         assert sorted(str(atom) for atom in group[0]) == ["b", "c"]
-        provider = RemoteSpace(remote.connect(mettascript_server), "&self")
+        provider = RemoteSpace(_moved_metta_remote__transport.connect(mettascript_server), "&self")
         report = testing.check_space_provider(
             provider,
             atoms_to_store=[S.pin(S.p, S.q), S.pin(S.p, V.tail)],
         )
         assert any("over-approximation holds over" in line for line in report)
     finally:
-        m._unregister_space("&ms")
+        _space_declarations._unregister_space(m, "&ms")
         m.drop()
 
 
 def test_a_batch_crosses_in_one_request(ts_server):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     operations: list[str] = []
-    inner = remote.connect(ts_server)
+    inner = _moved_metta_remote__transport.connect(ts_server)
 
     def counting(operation, payload):
         operations.append(operation)
@@ -199,7 +201,7 @@ def test_a_batch_crosses_in_one_request(ts_server):  # noqa: D103  -- pytest dis
         (group,) = m.run("!(collapse (match &ts-batch (row $n) $n))")
         assert sorted(str(atom) for atom in group[0]) == ["1", "2", "3"]
     finally:
-        m._unregister_space("&ts-batch")
+        _space_declarations._unregister_space(m, "&ts-batch")
         m.drop()
 
 

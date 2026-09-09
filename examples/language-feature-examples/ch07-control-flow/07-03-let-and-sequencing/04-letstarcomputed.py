@@ -29,7 +29,7 @@ Open Obligations:
 """
 
 from metta import Atom, S, Undefined, V, arrow, equation, typed
-from metta.errors import MettaOperationError
+from metta._errors.errors import MettaOperationError
 
 #: What the unapplied form prints as: expected printing is Python text.
 UNAPPLIED = "(partial let* (foo ok))"

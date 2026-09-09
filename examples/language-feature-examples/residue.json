@@ -871,10 +871,10 @@
       "kind": "friction",
       "example": "examples/ch09-types/01-types.metta",
       "form": null,
-      "missing": "a scalar type projection in the ROOT namespace, so an answered type compares against a Python one without reaching into metta.ops",
+      "missing": "a scalar type projection in the ROOT namespace, so an answered type compares against a Python one without reaching into metta._declare.operations",
       "row": "P14.9",
       "section": "§7 the examples-twin coverage lane",
-      "detail": "REWORDED 2026-09-05 to what survives. The table was never one-way in the direction that matters: `arrow(int, int)` builds from Python types and `m.type(S.bump) == arrow(int, int)` is True, `metta.ops.type_atom_for(Any)` is the scalar projection and `m.type(S.c) == metta.ops.type_atom_for(Any)` is True, and an ATOM in annotation position projects as itself since 2026-09-05, so `def speak(a: S.Animal) -> S.Sound` declares `(-> Animal Sound)`. What is still measured as recorded is the BARE comparison: `m.type(S.c) == Any` is False. That one cannot be fixed as an equality, because the projection is many-to-one: `int`, `float` and `complex` all give `Number`, so `S.Number == int` and `S.Number == float` would put `int == float` one transitive step away while `hash` cannot follow. What remains is packaging: the scalar projection sits in `metta.ops` while the composite one, `arrow`, is a root name. [measured 2026-09-05]"
+      "detail": "REWORDED 2026-09-05 to what survives. The table was never one-way in the direction that matters: `arrow(int, int)` builds from Python types and `m.type(S.bump) == arrow(int, int)` is True, `metta._declare.operations.type_atom_for(Any)` is the scalar projection and `m.type(S.c) == metta._declare.operations.type_atom_for(Any)` is True, and an ATOM in annotation position projects as itself since 2026-09-05, so `def speak(a: S.Animal) -> S.Sound` declares `(-> Animal Sound)`. What is still measured as recorded is the BARE comparison: `m.type(S.c) == Any` is False. That one cannot be fixed as an equality, because the projection is many-to-one: `int`, `float` and `complex` all give `Number`, so `S.Number == int` and `S.Number == float` would put `int == float` one transitive step away while `hash` cannot follow. What remains is packaging: the scalar projection sits in `metta._declare.operations` while the composite one, `arrow`, is a root name. [measured 2026-09-05]"
     },
     {
       "kind": "friction",
@@ -3052,7 +3052,7 @@
       "missing": "a Python sort key that agrees with MeTTa's `msort`",
       "row": "P14.10",
       "section": "§9e: max-atom, min-atom and sort-strings dissolve into Python's max, min and sorted",
-      "detail": "CLOSED by R5. `Atom.__lt__` and `metta.atoms.order_key` now use the engine's elementwise order, so plain `sorted(atoms)` IS msort: both answer ((foo 42 42) (foo (42 42))) for this file's own atoms, where the length-first key answered them the other way round. The twin sorts instead of counting [measured 2026-08-23].",
+      "detail": "CLOSED by R5. `Atom.__lt__` and `metta._atoms.factories.order_key` now use the engine's elementwise order, so plain `sorted(atoms)` IS msort: both answer ((foo 42 42) (foo (42 42))) for this file's own atoms, where the length-first key answered them the other way round. The twin sorts instead of counting [measured 2026-08-23].",
       "retired": "2026-08-23"
     },
     {

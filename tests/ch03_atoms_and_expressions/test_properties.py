@@ -29,22 +29,12 @@ import sys
 
 import pytest
 
-from metta import (
-    Expression,
-    Grounded,
-    S,
-    Symbol,
-    Variable,
-    convert,
-    parse,
-    unify,
-)
-
 # The generators are the library's own public ones: metta.testing carries
 # the engine truths (readable names, boolean canonicalization, printer
 # limits) so users fuzz with exactly what this suite fuzzes with.
-from metta import testing as pt
-from metta.errors import EngineError
+import metta.testing as pt
+from metta import Expression, Grounded, S, Symbol, Variable, convert, parse, unify
+from metta._errors.errors import EngineError
 
 hypothesis = pytest.importorskip("hypothesis")
 example = hypothesis.example

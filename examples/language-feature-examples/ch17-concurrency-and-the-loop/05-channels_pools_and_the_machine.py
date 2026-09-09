@@ -17,7 +17,7 @@ Open Obligations:
 """
 
 from metta import S, lib
-from metta.errors import MettaError
+from metta._errors.errors import MettaError
 
 
 def raised(call, *arguments):

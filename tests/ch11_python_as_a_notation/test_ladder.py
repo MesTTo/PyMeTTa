@@ -42,9 +42,10 @@ import pytest
 from hypothesis import given
 
 import metta
+import metta.aio as _aio_surface
 from metta import MettaError, S, V
-from metta._space_objects import _apply_limited, _limits
-from metta.errors import InferenceLimitError
+from metta._errors.errors import InferenceLimitError
+from metta._spaces.scope import _apply_limited, _limits
 
 
 def test_module_tier_is_sugar_over_one_default_engine():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -152,7 +153,7 @@ def test_module_tier_verbs_are_inert_until_called() -> None:
     """Naming every PEP 562-era root verb does not start the default engine."""
     root = Path(__file__).parents[4]
     source = (
-        "from metta import _engine\n"
+        'import metta._binding.runtime as _engine\n'
         "import metta\n"
         "assert not _engine.started()\n"
         "assert all(callable(getattr(metta, name)) for name in "
@@ -392,10 +393,9 @@ def test_ground_atoms_strategy_is_ground(atom):  # noqa: D103  -- pytest discove
 def test_ladder_rungs_cross_the_async_seam(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     import asyncio
 
-    from metta import aio
 
     async def go():
-        async with aio.AsyncMeTTa(metta=metta._new_space()) as am:
+        async with _aio_surface.AsyncMeTTa(metta=metta._new_space()) as am:
             await am.run("(= (al-spin $n) (if (== $n 0) done (al-spin (- $n 1))))")
             # limits() is an ordinary with even in async code, and the
             # scope crosses the thread hop with each awaited call.
@@ -458,11 +458,14 @@ def test_define_refuses_an_unregistrable_class(metta):  # noqa: D103  -- pytest 
 
 
 def test_current_space_leaves_every_root_verb_in_place():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    # current_space() once popped the hidden implementation-module names
-    # with no replacement, so metta.define and five siblings vanished from
-    # the package for the life of the process; the failure only surfaced
-    # when another test in the same worker had called it first.
+    # Module paths and public verbs have separate names. Importing every
+    # implementation cannot replace any public callable.
+    import importlib
+    from pkgutil import walk_packages
+
+    before = {name: getattr(metta, name) for name in metta.__all__}
     metta.current_space()
-    for verb in ("define", "answer", "errors", "ops", "results", "atoms"):
-        if verb in metta._ROOT_IMPLEMENTATION_VERBS:
-            assert getattr(metta, verb) is metta._ROOT_IMPLEMENTATION_VERBS[verb]
+    for package in (metta._atoms, metta._declare, metta._spaces):
+        for item in walk_packages(package.__path__, package.__name__ + "."):
+            importlib.import_module(item.name)
+    assert all(getattr(metta, name) is value for name, value in before.items())

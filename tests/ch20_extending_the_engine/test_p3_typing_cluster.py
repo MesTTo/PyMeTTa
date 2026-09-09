@@ -29,9 +29,10 @@ Open Obligations:
 
 import pytest
 
-from metta import MeTTa, ops
-from metta.errors import EngineError
-from metta.ops import registered
+import metta._declare.operations as ops
+from metta import MeTTa
+from metta._declare.operations import registered
+from metta._errors.errors import EngineError
 
 
 def _answers(metta: MeTTa, source: str) -> list[str]:

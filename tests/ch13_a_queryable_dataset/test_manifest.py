@@ -34,7 +34,8 @@ import pytest
 
 import metta as metta_module
 from metta import S, V
-from metta.errors import SubscriberError
+from metta._declare.declarations import _unregister_space
+from metta._errors.errors import SubscriberError
 
 
 def _free_port() -> int:
@@ -131,7 +132,7 @@ def test_attach_registers_the_remote_space(metta, tmp_path):  # noqa: D103  -- p
     (tmp_path / "app.metta").write_text('(boot (attach &mhq "http://127.0.0.1:9" &their))\n')
     with metta_module.boot(tmp_path / "app.metta", m=metta):
         assert "&mhq" in metta.space_names()
-    metta._unregister_space("&mhq")
+    _unregister_space(metta, "&mhq")
 
 
 def test_a_manifest_cannot_attach_a_space_this_process_serves(metta, tmp_path):
@@ -153,7 +154,7 @@ def test_a_manifest_cannot_attach_a_space_this_process_serves(metta, tmp_path):
     served = metta_module.remote.serve(metta, port=port, spaces=["&self"])
     try:
         with pytest.raises(metta_module.MettaError) as guard:
-            metta_module.remote._refuse_this_process(url, "&mself")
+            metta_module.manifest._remote_transport._refuse_this_process(url, "&mself")
     finally:
         served.close()
 
@@ -185,7 +186,7 @@ def test_the_attach_guard_is_called_rather_than_copied(metta, tmp_path, monkeypa
         msg = "the guard refused"
         raise metta_module.MettaError(msg)
 
-    monkeypatch.setattr(metta_module.manifest._remote, "_refuse_this_process", _record)
+    monkeypatch.setattr(metta_module.manifest._remote_transport, "_refuse_this_process", _record)
     (tmp_path / "app.metta").write_text('(boot (attach &mguard "http://127.0.0.1:9" &their))\n')
     with pytest.raises(metta_module.MettaError, match=r"boot form 1 failed"):
         metta_module.boot(tmp_path / "app.metta", m=metta)

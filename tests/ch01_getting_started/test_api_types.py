@@ -29,11 +29,15 @@ import metta_arrays as arrays
 import pytest
 
 import metta
+import metta._atoms.designation as _api_types
+import metta._atoms.namespace as atom_namespace
+import metta.aio as _aio_surface
+import metta.aio._views as _moved_metta_aio__views
+import metta.remote._gateway as _moved_metta_remote__gateway
 from metta import (
     MeTTa,
     S,
     V,
-    _api_types,
     aio,
     algebra,
     convert,
@@ -41,13 +45,14 @@ from metta import (
     lint,
     live,
     parse,
-    remote,
     structures,
     tables,
 )
-from metta import _atom_namespace as atom_namespace
-from metta._ops import Operation
-from metta._space import Space, current_space
+from metta._binding.dispatch import Operation
+from metta._catalog.annotations import metta_type_for
+from metta._declare import declarations as _space_declarations
+from metta._faces.space import Space
+from metta._spaces.handle import SpaceHandle, current_space
 from metta.convert import cast
 from metta.vocabularies import SaveFormat
 
@@ -58,7 +63,7 @@ def test_canonical_context_types_replace_public_newtypes():
     assert "MettaName" not in dir(metta)
     assert _api_types.__all__ == []
     assert get_type_hints(Space.save)["format"] is SaveFormat
-    assert get_type_hints(aio.AsyncMeTTa.save)["format"] is SaveFormat
+    assert get_type_hints(_aio_surface.AsyncMeTTa.save)["format"] is SaveFormat
     assert issubclass(SaveFormat, str)
     assert [member.value for member in SaveFormat] == ["metta", "fast"]
 
@@ -70,7 +75,7 @@ def test_root_space_hint_accepts_pathlike_journals():
 
 def test_async_result_hints_preserve_undefined_answers():
     """Every async route exposing WFS answers includes Undefined."""
-    direct = get_overloads(aio.AsyncMeTTa.eval)
+    direct = get_overloads(_aio_surface.AsyncMeTTa.eval)
     # Explicit option selections have their own return product. Omitted
     # answer selection retains the precise scalar and grouped WFS types.
     assert [get_type_hints(overload)["return"] for overload in direct] == [
@@ -84,11 +89,11 @@ def test_async_result_hints_preserve_undefined_answers():
                zip(direct[:2], ("delivery", "answer"), strict=True))
     assert all("answer" not in inspect.signature(overload).parameters
                for overload in direct[2:])
-    assert get_type_hints(aio.AsyncSaga.run)["return"] == list[
+    assert get_type_hints(_moved_metta_aio__views.AsyncSaga.run)["return"] == list[
         metta.Atom | metta.Undefined
     ]
-    assert get_type_hints(aio.AsyncWorld.eval)["return"] == tuple[
-        list[metta.Atom | metta.Undefined], aio.AsyncWorld
+    assert get_type_hints(_moved_metta_aio__views.AsyncWorld.eval)["return"] == tuple[
+        list[metta.Atom | metta.Undefined], _moved_metta_aio__views.AsyncWorld
     ]
 
 
@@ -109,11 +114,11 @@ def test_a_name_parameter_takes_a_plain_string():
     assert {str, Space, type(None)} <= space_name
     assert get_type_hints(Space.op)["name"] == str | None
     assert get_type_hints(Space.is_function)["name"] is str
-    assert get_type_hints(Space._register_space)["name"] is str
+    assert get_type_hints(_space_declarations._register_space)["name"] is str
     # The async doors forward straight into Space(space), so their parameter
     # IS the constructor's name domain; equality keeps the three doors from
     # drifting, and membership keeps the literal-fits law pinned.
-    async_space = get_type_hints(aio.AsyncMeTTa.__init__)["space"]
+    async_space = get_type_hints(_aio_surface.AsyncMeTTa.__init__)["space"]
     assert async_space == get_type_hints(Space.__init__)["name"]
     assert async_space == get_type_hints(aio.connect)["space"]
     assert str in get_args(async_space)
@@ -136,7 +141,7 @@ def test_policy_constants_are_final():  # noqa: D103  -- pytest discovers or inj
 
 
 def test_target_type_overloads_preserve_the_requested_class():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    for function in (cast, Space.cast, aio.AsyncMeTTa.cast, convert.build):
+    for function in (cast, Space.cast, _aio_surface.AsyncMeTTa.cast, convert.build):
         typed_target = get_overloads(function)[0]
         hints = get_type_hints(typed_target)
         target = hints["type_" if "type_" in hints else "cls"]
@@ -144,7 +149,7 @@ def test_target_type_overloads_preserve_the_requested_class():  # noqa: D103  --
 
 
 def test_cast_target_is_positional_only():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    for function in (cast, Space.cast, aio.AsyncMeTTa.cast):
+    for function in (cast, Space.cast, _aio_surface.AsyncMeTTa.cast):
         assert (
             inspect.signature(function).parameters["type_"].kind
             is inspect.Parameter.POSITIONAL_ONLY
@@ -309,7 +314,7 @@ def _integrate(receiver, tag, _tmp_path):
 
 def _gateway(receiver, _tag, _tmp_path):
     receiver.add(S["door-served"](1))
-    gateway = remote.Gateway(receiver)
+    gateway = _moved_metta_remote__gateway.Gateway(receiver)
     try:
         return gateway("atoms", {})["atoms"]
     finally:
@@ -357,3 +362,16 @@ def test_every_space_door_takes_a_context_or_a_space(door, receiver_kind, tmp_pa
     with MeTTa() as context:
         receiver = context.self if receiver_kind == "space" else context
         assert exercise(receiver, receiver_kind, tmp_path) == expected
+
+
+def test_native_space_annotations_follow_the_handle_base():
+    """A native subclass keeps its type; a matching class spelling cannot claim it."""
+    class Child(Space):
+        """A user subclass retains the native space identity contract."""
+
+        __slots__ = ()
+
+    for annotation in (SpaceHandle, Space, Child):
+        assert metta_type_for(annotation) == "SpaceType"
+    pretender = type("Space", (), {"__module__": Space.__module__})
+    assert metta_type_for(pretender) == "%Undefined%"

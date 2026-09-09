@@ -19,9 +19,10 @@ from pathlib import Path
 
 import pytest
 
-from metta import S, V, aio
-from metta._atom_namespace import NAMESPACE_CACHE_MAX
-from metta.errors import InferenceLimitError, SubscriberError
+import metta.aio as _aio_surface
+from metta import S, V
+from metta._atoms.namespace import NAMESPACE_CACHE_MAX
+from metta._errors.errors import InferenceLimitError, SubscriberError
 from metta.subscribe import Subscription, queue_bound
 
 
@@ -187,7 +188,7 @@ def test_the_async_queue_bound_is_refused_the_same_way(metta):
     space = metta._new_space()
 
     async def go():
-        async with aio.AsyncMeTTa(metta=space) as am:
+        async with _aio_surface.AsyncMeTTa(metta=space) as am:
             for bound in (float("nan"), float("inf"), 3.0, "3", True):
                 with pytest.raises(TypeError, match=r"queue_max must be a positive integer"):
                     am.watch(S.ev(V.n), queue_max=bound)
@@ -243,7 +244,7 @@ def _the_wall_clock_door_holds_in_a_process_of_its_own(forever: Path) -> None:
     probe.write_text(
         "import sys\n"
         "from metta import Space\n"
-        "from metta.errors import TimeLimitError\n"
+        "from metta._errors.errors import TimeLimitError\n"
         "space = Space()\n"
         "try:\n"
         f"    answers = space.load({str(forever)!r}, timeout=0.3)\n"

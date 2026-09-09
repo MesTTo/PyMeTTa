@@ -18,7 +18,7 @@ from pathlib import Path
 
 import pytest
 
-from metta._engine import bridge
+from metta._binding.runtime import bridge
 
 
 def _texts(groups):

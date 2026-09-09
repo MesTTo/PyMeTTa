@@ -16,7 +16,7 @@ space this twin leaves behind holds what the example's holds.
 """
 
 from metta import S, V, equation, if_, seg
-from metta.errors import InferenceLimitError
+from metta._errors.errors import InferenceLimitError
 
 #: The bound both edge queries fit inside at either store size, measured on the
 #: MeTTa side of this pair by lowering it until the ask stopped fitting: 57

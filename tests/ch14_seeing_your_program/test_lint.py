@@ -30,6 +30,7 @@ import pickle
 import pytest
 
 from metta import Expression, MettaError, S, V
+from metta._spaces import evaluate as _space_evaluate
 from metta.lint import Finding, lint
 
 
@@ -177,7 +178,7 @@ def test_calling_a_special_form_is_not_an_undefined_reference(m, body):  # noqa:
 
 
 def test_a_special_form_is_a_known_head(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    from metta._head_meaning import EngineRegistry
+    from metta._catalog.meaning import EngineRegistry
 
     registry = EngineRegistry(m.runtime)
     assert registry.is_function("if") is False
@@ -329,7 +330,7 @@ def test_findings_carry_the_lsp_diagnostic_fields(m):  # noqa: D103  -- pytest d
     # applying the fix is remove-then-add, no positions needed
     assert m.remove(simplification.atom)
     m.add(simplification.autofix)
-    assert m._one("(q1-f 7)") == 7
+    assert _space_evaluate.one(m, "(q1-f 7)") == 7
     typo = findings["possibly-undefined-reference"]
     assert typo.severity == "hint"
     assert typo.suggestion == "car-atom"
@@ -434,7 +435,7 @@ def test_type_mismatch_uses_the_engines_total_get_type(m):  # noqa: D103  -- pyt
 
 
 def test_positioned_forms_recover_exact_lines():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    from metta._source_forms import positioned_forms
+    from metta._binding.positions import positioned_forms
 
     source = "; a comment quoting (f 1)\n(f 1)\n\n!(+ 1 2)\n(= (g $x)\n   $x)\n"
     forms = positioned_forms(source)
@@ -448,7 +449,7 @@ def test_positioned_forms_recover_exact_lines():  # noqa: D103  -- pytest discov
 
 
 def test_a_locator_mismatch_refuses(monkeypatch):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    from metta import _source_forms
+    import metta._binding.positions as _source_forms
 
     real = _source_forms.runtime
 
@@ -515,7 +516,7 @@ def test_the_arrow_head_test_accepts_every_engine_spelling():
     declaration be diagnosed rather than skipped. Copying the vocabulary
     into Python would be a second closed value set to keep in step.
     """
-    from metta._lint_analysis import _is_arrow_head
+    from metta.lint._analysis import _is_arrow_head
 
     for spelling in ("->", "-[det]->", "-[$e]->", "-[nondet,oracleIO]->"):
         assert _is_arrow_head(spelling), spelling

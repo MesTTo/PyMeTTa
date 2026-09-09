@@ -24,8 +24,8 @@ from unittest import mock
 import pytest
 
 from metta import Expression, S, V, Variable
+from metta._errors.errors import InferenceLimitError, TimeLimitError
 from metta.derivation import Builtin, Derivation, Fact, Step, Truncated
-from metta.errors import InferenceLimitError, TimeLimitError
 
 
 def test_multi_step_proof_names_equations_and_facts(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract

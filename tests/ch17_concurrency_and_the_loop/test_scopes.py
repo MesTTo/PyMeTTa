@@ -25,12 +25,13 @@ from random import Random
 import pytest
 
 import metta
+import metta._spaces.lifetime as scope_context
+import metta.aio._worker as _moved_metta_aio__worker
+import metta.aio._worker as aio_module
 from metta import G, S, Space
-from metta import _scope as scope_context
-from metta import aio as aio_module
+from metta._atoms.factories import Expression
+from metta._errors.errors import MettaError
 from metta.aio import AsyncMeTTa
-from metta.atoms import Expression
-from metta.errors import MettaError
 from metta.foreign import SpaceProvider
 from metta.parallel import EnginePool, ProcessPool, program
 
@@ -641,7 +642,7 @@ def test_async_subscription_stop_needs_only_the_workers_acquisition_receipt(monk
         acquired = asyncio.Event()
         release = asyncio.Event()
         stopped = threading.Event()
-        original = aio_module._acquire
+        original = _moved_metta_aio__worker._acquire
 
         async def delay_publication(work, undo):
             result = await original(work, undo)

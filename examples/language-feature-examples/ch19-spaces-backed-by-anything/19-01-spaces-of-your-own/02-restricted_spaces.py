@@ -18,7 +18,7 @@ from pathlib import Path
 
 import metta
 from metta import S
-from metta.errors import SpaceCapabilityError
+from metta._errors.errors import SpaceCapabilityError
 from metta.vocabularies import SpaceCapability
 
 #: The file the example asks about: a path, which is what pathlib is for.

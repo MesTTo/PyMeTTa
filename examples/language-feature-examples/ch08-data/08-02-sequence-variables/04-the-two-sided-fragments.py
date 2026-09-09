@@ -17,7 +17,7 @@ refuses, and 05-the-fence.py reads that refusal apart.
 """
 
 from metta import Expression, S, V, seg
-from metta.errors import EngineError
+from metta._errors.errors import EngineError
 
 
 def twin(m):

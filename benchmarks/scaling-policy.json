@@ -7,7 +7,7 @@
  "families": [
   {
    "name": "write-door",
-   "surface": "the write door: metta._space.Space.add",
+   "surface": "the write door: metta._spaces.handle.Space.add",
    "detail": "n separate writes into one space, which `add-single` pins at a single size and nothing measures across sizes. A write cost that starts depending on how much is already stored is the shape this catches.",
    "expected_class": "linear",
    "sizes": [200, 400, 800, 1600],

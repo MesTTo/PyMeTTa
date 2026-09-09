@@ -18,7 +18,8 @@ from __future__ import annotations
 import pytest
 
 from metta import MettaError, S, V
-from metta.errors import EngineError, SubscriberError
+from metta._declare import declarations as _space_declarations
+from metta._errors.errors import EngineError, SubscriberError
 from metta.foreign import Adder, Enumerable, SpaceProvider
 
 
@@ -57,14 +58,14 @@ def test_a_watcher_failure_is_distinguishable_from_a_failed_write(metta):
     """
     read_only = _ReadOnly()
     refusing = "&read-only-store"
-    metta._register_space(read_only, refusing)
+    _space_declarations._register_space(metta, read_only, refusing)
     try:
         with pytest.raises(EngineError) as refused:
             metta.run(f"!(add-atom {refusing} (fact one))")
         assert not isinstance(refused.value, SubscriberError)
         assert read_only.store == []
     finally:
-        metta._unregister_space(refusing)
+        _space_declarations._unregister_space(metta, refusing)
 
     space = metta._new_space()
     try:

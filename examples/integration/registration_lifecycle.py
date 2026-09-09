@@ -10,7 +10,7 @@ MeTTa context closes its engine.
 from _common import check, done
 
 from metta import MeTTa, S, V, ground, integrate
-from metta.errors import MettaError
+from metta._errors.errors import MettaError
 
 
 class ExtensionTarget:

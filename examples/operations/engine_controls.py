@@ -15,7 +15,7 @@ from _common import check, done
 
 import metta
 from metta import MeTTa, S, V, tables
-from metta.errors import InferenceLimitError, TimeLimitError
+from metta._errors.errors import InferenceLimitError, TimeLimitError
 
 m = MeTTa().space("&bounds-demo")
 

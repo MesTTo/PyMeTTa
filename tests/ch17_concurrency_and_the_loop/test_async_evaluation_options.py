@@ -14,22 +14,24 @@ import time
 
 import pytest
 
-from metta import G, MeTTa, S, Space, Undefined, V, aio, equation
-from metta.errors import (
+import metta.aio as _aio_surface
+from metta import G, MeTTa, S, Space, Undefined, V, equation
+from metta._errors.errors import (
     AssertionFailure,
     EngineError,
     InferenceLimitError,
     MettaError,
     TimeLimitError,
 )
-from metta.results import Answers, Rows, _AnswerItem
+from metta._spaces import evaluate as _evaluation
+from metta._spaces.results import Answers, Rows, _AnswerItem
 
 
 @pytest.mark.parametrize("answer", ("all", "atom", "one", "first", "count", "exists", "none", "rows", "answers", "stream"))
 def test_async_evaluation_options_reach_the_same_engine_choices(answer):
     """Async evaluation options reach the same engine choices."""
     async def run(space):
-        async with aio.AsyncMeTTa(metta=space) as owner:
+        async with _aio_surface.AsyncMeTTa(metta=space) as owner:
             scalar = answer in ("one", "atom")
             target = "(+ 1 2)" if scalar else "(superpose (3 3 4))"
             delivery = "atoms" if answer == "atom" else "values"
@@ -55,7 +57,7 @@ def test_async_evaluation_preserves_algebra_theory_interpreter_and_truth(answer)
     laws = (equation(S.async_door_choice()).to(S.left), equation(S.async_door_choice()).to(S.right))
 
     async def run(space):
-        async with aio.AsyncMeTTa(metta=space) as owner:
+        async with _aio_surface.AsyncMeTTa(metta=space) as owner:
             async def collect(target, **options):
                 result = await owner.eval(target, answer=answer, **options)
                 if answer == "all":
@@ -96,7 +98,7 @@ def test_async_evaluation_bounds_preserve_control_refusals(answer, bound, error)
     target = "(async-door-slow)" if "timeout" in bound else "(async-door-loop)"
 
     async def run(space):
-        async with aio.AsyncMeTTa(metta=space) as owner:
+        async with _aio_surface.AsyncMeTTa(metta=space) as owner:
             with pytest.raises(error):
                 result = await owner.eval(target, answer=answer, on_error="empty", limit=1, **bound)
                 if answer in {"answers", "stream"}:
@@ -161,7 +163,7 @@ class Source:
 
 
 def _install_source(monkeypatch, source):
-    monkeypatch.setattr(Space, "_door_answers", lambda *_args, **_kwargs: Answers(source, columns=("x",)))
+    monkeypatch.setattr(_evaluation, "answers", lambda *_args, **_kwargs: Answers(source, columns=("x",)))
 
 
 @pytest.mark.parametrize("answer", ("answers", "stream"))
@@ -171,7 +173,7 @@ def test_async_evaluation_choices_preserve_demand_and_replay(monkeypatch, answer
     _install_source(monkeypatch, source)
 
     async def run(space):
-        async with aio.AsyncMeTTa(metta=space) as owner:
+        async with _aio_surface.AsyncMeTTa(metta=space) as owner:
             view = await owner.eval(S.fact(V.x), answer=answer, delivery="values")
             assert not source.calls
             iterator = aiter(view)
@@ -199,7 +201,7 @@ def test_async_evaluation_concurrent_replays_share_one_source(monkeypatch):
     _install_source(monkeypatch, source)
 
     async def run(space):
-        async with aio.AsyncMeTTa(metta=space) as owner:
+        async with _aio_surface.AsyncMeTTa(metta=space) as owner:
             view = await owner.eval(S.fact(V.x), answer="answers", delivery="values")
 
             async def collect():
@@ -219,7 +221,7 @@ def test_async_evaluation_cleanup_is_owned_and_retryable(monkeypatch):
     _install_source(monkeypatch, source)
 
     async def run(space):
-        owner = await aio.AsyncMeTTa(metta=space).start()
+        owner = await _aio_surface.AsyncMeTTa(metta=space).start()
         try:
             view = await owner.eval(S.fact, answer="stream")
             assert len(owner._subscriptions) == 1
@@ -247,7 +249,7 @@ def test_async_evaluation_parent_close_attempts_every_failed_batch_member(monkey
     monkeypatch.setattr(Space, "eval", lambda *_args, **_kwargs: [Answers(source) for source in sources])
 
     async def run(space):
-        owner = await aio.AsyncMeTTa(metta=space).start()
+        owner = await _aio_surface.AsyncMeTTa(metta=space).start()
         try:
             await owner.eval(S.first, S.second, answer="answers")
             with pytest.raises(ExceptionGroup):
@@ -281,7 +283,7 @@ def test_async_evaluation_cancelled_batch_acquisition_keeps_cleanup_owned(monkey
     monkeypatch.setattr(Space, "eval", evaluate)
 
     async def run(space):
-        owner = await aio.AsyncMeTTa(metta=space).start()
+        owner = await _aio_surface.AsyncMeTTa(metta=space).start()
         task = asyncio.create_task(owner.eval(S.a, S.b, answer="answers"))
         try:
             await asyncio.to_thread(entered.wait)
@@ -307,7 +309,7 @@ def test_async_evaluation_cancelled_pull_closes_on_the_worker(monkeypatch):
     _install_source(monkeypatch, source)
 
     async def run(space):
-        async with aio.AsyncMeTTa(metta=space) as owner:
+        async with _aio_surface.AsyncMeTTa(metta=space) as owner:
             view = await owner.eval(S.fact, answer="stream")
             pulling = asyncio.create_task(anext(view))
             try:
@@ -340,7 +342,7 @@ def test_async_evaluation_parent_close_waits_for_batch_acquisition(monkeypatch):
     monkeypatch.setattr(Space, "eval", evaluate)
 
     async def run(space):
-        owner = await aio.AsyncMeTTa(metta=space).start()
+        owner = await _aio_surface.AsyncMeTTa(metta=space).start()
         acquiring = asyncio.create_task(owner.eval(S.fact, answer="answers"))
         closing = None
         try:
@@ -367,7 +369,7 @@ def test_async_evaluation_parent_close_waits_for_batch_acquisition(monkeypatch):
 def test_async_evaluation_binds_once_and_preserves_scalar_refusals():
     """Async evaluation binds once and preserves scalar refusals."""
     async def run(space):
-        async with aio.AsyncMeTTa(metta=space) as owner:
+        async with _aio_surface.AsyncMeTTa(metta=space) as owner:
             with owner.bind({S.a: S.b, S.b: S.c}):
                 answers = await owner.eval(S.a, S.b, answer="answers")
             assert [[value async for value in view] for view in answers] == [[S.b], [S.c]]
@@ -388,7 +390,7 @@ def test_async_evaluation_synchronous_stop_releases_on_the_worker(monkeypatch):
     _install_source(monkeypatch, source)
 
     async def acquire(space):
-        owner = await aio.AsyncMeTTa(metta=space).start()
+        owner = await _aio_surface.AsyncMeTTa(metta=space).start()
         view = await owner.eval(S.fact, answer="stream")
         with pytest.raises(MettaError, match="await aclose"):
             owner.stop()
@@ -407,7 +409,7 @@ def test_async_evaluation_parent_cleanup_rejects_an_already_queued_write(monkeyp
     _install_source(monkeypatch, source)
 
     async def run(space):
-        owner = await aio.AsyncMeTTa(metta=space).start()
+        owner = await _aio_surface.AsyncMeTTa(metta=space).start()
         view = await owner.eval(S.fact, answer="stream", delivery="values")
         pulling = asyncio.create_task(anext(view))
         pending = None
@@ -447,8 +449,8 @@ def test_async_evaluation_borrower_cleanup_leaves_the_other_connection_running(m
         return space.eval("(+ 20 22)")
 
     async def run(space):
-        async with aio.AsyncMeTTa(metta=space) as owner:
-            borrower = aio.AsyncMeTTa._sharing(space, owner._worker)
+        async with _aio_surface.AsyncMeTTa(metta=space) as owner:
+            borrower = _aio_surface.AsyncMeTTa._sharing(space, owner._worker)
             await borrower.eval(S.fact, answer="stream")
             running = asyncio.create_task(owner.call(work))
             closing = None
@@ -477,7 +479,7 @@ def test_async_evaluation_repeated_stops_share_one_transition_signal(monkeypatch
     _install_source(monkeypatch, source)
 
     async def run(space):
-        async with aio.AsyncMeTTa(metta=space) as owner:
+        async with _aio_surface.AsyncMeTTa(metta=space) as owner:
             view = await owner.eval(S.fact, answer="stream", delivery="values")
             pulling = asyncio.create_task(anext(view))
             try:

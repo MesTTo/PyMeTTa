@@ -26,7 +26,8 @@ Open Obligations:
 import pytest
 
 from metta import TRUE, Expression, S, V, match
-from metta.errors import CompileError
+from metta._declare import declarations as _space_declarations
+from metta._errors.errors import CompileError
 
 
 @pytest.fixture()
@@ -252,7 +253,7 @@ def test_a_conjunction_over_a_python_provider_snapshots_too(metta):
 
     provider = ListSpace([S.step(S.a, S.b), S.step(S.b, S.c), S.step(S.c, S.a)])
     name = f"&snapshot{id(provider) % 100000}"
-    metta._register_space(provider, name)
+    _space_declarations._register_space(metta, provider, name)
     try:
         (rows,) = metta.run(
             f"!(collapse (match {name} (, (step $x $y) (step $y $z))"
@@ -263,7 +264,7 @@ def test_a_conjunction_over_a_python_provider_snapshots_too(metta):
         assert len(rows[0]) == 3
         assert provider.stored == []
     finally:
-        metta._unregister_space(name)
+        _space_declarations._unregister_space(metta, name)
 
 
 def test_the_snapshot_does_not_hide_a_write_from_the_next_match(m):

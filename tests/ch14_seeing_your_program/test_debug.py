@@ -16,7 +16,7 @@ import pytest
 
 import metta as metta_package
 from metta import S
-from metta.errors import EngineError, InferenceLimitError, MettaError
+from metta._errors.errors import EngineError, InferenceLimitError, MettaError
 from metta.vocabularies import EffectClass
 
 

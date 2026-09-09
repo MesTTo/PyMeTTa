@@ -9,7 +9,7 @@ Open Obligations:
 import pytest
 
 from metta import Expression, Grounded, S
-from metta.errors import EngineError, SourceNotFound
+from metta._errors.errors import EngineError, SourceNotFound
 
 DATETIME_IMPORT = "!(import! (context-space) (library lib_datetime))"
 FORMAT_DATE_CALL = '!(format-date 1735689600 "%B")'

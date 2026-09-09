@@ -47,7 +47,7 @@ from dataclasses import FrozenInstanceError
 import pytest
 
 from metta import Expression, S, State, V, spaces
-from metta.errors import MettaError
+from metta._errors.errors import MettaError
 
 
 def _unique(prefix: str) -> str:

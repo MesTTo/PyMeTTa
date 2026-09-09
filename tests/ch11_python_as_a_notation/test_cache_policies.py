@@ -37,7 +37,12 @@ Open Obligations:
 import pytest
 
 from metta import MeTTa, S
-from metta.errors import EngineError, InferenceLimitError, ResourceLimitError, RestraintError
+from metta._errors.errors import (
+    EngineError,
+    InferenceLimitError,
+    ResourceLimitError,
+    RestraintError,
+)
 from metta.structures import TabledMap
 from metta.vocabularies import CachePolicy
 

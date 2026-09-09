@@ -42,14 +42,14 @@ import pytest
 
 import metta as metta_module
 from metta import S, V
-from metta.errors import CompileError, MettaResultError, Remedy
+from metta._errors.errors import CompileError, MettaResultError, Remedy
 
 PACKAGE = Path(metta_module.__file__).resolve().parent
 
 #: The module that DEFINES the vocabulary. Its own refusals are about a
 #: malformed Remedy, not refusals that carry one, so they name the word
 #: without being sites this walk owns.
-_DEFINING_MODULE = "errors.py"
+_DEFINING_MODULE = "_errors/errors.py"
 
 #: What makes a raise site one this walk owns: the source itself calls the
 #: thing in the message a remedy, either by interpolating a name spelled that
@@ -127,7 +127,7 @@ def remedy_naming_sites(root: Path) -> list[tuple[str, int, bool]]:
     """
     sites: list[tuple[str, int, bool]] = []
     for path in sorted(root.rglob("*.py")):
-        if path.name == _DEFINING_MODULE:
+        if str(path.relative_to(root)) == _DEFINING_MODULE:
             continue
         tree = ast.parse(path.read_text(encoding="utf-8"))
         for scope in _scope_bodies(tree):
@@ -147,20 +147,22 @@ def remedy_naming_sites(root: Path) -> list[tuple[str, int, bool]]:
     return sites
 
 
-#: The modules that hold a remedy-naming refusal, measured 2026-09-07. Named
+#: The modules that hold a remedy-naming refusal, measured 2026-09-07 and
+#: relocated through each refusal's defining symbol at the layout cut. Named
 #: rather than counted so a module losing its last one is a red the reader can
 #: place, and by file rather than by line so ordinary edits do not move it.
 _REMEDY_NAMING_MODULES = frozenset(
     {
-        "_atom_namespace.py",
-        "_atoms_core.py",
-        "_call_binding.py",
-        "_define_expression.py",
-        "_json.py",
-        "_space_definitions.py",
-        "_templates.py",
-        "results.py",
-        "testing.py",
+        "_atoms/namespace.py",
+        "_atoms/model.py",
+        "_atoms/calls.py",
+        "_compile/expressions.py",
+        "_binding/json.py",
+        "_declare/definitions.py",
+        "_atoms/templates.py",
+        "_spaces/results.py",
+        "testing/_strategies.py",
+        "testing/_kits.py",
     }
 )
 
@@ -284,7 +286,7 @@ def test_a_cyclic_value_handed_to_the_json_codec_names_ground():
     No engine fixture: the cycle walk runs BEFORE the crossing, which is the
     whole point of it, so this refusal never reaches the runtime.
     """
-    from metta import _json
+    import metta._binding.json as _json
 
     cyclic: dict[str, object] = {"a": 1}
     cyclic["self"] = cyclic

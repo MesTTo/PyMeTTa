@@ -21,7 +21,8 @@ Open Obligations:
 import pytest
 
 from metta import S
-from metta.atoms import Expression
+from metta._atoms.factories import Expression
+from metta._spaces import evaluate as _space_evaluate
 
 hypothesis = pytest.importorskip("hypothesis")
 given = hypothesis.given
@@ -47,7 +48,7 @@ def text_space(metta):  # noqa: D103  -- pytest discovers or injects this callab
 
 
 def call(space, name, *args):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    return space._one(Expression(S[name], *args))
+    return _space_evaluate.one(space, Expression(S[name], *args))
 
 
 # ------------------------------------------------------------------ strings

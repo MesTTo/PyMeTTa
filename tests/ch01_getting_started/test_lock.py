@@ -36,7 +36,7 @@ import pytest
 
 import metta
 from metta import MeTTa, S, lib
-from metta.errors import LockDrift, MettaError
+from metta._errors.errors import LockDrift, MettaError
 
 _PACKAGE_ROOT = str(Path(__file__).resolve().parents[2])
 
@@ -198,7 +198,7 @@ def test_a_malformed_lock_is_refused_by_name(tmp_path):
 
 def test_the_engine_digest_follows_the_engines_sources(tmp_path):
     """A planted engine tree's digest changes when one of its sources does."""
-    from metta._lock import engine_digest
+    from metta.library._lock import engine_digest
 
     first = tmp_path / "one"
     second = tmp_path / "two"
@@ -235,7 +235,7 @@ def test_a_drifted_engine_names_the_field_that_moved(tmp_path):
 
 def test_a_lock_drift_refusal_names_every_entry_and_its_repair(tmp_path):
     """LockDrift carries the rows AND spells both repairs in its message."""
-    from metta._lock import Drift, require
+    from metta.library._lock import Drift, require
 
     program = _program(tmp_path)
     with MeTTa() as m:

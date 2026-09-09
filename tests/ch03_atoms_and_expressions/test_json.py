@@ -19,23 +19,13 @@ import sys
 
 import pytest
 
-from metta import _json
+import metta._binding.json as _json
 
 #: What a child process runs to print one refusal's rendered sentence, so the
 #: two reader paths can be compared without two engines in one process:
 #: engine/json_codec.pl decides between the C reader and library(json) at LOAD
 #: time, reading METTA_C_JSON once.
-_REFUSAL_PROBE = """
-import sys
-from metta import _json
-for source in (sys.argv[1], sys.argv[1].encode("utf-8")):
-    try:
-        _json.loads(source)
-    except ValueError as refused:
-        print(f"{type(refused).__name__}: {refused}")
-    else:
-        print("no refusal")
-"""
+_REFUSAL_PROBE = '\nimport sys\nimport metta._binding.json as _json\nfor source in (sys.argv[1], sys.argv[1].encode("utf-8")):\n    try:\n        _json.loads(source)\n    except ValueError as refused:\n        print(f"{type(refused).__name__}: {refused}")\n    else:\n        print("no refusal")\n'
 
 
 def _refusal_through(reader, document, repo_root):

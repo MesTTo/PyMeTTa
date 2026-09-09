@@ -37,8 +37,8 @@ import pytest
 from annotated_types import Ge, Gt, MinLen, Predicate
 from hypothesis import strategies as st
 
-from metta import S, Space, algebra, convert, testing
-from metta.atoms import Symbol
+from metta import G, S, Space, algebra, convert, testing
+from metta._atoms.factories import Symbol
 from metta.vocabularies import AlgebraLaw
 
 GHOSTWRITER = (
@@ -168,7 +168,7 @@ def test_cases_is_a_decorator_an_iterable_and_a_pytest_test(m):
     @testing.cases(double, examples=8, seed=5)
     def test_double(case):
         ran.append(case.call)
-        assert case() == [testing._encode(case.arguments[0] * 2)]
+        assert case() == [G(case.arguments[0] * 2)]
 
     test_double()
     assert ran and all(str(call).startswith("(double ") for call in ran)

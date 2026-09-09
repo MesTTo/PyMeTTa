@@ -59,6 +59,7 @@ from benchmarks.workloads import (
     wire_codec,
 )
 from metta import Answer, Expression, MeTTa, S, V, tables
+from metta._declare import declarations as _space_declarations
 
 _ROWS = 2_000
 
@@ -1218,12 +1219,12 @@ def _provider_space():
             return iter(self.stored)
 
     provider = Rows()
-    provider.space._register_space(provider, "&bench-provider")
+    _space_declarations._register_space(provider.space, provider, "&bench-provider")
     return provider.space
 
 
 def _drop_provider(space):
-    space._unregister_space("&bench-provider")
+    _space_declarations._unregister_space(space, "&bench-provider")
     space.drop()
 
 
@@ -1270,12 +1271,12 @@ def _bridge_space():
     )
     provider.add(space.parse("(edge a b)"))
     provider.add(space.parse("(edge a c)"))
-    space._register_space(provider, "&bench-bridge")
+    _space_declarations._register_space(space, provider, "&bench-bridge")
     return space
 
 
 def _drop_bridge(space):
-    space._unregister_space("&bench-bridge")
+    _space_declarations._unregister_space(space, "&bench-bridge")
     space.drop()
 
 

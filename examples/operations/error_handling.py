@@ -8,7 +8,7 @@ interpreter beneath it.
 from _common import check, done
 
 from metta import MeTTa, S, V
-from metta.errors import AssertionFailure, MettaResultError
+from metta._errors.errors import AssertionFailure, MettaResultError
 
 with MeTTa() as context:
     space = context.space()

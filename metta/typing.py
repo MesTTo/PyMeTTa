@@ -62,15 +62,12 @@ Open Obligations:
 from __future__ import annotations
 
 import re
-from typing import TYPE_CHECKING, Any, Final
+from typing import Any, Final
 
-from . import seam as _seam
-from ._api_types import SpaceLike
-from .atoms import Atom, Expression, S, V, Variable, _expr, _map_atoms, parse, seg
-from .errors import MettaError
-
-if TYPE_CHECKING:
-    from collections.abc import Callable
+import metta.seam as _seam
+from metta._atoms.designation import SpaceLike
+from metta._atoms.factories import Atom, Expression, S, V, Variable, _expr, _map_atoms, parse, seg
+from metta._errors.errors import MettaError
 
 __all__ = ["ROW_HEAD", "declare", "rules", "template", "withdraw"]
 
@@ -192,7 +189,7 @@ def rules(m: SpaceLike) -> tuple[Expression, ...]:
 
 def declare(
     m: SpaceLike, head: str | Atom, kind: str, *arguments: Any
-) -> Callable[[], None]:
+) -> _collections_abc.Callable[[], None]:
     """Declare that `head`'s result shape follows `kind`; answer the inverse.
 
         undo = metta.typing.declare(space, "t+", "broadcast")
@@ -285,7 +282,7 @@ def withdraw(m: SpaceLike, head: str | Atom) -> tuple[str, ...]:
 
 def _encode(value: Any) -> Atom:
     """One row argument as the atom it is stored as."""
-    from .atoms import _encode as encode  # noqa: PLC0415  -- the atom encoder
+    from metta._atoms.factories import _encode as encode  # noqa: PLC0415  -- the atom encoder
 
     return value if isinstance(value, Atom) else encode(value)
 
@@ -305,3 +302,6 @@ def _declare_kind(catalog: Any) -> None:
     ):
         if declaration not in catalog:
             catalog.add(declaration)
+
+# Resolve annotations after definitions so peer imports can finish.
+import collections.abc as _collections_abc  # noqa: E402 -- deferred annotation bindings

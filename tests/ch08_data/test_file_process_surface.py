@@ -10,7 +10,7 @@ from pathlib import Path
 import pytest
 
 from metta import MeTTa, S, lib
-from metta.errors import EngineError
+from metta._errors.errors import EngineError
 
 ROOT = Path(__file__).resolve().parents[4]
 EXAMPLES = ROOT / "examples/ch20-extending-the-engine/20-06-files-and-processes"

@@ -9,7 +9,7 @@ MeTTa side: a library gains entries here by gaining @doc atoms.
 The generator is in two halves and neither prints. `catalog()` is the QUERY,
 and the query is `metta.library.rows`, the one a library card renders too, so
 a card and this page cannot disagree about what a library declares
-[source: extensions/python/metta/library.py, rows]. It answers three `Rows`
+[source: extensions/python/metta/library/__init__.py:186, rows; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e]. It answers three `Rows`
 -- one coverage row per library, one row per documented head, one row per
 head a library carries and never documents -- and no text at all. Everything
 below `_PAGE` is TEMPLATE: the page's own words are template literals,
@@ -72,8 +72,8 @@ sys.path.insert(0, str(_REPO / "extensions" / "python"))
 from typing import Any  # noqa: E402
 
 from metta import Expression, Symbol, render  # noqa: E402
+from metta._spaces.results import Rows  # noqa: E402
 from metta.library import roster, rows  # noqa: E402
-from metta.results import Rows  # noqa: E402
 
 _PAGE = _REPO / "website" / "reference" / "metta-libraries.md"
 

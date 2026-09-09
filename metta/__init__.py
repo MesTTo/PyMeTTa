@@ -1,968 +1,479 @@
-"""Purpose: expose MeTTa's narrow Python core and lazily load satellites.
+"""Purpose: expose the generated root door face.
 
-Assumes:
-  - ``metta._space.MeTTa`` owns runtime context and ``metta._space.Space``
-    owns storage and query verbs [source:
-    extensions/python/metta/_space.py:306 and :3090; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
-Guarantees:
-  - scope() and move_on_after() lazily project lib_thread ownership through
-    metta.parallel.Scope [tested:
-    extensions/python/tests/ch17_concurrency_and_the_loop/test_scopes.py; commit=c6e1198c490a824b96f6fc6e1c0622a542917024].
-  - the R5 root exports the term builders, relational solve, and lazy State
-    handle while ``record`` and atom-specialist ``order_key`` stay absent
-    [tested: test_m7_narrow_core_surface,
-    test_solve_retires_the_five_relational_let_workarounds,
-    test_keyword_builders_retire_53_raw_if_mentions, and
-    test_state_retires_three_state_function_strings; commit=cff2e7f319bd2212f0c2d74f8d5fe5be3ac693b5]
-  - ``dir(metta)`` is exactly the curated public surface and loads no
-    satellites [tested: test_m7_narrow_core_surface; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
-  - satellite modules are imported only by attribute access, following PEP
-    562 with their real module identity intact [tested:
-    test_m7_satellites_are_lazy_and_identity_stable; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
-  - ``space()`` is the only space-creation function and cannot be overwritten by
-    an implementation submodule [tested: test_m7_space_factory_keeps_identity;
-    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
-  - ``space()`` accepts both text and a space-name Symbol returned by the
-    engine [tested: test_space_factory_accepts_a_name_symbol; commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
-  - ``space(journal=)`` exposes the PathLike persistence door its delegated
-    implementation already accepts [tested:
-    test_root_space_hint_accepts_pathlike_journals; commit=71f43dd54034363d3bf8b2d1a3189a63b9e4ce1a]
-  - ``space(journal=..., rename=...)`` reaches the persistent provider's
-    one-open schema migration through the public root factory [tested:
-    test_the_public_space_factory_exposes_replay_rename; commit=694dff934a11dbc2ee99267b60f39564053baf87]
-  - ``fn`` is an inert, generated, statically typed mention namespace and
-    importing it never starts the engine [tested:
-    test_the_fn_namespace_is_generated; commit=6b77b811c44e1819ed9cd99f3809c0667f289e2e]
-  - package ``match`` reads the default space while ``superpose`` evaluates
-    its expression form; compiled definitions lower their syntactic match
-    calls before either Python function executes [tested:
-    test_module_tier_exposes_the_mode_and_definition_family; commit=b2527d32dc851615e6cf1e11c94ac017d4e78c86]
-  - ``unify`` keeps the symmetric two-atom matcher at arity two and evaluates
-    the engine's conditional form at arity four [tested:
-    test_expression_position_unify_uses_the_engine_conditional_in_both_contexts;
-    commit=6917bef7ca902671999eafcae3a7a86db8f69723]
-  - ``view`` lazily opens a live provider space over Python mappings, sets,
-    and sequences [tested: test_view_is_a_live_queryable_space;
-    commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
-  - the root exports ``seg``, the named segment builder, beside the ``...``
-    spelling Python already has [tested: test_seg_builds_a_named_segment;
-    commit=a3dff3abc83b9d82f3652093246e1d693d526cdb]
-  - coordination functions are lazy satellite exports and Timeout remains
-    catchable as builtin TimeoutError [tested:
-    test_the_coordination_family_is_python_shaped; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
-  - module define/stats/limits/trace verbs defer engine creation
-    until called and target the default self space [tested:
-    test_module_tier_exposes_the_mode_and_definition_family; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
-  - ``op`` forwards unchanged to the lazy default receiver and therefore keeps
-    its required five-rank ``effect=`` contract [tested:
-    test_module_tier_op_forwards_identity_to_the_default_receiver,
-    test_module_tier_op_registration_precedes_definition_compilation;
-    commit=fc7ec0b08cd8b5876a3f4105211c487185f6a9bf]
-  - ``py(expr)`` is an identity in ordinary Python and the exact visible marker
-    the definition compiler recognizes for an inline host island [tested:
-    test_py_is_identity_outside_a_compiled_body,
-    test_py_host_island_executes_per_engine_application; commit=3f0a1d237a3c969b2d4ad0d48b2195ce196b631a]
-  - under scopes an algebra through ContextVar state and all ten catalog
-    semirings stay lazy root exports [tested:
-    test_scoped_under_is_task_local_and_explicit_under_wins,
-    test_every_shipped_semiring_has_one_root_object_in_catalog_order;
-    commit=2e627a593413191cda3170f2eb716835f7f62543]
-  - ``current_algebra()`` reports the explicit call, task scope, or current
-    space declaration without turning the implicit Boolean default into a
-    declaration [tested: test_current_algebra_follows_each_selection_layer;
-    commit=2e627a593413191cda3170f2eb716835f7f62543]
-  - ``speculate()`` is the exact module-tier spelling for the default
-    receiver's discarded execution scope [tested:
-    test_speculative_execution_discards_its_event_segment; commit=3ded7552797b66d78e666141eb51f3bc14686bd2]
-  - ``library.face(<name>)`` is one shipped library's own heads as Python
-    names, projected from its rows rather than listed here, which is what
-    retired the hand-written ``strategies`` satellite [tested:
-    test_a_library_face_is_its_own_rows; commit=c26b6a4d28ef8fb50742440feed2c0578ebb0f58]
-  - ``catalog`` names the queryable ``&metta`` space and ``fresh()`` supplies
-    hygienic variables for helper-authored patterns [tested:
-    test_catalog_is_the_root_queryable_reflection_space and
-    test_fresh_variables_keep_library_patterns_hygienic; commit=46ae646e5efe14320c01e1e110d9cfd6cd0fc7e1]
-  - ``forms`` reads every top-level form without evaluation and is explicitly
-    distinct from singular ``parse`` [tested:
-    test_forms_reads_a_whole_source_without_running_it,
-    test_the_reader_docstrings_cross_reference_each_other;
-    commit=9c03403aaaca9f1a1ec52e5898dd547eb80c8e82]
-  - ``llms()`` prints the runtime tree's own ``llms.txt`` verbatim and answers
-    None, so a checkout and an installed wheel print the same bytes [tested:
-    test_llms_prints_the_root_cheat_sheet_and_answers_none,
-    tests/shell/test_packaged_cli.sh; commit=d4f129e1d977239c2e25b5042e3b1df30d9d32d3]
-  - the package's own module refusal carries AttributeError's name and obj,
-    so the interpreter's suggestion is drawn from __all__ [tested:
-    test_the_package_module_refusal_suggests_an_exported_name;
-    commit=6375a7c8f3c035b04bc9d41c8f7f22e56b42fb41]
-Open Obligations:
-  To Do: None
-  Hacks: None
-  Future Enhancements: None
+Generated by extensions/python/tools/doorgen.py and doorfaces.py from
+marked Python bodies and metta/_layers.py. The door-sync lane refuses
+drift; edit the declarations and regenerate this file.
 """
-# The generated module functions carry Space's own parameter names, and two of
-# them (fn, under) are also module objects; inside a function the parameter is
-# the meaning, which is the point.
-# pylint: disable=redefined-outer-name
-
 
 from __future__ import annotations
 
 import builtins as _builtins
-import functools as _functools
-import importlib as _importlib
-import os as _os
-import sys as _sys
-from collections.abc import Mapping as _Mapping
 from typing import TYPE_CHECKING
-from typing import Any as _Any
-from typing import dataclass_transform as _dataclass_transform
+from typing import Protocol as _Protocol
+from typing import cast as _cast
 from typing import overload as _overload
 
-if TYPE_CHECKING:
-    from collections.abc import Callable as _Callable
-    from collections.abc import Iterable as _Iterable
+import metta as _root
+from metta._lazy import package as _package
+from metta._spaces.ambient import engine
 
-    # The static faces of _LAZY_ATTRIBUTES below, name for name: the lazy
-    # __getattr__ keeps `import metta` narrow at runtime, and without these
-    # a checker types every root export Any, py.typed notwithstanding.
-    #
-    # Two lazy attributes are deliberately absent: the `bool` and `set`
-    # carrier objects. Binding either name here would make every `bool`
-    # annotation below a variable annotation, which mypy refuses, and the
-    # generated module tier renders its signatures from Space. Both stay
-    # reachable at runtime and type as Any through __getattr__.
-    from ._debug import Debugger as _Debugger
-    from ._lock import Drift, Lock
-    from ._recording import Recording as _Recording
-    from ._rules import equation, rules
-    from ._space import _P, _R, _T, MeTTa, Space
-    from ._space_execution import ScopedExecution as _ScopedExecution
-    from ._space_objects import ScopedLimits as _ScopedLimits
-    from ._space_objects import _StatsBlock
-    from ._state import State
-    from ._trace import Trace as _Trace
-    from .algebra import (
+if TYPE_CHECKING:
+    import builtins as _body_builtins  # noqa: F401 -- accessed through the root module namespace
+    import collections.abc as _body_collections_abc  # noqa: F401 -- accessed through the root module namespace
+    import os as _body_os  # noqa: F401 -- accessed through the root module namespace
+    import typing as _body_typing  # noqa: F401 -- accessed through the root module namespace
+
+    import metta._atoms.designation as _body_metta__atoms_designation  # noqa: F401 -- accessed through the root module namespace
+    import metta._atoms.factories as _body_metta__atoms_factories  # noqa: F401 -- accessed through the root module namespace
+    import metta._declare.define as _body_metta__declare_define  # noqa: F401 -- accessed through the root module namespace
+    import metta._declare.operations as _body_metta__declare_operations  # noqa: F401 -- accessed through the root module namespace
+    import metta._observe.debug as _body_metta__observe_debug  # noqa: F401 -- accessed through the root module namespace
+    import metta._observe.recording as _body_metta__observe_recording  # noqa: F401 -- accessed through the root module namespace
+    import metta._observe.trace as _body_metta__observe_trace  # noqa: F401 -- accessed through the root module namespace
+    import metta._spaces.execution as _body_metta__spaces_execution  # noqa: F401 -- accessed through the root module namespace
+    import metta._spaces.profile as _body_metta__spaces_profile  # noqa: F401 -- accessed through the root module namespace
+    import metta._spaces.scope as _body_metta__spaces_scope  # noqa: F401 -- accessed through the root module namespace
+    import metta.doors as _body_metta_doors  # noqa: F401 -- accessed through the root module namespace
+    import metta.vocabularies as _body_metta_vocabularies  # noqa: F401 -- accessed through the root module namespace
+
+if TYPE_CHECKING:
+    from metta._atoms.answer import Answer, Bindings
+    from metta._atoms.designation import SpaceLike
+    from metta._atoms.factories import (
+        FALSE,
+        TRUE,
+        UNIT,
+        Atom,
+        Expression,
+        G,
+        Grounded,
+        Handle,
+        S,
+        Symbol,
+        Undefined,
+        V,
+        Variable,
+        and_,
+        arrow,
+        fresh,
+        ground,
+        if_,
+        in_,
+        not_,
+        or_,
+        parse,
+        seg,
+        typed,
+    )
+    from metta._atoms.library import Library, lib
+    from metta._atoms.state import State
+    from metta._atoms.templates import render
+    from metta._catalog.bounds import Config, config
+    from metta._catalog.fn import fn
+    from metta._compile.islands import py
+    from metta._declare.define import Defined
+    from metta._declare.operations import registered, withdraw
+    from metta._declare.rules import equation, rules
+    from metta._errors.errors import (
+        MettaError,
+        NotReducible,
+        Timeout,
+        is_transport_failure,
+    )
+    from metta._faces.metta import MeTTa
+    from metta._faces.space import Space
+    from metta._spaces.ambient import (
+        accept,
+        attach,
+        current_algebra,
+        current_space,
+        drop,
+        forms,
+        llms,
+        refuse,
+        space,
+        stubs,
+        superpose,
+        under,
+        unify,
+    )
+    from metta._spaces.context import catalog, reflection
+    from metta._spaces.results import Answers, Rows
+    from metta._version import __version__
+    from metta.algebra import (
         amplitude,
         bag,
+        bool,  # noqa: A004 -- the declared public spelling
         budget,
         counting,
         prob,
         prov,
         ranked,
+        set,  # noqa: A004 -- the declared public spelling
         tropical,
     )
-    from .answer import Answer, Bindings
+    from metta.foreign import SpaceProvider
+    from metta.library._lock import Drift, Lock
+    from metta.manifest import boot
+    from metta.parallel import (
+        channel,
+        every,
+        move_on_after,
+        par_map,
+        race,
+        scope,
+        spawn,
+    )
+    from metta.spaces import view
 
-    # Underscore-aliased like every other typing name the generated module tier
-    # renders: TemplateLike is public through `metta.atoms`, and binding the
-    # plain name here would put it on `metta.<TAB>` and in the narrow-core
-    # roster this root is counted against. InterpolationLike needs no alias
-    # because no door's signature names it.
-    from .atoms import TemplateLike as _TemplateLike
-    from .define import Defined
-    from .define import Defined as _Defined
-    from .define import PrologBacked as _PrologBacked
-    from .doors import EvaluationAnswer as _EvaluationAnswer
-    from .foreign import SpaceProvider
-    from .manifest import boot
-    from .ops import Transport as _Transport
-    from .parallel import channel, every, move_on_after, par_map, race, scope, spawn
-    from .results import Answers as _Answers
-    from .spaces import view
-    from .vocabularies import ArgumentDelivery as _ArgumentDelivery
-    from .vocabularies import Determinism as _Determinism
-    from .vocabularies import EffectClass as _EffectClass
-    from .vocabularies import ImageMode as _ImageMode
-    from .vocabularies import OnError as _OnError
+__all__ = [
+    'FALSE',
+    'TRUE',
+    'UNIT',
+    'Answer',
+    'Answers',
+    'Atom',
+    'Bindings',
+    'Config',
+    'Defined',
+    'Drift',
+    'Expression',
+    'G',
+    'Grounded',
+    'Handle',
+    'Library',
+    'Lock',
+    'MeTTa',
+    'MettaError',
+    'NotReducible',
+    'Rows',
+    'S',
+    'Space',
+    'SpaceLike',
+    'SpaceProvider',
+    'State',
+    'Symbol',
+    'Timeout',
+    'Undefined',
+    'V',
+    'Variable',
+    '__version__',
+    'accept',
+    'add',
+    'amplitude',
+    'and_',
+    'arrow',
+    'attach',
+    'bag',
+    'bool',
+    'boot',
+    'budget',
+    'catalog',
+    'channel',
+    'config',
+    'counting',
+    'current_algebra',
+    'current_space',
+    'define',
+    'doc',
+    'drop',
+    'engine',
+    'equation',
+    'eval',
+    'every',
+    'fn',
+    'forms',
+    'fresh',
+    'ground',
+    'if_',
+    'in_',
+    'io',
+    'is_transport_failure',
+    'lib',
+    'limits',
+    'llms',
+    'match',
+    'move_on_after',
+    'not_',
+    'op',
+    'or_',
+    'par_map',
+    'parse',
+    'prob',
+    'prov',
+    'pure',
+    'py',
+    'race',
+    'ranked',
+    'reads',
+    'reflection',
+    'refuse',
+    'registered',
+    'remove',
+    'render',
+    'rules',
+    'run',
+    'scope',
+    'seg',
+    'set',
+    'solve',
+    'space',
+    'spawn',
+    'speculate',
+    'stats',
+    'stubs',
+    'superpose',
+    'trace',
+    'tropical',
+    'typed',
+    'under',
+    'unify',
+    'view',
+    'withdraw',
+    'writes',
+]
 
-from ._config import Config, config
-from ._fn import fn
-from ._host_island import py
-from ._library import Library, lib
-from ._templates import render
-from ._under import _UNSET
-from ._version import __version__
-from .atoms import (
-    FALSE,
-    TRUE,
-    UNIT,
-    Atom,
-    Expression,
-    G,
-    Grounded,
-    Handle,
-    S,
-    Symbol,
-    Undefined,
-    V,
-    Variable,
-    and_,
-    arrow,
-    fresh,
-    ground,
-    if_,
-    in_,
-    not_,
-    or_,
-    parse,
-    seg,
-    typed,
-)
-from .atoms import unify as _unify_atoms
-from .errors import MettaError, NotReducible, Timeout
-
-# closed-set: decides; policy=which submodules load on first access rather than during `import metta`, which is the narrow core's own roster; reads=none, it is the source `metta.__getattr__` reads and `test_m7_narrow_core` derives its own list from
-_SATELLITES = frozenset(
-    {
-        "aio",
-        "algebra",
-        "convert",
-        "derivation",
-        "events",
-        "foreign",
-        "importing",
-        "integrate",
-        "library",
-        "lint",
-        "live",
-        "manifest",
-        "parallel",
-        "paths",
-        "remote",
-        "seam",
-        "spaces",
-        "structures",
-        "subscribe",
-        "tables",
-        "testing",
-        "vocabularies",
-    }
-)
-
-# closed-set: decides; policy=which NAMES the root answers by loading a satellite, and which satellite each is in; reads=none, it is the source, and `initstubgen` renders the stub from it
-_LAZY_ATTRIBUTES = {
-    "Answer": ("answer", "Answer"),
-    "Bindings": ("answer", "Bindings"),
-    "Defined": ("define", "Defined"),
-    "Drift": ("_lock", "Drift"),
-    "Lock": ("_lock", "Lock"),
-    "MeTTa": ("_space", "MeTTa"),
-    "Space": ("_space", "Space"),
-    "SpaceProvider": ("foreign", "SpaceProvider"),
-    "State": ("_state", "State"),
-    "amplitude": ("algebra", "amplitude"),
-    "bag": ("algebra", "bag"),
-    "bool": ("algebra", "bool"),
-    "budget": ("algebra", "budget"),
-    "counting": ("algebra", "counting"),
-    "prob": ("algebra", "prob"),
-    "prov": ("algebra", "prov"),
-    "ranked": ("algebra", "ranked"),
-    "set": ("algebra", "set"),
-    "tropical": ("algebra", "tropical"),
-    "boot": ("manifest", "boot"),
-    "equation": ("_rules", "equation"),
-    "rules": ("_rules", "rules"),
-    "channel": ("parallel", "channel"),
-    "every": ("parallel", "every"),
-    "move_on_after": ("parallel", "move_on_after"),
-    "par_map": ("parallel", "par_map"),
-    "race": ("parallel", "race"),
-    "scope": ("parallel", "scope"),
-    "spawn": ("parallel", "spawn"),
-    "view": ("spaces", "view"),
+__lazy_exports__ = {
+    'Answer': ('metta._atoms.answer', 'Answer'),
+    'Answers': ('metta._spaces.results', 'Answers'),
+    'Atom': ('metta._atoms.factories', 'Atom'),
+    'Bindings': ('metta._atoms.answer', 'Bindings'),
+    'Config': ('metta._catalog.bounds', 'Config'),
+    'Defined': ('metta._declare.define', 'Defined'),
+    'Drift': ('metta.library._lock', 'Drift'),
+    'Expression': ('metta._atoms.factories', 'Expression'),
+    'FALSE': ('metta._atoms.factories', 'FALSE'),
+    'G': ('metta._atoms.factories', 'G'),
+    'Grounded': ('metta._atoms.factories', 'Grounded'),
+    'Handle': ('metta._atoms.factories', 'Handle'),
+    'Library': ('metta._atoms.library', 'Library'),
+    'Lock': ('metta.library._lock', 'Lock'),
+    'MeTTa': ('metta._faces.metta', 'MeTTa'),
+    'MettaError': ('metta._errors.errors', 'MettaError'),
+    'NotReducible': ('metta._errors.errors', 'NotReducible'),
+    'Rows': ('metta._spaces.results', 'Rows'),
+    'S': ('metta._atoms.factories', 'S'),
+    'Space': ('metta._faces.space', 'Space'),
+    'SpaceLike': ('metta._atoms.designation', 'SpaceLike'),
+    'SpaceProvider': ('metta.foreign', 'SpaceProvider'),
+    'State': ('metta._atoms.state', 'State'),
+    'Symbol': ('metta._atoms.factories', 'Symbol'),
+    'TRUE': ('metta._atoms.factories', 'TRUE'),
+    'Timeout': ('metta._errors.errors', 'Timeout'),
+    'UNIT': ('metta._atoms.factories', 'UNIT'),
+    'Undefined': ('metta._atoms.factories', 'Undefined'),
+    'V': ('metta._atoms.factories', 'V'),
+    'Variable': ('metta._atoms.factories', 'Variable'),
+    '__version__': ('metta._version', '__version__'),
+    '_body_builtins': ('builtins', ''),
+    '_body_collections_abc': ('collections.abc', ''),
+    '_body_metta__atoms_designation': ('metta._atoms.designation', ''),
+    '_body_metta__atoms_factories': ('metta._atoms.factories', ''),
+    '_body_metta__declare_define': ('metta._declare.define', ''),
+    '_body_metta__declare_operations': ('metta._declare.operations', ''),
+    '_body_metta__observe_debug': ('metta._observe.debug', ''),
+    '_body_metta__observe_recording': ('metta._observe.recording', ''),
+    '_body_metta__observe_trace': ('metta._observe.trace', ''),
+    '_body_metta__spaces_execution': ('metta._spaces.execution', ''),
+    '_body_metta__spaces_profile': ('metta._spaces.profile', ''),
+    '_body_metta__spaces_scope': ('metta._spaces.scope', ''),
+    '_body_metta_doors': ('metta.doors', ''),
+    '_body_metta_vocabularies': ('metta.vocabularies', ''),
+    '_body_os': ('os', ''),
+    '_body_typing': ('typing', ''),
+    '_builtins': ('builtins', ''),
+    'accept': ('metta._spaces.ambient', 'accept'),
+    'amplitude': ('metta.algebra', 'amplitude'),
+    'and_': ('metta._atoms.factories', 'and_'),
+    'arrow': ('metta._atoms.factories', 'arrow'),
+    'attach': ('metta._spaces.ambient', 'attach'),
+    'bag': ('metta.algebra', 'bag'),
+    'bool': ('metta.algebra', 'bool'),
+    'boot': ('metta.manifest', 'boot'),
+    'budget': ('metta.algebra', 'budget'),
+    'catalog': ('metta._spaces.context', 'catalog'),
+    'channel': ('metta.parallel', 'channel'),
+    'config': ('metta._catalog.bounds', 'config'),
+    'counting': ('metta.algebra', 'counting'),
+    'current_algebra': ('metta._spaces.ambient', 'current_algebra'),
+    'current_space': ('metta._spaces.ambient', 'current_space'),
+    'drop': ('metta._spaces.ambient', 'drop'),
+    'engine': ('metta._spaces.ambient', 'engine'),
+    'equation': ('metta._declare.rules', 'equation'),
+    'every': ('metta.parallel', 'every'),
+    'fn': ('metta._catalog.fn', 'fn'),
+    'forms': ('metta._spaces.ambient', 'forms'),
+    'fresh': ('metta._atoms.factories', 'fresh'),
+    'ground': ('metta._atoms.factories', 'ground'),
+    'if_': ('metta._atoms.factories', 'if_'),
+    'in_': ('metta._atoms.factories', 'in_'),
+    'is_transport_failure': ('metta._errors.errors', 'is_transport_failure'),
+    'lib': ('metta._atoms.library', 'lib'),
+    'llms': ('metta._spaces.ambient', 'llms'),
+    'move_on_after': ('metta.parallel', 'move_on_after'),
+    'not_': ('metta._atoms.factories', 'not_'),
+    'or_': ('metta._atoms.factories', 'or_'),
+    'par_map': ('metta.parallel', 'par_map'),
+    'parse': ('metta._atoms.factories', 'parse'),
+    'prob': ('metta.algebra', 'prob'),
+    'prov': ('metta.algebra', 'prov'),
+    'py': ('metta._compile.islands', 'py'),
+    'race': ('metta.parallel', 'race'),
+    'ranked': ('metta.algebra', 'ranked'),
+    'reflection': ('metta._spaces.context', 'reflection'),
+    'refuse': ('metta._spaces.ambient', 'refuse'),
+    'registered': ('metta._declare.operations', 'registered'),
+    'render': ('metta._atoms.templates', 'render'),
+    'rules': ('metta._declare.rules', 'rules'),
+    'scope': ('metta.parallel', 'scope'),
+    'seg': ('metta._atoms.factories', 'seg'),
+    'set': ('metta.algebra', 'set'),
+    'space': ('metta._spaces.ambient', 'space'),
+    'spawn': ('metta.parallel', 'spawn'),
+    'stubs': ('metta._spaces.ambient', 'stubs'),
+    'superpose': ('metta._spaces.ambient', 'superpose'),
+    'tropical': ('metta.algebra', 'tropical'),
+    'typed': ('metta._atoms.factories', 'typed'),
+    'under': ('metta._spaces.ambient', 'under'),
+    'unify': ('metta._spaces.ambient', 'unify'),
+    'view': ('metta.spaces', 'view'),
+    'withdraw': ('metta._declare.operations', 'withdraw'),
 }
 
-# closed-set: decides; policy=which modules are implementation rather than surface, so the root refuses them as attributes; reads=none, it is the source
-_HIDDEN_IMPLEMENTATION_MODULES = {
-    "answer",
-    "atoms",
-    "define",
-    "errors",
-    "ops",
-    "results",
-}
-
-_OMITTED = object()
-
-
-def _path_exists(path: str) -> bool:
-    """Check a runtime path without importing pathlib into the narrow root."""
-    return _os.path.exists(path)  # noqa: FURB141 -- pathlib adds eager imports to plain ``import metta``
-
-
-def _resolve_metta_path() -> str:
-    """Locate either the upstream or current bundled/source runtime tree."""
-    env_path = _os.environ.get("METTA_PATH")
-    if env_path:
-        return _os.path.abspath(env_path)
-
-    here = _os.path.dirname(_os.path.abspath(__file__))
-    bundled = _os.path.join(here, "_runtime")
-    if _path_exists(_os.path.join(bundled, "src", "main.pl")) or _path_exists(
-        _os.path.join(bundled, "engine", "main.pl")
-    ):
-        return bundled
-
-    return _os.path.abspath(_os.path.join(here, _os.pardir, _os.pardir, _os.pardir))
-
-
-def __getattr__(name: str) -> _Any:
-    """Load one advertised satellite or lazy core object on first access."""
-    if name in _SATELLITES:
-        value = _importlib.import_module(f".{name}", __name__)
-    elif name in _LAZY_ATTRIBUTES:
-        module_name, attribute = _LAZY_ATTRIBUTES[name]
-        module = _importlib.import_module(f".{module_name}", __name__)
-        value = getattr(module, attribute)
-    # policy-inventory-exempt: mechanism-internal; reason=one handle's two documented module-attribute names for the &metta space, not a vocabulary a program selects from; evidence=extensions/python/metta/__init__.py:__getattr__
-    elif name in {"catalog", "reflection"}:
-        value = engine().space("&metta")
-    else:
-        msg = f"module {__name__!r} has no attribute {name!r}"
-        raise AttributeError(msg, name=name, obj=_sys.modules[__name__])
-    _rehide_implementation_modules()
-    globals()[name] = value
-    return value
-
-
-def _rehide_implementation_modules() -> None:
-    """Restore each root verb an implementation-module import shadowed.
-
-    Importing a submodule writes it onto its parent package, so any import
-    that pulls in ``metta.define`` and its siblings replaces the root VERB
-    with the module object. This puts the verb back. A name with no verb is
-    removed. During partial package initialization the verbs table is not
-    bound yet; popping then would delete the verb with nothing to restore
-    it, which is how ``metta.define`` once vanished for the life of the
-    process, so the pass defers to the end-of-init sweep instead.
-    """
-    verbs = globals().get("_ROOT_IMPLEMENTATION_VERBS")
-    if verbs is None:
-        return
-    for implementation_name in _HIDDEN_IMPLEMENTATION_MODULES:
-        replacement = verbs.get(implementation_name)
-        if replacement is None:
-            globals().pop(implementation_name, None)
-        else:
-            globals()[implementation_name] = replacement
-
-
-def __dir__() -> list[str]:
-    """Return only the designed public surface without resolving it."""
-    return sorted(__all__)
-
-
-@_functools.cache
-def engine():
-    """Return the process-default runtime context, creating it on first use.
-
-    This is the one context whose home is the engine's own ``&self``; a bare
-    ``MeTTa()`` is a fresh isolated context instead.
-    """
-    return __getattr__("MeTTa")(__getattr__("Space")())
-
-
-# enum-parameter: enum=JournalSync; reason=the root forwards to Space.space, whose sync IS typed JournalSync; importing metta.vocabularies here to spell the annotation costs every `import metta` 1.87 ms against its own 11.7 ms [measured 2026-09-08, python -X importtime], which the narrow core exists to prevent
-def space(
-    name: str | Atom | None = None,
-    backing: _Any = None,
-    *,
-    inherits: _Any = None,
-    restricted: bool = False,
-    grants: _Any = (),
-    journal: str | _os.PathLike[str] | None = None,
-    schema: _Any = None,
-    sync: str = "none",
-    rename: _Any = None,
-):
-    """Create or open a space; the backing value derives its implementation."""
-    return engine().space(
-        name,
-        backing,
-        inherits=inherits,
-        restricted=restricted,
-        grants=grants,
-        journal=journal,
-        schema=schema,
-        sync=sync,
-        rename=rename,
-    )
-
-
-def attach(name: str | Symbol, backing: _Any):
-    """Attach a provider or remote URL through the unified creation function."""
-    return space(name, backing=backing)
-
-
-def current_space():
-    """Return the ambient space selected by an enclosing space context."""
-    space_api = _importlib.import_module(f"{__name__}._space")
-    value = space_api.current_space()
-    _rehide_implementation_modules()
-    return value
-
-
-def current_algebra() -> str | None:
-    """Return the algebra selected for the current context, if one exists."""
-    algebra_api = _importlib.import_module(f"{__name__}.algebra")
-    value = algebra_api.current_algebra()
-    _rehide_implementation_modules()
-    return value
-
-
-def forms(source: str) -> list[Atom]:
-    """Parse every top-level form without evaluating any of them.
-
-    Use ``parse()`` when exactly one form is required. ``forms()`` returns one
-    atom per top-level form and does not execute terms marked with ``!``.
-    """
-    source_forms = _importlib.import_module(f"{__name__}._source_forms")
-    return [parse(form.text) for form in source_forms.positioned_forms(source)]
-
-
-def llms() -> None:
-    """Print `llms.txt`, the sheet that teaches this library, to stdout.
-
-    The `help()` analogy is exact: it PRINTS and answers None, so the
-    document is on stdout rather than in a string somebody still has to
-    print. `llms.txt` is the whole language and library surface in one
-    read, and it ships inside the wheel, so a checkout and an install
-    print the same bytes and nobody has to find the source tree:
-
-        python -c "import metta; metta.llms()"
-        python -m metta llms          # the same document, from a shell
-
-    Unlike `help()` this never pages. CPython's `license()` hands its text
-    to `_pyrepl.pager.get_pager()`, which spawns `less` on a terminal; the
-    reader here is usually a program with a pipe, for which that pager is
-    already `sys.stdout.write`, and a library call that starts a pager is
-    a surprise the one interactive reader can arrange for themselves.
-    """
-    path = _os.path.join(_resolve_metta_path(), "llms.txt")
-    if not _path_exists(path):
-        msg = (
-            f"the cheat sheet is not at {path}; a checkout carries it at "
-            f"llms.txt and a wheel carries it beside the engine tree"
-        )
-        raise FileNotFoundError(msg)
-    # open() rather than Path.read_text() for the reason _path_exists gives:
-    # pathlib adds eager imports to a plain ``import metta``.
-    with open(path, encoding="utf-8") as sheet:
-        print(sheet.read(), end="")
-
-
-def stubs(space: _Any = None, *, sources: _Iterable[str | _os.PathLike[str]] = ()) -> str:
-    """Return a space's declared heads as the text of a Python stub file.
-
-    An arrow is a type, and a `.pyi` is where Python keeps the types of things
-    with no runtime object to hang them on. One `def` per declared head with
-    the arrow projected to annotations, one `class` per declared type, and each
-    `(@doc ...)` as the docstring, so an editor completes a MeTTa program's
-    heads and a checker refuses a call that passes the wrong thing:
-
-        metta.load("geometry.metta")
-        print(metta.stubs())                      # this context's own space
-        print(metta.stubs(other, sources=["geometry.metta"]))
-
-    `python -m metta stubs geometry.metta -o geometry.pyi` is the same
-    generator from a shell. Without an argument it reads the space the active
-    context selects; `sources` names the files the module docstring credits.
-    """
-    projection = _importlib.import_module(f"{__name__}._stubs")
-    return projection.stubs(_ambient_space() if space is None else space, sources=sources)
-
-
-# ------------------------------------------------- generated module tier
-# Every method below is GENERATED by tools/aiogen.py from the synchronous Space
-# method it delegates to, whose signature, return annotation and docstring it
-# carries, each with the tier note appended. Do not edit them here: change
-# Space, or remove the method's row from MODULE_DOORS in tools/aio_divergences.py.
-
-def run(
-    source: str | _TemplateLike,
-    /,
-    *,
-    timeout: float | None = None,
-    inferences: int | None = None,
-    **values: _Any,
-) -> list[list[Atom]]:
-    """Run MeTTa source: one list of answers per ! directive.
-
-    The pipeline is the engine's own reader, compiler and evaluator, so
-    the answers are exactly what the CLI would print, kept grouped per
-    directive instead of flattened. Equations and facts in the source
-    land in this space.
-
-    The source may carry HOLES, which are bindings by position:
-
-        m.run(t"!(fib {n})")            # a 3.14 t-string literal
-        m.run("!(fib {n})", n=10)       # the same on every version
-
-    Each hole is spliced into the text as a generated symbol and bound to
-    its value, so a str stays one String atom and never has to be escaped.
-    Values enter through `encode`: an int is a Number, a str a String, an
-    Atom itself, a Space its handle. The markers at a hole are the atom
-    constructors, `{Symbol(name)}`, `{Grounded(obj)}` and `{parse(text)}`,
-    with the specs `:sym`, `:py` and `:expr` as their short forms; `!r`
-    and `!s` convert in Python first and enter the result as text. A hole
-    inside a string literal, a comment or a symbol is refused with its
-    line and column.
-
-    `bind()` is the same substitution by NAME, for a value several calls
-    share, the way DuckDB reads a local dataframe by its variable name:
-
-        with m.bind({"graph": my_graph}):
-            m.run("!(py-len graph)")
-
-    Each named symbol substitutes to its value (objects by identity),
-    after reading, before anything runs. It is a BLOCK rather than a
-    keyword because a binding mapping is the kind of value that grows,
-    and a block grows down the page where a keyword has to fit beside
-    everything else on the call. Every call that accepts a target reads the
-    same scope, so one block covers run(), eval(), and answers() together.
-    A binding names a symbol and so replaces EVERY occurrence of it,
-    including one the author meant as a symbol; a hole is positional and
-    cannot reach anything but itself.
-
-    `timeout` (seconds) and `inferences` (engine steps) bound the call
-    with the engine's own guards; passing either raises TimeLimitError
-    or InferenceLimitError when the bound is hit, and whatever the
-    source completed before the stop, writes included, stands.
-
-    `with m.capture() as output` collects printed text in `output.text`
-    without changing this method's return shape. `with m.atomic()`
-    and `with m.speculative()` scope execution policy without boolean
-    combinations on each call. Atomic commits or rolls
-    back each complete source; speculative answers and discards its
-    writes. Both cover engine state; Python side effects and subscription
-    callbacks already fired stay where they happened.
-
-    A term the engine hands back unevaluated is an ordinary MeTTa value,
-    not a failure: `!(hello world)` answers `(hello world)` and that is
-    the whole of hello world in this language. eval_status() reports
-    which answers reduced and which did not, as data, for a caller who
-    wants to decide about it.
-    Runs against the default context's self space.
-    """
-    return engine().self.run(source, timeout=timeout, inferences=inferences, **values)
-
-
-def load(
-    path: str | _os.PathLike[str],
-    *,
-    timeout: float | None = None,
-    inferences: int | None = None,
-) -> list[list[Atom]]:
-    """Add a text program or trusted fast cache to this space.
-
-    This is a consult, so it always loads and what it loads REPLACES
-    what the same file put in this space before. Edit the file, load it
-    again, and the space holds the new definitions and not both; the
-    engine says on stderr which file it replaced and how many atoms
-    went. Atoms from other sources, and ones you added yourself, stay.
-    A load that raises leaves the previous definitions standing, so a
-    broken edit costs nothing but the error.
-
-    `!(import! &self path)` is the other form and loads a file that is
-    new or edited, skipping one that is neither. The two agree on what
-    a reload means and differ only in whether an unchanged file runs
-    again, which is SWI's consult/1 against its if(changed).
-
-    A .gz path is detected and read through the decompressed bytes.
-
-    `timeout` (seconds) and `inferences` (engine steps) bound the load
-    with the engine's own guards, raising TimeLimitError or
-    InferenceLimitError. A load is all or nothing: a stop takes back
-    everything the file had put in a space, the same way a load that
-    fails on a bad form does, because a file the space holds half of is
-    not a file it can replace later. run() is the entry point that
-    keeps finished work when a bound stops it. This is the one most
-    likely to be handed code the caller did not write, since a file can
-    carry `!` directives and an import graph, so it takes the same pair
-    its siblings take.
-
-    Program text with holes is refused here. A hole is a binding, and a
-    PATH has nowhere to bind one: run() takes holes, and an f-string or a
-    Path builds a computed filename.
-    Runs against the default context's self space.
-    """
-    return engine().self.load(path, timeout=timeout, inferences=inferences)
-
-
-def add(*atoms: _Any) -> None:
-    """Add atoms to this space, one engine round-trip for the lot.
-    An (= ...) atom compiles as an equation. Every Atom shape crosses
-    unchanged, including a bare Symbol, Grounded value, and empty
-    Expression; a free Variable receives the engine's own
-    insufficient-instantiation refusal. The MeTTa longhand is
-    `!(add-atoms <space> (<atom> ...))`. It is NOT `add-atom`, which is
-    upstream PeTTa's spelling and takes upstream's domain: a headless atom
-    cannot become a fact in a space there, so `!(add-atom &self b)` has no
-    answer on either engine. This space is wider and `add-atoms` is the
-    door onto the wider part.
-
-    A variable's NAME is not stored. `(rule $x $y)` reads back as
-    `(rule $_17902 $_17904)`, because a variable is an identity and not a
-    spelling. That is the right property for a logic engine and it is the
-    one thing about storage that surprises everybody once.
-
-    A library IS knowledge, so the same operator imports it: ``m += lib.he``
-    performs ``!(import! <m> (library lib_he))`` with this space as the
-    target. An import is an effect, so it refuses to hide inside an atom
-    batch or share a call with stored atoms.
-    Runs against the default context's self space.
-    """  # noqa: D205 -- preserve the declared documentation
-    return engine().self.add(*atoms)
-
-
-def remove(atom: _Any, *more: _Any) -> bool | int:
-    """Remove ONE unifying occurrence and say whether one was there,
-    which is Python's own `list.remove` grain.
-
-    Variadic like `add` and `transfer`: several atoms ride one engine
-    crossing inside one transaction, and the answer counts the found,
-    so the one-atom call still reads as the truth value it always
-    was.
-
-    `space -= atom` is this same grain without the report, the way
-    `+=` is `add` without one: Python's in-place difference over a
-    MULTISET, whose own Python spelling is `collections.Counter`,
-    subtracts the multiplicity given rather than clearing the key.
-    That is the only reading under which the operators are inverses,
-    so `s += a; s -= a` leaves the space it found. `-=` classifies its
-    operand exactly as `+=` does, so `-=` subtracts the same fact stream
-    `+=` stores, one occurrence per element, in one
-    transactional crossing.
-
-    `del m[pattern]` is the draining form: it takes every
-    unifying occurrence in one crossing and raises when nothing
-    matched, as Python's `del` does, and MeTTa spells it `remove-atom`
-    [source: engine/spaces/foreign.pl, remove_matching_atoms/2].
-    MeTTa spells this method's grain `subtract-atom`. This is the one
-    method that reports absence.
-
-    A bare variable is the remove-everything reading a multiset space
-    gives it, each atom leaving through its own proper path, equations
-    and their compiled clauses included.
-    Runs against the default context's self space.
-    """  # noqa: D205 -- preserve the declared documentation
-    return engine().self.remove(atom, *more)
-
-
-def trace(
-    source: Atom | str,
-    max_events: int | None = None,
-    *,
-    filter: Symbol | str | _Iterable[Symbol | str] | None = None,  # noqa: A002 -- public trace selector
-    timeout: float | None = None,
-    inferences: int | None = None,
-) -> _Trace:
-    """Run a TERM, or source, under the engine's reduction trace and
-    answer TraceEvent records: what entered reduction at which depth,
-    what it answered, and which reductions failed (a call with no
-    exit). `m.trace(S.fib(10))` is the ordinary spelling, the same
-    argument `answers` and `eval` take; a string is still a string.
-    What is traced executes for real, writes included, like run();
-    the wrap exists only while tracing, so untraced calls pay
-    nothing and the wrapping itself is not charged to the bounds
-    below. max_events bounds the RECORDING and timeout,
-    inferences and stack bound the RUN, defaulting to whatever
-    `m.limits()` scopes; they are independent because a program can
-    retire millions of inferences inside a handful of recorded
-    events. Whichever one stops it, the events already recorded are
-    ANSWERED and `stopped` names the bound, so a caller told a trace
-    was cut knows which bound to raise.
-    filter selects exact function Symbols or names, singly or in an iterable.
-    None records all functions; [] records none. Selection happens before
-    the recording bounds, while excluded calls still execute and add depth.
-    Runs against the default context's self space.
-    """  # noqa: D205 -- preserve the declared documentation
-    return engine().self.trace(
-        source, max_events, filter=filter, timeout=timeout, inferences=inferences
-    )
-
-
-def debug(
-    source: Atom | str,
-    *,
-    on: _Any = None,
-    inferences: int | None = None,
-    at: int | None = None,
-) -> _Debugger:
-    """Run a TERM, or source, under breakpoints, stepped from Python.
-
-    Iterating the Debugger runs the program to each breakpoint, the loop
-    body is where the program is SUSPENDED, and leaving the body resumes
-    that same execution:
-
-        with m.debug(S.quad(3), on=[S.double]) as d:
-            for stop in d:
-                print(stop)      # halted here
-                if stop.depth > 2:
-                    d.step()     # stop at the next reduction instead
-            print(d.answers)
-
-    on= names the functions that stop it, the way every door here names a
-    head; naming none runs the program to the end in one advance.
-    `step()` stops at the very next reduction, breakpoint or not, and
-    lasts one advance. `breakpoints` is a live set, so one added while
-    the program is suspended stops it.
-
-    at= is the third kind of breakpoint, a COUNT: it stops at the event
-    with that sequence number, numbering reductions from 0 the way a
-    Recording numbers them, so `at=200` is "put me where event 200 is".
-    `Recording.debug(at=k)` is the convenience over this one.
-
-    inferences bound the WHOLE session cumulatively, so a resume that
-    would never reach another breakpoint stops. There is no timeout:
-    the session is suspended by design and a clock would run while a
-    person reads a stop. What is debugged executes for real, writes
-    included, and inherits the caller's scope. Close it, or leave its
-    with-block: the session holds a wrapper on every compiled function
-    until it does.
-    Runs against the default context's self space.
-    """
-    return engine().self.debug(source, on=on, inferences=inferences, at=at)
-
-
-def record(
-    source: Atom | str,
-    *,
-    seed: int | None = None,
-    max_events: int | None = None,
-    timeout: float | None = None,
-    inferences: int | None = None,
-) -> _Recording:
-    """Run a TERM, or source, and keep the whole run as data.
-
-    The data walks backwards, saves to a file, and re-runs.
-    `m.trace` is the rung below: it answers the events alone. A Recording
-    is those events plus the state that produced them, which is what makes
-    them re-runnable rather than only readable:
-
-        rec = m.record(S.fib(12))
-        rec.save("fib.metta-rec.json")
-        rec.at(-1)               # the last event, with its call stack
-        rec.back()               # a step backwards costs a lookup
-        rec.replay(other)        # the same run, in another engine
-        with rec.debug(at=17) as d:   # live, stopped where event 17 is
-            print(d.stop)
-
-    A recorded run always has a seed, minted when you do not name one,
-    because a replay that cannot reproduce the draws is not a replay; the
-    generator is restored afterwards. `(with-seed S expr)` is the MeTTa
-    spelling of the same scope.
-
-    max_events bounds the RECORDING and timeout and inferences bound the
-    RUN, exactly as on trace(); a cut recording says so through
-    `rec.events.stopped` and replays to the same length. A program whose
-    effect plan reaches oracleIO is recorded with `replayable` false and
-    the reason naming what it reached, and replay() then refuses rather
-    than re-reading the host.
-    Runs against the default context's self space.
-    """
-    return engine().self.record(
-        source, seed=seed, max_events=max_events, timeout=timeout, inferences=inferences
-    )
-
-
-def match(
-    *patterns: _Any,
-    where: _Any | None = None,
-    limit: int | None = None,
-    timeout: float | None = None,
-    inferences: int | None = None,
-    under: _Any = _UNSET,
-    into: _builtins.type | None = None,
-    **values: _Any,
-) -> _Any:
-    """Lazily match patterns against this space as one conjunction.
-
-    Variables shared between patterns join, the engine's own match/4
-    doing the joining. Columns are the variable names in first
-    appearance order. `where` is a guard term over the same variables,
-    evaluated per join and required true, so restrictions a pattern
-    cannot spell (an inequality) compose onto the match:
-
-        m.match(S.person(V.name, V.age), where=V.age.ge(18))
-
-    `limit` bounds the answers, the engine stopping at the count
-    rather than trimming afterwards. `timeout` (seconds) and
-    `inferences` (engine steps) bound the whole call, raising
-    TimeLimitError or InferenceLimitError when hit, for joins whose
-    size is not known in advance.
-
-    The returned Answers view pulls only what Python observes. ``bool``
-    pulls one row, exact-one operations pull at most two, and slicing
-    retains an Answers view. ``len`` uses an engine-side aggregate when
-    no row has yet been pulled.
-
-    ``under=`` interprets the same ask through an annotation algebra.
-    ``under=counting`` answers one ``TaggedAnswer`` whose annotation is
-    the engine-computed count, including duplicate derivations without
-    crossing their rows into Python. Ordered carriers sort in their
-    declared direction before slicing, so
-    ``m.match(q, under=ranked)[:3]`` is top-k and
-    ``under=tropical`` puts the cheapest annotation first. Other carriers
-    answer ``TaggedAnswer`` values with ``annotation``, ``why()`` and
-    ``under(other)``; the latter two reuse the retained derivation rather
-    than querying the space again. ``with metta.under(carrier)`` supplies
-    the carrier when this call has no explicit ``under=``.
-
-    `into=Rows` explicitly chooses the eager Rows face. Other `into=`
-    values shape each row into a dataclass, NamedTuple, or
-    TypedDict matched by field name, sqlite3's row_factory reading:
-    `m.match(S.edge(V.a, V.b), into=Edge)` answers `list[Edge]`,
-    and Rows stays the default so nothing is lost. A one-variable query
-    whose column holds complete constructor expressions rebuilds those
-    expressions instead: `m.match(V.edge, into=Edge)`.
-
-        m.match(S.Edge(V.x, V.y), S.Edge(V.y, V.z))
-
-    A text pattern may carry HOLES, as run()'s source may:
-    `m.match(t"(person {name} $age)")` matches the value itself, so a name
-    holding a space stays one String atom rather than reading as two
-    symbols. Keyword values apply across every pattern of the call.
-    Runs against the default context's self space.
-    """
-    return engine().self.match(
-        *patterns, where=where, limit=limit, timeout=timeout, inferences=inferences, under=under, into=into, **values
-    )
-
-
-def solve(pattern: _Any, subject: _Any) -> _Any:
-    """Run relational ``let`` and return bindings keyed by its variables.
-
-    ``solve(4, V.x - 1).x`` places the known value on let's pattern side,
-    lets the arithmetic relation solve backwards, and projects ``x``.
-    The answer template is derived from the pattern's variables followed
-    by any new subject variables, so either relational direction can
-    introduce the bindings and the third hand-written ``let`` argument
-    disappears.
-    Runs against the default context's self space.
-    """
-    return engine().self.solve(pattern, subject)
-
-
-def limits(
-    *,
-    timeout: float | None = None,
-    inferences: int | None = None,
-    stack: int | None = None,
-) -> _ScopedLimits:
-    """Scoped default bounds for every call in the with-block:
-
-        with m.limits(inferences=1_000_000, timeout=2.0):
-            m.match(...)      # bounded without saying so again
-
-    decimal.localcontext's shape, contextvars underneath, so the
-    scope is async-correct and per-task. A per-call timeout= or
-    inferences= still overrides, which is the whole ladder: one
-    block replaces the parameter forest, and the forest remains
-    for whoever wants per-call control.
-
-    stack= is SWI's combined stack ceiling in BYTES, the bound a
-    runaway recursion hits as a StackOverflow error atom. It is NOT
-    MeTTa's reduction depth: that is the max-stack-depth pragma,
-    `(with-pragma! ((max-stack-depth N)) expr)`, which counts
-    reduction steps and is scoped in the program text.
-    Runs against the default context's self space.
-    """  # noqa: D415 -- preserve the declared documentation
-    return engine().self.limits(timeout=timeout, inferences=inferences, stack=stack)
-
-
-def speculate() -> _ScopedExecution:
-    """Run each CALL against a snapshot and discard its writes.
-
-    Per call, the write doors included: ``m.add(atom)`` inside the block
-    leaves nothing behind, exactly as ``m.run("!(add-atom &self ...)")``
-    in the same block does, and a later call in the block does not see
-    what an earlier one wrote, because each call is its own what-if.
-    Runs against the default context's self space.
-    """
-    return engine().self.speculative()
-
+__getattr__, __dir__ = _package(__name__)
+
+# begin generated module tier
+class _ImplementationSpaceEvalBound(_Protocol):
+    def __call__(
+        self,
+        target: _root._body_typing.Any,
+        /,
+        *more: _root._body_typing.Any,
+        timeout: _builtins.float | None=None,
+        inferences: _builtins.int | None=None,
+        under: _root._body_typing.Any=_root._body_metta__atoms_designation._UNSET,
+        theory: _root._body_typing.Any | None=None,
+        interpreter: _root._body_typing.Any | None=None,
+        answer: _root._body_metta_doors.EvaluationAnswer | _builtins.str='all',
+        delivery: _root._body_metta_vocabularies.ArgumentDelivery | _builtins.str='atoms',
+        limit: _builtins.int | None=None,
+        image: _root._body_metta_vocabularies.ImageMode | _builtins.str | None=None,
+        on_error: _root._body_metta_vocabularies.OnError | _builtins.str='keep',
+        determinism: _root._body_metta_vocabularies.Determinism | _builtins.str='nondet',
+        **values: _root._body_typing.Any,
+    ) -> _root._body_typing.Any:
+        ...
+
+class _ImplementationSpaceDefineBound(_Protocol):
+    def __call__(
+        self,
+        /,
+        fn: _root._body_collections_abc.Callable[..., _root._body_typing.Any] | None=None,
+        *,
+        prolog: _builtins.str | _root._body_os.PathLike[_builtins.str] | None=None,
+        name: _builtins.str | None=None,
+        accessors: _builtins.bool=True,
+        methods: _builtins.bool=True,
+    ) -> _root._body_typing.Any:
+        ...
+
+class _ImplementationSpaceOpBound(_Protocol):
+    def __call__(
+        self,
+        /,
+        fn: _root._body_collections_abc.Callable | None=None,
+        *,
+        name: _builtins.str | None=None,
+        transport: _root._body_metta__declare_operations.Transport='encoded',
+        effect: _root._body_metta_vocabularies.EffectClass | _builtins.str | None=None,
+        declarations: _root._body_collections_abc.Iterable[_root._body_metta__atoms_factories.Atom]=(),
+        arities: _builtins.list[_builtins.int] | None=None,
+        inverse: _root._body_collections_abc.Callable | None=None,
+    ) -> _root._body_typing.Any:
+        ...
 
 @_overload
-def eval(  # noqa: A001 -- eval is the ruled public verb
-    target: _Any,
+def eval(  # noqa: A001 -- the declared public spelling
+    target: _root._body_typing.Any,
     /,
-    *more: _Any,
-    timeout: float | None = None,
-    inferences: int | None = None,
-    under: _Any = _UNSET,
-    theory: _Any | None = None,
-    interpreter: _Any | None = None,
-    answer: _EvaluationAnswer | str = 'all',
-    delivery: _ArgumentDelivery | str,
-    limit: int | None = None,
-    image: _ImageMode | str | None = None,
-    on_error: _OnError | str = 'keep',
-    determinism: _Determinism | str = 'nondet',
-    **values: _Any,
-) -> _Any: ...
+    *more: _root._body_typing.Any,
+    timeout: _builtins.float | None=None,
+    inferences: _builtins.int | None=None,
+    under: _root._body_typing.Any=_root._body_metta__atoms_designation._UNSET,
+    theory: _root._body_typing.Any | None=None,
+    interpreter: _root._body_typing.Any | None=None,
+    answer: _root._body_metta_doors.EvaluationAnswer | _builtins.str='all',
+    delivery: _root._body_metta_vocabularies.ArgumentDelivery | _builtins.str,
+    limit: _builtins.int | None=None,
+    image: _root._body_metta_vocabularies.ImageMode | _builtins.str | None=None,
+    on_error: _root._body_metta_vocabularies.OnError | _builtins.str='keep',
+    determinism: _root._body_metta_vocabularies.Determinism | _builtins.str='nondet',
+    **values: _root._body_typing.Any,
+) -> _root._body_typing.Any:
+    ...
 @_overload
-def eval(  # noqa: A001 -- eval is the ruled public verb
-    target: _Any,
+def eval(  # noqa: A001 -- the declared public spelling
+    target: _root._body_typing.Any,
     /,
-    *more: _Any,
-    timeout: float | None = None,
-    inferences: int | None = None,
-    under: _Any = _UNSET,
-    theory: _Any | None = None,
-    interpreter: _Any | None = None,
-    answer: _EvaluationAnswer | str,
-    delivery: _ArgumentDelivery | str = 'atoms',
-    limit: int | None = None,
-    image: _ImageMode | str | None = None,
-    on_error: _OnError | str = 'keep',
-    determinism: _Determinism | str = 'nondet',
-    **values: _Any,
-) -> _Any: ...
+    *more: _root._body_typing.Any,
+    timeout: _builtins.float | None=None,
+    inferences: _builtins.int | None=None,
+    under: _root._body_typing.Any=_root._body_metta__atoms_designation._UNSET,
+    theory: _root._body_typing.Any | None=None,
+    interpreter: _root._body_typing.Any | None=None,
+    answer: _root._body_metta_doors.EvaluationAnswer | _builtins.str,
+    delivery: _root._body_metta_vocabularies.ArgumentDelivery | _builtins.str='atoms',
+    limit: _builtins.int | None=None,
+    image: _root._body_metta_vocabularies.ImageMode | _builtins.str | None=None,
+    on_error: _root._body_metta_vocabularies.OnError | _builtins.str='keep',
+    determinism: _root._body_metta_vocabularies.Determinism | _builtins.str='nondet',
+    **values: _root._body_typing.Any,
+) -> _root._body_typing.Any:
+    ...
 @_overload
-def eval(  # noqa: A001 -- eval is the ruled public verb
-    target: _Any,
+def eval(  # noqa: A001 -- the declared public spelling
+    target: _root._body_typing.Any,
     /,
     *,
-    timeout: float | None = ...,
-    inferences: int | None = ...,
-    under: _Any = ...,
-    theory: _Any | None = ...,
-    interpreter: _Any | None = ...,
-    **values: _Any,
-) -> list[Atom | Undefined]: ...
+    timeout: _builtins.float | None=...,
+    inferences: _builtins.int | None=...,
+    under: _root._body_typing.Any=...,
+    theory: _root._body_typing.Any | None=...,
+    interpreter: _root._body_typing.Any | None=...,
+    **values: _root._body_typing.Any,
+) -> _builtins.list[_root._body_metta__atoms_factories.Atom | _root._body_metta__atoms_factories.Undefined]:
+    ...
 @_overload
-def eval(  # noqa: A001 -- eval is the ruled public verb
-    target: _Any,
-    _second: _Any,
+def eval(  # noqa: A001 -- the declared public spelling
+    target: _root._body_typing.Any,
+    _second: _root._body_typing.Any,
     /,
-    *more: _Any,
-    timeout: float | None = ...,
-    inferences: int | None = ...,
-    under: _Any = ...,
-    theory: _Any | None = ...,
-    interpreter: _Any | None = ...,
-    **values: _Any,
-) -> list[list[Atom | Undefined]]: ...
-def eval(  # noqa: A001 -- eval is the ruled public verb
-    target: _Any,
+    *more: _root._body_typing.Any,
+    timeout: _builtins.float | None=...,
+    inferences: _builtins.int | None=...,
+    under: _root._body_typing.Any=...,
+    theory: _root._body_typing.Any | None=...,
+    interpreter: _root._body_typing.Any | None=...,
+    **values: _root._body_typing.Any,
+) -> _builtins.list[_builtins.list[_root._body_metta__atoms_factories.Atom | _root._body_metta__atoms_factories.Undefined]]:
+    ...
+def eval(  # noqa: A001 -- the declared public spelling
+    target: _root._body_typing.Any,
     /,
-    *more: _Any,
-    timeout: float | None = None,
-    inferences: int | None = None,
-    under: _Any = _UNSET,
-    theory: _Any | None = None,
-    interpreter: _Any | None = None,
-    answer: _EvaluationAnswer | str = 'all',
-    delivery: _ArgumentDelivery | str = 'atoms',
-    limit: int | None = None,
-    image: _ImageMode | str | None = None,
-    on_error: _OnError | str = 'keep',
-    determinism: _Determinism | str = 'nondet',
-    **values: _Any,
-) -> _Any:
+    *more: _root._body_typing.Any,
+    timeout: _builtins.float | None=None,
+    inferences: _builtins.int | None=None,
+    under: _root._body_typing.Any=_root._body_metta__atoms_designation._UNSET,
+    theory: _root._body_typing.Any | None=None,
+    interpreter: _root._body_typing.Any | None=None,
+    answer: _root._body_metta_doors.EvaluationAnswer | _builtins.str='all',
+    delivery: _root._body_metta_vocabularies.ArgumentDelivery | _builtins.str='atoms',
+    limit: _builtins.int | None=None,
+    image: _root._body_metta_vocabularies.ImageMode | _builtins.str | None=None,
+    on_error: _root._body_metta_vocabularies.OnError | _builtins.str='keep',
+    determinism: _root._body_metta_vocabularies.Determinism | _builtins.str='nondet',
+    **values: _root._body_typing.Any,
+) -> _root._body_typing.Any:
     """Evaluate a term, returning every answer.
 
     This is what !(...) runs, minus the printing: the engine's
@@ -1019,14 +530,12 @@ def eval(  # noqa: A001 -- eval is the ruled public verb
     exists and none consume only the requested shape. A determinism
     promise is checked before a limit truncates the answers. Image
     projection publishes the type declarations its values require.
+
     Runs against the default context's self space.
     """
-    return engine().self.eval(
-        target, *more, timeout=timeout, inferences=inferences, under=under, theory=theory, interpreter=interpreter, answer=answer, delivery=delivery, limit=limit, image=image, on_error=on_error, determinism=determinism, **values
-    )
+    return _cast(_ImplementationSpaceEvalBound, engine().self.eval)(target, *more, timeout=timeout, inferences=inferences, under=under, theory=theory, interpreter=interpreter, answer=answer, delivery=delivery, limit=limit, image=image, on_error=on_error, determinism=determinism, **values)
 
-
-def stats() -> _StatsBlock:
+def stats() -> _root._body_metta__spaces_profile._StatsBlock:
     """The engine's own counters over a with-block, as deltas.
 
         with m.stats() as s:
@@ -1050,43 +559,452 @@ def stats() -> _StatsBlock:
     does report its engine's spend, so that one is whole. The z3py
     Solver.statistics() reading, on the engine this library actually
     has.
+
     Runs against the default context's self space.
     """
     return engine().self.stats()
 
+def match(
+    *patterns: _root._body_typing.Any,
+    where: _root._body_typing.Any | None=None,
+    limit: _builtins.int | None=None,
+    timeout: _builtins.float | None=None,
+    inferences: _builtins.int | None=None,
+    under: _root._body_typing.Any=_root._body_metta__atoms_designation._UNSET,
+    into: _root._body_builtins.type | None=None,
+    **values: _root._body_typing.Any,
+) -> _root._body_typing.Any:
+    """Lazily match patterns against this space as one conjunction.
+
+    Variables shared between patterns join, the engine's own match/4
+    doing the joining. Columns are the variable names in first
+    appearance order. `where` is a guard term over the same variables,
+    evaluated per join and required true, so restrictions a pattern
+    cannot spell (an inequality) compose onto the match:
+
+        m.match(S.person(V.name, V.age), where=V.age.ge(18))
+
+    `limit` bounds the answers, the engine stopping at the count
+    rather than trimming afterwards. `timeout` (seconds) and
+    `inferences` (engine steps) bound the whole call, raising
+    TimeLimitError or InferenceLimitError when hit, for joins whose
+    size is not known in advance.
+
+    The returned Answers view pulls only what Python observes. ``bool``
+    pulls one row, exact-one operations pull at most two, and slicing
+    retains an Answers view. ``len`` uses an engine-side aggregate when
+    no row has yet been pulled.
+
+    ``under=`` interprets the same ask through an annotation algebra.
+    ``under=counting`` answers one ``TaggedAnswer`` whose annotation is
+    the engine-computed count, including duplicate derivations without
+    crossing their rows into Python. Ordered carriers sort in their
+    declared direction before slicing, so
+    ``m.match(q, under=ranked)[:3]`` is top-k and
+    ``under=tropical`` puts the cheapest annotation first. Other carriers
+    answer ``TaggedAnswer`` values with ``annotation``, ``why()`` and
+    ``under(other)``; the latter two reuse the retained derivation rather
+    than querying the space again. ``with metta.under(carrier)`` supplies
+    the carrier when this call has no explicit ``under=``.
+
+    `into=Rows` explicitly chooses the eager Rows face. Other `into=`
+    values shape each row into a dataclass, NamedTuple, or
+    TypedDict matched by field name, sqlite3's row_factory reading:
+    `m.match(S.edge(V.a, V.b), into=Edge)` answers `list[Edge]`,
+    and Rows stays the default so nothing is lost. A one-variable query
+    whose column holds complete constructor expressions rebuilds those
+    expressions instead: `m.match(V.edge, into=Edge)`.
+
+        m.match(S.Edge(V.x, V.y), S.Edge(V.y, V.z))
+
+    A text pattern may carry HOLES, as run()'s source may:
+    `m.match(t"(person {name} $age)")` matches the value itself, so a name
+    holding a space stays one String atom rather than reading as two
+    symbols. Keyword values apply across every pattern of the call.
+
+    Runs against the default context's self space.
+    """
+    return engine().self.match(*patterns, where=where, limit=limit, timeout=timeout, inferences=inferences, under=under, into=into, **values)
+
+def solve(
+    pattern: _root._body_typing.Any,
+    subject: _root._body_typing.Any,
+) -> _root._body_typing.Any:
+    """Run relational ``let`` and return bindings keyed by its variables.
+
+    ``solve(4, V.x - 1).x`` places the known value on let's pattern side,
+    lets the arithmetic relation solve backwards, and projects ``x``.
+    The answer template is derived from the pattern's variables followed
+    by any new subject variables, so either relational direction can
+    introduce the bindings and the third hand-written ``let`` argument
+    disappears.
+
+    Runs against the default context's self space.
+    """
+    return engine().self.solve(pattern, subject)
+
+def limits(
+    *,
+    timeout: _builtins.float | None=None,
+    inferences: _builtins.int | None=None,
+    stack: _builtins.int | None=None,
+) -> _root._body_metta__spaces_scope.ScopedLimits:
+    """Scoped default bounds for every call in the with-block:
+
+        with m.limits(inferences=1_000_000, timeout=2.0):
+            m.match(...)      # bounded without saying so again
+
+    decimal.localcontext's shape, contextvars underneath, so the
+    scope is async-correct and per-task. A per-call timeout= or
+    inferences= still overrides, which is the whole ladder: one
+    block replaces the parameter forest, and the forest remains
+    for whoever wants per-call control.
+
+    stack= is SWI's combined stack ceiling in BYTES, the bound a
+    runaway recursion hits as a StackOverflow error atom. It is NOT
+    MeTTa's reduction depth: that is the max-stack-depth pragma,
+    `(with-pragma! ((max-stack-depth N)) expr)`, which counts
+    reduction steps and is scoped in the program text.
+
+    Runs against the default context's self space.
+    """  # noqa: D415 -- preserve the declared documentation
+    return engine().self.limits(timeout=timeout, inferences=inferences, stack=stack)
+
+def speculate() -> _root._body_metta__spaces_execution.ScopedExecution:
+    """Run each CALL against a snapshot and discard its writes.
+
+    Per call, the write doors included: ``m.add(atom)`` inside the block
+    leaves nothing behind, exactly as ``m.run("!(add-atom &self ...)")``
+    in the same block does, and a later call in the block does not see
+    what an earlier one wrote, because each call is its own what-if.
+
+    Runs against the default context's self space.
+    """
+    return engine().self.speculative()
+
+def run(
+    source: _builtins.str | _root._body_metta__atoms_designation.TemplateLike,
+    /,
+    *,
+    timeout: _builtins.float | None=None,
+    inferences: _builtins.int | None=None,
+    **values: _root._body_typing.Any,
+) -> _builtins.list[_builtins.list[_root._body_metta__atoms_factories.Atom]]:
+    """Run MeTTa source: one list of answers per ! directive.
+
+    The pipeline is the engine's own reader, compiler and evaluator, so
+    the answers are exactly what the CLI would print, kept grouped per
+    directive instead of flattened. Equations and facts in the source
+    land in this space.
+
+    The source may carry HOLES, which are bindings by position:
+
+        m.run(t"!(fib {n})")            # a 3.14 t-string literal
+        m.run("!(fib {n})", n=10)       # the same on every version
+
+    Each hole is spliced into the text as a generated symbol and bound to
+    its value, so a str stays one String atom and never has to be escaped.
+    Values enter through `encode`: an int is a Number, a str a String, an
+    Atom itself, a Space its handle. The markers at a hole are the atom
+    constructors, `{Symbol(name)}`, `{Grounded(obj)}` and `{parse(text)}`,
+    with the specs `:sym`, `:py` and `:expr` as their short forms; `!r`
+    and `!s` convert in Python first and enter the result as text. A hole
+    inside a string literal, a comment or a symbol is refused with its
+    line and column.
+
+    `bind()` is the same substitution by NAME, for a value several calls
+    share, the way DuckDB reads a local dataframe by its variable name:
+
+        with m.bind({"graph": my_graph}):
+            m.run("!(py-len graph)")
+
+    Each named symbol substitutes to its value (objects by identity),
+    after reading, before anything runs. It is a BLOCK rather than a
+    keyword because a binding mapping is the kind of value that grows,
+    and a block grows down the page where a keyword has to fit beside
+    everything else on the call. Every call that accepts a target reads the
+    same scope, so one block covers run(), eval(), and answers() together.
+    A binding names a symbol and so replaces EVERY occurrence of it,
+    including one the author meant as a symbol; a hole is positional and
+    cannot reach anything but itself.
+
+    `timeout` (seconds) and `inferences` (engine steps) bound the call
+    with the engine's own guards; passing either raises TimeLimitError
+    or InferenceLimitError when the bound is hit, and whatever the
+    source completed before the stop, writes included, stands.
+
+    `with m.capture() as output` collects printed text in `output.text`
+    without changing this method's return shape. `with m.atomic()`
+    and `with m.speculative()` scope execution policy without boolean
+    combinations on each call. Atomic commits or rolls
+    back each complete source; speculative answers and discards its
+    writes. Both cover engine state; Python side effects and subscription
+    callbacks already fired stay where they happened.
+
+    A term the engine hands back unevaluated is an ordinary MeTTa value,
+    not a failure: `!(hello world)` answers `(hello world)` and that is
+    the whole of hello world in this language. eval_status() reports
+    which answers reduced and which did not, as data, for a caller who
+    wants to decide about it.
+
+    Runs against the default context's self space.
+    """
+    return engine().self.run(source, timeout=timeout, inferences=inferences, **values)
+
+def load(
+    path: _builtins.str | _root._body_os.PathLike[_builtins.str],
+    *,
+    timeout: _builtins.float | None=None,
+    inferences: _builtins.int | None=None,
+) -> _builtins.list[_builtins.list[_root._body_metta__atoms_factories.Atom]]:
+    """Add a text program or trusted fast cache to this space.
+
+    This is a consult, so it always loads and what it loads REPLACES
+    what the same file put in this space before. Edit the file, load it
+    again, and the space holds the new definitions and not both; the
+    engine says on stderr which file it replaced and how many atoms
+    went. Atoms from other sources, and ones you added yourself, stay.
+    A load that raises leaves the previous definitions standing, so a
+    broken edit costs nothing but the error.
+
+    `!(import! &self path)` is the other form and loads a file that is
+    new or edited, skipping one that is neither. The two agree on what
+    a reload means and differ only in whether an unchanged file runs
+    again, which is SWI's consult/1 against its if(changed).
+
+    A .gz path is detected and read through the decompressed bytes.
+
+    `timeout` (seconds) and `inferences` (engine steps) bound the load
+    with the engine's own guards, raising TimeLimitError or
+    InferenceLimitError. A load is all or nothing: a stop takes back
+    everything the file had put in a space, the same way a load that
+    fails on a bad form does, because a file the space holds half of is
+    not a file it can replace later. run() is the entry point that
+    keeps finished work when a bound stops it. This is the one most
+    likely to be handed code the caller did not write, since a file can
+    carry `!` directives and an import graph, so it takes the same pair
+    its siblings take.
+
+    Program text with holes is refused here. A hole is a binding, and a
+    PATH has nowhere to bind one: run() takes holes, and an f-string or a
+    Path builds a computed filename.
+
+    Runs against the default context's self space.
+    """
+    return engine().self.load(path, timeout=timeout, inferences=inferences)
+
+def add(*atoms: _root._body_typing.Any) -> None:
+    """Add atoms to this space, one engine round-trip for the lot.
+    An (= ...) atom compiles as an equation. Every Atom shape crosses
+    unchanged, including a bare Symbol, Grounded value, and empty
+    Expression; a free Variable receives the engine's own
+    insufficient-instantiation refusal. The MeTTa longhand is
+    `!(add-atoms <space> (<atom> ...))`. It is NOT `add-atom`, which is
+    upstream PeTTa's spelling and takes upstream's domain: a headless atom
+    cannot become a fact in a space there, so `!(add-atom &self b)` has no
+    answer on either engine. This space is wider and `add-atoms` is the
+    door onto the wider part.
+
+    A variable's NAME is not stored. `(rule $x $y)` reads back as
+    `(rule $_17902 $_17904)`, because a variable is an identity and not a
+    spelling. That is the right property for a logic engine and it is the
+    one thing about storage that surprises everybody once.
+
+    A library IS knowledge, so the same operator imports it: ``m += lib.he``
+    performs ``!(import! <m> (library lib_he))`` with this space as the
+    target. An import is an effect, so it refuses to hide inside an atom
+    batch or share a call with stored atoms.
+
+    Runs against the default context's self space.
+    """  # noqa: D205 -- preserve the declared documentation
+    return engine().self.add(*atoms)
+
+def remove(
+    atom: _root._body_typing.Any,
+    *more: _root._body_typing.Any,
+) -> _builtins.bool | _builtins.int:
+    """Remove ONE unifying occurrence and say whether one was there,
+    which is Python's own `list.remove` grain.
+
+    Variadic like `add` and `transfer`: several atoms ride one engine
+    crossing inside one transaction, and the answer counts the found,
+    so the one-atom call still reads as the truth value it always
+    was.
+
+    `space -= atom` is this same grain without the report, the way
+    `+=` is `add` without one: Python's in-place difference over a
+    MULTISET, whose own Python spelling is `collections.Counter`,
+    subtracts the multiplicity given rather than clearing the key.
+    That is the only reading under which the operators are inverses,
+    so `s += a; s -= a` leaves the space it found. `-=` classifies its
+    operand exactly as `+=` does, so `-=` subtracts the same fact stream
+    `+=` stores, one occurrence per element, in one
+    transactional crossing.
+
+    `del m[pattern]` is the draining form: it takes every
+    unifying occurrence in one crossing and raises when nothing
+    matched, as Python's `del` does, and MeTTa spells it `remove-atom`
+    [source: engine/spaces/foreign.pl, remove_matching_atoms/2].
+    MeTTa spells this method's grain `subtract-atom`. This is the one
+    method that reports absence.
+
+    A bare variable is the remove-everything reading a multiset space
+    gives it, each atom leaving through its own proper path, equations
+    and their compiled clauses included.
+
+    Runs against the default context's self space.
+    """  # noqa: D205 -- preserve the declared documentation
+    return engine().self.remove(atom, *more)
+
+@_overload
+@_root._body_typing.dataclass_transform(eq_default=False)
+def define(  # type: ignore[overload-overlap]
+    fn: _root._body_builtins.type[_root._body_metta__atoms_designation._T],
+    /,
+    *,
+    accessors: _builtins.bool=...,
+    methods: _builtins.bool=...,
+) -> _root._body_builtins.type[_root._body_metta__atoms_designation._T]:
+    ...
+@_overload
+def define(
+    fn: _root._body_collections_abc.Callable[_root._body_metta__atoms_designation._P, _root._body_metta__atoms_designation._R],
+    /,
+    *,
+    name: _builtins.str | None=...,
+    accessors: _builtins.bool=...,
+    methods: _builtins.bool=...,
+) -> _root.Defined[_root._body_metta__atoms_designation._P, _root._body_metta__atoms_designation._R]:
+    ...
+@_overload
+def define(
+    *,
+    name: _builtins.str,
+) -> _root._body_collections_abc.Callable[[_root._body_collections_abc.Callable[_root._body_metta__atoms_designation._P, _root._body_metta__atoms_designation._R]], _root.Defined[_root._body_metta__atoms_designation._P, _root._body_metta__atoms_designation._R]]:
+    ...
+@_overload
+def define(
+    *,
+    prolog: _builtins.str | _root._body_os.PathLike[_builtins.str],
+    name: _builtins.str | None=None,
+) -> _root._body_collections_abc.Callable[[_root._body_collections_abc.Callable[_root._body_metta__atoms_designation._P, _root._body_metta__atoms_designation._R]], _root._body_metta__declare_define.PrologBacked[_root._body_metta__atoms_designation._P, _root._body_metta__atoms_designation._R]]:
+    ...
+def define(
+    fn: _root._body_collections_abc.Callable[..., _root._body_typing.Any] | None=None,
+    *,
+    prolog: _builtins.str | _root._body_os.PathLike[_builtins.str] | None=None,
+    name: _builtins.str | None=None,
+    accessors: _builtins.bool=True,
+    methods: _builtins.bool=True,
+) -> _root._body_typing.Any:
+    """Compile a Python function into MeTTa equations, decorator-style.
+
+    With `prolog=`, the Prolog file is registered and becomes the
+    function, and the Python stays as the reference twin rather than
+    being compiled:
+
+        @m.define(prolog=Path(__file__).parent / "fast.pl")
+        def vec_dot(a, b):
+            return sum(x * y for x, y in zip(a, b))
+
+        m.eval("(vec-dot (1 2) (3 4))")[0] # the Prolog answer
+        vec_dot.py((1, 2), (3, 4))          # the reference answers
+
+    Rewriting a defined function in Prolog for speed used to mean
+    deleting the Python and the differential oracle with it. Here both
+    are declared together and `metta.testing.check_twin` proves they
+    agree on ground inputs. The file must register the function's own
+    MeTTa name and at the twin's arity, inputs then one output, and
+    says so if it does not; its `metta_export` declaration owns the
+    types, so annotations on the Python are documentation only.
+
+    Written for whoever is fluent in Python rather than s-expressions:
+    the body is read as syntax and lowered deterministically, refusals
+    name the construct, the line and what to write instead, and the
+    original stays reachable as .py, a twin the equations can be checked
+    against on any ground input.
+
+        @m.define
+        def add_one(n):
+            return n + 1
+
+        add_one(5)                  # [6], evaluated by the engine
+        S.add_one(5)                # (add_one 5), staged as data
+        add_one.py(5)               # 6, ordinary Python
+
+    The equation's implicit name applies the factories' total mechanical
+    map, replacing each underscore with a hyphen. ``name=`` is the exact
+    quoted-name escape for punctuation that map cannot preserve:
+
+        @m.define(name="add-one")
+        def add_one(n):
+            return n + 1
+
+    The same attribute mapping applies to the definition name itself:
+    ``def not_provable`` lands as ``not-provable``. An authored
+    MeTTa underscore therefore uses explicit ``name="not_provable"``.
+
+    A generator compiles to nondeterminism (each yield one answer), a
+    lambda to the engine's own |->, a comprehension to map-atom and
+    filter-atom, and match(Pattern(x, y), template) to a match against
+    the running space, lowercase free names in the pattern binding as
+    variables.
+
+    Runs against the default context's self space.
+    """
+    return _cast(_ImplementationSpaceDefineBound, engine().self.define)(fn, prolog=prolog, name=name, accessors=accessors, methods=methods)
+
+def doc(atom: _root._body_typing.Any) -> _root._body_metta__atoms_factories.Atom:
+    """Return this space's structured ``get-doc`` answer for one subject.
+
+    The answer is the ``(@doc ...)`` atom the engine holds for the
+    subject, whether it was documented in MeTTa source or built from a
+    Python docstring:
+
+        m.doc(S.area)
+        # (@doc-formal (@item area) (@kind function) (@desc "Circle area.") ...)
+
+    A subject with no documentation raises, exactly as ``type`` raises
+    for a subject ``get-type`` cannot answer.
+
+    Runs against the default context's self space.
+    """
+    return engine().self.doc(atom)
 
 @_overload
 def op(
-    fn: _Callable[_P, _R],
+    fn: _root._body_collections_abc.Callable[_root._body_metta__atoms_designation._P, _root._body_metta__atoms_designation._R],
     /,
     *,
-    name: str | None = ...,
-    transport: _Transport = ...,
-    effect: _EffectClass | str,
-    declarations: _Iterable[Atom] = ...,
-    arities: list[int] | None = ...,
-    inverse: _Callable | None = ...,
-) -> _Callable[_P, _R]: ...
+    name: _builtins.str | None=...,
+    transport: _root._body_metta__declare_operations.Transport=...,
+    effect: _root._body_metta_vocabularies.EffectClass | _builtins.str,
+    declarations: _root._body_collections_abc.Iterable[_root._body_metta__atoms_factories.Atom]=...,
+    arities: _builtins.list[_builtins.int] | None=...,
+    inverse: _root._body_collections_abc.Callable | None=...,
+) -> _root._body_collections_abc.Callable[_root._body_metta__atoms_designation._P, _root._body_metta__atoms_designation._R]:
+    ...
 @_overload
 def op(
     *,
-    name: str | None = ...,
-    transport: _Transport = ...,
-    effect: _EffectClass | str,
-    declarations: _Iterable[Atom] = ...,
-    arities: list[int] | None = ...,
-    inverse: _Callable | None = ...,
-) -> _Callable[[_Callable[_P, _R]], _Callable[_P, _R]]: ...
+    name: _builtins.str | None=...,
+    transport: _root._body_metta__declare_operations.Transport=...,
+    effect: _root._body_metta_vocabularies.EffectClass | _builtins.str,
+    declarations: _root._body_collections_abc.Iterable[_root._body_metta__atoms_factories.Atom]=...,
+    arities: _builtins.list[_builtins.int] | None=...,
+    inverse: _root._body_collections_abc.Callable | None=...,
+) -> _root._body_collections_abc.Callable[[_root._body_collections_abc.Callable[_root._body_metta__atoms_designation._P, _root._body_metta__atoms_designation._R]], _root._body_collections_abc.Callable[_root._body_metta__atoms_designation._P, _root._body_metta__atoms_designation._R]]:
+    ...
 def op(
-    fn: _Callable | None = None,
+    fn: _root._body_collections_abc.Callable | None=None,
     *,
-    name: str | None = None,
-    transport: _Transport = 'encoded',
-    effect: _EffectClass | str | None = None,
-    declarations: _Iterable[Atom] = (),
-    arities: list[int] | None = None,
-    inverse: _Callable | None = None,
-) -> _Any:
+    name: _builtins.str | None=None,
+    transport: _root._body_metta__declare_operations.Transport='encoded',
+    effect: _root._body_metta_vocabularies.EffectClass | _builtins.str | None=None,
+    declarations: _root._body_collections_abc.Iterable[_root._body_metta__atoms_factories.Atom]=(),
+    arities: _builtins.list[_builtins.int] | None=None,
+    inverse: _root._body_collections_abc.Callable | None=None,
+) -> _root._body_typing.Any:
     """Register a Python callable as a MeTTa function, decorator-style.
 
         @m.op(effect=EffectClass.pureStructural)
@@ -1219,14 +1137,16 @@ def op(
     It is an allow-list on purpose. An operation that does not say so is
     refused by name in a cached body, loudly, rather than cached and
     quietly wrong.
+
     Runs against the default context's self space.
     """
-    return engine().self.op(
-        fn, name=name, transport=transport, effect=effect, declarations=declarations, arities=arities, inverse=inverse
-    )
+    return _cast(_ImplementationSpaceOpBound, engine().self.op)(fn, name=name, transport=transport, effect=effect, declarations=declarations, arities=arities, inverse=inverse)
 
-
-def pure(fn: _Callable | None = None, /, **options: _Any) -> _Any:
+def pure(
+    fn: _root._body_collections_abc.Callable | None=None,
+    /,
+    **options: _root._body_typing.Any,
+) -> _root._body_typing.Any:
     """An operation whose answer depends only on its arguments.
 
         @m.pure
@@ -1249,36 +1169,48 @@ def pure(fn: _Callable | None = None, /, **options: _Any) -> _Any:
     ``declarations``, ``inverse`` and ``transport``. They arrive as
     ``**options`` and forward unchanged, so the signature above shows
     the mechanism and this line shows the surface.
+
     Runs against the default context's self space.
     """
     return engine().self.pure(fn, **options)
 
-
-def reads(fn: _Callable | None = None, /, **options: _Any) -> _Any:
+def reads(
+    fn: _root._body_collections_abc.Callable | None=None,
+    /,
+    **options: _root._body_typing.Any,
+) -> _root._body_typing.Any:
     """An operation that reads stable state without changing it.
 
     Every ``op`` keyword applies: ``name``, ``arities``,
     ``declarations``, ``inverse`` and ``transport``. They arrive as
     ``**options`` and forward unchanged, so the signature above shows
     the mechanism and this line shows the surface.
+
     Runs against the default context's self space.
     """
     return engine().self.reads(fn, **options)
 
-
-def writes(fn: _Callable | None = None, /, **options: _Any) -> _Any:
+def writes(
+    fn: _root._body_collections_abc.Callable | None=None,
+    /,
+    **options: _root._body_typing.Any,
+) -> _root._body_typing.Any:
     """An operation that changes engine or host state.
 
     Every ``op`` keyword applies: ``name``, ``arities``,
     ``declarations``, ``inverse`` and ``transport``. They arrive as
     ``**options`` and forward unchanged, so the signature above shows
     the mechanism and this line shows the surface.
+
     Runs against the default context's self space.
     """
     return engine().self.writes(fn, **options)
 
-
-def io(fn: _Callable | None = None, /, **options: _Any) -> _Any:
+def io(
+    fn: _root._body_collections_abc.Callable | None=None,
+    /,
+    **options: _root._body_typing.Any,
+) -> _root._body_typing.Any:
     """An operation that observes an external oracle.
 
     A clock, randomness, a network, a file, another runtime.
@@ -1294,324 +1226,122 @@ def io(fn: _Callable | None = None, /, **options: _Any) -> _Any:
     ``declarations``, ``inverse`` and ``transport``. They arrive as
     ``**options`` and forward unchanged, so the signature above shows
     the mechanism and this line shows the surface.
+
     Runs against the default context's self space.
     """
     return engine().self.io(fn, **options)
 
-
-@_overload
-@_dataclass_transform(eq_default=False)
-def define(  # type: ignore[overload-overlap]
-    fn: _builtins.type[_T],
-    /,
+def debug(
+    source: _root._body_metta__atoms_factories.Atom | _builtins.str,
     *,
-    accessors: bool = ...,
-    methods: bool = ...,
-) -> _builtins.type[_T]: ...
-@_overload
-def define(
-    fn: _Callable[_P, _R],
-    /,
-    *,
-    name: str | None = ...,
-    accessors: bool = ...,
-    methods: bool = ...,
-) -> _Defined[_P, _R]: ...
-@_overload
-def define(*, name: str) -> _Callable[[_Callable[_P, _R]], _Defined[_P, _R]]: ...
-@_overload
-def define(
-    *,
-    prolog: str | _os.PathLike[str],
-    name: str | None = None,
-) -> _Callable[[_Callable[_P, _R]], _PrologBacked[_P, _R]]: ...
-def define(
-    fn: _Callable[..., _Any] | None = None,
-    *,
-    prolog: str | _os.PathLike[str] | None = None,
-    name: str | None = None,
-    accessors: bool = True,
-    methods: bool = True,
-) -> _Any:
-    """Compile a Python function into MeTTa equations, decorator-style.
+    on: _root._body_typing.Any=None,
+    inferences: _builtins.int | None=None,
+    at: _builtins.int | None=None,
+) -> _root._body_metta__observe_debug.Debugger:
+    """Run a TERM, or source, under breakpoints, stepped from Python.
 
-    With `prolog=`, the Prolog file is registered and becomes the
-    function, and the Python stays as the reference twin rather than
-    being compiled:
+    Iterating the Debugger runs the program to each breakpoint, the loop
+    body is where the program is SUSPENDED, and leaving the body resumes
+    that same execution:
 
-        @m.define(prolog=Path(__file__).parent / "fast.pl")
-        def vec_dot(a, b):
-            return sum(x * y for x, y in zip(a, b))
+        with m.debug(S.quad(3), on=[S.double]) as d:
+            for stop in d:
+                print(stop)      # halted here
+                if stop.depth > 2:
+                    d.step()     # stop at the next reduction instead
+            print(d.answers)
 
-        m.eval("(vec-dot (1 2) (3 4))")[0] # the Prolog answer
-        vec_dot.py((1, 2), (3, 4))          # the reference answers
+    on= names the functions that stop it, the way every door here names a
+    head; naming none runs the program to the end in one advance.
+    `step()` stops at the very next reduction, breakpoint or not, and
+    lasts one advance. `breakpoints` is a live set, so one added while
+    the program is suspended stops it.
 
-    Rewriting a defined function in Prolog for speed used to mean
-    deleting the Python and the differential oracle with it. Here both
-    are declared together and `metta.testing.check_twin` proves they
-    agree on ground inputs. The file must register the function's own
-    MeTTa name and at the twin's arity, inputs then one output, and
-    says so if it does not; its `metta_export` declaration owns the
-    types, so annotations on the Python are documentation only.
+    at= is the third kind of breakpoint, a COUNT: it stops at the event
+    with that sequence number, numbering reductions from 0 the way a
+    Recording numbers them, so `at=200` is "put me where event 200 is".
+    `Recording.debug(at=k)` is the convenience over this one.
 
-    Written for whoever is fluent in Python rather than s-expressions:
-    the body is read as syntax and lowered deterministically, refusals
-    name the construct, the line and what to write instead, and the
-    original stays reachable as .py, a twin the equations can be checked
-    against on any ground input.
+    inferences bound the WHOLE session cumulatively, so a resume that
+    would never reach another breakpoint stops. There is no timeout:
+    the session is suspended by design and a clock would run while a
+    person reads a stop. What is debugged executes for real, writes
+    included, and inherits the caller's scope. Close it, or leave its
+    with-block: the session holds a wrapper on every compiled function
+    until it does.
 
-        @m.define
-        def add_one(n):
-            return n + 1
-
-        add_one(5)                  # [6], evaluated by the engine
-        S.add_one(5)                # (add_one 5), staged as data
-        add_one.py(5)               # 6, ordinary Python
-
-    The equation's implicit name applies the factories' total mechanical
-    map, replacing each underscore with a hyphen. ``name=`` is the exact
-    quoted-name escape for punctuation that map cannot preserve:
-
-        @m.define(name="add-one")
-        def add_one(n):
-            return n + 1
-
-    The same attribute mapping applies to the definition name itself:
-    ``def not_provable`` lands as ``not-provable``. An authored
-    MeTTa underscore therefore uses explicit ``name="not_provable"``.
-
-    A generator compiles to nondeterminism (each yield one answer), a
-    lambda to the engine's own |->, a comprehension to map-atom and
-    filter-atom, and match(Pattern(x, y), template) to a match against
-    the running space, lowercase free names in the pattern binding as
-    variables.
     Runs against the default context's self space.
     """
-    return engine().self.define(fn, prolog=prolog, name=name, accessors=accessors, methods=methods)
+    return engine().self.debug(source, on=on, inferences=inferences, at=at)
 
+def record(
+    source: _root._body_metta__atoms_factories.Atom | _builtins.str,
+    *,
+    seed: _builtins.int | None=None,
+    max_events: _builtins.int | None=None,
+    timeout: _builtins.float | None=None,
+    inferences: _builtins.int | None=None,
+) -> _root._body_metta__observe_recording.Recording:
+    """Run a TERM, or source, and keep the whole run as data.
 
-def doc(atom: _Any) -> Atom:
-    """Return this space's structured ``get-doc`` answer for one subject.
+    The data walks backwards, saves to a file, and re-runs.
+    `m.trace` is the rung below: it answers the events alone. A Recording
+    is those events plus the state that produced them, which is what makes
+    them re-runnable rather than only readable:
 
-    The answer is the ``(@doc ...)`` atom the engine holds for the
-    subject, whether it was documented in MeTTa source or built from a
-    Python docstring:
+        rec = m.record(S.fib(12))
+        rec.save("fib.metta-rec.json")
+        rec.at(-1)               # the last event, with its call stack
+        rec.back()               # a step backwards costs a lookup
+        rec.replay(other)        # the same run, in another engine
+        with rec.debug(at=17) as d:   # live, stopped where event 17 is
+            print(d.stop)
 
-        m.doc(S.area)
-        # (@doc-formal (@item area) (@kind function) (@desc "Circle area.") ...)
+    A recorded run always has a seed, minted when you do not name one,
+    because a replay that cannot reproduce the draws is not a replay; the
+    generator is restored afterwards. `(with-seed S expr)` is the MeTTa
+    spelling of the same scope.
 
-    A subject with no documentation raises, exactly as ``type`` raises
-    for a subject ``get-type`` cannot answer.
+    max_events bounds the RECORDING and timeout and inferences bound the
+    RUN, exactly as on trace(); a cut recording says so through
+    `rec.events.stopped` and replays to the same length. A program whose
+    effect plan reaches oracleIO is recorded with `replayable` false and
+    the reason naming what it reached, and replay() then refuses rather
+    than re-reading the host.
+
     Runs against the default context's self space.
     """
-    return engine().self.doc(atom)
+    return engine().self.record(source, seed=seed, max_events=max_events, timeout=timeout, inferences=inferences)
 
+def trace(
+    source: _root._body_metta__atoms_factories.Atom | _builtins.str,
+    max_events: _builtins.int | None=None,
+    *,
+    filter: _root._body_metta__atoms_factories.Symbol | _builtins.str | _root._body_collections_abc.Iterable[_root._body_metta__atoms_factories.Symbol | _builtins.str] | None=None,  # noqa: A002 -- the declared public parameter spelling
+    timeout: _builtins.float | None=None,
+    inferences: _builtins.int | None=None,
+) -> _root._body_metta__observe_trace.Trace:
+    """Run a TERM, or source, under the engine's reduction trace and
+    answer TraceEvent records: what entered reduction at which depth,
+    what it answered, and which reductions failed (a call with no
+    exit). `m.trace(S.fib(10))` is the ordinary spelling, the same
+    argument `answers` and `eval` take; a string is still a string.
+    What is traced executes for real, writes included, like run();
+    the wrap exists only while tracing, so untraced calls pay
+    nothing and the wrapping itself is not charged to the bounds
+    below. max_events bounds the RECORDING and timeout,
+    inferences and stack bound the RUN, defaulting to whatever
+    `m.limits()` scopes; they are independent because a program can
+    retire millions of inferences inside a handful of recorded
+    events. Whichever one stops it, the events already recorded are
+    ANSWERED and `stopped` names the bound, so a caller told a trace
+    was cut knows which bound to raise.
+    filter selects exact function Symbols or names, singly or in an iterable.
+    None records all functions; [] records none. Selection happens before
+    the recording bounds, while excluded calls still execute and add depth.
 
-# ------------------------------------------ end of generated module tier
+    Runs against the default context's self space.
+    """  # noqa: D205 -- preserve the declared documentation
+    return engine().self.trace(source, max_events, filter=filter, timeout=timeout, inferences=inferences)
 
-
-def _ambient_space():
-    """Open the space selected by the active Python or engine context."""
-    return engine().space(current_space())
-
-
-@_overload
-def unify(left: _Any, right: _Any) -> _Mapping[Atom, Atom] | None: ...
-
-
-@_overload
-def unify(left: _Any, right: _Any, then: _Any, els: _Any) -> _Answers[Atom]: ...
-
-
-def unify(
-    left: _Any,
-    right: _Any,
-    then: _Any = _OMITTED,
-    els: _Any = _OMITTED,
-) -> _Any:
-    """Unify two atoms, or evaluate the four-argument engine conditional.
-
-    ``unify(a, b)`` returns a symmetric bindings mapping or ``None`` without
-    starting the engine. ``unify(a, b, then, els)`` evaluates
-    ``(unify a b then els)`` in the ambient space, once per binding set on
-    success and through ``els`` only when no binding exists. A compiled body
-    lowers the same four-argument spelling directly to that engine form.
-    """
-    if then is els is _OMITTED:
-        return _unify_atoms(left, right)
-    if then is not _OMITTED and els is not _OMITTED:
-        return _ambient_space().answers(S.unify(left, right, then, els))
-    given = 3
-    msg = f"unify() takes exactly 2 or 4 arguments ({given} given)"
-    raise TypeError(msg)
-
-
-def superpose(*alternatives: _Any):
-    """Evaluate expression-position alternatives in the ambient space.
-
-    With no alternatives this evaluates ``(empty)``. Inside a compiled
-    definition the compiler lowers this same function spelling directly to
-    ``(superpose (...))``.
-    """
-    target = S.empty() if not alternatives else S.superpose(Expression(alternatives))
-    return _ambient_space().answers(target)
-
-
-def accept(atom: _Any = _OMITTED) -> Expression:
-    """Build a pre-add verdict that keeps or replaces the offered atom."""
-    return S.accept() if atom is _OMITTED else S.accept(atom)
-
-
-def refuse(words: _Any) -> Expression:
-    """Build a pre-add verdict that rejects a write with the judge's words."""
-    return S.refuse(words)
-
-
-def drop() -> Expression:
-    """Build a pre-add verdict that silently skips the offered atom."""
-    return S.drop()
-
-
-def under(algebra: _Any):
-    """Scope the default algebra for match, call-answer, and fold carriers.
-
-    The scope is task-local, nests with token restoration, and never mutates
-    the catalog. An explicit ``under=`` on a carrier outranks this default.
-    """
-    scoped = _importlib.import_module(f"{__name__}._under")
-    return scoped.ScopedUnder(algebra)
-
-
-_ROOT_IMPLEMENTATION_VERBS = {
-    "define": define,
-    "trace": trace,
-}
-
-
-__all__ = [
-    "FALSE",
-    "TRUE",
-    "UNIT",
-    "Answer",
-    "Atom",
-    "Bindings",
-    "Config",
-    "Defined",
-    "Drift",
-    "Expression",
-    "G",
-    "Grounded",
-    "Handle",
-    "Library",
-    "Lock",
-    "MeTTa",
-    "MettaError",
-    "NotReducible",
-    "S",
-    "Space",
-    "SpaceProvider",
-    "State",
-    "Symbol",
-    "Timeout",
-    "Undefined",
-    "V",
-    "Variable",
-    "__version__",
-    "accept",
-    "add",
-    "aio",
-    "algebra",
-    "amplitude",
-    "and_",
-    "arrow",
-    "attach",
-    "bag",
-    "bool",
-    "boot",
-    "budget",
-    "catalog",
-    "channel",
-    "config",
-    "convert",
-    "counting",
-    "current_algebra",
-    "current_space",
-    "define",
-    "derivation",
-    "doc",
-    "drop",
-    "engine",
-    "equation",
-    "eval",
-    "events",
-    "every",
-    "fn",
-    "foreign",
-    "forms",
-    "fresh",
-    "ground",
-    "if_",
-    "importing",
-    "in_",
-    "integrate",
-    "io",
-    "lib",
-    "library",
-    "limits",
-    "lint",
-    "llms",
-    "manifest",
-    "match",
-    "move_on_after",
-    "not_",
-    "op",
-    "or_",
-    "par_map",
-    "parallel",
-    "parse",
-    "paths",
-    "prob",
-    "prov",
-    "pure",
-    "py",
-    "race",
-    "ranked",
-    "reads",
-    "reflection",
-    "refuse",
-    "remote",
-    "remove",
-    "render",
-    "rules",
-    "run",
-    "scope",
-    "seam",
-    "seg",
-    "set",
-    "solve",
-    "space",
-    "spaces",
-    "spawn",
-    "speculate",
-    "stats",
-    "structures",
-    "stubs",
-    "subscribe",
-    "superpose",
-    "tables",
-    "testing",
-    "trace",
-    "tropical",
-    "typed",
-    "under",
-    "unify",
-    "view",
-    "vocabularies",
-    "writes",
-]
-
-# Importing a submodule writes it onto its parent package. These concrete
-# modules remain explicitly importable, but they are implementation modules,
-# not root attributes. The verbs table is bound by here, so this is the
-# end-of-init sweep the partial-init guard in the helper defers to.
-_rehide_implementation_modules()
+# end generated module tier

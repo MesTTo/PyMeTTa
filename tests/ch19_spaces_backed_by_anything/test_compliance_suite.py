@@ -28,8 +28,9 @@ Open Obligations:
 import pytest
 
 from metta import MeTTa
-from metta.atoms import Expression, S, Symbol, Variable
-from metta.errors import MettaError
+from metta._atoms.factories import Expression, S, Symbol, Variable
+from metta._declare import declarations as _space_declarations
+from metta._errors.errors import MettaError
 from metta.foreign import SpaceProvider
 from metta.testing import SpaceComplianceSuite
 
@@ -241,7 +242,7 @@ def test_a_space_without_rules_says_how_to_hold_one():
     """
     engine = MeTTa().space()
     name = "&ruleless"
-    engine._register_space(ListSpace([]), name)
+    _space_declarations._register_space(engine, ListSpace([]), name)
     try:
         space = engine._at(name)
         rule = Expression(Symbol("="), Expression(Symbol("rl-double"), Variable("x")), Expression(Symbol("*"), 2, Variable("x")))
@@ -252,7 +253,7 @@ def test_a_space_without_rules_says_how_to_hold_one():
         assert "declare the rules capability" in message, message
         assert "Unknown error term" not in message, message
     finally:
-        engine._unregister_space(name)
+        _space_declarations._unregister_space(engine, name)
 
 
 def test_the_suite_leaves_a_writable_provider_as_it_found_it():
@@ -314,7 +315,7 @@ def test_the_shape_the_suite_picks_does_not_depend_on_enumeration_order():
     """  # noqa: D205  -- the invariant is one continuous statement, not summary-and-body prose
     from itertools import permutations
 
-    from metta._compliance import shaped_atom
+    from metta.testing._providers import shaped_atom
 
     picked = {str(shaped_atom(list(order))) for order in permutations(ROWS)}
     assert picked == {"(edge a b)"}

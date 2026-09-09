@@ -20,12 +20,12 @@ Assumes:
     read from, which is what `select-python.sh` arranges for every lane
 Guarantees:
   - the checked-in face equals what the module's own signatures produce, gated
-    on every run [tested: test_the_torch_face_is_generated; commit=7229962705d199fb08796b3090ec5a8a3a0ae393]
+    on every run [tested: test_the_torch_face_is_generated; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e]
   - a face whose module is absent is named and skipped, so a box without the
     library reports what it could not check [tested:
-    test_a_face_whose_module_is_absent_is_reported_and_skipped; commit=7229962705d199fb08796b3090ec5a8a3a0ae393]
+    test_a_face_whose_module_is_absent_is_reported_and_skipped; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e]
   - a planted signature change is reported with the lines that moved [tested:
-    test_a_planted_signature_change_is_reported; commit=7229962705d199fb08796b3090ec5a8a3a0ae393]
+    test_a_planted_signature_change_is_reported; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -42,8 +42,8 @@ import sys
 _REPO = pathlib.Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(_REPO / "extensions" / "python"))
 
-from metta._face import Face, read, render  # noqa: E402
-from metta.errors import MettaError  # noqa: E402
+from metta._errors.errors import MettaError  # noqa: E402
+from metta.library._face import Face, read, render  # noqa: E402
 
 #: Where a shipped face lives. One directory, because a MeTTa library IS the
 #: shape a face ships in; a face outside it is named on the command line.

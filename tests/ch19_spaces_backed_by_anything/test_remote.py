@@ -42,10 +42,15 @@ import pytest
 
 import metta
 import metta as metta_package
-import metta._network as network
-from metta import S, remote
-from metta import testing as remote_testing
-from metta.errors import MettaError
+import metta.remote._client as _moved_metta_remote__client
+import metta.remote._defaults as _moved_metta_remote__defaults
+import metta.remote._gateway as _moved_metta_remote__gateway
+import metta.remote._network as network
+import metta.remote._transport as _moved_metta_remote__transport
+import metta.testing as remote_testing
+from metta import S
+from metta._declare import declarations as _space_declarations
+from metta._errors.errors import MettaError
 from metta.foreign import SpaceProvider
 
 
@@ -57,7 +62,7 @@ def test_library_logging_is_opt_in():  # noqa: D103  -- pytest discovers or inje
 
 
 def test_remote_transport_logs_operation_without_payload(monkeypatch, caplog):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    transport = remote.connect("http://example.test/api")
+    transport = _moved_metta_remote__transport.connect("http://example.test/api")
 
     def request(*args, **kwargs):  # noqa: ARG001  -- the test reflects this callable signature, so every declared parameter must remain visible
         return network.Response(200, "OK", b'{"atoms": []}', {})
@@ -86,16 +91,16 @@ def test_bearer_token_uses_constant_time_comparison(monkeypatch):  # noqa: D103 
         return True
 
     def asking(headers):
-        return remote.Request("atoms", "&self", headers)
+        return _moved_metta_remote__gateway.Request("atoms", "&self", headers)
 
-    monkeypatch.setattr(remote.hmac, "compare_digest", compare)
+    monkeypatch.setattr(_moved_metta_remote__gateway.hmac, "compare_digest", compare)
 
     matching = {"authorization": "Bearer secret"}
-    assert remote._is_authorized(asking(matching), "secret", authorize)
-    assert not remote._is_authorized(
+    assert _moved_metta_remote__gateway._is_authorized(asking(matching), "secret", authorize)
+    assert not _moved_metta_remote__gateway._is_authorized(
         asking({"authorization": "Bearer wrong"}), "secret", authorize
     )
-    assert not remote._is_authorized(asking({}), "secret", authorize)
+    assert not _moved_metta_remote__gateway._is_authorized(asking({}), "secret", authorize)
 
     assert calls == [
         ("Bearer secret", "Bearer secret"),
@@ -104,7 +109,7 @@ def test_bearer_token_uses_constant_time_comparison(monkeypatch):  # noqa: D103 
     ]
     # The policy hook runs only behind a good credential, and it is told
     # what is being asked for, not only who is asking.
-    assert policies == [remote.Request("atoms", "&self", matching)]
+    assert policies == [_moved_metta_remote__gateway.Request("atoms", "&self", matching)]
 
 
 @pytest.mark.parametrize(
@@ -118,7 +123,7 @@ def test_bearer_token_uses_constant_time_comparison(monkeypatch):  # noqa: D103 
 )
 def test_remote_connect_refuses_non_http_urls(url, scheme):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     with pytest.raises(MettaError, match=scheme):
-        remote.connect(url)
+        _moved_metta_remote__transport.connect(url)
 
 
 @pytest.mark.parametrize(
@@ -128,18 +133,18 @@ def test_remote_connect_refuses_non_http_urls(url, scheme):  # noqa: D103  -- py
 def test_remote_connect_refuses_credentials_over_http(headers):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     options = {"token": "secret"} if headers is None else {"headers": headers}
     with pytest.raises(MettaError, match="credentials require an https URL"):
-        remote.connect("http://example.test", **options)
+        _moved_metta_remote__transport.connect("http://example.test", **options)
 
 
 def test_remote_connect_accepts_http_and_https_urls():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    assert callable(remote.connect("http://example.test/api/"))
-    assert callable(remote.connect("https://example.test/api/", token="secret"))
+    assert callable(_moved_metta_remote__transport.connect("http://example.test/api/"))
+    assert callable(_moved_metta_remote__transport.connect("https://example.test/api/", token="secret"))
 
 
 @pytest.mark.parametrize("timeout", [0, -1, float("inf"), float("nan"), "invalid"])
 def test_network_clients_refuse_invalid_timeouts(timeout):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     with pytest.raises(ValueError, match="timeout"):
-        remote.connect("http://example.test", timeout=timeout)
+        _moved_metta_remote__transport.connect("http://example.test", timeout=timeout)
 
 
 @pytest.mark.parametrize(
@@ -153,12 +158,12 @@ def test_network_clients_refuse_invalid_timeouts(timeout):  # noqa: D103  -- pyt
 )
 def test_remote_connect_refuses_malformed_base_urls(url, message):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     with pytest.raises(MettaError, match=message):
-        remote.connect(url)
+        _moved_metta_remote__transport.connect(url)
 
 
 def test_remote_connect_refuses_embedded_credentials_without_echoing_them():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     with pytest.raises(MettaError, match="embedded credentials") as failure:
-        remote.connect("https://operator:top-secret@example.test")
+        _moved_metta_remote__transport.connect("https://operator:top-secret@example.test")
     assert "top-secret" not in str(failure.value)
 
 
@@ -170,7 +175,7 @@ def test_remote_serve_reports_worker_startup_failure(metta, monkeypatch):  # noq
     monkeypatch.setattr(janus_swi, "attach_engine", fail_attach)
 
     with pytest.raises(MettaError, match="injected remote attach failure"):
-        remote.serve(metta)
+        _moved_metta_remote__gateway.serve(metta)
 
 
 def test_remote_close_waits_for_worker_detach(metta, monkeypatch):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -186,7 +191,7 @@ def test_remote_close_waits_for_worker_detach(metta, monkeypatch):  # noqa: D103
         detached.set()
 
     monkeypatch.setattr(janus_swi, "detach_engine", delayed_detach)
-    server = remote.serve(metta)
+    server = _moved_metta_remote__gateway.serve(metta)
     failures = []
 
     def close():
@@ -238,7 +243,7 @@ def test_a_timed_out_remote_worker_never_runs_or_finishes_the_abandoned_write(me
             metta.add(late)
         return {"operation": operation}
 
-    worker = remote._RemoteWorker(handle)
+    worker = _moved_metta_remote__gateway._RemoteWorker(handle)
     worker.start()
     holding = threading.Thread(target=lambda: worker.call("hold", {}, timeout=2.0))
     holding.start()
@@ -272,7 +277,7 @@ def test_a_timed_out_remote_worker_never_runs_or_finishes_the_abandoned_write(me
         ({"Content-Length": "nope"}, b"", 400, "decimal digits"),
         ({"Content-Length": "-1"}, b"", 400, "decimal digits"),
         (
-            {"Content-Length": str(remote._MAX_REQUEST_BYTES + 1)},
+            {"Content-Length": str(_moved_metta_remote__defaults._MAX_REQUEST_BYTES + 1)},
             b"",
             413,
             "exceeds",
@@ -294,7 +299,7 @@ def test_remote_server_rejects_malformed_request_bodies(  # noqa: D103  -- pytes
     status,
     detail,
 ):
-    server = remote.serve(metta)
+    server = _moved_metta_remote__gateway.serve(metta)
     connection = HTTPConnection(server.host, server.port, timeout=2.0)
     try:
         connection.putrequest("POST", "/atoms")
@@ -321,10 +326,10 @@ def test_authorize_can_serve_a_space_read_only(metta):  # noqa: D103  -- pytest 
         seen.append((request.operation, request.space))
         return request.operation in ("health", "atoms", "match")
 
-    server = remote.serve(metta, spaces=[name], authorize=read_only)
+    server = _moved_metta_remote__gateway.serve(metta, spaces=[name], authorize=read_only)
     try:
-        transport = remote.connect(server.url)
-        space = remote.RemoteSpace(transport, name)
+        transport = _moved_metta_remote__transport.connect(server.url)
+        space = _moved_metta_remote__client.RemoteSpace(transport, name)
         assert list(space.atoms()) == [S.stock(S.apple)]
         with pytest.raises(MettaError, match="not authorized"):
             space.add(S.stock(S.pear))
@@ -348,8 +353,8 @@ def test_an_omitted_remote_space_cannot_cross_the_authorization_boundary(metta):
         return request.space == served.name
 
     try:
-        with remote.serve(served, authorize=only_served) as server:
-            reply = remote.connect(server.url)("add", {"atom": atom.to_wire()})
+        with _moved_metta_remote__gateway.serve(served, authorize=only_served) as server:
+            reply = _moved_metta_remote__transport.connect(server.url)("add", {"atom": atom.to_wire()})
 
         assert reply == {"added": True}
         assert seen == [("health", served.name), ("add", served.name)]
@@ -443,16 +448,16 @@ def test_http_endpoint_closes_transport_resources(monkeypatch, read_fails, overs
 
 
 def test_health_advertises_the_projection(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    server = remote.serve(metta)
+    server = _moved_metta_remote__gateway.serve(metta)
     try:
-        transport = remote.connect(server.url)
+        transport = _moved_metta_remote__transport.connect(server.url)
         body = transport.health()
         assert body["ok"] is True and body["protocol"] == 3
         assert {"match", "enumerate", "add", "remove", "stream"} <= set(
             body["capabilities"]
         )
         assert body["bound"] is True
-        space = remote.RemoteSpace(transport)
+        space = _moved_metta_remote__client.RemoteSpace(transport)
         advertised = space.server_capabilities()
         assert advertised["bound"] is True and advertised["protocol"] == 3
     finally:
@@ -460,7 +465,7 @@ def test_health_advertises_the_projection(metta):  # noqa: D103  -- pytest disco
 
 
 def test_server_capabilities_refuses_a_health_less_transport():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    space = remote.RemoteSpace(lambda _operation, _payload: {"atoms": []})
+    space = _moved_metta_remote__client.RemoteSpace(lambda _operation, _payload: {"atoms": []})
     with pytest.raises(MettaError, match="health"):
         space.server_capabilities()
 
@@ -468,10 +473,10 @@ def test_server_capabilities_refuses_a_health_less_transport():  # noqa: D103  -
 def test_bound_crosses_and_is_honored_exactly(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     scratch = metta._new_space()
     scratch.add(S.re_edge(S.a, S.b), S.re_edge(S.a, S.c), S.re_edge(S.a, S.d))
-    server = remote.serve(metta)
+    server = _moved_metta_remote__gateway.serve(metta)
     try:
-        transport = remote.connect(server.url)
-        space = remote.RemoteSpace(transport, scratch.name)
+        transport = _moved_metta_remote__transport.connect(server.url)
+        space = _moved_metta_remote__client.RemoteSpace(transport, scratch.name)
         pattern = metta.parse("(re-edge a $x)")
         assert len(list(space.match(pattern, limit=2))) == 2
         assert len(list(space.match(pattern))) == 3
@@ -492,7 +497,7 @@ def test_the_seam_pushes_the_callers_bound_onto_the_wire():  # noqa: D103  -- py
         sent.append((operation, payload))
         return {"atoms": []}
 
-    space = remote.RemoteSpace(capturing)
+    space = _moved_metta_remote__client.RemoteSpace(capturing)
     list(space.match(metta.parse("(re_probe $x)"), limit=5))
     assert sent[-1][1]["bound"] == 5
     list(space.match(metta.parse("(re_probe $x)")))
@@ -503,9 +508,9 @@ def test_add_many_lands_through_our_own_server(metta):  # noqa: D103  -- pytest 
     # The client always sent add_many; the server refused it as unknown
     # until the projection work, so bulk adds against serve() failed.
     scratch = metta._new_space()
-    server = remote.serve(metta)
+    server = _moved_metta_remote__gateway.serve(metta)
     try:
-        space = remote.RemoteSpace(remote.connect(server.url), scratch.name)
+        space = _moved_metta_remote__client.RemoteSpace(_moved_metta_remote__transport.connect(server.url), scratch.name)
         space.add_many([metta.parse(f"(re_bulk {n})") for n in range(4)])
         assert len(list(space.match(metta.parse("(re_bulk $n)")))) == 4
     finally:
@@ -570,13 +575,13 @@ def test_two_answers_cross_the_wire_without_the_third_being_computed(metta):
     the counter can still see: two answers cost the same whatever is behind
     them.
     """
-    server = remote.serve(metta)
+    server = _moved_metta_remote__gateway.serve(metta)
     scratch = metta._new_space()
     lazy, eager, crossings, sent, drained = {}, {}, {}, {}, {}
     try:
         calls: list[str] = []
         atoms_seen: list[int] = []
-        inner = remote.connect(server.url)
+        inner = _moved_metta_remote__transport.connect(server.url)
 
         def counting(operation, payload, _inner=inner, _calls=calls,
                      _seen=atoms_seen):
@@ -585,7 +590,7 @@ def test_two_answers_cross_the_wire_without_the_third_being_computed(metta):
             _seen.append(len(answer.get("atoms", ())))
             return answer
 
-        space = remote.RemoteSpace(counting, scratch.name)
+        space = _moved_metta_remote__client.RemoteSpace(counting, scratch.name)
         pattern = metta.parse("(re_lazy $n)")
         populated = 0
         for size in (10, 10_000):
@@ -669,10 +674,10 @@ def test_a_served_provider_is_pulled_per_answer_not_drained(metta):
     over the same space pulls every one.
     """
     provider = _CountingProvider(10_000)
-    metta._register_space(provider, "&re-counted")
-    server = remote.serve(metta)
+    _space_declarations._register_space(metta, provider, "&re-counted")
+    server = _moved_metta_remote__gateway.serve(metta)
     try:
-        space = remote.RemoteSpace(remote.connect(server.url), "&re-counted")
+        space = _moved_metta_remote__client.RemoteSpace(_moved_metta_remote__transport.connect(server.url), "&re-counted")
         pattern = metta.parse("(re_counted $n)")
         with space.stream(pattern, batch=1) as warm:
             next(warm)
@@ -685,7 +690,7 @@ def test_a_served_provider_is_pulled_per_answer_not_drained(metta):
         drained = provider.yielded
     finally:
         server.close()
-        metta._unregister_space("&re-counted")
+        _space_declarations._unregister_space(metta, "&re-counted")
     assert pulled < 10, f"two answers pulled {pulled} candidates of 10,000"
     assert drained >= 10_000
 
@@ -696,9 +701,9 @@ def test_the_lifecycle_answers_exactly_what_the_eager_door_answers(metta):
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     scratch = metta._new_space()
     scratch.add(*[metta.parse(f"(re_chunk {n})") for n in range(7)])
-    server = remote.serve(metta)
+    server = _moved_metta_remote__gateway.serve(metta)
     try:
-        space = remote.RemoteSpace(remote.connect(server.url), scratch.name)
+        space = _moved_metta_remote__client.RemoteSpace(_moved_metta_remote__transport.connect(server.url), scratch.name)
         pattern = metta.parse("(re_chunk $n)")
         whole = sorted(str(a) for a in space.match(pattern))
         assert len(whole) == 7
@@ -712,7 +717,7 @@ def test_the_lifecycle_answers_exactly_what_the_eager_door_answers(metta):
             assert list(answers) == []
         # The chunk may change between pulls, pengines' next(Count): the
         # batch a request names is the batch that request gets.
-        transport = remote.connect(server.url)
+        transport = _moved_metta_remote__transport.connect(server.url)
         opened = transport(
             "ask",
             {"space": scratch.name, "pattern": pattern.to_wire(), "batch": 1},
@@ -734,9 +739,9 @@ def test_an_answer_set_too_large_for_one_body_still_crosses_in_chunks(metta, mon
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     scratch = metta._new_space()
     scratch.add(*[metta.parse(f"(re_big {n})") for n in range(200)])
-    server = remote.serve(metta)
+    server = _moved_metta_remote__gateway.serve(metta)
     try:
-        space = remote.RemoteSpace(remote.connect(server.url), scratch.name)
+        space = _moved_metta_remote__client.RemoteSpace(_moved_metta_remote__transport.connect(server.url), scratch.name)
         pattern = metta.parse("(re_big $n)")
         monkeypatch.setattr(network, "MAX_HTTP_RESPONSE_BYTES", 1024)
         with pytest.raises(MettaError, match="response body exceeds"):
@@ -754,9 +759,9 @@ def test_a_gateway_is_a_drop_in_transport(metta):
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     scratch = metta._new_space()
     scratch.add(metta.parse("(re_drop a)"))
-    gateway = remote.Gateway(metta)
+    gateway = _moved_metta_remote__gateway.Gateway(metta)
     try:
-        space = remote.RemoteSpace(gateway, scratch.name)
+        space = _moved_metta_remote__client.RemoteSpace(gateway, scratch.name)
         advertised = space.server_capabilities()
         assert advertised["protocol"] == 3
         assert "stream" in advertised["capabilities"]
@@ -778,7 +783,7 @@ def test_a_finished_stream_needs_no_stop(metta):
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     scratch = metta._new_space()
     scratch.add(metta.parse("(re_short a)"))
-    gateway = remote.Gateway(metta)
+    gateway = _moved_metta_remote__gateway.Gateway(metta)
     try:
         opened = gateway(
             "ask",
@@ -801,7 +806,7 @@ def test_pulling_a_cursor_that_is_gone_is_refused_rather_than_answered_empty(met
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     scratch = metta._new_space()
     scratch.add(*[metta.parse(f"(re_gone {n})") for n in range(4)])
-    gateway = remote.Gateway(metta)
+    gateway = _moved_metta_remote__gateway.Gateway(metta)
     try:
         opened = gateway(
             "ask",
@@ -825,7 +830,7 @@ def test_pulling_a_cursor_that_is_gone_is_refused_rather_than_answered_empty(met
 @pytest.mark.parametrize("batch", [0, -1, 1.5, True, "two"])
 def test_a_malformed_batch_is_refused(metta, batch):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     scratch = metta._new_space()
-    gateway = remote.Gateway(metta)
+    gateway = _moved_metta_remote__gateway.Gateway(metta)
     try:
         with pytest.raises(MettaError, match="batch must be a positive integer"):
             gateway(
@@ -848,7 +853,7 @@ def test_an_idle_cursor_is_released(metta):
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     scratch = metta._new_space()
     scratch.add(*[metta.parse(f"(re_idle {n})") for n in range(4)])
-    gateway = remote.Gateway(metta, cursor_idle=0.05)
+    gateway = _moved_metta_remote__gateway.Gateway(metta, cursor_idle=0.05)
     try:
         before = _live_engines(metta)
         token = gateway(
@@ -876,7 +881,7 @@ def test_a_gateway_refuses_more_cursors_than_it_holds(metta):
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     scratch = metta._new_space()
     scratch.add(*[metta.parse(f"(re_many {n})") for n in range(4)])
-    gateway = remote.Gateway(metta, cursor_limit=2)
+    gateway = _moved_metta_remote__gateway.Gateway(metta, cursor_limit=2)
     ask = {
         "space": scratch.name,
         "pattern": metta.parse("(re_many $n)").to_wire(),
@@ -902,9 +907,9 @@ def test_closing_the_server_releases_open_cursors(metta):
     scratch = metta._new_space()
     scratch.add(*[metta.parse(f"(re_owned {n})") for n in range(4)])
     before = _live_engines(metta)
-    server = remote.serve(metta)
+    server = _moved_metta_remote__gateway.serve(metta)
     try:
-        space = remote.RemoteSpace(remote.connect(server.url), scratch.name)
+        space = _moved_metta_remote__client.RemoteSpace(_moved_metta_remote__transport.connect(server.url), scratch.name)
         answers = space.stream(metta.parse("(re_owned $n)"), batch=1)
         assert str(next(answers)) == "(re_owned 0)"
         assert _live_engines(metta) == before + 1
@@ -928,9 +933,9 @@ def test_authorize_sees_the_cursors_own_space(metta):
         seen.append((request.operation, request.space))
         return True
 
-    server = remote.serve(metta, spaces=[name], authorize=watch)
+    server = _moved_metta_remote__gateway.serve(metta, spaces=[name], authorize=watch)
     try:
-        space = remote.RemoteSpace(remote.connect(server.url), name)
+        space = _moved_metta_remote__client.RemoteSpace(_moved_metta_remote__transport.connect(server.url), name)
         with space.stream(metta.parse("(re_auth $n)"), batch=1) as answers:
             next(answers)
     finally:
@@ -950,12 +955,12 @@ def test_a_lazily_attached_space_stops_the_serving_engine_when_metta_stops(metta
     waiting on it, while a Gateway runs on the calling thread.
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     provider = _CountingProvider(2_000)
-    metta._register_space(provider, "&re-lazy-attached")
-    gateway = remote.Gateway(metta)
+    _space_declarations._register_space(metta, provider, "&re-lazy-attached")
+    gateway = _moved_metta_remote__gateway.Gateway(metta)
     client = metta._new_space()
     try:
-        client._register_space(
-            remote.RemoteSpace(gateway, "&re-lazy-attached", batch=1), "&hq"
+        _space_declarations._register_space(client,
+            _moved_metta_remote__client.RemoteSpace(gateway, "&re-lazy-attached", batch=1), "&hq"
         )
         provider.yielded = 0
         (group,) = client.run("!(once (match &hq (re_counted $n) $n))")
@@ -966,10 +971,10 @@ def test_a_lazily_attached_space_stops_the_serving_engine_when_metta_stops(metta
         assert len(whole[0]) == 2_000
         drained = provider.yielded
     finally:
-        client._unregister_space("&hq")
+        _space_declarations._unregister_space(client, "&hq")
         client.drop()
         gateway.close()
-        metta._unregister_space("&re-lazy-attached")
+        _space_declarations._unregister_space(metta, "&re-lazy-attached")
     assert stopped_early < 10, (
         f"once over a lazily attached space pulled {stopped_early} of 2,000 "
         f"candidates; the wire did not stop when the engine did"
@@ -988,21 +993,21 @@ def test_a_remote_cursor_refuses_a_server_that_would_loop_it(metta):  # pytest i
         return {"atoms": [], "cursor": "forever"}
 
     with pytest.raises(MettaError, match="live cursor with no atoms"):
-        remote.RemoteCursor(looping, "&self", metta.parse("(re_loop $x)"))
+        _moved_metta_remote__client.RemoteCursor(looping, "&self", metta.parse("(re_loop $x)"))
 
     def shapeless(operation, payload):  # noqa: ARG001  -- the test reflects this callable signature, so every declared parameter must remain visible
         return {"cursor": None}
 
     with pytest.raises(MettaError, match="chunk without an atom list"):
-        remote.RemoteCursor(shapeless, "&self", metta.parse("(re_loop $x)"))
+        _moved_metta_remote__client.RemoteCursor(shapeless, "&self", metta.parse("(re_loop $x)"))
 
 
 def test_a_closed_remote_cursor_refuses_further_pulls(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     scratch = metta._new_space()
     scratch.add(*[metta.parse(f"(re_closed {n})") for n in range(4)])
-    server = remote.serve(metta)
+    server = _moved_metta_remote__gateway.serve(metta)
     try:
-        space = remote.RemoteSpace(remote.connect(server.url), scratch.name)
+        space = _moved_metta_remote__client.RemoteSpace(_moved_metta_remote__transport.connect(server.url), scratch.name)
         answers = space.stream(metta.parse("(re_closed $n)"), batch=1)
         next(answers)
         assert "open" in repr(answers)
@@ -1025,14 +1030,14 @@ def test_a_closed_remote_cursor_refuses_further_pulls(metta):  # noqa: D103  -- 
 @pytest.mark.parametrize("batch", [0, -1, 1.5, True])
 def test_a_remote_cursor_refuses_a_malformed_batch(metta, batch):  # noqa: D103  -- pytest injects this fixture to establish engine state for the scenario; pytest discovers or injects this callable; its descriptive name states the contract
     with pytest.raises(ValueError, match="batch must be a positive integer"):
-        remote.RemoteCursor(
+        _moved_metta_remote__client.RemoteCursor(
             lambda _operation, _payload: {"atoms": [], "cursor": None},
             "&self",
             metta.parse("(re_bad $x)"),
             batch=batch,
         )
     with pytest.raises(ValueError, match="batch must be a positive integer or None"):
-        remote.RemoteSpace(lambda _operation, _payload: {}, batch=batch)
+        _moved_metta_remote__client.RemoteSpace(lambda _operation, _payload: {}, batch=batch)
 
 
 class TestServeSpeaksItsOwnProtocol(remote_testing.GatewayComplianceSuite):
@@ -1044,7 +1049,7 @@ class TestServeSpeaksItsOwnProtocol(remote_testing.GatewayComplianceSuite):
 
     @pytest.fixture()
     def gateway_url(self, metta):  # noqa: D102  -- the test double method is documented by its containing scenario and protocol
-        server = remote.serve(metta)
+        server = _moved_metta_remote__gateway.serve(metta)
         try:
             yield server.url
         finally:
@@ -1052,7 +1057,7 @@ class TestServeSpeaksItsOwnProtocol(remote_testing.GatewayComplianceSuite):
 
 
 def test_a_server_is_a_context_manager(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    with remote.serve(metta) as server:
+    with _moved_metta_remote__gateway.serve(metta) as server:
         assert server.url.startswith("http://")
         opened = server
     # Closing is idempotent, so the with-block's exit is the whole teardown.
@@ -1069,7 +1074,7 @@ def test_attaching_a_space_this_process_serves_is_refused_with_the_remedy(metta)
     """
     import metta as package
 
-    with remote.serve(metta, spaces=[metta.name]) as server:
+    with _moved_metta_remote__gateway.serve(metta, spaces=[metta.name]) as server:
         with pytest.raises(MettaError) as refusal:
             package.attach("&hq", server.url)
     message = str(refusal.value)
@@ -1078,8 +1083,8 @@ def test_attaching_a_space_this_process_serves_is_refused_with_the_remedy(metta)
 
     # And the remedy the message gives does work, in this same process.
     client = metta._new_space()
-    client._register_space(
-        remote.RemoteSpace(remote.Gateway(metta, [metta.name]), str(metta.name)), "&hq"
+    _space_declarations._register_space(client,
+        _moved_metta_remote__client.RemoteSpace(_moved_metta_remote__gateway.Gateway(metta, [metta.name]), str(metta.name)), "&hq"
     )
     assert client.run("!(match &hq (re_ctx_probe $x) $x)") == [[]]
 
@@ -1088,8 +1093,8 @@ def test_a_url_no_server_in_this_process_owns_is_not_refused(metta):
     """The guard is on the address, so an ordinary remote URL still attaches."""
     # Nothing is listening; attaching is still allowed, and only a call fails.
     client = metta._new_space()
-    client._register_space(
-        remote.RemoteSpace(remote.connect("http://127.0.0.1:9/")), "&elsewhere"
+    _space_declarations._register_space(client,
+        _moved_metta_remote__client.RemoteSpace(_moved_metta_remote__transport.connect("http://127.0.0.1:9/")), "&elsewhere"
     )
 
 
@@ -1102,7 +1107,7 @@ def test_a_failed_stop_leaves_the_remote_cursor_retryable(metta):
     scratch = metta._new_space()
     scratch.add(*[metta.parse(f"(re_retry {n})") for n in range(4)])
     before = _live_engines(metta)
-    gateway = remote.Gateway(metta, [str(scratch.name)])
+    gateway = _moved_metta_remote__gateway.Gateway(metta, [str(scratch.name)])
     stops = []
 
     def transport(operation, payload):
@@ -1114,7 +1119,7 @@ def test_a_failed_stop_leaves_the_remote_cursor_retryable(metta):
         return gateway(operation, payload)
 
     try:
-        cursor = remote.RemoteCursor(transport, str(scratch.name), metta.parse("(re_retry $n)"))
+        cursor = _moved_metta_remote__client.RemoteCursor(transport, str(scratch.name), metta.parse("(re_retry $n)"))
         assert _live_engines(metta) == before + 1
         with pytest.raises(MettaError, match="transient stop failure"):
             cursor.close()
@@ -1136,7 +1141,7 @@ def test_closing_every_cursor_survives_one_failure(metta):
     scratch = metta._new_space()
     scratch.add(*[metta.parse(f"(re_every {n})") for n in range(4)])
     before = _live_engines(metta)
-    gateway = remote.Gateway(metta, [str(scratch.name)])
+    gateway = _moved_metta_remote__gateway.Gateway(metta, [str(scratch.name)])
     pattern = metta.parse("(re_every $n)")
 
     class Stuck:
@@ -1145,8 +1150,8 @@ def test_closing_every_cursor_survives_one_failure(metta):
             raise RuntimeError(msg)
 
     try:
-        remote.RemoteCursor(gateway, str(scratch.name), pattern)
-        remote.RemoteCursor(gateway, str(scratch.name), pattern)
+        _moved_metta_remote__client.RemoteCursor(gateway, str(scratch.name), pattern)
+        _moved_metta_remote__client.RemoteCursor(gateway, str(scratch.name), pattern)
         assert _live_engines(metta) == before + 2
         entries = list(gateway._cursors._open.values())
         held, entries[0].cursor = entries[0].cursor, Stuck()
@@ -1170,9 +1175,9 @@ def test_a_close_that_cannot_stop_the_worker_keeps_the_cursors(metta):
     scratch = metta._new_space()
     scratch.add(*[metta.parse(f"(re_racing {n})") for n in range(4)])
     before = _live_engines(metta)
-    server = remote.serve(metta)
+    server = _moved_metta_remote__gateway.serve(metta)
     try:
-        space = remote.RemoteSpace(remote.connect(server.url), str(scratch.name))
+        space = _moved_metta_remote__client.RemoteSpace(_moved_metta_remote__transport.connect(server.url), str(scratch.name))
         answers = space.stream(metta.parse("(re_racing $n)"), batch=1)
         assert str(next(answers)) == "(re_racing 0)"
         assert _live_engines(metta) == before + 1
@@ -1210,8 +1215,8 @@ def test_a_failing_authorize_hook_answers_json_on_health(metta):
             raise RuntimeError(msg)
         return True
 
-    with remote.serve(metta, authorize=authorize) as server:
-        transport = remote.connect(server.url)
+    with _moved_metta_remote__gateway.serve(metta, authorize=authorize) as server:
+        transport = _moved_metta_remote__transport.connect(server.url)
         with pytest.raises(MettaError, match="policy backend is down"):
             transport.health()
 
@@ -1222,7 +1227,7 @@ def test_attaching_a_wildcard_served_space_through_loopback_is_refused(metta):
     The deadlock guard has to recognise the addresses a wildcard bind serves
     rather than only the literal it was bound to.
     """
-    with remote.serve(metta, host="0.0.0.0", spaces=[str(metta.name)]) as server:
+    with _moved_metta_remote__gateway.serve(metta, host="0.0.0.0", spaces=[str(metta.name)]) as server:
         for host in ("127.0.0.1", "localhost"):
             with pytest.raises(MettaError, match="same process") as refusal:
                 metta_package.attach("&hq-wildcard", f"http://{host}:{server.port}/")
@@ -1240,8 +1245,8 @@ def test_a_rational_tree_candidate_crosses_as_the_stored_atom(metta):
     """
     scratch = metta._new_space()
     scratch.add(metta.parse("(re_cyclic (f $x) $x)"), metta.parse("(re_cyclic a b)"))
-    gateway = remote.Gateway(metta, [str(scratch.name)])
-    space = remote.RemoteSpace(gateway, str(scratch.name))
+    gateway = _moved_metta_remote__gateway.Gateway(metta, [str(scratch.name)])
+    space = _moved_metta_remote__client.RemoteSpace(gateway, str(scratch.name))
     try:
         stored = next(
             str(atom) for atom in space.atoms() if str(atom).startswith("(re_cyclic (f")
@@ -1274,8 +1279,8 @@ def test_two_reads_of_one_stored_atom_answer_the_same_atom(metta):
     """
     scratch = metta._new_space()
     scratch.add(metta.parse("(re_stable (g $y) $y)"))
-    gateway = remote.Gateway(metta, [str(scratch.name)])
-    space = remote.RemoteSpace(gateway, str(scratch.name))
+    gateway = _moved_metta_remote__gateway.Gateway(metta, [str(scratch.name)])
+    space = _moved_metta_remote__client.RemoteSpace(gateway, str(scratch.name))
     try:
         first = [str(atom) for atom in space.atoms()]
         list(space.match(metta.parse("(re_stable $one $two)")))

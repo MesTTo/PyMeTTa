@@ -49,6 +49,8 @@ from fractions import Fraction
 
 import pytest
 
+import metta._atoms.model as _core
+import metta._binding.runtime as _engine
 from metta import (
     Expression,
     Grounded,
@@ -56,7 +58,6 @@ from metta import (
     Symbol,
     V,
     Variable,
-    _engine,
     convert,
     fresh,
     ground,
@@ -64,8 +65,7 @@ from metta import (
     parse,
     unify,
 )
-from metta import _atoms_core as _core
-from metta.atoms import (
+from metta._atoms.factories import (
     _NAMESPACE_CACHE_MAX,
     _WIRE_CACHE_MAX,
     _WIRE_SYMS,
@@ -76,6 +76,7 @@ from metta.atoms import (
     register_object_repr,
     unregister_object_repr,
 )
+from metta._spaces import evaluate as _space_evaluate
 
 
 def test_symbols_are_not_strings():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -960,7 +961,7 @@ def test_pretty_lays_out_deep_terms_and_agrees_with_the_engine(metta):  # noqa: 
     assert laid_out.startswith("(alpha\n  (beta")
     assert laid_out.count("\n") == 3
     # the engine's (pretty-atom ...) is the SAME layout, differentially
-    assert metta._one(f"(pretty-atom {source})") == laid_out
+    assert _space_evaluate.one(metta, f"(pretty-atom {source})") == laid_out
     # a fitting term stays inline
     assert repr(parse("(f 1 2)")) == "(f 1 2)"
 
@@ -1026,9 +1027,9 @@ def test_the_atom_factories_are_concrete_to_a_type_checker(tmp_path):
     )
     revealed = [line for line in result.stdout.splitlines() if "Revealed type" in line]
     assert len(revealed) == 3, result.stdout + result.stderr
-    assert revealed[0].endswith('"metta._atoms_core.Symbol"'), revealed[0]
-    assert revealed[1].endswith('"metta._atoms_core.Variable"'), revealed[1]
-    assert revealed[2].endswith('"metta._atoms_core.Symbol"'), revealed[2]
+    assert revealed[0].endswith('"metta._atoms.model.Symbol"'), revealed[0]
+    assert revealed[1].endswith('"metta._atoms.model.Variable"'), revealed[1]
+    assert revealed[2].endswith('"metta._atoms.model.Symbol"'), revealed[2]
 
 
 def test_the_one_attribute_that_is_not_the_atom_its_namespace_mints():
@@ -1038,7 +1039,7 @@ def test_the_one_attribute_that_is_not_the_atom_its_namespace_mints():
     and exactly this namespace. Pinning it here is what keeps that documented
     compromise from quietly becoming two names, or from reaching `V`.
     """
-    from metta._name_mapping import OPERATOR_WORDS, OperatorRecipe
+    from metta._atoms.names import OPERATOR_WORDS, OperatorRecipe
 
     recipes = [n for n, v in OPERATOR_WORDS.items() if isinstance(v, OperatorRecipe)]
     assert recipes == ["neg"], recipes

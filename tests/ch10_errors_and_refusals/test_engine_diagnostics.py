@@ -29,7 +29,7 @@ import re
 import pytest
 
 from metta import MeTTa
-from metta.errors import AssertionFailure
+from metta._errors.errors import AssertionFailure
 
 # Any binding writing the engine's print-suppression flag for itself. Built
 # from parts so this file is not its own first offender: the pattern's source

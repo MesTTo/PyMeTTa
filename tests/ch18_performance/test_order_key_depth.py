@@ -19,7 +19,7 @@ Open Obligations:
 
 from benchmarks.order_key_depth import measure, nested
 from metta import Expression, G, S
-from metta.atoms import order_key
+from metta._atoms.factories import order_key
 
 
 def test_deep_atom_ordering_uses_a_constant_python_call_stack():

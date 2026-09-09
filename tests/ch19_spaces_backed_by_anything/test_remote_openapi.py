@@ -32,10 +32,12 @@ import urllib.request
 
 import pytest
 
-from metta import S, _json, remote
-from metta._declarations import declarations, declared
-from metta._projection import ATOM_REF, WIRE_TAGS
-from metta.atoms import Grounded, Symbol, Variable, _atom_from_wire
+import metta._binding.json as _json
+import metta.remote._gateway as _moved_metta_remote__gateway
+from metta import S
+from metta._atoms.factories import Grounded, Symbol, Variable, _atom_from_wire
+from metta._catalog.declarations import declarations, declared
+from metta._catalog.types import ATOM_REF, WIRE_TAGS
 
 
 @pytest.fixture()
@@ -66,7 +68,7 @@ def test_the_openapi_document_is_structurally_whole(metta):
     body without a schema, or a response without one, tells a generator nothing
     it can build a client from.
     """
-    with remote.Gateway(_declared_space(metta)) as gateway:
+    with _moved_metta_remote__gateway.Gateway(_declared_space(metta)) as gateway:
         document = gateway.openapi()
     assert document["openapi"] == "3.1.1"
     assert set(document["info"]) >= {"title", "version"}
@@ -103,7 +105,7 @@ def test_the_atom_schema_covers_every_wire_tag(metta):
     the decoder refuses, or the other way round, fails here rather than at a
     client that trusted the document.
     """
-    with remote.Gateway(metta) as gateway:
+    with _moved_metta_remote__gateway.Gateway(metta) as gateway:
         schema = gateway.openapi()["components"]["schemas"]["Atom"]
     documented = [arm["prefixItems"][0]["const"] for arm in schema["oneOf"]]
     assert documented == list(WIRE_TAGS)
@@ -128,7 +130,7 @@ def test_the_document_names_the_heads_the_space_declares(metta):
     argument is a JSON number here exactly as it is an `int | float` in the stub
     and a `float64` in an Arrow column.
     """
-    with remote.Gateway(_declared_space(metta)) as gateway:
+    with _moved_metta_remote__gateway.Gateway(_declared_space(metta)) as gateway:
         heads = gateway.openapi()["x-metta-heads"]
     assert list(heads) == [metta.name]
     entry = next(row for row in heads[metta.name] if row["name"] == "users")
@@ -141,7 +143,7 @@ def test_the_document_names_the_heads_the_space_declares(metta):
 def test_a_space_that_declares_nothing_publishes_no_heads(metta):
     """An empty list is the honest answer, and the reason to declare."""
     metta.add(S.users(1, "Ada"))
-    with remote.Gateway(metta) as gateway:
+    with _moved_metta_remote__gateway.Gateway(metta) as gateway:
         assert gateway.openapi()["x-metta-heads"] == {metta.name: []}
 
 
@@ -151,7 +153,7 @@ def test_a_token_puts_a_bearer_scheme_in_the_document(metta):
     `Gateway.openapi()` takes `secured` and `serve()` passes its own token's
     presence; the Gateway never learns the token itself.
     """
-    with remote.Gateway(metta) as gateway:
+    with _moved_metta_remote__gateway.Gateway(metta) as gateway:
         assert "securitySchemes" not in gateway.openapi()["components"]
         secured = gateway.openapi(secured=True)
     assert secured["components"]["securitySchemes"]["bearer"] == {
@@ -165,14 +167,14 @@ def test_a_token_puts_a_bearer_scheme_in_the_document(metta):
 def test_the_document_validates_against_the_openapi_specification(metta):
     """The specification's own validator, where it is installed."""
     validator = pytest.importorskip("openapi_spec_validator")
-    with remote.Gateway(_declared_space(metta)) as gateway:
+    with _moved_metta_remote__gateway.Gateway(_declared_space(metta)) as gateway:
         validator.validate(gateway.openapi())
         validator.validate(gateway.openapi(secured=True))
 
 
 def test_the_bundled_server_publishes_the_document(metta):
     """`GET /openapi.json`, the path every OpenAPI client tries first."""
-    with remote.serve(_declared_space(metta)) as server:
+    with _moved_metta_remote__gateway.serve(_declared_space(metta)) as server:
         with urllib.request.urlopen(f"{server.url}/openapi.json") as reply:
             assert reply.headers["content-type"] == "application/json"
             document = _json.loads(reply.read())
@@ -183,7 +185,7 @@ def test_the_bundled_server_publishes_the_document(metta):
 
 def test_a_served_token_reaches_the_document(metta):
     """The bearer scheme is in the served document exactly when a token is set."""
-    with remote.serve(metta, token="shibboleth") as server:
+    with _moved_metta_remote__gateway.serve(metta, token="shibboleth") as server:
         request = urllib.request.Request(
             f"{server.url}/openapi.json",
             headers={"authorization": "Bearer shibboleth"},
@@ -236,4 +238,3 @@ def _references(value):
     elif isinstance(value, list):
         for item in value:
             yield from _references(item)
-

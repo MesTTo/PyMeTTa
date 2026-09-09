@@ -10,9 +10,14 @@ from concurrent.futures import ThreadPoolExecutor
 
 import pytest
 
-from metta import S, _json, remote
-from metta import _network as network
-from metta.errors import MettaError
+import metta._binding.json as _json
+import metta.remote._client as _moved_metta_remote__client
+import metta.remote._gateway as _moved_metta_remote__gateway
+import metta.remote._network as network
+import metta.remote._transport as _moved_metta_remote__transport
+from metta import S
+from metta._declare import declarations as _space_declarations
+from metta._errors.errors import MettaError
 
 
 @pytest.fixture()
@@ -39,9 +44,9 @@ def test_lost_mutation_reply_has_a_safe_retry(metta, monkeypatch, operation):
             raise OSError(msg)
         return reply
 
-    with remote.serve(metta) as server:
-        transport = remote.connect(server.url)
-        space = remote.RemoteSpace(transport, metta.name)
+    with _moved_metta_remote__gateway.serve(metta) as server:
+        transport = _moved_metta_remote__transport.connect(server.url)
+        space = _moved_metta_remote__client.RemoteSpace(transport, metta.name)
         monkeypatch.setattr(network.HTTPEndpoint, "request", lose_reply)
         with pytest.raises(MettaError) as failure:
             getattr(space, operation)([atom] if operation == "add_many" else atom)
@@ -60,16 +65,16 @@ def test_lost_mutation_reply_has_a_safe_retry(metta, monkeypatch, operation):
 
 def test_replay_refuses_parameter_changes_expiry_and_restart(metta, monkeypatch):
     """An old key never turns into a new mutation after pruning or restart."""
-    gateway = remote.Gateway(metta)
-    clock = remote.time.monotonic()
-    monkeypatch.setattr(remote.time, "monotonic", lambda: clock)
+    gateway = _moved_metta_remote__gateway.Gateway(metta)
+    clock = _moved_metta_remote__gateway.time.monotonic()
+    monkeypatch.setattr(_moved_metta_remote__gateway.time, "monotonic", lambda: clock)
     token = {**gateway.health()["idempotency"], "key": "one-operation"}
     payload = {"space": metta.name, "atom": S.replay_guard(1).to_wire(), "idempotency": token}
     assert gateway("add", payload) == {"added": True}
     changed = {**payload, "atom": S.replay_guard(2).to_wire()}
     with pytest.raises(MettaError, match="different parameters"):
         gateway("add", changed)
-    restarted = remote.Gateway(metta)
+    restarted = _moved_metta_remote__gateway.Gateway(metta)
     with pytest.raises(MettaError, match="gateway instance changed"):
         restarted("add", payload)
     clock += 301
@@ -90,8 +95,8 @@ def test_a_failed_provider_mutation_is_not_executed_again(metta):
             msg = "injected provider failure after side effect"
             raise RuntimeError(msg)
 
-    gateway = remote.Gateway(FailingSpace())
-    token = {"scope": gateway._mutation_scope, "expires": remote.time.monotonic() + 10,
+    gateway = _moved_metta_remote__gateway.Gateway(FailingSpace())
+    token = {"scope": gateway._mutation_scope, "expires": _moved_metta_remote__gateway.time.monotonic() + 10,
              "key": "partial"}
     payload = {"atom": S.partial(1).to_wire(), "idempotency": token}
     assert gateway("add", payload)["outcome"] == "unknown"
@@ -101,9 +106,9 @@ def test_a_failed_provider_mutation_is_not_executed_again(metta):
 
 def test_replay_capacity_refuses_before_mutation_and_recovers_after_expiry(metta, monkeypatch):
     """The finite ledger cannot evict a live key to admit a new mutation."""
-    gateway = remote.Gateway(metta, mutation_limit=1, mutation_ttl=10)
-    clock = remote.time.monotonic()
-    monkeypatch.setattr(remote.time, "monotonic", lambda: clock)
+    gateway = _moved_metta_remote__gateway.Gateway(metta, mutation_limit=1, mutation_ttl=10)
+    clock = _moved_metta_remote__gateway.time.monotonic()
+    monkeypatch.setattr(_moved_metta_remote__gateway.time, "monotonic", lambda: clock)
 
     def request(key):
         return {"atom": S.capacity(key).to_wire(), "idempotency": {
@@ -129,8 +134,8 @@ def test_an_unkeyed_transport_exposes_uncertainty_without_retrying():
         msg = "injected unkeyed response loss"
         raise OSError(msg)
 
-    with pytest.raises(remote.OutcomeUnknown) as failure:
-        remote.RemoteSpace(transport).add(S.unkeyed(1))
+    with pytest.raises(_moved_metta_remote__transport.OutcomeUnknown) as failure:
+        _moved_metta_remote__client.RemoteSpace(transport).add(S.unkeyed(1))
     with pytest.raises(MettaError, match="no negotiated idempotency key"):
         failure.value.retry()
     assert calls == ["add"]
@@ -138,8 +143,8 @@ def test_an_unkeyed_transport_exposes_uncertainty_without_retrying():
 
 def test_explicit_client_key_is_preserved_over_http(metta):
     """A caller-managed key is reused verbatim instead of replaced per call."""
-    with remote.serve(metta) as server:
-        transport = remote.connect(server.url)
+    with _moved_metta_remote__gateway.serve(metta) as server:
+        transport = _moved_metta_remote__transport.connect(server.url)
         token = {**transport.health()["idempotency"], "key": "caller-managed-key"}
         request = {"space": metta.name, "atom": S.explicit_key(1).to_wire(),
                    "idempotency": token}
@@ -166,8 +171,8 @@ def test_legacy_http_mutation_cannot_claim_failure_after_an_uncertain_reply(monk
         return network.Response(status, "injected reply", body, {})
 
     monkeypatch.setattr(network.HTTPEndpoint, "request", request)
-    with pytest.raises(remote.OutcomeUnknown) as failure:
-        remote.RemoteSpace(remote.connect("http://example.test")).add(S.legacy)
+    with pytest.raises(_moved_metta_remote__transport.OutcomeUnknown) as failure:
+        _moved_metta_remote__client.RemoteSpace(_moved_metta_remote__transport.connect("http://example.test")).add(S.legacy)
     with pytest.raises(MettaError, match="no negotiated idempotency key"):
         failure.value.retry()
     assert calls == ["GET", "POST"], "unkeyed recovery must not send a second mutation"
@@ -175,7 +180,7 @@ def test_legacy_http_mutation_cannot_claim_failure_after_an_uncertain_reply(monk
 
 def test_repeated_reply_loss_retains_the_original_recovery_key(metta):
     """Each uncertainty exception can recover the same first mutation."""
-    gateway = remote.Gateway(metta)
+    gateway = _moved_metta_remote__gateway.Gateway(metta)
     deliveries = []
 
     class LosingTransport:
@@ -189,9 +194,9 @@ def test_repeated_reply_loss_retains_the_original_recovery_key(metta):
                 raise OSError(msg)
             return answer
 
-    with pytest.raises(remote.OutcomeUnknown) as first:
-        remote.RemoteSpace(LosingTransport(), metta.name).add(S.repeated_loss)
-    with pytest.raises(remote.OutcomeUnknown) as second:
+    with pytest.raises(_moved_metta_remote__transport.OutcomeUnknown) as first:
+        _moved_metta_remote__client.RemoteSpace(LosingTransport(), metta.name).add(S.repeated_loss)
+    with pytest.raises(_moved_metta_remote__transport.OutcomeUnknown) as second:
         first.value.retry()
     assert second.value.retry() == {"added": True}
     assert deliveries[0] == deliveries[1] == deliveries[2], "every recovery must reuse the request"
@@ -200,14 +205,14 @@ def test_repeated_reply_loss_retains_the_original_recovery_key(metta):
 
 def test_mutation_outcome_survives_engine_provider_boundary(metta):
     """The exception's recovery callable survives an attached provider's write."""
-    failure = remote.OutcomeUnknown("add", lambda: {"added": True})
+    failure = _moved_metta_remote__transport.OutcomeUnknown("add", lambda: {"added": True})
 
     def transport(_operation, _payload):
         raise failure
 
     with metta._new_space() as attached:
-        metta._register_space(remote.RemoteSpace(transport), attached.name)
-        with pytest.raises(remote.OutcomeUnknown) as caught:
+        _space_declarations._register_space(metta, _moved_metta_remote__client.RemoteSpace(transport), attached.name)
+        with pytest.raises(_moved_metta_remote__transport.OutcomeUnknown) as caught:
             metta.run(f"!(add-atom {attached.name} (edge a b))")
         assert caught.value is failure, "the engine must preserve the original unknown outcome"
         assert caught.value.retry() == {"added": True}
@@ -216,7 +221,7 @@ def test_mutation_outcome_survives_engine_provider_boundary(metta):
 @pytest.mark.parametrize("deadline", [False, True])
 def test_worker_failure_cannot_claim_a_mutation_was_not_applied(metta, monkeypatch, deadline):
     """A worker can fail while reporting an already applied request."""
-    original = remote._RemoteWorker.call
+    original = _moved_metta_remote__gateway._RemoteWorker.call
 
     def fail(worker, operation, payload, *, timeout):
         result = original(worker, operation, payload, timeout=timeout)
@@ -227,25 +232,25 @@ def test_worker_failure_cannot_claim_a_mutation_was_not_applied(metta, monkeypat
             return "error", "injected worker failure after mutation"
         return result
 
-    with remote.serve(metta) as server:
-        monkeypatch.setattr(remote._RemoteWorker, "call", fail)
-        space = remote.RemoteSpace(remote.connect(server.url), metta.name)
-        with pytest.raises(remote.OutcomeUnknown) as failure:
+    with _moved_metta_remote__gateway.serve(metta) as server:
+        monkeypatch.setattr(_moved_metta_remote__gateway._RemoteWorker, "call", fail)
+        space = _moved_metta_remote__client.RemoteSpace(_moved_metta_remote__transport.connect(server.url), metta.name)
+        with pytest.raises(_moved_metta_remote__transport.OutcomeUnknown) as failure:
             space.add(S.worker_outcome)
-        monkeypatch.setattr(remote._RemoteWorker, "call", original)
+        monkeypatch.setattr(_moved_metta_remote__gateway._RemoteWorker, "call", original)
         assert failure.value.retry() == {"added": True}
         assert metta.atoms() == [S.worker_outcome], "worker failure recovery must not duplicate effects"
 
 
 def test_concurrent_http_replays_share_one_mutation(metta):
     """Independent connections with the same key cannot race past admission."""
-    with remote.serve(metta) as server:
-        token = {**remote.connect(server.url).health()["idempotency"], "key": "concurrent"}
+    with _moved_metta_remote__gateway.serve(metta) as server:
+        token = {**_moved_metta_remote__transport.connect(server.url).health()["idempotency"], "key": "concurrent"}
         request = {"space": metta.name, "atom": S.concurrent_replay.to_wire(),
                    "idempotency": token}
 
         def add(_index):
-            return remote.connect(server.url)("add", request)
+            return _moved_metta_remote__transport.connect(server.url)("add", request)
 
         with ThreadPoolExecutor(max_workers=4) as clients:
             assert list(clients.map(add, range(8))) == [{"added": True}] * 8
@@ -269,8 +274,8 @@ def test_expired_reentrant_mutation_cannot_resurrect_its_reservation(monkeypatch
                 clock[0] += 11
                 gateway("add", payload("nested"))
 
-    gateway = remote.Gateway(Store(), mutation_limit=1, mutation_ttl=10)
-    monkeypatch.setattr(remote.time, "monotonic", lambda: clock[0])
+    gateway = _moved_metta_remote__gateway.Gateway(Store(), mutation_limit=1, mutation_ttl=10)
+    monkeypatch.setattr(_moved_metta_remote__gateway.time, "monotonic", lambda: clock[0])
 
     def payload(key):
         return {"atom": S[key].to_wire(), "idempotency": {

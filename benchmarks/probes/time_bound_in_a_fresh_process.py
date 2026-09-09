@@ -25,7 +25,7 @@ REPO = Path(__file__).resolve().parents[4]
 sys.path.insert(0, str(REPO / "extensions" / "python"))
 
 import metta  # noqa: E402
-from metta.errors import InferenceLimitError, TimeLimitError  # noqa: E402
+from metta._errors.errors import InferenceLimitError, TimeLimitError  # noqa: E402
 
 SPIN = REPO / "ai-tmp" / "probes" / "time-bound-forever.metta"
 

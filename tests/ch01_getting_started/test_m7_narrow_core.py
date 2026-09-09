@@ -46,12 +46,13 @@ import subprocess
 import sys
 import tomllib
 from pathlib import Path
+from pkgutil import iter_modules
 
 import pytest
 
 import metta
+import metta._atoms.factories as atom_module
 from metta import MeTTa, Space
-from metta import atoms as atom_module
 
 BASELINE_METTA_METHODS = 90
 BASELINE_PACKAGE_EXPORTS = 152
@@ -140,7 +141,7 @@ BASELINE_PACKAGE_EXPORTS = 152
 #: What this file tests about them is laziness and identity, and a hand-copied
 #: list tests neither: it goes stale the moment one moves out, which is what
 #: happened when two of them became packages of their own.
-SATELLITES = frozenset(metta._SATELLITES) - {"seam"}
+SATELLITES = frozenset(item.name for item in iter_modules(metta.__path__) if not item.name.startswith("_"))
 
 # add, eval, fn, load, remove and run left this roster on 2026-09-01: the
 # generated context tier restores them as ruled doors (`_context_doors`
@@ -314,7 +315,6 @@ REMOVED_FROM_ROOT = {
     "register_object_repr",
     "unregister_object_repr",
     "Row",
-    "Rows",
     "Cursor",
     "EngineProfile",
     "Prepared",
@@ -410,10 +410,10 @@ def _workspace_members() -> list[str]:
 
 def _context_doors() -> set[str]:
     """Every direct context door and every Space door projected to that tier."""
-    from metta.doors import DOORS, Owner, Tier
+    from metta.doors import Owner, Tier, table
 
     return {
-        row.alias or row.python for row in DOORS
+        row.alias or row.python for row in table().values()
         if not row.python.startswith("_")
         and (row.owner is Owner.context
              or (row.owner is Owner.space and Tier.context in row.tiers))
@@ -434,14 +434,14 @@ def test_m7_narrow_core_surface():
     # names that do not begin with one, and it is narrower than the surface M7
     # replaced. A pinned integer here has been edited by six branches for six
     # reasons and says nothing either of these two facts does not.
-    assert _public_names(metta) == set(metta.__all__) - {"__version__"}
+    assert _public_names(metta) == (set(metta.__all__) | SATELLITES) - {"__version__"}
     assert BASELINE_PACKAGE_EXPORTS > len(metta.__all__)
     # No extension package is a name on the root. A member reaches its own
     # module, `import metta_arrays`, with no alias here, which is what makes
     # deleting `ext/` leave the core whole.
     for member in _workspace_members():
         assert member not in dir(metta), member
-    assert metta.__dir__() == sorted(metta.__all__)
+    assert metta.__dir__() == sorted(set(metta.__all__) | SATELLITES)
     _assert_absent(MeTTa, REMOVED_FROM_METTA)
     _assert_absent(metta, REMOVED_FROM_ROOT)
     assert "janus" not in dir(metta)
@@ -456,8 +456,10 @@ def test_m7_narrow_core_surface():
 def test_m7_satellites_are_lazy_and_identity_stable():
     """Check laziness and both real-module identity orders in fresh processes."""
     root = Path(__file__).resolve().parents[4]
-    environment = os.environ | {"PYTHONPATH": str(root / "extensions" / "python")}
-    names = repr(sorted(SATELLITES))
+    environment = os.environ | {"PYTHONPATH": str(root / "extensions" / "python"), "METTA_EAGER_IMPORT": "0"}
+    # Vocabulary values appear as public defaults, so their data module is
+    # already loaded. Every other directory entry stays deferred.
+    names = repr(sorted(SATELLITES - {"vocabularies"}))
     scripts = [
         f"""
 import importlib

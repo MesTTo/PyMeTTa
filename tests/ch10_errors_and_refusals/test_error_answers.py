@@ -20,7 +20,9 @@ Open Obligations:
 import pytest
 
 from metta import Expression, G, MettaError, S, V, convert
-from metta.errors import EngineError, MettaOperationError, MettaResultError
+from metta._declare import declarations as _space_declarations
+from metta._errors.errors import EngineError, MettaOperationError, MettaResultError
+from metta._spaces import evaluate as _space_evaluate
 from metta.foreign import SpaceProvider
 
 SAFE_DIV = (
@@ -55,7 +57,7 @@ def test_operation_error_operation_is_the_base_field():  # noqa: D103  -- pytest
 
 def test_one_raises_a_structured_error_on_an_error_answer(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     with pytest.raises(MettaResultError) as failure:
-        m._one("(err-div 1 0)")
+        _space_evaluate.one(m, "(err-div 1 0)")
     error = failure.value
     assert str(error.atom) == '(Error (err-div 1 0) "division by zero")'
     assert str(error.culprit) == "(err-div 1 0)"
@@ -69,15 +71,15 @@ def test_one_raises_a_structured_error_on_an_error_answer(m):  # noqa: D103  -- 
 
 
 def test_one_still_answers_plain_values(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    assert m._one("(err-div 8 2)") == 4
+    assert _space_evaluate.one(m, "(err-div 8 2)") == 4
 
 
 def test_first_raises_on_an_error_first_answer_only(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     with pytest.raises(MettaResultError):
-        m._first("(err-div 1 0)")
+        _space_evaluate.first(m, "(err-div 1 0)")
     # Tolerance covers absence and later members, not the returned answer.
-    assert m._first("(superpose (7 (Error x y)))") == 7
-    assert m._first("(empty)") is None
+    assert _space_evaluate.first(m, "(superpose (7 (Error x y)))") == 7
+    assert _space_evaluate.first(m, "(empty)") is None
 
 
 def test_aggregation_doors_keep_errors_as_data(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -147,7 +149,7 @@ def test_a_provider_refusal_carries_its_parts_across_the_boundary(metta):  # noq
             return capability != "add"
 
     name = "&moody-fields"
-    metta._register_space(Moody(), name)
+    _space_declarations._register_space(metta, Moody(), name)
     try:
         space = metta._at(name)
         with pytest.raises(MettaError) as failure:
@@ -162,7 +164,7 @@ def test_a_provider_refusal_carries_its_parts_across_the_boundary(metta):  # noq
         )
         assert "declines this add request" in str(error)
     finally:
-        metta._unregister_space(name)
+        _space_declarations._unregister_space(metta, name)
 
 
 def test_an_op_authors_exception_stays_wrapped(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract

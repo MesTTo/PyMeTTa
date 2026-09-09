@@ -7,7 +7,7 @@ Open Obligations:
 
 import pytest
 
-from metta import _optional
+import metta._lazy as _optional
 
 
 def test_optional_import_names_an_absent_requested_package(monkeypatch):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -17,7 +17,7 @@ def test_optional_import_names_an_absent_requested_package(monkeypatch):  # noqa
     monkeypatch.setattr(_optional, "import_module", missing)
 
     with pytest.raises(ImportError, match="install example-extra"):
-        _optional.require_module("example.feature", "install example-extra")
+        _optional.optional("example.feature", "install example-extra")
 
 
 def test_optional_import_preserves_broken_dependency_errors(monkeypatch):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -29,5 +29,5 @@ def test_optional_import_preserves_broken_dependency_errors(monkeypatch):  # noq
     monkeypatch.setattr(_optional, "import_module", broken)
 
     with pytest.raises(ModuleNotFoundError) as caught:
-        _optional.require_module("example", "install example-extra")
+        _optional.optional("example", "install example-extra")
     assert caught.value is failure

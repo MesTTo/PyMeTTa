@@ -13,10 +13,10 @@ Guarantees:
     membership [tested: test_fact_and_rule_projection_use_hash_membership;
     commit=9903250d082ab019535ab0c10b742053f9e640f0]
   - post-order construction and pre-order traversal follow established
-    iterative tree algorithms [source: extensions/python/metta/_atom_wire.py:
+    iterative tree algorithms [source: extensions/python/metta/_atoms/wire.py:315
     _from_wire and psf/black pytree.py post_order at upstream commit
     8947c48ef2077c3a301b03c1e814dc2e3f78436e;
-    commit=9903250d082ab019535ab0c10b742053f9e640f0]
+    commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e]
   - every node class is a projection of one declared row: the parser reads the
     row's field list rather than counting positions by hand, and `_check_rows()`
     holds each class's dataclass fields to that list at import, both ways, so a
@@ -36,7 +36,7 @@ from collections.abc import Callable, Iterator
 from dataclasses import dataclass, field, fields
 from typing import Any, Final, NamedTuple, TypeGuard
 
-from .atoms import Atom, Expression, Grounded, Symbol, Variable, _map_atoms
+from metta._atoms.factories import Atom, Expression, Grounded, Symbol, Variable, _map_atoms
 
 __all__ = ["Builtin", "Derivation", "Fact", "Step", "Truncated"]
 
@@ -251,7 +251,7 @@ class _Row(NamedTuple):
 
 #: The proof grammar, one row per node the meta-interpreter writes. Every
 #: reader below walks THIS rather than a shape of its own, which is the model
-#: `metta._projection` uses for the type table: one table, a column per target.
+#: `metta._catalog.types` uses for the type table: one table, a column per target.
 _DERIVATION: Final = _Row(
     "derivation", Derivation, (_Pair("answer", ("call", "answer")),), children=True
 )

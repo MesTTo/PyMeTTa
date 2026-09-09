@@ -45,10 +45,10 @@ from pathlib import Path
 from time import process_time_ns
 from unittest.mock import patch
 
+import metta.algebra as carrier
+import metta.algebra._demand as demand
 from benchmarks import atomic_json
 from metta import MeTTa, S, V
-from metta import _algebra_demand as demand
-from metta import algebra as carrier
 from metta.algebra import AlgebraEvaluation, evaluate
 
 _ROOT = Path(__file__).resolve().parents[3]

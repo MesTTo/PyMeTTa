@@ -28,7 +28,7 @@ from hypothesis import given
 from hypothesis import strategies as st
 
 from metta import Expression, Grounded, Space, Symbol
-from metta.errors import EngineError
+from metta._errors.errors import EngineError
 
 
 @pytest.fixture(scope="module")

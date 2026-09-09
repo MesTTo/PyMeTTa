@@ -21,7 +21,7 @@ Open Obligations:
 from pathlib import Path
 
 from metta import G, S, V, arrow, fn, lib, typed
-from metta.errors import MettaError
+from metta._errors.errors import MettaError
 
 _REPO = Path(__file__).resolve().parents[6]
 FUNCTIONS = _REPO / Path(

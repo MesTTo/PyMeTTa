@@ -47,14 +47,7 @@ from collections.abc import Callable, Iterator, Sequence
 from dataclasses import dataclass
 
 from metta import Atom, Expression, G, S
-from metta.derivation import (
-    Derivation,
-    Fact,
-    Node,
-    Step,
-    _node,
-    _walk,
-)
+from metta.derivation import Derivation, Fact, Node, Step, _node, _walk
 
 DEPTHS = (100, 340, 1_000, 5_000)
 FACT_COUNTS = (500, 1_000, 2_000, 4_000)

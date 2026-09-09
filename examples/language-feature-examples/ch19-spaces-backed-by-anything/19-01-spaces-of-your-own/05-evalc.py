@@ -32,7 +32,7 @@ Open Obligations:
 
 import metta
 from metta import G, S, V, equation
-from metta.errors import MettaOperationError
+from metta._errors.errors import MettaOperationError
 
 
 def twin(m):

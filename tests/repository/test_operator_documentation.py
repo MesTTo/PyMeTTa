@@ -16,6 +16,9 @@ Guarantees:
       runtime dispatch map, the word door, and the compiler's five
       `ast`-keyed tables [tested:
       test_every_operator_projection_is_this_table; commit=c26b6a4d28ef8fb50742440feed2c0578ebb0f58]
+Owns resources: scratch_space drops the temporary matmul equation after the
+    operator test [tested: test_the_operator_table_is_generated_from_one_source_with_no_holes;
+    commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
 Assumes:
     - Python's operator dunders are a closed universe, so enumerating a
       fixed list of them IS deriving the surface: a new overload lands in
@@ -36,11 +39,10 @@ import pytest
 from metta import (
     Atom,
     Grounded,
-    MeTTa,
     S,
     V,
 )
-from metta.atoms import OPERATOR_LOWERINGS, order_key
+from metta._atoms.factories import OPERATOR_LOWERINGS, order_key
 
 DOC = Path(__file__).resolve().parents[4] / "website" / "guide" / "atoms-terms.md"
 
@@ -115,7 +117,7 @@ def test_every_operator_is_documented_including_non_symbolic_comparisons():
         assert f"S[{symbol!r}](left, right)" in message, message
 
 
-def test_the_operator_table_is_generated_from_one_source_with_no_holes():
+def test_the_operator_table_is_generated_from_one_source_with_no_holes(scratch_space):
     """Prove the immutable 26-entry table is the single source from which every operator method is generated."""
     expected = {
         "__abs__", "__add__", "__and__", "__ceil__", "__eq__",
@@ -155,29 +157,28 @@ def test_the_operator_table_is_generated_from_one_source_with_no_holes():
     assert str(S.x << 2) == "(bit-shift-left x 2)"
     assert str(S.x >> 2) == "(bit-shift-right x 2)"
 
-    with MeTTa() as context:
-        metta = context.space()
-        assert metta.eval(Atom.__floordiv__(Grounded(7), 2)) == [3]
-        assert metta.eval(Atom.__neg__(Grounded(7))) == [-7]
-        assert metta.eval(Atom.__abs__(Grounded(-7))) == [7]
-        provided = Atom.__matmul__(Grounded(6), 7)
-        assert metta.eval(provided) == [provided]
-        metta.run("(= (matmul $left $right) (* $left $right))")
-        assert metta.eval(provided) == [42]
+    metta = scratch_space
+    assert metta.eval(Atom.__floordiv__(Grounded(7), 2)) == [3]
+    assert metta.eval(Atom.__neg__(Grounded(7))) == [-7]
+    assert metta.eval(Atom.__abs__(Grounded(-7))) == [7]
+    provided = Atom.__matmul__(Grounded(6), 7)
+    assert metta.eval(provided) == [provided]
+    metta.run("(= (matmul $left $right) (* $left $right))")
+    assert metta.eval(provided) == [42]
 
-        assert Grounded(7) // 2 == S["floor-math"](S["/"](7, 2))
-        assert -Grounded(7) == S["-"](0, 7)
-        assert abs(Grounded(-7)) == S["abs-math"](-7)
-        assert Grounded(3) << 2 == S["bit-shift-left"](3, 2)
-        assert Grounded(12) >> 2 == S["bit-shift-right"](12, 2)
-        assert metta.eval(Grounded(3) << 2) == [12]
-        assert metta.eval(Grounded(12) >> 2) == [3]
-        # Non-negative counts only: SWI answers 0 for `1 << -1`, silently reading
-        # a left shift as a right one, and the engine refuses instead.
-        refused = metta.eval(Grounded(1) << -1)
-        assert "must not be negative" in str(refused[0])
-        assert (S.x == S.x) is True
-        assert str(S.x.eq(S.y)) == "(== x y)"
+    assert Grounded(7) // 2 == S["floor-math"](S["/"](7, 2))
+    assert -Grounded(7) == S["-"](0, 7)
+    assert abs(Grounded(-7)) == S["abs-math"](-7)
+    assert Grounded(3) << 2 == S["bit-shift-left"](3, 2)
+    assert Grounded(12) >> 2 == S["bit-shift-right"](12, 2)
+    assert metta.eval(Grounded(3) << 2) == [12]
+    assert metta.eval(Grounded(12) >> 2) == [3]
+    # Non-negative counts only: SWI answers 0 for `1 << -1`, silently reading
+    # a left shift as a right one, and the engine refuses instead.
+    refused = metta.eval(Grounded(1) << -1)
+    assert "must not be negative" in str(refused[0])
+    assert (S.x == S.x) is True
+    assert str(S.x.eq(S.y)) == "(== x y)"
 
 
 def test_every_operator_projection_is_this_table():
@@ -190,7 +191,9 @@ def test_every_operator_projection_is_this_table():
     """
     import ast
 
-    from metta._define_expression import (
+    from metta._atoms.names import OPERATOR_WORDS, OperatorRecipe
+    from metta._atoms.operators import OPERATOR_LOWERINGS, augmented_selector, selector
+    from metta._compile.expressions import (
         _BINOPS,
         _COMPARE,
         _INPLACE_BINOPS,
@@ -199,13 +202,7 @@ def test_every_operator_projection_is_this_table():
         _NATIVE_COMPARE,
         _SOURCE_COMPARE,
     )
-    from metta._name_mapping import OPERATOR_WORDS, OperatorRecipe
-    from metta._operator_lowerings import (
-        OPERATOR_LOWERINGS,
-        augmented_selector,
-        selector,
-    )
-    from metta._prelude import _EXTRA_OPERATORS, _PYTHON_OPERATORS
+    from metta._declare.prelude import _EXTRA_OPERATORS, _PYTHON_OPERATORS
 
     rows = {selector(entry): entry for entry in OPERATOR_LOWERINGS}
 

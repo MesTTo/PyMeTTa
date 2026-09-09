@@ -17,8 +17,9 @@ import sqlite3
 import pytest
 
 from metta import Answer, Expression, S
-from metta.atoms import Variable, parse
-from metta.errors import EngineError
+from metta._atoms.factories import Variable, parse
+from metta._declare import declarations as _space_declarations
+from metta._errors.errors import EngineError
 from metta.foreign import SpaceProvider
 from metta.testing import check_space_provider
 
@@ -77,14 +78,14 @@ class SqlEdges(SpaceProvider):
 def sql(metta, request):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     name = f"&sql-{request.node.name[-18:].replace('_', '')}"
     provider = SqlEdges()
-    metta._register_space(provider, name)
+    _space_declarations._register_space(metta, provider, name)
     metta._at(name).context("closed-world")
     metta.annotations(name, "bag")
     metta._at(name).handles("(edge $x $y)", "Exact")
     metta._at(name).handles("(edge $x $x)", "Sound")
     metta._at(name).atomicity("transactional")
     yield name, provider
-    metta._unregister_space(name)
+    _space_declarations._unregister_space(metta, name)
 
 
 def test_sql_context_passes_the_conformance_kit():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -176,7 +177,7 @@ class CosineIndex(SpaceProvider):
 
 def _vec_context(metta, name, *, best_first=True):
     provider = CosineIndex(emit_in_order=best_first)
-    metta._register_space(provider, name)
+    _space_declarations._register_space(metta, provider, name)
     metta._at(name).context("open-world")
     metta.annotations(name, "ranked")
     metta._at(name).consumption("repeated")

@@ -18,9 +18,10 @@ Open Obligations:
 import pytest
 
 from metta import MettaError
-from metta._engine import bridge
-from metta.atoms import Undefined
-from metta.errors import EngineError
+from metta._atoms.factories import Undefined
+from metta._binding.runtime import bridge
+from metta._errors.errors import EngineError
+from metta._spaces import evaluate as _space_evaluate
 
 
 @pytest.fixture()
@@ -68,7 +69,7 @@ def test_mixed_answers_keep_definite_ones_plain(m, wfs_program):  # noqa: ARG001
 
 def test_value_refuses_undefined_truth(m, wfs_program):  # noqa: ARG001, D103  -- pytest injects this fixture to establish engine state for the scenario; pytest discovers or injects this callable; its descriptive name states the contract
     with pytest.raises(EngineError, match="undefined truth"):
-        m._one("(translatePredicate (wfs_loop))")
+        _space_evaluate.one(m, "(translatePredicate (wfs_loop))")
 
 
 def test_ordinary_evaluation_stays_plain(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract

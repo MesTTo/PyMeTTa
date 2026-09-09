@@ -40,8 +40,8 @@ from __future__ import annotations
 import argparse
 import time
 
-import metta_py
-from metta._engine import runtime
+import metta._binding.host as metta_py
+from metta._binding.runtime import runtime
 
 #: The two goals differ in exactly one conjunct. Both build their own source
 #: through metta_py.iterate, so the Python half of the door is in both.
@@ -53,10 +53,10 @@ _PULL = (
     "statistics(inferences, After), Spent is After - Before"
 )
 _PLAIN = _PULL.format(
-    body="py_iter(metta_py:iterate(Obj), _R, [py_object(true), py_string_as(string)])"
+    body="py_iter('metta._binding.host':iterate(Obj), _R, [py_object(true), py_string_as(string)])"
 )
 _GUARDED = _PULL.format(
-    body="py_iter(metta_py:iterate(Obj), _R, [py_object(true), py_string_as(string)]), "
+    body="py_iter('metta._binding.host':iterate(Obj), _R, [py_object(true), py_string_as(string)]), "
     "py_iter_item(_R, _Tag)"
 )
 

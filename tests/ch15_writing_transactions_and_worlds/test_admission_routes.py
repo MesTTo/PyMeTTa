@@ -19,7 +19,7 @@ import uuid
 import pytest
 
 from metta import S, V
-from metta.errors import EngineError, MettaError
+from metta._errors.errors import EngineError, MettaError
 
 
 def _named_pool(metta, purpose):

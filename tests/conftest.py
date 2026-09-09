@@ -39,8 +39,11 @@ from pathlib import Path
 import janus_swi
 import pytest
 
+# Deferred modules execute during collection so missing imports fail here.
+os.environ["METTA_EAGER_IMPORT"] = "1"
+
+import metta.pytest_plugin as metta_pytest_plugin
 from metta import Space
-from metta import pytest_plugin as metta_pytest_plugin
 
 #: The repository's one bound, which check.sh, test.sh, run.sh, engine/test.sh
 #: and every seat's test.sh also call. It holds a deadline in a process of the
@@ -333,7 +336,7 @@ def _engine_rows() -> list[str]:
     not swallow the reading that would say so.
     """
     try:
-        from metta import _engine
+        import metta._binding.runtime as _engine
     except Exception as unreachable:  # a report never raises, whatever the import did
         return [f"engine: the package would not import ({unreachable!r})"]
     if not _engine.booted():

@@ -58,8 +58,9 @@ from pathlib import Path
 
 import pytest
 
-from metta import S, V, _engine
-from metta._engine import bridge
+import metta._binding.runtime as _engine
+from metta import S, V
+from metta._binding.runtime import bridge
 
 _NAMES = itertools.count()
 
@@ -81,8 +82,8 @@ def _lazy_view(metta, prefix):
     view = metta.fn[name](V.a, V.b)
     # The count route declines to count an effect-bearing source cheaply and
     # RETAINS the answers in an engine instead, which is what leaves a cursor
-    # for a finaliser to close [source: metta/_space_execution.py,
-    # _RetainedAnswers; commit=2421d06e697daffb0797c307a798131616ebdd8e].
+    # for a finaliser to close [source: extensions/python/metta/_spaces/execution.py:656,
+    # _RetainedAnswers; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
     assert len(view) == 2
     return view
 
@@ -150,7 +151,7 @@ def test_the_janus_term_shape_the_deferred_release_depends_on(janus):
     term = _a_term(janus, "shape_probe")
     assert isinstance(term._record, int)  # the attribute the release clears
     assert term._record != 0  # a live Term carries its record id
-    assert janus.Term.__del__.__module__ == "metta._engine", (
+    assert janus.Term.__del__.__module__ == "metta._binding.runtime", (
         "the deferred Term release is not installed on janus.Term; its __del__ "
         f"still comes from {janus.Term.__del__.__module__}"
     )
@@ -366,7 +367,7 @@ def test_the_engine_snapshot_allows_retirement_but_detects_a_replacement(metta):
 #: that keeps a janus Term alive into module teardown.
 _SHUTDOWN_PROBE = """
 from metta import S, V
-from metta._space import Space
+from metta import Space
 
 m = Space()
 m.add(S.edge(S.a, S.b))

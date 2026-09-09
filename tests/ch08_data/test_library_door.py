@@ -28,7 +28,7 @@ Open Obligations:
 import pytest
 
 from metta import MeTTa, S, lib
-from metta.errors import MettaError, SourceNotFound
+from metta._errors.errors import MettaError, SourceNotFound
 
 
 def test_the_attribute_map_is_the_family_prefix():

@@ -9,7 +9,7 @@ checker infers has to sit in a file a checker is pointed at.
 Both spellings appear on purpose, because they do not agree. Mypy resolves a
 decorator expression to a definition node: a module attribute has one and an
 instance member access does not, so it reads the declaration on
-``metta.define`` and not on ``m.define``. Pyright, PEP 681's reference
+``metta._declare.define`` and not on ``m.define``. Pyright, PEP 681's reference
 implementation, reads both [measured 2026-09-07: mypy 2.3.0 and pyright
 1.1.411; https://github.com/python/mypy/issues/19824 is SQLAlchemy meeting the
 same wall with ``registry.mapped_as_dataclass``].

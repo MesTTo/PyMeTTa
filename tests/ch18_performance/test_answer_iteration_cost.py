@@ -25,9 +25,9 @@ from typing import ClassVar
 
 import pytest
 
+import metta._spaces.intents as _lint_events
 from benchmarks.answer_iteration_cost import driver
-from metta import _lint_events
-from metta.results import Answers
+from metta._spaces.results import Answers
 
 
 def test_answer_iteration_derives_each_call_site_once(monkeypatch):

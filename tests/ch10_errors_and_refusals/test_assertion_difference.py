@@ -36,7 +36,7 @@ Open Obligations:
 import pytest
 
 from metta import MeTTa, S
-from metta.errors import AssertionFailure
+from metta._errors.errors import AssertionFailure
 
 
 @pytest.fixture(name="space")

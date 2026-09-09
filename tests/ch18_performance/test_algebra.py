@@ -34,6 +34,7 @@ from metta import (
     V,
     parse,
 )
+from metta._declare import declarations as _space_declarations
 from metta.algebra import AlgebraLawError
 from metta.foreign import SpaceProvider
 
@@ -55,7 +56,7 @@ class _WeightedFacts(SpaceProvider):
 
 
 def _join_annotation(metta, name: str, algebra: str, **declaration) -> str:
-    metta._register_space(_WeightedFacts(), name)
+    _space_declarations._register_space(metta, _WeightedFacts(), name)
     provider = metta._at(name)
     if declaration:
         provider.algebra(algebra, **declaration)

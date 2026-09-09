@@ -34,6 +34,7 @@ from pathlib import Path
 
 import pytest
 
+import metta._spaces.snapshot as persistence_module
 from metta import (
     TRUE,
     MeTTa,
@@ -43,8 +44,7 @@ from metta import (
     equation,
     ground,
 )
-from metta import _space_persistence as persistence_module
-from metta.errors import EngineError
+from metta._errors.errors import EngineError
 
 
 @pytest.fixture()

@@ -23,6 +23,7 @@ import itertools
 import pytest
 
 from metta import parse
+from metta._spaces import evaluate as _space_evaluate
 from metta.vocabularies import EffectClass
 
 CHECKER = """
@@ -128,7 +129,7 @@ def test_every_cube_point_compiles_the_expected_clause(cube):  # noqa: D103  -- 
         }
         cube.op(fn, name=name, **kwargs)
         try:
-            verdict = cube._one(f'(cube_check "{name}" 1 "{kind}")')
+            verdict = _space_evaluate.one(cube, f'(cube_check "{name}" 1 "{kind}")')
             assert str(verdict) == "match", (name, kind, kwargs, str(verdict))
         finally:
             cube.unregister_op(name)
@@ -146,7 +147,7 @@ def test_multi_arity_compiles_every_declared_clause(cube):  # noqa: D103  -- pyt
     )
     try:
         for arity in (1, 2, 3):
-            verdict = cube._one(f'(cube_check "cube-multi" {arity} "det")')
+            verdict = _space_evaluate.one(cube, f'(cube_check "cube-multi" {arity} "det")')
             assert str(verdict) == "match", (arity, str(verdict))
     finally:
         cube.unregister_op("cube-multi")
@@ -162,7 +163,7 @@ def test_the_lane_can_fail(cube):  # noqa: D103  -- pytest discovers or injects 
         effect=EffectClass.pureStructural,
     )
     try:
-        verdict = cube._one('(cube_check "cube-planted" 1 "many")')
+        verdict = _space_evaluate.one(cube, '(cube_check "cube-planted" 1 "many")')
         assert str(verdict) != "match"
         assert "mismatch" in str(verdict)
     finally:

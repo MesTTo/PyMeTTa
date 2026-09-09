@@ -42,7 +42,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from types import FunctionType
 
-from metta.results import Answers
+from metta._spaces.results import Answers
 
 CALLS = 2_000
 PADDINGS = (0, 1_000, 4_000)

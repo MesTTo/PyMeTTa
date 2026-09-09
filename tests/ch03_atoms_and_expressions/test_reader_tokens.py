@@ -18,7 +18,7 @@ import re
 import pytest
 
 from metta import Grounded, S
-from metta.errors import EngineError
+from metta._errors.errors import EngineError
 
 
 def test_a_registered_token_class_parses_like_a_shipped_one(metta):

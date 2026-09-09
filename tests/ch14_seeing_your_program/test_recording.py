@@ -15,8 +15,8 @@ import pytest
 
 from metta import S
 from metta import space as make_space
-from metta._recording import Recording, RecordingVersionWarning
-from metta.errors import MettaError
+from metta._errors.errors import MettaError
+from metta._observe.recording import Recording, RecordingVersionWarning
 from metta.foreign import SpaceProvider
 from metta.vocabularies import Limit
 

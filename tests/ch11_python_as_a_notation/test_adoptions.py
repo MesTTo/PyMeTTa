@@ -43,10 +43,10 @@ import pytest
 
 import metta as metta_package
 from metta import Answer, Expression, S, V, catalog, ground
-from metta._type_annotations import Unresolved, resolved_annotations
-from metta.atoms import Grounded, Variable
-from metta.errors import SubscriberError
-from metta.ops import referenced_classes, type_atoms_for
+from metta._atoms.factories import Grounded, Variable
+from metta._catalog.annotations import Unresolved, resolved_annotations
+from metta._declare.operations import referenced_classes, type_atoms_for
+from metta._errors.errors import SubscriberError
 
 
 @pytest.fixture()

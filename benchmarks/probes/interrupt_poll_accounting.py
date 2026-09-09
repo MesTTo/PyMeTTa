@@ -14,7 +14,7 @@ Guarantees: prints the calibrated charge, what a tick costs the counter as the
   measurements of one 658-inference evaluation read ONE value with the
   correction and two without it, 37 of 3,000 landing 2 high; a tick costs 6
   inferences and an empty block 7, against 5 before the poll was accounted;
-  the citations in extensions/python/metta/shim.pl's poll section and in
+  the citations in extensions/python/metta/_binding/shim.pl's poll section and in
   _space_objects.py's _without_the_interrupt_poll read this probe;
   commit=5f92ecfb105f7a11d8f3b1a4c0a7e3b6d4b656a6].
 Fails when: the interval is left where the probe put it -- it restores the

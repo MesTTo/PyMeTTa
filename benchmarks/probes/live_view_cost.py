@@ -33,14 +33,14 @@ Open Obligations:
 from __future__ import annotations
 
 import argparse
-from contextlib import contextmanager
 import sys
+from contextlib import contextmanager
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from metta import S, V, space  # noqa: E402
-from metta.atoms import Expression, Symbol, Variable, _match  # noqa: E402
+from metta._atoms.factories import Expression, Symbol, Variable, _match  # noqa: E402
 
 
 def _cost(context, work, repeats: int = 3) -> int:

@@ -14,14 +14,14 @@ Guarantees: installs metta_arrays on a keeper space and on a second space,
   70ac99da, before ops._forget_space ran from Space.drop, stale=160 and new=37
   where a fresh name gets 197, the declaration adds skipped because the dead
   life's refcounts were still counted; on the tree that added the hook,
-  stale=0 and new=197; extensions/python/metta/ops.py's _forget_space cites
+  stale=0 and new=197; extensions/python/metta/_declare/operations.py's _forget_space cites
   this probe; commit=f0c6cf586120cfac43229fbff7b7e4f320629cfd].
 """  # noqa: D205  -- the contract header is one continuous invariant, not summary-and-body prose
 
 import numpy
 
 from metta import MeTTa, arrays
-from metta.ops import _DECLARATION_REFS
+from metta._declare.operations import _DECLARATION_REFS
 
 
 def main() -> None:

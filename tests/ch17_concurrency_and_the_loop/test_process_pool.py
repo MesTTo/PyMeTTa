@@ -43,7 +43,7 @@ from pathlib import Path
 import pytest
 
 from metta import G, S
-from metta.errors import MettaError
+from metta._errors.errors import MettaError
 from metta.parallel import ProcessPool, call, process_pool, program
 
 RULES = "(= (pp-sq $x) (* $x $x))"
@@ -263,7 +263,7 @@ def _run_child_script(source: str, tmp_path: Path) -> subprocess.CompletedProces
 FORK_REFUSAL_SCRIPT = """
 import os, select, sys
 import metta
-from metta._engine import forked
+from metta._binding.runtime import forked
 metta.run("!(+ 1 2)")
 assert not forked(), "the parent must not think it was forked"
 read, write = os.pipe()
@@ -297,35 +297,7 @@ def test_a_forked_child_refuses_the_inherited_engine(tmp_path):
     assert "PARENT STILL WORKS [[Grounded(10)]]" in done.stdout
 
 
-LOCK_RESET_SCRIPT = """
-import os, select, threading
-import metta
-from metta import _engine
-metta.run("!(+ 1 2)")
-held = _engine._LOCK
-held.acquire()                      # the home thread holds it across the fork
-_engine._DEFERRED_WORK.append(("erase", 12345))
-read, write = os.pipe()
-
-def fork_from_another_thread():
-    if os.fork() == 0:
-        os.close(read)
-        free = _engine._LOCK.acquire(blocking=False)
-        consult = _engine.CONSULT_LOCK.acquire(blocking=False)
-        drained = len(_engine._DEFERRED_WORK)
-        fresh = _engine._LOCK is not held
-        os.write(write, f"{free}|{consult}|{drained}|{fresh}".encode())
-        os._exit(0)
-
-thread = threading.Thread(target=fork_from_another_thread)
-thread.start()
-thread.join(60)
-os.close(write)
-ready, _, _ = select.select([read], [], [], 60)
-print(os.read(read, 256).decode() if ready else "HUNG")
-os.waitpid(-1, 0)
-held.release()
-"""
+LOCK_RESET_SCRIPT = '\nimport os, select, threading\nimport metta\nimport metta._binding.runtime as _engine\nmetta.run("!(+ 1 2)")\nheld = _engine._LOCK\nheld.acquire()                      # the home thread holds it across the fork\n_engine._DEFERRED_WORK.append(("erase", 12345))\nread, write = os.pipe()\n\ndef fork_from_another_thread():\n    if os.fork() == 0:\n        os.close(read)\n        free = _engine._LOCK.acquire(blocking=False)\n        consult = _engine.CONSULT_LOCK.acquire(blocking=False)\n        drained = len(_engine._DEFERRED_WORK)\n        fresh = _engine._LOCK is not held\n        os.write(write, f"{free}|{consult}|{drained}|{fresh}".encode())\n        os._exit(0)\n\nthread = threading.Thread(target=fork_from_another_thread)\nthread.start()\nthread.join(60)\nos.close(write)\nready, _, _ = select.select([read], [], [], 60)\nprint(os.read(read, 256).decode() if ready else "HUNG")\nos.waitpid(-1, 0)\nheld.release()\n'
 
 
 def test_a_fork_resets_the_engine_locks(tmp_path):

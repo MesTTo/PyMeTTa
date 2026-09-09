@@ -28,8 +28,8 @@ from metta import (
     V,
     parse,
 )
-from metta.atoms import Grounded
-from metta.errors import EngineError
+from metta._atoms.factories import Grounded
+from metta._errors.errors import EngineError
 from metta.foreign import CustomMatch
 
 

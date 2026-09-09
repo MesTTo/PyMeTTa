@@ -57,6 +57,9 @@ import metta_numpy  # noqa: F401  -- the array row the store builds through
 import pytest
 from metta_arrays import EmbeddingStore
 
+import metta.remote._client as _moved_metta_remote__client
+import metta.remote._gateway as _moved_metta_remote__gateway
+import metta.remote._transport as _moved_metta_remote__transport
 from metta import (
     TRUE,
     Bindings,
@@ -67,17 +70,18 @@ from metta import (
     convert,
     ground,
     parse,
-    remote,
     tables,
 )
-from metta.atoms import Grounded, Symbol, Variable
-from metta.errors import (
+from metta._atoms.factories import Grounded, Symbol, Variable
+from metta._declare import declarations as _space_declarations
+from metta._errors.errors import (
     EngineError,
     InferenceLimitError,
     MettaOperationError,
     ResourceLimitError,
     TimeLimitError,
 )
+from metta._spaces import evaluate as _space_evaluate
 from metta.events import Event, atom_added
 from metta.foreign import SpaceProvider
 from metta.integrate import install_reflection_ops
@@ -553,14 +557,14 @@ def test_add_table_refuses_ragged_columns(m):  # noqa: D103  -- pytest discovers
 
 
 def test_value_answers_the_one_answer(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    assert m._one("(+ 1 2)") == 3 and isinstance(m._one("(+ 1 2)"), int)
+    assert _space_evaluate.one(m, "(+ 1 2)") == 3 and isinstance(_space_evaluate.one(m, "(+ 1 2)"), int)
     m.run("(= (fact $n) (if (> $n 0) (* $n (fact (- $n 1))) 1))")
-    assert m._one(S.fact(5)) == 120
+    assert _space_evaluate.one(m, S.fact(5)) == 120
     with pytest.raises(EngineError):
-        m._one("(superpose (1 2))")  # two answers is not a value
+        _space_evaluate.one(m, "(superpose (1 2))")  # two answers is not a value
     with pytest.raises(EngineError):
         m.run("(= (nothing) (empty))")
-        m._one(S.nothing())  # no answer is not a value either
+        _space_evaluate.one(m, S.nothing())  # no answer is not a value either
 
 
 def test_rows_first_and_one(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -638,8 +642,8 @@ def test_remote_spaces_serve_attach_and_join(metta, tmp_path):  # noqa: ARG001  
         line = child.stdout.readline()
         assert line, child.stderr.read()
         info = json.loads(line)
-        local._register_space(
-            remote.RemoteSpace(remote.connect(info["url"]), info["space"]), "&hq"
+        _space_declarations._register_space(local,
+            _moved_metta_remote__client.RemoteSpace(_moved_metta_remote__transport.connect(info["url"]), info["space"]), "&hq"
         )
         # A match crosses the wire, filtered by the remote engine's own match.
         assert local.run("!(match &hq (users 2 $n) $n)") == [["Bob"]]
@@ -655,10 +659,10 @@ def test_remote_spaces_serve_attach_and_join(metta, tmp_path):  # noqa: ARG001  
         local.run('!(remove-atom &hq (users 3 "Cy"))')
         assert local.run("!(collapse (match &hq (users 3 $n) $n))") == [[Expression()]]
         # A space outside the allowlist is refused with the remote's words.
-        stray = remote.RemoteSpace(remote.connect(info["url"]), "&self")
+        stray = _moved_metta_remote__client.RemoteSpace(_moved_metta_remote__transport.connect(info["url"]), "&self")
         with pytest.raises(MettaError):
             list(stray.match(S.anything(V.x)))
-        local._unregister_space("&hq")
+        _space_declarations._unregister_space(local, "&hq")
     finally:
         child.terminate()
         child.wait(timeout=10)
@@ -712,7 +716,7 @@ def test_enum_members_match_in_metta(m):  # noqa: D103  -- pytest discovers or i
 def test_remote_auth_token_and_hook_requires_tls(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     served = metta._new_space()
     served.add(S.fact(1))
-    server = remote.serve(
+    server = _moved_metta_remote__gateway.serve(
         metta,
         spaces=[served.name],
         token="s3cret",
@@ -720,7 +724,7 @@ def test_remote_auth_token_and_hook_requires_tls(metta):  # noqa: D103  -- pytes
     )
     try:
         with pytest.raises(MettaError, match="credentials require an https URL"):
-            remote.connect(server.url, token="s3cret", headers={"x-tenant": "acme"})
+            _moved_metta_remote__transport.connect(server.url, token="s3cret", headers={"x-tenant": "acme"})
     finally:
         server.close()
         served.drop()
@@ -757,7 +761,7 @@ def test_remote_serves_tls(metta, tmp_path):  # noqa: D103  -- pytest discovers 
 
     served = metta._new_space()
     served.add(S.tls(S.ok))
-    server = remote.serve(
+    server = _moved_metta_remote__gateway.serve(
         metta,
         spaces=[served.name],
         token="s3cret",
@@ -766,25 +770,25 @@ def test_remote_serves_tls(metta, tmp_path):  # noqa: D103  -- pytest discovers 
     )
     try:
         assert server.url.startswith("https://")
-        transport = remote.connect(
+        transport = _moved_metta_remote__transport.connect(
             server.url,
             token="s3cret",
             headers={"x-tenant": "acme"},
             ssl_context=client_context,
         )
-        atoms = list(remote.RemoteSpace(transport, served.name).atoms())
+        atoms = list(_moved_metta_remote__client.RemoteSpace(transport, served.name).atoms())
         assert atoms == [Expression(S.tls, S.ok)]
         with pytest.raises(MettaError, match="not authorized"):
-            bad_token = remote.connect(
+            bad_token = _moved_metta_remote__transport.connect(
                 server.url,
                 token="wrong",
                 headers={"x-tenant": "acme"},
                 ssl_context=client_context,
             )
-            list(remote.RemoteSpace(bad_token, served.name).atoms())
+            list(_moved_metta_remote__client.RemoteSpace(bad_token, served.name).atoms())
         with pytest.raises(MettaError, match="not authorized"):
-            no_tenant = remote.connect(server.url, token="s3cret", ssl_context=client_context)
-            list(remote.RemoteSpace(no_tenant, served.name).atoms())
+            no_tenant = _moved_metta_remote__transport.connect(server.url, token="s3cret", ssl_context=client_context)
+            list(_moved_metta_remote__client.RemoteSpace(no_tenant, served.name).atoms())
     finally:
         server.close()
         served.drop()
@@ -840,7 +844,7 @@ def test_limits_on_query_eval_value_and_prepared(m):  # noqa: D103  -- pytest di
     with pytest.raises(InferenceLimitError):
         m.eval("(spin-d 100000000)", inferences=5_000)
     with pytest.raises(InferenceLimitError):
-        m._one("(spin-d 100000000)", inferences=5_000)
+        _space_evaluate.one(m, "(spin-d 100000000)", inferences=5_000)
     prepared = m.prepare(S.edge(V.a, V.b), S.edge(V.b, V.c), S.edge(V.c, V.d))
     with pytest.raises(InferenceLimitError):
         prepared.solve(inferences=100)
@@ -1274,7 +1278,7 @@ def test_stream_pulls_rows_lazily_and_interleaves(m):  # noqa: D103  -- pytest d
         assert (first.a, first.b, first.c) == (0, 1, 2)
         # Unrelated engine work interleaves while the cursor stays open,
         # which a raw janus cursor forbids.
-        assert m._one("(+ 1 2)") == 3
+        assert _space_evaluate.one(m, "(+ 1 2)") == 3
         second = next(rows)
         assert (second.a, second.b, second.c) == (1, 2, 3)
     with pytest.raises(MettaError):
@@ -1717,7 +1721,7 @@ def test_a_profile_is_the_same_table_every_other_door_answers(m):
     is what `match`, `answers` and every other table door already answer, and
     `Row` subclasses `tuple`, so the positional reading above keeps working.
     """
-    from metta.results import Rows
+    from metta._spaces.results import Rows
 
     m.run("(= (prof-table $n) (if (== $n 0) done (prof-table (- $n 1))))")
     _groups, prof = m.profile("!(prof-table 20000)")
@@ -1790,7 +1794,7 @@ def test_an_unsampled_profile_still_exports():
     """
     import pstats
 
-    from metta._space_objects import EngineProfile
+    from metta._spaces.profile import EngineProfile
 
     empty = EngineProfile(0, 0, 0.0, [])
     assert empty.nodes.columns == EngineProfile.COLUMNS
@@ -1929,7 +1933,7 @@ def test_bare_threads_use_temporary_engines_and_answer_correctly(m):  # noqa: D1
     answers = {}
 
     def ask(n):
-        answers[n] = m._one(f"(tsafe-double {n})")
+        answers[n] = _space_evaluate.one(m, f"(tsafe-double {n})")
 
     workers = [threading.Thread(target=ask, args=(n,)) for n in range(6)]
     for worker in workers:

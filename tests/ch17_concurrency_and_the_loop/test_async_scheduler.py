@@ -78,6 +78,8 @@ from typing import Any
 
 import pytest
 
+import metta._binding.task_context as _task_context
+import metta.aio as _aio_surface
 from metta import (
     Expression,
     Grounded,
@@ -85,16 +87,14 @@ from metta import (
     NotReducible,
     S,
     V,
-    _task_context,
-    aio,
     channel,
     every,
     par_map,
     race,
     spawn,
 )
-from metta._engine import runtime
-from metta.errors import CompileError, EngineError, SubscriberError
+from metta._binding.runtime import runtime
+from metta._errors.errors import CompileError, EngineError, SubscriberError
 from metta.parallel import EnginePool, FutureSpace
 
 
@@ -195,7 +195,7 @@ def test_an_async_operation_answers_a_future_space(metta):
 
 def test_async_reflection_has_one_public_return_and_effect(metta):
     """Reflection describes the FutureSpace call, not the eventual Python value."""
-    from metta.ops import registered
+    from metta._declare.operations import registered
     from metta.vocabularies import EffectClass
 
     name = _unique("async-reflection")
@@ -479,7 +479,7 @@ def test_a_failed_landing_watcher_does_not_rewrite_the_future(metta):
 
 def test_a_failed_landing_publication_settles_the_future_as_an_error(metta, monkeypatch):
     """A failed publication wakes the waiter with its terminal error."""
-    from metta import _async_ops
+    import metta.aio._ops as _async_ops
 
     name = _unique("async-landing-publication")
     attempted = threading.Event()
@@ -513,7 +513,7 @@ def test_a_failed_landing_publication_settles_the_future_as_an_error(metta, monk
 
 def test_async_landing_uses_the_runtime_captured_during_prepare(metta, monkeypatch):
     """Completion does not reacquire a process-global runtime reference."""
-    from metta import _async_ops
+    import metta.aio._ops as _async_ops
 
     name = _unique("async-captured-runtime")
     entered = threading.Event()
@@ -538,7 +538,7 @@ def test_async_landing_uses_the_runtime_captured_during_prepare(metta, monkeypat
 
 def test_a_landing_cancellation_is_not_swallowed(metta, monkeypatch):
     """Process-level cancellation leaves the landing function unchanged."""
-    from metta import _async_ops
+    import metta.aio._ops as _async_ops
 
     context = _task_context.snapshot()
     pending = _async_ops._Pending(
@@ -734,7 +734,7 @@ def test_async_engine_injection_keeps_the_calling_named_space(metta):
 
 def test_async_engine_injection_uses_the_registration_runtime(metta, monkeypatch):
     """Delayed injection never reacquires the process runtime accessor."""
-    from metta import _space
+    import metta._spaces.handle as _space
 
     name = _unique("async-injected-runtime")
 
@@ -1141,7 +1141,7 @@ def test_context_snapshot_crosses_every_spawn_door_including_thread_workers(mett
 
             async def through_async_metta() -> str:
                 worker_release = threading.Event()
-                async with aio.AsyncMeTTa(metta=metta) as worker:
+                async with _aio_surface.AsyncMeTTa(metta=metta) as worker:
                     marker.set("aio-snapshot")
                     request = asyncio.create_task(
                         worker.call(
@@ -1195,8 +1195,8 @@ def test_the_async_loop_recovers_from_stop_and_thread_start_failure(repo_root):
         import threading
 
         from metta import MeTTa, S
-        from metta import _async_ops
-        from metta.errors import EngineError
+        from metta.aio import _ops as _async_ops
+        from metta._errors.errors import EngineError
 
         m = MeTTa(metta_path=str(__import__("os").environ["METTA_PATH"])).self
         stop_entered = threading.Event()

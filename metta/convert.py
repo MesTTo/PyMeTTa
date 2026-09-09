@@ -11,7 +11,7 @@ module name to do it. The two other names are gone with no alias.
 
 Guarantees:
   - encode, decode, from_wire and atom_from_wire are the codec verbs and atom
-    construction stays in metta.atoms [tested:
+    construction stays in metta._atoms.factories [tested:
     test_m7_satellites_are_lazy_and_identity_stable; commit=c26b6a4d28ef8fb50742440feed2c0578ebb0f58]
   - the projection half round-trips and a registration can be withdrawn
     without leaving constructor or name ownership behind [tested:
@@ -25,22 +25,20 @@ Open Obligations:
   Future Enhancements: None.
 """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
 
-from ._atom_wire import _atom_from_wire as atom_from_wire
-from ._atom_wire import _from_wire as from_wire
-from ._atoms_core import decode, encode
-from ._convert_build import build
-from ._convert_cast import CastError, cast
-from ._convert_project import Projected, auto_image, declarations, project
-from ._convert_registry import (
+from metta._atoms.model import decode, encode
+from metta._atoms.registry import (
     IMAGES,
     ensure_own_registration,
     ensure_registered,
     register_type,
     unregister_type,
 )
-from ._convert_registry import (
-    _is_plain_class as _registry_is_plain_class,
-)
+from metta._atoms.registry import _is_plain_class as _registry_is_plain_class
+from metta._atoms.wire import _atom_from_wire as atom_from_wire
+from metta._atoms.wire import _from_wire as from_wire
+from metta._catalog.build import build
+from metta._catalog.cast import CastError, cast
+from metta._catalog.project import Projected, auto_image, declarations, project
 
 _is_plain_class = _registry_is_plain_class
 

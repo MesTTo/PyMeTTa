@@ -21,7 +21,7 @@ answer the host's spelling of the atom, which is a different claim.
 """
 
 from metta import S, ground
-from metta.errors import EngineError
+from metta._errors.errors import EngineError
 
 
 def twin(m):

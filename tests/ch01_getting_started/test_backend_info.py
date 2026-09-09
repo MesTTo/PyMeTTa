@@ -30,6 +30,7 @@ import janus_swi
 import pytest
 
 import metta
+from metta._spaces import evaluate as _space_evaluate
 from metta.parallel import engine_thread
 
 
@@ -38,7 +39,10 @@ def test_a_failed_python_runtime_install_retries_whole(repo_root, module_name):
     """A completion flag cannot publish a prelude or ontology torn in half."""
     program = f"""
 import metta
-from metta import _contract, _engine, _prelude, parse
+from metta import parse
+import metta._catalog.kinds as _contract
+import metta._binding.runtime as _engine
+import metta._declare.prelude as _prelude
 
 module = {module_name}
 real_install = module.install
@@ -164,7 +168,7 @@ def test_engine_thread_owns_only_its_attachment(metta):  # noqa: D103  -- pytest
             observed["inside"] = janus_swi.engine()
             with engine_thread():
                 observed["nested"] = janus_swi.engine()
-                observed["value"] = metta._one("(+ 20 22)")
+                observed["value"] = _space_evaluate.one(metta, "(+ 20 22)")
             observed["after_nested"] = janus_swi.engine()
         observed["after"] = janus_swi.engine()
         try:

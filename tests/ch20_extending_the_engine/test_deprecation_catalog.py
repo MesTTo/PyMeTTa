@@ -80,7 +80,7 @@ def test_an_empty_deprecation_catalog_costs_one_cheap_probe(
     catalog answers every name without a single ``metta_deprecation``
     goal-string read.
     """
-    from metta import _space as space_module
+    import metta._spaces.handle as space_module
 
     reads = []
     real_once = space_module.Runtime.once

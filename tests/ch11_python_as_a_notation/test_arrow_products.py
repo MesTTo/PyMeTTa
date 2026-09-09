@@ -12,7 +12,7 @@ pragma and close every successor world they create.
 import pytest
 
 from metta import S, V
-from metta.errors import MettaError
+from metta._errors.errors import MettaError
 from metta.vocabularies import EffectClass
 
 

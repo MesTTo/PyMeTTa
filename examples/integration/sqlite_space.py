@@ -45,8 +45,9 @@ from typing import Literal
 from _common import check, done
 
 import metta
-from metta.paths import path
 from metta import tables
+from metta._declare import declarations as _space_declarations
+from metta.paths import path
 from metta.tables import TableBridge
 
 
@@ -97,7 +98,7 @@ def attach_sqlite(
     target = metta.space(name)
     target.image("Blob", blob_image)
     provider = TableBridge.from_context(m, name, connection)
-    m._register_space(provider, name)
+    _space_declarations._register_space(m, provider, name)
     target.context("closed-world")
     target.annotations("bag")
     target.handles("(edge $x $y)", "Exact")

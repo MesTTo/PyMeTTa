@@ -27,10 +27,13 @@ import metta_nanoarrow  # noqa: F401  -- the arrow capsule row
 import metta_pyarrow  # noqa: F401  -- the ipc row this scenario reads back
 import pytest
 
-from metta import S, V, remote, seam
-from metta._arrow import IPC_MEDIA_TYPE
-from metta.atoms import _atom_from_wire
-from metta.errors import MettaError
+import metta.remote._client as _moved_metta_remote__client
+import metta.remote._gateway as _moved_metta_remote__gateway
+import metta.remote._transport as _moved_metta_remote__transport
+from metta import S, V, seam
+from metta._atoms.factories import _atom_from_wire
+from metta._catalog.arrow import IPC_MEDIA_TYPE
+from metta._errors.errors import MettaError
 
 pytest.importorskip("pyarrow")
 
@@ -82,7 +85,7 @@ def test_the_batches_are_the_answers_the_json_reply_carries(registry):
     without either being converted into the other's shape.
     """
     pattern = S.users(V.id, V.name)
-    with remote.Gateway(registry) as gateway:
+    with _moved_metta_remote__gateway.Gateway(registry) as gateway:
         chunks = _drain(gateway, pattern, 2)
         answered = gateway("match", {"pattern": pattern.to_wire()})
     streamed = [
@@ -99,7 +102,7 @@ def test_every_chunk_is_a_complete_stream(registry):
     A fragment of one stream is not readable on its own, which is why the
     chunks are one stream each rather than pieces of a single one.
     """
-    with remote.Gateway(registry) as gateway:
+    with _moved_metta_remote__gateway.Gateway(registry) as gateway:
         chunks = _drain(gateway, S.users(V.id, V.name), 2)
     assert len(chunks) == 3
     for chunk in chunks:
@@ -113,7 +116,7 @@ def test_a_declared_pattern_answers_typed_columns(registry):
     This is what the type table buys the wire: the columns arrive typed rather
     than as text a consumer has to parse back.
     """
-    with remote.Gateway(registry) as gateway:
+    with _moved_metta_remote__gateway.Gateway(registry) as gateway:
         table = _table(_drain(gateway, S.users(V.id, V.name), 10)[0])
     assert [str(field.type) for field in table.schema] == ["double", "string", "string"]
     assert table.column("id").to_pylist() == [0.0, 1.0, 2.0, 3.0, 4.0]
@@ -130,7 +133,7 @@ def test_an_undeclared_column_is_text_marked_mixed(metta):
     infer why a column of numbers arrived as strings.
     """
     metta.add(S.thing(1, "a"), S.thing("b", 2))
-    with remote.Gateway(metta) as gateway:
+    with _moved_metta_remote__gateway.Gateway(metta) as gateway:
         table = _table(_drain(gateway, S.thing(V.a, V.b), 10)[0])
     assert [str(field.type) for field in table.schema] == ["string", "string", "string"]
     assert table.column("a").to_pylist() == ["1", '"b"']
@@ -145,14 +148,14 @@ def test_every_chunk_of_one_cursor_shares_one_schema(registry):
     second, and an IPC stream has no way to change its mind, so the schema comes
     from the space's declaration instead.
     """
-    with remote.Gateway(registry) as gateway:
+    with _moved_metta_remote__gateway.Gateway(registry) as gateway:
         schemas = [_table(chunk).schema for chunk in _drain(gateway, S.users(V.id, V.name), 2)]
     assert all(schema.equals(schemas[0]) for schema in schemas)
 
 
 def test_a_bound_of_zero_still_answers_a_readable_stream(registry):
     """No rows is still a schema, so a consumer reads one either way."""
-    with remote.Gateway(registry) as gateway:
+    with _moved_metta_remote__gateway.Gateway(registry) as gateway:
         reply = gateway(
             "ask",
             {
@@ -169,7 +172,7 @@ def test_a_bound_of_zero_still_answers_a_readable_stream(registry):
 
 def test_stop_still_releases_an_arrow_cursor(registry):
     """The lifecycle is the protocol's own whatever the chunks look like."""
-    with remote.Gateway(registry) as gateway:
+    with _moved_metta_remote__gateway.Gateway(registry) as gateway:
         reply = gateway(
             "ask",
             {"pattern": S.users(V.id, V.name).to_wire(), "batch": 1, "format": "arrow"},
@@ -185,7 +188,7 @@ def test_a_json_cursor_refuses_a_later_arrow_chunk(registry):
     Asking for Arrow on `next` after a JSON `ask` has no schema to write at, and
     the refusal names where a schema is decided rather than inventing one.
     """
-    with remote.Gateway(registry) as gateway:
+    with _moved_metta_remote__gateway.Gateway(registry) as gateway:
         opened = gateway(
             "ask", {"pattern": S.users(V.id, V.name).to_wire(), "batch": 1}
         )
@@ -195,7 +198,7 @@ def test_a_json_cursor_refuses_a_later_arrow_chunk(registry):
 
 def test_an_unknown_format_refuses_by_name(registry):
     """A client that asked for something is owed that or a sentence."""
-    with remote.Gateway(registry) as gateway, pytest.raises(MettaError, match="format must be"):
+    with _moved_metta_remote__gateway.Gateway(registry) as gateway, pytest.raises(MettaError, match="format must be"):
         gateway("ask", {"pattern": S.users(V.id, V.name).to_wire(), "format": "parquet"})
 
 
@@ -203,9 +206,9 @@ def test_the_accept_header_asks_for_arrow_over_http(registry):
     """HTTP's own way of asking for a representation, and its cursor header."""
     import urllib.request
 
-    from metta import _json
+    import metta._binding.json as _json
 
-    with remote.serve(registry) as server:
+    with _moved_metta_remote__gateway.serve(registry) as server:
         request = urllib.request.Request(
             f"{server.url}/ask",
             data=_json.dumps(
@@ -223,9 +226,9 @@ def test_the_accept_header_asks_for_arrow_over_http(registry):
 
 def test_a_client_cursor_drains_to_one_table(registry):
     """`to_arrow()` is the ask/next/stop lifecycle drained into one table."""
-    with remote.serve(registry) as server:
-        transport = remote.connect(server.url)
-        space = remote.RemoteSpace(transport, registry.name)
+    with _moved_metta_remote__gateway.serve(registry) as server:
+        transport = _moved_metta_remote__transport.connect(server.url)
+        space = _moved_metta_remote__client.RemoteSpace(transport, registry.name)
         with space.stream(S.users(V.id, V.name), batch=2, arrow=True) as answers:
             table = answers.to_arrow()
     assert table.num_rows == 5
@@ -237,9 +240,9 @@ def test_a_client_cursor_answers_the_capsule_protocol(registry):
     """A consumer that dispatches on the protocol reaches the same batches."""
     import pyarrow as pa
 
-    with remote.serve(registry) as server:
-        transport = remote.connect(server.url)
-        space = remote.RemoteSpace(transport, registry.name)
+    with _moved_metta_remote__gateway.serve(registry) as server:
+        transport = _moved_metta_remote__transport.connect(server.url)
+        space = _moved_metta_remote__client.RemoteSpace(transport, registry.name)
         with space.stream(S.users(V.id, V.name), batch=2, arrow=True) as answers:
             through_capsule = pa.table(answers)
     assert through_capsule.num_rows == 5
@@ -252,9 +255,9 @@ def test_the_two_cursor_modes_refuse_each_others_doors(registry):
     of it would go through the parser rather than through the tagged wire, which
     carries a grounded value the text cannot spell.
     """
-    with remote.serve(registry) as server:
-        transport = remote.connect(server.url)
-        space = remote.RemoteSpace(transport, registry.name)
+    with _moved_metta_remote__gateway.serve(registry) as server:
+        transport = _moved_metta_remote__transport.connect(server.url)
+        space = _moved_metta_remote__client.RemoteSpace(transport, registry.name)
         with space.stream(S.users(V.id, V.name), arrow=True) as batches:
             with pytest.raises(MettaError, match="no atoms to iterate"):
                 next(iter(batches))
@@ -265,8 +268,8 @@ def test_the_two_cursor_modes_refuse_each_others_doors(registry):
 
 def test_the_ipc_doors_name_the_extra_when_pyarrow_is_absent(registry, monkeypatch):
     """The refusal is the ipc row's own missing sentence: the package and the extra."""
-    monkeypatch.setattr("metta._optional.import_module", _no_pyarrow)
-    with remote.Gateway(registry) as gateway, pytest.raises(ImportError) as refusal:
+    monkeypatch.setattr("metta._lazy.import_module", _no_pyarrow)
+    with _moved_metta_remote__gateway.Gateway(registry) as gateway, pytest.raises(ImportError) as refusal:
         gateway("ask", {"pattern": S.users(V.id, V.name).to_wire(), "format": "arrow"})
     assert "pymetta[arrow]" in str(refusal.value)
     assert seam.ipc.find("pyarrow").missing == str(refusal.value)
@@ -274,8 +277,8 @@ def test_the_ipc_doors_name_the_extra_when_pyarrow_is_absent(registry, monkeypat
 
 def test_an_arrow_answer_carries_its_cursor_in_a_header(registry):
     """The transport reads the token off the reply, which the body cannot hold."""
-    with remote.serve(registry) as server:
-        transport = remote.connect(server.url)
+    with _moved_metta_remote__gateway.serve(registry) as server:
+        transport = _moved_metta_remote__transport.connect(server.url)
         reply = transport(
             "ask",
             {

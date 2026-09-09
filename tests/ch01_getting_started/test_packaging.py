@@ -62,9 +62,9 @@ from pathlib import Path
 import pytest
 from packaging.requirements import Requirement
 
-import metta.atoms as metta_atoms
+import metta._atoms.factories as metta_atoms
 from metta import __version__
-from metta._lint_events import _LINT_CATALOGUE
+from metta._spaces.intents import _LINT_CATALOGUE
 
 ROOT = Path(__file__).resolve().parents[4]
 
@@ -123,7 +123,7 @@ def test_release_and_citation_metadata_ship_in_source_archives():  # noqa: D103 
 
 def test_the_wheel_carries_no_agent_scratch_references():
     """Published package data must cite sources users can retrieve."""
-    package = Path(metta_atoms.__file__).resolve().parent
+    package = Path(metta_atoms.__file__).resolve().parents[1]
     forbidden = re.compile(
         r"(?i)(?:\bai[-_/][\w./-]*|\bcodex\b|\bclaude\b|\bchatgpt\b|"
         r"\bopenai\b|\banthropic\b)"
@@ -412,7 +412,7 @@ def test_the_codec_builds_under_mypyc_as_an_option(tmp_path):
 
     Measured 2026-08-19, minimum of three instructions:u runs of the
     wire-codec lane: 3457054691 interpreted against 2984812403 compiled,
-    1.16x. _atoms_core.py is deliberately not in the compiled set and
+    1.16x. _atoms/model.py is deliberately not in the compiled set and
     setup.py records each measured reason; this asserts the exclusion by
     naming the extensions the build is allowed to produce, so putting it
     back is a failing test rather than a silent behaviour change.
@@ -434,7 +434,7 @@ def test_the_codec_builds_under_mypyc_as_an_option(tmp_path):
         path.name.split(".")[0]
         for path in (tmp_path / "compiled" / "lib" / "metta").rglob("*.so")
     )
-    assert built == ["_atom_wire", "atoms"]
+    assert built == ["factories", "wire"]
 
     # Asked for and impossible: the build stops and names the fix, rather
     # than quietly handing back the pure-Python wheel nobody asked for. The
@@ -521,7 +521,7 @@ def test_every_runtime_resource_reaches_the_source_archive(repo_root):
 
     def covered(resource: str) -> bool:
         # setuptools also ships a package's own declared package-data, which is
-        # why metta/shim.pl needs no directive of its own.
+        # why metta/_binding/shim.pl needs no directive of its own.
         if resource.startswith("extensions/python/metta/"):
             return True
         for directive in directives:
@@ -596,16 +596,16 @@ def test_the_shim_reaches_the_engine_by_alias_rather_than_by_depth():
     """A relative path from the shim to the engine is right in exactly one
     layout, and this package ships two.
 
-    In a checkout the shim is `extensions/python/metta/shim.pl` and the engine
-    is three levels up; in a wheel the shim is `metta/shim.pl` and the engine
-    is one level DOWN, at `metta/_runtime/engine/`. The directive used to spell
+    In a checkout the shim is `extensions/python/metta/_binding/shim.pl` and the engine
+    is four levels up; in a wheel the shim is `metta/_binding/shim.pl` and the engine
+    is in the sibling runtime, at `metta/_runtime/engine/`. The directive used to spell
     the checkout's depth, so the installed copy resolved it to nothing --- and
     a `use_module` that resolves to nothing only WARNS, so the wheel loaded,
-    booted, answered arithmetic, and failed every metta._json call with
+    booted, answered arithmetic, and failed every metta._binding.json call with
     `Unknown procedure: json_codec_write/3` [measured 2026-08-29 against a
     wheel installed into a fresh venv outside the checkout].
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
-    shim = (ROOT / "extensions" / "python" / "metta" / "shim.pl").read_text(
+    shim = (ROOT / "extensions" / "python" / "metta" / "_binding" / "json.pl").read_text(
         encoding="utf-8"
     )
     # Both layouts are named, and the search runs from the shim's own directory
@@ -613,10 +613,10 @@ def test_the_shim_reaches_the_engine_by_alias_rather_than_by_depth():
     assert "prolog_load_context(directory, Here)" in shim, (
         "the shim no longer resolves the codec from its own directory"
     )
-    for layout in ("'../../../engine/json_codec.pl'", "'_runtime/engine/json_codec.pl'"):
+    for layout in ("'../../../../engine/json_codec.pl'", "'../_runtime/engine/json_codec.pl'"):
         assert layout in shim, f"the shim stopped looking for the codec at {layout}"
 
-    from metta import _json
+    import metta._binding.json as _json
 
     # Calling it is the proof the alias resolved: json_codec_write/3 reaches
     # this side only through that import, and it is the half that was broken

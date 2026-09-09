@@ -28,7 +28,7 @@ import argparse
 from collections.abc import Sequence
 
 from metta import Expression, S, V
-from metta._engine import Runtime, runtime
+from metta._binding.runtime import Runtime, runtime
 
 
 def _target_wire(terms: int) -> list:

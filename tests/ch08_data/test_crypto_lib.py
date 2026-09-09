@@ -17,7 +17,7 @@ import re
 
 import pytest
 
-from metta.errors import EngineError
+from metta._errors.errors import EngineError
 
 
 @pytest.fixture(scope="module")

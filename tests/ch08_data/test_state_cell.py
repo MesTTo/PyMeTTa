@@ -27,7 +27,7 @@ import re
 import pytest
 
 from metta import MeTTa, State
-from metta.errors import MettaError
+from metta._errors.errors import MettaError
 
 
 def _answers(metta: MeTTa, source: str) -> list[str]:

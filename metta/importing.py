@@ -72,20 +72,18 @@ import types
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Self
 
-from ._api_types import SpaceLike
-from ._declarations import declarations_in
-from ._name_mapping import python_name
-from ._source_forms import _source_text, positioned_forms
-from ._space_objects import _format_doc_atom
-from .atoms import Symbol, parse
-from .errors import MettaError
-from .integrate import LIBRARIES_GROUP, entry_points, load_entry_point
+from metta._atoms.designation import SpaceLike
+from metta._atoms.factories import Symbol, parse
+from metta._atoms.names import python_name
+from metta._binding.positions import _source_text, positioned_forms
+from metta._catalog.declarations import declarations_in
+from metta._declare.functions import _format_doc_atom
+from metta._errors.errors import MettaError
+from metta.integrate import LIBRARIES_GROUP, entry_points, load_entry_point
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable, Sequence
     from types import TracebackType
 
-    from ._declarations import Declaration
 
 __all__ = ["Finder", "Loader", "Module", "install", "installed"]
 
@@ -96,7 +94,7 @@ __all__ = ["Finder", "Loader", "Module", "install", "installed"]
 SUFFIXES = (".metta", ".metta.gz")
 
 
-def _candidates(root: Path, name: str) -> Iterable[Path]:
+def _candidates(root: Path, name: str) -> _collections_abc.Iterable[Path]:
     """Where one directory could hold the source for one module name.
 
     The file beside the directory first, `rules.metta`, then the engine's own
@@ -111,7 +109,7 @@ def _candidates(root: Path, name: str) -> Iterable[Path]:
         yield root / name / f"{name}{suffix}"
 
 
-def _in_directories(directories: Iterable[Any], name: str) -> str | None:
+def _in_directories(directories: _collections_abc.Iterable[Any], name: str) -> str | None:
     """The first source file for `name` under these directories, or None.
 
     An entry that is not a path is skipped rather than refused, because
@@ -129,7 +127,7 @@ def _in_directories(directories: Iterable[Any], name: str) -> str | None:
     return None
 
 
-def _file_rows(text: str) -> tuple[Declaration, ...]:
+def _file_rows(text: str) -> tuple[_catalog_declarations.Declaration, ...]:
     """What the FILE declares, read with the engine's reader and nothing run.
 
     `declarations(space)` is the same projection over a space's store. The
@@ -171,7 +169,7 @@ def _leading_comment(text: str) -> str | None:
     return "\n".join(lines).strip() or None
 
 
-def _module_doc(rows: Sequence[Declaration], name: str, text: str) -> str | None:
+def _module_doc(rows: _collections_abc.Sequence[_catalog_declarations.Declaration], name: str, text: str) -> str | None:
     """The file's own documentation: its doc atom, else its first comment block.
 
     `(@doc <module name> ...)` wins when the file documents itself, formatted
@@ -314,7 +312,7 @@ class Finder(importlib.abc.MetaPathFinder):
     one is uninstalled.
     """
 
-    def __init__(self, space: Any, path: Sequence[Any]) -> None:
+    def __init__(self, space: Any, path: _collections_abc.Sequence[Any]) -> None:
         """Hold the space every import lands in and the directories searched first."""
         self.space = space
         self.path = tuple(path)
@@ -337,7 +335,7 @@ class Finder(importlib.abc.MetaPathFinder):
     def find_spec(
         self,
         fullname: str,
-        path: Sequence[str] | None = None,
+        path: _collections_abc.Sequence[str] | None = None,
         target: types.ModuleType | None = None,
     ) -> importlib.machinery.ModuleSpec | None:
         """The spec for a `.metta` file with this name, or None to defer.
@@ -355,7 +353,7 @@ class Finder(importlib.abc.MetaPathFinder):
             fullname, origin, loader=Loader(origin, self.space, self)
         )
 
-    def _resolve(self, fullname: str, path: Sequence[str] | None) -> str | None:
+    def _resolve(self, fullname: str, path: _collections_abc.Sequence[str] | None) -> str | None:
         """Which file this name names, under this finder's search."""
         tail = fullname.rpartition(".")[2]
         if path is not None:
@@ -442,10 +440,11 @@ def install(space: SpaceLike | None = None, *, path: Any = None) -> Finder:
     forgotten.
     """
     if space is None:
-        from . import _ambient_space  # noqa: PLC0415  -- root owns ambient scope
+        # ambient resolution runs only for an omitted receiver
+        from metta._spaces.ambient import _ambient_space  # noqa: PLC0415
 
         space = _ambient_space()
-    roots: Sequence[Any]
+    roots: _collections_abc.Sequence[Any]
     if path is None:
         roots = ()
     elif isinstance(path, (str, os.PathLike)):
@@ -464,3 +463,8 @@ def installed() -> tuple[Finder, ...]:
     finder removed by hand is gone from here too.
     """
     return tuple(finder for finder in sys.meta_path if isinstance(finder, Finder))
+
+# Resolve annotations after definitions so peer imports can finish.
+import collections.abc as _collections_abc  # noqa: E402 -- deferred annotation bindings
+
+import metta._catalog.declarations as _catalog_declarations  # noqa: E402 -- deferred annotation bindings

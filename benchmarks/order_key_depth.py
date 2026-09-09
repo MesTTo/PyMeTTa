@@ -40,7 +40,7 @@ from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 
 from metta import Atom, Expression, G, Grounded, S, Symbol, Variable
-from metta.atoms import order_key
+from metta._atoms.factories import order_key
 
 DEPTHS = (250, 500, 1_000, 2_000)
 REPETITIONS = 5

@@ -19,15 +19,16 @@ from typing import Any
 
 from _common import check, done, skip
 
+from metta._declare import declarations as _space_declarations
+
 try:
     import duckdb
 except ImportError:
     skip("duckdb is not installed")
 
-from metta import MeTTa, S, V, Expression
-from metta import convert
-from metta.atoms import Atom, Expression, Grounded, Symbol, Variable
-from metta.errors import MettaError
+from metta import Expression, MeTTa, S, V, convert
+from metta._atoms.factories import Atom, Expression, Grounded, Symbol, Variable
+from metta._errors.errors import MettaError
 from metta.foreign import SpaceProvider
 
 # SQL NULL as an atom: the symbol NULL, SQL's own name for it. A string
@@ -234,7 +235,7 @@ def attach_database(m, name: str, database: Any = ":memory:", tables: list[str] 
     else:
         provider = DuckDBSpace(duckdb.connect(database), tables)
         provider._owns_connection = True
-    m._register_space(provider, name)
+    _space_declarations._register_space(m, provider, name)
     return provider
 
 
@@ -310,7 +311,7 @@ def demo() -> None:
     check("clear empties, schema stays",
           m.run("!(collapse (match &crm (logs $d $n) x))"), [[Expression()]])
 
-    m._unregister_space("&crm")
+    _space_declarations._unregister_space(m, "&crm")
     done("duckdb_space")
 
 

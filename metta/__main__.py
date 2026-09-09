@@ -2,7 +2,7 @@
 usage" chapter for the installed wheel: run a program, talk to a repl,
 serve spaces, boot a manifest, lint a file, read documentation, print
 `llms.txt`, write a program's `.pyi`, read one library's card and pin what a
-program loads, all without a checkout, or convert
+program loads, scaffold an extension distribution, or convert
 a Python-authored program to MeTTa source. The bare `metta` console script keeps upstream's
 swipl-launcher contract exactly; the subcommands live here, on the
 library engine.
@@ -67,6 +67,9 @@ Guarantees:
     lock; ``run --locked`` checks BEFORE the program runs and exits nonzero on
     drift [tested: test_the_cli_prints_a_card_and_a_lock,
     test_a_locked_run_refuses_on_drift_and_runs_on_agreement; commit=ff4257005f562786e3ef7a5a37ce94b7d80e782d]
+Owns resources: extension new exclusively creates its destination directory;
+  failed writes remove that owned tree and cleanup failures retain both errors
+  [tested: test_scaffold_removes_partial_output; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
 Open Obligations:
   To Do: None
   Hacks: None
@@ -82,8 +85,14 @@ import signal
 import sys
 import threading
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
+from metta._lazy import lazy
+
+if TYPE_CHECKING:
+    import metta as _root
+else:
+    _root = lazy('metta')
 
 def _print_groups(groups) -> None:
     for group in groups:
@@ -98,7 +107,7 @@ STDIN_OPERAND = "-"
 
 #: The two renderings `--json` chooses between. `text` prints each answer the
 #: way the plain run prints it, so the flag changes only the framing; `wire`
-#: prints the tagged form `metta.atoms._atom_from_wire` reads back, which
+#: prints the tagged form `metta._atoms.factories._atom_from_wire` reads back, which
 #: keeps a number a number where text has only a spelling.
 JSON_TEXT = "text"
 JSON_WIRE = "wire"
@@ -133,7 +142,8 @@ def _stdin_program() -> str:
 
 def _program_text(source: str) -> str:
     """One operand's source text, for the position walk `--json` aligns to."""
-    from ._source_forms import _source_text  # noqa: PLC0415 -- version and help must not boot
+    # Version and help must not load the engine.
+    from metta._binding.positions import _source_text  # noqa: PLC0415
 
     return _stdin_program() if source == STDIN_OPERAND else _source_text(source)
 
@@ -170,15 +180,18 @@ def _program_directories(sources) -> list[str]:
 
 
 def _run(arguments) -> int:
-    from ._space import Space  # noqa: PLC0415 -- version and help must not boot
-    from .importing import install  # noqa: PLC0415 -- version and help must not boot
+    from metta._faces.space import Space  # noqa: PLC0415 -- version and help must not boot
+    from metta.importing import install  # noqa: PLC0415 -- version and help must not boot
 
     m = Space()
     if arguments.locked is not None:
         # BEFORE the program runs, which is uv's own rule for --locked: a lock
         # that no longer describes the tree stops the command rather than
         # being quietly brought up to date.
-        from ._lock import Lock, require  # noqa: PLC0415 -- version and help must not boot
+        from metta.library._lock import (  # noqa: PLC0415 -- version and help must not boot
+            Lock,
+            require,
+        )
 
         require(m._rt, Lock.read(arguments.locked), arguments.locked)
     sources = _sources(arguments.files)
@@ -196,14 +209,14 @@ def _run(arguments) -> int:
 def _write_json(payload: dict[str, Any], stream) -> None:
     """One JSON value on one line, flushed, which is what JSON Lines is.
 
-    The codec is the engine's own, `metta._json`, and it writes at width 0, so
+    The codec is the engine's own, `metta._binding.json`, and it writes at width 0, so
     every value is one line by construction rather than by a post-pass
     [source: engine/json_codec.pl, json_codec_write/3 answers what
     json_write_dict/3 answers under width(0)]. The bytes go to the descriptor
     rather than through the text stream because JSON Lines is UTF-8 and a text
     stdout carries the locale's encoding [source: https://jsonlines.org].
     """
-    from ._json import dumps  # noqa: PLC0415 -- version and help must not boot
+    from metta._binding.json import dumps  # noqa: PLC0415 -- version and help must not boot
 
     stream.write(dumps(payload) + b"\n")
     stream.flush()
@@ -223,8 +236,9 @@ def _run_as_json(m, sources: list[str], form: str) -> int:
     descriptor, because the engine prints from Prolog and the JSON stream
     shares stdout with it otherwise.
     """
-    from ._source_forms import positioned_forms  # noqa: PLC0415 -- version and help must not boot
-    from .errors import (  # noqa: PLC0415 -- version and help must not boot
+    # Version and help must not load the engine.
+    from metta._binding.positions import positioned_forms  # noqa: PLC0415
+    from metta._errors.errors import (  # noqa: PLC0415
         MettaError,
         MettaSyntaxError,
     )
@@ -255,7 +269,7 @@ def _paired(runnables, groups):
     length; a disagreement is a defect in one of them and never a stream that
     quietly shifts by one, which is what an unchecked zip would give.
     """
-    from .errors import MettaError  # noqa: PLC0415 -- version and help must not boot
+    from metta._errors.errors import MettaError  # noqa: PLC0415 -- version and help must not boot
 
     if len(runnables) != len(groups):
         msg = (
@@ -457,10 +471,10 @@ def _save_history(readline) -> None:
 
 
 def _repl(_arguments) -> int:
-    from ._space import Space  # noqa: PLC0415 -- version and help must not boot
-    from ._version import __version__  # noqa: PLC0415  deferred: --version and help must not boot
-    from .errors import MettaError  # noqa: PLC0415  deferred: --version and help must not boot
-    from .importing import install  # noqa: PLC0415  deferred: --version and help must not boot
+    from metta._errors.errors import MettaError  # noqa: PLC0415 -- version and help must not boot
+    from metta._faces.space import Space  # noqa: PLC0415 -- version and help must not boot
+    from metta._version import __version__  # noqa: PLC0415 -- version and help must not boot
+    from metta.importing import install  # noqa: PLC0415  deferred: --version and help must not boot
 
     m = Space()
     interactive = sys.stdin.isatty()
@@ -484,8 +498,8 @@ def _repl(_arguments) -> int:
 
 
 def _serve(arguments) -> int:
-    from . import remote  # noqa: PLC0415  deferred: --version and help must not boot
-    from ._space import Space  # noqa: PLC0415 -- version and help must not boot
+    from metta import remote  # noqa: PLC0415 -- version and help must not boot
+    from metta._faces.space import Space  # noqa: PLC0415 -- version and help must not boot
 
     m = Space()
     for path in arguments.files:
@@ -548,7 +562,7 @@ def _shutdown_uninterrupted():
 
 
 def _boot(arguments) -> int:
-    from .manifest import boot  # noqa: PLC0415  deferred: --version and help must not boot
+    from metta.manifest import boot  # noqa: PLC0415  deferred: --version and help must not boot
 
     booted = boot(arguments.manifest, host=arguments.host, token=arguments.token)
     for form in booted.performed:
@@ -575,11 +589,8 @@ def _where(path, finding) -> str:
 
 def _lint_json(m, files) -> int:
     """Print one LSP Diagnostic per line, through the engine's own JSON codec."""
-    from . import _json  # noqa: PLC0415  deferred: --version and help must not boot
-    from .lint import (  # noqa: PLC0415  deferred: --version and help must not boot
-        diagnostics,
-        lint_file,
-    )
+    import metta._binding.json as _json  # noqa: PLC0415  deferred: --version and help must not boot
+    from metta.lint import diagnostics, lint_file  # noqa: PLC0415 -- version and help must not boot
 
     found = 0
     for path in files:
@@ -591,7 +602,7 @@ def _lint_json(m, files) -> int:
 
 def _lint_fix(m, files) -> int:
     """Apply every machine remedy, and name what was left and why."""
-    from .lint import fix_file  # noqa: PLC0415  deferred: --version and help must not boot
+    from metta.lint import fix_file  # noqa: PLC0415  deferred: --version and help must not boot
 
     remaining = 0
     for path in files:
@@ -609,8 +620,8 @@ def _lint_fix(m, files) -> int:
 
 
 def _lint(arguments) -> int:
-    from ._space import Space  # noqa: PLC0415 -- version and help must not boot
-    from .lint import lint_file  # noqa: PLC0415  deferred: --version and help must not boot
+    from metta._faces.space import Space  # noqa: PLC0415 -- version and help must not boot
+    from metta.lint import lint_file  # noqa: PLC0415  deferred: --version and help must not boot
 
     m = Space()
     if arguments.json:
@@ -628,7 +639,7 @@ def _lint(arguments) -> int:
 
 
 def _doc(arguments) -> int:
-    from ._space import Space  # noqa: PLC0415 -- version and help must not boot
+    from metta._faces.space import Space  # noqa: PLC0415 -- version and help must not boot
 
     m = Space()
     # The loaded program's printing goes to stderr for the reason stubs gives:
@@ -698,14 +709,13 @@ def _output_on_stderr():
 
 
 def _stubs(arguments) -> int:
-    from . import stubs  # noqa: PLC0415  deferred: --version and help must not boot
-    from ._space import Space  # noqa: PLC0415 -- version and help must not boot
+    from metta._faces.space import Space  # noqa: PLC0415 -- version and help must not boot
 
     m = Space()
     with _output_on_stderr():
         for path in arguments.files:
             m.load(path)
-    text = stubs(m, sources=arguments.files)
+    text = _root.stubs(m, sources=arguments.files)
     if arguments.output is None:
         sys.stdout.write(text)
     else:
@@ -715,7 +725,7 @@ def _stubs(arguments) -> int:
 
 def _card(arguments) -> int:
     """Print one shipped library's card, the same one `metta.library.card` answers."""
-    from .library import card  # noqa: PLC0415  deferred: --version and help must not boot
+    from metta.library import card  # noqa: PLC0415  deferred: --version and help must not boot
 
     print(card(arguments.name))
     return 0
@@ -728,8 +738,8 @@ def _lock(arguments) -> int:
     import is a runnable form; their own printing goes to stderr so a lock
     written to stdout stays a lock.
     """
-    from ._lock import take  # noqa: PLC0415 -- version and help must not boot
-    from ._space import Space  # noqa: PLC0415 -- version and help must not boot
+    from metta._faces.space import Space  # noqa: PLC0415 -- version and help must not boot
+    from metta.library._lock import take  # noqa: PLC0415 -- version and help must not boot
 
     m = Space()
     with _output_on_stderr():
@@ -744,11 +754,8 @@ def _lock(arguments) -> int:
 
 
 def _llms(_arguments) -> int:
-    # The package door itself, so the shell and Python faces cannot print
-    # different documents. It boots nothing: the sheet is a file.
-    from . import llms  # noqa: PLC0415  deferred: --version and help must not boot
 
-    llms()
+    _root.llms()
     return 0
 
 
@@ -777,7 +784,7 @@ def _conversion_receiver(context):
     package = sys.modules[__package__ or "metta"]
     namespace = vars(package)
     original_engine = namespace["engine"]
-    original_space = namespace["space"]
+    original_space = package.space
     context_type = type(context)
     original_context_init = context_type.__init__
     original_context_space = context_type.space
@@ -829,10 +836,9 @@ def _conversion_receiver(context):
 
 def _convert(arguments) -> int:
     """Import a Python-authored program and emit its lowered MeTTa source."""
-    from . import MeTTa  # noqa: PLC0415 -- version and help must not boot
-    from .vocabularies import SaveFormat  # noqa: PLC0415 -- version and help must not boot
+    from metta.vocabularies import SaveFormat  # noqa: PLC0415 -- version and help must not boot
 
-    with MeTTa() as context:
+    with _root.MeTTa() as context:
         with _conversion_receiver(context), contextlib.redirect_stdout(sys.stderr):
             context.self.fn["import!"](context.self, str(arguments.program))
         if arguments.output is None:
@@ -878,8 +884,181 @@ def _attached_values(
     return rewritten
 
 
+def _extension_files(name: str) -> dict[str, str]:
+    """Render one installable member from its distribution and namespace name."""
+    import keyword  # noqa: PLC0415 -- scaffolding alone needs the name reader
+    import re  # noqa: PLC0415
+
+    from metta._version import __version__  # noqa: PLC0415
+    from metta.doors import Owner, core_rows  # noqa: PLC0415 -- source-only declarations
+
+    # PyPA distinguishes normalized distribution names from import names:
+    # https://github.com/pypa/packaging.python.org/blob/f86255b40639f1ed962496a465d67c16d443ce7d/source/specifications/name-normalization.rst
+    if re.fullmatch(r"[A-Za-z0-9](?:[A-Za-z0-9._-]*[A-Za-z0-9])?", name) is None:
+        msg = "extension name must start and end with an ASCII letter or digit and contain only letters, digits, '.', '_' or '-'"
+        raise ValueError(msg)
+    distribution = re.sub(r"[-_.]+", "-", name).lower()
+    module = distribution.replace("-", "_")
+    if not module.isidentifier() or keyword.iskeyword(module):
+        msg = f"{name!r} does not form a Python module name; start with a letter and choose a non-keyword name"
+        raise ValueError(msg)
+    reserved = {row.python for row in core_rows() if row.owner in {Owner.space, Owner.context}}
+    if module in sys.stdlib_module_names or module == "metta" or module in reserved:
+        msg = f"{module!r} is already a Python module or core door; choose another extension name"
+        raise ValueError(msg)
+    origin = "Generated by python -m metta extension new from metta.__main__._extension_files."
+    return {
+        "pyproject.toml": f'''# {origin}
+[build-system]
+requires = ["setuptools>=83"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "{distribution}"
+version = "0.1.0"
+description = "The {module} namespace for MeTTa spaces"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = ["pymetta=={__version__}"]
+
+[project.optional-dependencies]
+test = ["pytest>=8.4.2"]
+
+[project.entry-points."metta.extensions"]
+{distribution} = "{module}:register"
+
+[tool.setuptools]
+py-modules = ["{module}"]
+''',
+        f"{module}.py": f'''"""Purpose: declare the {module} extension namespace.
+
+{origin}
+"""
+
+from metta import SpaceLike, doors, seam
+
+
+@doors.door(
+    doors.Kind.provider,
+    answers=doors.AnswersAs.value,
+    effect=doors.EffectClass.pureStructural,
+    determinism=doors.Determinism.det,
+    tiers=(doors.Tier.sync, doors.Tier.context),
+    provider=doors.Provider("{distribution}", "{module}"),
+    evidence=("tests/test_{module}.py::test_echo",),
+)
+def echo[T](space: SpaceLike, value: T) -> T:
+    """Return the supplied value unchanged, preserving its object identity."""
+    del space
+    return value
+
+
+def register() -> None:
+    """Publish the marked functions through the door seam."""
+    seam.door.register("{distribution}", doors=doors.declarations(__name__))
+''',
+        "README.md": f'''# {distribution}
+
+{origin}
+
+Install the distribution and its test dependency from this directory:
+
+```sh
+python -m pip install '.[test]'
+python -m pytest tests
+python examples/echo.py
+python benchmarks/echo.py
+```
+
+The `metta.extensions` entry point advertises `register`. The first namespace
+lookup loads it and exposes every marked door on spaces and contexts:
+
+```python
+from metta import MeTTa
+
+with MeTTa() as context:
+    assert context.{module}.echo(42) == 42
+    assert context.self.{module}.echo("hello") == "hello"
+```
+
+Edit the marked body and keep its test beside it. The mark derives the name,
+signature, documentation and body location. The echo door returns its input;
+it performs no engine operation and holds no resource. To withdraw its doors,
+import `seam` from `metta` and call `seam.door.unregister("{distribution}")`. A retained namespace method
+then refuses until the distribution registers again.
+''',
+        f"tests/test_{module}.py": f'''"""Purpose: verify the installed {module} namespace on both receiver tiers.
+
+{origin}
+"""
+
+from metta import MeTTa, S
+
+
+def test_echo():
+    """The advertised door preserves values and identity on both receivers."""
+    with MeTTa() as context:
+        assert context.{module}.echo(42) == 42
+        assert context.self.{module}.echo(S.example) is S.example
+''',
+        "examples/echo.py": f'''"""Purpose: call the installed {module} namespace.
+
+{origin}
+"""
+
+from metta import MeTTa
+
+with MeTTa() as context:
+    print(context.{module}.echo("hello"))
+''',
+        "benchmarks/echo.py": f'''"""Purpose: measure calls through the installed {module} namespace.
+
+{origin}
+"""
+
+from timeit import repeat
+
+from metta import MeTTa
+
+with MeTTa() as context:
+    echo = context.{module}.echo
+    seconds = min(repeat(lambda: echo(42), number=1000, repeat=3))
+    print(f"{{seconds / 1000:.9f}} seconds per namespace call")
+''',
+        "MANIFEST.in": f"# {origin}\ninclude README.md\nrecursive-include tests *.py\nrecursive-include examples *.py\nrecursive-include benchmarks *.py\n",
+    }
+
+
+def _extension_new(arguments) -> int:
+    """Create one new distribution, removing its owned tree if writing fails."""
+    import shutil  # noqa: PLC0415 -- cleanup of a newly acquired directory
+
+    try:
+        files = _extension_files(arguments.name)
+        destination = Path.cwd() / arguments.name
+        destination.mkdir()
+        try:
+            for relative, content in files.items():
+                target = destination / relative
+                target.parent.mkdir(parents=True, exist_ok=True)
+                with target.open("x", encoding="utf-8") as stream:
+                    stream.write(content)
+        except BaseException as failure:
+            try:
+                shutil.rmtree(destination)
+            except OSError as cleanup:
+                msg = f"extension creation failed and cleanup of {destination} also failed"
+                raise BaseExceptionGroup(msg, [failure, cleanup]) from None
+            raise
+    except (OSError, ValueError) as failure:
+        print(f"extension new: {failure}", file=sys.stderr)
+        return 1
+    print(destination)
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:  # noqa: D103  -- the package reference and enclosing module document this exported entry point
-    from ._version import __version__  # noqa: PLC0415  deferred: --version and help must not boot
+    from metta._version import __version__  # noqa: PLC0415 -- version and help must not boot
 
     parser = argparse.ArgumentParser(
         prog="python -m metta",
@@ -887,6 +1066,12 @@ def main(argv: list[str] | None = None) -> int:  # noqa: D103  -- the package re
     )
     parser.add_argument("--version", action="version", version=f"metta {__version__}")
     commands = parser.add_subparsers(dest="command", required=True)
+
+    extension = commands.add_parser("extension", help="create an extension distribution")
+    extension_commands = extension.add_subparsers(dest="extension_command", required=True)
+    extension_new = extension_commands.add_parser("new", help="write a new distribution in ./NAME")
+    extension_new.add_argument("name", metavar="NAME")
+    extension_new.set_defaults(entry=_extension_new)
 
     run = commands.add_parser("run", help="run MeTTa files and print each ! answer group")
     run.add_argument(
