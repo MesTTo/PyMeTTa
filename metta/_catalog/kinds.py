@@ -234,7 +234,7 @@ def install(runtime) -> None:
     # The seat's own bounds, as rows a program can read and replace. Here
     # because this is the one place a boot already writes the seat's
     # declarations into &metta [source: extensions/python/metta/_catalog/bounds.py:573,
-    # publish; commit=WORKTREE].
+    # publish; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
     from metta._catalog.bounds import (  # noqa: PLC0415 -- the bounds table
         publish as _publish_limits,
     )

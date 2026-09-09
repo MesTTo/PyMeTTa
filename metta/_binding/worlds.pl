@@ -1,7 +1,7 @@
 % Purpose: admit and execute frozen worlds and compensating operations.
 % Assumes: loaded through _binding/shim.pl in its host module.
 % Owns resources: saga wrappers and the receipt sink until metta_py_saga_capture_end/1 releases them
-% [source: extensions/python/metta/_binding/worlds.pl:230; commit=WORKTREE].
+% [source: extensions/python/metta/_binding/worlds.pl:230; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
 % Guarded by: $metta_saga_wrappers serializes temporary predicate wrapping.
 
 %Plan the same direct or translated goal metta_py_eval/3 will call. Translation

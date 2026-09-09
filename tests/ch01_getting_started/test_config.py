@@ -2,7 +2,7 @@
 Guarantees:
   - native configuration helpers do not enlarge the host predicate namespace
     [tested: test_native_configuration_helpers_stay_out_of_the_host_namespace;
-    commit=WORKTREE]
+    commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e]
   - startup settings freeze after a successful consult while presentation
     settings remain live [tested: test_runtime_settings_freeze_after_startup,
     test_live_limits_control_declarations_and_rows; commit=f88aa8be03cb64cb59d3307515ded8701f418321]

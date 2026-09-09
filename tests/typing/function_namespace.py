@@ -2,7 +2,7 @@
 
 Guarantees: ordinary names, composite operators and exact bracket access retain
 their result types; unknown attributes remain errors rather than Any
-[tested: mypy; commit=WORKTREE].
+[tested: mypy; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
 """
 
 from typing import assert_type

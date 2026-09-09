@@ -2,7 +2,7 @@
 
 Guarantees: strongly connected components are enumerated before longest paths;
 mixed crossings, recursion and open dependencies remain separate findings
-[tested: tests/repository/test_door_order.py; commit=WORKTREE].
+[tested: tests/repository/test_door_order.py; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
 Owns resources: source files are read and closed during snapshot acquisition;
 the last source snapshot and its immutable report are cached in this process.
 Guarded by: functools.lru_cache protects publication; duplicate concurrent

@@ -2,7 +2,7 @@
 
 Guarantees: new modules, source edits, inherited protocols and independent
 page/navigation defects reach the real generator [tested: this file;
-commit=WORKTREE].
+commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
 """
 
 from __future__ import annotations

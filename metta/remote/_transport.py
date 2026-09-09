@@ -1,7 +1,7 @@
 """Purpose: validate wire replies and connect remote operations.
 
 Guarded by: _LIVE_SERVERS_LOCK protects the local server address registry used
-by _refuse_this_process [source: extensions/python/metta/remote/_transport.py:304; commit=WORKTREE].
+by _refuse_this_process [source: extensions/python/metta/remote/_transport.py:304; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
 """
 
 from __future__ import annotations

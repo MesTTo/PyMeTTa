@@ -174,7 +174,7 @@ def _runnable_forms(space: Any, program: str) -> list[str]:
     analyses one target; the reader is what turns the first into the second.
     A form's text excludes its leading `!`, which is exactly what the plan
     takes [source: extensions/python/metta/_binding/positions.py:90,
-    the reader's own contract; commit=WORKTREE].
+    the reader's own contract; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
     """
     row = space.runtime.must("metta_py_read_forms(Source, Forms)", Source=program)
     return [str(text) for kind, text in row["Forms"] if str(kind) == "runnable"]

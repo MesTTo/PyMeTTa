@@ -2,7 +2,7 @@
 
 Owns resources: _StatsBlock records a ContextVar token on entry and resets it
 after reading its exit snapshot. Copied worker contexts retain independent
-lifetimes [source: extensions/python/metta/_spaces/profile.py:208; commit=WORKTREE].
+lifetimes [source: extensions/python/metta/_spaces/profile.py:208; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
 """
 
 from __future__ import annotations

@@ -20,7 +20,7 @@ Assumes:
     rule uv uses for a project lock, so a checked-in lock travels with its
     program
   - `metta_py_source_loads/2` answers inside one transaction and refuses while
-    a load is in flight [source: extensions/python/metta/_binding/library.pl:57; commit=WORKTREE]
+    a load is in flight [source: extensions/python/metta/_binding/library.pl:57; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e]
 Guarantees:
   - a lock written and read back describes the same artefacts, and rewriting
     it beside itself reproduces its own bytes [tested:

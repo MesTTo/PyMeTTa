@@ -1,7 +1,7 @@
 """Purpose: describe the state shared by compiler lowering bands.
 Guarantees:
   - incomplete collaborators are refused before lowering starts [tested:
-    test_incomplete_compiler_is_refused_before_lowering; commit=WORKTREE]
+    test_incomplete_compiler_is_refused_before_lowering; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e]
   - expression lowering can inspect an exact host binding without executing
     an attribute lookup [tested:
     test_callable_mentions_share_operator_and_fourteen_math_names;

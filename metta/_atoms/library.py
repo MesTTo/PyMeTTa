@@ -79,7 +79,7 @@ def _attribute_safe(suffix: str) -> bool:
     """Whether a family suffix can be a dotted attribute, the same safety
     generated_aliases/1 applies to closed namespaces (identifier, not a
     keyword, no leading underscore, lowercase ASCII); an unsafe suffix stays
-    bracket-reachable [source: extensions/python/metta/_atoms/names.py:162, generated_aliases; commit=WORKTREE].
+    bracket-reachable [source: extensions/python/metta/_atoms/names.py:162, generated_aliases; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
     """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
     return (
         suffix.isidentifier()

@@ -8,7 +8,7 @@ program the same way it does any other module.
 
 The scalar half of the projection is the Python column of the one type table
 every surface reads [source: extensions/python/metta/_catalog/types.py:120;
-commit=WORKTREE], and the shapes Python spells structurally are this file's own:
+commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e], and the shapes Python spells structurally are this file's own:
 
     (-> A B) argument   Callable[[A], B]    (Literal 1 2)      Literal[1, 2]
     (->) return         None                NoneType           None
@@ -22,7 +22,7 @@ Assumes:
   - the parameter names are `x1..xn`, positional-only, which is what
     `_EngineFunction.__signature__` already answers for the same arrow, so the
     stub and `inspect.signature` agree [source:
-    extensions/python/metta/_declare/functions.py:254; commit=WORKTREE]
+    extensions/python/metta/_declare/functions.py:254; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e]
 Guarantees:
   - the text parses as Python, and a consumer calling a declared head with the
     wrong argument type fails `mypy --strict` while the right one passes

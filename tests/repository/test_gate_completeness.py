@@ -9,7 +9,7 @@ Assumes:
     - REPO locates the repository through this file's ancestry
     - `_disassemble` answers the Prolog text a MeTTa equation compiled
       to [source: extensions/python/metta/_declare/functions.py:722;
-      commit=WORKTREE]
+      commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e]
 Guarantees:
     - carrier type keywords retain their explicit public spelling
       [tested: test_the_ruff_configuration_enables_every_family_or_records_why_not; commit=074dc0a88b1605c54824de677d586b6f60998bcf]

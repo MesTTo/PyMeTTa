@@ -63,7 +63,7 @@ from metta.vocabularies import WIRE_TAGS, WireClass, WirePayload
 JSON_SCHEMA_DIALECT: Final = "https://json-schema.org/draft/2020-12/schema"
 
 #: The wire protocol revision the document describes, the same number
-#: `GET /health` answers [source: extensions/python/metta/remote/_gateway.py:1117; commit=WORKTREE].
+#: `GET /health` answers [source: extensions/python/metta/remote/_gateway.py:1117; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
 PROTOCOL: Final = 3
 
 #: JSON Schema for one class of wire payload. The engine's `(wire-tag ...)`

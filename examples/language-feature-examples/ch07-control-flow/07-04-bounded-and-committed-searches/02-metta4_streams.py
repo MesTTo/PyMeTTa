@@ -24,7 +24,7 @@ table puts collection work in Python.
 That last fold adds Python numbers, not atoms, so it reads the answers'
 carried scalars: `+` over a grounded atom STAGES `(+ ...)` rather than
 computing it, which is what makes `G(1) + 2` a term everywhere else in this
-corpus [source: extensions/python/metta/_atoms/model.py:923; commit=WORKTREE].
+corpus [source: extensions/python/metta/_atoms/model.py:923; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
 [measured 2026-08-24: `sum(m.fn.gen())` builds `(+ (+ (+ 0 1) 2) 3)`;
 commit=028b41a056cfd706e516cd0b945cbf69ac066da7].
 

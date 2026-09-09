@@ -5,9 +5,9 @@ Guarantees: each row's arguments, axes, implementation, refusals, tiers,
   test_boot_publishes_complete_typed_door_rows; commit=b615b5a33b43252ef9826e5387da7c9bd7f6b543].
   Nested constructors have distinct names, fixed arities and type
   arrows, including each optional variant [tested:
-  test_nested_door_records_have_declared_types; commit=WORKTREE].
+  test_nested_door_records_have_declared_types; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
   Body order metadata preserves the outer door record's storage arity
-  [tested: test_boot_publishes_complete_typed_door_rows; commit=WORKTREE].
+  [tested: test_boot_publishes_complete_typed_door_rows; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
 Owns resources: none. atoms() constructs values; door_catalog.pl owns the
   transactional publication and its previous snapshot.
 """

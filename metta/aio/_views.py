@@ -3,10 +3,10 @@
 Owns resources: views retain their worker resources until close; cancelled
 acquisition releases the completed resource before propagating cancellation
 [tested: test_aio_cancelled_subscription_registration_cancels_it;
-commit=WORKTREE].
+commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
 Guarded by: _opening serializes acquisition and _state_changed publishes
 subscription ownership across worker and event-loop threads [source:
-extensions/python/metta/aio/_views.py:371; commit=WORKTREE].
+extensions/python/metta/aio/_views.py:371; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
 """
 
 from __future__ import annotations

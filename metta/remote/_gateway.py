@@ -2,11 +2,11 @@
 
 Owns resources: Server.close stops the HTTP server and its engine worker;
 Gateway.close releases retained cursors
-[source: extensions/python/metta/remote/_gateway.py:1464, Gateway.close; commit=WORKTREE].
+[source: extensions/python/metta/remote/_gateway.py:1464, Gateway.close; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
 Guarded by: _Cursors._lock protects cursor retention, _RemoteWorker._lock
 protects worker state, and Server._close_lock serializes shutdown
 [source: extensions/python/metta/remote/_gateway.py:412,
-_RemoteWorker.__init__, Server.__init__; commit=WORKTREE].
+_RemoteWorker.__init__, Server.__init__; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
 """
 
 from __future__ import annotations
@@ -1063,7 +1063,7 @@ class Gateway:
         An undeclared position is `utf8` canonical text, marked
         `metta.kind=mixed`, as the shared type projection specifies
         [source: extensions/python/metta/_catalog/types.py:213,
-        arrow_kind; commit=WORKTREE].
+        arrow_kind; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
         """
         arrows = _projection.arrows_of(declared(space))
         types = _projection.column_types(pattern, columns, arrows)
@@ -1346,7 +1346,7 @@ class _RemoteWorker:
             # before starting another request [source:
             # extensions/python/metta/aio/_worker.py:525,
             # _EngineThread.interrupt_if_running;
-            # commit=WORKTREE].
+            # commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
             request.interrupted = True
             bridge().query_once(
                 "thread_signal(T, throw(error(metta_control_signal(interrupted, none), "

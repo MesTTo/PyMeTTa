@@ -1,7 +1,7 @@
 """Purpose: derive the import contract and package map from BUILDS_ON.
 
 Guarantees: both projections enumerate the declared package orders [tested:
-tests/checks/check_layering_selftest.py; commit=WORKTREE].
+tests/checks/check_layering_selftest.py; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
 """
 
 from __future__ import annotations

@@ -1,7 +1,7 @@
 """Purpose: record provider answers and compare replay and host twins.
 
 Guarantees: the public testing contracts survive the package partition
-[tested: test_the_prolog_twin_is_checked_against_its_reference; commit=WORKTREE].
+[tested: test_the_prolog_twin_is_checked_against_its_reference; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
 """
 
 from __future__ import annotations

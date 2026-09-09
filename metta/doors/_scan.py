@@ -2,7 +2,7 @@
 
 Guarantees: metadata executes only the door record grammar; importing a marked
 body is unnecessary for discovery [source:
-extensions/python/metta/doors/_scan.py:154; commit=WORKTREE].
+extensions/python/metta/doors/_scan.py:154; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
 """
 
 from __future__ import annotations

@@ -248,7 +248,7 @@ AVAILABLE = "P14C-AVAILABLE "
 #: ch18-performance/18-01-larger-workloads/05-matespacefast.metta;
 #: commit=9010a79b01c9b2a66b96a3952fa378fb3e939dc3]. The 8 GB is the library's own default
 #: [source: extensions/python/metta/_catalog/bounds.py:214, stack_limit 8_000_000_000;
-#: commit=WORKTREE]. 50,000 is two orders above the largest surplus the corpus
+#: commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e]. 50,000 is two orders above the largest surplus the corpus
 #: has ever shown (the specializer clusters name eight atoms a side) and one
 #: and a half below the space that broke it.
 CONTENT_CAP = 50_000
@@ -490,7 +490,7 @@ NAMING_NAMESPACES = frozenset({"S", "V", "fn"})
 #: the bracket spells. `fn` is deliberately absent: its catalog is generated and
 #: closed, so a bracket name it does not alias has no attribute spelling at all
 #: [source: extensions/python/metta/_atoms/names.py:162 generated_aliases;
-#: commit=WORKTREE].
+#: commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
 MINTING_NAMESPACES = frozenset({"S", "V"})
 
 #: Module-level constants a twin declares ABOUT itself rather than as
@@ -681,7 +681,7 @@ RETIRED_HANDLE = {
 #: 366 times in the old corpus. Only a call through a RECEIVER is read, so a
 #: twin's own local helper named `one` is nobody's business but its own
 #: [source: extensions/python/metta/_spaces/results.py:2040 Answers.one, Answers.first and
-#: Answers.count; ai-report-p14-r3.md corpus counts; commit=WORKTREE]
+#: Answers.count; ai-report-p14-r3.md corpus counts; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e]
 #: [measured 2026-08-24: `Answers.one` and `Answers.first` are
 #: `(self, *, default=...)`, so both defaults are KEYWORD-only and neither
 #: live call has a positional argument to be confused with the deleted one;
@@ -841,7 +841,7 @@ def _factory(node: ast.expr) -> tuple[str, str] | None:
 #: and `pre_add` compiles a RAW judge into the space before claiming the write
 #: door, so a judge written without a `@define` beneath it is lowered too
 #: [source: extensions/python/metta/_declare/definitions.py:1396, "A raw function is
-#: compiled into this space before claiming the hook"; commit=WORKTREE]
+#: compiled into this space before claiming the hook"; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e]
 #: [measured 2026-08-24: a bare `@space.pre_add` judge stores
 #: `(= (intake $a) (case ...))`, its match statement lowered to the case tower
 #: and its `accept`/`refuse` verdicts intact; commit=5c67147566907276a95a5fbf059cf8f98b6685f1].
@@ -863,7 +863,7 @@ COMPILING_DECORATORS = frozenset({"define", "pre_add", "rules"})
 #: Python's own structural equality and `.eq(...)` is the building spelling
 #: there; the operator rule below would report a correct bundle
 #: [source: extensions/python/metta/_declare/rules.py:184 rules, which calls the generator
-#: with Variable arguments; commit=WORKTREE].
+#: with Variable arguments; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
 LOWERING_DECORATORS = frozenset({"define", "cache", "pre_add"})
 
 #: Decorators whose body is HOST PYTHON rather than knowledge. An operation
@@ -1355,7 +1355,7 @@ def _subscripted_name(node: ast.Subscript) -> tuple[str, str, str] | None:
     to NFKC while parsing, so a non-ASCII spelling changes at the attribute
     door too. Both keep the bracket, which is rung 5 doing its job
     [source: extensions/python/metta/_atoms/names.py:101 attribute_name;
-    commit=WORKTREE]
+    commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e]
     [tested: test_an_exact_bracket_spelling_is_not_the_attribute_one;
     commit=8c057bb8055459cc13127d89b418deb634b90ae4].
     """
@@ -2470,7 +2470,7 @@ def _stored(relative: str, twin: Path, left: Run, right: Run) -> list[str]:
     The digest is the oracle and the atom lists are its diagnostics: both
     sides enumerate the same `get-atoms` the digest hashes
     [source: engine/filereader/source_lifecycle.pl, metta_host_digest/2 and
-    extensions/python/metta/_binding/store.pl:189, metta_py_atoms/2; commit=WORKTREE], so
+    extensions/python/metta/_binding/store.pl:189, metta_py_atoms/2; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e], so
     the surplus each side holds over the other names the atoms that moved the
     hash. A twin that MEANS to hold something its example does not pins the
     whole difference as DIVERGENCE and passes only while the difference is

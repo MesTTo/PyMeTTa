@@ -35,7 +35,7 @@ Decides:
     `S.add` reaches. It is a curation rather than every row: the spellings
     that door admits are settled one at a time, and `floordiv`'s composite
     image is the one that is not
-    [source: extensions/python/metta/_atoms/names.py:81, _COMPOSITE_OPERATOR_IMAGES; commit=WORKTREE]
+    [source: extensions/python/metta/_atoms/names.py:81, _COMPOSITE_OPERATOR_IMAGES; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e]
 Open Obligations:
   To Do: None
   Hacks: None

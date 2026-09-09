@@ -2,7 +2,7 @@
 
 Guarantees: marks retain function identity and overloads; class collections
 respect descriptor and MRO shadowing without evaluating annotations
-[tested: this file; commit=WORKTREE].
+[tested: this file; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
 """
 
 from __future__ import annotations

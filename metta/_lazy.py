@@ -3,17 +3,17 @@
 Owns resources: a meta-path finder selects deferred execution for the current
 thread. Importlib owns module locks and publication; _Execution unpublishes a
 failed deferred module and makes retained references repeat its error
-[tested: test_failed_lazy_module_cannot_publish_partial_values; commit=WORKTREE].
+[tested: test_failed_lazy_module_cannot_publish_partial_values; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
 Assumes: private lazy() targets retain their ordinary module object and class.
 Named exports and custom loaders use normal import_module instead.
 Guarded by: importlib's module lock protects initial publication, and its
 LazyLoader state lock serializes execution [source:
 https://github.com/python/cpython/blob/v3.12.12/Lib/importlib/util.py#L168-L270;
-commit=WORKTREE].
+commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
 Decides: packages and custom loaders execute normally; supported source modules
 defer execution unless METTA_EAGER_IMPORT=1 [source:
 https://github.com/python/cpython/blob/v3.12.12/Lib/importlib/util.py#L168-L302;
-commit=WORKTREE].
+commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
 """
 
 from __future__ import annotations

@@ -7,10 +7,10 @@ remain declarations in the stub and keep their real runtime module objects.
 
 Guarantees: init-stub compares the runtime root, catalog carrier declaration,
 door declarations and algebra consumer against these authorities [tested:
-init-stub; commit=WORKTREE].
+init-stub; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
 probe_text checks exact root and callable-algebra result types;
 Any and a non-callable module are independently rejected [tested:
-test_root_consumer_rejects_any_and_non_callable_exports; commit=WORKTREE].
+test_root_consumer_rejects_any_and_non_callable_exports; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
 """
 
 from __future__ import annotations

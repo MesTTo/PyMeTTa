@@ -2,7 +2,7 @@
 
 Guarantees: every effective Setting appears in the exact configure signature
 and its documented policy [tested:
-test_setting_declaration_reaches_every_projection; commit=WORKTREE].
+test_setting_declaration_reaches_every_projection; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
 """
 
 from __future__ import annotations

@@ -1,7 +1,7 @@
 """Purpose: resolve engine functions and describe their live declarations.
 
 Guarded by: _BUILTINS_CACHE_LOCK protects the shared callable catalog cache
-[source: extensions/python/metta/_declare/functions.py:562; commit=WORKTREE].
+[source: extensions/python/metta/_declare/functions.py:562; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
 """
 
 from __future__ import annotations

@@ -3,7 +3,7 @@
 Decides: _CURSOR_IDLE and _CURSOR_LIMIT bound cursor retention; _MUTATION_TTL
 and _MUTATION_LIMIT bound mutation replay retention
 [source: extensions/python/metta/remote/_defaults.py:9, _CURSOR_LIMIT,
-_MUTATION_TTL, _MUTATION_LIMIT; commit=WORKTREE].
+_MUTATION_TTL, _MUTATION_LIMIT; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
 """
 
 _CURSOR_IDLE = 300.0

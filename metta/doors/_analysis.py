@@ -2,13 +2,13 @@
 
 Assumes: source describes ordinary lexical imports and object construction.
 Dynamic dispatch which the assignment graph cannot resolve remains an open
-call site [tested: test_door_order_retains_unresolved_callbacks; commit=WORKTREE].
+call site [tested: test_door_order_retains_unresolved_callbacks; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
 Guarantees: aliases and helper arguments propagate to a fixed point before
 call facts are returned [tested: test_door_order_follows_aliases_and_helpers;
-commit=WORKTREE]. No analyzed source is imported or executed.
+commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e]. No analyzed source is imported or executed.
 Decides: Runtime and JanusBridge are local engine boundaries; third-party
 calls and supplied callbacks are open, while stdlib operations are host work
-[source: extensions/python/metta/_binding/runtime.py:363; commit=WORKTREE].
+[source: extensions/python/metta/_binding/runtime.py:363; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
 
 The finite assignment-set representation follows PyCG's published method:
 https://arxiv.org/abs/2103.00587. Lexical bindings, annotated receivers and

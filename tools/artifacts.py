@@ -2,7 +2,7 @@
 
 Guarantees: graphlib orders producers before consumers; the same declaration
 generates gate selection, literal commands and the contributor table [tested:
-tests/checks/check_generated_artifact_group_selftest.py; commit=WORKTREE].
+tests/checks/check_generated_artifact_group_selftest.py; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
 Fails when: an input, output or command is missing, output ownership overlaps,
 dependencies cycle, or any generated projection drifts.
 Decides: observed outputs require their explicit remeasurement command.

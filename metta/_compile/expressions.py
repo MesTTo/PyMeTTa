@@ -101,7 +101,7 @@ from metta._errors.errors import CompileError, Remedy, character_column
 # `ast` node class the compiler dispatches on. They were five hand-written
 # dicts holding their own copies of the selectors and the MeTTa heads; the
 # table's own rows carry both, so a head that moves moves once
-# [source: extensions/python/metta/_atoms/operators.py:215, BY_NODE; commit=WORKTREE].
+# [source: extensions/python/metta/_atoms/operators.py:215, BY_NODE; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
 
 
 def _by_node(pick) -> dict[type, str]:

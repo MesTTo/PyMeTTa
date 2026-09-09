@@ -1,7 +1,7 @@
 % Purpose: retain, advance and close host answer cursors.
 % Assumes: loaded through _binding/shim.pl in its host module.
 % Owns resources: held cursors and captured memory; metta_py_cursor_close/1 releases either cursor representation
-% [source: extensions/python/metta/_binding/cursors.pl:206; commit=WORKTREE].
+% [source: extensions/python/metta/_binding/cursors.pl:206; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
 
 %%%%%%%%%% Lazy cursors %%%%%%%%%%
 %

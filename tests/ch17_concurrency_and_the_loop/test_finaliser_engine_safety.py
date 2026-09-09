@@ -83,7 +83,7 @@ def _lazy_view(metta, prefix):
     # The count route declines to count an effect-bearing source cheaply and
     # RETAINS the answers in an engine instead, which is what leaves a cursor
     # for a finaliser to close [source: extensions/python/metta/_spaces/execution.py:656,
-    # _RetainedAnswers; commit=WORKTREE].
+    # _RetainedAnswers; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
     assert len(view) == 2
     return view
 

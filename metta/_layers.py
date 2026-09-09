@@ -1,10 +1,10 @@
 """Purpose: declare package foundations and derive their dependency orders.
 
 Guarantees: unknown foundations and cycles are refused before projections are
-computed [tested: tests/checks/check_layering_selftest.py; commit=WORKTREE].
+computed [tested: tests/checks/check_layering_selftest.py; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
 Decides: BUILDS_ON is the package dependency policy; import contracts, binding
 modes and published layer orders derive from it [source:
-extensions/python/metta/_layers.py:20; commit=WORKTREE].
+extensions/python/metta/_layers.py:20; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
 """
 
 from __future__ import annotations

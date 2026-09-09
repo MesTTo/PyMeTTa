@@ -2,25 +2,25 @@
 Assumes:
   - the project interpreter can import the local metta package and start the
     provisioned engine [tested: test_the_fn_namespace_is_generated;
-    commit=WORKTREE]
+    commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e]
 Guarantees:
   - runtime names and explicit typed members come from the same fresh catalog
     snapshot and generation is deterministic [tested:
-    test_the_fn_namespace_is_generated; commit=WORKTREE]
+    test_the_fn_namespace_is_generated; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e]
   - exact-only catalog spellings stay off the attribute surface instead of
     weakening static checks [tested:
     test_generated_aliases_keep_exact_only_spellings_on_the_bracket_door;
-    commit=WORKTREE]
+    commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e]
   - operator word aliases are generated from the same fixed vocabulary as
     both runtime fn forms, including composite ``neg`` [tested:
-    test_operator_words_precede_the_mechanical_name_map; commit=WORKTREE]
+    test_operator_words_precede_the_mechanical_name_map; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e]
   - executable phrasebook rows supply inert runtime and declaration documentation
     without starting the engine [tested: test_generated_fn_help_is_offline;
-    commit=WORKTREE]
+    commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e]
   - runtime exact names include INTERNAL catalog rows while generated docs and
     typed members include PUBLIC rows only [tested:
     test_internal_catalog_names_stay_exact_but_leave_public_outputs;
-    commit=WORKTREE]
+    commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e]
 Open Obligations:
   To Do: None
   Hacks: None

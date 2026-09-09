@@ -2,7 +2,7 @@
 
 Owns resources: _WatchIterator.close cancels its subscription, and its
 finalizer cancels an abandoned iterator
-[source: extensions/python/metta/_spaces/subscriptions.py:59; commit=WORKTREE].
+[source: extensions/python/metta/_spaces/subscriptions.py:59; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
 """
 
 from __future__ import annotations

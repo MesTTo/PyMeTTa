@@ -1,7 +1,7 @@
 % Purpose: parse source and decode prepared evaluation targets.
 % Assumes: loaded through _binding/shim.pl in its host module.
 % Owns resources: reader token registrations until metta_py_unregister_token/1 removes them
-% [source: extensions/python/metta/_binding/reader.pl:35; commit=WORKTREE].
+% [source: extensions/python/metta/_binding/reader.pl:35; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
 
 %%%%%%%%%% Parse and print %%%%%%%%%%
 

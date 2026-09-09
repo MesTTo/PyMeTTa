@@ -1,7 +1,7 @@
 """Purpose: check provider contracts and assert engine answer bags.
 
 Guarantees: the public testing contracts survive the package partition
-[tested: test_a_repeated_variable_liar_is_caught_by_the_folded_pattern; commit=WORKTREE].
+[tested: test_a_repeated_variable_liar_is_caught_by_the_folded_pattern; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
 """
 
 from __future__ import annotations
@@ -272,7 +272,7 @@ def _joined(pattern, atom):
     Check-side variables are named metta-check-*, so a collision would need
     a stored $metta-check-* variable.
     [source: extensions/python/metta/_atoms/factories.py:552 and
-    engine/spaces/bounded_matching.pl:metta_match_atoms/2; commit=WORKTREE]
+    engine/spaces/bounded_matching.pl:metta_match_atoms/2; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e]
     """
     bindings: dict = {}
     stack = [(_encode(pattern), _encode(atom))]

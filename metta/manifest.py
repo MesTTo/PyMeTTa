@@ -11,10 +11,10 @@ Assumes:
     live servers, takes the addresses a caller is about to serve, and raises
     MettaError for a URL either set covers; the manifest calls it rather than
     repeating it [source: extensions/python/metta/remote/_transport.py:304 _refuse_this_process;
-    commit=WORKTREE]
+    commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e]
   - metta.remote._raise_failures raises one failure on its own and several
     as a BaseExceptionGroup, the shape Server.close() already gives a
-    caller [source: extensions/python/metta/remote/_transport.py:261 _raise_failures; commit=WORKTREE]
+    caller [source: extensions/python/metta/remote/_transport.py:261 _raise_failures; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e]
 Guarantees:
   - the vocabulary is closed (load, attach, bridge, serve) and every form
     is validated before ANY form performs; a bad manifest changes nothing
@@ -188,7 +188,7 @@ def _served_addresses(
     are known before the attach forms perform; handing them to the guard is
     what makes an attach form refused whether it stands above or below the
     serve form that binds its port
-    [source: extensions/python/metta/remote/_transport.py:304 _refuse_this_process; commit=WORKTREE].
+    [source: extensions/python/metta/remote/_transport.py:304 _refuse_this_process; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
     """
     return tuple(
         (host, cast(Grounded, directive.children[2]).value)

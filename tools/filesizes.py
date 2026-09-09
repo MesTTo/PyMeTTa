@@ -3,7 +3,7 @@
 Assumes: artifacts.ARTIFACTS declares generated output ownership.
 Guarantees: generated regions are counted once, including their marker lines;
 empty and singleton distributions are defined [tested:
-test_file_sizes_use_declared_ownership; commit=WORKTREE].
+test_file_sizes_use_declared_ownership; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
 Fails when: source is unreadable or a declared generated region is malformed.
 Decides: Python, stub and Prolog source all count; 2,000 handwritten lines is
 a reported review boundary, not an automatic refusal or an exception roster.

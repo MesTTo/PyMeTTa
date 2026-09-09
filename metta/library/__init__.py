@@ -21,7 +21,7 @@ and the generated reference page from disagreeing about the same library.
 Assumes:
   - the roster is `lib/*/lib_*.metta` and `lib/*/lib_*.pl` under the running
     engine's tree, the same discovery `dir(metta.lib)` lists
-    [source: extensions/python/metta/_atoms/library.py:60, _library_source_files; commit=WORKTREE]
+    [source: extensions/python/metta/_atoms/library.py:60, _library_source_files; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e]
   - the engine answers which heads a form REGISTERS, so no spelling of
     `import_prolog_function` is written down here
     [source: engine/metta/interop.pl, metta_string_registrations/2]
@@ -108,7 +108,7 @@ def _root(root: str | os.PathLike[str] | None) -> str:
 
     A live runtime always has a tree; the fallback resolves the same one the
     runtime would have, so this answers before a boot as well as after
-    [source: extensions/python/metta/_binding/runtime.py:871, _resolve_metta_path; commit=WORKTREE].
+    [source: extensions/python/metta/_binding/runtime.py:871, _resolve_metta_path; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
     """
     if root is not None:
         return os.fspath(root)

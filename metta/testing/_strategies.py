@@ -1,7 +1,7 @@
 """Purpose: generate atoms and programs from their declared domains.
 
 Guarantees: the public testing contracts survive the package partition
-[tested: test_from_pattern_generates_ground_instances_without_losing_aliases; commit=WORKTREE].
+[tested: test_from_pattern_generates_ground_instances_without_losing_aliases; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
 """
 
 from __future__ import annotations

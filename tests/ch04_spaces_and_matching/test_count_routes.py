@@ -11,7 +11,7 @@ compares answer BAGS: order is unspecified in MeTTa, multiplicity is not.
 Assumes:
     - ``metta.op(effect="writesState")`` is the classification that makes the
       count door decline, and ``pure=True`` the one that makes it accept
-      [source: extensions/python/metta/_binding/evaluation.pl:309, metta_py_eval_repeatable/2; commit=WORKTREE]
+      [source: extensions/python/metta/_binding/evaluation.pl:309, metta_py_eval_repeatable/2; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e]
 Guarantees:
     - the retained route replays exactly the bag the evaluating cursor
       answers, over ground rows, sparse rows, repeated and shared variables,

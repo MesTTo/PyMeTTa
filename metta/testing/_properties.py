@@ -1,7 +1,7 @@
 """Purpose: derive property tests from head annotations and algebra laws.
 
 Guarantees: the public testing contracts survive the package partition
-[tested: test_the_boolean_semiring_passes_every_generated_law; commit=WORKTREE].
+[tested: test_the_boolean_semiring_passes_every_generated_law; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
 """
 
 from __future__ import annotations

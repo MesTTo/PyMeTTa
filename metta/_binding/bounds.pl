@@ -2,9 +2,9 @@
 % Assumes: _binding/shim.pl imports metta_py_mirror_bounds/0.
 % Guarantees: transaction helpers remain private to metta_python_bounds
 % [tested: test_native_configuration_helpers_stay_out_of_the_host_namespace;
-% commit=WORKTREE].
+% commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
 % Owns resources: one process listener and per-thread outer-frame markers; frame completion retires each marker
-% [source: extensions/python/metta/_binding/bounds.pl:66; commit=WORKTREE].
+% [source: extensions/python/metta/_binding/bounds.pl:66; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
 % Guarded by: $metta_bound_listener serializes process listener installation.
 
 :- module(metta_python_bounds, [metta_py_mirror_bounds/0]).
@@ -36,7 +36,7 @@ seam:catalog_row_changed(_Event, [limit, Name|_]) :-
 % https://github.com/SWI-Prolog/swipl-devel/blob/fc7ef84b949378b729052c3ade79c90ce5416abb/src/pl-transaction.c
 % https://github.com/SWI-Prolog/swipl-devel/blob/fc7ef84b949378b729052c3ade79c90ce5416abb/src/pl-event.c#L412-L467
 % [tested: test_configuration_rows_and_mirror_follow_outer_rollback;
-% commit=WORKTREE].
+% commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
 metta_py_bound_transaction :-
     ( nb_current('$metta_bound_transaction', _) -> true
     ; prolog_current_frame(Current),

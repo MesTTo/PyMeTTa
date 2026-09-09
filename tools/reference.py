@@ -6,7 +6,7 @@ lines preserve reference URLs through moves.
 
 Guarantees: source edits, inherited methods, callable modules and a new public
 module change the generated pages and navigation [tested:
-test_reference_discovers_exports_inheritance_and_new_modules; commit=WORKTREE].
+test_reference_discovers_exports_inheritance_and_new_modules; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
 Fails when: a declared public export or its source cannot be resolved. The
 reference refuses rather than publishing an incomplete API.
 """

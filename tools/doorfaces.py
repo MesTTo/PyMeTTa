@@ -10,7 +10,7 @@ https://github.com/pola-rs/polars/blob/b4755d7ad1d3e9c42fc3711a09961fff492fe46c/
 
 Decides: foundation calls bind directly and higher calls use lazy modules;
 the package lattice decides which applies [source:
-extensions/python/metta/_layers.py:107; commit=WORKTREE].
+extensions/python/metta/_layers.py:107; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
 """
 
 from __future__ import annotations

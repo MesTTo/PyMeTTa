@@ -2,7 +2,7 @@
 
 Owns resources: RemoteCursor.close releases its server token. A failed stop
 retains the token so the caller can retry
-[source: extensions/python/metta/remote/_client.py:220; commit=WORKTREE].
+[source: extensions/python/metta/remote/_client.py:220; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
 """
 
 from __future__ import annotations

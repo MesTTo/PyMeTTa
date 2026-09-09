@@ -3,7 +3,7 @@
 Owns resources: MeTTaBase.close releases the context's minted home and spaces.
 Borrowed spaces survive. _release_abandoned_world defers an abandoned home's
 drop to the engine [source: extensions/python/metta/_spaces/context.py:148,
-_release_abandoned_world; commit=WORKTREE].
+_release_abandoned_world; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
 """
 
 from __future__ import annotations

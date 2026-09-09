@@ -307,7 +307,7 @@ _.integration
 _._catalog_of
 # Two names the package itself never loads, and neither is dead. PROLOG calls
 # `_carrier_type_accepts` by name through seam:grounded_algebra_type/3
-# [source: extensions/python/metta/_binding/algebra.pl:9; commit=WORKTREE], which
+# [source: extensions/python/metta/_binding/algebra.pl:9; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e], which
 # is the whole point of that seam: the owning host applies a carrier predicate
 # without the atom kinds being erased on the way. `boot_seconds` is a property
 # a CALLER reads off a pool it was handed, and the caller is outside this
@@ -322,7 +322,7 @@ _.boot_seconds
 # so a host carrier predicate can decide an algebra's membership question. No
 # Python name load reaches it, which is what makes it invisible to a
 # reachability scan [source: extensions/python/metta/_binding/algebra.pl:9,
-# seam:grounded_algebra_type/3; commit=WORKTREE].
+# seam:grounded_algebra_type/3; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
 _carrier_type_accepts
 
 # Read by a SIBLING SEAT, which this scan does not reach: the C seat's
@@ -344,7 +344,7 @@ _.drifted_versions
 # that lands in or leaves `&metta`, which is what keeps the seat's mirror of
 # the bounds in step with a write it never saw. No Python name load reaches it
 # [source: extensions/python/metta/_binding/bounds.pl:24, seam:catalog_row_changed/2;
-# commit=WORKTREE].
+# commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
 bound_row_changed
 # A generated row's own field, read by the suite this scan does not walk:
 # tests/repository/test_refusal_rows.py's
@@ -355,11 +355,11 @@ bound_row_changed
 _.departure
 
 # The Python import protocol calls the callback module's lazy resolver.
-# [source: extensions/python/metta/_binding/callbacks.py:__getattr__; commit=WORKTREE].
+# [source: extensions/python/metta/_binding/callbacks.py:__getattr__; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
 __getattr__
 
 # The native host adapter calls these through Janus and its checked goal door.
-# [source: extensions/python/metta/_binding/surface.pl:metta_py_call/3; commit=WORKTREE].
+# [source: extensions/python/metta/_binding/surface.pl:metta_py_call/3; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
 stream_tag
 declare_type
 declared_type_texts
@@ -379,17 +379,17 @@ iterate_once
 sequence_length
 
 # Native transaction frames keep the Python mirror aligned with rollback.
-# [source: extensions/python/metta/_binding/bounds.pl:metta_py_bound_transaction/0, metta_py_bound_frame_finished/1; commit=WORKTREE].
+# [source: extensions/python/metta/_binding/bounds.pl:metta_py_bound_transaction/0, metta_py_bound_frame_finished/1; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
 bound_transaction_started
 bound_transaction_finished
 
 # Public configuration and collected marks are read by consumers and tests.
-# [tested: tests/ch01_getting_started/test_config.py, tests/repository/test_door_marks.py; commit=WORKTREE].
+# [tested: tests/ch01_getting_started/test_config.py, tests/repository/test_door_marks.py; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
 _.configure
 _.__door_members__
 
 # Generators consume package order and the row fields outside this scan.
-# [source: extensions/python/tools/doorfaces.py:Emitter, extensions/python/tools/layergen.py:projections, extensions/python/tools/aio_divergences.py; commit=WORKTREE].
+# [source: extensions/python/tools/doorfaces.py:Emitter, extensions/python/tools/layergen.py:projections, extensions/python/tools/aio_divergences.py; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
 binding_mode
 layer_groups
 _.async_signature
@@ -399,10 +399,10 @@ _.context_inplace
 _.is_property
 
 # Source discovery reads these marked class bodies without constructing them.
-# [source: extensions/python/metta/doors/_scan.py:_read; commit=WORKTREE].
+# [source: extensions/python/metta/doors/_scan.py:_read; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
 _RowsSugar
 _AnswersSugar
 
 # A provider name is a generated descriptor resolved from its live door rows.
-# [tested: tests/repository/test_door_rows.py::test_a_retained_namespace_observes_replacement_and_withdrawal; commit=WORKTREE].
+# [tested: tests/repository/test_door_rows.py::test_a_retained_namespace_observes_replacement_and_withdrawal; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
 _.arrays

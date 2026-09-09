@@ -18,7 +18,7 @@ Guarantees:
       test_every_operator_projection_is_this_table; commit=c26b6a4d28ef8fb50742440feed2c0578ebb0f58]
 Owns resources: scratch_space drops the temporary matmul equation after the
     operator test [tested: test_the_operator_table_is_generated_from_one_source_with_no_holes;
-    commit=WORKTREE].
+    commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
 Assumes:
     - Python's operator dunders are a closed universe, so enumerating a
       fixed list of them IS deriving the surface: a new overload lands in

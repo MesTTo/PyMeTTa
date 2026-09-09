@@ -3,7 +3,7 @@
 Guarantees: importing this namespace requires neither Hypothesis nor pytest;
 named exports retain their implementation objects [tested:
 test_the_testing_module_names_both_suites_without_importing_them;
-commit=WORKTREE].
+commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
 """
 
 from typing import TYPE_CHECKING

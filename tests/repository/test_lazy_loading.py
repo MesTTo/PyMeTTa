@@ -2,9 +2,9 @@
 
 Guarantees: failed imports cannot publish partial state; concurrent readers
 observe one execution; custom module objects keep normal import semantics
-[tested: this file; commit=WORKTREE].
+[tested: this file; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
 Owns resources: temporary modules, finder and search path entries are removed
-by fixtures after each test [source: extensions/python/tests/repository/test_lazy_loading.py:module_tree; commit=WORKTREE].
+by fixtures after each test [source: extensions/python/tests/repository/test_lazy_loading.py:module_tree; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
 """
 
 from __future__ import annotations

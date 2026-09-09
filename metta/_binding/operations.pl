@@ -1,7 +1,7 @@
 % Purpose: register and invoke Python operations through the native wire.
 % Assumes: loaded through _binding/shim.pl in its host module.
 % Owns resources: operation declarations until metta_py_unregister_op/2 removes their native registrations
-% [source: extensions/python/metta/_binding/operations.pl:903; commit=WORKTREE].
+% [source: extensions/python/metta/_binding/operations.pl:903; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
 
 %%%%%%%%%% Python-backed MeTTa functions %%%%%%%%%%
 %

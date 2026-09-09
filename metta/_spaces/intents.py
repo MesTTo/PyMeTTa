@@ -6,7 +6,7 @@ Assumes:
 Guarantees:
   - caller discovery skips every internal package, including generated faces
     [tested: test_a_sync_engine_call_inside_async_def_is_linted_not_refused;
-    commit=WORKTREE]
+    commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e]
   - ``# metta: ok(<rule>)`` comments are tokenized, bound to one statement,
     reflected as ``lint-intent`` data, and never alter execution [tested:
     test_a_named_metta_ok_intent_suppresses_only_its_bound_rule; commit=acb40f1912f131ae088083d1af29b4b283019bea]

@@ -16,7 +16,7 @@ Guarantees:
     iterative tree algorithms [source: extensions/python/metta/_atoms/wire.py:315
     _from_wire and psf/black pytree.py post_order at upstream commit
     8947c48ef2077c3a301b03c1e814dc2e3f78436e;
-    commit=WORKTREE]
+    commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e]
   - every node class is a projection of one declared row: the parser reads the
     row's field list rather than counting positions by hand, and `_check_rows()`
     holds each class's dataclass fields to that list at import, both ways, so a

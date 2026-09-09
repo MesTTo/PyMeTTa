@@ -2,7 +2,7 @@
 
 Owns resources: registrations belong to their engine extension identity;
 unregister_prolog releases that extension's registrations and clauses
-[source: extensions/python/metta/_declare/prolog.py:377; commit=WORKTREE].
+[source: extensions/python/metta/_declare/prolog.py:377; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
 """
 
 from __future__ import annotations

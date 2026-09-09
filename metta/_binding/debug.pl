@@ -1,7 +1,7 @@
 % Purpose: hold and resume debugger stops across host calls.
 % Assumes: loaded through _binding/shim.pl in its host module.
 % Owns resources: held debugger engines until metta_py_debug_close/1 releases them
-% [source: extensions/python/metta/_binding/debug.pl:51; commit=WORKTREE].
+% [source: extensions/python/metta/_binding/debug.pl:51; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
 
 %%%%%%%%%% The debugger %%%%%%%%%%
 %

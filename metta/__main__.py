@@ -69,7 +69,7 @@ Guarantees:
     test_a_locked_run_refuses_on_drift_and_runs_on_agreement; commit=ff4257005f562786e3ef7a5a37ce94b7d80e782d]
 Owns resources: extension new exclusively creates its destination directory;
   failed writes remove that owned tree and cleanup failures retain both errors
-  [tested: test_scaffold_removes_partial_output; commit=WORKTREE].
+  [tested: test_scaffold_removes_partial_output; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
 Open Obligations:
   To Do: None
   Hacks: None

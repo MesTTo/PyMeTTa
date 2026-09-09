@@ -2,7 +2,7 @@
 
 Guarantees: generated signatures, overloads and docs agree with synchronous
 doors; handwritten worker parameters follow their declared divergence
-[tested: this file; commit=WORKTREE].
+[tested: this file; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
 Owns resources: mutation witnesses use temporary source or scoped reads and
 leave the checked-in projections unchanged.
 """

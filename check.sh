@@ -15,7 +15,7 @@
 #   commit=5e0ae6c22d604c4b980766e3cc4811ee545e5c9e], the class door's PEP 681
 #   declaration is executable in a consumer file, and stubtest holds the root
 #   declaration against the runtime [tested: mypy-class-door, stubtest;
-#   commit=WORKTREE]. The TypeScript space
+#   commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e]. The TypeScript space
 #   example's own suite runs, which nothing ran before it, so the four
 #   claims citing one of its cases name a suite a lane reaches
 #   [tested: ts-space; commit=45615fb15d8a1d041e3ce0698d789d4d1392a0eb].

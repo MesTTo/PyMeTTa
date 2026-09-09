@@ -10,7 +10,7 @@ runtime-backed Python semantics it needs are declared as visible operations.
 Guarantees:
   - importing a declaration or library module first completes in both lazy
     and eager modes [tested: test_each_module_imports_first_in_a_fresh_process;
-    commit=WORKTREE]
+    commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e]
   - ``async def`` refuses with both executable alternatives: ``@op`` returns
     a FutureSpace, while ``aio.AsyncMeTTa.call`` keeps orchestration in the
     host event loop [tested:

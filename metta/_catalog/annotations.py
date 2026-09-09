@@ -29,7 +29,7 @@ Guarantees:
   - the public Space handle annotation denotes the engine's ``SpaceType``
     instead of declaring an unrelated user type [tested:
     test_compiled_removal_statements_preserve_one_many_missing_and_target_scope;
-    commit=WORKTREE]
+    commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e]
   - an annotation the runtime cannot name costs only itself: the annotations
     beside it still declare their types, and the refusal fires where the
     unresolvable one is consumed as a type [tested:
@@ -100,7 +100,7 @@ def metta_type_for(annotation: Any) -> str:
     # Native identity belongs to the handle base, including generated and
     # user subclasses. The call-time import keeps the annotation layer below
     # the handle layer [tested: test_native_space_annotations_follow_the_handle_base;
-    # commit=WORKTREE].
+    # commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
     if (isinstance(annotation, type) and issubclass(annotation, Handle)
             and issubclass(annotation, lazy("metta._spaces.handle").SpaceHandle)):
         return "SpaceType"

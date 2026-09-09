@@ -1,7 +1,7 @@
 % Purpose: manage atom and committed-segment subscriptions.
 % Assumes: loaded through _binding/shim.pl in its host module.
 % Owns resources: subscription and segment hook references while consumers remain registered
-% [source: extensions/python/metta/_binding/subscriptions.pl:60, metta_py_segments/1; commit=WORKTREE].
+% [source: extensions/python/metta/_binding/subscriptions.pl:60, metta_py_segments/1; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
 % Guarded by: $metta_py_subscriptions serializes hook and consumer changes.
 
 %%%%%%%%%% Subscriptions %%%%%%%%%%
@@ -106,7 +106,7 @@ metta_py_remove_segment_hook :-
 
 %A Python bool crosses as @(true) / @(false), janus's own convention for the
 %three values Prolog has no atom for [source: extensions/python/metta/_binding/json.pl:42,
-%metta_py_json_options/1 and the capture flag at metta_py_run_options/2; commit=WORKTREE].
+%metta_py_json_options/1 and the capture flag at metta_py_run_options/2; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
 metta_py_segments(Enabled) :-
     with_mutex('$metta_py_subscriptions',
                ( Enabled == @(true)

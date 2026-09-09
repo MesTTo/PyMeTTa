@@ -3,7 +3,7 @@
 Guarantees: worker-owned methods remain in aio/_worker.py, and every ordinary
 mirror uses the common signature, overload, docstring and call emitter
 [tested: test_the_async_mirror_is_generated_from_the_sync_surface;
-commit=WORKTREE].
+commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
 """
 
 from __future__ import annotations

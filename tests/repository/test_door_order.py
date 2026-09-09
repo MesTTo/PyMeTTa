@@ -1,7 +1,7 @@
 """Purpose: discriminate source-derived door orders from plausible integers.
 
 Guarantees: aliases, helper calls, native crossings, open callbacks and SCCs
-have independent witnesses [tested: this file; commit=WORKTREE].
+have independent witnesses [tested: this file; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
 """
 
 from __future__ import annotations

@@ -57,7 +57,7 @@ import metta._catalog.bounds as config_module
 from metta import MeTTa, S, V
 
 #: What the constant was before the bound became a row [source:
-#: extensions/python/metta/_catalog/bounds.py:206, _DEFAULTS; commit=WORKTREE].
+#: extensions/python/metta/_catalog/bounds.py:206, _DEFAULTS; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
 SHIPPED_CHUNK_CAP = 64
 
 

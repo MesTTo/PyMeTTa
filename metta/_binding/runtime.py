@@ -407,7 +407,7 @@ _STATE = _EngineState()
 #: and the six it omitted -- `stack` and `source` among them -- arrived as a
 #: bare EngineError with the ball's own sentence and nothing to react to
 #: [source: extensions/python/metta/_errors/refusals.py:70; the two gaps were recorded in
-#: tests/data/error-kinds.json until this table stopped being hand-written; commit=WORKTREE].
+#: tests/data/error-kinds.json until this table stopped being hand-written; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
 _EXCEPTION_TYPES = refusal_classes()
 
 

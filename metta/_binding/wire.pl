@@ -320,7 +320,7 @@ metta_py_decode_(p, [S], Space) :-
 % library(hashtable) uses backtrackable updates, so failure rolls back both
 % the index and the term. The existing wide-query decoder owns that frame
 % [source: extensions/python/metta/_binding/wire.pl:428;
-% commit=WORKTREE].
+% commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
 metta_py_decode_shared(Tagged, Term, Bindings) :-
     metta_py_decode_shared_(Tagged, Term, indexed([], Index), indexed(Bindings, Index)).
 

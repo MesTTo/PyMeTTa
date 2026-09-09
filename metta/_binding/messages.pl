@@ -1,7 +1,7 @@
 % Purpose: forward engine messages with a reentrancy guard.
 % Assumes: loaded through _binding/shim.pl in its host module.
 % Owns resources: the thread message guard only during delivery; setup_call_cleanup/3 clears it
-% [source: extensions/python/metta/_binding/messages.pl:35; commit=WORKTREE].
+% [source: extensions/python/metta/_binding/messages.pl:35; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
 
 %%%%%%%%%% Engine messages %%%%%%%%%%
 %

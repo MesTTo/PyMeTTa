@@ -13,7 +13,7 @@ Assumes:
     indexing the same parsed-form list metta_py_read_forms/2 answers, so the
     walk below is what turns an index into a line
     [source: extensions/python/metta/_binding/positions.pl:36 metta_py_origin/3;
-    commit=WORKTREE]
+    commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e]
 Guarantees:
   - a locator/reader disagreement raises instead of guessing [tested
     test_a_locator_mismatch_refuses]

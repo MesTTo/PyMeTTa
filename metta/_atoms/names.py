@@ -69,7 +69,7 @@ _NEG: Final[OperatorRecipe] = OperatorRecipe("neg", "-", (0,), "(- 0 x)")
 # image has not been settled, so its row is not marked and the door stays
 # refused [source: https://docs.python.org/3.14/library/operator.html;
 # extensions/python/metta/_atoms/operators.py:84, OperatorLowering.word;
-# commit=WORKTREE]
+# commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e]
 OPERATOR_WORDS: Final[dict[str, str | OperatorRecipe]] = {
     _lowerings.selector(entry): (
         _NEG if entry.dunder == "__neg__" else entry.word_head or str(entry.form)

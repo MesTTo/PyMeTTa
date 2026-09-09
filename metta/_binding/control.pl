@@ -1,7 +1,7 @@
 % Purpose: bound and capture execution and account for interrupt polling.
 % Assumes: loaded through _binding/shim.pl in its host module.
 % Owns resources: held-engine output redirection; cleanup restores current_output
-% [source: extensions/python/metta/_binding/control.pl:416; commit=WORKTREE].
+% [source: extensions/python/metta/_binding/control.pl:416; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
 
 %%%%%%%%%% Guarded and captured calls %%%%%%%%%%
 %

@@ -429,7 +429,7 @@ metta_py_cycle_check(Value, Seen, [Id|Seen]) :-
 %read back for every query so variables are fresh and repeated occurrences
 %still share, as an asserted clause did [source:
 %extensions/python/metta/_atoms/model.py:341, boxed()'s weak identity cache;
-%commit=WORKTREE].
+%commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
 metta_py_declare_type(Obj, _Type, Declared) :-
     \+ python_object_blob(Obj),
     !,

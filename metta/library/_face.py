@@ -31,7 +31,7 @@ Guarantees:
   - a head is the import's module prefix and the tree's one Python-to-MeTTa
     name map, so `requires_grad_` reaches `torch-requires-grad` exactly as
     `S.not_` reaches `not`
-    [source: extensions/python/metta/_atoms/names.py:101; commit=WORKTREE]
+    [source: extensions/python/metta/_atoms/names.py:101; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e]
     [tested: test_a_head_is_the_prefix_and_the_one_name_map; commit=7229962705d199fb08796b3090ec5a8a3a0ae393]
   - the served arities are `integrate.module_ops`'s own rule, shared rather
     than restated, so the written face and the run-time registration answer at
@@ -97,7 +97,7 @@ GENERATOR: Final = "extensions/python/tools/facegen.py"
 #: A `;Field: value` line of a face's header block, the same shape a library's
 #: own header uses so `metta.library` reads a generated face's summary exactly
 #: as it reads a hand-written one
-#: [source: extensions/python/metta/library/__init__.py:87; commit=WORKTREE].
+#: [source: extensions/python/metta/library/__init__.py:87; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
 _FIELD: Final = re.compile(r"^;+\s*([A-Z][A-Za-z ]*):\s*(.*)$")
 
 #: The determinism every face head declares. One py-call answers once, which
@@ -373,7 +373,7 @@ class Face:
         whose result nothing declares is `oracleIO`, the top, exactly what the
         bridge declares for `py-call` itself
         [source: extensions/python/ext/metta-arrays/metta_arrays.py:install;
-        extensions/python/metta/_binding/surface.pl:743, seam:extension_builtin('py-call', oracleIO); commit=WORKTREE].
+        extensions/python/metta/_binding/surface.pl:743, seam:extension_builtin('py-call', oracleIO); commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
         """
         derived = _derived_effect(forms)
         review = self._manifest.declared_effect(name.local)
@@ -458,7 +458,7 @@ def read(text: str) -> Manifest | None:
             #The purpose is prose and prose wraps, so a line under it and above
             #the next field continues it, which is how a library's own header
             #reads its summary too
-            #[source: extensions/python/metta/library/__init__.py:490; commit=WORKTREE].
+            #[source: extensions/python/metta/library/__init__.py:490; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
             if describing:
                 purpose.append(stripped.lstrip(";").strip())
             continue
@@ -549,7 +549,7 @@ def _module_of(path: str) -> Any:
     """The module an import's path names, importing the longest prefix.
 
     The same resolution `py-atom` performs for a dotted name of any depth
-    [source: extensions/python/metta/_binding/host.py:728, resolve; commit=WORKTREE].
+    [source: extensions/python/metta/_binding/host.py:728, resolve; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
     """
     return importlib.import_module(_module_prefix(path))
 
@@ -578,7 +578,7 @@ def _module_names(module: Any) -> list[str]:
     The module's own `__all__` when it declares one, and otherwise its public
     callables that are not classes, which is `integrate.module_ops`'s rule for
     a module handed no name list
-    [source: extensions/python/metta/integrate.py:458; commit=WORKTREE].
+    [source: extensions/python/metta/integrate.py:458; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
     Sorted, so the face is the same text whatever order the module's namespace
     happens to be in.
     """
@@ -624,7 +624,7 @@ def _signature_of(target: Any) -> inspect.Signature | None:
     the module typed. The resolver is the one `@m.define` uses, so an
     annotation neither can name stands in as `Unresolved` rather than costing
     the annotations beside it
-    [source: extensions/python/metta/_catalog/annotations.py:560; commit=WORKTREE].
+    [source: extensions/python/metta/_catalog/annotations.py:560; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
     """
     if not callable(target):
         return None
@@ -912,7 +912,7 @@ def _equation(name: Name, form: CallForm) -> str:
     Which of `py-call`'s three spellings depends on what the name IS: a module
     function is `(mod.fun ...)`, a class member is `(.method receiver ...)`,
     and anything that is not callable is read with `getattr`
-    [source: extensions/python/metta/_binding/surface.pl:839, 'py-call'/3; commit=WORKTREE].
+    [source: extensions/python/metta/_binding/surface.pl:839, 'py-call'/3; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
     """
     variables = [Variable(parameter.name) for parameter in form.parameters]
     head = Expression([Symbol(name.head), *variables])

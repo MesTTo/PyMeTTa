@@ -2,7 +2,7 @@
 
 Guarantees: no rejected input or failed write leaves a partial distribution,
 and generated declarations carry the same namespace as their metadata
-[tested: this file; commit=WORKTREE].
+[tested: this file; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
 """
 
 from __future__ import annotations

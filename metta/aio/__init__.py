@@ -2,10 +2,10 @@
 
 Decides: DEFAULT_CLOSE_TIMEOUT gives worker shutdown ten seconds unless the
 caller supplies another bound [tested: test_policy_constants_are_final;
-commit=WORKTREE].
+commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
 Owns resources: connect transfers its started worker to the returned AsyncMeTTa;
 cancelled startup closes the worker [tested:
-test_aio_cancelled_connect_leaves_no_live_worker; commit=WORKTREE].
+test_aio_cancelled_connect_leaves_no_live_worker; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
 """
 
 from __future__ import annotations

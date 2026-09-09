@@ -2,7 +2,7 @@
 
 Owns resources: Cursor._finish closes an opened query on exhaustion or close;
 Cursor._reap defers abandonment cleanup to the engine
-[source: extensions/python/metta/_spaces/cursor.py:374, Cursor._reap; commit=WORKTREE].
+[source: extensions/python/metta/_spaces/cursor.py:374, Cursor._reap; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
 """
 
 from __future__ import annotations
@@ -319,7 +319,7 @@ class Cursor:
         # program that rewrites the `(limit chunk-cap ...)` row therefore
         # reaches every cursor opened after the write. The read is the seat's
         # mirror of that row and costs no crossing; the engine announces the
-        # write instead [source: extensions/python/metta/_catalog/bounds.py:404, _MIRROR; commit=WORKTREE].
+        # write instead [source: extensions/python/metta/_catalog/bounds.py:404, _MIRROR; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
         self._cap = config.chunk_cap
         self._drained = False
         # The finalizer is the last guard, not the contract: it destroys

@@ -24,7 +24,7 @@ have no strategy of their own, and a signature naming one is told so there.
 The rows are `_type_annotations.py`'s forward table read backwards, so a type
 that gains a Python spelling gains the other three in the same edit
 [source: extensions/python/metta/_catalog/annotations.py:77,
-_METATYPE_NAMES; commit=WORKTREE].
+_METATYPE_NAMES; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
 
 Assumes:
   - the caller has already reduced a type ATOM to this table's key where it can:

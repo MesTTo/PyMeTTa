@@ -1,7 +1,7 @@
 % Purpose: encode trace events and bracket observation sessions.
 % Assumes: loaded through _binding/shim.pl in its host module.
 % Owns resources: observation wrappers between metta_py_observe_begin/1 and metta_py_observe_end/1
-% [source: extensions/python/metta/_binding/trace.pl:85; commit=WORKTREE].
+% [source: extensions/python/metta/_binding/trace.pl:85; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
 
 %The tracer answers terms; putting them on the wire is the shim's job, as
 %it is for every other atom leaving the engine. A call event has no answer

@@ -1,7 +1,7 @@
 % Purpose: register and invoke host providers for foreign spaces.
 % Assumes: loaded through _binding/shim.pl in its host module.
 % Owns resources: provider and capability registrations until metta_py_unregister_foreign/1 removes them
-% [source: extensions/python/metta/_binding/foreign.pl:329; commit=WORKTREE].
+% [source: extensions/python/metta/_binding/foreign.pl:329; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
 
 %%%%%%%%%% Foreign spaces %%%%%%%%%%
 %

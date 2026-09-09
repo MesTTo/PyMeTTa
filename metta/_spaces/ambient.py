@@ -2,10 +2,10 @@
 
 Guarantees: engine() creates one cached default context on first use; ordinary
 imports create no runtime [tested: test_m7_satellites_are_lazy_and_identity_stable;
-commit=WORKTREE].
+commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
 Owns resources: the process-default context retains its borrowed &self space;
 temporary contexts remain the caller's responsibility [source:
-extensions/python/metta/_spaces/ambient.py:50; commit=WORKTREE].
+extensions/python/metta/_spaces/ambient.py:50; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
 """
 
 from __future__ import annotations

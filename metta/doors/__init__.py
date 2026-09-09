@@ -2,7 +2,7 @@
 
 Assumes: body references name Python implementations with the declared signature.
 Guarantees: DoorOwner collections follow descriptor and MRO shadowing without
-  executing descriptors [tested: tests/repository/test_door_marks.py; commit=WORKTREE].
+  executing descriptors [tested: tests/repository/test_door_marks.py; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
 Guarantees: the table imports without starting an engine, and every public
   projection is checked against it [tested: test_door_rows_need_no_engine,
   test_every_door_projection_is_current; commit=b615b5a33b43252ef9826e5387da7c9bd7f6b543].

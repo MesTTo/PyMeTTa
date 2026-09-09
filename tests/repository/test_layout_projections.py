@@ -1,7 +1,7 @@
 """Purpose: prove settings and layer projections reject drift and reach boot.
 
 Guarantees: a defect in each generated region is refused, and the reflected
-layer rows equal the declared graph [tested: this file; commit=WORKTREE].
+layer rows equal the declared graph [tested: this file; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
 """
 
 from __future__ import annotations

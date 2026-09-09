@@ -15,7 +15,7 @@ Assumes:
     (_as_atom, _canonical) and the tabling call spelling and counters
     (_call_spelling, _table_report), and imports nothing from here at module
     level [source: extensions/python/metta/structures.py:653;
-    commit=WORKTREE]
+    commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e]
 Guarantees:
   - a shared table refuses the transactional seed and names the private policy
     [tested: test_a_shared_tabled_view_refuses_its_transactional_seed;

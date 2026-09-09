@@ -26,12 +26,12 @@ Assumes:
 Guarantees:
   - a setting declaration supplies validation, environment input, help and
     generated configure parameters [tested:
-    test_setting_declaration_reaches_every_projection; commit=WORKTREE]
+    test_setting_declaration_reaches_every_projection; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e]
   - omitted configuration values retain precise integer parameter types
-    [tested: test_setting_configuration_preserves_the_public_value_type; commit=WORKTREE]
+    [tested: test_setting_configuration_preserves_the_public_value_type; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e]
   - configuration writes roll back as a unit, including their shared mirror
     [tested: test_configuration_publication_failure_restores_every_setting,
-    test_configuration_rows_and_mirror_follow_outer_rollback; commit=WORKTREE]
+    test_configuration_rows_and_mirror_follow_outer_rollback; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e]
   - invalid METTA_* environment values stop package import with a named error
     [tested test_configuration_reads_and_validates_environment]
   - every row-backed setting is a `(limit ...)` row once an engine runs, a

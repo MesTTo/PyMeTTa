@@ -2,7 +2,7 @@
 
 Owns resources: SpaceHandle.drop releases owned backing state and subscriptions.
 Failed cleanup retains its state for retry before an anonymous name is pooled
-[source: extensions/python/metta/_spaces/handle.py:544; commit=WORKTREE].
+[source: extensions/python/metta/_spaces/handle.py:544; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
 """
 
 from __future__ import annotations
@@ -418,7 +418,7 @@ class SpaceHandle(Handle):
         the space. `MeTTa.self` answers the same question for a context, whose
         answer is its home space, which is what makes `m.self` one attribute
         read at every door that takes either [source:
-        extensions/python/metta/_atoms/designation.py:97, SpaceLike; commit=WORKTREE].
+        extensions/python/metta/_atoms/designation.py:97, SpaceLike; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
         """
         return self
 

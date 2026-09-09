@@ -13,7 +13,7 @@ program that wants the stores does not build it.
 Assumes:
   - metta._atoms.factories._match is the private directional primitive every lookup
     here wants: stored patterns are the pattern side and probes are the atom
-    side [source: extensions/python/metta/_atoms/factories.py:586; commit=WORKTREE]
+    side [source: extensions/python/metta/_atoms/factories.py:586; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e]
 Guarantees:
   - PatternMap's ground keys behave exactly like dict keys, the no-tax
     rule [tested test_patternmap_ground_keys_are_dict_keys]

@@ -1,7 +1,7 @@
 % Purpose: retain native values behind numeric host handles.
 % Assumes: loaded through _binding/shim.pl in its host module.
 % Owns resources: metta_py_handle_store/2 references until metta_py_handle_release/1 retracts them
-% [source: extensions/python/metta/_binding/handles.pl:21; commit=WORKTREE].
+% [source: extensions/python/metta/_binding/handles.pl:21; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
 
 %%%%%%%%%% Native handles %%%%%%%%%%
 %

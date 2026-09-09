@@ -41,7 +41,7 @@ Guarantees:
     commit=89374a7ed8eec75e26ea595f2c6e55665f80d6fc]
   - the host helpers return Python results; the caller selects Janus
     object-reference transport [source:
-    extensions/python/metta/_binding/surface.pl:metta_py_opts/1; commit=WORKTREE]
+    extensions/python/metta/_binding/surface.pl:metta_py_opts/1; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e]
   - a py-atom type declaration follows a weak-referenceable Python object
     without owning it; values that cannot be weakly referenced carry their
     declaration in a weakly interned transparent envelope [tested:

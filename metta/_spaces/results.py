@@ -2153,7 +2153,7 @@ class Answers[T](Sequence[T], _doors.DoorOwner):
         # cursor a declined count opened, so the closable object the count
         # route hands over closes both; a bare generator's finally would never
         # run [source: extensions/python/metta/_spaces/execution.py:685, _RetainedAnswers.close; tested
-        # test_a_counted_view_releases_its_engine_when_it_is_dropped; commit=WORKTREE].
+        # test_a_counted_view_releases_its_engine_when_it_is_dropped; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
         #
         # close_deferred, where the source has one, because THIS IS A
         # FINALISER: the cyclic collector runs it at a point no caller chose,

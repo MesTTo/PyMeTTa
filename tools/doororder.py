@@ -2,7 +2,7 @@
 
 Guarantees: the report and catalog call the same source analysis; findings do
 not turn this report into a gate [tested: test_door_order_report_is_not_a_gate;
-commit=WORKTREE].
+commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
 """
 
 from __future__ import annotations
