@@ -303,4 +303,15 @@ def twin(m):  # noqa: ARG001  -- the catalog lives in the reflection space; the 
 #: pins of f26de01fb [measured 2026-09-09: min-of-3 serial fresh processes;
 #: command=python extensions/python/tools/twin_coverage.py --repin;
 #: commit=5f8a823d23fbed5c7395912a89ba32760e2df4b1].
-BUDGET = 3033
+#: RE-PINNED 2026-09-09, 3033 to 3038 (+5), the Python layout's shim partition
+#: (metta/_binding/shim.pl including 34 units, merged as 391763f1c) changed the
+#: order SWI's predicate table enumerates the '&metta' storage arities, which
+#: spaces:metta_catalog_clause/2 walks with current_predicate/1 for a partial-
+#: list pattern; every read of the @doc atom of a documented head pays +11 on
+#: this tree (five such reads in this twin, measured statement by statement
+#: against the pre-merge trunk 3734fc364) and a define pays -5, the same load-
+#: structure class the layout profiled on the catalog twin; the lookup's order
+#: dependence is scheduled for removal [measured 2026-09-09: min-of-3 serial
+#: fresh processes; command=python extensions/python/tools/twin_coverage.py
+#: --repin; commit=WORKTREE].
+BUDGET = 3038
