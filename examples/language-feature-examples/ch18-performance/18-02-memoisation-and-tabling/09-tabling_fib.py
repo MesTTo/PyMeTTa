@@ -350,7 +350,7 @@ def twin(m):
 #: examples load upstream equations. Warm imports save nine inferences through
 #: one rollback collection; ordinary call and row slopes stay unchanged
 #: [measured 2026-09-10: min-of-3 serial fresh processes; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+#: extensions/python/tools/twin_coverage.py --repin; commit=90ba93eb8f6e98ebfefc55416859bf13de6a8427].
 BUDGET = 51485
 #: OVERRUN 2026-09-09, 0 to 4070 (+4070): a library's Prolog half compiles
 #: beside itself on its first import and loads from the artifact after
@@ -381,7 +381,7 @@ BUDGET = 51485
 #: encoding only. [measured 2026-09-10: one fresh process per side;
 #: command=python extensions/python/benchmarks/probes/twin_floor.py
 #: examples/ch18-performance/18-02-memoisation-and-tabling/09-tabling_fib.metta;
-#: commit=WORKTREE].
+#: commit=90ba93eb8f6e98ebfefc55416859bf13de6a8427].
 OVERRUN = 4236
 
 #: DIVERGED 2026-09-07, the example holds 0 atoms the twin does not (none) and

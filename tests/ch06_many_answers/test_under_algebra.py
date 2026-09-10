@@ -3,13 +3,13 @@
 Guarantees:
   - the visibility preset shares the native finite carrier and rejects other
     symbols [tested: test_visibility_operations_share_the_native_carrier;
-    commit=WORKTREE].
+    commit=90ba93eb8f6e98ebfefc55416859bf13de6a8427].
   - counting uses the engine aggregate for both query and call bags, including
     duplicate derivations [tested:
     test_counting_counts_match_bag_duplicates_without_opening_a_row_cursor,
     test_counting_counts_duplicate_call_answers_inside_the_engine,
     test_counting_inference_growth_is_linear_when_answers_grow_in_depth;
-    commit=WORKTREE]
+    commit=90ba93eb8f6e98ebfefc55416859bf13de6a8427]
   - ordered carriers determine answer order before an Answers slice selects
     its prefix, and a pristine bounded slice reaches only a provider licensed
     by Exact, matching ordered annotations, and best-first emission [tested:

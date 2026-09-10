@@ -4,7 +4,7 @@
 claim here compares an atom rather than catching anything, and the Python
 spelling is the value the engine answers.
 Guarantees: return-on-error preserves a produced error's shape [tested:
-examples/ch10-errors-and-refusals/02-throwing_and_tracing.metta; commit=WORKTREE].
+examples/ch10-errors-and-refusals/02-throwing_and_tracing.metta; commit=90ba93eb8f6e98ebfefc55416859bf13de6a8427].
 
 `trace!` prints its first argument and answers its second, so its claims are
 about what flows through it. Both of its arguments are held, which is why the
@@ -251,5 +251,5 @@ def twin(m):
 #: examples load upstream equations. Warm imports save nine inferences through
 #: one rollback collection; ordinary call and row slopes stay unchanged
 #: [measured 2026-09-10: min-of-3 serial fresh processes; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+#: extensions/python/tools/twin_coverage.py --repin; commit=90ba93eb8f6e98ebfefc55416859bf13de6a8427].
 BUDGET = 17960

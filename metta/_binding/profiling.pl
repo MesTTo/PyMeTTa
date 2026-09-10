@@ -2,7 +2,7 @@
 % Assumes: loaded through _binding/shim.pl in its host module.
 % Guarantees: compiled profile rows retain their source file through the
 %   reader's ownership journal [tested: test_a_profile_exports_as_pstats;
-%   commit=WORKTREE].
+%   commit=90ba93eb8f6e98ebfefc55416859bf13de6a8427].
 
 %%%%%%%%%% Profiling %%%%%%%%%%
 %

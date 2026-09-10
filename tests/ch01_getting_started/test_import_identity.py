@@ -3,7 +3,7 @@ Guarantees:
   - importing metta alone leaves optional integrations unloaded [tested
     test_optional_surfaces_load_only_when_requested]
   - the metta_ops callback facade re-exports without owning state [tested
-    test_callback_facade_owns_no_state_and_delegates; commit=WORKTREE]
+    test_callback_facade_owns_no_state_and_delegates; commit=90ba93eb8f6e98ebfefc55416859bf13de6a8427]
 Open Obligations:
   To Do: None
   Hacks: None

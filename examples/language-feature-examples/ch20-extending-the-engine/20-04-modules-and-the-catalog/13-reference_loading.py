@@ -2,7 +2,7 @@
 
 The load pragma belongs to the receiver. A lazy call compiles its body and
 a background call waits for the defining home.
-[tested: examples/ch20-extending-the-engine/20-04-modules-and-the-catalog/13-reference_loading.metta; commit=WORKTREE].
+[tested: examples/ch20-extending-the-engine/20-04-modules-and-the-catalog/13-reference_loading.metta; commit=90ba93eb8f6e98ebfefc55416859bf13de6a8427].
 """
 
 from metta import MettaError, S
@@ -39,7 +39,7 @@ def twin(m):
 #: 332432, 332041, 330564, 330886, 332217 and 330653, with no missing costs.
 #: [measured 2026-09-10: 329737..332588 inferences over 10 observations;
 #: command=python extensions/python/tools/twin_coverage.py --observe --rounds 10;
-#: fixture=full-lane/280/workers=32; commit=WORKTREE].
+#: fixture=full-lane/280/workers=32; commit=90ba93eb8f6e98ebfefc55416859bf13de6a8427].
 BUDGET = {
     "minimum": 329737,
     "maximum": 332588,

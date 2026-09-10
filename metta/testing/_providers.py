@@ -38,7 +38,7 @@ Assumes:
 Guarantees:
   - optional exact mutations return a fresh token and remove that occurrence
     while retaining equal predecessors [tested: TestMutableTokenRowsComply;
-    commit=WORKTREE].
+    commit=90ba93eb8f6e98ebfefc55416859bf13de6a8427].
   - a capability the provider does not declare is skipped, not failed, and a
     provider declaring nothing FAILS rather than passing vacuously
     [tested test_a_provider_declaring_nothing_cannot_pass]

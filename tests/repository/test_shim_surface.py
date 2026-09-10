@@ -18,7 +18,7 @@ Guarantees:
     query as a host service [tested:
     test_the_host_service_scoreboard_matches_the_tree; commit=ede2ac57e213a0d4502c6bbbca6227f97015b720]
   - carrier membership and nonnumeric operations use engine-owned doors
-    [tested: test_the_host_service_scoreboard_matches_the_tree; commit=WORKTREE]
+    [tested: test_the_host_service_scoreboard_matches_the_tree; commit=90ba93eb8f6e98ebfefc55416859bf13de6a8427]
   - the manifest and the tree hold the same host_service set, compared as
     sets with both differences named
     [tested: test_the_host_service_scoreboard_matches_the_tree;

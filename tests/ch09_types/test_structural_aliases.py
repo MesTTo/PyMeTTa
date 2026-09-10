@@ -2,7 +2,7 @@
 
 Guarantees: source, file, named-space and reflective calls share lexical
 substitution and live mutation repair [tested: test_structural_aliases.py;
-commit=WORKTREE].
+commit=90ba93eb8f6e98ebfefc55416859bf13de6a8427].
 Guarantees: nominal lookup costs count only metta_py_eval_all/3 execution,
 excluding unrelated Python finalizer work between calls [tested:
 test_nominal_subtyping_does_not_scan_unrelated_declarations; commit=4f2d6c0f8eb293b73f8dde30a1c84e24834f7393].

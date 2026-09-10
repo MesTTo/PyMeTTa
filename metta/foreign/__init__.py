@@ -9,7 +9,7 @@ Guarantees:
   - optional token mutations preserve provider occurrence identities through
     the same declared seam as native reference receivers [tested:
     test_token_mutation_receives_and_withdraws_a_reference;
-    commit=WORKTREE].
+    commit=90ba93eb8f6e98ebfefc55416859bf13de6a8427].
   - capabilities derive from implemented narrow protocols and unknown
     operations are refused [tested test_capabilities_follow_implemented_methods]
   - CAPABILITIES is the engine's own `(vocabulary provider-capability ...)`

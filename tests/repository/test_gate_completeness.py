@@ -153,7 +153,7 @@ RUFF_FAMILY_BURN_DOWN = {
     # parameter in its body and five generated or typed projections. Each
     # suppresses only A002; no internal variable needs that spelling.
     # [tested: test_the_ruff_configuration_enables_every_family_or_records_why_not;
-    # commit=WORKTREE]
+    # commit=90ba93eb8f6e98ebfefc55416859bf13de6a8427]
     "A": 49,
     # 2112 -> 2114 at the p12-space-model merge: its two new test modules
     # carry the repository's obligation-header docstring convention, whose

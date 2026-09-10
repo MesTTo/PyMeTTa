@@ -2,7 +2,7 @@
 
 Guarantees: a short format argument list leaves later placeholders empty
 [tested: python extensions/python/tools/twin_coverage.py examples/ch08-data/08-03-the-shipped-libraries/03-text_lib.metta;
-commit=WORKTREE].
+commit=90ba93eb8f6e98ebfefc55416859bf13de6a8427].
 
 Both libraries are the subject, so every function here is named through the
 function namespace, where a typo raises on the line that writes it. What Python
@@ -324,5 +324,5 @@ def twin(m):
 #: examples load upstream equations. Warm imports save nine inferences through
 #: one rollback collection; ordinary call and row slopes stay unchanged
 #: [measured 2026-09-10: min-of-3 serial fresh processes; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+#: extensions/python/tools/twin_coverage.py --repin; commit=90ba93eb8f6e98ebfefc55416859bf13de6a8427].
 BUDGET = 37886

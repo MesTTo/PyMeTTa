@@ -15,7 +15,7 @@ crosses into Python as an EXCEPTION rather than as an atom: the original's
 import remains because its equations are observable stored content.
 `EngineError` arrives from the errors satellite.
 Guarantees: the library import preserves the example's stored definitions
-[tested: examples/ch03-atoms-and-expressions/06-reading_forms.metta; commit=WORKTREE].
+[tested: examples/ch03-atoms-and-expressions/06-reading_forms.metta; commit=90ba93eb8f6e98ebfefc55416859bf13de6a8427].
 
 The round trip through `sread` compares MeTTa TEXT, so it goes through the
 engine's own `repr` and a `ground(...)` on both sides; Python's `repr` would
@@ -274,5 +274,5 @@ def twin(m):
 #: examples load upstream equations. Warm imports save nine inferences through
 #: one rollback collection; ordinary call and row slopes stay unchanged
 #: [measured 2026-09-10: min-of-3 serial fresh processes; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+#: extensions/python/tools/twin_coverage.py --repin; commit=90ba93eb8f6e98ebfefc55416859bf13de6a8427].
 BUDGET = 35093

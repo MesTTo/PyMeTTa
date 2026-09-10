@@ -332,13 +332,13 @@ def twin(m):
 #: examples load upstream equations. Warm imports save nine inferences through
 #: one rollback collection; ordinary call and row slopes stay unchanged
 #: [measured 2026-09-10: min-of-3 serial fresh processes; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+#: extensions/python/tools/twin_coverage.py --repin; commit=90ba93eb8f6e98ebfefc55416859bf13de6a8427].
 #: RE-PINNED 2026-09-10, 7766 to 7537 (-229), The reference and census change
 #: is measured with the file-search cache still live; the previous 7766 sample
 #: included the now-attributed 229-inference expired-cache branch of the first
 #: failed Janus text query. The unchanged program costs 7537 on the fresh
 #: branch [measured 2026-09-10: min-of-3 serial fresh processes; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+#: extensions/python/tools/twin_coverage.py --repin; commit=90ba93eb8f6e98ebfefc55416859bf13de6a8427].
 BUDGET = 7537
 
 #: DIVERGED 2026-09-07, the example holds 1 atom the twin does not (1 =) and

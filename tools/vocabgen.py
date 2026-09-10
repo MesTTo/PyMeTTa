@@ -17,7 +17,7 @@ Guarantees:
   - token capability words remain literal public enum values under Ruff
     [tested: test_the_vocabulary_module_is_generated,
     test_the_ruff_configuration_enables_every_family_or_records_why_not;
-    commit=WORKTREE].
+    commit=90ba93eb8f6e98ebfefc55416859bf13de6a8427].
   - the checked-in module equals what this produces, gated on every run
     [tested: test_the_vocabulary_module_is_generated;
     commit=918e4eaae8b99077f8b8b293b4ec5c3e0e2b2cf6]

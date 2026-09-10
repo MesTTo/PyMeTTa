@@ -4,7 +4,7 @@ Assumes: the engine answers through the ordinary MeTTa surface; no probe needs
 Guarantees:
   - every member of the vocabulary answers the exact atom the arbiter answers,
     and an operand whose evaluation produced one finishes the enclosing call.
-  [tested: test_the_error_vocabulary_answers_what_the_arbiter_answers; commit=WORKTREE]
+  [tested: test_the_error_vocabulary_answers_what_the_arbiter_answers; commit=90ba93eb8f6e98ebfefc55416859bf13de6a8427]
   - an under-applied operation answers a partial application and never takes
     the host process down.
   [tested: test_an_underapplied_operation_answers_instead_of_aborting; commit=f88aa8be03cb64cb59d3307515ded8701f418321]

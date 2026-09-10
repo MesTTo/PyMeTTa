@@ -1,7 +1,7 @@
 """Purpose: mutate space contents and implement their Python collection protocols.
 
 Guarantees: from_ adds an ordinary live reference row through the existing
-write door [tested: test_from_is_a_live_stored_row; commit=WORKTREE].
+write door [tested: test_from_is_a_live_stored_row; commit=90ba93eb8f6e98ebfefc55416859bf13de6a8427].
 """
 
 from __future__ import annotations

@@ -2,7 +2,7 @@
 % Assumes: loaded through _binding/shim.pl in its host module.
 % Guarantees: optional add-token and remove-token callbacks preserve exact
 %   provider identities [tested: test_token_mutation_receives_and_withdraws_a_reference;
-%   commit=WORKTREE].
+%   commit=90ba93eb8f6e98ebfefc55416859bf13de6a8427].
 % Owns resources: provider and capability registrations until metta_py_unregister_foreign/1 removes them
 % [source: extensions/python/metta/_binding/foreign.pl:329; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
 

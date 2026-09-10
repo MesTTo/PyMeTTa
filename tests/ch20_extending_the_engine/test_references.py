@@ -3,7 +3,7 @@
 Guarantees: Python writes ordinary rows and preserves their live withdrawal;
 cards and callable reflection retain defining homes [tested:
 test_from_is_a_live_stored_row, test_a_card_reads_the_loaded_library_home;
-commit=WORKTREE].
+commit=90ba93eb8f6e98ebfefc55416859bf13de6a8427].
 """
 
 from collections import Counter

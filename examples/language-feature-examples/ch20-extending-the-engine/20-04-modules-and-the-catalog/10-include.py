@@ -9,7 +9,7 @@ space and answers True. Both take a module path, which is a name rather
 than a string: `_fixtures/included/rows` is a path the reader spells, so it
 comes through the exact subscript door.
 [tested: examples/ch20-extending-the-engine/20-04-modules-and-the-catalog/10-include.metta;
-commit=WORKTREE].
+commit=90ba93eb8f6e98ebfefc55416859bf13de6a8427].
 Open Obligations:
   To Do: None
   Hacks: None
@@ -141,5 +141,5 @@ def twin(m):
 #: examples load upstream equations. Warm imports save nine inferences through
 #: one rollback collection; ordinary call and row slopes stay unchanged
 #: [measured 2026-09-10: min-of-3 serial fresh processes; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+#: extensions/python/tools/twin_coverage.py --repin; commit=90ba93eb8f6e98ebfefc55416859bf13de6a8427].
 BUDGET = 5346

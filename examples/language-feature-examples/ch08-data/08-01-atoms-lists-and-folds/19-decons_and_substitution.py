@@ -150,7 +150,7 @@ def twin(m):
 #: examples load upstream equations. Warm imports save nine inferences through
 #: one rollback collection; ordinary call and row slopes stay unchanged
 #: [measured 2026-09-10: min-of-3 serial fresh processes; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+#: extensions/python/tools/twin_coverage.py --repin; commit=90ba93eb8f6e98ebfefc55416859bf13de6a8427].
 BUDGET = 12207
 
 #: OVERRUN 2026-09-08, 1400: the twin reads 10771 against a ceiling of 9395 (the
@@ -200,5 +200,5 @@ BUDGET = 12207
 #: encoding only. [measured 2026-09-10: one fresh process per side;
 #: command=python extensions/python/benchmarks/probes/twin_floor.py
 #: examples/ch08-data/08-01-atoms-lists-and-folds/19-decons_and_substitution.metta;
-#: commit=WORKTREE].
+#: commit=90ba93eb8f6e98ebfefc55416859bf13de6a8427].
 OVERRUN = 2584

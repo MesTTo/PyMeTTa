@@ -2,7 +2,7 @@
 
 Guarantees: get_property and the library card use metta_py_head_claims,
 which projects metta_head_property/3 [tested:
-test_get_property_matches_metta_and_explain; commit=WORKTREE].
+test_get_property_matches_metta_and_explain; commit=90ba93eb8f6e98ebfefc55416859bf13de6a8427].
 """
 
 from __future__ import annotations

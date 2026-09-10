@@ -6,7 +6,7 @@ Assumes:
 Guarantees:
   - shipped nonnumeric operations use metta_apply_algebra_operation/5 under
     the same context and quota as custom operations [tested:
-    test_visibility_operations_share_the_native_carrier; commit=WORKTREE].
+    test_visibility_operations_share_the_native_carrier; commit=90ba93eb8f6e98ebfefc55416859bf13de6a8427].
   - provider coefficients obey the explicit typed carrier and reentrant
     membership shares source accounting [tested:
     test_provider_conclusions_check_the_explicit_typed_carrier,
@@ -83,7 +83,7 @@ Guarantees:
   - the generated Semiring vocabulary, preset descriptors, and public carrier
     objects name the same eleven shipped algebras [tested:
     test_every_shipped_semiring_has_one_root_object_in_catalog_order;
-    commit=WORKTREE]
+    commit=90ba93eb8f6e98ebfefc55416859bf13de6a8427]
   - arbitrary law-bearing declarations use the engine's one checker in the
     declaring space's equation module [tested:
     test_a_law_is_checked_once_in_the_declaring_space; commit=2e627a593413191cda3170f2eb716835f7f62543]

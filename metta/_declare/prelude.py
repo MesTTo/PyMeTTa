@@ -11,7 +11,7 @@ this runtime is visible rather than ambient.
 Guarantees:
   - Python exception classification leaves the engine's `except` reference map
     available [tested: test_reference_except_and_compiled_exception_dispatch_coexist;
-    commit=WORKTREE]
+    commit=90ba93eb8f6e98ebfefc55416859bf13de6a8427]
   - runtime operations receive evaluated Atom wrappers through matchable
     `(arguments name atoms)` policies instead of a boolean registration flag
     [tested: test_fstrings_str_round_range_slices,

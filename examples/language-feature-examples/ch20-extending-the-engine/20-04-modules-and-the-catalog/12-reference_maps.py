@@ -1,7 +1,7 @@
 """Purpose: reference_maps.metta in Python using head maps as ordinary atoms.
 
 from_ writes the row; the engine evaluates its map once per source head.
-[tested: examples/ch20-extending-the-engine/20-04-modules-and-the-catalog/12-reference_maps.metta; commit=WORKTREE].
+[tested: examples/ch20-extending-the-engine/20-04-modules-and-the-catalog/12-reference_maps.metta; commit=90ba93eb8f6e98ebfefc55416859bf13de6a8427].
 """
 
 from metta import S, V
@@ -41,7 +41,7 @@ def twin(m):
 #: so the shared lambda compiles once. Both spellings exercise all six maps.
 #: [measured: 228075 inferences, min-of-3 fresh processes;
 #: command=python extensions/python/tools/twin_coverage.py --measure --rounds 3 examples/ch20-extending-the-engine/20-04-modules-and-the-catalog/12-reference_maps.metta;
-#: fixture=built native engine; commit=WORKTREE]
+#: fixture=built native engine; commit=90ba93eb8f6e98ebfefc55416859bf13de6a8427]
 #: RE-PINNED 2026-09-10, 228075 to 227143 (-932), The reference, visibility and
 #: property declarations add six heads to the cold-import census. Partial
 #: catalog reads now sort occurrence tokens; source-scoped claims and cache
@@ -49,5 +49,5 @@ def twin(m):
 #: examples load upstream equations. Warm imports save nine inferences through
 #: one rollback collection; ordinary call and row slopes stay unchanged
 #: [measured 2026-09-10: min-of-3 serial fresh processes; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+#: extensions/python/tools/twin_coverage.py --repin; commit=90ba93eb8f6e98ebfefc55416859bf13de6a8427].
 BUDGET = 227143

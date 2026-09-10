@@ -8,7 +8,7 @@ Guarantees:
   - the host-surface subprocess runs its requested walk once and exits before
     static_checks.pl's registered main driver [tested:
     test_the_python_binding_calls_only_the_published_host_surface;
-    commit=WORKTREE].
+    commit=90ba93eb8f6e98ebfefc55416859bf13de6a8427].
 Open Obligations:
   To Do: None
   Hacks: None

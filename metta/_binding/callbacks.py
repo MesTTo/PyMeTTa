@@ -2,7 +2,7 @@
 
 Guarantees:
   - exact-token mutation callbacks delegate to metta.foreign [tested:
-    test_token_mutation_receives_and_withdraws_a_reference; commit=WORKTREE].
+    test_token_mutation_receives_and_withdraws_a_reference; commit=90ba93eb8f6e98ebfefc55416859bf13de6a8427].
   - the facade owns no registry state; each callback is the owning module's
     exact object behind one frame that marks the engine's entry, and
     `__wrapped__` names that object [tested:

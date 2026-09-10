@@ -4,7 +4,7 @@ Every enumeration answers a name per solution, so a Python list IS the
 collapse and `len` is the count. The `engine-` enumeration predicates under
 the MeTTa names are the same operations. `origin-of` projects defining
 occurrences from the common property reader; `engine-origin` retains its
-implementation-tier classification [tested: twin; commit=WORKTREE].
+implementation-tier classification [tested: twin; commit=90ba93eb8f6e98ebfefc55416859bf13de6a8427].
 
 `surface-counts` moves as libraries are imported, so what is pinned here is
 the SHAPE rather than the numbers.
@@ -273,5 +273,5 @@ def twin(m):
 #: examples load upstream equations. Warm imports save nine inferences through
 #: one rollback collection; ordinary call and row slopes stay unchanged
 #: [measured 2026-09-10: min-of-3 serial fresh processes; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+#: extensions/python/tools/twin_coverage.py --repin; commit=90ba93eb8f6e98ebfefc55416859bf13de6a8427].
 BUDGET = 123935

@@ -43,7 +43,7 @@ Guarantees:
   - a companion README's opening paragraph supplies the card description,
     including vendored-library caveats, in every renderer [tested:
     test_a_companion_readme_supplies_the_summary_in_every_renderer,
-    test_the_lib_he_card_names_its_shadowing_and_semantic_differences; commit=WORKTREE]
+    test_the_lib_he_card_names_its_shadowing_and_semantic_differences; commit=90ba93eb8f6e98ebfefc55416859bf13de6a8427]
 Fails when:
   - a library publishes heads through a form whose names are computed rather
     than written: the engine reports nothing for such a form and the card is

@@ -1,7 +1,7 @@
 """Purpose: lower Python statement blocks, lifted definitions, and yield blocks.
 Guarantees:
   - compiled exception tests use the Python runtime's `py-except` name [tested:
-    test_reference_except_and_compiled_exception_dispatch_coexist; commit=WORKTREE]
+    test_reference_except_and_compiled_exception_dispatch_coexist; commit=90ba93eb8f6e98ebfefc55416859bf13de6a8427]
   - assignments lower to ordered let* bindings [tested
     test_bindings_become_let_star]
   - structural assignments share case-pattern binding, preserve SSA and test

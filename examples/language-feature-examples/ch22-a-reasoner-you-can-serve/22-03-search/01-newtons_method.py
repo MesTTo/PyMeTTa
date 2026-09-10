@@ -334,7 +334,7 @@ def twin(m):
 #: examples load upstream equations. Warm imports save nine inferences through
 #: one rollback collection; ordinary call and row slopes stay unchanged
 #: [measured 2026-09-10: min-of-3 serial fresh processes; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+#: extensions/python/tools/twin_coverage.py --repin; commit=90ba93eb8f6e98ebfefc55416859bf13de6a8427].
 BUDGET = 45581
 
 #: OVERRUN 2026-09-07, 6400: it declares the cache policy and memoises by name
@@ -377,7 +377,7 @@ BUDGET = 45581
 #: encoding only. [measured 2026-09-10: one fresh process per side;
 #: command=python extensions/python/benchmarks/probes/twin_floor.py
 #: examples/ch22-a-reasoner-you-can-serve/22-03-search/01-newtons_method.metta;
-#: commit=WORKTREE].
+#: commit=90ba93eb8f6e98ebfefc55416859bf13de6a8427].
 OVERRUN = 7862
 
 #: DIVERGED 2026-09-07, the example holds 0 atoms the twin does not (none) and

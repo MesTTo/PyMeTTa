@@ -5,7 +5,7 @@ whether two atoms COULD be made equal without making them so, and
 `if-equal2` preserves variable identity through upstream's exact equality.
 The pair `(f $x)` against `(f 1)` is unifiable but fails that equality.
 Guarantees: this twin checks shared and distinct variables at that boundary
-[tested: python extensions/python/tools/twin_coverage.py examples/ch07-control-flow/07-01-if-and-booleans/12-implication_and_unifiability.metta; commit=WORKTREE].
+[tested: python extensions/python/tools/twin_coverage.py examples/ch07-control-flow/07-01-if-and-booleans/12-implication_and_unifiability.metta; commit=90ba93eb8f6e98ebfefc55416859bf13de6a8427].
 
 The four relations are a `@m.rules` bundle rather than stacked `@m.define`
 clauses, because `age` and `registered?` each have two clauses that COEXIST
@@ -212,5 +212,5 @@ def twin(m):
 #: examples load upstream equations. Warm imports save nine inferences through
 #: one rollback collection; ordinary call and row slopes stay unchanged
 #: [measured 2026-09-10: min-of-3 serial fresh processes; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+#: extensions/python/tools/twin_coverage.py --repin; commit=90ba93eb8f6e98ebfefc55416859bf13de6a8427].
 BUDGET = 15044

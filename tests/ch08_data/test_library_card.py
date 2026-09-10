@@ -14,7 +14,7 @@ Guarantees:
   - a companion README supplies escaped prose in every rendering and lib_he
     names its deliberate semantic differences [tested:
     test_a_companion_readme_supplies_the_summary_in_every_renderer,
-    test_the_lib_he_card_names_its_shadowing_and_semantic_differences; commit=WORKTREE]
+    test_the_lib_he_card_names_its_shadowing_and_semantic_differences; commit=90ba93eb8f6e98ebfefc55416859bf13de6a8427]
   - the nine heads lib_memo publishes through runnable registration forms are
     on its card, which the static reading alone could not see
     [tested: test_a_card_lists_the_heads_a_registration_form_publishes]

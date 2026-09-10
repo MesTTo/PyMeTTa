@@ -11,7 +11,7 @@ Assumes:
     test_positioned_forms_recover_exact_lines]
   - metta_py_origin/3 projects the engine's source identity and line per
     defining occurrence [source: engine/metta/properties.pl:metta_head_origins/3;
-    commit=WORKTREE]
+    commit=90ba93eb8f6e98ebfefc55416859bf13de6a8427]
 Guarantees:
   - a locator/reader disagreement raises instead of guessing [tested
     test_a_locator_mismatch_refuses]
@@ -24,7 +24,7 @@ Guarantees:
     source that no longer carries the equation loses the line rather than
     answering a wrong one [tested:
     test_every_clause_of_a_multi_clause_head_answers_in_clause_order,
-    test_an_edited_file_loses_the_line_and_keeps_the_file; commit=WORKTREE]
+    test_an_edited_file_loses_the_line_and_keeps_the_file; commit=90ba93eb8f6e98ebfefc55416859bf13de6a8427]
 Open Obligations:
   To Do: None
   Hacks: None

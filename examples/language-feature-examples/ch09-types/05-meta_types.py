@@ -174,7 +174,7 @@ def twin(m):
 #: examples load upstream equations. Warm imports save nine inferences through
 #: one rollback collection; ordinary call and row slopes stay unchanged
 #: [measured 2026-09-10: min-of-3 serial fresh processes; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+#: extensions/python/tools/twin_coverage.py --repin; commit=90ba93eb8f6e98ebfefc55416859bf13de6a8427].
 BUDGET = 2098
 
 #: OVERRUN 2026-09-10, 0 to 54: The twin asks six named get_metatype calls
@@ -183,5 +183,5 @@ BUDGET = 2098
 #: control costs 1584; it measures that encoding only. [measured 2026-09-10:
 #: one fresh process per side; command=python
 #: extensions/python/benchmarks/probes/twin_floor.py
-#: examples/ch09-types/05-meta_types.metta; commit=WORKTREE].
+#: examples/ch09-types/05-meta_types.metta; commit=90ba93eb8f6e98ebfefc55416859bf13de6a8427].
 OVERRUN = 54

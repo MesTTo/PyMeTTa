@@ -8,7 +8,7 @@ Guarantees:
   - a thrown reason becomes a produced error atom, so it finishes the enclosing
     call the way an engine-raised one does, and an already-raised reason is
     handed on rather than wrapped twice.
-  [tested: test_a_thrown_reason_travels_as_a_produced_error; commit=WORKTREE]
+  [tested: test_a_thrown_reason_travels_as_a_produced_error; commit=90ba93eb8f6e98ebfefc55416859bf13de6a8427]
 Open Obligations:
   To Do: None
   Hacks: None

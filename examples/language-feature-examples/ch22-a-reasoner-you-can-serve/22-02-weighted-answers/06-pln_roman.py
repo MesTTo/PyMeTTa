@@ -353,7 +353,7 @@ def twin(m):
 #: examples load upstream equations. Warm imports save nine inferences through
 #: one rollback collection; ordinary call and row slopes stay unchanged
 #: [measured 2026-09-10: min-of-3 serial fresh processes; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+#: extensions/python/tools/twin_coverage.py --repin; commit=90ba93eb8f6e98ebfefc55416859bf13de6a8427].
 BUDGET = 2256403
 
 #: OVERRUN 2026-09-07, 52200: it asserts the four premises the answer came from
@@ -370,5 +370,5 @@ BUDGET = 2256403
 #: encoding only. [measured 2026-09-10: one fresh process per side;
 #: command=python extensions/python/benchmarks/probes/twin_floor.py
 #: examples/ch22-a-reasoner-you-can-serve/22-02-weighted-answers/06-pln_roman.metta;
-#: commit=WORKTREE].
+#: commit=90ba93eb8f6e98ebfefc55416859bf13de6a8427].
 OVERRUN = 53271

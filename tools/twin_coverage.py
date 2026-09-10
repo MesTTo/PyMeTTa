@@ -327,7 +327,7 @@ BAND_PERCENT = 10.0
 #: doors cost 435+1023, 910+152 and 2903+182 respectively [measured 2026-09-10:
 #: min-of-3 fresh processes; command=python extensions/python/benchmarks/probes/twin_authoring.py;
 #: fixture=zero through four one-line definitions, built native engine;
-#: commit=WORKTREE].
+#: commit=90ba93eb8f6e98ebfefc55416859bf13de6a8427].
 DEFINITION_WARMUP = 1528
 DEFINITION_COST = 1368
 

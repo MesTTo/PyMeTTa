@@ -2,7 +2,7 @@
 % Assumes: loaded through _binding/shim.pl in its host module.
 % Guarantees: shipped operations use metta_apply_algebra_operation/5 with
 %   caller context and accounting [tested:
-%   test_visibility_operations_share_the_native_carrier; commit=WORKTREE].
+%   test_visibility_operations_share_the_native_carrier; commit=90ba93eb8f6e98ebfefc55416859bf13de6a8427].
 
 metta_py_algebra_operation_accounted(Space, Algebra0, OperationWire, [Wire, Used]) :-
     metta_py_work(Before),

@@ -5,7 +5,7 @@ Guarantees: blame preserves occurrence multiplicity and orders provider tokens;
     commit=7f00ac7932fefa6f380fc8d14ec583ea0c58eff4].
 Guarantees: optional mutation methods make a provider a reference receiver
     without ordinary add/remove methods [tested:
-    test_token_mutation_receives_and_withdraws_a_reference; commit=WORKTREE].
+    test_token_mutation_receives_and_withdraws_a_reference; commit=90ba93eb8f6e98ebfefc55416859bf13de6a8427].
 """
 
 from contextlib import contextmanager
