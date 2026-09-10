@@ -37,7 +37,7 @@ from dataclasses import dataclass
 from difflib import get_close_matches
 from typing import Any
 
-from metta._atoms.factories import Atom
+from metta._atoms.factories import Atom, Expression
 from metta._errors.errors import EngineError
 
 #: How alike two names have to be before one is offered for the other. It is
@@ -130,6 +130,7 @@ class EngineRegistry:
     """One cached view of engine function facts during a lint pass."""
 
     __slots__ = (
+        "_admitted",
         "_arities",
         "_builtin",
         "_functions",
@@ -140,6 +141,7 @@ class EngineRegistry:
         "_special",
         "_tabled",
         "_types",
+        "_unevaluated",
     )
 
     def __init__(self, runtime: Any) -> None:
@@ -153,6 +155,8 @@ class EngineRegistry:
         self._operations: dict[str, str | None] = {}
         self._types: dict[str, str] = {}
         self._honoured: dict[str, bool] = {}
+        self._unevaluated: dict[tuple[str, str], tuple[tuple[int, ...], ...]] = {}
+        self._admitted: dict[tuple[str, str, str], bool] = {}
 
     def tabled(self) -> frozenset[str]:
         """The function names tabled right now, in any space.
@@ -317,3 +321,56 @@ class EngineRegistry:
             cached = str(row.get("T"))
             self._types[key] = cached
         return cached
+
+    def unevaluated_paths(self, space: str, form: Expression) -> tuple[tuple[int, ...], ...]:
+        """Where the engine leaves this form's variables UNEVALUATED: the path
+        of every variable occurrence inside an argument it does not evaluate,
+        the head counting as child 0. Read off the effect planner's own
+        evaluated-argument table and the declaration masks
+        (`metta_form_unevaluated_variable_paths/3`), so a pattern, a binder, a
+        quoted atom and a write payload all answer, and a head with no
+        signature answers none. Cached per printed form and space.
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+        key = (space, str(form))
+        cached = self._unevaluated.get(key)
+        if cached is None:
+            # Every intermediate is underscored: janus cannot hand back a
+            # binding that still holds a variable, and the decoded form does.
+            row = self._runtime.once(
+                "metta_py_decode_shared(W, _X, _), "
+                "( atom(S) -> _Space = S ; atom_string(_Space, S) ), "
+                "metta_form_unevaluated_variable_paths(_Space, _X, Paths)",
+                W=form.to_wire(),
+                S=space,
+            )
+            raw = row.get("Paths")
+            cached = (
+                tuple(tuple(int(index) for index in path) for path in raw)
+                if isinstance(raw, (list, tuple))
+                else ()
+            )
+            self._unevaluated[key] = cached
+        return cached
+
+    def admits(self, space: str, argument: Atom, declared: str) -> bool:
+        """Whether the engine would admit this value for this declared
+        parameter type under the space's typing policy
+        (`metta_argument_admitted/3`): the compiled call check's own relation,
+        so a user typing rule widens or refuses here with nothing to change.
+        Cached per printed argument, declared type and space.
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+        key = (space, str(argument), declared)
+        known = self._admitted.get(key)
+        if known is None:
+            row = self._runtime.once(
+                "metta_py_decode_shared(W, _X, _), "
+                "( atom(S) -> _Space = S ; atom_string(_Space, S) ), "
+                "( atom(T) -> _Type = T ; atom_string(_Type, T) ), "
+                "( metta_argument_admitted(_Space, _X, _Type) -> A = yes ; A = no )",
+                W=argument.to_wire(),
+                S=space,
+                T=declared,
+            )
+            known = str(row.get("A")) == "yes"
+            self._admitted[key] = known
+        return known

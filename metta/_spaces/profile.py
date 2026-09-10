@@ -97,19 +97,6 @@ def _stats_snapshot(
         ticks,
     )
 
-_COUNTERS = frozenset(
-    {
-        "inferences",
-        "cputime",
-        "walltime",
-        "gc_count",
-        "gc_freed",
-        "gc_time",
-        "table_bytes",
-        "heartbeats",
-    }
-)
-
 class _StatsBlock:
     """MeTTa.stats(): engine counter deltas over one with-block.
 
@@ -241,6 +228,10 @@ class _StatsBlock:
             f"<stats: {self.inferences} inferences, "
             f"{self.cputime:.4f}s cpu, {self.walltime:.4f}s wall>"
         )
+
+# The counters are the block's own annotated slots, read from the class rather
+# than restated: a counter added there is in this set the moment it is declared.
+_COUNTERS = frozenset(_StatsBlock.__annotations__)
 
 _ACTIVE_STATS: ContextVar[tuple[_StatsBlock, ...]] = ContextVar(
     "metta_active_stats", default=()

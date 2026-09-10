@@ -101,6 +101,23 @@ def test_lint_authorities_are_durable_public_references():
         assert "/website/guide/run-query.md#" in authority
 
 
+def test_an_event_kind_carries_its_remedy_and_a_rule_kind_is_not_an_event():
+    """Each engine-observed event kind holds authority and remedy in one record.
+
+    A finding rendered from an event reads both off that record, so neither
+    can be missing; a lint rule composes its own text and cannot be raised
+    as an event at all.
+    """
+    from metta._spaces.intents import _EVENTS, _RULES, detail_for, make_event
+
+    for kind, ruling in _EVENTS.items():
+        assert ruling.authority and ruling.detail
+        assert detail_for(kind) == ruling.detail
+    assert not set(_EVENTS) & set(_RULES)
+    with pytest.raises(KeyError):
+        make_event("det-equations-overlap", "subject", path="p.py", line=1, column=0)
+
+
 def test_capital_functions_and_lowercase_data_are_linted_not_refused(m):
     """Both halves of the first-letter convention remain lawful MeTTa."""
     m.run("(lowercase-data item)(= (CapitalFunction $x) $x)")

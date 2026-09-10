@@ -65,6 +65,14 @@ HOST_SERVICES = {
     "metta_head_claims/3",
     "metta_head_property/3",
     "metta_head_origins/3",
+    # Two questions the lint asks the engine instead of restating its tables:
+    # where a written form leaves a variable unevaluated, and whether a value
+    # would be admitted for a declared parameter type under the space's
+    # typing policy. Each replaced a hand-written list in the lint that could
+    # only go stale, and the second reaches user typing rules the list never
+    # could.
+    "metta_form_unevaluated_variable_paths/3",
+    "metta_argument_admitted/3",
     # Which heads one MeTTa source REGISTERS, read from the source and never
     # run. The registration spellings are the engine's own, and a host reading
     # them itself would carry a table of engine forms that goes stale the day a
@@ -363,6 +371,8 @@ FLOOR_REASONS = {
     "metta_head_claims/3": "door",
     "metta_head_property/3": "door",
     "metta_head_origins/3": "door",
+    "metta_form_unevaluated_variable_paths/3": "door",
+    "metta_argument_admitted/3": "door",
     "metta_string_registrations/2": "door",
     "lift_pattern_modifiers/4": "door",
     "metta_seq_query_plan/2": "door",
@@ -539,43 +549,49 @@ def test_the_prelude_names_are_what_install_registers():
     assert registered == list(NAMES)
 
 
-def test_the_binding_heads_are_heads_the_engine_knows(metta):
-    """Every head `_lint_analysis` treats as binding is one the engine has.
+def test_where_a_form_leaves_a_variable_unevaluated_is_the_engines_answer(metta):
+    """The lint asks the engine where a form leaves a variable unevaluated.
 
-    The set is a CHOICE -- which of the engine's heads bind a name in their
-    body -- so it is not derived from the engine's roster; what is derived is
-    that it cannot name a head the engine does not have, which is the way it
-    could go stale without anything saying so. `bind!` is a FUNCTION rather
-    than a special form and binds all the same, which is why the roster this
-    reads is both.
+    The lint used to keep `_BINDING_HEADS`, seven heads it chose, so `match`
+    was a binder because someone listed it and `switch` was not because nobody
+    did. The engine's effect planner already knows which written positions
+    execute, and the registry reads that for any form: a `let` pattern, a
+    `match` pattern, a defined function's `Atom` parameter, and nothing at all
+    for a head with no signature.
     """
-    from metta.lint._analysis import _BINDING_HEADS
+    from metta._catalog.meaning import EngineRegistry
 
-    known = set(
-        metta.runtime.must(
-            "findall(_Head, (spaces:metta_special_form_head(_Head) ; fun(_Head)), Heads)"
-        )["Heads"]
-    )
-    assert _BINDING_HEADS <= known, sorted(_BINDING_HEADS - known)
+    with metta._new_space() as space:
+        space.run("(: my-let (-> Atom Number Atom Number)) (= (my-let $p $v $b) $v)")
+        name = str(space.name)
+        registry = EngineRegistry(space.runtime)
+        paths = registry.unevaluated_paths
+        assert paths(name, metta.parse("(let (cons $h $t) (g $x) (f $h $t))")) == ((1, 1), (1, 2))
+        assert paths(name, metta.parse("(match &self (parent $x $y) (child $y))")) == ((2, 1), (2, 2))
+        assert paths(name, metta.parse("(my-let $x 1 (+ $x $y))")) == ((1,), (3, 1), (3, 2))
+        assert paths(name, metta.parse("(nothing-known $x (f $y))")) == ()
 
 
-def test_the_metatypes_are_the_engines_own(metta):
-    """`_lint_analysis._METATYPES` is what `get-metatype` can answer, plus two.
+def test_slot_admission_is_the_engines_answer(metta):
+    """The lint asks the engine whether a value fits a declared slot.
 
-    The four `get-metatype` answers are the engine's. The three beside them
-    are the ones no value ever IS: `Atom` is their supertype, `%Undefined%` is
-    the wildcard a declaration writes for "anything", and `Type` is the type of
-    a type. All three admit anything of their kind for the same reason the four
-    do. A fifth metatype in the engine and not here would leave a declaration
-    this lint could contradict.
+    The lint used to keep `_METATYPES`, the four metatypes plus three names it
+    chose to treat as wildcards. The engine's own argument check decides every
+    case under the space's typing policy, a user typing rule declared there
+    included, which no list here could know.
     """
     from metta import G, S
-    from metta.lint._analysis import _METATYPES
+    from metta._catalog.meaning import EngineRegistry
 
-    answered = {
-        str(metta.eval(S["get-metatype"](subject))[0])
-        for subject in (S.a, S.a(S.b), G(1), metta.parse("$x"))
-    }
-    assert answered == {"Symbol", "Expression", "Grounded", "Variable"}
-    assert answered <= _METATYPES, sorted(answered - _METATYPES)
-    assert _METATYPES - answered == {"Atom", "%Undefined%", "Type"}
+    with metta._new_space() as space:
+        name = str(space.name)
+        registry = EngineRegistry(space.runtime)
+        assert registry.admits(name, G(3), "Atom")
+        assert registry.admits(name, G(3), "%Undefined%")
+        assert registry.admits(name, S.foo, "Symbol")
+        assert not registry.admits(name, G(3), "Symbol")
+        assert registry.admits(name, S.a(S.b), "Expression")
+        assert registry.admits(name, G(3), "Number")
+        assert not registry.admits(name, G("s"), "Number")
+        space.run("!(add-typing-rule! widen ordinary String Number accept)")
+        assert EngineRegistry(space.runtime).admits(name, G("s"), "Number")

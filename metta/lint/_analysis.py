@@ -29,6 +29,21 @@ Guarantees:
     test_let_star_duplicate_binder_controls_keep_reporting,
     test_distinct_plain_let_binders_are_clean_and_keep_their_pair_answer;
     commit=43bf074ce97adb6bfe599ae20faa5f38ef524bd7]
+  - a body variable is unbound when the head never bound it and no written
+    position leaves it unevaluated, which the engine answers per form
+    (`metta_form_unevaluated_variable_paths/3`): a `let` or `match` pattern
+    binds its names, a defined function's `Atom` parameter may bind what it
+    is handed, and a call's evaluated argument never does [tested:
+    test_unbound_body_variables, test_let_bound_variables_are_not_flagged,
+    test_a_variable_used_only_in_an_evaluated_position_is_reported,
+    test_a_match_pattern_binds_its_fresh_variables,
+    test_an_atom_typed_parameter_may_bind_the_variable_it_is_handed;
+    commit=WORKTREE]
+  - a declared slot contradicts a ground argument exactly when the engine's
+    own admission refuses it (`metta_argument_admitted/3`), so a metatype
+    slot and a user typing rule in the space decide there with nothing here
+    to change [tested: test_a_metatype_slot_follows_the_engines_admission,
+    test_a_user_typing_rule_reaches_the_type_mismatch_check; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -56,7 +71,13 @@ from metta._atoms.factories import (
 from metta._catalog.meaning import EngineRegistry, head_meaning
 from metta._compile.islands import _HostIsland
 from metta._errors.errors import Remedy
-from metta._spaces.intents import LintInvocation, authority_for, events_for, is_suppressed
+from metta._spaces.intents import (
+    LintInvocation,
+    authority_for,
+    detail_for,
+    events_for,
+    is_suppressed,
+)
 from metta.lint._model import Finding
 
 if TYPE_CHECKING:
@@ -64,38 +85,6 @@ if TYPE_CHECKING:
 else:
     import metta._faces.space as _space_face
 
-
-_BINDING_HEADS = {"let", "let*", "match", "unify", "case", "chain", "bind!"}
-
-_EVENT_DETAILS = {
-    "operation-crossing-in-loop": (
-        "calls the Python operation once per engine-loop item; move the work "
-        "into a relational definition or batch the crossing"
-    ),
-    "module-level-defined-call": (
-        "drives a defined function while importing the module; keep definitions "
-        "at module level and move calls behind an explicit entry point"
-    ),
-    "effectful-operation-at-construction": (
-        "executes an effectful ground operation while constructing a law; the "
-        "effect fires once now rather than per law application"
-    ),
-    "operation-staged-in-law": (
-        "stages a Python operation into a law, crossing the host once per matching application"
-    ),
-    "unordered-answers-zip": (
-        "zips answer views whose multiset semantics promise no corresponding order; "
-        "join the patterns in the engine when rows must correspond"
-    ),
-    "unordered-answers-reversed": (
-        "reverses an answer view whose multiset semantics promise no meaningful order; "
-        "sort by an explicit key before reversing when order is intended"
-    ),
-    "sync-engine-call-in-async": (
-        "drives the synchronous engine from an async body and can block its event loop; "
-        "use AsyncMeTTa for this call"
-    ),
-}
 
 def _is_arrow_head(name: str) -> bool:
     """Whether a signature head is an arrow, in either spelling.
@@ -156,9 +145,6 @@ def _walk_atoms(atom: Atom):
         yield current
         if isinstance(current, Expression):
             stack.extend(reversed(current.children))
-
-def _contains_binding_form(atom: Atom) -> bool:
-    return any(call[0].name in _BINDING_HEADS for call in _walk_heads(atom))
 
 def _alpha_key(atom: Atom) -> Atom:
     """Canonicalize variable names once for equality and hashing."""
@@ -545,7 +531,7 @@ def _hot_higher_order_crossing_findings(
                 Finding(
                     "operation-crossing-in-loop",
                     name,
-                    _EVENT_DETAILS["operation-crossing-in-loop"],
+                    detail_for("operation-crossing-in-loop"),
                     equation,
                     severity="warning",
                     payload={"authority": authority, "effect": effect},
@@ -569,7 +555,7 @@ def _event_findings(space: Any) -> list[Finding]:
             Finding(
                 event.kind,
                 event.subject,
-                _EVENT_DETAILS[event.kind],
+                detail_for(event.kind),
                 event.atom or event.fact(str(space.name)),
                 severity="warning",
                 payload=payload,
@@ -897,11 +883,32 @@ def _subsumed_findings(equations: list[Expression]) -> list[Finding]:
                     break
     return findings
 
-def _unbound_findings(equation: Expression, head: Atom, body: Atom) -> list[Finding]:
-    if _contains_binding_form(body):
-        return []
+def _at(atom: Atom, path: tuple[int, ...]) -> Atom:
+    """The atom at one child path, the head counting as child 0."""
+    for index in path:
+        atom = atom.children[index]
+    return atom
+
+def _unbound_findings(
+    equation: Expression, head: Atom, body: Atom, registry: EngineRegistry, space: str
+) -> list[Finding]:
+    """A body variable the head never bound and no written position leaves
+    unevaluated. The engine says where each form leaves a variable
+    unevaluated (a pattern, a binder, a quoted atom, a write payload), so a
+    `let` or `match` pattern binds its names, a defined function's `Atom`
+    parameter may bind the variable handed to it, and a call's evaluated
+    argument never does.
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
     head_vars = set(_variables(head))
-    loose = sorted(name for name in set(_variables(body)) if name not in head_vars and name != "_")
+    unevaluated: set[str] = set()
+    for call in _walk_heads(body):
+        for path in registry.unevaluated_paths(space, call):
+            unevaluated.update(_variables(_at(call, path)))
+    loose = sorted(
+        name
+        for name in set(_variables(body))
+        if name not in head_vars and name not in unevaluated and name != "_"
+    )
     if not loose:
         return []
     pretty = ["$" + name for name in loose if not name.startswith("_")]
@@ -966,12 +973,12 @@ def _call_findings(
     return findings
 
 def _equation_findings(
-    equations: list[Expression], fact_heads: set[str], registry: EngineRegistry
+    equations: list[Expression], fact_heads: set[str], registry: EngineRegistry, space: str
 ) -> list[Finding]:
     findings: list[Finding] = []
     for equation in equations:
         head, body = equation[1], equation[2]
-        findings.extend(_unbound_findings(equation, head, body))
+        findings.extend(_unbound_findings(equation, head, body, registry, space))
         findings.extend(_call_findings(equation, body, fact_heads, registry))
     return findings
 
@@ -1186,10 +1193,6 @@ def _inconsistent_arity_findings(
         if len(arities) > 1 and name not in arrowed
     ]
 
-_METATYPES = frozenset(
-    {"Atom", "Expression", "Symbol", "Grounded", "Variable", "%Undefined%", "Type"}
-)
-
 def _declared_arrows(declarations: list[Expression]) -> dict[str, tuple[Atom, ...]]:
     """Each declared name's arrow input slots, first declaration winning."""
     arrows: dict[str, tuple[Atom, ...]] = {}
@@ -1205,30 +1208,31 @@ def _declared_arrows(declarations: list[Expression]) -> dict[str, tuple[Atom, ..
     return arrows
 
 def _slot_mismatch(
-    slot: Atom, argument: Atom, registry: EngineRegistry
+    slot: Atom, argument: Atom, registry: EngineRegistry, space: str
 ) -> tuple[str, str] | None:
-    """(declared, actual) when the engine type contradicts one declared
-    slot, else None. A parametric slot, a metatype slot, a non-ground
-    argument, and an argument answering %Undefined% all pass, keeping the
-    check conservative; a nested call is the engine's own hoisted check's.
+    """(declared, actual) when the engine's own admission refuses one ground
+    argument for one declared slot, else None. A parametric slot and a
+    non-ground argument pass, keeping the check conservative; a nested call
+    is the engine's own hoisted check's. Admission is the engine's answer
+    (`metta_argument_admitted/3`), so `Atom`, `%Undefined%`, a metatype and
+    a user typing rule all decide there rather than in a list here.
     """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
-    if not isinstance(slot, Symbol) or slot.name in _METATYPES:
+    if not isinstance(slot, Symbol) or isinstance(argument, (Variable, Expression)):
         return None
-    if isinstance(argument, (Variable, Expression)):
+    if registry.admits(space, argument, slot.name):
         return None
-    actual = registry.type_of(argument)
-    if actual in ("%Undefined%", slot.name):
-        return None
-    return slot.name, actual
+    return slot.name, registry.type_of(argument)
 
 def _type_findings(
-    equations: list[Expression], declarations: list[Expression], registry: EngineRegistry
+    equations: list[Expression],
+    declarations: list[Expression],
+    registry: EngineRegistry,
+    space: str,
 ) -> list[Finding]:
-    """A ground argument whose engine type contradicts the declared slot.
+    """A ground argument the engine would refuse for the declared slot.
 
-    get-type/2 is total here, so the check is one cached engine question
-    per distinct argument, and only concrete Symbol-against-Symbol
-    disagreements report.
+    Admission is one cached engine question per distinct (argument, slot)
+    pair, and only concrete Symbol-against-Symbol disagreements report.
     """
     arrows = _declared_arrows(declarations)
     findings: list[Finding] = []
@@ -1238,7 +1242,7 @@ def _type_findings(
             if slots is None or len(call) - 1 != len(slots):
                 continue
             for slot, argument in zip(slots, call.children[1:], strict=True):
-                mismatch = _slot_mismatch(slot, argument, registry)
+                mismatch = _slot_mismatch(slot, argument, registry, space)
                 if mismatch is None:
                     continue
                 declared, actual = mismatch
@@ -1279,10 +1283,10 @@ def analyze(
         *_tabling_findings(equations, registry),
         *_hot_higher_order_crossing_findings(equations, registry),
         *_host_island_findings(equations),
-        *_equation_findings(equations, fact_heads, registry),
+        *_equation_findings(equations, fact_heads, registry, str(space.name)),
         *_simplification_findings(equations),
         *_inconsistent_arity_findings(equations, declarations),
-        *_type_findings(equations, declarations, registry),
+        *_type_findings(equations, declarations, registry, str(space.name)),
         *_event_findings(space),
     ]
     return _unsuppressed(space, _prefer_source_evidence(findings), invocation)

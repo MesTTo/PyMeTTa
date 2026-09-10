@@ -47,7 +47,7 @@ from collections.abc import Hashable
 from dataclasses import dataclass
 from pathlib import Path
 from types import CodeType, FrameType, FunctionType
-from typing import Any
+from typing import Any, NamedTuple
 
 from metta._atoms.factories import Atom, Expression, Grounded, Symbol
 from metta._binding.dispatch import live_registration
@@ -58,20 +58,66 @@ _LINT_CATALOGUE = (
     "https://github.com/MesTTo/MeTTa-Kernel/blob/"
     "7de3d32d25a7166b12f7c68c179e9cbb931ac044/website/guide/run-query.md#lint-a-space"
 )
-# closed-set: decides; policy=which written authority each lint event stands on; reads=none, it is the source
-_AUTHORITIES: dict[str, str] = {
-    "operation-crossing-in-loop": f"P14-14-02/GG-004; {_LINT_CATALOGUE}",
+class Ruling(NamedTuple):
+    """What one engine-observed event kind stands on, and what a finding of it tells the author."""
+
+    authority: str
+    detail: str
+
+
+# closed-set: decides; policy=which written authority each engine-observed event kind stands on and the remedy a finding of that kind carries, one record per kind because such a finding is rendered from the event rather than by a rule of its own; reads=none, it is the source
+_EVENTS: dict[str, Ruling] = {
+    "operation-crossing-in-loop": Ruling(
+        f"P14-14-02/GG-004; {_LINT_CATALOGUE}",
+        "calls the Python operation once per engine-loop item; move the "
+        "work into a relational definition or batch the crossing",
+    ),
+    "module-level-defined-call": Ruling(
+        f"P14-40-09; {_LINT_CATALOGUE}",
+        "drives a defined function while importing the module; keep "
+        "definitions at module level and move calls behind an explicit "
+        "entry point",
+    ),
+    "effectful-operation-at-construction": Ruling(
+        f"GG-013; {_LINT_CATALOGUE}",
+        "executes an effectful ground operation while constructing a law; "
+        "the effect fires once now rather than per law application",
+    ),
+    "operation-staged-in-law": Ruling(
+        f"GG-014; {_LINT_CATALOGUE}",
+        "stages a Python operation into a law, crossing the host once per "
+        "matching application",
+    ),
+    "unordered-answers-zip": Ruling(
+        f"GG4-006/GG5-007/L9Z2-08; {_LINT_CATALOGUE}",
+        "zips answer views whose multiset semantics promise no "
+        "corresponding order; join the patterns in the engine when rows "
+        "must correspond",
+    ),
+    "unordered-answers-reversed": Ruling(
+        f"L9Z2-09; {_LINT_CATALOGUE}",
+        "reverses an answer view whose multiset semantics promise no "
+        "meaningful order; sort by an explicit key before reversing when "
+        "order is intended",
+    ),
+    "sync-engine-call-in-async": Ruling(
+        f"L9Z3-03; {_LINT_CATALOGUE}",
+        "drives the synchronous engine from an async body and can block its "
+        "event loop; use AsyncMeTTa for this call",
+    ),
+}
+# closed-set: decides; policy=which written authority each lint rule stands on, the rule composing its own finding text; reads=none, it is the source
+_RULES: dict[str, str] = {
     "first-letter-role-convention": f"P14-39-05; {_LINT_CATALOGUE}",
     "interpreter-equation-shadow": f"P14-40-07/STYLE-150/GG-008; {_LINT_CATALOGUE}",
-    "module-level-defined-call": f"P14-40-09; {_LINT_CATALOGUE}",
-    "effectful-operation-at-construction": f"GG-013; {_LINT_CATALOGUE}",
-    "operation-staged-in-law": f"GG-014; {_LINT_CATALOGUE}",
-    "unordered-answers-zip": f"GG4-006/GG5-007/L9Z2-08; {_LINT_CATALOGUE}",
-    "unordered-answers-reversed": f"L9Z2-09; {_LINT_CATALOGUE}",
-    "sync-engine-call-in-async": f"L9Z3-03; {_LINT_CATALOGUE}",
     "builtin-equation-shadow": f"L086; {_LINT_CATALOGUE}",
     "uncovered-constructor": f"L087/TC-20; {_LINT_CATALOGUE}",
     "det-equations-overlap": f"PC-03/PC-08; {_LINT_CATALOGUE}",
+}
+#: Every adopted authority, event kinds and rule kinds together, derived for a reader of the whole set.
+_AUTHORITIES: dict[str, str] = {
+    **{kind: ruling.authority for kind, ruling in _EVENTS.items()},
+    **_RULES,
 }
 _INTENT_AUTHORITY = f"L9Z1-06; {_LINT_CATALOGUE}"
 
@@ -165,6 +211,11 @@ _SOURCE_CALLS: dict[str, tuple[int, int, dict[int, tuple[ast.Call, ...]]]] = {}
 def authority_for(kind: str) -> str:
     """Return the exact adopted authority carried by one new lint kind."""
     return _AUTHORITIES[kind]
+
+
+def detail_for(kind: str) -> str:
+    """Return the remedy text a finding of one engine-observed event kind carries."""
+    return _EVENTS[kind].detail
 
 
 def _space_parts(space: Any) -> tuple[str, Any]:
@@ -488,7 +539,7 @@ def make_event(
         path,
         line,
         column,
-        authority_for(kind),
+        _EVENTS[kind].authority,
         effect,
         atom,
     )

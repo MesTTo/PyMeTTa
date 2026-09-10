@@ -17,6 +17,7 @@ from typing import Literal
 # Values are predecessors, as in graphlib.TopologicalSorter. A package may
 # import its transitive foundations and its own modules. The root is included
 # here even though import-linter's container contract checks only its children.
+# closed-set: decides; policy=which packages each package may import, its foundations, from which layergen derives the import-linter contract, the lazy-import direction and the published layer orders; reads=none, it is the source
 BUILDS_ON: Mapping[str, tuple[str, ...]] = MappingProxyType({
     "_layers": (),
     "_lazy": (),

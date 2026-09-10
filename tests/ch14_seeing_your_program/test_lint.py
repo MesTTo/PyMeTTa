@@ -10,6 +10,16 @@ Guarantees:
     commit=bbb512316280110a747e31c26adfc31e8c5104be]
   - public finding records survive pickle through metta.lint [tested
     test_finding_retains_public_pickle_identity]
+  - unbound body variables and contradicted slots are decided by the engine's
+    own answers per form and per argument, so a match pattern binds, an
+    evaluated position never does, a metatype slot refuses what the engine
+    refuses, and a user typing rule widens the check [tested:
+    test_a_variable_used_only_in_an_evaluated_position_is_reported,
+    test_a_match_pattern_binds_its_fresh_variables,
+    test_a_match_template_variable_nothing_binds_is_reported,
+    test_an_atom_typed_parameter_may_bind_the_variable_it_is_handed,
+    test_a_metatype_slot_follows_the_engines_admission,
+    test_a_user_typing_rule_reaches_the_type_mismatch_check; commit=WORKTREE]
   - duplicate-binder covers clause-scoped names across plain ``let`` forms,
     retains all three nested and sibling ``let*`` shapes, and leaves distinct
     binders' ``Pair`` answer unchanged [tested:
@@ -108,6 +118,56 @@ def test_unbound_body_variables(m):  # noqa: D103  -- pytest discovers or inject
 def test_let_bound_variables_are_not_flagged(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     m.run("(= (let-fn) (let $fresh 41 (+ $fresh 1)))")
     assert "unbound-variable" not in _kinds(m.lint())
+
+
+def test_a_variable_used_only_in_an_evaluated_position_is_reported(m):
+    """A `let` elsewhere in the body no longer hides a variable nothing binds."""
+    m.run("(= (half-bound) (let $x 1 (+ $x $nowhere)))")
+    assert "unbound-variable" in _kinds(m.lint())
+
+
+def test_a_match_pattern_binds_its_fresh_variables(m):
+    """The engine says a match pattern is unevaluated, so its names are bound there."""
+    m.run("(parent a b) (= (kids $p) (match &self (parent $p $k) $k))")
+    assert "unbound-variable" not in _kinds(m.lint())
+
+
+def test_a_match_template_variable_nothing_binds_is_reported(m):
+    """A match's template is evaluated, so a name only it mentions is unbound."""
+    m.run("(parent a b) (= (odd $p) (match &self (parent $p $k) (pair $k $nowhere)))")
+    assert "unbound-variable" in _kinds(m.lint())
+
+
+def test_an_atom_typed_parameter_may_bind_the_variable_it_is_handed(m):
+    """A defined function's `Atom` parameter is unevaluated, so it may bind its argument."""
+    m.run(
+        "(: my-let (-> Atom Number Atom Number)) (= (my-let $p $v $b) $v) "
+        "(= (uses-my-let) (my-let $x 1 (+ $x 1)))"
+    )
+    assert "unbound-variable" not in _kinds(m.lint())
+
+
+def test_a_metatype_slot_follows_the_engines_admission(m):
+    """A slot declared `Expression` refuses a number as the engine does; `Atom` admits it.
+
+    The engine admits a bare symbol for `Expression` and refuses a number, and
+    the lint says exactly that, with no metatype list of its own to disagree.
+    """
+    m.run(
+        "(: takes-expr (-> Expression Number)) (= (takes-expr $e) 1) (= (caller) (takes-expr 3)) "
+        "(: takes-atom (-> Atom Number)) (= (takes-atom $a) 1) (= (caller2) (takes-atom 3)) "
+        "(= (caller3) (takes-expr foo))"
+    )
+    findings = [finding for finding in m.lint() if finding.kind == "type-mismatch"]
+    assert [finding.subject for finding in findings] == ["takes-expr"], findings
+
+
+def test_a_user_typing_rule_reaches_the_type_mismatch_check(m):
+    """A typing rule the space declares widens the check with nothing in the lint to change."""
+    m.run('(: takes-number (-> Number Number)) (= (takes-number $n) $n) (= (caller) (takes-number "s"))')
+    assert "type-mismatch" in _kinds(m.lint())
+    m.run("!(add-typing-rule! widen ordinary String Number accept)")
+    assert "type-mismatch" not in _kinds(m.lint())
 
 
 def test_duplicate_equations(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
