@@ -523,7 +523,12 @@ def test_nested_door_records_have_declared_types():
 
     with MeTTa() as context:
         catalog = context.space("&metta")
-        records = tuple(table().values())
+        # The fixture row carries a provider, so `door-provider` is visited
+        # whatever the live registry holds: the shipped rows have none, and
+        # a sibling test's withdrawal used to decide whether this check
+        # covered that kind [measured 2026-09-10: red in the door-sync-selftest
+        # lane's worker order on d7020edeb, green alone].
+        records = (*table().values(), _record())
         derived = orders(records)
         arrows = {
             str(atom.children[1]): atom.children[2]
