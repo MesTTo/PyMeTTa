@@ -10,7 +10,7 @@ Ordinary --write only updates this manifest's shell and documentation regions.
 Guarantees: what a generated file says about itself (`notice`) is read from the
 same declared outputs the drift check reads, through `owner`, which names one
 artifact per path and refuses none or two [tested:
-ManifestTests.test_owner_and_notice_read_the_declared_outputs; commit=WORKTREE].
+ManifestTests.test_owner_and_notice_read_the_declared_outputs; commit=e492f2a5bb995b6c2b86bdeb90cb1d2f27282b07].
 """
 
 from __future__ import annotations

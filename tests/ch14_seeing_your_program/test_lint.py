@@ -19,7 +19,7 @@ Guarantees:
     test_a_match_template_variable_nothing_binds_is_reported,
     test_an_atom_typed_parameter_may_bind_the_variable_it_is_handed,
     test_a_metatype_slot_follows_the_engines_admission,
-    test_a_user_typing_rule_reaches_the_type_mismatch_check; commit=WORKTREE]
+    test_a_user_typing_rule_reaches_the_type_mismatch_check; commit=e492f2a5bb995b6c2b86bdeb90cb1d2f27282b07]
   - duplicate-binder covers clause-scoped names across plain ``let`` forms,
     retains all three nested and sibling ``let*`` shapes, and leaves distinct
     binders' ``Pair`` answer unchanged [tested:

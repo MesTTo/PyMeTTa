@@ -38,12 +38,12 @@ Guarantees:
     test_a_variable_used_only_in_an_evaluated_position_is_reported,
     test_a_match_pattern_binds_its_fresh_variables,
     test_an_atom_typed_parameter_may_bind_the_variable_it_is_handed;
-    commit=WORKTREE]
+    commit=e492f2a5bb995b6c2b86bdeb90cb1d2f27282b07]
   - a declared slot contradicts a ground argument exactly when the engine's
     own admission refuses it (`metta_argument_admitted/3`), so a metatype
     slot and a user typing rule in the space decide there with nothing here
     to change [tested: test_a_metatype_slot_follows_the_engines_admission,
-    test_a_user_typing_rule_reaches_the_type_mismatch_check; commit=WORKTREE]
+    test_a_user_typing_rule_reaches_the_type_mismatch_check; commit=e492f2a5bb995b6c2b86bdeb90cb1d2f27282b07]
 Open Obligations:
   To Do: None
   Hacks: None
