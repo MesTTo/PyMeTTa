@@ -96,4 +96,16 @@ def twin(m):
 #: drop with none per read; measured on the merged tree [measured 2026-09-09:
 #: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=0f53926c2fd9f28e188814c84253ad82e13258f7].
-BUDGET = 3911
+#: RE-PINNED 2026-09-10, 3911 to 3688 (-223), the binding resolves Janus
+#: maplist/2 at boot, removing its first-failure autoload; one compiled option
+#: policy removes repeated evaluation frames, and keyed dispatch removes
+#: repeated transport/context selection. Indexed source-macro hooks preserve
+#: unrelated compilation costs. Same-cut controls and all before/after rows are
+#: in docs/journal/2026-09-09-the-binding-collapse.md. These three fresh serial
+#: processes set file_search_cache_time=9223372036854775807 before boot,
+#: matching the validated full-lane/277/workers=32/file-cache-
+#: time=9223372036854775807 environment. Workloads, point tolerances and
+#: empirical envelopes are unchanged [measured 2026-09-10: min-of-3 serial
+#: fresh processes; command=python extensions/python/tools/twin_coverage.py
+#: --repin; commit=8358dfc233bf299bb23eceddd94593a62372fe4b].
+BUDGET = 3688

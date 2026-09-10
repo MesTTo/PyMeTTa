@@ -7,15 +7,6 @@
 % classes; the answer comes from the Python-side protocol registry, so a
 % library teaches typing without touching Prolog.
 
-:- multifile seam:grounded_type_names/2.
-
-%Class names cross as text; protocol type atoms use the ordinary wire.
-%Decode each complete type with shared variables so (Pair $t $t) remains
-%one constraint rather than two independently fresh variables.
-seam:grounded_type_names(X, Names) :-
-    py_is_object(X),
-    py_call(metta_ops:type_names(X), Candidates),
-    maplist(metta_py_protocol_type, Candidates, Names).
 
 metta_py_protocol_type(Candidate, Type) :-
     ( is_list(Candidate)

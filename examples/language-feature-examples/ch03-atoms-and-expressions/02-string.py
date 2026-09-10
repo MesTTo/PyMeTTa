@@ -60,12 +60,12 @@ def twin(m):
 #: retain the upstream law [measured 2026-09-08: min-of-3 serial fresh
 #: processes; command=python extensions/python/tools/twin_coverage.py --repin;
 #: commit=7f00ac7932fefa6f380fc8d14ec583ea0c58eff4].
-#: RE-PINNED 2026-09-10, 179 to 213 (+34), The reference, visibility and
-#: property declarations add six heads to the cold-import census. Partial
-#: catalog reads now sort occurrence tokens; source-scoped claims and cache
-#: reservations change first translation work. The explicitly revised lib_he
-#: examples load upstream equations. Warm imports save nine inferences through
-#: one rollback collection; ordinary call and row slopes stay unchanged
-#: [measured 2026-09-10: min-of-3 serial fresh processes; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=90ba93eb8f6e98ebfefc55416859bf13de6a8427].
-BUDGET = 213
+#: RE-PINNED 2026-09-10, 179 to 174 (-5), the compiled binding option policy
+#: removes three fixed setup inferences; the cut reads 177 and 269 while the
+#: committed points were 179 and 271, so the earlier selection by cut delta
+#: missed these five-inference pin moves. Three fresh serial processes use
+#: file_search_cache_time=9223372036854775807 before boot. Workloads, point
+#: tolerances and empirical envelopes are unchanged [measured 2026-09-10: min-
+#: of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=8358dfc233bf299bb23eceddd94593a62372fe4b].
+BUDGET = 174

@@ -1,5 +1,7 @@
 """Purpose: verify MeTTa's validated process-wide configuration surface.
 Guarantees:
+  - simultaneous writers retain their own pending mirror suspension
+    [tested: test_bound_transaction_listeners_belong_to_each_writer; commit=8358dfc233bf299bb23eceddd94593a62372fe4b]
   - native configuration helpers do not enlarge the host predicate namespace
     [tested: test_native_configuration_helpers_stay_out_of_the_host_namespace;
     commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e]
@@ -217,7 +219,7 @@ def test_bound_transaction_listeners_belong_to_each_writer(metta):
                 bounds.config.configure(chunk_cap=8)
                 both_changed.wait()
                 first_finished.wait()
-                assert bounds._PENDING_TRANSACTIONS == {threading.get_ident()}
+                assert set(bounds._PENDING_TRANSACTIONS) == {threading.get_ident()}
                 assert bounds.config.chunk_cap == 8
 
             try:

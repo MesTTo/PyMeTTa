@@ -26,8 +26,10 @@ def twin(m):
     home += S.home_data(S.kept)
     m += S.internal(S.module_helper)
 
-    @m.define
-    def module_helper(x: int) -> int:
+    # The same head defined here as at home, so the Python name says which:
+    # `name=` opts this definition in to the head the home already carries.
+    @m.define(name="module-helper")
+    def module_helper_here(x: int) -> int:
         return x + 100
 
     m.from_(home)

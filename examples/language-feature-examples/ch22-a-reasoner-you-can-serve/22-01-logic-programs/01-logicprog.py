@@ -239,12 +239,18 @@ def twin(m):
 #: above all [measured 2026-09-09: min-of-3 serial fresh processes;
 #: command=python extensions/python/tools/twin_coverage.py --repin;
 #: commit=b4341ae382c48ef225f4a52e566af6a9a71757c4].
-#: RE-PINNED 2026-09-10, 8995 to 9031 (+36), The reference, visibility and
-#: property declarations add six heads to the cold-import census. Partial
-#: catalog reads now sort occurrence tokens; source-scoped claims and cache
-#: reservations change first translation work. The explicitly revised lib_he
-#: examples load upstream equations. Warm imports save nine inferences through
-#: one rollback collection; ordinary call and row slopes stay unchanged
+#: RE-PINNED 2026-09-10, 8995 to 8990 (-5), automatic memo reconciliation uses
+#: a trailed marker so an inference-limit signal cannot leak its guard. The
+#: ordinary dirty drain saves two inferences; the first unset-marker read in
+#: each engine invokes SWI's undefined-global hook. Removing the old thread-
+#: local predicate also changes catalog-arity enumeration order: five
+#: inferences per visited arity in metta_catalog_clause/2 or the partial-list
+#: get_native_atom/3 lookup. Same-worktree old/current/restore measurements,
+#: native call-site coverage and actual missing-global events separate those
+#: costs. See docs/journal/2026-09-09-the-binding-collapse.md. These are three
+#: fresh sequential samples per row with 32 concurrent row runners, warmed
+#: library artifacts, and file_search_cache_time=9223372036854775807 before
+#: boot. Every workload, point allowance and empirical envelope is unchanged
 #: [measured 2026-09-10: min-of-3 serial fresh processes; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=90ba93eb8f6e98ebfefc55416859bf13de6a8427].
-BUDGET = 9031
+#: extensions/python/tools/twin_coverage.py --repin; commit=8358dfc233bf299bb23eceddd94593a62372fe4b].
+BUDGET = 8990

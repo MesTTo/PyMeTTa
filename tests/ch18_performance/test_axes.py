@@ -5,9 +5,9 @@ figures beside it are a recorded run, and a recorded number with no oracle is
 how this repository's tables went stale before: the ordinary row read 3.00
 against a gated 4.00 for days because nothing held the page to the harness.
 
-What is asserted is the COMPLEXITY CLASS rather than the constant, through the
-same `power_fit` the scaling gate uses, so a few percent of drift passes and
-turning one class into the other does not. The published claim is that a
+The tests assert the complexity class, the per-element rate and agreement
+with the operation pin. The same `power_fit` the scaling gate uses admits a
+few percent of drift and rejects a changed class. The published claim is that a
 transparent crossing is linear in the value's size and an opaque one is
 constant, which in log-log space is an exponent approaching 1 against an
 exponent of 0.
@@ -16,22 +16,26 @@ Inferences are the deterministic half of the harness and need no performance
 counters, so this runs on a machine that cannot read `perf`.
 Guarantees:
   - an opaque crossing stays constant in the value's size, exponent 0
-    [tested test_an_opaque_crossing_is_constant_in_the_values_size]
+    [tested: test_an_opaque_crossing_is_constant_in_the_values_size; commit=8358dfc233bf299bb23eceddd94593a62372fe4b]
   - a transparent crossing stays linear, its pair slopes climbing to 1
-    [tested test_a_transparent_crossing_stays_linear_in_the_values_size]
+    [tested: test_a_transparent_crossing_stays_linear_in_the_values_size; commit=8358dfc233bf299bb23eceddd94593a62372fe4b]
   - letting the engine call out stays cheaper than driving it from the host,
     and keeps agreeing with the gated extension-cost table
-    [tested test_the_engine_calling_out_stays_cheaper_than_the_host_driving_in]
+    [tested: test_the_engine_calling_out_stays_cheaper_than_the_host_driving_in;
+    commit=8358dfc233bf299bb23eceddd94593a62372fe4b]
 Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None
 """
 
+import json
+
 import pytest
 
 from benchmarks.axes import CROSSINGS, IMAGE_CROSSINGS, SIZES, inferences_of
 from benchmarks.curves import power_fit
+from benchmarks.extension_cost import BASELINE
 
 
 @pytest.fixture(scope="module")
@@ -103,7 +107,7 @@ def test_a_transparent_crossing_stays_linear_in_the_values_size(crossing):
 
 
 def test_the_engine_calling_out_stays_cheaper_than_the_host_driving_in(crossing):
-    """The direction axis, whose published gap is about five times."""
+    """The direction axis and its agreement with the raw-operation pin."""
     out = crossing("direction-engine-out", "direction-engine-out-null", CROSSINGS)
     into = crossing("direction-host-in", "direction-host-in-null", CROSSINGS)
     assert out * 4 < into, (
@@ -111,6 +115,9 @@ def test_the_engine_calling_out_stays_cheaper_than_the_host_driving_in(crossing)
         f"{into:.2f} with the host driving in. EXTENDING.md tells a reader to "
         f"put the loop in MeTTa on the strength of that gap"
     )
-    # The gated extension-cost table pins the same crossing at 12.00, so the
-    # two harnesses disagreeing means one of them stopped measuring the call.
-    assert out == pytest.approx(12.0, abs=1.0)
+    # Both harnesses subtract the driver to price the same crossing.
+    pins = json.loads(BASELINE.read_text())["benchmarks"]
+    raw = pins["extcost-python-operation-transport-raw"]
+    driver = pins["extcost-the-driver-itself"]
+    expected = (raw["inferences"] - driver["inferences"]) / raw["operations"]
+    assert out == pytest.approx(expected, abs=1.0)

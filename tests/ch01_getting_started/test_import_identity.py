@@ -3,7 +3,7 @@ Guarantees:
   - importing metta alone leaves optional integrations unloaded [tested
     test_optional_surfaces_load_only_when_requested]
   - the metta_ops callback facade re-exports without owning state [tested
-    test_callback_facade_owns_no_state_and_delegates; commit=90ba93eb8f6e98ebfefc55416859bf13de6a8427]
+    test_callback_facade_owns_no_state_and_delegates; commit=8358dfc233bf299bb23eceddd94593a62372fe4b]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -57,17 +57,6 @@ def test_callback_facade_owns_no_state_and_delegates():
             "capture_context": "_binding.task_context",
             "capture_contexts": "_binding.task_context",
             "dispatch": "_binding.dispatch",
-            "dispatch_context": "_binding.dispatch",
-            "dispatch_inverse": "_binding.dispatch",
-            "dispatch_inverse_context": "_binding.dispatch",
-            "dispatch_inverse_raw": "_binding.dispatch",
-            "dispatch_inverse_raw_context": "_binding.dispatch",
-            "dispatch_many": "_binding.dispatch",
-            "dispatch_many_context": "_binding.dispatch",
-            "dispatch_raw": "_binding.dispatch",
-            "dispatch_raw_context": "_binding.dispatch",
-            "dispatch_raw_many": "_binding.dispatch",
-            "dispatch_raw_many_context": "_binding.dispatch",
             "fork_context": "_binding.task_context",
             "fork_contexts": "_binding.task_context",
             "release_context": "_binding.task_context",

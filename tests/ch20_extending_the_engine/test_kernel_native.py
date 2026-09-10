@@ -1,7 +1,7 @@
 """Purpose: differentially pin engine-native Python equality and truthiness.
 
 Assumes:
-  - ``metta_py_dispatch_det_host/3`` remains the current Python oracle for
+  - ``metta_py_dispatch/4`` selects the Python oracle with [det, false, false] for
     opaque values and for differential comparison.
 Guarantees:
   - every wire-crossable scalar produces the same answer through the native
@@ -43,14 +43,14 @@ def _routes(space, operation, *values):
         goal = (
             "metta_py_decode_shared(WA, A, _), "
             "metta_py_decode_shared(WB, B, _), "
-            "metta_py_dispatch_det_host(Op, [A, B], Host), "
+            "metta_py_dispatch([det, false, false], Op, [A, B], Host), "
             "metta_py_dispatch_eq(A, B, Native)"
         )
         row = space.runtime.once(goal, WA=wires[0], WB=wires[1], Op=operation)
     else:
         goal = (
             "metta_py_decode_shared(W, A, _), "
-            "metta_py_dispatch_det_host(Op, [A], Host), "
+            "metta_py_dispatch([det, false, false], Op, [A], Host), "
             "metta_py_dispatch_truthy(A, Native)"
         )
         row = space.runtime.once(goal, W=wires[0], Op=operation)
@@ -88,7 +88,7 @@ def test_python_edge_cases_and_containers(metta):
     row = metta.runtime.once(
         "metta_py_decode_shared(WA, A, _), "
         "metta_py_decode_shared(WB, B, _), "
-        "metta_py_dispatch_det_host('py-eq', [A, B], Host), "
+        "metta_py_dispatch([det, false, false], 'py-eq', [A, B], Host), "
         "metta_py_dispatch_eq(A, B, Native)",
         WA=ground("same").to_wire(),
         WB=Symbol("same").to_wire(),
@@ -111,7 +111,7 @@ def test_python_edge_cases_and_containers(metta):
     for atom, expected in [(Expression(), False), (Expression(S.x), True)]:
         row = metta.runtime.once(
             "metta_py_decode_shared(W, A, _), "
-            "metta_py_dispatch_det_host('py-truthy', [A], Host), "
+            "metta_py_dispatch([det, false, false], 'py-truthy', [A], Host), "
             "metta_py_dispatch_truthy(A, Native)",
             W=atom.to_wire(),
         )

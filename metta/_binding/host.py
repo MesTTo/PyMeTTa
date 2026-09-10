@@ -520,6 +520,7 @@ def is_numeric(value: Any) -> bool:
     return isinstance(_unwrap(value), numbers.Number)
 
 
+# closed-set: decides; policy=Python numeric operator targets; reads=none
 _BINARY_NUMERIC_OPERATORS: dict[str, Callable[..., Any]] = {
     "+": operator.add,
     "-": operator.sub,
@@ -538,6 +539,7 @@ _BINARY_NUMERIC_OPERATORS: dict[str, Callable[..., Any]] = {
 #: The comparisons whose scalar answer is a MeTTa boolean rather than a host value.
 _COMPARISON_OPERATIONS = frozenset({"<", "<=", ">", ">="})
 
+# closed-set: decides; policy=array namespace numeric targets; reads=none
 _ARRAY_NUMERIC_OPERATORS = {
     "sqrt-math": "sqrt",
     "abs-math": "abs",
@@ -557,6 +559,7 @@ _ARRAY_NUMERIC_OPERATORS = {
     "isinf-math": "isinf",
 }
 
+# closed-set: decides; policy=Python scalar math targets; reads=none
 _UNARY_NUMERIC_OPERATORS: dict[str, Callable[..., Any]] = {
     "sqrt-math": math.sqrt,
     "abs-math": operator.abs,

@@ -27,11 +27,19 @@ Open Obligations:
 from __future__ import annotations
 
 import pickle
+from types import SimpleNamespace
 
 import pytest
 
-from metta import Grounded, S, V
-from metta._errors.errors import APPLICABILITIES, GROUND_KINDS, REMEDY_KINDS, Ground, Remedy
+from metta import Expression, Grounded, S, V
+from metta._errors.errors import (
+    APPLICABILITIES,
+    GROUND_KINDS,
+    REMEDY_KINDS,
+    Ground,
+    Remedy,
+    _refusal_remedy,
+)
 
 _TITLE = Grounded("t")
 
@@ -47,6 +55,32 @@ def test_a_remedy_round_trips_through_its_atom():
         Remedy("both", "quickfix", "machine", edit=S.a, python="m.add(S.a)"),
     ):
         assert Remedy.from_atom(remedy.as_atom()) == remedy
+
+
+@pytest.mark.parametrize(("acts", "expected"), [
+    ((("edit", "<value>"),), {"edit": S.item}),
+    ((("replace", "old", "<value>"),), {"replace": (S.old, S.item)}),
+    ((("remove", "<value>"),), {"replace": (S.item, None)}),
+    ((("python", "print(<value>)"),), {"python": "print(item)"}),
+    ((("edit", "<value>"), ("python", "print(<value>)")), {"edit": S.item, "python": "print(item)"}),
+])
+def test_remedy_templates_and_atoms_share_every_act(acts, expected):
+    """Filled catalog acts and canonical atom acts answer the same remedy."""
+    row = SimpleNamespace(title="repair <value>", acts=acts, remedy_kind="quickfix", applicability="machine")
+    remedy = _refusal_remedy(row, {"value": "item"})
+    assert remedy == Remedy("repair item", "quickfix", "machine", **expected)
+    assert Remedy.from_atom(remedy.as_atom()) == remedy
+    assert _refusal_remedy(row, {}).applicability == "prose"
+
+
+@pytest.mark.parametrize("act", [(), ("unknown", "x"), ("edit", "x", "extra")])
+def test_both_remedy_readers_refuse_malformed_acts(act):
+    """An empty, unknown or wrong-arity act is never silently discarded."""
+    row = SimpleNamespace(title="repair", acts=(act,), remedy_kind="quickfix", applicability="prose")
+    with pytest.raises(ValueError, match="is not a remedy act"):
+        _refusal_remedy(row, {})
+    with pytest.raises(ValueError, match="is not a remedy act"):
+        Remedy.from_atom(S.remedy(_TITLE, S.quickfix, S.prose, Expression(*(S[word] for word in act))))
 
 
 def test_a_ground_round_trips_through_its_atom():

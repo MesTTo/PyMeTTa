@@ -78,7 +78,7 @@ metta_py_dispatch_eq(Left, Right, Result) :-
     metta_py_native_eq(Left, Right, Result),
     !.
 metta_py_dispatch_eq(Left, Right, Result) :-
-    metta_py_dispatch_det('py-eq', [Left, Right], Result).
+    metta_py_dispatch([det, false, false], 'py-eq', [Left, Right], Result).
 
 metta_py_dispatch_truthy(Value, Result) :-
     number(Value),
@@ -90,56 +90,54 @@ metta_py_dispatch_truthy(Value, Result) :-
     metta_py_native_truthy(Value, Result),
     !.
 metta_py_dispatch_truthy(Value, Result) :-
-    metta_py_dispatch_det('py-truthy', [Value], Result).
+    metta_py_dispatch([det, false, false], 'py-truthy', [Value], Result).
 
-metta_py_dispatch_det(Name, Args, Result) :-
-    metta_py_encode_arguments(Args, TA, Table),
-    catch(metta_py_host_call(Name, metta_py_call_det(Name, TA, TR)),
-          Error, TR = '$metta_op_error'(Error)),
-    (   TR = '$metta_op_error'(DetError)
-    ->  metta_py_op_erring(Name, Args, DetError, Result)
-    ;   \+ metta_py_declined(TR),
-        %The shape test and this whole branch are written out because
-        %this is the hot path: a plain wire is two elements, the explicit
-        %answer four or five, the inlined unification costs no inference,
-        %and even one helper call showed up as +1 per call on the extcost
-        %gate [measured 2026-08-17: encoded 57248 against its 54248
-        %baseline through a metta_py_dispatch_det_result/4 helper, and
-        %54248 written out].
-        (   TR = [_, _, _, _|_]
-        ->  metta_py_answer_result(TR, Name, Table, Result)
-        ;   metta_py_decode_shared_(TR, Result, Table, _)
-        )
-    ).
-
-%A scheduler engine owns one retained Python Context token. Direct host calls
-%have none and keep their old callback path. Context selection is outside the
-%Python registry's hot dispatch so unscheduled calls pay one b-value probe and
-%no copied Context.
-metta_py_call_det(Name, Args, Result) :-
-    (   nb_current('$metta_python_context', Context), integer(Context)
-    ->  py_call(metta_ops:dispatch_context(Context, Name, Args), Result)
-    ;   py_call(metta_ops:dispatch(Name, Args), Result)
-    ).
-
-metta_py_call_many(Name, Args, Mode, Result) :-
-    (   nb_current('$metta_python_context', Context), integer(Context)
-    ->  py_iter(metta_ops:dispatch_many_context(Context, Name, Args, Mode),
-                Result)
-    ;   py_iter(metta_ops:dispatch_many(Name, Args, Mode), Result)
-    ).
-
-metta_py_call_raw_det(Name, Args, Result) :-
-    (   nb_current('$metta_python_context', Context), integer(Context)
-    ->  py_call(metta_ops:dispatch_raw_context(Context, Name, Args), Result)
-    ;   py_call(metta_ops:dispatch_raw(Name, Args), Result)
-    ).
-
-metta_py_call_raw_many(Name, Args, Result) :-
-    (   nb_current('$metta_python_context', Context), integer(Context)
-    ->  py_iter(metta_ops:dispatch_raw_many_context(Context, Name, Args),
-                Result)
-    ;   py_iter(metta_ops:dispatch_raw_many(Name, Args), Result)
+% The key is compiled from the catalog kind once at registration. Inverse
+% calls always stream, including inverses of deterministic forward functions.
+metta_py_dispatch([Kind, Raw, Inverse], Name, Args, Result) :-
+    ( Kind == async
+    -> metta_py_launch(Name, Args, Result)
+    ; ( Inverse == true
+      -> Call = [Name, Result],
+         ( Raw == true -> Payload = Result
+         ; metta_py_encode(Result, [], Table, Payload) )
+      ; Call = [Name|Args],
+        ( Raw == true -> Payload = Args
+        ; metta_py_encode_arguments(Args, Payload, Table) )
+      ),
+      ( ( Kind == many ; Inverse == true ) -> Stream = true ; Stream = false ),
+      ( Raw == false, Inverse == false, Stream == true,
+        metta_on_error_mode(Name, Call, DeclaredMode), DeclaredMode \== abort
+      -> Mode = DeclaredMode
+      ; Mode = abort
+      ),
+      ( nb_current('$metta_python_context', Context0), integer(Context0)
+      -> Context = Context0
+      ; Context = @(none)
+      ),
+      Spec = metta_ops:dispatch([Kind, Raw, Inverse], Context, Name, Payload, Mode),
+      ( Stream == true -> Crossing = py_iter(Spec, Wire) ; Crossing = py_call(Spec, Wire) ),
+      catch(metta_py_host_call(Name, Stream, Crossing), Error,
+            Wire = '$metta_op_error'(Error)),
+      ( Wire = '$metta_op_error'(Failure)
+      -> ( ( Raw == true ; Inverse == true )
+         -> metta_py_failure(Call, Failure)
+         ; metta_py_op_erring(Name, Args, Failure, Result) )
+      ; Stream == true, metta_py_stream_frame(Wire, Exception)
+      -> metta_py_stream_failure(Call, Exception)
+      ; Inverse == true
+      -> metta_py_inverse_width(Name, Args, Wire),
+         ( Raw == true -> maplist(metta_py_raw_norm, Wire, Args)
+         ; metta_py_decode_arguments(Wire, Table, Args) )
+      ; Raw == true
+      -> Wire \== @(none), metta_py_raw_norm(Wire, Result)
+      ; Stream == true, metta_py_relation_form(Wire, Fields)
+      -> metta_py_relation_result(Fields, Args, Table, Result)
+      ; ( Stream == true -> true ; \+ metta_py_declined(Wire) ),
+        ( Wire = [_, _, _, _|_]
+        -> metta_py_answer_result(Wire, Name, Table, Result)
+        ; metta_py_decode_shared_(Wire, Result, Table, _) )
+      )
     ).
 
 %Go's blocking-syscall handoff applied at the five-rank admission boundary:
@@ -156,20 +154,15 @@ metta_py_call_raw_many(Name, Args, Result) :-
 %Go 1.26.5 entersyscallblock; tested:
 %test_a_blocking_oracle_uses_the_dirty_lane_without_pinning_normal_work;
 %commit=39092863ae34184a9f955f185ff57c1ff177ec40].
-metta_py_host_call(Name, Goal) :-
+metta_py_host_call(Name, Stream, Goal) :-
     (   nb_current('$metta_scheduler_task', _),
         metta_operation_effect(Name, oracleIO)
-    ->  (   metta_py_host_many(Name)
+    ->  (   Stream == true
         ->  metta_py_dirty_many(Goal)
         ;   metta_py_dirty_once(Goal)
         )
     ;   call(Goal)
     ).
-
-metta_py_host_many(Name) :-
-    once(metta_contract_fact([op, Name, _, Kind])),
-    % policy-inventory-exempt: mechanism-internal; reason=the two op kinds whose answers stream nondeterministically, a projection of the catalog's declared op-kind vocabulary rather than a second list; evidence=engine/spaces/catalog.pl:metta_catalog_preset/1
-    memberchk(Kind, [many, raw_many]).
 
 metta_py_dirty_once(Goal) :-
     engine_yield('$metta_scheduler_lane'(dirty)),
@@ -224,7 +217,7 @@ metta_py_dirty_many_event(throw(Error), _, _) :-
 %outer transaction has committed and discards it on rollback. The launch atom
 %therefore rides the transaction's ordinary buffered event segment, while the
 %landing atom below is a later write from the event-loop thread.
-metta_py_dispatch_async(Name, Args, Space) :-
+metta_py_launch(Name, Args, Space) :-
     metta_py_encode_arguments(Args, Tagged, _),
     metta_async_future_new(Space, Done),
     (   catch(metta_py_async_prepare(Name, Tagged, Space, Done, Token),
@@ -271,7 +264,7 @@ metta_py_async_prepare(Name, Tagged, Space, Done, Token) :-
     ;   Parent = @(none)
     ),
     metta_py_host_call(
-        Name,
+        Name, false,
         py_call(metta_ops:async_prepare(Name, Tagged, Parent), Token)),
     metta_async_future_bind(Token, Name, Space, Done).
 
@@ -348,12 +341,6 @@ prolog:error_message(metta_async_start_failed(Token)) -->
     [ 'async operation ~w was prepared but absent when its transaction committed'-[Token] ].
 prolog:error_message(metta_async_landing_publish_failed(Name, Space)) -->
     [ 'async operation ~w could not publish its landing for ~w'-[Name, Space] ].
-
-%A differential-only name for the retained host route. Production generic
-%operations call metta_py_dispatch_det/3 directly, preserving their original
-%one-clause path; native operations use this route only for opaque values.
-metta_py_dispatch_det_host(Name, Args, Result) :-
-    metta_py_dispatch_det(Name, Args, Result).
 
 metta_py_native_eq(Left, Right, Result) :-
     metta_py_native_class(Left, LeftClass),
@@ -435,27 +422,7 @@ metta_py_native_truth_class(expression, Value, Result) :-
 %backtracking, so a generator yielding two values and then raising is caught
 %on the third [measured 2026-08-17: catch/3 over member/2 gives all three
 %solutions, and a throw on the last one is caught].
-metta_py_dispatch_many(Name, Args, Result) :-
-    metta_py_encode_arguments(Args, TA, Table),
-    (   metta_on_error_mode(Name, [Name|Args], DeclaredMode),
-        DeclaredMode \== abort
-    ->  Mode = DeclaredMode
-    ;   Mode = abort
-    ),
-    catch(( metta_py_host_call(Name,
-                              metta_py_call_many(Name, TA, Mode, TR0)),
-            TR = TR0 ),
-          Error, TR = '$metta_op_error'(Error)),
-    (   TR = '$metta_op_error'(ManyError)
-    ->  metta_py_op_erring(Name, Args, ManyError, Result)
-    ;   metta_py_stream_frame(TR, StreamException)
-    ->  metta_py_stream_failure([Name|Args], StreamException)
-    ;   metta_py_relation_form(TR, Fields)
-    ->  metta_py_relation_result(Fields, Args, Table, Result)
-    ;   TR = [_, _, _, _|_]
-    ->  metta_py_answer_result(TR, Name, Table, Result)
-    ;   metta_py_decode_shared_(TR, Result, Table, _)
-    ).
+
 
 %A Python stream pulled through py_iter/2 cannot raise. py_iter reads a raising
 %pull as an exhausted one: it never consults the Python error indicator after
@@ -612,22 +579,6 @@ metta_py_raw_norm(R, R).
 %Against the crossing it guards, one inference is not the number that matters:
 %a raw operation costs 0.87 microseconds where a MeTTa function costs 0.09
 %[measured 2026-08-17], so janus dominates it by an order of magnitude.
-metta_py_dispatch_raw_det(Name, Args, Result) :-
-    catch(metta_py_host_call(Name, metta_py_call_raw_det(Name, Args, R0)),
-          Error, metta_py_failure([Name|Args], Error)),
-    R0 \== '@'(none),
-    metta_py_raw_norm(R0, Result).
-
-metta_py_dispatch_raw_many(Name, Args, Result) :-
-    catch(metta_py_host_call(Name, metta_py_call_raw_many(Name, Args, R0)),
-          Error, metta_py_failure([Name|Args], Error)),
-    (   metta_py_stream_frame(R0, StreamException)
-    ->  metta_py_stream_failure([Name|Args], StreamException)
-    ;   true
-    ),
-    R0 \== '@'(none),
-    metta_py_raw_norm(R0, Result).
-
 %Register every arity of a Python-backed function in one step, checked
 %before anything mutates: a name whose compiled predicate would collide
 %with a static procedure ((+)/3, say) throws HERE, with no state touched,
@@ -729,23 +680,7 @@ metta_py_register_op(Name0, Arity, Kind) :-
 %The engine asks who a dispatch goal really is, so a purity refusal names the
 %operation rather than this file's dispatcher. The name is the goal's first
 %argument in all four kinds, which is why it is recoverable exactly.
-:- multifile seam:effect_operation_name/3.
-seam:effect_operation_name(metta_py_dispatch_det(Name, Args, _), Name, Arity) :-
-    metta_py_dispatch_arity(Args, Arity).
-seam:effect_operation_name(metta_py_dispatch_eq(_, _, _), 'py-eq', 2).
-seam:effect_operation_name(metta_py_dispatch_truthy(_, _), 'py-truthy', 1).
-seam:effect_operation_name(metta_py_dispatch_many(Name, Args, _), Name, Arity) :-
-    metta_py_dispatch_arity(Args, Arity).
-seam:effect_operation_name(metta_py_dispatch_async(Name, Args, _), Name, Arity) :-
-    metta_py_dispatch_arity(Args, Arity).
-seam:effect_operation_name(metta_py_dispatch_raw_det(Name, Args, _), Name, Arity) :-
-    metta_py_dispatch_arity(Args, Arity).
-seam:effect_operation_name(metta_py_dispatch_raw_many(Name, Args, _), Name, Arity) :-
-    metta_py_dispatch_arity(Args, Arity).
-seam:effect_operation_name(metta_py_dispatch_inverse(Name, _, Args), Name, Arity) :-
-    metta_py_dispatch_arity(Args, Arity).
-seam:effect_operation_name(metta_py_dispatch_inverse_raw(Name, _, Args), Name, Arity) :-
-    metta_py_dispatch_arity(Args, Arity).
+
 
 %The MeTTa arity, which is the argument list's length: the engine's extra
 %output slot is the dispatch goal's third argument and not one of these.
@@ -756,11 +691,12 @@ metta_py_op_body(det,      'py-eq', [Left, Right], R,
                  metta_py_dispatch_eq(Left, Right, R)) :- !.
 metta_py_op_body(det,      'py-truthy', [Value], R,
                  metta_py_dispatch_truthy(Value, R)) :- !.
-metta_py_op_body(det,      Name, Args, R, metta_py_dispatch_det(Name, Args, R)).
-metta_py_op_body(many,     Name, Args, R, metta_py_dispatch_many(Name, Args, R)).
-metta_py_op_body(async,    Name, Args, R, metta_py_dispatch_async(Name, Args, R)).
-metta_py_op_body(raw_det,  Name, Args, R, metta_py_dispatch_raw_det(Name, Args, R)).
-metta_py_op_body(raw_many, Name, Args, R, metta_py_dispatch_raw_many(Name, Args, R)).
+metta_py_op_body(Kind, Name, Args, R, metta_py_dispatch(Key, Name, Args, R)) :-
+    metta_py_dispatch_key(Kind, false, Key).
+
+metta_py_dispatch_key(raw_det, Inverse, [det, true, Inverse]) :- !.
+metta_py_dispatch_key(raw_many, Inverse, [many, true, Inverse]) :- !.
+metta_py_dispatch_key(Kind, Inverse, [Kind, false, Inverse]).
 
 :- dynamic metta_py_op_invertible/1.
 
@@ -789,7 +725,8 @@ metta_py_set_invertible(Name, Invertible) :-
 %builtins [tested: test_a_registered_operation_runs_backwards].
 metta_py_directed_body(Name, Kind, Args, Result, Forward, Body) :-
     (   metta_py_op_invertible(Name)
-    ->  metta_py_inverse_goal(Kind, Name, Result, Args, Backward),
+    ->  metta_py_dispatch_key(Kind, true, Key),
+        Backward = metta_py_dispatch(Key, Name, Args, Result),
         Body = (   ground(Args)
                ->  Forward
                ;   nonvar(Result)
@@ -804,63 +741,6 @@ metta_py_directed_body(Name, Kind, Args, Result, Forward, Body) :-
 %through the wire encoding saw `str` for a symbol going forwards and `Sym`
 %coming back, which is one pair and two value conventions
 %[tested: test_a_raw_operations_inverse_crosses_raw_too].
-metta_py_inverse_goal(Kind, Name, Result, Args, Goal) :-
-    (   metta_py_raw_kind(Kind)
-    ->  Goal = metta_py_dispatch_inverse_raw(Name, Result, Args)
-    ;   Goal = metta_py_dispatch_inverse(Name, Result, Args)
-    ).
-
-metta_py_raw_kind(raw_det).
-metta_py_raw_kind(raw_many).
-
-%One result in, argument tuples out. It enumerates, because an inverse is a
-%relation: a result with two preimages answers twice, and one with none fails,
-%which is failure rather than an error exactly as it is forwards.
-%
-%The arity is checked here rather than trusted, because the inverse is the
-%author's own Python and a tuple of the wrong width would otherwise unify
-%against nothing and read as "no solution" rather than as the mistake it is.
-%The failure frame is read BEFORE the width check, because a frame is a
-%four-element list and a four-argument operation's preimage is one too, so
-%checking width first would report a raising inverse as an arity mistake.
-metta_py_dispatch_inverse(Name, Result, Args) :-
-    metta_py_encode(Result, [], Table, TR),
-    catch(metta_py_host_call(
-              Name,
-              metta_py_call_inverse(Name, TR, TArgs)),
-          Error, metta_py_failure([Name, Result], Error)),
-    (   metta_py_stream_frame(TArgs, StreamException)
-    ->  metta_py_stream_failure([Name, Result], StreamException)
-    ;   true
-    ),
-    metta_py_inverse_width(Name, Args, TArgs),
-    metta_py_decode_arguments(TArgs, Table, Args).
-
-metta_py_dispatch_inverse_raw(Name, Result, Args) :-
-    catch(metta_py_host_call(
-              Name,
-              metta_py_call_inverse_raw(Name, Result, RawArgs)),
-          Error, metta_py_failure([Name, Result], Error)),
-    (   metta_py_stream_frame(RawArgs, StreamException)
-    ->  metta_py_stream_failure([Name, Result], StreamException)
-    ;   true
-    ),
-    metta_py_inverse_width(Name, Args, RawArgs),
-    maplist(metta_py_raw_norm, RawArgs, Args).
-
-metta_py_call_inverse(Name, Result, Args) :-
-    (   nb_current('$metta_python_context', Context), integer(Context)
-    ->  py_iter(metta_ops:dispatch_inverse_context(Context, Name, Result), Args)
-    ;   py_iter(metta_ops:dispatch_inverse(Name, Result), Args)
-    ).
-
-metta_py_call_inverse_raw(Name, Result, Args) :-
-    (   nb_current('$metta_python_context', Context), integer(Context)
-    ->  py_iter(metta_ops:dispatch_inverse_raw_context(Context, Name, Result),
-                Args)
-    ;   py_iter(metta_ops:dispatch_inverse_raw(Name, Result), Args)
-    ).
-
 metta_py_inverse_width(Name, Args, Answered) :-
     length(Args, Arity),
     (   is_list(Answered), length(Answered, Arity)

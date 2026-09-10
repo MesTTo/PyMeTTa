@@ -40,6 +40,7 @@ from metta import (
     under,
 )
 from metta import space as make_space
+from metta._binding.options import EVALUATIONS
 from metta._errors.errors import EngineError, InferenceLimitError, TimeLimitError
 from metta.algebra import AlgebraOperationError, LinearEvidenceError, evaluate, require, tagged_rule
 from metta.foreign import SpaceProvider
@@ -373,9 +374,9 @@ def test_provider_carrier_predicate_shares_the_source_budget(metta, resource):
         def admits(value):
             if value == 2:
                 started.append(value)
+                predicate, _, preset = EVALUATIONS["space:eval"]
                 assert helper.runtime.apply_must(
-                    "metta_py_eval_all", helper.name,
-                    S.provider_carrier_spin(20_000_000).to_wire(),
+                    predicate, preset, helper.name, S.provider_carrier_spin(20_000_000).to_wire(),
                 ) == [G(value=True).to_wire()]
                 finished.append(value)
             return isinstance(value, int)

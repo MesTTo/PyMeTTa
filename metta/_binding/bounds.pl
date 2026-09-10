@@ -2,13 +2,16 @@
 % Assumes: _binding/shim.pl imports metta_py_mirror_bounds/0.
 % Guarantees: transaction helpers remain private to metta_python_bounds
 % [tested: test_native_configuration_helpers_stay_out_of_the_host_namespace;
-% commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
-% Owns resources: one process listener and per-thread outer-frame markers; frame completion retires each marker
-% [source: extensions/python/metta/_binding/bounds.pl:66; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
+% commit=8358dfc233bf299bb23eceddd94593a62372fe4b].
+% Native watches preserve outer suspension and safe engine destruction
+% [tested: test_bound_watches_transfer_until_outer_completion; commit=8358dfc233bf299bb23eceddd94593a62372fe4b].
+% Owns resources: one process listener and per-engine live-frame markers; outer completion retires each marker
+% [source: extensions/python/metta/_binding/bounds.pl:metta_py_bound_frame_finished/1; commit=8358dfc233bf299bb23eceddd94593a62372fe4b].
 % Guarded by: $metta_bound_listener serializes process listener installation.
 
 :- module(metta_python_bounds, [metta_py_mirror_bounds/0]).
 :- use_module(library(janus), [py_call/2]).
+:- include('provides_host_metta_python_bounds.pl').
 
 %The seat MIRRORS the `(limit <name> <value>)` bounds it reads, because a
 %cursor reads its chunk cap when it opens and asking the catalog per read
@@ -17,13 +20,10 @@
 %command=python extensions/python/benchmarks/probes/bound_row_cost.py --read;
 %fixture=a 50-atom space, 20,000 matches per arm, min of five]. A mirror is only
 %correct if the write says so, and `!(add-atom &metta (limit chunk-cap 8))`
-%is a write this side never sees, so the engine announces it. This clause and
-%the door below are the whole of that coupling; metta._catalog.bounds holds the
-%mirror and decides what a changed row means.
-:- multifile seam:catalog_row_changed/2.
-seam:catalog_row_changed(_Event, [limit, Name|_]) :-
-    ( current_transaction(_) -> metta_py_bound_transaction ; true ),
-    py_call('metta._catalog.bounds':bound_row_changed(Name), _).
+%is a write this side never sees, so the engine announces it. The
+%seam:catalog_row_changed/2 clause in provides/event.pl and
+%metta_py_mirror_bounds/0 below couple that event to metta._catalog.bounds,
+%which holds the mirror and decides what a changed row means.
 
 % A foreign mirror is not transactional storage. Suspend its shared fills
 % only while a transaction has actually changed a bound, and invalidate it
@@ -31,20 +31,29 @@ seam:catalog_row_changed(_Event, [limit, Name|_]) :-
 % inside the suspension. SWI holds its global event-list lock while calling
 % listeners; a listener must not remove itself from that list. One process
 % listener is installed on the first transactional bound write, and each
-% writer owns only its non-backtrackable outer-frame marker.
-% This follows spaces:metta_receipt_outer_frame/3 and SWI's frame_finished:
+% writer owns its non-backtrackable live-frame marker. Watch the nearest
+% transaction and transfer to its remaining owner when it finishes. Walking
+% above it marks the engine's outer query frame for an unsafe notification
+% after PL_close_query has closed its foreign frame. A failure callback can
+% start on the finishing frame, so exclude that ID while finding the next.
+% This follows spaces:metta_receipt_watch_transaction/2 and
+% spaces:metta_receipt_nearest_frame/3, and SWI's frame_finished:
 % https://github.com/SWI-Prolog/swipl-devel/blob/fc7ef84b949378b729052c3ade79c90ce5416abb/src/pl-transaction.c
 % https://github.com/SWI-Prolog/swipl-devel/blob/fc7ef84b949378b729052c3ade79c90ce5416abb/src/pl-event.c#L412-L467
-% [tested: test_configuration_rows_and_mirror_follow_outer_rollback;
-% commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
+% https://github.com/SWI-Prolog/swipl-devel/blob/V10.1.13/src/pl-wam.c#L902-L916
+% [tested: test_bound_watches_transfer_until_outer_completion; commit=8358dfc233bf299bb23eceddd94593a62372fe4b].
 metta_py_bound_transaction :-
     ( nb_current('$metta_bound_transaction', _) -> true
-    ; prolog_current_frame(Current),
-      metta_py_bound_outer_frame(Current, none, Frame),
-      ( Frame == none -> existence_error(transaction_frame, Current) ; true ),
-      nb_setval('$metta_bound_transaction', Frame),
+    ; metta_py_bound_watch_transaction(none),
       metta_py_bound_listener,
       py_call('metta._catalog.bounds':bound_transaction_started(), _) ).
+
+% Workaround: swi-query-frame-discarded-on-engine-destroy - watch the nearest live transaction and transfer its ownership on completion.
+metta_py_bound_watch_transaction(Finished) :-
+    prolog_current_frame(Current),
+    metta_py_bound_nearest_frame(Current, Finished, Frame),
+    ( Frame == none -> existence_error(transaction_frame, Current) ; true ),
+    nb_setval('$metta_bound_transaction', Frame).
 
 metta_py_bound_listener :-
     with_mutex('$metta_bound_listener',
@@ -54,19 +63,23 @@ metta_py_bound_listener :-
                           [name(metta_bound_transaction)]),
             flag('$metta_bound_listener_ready', _, 1) ) )).
 
-metta_py_bound_outer_frame(Frame, Prior, Outer) :-
-    prolog_frame_attribute(Frame, predicate_indicator, Predicate),
-    % policy-inventory-exempt: mechanism-internal; reason=SWI native transaction frames in pl-transaction.c at the cited commit; evidence=metta_py_bound_outer_frame/3
-    ( memberchk(Predicate, [system:'$transaction'/2, system:'$transaction'/3,
-                           system:'$snapshot'/1]) -> Found = Frame ; Found = Prior ),
-    ( prolog_frame_attribute(Frame, parent, Parent)
-    -> metta_py_bound_outer_frame(Parent, Found, Outer)
-    ; Outer = Found ).
+metta_py_bound_nearest_frame(Current, Finished, Nearest) :-
+    prolog_frame_attribute(Current, predicate_indicator, Predicate),
+    % policy-inventory-exempt: mechanism-internal; reason=SWI native transaction frames in pl-transaction.c at the cited commit; evidence=metta_py_bound_nearest_frame/3
+    ( Current \== Finished,
+      memberchk(Predicate, [system:'$transaction'/2, system:'$transaction'/3,
+                           system:'$snapshot'/1])
+    -> Nearest = Current
+    ; prolog_frame_attribute(Current, parent, Parent)
+    -> metta_py_bound_nearest_frame(Parent, Finished, Nearest)
+    ; Nearest = none ).
 
 metta_py_bound_frame_finished(Frame) :-
     ( nb_current('$metta_bound_transaction', Frame)
-    -> nb_delete('$metta_bound_transaction'),
-       py_call('metta._catalog.bounds':bound_transaction_finished(), _)
+    -> ( current_transaction(_)
+       -> metta_py_bound_watch_transaction(Frame)
+       ; nb_delete('$metta_bound_transaction'),
+         py_call('metta._catalog.bounds':bound_transaction_finished(), _) )
     ; true ).
 
 %Turn the announcement on. Called once per engine by the seat's own boot,

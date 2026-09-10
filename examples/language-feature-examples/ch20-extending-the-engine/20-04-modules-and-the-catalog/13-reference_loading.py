@@ -29,7 +29,8 @@ def twin(m):
             assert "println!" in str(error)
             assert "eager" in str(error)
         else:
-            raise AssertionError("an effectful initializer was accepted")
+            accepted = "an effectful initializer was accepted"
+            raise AssertionError(accepted)
     m.fn["pragma!"](S.load, S.eager)
 
 

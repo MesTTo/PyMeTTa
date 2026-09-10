@@ -34,7 +34,7 @@ import math
 import threading
 import weakref
 from collections.abc import Callable, Iterable, Mapping
-from dataclasses import dataclass, fields, is_dataclass
+from dataclasses import dataclass, field, fields, is_dataclass
 from enum import StrEnum
 from functools import cache, cached_property
 from pathlib import Path
@@ -338,12 +338,50 @@ class Body:
         return value
 
 
+class EvaluationInput(StrEnum):
+    """The representation supplied to the binding's evaluation entry."""
+
+    wire = "wire"
+    term = "term"
+
+
+class EvaluationCollection(StrEnum):
+    """How one producer delivers its answers across the binding."""
+
+    one = "one"
+    all = "all"
+    cursor = "cursor"
+    count = "count"  # type: ignore[assignment]  # the vocabulary word deliberately shadows str.count
+    retained = "retained"
+    status = "status"
+
+
+@dataclass(frozen=True, slots=True)
+class EvaluationOptions:
+    """The evaluation record grammar; binding code and documents are projections."""
+
+    form: EvaluationInput = field(default=EvaluationInput.wire, metadata={"means": "Wire/text target or an already decoded term."})
+    using: tuple[tuple[str, str], ...] = field(default=(), metadata={"means": "Named substitutions applied to the decoded term."})
+    answers: EvaluationCollection = field(default=EvaluationCollection.all, metadata={"means": "One solution, eager bag, cursor, count, retained count, or status rows."})
+    fuel: bool = field(default=True, metadata={"means": "Reuse or open the engine fuel scope."})
+    inferences: int = field(default=-1, metadata={"means": "Cumulative engine-step quota; negative means unbounded.", "bound": True})
+    seconds: float = field(default=-1.0, metadata={"means": "Engine time quota in seconds; negative means unbounded.", "bound": True})
+    under: tuple[str, int, str] | None = field(default=None, metadata={"means": "Evaluation algebra, demand limit and direction, or no override."})
+    policy: tuple[str, bool] | None = field(default=None, metadata={"means": "Execution mode and capture policy retained inside a cursor."})
+    repeatable: bool = field(default=False, metadata={"means": "Refuse a separate count when the goal is not effect-safe."})
+    columns: tuple[str, ...] = field(default=(), metadata={"means": "Caller variable names projected beside each cursor answer."})
+    accounting: bool = field(default=False, metadata={"means": "Return the work measured inside this evaluation."})
+    batch: bool = field(default=False, metadata={"means": "Return one result group per target, in input order."})
+    unmatched: bool = field(default=True, metadata={"means": "Preserve an unreduced original after an empty eager bag."})
+
+
 @dataclass(frozen=True, slots=True)
 class Binding:
     """The engine door and the wire used to cross it."""
 
     door: str
     wire: Wire
+    evaluation: EvaluationOptions | None = None
 
 
 @dataclass(frozen=True, slots=True)

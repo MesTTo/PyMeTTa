@@ -8,16 +8,7 @@
 % VarNames selects which variables come back, as one row per answer.
 
 metta_py_query(Space, PatternsTagged, VarNames, Row) :-
-    VarNames = [
-        _, _, _, _, _, _, _, _,
-        _, _, _, _, _, _, _, _,
-        _, _, _, _, _, _, _, _,
-        _, _, _, _, _, _, _, _,
-        _, _, _, _, _, _, _, _,
-        _, _, _, _, _, _, _, _,
-        _, _, _, _, _, _, _, _,
-        _, _, _, _, _, _, _, _ | _
-    ],
+    metta_py_wide_projection(VarNames),
     !,
     metta_py_decode_indexed(["e", PatternsTagged], Patterns, Bindings),
     metta_py_prepare_patterns(Patterns, PlainPatterns, Modifiers, Segments),
@@ -48,18 +39,7 @@ metta_py_query_match(Space, PatternsTagged, Bindings) :-
 %work becomes a post-match goal. The engine therefore joins the opaque handle
 %like any stored value and Python sees only the named segments, never an eager
 %projection of the object graph.
-:- multifile seam:pattern_modifier/3.
-seam:pattern_modifier([PathAt, [SegmentsHead|Segments], Target], Root,
-                 metta_py_path_guard(Root, Segments, Target)) :-
-    %Both markers are read nonvar-then-==, the same reading colon_expression/1
-    %uses, because a LITERAL in the head unifies with an unbound head instead
-    %of rejecting it: an ordinary three-element pattern whose head is a
-    %variable was compiled as a lazy path and raised `invalid lazy path
-    %segment` out of paths.py [measured 2026-08-21, hypothesis
-    %SpaceStateMachine].
-    nonvar(PathAt), PathAt == 'path-at',
-    nonvar(SegmentsHead), SegmentsHead == segments,
-    !.
+
 
 metta_py_prepare_patterns(Patterns, PlainPatterns, Modifiers, Segments) :-
     lift_pattern_modifiers(Patterns, PlainPatterns, Modifiers, Segments).
@@ -177,7 +157,7 @@ metta_py_query_count_under(Space, PatternsTagged, GuardTagged, VarNames,
 %test_tagged_derivations_flow_through_match_and_reinterpret_without_requery;
 %commit=c7468b2789746bcf95c4bacc0e2d517ec4d972fa].
 metta_py_has_tagged_program(Space, Target, Has) :-
-    metta_py_eval_target(Space, Target, [], Query, _),
+    metta_py_target_term_bindings(Space, Target, Query, _),
     (   once(( 'get-atoms'(Space, Atom),
                copy_term(Atom, Stored),
                metta_py_tagged_conclusion(Stored, Conclusion),
@@ -190,7 +170,7 @@ metta_py_tagged_conclusion([fact, _Tag, Proposition], Proposition).
 metta_py_tagged_conclusion([rule, _Tag, Head, [premises|_]], Head).
 
 metta_py_tagged_count(Space, Target, MaxDepth, Limit, Count) :-
-    metta_py_eval_target(Space, Target, [], Query, _),
+    metta_py_target_term_bindings(Space, Target, Query, _),
     findall(Atom, 'get-atoms'(Space, Atom), Atoms),
     Goal = metta_with_under(counting,
                metta_py_tagged_prove(Space, Atoms, Query, MaxDepth)),
@@ -207,7 +187,7 @@ metta_py_tagged_count(Space, Target, MaxDepth, Limit, Count) :-
 % commit=4f2d6c0f8eb293b73f8dde30a1c84e24834f7393]
 metta_py_tagged_sources(Space, Target, Algebra, [Rows, Used]) :-
     metta_py_work(Before),
-    metta_py_eval_target(Space, Target, [], Pattern, _),
+    metta_py_target_term_bindings(Space, Target, Pattern, _),
     metta_with_under(Algebra,
         findall([ValueWire, KWire],
             ( metta_py_under_query(
@@ -281,16 +261,7 @@ metta_py_render_origin(refused(Refusing), Text) :-
 %them. Translating inside the enumeration would recompile per candidate
 %row, which measured at ~500ms per 2000-row guarded query.
 metta_py_query_guarded(Space, PatternsTagged, GuardTagged, VarNames, Row) :-
-    VarNames = [
-        _, _, _, _, _, _, _, _,
-        _, _, _, _, _, _, _, _,
-        _, _, _, _, _, _, _, _,
-        _, _, _, _, _, _, _, _,
-        _, _, _, _, _, _, _, _,
-        _, _, _, _, _, _, _, _,
-        _, _, _, _, _, _, _, _,
-        _, _, _, _, _, _, _, _ | _
-    ],
+    metta_py_wide_projection(VarNames),
     !,
     metta_py_decode_indexed(["e", [GuardTagged | PatternsTagged]],
                             [Guard | Patterns], Bindings),
@@ -349,16 +320,7 @@ metta_py_query_limit_all(Space, PatternsTagged, VarNames, Limit, Rows) :-
     ).
 
 metta_py_bounded_query(Space, PatternTagged, VarNames, Limit, Row) :-
-    VarNames = [
-        _, _, _, _, _, _, _, _,
-        _, _, _, _, _, _, _, _,
-        _, _, _, _, _, _, _, _,
-        _, _, _, _, _, _, _, _,
-        _, _, _, _, _, _, _, _,
-        _, _, _, _, _, _, _, _,
-        _, _, _, _, _, _, _, _,
-        _, _, _, _, _, _, _, _ | _
-    ],
+    metta_py_wide_projection(VarNames),
     !,
     metta_py_decode_indexed(["e", [PatternTagged]], [Pattern], Bindings),
     metta_py_prepare_patterns([Pattern], [PlainPattern], Modifiers, Segments),

@@ -31,7 +31,10 @@ Guarantees:
     [tested: test_setting_configuration_preserves_the_public_value_type; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e]
   - configuration writes roll back as a unit, including their shared mirror
     [tested: test_configuration_publication_failure_restores_every_setting,
-    test_configuration_rows_and_mirror_follow_outer_rollback; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e]
+    test_configuration_rows_and_mirror_follow_outer_rollback; commit=8358dfc233bf299bb23eceddd94593a62372fe4b]
+  - independent native engines on one Python thread keep the mirror suspended
+    until every pending owner finishes [tested:
+    test_bound_watches_transfer_until_outer_completion; commit=8358dfc233bf299bb23eceddd94593a62372fe4b]
   - invalid METTA_* environment values stop package import with a named error
     [tested test_configuration_reads_and_validates_environment]
   - every row-backed setting is a `(limit ...)` row once an engine runs, a
@@ -410,13 +413,16 @@ _MIRROR: dict[str, int | None] = {}
 #: changes either side of one read must not cancel out.
 _CHANGES = [0]
 _MIRROR_LOCK = threading.Lock()
-_PENDING_TRANSACTIONS: set[int] = set()
+# Independent native engines can nest on the same Python thread. Keep their
+# multiplicity so an inner engine finishing cannot release the outer mirror.
+_PENDING_TRANSACTIONS: dict[int, int] = {}
 
 
 def bound_transaction_started() -> None:
     """Suspend shared cache fills until this writer's outer transaction ends."""
     with _MIRROR_LOCK:
-        _PENDING_TRANSACTIONS.add(threading.get_ident())
+        owner = threading.get_ident()
+        _PENDING_TRANSACTIONS[owner] = _PENDING_TRANSACTIONS.get(owner, 0) + 1
         _CHANGES[0] += 1
         _MIRROR.clear()
 
@@ -424,7 +430,12 @@ def bound_transaction_started() -> None:
 def bound_transaction_finished() -> None:
     """Forget both committed and discarded views before reads can cache again."""
     with _MIRROR_LOCK:
-        _PENDING_TRANSACTIONS.remove(threading.get_ident())
+        owner = threading.get_ident()
+        remaining = _PENDING_TRANSACTIONS[owner] - 1
+        if remaining:
+            _PENDING_TRANSACTIONS[owner] = remaining
+        else:
+            del _PENDING_TRANSACTIONS[owner]
         _CHANGES[0] += 1
         _MIRROR.clear()
 

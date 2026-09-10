@@ -2,7 +2,7 @@
 
 Guarantees: graphlib orders producers before consumers; the same declaration
 generates gate selection, literal commands and the contributor table [tested:
-tests/checks/check_generated_artifact_group_selftest.py; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
+tests/checks/check_generated_artifact_group_selftest.py; commit=8358dfc233bf299bb23eceddd94593a62372fe4b].
 Fails when: an input, output or command is missing, output ownership overlaps,
 dependencies cycle, or any generated projection drifts.
 Decides: observed outputs require their explicit remeasurement command.
@@ -144,8 +144,25 @@ ARTIFACTS = (
         depends=("aio-mirror", "fn-sync"),
     ),
     Artifact(
-        "door-sync", (SEAT + "**/*.py", "extensions/python/ext/metta-*/*.py"), tool("doorgen", "--write"),
+        "binding", (SEAT + "**/*.py", SEAT + "_binding/**/*.pl",
+                    "extensions/python/tools/bindinggen.py", "extensions/python/tools/binding_source.pl",
+                    "extensions/python/tools/prologmacros.py",
+                    "engine/ext_points.pl"), tool("bindinggen", "--write"),
+        (Output(SEAT + "_binding/services.pl"), Output(SEAT + "_binding/provides_*.pl"),
+         Output(SEAT + "_binding/source_macros.pl"),
+         Output(SEAT + "_spaces/execution.py", ("# begin generated controlled entries", "# end generated controlled entries")),
+         Output(SEAT + "_binding/callbacks.py", ("# begin generated binding callbacks", "# end generated binding callbacks"))),
+        tool("bindinggen"), (suite("tests/repository/test_binding_interface.py",
+                                   "tests/repository/test_wire_tag_rows.py",
+                                   "tests/ch20_extending_the_engine/test_binding_evaluation.py",
+                                   "tests/ch18_performance/test_heartbeat_accounting.py"),),
+        requires=("SWI-Prolog and Janus for operator-aware source reading",),
+    ),
+    Artifact(
+        "door-sync", (SEAT + "**/*.py", "extensions/python/ext/metta-*/*.py",
+                      "extensions/python/tools/prologmacros.py"), tool("doorgen", "--write"),
         (Output(SEAT + "doors/_namespaces.py"),
+         Output(SEAT + "_binding/options.py"), Output(SEAT + "_binding/options.pl"),
          Output(SEAT + "remote/_schemas.py", ("# begin generated remote operations", "# end generated remote operations")),
          *(Output(SEAT + "_spaces/results.py", (f"    # begin generated extension declarations: {name}",
                                                  f"    # end generated extension declarations: {name}"))

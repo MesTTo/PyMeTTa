@@ -284,40 +284,16 @@ RUNG = "a `let*` whose bindings arrive as a VALUE has no assignment spelling"
 #: above all [measured 2026-09-09: min-of-3 serial fresh processes;
 #: command=python extensions/python/tools/twin_coverage.py --repin;
 #: commit=b4341ae382c48ef225f4a52e566af6a9a71757c4].
-#: RE-PINNED 2026-09-10, 10907 to 11183 (+276), The reference, visibility and
-#: property declarations add six heads to the cold-import census. Partial
-#: catalog reads now sort occurrence tokens; source-scoped claims and cache
-#: reservations change first translation work. The explicitly revised lib_he
-#: examples load upstream equations. Warm imports save nine inferences through
-#: one rollback collection; ordinary call and row slopes stay unchanged
-#: [measured 2026-09-10: min-of-3 serial fresh processes; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=90ba93eb8f6e98ebfefc55416859bf13de6a8427].
-BUDGET = 11183
-
-#: OVERRUN 2026-09-07, 800: it asks the eight computed-binding claims one at a
-#: time through the evaluation door. Measured 10606 against a ceiling of 9833;
-#: a minimal twin of this example costs 9470, inside the ceiling's 9833, so the
-#: distance is this twin's own program [measured 2026-09-07: one fresh process
-#: per side; command=python extensions/python/benchmarks/probes/twin_floor.py;
-#: commit=9010a79b01c9b2a66b96a3952fa378fb3e939dc3].
-#: OVERRUN 2026-09-09, 800 to 925 (+125): the compiled vocabulary seed, the
-#: membership index, base-module type lookups and the singleton decoder landed
-#: (perf/cross-engine-waivers merged): a Python decode with one named variable
-#: builds no index and one with more builds it at the second distinct name,
-#: which moves a twin's engine-side cost while its example, which decodes
-#: nothing, holds; boot content and clause layout moved the rest; against the
-#: trunk's own run at da0e5755d the twin moved +155 and the example -25, and
-#: the twin sat 58 within its ceiling there. Measured 10907 against a ceiling
-#: of 10782; a minimal twin costs 9786 against the band's 9982, within that
-#: ceiling, so the rest is this twin's own program [measured 2026-09-09: one
-#: fresh process per side; command=python
-#: extensions/python/benchmarks/probes/twin_floor.py; commit=b4341ae382c48ef225f4a52e566af6a9a71757c4].
-#: OVERRUN 2026-09-10, 925 to 1208: The existing program is priced after the
-#: reference census, ordered catalog reads and source-scoped translation
-#: work. It costs 11183 against the unchanged band and authoring ceiling of
-#: 9975.9. The literal structured control costs 10066; it measures that
-#: encoding only. [measured 2026-09-10: one fresh process per side;
-#: command=python extensions/python/benchmarks/probes/twin_floor.py
-#: examples/ch07-control-flow/07-03-let-and-sequencing/04-letstarcomputed.metta;
-#: commit=90ba93eb8f6e98ebfefc55416859bf13de6a8427].
-OVERRUN = 1208
+#: RE-PINNED 2026-09-10, 10907 to 9621 (-1286), the binding resolves Janus
+#: maplist/2 at boot, removing its first-failure autoload; one compiled option
+#: policy removes repeated evaluation frames, and keyed dispatch removes
+#: repeated transport/context selection. Indexed source-macro hooks preserve
+#: unrelated compilation costs. Same-cut controls and all before/after rows are
+#: in docs/journal/2026-09-09-the-binding-collapse.md. These three fresh serial
+#: processes set file_search_cache_time=9223372036854775807 before boot,
+#: matching the validated full-lane/277/workers=32/file-cache-
+#: time=9223372036854775807 environment. Workloads, point tolerances and
+#: empirical envelopes are unchanged [measured 2026-09-10: min-of-3 serial
+#: fresh processes; command=python extensions/python/tools/twin_coverage.py
+#: --repin; commit=8358dfc233bf299bb23eceddd94593a62372fe4b].
+BUDGET = 9621

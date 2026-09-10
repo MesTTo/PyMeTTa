@@ -40,8 +40,7 @@ metta_control_signal_info(Error, Kind, Detail) :-
 %tree (a single form read through metta_py_read_form/3, a numeric literal past
 %binary64) and which the Python side reads as MettaSyntaxError.line staying
 %None rather than a guessed line.
-metta_control_signal_line(Error, Line) :-
-    metta_host_control_signal_line(Error, Line).
+binding_forward(metta_control_signal_line/2).
 
 %The classification is the engine's metta_host_operation_error/5; this side
 %maps its neutral absence, an unbound part, onto janus's None.
@@ -68,8 +67,7 @@ metta_py_answer_bag(Bag, Wires) :- maplist(metta_py_encode_answer, Bag, Wires).
 %The term is the engine's (engine/spaces/lifecycle.pl raises and renders it)
 %and so is the reading, metta_host_space_capability_error/4; this side keeps
 %the name its own goal text asks for.
-metta_py_space_capability_error(Error, Space, Operation, Capability) :-
-    metta_host_space_capability_error(Error, Space, Operation, Capability).
+binding_forward(metta_py_space_capability_error/4).
 %The two ASSERTION doors a Python test reaches, one per relation, each of them
 %the engine door its MeTTa twin already reaches. A Python harness comparing two
 %answer bags could subtract them itself, and then the two faces would hold two

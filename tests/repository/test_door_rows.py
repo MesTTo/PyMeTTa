@@ -5,7 +5,7 @@ Guarantees: catalog publication, registry replacement, generated protocols,
   [tested: this file; commit=b615b5a33b43252ef9826e5387da7c9bd7f6b543].
   Typed body order metadata preserves the existing outer catalog query
   [tested: test_boot_publishes_complete_typed_door_rows,
-  test_nested_door_records_have_declared_types; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
+  test_nested_door_records_have_declared_types; commit=8358dfc233bf299bb23eceddd94593a62372fe4b].
 Owns resources: each fixture withdraws its registrations and each engine
   context or cursor is closed by its test.
 """
@@ -551,11 +551,15 @@ def test_nested_door_records_have_declared_types():
             for child in atom.children:
                 visit(child)
 
-        for record in records:
-            visit(_contract(record, derived[record.key]))
+        for atom in atoms(records):
+            visit(atom)
         # Every marked body now has a reference. The wire grammar still
         # represents the explicit absent-body variant for imported records.
         visit(_contract(replace(records[0], body=None), derived[records[0].key]))
+        # Providers can all be withdrawn by earlier registration tests. The
+        # grammar witness must not depend on optional installed providers.
+        provider = _record()
+        visit(_contract(provider, orders((provider,))[provider.key]))
         assert checked == {head for head in arrows if head == "door" or head.startswith("door-")}
         original = S.kind(S.arguments, S.symbol, S["one-of"](S["argument-delivery"]))
         assert original in catalog

@@ -382,15 +382,33 @@ def twin(m):
 #: pins of f26de01fb [measured 2026-09-09: min-of-3 serial fresh processes;
 #: command=python extensions/python/tools/twin_coverage.py --repin;
 #: commit=5f8a823d23fbed5c7395912a89ba32760e2df4b1].
-#: RE-PINNED 2026-09-10, 15176 to 15598 (+422), The reference, visibility and
-#: property declarations add six heads to the cold-import census. Partial
-#: catalog reads now sort occurrence tokens; source-scoped claims and cache
-#: reservations change first translation work. The explicitly revised lib_he
-#: examples load upstream equations. Warm imports save nine inferences through
-#: one rollback collection; ordinary call and row slopes stay unchanged
-#: [measured 2026-09-10: min-of-3 serial fresh processes; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=90ba93eb8f6e98ebfefc55416859bf13de6a8427].
-BUDGET = 15598
+#: RE-PINNED 2026-09-10, 15176 to 13753 (-1423), the binding resolves Janus
+#: maplist/2 at boot, removing its first-failure autoload; one compiled option
+#: policy removes repeated evaluation frames, and keyed dispatch removes
+#: repeated transport/context selection. Indexed source-macro hooks preserve
+#: unrelated compilation costs. Same-cut controls and all before/after rows are
+#: in docs/journal/2026-09-09-the-binding-collapse.md. These three fresh serial
+#: processes set file_search_cache_time=9223372036854775807 before boot,
+#: matching the validated full-lane/277/workers=32/file-cache-
+#: time=9223372036854775807 environment. Workloads, point tolerances and
+#: empirical envelopes are unchanged [measured 2026-09-10: min-of-3 serial
+#: fresh processes; command=python extensions/python/tools/twin_coverage.py
+#: --repin; commit=8358dfc233bf299bb23eceddd94593a62372fe4b].
+#: RE-PINNED 2026-09-10, 13753 to 13748 (-5), the bounds frame watcher now
+#: transfers its watch to the nearest live transaction, preventing notification
+#: of an engine's discarded outer query frame. The changed boot predicate set
+#: also changes current_predicate/1's catalog-arity enumeration order. A same-
+#: worktree old/current/restore control and native call-site coverage locate
+#: each five-inference step in spaces:metta_catalog_clause/2:
+#: current_predicate, the arity guard, functor, metta_storage_term and clause.
+#: No workload or lookup implementation changes. See
+#: docs/journal/2026-09-09-the-binding-collapse.md. These are three fresh
+#: sequential samples per row with 32 concurrent row runners and
+#: file_search_cache_time=9223372036854775807 before boot. The point allowance
+#: and every empirical envelope are unchanged [measured 2026-09-10: min-of-3
+#: serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=8358dfc233bf299bb23eceddd94593a62372fe4b].
+BUDGET = 13748
 
 #: DIVERGED 2026-09-07, the example holds 2 atoms the twin does not (2 =) and
 #: the twin holds 4 the example does not (2 =, 2 @doc): the twin is an ordinary

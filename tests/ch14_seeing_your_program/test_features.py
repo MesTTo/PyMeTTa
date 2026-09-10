@@ -30,7 +30,7 @@ Guarantees:
     test_tagged_algebra_forwards_bounds_to_every_evaluating_door,
     test_tagged_algebra_debits_inferences_across_operations,
     test_an_ordered_algebra_view_is_bounded_by_its_timeout;
-    commit=51e719767e3dd322a9cf88bd096410bbc5647493]
+    commit=8358dfc233bf299bb23eceddd94593a62372fe4b]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -73,6 +73,7 @@ from metta import (
     tables,
 )
 from metta._atoms.factories import Grounded, Symbol, Variable
+from metta._binding.options import EVALUATIONS
 from metta._declare import declarations as _space_declarations
 from metta._errors.errors import (
     EngineError,
@@ -1048,6 +1049,7 @@ def test_tagged_algebra_debits_inferences_across_operations(m, phase):
                 inferences=nominal_limit,
             )
         )
+    assert not m.runtime.once("metta_evaluation_context(_)")
 
 
 def test_limit_validation_refuses_nonsense(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -1223,7 +1225,7 @@ def test_a_measurement_is_the_same_with_the_poll_dense(m):
 def test_the_accounted_door_leaves_the_poll_out_too(m):
     """The door that reports what an evaluation SPENT is a measurement as well.
 
-    `metta_py_eval_accounted` prices one evaluation from inside the engine,
+    `metta_py_evaluate` with accounting prices one evaluation inside the engine,
     which is what an algebra operation's quota is charged against and what
     `test_nominal_subtyping_does_not_scan_unrelated_declarations` compares two
     hundred-evaluation runs of. It reads the same counter `stats()` does, so it
@@ -1236,10 +1238,10 @@ def test_the_accounted_door_leaves_the_poll_out_too(m):
 
     def spent():
         total = 0
+        predicate, defaults, _ = EVALUATIONS["space:eval"]
+        options = defaults.with_options(accounting=True)
         for _ in range(20):
-            _answers, used = m.runtime.apply_must(
-                "metta_py_eval_accounted", m.name, query.to_wire()
-            )
+            _answers, used = m.runtime.apply_must(predicate, options, m.name, query.to_wire())
             total += used
         return total
 

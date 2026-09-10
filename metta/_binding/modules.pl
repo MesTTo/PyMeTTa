@@ -1,21 +1,15 @@
 % Purpose: select module context for resolution and conversion.
-% Assumes: loaded through _binding/shim.pl in its host module.
+% Assumes: _binding/shim.pl loads after the engine's space_module/2 service
+% and with_metta_module/2 host service
+% [source: engine/ext_points.pl:kind/2; commit=8358dfc233bf299bb23eceddd94593a62372fe4b].
 
 %%%%%%%%%% Space modules %%%%%%%%%%
 %
-% On an engine carrying the per-space-equation patch, a space's compiled
-% clauses live in a module named after it and space_module/2 says which; a
-% stock engine keeps everything in user. Asking rather than assuming keeps
-% this shim loadable on both.
+% The engine owns both module selection and temporary execution context.
+% Their absence is a missing service, not permission to evaluate in user.
 
-metta_py_module(Space, Module) :-
-    ( current_predicate(space_module/2) -> space_module(Space, Module)
-    ; Module = user ).
-
-metta_py_in_module(Module, Goal) :-
-    ( current_predicate(with_metta_module/2) -> with_metta_module(Module, Goal)
-    ; call(Goal) ).
-
+binding_forward(metta_py_module/2).
+binding_forward(metta_py_in_module/2).
 %A cast asks get-type, then get-metatype, for a bound target in Space's
 %module. It applies the wildcard to the target only and is stricter than a
 %typed call: an unknown value does not establish Person. The deliberate

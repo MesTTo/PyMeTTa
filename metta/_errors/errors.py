@@ -56,6 +56,9 @@ Guarantees:
     test_a_ground_round_trips_through_its_atom,
     test_a_remedy_that_names_no_act_refuses_naming_the_three_fields,
     test_a_prose_remedy_may_be_its_title_alone; commit=f33b7ab0200e6dc74c88fb4c7f827bf545a447ed]
+  - catalog templates and atom rows use one remedy-act parser, preserving
+    their respective symbol and grounded-text readings [tested:
+    test_remedy_templates_and_atoms_share_every_act; commit=8358dfc233bf299bb23eceddd94593a62372fe4b]
   - LockDrift carries every entry that differs as Drift rows AND names them in
     its message with both repairs, so a caller reacts to the rows where it
     used to parse the sentence [tested:
@@ -304,33 +307,39 @@ class Remedy:
                 f"applicability, then any acts; {atom} carries {len(parts) - 1}"
             )
             raise ValueError(msg)
-        edit: _root.Atom | None = None
-        replace: tuple[_root.Atom, _root.Atom | None] | None = None
-        python: str | None = None
-        for act in parts[4:]:
-            head = _act_head(act, atom)
-            if head == "edit" and len(act) == 2:
-                edit = act[1]
-            elif head == "replace" and len(act) == 3:
-                replace = (act[1], act[2])
-            elif head == "remove" and len(act) == 2:
-                replace = (act[1], None)
-            elif head == "python" and len(act) == 2:
-                python = _text(act[1], "python text")
-            else:
-                msg = (
-                    f"{act} is not a remedy act; a (remedy ...) row carries "
-                    f"(edit A), (replace Old New), (remove Old) or (python T)"
-                )
-                raise ValueError(msg)
         return cls(
             _text(parts[1], "title"),
             _symbol_text(parts[2], "remedy kind"),
             _symbol_text(parts[3], "applicability"),
-            edit,
-            replace,
-            python,
+            *_remedy_acts(parts[4:], atom, lambda value: _text(value, "python text")),
         )
+
+
+def _remedy_acts(
+    acts: Iterable[_root.Atom], row: _root.Atom | str,
+    text: Callable[[_root.Atom], str],
+) -> tuple[_root.Atom | None, tuple[_root.Atom, _root.Atom | None] | None, str | None]:
+    """Read act structure once; the caller supplies its text representation."""
+    edit = None
+    replace = None
+    python = None
+    for act in acts:
+        head = _act_head(act, row)
+        if head == "edit" and len(act) == 2:
+            edit = act[1]
+        elif head == "replace" and len(act) == 3:
+            replace = (act[1], act[2])
+        elif head == "remove" and len(act) == 2:
+            replace = (act[1], None)
+        elif head == "python" and len(act) == 2:
+            python = text(act[1])
+        else:
+            msg = (
+                f"{act} is not a remedy act; a (remedy ...) row carries "
+                f"(edit A), (replace Old New), (remove Old) or (python T)"
+            )
+            raise ValueError(msg)
+    return edit, replace, python
 
 
 def _row_parts(atom: _root.Atom, head: str, arity: int | None) -> tuple[_root.Atom, ...]:
@@ -348,9 +357,9 @@ def _row_parts(atom: _root.Atom, head: str, arity: int | None) -> tuple[_root.At
     return atom.children
 
 
-def _act_head(act: _root.Atom, row: _root.Atom) -> str:
+def _act_head(act: _root.Atom, row: _root.Atom | str) -> str:
     """The head symbol of one remedy act, refusing an act that is not a call."""
-    if isinstance(act, _root.Expression) and isinstance(act.children[0], _root.Symbol):
+    if isinstance(act, _root.Expression) and act.children and isinstance(act.children[0], _root.Symbol):
         return act.children[0].name
     msg = f"{act} in {row} is not a remedy act expression"
     raise ValueError(msg)
@@ -513,20 +522,7 @@ def _refusal_remedy(row: Any, fields: Mapping[str, Any]) -> Remedy:
     applicability = row.applicability
     if _has_hole(title) or any(_has_hole(str(act)) for act in acts):
         applicability = "prose"
-    edit = None
-    replace: tuple[Any, Any | None] | None = None
-    python = None
-    for act in acts:
-        head = str(act.children[0]) if act.children else ""
-        if head == "edit" and len(act) == 2:
-            edit = act[1]
-        elif head == "replace" and len(act) == 3:
-            replace = (act[1], act[2])
-        elif head == "remove" and len(act) == 2:
-            replace = (act[1], None)
-        elif head == "python" and len(act) == 2:
-            python = str(act[1])
-    return Remedy(title, row.remedy_kind, applicability, edit, replace, python)
+    return Remedy(title, row.remedy_kind, applicability, *_remedy_acts(acts, title, str))
 
 
 _PYTHON_COMPARISON_GROUND = Ground(

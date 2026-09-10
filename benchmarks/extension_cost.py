@@ -33,9 +33,9 @@ Guarantees:
     boolean registration pair [tested: test_extension_cost_rows_are_marginal;
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - the two @define rows keep Python protocol dispatch separate from an
-    annotation-proved native operator: 28.00 versus 3.00 inferences per call
-    [measured: command=python -m benchmarks.extension_cost; fixture=3000 calls,
-    min-of-3, C reader and C extension enabled; commit=c350f51a5e1318187c4446fb2ceba04fba82e262]
+    annotation-proved native operator: 27.00 versus 3.00 inferences per call
+    [measured 2026-09-10: command=python -m benchmarks.extension_cost; fixture=3000 calls,
+    min-of-3, C reader and C extension enabled; commit=8358dfc233bf299bb23eceddd94593a62372fe4b]
 Open Obligations:
   To Do: None
   Hacks: None

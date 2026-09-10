@@ -54,6 +54,7 @@
 %   Future Enhancements: None
 
 :- use_module(library(janus)).
+:- include('provides_engine_user.pl').
 % Host code owns these imports after the engine moves into metta_engine
 % [tested: sh check.sh no-autoload; commit=ede2ac57e213a0d4502c6bbbca6227f97015b720].
 :- use_module(library(lists), [append/3, member/2, memberchk/2, nth1/3]).
@@ -65,12 +66,6 @@
 %[measured 2026-08-22, under NO_AUTOLOAD=1 once the loader became a module].
 :- use_module(library(crypto), [crypto_data_hash/3]).
 
-:- multifile seam:grounded_apply/3.
-:- multifile seam:grounded_algebra_equal/3.
-:- multifile seam:grounded_numeric/1.
-:- multifile seam:grounded_numeric_operation/3.
-:- multifile seam:grounded_structure/2.
-:- multifile seam:grounded_text/2.
 
 %This surface is hyperon-experimental's, and this engine had none of it: `py-atom`,
 %`py-dot`, `py-list`, `py-tuple`, `py-dict` and `Kwargs` are what the language's
@@ -257,45 +252,6 @@ metta_py_result('@'(true), true) :- !.
 metta_py_result('@'(false), false) :- !.
 metta_py_result(Value, Value).
 
-%%%% The structural view %%%%
-
-%A Python tuple crosses by default as the Prolog compound -/N, which is
-%janus's encoding and is faithful in BOTH directions: `(1, (2, 3))` is
-%`1-(2-3)`, and handing `1-2` back to Python yields a real tuple, class and all
-%[measured 2026-08-16]. Its default structural reading therefore costs no
-%crossing: the elements are already there. An explicit Grounded request takes
-%a separate path below, because Janus converts an exact tuple even when
-%py_object(true) asks for a reference.
-%
-%That reading is what makes `(car-atom (py-atom "(1, 2)"))` answer 1 while the
-%same value still passes into Python as a tuple. Neither reading is a separate
-%answer; see seam:grounded_structure/2 in engine/ext_points.pl.
-%
-%Elements are normalized because the VIEW is MeTTa's reading of the value: a
-%None inside a tuple reads as `()` here. The carrier itself is left exactly as
-%janus made it, because that is what has to go back.
-seam:grounded_structure(Tuple, Elements) :-
-    metta_py_tuple_arguments(Tuple, Raw),
-    maplist(metta_py_result, Raw, Elements).
-
-%And a Python object that IS a sequence, which costs a crossing because the
-%elements live on the other side. PEP 634's rule decides which objects qualify;
-%extensions/python/metta/_binding/host.py carries it.
-%
-%The length is asked first and separately. A pattern of fixed shape is rejected
-%by its length without pulling a single element, so matching `($x $y)` against
-%a million-element list costs one crossing rather than a million.
-seam:grounded_structure(Obj, Elements) :-
-    python_object_blob(Obj),
-    py_is_object(Obj),
-    metta_py_bridge,
-    py_call('metta._binding.host':sequence_length(Obj), Length),
-    Length >= 0,
-    (   is_list(Elements)
-    ->  length(Elements, Length)
-    ;   true
-    ),
-    findall(E, 'py-iter'(Obj, E), Elements).
 
 %The arity check comes FIRST and separately, because
 %compound_name_arguments/3 BUILDS the argument list before it can report the
@@ -315,25 +271,6 @@ metta_py_tuple_arguments(Tuple, Arguments) :-
     compound_name_arity(Tuple, -, _),
     compound_name_arguments(Tuple, -, Arguments).
 
-%%%% Display %%%%
-
-%repr, so a Python value says what it is instead of naming an address. The
-%converted -/N tuple is the exception: it is the ordinary MeTTa expression its
-%structural reading already supplies, so the engine and the library expose the
-%same value and both spell the empty tuple as one empty expression answer.
-%The elements render through the display writer: a nested opaque host value
-%(a list inside a tuple) has a repr but no round-trip text, and a display
-%is presentation, exactly as the answer printers already treat it.
-seam:grounded_text(Tuple, Text) :-
-    metta_py_tuple_arguments(Tuple, Raw),
-    !,
-    maplist(metta_py_result, Raw, Elements),
-    sdisplay(Elements, Text).
-seam:grounded_text(Obj, Text) :-
-    python_object_blob(Obj),
-    py_is_object(Obj),
-    metta_py_bridge,
-    py_call('metta._binding.host':render(Obj), Text).
 
 %%%% Resolution %%%%
 
@@ -420,7 +357,6 @@ metta_py_cycle_check(Value, Seen, [Id|Seen]) :-
     ;   Id = Value            %a tuple is finite by construction
     ).
 
-:- multifile seam:grounded_extra_type/2.
 
 %A weak-referenceable value is the key of a Python-side weak identity record;
 %a list, dict or other value weakref cannot observe carries the declaration in
@@ -438,13 +374,6 @@ metta_py_declare_type(Obj, Type, Declared) :-
     term_string(Type, Text, [quoted(true)]),
     metta_py_call(['py-atom', Obj, Type], declare_type(Obj, Text), Declared).
 
-seam:grounded_extra_type(Obj, Type) :-
-    python_object_blob(Obj),
-    py_is_object(Obj),
-    metta_py_bridge,
-    py_call('metta._binding.host':declared_type_texts(Obj), Texts, [py_string_as(string)]),
-    member(Text, Texts),
-    term_string(Type, Text).
 
 %The class walk, this host's clause of the fallback seam: every visible class
 %on the value's MRO except object, each a type candidate, which is what lets a
@@ -455,35 +384,7 @@ seam:grounded_extra_type(Obj, Type) :-
 %seam:grounded_class_type/2 and this bridge answers for the values it created
 %[tested: metta_object_types,
 %test_a_python_tuple_answers_the_same_through_both_doors].
-:- multifile seam:grounded_class_type/2.
-seam:grounded_class_type(X, T) :-
-    metta_py_bridge,
-    py_call('metta._binding.host':class_names(X), Names, [py_string_as(string)]),
-    member(Name, Names),
-    ( atom(Name) -> T = Name ; atom_string(T, Name) ).
 
-% Algebra equality asks Python for values, with one explicit negative answer.
-% [tested: test_finite_tensor_semiring_checks_every_law; commit=074dc0a88b1605c54824de677d586b6f60998bcf].
-seam:grounded_algebra_equal(Left, Right, Equal) :-
-    ( python_object_blob(Left) -> true ; python_object_blob(Right) ),
-    metta_py_bridge,
-    py_call('metta._binding.host':algebra_equal(Left, Right), Truth),
-    ( Truth == @true -> Equal = true ; Equal = false ).
-
-%The standard numeric tower is the admission rule, rather than an MRO class
-%name: numpy.int64 is a Number without inheriting builtins.int. Execution goes
-%through one guarded bridge call so Python owns reflected-operator selection and
-%the result remains a reference under metta_py_opts/1.
-seam:grounded_numeric(X) :-
-    python_object_blob(X),
-    metta_py_bridge,
-    py_call('metta._binding.host':is_numeric(X), @true).
-
-seam:grounded_numeric_operation(Operation, Arguments, Result) :-
-    member(Operand, Arguments),
-    python_object_blob(Operand), !,
-    metta_py_call([Operation|Arguments],
-             numeric_operation(Operation, Arguments), Result).
 
 metta_py_resolve(Spec, Result) :-
     (   string(Spec)
@@ -546,49 +447,6 @@ metta_py_pair(Pair, [Key, Value]) :-
                     context('py-dict'/2, 'takes two-element pairs')))
     ).
 
-%%%% Application %%%%
-
-%A resolved callable applied in head position, which is what makes the surface
-%higher-order: `((py-atom numpy.absolute) -5)`, a Python function passed to
-%map-atom, a torch module held in a space.
-%
-%The engine consults this only for a head that is neither a function name nor a
-%partial application, so an ordinary MeTTa call never reaches it. Failing is how
-%a grounded value that is NOT an operation stays unreduced, which is what a
-%value should do.
-seam:grounded_apply(Obj, Args, Result) :-
-    python_object_blob(Obj),
-    py_is_object(Obj),
-    metta_py_bridge,
-    py_call('metta._binding.host':is_callable(Obj), @true),
-    metta_py_split_kwargs(Args, Positional0, Kwargs),
-    maplist(py_arg_norm, Positional0, Positional),
-    metta_py_opts(Opts),
-    metta_py_guard([Obj|Args],
-                   py_call('metta._binding.host':apply(Obj, Positional, Kwargs), Raw, Opts)),
-    metta_py_result(Raw, Result).
-
-:- multifile seam:grounded_applicable/1.
-
-%The same blob-first guard protects every runtime probe in this file
-%(structure, text, apply, the cycle check), because each of them is
-%consulted with plain engine terms on ordinary paths: a nested-call data
-%shape reaches seam:grounded_apply/3, and probing its list head with
-%py_is_object/1 booted CPython inside examples/ch04-spaces-and-matching/04-02-patterns-and-bindings/02-matchnested.metta,
-%~104M instructions for a four-atom program [measured 2026-08-17].
-%The blob test comes FIRST because it is the one that costs nothing:
-%py_is_object/1 "fails silently" on a non-object [source: janus.pl doc,
-%py_is_object/1], but janus initialises lazily on its first call, so
-%probing a plain integer here booted CPython, ~104M instructions, inside
-%typed-call TRANSLATION of every literal argument. The types_dependent
-%example paid 3.4x upstream's whole run for it [measured 2026-08-17:
-%148.2M net instructions to 44M after this guard]. blob/2 is SWI-side
-%introspection and never touches janus.
-seam:grounded_applicable(Obj) :-
-    python_object_blob(Obj),
-    py_is_object(Obj),
-    metta_py_bridge,
-    py_call('metta._binding.host':is_callable(Obj), @true).
 
 %(Kwargs (start 2) (stop 10)) in the argument list, which is the language's own
 %spelling. Anything before it is positional.
@@ -739,24 +597,11 @@ prolog:message(error(py_iter_reraise_returned(Exception), _)) -->
 %keys, which runs __hash__ on whatever was handed in. A weaker class here would
 %let a world admit them and be wrong; oracleIO says reviewed and unbounded
 %rather than nobody looked.
-:- multifile seam:extension_builtin/2.
-seam:extension_builtin('py-call',  oracleIO).
-seam:extension_builtin('py-atom',  oracleIO).
-seam:extension_builtin('py-dot',   oracleIO).
-seam:extension_builtin('py-list',  oracleIO).
-seam:extension_builtin('py-tuple', oracleIO).
-seam:extension_builtin('py-dict',  oracleIO).
-seam:extension_builtin('py-iter',  oracleIO).
-seam:extension_builtin('py-iter-once', oracleIO).
+
 
 %This host claims an import whose source is a .py file, and does the whole
 %job through the engine's own published lifecycle.
-:- multifile seam:host_import/1.
-seam:host_import(File) :-
-    python_import_file(File),
-    resolve_python_import_path(File, CanonPath),
-    import_when(not_loaded, '$python', CanonPath,
-                load_python_source(CanonPath)).
+
 
 %%% Python bindings: %%%
 % janus converts Python booleans to @(true)/@(false); normalize them to the
@@ -956,23 +801,9 @@ restore_python_path(PreviousPath) :-
 %answered %Undefined% in an engine without the library; both names are
 %accepted so the guard cannot break again when one of them changes
 %[measured 2026-08-16].
-:- multifile seam:host_object/1.
-seam:host_object(X) :- python_object_blob(X), py_is_object(X).
+
 
 python_object_blob(X) :- blob(X, Blob), python_object_blob_name(Blob).
 
 python_object_blob_name(py).
 python_object_blob_name('PyObject').
-
-%This host's transport-failure shape, and the reason text for an error it
-%threw: janus wraps a Python exception as python_error(Class, Value), and
-%the value may be a live exception object only this bridge can render.
-:- multifile seam:host_transport_failure/1.
-seam:host_transport_failure(error(python_error('TransportFailure', _), _)).
-
-:- multifile seam:host_error_reason/2.
-seam:host_error_reason(error(python_error(Class, Message0), _), Reason) :-
-    (   string(Message0) -> Message = Message0
-    ;   metta_py_exception_message(Message0, Message)
-    ),
-    format(string(Reason), "~w: ~w", [Class, Message]).

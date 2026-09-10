@@ -3,6 +3,9 @@
 % Guarantees: native algebra operations compose with the same bounds as
 %   carrier checks [tested: test_visibility_operations_share_the_native_carrier;
 %   commit=90ba93eb8f6e98ebfefc55416859bf13de6a8427].
+% Guarantees: declared _controlled entries expose prolog/1 opener handles or
+% [payload,text] resume packets to the binding generator
+% [tested: test_binding_controlled_signature_mutations_refuse; commit=8358dfc233bf299bb23eceddd94593a62372fe4b].
 % Owns resources: held-engine output redirection; cleanup restores current_output
 % [source: extensions/python/metta/_binding/control.pl:416; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
 
@@ -20,6 +23,7 @@
 % A guard that stops a goal stops it mid-way, so writes it already made
 % stand, the honest semantics of every timeout.
 
+metta_py_wrappable(metta_py_evaluate).
 metta_py_wrappable(metta_py_run).
 metta_py_wrappable(metta_py_run_using).
 metta_py_wrappable(metta_py_query_all).
@@ -27,17 +31,10 @@ metta_py_wrappable(metta_py_query_guarded_all).
 metta_py_wrappable(metta_py_query_limit_all).
 metta_py_wrappable(metta_py_query_count).
 metta_py_wrappable(metta_py_query_count_if_repeatable).
-metta_py_wrappable(metta_py_eval_all).
-metta_py_wrappable(metta_py_eval_accounted).
 metta_py_wrappable(metta_py_check_algebra_values_accounted).
 metta_py_wrappable(metta_py_algebra_operation_accounted).
 metta_py_wrappable(metta_py_tagged_sources).
-metta_py_wrappable(metta_py_eval_using_all).
-metta_py_wrappable(metta_py_eval_many_all).
-metta_py_wrappable(metta_py_eval_many_using_all).
-metta_py_wrappable(metta_py_eval_status_all).
 metta_py_wrappable(metta_py_reducible).
-metta_py_wrappable(metta_py_eval_status_using_all).
 metta_py_wrappable(metta_py_run_status).
 metta_py_wrappable(metta_py_captured).
 metta_py_wrappable(metta_py_in_evaluation_context).
@@ -60,13 +57,6 @@ metta_py_wrappable(metta_py_cursor_next_controlled).
 metta_py_wrappable(metta_py_cursor_chunk_controlled).
 metta_py_wrappable(metta_py_cursor_open_controlled).
 metta_py_wrappable(metta_py_cursor_open_under_controlled).
-metta_py_wrappable(metta_py_eval_cursor_open_controlled).
-metta_py_wrappable(metta_py_eval_cursor_open_under_controlled).
-metta_py_wrappable(metta_py_eval_count).
-metta_py_wrappable(metta_py_eval_count_under).
-metta_py_wrappable(metta_py_eval_count_if_repeatable).
-metta_py_wrappable(metta_py_eval_count_under_if_repeatable).
-metta_py_wrappable(metta_py_eval_count_retaining).
 metta_py_wrappable(metta_py_tagged_count).
 metta_py_wrappable(metta_py_derivation).
 metta_py_wrappable(metta_py_derivations).
@@ -354,6 +344,10 @@ metta_py_work(Work) :-
 %review found reachable only through the lower-level runtime, and the
 %interrupt poll's four-field term. The Python side reads deltas around a
 %with-block and takes the poll's charge out there.
+%The tick's recorded inference position resolves a tick that arrives between
+%the inference read and the tick record; both sides of that boundary retain
+%the polling-disabled cost under concurrent workers
+%[tested: test_heartbeat_correction_is_exact_with_32_concurrent_workers; commit=8358dfc233bf299bb23eceddd94593a62372fe4b].
 %
 %The DECISION is Python's and the reading is this door's, because this door
 %is INSIDE every measurement it takes: what it spends between the two

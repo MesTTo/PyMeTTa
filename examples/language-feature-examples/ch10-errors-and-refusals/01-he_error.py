@@ -245,12 +245,57 @@ def twin(m):
 #: above all [measured 2026-09-09: min-of-3 serial fresh processes;
 #: command=python extensions/python/tools/twin_coverage.py --repin;
 #: commit=b4341ae382c48ef225f4a52e566af6a9a71757c4].
-#: RE-PINNED 2026-09-10, 10360 to 36144 (+25784), The reference, visibility and
-#: property declarations add six heads to the cold-import census. Partial
-#: catalog reads now sort occurrence tokens; source-scoped claims and cache
-#: reservations change first translation work. The explicitly revised lib_he
-#: examples load upstream equations. Warm imports save nine inferences through
-#: one rollback collection; ordinary call and row slopes stay unchanged
-#: [measured 2026-09-10: min-of-3 serial fresh processes; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=90ba93eb8f6e98ebfefc55416859bf13de6a8427].
-BUDGET = 36144
+#: RE-PINNED 2026-09-10, 10360 to 10142 (-218), the binding resolves Janus
+#: maplist/2 at boot, removing its first-failure autoload; one compiled option
+#: policy removes repeated evaluation frames, and keyed dispatch removes
+#: repeated transport/context selection. Indexed source-macro hooks preserve
+#: unrelated compilation costs. Same-cut controls and all before/after rows are
+#: in docs/journal/2026-09-09-the-binding-collapse.md. These three fresh serial
+#: processes set file_search_cache_time=9223372036854775807 before boot,
+#: matching the validated full-lane/277/workers=32/file-cache-
+#: time=9223372036854775807 environment. Workloads, point tolerances and
+#: empirical envelopes are unchanged [measured 2026-09-10: min-of-3 serial
+#: fresh processes; command=python extensions/python/tools/twin_coverage.py
+#: --repin; commit=8358dfc233bf299bb23eceddd94593a62372fe4b].
+BUDGET = 10142
+
+#: OVERRUN 2026-09-07, 500: it unpacks each error-algebra answer as a one-
+#: element assignment, so the `let` the example wraps around them is Python's
+#: own and priced separately. Measured 9711 against a ceiling of 9302; a
+#: minimal twin of this example costs 8573, inside the ceiling's 9302, so the
+#: distance is this twin's own program [measured 2026-09-07: one fresh process
+#: per side; command=python extensions/python/benchmarks/probes/twin_floor.py;
+#: commit=9010a79b01c9b2a66b96a3952fa378fb3e939dc3].
+#: OVERRUN 2026-09-08, 500 to 663 (+163): the module boundary merged with
+#: trunk (refactor/engine-and-libraries-as-modules at b64291369): the twin's
+#: host crossings each resolve through one more chain link, prelude ->
+#: metta_engine -> user, while the example runs inside the engine; every
+#: crossing this twin makes pays it and the example pays none. Measured 10103
+#: against a ceiling of 9940; a minimal twin costs 8680 against the band's
+#: 9440, within that ceiling, so the rest is this twin's own program [measured
+#: 2026-09-08: one fresh process per side; command=python
+#: extensions/python/benchmarks/probes/twin_floor.py; commit=f1038acdcaf5230b6431c112f38a719d3dc9ef19].
+#: OVERRUN 2026-09-09, 663 to 665 (+2): the door table landed
+#: (feat/space-as-a-projection-of-door-rows merged at 6471faa37, its
+#: reconciliation fixes at 58bf75947): every Space door is a generated alias
+#: over its body, the catalog publishes the door contracts at boot as typed
+#: atoms, and the seam's listeners publish on every registration, so boot
+#: content and clause layout moved; every crossing this twin makes pays it and
+#: the example pays none. Measured 10103 against a ceiling of 10101; a minimal
+#: twin costs 8678 against the band's 9438, within that ceiling, so the rest
+#: is this twin's own program [measured 2026-09-09: one fresh process per
+#: side; command=python extensions/python/benchmarks/probes/twin_floor.py;
+#: commit=aeb46b14152274db84f6415c8a3dd8c98a9c9eb1].
+#: OVERRUN 2026-09-09, 665 to 969 (+304): the compiled vocabulary seed, the
+#: membership index, base-module type lookups and the singleton decoder landed
+#: (perf/cross-engine-waivers merged): a Python decode with one named variable
+#: builds no index and one with more builds it at the second distinct name,
+#: which moves a twin's engine-side cost while its example, which decodes
+#: nothing, holds; boot content and clause layout moved the rest; against the
+#: trunk's own run at da0e5755d the twin moved -17 and the example -49, and
+#: the twin sat 266 over its ceiling there already. Measured 10360 against a
+#: ceiling of 10057; a minimal twin costs 8805 against the band's 9392, within
+#: that ceiling, so the rest is this twin's own program [measured 2026-09-09:
+#: one fresh process per side; command=python
+#: extensions/python/benchmarks/probes/twin_floor.py; commit=b4341ae382c48ef225f4a52e566af6a9a71757c4].
+OVERRUN = 969
