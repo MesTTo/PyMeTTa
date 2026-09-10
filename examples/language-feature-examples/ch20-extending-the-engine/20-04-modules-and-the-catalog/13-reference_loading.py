@@ -23,14 +23,14 @@ def twin(m):
     assert m.fn.background_value(41) == [42]
     for policy in (S.background, S.lazy):
         m.fn["pragma!"](S.load, policy)
+        refused = False
         try:
             m.from_(EFFECTFUL)
         except MettaError as error:
+            refused = True
             assert "println!" in str(error)
             assert "eager" in str(error)
-        else:
-            accepted = "an effectful initializer was accepted"
-            raise AssertionError(accepted)
+        assert refused
     m.fn["pragma!"](S.load, S.eager)
 
 
