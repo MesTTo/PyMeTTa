@@ -1,4 +1,5 @@
 """Purpose: examples/ch20-extending-the-engine/20-04-modules-and-the-catalog/09-carrier_vocabulary.metta in Python: the vocabulary row a generated enum is made of.
+
 Guarantees: a sequence variable reads every carrier in catalog order [tested:
 examples/ch20-extending-the-engine/20-04-modules-and-the-catalog/09-carrier_vocabulary.metta;
 commit=90ba93eb8f6e98ebfefc55416859bf13de6a8427].
