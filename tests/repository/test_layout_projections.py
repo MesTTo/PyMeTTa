@@ -6,6 +6,7 @@ layer rows equal the declared graph [tested: this file; commit=cd62330ceacc8f125
 
 from __future__ import annotations
 
+import subprocess
 import sys
 from pathlib import Path
 
@@ -60,6 +61,9 @@ def test_nested_package_evidence_rejects_a_missing_test(tmp_path, monkeypatch, s
     comment = "%" if suffix == ".pl" else "#"
     tag, missing = "tested", "test_layout_planted_absent"
     path.write_text(f"{comment} [{tag}: {missing}]\n")
+    # The evidence walks read the tracked set, so the planted tree is a repository.
+    subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True, capture_output=True)
+    subprocess.run(["git", "add", "-A"], cwd=tmp_path, check=True, capture_output=True)
     monkeypatch.setattr(evidence, "ROOT", tmp_path)
     sites = evidence.claim_sites()
     assert len(sites) == 1
