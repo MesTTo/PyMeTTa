@@ -45,6 +45,14 @@ Assumes:
     [source: tests/data/prelude-spec.metta, the assert family; ai-python-first-revamp-discussion.md
     section 9d rule 1, "assert and pytest for the assert family"]
 Guarantees:
+  - unanswered children retain their process status in the finding [tested:
+    test_a_silent_child_failure_keeps_its_exit_status; commit=8ca8a387fc61d0918484b19a1a3baf85b6523043]
+  - file-search cache expiry cannot enter a measured first library load;
+    engines inherit the lifetime fixed before boot, and the empirical
+    protocol names that fixture [tested:
+    test_a_first_library_load_is_independent_of_file_cache_age,
+    test_engines_created_at_boot_inherit_the_cache_fixture;
+    commit=8ca8a387fc61d0918484b19a1a3baf85b6523043]
   - a twin that reaches the engine through MeTTa source text is REFUSED, both
     the five source-input doors and any string that is not a name or ground()-marked
     data [tested: test_the_source_scan_catches_a_planted_string]
@@ -135,10 +143,10 @@ Decides:
     reviewer can falsify both its bounds and the conditions that produced it
     [tested: test_an_empirical_envelope_requires_complete_measurement_metadata;
     commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22]
-  - a full-lane protocol fixes both corpus width and executor width; empirical
-    observations can be reproduced with --observe [tested:
+  - a full-lane protocol fixes corpus width, executor width and the cache
+    lifetime before boot; observations can be reproduced with --observe [tested:
     test_the_full_lane_protocol_names_every_scheduling_input;
-    commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22]
+    commit=8ca8a387fc61d0918484b19a1a3baf85b6523043]
   - a twin's module-level `available(m)` is asked before `twin(m)`, outside
     the counted window, and its BUDGET is compared only where it answers True
     or is absent, with the lane saying so where it is not compared, so a
@@ -319,17 +327,19 @@ BAND_PERCENT = 10.0
 #: set's; no other file of the change moves it [measured 2026-09-09:
 #: min-of-3 fresh processes per fixture; command=python
 #: extensions/python/benchmarks/probes/twin_authoring.py; commit=5f8a823d23fbed5c7395912a89ba32760e2df4b1].
-#: RE-MEASURED 2026-09-10 for references and the shared property surface:
-#: 7, 2903, 4256, 5625, 7006 for zero through four definitions, against
-#: 7, 2857, 4210, 5579, 6960 at the pristine 3e5855a35 cut. Every nonempty
-#: fixture moves +46 while each marginal definition is unchanged; only the
-#: first definition's engine lookup warmup moves. The source/write/define
-#: doors cost 435+1023, 910+152 and 2903+182 respectively [measured 2026-09-10:
-#: min-of-3 fresh processes; command=python extensions/python/benchmarks/probes/twin_authoring.py;
-#: fixture=zero through four one-line definitions, built native engine;
-#: commit=90ba93eb8f6e98ebfefc55416859bf13de6a8427].
-DEFINITION_WARMUP = 1528
-DEFINITION_COST = 1368
+#: RE-MEASURED 2026-09-10: the 0..4-definition fixture reads
+#: 7/2853/4202/5567/6944, against 7/2857/4210/5579/6960 at the cut.
+#: Each definition's four reflection/equation writes now enter
+#: metta_add_atom/4 directly instead of its forwarding /3 predicate, saving
+#: four per definition. Warmup stays 1482 and the marginal fit tightens
+#: 1368 to 1364. The paired controls also re-derive eval's existing OVERRUN
+#: and clear ifsimple's stale-OVERRUN finding. The retained paired controls
+#: are indexed in the merged-tree journal [measured 2026-09-10: three identical
+#: fresh-process readings per cell; command=python
+#: extensions/python/benchmarks/probes/twin_authoring.py;
+#: fixture=twin_authoring.fixture with 0..4 definitions; commit=8ca8a387fc61d0918484b19a1a3baf85b6523043].
+DEFINITION_WARMUP = 1482
+DEFINITION_COST = 1364
 
 #: The tree's own POINT-counter allowance. It applies to an integer BUDGET
 #: only; adding it to empirical extrema would silently widen what was observed
@@ -410,7 +420,13 @@ OVERRUN_NAME = "OVERRUN"
 #: empirical claim visibly instead of changing the scheduler under one label
 #: [tested: test_an_empirical_envelope_cannot_license_another_protocol;
 #: commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22].
-SERIAL_PROTOCOL = "serial"
+# Keep wall-clock file-search maintenance outside a lane's cost. SWI compares
+# cache age with this number and half of it when deciding whether to sweep:
+# https://github.com/SWI-Prolog/swipl-devel/blob/fc7ef84b949378b729052c3ade79c90ce5416abb/boot/init.pl#L1490-L1563
+# This lifetime exceeds any lane while retaining normal cached lookup work.
+FILE_SEARCH_CACHE_TIME = 2**63 - 1
+CACHE_PROTOCOL = f"file-search-cache-time={FILE_SEARCH_CACHE_TIME}/before-boot"
+SERIAL_PROTOCOL = f"serial/{CACHE_PROTOCOL}"
 FULL_LANE_PROTOCOL = "full-lane"
 FULL_LANE_WORKERS = 32
 
@@ -1970,6 +1986,16 @@ class Run:
 
 _PREAMBLE = (
     "import json, sys; sys.path.insert(0, 'extensions/python')\n"
+    # Engines inherit flags at creation. The integration checkout's
+    # ai-tmp/ai-the-binding-collapse.md validates this lifetime before boot;
+    # ai-tmp/ai-binding-autoload-census.md and
+    # ai-tmp/ai-binding-autoload-census.json retain all 277 processes.
+    # ai-tmp/ai-autoload-search-traps.md explains which first
+    # loads are intentional. No optional library is preloaded here.
+    "import janus_swi\n"
+    # Workaround: swi-file-search-cache-sweep - keep file-search entries live throughout each measured child.
+    "janus_swi.cmd('system', 'set_prolog_flag', 'file_search_cache_time', "
+    f"{FILE_SEARCH_CACHE_TIME})\n"
     "from metta import Expression, MeTTa, S, V\n"
     "from metta.structures import _canonical\n"
     "def _key(head):\n"
@@ -2142,7 +2168,7 @@ def full_lane_protocol(examples: int) -> str:
     if isinstance(examples, bool) or not isinstance(examples, int) or examples <= 0:
         msg = f"full-lane protocol needs a positive example count, got {examples!r}"
         raise ValueError(msg)
-    return f"{FULL_LANE_PROTOCOL}/{examples}/workers={FULL_LANE_WORKERS}"
+    return f"{FULL_LANE_PROTOCOL}/{examples}/workers={FULL_LANE_WORKERS}/{CACHE_PROTOCOL}"
 
 
 def _empirical_budget(value: dict, twin: Path) -> EmpiricalBudget:
@@ -2394,8 +2420,11 @@ def check(
     left, right = run_example(example, root), run_twin(twin, root)
     if left.outcome.error or right.outcome.error:
         side = "the example" if left.outcome.error else "the twin"
-        error = left.outcome.error or right.outcome.error
-        findings.append(f"{relative}: {side} failed to run: {error}")
+        failed = left.outcome if left.outcome.error else right.outcome
+        findings.append(
+            f"{relative}: {side} failed to run: {failed.error} "
+            f"(returncode={failed.returncode})"
+        )
         claims = sum(head in ASSERT_HEADS for head in example_forms(example))
         return Verdict(example, claims, 0, None, None, tuple(findings))
 

@@ -184,30 +184,73 @@ def twin(m):
 #: [measured 2026-09-09: python extensions/python/tools/twin_coverage.py
 #: --observe --rounds 10, twice, beside the plain lane runs ai-tmp records;
 #: fixture=full-lane/277/workers=32; commit=f26de01fbf3e0e3c64bb691c66a59fa959fee7f3].
-#: RE-OBSERVED 2026-09-10 after fused syntax admission and shape compilation.
-#: Ten complete-lane rounds supplied 9 successful observations under
-#: full-lane/279/workers=32.
-#: Round 9 raised AssertionError and contributes no measurement.
-#: Samples: [97100, 96797, 96797, 96797, 97040, 97375, 97100, 96856, 96797].
-#: Bounds are the observed extrema, with no added margin
-#: [measured 2026-09-10: minimum 96797, maximum 97375;
-#: command=python extensions/python/tools/twin_coverage.py --observe --rounds 10;
-#: fixture=full-lane/279/workers=32; commit=6031c83ab3002b5703cb6fcb10e70a60a89f4ad7].
-#: RE-OBSERVED 2026-09-10 after the next complete lane exposed a new
-#: channels/pools minimum. Two exact --observe --rounds 10 runs and
-#: all three other final-code complete-lane receipts are pooled under
-#: full-lane/279/workers=32: 21 successful costs and 2 failed observations.
-#: Failed observations contribute no cost; no margin is added.
-#: Samples: [97100, 96797, 96797, 96797, 97040, 97375, 97100, 96856, 96797, 97100, 97100, 96797, 97949, 96793, 96797, 97100, 97100, 96797, 97091, 97179, 96793].
-#: [measured 2026-09-10: minimum 96793, maximum 97949;
-#: command=python extensions/python/tools/twin_coverage.py --observe --rounds 10;
-#: fixture=full-lane/279/workers=32, two observation runs and three plain lane receipts;
-#: commit=6031c83ab3002b5703cb6fcb10e70a60a89f4ad7].
+#: POOLED 2026-09-09: published 96306..96786 over 23
+#: observations, receipt pass 98691..98994 over 10, and
+#: final pass 98687..99039 over 10. Exact extrema and counts
+#: retain the existing empirical protocol; no point budget becomes an envelope.
+#: [measured: two complete ten-round passes; command=python
+#: extensions/python/tools/twin_coverage.py --observe --rounds 10;
+#: fixture=full-lane/277/workers=32; commit=8ca8a387fc61d0918484b19a1a3baf85b6523043]
+#: RE-OBSERVED 2026-09-10 after setting the file-search cache lifetime
+#: before engine creation. This complete ten-round population uses
+#: 98683..98799 over 10 observations. Earlier protocol
+#: samples remain above as history and do not enter this envelope.
+#: [measured: all 277 pairs, this twin succeeds in every round; command=python
+#: extensions/python/tools/twin_coverage.py --observe --rounds 10;
+#: fixture=full-lane/277/workers=32/file-search-cache-time=9223372036854775807/before-boot; commit=8ca8a387fc61d0918484b19a1a3baf85b6523043]
+#: POOLED 2026-09-10: the earlier before-boot population has 98683..98799 over
+#: ten samples; the receipt-frame repair's complete population has 98679..98732
+#: over ten. The full lanes at 17bec75f1 and e70deddaa add 98683 and 98683.
+#: Their exact pooled extrema are 98679..98799 over 22 observations under the
+#: same cache-normalised protocol. Earlier runtime samples remain identified
+#: separately; the receipt watcher now transfers ownership at live completion.
+#: No point becomes an envelope. The final gate is an independent validation
+#: sample [measured 2026-09-10: two complete ten-round populations and two full
+#: lane checks; command=python extensions/python/tools/twin_coverage.py
+#: --observe --rounds 10 and sh check.sh twins; fixture=full-
+#: lane/277/workers=32/file-search-cache-time=9223372036854775807/before-boot;
+#: commit=8ca8a387fc61d0918484b19a1a3baf85b6523043].
+#: POOLED 2026-09-10: the retained 22 observations have 98679..98799. The full
+#: lane at 71535ae17 adds 99219; a further complete ten-round population at
+#: db8640733 adds 98683..98732. All 2770 new samples succeed. Exact pooled
+#: extrema are 98679..99219 over 33 observations under the same before-boot
+#: cache protocol. For the channels-and-pools twin, line and worker controls
+#: attribute a variable cancellation cost to work already performed by the
+#: timer worker before the join; those instrumented controls do not enter this
+#: population. No point becomes an envelope [measured 2026-09-10: three
+#: complete ten-round populations and three full-lane readings; command=python
+#: extensions/python/tools/twin_coverage.py --observe --rounds 10 and sh
+#: check.sh twins; fixture=full-lane/277/workers=32/file-search-cache-
+#: time=9223372036854775807/before-boot; commit=8ca8a387fc61d0918484b19a1a3baf85b6523043].
+#: POOLED 2026-09-10: retain the previous33 observations and both full-gate
+#: samples (3fb950149: 98683; 503e21f8a: 98683), then append the complete ten-
+#: round populations (2f1be07e9: 98679..99134; e93f2028d: 98697..98735). Both
+#: populations have2770 successful samples, no failures and no point movements
+#: or excursions. The e93f2028d population measures the repaired concurrent
+#: join; the2f1be07e9 observation retains its own version. Exact pooled extrema
+#: are98679..99219 over55 samples, without padding. No point becomes an
+#: envelope. [measured 2026-09-10: five complete ten-round populations and five
+#: full-lane readings; command=python extensions/python/tools/twin_coverage.py
+#: --observe --rounds 10 and sh check.sh twins; fixture=full-
+#: lane/277/workers=32/file-search-cache-time=9223372036854775807/before-boot;
+#: commit=8ca8a387fc61d0918484b19a1a3baf85b6523043].
+#: POOLED 2026-09-11: keep all 55 previous observations, append the two
+#: complete gate readings (895878bbe=98707, 4d4fa2c55=98696), then all ten
+#: qualified 4d4fa2c55 rounds (98696..98882). The resulting 67 observations
+#: have exact extrema 98679..99219. The prior scheduling mechanisms remain;
+#: this complete lane also measures the explicit pending-definition provider.
+#: No targeted or instrumented reading enters an envelope. The end-of-wave
+#: battery re-observes and re-pins the whole lane on the merged tree under this
+#: protocol, pooling every empirical extension with its count and mechanism.
+#: [measured 2026-09-11: six complete ten-round populations and seven full-lane
+#: readings; command=python extensions/python/tools/twin_coverage.py --observe
+#: --rounds 10 and sh check.sh twins; fixture=full-lane/277/workers=32/file-
+#: search-cache-time=9223372036854775807/before-boot; commit=8ca8a387fc61d0918484b19a1a3baf85b6523043].
 BUDGET = {
-    "minimum": 96793,
-    "maximum": 97949,
-    "observations": 21,
-    "protocol": "full-lane/279/workers=32",
+    "minimum": 98679,
+    "maximum": 99219,
+    "observations": 67,
+    "protocol": "full-lane/277/workers=32/file-search-cache-time=9223372036854775807/before-boot"
 }
 #: The count VARIES, because this twin starts threads and timers and the
 #: engine charges what the scheduler actually ran. Three single-round

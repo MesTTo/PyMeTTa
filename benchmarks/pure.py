@@ -1,5 +1,9 @@
 """Purpose: run one benchmark workload for perf instructions:u.
 Guarantees:
+  - declared steady workloads collect warmup's Prolog garbage before the
+    measured operation; collection failures still release the workload
+    [tested: test_steady_workloads_collect_before_the_window,
+    test_collection_failure_releases_the_workload; commit=8ca8a387fc61d0918484b19a1a3baf85b6523043]
   - the handshake is bounded and a window that never opened exits 125, so the
     driver reads it as "this run says nothing" rather than as a moved row
     [tested: test_a_refused_window_is_told_apart_from_a_workload_that_failed;
@@ -279,6 +283,12 @@ def main(argv: Sequence[str] | None = None) -> int:
     try:
         if arguments.case in _WARM_UP:
             operation()
+            # Settle warmup's global/trail garbage before the steady operation.
+            # SWI's collector also trims stacks: swipl-devel@fc7ef84b949378b729052c3ade79c90ce5416abb,
+            # boot/syspred.pl:garbage_collect/0. The Node sampler uses this boundary too.
+            from janus_swi import cmd  # noqa: PLC0415 -- cold host workloads must not boot SWI
+
+            cmd('system', 'garbage_collect')
         completed = _controlled(operation) if arguments.controlled else operation()
     except _WindowRefused as refused:
         print(f"pure.py: {refused}", file=sys.stderr)

@@ -332,47 +332,22 @@ def twin(m):
 #: pins of f26de01fb [measured 2026-09-09: min-of-3 serial fresh processes;
 #: command=python extensions/python/tools/twin_coverage.py --repin;
 #: commit=5f8a823d23fbed5c7395912a89ba32760e2df4b1].
-#: RE-PINNED 2026-09-10, 10272 to 8867 (-1405), the binding resolves Janus
-#: maplist/2 at boot, removing its first-failure autoload; one compiled option
-#: policy removes repeated evaluation frames, and keyed dispatch removes
-#: repeated transport/context selection. Indexed source-macro hooks preserve
-#: unrelated compilation costs. Same-cut controls and all before/after rows are
-#: in docs/journal/2026-09-09-the-binding-collapse.md. These three fresh serial
-#: processes set file_search_cache_time=9223372036854775807 before boot,
-#: matching the validated full-lane/277/workers=32/file-cache-
-#: time=9223372036854775807 environment. Workloads, point tolerances and
-#: empirical envelopes are unchanged [measured 2026-09-10: min-of-3 serial
-#: fresh processes; command=python extensions/python/tools/twin_coverage.py
-#: --repin; commit=8358dfc233bf299bb23eceddd94593a62372fe4b].
-#: RE-PINNED 2026-09-10, 8867 to 8862 (-5), the bounds frame watcher now
-#: transfers its watch to the nearest live transaction, preventing notification
-#: of an engine's discarded outer query frame. The changed boot predicate set
-#: also changes current_predicate/1's catalog-arity enumeration order. A same-
-#: worktree old/current/restore control and native call-site coverage locate
-#: each five-inference step in spaces:metta_catalog_clause/2:
-#: current_predicate, the arity guard, functor, metta_storage_term and clause.
-#: No workload or lookup implementation changes. See
-#: docs/journal/2026-09-09-the-binding-collapse.md. These are three fresh
-#: sequential samples per row with 32 concurrent row runners and
-#: file_search_cache_time=9223372036854775807 before boot. The point allowance
-#: and every empirical envelope are unchanged [measured 2026-09-10: min-of-3
-#: serial fresh processes; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=8358dfc233bf299bb23eceddd94593a62372fe4b].
-#: RE-PINNED 2026-09-10, 8862 to 8872 (+10), automatic memo reconciliation uses
-#: a trailed marker so an inference-limit signal cannot leak its guard. The
-#: ordinary dirty drain saves two inferences; the first unset-marker read in
-#: each engine invokes SWI's undefined-global hook. Removing the old thread-
-#: local predicate also changes catalog-arity enumeration order: five
-#: inferences per visited arity in metta_catalog_clause/2 or the partial-list
-#: get_native_atom/3 lookup. Same-worktree old/current/restore measurements,
-#: native call-site coverage and actual missing-global events separate those
-#: costs. See docs/journal/2026-09-09-the-binding-collapse.md. These are three
-#: fresh sequential samples per row with 32 concurrent row runners, warmed
-#: library artifacts, and file_search_cache_time=9223372036854775807 before
-#: boot. Every workload, point allowance and empirical envelope is unchanged
-#: [measured 2026-09-10: min-of-3 serial fresh processes; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=8358dfc233bf299bb23eceddd94593a62372fe4b].
-BUDGET = 8872
+#: RE-PINNED 2026-09-11, 10272 to 10267 (-5), Explicit
+#: filereader:source_pending_definition/2 in
+#: translator:runnable_head_awaits_its_definition/1 removes one inherited-
+#: resolution retry. The same-physical-path qualifier-only toggle has 102
+#: successful children, three identical samples per arm, unchanged source/twin
+#: bodies and semantic fields, and no instrumentation (ai-tmp/ai-qualified-
+#: boundaries-analysis.json and ai-tmp/ai-qualified-
+#: boundaries-{unqualified,qualified}.json). This point was already four below
+#: its declaration in the e93f2028d ten-round full lane; qualification saves
+#: one more, crossing the unchanged four-inference allowance. All instruction
+#: pins, bands, bodies, assertions and stored-content oracles stay. Foldall
+#: retains 17904. The end-of-wave battery re-pins the whole lane on the merged
+#: tree under the normalised protocol; these are this tree's measured prices
+#: [measured 2026-09-11: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=8ca8a387fc61d0918484b19a1a3baf85b6523043].
+BUDGET = 10267
 
 #: DIVERGED 2026-09-07, the example holds 1 atom the twin does not (1 =) and
 #: the twin holds 1 atom the example does not (1 =): the twin is an ordinary Python

@@ -317,16 +317,19 @@ def twin(m):
 #: measured on this tree with the artifacts warm [measured 2026-09-09: min-of-3
 #: serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=f26de01fbf3e0e3c64bb691c66a59fa959fee7f3].
-#: RE-PINNED 2026-09-10, 37233 to 35512 (-1721), the binding resolves Janus
-#: maplist/2 at boot, removing its first-failure autoload; one compiled option
-#: policy removes repeated evaluation frames, and keyed dispatch removes
-#: repeated transport/context selection. Indexed source-macro hooks preserve
-#: unrelated compilation costs. Same-cut controls and all before/after rows are
-#: in docs/journal/2026-09-09-the-binding-collapse.md. These three fresh serial
-#: processes set file_search_cache_time=9223372036854775807 before boot,
-#: matching the validated full-lane/277/workers=32/file-cache-
-#: time=9223372036854775807 environment. Workloads, point tolerances and
-#: empirical envelopes are unchanged [measured 2026-09-10: min-of-3 serial
-#: fresh processes; command=python extensions/python/tools/twin_coverage.py
-#: --repin; commit=8358dfc233bf299bb23eceddd94593a62372fe4b].
-BUDGET = 35512
+#: RE-PINNED 2026-09-11, 37233 to 37228 (-5), Explicit
+#: filereader:source_pending_definition/2 in
+#: translator:runnable_head_awaits_its_definition/1 removes one inherited-
+#: resolution retry. The same-physical-path qualifier-only toggle has 102
+#: successful children, three identical samples per arm, unchanged source/twin
+#: bodies and semantic fields, and no instrumentation (ai-tmp/ai-qualified-
+#: boundaries-analysis.json and ai-tmp/ai-qualified-
+#: boundaries-{unqualified,qualified}.json). This point was already four below
+#: its declaration in the e93f2028d ten-round full lane; qualification saves
+#: one more, crossing the unchanged four-inference allowance. All instruction
+#: pins, bands, bodies, assertions and stored-content oracles stay. Foldall
+#: retains 17904. The end-of-wave battery re-pins the whole lane on the merged
+#: tree under the normalised protocol; these are this tree's measured prices
+#: [measured 2026-09-11: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=8ca8a387fc61d0918484b19a1a3baf85b6523043].
+BUDGET = 37228

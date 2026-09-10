@@ -5,6 +5,14 @@ source-text cheat, a renamed variable, a wrong answer, a hidden definition
 and an undeclared skip, and require the lane to answer correctly about each.
 
 Guarantees:
+  - an unanswered child retains its process status in the finding [tested:
+    test_a_silent_child_failure_keeps_its_exit_status; commit=8ca8a387fc61d0918484b19a1a3baf85b6523043]
+  - a real twin's first library load keeps its count when file-cache entries
+    age beyond SWI's default expiry [tested:
+    test_a_first_library_load_is_independent_of_file_cache_age; commit=8ca8a387fc61d0918484b19a1a3baf85b6523043]
+  - engines created during MeTTa construction inherit the lane's cache
+    lifetime [tested: test_engines_created_at_boot_inherit_the_cache_fixture;
+    commit=8ca8a387fc61d0918484b19a1a3baf85b6523043]
   - shared answer comparison ignores order and alpha-renaming while preserving
     multiplicity [tested:
     test_answer_multisets_ignore_order_and_alpha_names_but_keep_multiplicity;
@@ -1073,9 +1081,89 @@ def test_a_measurement_environment_is_built_and_never_inherited(monkeypatch):
 
 def test_the_full_lane_protocol_names_every_scheduling_input():
     """A corpus-width or executor-width change is a different population."""
-    assert coverage.full_lane_protocol(204) == "full-lane/204/workers=32"
+    cache = 'file-search-cache-time=9223372036854775807/before-boot'
+    assert coverage.full_lane_protocol(204) == f"full-lane/204/workers=32/{cache}"
+    assert f"serial/{cache}" == coverage.SERIAL_PROTOCOL
     with pytest.raises(ValueError, match="positive example count"):
         coverage.full_lane_protocol(0)
+
+
+def test_a_first_library_load_is_independent_of_file_cache_age():
+    """Forced cache age moves the default policy and leaves the fixture fixed."""
+    # The integration checkout's ai-tmp/ai-binding-autoload-census.md and
+    # ai-tmp/ai-binding-autoload-census.json retain the 277-process census.
+    # ai-tmp/ai-autoload-search-traps.md distinguishes intended library loads
+    # from queries that accidentally trigger autoload. tableutil stays lazy.
+    twin = coverage.twin_for(REPO / (
+        'examples/ch18-performance/18-02-memoisation-and-tabling/09-tabling_fib.metta'
+    ))
+    costs = {}
+    for default_policy in (False, True):
+        for age in (0, 11):
+            # Aging both clocks isolates expiry from scheduler delays. Disable
+            # heartbeats only in this control so it measures cache work alone.
+            lifetime = 10 if default_policy else coverage.FILE_SEARCH_CACHE_TIME
+            preamble = coverage._PREAMBLE.replace(str(coverage.FILE_SEARCH_CACHE_TIME), str(lifetime))
+            setup = preamble + f'''
+import importlib.util
+import janus_swi as janus
+_spec = importlib.util.spec_from_file_location('cache_age_twin', {str(twin)!r})
+_module = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(_module)
+janus.cmd('system', 'set_prolog_flag', 'heartbeat', 0)
+janus.consult('cache_age_fixture', data=r"""
+age_file_cache(Age) :-
+    get_time(Now), Old is Now-Age,
+    findall(Key-Path,system:'$search_path_file_cache'(Key,_,Path),Rows),
+    retractall(system:'$search_path_file_cache'(_,_,_)),
+    forall(member(Key-Path,Rows),assertz(system:'$search_path_file_cache'(Key,Old,Path))),
+    retractall(system:'$search_path_gc_time'(_)),
+    assertz(system:'$search_path_gc_time'(Old)).
+""")
+janus.cmd('user', 'age_file_cache', {age})
+with m.stats() as spent:
+    _module.twin(m)
+print({coverage.COST!r} + str(spent.inferences))
+'''
+            run = coverage._launch(setup, REPO)
+            assert run.outcome.error is None, run.outcome.error
+            assert run.cost is not None
+            costs[default_policy, age] = run.cost
+    assert costs[False, 0] == costs[False, 11]
+    assert costs[True, 11] > costs[True, 0], costs
+
+
+def test_engines_created_at_boot_inherit_the_cache_fixture():
+    """A flag set after construction cannot change an already created engine."""
+    # ai-tmp/ai-the-binding-collapse.md in the integration checkout records
+    # the validated lifetime and the engine-inheritance control, beside
+    # ai-tmp/ai-binding-autoload-census.md and
+    # ai-tmp/ai-binding-autoload-census.json.
+    intercept_boot = '''
+import metta
+import janus_swi as janus
+janus.consult('cache_engine_fixture', data="""
+capture_cache_engine :-
+    engine_create(Lifetime,
+        current_prolog_flag(file_search_cache_time,Lifetime),cache_fixture).
+""")
+_original_metta = metta.MeTTa
+def capture_boot(*args, **kwargs):
+    janus.cmd('user', 'capture_cache_engine')
+    return _original_metta(*args, **kwargs)
+metta.MeTTa = capture_boot
+'''
+    inspect_engine = f'''
+try:
+    inherited = janus.apply_once('system', 'engine_next', 'cache_fixture')
+    print({coverage.COST!r} + str(inherited))
+finally:
+    janus.cmd('system', 'engine_destroy', 'cache_fixture')
+'''
+    bootstrap, body = coverage._PREAMBLE.split('\n', 1)
+    run = coverage._launch(bootstrap + '\n' + intercept_boot + body + inspect_engine, REPO)
+    assert run.outcome.error is None, run.outcome.error
+    assert run.cost == coverage.FILE_SEARCH_CACHE_TIME
 
 
 def test_a_twin_declaring_above_its_code_is_a_finding(tmp_path):
@@ -1879,6 +1967,30 @@ def test_a_variable_headed_expression_keeps_its_only_spelling(tmp_path):
     )
     assert coverage.scan(planted) == []
     assert coverage.idiom(planted) == []
+
+
+@pytest.mark.parametrize("side", ["example", "twin"])
+def test_a_silent_child_failure_keeps_its_exit_status(tmp_path, monkeypatch, side):
+    """The existing Outcome status must survive an empty child output stream."""
+    example = tmp_path / "examples" / "empty.metta"
+    example.parent.mkdir()
+    example.write_text("", encoding="utf-8")
+    monkeypatch.setattr(coverage, "TWINS", tmp_path / "twins")
+    twin = coverage.twin_for(example, tmp_path)
+    twin.parent.mkdir(parents=True)
+    twin.write_text('"""An empty twin."""\ndef twin(m):\n    return []\nBUDGET = 0\n',
+                    encoding="utf-8")
+    failed = coverage._launch("import os; os._exit(7)\n", REPO)
+    assert failed.outcome.error == "no output"
+    assert failed.outcome.returncode == 7
+    good = _run([])
+    monkeypatch.setattr(coverage, "run_example", lambda *_: failed if side == "example" else good)
+    monkeypatch.setattr(coverage, "run_twin", lambda *_: failed if side == "twin" else good)
+    verdict = coverage.check(example, [], root=tmp_path)
+    assert (
+        f"examples/empty.metta: the {side} failed to run: no output (returncode=7)"
+        in verdict.findings
+    )
 
 
 def test_a_failing_assertion_is_a_finding(tmp_path):

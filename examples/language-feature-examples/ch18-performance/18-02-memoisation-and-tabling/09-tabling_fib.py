@@ -343,19 +343,17 @@ def twin(m):
 #: measured on this tree with the artifacts warm [measured 2026-09-09: min-of-3
 #: serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=f26de01fbf3e0e3c64bb691c66a59fa959fee7f3].
-#: RE-PINNED 2026-09-10, 50837 to 49601 (-1236), the binding resolves Janus
-#: maplist/2 at boot, removing its first-failure autoload; one compiled option
-#: policy removes repeated evaluation frames, and keyed dispatch removes
-#: repeated transport/context selection. Indexed source-macro hooks preserve
-#: unrelated compilation costs. Same-cut controls and all before/after rows are
-#: in docs/journal/2026-09-09-the-binding-collapse.md. These three fresh serial
-#: processes set file_search_cache_time=9223372036854775807 before boot,
-#: matching the validated full-lane/277/workers=32/file-cache-
-#: time=9223372036854775807 environment. Workloads, point tolerances and
-#: empirical envelopes are unchanged [measured 2026-09-10: min-of-3 serial
-#: fresh processes; command=python extensions/python/tools/twin_coverage.py
-#: --repin; commit=8358dfc233bf299bb23eceddd94593a62372fe4b].
-BUDGET = 49601
+#: RE-PINNED 2026-09-10, 50837 to 50830 (-7), The direct public and bulk native
+#: writes remove one forwarding inference per accepted atom, while the receipt
+#: and enumeration fixes are recorded in docs/journal/2026-09-07-every-fact-
+#: has-a-token.md. The full-lane ten-round observations and this serial ten-
+#: process measurement agree on the lower cost. The rejected uncommitted
+#: readings 25980, 51137 and 36463 were higher than the full-lane minima; ai-
+#: tmp/ai-twin-point-selection.json retains all samples and the merged-tree
+#: journal records their disposition. No allowance, overrun or oracle changes
+#: [measured 2026-09-10: min-of-10 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=8ca8a387fc61d0918484b19a1a3baf85b6523043].
+BUDGET = 50830
 #: OVERRUN 2026-09-09, 0 to 4070 (+4070): a library's Prolog half compiles
 #: beside itself on its first import and loads from the artifact after
 #: (metta_load_source/2, seam:compiled_source/1): the example imports one, so

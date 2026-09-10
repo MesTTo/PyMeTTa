@@ -257,16 +257,29 @@ def twin(m):
 #: storage above all [measured 2026-09-09: min-of-3 serial fresh processes;
 #: command=python extensions/python/tools/twin_coverage.py --repin;
 #: commit=b4341ae382c48ef225f4a52e566af6a9a71757c4].
-#: RE-PINNED 2026-09-10, 17938 to 16673 (-1265), the binding resolves Janus
-#: maplist/2 at boot, removing its first-failure autoload; one compiled option
-#: policy removes repeated evaluation frames, and keyed dispatch removes
-#: repeated transport/context selection. Indexed source-macro hooks preserve
-#: unrelated compilation costs. Same-cut controls and all before/after rows are
-#: in docs/journal/2026-09-09-the-binding-collapse.md. These three fresh serial
-#: processes set file_search_cache_time=9223372036854775807 before boot,
-#: matching the validated full-lane/277/workers=32/file-cache-
-#: time=9223372036854775807 environment. Workloads, point tolerances and
-#: empirical envelopes are unchanged [measured 2026-09-10: min-of-3 serial
-#: fresh processes; command=python extensions/python/tools/twin_coverage.py
-#: --repin; commit=8358dfc233bf299bb23eceddd94593a62372fe4b].
-BUDGET = 16673
+#: RE-PINNED 2026-09-09, 17938 to 17783 (-155), Receipt cleanup stops at the
+#: nearest native transaction when unnested and skips forget_scope when that
+#: scope reserved no incoming occurrences. Nested transactions retain their
+#: outer owner. The provisioned cut control is
+#: 3e5855a35d7b206c847845f12467551ea4c54a59; the 2000-equation drop loses all
+#: 2000 empty receipt posts. See the 2026-09-09 receipt profile in
+#: docs/journal/2026-09-07-every-fact-has-a-token.md. Public and bulk writes
+#: now call metta_add_atom/4 and add_sexp_in/5 directly, removing one
+#: forwarding inference per accepted atom; parametric open enumeration shares
+#: native_storage_functor/2 with named-space reads. Autoload-only excursions
+#: are not a re-pin cause [measured 2026-09-09: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=8ca8a387fc61d0918484b19a1a3baf85b6523043].
+#: RE-PINNED 2026-09-10, 17783 to 17765 (-18), The receipt crash repair
+#: replaces the separate nesting enumeration with metta_receipt_nearest_frame/3
+#: and metta_receipt_watch_transaction/2, transferring the same scope at live
+#: transaction completion. It removes the findnsols2/5 and findnsols_loop/5
+#: work; nested paths also avoid the old outer-frame scan while retaining outer
+#: rollback ownership. The same-path e70deddaa control changes only
+#: receipts.pl; all ten full-lane samples agree on this lower cost. See the
+#: 2026-09-10 receipt frame controls in docs/journal/2026-09-07-every-fact-has-
+#: a-token.md and the final twin sweep in docs/journal/2026-09-07-merged-tree-
+#: reconciliations.md [measured 2026-09-10: min-of-3 serial fresh processes;
+#: command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=8ca8a387fc61d0918484b19a1a3baf85b6523043].
+BUDGET = 17765
