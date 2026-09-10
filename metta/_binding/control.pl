@@ -1,5 +1,8 @@
 % Purpose: bound and capture execution and account for interrupt polling.
 % Assumes: loaded through _binding/shim.pl in its host module.
+% Guarantees: native algebra operations compose with the same bounds as
+%   carrier checks [tested: test_visibility_operations_share_the_native_carrier;
+%   commit=90ba93eb8f6e98ebfefc55416859bf13de6a8427].
 % Owns resources: held-engine output redirection; cleanup restores current_output
 % [source: extensions/python/metta/_binding/control.pl:416; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
 
@@ -27,6 +30,7 @@ metta_py_wrappable(metta_py_query_count_if_repeatable).
 metta_py_wrappable(metta_py_eval_all).
 metta_py_wrappable(metta_py_eval_accounted).
 metta_py_wrappable(metta_py_check_algebra_values_accounted).
+metta_py_wrappable(metta_py_algebra_operation_accounted).
 metta_py_wrappable(metta_py_tagged_sources).
 metta_py_wrappable(metta_py_eval_using_all).
 metta_py_wrappable(metta_py_eval_many_all).

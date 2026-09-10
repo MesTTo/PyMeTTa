@@ -4,7 +4,7 @@ A card is one query over the library's own sources with renderers over it.
 A library card is a model card for a `lib_*`: what it is, which heads it
 publishes and what each is declared, documented, classified and priced as,
 which examples exercise it, what it needs from the platform, and the digest
-that identifies the exact source all of that was read from. The section
+that identifies its executable source files. The section
 mapping is Mitchell et al.'s, one to one -- model details to name, files,
 version and digest; intended use to the prose and the head roster; factors to
 the effect classes and the platform capabilities; metrics to the declared cost
@@ -40,6 +40,10 @@ Guarantees:
     test_a_card_carries_the_engines_own_effect_and_cost_answers; commit=ff4257005f562786e3ef7a5a37ce94b7d80e782d]
   - a name outside the roster refuses with the roster [tested:
     test_a_card_for_a_name_outside_the_roster_refuses_with_it; commit=ff4257005f562786e3ef7a5a37ce94b7d80e782d]
+  - a companion README's opening paragraph supplies the card description,
+    including vendored-library caveats, in every renderer [tested:
+    test_a_companion_readme_supplies_the_summary_in_every_renderer,
+    test_the_lib_he_card_names_its_shadowing_and_semantic_differences; commit=90ba93eb8f6e98ebfefc55416859bf13de6a8427]
 Fails when:
   - a library publishes heads through a form whose names are computed rather
     than written: the engine reports nothing for such a form and the card is
@@ -59,9 +63,9 @@ import os
 import re
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
-from metta._atoms.factories import Atom, Expression, Symbol, parse
+from metta._atoms.factories import Atom, Expression, Grounded, Symbol, _atom_from_wire, parse
 from metta._atoms.library import _library_source_files
 from metta._atoms.names import generated_aliases
 from metta._atoms.namespace import _Namespace
@@ -319,6 +323,16 @@ class HeadCard:
     cost: CostRow | None = None
     origin: Origin | None = None
     registered: bool = False
+    visibility: str | None = None
+    origins: tuple[tuple[str, Origin | None], ...] = ()
+
+    @property
+    def origin_text(self) -> str:
+        """Every live defining space and available source location."""
+        return "; ".join(
+            home if origin is None else f"{home} {origin.file}:{origin.line or '?'}"
+            for home, origin in self.origins
+        )
 
     @property
     def signature(self) -> str:
@@ -332,6 +346,10 @@ class HeadCard:
             parts.append(f"effect {self.effect}")
         if self.cost is not None:
             parts.append(f"cost {self.cost.cost_class} in $n ({self.cost.measure})")
+        if self.visibility is not None:
+            parts.append(self.visibility)
+        if self.origin_text:
+            parts.append(f"origin {self.origin_text}")
         return "  ".join(parts)
 
 
@@ -415,18 +433,23 @@ class Card:
         terminal never pays it; `str(card)` is the same content as lines.
         """
         from rich.table import Table  # noqa: PLC0415  rich's own protocol call
+        from rich.text import Text  # noqa: PLC0415  render source prose literally
 
         absent = self._absent()
         caption = f"sha256:{self.digest}"
         if absent:
             caption += "  absent here: " + ", ".join(sorted(absent))
-        table = Table("head", "type", "effect", "cost", title=self.name, caption=caption)
+        if self.doc:
+            caption += "\n" + self.doc
+        table = Table("head", "type", "effect", "cost", "visibility", "origin", title=self.name, caption=Text(caption))
         for head in self.heads:
             table.add_row(
                 head.name,
                 "" if head.arrow is None else str(head.arrow),
                 head.effect or "",
                 "" if head.cost is None else f"{head.cost.cost_class} ({head.cost.measure})",
+                head.visibility or "",
+                head.origin_text,
             )
         return table
 
@@ -434,7 +457,7 @@ class Card:
         """Notebook display: the same table, every cell escaped."""
         absent = self._absent()
         header = "".join(
-            f"<th>{column}</th>" for column in ("head", "type", "effect", "cost")
+            f"<th>{column}</th>" for column in ("head", "type", "effect", "cost", "visibility", "origin")
         )
         body = "".join(
             "<tr>"
@@ -447,6 +470,8 @@ class Card:
                     ""
                     if head.cost is None
                     else f"{head.cost.cost_class} ({head.cost.measure})",
+                    head.visibility or "",
+                    head.origin_text,
                 )
             )
             + "</tr>"
@@ -455,6 +480,7 @@ class Card:
         note = html.escape(
             f"{self.name} {self.since} sha256:{self.digest}"
             + ("  absent here: " + ", ".join(sorted(absent)) if absent else "")
+            + ("\n" + self.doc if self.doc else "")
         )
         return (
             "<table style='font-family: monospace; border-collapse: collapse;'>"
@@ -490,14 +516,27 @@ def _digest_of(files: tuple[Path, ...]) -> str:
 def _summary(files: tuple[Path, ...]) -> str | None:
     """The library's own opening prose, or None when it opens with code.
 
-    The first paragraph of the leading comment block of its MeTTa source,
-    which is where every library that says what it is says it. A block opening
+    A companion README's opening paragraph takes precedence, so vendored
+    sources can retain their exact text. Otherwise read the leading comment
+    block of the MeTTa source. A block opening
     with the file contract's `Purpose:` field ends at the next field, because
     the fields after it are the contract rather than the description.
     """
     for path in files:
         if path.suffix != ".metta":
             continue
+        readme = path.with_name("README.md")
+        if readme.is_file():
+            paragraph: list[str] = []
+            for line in readme.read_text(encoding="utf-8").splitlines():
+                text = line.strip()
+                if not paragraph and (not text or text.startswith("#")):
+                    continue
+                if not text:
+                    break
+                paragraph.append(text)
+            if paragraph:
+                return " ".join(paragraph)
         collected: list[str] = []
         purpose = False
         for line in path.read_text(encoding="utf-8").splitlines():
@@ -616,9 +655,10 @@ def card(name: str, *, root: str | os.PathLike[str] | None = None) -> Card:
     declared = rows(name, root=root)
     since, needs = _declared(files)
     claims = {
-        str(row[0]): row[1:]
-        for row in runtime().apply_must(
-            "metta_py_head_claims", [row.name for row in declared]
+        str(head): tuple(_atom_from_wire(wire) for wire in properties)
+        for head, properties in runtime().apply_must(
+            "metta_py_head_claims", [str(path) for path in files],
+            [row.name for row in declared]
         )
     }
     heads: list[HeadCard] = []
@@ -626,8 +666,16 @@ def card(name: str, *, root: str | os.PathLike[str] | None = None) -> Card:
     costs: list[CostRow] = []
     deprecations: list[Deprecation] = []
     for row in declared:
-        effect, cost_class, measure, since_row, remedy = claims.get(
-            row.name, (None, None, None, None, None)
+        properties = claims.get(row.name, ())
+        fields = {str(prop.head): prop.args for prop in properties}
+        effect = str(fields["effect"][0]) if "effect" in fields else None
+        cost_class, measure = fields.get("cost", (None, None))
+        since_row, remedy = fields.get("deprecated", (None, None))
+        origins = tuple(
+            (str(home), Origin(file, int(number) if number >= 0 else None) if file else None)
+            for prop in properties if str(prop.head) == "origin"
+            for home, path, line in (prop.args,)
+            for file, number in ((cast(Grounded, path).value, cast(Grounded, line).value),)
         )
         cost = (
             CostRow(row.name, str(cost_class), str(measure))
@@ -640,21 +688,27 @@ def card(name: str, *, root: str | os.PathLike[str] | None = None) -> Card:
             costs.append(cost)
         if since_row is not None:
             deprecations.append(
-                Deprecation(row.name, str(since_row), str(remedy))
+                Deprecation(
+                    row.name,
+                    str(since_row.value if isinstance(since_row, Grounded) else since_row),
+                    str(remedy.value if isinstance(remedy, Grounded) else remedy),
+                )
             )
         heads.append(
             HeadCard(
                 name=row.name,
                 arrow=row.types[-1] if row.types else None,
                 doc=(
-                    _format_doc_atom(row.documentation)
-                    if row.documentation is not None
-                    else None
+                    _format_doc_atom(Expression((Symbol("@doc"), Symbol(row.name), *fields["doc"])))
+                    if "doc" in fields else
+                    _format_doc_atom(row.documentation) if row.documentation is not None else None
                 ),
                 effect=None if effect is None else str(effect),
                 cost=cost,
-                origin=row.origin,
+                origin=next((origin for _, origin in origins if origin is not None), row.origin),
                 registered=row.registered,
+                visibility=str(fields["visibility"][0]) if "visibility" in fields else None,
+                origins=origins,
             )
         )
     return Card(

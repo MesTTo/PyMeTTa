@@ -17,8 +17,8 @@ Guarantees:
   - metta_platform_absent/1 classifies the shim's existing platform census
     query as a host service [tested:
     test_the_host_service_scoreboard_matches_the_tree; commit=ede2ac57e213a0d4502c6bbbca6227f97015b720]
-  - carrier membership uses the engine-owned validation door
-    [tested: test_the_host_service_scoreboard_matches_the_tree; commit=074dc0a88b1605c54824de677d586b6f60998bcf]
+  - carrier membership and nonnumeric operations use engine-owned doors
+    [tested: test_the_host_service_scoreboard_matches_the_tree; commit=90ba93eb8f6e98ebfefc55416859bf13de6a8427]
   - the manifest and the tree hold the same host_service set, compared as
     sets with both differences named
     [tested: test_the_host_service_scoreboard_matches_the_tree;
@@ -60,6 +60,11 @@ HOST_SERVICES = {
     # measure an unnamed row takes from the head's arrow is resolved by the
     # engine so the docstring and (explain ...) cannot answer differently.
     "metta_cost_declaration/4",
+    # Head claims and origin ownership moved from the binding into the engine.
+    # The batch, selected-property and occurrence reads share one claim source.
+    "metta_head_claims/3",
+    "metta_head_property/3",
+    "metta_head_origins/3",
     # Which heads one MeTTa source REGISTERS, read from the source and never
     # run. The registration spellings are the engine's own, and a host reading
     # them itself would carry a table of engine forms that goes stale the day a
@@ -114,6 +119,9 @@ HOST_SERVICES = {
     # annotations. The host decodes values and asks this same door instead
     # of implementing a second type and finite-domain checker.
     "metta_require_algebra_value/3",
+    # Visibility's min/max use the carrier order rather than numeric arithmetic.
+    # The transport invokes the engine's operation instead of duplicating it.
+    "metta_apply_algebra_operation/5",
     "metta_annotation/2",
     "metta_k_extend/4",
     "match_foreign/5",
@@ -352,6 +360,9 @@ FLOOR_REASONS = {
     "catch_recover/2": "host-choice",
     "metta_deprecation/3": "door",
     "metta_cost_declaration/4": "door",
+    "metta_head_claims/3": "door",
+    "metta_head_property/3": "door",
+    "metta_head_origins/3": "door",
     "metta_string_registrations/2": "door",
     "lift_pattern_modifiers/4": "door",
     "metta_seq_query_plan/2": "door",
@@ -363,6 +374,7 @@ FLOOR_REASONS = {
     "metta_current_algebra/3": "door",
     "metta_algebra_one/2": "door",
     "metta_require_algebra_value/3": "door",
+    "metta_apply_algebra_operation/5": "door",
     "metta_annotation/2": "door",
     "metta_k_extend/4": "door",
     "metta_refinement_violation/3": "door",

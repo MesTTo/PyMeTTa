@@ -3,7 +3,7 @@ Guarantees:
   - importing metta alone leaves optional integrations unloaded [tested
     test_optional_surfaces_load_only_when_requested]
   - the metta_ops callback facade re-exports without owning state [tested
-    test_callback_facade_owns_no_state_and_delegates; commit=39092863ae34184a9f955f185ff57c1ff177ec40]
+    test_callback_facade_owns_no_state_and_delegates; commit=90ba93eb8f6e98ebfefc55416859bf13de6a8427]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -79,6 +79,7 @@ def test_callback_facade_owns_no_state_and_delegates():
             "construct_token": "_binding.tokens",
             "foreign_add": "foreign",
             "foreign_add_many": "foreign",
+            "foreign_add_token": "foreign",
             "foreign_atoms": "foreign",
             "foreign_clear": "foreign",
             "foreign_match": "foreign",
@@ -86,6 +87,7 @@ def test_callback_facade_owns_no_state_and_delegates():
             "foreign_pushdown": "foreign",
             "foreign_refuse": "foreign",
             "foreign_remove": "foreign",
+            "foreign_remove_token": "foreign",
             "foreign_tokens": "foreign",
             "foreign_transaction": "foreign",
             "is_matchable": "foreign",

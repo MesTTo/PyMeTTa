@@ -284,18 +284,15 @@ def twin(m):
 #: storage above all [measured 2026-09-09: min-of-3 serial fresh processes;
 #: command=python extensions/python/tools/twin_coverage.py --repin;
 #: commit=b4341ae382c48ef225f4a52e566af6a9a71757c4].
-#: RE-PINNED 2026-09-09, 236983 to 236349 (-634), The fixed diagnostic reader
-#: now consumes parameter and argument spines together, and segment families
-#: compile once per shape. Fixed-arrow presentation and warmed single-run
-#: callees keep their controls. Fused syntax admission adds 44 inferences for a
-#: cold prepare/admit type shape versus the old annotation scan and eight per
-#: source-preflight declaration; repeated shapes reuse the analysis. The
-#: authoring control moves by -16 once, with its per-definition slope
-#: unchanged. Cold family generation is included. See
-#: docs/journal/2026-09-09-the-splice-in-an-arrow.md [measured 2026-09-09: min-
-#: of-3 serial fresh processes; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=6031c83ab3002b5703cb6fcb10e70a60a89f4ad7].
-BUDGET = 236349
+#: RE-PINNED 2026-09-10, 236983 to 238194 (+1211), The reference, visibility
+#: and property declarations add six heads to the cold-import census. Partial
+#: catalog reads now sort occurrence tokens; source-scoped claims and cache
+#: reservations change first translation work. The explicitly revised lib_he
+#: examples load upstream equations. Warm imports save nine inferences through
+#: one rollback collection; ordinary call and row slopes stay unchanged
+#: [measured 2026-09-10: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=90ba93eb8f6e98ebfefc55416859bf13de6a8427].
+BUDGET = 238194
 
 #: OVERRUN 2026-09-07, 1300: it asks the eleven ft-* functions one at a time
 #: through the evaluation door. Measured 236074 against a ceiling of 234799; a
@@ -361,4 +358,12 @@ BUDGET = 236349
 #: 234111, within that ceiling, so the rest is this twin's own program
 #: [measured 2026-09-09: one fresh process per side; command=python
 #: extensions/python/benchmarks/probes/twin_floor.py; commit=b4341ae382c48ef225f4a52e566af6a9a71757c4].
-OVERRUN = 2874
+#: OVERRUN 2026-09-10, 2874 to 4101: The existing program is priced after the
+#: reference census, ordered catalog reads and source-scoped translation
+#: work. It costs 238194 against the unchanged band and authoring ceiling of
+#: 234093.2. The literal structured control costs 217513; it measures that
+#: encoding only. [measured 2026-09-10: one fresh process per side;
+#: command=python extensions/python/benchmarks/probes/twin_floor.py
+#: examples/ch08-data/08-03-the-shipped-libraries/02-datastructures_fingertree.metta;
+#: commit=90ba93eb8f6e98ebfefc55416859bf13de6a8427].
+OVERRUN = 4101

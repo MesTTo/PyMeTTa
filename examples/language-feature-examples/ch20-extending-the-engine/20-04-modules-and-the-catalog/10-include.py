@@ -4,10 +4,12 @@ A refusal here is a VALUE rather than a raise, so the three claims about it
 compare error atoms rather than catching anything.
 
 `include` answers what the module's LAST directive answered and puts its
-forms in the INCLUDING space, where `import!` answers the unit and gives the
-module a space of its own. Both take a module path, which is a name rather
+forms in the INCLUDING space. `import!` merges into its explicit receiving
+space and answers True. Both take a module path, which is a name rather
 than a string: `_fixtures/included/rows` is a path the reader spells, so it
 comes through the exact subscript door.
+[tested: examples/ch20-extending-the-engine/20-04-modules-and-the-catalog/10-include.metta;
+commit=90ba93eb8f6e98ebfefc55416859bf13de6a8427].
 Open Obligations:
   To Do: None
   Hacks: None
@@ -42,8 +44,7 @@ def twin(m):
     assert m.fn["included-double"](5) == [10]
     assert [row.x for row in m[S.included_fact(V.x)]] == [S.carried]
 
-    # Which is the whole difference from `import!`: that door answers the
-    # unit and the module's atoms are reachable through the space it made.
+    # Importing into m also puts the atoms here, but reports load success.
     assert m.fn["import!"](m, ROWS) == [True]
 
     # A module with no directive has no last answer, so the include answers
@@ -133,15 +134,12 @@ def twin(m):
 #: repairs; measured on the merged tree [measured 2026-09-09: min-of-3 serial
 #: fresh processes; command=python extensions/python/tools/twin_coverage.py
 #: --repin; commit=50e34286f66c938d89d5d367c6370ad44164c97f].
-#: RE-PINNED 2026-09-09, 5337 to 5332 (-5), The fixed diagnostic reader now
-#: consumes parameter and argument spines together, and segment families
-#: compile once per shape. Fixed-arrow presentation and warmed single-run
-#: callees keep their controls. Fused syntax admission adds 44 inferences for a
-#: cold prepare/admit type shape versus the old annotation scan and eight per
-#: source-preflight declaration; repeated shapes reuse the analysis. The
-#: authoring control moves by -16 once, with its per-definition slope
-#: unchanged. Cold family generation is included. See
-#: docs/journal/2026-09-09-the-splice-in-an-arrow.md [measured 2026-09-09: min-
-#: of-3 serial fresh processes; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=6031c83ab3002b5703cb6fcb10e70a60a89f4ad7].
-BUDGET = 5332
+#: RE-PINNED 2026-09-10, 5337 to 5346 (+9), The reference, visibility and
+#: property declarations add six heads to the cold-import census. Partial
+#: catalog reads now sort occurrence tokens; source-scoped claims and cache
+#: reservations change first translation work. The explicitly revised lib_he
+#: examples load upstream equations. Warm imports save nine inferences through
+#: one rollback collection; ordinary call and row slopes stay unchanged
+#: [measured 2026-09-10: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=90ba93eb8f6e98ebfefc55416859bf13de6a8427].
+BUDGET = 5346

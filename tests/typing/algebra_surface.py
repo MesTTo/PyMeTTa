@@ -31,6 +31,8 @@ assert_type(
 assert_type(metta.algebra(type=int), Callable[[type], DeclaredAlgebra])
 assert_type(metta.algebra.bool, DeclaredAlgebra)
 assert_type(metta.bool, DeclaredAlgebra)
+assert_type(metta.algebra.visibility, DeclaredAlgebra)
+assert_type(metta.visibility, DeclaredAlgebra)
 assert_type(metta.algebra.bag, DeclaredAlgebra)
 assert_type(metta.bag, DeclaredAlgebra)
 assert_type(metta.algebra.counting, DeclaredAlgebra)

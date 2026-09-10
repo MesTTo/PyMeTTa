@@ -36,6 +36,9 @@ Assumes:
     them through the `stored` fixture; the suite does not choose the data,
     because it cannot know what the backend can hold
 Guarantees:
+  - optional exact mutations return a fresh token and remove that occurrence
+    while retaining equal predecessors [tested: TestMutableTokenRowsComply;
+    commit=90ba93eb8f6e98ebfefc55416859bf13de6a8427].
   - a capability the provider does not declare is skipped, not failed, and a
     provider declaring nothing FAILS rather than passing vacuously
     [tested test_a_provider_declaring_nothing_cannot_pass]
@@ -87,13 +90,13 @@ from collections.abc import Sized
 from typing import Any
 
 from metta._atoms.designation import _SpaceId
-from metta._atoms.factories import Expression, Symbol, Variable, _expr
+from metta._atoms.factories import Expression, Symbol, Variable, _atom_from_wire, _expr
 from metta._declare.declarations import _register_space, _unregister_space
 from metta._errors.errors import MettaError
 from metta._faces.metta import MeTTa
 from metta._faces.space import Space
 from metta._lazy import optional as require_module
-from metta.foreign import CAPABILITIES, Enumerable
+from metta.foreign import CAPABILITIES, Enumerable, foreign_add_token, foreign_remove_token
 
 pytest = require_module(
     "pytest",
@@ -375,6 +378,29 @@ class SpaceComplianceSuite:
         assert len(tokens) == len(stored)
         assert len(set(tokens)) == len(tokens)
         assert tokens == space.blame(Variable("occurrence"))
+
+    @pytest.mark.parametrize("capability", ("add-token", "remove-token"))
+    def test_exact_token_mutation_restores_the_occurrence_bag(
+        self, provider, exercised, space, stored, capability
+    ):
+        """A returned identity selects the new copy and leaves equal old rows."""
+        self.requires(provider, exercised, capability)
+        other = "remove-token" if capability == "add-token" else "add-token"
+        self.restore_or_skip(provider, exercised, other)
+        self.restore_or_skip(provider, exercised, "tokens")
+        if not stored:
+            pytest.skip("a mutation round trip needs one already supported atom")
+        atom = stored[0]
+        before = space.blame(Variable("occurrence"))
+        wire = foreign_add_token(space.name, atom.to_wire())
+        token = _atom_from_wire(wire)
+        try:
+            assert token not in before, "add-token reused a live identity"
+            assert set(space.blame(Variable("occurrence"))) == {*before, token}
+        finally:
+            assert foreign_remove_token(space.name, wire) is True
+        assert foreign_remove_token(space.name, wire) is False
+        assert space.blame(Variable("occurrence")) == before
 
     def test_declared_length_answers_the_provider_size(
         self, provider, space, stored

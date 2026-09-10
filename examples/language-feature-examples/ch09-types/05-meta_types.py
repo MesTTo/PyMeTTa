@@ -167,4 +167,21 @@ def twin(m):
 #: repairs; measured on the merged tree [measured 2026-09-09: min-of-3 serial
 #: fresh processes; command=python extensions/python/tools/twin_coverage.py
 #: --repin; commit=50e34286f66c938d89d5d367c6370ad44164c97f].
-BUDGET = 1928
+#: RE-PINNED 2026-09-10, 1928 to 2098 (+170), The reference, visibility and
+#: property declarations add six heads to the cold-import census. Partial
+#: catalog reads now sort occurrence tokens; source-scoped claims and cache
+#: reservations change first translation work. The explicitly revised lib_he
+#: examples load upstream equations. Warm imports save nine inferences through
+#: one rollback collection; ordinary call and row slopes stay unchanged
+#: [measured 2026-09-10: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=90ba93eb8f6e98ebfefc55416859bf13de6a8427].
+BUDGET = 2098
+
+#: OVERRUN 2026-09-10, 0 to 54: The twin asks six named get_metatype calls
+#: and compares their results with Python classes. It costs 2098 against the
+#: unchanged band and authoring ceiling of 2044.9. The literal structured
+#: control costs 1584; it measures that encoding only. [measured 2026-09-10:
+#: one fresh process per side; command=python
+#: extensions/python/benchmarks/probes/twin_floor.py
+#: examples/ch09-types/05-meta_types.metta; commit=90ba93eb8f6e98ebfefc55416859bf13de6a8427].
+OVERRUN = 54

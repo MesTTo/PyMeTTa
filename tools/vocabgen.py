@@ -14,6 +14,10 @@ Assumes:
   - swipl is on PATH and engine/metta.pl consults from the repository root,
     which is how every gate lane already runs it
 Guarantees:
+  - token capability words remain literal public enum values under Ruff
+    [tested: test_the_vocabulary_module_is_generated,
+    test_the_ruff_configuration_enables_every_family_or_records_why_not;
+    commit=90ba93eb8f6e98ebfefc55416859bf13de6a8427].
   - the checked-in module equals what this produces, gated on every run
     [tested: test_the_vocabulary_module_is_generated;
     commit=918e4eaae8b99077f8b8b293b4ec5c3e0e2b2cf6]
@@ -391,6 +395,8 @@ def member_name(value: str) -> str:
 
 def member_suffix(member: str) -> str:
     """The narrow lint/type exemption forced by one authored wire spelling."""
+    if member.endswith("_token"):
+        return "  # noqa: S105 -- this is a public catalog symbol"
     if member[:1].islower() and any(character.isupper() for character in member[1:]):
         return "  # noqa: N815  -- the member keeps the catalog's public wire spelling"
     if hasattr(str, member):

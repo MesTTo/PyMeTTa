@@ -2,13 +2,16 @@
 engine function carries the exact Python semantics: truthiness, equality,
 text building, membership, banker's rounding, range, slicing, and the
 operator data model used by compiled Python expressions, and the
-mettafied exception vocabulary behind a compiled try — `except`, the
+mettafied exception vocabulary behind a compiled try: `py-except`, the
 live class-identity and inheritance test, and `error-payload`, the live instance
 an error atom carries or describes. Each one is the Python behavior
 itself, so the compiled equations and the Python twin cannot disagree; a
 Defined lists the ones it leans on as runtime_ops, so the dependency on
 this runtime is visible rather than ambient.
 Guarantees:
+  - Python exception classification leaves the engine's `except` reference map
+    available [tested: test_reference_except_and_compiled_exception_dispatch_coexist;
+    commit=90ba93eb8f6e98ebfefc55416859bf13de6a8427]
   - runtime operations receive evaluated Atom wrappers through matchable
     `(arguments name atoms)` policies instead of a boolean registration flag
     [tested: test_fstrings_str_round_range_slices,
@@ -72,7 +75,7 @@ NAMES = (
     "py-set-pairs",
     "py-dict-pairs",
     "py-container-kind",
-    "except",
+    "py-except",
     "error-payload",
 )
 
@@ -151,7 +154,7 @@ _ENGINE_ERROR_SYMBOLS: dict[str, type[BaseException]] = {
 
 def _named_exception(name: str) -> type[BaseException] | str:
     """A class for an exception NAME: the explicit map, then the builtin
-    exception zoo, then the bare name itself, which py-except-match
+    exception zoo, then the bare name itself, which py-except
     compares against the arm's own class names, so a custom class raised
     across a host crossing is still caught by the arm that spells it.
     """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
@@ -601,7 +604,7 @@ def install(runtime) -> None:
         (_py_set_pairs, "py-set-pairs", None),
         (_py_dict_pairs, "py-dict-pairs", None),
         (_py_container_kind, "py-container-kind", None),
-        (_except_matches, "except", None),
+        (_except_matches, "py-except", None),
         (_error_payload, "error-payload", None),
     ]
     for fn, name, arities in prelude:

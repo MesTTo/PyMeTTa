@@ -1,12 +1,15 @@
 """Purpose: pin algebra carriers on match, call, scope, sampling, and answers.
 
 Guarantees:
+  - the visibility preset shares the native finite carrier and rejects other
+    symbols [tested: test_visibility_operations_share_the_native_carrier;
+    commit=90ba93eb8f6e98ebfefc55416859bf13de6a8427].
   - counting uses the engine aggregate for both query and call bags, including
     duplicate derivations [tested:
     test_counting_counts_match_bag_duplicates_without_opening_a_row_cursor,
     test_counting_counts_duplicate_call_answers_inside_the_engine,
     test_counting_inference_growth_is_linear_when_answers_grow_in_depth;
-    commit=c7468b2789746bcf95c4bacc0e2d517ec4d972fa]
+    commit=90ba93eb8f6e98ebfefc55416859bf13de6a8427]
   - ordered carriers determine answer order before an Answers slice selects
     its prefix, and a pristine bounded slice reaches only a provider licensed
     by Exact, matching ordered annotations, and best-first emission [tested:
@@ -141,7 +144,18 @@ def test_tagged_count_and_match_refuse_zero_with_the_same_message(metta):
 
 
 def test_counting_inference_growth_is_linear_when_answers_grow_in_depth(metta):
-    """Stats expose the no-row path: doubling deep answers stays subquadratic."""
+    """Doubling deep answers stays subquadratic inside the count query."""
+    # An outer stats window can drain an unrelated abandoned world's release.
+    # Observe the query reached by the public door, as the nominal-subtyping
+    # test observes its evaluator. The wrapper and its counter leave together.
+    metta.runtime.must(
+        "use_module(library(prolog_wrap)),"
+        "nb_setval(counting_test_cost,0),"
+        "wrap_predicate(user:metta_py_query_count_under(_Space,_Patterns,_Guard,"
+        "_Names,_Limit,_Algebra,_Count),counting_test_cost,_Original,"
+        "(metta_py_work(_Before),call(_Original),metta_py_work(_After),"
+        "_Used is _After-_Before,nb_setval(counting_test_cost,_Used)))"
+    )
 
     def measured(size):
         with metta._new_space() as facts:
@@ -151,16 +165,21 @@ def test_counting_inference_growth_is_linear_when_answers_grow_in_depth(metta):
                 atoms.append(S.num(value))
                 value = S.S(value)
             facts.add(*atoms)
-            with facts.stats() as stats:
-                assert (
-                    facts.match(S.num(V.value), under=counting).one().annotation
-                    == size
-                )
-            return stats.inferences
+            assert (
+                facts.match(S.num(V.value), under=counting).one().annotation
+                == size
+            )
+            return metta.runtime.must("nb_getval(counting_test_cost, Cost)")["Cost"]
 
-    shallow = measured(128)
-    deep = measured(256)
-    assert deep < 3 * shallow
+    try:
+        shallow = measured(128)
+        deep = measured(256)
+        assert deep < 3 * shallow
+    finally:
+        metta.runtime.must(
+            "unwrap_predicate(user:metta_py_query_count_under/7,counting_test_cost),"
+            "nb_delete(counting_test_cost)"
+        )
 
 
 def test_scoped_under_is_task_local_and_explicit_under_wins(metta):
@@ -589,6 +608,23 @@ def test_every_shipped_semiring_has_one_root_object_in_catalog_order():
     names = tuple(member.value for member in Semiring)
     assert names == tuple(algebra_module._PRESETS)
     assert all(getattr(metta_module, name).name == name for name in names)
+
+
+@pytest.mark.parametrize("left", (S.INTERNAL, S.PUBLIC))
+@pytest.mark.parametrize("right", (S.INTERNAL, S.PUBLIC))
+def test_visibility_operations_share_the_native_carrier(metta, left, right):
+    """The Python preset and native grades use the same two-element lattice."""
+    from metta.algebra import AlgebraOperationError, visibility
+
+    assert visibility.carrier == (S.INTERNAL, S.PUBLIC)
+    assert visibility.combine_values(metta, left, right) == (
+        S.PUBLIC if S.PUBLIC in (left, right) else S.INTERNAL
+    )
+    assert visibility.extend_values(metta, left, right) == (
+        S.INTERNAL if S.INTERNAL in (left, right) else S.PUBLIC
+    )
+    with pytest.raises(AlgebraOperationError):
+        visibility.combine_values(metta, left, S.outside)
 
 
 def test_algebra_law_vocabulary_drives_aliases_and_unknown_refusals(metta):

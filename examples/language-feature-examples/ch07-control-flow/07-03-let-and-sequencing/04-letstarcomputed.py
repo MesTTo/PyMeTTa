@@ -284,7 +284,15 @@ RUNG = "a `let*` whose bindings arrive as a VALUE has no assignment spelling"
 #: above all [measured 2026-09-09: min-of-3 serial fresh processes;
 #: command=python extensions/python/tools/twin_coverage.py --repin;
 #: commit=b4341ae382c48ef225f4a52e566af6a9a71757c4].
-BUDGET = 10907
+#: RE-PINNED 2026-09-10, 10907 to 11183 (+276), The reference, visibility and
+#: property declarations add six heads to the cold-import census. Partial
+#: catalog reads now sort occurrence tokens; source-scoped claims and cache
+#: reservations change first translation work. The explicitly revised lib_he
+#: examples load upstream equations. Warm imports save nine inferences through
+#: one rollback collection; ordinary call and row slopes stay unchanged
+#: [measured 2026-09-10: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=90ba93eb8f6e98ebfefc55416859bf13de6a8427].
+BUDGET = 11183
 
 #: OVERRUN 2026-09-07, 800: it asks the eight computed-binding claims one at a
 #: time through the evaluation door. Measured 10606 against a ceiling of 9833;
@@ -304,4 +312,12 @@ BUDGET = 10907
 #: ceiling, so the rest is this twin's own program [measured 2026-09-09: one
 #: fresh process per side; command=python
 #: extensions/python/benchmarks/probes/twin_floor.py; commit=b4341ae382c48ef225f4a52e566af6a9a71757c4].
-OVERRUN = 925
+#: OVERRUN 2026-09-10, 925 to 1208: The existing program is priced after the
+#: reference census, ordered catalog reads and source-scoped translation
+#: work. It costs 11183 against the unchanged band and authoring ceiling of
+#: 9975.9. The literal structured control costs 10066; it measures that
+#: encoding only. [measured 2026-09-10: one fresh process per side;
+#: command=python extensions/python/benchmarks/probes/twin_floor.py
+#: examples/ch07-control-flow/07-03-let-and-sequencing/04-letstarcomputed.metta;
+#: commit=90ba93eb8f6e98ebfefc55416859bf13de6a8427].
+OVERRUN = 1208

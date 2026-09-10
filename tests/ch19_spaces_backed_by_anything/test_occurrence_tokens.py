@@ -3,16 +3,25 @@
 Guarantees: blame preserves occurrence multiplicity and orders provider tokens;
     invalid or failed streams close [tested: test_provider_token_streams_close;
     commit=7f00ac7932fefa6f380fc8d14ec583ea0c58eff4].
+Guarantees: optional mutation methods make a provider a reference receiver
+    without ordinary add/remove methods [tested:
+    test_token_mutation_receives_and_withdraws_a_reference; commit=90ba93eb8f6e98ebfefc55416859bf13de6a8427].
 """
 
 from contextlib import contextmanager
 
 import pytest
 
-from metta import MeTTa, S
+from metta import MeTTa, S, V
 from metta._declare import declarations as _space_declarations
 from metta._errors.errors import EngineError, SpaceCapabilityError
-from metta.foreign import SpaceProvider, TokenProvider
+from metta.foreign import (
+    SpaceProvider,
+    TokenAdder,
+    TokenProvider,
+    TokenRemover,
+    foreign_remove_token,
+)
 from metta.testing import SpaceComplianceSuite
 
 
@@ -124,6 +133,69 @@ class TestTokenRowsComply(SpaceComplianceSuite):
         return TokenRows([(S.t(S.rows, 1), S.row(1)),
                           (S.t(S.rows, 2), S.row(1)),
                           (S.t(S.rows, 3), S.row(2))])
+
+
+class MutableTokenRows(TokenRows):
+    """An in-memory fixture implementing only the optional mutation doors."""
+
+    def __init__(self, pairs):
+        """Keep the existing identities and a separate fresh actor."""
+        super().__init__(pairs)
+        self.generation = 0
+
+    def add_token(self, atom):
+        """Append one occurrence with a fresh identity."""
+        self.generation += 1
+        token = S.t(S[f"mutable-provider-{id(self)}"], self.generation)
+        self.pairs.append((token, atom))
+        return token
+
+    def remove_token(self, token):
+        """Remove by identity even when several occurrences have equal atoms."""
+        for index, (held, _) in enumerate(self.pairs):
+            if held == token:
+                del self.pairs[index]
+                return True
+        return False
+
+
+class TestMutableTokenRowsComply(TestTokenRowsComply):
+    """Both optional mutations pass the existing compliance coverage law."""
+
+    @pytest.fixture()
+    def provider(self):
+        """Keep duplicate contents so value-based removal would be caught."""
+        return MutableTokenRows([(S.t(S.rows, 1), S.row(1)),
+                                 (S.t(S.rows, 2), S.row(1))])
+
+
+def test_token_mutation_receives_and_withdraws_a_reference():
+    """The engine uses exact mutations for a stored reference and its removal."""
+    provider = MutableTokenRows([])
+    assert isinstance(provider, TokenAdder) and isinstance(provider, TokenRemover)
+    assert not provider.can_run("add") and not provider.can_run("remove")
+    with MeTTa() as m, m.space() as home, provider_space(m, provider) as target:
+        home.add(S["="](S.token_answer(), 42))
+        target.from_(home)
+        row = S["from"](home)
+        assert len(target.blame(row)) == 1
+        assert target.eval(S.token_answer()) == [42]
+        assert target.remove(row)
+        assert not target.blame(row)
+        assert target.eval(S.token_answer()) == [S.token_answer()]
+
+
+@pytest.mark.parametrize("result", [None, 1, "true"])
+def test_exact_remove_requires_a_boolean_verdict(result):
+    """A provider cannot turn an ambiguous verdict into successful removal."""
+    class BadVerdict(MutableTokenRows):
+        def remove_token(self, _token):
+            return result
+
+    with MeTTa() as m, provider_space(m, BadVerdict([])) as space:
+        with pytest.raises(EngineError, match="remove_token must return a bool"):
+            foreign_remove_token(space.name, S.t(S.rows, 1).to_wire())
+        assert space.blame(V.any) == []
 
 
 def test_compliance_rejects_unstable_tokens():

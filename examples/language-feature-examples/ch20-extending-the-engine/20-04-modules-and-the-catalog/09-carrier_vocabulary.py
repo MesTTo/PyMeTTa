@@ -1,4 +1,7 @@
-"""examples/ch20-extending-the-engine/20-04-modules-and-the-catalog/09-carrier_vocabulary.metta in Python: the vocabulary row a generated enum is made of.
+"""Purpose: examples/ch20-extending-the-engine/20-04-modules-and-the-catalog/09-carrier_vocabulary.metta in Python: the vocabulary row a generated enum is made of.
+Guarantees: a sequence variable reads every carrier in catalog order [tested:
+examples/ch20-extending-the-engine/20-04-modules-and-the-catalog/09-carrier_vocabulary.metta;
+commit=90ba93eb8f6e98ebfefc55416859bf13de6a8427].
 
 The MeTTa half reads the catalog rows directly, because in MeTTa the catalog IS
 data and `match` is how you ask. Python has a second way to reach the same row,
@@ -9,12 +12,12 @@ shipped catalog, so `Semiring.budget` exists as a typed member exactly when the
 So the twin asserts the two against each other rather than restating the MeTTa
 literal. `tuple(S[member] for member in Semiring)` is the generated side and the
 matched row is the catalog side, and they are the same tuple in the same order
-because one is made from the other. A copy of the ten words would have passed
+because one is made from the other. A copy of the words would have passed
 whatever the generator did.
 """
 
 import metta
-from metta import S, V
+from metta import S, V, seg
 from metta.vocabularies import Semiring
 
 
@@ -22,13 +25,10 @@ def twin(m):  # noqa: ARG001  -- the catalog lives in the reflection space; the 
     """The generated enum and the row it is generated from are one statement."""
     reflection = metta.reflection
 
-    # Ten algebras ship, and the vocabulary row is exactly their names, in the
-    # order the enum renders them.
+    # A sequence variable reads every name in the order the enum renders it.
     assert [
-        (row.a, row.b, row.c, row.d, row.e, row.f, row.g, row.h, row.i, row.j)
-        for row in reflection[
-            S.vocabulary(S.semiring, V.a, V.b, V.c, V.d, V.e, V.f, V.g, V.h, V.i, V.j)
-        ]
+        tuple(row.names)
+        for row in reflection[S.vocabulary(S.semiring, seg(V.names))]
     ] == [tuple(S[member] for member in Semiring)]
 
     # Each of those names also has an (algebra ...) row saying what it computes.

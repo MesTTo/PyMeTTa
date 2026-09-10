@@ -86,6 +86,7 @@ from metta.algebra import prov as prov
 from metta.algebra import ranked as ranked
 from metta.algebra import set as set  # noqa: A004 -- public algebra carrier
 from metta.algebra import tropical as tropical
+from metta.algebra import visibility as visibility
 from metta.foreign import SpaceProvider as SpaceProvider
 from metta.library._lock import Drift as Drift
 from metta.library._lock import Lock as Lock
@@ -127,6 +128,7 @@ import metta.vocabularies as _body_metta_vocabularies
 # begin generated algebra declaration
 class _AlgebraModule(_Protocol):
     bool: _DeclaredAlgebra
+    visibility: _DeclaredAlgebra
     bag: _DeclaredAlgebra
     counting: _DeclaredAlgebra
     set: _DeclaredAlgebra
@@ -255,6 +257,11 @@ def eval(  # noqa: A001 -- the declared public spelling
     ...
 def stats() -> _body_metta__spaces_profile._StatsBlock:
     ...
+def get_property(
+    head: _builtins.str | _body_metta__atoms_factories.Symbol,
+    /,
+) -> _builtins.tuple[_body_metta__atoms_factories.Atom, ...]:
+    ...
 def match(
     *patterns: _body_typing.Any,
     where: _body_typing.Any | None=...,
@@ -294,6 +301,8 @@ def load(
 ) -> _builtins.list[_builtins.list[_body_metta__atoms_factories.Atom]]:
     ...
 def add(*atoms: _body_typing.Any) -> None:
+    ...
+def from_(source: _body_typing.Any, map: _body_typing.Any=...) -> None:  # noqa: A002 -- the declared public spelling
     ...
 def remove(atom: _body_typing.Any, *more: _body_typing.Any) -> _builtins.bool | _builtins.int:
     ...

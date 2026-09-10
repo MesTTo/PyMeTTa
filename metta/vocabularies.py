@@ -441,7 +441,7 @@ class OpKind(_AtomStrEnum):
     raw_det = "raw_det"
     raw_many = "raw_many"
 
-#: (vocabulary provider-capability match enumerate add add-many remove clear subscribe plan rules tokens)
+#: (vocabulary provider-capability match enumerate add add-many remove clear subscribe plan rules tokens add-token remove-token)
 class ProviderCapability(_OpenStrEnum):
     """Typed values of the provider-capability vocabulary, which the engine
     declares OPEN: a word registered through
@@ -458,6 +458,8 @@ class ProviderCapability(_OpenStrEnum):
     plan = "plan"
     rules = "rules"
     tokens = "tokens"
+    add_token = "add-token"  # noqa: S105 -- this is a public catalog symbol
+    remove_token = "remove-token"  # noqa: S105 -- this is a public catalog symbol
 
 #: (vocabulary refinement Gt Ge Lt Le Interval MultipleOf MinLen MaxLen Len Predicate Unit)
 class Refinement(_AtomStrEnum):
@@ -518,7 +520,7 @@ class SaveFormat(_AtomStrEnum):
     metta = "metta"
     fast = "fast"
 
-#: (vocabulary semiring bool bag counting set ranked tropical prob prov budget amplitude)
+#: (vocabulary semiring bool visibility bag counting set ranked tropical prob prov budget amplitude)
 class Semiring(_OpenStrEnum):
     """Typed values of the semiring vocabulary, which the engine
     declares OPEN: a word registered through
@@ -526,6 +528,7 @@ class Semiring(_OpenStrEnum):
     accepted too, and the members below are the ones it ships.
     """  # noqa: D205  -- the contract is one claim, not summary-and-body prose
     bool = "bool"
+    visibility = "visibility"
     bag = "bag"
     counting = "counting"
     set = "set"

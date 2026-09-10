@@ -1,5 +1,9 @@
 """Purpose: examples/ch08-data/08-03-the-shipped-libraries/03-text_lib.metta in Python: lib_string and lib_file.
 
+Guarantees: a short format argument list leaves later placeholders empty
+[tested: python extensions/python/tools/twin_coverage.py examples/ch08-data/08-03-the-shipped-libraries/03-text_lib.metta;
+commit=90ba93eb8f6e98ebfefc55416859bf13de6a8427].
+
 Both libraries are the subject, so every function here is named through the
 function namespace, where a typo raises on the line that writes it. What Python
 takes over is the plumbing around them: the `let` chain that threads a file
@@ -89,7 +93,7 @@ def twin(m):
     ]
     # A short argument list produces NOTHING for the placeholders it cannot
     # fill, which is the dyn_fmt formatter upstream interpolates through.
-    assert format_args(G("{} and {}"), (S.only,)) == [G("only and ")]
+    assert format_args(G("{} and {}"), (G("only"),)) == [G("only and ")]
 
     [sorted_strings] = m.fn.sort_strings((G("pear"), G("apple"), G("fig")))  # rung: sort-strings is the library function under test, not a request to sort a Python list
     assert list(sorted_strings) == [G("apple"), G("fig"), G("pear")]
@@ -313,15 +317,12 @@ def twin(m):
 #: measured on this tree with the artifacts warm [measured 2026-09-09: min-of-3
 #: serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=f26de01fbf3e0e3c64bb691c66a59fa959fee7f3].
-#: RE-PINNED 2026-09-09, 37233 to 37226 (-7), The fixed diagnostic reader now
-#: consumes parameter and argument spines together, and segment families
-#: compile once per shape. Fixed-arrow presentation and warmed single-run
-#: callees keep their controls. Fused syntax admission adds 44 inferences for a
-#: cold prepare/admit type shape versus the old annotation scan and eight per
-#: source-preflight declaration; repeated shapes reuse the analysis. The
-#: authoring control moves by -16 once, with its per-definition slope
-#: unchanged. Cold family generation is included. See
-#: docs/journal/2026-09-09-the-splice-in-an-arrow.md [measured 2026-09-09: min-
-#: of-3 serial fresh processes; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=6031c83ab3002b5703cb6fcb10e70a60a89f4ad7].
-BUDGET = 37226
+#: RE-PINNED 2026-09-10, 37233 to 37886 (+653), The reference, visibility and
+#: property declarations add six heads to the cold-import census. Partial
+#: catalog reads now sort occurrence tokens; source-scoped claims and cache
+#: reservations change first translation work. The explicitly revised lib_he
+#: examples load upstream equations. Warm imports save nine inferences through
+#: one rollback collection; ordinary call and row slopes stay unchanged
+#: [measured 2026-09-10: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=90ba93eb8f6e98ebfefc55416859bf13de6a8427].
+BUDGET = 37886

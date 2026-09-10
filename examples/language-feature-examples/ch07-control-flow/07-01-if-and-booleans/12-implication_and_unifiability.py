@@ -2,8 +2,10 @@
 
 `implies` is the connective `and`, `or` and `not` leave out. `=?` asks
 whether two atoms COULD be made equal without making them so, and
-`if-equal2` asks whether they already agree up to a renaming: two different
-questions, and the pair that separates them is `(f $x)` against `(f 1)`.
+`if-equal2` preserves variable identity through upstream's exact equality.
+The pair `(f $x)` against `(f 1)` is unifiable but fails that equality.
+Guarantees: this twin checks shared and distinct variables at that boundary
+[tested: python extensions/python/tools/twin_coverage.py examples/ch07-control-flow/07-01-if-and-booleans/12-implication_and_unifiability.metta; commit=90ba93eb8f6e98ebfefc55416859bf13de6a8427].
 
 The four relations are a `@m.rules` bundle rather than stacked `@m.define`
 clauses, because `age` and `registered?` each have two clauses that COEXIST
@@ -21,11 +23,11 @@ from metta import FALSE, TRUE, S, V, equation, fn
 
 
 def twin(m):
-    """Material implication, unifiability, and alpha-equivalence."""
+    """Material implication, unifiability, and exact equality."""
     # Each handle is resolved ONCE: `m.fn[...]` asks the engine on every
     # access, about 1,200 inferences a name, which is most of a small twin.
     implies, unifiable = m.fn.implies, m.fn["=?"]
-    renamed_or_not = m.fn.if_equal2
+    same_or_not = m.fn.if_equal2
 
     # False implies anything, and only a true antecedent with a false
     # consequent is False.
@@ -75,15 +77,15 @@ def twin(m):
     # that cannot both be true of it.
     assert unifiable(S.f(V.x), S.f(1)) == [True] and unifiable(S.f(V.x), S.f(2)) == [True]
 
-    # `if-equal2` is alpha-equivalence rather than unifiability.
-    assert renamed_or_not(S.f(V.x), S.f(V.y), S.renamed, S.different) == [S.renamed]
-    assert renamed_or_not(S.f(V.x), S.f(1), S.renamed, S.different) == [S.different]
-    assert renamed_or_not(S.f(V.x, V.x), S.f(V.y, V.z), S.renamed, S.different) == [S.different]
+    # Upstream == keeps the identity of each variable.
+    assert same_or_not(S.f(V.x), S.f(V.x), S.same, S.different) == [S.same]
+    assert same_or_not(S.f(V.x), S.f(V.y), S.renamed, S.different) == [S.different]
+    assert same_or_not(S.f(V.x), S.f(1), S.renamed, S.different) == [S.different]
+    assert same_or_not(S.f(V.x, V.x), S.f(V.y, V.z), S.renamed, S.different) == [S.different]
 
-    # So the two are genuinely different questions, and this is the pair that
-    # separates them: (f $x) and (f 1) unify, and are not alpha-equivalent.
+    # The same pair is unifiable but fails exact equality.
     assert unifiable(S.f(V.x), S.f(1)) == [True]
-    assert renamed_or_not(S.f(V.x), S.f(1), S.renamed, S.different) == [S.different]
+    assert same_or_not(S.f(V.x), S.f(1), S.renamed, S.different) == [S.different]
 
 
 #: MEASURED on this branch rather than inherited: this twin is new, so there is
@@ -203,15 +205,12 @@ def twin(m):
 #: above all [measured 2026-09-09: min-of-3 serial fresh processes;
 #: command=python extensions/python/tools/twin_coverage.py --repin;
 #: commit=b4341ae382c48ef225f4a52e566af6a9a71757c4].
-#: RE-PINNED 2026-09-09, 13874 to 13867 (-7), The fixed diagnostic reader now
-#: consumes parameter and argument spines together, and segment families
-#: compile once per shape. Fixed-arrow presentation and warmed single-run
-#: callees keep their controls. Fused syntax admission adds 44 inferences for a
-#: cold prepare/admit type shape versus the old annotation scan and eight per
-#: source-preflight declaration; repeated shapes reuse the analysis. The
-#: authoring control moves by -16 once, with its per-definition slope
-#: unchanged. Cold family generation is included. See
-#: docs/journal/2026-09-09-the-splice-in-an-arrow.md [measured 2026-09-09: min-
-#: of-3 serial fresh processes; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=6031c83ab3002b5703cb6fcb10e70a60a89f4ad7].
-BUDGET = 13867
+#: RE-PINNED 2026-09-10, 13874 to 15044 (+1170), The reference, visibility and
+#: property declarations add six heads to the cold-import census. Partial
+#: catalog reads now sort occurrence tokens; source-scoped claims and cache
+#: reservations change first translation work. The explicitly revised lib_he
+#: examples load upstream equations. Warm imports save nine inferences through
+#: one rollback collection; ordinary call and row slopes stay unchanged
+#: [measured 2026-09-10: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=90ba93eb8f6e98ebfefc55416859bf13de6a8427].
+BUDGET = 15044

@@ -8,7 +8,7 @@ Guarantees:
   - a thrown reason becomes a produced error atom, so it finishes the enclosing
     call the way an engine-raised one does, and an already-raised reason is
     handed on rather than wrapped twice.
-  [tested: test_a_thrown_reason_travels_as_a_produced_error; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
+  [tested: test_a_thrown_reason_travels_as_a_produced_error; commit=90ba93eb8f6e98ebfefc55416859bf13de6a8427]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -90,14 +90,9 @@ def test_a_thrown_reason_travels_as_a_produced_error() -> None:
     assert _answers(metta, "!(if-error (control-guard -1) caught missed)") == [
         "caught"
     ]
-    # return-on-error is the reference's double-return frame: at top level one
-    # return instruction remains for an enclosing function frame
-    # [assumed 2026-08-25: !(return-on-error (Error 5 BadType) 6) answering
-    # (return (Error 5 BadType)) while the value case answers 6 was measured
-    # against an earlier reference binary at that date, not re-measured against
-    # upstream PeTTa].
+    # The upstream lib_he equation returns the error itself at top level.
     assert _answers(metta, "!(return-on-error (control-guard -1) fallback)") == [
-        f"(return {raised})"
+        raised
     ]
     assert _answers(metta, "!(collapse (control-guard -1))") == [f"({raised})"]
 

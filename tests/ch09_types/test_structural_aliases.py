@@ -2,7 +2,7 @@
 
 Guarantees: source, file, named-space and reflective calls share lexical
 substitution and live mutation repair [tested: test_structural_aliases.py;
-commit=acad923476d21110870f235192757281a737ee71].
+commit=90ba93eb8f6e98ebfefc55416859bf13de6a8427].
 Guarantees: nominal lookup costs count only metta_py_eval_all/3 execution,
 excluding unrelated Python finalizer work between calls [tested:
 test_nominal_subtyping_does_not_scan_unrelated_declarations; commit=4f2d6c0f8eb293b73f8dde30a1c84e24834f7393].
@@ -219,7 +219,7 @@ def test_alias_casts_keep_the_strict_witness_and_obey_user_refusals(m):
     with pytest.raises(CastError, match="Count"):
         m.cast(S.mystery, "Count")
     assert m.cast(7, "Any") == 7
-    assert m.run("!(type-cast mystery Count &self)") == [[S.mystery]]
+    assert m.run("!(type-cast mystery Count &self)") == [[S.Error(S.mystery, S.BadType)]]
     m.run("!(add-typing-rule! deny ordinary Count Count (refuse denied))")
     with pytest.raises(CastError, match="Count"):
         m.cast(7, "Count")

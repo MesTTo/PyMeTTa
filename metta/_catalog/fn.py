@@ -166,6 +166,7 @@ if TYPE_CHECKING:
         get_doc_space: Symbol
         get_metatype: Symbol
         "get-metatype: (-> Atom Atom)\n\nPython's own builtin `type`: the four atom classes ARE the four metatypes, so `type(a).__name__` is the metatype by construction."
+        get_property: Symbol
         get_state: Symbol
         "get-state: (-> (StateMonad $tgso) $tgso)\n\nReading the cell is the typed handle's `state.value` property."
         get_type: Symbol
@@ -266,6 +267,7 @@ if TYPE_CHECKING:
         "not: (-> Bool Bool)\n\nPython's own keyword; `~` is the operator form on atoms."
         not_provable: Symbol
         once: Symbol
+        only: Symbol
         or_: Symbol
         "or: (-> Bool Bool Bool)\n\nPython's own keyword; `|` is the operator form on atoms."
         or_else: Symbol
@@ -276,6 +278,7 @@ if TYPE_CHECKING:
         pow_math: Symbol
         "pow-math: (-> Number Number Number)\n\nPython's `**` operator. MeTTa answers a float where Python's integer power answers an integer, so the row raises a float."
         pragma: Symbol
+        prefix: Symbol
         pretty_atom: Symbol
         println: Symbol
         "println!: (-> %Undefined% Bool)\n\nPython's `print`. It answers True rather than unit, which is upstream's own answer: `'println!'(Arg, true)` [source: PeTTa@ae66fa8 src/metta.pl:212]."
@@ -289,6 +292,7 @@ if TYPE_CHECKING:
         py_dict_pairs: Symbol
         py_dot: Symbol
         py_eq: Symbol
+        py_except: Symbol
         py_format: Symbol
         py_global_read: Symbol
         py_global_write: Symbol
@@ -308,6 +312,7 @@ if TYPE_CHECKING:
         py_str_join: Symbol
         py_truthy: Symbol
         py_tuple: Symbol
+        qualified: Symbol
         quote: Symbol
         "quote: (-> Atom Atom)\n\nThere is nothing to quote: building a term with `S[...]` never evaluates it, so the quoting question does not arise. `S.quote(x)` builds the term itself where a program needs the constructor."
         random_float: Symbol
@@ -320,6 +325,7 @@ if TYPE_CHECKING:
         "remove-atom: (-> SpaceType Atom Bool)\n\nDrains every atom that unifies and answers True either way. `del space[pattern]` is this operation, and raises when the pattern matches nothing as Python's `del` does; `subtract-atom` is the one-occurrence grain beside it, which `space -= atom` and `space.remove(atom)` both spell."
         remove_translator_rule: Symbol
         remove_typing_rule: Symbol
+        rename: Symbol
         repr: Symbol
         repra: Symbol
         require_extension: Symbol
@@ -540,6 +546,7 @@ _NAMES = frozenset(
         "get-doc-single-atom",
         "get-doc-space",
         "get-metatype",
+        "get-property",
         "get-state",
         "get-type",
         "get-type-space",
@@ -603,12 +610,14 @@ _NAMES = frozenset(
         "not",
         "not-provable",
         "once",
+        "only",
         "or",
         "or-else",
         "parse",
         "parse-command",
         "pow-math",
         "pragma!",
+        "prefix",
         "pretty-atom",
         "println!",
         "prog1",
@@ -621,6 +630,7 @@ _NAMES = frozenset(
         "py-dict-pairs",
         "py-dot",
         "py-eq",
+        "py-except",
         "py-format",
         "py-global-read",
         "py-global-write",
@@ -640,6 +650,7 @@ _NAMES = frozenset(
         "py-str-join",
         "py-truthy",
         "py-tuple",
+        "qualified",
         "quote",
         "random-float",
         "random-int",
@@ -651,6 +662,7 @@ _NAMES = frozenset(
         "remove-atom",
         "remove-translator-rule!",
         "remove-typing-rule!",
+        "rename",
         "repr",
         "repra",
         "require-extension!",
@@ -816,6 +828,7 @@ _ALIASES.update(
         ("get_doc_single_atom", "get-doc-single-atom"),
         ("get_doc_space", "get-doc-space"),
         ("get_metatype", "get-metatype"),
+        ("get_property", "get-property"),
         ("get_state", "get-state"),
         ("get_type", "get-type"),
         ("get_type_space", "get-type-space"),
@@ -882,6 +895,7 @@ _ALIASES.update(
         ("not_", "not"),
         ("not_provable", "not-provable"),
         ("once", "once"),
+        ("only", "only"),
         ("or_", "or"),
         ("or_else", "or-else"),
         ("parse", "parse"),
@@ -889,6 +903,7 @@ _ALIASES.update(
         ("pow", "pow-math"),
         ("pow_math", "pow-math"),
         ("pragma", "pragma!"),
+        ("prefix", "prefix"),
         ("pretty_atom", "pretty-atom"),
         ("println", "println!"),
         ("prog1", "prog1"),
@@ -901,6 +916,7 @@ _ALIASES.update(
         ("py_dict_pairs", "py-dict-pairs"),
         ("py_dot", "py-dot"),
         ("py_eq", "py-eq"),
+        ("py_except", "py-except"),
         ("py_format", "py-format"),
         ("py_global_read", "py-global-read"),
         ("py_global_write", "py-global-write"),
@@ -920,6 +936,7 @@ _ALIASES.update(
         ("py_str_join", "py-str-join"),
         ("py_truthy", "py-truthy"),
         ("py_tuple", "py-tuple"),
+        ("qualified", "qualified"),
         ("quote", "quote"),
         ("random_float", "random-float"),
         ("random_int", "random-int"),
@@ -930,6 +947,7 @@ _ALIASES.update(
         ("remove_atom", "remove-atom"),
         ("remove_translator_rule", "remove-translator-rule!"),
         ("remove_typing_rule", "remove-typing-rule!"),
+        ("rename", "rename"),
         ("repr", "repr"),
         ("repra", "repra"),
         ("require_extension", "require-extension!"),

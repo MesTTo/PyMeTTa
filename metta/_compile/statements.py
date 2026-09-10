@@ -1,5 +1,7 @@
 """Purpose: lower Python statement blocks, lifted definitions, and yield blocks.
 Guarantees:
+  - compiled exception tests use the Python runtime's `py-except` name [tested:
+    test_reference_except_and_compiled_exception_dispatch_coexist; commit=90ba93eb8f6e98ebfefc55416859bf13de6a8427]
   - assignments lower to ordered let* bindings [tested
     test_bindings_become_let_star]
   - structural assignments share case-pattern binding, preserve SSA and test
@@ -400,9 +402,9 @@ class StatementCompilerMixin(CompilerContext):
         passes any other value through, so one binding sees both error
         lanes: a produced error is already an (Error ...) answer, data is
         itself. `if-error` splits the lanes. Each `except` arm asks
-        py-except-match against Python's own class lattice; an unmatched
+        py-except against Python's own class lattice; an unmatched
         error re-throws; a matched arm binds `as` through
-        py-except-payload, so a raised instance is what the handler holds.
+        error-payload, so a raised instance is what the handler holds.
         Success falls through a serialed tag tuple carrying the body's
         bindings to the continuation (blocks-as-functions, as the loops
         compile), which is also what lets a `return` inside the body pass
@@ -645,10 +647,10 @@ class StatementCompilerMixin(CompilerContext):
             if handler.type is None:
                 chain = arm
                 continue
-            self.runtime_ops.add("except")
+            self.runtime_ops.add("py-except")
             test = Expression(
                 [
-                    Symbol("except"),
+                    Symbol("py-except"),
                     result,
                     self._except_classinfo(handler.type),
                 ]

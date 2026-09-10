@@ -1087,18 +1087,15 @@ def twin(m):
 #: measured on this tree with the artifacts warm [measured 2026-09-09: min-of-3
 #: serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=f26de01fbf3e0e3c64bb691c66a59fa959fee7f3].
-#: RE-PINNED 2026-09-09, 3696 to 3724 (+28), The fixed diagnostic reader now
-#: consumes parameter and argument spines together, and segment families
-#: compile once per shape. Fixed-arrow presentation and warmed single-run
-#: callees keep their controls. Fused syntax admission adds 44 inferences for a
-#: cold prepare/admit type shape versus the old annotation scan and eight per
-#: source-preflight declaration; repeated shapes reuse the analysis. The
-#: authoring control moves by -16 once, with its per-definition slope
-#: unchanged. Cold family generation is included. See
-#: docs/journal/2026-09-09-the-splice-in-an-arrow.md [measured 2026-09-09: min-
-#: of-3 serial fresh processes; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=6031c83ab3002b5703cb6fcb10e70a60a89f4ad7].
-BUDGET = 3724
+#: RE-PINNED 2026-09-10, 3696 to 3787 (+91), The reference, visibility and
+#: property declarations add six heads to the cold-import census. Partial
+#: catalog reads now sort occurrence tokens; source-scoped claims and cache
+#: reservations change first translation work. The explicitly revised lib_he
+#: examples load upstream equations. Warm imports save nine inferences through
+#: one rollback collection; ordinary call and row slopes stay unchanged
+#: [measured 2026-09-10: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=90ba93eb8f6e98ebfefc55416859bf13de6a8427].
+BUDGET = 3787
 #: BANDED 2026-09-06 rather than re-pinned an eighteenth time. Seventeen of
 #: the eighty-three re-pins above were written on 2026-09-05 and 2026-09-06
 #: alone, and every control taken with them left the MeTTa side of the same

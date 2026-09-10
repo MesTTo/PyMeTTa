@@ -1,4 +1,8 @@
-"""Purpose: mutate space contents and implement their Python collection protocols."""
+"""Purpose: mutate space contents and implement their Python collection protocols.
+
+Guarantees: from_ adds an ordinary live reference row through the existing
+write door [tested: test_from_is_a_live_stored_row; commit=90ba93eb8f6e98ebfefc55416859bf13de6a8427].
+"""
 
 from __future__ import annotations
 
@@ -166,6 +170,32 @@ def add(space: _root.Space, *atoms: Any) -> None:
     else:
         _spaces_execution_module.run_void_write(space._rt, "metta_py_add_many", space._space, wires)
     lazy('metta._declare.functions')._invalidate_builtins_cache(space._rt)
+
+@_doors.door(
+    kind=_doors.Kind.write,
+    answers=_doors.AnswersAs.none,
+    effect=_doors.EffectClass.oracleIO,
+    determinism=_doors.Determinism.det,
+    tiers=(_doors.Tier.sync, _doors.Tier.async_, _doors.Tier.module, _doors.Tier.context),
+    evidence=('extensions/python/tests/ch20_extending_the_engine/test_references.py::test_from_is_a_live_stored_row',),
+    alias='from_',
+    binding=_doors.Binding('metta_py_add', _doors.Wire.goal),
+)
+def from_(space: _root.Space, source: Any, map: Any = None) -> None:  # noqa: A002 -- map is the reference row's public argument
+    """Reference a library or space through a stored ``(from source map)`` row.
+
+        target.from_(metta.lib.string, metta.parse("(prefix str-)"))
+        target.from_(home)
+
+    A missing map uses this space's ``from-map`` pragma. Definitions run in
+    their home and later additions follow the standing row. Removing the row
+    withdraws its links. Loading follows this space's ``load`` pragma.
+    """
+    target = source.form if isinstance(source, Library) else _to_atom(source)
+    fields = [Symbol("from"), target]
+    if map is not None:
+        fields.append(_to_atom(map))
+    space.add(Expression(fields))
 
 @_doors.door(
     kind=_doors.Kind.write,

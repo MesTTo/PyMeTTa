@@ -242,43 +242,30 @@ metta_py_equations(Space, Name0, Encoded) :-
 %the engine so the docstring here, (explain ...) and the cost-rows benchmark
 %lane all read one answer instead of three implementations of one rule.
 metta_py_cost_declaration(Name0, Claim) :-
+    current_metta_space(Space), metta_py_cost_declaration(Space, Name0, Claim).
+metta_py_cost_declaration(Space, Name0, Claim) :-
     ( atom(Name0) -> Name = Name0 ; atom_string(Name, Name0) ),
-    (   metta_cost_declaration(Name, _Witness, Class, Measure)
+    (   metta_head_property(Space, Name, [cost, Class, Measure])
     ->  Claim = [Class, Measure]
     ;   Claim = none
     ).
 
-%Everything the engine currently claims about a LIST of heads: the effect class
-%it composes, the cost class and measure a (cost ...) row resolves to, and the
-%deprecation row if one stands. One crossing for a whole library's roster
-%rather than three per head, and every answer is the engine's own resolution,
-%which is what stops a library card and (explain ...) drifting apart.
-%
-%Absence is @(none), which janus makes Python's None, rather than a word: an
-%effect class, a cost class and a version are all open enough that a sentinel
-%spelling could collide with a real answer.
+% One property bag per head, encoded by the existing atom wire. Context is a
+% space name or a library's source-path list; the engine resolves the home.
 metta_py_head_claims(Names, Rows) :-
-    findall([NameS, Effect, Class, Measure, Since, Remedy],
-            ( member(Name0, Names),
-              ( atom(Name0) -> Name = Name0 ; atom_string(Name, Name0) ),
-              atom_string(Name, NameS),
-              (   metta_operation_effect(Name, Effect0)
-              ->  atom_string(Effect0, Effect)
-              ;   Effect = @(none)
-              ),
-              (   metta_cost_declaration(Name, _, Class0, Measure0)
-              ->  atom_string(Class0, Class),
-                  atom_string(Measure0, Measure)
-              ;   Class = @(none),
-                  Measure = @(none)
-              ),
-              (   metta_deprecation(Name, Since0, Remedy0)
-              ->  metta_py_origin_part(Since0, Since),
-                  metta_py_origin_part(Remedy0, Remedy)
-              ;   Since = @(none),
-                  Remedy = @(none)
-              ) ),
-            Rows).
+    metta_py_head_claims('&self', Names, Rows).
+metta_py_head_claims(Context, Names0, Rows) :-
+    maplist(metta_py_claim_name, Names0, Names),
+    ( is_list(Context)
+    -> maplist(metta_py_claim_name, Context, Paths), Scope = sources(Paths)
+    ; metta_py_claim_name(Context, Space), Scope = space(Space) ),
+    metta_head_claims(Scope, Names, Claims),
+    findall([NameS, Encoded],
+            ( member([Name, Properties], Claims), atom_string(Name, NameS),
+              maplist(metta_py_encode, Properties, Encoded) ), Rows).
+
+metta_py_claim_name(Value, Name) :-
+    ( atom(Value) -> Name = Value ; atom_string(Name, Value) ).
 
 %The Prolog clauses a name compiled to, dis for the translator: one
 %listing per registered arity, resolved in this space's module so a named

@@ -11,21 +11,24 @@ through `parse` either.
 Every refusal here is where Python's own vocabulary takes over. One bracket too
 many cannot be repaired by more typing, so the reader refuses, and a refusal
 crosses into Python as an EXCEPTION rather than as an atom: the original's
-`(if-error (catch ...) Error NoError)` is a try/except here, and the `lib_he`
-import that form needed goes with it. `EngineError` is a detailed error, so it
-arrives from the errors satellite rather than from the narrow root.
+`(if-error (catch ...) Error NoError)` is a try/except here. The `lib_he`
+import remains because its equations are observable stored content.
+`EngineError` arrives from the errors satellite.
+Guarantees: the library import preserves the example's stored definitions
+[tested: examples/ch03-atoms-and-expressions/06-reading_forms.metta; commit=90ba93eb8f6e98ebfefc55416859bf13de6a8427].
 
 The round trip through `sread` compares MeTTa TEXT, so it goes through the
 engine's own `repr` and a `ground(...)` on both sides; Python's `repr` would
 answer the host's spelling of the atom, which is a different claim.
 """
 
-from metta import S, ground
+from metta import S, ground, lib
 from metta._errors.errors import EngineError
 
 
 def twin(m):
     """Read eleven fragments, refuse the twelfth, then ask the reader under it."""
+    m += lib.he
     read = m.fn.parse_command
 
     assert read(ground("(f a)")) == [S.complete(S.f(S.a))]
@@ -264,4 +267,12 @@ def twin(m):
 #: repairs; measured on the merged tree [measured 2026-09-09: min-of-3 serial
 #: fresh processes; command=python extensions/python/tools/twin_coverage.py
 #: --repin; commit=50e34286f66c938d89d5d367c6370ad44164c97f].
-BUDGET = 8129
+#: RE-PINNED 2026-09-10, 8129 to 35093 (+26964), The reference, visibility and
+#: property declarations add six heads to the cold-import census. Partial
+#: catalog reads now sort occurrence tokens; source-scoped claims and cache
+#: reservations change first translation work. The explicitly revised lib_he
+#: examples load upstream equations. Warm imports save nine inferences through
+#: one rollback collection; ordinary call and row slopes stay unchanged
+#: [measured 2026-09-10: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=90ba93eb8f6e98ebfefc55416859bf13de6a8427].
+BUDGET = 35093
