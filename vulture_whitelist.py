@@ -398,7 +398,7 @@ _.is_property
 
 # The evaluation record crosses Janus positionally; options.pl and the
 # native evaluation policy read the fields by their generated positions.
-# [source: extensions/python/metta/_binding/evaluation_policy.pl:metta_py_evaluate/4; commit=WORKTREE].
+# [source: extensions/python/metta/_binding/evaluation_policy.pl:metta_py_evaluate/4; commit=1edba58b41c0e33bdba0a17c9033a3cfb0549ed2].
 _.fuel  # EvaluationOptions metadata generates the fuel field consumed by metta_py_options.
 _.repeatable  # EvaluationOptions metadata generates the repeatability field consumed by metta_py_options.
 _.accounting  # EvaluationOptions metadata generates the accounting field consumed by metta_py_options.

@@ -12,7 +12,7 @@ Decides: foundation calls bind directly and higher calls use lazy modules;
 the package lattice decides which applies [source:
 extensions/python/metta/_layers.py:107; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
 Guarantees: projected typing parameters retain their defining objects through
-named imports [tested: ty, mypy, door-sync; commit=WORKTREE].
+named imports [tested: ty, mypy, door-sync; commit=1edba58b41c0e33bdba0a17c9033a3cfb0549ed2].
 """
 
 from __future__ import annotations
