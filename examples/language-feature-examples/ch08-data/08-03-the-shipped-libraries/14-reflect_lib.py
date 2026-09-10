@@ -1,9 +1,10 @@
 """Purpose: examples/ch08-data/08-03-the-shipped-libraries/14-reflect_lib.metta in Python: the engine's own surface as data.
 
 Every enumeration answers a name per solution, so a Python list IS the
-collapse and `len` is the count. The `engine-` predicates under the MeTTa
-names are the same operations, and the claims that pair them are what says
-so.
+collapse and `len` is the count. The `engine-` enumeration predicates under
+the MeTTa names are the same operations. `origin-of` projects defining
+occurrences from the common property reader; `engine-origin` retains its
+implementation-tier classification [tested: twin; commit=WORKTREE].
 
 `surface-counts` moves as libraries are imported, so what is pinned here is
 the SHAPE rather than the numbers.
@@ -43,9 +44,9 @@ def twin(m):
     assert arity(S.no_such_name_anywhere) == []
 
     # Where a name comes from, which a flat list of names cannot say.
-    assert origin(S.car_atom) == [(S.builtin,)]
-    assert origin(S.mine)[0][0] == S.equation
-    assert origin(S.case) == [(S.special_form,)]
+    assert origin(S.car_atom)[0][0] == S.origin
+    assert origin(S.mine)[0][0] == S.origin
+    assert origin(S.no_such_name_anywhere) == []
 
     # The four enumerations. `special-forms` is what the translator COMPILES
     # and so appears in no registry.
@@ -78,8 +79,8 @@ def twin(m):
     assert len(surface) > 1000
     assert surface[0] == "{"
 
-    # Every name above has a Prolog rung under it, and the MeTTa name is one
-    # equation over it.
+    # The enumeration wrappers share their Prolog rungs. engine-origin keeps
+    # the legacy implementation-tier answer.
     assert m.fn["engine-arity"](S.car_atom) == arity(S.car_atom)
     assert m.fn["engine-knows"](S.car_atom) == [True]
     assert m.fn["engine-knows"](S.no_such_name_anywhere) == [False]
@@ -265,4 +266,12 @@ def twin(m):
 #: pins of f26de01fb [measured 2026-09-09: min-of-3 serial fresh processes;
 #: command=python extensions/python/tools/twin_coverage.py --repin;
 #: commit=5f8a823d23fbed5c7395912a89ba32760e2df4b1].
-BUDGET = 118039
+#: RE-PINNED 2026-09-10, 118039 to 123935 (+5896), The reference, visibility
+#: and property declarations add six heads to the cold-import census. Partial
+#: catalog reads now sort occurrence tokens; source-scoped claims and cache
+#: reservations change first translation work. The explicitly revised lib_he
+#: examples load upstream equations. Warm imports save nine inferences through
+#: one rollback collection; ordinary call and row slopes stay unchanged
+#: [measured 2026-09-10: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 123935

@@ -207,7 +207,15 @@ def twin(m):
 #: above all [measured 2026-09-09: min-of-3 serial fresh processes;
 #: command=python extensions/python/tools/twin_coverage.py --repin;
 #: commit=b4341ae382c48ef225f4a52e566af6a9a71757c4].
-BUDGET = 26043
+#: RE-PINNED 2026-09-10, 26043 to 26113 (+70), The reference, visibility and
+#: property declarations add six heads to the cold-import census. Partial
+#: catalog reads now sort occurrence tokens; source-scoped claims and cache
+#: reservations change first translation work. The explicitly revised lib_he
+#: examples load upstream equations. Warm imports save nine inferences through
+#: one rollback collection; ordinary call and row slopes stay unchanged
+#: [measured 2026-09-10: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 26113
 
 #: OVERRUN 2026-09-07, 2400: the mutually recursive pair takes the `@m.rules`
 #: door, which stages two equations where the example writes two. Measured

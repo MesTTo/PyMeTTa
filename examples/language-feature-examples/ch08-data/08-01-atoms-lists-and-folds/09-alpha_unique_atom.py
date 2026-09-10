@@ -235,7 +235,15 @@ def twin(m):
 #: above all [measured 2026-09-09: min-of-3 serial fresh processes;
 #: command=python extensions/python/tools/twin_coverage.py --repin;
 #: commit=b4341ae382c48ef225f4a52e566af6a9a71757c4].
-BUDGET = 15309
+#: RE-PINNED 2026-09-10, 15309 to 15771 (+462), The reference, visibility and
+#: property declarations add six heads to the cold-import census. Partial
+#: catalog reads now sort occurrence tokens; source-scoped claims and cache
+#: reservations change first translation work. The explicitly revised lib_he
+#: examples load upstream equations. Warm imports save nine inferences through
+#: one rollback collection; ordinary call and row slopes stay unchanged
+#: [measured 2026-09-10: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 15771
 #: OVERRUN 2026-09-09, 0 to 256 (+256): the compiled vocabulary seed, the
 #: membership index, base-module type lookups and the singleton decoder landed
 #: (perf/cross-engine-waivers merged): a Python decode with one named variable
@@ -248,4 +256,12 @@ BUDGET = 15309
 #: ceiling, so no twin of it fits the band at all [measured 2026-09-09: one
 #: fresh process per side; command=python
 #: extensions/python/benchmarks/probes/twin_floor.py; commit=b4341ae382c48ef225f4a52e566af6a9a71757c4].
-OVERRUN = 256
+#: OVERRUN 2026-09-10, 256 to 725: The existing program is priced after the
+#: reference census, ordered catalog reads and source-scoped translation
+#: work. It costs 15771 against the unchanged band and authoring ceiling of
+#: 15046.9. The literal structured control costs 23138; it measures that
+#: encoding only. [measured 2026-09-10: one fresh process per side;
+#: command=python extensions/python/benchmarks/probes/twin_floor.py
+#: examples/ch08-data/08-01-atoms-lists-and-folds/09-alpha_unique_atom.metta;
+#: commit=WORKTREE].
+OVERRUN = 725

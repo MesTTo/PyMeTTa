@@ -1,10 +1,8 @@
 """Purpose: examples/ch20-extending-the-engine/20-02-metta-written-in-metta/08-he_atomspace.metta in Python: writing, matching and typing atoms.
 
-`add-atom` and `add-reduct` differ in one thing, which the two claims here
-draw: add-atom stores the definition as written, and add-reduct reduces the
-body to a VALUE first. Python spells the pair with one write door and an
-explicit evaluation, which is the composition the ledger asks for rather than a
-second method.
+`add-atom` stores the definition as written. Upstream lib_he's `add-reduct`
+reduces its one-element body list, so this example stores `(4)`. The native
+prelude stores `4`; the imported equation is the operation under test here.
 
 Reading them back is matching the space for `(= (addnormal) $X)`, which
 `equation(...).to(...)` builds as a pattern the same way it builds an atom, so
@@ -20,7 +18,7 @@ what `pattern in space` asks, so the twin answers True and False rather than
 Yes and No.
 """
 
-from metta import S, V, equation, lib, typed
+from metta import Expression, S, V, equation, lib, typed
 
 
 def twin(m):
@@ -28,12 +26,12 @@ def twin(m):
     m += lib.he
 
     m += equation(S.addnormal()).to(S.add(1, 3))
-    m += equation(S.addreduct()).to(m.answers(S.add(1, 3)).one())
+    assert m.fn.add_reduct(m, equation(S.addreduct()).to(S.add(1, 3))) == [True]
 
     # The stored body, as written.
     assert [row.body for row in m[equation(S.addnormal()).to(V.body)]] == [S.add(1, 3)]
-    # And reduced, because add-reduct's Python spelling evaluates first.
-    assert [row.body for row in m[equation(S.addreduct()).to(V.body)]] == [4]
+    # Upstream's equation retains its one-element list around the reduced body.
+    assert [row.body for row in m[equation(S.addreduct()).to(V.body)]] == [Expression((4,))]
 
     # A declared type is an ordinary atom, and the space that holds it is the
     # receiver: which space you ask is what decides the answer.
@@ -44,6 +42,9 @@ def twin(m):
     m += S.hello(S.world)
     assert S.hello(S.world) in m
     assert S.hello(S.dream) not in m
+
+
+RUNG = "the imported add-reduct equation and its stored body are the subject"
 
 
 #: A PLACEHOLDER, not a measurement. The twins wave re-authored this file and
@@ -240,4 +241,12 @@ def twin(m):
 #: above all [measured 2026-09-09: min-of-3 serial fresh processes;
 #: command=python extensions/python/tools/twin_coverage.py --repin;
 #: commit=b4341ae382c48ef225f4a52e566af6a9a71757c4].
-BUDGET = 4317
+#: RE-PINNED 2026-09-10, 4317 to 30481 (+26164), The reference, visibility and
+#: property declarations add six heads to the cold-import census. Partial
+#: catalog reads now sort occurrence tokens; source-scoped claims and cache
+#: reservations change first translation work. The explicitly revised lib_he
+#: examples load upstream equations. Warm imports save nine inferences through
+#: one rollback collection; ordinary call and row slopes stay unchanged
+#: [measured 2026-09-10: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 30481

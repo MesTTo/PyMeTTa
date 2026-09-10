@@ -1,5 +1,8 @@
 % Purpose: measure engine execution and report predicate indexes.
 % Assumes: loaded through _binding/shim.pl in its host module.
+% Guarantees: compiled profile rows retain their source file through the
+%   reader's ownership journal [tested: test_a_profile_exports_as_pstats;
+%   commit=WORKTREE].
 
 %%%%%%%%%% Profiling %%%%%%%%%%
 %
@@ -45,9 +48,8 @@ metta_py_profiled(Pred, Ins, [Out, Samples, Ticks, Seconds, Nodes]) :-
 %of the sampled time [source: SWI-Prolog 10.1.13
 %library/prolog_profile.pl:151,205-210 time_data/7].
 %
-%Each row also carries the file and line its predicate was defined at, from
-%the same two routes metta_py_origin/3 uses, so a profile exported to pstats
-%has the source key every Python profile viewer navigates by.
+%Each row carries the consulted clause's location or its MeTTa source-load
+%path, so a profile exported to pstats has a source key to navigate by.
 %
 %And the name and arity APART from the spelling, plus the recursive-call count
 %SWI keeps on the '<recursive>' caller node. Both were reachable only by taking
@@ -111,10 +113,8 @@ metta_py_tick_seconds(_, Net, _, 0.0) :- Net =< 0, !.
 metta_py_tick_seconds(Ticks, Net, Seconds, Answer) :-
     Answer is Ticks * Seconds / Net.
 
-%Where a profiled predicate was defined, off its first clause: the same two
-%routes metta_py_origin/3 answers with, reduced to the pair pstats keys a row
-%by. A MeTTa-compiled predicate has no line to give and keeps its file, and a
-%foreign or built-in predicate has neither.
+%The first profiled clause supplies a consulted location or its load's path.
+%Compiled clauses keep line zero; occurrence-level lines belong to origin().
 metta_py_predicate_source(Module:Name/Arity, File, Line) :-
     atom(Name),
     integer(Arity),
@@ -124,7 +124,8 @@ metta_py_predicate_source(Module:Name/Arity, File, Line) :-
     (   clause_property(Ref, file(Path)),
         clause_property(Ref, line_count(Line))
     ->  atom_string(Path, File)
-    ;   metta_py_clause_load(Ref, _, Path)
+    ;   filereader:source_load_assertion(Load, artifact, Ref),
+        filereader:metta_source_load(Path, _, Load, _)
     ->  atom_string(Path, File), Line = 0
     ;   File = "", Line = 0
     ).

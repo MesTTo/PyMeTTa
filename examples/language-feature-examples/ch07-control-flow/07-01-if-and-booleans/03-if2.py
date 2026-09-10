@@ -302,7 +302,25 @@ def twin(m):
 #: pins of f26de01fb [measured 2026-09-09: min-of-3 serial fresh processes;
 #: command=python extensions/python/tools/twin_coverage.py --repin;
 #: commit=5f8a823d23fbed5c7395912a89ba32760e2df4b1].
-BUDGET = 4792
+#: RE-PINNED 2026-09-10, 4792 to 4874 (+82), The reference, visibility and
+#: property declarations add six heads to the cold-import census. Partial
+#: catalog reads now sort occurrence tokens; source-scoped claims and cache
+#: reservations change first translation work. The explicitly revised lib_he
+#: examples load upstream equations. Warm imports save nine inferences through
+#: one rollback collection; ordinary call and row slopes stay unchanged
+#: [measured 2026-09-10: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 4874
+
+#: OVERRUN 2026-09-10, 0 to 14: The twin authors and calls a named branch
+#: with py-truthy where the example uses an inline form. It costs 4874
+#: against the unchanged band and authoring ceiling of 4860.6. The literal
+#: structured control costs 1322; it measures that encoding only. [measured
+#: 2026-09-10: one fresh process per side; command=python
+#: extensions/python/benchmarks/probes/twin_floor.py
+#: examples/ch07-control-flow/07-01-if-and-booleans/03-if2.metta;
+#: commit=WORKTREE].
+OVERRUN = 14
 
 #: DIVERGED 2026-09-07, the example holds 0 atoms the twin does not (none) and
 #: the twin holds 1 atom the example does not (1 =): the twin is an ordinary Python

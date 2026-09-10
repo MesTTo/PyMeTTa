@@ -342,7 +342,15 @@ def twin(m):
 #: pins of f26de01fb [measured 2026-09-09: min-of-3 serial fresh processes;
 #: command=python extensions/python/tools/twin_coverage.py --repin;
 #: commit=5f8a823d23fbed5c7395912a89ba32760e2df4b1].
-BUDGET = 30116
+#: RE-PINNED 2026-09-10, 30116 to 30343 (+227), The reference, visibility and
+#: property declarations add six heads to the cold-import census. Partial
+#: catalog reads now sort occurrence tokens; source-scoped claims and cache
+#: reservations change first translation work. The explicitly revised lib_he
+#: examples load upstream equations. Warm imports save nine inferences through
+#: one rollback collection; ordinary call and row slopes stay unchanged
+#: [measured 2026-09-10: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 30343
 
 #: OVERRUN 2026-09-07, 600: it stacks the two arities as two decorated clauses
 #: of one MeTTa name, where the example writes two equations. Measured 42187
@@ -376,4 +384,12 @@ BUDGET = 30116
 #: [measured 2026-09-09: one fresh process per side; command=python
 #: extensions/python/benchmarks/probes/twin_floor.py;
 #: commit=f26de01fbf3e0e3c64bb691c66a59fa959fee7f3].
-OVERRUN = 2110
+#: OVERRUN 2026-09-10, 2110 to 2179: The existing program is priced after the
+#: reference census, ordered catalog reads and source-scoped translation
+#: work. It costs 30343 against the unchanged band and authoring ceiling of
+#: 28164.8. The literal structured control costs 21954; it measures that
+#: encoding only. [measured 2026-09-10: one fresh process per side;
+#: command=python extensions/python/benchmarks/probes/twin_floor.py
+#: examples/ch18-performance/18-02-memoisation-and-tabling/03-memo_per_arity.metta;
+#: commit=WORKTREE].
+OVERRUN = 2179

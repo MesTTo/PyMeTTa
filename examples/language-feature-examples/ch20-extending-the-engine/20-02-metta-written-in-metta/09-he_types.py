@@ -1,10 +1,9 @@
 """Purpose: examples/ch20-extending-the-engine/20-02-metta-written-in-metta/09-he_types.metta in Python: the type judgment, asked directly.
 
-The HE type vocabulary is part of the core engine now, so this file's import is
-a no-op and stays only to show that. Its subject is the judgment itself, which
-is why every function here is named: `is-function` observes an arrow,
-`type-cast` admits or refuses, `match-types` unifies with wildcards, and the
-pair accessors and `match-type-or` are the rest of that vocabulary.
+The import shadows prelude heads with upstream lib_he's equations. Its
+`match-types` compares by exact equality. `type-cast` remains a prelude head
+and an undeclared type fails that equality; `is-function`, the pair accessors
+and `match-type-or` are the other judgments this file calls.
 
 The arrow it observes is built by `arrow(...)`, the `->` form as DATA, which is
 the same character Python writes in a signature and the builder the surface
@@ -15,11 +14,8 @@ A declaration is `typed(a, T)`, the `(: a T)` form as data.
 position as a grounded operand, so the receiver is handed over rather than
 named.
 
-`type-cast` is asked through the engine rather than through `m.cast`, and that
-is a measured decision, not a habit: `m.cast(S.B, S.type1)` RAISES CastError
-where the engine answers B, because an atom nobody declared has type
-`%Undefined%`, which the language's own rule treats as a wildcard that matches
-any requested type. The divergence is recorded in the residue table.
+`type-cast` is asked as an engine head so its refusal remains observable as
+an error atom. `%Undefined%` does not equal a requested declared type.
 
 The refusal is an Error ATOM, and iterating the answer view keeps it as data
 where the scalar doors take the loud reading and raise.
@@ -29,7 +25,7 @@ from metta import G, S, V, arrow, lib, typed
 
 
 def twin(m):
-    """Observe arrows, cast five atoms, unify four type pairs, take two halves."""
+    """Observe arrows, cast five atoms, compare four type pairs, take two halves."""
     m += lib.he
 
     is_function = m.fn.is_function
@@ -37,9 +33,7 @@ def twin(m):
     assert is_function(S.Atom) == [False]
 
     # type-cast answers the atom when it has the type and (Error $atom BadType)
-    # when it does not. Three ways to have it: the type is the atom's metatype,
-    # a declared type matches it, or the atom has no declaration at all, which
-    # the engine answers as %Undefined%, a wildcard matching any type.
+    # when it does not. A matching metatype or declaration admits the value.
     m += typed(S.type1, S.Type)
     m += typed(S.A, S.type1)
 
@@ -50,18 +44,16 @@ def twin(m):
     # A metatype counts, so any symbol casts to Symbol and any number to Number.
     assert cast(S.A, S.Symbol, m) == [S.A]
     assert cast(1, S.Number, m) == [1]
-    # An atom nobody declared is not the wrong type.
-    assert cast(S.B, S.type1, m) == [S.B]
+    # An undeclared atom has no evidence for this type claim.
+    assert cast(S.B, S.type1, m) == [S.Error(S.B, S.BadType)]
 
-    # match-types is unification with wildcards, Hyperon's own contract:
-    # %Undefined% and Atom on EITHER side match anything, and otherwise the two
-    # types unify, so a type carrying a variable matches its instance.
+    # Upstream compares exact terms and never binds a variable in the type.
     match_types = m.fn.match_types
     matched, missed = G("Matched!"), G("Didn't match")
     assert match_types(S.Atom, S.Atom, matched, missed) == [matched]
-    assert match_types(S.Atom, S.Number, matched, missed) == [matched]
+    assert match_types(S.Atom, S.Number, matched, missed) == [missed]
     assert match_types(S.Bool, S.Number, matched, missed) == [missed]
-    assert match_types(S.List(V.x), S.List(S.Number), matched, missed) == [matched]
+    assert match_types(S.List(V.x), S.List(S.Number), matched, missed) == [missed]
 
     assert m.fn.first_from_pair((S.A, S.B)) == [S.A]
     assert m.fn.second_from_pair((S.A, S.B)) == [S.B]
@@ -244,4 +236,12 @@ def twin(m):
 #: above all [measured 2026-09-09: min-of-3 serial fresh processes;
 #: command=python extensions/python/tools/twin_coverage.py --repin;
 #: commit=b4341ae382c48ef225f4a52e566af6a9a71757c4].
-BUDGET = 9293
+#: RE-PINNED 2026-09-10, 9293 to 33690 (+24397), The reference, visibility and
+#: property declarations add six heads to the cold-import census. Partial
+#: catalog reads now sort occurrence tokens; source-scoped claims and cache
+#: reservations change first translation work. The explicitly revised lib_he
+#: examples load upstream equations. Warm imports save nine inferences through
+#: one rollback collection; ordinary call and row slopes stay unchanged
+#: [measured 2026-09-10: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 33690

@@ -243,7 +243,15 @@ def twin(m):
 #: above all [measured 2026-09-09: min-of-3 serial fresh processes;
 #: command=python extensions/python/tools/twin_coverage.py --repin;
 #: commit=b4341ae382c48ef225f4a52e566af6a9a71757c4].
-BUDGET = 10288
+#: RE-PINNED 2026-09-10, 10288 to 10439 (+151), The reference, visibility and
+#: property declarations add six heads to the cold-import census. Partial
+#: catalog reads now sort occurrence tokens; source-scoped claims and cache
+#: reservations change first translation work. The explicitly revised lib_he
+#: examples load upstream equations. Warm imports save nine inferences through
+#: one rollback collection; ordinary call and row slopes stay unchanged
+#: [measured 2026-09-10: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 10439
 
 #: OVERRUN 2026-09-07, 600: it asks `find` a fourth time for the claim the
 #: example does not state, that one row comes back per solution bound. Measured
@@ -283,4 +291,12 @@ BUDGET = 10288
 #: that ceiling, so the rest is this twin's own program [measured 2026-09-09:
 #: one fresh process per side; command=python
 #: extensions/python/benchmarks/probes/twin_floor.py; commit=b4341ae382c48ef225f4a52e566af6a9a71757c4].
-OVERRUN = 999
+#: OVERRUN 2026-09-10, 999 to 1166: The existing program is priced after the
+#: reference census, ordered catalog reads and source-scoped translation
+#: work. It costs 10439 against the unchanged band and authoring ceiling of
+#: 9273.0. The literal structured control costs 8696; it measures that
+#: encoding only. [measured 2026-09-10: one fresh process per side;
+#: command=python extensions/python/benchmarks/probes/twin_floor.py
+#: examples/ch04-spaces-and-matching/04-01-a-space-is-where-a-program-lives/04-spaces_find.metta;
+#: commit=WORKTREE].
+OVERRUN = 1166

@@ -8,10 +8,10 @@ declaration below records.
 Three distinctions the file draws, and they are the reason it exists.
 `assertEqual` compares evaluated results, so both sides are built as terms
 rather than computed in Python, and each takes the operator's WORD, `S.add` for
-`+` and `S.sub` for `-`. The `ToResult` forms take the expected results as a
-TUPLE and do not evaluate it, so a single result is written `(3)` and not `3`.
+`+` and `S.sub` for `-`. Upstream lib_he's `ToResult` forms compare each
+individual answer with an expected scalar, including one success per duplicate.
 The `Alpha` forms compare modulo variable renaming, and the `Msg` variants add
-a failure message and otherwise behave as their bases.
+a failure message while retaining the engine prelude's bag comparison.
 
 `adder` is an ordinary compiled definition. Its body is a one-element
 expression holding a variable the head does not bind, which a body says with
@@ -38,11 +38,10 @@ def twin(m):
     assert alpha_equal(S.h(V.x, V.y), S.h(V.a, V.b)) == [True]
     assert alpha_equal(S.quote(V.x + V.y), S.quote(V.a + V.b)) == [True]
 
-    # The ToResult forms take the expected results as a tuple, not a bare
-    # value, and do not evaluate it. A single result is therefore (3), not 3.
+    # The imported ToResult alias compares each evaluated answer separately.
     to_result = m.fn.assertEqualToResult
-    assert to_result(S.add(1, 2), (3,)) == [True]
-    assert to_result(S.superpose((1, 2)), (1, 2)) == [True]
+    assert to_result(S.add(1, 2), 3) == [True]
+    assert to_result(S.superpose((1, 1)), 1) == [True, True]
 
     @m.define
     def adder():
@@ -50,15 +49,15 @@ def twin(m):
         return (V.x,)
 
     assert m.fn.assertAlphaEqualToResult(
-        S.adder(), (Expression((V.y,)),)
+        S.adder(), Expression((V.y,))
     ) == [True]
 
-    # Every expected result must appear among those produced.
+    # Includes and Msg heads are absent from lib_he and keep the prelude body.
     includes = m.fn.assertIncludes
     assert includes(S.superpose((1, 2, 3)), (2,)) == [True]
     assert includes(S.superpose((1, 2, 3)), (2, 3)) == [True]
 
-    # The Msg variants take a failure message and otherwise behave as their bases.
+    # The Msg variants retain their bag comparison and failure message.
     assert m.fn.assertEqualMsg(S.add(1, 2), S.sub(6, 3), G("sums differ")) == [True]
     assert m.fn.assertAlphaEqualMsg(
         S.h(V.x, V.y), S.h(V.a, V.b), G("not alpha equal")
@@ -305,107 +304,12 @@ RUNG = "the assert family is this file's subject, so each claim names one of its
 #: pins of f26de01fb [measured 2026-09-09: min-of-3 serial fresh processes;
 #: command=python extensions/python/tools/twin_coverage.py --repin;
 #: commit=5f8a823d23fbed5c7395912a89ba32760e2df4b1].
-BUDGET = 18723
-
-#: OVERRUN 2026-09-08, 9: the twin names each of the twelve assert-family
-#: members through `m.fn` and compares every answer in Python, where the
-#: example writes twelve runnables the engine evaluates for itself. Measured
-#: 17492 against a ceiling of 17484; a MINIMAL twin of this example -- its own
-#: forms stored and asked through the structured door, nothing else -- costs
-#: 15175, inside that ceiling, so the distance is this twin's own program and
-#: not the band being tighter than the library's floor. What tipped it over is
-#: the branch's own boot-content move, +17 on this twin and none on the
-#: example, against a ceiling it sat 9 under [measured 2026-09-08: one fresh
-#: process per side; command=python
-#: extensions/python/benchmarks/probes/twin_floor.py; commit=c26b6a4d28ef8fb50742440feed2c0578ebb0f58].
-#: RE-PINNED 2026-09-08, 17475 to 17843 (+368), The engine and library
-#: predicates now resolve through their owning modules and the explicit engine
-#: facade; compiled program lookup crosses the added metta_engine tier
-#: [measured 2026-09-08: min-of-3 serial fresh processes; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=ede2ac57e213a0d4502c6bbbca6227f97015b720].
-#: RE-PINNED 2026-09-08, 17843 to 17853 (+10), The engine and library module
-#: boundaries retain explicit lookup owners, including host registration and
-#: returned callback goals [measured 2026-09-08: min-of-3 serial fresh
-#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
-#: commit=ede2ac57e213a0d4502c6bbbca6227f97015b720].
-#: RE-PINNED 2026-09-08, 17853 to 17998 (+145), the module boundary merged with
-#: trunk's later packages (refactor/engine-and-libraries-as-modules at
-#: b64291369): every space now resolves through one more chain link, prelude ->
-#: metta_engine -> user, the engine's measured export list is imported into the
-#: host tier at boot, the closed-sets watch point costs one inference per
-#: &metta write, and a cursor opened by a host pays one transaction check at
-#: its door; the branch pinned its budgets on its cut, trunk re-pinned the same
-#: twins for the packages that landed after that cut, and only the merged tree
-#: carries both, so this entry is where the two chains meet [measured
-#: 2026-09-08: min-of-3 serial fresh processes; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=f1038acdcaf5230b6431c112f38a719d3dc9ef19].
-#: RE-PINNED 2026-09-08, 17998 to 18223 (+225), Trailing occurrence arguments,
-#: token allocation in native writes, exact source withdrawal and transaction-
-#: safe shared-table guards change the engine work priced by this twin; answer
-#: bags retain the upstream law [measured 2026-09-08: min-of-3 serial fresh
-#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
-#: commit=7f00ac7932fefa6f380fc8d14ec583ea0c58eff4].
-#: RE-PINNED 2026-09-08, 18223 to 18163 (-60), Sharing the fast-image
-#: hexadecimal validator changes the engine predicate layout. The identity twin
-#: moves below its declared band while the seven engine work counters move only
-#: at boot; the native add and read slopes remain unchanged. Token storage and
-#: source ownership retain their earlier measured costs and answer bags
-#: [measured 2026-09-08: min-of-3 serial fresh processes; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=7f00ac7932fefa6f380fc8d14ec583ea0c58eff4].
-#: RE-PINNED 2026-09-08, 17998 to 17975 (-23), Compiled shipped typing
-#: decisions and initial vocabulary facts remove repeated interpretation;
-#: indexed vocabulary membership replaces member-list scans; catalog reference
-#: checks now respect transaction-local erasure. Paired controls and cut counts
-#: are recorded in docs/journal/2026-09-08-what-the-waivers-were-paying-for.md
-#: extensions/python/tools/twin_coverage.py --repin; commit=32650f9ff4d1c4aa0749d8eb8b153e5bb448ee5c].
-#: RE-PINNED 2026-09-09, 17975 to 18287 (+312), Compile shipped typing
-#: decisions and initial vocabulary facts, index vocabulary membership, and
-#: reuse the first Python variable binding before indexing additional names;
-#: retain type, transaction and variable-identity checks [measured 2026-09-09:
-#: min-of-3 serial fresh processes; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=32650f9ff4d1c4aa0749d8eb8b153e5bb448ee5c].
-#: OVERRUN 2026-09-08, 9 to 285 (+276, four of them the deterministic
-#: allowance the point pins carry, because a band met exactly is refused): the module boundary merged with trunk
-#: (refactor/engine-and-libraries-as-modules at b64291369): the twin's host
-#: crossings each resolve through one more chain link, prelude -> metta_engine
-#: -> user, while the example runs inside the engine; every crossing this twin
-#: makes pays it and the example pays none. Measured 17998 against a ceiling
-#: of 17726; a minimal twin costs 15383 against the band's 17717, within that
-#: ceiling, so the rest is this twin's own program [measured 2026-09-08: one
-#: fresh process per side; command=python
-#: extensions/python/benchmarks/probes/twin_floor.py; commit=f1038acdcaf5230b6431c112f38a719d3dc9ef19].
-#: OVERRUN 2026-09-08, 48: publishing typed host door declarations changes
-#: catalog lookup indexes on both sides. The example costs 13424, the twin
-#: 17529, and the band's ceiling is 17481.4. The difference rounds up to 48;
-#: stored contents remain unchanged [measured: two fresh-process measurements
-#: per side agreed; command=python ai-tmp/ai-door-band-cost.py;
-#: fixture=run_example and run_twin with the full corpus band;
-#: commit=b615b5a33b43252ef9826e5387da7c9bd7f6b543].
-#: OVERRUN 2026-09-09, 48 to 303 (+255): the door table landed
-#: (feat/space-as-a-projection-of-door-rows merged at 6471faa37, its
-#: reconciliation fixes at 58bf75947): every Space door is a generated alias
-#: over its body, the catalog publishes the door contracts at boot as typed
-#: atoms, and the seam's listeners publish on every registration, so boot
-#: content and clause layout moved; every crossing this twin makes pays it and
-#: the example pays none. Measured 18018 against a ceiling of 17763; a minimal
-#: twin costs 15381 against the band's 17715, within that ceiling, so the rest
-#: is this twin's own program [measured 2026-09-09: one fresh process per
-#: side; command=python extensions/python/benchmarks/probes/twin_floor.py;
-#: commit=aeb46b14152274db84f6415c8a3dd8c98a9c9eb1].
-#: The band is met exactly at that figure and the lane refuses a ceiling met
-#: exactly (it prints the ceiling rounded), so the four-inference allowance
-#: the module-boundary pins recorded is added here too [measured 2026-09-09:
-#: the twins lane on the re-pinned tree; commit=aeb46b14152274db84f6415c8a3dd8c98a9c9eb1].
-#: OVERRUN 2026-09-09, 307 to 953 (+646): the compiled vocabulary seed, the
-#: membership index, base-module type lookups and the singleton decoder landed
-#: (perf/cross-engine-waivers merged): a Python decode with one named variable
-#: builds no index and one with more builds it at the second distinct name,
-#: which moves a twin's engine-side cost while its example, which decodes
-#: nothing, holds; boot content and clause layout moved the rest; against the
-#: trunk's own run at da0e5755d the twin moved +194 and the example -70, and
-#: the twin sat 375 over its ceiling there already. Measured 18654 against a
-#: ceiling of 18008; a minimal twin costs 15768 against the band's 17701,
-#: within that ceiling, so the rest is this twin's own program [measured
-#: 2026-09-09: one fresh process per side; command=python
-#: extensions/python/benchmarks/probes/twin_floor.py; commit=b4341ae382c48ef225f4a52e566af6a9a71757c4].
-OVERRUN = 953
+#: RE-PINNED 2026-09-10, 18723 to 43056 (+24333), The reference, visibility and
+#: property declarations add six heads to the cold-import census. Partial
+#: catalog reads now sort occurrence tokens; source-scoped claims and cache
+#: reservations change first translation work. The explicitly revised lib_he
+#: examples load upstream equations. Warm imports save nine inferences through
+#: one rollback collection; ordinary call and row slopes stay unchanged
+#: [measured 2026-09-10: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 43056

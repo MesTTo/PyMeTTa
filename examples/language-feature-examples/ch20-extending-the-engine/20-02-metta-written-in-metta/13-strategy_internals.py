@@ -8,6 +8,9 @@ wrong argument.
 The typed operations take a SORT, so the declarations below are the ordinary
 `typed` and `arrow` doors and the term's own type is what decides whether the
 strategy runs.
+Guarantees: an undeclared subject declines exact type selection [tested:
+examples/ch20-extending-the-engine/20-02-metta-written-in-metta/13-strategy_internals.metta;
+commit=WORKTREE].
 Open Obligations:
   To Do: None
   Hacks: None
@@ -93,18 +96,14 @@ def twin(m):
     assert m.fn["strategy-typed-tu"](S.summarize, S.DS, S.da) == [S.sum(S.da)]
     assert declined(m.fn["strategy-typed-tu"](S.summarize, S.DA, S.da))
 
-    # Both hand the sort they selected to the one gradual type check.
+    # Both hand the selected sort to the upstream-compatible identity check.
     apply_typed = m.fn["strategy-typed-apply"]
     assert apply_typed(S.preserve, S.DA, S.da) == [S.kept(S.da)]
     assert declined(apply_typed(S.preserve, S.DA, 1))
     assert apply_typed(S.preserve, S.DA, S.da) == m.fn["◁"](S.preserve, S.TP, S.da)
 
-    # An ill-typed subject reports its OWN error rather than being silently
-    # declined, so a term that cannot be typed at all is a different answer
-    # from a term whose type does not fit.
-    assert apply_typed(S.preserve, S.DA, S.undeclared_name()) == [
-        S.kept(S.undeclared_name())
-    ]
+    # An undeclared subject has no type identical to DA, so it declines too.
+    assert declined(apply_typed(S.preserve, S.DA, S.undeclared_name()))
 
 
 #: MEASURED on this branch rather than inherited: this twin is new, so there is
@@ -285,4 +284,12 @@ def twin(m):
 #: pins of f26de01fb [measured 2026-09-09: min-of-3 serial fresh processes;
 #: command=python extensions/python/tools/twin_coverage.py --repin;
 #: commit=5f8a823d23fbed5c7395912a89ba32760e2df4b1].
-BUDGET = 402016
+#: RE-PINNED 2026-09-10, 402016 to 397016 (-5000), The reference, visibility
+#: and property declarations add six heads to the cold-import census. Partial
+#: catalog reads now sort occurrence tokens; source-scoped claims and cache
+#: reservations change first translation work. The explicitly revised lib_he
+#: examples load upstream equations. Warm imports save nine inferences through
+#: one rollback collection; ordinary call and row slopes stay unchanged
+#: [measured 2026-09-10: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 397016

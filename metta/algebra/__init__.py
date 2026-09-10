@@ -4,6 +4,9 @@ Assumes:
   - facts and rules rest in a space as ordinary ``(fact tag proposition)``
     and ``(rule tag head (premises ...))`` atoms.
 Guarantees:
+  - shipped nonnumeric operations use metta_apply_algebra_operation/5 under
+    the same context and quota as custom operations [tested:
+    test_visibility_operations_share_the_native_carrier; commit=WORKTREE].
   - provider coefficients obey the explicit typed carrier and reentrant
     membership shares source accounting [tested:
     test_provider_conclusions_check_the_explicit_typed_carrier,
@@ -78,9 +81,9 @@ Guarantees:
     [tested: test_demand_preserves_complete_derivation_bags,
     test_demand_preserves_global_cycle_and_round_failures; commit=3c64e2e24787362a5a5081513bc24b880711a1d7]
   - the generated Semiring vocabulary, preset descriptors, and public carrier
-    objects name the same ten shipped algebras [tested:
+    objects name the same eleven shipped algebras [tested:
     test_every_shipped_semiring_has_one_root_object_in_catalog_order;
-    commit=2e627a593413191cda3170f2eb716835f7f62543]
+    commit=WORKTREE]
   - arbitrary law-bearing declarations use the engine's one checker in the
     declaring space's equation module [tested:
     test_a_law_is_checked_once_in_the_declaring_space; commit=2e627a593413191cda3170f2eb716835f7f62543]
@@ -222,6 +225,7 @@ __all__ = [
     "tagged_fact",
     "tagged_rule",
     "tropical",
+    "visibility",
 ]
 
 
@@ -358,6 +362,26 @@ class _EvaluationBudget:
 
         self._run_accounted(metta, run)
 
+    def apply_native_operation(
+        self, metta: Space, algebra: str, name: str, left: Atom, right: Atom
+    ) -> Atom:
+        """Use the engine's shipped primitive within the remaining call quota."""
+        target, using = _prepared_ask(metta, Expression((Symbol(name), left, right)), None)
+        if using:
+            target = target.subs({Symbol(key): _encode(value) for key, value in using.items()})
+
+        def run(seconds: float | None, steps: int | None) -> tuple[Atom, int]:
+            wire, spent = _controlled_run(
+                metta.runtime,
+                "metta_py_algebra_operation_accounted",
+                [metta.name, algebra, target.to_wire()],
+                _limits(seconds, steps),
+                context=self.context,
+            )
+            return _atom_from_wire(wire), int(spent)
+
+        return cast("Atom", self._run_accounted(metta, run))
+
 
 @dataclass(frozen=True, slots=True)
 class Amplitude:
@@ -485,6 +509,8 @@ class DeclaredAlgebra:
         # policy-inventory-exempt: mechanism-internal; reason=the two role names a declaration coins for its own combine and extend operations, which _register_operation spells as <algebra>-<role>; evidence=extensions/python/metta/algebra/__init__.py:_operation_name
         if name in {"plus", "times"}:
             return Expression((Symbol(name), left, right))
+        if self.name in _PRESETS:
+            return resources.apply_native_operation(metta, self.name, name, left, right)
         target = Expression((Symbol(name), left, right))
         answers = resources.evaluate_operation(metta, target)
         if len(answers) != 1:
@@ -684,6 +710,7 @@ def _preset(
     one: Any,
     *,
     laws: frozenset[str] = _SEMIRING_LAWS,
+    carrier: Iterable[Any] = (),
     requires: Iterable[str] = (),
     order: SemiringOrder | None = None,
 ) -> DeclaredAlgebra:
@@ -694,7 +721,7 @@ def _preset(
         _encode(zero),
         _encode(one),
         laws,
-        (),
+        tuple(_encode(value) for value in carrier),
         frozenset(requires),
         order,
     )
@@ -703,6 +730,8 @@ def _preset(
 # closed-set: decides; policy=the carriers this seat ships ready-declared; reads=semiring, the engine's own vocabulary, which test_catalog_kinds holds this to
 _PRESETS: Final[dict[str, DeclaredAlgebra]] = {
     "bool": _preset("bool", "max", "*", 0, 1),
+    "visibility": _preset("visibility", "max", "min", Symbol("INTERNAL"), Symbol("PUBLIC"),
+                          carrier=(Symbol("INTERNAL"), Symbol("PUBLIC"))),
     "bag": _preset("bag", "+", "*", 0, 1),
     "counting": _preset("counting", "+", "*", 0, 1),
     "set": _preset(
@@ -1971,6 +2000,7 @@ class _AlgebraModule(ModuleType):
 
 
 bool = replace(_PRESETS["bool"])  # noqa: A001 -- the catalog spelling is public
+visibility = replace(_PRESETS["visibility"])
 bag = replace(_PRESETS["bag"])
 counting = replace(_PRESETS["counting"])
 set = replace(_PRESETS["set"])  # noqa: A001 -- the catalog spelling is public

@@ -379,7 +379,15 @@ def twin(m):
 #: pins of f26de01fb [measured 2026-09-09: min-of-3 serial fresh processes;
 #: command=python extensions/python/tools/twin_coverage.py --repin;
 #: commit=5f8a823d23fbed5c7395912a89ba32760e2df4b1].
-BUDGET = 324164
+#: RE-PINNED 2026-09-10, 324164 to 329041 (+4877), The reference, visibility
+#: and property declarations add six heads to the cold-import census. Partial
+#: catalog reads now sort occurrence tokens; source-scoped claims and cache
+#: reservations change first translation work. The explicitly revised lib_he
+#: examples load upstream equations. Warm imports save nine inferences through
+#: one rollback collection; ordinary call and row slopes stay unchanged
+#: [measured 2026-09-10: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 329041
 
 #: OVERRUN 2026-09-07, 17700: it names every lib_roman function at every claim
 #: and runs the backwards `let` inverses beside them. Measured 320547 against a
@@ -449,7 +457,15 @@ BUDGET = 324164
 #: band's 305591, above that ceiling, so no twin of it fits the band at all,
 #: as before [measured 2026-09-09: one fresh process per side; command=python
 #: extensions/python/benchmarks/probes/twin_floor.py; commit=b4341ae382c48ef225f4a52e566af6a9a71757c4].
-OVERRUN = 18504
+#: OVERRUN 2026-09-10, 18504 to 19948: The existing program is priced after
+#: the reference census, ordered catalog reads and source-scoped translation
+#: work. It costs 329041 against the unchanged band and authoring ceiling of
+#: 309093.1. The literal structured control costs 321638; it measures that
+#: encoding only. [measured 2026-09-10: one fresh process per side;
+#: command=python extensions/python/benchmarks/probes/twin_floor.py
+#: examples/ch08-data/08-01-atoms-lists-and-folds/15-roman.metta;
+#: commit=WORKTREE].
+OVERRUN = 19948
 
 #: DIVERGED 2026-09-07, the example holds 9 atoms the twin does not (9 =) and
 #: the twin holds 9 the example does not (9 =): the twin is an ordinary Python

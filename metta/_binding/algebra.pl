@@ -1,5 +1,18 @@
 % Purpose: identify the declared algebra of a host value.
 % Assumes: loaded through _binding/shim.pl in its host module.
+% Guarantees: shipped operations use metta_apply_algebra_operation/5 with
+%   caller context and accounting [tested:
+%   test_visibility_operations_share_the_native_carrier; commit=WORKTREE].
+
+metta_py_algebra_operation_accounted(Space, Algebra0, OperationWire, [Wire, Used]) :-
+    metta_py_work(Before),
+    atom_string(Algebra, Algebra0),
+    metta_py_decode_shared(OperationWire, [Operation, Left, Right], _),
+    metta_py_module(Space, Module),
+    metta_py_in_module(Module,
+        metta_apply_algebra_operation(Algebra, Operation, Left, Right, Result)),
+    metta_py_encode(Result, Wire),
+    metta_py_work(After), Used is After - Before.
 
 % Carrier predicates use the same atom codec as registered Python operations.
 % In particular, Symbol and Expression remain atoms while Grounded unwraps.

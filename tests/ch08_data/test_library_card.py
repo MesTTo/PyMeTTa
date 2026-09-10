@@ -11,6 +11,10 @@ answers, so a card, `(explain ...)` and a bound function's docstring cannot
 say different things about the same head.
 
 Guarantees:
+  - a companion README supplies escaped prose in every rendering and lib_he
+    names its deliberate semantic differences [tested:
+    test_a_companion_readme_supplies_the_summary_in_every_renderer,
+    test_the_lib_he_card_names_its_shadowing_and_semantic_differences; commit=WORKTREE]
   - the nine heads lib_memo publishes through runnable registration forms are
     on its card, which the static reading alone could not see
     [tested: test_a_card_lists_the_heads_a_registration_form_publishes]
@@ -241,6 +245,29 @@ def test_the_summary_is_the_librarys_own_opening_prose():
         "expose the resident automatic and explicit memoization controls."
     )
     assert library.card("lib_vector").doc is None
+
+
+def test_a_companion_readme_supplies_the_summary_in_every_renderer(tmp_path):
+    """A library caveat remains literal in text, Rich and HTML output."""
+    directory = _plant(tmp_path, "lib_planted", metta="; Source prose.\n(: planted Type)\n")
+    (directory / "README.md").write_text(
+        "# Library\n\nA caveat with <markup>\nand [literal] brackets.\n\nLater paragraph.\n",
+        encoding="utf-8",
+    )
+    card = library.card("lib_planted", root=tmp_path)
+    assert card.doc == "A caveat with <markup> and [literal] brackets."
+    assert card.doc in str(card)
+    assert "A caveat with &lt;markup&gt; and [literal] brackets." in card._repr_html_()
+    assert card.doc in card.__rich__().caption.plain
+
+
+def test_the_lib_he_card_names_its_shadowing_and_semantic_differences():
+    """The card distinguishes upstream assertions and add-reduct results."""
+    card = library.card("lib_he")
+    assert "shadows the prelude in the receiving space" in card.doc
+    assert "engine prelude compares answer bags" in card.doc
+    assert "returns the add-atom Boolean" in card.doc
+    assert "returns that atom" in card.doc
 
 
 def test_rows_are_the_query_the_reference_page_renders():

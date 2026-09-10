@@ -295,7 +295,9 @@ class _EngineFunction:
         measured the head against its claim rather than merely that the claim is
         written down.
         """
-        claim = self._space._rt.apply_must("metta_py_cost_declaration", self._name)
+        claim = self._space._rt.apply_must(
+            "metta_py_cost_declaration", self._space._space, self._name
+        )
         if not isinstance(claim, list):
             return None
         cost_class, measure = claim

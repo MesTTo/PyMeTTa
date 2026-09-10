@@ -311,6 +311,21 @@ class AsyncMeTTa(AsyncMeTTaBase):
         """
         return await self.call(lambda m: m.profile_extension(source, extension=extension, names=names, timeout=timeout, inferences=inferences, **values))
 
+    async def get_property(
+        self,
+        head: _builtins.str | _body_metta__atoms_factories.Symbol,
+        /,
+    ) -> _builtins.tuple[_body_metta__atoms_factories.Atom, ...]:
+        """Return visibility, origins and declared properties of a head.
+
+            space.get_property("car-atom")
+
+        The answers are the atoms ``(get-property car-atom)`` enumerates, including
+        every defining origin. An unknown file is empty text and an unknown line
+        is -1. The query does not compile a lazy definition.
+        """
+        return await self.call(lambda m: m.get_property(head))
+
     async def match(
         self,
         *patterns: _body_typing.Any,
@@ -608,6 +623,18 @@ class AsyncMeTTa(AsyncMeTTaBase):
         batch or share a call with stored atoms.
         """  # noqa: D205 -- preserve the declared documentation
         return await self.call(lambda m: m.add(*atoms))
+
+    async def from_(self, source: _body_typing.Any, map: _body_typing.Any=None) -> None:  # noqa: A002 -- the declared public spelling
+        """Reference a library or space through a stored ``(from source map)`` row.
+
+            target.from_(metta.lib.string, metta.parse("(prefix str-)"))
+            target.from_(home)
+
+        A missing map uses this space's ``from-map`` pragma. Definitions run in
+        their home and later additions follow the standing row. Removing the row
+        withdraws its links. Loading follows this space's ``load`` pragma.
+        """
+        return await self.call(lambda m: m.from_(source, map))
 
     async def remove(
         self,

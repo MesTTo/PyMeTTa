@@ -337,6 +337,7 @@ __lazy_exports__ = {
     'under': ('metta._spaces.ambient', 'under'),
     'unify': ('metta._spaces.ambient', 'unify'),
     'view': ('metta.spaces', 'view'),
+    'visibility': ('metta.algebra', 'visibility'),
     'withdraw': ('metta._declare.operations', 'withdraw'),
 }
 
@@ -563,6 +564,22 @@ def stats() -> _root._body_metta__spaces_profile._StatsBlock:
     Runs against the default context's self space.
     """
     return engine().self.stats()
+
+def get_property(
+    head: _builtins.str | _root._body_metta__atoms_factories.Symbol,
+    /,
+) -> _builtins.tuple[_root._body_metta__atoms_factories.Atom, ...]:
+    """Return visibility, origins and declared properties of a head.
+
+        space.get_property("car-atom")
+
+    The answers are the atoms ``(get-property car-atom)`` enumerates, including
+    every defining origin. An unknown file is empty text and an unknown line
+    is -1. The query does not compile a lazy definition.
+
+    Runs against the default context's self space.
+    """
+    return engine().self.get_property(head)
 
 def match(
     *patterns: _root._body_typing.Any,
@@ -818,6 +835,20 @@ def add(*atoms: _root._body_typing.Any) -> None:
     Runs against the default context's self space.
     """  # noqa: D205 -- preserve the declared documentation
     return engine().self.add(*atoms)
+
+def from_(source: _root._body_typing.Any, map: _root._body_typing.Any=None) -> None:  # noqa: A002 -- the declared public spelling
+    """Reference a library or space through a stored ``(from source map)`` row.
+
+        target.from_(metta.lib.string, metta.parse("(prefix str-)"))
+        target.from_(home)
+
+    A missing map uses this space's ``from-map`` pragma. Definitions run in
+    their home and later additions follow the standing row. Removing the row
+    withdraws its links. Loading follows this space's ``load`` pragma.
+
+    Runs against the default context's self space.
+    """
+    return engine().self.from_(source, map)
 
 def remove(
     atom: _root._body_typing.Any,

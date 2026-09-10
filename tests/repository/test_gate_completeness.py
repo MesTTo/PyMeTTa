@@ -149,7 +149,12 @@ RUFF_FAMILY_BURN_DOWN = {
     # 35 -> 43: the five eval declarations and type body moved from methods
     # to module functions; the root's typed exports also name bool and set.
     # These eight sites preserve existing public spellings.
-    "A": 43,
+    # 43 -> 49: from_(source, map) keeps the reference row's public map
+    # parameter in its body and five generated or typed projections. Each
+    # suppresses only A002; no internal variable needs that spelling.
+    # [tested: test_the_ruff_configuration_enables_every_family_or_records_why_not;
+    # commit=WORKTREE]
+    "A": 49,
     # 2112 -> 2114 at the p12-space-model merge: its two new test modules
     # carry the repository's obligation-header docstring convention, whose
     # Purpose/Guarantees block is a deliberate per-line D205 suppression.

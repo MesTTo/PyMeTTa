@@ -1,6 +1,8 @@
 """Purpose: expose engine callbacks lazily under the ``metta_ops`` alias.
 
 Guarantees:
+  - exact-token mutation callbacks delegate to metta.foreign [tested:
+    test_token_mutation_receives_and_withdraws_a_reference; commit=WORKTREE].
   - the facade owns no registry state; each callback is the owning module's
     exact object behind one frame that marks the engine's entry, and
     `__wrapped__` names that object [tested:
@@ -62,6 +64,7 @@ _CALLBACKS = {
     "dispatch_raw_many_context": ("metta._binding.dispatch", "dispatch_raw_many_context"),
     "foreign_add": ("metta.foreign", "foreign_add"),
     "foreign_add_many": ("metta.foreign", "foreign_add_many"),
+    "foreign_add_token": ("metta.foreign", "foreign_add_token"),
     "foreign_atoms": ("metta.foreign", "foreign_atoms"),
     "foreign_tokens": ("metta.foreign", "foreign_tokens"),
     "foreign_clear": ("metta.foreign", "foreign_clear"),
@@ -70,6 +73,7 @@ _CALLBACKS = {
     "foreign_pushdown": ("metta.foreign", "foreign_pushdown"),
     "foreign_refuse": ("metta.foreign", "foreign_refuse"),
     "foreign_remove": ("metta.foreign", "foreign_remove"),
+    "foreign_remove_token": ("metta.foreign", "foreign_remove_token"),
     "foreign_transaction": ("metta.foreign", "foreign_transaction"),
     "fork_context": ("metta._binding.task_context", "fork"),
     "fork_contexts": ("metta._binding.task_context", "fork_many"),
@@ -112,6 +116,7 @@ dispatch_raw_many: _Any
 dispatch_raw_many_context: _Any
 foreign_add: _Any
 foreign_add_many: _Any
+foreign_add_token: _Any
 foreign_atoms: _Any
 foreign_tokens: _Any
 foreign_clear: _Any
@@ -120,6 +125,7 @@ foreign_plan: _Any
 foreign_pushdown: _Any
 foreign_refuse: _Any
 foreign_remove: _Any
+foreign_remove_token: _Any
 foreign_transaction: _Any
 fork_context: _Any
 fork_contexts: _Any
@@ -160,6 +166,7 @@ __all__ = [
     "engine_message",
     "foreign_add",
     "foreign_add_many",
+    "foreign_add_token",
     "foreign_atoms",
     "foreign_clear",
     "foreign_match",
@@ -167,6 +174,7 @@ __all__ = [
     "foreign_pushdown",
     "foreign_refuse",
     "foreign_remove",
+    "foreign_remove_token",
     "foreign_tokens",
     "foreign_transaction",
     "fork_context",

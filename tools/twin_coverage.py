@@ -319,7 +319,16 @@ BAND_PERCENT = 10.0
 #: set's; no other file of the change moves it [measured 2026-09-09:
 #: min-of-3 fresh processes per fixture; command=python
 #: extensions/python/benchmarks/probes/twin_authoring.py; commit=5f8a823d23fbed5c7395912a89ba32760e2df4b1].
-DEFINITION_WARMUP = 1482
+#: RE-MEASURED 2026-09-10 for references and the shared property surface:
+#: 7, 2903, 4256, 5625, 7006 for zero through four definitions, against
+#: 7, 2857, 4210, 5579, 6960 at the pristine 3e5855a35 cut. Every nonempty
+#: fixture moves +46 while each marginal definition is unchanged; only the
+#: first definition's engine lookup warmup moves. The source/write/define
+#: doors cost 435+1023, 910+152 and 2903+182 respectively [measured 2026-09-10:
+#: min-of-3 fresh processes; command=python extensions/python/benchmarks/probes/twin_authoring.py;
+#: fixture=zero through four one-line definitions, built native engine;
+#: commit=WORKTREE].
+DEFINITION_WARMUP = 1528
 DEFINITION_COST = 1368
 
 #: The tree's own POINT-counter allowance. It applies to an integer BUDGET

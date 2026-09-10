@@ -343,7 +343,15 @@ def twin(m):
 #: measured on this tree with the artifacts warm [measured 2026-09-09: min-of-3
 #: serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=f26de01fbf3e0e3c64bb691c66a59fa959fee7f3].
-BUDGET = 50837
+#: RE-PINNED 2026-09-10, 50837 to 51485 (+648), The reference, visibility and
+#: property declarations add six heads to the cold-import census. Partial
+#: catalog reads now sort occurrence tokens; source-scoped claims and cache
+#: reservations change first translation work. The explicitly revised lib_he
+#: examples load upstream equations. Warm imports save nine inferences through
+#: one rollback collection; ordinary call and row slopes stay unchanged
+#: [measured 2026-09-10: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 51485
 #: OVERRUN 2026-09-09, 0 to 4070 (+4070): a library's Prolog half compiles
 #: beside itself on its first import and loads from the artifact after
 #: (metta_load_source/2, seam:compiled_source/1): the example imports one, so
@@ -366,7 +374,15 @@ BUDGET = 50837
 #: under the twin. Measured 50837 against a ceiling of 50836 [measured
 #: 2026-09-09: python extensions/python/tools/twin_coverage.py, one full-lane
 #: run on this tree; commit=5f8a823d23fbed5c7395912a89ba32760e2df4b1].
-OVERRUN = 4071
+#: OVERRUN 2026-09-10, 4071 to 4236: The existing program is priced after the
+#: reference census, ordered catalog reads and source-scoped translation
+#: work. It costs 51485 against the unchanged band and authoring ceiling of
+#: 47249.1. The literal structured control costs 45948; it measures that
+#: encoding only. [measured 2026-09-10: one fresh process per side;
+#: command=python extensions/python/benchmarks/probes/twin_floor.py
+#: examples/ch18-performance/18-02-memoisation-and-tabling/09-tabling_fib.metta;
+#: commit=WORKTREE].
+OVERRUN = 4236
 
 #: DIVERGED 2026-09-07, the example holds 0 atoms the twin does not (none) and
 #: the twin holds 1 atom the example does not (1 :): a Python annotation IS a (:

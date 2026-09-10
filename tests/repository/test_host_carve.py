@@ -4,6 +4,11 @@ seam:host_import, seam:host_object, seam:form_rewriter, the grounded
 type family, the error hooks), and every per-host line lives in that
 host's own hosts/ bridge, so the next host cannot regress the property by
 editing the engine.
+Guarantees:
+  - the host-surface subprocess runs its requested walk once and exits before
+    static_checks.pl's registered main driver [tested:
+    test_the_python_binding_calls_only_the_published_host_surface;
+    commit=WORKTREE].
 Open Obligations:
   To Do: None
   Hacks: None
@@ -74,15 +79,16 @@ def test_the_python_binding_calls_only_the_published_host_surface(repo_root):
     against the measured list engine/ext_points.pl declares. A shim call to an
     undeclared engine internal fails this naming the pair.
     """
+    # A second -g exits before static_checks.pl's registered main driver.
     done = subprocess.run(
         ["swipl", "-q", "-g",
          "consult(static_checks), consult('../../engine/metta.pl'), "
          "a_host_binding_calls_only_published_surface",
-         "-t", "halt"],
+         "-g", "halt"],
         cwd=repo_root / "tests" / "prolog",
         capture_output=True,
         text=True,
         timeout=280,
     )
     assert done.returncode == 0, done.stderr
-    assert "calls only published surface" in done.stdout
+    assert done.stdout.count("calls only published surface") == 1

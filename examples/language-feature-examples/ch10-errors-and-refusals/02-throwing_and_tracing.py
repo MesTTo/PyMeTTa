@@ -3,6 +3,8 @@
 `throw` does not unwind: it PRODUCES the value `(Error (throw R) R)`, so every
 claim here compares an atom rather than catching anything, and the Python
 spelling is the value the engine answers.
+Guarantees: return-on-error preserves a produced error's shape [tested:
+examples/ch10-errors-and-refusals/02-throwing_and_tracing.metta; commit=WORKTREE].
 
 `trace!` prints its first argument and answers its second, so its claims are
 about what flows through it. Both of its arguments are held, which is why the
@@ -31,12 +33,12 @@ def twin(m):
     assert throw(G("text")) == [S.Error(S.throw(G("text")), G("text"))]
 
     # Every form that reads an error reads this one, with no special case for
-    # a raised one against a computed one. `return-on-error` answers the
-    # error inside minimal MeTTa's own `return` marker.
+    # a raised one against a computed one. The upstream-compatible
+    # return-on-error answers the error itself.
     assert m.fn.if_error(throw(S.oops)[0], S.caught, S.fine) == [S.caught]
     assert m.fn.if_error(42, S.caught, S.fine) == [S.fine]
     thrown = S.Error(S.throw(S.oops), S.oops)
-    assert m.fn["return-on-error"](thrown, S.carried_on) == [S["return"](thrown)]
+    assert m.fn["return-on-error"](thrown, S.carried_on) == [thrown]
     assert m.fn["return-on-error"](42, S.carried_on) == [S.carried_on]
 
     # A reason that is ALREADY an error passes through unchanged rather than
@@ -242,4 +244,12 @@ def twin(m):
 #: pins of f26de01fb [measured 2026-09-09: min-of-3 serial fresh processes;
 #: command=python extensions/python/tools/twin_coverage.py --repin;
 #: commit=5f8a823d23fbed5c7395912a89ba32760e2df4b1].
-BUDGET = 17434
+#: RE-PINNED 2026-09-10, 17434 to 17960 (+526), The reference, visibility and
+#: property declarations add six heads to the cold-import census. Partial
+#: catalog reads now sort occurrence tokens; source-scoped claims and cache
+#: reservations change first translation work. The explicitly revised lib_he
+#: examples load upstream equations. Warm imports save nine inferences through
+#: one rollback collection; ordinary call and row slopes stay unchanged
+#: [measured 2026-09-10: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 17960

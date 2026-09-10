@@ -176,4 +176,21 @@ def twin(m):
 #: repairs; measured on the merged tree [measured 2026-09-09: min-of-3 serial
 #: fresh processes; command=python extensions/python/tools/twin_coverage.py
 #: --repin; commit=50e34286f66c938d89d5d367c6370ad44164c97f].
-BUDGET = 5571
+#: RE-PINNED 2026-09-10, 5571 to 5725 (+154), The reference, visibility and
+#: property declarations add six heads to the cold-import census. Partial
+#: catalog reads now sort occurrence tokens; source-scoped claims and cache
+#: reservations change first translation work. The explicitly revised lib_he
+#: examples load upstream equations. Warm imports save nine inferences through
+#: one rollback collection; ordinary call and row slopes stay unchanged
+#: [measured 2026-09-10: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 5725
+
+#: OVERRUN 2026-09-10, 0 to 15: The twin asks four named stream operations
+#: through m.fn and compares the answers with Python collections. It costs
+#: 5725 against the unchanged band and authoring ceiling of 5710.1. The
+#: literal structured control costs 5498; it measures that encoding only.
+#: [measured 2026-09-10: one fresh process per side; command=python
+#: extensions/python/benchmarks/probes/twin_floor.py
+#: examples/ch06-many-answers/09-streamops.metta; commit=WORKTREE].
+OVERRUN = 15

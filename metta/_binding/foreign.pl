@@ -1,5 +1,8 @@
 % Purpose: register and invoke host providers for foreign spaces.
 % Assumes: loaded through _binding/shim.pl in its host module.
+% Guarantees: optional add-token and remove-token callbacks preserve exact
+%   provider identities [tested: test_token_mutation_receives_and_withdraws_a_reference;
+%   commit=WORKTREE].
 % Owns resources: provider and capability registrations until metta_py_unregister_foreign/1 removes them
 % [source: extensions/python/metta/_binding/foreign.pl:329; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
 
@@ -19,6 +22,8 @@
 :- multifile seam:foreign_remove/3.
 :- multifile seam:foreign_atoms/2.
 :- multifile seam:foreign_token/3.
+:- multifile seam:foreign_add_token/3.
+:- multifile seam:foreign_remove_token/3.
 :- multifile seam:foreign_pushdown/3.
 :- multifile seam:foreign_capability/2.
 :- multifile seam:foreign_refuse/2.
@@ -176,6 +181,23 @@ seam:foreign_add(Space, Term) :-
     metta_py_encode(Term, W),
     atom_string(Space, SpaceStr),
     py_call(metta_ops:foreign_add(SpaceStr, W), _).
+
+seam:foreign_add_token(Space, Term, Token) :-
+    metta_py_foreign(Space),
+    metta_py_encode(Term, W),
+    atom_string(Space, SpaceStr),
+    py_call(metta_ops:foreign_add_token(SpaceStr, W), Wire),
+    metta_py_decode_shared(Wire, Decoded, _),
+    ( Decoded = [t, Actor, Generation]
+    -> Token = t(Actor, Generation)
+    ; throw(error(domain_error(occurrence_token, Decoded), none)) ).
+
+seam:foreign_remove_token(Space, t(Actor, Generation), Removed) :-
+    metta_py_foreign(Space),
+    metta_py_encode([t, Actor, Generation], Wire),
+    atom_string(Space, SpaceStr),
+    py_call(metta_ops:foreign_remove_token(SpaceStr, Wire), Raw),
+    metta_py_bool(Raw, Removed).
 
 %The claim seam. A provider without a Planner declares no plan capability, so
 %the engine never asks; one that does may still decline per conjunction, which

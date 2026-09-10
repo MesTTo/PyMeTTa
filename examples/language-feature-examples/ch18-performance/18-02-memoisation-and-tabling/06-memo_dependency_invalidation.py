@@ -292,7 +292,15 @@ def twin(m):
 #: pins of f26de01fb [measured 2026-09-09: min-of-3 serial fresh processes;
 #: command=python extensions/python/tools/twin_coverage.py --repin;
 #: commit=5f8a823d23fbed5c7395912a89ba32760e2df4b1].
-BUDGET = 23344
+#: RE-PINNED 2026-09-10, 23344 to 23604 (+260), The reference, visibility and
+#: property declarations add six heads to the cold-import census. Partial
+#: catalog reads now sort occurrence tokens; source-scoped claims and cache
+#: reservations change first translation work. The explicitly revised lib_he
+#: examples load upstream equations. Warm imports save nine inferences through
+#: one rollback collection; ordinary call and row slopes stay unchanged
+#: [measured 2026-09-10: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 23604
 #: OVERRUN 2026-09-09, 0 to 278 (+278): a library's Prolog half compiles
 #: beside itself on its first import and loads from the artifact after
 #: (metta_load_source/2, seam:compiled_source/1): the example imports one, so
@@ -307,7 +315,15 @@ BUDGET = 23344
 #: [measured 2026-09-09: one fresh process per side; command=python
 #: extensions/python/benchmarks/probes/twin_floor.py;
 #: commit=f26de01fbf3e0e3c64bb691c66a59fa959fee7f3].
-OVERRUN = 278
+#: OVERRUN 2026-09-10, 278 to 379: The existing program is priced after the
+#: reference census, ordered catalog reads and source-scoped translation
+#: work. It costs 23604 against the unchanged band and authoring ceiling of
+#: 23225.1. The literal structured control costs 18340; it measures that
+#: encoding only. [measured 2026-09-10: one fresh process per side;
+#: command=python extensions/python/benchmarks/probes/twin_floor.py
+#: examples/ch18-performance/18-02-memoisation-and-tabling/06-memo_dependency_invalidation.metta;
+#: commit=WORKTREE].
+OVERRUN = 379
 
 #: DIVERGED 2026-09-07, the example holds 0 atoms the twin does not (none) and
 #: the twin holds 1 atom the example does not (1 :): a Python annotation IS a (:

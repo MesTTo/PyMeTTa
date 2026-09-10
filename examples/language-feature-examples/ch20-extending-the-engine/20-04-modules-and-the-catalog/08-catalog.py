@@ -314,4 +314,12 @@ def twin(m):  # noqa: ARG001  -- the catalog lives in the reflection space; the 
 #: dependence is scheduled for removal [measured 2026-09-09: min-of-3 serial
 #: fresh processes; command=python extensions/python/tools/twin_coverage.py
 #: --repin; commit=81c4b096ac735153bf523eb885ae855769e74958].
-BUDGET = 3038
+#: RE-PINNED 2026-09-10, 3038 to 3891 (+853), The reference, visibility and
+#: property declarations add six heads to the cold-import census. Partial
+#: catalog reads now sort occurrence tokens; source-scoped claims and cache
+#: reservations change first translation work. The explicitly revised lib_he
+#: examples load upstream equations. Warm imports save nine inferences through
+#: one rollback collection; ordinary call and row slopes stay unchanged
+#: [measured 2026-09-10: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 3891

@@ -345,7 +345,15 @@ def twin(m):
 #: pins of f26de01fb [measured 2026-09-09: min-of-3 serial fresh processes;
 #: command=python extensions/python/tools/twin_coverage.py --repin;
 #: commit=5f8a823d23fbed5c7395912a89ba32760e2df4b1].
-BUDGET = 49833
+#: RE-PINNED 2026-09-10, 49833 to 50265 (+432), The reference, visibility and
+#: property declarations add six heads to the cold-import census. Partial
+#: catalog reads now sort occurrence tokens; source-scoped claims and cache
+#: reservations change first translation work. The explicitly revised lib_he
+#: examples load upstream equations. Warm imports save nine inferences through
+#: one rollback collection; ordinary call and row slopes stay unchanged
+#: [measured 2026-09-10: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 50265
 
 #: OVERRUN 2026-09-07, 27600: it proves seventeen claims where the example
 #: states four: the example's own comment leaves the HOST half of the nesting
@@ -387,7 +395,15 @@ BUDGET = 49833
 #: 21204, within that ceiling, so the rest is this twin's own program
 #: [measured 2026-09-09: one fresh process per side; command=python
 #: extensions/python/benchmarks/probes/twin_floor.py; commit=b4341ae382c48ef225f4a52e566af6a9a71757c4].
-OVERRUN = 28560
+#: OVERRUN 2026-09-10, 28560 to 28592: The existing program is priced after
+#: the reference census, ordered catalog reads and source-scoped translation
+#: work. It costs 50265 against the unchanged band and authoring ceiling of
+#: 21673.2. The literal structured control costs 8425; it measures that
+#: encoding only. [measured 2026-09-10: one fresh process per side;
+#: command=python extensions/python/benchmarks/probes/twin_floor.py
+#: examples/ch11-python-as-a-notation/06-door_combinations.metta;
+#: commit=WORKTREE].
+OVERRUN = 28592
 
 #: DIVERGED 2026-09-07, the example holds 1 atom the twin does not (1 =) and
 #: the twin holds 17 the example does not (5 :, 6 =, 6 annotation): the twin is

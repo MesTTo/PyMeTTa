@@ -6,6 +6,10 @@ over-approximate its filtering and stay sound; pushing bound parts of the
 pattern down into the backend is the performance lever, never a correctness
 requirement.
 Guarantees:
+  - optional token mutations preserve provider occurrence identities through
+    the same declared seam as native reference receivers [tested:
+    test_token_mutation_receives_and_withdraws_a_reference;
+    commit=WORKTREE].
   - capabilities derive from implemented narrow protocols and unknown
     operations are refused [tested test_capabilities_follow_implemented_methods]
   - CAPABILITIES is the engine's own `(vocabulary provider-capability ...)`
@@ -81,6 +85,7 @@ from __future__ import annotations
 import inspect
 import threading
 from collections.abc import Iterable, Iterator, Mapping, Sized
+from contextlib import contextmanager
 from functools import cache
 from types import MappingProxyType
 from typing import Any, ClassVar, Protocol, cast, runtime_checkable
@@ -111,7 +116,9 @@ __all__ = [
     "Remover",
     "Snapshotter",
     "SpaceProvider",
+    "TokenAdder",
     "TokenProvider",
+    "TokenRemover",
     "Transactional",
     "WorldCommitter",
     "delivery_promise",
@@ -263,6 +270,22 @@ class TokenProvider(Protocol):
 
 
 @runtime_checkable
+class TokenAdder(Protocol):
+    """A provider that returns the fresh identity of each added occurrence."""
+
+    def add_token(self, atom: Atom) -> Atom:
+        """Store one occurrence and return its ``(t actor row_id)`` identity."""
+
+
+@runtime_checkable
+class TokenRemover(Protocol):
+    """A provider that removes exactly one selected occurrence."""
+
+    def remove_token(self, token: Atom) -> bool:
+        """Remove that identity, returning False if it no longer exists."""
+
+
+@runtime_checkable
 class WorldCommitter(Protocol):
     """A provider that lands one checked base-relative world diff.
 
@@ -378,6 +401,8 @@ class SpaceProvider:
         "match": (Matcher, Enumerable),
         "enumerate": (Enumerable,),
         "tokens": (TokenProvider,),
+        "add-token": (TokenAdder,),
+        "remove-token": (TokenRemover,),
         "add": (Adder,),
         "add-many": (BulkAdder,),
         "plan": (Planner,),
@@ -1006,6 +1031,40 @@ def foreign_add(space: str, atom_wire: list) -> bool:
     _require_provider(provider, space, "add", "add-atom", atom=atom)
     cast(Adder, provider).add(atom)
     return True
+
+
+def foreign_add_token(space: str, atom_wire: list) -> list:
+    """Return the provider's identity through the occurrence wire contract."""
+    provider = _provider(space)
+    atom = _atom_from_wire(atom_wire)
+    _require_provider(provider, space, "add-token", "add-token", atom=atom)
+    with _provider_mutation_errors(space, "add-token", provider):
+        return cast(TokenAdder, provider).add_token(atom).to_wire()
+
+
+def foreign_remove_token(space: str, token_wire: list) -> bool:
+    """Keep exact removal's Boolean verdict, including an already absent row."""
+    provider = _provider(space)
+    token = _atom_from_wire(token_wire)
+    _require_provider(provider, space, "remove-token", "remove-token", token=token)
+    with _provider_mutation_errors(space, "remove-token", provider):
+        removed = cast(TokenRemover, provider).remove_token(token)
+        if not isinstance(removed, bool):
+            message = "remove_token must return a bool"
+            raise TypeError(message)
+        return removed
+
+
+@contextmanager
+def _provider_mutation_errors(space: str, operation: str, provider: SpaceProvider) -> Iterator[None]:
+    """Apply the provider error contract to a synchronous mutation callback."""
+    try:
+        yield
+    except Exception as error:
+        failure = _provider_failure(error, space, operation, provider)
+        if failure is error:
+            raise
+        raise failure from error
 
 
 def foreign_plan(space: str, pattern_wires: list):

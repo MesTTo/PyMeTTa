@@ -36,6 +36,7 @@ import metta._spaces.cursor as _body_metta__spaces_cursor
 import metta._spaces.evaluate as _body_metta__spaces_evaluate
 import metta._spaces.execution as _body_metta__spaces_execution
 import metta._spaces.profile as _body_metta__spaces_profile
+import metta._spaces.properties as _body_metta__spaces_properties
 import metta._spaces.query as _body_metta__spaces_query
 import metta._spaces.scope as _body_metta__spaces_scope
 import metta._spaces.source as _body_metta__spaces_source
@@ -587,6 +588,21 @@ class Space(SpaceHandle):
         """
         return _body_metta__spaces_profile.stats(self)
 
+    def get_property(
+        self: _body_metta.Space,
+        head: _builtins.str | _body_metta__atoms_factories.Symbol,
+        /,
+    ) -> _builtins.tuple[_body_metta__atoms_factories.Atom, ...]:
+        """Return visibility, origins and declared properties of a head.
+
+            space.get_property("car-atom")
+
+        The answers are the atoms ``(get-property car-atom)`` enumerates, including
+        every defining origin. An unknown file is empty text and an unknown line
+        is -1. The query does not compile a lazy definition.
+        """
+        return _body_metta__spaces_properties.get_property(self, head)
+
     def match(
         self: _body_metta.Space,
         *patterns: _body_typing.Any,
@@ -1119,6 +1135,22 @@ class Space(SpaceHandle):
         batch or share a call with stored atoms.
         """  # noqa: D205 -- preserve the declared documentation
         return _body_metta__spaces_store.add(self, *atoms)
+
+    def from_(
+        self: _body_metta.Space,
+        source: _body_typing.Any,
+        map: _body_typing.Any=None,  # noqa: A002 -- the declared public parameter spelling
+    ) -> None:
+        """Reference a library or space through a stored ``(from source map)`` row.
+
+            target.from_(metta.lib.string, metta.parse("(prefix str-)"))
+            target.from_(home)
+
+        A missing map uses this space's ``from-map`` pragma. Definitions run in
+        their home and later additions follow the standing row. Removing the row
+        withdraws its links. Loading follows this space's ``load`` pragma.
+        """
+        return _body_metta__spaces_store.from_(self, source, map)
 
     def remove(
         self: _body_metta.Space,
