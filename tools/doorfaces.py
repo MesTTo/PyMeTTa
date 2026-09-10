@@ -11,6 +11,8 @@ https://github.com/pola-rs/polars/blob/b4755d7ad1d3e9c42fc3711a09961fff492fe46c/
 Decides: foundation calls bind directly and higher calls use lazy modules;
 the package lattice decides which applies [source:
 extensions/python/metta/_layers.py:107; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
+Guarantees: projected typing parameters retain their defining objects through
+named imports [tested: ty, mypy, door-sync; commit=WORKTREE].
 """
 
 from __future__ import annotations
@@ -56,6 +58,30 @@ def _bindings(module: str, root: Path) -> dict[str, tuple[str, str | None]]:
 
     path = module_path(module, root)
     return _source_bindings(module, path, path.read_text(encoding='utf-8'))
+
+
+def _type_parameters(module: str, root: Path) -> frozenset[str]:
+    from doorgen import module_path  # noqa: PLC0415 -- emitter/reader cycle
+
+    if not module.startswith('metta.'):
+        return frozenset()
+    path = module_path(module, root)
+    return _source_type_parameters(module, path, path.read_text(encoding='utf-8'))
+
+
+@lru_cache(maxsize=256)
+def _source_type_parameters(module: str, path: Path, source: str) -> frozenset[str]:
+    bindings = _source_bindings(module, path, source)
+    return frozenset(
+        target.id
+        for node in ast.parse(source).body
+        if isinstance(node, ast.Assign) and isinstance(node.value, ast.Call)
+        and isinstance(node.value.func, ast.Name)
+        and bindings.get(node.value.func.id) in {
+            ('typing', 'ParamSpec'), ('typing', 'TypeVar'), ('typing', 'TypeVarTuple'),
+        }
+        for target in node.targets if isinstance(target, ast.Name)
+    )
 
 
 @lru_cache(maxsize=256)
@@ -109,11 +135,14 @@ class Emitter:
         self.importer = importer
         self.namespace = namespace
         self.imports: dict[str, str] = {}
+        self.parameters: dict[tuple[str, str], str] = {}
         self.early: set[str] = set()
         self.protocols: list[str] = []
 
     def binding(self, module: str, *, early: bool = False) -> str:
         """Name an implementation module for calls and runtime annotations."""
+        if module == 'builtins':
+            return '_builtins'
         if module == self.module:
             return ''
         if early:
@@ -129,6 +158,15 @@ class Emitter:
             return self.binding(module, early=early)
         if module == 'builtins':
             return '_builtins.' + name
+        if name in _type_parameters(module, self.root):
+            # ty rejects a module-qualified ParamSpec in a generic argument.
+            # Named imports preserve the same parameter object and binding.
+            # Feature tracking: https://github.com/astral-sh/ty/issues/1889
+            alias = '_parameter_' + module.replace('.', '_') + '_' + name
+            if name.isupper():
+                alias = alias.upper()
+            self.parameters[module, name] = alias
+            return alias
         if module == self.module:
             return self.namespace + "." + name if self.namespace else name
         return self.binding(module, early=early) + '.' + name
@@ -315,9 +353,12 @@ class Emitter:
     def imports_text(self, *, stub: bool = False, after: bool = False) -> str:
         """Publish definitions before importing higher call and annotation modules."""
         direct = [] if after else ['import builtins as _builtins', 'from typing import TYPE_CHECKING, Protocol as _Protocol, Self as _Self, cast as _cast, overload as _overload']
+        if not after:
+            direct.extend(f'from {module} import {name} as {alias}'
+                          for (module, name), alias in sorted(self.parameters.items()))
         if self.namespace:
             if not after:
-                direct.append(f'import {self.module} as {self.namespace}')
+                direct.append(f'import {self.module} as {self.namespace}  # pylint: disable=import-self # postponed annotations resolve PEP 562 exports through their module')
                 # The root declaration provides PEP 562 exports at runtime.
                 # Its implementation needs the same typed module bindings when
                 # mypy checks __init__.py independently of __init__.pyi.

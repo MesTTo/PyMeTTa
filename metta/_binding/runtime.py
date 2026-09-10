@@ -124,15 +124,6 @@ Open Obligations:
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
-from metta._lazy import lazy
-
-if TYPE_CHECKING:
-    import metta._spaces.lifetime as _scope
-else:
-    _scope = lazy('metta._spaces.lifetime')
-
 import importlib
 import logging
 import os
@@ -144,7 +135,14 @@ from collections.abc import Iterator, Mapping
 from contextlib import AbstractContextManager, contextmanager, nullcontext, suppress
 from importlib import resources
 from pathlib import Path
-from typing import Any, NoReturn, Protocol, cast
+from typing import TYPE_CHECKING, Any, NoReturn, Protocol, cast
+
+from metta._lazy import lazy
+
+if TYPE_CHECKING:
+    import metta._spaces.lifetime as _scope
+else:
+    _scope = lazy('metta._spaces.lifetime')
 
 from metta._atoms.model import Atom
 from metta._atoms.wire import _atom_from_wire
@@ -835,7 +833,7 @@ def _refuse_inherited_engine() -> None:
     belongs to the PARENT's engine, and erasing one here is
     ``PL_erase`` against another process's memory.
     """
-    global _LOCK, CONSULT_LOCK  # noqa: PLW0603  -- a fork leaves the old locks held by threads that no longer exist
+    global _LOCK, CONSULT_LOCK  # noqa: PLW0603  # pylint: disable=global-statement # a fork leaves the old locks held by vanished threads
     _LOCK = threading.RLock()
     _CallLocks.lock = _LOCK
     CONSULT_LOCK = threading.Lock()
@@ -897,6 +895,8 @@ def _resolve_metta_path() -> str:
 
 def _bundled_runtime() -> str | None:
     """The wheel's own copy of engine/ and lib/, if this is an installed wheel."""
+    if not __package__:
+        return None
     package = __package__.split('.', 1)[0]
     try:
         root = resources.files(package) / "_runtime"
@@ -973,7 +973,7 @@ def runtime(metta_path: str | None = None, verbose: bool | None = None) -> Runti
     old always-applied False default did (minting a context home did exactly
     that, and the published verbosity setting went quiet).
     """
-    if metta_path is None and verbose is None:
+    if metta_path is verbose is None:
         ready = active_runtime()
         if ready is not None:
             return ready
@@ -1482,10 +1482,6 @@ class Runtime:
         both leave the error exactly as it was: documentation missing is never
         a reason for a refusal to arrive as something else.
         """
-        from metta._atoms.factories import (  # noqa: PLC0415 -- atoms sits above this module
-            _atom_from_wire,
-        )
-
         try:
             row = self._janus.query_once(
                 "metta_py_refusal(Error, _Kind, _Fields, _Class, Ground, Remedy)",
@@ -1519,10 +1515,6 @@ class Runtime:
         both answer EngineError with the ball's own message: documentation
         missing is never a reason for a refusal to arrive as something else.
         """
-        from metta._atoms.factories import (  # noqa: PLC0415 -- atoms sits above this module
-            _atom_from_wire,
-        )
-
         try:
             row = self._janus.query_once(
                 "metta_py_refusal(Error, Kind, Fields, _Class, Ground, Remedy)",

@@ -63,6 +63,7 @@ Open Obligations:
 from __future__ import annotations
 
 import ast
+import collections.abc as _collections_abc
 from typing import Final, NamedTuple
 
 from metta._atoms.factories import Atom, Expression, Symbol, Variable
@@ -322,6 +323,3 @@ def host_delivery(type_atom: Atom) -> ArgumentDelivery:
             host_delivery(member) is ArgumentDelivery.atoms for member in members
         ) else ArgumentDelivery.values)
     return row_for(type_atom).delivery
-
-# Resolve annotations after definitions so peer imports can finish.
-import collections.abc as _collections_abc  # noqa: E402 -- deferred annotation bindings

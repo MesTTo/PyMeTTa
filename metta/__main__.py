@@ -257,7 +257,7 @@ def _run_as_json(m, sources: list[str], form: str) -> int:
                 )
         except (MettaError, OSError, ValueError, TypeError) as error:
             failed = True
-            line = error.line if isinstance(error, MettaSyntaxError) else None
+            line = error.line if isinstance(error, MettaSyntaxError) else None  # pylint: disable=no-member # MettaSyntaxError declares line; the JSON-error regression executes this branch
             _write_json({"error": str(error), "line": line}, sys.stderr.buffer)
     return 1 if failed else 0
 
@@ -596,7 +596,7 @@ def _lint_json(m, files) -> int:
     for path in files:
         for diagnostic in diagnostics(lint_file(path, m=m)):
             found += 1
-            print(_json.dumps({"uri": str(path), **diagnostic}).decode("utf-8"))
+            print(_json.dumps({"uri": str(path)} | diagnostic).decode("utf-8"))
     return 1 if found else 0
 
 
@@ -890,7 +890,7 @@ def _extension_files(name: str) -> dict[str, str]:
     import re  # noqa: PLC0415
 
     from metta._version import __version__  # noqa: PLC0415
-    from metta.doors import Owner, core_rows  # noqa: PLC0415 -- source-only declarations
+    from metta.doors import Family, core_rows  # noqa: PLC0415 -- source-only declarations
 
     # PyPA distinguishes normalized distribution names from import names:
     # https://github.com/pypa/packaging.python.org/blob/f86255b40639f1ed962496a465d67c16d443ce7d/source/specifications/name-normalization.rst
@@ -902,7 +902,7 @@ def _extension_files(name: str) -> dict[str, str]:
     if not module.isidentifier() or keyword.iskeyword(module):
         msg = f"{name!r} does not form a Python module name; start with a letter and choose a non-keyword name"
         raise ValueError(msg)
-    reserved = {row.python for row in core_rows() if row.owner in {Owner.space, Owner.context}}
+    reserved = {row.python for row in core_rows() if row.owner.family is Family.core}
     if module in sys.stdlib_module_names or module == "metta" or module in reserved:
         msg = f"{module!r} is already a Python module or core door; choose another extension name"
         raise ValueError(msg)

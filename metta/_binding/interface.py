@@ -82,7 +82,7 @@ NATIVE_FORWARDS = {
     "metta_py_function_generation": "metta_host_function_generation/1",
     "metta_py_clear": "metta_host_clear_space/1",
     "metta_py_fast_load": "metta_host_load_fast/2",
-    "metta_py_unregister_token": "metta_host_unregister_reader_token/1",
+    "metta_py_unregister_token": "metta_host_unregister_reader_token/1",  # nosec B105 # reader-token predicate indicator
     "metta_py_module": "space_module/2",
     "metta_py_in_module": "with_metta_module/2",
 }

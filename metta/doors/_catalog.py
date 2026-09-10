@@ -166,14 +166,13 @@ def _types() -> list[Atom]:
     out: list[Atom] = [_term(":", result, "Type") for result in dict.fromkeys(result for _, result, _ in schemas)]
     out.append(_term(":<", "DoorDeclaration", "Declaration"))
     for head, result, arguments in schemas:
-        out.append(_term("kind", head, *(
+        out.extend((_term("kind", head, *(
             argument[1] if isinstance(argument, tuple)
             else _term("one-of", by_type[argument]) if argument in by_type
             else "symbol" if argument == "Atom" else "term" for argument in arguments
-        )))
-        out.append(_term(":", head, _term("->", *(
+        )), _term(":", head, _term("->", *(
             argument[0] if isinstance(argument, tuple) else argument for argument in arguments
-        ), result)))
+        ), result))))
     return out
 
 
@@ -200,6 +199,6 @@ def atoms(rows: Iterable[Door]) -> tuple[Atom, ...]:
           for field in fields(EvaluationOptions)),
     ]
     for row in rows:
-        result.append(_contract(row, derived[row.key]))
-        result.append(_term("@doc", _doc_subject(row), _term("@kind", "function"), _term("@desc", _text(row.docs))))
+        result.extend((_contract(row, derived[row.key]),
+                       _term("@doc", _doc_subject(row), _term("@kind", "function"), _term("@desc", _text(row.docs)))))
     return tuple(result)

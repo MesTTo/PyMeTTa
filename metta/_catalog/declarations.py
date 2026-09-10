@@ -57,6 +57,7 @@ Open Obligations:
 
 from __future__ import annotations
 
+import collections.abc as _collections_abc
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, NamedTuple, TypeGuard
 
@@ -401,7 +402,6 @@ from metta._lazy import lazy  # noqa: E402 -- deferred annotation bindings
 
 if TYPE_CHECKING:
     import metta._binding.positions  # noqa: F401 -- child of the annotation namespace
-import collections.abc as _collections_abc  # noqa: E402 -- deferred annotation bindings
 
 if TYPE_CHECKING:
     import metta as _root

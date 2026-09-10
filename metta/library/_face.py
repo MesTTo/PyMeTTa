@@ -68,6 +68,7 @@ from __future__ import annotations
 
 import ast
 import builtins
+import collections.abc as _collections_abc
 import dataclasses
 import importlib
 import inspect
@@ -1092,6 +1093,3 @@ live foreign object or a call made for what it does is `writesState`, and a
 result nothing declares is `oracleIO`, the top, exactly as the engine
 classifies `py-call` itself -- and an `Effect:` line above declares the review
 a signature cannot show."""
-
-# Resolve annotations after definitions so peer imports can finish.
-import collections.abc as _collections_abc  # noqa: E402 -- deferred annotation bindings

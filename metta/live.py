@@ -938,7 +938,7 @@ class Live:
             before, self._held, self._varied = self._held, held, varied
         if not self._consumers:
             return
-        for key in [*held.keys(), *(key for key in before if key not in held)]:
+        for key in (*held.keys(), *(key for key in before if key not in held)):
             diff = held.get(key, 0) - before.get(key, 0)
             if diff:
                 self._emit(

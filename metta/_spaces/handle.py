@@ -34,7 +34,7 @@ def _creation_site() -> tuple[str, int]:
     frame = inspect.currentframe()
     try:
         frame = None if frame is None else frame.f_back
-        package_name = __package__.split('.', 1)[0]
+        package_name = (__package__ or __name__).split('.', 1)[0]
         package_prefix = f"{package_name}."
         while frame is not None:
             module = str(frame.f_globals.get("__name__", ""))
@@ -755,7 +755,7 @@ class SpaceHandle(Handle):
         values: _abc.Mapping[str, Any] | None = None,
         /,
         **named: Any,
-    ) -> _spaces_scope._BoundValues:
+    ) -> _spaces_scope_module._BoundValues:
         """Scope named host values for :meth:`run` without a call flag."""
         bindings = {} if values is None else dict(values)
         if any(
@@ -1114,15 +1114,14 @@ class SpaceHandle(Handle):
 
     @value.setter
     def value(self, value: Any) -> None:
-        Grounded.__dict__['value'].__set__(self, value)
+        Grounded.__dict__['value'].__set__(self, value)  # pylint: disable=unnecessary-dunder-call # delegate to the base slot without re-entering this setter
 
     @value.deleter
     def value(self) -> None:
-        Grounded.__dict__['value'].__delete__(self)
+        Grounded.__dict__['value'].__delete__(self)  # pylint: disable=unnecessary-dunder-call # delegate to the base slot without re-entering this deleter
 
 # Resolve annotations after definitions so peer imports can finish.
 if TYPE_CHECKING:
     import metta as _root
 else:
     _root = lazy('metta')
-import metta._spaces.scope as _spaces_scope  # noqa: E402 -- deferred annotation bindings

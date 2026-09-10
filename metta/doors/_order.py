@@ -163,6 +163,7 @@ def analyse(rows: Iterable[Door], sources: Mapping[str, str]) -> Mapping[str, Or
     records = tuple(rows)
     entries = {row.body.module + "." + row.body.symbol for row in records if row.body}
     lifetimes = {row.body.module + "." + row.body.symbol for row in records
+                 # policy-inventory-exempt: mechanism-internal; reason=context and stream results defer execution to their lifetime protocols; evidence=extensions/python/metta/doors/_analysis.py:CallGraph._evaluate
                  if row.body and row.answers in {AnswersAs.context, AnswersAs.stream}}
     return derive(records, CallGraph(sources, entries, lifetimes).solve())
 

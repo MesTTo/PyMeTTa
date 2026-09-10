@@ -124,8 +124,7 @@ class CallGraph:
 
     def _index(self, scope: _Scope) -> None:
         self.scopes[scope.name] = scope
-        for parameter in scope.parameters:
-            scope.locals.add(parameter.arg)
+        scope.locals.update(parameter.arg for parameter in scope.parameters)
 
         def visit(node: ast.AST) -> None:
             if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
@@ -234,8 +233,10 @@ class CallGraph:
             return frozenset()
         result = set()
         for reference in references:
+            # policy-inventory-exempt: mechanism-internal; reason=abstract typing forms do not identify a concrete receiver class; evidence=extensions/python/metta/doors/_analysis.py:CallGraph._annotation
             if reference.name in {"typing.Any", "typing.Self", "typing.Callable", "collections.abc.Callable"}:
                 continue
+            # policy-inventory-exempt: mechanism-internal; reason=these reference variants carry a class identity usable as an annotation; evidence=extensions/python/metta/doors/_analysis.py:CallGraph._annotation
             if reference.kind in {"class", "external", "instance"}:
                 result.add(Reference("instance", reference.name))
         return frozenset(result)
@@ -251,13 +252,13 @@ class CallGraph:
         if name in seen or name not in self.classes:
             return (name,)
         scope = self.scopes[name]
-        assert isinstance(scope.node, ast.ClassDef)
-        assert scope.parent is not None
+        assert isinstance(scope.node, ast.ClassDef)  # nosec B101 # _bases only receives indexed class scopes
+        assert scope.parent is not None  # nosec B101 # every indexed class has an enclosing scope
         bases = [reference.name for node in scope.node.bases
                  for reference in self._annotation(node, self.scopes[scope.parent])]
         if not scope.node.bases:
             bases = ["builtins.object"]
-        sequences = [list(self._bases(base, seen | {name})) for base in bases] + [bases[:]]
+        sequences = [list(self._bases(base, seen | {name})) for base in bases] + [bases.copy()]
         result = [name]
         while any(sequences):
             sequences = [sequence for sequence in sequences if sequence]
@@ -285,43 +286,9 @@ class CallGraph:
                     result.add(Reference("external", reference.name + "." + member))
                 else:
                     result.add(Reference("unknown", self._where(node, "attribute of an external value")))
+            # policy-inventory-exempt: mechanism-internal; reason=class and instance references resolve members through the MRO; evidence=extensions/python/metta/doors/_analysis.py:CallGraph._class_attribute
             elif reference.kind in {"class", "instance"}:
-                for base in self._bases(reference.name):
-                    initializer = base + ".__init__"
-                    if initializer in self.functions and initializer not in self.facts:
-                        self._schedule(initializer)
-                    members = self._references(self._get((base, member)))
-                    if not members:
-                        if base not in self.classes:
-                            builtin = getattr(builtins, base.removeprefix("builtins."), None)
-                            if (base.startswith("builtins.") and hasattr(builtin, member)) or (
-                                base.split(".", 1)[0] in sys.stdlib_module_names
-                                and not base.startswith("builtins.")
-                                and not base.startswith(("collections.abc.", "typing.", "contextlib.Abstract"))
-                            ):
-                                result.add(Reference("external", base + "." + member))
-                                break
-                            if self._final:
-                                result.add(Reference("unknown", base + "." + member))
-                                break
-                        continue
-                    for value in members:
-                        if value.kind == "function" and reference.kind == "instance":
-                            scope = self.scopes[value.name]
-                            decorators = getattr(scope.node, "decorator_list", ())
-                            if any(ast.unparse(item).rsplit(".", 1)[-1] == "property" for item in decorators):
-                                if node is not None:
-                                    result.update(self._call(frozenset({Reference("bound", value.name, reference.name)}), [], {}, node))
-                            elif any(ast.unparse(item).rsplit(".", 1)[-1] == "staticmethod" for item in decorators):
-                                result.add(value)
-                            else:
-                                result.add(Reference("bound", value.name, reference.name))
-                        else:
-                            result.add(value)
-                    break
-                else:
-                    if self._final and not any(value.name.startswith(reference.name) for value in result):
-                        result.add(Reference("unknown", f"attribute on {reference.name}"))
+                self._class_attribute(reference, member, node, result)
             elif reference.kind == "generator":
                 result.add(Reference("function", reference.name))
             elif reference.kind == "unknown":
@@ -329,6 +296,43 @@ class CallGraph:
             else:
                 result.add(Reference("instance", "builtins.object"))
         return frozenset(result)
+
+    def _class_attribute(self, reference: Reference, member: str, node: ast.AST | None, result: set[Reference]) -> None:
+        """Resolve the first MRO member and apply Python's descriptor binding."""
+        for base in self._bases(reference.name):
+            initializer = base + ".__init__"
+            if initializer in self.functions and initializer not in self.facts:
+                self._schedule(initializer)
+            members = self._references(self._get((base, member)))
+            if not members:
+                if base not in self.classes:
+                    builtin = getattr(builtins, base.removeprefix("builtins."), None)
+                    if (base.startswith("builtins.") and hasattr(builtin, member)) or (
+                        base.split(".", 1)[0] in sys.stdlib_module_names
+                        and not base.startswith(("builtins.", "collections.abc.", "typing.", "contextlib.Abstract"))
+                    ):
+                        result.add(Reference("external", base + "." + member))
+                        return
+                    if self._final:
+                        result.add(Reference("unknown", base + "." + member))
+                        return
+                continue
+            for value in members:
+                if value.kind != "function" or reference.kind != "instance":
+                    result.add(value)
+                    continue
+                scope = self.scopes[value.name]
+                decorators = getattr(scope.node, "decorator_list", ())
+                if any(ast.unparse(item).rsplit(".", 1)[-1] == "property" for item in decorators):
+                    if node is not None:
+                        result.update(self._call(frozenset({Reference("bound", value.name, reference.name)}), [], {}, node))
+                elif any(ast.unparse(item).rsplit(".", 1)[-1] == "staticmethod" for item in decorators):
+                    result.add(value)
+                else:
+                    result.add(Reference("bound", value.name, reference.name))
+            return
+        if self._final and not any(value.name.startswith(reference.name) for value in result):
+            result.add(Reference("unknown", f"attribute on {reference.name}"))
 
     def _where(self, node: ast.AST, reason: str) -> str:
         return f"{self.current}:{getattr(node, 'lineno', 0)}: {reason} ({ast.unparse(node)})"
@@ -360,6 +364,7 @@ class CallGraph:
             if reference.kind == "instance":
                 result.update(self._protocol(frozenset({reference}), "__call__", node))
                 continue
+            # policy-inventory-exempt: mechanism-internal; reason=plain and bound function references carry indexed callable scopes; evidence=extensions/python/metta/doors/_analysis.py:CallGraph._call
             if reference.kind in {"function", "bound"}:
                 name = reference.name
                 scope = self.scopes[name]
@@ -391,11 +396,14 @@ class CallGraph:
                     self.native.add(self._where(node, name))
                 elif root not in sys.stdlib_module_names and root != "builtins":
                     self.open.add(self._where(node, f"external call {name}"))
+                # policy-inventory-exempt: mechanism-internal; reason=typing identity helpers return their second argument unchanged; evidence=extensions/python/metta/doors/_analysis.py:CallGraph._call
                 if name in {"typing.cast", "typing.assert_type"} and len(positional) > 1:
                     result.update(positional[1])
+                # policy-inventory-exempt: mechanism-internal; reason=ordinary and deferred module loaders resolve the literal module argument; evidence=extensions/python/metta/doors/_analysis.py:CallGraph._call
                 elif name in {"importlib.import_module", "metta._lazy.lazy"}:
                     if isinstance(node, ast.Call) and node.args and isinstance(node.args[0], ast.Constant) and isinstance(node.args[0].value, str):
                         result.update(self._symbol(node.args[0].value))
+                # policy-inventory-exempt: mechanism-internal; reason=both attribute helpers access the member named by their second argument; evidence=extensions/python/metta/doors/_analysis.py:CallGraph._call
                 elif name in {"builtins.getattr", "builtins.hasattr"} and len(positional) > 1:
                     if isinstance(node, ast.Call) and isinstance(node.args[1], ast.Constant) and isinstance(node.args[1].value, str):
                         result.update(self._attribute(positional[0], node.args[1].value, node))
@@ -410,6 +418,7 @@ class CallGraph:
                         self._protocol(positional[0], protocols[name], node)
                     if "key" in keywords:
                         self._call(keywords["key"], [], {}, node)
+                    # policy-inventory-exempt: mechanism-internal; reason=these higher-order standard operations invoke their first argument; evidence=extensions/python/metta/doors/_analysis.py:CallGraph._call
                     if name in {"builtins.map", "builtins.filter", "functools.reduce"} and positional:
                         self._call(positional[0], positional[1:], {}, node)
                     target = getattr(builtins, name.removeprefix("builtins."), None) if root == "builtins" else None
@@ -421,6 +430,7 @@ class CallGraph:
             if reference.kind == "unknown":
                 self.open.add(self._where(node, reference.name))
                 result.add(reference)
+            # policy-inventory-exempt: mechanism-internal; reason=callable reference cases already handled above must not become unresolved calls; evidence=extensions/python/metta/doors/_analysis.py:CallGraph._call
             elif reference.kind not in {"class", "instance", "function", "bound", "external"} and self._final:
                 self.open.add(self._where(node, f"unresolved callable {reference.name}"))
         return frozenset(result)
@@ -504,6 +514,7 @@ class CallGraph:
             self._put(self._slot(scope, node.id), values)
         elif isinstance(node, ast.Attribute):
             for reference in self._value(node.value, scope):
+                # policy-inventory-exempt: mechanism-internal; reason=only class and instance references own indexed attribute assignments; evidence=extensions/python/metta/doors/_analysis.py:CallGraph._assign
                 if reference.kind in {"class", "instance"} and reference.name in self.classes:
                     self._put((reference.name, node.attr), values)
         elif isinstance(node, (ast.Tuple, ast.List)):
@@ -525,6 +536,7 @@ class CallGraph:
             if {reference.name for reference in functions} == {"builtins.isinstance"}:
                 slot = self._slot(scope, test.args[0].id)
                 classes = {reference.name for reference in self._value(test.args[1], scope)
+                           # policy-inventory-exempt: mechanism-internal; reason=isinstance narrowing reads locally indexed or external class objects; evidence=extensions/python/metta/doors/_analysis.py:CallGraph._narrow
                            if reference.kind in {"class", "external"}}
                 def matches(reference: Reference) -> bool:
                     return bool(classes.intersection(self._bases(reference.name)))
@@ -610,6 +622,7 @@ class CallGraph:
         self.targets, self.native, self.open = set(), set(), set()
         for index, parameter in enumerate(scope.parameters):
             values = self._annotation(parameter.annotation, scope)
+            # policy-inventory-exempt: mechanism-internal; reason=Python method receiver conventions seed the enclosing class identity; evidence=extensions/python/metta/doors/_analysis.py:CallGraph._evaluate
             if index == 0 and scope.owner and parameter.arg in {"self", "cls"}:
                 values |= frozenset({Reference("instance" if parameter.arg == "self" else "class", scope.owner)})
             self._put((scope.name, parameter.arg), values)

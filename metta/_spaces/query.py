@@ -372,7 +372,7 @@ def match(
         )
     cursor = _spaces_cursor_module.Cursor(space, patterns, where, timeout, inferences, limit=limit)
 
-    def source() -> Iterator[_spaces_results._AnswerItem]:
+    def source() -> Iterator[_spaces_results_module._AnswerItem]:
         pulled = 0
         try:
             while limit is None or pulled < limit:
@@ -470,7 +470,7 @@ def _match_under(
             )
         return tagged_route
 
-    def tagged_source() -> Iterator[_spaces_results._AnswerItem]:
+    def tagged_source() -> Iterator[_spaces_results_module._AnswerItem]:
         if len(patterns) != 1:
             msg = "a tagged algebra query takes one proposition pattern"
             raise algebra_api.AlgebraEvaluationError(msg)
@@ -501,8 +501,8 @@ def _match_under(
             yield _spaces_results_module._AnswerItem(answer, row)
 
     def engine_source(
-        *, evaluation_context: _spaces_scope.EvaluationContext = context
-    ) -> Iterator[_spaces_results._AnswerItem]:
+        *, evaluation_context: _spaces_scope_module.EvaluationContext = context
+    ) -> Iterator[_spaces_results_module._AnswerItem]:
         cursor = _spaces_cursor_module.Cursor(
             space,
             patterns,
@@ -525,8 +525,8 @@ def _match_under(
             cursor.close()
 
     def bounded_engine_source(
-        stop: int, shared: Iterable[_spaces_results._AnswerItem]
-    ) -> Iterable[_spaces_results._AnswerItem]:
+        stop: int, shared: Iterable[_spaces_results_module._AnswerItem]
+    ) -> Iterable[_spaces_results_module._AnswerItem]:
         if (
             len(patterns) != 1
             or where is not None
@@ -536,7 +536,7 @@ def _match_under(
             return shared
         bounded_limit = stop if limit is None else min(stop, limit)
 
-        def bounded() -> Iterator[_spaces_results._AnswerItem]:
+        def bounded() -> Iterator[_spaces_results_module._AnswerItem]:
             promises = space._rt.once(
                 "seam:foreign_space(Space), metta_source(Space, Kind)",
                 Space=space._space,
@@ -554,7 +554,7 @@ def _match_under(
 
         return bounded()
 
-    def source() -> Iterator[_spaces_results._AnswerItem]:
+    def source() -> Iterator[_spaces_results_module._AnswerItem]:
         if has_tagged_program():
             yield from tagged_source()
         else:
@@ -648,7 +648,7 @@ def stream(
     timeout: float | None = None,
     inferences: int | None = None,
     under: Any = _UNSET,
-) -> _spaces_cursor.Cursor:
+) -> _spaces_cursor_module.Cursor:
     """match(), pulled: the same conjunction and guard, answered one
     row at a time through a cursor the engine holds open.
 
@@ -775,6 +775,3 @@ if TYPE_CHECKING:
     import metta as _root
 else:
     _root = lazy('metta')
-import metta._spaces.cursor as _spaces_cursor  # noqa: E402 -- deferred annotation bindings
-import metta._spaces.results as _spaces_results  # noqa: E402 -- deferred annotation bindings
-import metta._spaces.scope as _spaces_scope  # noqa: E402 -- deferred annotation bindings

@@ -418,9 +418,7 @@ def connect(
 
     def transport(operation: str, payload: dict) -> dict:
         logger.debug("sending remote engine operation %s", operation)
-        asked = sent if payload.get("format") != "arrow" else {
-            **sent, "accept": _arrow.IPC_MEDIA_TYPE
-        }
+        asked = sent if payload.get("format") != "arrow" else sent | {"accept": _arrow.IPC_MEDIA_TYPE}
         try:
             status, reason, raw, received = endpoint.request(
                 "POST",

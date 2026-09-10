@@ -42,6 +42,7 @@ from typing import Any
 
 # The runtime dependency does not publish typing metadata.
 import docstring_parser as _docstring_parser  # type: ignore[import-not-found]
+import docstring_parser.google as _google_docstrings  # type: ignore[import-not-found]  # the declared Google-section parser
 
 from metta._atoms.factories import Atom, Expression, S, _expr, parse
 from metta._catalog.annotations import metta_type_for
@@ -53,7 +54,7 @@ parse_docstring = _docstring_parser.parse
 #: than listed here, so a section it learns to read is a section this stops
 #: swallowing into a summary.
 _SECTION_TITLES = frozenset(
-    f"{section.title}:" for section in _docstring_parser.google.DEFAULT_SECTIONS
+    f"{section.title}:" for section in _google_docstrings.DEFAULT_SECTIONS
 )
 
 __all__ = ["attribute_docstrings", "documentation_atom", "first_paragraph"]

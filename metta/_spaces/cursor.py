@@ -259,7 +259,7 @@ class Cursor:
         inferences: int | None,
         *,
         limit: int | None = None,
-        context: _spaces_scope.EvaluationContext | None = None,
+        context: _spaces_scope_module.EvaluationContext | None = None,
         capture: Any = None,
     ) -> None:
         if context is not None:
@@ -630,4 +630,3 @@ if TYPE_CHECKING:
     import metta as _root
 else:
     _root = lazy('metta')
-import metta._spaces.scope as _spaces_scope  # noqa: E402 -- deferred annotation bindings

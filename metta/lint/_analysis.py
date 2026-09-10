@@ -484,7 +484,7 @@ def _operation_in_higher_order_call(
     head = _symbol_head(call)
     candidate: Atom | None = None
     body: Atom | None = None
-    # policy-inventory-exempt: mechanism-internal; reason=map-atom and filter-atom are the two higher-order engine iterator heads whose callback position has the same crossing shape; evidence=extensions/python/metta/_lint_analysis.py:_operation_in_higher_order_call
+    # policy-inventory-exempt: mechanism-internal; reason=map-atom and filter-atom are the two higher-order engine iterator heads whose callback position has the same crossing shape; evidence=extensions/python/metta/lint/_analysis.py:_operation_in_higher_order_call
     if head in {"map-atom", "filter-atom"}:
         if len(call) == 3:
             candidate = call[2]

@@ -63,6 +63,7 @@ Open Obligations:
 
 from __future__ import annotations
 
+import collections.abc as _collections_abc
 import importlib.abc
 import importlib.machinery
 import importlib.util
@@ -465,6 +466,5 @@ def installed() -> tuple[Finder, ...]:
     return tuple(finder for finder in sys.meta_path if isinstance(finder, Finder))
 
 # Resolve annotations after definitions so peer imports can finish.
-import collections.abc as _collections_abc  # noqa: E402 -- deferred annotation bindings
 
 import metta._catalog.declarations as _catalog_declarations  # noqa: E402 -- deferred annotation bindings

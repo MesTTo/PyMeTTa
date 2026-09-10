@@ -734,7 +734,7 @@ def _record(space: Any, source: Atom | str, *,
     # only place the number lives: a seed the engine chose would have to be
     # reported back out of the trace door to be recorded at all.
     chosen = (
-        random.randrange(1, 2**31 - 1)  # noqa: S311  -- a replay seed reproduces a run; nothing here is a secret
+        random.randrange(1, 2**31 - 1)  # noqa: S311  # nosec B311 # reproducible replay seed
         if seed is None
         else int(seed)
     )

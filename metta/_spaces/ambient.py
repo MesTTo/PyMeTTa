@@ -10,6 +10,7 @@ extensions/python/metta/_spaces/ambient.py:50; commit=cd62330ceacc8f1254eed9791c
 
 from __future__ import annotations
 
+import collections.abc as _collections_abc
 import functools as _functools
 import importlib as _importlib
 import os as _os
@@ -234,7 +235,6 @@ def under(algebra: _Any):
     return scoped.ScopedUnder(algebra)
 
 # Resolve annotations after definitions so peer imports can finish.
-import collections.abc as _collections_abc  # noqa: E402 -- deferred annotation bindings
 
 if TYPE_CHECKING:
     import metta as _root

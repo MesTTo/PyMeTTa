@@ -512,6 +512,7 @@ def _callable_code(fn: Callable) -> Any:
         current = call
     return None
 
+# policy-inventory-exempt: codec-version-identity; reason=the operation bridge carries encoded atoms or raw host values; evidence=extensions/python/metta/_declare/operations.py:_operation_kind
 Transport = Literal["encoded", "raw"]
 
 def _operation_kind(fn: Callable, transport: Transport) -> str:

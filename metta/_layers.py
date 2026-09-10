@@ -11,6 +11,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from graphlib import TopologicalSorter
+from itertools import chain
 from types import MappingProxyType
 from typing import Literal
 
@@ -72,7 +73,7 @@ def analyse(
     graph: Mapping[str, tuple[str, ...]] = BUILDS_ON,
 ) -> tuple[dict[str, int], dict[str, frozenset[str]]]:
     """Return longest-path orders and transitive foundations of a complete DAG."""
-    unknown = {base for bases in graph.values() for base in bases} - graph.keys()
+    unknown = set(chain.from_iterable(graph.values())) - graph.keys()
     if unknown:
         msg = f"undeclared package foundations: {', '.join(sorted(unknown))}"
         raise ValueError(msg)
@@ -105,6 +106,7 @@ def package_of(module: str) -> str:
     return name
 
 
+# policy-inventory-exempt: mechanism-internal; reason=the two Python import strategies selected by the package dependency relation; evidence=extensions/python/metta/_layers.py:binding_mode
 def binding_mode(module: str, importer: str = "_faces") -> Literal["direct", "lazy"]:
     """Choose a direct foundation call or a strictly higher deferred call."""
     target = package_of(module)

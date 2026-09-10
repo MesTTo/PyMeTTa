@@ -51,6 +51,7 @@ Open Obligations:
 
 from __future__ import annotations
 
+import collections.abc as _collections_abc
 import functools
 import hashlib
 import os
@@ -475,6 +476,3 @@ def require(rt: Any, lock: Lock, source: str | os.PathLike[str] | None = None) -
     drifts = check(rt, lock)
     if drifts:
         raise LockDrift(drifts, source=source)
-
-# Resolve annotations after definitions so peer imports can finish.
-import collections.abc as _collections_abc  # noqa: E402 -- deferred annotation bindings

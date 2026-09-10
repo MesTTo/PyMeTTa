@@ -251,9 +251,7 @@ class Remedy:
             )
             raise ValueError(msg)
         if (
-            self.edit is None
-            and self.replace is None
-            and self.python is None
+            self.edit is self.replace is self.python is None
             and self.applicability != "prose"
         ):
             msg = (
@@ -398,9 +396,9 @@ def refusing[ExcT: BaseException](
     `getattr(error, "remedy", None)` whatever the class is.
     """
     if remedy is not None:
-        error.remedy = remedy  # type: ignore[attr-defined]  # the carrier is the instance dict, which every exception has
+        error.__dict__["remedy"] = remedy
     if ground is not None:
-        error.ground = ground  # type: ignore[attr-defined]  # the carrier is the instance dict, which every exception has
+        error.__dict__["ground"] = ground
     return error
 
 

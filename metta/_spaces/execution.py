@@ -245,7 +245,7 @@ def _controlled_run(
     limits: tuple[float, int, int] | None,
     *,
     policy: _ExecutionPolicy | None = None,
-    context: _spaces_scope.EvaluationContext | None = None,
+    context: _spaces_scope_module.EvaluationContext | None = None,
     evaluation_options: dict[str, Any] | None = None,
 ) -> Any:
     """Execute one engine target through the complete task-local policy.
@@ -381,7 +381,7 @@ def profile_source(
     *,
     timeout: float | None,
     inferences: int | None,
-) -> tuple[list[list[Atom]], _spaces_profile.EngineProfile]:
+) -> tuple[list[list[Atom]], _spaces_profile_module.EngineProfile]:
     predicate, inputs = _run_target(space, source, using)
     output, samples, ticks, seconds, nodes = _controlled_run(
         rt,
@@ -427,7 +427,7 @@ def profile_extension(
     *,
     timeout: float | None,
     inferences: int | None,
-) -> tuple[list[list[Atom]], list[_spaces_profile.FunctionCost]]:
+) -> tuple[list[list[Atom]], list[_spaces_profile_module.FunctionCost]]:
     """Run source under the profiler and report only the named functions.
 
     The sampler already answers per predicate; what it cannot say is which
@@ -438,7 +438,7 @@ def profile_extension(
         rt, space, source, using, timeout=timeout, inferences=inferences
     )
     measured = _profiled_rows(profile.nodes)
-    costs: list[_spaces_profile.FunctionCost] = []
+    costs: list[_spaces_profile_module.FunctionCost] = []
     for name in names:
         tier, detail, arities, determinism = _controlled_run(
             rt, "metta_py_function_shape", [name], None
@@ -480,7 +480,7 @@ def evaluate(
     inferences: int | None,
     *,
     using: dict[str, Any] | None = None,
-    context: _spaces_scope.EvaluationContext | None = None,
+    context: _spaces_scope_module.EvaluationContext | None = None,
 ) -> list[Atom | Undefined]:
     encoded = target if isinstance(target, str) else _to_atom(target).to_wire()
     wires = _controlled_run(
@@ -497,7 +497,7 @@ def evaluate_accounted(
     timeout: float | None,
     inferences: int,
     *,
-    context: _spaces_scope.EvaluationContext,
+    context: _spaces_scope_module.EvaluationContext,
 ) -> tuple[list[Atom | Undefined], int]:
     """Evaluate once and return the engine work to debit from an outer quota."""
     encoded = target if isinstance(target, str) else _to_atom(target).to_wire()
@@ -679,7 +679,7 @@ def evaluate_answers(
     inferences: int | None,
     *,
     using: dict[str, Any] | None = None,
-    context: _spaces_scope.EvaluationContext | None = None,
+    context: _spaces_scope_module.EvaluationContext | None = None,
     annotation_factory: Callable[[Any, Atom], Any] | None = None,
 ) -> _root.Answers[Any]:
     """Return evaluation as a cached lazy answer sequence.
@@ -944,5 +944,3 @@ if TYPE_CHECKING:
     import metta as _root
 else:
     _root = lazy('metta')
-import metta._spaces.profile as _spaces_profile  # noqa: E402 -- deferred annotation bindings
-import metta._spaces.scope as _spaces_scope  # noqa: E402 -- deferred annotation bindings

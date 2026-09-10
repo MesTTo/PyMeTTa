@@ -103,7 +103,6 @@ from metta.vocabularies import SemiringOrder as _SemiringOrder
 
 # isort: split
 # begin generated root imports
-import builtins as _body_builtins
 import collections.abc as _body_collections_abc
 import os as _body_os
 import typing as _body_typing
@@ -120,6 +119,9 @@ import metta._spaces.profile as _body_metta__spaces_profile
 import metta._spaces.scope as _body_metta__spaces_scope
 import metta.doors as _body_metta_doors
 import metta.vocabularies as _body_metta_vocabularies
+from metta._atoms.designation import _P as _PARAMETER_METTA__ATOMS_DESIGNATION__P
+from metta._atoms.designation import _R as _PARAMETER_METTA__ATOMS_DESIGNATION__R
+from metta._atoms.designation import _T as _PARAMETER_METTA__ATOMS_DESIGNATION__T
 
 # end generated root imports
 # isort: split
@@ -269,7 +271,7 @@ def match(
     timeout: _builtins.float | None=...,
     inferences: _builtins.int | None=...,
     under: _body_typing.Any=...,
-    into: _body_builtins.type | None=...,
+    into: _builtins.type | None=...,
     **values: _body_typing.Any,
 ) -> _body_typing.Any:
     ...
@@ -309,41 +311,41 @@ def remove(atom: _body_typing.Any, *more: _body_typing.Any) -> _builtins.bool | 
 @_overload
 @_body_typing.dataclass_transform(eq_default=False)
 def define(  # type: ignore[overload-overlap]
-    fn: _body_builtins.type[_body_metta__atoms_designation._T],
+    fn: _builtins.type[_PARAMETER_METTA__ATOMS_DESIGNATION__T],
     /,
     *,
     accessors: _builtins.bool=...,
     methods: _builtins.bool=...,
-) -> _body_builtins.type[_body_metta__atoms_designation._T]:
+) -> _builtins.type[_PARAMETER_METTA__ATOMS_DESIGNATION__T]:
     ...
 @_overload
 def define(
-    fn: _body_collections_abc.Callable[_body_metta__atoms_designation._P, _body_metta__atoms_designation._R],
+    fn: _body_collections_abc.Callable[_PARAMETER_METTA__ATOMS_DESIGNATION__P, _PARAMETER_METTA__ATOMS_DESIGNATION__R],
     /,
     *,
     name: _builtins.str | None=...,
     accessors: _builtins.bool=...,
     methods: _builtins.bool=...,
-) -> Defined[_body_metta__atoms_designation._P, _body_metta__atoms_designation._R]:
+) -> Defined[_PARAMETER_METTA__ATOMS_DESIGNATION__P, _PARAMETER_METTA__ATOMS_DESIGNATION__R]:
     ...
 @_overload
 def define(
     *,
     name: _builtins.str,
-) -> _body_collections_abc.Callable[[_body_collections_abc.Callable[_body_metta__atoms_designation._P, _body_metta__atoms_designation._R]], Defined[_body_metta__atoms_designation._P, _body_metta__atoms_designation._R]]:
+) -> _body_collections_abc.Callable[[_body_collections_abc.Callable[_PARAMETER_METTA__ATOMS_DESIGNATION__P, _PARAMETER_METTA__ATOMS_DESIGNATION__R]], Defined[_PARAMETER_METTA__ATOMS_DESIGNATION__P, _PARAMETER_METTA__ATOMS_DESIGNATION__R]]:
     ...
 @_overload
 def define(
     *,
     prolog: _builtins.str | _body_os.PathLike[_builtins.str],
     name: _builtins.str | None=...,
-) -> _body_collections_abc.Callable[[_body_collections_abc.Callable[_body_metta__atoms_designation._P, _body_metta__atoms_designation._R]], _body_metta__declare_define.PrologBacked[_body_metta__atoms_designation._P, _body_metta__atoms_designation._R]]:
+) -> _body_collections_abc.Callable[[_body_collections_abc.Callable[_PARAMETER_METTA__ATOMS_DESIGNATION__P, _PARAMETER_METTA__ATOMS_DESIGNATION__R]], _body_metta__declare_define.PrologBacked[_PARAMETER_METTA__ATOMS_DESIGNATION__P, _PARAMETER_METTA__ATOMS_DESIGNATION__R]]:
     ...
 def doc(atom: _body_typing.Any) -> _body_metta__atoms_factories.Atom:
     ...
 @_overload
 def op(
-    fn: _body_collections_abc.Callable[_body_metta__atoms_designation._P, _body_metta__atoms_designation._R],
+    fn: _body_collections_abc.Callable[_PARAMETER_METTA__ATOMS_DESIGNATION__P, _PARAMETER_METTA__ATOMS_DESIGNATION__R],
     /,
     *,
     name: _builtins.str | None=...,
@@ -352,7 +354,7 @@ def op(
     declarations: _body_collections_abc.Iterable[_body_metta__atoms_factories.Atom]=...,
     arities: _builtins.list[_builtins.int] | None=...,
     inverse: _body_collections_abc.Callable | None=...,
-) -> _body_collections_abc.Callable[_body_metta__atoms_designation._P, _body_metta__atoms_designation._R]:
+) -> _body_collections_abc.Callable[_PARAMETER_METTA__ATOMS_DESIGNATION__P, _PARAMETER_METTA__ATOMS_DESIGNATION__R]:
     ...
 @_overload
 def op(
@@ -363,7 +365,7 @@ def op(
     declarations: _body_collections_abc.Iterable[_body_metta__atoms_factories.Atom]=...,
     arities: _builtins.list[_builtins.int] | None=...,
     inverse: _body_collections_abc.Callable | None=...,
-) -> _body_collections_abc.Callable[[_body_collections_abc.Callable[_body_metta__atoms_designation._P, _body_metta__atoms_designation._R]], _body_collections_abc.Callable[_body_metta__atoms_designation._P, _body_metta__atoms_designation._R]]:
+) -> _body_collections_abc.Callable[[_body_collections_abc.Callable[_PARAMETER_METTA__ATOMS_DESIGNATION__P, _PARAMETER_METTA__ATOMS_DESIGNATION__R]], _body_collections_abc.Callable[_PARAMETER_METTA__ATOMS_DESIGNATION__P, _PARAMETER_METTA__ATOMS_DESIGNATION__R]]:
     ...
 def pure(
     fn: _body_collections_abc.Callable | None=...,

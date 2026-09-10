@@ -192,7 +192,7 @@ def apply(space, findings: list[Finding] | None = None) -> Repair:
             continue
         remedy = finding.remedy
         # _unapplicable answered None, so the remedy is present and applicable.
-        assert remedy is not None
+        assert remedy is not None  # nosec B101 # _unapplicable already established an actionable remedy
         if remedy.replace is not None:
             stored, replacement = remedy.replace
             if not target.remove(stored):
@@ -339,7 +339,7 @@ def _unapplicable(finding: Finding) -> str | None:
         return "the finding carries no remedy"
     if remedy.applicability != _APPLIED:
         return f"the remedy is {remedy.applicability}, not {_APPLIED}"
-    if remedy.replace is None and remedy.edit is None:
+    if remedy.replace is remedy.edit is None:
         return "the remedy is host text rather than an edit"
     return None
 
@@ -361,7 +361,7 @@ def _rewritten(finding: Finding, renaming: dict[str, str]) -> str:
     """
     remedy = finding.remedy
     # Only a finding _unapplicable cleared reaches here.
-    assert remedy is not None
+    assert remedy is not None  # nosec B101 # _unapplicable already established an actionable remedy
     parts: list[Atom] = []
     if remedy.replace is not None and remedy.replace[1] is not None:
         parts.append(remedy.replace[1])

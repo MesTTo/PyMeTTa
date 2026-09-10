@@ -30,8 +30,6 @@ if TYPE_CHECKING:
     from metta._faces.space import Space
 
 
-from typing import TYPE_CHECKING
-
 if TYPE_CHECKING:
     import metta.library._lock
 

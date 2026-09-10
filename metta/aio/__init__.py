@@ -12,7 +12,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Final
 
-import metta.aio as _aio
+import metta.aio as _aio  # pylint: disable=import-self # resolve deferred exports through PEP 562 without publishing a lazy child at import time
 from metta._atoms.designation import _DEFAULT_SPACE
 from metta._atoms.factories import Expression, Symbol
 from metta._lazy import lazy as _lazy

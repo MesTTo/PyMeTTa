@@ -39,6 +39,7 @@ Open Obligations:
 
 from __future__ import annotations
 
+import collections.abc as _collections_abc
 import re
 from typing import TYPE_CHECKING, Any, Final, NamedTuple
 
@@ -358,17 +359,15 @@ def _json_body(schema: str) -> dict[str, Any]:
 
 def _responses(schema: str, *, secured: bool) -> dict[str, Any]:
     answers: dict[str, Any] = {
-        "200": {"description": "the operation's answer", **_json_body(schema)},
+        "200": {"description": "the operation's answer"} | _json_body(schema),
         "400": {
             "description": "the engine refused the operation, and says why",
-            **_json_body("Error"),
-        },
+        } | _json_body("Error"),
     }
     if secured:
         answers["401"] = {
             "description": "the credential or the authorization hook refused",
-            **_json_body("Error"),
-        }
+        } | _json_body("Error")
     return answers
 
 
@@ -378,7 +377,7 @@ def _paths(*, secured: bool) -> dict[str, Any]:
             "post": {
                 "operationId": name,
                 "summary": summary,
-                "requestBody": {"required": True, **_json_body(request)},
+                "requestBody": {"required": True} | _json_body(request),
                 "responses": _responses(response, secured=secured),
             }
         }
@@ -781,7 +780,6 @@ __all__ = [
 ]
 
 # Resolve annotations after definitions so peer imports can finish.
-import collections.abc as _collections_abc  # noqa: E402 -- deferred annotation bindings
 
 from metta._lazy import lazy  # noqa: E402 -- deferred annotation bindings
 

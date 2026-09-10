@@ -24,6 +24,7 @@ from collections.abc import Callable, Iterator, Mapping
 from dataclasses import dataclass
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from itertools import islice
+from types import MappingProxyType
 from typing import Any, NamedTuple, Self
 
 import metta._binding.json as _json
@@ -264,7 +265,7 @@ def _atoms_of(payload: dict, name: str) -> list[Atom]:
         )
     return [_atom_from_wire(wire) for wire in wires]
 
-_NO_HEADERS: Mapping[str, str] = {}
+_NO_HEADERS: Mapping[str, str] = MappingProxyType({})
 
 def _wants_arrow(headers: Mapping[str, str]) -> bool:
     """Whether an Accept header asks for the Arrow IPC streaming format.
@@ -289,7 +290,7 @@ def _requested(operation: str, headers: Mapping[str, str], payload: dict) -> dic
     """
     if operation not in ("ask", "next") or not _wants_arrow(headers):
         return payload
-    return {**payload, "format": "arrow"}
+    return payload | {"format": "arrow"}
 
 def _arrow_response(answer: dict, status: int) -> _Reply | None:
     """An Arrow reply as its status, bytes, media type and headers, or None.

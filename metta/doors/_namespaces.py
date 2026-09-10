@@ -8,12 +8,12 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Protocol
 
 if TYPE_CHECKING:
-    import metta_arrays_doors as _body_0  # type: ignore[import-not-found, unused-ignore]
-    import metta_live as _body_1  # type: ignore[import-not-found, unused-ignore]
-    import metta_pandas as _body_2  # type: ignore[import-not-found, unused-ignore]
-    import metta_polars as _body_3  # type: ignore[import-not-found, unused-ignore]
-    import metta_remote as _body_4  # type: ignore[import-not-found, unused-ignore]
-    import metta_tables as _body_5  # type: ignore[import-not-found, unused-ignore]
+    import metta_arrays_doors as _body_0  # type: ignore[import-not-found, unused-ignore]  # ty: ignore[unresolved-import] -- optional provider declarations remain typed when installed
+    import metta_live as _body_1  # type: ignore[import-not-found, unused-ignore]  # ty: ignore[unresolved-import] -- optional provider declarations remain typed when installed
+    import metta_pandas as _body_2  # type: ignore[import-not-found, unused-ignore]  # ty: ignore[unresolved-import] -- optional provider declarations remain typed when installed
+    import metta_polars as _body_3  # type: ignore[import-not-found, unused-ignore]  # ty: ignore[unresolved-import] -- optional provider declarations remain typed when installed
+    import metta_remote as _body_4  # type: ignore[import-not-found, unused-ignore]  # ty: ignore[unresolved-import] -- optional provider declarations remain typed when installed
+    import metta_tables as _body_5  # type: ignore[import-not-found, unused-ignore]  # ty: ignore[unresolved-import] -- optional provider declarations remain typed when installed
 
     import metta._spaces.results as _results
 
@@ -72,7 +72,6 @@ class ArraysContext(Protocol):
         dropping the space retires the row with it. Two spaces may therefore hold
         two libraries at once, in either install order, each answering its own.
         """
-        ...
 
     def uninstall(self) -> list[str]:
         """Retire this space's array installation; answers what it unregistered.
@@ -107,7 +106,6 @@ class ArraysContext(Protocol):
 
         m may be a context or a space, as `install` takes either.
         """
-        ...
 
     def ops(self) -> list[str]:
         """The array operation names installed in this space, in install order.
@@ -126,7 +124,6 @@ class ArraysContext(Protocol):
         ordinary matchable data: `!(match &metta (array-backend &s $lib $ops) $ops)`.
         A space with no install refuses, naming install as the remedy.
         """
-        ...
 
     def backend(self) -> str:
         """The array library this space's constructors build in.
@@ -137,7 +134,6 @@ class ArraysContext(Protocol):
         the row behind both is `(array-backend <space> <library> (ops ...))` in
         `&metta`.
         """
-        ...
 
 
 class ArraysSync(Protocol):
@@ -194,7 +190,6 @@ class ArraysSync(Protocol):
         dropping the space retires the row with it. Two spaces may therefore hold
         two libraries at once, in either install order, each answering its own.
         """
-        ...
 
     def uninstall(self) -> list[str]:
         """Retire this space's array installation; answers what it unregistered.
@@ -229,7 +224,6 @@ class ArraysSync(Protocol):
 
         m may be a context or a space, as `install` takes either.
         """
-        ...
 
     def ops(self) -> list[str]:
         """The array operation names installed in this space, in install order.
@@ -248,7 +242,6 @@ class ArraysSync(Protocol):
         ordinary matchable data: `!(match &metta (array-backend &s $lib $ops) $ops)`.
         A space with no install refuses, naming install as the remedy.
         """
-        ...
 
     def backend(self) -> str:
         """The array library this space's constructors build in.
@@ -259,7 +252,6 @@ class ArraysSync(Protocol):
         the row behind both is `(array-backend <space> <library> (ops ...))` in
         `&metta`.
         """
-        ...
 
 
 class LiveContext(Protocol):
@@ -277,7 +269,6 @@ class LiveContext(Protocol):
         changes() reads its progress and deltas. strategy selects pattern, heads,
         or tabled maintenance; omitting it selects from the query's shape.
         """
-        ...
 
     def __call__(
         self,
@@ -291,7 +282,6 @@ class LiveContext(Protocol):
         changes() reads its progress and deltas. strategy selects pattern, heads,
         or tabled maintenance; omitting it selects from the query's shape.
         """
-        ...
 
 
 class LiveSync(Protocol):
@@ -309,7 +299,6 @@ class LiveSync(Protocol):
         changes() reads its progress and deltas. strategy selects pattern, heads,
         or tabled maintenance; omitting it selects from the query's shape.
         """
-        ...
 
     def __call__(
         self,
@@ -323,7 +312,6 @@ class LiveSync(Protocol):
         changes() reads its progress and deltas. strategy selects pattern, heads,
         or tabled maintenance; omitting it selects from the query's shape.
         """
-        ...
 
 
 class RemoteContext(Protocol):
@@ -351,7 +339,6 @@ class RemoteContext(Protocol):
         An unadvertised extension leaves mutations unkeyed, and OutcomeUnknown
         refuses to resend those requests after a lost response.
         """  # noqa: D205 -- preserve the declared documentation
-        ...
 
     def serve(
         self,
@@ -400,7 +387,6 @@ class RemoteContext(Protocol):
 
         m may be a context or a space, as Gateway takes either.
         """
-        ...
 
 
 class RemoteSync(Protocol):
@@ -428,7 +414,6 @@ class RemoteSync(Protocol):
         An unadvertised extension leaves mutations unkeyed, and OutcomeUnknown
         refuses to resend those requests after a lost response.
         """  # noqa: D205 -- preserve the declared documentation
-        ...
 
     def serve(
         self,
@@ -477,7 +462,6 @@ class RemoteSync(Protocol):
 
         m may be a context or a space, as Gateway takes either.
         """
-        ...
 
 
 class TablesContext(Protocol):
@@ -485,11 +469,9 @@ class TablesContext(Protocol):
 
     def to_df(self, rows: _body_2.Any) -> _body_2.Any:
         """These rows as a pandas DataFrame; the declared point rows.to('pandas')."""
-        ...
 
     def to_pl(self, rows: _body_3.Any) -> _body_3.Any:
         """These rows as a polars DataFrame; the declared point rows.to('polars')."""
-        ...
 
     def add(self, head: _body_5.Any, data: _body_5.Any) -> int:
         """Add a tabular source to a space as ``(head column...)`` facts.
@@ -509,7 +491,6 @@ class TablesContext(Protocol):
         than memory loads, and the writes are one transaction each; wrap the call
         in ``m.transaction(...)`` to make the whole load one.
         """
-        ...
 
     def declare(self, name: str, declaration: _body_5.Atom | str) -> _body_5.Atom:
         """Write one ctx-scoped bridge declaration into &metta, where explain
@@ -517,7 +498,6 @@ class TablesContext(Protocol):
 
         m may be a context or a space.
         """  # noqa: D205 -- preserve the declared documentation
-        ...
 
     def accessors(self) -> tuple[str, ...]:
         """Install the metta accessor for every registered frame library already imported.
@@ -539,7 +519,6 @@ class TablesContext(Protocol):
         so a third one installs `df.metta` by registering
         (`metta.seam.frame.register(...)`, or the `metta.extensions` entry point).
         """
-        ...
 
     def sql_function(self, connection: _body_5.Any, head: _body_5.Any, name: str | None=...) -> str:
         """Register a MeTTa head as a scalar SQL function, and answer its SQL name.
@@ -563,7 +542,6 @@ class TablesContext(Protocol):
         function has one result per row; a SQL NULL argument reaches the head as
         `Grounded(None)` and MeTTa decides what it means.
         """
-        ...
 
 
 class TablesSync(Protocol):
@@ -571,11 +549,9 @@ class TablesSync(Protocol):
 
     def to_df(self, rows: _body_2.Any) -> _body_2.Any:
         """These rows as a pandas DataFrame; the declared point rows.to('pandas')."""
-        ...
 
     def to_pl(self, rows: _body_3.Any) -> _body_3.Any:
         """These rows as a polars DataFrame; the declared point rows.to('polars')."""
-        ...
 
     def add(self, head: _body_5.Any, data: _body_5.Any) -> int:
         """Add a tabular source to a space as ``(head column...)`` facts.
@@ -595,7 +571,6 @@ class TablesSync(Protocol):
         than memory loads, and the writes are one transaction each; wrap the call
         in ``m.transaction(...)`` to make the whole load one.
         """
-        ...
 
     def declare(self, name: str, declaration: _body_5.Atom | str) -> _body_5.Atom:
         """Write one ctx-scoped bridge declaration into &metta, where explain
@@ -603,7 +578,6 @@ class TablesSync(Protocol):
 
         m may be a context or a space.
         """  # noqa: D205 -- preserve the declared documentation
-        ...
 
     def accessors(self) -> tuple[str, ...]:
         """Install the metta accessor for every registered frame library already imported.
@@ -625,7 +599,6 @@ class TablesSync(Protocol):
         so a third one installs `df.metta` by registering
         (`metta.seam.frame.register(...)`, or the `metta.extensions` entry point).
         """
-        ...
 
     def sql_function(self, connection: _body_5.Any, head: _body_5.Any, name: str | None=...) -> str:
         """Register a MeTTa head as a scalar SQL function, and answer its SQL name.
@@ -649,21 +622,16 @@ class TablesSync(Protocol):
         function has one result per row; a SQL NULL argument reaches the head as
         `Grounded(None)` and MeTTa decides what it means.
         """
-        ...
 
 
-def _rows_to_df(rows: _results.Rows) -> _body_2.Any:
+def _rows_to_df(rows: _results.Rows) -> _body_2.Any:  # pylint: disable=unused-argument # signature-only extension declaration
     """These rows as a pandas DataFrame; the declared point rows.to('pandas')."""
-    ...
 
-def _answers_to_df(rows: _results.Answers) -> _body_2.Any:
+def _answers_to_df(rows: _results.Answers) -> _body_2.Any:  # pylint: disable=unused-argument # signature-only extension declaration
     """These rows as a pandas DataFrame; the declared point rows.to('pandas')."""
-    ...
 
-def _rows_to_pl(rows: _results.Rows) -> _body_3.Any:
+def _rows_to_pl(rows: _results.Rows) -> _body_3.Any:  # pylint: disable=unused-argument # signature-only extension declaration
     """These rows as a polars DataFrame; the declared point rows.to('polars')."""
-    ...
 
-def _answers_to_pl(rows: _results.Answers) -> _body_3.Any:
+def _answers_to_pl(rows: _results.Answers) -> _body_3.Any:  # pylint: disable=unused-argument # signature-only extension declaration
     """These rows as a polars DataFrame; the declared point rows.to('polars')."""
-    ...

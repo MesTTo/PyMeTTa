@@ -166,7 +166,7 @@ _ERROR_IS_A_VALUE = Ground(
     "(Error 5 BadType) as a value rather than a throw",
 )
 
-if typing.TYPE_CHECKING:
+if TYPE_CHECKING:
     import metta.doors._namespaces as _door_types
     from metta._catalog.arrow import ArrowView, Projection
 
@@ -489,7 +489,7 @@ def _render_receiver(
         raise TypeError(msg)
     return render_with(
         source,
-        {_RECEIVER: receiver, **values},
+        {_RECEIVER: receiver} | values,
         called=called,
         implicit=frozenset({_RECEIVER}),
     )

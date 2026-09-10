@@ -10,6 +10,7 @@ extensions/python/tests/ch17_concurrency_and_the_loop/test_scopes.py; commit=c6e
 
 from __future__ import annotations
 
+import concurrent.futures as _concurrent_futures
 import contextvars
 from collections.abc import Iterator
 from contextlib import contextmanager
@@ -49,7 +50,7 @@ def bind(text: str, inputs: dict[str, Any]) -> tuple[str, dict[str, Any]]:
     variable = "__MettaScope"
     while variable in text or variable in inputs:
         variable += "_"
-    return f"lib_thread:scope_call({variable}, ({text}))", {**inputs, variable: scope}
+    return f"lib_thread:scope_call({variable}, ({text}))", inputs | {variable: scope}
 
 
 def current() -> str | None:
@@ -141,6 +142,3 @@ def finished(token: str | None, error: BaseException | None = None) -> None:
             "lib_thread:scope_host_done(Token, Error)",
             Token=token, Error="none" if error is None else error,
         )
-
-# Resolve annotations after definitions so peer imports can finish.
-import concurrent.futures as _concurrent_futures  # noqa: E402 -- deferred annotation bindings

@@ -396,6 +396,13 @@ _.async_excluded
 _.context_inplace
 _.is_property
 
+# The evaluation record crosses Janus positionally; options.pl and the
+# native evaluation policy read the fields by their generated positions.
+# [source: extensions/python/metta/_binding/evaluation_policy.pl:metta_py_evaluate/4; commit=WORKTREE].
+_.fuel  # EvaluationOptions metadata generates the fuel field consumed by metta_py_options.
+_.repeatable  # EvaluationOptions metadata generates the repeatability field consumed by metta_py_options.
+_.accounting  # EvaluationOptions metadata generates the accounting field consumed by metta_py_options.
+
 # Source discovery reads these marked class bodies without constructing them.
 # [source: extensions/python/metta/doors/_scan.py:_read; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
 _RowsSugar
