@@ -3,7 +3,7 @@
 Guarantees:
   - refusing preserves exception descriptors, custom __setattr__ methods
     and their refusals when attaching metadata [source:
-    extensions/python/metta/_errors/errors.py:refusing; commit=WORKTREE]
+    extensions/python/metta/_errors/errors.py:refusing; commit=2d17a5e2218b713d5934b74f8bbb3e4f190a4e5c]
   - Timeout is both the MeTTa coordination miss and a builtin TimeoutError,
     so callers may catch at either abstraction [tested:
     test_the_coordination_family_is_python_shaped; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
