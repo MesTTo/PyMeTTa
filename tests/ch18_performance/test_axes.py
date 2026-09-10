@@ -16,13 +16,13 @@ Inferences are the deterministic half of the harness and need no performance
 counters, so this runs on a machine that cannot read `perf`.
 Guarantees:
   - an opaque crossing stays constant in the value's size, exponent 0
-    [tested: test_an_opaque_crossing_is_constant_in_the_values_size; commit=WORKTREE]
+    [tested: test_an_opaque_crossing_is_constant_in_the_values_size; commit=8358dfc233bf299bb23eceddd94593a62372fe4b]
   - a transparent crossing stays linear, its pair slopes climbing to 1
-    [tested: test_a_transparent_crossing_stays_linear_in_the_values_size; commit=WORKTREE]
+    [tested: test_a_transparent_crossing_stays_linear_in_the_values_size; commit=8358dfc233bf299bb23eceddd94593a62372fe4b]
   - letting the engine call out stays cheaper than driving it from the host,
     and keeps agreeing with the gated extension-cost table
     [tested: test_the_engine_calling_out_stays_cheaper_than_the_host_driving_in;
-    commit=WORKTREE]
+    commit=8358dfc233bf299bb23eceddd94593a62372fe4b]
 Open Obligations:
   To Do: None
   Hacks: None

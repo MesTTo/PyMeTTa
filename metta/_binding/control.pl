@@ -2,7 +2,7 @@
 % Assumes: loaded through _binding/shim.pl in its host module.
 % Guarantees: declared _controlled entries expose prolog/1 opener handles or
 % [payload,text] resume packets to the binding generator
-% [tested: test_binding_controlled_signature_mutations_refuse; commit=WORKTREE].
+% [tested: test_binding_controlled_signature_mutations_refuse; commit=8358dfc233bf299bb23eceddd94593a62372fe4b].
 % Owns resources: held-engine output redirection; cleanup restores current_output
 % [source: extensions/python/metta/_binding/control.pl:416; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
 
@@ -343,7 +343,7 @@ metta_py_work(Work) :-
 %The tick's recorded inference position resolves a tick that arrives between
 %the inference read and the tick record; both sides of that boundary retain
 %the polling-disabled cost under concurrent workers
-%[tested: test_heartbeat_correction_is_exact_with_32_concurrent_workers; commit=WORKTREE].
+%[tested: test_heartbeat_correction_is_exact_with_32_concurrent_workers; commit=8358dfc233bf299bb23eceddd94593a62372fe4b].
 %
 %The DECISION is Python's and the reading is this door's, because this door
 %is INSIDE every measurement it takes: what it spends between the two

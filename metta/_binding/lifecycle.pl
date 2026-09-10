@@ -1,7 +1,7 @@
 % Purpose: transact, clear, allocate and release logical spaces.
 % Assumes: loaded through _binding/shim.pl in its host module.
 % Owns resources: anonymous space names; metta_py_release_space/1 clears and returns eligible names to the pool
-% [source: extensions/python/metta/_binding/lifecycle.pl:metta_py_release_space/1; commit=WORKTREE].
+% [source: extensions/python/metta/_binding/lifecycle.pl:metta_py_release_space/1; commit=8358dfc233bf299bb23eceddd94593a62372fe4b].
 
 %Run a Python callable inside one engine transaction: the same
 %metta_transaction/1 the MeTTa (transaction ...) form compiles to, so

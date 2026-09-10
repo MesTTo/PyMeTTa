@@ -228,7 +228,7 @@ def twin(m):
 #: time=9223372036854775807 environment. Workloads, point tolerances and
 #: empirical envelopes are unchanged [measured 2026-09-10: min-of-3 serial
 #: fresh processes; command=python extensions/python/tools/twin_coverage.py
-#: --repin; commit=WORKTREE].
+#: --repin; commit=8358dfc233bf299bb23eceddd94593a62372fe4b].
 BUDGET = 20888
 #: OVERRUN 2026-09-09, 0 to 515 (+515): a library's Prolog half compiles
 #: beside itself on its first import and loads from the artifact after

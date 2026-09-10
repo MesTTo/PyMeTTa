@@ -2,7 +2,7 @@
 
 Guarantees: importing binding macros adds no inferences to expansion of
 unrelated goals [tested: test_binding_macros_do_not_tax_unrelated_goals;
-commit=WORKTREE].
+commit=8358dfc233bf299bb23eceddd94593a62372fe4b].
 """
 
 from collections.abc import Iterable

@@ -3,7 +3,7 @@
 Guarantees: the original recursive-profile and occurrence-bag assertions pass
 after sweeping an actual reconciliation through its first completing budget
 [tested: test_profile_counts_after_interrupted_reconciliation,
-test_occurrences_after_interrupted_reconciliation; commit=WORKTREE].
+test_occurrences_after_interrupted_reconciliation; commit=8358dfc233bf299bb23eceddd94593a62372fe4b].
 """
 
 from itertools import count

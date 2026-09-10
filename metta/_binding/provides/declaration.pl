@@ -2,7 +2,7 @@
 % Assumes: bindinggen projects each row into its declared load audience
 % and defining module.
 % Guarantees: every supplied head has this file's engine kind
-% [tested: test_binding_provisions_keep_audience_and_kind; commit=WORKTREE].
+% [tested: test_binding_provisions_keep_audience_and_kind; commit=8358dfc233bf299bb23eceddd94593a62372fe4b].
 
 provides_declaration(engine, user, grounded_extra_type/2).
 

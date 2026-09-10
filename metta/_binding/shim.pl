@@ -78,7 +78,7 @@
 %     cursor from ONE evaluation, so an effect-bearing goal fires once and a
 %     length nobody turns into values encodes nothing [tested:
 %     test_a_retained_count_replays_the_bag_the_cursor_would_have_answered;
-%     commit=WORKTREE].
+%     commit=8358dfc233bf299bb23eceddd94593a62372fe4b].
 %   - ordered algebra cursors interrupt their deterministic collect-and-sort
 %     phase at timeout without leaving an alarm armed across cursor suspension
 %     [tested: test_an_ordered_algebra_view_is_bounded_by_its_timeout;
@@ -280,7 +280,7 @@
 %   - metta_py_evaluate/4 with answers=status and metta_py_run_status/3 report which of
 %     MeTTa's evaluation paths produced each answer, leaving the ordinary
 %     entry points' output unchanged [tested:
-%     test_eval_status_reports_the_four_outcomes; commit=WORKTREE]
+%     test_eval_status_reports_the_four_outcomes; commit=8358dfc233bf299bb23eceddd94593a62372fe4b]
 %   - the held evaluation cursor is present at bridge boot, so the first lazy
 %     answer pull performs no late consult [tested:
 %     test_first_answer_pull_has_no_late_consult_floor; commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
@@ -454,14 +454,14 @@
 % exactly 229 inferences under concurrent startup. Resolve this required
 % failure-path dependency while loading the binding.
 % [tested: test_first_failed_text_query_has_no_deferred_dependency_cost;
-% commit=WORKTREE]
+% commit=8358dfc233bf299bb23eceddd94593a62372fe4b]
 % Workaround: swi-file-search-cache-autoload - import Janus's failed-query dependency once at binding boot.
 :- janus:use_module(library(apply), [maplist/2]).
 % These predicates are called directly by binding units. Declare their host
 % imports here instead of making the first count, variable, or bounded cursor
 % load the missing import through Prolog's global autoloader.
 % [tested: test_binding_boot_resolves_its_direct_standard_library_dependencies;
-% commit=WORKTREE]
+% commit=8358dfc233bf299bb23eceddd94593a62372fe4b]
 :- use_module(library(aggregate), [aggregate_all/3]).
 :- use_module(library(gensym), [gensym/2]).
 :- use_module(library(solution_sequences), [limit/2]).

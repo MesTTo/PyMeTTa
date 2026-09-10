@@ -1,10 +1,10 @@
 % Purpose: evaluate one target producer through the declared binding options.
 % Assumes: options.pl expands the EvaluationOptions grammar from Door.Binding.
 % Guarantees: all collections share metta_py_solution/4 and its WFS boundary
-% [tested: extensions/python/tests/ch20_extending_the_engine/test_binding_evaluation.py; commit=WORKTREE].
+% [tested: extensions/python/tests/ch20_extending_the_engine/test_binding_evaluation.py; commit=8358dfc233bf299bb23eceddd94593a62372fe4b].
 % Owns resources: retained counts enumerate on the caller thread; metta_host_hold/3
 % owns replay cursors until metta_py_cursor_close/1 releases them
-% [tested: test_a_retained_count_replays_the_bag_the_cursor_would_have_answered; commit=WORKTREE].
+% [tested: test_a_retained_count_replays_the_bag_the_cursor_would_have_answered; commit=8358dfc233bf299bb23eceddd94593a62372fe4b].
 
 binding_evaluation.
 

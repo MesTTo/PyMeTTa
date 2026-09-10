@@ -2,16 +2,16 @@
 
 Guarantees: 32 fresh engine processes compare corrected counters with polling
 off and across several normal and dense heartbeat intervals
-[tested: test_heartbeat_correction_is_exact_with_32_concurrent_workers; commit=WORKTREE].
+[tested: test_heartbeat_correction_is_exact_with_32_concurrent_workers; commit=8358dfc233bf299bb23eceddd94593a62372fe4b].
 The first failed Janus query ignores deterministic file-cache expiry; a
 skipped boot import exposes the original 229-inference difference [tested:
 test_first_failed_text_query_has_no_deferred_dependency_cost;
-commit=WORKTREE].
+commit=8358dfc233bf299bb23eceddd94593a62372fe4b].
 Decides: the three-twin measurement uses a 9223372036854775807-second
 file-cache lifetime and warm compiled library artifacts to separate program
 work from wall-clock cache sweeps and compilation-child launch costs
 [tested: test_memo_and_tabling_first_use_costs_ignore_file_cache_expiry;
-commit=WORKTREE].
+commit=8358dfc233bf299bb23eceddd94593a62372fe4b].
 Owns resources: every subprocess is joined; each worker drops its native space.
 """
 

@@ -31,10 +31,10 @@ Guarantees:
     [tested: test_setting_configuration_preserves_the_public_value_type; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e]
   - configuration writes roll back as a unit, including their shared mirror
     [tested: test_configuration_publication_failure_restores_every_setting,
-    test_configuration_rows_and_mirror_follow_outer_rollback; commit=WORKTREE]
+    test_configuration_rows_and_mirror_follow_outer_rollback; commit=8358dfc233bf299bb23eceddd94593a62372fe4b]
   - independent native engines on one Python thread keep the mirror suspended
     until every pending owner finishes [tested:
-    test_bound_watches_transfer_until_outer_completion; commit=WORKTREE]
+    test_bound_watches_transfer_until_outer_completion; commit=8358dfc233bf299bb23eceddd94593a62372fe4b]
   - invalid METTA_* environment values stop package import with a named error
     [tested test_configuration_reads_and_validates_environment]
   - every row-backed setting is a `(limit ...)` row once an engine runs, a

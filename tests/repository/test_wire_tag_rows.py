@@ -12,7 +12,7 @@ without an engine to ask; this file is what keeps it saying the same thing.
 Guarantees:
   - every declared tag exercises its Python and native codec or frame consumer,
     and the Node term table is checked against the same grammar [tested:
-    this file; commit=WORKTREE].
+    this file; commit=8358dfc233bf299bb23eceddd94593a62372fe4b].
   - the corpus's tag block is exactly the engine's term and frame tags, with
     the same class, payload class and sentence [tested:
     test_the_corpus_carries_the_engines_term_and_frame_tags; commit=7f9c810e5f4a2023ad98de34e848667dd72bc4a7]

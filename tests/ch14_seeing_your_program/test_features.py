@@ -30,7 +30,7 @@ Guarantees:
     test_tagged_algebra_forwards_bounds_to_every_evaluating_door,
     test_tagged_algebra_debits_inferences_across_operations,
     test_an_ordered_algebra_view_is_bounded_by_its_timeout;
-    commit=WORKTREE]
+    commit=8358dfc233bf299bb23eceddd94593a62372fe4b]
 Open Obligations:
   To Do: None
   Hacks: None

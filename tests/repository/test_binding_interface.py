@@ -1,7 +1,7 @@
 """Purpose: discriminate binding declarations from unchecked native crossings.
 
 Guarantees: service, load, kind and projection defects fail the actual checker
-[tested: this file; commit=WORKTREE].
+[tested: this file; commit=8358dfc233bf299bb23eceddd94593a62372fe4b].
 """
 
 from __future__ import annotations

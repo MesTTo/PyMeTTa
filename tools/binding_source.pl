@@ -1,7 +1,7 @@
 % Purpose: expose source terms and locations for the binding interface checker.
 % Guarantees: Janus zero-arity compounds, operators, variables and strings keep
 % their distinct source shapes
-% [tested: test_binding_source_keeps_call_shapes; commit=WORKTREE].
+% [tested: test_binding_source_keeps_call_shapes; commit=8358dfc233bf299bb23eceddd94593a62372fe4b].
 % Owns resources: each source stream closes on success, failure and exception.
 
 :- module(binding_source, [source_records/2]).

@@ -307,7 +307,7 @@ _.integration
 _._catalog_of
 # Two names the package itself never loads, and neither is dead. PROLOG calls
 # `_carrier_type_accepts` by name through seam:grounded_algebra_type/3
-# [source: extensions/python/metta/_binding/provides/ownership.pl:seam:grounded_algebra_type/3; commit=WORKTREE], which
+# [source: extensions/python/metta/_binding/provides/ownership.pl:seam:grounded_algebra_type/3; commit=8358dfc233bf299bb23eceddd94593a62372fe4b], which
 # is the whole point of that seam: the owning host applies a carrier predicate
 # without the atom kinds being erased on the way. `boot_seconds` is a property
 # a CALLER reads off a pool it was handed, and the caller is outside this
@@ -322,7 +322,7 @@ _.boot_seconds
 # so a host carrier predicate can decide an algebra's membership question. No
 # Python name load reaches it, which is what makes it invisible to a
 # reachability scan [source: extensions/python/metta/_binding/provides/ownership.pl:seam:grounded_algebra_type/3;
-# commit=WORKTREE].
+# commit=8358dfc233bf299bb23eceddd94593a62372fe4b].
 _carrier_type_accepts
 
 # Read by a SIBLING SEAT, which this scan does not reach: the C seat's

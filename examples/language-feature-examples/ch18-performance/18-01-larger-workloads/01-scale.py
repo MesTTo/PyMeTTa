@@ -348,7 +348,7 @@ def twin(m):
 #: time=9223372036854775807 environment. Workloads, point tolerances and
 #: empirical envelopes are unchanged [measured 2026-09-10: min-of-3 serial
 #: fresh processes; command=python extensions/python/tools/twin_coverage.py
-#: --repin; commit=WORKTREE].
+#: --repin; commit=8358dfc233bf299bb23eceddd94593a62372fe4b].
 #: RE-PINNED 2026-09-10, 29217933 to 29217928 (-5), the bounds frame watcher
 #: now transfers its watch to the nearest live transaction, preventing
 #: notification of an engine's discarded outer query frame. The changed boot
@@ -362,7 +362,7 @@ def twin(m):
 #: file_search_cache_time=9223372036854775807 before boot. The point allowance
 #: and every empirical envelope are unchanged [measured 2026-09-10: min-of-3
 #: serial fresh processes; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+#: extensions/python/tools/twin_coverage.py --repin; commit=8358dfc233bf299bb23eceddd94593a62372fe4b].
 #: RE-PINNED 2026-09-10, 29217928 to 29217921 (-7), automatic memo
 #: reconciliation uses a trailed marker so an inference-limit signal cannot
 #: leak its guard. The ordinary dirty drain saves two inferences; the first
@@ -377,7 +377,7 @@ def twin(m):
 #: artifacts, and file_search_cache_time=9223372036854775807 before boot. Every
 #: workload, point allowance and empirical envelope is unchanged [measured
 #: 2026-09-10: min-of-3 serial fresh processes; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+#: extensions/python/tools/twin_coverage.py --repin; commit=8358dfc233bf299bb23eceddd94593a62372fe4b].
 BUDGET = 29217921
 
 #: DIVERGED 2026-09-07, the example holds 1000007 atoms and the twin 1000007,

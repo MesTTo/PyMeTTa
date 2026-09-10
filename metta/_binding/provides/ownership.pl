@@ -2,7 +2,7 @@
 % Assumes: bindinggen projects each row into its declared load audience
 % and defining module.
 % Guarantees: every supplied head has this file's engine kind
-% [tested: test_binding_provisions_keep_audience_and_kind; commit=WORKTREE].
+% [tested: test_binding_provisions_keep_audience_and_kind; commit=8358dfc233bf299bb23eceddd94593a62372fe4b].
 
 provides_declaration(engine, user, grounded_apply/3).
 
@@ -532,7 +532,7 @@ provides_declaration(host, user, grounded_algebra_type/3).
 
 % Carrier predicates use the ordinary atom codec: Symbol and Expression stay
 % atoms while Grounded unwraps. Exceptions reach the enclosing resource guard
-% [tested: test_carrier_preserves_text_and_symbol_types; commit=WORKTREE].
+% [tested: test_carrier_preserves_text_and_symbol_types; commit=8358dfc233bf299bb23eceddd94593a62372fe4b].
 provides(host, user, (
 seam:grounded_algebra_type(Type, Value, Truth) :-
     py_is_object(Type),

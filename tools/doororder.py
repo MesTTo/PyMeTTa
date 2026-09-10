@@ -2,7 +2,7 @@
 
 Guarantees: the report and catalog call the same source analysis; any mixed,
 open or recursive boundary fails without assigning an invented integer
-[tested: test_door_order_gate_refuses_each_boundary_defect; commit=WORKTREE].
+[tested: test_door_order_gate_refuses_each_boundary_defect; commit=8358dfc233bf299bb23eceddd94593a62372fe4b].
 """
 
 from __future__ import annotations

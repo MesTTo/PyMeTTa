@@ -2,11 +2,11 @@
 % Assumes: _binding/shim.pl imports metta_py_mirror_bounds/0.
 % Guarantees: transaction helpers remain private to metta_python_bounds
 % [tested: test_native_configuration_helpers_stay_out_of_the_host_namespace;
-% commit=WORKTREE].
+% commit=8358dfc233bf299bb23eceddd94593a62372fe4b].
 % Native watches preserve outer suspension and safe engine destruction
-% [tested: test_bound_watches_transfer_until_outer_completion; commit=WORKTREE].
+% [tested: test_bound_watches_transfer_until_outer_completion; commit=8358dfc233bf299bb23eceddd94593a62372fe4b].
 % Owns resources: one process listener and per-engine live-frame markers; outer completion retires each marker
-% [source: extensions/python/metta/_binding/bounds.pl:metta_py_bound_frame_finished/1; commit=WORKTREE].
+% [source: extensions/python/metta/_binding/bounds.pl:metta_py_bound_frame_finished/1; commit=8358dfc233bf299bb23eceddd94593a62372fe4b].
 % Guarded by: $metta_bound_listener serializes process listener installation.
 
 :- module(metta_python_bounds, [metta_py_mirror_bounds/0]).
@@ -41,7 +41,7 @@
 % https://github.com/SWI-Prolog/swipl-devel/blob/fc7ef84b949378b729052c3ade79c90ce5416abb/src/pl-transaction.c
 % https://github.com/SWI-Prolog/swipl-devel/blob/fc7ef84b949378b729052c3ade79c90ce5416abb/src/pl-event.c#L412-L467
 % https://github.com/SWI-Prolog/swipl-devel/blob/V10.1.13/src/pl-wam.c#L902-L916
-% [tested: test_bound_watches_transfer_until_outer_completion; commit=WORKTREE].
+% [tested: test_bound_watches_transfer_until_outer_completion; commit=8358dfc233bf299bb23eceddd94593a62372fe4b].
 metta_py_bound_transaction :-
     ( nb_current('$metta_bound_transaction', _) -> true
     ; metta_py_bound_watch_transaction(none),

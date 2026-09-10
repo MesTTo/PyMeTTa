@@ -3,11 +3,11 @@
 % Guarantees: presets and general records use the same collection and scope
 % templates; expansion never evaluates program goals or traverses program data
 % [tested: test_evaluation_presets_and_records_share_one_policy;
-% commit=WORKTREE].
+% commit=8358dfc233bf299bb23eceddd94593a62372fe4b].
 % Decides: only declared presets are specialized; dynamic collections retain
 % indexed clauses rather than generating the product of all option values
 % [source: extensions/python/metta/_binding/evaluation_policy.pl:binding_evaluation_expansion/2;
-% commit=WORKTREE].
+% commit=8358dfc233bf299bb23eceddd94593a62372fe4b].
 
 :- module(metta_python_evaluation, [binding_evaluation_expansion/2]).
 :- use_module(library(lists), [append/3]).

@@ -498,7 +498,7 @@ def twin(m):
 #: time=9223372036854775807 environment. Workloads, point tolerances and
 #: empirical envelopes are unchanged [measured 2026-09-10: min-of-3 serial
 #: fresh processes; command=python extensions/python/tools/twin_coverage.py
-#: --repin; commit=WORKTREE].
+#: --repin; commit=8358dfc233bf299bb23eceddd94593a62372fe4b].
 #: RE-PINNED 2026-09-10, 29827 to 29819 (-8), the bounds helper changes
 #: catalog-arity enumeration order at boot, removing five inferences from the
 #: first open-width lookup. The initial three samples landed on 29823, only
@@ -509,7 +509,7 @@ def twin(m):
 #: and workload stay unchanged. The cache flag is 9223372036854775807 before
 #: boot. See docs/journal/2026-09-09-the-binding-collapse.md [measured
 #: 2026-09-10: min-of-32 serial fresh processes; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+#: extensions/python/tools/twin_coverage.py --repin; commit=8358dfc233bf299bb23eceddd94593a62372fe4b].
 #: RE-PINNED 2026-09-10, 29819 to 29829 (+10), automatic memo reconciliation
 #: uses a trailed marker so an inference-limit signal cannot leak its guard.
 #: The ordinary dirty drain saves two inferences; the first unset-marker read
@@ -523,7 +523,7 @@ def twin(m):
 #: library artifacts, and file_search_cache_time=9223372036854775807 before
 #: boot. Every workload, point allowance and empirical envelope is unchanged
 #: [measured 2026-09-10: min-of-3 serial fresh processes; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+#: extensions/python/tools/twin_coverage.py --repin; commit=8358dfc233bf299bb23eceddd94593a62372fe4b].
 BUDGET = 29829
 
 #: DIVERGED 2026-09-07, the example holds 0 atoms the twin does not (none) and

@@ -1,7 +1,7 @@
 % Purpose: select module context for resolution and conversion.
 % Assumes: _binding/shim.pl loads after the engine's space_module/2 service
 % and with_metta_module/2 host service
-% [source: engine/ext_points.pl:kind/2; commit=WORKTREE].
+% [source: engine/ext_points.pl:kind/2; commit=8358dfc233bf299bb23eceddd94593a62372fe4b].
 
 %%%%%%%%%% Space modules %%%%%%%%%%
 %

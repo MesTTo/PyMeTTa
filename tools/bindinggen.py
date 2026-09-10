@@ -3,10 +3,10 @@
 Guarantees: declared Python signatures, native service kinds, supplied seam
 kinds, loading audiences and generated projections are checked together
 [tested: test_binding_crossing_mutations_refuse,
-test_binding_provisions_keep_audience_and_kind; commit=WORKTREE].
+test_binding_provisions_keep_audience_and_kind; commit=8358dfc233bf299bb23eceddd94593a62372fe4b].
 Controlled entry maps follow admitted native return signatures
 [tested: test_binding_controlled_entries_derive_from_native_shapes,
-test_binding_controlled_signature_mutations_refuse; commit=WORKTREE].
+test_binding_controlled_signature_mutations_refuse; commit=8358dfc233bf299bb23eceddd94593a62372fe4b].
 Owns resources: the source reader subprocess completes before its output is read.
 """
 

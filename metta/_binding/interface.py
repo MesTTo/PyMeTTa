@@ -2,7 +2,7 @@
 
 Guarantees: bindinggen checks every crossing against these rows and the
 implementation's signature; native imports must have an engine service row
-[tested: test_binding_crossing_mutations_refuse; commit=WORKTREE].
+[tested: test_binding_crossing_mutations_refuse; commit=8358dfc233bf299bb23eceddd94593a62372fe4b].
 Decides: dynamic object calls are capabilities of named predicates. A capability
 does not admit undeclared static callbacks or crossings in another predicate.
 """
@@ -68,7 +68,7 @@ PYTHON_SERVICES = {
 
 # CPython does not publish inspect.signature for these C callables. These are
 # the positional shapes used here, held by executable crossing tests.
-# [tested: test_binding_standard_library_services; commit=WORKTREE]
+# [tested: test_binding_standard_library_services; commit=8358dfc233bf299bb23eceddd94593a62372fe4b]
 C_SIGNATURES = {"builtins:str": (0, 1, 2, 3), "builtins:type": (1, 3), "sys:modules.pop": (1, 2)}
 
 # Each target's arity and audience come from engine/ext_points.pl:kind/2.
@@ -94,7 +94,7 @@ LOAD_ENTRIES = {"engine": "surface.pl", "host": "shim.pl"}
 # the name list per column; indexed projection resolves each name once.
 # [measured 2026-09-09: 64 names, shared 0.101544s and indexed 0.080958s minimum;
 # command=python extensions/python/benchmarks/probes/query_projection.py --repeats 1000 --samples 11;
-# fixture=one native fact at 2, 16, 64 and 128 names; commit=WORKTREE]
+# fixture=one native fact at 2, 16, 64 and 128 names; commit=8358dfc233bf299bb23eceddd94593a62372fe4b]
 QUERY_INDEX_CROSSOVER = 64
 
 

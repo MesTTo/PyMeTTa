@@ -252,5 +252,5 @@ def twin(m):
 #: library artifacts, and file_search_cache_time=9223372036854775807 before
 #: boot. Every workload, point allowance and empirical envelope is unchanged
 #: [measured 2026-09-10: min-of-3 serial fresh processes; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+#: extensions/python/tools/twin_coverage.py --repin; commit=8358dfc233bf299bb23eceddd94593a62372fe4b].
 BUDGET = 8990

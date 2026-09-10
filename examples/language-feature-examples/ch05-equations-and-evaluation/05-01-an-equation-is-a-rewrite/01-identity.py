@@ -1098,7 +1098,7 @@ def twin(m):
 #: time=9223372036854775807 environment. Workloads, point tolerances and
 #: empirical envelopes are unchanged [measured 2026-09-10: min-of-3 serial
 #: fresh processes; command=python extensions/python/tools/twin_coverage.py
-#: --repin; commit=WORKTREE].
+#: --repin; commit=8358dfc233bf299bb23eceddd94593a62372fe4b].
 BUDGET = 2478
 #: BANDED 2026-09-06 rather than re-pinned an eighteenth time. Seventeen of
 #: the eighty-three re-pins above were written on 2026-09-05 and 2026-09-06

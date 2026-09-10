@@ -2,7 +2,7 @@
 Guarantees:
   - held entry mappings derive from native controlled return signatures
     [tested: test_binding_controlled_entries_derive_from_native_shapes;
-    commit=WORKTREE]
+    commit=8358dfc233bf299bb23eceddd94593a62372fe4b]
   - algebra and demand cross internal evaluation without changing answer shape
     [tested: sh extensions/python/test.sh
     tests/ch06_many_answers/test_evaluation_context.py -n 0; commit=54cb2eee69c42c1ae685643cbe2578f8d617a265]

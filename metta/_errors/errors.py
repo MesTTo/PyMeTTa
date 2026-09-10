@@ -58,7 +58,7 @@ Guarantees:
     test_a_prose_remedy_may_be_its_title_alone; commit=f33b7ab0200e6dc74c88fb4c7f827bf545a447ed]
   - catalog templates and atom rows use one remedy-act parser, preserving
     their respective symbol and grounded-text readings [tested:
-    test_remedy_templates_and_atoms_share_every_act; commit=WORKTREE]
+    test_remedy_templates_and_atoms_share_every_act; commit=8358dfc233bf299bb23eceddd94593a62372fe4b]
   - LockDrift carries every entry that differs as Drift rows AND names them in
     its message with both repairs, so a caller reacts to the rows where it
     used to parse the sentence [tested:

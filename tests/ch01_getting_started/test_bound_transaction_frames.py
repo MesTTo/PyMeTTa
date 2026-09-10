@@ -3,7 +3,7 @@
 Guarantees: nested commit, failure and exception rollback keep the mirror
 suspended until the outer transaction ends, and destroying the yielded engine
 does not enter a listener on a discarded query frame [tested:
-test_bound_watches_transfer_until_outer_completion; commit=WORKTREE].
+test_bound_watches_transfer_until_outer_completion; commit=8358dfc233bf299bb23eceddd94593a62372fe4b].
 Owns resources: each isolated child destroys its yielded native engine and
 drops its MeTTa space; the parent joins every child.
 """

@@ -401,7 +401,7 @@ def twin(m):
 #: time=9223372036854775807 environment. Workloads, point tolerances and
 #: empirical envelopes are unchanged [measured 2026-09-10: min-of-3 serial
 #: fresh processes; command=python extensions/python/tools/twin_coverage.py
-#: --repin; commit=WORKTREE].
+#: --repin; commit=8358dfc233bf299bb23eceddd94593a62372fe4b].
 #: RE-PINNED 2026-09-10, 31238 to 31233 (-5), the bounds frame watcher now
 #: transfers its watch to the nearest live transaction, preventing notification
 #: of an engine's discarded outer query frame. The changed boot predicate set
@@ -415,7 +415,7 @@ def twin(m):
 #: file_search_cache_time=9223372036854775807 before boot. The point allowance
 #: and every empirical envelope are unchanged [measured 2026-09-10: min-of-3
 #: serial fresh processes; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+#: extensions/python/tools/twin_coverage.py --repin; commit=8358dfc233bf299bb23eceddd94593a62372fe4b].
 BUDGET = 31233
 
 #: DIVERGED 2026-09-07, the example holds 6 atoms the twin does not (6 =) and

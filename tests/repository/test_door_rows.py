@@ -5,7 +5,7 @@ Guarantees: catalog publication, registry replacement, generated protocols,
   [tested: this file; commit=b615b5a33b43252ef9826e5387da7c9bd7f6b543].
   Typed body order metadata preserves the existing outer catalog query
   [tested: test_boot_publishes_complete_typed_door_rows,
-  test_nested_door_records_have_declared_types; commit=WORKTREE].
+  test_nested_door_records_have_declared_types; commit=8358dfc233bf299bb23eceddd94593a62372fe4b].
 Owns resources: each fixture withdraws its registrations and each engine
   context or cursor is closed by its test.
 """

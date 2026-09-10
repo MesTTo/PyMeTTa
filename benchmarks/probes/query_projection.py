@@ -2,7 +2,7 @@
 
 Owns resources: one native space, dropped after the samples and answer checks.
 Guarantees: checks both decoders' first answer against the fixture before sampling
-[source: extensions/python/benchmarks/probes/query_projection.py:main; commit=WORKTREE].
+[source: extensions/python/benchmarks/probes/query_projection.py:main; commit=8358dfc233bf299bb23eceddd94593a62372fe4b].
 """
 
 from __future__ import annotations
