@@ -319,7 +319,31 @@ def twin(m):
 #: pins of f26de01fb [measured 2026-09-09: min-of-3 serial fresh processes;
 #: command=python extensions/python/tools/twin_coverage.py --repin;
 #: commit=5f8a823d23fbed5c7395912a89ba32760e2df4b1].
-BUDGET = 18925
+#: RE-PINNED 2026-09-09, 18925 to 18774 (-151), Receipt cleanup stops at the
+#: nearest native transaction when unnested and skips forget_scope when that
+#: scope reserved no incoming occurrences. Nested transactions retain their
+#: outer owner. The provisioned cut control is
+#: 3e5855a35d7b206c847845f12467551ea4c54a59; the 2000-equation drop loses all
+#: 2000 empty receipt posts. See the 2026-09-09 receipt profile in
+#: docs/journal/2026-09-07-every-fact-has-a-token.md. Public and bulk writes
+#: now call metta_add_atom/4 and add_sexp_in/5 directly, removing one
+#: forwarding inference per accepted atom; parametric open enumeration shares
+#: native_storage_functor/2 with named-space reads. Autoload-only excursions
+#: are not a re-pin cause [measured 2026-09-09: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+#: RE-PINNED 2026-09-10, 18774 to 18756 (-18), Receipt ownership now watches
+#: the nearest live transaction and transfers its scope at completion,
+#: excluding the finishing frame. Removing the separate findnsols nesting
+#: enumeration lowers the source, minimal Python and shipped eval forms by
+#: exactly 18 inferences each; the source-derived ceiling falls 19.8 under the
+#: unchanged ten-percent band. Paired controls and the watcher census are in
+#: ai-tmp/ai-eval-receipt-relative.json, ai-tmp/ai-eval-receipt-census.json and
+#: the receipt journal. Body, assertions and stored-content digest are
+#: unchanged [measured 2026-09-10: min-of-3 serial fresh processes;
+#: command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+BUDGET = 18756
 
 #: OVERRUN 2026-09-07, 2700: it reads the definition's body through the query
 #: door and reduces it through the evaluation door, which the example does in
@@ -340,7 +364,58 @@ BUDGET = 18925
 #: ceiling, so the rest is this twin's own program [measured 2026-09-09: one
 #: fresh process per side; command=python
 #: extensions/python/benchmarks/probes/twin_floor.py; commit=b4341ae382c48ef225f4a52e566af6a9a71757c4].
-OVERRUN = 2821
+#: OVERRUN 2026-09-10, 2821 to 3069: the example falls 10919 to 10450
+#: (-469), the minimal twin 14159 to 13985 (-174), and this program 18925
+#: to 18774 (-151). The source loader writes its two equations directly
+#: through add_sexp/4 and dynamically adds myfunc once. The minimal twin
+#: makes three public writes; this program makes ten, including its two
+#: definitions' reflection/equation rows, f's annotation and myfunc. Those
+#: public writes formerly forwarded through metta_add_atom/3 and now enter
+#: metta_add_atom/4 directly; the source loader's two writes are unchanged.
+#: Each path drops one empty receipt request. The source load's deeper stack
+#: formerly walks 59 outer-frame calls, against 28 in the minimal program
+#: and 27 here; all now stop after nine nearest-frame calls. It therefore
+#: gains more from the receipt repair than either Python spelling. The
+#: all-engine census includes the write inside the lazy evaluation engine,
+#: which a main-thread-only profile misses. With definition cost 1364 and
+#: warmup 1482, the unchanged 10% base ceiling is
+#: 10450*1.1+1482+2*1364=15705. The minimal program is inside it; this
+#: program's existing difference is 18774-15705=3069. Body, assertions,
+#: stored-content digest and BUDGET stay unchanged [measured: three identical
+#: fresh-process readings per cell; command=python ai-tmp/ai-twin-relative-controls.py;
+#: fixture=ai-tmp/ai-twin-relative-controls.json and ai-tmp/ai-eval-all-engine-census.json;
+#: commit=WORKTREE].
+#: OVERRUN 2026-09-10, 3069 to 3071: the receipt frame repair removes
+#: the separate nesting enumeration. All three arms fall by exactly 18:
+#: source 10450 to 10432, minimal Python 13985 to 13967, shipped program
+#: 18774 to 18756. The source-derived ceiling falls 19.8 because the
+#: unchanged 10% band scales that source saving; twin work decreases.
+#: With warmup 1482 and definition price 1364 unchanged,
+#: ceil(18756-(10432*1.1+1482+2*1364)) is 3071. The three-pair control,
+#: watcher census and drop profile isolate the removed enumeration;
+#: body, assertions and stored-content digest remain unchanged [measured:
+#: three identical fresh-process readings per arm; command=python
+#: ai-tmp/ai-twin-relative-controls.py --example
+#: examples/ch07-control-flow/07-03-let-and-sequencing/07-eval.metta
+#: --skip-definitions --output ai-eval-receipt-relative.json;
+#: fixture=ai-tmp/ai-eval-receipt-relative.json,
+#: ai-tmp/ai-eval-receipt-census.json and ai-tmp/ai-receipts-frame-cost-before.json;
+#: commit=WORKTREE].
+#: OVERRUN 2026-09-11, 3071 to 3072: explicit
+#: filereader:source_pending_definition/2 in
+#: runnable_head_awaits_its_definition/1 removes one inherited-resolution retry
+#: from the source path. The same-physical-path qualifier-only controls give
+#: source 10432/10431, minimal 13967/13967 and shipped 18756/18756, three
+#: identical fresh processes per cell; all 102 children preserve the program
+#: hashes and semantic fields. No twin work is added. The 10% source band
+#: lowers its ceiling by 1.1, so ceil(18756-(10431*1.1+1482+2*1364))=3072. Both
+#: authoring arms retain 7/2853/4202/5567/6944 over 30 children, fitting warmup
+#: 1482 plus 1364 each. BUDGET 18756, body, assertions, digest and all
+#: constants stay. [measured 2026-09-11: same-path qualifier-only toggle;
+#: command=python ai-tmp/ai-qualified-boundaries.py unqualified and python ai-
+#: tmp/ai-qualified-boundaries.py qualified; fixture=file-search-cache-
+#: time=9223372036854775807/before-boot; commit=WORKTREE].
+OVERRUN = 3072
 
 #: DIVERGED 2026-09-07, the example holds 2 atoms the twin does not (2 =) and
 #: the twin holds 3 the example does not (1 :, 2 =): the twin is an ordinary

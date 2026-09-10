@@ -343,7 +343,17 @@ def twin(m):
 #: measured on this tree with the artifacts warm [measured 2026-09-09: min-of-3
 #: serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=f26de01fbf3e0e3c64bb691c66a59fa959fee7f3].
-BUDGET = 50837
+#: RE-PINNED 2026-09-10, 50837 to 50830 (-7), The direct public and bulk native
+#: writes remove one forwarding inference per accepted atom, while the receipt
+#: and enumeration fixes are recorded in docs/journal/2026-09-07-every-fact-
+#: has-a-token.md. The full-lane ten-round observations and this serial ten-
+#: process measurement agree on the lower cost. The rejected uncommitted
+#: readings 25980, 51137 and 36463 were higher than the full-lane minima; ai-
+#: tmp/ai-twin-point-selection.json retains all samples and the merged-tree
+#: journal records their disposition. No allowance, overrun or oracle changes
+#: [measured 2026-09-10: min-of-10 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 50830
 #: OVERRUN 2026-09-09, 0 to 4070 (+4070): a library's Prolog half compiles
 #: beside itself on its first import and loads from the artifact after
 #: (metta_load_source/2, seam:compiled_source/1): the example imports one, so

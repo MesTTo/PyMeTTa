@@ -369,7 +369,20 @@ def twin(m):
 #: pins of f26de01fb [measured 2026-09-09: min-of-3 serial fresh processes;
 #: command=python extensions/python/tools/twin_coverage.py --repin;
 #: commit=5f8a823d23fbed5c7395912a89ba32760e2df4b1].
-BUDGET = 1474486
+#: RE-PINNED 2026-09-09, 1474486 to 1474158 (-328), Public add-atom calls
+#: metta_add_atom/4 directly and the native bulk loop calls add_sexp_in/5
+#: directly, removing one forwarding inference per accepted atom while keeping
+#: the atomic token clock, hooks and errors. Open native enumeration uses the
+#: shared native_storage_functor/2 mapping, including parametric scalar
+#: storage. Receipt scopes retain the nearest unnested transaction and post no
+#: cleanup when no reservation exists. Full-lane ten-round observations on the
+#: repaired tree place this point below the published budget; the provisioned
+#: cut is 3e5855a35d7b206c847845f12467551ea4c54a59. See the 2026-09-09 entries in
+#: docs/journal/2026-09-07-every-fact-has-a-token.md. Autoload-only excursions
+#: are excluded from this point selection and keep their pins [measured
+#: 2026-09-09: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 1474158
 
 #: DIVERGED 2026-09-07, the example holds 4 atoms the twin does not (4 =) and
 #: the twin holds 9 the example does not (1 :, 4 =, 4 @doc): the twin is an

@@ -400,7 +400,17 @@ def twin(m):
 #: pins of f26de01fb [measured 2026-09-09: min-of-3 serial fresh processes;
 #: command=python extensions/python/tools/twin_coverage.py --repin;
 #: commit=5f8a823d23fbed5c7395912a89ba32760e2df4b1].
-BUDGET = 36173
+#: RE-PINNED 2026-09-10, 36173 to 36156 (-17), The direct public and bulk
+#: native writes remove one forwarding inference per accepted atom, while the
+#: receipt and enumeration fixes are recorded in docs/journal/2026-09-07-every-
+#: fact-has-a-token.md. The full-lane ten-round observations and this serial
+#: ten-process measurement agree on the lower cost. The rejected uncommitted
+#: readings 25980, 51137 and 36463 were higher than the full-lane minima; ai-
+#: tmp/ai-twin-point-selection.json retains all samples and the merged-tree
+#: journal records their disposition. No allowance, overrun or oracle changes
+#: [measured 2026-09-10: min-of-10 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 36156
 
 #: DIVERGED 2026-09-07, the example holds 3 atoms the twin does not (3 =) and
 #: the twin holds 3 the example does not (3 =): the twin is an ordinary Python

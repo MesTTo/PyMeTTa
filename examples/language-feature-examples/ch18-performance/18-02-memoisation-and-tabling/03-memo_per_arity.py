@@ -342,7 +342,20 @@ def twin(m):
 #: pins of f26de01fb [measured 2026-09-09: min-of-3 serial fresh processes;
 #: command=python extensions/python/tools/twin_coverage.py --repin;
 #: commit=5f8a823d23fbed5c7395912a89ba32760e2df4b1].
-BUDGET = 30116
+#: RE-PINNED 2026-09-09, 30116 to 30110 (-6), Public add-atom calls
+#: metta_add_atom/4 directly and the native bulk loop calls add_sexp_in/5
+#: directly, removing one forwarding inference per accepted atom while keeping
+#: the atomic token clock, hooks and errors. Open native enumeration uses the
+#: shared native_storage_functor/2 mapping, including parametric scalar
+#: storage. Receipt scopes retain the nearest unnested transaction and post no
+#: cleanup when no reservation exists. Full-lane ten-round observations on the
+#: repaired tree place this point below the published budget; the provisioned
+#: cut is 3e5855a35d7b206c847845f12467551ea4c54a59. See the 2026-09-09 entries in
+#: docs/journal/2026-09-07-every-fact-has-a-token.md. Autoload-only excursions
+#: are excluded from this point selection and keep their pins [measured
+#: 2026-09-09: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 30110
 
 #: OVERRUN 2026-09-07, 600: it stacks the two arities as two decorated clauses
 #: of one MeTTa name, where the example writes two equations. Measured 42187
@@ -376,4 +389,18 @@ BUDGET = 30116
 #: [measured 2026-09-09: one fresh process per side; command=python
 #: extensions/python/benchmarks/probes/twin_floor.py;
 #: commit=f26de01fbf3e0e3c64bb691c66a59fa959fee7f3].
-OVERRUN = 2110
+#: OVERRUN 2026-09-10, 2110 to 2112: paired cut/repair controls read
+#: source 21626/21626, minimal Python 21773/21771 and shipped twin
+#: 30116/30110. Each @no_type_check definition makes three direct writes,
+#: so removing the forwarding call saves six across these two definitions.
+#: Ordinary typed authoring makes four writes per definition: its price
+#: falls 1368 to 1364 and this ceiling falls eight, two more than the
+#: shipped program saves. Warmup 1482, BUDGET 30110 and the 10% band stay.
+#: The post-receipt-repair controls and all-engine census confirm those
+#: pairs and no receipt calls, in ai-tmp/ai-memo-arity-receipt-relative.json
+#: and ai-tmp/ai-memo-arity-receipt-census.json [measured: three fresh
+#: processes per arm, minimum; command=python ai-tmp/ai-twin-relative-controls.py
+#: --example examples/ch18-performance/18-02-memoisation-and-tabling/03-memo_per_arity.metta
+#: --skip-definitions --output ai-memo-arity-receipt-relative.json;
+#: fixture=provisioned cut3e5855a35 and repaired tree; commit=WORKTREE].
+OVERRUN = 2112

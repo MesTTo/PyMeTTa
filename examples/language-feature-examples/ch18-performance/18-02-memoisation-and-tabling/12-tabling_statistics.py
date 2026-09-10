@@ -375,7 +375,35 @@ def twin(m):
 #: measured on this tree with the artifacts warm [measured 2026-09-09: min-of-3
 #: serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=f26de01fbf3e0e3c64bb691c66a59fa959fee7f3].
-BUDGET = 33676
+#: RE-PINNED 2026-09-09, 33676 to 33670 (-6), Public add-atom calls
+#: metta_add_atom/4 directly and the native bulk loop calls add_sexp_in/5
+#: directly, removing one forwarding inference per accepted atom while keeping
+#: the atomic token clock, hooks and errors. Open native enumeration uses the
+#: shared native_storage_functor/2 mapping, including parametric scalar
+#: storage. Receipt scopes retain the nearest unnested transaction and post no
+#: cleanup when no reservation exists. Full-lane ten-round observations on the
+#: repaired tree place this point below the published budget; the provisioned
+#: cut is 3e5855a35d7b206c847845f12467551ea4c54a59. See the 2026-09-09 entries in
+#: docs/journal/2026-09-07-every-fact-has-a-token.md. Autoload-only excursions
+#: are excluded from this point selection and keep their pins [measured
+#: 2026-09-09: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+#: RE-PINNED 2026-09-11, 33670 to 33665 (-5), Explicit
+#: filereader:source_pending_definition/2 in
+#: translator:runnable_head_awaits_its_definition/1 removes one inherited-
+#: resolution retry. The same-physical-path qualifier-only toggle has 102
+#: successful children, three identical samples per arm, unchanged source/twin
+#: bodies and semantic fields, and no instrumentation (ai-tmp/ai-qualified-
+#: boundaries-analysis.json and ai-tmp/ai-qualified-
+#: boundaries-{unqualified,qualified}.json). This point was already four below
+#: its declaration in the e93f2028d ten-round full lane; qualification saves
+#: one more, crossing the unchanged four-inference allowance. All instruction
+#: pins, bands, bodies, assertions and stored-content oracles stay. Foldall
+#: retains 17904. The end-of-wave battery re-pins the whole lane on the merged
+#: tree under the normalised protocol; these are this tree's measured prices
+#: [measured 2026-09-11: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 33665
 
 #: DIVERGED 2026-09-07, the example holds 1 atom the twin does not (1 =) and
 #: the twin holds 1 atom the example does not (1 =): the twin is an ordinary Python

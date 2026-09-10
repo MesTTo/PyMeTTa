@@ -295,11 +295,79 @@ def twin(m):
 #: extensions/python/tools/twin_coverage.py --observe --rounds 10, twice,
 #: beside the plain lane runs ai-tmp records; fixture=full-lane/277/workers=32;
 #: commit=f26de01fbf3e0e3c64bb691c66a59fa959fee7f3].
+#: POOLED 2026-09-09: published 134847..134989 over 24
+#: observations, receipt pass 134864..135190 over 10, and
+#: final pass 134882..135188 over 10. Exact extrema and counts
+#: retain the existing empirical protocol; no point budget becomes an envelope.
+#: [measured: two complete ten-round passes; command=python
+#: extensions/python/tools/twin_coverage.py --observe --rounds 10;
+#: fixture=full-lane/277/workers=32; commit=WORKTREE]
+#: RE-OBSERVED 2026-09-10 after setting the file-search cache lifetime
+#: before engine creation. This complete ten-round population uses
+#: 134848..134881 over 10 observations. Earlier protocol
+#: samples remain above as history and do not enter this envelope.
+#: [measured: all 277 pairs, this twin succeeds in every round; command=python
+#: extensions/python/tools/twin_coverage.py --observe --rounds 10;
+#: fixture=full-lane/277/workers=32/file-search-cache-time=9223372036854775807/before-boot; commit=WORKTREE]
+#: POOLED 2026-09-10: the earlier before-boot population has 134848..134881
+#: over ten samples; the receipt-frame repair's complete population has
+#: 134878..134886 over ten. The full lanes at 17bec75f1 and e70deddaa add
+#: 134881 and 134881. Their exact pooled extrema are 134848..134886 over 22
+#: observations under the same cache-normalised protocol. Earlier runtime
+#: samples remain identified separately; the receipt watcher now transfers
+#: ownership at live completion. No point becomes an envelope. The final gate
+#: is an independent validation sample [measured 2026-09-10: two complete ten-
+#: round populations and two full lane checks; command=python
+#: extensions/python/tools/twin_coverage.py --observe --rounds 10 and sh
+#: check.sh twins; fixture=full-lane/277/workers=32/file-search-cache-
+#: time=9223372036854775807/before-boot; commit=WORKTREE].
+#: POOLED 2026-09-10: the retained 22 observations have 134848..134886. The
+#: full lane at 71535ae17 adds 134881; a further complete ten-round population
+#: at db8640733 adds 134881..134995. All 2770 new samples succeed. Exact pooled
+#: extrema are 134848..134995 over 33 observations under the same before-boot
+#: cache protocol. No point becomes an envelope [measured 2026-09-10: three
+#: complete ten-round populations and three full-lane readings; command=python
+#: extensions/python/tools/twin_coverage.py --observe --rounds 10 and sh
+#: check.sh twins; fixture=full-lane/277/workers=32/file-search-cache-
+#: time=9223372036854775807/before-boot; commit=WORKTREE].
+#: POOLED 2026-09-10: retain the previous33 observations and both full-gate
+#: samples (3fb950149: 134881; 503e21f8a: 134881), then append the complete
+#: ten-round populations (2f1be07e9: 134848..134995; e93f2028d:
+#: 134917..134922). Both populations have2770 successful samples, no failures
+#: and no point movements or excursions. The e93f2028d population measures the
+#: repaired concurrent join; the2f1be07e9 observation retains its own version.
+#: Exact pooled extrema are134848..134995 over55 samples, without padding. No
+#: point becomes an envelope. [measured 2026-09-10: five complete ten-round
+#: populations and five full-lane readings; command=python
+#: extensions/python/tools/twin_coverage.py --observe --rounds 10 and sh
+#: check.sh twins; fixture=full-lane/277/workers=32/file-search-cache-
+#: time=9223372036854775807/before-boot; commit=WORKTREE].
+#: POOLED 2026-09-11: keep all 55 previous observations, append the two
+#: complete gate readings (895878bbe=134917, 4d4fa2c55=134916), then all ten
+#: qualified 4d4fa2c55 rounds (134913..135030). The resulting 67 observations
+#: have exact extrema 134848..135030. The Linda maximum 135030 is its current
+#: ordinary 134916 plus the existing 114-inference silent-publication
+#: rendezvous path; the old 134995 was likewise 134881+114. A writer already
+#: inside the add door when the waiter installs its hook can publish without a
+#: hint. space_claim_/7 then misses its initial read and await_matching_/8
+#: finds the atom on its first timed store re-read. Paired unchanged
+#: cut/current controls inside the inbox context read 182/187/296 for
+#: populated/notified/silent publication in three fresh processes per tree: +5
+#: and +114. Later populated controls read176 after warming and are retained
+#: separately. The diagnostic delay and instrumented counts never enter this
+#: envelope. No targeted or instrumented reading enters an envelope. The end-
+#: of-wave battery re-observes and re-pins the whole lane on the merged tree
+#: under this protocol, pooling every empirical extension with its count and
+#: mechanism. [measured 2026-09-11: six complete ten-round populations and
+#: seven full-lane readings; command=python
+#: extensions/python/tools/twin_coverage.py --observe --rounds 10 and sh
+#: check.sh twins; fixture=full-lane/277/workers=32/file-search-cache-
+#: time=9223372036854775807/before-boot; commit=WORKTREE].
 BUDGET = {
-    "minimum": 134847,
-    "maximum": 134989,
-    "observations": 24,
-    "protocol": "full-lane/277/workers=32",
+    "minimum": 134848,
+    "maximum": 135030,
+    "observations": 67,
+    "protocol": "full-lane/277/workers=32/file-search-cache-time=9223372036854775807/before-boot"
 }
 
 #: OVERRUN 2026-09-07, 184000: it drives both sides of every Linda coordination

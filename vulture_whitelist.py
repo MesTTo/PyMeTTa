@@ -325,13 +325,11 @@ _.boot_seconds
 # seam:grounded_algebra_type/3; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
 _carrier_type_accepts
 
-# Read by a SIBLING SEAT, which this scan does not reach: the C seat's
-# benchmark driver asks its baseline what checkout length its pins were taken
-# at and refuses the boot instruction row from a different one, because that
-# row's count scales with the length of the engine path the process resolves
-# [source: extensions/cmetta/benchmarks/bench.py, observe_all's path_decides;
-# commit=11afdcdbad5bbbe37168b5d8528c23a21c42b4b6].
-_.pinned_checkout_path_length
+# The engine and C benchmark drivers are outside this package scan. Both
+# compare the baseline's checkout length and depth before comparing boot
+# counters [source: extensions/cmetta/benchmarks/bench.py:observe_all;
+# commit=WORKTREE].
+_.checkout_path_refusal
 # A face reports the version its header pinned against the one installed here,
 # and the reader of that report is extensions/python/tools/facegen.py, which
 # vulture does not scan: the sync tool is the caller of every door on Face

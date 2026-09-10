@@ -348,7 +348,32 @@ def twin(m):
 #: pins of f26de01fb [measured 2026-09-09: min-of-3 serial fresh processes;
 #: command=python extensions/python/tools/twin_coverage.py --repin;
 #: commit=5f8a823d23fbed5c7395912a89ba32760e2df4b1].
-BUDGET = 13731
+#: RE-PINNED 2026-09-09, 13731 to 13545 (-186), Receipt cleanup stops at the
+#: nearest native transaction when unnested and skips forget_scope when that
+#: scope reserved no incoming occurrences. Nested transactions retain their
+#: outer owner. The provisioned cut control is
+#: 3e5855a35d7b206c847845f12467551ea4c54a59; the 2000-equation drop loses all
+#: 2000 empty receipt posts. See the 2026-09-09 receipt profile in
+#: docs/journal/2026-09-07-every-fact-has-a-token.md. Public and bulk writes
+#: now call metta_add_atom/4 and add_sexp_in/5 directly, removing one
+#: forwarding inference per accepted atom; parametric open enumeration shares
+#: native_storage_functor/2 with named-space reads. Autoload-only excursions
+#: are not a re-pin cause [measured 2026-09-09: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+#: RE-PINNED 2026-09-10, 13545 to 13485 (-60), The receipt crash repair
+#: replaces the separate nesting enumeration with metta_receipt_nearest_frame/3
+#: and metta_receipt_watch_transaction/2, transferring the same scope at live
+#: transaction completion. It removes the findnsols2/5 and findnsols_loop/5
+#: work; nested paths also avoid the old outer-frame scan while retaining outer
+#: rollback ownership. The same-path e70deddaa control changes only
+#: receipts.pl; all ten full-lane samples agree on this lower cost. See the
+#: 2026-09-10 receipt frame controls in docs/journal/2026-09-07-every-fact-has-
+#: a-token.md and the final twin sweep in docs/journal/2026-09-07-merged-tree-
+#: reconciliations.md [measured 2026-09-10: min-of-3 serial fresh processes;
+#: command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+BUDGET = 13485
 
 #: DIVERGED 2026-09-07, the example holds 0 atoms the twin does not (none) and
 #: the twin holds 1 atom the example does not (1 :): a Python annotation IS a (:

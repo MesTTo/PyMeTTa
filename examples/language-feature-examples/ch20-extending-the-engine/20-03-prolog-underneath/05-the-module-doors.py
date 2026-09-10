@@ -253,4 +253,17 @@ def twin(m):
 #: measured on this tree with the artifacts warm [measured 2026-09-09: min-of-3
 #: serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=f26de01fbf3e0e3c64bb691c66a59fa959fee7f3].
-BUDGET = 74349
+#: RE-PINNED 2026-09-09, 74349 to 74240 (-109), Receipt cleanup stops at the
+#: nearest native transaction when unnested and skips forget_scope when that
+#: scope reserved no incoming occurrences. Nested transactions retain their
+#: outer owner. The provisioned cut control is
+#: 3e5855a35d7b206c847845f12467551ea4c54a59; the 2000-equation drop loses all
+#: 2000 empty receipt posts. See the 2026-09-09 receipt profile in
+#: docs/journal/2026-09-07-every-fact-has-a-token.md. Public and bulk writes
+#: now call metta_add_atom/4 and add_sexp_in/5 directly, removing one
+#: forwarding inference per accepted atom; parametric open enumeration shares
+#: native_storage_functor/2 with named-space reads. Autoload-only excursions
+#: are not a re-pin cause [measured 2026-09-09: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+BUDGET = 74240

@@ -309,4 +309,19 @@ def twin(m):
 #: pins of f26de01fb [measured 2026-09-09: min-of-3 serial fresh processes;
 #: command=python extensions/python/tools/twin_coverage.py --repin;
 #: commit=5f8a823d23fbed5c7395912a89ba32760e2df4b1].
-BUDGET = 17409
+#: RE-PINNED 2026-09-11, 17409 to 17404 (-5), Explicit
+#: filereader:source_pending_definition/2 in
+#: translator:runnable_head_awaits_its_definition/1 removes one inherited-
+#: resolution retry. The same-physical-path qualifier-only toggle has 102
+#: successful children, three identical samples per arm, unchanged source/twin
+#: bodies and semantic fields, and no instrumentation (ai-tmp/ai-qualified-
+#: boundaries-analysis.json and ai-tmp/ai-qualified-
+#: boundaries-{unqualified,qualified}.json). This point was already four below
+#: its declaration in the e93f2028d ten-round full lane; qualification saves
+#: one more, crossing the unchanged four-inference allowance. All instruction
+#: pins, bands, bodies, assertions and stored-content oracles stay. Foldall
+#: retains 17904. The end-of-wave battery re-pins the whole lane on the merged
+#: tree under the normalised protocol; these are this tree's measured prices
+#: [measured 2026-09-11: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 17404

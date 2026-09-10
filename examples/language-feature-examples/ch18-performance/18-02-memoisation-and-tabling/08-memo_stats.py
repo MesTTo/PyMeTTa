@@ -297,7 +297,17 @@ def twin(m):
 #: pins of f26de01fb [measured 2026-09-09: min-of-3 serial fresh processes;
 #: command=python extensions/python/tools/twin_coverage.py --repin;
 #: commit=5f8a823d23fbed5c7395912a89ba32760e2df4b1].
-BUDGET = 25756
+#: RE-PINNED 2026-09-10, 25756 to 25751 (-5), The direct public and bulk native
+#: writes remove one forwarding inference per accepted atom, while the receipt
+#: and enumeration fixes are recorded in docs/journal/2026-09-07-every-fact-
+#: has-a-token.md. The full-lane ten-round observations and this serial ten-
+#: process measurement agree on the lower cost. The rejected uncommitted
+#: readings 25980, 51137 and 36463 were higher than the full-lane minima; ai-
+#: tmp/ai-twin-point-selection.json retains all samples and the merged-tree
+#: journal records their disposition. No allowance, overrun or oracle changes
+#: [measured 2026-09-10: min-of-10 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 25751
 
 #: OVERRUN 2026-09-07, 800: it reads the cache statistics through the term door
 #: beside every claim. Measured 38155 against a ceiling of 37417; a minimal

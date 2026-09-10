@@ -277,48 +277,49 @@
     "chain": [
      "bench.py --memory-scale spawns join-shared in a fresh process",
      "instructions is selected by minimum of repetitions",
-     "the intended complexity family is linear"
+     "the intended complexity family is linear",
+     "RE-PINNED 2026-09-09: instructions [26611473, 30279884, 65194917, 455812665] to [26886179, 31158374, 68143149, 480099748]. Wide native clause heads carry a token field and decode through metta_storage_term/4. At width1000, token parent cbf7a958de1e87d648bb723c97fa3960f94e258d reads 471163151 instructions, token merge 50e34286f66c938d89d5d367c6370ad44164c97f reads 487053722, pre-layout 3734fc3641eab6574e43ef535da7376f365a51d3 reads 479456514, and repair reads 480099748. The parent was already 3.37 percent above the old pin; the token boundary adds 3.37 percent and the current row remains linear. The instruction counter sees this C-side work while inference counts do not price it. Raw samples by size {'1': [26894144, 26886179, 26891989], '10': [31277856, 31158374, 31158793], '100': [68143149, 68143213, 68259913], '1000': [480099748, 480150356, 480171000]}; measured noise {'absolute_max': 119482, 'relative_max': 0.0038346673674306627, 'resolution_bytes': 1}; the published noise {'absolute_max': 79592, 'relative_max': 0.00017461559564168757, 'resolution_bytes': 1} and five-percent margin are retained. [measured: minimum of three fresh processes; command=sh check.sh memory-scale; retained ai-tmp/ai-final-memory.json; fixture=provisioned engine and MORK, warm QLF; commit=WORKTREE]"
     ],
     "commit": "WORKTREE"
    },
    "expected": "linear",
    "fit": {
     "best_model": "linear",
-    "last_ratio": 6.9915368555496435,
+    "last_ratio": 7.045458788527663,
     "models": {
      "capped_linear": {
-      "intercept": 24845770.85973437,
-      "nrms": 0.00377970639494371,
-      "slope": 430707.34073903016
+      "intercept": 25328543.5856819,
+      "nrms": 0.0034688010963906807,
+      "slope": 454521.4002315683
      },
      "constant": {
-      "intercept": 144474734.75,
-      "nrms": 0.42027076790533385,
+      "intercept": 151571862.5,
+      "nrms": 0.42000698109852547,
       "slope": 0.0
      },
      "linear": {
-      "intercept": 24845770.85973437,
-      "nrms": 0.00377970639494371,
-      "slope": 430707.34073903016
+      "intercept": 25328543.5856819,
+      "nrms": 0.0034688010963906807,
+      "slope": 454521.4002315683
      },
      "log_n": {
-      "intercept": -53903056.599999994,
-      "nrms": 0.2407148363480678,
-      "slope": 57436253.410306424
+      "intercept": -57921959.79999998,
+      "nrms": 0.2402128204025003,
+      "slope": 60654674.011806935
      },
      "n_log_n": {
-      "intercept": 30629328.771459952,
-      "nrms": 0.008855719480323272,
-      "slope": 61610.506674785574
+      "intercept": 31434912.112003654,
+      "nrms": 0.009219402082251438,
+      "slope": 65015.3453285876
      },
      "quadratic": {
-      "intercept": 39219637.75558898,
-      "nrms": 0.031155575982381247,
-      "slope": 416.81018826596954
+      "intercept": 40504520.5789198,
+      "nrms": 0.03147238114517715,
+      "slope": 439.82667840574436
      }
     },
-    "power_exponent": 0.4034211951092853,
-    "r_squared": 0.8372518220655663
+    "power_exponent": 0.4095254590097988,
+    "r_squared": 0.8428851778351163
    },
    "gated": true,
    "noise": {
@@ -328,10 +329,10 @@
    },
    "primary_metric": "instructions",
    "representative": [
-    26611473,
-    30279884,
-    65194917,
-    455812665
+    26886179,
+    31158374,
+    68143149,
+    480099748
    ],
    "sizes": [
     1,
@@ -413,7 +414,8 @@
     "chain": [
      "bench.py --memory-scale spawns load-fast in a fresh process",
      "inferences is selected by minimum of repetitions",
-     "the intended complexity family is linear"
+     "the intended complexity family is linear",
+     "RE-PINNED 2026-09-09: inferences [1798, 4960, 36456, 351480] to [2213, 7523, 60623, 591623]. Token images retain portable occurrence identities and validate their collision mapping. At10000 atoms the cut reads891612 inferences and the repair591623; the old351480 row predates this work. Reusing normalized tokens removes a duplicate validation/receive pass, and one clock advance and rollback marker per image replace per-atom synchronization. The remaining required validation and storage are linear over this size ladder. Raw samples by size {'10': [2213, 2213, 2213], '100': [7523, 7523, 7523], '1000': [60623, 60623, 60623], '10000': [591623, 591623, 591623]}; measured noise {'absolute_max': 0, 'relative_max': 0.0, 'resolution_bytes': 1}; the published noise {'absolute_max': 0, 'relative_max': 0.0, 'resolution_bytes': 1} and five-percent margin are retained. [measured: minimum of three fresh processes; command=sh check.sh memory-scale; retained ai-tmp/ai-final-memory.json; fixture=provisioned engine and MORK, warm QLF; commit=WORKTREE]"
     ],
     "commit": "WORKTREE",
     "repin_2026_09_04": "RE-PINNED 2026-09-04, 151326 to 351480. First causal change: d2279ea3, the equation-world commit, which made the cache an image a Prolog codec validates and decodes rather than a term fast_read/2 consumes whole. Measured on a 2,000-equation cache before this pass: validating 264,121 inferences, decoding 116,011, against 270,105 for the storing that is the work. Reduced here from 831,560 to 351,480 by fusing three full walks into one and skipping the decode outright: the validity pass walked every term for space references, then walked the WHOLE image again for host objects, then the decode walked it a third time rebuilding every node to swap references a program with no child space does not have. The one walk now answers all three questions and reports whether any reference exists, and `none` skips the decode. What is left is one walk of an untrusted payload, which the format requires and cannot be skipped on a file the engine did not write. STILL LINEAR: the walk is O(atoms), nrms 1.19e-05 against the linear model, which is why the family is unchanged and only the constant moved."
@@ -421,41 +423,41 @@
    "expected": "linear",
    "fit": {
     "best_model": "linear",
-    "last_ratio": 9.641211323238974,
+    "last_ratio": 9.75905184500932,
     "models": {
      "capped_linear": {
-      "intercept": 1453.6844833171344,
-      "nrms": 1.190693738107473e-05,
-      "slope": 35.00263384939077
+      "intercept": 1623.0,
+      "nrms": 0.0,
+      "slope": 59.0
      },
      "constant": {
-      "intercept": 98673.5,
-      "nrms": 0.4191965625970025,
+      "intercept": 165495.5,
+      "nrms": 0.41920338109080324,
       "slope": 0.0
      },
      "linear": {
-      "intercept": 1453.6844833171344,
-      "nrms": 1.190693738107473e-05,
-      "slope": 35.00263384939077
+      "intercept": 1623.0,
+      "nrms": 0.0,
+      "slope": 59.0
      },
      "log_n": {
-      "intercept": -171461.99999999994,
-      "nrms": 0.23742171152573702,
-      "slope": 46927.34280647035
+      "intercept": -289837.0,
+      "nrms": 0.2374305480704809,
+      "slope": 79099.35687248496
      },
      "n_log_n": {
-      "intercept": 4992.498935414726,
-      "nrms": 0.009454203418357628,
-      "slope": 3.766270939275357
+      "intercept": 7587.969705013238,
+      "nrms": 0.009452997846905557,
+      "slope": 6.348379454578414
      },
      "quadratic": {
-      "intercept": 13199.047443816191,
-      "nrms": 0.03483061587820043,
-      "slope": 0.0033847883550727625
+      "intercept": 21420.821686257055,
+      "nrms": 0.03483067252846592,
+      "slope": 0.005705357318277794
      }
     },
-    "power_exponent": 0.7739620130080236,
-    "r_squared": 0.9744384986551479
+    "power_exponent": 0.8187437268529866,
+    "r_squared": 0.9833663145942992
    },
    "gated": true,
    "noise": {
@@ -465,10 +467,10 @@
    },
    "primary_metric": "inferences",
    "representative": [
-    1798,
-    4960,
-    36456,
-    351480
+    2213,
+    7523,
+    60623,
+    591623
    ],
    "sizes": [
     10,
@@ -482,48 +484,49 @@
     "chain": [
      "bench.py --memory-scale spawns load-metta in a fresh process",
      "inferences is selected by minimum of repetitions",
-     "the intended complexity family is linear"
+     "the intended complexity family is linear",
+     "RE-PINNED 2026-09-09: inferences [934, 2824, 21724, 210732] to [1039, 3469, 27769, 270769]. Native text loading reconstructs fresh occurrence tokens and records their source references through add_sexp_in/5. The token parent and cut controls isolate the per-occurrence mutation cost; the cut already reads270769 at10000 atoms, and the repaired tree retains that exact count. This data loader already used the direct token body, so the public-wrapper removal does not reduce this curve. The curve remains linear. Raw samples by size {'10': [1039, 1039, 1039], '100': [3469, 3469, 3469], '1000': [27769, 27769, 27769], '10000': [270769, 270769, 270769]}; measured noise {'absolute_max': 0, 'relative_max': 0.0, 'resolution_bytes': 1}; the published noise {'absolute_max': 0, 'relative_max': 0.0, 'resolution_bytes': 1} and five-percent margin are retained. [measured: minimum of three fresh processes; command=sh check.sh memory-scale; retained ai-tmp/ai-final-memory.json; fixture=provisioned engine and MORK, warm QLF; commit=WORKTREE]"
     ],
     "commit": "WORKTREE"
    },
    "expected": "linear",
    "fit": {
     "best_model": "linear",
-    "last_ratio": 9.700423494752348,
+    "last_ratio": 9.750765241816413,
     "models": {
      "capped_linear": {
-      "intercept": 723.7123420796852,
-      "nrms": 1.5262560127694644e-06,
-      "slope": 21.000823639215234
+      "intercept": 769.0,
+      "nrms": 0.0,
+      "slope": 27.0
      },
      "constant": {
-      "intercept": 59053.5,
-      "nrms": 0.41920383697812813,
+      "intercept": 75761.5,
+      "nrms": 0.41920338109080324,
       "slope": 0.0
      },
      "linear": {
-      "intercept": 723.7123420796852,
-      "nrms": 1.5262560127694644e-06,
-      "slope": 21.000823639215234
+      "intercept": 769.0,
+      "nrms": 0.0,
+      "slope": 27.0
      },
      "log_n": {
-      "intercept": -103020.0,
-      "nrms": 0.23743191184294382,
-      "slope": 28155.05068509867
+      "intercept": -132611.0,
+      "nrms": 0.23743054807048086,
+      "slope": 36198.010772154135
      },
      "n_log_n": {
-      "intercept": 2846.9158219827514,
-      "nrms": 0.009451487059979008,
-      "slope": 2.2596814955004407
+      "intercept": 3498.7318989043706,
+      "nrms": 0.009452997846905559,
+      "slope": 2.905190597857918
      },
      "quadratic": {
-      "intercept": 7770.655447678102,
-      "nrms": 0.034829189481197044,
-      "slope": 0.0020308006645799537
+      "intercept": 9829.020093710846,
+      "nrms": 0.03483067252846592,
+      "slope": 0.002610926230398313
      }
     },
-    "power_exponent": 0.7946225939887102,
-    "r_squared": 0.9786956976444076
+    "power_exponent": 0.8151306121076196,
+    "r_squared": 0.9827001412102132
    },
    "gated": true,
    "noise": {
@@ -533,10 +536,10 @@
    },
    "primary_metric": "inferences",
    "representative": [
-    934,
-    2824,
-    21724,
-    210732
+    1039,
+    3469,
+    27769,
+    270769
    ],
    "sizes": [
     10,
@@ -550,7 +553,8 @@
     "chain": [
      "bench.py --memory-scale spawns mork-join-width in a fresh process",
      "inferences is selected by minimum of repetitions",
-     "the intended complexity family is linear"
+     "the intended complexity family is linear",
+     "RE-PINNED 2026-09-09: inferences [34, 34, 34, 34] to [67, 67, 67, 67]. The fixed fresh-cursor variable-key decoding boundary already reads68 at the token parent and67 after the merge. Backend query work remains constant across1,10,100,1000 joined heads. The old34 pin predates the shared decoding boundary, not a backend width regression. Raw samples by size {'1': [67, 67, 67], '10': [67, 67, 67], '100': [67, 67, 67], '1000': [67, 67, 67]}; measured noise {'absolute_max': 0, 'relative_max': 0.0, 'resolution_bytes': 1}; the published noise {'absolute_max': 0, 'relative_max': 0.0, 'resolution_bytes': 1} and five-percent margin are retained. [measured: minimum of three fresh processes; command=sh check.sh memory-scale; retained ai-tmp/ai-final-memory.json; fixture=provisioned engine and MORK, warm QLF; commit=WORKTREE]"
     ],
     "commit": "WORKTREE"
    },
@@ -560,32 +564,32 @@
     "last_ratio": 1.0,
     "models": {
      "capped_linear": {
-      "intercept": 34.0,
+      "intercept": 67.0,
       "nrms": 0.0,
       "slope": 0.0
      },
      "constant": {
-      "intercept": 34.0,
+      "intercept": 67.0,
       "nrms": 0.0,
       "slope": 0.0
      },
      "linear": {
-      "intercept": 34.0,
+      "intercept": 67.0,
       "nrms": 0.0,
       "slope": 0.0
      },
      "log_n": {
-      "intercept": 34.0,
+      "intercept": 67.0,
       "nrms": 0.0,
       "slope": 0.0
      },
      "n_log_n": {
-      "intercept": 34.0,
+      "intercept": 67.0,
       "nrms": 0.0,
       "slope": 0.0
      },
      "quadratic": {
-      "intercept": 34.0,
+      "intercept": 67.0,
       "nrms": 0.0,
       "slope": 0.0
      }
@@ -601,10 +605,10 @@
    },
    "primary_metric": "inferences",
    "representative": [
-    34,
-    34,
-    34,
-    34
+    67,
+    67,
+    67,
+    67
    ],
    "sizes": [
     1,
@@ -1163,48 +1167,49 @@
     "chain": [
      "bench.py --memory-scale spawns stored-atoms-native in a fresh process",
      "storage_module_bytes is selected by minimum of repetitions",
-     "the intended complexity family is linear"
+     "the intended complexity family is linear",
+     "RE-PINNED 2026-09-09: storage_module_bytes [2536, 14056, 129256, 1281256] to [2696, 15656, 145256, 1441256]. Token storage adds one field to each native fact clause. SWI module storage rises exactly16 bytes per occurrence at all four sizes, from128 to144 marginal bytes. This is the physical identity representation introduced by the token merge; bag multiplicity and indexed bound access are preserved. Raw samples by size {'10': [2696, 2696, 2696], '100': [15656, 15656, 15656], '1000': [145256, 145256, 145256], '10000': [1441256, 1441256, 1441256]}; measured noise {'absolute_max': 0, 'relative_max': 0.0, 'resolution_bytes': 1}; the published noise {'absolute_max': 0, 'relative_max': 0.0, 'resolution_bytes': 1} and five-percent margin are retained. [measured: minimum of three fresh processes; command=sh check.sh memory-scale; retained ai-tmp/ai-final-memory.json; fixture=provisioned engine and MORK, warm QLF; commit=WORKTREE]"
     ],
     "commit": "WORKTREE"
    },
    "expected": "linear",
    "fit": {
     "best_model": "linear",
-    "last_ratio": 9.912545645850097,
+    "last_ratio": 9.922178774026547,
     "models": {
      "capped_linear": {
       "intercept": 1256.0,
       "nrms": 0.0,
-      "slope": 128.0
+      "slope": 144.0
      },
      "constant": {
-      "intercept": 356776.0,
+      "intercept": 401216.0,
       "nrms": 0.41920338109080324,
       "slope": 0.0
      },
      "linear": {
       "intercept": 1256.0,
       "nrms": 0.0,
-      "slope": 128.0
+      "slope": 144.0
      },
      "log_n": {
-      "intercept": -631063.9999999998,
-      "nrms": 0.2374305480704809,
-      "slope": 171605.38440132327
+      "intercept": -710104.0,
+      "nrms": 0.23743054807048083,
+      "slope": 193056.0574514887
      },
      "n_log_n": {
-      "intercept": 14196.951224435528,
+      "intercept": 15814.570127489977,
       "nrms": 0.00945299784690556,
-      "slope": 13.77275542688198
+      "slope": 15.494349855242229
      },
      "quadratic": {
-      "intercept": 44207.20637018478,
-      "nrms": 0.03483067252846592,
-      "slope": 0.012377724351517927
+      "intercept": 49576.10716645786,
+      "nrms": 0.03483067252846591,
+      "slope": 0.013924939895457667
      }
     },
-    "power_exponent": 0.9074048952347045,
-    "r_squared": 0.9957216470414946
+    "power_exponent": 0.9151516989197073,
+    "r_squared": 0.9964186740096737
    },
    "gated": true,
    "noise": {
@@ -1214,10 +1219,10 @@
    },
    "primary_metric": "storage_module_bytes",
    "representative": [
-    2536,
-    14056,
-    129256,
-    1281256
+    2696,
+    15656,
+    145256,
+    1441256
    ],
    "sizes": [
     10,
@@ -1231,48 +1236,50 @@
     "chain": [
      "bench.py --memory-scale spawns support-drop-one in a fresh process",
      "inferences is selected by minimum of repetitions",
-     "the intended complexity family is linear"
+     "the intended complexity family is linear",
+     "RE-PINNED 2026-09-09: inferences [3776, 6260, 31102, 279512] to [9233, 13310, 54080, 461780]. Dropping source-owned equations retires compiled artifacts and their token/receipt ownership. At1000, parent reads254560, cut522803 and repair461780. Nearest unnested receipt scopes and reserved-only cleanup remove repeated stack discovery; required ordered source withdrawal and its callbacks remain linear. The separate source-owned publication package owns the remaining retirement work. Raw samples by size {'1': [9233, 9233, 9233], '10': [13310, 13310, 13310], '100': [54080, 54080, 54080], '1000': [461780, 461780, 461780]}; measured noise {'absolute_max': 0, 'relative_max': 0.0, 'resolution_bytes': 1}; the published noise {'absolute_max': 0, 'relative_max': 0.0, 'resolution_bytes': 1} and five-percent margin are retained. [measured: minimum of three fresh processes; command=sh check.sh memory-scale; retained ai-tmp/ai-final-memory.json; fixture=provisioned engine and MORK, warm QLF; commit=WORKTREE]",
+     "RE-PINNED 2026-09-10: inferences [9233, 13310, 54080, 461780] to [9215, 13166, 52676, 447776]. The final receipt watch-transfer repair removes the separate nesting enumeration, saving exactly 14N+4 inferences. All three samples at N=1,10,100,1000 agree in each before and after population. The independent N=2000 source-only receipt toggle reads 914781 to 886777 in all three processes, the same 28004 reduction. Ownership transfers to the live outer transaction on completion; nested rollback and engine destruction remain covered by the receipt frame suites. The linear class, zero published noise and five-percent margin are unchanged. [measured: minimum of three fresh processes at each size; command=sh check.sh memory-scale; fixture=ai-tmp/ai-verified-895878bbe-memory.json, ai-tmp/ai-final-support-drop-audit.json and ai-tmp/ai-receipts-frame-cost-{before,after}.json; commit=WORKTREE]"
     ],
     "commit": "WORKTREE"
    },
    "expected": "linear",
    "fit": {
     "best_model": "linear",
-    "last_ratio": 8.98694617709472,
+    "last_ratio": 8.500569519325689,
     "models": {
      "capped_linear": {
-      "intercept": 3500.209264658246,
-      "nrms": 1.316062221003428e-06,
-      "slope": 276.01184783201353
+      "intercept": 8776.0,
+      "nrms": 0.0,
+      "slope": 439.0
      },
      "constant": {
-      "intercept": 80162.5,
-      "nrms": 0.4192031317384661,
+      "intercept": 130708.25,
+      "nrms": 0.4192033810908032,
       "slope": 0.0
      },
      "linear": {
-      "intercept": 3500.209264658246,
-      "nrms": 1.316062221003428e-06,
-      "slope": 276.01184783201353
+      "intercept": 8776.0,
+      "nrms": 0.0,
+      "slope": 439.0
      },
      "log_n": {
-      "intercept": -47645.000000000015,
-      "nrms": 0.2374295656549865,
-      "slope": 37004.061330566576
+      "intercept": -72570.69999999995,
+      "nrms": 0.23743054807048095,
+      "slope": 58855.28418139135
      },
      "n_log_n": {
-      "intercept": 7226.056125586401,
-      "nrms": 0.012567336297718173,
-      "slope": 39.47152037919509
+      "intercept": 14701.991495302864,
+      "nrms": 0.012566074341080868,
+      "slope": 62.77991019916779
      },
      "quadratic": {
-      "intercept": 12761.978009878745,
-      "nrms": 0.03483193862908318,
-      "slope": 0.26690606974994086
+      "intercept": 23506.921559774302,
+      "nrms": 0.03483067252846592,
+      "slope": 0.4245172648684664
      }
     },
-    "power_exponent": 0.6304319400163256,
-    "r_squared": 0.9354535499300357
+    "power_exponent": 0.5661855356930581,
+    "r_squared": 0.914070845509755
    },
    "gated": true,
    "noise": {
@@ -1282,10 +1289,10 @@
    },
    "primary_metric": "inferences",
    "representative": [
-    3776,
-    6260,
-    31102,
-    279512
+    9215,
+    13166,
+    52676,
+    447776
    ],
    "sizes": [
     1,
@@ -1300,48 +1307,50 @@
      "bench.py --memory-scale spawns support-drop-spaces in a fresh process",
      "inferences is selected by minimum of repetitions",
      "the intended complexity family is linear",
-     "RE-PINNED 2026-09-07, inferences at the four sizes [3776, 36761, 366625, 3665257] to [7550, 74134, 739982, 7398446]. Three steps, each measured on its own ladder over the first-parent chain with every component rebuilt at each point (ai-tmp/hy-ladder2.sh in the branch's ladder worktree): 699c8b4a, the algebra-lifecycle merge, which retires every space-owned catalog declaration with its space and so charges every drop, [3987, 38540, 384062, 3839298] to [7037, 69363, 688777, 6886423]; then 80af155d to 7,158,434 and 5621c456 to 7,398,448 at the largest size. The fit is still linear at nrms 0.0000 and the case is still the drop cost it measures."
+     "RE-PINNED 2026-09-07, inferences at the four sizes [3776, 36761, 366625, 3665257] to [7550, 74134, 739982, 7398446]. Three steps, each measured on its own ladder over the first-parent chain with every component rebuilt at each point (ai-tmp/hy-ladder2.sh in the branch's ladder worktree): 699c8b4a, the algebra-lifecycle merge, which retires every space-owned catalog declaration with its space and so charges every drop, [3987, 38540, 384062, 3839298] to [7037, 69363, 688777, 6886423]; then 80af155d to 7,158,434 and 5621c456 to 7,398,448 at the largest size. The fit is still linear at nrms 0.0000 and the case is still the drop cost it measures.",
+     "RE-PINNED 2026-09-09: inferences [7550, 74134, 739982, 7398446] to [9233, 90836, 906866, 9067166]. Source-owned space retirement preserves compiled references and receipt ownership. At1000 spaces, parent reads8652154, cut9146171 and repair9067166. Most of the increase over7398446 predates tokens. Nearest unnested receipt scopes remove avoidable discovery; each independent owner still needs withdrawal, so the retained curve is linear. Raw samples by size {'1': [9233, 9233, 9233], '10': [90836, 90836, 90836], '100': [906866, 906866, 906866], '1000': [9067166, 9067166, 9067166]}; measured noise {'absolute_max': 0, 'relative_max': 0.0, 'resolution_bytes': 1}; the published noise {'absolute_max': 0, 'relative_max': 0.0, 'resolution_bytes': 1} and five-percent margin are retained. [measured: minimum of three fresh processes; command=sh check.sh memory-scale; retained ai-tmp/ai-final-memory.json; fixture=provisioned engine and MORK, warm QLF; commit=WORKTREE]",
+     "RE-PINNED 2026-09-10: inferences [9233, 90836, 906866, 9067166] to [9215, 90692, 905462, 9053162]. The final receipt watch-transfer repair removes the separate nesting enumeration, saving exactly 14N+4 inferences. All three samples at N=1,10,100,1000 agree in each before and after population. The independent N=2000 source-only receipt toggle reads 914781 to 886777 in all three processes, the same 28004 reduction. Ownership transfers to the live outer transaction on completion; nested rollback and engine destruction remain covered by the receipt frame suites. The linear class, zero published noise and five-percent margin are unchanged. [measured: minimum of three fresh processes at each size; command=sh check.sh memory-scale; fixture=ai-tmp/ai-verified-895878bbe-memory.json, ai-tmp/ai-final-support-drop-audit.json and ai-tmp/ai-receipts-frame-cost-{before,after}.json; commit=WORKTREE]"
     ],
     "commit": "WORKTREE"
    },
    "expected": "linear",
    "fit": {
     "best_model": "linear",
-    "last_ratio": 9.998143198077791,
+    "last_ratio": 9.99838977229304,
     "models": {
      "capped_linear": {
-      "intercept": 151.75186264980584,
-      "nrms": 7.275156159749012e-08,
-      "slope": 7398.294322726733
+      "intercept": 162.0,
+      "nrms": 0.0,
+      "slope": 9053.0
      },
      "constant": {
-      "intercept": 2055028.0,
-      "nrms": 0.41920338270185314,
+      "intercept": 2514632.75,
+      "nrms": 0.41920338109080324,
       "slope": 0.0
      },
      "linear": {
-      "intercept": 151.75186264980584,
-      "nrms": 7.275156159749012e-08,
-      "slope": 7398.294322726733
+      "intercept": 162.0,
+      "nrms": 0.0,
+      "slope": 9053.0
      },
      "log_n": {
-      "intercept": -1370752.4,
-      "nrms": 0.23743051760038428,
-      "slope": 991865.0159548766
+      "intercept": -1677358.9,
+      "nrms": 0.2374305480704809,
+      "slope": 1213705.8945196718
      },
      "n_log_n": {
-      "intercept": 100020.16397551075,
-      "nrms": 0.012566134320234533,
-      "slope": 1058.0051280536488
+      "intercept": 122367.01368331909,
+      "nrms": 0.012566074341080861,
+      "slope": 1294.6390137427468
      },
      "quadratic": {
-      "intercept": 248406.201155056,
-      "nrms": 0.03483073517528792,
-      "slope": 7.154222394968202
+      "intercept": 303941.1181791271,
+      "nrms": 0.03483067252846591,
+      "slope": 8.754338949554047
      }
     },
-    "power_exponent": 0.9972784392033115,
-    "r_squared": 0.9999964888310078
+    "power_exponent": 0.9976216106257688,
+    "r_squared": 0.999997323297625
    },
    "gated": true,
    "noise": {
@@ -1351,10 +1360,10 @@
    },
    "primary_metric": "inferences",
    "representative": [
-    7550,
-    74134,
-    739982,
-    7398446
+    9215,
+    90692,
+    905462,
+    9053162
    ],
    "sizes": [
     1,

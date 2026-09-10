@@ -6,20 +6,26 @@ Guarantees:
     test_an_atom_naming_a_released_future_still_decodes; commit=50e34286f66c938d89d5d367c6370ad44164c97f]
   - the handle spawn returns is the one decoded from the engine's answer, so
     an awaited future does not warn as abandoned [tested:
-    test_an_awaited_future_does_not_warn_as_abandoned; commit=50e34286f66c938d89d5d367c6370ad44164c97f]
+    test_an_awaited_future_does_not_warn_as_abandoned; commit=WORKTREE]
+  - the future finalisation assertion observes every ResourceWarning in its
+    own process; an unclosed cursor inside that window still fails it
+    [tested: test_an_awaited_future_does_not_warn_as_abandoned; commit=WORKTREE]
 Owns resources: scopes release their children; fixtures drop borrowed spaces
 and unregister their test operations [tested: test_scopes.py; commit=c6e1198c490a824b96f6fc6e1c0622a542917024].
+The finalisation probe waits for its child and retains both output streams
+[tested: test_an_awaited_future_does_not_warn_as_abandoned; commit=WORKTREE].
 """
 
 
 from __future__ import annotations
 
 import asyncio
-import gc
+import subprocess
+import sys
 import threading
 import time
-import warnings
 from collections import deque
+from pathlib import Path
 from random import Random
 
 import pytest
@@ -762,12 +768,40 @@ def test_an_atom_naming_a_released_future_still_decodes():
             note.children[1].atoms()
 
 
-def test_an_awaited_future_does_not_warn_as_abandoned():
-    """The handle spawn returns is the decoded one, so awaiting it observes settlement."""
-    with warnings.catch_warnings(record=True) as seen:
-        warnings.simplefilter("always", ResourceWarning)
-        future = metta.spawn(S["+"](1, 2))
-        assert list(future.wait()) == [G(3)]
-        del future
-        gc.collect()
-    assert [str(w.message) for w in seen if issubclass(w.category, ResourceWarning)] == []
+@pytest.mark.parametrize("abandon_cursor", [False, True], ids=["awaited", "cursor-control"])
+def test_an_awaited_future_does_not_warn_as_abandoned(abandon_cursor):
+    """Awaiting is warning-free; any abandoned cursor in that process still fails."""
+    # gc.collect() also finalises cycles left by previous tests. Keep the
+    # complete warning assertion in its own process, as the shutdown probe
+    # in test_finaliser_engine_safety.py does. The cursor control proves the
+    # isolation does not discard another ResourceWarning in this window.
+    program = f"""
+import gc
+import warnings
+import metta
+from metta import G, S, V
+
+with warnings.catch_warnings(record=True) as seen:
+    warnings.simplefilter("always", ResourceWarning)
+    future = metta.spawn(S["+"](1, 2))
+    assert list(future.wait()) == [G(3)]
+    del future
+    if {abandon_cursor}:
+        with metta.space() as space:
+            space.add(S.row(1))
+            cursor = space.stream(S.row(V.x))
+            next(cursor)
+            del cursor
+    gc.collect()
+messages = [str(w.message) for w in seen if issubclass(w.category, ResourceWarning)]
+assert messages == [], messages
+"""
+    result = subprocess.run(
+        [sys.executable, "-c", program], cwd=Path(__file__).resolve().parents[2],
+        capture_output=True, text=True, check=False,
+    )
+    if abandon_cursor:
+        assert result.returncode == 1, result.stdout + result.stderr
+        assert "an open metta Cursor was discarded; use a with-block or close()" in result.stderr
+    else:
+        assert result.returncode == 0, result.stdout + result.stderr
