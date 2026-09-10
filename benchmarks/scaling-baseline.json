@@ -192,7 +192,7 @@
           "THE PLANT. This row is write-door's own measurement, for the UNMULTIPLIED workload that planted-constant-factor runs a fixed number of times.",
           "The distance between this row and the control's measurement is the planted constant-factor loss, so it is copied rather than measured and never reflects the control's own cost.",
           "The class is untouched, so the control passes the exponent gate and fails only the growth gate.",
-          "2026-09-09: derive this unmultiplied reference from the reconciled write-door curve. The measured three-pass plant [19207,38407,76807,153607] still fails only the growth gate; the quadratic plant still fails its class. [tested: python -m benchmarks.scaling; commit=WORKTREE]"
+          "2026-09-09: derive this unmultiplied reference from the reconciled write-door curve. The measured three-pass plant [19207,38407,76807,153607] still fails only the growth gate; the quadratic plant still fails its class. [tested: python -m benchmarks.scaling; commit=8ca8a387fc61d0918484b19a1a3baf85b6523043]"
         ],
         "commit": "WORKTREE"
       },
@@ -312,7 +312,7 @@
           "one answer cursor lowers the four-size inference row from [100, 97, 97, 97] to [34, 32, 32, 32]",
           "minimum of 3 fresh processes per size",
           "the declared class is constant",
-          "RE-PINNED 2026-09-09: [34, 32, 32, 32] to [67, 66, 66, 66]. The fresh cursor uses the shared variable-key decoder. The token-parent control already reads a floor near66, so this fixed boundary cost predates token storage. The bound indexed lookup remains constant at every size. [measured: minimum of three fresh processes; command=python -m benchmarks.scaling --record --json ai-tmp/ai-final-scaling.json; fixture=provisioned engine and MORK, warm QLF; commit=WORKTREE]"
+          "RE-PINNED 2026-09-09: [34, 32, 32, 32] to [67, 66, 66, 66]. The fresh cursor uses the shared variable-key decoder. The token-parent control already reads a floor near66, so this fixed boundary cost predates token storage. The bound indexed lookup remains constant at every size. [measured: minimum of three fresh processes; command=python -m benchmarks.scaling --record --json ai-tmp/ai-final-scaling.json; fixture=provisioned engine and MORK, warm QLF; commit=8ca8a387fc61d0918484b19a1a3baf85b6523043]"
         ],
         "commit": "6872eee94500bc0246eabaa40d7175c498cc32ab"
       },
@@ -372,7 +372,7 @@
           "python -m benchmarks.scaling --record measured write-door",
           "minimum of 3 fresh processes per size",
           "the declared class is linear",
-          "RE-PINNED 2026-09-09: [5405, 10805, 21605, 43207] to [6407, 12807, 25607, 51207]. Native occurrence allocation retains the five-inference atomic token clock. The direct bulk body removes one forwarding inference per atom from the cut curve [6607,13207,26407,52807]. The remaining curve is linear; its exponent is 0.9995466108579868. [measured: minimum of three fresh processes; command=python -m benchmarks.scaling --record --json ai-tmp/ai-final-scaling.json; fixture=provisioned engine and MORK, warm QLF; commit=WORKTREE]"
+          "RE-PINNED 2026-09-09: [5405, 10805, 21605, 43207] to [6407, 12807, 25607, 51207]. Native occurrence allocation retains the five-inference atomic token clock. The direct bulk body removes one forwarding inference per atom from the cut curve [6607,13207,26407,52807]. The remaining curve is linear; its exponent is 0.9995466108579868. [measured: minimum of three fresh processes; command=python -m benchmarks.scaling --record --json ai-tmp/ai-final-scaling.json; fixture=provisioned engine and MORK, warm QLF; commit=8ca8a387fc61d0918484b19a1a3baf85b6523043]"
         ],
         "commit": "WORKTREE"
       },

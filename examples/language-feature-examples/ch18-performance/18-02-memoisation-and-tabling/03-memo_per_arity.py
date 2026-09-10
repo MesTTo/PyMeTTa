@@ -354,7 +354,7 @@ def twin(m):
 #: docs/journal/2026-09-07-every-fact-has-a-token.md. Autoload-only excursions
 #: are excluded from this point selection and keep their pins [measured
 #: 2026-09-09: min-of-3 serial fresh processes; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+#: extensions/python/tools/twin_coverage.py --repin; commit=8ca8a387fc61d0918484b19a1a3baf85b6523043].
 BUDGET = 30110
 
 #: OVERRUN 2026-09-07, 600: it stacks the two arities as two decorated clauses
@@ -402,5 +402,5 @@ BUDGET = 30110
 #: processes per arm, minimum; command=python ai-tmp/ai-twin-relative-controls.py
 #: --example examples/ch18-performance/18-02-memoisation-and-tabling/03-memo_per_arity.metta
 #: --skip-definitions --output ai-memo-arity-receipt-relative.json;
-#: fixture=provisioned cut3e5855a35 and repaired tree; commit=WORKTREE].
+#: fixture=provisioned cut3e5855a35 and repaired tree; commit=8ca8a387fc61d0918484b19a1a3baf85b6523043].
 OVERRUN = 2112

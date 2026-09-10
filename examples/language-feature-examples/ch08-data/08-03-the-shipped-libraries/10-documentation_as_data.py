@@ -312,5 +312,5 @@ def twin(m):
 #: native_storage_functor/2 with named-space reads. Autoload-only excursions
 #: are not a re-pin cause [measured 2026-09-09: min-of-3 serial fresh
 #: processes; command=python extensions/python/tools/twin_coverage.py --repin;
-#: commit=WORKTREE].
+#: commit=8ca8a387fc61d0918484b19a1a3baf85b6523043].
 BUDGET = 49797

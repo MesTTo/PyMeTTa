@@ -342,7 +342,7 @@ def twin(m):
 #: docs/journal/2026-09-07-every-fact-has-a-token.md. Autoload-only excursions
 #: are excluded from this point selection and keep their pins [measured
 #: 2026-09-09: min-of-3 serial fresh processes; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+#: extensions/python/tools/twin_coverage.py --repin; commit=8ca8a387fc61d0918484b19a1a3baf85b6523043].
 BUDGET = 16235
 #: OVERRUN 2026-09-09, 25 to 62 (+37): the door table landed
 #: (feat/space-as-a-projection-of-door-rows merged at 6471faa37, its

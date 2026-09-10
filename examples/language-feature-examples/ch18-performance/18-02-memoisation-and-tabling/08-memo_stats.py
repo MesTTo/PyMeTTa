@@ -306,7 +306,7 @@ def twin(m):
 #: tmp/ai-twin-point-selection.json retains all samples and the merged-tree
 #: journal records their disposition. No allowance, overrun or oracle changes
 #: [measured 2026-09-10: min-of-10 serial fresh processes; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+#: extensions/python/tools/twin_coverage.py --repin; commit=8ca8a387fc61d0918484b19a1a3baf85b6523043].
 BUDGET = 25751
 
 #: OVERRUN 2026-09-07, 800: it reads the cache statistics through the term door

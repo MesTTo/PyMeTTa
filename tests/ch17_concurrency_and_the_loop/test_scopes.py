@@ -6,14 +6,14 @@ Guarantees:
     test_an_atom_naming_a_released_future_still_decodes; commit=50e34286f66c938d89d5d367c6370ad44164c97f]
   - the handle spawn returns is the one decoded from the engine's answer, so
     an awaited future does not warn as abandoned [tested:
-    test_an_awaited_future_does_not_warn_as_abandoned; commit=WORKTREE]
+    test_an_awaited_future_does_not_warn_as_abandoned; commit=8ca8a387fc61d0918484b19a1a3baf85b6523043]
   - the future finalisation assertion observes every ResourceWarning in its
     own process; an unclosed cursor inside that window still fails it
-    [tested: test_an_awaited_future_does_not_warn_as_abandoned; commit=WORKTREE]
+    [tested: test_an_awaited_future_does_not_warn_as_abandoned; commit=8ca8a387fc61d0918484b19a1a3baf85b6523043]
 Owns resources: scopes release their children; fixtures drop borrowed spaces
 and unregister their test operations [tested: test_scopes.py; commit=c6e1198c490a824b96f6fc6e1c0622a542917024].
 The finalisation probe waits for its child and retains both output streams
-[tested: test_an_awaited_future_does_not_warn_as_abandoned; commit=WORKTREE].
+[tested: test_an_awaited_future_does_not_warn_as_abandoned; commit=8ca8a387fc61d0918484b19a1a3baf85b6523043].
 """
 
 

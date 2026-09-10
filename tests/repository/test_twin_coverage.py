@@ -6,13 +6,13 @@ and an undeclared skip, and require the lane to answer correctly about each.
 
 Guarantees:
   - an unanswered child retains its process status in the finding [tested:
-    test_a_silent_child_failure_keeps_its_exit_status; commit=WORKTREE]
+    test_a_silent_child_failure_keeps_its_exit_status; commit=8ca8a387fc61d0918484b19a1a3baf85b6523043]
   - a real twin's first library load keeps its count when file-cache entries
     age beyond SWI's default expiry [tested:
-    test_a_first_library_load_is_independent_of_file_cache_age; commit=WORKTREE]
+    test_a_first_library_load_is_independent_of_file_cache_age; commit=8ca8a387fc61d0918484b19a1a3baf85b6523043]
   - engines created during MeTTa construction inherit the lane's cache
     lifetime [tested: test_engines_created_at_boot_inherit_the_cache_fixture;
-    commit=WORKTREE]
+    commit=8ca8a387fc61d0918484b19a1a3baf85b6523043]
   - shared answer comparison ignores order and alpha-renaming while preserving
     multiplicity [tested:
     test_answer_multisets_ignore_order_and_alpha_names_but_keep_multiplicity;

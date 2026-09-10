@@ -323,5 +323,5 @@ def twin(m):
 #: retains 17904. The end-of-wave battery re-pins the whole lane on the merged
 #: tree under the normalised protocol; these are this tree's measured prices
 #: [measured 2026-09-11: min-of-3 serial fresh processes; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+#: extensions/python/tools/twin_coverage.py --repin; commit=8ca8a387fc61d0918484b19a1a3baf85b6523043].
 BUDGET = 17404

@@ -331,7 +331,7 @@ def twin(m):
 #: native_storage_functor/2 with named-space reads. Autoload-only excursions
 #: are not a re-pin cause [measured 2026-09-09: min-of-3 serial fresh
 #: processes; command=python extensions/python/tools/twin_coverage.py --repin;
-#: commit=WORKTREE].
+#: commit=8ca8a387fc61d0918484b19a1a3baf85b6523043].
 #: RE-PINNED 2026-09-10, 18774 to 18756 (-18), Receipt ownership now watches
 #: the nearest live transaction and transfers its scope at completion,
 #: excluding the finishing frame. Removing the separate findnsols nesting
@@ -342,7 +342,7 @@ def twin(m):
 #: the receipt journal. Body, assertions and stored-content digest are
 #: unchanged [measured 2026-09-10: min-of-3 serial fresh processes;
 #: command=python extensions/python/tools/twin_coverage.py --repin;
-#: commit=WORKTREE].
+#: commit=8ca8a387fc61d0918484b19a1a3baf85b6523043].
 BUDGET = 18756
 
 #: OVERRUN 2026-09-07, 2700: it reads the definition's body through the query
@@ -384,7 +384,7 @@ BUDGET = 18756
 #: stored-content digest and BUDGET stay unchanged [measured: three identical
 #: fresh-process readings per cell; command=python ai-tmp/ai-twin-relative-controls.py;
 #: fixture=ai-tmp/ai-twin-relative-controls.json and ai-tmp/ai-eval-all-engine-census.json;
-#: commit=WORKTREE].
+#: commit=8ca8a387fc61d0918484b19a1a3baf85b6523043].
 #: OVERRUN 2026-09-10, 3069 to 3071: the receipt frame repair removes
 #: the separate nesting enumeration. All three arms fall by exactly 18:
 #: source 10450 to 10432, minimal Python 13985 to 13967, shipped program
@@ -400,7 +400,7 @@ BUDGET = 18756
 #: --skip-definitions --output ai-eval-receipt-relative.json;
 #: fixture=ai-tmp/ai-eval-receipt-relative.json,
 #: ai-tmp/ai-eval-receipt-census.json and ai-tmp/ai-receipts-frame-cost-before.json;
-#: commit=WORKTREE].
+#: commit=8ca8a387fc61d0918484b19a1a3baf85b6523043].
 #: OVERRUN 2026-09-11, 3071 to 3072: explicit
 #: filereader:source_pending_definition/2 in
 #: runnable_head_awaits_its_definition/1 removes one inherited-resolution retry
@@ -414,7 +414,7 @@ BUDGET = 18756
 #: constants stay. [measured 2026-09-11: same-path qualifier-only toggle;
 #: command=python ai-tmp/ai-qualified-boundaries.py unqualified and python ai-
 #: tmp/ai-qualified-boundaries.py qualified; fixture=file-search-cache-
-#: time=9223372036854775807/before-boot; commit=WORKTREE].
+#: time=9223372036854775807/before-boot; commit=8ca8a387fc61d0918484b19a1a3baf85b6523043].
 OVERRUN = 3072
 
 #: DIVERGED 2026-09-07, the example holds 2 atoms the twin does not (2 =) and

@@ -317,14 +317,14 @@ def twin(m):
 #: retain the existing empirical protocol; no point budget becomes an envelope.
 #: [measured: two complete ten-round passes; command=python
 #: extensions/python/tools/twin_coverage.py --observe --rounds 10;
-#: fixture=full-lane/277/workers=32; commit=WORKTREE]
+#: fixture=full-lane/277/workers=32; commit=8ca8a387fc61d0918484b19a1a3baf85b6523043]
 #: RE-OBSERVED 2026-09-10 after setting the file-search cache lifetime
 #: before engine creation. This complete ten-round population uses
 #: 26074..26074 over 10 observations. Earlier protocol
 #: samples remain above as history and do not enter this envelope.
 #: [measured: all 277 pairs, this twin succeeds in every round; command=python
 #: extensions/python/tools/twin_coverage.py --observe --rounds 10;
-#: fixture=full-lane/277/workers=32/file-search-cache-time=9223372036854775807/before-boot; commit=WORKTREE]
+#: fixture=full-lane/277/workers=32/file-search-cache-time=9223372036854775807/before-boot; commit=8ca8a387fc61d0918484b19a1a3baf85b6523043]
 #: POOLED 2026-09-10: the earlier before-boot population has 26074..26074 over
 #: ten samples; the receipt-frame repair's complete population has 26074..26074
 #: over ten. The full lanes at 17bec75f1 and e70deddaa add 26074 and 26074.
@@ -336,7 +336,7 @@ def twin(m):
 #: lane checks; command=python extensions/python/tools/twin_coverage.py
 #: --observe --rounds 10 and sh check.sh twins; fixture=full-
 #: lane/277/workers=32/file-search-cache-time=9223372036854775807/before-boot;
-#: commit=WORKTREE].
+#: commit=8ca8a387fc61d0918484b19a1a3baf85b6523043].
 #: POOLED 2026-09-10: the retained 22 observations have 26074..26074. The full
 #: lane at 71535ae17 adds 26074; a further complete ten-round population at
 #: db8640733 adds 26074..26074. All 2770 new samples succeed. Exact pooled
@@ -345,7 +345,7 @@ def twin(m):
 #: complete ten-round populations and three full-lane readings; command=python
 #: extensions/python/tools/twin_coverage.py --observe --rounds 10 and sh
 #: check.sh twins; fixture=full-lane/277/workers=32/file-search-cache-
-#: time=9223372036854775807/before-boot; commit=WORKTREE].
+#: time=9223372036854775807/before-boot; commit=8ca8a387fc61d0918484b19a1a3baf85b6523043].
 #: POOLED 2026-09-10: retain the previous33 observations and both full-gate
 #: samples (3fb950149: 26074; 503e21f8a: 26074), then append the complete ten-
 #: round populations (2f1be07e9: 26074..26074; e93f2028d: 26074..26074). Both
@@ -357,7 +357,7 @@ def twin(m):
 #: full-lane readings; command=python extensions/python/tools/twin_coverage.py
 #: --observe --rounds 10 and sh check.sh twins; fixture=full-
 #: lane/277/workers=32/file-search-cache-time=9223372036854775807/before-boot;
-#: commit=WORKTREE].
+#: commit=8ca8a387fc61d0918484b19a1a3baf85b6523043].
 #: POOLED 2026-09-11: keep all 55 previous observations, append the two
 #: complete gate readings (895878bbe=26074, 4d4fa2c55=26073), then all ten
 #: qualified 4d4fa2c55 rounds (26073..26073). The resulting 67 observations
@@ -371,7 +371,7 @@ def twin(m):
 #: populations and seven full-lane readings; command=python
 #: extensions/python/tools/twin_coverage.py --observe --rounds 10 and sh
 #: check.sh twins; fixture=full-lane/277/workers=32/file-search-cache-
-#: time=9223372036854775807/before-boot; commit=WORKTREE].
+#: time=9223372036854775807/before-boot; commit=8ca8a387fc61d0918484b19a1a3baf85b6523043].
 BUDGET = {
     "minimum": 26073,
     "maximum": 26074,

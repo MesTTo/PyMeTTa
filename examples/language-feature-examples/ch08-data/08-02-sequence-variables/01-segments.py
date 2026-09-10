@@ -301,7 +301,7 @@ def twin(m):
 #: docs/journal/2026-09-07-every-fact-has-a-token.md. Autoload-only excursions
 #: are excluded from this point selection and keep their pins [measured
 #: 2026-09-09: min-of-3 serial fresh processes; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+#: extensions/python/tools/twin_coverage.py --repin; commit=8ca8a387fc61d0918484b19a1a3baf85b6523043].
 BUDGET = 10641
 #: OVERRUN 2026-09-09, 0 to 140 (+140): the compiled vocabulary seed, the
 #: membership index, base-module type lookups and the singleton decoder landed

@@ -328,7 +328,7 @@ _carrier_type_accepts
 # The engine and C benchmark drivers are outside this package scan. Both
 # compare the baseline's checkout length and depth before comparing boot
 # counters [source: extensions/cmetta/benchmarks/bench.py:observe_all;
-# commit=WORKTREE].
+# commit=8ca8a387fc61d0918484b19a1a3baf85b6523043].
 _.checkout_path_refusal
 # A face reports the version its header pinned against the one installed here,
 # and the reader of that report is extensions/python/tools/facegen.py, which

@@ -382,7 +382,7 @@ def twin(m):
 #: native_storage_functor/2 with named-space reads. Autoload-only excursions
 #: are not a re-pin cause [measured 2026-09-09: min-of-3 serial fresh
 #: processes; command=python extensions/python/tools/twin_coverage.py --repin;
-#: commit=WORKTREE].
+#: commit=8ca8a387fc61d0918484b19a1a3baf85b6523043].
 #: RE-PINNED 2026-09-10, 13838 to 13820 (-18), The receipt crash repair
 #: replaces the separate nesting enumeration with metta_receipt_nearest_frame/3
 #: and metta_receipt_watch_transaction/2, transferring the same scope at live
@@ -394,7 +394,7 @@ def twin(m):
 #: a-token.md and the final twin sweep in docs/journal/2026-09-07-merged-tree-
 #: reconciliations.md [measured 2026-09-10: min-of-3 serial fresh processes;
 #: command=python extensions/python/tools/twin_coverage.py --repin;
-#: commit=WORKTREE].
+#: commit=8ca8a387fc61d0918484b19a1a3baf85b6523043].
 BUDGET = 13820
 
 #: DIVERGED 2026-09-07, the example holds 0 atoms the twin does not (none) and

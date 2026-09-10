@@ -3,7 +3,7 @@ Guarantees:
   - declared steady workloads collect warmup's Prolog garbage before the
     measured operation; collection failures still release the workload
     [tested: test_steady_workloads_collect_before_the_window,
-    test_collection_failure_releases_the_workload; commit=WORKTREE]
+    test_collection_failure_releases_the_workload; commit=8ca8a387fc61d0918484b19a1a3baf85b6523043]
   - the handshake is bounded and a window that never opened exits 125, so the
     driver reads it as "this run says nothing" rather than as a moved row
     [tested: test_a_refused_window_is_told_apart_from_a_workload_that_failed;

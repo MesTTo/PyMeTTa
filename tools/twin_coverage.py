@@ -46,13 +46,13 @@ Assumes:
     section 9d rule 1, "assert and pytest for the assert family"]
 Guarantees:
   - unanswered children retain their process status in the finding [tested:
-    test_a_silent_child_failure_keeps_its_exit_status; commit=WORKTREE]
+    test_a_silent_child_failure_keeps_its_exit_status; commit=8ca8a387fc61d0918484b19a1a3baf85b6523043]
   - file-search cache expiry cannot enter a measured first library load;
     engines inherit the lifetime fixed before boot, and the empirical
     protocol names that fixture [tested:
     test_a_first_library_load_is_independent_of_file_cache_age,
     test_engines_created_at_boot_inherit_the_cache_fixture;
-    commit=WORKTREE]
+    commit=8ca8a387fc61d0918484b19a1a3baf85b6523043]
   - a twin that reaches the engine through MeTTa source text is REFUSED, both
     the five source-input doors and any string that is not a name or ground()-marked
     data [tested: test_the_source_scan_catches_a_planted_string]
@@ -146,7 +146,7 @@ Decides:
   - a full-lane protocol fixes corpus width, executor width and the cache
     lifetime before boot; observations can be reproduced with --observe [tested:
     test_the_full_lane_protocol_names_every_scheduling_input;
-    commit=WORKTREE]
+    commit=8ca8a387fc61d0918484b19a1a3baf85b6523043]
   - a twin's module-level `available(m)` is asked before `twin(m)`, outside
     the counted window, and its BUDGET is compared only where it answers True
     or is absent, with the lane saying so where it is not compared, so a
@@ -337,7 +337,7 @@ BAND_PERCENT = 10.0
 #: are indexed in the merged-tree journal [measured 2026-09-10: three identical
 #: fresh-process readings per cell; command=python
 #: extensions/python/benchmarks/probes/twin_authoring.py;
-#: fixture=twin_authoring.fixture with 0..4 definitions; commit=WORKTREE].
+#: fixture=twin_authoring.fixture with 0..4 definitions; commit=8ca8a387fc61d0918484b19a1a3baf85b6523043].
 DEFINITION_WARMUP = 1482
 DEFINITION_COST = 1364
 
