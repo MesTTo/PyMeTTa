@@ -14,8 +14,7 @@
 % Their guard is one dynamic fact per subscribed space, first-arg indexed, so
 % an unwatched space never crosses to Python while another space is watched.
 
-:- multifile seam:atom_added/2.
-:- multifile seam:atom_removed/2.
+
 :- dynamic metta_py_subscribed_space/1.
 :- dynamic metta_py_subscription_hook_ref/2.
 
@@ -43,13 +42,13 @@ metta_py_install_subscription_hook(Kind) :-
     \+ clause_property(Ref, erased), !.
 metta_py_install_subscription_hook(added) :-
     retractall(metta_py_subscription_hook_ref(added, _)),
-    assertz((seam:atom_added(Space, Term) :-
-                metta_py_notify_atom_added(Space, Term)), Ref),
+    metta_py_provided_clause(atom_added, Clause),
+    assertz(Clause, Ref),
     assertz(metta_py_subscription_hook_ref(added, Ref)).
 metta_py_install_subscription_hook(removed) :-
     retractall(metta_py_subscription_hook_ref(removed, _)),
-    assertz((seam:atom_removed(Space, Term) :-
-                metta_py_notify_atom_removed(Space, Term)), Ref),
+    metta_py_provided_clause(atom_removed, Clause),
+    assertz(Clause, Ref),
     assertz(metta_py_subscription_hook_ref(removed, Ref)).
 
 metta_py_remove_subscription_hooks :-
@@ -81,7 +80,7 @@ metta_py_subscriptions_locked(SpaceAtoms) :-
 % and the crossing itself is guarded on the segment having touched a WATCHED
 % space, so writes into an unwatched one cost the guard and no crossing.
 
-:- multifile seam:segment_committed/1.
+
 :- dynamic metta_py_segment_hook_ref/1.
 
 metta_py_notify_segment_committed(Spaces) :-
@@ -96,8 +95,8 @@ metta_py_install_segment_hook :-
     \+ clause_property(Ref, erased), !.
 metta_py_install_segment_hook :-
     retractall(metta_py_segment_hook_ref(_)),
-    assertz((seam:segment_committed(Spaces) :-
-                metta_py_notify_segment_committed(Spaces)), Ref),
+    metta_py_provided_clause(segment_committed, Clause),
+    assertz(Clause, Ref),
     assertz(metta_py_segment_hook_ref(Ref)).
 
 metta_py_remove_segment_hook :-

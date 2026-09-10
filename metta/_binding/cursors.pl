@@ -1,7 +1,7 @@
 % Purpose: retain, advance and close host answer cursors.
 % Assumes: loaded through _binding/shim.pl in its host module.
 % Owns resources: held cursors and captured memory; metta_py_cursor_close/1 releases either cursor representation
-% [source: extensions/python/metta/_binding/cursors.pl:206; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
+% [source: extensions/python/metta/_binding/cursors.pl:metta_py_cursor_close/1; commit=WORKTREE].
 
 %%%%%%%%%% Lazy cursors %%%%%%%%%%
 %
@@ -179,8 +179,7 @@ metta_py_cursor_next_controlled(Engine, [Answer, ""]) :-
 %the last one asked for is never computed. Count is what Python asked for and
 %Python is what decides it may ask for more than one; see _Chunk in
 %_space_objects.py for when that is sound.
-metta_py_cursor_chunk(Engine, Count, Answers) :-
-    metta_host_hold_chunk(Engine, Count, Answers).
+binding_forward(metta_py_cursor_chunk/3).
 
 metta_py_captured_cursor_chunk(_, Count, [], []) :-
     Count =< 0, !.
@@ -207,5 +206,4 @@ metta_py_cursor_close(metta_py_captured_cursor(Engine)) :- !,
     metta_py_cursor_close(Engine).
 metta_py_cursor_close(rows(Handle)) :- !,
     metta_host_hold_close(Handle).
-metta_py_cursor_close(Engine) :-
-    metta_host_hold_close(Engine).
+binding_forward(metta_py_cursor_close/1).

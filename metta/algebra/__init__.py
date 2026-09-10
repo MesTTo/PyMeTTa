@@ -1575,12 +1575,15 @@ def _demand_evaluate(
     )
 
 
+_MAX_ROUNDS = 64
+
+
 def evaluate(
     metta: Space,
     query: str | Atom,
     *,
     algebra: str | DeclaredAlgebra,
-    max_rounds: int = 64,
+    max_rounds: int = _MAX_ROUNDS,
     context: EvaluationContext | None = None,
     timeout: float | None = None,
     inferences: int | None = None,
@@ -1594,6 +1597,18 @@ def evaluate(
     if context is None:
         context = EvaluationContext(declaration.name, order=declaration.order)
     resources = _EvaluationBudget.from_call(timeout, inferences, context)
+    return _evaluate_with_budget(home, query, declaration, resources, max_rounds=max_rounds)
+
+
+def _evaluate_with_budget(
+    home: Space,
+    query: str | Atom,
+    declaration: DeclaredAlgebra,
+    resources: _EvaluationBudget,
+    *,
+    max_rounds: int = _MAX_ROUNDS,
+) -> AlgebraEvaluation:
+    """Run tagged derivation inside the budget owned by its enclosing query."""
     _require_context_capabilities(home, declaration)
     goal = parse(query) if isinstance(query, str) else _encode(query)
     resources.checkpoint()

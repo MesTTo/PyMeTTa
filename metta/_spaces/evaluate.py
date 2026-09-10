@@ -398,7 +398,7 @@ def eval(  # noqa: A001 -- the marked body preserves its public door name
     tiers=(_doors.Tier.sync, _doors.Tier.async_, _doors.Tier.module, _doors.Tier.context),
     evidence=('extensions/python/tests/ch05_equations_and_evaluation/test_evaluation_options.py::test_evaluation_options_preserve_the_eager_kernel', 'extensions/python/tests/ch05_equations_and_evaluation/test_evaluation_options.py::test_evaluation_options_compose_without_losing_answers'),
     alias='eval',
-    binding=_doors.Binding('metta_py_eval_all', _doors.Wire.goal),
+    binding=_doors.Binding('metta_py_evaluate', _doors.Wire.goal, _doors.EvaluationOptions()),
     refuses=(_doors.Refusal(_doors.RefusalKind.assertion, 'extensions/python/tests/ch05_equations_and_evaluation/test_evaluation_options.py::test_evaluation_options_check_cardinality_before_truncation'), _doors.Refusal(_doors.RefusalKind.inference_limit, 'extensions/python/tests/ch05_equations_and_evaluation/test_evaluation_options.py::test_evaluation_options_preserve_bounds_and_capture'), _doors.Refusal(_doors.RefusalKind.value, 'extensions/python/tests/ch05_equations_and_evaluation/test_evaluation_options.py::test_evaluation_options_refuse_invalid_values')),
 )
 def eval(  # noqa: A001 -- the marked body preserves its public door name
@@ -537,7 +537,7 @@ def eval(  # noqa: A001 -- the marked body preserves its public door name
         None if handed_on else holes,
     )
     # The two methods are NOT one mechanism, which was measured rather than
-    # assumed: eval() is one eager engine call (metta_py_eval_all) and
+    # assumed: eval() uses metta_py_evaluate/4's eager collector and
     # answers() opens a cursor, and routing eval() through the cursor
     # unconditionally left a memoized definition's call keys unrecorded
     # where the eager method records them [measured 2026-08-31: a memoized
@@ -567,7 +567,7 @@ def eval(  # noqa: A001 -- the marked body preserves its public door name
     determinism=_doors.Determinism.nondet,
     tiers=(_doors.Tier.sync,),
     evidence=('extensions/python/tests/ch04_spaces_and_matching/test_answer_protocol.py::test_answers_scalar_doors_raise_error_atoms_but_iteration_retains_them', 'extensions/python/tests/ch04_spaces_and_matching/test_arrow_doors.py::test_term_answers_refuse_the_arrow_doors', 'extensions/python/tests/ch04_spaces_and_matching/test_results.py::test_term_answers_never_render_as_a_binding_table'),
-    binding=_doors.Binding('metta_py_eval_cursor', _doors.Wire.goal),
+    binding=_doors.Binding('metta_py_evaluate', _doors.Wire.goal, _doors.EvaluationOptions(answers=_doors.EvaluationCollection.cursor)),
     sugar_of=_doors.Sugar('space:eval', (('answer', 'answers'),)),
     async_excluded="Answers is a synchronous replayable iterator; AsyncMeTTa's stream is the awaitable pull protocol rather than a cross-thread iterator",
 )
@@ -1049,6 +1049,7 @@ def reducible(space: _root.Space, target: Any) -> bool:
     determinism=_doors.Determinism.nondet,
     tiers=(_doors.Tier.sync, _doors.Tier.async_),
     evidence=('extensions/python/tests/ch04_spaces_and_matching/test_space.py::test_eval_status_reports_the_four_outcomes', 'extensions/python/tests/ch05_equations_and_evaluation/test_per_ask_evaluation.py::test_eval_status_selects_the_same_relations_answers_does', 'extensions/python/tests/ch05_equations_and_evaluation/test_nothing_outcomes.py::test_eager_eval_keeps_empty_and_not_reducible_distinct'),
+    binding=_doors.Binding('metta_py_evaluate', _doors.Wire.goal, _doors.EvaluationOptions(answers=_doors.EvaluationCollection.status)),
 )
 def eval_status(
     space: _root.Space,

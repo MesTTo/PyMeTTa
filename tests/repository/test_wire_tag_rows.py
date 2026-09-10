@@ -10,6 +10,9 @@ a language this engine has never run in, and it has to say what a tag means
 without an engine to ask; this file is what keeps it saying the same thing.
 
 Guarantees:
+  - every declared tag exercises its Python and native codec or frame consumer,
+    and the Node term table is checked against the same grammar [tested:
+    this file; commit=WORKTREE].
   - the corpus's tag block is exactly the engine's term and frame tags, with
     the same class, payload class and sentence [tested:
     test_the_corpus_carries_the_engines_term_and_frame_tags; commit=7f9c810e5f4a2023ad98de34e848667dd72bc4a7]
@@ -27,11 +30,18 @@ Open Obligations:
 """
 
 import json
+import re
+import subprocess
 from pathlib import Path
 
+import janus_swi as janus
 import pytest
 
-from metta import MeTTa
+from metta import Answer, Expression, MeTTa, S, V, convert
+from metta._atoms.wire import Undefined, _from_wire
+from metta._binding.dispatch import dispatch
+from metta._catalog.types import WIRE_TAGS as PROJECTION_TAGS
+from metta._errors.errors import stream_failure
 from metta.remote._schemas import atom_schema
 from metta.vocabularies import WIRE_TAGS, WireClass
 
@@ -116,3 +126,200 @@ def test_the_atom_schema_is_one_arm_per_term_tag(rows):
     assert set(arms) == {tag for tag, entry in rows.items() if entry[0] == "term"}
     for tag, arm in arms.items():
         assert arm["description"].startswith(rows[tag][2])
+
+
+# These are witnesses, not a second grammar. A new row must supply a witness
+# and run through the appropriate codec or frame consumer below.
+CASES = {
+    "s": ["s", "binding-wire-symbol"],
+    "g": ["g", 'text with "quotes" and λ'],
+    "n": ["n", 2**130 + 7],
+    "b": ["b", "true"],
+    "v": ["v", "x"],
+    "e": ["e", [["s", "pair"], ["v", "x"], ["v", "x"]]],
+    "p": ["p", "&self"],
+    "o": None,
+    "h": None,
+    "u": None,
+    "a": None,
+    "x": None,
+    "r": None,
+}
+
+
+def _check_coverage(grammar, cases, projection):
+    assert set(cases) == set(grammar), "wire tag has no codec witness"
+    assert tuple(projection) == tuple(
+        tag for tag, row in grammar.items() if row.kind is WireClass.term
+    ), "wire term projection differs from the catalog"
+
+
+def test_every_tag_has_a_codec_witness_and_the_projection_reads_only_terms():
+    """Every catalog row has a witness and exactly term rows are projected."""
+    _check_coverage(WIRE_TAGS, CASES, PROJECTION_TAGS)
+
+
+@pytest.mark.parametrize("defect", ["missing-witness", "changed-tag", "missing-projection"])
+def test_wire_coverage_rejects_independent_missing_and_changed_tag_plants(defect):
+    """Missing witnesses, changed tags and omitted projections fail separately."""
+    grammar, cases, projection = dict(WIRE_TAGS), dict(CASES), list(PROJECTION_TAGS)
+    if defect == "missing-witness":
+        del cases["h"]
+    elif defect == "changed-tag":
+        grammar["planted"] = grammar.pop("n")
+    else:
+        projection.remove("o")
+    with pytest.raises(AssertionError):
+        _check_coverage(grammar, cases, projection)
+
+
+@pytest.mark.parametrize("tag", tuple(WIRE_TAGS))
+def test_every_tag_crosses_its_python_and_native_consumers(metta, tag):
+    """Each catalog class exercises its codec or frame consumer in both seats."""
+    if WIRE_TAGS[tag].kind is WireClass.term:
+        _term_legs(tag)
+    elif tag == "u":
+        wire = janus.query_once(
+            "metta_py_encode_truth(binding_value,tnot(binding_delayed),Wire)"
+        )["Wire"]
+        value = _from_wire(wire)
+        assert isinstance(value, Undefined)
+        assert value.value == S["binding_value"] and "binding_delayed" in value.why
+        restored = janus.query_once(
+            "metta_py_decode_shared(Value,_Term,_),"
+            "metta_py_encode_truth(_Term,tnot(binding_delayed),Wire)",
+            {"Value": value.value.to_wire()},
+        )["Wire"]
+        assert _from_wire(restored) == value
+        with pytest.raises(ValueError):
+            convert.atom_from_wire(wire)
+    elif tag == "a":
+        for explicit in (False, True):
+            answer = Answer({"x": 3}, residue=S[">"](V.x, 2),
+                            **({"value": V.x} if explicit else {}))
+            row = janus.query_once(
+                "metta_py_answer_result(Wire,binding_wire,[x-X],_Result),"
+                "metta_py_encode(_Result,Result)", {"Wire": answer.to_wire()},
+            )
+            assert row["X"] == 3
+            assert convert.atom_from_wire(row["Result"]) == (3 if explicit else Expression())
+    elif tag == "x":
+        error = ValueError("binding wire exception identity")
+        wire = stream_failure(error)
+        assert janus.query_once("metta_py_stream_frame(Wire,Error)", {"Wire": wire})["Error"] is error
+        assert janus.query_once("metta_py_declined(Wire)", {"Wire": ["x", "declined"]})["truth"]
+        assert janus.query_once(
+            "metta_py_erring_item(Wire,_,_,_,_,end)", {"Wire": ["x", "end"]}
+        )["truth"]
+        row = janus.query_once(
+            "metta_py_erring_item(Wire,_,_,_,_,kept(_Term)),metta_py_encode(_Term,Term)",
+            {"Wire": ["x", "error", S.kept_error.to_wire()]},
+        )
+        assert convert.atom_from_wire(row["Term"]) == S.kept_error
+    elif tag == "r":
+        def relation(_value):
+            yield (3,)
+
+        name = "binding-wire-relation"
+        metta.op(relation, name=name, effect="nondeterministicReadOnly")
+        stream = dispatch(["many", "false", "false"], None, name, [V.x.to_wire()])
+        try:
+            wire = next(stream)
+            row = janus.query_once(
+                "metta_py_relation_form(Wire,_Fields),"
+                "metta_py_relation_result(_Fields,[Value],[],[])", {"Wire": wire},
+            )
+            assert row["Value"] == 3
+        finally:
+            stream.close()
+            metta.unregister_op(name)
+        wire = janus.apply_once("user", "metta_py_cast", str(metta.name),
+                                ["n", 0], metta.parse("(Annotated Number (Gt 0))").to_wire())
+        assert wire[0] == "r"
+        assert convert.atom_from_wire(wire[1]) == S.Gt(0)
+    else:
+        pytest.fail(f"declared frame {tag!r} has no consumer witness")
+
+
+def _term_legs(tag):
+    handles = set()
+    wire = CASES[tag]
+    if tag == "o":
+        wire = ["o", object()]
+    elif tag == "h":
+        wire = janus.query_once("open_null_stream(_Stream),metta_py_encode(_Stream,Wire)")["Wire"]
+        handles.add(wire[1])
+    try:
+        value = convert.atom_from_wire(wire)
+        row = janus.query_once(
+            "metta_py_decode_shared(Wire,_Term,_),metta_py_encode(_Term,Encoded),"
+            "metta_py_decode_shared(Encoded,_Round,_),_Term =@= _Round",
+            {"Wire": value.to_wire()},
+        )
+        assert row["truth"]
+        encoded = row["Encoded"]
+        assert encoded[0] == tag
+        if tag == "h":
+            handles.add(encoded[1])
+            assert janus.query_once(
+                "metta_py_handle_store(Left,_L),metta_py_handle_store(Right,_R),_L==_R",
+                {"Left": wire[1], "Right": encoded[1]},
+            )["truth"]
+        elif tag == "o":
+            assert convert.atom_from_wire(encoded).value is value.value
+        elif tag in {"v", "e"}:
+            # The native encoder chooses fresh variable names; the repeated
+            # positions must still refer to the same variable after both legs.
+            decoded = convert.atom_from_wire(encoded)
+            if tag == "e":
+                assert decoded.children[1] is decoded.children[2]
+        else:
+            assert convert.atom_from_wire(encoded) == value
+    finally:
+        if handles:
+            janus.query_once("metta_py_handle_store(Id,_Stream),close(_Stream)", {"Id": wire[1]})
+            for ident in handles:
+                janus.cmd("user", "metta_py_handle_release", ident)
+
+
+def test_the_node_term_table_and_codec_legs_follow_the_catalog():
+    """Node preserves the declared term payloads and refuses native handles."""
+    source = (REPO / "extensions/node/src/wire.ts").read_text()
+    node_tags = set(re.findall(r'"([a-z])"', re.search(r"export type Tag = ([^;]+);", source)[1]))
+    terms = {tag for tag, row in WIRE_TAGS.items() if row.kind is WireClass.term}
+    assert node_tags == terms - {"h"}
+    # Node keeps its documented process-local handle refusal. All its other
+    # term tags exercise the native-token leg, including live object identity.
+    program = r'''
+        import assert from 'node:assert/strict';
+        import {G, space} from './extensions/node/src/atom.ts';
+        import {HostValues, atomFromWire, decodeEngine, encodeEngine,
+                fromTransport, toTransport, wireFromAtom} from './extensions/node/src/wire.ts';
+        import {WireClass, WirePayload} from './extensions/node/src/vocabularies.ts';
+        const rows=JSON.parse(process.argv[2]);
+        assert.deepEqual(Object.values(WireClass).sort(), [...new Set(rows.map(r=>r[1]))].sort());
+        assert.deepEqual(Object.values(WirePayload).sort(), [...new Set(rows.map(r=>r[2]))].sort());
+        const values = {s:['s','item'],v:['v','x'],n:['n',7n],g:['g','λ'],
+                        b:['b',true],e:['e',[['v','x'],['v','x']]],p:['p',space('&self')]};
+        const hosts=new HostValues();
+        const marker={identity:1};
+        for (const [tag] of rows.filter(r=>r[1]==='term')) {
+            if (tag==='h') {assert.throws(()=>fromTransport(['h',1,'display']));continue;}
+            const atom=tag==='o'?G(marker):atomFromWire(values[tag]);
+            const restored=decodeEngine(encodeEngine(atom,{hostValues:hosts}),{hostValues:hosts});
+            assert.deepEqual(wireFromAtom(restored),wireFromAtom(atom));
+            if(tag!=='o')assert.deepEqual(fromTransport(toTransport(values[tag])),values[tag]);
+        }
+    '''
+    rows = [[tag, row.kind.value, row.payload.value] for tag, row in WIRE_TAGS.items()]
+    # Use the seat's existing build dependency: distro Node builds can omit
+    # TypeScript stripping even when their version supports the flag.
+    execute = """
+        import {build} from './extensions/node/node_modules/esbuild/lib/main.js';
+        const output=await build({stdin:{contents:process.argv[1],resolveDir:process.cwd()},
+                                  bundle:true,write:false,platform:'node',format:'esm'});
+        await import('data:text/javascript;base64,'+Buffer.from(output.outputFiles[0].text).toString('base64'));
+    """
+    result = subprocess.run(["node", "--input-type=module", "-e", execute, program, json.dumps(rows)],
+                            cwd=REPO, capture_output=True, text=True, check=False)
+    assert result.returncode == 0, result.stdout + result.stderr

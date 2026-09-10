@@ -307,7 +307,7 @@ _.integration
 _._catalog_of
 # Two names the package itself never loads, and neither is dead. PROLOG calls
 # `_carrier_type_accepts` by name through seam:grounded_algebra_type/3
-# [source: extensions/python/metta/_binding/algebra.pl:9; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e], which
+# [source: extensions/python/metta/_binding/provides/ownership.pl:seam:grounded_algebra_type/3; commit=WORKTREE], which
 # is the whole point of that seam: the owning host applies a carrier predicate
 # without the atom kinds being erased on the way. `boot_seconds` is a property
 # a CALLER reads off a pool it was handed, and the caller is outside this
@@ -316,13 +316,13 @@ _._catalog_of
 # not scan.
 _._carrier_type_accepts
 _.boot_seconds
-# The engine reaches this one from PROLOG, not from Python: shim.pl's
+# The engine reaches this one from the binding's ownership projection:
 # seam:grounded_algebra_type/3 clause calls
 # py_call('metta.algebra':'_carrier_type_accepts'(TypeWire, ValueWire), Raw)
 # so a host carrier predicate can decide an algebra's membership question. No
 # Python name load reaches it, which is what makes it invisible to a
-# reachability scan [source: extensions/python/metta/_binding/algebra.pl:9,
-# seam:grounded_algebra_type/3; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
+# reachability scan [source: extensions/python/metta/_binding/provides/ownership.pl:seam:grounded_algebra_type/3;
+# commit=WORKTREE].
 _carrier_type_accepts
 
 # Read by a SIBLING SEAT, which this scan does not reach: the C seat's

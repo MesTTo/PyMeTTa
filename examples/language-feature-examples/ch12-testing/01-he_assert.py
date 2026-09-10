@@ -305,19 +305,48 @@ RUNG = "the assert family is this file's subject, so each claim names one of its
 #: pins of f26de01fb [measured 2026-09-09: min-of-3 serial fresh processes;
 #: command=python extensions/python/tools/twin_coverage.py --repin;
 #: commit=5f8a823d23fbed5c7395912a89ba32760e2df4b1].
-BUDGET = 18723
+#: RE-PINNED 2026-09-10, 18723 to 17288 (-1435), the binding resolves Janus
+#: maplist/2 at boot, removing its first-failure autoload; one compiled option
+#: policy removes repeated evaluation frames, and keyed dispatch removes
+#: repeated transport/context selection. Indexed source-macro hooks preserve
+#: unrelated compilation costs. Same-cut controls and all before/after rows are
+#: in docs/journal/2026-09-09-the-binding-collapse.md. These three fresh serial
+#: processes set file_search_cache_time=9223372036854775807 before boot,
+#: matching the validated full-lane/277/workers=32/file-cache-
+#: time=9223372036854775807 environment. Workloads, point tolerances and
+#: empirical envelopes are unchanged [measured 2026-09-10: min-of-3 serial
+#: fresh processes; command=python extensions/python/tools/twin_coverage.py
+#: --repin; commit=WORKTREE].
+#: RE-PINNED 2026-09-10, 17288 to 17283 (-5), the bounds frame watcher now
+#: transfers its watch to the nearest live transaction, preventing notification
+#: of an engine's discarded outer query frame. The changed boot predicate set
+#: also changes current_predicate/1's catalog-arity enumeration order. A same-
+#: worktree old/current/restore control and native call-site coverage locate
+#: each five-inference step in spaces:metta_catalog_clause/2:
+#: current_predicate, the arity guard, functor, metta_storage_term and clause.
+#: No workload or lookup implementation changes. See
+#: docs/journal/2026-09-09-the-binding-collapse.md. These are three fresh
+#: sequential samples per row with 32 concurrent row runners and
+#: file_search_cache_time=9223372036854775807 before boot. The point allowance
+#: and every empirical envelope are unchanged [measured 2026-09-10: min-of-3
+#: serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+#: RE-PINNED 2026-09-10, 17283 to 17288 (+5), automatic memo reconciliation
+#: uses a trailed marker so an inference-limit signal cannot leak its guard.
+#: The ordinary dirty drain saves two inferences; the first unset-marker read
+#: in each engine invokes SWI's undefined-global hook. Removing the old thread-
+#: local predicate also changes catalog-arity enumeration order: five
+#: inferences per visited arity in metta_catalog_clause/2 or the partial-list
+#: get_native_atom/3 lookup. Same-worktree old/current/restore measurements,
+#: native call-site coverage and actual missing-global events separate those
+#: costs. See docs/journal/2026-09-09-the-binding-collapse.md. These are three
+#: fresh sequential samples per row with 32 concurrent row runners, warmed
+#: library artifacts, and file_search_cache_time=9223372036854775807 before
+#: boot. Every workload, point allowance and empirical envelope is unchanged
+#: [measured 2026-09-10: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 17288
 
-#: OVERRUN 2026-09-08, 9: the twin names each of the twelve assert-family
-#: members through `m.fn` and compares every answer in Python, where the
-#: example writes twelve runnables the engine evaluates for itself. Measured
-#: 17492 against a ceiling of 17484; a MINIMAL twin of this example -- its own
-#: forms stored and asked through the structured door, nothing else -- costs
-#: 15175, inside that ceiling, so the distance is this twin's own program and
-#: not the band being tighter than the library's floor. What tipped it over is
-#: the branch's own boot-content move, +17 on this twin and none on the
-#: example, against a ceiling it sat 9 under [measured 2026-09-08: one fresh
-#: process per side; command=python
-#: extensions/python/benchmarks/probes/twin_floor.py; commit=c26b6a4d28ef8fb50742440feed2c0578ebb0f58].
 #: RE-PINNED 2026-09-08, 17475 to 17843 (+368), The engine and library
 #: predicates now resolve through their owning modules and the explicit engine
 #: facade; compiled program lookup crosses the added metta_engine tier
@@ -364,48 +393,3 @@ BUDGET = 18723
 #: retain type, transaction and variable-identity checks [measured 2026-09-09:
 #: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=32650f9ff4d1c4aa0749d8eb8b153e5bb448ee5c].
-#: OVERRUN 2026-09-08, 9 to 285 (+276, four of them the deterministic
-#: allowance the point pins carry, because a band met exactly is refused): the module boundary merged with trunk
-#: (refactor/engine-and-libraries-as-modules at b64291369): the twin's host
-#: crossings each resolve through one more chain link, prelude -> metta_engine
-#: -> user, while the example runs inside the engine; every crossing this twin
-#: makes pays it and the example pays none. Measured 17998 against a ceiling
-#: of 17726; a minimal twin costs 15383 against the band's 17717, within that
-#: ceiling, so the rest is this twin's own program [measured 2026-09-08: one
-#: fresh process per side; command=python
-#: extensions/python/benchmarks/probes/twin_floor.py; commit=f1038acdcaf5230b6431c112f38a719d3dc9ef19].
-#: OVERRUN 2026-09-08, 48: publishing typed host door declarations changes
-#: catalog lookup indexes on both sides. The example costs 13424, the twin
-#: 17529, and the band's ceiling is 17481.4. The difference rounds up to 48;
-#: stored contents remain unchanged [measured: two fresh-process measurements
-#: per side agreed; command=python ai-tmp/ai-door-band-cost.py;
-#: fixture=run_example and run_twin with the full corpus band;
-#: commit=b615b5a33b43252ef9826e5387da7c9bd7f6b543].
-#: OVERRUN 2026-09-09, 48 to 303 (+255): the door table landed
-#: (feat/space-as-a-projection-of-door-rows merged at 6471faa37, its
-#: reconciliation fixes at 58bf75947): every Space door is a generated alias
-#: over its body, the catalog publishes the door contracts at boot as typed
-#: atoms, and the seam's listeners publish on every registration, so boot
-#: content and clause layout moved; every crossing this twin makes pays it and
-#: the example pays none. Measured 18018 against a ceiling of 17763; a minimal
-#: twin costs 15381 against the band's 17715, within that ceiling, so the rest
-#: is this twin's own program [measured 2026-09-09: one fresh process per
-#: side; command=python extensions/python/benchmarks/probes/twin_floor.py;
-#: commit=aeb46b14152274db84f6415c8a3dd8c98a9c9eb1].
-#: The band is met exactly at that figure and the lane refuses a ceiling met
-#: exactly (it prints the ceiling rounded), so the four-inference allowance
-#: the module-boundary pins recorded is added here too [measured 2026-09-09:
-#: the twins lane on the re-pinned tree; commit=aeb46b14152274db84f6415c8a3dd8c98a9c9eb1].
-#: OVERRUN 2026-09-09, 307 to 953 (+646): the compiled vocabulary seed, the
-#: membership index, base-module type lookups and the singleton decoder landed
-#: (perf/cross-engine-waivers merged): a Python decode with one named variable
-#: builds no index and one with more builds it at the second distinct name,
-#: which moves a twin's engine-side cost while its example, which decodes
-#: nothing, holds; boot content and clause layout moved the rest; against the
-#: trunk's own run at da0e5755d the twin moved +194 and the example -70, and
-#: the twin sat 375 over its ceiling there already. Measured 18654 against a
-#: ceiling of 18008; a minimal twin costs 15768 against the band's 17701,
-#: within that ceiling, so the rest is this twin's own program [measured
-#: 2026-09-09: one fresh process per side; command=python
-#: extensions/python/benchmarks/probes/twin_floor.py; commit=b4341ae382c48ef225f4a52e566af6a9a71757c4].
-OVERRUN = 953

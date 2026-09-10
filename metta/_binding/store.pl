@@ -139,22 +139,6 @@ metta_py_transfer_each([Wire|Wires], From, To, Count0, Count) :-
     ),
     metta_py_transfer_each(Wires, From, To, Count1, Count).
 
-%One crossing evaluates a BATCH of targets, answering one encoded group per
-%target in order: run()'s own grouping carried to the eval door, which is
-%how evaluation batches. The using form applies ONE binding scope to every
-%target, the call-level reading a bind() block already has.
-metta_py_eval_many_all(Space, Targets, Groups) :-
-    findall(Group,
-            ( member(Tagged, Targets),
-              findall(E, metta_py_eval(Space, Tagged, E), Group) ),
-            Groups).
-
-metta_py_eval_many_using_all(Space, Targets, Pairs, Groups) :-
-    findall(Group,
-            ( member(Tagged, Targets),
-              metta_py_eval_using_all(Space, Tagged, Pairs, Group) ),
-            Groups).
-
 %One crossing REMOVES a batch, one reported occurrence each, inside one
 %transaction; the count answers how many were found, remove's own grain.
 metta_py_remove_many(Space, Wires, Count) :-

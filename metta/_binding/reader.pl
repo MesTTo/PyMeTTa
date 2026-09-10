@@ -32,19 +32,7 @@ metta_py_register_token(Pattern, Constructor) :-
     seam:host_object(Constructor),
     metta_host_register_reader_token(Pattern, Constructor).
 
-metta_py_unregister_token(Pattern) :-
-    metta_host_unregister_reader_token(Pattern).
-
-%Ownership is established by the live Python object before the cut implicit in
-%the caller's first-success seam. Constructors receive the complete lexeme and
-%return an Atom wire; shared decoding preserves repeated variables if a custom
-%class deliberately constructs them.
-seam:host_reader_token_construct(Constructor, Text, Term) :-
-    seam:host_object(Constructor),
-    catch(py_call(metta_ops:construct_token(Constructor, Text), Wire),
-          Error, metta_py_failure(['reader-token', Text], Error)),
-    metta_py_decode_shared(Wire, Term, _).
-
+binding_forward(metta_py_unregister_token/1).
 %An evaluation target arrives either as a wire term or, when the caller passed
 %source text, as that text. The test is whether it is a wire term, not what
 %type the text has: Janus hands a Python str over as an ATOM, so asking

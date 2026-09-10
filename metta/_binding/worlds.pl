@@ -98,7 +98,7 @@ metta_py_saga_eval_all(Space, Tagged, SelectHost, ReceiptSink, Answers) :-
           setup_call_cleanup(
               metta_py_saga_capture_begin(
                   Space, NativeOperations, ReceiptSink, Wrapped),
-              metta_py_eval_all(Space, Tagged, Answers),
+              metta_py_evaluate([], Space, Tagged, Answers),
               metta_py_saga_capture_end(Wrapped)) )).
 
 %Compilation can call effect-classified engine predicates such as include/3 to
@@ -268,11 +268,7 @@ metta_py_world_add(Origin, Space, Wire) :-
     'add-atom'(Space, Term, _).
 
 metta_py_world_eval_answers(Space, Term, Answers) :-
-    findall(E, metta_py_eval_term_bounded(Space, Term, E), Found),
-    (   Found == [], metta_py_preserve_unmatched(Space, Term, Original)
-    ->  Answers = [Original]
-    ;   Answers = Found
-    ).
+    metta_py_evaluate([form(term)], Space, Term, Answers).
 
 metta_py_world_atoms(Space, Origin, Encoded) :-
     findall(Wire,

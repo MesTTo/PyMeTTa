@@ -169,7 +169,7 @@ def test_module_tier_verbs_are_inert_until_called() -> None:
 
 
 def test_stack_limit_is_carried_to_the_limited_six_seam(metta) -> None:
-    """The scoped value reaches the contract even before the sibling seam lands."""
+    """The scoped stack bound reaches the six-argument limited service."""
 
     class RecordingRuntime:
         def __init__(self) -> None:
@@ -183,7 +183,7 @@ def test_stack_limit_is_carried_to_the_limited_six_seam(metta) -> None:
         bounded = _limits(None, None)
         assert bounded == (-1.0, -1, 4_000_000)
         runtime = RecordingRuntime()
-        assert _apply_limited(runtime, bounded, "metta_py_eval_all", ["&self", []]) == (
+        assert _apply_limited(runtime, bounded, "metta_py_run", ["&self", ""]) == (
             "answered"
         )
     assert runtime.call == (
@@ -191,8 +191,8 @@ def test_stack_limit_is_carried_to_the_limited_six_seam(metta) -> None:
         -1.0,
         -1,
         4_000_000,
-        "metta_py_eval_all",
-        ["&self", []],
+        "metta_py_run",
+        ["&self", ""],
     )
 
 

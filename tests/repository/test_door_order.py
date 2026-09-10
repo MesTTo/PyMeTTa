@@ -10,6 +10,7 @@ from dataclasses import replace
 from pathlib import Path
 from textwrap import dedent
 
+import pytest
 from hypothesis import given
 from hypothesis import strategies as st
 
@@ -341,11 +342,15 @@ def test_binding_metadata_and_open_helper_cycles_are_independent(tmp_path):
     assert result.native == {"Runtime.must"}
 
 
-def test_door_order_report_is_not_a_gate(monkeypatch, capsys):
-    """Mixed and open findings print without failing the report lane."""
+@pytest.mark.parametrize("defect", ["mixed", "open_dependencies", "recursive"])
+def test_door_order_gate_refuses_each_boundary_defect(monkeypatch, capsys, defect):
+    """Each unresolved boundary independently changes the command's exit."""
     monkeypatch.syspath_prepend(str(Path(__file__).resolve().parents[2] / "tools"))
     import doororder
 
-    monkeypatch.setattr(doororder, "report", lambda: {"mixed": ["space:eval"], "rows": {}})
+    clean = {"mixed": [], "open_dependencies": [], "recursive": [], "rows": {}}
+    monkeypatch.setattr(doororder, "report", lambda: {**clean, defect: ["space:planted"]})
+    assert doororder.main([]) == 1
+    assert "space:planted" in capsys.readouterr().out
+    monkeypatch.setattr(doororder, "report", lambda: clean)
     assert doororder.main([]) == 0
-    assert "space:eval" in capsys.readouterr().out

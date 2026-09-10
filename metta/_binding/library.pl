@@ -131,9 +131,7 @@ metta_py_builtins(Space0, Names) :-
     sort(Language0, Language),
     maplist(atom_string, Language, Names).
 
-metta_py_function_generation(Generation) :-
-    metta_host_function_generation(Generation).
-
+binding_forward(metta_py_function_generation/1).
 %Whether ANY deprecation declaration exists, as 1/0 through the apply seam.
 %The catalog is almost always empty, and the callable doors' first-call
 %deprecation read through a fresh once/1 goal string measured 1,311

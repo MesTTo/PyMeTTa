@@ -91,6 +91,7 @@ from metta import (
     unify,
 )
 from metta._atoms.factories import Grounded, Variable
+from metta._binding.options import EVALUATIONS
 from metta._errors.errors import (
     EngineError,
     MettaOperationError,
@@ -611,7 +612,8 @@ def test_a_malformed_wire_target_is_refused(m):
     empty answer list no caller could tell from a real one.
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     with pytest.raises(EngineError, match="metta_py_wire_term"):
-        m._rt.apply_must("metta_py_eval_all", m.name, ["n", 1, "extra"])
+        predicate, _, preset = EVALUATIONS["space:eval"]
+        m._rt.apply_must(predicate, preset, m.name, ["n", 1, "extra"])
 
 
 def test_parse_keeps_variable_names():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract

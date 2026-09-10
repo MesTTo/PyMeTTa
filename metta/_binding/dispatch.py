@@ -1,7 +1,6 @@
 """Purpose: register the Python operation callables the engine dispatches into.
 
-shim.pl calls dispatch/dispatch_many for encoded operations and dispatch_raw
-variants for raw ones; the registry maps a MeTTa function name to the Python
+shim.pl calls dispatch with one direction, transport and collection key; the registry maps a MeTTa function name to the Python
 callable behind it, decoding arguments to atoms-or-values and encoding results
 back. Importable as metta_ops, the name the Prolog side uses.
 Guarantees:
@@ -116,17 +115,6 @@ __all__ = [
     "REGISTRY",
     "Operation",
     "dispatch",
-    "dispatch_context",
-    "dispatch_inverse",
-    "dispatch_inverse_context",
-    "dispatch_inverse_raw",
-    "dispatch_inverse_raw_context",
-    "dispatch_many",
-    "dispatch_many_context",
-    "dispatch_raw",
-    "dispatch_raw_context",
-    "dispatch_raw_many",
-    "dispatch_raw_many_context",
     "live_registration",
 ]
 
@@ -352,21 +340,30 @@ def _encode_result(value: Any, annotation: Any = Any) -> list:
     return _encode(value).to_wire()
 
 
-def dispatch(name: str, tagged_args: list) -> list:
-    """One answer, encoded; the declined sentinel for no answer."""
+def dispatch(key: list, token: int | None, name: str, payload: Any, mode: OnError = OnError.abort) -> Any:
+    """Invoke one direction and transport under an optional retained Context."""
+    kind, raw_word, inverse_word = key
+    raw, inverse = raw_word == "true", inverse_word == "true"
+    if inverse or kind == "many":
+        stream = _operation_stream(name, payload, mode, raw=raw, inverse=inverse)
+        return stream if token is None else _context_stream(token, stream)
+    if token is not None:
+        return _task_context.run(token, dispatch, key, None, name, payload, mode)
     op = REGISTRY[name]
-    args = _decode_args(op, tagged_args)
+    args = [_unbox(argument) for argument in payload] if raw else _decode_args(op, payload)
     try:
         value = op.fn(*args)
-        encoded = _encode_result(value, op.return_annotation)
-        if encoded != _DECLINED:
-            _capture_encoded_receipt(
-                op,
-                tagged_args,
-                encoded,
-            )
+        if raw:
+            value = _refuse_raw_answer(value)
+            if value is not None:
+                _capture_raw_receipt(op, args, value)
+            encoded = _rebox(value)
+        else:
+            encoded = _encode_result(value, op.return_annotation)
+            if encoded != _DECLINED:
+                _capture_encoded_receipt(op, payload, encoded)
     except NotReducible:
-        return _DECLINED
+        return None if raw else _DECLINED
     return encoded
 
 
@@ -377,68 +374,6 @@ def _decode_args(op: Operation, tagged_args: list) -> list[Any]:
         _decode_arg(argument, op.pass_atoms, annotation)
         for argument, annotation in zip(tagged_args, annotations, strict=False)
     ]
-
-
-def dispatch_context(token: int, name: str, tagged_args: list) -> list:
-    """Run deterministic encoded dispatch in a spawned child Context."""
-    return _task_context.run(token, dispatch, name, tagged_args)
-
-
-@guarding
-def dispatch_inverse(name: str, tagged_result: Any):
-    """Run an operation BACKWARDS: one result in, argument tuples out.
-
-    The inverse is a relation, not a function, so this always enumerates: a
-    plain callable's single answer is yielded once and a generator's answers
-    are yielded in turn. Returning None or raising NotReducible means the result
-    has no preimage, which is failure rather than an error, exactly as it is
-    forwards.
-
-    Each answer is a sequence of the operation's arguments, encoded the same
-    way a forward answer is. A one-argument operation may return the bare
-    value rather than a one-tuple, because writing `(x,)` for it reads as a
-    typo and forgetting the comma would otherwise iterate a string.
-    """
-    op = REGISTRY[name]
-    for arguments in _preimages(
-        name,
-        _decode_arg(tagged_result, op.pass_atoms, op.return_annotation),
-    ):
-        annotations = (*op.parameter_annotations, *(Any for _ in arguments))
-        encoded_arguments = [
-            _encode_result(argument, annotation)
-            for argument, annotation in zip(arguments, annotations, strict=False)
-        ]
-        _capture_encoded_receipt(op, encoded_arguments, tagged_result)
-        yield encoded_arguments
-
-
-@guarding
-def dispatch_inverse_context(token: int, name: str, tagged_result: Any):
-    """Enumerate inverse rows under the spawned child Context."""
-    yield from _context_stream(token, dispatch_inverse(name, tagged_result))
-
-
-@guarding
-def dispatch_inverse_raw(name: str, result: Any):
-    """The same relation for a raw operation, with janus's own conversions.
-
-    An operation registered raw takes those conversions forwards, so its
-    inverse takes them backwards. Sending the inverse through the wire
-    encoding instead gave one function pair two value conventions: `str` for a
-    symbol going out and `Symbol` coming back.
-    """
-    op = REGISTRY[name]
-    unboxed_result = _unbox(result)
-    for arguments in _preimages(name, unboxed_result):
-        _capture_raw_receipt(op, list(arguments), unboxed_result)
-        yield [_rebox(argument) for argument in arguments]
-
-
-@guarding
-def dispatch_inverse_raw_context(token: int, name: str, result: Any):
-    """Enumerate raw inverse rows under the spawned child Context."""
-    yield from _context_stream(token, dispatch_inverse_raw(name, result))
 
 
 def _preimages(name: str, result: Any):
@@ -476,83 +411,61 @@ def _preimages(name: str, result: Any):
 
 
 @guarding
-def dispatch_many(name: str, tagged_args: list, mode: OnError = OnError.abort):
-    """A generator of encoded answers; each yield is one MeTTa answer.
-
-    A declared error mode is enforced here, where the exceptions are
-    native: keep reduces the failed call to its (Error <call> <reason>) atom
-    as the final answer and empty ends the stream. Abort and transport errors
-    cross in a reserved terminal frame because raising during ``py_iter``
-    would discard the original exception. Control signals remain outside the
-    handler and pass through untouched.
-    """
+def _operation_stream(name: str, payload: Any, mode: OnError, *, raw: bool, inverse: bool):
+    """Own one stream; direction selects inputs and transport selects conversion."""
     op = REGISTRY[name]
-    args = _decode_args(op, tagged_args)
-    relation_schema = _relation_schema(op, len(tagged_args))
-    # closing/1 rather than a bare loop: the stream is one-shot and this is
-    # what consumed it. A "many" operation is a generator function by
-    # construction (ops._operation_kind), so close() is always there.
+    if inverse:
+        result = _unbox(payload) if raw else _decode_arg(payload, op.pass_atoms, op.return_annotation)
+        args = []
+        schema = None
+    else:
+        args = [_unbox(argument) for argument in payload] if raw else _decode_args(op, payload)
+        schema = None if raw else _relation_schema(op, len(payload))
     try:
-        with closing(op.fn(*args)) as answers:
+        source = _preimages(name, result) if inverse else op.fn(*args)
+        with closing(source) as answers:
             for value in answers:
                 if value is None:
                     continue
-                relation = _encode_relation_candidate(op, value, relation_schema)
-                if relation is not None:
-                    receipt_arguments = list(tagged_args)
-                    for index, candidate in relation[1]:
-                        receipt_arguments[index] = candidate
-                    _capture_encoded_receipt(
-                        op,
-                        receipt_arguments,
-                        Expression().to_wire(),
-                    )
-                    yield relation
-                    continue
-                encoded = _encode_result(value, op.return_annotation)
-                _capture_encoded_receipt(
-                    op,
-                    tagged_args,
-                    encoded,
-                )
-                yield encoded
-    # KeyboardInterrupt and SystemExit are BaseException, outside this
-    # handler by construction, so control signals pass through untouched.
+                if inverse:
+                    if raw:
+                        _capture_raw_receipt(op, list(value), result)
+                        yield [_rebox(argument) for argument in value]
+                    else:
+                        annotations = (*op.parameter_annotations, *(Any for _ in value))
+                        arguments = [_encode_result(argument, annotation)
+                                     for argument, annotation in zip(value, annotations, strict=False)]
+                        _capture_encoded_receipt(op, arguments, payload)
+                        yield arguments
+                elif raw:
+                    _refuse_raw_relation_candidate(value)
+                    _refuse_raw_answer(value)
+                    _capture_raw_receipt(op, args, value)
+                    yield _rebox(value)
+                elif schema is not None:
+                    relation = _encode_relation_candidate(op, value, schema)
+                    if relation is not None:
+                        receipt_arguments = list(payload)
+                        for index, candidate in relation[1]:
+                            receipt_arguments[index] = candidate
+                        _capture_encoded_receipt(op, receipt_arguments, Expression().to_wire())
+                        yield relation
+                    else:
+                        encoded = _encode_result(value, op.return_annotation)
+                        _capture_encoded_receipt(op, payload, encoded)
+                        yield encoded
     except Exception as error:
         if _failed_during_generator_close(error):
             raise
-        must_abort = (
-            mode == "abort"
-            or isinstance(error, _RelationContractError)
-            or is_transport_failure(error)
-        )
-        if must_abort:
+        if raw or inverse or mode == "abort" or isinstance(error, _RelationContractError) or is_transport_failure(error):
             yield stream_failure(error)
         elif mode == "keep":
-            call = Expression(
-                [
-                    Symbol(name),
-                    *(
-                        _encode(_decode_arg(a, True, Atom))  # noqa: FBT003  -- the boolean literal is atom or wire data at this site, not a behavior switch
-                        for a in tagged_args
-                    ),
-                ]
-            )
+            call = Expression([Symbol(name), *(_atom_from_wire(argument) for argument in payload)])
             reason = f"{type(error).__name__}: {error}"
             yield Expression([Symbol("Error"), call, Grounded(reason)]).to_wire()
 
 
 @guarding
-def dispatch_many_context(
-    token: int,
-    name: str,
-    tagged_args: list,
-    mode: OnError = OnError.abort,
-):
-    """Pull every encoded stream item in the spawned child Context."""
-    yield from _context_stream(token, dispatch_many(name, tagged_args, mode))
-
-
 def _context_stream(token: int, stream: Any):
     """Enter one retained Context for every pull and for stream release."""
     try:
@@ -699,56 +612,6 @@ def _rebox(value: Any) -> Any:
     if value is None or _is_primitive(value) or isinstance(value, Box):
         return value
     return boxed(value)
-
-
-def dispatch_raw(name: str, args: list) -> Any:
-    """Raw call: janus's own conversions in, the bare return value out.
-
-    For operations over object references and numbers, where the encoding
-    would cost more than the call. Symbols arrive as str and booleans as
-    janus values here; use an encoded operation when that fidelity matters.
-    Boxed arguments unbox on the way in and opaque results box on the way
-    out, so an operation body only ever sees real objects. None crosses as
-    janus @none, which the shim reads as no answer; NotReducible maps onto it.
-    """
-    op = REGISTRY[name]
-    unboxed_args = [_unbox(argument) for argument in args]
-    try:
-        value = _refuse_raw_answer(op.fn(*unboxed_args))
-        if value is not None:
-            _capture_raw_receipt(op, unboxed_args, value)
-        return _rebox(value)
-    except NotReducible:
-        return None
-
-
-def dispatch_raw_context(token: int, name: str, args: list) -> Any:
-    """Run deterministic raw dispatch in a spawned child Context."""
-    return _task_context.run(token, dispatch_raw, name, args)
-
-
-@guarding
-def dispatch_raw_many(name: str, args: list):
-    op = REGISTRY[name]
-    unboxed_args = [_unbox(argument) for argument in args]
-    try:
-        with closing(op.fn(*unboxed_args)) as answers:
-            for answer in answers:
-                _refuse_raw_relation_candidate(answer)
-                value = _refuse_raw_answer(answer)
-                if value is not None:
-                    _capture_raw_receipt(op, unboxed_args, value)
-                yield _rebox(value)
-    except Exception as error:
-        if _failed_during_generator_close(error):
-            raise
-        yield stream_failure(error)
-
-
-@guarding
-def dispatch_raw_many_context(token: int, name: str, args: list):
-    """Pull every raw stream item in a spawned child Context."""
-    yield from _context_stream(token, dispatch_raw_many(name, args))
 
 
 def _refuse_raw_relation_candidate(value: Any) -> None:

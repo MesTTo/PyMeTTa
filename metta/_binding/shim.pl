@@ -74,11 +74,11 @@
 %     test_context_snapshot_crosses_every_spawn_door_including_thread_workers,
 %     test_a_blocking_oracle_uses_the_dirty_lane_without_pinning_normal_work;
 %     commit=39092863ae34184a9f955f185ff57c1ff177ec40].
-%   - metta_py_eval_count_retaining/6 answers a cardinality and a replay
+%   - metta_py_evaluate/4 with answers=retained answers a cardinality and replay
 %     cursor from ONE evaluation, so an effect-bearing goal fires once and a
 %     length nobody turns into values encodes nothing [tested:
 %     test_a_retained_count_replays_the_bag_the_cursor_would_have_answered;
-%     commit=00a30179a1acd55aa969b44a977fb9a38e2e2df2].
+%     commit=WORKTREE].
 %   - ordered algebra cursors interrupt their deterministic collect-and-sort
 %     phase at timeout without leaving an alarm armed across cursor suspension
 %     [tested: test_an_ordered_algebra_view_is_bounded_by_its_timeout;
@@ -277,11 +277,10 @@
 %     mentions and does not declare, naming the narrowest kind covering the
 %     children observed at each position [tested: shim_type_inference;
 %     commit=8d67307403c1e41ccf058bd3c8d4c079dd7cf7d5]
-%   - metta_py_eval_status_all/3, metta_py_eval_status_using_all/4, and
-%     metta_py_run_status/3 report which of
+%   - metta_py_evaluate/4 with answers=status and metta_py_run_status/3 report which of
 %     MeTTa's evaluation paths produced each answer, leaving the ordinary
 %     entry points' output unchanged [tested:
-%     test_eval_status_reports_the_four_outcomes; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
+%     test_eval_status_reports_the_four_outcomes; commit=WORKTREE]
 %   - the held evaluation cursor is present at bridge boot, so the first lazy
 %     answer pull performs no late consult [tested:
 %     test_first_answer_pull_has_no_late_consult_floor; commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
@@ -450,6 +449,22 @@
 %   Future Enhancements: None
 
 :- use_module(library(janus)).
+% Janus resolves maplist/2 lazily on its first failed text query. The native
+% file-search cache expires after ten seconds, making that import vary by
+% exactly 229 inferences under concurrent startup. Resolve this required
+% failure-path dependency while loading the binding.
+% [tested: test_first_failed_text_query_has_no_deferred_dependency_cost;
+% commit=WORKTREE]
+% Workaround: swi-file-search-cache-autoload - import Janus's failed-query dependency once at binding boot.
+:- janus:use_module(library(apply), [maplist/2]).
+% These predicates are called directly by binding units. Declare their host
+% imports here instead of making the first count, variable, or bounded cursor
+% load the missing import through Prolog's global autoloader.
+% [tested: test_binding_boot_resolves_its_direct_standard_library_dependencies;
+% commit=WORKTREE]
+:- use_module(library(aggregate), [aggregate_all/3]).
+:- use_module(library(gensym), [gensym/2]).
+:- use_module(library(solution_sequences), [limit/2]).
 :- use_module(library(lists)).
 :- use_module(library(apply)).
 :- use_module(library(pairs)).  % group_pairs_by_key/2, pairs_values/2
@@ -472,6 +487,11 @@
 %"Local definition of user:translated_from/2 overrides weak import from
 %filereader" and every read in this file answers about a table nothing writes.
 
+:- use_module('options.pl', [binding_options_expansion/2]).
+:- use_module('evaluation_policy.pl', [binding_evaluation_expansion/2]).
+:- use_module('source_macros.pl', [binding_source_expansion/2]).
+:- use_module('services.pl', [binding_forward_expansion/2]).
+:- include('provides_host_user.pl').
 :- include('wire.pl').
 :- include('errors.pl').
 :- include('source.pl').
@@ -503,4 +523,3 @@
 :- include('subscriptions.pl').
 :- include('protocol.pl').
 :- include('persistence.pl').
-:- include('algebra.pl').

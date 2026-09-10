@@ -193,4 +193,30 @@ def twin(m):
 #: above all [measured 2026-09-09: min-of-3 serial fresh processes;
 #: command=python extensions/python/tools/twin_coverage.py --repin;
 #: commit=b4341ae382c48ef225f4a52e566af6a9a71757c4].
-BUDGET = 8035
+#: RE-PINNED 2026-09-10, 8035 to 8024 (-11), the binding resolves Janus
+#: maplist/2 at boot, removing its first-failure autoload; one compiled option
+#: policy removes repeated evaluation frames, and keyed dispatch removes
+#: repeated transport/context selection. Indexed source-macro hooks preserve
+#: unrelated compilation costs. Same-cut controls and all before/after rows are
+#: in docs/journal/2026-09-09-the-binding-collapse.md. These three fresh serial
+#: processes set file_search_cache_time=9223372036854775807 before boot,
+#: matching the validated full-lane/277/workers=32/file-cache-
+#: time=9223372036854775807 environment. Workloads, point tolerances and
+#: empirical envelopes are unchanged [measured 2026-09-10: min-of-3 serial
+#: fresh processes; command=python extensions/python/tools/twin_coverage.py
+#: --repin; commit=WORKTREE].
+#: RE-PINNED 2026-09-10, 8024 to 8029 (+5), automatic memo reconciliation uses
+#: a trailed marker so an inference-limit signal cannot leak its guard. The
+#: ordinary dirty drain saves two inferences; the first unset-marker read in
+#: each engine invokes SWI's undefined-global hook. Removing the old thread-
+#: local predicate also changes catalog-arity enumeration order: five
+#: inferences per visited arity in metta_catalog_clause/2 or the partial-list
+#: get_native_atom/3 lookup. Same-worktree old/current/restore measurements,
+#: native call-site coverage and actual missing-global events separate those
+#: costs. See docs/journal/2026-09-09-the-binding-collapse.md. These are three
+#: fresh sequential samples per row with 32 concurrent row runners, warmed
+#: library artifacts, and file_search_cache_time=9223372036854775807 before
+#: boot. Every workload, point allowance and empirical envelope is unchanged
+#: [measured 2026-09-10: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 8029

@@ -19,7 +19,7 @@ import uuid
 import pytest
 
 from metta import S, Symbol
-from metta._binding.dispatch import dispatch_many
+from metta._binding.dispatch import dispatch
 
 
 def unique(prefix: str) -> str:  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -35,7 +35,7 @@ def test_a_nondeterministic_ops_generator_releases_what_it_holds(metta, tmp_path
     so a resource contract that holds only because CPython refcounts is not
     a contract.
 
-    The second half is the one that was silent. `dispatch_many` is the entry
+    The second half is the one that was silent. The many key selects the entry
     point shim.pl drives through py_iter, and abandoning a stream means
     closing it. When nothing closes it and the deallocator does, CPython
     swallows whatever the release raised and prints "Exception ignored while
@@ -77,7 +77,7 @@ def test_a_nondeterministic_ops_generator_releases_what_it_holds(metta, tmp_path
             msg = "releasing the cursor failed"
             raise OSError(msg)
 
-    stream = dispatch_many(failing, [])
+    stream = dispatch(["many", "false", "false"], None, failing, [])
     assert next(stream) == ["n", 0]
     with pytest.raises(OSError, match="releasing the cursor failed"):
         stream.close()

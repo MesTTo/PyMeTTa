@@ -1,8 +1,8 @@
-"""Purpose: report numeric, mixed, recursive and open Python door boundaries.
+"""Purpose: gate numeric, mixed, recursive and open Python door boundaries.
 
-Guarantees: the report and catalog call the same source analysis; findings do
-not turn this report into a gate [tested: test_door_order_report_is_not_a_gate;
-commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
+Guarantees: the report and catalog call the same source analysis; any mixed,
+open or recursive boundary fails without assigning an invented integer
+[tested: test_door_order_gate_refuses_each_boundary_defect; commit=WORKTREE].
 """
 
 from __future__ import annotations
@@ -44,7 +44,7 @@ def report(root: Path = doorgen.ROOT) -> dict:
 
 
 def main(argv: list[str] | None = None) -> int:
-    """Print the complete source-derived report without gating its findings."""
+    """Print every source-derived boundary and fail on unresolved findings."""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--json", action="store_true")
     arguments = parser.parse_args(argv)
@@ -52,10 +52,10 @@ def main(argv: list[str] | None = None) -> int:
     if arguments.json:
         print(json.dumps(result, default=sorted, sort_keys=True, indent=2))
     else:
-        print("door-order REPORT:", json.dumps({key: value for key, value in result.items() if key != "rows"}))
+        print("door-order GATE:", json.dumps({key: value for key, value in result.items() if key != "rows"}))
         for name, row in result["rows"].items():
             print(name, json.dumps(row, default=sorted, sort_keys=True))
-    return 0
+    return int(any(result[key] for key in ("mixed", "open_dependencies", "recursive")))
 
 
 if __name__ == "__main__":

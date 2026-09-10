@@ -16,12 +16,24 @@ from __future__ import annotations
 
 import inspect
 from collections.abc import Iterable
+from dataclasses import fields
 from enum import StrEnum
 from typing import Any
 
 from metta._atoms.factories import Atom, Expression, Grounded, Symbol
 from metta._layers import ORDERS
-from metta.doors import AnswersAs, Door, EvaluationAnswer, Kind, Owner, Receiver, State, Tier, Wire
+from metta.doors import (
+    AnswersAs,
+    Door,
+    EvaluationAnswer,
+    EvaluationOptions,
+    Kind,
+    Owner,
+    Receiver,
+    State,
+    Tier,
+    Wire,
+)
 from metta.doors._order import Order, orders
 
 
@@ -43,6 +55,15 @@ def _vocabulary(name: str, enum: type[StrEnum]) -> list[Atom]:
 
 def _default(source: str | None) -> Atom:
     return _term("door-required") if source is None else _term("door-default", _text(source))
+
+
+def _evaluation_value(value: object) -> Atom:
+    """Preserve the row's values as catalog terms, including absence and lists."""
+    if isinstance(value, tuple):
+        return Expression(tuple(_evaluation_value(item) for item in value))
+    if isinstance(value, (int, float, bool)):
+        return Grounded(value)
+    return Symbol("none" if value is None else str(value))
 
 
 def _contract(row: Door, order: Order) -> Atom:
@@ -71,7 +92,12 @@ def _contract(row: Door, order: Order) -> Atom:
         _term("door-sugar", sugar.base, Expression(tuple(
             _term("door-fixed", name.replace('_', '-'), _text(repr(value))) for name, value in sugar.fixed
         ))) if sugar else _term("door-no-sugar"),
-        _term("door-binding", binding.door, binding.wire) if binding else _term("door-no-binding"),
+        _term("door-binding", binding.door, binding.wire,
+              _term("door-evaluation", Expression(tuple(
+                  _term("door-evaluation-field", field.name, _evaluation_value(getattr(binding.evaluation, field.name)))
+                  for field in fields(binding.evaluation)
+              ))) if binding.evaluation is not None else _term("door-no-evaluation"))
+        if binding else _term("door-no-binding"),
         _term("door-provider", provider.point, provider.registrant, provider.namespace)
         if provider else _term("door-no-provider"),
         _term("door-body", _text(row.body.reference), row.body.receiver, body_order)
@@ -105,7 +131,11 @@ def _types() -> list[Atom]:
         ("door-no-sugar", "DoorSugar", ()),
         ("door-sugar", "DoorSugar", ("Atom", "Expression")),
         ("door-no-binding", "DoorBinding", ()),
-        ("door-binding", "DoorBinding", ("Atom", "DoorWire")),
+        ("door-binding", "DoorBinding", ("Atom", "DoorWire", "DoorEvaluation")),
+        ("door-no-evaluation", "DoorEvaluation", ()),
+        ("door-evaluation", "DoorEvaluation", ("Expression",)),
+        ("door-evaluation-field", "DoorEvaluationField", ("Atom", ("Atom", "term"))),
+        ("door-evaluation-axis", "DoorEvaluationAxis", ("Atom", ("Atom", "term"), "String")),
         ("door-no-provider", "DoorProvider", ()),
         ("door-provider", "DoorProvider", ("Atom", "Atom", "Atom")),
         ("door-no-body", "DoorBody", ("DoorOrder",)),
@@ -137,10 +167,13 @@ def _types() -> list[Atom]:
     out.append(_term(":<", "DoorDeclaration", "Declaration"))
     for head, result, arguments in schemas:
         out.append(_term("kind", head, *(
-            _term("one-of", by_type[argument]) if argument in by_type
+            argument[1] if isinstance(argument, tuple)
+            else _term("one-of", by_type[argument]) if argument in by_type
             else "symbol" if argument == "Atom" else "term" for argument in arguments
         )))
-        out.append(_term(":", head, _term("->", *arguments, result)))
+        out.append(_term(":", head, _term("->", *(
+            argument[0] if isinstance(argument, tuple) else argument for argument in arguments
+        ), result)))
     return out
 
 
@@ -163,6 +196,8 @@ def atoms(rows: Iterable[Door]) -> tuple[Atom, ...]:
         _term(":", "host-apply", _term("->", "Type", "Expression", "Type")),
         _term(":", "host-union", _term("->", "Expression", "Type")),
         _term(":", "host-literal", _term("->", "Expression", "Type")),
+        *(_term("door-evaluation-axis", field.name, _evaluation_value(field.default), _text(field.metadata["means"]))
+          for field in fields(EvaluationOptions)),
     ]
     for row in rows:
         result.append(_contract(row, derived[row.key]))

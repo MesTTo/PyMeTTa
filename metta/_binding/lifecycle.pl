@@ -1,7 +1,7 @@
 % Purpose: transact, clear, allocate and release logical spaces.
 % Assumes: loaded through _binding/shim.pl in its host module.
 % Owns resources: anonymous space names; metta_py_release_space/1 clears and returns eligible names to the pool
-% [source: extensions/python/metta/_binding/lifecycle.pl:193; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
+% [source: extensions/python/metta/_binding/lifecycle.pl:metta_py_release_space/1; commit=WORKTREE].
 
 %Run a Python callable inside one engine transaction: the same
 %metta_transaction/1 the MeTTa (transaction ...) form compiles to, so
@@ -31,27 +31,11 @@ metta_py_clear(Space) :-
     metta_py_foreign(Space), !,
     atom_string(Space, SpaceStr),
     py_call(metta_ops:foreign_clear(SpaceStr), _).
-metta_py_clear(Space) :-
-    metta_host_clear_space(Space).
+binding_forward(metta_py_clear/1).
 
 %The unit-answering face, as metta_py_add/3 is to metta_py_add/2.
 metta_py_clear(Space, true) :-
     metta_py_clear(Space).
-
-%The host's clause of the hooks-idle ownership seams: the engine hands the
-%handler census in as clause references, and this side answers from the one
-%reference it installed, the subscription bridge, without consulting any
-%engine internals. Idle means this unwatched space's only handler is the
-%bridge itself.
-:- multifile seam:host_add_hooks_idle/2.
-seam:host_add_hooks_idle(Space, [OnlyRef]) :-
-    \+ metta_py_subscribed_space(Space),
-    metta_py_subscription_hook_ref(added, OnlyRef).
-
-:- multifile seam:host_remove_hooks_idle/2.
-seam:host_remove_hooks_idle(Space, [OnlyRef]) :-
-    \+ metta_py_subscribed_space(Space),
-    metta_py_subscription_hook_ref(removed, OnlyRef).
 
 %Fresh space names for callers that want an anonymous space. The & prefix is
 %load-bearing: 'is-space' recognises it, and a $ name would read as a variable.

@@ -3,9 +3,9 @@
 Guarantees: source, file, named-space and reflective calls share lexical
 substitution and live mutation repair [tested: test_structural_aliases.py;
 commit=acad923476d21110870f235192757281a737ee71].
-Guarantees: nominal lookup costs count only metta_py_eval_all/3 execution,
+Guarantees: nominal lookup costs count only metta_py_evaluate/4 execution,
 excluding unrelated Python finalizer work between calls [tested:
-test_nominal_subtyping_does_not_scan_unrelated_declarations; commit=4f2d6c0f8eb293b73f8dde30a1c84e24834f7393].
+test_nominal_subtyping_does_not_scan_unrelated_declarations; commit=WORKTREE].
 Owns resources: fixtures close spaces and pytest removes temporary files.
 """
 
@@ -18,6 +18,7 @@ from hypothesis import given, settings
 from hypothesis import strategies as st
 
 from metta import MeTTa, S, V, arrow, typed
+from metta._binding.options import EVALUATIONS
 
 
 @pytest.fixture
@@ -379,13 +380,13 @@ def test_nominal_subtyping_does_not_scan_unrelated_declarations(m):
     assert m.eval(query) == [S.Dog, S.Animal]
     # Measure inside the evaluator: Python collection between calls can
     # release an unrelated abandoned world, which an outer stats block counts
-    # as query work. The accounted door runs the same metta_py_eval_all/3.
+    # as query work. Accounting wraps the same evaluation entry.
     def measure():
         total = 0
+        predicate, defaults, _ = EVALUATIONS["space:eval"]
+        options = defaults.with_options(accounting=True)
         for _ in range(100):
-            answers, spent = m.runtime.apply_must(
-                "metta_py_eval_accounted", m.name, query.to_wire()
-            )
+            answers, spent = m.runtime.apply_must(predicate, options, m.name, query.to_wire())
             assert answers == [S.Dog.to_wire(), S.Animal.to_wire()]
             total += spent
         return total

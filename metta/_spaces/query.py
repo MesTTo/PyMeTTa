@@ -53,7 +53,6 @@ from dataclasses import replace
 from typing import TYPE_CHECKING, Any, cast
 
 import metta._spaces.cursor as _spaces_cursor_module
-import metta._spaces.evaluate as _spaces_evaluate_module
 import metta._spaces.execution as _spaces_execution_module
 import metta._spaces.intents as _spaces_intents_module
 import metta._spaces.results as _spaces_results_module
@@ -475,13 +474,9 @@ def _match_under(
         if len(patterns) != 1:
             msg = "a tagged algebra query takes one proposition pattern"
             raise algebra_api.AlgebraEvaluationError(msg)
-        evaluation = algebra_api.evaluate(
-            space,
-            patterns[0],
-            algebra=declaration,
-            context=context,
-            timeout=timeout,
-            inferences=inferences,
+        resources = algebra_api._EvaluationBudget.from_call(timeout, inferences, context)
+        evaluation = algebra_api._evaluate_with_budget(
+            space.self, patterns[0], declaration, resources,
         )
         row_cls = _spaces_results_module._row_class(columns)
         # Built ONCE: the guard term does not depend on the answer, only
@@ -493,11 +488,7 @@ def _match_under(
             if bindings is None:
                 continue
             if guard_template is not None:
-                guard, using = _spaces_evaluate_module._prepared_ask(space, guard_template.subs(bindings), None)
-                guard_answers = _spaces_execution_module.evaluate(
-                    space._rt, space._space, guard, timeout, inferences,
-                    using=using, context=context,
-                )
+                guard_answers = resources.evaluate_operation(space, guard_template.subs(bindings))
                 if not any(
                     isinstance(value, Grounded) and _decode(value) is True
                     for value in guard_answers

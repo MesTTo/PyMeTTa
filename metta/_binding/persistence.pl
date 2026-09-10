@@ -68,9 +68,7 @@ metta_py_fast_save(File, Space, Result) :-
     metta_host_save_fast(File, Space, Outcome),
     metta_py_persist_result(Outcome, Result).
 
-metta_py_fast_load(File, Space) :-
-    metta_host_load_fast(File, Space).
-
+binding_forward(metta_py_fast_load/2).
 metta_py_persist_result(object(Atom), ["object", Encoded]) :- !,
     metta_py_encode(Atom, Encoded).
 metta_py_persist_result(symbol(Atom), ["symbol", Encoded]) :- !,

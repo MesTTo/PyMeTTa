@@ -1,5 +1,8 @@
 """Purpose: execute, profile, and evaluate terms for one named space.
 Guarantees:
+  - held entry mappings derive from native controlled return signatures
+    [tested: test_binding_controlled_entries_derive_from_native_shapes;
+    commit=WORKTREE]
   - algebra and demand cross internal evaluation without changing answer shape
     [tested: sh extensions/python/test.sh
     tests/ch06_many_answers/test_evaluation_context.py -n 0; commit=54cb2eee69c42c1ae685643cbe2578f8d617a265]
@@ -84,7 +87,7 @@ Open Obligations:
   Future Enhancements:
     - the holding evaluation covers the plain cursor only. A carrier cursor
       (evaluate_answers under=) answers an annotation beside every value,
-      which metta_py_eval_count_retaining/6 does not hold, so its declined
+      which metta_py_evaluate/4's retained collector does not hold, so its declined
       count still counts through one materializing pass.
 """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
 
@@ -112,6 +115,7 @@ from metta._atoms.factories import (
     _from_wire,
     _to_atom,
 )
+from metta._binding.options import EVALUATIONS, EvaluationRecord
 from metta._binding.runtime import Runtime, defer_engine_call
 from metta._catalog.bounds import config
 from metta._errors.errors import EngineError
@@ -197,23 +201,22 @@ def _execution_policy() -> _ExecutionPolicy:
         mode = "speculative"
     return _ExecutionPolicy(mode, _CAPTURED_OUTPUT.get())
 
+# begin generated controlled entries
+# Generated from metta_py_wrappable/1 and native controlled return signatures.
+# closed-set: generated; by=extensions/python/tools/bindinggen.py; lane=binding
 _DEFERRED_EXECUTION_OPENERS = {
     "metta_py_cursor_open": "metta_py_cursor_open_controlled",
     "metta_py_cursor_open_under": "metta_py_cursor_open_under_controlled",
-    "metta_py_eval_cursor_open": "metta_py_eval_cursor_open_controlled",
-    "metta_py_eval_cursor_open_under": (
-        "metta_py_eval_cursor_open_under_controlled"
-    ),
-    # A debug session is a held engine too, and for the same reason: the
-    # scope's policy has to span the suspended program rather than wrap the
-    # host's steps through it.
     "metta_py_debug_open": "metta_py_debug_open_controlled",
 }
 
+# closed-set: generated; by=extensions/python/tools/bindinggen.py; lane=binding
 _DEFERRED_EXECUTION_RESUMES = {
     "metta_py_cursor_chunk": "metta_py_cursor_chunk_controlled",
     "metta_py_cursor_next": "metta_py_cursor_next_controlled",
 }
+
+# end generated controlled entries
 
 def _run_target(space: str, source: str, using: dict[str, Any] | None) -> tuple[str, list[Any]]:
     if not using:
@@ -243,6 +246,7 @@ def _controlled_run(
     *,
     policy: _ExecutionPolicy | None = None,
     context: _spaces_scope.EvaluationContext | None = None,
+    evaluation_options: dict[str, Any] | None = None,
 ) -> Any:
     """Execute one engine target through the complete task-local policy.
 
@@ -251,9 +255,37 @@ def _controlled_run(
     inheriting only a subset of capture, atomic, and speculative semantics.
     """
     policy = _execution_policy() if policy is None else policy
-    deferred = _DEFERRED_EXECUTION_OPENERS.get(predicate)
-    resumed = _DEFERRED_EXECUTION_RESUMES.get(predicate)
-    mode_is_held = deferred is not None or resumed is not None
+    evaluation = EVALUATIONS.get(predicate)
+    if evaluation is not None:
+        predicate, defaults, preset = evaluation
+        space, target = inputs
+        collection = defaults.answers if evaluation_options is None else evaluation_options.get("answers", defaults.answers)
+        evaluation_cursor = collection == "cursor"
+        native: int | EvaluationRecord
+        if evaluation_options or context is not None or limits is not None or evaluation_cursor:
+            updates = {} if evaluation_options is None else evaluation_options.copy()
+            if context is not None:
+                updates["under"] = context.to_wire()
+                context = None
+            if limits is not None and not evaluation_cursor:
+                seconds, inferences, stack = limits
+                if seconds >= 0:
+                    updates["seconds"] = seconds
+                if inferences >= 0:
+                    updates["inferences"] = inferences
+                limits = None if stack < 0 else (-1.0, -1, stack)
+            if evaluation_cursor:
+                updates["policy"] = [policy.mode or "none", policy.captured is not None]
+            native = defaults.with_options(**updates)
+        else:
+            native = preset
+        inputs = [native, space, target]
+        deferred = resumed = None
+        mode_is_held = evaluation_cursor
+    else:
+        deferred = _DEFERRED_EXECUTION_OPENERS.get(predicate)
+        resumed = _DEFERRED_EXECUTION_RESUMES.get(predicate)
+        mode_is_held = deferred is not None or resumed is not None
     if deferred is not None:
         predicate = deferred
         inputs = [
@@ -288,7 +320,7 @@ def _controlled_run(
     )
     captured = policy.captured
     if captured is not None and (
-        resumed is not None or deferred is None
+        resumed is not None or not mode_is_held
     ):
         output, text = output
         captured._append(str(text))
@@ -450,22 +482,11 @@ def evaluate(
     using: dict[str, Any] | None = None,
     context: _spaces_scope.EvaluationContext | None = None,
 ) -> list[Atom | Undefined]:
-    predicate = "metta_py_eval_all"
-    # Source text goes over as text. Parsing it here would cross to the engine's
-    # reader, build an Atom from the wire form it answers, and walk that Atom
-    # straight back to the same wire form for this call, so a string target cost
-    # two crossings and a round trip through a term that never left the engine
-    # [measured 2026-08-16: eval("(structured (pair a b))") 516.00 inferences
-    # parsed first against 449.00 read where it is evaluated].
-    inputs = [space, target if isinstance(target, str) else _to_atom(target).to_wire()]
-    if using:
-        predicate = "metta_py_eval_using_all"
-        inputs = [
-            *inputs,
-            [[name, _encode(value).to_wire()] for name, value in using.items()],
-        ]
+    encoded = target if isinstance(target, str) else _to_atom(target).to_wire()
     wires = _controlled_run(
-        rt, predicate, inputs, _spaces_scope_module._limits(timeout, inferences), context=context
+        rt, "space:eval", [space, encoded], _spaces_scope_module._limits(timeout, inferences),
+        context=context,
+        evaluation_options={"using": [[name, _encode(value).to_wire()] for name, value in using.items()]} if using else None,
     )
     return [_from_wire(wire) for wire in wires]
 
@@ -481,11 +502,8 @@ def evaluate_accounted(
     """Evaluate once and return the engine work to debit from an outer quota."""
     encoded = target if isinstance(target, str) else _to_atom(target).to_wire()
     wires, spent = _controlled_run(
-        rt,
-        "metta_py_eval_accounted",
-        [space, encoded],
-        _spaces_scope_module._limits(timeout, inferences),
-        context=context,
+        rt, "space:eval", [space, encoded], _spaces_scope_module._limits(timeout, inferences),
+        context=context, evaluation_options={"accounting": True},
     )
     return [_from_wire(wire) for wire in wires], int(spent)
 
@@ -506,47 +524,16 @@ def evaluate_many(
     crossing, and a capture scope collects once, all exactly as the
     single call's wrappers behave.
     """
-    predicate = "metta_py_eval_many_all"
     encoded = [
         target if isinstance(target, str) else _to_atom(target).to_wire()
         for target in targets
     ]
-    inputs: list[Any] = [space, encoded]
-    if using:
-        predicate = "metta_py_eval_many_using_all"
-        inputs.append(
-            [[name, _encode(value).to_wire()] for name, value in using.items()]
-        )
+    pairs = [] if not using else [[name, _encode(value).to_wire()] for name, value in using.items()]
     groups = _controlled_run(
-        rt, predicate, inputs, _spaces_scope_module._limits(timeout, inferences)
+        rt, "space:eval", [space, encoded], _spaces_scope_module._limits(timeout, inferences),
+        evaluation_options={"using": pairs, "batch": True, "fuel": bool(using), "unmatched": bool(using)},
     )
     return [[_from_wire(wire) for wire in group] for group in groups]
-
-def _count_inputs(
-    space: str,
-    target: Any,
-    using: dict[str, Any] | None,
-) -> list[Any]:
-    """The space, wire target, and named substitutions a count call takes."""
-    encoded_target = target if isinstance(target, str) else _to_atom(target).to_wire()
-    pairs = (
-        []
-        if not using
-        else [[name, _encode(value).to_wire()] for name, value in using.items()]
-    )
-    return [space, encoded_target, pairs]
-
-def _count_call(
-    rt: Runtime,
-    predicate: str,
-    inputs: list[Any],
-    timeout: float | None,
-    inferences: int | None,
-) -> Any:
-    """Send one counting predicate through the shared policy wrapper."""
-    return _controlled_run(
-        rt, predicate, inputs, _spaces_scope_module._limits(timeout, inferences)
-    )
 
 def evaluate_count(
     rt: Runtime,
@@ -564,12 +551,13 @@ def evaluate_count(
     holds no answer cursor beside its scalar, so nothing here can run twice
     and the repeatability question does not arise.
     """
-    inputs = _count_inputs(space, target, using)
-    predicate = "metta_py_eval_count"
-    if under is not None:
-        predicate = "metta_py_eval_count_under"
-        inputs.append(under)
-    return int(_count_call(rt, predicate, inputs, timeout, inferences))
+    encoded = target if isinstance(target, str) else _to_atom(target).to_wire()
+    return int(_controlled_run(
+        rt, "space:answers", [space, encoded], _spaces_scope_module._limits(timeout, inferences),
+        evaluation_options={"answers": "count",
+                            "using": [] if not using else [[name, _encode(value).to_wire()] for name, value in using.items()],
+                            "under": None if under is None else [under, 0, "none"]},
+    ))
 
 def evaluate_count_if_repeatable(
     rt: Runtime,
@@ -588,36 +576,14 @@ def evaluate_count_if_repeatable(
     effects twice. The repeatability guard survives the carrier, because a
     count is a second evaluation whatever algebra tags it.
     """
-    inputs = _count_inputs(space, target, using)
-    predicate = "metta_py_eval_count_if_repeatable"
-    if under is not None:
-        predicate = "metta_py_eval_count_under_if_repeatable"
-        inputs.append(under)
-    output = _count_call(rt, predicate, inputs, timeout, inferences)
-    return int(output[0]) if output else None
-
-def _retain_and_count(
-    rt: Runtime,
-    inputs: list[Any],
-    seconds: float | None,
-    stack: int,
-) -> tuple[int, Any]:
-    """Evaluate once, answer the count, and hold the answers unencoded.
-
-    The wall and stack limits wrap this call the way they wrap one cursor
-    pull, and the inference limit rides inside the predicate as it does for
-    the cursor, because this single call is the whole enumeration.
-    """
-    limits = (
-        None
-        if seconds is None and stack < 0
-        else (-1.0 if seconds is None else seconds, -1, stack)
-    )
+    encoded = target if isinstance(target, str) else _to_atom(target).to_wire()
     output = _controlled_run(
-        rt, "metta_py_eval_count_retaining", inputs, limits
+        rt, "space:answers", [space, encoded], _spaces_scope_module._limits(timeout, inferences),
+        evaluation_options={"answers": "count", "repeatable": True,
+                            "using": [] if not using else [[name, _encode(value).to_wire()] for name, value in using.items()],
+                            "under": None if under is None else [under, 0, "none"]},
     )
-    count, handle = output
-    return int(count), handle
+    return int(output[0]) if output else None
 
 _FINALISING = threading.local()
 
@@ -737,7 +703,6 @@ def evaluate_answers(
     commit=00a30179a1acd55aa969b44a977fb9a38e2e2df2].
     """
     under = None if context is None else context.algebra
-    order = None if context is None else context.order
     encoded_target = target if isinstance(target, str) else _to_atom(target).to_wire()
     columns = [] if isinstance(target, str) else _spaces_cursor_module._column_names((_to_atom(target),))
     pairs = (
@@ -785,11 +750,10 @@ def evaluate_answers(
             # word. And a carrier cursor answers an annotation beside every
             # value, a shape the retained-value path does not carry.
             return counted
-        count, handle = _retain_and_count(
-            rt,
-            [space, encoded_target, pairs or [], columns, steps],
-            seconds,
-            stack,
+        count, handle = _controlled_run(
+            rt, "space:answers", [space, encoded_target], limits,
+            evaluation_options={"answers": "retained", "using": pairs or [],
+                                "columns": columns, "inferences": steps},
         )
         retained.append(_hold_cursor(handle))
         return count
@@ -799,22 +763,15 @@ def evaluate_answers(
         if retained:
             handle = retained.pop()
         else:
-            predicate = "metta_py_eval_cursor_open"
-            inputs: list[Any] = [space, encoded_target, pairs or [], columns, steps]
-            if under is not None:
-                predicate = "metta_py_eval_cursor_open_under"
-                inputs.extend((under, order or "none"))
-            # The wall bound goes INSIDE the engine, beside the inference
-            # budget, because a time limit in this thread cannot interrupt a
-            # goal running inside one: `call_with_time_limit(2, engine_next(E,
-            # _))` over a non-terminating engine goal ran ninety seconds
-            # without firing [measured 2026-09-05, plain SWI]. It is appended
-            # last so the `under` variant's existing positions are untouched.
-            inputs.append(-1.0 if seconds is None else float(seconds))
             # engine_create/3 is inert, but the selected execution mode must
             # be embedded in its held goal before the first pull starts it.
             handle = _hold_cursor(
-                _controlled_run(rt, predicate, inputs, None, policy=policy)
+                _controlled_run(
+                    rt, "space:answers", [space, encoded_target], None, policy=policy,
+                    evaluation_options={"using": pairs or [], "columns": columns, "inferences": steps,
+                                        "under": None if context is None else context.to_wire(),
+                                        "seconds": -1.0 if seconds is None else float(seconds)},
+                )
             )
         row_cls = _spaces_results_module._row_class(tuple(columns))
         reported_inferences = 0
@@ -930,21 +887,13 @@ def evaluate_status(
     using: dict[str, Any] | None = None,
 ) -> list[tuple[str, Atom | Undefined | None]]:
     """Pair each answer with the evaluation path that produced it."""
-    predicate = "metta_py_eval_status_all"
-    inputs: list[Any] = [
-        space,
-        target if isinstance(target, str) else _to_atom(target).to_wire(),
-    ]
-    if using:
-        predicate = "metta_py_eval_status_using_all"
-        inputs.append(
-            [[name, _encode(value).to_wire()] for name, value in using.items()]
-        )
+    encoded = target if isinstance(target, str) else _to_atom(target).to_wire()
     rows = _controlled_run(
         rt,
-        predicate,
-        inputs,
+        "space:eval-status",
+        [space, encoded],
         _spaces_scope_module._limits(timeout, inferences),
+        evaluation_options={"using": [[name, _encode(value).to_wire()] for name, value in using.items()]} if using else None,
     )
     return [
         (str(status), None if status == "empty" else _from_wire(wire))
