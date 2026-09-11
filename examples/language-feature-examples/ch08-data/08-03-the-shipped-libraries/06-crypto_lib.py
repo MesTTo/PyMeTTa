@@ -1,4 +1,8 @@
-"""Purpose: examples/ch08-data/08-03-the-shipped-libraries/06-crypto_lib.metta in Python: content-addressed facts.
+"""Purpose: crypto content keys, authenticated bytes, secure values and passwords.
+
+Guarantees: the twin calls every public crypto head and both password arities
+[tested: python extensions/python/tools/twin_coverage.py examples/ch08-data/08-03-the-shipped-libraries/06-crypto_lib.metta; commit=WORKTREE].
+Owns resources: the temporary content file is deleted even when an assertion fails.
 
 `crypto-hash` is lib_crypto's own function and the subject of the file, so the
 twin names it through the function namespace; what it hashes is Python data.
@@ -11,8 +15,7 @@ where the bound `m.fn` would be a host attribute the body cannot close over.
 
 from metta import G, S, fn, lib
 
-#: The digest of "hello", which the file claims twice: once from the library
-#: call and once through the content key built on top of it.
+#: The digest shared by the text, byte, file and content-key claims.
 HELLO_SHA256 = G("2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824")
 
 HELLO_SHA512 = G(
@@ -22,7 +25,7 @@ HELLO_SHA512 = G(
 
 
 def twin(m):
-    """Hash a string two ways, then define a key that hashes its own payload."""
+    """Use the native functions with Python strings, tuples and lexical scope."""
     m += lib.crypto
 
     crypto_hash = m.fn.crypto_hash
@@ -35,6 +38,39 @@ def twin(m):
         return fn.crypto_hash(S.sha256, text)
 
     assert content_key(G("hello")) == [HELLO_SHA256]
+
+    assert m.fn["crypto_hash"](S.sha256, G("hello")) == [HELLO_SHA256]
+    assert m.fn.crypto_hash_bytes(S.sha256, (104, 101, 108, 108, 111)) == [HELLO_SHA256]
+    assert m.fn.crypto_hash_bytes(S.sha256, ()) == [
+        G("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855")]
+    assert m.fn.crypto_hmac(S.sha256, G("Jefe"), G("what do ya want for nothing?")) == [
+        G("5bdcc146bf60754e6a042426089575c75a003f089d2739839dec58b964ec3843")]
+    assert m.fn.crypto_hmac_bytes(S.sha256, (195, 169), (0, 255)) == [
+        G("6a96aac37f1ab07208ddcd8a71292bd9fc92722a85ca984fa3adcd07fede237d")]
+
+    m += lib.string
+    assert m.fn["crypto_random_hex"](0) == [G("")]
+    assert len(m.fn.crypto_random_hex(4).one()) == 8
+    assert tuple(m.fn.crypto_random_bytes(0).one()) == ()
+    assert len(m.fn.crypto_random_bytes(8).one()) == 8
+    assert m.fn.crypto_random_integer(-9, -8) == [-9]
+    number = m.fn.crypto_random_integer(-20, 7).one()
+    assert -20 <= number < 7
+
+    record = m.fn.crypto_password_hash(G("fixture")).one()
+    assert m.fn.crypto_password_verify(G("fixture"), G(record)).one() is True
+    record = m.fn.crypto_password_hash(G("fixture"), 2).one()
+    assert m.fn.crypto_password_verify(G("fixture"), G(record)).one() is True
+    record = m.fn.crypto_password_hash(G("fixture"), 2).one()
+    assert m.fn.crypto_password_verify(G("different"), G(record)).one() is False
+
+    m += lib.file
+    path = m.fn["temp-path!"](G("crypto-content")).one()
+    try:
+        m.fn["write-file!"](G(path), G("hello")).one()
+        assert m.fn["crypto-hash-file!"](S.sha256, G(path)) == [HELLO_SHA256]
+    finally:
+        m.fn["delete-file!"](G(path)).one()
 
 
 #: A PLACEHOLDER, not a measurement. The twins wave re-authored this file and
@@ -324,4 +360,10 @@ def twin(m):
 #: tree under the normalised protocol; these are this tree's measured prices
 #: [measured 2026-09-11: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=8ca8a387fc61d0918484b19a1a3baf85b6523043].
-BUDGET = 17404
+#: RE-PINNED 2026-09-11, 17404 to 78285 (+60881), The crypto example now proves
+#: eighteen claims over all twelve native heads and both password arities.
+#: Checked OpenSSL hashing, HMAC, file streaming, secure values and password
+#: records run through the shared native loader [measured 2026-09-11: min-of-3
+#: serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 78285

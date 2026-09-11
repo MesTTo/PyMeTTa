@@ -1,11 +1,12 @@
-"""Purpose: prove private regex builds, cleanup and installed-wheel execution.
+"""Purpose: prove native library builds, cleanup and installed-wheel execution.
 
 Guarantees: successful, failed, concurrent and cancelled builds preserve their
 publication and cleanup contracts; a wheel carries source and builds on import
 [tested: test_native_build_is_atomic_and_reused,
 test_concurrent_processes_and_threads_publish_one_native_object,
 test_cancelled_build_waits_for_its_compiler_and_discards_the_stage,
-test_regex_source_builds_after_wheel_install; commit=7dcfe83fcf74742a1e944db240aa918596c8d4b0].
+test_native_sources_build_after_wheel_install,
+test_warm_native_build_needs_no_process_library; commit=WORKTREE].
 Owns resources: pytest owns the copied libraries and installations. Every child
 process is joined, and the cancellation fixture releases its compiler barrier.
 """
@@ -21,38 +22,66 @@ import tarfile
 import tempfile
 import zipfile
 from contextlib import ExitStack
+from dataclasses import dataclass
 from pathlib import Path
 
 import pytest
 
 ROOT = Path(__file__).resolve().parents[4]
-NATIVE = ROOT / "lib/lib_regex"
 
 
-@pytest.fixture
-def native_library(tmp_path):
-    """Copy the three build inputs, excluding existing objects and test data."""
-    library = tmp_path / "library"
-    for name in ("support/native_build.pl", "vendor/pcre4pl.c", "vendor/lib_regex_pcre.pl"):
-        target = library / name
+@dataclass(frozen=True)
+class NativeLibrary:
+    """One real consumer's copied build inputs and executable probe."""
+
+    path: Path
+    name: str
+    source: Path
+    runtime_goal: str
+    remedy: str
+
+    @property
+    def builder(self):
+        """The owner's native build module follows its library name."""
+        return f"lib_{self.name}_native_build"
+
+
+@pytest.fixture(params=[
+    ("regex", "vendor/pcre4pl.c", "vendor/lib_regex_pcre.pl",
+     "re_match('a', 'a')", "libpcre2-dev"),
+    ("crypto", "support/crypto_native.c", "support/native.pl",
+     "lib_crypto_native:digest(sha256,utf8(hello),none,B), length(B,32)", "libssl-dev"),
+], ids=["regex", "crypto"])
+def native_library(tmp_path, request):
+    """Copy each owner's inputs and the shared helper, excluding built objects."""
+    name, source, loader, probe, remedy = request.param
+    library = tmp_path / "lib" / f"lib_{name}"
+    origin = ROOT / "lib" / library.name
+    for filename in ("support/native_build.pl", source, loader):
+        target = library / filename
         target.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(NATIVE / name, target)
-    return library
+        shutil.copy2(origin / filename, target)
+    shared = library.parent / "_support/native_build.pl"
+    shared.parent.mkdir(parents=True)
+    shutil.copy2(ROOT / "lib/_support/native_build.pl", shared)
+    return NativeLibrary(library, name, library / source,
+                         f"use_module('{loader}'), {probe}", remedy)
 
 
-def native_command(goal):
+def native_command(goal, prelude=None):
     """Run the public build entry in an isolated SWI process."""
-    return ["swipl", "--on-error=status", "-q", "-f", "none",
-            "-s", "support/native_build.pl", "-g", goal, "-t", "halt"]
+    prefix = ["swipl", "--on-error=status", "-q", "-f", "none"]
+    if prelude is not None:
+        prefix.extend(["-s", str(prelude)])
+    return [*prefix, "-s", "support/native_build.pl", "-g", goal, "-t", "halt"]
 
 
-def run_native(library):
+def run_native(library, prelude=None):
     """Build, load and execute the resulting object before returning its path."""
     return subprocess.run(
-        native_command("lib_regex_native_build:native_object(P), "
-                       "use_module('vendor/lib_regex_pcre.pl'), "
-                       "re_match('a', 'a'), writeln(P)"),
-        cwd=library, capture_output=True, text=True, check=False,
+        native_command(f"{library.builder}:native_object(P), "
+                       f"{library.runtime_goal}, writeln(P)", prelude),
+        cwd=library.path, capture_output=True, text=True, check=False,
     )
 
 
@@ -68,37 +97,37 @@ def test_native_build_is_atomic_and_reused(native_library):
     assert Path(second.stdout.strip()).resolve() == binary
     assert binary.stat().st_mtime_ns == built
 
-    source = native_library / "vendor/pcre4pl.c"
-    source.write_text(source.read_text(encoding="utf-8") + "\n#error regex_build_refusal_probe\n", encoding="utf-8")
+    source = native_library.source
+    source.write_text(source.read_text(encoding="utf-8") + "\n#error native_build_refusal_probe\n", encoding="utf-8")
     newer = built + 2_000_000_000
     os.utime(source, ns=(newer, newer))
     failed = run_native(native_library)
     assert failed.returncode != 0
-    assert "regex_native_build" in failed.stderr
-    assert "regex_build_refusal_probe" in failed.stderr
-    assert "libpcre2-dev" in failed.stderr
+    assert f"{native_library.name}_native_build" in failed.stderr
+    assert "native_build_refusal_probe" in failed.stderr
+    assert native_library.remedy in failed.stderr
     assert binary.read_bytes() == original
     assert sorted(path.name for path in binary.parent.iterdir()) == ["build.lock", binary.name]
 
 
 def test_concurrent_processes_and_threads_publish_one_native_object(native_library):
     """Independent processes and their threads all load one complete object."""
-    source = native_library / "vendor/pcre4pl.c"
-    source.write_text(source.read_text(encoding="utf-8") + '\n#pragma message("regex_build_once")\n', encoding="utf-8")
+    source = native_library.source
+    source.write_text(source.read_text(encoding="utf-8") + '\n#pragma message("native_build_once")\n', encoding="utf-8")
     goal = (
         "findall(T, (between(1,4,_), "
-        "thread_create(lib_regex_native_build:native_object(_),T,[])), Threads), "
+        f"thread_create({native_library.builder}:native_object(_),T,[])), Threads), "
         "maplist(thread_join,Threads,Statuses), maplist(=(true),Statuses), "
-        "lib_regex_native_build:native_object(P), "
-        "use_module('vendor/lib_regex_pcre.pl'), re_match('a','a'), writeln(P)"
+        f"{native_library.builder}:native_object(P), "
+        f"{native_library.runtime_goal}, writeln(P)"
     )
     with ExitStack() as resources:
         children = []
         for _ in range(6):
-            out = resources.enter_context(tempfile.TemporaryFile(mode="w+", dir=native_library))
-            err = resources.enter_context(tempfile.TemporaryFile(mode="w+", dir=native_library))
+            out = resources.enter_context(tempfile.TemporaryFile(mode="w+", dir=native_library.path))
+            err = resources.enter_context(tempfile.TemporaryFile(mode="w+", dir=native_library.path))
             child = resources.enter_context(subprocess.Popen(
-                native_command(goal), cwd=native_library, stdout=out, stderr=err, text=True,
+                native_command(goal), cwd=native_library.path, stdout=out, stderr=err, text=True,
             ))
             children.append((child, out, err))
         results = []
@@ -111,7 +140,7 @@ def test_concurrent_processes_and_threads_publish_one_native_object(native_libra
     paths = {Path(out.strip()).resolve() for _, out, _ in results}
     assert len(paths) == 1
     diagnostics = [line for _, _, err in results for line in err.splitlines()
-                   if "regex_build_once" in line and ("note:" in line or "warning:" in line)]
+                   if "native_build_once" in line and ("note:" in line or "warning:" in line)]
     assert len(diagnostics) == 1, results
     [binary] = paths
     assert sorted(path.name for path in binary.parent.iterdir()) == ["build.lock", binary.name]
@@ -124,21 +153,21 @@ def test_cancelled_build_waits_for_its_compiler_and_discards_the_stage(native_li
     assert before.returncode == 0, before.stdout + before.stderr
     binary = Path(before.stdout.strip()).resolve()
     original = binary.read_bytes()
-    barrier = native_library / "build-barrier.h"
+    barrier = native_library.path / "build-barrier.h"
     os.mkfifo(barrier)
-    source = native_library / "vendor/pcre4pl.c"
+    source = native_library.source
     source.write_text(f"#include {json.dumps(str(barrier))}\n" + source.read_text(encoding="utf-8"), encoding="utf-8")
     newer = binary.stat().st_mtime_ns + 2_000_000_000
     os.utime(source, ns=(newer, newer))
     goal = (
-        "thread_create(catch(lib_regex_native_build:native_object(_),"
-        "error(regex_native_build(build_cancelled),_),thread_exit(cancelled)), Worker, []),"
+        f"thread_create(catch({native_library.builder}:native_object(_),"
+        f"error({native_library.name}_native_build(build_cancelled),_),thread_exit(cancelled)), Worker, []),"
         "get_char(_), thread_signal(Worker,throw(build_cancelled)),"
         "writeln(cancel_requested), flush_output,"
         "thread_join(Worker,exited(cancelled)),writeln(cancelled)"
     )
-    with tempfile.TemporaryFile(mode="w+", dir=native_library) as errors:
-        with subprocess.Popen(native_command(goal), cwd=native_library,
+    with tempfile.TemporaryFile(mode="w+", dir=native_library.path) as errors:
+        with subprocess.Popen(native_command(goal), cwd=native_library.path,
                               stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                               stderr=errors, text=True) as child:
             assert child.stdin is not None and child.stdout is not None
@@ -161,8 +190,59 @@ def test_cancelled_build_waits_for_its_compiler_and_discards_the_stage(native_li
     assert sorted(path.name for path in binary.parent.iterdir()) == ["build.lock", binary.name]
 
 
-def test_regex_source_builds_after_wheel_install(tmp_path):
-    """Build a wheel from its source archive, install it and call its regex face."""
+def test_warm_native_build_needs_no_process_library(native_library):
+    """A real missing process.pl permits a warm import and names a cold refusal."""
+    first = run_native(native_library)
+    assert first.returncode == 0, first.stdout + first.stderr
+    binary = Path(first.stdout.strip()).resolve()
+    locate = subprocess.run(
+        ["swipl", "-q", "-f", "none", "-g",
+         "absolute_file_name(library(process),P,[file_type(prolog),access(read)]),"
+         "file_directory_name(P,D),write(D),halt"],
+        capture_output=True, text=True, check=False,
+    )
+    assert locate.returncode == 0, locate.stderr
+    origin = Path(locate.stdout)
+    farm = native_library.path / "reduced-process"
+    farm.mkdir()
+    for entry in origin.iterdir():
+        if entry.name == "process.pl" or entry.suffix == ".qlf":
+            continue
+        target = farm / entry.name
+        if entry.name == "INDEX.pl":
+            shutil.copy2(entry, target)
+        else:
+            target.symlink_to(entry, target_is_directory=entry.is_dir())
+    prelude = native_library.path / "without-process.pl"
+    prelude.write_text(f"""
+:- use_module(library(lists), [member/2]).
+:- forall(member(Alias,[library,autoload]),
+          ( Spec =.. [Alias,'.'],
+            findall(D,absolute_file_name(Spec,D,[file_type(directory),access(read),solutions(all)]),Dirs),
+            retractall(user:file_search_path(Alias,_)),
+            forall(member(Dir,Dirs),
+                   ( (same_file(Dir,{json.dumps(str(origin))})
+                      -> Path={json.dumps(str(farm))} ; Path=Dir),
+                     assertz(user:file_search_path(Alias,Path)) )) )).
+:- retractall('$autoload':library_index(_,_,_)),
+   retractall('$autoload':autoload_directories(_)),
+   retractall('$autoload':index_checked_at(_)).
+:- \\+ absolute_file_name(library(process),_,[file_type(prolog),access(read),file_errors(fail)]),
+   \\+ current_predicate(process:process_create/3).
+""", encoding="utf-8")
+    warm = run_native(native_library, prelude)
+    assert warm.returncode == 0 and not warm.stderr, warm.stdout + warm.stderr
+    assert Path(warm.stdout.strip()).resolve() == binary
+    binary.unlink()
+    cold = run_native(native_library, prelude)
+    assert cold.returncode != 0
+    assert f"{native_library.name}_native_build" in cold.stderr
+    assert "Prebuild" in cold.stderr and "same SWI ABI" in cold.stderr
+    assert not list(binary.parent.glob("*.tmp.*"))
+
+
+def test_native_sources_build_after_wheel_install(tmp_path):
+    """Build from the source archive, install, then call both native libraries."""
     dist = tmp_path / "dist"
     built_source = subprocess.run(
         ["uv", "build", "--sdist", "--out-dir", str(dist), str(ROOT)],
@@ -173,6 +253,8 @@ def test_regex_source_builds_after_wheel_install(tmp_path):
     with tarfile.open(sdist) as archive:
         source_names = archive.getnames()
     assert any(name.endswith("/lib/lib_regex/vendor/pcre4pl.c") for name in source_names)
+    assert any(name.endswith("/lib/lib_crypto/support/crypto_native.c") for name in source_names)
+    assert any(name.endswith("/lib/_support/native_build.pl") for name in source_names)
     assert not any("/.native/" in name for name in source_names)
 
     built_wheel = subprocess.run(
@@ -185,6 +267,8 @@ def test_regex_source_builds_after_wheel_install(tmp_path):
         names = archive.namelist()
     assert "metta/_runtime/lib/lib_regex/vendor/pcre4pl.c" in names
     assert "metta/_runtime/lib/lib_regex/support/native_build.pl" in names
+    assert "metta/_runtime/lib/lib_crypto/support/crypto_native.c" in names
+    assert "metta/_runtime/lib/_support/native_build.pl" in names
     assert not any("/.native/" in name for name in names)
 
     installed = tmp_path / "installed"
@@ -205,6 +289,7 @@ package = Path(metta.__file__).parent
 assert package.parent == Path.cwd() / "installed", package
 runtime = package / "_runtime"
 assert not (runtime / "lib/lib_regex/.native").exists()
+assert not (runtime / "lib/lib_crypto/.native").exists()
 with MeTTa() as engine:
     engine += lib.regex
     [pattern] = engine.fn.re_compile(G("a*?"))
@@ -214,10 +299,15 @@ with MeTTa() as engine:
         assert "_NativeHandle(" in repr([pattern])
     finally:
         pattern.release()
+    engine += lib.crypto
+    assert engine.fn.crypto_hash(G("sha256"), G("hello")).one() == "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824"
+    record = engine.fn.crypto_password_hash(G("fixture"), 0).one()
+    assert engine.fn.crypto_password_verify(G("fixture"), G(record)).one() is True
 assert list((runtime / "lib/lib_regex/.native").glob("pcre-*"))
-print("installed regex source built and executed")
+assert list((runtime / "lib/lib_crypto/.native").glob("crypto-*"))
+print("installed native sources built and executed")
 """],
         cwd=tmp_path, env=environment, capture_output=True, text=True, check=False,
     )
     assert probe.returncode == 0, probe.stdout + probe.stderr
-    assert probe.stdout.strip() == "installed regex source built and executed"
+    assert probe.stdout.strip() == "installed native sources built and executed"

@@ -239,4 +239,11 @@ def twin(m):
 #: the loader declares every dependency for autoload-disabled hosts [measured
 #: 2026-09-11: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=7dcfe83fcf74742a1e944db240aa918596c8d4b0].
-BUDGET = 103258
+#: RE-PINNED 2026-09-11, 103258 to 107645 (+4387), The shared atomic native
+#: builder adds one source module and provider availability checks. A control
+#: at 6dab7f8c1 with only the two loader files changed reproduces exactly the
+#: 4375 MeTTa and 4387 Python inference increase; the regex program and
+#: matching implementation are unchanged [measured 2026-09-11: min-of-3 serial
+#: fresh processes; command=python extensions/python/tools/twin_coverage.py
+#: --repin; commit=WORKTREE].
+BUDGET = 107645
