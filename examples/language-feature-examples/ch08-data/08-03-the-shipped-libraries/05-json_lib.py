@@ -1,4 +1,8 @@
-"""Purpose: examples/ch08-data/08-03-the-shipped-libraries/05-json_lib.metta in Python: a JSON object IS a space.
+"""Purpose: examples/ch08-data/08-03-the-shipped-libraries/05-json_lib.metta in Python: query JSON objects and exchange documents.
+
+Guarantees: the same object, path, formatting and file claims cross the wire
+[tested: python extensions/python/tools/twin_coverage.py examples/ch08-data/08-03-the-shipped-libraries/05-json_lib.metta; commit=WORKTREE].
+Owns resources: temporary file directories close after each file round trip.
 
 That is MeTTa HE's decision and the one worth showing: `json-decode` answers a
 SPACE of (key value) atoms rather than an opaque dict, so this twin never
@@ -15,6 +19,9 @@ A decoded object answers its space NAME as a Symbol, which is what the space
 door takes, so `opened` is `metta.space(answers.one())` with nothing between
 them and no name ever spelled as text.
 """
+
+from pathlib import Path
+from tempfile import TemporaryDirectory
 
 import metta
 from metta import G, S, V, lib
@@ -59,6 +66,36 @@ def twin(m):
     # dict-space builds one from pairs directly, without going through text.
     pairs = opened(m.fn.dict_space(((S.name, G("ann")), (S.age, 3))))
     assert [row.v for row in pairs[S.name(V.v)]] == [G("ann")]
+
+    # Paths preserve alternatives through object keys and array indexes.
+    assert m.fn.json_at(decode(G('{"rows":[{"name":"ann"}]}')), (S.rows, 0, S.name)) == [G("ann")]
+    assert m.fn.json_at(decode(G('{"a":[1],"a":[2]}')), (S.a, 0)) == [1, 2]
+    assert m.fn.json_at(decode(G("{}")), (S.missing,)) == []
+    assert m.fn.json_at(42, ()) == [42]
+    assert encode(m.fn.dict_space(())) == [G("{}")]
+    special = opened(m.fn.dict_space(((S["from"], 1), (S.internal, 2))))
+    assert [atom[0] for atom in special] == [S["from"], S.internal]
+
+    assert m.fn.json_pretty((1, 2)) == [G("[1, 2 ]")]
+    assert m.fn.json_pretty((1, 2), 1) == [G("[\n  1,\n  2\n]")]
+    assert list(decode(m.fn.json_pretty((1, 2), 0)).one()) == [1, 2]
+
+    assert m.fn.json_lines_decode(G("1\r\ntrue\nnull\n")) == [1, True, S.Null]
+    assert m.fn.json_lines_encode((1, True, G("é"))) == [G('1\ntrue\n"é"\n')]
+    assert m.fn.json_lines_decode(G("")) == []
+    assert m.fn.json_lines_encode(()) == [G("")]
+
+    m += lib.file
+    with TemporaryDirectory(prefix="json-document-") as directory:
+        path = G(str(Path(directory) / "document.json"))
+        written = m.fn["json-write!"](path, (7, 8)).one()
+        value = list(m.fn["json-read!"](path).one())
+        assert (written, value) == (True, [7, 8])
+    with TemporaryDirectory(prefix="json-lines-") as directory:
+        path = G(str(Path(directory) / "records.jsonl"))
+        written = m.fn["json-lines-write!"](path, (1, True, G("é"))).one()
+        values = list(m.fn["json-lines-read!"](path))
+        assert (written, values) == (True, [1, True, G("é")])
 
 
 #: A PLACEHOLDER, not a measurement. The twins wave re-authored this file and
@@ -242,4 +279,11 @@ def twin(m):
 #: are excluded from this point selection and keep their pins [measured
 #: 2026-09-09: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=8ca8a387fc61d0918484b19a1a3baf85b6523043].
-BUDGET = 24799
+#: RE-PINNED 2026-09-11, 24799 to 65839 (+41040), The JSON example now covers
+#: thirteen native heads and fourteen arities, adding formatting, paths, UTF-8
+#: document files and JSON Lines. Construction owns allocations until return,
+#: encoding memoizes object snapshots and refuses cycles, and generated type
+#: and documentation rows join the existing string-library import [measured
+#: 2026-09-11: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 65839
