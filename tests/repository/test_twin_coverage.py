@@ -10,7 +10,7 @@ Guarantees:
     [tested: test_source_aliases_follow_factory_origins,
     test_source_aliases_keep_uncertain_bindings_visible,
     test_source_aliases_report_renamed_source_doors,
-    test_source_aliases_do_not_depend_on_python_recursion_depth; commit=WORKTREE]
+    test_source_aliases_do_not_depend_on_python_recursion_depth; commit=bd027d8b7a9ef1d96fb4cdb160c9b3eb4157d52e]
   - an unanswered child retains its process status in the finding [tested:
     test_a_silent_child_failure_keeps_its_exit_status; commit=8ca8a387fc61d0918484b19a1a3baf85b6523043]
   - a real twin's first library load keeps its count when file-cache entries
@@ -71,7 +71,7 @@ Guarantees:
     match-bound operands retain the distinct protocol-vs-relational choice
     [tested: test_engine_operator_heads_require_syntax_only_for_native_operands,
     test_python_operator_and_engine_head_split_depends_on_native_proof;
-    commit=WORKTREE]
+    commit=bd027d8b7a9ef1d96fb4cdb160c9b3eb4157d52e]
   - the 159 entries superseded by empirical budgets are retired exactly once
     [tested: test_the_distribution_budget_retirement_is_exact;
     commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22]

@@ -4,7 +4,7 @@ Guarantees: Python's independent CSV codec checks generated Unicode dialects
 and row shapes; process writers retain every submitted row
 [tested: test_generated_csv_agrees_with_python,
 test_generated_files_live_views_and_snapshots,
-test_csv_concurrent_process_appends; commit=WORKTREE].
+test_csv_concurrent_process_appends; commit=bd027d8b7a9ef1d96fb4cdb160c9b3eb4157d52e].
 Owns resources: temporary directories remove fixtures and writer locks;
 snapshots and answer cursors close explicitly. Every subprocess is joined,
 and closing its input releases the test's start barrier even on failure.

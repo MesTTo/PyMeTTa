@@ -2,7 +2,7 @@
 
 Guarantees: the twin preserves the example's field lists, duplicate answers,
 live queries and numbered snapshots
-[tested: python extensions/python/tools/twin_coverage.py examples/ch08-data/08-03-the-shipped-libraries/17-csv_lib.metta; commit=WORKTREE].
+[tested: python extensions/python/tools/twin_coverage.py examples/ch08-data/08-03-the-shipped-libraries/17-csv_lib.metta; commit=bd027d8b7a9ef1d96fb4cdb160c9b3eb4157d52e].
 Owns resources: the temporary directory removes its CSV and writer lock;
 snapshots follow the engine's ordinary space lifetime.
 """
@@ -66,5 +66,5 @@ def twin(m):
 #: [measured 2026-09-11: 103630 inferences, minimum of three serial fresh processes;
 #: command=python extensions/python/tools/twin_coverage.py --measure --rounds 3
 #: examples/ch08-data/08-03-the-shipped-libraries/17-csv_lib.metta
-#: examples/ch08-data/08-03-the-shipped-libraries/05-json_lib.metta; commit=WORKTREE].
+#: examples/ch08-data/08-03-the-shipped-libraries/05-json_lib.metta; commit=bd027d8b7a9ef1d96fb4cdb160c9b3eb4157d52e].
 BUDGET = 103630

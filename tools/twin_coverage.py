@@ -50,7 +50,7 @@ Guarantees:
     [tested: test_source_aliases_follow_factory_origins,
     test_source_aliases_keep_uncertain_bindings_visible,
     test_source_aliases_report_renamed_source_doors,
-    test_source_aliases_do_not_depend_on_python_recursion_depth; commit=WORKTREE]
+    test_source_aliases_do_not_depend_on_python_recursion_depth; commit=bd027d8b7a9ef1d96fb4cdb160c9b3eb4157d52e]
   - unanswered children retain their process status in the finding [tested:
     test_a_silent_child_failure_keeps_its_exit_status; commit=8ca8a387fc61d0918484b19a1a3baf85b6523043]
   - file-search cache expiry cannot enter a measured first library load;
@@ -1193,7 +1193,7 @@ RUNG_LINE = re.compile(r"#\s*rung:\s*\S")
 #: treats NaN as equal to itself, while Python answers the opposite in all
 #: three cases [tested:
 #: test_engine_operator_heads_require_syntax_only_for_native_operands;
-#: commit=WORKTREE].
+#: commit=bd027d8b7a9ef1d96fb4cdb160c9b3eb4157d52e].
 NATIVE_NUMBER_OPERATOR_HEADS = frozenset({"+", "-", "*", "%", "floor-div"})
 NATIVE_COMPARE_OPERATOR_HEADS = frozenset({"<", ">", "<=", ">="})
 OPERATOR_HEADS = NATIVE_NUMBER_OPERATOR_HEADS | NATIVE_COMPARE_OPERATOR_HEADS

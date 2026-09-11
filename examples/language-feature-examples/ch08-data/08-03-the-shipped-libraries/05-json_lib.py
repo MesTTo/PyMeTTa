@@ -292,5 +292,5 @@ def twin(m):
 #: unchanged-cut control applying only that guard and its JSON consumer exactly
 #: explains the increase [measured 2026-09-11: min-of-3 serial fresh processes;
 #: command=python extensions/python/tools/twin_coverage.py --repin;
-#: commit=WORKTREE].
+#: commit=bd027d8b7a9ef1d96fb4cdb160c9b3eb4157d52e].
 BUDGET = 70088
