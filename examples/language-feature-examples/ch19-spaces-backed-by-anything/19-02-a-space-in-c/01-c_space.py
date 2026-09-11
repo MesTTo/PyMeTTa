@@ -340,4 +340,13 @@ def twin(m):
 #: are excluded from this point selection and keep their pins [measured
 #: 2026-09-09: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=8ca8a387fc61d0918484b19a1a3baf85b6523043].
-BUDGET = 40920
+#: RE-PINNED 2026-09-11, 40920 to 99651 (+58731), The Prolog String surface
+#: publishes 34 documented heads and its native provider validates declared
+#: build inputs. These direct and transitive importers pay the changed
+#: declarations and provider setup; an identical-binary CSV-cut control
+#: attributes the increment from the live CSV cut to String. The journal
+#: separately records the older difference between each stored budget and
+#: that unchanged-cut baseline [measured 2026-09-11:
+#: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 99651

@@ -379,7 +379,16 @@ def twin(m):
 #: tree under the normalised protocol; these are this tree's measured prices
 #: [measured 2026-09-11: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=8ca8a387fc61d0918484b19a1a3baf85b6523043].
-BUDGET = 33691
+#: RE-PINNED 2026-09-11, 33691 to 91209 (+57518), The Prolog String surface
+#: publishes 34 documented heads and its native provider validates declared
+#: build inputs. These direct and transitive importers pay the changed
+#: declarations and provider setup; an identical-binary CSV-cut control
+#: attributes the increment from the live CSV cut to String. The journal
+#: separately records the older difference between each stored budget and
+#: that unchanged-cut baseline [measured 2026-09-11:
+#: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 91209
 
 #: DIVERGED 2026-09-07, the example holds 1 atom the twin does not (1 =) and
 #: the twin holds 1 atom the example does not (1 =): the twin is an ordinary Python

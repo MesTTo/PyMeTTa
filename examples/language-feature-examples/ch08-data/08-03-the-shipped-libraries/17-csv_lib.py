@@ -67,4 +67,11 @@ def twin(m):
 #: command=python extensions/python/tools/twin_coverage.py --measure --rounds 3
 #: examples/ch08-data/08-03-the-shipped-libraries/17-csv_lib.metta
 #: examples/ch08-data/08-03-the-shipped-libraries/05-json_lib.metta; commit=bd027d8b7a9ef1d96fb4cdb160c9b3eb4157d52e].
-BUDGET = 103630
+#: RE-PINNED 2026-09-11, 103630 to 163857 (+60227), String now imports its
+#: complete typed native surface and checks its declared native inputs; an
+#: unchanged-cut control with identical engine and MORK binaries attributes
+#: these exact movements to the String provider and shared native_object/6
+#: dependency argument [measured 2026-09-11: min-of-3 serial fresh processes;
+#: command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+BUDGET = 163857

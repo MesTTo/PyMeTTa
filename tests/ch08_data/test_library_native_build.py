@@ -6,7 +6,7 @@ publication and cleanup contracts; a wheel carries source and builds on import
 test_concurrent_processes_and_threads_publish_one_native_object,
 test_cancelled_build_waits_for_its_compiler_and_discards_the_stage,
 test_native_sources_build_after_wheel_install,
-test_warm_native_build_needs_no_process_library; commit=bd027d8b7a9ef1d96fb4cdb160c9b3eb4157d52e].
+test_warm_native_build_needs_no_process_library; commit=WORKTREE].
 Owns resources: pytest owns the copied libraries and installations. Every child
 process is joined, and the cancellation fixture releases its compiler barrier.
 """
@@ -46,21 +46,29 @@ class NativeLibrary:
         return f"lib_{self.name}_native_build"
 
 
-@pytest.fixture(params=[
-    ("regex", "vendor/pcre4pl.c", "vendor/lib_regex_pcre.pl",
-     "re_match('a', 'a')", "libpcre2-dev"),
-    ("crypto", "support/crypto_native.c", "support/native.pl",
-     "lib_crypto_native:digest(sha256,utf8(hello),none,B), length(B,32)", "libssl-dev"),
-], ids=["regex", "crypto"])
+PROVIDERS = {
+    "regex": ("vendor/pcre4pl.c", "vendor/lib_regex_pcre.pl",
+              "re_match('a', 'a')", "libpcre2-dev"),
+    "crypto": ("support/crypto_native.c", "support/native.pl",
+               "lib_crypto_native:digest(sha256,utf8(hello),none,B), length(B,32)", "libssl-dev"),
+    "string": ("support/string_native.cpp", "support/native.pl",
+               'lib_string_native:edit_distance("kitten","sitting",3)', "build-essential"),
+}
+
+
+@pytest.fixture(params=PROVIDERS)
 def native_library(tmp_path, request):
     """Copy each owner's inputs and the shared helper, excluding built objects."""
-    name, source, loader, probe, remedy = request.param
+    name = request.param
+    source, loader, probe, remedy = PROVIDERS[name]
     library = tmp_path / "lib" / f"lib_{name}"
     origin = ROOT / "lib" / library.name
     for filename in ("support/native_build.pl", source, loader):
         target = library / filename
         target.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(origin / filename, target)
+    if name == "string":
+        shutil.copytree(origin / "vendor", library / "vendor")
     shared = library.parent / "_support/native_build.pl"
     shared.parent.mkdir(parents=True)
     shutil.copy2(ROOT / "lib/_support/native_build.pl", shared)
@@ -241,6 +249,30 @@ def test_warm_native_build_needs_no_process_library(native_library):
     assert not list(binary.parent.glob("*.tmp.*"))
 
 
+@pytest.mark.parametrize("native_library", ["string"], indirect=True)
+def test_native_header_change_rebuilds_the_object(native_library):
+    """An included header cannot change or disappear behind a warm object."""
+    before = run_native(native_library)
+    assert before.returncode == 0, before.stdout + before.stderr
+    binary = Path(before.stdout.strip()).resolve()
+    original = binary.read_bytes()
+    header = native_library.path / "vendor/isub.hpp"
+    source = header.read_text(encoding="utf-8")
+    header.write_text(source + "\n#error native_header_refusal_probe\n", encoding="utf-8")
+    newer = binary.stat().st_mtime_ns + 2_000_000_000
+    os.utime(header, ns=(newer, newer))
+    failed = run_native(native_library)
+    assert failed.returncode != 0 and "native_header_refusal_probe" in failed.stderr, failed
+    assert binary.read_bytes() == original
+    header.write_text(source, encoding="utf-8")
+    rebuilt = run_native(native_library)
+    assert rebuilt.returncode == 0, rebuilt.stdout + rebuilt.stderr
+    header.unlink()
+    missing = run_native(native_library)
+    assert missing.returncode != 0, missing
+    assert "isub.hpp" in missing.stderr and "string_native_build" in missing.stderr
+
+
 def test_native_sources_build_after_wheel_install(tmp_path):
     """Build from the source archive, install, then call native and codec libraries."""
     dist = tmp_path / "dist"
@@ -257,6 +289,11 @@ def test_native_sources_build_after_wheel_install(tmp_path):
     assert any(name.endswith("/lib/_support/native_build.pl") for name in source_names)
     assert any(name.endswith("/lib/lib_csv/support/csv_codec.pl") for name in source_names)
     assert any(name.endswith("/lib/_support/owned_resources.pl") for name in source_names)
+    string_files = ["lib/lib_string/support/string_native.cpp", "lib/lib_string/vendor/SHA256SUMS"]
+    string_files.extend("lib/lib_string/vendor/" + line.split("  ", 1)[1]
+                        for line in (ROOT / "lib/lib_string/vendor/SHA256SUMS").read_text(encoding="utf-8").splitlines())
+    for name in string_files:
+        assert any(entry.endswith("/" + name) for entry in source_names), name
     assert not any("/.native/" in name for name in source_names)
 
     built_wheel = subprocess.run(
@@ -273,6 +310,8 @@ def test_native_sources_build_after_wheel_install(tmp_path):
     assert "metta/_runtime/lib/_support/native_build.pl" in names
     assert "metta/_runtime/lib/lib_csv/support/csv_codec.pl" in names
     assert "metta/_runtime/lib/_support/owned_resources.pl" in names
+    for name in string_files:
+        assert "metta/_runtime/" + name in names, name
     assert not any("/.native/" in name for name in names)
 
     installed = tmp_path / "installed"
@@ -285,7 +324,7 @@ def test_native_sources_build_after_wheel_install(tmp_path):
     environment = os.environ | {"PYTHONPATH": str(installed)}
     environment.pop("METTA_PATH", None)
     probe = subprocess.run(
-        [sys.executable, "-c", """
+        [sys.executable, "-c", r"""
 from pathlib import Path
 import metta
 from metta import G, S, MeTTa, lib
@@ -294,6 +333,7 @@ assert package.parent == Path.cwd() / "installed", package
 runtime = package / "_runtime"
 assert not (runtime / "lib/lib_regex/.native").exists()
 assert not (runtime / "lib/lib_crypto/.native").exists()
+assert not (runtime / "lib/lib_string/.native").exists()
 with MeTTa() as engine:
     engine += lib.regex
     [pattern] = engine.fn.re_compile(G("a*?"))
@@ -312,8 +352,13 @@ with MeTTa() as engine:
     rows = ((G("a🦊b"), G("λquotedλ")),)
     text = engine.fn.csv_encode(rows, options).one()
     assert engine.fn.csv_parse(G(text), options).one() == rows
+    engine += lib.string
+    assert engine.fn.string_edit_distance(G("a\0🦊"), G("a")).one() == 2
+    assert engine.fn.string_replace(G("a\0🦊"), G("\0"), G("-")).one() == "a-🦊"
+    assert engine.fn.string_dedent(G("  a\0\n  b\n")).one() == "a\0\nb\n"
 assert list((runtime / "lib/lib_regex/.native").glob("pcre-*"))
 assert list((runtime / "lib/lib_crypto/.native").glob("crypto-*"))
+assert list((runtime / "lib/lib_string/.native").glob("string-*"))
 print("installed native sources built and executed")
 """],
         cwd=tmp_path, env=environment, capture_output=True, text=True, check=False,
