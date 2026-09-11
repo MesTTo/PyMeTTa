@@ -13,7 +13,7 @@ artifact per path and refuses none or two [tested:
 ManifestTests.test_owner_and_notice_read_the_declared_outputs; commit=e492f2a5bb995b6c2b86bdeb90cb1d2f27282b07].
 Guarantees: a planned output selects its producer through its own content,
 including before the file exists [tested:
-ManifestTests.test_planned_content_selects_header_owned_outputs; commit=WORKTREE].
+ManifestTests.test_planned_content_selects_header_owned_outputs; commit=9b22993447a5ddba93643895e3025661ba9f693e].
 """
 
 from __future__ import annotations

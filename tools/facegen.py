@@ -31,7 +31,7 @@ Open Obligations:
   Hacks: None
   Future Enhancements: None
 Guarantees: source discovery also covers independently packaged faces
-[tested: test_built_wheel_loads_its_generated_library; commit=WORKTREE].
+[tested: test_built_wheel_loads_its_generated_library; commit=9b22993447a5ddba93643895e3025661ba9f693e].
 """
 
 from __future__ import annotations

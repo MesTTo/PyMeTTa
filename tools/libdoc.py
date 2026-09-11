@@ -52,7 +52,7 @@ Guarantees:
     Python-side doc atom is built in reads as prose rather than as an atom
     [tested: test_a_typed_parameter_renders_its_description; commit=7229962705d199fb08796b3090ec5a8a3a0ae393]
 Guarantees: every declared overload appears in its head's reference entry
-[tested: test_library_document_keeps_every_declared_arity; commit=WORKTREE].
+[tested: test_library_document_keeps_every_declared_arity; commit=9b22993447a5ddba93643895e3025661ba9f693e].
 Fails when:
   - a library publishes names through a form whose name list is computed
     rather than written: the engine reports nothing for such a form, so those

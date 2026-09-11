@@ -60,7 +60,7 @@ def readme_counts(text: str, *, derived_count: int, total: int,
     """Refresh the README's corpus and lineage counts from the same census.
 
     Missing prose anchors refuse rather than replacing unrelated text
-    [tested: tests/checks/check_library_records_selftest.py; commit=WORKTREE].
+    [tested: tests/checks/check_library_records_selftest.py; commit=9b22993447a5ddba93643895e3025661ba9f693e].
     """
     claims = (
         (r"The merged corpus contains \d+ examples", f"The merged corpus contains {runnable} examples"),

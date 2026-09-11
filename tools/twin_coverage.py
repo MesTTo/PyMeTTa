@@ -54,7 +54,7 @@ Guarantees:
     test_engines_created_at_boot_inherit_the_cache_fixture;
     commit=8ca8a387fc61d0918484b19a1a3baf85b6523043]
   - an attribute suggestion must round-trip through the factory's name map
-    [tested: test_an_exact_bracket_spelling_is_not_the_attribute_one; commit=WORKTREE]
+    [tested: test_an_exact_bracket_spelling_is_not_the_attribute_one; commit=9b22993447a5ddba93643895e3025661ba9f693e]
   - a twin that reaches the engine through MeTTa source text is REFUSED, both
     the five source-input doors and any string that is not a name or ground()-marked
     data [tested: test_the_source_scan_catches_a_planted_string]

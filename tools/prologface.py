@@ -2,7 +2,7 @@
 
 Guarantees: missing metadata and edited generated regions fail the check;
 handwritten equations survive regeneration and source initializers never run
-[tested: tests/checks/check_prologface_selftest.py; commit=WORKTREE].
+[tested: tests/checks/check_prologface_selftest.py; commit=9b22993447a5ddba93643895e3025661ba9f693e].
 Owns resources: the bounded source reader exits before output is changed;
 temporary output files are removed after replacement or failure.
 """

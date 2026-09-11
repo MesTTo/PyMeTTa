@@ -1,7 +1,7 @@
 % Purpose: read a library's exported PlDoc interfaces without loading its code.
 % Guarantees: source initializers never run and public declarations retain
 % argument names, types and answer multiplicity in their metadata
-% [tested: tests/checks/check_prologface_selftest.py; commit=WORKTREE].
+% [tested: tests/checks/check_prologface_selftest.py; commit=9b22993447a5ddba93643895e3025661ba9f693e].
 % Owns resources: prolog_xref closes source streams; xref_clean/1 releases each
 % source's metadata after its record is built.
 

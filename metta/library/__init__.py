@@ -308,7 +308,7 @@ class HeadCard:
 
     `types` retains every type the library declares, including overloaded
     function arrows, `Type` for a type it defines and plain types for values
-    [tested: test_library_document_keeps_every_declared_arity; commit=WORKTREE].
+    [tested: test_library_document_keeps_every_declared_arity; commit=9b22993447a5ddba93643895e3025661ba9f693e].
     `doc` is the `(@doc ...)` prose formatted the way `help()` prints it. `effect`
     and `cost` are the live engine's answers and are None for a head it has
     not classified, which includes every head of a library this process has

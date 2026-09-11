@@ -2,7 +2,7 @@
 
 Guarantees: every example claim is asserted through ordinary Python and the
 library's native heads [tested: python extensions/python/tools/twin_coverage.py
-examples/ch08-data/08-03-the-shipped-libraries/07-datetime.metta; commit=WORKTREE].
+examples/ch08-data/08-03-the-shipped-libraries/07-datetime.metta; commit=9b22993447a5ddba93643895e3025661ba9f693e].
 """
 
 from metta import G, S, lib
@@ -245,5 +245,5 @@ def twin(m):
 #: checked Python claims; the changed program is measured with the existing
 #: allowance [measured 2026-09-11: min-of-3 serial fresh processes;
 #: command=python extensions/python/tools/twin_coverage.py --repin;
-#: commit=WORKTREE].
+#: commit=9b22993447a5ddba93643895e3025661ba9f693e].
 BUDGET = 44390
