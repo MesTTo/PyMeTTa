@@ -1,7 +1,7 @@
 """Purpose: examples/ch08-data/08-03-the-shipped-libraries/05-json_lib.metta in Python: query JSON objects and exchange documents.
 
 Guarantees: the same object, path, formatting and file claims cross the wire
-[tested: python extensions/python/tools/twin_coverage.py examples/ch08-data/08-03-the-shipped-libraries/05-json_lib.metta; commit=WORKTREE].
+[tested: python extensions/python/tools/twin_coverage.py examples/ch08-data/08-03-the-shipped-libraries/05-json_lib.metta; commit=5e212d77a567d6d6c118529e4a226e5047ec2cfd].
 Owns resources: temporary file directories close after each file round trip.
 
 That is MeTTa HE's decision and the one worth showing: `json-decode` answers a
@@ -285,5 +285,5 @@ def twin(m):
 #: encoding memoizes object snapshots and refuses cycles, and generated type
 #: and documentation rows join the existing string-library import [measured
 #: 2026-09-11: min-of-3 serial fresh processes; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+#: extensions/python/tools/twin_coverage.py --repin; commit=5e212d77a567d6d6c118529e4a226e5047ec2cfd].
 BUDGET = 65839

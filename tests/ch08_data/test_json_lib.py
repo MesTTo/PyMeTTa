@@ -3,7 +3,7 @@
 Guarantees: generated recursive documents and line records round-trip; duplicate
 fields, special keys, cycles and malformed bytes keep their native contracts
 [tested: test_recursive_documents_agree_with_python, test_lines_agree_with_python,
-test_file_rejects_non_utf8_bytes, test_cycles_raise_and_aliases_round_trip; commit=WORKTREE].
+test_file_rejects_non_utf8_bytes, test_cycles_raise_and_aliases_round_trip; commit=5e212d77a567d6d6c118529e4a226e5047ec2cfd].
 Owns resources: decoded object trees are dropped after each property case;
 pytest owns file fixture directories.
 """
