@@ -1307,7 +1307,7 @@
      "bench.py --memory-scale spawns support-drop-spaces in a fresh process",
      "inferences is selected by minimum of repetitions",
      "the intended complexity family is linear",
-     "RE-PINNED 2026-09-11 at the end-of-wave battery, inferences at the four sizes [9215, 90692, 905462, 9053162] to [9963, 98172, 980262, 9801162]. PERF's pin priced its pre-FROM base 3e5855a35 (which reads 9146171 at n=1000); FROM's landing +748000 (reference rows, four engine units); PERF's own -93009 carried intact through the merge b29acf394; the three REDS repairs move nothing here. Ladder ai-tmp/integrator-849a9e/tip-ladder.md. [measured: min of three fresh processes per size after purging and warming the governed set; command=python extensions/python/bench.py --memory-scale --memory-repetitions 3 --timeout 200 --update-baseline support-drop-spaces; fixture=both MORK objects, native reader; commit=8e6968ecb2ee23c1ee5bed1d2b2ac9f8d9e3d6a7]"
+     "RE-PINNED 2026-09-11 at the end-of-wave battery, inferences at the four sizes [9215, 90692, 905462, 9053162] to [9963, 98172, 980262, 9801162]. PERF's pin priced its pre-FROM base 3e5855a35 (which reads 9146171 at n=1000); FROM's landing +748000 (reference rows, four engine units); PERF's own -93009 carried intact through the merge b29acf394; the three REDS repairs move nothing here. Ladder ai-tmp/integrator-849a9e/tip-ladder.md. [measured: min of three fresh processes per size after purging and warming the governed set; command=python extensions/python/bench.py --memory-scale --memory-repetitions 3 --timeout 200 --update-baseline support-drop-spaces; fixture=both MORK objects, native reader; commit=8e6968ecb5b8725a67ac85995dbf71750011b04d]"
     ],
     "commit": "8e6968ecb5b8725a67ac85995dbf71750011b04d"
    },

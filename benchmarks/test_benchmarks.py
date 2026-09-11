@@ -370,7 +370,7 @@ _ROWS = 2_000
 # import benchmarks.test_benchmarks as t;
 # print(t._automatic_tabling_observations())" from extensions/python;
 # fixture=the merged tree with the governed set purged and warmed;
-# commit=8e6968ecb2ee23c1ee5bed1d2b2ac9f8d9e3d6a7].
+# commit=8e6968ecb5b8725a67ac85995dbf71750011b04d].
 _AUTOMATIC_TABLING_PINS = {
     12: {"plain": 122_184, "automatic": 14_666},
     15: {"plain": 953_672, "automatic": 15_796},
