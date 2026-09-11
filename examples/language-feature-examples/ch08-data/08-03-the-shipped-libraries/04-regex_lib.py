@@ -245,5 +245,5 @@ def twin(m):
 #: 4375 MeTTa and 4387 Python inference increase; the regex program and
 #: matching implementation are unchanged [measured 2026-09-11: min-of-3 serial
 #: fresh processes; command=python extensions/python/tools/twin_coverage.py
-#: --repin; commit=WORKTREE].
+#: --repin; commit=28c6146d805b5adba3047ffc72b2508c11816636].
 BUDGET = 107645

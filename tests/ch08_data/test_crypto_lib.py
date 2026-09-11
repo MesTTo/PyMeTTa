@@ -4,7 +4,7 @@ Guarantees: generated Unicode, octets, intervals and password records preserve
 their contracts across the Python face
 [tested: test_hashes_and_hmac_agree_for_generated_values,
 test_password_records_interoperate_with_swi_and_hashlib,
-test_generated_password_records_and_mismatches; commit=WORKTREE].
+test_generated_password_records_and_mismatches; commit=28c6146d805b5adba3047ffc72b2508c11816636].
 Owns resources: pytest owns fixture files; subprocesses are joined.
 """
 

@@ -2,7 +2,7 @@
 
 Guarantees: native failures raise with their operation even when OpenSSL supplied
 no error-queue entry; a comparison result comes from CRYPTO_memcmp
-[tested: test_native_provider_failures_raise, test_password_comparison_uses_crypto_memcmp; commit=WORKTREE].
+[tested: test_native_provider_failures_raise, test_password_comparison_uses_crypto_memcmp; commit=28c6146d805b5adba3047ffc72b2508c11816636].
 Owns resources: pytest removes copied sources and objects; each child is joined.
 """
 

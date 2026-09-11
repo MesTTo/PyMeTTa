@@ -6,7 +6,7 @@ publication and cleanup contracts; a wheel carries source and builds on import
 test_concurrent_processes_and_threads_publish_one_native_object,
 test_cancelled_build_waits_for_its_compiler_and_discards_the_stage,
 test_native_sources_build_after_wheel_install,
-test_warm_native_build_needs_no_process_library; commit=WORKTREE].
+test_warm_native_build_needs_no_process_library; commit=28c6146d805b5adba3047ffc72b2508c11816636].
 Owns resources: pytest owns the copied libraries and installations. Every child
 process is joined, and the cancellation fixture releases its compiler barrier.
 """

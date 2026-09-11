@@ -1,7 +1,7 @@
 """Purpose: crypto content keys, authenticated bytes, secure values and passwords.
 
 Guarantees: the twin calls every public crypto head and both password arities
-[tested: python extensions/python/tools/twin_coverage.py examples/ch08-data/08-03-the-shipped-libraries/06-crypto_lib.metta; commit=WORKTREE].
+[tested: python extensions/python/tools/twin_coverage.py examples/ch08-data/08-03-the-shipped-libraries/06-crypto_lib.metta; commit=28c6146d805b5adba3047ffc72b2508c11816636].
 Owns resources: the temporary content file is deleted even when an assertion fails.
 
 `crypto-hash` is lib_crypto's own function and the subject of the file, so the
@@ -365,5 +365,5 @@ def twin(m):
 #: Checked OpenSSL hashing, HMAC, file streaming, secure values and password
 #: records run through the shared native loader [measured 2026-09-11: min-of-3
 #: serial fresh processes; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+#: extensions/python/tools/twin_coverage.py --repin; commit=28c6146d805b5adba3047ffc72b2508c11816636].
 BUDGET = 78285
