@@ -53,6 +53,8 @@ Guarantees:
     test_a_first_library_load_is_independent_of_file_cache_age,
     test_engines_created_at_boot_inherit_the_cache_fixture;
     commit=8ca8a387fc61d0918484b19a1a3baf85b6523043]
+  - an attribute suggestion must round-trip through the factory's name map
+    [tested: test_an_exact_bracket_spelling_is_not_the_attribute_one; commit=WORKTREE]
   - a twin that reaches the engine through MeTTa source text is REFUSED, both
     the five source-input doors and any string that is not a name or ground()-marked
     data [tested: test_the_source_scan_catches_a_planted_string]
@@ -1426,6 +1428,7 @@ def _subscripted_name(node: ast.Subscript) -> tuple[str, str, str] | None:
             candidate.isidentifier()
             and candidate.isascii()
             and not keyword.iskeyword(candidate)
+            and attribute_name(candidate) == name
         ):
             return (namespace, name, candidate)
     return None

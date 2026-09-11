@@ -11,6 +11,9 @@ Guarantees: what a generated file says about itself (`notice`) is read from the
 same declared outputs the drift check reads, through `owner`, which names one
 artifact per path and refuses none or two [tested:
 ManifestTests.test_owner_and_notice_read_the_declared_outputs; commit=e492f2a5bb995b6c2b86bdeb90cb1d2f27282b07].
+Guarantees: a planned output selects its producer through its own content,
+including before the file exists [tested:
+ManifestTests.test_planned_content_selects_header_owned_outputs; commit=WORKTREE].
 """
 
 from __future__ import annotations
@@ -190,16 +193,27 @@ ARTIFACTS = (
         (suite("tests/repository/test_refusal_rows.py"),), depends=("refusal-sync",), requires=("engine",),
     ),
     Artifact(
-        "face-sync", ("lib/*/*.metta", SEAT + "library/_face.py"), tool("facegen", "--write"),
-        (Output("lib/*/*.metta", contains="Import:"),), tool("facegen"),
-        (suite("tests/ch11_python_as_a_notation/test_face.py"),),
+        "face-sync", ("lib/*/*.metta", "extensions/python/ext/**/*.metta", SEAT + "library/_face.py"), tool("facegen", "--write"),
+        (Output("lib/*/*.metta", contains="Import:"),
+         Output("extensions/python/ext/**/*.metta", contains="Import:")), tool("facegen"),
+        (suite("tests/ch11_python_as_a_notation/test_face.py", "ext/metta-arrays/tests/test_library_face.py"),),
         requires=("the installed Python modules named by each face header; missing modules are reported",),
+    ),
+    Artifact(
+        "prolog-face", ("lib/*/*.pl", "tests/data/prologface/*.pl",
+                        "extensions/python/tools/prologface_source.pl"),
+        tool("prologface", "--write"),
+        tuple(Output(pattern, ("; begin generated Prolog face", "; end generated Prolog face"),
+                     contains="; begin generated Prolog face")
+              for pattern in ("lib/*/*.metta", "tests/data/prologface/*.metta")),
+        tool("prologface"), (("@python", "@root/tests/checks/check_prologface_selftest.py"),),
+        requires=("SWI-Prolog with prolog_xref and PlDoc; source initializers are not executed",),
     ),
     Artifact(
         "libdoc", ("lib/*/*.metta", "lib/*/*.pl"), tool("libdoc", "--write"),
         (Output("website/reference/metta-libraries.md"),), tool("libdoc"),
         (suite("tests/repository/test_artifact_projections.py", "-k", "library_document"),),
-        depends=("face-sync",),
+        depends=("face-sync", "prolog-face"),
     ),
     Artifact(
         "codec-doc", ("tests/codec/corpus.json",), tool("codecdoc", "--write"),
@@ -227,7 +241,8 @@ ARTIFACTS = (
         tool("example_origins", "--write"), (Output("examples/ORIGINS.tsv"),), tool("example_origins"),
         (suite("tests/repository/test_artifact_projections.py", "-k", "example_origins"),
          suite("tests/repository/test_executable_docs.py",
-               "tests/repository/test_example_parity.py::test_example_parity_reports_a_planted_difference")),
+               "tests/repository/test_example_parity.py::test_example_parity_reports_a_planted_difference"),
+         ("@python", "@root/tests/checks/check_library_records_selftest.py")),
         requires=("the external source checkout named by METTA_UPSTREAM for lineage remeasurement",),
     ),
     Artifact(
@@ -243,7 +258,8 @@ ARTIFACTS = (
 )
 
 
-def owner(path: str, records: tuple[Artifact, ...] = ARTIFACTS, root: Path = ROOT) -> Artifact:
+def owner(path: str, records: tuple[Artifact, ...] = ARTIFACTS, root: Path = ROOT,
+          *, content: str | None = None) -> Artifact:
     """The one artifact whose outputs include this generated path.
 
     Resolved by the outputs' own `paths` predicate, so a header-selected
@@ -257,6 +273,8 @@ def owner(path: str, records: tuple[Artifact, ...] = ARTIFACTS, root: Path = ROO
     target = root / path
 
     def owns(output: Output) -> bool:
+        if content is not None:
+            return fnmatch.fnmatchcase(path, output.path) and (not output.contains or output.contains in content)
         if target.is_file():
             return target in output.paths(root)
         return fnmatch.fnmatchcase(path, output.path)
@@ -269,7 +287,8 @@ def owner(path: str, records: tuple[Artifact, ...] = ARTIFACTS, root: Path = ROO
     return owners[0]
 
 
-def notice(path: str, records: tuple[Artifact, ...] = ARTIFACTS, root: Path = ROOT) -> str:
+def notice(path: str, records: tuple[Artifact, ...] = ARTIFACTS, root: Path = ROOT,
+           *, content: str | None = None) -> str:
     """The sentence a generated file says about itself, read from the manifest.
 
     It names which tool wrote the file from which inputs and which lane
@@ -277,7 +296,7 @@ def notice(path: str, records: tuple[Artifact, ...] = ARTIFACTS, root: Path = RO
     which is how the root face came to name doorgen and the door-sync lane
     while the manifest said rootgen and init-stub.
     """
-    artifact = owner(path, records, root)
+    artifact = owner(path, records, root, content=content)
     words = " ".join(word.removeprefix("@root/") for word in artifact.emitter if word != "@python")
     return (
         f"GENERATED by {words} from {', '.join(artifact.inputs)}: the {artifact.name} "

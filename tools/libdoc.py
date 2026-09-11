@@ -51,6 +51,8 @@ Guarantees:
     type named before it when the type says something, so the shape every
     Python-side doc atom is built in reads as prose rather than as an atom
     [tested: test_a_typed_parameter_renders_its_description; commit=7229962705d199fb08796b3090ec5a8a3a0ae393]
+Guarantees: every declared overload appears in its head's reference entry
+[tested: test_library_document_keeps_every_declared_arity; commit=WORKTREE].
 Fails when:
   - a library publishes names through a form whose name list is computed
     rather than written: the engine reports nothing for such a form, so those
@@ -156,7 +158,7 @@ def catalog(root: pathlib.Path) -> tuple[Rows, Rows, Rows]:
     library the runtime's own discovery names. Coverage counts one row per
     library (the heads it declares, defines, documents or registers, and how
     many carry a `@doc`), entries one row per documented head carrying that
-    head's `@doc` parts in the order they were written and the last type the
+    head's `@doc` parts in the order they were written and every type the
     library declares for it, and gaps one row per head the library carries
     (a type, an equation or a registration) and never documents.
     """
@@ -177,7 +179,7 @@ def catalog(root: pathlib.Path) -> tuple[Rows, Rows, Rows]:
                     library,
                     Symbol(row.name),
                     where,
-                    (row.types[-1] if row.types else None, tuple(row.documentation.children[2:])),
+                    (tuple(row.types), tuple(row.documentation.children[2:])),
                 )
             )
         if documented:
@@ -231,9 +233,9 @@ def _entry(row) -> str:
     The parts render in the order the atom writes them, and a part this page
     has no template for is skipped rather than guessed at.
     """
-    type_atom, parts = row.parts
+    types, parts = row.parts
     text = render(_ENTRY, name=row.name, where=row.where)
-    if type_atom is not None:
+    for type_atom in types:
         text += render(_DECLARED, name=row.name, type=type_atom)
     for part in parts:
         if not (isinstance(part, Expression) and part.children):

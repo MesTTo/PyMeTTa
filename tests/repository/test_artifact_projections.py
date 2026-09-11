@@ -226,6 +226,32 @@ def test_library_document_reads_changed_parameter_facts(tmp_path, monkeypatch):
     assert libdoc.main([]) == 1
 
 
+def test_library_document_keeps_every_declared_arity(tmp_path, monkeypatch):
+    """A shared doc row must not erase an earlier overload's arrow."""
+    library = tmp_path / "lib/lib_fixture"
+    library.mkdir(parents=True)
+    (library / "lib_fixture.metta").write_text(
+        '(: fixture (-> String Number))\n'
+        '(: fixture (-> String Symbol Number))\n'
+        '(@doc fixture (@desc "Parse, optionally naming a format"))\n',
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(libdoc, "_REPO", tmp_path)
+    text = libdoc.page()
+    assert "(: fixture (-> String Number))" in text
+    assert "(: fixture (-> String Symbol Number))" in text
+    assert text.count("### `fixture`") == 1
+    from metta.library import card
+
+    displayed = card("lib_fixture", root=tmp_path)
+    head, = displayed.heads
+    assert tuple(map(str, head.types)) == ("(-> String Number)", "(-> String Symbol Number)")
+    assert "(: fixture (-> String Number))" in str(displayed)
+    assert "(: fixture (-> String Symbol Number))" in str(displayed)
+    assert "String Symbol Number" in displayed._repr_html_()
+    assert "String Number" in displayed.__rich__().columns[1]._cells[0]
+
+
 def test_codec_document_rejects_a_valid_addition_missing_from_one_table(tmp_path, monkeypatch):
     """The symbol case remains valid when its identifier and value are new."""
     corpus = json.loads(codecdoc.CORPUS.read_text(encoding="utf-8"))
@@ -280,6 +306,11 @@ def test_example_origins_rejects_orphan_and_duplicate_owner(tmp_path, monkeypatc
         directory.mkdir(parents=True)
         (directory / "fixture.metta").write_text("!(+ 1 2)\n", encoding="utf-8")
     manifest = root / "examples/ORIGINS.tsv"
+    readme = (example_origins.REPO / "examples/README.md").read_text(encoding="utf-8")
+    (root / "examples/README.md").write_text(
+        example_origins.readme_counts(readme, derived_count=1, total=1, credited=1, runnable=1),
+        encoding="utf-8",
+    )
     monkeypatch.setattr(example_origins, "REPO", root)
     monkeypatch.setattr(example_origins, "MANIFEST", manifest)
     monkeypatch.setattr(example_origins, "upstream_root", lambda: upstream)

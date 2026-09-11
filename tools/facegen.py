@@ -4,7 +4,7 @@ Each face is regenerated from its own header and the result is required to
 equal the file that is checked in.
 
 A face names the module it wraps in its header, so this tool names none: it
-reads `lib/*/*.metta`, takes the files whose header carries an `Import:` line,
+reads library and extension source roots, selects files with an `Import:` line,
 and regenerates those. A library with no such header is hand-written and is not
 this tool's business; a library whose module is not installed here is REPORTED
 as unchecked rather than passed over in silence, the same split every other
@@ -30,6 +30,8 @@ Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None
+Guarantees: source discovery also covers independently packaged faces
+[tested: test_built_wheel_loads_its_generated_library; commit=WORKTREE].
 """
 
 from __future__ import annotations
@@ -45,9 +47,8 @@ sys.path.insert(0, str(_REPO / "extensions" / "python"))
 from metta._errors.errors import MettaError  # noqa: E402
 from metta.library._face import Face, read, render  # noqa: E402
 
-#: Where a shipped face lives. One directory, because a MeTTa library IS the
-#: shape a face ships in; a face outside it is named on the command line.
-FACES = _REPO / "lib"
+#: Source roots include independent distributions; neither root names a framework.
+FACES = (_REPO / "lib", _REPO / "extensions/python/ext")
 
 #: How many diff lines one drifted face prints before the rest are counted.
 DIFF_LINES = 24
@@ -57,7 +58,7 @@ def face_paths(roots: list[pathlib.Path]) -> list[pathlib.Path]:
     """Every MeTTa source under the given roots, in one order on every box."""
     found: list[pathlib.Path] = []
     for root in roots:
-        found.extend(sorted(root.glob("*/*.metta")) if root.is_dir() else [root])
+        found.extend(sorted(root.rglob("*.metta")) if root.is_dir() else [root])
     return found
 
 
@@ -140,7 +141,7 @@ def main(argv: list[str]) -> int:
     """Check every shipped face, or rewrite the ones that have drifted."""
     named = [pathlib.Path(word) for word in argv if not word.startswith("-")]
     findings, notes = review(
-        face_paths(named or [FACES]), rewrite="--write" in argv
+        face_paths(named or list(FACES)), rewrite="--write" in argv
     )
     for note in notes:
         print(f"note: {note}")

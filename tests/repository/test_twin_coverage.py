@@ -828,7 +828,9 @@ def test_an_exact_bracket_spelling_is_not_the_attribute_one(tmp_path):
         '    m += S["Ω"]\n'
         '    m += S["lambda"]\n'
         '    m += S["plain"]\n'
-        '    m += m.fn["car_atom"]\n',
+        '    m += m.fn["car_atom"]\n'
+        '    m += S["-"]\n'
+        '    m += S["trailing-"]\n',
         encoding="utf-8",
     )
     findings = coverage.idiom(planted)

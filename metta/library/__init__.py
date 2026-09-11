@@ -306,18 +306,17 @@ class Deprecation:
 class HeadCard:
     """One head, as its library declares it and this engine classifies it.
 
-    `arrow` is the type the library declares: an arrow for a function, which
-    is the case the name is for, `Type` for a type it defines, a plain type
-    for a value, and the LAST `(: ...)` row where a library writes more than
-    one, which is the declaration a reader of the source ends up with. `doc`
-    is the `(@doc ...)` prose formatted the way `help()` prints it. `effect`
+    `types` retains every type the library declares, including overloaded
+    function arrows, `Type` for a type it defines and plain types for values
+    [tested: test_library_document_keeps_every_declared_arity; commit=WORKTREE].
+    `doc` is the `(@doc ...)` prose formatted the way `help()` prints it. `effect`
     and `cost` are the live engine's answers and are None for a head it has
     not classified, which includes every head of a library this process has
     not imported.
     """
 
     name: str
-    arrow: Atom | None = None
+    types: tuple[Atom, ...] = ()
     doc: str | None = None
     effect: str | None = None
     cost: CostRow | None = None
@@ -336,8 +335,13 @@ class HeadCard:
 
     @property
     def signature(self) -> str:
-        """The head with its declared type, or the head alone."""
-        return f"(: {self.name} {self.arrow})" if self.arrow is not None else self.name
+        """Every declared type of the head, or the head alone."""
+        return "\n".join(f"(: {self.name} {value})" for value in self.types) or self.name
+
+    @property
+    def type_text(self) -> str:
+        """The declared types in one table cell, retaining their source order."""
+        return "; ".join(map(str, self.types))
 
     def __str__(self) -> str:
         """One line: the signature, then every classifier that answered."""
@@ -418,7 +422,7 @@ class Card:
             lines.append(f"  needs: {needs}")
         if self.examples:
             lines.append(f"  examples: {len(self.examples)}")
-        lines.extend(f"  {head}" for head in self.heads)
+        lines.extend(f"  {line}" for head in self.heads for line in str(head).splitlines())
         lines.extend(f"  {row}" for row in self.deprecations)
         return lines
 
@@ -445,7 +449,7 @@ class Card:
         for head in self.heads:
             table.add_row(
                 head.name,
-                "" if head.arrow is None else str(head.arrow),
+                head.type_text,
                 head.effect or "",
                 "" if head.cost is None else f"{head.cost.cost_class} ({head.cost.measure})",
                 head.visibility or "",
@@ -465,7 +469,7 @@ class Card:
                 f"<td>{html.escape(cell)}</td>"
                 for cell in (
                     head.name,
-                    "" if head.arrow is None else str(head.arrow),
+                    head.type_text,
                     head.effect or "",
                     ""
                     if head.cost is None
@@ -697,7 +701,7 @@ def card(name: str, *, root: str | os.PathLike[str] | None = None) -> Card:
         heads.append(
             HeadCard(
                 name=row.name,
-                arrow=row.types[-1] if row.types else None,
+                types=tuple(row.types),
                 doc=(
                     _format_doc_atom(Expression((Symbol("@doc"), Symbol(row.name), *fields["doc"])))
                     if "doc" in fields else
