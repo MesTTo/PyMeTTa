@@ -345,7 +345,7 @@ BAND_PERCENT = 10.0
 #: (BINDING, 765c60587), so a twin no longer pays it and the band no longer
 #: grants it [measured 2026-09-11: min of three fresh-process readings per
 #: cell; command=python extensions/python/benchmarks/probes/twin_authoring.py;
-#: fixture=twin_authoring.fixture with 0..4 definitions; commit=WORKTREE].
+#: fixture=twin_authoring.fixture with 0..4 definitions; commit=57f84148ba2684015f052d533f3197eca07b1f7b].
 DEFINITION_WARMUP = 303
 DEFINITION_COST = 1362
 

@@ -360,7 +360,7 @@ def twin(m):
 #: minimum of three fresh processes through the lane's run_twin with
 #: file_search_cache_time=9223372036854775807 set before child boot [measured
 #: 2026-09-11: min-of-3 serial fresh processes; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+#: extensions/python/tools/twin_coverage.py --repin; commit=57f84148ba2684015f052d533f3197eca07b1f7b].
 BUDGET = 43465
 #: OVERRUN 2026-09-11, 1372: the twin's six compiled definitions are the steps of
 #: an interpreter written in MeTTa (quote, eval, reduce and their duals), each a
@@ -373,7 +373,7 @@ BUDGET = 43465
 #: 2026-09-11: one fresh process per side; command=python
 #: extensions/python/benchmarks/probes/twin_floor.py
 #: examples/ch20-extending-the-engine/20-02-metta-written-in-metta/02-callquoteevalreduce2.metta;
-#: commit=WORKTREE].
+#: commit=57f84148ba2684015f052d533f3197eca07b1f7b].
 OVERRUN = 1372
 
 

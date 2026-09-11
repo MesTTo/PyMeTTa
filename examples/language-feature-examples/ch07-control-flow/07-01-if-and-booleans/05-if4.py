@@ -340,7 +340,7 @@ def twin(m):
 #: three fresh processes through the lane's run_twin with
 #: file_search_cache_time=9223372036854775807 set before child boot [measured
 #: 2026-09-11: min-of-3 serial fresh processes; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+#: extensions/python/tools/twin_coverage.py --repin; commit=57f84148ba2684015f052d533f3197eca07b1f7b].
 BUDGET = 4482
 #: OVERRUN 2026-09-11, 1120: the band stopped granting the first-definition
 #: premium (DEFINITION_WARMUP 1482 to 303, DEFINITION_COST 1364 to 1362, re-
@@ -350,7 +350,7 @@ BUDGET = 4482
 #: the fixture's `return x + 1` does not exercise. Measured 4482 against a
 #: ceiling of 3362 (1543 times 1.1 plus 303 once plus 1 times 1362) [measured
 #: 2026-09-11: sh check.sh twins on the merged tree after the twin re-pin;
-#: command=python extensions/python/tools/twin_coverage.py; commit=WORKTREE].
+#: command=python extensions/python/tools/twin_coverage.py; commit=57f84148ba2684015f052d533f3197eca07b1f7b].
 OVERRUN = 1120
 
 

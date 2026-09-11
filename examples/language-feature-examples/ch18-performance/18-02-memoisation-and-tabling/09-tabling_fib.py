@@ -362,7 +362,7 @@ def twin(m):
 #: minimum of three fresh processes through the lane's run_twin with
 #: file_search_cache_time=9223372036854775807 set before child boot [measured
 #: 2026-09-11: min-of-3 serial fresh processes; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+#: extensions/python/tools/twin_coverage.py --repin; commit=57f84148ba2684015f052d533f3197eca07b1f7b].
 BUDGET = 50410
 #: OVERRUN 2026-09-09, 0 to 4070 (+4070): a library's Prolog half compiles
 #: beside itself on its first import and loads from the artifact after
@@ -403,7 +403,7 @@ BUDGET = 50410
 #: Measured 50410 against a ceiling of 50409 (40462 times 1.1 plus 303 once
 #: plus 1 times 1362 plus the declared 4236) [measured 2026-09-11: sh check.sh
 #: twins on the merged tree after the twin re-pin; command=python
-#: extensions/python/tools/twin_coverage.py; commit=WORKTREE].
+#: extensions/python/tools/twin_coverage.py; commit=57f84148ba2684015f052d533f3197eca07b1f7b].
 OVERRUN = 4237
 
 #: DIVERGED 2026-09-07, the example holds 0 atoms the twin does not (none) and

@@ -260,13 +260,13 @@ def twin(m):
 #: widening blind [measured 2026-09-11: exact extrema over 10 observations;
 #: command=python extensions/python/tools/twin_coverage.py --observe --rounds
 #: 10; fixture=full-lane/282/workers=32/file-search-cache-
-#: time=9223372036854775807/before-boot; commit=WORKTREE].
+#: time=9223372036854775807/before-boot; commit=57f84148ba2684015f052d533f3197eca07b1f7b].
 #: EXTENDED 2026-09-11 by the lane's own next run: 98766, one observation below
 #: the ten-round envelope's 98770, a new mode discovered after the envelope was
 #: taken, so the minimum moves to it and the count to 11 rather than widening
 #: blind [measured 2026-09-11: sh check.sh twins on the merged tree after the
 #: re-pin; command=python extensions/python/tools/twin_coverage.py;
-#: commit=WORKTREE].
+#: commit=57f84148ba2684015f052d533f3197eca07b1f7b].
 #: EXTENDED 2026-09-11 again by the next lane run: 99528, above the envelope's
 #: 98922, the timer-cancellation mode PERF's 64-process line trace attributed
 #: on this twin (its 277-protocol envelope of 67 observations reached 99219);
@@ -274,7 +274,7 @@ def twin(m):
 #: observes this twin with more than ten rounds under the 282 protocol, since
 #: ten did not reach this mode [measured 2026-09-11: sh check.sh twins on the
 #: merged tree, third run; command=python
-#: extensions/python/tools/twin_coverage.py; commit=WORKTREE].
+#: extensions/python/tools/twin_coverage.py; commit=57f84148ba2684015f052d533f3197eca07b1f7b].
 BUDGET = {
     "minimum": 98766,
     "maximum": 99528,
