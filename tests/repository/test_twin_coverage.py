@@ -5,6 +5,12 @@ source-text cheat, a renamed variable, a wrong answer, a hidden definition
 and an undeclared skip, and require the lane to answer correctly about each.
 
 Guarantees:
+  - source-call classification follows single-assignment local aliases,
+    keeps scope and rebinding barriers, and reports renamed source doors
+    [tested: test_source_aliases_follow_factory_origins,
+    test_source_aliases_keep_uncertain_bindings_visible,
+    test_source_aliases_report_renamed_source_doors,
+    test_source_aliases_do_not_depend_on_python_recursion_depth; commit=WORKTREE]
   - an unanswered child retains its process status in the finding [tested:
     test_a_silent_child_failure_keeps_its_exit_status; commit=8ca8a387fc61d0918484b19a1a3baf85b6523043]
   - a real twin's first library load keeps its count when file-cache entries
@@ -65,7 +71,7 @@ Guarantees:
     match-bound operands retain the distinct protocol-vs-relational choice
     [tested: test_engine_operator_heads_require_syntax_only_for_native_operands,
     test_python_operator_and_engine_head_split_depends_on_native_proof;
-    commit=d0dfff1a3ee6c85472fd9b12d6e4aec007a9c301]
+    commit=WORKTREE]
   - the 159 entries superseded by empirical budgets are retired exactly once
     [tested: test_the_distribution_budget_retirement_is_exact;
     commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22]
@@ -1831,6 +1837,86 @@ def test_a_term_may_name_a_head_that_shares_a_source_doors_name(tmp_path):
         encoding="utf-8",
     )
     assert coverage.scan(real)
+
+
+@pytest.mark.parametrize("binding", [
+    "parse = m.fn.csv_parse",
+    "parse: object = m.fn.csv_parse",
+    "parse, encode = m.fn.csv_parse, m.fn.csv_encode",
+    "[parse, [encode]] = [m.fn.csv_parse, [m.fn.csv_encode]]",
+    "reader = m.fn.csv_parse; parse = reader",
+    "parse = other = m.fn.csv_parse",
+    "parse = S.parse",
+    "parse = m.fn['csv-parse']",
+])
+def test_source_aliases_follow_factory_origins(tmp_path, binding):
+    """A callable's assigned factory determines its source classification."""
+    planted = tmp_path / "aliases.py"
+    planted.write_text(
+        "from metta import S, G\ndef twin(m):\n"
+        f"    {binding}\n    parse(G('001,a'))\n", encoding="utf-8",
+    )
+    assert coverage.scan(planted) == []
+
+
+@pytest.mark.parametrize("body", [
+    "parse = m.fn.csv_parse\nparse = m.parse\nparse(G('data'))",
+    "parse = m.fn.csv_parse\ndel parse\nparse(G('data'))",
+    "parse = m.fn.csv_parse\nfor parse in readers:\n    parse(G('data'))",
+    "parse = m.fn.csv_parse\nwith resource as parse:\n    parse(G('data'))",
+    "parse = m.fn.csv_parse\nimport source as parse\nparse(G('data'))",
+    "parse = m.fn.csv_parse\nfrom source import parse\nparse(G('data'))",
+    "parse = m.fn.csv_parse\ndef parse(x):\n    return x\nparse(G('data'))",
+    "parse = m.fn.csv_parse\ntry:\n    work()\nexcept Exception as parse:\n    parse(G('data'))",
+    "parse = m.fn.csv_parse\nmatch reader:\n    case parse:\n        parse(G('data'))",
+    "parse = m.fn.csv_parse\n[parse(G('data')) for parse in readers]",
+    "parse = m.fn.csv_parse\ndef nested(parse):\n    parse(G('data'))",
+    "parse = m.fn.csv_parse\ndef nested(x=(parse := m.parse)):\n    pass\nparse(G('data'))",
+    "parse = m.fn.csv_parse\n@(parse := m.parse)\ndef nested():\n    pass\nparse(G('data'))",
+    "parse = m.fn.csv_parse\n(lambda x=(parse := m.parse): x)()\nparse(G('data'))",
+    "parse = m.fn.csv_parse\nclass Nested((parse := m.parse)):\n    pass\nparse(G('data'))",
+    "parse = m.fn.csv_parse\n(lambda parse: parse(G('data')))(reader)",
+    "parse = m.fn.csv_parse\nclass Nested:\n    parse(G('data'))",
+    "global parse\nparse = m.fn.csv_parse\nparse(G('data'))",
+    "parse = m.fn.csv_parse\ndef nested():\n    nonlocal parse\n    parse = m.parse\nparse(G('data'))",
+    "parse(G('data'))\nparse = m.fn.csv_parse",
+    "parse = reader\nreader = m.fn.csv_parse\nparse(G('data'))",
+    "parse, *others = readers\nparse(G('data'))",
+])
+def test_source_aliases_keep_uncertain_bindings_visible(tmp_path, body):
+    """An unproved binding cannot hide an apparent source door."""
+    planted = tmp_path / "uncertain.py"
+    planted.write_text(
+        "from metta import G\ndef twin(m):\n"
+        + "\n".join("    " + line for line in body.splitlines()) + "\n",
+        encoding="utf-8",
+    )
+    assert any("calls parse(), which takes MeTTa source" in finding
+               for finding in coverage.scan(planted))
+
+
+@pytest.mark.parametrize("scope", ["module", "function"])
+def test_source_aliases_report_renamed_source_doors(tmp_path, scope):
+    """Renaming a proved source door does not make source input acceptable."""
+    body = "reader, ignored = m.parse, m.fn.csv_parse\nalias = reader\nalias(G('data'))\n"
+    if scope == "function":
+        body = "def twin(m):\n" + "\n".join("    " + line for line in body.splitlines())
+    planted = tmp_path / "source_alias.py"
+    planted.write_text("from metta import G\n" + body, encoding="utf-8")
+    assert any("calls parse(), which takes MeTTa source" in finding
+               for finding in coverage.scan(planted))
+
+
+def test_source_aliases_do_not_depend_on_python_recursion_depth(tmp_path):
+    """Long alias chains remain ordinary syntax and reuse resolved origins."""
+    planted = tmp_path / "chain.py"
+    planted.write_text(
+        "def twin(m):\n    alias0 = m.fn.csv_parse\n"
+        + "".join(f"    alias{i} = alias{i-1}\n" for i in range(1, 2000))
+        + "    parse = alias1999\n    parse()\n"
+        + "".join(f"    alias{i}()\n" for i in range(2000)), encoding="utf-8",
+    )
+    assert coverage.scan(planted) == []
 
 
 def test_a_declared_rung_is_a_documented_drop_rather_than_a_finding(tmp_path):

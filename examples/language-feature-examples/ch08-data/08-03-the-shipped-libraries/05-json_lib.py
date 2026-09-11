@@ -286,4 +286,11 @@ def twin(m):
 #: and documentation rows join the existing string-library import [measured
 #: 2026-09-11: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=5e212d77a567d6d6c118529e4a226e5047ec2cfd].
-BUDGET = 65839
+#: RE-PINNED 2026-09-11, 65839 to 70088 (+4249), CSV fault injection exposed
+#: JSON constructor cleanup exception suppression. The shared deterministic
+#: resource guard captures exit, failure or exception before release; an
+#: unchanged-cut control applying only that guard and its JSON consumer exactly
+#: explains the increase [measured 2026-09-11: min-of-3 serial fresh processes;
+#: command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+BUDGET = 70088

@@ -6,7 +6,7 @@ publication and cleanup contracts; a wheel carries source and builds on import
 test_concurrent_processes_and_threads_publish_one_native_object,
 test_cancelled_build_waits_for_its_compiler_and_discards_the_stage,
 test_native_sources_build_after_wheel_install,
-test_warm_native_build_needs_no_process_library; commit=28c6146d805b5adba3047ffc72b2508c11816636].
+test_warm_native_build_needs_no_process_library; commit=WORKTREE].
 Owns resources: pytest owns the copied libraries and installations. Every child
 process is joined, and the cancellation fixture releases its compiler barrier.
 """
@@ -242,7 +242,7 @@ def test_warm_native_build_needs_no_process_library(native_library):
 
 
 def test_native_sources_build_after_wheel_install(tmp_path):
-    """Build from the source archive, install, then call both native libraries."""
+    """Build from the source archive, install, then call native and codec libraries."""
     dist = tmp_path / "dist"
     built_source = subprocess.run(
         ["uv", "build", "--sdist", "--out-dir", str(dist), str(ROOT)],
@@ -255,6 +255,8 @@ def test_native_sources_build_after_wheel_install(tmp_path):
     assert any(name.endswith("/lib/lib_regex/vendor/pcre4pl.c") for name in source_names)
     assert any(name.endswith("/lib/lib_crypto/support/crypto_native.c") for name in source_names)
     assert any(name.endswith("/lib/_support/native_build.pl") for name in source_names)
+    assert any(name.endswith("/lib/lib_csv/support/csv_codec.pl") for name in source_names)
+    assert any(name.endswith("/lib/_support/owned_resources.pl") for name in source_names)
     assert not any("/.native/" in name for name in source_names)
 
     built_wheel = subprocess.run(
@@ -269,6 +271,8 @@ def test_native_sources_build_after_wheel_install(tmp_path):
     assert "metta/_runtime/lib/lib_regex/support/native_build.pl" in names
     assert "metta/_runtime/lib/lib_crypto/support/crypto_native.c" in names
     assert "metta/_runtime/lib/_support/native_build.pl" in names
+    assert "metta/_runtime/lib/lib_csv/support/csv_codec.pl" in names
+    assert "metta/_runtime/lib/_support/owned_resources.pl" in names
     assert not any("/.native/" in name for name in names)
 
     installed = tmp_path / "installed"
@@ -284,7 +288,7 @@ def test_native_sources_build_after_wheel_install(tmp_path):
         [sys.executable, "-c", """
 from pathlib import Path
 import metta
-from metta import G, MeTTa, lib
+from metta import G, S, MeTTa, lib
 package = Path(metta.__file__).parent
 assert package.parent == Path.cwd() / "installed", package
 runtime = package / "_runtime"
@@ -303,6 +307,11 @@ with MeTTa() as engine:
     assert engine.fn.crypto_hash(G("sha256"), G("hello")).one() == "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824"
     record = engine.fn.crypto_password_hash(G("fixture"), 0).one()
     assert engine.fn.crypto_password_verify(G("fixture"), G(record)).one() is True
+    engine += lib.csv
+    options = S.quote(((S.separator, G("🦊")), (S.quote, G("λ"))))
+    rows = ((G("a🦊b"), G("λquotedλ")),)
+    text = engine.fn.csv_encode(rows, options).one()
+    assert engine.fn.csv_parse(G(text), options).one() == rows
 assert list((runtime / "lib/lib_regex/.native").glob("pcre-*"))
 assert list((runtime / "lib/lib_crypto/.native").glob("crypto-*"))
 print("installed native sources built and executed")
