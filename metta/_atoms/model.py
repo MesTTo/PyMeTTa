@@ -132,10 +132,10 @@ Guarantees:
     native blobs retain process-local registry identity
     [tested: test_space_handles_are_term_operands_and_round_trip;
     commit=4e2398075da67bb2cbcc123a9fc1e078ecac6fbf]
-  - a native blob's public wire value preserves its registry id and display
-    text, the two fields its decoder requires [tested:
+  - native blobs preserve their registry id and display text through the
+    public wire codec and Python container repr [tested:
     test_native_handles_round_trip_through_the_public_wire_codec;
-    commit=9fad0bf6670061a26b1a17d3f566613b7d4d080c]
+    commit=WORKTREE]
   - a symbol answers the ambient space's origins for the head it names, and
     the empty tuple where nothing compiled under it [tested:
     test_a_symbol_answers_the_ambient_spaces_origins; commit=6375a7c8f3c035b04bc9d41c8f7f22e56b42fb41]
@@ -1300,6 +1300,9 @@ class _NativeHandle(Handle):
 
     def __str__(self) -> str:
         return self.text
+
+    def __repr__(self) -> str:
+        return f"{type(self).__name__}({self.ident}, {self.text!r})"
 
     def __eq__(self, other: object) -> bool:
         return isinstance(other, _NativeHandle) and other.ident == self.ident

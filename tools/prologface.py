@@ -2,7 +2,7 @@
 
 Guarantees: missing metadata and edited generated regions fail the check;
 handwritten equations survive regeneration and source initializers never run
-[tested: tests/checks/check_prologface_selftest.py; commit=9b22993447a5ddba93643895e3025661ba9f693e].
+[tested: tests/checks/check_prologface_selftest.py; commit=WORKTREE].
 Owns resources: the bounded source reader exits before output is changed;
 temporary output files are removed after replacement or failure.
 """
@@ -28,7 +28,7 @@ from bounded_spawn import bounded  # noqa: E402 -- repository process policy
 
 BEGIN = "; begin generated Prolog face"
 END = "; end generated Prolog face"
-SOURCE_ROOTS = (ROOT / "lib", ROOT / "tests/data/prologface")
+SOURCE_ROOTS = ((ROOT / "lib", "*/*.pl"), (ROOT / "tests/data/prologface", "*.pl"))
 
 
 def source_records(paths: list[Path]) -> list[dict[str, Any]]:
@@ -161,9 +161,9 @@ def review(paths: list[Path] | None = None, *, rewrite: bool = False) -> tuple[l
     """Check selected interfaces or discover described sources and existing faces."""
     explicit = paths is not None
     if paths is None:
-        paths = sorted({path for root in SOURCE_ROOTS for path in root.rglob("*.pl")})
-        for root in SOURCE_ROOTS:
-            paths.extend(path.with_suffix(".pl") for path in root.rglob("*.metta")
+        paths = sorted({path for root, pattern in SOURCE_ROOTS for path in root.glob(pattern)})
+        for root, pattern in SOURCE_ROOTS:
+            paths.extend(path.with_suffix(".pl") for path in root.glob(pattern.replace(".pl", ".metta"))
                          if BEGIN in path.read_text(encoding="utf-8") and path.with_suffix(".pl") not in paths)
     paths = [path.resolve() for path in paths]
     records = source_records(paths)
