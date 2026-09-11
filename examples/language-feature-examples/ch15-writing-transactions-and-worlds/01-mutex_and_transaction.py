@@ -296,9 +296,26 @@ def twin(m):
 #: command=python extensions/python/tools/twin_coverage.py --observe --rounds
 #: 10; fixture=full-lane/282/workers=32/file-search-cache-
 #: time=9223372036854775807/before-boot; commit=57f84148ba2684015f052d533f3197eca07b1f7b].
+#: POOLED 2026-09-11: a second ten-round population under the same protocol,
+#: taken on the tree that carries engine/metta/limits.pl and the re-pinned
+#: twins, read 16709..16714 (samples [16710, 16711, 16714, 16711, 16710,
+#: 16714, 16711, 16709, 16712, 16713]); pooled with the 10 above at
+#: 16693..16701, 16693..16714 over 20 observations [measured 2026-09-11: exact
+#: extrema over 10 observations; command=python
+#: extensions/python/tools/twin_coverage.py --observe --rounds 10;
+#: fixture=full-lane/282/workers=32/file-search-cache-time=9223372036854775807/before-boot;
+#: commit=WORKTREE].
+#: EXTENDED 2026-09-12: the lane run that verified the twins' +8 repair (sh
+#: check.sh twins on the finished tree, the box carrying three Codex jobs'
+#: benchmarks) read 16717, 3 above the pooled maximum; the envelope takes that
+#: observation with its count, 16693..16717 over 21, rather than widening
+#: blind, and the next battery's ten rounds re-observe it [measured
+#: 2026-09-12: one full-lane reading; command=sh check.sh twins;
+#: fixture=full-lane/282/workers=32/file-search-cache-time=9223372036854775807/before-boot;
+#: commit=WORKTREE].
 BUDGET = {
     "minimum": 16693,
-    "maximum": 16701,
-    "observations": 10,
+    "maximum": 16717,
+    "observations": 21,
     "protocol": "full-lane/282/workers=32/file-search-cache-time=9223372036854775807/before-boot"
 }

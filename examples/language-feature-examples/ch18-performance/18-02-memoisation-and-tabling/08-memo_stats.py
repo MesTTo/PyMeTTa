@@ -369,7 +369,18 @@ BUDGET = 24808
 #: plus 1 times 1362 plus the declared 2226) [measured 2026-09-11: sh check.sh
 #: twins on the merged tree after the twin re-pin; command=python
 #: extensions/python/tools/twin_coverage.py; commit=57f84148ba2684015f052d533f3197eca07b1f7b].
-OVERRUN = 2242
+#: RE-PRICED 2026-09-11, 2242 to 2243 (+1): engine/metta/limits.pl's wrappers,
+#: installed at boot, cost this example and this twin 2 inferences fewer each
+#: (19001 to 18999, 24808 to 24806; SWI's profiler counts the same 13,835
+#: calls over the same 990 predicates either way, so the two are retry or
+#: unwind steps the VM counts and no predicate owns), and the band scales the
+#: example's move by 1.1 while the twin moves by 1, so a residual pinned 0.1
+#: inside its ceiling reads 0.1 past it. Measured 24806 against a ceiling of
+#: 24805.9 (18999 times 1.1 plus 303 once plus 1 times 1362 plus the declared
+#: 2242); the residual rounds up [measured 2026-09-11: sh check.sh twins on the
+#: battery tree; command=python extensions/python/tools/twin_coverage.py;
+#: commit=WORKTREE].
+OVERRUN = 2243
 
 #: DIVERGED 2026-09-07, the example holds 0 atoms the twin does not (none) and
 #: the twin holds 1 atom the example does not (1 :): a Python annotation IS a (:

@@ -342,7 +342,15 @@ def twin(m):
 #: file_search_cache_time=9223372036854775807 set before child boot [measured
 #: 2026-09-11: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=57f84148ba2684015f052d533f3197eca07b1f7b].
-BUDGET = 16756
+#: RE-PINNED 2026-09-11, 16756 to 16768 (+12), engine/metta/limits.pl
+#: (docs/host-workarounds.md: swi-autoload-cut-installs-the-undefined-
+#: supervisor, swi-findall-bag-push-window): every first-use resolution of an
+#: undefined predicate pays one inference for the catch around the trap query,
+#: and a twin that bounds pays one inference per findall under the bound plus
+#: the first bound of its process installing the findall scope [measured
+#: 2026-09-11: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 16768
 
 #: DIVERGED 2026-09-07, the example holds 0 atoms the twin does not (none) and
 #: the twin holds 2 the example does not (2 :): a Python annotation IS a (:

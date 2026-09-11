@@ -2750,10 +2750,13 @@ def _price(
                 if declared_overrun
                 else ""
             )
+            # The ceiling is compared as a float and printed to the tenth the
+            # comparison used: printed rounded, two twins read "24806 past a
+            # ceiling of 24806" (2026-09-11).
             findings.append(
                 f"{relative}: the twin cost {right.cost} inferences against "
                 f"the example's {left.cost}, past the {BAND_PERCENT:g}% band "
-                f"ceiling of {ceiling:.0f}{allowed}"
+                f"ceiling of {ceiling:.1f}{allowed}"
             )
         elif declared_overrun and right.cost <= (
             left.cost * (1.0 + BAND_PERCENT / 100.0) + authoring
@@ -2762,7 +2765,7 @@ def _price(
                 f"{relative}: the twin declares an overrun of "
                 f"{declared_overrun} and now costs {right.cost} against a "
                 f"ceiling of "
-                f"{left.cost * (1.0 + BAND_PERCENT / 100.0) + authoring:.0f} "
+                f"{left.cost * (1.0 + BAND_PERCENT / 100.0) + authoring:.1f} "
                 f"without it; drop {OVERRUN_NAME} and its paragraph"
             )
     return findings

@@ -378,10 +378,19 @@ def twin(m):
 #: command=python extensions/python/tools/twin_coverage.py --observe --rounds
 #: 10; fixture=full-lane/282/workers=32/file-search-cache-
 #: time=9223372036854775807/before-boot; commit=57f84148ba2684015f052d533f3197eca07b1f7b].
+#: POOLED 2026-09-11: a second ten-round population under the same protocol,
+#: taken on the tree that carries engine/metta/limits.pl and the re-pinned
+#: twins, read 135413..135550 (samples [135441, 135436, 135436, 135550,
+#: 135436, 135436, 135413, 135436, 135436, 135436]); pooled with the 10 above
+#: at 135435..135549, 135413..135550 over 20 observations [measured
+#: 2026-09-11: exact extrema over 10 observations; command=python
+#: extensions/python/tools/twin_coverage.py --observe --rounds 10;
+#: fixture=full-lane/282/workers=32/file-search-cache-time=9223372036854775807/before-boot;
+#: commit=WORKTREE].
 BUDGET = {
-    "minimum": 135435,
-    "maximum": 135549,
-    "observations": 10,
+    "minimum": 135413,
+    "maximum": 135550,
+    "observations": 20,
     "protocol": "full-lane/282/workers=32/file-search-cache-time=9223372036854775807/before-boot"
 }
 
