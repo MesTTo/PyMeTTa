@@ -348,7 +348,17 @@ def twin(m):
 #: boot. Every workload, point allowance and empirical envelope is unchanged
 #: [measured 2026-09-10: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=8358dfc233bf299bb23eceddd94593a62372fe4b].
-BUDGET = 2439
+#: RE-PINNED 2026-09-11, 2439 to 2533 (+94), end-of-wave re-pin on the merged
+#: tree after FROM's reference rows and four engine units, the closed-set
+#: derivations and two host services, BINDING's one native evaluation entry and
+#: boot import, W-OBSERVE's observer guard, PERF's receipts batching and cursor
+#: retirement, and the three REDS repairs (derived runtime resources and the
+#: shared loader, the tool-lane repairs, the corpus example); serial minimum of
+#: three fresh processes through the lane's run_twin with
+#: file_search_cache_time=9223372036854775807 set before child boot [measured
+#: 2026-09-11: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 2533
 
 #: DIVERGED 2026-09-07, the example holds 1 atom the twin does not (1 =) and
 #: the twin holds 1 atom the example does not (1 =): the twin is an ordinary Python

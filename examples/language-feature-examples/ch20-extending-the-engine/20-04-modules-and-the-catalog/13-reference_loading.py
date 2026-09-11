@@ -41,9 +41,24 @@ def twin(m):
 #: [measured 2026-09-10: 329737..332588 inferences over 10 observations;
 #: command=python extensions/python/tools/twin_coverage.py --observe --rounds 10;
 #: fixture=full-lane/280/workers=32; commit=90ba93eb8f6e98ebfefc55416859bf13de6a8427].
+#: RE-ENVELOPED 2026-09-11 under 'full-lane/282/workers=32/file-search-cache-
+#: time=9223372036854775807/before-boot': the lane grew from 277 to 282 twinned
+#: examples (the REDS corpus example and the wave's own), and the merged tree
+#: carries FROM's reference rows, BINDING's one native evaluation entry,
+#: W-OBSERVE's observer guard, PERF's receipts batching and cursor retirement,
+#: and the REDS shared loader; ten fresh full-lane observations read
+#: 331616..335619 (spread 4003, samples [332379, 331616, 331616, 332366,
+#: 333938, 333850, 335619, 332636, 332382, 334097]) where the 10 under 'full-
+#: lane/280/workers=32' read 329737..332588. A run outside this envelope is a
+#: real finding, and a new mode discovered later extends it with its
+#: observation count rather than widening blind [measured 2026-09-11: exact
+#: extrema over 10 observations; command=python
+#: extensions/python/tools/twin_coverage.py --observe --rounds 10;
+#: fixture=full-lane/282/workers=32/file-search-cache-
+#: time=9223372036854775807/before-boot; commit=WORKTREE].
 BUDGET = {
-    "minimum": 329737,
-    "maximum": 332588,
+    "minimum": 331616,
+    "maximum": 335619,
     "observations": 10,
-    "protocol": "full-lane/280/workers=32",
+    "protocol": "full-lane/282/workers=32/file-search-cache-time=9223372036854775807/before-boot"
 }

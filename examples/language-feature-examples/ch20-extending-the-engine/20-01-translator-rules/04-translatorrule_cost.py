@@ -349,17 +349,26 @@ def twin(m):
 #: are excluded from this point selection and keep their pins [measured
 #: 2026-09-09: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=8ca8a387fc61d0918484b19a1a3baf85b6523043].
-BUDGET = 13519
-#: OVERRUN 2026-09-09, 0 to 310 (+310): the compiled vocabulary seed, the
-#: membership index, base-module type lookups and the singleton decoder landed
-#: (perf/cross-engine-waivers merged): a Python decode with one named variable
-#: builds no index and one with more builds it at the second distinct name,
-#: which moves a twin's engine-side cost while its example, which decodes
-#: nothing, holds; boot content and clause layout moved the rest; against the
-#: trunk's own run at da0e5755d the twin moved -34 and the example -15, and
-#: the twin sat 327 over its ceiling there already. Measured 13459 against a
-#: ceiling of 13150; a minimal twin costs 12649 against the band's 13150,
-#: within that ceiling, so the rest is this twin's own program [measured
-#: 2026-09-09: one fresh process per side; command=python
-#: extensions/python/benchmarks/probes/twin_floor.py; commit=b4341ae382c48ef225f4a52e566af6a9a71757c4].
-OVERRUN = 310
+#: RE-PINNED 2026-09-11, 13519 to 12422 (-1097), end-of-wave re-pin on the
+#: merged tree after FROM's reference rows and four engine units, the closed-
+#: set derivations and two host services, BINDING's one native evaluation entry
+#: and boot import, W-OBSERVE's observer guard, PERF's receipts batching and
+#: cursor retirement, and the three REDS repairs (derived runtime resources and
+#: the shared loader, the tool-lane repairs, the corpus example); serial
+#: minimum of three fresh processes through the lane's run_twin with
+#: file_search_cache_time=9223372036854775807 set before child boot [measured
+#: 2026-09-11: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 12422
+#: OVERRUN 2026-09-11, 273 (previously 310 under the 1482 premium, retired by
+#: the lane the same day and priced again here): the band stopped granting the
+#: first-definition premium (DEFINITION_WARMUP 1482 to 303, DEFINITION_COST
+#: 1364 to 1362, re-derived 2026-09-11 from the authoring probe's one-line
+#: fixture, which no longer pays it after the binding's boot import), and this
+#: twin still pays 273 of it: the first use of the lowering paths its 1
+#: definition take, which the fixture's `return x + 1` does not exercise.
+#: Measured 12422 against a ceiling of 12149 (9531 times 1.1 plus 303 once plus
+#: 1 times 1362) [measured 2026-09-11: sh check.sh twins on the merged tree
+#: after the twin re-pin; command=python
+#: extensions/python/tools/twin_coverage.py; commit=WORKTREE].
+OVERRUN = 273

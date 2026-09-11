@@ -155,4 +155,14 @@ RUNG = "a `let*` binding whose left side is a PATTERN has no assignment spelling
 #: above all [measured 2026-09-09: min-of-3 serial fresh processes;
 #: command=python extensions/python/tools/twin_coverage.py --repin;
 #: commit=b4341ae382c48ef225f4a52e566af6a9a71757c4].
-BUDGET = 1152
+#: RE-PINNED 2026-09-11, 1152 to 1147 (-5), end-of-wave re-pin on the merged
+#: tree after FROM's reference rows and four engine units, the closed-set
+#: derivations and two host services, BINDING's one native evaluation entry and
+#: boot import, W-OBSERVE's observer guard, PERF's receipts batching and cursor
+#: retirement, and the three REDS repairs (derived runtime resources and the
+#: shared loader, the tool-lane repairs, the corpus example); serial minimum of
+#: three fresh processes through the lane's run_twin with
+#: file_search_cache_time=9223372036854775807 set before child boot [measured
+#: 2026-09-11: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 1147

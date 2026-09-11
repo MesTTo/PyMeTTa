@@ -307,7 +307,17 @@ def twin(m):
 #: journal records their disposition. No allowance, overrun or oracle changes
 #: [measured 2026-09-10: min-of-10 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=8ca8a387fc61d0918484b19a1a3baf85b6523043].
-BUDGET = 25751
+#: RE-PINNED 2026-09-11, 25751 to 24808 (-943), end-of-wave re-pin on the
+#: merged tree after FROM's reference rows and four engine units, the closed-
+#: set derivations and two host services, BINDING's one native evaluation entry
+#: and boot import, W-OBSERVE's observer guard, PERF's receipts batching and
+#: cursor retirement, and the three REDS repairs (derived runtime resources and
+#: the shared loader, the tool-lane repairs, the corpus example); serial
+#: minimum of three fresh processes through the lane's run_twin with
+#: file_search_cache_time=9223372036854775807 set before child boot [measured
+#: 2026-09-11: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 24808
 
 #: OVERRUN 2026-09-07, 800: it reads the cache statistics through the term door
 #: beside every claim. Measured 38155 against a ceiling of 37417; a minimal
@@ -349,7 +359,17 @@ BUDGET = 25751
 #: command=python extensions/python/benchmarks/probes/twin_floor.py
 #: examples/ch18-performance/18-02-memoisation-and-tabling/08-memo_stats.metta;
 #: commit=90ba93eb8f6e98ebfefc55416859bf13de6a8427].
-OVERRUN = 2226
+#: RE-PRICED 2026-09-11, 2226 to 2242 (+16): the band stopped granting the
+#: first-definition premium (DEFINITION_WARMUP 1482 to 303, DEFINITION_COST
+#: 1364 to 1362, re-derived 2026-09-11 from the authoring probe's one-line
+#: fixture, which no longer pays it after the binding's boot import), and this
+#: twin still pays 16 of it: the first use of the lowering paths its 1
+#: definition take, which the fixture's `return x + 1` does not exercise.
+#: Measured 24808 against a ceiling of 24792 (19001 times 1.1 plus 303 once
+#: plus 1 times 1362 plus the declared 2226) [measured 2026-09-11: sh check.sh
+#: twins on the merged tree after the twin re-pin; command=python
+#: extensions/python/tools/twin_coverage.py; commit=WORKTREE].
+OVERRUN = 2242
 
 #: DIVERGED 2026-09-07, the example holds 0 atoms the twin does not (none) and
 #: the twin holds 1 atom the example does not (1 :): a Python annotation IS a (:

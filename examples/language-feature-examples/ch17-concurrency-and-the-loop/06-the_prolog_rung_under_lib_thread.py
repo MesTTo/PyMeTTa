@@ -261,11 +261,26 @@ def twin(m):
 #: readings; command=python extensions/python/tools/twin_coverage.py --observe
 #: --rounds 10 and sh check.sh twins; fixture=full-lane/277/workers=32/file-
 #: search-cache-time=9223372036854775807/before-boot; commit=8ca8a387fc61d0918484b19a1a3baf85b6523043].
+#: RE-ENVELOPED 2026-09-11 under 'full-lane/282/workers=32/file-search-cache-
+#: time=9223372036854775807/before-boot': the lane grew from 277 to 282 twinned
+#: examples (the REDS corpus example and the wave's own), and the merged tree
+#: carries FROM's reference rows, BINDING's one native evaluation entry,
+#: W-OBSERVE's observer guard, PERF's receipts batching and cursor retirement,
+#: and the REDS shared loader; ten fresh full-lane observations read
+#: 123687..124929 (spread 1242, samples [124230, 124327, 124171, 124198,
+#: 124227, 124135, 124393, 124929, 124254, 123687]) where the 67 under 'full-
+#: lane/277/workers=32/file-search-cache-time=9223372036854775807/before-boot'
+#: read 123450..125719. A run outside this envelope is a real finding, and a
+#: new mode discovered later extends it with its observation count rather than
+#: widening blind [measured 2026-09-11: exact extrema over 10 observations;
+#: command=python extensions/python/tools/twin_coverage.py --observe --rounds
+#: 10; fixture=full-lane/282/workers=32/file-search-cache-
+#: time=9223372036854775807/before-boot; commit=WORKTREE].
 BUDGET = {
-    "minimum": 123450,
-    "maximum": 125719,
-    "observations": 67,
-    "protocol": "full-lane/277/workers=32/file-search-cache-time=9223372036854775807/before-boot"
+    "minimum": 123687,
+    "maximum": 124929,
+    "observations": 10,
+    "protocol": "full-lane/282/workers=32/file-search-cache-time=9223372036854775807/before-boot"
 }
 #: The count VARIES, because this twin starts threads, pools and timers and
 #: the engine charges what the scheduler actually ran. Three single-round

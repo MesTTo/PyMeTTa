@@ -338,8 +338,16 @@ BAND_PERCENT = 10.0
 #: fresh-process readings per cell; command=python
 #: extensions/python/benchmarks/probes/twin_authoring.py;
 #: fixture=twin_authoring.fixture with 0..4 definitions; commit=8ca8a387fc61d0918484b19a1a3baf85b6523043].
-DEFINITION_WARMUP = 1482
-DEFINITION_COST = 1364
+#: Re-derived 2026-09-11 on the merged tree after the wave and the REDS repairs:
+#: 7, 1672, 3019, 4382, 5757 for 0..4 definitions, the fit 303 once plus 1362
+#: each. The first definition's premium fell from 1482 to 303: the binding's
+#: boot import now loads what the first compiled definition used to autoload
+#: (BINDING, 765c60587), so a twin no longer pays it and the band no longer
+#: grants it [measured 2026-09-11: min of three fresh-process readings per
+#: cell; command=python extensions/python/benchmarks/probes/twin_authoring.py;
+#: fixture=twin_authoring.fixture with 0..4 definitions; commit=WORKTREE].
+DEFINITION_WARMUP = 303
+DEFINITION_COST = 1362
 
 #: The tree's own POINT-counter allowance. It applies to an integer BUDGET
 #: only; adding it to empirical extrema would silently widen what was observed

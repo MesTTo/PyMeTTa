@@ -233,7 +233,17 @@ def twin(m):
 #: boot. Every workload, point allowance and empirical envelope is unchanged
 #: [measured 2026-09-10: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=8358dfc233bf299bb23eceddd94593a62372fe4b].
-BUDGET = 26031
+#: RE-PINNED 2026-09-11, 26031 to 26046 (+15), end-of-wave re-pin on the merged
+#: tree after FROM's reference rows and four engine units, the closed-set
+#: derivations and two host services, BINDING's one native evaluation entry and
+#: boot import, W-OBSERVE's observer guard, PERF's receipts batching and cursor
+#: retirement, and the three REDS repairs (derived runtime resources and the
+#: shared loader, the tool-lane repairs, the corpus example); serial minimum of
+#: three fresh processes through the lane's run_twin with
+#: file_search_cache_time=9223372036854775807 set before child boot [measured
+#: 2026-09-11: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 26046
 
 #: OVERRUN 2026-09-07, 2400: the mutually recursive pair takes the `@m.rules`
 #: door, which stages two equations where the example writes two. Measured
@@ -254,4 +264,14 @@ BUDGET = 26031
 #: above that ceiling, so no twin of it fits the band at all, as before
 #: [measured 2026-09-09: one fresh process per side; command=python
 #: extensions/python/benchmarks/probes/twin_floor.py; commit=b4341ae382c48ef225f4a52e566af6a9a71757c4].
-OVERRUN = 2806
+#: RE-PRICED 2026-09-11, 2806 to 3916 (+1110): the band stopped granting the
+#: first-definition premium (DEFINITION_WARMUP 1482 to 303, DEFINITION_COST
+#: 1364 to 1362, re-derived 2026-09-11 from the authoring probe's one-line
+#: fixture, which no longer pays it after the binding's boot import), and this
+#: twin still pays 1110 of it: the first use of the lowering paths its 1
+#: definition take, which the fixture's `return x + 1` does not exercise.
+#: Measured 26046 against a ceiling of 24936 (18605 times 1.1 plus 303 once
+#: plus 1 times 1362 plus the declared 2806) [measured 2026-09-11: sh check.sh
+#: twins on the merged tree after the twin re-pin; command=python
+#: extensions/python/tools/twin_coverage.py; commit=WORKTREE].
+OVERRUN = 3916

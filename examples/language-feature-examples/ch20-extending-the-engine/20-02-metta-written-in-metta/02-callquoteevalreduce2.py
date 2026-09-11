@@ -351,7 +351,30 @@ def twin(m):
 #: are excluded from this point selection and keep their pins [measured
 #: 2026-09-09: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=8ca8a387fc61d0918484b19a1a3baf85b6523043].
-BUDGET = 44164
+#: RE-PINNED 2026-09-11, 44164 to 43465 (-699), end-of-wave re-pin on the
+#: merged tree after FROM's reference rows and four engine units, the closed-
+#: set derivations and two host services, BINDING's one native evaluation entry
+#: and boot import, W-OBSERVE's observer guard, PERF's receipts batching and
+#: cursor retirement, and the three REDS repairs (derived runtime resources and
+#: the shared loader, the tool-lane repairs, the corpus example); serial
+#: minimum of three fresh processes through the lane's run_twin with
+#: file_search_cache_time=9223372036854775807 set before child boot [measured
+#: 2026-09-11: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 43465
+#: OVERRUN 2026-09-11, 1372: the twin's six compiled definitions are the steps of
+#: an interpreter written in MeTTa (quote, eval, reduce and their duals), each a
+#: multi-clause body that costs more to author than the band's one-line fixture.
+#: The floor twin, which authors nothing, costs 30598 against the example's
+#: 30562, so the library is not slower than the engine here; the twin sits 12867
+#: over its floor for six definitions, 2144 each against the 1362 the band grants,
+#: and 1372 over the ceiling of 42093 once the first-definition premium the tree
+#: no longer pays left the band (DEFINITION_WARMUP 1482 to 303) [measured
+#: 2026-09-11: one fresh process per side; command=python
+#: extensions/python/benchmarks/probes/twin_floor.py
+#: examples/ch20-extending-the-engine/20-02-metta-written-in-metta/02-callquoteevalreduce2.metta;
+#: commit=WORKTREE].
+OVERRUN = 1372
 
 
 #: DIVERGED 2026-09-07, the example holds 0 atoms the twin does not (none) and
