@@ -20,7 +20,7 @@ Guarantees:
     payloads canonicalize to integers
     [tested: test_rational_payloads_cross_the_scalar_door,
     test_native_rational_wire_round_trip,
-    test_integral_rational_wire_is_canonical; commit=WORKTREE]
+    test_integral_rational_wire_is_canonical; commit=615e8a68dce996a0c05b3ddddc71b80bc598442d]
   - p decodes a canonical space name into the executable Space handle for
     the active runtime [tested: test_space_handles_are_term_operands_and_round_trip;
     commit=4e2398075da67bb2cbcc123a9fc1e078ecac6fbf]

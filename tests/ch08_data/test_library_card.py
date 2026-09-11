@@ -12,7 +12,7 @@ say different things about the same head.
 
 Guarantees:
   - Vector's companion README supplies its numeric contract as the summary
-    [tested: test_the_summary_is_the_librarys_own_opening_prose; commit=WORKTREE]
+    [tested: test_the_summary_is_the_librarys_own_opening_prose; commit=615e8a68dce996a0c05b3ddddc71b80bc598442d]
   - a companion README supplies escaped prose in every rendering and lib_he
     names its deliberate semantic differences [tested:
     test_a_companion_readme_supplies_the_summary_in_every_renderer,

@@ -3,7 +3,7 @@
 Guarantees: decoded rationals retain numeric wire, value identity, hashing,
 ordering, copy/pickle and storage; Python-created Fractions remain opaque
 [tested: test_native_rational_wire_round_trip, test_native_rational_identity,
-test_native_rational_storage_and_matching, test_native_number_order; commit=WORKTREE].
+test_native_rational_storage_and_matching, test_native_number_order; commit=615e8a68dce996a0c05b3ddddc71b80bc598442d].
 Owns resources: each storage probe drops its temporary space on every outcome.
 """
 

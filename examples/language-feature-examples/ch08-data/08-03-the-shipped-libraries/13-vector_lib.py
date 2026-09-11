@@ -6,7 +6,7 @@ applies to one.
 
 Guarantees: exact reductions, component arithmetic and both random arities
 carry the same claims as 13-vector_lib.metta
-[tested: python extensions/python/tools/twin_coverage.py examples/ch08-data/08-03-the-shipped-libraries/13-vector_lib.metta; commit=WORKTREE].
+[tested: python extensions/python/tools/twin_coverage.py examples/ch08-data/08-03-the-shipped-libraries/13-vector_lib.metta; commit=615e8a68dce996a0c05b3ddddc71b80bc598442d].
 """
 
 import math
@@ -186,5 +186,5 @@ def twin(m):
 #: measured 32104 on this cut against its 31537 pin before any Vector change,
 #: so 567 of the movement predates this library [measured 2026-09-12: min-of-3
 #: serial fresh processes; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+#: extensions/python/tools/twin_coverage.py --repin; commit=615e8a68dce996a0c05b3ddddc71b80bc598442d].
 BUDGET = 62208

@@ -3,7 +3,7 @@ and version source that wheel builds publish.
 Guarantees:
   - the optional mypyc wire/factory pair executes native rational decoding,
     ordering and Vector composition in its built package [tested:
-    test_the_codec_builds_under_mypyc_as_an_option; commit=WORKTREE]
+    test_the_codec_builds_under_mypyc_as_an_option; commit=615e8a68dce996a0c05b3ddddc71b80bc598442d]
   - release history and citation metadata exist and enter source archives
     [tested: test_release_and_citation_metadata_ship_in_source_archives;
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]

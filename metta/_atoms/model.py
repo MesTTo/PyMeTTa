@@ -12,13 +12,13 @@ Guarantees:
   - Grounded(value) preserves every non-primitive Python value by identity; only
     exact bool, int, float and str values use native wire terms [tested:
     extensions/python/tests/ch03_atoms_and_expressions/test_identity_wire.py;
-    commit=WORKTREE]
+    commit=615e8a68dce996a0c05b3ddddc71b80bc598442d]
   - _NativeRational retains native wire, value equality, hashing, ordering
     and pickle through repeated crossings; opaque Fractions stay distinct
     [tested: test_native_rational_wire_round_trip, test_native_rational_identity,
     test_native_rational_copy_pickle_and_format,
     test_rational_payloads_cross_the_scalar_door,
-    test_non_primitive_numbers_keep_their_python_identity; commit=WORKTREE]
+    test_non_primitive_numbers_keep_their_python_identity; commit=615e8a68dce996a0c05b3ddddc71b80bc598442d]
   - pathlib paths encode as symbols rather than opaque host boxes [tested:
     test_path_and_capability_options_cross_as_symbols; commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
   - Ellipsis encodes as the gap symbol, so `...` in a pattern child position is

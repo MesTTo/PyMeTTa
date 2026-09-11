@@ -3,11 +3,11 @@
 Guarantees: every timed dot result equals the full expected scalar; finite
 cancellation and intermediate overflow/underflow controls retain their values
 [tested: PYTHONPATH=extensions/python python -m benchmarks.vector_numeric;
-commit=WORKTREE].
+commit=615e8a68dce996a0c05b3ddddc71b80bc598442d].
 Owns resources: the benchmark context releases its engine on every outcome.
 Decides: report minimum-of-three inferences and process CPU seconds, not a gate
 allowance; dimension traversal is linear and arithmetic also depends on bit size
-[source: lib/lib_vector/lib_vector.pl:dot_value/3; commit=WORKTREE].
+[source: lib/lib_vector/lib_vector.pl:dot_value/3; commit=615e8a68dce996a0c05b3ddddc71b80bc598442d].
 """
 
 import time
