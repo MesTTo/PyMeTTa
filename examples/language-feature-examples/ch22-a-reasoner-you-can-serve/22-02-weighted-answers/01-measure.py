@@ -364,7 +364,7 @@ def twin(m):
 #: 2026-09-11: exact extrema over 10 observations; command=python
 #: extensions/python/tools/twin_coverage.py --observe --rounds 10;
 #: fixture=full-lane/282/workers=32/file-search-cache-time=9223372036854775807/before-boot;
-#: commit=WORKTREE].
+#: commit=23ed2559a7c9b5712e1f6f4710ed02f8d5c6a23d].
 BUDGET = {
     "minimum": 131888,
     "maximum": 131989,

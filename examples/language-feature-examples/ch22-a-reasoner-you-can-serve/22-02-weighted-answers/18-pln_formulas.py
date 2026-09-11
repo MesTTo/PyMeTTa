@@ -328,5 +328,5 @@ def twin(m):
 #: and a twin that bounds pays one inference per findall under the bound plus
 #: the first bound of its process installing the findall scope [measured
 #: 2026-09-11: min-of-3 serial fresh processes; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+#: extensions/python/tools/twin_coverage.py --repin; commit=23ed2559a7c9b5712e1f6f4710ed02f8d5c6a23d].
 BUDGET = 179654

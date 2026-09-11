@@ -379,7 +379,7 @@ BUDGET = 24808
 #: 24805.9 (18999 times 1.1 plus 303 once plus 1 times 1362 plus the declared
 #: 2242); the residual rounds up [measured 2026-09-11: sh check.sh twins on the
 #: battery tree; command=python extensions/python/tools/twin_coverage.py;
-#: commit=WORKTREE].
+#: commit=23ed2559a7c9b5712e1f6f4710ed02f8d5c6a23d].
 OVERRUN = 2243
 
 #: DIVERGED 2026-09-07, the example holds 0 atoms the twin does not (none) and
