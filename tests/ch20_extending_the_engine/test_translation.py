@@ -11,7 +11,7 @@ Guarantees:
   - derived-form comparisons write only private source copies and preserve
     the tracked corpus's bytes and modification times
     [tested: test_a_prelude_derived_form_matches_its_fused_twin_on_the_corpus;
-    commit=WORKTREE]
+    commit=8ee8fcd4e43a932131909f7c58ad4fbe4dcf8d1d]
   - `let*` under another name binds the body with the bindings the caller
     wrote, and refuses a value that is not bindings naming the form
     [tested: test_let_star_with_an_unarrived_bindings_list_does_not_drop_them]
@@ -22,7 +22,7 @@ Owns resources:
   - pytest's tmp_path owns the copied engine, libraries and examples; the
     extension directory is shared read-only to retain the tested seat setup
     [tested: test_a_prelude_derived_form_matches_its_fused_twin_on_the_corpus;
-    commit=WORKTREE]
+    commit=8ee8fcd4e43a932131909f7c58ad4fbe4dcf8d1d]
 Open Obligations:
   To Do: None
   Hacks: None
