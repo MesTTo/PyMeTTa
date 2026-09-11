@@ -14,7 +14,7 @@ Guarantees:
   - metta_with_trailed/3 is classified as the binding's shared context door
     in the published service manifest [tested:
     test_the_host_service_scoreboard_matches_the_tree,
-    test_the_shim_surface_shrank_to_the_transport_floor; commit=WORKTREE]
+    test_the_shim_surface_shrank_to_the_transport_floor; commit=cdcb23421809ec3a493059a381e0245cf08a1984]
   - host cursor services share transaction ownership and lifecycle across seats
     [tested: test_the_host_service_scoreboard_matches_the_tree,
     test_the_shim_surface_shrank_to_the_transport_floor; commit=ea2c1bde39a7b002b1e5948cf6c53bc469dac084]
