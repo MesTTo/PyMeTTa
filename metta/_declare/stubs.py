@@ -45,6 +45,7 @@ Open Obligations:
 
 from __future__ import annotations
 
+import collections.abc as _collections_abc
 import os
 from typing import TYPE_CHECKING, Any
 
@@ -399,7 +400,6 @@ def stubs(space: _root.Space | Any, *, sources: _collections_abc.Iterable[str | 
     return "\n".join(lines).rstrip("\n") + "\n"
 
 # Resolve annotations after definitions so peer imports can finish.
-import collections.abc as _collections_abc  # noqa: E402 -- deferred annotation bindings
 
 from metta._lazy import lazy  # noqa: E402 -- deferred annotation bindings
 

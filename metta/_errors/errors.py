@@ -1,6 +1,9 @@
 """Purpose: define MeTTa errors and the operation non-reduction signal.
 
 Guarantees:
+  - refusing preserves exception descriptors, custom __setattr__ methods
+    and their refusals when attaching metadata [source:
+    extensions/python/metta/_errors/errors.py:refusing; commit=2d17a5e2218b713d5934b74f8bbb3e4f190a4e5c]
   - Timeout is both the MeTTa coordination miss and a builtin TimeoutError,
     so callers may catch at either abstraction [tested:
     test_the_coordination_family_is_python_shaped; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
@@ -251,9 +254,7 @@ class Remedy:
             )
             raise ValueError(msg)
         if (
-            self.edit is None
-            and self.replace is None
-            and self.python is None
+            self.edit is self.replace is self.python is None
             and self.applicability != "prose"
         ):
             msg = (
@@ -398,9 +399,9 @@ def refusing[ExcT: BaseException](
     `getattr(error, "remedy", None)` whatever the class is.
     """
     if remedy is not None:
-        error.remedy = remedy  # type: ignore[attr-defined]  # the carrier is the instance dict, which every exception has
+        setattr(error, "remedy", remedy)  # noqa: B010 -- preserve the generic exception's descriptors and custom setters
     if ground is not None:
-        error.ground = ground  # type: ignore[attr-defined]  # the carrier is the instance dict, which every exception has
+        setattr(error, "ground", ground)  # noqa: B010 -- preserve the generic exception's descriptors and custom setters
     return error
 
 

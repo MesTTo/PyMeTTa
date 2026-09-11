@@ -9,7 +9,6 @@ Edit the inputs and regenerate this file.
 
 from __future__ import annotations
 
-import builtins as _body_builtins
 import builtins as _builtins
 import collections as _body_collections
 import collections.abc as _body_collections_abc
@@ -32,6 +31,9 @@ import metta._spaces.execution as _body_metta__spaces_execution
 import metta._spaces.profile as _body_metta__spaces_profile
 import metta.lint._model as _body_metta_lint__model
 import metta.vocabularies as _body_metta_vocabularies
+from metta._atoms.designation import (
+    _CastT as _parameter_metta__atoms_designation__CastT,
+)
 from metta._lazy import lazy as _lazy
 from metta.aio._worker import AsyncMeTTaBase
 
@@ -336,7 +338,7 @@ class AsyncMeTTa(AsyncMeTTaBase):
         timeout: _builtins.float | None=None,
         inferences: _builtins.int | None=None,
         under: _body_typing.Any=_body_metta__atoms_designation._UNSET,
-        into: _body_builtins.type | None=None,
+        into: _builtins.type | None=None,
         **values: _body_typing.Any,
     ) -> _body_typing.Any:
         """Lazily match patterns against this space as one conjunction.
@@ -732,9 +734,9 @@ class AsyncMeTTa(AsyncMeTTaBase):
     @_overload
     async def cast(
         self,
-        type_: _body_builtins.type[_body_metta__atoms_designation._CastT],
+        type_: _builtins.type[_parameter_metta__atoms_designation__CastT],
         /,
-    ) -> _body_metta__atoms_designation._CastT:
+    ) -> _parameter_metta__atoms_designation__CastT:
         ...
     @_overload
     async def cast(self, type_: _body_metta__atoms_factories.Atom | _builtins.str, /) -> _body_typing.Any:
@@ -743,9 +745,9 @@ class AsyncMeTTa(AsyncMeTTaBase):
     async def cast(
         self,
         value: _body_typing.Any,
-        type_: _body_builtins.type[_body_metta__atoms_designation._CastT],
+        type_: _builtins.type[_parameter_metta__atoms_designation__CastT],
         /,
-    ) -> _body_metta__atoms_designation._CastT:
+    ) -> _parameter_metta__atoms_designation__CastT:
         ...
     @_overload
     async def cast(

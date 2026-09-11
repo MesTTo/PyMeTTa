@@ -16,7 +16,7 @@ from pathlib import Path
 from typing import Any, TypeGuard
 
 import metta.doors as _doors
-from metta.doors import Body, Door, Owner, Receiver, Signature
+from metta.doors import Body, Door, Family, Owner, Receiver, Signature
 
 
 def signature(
@@ -42,6 +42,7 @@ def is_mark(node: ast.AST) -> TypeGuard[ast.Call]:
 
 class _Unqualify(ast.NodeTransformer):
     def visit_Attribute(self, node: ast.Attribute) -> ast.AST:
+        # policy-inventory-exempt: mechanism-internal; reason=door metadata grammar admits qualified and private-qualified record constructors; evidence=extensions/python/metta/doors/_scan.py:contract
         if isinstance(node.value, ast.Name) and node.value.id in {'_doors', 'doors'}:
             return ast.copy_location(ast.Name(id=node.attr, ctx=ast.Load()), node)
         return self.generic_visit(node)
@@ -77,7 +78,7 @@ def contract(mark: ast.Call, path: Path) -> dict[str, Any]:
             if not valid:
                 msg = f'{path}: door metadata reads outside the row grammar: {ast.unparse(item)}'
                 raise ValueError(msg)
-        result[name] = eval(compile(ast.fix_missing_locations(ast.Expression(expression)), str(path), 'eval'), {'__builtins__': {}, **scope})  # noqa: S307 -- the complete expression grammar is checked above
+        result[name] = eval(compile(ast.fix_missing_locations(ast.Expression(expression)), str(path), 'eval'), {'__builtins__': {}} | scope)  # noqa: S307  # nosec B307  # pylint: disable=eval-used # the complete expression grammar is checked above
     return result
 
 
@@ -85,11 +86,14 @@ def _owner(class_name: str, first: ast.arg | None, values: dict[str, Any]) -> Ow
     if values.get('provider') is not None and values.get('sugar_of') is None:
         return Owner.namespace
     spelling = class_name.rsplit('.', 1)[-1]
+    # policy-inventory-exempt: mechanism-internal; reason=source receiver class spellings are parsed without importing their implementations; evidence=extensions/python/metta/doors/_scan.py:_owner
     if spelling not in {'Space', 'SpaceHandle', '_SpaceT', 'MeTTa', 'MeTTaBase', 'Rows', 'Answers', 'RemoteSpace', 'RemoteCursor'} and first is not None:
         spelling = ast.unparse(first.annotation).strip("'\"").rsplit('.', 1)[-1] if first.annotation else ''
         spelling = spelling.split('[', 1)[0]
+    # policy-inventory-exempt: mechanism-internal; reason=concrete and generic space receiver spellings in Python source; evidence=extensions/python/metta/doors/_scan.py:_owner
     if spelling in {'Space', 'SpaceHandle', '_SpaceT'}:
         return Owner.space
+    # policy-inventory-exempt: mechanism-internal; reason=public and handwritten context class spellings in Python source; evidence=extensions/python/metta/doors/_scan.py:_owner
     if spelling in {'MeTTa', 'MeTTaBase'}:
         return Owner.context
     if spelling == 'Rows':
@@ -135,9 +139,11 @@ def _read(path: Path, module: str, _modified: int, _size: int) -> tuple[Door, ..
             static = any(isinstance(item, ast.Name) and item.id == 'staticmethod' for item in node.decorator_list)
             annotation = ast.unparse(first.annotation).strip("'\"").rsplit('.', 1)[-1] if first is not None and first.annotation else ''
             receiver = Receiver.method if class_name and not static else (
-                Receiver.space if owner in {Owner.space, Owner.context} or annotation in {'Space', 'SpaceLike', '_SpaceT', 'MeTTa'}
+                # policy-inventory-exempt: mechanism-internal; reason=annotated space arguments identify the source call shape; evidence=extensions/python/metta/doors/_scan.py:_read
+                Receiver.space if owner.family is Family.core or annotation in {'Space', 'SpaceLike', '_SpaceT', 'MeTTa'}
+                # policy-inventory-exempt: mechanism-internal; reason=conventional receiver parameter names identify the source call shape; evidence=extensions/python/metta/doors/_scan.py:_read
                 or (first is not None and first.arg in {'space', 'receiver'})
-                else Receiver.value if owner in {Owner.rows, Owner.answers} else Receiver.none
+                else Receiver.value if owner.family is Family.result else Receiver.none
             )
             declarations = [item for item in nodes if isinstance(item, (ast.FunctionDef, ast.AsyncFunctionDef)) and item.name == node.name and item.lineno <= node.lineno]
             rows = tuple(signature(item, ignores.get(item.lineno, ())) for item in declarations)

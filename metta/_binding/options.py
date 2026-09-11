@@ -28,7 +28,7 @@ class EvaluationRecord(NamedTuple):
                    "none" if name in ('inferences', 'seconds') and isinstance(value, (int, float)) and value < 0 else value)
             for name, value in options.items()
         }
-        return self._replace(**native)
+        return self._replace(**native)  # pylint: disable=no-member # NamedTuple supplies _replace; the binding interface tests execute it
 
 
 # closed-set: generated; by=extensions/python/tools/doorgen.py; lane=door-sync

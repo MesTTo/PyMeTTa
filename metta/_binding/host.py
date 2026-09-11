@@ -451,7 +451,7 @@ def declared_type_texts(value: Any) -> list[str]:
 def _wire_value(value: Any) -> tuple[bool, Any]:
     wire_value = getattr(type(value), "__metta_wire_value__", None)
     if isinstance(wire_value, property):
-        return True, wire_value.__get__(value, type(value))
+        return True, wire_value.__get__(value, type(value))  # pylint: disable=unnecessary-dunder-call # invoke the discovered descriptor on its original receiver
     return False, value
 
 
@@ -788,7 +788,7 @@ def evaluate(source: str) -> Any:
     needs none of its own, because importing raises `import` already.
     """
     sys.audit("metta.host", "py-atom", source)
-    return _transported(eval(source, {"__builtins__": builtins}))  # noqa: S307
+    return _transported(eval(source, {"__builtins__": builtins}))  # noqa: S307  # nosec B307  # pylint: disable=eval-used # py-atom evaluates Python expressions after the metta.host audit event
 
 
 def evaluate_grounded(source: str) -> Any:

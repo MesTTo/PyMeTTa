@@ -9,7 +9,6 @@ Edit the inputs and regenerate this file.
 
 from __future__ import annotations
 
-import builtins as _body_builtins
 import builtins as _builtins
 import collections as _body_collections
 import collections.abc as _body_collections_abc
@@ -46,6 +45,15 @@ import metta._spaces.store as _body_metta__spaces_store
 import metta._spaces.subscriptions as _body_metta__spaces_subscriptions
 import metta.doors as _body_metta_doors
 import metta.vocabularies as _body_metta_vocabularies
+from metta._atoms.designation import _P as _PARAMETER_METTA__ATOMS_DESIGNATION__P
+from metta._atoms.designation import _R as _PARAMETER_METTA__ATOMS_DESIGNATION__R
+from metta._atoms.designation import _T as _PARAMETER_METTA__ATOMS_DESIGNATION__T
+from metta._atoms.designation import (
+    _CastT as _parameter_metta__atoms_designation__CastT,
+)
+from metta._atoms.designation import (
+    _SpaceT as _parameter_metta__atoms_designation__SpaceT,
+)
 from metta._lazy import lazy as _lazy
 from metta._spaces.handle import SpaceHandle
 from metta.doors import _namespaces
@@ -77,7 +85,7 @@ class _ImplementationSpaceTransaction(_Protocol):
     def __call__(
         self,
         _receiver: _body_metta.Space,
-        target: _body_collections_abc.Callable[[], _body_metta__atoms_designation._R] | _body_typing.Any,
+        target: _body_collections_abc.Callable[[], _PARAMETER_METTA__ATOMS_DESIGNATION__R] | _body_typing.Any,
         /,
     ) -> _body_typing.Any:
         ...
@@ -613,7 +621,7 @@ class Space(SpaceHandle):
         timeout: _builtins.float | None=None,
         inferences: _builtins.int | None=None,
         under: _body_typing.Any=_body_metta__atoms_designation._UNSET,
-        into: _body_builtins.type | None=None,
+        into: _builtins.type | None=None,
         **values: _body_typing.Any,
     ) -> _body_typing.Any:
         """Lazily match patterns against this space as one conjunction.
@@ -755,9 +763,9 @@ class Space(SpaceHandle):
     @_overload
     def transaction(
         self: _body_metta.Space,
-        target: _body_collections_abc.Callable[[], _body_metta__atoms_designation._R],
+        target: _body_collections_abc.Callable[[], _PARAMETER_METTA__ATOMS_DESIGNATION__R],
         /,
-    ) -> _body_metta__atoms_designation._R:
+    ) -> _PARAMETER_METTA__ATOMS_DESIGNATION__R:
         ...
     @_overload
     def transaction(
@@ -768,7 +776,7 @@ class Space(SpaceHandle):
         ...
     def transaction(
         self: _body_metta.Space,
-        target: _body_collections_abc.Callable[[], _body_metta__atoms_designation._R] | _body_typing.Any,
+        target: _body_collections_abc.Callable[[], _PARAMETER_METTA__ATOMS_DESIGNATION__R] | _body_typing.Any,
         /,
     ) -> _body_typing.Any:
         """Run one callable or term inside a closed engine transaction.
@@ -898,9 +906,9 @@ class Space(SpaceHandle):
 
     def transactional(
         self: _body_metta.Space,
-        fn: _body_collections_abc.Callable[_body_metta__atoms_designation._P, _body_metta__atoms_designation._R],
+        fn: _body_collections_abc.Callable[_PARAMETER_METTA__ATOMS_DESIGNATION__P, _PARAMETER_METTA__ATOMS_DESIGNATION__R],
         /,
-    ) -> _body_collections_abc.Callable[_body_metta__atoms_designation._P, _body_metta__atoms_designation._R]:
+    ) -> _body_collections_abc.Callable[_PARAMETER_METTA__ATOMS_DESIGNATION__P, _PARAMETER_METTA__ATOMS_DESIGNATION__R]:
         """transaction()'s decorator twin, the atomic shape Django made
         familiar: each CALL of the wrapped function runs inside its own
         engine transaction. Decorating runs nothing, exactly as a
@@ -1252,9 +1260,9 @@ class Space(SpaceHandle):
     @_overload
     def cast(
         self: _body_metta.Space,
-        type_: _body_builtins.type[_body_metta__atoms_designation._CastT],
+        type_: _builtins.type[_parameter_metta__atoms_designation__CastT],
         /,
-    ) -> _body_metta__atoms_designation._CastT:
+    ) -> _parameter_metta__atoms_designation__CastT:
         ...
     @_overload
     def cast(
@@ -1267,9 +1275,9 @@ class Space(SpaceHandle):
     def cast(
         self: _body_metta.Space,
         value: _body_typing.Any,
-        type_: _body_builtins.type[_body_metta__atoms_designation._CastT],
+        type_: _builtins.type[_parameter_metta__atoms_designation__CastT],
         /,
-    ) -> _body_metta__atoms_designation._CastT:
+    ) -> _parameter_metta__atoms_designation__CastT:
         ...
     @_overload
     def cast(
@@ -1339,9 +1347,9 @@ class Space(SpaceHandle):
         return _body_metta__spaces_store.clear(self)
 
     def __iadd__(  # type: ignore[override]
-        self: _body_metta__atoms_designation._SpaceT,
+        self: _parameter_metta__atoms_designation__SpaceT,
         atom: _body_typing.Any,
-    ) -> _body_metta__atoms_designation._SpaceT:
+    ) -> _parameter_metta__atoms_designation__SpaceT:
         """add()'s operator spelling for one atom or one fact stream.
 
         ``m += (S.Edge, a, b)`` adds one fact. ``m += [(S.Edge, a, b),
@@ -1359,16 +1367,16 @@ class Space(SpaceHandle):
         return _body_metta__spaces_store.__iadd__(self, atom)
 
     def __isub__(  # type: ignore[override]
-        self: _body_metta__atoms_designation._SpaceT,
+        self: _parameter_metta__atoms_designation__SpaceT,
         atom: _body_typing.Any,
-    ) -> _body_metta__atoms_designation._SpaceT:
+    ) -> _parameter_metta__atoms_designation__SpaceT:
         """Read Space.__isub__."""
         return _body_metta__spaces_store.__isub__(self, atom)
 
     def __ior__(  # type: ignore[override]
-        self: _body_metta__atoms_designation._SpaceT,
+        self: _parameter_metta__atoms_designation__SpaceT,
         other: _body_typing.Any,
-    ) -> _body_metta__atoms_designation._SpaceT:
+    ) -> _parameter_metta__atoms_designation__SpaceT:
         """Merge into this space in one bulk crossing: every atom of
         another space, of a registered space name, or of an iterable.
 
@@ -1844,30 +1852,30 @@ class Space(SpaceHandle):
     @_body_typing.dataclass_transform(eq_default=False)
     def define(  # type: ignore[overload-overlap]
         self: _body_metta.Space,
-        fn: _body_builtins.type[_body_metta__atoms_designation._T],
+        fn: _builtins.type[_PARAMETER_METTA__ATOMS_DESIGNATION__T],
         /,
         *,
         accessors: _builtins.bool=...,
         methods: _builtins.bool=...,
-    ) -> _body_builtins.type[_body_metta__atoms_designation._T]:
+    ) -> _builtins.type[_PARAMETER_METTA__ATOMS_DESIGNATION__T]:
         ...
     @_overload
     def define(
         self: _body_metta.Space,
-        fn: _body_collections_abc.Callable[_body_metta__atoms_designation._P, _body_metta__atoms_designation._R],
+        fn: _body_collections_abc.Callable[_PARAMETER_METTA__ATOMS_DESIGNATION__P, _PARAMETER_METTA__ATOMS_DESIGNATION__R],
         /,
         *,
         name: _builtins.str | None=...,
         accessors: _builtins.bool=...,
         methods: _builtins.bool=...,
-    ) -> _body_metta.Defined[_body_metta__atoms_designation._P, _body_metta__atoms_designation._R]:
+    ) -> _body_metta.Defined[_PARAMETER_METTA__ATOMS_DESIGNATION__P, _PARAMETER_METTA__ATOMS_DESIGNATION__R]:
         ...
     @_overload
     def define(
         self: _body_metta.Space,
         *,
         name: _builtins.str,
-    ) -> _body_collections_abc.Callable[[_body_collections_abc.Callable[_body_metta__atoms_designation._P, _body_metta__atoms_designation._R]], _body_metta.Defined[_body_metta__atoms_designation._P, _body_metta__atoms_designation._R]]:
+    ) -> _body_collections_abc.Callable[[_body_collections_abc.Callable[_PARAMETER_METTA__ATOMS_DESIGNATION__P, _PARAMETER_METTA__ATOMS_DESIGNATION__R]], _body_metta.Defined[_PARAMETER_METTA__ATOMS_DESIGNATION__P, _PARAMETER_METTA__ATOMS_DESIGNATION__R]]:
         ...
     @_overload
     def define(
@@ -1875,7 +1883,7 @@ class Space(SpaceHandle):
         *,
         prolog: _builtins.str | _body_os.PathLike[_builtins.str],
         name: _builtins.str | None=None,
-    ) -> _body_collections_abc.Callable[[_body_collections_abc.Callable[_body_metta__atoms_designation._P, _body_metta__atoms_designation._R]], _body_metta__declare_define.PrologBacked[_body_metta__atoms_designation._P, _body_metta__atoms_designation._R]]:
+    ) -> _body_collections_abc.Callable[[_body_collections_abc.Callable[_PARAMETER_METTA__ATOMS_DESIGNATION__P, _PARAMETER_METTA__ATOMS_DESIGNATION__R]], _body_metta__declare_define.PrologBacked[_PARAMETER_METTA__ATOMS_DESIGNATION__P, _PARAMETER_METTA__ATOMS_DESIGNATION__R]]:
         ...
     def define(
         self: _body_metta.Space,
@@ -2070,7 +2078,7 @@ class Space(SpaceHandle):
     @_overload
     def op(
         self: _body_metta.Space,
-        fn: _body_collections_abc.Callable[_body_metta__atoms_designation._P, _body_metta__atoms_designation._R],
+        fn: _body_collections_abc.Callable[_PARAMETER_METTA__ATOMS_DESIGNATION__P, _PARAMETER_METTA__ATOMS_DESIGNATION__R],
         /,
         *,
         name: _builtins.str | None=...,
@@ -2079,7 +2087,7 @@ class Space(SpaceHandle):
         declarations: _body_collections_abc.Iterable[_body_metta__atoms_factories.Atom]=...,
         arities: _builtins.list[_builtins.int] | None=...,
         inverse: _body_collections_abc.Callable | None=...,
-    ) -> _body_collections_abc.Callable[_body_metta__atoms_designation._P, _body_metta__atoms_designation._R]:
+    ) -> _body_collections_abc.Callable[_PARAMETER_METTA__ATOMS_DESIGNATION__P, _PARAMETER_METTA__ATOMS_DESIGNATION__R]:
         ...
     @_overload
     def op(
@@ -2091,7 +2099,7 @@ class Space(SpaceHandle):
         declarations: _body_collections_abc.Iterable[_body_metta__atoms_factories.Atom]=...,
         arities: _builtins.list[_builtins.int] | None=...,
         inverse: _body_collections_abc.Callable | None=...,
-    ) -> _body_collections_abc.Callable[[_body_collections_abc.Callable[_body_metta__atoms_designation._P, _body_metta__atoms_designation._R]], _body_collections_abc.Callable[_body_metta__atoms_designation._P, _body_metta__atoms_designation._R]]:
+    ) -> _body_collections_abc.Callable[[_body_collections_abc.Callable[_PARAMETER_METTA__ATOMS_DESIGNATION__P, _PARAMETER_METTA__ATOMS_DESIGNATION__R]], _body_collections_abc.Callable[_PARAMETER_METTA__ATOMS_DESIGNATION__P, _PARAMETER_METTA__ATOMS_DESIGNATION__R]]:
         ...
     def op(
         self: _body_metta.Space,

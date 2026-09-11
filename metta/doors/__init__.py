@@ -124,7 +124,9 @@ _ANSWER_FORMS: Mapping[EvaluationAnswer, AnswerForm] = MappingProxyType({
     EvaluationAnswer.none: AnswerForm.aggregate,
     EvaluationAnswer.stream: AnswerForm.stream,
 })
-assert set(_ANSWER_FORMS) == set(EvaluationAnswer)
+if set(_ANSWER_FORMS) != set(EvaluationAnswer):
+    msg = "every evaluation answer must declare its form"
+    raise ValueError(msg)
 
 
 class Tier(StrEnum):
@@ -179,7 +181,9 @@ _OWNER_FAMILIES: Mapping[Owner, Family] = MappingProxyType({
     Owner.remote_cursor: Family.remote,
     Owner.namespace: Family.namespace,
 })
-assert set(_OWNER_FAMILIES) == set(Owner)
+if set(_OWNER_FAMILIES) != set(Owner):
+    msg = "every door owner must declare its family"
+    raise ValueError(msg)
 
 
 class Receiver(StrEnum):
@@ -228,14 +232,11 @@ class Signature:
         generics = f"[{self.type_parameters}]" if self.type_parameters else ""
         answer = f" -> {self.returns}" if self.returns else ""
         tree = ast.parse(f"def door{generics}({self.parameters}){answer}: ...")
-        node = tree.body[0]
-        if (len(tree.body) != 1 or not isinstance(node, ast.FunctionDef)
-                or len(node.body) != 1 or not isinstance(node.body[0], ast.Expr)
-                or not isinstance(node.body[0].value, ast.Constant)
-                or node.body[0].value.value is not Ellipsis):
-            msg = "a door signature must declare one function"
-            raise TypeError(msg)
-        return node
+        match tree.body:
+            case [ast.FunctionDef(body=[ast.Expr(value=ast.Constant(value=value))]) as node] if value is Ellipsis:
+                return node
+        msg = "a door signature must declare one function"
+        raise TypeError(msg)
 
     def arguments(self, module: str) -> tuple[Argument, ...]:
         """Named parameters, including positional and keyword boundaries."""
@@ -537,11 +538,11 @@ def door[F: Callable[..., Any]](kind: Kind, **metadata: Any) -> Callable[[F], F]
     if unknown:
         msg = f"door metadata contains derived or unknown fields: {sorted(unknown)}"
         raise TypeError(msg)
-    contract = MappingProxyType({"kind": kind, **metadata})
+    contract = MappingProxyType({"kind": kind} | metadata)
 
     def decorate(function: F) -> F:
         if hasattr(function, "__metta_door__"):
-            msg = f"{function.__qualname__} already has a door mark"
+            msg = f"{getattr(function, '__qualname__', type(function).__qualname__)} already has a door mark"
             raise ValueError(msg)
         setattr(function, "__metta_door__", contract)  # noqa: B010 -- the generic callable type carries no metadata attributes
         return function
@@ -597,6 +598,9 @@ def declarations(module: str) -> tuple[Door, ...]:
 @cache
 def _record_fields(record_type: type) -> tuple[tuple[str, Any], ...]:
     """Read the declared grammar once, including postponed nested types."""
+    if not is_dataclass(record_type):
+        msg = f"door record {record_type!r} is not a dataclass"
+        raise TypeError(msg)
     hints = get_type_hints(record_type)
     return tuple((field.name, hints[field.name]) for field in fields(record_type))
 
@@ -680,7 +684,7 @@ def validate(rows: Iterable[Door]) -> tuple[Door, ...]:
         if not row.tiers or len(set(row.tiers)) != len(row.tiers):
             msg = f"door {row.key!r} needs distinct projection tiers"
             raise ValueError(msg)
-        if row.body is None and row.sugar_of is None:
+        if row.body is row.sugar_of is None:
             msg = f"door {row.key!r} has neither an implementation nor a sugar base"
             raise ValueError(msg)
         for signature in row.signatures:
@@ -768,7 +772,7 @@ def _snapshot(*, discover: bool = True) -> _Snapshot:
     from metta import seam  # noqa: PLC0415  -- the registry imports the row grammar lazily
 
     held = seam.door.rows() if discover else seam._rows_of(seam.door, discover_first=False)
-    global _CACHE_ROWS, _CACHE  # noqa: PLW0603 -- replace one process-wide registry snapshot under _CACHE_LOCK
+    global _CACHE_ROWS, _CACHE  # noqa: PLW0603  # pylint: disable=global-statement # replace one process-wide registry snapshot under _CACHE_LOCK
     with _CACHE_LOCK:
         if held != _CACHE_ROWS or _CACHE is None:
             rows = validate((*core_rows(), *(door for row in held for door in row.doors)))
@@ -863,7 +867,7 @@ def _invoke(row: Door, receiver: Any, args: tuple[Any, ...], kwargs: dict[str, A
             raise TypeError(msg)
         base = table()[row.sugar_of.base]
         row.signature.host_signature("metta", receiver=True).bind(*args, **kwargs)
-        return _invoke(base, receiver, args, {**kwargs, **dict(row.sugar_of.fixed)})
+        return _invoke(base, receiver, args, kwargs | dict(row.sugar_of.fixed))
     function = row.body.resolve()
     _check_body(function, row)
     if row.body.receiver is Receiver.none:
@@ -877,7 +881,7 @@ def _invoke(row: Door, receiver: Any, args: tuple[Any, ...], kwargs: dict[str, A
 
 def _check_body(function: Any, row: Door) -> None:
     """Check an installed provider's call shape before its first invocation."""
-    assert row.body is not None
+    assert row.body is not None  # nosec B101 # registration already validated this internal invariant
     try:
         with _CACHE_LOCK:
             if row.signature in _CHECKED_BODIES.get(function, ()):

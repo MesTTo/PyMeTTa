@@ -334,7 +334,7 @@ def namespace_types(rows: Iterable[Door]) -> str:
         # Optional packages can be absent in a core-only typing environment.
         # The specific import guard preserves their types when installed:
         # https://github.com/python/mypy/blob/v2.3.0/docs/source/error_code_list2.rst#check-that-type-ignore-comment-is-used-unused-ignore
-        guard = '' if local else '  # type: ignore[import-not-found, unused-ignore]'
+        guard = '' if local else '  # type: ignore[import-not-found, unused-ignore]  # ty: ignore[unresolved-import] -- optional provider declarations remain typed when installed'
         imports = [f'    import {name} as {alias}{guard}' for name, alias in modules.items()
                     if name.startswith('metta.') is local]
         if imports:
@@ -365,7 +365,8 @@ def namespace_types(rows: Iterable[Door]) -> str:
                 for public in (row.python, '__call__') if row.provider.callable else (row.python,):
                     out.extend(signature_lines(projected, public))
                     out.extend(_doc_lines(row.docs, '        '))
-                    out.append('        ...')
+                    if not row.docs:
+                        out.append('        ...')
                     out.append('')
     for row in result_rows:
         for signature in row.signatures:
@@ -377,9 +378,12 @@ def namespace_types(rows: Iterable[Door]) -> str:
             args.defaults = [ast.Constant(Ellipsis) for _ in args.defaults]
             args.kw_defaults = [None if value is None else ast.Constant(Ellipsis) for value in args.kw_defaults]
             projected = replace(signature, parameters=ast.unparse(args), returns=ast.unparse(qualifier.visit(node.returns)) if node.returns else None)
-            out.extend(['', *signature_lines(projected, '_' + row.owner.value + '_' + row.python, '')])
+            declaration = signature_lines(projected, '_' + row.owner.value + '_' + row.python, '')
+            declaration[0] += '  # pylint: disable=unused-argument # signature-only extension declaration'
+            out.extend(['', *declaration])
             out.extend(_doc_lines(row.docs, '    '))
-            out.append('    ...')
+            if not row.docs:
+                out.append('    ...')
     # The emitter reads this tool's source helpers.
     from doorfaces import clean_imports  # noqa: PLC0415
 
@@ -577,7 +581,7 @@ def evaluation_projections(rows: tuple[Door, ...]) -> dict[Path, str]:
                    f'                   "none" if name in {bounds!r} and isinstance(value, (int, float)) and value < 0 else value)',
                    '            for name, value in options.items()',
                    '        }',
-                   '        return self._replace(**native)'])
+                   '        return self._replace(**native)  # pylint: disable=no-member # NamedTuple supplies _replace; the binding interface tests execute it'])
     python.extend(['', '', '# closed-set: generated; by=extensions/python/tools/doorgen.py; lane=door-sync',
                    'EVALUATIONS = {'])
     evaluations = tuple(row for row in rows if row.binding is not None and row.binding.evaluation is not None)

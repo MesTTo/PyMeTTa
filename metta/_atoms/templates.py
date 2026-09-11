@@ -87,8 +87,9 @@ Open Obligations:
 
 from __future__ import annotations
 
+import collections.abc as _collections_abc
 import string as _string
-from typing import TYPE_CHECKING, Any, NamedTuple
+from typing import TYPE_CHECKING, Any, ClassVar, NamedTuple
 
 from metta._atoms.model import Atom, Grounded, Symbol, decode, encode
 from metta._errors.errors import Remedy, refusing
@@ -339,7 +340,7 @@ class _Holes:
     #: Which half of ``_SPECS`` this sink's holes may spell. Declared without a
     #: value, so a sink that forgot to choose is an error rather than a silent
     #: direction.
-    DIRECTION: str
+    DIRECTION: ClassVar[str]  # pylint: disable=declare-non-slot # subclasses supply a class constant, never an instance slot
 
     def __init__(self, called: str, reserved: tuple[str, ...] = ()) -> None:
         self.called = called
@@ -1142,6 +1143,5 @@ def apply(atom: Atom, holes: _collections_abc.Mapping[str, Atom]) -> Atom:
     )
 
 # Resolve annotations after definitions so peer imports can finish.
-import collections.abc as _collections_abc  # noqa: E402 -- deferred annotation bindings
 
 import metta._atoms.designation as _atoms_designation  # noqa: E402 -- deferred annotation bindings

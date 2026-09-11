@@ -961,8 +961,6 @@ def saga(space: _space_face.Space, receipts: _space_face.Space):
     failed compensation remains queryable and is retried by
     ``rollback()``.
     """
-    from metta._history.saga import Saga  # noqa: PLC0415 -- avoids the Space type cycle
-
     if not isinstance(receipts, _space_face.Space):
         msg = f"saga receipts must be a Space, got {type(receipts).__name__}"
         raise TypeError(msg)

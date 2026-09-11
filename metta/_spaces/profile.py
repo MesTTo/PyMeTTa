@@ -324,8 +324,6 @@ class EngineProfile:
         a flat profile. Both are absences the format has, not measurements
         this drops.
         """
-        import pstats  # noqa: PLC0415  -- an export path, not an import-time cost
-
         stats: dict[tuple[str, int, str], tuple[int, int, float, float, dict]] = {
             (str(row.file) or "~", int(row.line), str(row.predicate)): (
                 int(row.calls),

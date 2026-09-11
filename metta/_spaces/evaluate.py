@@ -118,13 +118,13 @@ class _Selection:
         self._limit = limit
         self._count = 0
         self._prepared = False
-        self._pending: Iterator[_spaces_results._AnswerItem] | None = None
+        self._pending: Iterator[_spaces_results_module._AnswerItem] | None = None
         self._closed = False
 
     def __iter__(self) -> _Selection:
         return self
 
-    def _next_item(self) -> _spaces_results._AnswerItem:
+    def _next_item(self) -> _spaces_results_module._AnswerItem:
         if self._iterator is None:
             raise StopIteration
         while True:
@@ -139,7 +139,7 @@ class _Selection:
                     continue
             return _spaces_results_module._AnswerItem(_value(item.value, self._delivery, self._image, self._space), item.row)
 
-    def __next__(self) -> _spaces_results._AnswerItem:
+    def __next__(self) -> _spaces_results_module._AnswerItem:
         if self._closed:
             raise StopIteration
         try:
@@ -171,8 +171,7 @@ class _Selection:
                 msg = "evaluation and cursor cleanup failed"
                 raise BaseExceptionGroup(msg, [error, cleanup]) from None
             raise
-        else:
-            return item
+        return item
 
     def close(self) -> None:
         """Release the underlying cursor; a failed release remains retryable."""
@@ -271,7 +270,7 @@ def evaluate(
                 return _spaces_execution_module.value_one(target, [_image(value, image_mode, space) for value in values])
             return _value(_scalar_atom(values, shape), delivered, image_mode, space)
         if (shape is EvaluationAnswer.count and limit is None and errors is OnError.keep
-                and promise is Determinism.nondet and theory is None and interpreter is None
+                and promise is Determinism.nondet and theory is interpreter is None
                 and _spaces_scope_module.selected(under) is None):
             return _spaces_execution_module.evaluate_count(space._rt, space._space, target, timeout, inferences)
         raw = space.answers(target, **options)
@@ -858,7 +857,7 @@ def _answers_with_theory(
     """Defer an isolated theory ask and own its scratch-space lifetime."""
     columns = () if isinstance(target, str) else tuple(_spaces_cursor_module._column_names((_to_atom(target),)))
 
-    def source() -> Iterator[_spaces_results._AnswerItem]:
+    def source() -> Iterator[_spaces_results_module._AnswerItem]:
         scratch = space._new_space()
         inner: _root.Answers[Any] | None = None
         try:
@@ -1216,4 +1215,3 @@ if TYPE_CHECKING:
     import metta as _root
 else:
     _root = lazy('metta')
-import metta._spaces.results as _spaces_results  # noqa: E402 -- deferred annotation bindings

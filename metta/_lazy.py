@@ -18,15 +18,21 @@ commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
 
 from __future__ import annotations
 
+import collections.abc as _collections_abc
 import os
 import sys
 from importlib import import_module
 
 # Typeshed omits the CPython publication helper and lazy-module class.
-from importlib._bootstrap import _lock_unlock_module  # type: ignore[attr-defined]
+from importlib._bootstrap import (  # type: ignore[attr-defined] # CPython 3.12+ publication helper
+    _lock_unlock_module,  # ty: ignore[unresolved-import] -- CPython 3.12+ publication lock, guarded below
+)
 from importlib.abc import Loader
 from importlib.machinery import SourceFileLoader, SourcelessFileLoader
-from importlib.util import LazyLoader, _LazyModule  # type: ignore[attr-defined]
+from importlib.util import (  # type: ignore[attr-defined] # CPython 3.12+ lazy-module class
+    LazyLoader,
+    _LazyModule,  # ty: ignore[unresolved-import] -- CPython 3.12+ cached lazy-module identity, guarded below
+)
 from pkgutil import iter_modules
 from threading import local
 from types import ModuleType
@@ -34,6 +40,10 @@ from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from importlib.machinery import ModuleSpec
+
+if sys.implementation.name != "cpython" or sys.version_info < (3, 12):
+    msg = "deferred module publication requires CPython 3.12 or later"
+    raise ImportError(msg)
 
 
 class _FailedModule(ModuleType):
@@ -153,6 +163,37 @@ def lazy(name: str) -> ModuleType:
         _finder.requests.names = previous
 
 
+def _declared_exports(module: ModuleType) -> dict[str, tuple[str, str]]:
+    """Read explicit re-exports from one package's TYPE_CHECKING declaration."""
+    import ast  # noqa: PLC0415 -- only packages without generated exports parse declarations
+    from importlib.util import resolve_name  # noqa: PLC0415 -- the declaration reader
+    from pathlib import Path  # noqa: PLC0415 -- the declaration reader
+
+    filename = vars(module).get('__file__')
+    if not filename or Path(filename).name != '__init__.py':
+        return {}
+    name = module.__name__
+    tree = ast.parse(Path(filename).read_text(encoding='utf-8'))
+    declarations = (
+        declaration
+        for block in tree.body
+        if isinstance(block, ast.If) and isinstance(block.test, ast.Name)
+        and block.test.id == 'TYPE_CHECKING'
+        for declaration in block.body if isinstance(declaration, ast.ImportFrom)
+    )
+    exports = {}
+    for declaration in declarations:
+        source = '.' * declaration.level + (declaration.module or '')
+        source = resolve_name(source, name) if declaration.level else source
+        # SPEC 1 distinguishes a relative child module from an attribute:
+        # https://github.com/scientific-python/lazy-loader/blob/4596986a8d276d19e2ad8713ec4fb8329d743a08/lazy_loader/__init__.py#L286-L308
+        child = declaration.module is None and declaration.level == 1
+        for alias in declaration.names:
+            if alias.asname == alias.name:
+                exports[alias.name] = (f"{source}.{alias.name}", "") if child else (source, alias.name)
+    return exports
+
+
 def package(name: str) -> tuple[_collections_abc.Callable[[str], Any], _collections_abc.Callable[[], list[str]]]:
     """Build PEP 562 handlers from the directory and generated named exports.
 
@@ -163,31 +204,7 @@ def package(name: str) -> tuple[_collections_abc.Callable[[str], Any], _collecti
     module = sys.modules[name]
     roster = {item.name for item in iter_modules(vars(module).get('__path__', ())) if not item.name.startswith("_")}
     if '__lazy_exports__' not in vars(module):
-        # Explicit re-exports under TYPE_CHECKING are a package declaration,
-        # like SPEC 1's stub imports; annotations alone export nothing.
-        import ast  # noqa: PLC0415 -- only packages without generated exports parse declarations
-        from importlib.util import resolve_name  # noqa: PLC0415 -- the declaration reader
-        from pathlib import Path  # noqa: PLC0415 -- the declaration reader
-
-        exports = {}
-        filename = vars(module).get('__file__')
-        if filename and Path(filename).name == '__init__.py':
-            tree = ast.parse(Path(filename).read_text(encoding='utf-8'))
-            for block in tree.body:
-                if not isinstance(block, ast.If) or not isinstance(block.test, ast.Name) or block.test.id != 'TYPE_CHECKING':
-                    continue
-                for declaration in block.body:
-                    if isinstance(declaration, ast.ImportFrom):
-                        source = '.' * declaration.level + (declaration.module or '')
-                        source = resolve_name(source, name) if declaration.level else source
-                        for alias in declaration.names:
-                            if alias.asname == alias.name:
-                                # SPEC 1 distinguishes a relative child module
-                                # from an attribute re-export in the same way:
-                                # https://github.com/scientific-python/lazy-loader/blob/4596986a8d276d19e2ad8713ec4fb8329d743a08/lazy_loader/__init__.py#L286-L308
-                                child = declaration.module is None and declaration.level == 1
-                                exports[alias.name] = (f"{source}.{alias.name}", "") if child else (source, alias.name)
-        vars(module)['__lazy_exports__'] = exports
+        vars(module)['__lazy_exports__'] = _declared_exports(module)
 
     def getattribute(attribute: str) -> Any:
         exports = vars(module).get("__lazy_exports__", {})
@@ -234,6 +251,3 @@ def optional(name: str, extra: str) -> ModuleType:
     if module is None:
         raise ImportError(extra)
     return module
-
-# Resolve annotations after definitions so peer imports can finish.
-import collections.abc as _collections_abc  # noqa: E402 -- deferred annotation bindings

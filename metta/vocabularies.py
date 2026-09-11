@@ -458,8 +458,8 @@ class ProviderCapability(_OpenStrEnum):
     plan = "plan"
     rules = "rules"
     tokens = "tokens"
-    add_token = "add-token"  # noqa: S105 -- this is a public catalog symbol
-    remove_token = "remove-token"  # noqa: S105 -- this is a public catalog symbol
+    add_token = "add-token"  # noqa: S105  # nosec B105 # public catalog symbol
+    remove_token = "remove-token"  # noqa: S105  # nosec B105 # public catalog symbol
 
 #: (vocabulary refinement Gt Ge Lt Le Interval MultipleOf MinLen MaxLen Len Predicate Unit)
 class Refinement(_AtomStrEnum):

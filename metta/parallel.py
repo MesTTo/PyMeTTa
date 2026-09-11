@@ -159,7 +159,7 @@ from concurrent.futures import Executor, Future, ProcessPoolExecutor, as_complet
 from contextlib import suppress
 from itertools import batched
 from types import FunctionType, MethodType, TracebackType
-from typing import TYPE_CHECKING, Any, Self, override
+from typing import TYPE_CHECKING, Any, Self, cast, override
 
 import metta._spaces.lifetime as _scope
 from metta._atoms.factories import (
@@ -365,8 +365,12 @@ class _FanOut(Executor):
         results: list[R] = []
         failures: list[BaseException] = []
         tasks = 0
+        # Bind the chunk's return parameter before Executor.submit infers its
+        # ParamSpec; ty otherwise keeps the helper's unrelated R in Future.
+        # https://github.com/astral-sh/ty/issues/3691
+        run_chunk = cast("Callable[[Callable[..., R], Sequence[tuple[Any, ...]]], list[R]]", _apply_chunk)
         for chunk in batched(rows, chunksize):
-            pending.append(self.submit(_apply_chunk, fn, chunk))
+            pending.append(self.submit(run_chunk, fn, chunk))
             tasks += 1
             if buffersize is not None and len(pending) >= buffersize:
                 self._take(pending, results, failures, deadline, timeout)
@@ -603,7 +607,7 @@ class EnginePool(_FanOut):
     def __enter__(self) -> Self:  # noqa: D105  -- the Python data-model hook is defined by its name and enclosing type contract
         return self
 
-    def __exit__(self, *_exc_info: object) -> None:  # noqa: D105  -- the Python data-model hook is defined by its name and enclosing type contract
+    def __exit__(self, exc_type: type[BaseException] | None, exc_val: BaseException | None, exc_tb: TracebackType | None) -> None:  # noqa: D105 -- Executor's context-manager signature
         self.shutdown(wait=True)
 
     def __len__(self) -> int:  # noqa: D105  -- the Python data-model hook is defined by its name and enclosing type contract
@@ -828,7 +832,7 @@ def _boot_worker(boot: str | None, reports: Any) -> None:
     It reports its own boot seconds rather than leaving the cost a claim:
     the pool publishes them as `boot_seconds`.
     """
-    global _WORKER_BOOT_FAILURE  # noqa: PLW0603  -- one per worker process, written once before that worker takes work
+    global _WORKER_BOOT_FAILURE  # noqa: PLW0603  # pylint: disable=global-statement # one per worker process, written before it takes work
     started = time.perf_counter()
     try:
         _boot_engine(boot)
@@ -1484,7 +1488,7 @@ class Channel(Space):
     def __enter__(self) -> Self:  # noqa: D105  -- the Python data-model hook is defined by its name and enclosing type contract
         return self
 
-    def __exit__(self, *_exc_info: object) -> None:  # noqa: D105  -- the Python data-model hook is defined by its name and enclosing type contract
+    def __exit__(self, exc_type: type[BaseException] | None, exc: BaseException | None, tb: TracebackType | None) -> None:  # noqa: D105 -- SpaceHandle's context-manager signature
         self.close()
 
 

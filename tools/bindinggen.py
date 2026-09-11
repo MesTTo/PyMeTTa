@@ -30,6 +30,13 @@ SEAT = ROOT / "extensions/python"
 sys.path.insert(0, str(SEAT))
 
 from metta._binding import interface  # noqa: E402 -- inspect the checkout interface
+from metta._binding.interface import (  # noqa: E402 -- declarations consumed by this generator
+    C_SIGNATURES,
+    LOAD_ENTRIES,
+    NATIVE_FORWARDS,
+    PYTHON_SERVICES,
+    QUERY_INDEX_CROSSOVER,
+)
 
 BEGIN = "# begin generated binding callbacks"
 END = "# end generated binding callbacks"
@@ -107,7 +114,7 @@ def python_targets() -> dict[str, tuple[str, str]]:
     """Name every permitted static crossing and its defining implementation."""
     result = {f"metta_ops:{name}": target for name, target in interface.callbacks().items()}
     result.update({f"{module}:{name}": (module, name)
-                   for module, names in interface.PYTHON_SERVICES.items() for name in names})
+                   for module, names in PYTHON_SERVICES.items() for name in names})
     return result
 
 
@@ -152,8 +159,8 @@ def accepts(root: Path, target: tuple[str, str], count: int) -> bool:
         return minimum <= count and (maximum is None or count <= maximum) and all(
             default is not None for default in args.kw_defaults)
     qualified = f"{module}:{name}"
-    if qualified in interface.C_SIGNATURES:
-        return count in interface.C_SIGNATURES[qualified]
+    if qualified in C_SIGNATURES:
+        return count in C_SIGNATURES[qualified]
     value = importlib.import_module(module)
     for part in name.split("."):
         value = getattr(value, part)
@@ -206,7 +213,7 @@ def call_shape(spec: Any, bindings: dict[int, Any]) -> tuple[str | None, str | N
     else:
         return module, None, None
     # Janus accepts importlib:util:f(...) as well as 'importlib.util':f(...).
-    while module and parts and f"{module}.{parts[0]}" in interface.PYTHON_SERVICES:
+    while module and parts and f"{module}.{parts[0]}" in PYTHON_SERVICES:
         module += "." + parts.pop(0)
     return module, ".".join(parts), count
 
@@ -316,7 +323,7 @@ def projections(root: Path, model: dict[Path, list[dict]]) -> dict[Path, str]:
     """Compile native imports and audience-specific seam clause projections."""
     engine_kinds = kinds(model, root)
     native = []
-    for alias, target in sorted(interface.NATIVE_FORWARDS.items()):
+    for alias, target in sorted(NATIVE_FORWARDS.items()):
         if engine_kinds.get(target) not in ("service", "host_service"):
             message = f"native forward {alias}: {target} is not an engine service"
             raise ValueError(message)
@@ -399,7 +406,7 @@ system:term_expansion(binding_forward(Indicator), Clause) :-
         outputs[root / BINDING / f"provides_{audience}_{module}.pl"] = GENERATED + "\n\n".join(clauses) + "\n"
     macros = scoped_goal_expansions('metta_python_source_macros', 'binding_source_expansion', (
         ('metta_py_wide_projection(Names)',
-         'Names = [' + ', '.join('_' for _ in range(interface.QUERY_INDEX_CROSSOVER)) + '|_]', ''),
+         'Names = [' + ', '.join('_' for _ in range(QUERY_INDEX_CROSSOVER)) + '|_]', ''),
         ('metta_py_provided_clause(Name, Clause)', 'Clause = Template',
          '    ( atom(Name), provided_template(Name, Template) -> true\n'
          '    ; domain_error(binding_provided_clause, Name) )'),
@@ -439,7 +446,7 @@ def findings(root: Path = ROOT) -> list[str]:
 def native_forward_findings(root: Path, model: dict[Path, list[dict]], generated: set[Path]) -> list[str]:
     """Require one declaration per import, retaining overloads and policy clauses."""
     declared = {f"{alias}/{target.rsplit('/', 1)[1]}": target.split('/')[0]
-                for alias, target in interface.NATIVE_FORWARDS.items()}
+                for alias, target in NATIVE_FORWARDS.items()}
     counts: Counter[str] = Counter()
     problems = []
     for path, records in model.items():
@@ -487,7 +494,7 @@ def load_findings(root: Path, model: dict[Path, list[dict]], generated: set[Path
                     and isinstance(directive[1], str)):
                 visit((path.parent / directive[1]).resolve(), audience, module, seen | {(path, module)})
 
-    for audience, name in interface.LOAD_ENTRIES.items():
+    for audience, name in LOAD_ENTRIES.items():
         visit(root / BINDING / name, audience, "user", frozenset())
     problems = []
     for path in sorted(generated):

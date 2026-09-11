@@ -408,7 +408,7 @@ def limits(
     tiers=(_doors.Tier.sync, _doors.Tier.async_),
     evidence=('extensions/python/tests/ch14_seeing_your_program/test_features.py::test_capture_composes_with_limits', 'extensions/python/tests/ch14_seeing_your_program/test_features.py::test_eval_capture', 'extensions/python/tests/ch14_seeing_your_program/test_features.py::test_lazy_capture_collects_held_engine_output'),
 )
-def capture(_space: _root.Space) -> _spaces_execution.CapturedOutput:
+def capture(_space: _root.Space) -> _spaces_execution_module.CapturedOutput:
     r"""Collect printed engine text without changing answer shapes.
 
     with m.capture() as output:
@@ -445,7 +445,7 @@ def scope(space: _root.Space) -> _root.parallel.Scope:
     tiers=(_doors.Tier.sync, _doors.Tier.async_),
     evidence=('extensions/python/tests/ch14_seeing_your_program/test_features.py::test_an_atomic_scope_makes_one_python_write_one_transaction', 'extensions/python/tests/ch14_seeing_your_program/test_features.py::test_atomic_run_commits_or_rolls_back_whole', 'extensions/python/tests/ch14_seeing_your_program/test_features.py::test_lazy_atomic_rolls_back_after_a_late_cursor_failure'),
 )
-def atomic(_space: _root.Space) -> _spaces_execution.ScopedExecution:
+def atomic(_space: _root.Space) -> _spaces_execution_module.ScopedExecution:
     """Make each CALL in the block one committing engine transaction.
 
     Per call, the write doors included: ``m.add(a, b)`` inside the block
@@ -467,7 +467,7 @@ def atomic(_space: _root.Space) -> _spaces_execution.ScopedExecution:
     evidence=('extensions/python/tests/ch08_data/test_state_cell.py::test_speculative_state_write_is_fenced', 'extensions/python/tests/ch14_seeing_your_program/test_features.py::test_every_public_execution_door_honours_speculative_policy', 'extensions/python/tests/ch14_seeing_your_program/test_features.py::test_speculative_lazy_execution_preserves_every_answer'),
     alias='speculate',
 )
-def speculative(_space: _root.Space) -> _spaces_execution.ScopedExecution:
+def speculative(_space: _root.Space) -> _spaces_execution_module.ScopedExecution:
     """Run each CALL against a snapshot and discard its writes.
 
     Per call, the write doors included: ``m.add(atom)`` inside the block
@@ -545,4 +545,3 @@ if TYPE_CHECKING:
     import metta as _root
 else:
     _root = lazy('metta')
-import metta._spaces.execution as _spaces_execution  # noqa: E402 -- deferred annotation bindings

@@ -396,7 +396,7 @@ def member_name(value: str) -> str:
 def member_suffix(member: str) -> str:
     """The narrow lint/type exemption forced by one authored wire spelling."""
     if member.endswith("_token"):
-        return "  # noqa: S105 -- this is a public catalog symbol"
+        return "  # noqa: S105  # nosec B105 # public catalog symbol"
     if member[:1].islower() and any(character.isupper() for character in member[1:]):
         return "  # noqa: N815  -- the member keeps the catalog's public wire spelling"
     if hasattr(str, member):

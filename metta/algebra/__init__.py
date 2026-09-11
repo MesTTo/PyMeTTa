@@ -1050,7 +1050,7 @@ def require(metta: Space, name: str) -> DeclaredAlgebra:
 def _context_capabilities(metta: Space, algebra: str) -> frozenset[str]:
     context = Symbol(str(metta.name))
     for atom in Space("&metta", _runtime=metta.runtime).atoms():
-        # policy-inventory-exempt: mechanism-internal; reason=three and four are the only lengths the annotations catalog row is written with, the fourth child being the optional (capabilities ...) field; evidence=extensions/python/metta/_spaces/handle.py:annotations
+        # policy-inventory-exempt: mechanism-internal; reason=three and four are the only lengths the annotations catalog row is written with, the fourth child being the optional (capabilities ...) field; evidence=extensions/python/metta/_declare/declarations.py:annotations
         if not isinstance(atom, Expression) or len(atom.children) not in {3, 4}:
             continue
         if atom.children[:3] != (Symbol("annotations"), context, Symbol(algebra)):

@@ -61,6 +61,7 @@ Open Obligations:
 
 from __future__ import annotations
 
+import collections.abc as _collections_abc
 import re
 from typing import Any, Final
 
@@ -302,6 +303,3 @@ def _declare_kind(catalog: Any) -> None:
     ):
         if declaration not in catalog:
             catalog.add(declaration)
-
-# Resolve annotations after definitions so peer imports can finish.
-import collections.abc as _collections_abc  # noqa: E402 -- deferred annotation bindings

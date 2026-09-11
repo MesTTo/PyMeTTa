@@ -22,7 +22,7 @@ metta_py_swrite(Tagged, String) :-
 metta_py_wire_boolean_symbol([Tag, Name], Bad) :-
     metta_py_wire_tag(Tag, s),
     (   atom(Name) -> Bad = Name ; string(Name), atom_string(Bad, Name) ),
-    % policy-inventory-exempt: codec-version-identity; reason=these four spellings are how the wire encodes a boolean, so a symbol carrying one would print as text that reads back as a boolean rather than as itself; evidence=extensions/python/metta/_binding/shim.pl:metta_py_wire_boolean_symbol/2
+    % policy-inventory-exempt: codec-version-identity; reason=these four spellings are how the wire encodes a boolean, so a symbol carrying one would print as text that reads back as a boolean rather than as itself; evidence=extensions/python/metta/_binding/printer.pl:metta_py_wire_boolean_symbol/2
     memberchk(Bad, [true, false, 'True', 'False']).
 metta_py_wire_boolean_symbol([Tag, Items], Bad) :-
     metta_py_wire_tag(Tag, e),

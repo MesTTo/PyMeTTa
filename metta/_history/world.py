@@ -363,8 +363,6 @@ __all__ = ["ReifiedWorld"]
 )
 def reify(space: _space_face.Space):
     """Capture this space as an immutable, independently evaluable world."""
-    from metta._history.world import reify_space  # noqa: PLC0415 -- avoids the Space type cycle
-
     return reify_space(space)
 
 @_doors.door(
@@ -377,8 +375,6 @@ def reify(space: _space_face.Space):
 )
 def commit(space: _space_face.Space, world: Any) -> None:
     """Apply one reified world's diff through this originating space."""
-    from metta._history.world import commit_world  # noqa: PLC0415 -- avoids the Space type cycle
-
     commit_world(space, world)
 
 @_doors.door(

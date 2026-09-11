@@ -106,7 +106,6 @@ from typing import TYPE_CHECKING, Any, dataclass_transform, overload
 
 import metta._declare.define as _declare_define_module
 import metta._declare.operations as _declare_operations_module
-import metta._declare.operations as _ops_module
 import metta._declare.rules as _declare_rules_module
 import metta.doors as _doors
 from metta._atoms.designation import _P, _R, _T
@@ -316,7 +315,7 @@ def _remember_defined_callable(space: Any, fn: types.FunctionType, name: str) ->
 def _installed_callable_name(space: Any, value: object) -> str | None:
     """Resolve the exact live name carried by a bound definition or operation."""
     if callable(value):
-        operation = _ops_module._registered_operation(value)
+        operation = _declare_operations_module._registered_operation(value)
         if operation is not None and space.is_function(operation.name):
             return operation.name
     if not isinstance(value, types.FunctionType):
@@ -453,7 +452,7 @@ def _locate_clause(
 def _defined_result(
     space: Any,
     name: str,
-    compiled: _declare_define.Compiled,
+    compiled: _declare_define_module.Compiled,
     bodies: tuple[Atom, ...],
     dispatcher: Any,
 ) -> _root.Defined:
@@ -477,7 +476,7 @@ def _store_clause(
     name: str,
     patterns: dict[str, Atom],
     equations: tuple[Expression, ...],
-    compiled: _declare_define.Compiled,
+    compiled: _declare_define_module.Compiled,
     dispatcher: Any,
     clause_twin: Any,
     replaced: int | None,
@@ -541,7 +540,7 @@ def _alpha_multiset_delta(
     return removed, added
 
 def _clause_record(
-    patterns: dict[str, Atom], equations: tuple[Expression, ...], compiled: _declare_define.Compiled
+    patterns: dict[str, Atom], equations: tuple[Expression, ...], compiled: _declare_define_module.Compiled
 ) -> dict[str, Any]:
     return {
         "arity": len(compiled.params),
@@ -711,7 +710,7 @@ def _retain_definition_fact(space: Any, fact: Expression) -> None:
     if count == 0:
         space.runtime.must(
             "metta_py_add(Space, W)",
-            Space=_ops_module._REFLECTION_SPACE,
+            Space=_declare_operations_module._REFLECTION_SPACE,
             W=fact.to_wire(),
         )
     _DEFINE_FACT_REFS[key] = count + 1
@@ -723,7 +722,7 @@ def _release_definition_fact(space: Any, fact: Expression) -> None:
         _DEFINE_FACT_REFS.pop(key, None)
         space.runtime.once(
             "metta_py_remove(Space, W, _)",
-            Space=_ops_module._REFLECTION_SPACE,
+            Space=_declare_operations_module._REFLECTION_SPACE,
             W=fact.to_wire(),
         )
     else:
@@ -794,7 +793,7 @@ def _declare_definition(
                 "clauses for different arities"
             )
             raise CompileError(msg, construct="overload signature")
-    declarations = _ops_module._type_declarations(
+    declarations = _declare_operations_module._type_declarations(
         name,
         list(_inspect.signature(fn).parameters.values()),
         None,
@@ -1267,7 +1266,7 @@ def define(
 @overload
 def define(
     space: _root.Space, *, prolog: str | os.PathLike[str], name: str | None = None
-) -> Callable[[Callable[_P, _R]], _declare_define.PrologBacked[_P, _R]]: ...
+) -> Callable[[Callable[_P, _R]], _declare_define_module.PrologBacked[_P, _R]]: ...
 
 @_doors.door(
     kind=_doors.Kind.provider,
@@ -1378,7 +1377,7 @@ def define(
     tiers=(_doors.Tier.sync, _doors.Tier.async_),
     evidence=('extensions/python/tests/ch11_python_as_a_notation/test_authoring_surface.py::test_a_rules_generator_scopes_its_variables_to_its_parameters', 'extensions/python/tests/ch11_python_as_a_notation/test_r5_unbuilt_doors.py::test_rules_lower_emits_queryable_declaration_and_registers_the_head', 'extensions/python/tests/ch11_python_as_a_notation/test_r5_unbuilt_doors.py::test_rules_lower_refuses_an_empty_rule_set_before_mutating'),
 )
-def rules(space: _root.Space, fn: Callable[..., Any]) -> _declare_rules.Rules:
+def rules(space: _root.Space, fn: Callable[..., Any]) -> _declare_rules_module.Rules:
     """Collect and land a non-exclusive equation bundle in this space."""
     bundle = _declare_rules_module.rules(fn)
     space += bundle
@@ -1516,5 +1515,3 @@ if TYPE_CHECKING:
     import metta as _root
 else:
     _root = lazy('metta')
-import metta._declare.define as _declare_define  # noqa: E402 -- deferred annotation bindings
-import metta._declare.rules as _declare_rules  # noqa: E402 -- deferred annotation bindings

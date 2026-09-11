@@ -652,7 +652,7 @@ def _shutdown_workers() -> None:
         return
     logger.debug("stopping %d AsyncMeTTa worker(s) at exit", len(workers))
     failures: list[Exception] = []
-    shutdown_errors = (
+    shutdown_errors: tuple[type[Exception], ...] = (
         MettaError,
         RuntimeError,
         TimeoutError,
@@ -661,7 +661,7 @@ def _shutdown_workers() -> None:
     for worker in workers:
         try:
             worker.stop()
-        except shutdown_errors as exc:
+        except shutdown_errors as exc:  # pylint: disable=catching-non-exception # the Janus bridge protocol supplies an Exception subclass
             failures.append(exc)
     if failures:
         msg = f"failed to stop {len(failures)} AsyncMeTTa worker(s) at exit"

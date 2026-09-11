@@ -39,7 +39,7 @@ class AsyncSaga:
 
     __slots__ = ("_acquiring", "_am", "_receipts", "_saga")
 
-    def __init__(self, am: _aio__worker.AsyncMeTTaBase, receipts: _aio__worker.AsyncMeTTaBase) -> None:
+    def __init__(self, am: _worker.AsyncMeTTaBase, receipts: _worker.AsyncMeTTaBase) -> None:
         """Bind both spaces to the one worker that owns their engine calls."""
         self._am = am
         self._receipts = receipts
@@ -124,7 +124,7 @@ class AsyncWorld:
 
     __slots__ = ("_am", "_world")
 
-    def __init__(self, am: _aio__worker.AsyncMeTTaBase, world: Any) -> None:
+    def __init__(self, am: _worker.AsyncMeTTaBase, world: Any) -> None:
         """Bind an immutable world value to its originating async owner."""
         self._am = am
         self._world = world
@@ -189,7 +189,7 @@ class _AsyncStats:
     stop on the worker, and the entered block object carries the deltas.
     """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
 
-    def __init__(self, am: _aio__worker.AsyncMeTTaBase) -> None:
+    def __init__(self, am: _worker.AsyncMeTTaBase) -> None:
         self._am = am
         self._block: Any = None
 
@@ -207,12 +207,12 @@ class _AsyncAssuming:
     entry, removed on exit, exceptions included.
     """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
 
-    def __init__(self, am: _aio__worker.AsyncMeTTaBase, facts: tuple) -> None:
+    def __init__(self, am: _worker.AsyncMeTTaBase, facts: tuple) -> None:
         self._am = am
         self._facts = facts
         self._cm: Any = None
 
-    async def __aenter__(self) -> _aio__worker.AsyncMeTTaBase:
+    async def __aenter__(self) -> _worker.AsyncMeTTaBase:
         facts = self._facts
         am = self._am
 
@@ -240,7 +240,7 @@ class _AsyncPrepared:
     worker's engine; columns read without a round trip.
     """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
 
-    def __init__(self, am: _aio__worker.AsyncMeTTaBase, prepared: Any) -> None:
+    def __init__(self, am: _worker.AsyncMeTTaBase, prepared: Any) -> None:
         self._am = am
         self._prepared = prepared
 
@@ -379,7 +379,7 @@ class _AsyncSubscription:
 
     def __init__(
         self,
-        am: _aio__worker.AsyncMeTTaBase,
+        am: _worker.AsyncMeTTaBase,
         pattern: Any,
         on: SubscriptionEdge,
         queue_max: int | None = None,
@@ -640,7 +640,7 @@ class _AsyncBatch:
     crossing.
     """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
 
-    def __init__(self, am: _aio__worker.AsyncMeTTaBase) -> None:
+    def __init__(self, am: _worker.AsyncMeTTaBase) -> None:
         self._am = am
         self._batch = am.metta.batch()
 
@@ -667,7 +667,7 @@ class _AsyncFunctionNamespace:
 
     __slots__ = ("_am",)
 
-    def __init__(self, am: _aio__worker.AsyncMeTTaBase) -> None:
+    def __init__(self, am: _worker.AsyncMeTTaBase) -> None:
         self._am = am
 
     def __getattr__(self, name: str) -> _AsyncEngineFunction | _AsyncCompositeEngineFunction:
@@ -692,7 +692,7 @@ class _AsyncEngineFunction:
     tolerates absence, .all answers the multiset.
     """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
 
-    def __init__(self, am: _aio__worker.AsyncMeTTaBase, name: str) -> None:
+    def __init__(self, am: _worker.AsyncMeTTaBase, name: str) -> None:
         self._am = am
         self._name = name
         self.__name__ = name
@@ -724,7 +724,7 @@ class _AsyncEngineFunction:
 class _AsyncCompositeEngineFunction:
     """Async callable for a word represented by a composite term recipe."""
 
-    def __init__(self, am: _aio__worker.AsyncMeTTaBase, recipe: OperatorRecipe) -> None:
+    def __init__(self, am: _worker.AsyncMeTTaBase, recipe: OperatorRecipe) -> None:
         self._am = am
         self._recipe = recipe
         self.__name__ = recipe.word
@@ -747,6 +747,3 @@ class _AsyncCompositeEngineFunction:
 
     def __repr__(self) -> str:
         return f"<async composite engine function {self._recipe.word} on {self._am.name}>"
-
-# Resolve annotations after definitions so peer imports can finish.
-import metta.aio._worker as _aio__worker  # noqa: E402 -- deferred annotation bindings

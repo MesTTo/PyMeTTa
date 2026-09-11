@@ -122,7 +122,7 @@ _AUTHORITIES: dict[str, str] = {
 _INTENT_AUTHORITY = f"L9Z1-06; {_LINT_CATALOGUE}"
 
 _DIRECTIVE = re.compile(r"#\s*metta:\s*ok\((?P<kind>[a-z0-9-]+)\)\s*$")
-_PACKAGE = __package__.partition(".")[0]
+_PACKAGE = (__package__ or __name__).partition(".")[0]
 _REFLECTION_SPACE = "&metta"
 _LOCK = threading.RLock()
 _CO_COROUTINE = getattr(inspect, "CO_COROUTINE", 0x0080)

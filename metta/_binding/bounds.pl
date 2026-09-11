@@ -65,8 +65,8 @@ metta_py_bound_listener :-
 
 metta_py_bound_nearest_frame(Current, Finished, Nearest) :-
     prolog_frame_attribute(Current, predicate_indicator, Predicate),
-    % policy-inventory-exempt: mechanism-internal; reason=SWI native transaction frames in pl-transaction.c at the cited commit; evidence=metta_py_bound_nearest_frame/3
     ( Current \== Finished,
+      % policy-inventory-exempt: mechanism-internal; reason=SWI native transaction and snapshot frames watched for bounds rollback; evidence=extensions/python/metta/_binding/bounds.pl:metta_py_bound_nearest_frame/3
       memberchk(Predicate, [system:'$transaction'/2, system:'$transaction'/3,
                            system:'$snapshot'/1])
     -> Nearest = Current
