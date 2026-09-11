@@ -2,7 +2,7 @@
 % Assumes: loaded through _binding/shim.pl in its host module.
 % Owns resources: metta_with_trailed/3 restores the thread message guard at delivery exit.
 % [source: extensions/python/metta/_binding/messages.pl:user:thread_message_hook/3;
-% commit=WORKTREE]
+% commit=40b71fc99571872ca5fc85cdaf7902b467166539]
 
 %%%%%%%%%% Engine messages %%%%%%%%%%
 %
