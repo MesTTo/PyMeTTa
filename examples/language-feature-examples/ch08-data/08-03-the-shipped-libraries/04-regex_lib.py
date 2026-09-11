@@ -3,7 +3,7 @@
 Patterns use Python raw strings. Scans return one answer per match; capture
 records remain expressions. The compiled native handle is released after use.
 Guarantees: the example and its twin make the same 26 assertions
-[tested: python extensions/python/tools/twin_coverage.py examples/ch08-data/08-03-the-shipped-libraries/04-regex_lib.metta; commit=WORKTREE].
+[tested: python extensions/python/tools/twin_coverage.py examples/ch08-data/08-03-the-shipped-libraries/04-regex_lib.metta; commit=7dcfe83fcf74742a1e944db240aa918596c8d4b0].
 """
 
 from metta import Expression, G, S, lib
@@ -238,5 +238,5 @@ def twin(m):
 #: captures become explicit MeTTa expressions before host wire conversion, and
 #: the loader declares every dependency for autoload-disabled hosts [measured
 #: 2026-09-11: min-of-3 serial fresh processes; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+#: extensions/python/tools/twin_coverage.py --repin; commit=7dcfe83fcf74742a1e944db240aa918596c8d4b0].
 BUDGET = 103258

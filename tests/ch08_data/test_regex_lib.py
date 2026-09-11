@@ -5,7 +5,7 @@ Python string spelling "\\d" reaches PCRE as the digit class.
 Guarantees: compiled patterns survive the wire and agree with text patterns;
 Unicode scans agree with Python re over their common syntax
 [tested: test_compiled_regex_values_cross_the_wire,
-test_match_progression_agrees_with_python_re; commit=WORKTREE].
+test_match_progression_agrees_with_python_re; commit=7dcfe83fcf74742a1e944db240aa918596c8d4b0].
 Open Obligations:
   To Do: None
   Hacks: None

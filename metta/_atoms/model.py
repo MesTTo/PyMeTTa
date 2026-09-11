@@ -135,7 +135,7 @@ Guarantees:
   - native blobs preserve their registry id and display text through the
     public wire codec and Python container repr [tested:
     test_native_handles_round_trip_through_the_public_wire_codec;
-    commit=WORKTREE]
+    commit=7dcfe83fcf74742a1e944db240aa918596c8d4b0]
   - a symbol answers the ambient space's origins for the head it names, and
     the empty tuple where nothing compiled under it [tested:
     test_a_symbol_answers_the_ambient_spaces_origins; commit=6375a7c8f3c035b04bc9d41c8f7f22e56b42fb41]
