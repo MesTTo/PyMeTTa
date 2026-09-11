@@ -9,14 +9,16 @@ Guarantees:
     remedy [tested:
     extensions/python/tests/ch10_errors_and_refusals/test_refusal_grounds.py;
     commit=acb40f1912f131ae088083d1af29b4b283019bea]
-  - Grounded preserves every non-primitive Python value by identity; only
+  - Grounded(value) preserves every non-primitive Python value by identity; only
     exact bool, int, float and str values use native wire terms [tested:
     extensions/python/tests/ch03_atoms_and_expressions/test_identity_wire.py;
-    commit=a0f1cc5f15a15e5ca6958fe02a20be8832c7237f]
-  - engine rational wire values decode to exact Fraction payloads, while a
-    Python-created Fraction follows the non-primitive identity law [tested:
-    test_rational_payloads_cross_the_scalar_door and
-    test_non_primitive_numbers_keep_their_python_identity; commit=a0f1cc5f15a15e5ca6958fe02a20be8832c7237f]
+    commit=WORKTREE]
+  - _NativeRational retains native wire, value equality, hashing, ordering
+    and pickle through repeated crossings; opaque Fractions stay distinct
+    [tested: test_native_rational_wire_round_trip, test_native_rational_identity,
+    test_native_rational_copy_pickle_and_format,
+    test_rational_payloads_cross_the_scalar_door,
+    test_non_primitive_numbers_keep_their_python_identity; commit=WORKTREE]
   - pathlib paths encode as symbols rather than opaque host boxes [tested:
     test_path_and_capability_options_cross_as_symbols; commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
   - Ellipsis encodes as the gap symbol, so `...` in a pattern child position is
@@ -1145,6 +1147,45 @@ class Grounded(Atom):
     @property
     def metatype(self) -> str:
         return "Grounded"
+
+
+class _NativeRational(Grounded):
+    """A native nonintegral number whose Python payload is an exact Fraction.
+
+    The species preserves the incoming number tag. Grounded(Fraction) remains
+    the separate object-channel value, so a payload alone cannot decide equality
+    or retransmission. Integral wire rationals are canonical integer atoms.
+    """
+
+    __slots__ = ()
+    value: Fraction
+
+    def __eq__(self, other: object) -> bool:
+        return isinstance(other, _NativeRational) and self.value == other.value
+
+    def __hash__(self) -> int:
+        return hash(self.value)
+
+    def __reduce__(self):
+        return _NativeRational, (self.value,)
+
+    def _ordered(self, other: Any):
+        if type(other) in (int, float):
+            return self.value, other
+        return None
+
+    def __format__(self, spec: str) -> str:
+        from metta._atoms.templates import (  # noqa: PLC0415 -- templates reads the atom model
+            formatted,
+        )
+
+        return formatted(self, spec, self.value) if spec else str(self)
+
+    def __repr__(self) -> str:
+        return f"_NativeRational({self.value!r})"
+
+    def to_wire(self) -> list:
+        return ["n", self.value]
 
 
 class Handle(Grounded):

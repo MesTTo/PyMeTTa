@@ -1,63 +1,75 @@
-"""Purpose: examples/ch08-data/08-03-the-shipped-libraries/13-vector_lib.metta in Python: four operations a similarity search needs.
+"""Purpose: call every Vector head from the Python expression interface.
 
 There is no vector type: a vector is an ordinary expression, so every
-argument here is a Python tuple of floats and every list operation still
+vector argument here is a Python tuple of numbers and every list operation still
 applies to one.
 
-The random draws are checked to a TOLERANCE rather than to an equality,
-because a square root and a division are not exact.
-Open Obligations:
-  To Do: None
-  Hacks: None
-  Future Enhancements: None.
+Guarantees: exact reductions, component arithmetic and both random arities
+carry the same claims as 13-vector_lib.metta
+[tested: python extensions/python/tools/twin_coverage.py examples/ch08-data/08-03-the-shipped-libraries/13-vector_lib.metta; commit=WORKTREE].
 """
 
-from metta import lib
+import math
+
+from metta import S, lib
 
 TOLERANCE = 1e-6
 
 
 def twin(m):
-    """Dot, norm, cosine, the normalised shortcut, and a random direction."""
+    """Exact reductions, component arithmetic, construction and directions."""
     m += lib.vector
     dot, norm = m.fn.dot, m.fn.norm
-    cosine, quick = m.fn.cosine, m.fn["cosine-of-normalized"]
-    draw = m.fn["random-normal-vector"]
+    cosine, quick = m.fn.cosine, m.fn.cosine_of_normalized
+    draw = m.fn.random_normal_vector
 
-    # `dot` walks both expressions together, so it is defined exactly when
-    # they are the same length.
+    # Dot validates dimensions and rounds the exact finite sum once.
     assert dot((1.0, 2.0), (3.0, 4.0)) == [11.0]
     assert dot((), ()) == [0.0]
     assert dot((1.0, 0.0), (0.0, 1.0)) == [0.0]
 
-    # `norm` is that product with itself under a square root.
+    # Norm takes the root before rounding the squared sum.
     assert norm((3.0, 4.0)) == [5.0]
     assert norm((1.0, 0.0)) == [1.0]
     assert norm(()) == [0.0]
 
-    # `cosine` divides by both lengths, so it measures ANGLE and ignores
-    # magnitude.
+    # Cosine measures angle and ignores magnitude.
     assert cosine((1.0, 0.0), (2.0, 0.0)) == [1.0]
     assert cosine((1.0, 0.0), (0.0, 1.0)) == [0.0]
     assert cosine((1.0, 0.0), (-2.0, 0.0)) == [-1.0]
 
-    # `cosine-of-normalized` skips both divisions, because on unit vectors
-    # the dot product IS the cosine.
+    # The shortcut is dot; on unit vectors it is the cosine.
     assert quick((1.0, 0.0), (1.0, 0.0)) == [1.0]
     assert quick((1.0, 0.0), (0.0, 1.0)) == [0.0]
     assert quick((1.0, 0.0), (0.6, 0.8)) == cosine((1.0, 0.0), (0.6, 0.8))
 
-    # It says `of-normalized` rather than checking, so a caller who has not
-    # normalised gets a number that is not a cosine, and that is the trade
-    # the name is warning about.
+    # Nonunit inputs keep the historical dot result.
     assert quick((3.0, 4.0), (3.0, 4.0)) == [25.0]
     assert cosine((3.0, 4.0), (3.0, 4.0)) == [1.0]
 
-    # A random DIRECTION, which is what the whole library is for.
-    assert len(draw(3)[0]) == 3
-    assert abs(norm(draw(5)[0])[0].value - 1.0) < TOLERANCE
-    unit = draw(4)[0]
+    # Positive uniform draws projected onto the sphere are not uniform directions.
+    assert len(m.fn.with_seed(17, S.random_normal_vector(3))[0]) == 3
+    assert abs(norm(m.fn.with_seed(17, S.random_normal_vector(5))[0])[0].value - 1.0) < TOLERANCE
+    unit = m.fn.with_seed(17, S.random_normal_vector(4))[0]
     assert abs(quick(unit, unit)[0].value - 1.0) < TOLERANCE
+
+    assert m.fn.vector_add((1, 2), (3, 4)) == [(4, 6)]
+    assert m.fn.vector_subtract((3, 4), (1, 2)) == [(2, 2)]
+    assert m.fn.vector_multiply((1, 2), (3, 4)) == [(3, 8)]
+    assert m.fn.vector_divide((6, 8), (2, 4)) == [(3, 2)]
+    assert m.fn.vector_scale((1, 2), 3) == [(3, 6)]
+    assert m.fn.vector_normalize((3, 4)) == [(0.6, 0.8)]
+    assert m.fn.vector_distance((1, 2), (4, 6)) == [5.0]
+    assert m.fn.vector_fill(3, 7) == [(7, 7, 7)]
+    assert m.fn.vector_fill(0, 7) == [()]
+    assert m.fn.vector_normalize(()) == [()]
+    assert dot((2.0**54, 1.0, -(2.0**54)), (1, 1, 1)) == [1.0]
+    assert norm((1e-300,)) == [1e-300]
+    assert cosine((1e308, 1e308), (1e308, 1e308)) == [1.0]
+    assert math.isnan(cosine((0, 0), (1, 2)).one())
+    assert math.isinf(norm((math.inf,)).one())
+    assert draw(0, (3, 4)) == [(0.6, 0.8)]
+    assert draw(-2) == [()]
 
 
 #: MEASURED on this branch rather than inherited: this twin is new, so there is
@@ -164,4 +176,15 @@ def twin(m):
 #: empirical envelopes are unchanged [measured 2026-09-10: min-of-3 serial
 #: fresh processes; command=python extensions/python/tools/twin_coverage.py
 #: --repin; commit=8358dfc233bf299bb23eceddd94593a62372fe4b].
-BUDGET = 31537
+#: RE-PINNED 2026-09-12, 31537 to 62208 (+30671), The Vector example now proves
+#: 34 claims over all thirteen native heads and both random arities: exact
+#: rational reductions round once through the integer quotient/remainder
+#: kernel, component arithmetic and normalization validate every input, and the
+#: three random draws run under with-seed 17 so the data-dependent rounding
+#: branches are reproducible (two unseeded runs read 61500 and 61503; ten
+#: seeded runs read 62208 with zero spread). The seventeen-claim example
+#: measured 32104 on this cut against its 31537 pin before any Vector change,
+#: so 567 of the movement predates this library [measured 2026-09-12: min-of-3
+#: serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 62208

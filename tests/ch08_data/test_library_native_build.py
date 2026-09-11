@@ -6,7 +6,7 @@ publication and cleanup contracts; a wheel carries source and builds on import
 test_concurrent_processes_and_threads_publish_one_native_object,
 test_cancelled_build_waits_for_its_compiler_and_discards_the_stage,
 test_native_sources_build_after_wheel_install,
-test_warm_native_build_needs_no_process_library; commit=3aaad3435292e4c7d5cc3a01bfda39430aacc6e8].
+test_warm_native_build_needs_no_process_library; commit=WORKTREE].
 Owns resources: pytest owns the copied libraries and installations. Every child
 process is joined, and the cancellation fixture releases its compiler barrier.
 """
@@ -289,10 +289,13 @@ def test_native_sources_build_after_wheel_install(tmp_path):
     assert any(name.endswith("/lib/_support/native_build.pl") for name in source_names)
     assert any(name.endswith("/lib/lib_csv/support/csv_codec.pl") for name in source_names)
     assert any(name.endswith("/lib/_support/owned_resources.pl") for name in source_names)
-    string_files = ["lib/lib_string/support/string_native.cpp", "lib/lib_string/vendor/SHA256SUMS"]
-    string_files.extend("lib/lib_string/vendor/" + line.split("  ", 1)[1]
+    provider_files = ["lib/lib_string/support/string_native.cpp", "lib/lib_string/vendor/SHA256SUMS",
+                      "lib/lib_vector/lib_vector.pl", "lib/lib_vector/lib_vector.metta",
+                      "lib/lib_vector/README.md", "lib/lib_vector/vendor/README.md",
+                      "lib/lib_vector/vendor/PYTHON-LICENSE"]
+    provider_files.extend("lib/lib_string/vendor/" + line.split("  ", 1)[1]
                         for line in (ROOT / "lib/lib_string/vendor/SHA256SUMS").read_text(encoding="utf-8").splitlines())
-    for name in string_files:
+    for name in provider_files:
         assert any(entry.endswith("/" + name) for entry in source_names), name
     assert not any("/.native/" in name for name in source_names)
 
@@ -310,7 +313,7 @@ def test_native_sources_build_after_wheel_install(tmp_path):
     assert "metta/_runtime/lib/_support/native_build.pl" in names
     assert "metta/_runtime/lib/lib_csv/support/csv_codec.pl" in names
     assert "metta/_runtime/lib/_support/owned_resources.pl" in names
-    for name in string_files:
+    for name in provider_files:
         assert "metta/_runtime/" + name in names, name
     assert not any("/.native/" in name for name in names)
 
@@ -356,6 +359,12 @@ with MeTTa() as engine:
     assert engine.fn.string_edit_distance(G("a\0🦊"), G("a")).one() == 2
     assert engine.fn.string_replace(G("a\0🦊"), G("\0"), G("-")).one() == "a-🦊"
     assert engine.fn.string_dedent(G("  a\0\n  b\n")).one() == "a\0\nb\n"
+    engine += lib.vector
+    ratios = engine.fn.vector_divide((1, 2), (3, 3)).one()
+    assert ratios[0].to_wire()[0] == "n"
+    assert engine.fn.vector_scale(ratios, 3).one() == (1, 2)
+    assert engine.fn.dot((2.0**54, 1.0, -(2.0**54)), (1, 1, 1)).one() == 1.0
+    assert engine.fn.cosine((2.0**1000,), (2.0**1000,)).one() == 1.0
 assert list((runtime / "lib/lib_regex/.native").glob("pcre-*"))
 assert list((runtime / "lib/lib_crypto/.native").glob("crypto-*"))
 assert list((runtime / "lib/lib_string/.native").glob("string-*"))
