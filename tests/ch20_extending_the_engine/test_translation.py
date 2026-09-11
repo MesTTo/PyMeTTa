@@ -8,12 +8,21 @@ Assumes:
     is what lets a body reach a wrapper unevaluated
     [source: examples/ch20-extending-the-engine/20-01-translator-rules/05-translatorrule_for.metta]
 Guarantees:
+  - derived-form comparisons write only private source copies and preserve
+    the tracked corpus's bytes and modification times
+    [tested: test_a_prelude_derived_form_matches_its_fused_twin_on_the_corpus;
+    commit=WORKTREE]
   - `let*` under another name binds the body with the bindings the caller
     wrote, and refuses a value that is not bindings naming the form
     [tested: test_let_star_with_an_unarrived_bindings_list_does_not_drop_them]
   - an equation head is a pattern at every depth, so a head and the `match`
     that reads it back agree
     [tested: test_an_equation_head_is_matched_not_called]
+Owns resources:
+  - pytest's tmp_path owns the copied engine, libraries and examples; the
+    extension directory is shared read-only to retain the tested seat setup
+    [tested: test_a_prelude_derived_form_matches_its_fused_twin_on_the_corpus;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -244,21 +253,38 @@ def _expand_source(text):
     return "\n".join(lines) + "\n", count
 
 
-def test_a_prelude_derived_form_matches_its_fused_twin_on_the_corpus(repo_root):
+def test_a_prelude_derived_form_matches_its_fused_twin_on_the_corpus(repo_root, tmp_path):
     """Each derived form is an equation in the prelude where it used to be a
     clause of the compiler. Running a corpus file as written and running it
     with every such call replaced by the expansion the deleted clause built
     must answer the same thing, group for group.
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
+    import shutil
     import sys
 
     sys.path.insert(0, str(repo_root / "extensions" / "python" / "tools"))
     import example_parity
 
+    # library_path is relative to the engine, so copying only the program
+    # would still make its import! read the checkout's library. Copy the
+    # engine and library roots together; keep native providers and the same
+    # extension configuration, but give all source/artifact writes private paths.
+    for directory in ("engine", "lib", "examples"):
+        shutil.copytree(repo_root / directory, tmp_path / directory,
+                        ignore=shutil.ignore_patterns("*.qlf", ".qlf-stamp", "__pycache__"))
+    (tmp_path / "extensions").symlink_to(repo_root / "extensions", target_is_directory=True)
+    capture = tmp_path / "tests" / "conformance" / "answer_groups.pl"
+    capture.parent.mkdir(parents=True)
+    shutil.copy2(repo_root / "tests" / "conformance" / "answer_groups.pl", capture)
+    tracked = {
+        repo_root / source: ((repo_root / source).read_bytes(),
+                            (repo_root / source).stat().st_mtime_ns)
+        for source, _ in DERIVED_FORM_SITES
+    }
     compared = 0
     for source_name, runner_name in DERIVED_FORM_SITES:
-        source = repo_root / source_name
-        runner = repo_root / runner_name
+        source = tmp_path / source_name
+        runner = tmp_path / runner_name
         original = source.read_text()
         expanded, replaced = _expand_source(original)
         assert replaced > 0, f"{source_name} writes no derived form any more"
@@ -266,10 +292,10 @@ def test_a_prelude_derived_form_matches_its_fused_twin_on_the_corpus(repo_root):
             f"({name} " in expanded for name, _ in DERIVED_FORMS
         ), f"{source_name} still names a derived form after expansion"
 
-        as_written = example_parity.run_engine(runner, repo_root)
+        as_written = example_parity.run_engine(runner, tmp_path)
         source.write_text(expanded)
         try:
-            as_expanded = example_parity.run_engine(runner, repo_root)
+            as_expanded = example_parity.run_engine(runner, tmp_path)
         finally:
             source.write_text(original)
         assert as_written.error is None, f"{runner_name}: {as_written.error}"
@@ -279,3 +305,5 @@ def test_a_prelude_derived_form_matches_its_fused_twin_on_the_corpus(repo_root):
         compared += 1
 
     assert compared == len(DERIVED_FORM_SITES)
+    assert {source: (source.read_bytes(), source.stat().st_mtime_ns)
+            for source in tracked} == tracked
