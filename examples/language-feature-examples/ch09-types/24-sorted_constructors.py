@@ -2,7 +2,7 @@
 
 The example exposes sorted operations and equations themselves. Their atom
 builders preserve that exact declaration surface, including its untyped control.
-[tested: translator_constructors; commit=WORKTREE]
+[tested: translator_constructors; commit=2398951d3272ad02b2c2d7b1e2b610c8e332c1f5]
 """
 
 from metta import S, V, arrow, equation, ground, typed
@@ -50,5 +50,5 @@ def twin(m):
 #: [measured: 19782 inferences; command=python
 #: extensions/python/tools/twin_coverage.py --measure
 #: examples/ch09-types/24-sorted_constructors.metta; fixture=min of three
-#: serial fresh processes with native engine artifacts; commit=WORKTREE].
+#: serial fresh processes with native engine artifacts; commit=2398951d3272ad02b2c2d7b1e2b610c8e332c1f5].
 BUDGET = 19782
