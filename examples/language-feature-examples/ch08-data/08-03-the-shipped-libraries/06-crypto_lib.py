@@ -372,5 +372,5 @@ def twin(m):
 #: these exact movements to the String provider and shared native_object/6
 #: dependency argument [measured 2026-09-11: min-of-3 serial fresh processes;
 #: command=python extensions/python/tools/twin_coverage.py --repin;
-#: commit=WORKTREE].
+#: commit=3aaad3435292e4c7d5cc3a01bfda39430aacc6e8].
 BUDGET = 126822

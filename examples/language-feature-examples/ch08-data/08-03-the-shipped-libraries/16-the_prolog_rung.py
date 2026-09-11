@@ -5,7 +5,7 @@ source declarations publish both spellings. Python's name map
 turns an underscore into a hyphen, so the original Prolog names use the exact
 subscript door. Paired calls check that the spellings share their results.
 Guarantees: the example's alias comparisons hold through Python values
-[tested: python extensions/python/tools/twin_coverage.py examples/ch08-data/08-03-the-shipped-libraries/16-the_prolog_rung.metta; commit=WORKTREE].
+[tested: python extensions/python/tools/twin_coverage.py examples/ch08-data/08-03-the-shipped-libraries/16-the_prolog_rung.metta; commit=3aaad3435292e4c7d5cc3a01bfda39430aacc6e8].
 Open Obligations:
   To Do: None
   Hacks: None
@@ -241,5 +241,5 @@ def twin(m):
 #: separately records the older difference between each stored budget and
 #: that unchanged-cut baseline [measured 2026-09-11:
 #: min-of-3 serial fresh processes; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+#: extensions/python/tools/twin_coverage.py --repin; commit=3aaad3435292e4c7d5cc3a01bfda39430aacc6e8].
 BUDGET = 203169

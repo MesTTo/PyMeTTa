@@ -1,7 +1,7 @@
 """Purpose: use every String head through Python values and the typed library.
 
 Guarantees: this twin preserves every example claim and both optional forms
-[tested: python extensions/python/tools/twin_coverage.py examples/ch08-data/08-03-the-shipped-libraries/18-string_lib.metta; commit=WORKTREE].
+[tested: python extensions/python/tools/twin_coverage.py examples/ch08-data/08-03-the-shipped-libraries/18-string_lib.metta; commit=3aaad3435292e4c7d5cc3a01bfda39430aacc6e8].
 """
 
 from metta import G, S, lib
@@ -66,5 +66,5 @@ def twin(m):
 #: [measured 2026-09-11: 126928 inferences, minimum of three serial fresh processes;
 #: command=python extensions/python/tools/twin_coverage.py --measure --rounds 3
 #: examples/ch08-data/08-03-the-shipped-libraries/18-string_lib.metta;
-#: fixture=String library and warm native provider; commit=WORKTREE].
+#: fixture=String library and warm native provider; commit=3aaad3435292e4c7d5cc3a01bfda39430aacc6e8].
 BUDGET = 126928

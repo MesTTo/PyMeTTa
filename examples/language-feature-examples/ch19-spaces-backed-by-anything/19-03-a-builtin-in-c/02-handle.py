@@ -387,7 +387,7 @@ def twin(m):
 #: separately records the older difference between each stored budget and
 #: that unchanged-cut baseline [measured 2026-09-11:
 #: min-of-3 serial fresh processes; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+#: extensions/python/tools/twin_coverage.py --repin; commit=3aaad3435292e4c7d5cc3a01bfda39430aacc6e8].
 BUDGET = 91209
 
 #: DIVERGED 2026-09-07, the example holds 1 atom the twin does not (1 =) and
