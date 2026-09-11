@@ -1307,50 +1307,48 @@
      "bench.py --memory-scale spawns support-drop-spaces in a fresh process",
      "inferences is selected by minimum of repetitions",
      "the intended complexity family is linear",
-     "RE-PINNED 2026-09-07, inferences at the four sizes [3776, 36761, 366625, 3665257] to [7550, 74134, 739982, 7398446]. Three steps, each measured on its own ladder over the first-parent chain with every component rebuilt at each point (ai-tmp/hy-ladder2.sh in the branch's ladder worktree): 699c8b4a, the algebra-lifecycle merge, which retires every space-owned catalog declaration with its space and so charges every drop, [3987, 38540, 384062, 3839298] to [7037, 69363, 688777, 6886423]; then 80af155d to 7,158,434 and 5621c456 to 7,398,448 at the largest size. The fit is still linear at nrms 0.0000 and the case is still the drop cost it measures.",
-     "RE-PINNED 2026-09-09: inferences [7550, 74134, 739982, 7398446] to [9233, 90836, 906866, 9067166]. Source-owned space retirement preserves compiled references and receipt ownership. At1000 spaces, parent reads8652154, cut9146171 and repair9067166. Most of the increase over7398446 predates tokens. Nearest unnested receipt scopes remove avoidable discovery; each independent owner still needs withdrawal, so the retained curve is linear. Raw samples by size {'1': [9233, 9233, 9233], '10': [90836, 90836, 90836], '100': [906866, 906866, 906866], '1000': [9067166, 9067166, 9067166]}; measured noise {'absolute_max': 0, 'relative_max': 0.0, 'resolution_bytes': 1}; the published noise {'absolute_max': 0, 'relative_max': 0.0, 'resolution_bytes': 1} and five-percent margin are retained. [measured: minimum of three fresh processes; command=sh check.sh memory-scale; retained ai-tmp/ai-final-memory.json; fixture=provisioned engine and MORK, warm QLF; commit=8ca8a387fc61d0918484b19a1a3baf85b6523043]",
-     "RE-PINNED 2026-09-10: inferences [9233, 90836, 906866, 9067166] to [9215, 90692, 905462, 9053162]. The final receipt watch-transfer repair removes the separate nesting enumeration, saving exactly 14N+4 inferences. All three samples at N=1,10,100,1000 agree in each before and after population. The independent N=2000 source-only receipt toggle reads 914781 to 886777 in all three processes, the same 28004 reduction. Ownership transfers to the live outer transaction on completion; nested rollback and engine destruction remain covered by the receipt frame suites. The linear class, zero published noise and five-percent margin are unchanged. [measured: minimum of three fresh processes at each size; command=sh check.sh memory-scale; fixture=ai-tmp/ai-verified-895878bbe-memory.json, ai-tmp/ai-final-support-drop-audit.json and ai-tmp/ai-receipts-frame-cost-{before,after}.json; commit=8ca8a387fc61d0918484b19a1a3baf85b6523043]"
+     "RE-PINNED 2026-09-11 at the end-of-wave battery, inferences at the four sizes [9215, 90692, 905462, 9053162] to [9963, 98172, 980262, 9801162]. PERF's pin priced its pre-FROM base 3e5855a35 (which reads 9146171 at n=1000); FROM's landing +748000 (reference rows, four engine units); PERF's own -93009 carried intact through the merge b29acf394; the three REDS repairs move nothing here. Ladder ai-tmp/integrator-849a9e/tip-ladder.md. [measured: min of three fresh processes per size after purging and warming the governed set; command=python extensions/python/bench.py --memory-scale --memory-repetitions 3 --timeout 200 --update-baseline support-drop-spaces; fixture=both MORK objects, native reader; commit=8e6968ecb2ee23c1ee5bed1d2b2ac9f8d9e3d6a7]"
     ],
-    "commit": "WORKTREE"
+    "commit": "8e6968ecb5b8725a67ac85995dbf71750011b04d"
    },
    "expected": "linear",
    "fit": {
     "best_model": "linear",
-    "last_ratio": 9.99838977229304,
+    "last_ratio": 9.998512642538424,
     "models": {
      "capped_linear": {
       "intercept": 162.0,
       "nrms": 0.0,
-      "slope": 9053.0
+      "slope": 9801.0
      },
      "constant": {
-      "intercept": 2514632.75,
+      "intercept": 2722389.75,
       "nrms": 0.41920338109080324,
       "slope": 0.0
      },
      "linear": {
       "intercept": 162.0,
       "nrms": 0.0,
-      "slope": 9053.0
+      "slope": 9801.0
      },
      "log_n": {
-      "intercept": -1677358.9,
-      "nrms": 0.2374305480704809,
-      "slope": 1213705.8945196718
+      "intercept": -1815963.2999999998,
+      "nrms": 0.23743054807048095,
+      "slope": 1313987.791029195
      },
      "n_log_n": {
-      "intercept": 122367.01368331909,
-      "nrms": 0.012566074341080861,
-      "slope": 1294.6390137427468
+      "intercept": 132464.1472561811,
+      "nrms": 0.012566074341080855,
+      "slope": 1401.6079723508963
      },
      "quadratic": {
-      "intercept": 303941.1181791271,
-      "nrms": 0.03483067252846591,
-      "slope": 8.754338949554047
+      "intercept": 329040.7294017039,
+      "nrms": 0.03483067252846592,
+      "slope": 9.477662216345875
      }
     },
-    "power_exponent": 0.9976216106257688,
-    "r_squared": 0.999997323297625
+    "power_exponent": 0.997801684048289,
+    "r_squared": 0.9999977135950276
    },
    "gated": true,
    "noise": {
@@ -1360,10 +1358,10 @@
    },
    "primary_metric": "inferences",
    "representative": [
-    9215,
-    90692,
-    905462,
-    9053162
+    9963,
+    98172,
+    980262,
+    9801162
    ],
    "sizes": [
     1,
