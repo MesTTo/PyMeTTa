@@ -1,4 +1,11 @@
-"""Purpose: read, run and serialize program text with scoped hole bindings."""
+"""Purpose: read, run and serialize program text with scoped hole bindings.
+
+Guarantees: source() and text save() expose authored occurrences; reference
+projections regenerate from their source rows [tested:
+test_source_is_the_exact_round_trippable_text_save_view,
+test_program_source_preserves_reference_cycles_and_lexical_bindings;
+commit=WORKTREE].
+"""
 
 from __future__ import annotations
 
@@ -217,13 +224,14 @@ def save(
     timeout: float | None = None,
     inferences: int | None = None,
 ) -> int:
-    """Write every stored atom of this space, equations included, as
+    """Write the authored atoms of this space, equations included, as
     MeTTa source by default. ``format="fast"`` writes a version-pinned
     image of the receiver's equation world: its own atoms, owned child
     spaces, aliases bound to those spaces, and translator rules. Loading
     the image mints fresh runtime space identities and preserves their
     graph relationships. The returned count remains the receiver's own
-    atom count. Text variables are numbered by first occurrence within
+    authored atom count. Reference projections are regenerated from their
+    source rows. Text variables are numbered by first occurrence within
     each atom, so saving unchanged content twice is byte-stable. A path
     ending .gz writes gzip compressed in either format, and load and
     import! read it back under the same name. The completed sibling file
@@ -260,7 +268,7 @@ def save(
     evidence=('extensions/python/tests/ch18_performance/test_fast_bindings.py::test_fast_images_preserve_each_equations_binding',),
 )
 def source(space: _root.Space) -> str:
-    """Return this space's directly stored atoms as loadable MeTTa text.
+    """Return this space's authored atoms as loadable MeTTa text.
 
     This is exactly the text that ``save(path, format="metta")`` writes:
     one atom per line, including equations, with a final newline when the
@@ -268,6 +276,8 @@ def source(space: _root.Space) -> str:
     each atom, making independent views of unchanged content byte-stable.
     Inherited prelude and library atoms, the global
     ``&metta`` catalog, and child spaces are outside that save boundary.
+    A reference row stays in the source; its projected declarations and
+    documentation are regenerated when that row loads.
     Live host objects and atoms whose printed form cannot round-trip are
     refused for the same reason a text save refuses them.
     """

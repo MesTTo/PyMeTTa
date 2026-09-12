@@ -25,9 +25,9 @@ Guarantees:
     test_stack_limit_is_carried_to_the_limited_six_seam; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
   - a fast cache restores a complete versioned equation-world image, including
     translator rules and bound child spaces, while its public save count stays
-    the root atom count [tested:
+    the root authored atom count [tested:
     test_fast_cache_restores_translator_rules_and_bound_spaces;
-    commit=d2279ea320e54790dab4484421a168e93755b185]
+    commit=WORKTREE]
   - the load door raises sys.audit("metta.host", "load", path) before it
     reads, so an audit hook can refuse the load [tested:
     test_the_load_door_raises_its_event,
@@ -294,8 +294,8 @@ def save_space(
 
 
 def _enumerate(rt: Runtime, space: str, bounds: tuple[float, int, int]) -> list[Atom]:
-    """Every stored atom of one space, under the caller's bounds."""
-    wires = _spaces_scope_module._apply_limited(rt, bounds, "metta_py_atoms", [space])
+    """Authored atoms of one space, under the caller's bounds."""
+    wires = _spaces_scope_module._apply_limited(rt, bounds, "metta_py_source_atoms", [space])
     return [_atom_from_wire(wire) for wire in wires]
 
 

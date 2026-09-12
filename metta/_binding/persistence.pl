@@ -1,5 +1,9 @@
 % Purpose: save, load, digest and attribute persisted spaces.
 % Assumes: loaded through _binding/shim.pl in its host module.
+metta_py_source_atoms(Space, Wires) :-
+    metta_host_source_atoms(Space, Atoms),
+    maplist(metta_py_encode, Atoms, Wires).
+
 
 %%%%%%%%%% Trusted fast cache I/O %%%%%%%%%%
 %
