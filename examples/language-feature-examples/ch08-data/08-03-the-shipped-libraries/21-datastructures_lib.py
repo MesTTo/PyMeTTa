@@ -5,7 +5,7 @@ whichever version it was given. A pair is a two-element tuple and a map or a
 queue is whatever the library answered, passed straight back.
 
 Guarantees: the same claims as 21-datastructures_lib.metta
-[tested: python extensions/python/tools/twin_coverage.py examples/ch08-data/08-03-the-shipped-libraries/21-datastructures_lib.metta; commit=WORKTREE].
+[tested: python extensions/python/tools/twin_coverage.py examples/ch08-data/08-03-the-shipped-libraries/21-datastructures_lib.metta; commit=2072899a9f6ba36f92faabb92f9e0b12e6e0f666].
 Open Obligations:
   To Do: None
   Hacks: None
@@ -135,5 +135,5 @@ def twin(m):
 #: processes; command=python extensions/python/tools/twin_coverage.py --measure
 #: --rounds 3 examples/ch08-data/08-03-the-shipped-libraries/21-datastructures_lib.metta;
 #: fixture=lib_datastructures at its functional commit, artifacts purged before
-#: the run; commit=WORKTREE].
+#: the run; commit=2072899a9f6ba36f92faabb92f9e0b12e6e0f666].
 BUDGET = 240981

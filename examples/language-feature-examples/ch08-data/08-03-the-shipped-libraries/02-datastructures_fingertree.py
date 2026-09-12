@@ -316,7 +316,7 @@ def twin(m):
 #: declarations and doc rows and the vendored cores' load. These two twins only
 #: use the finger tree, and their movement is that face [measured 2026-09-12:
 #: min-of-3 serial fresh processes; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+#: extensions/python/tools/twin_coverage.py --repin; commit=2072899a9f6ba36f92faabb92f9e0b12e6e0f666].
 BUDGET = 291869
 
 #: The declared OVERRUN went with the map and queue face: the twin used to cost
@@ -325,4 +325,4 @@ BUDGET = 291869
 #: both sides more than that distance. Measured 291,869 against a ceiling of
 #: 292,580 without a declaration [measured 2026-09-12: min-of-3 serial fresh
 #: processes; command=python extensions/python/tools/twin_coverage.py --repin;
-#: commit=WORKTREE].
+#: commit=2072899a9f6ba36f92faabb92f9e0b12e6e0f666].
