@@ -6,7 +6,7 @@ what `list()` collects, and no answer at all is the empty list the example's
 `collapse` compares against `()`.
 
 Guarantees: the same claims as 24-pairs_lib.metta
-[tested: python extensions/python/tools/twin_coverage.py examples/ch08-data/08-03-the-shipped-libraries/24-pairs_lib.metta; commit=WORKTREE].
+[tested: python extensions/python/tools/twin_coverage.py examples/ch08-data/08-03-the-shipped-libraries/24-pairs_lib.metta; commit=40b3353b9ae721bf42b832fb953e93a5dc230e6c].
 Open Obligations:
   To Do: None
   Hacks: None
@@ -123,5 +123,5 @@ def twin(m):
 #: extensions/python/tools/twin_coverage.py --measure --rounds 3
 #: examples/ch08-data/08-03-the-shipped-libraries/24-pairs_lib.metta;
 #: fixture=lib_pairs at its functional commit, artifacts purged before the run;
-#: commit=WORKTREE].
+#: commit=40b3353b9ae721bf42b832fb953e93a5dc230e6c].
 BUDGET = 47584
