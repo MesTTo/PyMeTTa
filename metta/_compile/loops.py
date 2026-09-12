@@ -17,6 +17,10 @@ Guarantees:
   - that compiler-only materialization is consumptive even though public
     py-iter enumeration is replayable [tested:
     test_compiled_for_keeps_one_shot_python_iteration; commit=0dc78c93461d6c7f5a83975abedf0f1a631095c3]
+  - post-loop reads use the continuation's backward liveness, so a fresh
+    target gets the same refusal as an existing target and a later write
+    replaces either [tested: test_loop_variable_read_after_for_is_refused,
+    test_a_rebinding_after_for_does_not_read_the_loop_target; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -30,6 +34,7 @@ import ast
 from metta._atoms.factories import Atom, Expression, Symbol, Variable
 from metta._compile.context import CompilerContext, next_aux_serial
 from metta._compile.expressions import _name_of
+from metta._compile.statements import _generator_live_names
 from metta._errors.errors import CompileError
 
 
@@ -118,7 +123,7 @@ class LoopCompilerMixin(CompilerContext):
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         target = _name_of(node.target, node.lineno)
         rest = node.orelse.copy() + rest
-        if target in self._free_reads(rest) or target in self.closer_names:
+        if target in _generator_live_names(rest, set(self.closer_names)):
             msg = (
                 f"{target!r} is read after the loop, where Python would hold "
                 f"the last element; bind that value to its own name inside "

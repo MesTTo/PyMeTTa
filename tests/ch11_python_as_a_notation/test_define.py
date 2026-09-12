@@ -678,6 +678,19 @@ def test_loop_variable_read_after_for_is_refused(m):  # noqa: D103  -- pytest di
     assert "after the loop" in str(excinfo.value) or "no MeTTa equivalent" in str(excinfo.value)
 
 
+@pytest.mark.parametrize("values", [[], [1, 2]])
+def test_a_rebinding_after_for_does_not_read_the_loop_target(m, values):
+    """An unconditional post-loop write replaces both initial and final values."""
+    @m.define
+    def rebound(x, xs):
+        for x in xs:  # noqa: B007, PLR1704 -- rebinding the parameter is the input to this compiler test
+            pass
+        x = 7
+        return x  # noqa: RET504 -- the intervening assignment must kill the loop target's liveness
+
+    assert list(rebound(99, values)) == [7]
+
+
 def test_annotations_declare_types_for_defines(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     @m.define
     def dtyped(x: int) -> int:
