@@ -115,5 +115,5 @@ def twin(m):
 #: archive provider recipe. All consumers are remeasured after those dependency
 #: changes [measured 2026-09-13: min-of-3 serial fresh processes;
 #: command=python extensions/python/tools/twin_coverage.py --repin;
-#: commit=WORKTREE].
+#: commit=7b42d5ee5cecb82709617b7ed08dfa2c1441f268].
 BUDGET = 148200

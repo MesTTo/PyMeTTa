@@ -1,7 +1,7 @@
 """Purpose: compress complete bytes and publish validated archive contents.
 
 Guarantees: the same 54 claims as 41-compression_lib.metta.
-[tested: python extensions/python/tools/twin_coverage.py examples/ch08-data/08-03-the-shipped-libraries/41-compression_lib.metta; commit=WORKTREE].
+[tested: python extensions/python/tools/twin_coverage.py examples/ch08-data/08-03-the-shipped-libraries/41-compression_lib.metta; commit=7b42d5ee5cecb82709617b7ed08dfa2c1441f268].
 Owns resources: finally removes the temporary directory; native operations
 close their streams and remove unpublished staging on each exit.
 """
@@ -105,5 +105,5 @@ def twin(m):
 #: [measured 2026-09-13: 204351 inferences, minimum of three fresh serial processes;
 #: command=python extensions/python/tools/twin_coverage.py --measure --rounds 3
 #: examples/ch08-data/08-03-the-shipped-libraries/41-compression_lib.metta;
-#: fixture=lib_compression with engine/lib QLF artifacts purged; commit=WORKTREE].
+#: fixture=lib_compression with engine/lib QLF artifacts purged; commit=7b42d5ee5cecb82709617b7ed08dfa2c1441f268].
 BUDGET = 204351

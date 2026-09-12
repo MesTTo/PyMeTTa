@@ -3,7 +3,7 @@
 Guarantees: generated octets interoperate with gzip and zlib; independent TAR
 and ZIP writers test names, kinds, nested filters and publication refusals.
 [tested: test_compression_interoperability, test_nested_archive_filters,
-test_archive_refused_entries; commit=WORKTREE].
+test_archive_refused_entries; commit=7b42d5ee5cecb82709617b7ed08dfa2c1441f268].
 Owns resources: pytest owns each temporary directory; context managers close
 archive writers, and each native library call owns its streams and staging.
 """

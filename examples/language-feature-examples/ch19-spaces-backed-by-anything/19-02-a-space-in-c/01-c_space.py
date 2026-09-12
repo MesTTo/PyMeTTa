@@ -374,11 +374,11 @@ def twin(m):
 #: existing staged publisher with callback qualification; Compression shares
 #: that ownership and publication protocol [measured 2026-09-13: min-of-3
 #: serial fresh processes; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+#: extensions/python/tools/twin_coverage.py --repin; commit=7b42d5ee5cecb82709617b7ed08dfa2c1441f268].
 #: RE-PINNED 2026-09-13, 122174 to 122705 (+531), File exports its staged
 #: publisher to Compression; the shared native builder accepts the private
 #: archive provider recipe. All consumers are remeasured after those dependency
 #: changes [measured 2026-09-13: min-of-3 serial fresh processes;
 #: command=python extensions/python/tools/twin_coverage.py --repin;
-#: commit=WORKTREE].
+#: commit=7b42d5ee5cecb82709617b7ed08dfa2c1441f268].
 BUDGET = 122705
