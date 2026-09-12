@@ -1,7 +1,7 @@
 """Purpose: compose URI components, resolve references and encode query relations.
 
 Guarantees: the same 55 claims as 39-uri_lib.metta.
-[tested: python extensions/python/tools/twin_coverage.py examples/ch08-data/08-03-the-shipped-libraries/39-uri_lib.metta; commit=WORKTREE].
+[tested: python extensions/python/tools/twin_coverage.py examples/ch08-data/08-03-the-shipped-libraries/39-uri_lib.metta; commit=24b96f8ec8468bc97cec35e1d71ce689ede7fdcf].
 """
 
 from metta import G, S, lib
@@ -103,5 +103,5 @@ def twin(m):
 #: command=python extensions/python/tools/twin_coverage.py --measure --rounds 3
 #: examples/ch08-data/08-03-the-shipped-libraries/39-uri_lib.metta;
 #: fixture=lib_uri with engine/lib QLF artifacts purged;
-#: commit=WORKTREE].
+#: commit=24b96f8ec8468bc97cec35e1d71ce689ede7fdcf].
 BUDGET = 118602
