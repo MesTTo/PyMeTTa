@@ -170,7 +170,7 @@ def twin(m):
 #: evaluation that reaches a vertex written as a function call, which is two
 #: fewer clauses reached on the refusal paths the example exercises [measured
 #: 2026-09-12: min-of-3 serial fresh processes; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+#: extensions/python/tools/twin_coverage.py --repin; commit=4c053e8618569a08aa6bd54b0b72f67a0b544742].
 BUDGET = 92402
 
 #: OVERRUN 2026-09-12, 2649: the example's `bind!` keeps its graph inside the
@@ -181,5 +181,5 @@ BUDGET = 92402
 #: left of the value crossings: measured 92402 against a ceiling of 89753.4
 #: [measured 2026-09-12: min-of-3 serial fresh processes, the same command as
 #: the budget above, once with `transpose(tasks).one()` and once with
-#: `S.graph_transpose(tasks)`; commit=WORKTREE].
+#: `S.graph_transpose(tasks)`; commit=4c053e8618569a08aa6bd54b0b72f67a0b544742].
 OVERRUN = 2649
