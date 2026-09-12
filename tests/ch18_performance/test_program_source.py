@@ -107,6 +107,79 @@ def test_source_withdrawal_keeps_a_later_registration_in_the_same_module(tmp_pat
         )
 
 
+@pytest.mark.parametrize("kept", [None, "child", "owner"])
+def test_a_kept_program_space_retains_its_source_owner(tmp_path, kept):
+    """The source owner and its allocated spaces remain live together."""
+    path = tmp_path / "scoped-program.metta"
+    path.write_text(
+        '!(let $global (atom_concat "&self" "") '
+        '(let $child (new-space $fresh (scoped $global)) '
+        '(progn (add-atom $child (answer 17)) (add-atom &self (child $child)))))\n'
+    )
+    with MeTTa() as context:
+        with context.self.scope() as scope:
+            importing = context.space()
+            importing.load(path)
+            home, = importing.run("!(match &self (child $child) $child)")[0]
+            if kept is not None:
+                scope.keep(home if kept == "child" else importing)
+        assert bool(context.runtime.once(
+            "spaces:native_storage_module_cache(Space, _)", Space=str(home)
+        )) is (kept is not None)
+        if kept is not None:
+            assert context.run("!(match {home} (answer $x) $x)", home=home) == [[17]]
+            assert not importing.dropped
+            importing.drop()
+
+
+@pytest.mark.parametrize("operation", ["clear", "drop"])
+def test_source_release_refuses_an_external_heir_before_removing_the_program(tmp_path, operation):
+    """A source-owned base remains usable when an external child blocks release."""
+    path = tmp_path / "base-program.metta"
+    path.write_text(
+        '!(let $global (atom_concat "&self" "") '
+        '(let $child (new-space $fresh (scoped $global)) '
+        '(progn (add-atom $child (answer 17)) (add-atom &self (child $child)))))\n'
+    )
+    with MeTTa() as context:
+        importing = context.space()
+        importing.load(path)
+        home, = importing.run("!(match &self (child $child) $child)")[0]
+        outside, = context.run("!(new-space $fresh (inherits {home}))", home=home)[0]
+        before = importing.source()
+        try:
+            with pytest.raises(EngineError, match="live child"):
+                getattr(importing, operation)()
+            assert importing.source() == before
+            assert context.run("!(match {home} (answer $x) $x)", home=home) == [[17]]
+        finally:
+            context.runtime.must("metta_release_space(Space)", Space=str(outside))
+        importing.drop()
+
+
+def test_source_release_orders_owned_heirs_across_files(tmp_path):
+    """Separate source files can own a base and its heir in one program."""
+    base, heir = tmp_path / "base.metta", tmp_path / "heir.metta"
+    base.write_text('!(bind! &owned-release-base (new-space $fresh (inherits &self)))\n')
+    heir.write_text(
+        '!(bind! &owned-release-heir (new-space $fresh (inherits &owned-release-base)))\n'
+    )
+    with MeTTa() as context:
+        importing = context.space()
+        importing.load(base)
+        importing.load(heir)
+        spaces = context.runtime.must(
+            "findall(_Space, (member(_Name, ['&owned-release-base', '&owned-release-heir']), "
+            "metta_engine:metta_token(_Name, _Space)), Spaces)"
+        )["Spaces"]
+        assert len(spaces) == 2
+        importing.drop()
+        for space in spaces:
+            assert not context.runtime.once(
+                "spaces:native_storage_module_cache(Space, _)", Space=space
+            )
+
+
 def test_a_released_source_module_exposes_another_modules_token(tmp_path):
     """A module release removes only its source-owned claim on a shared token."""
     path = tmp_path / "other-module-token.metta"
