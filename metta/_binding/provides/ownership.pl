@@ -6,6 +6,9 @@
 % Guarantees: optional add-token and remove-token callbacks preserve exact
 %   provider identities [tested: test_token_mutation_receives_and_withdraws_a_reference;
 %   commit=90ba93eb8f6e98ebfefc55416859bf13de6a8427].
+% Guarantees: grounded_length/2 reads tuple arity or Python's Sized protocol
+%   without enumerating elements [tested:
+%   test_host_length_refinements_do_not_read_elements; commit=WORKTREE].
 
 provides_declaration(engine, user, grounded_apply/3).
 
@@ -17,9 +20,27 @@ provides_declaration(engine, user, grounded_numeric_operation/3).
 
 provides_declaration(engine, user, grounded_structure/2).
 
+provides_declaration(engine, user, grounded_length/2).
+
 provides_declaration(engine, user, grounded_text/2).
 
 %%%% The structural view %%%%
+
+% Janus's tuple carrier already holds its length in the functor arity.
+provides(engine, user, (
+seam:grounded_length(Tuple, Length) :-
+    compound(Tuple),
+    compound_name_arity(Tuple, -, Length)
+)).
+
+provides(engine, user, (
+seam:grounded_length(Obj, Length) :-
+    python_object_blob(Obj),
+    py_is_object(Obj),
+    metta_py_bridge,
+    py_call('metta._binding.host':sized_length(Obj), Length),
+    Length >= 0
+)).
 
 %A Python tuple crosses by default as the Prolog compound -/N, which is
 %janus's encoding and is faithful in BOTH directions: `(1, (2, 3))` is

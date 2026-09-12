@@ -29,21 +29,26 @@ Guarantees:
   - cast honours a refinement and names the violated constraint
     [tested: test_cast_honours_a_refinement_and_names_the_violated_constraint;
     commit=19093dd75eda0102eb0329a71460e8a0c7a0c727]
+  - length constraints ask a host value for its length without enumerating
+    elements [tested: test_host_length_refinements_do_not_read_elements;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
 """
 
+from collections.abc import Sequence
 from typing import Annotated
 
 import annotated_types as at
 import pytest
 
-from metta import S, V
+from metta import Grounded, S, V
 from metta._atoms.factories import Expression
 from metta._catalog.refinements import holds
 from metta._declare.operations import annotation_atom_for, type_atoms_for
+from metta._errors.errors import EngineError
 from metta.convert import CastError
 from metta.vocabularies import Refinement
 
@@ -173,6 +178,49 @@ def test_min_len_reads_a_string_and_an_expression(m):
     assert [str(a) for a in m.eval("(pair-size abc)")] == [
         "(Error (pair-size abc) (BadArgValue 1 (MinLen 2) abc))"
     ]
+
+
+@pytest.mark.parametrize("base", [object, Sequence])
+@pytest.mark.parametrize("size", [0, 1, 1_000_000])
+def test_host_length_refinements_do_not_read_elements(m, base, size):  # noqa: D103 -- pytest discovers this test; its name states the contract
+    class Counted(base):
+        def __len__(self):
+            return size
+
+        def __getitem__(self, index):
+            msg = "a length refinement must not read an element"
+            raise AssertionError(msg)
+
+        def __iter__(self):
+            msg = "a length refinement must not iterate"
+            raise AssertionError(msg)
+
+    m.run(
+        f"(: sized-host (-> (Annotated %Undefined% (Len {size})) Number))"
+        "(= (sized-host $value) 7)"
+    )
+    assert m.eval(S["sized-host"](Grounded(Counted()))) == [7]
+    refused = m.eval(S["sized-host"](Grounded(object())))
+    assert len(refused) == 1 and refused[0].head == S.Error
+    assert "BadArgValue" in str(refused[0])
+
+
+def test_a_host_length_failure_preserves_its_exception(m):  # noqa: D103 -- pytest discovers this test; its name states the contract
+    class BrokenLength:
+        def __len__(self):
+            msg = "length query failed"
+            raise RuntimeError(msg)
+
+        def __iter__(self):
+            msg = "a failed length must not fall back to iteration"
+            raise AssertionError(msg)
+
+    m.run(
+        "(: sized-host (-> (Annotated %Undefined% (MinLen 1)) Number))"
+        "(= (sized-host $value) 7)"
+    )
+    with pytest.raises(EngineError, match=r"(?s)RuntimeError.*length query failed"):
+        m.eval(S["sized-host"](Grounded(BrokenLength())))
 
 
 def test_a_predicate_refinement_calls_the_grounded_predicate_at_the_seam(m):

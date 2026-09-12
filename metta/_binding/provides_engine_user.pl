@@ -11,6 +11,8 @@
 
 :- multifile seam:grounded_extra_type/2.
 
+:- multifile seam:grounded_length/2.
+
 :- multifile seam:grounded_numeric/1.
 
 :- multifile seam:grounded_numeric_operation/3.
@@ -50,6 +52,17 @@ seam:extension_builtin('py-dict',  oracleIO).
 seam:extension_builtin('py-iter',  oracleIO).
 
 seam:extension_builtin('py-iter-once', oracleIO).
+
+seam:grounded_length(Tuple, Length) :-
+    compound(Tuple),
+    compound_name_arity(Tuple, -, Length).
+
+seam:grounded_length(Obj, Length) :-
+    python_object_blob(Obj),
+    py_is_object(Obj),
+    metta_py_bridge,
+    py_call('metta._binding.host':sized_length(Obj), Length),
+    Length >= 0.
 
 seam:grounded_structure(Tuple, Elements) :-
     metta_py_tuple_arguments(Tuple, Raw),
