@@ -3,7 +3,7 @@
 Guarantees: batch fuel policy, deferred compilation costs, cumulative tagged
 guards, inverse cardinality, context lifetime and wide projection preserve
 their boundary contracts; releasing the compilation observer retains every
-earlier call-graph listener [tested: this file; commit=8358dfc233bf299bb23eceddd94593a62372fe4b].
+earlier call-graph listener [tested: this file; commit=WORKTREE].
 Owns resources: registered operations, retained contexts and the compilation
 observer are released; each changed pragma is restored.
 """
@@ -123,6 +123,9 @@ def test_tagged_match_guards_share_the_derivations_inference_budget(metta):
     for index in range(24):
         metta.add_tagged_fact(1, S["binding-row"](index))
     guard = S["binding-guard"](100)
+    # Compilation reconciles the worker's existing recursive graph. The
+    # preceding cold-call test covers that cost; this quota covers execution.
+    metta.runtime.must("spaces:metta_ensure_compiled('binding-guard')")
     assert metta.eval(guard, inferences=20000) == [True, True]
     with pytest.raises(InferenceLimitError, match="20000"):
         list(metta.match(S["binding-row"](V.x), where=guard, under="binding-budget", inferences=20000))
