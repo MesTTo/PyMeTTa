@@ -7,7 +7,7 @@ Guarantees:
   - the opaque BLOB image keeps the binary object as a handle, a lazy path
     reaches one field [tested:
     test_an_opaque_blob_column_is_reached_by_a_lazy_path_without_crossing;
-    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
+    commit=WORKTREE]
   - the two image modes produce distinct payloads while caller-thread
     inference counts stay equal after matching moved into a held SWI engine
     [measured 2026-09-02: opaque/transparent changed from 280/16668 to 41/41, minimum of
@@ -144,7 +144,7 @@ def test_an_opaque_blob_column_is_reached_by_a_lazy_path_without_crossing(
     image = m.parse(f"(image {name} Blob opaque)")
     assert image in m._at("&metta")
     assert m._at("&metta").run(f"!(get-type {image})") == [
-        [m.parse("ImageDecl")]
+        [m.parse("ImageDecl"), m.parse("Declaration")]
     ]
     payload = bytes(range(256)) * 16
     opaque_provider.connection.execute(

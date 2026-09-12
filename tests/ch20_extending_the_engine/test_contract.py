@@ -3,11 +3,11 @@ readable back as atoms and live and die with the registration, and
 (handles ...) entries route foreign matching, push or withhold the take
 bound, refuse loudly, and stay coherent, down to a SQL backend example.
 Guarantees:
-  - operation facts are typed OpDecl values and callable documentation shares
+  - operation facts have OpDecl and its Declaration supertype; callable documentation shares
     the registration transaction, replacement, ownership, and unregister
     lifecycle [tested:
     test_every_register_op_writes_its_declaration_and_get_doc_answers;
-    commit=b615b5a33b43252ef9826e5387da7c9bd7f6b543]
+    commit=WORKTREE]
   - every Python operation owns one canonical five-rank effect fact throughout
     registration, replacement, reflection, and unregister
     [tested: test_structural_registration_reflects_an_effect_atom;
@@ -15,8 +15,8 @@ Guarantees:
     test_a_registered_structural_effect_reaches_the_purity_walk;
     commit=acb40f1912f131ae088083d1af29b4b283019bea]
   - lint evidence and named intent facts inhabit their declared reflection
-    types [tested: test_lint_evidence_and_intent_are_typed_reflection_facts;
-    commit=acb40f1912f131ae088083d1af29b4b283019bea]
+    types and the Declaration supertype [tested:
+    test_lint_evidence_and_intent_are_typed_reflection_facts; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -204,8 +204,8 @@ def test_lint_evidence_and_intent_are_typed_reflection_facts(metta):
     evidence = '(lint-evidence &self kind "subject" "path.py" 1 2 "authority")'
     intent = '(lint-intent &self kind "path.py" 1 2 3 4 "authority")'
 
-    assert reflection.run(f"!(get-type {evidence})") == [[parse("LintEvidence")]]
-    assert reflection.run(f"!(get-type {intent})") == [[parse("LintIntent")]]
+    assert reflection.run(f"!(get-type {evidence})") == [[parse("LintEvidence"), parse("Declaration")]]
+    assert reflection.run(f"!(get-type {intent})") == [[parse("LintIntent"), parse("Declaration")]]
 
 
 def test_the_ontology_loads_once(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -282,7 +282,7 @@ def test_every_register_op_writes_its_declaration_and_get_doc_answers(metta, mon
         metta.op(fn, name=name, transport=transport, effect=effect)
         fact = parse(f"(op {name} 1 {kind})")
         assert fact in reflection
-        assert metta._at("&metta").run(f"!(get-type {fact})") == [[parse("OpDecl")]]
+        assert metta._at("&metta").run(f"!(get-type {fact})") == [[parse("OpDecl"), parse("Declaration")]]
         docs = metta.run(f"!(get-doc {name})")
         assert len(docs) == 1 and "operation documentation." in str(docs[0][0])
 

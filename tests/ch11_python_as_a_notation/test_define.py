@@ -14,7 +14,7 @@ Guarantees:
   - every definition derives source, documentation, captures, and purity from
     its AST and retires stale reflection on replacement and clear [tested:
     test_each_ast_derived_fact_replaces_the_flag_it_supersedes;
-    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
+    commit=WORKTREE]
   - implicit definition names apply the underscore-to-hyphen map and explicit
     name= remains exact [tested:
     test_the_implicit_name_is_mapped_and_name_is_exact; commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
@@ -249,10 +249,10 @@ def test_each_ast_derived_fact_replaces_the_flag_it_supersedes(m, monkeypatch):
     effect_fact = parse("(effect ast-observed pureStructural)")
     assert free_fact in reflection
     assert effect_fact in reflection
-    assert reflection.run(f"!(get-type (defined {m.name} ast-observed))") == [[S.DefinitionFact]]
-    assert reflection.run(f"!(get-type {source_fact})") == [[S.DefinitionFact]]
-    assert reflection.run(f"!(get-type {free_fact})") == [[S.DefinitionFact]]
-    assert reflection.run(f"!(get-type {effect_fact})") == [[S.EffectDecl]]
+    assert reflection.run(f"!(get-type (defined {m.name} ast-observed))") == [[S.DefinitionFact, S.Declaration]]
+    assert reflection.run(f"!(get-type {source_fact})") == [[S.DefinitionFact, S.Declaration]]
+    assert reflection.run(f"!(get-type {free_fact})") == [[S.DefinitionFact, S.Declaration]]
+    assert reflection.run(f"!(get-type {effect_fact})") == [[S.EffectDecl, S.Declaration]]
     assert "Documentation derived from the parsed function body." in str(
         m.run("!(get-doc ast-observed)")
     )
