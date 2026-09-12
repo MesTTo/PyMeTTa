@@ -1,7 +1,7 @@
 """Purpose: UUID generations, namespaces, complete names and byte round trips.
 
 Guarantees: the same 45 claims as 33-uuid_lib.metta.
-[tested: python extensions/python/tools/twin_coverage.py examples/ch08-data/08-03-the-shipped-libraries/33-uuid_lib.metta; commit=WORKTREE].
+[tested: python extensions/python/tools/twin_coverage.py examples/ch08-data/08-03-the-shipped-libraries/33-uuid_lib.metta; commit=d5de00cc183b4b395b552f3aae7fca87752ef38c].
 """
 
 from metta import G, S, lib
@@ -96,5 +96,5 @@ def twin(m):
 #: extensions/python/tools/twin_coverage.py --measure --rounds 3
 #: examples/ch08-data/08-03-the-shipped-libraries/33-uuid_lib.metta;
 #: fixture=lib_uuid at its functional commit with engine/lib QLF artifacts purged;
-#: commit=WORKTREE].
+#: commit=d5de00cc183b4b395b552f3aae7fca87752ef38c].
 BUDGET = 188846
