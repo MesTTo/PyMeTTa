@@ -6,7 +6,7 @@ publication and cleanup contracts; a wheel carries source and builds on import
 test_concurrent_processes_and_threads_publish_one_native_object,
 test_cancelled_build_waits_for_its_compiler_and_discards_the_stage,
 test_native_sources_build_after_wheel_install,
-test_warm_native_build_needs_no_process_library; commit=7b42d5ee5cecb82709617b7ed08dfa2c1441f268].
+test_warm_native_build_needs_no_process_library; commit=WORKTREE].
 Owns resources: pytest owns the copied libraries and installations. Every child
 process is joined, and the cancellation fixture releases its compiler barrier.
 """
@@ -47,6 +47,10 @@ class NativeLibrary:
 
 
 PROVIDERS = {
+    "database": ("support/lock.c", "support/native.pl",
+                 "setup_call_cleanup(open('probe.lock',append,Stream,[type(binary)]),"
+                 "lib_database_native:claim_stream(Stream,0),close(Stream))",
+                 "SWI-Prolog development tools"),
     "regex": ("vendor/pcre4pl.c", "vendor/lib_regex_pcre.pl",
               "re_match('a', 'a')", "libpcre2-dev"),
     "crypto": ("support/crypto_native.c", "support/native.pl",
@@ -299,12 +303,14 @@ def test_native_sources_build_after_wheel_install(tmp_path):
     provider_files = ["lib/lib_string/support/string_native.cpp", "lib/lib_string/vendor/SHA256SUMS",
                       "lib/lib_vector/lib_vector.pl", "lib/lib_vector/lib_vector.metta",
                       "lib/lib_vector/README.md", "lib/lib_vector/vendor/README.md",
-                      "lib/lib_vector/vendor/PYTHON-LICENSE"]
+                      "lib/lib_vector/vendor/PYTHON-LICENSE",
+                      "lib/lib_database/lib_database.pl", "lib/lib_database/lib_database.metta"]
     provider_files.extend("lib/lib_string/vendor/" + line.split("  ", 1)[1]
                         for line in (ROOT / "lib/lib_string/vendor/SHA256SUMS").read_text(encoding="utf-8").splitlines())
     provider_files.extend(str(path.relative_to(ROOT))
+                          for library in ("lib_compression", "lib_database")
                           for directory in ("support", "vendor")
-                          for path in (ROOT / "lib/lib_compression" / directory).rglob("*")
+                          for path in (ROOT / "lib" / library / directory).rglob("*")
                           if path.is_file() and path.suffix != ".qlf")
     for name in provider_files:
         assert any(entry.endswith("/" + name) for entry in source_names), name
@@ -344,7 +350,7 @@ import struct
 import zipfile
 import zlib
 import metta
-from metta import G, S, MeTTa, lib
+from metta import G, S, V, MeTTa, lib
 package = Path(metta.__file__).parent
 assert package.parent == Path.cwd() / "installed", package
 runtime = package / "_runtime"
@@ -352,6 +358,7 @@ assert not (runtime / "lib/lib_regex/.native").exists()
 assert not (runtime / "lib/lib_crypto/.native").exists()
 assert not (runtime / "lib/lib_string/.native").exists()
 assert not (runtime / "lib/lib_compression/.native").exists()
+assert not (runtime / "lib/lib_database/.native").exists()
 with MeTTa() as engine:
     engine += lib.regex
     [pattern] = engine.fn.re_compile(G("a*?"))
@@ -393,10 +400,21 @@ with MeTTa() as engine:
     entries = engine.fn["archive-entries!"](G(str(fixture))).one()
     assert entries[0][2] == G("café/π🙂")
     assert bytes(engine.fn["archive-read!"](G(str(fixture)), 0).one()) == b"bytes"
+    engine += lib.database
+    for opening in (0, 1):
+        handle = engine.fn["database-open!"](G("store"), S.close)[0]
+        try:
+            if opening == 0:
+                assert engine.fn["database-add!"](handle, S.row(G("a\0π🙂"))).one() is True
+            else:
+                assert engine.fn.database_query(handle, S.row(V.value), V.value) == [(G("a\0π🙂"),)]
+        finally:
+            engine.fn["database-close!"](handle).one()
 assert list((runtime / "lib/lib_regex/.native").glob("pcre-*"))
 assert list((runtime / "lib/lib_crypto/.native").glob("crypto-*"))
 assert list((runtime / "lib/lib_string/.native").glob("string-*"))
 assert list((runtime / "lib/lib_compression/.native").glob("archive_locale-*"))
+assert list((runtime / "lib/lib_database/.native").glob("database-*"))
 print("installed native sources built and executed")
 """],
         cwd=tmp_path, env=environment, capture_output=True, text=True, check=False,
