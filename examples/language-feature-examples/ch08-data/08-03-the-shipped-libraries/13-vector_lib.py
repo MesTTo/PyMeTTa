@@ -187,4 +187,10 @@ def twin(m):
 #: so 567 of the movement predates this library [measured 2026-09-12: min-of-3
 #: serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=615e8a68dce996a0c05b3ddddc71b80bc598442d].
-BUDGET = 62208
+#: RE-PINNED 2026-09-12, 62208 to 62215 (+7), Vector now exports its existing
+#: fraction_sqrt native service; the additional module export moves each
+#: measured library import by seven inferences while the numerical
+#: implementations and MeTTa heads stay unchanged [measured 2026-09-12: min-
+#: of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 62215

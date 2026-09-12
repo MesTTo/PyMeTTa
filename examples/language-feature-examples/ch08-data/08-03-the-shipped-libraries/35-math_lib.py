@@ -106,4 +106,10 @@ def twin(m):
 #: examples/ch08-data/08-03-the-shipped-libraries/35-math_lib.metta;
 #: fixture=lib_math at its functional commit with engine/lib QLF artifacts purged;
 #: commit=4d17f1af15fe125e3b8cd488502ba1e0e688fb3e].
-BUDGET = 121592
+#: RE-PINNED 2026-09-12, 121592 to 121599 (+7), Vector now exports its existing
+#: fraction_sqrt native service; the additional module export moves each
+#: measured library import by seven inferences while the numerical
+#: implementations and MeTTa heads stay unchanged [measured 2026-09-12: min-
+#: of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 121599
