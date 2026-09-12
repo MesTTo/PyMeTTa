@@ -105,4 +105,10 @@ def twin(m):
 #: examples/ch08-data/08-03-the-shipped-libraries/31-system_lib.metta;
 #: fixture=lib_system at its functional commit, artifacts purged before the run;
 #: commit=b109f59a8095add8ecf264b011e683184274acbb].
-BUDGET = 117508
+#: RE-PINNED 2026-09-13, 117508 to 118039 (+531), File exports its staged
+#: publisher to Compression; the shared native builder accepts the private
+#: archive provider recipe. All consumers are remeasured after those dependency
+#: changes [measured 2026-09-13: min-of-3 serial fresh processes;
+#: command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+BUDGET = 118039

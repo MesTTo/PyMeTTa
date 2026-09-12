@@ -6,7 +6,7 @@ publication and cleanup contracts; a wheel carries source and builds on import
 test_concurrent_processes_and_threads_publish_one_native_object,
 test_cancelled_build_waits_for_its_compiler_and_discards_the_stage,
 test_native_sources_build_after_wheel_install,
-test_warm_native_build_needs_no_process_library; commit=615e8a68dce996a0c05b3ddddc71b80bc598442d].
+test_warm_native_build_needs_no_process_library; commit=WORKTREE].
 Owns resources: pytest owns the copied libraries and installations. Every child
 process is joined, and the cancellation fixture releases its compiler barrier.
 """
@@ -53,6 +53,12 @@ PROVIDERS = {
                "lib_crypto_native:digest(sha256,utf8(hello),none,B), length(B,32)", "libssl-dev"),
     "string": ("support/string_native.cpp", "support/native.pl",
                'lib_string_native:edit_distance("kitten","sitting",3)', "build-essential"),
+    "compression": ("support/archive_locale.c", "support/native.pl",
+                    'setup_call_cleanup(open_string("x",Input),'
+                    'lib_compression_native:with_utf8('
+                    'lib_compression_native:with_archive(stream(Input),[formats([raw])],Archive,'
+                    'lib_compression_native:archive_next_header(Archive,data))),close(Input))',
+                    "cmake"),
 }
 
 
@@ -63,12 +69,10 @@ def native_library(tmp_path, request):
     source, loader, probe, remedy = PROVIDERS[name]
     library = tmp_path / "lib" / f"lib_{name}"
     origin = ROOT / "lib" / library.name
-    for filename in ("support/native_build.pl", source, loader):
-        target = library / filename
-        target.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(origin / filename, target)
-    if name == "string":
-        shutil.copytree(origin / "vendor", library / "vendor")
+    for directory in ("support", "vendor"):
+        inputs = origin / directory
+        if inputs.is_dir():
+            shutil.copytree(inputs, library / directory, ignore=shutil.ignore_patterns("*.qlf"))
     shared = library.parent / "_support/native_build.pl"
     shared.parent.mkdir(parents=True)
     shutil.copy2(ROOT / "lib/_support/native_build.pl", shared)
@@ -115,7 +119,7 @@ def test_native_build_is_atomic_and_reused(native_library):
     assert "native_build_refusal_probe" in failed.stderr
     assert native_library.remedy in failed.stderr
     assert binary.read_bytes() == original
-    assert sorted(path.name for path in binary.parent.iterdir()) == ["build.lock", binary.name]
+    assert {path.name for path in binary.parent.iterdir()} == {"build.lock", binary.name}
 
 
 def test_concurrent_processes_and_threads_publish_one_native_object(native_library):
@@ -151,7 +155,7 @@ def test_concurrent_processes_and_threads_publish_one_native_object(native_libra
                    if "native_build_once" in line and ("note:" in line or "warning:" in line)]
     assert len(diagnostics) == 1, results
     [binary] = paths
-    assert sorted(path.name for path in binary.parent.iterdir()) == ["build.lock", binary.name]
+    assert {path.name for path in binary.parent.iterdir()} == {"build.lock", binary.name}
 
 
 @pytest.mark.skipif(os.name != "posix", reason="the compiler-barrier fixture uses a POSIX FIFO")
@@ -195,7 +199,7 @@ def test_cancelled_build_waits_for_its_compiler_and_discards_the_stage(native_li
     assert acknowledgement == "cancel_requested\n", diagnostic
     assert status == 0 and output == "cancelled\n", output + diagnostic
     assert binary.read_bytes() == original
-    assert sorted(path.name for path in binary.parent.iterdir()) == ["build.lock", binary.name]
+    assert {path.name for path in binary.parent.iterdir()} == {"build.lock", binary.name}
 
 
 def test_warm_native_build_needs_no_process_library(native_library):
@@ -249,14 +253,17 @@ def test_warm_native_build_needs_no_process_library(native_library):
     assert not list(binary.parent.glob("*.tmp.*"))
 
 
-@pytest.mark.parametrize("native_library", ["string"], indirect=True)
-def test_native_header_change_rebuilds_the_object(native_library):
+@pytest.mark.parametrize(("native_library", "header_path"),
+                         [("string", "vendor/isub.hpp"),
+                          ("compression", "vendor/archive_read_support_format_zip.c")],
+                         indirect=["native_library"])
+def test_native_header_change_rebuilds_the_object(native_library, header_path):
     """An included header cannot change or disappear behind a warm object."""
     before = run_native(native_library)
     assert before.returncode == 0, before.stdout + before.stderr
     binary = Path(before.stdout.strip()).resolve()
     original = binary.read_bytes()
-    header = native_library.path / "vendor/isub.hpp"
+    header = native_library.path / header_path
     source = header.read_text(encoding="utf-8")
     header.write_text(source + "\n#error native_header_refusal_probe\n", encoding="utf-8")
     newer = binary.stat().st_mtime_ns + 2_000_000_000
@@ -270,7 +277,7 @@ def test_native_header_change_rebuilds_the_object(native_library):
     header.unlink()
     missing = run_native(native_library)
     assert missing.returncode != 0, missing
-    assert "isub.hpp" in missing.stderr and "string_native_build" in missing.stderr
+    assert header.name in missing.stderr and f"{native_library.name}_native_build" in missing.stderr
 
 
 def test_native_sources_build_after_wheel_install(tmp_path):
@@ -295,6 +302,10 @@ def test_native_sources_build_after_wheel_install(tmp_path):
                       "lib/lib_vector/vendor/PYTHON-LICENSE"]
     provider_files.extend("lib/lib_string/vendor/" + line.split("  ", 1)[1]
                         for line in (ROOT / "lib/lib_string/vendor/SHA256SUMS").read_text(encoding="utf-8").splitlines())
+    provider_files.extend(str(path.relative_to(ROOT))
+                          for directory in ("support", "vendor")
+                          for path in (ROOT / "lib/lib_compression" / directory).rglob("*")
+                          if path.is_file() and path.suffix != ".qlf")
     for name in provider_files:
         assert any(entry.endswith("/" + name) for entry in source_names), name
     assert not any("/.native/" in name for name in source_names)
@@ -329,6 +340,9 @@ def test_native_sources_build_after_wheel_install(tmp_path):
     probe = subprocess.run(
         [sys.executable, "-c", r"""
 from pathlib import Path
+import struct
+import zipfile
+import zlib
 import metta
 from metta import G, S, MeTTa, lib
 package = Path(metta.__file__).parent
@@ -337,6 +351,7 @@ runtime = package / "_runtime"
 assert not (runtime / "lib/lib_regex/.native").exists()
 assert not (runtime / "lib/lib_crypto/.native").exists()
 assert not (runtime / "lib/lib_string/.native").exists()
+assert not (runtime / "lib/lib_compression/.native").exists()
 with MeTTa() as engine:
     engine += lib.regex
     [pattern] = engine.fn.re_compile(G("a*?"))
@@ -365,9 +380,23 @@ with MeTTa() as engine:
     assert engine.fn.vector_scale(ratios, 3).one() == (1, 2)
     assert engine.fn.dot((2.0**54, 1.0, -(2.0**54)), (1, 1, 1)).one() == 1.0
     assert engine.fn.cosine((2.0**1000,), (2.0**1000,)).one() == 1.0
+    engine += lib.compression
+    encoded = engine.fn.compress_bytes(S.gzip, 6, (0, 128, 255)).one()
+    assert list(engine.fn.decompress_bytes(S.gzip, encoded).one()) == [0, 128, 255]
+    fixture = Path("archive.zip")
+    info = zipfile.ZipInfo("caf_")
+    payload = b"\x01" + struct.pack("<I", zlib.crc32(b"caf\x82")) + "café/π🙂".encode()
+    info.extra = struct.pack("<HH", 0x7075, len(payload)) + payload
+    with zipfile.ZipFile(fixture, "w") as archive:
+        archive.writestr(info, b"bytes")
+    fixture.write_bytes(fixture.read_bytes().replace(b"caf_", b"caf\x82"))
+    entries = engine.fn["archive-entries!"](G(str(fixture))).one()
+    assert entries[0][2] == G("café/π🙂")
+    assert bytes(engine.fn["archive-read!"](G(str(fixture)), 0).one()) == b"bytes"
 assert list((runtime / "lib/lib_regex/.native").glob("pcre-*"))
 assert list((runtime / "lib/lib_crypto/.native").glob("crypto-*"))
 assert list((runtime / "lib/lib_string/.native").glob("string-*"))
+assert list((runtime / "lib/lib_compression/.native").glob("archive_locale-*"))
 print("installed native sources built and executed")
 """],
         cwd=tmp_path, env=environment, capture_output=True, text=True, check=False,

@@ -300,4 +300,10 @@ def twin(m):
 #: that unchanged-cut baseline [measured 2026-09-11:
 #: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=3aaad3435292e4c7d5cc3a01bfda39430aacc6e8].
-BUDGET = 193660
+#: RE-PINNED 2026-09-13, 193660 to 194191 (+531), Dict and Reflect transitively
+#: import the native String provider and pay the shared native builder callback
+#: dispatch introduced for Compression; the full twin lane identifies the same
+#: 531-inference load increase as the other native consumers [measured
+#: 2026-09-13: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 194191

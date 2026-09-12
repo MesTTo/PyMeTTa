@@ -251,4 +251,10 @@ def twin(m):
 #: the same atoms again [measured 2026-09-12: min-of-3 serial fresh processes;
 #: command=python extensions/python/tools/twin_coverage.py --repin;
 #: commit=a8b4bab6eb0bf1b42eb441e9145144cf91befa7d].
-BUDGET = 166909
+#: RE-PINNED 2026-09-13, 166909 to 167440 (+531), Dict and Reflect transitively
+#: import the native String provider and pay the shared native builder callback
+#: dispatch introduced for Compression; the full twin lane identifies the same
+#: 531-inference load increase as the other native consumers [measured
+#: 2026-09-13: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 167440
