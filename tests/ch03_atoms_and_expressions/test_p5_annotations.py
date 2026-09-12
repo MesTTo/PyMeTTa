@@ -9,6 +9,9 @@ Guarantees:
     from the session space instead of assuming no earlier registration exists
     [tested: test_the_four_containers_share_one_parameterised_treatment;
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
+  - Literal alternatives retain their finite domain in the annotation target
+    [tested: test_every_advanced_annotation_reaches_metta_as_a_target_symbol;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -171,7 +174,7 @@ def test_every_advanced_annotation_reaches_metta_as_a_target_symbol(metta):
     Choice = TypeVar("Choice", int, str)
 
     expected = {
-        Literal["on", "off"]: ["String"],
+        Literal["on", "off"]: ['(Annotated String (Literal "on" "off"))'],
         UserId: ["UserId"],
         Bounded: ["Number"],
         Choice: ["Number", "String"],

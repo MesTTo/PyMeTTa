@@ -233,6 +233,16 @@ def test_a_python_enum_reaches_the_coverage_check_without_extra_machinery(m):
     assert [finding.subject for finding in findings] == ["intensity"]
     assert findings[0].payload["missing"] == ["vivid"]
 
+def test_finite_constructor_coverage_preserves_field_correlations(m):
+    """Repeated pattern variables cover equal fields, not their cross product."""
+    m.run("(: Pair (-> (Annotated Symbol (Literal a b)) (Annotated Symbol (Literal a b)) Choice))")
+    m.run("(: rank (-[det]-> Choice Number))(= (rank (Pair $same $same)) 1)")
+    assert _kind(m, "uncovered-constructor")[0].payload["missing"] == [
+        "(Pair a b)", "(Pair b a)",
+    ]
+    m.run("(= (rank (Pair $left $right)) 2)")
+    assert not _kind(m, "uncovered-constructor")
+
 
 def test_a_constructor_pattern_covers_its_constructor(m):
     """The algebraic case, in the shape upstream's own fixture is written in.

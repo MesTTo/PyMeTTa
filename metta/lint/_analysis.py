@@ -9,6 +9,10 @@ Guarantees:
     test_lint_walks_deep_expression_trees_iteratively]
   - possible undefined calls remain explicitly labelled as heuristic
     [tested test_possibly_undefined_reference_is_labeled_a_heuristic]
+  - finite Literal constructor domains are checked as complete terms, while
+    constructors with unrestricted fields retain head coverage [tested:
+    test_finite_constructor_coverage_preserves_field_correlations;
+    commit=WORKTREE]
   - a body calling a translator special form is not a finding, so the
     commonest shape in MeTTa, an equation whose body branches on `if`, lints
     clean [tested test_calling_a_special_form_is_not_an_undefined_reference]
@@ -54,6 +58,7 @@ from __future__ import annotations
 
 from collections import Counter
 from collections.abc import Mapping
+from itertools import product
 from typing import TYPE_CHECKING, Any, TypeGuard
 
 import metta.doors as _doors
@@ -295,21 +300,22 @@ def _overlapping_det_findings(
         )
     return findings
 
-def _declared_type_members(declarations: list[Expression]) -> dict[str, set[str]]:
-    """Symbols declared of each plain type, so a finite type can be enumerated.
+def _declared_type_members(declarations: list[Expression]) -> dict[str, set[Atom]]:
+    """Enumerate finite constructors, retaining unrestricted ones by head.
 
     `(: Red Colour)` makes `Red` a member of `Colour`. An arrow-framed
-    declaration is a signature rather than a membership and is skipped, and so
-    is anything whose type is not a plain symbol, because a parametric type
-    has no finite member set to be missing from.
+    A constructor whose inputs are all Literal refinements has an enumerable
+    domain. Other constructor signatures contribute their head, so a pattern
+    covering any of their fields prevents a claim that the constructor has
+    no answers. A parametric result has no plain finite type to check here.
     """
-    members: dict[str, set[str]] = {}
+    members: dict[str, set[Atom]] = {}
     for declaration in declarations:
         if len(declaration) != 3 or not isinstance(subject := declaration[1], Symbol):
             continue
         kind = declaration[2]
         if isinstance(kind, Symbol):
-            members.setdefault(kind.name, set()).add(subject.name)
+            members.setdefault(kind.name, set()).add(subject)
             continue
         # A constructor is a member of the type it RETURNS:
         # `(: Circle (-> Number Shape))` makes Circle one of Shape's, beside
@@ -320,7 +326,15 @@ def _declared_type_members(declarations: list[Expression]) -> dict[str, set[str]
             continue
         result = kind[len(kind) - 1]
         if isinstance(result, Symbol):
-            members.setdefault(result.name, set()).add(subject.name)
+            inputs = list(kind.children[1:-1])
+            cases = members.setdefault(result.name, set())
+            if all(isinstance(item, Expression) and len(item) == 3
+                   and _symbol_head(item) == "Annotated"
+                   and _symbol_head(item[2]) == "Literal" for item in inputs):
+                cases.update(Expression([subject, *arguments])
+                             for arguments in product(*(item[2].children[1:] for item in inputs)))
+            else:
+                cases.add(subject)
     return members
 
 def _uncovered_constructor_findings(
@@ -346,8 +360,8 @@ def _uncovered_constructor_findings(
     yet loaded, cannot be seen from the space as it stands; `lint()` reports
     what is there when it is called.
 
-    It fires only when EVERY equation puts a symbol in that position: one
-    equation with a variable there covers the whole type.
+    A variable in that position covers the whole type. Finite constructor
+    terms also retain repeated-variable constraints in their patterns.
     """
     authority = authority_for("uncovered-constructor")
     members = _declared_type_members(declarations)
@@ -370,46 +384,30 @@ def _uncovered_constructor_findings(
             declared = members.get(kind.name)
             if not declared:
                 continue
-            covered: set[str] = set()
-            for equation in rows:
-                head = equation[1]
-                if not isinstance(head, Expression) or len(head) <= position:
-                    covered = set()
-                    break
-                argument = head[position]
-                # A bare symbol covers itself; a constructor PATTERN covers
-                # its constructor, which is how an algebraic type is matched:
-                # `(area (Circle $r))` covers Circle.
-                if isinstance(argument, Symbol):
-                    name_covered = argument.name
-                elif (
-                    isinstance(argument, Expression)
-                    and len(argument) >= 1
-                    and isinstance(inner := argument[0], Symbol)
-                ):
-                    name_covered = inner.name
-                else:
-                    covered = set()
-                    break
-                if name_covered.startswith("$"):
-                    covered = set()
-                    break
-                covered.add(name_covered)
-            missing = declared - covered
-            if not covered or not missing:
+            arguments = [head[position] for equation in rows
+                         if isinstance(head := equation[1], Expression) and len(head) > position]
+            missing = {
+                member for member in declared
+                if not any(_instantiates(argument, member) or (
+                    isinstance(member, Symbol) and _symbol_head(argument) == member.name
+                ) for argument in arguments)
+            }
+            if not arguments or not missing:
                 continue
+            declared_names = sorted(map(str, declared))
+            missing_names = sorted(map(str, missing))
             findings.append(
                 Finding(
                     "uncovered-constructor",
                     name.name,
                     f"this arrow claims det, so exactly one answer, but argument "
                     f"{position} is declared {kind.name}, whose members are "
-                    f"{sorted(declared)}, and no equation covers {sorted(missing)}: "
+                    f"{declared_names}, and no equation covers {missing_names}: "
                     f"a call with one answers zero. Cover it, or declare "
                     f"-[semidet]-> and mean it",
                     declaration,
                     severity="warning",
-                    payload={"authority": authority, "missing": sorted(missing)},
+                    payload={"authority": authority, "missing": missing_names},
                 )
             )
     return findings

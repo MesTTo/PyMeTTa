@@ -461,7 +461,7 @@ class ProviderCapability(_OpenStrEnum):
     add_token = "add-token"  # noqa: S105  # nosec B105 # public catalog symbol
     remove_token = "remove-token"  # noqa: S105  # nosec B105 # public catalog symbol
 
-#: (vocabulary refinement Gt Ge Lt Le Interval MultipleOf MinLen MaxLen Len Predicate Unit)
+#: (vocabulary refinement Gt Ge Lt Le Interval MultipleOf MinLen MaxLen Len Predicate Unit Literal)
 class Refinement(_AtomStrEnum):
     """Typed values of the refinement vocabulary."""
     Gt = "Gt"
@@ -475,6 +475,7 @@ class Refinement(_AtomStrEnum):
     Len = "Len"
     Predicate = "Predicate"
     Unit = "Unit"
+    Literal = "Literal"
 
 #: (vocabulary refusal-kind syntax time_limit inference_limit restraint interrupted value type assertion capability operation stack source engine)
 class RefusalKind(_AtomStrEnum):

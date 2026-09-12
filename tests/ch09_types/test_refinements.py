@@ -32,6 +32,10 @@ Guarantees:
   - length constraints ask a host value for its length without enumerating
     elements [tested: test_host_length_refinements_do_not_read_elements;
     commit=WORKTREE]
+  - Literal annotations constrain parameters and return values, with each
+    runtime base retaining only its own members [tested:
+    test_literal_signatures_enforce_membership_at_both_crossings;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -39,7 +43,7 @@ Open Obligations:
 """
 
 from collections.abc import Sequence
-from typing import Annotated
+from typing import Annotated, Literal
 
 import annotated_types as at
 import pytest
@@ -94,7 +98,7 @@ def test_a_refined_signature_declares_the_refined_arrow():
     assert isinstance(predicate, Expression)
     assert str(predicate.children[2].head) == "Predicate"
     assert sorted(Refinement) == sorted(
-        ["Gt", "Ge", "Lt", "Le", "Interval", "MultipleOf", "MinLen", "MaxLen", "Len", "Predicate", "Unit"]
+        ["Gt", "Ge", "Lt", "Le", "Interval", "MultipleOf", "MinLen", "MaxLen", "Len", "Predicate", "Unit", "Literal"]
     )
 
 
@@ -112,6 +116,29 @@ def test_doc_and_timezone_stay_in_the_annotation_claim():
 
 def _answers(head, *arguments) -> list[str]:
     return [str(answer) for answer in head(*arguments)]
+
+
+def test_literal_signatures_enforce_membership_at_both_crossings(m):
+    """The same finite domain controls Python-authored parameters and results."""
+    @m.define
+    def literal_input(value: Literal[1, 2]) -> int:
+        return value
+
+    @m.define
+    def literal_result(value: int) -> Literal[1, 2]:
+        return value
+
+    assert _answers(literal_input, 1) == ["1"]
+    assert _answers(literal_input, 3) == [
+        "(Error (literal-input 3) (BadArgValue 1 (Literal 1 2) 3))",
+    ]
+    assert _answers(literal_result, 2) == ["2"]
+    assert _answers(literal_result, 3) == [
+        "(Error (literal-result 3) (BadReturnValue (Literal 1 2) 3))",
+    ]
+    assert list(map(str, type_atoms_for(Literal[1, "one"]))) == [
+        "(Annotated Number (Literal 1))", '(Annotated String (Literal "one"))',
+    ]
 
 
 def test_a_defined_head_refuses_a_violating_argument_by_name_and_accepts_the_rest(m):

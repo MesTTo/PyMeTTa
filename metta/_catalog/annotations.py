@@ -30,6 +30,9 @@ Guarantees:
     instead of declaring an unrelated user type [tested:
     test_compiled_removal_statements_preserve_one_many_missing_and_target_scope;
     commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e]
+  - Literal values refine their runtime base types by exact membership
+    [tested: test_literal_signatures_enforce_membership_at_both_crossings;
+    commit=WORKTREE]
   - an annotation the runtime cannot name costs only itself: the annotations
     beside it still declare their types, and the refusal fires where the
     unresolvable one is consumed as a type [tested:
@@ -333,12 +336,15 @@ def _is_new_type(annotation: Any) -> bool:
 
 
 def _literal_type_atoms(annotation: Any) -> list[Atom]:
-    alternatives: list[Atom] = []
-    seen: set[str] = set()
+    members: dict[Atom, list[Atom]] = {}
     for value in typing.get_args(annotation):
-        for atom in type_atoms_for(type(value)):
-            _add_unique(alternatives, seen, atom)
-    return alternatives or [S["%Undefined%"]]
+        encoded = _encode(value)
+        for base in type_atoms_for(type(value)):
+            values = members.setdefault(base, [])
+            if encoded not in values:
+                values.append(encoded)
+    return [_expr(S.Annotated, base, _expr(S.Literal, *values))
+            for base, values in (members or {S.Atom: []}).items()]
 
 
 def _typevar_constraints(annotation: typing.TypeVar) -> list[Atom]:
