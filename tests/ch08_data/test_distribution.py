@@ -22,6 +22,7 @@ Owns resources:
 from __future__ import annotations
 
 import math
+import statistics
 from collections import OrderedDict
 
 import pytest
@@ -364,6 +365,107 @@ def test_independent_marginals_and_a_correlated_joint_are_not_interchangeable(
     assert rows(independent) == [(0, 0.25), (1, 0.5), (2, 0.25)]
     assert rows(correlated_sum) == [(0, 0.5), (2, 0.5)]
     assert rows(conditioned) == [(1, 1.0)]
+
+
+
+@LAW_SETTINGS
+@given(generated=ROWS)
+def test_moments_agree_with_pythons_statistics(distribution_space, generated):
+    """The mean, variance and deviation are what statistics answers for the same law.
+
+    The oracle weights each outcome by its probability rather than counting
+    samples, which is the definition a finite law has; `statistics.fmean` with
+    weights is exactly that sum.
+    """
+    dist = distribution(generated)
+    # ws-expect reads the weights it is given, so the mean of a LAW is the
+    # expectation of the normalized carrier; the new heads normalize for
+    # themselves, which is why they take the raw rows here.
+    unit = call(distribution_space, "ws-normalize", dist)
+    expected = normalized(generated)
+    outcomes = list(expected)
+    weights = [expected[outcome] for outcome in outcomes]
+    mean = statistics.fmean(outcomes, weights=weights)
+    variance = statistics.fmean([(outcome - mean) ** 2 for outcome in outcomes], weights=weights)
+
+    assert number(call(distribution_space, "ws-expect", unit)) == pytest.approx(mean, abs=1e-9)
+    assert number(call(distribution_space, "ws-variance", dist)) == pytest.approx(variance, abs=1e-9)
+    assert number(call(distribution_space, "ws-deviation", dist)) == pytest.approx(
+        math.sqrt(variance), abs=1e-9
+    )
+    assert number(call(distribution_space, "ws-central-moment", dist, 1)) == pytest.approx(
+        0.0, abs=1e-9
+    )
+    assert number(call(distribution_space, "ws-central-moment", dist, 2)) == pytest.approx(
+        variance, abs=1e-9
+    )
+
+
+@LAW_SETTINGS
+@given(generated=ROWS)
+def test_the_cumulative_function_and_the_quantile_are_inverses(distribution_space, generated):
+    """The mass at or below a value, and the value at a level, agree with the law.
+
+    Both are read off the same sorted support the oracle builds, so the claim is
+    that the library walks it the way the definition does: the CDF is
+    right-continuous and the quantile is its smallest value reaching a level.
+    """
+    dist = distribution(generated)
+    expected = normalized(generated)
+    support = sorted(expected)
+    running = 0.0
+    for outcome in support:
+        running += expected[outcome]
+        answered = number(call(distribution_space, "ws-mass-at-most", dist, outcome))
+        assert answered == pytest.approx(running, abs=1e-9)
+        # The quantile at that cumulative level is this outcome or an earlier one
+        # holding the same mass, never a later one.
+        level = min(running, 1.0)
+        at_level = number(call(distribution_space, "ws-quantile", dist, level))
+        assert at_level <= outcome
+
+    assert number(call(distribution_space, "ws-mass-at-most", dist, min(support) - 1)) == 0.0
+    assert number(call(distribution_space, "ws-quantile", dist, 1.0)) == max(support)
+    assert [number(value) for value in call(
+        distribution_space, "ws-support", dist
+    ).children] == support
+
+
+@LAW_SETTINGS
+@given(generated=ROWS, draws=st.integers(min_value=0, max_value=3))
+def test_a_sum_of_independent_draws_scales_its_moments(distribution_space, generated, draws):
+    """Summing n independent draws scales the mean and the variance by n.
+
+    That is the one law a convolution has to satisfy however the weights fall,
+    and it is checked against the library's own single-draw moments rather than
+    against a second implementation of them.
+    """
+    dist = distribution(generated)
+    total = call(distribution_space, "ws-sum-independent", dist, draws)
+    unit = call(distribution_space, "ws-normalize", dist)
+    mean = number(call(distribution_space, "ws-expect", unit))
+    variance = number(call(distribution_space, "ws-variance", dist))
+
+    assert math.fsum(mass for _outcome, mass in rows(total)) == pytest.approx(1.0)
+    assert number(call(distribution_space, "ws-expect", total)) == pytest.approx(
+        draws * mean, abs=1e-7
+    )
+    assert number(call(distribution_space, "ws-variance", total)) == pytest.approx(
+        draws * variance, abs=1e-7
+    )
+
+
+def test_the_order_statistics_refuse_outside_their_domains(distribution_space):
+    """A level outside (0, 1] and a negative draw count refuse with a remedy."""
+    dist = distribution([(1, 1), (1, 3)])
+    for level in (0.0, -0.5, 1.5):
+        answered = call(distribution_space, "ws-quantile", dist, level)
+        assert "ws-quantile takes a level in (0, 1]" in str(answered)
+    refused = call(distribution_space, "ws-sum-independent", dist, -1)
+    assert "nonnegative count of independent draws" in str(refused)
+    for operation in ("ws-variance", "ws-deviation", "ws-support"):
+        answered = call(distribution_space, operation, distribution([]))
+        assert "nonempty finite distribution" in str(answered)
 
 
 @pytest.mark.parametrize(
