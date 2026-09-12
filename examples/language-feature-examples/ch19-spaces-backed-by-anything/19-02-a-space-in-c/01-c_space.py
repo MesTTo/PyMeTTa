@@ -365,4 +365,9 @@ def twin(m):
 #: import that changed native surface [measured 2026-09-13: min-of-3 serial
 #: fresh processes; command=python extensions/python/tools/twin_coverage.py
 #: --repin; commit=0f22b69cfca5c108e4126bdd56ab9bb2e493744d].
-BUDGET = 122143
+#: RE-PINNED 2026-09-13, 122143 to 122161 (+18), File exports its shared stream
+#: borrowing and rollback operations; failed Socket and HTTP publication now
+#: withdraws the registered stream before closing it [measured 2026-09-13: min-
+#: of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 122161

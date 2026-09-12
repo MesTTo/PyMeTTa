@@ -355,4 +355,9 @@ def twin(m):
 #: verifies transaction refusal before server lifecycle effects [measured
 #: 2026-09-12: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=0f22b69cfca5c108e4126bdd56ab9bb2e493744d].
-BUDGET = 140583
+#: RE-PINNED 2026-09-13, 140583 to 140603 (+20), File exports its shared stream
+#: borrowing and rollback operations; failed Socket and HTTP publication now
+#: withdraws the registered stream before closing it [measured 2026-09-13: min-
+#: of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 140603
