@@ -217,7 +217,7 @@ def twin(m):
 #: reads its test's verdict rather than threading an expected answer, and the
 #: lib_unicode import it needs [measured 2026-09-12: min-of-3 serial fresh
 #: processes; command=python extensions/python/tools/twin_coverage.py --repin;
-#: commit=WORKTREE].
+#: commit=b2a180eace9ff7e51677b1a40a8d6374ee05972b].
 BUDGET = 151546
 
 #: DIVERGED 2026-09-12, the example holds 1 atom the twin does not (1 =) and
