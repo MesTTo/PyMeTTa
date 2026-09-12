@@ -373,4 +373,15 @@ def twin(m):
 #: dependency argument [measured 2026-09-11: min-of-3 serial fresh processes;
 #: command=python extensions/python/tools/twin_coverage.py --repin;
 #: commit=3aaad3435292e4c7d5cc3a01bfda39430aacc6e8].
-BUDGET = 126822
+#: RE-PINNED 2026-09-12, 126822 to 151609 (+24787), The File library publishes
+#: 56 documented heads at 60 arities where it published 32, so every direct and
+#: transitive importer pays the larger generated face and the module's own
+#: export list. An identical-binary control at 8eb04b55a with artifacts purged
+#: measured each of these ten twins before the change (ai-tmp/ai-lib2-file-
+#: importers-before.log) and attributes the whole movement to that face:
+#: +22,479 on the four twins that only import it through another library,
+#: +24,552 to +24,862 where the example also calls it, and +30,258 and +30,687
+#: on the two whose own claims are file operations [measured 2026-09-12: min-
+#: of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 151609

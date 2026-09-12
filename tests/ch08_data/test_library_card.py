@@ -212,7 +212,7 @@ def test_a_card_documents_what_the_library_documents():
     card = library.card("lib_file")
     documented = {head.name: head.doc for head in card.documented}
 
-    assert len(card.documented) == 18
+    assert len(card.documented) == 55
     assert "file-exists" in documented
     assert "True when a regular file exists at the path" in documented["file-exists"]
     assert documented["file-exists"].startswith("file-exists: ")
