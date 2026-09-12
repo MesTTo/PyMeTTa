@@ -5,7 +5,7 @@ A set is an expression, so it comes back as one and a tuple goes in as one;
 canonical. A refusal is what `if-error` reads, so it is caught as the error it is.
 
 Guarantees: the same claims as 23-sets_lib.metta
-[tested: python extensions/python/tools/twin_coverage.py examples/ch08-data/08-03-the-shipped-libraries/23-sets_lib.metta; commit=WORKTREE].
+[tested: python extensions/python/tools/twin_coverage.py examples/ch08-data/08-03-the-shipped-libraries/23-sets_lib.metta; commit=e3e8c891065765765ee8fe567c5eb6864e79b652].
 Open Obligations:
   To Do: None
   Hacks: None
@@ -122,7 +122,7 @@ def twin(m):
 #: processes; command=python extensions/python/tools/twin_coverage.py --measure
 #: --rounds 3 examples/ch08-data/08-03-the-shipped-libraries/23-sets_lib.metta;
 #: fixture=lib_sets at its functional commit, artifacts purged before the run;
-#: commit=WORKTREE].
+#: commit=e3e8c891065765765ee8fe567c5eb6864e79b652].
 BUDGET = 71496
 
 #: OVERRUN 2026-09-12, 1399: the example nests its law claims in one evaluation
@@ -133,5 +133,5 @@ BUDGET = 71496
 #: [measured 2026-09-12: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --measure --rounds 3
 #: examples/ch08-data/08-03-the-shipped-libraries/23-sets_lib.metta;
-#: commit=WORKTREE].
+#: commit=e3e8c891065765765ee8fe567c5eb6864e79b652].
 OVERRUN = 1399
