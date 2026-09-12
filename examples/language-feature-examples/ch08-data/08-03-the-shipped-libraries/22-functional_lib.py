@@ -13,7 +13,7 @@ helpers take their arithmetic and comparisons by the engine's words, `fn.mul`,
 parameter would cross to the host once per element.
 
 Guarantees: the same claims as 22-functional_lib.metta
-[tested: python extensions/python/tools/twin_coverage.py examples/ch08-data/08-03-the-shipped-libraries/22-functional_lib.metta; commit=WORKTREE].
+[tested: python extensions/python/tools/twin_coverage.py examples/ch08-data/08-03-the-shipped-libraries/22-functional_lib.metta; commit=a2a80061cd8264d8f714b14c76b94d00f44a0755].
 Open Obligations:
   To Do: None
   Hacks: None
@@ -197,12 +197,12 @@ def twin(m):
 #: processes; command=python extensions/python/tools/twin_coverage.py --measure
 #: --rounds 3 examples/ch08-data/08-03-the-shipped-libraries/22-functional_lib.metta;
 #: fixture=lib_functional at its functional commit, artifacts purged before
-#: the run; commit=WORKTREE].
+#: the run; commit=a2a80061cd8264d8f714b14c76b94d00f44a0755].
 #: RE-PINNED 2026-09-12, 135975 to 134567 (-1408), lib_patrick keeps its own
 #: four idioms and does not import this library, so the example asks for both
 #: halves itself and pays the second import once [measured 2026-09-12: min-of-3
 #: serial fresh processes; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+#: extensions/python/tools/twin_coverage.py --repin; commit=a2a80061cd8264d8f714b14c76b94d00f44a0755].
 BUDGET = 134567
 
 #: DIVERGED 2026-09-12, the example holds 1 atom the twin does not (1 =) and
@@ -211,5 +211,5 @@ BUDGET = 134567
 #: binding let* forms where the example writes four nested let forms; the
 #: bindings, the effects and the answer are the same [measured 2026-09-12: the
 #: two stored-atom surpluses, one fresh process per side; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+#: extensions/python/tools/twin_coverage.py --repin; commit=a2a80061cd8264d8f714b14c76b94d00f44a0755].
 DIVERGENCE = "0167fe4bbf5f60f3efd0ac18c36909cf44b3ca7c6917b67655c2889741fbc1d9"
