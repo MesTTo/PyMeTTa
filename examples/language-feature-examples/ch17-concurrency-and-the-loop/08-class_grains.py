@@ -3,7 +3,7 @@
 A frozen dataclass is a value. A mutable dataclass shares its class population.
 A Space subclass owns private facts and rules. Both notations query those rows.
 [tested: examples/ch17-concurrency-and-the-loop/08-class_grains.metta and its
-Python twin; commit=9b0a084e534ddf7dd67980ad84c27c8279b877f1]
+Python twin; commit=WORKTREE]
 Owns resources:
   - the scope releases the declaring space, classes and their instances.
 """
@@ -105,5 +105,15 @@ def twin(m):
 #: extensions/python/tools/twin_coverage.py --measure
 #: examples/ch17-concurrency-and-the-loop/08-class_grains.metta; fixture=min of
 #: three serial fresh processes after deleting engine/lib QLF; commit=9b0a084e534ddf7dd67980ad84c27c8279b877f1].
-BUDGET = 14249592
-OVERRUN = 11718851
+#: RE-PINNED 2026-09-13, 14249592 to 14248264 (-1328), Native import
+#: reconciliation retains unchanged providers during class and scope cleanup;
+#: the body and stored contents are unchanged [measured 2026-09-13: min-of-3
+#: serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 14248264
+#: The native minimum remains 2530741, so the declaration and crossing gap
+#: decreases to 11717523 [measured: 14248264 twin and 2530741 native inferences;
+#: command=python extensions/python/tools/twin_coverage.py --measure --rounds 3
+#: examples/ch17-concurrency-and-the-loop/08-class_grains.metta;
+#: fixture=serial fresh processes after deleting engine/lib QLF; commit=WORKTREE].
+OVERRUN = 11717523
