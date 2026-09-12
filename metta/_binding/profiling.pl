@@ -8,7 +8,7 @@
 %   commit=90ba93eb8f6e98ebfefc55416859bf13de6a8427].
 %   A profile whose sampler took no sample still answers the goal's answers,
 %   with zero samples and ticks and rows carrying their call counts
-%   [tested: test_a_profile_with_no_samples_still_answers; commit=WORKTREE].
+%   [tested: test_a_profile_with_no_samples_still_answers; commit=d9c15a2e39c743ee44f92dc4eedcd82b5f3f8509].
 
 %%%%%%%%%% Profiling %%%%%%%%%%
 %
@@ -36,7 +36,7 @@
 %c00465ae4 and on the pristine b1d175f13 with `//2: evaluation error:
 %zero_divisor` at loadavg 4, where a 3,000,000-inference loop profiles to
 %samples=6 ticks=26 and profile(true, [top(0)]) raises;
-%command=sh extensions/python/test.sh; commit=WORKTREE].
+%command=sh extensions/python/test.sh; commit=d9c15a2e39c743ee44f92dc4eedcd82b5f3f8509].
 metta_py_profiled(Pred, Ins, [Out, Samples, Ticks, Seconds, Nodes]) :-
     metta_py_wrapped_goal(Pred, Ins, Out, Goal),
     current_prolog_flag(profile_ports, Ports),

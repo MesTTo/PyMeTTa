@@ -1113,7 +1113,7 @@ def twin(m):
 #: installed typing witnesses compiled to indexed clauses (-60) and publication
 #: ownership resolved once per scope (-26) [measured 2026-09-12: min-of-3
 #: serial fresh processes; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+#: extensions/python/tools/twin_coverage.py --repin; commit=d9c15a2e39c743ee44f92dc4eedcd82b5f3f8509].
 BUDGET = 2500
 #: BANDED 2026-09-06 rather than re-pinned an eighteenth time. Seventeen of
 #: the eighty-three re-pins above were written on 2026-09-05 and 2026-09-06
