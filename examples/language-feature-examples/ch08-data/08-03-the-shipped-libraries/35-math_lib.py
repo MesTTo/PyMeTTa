@@ -1,7 +1,7 @@
 """Purpose: exact number operations and native floating functions.
 
 Guarantees: the same 67 claims as 35-math_lib.metta.
-[tested: python extensions/python/tools/twin_coverage.py examples/ch08-data/08-03-the-shipped-libraries/35-math_lib.metta; commit=WORKTREE].
+[tested: python extensions/python/tools/twin_coverage.py examples/ch08-data/08-03-the-shipped-libraries/35-math_lib.metta; commit=4d17f1af15fe125e3b8cd488502ba1e0e688fb3e].
 """
 
 from metta import G, S, lib
@@ -105,5 +105,5 @@ def twin(m):
 #: command=python extensions/python/tools/twin_coverage.py --measure --rounds 3
 #: examples/ch08-data/08-03-the-shipped-libraries/35-math_lib.metta;
 #: fixture=lib_math at its functional commit with engine/lib QLF artifacts purged;
-#: commit=WORKTREE].
+#: commit=4d17f1af15fe125e3b8cd488502ba1e0e688fb3e].
 BUDGET = 121592
