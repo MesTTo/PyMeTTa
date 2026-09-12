@@ -22,11 +22,11 @@ Guarantees:
   - the manifest and the tree hold the same host_service set, compared as
     sets with both differences named
     [tested: test_the_host_service_scoreboard_matches_the_tree;
-    commit=54cb2eee69c42c1ae685643cbe2578f8d617a265]
+    commit=WORKTREE]
   - every remaining row carries a named floor reason, so the list is the
     transport floor rather than a smaller pile of orchestration
     [tested: test_the_shim_surface_shrank_to_the_transport_floor;
-    commit=54cb2eee69c42c1ae685643cbe2578f8d617a265]
+    commit=WORKTREE]
   - the host query door uses the engine's published pattern-modifier walk
     [tested: test_a_path_reaches_into_a_handle_without_converting_it;
     commit=a1b10566194f10c174101fdc05f956b33171613b]
@@ -260,6 +260,10 @@ HOST_SERVICES = {
     # the non-backtrackable State guard, or live-cell identity.
     "metta_speculate/1",
     "metta_transaction/1",
+    # Result-aware transactions and both generator context lifetimes are
+    # engine execution doors shared by bindings and native callers.
+    "metta_with_trailed/3",
+    "metta_with_trailed_enumeration/3",
     # Sagas need the durable transaction outcome before any post-commit
     # observer or foreign-provider failure is rethrown.
     "metta_transaction_notified/3",
@@ -467,6 +471,8 @@ FLOOR_REASONS = {
     "metta_source_reset/1": "door",
     "metta_speculate/1": "door",
     "metta_transaction/1": "door",
+    "metta_with_trailed/3": "door",
+    "metta_with_trailed_enumeration/3": "door",
     "metta_transaction_notified/3": "door",
     "metta_world_effect_coverage/2": "door",
     "metta_effect_covered/2": "door",
