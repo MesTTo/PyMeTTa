@@ -11,7 +11,7 @@ two that answer a GRAMMAR return the built term, which is what `ref` evaluates
 when the parse reaches it.
 
 Guarantees: the same claims as 27-parsing_lib.metta
-[tested: python extensions/python/tools/twin_coverage.py examples/ch08-data/08-03-the-shipped-libraries/27-parsing_lib.metta; commit=WORKTREE].
+[tested: python extensions/python/tools/twin_coverage.py examples/ch08-data/08-03-the-shipped-libraries/27-parsing_lib.metta; commit=7bdd5ace3f8272c2806ac0b925e56a78dc0894a8].
 Open Obligations:
   To Do: None
   Hacks: None
@@ -222,9 +222,9 @@ def twin(m):
 #: extensions/python/tools/twin_coverage.py --measure --rounds 3
 #: examples/ch08-data/08-03-the-shipped-libraries/27-parsing_lib.metta;
 #: fixture=lib_parsing at its functional commit, artifacts purged before the run;
-#: commit=WORKTREE].
+#: commit=7bdd5ace3f8272c2806ac0b925e56a78dc0894a8].
 #: RE-PINNED 2026-09-12, 90024 to 89855 (-169), the greedy prefix answer taken
 #: through next(iter(...)) rather than a list slice, which stops draining the
 #: rest [measured 2026-09-12: min-of-3 serial fresh processes; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+#: extensions/python/tools/twin_coverage.py --repin; commit=7bdd5ace3f8272c2806ac0b925e56a78dc0894a8].
 BUDGET = 89855
