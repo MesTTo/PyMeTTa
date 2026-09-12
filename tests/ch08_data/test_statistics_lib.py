@@ -3,7 +3,7 @@
 Guarantees: generated observations retain exact moments, nearest roots and
 quantile interpolation; nominal modes preserve occurrence order and identity.
 [tested: test_statistics_exact_reductions, test_statistics_paired_reductions,
-test_statistics_quantiles_and_ranks; commit=WORKTREE].
+test_statistics_quantiles_and_ranks; commit=84824f5cf870f5cd7ac89d6580093d0459d91a9b].
 Owns resources: the shared engine fixture owns the imported library; generated
 numeric terms and reference calculations acquire no external resources.
 """

@@ -111,5 +111,5 @@ def twin(m):
 #: measured library import by seven inferences while the numerical
 #: implementations and MeTTa heads stay unchanged [measured 2026-09-12: min-
 #: of-3 serial fresh processes; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+#: extensions/python/tools/twin_coverage.py --repin; commit=84824f5cf870f5cd7ac89d6580093d0459d91a9b].
 BUDGET = 121599

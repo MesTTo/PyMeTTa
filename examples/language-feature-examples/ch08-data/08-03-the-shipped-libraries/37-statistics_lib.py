@@ -1,7 +1,7 @@
 """Purpose: exact finite descriptive statistics and explicit sample domains.
 
 Guarantees: the same 76 claims as 37-statistics_lib.metta.
-[tested: python extensions/python/tools/twin_coverage.py examples/ch08-data/08-03-the-shipped-libraries/37-statistics_lib.metta; commit=WORKTREE].
+[tested: python extensions/python/tools/twin_coverage.py examples/ch08-data/08-03-the-shipped-libraries/37-statistics_lib.metta; commit=84824f5cf870f5cd7ac89d6580093d0459d91a9b].
 """
 
 from metta import FALSE, TRUE, G, S, lib
@@ -110,7 +110,7 @@ def twin(m):
 #: [measured 2026-09-12: 157714 inferences, minimum of three fresh serial processes;
 #: command=python extensions/python/tools/twin_coverage.py --measure --rounds 3
 #: examples/ch08-data/08-03-the-shipped-libraries/37-statistics_lib.metta;
-#: fixture=lib_statistics with engine/lib QLF artifacts purged; commit=WORKTREE].
+#: fixture=lib_statistics with engine/lib QLF artifacts purged; commit=84824f5cf870f5cd7ac89d6580093d0459d91a9b].
 BUDGET = 157714
 
 #: OVERRUN: Python evaluates through fn/eval and reads numeric and collection
@@ -123,5 +123,5 @@ BUDGET = 157714
 #: [measured 2026-09-12: 1826 inference ceiling above the band;
 #: command=python extensions/python/tools/twin_coverage.py --measure --rounds 3
 #: examples/ch08-data/08-03-the-shipped-libraries/37-statistics_lib.metta;
-#: fixture=the same 76 claims and ai-lib4-statistics-crossing-probe.py; commit=WORKTREE].
+#: fixture=the same 76 claims and ai-lib4-statistics-crossing-probe.py; commit=84824f5cf870f5cd7ac89d6580093d0459d91a9b].
 OVERRUN = 1826
