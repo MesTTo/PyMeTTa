@@ -7,7 +7,7 @@ a different form are compared by their code points, which is the only way the
 difference is visible at all.
 
 Guarantees: the same claims as 26-unicode_lib.metta
-[tested: python extensions/python/tools/twin_coverage.py examples/ch08-data/08-03-the-shipped-libraries/26-unicode_lib.metta; commit=WORKTREE].
+[tested: python extensions/python/tools/twin_coverage.py examples/ch08-data/08-03-the-shipped-libraries/26-unicode_lib.metta; commit=a30e0a59e8e16d15705dc0258d7e0a004ae63e4b].
 Open Obligations:
   To Do: None
   Hacks: None
@@ -152,5 +152,5 @@ def twin(m):
 #: extensions/python/tools/twin_coverage.py --measure --rounds 3
 #: examples/ch08-data/08-03-the-shipped-libraries/26-unicode_lib.metta;
 #: fixture=lib_unicode at its functional commit, artifacts purged before the
-#: run; commit=WORKTREE].
+#: run; commit=a30e0a59e8e16d15705dc0258d7e0a004ae63e4b].
 BUDGET = 129667
