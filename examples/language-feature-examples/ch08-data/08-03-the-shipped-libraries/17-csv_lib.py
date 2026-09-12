@@ -85,4 +85,9 @@ def twin(m):
 #: on the two whose own claims are file operations [measured 2026-09-12: min-
 #: of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=e40ef941310bddd1f57074eb559e78aac8a263b0].
-BUDGET = 188409
+#: RE-PINNED 2026-09-12, 188409 to 188422 (+13), File transfers newly owned
+#: streams through adopt_file_stream/2 and claims a close atomically; HTTP also
+#: verifies transaction refusal before server lifecycle effects [measured
+#: 2026-09-12: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 188422

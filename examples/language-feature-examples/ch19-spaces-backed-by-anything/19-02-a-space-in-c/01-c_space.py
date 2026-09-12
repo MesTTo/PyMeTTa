@@ -360,4 +360,9 @@ def twin(m):
 #: on the two whose own claims are file operations [measured 2026-09-12: min-
 #: of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=e40ef941310bddd1f57074eb559e78aac8a263b0].
-BUDGET = 122130
+#: RE-PINNED 2026-09-13, 122130 to 122143 (+13), File exports native stream
+#: adoption and claims each close under its handle-table mutex; these examples
+#: import that changed native surface [measured 2026-09-13: min-of-3 serial
+#: fresh processes; command=python extensions/python/tools/twin_coverage.py
+#: --repin; commit=WORKTREE].
+BUDGET = 122143

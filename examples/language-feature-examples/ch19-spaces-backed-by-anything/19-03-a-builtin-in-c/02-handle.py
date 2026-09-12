@@ -399,7 +399,12 @@ def twin(m):
 #: on the two whose own claims are file operations [measured 2026-09-12: min-
 #: of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=e40ef941310bddd1f57074eb559e78aac8a263b0].
-BUDGET = 113688
+#: RE-PINNED 2026-09-13, 113688 to 113700 (+12), File exports native stream
+#: adoption and claims each close under its handle-table mutex; these examples
+#: import that changed native surface [measured 2026-09-13: min-of-3 serial
+#: fresh processes; command=python extensions/python/tools/twin_coverage.py
+#: --repin; commit=WORKTREE].
+BUDGET = 113700
 
 #: DIVERGED 2026-09-07, the example holds 1 atom the twin does not (1 =) and
 #: the twin holds 1 atom the example does not (1 =): the twin is an ordinary Python

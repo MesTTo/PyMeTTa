@@ -141,7 +141,12 @@ def twin(m):
 #: examples/ch08-data/08-03-the-shipped-libraries/28-yaml_lib.metta;
 #: fixture=lib_yaml at its functional commit, artifacts purged before the run;
 #: commit=672e5be181839a8301ba70bc6ead69678f3735bd].
-BUDGET = 179414
+#: RE-PINNED 2026-09-12, 179414 to 179426 (+12), File transfers newly owned
+#: streams through adopt_file_stream/2 and claims a close atomically; HTTP also
+#: verifies transaction refusal before server lifecycle effects [measured
+#: 2026-09-12: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 179426
 
 #: DIVERGED 2026-09-12, the example holds 1 atom the twin does not (1 =) and
 #: the twin holds 1 atom the example does not (1 =): the scope function is four

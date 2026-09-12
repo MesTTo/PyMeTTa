@@ -264,4 +264,9 @@ def twin(m):
 #: examples/ch08-data/08-03-the-shipped-libraries/19-file_lib.metta;
 #: fixture=the File library at its functional commit, artifacts purged before
 #: the run; commit=e40ef941310bddd1f57074eb559e78aac8a263b0].
-BUDGET = 209508
+#: RE-PINNED 2026-09-12, 209508 to 209603 (+95), File transfers newly owned
+#: streams through adopt_file_stream/2 and claims a close atomically; HTTP also
+#: verifies transaction refusal before server lifecycle effects [measured
+#: 2026-09-12: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 209603
