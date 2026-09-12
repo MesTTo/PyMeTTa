@@ -2,7 +2,14 @@
 % Assumes: bindinggen projects each row into its declared load audience
 % and defining module.
 % Guarantees: every supplied head has this file's engine kind
-% [tested: test_binding_provisions_keep_audience_and_kind; commit=8358dfc233bf299bb23eceddd94593a62372fe4b].
+% [tested: test_binding_provisions_keep_audience_and_kind; commit=WORKTREE].
+
+provides_declaration(host, user, transaction_constraint/1).
+
+provides(host, user, (
+seam:transaction_constraint(user:metta_py_validate_proxy(Space, Receiver, Token)) :-
+    metta_py_pending_proxy(Space, Receiver, Token)
+)).
 
 provides_declaration(engine, user, grounded_extra_type/2).
 

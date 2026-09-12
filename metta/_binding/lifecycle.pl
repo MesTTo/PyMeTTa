@@ -12,6 +12,35 @@
 metta_py_transaction(F, R) :-
     metta_transaction(py_call(F:'__call__'(), R)).
 
+% Pending rows share the assertion's transaction and disappear on rollback.
+% Only the outer commit view can detect a proxy another snapshot published.
+% [tested: test_overlapping_transactions_cannot_publish_distinct_proxies,
+% test_a_rolled_back_proxy_check_cannot_refuse_the_outer_commit; commit=WORKTREE].
+:- thread_local metta_py_pending_proxy/3.
+
+metta_py_attach_proxy(Space, Wire) :-
+    metta_py_decode_shared(Wire, Row, _),
+    Row = ['_python-proxy', Receiver, _],
+    metta_add_atom(Space, Row, _, true),
+    metta_host_blame(Space, Row, [Token]),
+    assertz(metta_py_pending_proxy(Space, Receiver, Token)).
+
+metta_py_validate_proxy(Space, Receiver, Token) :-
+    retractall(metta_py_pending_proxy(Space, Receiver, Token)),
+    metta_host_blame(Space, ['_python-proxy', Receiver, _], Tokens),
+    (   memberchk(Token, Tokens)
+    ->  (   Tokens == [Token],
+            metta_host_stored(Space, ['owned-by', Receiver])
+        ->  true
+        ;   throw(error(metta_python_proxy_conflict(Space, Receiver), _))
+        )
+    ;   true
+    ).
+
+:- multifile prolog:error_message//1.
+prolog:error_message(metta_python_proxy_conflict(Space, Receiver)) -->
+    ['concurrent proxy publication for ~q in ~q; retry the outer transaction'-[Receiver, Space]].
+
 metta_py_contains(Space, Tagged) :-
     metta_py_decode_shared(Tagged, Pattern, _),
     match(Space, Pattern, found, found), !.
