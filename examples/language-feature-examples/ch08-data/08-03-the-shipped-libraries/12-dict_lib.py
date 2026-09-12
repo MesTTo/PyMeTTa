@@ -243,12 +243,12 @@ def twin(m):
 #: an equation over the space operations the dict already is; the example
 #: proves them with eight further claims [measured 2026-09-12: min-of-3 serial
 #: fresh processes; command=python extensions/python/tools/twin_coverage.py
-#: --repin; commit=WORKTREE].
+#: --repin; commit=a8b4bab6eb0bf1b42eb441e9145144cf91befa7d].
 #: RE-PINNED 2026-09-12, 127630 to 166909 (+39279), lib_dict adds dict-get with
 #: a default, dict-update over the stored value, dict-merge and dict-pop, each
 #: one equation over the space operations a dict already is; the example and
 #: the twin prove them with eight further claims each, and the two spaces hold
 #: the same atoms again [measured 2026-09-12: min-of-3 serial fresh processes;
 #: command=python extensions/python/tools/twin_coverage.py --repin;
-#: commit=WORKTREE].
+#: commit=a8b4bab6eb0bf1b42eb441e9145144cf91befa7d].
 BUDGET = 166909

@@ -5,7 +5,7 @@ built terms. Each one answers once per atom it touched, and a list of those
 answers is the count of work it did.
 
 Guarantees: the same claims as 20-spaces_lib.metta
-[tested: python extensions/python/tools/twin_coverage.py examples/ch08-data/08-03-the-shipped-libraries/20-spaces_lib.metta; commit=WORKTREE].
+[tested: python extensions/python/tools/twin_coverage.py examples/ch08-data/08-03-the-shipped-libraries/20-spaces_lib.metta; commit=a8b4bab6eb0bf1b42eb441e9145144cf91befa7d].
 Open Obligations:
   To Do: None
   Hacks: None
@@ -100,5 +100,5 @@ def twin(m):
 #: processes; command=python extensions/python/tools/twin_coverage.py --measure
 #: --rounds 3 examples/ch08-data/08-03-the-shipped-libraries/20-spaces_lib.metta;
 #: fixture=lib_spaces at its functional commit, artifacts purged before the run;
-#: commit=WORKTREE].
+#: commit=a8b4bab6eb0bf1b42eb441e9145144cf91befa7d].
 BUDGET = 43720
