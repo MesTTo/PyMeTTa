@@ -274,6 +274,11 @@ HOST_SERVICES = {
     "metta_with_state_write_fence/1",
     # Capture and message reentrancy share the engine's trailed context door.
     "metta_with_trailed/3",
+    # The one door for a host event listener: registered once, unnamed, never
+    # removed and under no mutex, because SWI holds a channel's event-list
+    # lock across every callback it delivers; a raw prolog_listen/2 in the
+    # binding half is refused by the prolog-static lane.
+    "metta_listen/2",
     "metta_live_state_cell/1",
     # The platform census. Not shim orchestration moving host-side: it is a
     # fact about the running build that only the engine can answer, and a host
@@ -480,6 +485,7 @@ FLOOR_REASONS = {
     "metta_transport_failure/1": "error-vocabulary",
     "metta_with_state_write_fence/1": "door",
     "metta_with_trailed/3": "door",
+    "metta_listen/2": "door",
     "metta_live_state_cell/1": "door",
     "metta_platform/4": "census",
     "metta_platform_absent/1": "census",
