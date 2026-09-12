@@ -3,7 +3,7 @@
 Guarantees: generated products agree with itertools and quantified verdicts
 agree with Counter; literal foreign values keep the caller's identity.
 [tested: test_testing_products, test_testing_quantified_bags,
-test_testing_foreign_values; commit=WORKTREE].
+test_testing_foreign_values; commit=a283d39342d891aae0edc58949e2ccbb48911cd8].
 """
 
 from collections import Counter

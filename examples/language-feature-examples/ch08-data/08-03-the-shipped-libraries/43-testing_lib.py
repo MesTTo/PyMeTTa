@@ -1,7 +1,7 @@
 """Purpose: finite generators, counted answer-bag assertions and first witnesses.
 
 Guarantees: the same 48 claims as 43-testing_lib.metta.
-[tested: python extensions/python/tools/twin_coverage.py examples/ch08-data/08-03-the-shipped-libraries/43-testing_lib.metta; commit=WORKTREE].
+[tested: python extensions/python/tools/twin_coverage.py examples/ch08-data/08-03-the-shipped-libraries/43-testing_lib.metta; commit=a283d39342d891aae0edc58949e2ccbb48911cd8].
 """
 
 from metta import FALSE, TRUE, G, S, V, lib
@@ -96,5 +96,5 @@ def twin(m):
 #: [measured: 175727 inferences, minimum of three fresh serial processes;
 #: command=python extensions/python/tools/twin_coverage.py --measure --rounds 3
 #: examples/ch08-data/08-03-the-shipped-libraries/43-testing_lib.metta;
-#: fixture=lib_testing with engine/lib QLF artifacts purged; commit=WORKTREE].
+#: fixture=lib_testing with engine/lib QLF artifacts purged; commit=a283d39342d891aae0edc58949e2ccbb48911cd8].
 BUDGET = 175727
