@@ -1,7 +1,7 @@
 """Purpose: persist independent stores and query their native values.
 
 Guarantees: the same claims as 42-database_lib.metta.
-[tested: python extensions/python/tools/twin_coverage.py examples/ch08-data/08-03-the-shipped-libraries/42-database_lib.metta; commit=WORKTREE].
+[tested: python extensions/python/tools/twin_coverage.py examples/ch08-data/08-03-the-shipped-libraries/42-database_lib.metta; commit=060bea3199e9f504c6d425f60841f229fc96e861].
 Owns resources: explicit handles close below and in finally; scoped handles
 close when their answer streams end. Finally removes the temporary directory.
 """
@@ -119,5 +119,5 @@ def twin(m):
 #: [measured 2026-09-13: 222382 inferences, minimum of three fresh serial processes;
 #: command=python extensions/python/tools/twin_coverage.py --measure --rounds 3
 #: examples/ch08-data/08-03-the-shipped-libraries/42-database_lib.metta;
-#: fixture=lib_database with engine/lib QLF artifacts purged; commit=WORKTREE].
+#: fixture=lib_database with engine/lib QLF artifacts purged; commit=060bea3199e9f504c6d425f60841f229fc96e861].
 BUDGET = 222382

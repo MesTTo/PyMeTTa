@@ -3,7 +3,7 @@
 Guarantees: generated action sequences agree with a Python ordered multiset;
 fresh processes contend for the same store and reopen its committed values.
 [tested: test_database_model, test_database_process_lock,
-test_database_invalid_journal_bytes; commit=WORKTREE].
+test_database_invalid_journal_bytes; commit=060bea3199e9f504c6d425f60841f229fc96e861].
 Owns resources: context managers close every store and temporary directory;
 subprocess.run joins each child before returning.
 """
