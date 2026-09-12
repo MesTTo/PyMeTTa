@@ -6,7 +6,7 @@ one. Text is `G("...")`, and the file scope takes a FUNCTION, so the read and
 write pair is one `@m.define`.
 
 Guarantees: the same claims as 28-yaml_lib.metta
-[tested: python extensions/python/tools/twin_coverage.py examples/ch08-data/08-03-the-shipped-libraries/28-yaml_lib.metta; commit=WORKTREE].
+[tested: python extensions/python/tools/twin_coverage.py examples/ch08-data/08-03-the-shipped-libraries/28-yaml_lib.metta; commit=672e5be181839a8301ba70bc6ead69678f3735bd].
 Open Obligations:
   To Do: None
   Hacks: None
@@ -140,7 +140,7 @@ def twin(m):
 #: extensions/python/tools/twin_coverage.py --measure --rounds 3
 #: examples/ch08-data/08-03-the-shipped-libraries/28-yaml_lib.metta;
 #: fixture=lib_yaml at its functional commit, artifacts purged before the run;
-#: commit=WORKTREE].
+#: commit=672e5be181839a8301ba70bc6ead69678f3735bd].
 BUDGET = 179414
 
 #: DIVERGED 2026-09-12, the example holds 1 atom the twin does not (1 =) and
@@ -149,5 +149,5 @@ BUDGET = 179414
 #: the example writes three nested let forms; the bindings, the effects and the
 #: answer are the same [measured 2026-09-12: the two stored-atom surpluses, one
 #: fresh process per side; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+#: extensions/python/tools/twin_coverage.py --repin; commit=672e5be181839a8301ba70bc6ead69678f3735bd].
 DIVERGENCE = "8d664a1d907fafd4ac83a17261b96171d51aa90af16e18a69b69d77337a2fb6a"
