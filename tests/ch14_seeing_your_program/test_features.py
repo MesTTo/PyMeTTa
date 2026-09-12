@@ -1745,6 +1745,25 @@ def test_a_profile_is_the_same_table_every_other_door_answers(m):
     assert prof.nodes.predicate[0] == row.predicate, "and the column projects"
 
 
+def test_a_profile_with_no_samples_still_answers(m):
+    """A goal too short for the sampler still answers through the profile door.
+
+    SWI's report divides each predicate's ticks by the total, so a profile of
+    zero samples raises from the cleanup of the goal, after the goal answered;
+    the door keeps that answer, and the rows keep their call counts with no
+    ticks. A one-step evaluation runs in microseconds against the 5 ms
+    sampling period, so this is the zero-sample case on any box; a sample that
+    does land keeps the same contract with ticks on a row.
+    """
+    groups, prof = m.profile("!(+ 1 1)")
+    assert groups == [[2]]
+    assert prof.samples >= 0 and prof.ticks >= 0 and prof.seconds >= 0
+    assert prof.nodes and all(row.calls >= 0 for row in prof.nodes)
+    if prof.samples == 0:
+        assert prof.ticks == 0
+        assert all(row.ticks_self == 0 for row in prof.nodes)
+
+
 def test_a_profile_exports_as_pstats(m):
     """SWI's profile in the currency every Python profile viewer reads.
 

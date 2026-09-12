@@ -3,6 +3,9 @@
 % Guarantees: compiled profile rows retain their source file through the
 %   reader's ownership journal [tested: test_a_profile_exports_as_pstats;
 %   commit=90ba93eb8f6e98ebfefc55416859bf13de6a8427].
+% Guarantees: a profile whose sampler took no sample still answers the goal's
+%   answers, with zero samples and ticks and no rows
+%   [tested: test_a_profile_with_no_samples_still_answers; commit=WORKTREE].
 
 %%%%%%%%%% Profiling %%%%%%%%%%
 %
@@ -10,28 +13,54 @@
 % swallowed and its data projected to plain values: the summary counters
 % and one row per predicate, self-ticks-descending. Sampling is
 % statistical, so a short program may carry few samples.
-%Absorb the profiler's own reporting failure and nothing else. Out is bound by
-%the goal's success, so a bound Out means the goal already answered and the
-%division came from the report; an unbound one means the profiled goal raised
-%it, and that is the caller's error to see rather than ours to swallow.
-metta_py_profile_report_fault(error(evaluation_error(zero_divisor), _), Out) :-
-    nonvar(Out), !.
+%Absorb the profiler's own reporting failure and nothing else. The goal's
+%answer is read from the cell it wrote on its way out, not from Out: profile/2
+%prints its report as the cleanup of the goal, and a report that raised
+%unwinds through this catch, which undoes every binding the goal made. A cell
+%holding an answer means the goal already answered and the division came from
+%the report; an empty one means the profiled goal raised it, and that is the
+%caller's error to see rather than ours to swallow.
+metta_py_profile_report_fault(error(evaluation_error(zero_divisor), _),
+                              Outcome) :-
+    arg(1, Outcome, answered(_)), !.
 metta_py_profile_report_fault(Fault, _) :- throw(Fault).
+
+%The goal, recording its answer beside the profiled run before the report
+%can raise. nb_setarg/3 copies the answer into the cell, so it survives the
+%unwinding that a raised report causes.
+:- meta_predicate metta_py_profile_answering(0, ?, +).
+metta_py_profile_answering(Goal, Out, Outcome) :-
+    call(Goal),
+    nb_setarg(1, Outcome, answered(Out)).
 
 metta_py_profiled(Pred, Ins, [Out, Samples, Ticks, Seconds, Nodes]) :-
     metta_py_wrapped_goal(Pred, Ins, Out, Goal),
     %A zero-sample profile is a real outcome, not a fault: the comment above
     %says so, and a short goal on a machine whose sampling timer never fires
-    %collects nothing. Some SWI versions divide by the total tick count while
-    %building the report or the data, so both raise
-    %evaluation_error(zero_divisor) on exactly that outcome. SWI 10.1.13
-    %answers samples=0 ticks=0 for `profile(true, [top(0)])` where the CI
-    %runner's does not, which failed four profile tests and every caller of
-    %aio.profile there while passing here. An empty profile is the honest
-    %answer when nothing was sampled; the goal has already run either way.
+    %collects nothing. SWI 10.1.13's report divides each predicate's ticks by
+    %the total (library/prolog_profile.pl, time_data/7), so a profile of zero
+    %samples raises evaluation_error(zero_divisor) from the report, as the
+    %cleanup of the goal. It reached the caller as an EngineError on every
+    %profile door whenever the box was quiet enough to finish the profiled
+    %goal inside one 5 ms sampling period [measured 2026-09-12: the twelve
+    %profile tests of the Python suite red on the pristine cut b1d175f13
+    %at loadavg 6, `!(prof-stats 20000)` profiled at samples=0 ticks=0
+    %time=0.0004 s, and green on the same tree at loadavg 30 the day before;
+    %command=sh extensions/python/test.sh -n 0 -p no:randomly
+    %tests/ch14_seeing_your_program/test_features.py::test_a_profile_exports_as_pstats;
+    %commit=WORKTREE]. An empty profile is the honest answer when nothing was
+    %sampled; the goal has already run either way, and its answer is what the
+    %cell below carries out.
+    Outcome = outcome(pending),
     with_output_to(string(_),
-                   catch(profile(Goal, [top(0)]), Fault,
-                         metta_py_profile_report_fault(Fault, Out))),
+                   catch(profile(metta_py_profile_answering(Goal, Out, Outcome),
+                                 [top(0)]),
+                         Fault,
+                         metta_py_profile_report_fault(Fault, Outcome))),
+    (   var(Out)
+    ->  arg(1, Outcome, answered(Out))
+    ;   true
+    ),
     (   catch(metta_py_profile_rows(Samples, Ticks, Seconds, Nodes),
               error(evaluation_error(zero_divisor), _),
               fail)
