@@ -4,6 +4,9 @@ Guarantees: Python writes ordinary rows and preserves their live withdrawal;
 cards and callable reflection retain defining homes [tested:
 test_from_is_a_live_stored_row, test_a_card_reads_the_loaded_library_home;
 commit=90ba93eb8f6e98ebfefc55416859bf13de6a8427].
+Guarantees: a source can reload after its previous scoped home is released
+without reviving the old handle [tested:
+test_a_library_reloads_after_its_first_scope_closes; commit=WORKTREE].
 """
 
 from collections import Counter
@@ -57,6 +60,25 @@ def test_a_library_handle_and_partial_map_reach_the_canonical_home(metta):
         homes_a = {str(p.args[0]) for p in a.get_property("text.string-length") if p.head == S.origin}
         homes_b = {str(p.args[0]) for p in b.get_property("string-length") if p.head == S.origin}
         assert homes_a == homes_b and len(homes_a) == 1
+
+
+def test_a_library_reloads_after_its_first_scope_closes(tmp_path, metta):
+    """Source identity is stable; each released space has a distinct lifetime."""
+    source = tmp_path / "scoped-source.metta"
+    source.write_text("(= (scoped-library-value) 17)\n")
+    with metta.scope():
+        with metta._new_space() as first:
+            first.from_(source)
+            origins = [p.args[0] for p in first.get_property("scoped-library-value")
+                       if p.head == S.origin]
+            assert first.eval(S.scoped_library_value()) == [17]
+    with metta._new_space() as second:
+        second.from_(source)
+        assert second.eval(S.scoped_library_value()) == [17]
+        reloaded = [p.args[0] for p in second.get_property("scoped-library-value")
+                    if p.head == S.origin]
+        assert len(origins) == len(reloaded) == 1
+        assert origins != reloaded
 
 
 def test_a_grounded_default_map_keeps_the_symbol_result_boundary(metta):
