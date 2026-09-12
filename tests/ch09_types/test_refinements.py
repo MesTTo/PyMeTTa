@@ -31,11 +31,11 @@ Guarantees:
     commit=19093dd75eda0102eb0329a71460e8a0c7a0c727]
   - length constraints ask a host value for its length without enumerating
     elements [tested: test_host_length_refinements_do_not_read_elements;
-    commit=WORKTREE]
+    commit=9b0a084e534ddf7dd67980ad84c27c8279b877f1]
   - Literal annotations constrain parameters and return values, with each
     runtime base retaining only its own members [tested:
     test_literal_signatures_enforce_membership_at_both_crossings;
-    commit=WORKTREE]
+    commit=9b0a084e534ddf7dd67980ad84c27c8279b877f1]
 Open Obligations:
   To Do: None
   Hacks: None

@@ -28,7 +28,7 @@ Guarantees:
     test_convert_imports_a_python_program_and_round_trips_its_source,
     test_convert_restores_the_in_process_declaration_receiver,
     extensions/python/tests/ch18_performance/test_program_source.py;
-    commit=WORKTREE]
+    commit=9b0a084e534ddf7dd67980ad84c27c8279b877f1]
   - an interactive repl completes a head or a space name against the live
     engine, hyphens included, and keeps its history between sessions without
     the terminator [tested: test_the_completer_offers_heads_and_space_names,

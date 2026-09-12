@@ -4,7 +4,7 @@ Guarantees:
   - class fields preserve Python container identity, adopt native values once,
     and roll back replacement through the existing engine transaction [tested:
     sh extensions/python/test.sh tests/ch09_types/test_class_field_values.py -n 0;
-    commit=WORKTREE]
+    commit=9b0a084e534ddf7dd67980ad84c27c8279b877f1]
 """
 
 from dataclasses import dataclass, field

@@ -3,7 +3,7 @@
 Guarantees:
   - operands honour an Atom subclass's explicit encoder, including a class
     receiver retained by Scope [tested:
-    test_a_kept_receiver_keeps_its_scoped_class_program; commit=WORKTREE]
+    test_a_kept_receiver_keeps_its_scoped_class_program; commit=9b0a084e534ddf7dd67980ad84c27c8279b877f1]
   - order_key matches the engine's msort across every public atom kind,
     including float/integer ties, strings, opaque values, and the empty-list
     atom [tested: test_order_key_matches_msort_across_kinds;

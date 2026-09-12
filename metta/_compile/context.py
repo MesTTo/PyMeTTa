@@ -1,7 +1,7 @@
 """Purpose: describe the state shared by compiler lowering bands.
 Guarantees:
   - incomplete collaborators are refused before lowering starts [tested:
-    test_incomplete_compiler_is_refused_before_lowering; commit=WORKTREE]
+    test_incomplete_compiler_is_refused_before_lowering; commit=9b0a084e534ddf7dd67980ad84c27c8279b877f1]
   - expression lowering can inspect an exact host binding without executing
     an attribute lookup [tested:
     test_callable_mentions_share_operator_and_fourteen_math_names;
@@ -35,7 +35,7 @@ Guarantees:
     commit=e3787593132a7ece2d300397045f7415709847c9]
   - field lowering shares the binding and annotation resolver contracts
     [tested: test_class_value_post_init_and_write_refusal,
-    test_type_alias_claims_and_rewrites; commit=WORKTREE]
+    test_type_alias_claims_and_rewrites; commit=9b0a084e534ddf7dd67980ad84c27c8279b877f1]
 Guarded by:
   - _AUX_LOCK protects the process-wide helper serial [tested
     test_define_from_two_threads_is_serialized]

@@ -2,7 +2,7 @@
 
 Guarantees:
   - an annotated plain class has mutable fields and a retained native identity
-    [tested: test_define_accepts_a_plain_annotated_data_class; commit=WORKTREE]
+    [tested: test_define_accepts_a_plain_annotated_data_class; commit=9b0a084e534ddf7dd67980ad84c27c8279b877f1]
   - a tuple whose first element is its head is one subscript pattern, complete
     expression patterns form a join, mixed tuple mistakes refuse, list writes
     stream atoms, and deletion drains every occurrence or raises KeyError

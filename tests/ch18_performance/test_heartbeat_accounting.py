@@ -7,7 +7,7 @@ The first failed Janus query ignores deterministic file-cache expiry; a
 skipped boot import exposes a 232-inference difference, including one extra
 asserta/1 through assertion ownership during cache expiry [tested:
 test_first_failed_text_query_has_no_deferred_dependency_cost;
-commit=WORKTREE].
+commit=9b0a084e534ddf7dd67980ad84c27c8279b877f1].
 Decides: the three-twin measurement uses a 9223372036854775807-second
 file-cache lifetime and warm compiled library artifacts to separate program
 work from wall-clock cache sweeps and compilation-child launch costs

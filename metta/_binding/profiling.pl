@@ -2,13 +2,13 @@
 % Assumes: loaded through _binding/shim.pl in its host module.
 % Guarantees: compiled profile rows retain their source file through the
 %   reader's ownership journal [tested: test_a_profile_exports_as_pstats;
-%   commit=WORKTREE].
+%   commit=9b0a084e534ddf7dd67980ad84c27c8279b877f1].
 % Guarantees: profiling returns data without invoking an interactive display
-%   [tested: test_profile_does_not_invoke_a_display_callback; commit=WORKTREE].
+%   [tested: test_profile_does_not_invoke_a_display_callback; commit=9b0a084e534ddf7dd67980ad84c27c8279b877f1].
 % Owns resources: '$profile'/4 starts and stops the native sampler around its
 %   goal, including exception propagation [source:
 %   https://github.com/SWI-Prolog/swipl-devel/blob/fc7ef84b949378b729052c3ade79c90ce5416abb/src/pl-prof.c#L942-L970;
-%   commit=WORKTREE].
+%   commit=9b0a084e534ddf7dd67980ad84c27c8279b877f1].
 
 %%%%%%%%%% Profiling %%%%%%%%%%
 %

@@ -1,12 +1,12 @@
 """Purpose: validate, write, replace, and load named-space snapshots.
 Guarantees:
   - a completed sibling is synced before it replaces the destination
-    [tested: test_save_syncs_before_replacing; commit=WORKTREE]
+    [tested: test_save_syncs_before_replacing; commit=9b0a084e534ddf7dd67980ad84c27c8279b877f1]
   - validation and write failures preserve the old destination [tested
     test_save_validation_preserves_existing_file,
     test_text_save_write_failure_preserves_existing_file,
     test_program_source_refuses_a_live_object_before_replacing_a_file;
-    commit=WORKTREE]
+    commit=9b0a084e534ddf7dd67980ad84c27c8279b877f1]
   - fast cache headers are validated before payload loading [tested
     test_fast_load_refuses_a_different_swi_version_before_payload;
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
@@ -15,7 +15,7 @@ Guarantees:
   - text snapshots canonicalize stored variable identities by first
     occurrence, so independent reads of one unchanged program are byte
     identical [tested: test_source_is_the_exact_round_trippable_text_save_view;
-    commit=WORKTREE]
+    commit=9b0a084e534ddf7dd67980ad84c27c8279b877f1]
   - the save format type admits exactly metta and fast [tested:
     test_canonical_context_types_replace_public_newtypes; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - save validation consumes the generated SaveFormat vocabulary class rather
@@ -29,11 +29,11 @@ Guarantees:
     translator rules and bound child spaces, while its public save count stays
     the root authored atom count [tested:
     test_fast_cache_restores_translator_rules_and_bound_spaces;
-    commit=WORKTREE]
+    commit=9b0a084e534ddf7dd67980ad84c27c8279b877f1]
   - program_space and save_program relocate the reference and owned-space
     graph into a MeTTa reconstruction program [tested:
     extensions/python/tests/ch18_performance/test_program_source.py;
-    commit=WORKTREE]
+    commit=9b0a084e534ddf7dd67980ad84c27c8279b877f1]
   - the load door raises sys.audit("metta.host", "load", path) before it
     reads, so an audit hook can refuse the load [tested:
     test_the_load_door_raises_its_event,
@@ -43,7 +43,7 @@ Owns resources:
     failed or successful save
     [tested: test_save_failure_preserves_existing_file,
     test_program_source_refuses_a_live_object_before_replacing_a_file;
-    commit=WORKTREE]
+    commit=9b0a084e534ddf7dd67980ad84c27c8279b877f1]
 Open Obligations:
   To Do: None
   Hacks: None

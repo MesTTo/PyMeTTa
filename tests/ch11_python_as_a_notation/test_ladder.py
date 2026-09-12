@@ -14,13 +14,13 @@ Guarantees:
   - class declarations are context-relative through ``Space.define`` and the
     retired root ``record`` door is not used [tested:
     test_define_wires_the_declarative_dance and
-    test_define_accepts_an_empty_entity_class; commit=WORKTREE]
+    test_define_accepts_an_empty_entity_class; commit=9b0a084e534ddf7dd67980ad84c27c8279b877f1]
   - a batch discards on exception and refuses remove/clear inside its own
     block, the stated edges [tested test_batch_edges_are_enforced]
   - match(into=) and Rows.build rebuild a complete constructor expression,
     while cast returns the admitted atom [tested:
     test_a_constructor_expression_rebuilds_through_the_query_door;
-    commit=WORKTREE]
+    commit=9b0a084e534ddf7dd67980ad84c27c8279b877f1]
   - ``metta.speculate()`` is the exact lazy module-tier spelling for the
     default receiver's discarded execution scope [tested:
     test_module_tier_speculate_discards_default_space_writes; commit=3ded7552797b66d78e666141eb51f3bc14686bd2]

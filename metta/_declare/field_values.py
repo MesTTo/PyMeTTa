@@ -3,16 +3,16 @@
 Guarantees:
   - container aliases survive reads and replacement; native expressions are
     adopted once on writing [tested: test_container_fields_keep_python_aliases,
-    test_native_container_fields_are_adopted_once; commit=WORKTREE]
+    test_native_container_fields_are_adopted_once; commit=9b0a084e534ddf7dd67980ad84c27c8279b877f1]
   - Annotated constraints govern both native and retained host alternatives
     [tested: test_container_refinements_guard_native_and_host_field_writes;
-    commit=WORKTREE]
+    commit=9b0a084e534ddf7dd67980ad84c27c8279b877f1]
 Decides:
   - adoption uses the existing Grounded host boundary and an oracleIO operation;
     whole-field replacement follows engine rollback, while Python container
     mutations follow the host-effect contract [tested:
     test_field_replacement_rolls_back_but_external_mutation_is_a_host_effect;
-    commit=WORKTREE]
+    commit=9b0a084e534ddf7dd67980ad84c27c8279b877f1]
 """
 
 from __future__ import annotations

@@ -22,7 +22,7 @@ Guarantees:
     different local declaration retain the runtime check
     [tested: test_a_consistent_chain_is_not_a_static_type_proof,
     test_an_inherited_clause_does_not_reuse_its_owners_parameter_proof;
-    commit=WORKTREE]
+    commit=9b0a084e534ddf7dd67980ad84c27c8279b877f1]
 Open Obligations:
   To Do: None
   Hacks: None

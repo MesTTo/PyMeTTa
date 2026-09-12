@@ -7,7 +7,7 @@ Guarantees:
   - the opaque BLOB image keeps the binary object as a handle, a lazy path
     reaches one field [tested:
     test_an_opaque_blob_column_is_reached_by_a_lazy_path_without_crossing;
-    commit=WORKTREE]
+    commit=9b0a084e534ddf7dd67980ad84c27c8279b877f1]
   - the two image modes produce distinct payloads while caller-thread
     inference counts stay equal after matching moved into a held SWI engine
     [measured 2026-09-02: opaque/transparent changed from 280/16668 to 41/41, minimum of

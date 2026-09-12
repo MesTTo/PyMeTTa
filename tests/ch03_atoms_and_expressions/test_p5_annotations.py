@@ -10,10 +10,10 @@ Guarantees:
     [tested: test_the_four_containers_share_one_parameterised_treatment;
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - non-expression atoms cross container reconstruction without recursion
-    [tested: test_container_build_handles_non_expression_atoms; commit=WORKTREE]
+    [tested: test_container_build_handles_non_expression_atoms; commit=9b0a084e534ddf7dd67980ad84c27c8279b877f1]
   - Literal alternatives retain their finite domain in the annotation target
     [tested: test_every_advanced_annotation_reaches_metta_as_a_target_symbol;
-    commit=WORKTREE]
+    commit=9b0a084e534ddf7dd67980ad84c27c8279b877f1]
 Open Obligations:
   To Do: None
   Hacks: None

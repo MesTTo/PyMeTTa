@@ -33,10 +33,10 @@ Guarantees:
   - an explicitly registered expression image supplies its own sort, including
     a declared prototype whose Python base is Space [tested:
     test_a_declared_prototype_annotation_names_its_constructor_sort;
-    commit=WORKTREE]
+    commit=9b0a084e534ddf7dd67980ad84c27c8279b877f1]
   - Literal values refine their runtime base types by exact membership
     [tested: test_literal_signatures_enforce_membership_at_both_crossings;
-    commit=WORKTREE]
+    commit=9b0a084e534ddf7dd67980ad84c27c8279b877f1]
   - an annotation the runtime cannot name costs only itself: the annotations
     beside it still declare their types, and the refusal fires where the
     unresolvable one is consumed as a type [tested:

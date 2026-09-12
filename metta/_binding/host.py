@@ -13,7 +13,7 @@ Guarantees:
   - sized_length reads __len__ once and never enumerates elements; a value
     without that protocol answers -1, and a failing __len__ propagates
     [tested: test_host_length_refinements_do_not_read_elements,
-    test_a_host_length_failure_preserves_its_exception; commit=WORKTREE]
+    test_a_host_length_failure_preserves_its_exception; commit=9b0a084e534ddf7dd67980ad84c27c8279b877f1]
   - resolve() imports the longest importable prefix of a dotted path and
     getattrs the rest, so a path of any depth works [tested:
     a_dotted_path_of_any_depth_resolves in

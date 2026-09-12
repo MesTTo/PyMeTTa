@@ -3,7 +3,7 @@
 Guarantees:
   - constructor defaults and field writes share rollback, while declaration
     references keep their providers alive [tested: sh extensions/python/test.sh
-    tests/ch09_types/test_class_construction.py -n 0; commit=WORKTREE]
+    tests/ch09_types/test_class_construction.py -n 0; commit=9b0a084e534ddf7dd67980ad84c27c8279b877f1]
 """
 
 import threading

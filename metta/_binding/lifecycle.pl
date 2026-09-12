@@ -15,7 +15,7 @@ metta_py_transaction(F, R) :-
 % Pending rows share the assertion's transaction and disappear on rollback.
 % Only the outer commit view can detect a proxy another snapshot published.
 % [tested: test_overlapping_transactions_cannot_publish_distinct_proxies,
-% test_a_rolled_back_proxy_check_cannot_refuse_the_outer_commit; commit=WORKTREE].
+% test_a_rolled_back_proxy_check_cannot_refuse_the_outer_commit; commit=9b0a084e534ddf7dd67980ad84c27c8279b877f1].
 :- thread_local metta_py_pending_proxy/3.
 
 metta_py_attach_proxy(Space, Wire) :-

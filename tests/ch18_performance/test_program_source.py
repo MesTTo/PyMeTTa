@@ -2,7 +2,7 @@
 
 Guarantees: reference cycles, shared spaces, lexical bindings, entity classes,
 source replacement and failed writes preserve their contracts
-[tested: test_program_source.py; commit=WORKTREE].
+[tested: test_program_source.py; commit=9b0a084e534ddf7dd67980ad84c27c8279b877f1].
 """
 
 import pytest

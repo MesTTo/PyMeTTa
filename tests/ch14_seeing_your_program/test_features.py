@@ -7,9 +7,9 @@ Guarantees:
   - class and enum declarations use the consolidated ``Space.define`` door
     [tested: test_define_declares_class_with_accessors,
     test_define_declares_enum_members, test_define_methods_run_on_terms_and_handles,
-    and test_enum_members_match_in_metta; commit=WORKTREE]
+    and test_enum_members_match_in_metta; commit=9b0a084e534ddf7dd67980ad84c27c8279b877f1]
   - profiling collects answers and data without invoking a display callback
-    [tested: test_profile_does_not_invoke_a_display_callback; commit=WORKTREE]
+    [tested: test_profile_does_not_invoke_a_display_callback; commit=9b0a084e534ddf7dd67980ad84c27c8279b877f1]
   - subscription hook clauses track whether the active space set is empty
     [tested: test_subscription_hooks_follow_the_active_space_set;
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]

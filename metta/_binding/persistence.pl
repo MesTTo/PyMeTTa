@@ -2,7 +2,7 @@
 % Assumes: loaded through _binding/shim.pl in its host module.
 % Guarantees: source and program views use the engine's authored occurrences
 %   and graph relocation [tested: test_convert_imports_a_python_program_and_round_trips_its_source;
-%   commit=WORKTREE].
+%   commit=9b0a084e534ddf7dd67980ad84c27c8279b877f1].
 
 metta_py_source_atoms(Space, Wires) :-
     metta_host_source_atoms(Space, Atoms),

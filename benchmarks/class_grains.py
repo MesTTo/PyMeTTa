@@ -2,12 +2,12 @@
 Assumes:
   - native engine artifacts are built and memory_scale's Linux/SWI counters are
     available [source: extensions/python/benchmarks/memory_scale.py:_measure;
-    commit=WORKTREE]
+    commit=9b0a084e534ddf7dd67980ad84c27c8279b877f1]
 Guarantees:
   - each grain/population sample has a fresh process; creation retains every
     native receiver, while reads and writes use the last receiver in that
     population [tested: python -m benchmarks.class_grains --sizes 1 100 1000;
-    commit=WORKTREE]
+    commit=9b0a084e534ddf7dd67980ad84c27c8279b877f1]
 Owns resources:
   - the MeTTa context retires the class and all prototype spaces; the parent
     waits for each sample process to finish before starting the next.
@@ -16,7 +16,7 @@ Decides:
     Python bytes report retained crossing objects separately. Neither metric
     claims complete process memory [source:
     extensions/python/benchmarks/memory_scale.py:_space_module_snapshot;
-    commit=WORKTREE]
+    commit=9b0a084e534ddf7dd67980ad84c27c8279b877f1]
 """
 
 from __future__ import annotations

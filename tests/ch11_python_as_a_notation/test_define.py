@@ -14,7 +14,7 @@ Guarantees:
   - every definition derives source, documentation, captures, and purity from
     its AST and retires stale reflection on replacement and clear [tested:
     test_each_ast_derived_fact_replaces_the_flag_it_supersedes;
-    commit=WORKTREE]
+    commit=9b0a084e534ddf7dd67980ad84c27c8279b877f1]
   - implicit definition names apply the underscore-to-hyphen map and explicit
     name= remains exact [tested:
     test_the_implicit_name_is_mapped_and_name_is_exact; commit=18b1135167d60396c41e63e42ded2f66d0eb1900]

@@ -13,7 +13,7 @@ Guarantees:
     doors retain host-value semantics [tested:
     test_grounded_atoms_keep_values_but_stage_operators; commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
   - Python classes declare through ``Space.define`` [tested:
-    test_define_decorator_declares_field_types; commit=WORKTREE]
+    test_define_decorator_declares_field_types; commit=9b0a084e534ddf7dd67980ad84c27c8279b877f1]
   - an unannotated weighted operation stays untyped without a typed flag
     [tested: test_a_weighted_relation_is_an_annotated_op; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - root ``metta.catalog`` is the ordinary queryable ``&metta`` reflection

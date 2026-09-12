@@ -20,7 +20,7 @@ Guarantees:
   - post-loop reads use the continuation's backward liveness, so a fresh
     target gets the same refusal as an existing target and a later write
     replaces either [tested: test_loop_variable_read_after_for_is_refused,
-    test_a_rebinding_after_for_does_not_read_the_loop_target; commit=WORKTREE]
+    test_a_rebinding_after_for_does_not_read_the_loop_target; commit=9b0a084e534ddf7dd67980ad84c27c8279b877f1]
 Open Obligations:
   To Do: None
   Hacks: None

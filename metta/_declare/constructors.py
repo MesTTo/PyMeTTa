@@ -3,12 +3,12 @@
 Guarantees:
   - defaults and factories run per construction and post-init reads the same
     field bindings as initialization [tested:
-    test_class_value_post_init_and_write_refusal; commit=WORKTREE]
+    test_class_value_post_init_and_write_refusal; commit=9b0a084e534ddf7dd67980ad84c27c8279b877f1]
   - mutable factories allocate once and publish their result inside the engine
-    transaction [tested: test_class_constructor_rollback; commit=WORKTREE]
+    transaction [tested: test_class_constructor_rollback; commit=9b0a084e534ddf7dd67980ad84c27c8279b877f1]
   - Python initialization checks the same parameter contract as make-Class
     [tested: test_container_refinements_guard_native_and_host_field_writes;
-    commit=WORKTREE]
+    commit=9b0a084e534ddf7dd67980ad84c27c8279b877f1]
 """
 
 from __future__ import annotations

@@ -2,7 +2,7 @@
 Guarantees:
   - expression children use their exact value encoder, including explicit
     Atom subclass images [tested: test_class_prototype_fields_live_in_private_spaces;
-    commit=WORKTREE]
+    commit=9b0a084e534ddf7dd67980ad84c27c8279b877f1]
   - standard callable mentions encode as their symbolic MeTTa heads and all
     four atom rich comparisons follow the engine order used by plain sorted [tested:
     test_callable_mentions_share_operator_and_fourteen_math_names and

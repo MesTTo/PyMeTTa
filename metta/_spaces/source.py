@@ -4,7 +4,7 @@ Guarantees: source() and text save() expose authored occurrences; reference
 projections regenerate from their source rows [tested:
 test_source_is_the_exact_round_trippable_text_save_view,
 test_program_source_preserves_reference_cycles_and_lexical_bindings;
-commit=WORKTREE].
+commit=9b0a084e534ddf7dd67980ad84c27c8279b877f1].
 """
 
 from __future__ import annotations

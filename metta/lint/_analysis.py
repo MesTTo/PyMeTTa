@@ -12,7 +12,7 @@ Guarantees:
   - finite Literal constructor domains are checked as complete terms, while
     constructors with unrestricted fields retain head coverage [tested:
     test_finite_constructor_coverage_preserves_field_correlations;
-    commit=WORKTREE]
+    commit=9b0a084e534ddf7dd67980ad84c27c8279b877f1]
   - a body calling a translator special form is not a finding, so the
     commonest shape in MeTTa, an equation whose body branches on `if`, lints
     clean [tested test_calling_a_special_form_is_not_an_undefined_reference]

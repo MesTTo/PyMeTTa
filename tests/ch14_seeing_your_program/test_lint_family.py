@@ -12,7 +12,7 @@ Guarantees:
     commit=2a32acb6d254ea12085526913c7b9a1a555b8ee0]
   - finite constructor coverage retains tagged enum members and correlations
     between literal fields [tested: test_finite_constructor_coverage_preserves_field_correlations;
-    commit=WORKTREE]
+    commit=9b0a084e534ddf7dd67980ad84c27c8279b877f1]
 """
 
 from __future__ import annotations

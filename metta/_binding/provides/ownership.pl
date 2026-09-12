@@ -8,7 +8,7 @@
 %   commit=90ba93eb8f6e98ebfefc55416859bf13de6a8427].
 % Guarantees: grounded_length/2 reads tuple arity or Python's Sized protocol
 %   without enumerating elements [tested:
-%   test_host_length_refinements_do_not_read_elements; commit=WORKTREE].
+%   test_host_length_refinements_do_not_read_elements; commit=9b0a084e534ddf7dd67980ad84c27c8279b877f1].
 
 provides_declaration(engine, user, grounded_apply/3).
 

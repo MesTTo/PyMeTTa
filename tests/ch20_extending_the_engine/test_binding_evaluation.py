@@ -3,7 +3,7 @@
 Guarantees: batch fuel policy, deferred compilation costs, cumulative tagged
 guards, inverse cardinality, context lifetime and wide projection preserve
 their boundary contracts; releasing the compilation observer retains every
-earlier call-graph listener [tested: this file; commit=WORKTREE].
+earlier call-graph listener [tested: this file; commit=9b0a084e534ddf7dd67980ad84c27c8279b877f1].
 Owns resources: registered operations, retained contexts and the compilation
 observer are released; each changed pragma is restored.
 """

@@ -7,7 +7,7 @@ Guarantees:
     the registration transaction, replacement, ownership, and unregister
     lifecycle [tested:
     test_every_register_op_writes_its_declaration_and_get_doc_answers;
-    commit=WORKTREE]
+    commit=9b0a084e534ddf7dd67980ad84c27c8279b877f1]
   - every Python operation owns one canonical five-rank effect fact throughout
     registration, replacement, reflection, and unregister
     [tested: test_structural_registration_reflects_an_effect_atom;
@@ -16,7 +16,7 @@ Guarantees:
     commit=acb40f1912f131ae088083d1af29b4b283019bea]
   - lint evidence and named intent facts inhabit their declared reflection
     types and the Declaration supertype [tested:
-    test_lint_evidence_and_intent_are_typed_reflection_facts; commit=WORKTREE]
+    test_lint_evidence_and_intent_are_typed_reflection_facts; commit=9b0a084e534ddf7dd67980ad84c27c8279b877f1]
 Open Obligations:
   To Do: None
   Hacks: None

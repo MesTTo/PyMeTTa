@@ -3,7 +3,7 @@
 A frozen dataclass is a value. A mutable dataclass shares its class population.
 A Space subclass owns private facts and rules. Both notations query those rows.
 [tested: examples/ch17-concurrency-and-the-loop/08-class_grains.metta and its
-Python twin; commit=WORKTREE]
+Python twin; commit=9b0a084e534ddf7dd67980ad84c27c8279b877f1]
 Owns resources:
   - the scope releases the declaring space, classes and their instances.
 """
@@ -104,6 +104,6 @@ def twin(m):
 #: [measured: 14249592 twin and 2530741 native inferences; command=python
 #: extensions/python/tools/twin_coverage.py --measure
 #: examples/ch17-concurrency-and-the-loop/08-class_grains.metta; fixture=min of
-#: three serial fresh processes after deleting engine/lib QLF; commit=WORKTREE].
+#: three serial fresh processes after deleting engine/lib QLF; commit=9b0a084e534ddf7dd67980ad84c27c8279b877f1].
 BUDGET = 14249592
 OVERRUN = 11718851

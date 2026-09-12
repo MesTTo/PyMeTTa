@@ -3,10 +3,10 @@
 Guarantees:
   - annotations, constructor calls and declared fields carry receiver types;
     ordinary unknown host attributes keep their existing island meaning
-    [tested: test_class_constructors_compile_fields; commit=WORKTREE]
+    [tested: test_class_constructors_compile_fields; commit=9b0a084e534ddf7dd67980ad84c27c8279b877f1]
   - value construction uses the compiler's SSA bindings and subsequent value
     writes refuse with a replacement remedy [tested:
-    test_class_value_post_init_and_write_refusal; commit=WORKTREE]
+    test_class_value_post_init_and_write_refusal; commit=9b0a084e534ddf7dd67980ad84c27c8279b877f1]
 """
 
 from __future__ import annotations

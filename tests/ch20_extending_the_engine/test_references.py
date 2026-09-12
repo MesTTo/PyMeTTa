@@ -6,7 +6,7 @@ test_from_is_a_live_stored_row, test_a_card_reads_the_loaded_library_home;
 commit=90ba93eb8f6e98ebfefc55416859bf13de6a8427].
 Guarantees: a source can reload after its previous scoped home is released
 without reviving the old handle [tested:
-test_a_library_reloads_after_its_first_scope_closes; commit=WORKTREE].
+test_a_library_reloads_after_its_first_scope_closes; commit=9b0a084e534ddf7dd67980ad84c27c8279b877f1].
 """
 
 from collections import Counter

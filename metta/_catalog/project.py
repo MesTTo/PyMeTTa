@@ -28,7 +28,7 @@ Guarantees:
   - declared Enum constructors admit their canonical tagged members through
     the engine's Literal refinement [tested:
     test_a_python_enum_reaches_the_coverage_check_without_extra_machinery;
-    commit=WORKTREE]
+    commit=9b0a084e534ddf7dd67980ad84c27c8279b877f1]
 Open Obligations:
   To Do: None
   Hacks: None

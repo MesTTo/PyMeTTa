@@ -4,20 +4,20 @@ Owns resources:
   - each declaration owns its class space while reachable from a declaring
     home or a kept Scope value; entity occurrences and private spaces follow
     explicit retirement and Scope cleanup [tested: test_class_grain_lifetimes;
-    commit=WORKTREE]
+    commit=9b0a084e534ddf7dd67980ad84c27c8279b877f1]
 Guarded by:
   - definitions._DEFINE_LOCK serializes declaration, instrumentation and proxy
     reconstruction; outer commit checks reject stale proxy publications
     [tested: test_concurrent_reconstruction_publishes_one_python_proxy,
-    test_overlapping_transactions_cannot_publish_distinct_proxies; commit=WORKTREE]
+    test_overlapping_transactions_cannot_publish_distinct_proxies; commit=9b0a084e534ddf7dd67980ad84c27c8279b877f1]
 Guarantees:
   - mutable Python instances find their engine receiver through ordinary private
     proxy facts, including slotted and unhashable classes [tested:
-    test_class_proxies_share_engine_fields; commit=WORKTREE]
+    test_class_proxies_share_engine_fields; commit=9b0a084e534ddf7dd67980ad84c27c8279b877f1]
   - compiled dependencies retain explicit private imports even when another
     space already made their names globally callable [tested:
     test_constructor_dependencies_survive_a_previous_global_import_leaving;
-    commit=WORKTREE]
+    commit=9b0a084e534ddf7dd67980ad84c27c8279b877f1]
 """
 
 from __future__ import annotations

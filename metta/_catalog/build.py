@@ -18,7 +18,7 @@ Guarantees:
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - a container annotation leaves unsupported symbols unchanged and unwraps
     grounded values without recursively retrying the same conversion [tested:
-    test_container_build_handles_non_expression_atoms; commit=WORKTREE]
+    test_container_build_handles_non_expression_atoms; commit=9b0a084e534ddf7dd67980ad84c27c8279b877f1]
 Open Obligations:
   To Do: None
   Hacks: None
