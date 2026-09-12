@@ -11,6 +11,16 @@ Open Obligations:
 """
 
 from metta import S, lib
+from metta._errors.errors import MettaError
+
+
+def refused(m, call):
+    """Whether evaluating a call raises, which is what if-error reads."""
+    try:
+        list(m.eval(call))
+    except MettaError:
+        return True
+    return False
 
 #: The collection every claim is about, and its three unordered pairs.
 LETTERS = (S.a, S.b, S.c)
@@ -59,6 +69,67 @@ def twin(m):
     assert prefix(0, LETTERS) == [()]
     assert prefix(5, LETTERS) == [LETTERS]
     assert prefix(2, ()) == [()]
+
+    # `range` counts up, n excluded; `range-step` strides, and a negative stride
+    # counts down. A stride of zero would never arrive, so it is refused.
+    step = m.fn["range-step"]
+    assert list(m.fn.range(0, 4)) == [0, 1, 2, 3]
+    assert list(step(0, 10, 3)) == [0, 3, 6, 9]
+    assert list(step(5, 0, -2)) == [5, 3, 1]
+    assert list(step(0, 0, 1)) == []
+    assert list(step(0, 5, -1)) == []
+    assert refused(m, S.range_step(0, 5, 0))
+
+    # Every ordering, one per answer. A permutation counts POSITIONS, so a
+    # repeated item makes repeated answers.
+    orderings = m.fn.permutations
+    assert list(orderings(LETTERS)) == [
+        (S.a, S.b, S.c), (S.a, S.c, S.b), (S.b, S.a, S.c),
+        (S.b, S.c, S.a), (S.c, S.a, S.b), (S.c, S.b, S.a),
+    ]
+    assert list(orderings(())) == [()]
+    assert len(list(orderings((S.a, S.a)))) == 2
+
+    # The powerset, one subset per answer, each in the items' own order.
+    every = m.fn.subsets
+    assert list(every((S.a, S.b))) == [(S.a, S.b), (S.b,), (S.a,), ()]
+    assert list(every(())) == [()]
+    assert len(list(every((S.a, S.b, S.c, S.d)))) == 16
+
+    # One element from each set, the last varying fastest: an empty set anywhere
+    # means no answers, and no sets at all mean one answer, the empty tuple.
+    product, power = m.fn.tuples, m.fn["cartesian-power"]
+    assert list(product(((1, 2), (S.x, S.y)))) == [
+        (1, S.x), (1, S.y), (2, S.x), (2, S.y),
+    ]
+    assert list(product(((1, 2), ()))) == []
+    assert list(product(())) == [()]
+
+    # The product of one set with itself k times, repetition allowed.
+    assert list(power((0, 1), 2)) == [(0, 0), (0, 1), (1, 0), (1, 1)]
+    assert len(list(power((0, 1), 3))) == 8
+    assert list(power((S.a, S.b), 0)) == [()]
+
+    # The counts are exact and never build the choices they count.
+    factorial, binomial = m.fn.factorial, m.fn.binomial
+    ordered = m.fn["permutation-count"]
+    assert factorial(5) == [120]
+    assert factorial(0) == [1]
+    assert binomial(5, 2) == [10]
+    assert binomial(52, 5) == [2598960]
+    assert binomial(5, 0) == [1]
+    assert binomial(5, 9) == [0]
+    assert ordered(5, 2) == [20]
+    assert ordered(5, 5) == factorial(5)
+    assert ordered(5, 0) == [1]
+    assert refused(m, S.factorial(-1))
+
+    # And the counts agree with the enumerations, which is the same question
+    # asked two ways.
+    assert len(list(orderings(LETTERS))) == factorial(3).one()
+    assert len(list(k_stream((S.a, S.b, S.c, S.d), 2))) == binomial(4, 2).one()
+    assert len(list(every(LETTERS))) == 2**3
+    assert len(list(power((S.a, S.b), 3))) == 2**3
 
 
 #: MEASURED on this branch rather than inherited: this twin is new, so there is
@@ -177,39 +248,17 @@ def twin(m):
 #: empirical envelopes are unchanged [measured 2026-09-10: min-of-3 serial
 #: fresh processes; command=python extensions/python/tools/twin_coverage.py
 #: --repin; commit=8358dfc233bf299bb23eceddd94593a62372fe4b].
-BUDGET = 86991
-#: OVERRUN 2026-09-09, 0 to 242 (+242): the compiled vocabulary seed, the
-#: membership index, base-module type lookups and the singleton decoder landed
-#: (perf/cross-engine-waivers merged): a Python decode with one named variable
-#: builds no index and one with more builds it at the second distinct name,
-#: which moves a twin's engine-side cost while its example, which decodes
-#: nothing, holds; boot content and clause layout moved the rest; against the
-#: trunk's own run at da0e5755d the twin moved +123 and the example +141, and
-#: the twin sat 273 over its ceiling there already. Measured 121831 against a
-#: ceiling of 121590; a minimal twin costs 110063 against the band's 121590,
-#: within that ceiling, so the rest is this twin's own program [measured
-#: 2026-09-09: one fresh process per side; command=python
-#: extensions/python/benchmarks/probes/twin_floor.py; commit=b4341ae382c48ef225f4a52e566af6a9a71757c4].
-#: OVERRUN 2026-09-09, 242 to 3637 (+3395): a library's Prolog half compiles
-#: beside itself on its first import and loads from the artifact after
-#: (metta_load_source/2, seam:compiled_source/1): the example imports one, so
-#: the import's consult and its compile-time expansion left both sides in
-#: equal measure and the tenth of it that padded this twin's ceiling left with
-#: them, which shows the twin's own excess whole; the lane's authoring
-#: constants are re-derived on this tree in the same change; against the run
-#: before the compiled halves (b4341ae38) the twin moved -34784 and the
-#: example -34708, and the twin sat 1 within its ceiling there. Measured 87047
-#: against a ceiling of 87048; a minimal twin costs 75354 against the band's
-#: 83411, within that ceiling, so the rest is this twin's own program
-#: [measured 2026-09-09: one fresh process per side; command=python
-#: extensions/python/benchmarks/probes/twin_floor.py;
-#: commit=f26de01fbf3e0e3c64bb691c66a59fa959fee7f3].
-#: OVERRUN 2026-09-10, 3637 to 3945: The existing program is priced after the
-#: reference census, ordered catalog reads and source-scoped translation
-#: work. It costs 87974 against the unchanged band and authoring ceiling of
-#: 84029.0. The literal structured control costs 76429; it measures that
-#: encoding only. [measured 2026-09-10: one fresh process per side;
-#: command=python extensions/python/benchmarks/probes/twin_floor.py
-#: examples/ch08-data/08-03-the-shipped-libraries/11-combinatorics_lib.metta;
-#: commit=90ba93eb8f6e98ebfefc55416859bf13de6a8427].
-OVERRUN = 3945
+#: RE-PINNED 2026-09-12, 86991 to 122318 (+35327), lib_combinatorics adds
+#: permutations, subsets, tuples, cartesian-power, range-step, factorial,
+#: binomial and permutation-count, and gives its two weighted-subset heads
+#: declared modes, so the face is generated and the example proves 27 further
+#: claims [measured 2026-09-12: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 122318
+
+#: The declared OVERRUN went with the eight new heads: the twin used to cost
+#: more than the example's band allowed, and the enumerations and exact counts
+#: now cost both sides more than that distance. Measured 122,318 against a
+#: ceiling of 130,191 without a declaration [measured 2026-09-12: min-of-3
+#: serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
