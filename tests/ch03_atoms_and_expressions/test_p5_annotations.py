@@ -9,6 +9,8 @@ Guarantees:
     from the session space instead of assuming no earlier registration exists
     [tested: test_the_four_containers_share_one_parameterised_treatment;
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
+  - non-expression atoms cross container reconstruction without recursion
+    [tested: test_container_build_handles_non_expression_atoms; commit=WORKTREE]
   - Literal alternatives retain their finite domain in the annotation target
     [tested: test_every_advanced_annotation_reaches_metta_as_a_target_symbol;
     commit=WORKTREE]
@@ -114,6 +116,14 @@ def test_the_four_containers_share_one_parameterised_treatment(metta):
         "(annotation container-probe (param 4 (set Number)))",
         "(annotation container-probe (return (set Number)))",
     }
+
+
+@pytest.mark.parametrize("annotation", [list, tuple, dict, set, list[int], dict[str, int]])
+def test_container_build_handles_non_expression_atoms(annotation):  # noqa: D103 -- pytest discovers this test; its name states the contract
+    symbol = S.unsupported_container_image
+    assert build(symbol, annotation) is symbol
+    payload = {"live": 1}
+    assert build(Grounded(payload), annotation) is payload
 
 
 def test_int_str_and_flag_enums_each_project_with_their_declarations():

@@ -15,7 +15,10 @@ Guarantees:
   - buffer projections rebuild the exact carried exporter rather than copying
     or discarding its layout
     [tested: test_each_remaining_annotation_shape_refuses_or_carries;
-     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
+    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
+  - a container annotation leaves unsupported symbols unchanged and unwraps
+    grounded values without recursively retrying the same conversion [tested:
+    test_container_build_handles_non_expression_atoms; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -212,7 +215,7 @@ def _build_annotated(atom: Atom, annotation: Any) -> Any:
     if isinstance(atom, Expression) and hook is not None:
         return hook.build(atom, annotation, build)
     if isinstance(annotation, type):
-        return build(atom, annotation)
+        return _build_plain(atom, annotation)
     return build(atom)
 
 
