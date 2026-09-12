@@ -60,6 +60,53 @@ def test_a_failed_source_token_binding_restores_the_previous_value(tmp_path):
         assert context.run("!(quote failed-source-token)") == [[0]]
 
 
+@pytest.mark.parametrize("declarations", [
+    "()",
+    "((direction bidirectional))",
+    "((left ((owned-rule $x) (seed $x))) (right (owned-result $x)))",
+])
+def test_a_failed_rule_registration_retires_only_its_source_artifacts(tmp_path, declarations):
+    """A failed registration preserves the caller equation and removes its derivatives."""
+    path = tmp_path / "failed-rule.metta"
+    path.write_text(
+        f"!(add-translator-rule! owned-rule {declarations})\n"
+        f'!(import! &self "{tmp_path / "missing.metta"}")\n'
+    )
+    with MeTTa() as context:
+        context.run("(= (owned-rule $x) (noeval (owned-result $x)))")
+        before = context.self.source()
+        with pytest.raises(SourceNotFound):
+            context.self.load(path)
+        assert not context.runtime.once(
+            "translator_rules:translator_rule('owned-rule', _, _)"
+        )
+        assert not context.runtime.once(
+            "translator_rules:translator_rule_derived('owned-rule', _, _)"
+        )
+        assert not context.runtime.once(
+            "translator_rules:translator_rule('owned-result', _, _)"
+        )
+        assert context.self.source() == before
+
+
+def test_source_withdrawal_keeps_a_later_registration_in_the_same_module(tmp_path):
+    """An old source receipt cannot retire a subsequent registration of its name."""
+    path = tmp_path / "replaced-rule.metta"
+    path.write_text("!(add-translator-rule! later-rule)\n")
+    with MeTTa() as context:
+        context.run("(= (later-rule $x) (noeval (later-result $x)))")
+        context.self.load(path)
+        context.run("!(remove-translator-rule! later-rule)")
+        context.run("!(add-translator-rule! later-rule ((cost 3)))")
+        context.runtime.must(
+            "filereader:withdraw_source_load(File, Space, _)",
+            File=str(path), Space=context.self.name,
+        )
+        assert context.runtime.once(
+            "translator_rules:translator_rule_declared_cost('later-rule', 3)"
+        )
+
+
 def test_a_released_source_module_exposes_another_modules_token(tmp_path):
     """A module release removes only its source-owned claim on a shared token."""
     path = tmp_path / "other-module-token.metta"
