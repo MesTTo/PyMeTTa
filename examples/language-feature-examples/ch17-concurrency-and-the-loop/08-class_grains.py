@@ -114,11 +114,11 @@ def twin(m):
 #: inline control flow instead of a runtime once meta-call; their joint
 #: witnesses and scalar validation are unchanged [measured 2026-09-13: min-of-3
 #: serial fresh processes; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+#: extensions/python/tools/twin_coverage.py --repin; commit=6c70946993db4811ebc46c618e8c68a18474694c].
 BUDGET = 14248453
 #: The verified lane reports a declaration and crossing gap of 11717661
 #: [measured: 14248453 twin and 2530792 native inferences;
 #: command=python extensions/python/tools/twin_coverage.py
 #: examples/ch17-concurrency-and-the-loop/08-class_grains.metta;
-#: fixture=serial fresh processes after deleting engine/lib QLF; commit=WORKTREE].
+#: fixture=serial fresh processes after deleting engine/lib QLF; commit=6c70946993db4811ebc46c618e8c68a18474694c].
 OVERRUN = 11717661
