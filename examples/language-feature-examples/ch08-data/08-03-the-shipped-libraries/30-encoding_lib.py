@@ -4,7 +4,7 @@ Bytes are a tuple of numbers and text is `G("...")`; an alphabet is a symbol. Th
 two heads that answer bytes answer an expression, which `list()` reads.
 
 Guarantees: the same claims as 30-encoding_lib.metta
-[tested: python extensions/python/tools/twin_coverage.py examples/ch08-data/08-03-the-shipped-libraries/30-encoding_lib.metta; commit=WORKTREE].
+[tested: python extensions/python/tools/twin_coverage.py examples/ch08-data/08-03-the-shipped-libraries/30-encoding_lib.metta; commit=2b8c0afd38dcfe3994d5047dba2d035970311d0e].
 Open Obligations:
   To Do: None
   Hacks: None
@@ -109,5 +109,5 @@ def twin(m):
 #: extensions/python/tools/twin_coverage.py --measure --rounds 3
 #: examples/ch08-data/08-03-the-shipped-libraries/30-encoding_lib.metta;
 #: fixture=lib_encoding at its functional commit, artifacts purged before the run;
-#: commit=WORKTREE].
+#: commit=2b8c0afd38dcfe3994d5047dba2d035970311d0e].
 BUDGET = 147669
