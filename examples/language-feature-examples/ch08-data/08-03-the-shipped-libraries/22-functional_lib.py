@@ -21,13 +21,17 @@ Open Obligations:
 """
 
 import metta
-from metta import FALSE, TRUE, Expression, S, V, fn, if_, lib, match
+from metta import FALSE, TRUE, Expression, G, S, V, fn, if_, lib, match
 from metta._errors.errors import MettaError
 
 
 def twin(m):
     """Zip, slice, flatten, partition, group, sort, scan, unfold, pipe and loop."""
     m += lib.functional
+    # lib_unicode is imported for one claim below, whose test is a head the
+    # library declares deterministic: that is the case a verdict has to be read
+    # rather than asked for.
+    m += lib.unicode
 
     # The three helpers take their arithmetic and comparisons by the engine's
     # WORDS, so each body is the MeTTa form it stands for rather than a host
@@ -100,6 +104,12 @@ def twin(m):
     assert rows(m.fn.partition(S["odd?"], (1, 2, 3, 4))) == [(1, 3), (2, 4)]
     assert rows(m.fn.partition(S["odd?"], ())) == [(), ()]
     assert rows(m.fn.partition(S["|->"]((V.x,), S.gt(V.x, 10)), (1, 2))) == [(), (1, 2)]
+    # The test's verdict is READ and compared, never threaded into the call as an
+    # expected answer, so a test whose own head is declared deterministic answers
+    # False rather than failing: this one is lib_unicode's, over one-character
+    # strings.
+    assert rows(m.fn.partition(S["|->"]((V.c,), S.unicode_is(V.c, S.letter)),
+                               (G("a"), G("1")))) == [(G("a"),), (G("1"),)]
 
     # `group-by` gathers by what a key function answers, keys in
     # first-appearance order and members in the collection's order, so grouping
@@ -203,7 +213,12 @@ def twin(m):
 #: halves itself and pays the second import once [measured 2026-09-12: min-of-3
 #: serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=a2a80061cd8264d8f714b14c76b94d00f44a0755].
-BUDGET = 134567
+#: RE-PINNED 2026-09-12, 134567 to 151546 (+16979), the partition claim that
+#: reads its test's verdict rather than threading an expected answer, and the
+#: lib_unicode import it needs [measured 2026-09-12: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+BUDGET = 151546
 
 #: DIVERGED 2026-09-12, the example holds 1 atom the twin does not (1 =) and
 #: the twin holds 1 atom the example does not (1 =): the loop's tick helper is
