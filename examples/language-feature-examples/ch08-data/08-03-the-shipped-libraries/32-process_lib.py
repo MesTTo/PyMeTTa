@@ -6,7 +6,7 @@ started processes are Python names holding the identifiers, as the example's `bi
 forms are.
 
 Guarantees: the same claims as 32-process_lib.metta
-[tested: python extensions/python/tools/twin_coverage.py examples/ch08-data/08-03-the-shipped-libraries/32-process_lib.metta; commit=WORKTREE].
+[tested: python extensions/python/tools/twin_coverage.py examples/ch08-data/08-03-the-shipped-libraries/32-process_lib.metta; commit=623a2848ef49a936cd82b07adfbed2999d8548a4].
 Open Obligations:
   To Do: None
   Hacks: None
@@ -119,5 +119,5 @@ def twin(m):
 #: extensions/python/tools/twin_coverage.py --measure --rounds 3
 #: examples/ch08-data/08-03-the-shipped-libraries/32-process_lib.metta;
 #: fixture=lib_process at its functional commit, artifacts purged before the run;
-#: commit=WORKTREE].
+#: commit=623a2848ef49a936cd82b07adfbed2999d8548a4].
 BUDGET = 47068
