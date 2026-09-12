@@ -310,78 +310,19 @@ def twin(m):
 #: boot. Every workload, point allowance and empirical envelope is unchanged
 #: [measured 2026-09-10: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=8358dfc233bf299bb23eceddd94593a62372fe4b].
-BUDGET = 236727
+#: RE-PINNED 2026-09-12, 236727 to 291869 (+55142), lib_datastructures gains a
+#: Prolog half: the sorted map and the priority queue, whose nodes are MeTTa
+#: expressions, so every importer of the library pays the generated face's 22
+#: declarations and doc rows and the vendored cores' load. These two twins only
+#: use the finger tree, and their movement is that face [measured 2026-09-12:
+#: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 291869
 
-#: OVERRUN 2026-09-07, 1300: it asks the eleven ft-* functions one at a time
-#: through the evaluation door. Measured 236074 against a ceiling of 234799; a
-#: minimal twin of this example costs 217260, inside the ceiling's 234799, so
-#: the distance is this twin's own program [measured 2026-09-07: one fresh
-#: process per side; command=python
-#: extensions/python/benchmarks/probes/twin_floor.py; commit=9010a79b01c9b2a66b96a3952fa378fb3e939dc3].
-#: OVERRUN 2026-09-08, 1301: both sides dropped by the probed &self substitution,
-#: the example's library equations through the reader door and this twin's
-#: through the native door, the twin by one inference less. Measured 235803
-#: against a ceiling of 234502; a minimal twin costs 216991, inside it, so the
-#: distance is still this twin's own program, one wider [measured 2026-09-08:
-#: one fresh process per side; command=python
-#: extensions/python/benchmarks/probes/twin_floor.py; commit=856434d7c1d381b3f3d7cbbd008f46c0d41b61aa].
-#: OVERRUN 2026-09-08, 1331: both sides dropped under the trailed fuel scope
-#: marker (fix/every-intermittent-root-caused), the example by thirty more.
-#: Measured 233973 against a ceiling of 232642; a minimal twin costs 215301,
-#: inside it, so the distance is still this twin's own program [measured
-#: 2026-09-08: one fresh process per side; command=python
-#: extensions/python/benchmarks/probes/twin_floor.py; commit=3fc65f02ce807c359f1a52026f950f345da2a9af].
-#: OVERRUN 2026-09-08, 1331 to 1916 (+585, four of them the deterministic
-#: allowance the point pins carry, because a band met exactly is refused): the module boundary merged with
-#: trunk (refactor/engine-and-libraries-as-modules at b64291369): the twin's
-#: host crossings each resolve through one more chain link, prelude ->
-#: metta_engine -> user, while the example runs inside the engine; every
-#: crossing this twin makes pays it and the example pays none. Measured 235064
-#: against a ceiling of 234483; a minimal twin costs 215766 against the band's
-#: 233152, within that ceiling, so the rest is this twin's own program
-#: [measured 2026-09-08: one fresh process per side; command=python
-#: extensions/python/benchmarks/probes/twin_floor.py; commit=f1038acdcaf5230b6431c112f38a719d3dc9ef19].
-#: OVERRUN 2026-09-08, 1344: typed host declarations change catalog lookup
-#: on both sides. The example costs 211483 and the twin 233975; the 10%
-#: ceiling is 232631.3. The twin's eleven separate function calls and its
-#: program are unchanged [measured: one fresh process per side;
-#: command=python ai-tmp/ai-door-band-cost.py
-#: ch08-data/08-03-the-shipped-libraries/02-datastructures_fingertree.metta;
-#: commit=b615b5a33b43252ef9826e5387da7c9bd7f6b543].
-#: OVERRUN 2026-09-09, 1344 to 1915 (+571): the door table landed
-#: (feat/space-as-a-projection-of-door-rows merged at 6471faa37, its
-#: reconciliation fixes at 58bf75947): every Space door is a generated alias
-#: over its body, the catalog publishes the door contracts at boot as typed
-#: atoms, and the seam's listeners publish on every registration, so boot
-#: content and clause layout moved; every crossing this twin makes pays it and
-#: the example pays none. Measured 235064 against a ceiling of 234493; a
-#: minimal twin costs 215764 against the band's 233149, within that ceiling,
-#: so the rest is this twin's own program [measured 2026-09-09: one fresh
-#: process per side; command=python
-#: extensions/python/benchmarks/probes/twin_floor.py; commit=aeb46b14152274db84f6415c8a3dd8c98a9c9eb1].
-#: The example's own count moves by one between lane runs (211953 and 211954
-#: on this tree) and the band is met exactly at the higher reading, so the
-#: four-inference allowance the module-boundary pins recorded is added
-#: [measured 2026-09-09: the twins lane, three runs on the re-pinned tree;
-#: commit=aeb46b14152274db84f6415c8a3dd8c98a9c9eb1].
-#: OVERRUN 2026-09-09, 1919 to 2874 (+955): the compiled vocabulary seed, the
-#: membership index, base-module type lookups and the singleton decoder landed
-#: (perf/cross-engine-waivers merged): a Python decode with one named variable
-#: builds no index and one with more builds it at the second distinct name,
-#: which moves a twin's engine-side cost while its example, which decodes
-#: nothing, holds; boot content and clause layout moved the rest; against the
-#: trunk's own run at da0e5755d the twin moved -2036 and the example -1912,
-#: and the twin sat 887 over its ceiling there already. Measured 236983
-#: against a ceiling of 236029; a minimal twin costs 216920 against the band's
-#: 234111, within that ceiling, so the rest is this twin's own program
-#: [measured 2026-09-09: one fresh process per side; command=python
-#: extensions/python/benchmarks/probes/twin_floor.py; commit=b4341ae382c48ef225f4a52e566af6a9a71757c4].
-#: OVERRUN 2026-09-10, 2874 to 4101: The existing program is priced after the
-#: reference census, ordered catalog reads and source-scoped translation
-#: work. It costs 238194 against the unchanged band and authoring ceiling of
-#: 234093.2. The literal structured control costs 217513; it measures that
-#: encoding only. [measured 2026-09-10: one fresh process per side;
-#: command=python extensions/python/benchmarks/probes/twin_floor.py
-#: examples/ch08-data/08-03-the-shipped-libraries/02-datastructures_fingertree.metta;
-#: commit=90ba93eb8f6e98ebfefc55416859bf13de6a8427].
-OVERRUN = 4101
+#: The declared OVERRUN went with the map and queue face: the twin used to cost
+#: more than the example's band allowed because it asks the eleven ft-* functions
+#: one at a time through the evaluation door, and the face's own load now costs
+#: both sides more than that distance. Measured 291,869 against a ceiling of
+#: 292,580 without a declaration [measured 2026-09-12: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].

@@ -204,4 +204,11 @@ def twin(m):
 #: boot. Every workload, point allowance and empirical envelope is unchanged
 #: [measured 2026-09-10: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=8358dfc233bf299bb23eceddd94593a62372fe4b].
-BUDGET = 208121
+#: RE-PINNED 2026-09-12, 208121 to 262458 (+54337), lib_datastructures gains a
+#: Prolog half: the sorted map and the priority queue, whose nodes are MeTTa
+#: expressions, so every importer of the library pays the generated face's 22
+#: declarations and doc rows and the vendored cores' load. These two twins only
+#: use the finger tree, and their movement is that face [measured 2026-09-12:
+#: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 262458
