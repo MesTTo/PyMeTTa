@@ -408,7 +408,7 @@ def twin(m):
 #: borrowing and rollback operations; failed Socket and HTTP publication now
 #: withdraws the registered stream before closing it [measured 2026-09-13: min-
 #: of-3 serial fresh processes; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+#: extensions/python/tools/twin_coverage.py --repin; commit=781ee98e188c23ea7ef9298636d6e5e6c7fdc727].
 BUDGET = 113718
 
 #: DIVERGED 2026-09-07, the example holds 1 atom the twin does not (1 =) and

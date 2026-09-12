@@ -1,7 +1,7 @@
 """Purpose: exchange TCP bytes and IPv6 datagrams through owned File handles.
 
 Guarantees: the same 53 claims as 40-socket_lib.metta.
-[tested: python extensions/python/tools/twin_coverage.py examples/ch08-data/08-03-the-shipped-libraries/40-socket_lib.metta; commit=WORKTREE].
+[tested: python extensions/python/tools/twin_coverage.py examples/ch08-data/08-03-the-shipped-libraries/40-socket_lib.metta; commit=781ee98e188c23ea7ef9298636d6e5e6c7fdc727].
 Owns resources: finally closes remaining loopback handles if an assertion fails;
 with-socket owns each scoped acquisition through its answer stream.
 """
@@ -111,5 +111,5 @@ def twin(m):
 #: [measured 2026-09-13: 178533 inferences, minimum of three fresh serial processes;
 #: command=python extensions/python/tools/twin_coverage.py --measure --rounds 3
 #: examples/ch08-data/08-03-the-shipped-libraries/40-socket_lib.metta;
-#: fixture=lib_socket with engine/lib QLF artifacts purged; commit=WORKTREE].
+#: fixture=lib_socket with engine/lib QLF artifacts purged; commit=781ee98e188c23ea7ef9298636d6e5e6c7fdc727].
 BUDGET = 178533
