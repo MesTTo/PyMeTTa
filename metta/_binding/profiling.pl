@@ -5,7 +5,7 @@
 %   commit=90ba93eb8f6e98ebfefc55416859bf13de6a8427].
 % Guarantees: a profile whose sampler took no sample still answers the goal's
 %   answers, with zero samples and ticks and no rows
-%   [tested: test_a_profile_with_no_samples_still_answers; commit=WORKTREE].
+%   [tested: test_a_profile_with_no_samples_still_answers; commit=bcc22a1fd4458e1d85de7ffd8c55fcf02bfeb668].
 
 %%%%%%%%%% Profiling %%%%%%%%%%
 %
@@ -48,7 +48,7 @@ metta_py_profiled(Pred, Ins, [Out, Samples, Ticks, Seconds, Nodes]) :-
     %time=0.0004 s, and green on the same tree at loadavg 30 the day before;
     %command=sh extensions/python/test.sh -n 0 -p no:randomly
     %tests/ch14_seeing_your_program/test_features.py::test_a_profile_exports_as_pstats;
-    %commit=WORKTREE]. An empty profile is the honest answer when nothing was
+    %commit=bcc22a1fd4458e1d85de7ffd8c55fcf02bfeb668]. An empty profile is the honest answer when nothing was
     %sampled; the goal has already run either way, and its answer is what the
     %cell below carries out.
     Outcome = outcome(pending),
