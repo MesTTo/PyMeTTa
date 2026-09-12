@@ -10,7 +10,7 @@ edge relation as a list of tuples, which is how a (Vertex Neighbours) pair and a
 (From To) edge both read.
 
 Guarantees: the same claims as 25-graph_lib.metta
-[tested: python extensions/python/tools/twin_coverage.py examples/ch08-data/08-03-the-shipped-libraries/25-graph_lib.metta; commit=WORKTREE].
+[tested: python extensions/python/tools/twin_coverage.py examples/ch08-data/08-03-the-shipped-libraries/25-graph_lib.metta; commit=a5738e9390f2941d8f1c3207b5a28310a22e1f14].
 Open Obligations:
   To Do: None
   Hacks: None
@@ -165,7 +165,7 @@ def twin(m):
 #: processes; command=python extensions/python/tools/twin_coverage.py --measure
 #: --rounds 3 examples/ch08-data/08-03-the-shipped-libraries/25-graph_lib.metta;
 #: fixture=lib_graph at its functional commit, artifacts purged before the run;
-#: commit=WORKTREE].
+#: commit=a5738e9390f2941d8f1c3207b5a28310a22e1f14].
 BUDGET = 92465
 
 #: OVERRUN 2026-09-12, 2690: the example's `bind!` keeps its graph inside the
@@ -176,5 +176,5 @@ BUDGET = 92465
 #: left of the value crossings: measured 92465 against a ceiling of 89775.4
 #: [measured 2026-09-12: min-of-3 serial fresh processes, the same command as
 #: the budget above, once with `transpose(tasks).one()` and once with
-#: `S.graph_transpose(tasks)`; commit=WORKTREE].
+#: `S.graph_transpose(tasks)`; commit=a5738e9390f2941d8f1c3207b5a28310a22e1f14].
 OVERRUN = 2690
