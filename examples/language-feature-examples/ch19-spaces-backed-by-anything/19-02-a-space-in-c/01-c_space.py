@@ -364,5 +364,5 @@ def twin(m):
 #: adoption and claims each close under its handle-table mutex; these examples
 #: import that changed native surface [measured 2026-09-13: min-of-3 serial
 #: fresh processes; command=python extensions/python/tools/twin_coverage.py
-#: --repin; commit=WORKTREE].
+#: --repin; commit=0f22b69cfca5c108e4126bdd56ab9bb2e493744d].
 BUDGET = 122143

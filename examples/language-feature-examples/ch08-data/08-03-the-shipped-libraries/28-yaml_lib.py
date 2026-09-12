@@ -145,7 +145,7 @@ def twin(m):
 #: streams through adopt_file_stream/2 and claims a close atomically; HTTP also
 #: verifies transaction refusal before server lifecycle effects [measured
 #: 2026-09-12: min-of-3 serial fresh processes; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+#: extensions/python/tools/twin_coverage.py --repin; commit=0f22b69cfca5c108e4126bdd56ab9bb2e493744d].
 BUDGET = 179426
 
 #: DIVERGED 2026-09-12, the example holds 1 atom the twin does not (1 =) and

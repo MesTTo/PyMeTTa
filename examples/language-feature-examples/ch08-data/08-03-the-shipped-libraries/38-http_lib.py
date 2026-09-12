@@ -1,7 +1,7 @@
 """Purpose: route local HTTP requests through equations and owned byte streams.
 
 Guarantees: the same 41 claims as 38-http_lib.metta.
-[tested: python extensions/python/tools/twin_coverage.py examples/ch08-data/08-03-the-shipped-libraries/38-http_lib.metta; commit=WORKTREE].
+[tested: python extensions/python/tools/twin_coverage.py examples/ch08-data/08-03-the-shipped-libraries/38-http_lib.metta; commit=0f22b69cfca5c108e4126bdd56ab9bb2e493744d].
 Owns resources: finally stops the named loopback server; scoped resources close
 through their library owners.
 """
@@ -123,5 +123,5 @@ def twin(m):
 #: [measured 2026-09-13: 323580 inferences, minimum of three fresh serial processes;
 #: command=python extensions/python/tools/twin_coverage.py --measure --rounds 3
 #: examples/ch08-data/08-03-the-shipped-libraries/38-http_lib.metta;
-#: fixture=lib_http with engine/lib QLF artifacts purged; commit=WORKTREE].
+#: fixture=lib_http with engine/lib QLF artifacts purged; commit=0f22b69cfca5c108e4126bdd56ab9bb2e493744d].
 BUDGET = 323580
