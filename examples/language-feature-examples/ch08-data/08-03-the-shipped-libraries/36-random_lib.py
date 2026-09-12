@@ -1,7 +1,7 @@
 """Purpose: occurrence sampling, distribution values and seeded answer streams.
 
 Guarantees: the same 59 claims as 36-random_lib.metta.
-[tested: python extensions/python/tools/twin_coverage.py examples/ch08-data/08-03-the-shipped-libraries/36-random_lib.metta; commit=WORKTREE].
+[tested: python extensions/python/tools/twin_coverage.py examples/ch08-data/08-03-the-shipped-libraries/36-random_lib.metta; commit=505b45e1d9184608c818a8a4fdba5cf6406bf3e7].
 """
 
 from metta import FALSE, TRUE, G, S, lib
@@ -103,5 +103,5 @@ def twin(m):
 #: command=python extensions/python/tools/twin_coverage.py --measure --rounds 3
 #: examples/ch08-data/08-03-the-shipped-libraries/36-random_lib.metta;
 #: fixture=lib_random at its functional commit with engine/lib QLF artifacts purged;
-#: commit=WORKTREE].
+#: commit=505b45e1d9184608c818a8a4fdba5cf6406bf3e7].
 BUDGET = 117876
