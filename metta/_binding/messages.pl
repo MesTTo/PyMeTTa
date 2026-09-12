@@ -32,10 +32,19 @@
 %
 % Messages emitted before this file is consulted -- the engine's own load --
 % have no hook to reach and print only.
+%
+% A process that consulted this file without the engine has nothing to deliver
+% to and no door to deliver through: tests/prolog/suites/host/shim.plt and
+% shared_decode_index.plt load the shim alone, and the first warning of such a
+% load reached this hook, which raised an existence error for the engine's
+% door from inside a message hook, and SWI, unable to print, left the process
+% at the toplevel with its tests unrun. A message hook is not a place to raise
+% from, so the door is asked for before it is used.
 :- multifile user:thread_message_hook/3.
 user:thread_message_hook(_, Kind, Lines) :-
     Kind \== silent,
     \+ nb_current('$metta_py_message_bridge', true),
+    current_predicate(metta_engine:metta_with_trailed/3),
     context_module(Host),
     % Workaround: swi-cleanup-window - delivery uses the engine's trailed reentrancy scope.
     metta_engine:metta_with_trailed('$metta_py_message_bridge', true,
