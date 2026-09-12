@@ -13,7 +13,7 @@ Guarantees:
     repeated separators, a doubled leading slash and symbolic links
     [tested: test_normalize_agrees_with_posixpath,
     test_absolute_agrees_with_posixpath, test_relative_agrees_with_posixpath,
-    test_resolve_agrees_with_posixpath; commit=WORKTREE]
+    test_resolve_agrees_with_posixpath; commit=e40ef941310bddd1f57074eb559e78aac8a263b0]
   - dir-glob answers what glob and pathlib answer for the same pattern under
     each one's link and dotfile policy, and dir-walk the paths os.walk yields,
     over a tree holding hidden names, links and a dangling link
@@ -21,9 +21,9 @@ Guarantees:
     test_glob_with_hidden_names_matches_pathlib,
     test_a_trailing_recursive_component_answers_directories,
     test_walk_agrees_with_os_walk, test_walk_following_links_visits_the_target_once;
-    commit=WORKTREE]
+    commit=e40ef941310bddd1f57074eb559e78aac8a263b0]
   - every byte value survives a whole-file round trip and a handle round trip
-    [tested: test_bytes_round_trip_through_python; commit=WORKTREE]
+    [tested: test_bytes_round_trip_through_python; commit=e40ef941310bddd1f57074eb559e78aac8a263b0]
 Owns resources: each test works inside a pytest `tmp_path` and closes every
 handle it opens.
 Open Obligations:

@@ -398,7 +398,7 @@ def twin(m):
 #: +24,552 to +24,862 where the example also calls it, and +30,258 and +30,687
 #: on the two whose own claims are file operations [measured 2026-09-12: min-
 #: of-3 serial fresh processes; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+#: extensions/python/tools/twin_coverage.py --repin; commit=e40ef941310bddd1f57074eb559e78aac8a263b0].
 BUDGET = 113688
 
 #: DIVERGED 2026-09-07, the example holds 1 atom the twin does not (1 =) and

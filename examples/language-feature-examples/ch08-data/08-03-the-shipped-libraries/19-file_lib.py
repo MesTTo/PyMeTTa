@@ -11,7 +11,7 @@ generator there is the nondeterministic body the MeTTa original writes with
 `superpose`.
 
 Guarantees: the same claims as 19-file_lib.metta
-[tested: python extensions/python/tools/twin_coverage.py examples/ch08-data/08-03-the-shipped-libraries/19-file_lib.metta; commit=WORKTREE].
+[tested: python extensions/python/tools/twin_coverage.py examples/ch08-data/08-03-the-shipped-libraries/19-file_lib.metta; commit=e40ef941310bddd1f57074eb559e78aac8a263b0].
 Owns resources: one temporary directory holds everything and `delete-tree!`
 removes it at the end; every handle this file opens is closed.
 Open Obligations:
@@ -263,5 +263,5 @@ def twin(m):
 #: command=python extensions/python/tools/twin_coverage.py --measure --rounds 3
 #: examples/ch08-data/08-03-the-shipped-libraries/19-file_lib.metta;
 #: fixture=the File library at its functional commit, artifacts purged before
-#: the run; commit=WORKTREE].
+#: the run; commit=e40ef941310bddd1f57074eb559e78aac8a263b0].
 BUDGET = 209508
