@@ -1,9 +1,16 @@
 % Purpose: save, load, digest and attribute persisted spaces.
 % Assumes: loaded through _binding/shim.pl in its host module.
+% Guarantees: source and program views use the engine's authored occurrences
+%   and graph relocation [tested: test_convert_imports_a_python_program_and_round_trips_its_source;
+%   commit=WORKTREE].
+
 metta_py_source_atoms(Space, Wires) :-
     metta_host_source_atoms(Space, Atoms),
     maplist(metta_py_encode, Atoms, Wires).
 
+metta_py_program_source(Space, Result) :-
+    metta_host_program_source(Space, Outcome),
+    metta_py_persist_result(Outcome, Result).
 
 %%%%%%%%%% Trusted fast cache I/O %%%%%%%%%%
 %
@@ -17,7 +24,7 @@ metta_py_source_atoms(Space, Wires) :-
 %the wire and answers the ONE host question the engine asks through the
 %seam:host_object/1 seam, whether a term is a live Python object (the
 %bridge contributes that clause). Results: object(Atom) and symbol(Atom)
-%name a refusing offender, saved(Count) and digest(Hash) land.
+%name a refusing offender; saved(Count), digest(Hash) and program(Term) land.
 
 %The first atom in a space with no round-trip text spelling, so a host
 %validating a save asks the grammar instead of keeping a second copy of its
@@ -78,6 +85,8 @@ metta_py_persist_result(object(Atom), ["object", Encoded]) :- !,
 metta_py_persist_result(symbol(Atom), ["symbol", Encoded]) :- !,
     metta_py_encode(Atom, Encoded).
 metta_py_persist_result(saved(Count), ["saved", Count]) :- !.
+metta_py_persist_result(program(Program), ["program", Encoded]) :- !,
+    metta_py_encode(Program, Encoded).
 metta_py_persist_result(digest(Hash), ["digest", Hash]).
 
 %%%%%%%%%% Content digest %%%%%%%%%%

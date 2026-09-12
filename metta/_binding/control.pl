@@ -68,6 +68,7 @@ metta_py_wrappable(metta_py_fast_load_unit).
 %the one door on this surface that does unbounded engine work with no guard.
 metta_py_wrappable(metta_py_atoms).
 metta_py_wrappable(metta_py_source_atoms).
+metta_py_wrappable(metta_py_program_source).
 metta_py_wrappable(metta_py_infer_types).
 metta_py_wrappable(metta_py_fast_save).
 metta_py_wrappable(metta_py_world_eval).

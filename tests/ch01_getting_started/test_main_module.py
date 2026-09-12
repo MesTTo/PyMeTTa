@@ -140,7 +140,8 @@ def test_convert_imports_a_python_program_and_round_trips_its_source(tmp_path):
     assert printed.returncode == 0, printed.stderr
     assert "convert fixture imported" in printed.stderr
     assert "convert fixture imported" not in printed.stdout
-    assert len(printed.stdout.splitlines()) == 9
+    assert printed.stdout.startswith("!(let ")
+    assert "(new-space " in printed.stdout
     assert "(: converted-double (-> Number Number))" in printed.stdout
     assert "(= (converted-double " in printed.stdout
     assert "(= (converted-identity " in printed.stdout
@@ -158,7 +159,7 @@ def test_convert_imports_a_python_program_and_round_trips_its_source(tmp_path):
     assert output.read_text() == printed.stdout
 
     with MeTTa() as restored:
-        assert restored.self.load(output) == []
+        assert restored.self.load(output) == [[True]]
         assert restored.self.run("!(converted-double 21)") == [[42]]
         assert restored.self.run("!(converted-identity ready)") == [[S.ready]]
         assert restored.self.run("!(ConvertedPair-right (ConvertedPair 3 4))") == [[4]]

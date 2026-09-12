@@ -1,10 +1,12 @@
 """Purpose: validate, write, replace, and load named-space snapshots.
 Guarantees:
   - a completed sibling is synced before it replaces the destination
-    [tested: test_save_syncs_before_replacing; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
+    [tested: test_save_syncs_before_replacing; commit=WORKTREE]
   - validation and write failures preserve the old destination [tested
     test_save_validation_preserves_existing_file,
-    test_text_save_write_failure_preserves_existing_file; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
+    test_text_save_write_failure_preserves_existing_file,
+    test_program_source_refuses_a_live_object_before_replacing_a_file;
+    commit=WORKTREE]
   - fast cache headers are validated before payload loading [tested
     test_fast_load_refuses_a_different_swi_version_before_payload;
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
@@ -13,7 +15,7 @@ Guarantees:
   - text snapshots canonicalize stored variable identities by first
     occurrence, so independent reads of one unchanged program are byte
     identical [tested: test_source_is_the_exact_round_trippable_text_save_view;
-    commit=42502e9d4a7fedd419856d5e6a1c291fc18ba644]
+    commit=WORKTREE]
   - the save format type admits exactly metta and fast [tested:
     test_canonical_context_types_replace_public_newtypes; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - save validation consumes the generated SaveFormat vocabulary class rather
@@ -28,14 +30,20 @@ Guarantees:
     the root authored atom count [tested:
     test_fast_cache_restores_translator_rules_and_bound_spaces;
     commit=WORKTREE]
+  - program_space and save_program relocate the reference and owned-space
+    graph into a MeTTa reconstruction program [tested:
+    extensions/python/tests/ch18_performance/test_program_source.py;
+    commit=WORKTREE]
   - the load door raises sys.audit("metta.host", "load", path) before it
     reads, so an audit hook can refuse the load [tested:
     test_the_load_door_raises_its_event,
     test_a_hook_can_refuse_a_door_by_raising; commit=6375a7c8f3c035b04bc9d41c8f7f22e56b42fb41]
 Owns resources:
-  - save_space owns one sibling temporary file and removes it after every
+  - save_space and save_program own one sibling temporary file and remove it after every
     failed or successful save
-    [tested: test_save_failure_preserves_existing_file; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
+    [tested: test_save_failure_preserves_existing_file,
+    test_program_source_refuses_a_live_object_before_replacing_a_file;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -50,8 +58,10 @@ import re
 import stat
 import sys
 import tempfile
+from collections.abc import Iterator
+from contextlib import contextmanager
 from pathlib import Path
-from typing import Literal
+from typing import Any, Literal
 
 import metta._spaces.scope as _spaces_scope_module
 from metta._atoms.factories import (
@@ -115,6 +125,18 @@ def _sync_and_replace(temporary: Path, target: Path) -> None:
         os.fsync(descriptor)
     finally:
         os.close(descriptor)
+
+
+@contextmanager
+def _atomic_target(path: str | os.PathLike[str]) -> Iterator[Path]:
+    """Publish a completed sibling and remove it on every exit."""
+    target = Path(path)
+    temporary = _temporary_sibling(target)
+    try:
+        yield temporary
+        _sync_and_replace(temporary, target)
+    finally:
+        temporary.unlink(missing_ok=True)
 
 
 def serializable(atom: Atom) -> bool:
@@ -198,8 +220,13 @@ def _write_fast(
     rt: Runtime, space: str, temporary: Path, bounds: tuple[float, int, int]
 ) -> int:
     result = _spaces_scope_module._apply_limited(rt, bounds, "metta_py_fast_save", [str(temporary), space])
+    return int(_persist_value(result, "metta_py_fast_save", "saved"))
+
+
+def _persist_value(result: Any, command: str, expected: str) -> Any:
+    """Read a persistence outcome or raise its precise refusal witness."""
     if not isinstance(result, list) or len(result) != 2:
-        msg = f"metta_py_fast_save returned an invalid result: {result!r}"
+        msg = f"{command} returned an invalid result: {result!r}"
         raise EngineError(msg)
     kind, value = result
     if kind == "object":
@@ -211,10 +238,10 @@ def _write_fast(
         raise ValueError(msg)
     if kind == "symbol":
         raise_unsafe_text_atom(_atom_from_wire(value), "save")
-    if kind != "saved":
-        msg = f"metta_py_fast_save returned an unknown result: {result!r}"
+    if kind != expected:
+        msg = f"{command} returned an unknown result: {result!r}"
         raise EngineError(msg)
-    return int(value)
+    return value
 
 
 def _source_line(atom: Atom) -> str:
@@ -249,6 +276,25 @@ def source_space(rt: Runtime, space: str) -> str:
     return _source_text(atoms)
 
 
+def program_space(rt: Runtime, space: str) -> str:
+    """Render an owned equation world as a MeTTa reconstruction program."""
+    bounds = _spaces_scope_module._limits(None, None) or (-1.0, -1, -1)
+    result = _spaces_scope_module._apply_limited(
+        rt, bounds, "metta_py_program_source", [space]
+    )
+    program = _atom_from_wire(
+        _persist_value(result, "metta_py_program_source", "program")
+    )
+    return "!" + _source_line(program)
+
+
+def save_program(rt: Runtime, space: str, path: str | os.PathLike[str]) -> None:
+    """Validate a complete program before atomically publishing its text."""
+    text = program_space(rt, space)
+    with _atomic_target(path) as temporary, _open_maybe_gz(temporary, "wt") as handle:
+        handle.write(text)
+
+
 def _write_text(temporary: Path, atoms: list[Atom]) -> int:
     with _open_maybe_gz(temporary, "wt") as handle:
         for atom in atoms:
@@ -279,18 +325,12 @@ def save_space(
     bounds = _spaces_scope_module._limits(timeout, inferences) or (-1.0, -1, -1)
     atoms = _enumerate(rt, space, bounds)
     _validate_atoms(rt, space, atoms, bounds)
-    target = Path(path)
-    temporary = _temporary_sibling(target)
-    try:
-        count = (
+    with _atomic_target(path) as temporary:
+        return (
             _write_fast(rt, space, temporary, bounds)
             if save_format == "fast"
             else _write_text(temporary, atoms)
         )
-        _sync_and_replace(temporary, target)
-        return count
-    finally:
-        temporary.unlink(missing_ok=True)
 
 
 def _enumerate(rt: Runtime, space: str, bounds: tuple[float, int, int]) -> list[Atom]:

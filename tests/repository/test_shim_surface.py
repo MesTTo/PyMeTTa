@@ -54,6 +54,7 @@ HOST_SERVICES = {
     # The engine owns source projection, reference faces and portable namespace
     # reconstruction, so each binding reads the same program boundary.
     "metta_host_source_atoms/2",
+    "metta_host_program_source/2",
     "metta_host_reference_names/2",
     "catch_recover/2",
     # Actor inspection and occurrence blame are engine-owned identity reads.
@@ -373,6 +374,7 @@ def test_the_host_service_scoreboard_matches_the_tree(repo_root):  # noqa: D103 
 #: host would otherwise recover by parsing the boot transcript.
 FLOOR_REASONS = {
     "metta_host_source_atoms/2": "host-orchestration",
+    "metta_host_program_source/2": "host-orchestration",
     "metta_host_reference_names/2": "door",
     "metta_actor/1": "door",
     "metta_host_blame/3": "host-orchestration",

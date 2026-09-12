@@ -21,11 +21,14 @@ Guarantees:
     after bound function access became fail-fast [tested:
     test_doc_answers_and_refuses; commit=2d4d4583c2d82e90bb21a7e8671842f126edd4f4]
   - convert imports a real Python module against a fresh default space and
-    emits exactly that space's round-trippable MeTTa source, keeping module
-    stdout off the source channel, then restores the ordinary package and
-    context factories [tested:
+    emits a MeTTa reconstruction program for its references, owned spaces,
+    lexical equation bindings, tokens and translator rules. Module stdout
+    stays off the source channel, and the ordinary package and context
+    factories are restored [tested:
     test_convert_imports_a_python_program_and_round_trips_its_source,
-    test_convert_restores_the_in_process_declaration_receiver; commit=42502e9d4a7fedd419856d5e6a1c291fc18ba644]
+    test_convert_restores_the_in_process_declaration_receiver,
+    extensions/python/tests/ch18_performance/test_program_source.py;
+    commit=WORKTREE]
   - an interactive repl completes a head or a space name against the live
     engine, hyphens included, and keeps its history between sessions without
     the terminator [tested: test_the_completer_offers_heads_and_space_names,
@@ -836,15 +839,18 @@ def _conversion_receiver(context):
 
 def _convert(arguments) -> int:
     """Import a Python-authored program and emit its lowered MeTTa source."""
-    from metta.vocabularies import SaveFormat  # noqa: PLC0415 -- version and help must not boot
+    from metta._spaces.snapshot import (  # noqa: PLC0415 -- version and help must not boot
+        program_space,
+        save_program,
+    )
 
     with _root.MeTTa() as context:
         with _conversion_receiver(context), contextlib.redirect_stdout(sys.stderr):
             context.self.fn["import!"](context.self, str(arguments.program))
         if arguments.output is None:
-            sys.stdout.write(context.self.source())
+            sys.stdout.write(program_space(context.self._rt, context.self.name))
         else:
-            context.self.save(arguments.output, format=SaveFormat.metta)
+            save_program(context.self._rt, context.self.name, arguments.output)
     return 0
 
 
