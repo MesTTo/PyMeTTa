@@ -4,9 +4,10 @@ Guarantees: 32 fresh engine processes compare corrected counters with polling
 off and across several normal and dense heartbeat intervals
 [tested: test_heartbeat_correction_is_exact_with_32_concurrent_workers; commit=8358dfc233bf299bb23eceddd94593a62372fe4b].
 The first failed Janus query ignores deterministic file-cache expiry; a
-skipped boot import exposes the original 229-inference difference [tested:
+skipped boot import exposes a 232-inference difference, including one extra
+asserta/1 through assertion ownership during cache expiry [tested:
 test_first_failed_text_query_has_no_deferred_dependency_cost;
-commit=8358dfc233bf299bb23eceddd94593a62372fe4b].
+commit=WORKTREE].
 Decides: the three-twin measurement uses a 9223372036854775807-second
 file-cache lifetime and warm compiled library artifacts to separate program
 work from wall-clock cache sweeps and compilation-child launch costs
@@ -175,7 +176,10 @@ def test_first_failed_text_query_has_no_deferred_dependency_cost():
     assert all(len(values) == 1 for values in costs.values()), costs
     one = {key: next(iter(values)) for key, values in costs.items()}
     assert one[True, -1] == one[True, 0] == one[True, 10], one
-    assert one[False, -1] - one[False, 10] == 229, one
+    # SWI's expired-cache branch refreshes the entry with asserta/1. The
+    # assertion ownership wrapper adds three inferences to its former 229.
+    # The eager path above must still have no expiry-dependent cost.
+    assert one[False, -1] - one[False, 10] == 232, one
     assert one[False, 0] - one[False, 10] == 226, one
 
 
