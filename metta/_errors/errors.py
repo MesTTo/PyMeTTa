@@ -32,7 +32,7 @@ Guarantees:
     and every CompileError derives one from its construct [tested:
     extensions/python/tests/ch10_errors_and_refusals/test_refusal_grounds.py,
     tests/checks/check_refusal_grounds.py;
-    commit=acb40f1912f131ae088083d1af29b4b283019bea]
+    commit=WORKTREE]
   - a reified-world effect refusal carries the named EffectSafety law as its
     machine-readable ground [tested:
     test_an_uncovered_world_refuses_before_creating_scratch_or_running_the_operation;
@@ -554,7 +554,7 @@ _COMPILE_REFERENCE_BY_CONSTRUCT = (
     (("with",), "Python Language Reference section 8.5, The with statement"),
     (("yield", "generator"), "Python Language Reference section 6.2.9, Yield expressions"),
     (("call", "callee", "keyword", "function", "def", "twin", "argument", "overload"), "Python Language Reference section 6.3.4, Calls"),
-    (("attribute",), "Python Language Reference section 6.3.2, Attribute references"),
+    (("attribute", "field"), "Python Language Reference section 6.3.2, Attribute references"),
     (("subscript", "slice"), "Python Language Reference section 6.3.3, Subscriptions"),
     (("compare", "boolop"), "Python Language Reference section 6.10-6.11, Comparisons and Boolean operations"),
     (("floor", "reduce", "binop"), "Python Language Reference section 6.7, Binary arithmetic operations"),
@@ -563,7 +563,7 @@ _COMPILE_REFERENCE_BY_CONSTRUCT = (
     (("try", "except", "finally"), "Python Language Reference section 8.4, The try statement"),
     (("global", "nonlocal"), "Python Language Reference section 7.12-7.13, The global and nonlocal statements"),
     (("type alias",), "Python Language Reference section 7.15, The type statement"),
-    (("class",), "Python Language Reference section 8.7, Class definitions"),
+    (("class", "constructor"), "Python Language Reference section 8.7, Class definitions"),
     (("assignment", "assign", "walrus", "annotation", "annassign", "augassign"), "Python Language Reference section 7.2, Assignment statements"),
     (("delete", "del",), "Python Language Reference section 7.5, The del statement"),
     (("return",), "Python Language Reference section 7.6, The return statement"),

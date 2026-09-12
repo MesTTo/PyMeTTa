@@ -129,6 +129,7 @@ from metta._atoms.factories import (
 from metta._atoms.names import resolve_known_name
 from metta._catalog.annotations import type_atoms_for
 from metta._catalog.fn import fn as fn_namespace
+from metta._compile import records as _records
 from metta._compile.expressions import ExpressionCompilerMixin
 from metta._compile.facts import DefinitionFacts, SourceSpan, derive_definition_facts
 from metta._compile.islands import py as _py_marker
@@ -196,6 +197,16 @@ def _annotation_resolver(
     one equation per union member.
     """
     namespace = _function_namespace(fn)
+    # PEP 649 gives annotation-only local names their own closure. Reading its
+    # cells preserves that lexical environment without evaluating annotations.
+    # https://peps.python.org/pep-0649/#compiler-generated-annotate-functions
+    annotate = getattr(fn, "__annotate__", None)
+    if isinstance(annotate, types.FunctionType):
+        for name, cell in zip(annotate.__code__.co_freevars, annotate.__closure__ or (), strict=True):
+            try:
+                namespace[name] = cell.cell_contents
+            except ValueError:
+                continue
 
     def resolve(node: ast.expr) -> Any:
         if isinstance(node, ast.Name):
@@ -541,6 +552,7 @@ class Compiled(NamedTuple):
     hazards: frozenset[str]
     facts: DefinitionFacts
     libraries: frozenset[str] = frozenset()
+    class_dependencies: frozenset[type] = frozenset()
 
 
 def _is_flat_yield_sequence(statements: list[ast.stmt]) -> bool:
@@ -699,6 +711,18 @@ def compile_function(
             for argument in definition.args.args
             if argument.annotation is not None and annotation_names_space(argument.annotation)
         }
+        record_parameters = {}
+        for argument in definition.args.args:
+            if argument.annotation is None:
+                continue
+            try:
+                owner = _records.declared(annotation_value(argument.annotation))
+            except CompileError:
+                # A Python class is an optional receiver proof. Atom-valued
+                # annotations keep their ordinary declaration-time meaning.
+                continue
+            if owner is not None:
+                record_parameters[argument.arg] = owner.cls
         compiler = _Compiler(
             metta_name or fn.__name__,
             scope,
@@ -722,7 +746,9 @@ def compile_function(
             number_locals=number_parameters,
             number_return=number_return,
             annotation_alternatives=annotation_alternatives,
+            record_locals=record_parameters,
         )
+        compiler.class_dependencies.update(compiler.record_locals.values())
         generator = _is_generator(definition)
         body: Atom
         if generator:
@@ -775,6 +801,7 @@ def compile_function(
         frozenset(compiler.hazards),
         facts,
         frozenset(compiler.libraries),
+        frozenset((*compiler.class_dependencies, *compiler.record_locals.values())),
     )
 
 
@@ -875,6 +902,11 @@ class _Compiler(
         container_locals: dict[str, str] | None = None,
         number_locals: set[str] | None = None,
         number_return: bool = False,
+        record_locals: dict[str, type] | None = None,
+        class_context: type | None = None,
+        class_dependencies: set[type] | None = None,
+        construction: tuple[Any, str] | None = None,
+        constructor_return: Callable[[_Compiler], Atom] | None = None,
     ):
         self.name = name
         # The Python spelling of the definition's own name, for recursion
@@ -942,6 +974,11 @@ class _Compiler(
         self.container_locals: dict[str, str] = _provided(container_locals, {})
         self.number_locals: set[str] = _provided(number_locals, set())
         self.number_return = number_return
+        self.record_locals = _provided(record_locals, {})
+        self.class_context = class_context
+        self.class_dependencies = _provided(class_dependencies, set())
+        self.construction = construction
+        self.constructor_return = constructor_return
         # Local names currently bound to a SPACE value: (context-space),
         # (new-space ...) or a closure handle. += and -= on one of these
         # are write operations, never arithmetic; forks copy the set the
@@ -1052,6 +1089,8 @@ class _Compiler(
         scope.update({p: p for p in extra})
         nested = self._nested_compiler(scope)
         nested.number_locals.difference_update(extra)
+        for name in extra:
+            nested.record_locals.pop(name, None)
         return nested
 
     def _equation_compiler(self, params: list[str], closer=None) -> _Compiler:
@@ -1111,6 +1150,11 @@ class _Compiler(
             else self.container_locals.copy(),
             number_locals=number_locals if number_locals is not None else self.number_locals.copy(),
             number_return=self.number_return,
+            record_locals=self.record_locals.copy(),
+            class_context=self.class_context,
+            class_dependencies=self.class_dependencies,
+            construction=self.construction,
+            constructor_return=self.constructor_return,
         )
 
     def _iteration(self, iter_node: ast.expr, var: str, body: Atom) -> Expression:

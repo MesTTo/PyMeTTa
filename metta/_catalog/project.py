@@ -25,6 +25,10 @@ Guarantees:
     format, item size, dimensionality, strides, and access metadata
     [tested: test_each_remaining_annotation_shape_refuses_or_carries;
      commit=f88aa8be03cb64cb59d3307515ded8701f418321]
+  - declared Enum constructors admit their canonical tagged members through
+    the engine's Literal refinement [tested:
+    test_a_python_enum_reaches_the_coverage_check_without_extra_machinery;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -37,7 +41,7 @@ import itertools
 import operator
 from collections.abc import Iterable
 from collections.abc import Iterator as IteratorABC
-from enum import Enum, EnumType
+from enum import Enum, EnumType, Flag
 from typing import Any, NamedTuple, cast
 
 from metta._atoms.factories import Atom, Expression, Grounded, S, Symbol, _encode, ground
@@ -97,6 +101,9 @@ def project(value: Any, annotation: Any = None) -> Projected:
 
 def _project_direct(value: Any) -> Projected | None:
     if isinstance(value, Atom):
+        registration = _lookup(type(value))
+        if registration is not None and registration.explicit and registration.image == "expression":
+            return None
         return Projected(value, ())
     if isinstance(value, Enum):
         return None
@@ -380,7 +387,19 @@ def declarations(cls: type) -> tuple[Expression, ...]:
 
 
 def _enum_declarations(cls: type[Enum]) -> tuple[Expression, ...]:
-    type_name = ensure_registered(cls).type_name
+    registration = ensure_registered(cls)
+    type_name = registration.type_name
+    if registration.image == "expression":
+        if issubclass(cls, Flag):
+            return _expression_declarations(cls, registration)
+        # A tagged enum admits exactly its canonical members. Literal is the
+        # engine's existing finite refinement, also read by coverage analysis.
+        return (Expression([S[":"], Symbol(type_name), Expression([
+            S["->"], Expression([S.Annotated, S.Symbol, Expression([
+                S.Literal, *(Symbol(member.name) for member in cls),
+            ])]),
+            Symbol(type_name),
+        ])]),)
     declared = [Expression([S[":"], Symbol(type_name), S.Type])]
     declared.extend(Expression([S[":"], Symbol(member.name), Symbol(type_name)]) for member in cls)
     return tuple(declared)
@@ -390,7 +409,8 @@ def _expression_declarations(cls: type, registration: _Registration) -> tuple[Ex
     fields = registration.fields or ()
     hints = resolved_hints(cls)
     alternative_lists: list[list[Atom]] = [
-        type_atoms_for(hints[f]) if f in hints else [S["%Undefined%"]] for f in fields
+        type_atoms_for(kind) if kind is not None else [S["%Undefined%"]]
+        for kind in (registration.field_types or tuple(hints.get(field) for field in fields))
     ]
     return _declarations_for_alternatives(registration.type_name, alternative_lists)
 

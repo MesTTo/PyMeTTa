@@ -7,7 +7,9 @@ Guarantees:
   - class and enum declarations use the consolidated ``Space.define`` door
     [tested: test_define_declares_class_with_accessors,
     test_define_declares_enum_members, test_define_methods_run_on_terms_and_handles,
-    and test_enum_members_match_in_metta; commit=cff2e7f319bd2212f0c2d74f8d5fe5be3ac693b5]
+    and test_enum_members_match_in_metta; commit=WORKTREE]
+  - profiling collects answers and data without invoking a display callback
+    [tested: test_profile_does_not_invoke_a_display_callback; commit=WORKTREE]
   - subscription hook clauses track whether the active space set is empty
     [tested: test_subscription_hooks_follow_the_active_space_set;
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
@@ -454,7 +456,7 @@ def test_faiss_and_argsort_rank_identically(m):  # noqa: D103  -- pytest discove
 
 def test_define_declares_class_with_accessors(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     @m.define
-    @dataclasses.dataclass
+    @dataclasses.dataclass(frozen=True)
     class Song:
         title: str
         year: int
@@ -474,7 +476,10 @@ def test_define_declares_enum_members(m):  # noqa: D103  -- pytest discovers or 
         Calm = 1
         Storm = 2
 
-    assert Expression(S[":"], S.Calm, S.DeclaredMood) in m
+    for member in DeclaredMood:
+        term = convert.project(member).atom
+        assert term == S.DeclaredMood(S[member.name])
+        assert m.run(f"!(get-type {term})") == [[S.DeclaredMood]]
 
 
 # ----------------------------------------------------- host values in source
@@ -675,7 +680,7 @@ def test_remote_spaces_serve_attach_and_join(metta, tmp_path):  # noqa: ARG001  
 
 def test_define_methods_run_on_terms_and_handles(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     @m.define
-    @dataclasses.dataclass
+    @dataclasses.dataclass(frozen=True)
     class MethodPoint:
         x: float
         y: float
@@ -707,11 +712,10 @@ def test_enum_members_match_in_metta(m):  # noqa: D103  -- pytest discovers or i
         Calm = 1
         Storm = 2
 
-    m.add(S.today(S.Storm))
-    # Members are symbols with declarations: patterns match them, and
-    # get-type answers the enum.
-    assert m.run("!(match (context-space) (today Storm) stormy)") == [[S.stormy]]
-    assert m.run("!(get-type Storm)") == [[S.MatchingMood]]
+    m.add(S.today(MatchingMood.Storm))
+    # The declared class tags its member, so another enum can reuse the name.
+    assert m.run("!(match (context-space) (today (MatchingMood Storm)) stormy)") == [[S.stormy]]
+    assert m.run("!(get-type (MatchingMood Storm))") == [[S.MatchingMood]]
 
 
 def test_remote_auth_token_and_hook_requires_tls(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract

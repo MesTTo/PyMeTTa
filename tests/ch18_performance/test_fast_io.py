@@ -303,6 +303,8 @@ def test_load_auto_detects_text_and_fast_files(metta, tmp_path):  # noqa: D103  
 
 def test_source_is_the_exact_round_trippable_text_save_view(metta, tmp_path):
     """Expose the direct, round-trippable text-save view of one space."""
+    from dataclasses import dataclass
+
     path = tmp_path / "visible-program.metta"
     empty_path = tmp_path / "empty.metta"
     with (
@@ -319,6 +321,7 @@ def test_source_is_the_exact_round_trippable_text_save_view(metta, tmp_path):
             yield equation(S.source_identity(value)).to(value)
 
         @source.define
+        @dataclass(frozen=True)
         class SourceRoundTripPair:
             left: int
             right: int
@@ -328,13 +331,14 @@ def test_source_is_the_exact_round_trippable_text_save_view(metta, tmp_path):
 
         text = source.source()
         assert str(declared) == f"(source {source} repeated)"
-        assert source.save(path, format="metta") == 7
+        assert source.save(path, format="metta") == 5
         assert path.read_text() == text
-        assert len(text.splitlines()) == 7
+        assert len(text.splitlines()) == 5
         assert "(: source-double (-> Number Number))" in text
         assert "(= (source-double " in text
         assert "(= (source-identity " in text
-        assert "(: SourceRoundTripPair (-> Number Number SourceRoundTripPair))" in text
+        assert "(from " in text
+        assert "(: SourceRoundTripPair " not in text
         assert "(source-fact ready)" in text
         assert "(op " not in text
         assert "(source &" not in text

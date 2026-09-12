@@ -14,13 +14,13 @@ Guarantees:
   - class declarations are context-relative through ``Space.define`` and the
     retired root ``record`` door is not used [tested:
     test_define_wires_the_declarative_dance and
-    test_define_refuses_an_unregistrable_class; commit=cff2e7f319bd2212f0c2d74f8d5fe5be3ac693b5]
+    test_define_accepts_an_empty_entity_class; commit=WORKTREE]
   - a batch discards on exception and refuses remove/clear inside its own
     block, the stated edges [tested test_batch_edges_are_enforced]
   - match(into=) and Rows.build rebuild a complete constructor expression,
     while cast returns the admitted atom [tested:
     test_a_constructor_expression_rebuilds_through_the_query_door;
-    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
+    commit=WORKTREE]
   - ``metta.speculate()`` is the exact lazy module-tier spelling for the
     default receiver's discarded execution scope [tested:
     test_module_tier_speculate_discards_default_space_writes; commit=3ded7552797b66d78e666141eb51f3bc14686bd2]
@@ -251,7 +251,7 @@ def test_a_constructor_expression_rebuilds_through_the_query_door(metta):
     """Rows.build and into= rebuild the constructor expression; cast returns the admitted atom."""
 
     @metta.define
-    @dataclass
+    @dataclass(frozen=True)
     class P5Constructor:
         label: str
         count: int
@@ -429,13 +429,13 @@ def test_define_wires_the_declarative_dance(metta):  # noqa: D103  -- pytest dis
     from metta import convert
 
     @metta.define
-    @dataclass
+    @dataclass(frozen=True)
     class LadderEdge:
         a: str
         b: str
 
     declared = metta.match("(: LadderEdge $t)")
-    assert [str(row[0]) for row in declared] == ["(-> String String LadderEdge)"]
+    assert {str(row[0]) for row in declared} == {"Type", "(-> String String LadderEdge)"}
     # cast narrows against the landed declaration ...
     atom = metta.parse('(LadderEdge "x" "y")')
     assert metta.cast(atom, LadderEdge) is atom
@@ -449,12 +449,16 @@ def test_define_wires_the_declarative_dance(metta):  # noqa: D103  -- pytest dis
     assert sp.match("(LadderEdge $a $b)", into=LadderEdge) == [LadderEdge("p", "q")]
 
 
-def test_define_refuses_an_unregistrable_class(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    with pytest.raises(TypeError, match="default image"):
+def test_define_accepts_an_empty_entity_class(metta):
+    """An empty mutable class still has an identity and a native receiver."""
+    @metta.define
+    class Plain:
+        pass
 
-        @metta.define
-        class Plain:
-            pass
+    one, two = Plain(), Plain()
+    assert one.__metta__() != two.__metta__()
+    assert one.__metta__().head == S.Plain
+    assert metta.cast(one.__metta__(), Plain) == one.__metta__()
 
 
 def test_current_space_leaves_every_root_verb_in_place():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract

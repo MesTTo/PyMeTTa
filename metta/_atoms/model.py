@@ -1,5 +1,8 @@
 """Purpose: immutable atom values, Python value encoding, and bounded identity caches.
 Guarantees:
+  - expression children use their exact value encoder, including explicit
+    Atom subclass images [tested: test_class_prototype_fields_live_in_private_spaces;
+    commit=WORKTREE]
   - standard callable mentions encode as their symbolic MeTTa heads and all
     four atom rich comparisons follow the engine order used by plain sorted [tested:
     test_callable_mentions_share_operator_and_fourteen_math_names and
@@ -1383,10 +1386,7 @@ class Expression(Atom):
             parts = children
         _set_children(
             self,
-            tuple(
-                child if isinstance(child, Atom) else encode(child)
-                for child in parts
-            ),
+            tuple(encode(child) for child in parts),
         )
         _set_hash(self, None)
 

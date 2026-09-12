@@ -80,6 +80,7 @@ import ast
 from collections.abc import Callable
 
 from metta._atoms.factories import Atom, Expression, Grounded, Handle, Symbol, Variable
+from metta._compile import records as _records
 from metta._compile.context import CompilerContext, next_aux_serial
 from metta._compile.expressions import _NATIVE_BINOPS, _name_of
 from metta._errors.errors import CompileError
@@ -251,6 +252,15 @@ class StatementCompilerMixin(CompilerContext):
             raise CompileError(msg, construct="body")
         head, rest = statements[0], statements[1:]
 
+        if isinstance(head, ast.Pass):
+            return self.block(rest)
+        if isinstance(head, ast.Expr) and not isinstance(head.value, (ast.Yield, ast.YieldFrom)):
+            assignment = _records.initialization_assignment(self, head.value)
+            if assignment is not None:
+                return self._bound_block(assignment, rest)
+            value = self.expression(head.value)
+            return Expression([Symbol("chain"), value, Variable(self._temp("statement")), self.block(rest)])
+
         walruses = _hoistable_walruses(head, self._builder_rooted)
         if walruses:
             return self._walrus_block(walruses, head, rest)
@@ -330,6 +340,11 @@ class StatementCompilerMixin(CompilerContext):
                 construct="return",
                 line=rest[0].lineno,
             )
+        if self.constructor_return is not None:
+            if head.value is not None and not (isinstance(head.value, ast.Constant) and head.value.value is None):
+                msg_0 = "__init__ and __post_init__ return None; assign fields and return without a value"
+                raise CompileError(msg_0, construct="constructor return", line=head.lineno)
+            return self.constructor_return(self)
         if head.value is None:
             msg = "a compiled function returns a value; a bare `return` has nothing to rewrite to"
             raise CompileError(
@@ -989,6 +1004,11 @@ class StatementCompilerMixin(CompilerContext):
 
     def _delete_target(self, target: ast.expr) -> Expression:
         """Snapshot one subscript pattern, refuse empty, then remove every row."""
+        owner = _records.record_type(self, target)
+        if isinstance(target, ast.Name) and owner is not None:
+            if owner.grain == "value":
+                return Expression([])
+            return Expression([Symbol(f"retire-{owner.name}"), self.expression(target)])
         if not isinstance(target, ast.Subscript) or isinstance(target.slice, ast.Slice):
             msg = "a compiled del target is space[pattern], with one nonslice pattern"
             raise CompileError(
@@ -1503,6 +1523,9 @@ class StatementCompilerMixin(CompilerContext):
         The value compiles BEFORE the target rebinds, so `x = x + 1` reads
         the old x on the right and writes a fresh variable on the left.
         """
+        record_binding = _records.binding(self, head)
+        if record_binding is not None:
+            return record_binding
         binding = self._state_binding_target(head)
         if binding is not None:
             state_cell, state_target = binding
@@ -1635,6 +1658,7 @@ class StatementCompilerMixin(CompilerContext):
             if source_node is None:
                 msg = "an assignment lowering reached its value phase without a value"
                 raise AssertionError(msg)
+            _records.remember_binding(self, target, source_node, head.annotation if isinstance(head, ast.AnnAssign) else None)
             spacey = _space_valued(value) or (
                 isinstance(source_node, ast.Name) and source_node.id in self.space_locals
             )

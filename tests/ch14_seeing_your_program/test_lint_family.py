@@ -10,6 +10,9 @@ Guarantees:
   - finding payloads retain their audit IDs and point at an immutable public
     rule description [tested: test_lint_authorities_are_durable_public_references;
     commit=2a32acb6d254ea12085526913c7b9a1a555b8ee0]
+  - finite constructor coverage retains tagged enum members and correlations
+    between literal fields [tested: test_finite_constructor_coverage_preserves_field_correlations;
+    commit=WORKTREE]
 """
 
 from __future__ import annotations
@@ -210,13 +213,7 @@ def test_a_det_claim_broken_by_an_uncovered_constructor_is_reported(m):
 
 
 def test_a_python_enum_reaches_the_coverage_check_without_extra_machinery(m):
-    """`@m.define` on an Enum declares its members as ordinary declarations.
-
-    That is what makes this rule reach the Python surface for nothing: the
-    enum lands as `(: red Colour)` beside `(: Colour Type)`, which is the same
-    shape a MeTTa program writes by hand, so the set difference works on both
-    without knowing which wrote it.
-    """
+    """Tagged enum constructors expose their finite domain through Literal."""
     from enum import StrEnum
 
     @m.define
@@ -226,12 +223,17 @@ def test_a_python_enum_reaches_the_coverage_check_without_extra_machinery(m):
         vivid = "vivid"
 
     m.run("(: intensity (-[det]-> Shade Number))")
-    m.run("(= (intensity pale) 1)(= (intensity deep) 2)")
+    m.run("(= (intensity (Shade pale)) 1)(= (intensity (Shade deep)) 2)")
 
     findings = _kind(m, "uncovered-constructor")
 
     assert [finding.subject for finding in findings] == ["intensity"]
-    assert findings[0].payload["missing"] == ["vivid"]
+    assert findings[0].payload["missing"] == ["(Shade vivid)"]
+    assert m.eval(S.intensity(S.Shade(S.pale))) == [Grounded(1)]
+    assert m.eval(S.intensity(S.Shade(S.unknown)))[0].head == S.Error
+    m.run("(= (intensity (Shade vivid)) 3)")
+    assert not _kind(m, "uncovered-constructor")
+
 
 def test_finite_constructor_coverage_preserves_field_correlations(m):
     """Repeated pattern variables cover equal fields, not their cross product."""

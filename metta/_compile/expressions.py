@@ -92,6 +92,7 @@ from metta._atoms.names import (
     resolve_known_name,
 )
 from metta._atoms.state import State
+from metta._compile import records as _records
 from metta._compile.context import CompilerContext, next_aux_serial
 from metta._compile.islands import _HostIsland
 from metta._compile.islands import py as _py_marker
@@ -285,6 +286,8 @@ class ExpressionCompilerMixin(CompilerContext):
         )
 
     def _x_Name(self, node: ast.Name) -> Atom:  # noqa: N802  -- the suffix mirrors ast node class names used by the translator's dynamic dispatch
+        if self.construction is not None and self.construction[0].grain == "value" and node.id == self.construction[1]:
+            return _records.value_receiver(self)
         if node.id in self.scope:
             return Variable(self.scope[node.id])
         if node.id in _MAGIC:
@@ -438,6 +441,9 @@ class ExpressionCompilerMixin(CompilerContext):
 
     def _attribute(self, node: ast.Attribute) -> Atom:
         """Lower a quotation-tier attribute and refuse host attributes."""
+        field = _records.attribute(self, node)
+        if field is not None:
+            return field
         mention = self._mention(node)
         if mention is not None:
             return mention
@@ -587,6 +593,8 @@ class ExpressionCompilerMixin(CompilerContext):
 
     def _native_number(self, node: ast.expr) -> bool:
         """Whether this expression is constrained to a native int/float."""
+        if _records.field_number(self, node):
+            return True
         if isinstance(node, ast.Constant):
             # policy-inventory-exempt: mechanism-internal; reason=exact int and float literals prove the engine-native numeric path while bool must remain on Python's protocol despite subclassing int; evidence=extensions/python/metta/_compile/expressions.py:_native_number
             return type(node.value) in {int, float}
@@ -950,6 +958,9 @@ class ExpressionCompilerMixin(CompilerContext):
         )
 
     def _x_Call(self, node: ast.Call) -> Atom:  # noqa: N802  -- the suffix mirrors ast node class names used by the translator's dynamic dispatch
+        record = _records.call(self, node)
+        if record is not None:
+            return record
         if self._is_host_island_marker(node.func):
             return self._host_island_call(node)
         if self._is_functools_reduce(node.func):

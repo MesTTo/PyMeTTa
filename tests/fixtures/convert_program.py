@@ -8,6 +8,8 @@ Guarantees:
     commit=42502e9d4a7fedd419856d5e6a1c291fc18ba644]
 """
 
+from dataclasses import dataclass
+
 import metta
 from metta import MeTTa, S, equation
 
@@ -30,6 +32,7 @@ def converted_laws(value):
 
 
 @m.define
+@dataclass(frozen=True)
 class ConvertedPair:
     """Two numeric fields whose accessors become equations."""
 

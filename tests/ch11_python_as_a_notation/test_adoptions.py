@@ -13,7 +13,7 @@ Guarantees:
     doors retain host-value semantics [tested:
     test_grounded_atoms_keep_values_but_stage_operators; commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
   - Python classes declare through ``Space.define`` [tested:
-    test_define_decorator_declares_field_types; commit=cff2e7f319bd2212f0c2d74f8d5fe5be3ac693b5]
+    test_define_decorator_declares_field_types; commit=WORKTREE]
   - an unannotated weighted operation stays untyped without a typed flag
     [tested: test_a_weighted_relation_is_an_annotated_op; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - root ``metta.catalog`` is the ordinary queryable ``&metta`` reflection
@@ -279,12 +279,12 @@ def test_class_annotations_declare_the_class(m):  # noqa: D103  -- pytest discov
 
 def test_define_decorator_declares_field_types(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     @m.define
-    @dataclasses.dataclass
+    @dataclasses.dataclass(frozen=True)
     class DeclaredPoint:
         x: float
         y: float
 
-    assert _arrows_of(m, "DeclaredPoint") == {"(-> Number Number DeclaredPoint)"}
+    assert _arrows_of(m, "DeclaredPoint") == {"Type", "(-> Number Number DeclaredPoint)"}
 
 
 # --------------------------------------------------- guarded bounded query

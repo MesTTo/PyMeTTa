@@ -87,6 +87,10 @@ Guarantees:
     test_a_rolled_back_registration_leaves_no_registry_claiming_it,
     test_an_inner_registration_dies_with_the_outer_rollback,
     test_a_failed_integration_unwinds_every_framework_registration]
+  - declared class annotations retain the class through FROM instead of
+    duplicating its constructor declarations [tested:
+    test_callable_annotations_reference_the_owned_class_declaration;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -485,6 +489,8 @@ def _type_declarations(
                 if atom not in declared:
                     declared.append(atom)
     for cls in referenced_classes(all_annotations):
+        if lazy('metta._declare.classes').declaration(cls) is not None:
+            continue
         for extra in class_declarations(cls):
             if extra not in declared:
                 declared.append(extra)
@@ -1092,14 +1098,23 @@ def register[**P, R](
         ),
         return_annotation=conversion_hints.get("return", Any),
     )
-    _record_undo(metta_name)
-    new_facts, old_facts = _register_transaction(runtime, operation, previous)
-    # Committed: the previous life retires, shared pieces surviving. Facts
-    # equal in both lives were never re-added, so they are not removed;
-    # declarations release through the refcount, staying while any other
-    # owner still declares them.
-    _retire_previous(runtime, previous, new_facts, old_facts, space)
-    REGISTRY[metta_name] = operation
+    dependencies = lazy('metta._declare.classes').callable_dependencies(fn)
+
+    def publish() -> None:
+        if dependencies:
+            source = lazy('metta._faces.space').Space(space, _runtime=runtime)
+            for cls in sorted(dependencies, key=lambda cls: cls.__qualname__):
+                source.define(cls)
+        _record_undo(metta_name)
+        new_facts, old_facts = _register_transaction(runtime, operation, previous)
+        # Facts shared with the preceding registration keep their owners.
+        _retire_previous(runtime, previous, new_facts, old_facts, space)
+        REGISTRY[metta_name] = operation
+
+    if dependencies:
+        lazy('metta._faces.space').Space(space, _runtime=runtime).transaction(publish)
+    else:
+        publish()
 
     # The staging split's op half, the design's own cell: inside a rules
     # body, an op call whose arguments carry RULE VARIABLES stages, storing

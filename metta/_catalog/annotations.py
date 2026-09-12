@@ -30,6 +30,10 @@ Guarantees:
     instead of declaring an unrelated user type [tested:
     test_compiled_removal_statements_preserve_one_many_missing_and_target_scope;
     commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e]
+  - an explicitly registered expression image supplies its own sort, including
+    a declared prototype whose Python base is Space [tested:
+    test_a_declared_prototype_annotation_names_its_constructor_sort;
+    commit=WORKTREE]
   - Literal values refine their runtime base types by exact membership
     [tested: test_literal_signatures_enforce_membership_at_both_crossings;
     commit=WORKTREE]
@@ -200,6 +204,10 @@ def _direct_type_atoms(annotation: Any, origin: Any) -> list[Atom] | None:
         return [Variable(annotation.__name__.lower())]
     if origin is not None:
         return None
+    if isinstance(annotation, type):
+        registration = _lookup_conversion(annotation)
+        if registration is not None and registration.image == "expression":
+            return [S[registration.type_name]]
     if isinstance(annotation, type) and metta_type_for(annotation) == "%Undefined%":
         return [S[_class_type_name(annotation)]]
     return [S[metta_type_for(annotation)]]
@@ -427,7 +435,10 @@ def referenced_classes(annotations: Iterable[Any]) -> list[type]:
     def collect(cls: Any) -> None:
         if (
             isinstance(cls, type)
-            and metta_type_for(cls) == "%Undefined%"
+            and (metta_type_for(cls) == "%Undefined%" or (
+                (registration := _lookup_conversion(cls)) is not None
+                and registration.image == "expression"
+            ))
             and not inspect.isabstract(cls)
             and cls.__module__ != "builtins"
             and cls not in found

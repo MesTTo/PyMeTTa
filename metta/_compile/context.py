@@ -1,7 +1,7 @@
 """Purpose: describe the state shared by compiler lowering bands.
 Guarantees:
   - incomplete collaborators are refused before lowering starts [tested:
-    test_incomplete_compiler_is_refused_before_lowering; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e]
+    test_incomplete_compiler_is_refused_before_lowering; commit=WORKTREE]
   - expression lowering can inspect an exact host binding without executing
     an attribute lookup [tested:
     test_callable_mentions_share_operator_and_fourteen_math_names;
@@ -33,6 +33,9 @@ Guarantees:
     dispatch [tested:
     test_compiled_operators_follow_python_protocols_and_result_species;
     commit=e3787593132a7ece2d300397045f7415709847c9]
+  - field lowering shares the binding and annotation resolver contracts
+    [tested: test_class_value_post_init_and_write_refusal,
+    test_type_alias_claims_and_rewrites; commit=WORKTREE]
 Guarded by:
   - _AUX_LOCK protects the process-wide helper serial [tested
     test_define_from_two_threads_is_serialized]
@@ -112,6 +115,16 @@ class CompilerContext(ABC):
     # untyped operand must use Python's live operator protocol instead.
     number_locals: set[str]
     number_return: bool
+    record_locals: dict[str, type]
+    class_context: type | None
+    class_dependencies: set[type]
+    construction: tuple[Any, str] | None
+    constructor_return: Callable[..., Atom] | None
+    _annotation_value: Callable[[ast.expr], Any] | None
+
+    @abstractmethod
+    def _binding(self, head: ast.Assign | ast.AnnAssign | ast.AugAssign) -> tuple[Atom, Atom]:
+        ...
 
     @abstractmethod
     def annotation_alternatives(self, node: ast.expr) -> list[Atom]:
@@ -299,10 +312,6 @@ class CompilerContext(ABC):
 
     @abstractmethod
     def _x_Constant(self, node: ast.Constant) -> Atom:  # noqa: N802  -- the suffix mirrors ast node class names used by the translator's dynamic dispatch
-        ...
-
-    @abstractmethod
-    def _x_BinOp(self, node: ast.BinOp) -> Atom:  # noqa: N802  -- the suffix mirrors ast node class names used by the translator's dynamic dispatch
         ...
 
     @abstractmethod

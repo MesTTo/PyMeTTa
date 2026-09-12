@@ -125,7 +125,7 @@ from metta._atoms.factories import (
 from metta._atoms.names import attribute_name
 from metta._binding.dispatch import REGISTRY
 from metta._catalog.declarations import inferred
-from metta._catalog.documentation import attribute_docstrings, documentation_atom
+from metta._catalog.documentation import documentation_atom
 from metta._compile.twins import (
     append_twin_clause,
     dispatcher_owns_clause,
@@ -143,9 +143,7 @@ _DEFINE_CLAUSES: dict[tuple[str, str], list[dict[str, Any]]] = {}
 
 _DECLARED_DEFINES: dict[tuple[str, str], list[Expression]] = {}
 
-_DECLARED_TYPES: dict[str, list[_builtins.type]] = {}
 
-_MISSING_FIELD = object()
 
 _DEFINED_GENERATORS: set[tuple[str, str]] = set()
 
@@ -198,7 +196,6 @@ def release_definitions(space: Any) -> None:
         for registry in (_DEFINE_CLAUSES, _DECLARED_DEFINES, _DEFINE_DOCUMENTATION):
             for key in [key for key in registry if key[0] == space.name]:
                 del registry[key]
-        _DECLARED_TYPES.pop(space.name, None)
         _DEFINED_GENERATORS.difference_update(
             {key for key in _DEFINED_GENERATORS if key[0] == space.name}
         )
@@ -206,6 +203,7 @@ def release_definitions(space: Any) -> None:
             key for key in _DEFINED_FUNCTION_NAMES if key[0] == space.name
         ]:
             del _DEFINED_FUNCTION_NAMES[defined_key]
+        lazy('metta._declare.classes').release(space)
 
 def install_define(space: Any, fn: Callable[..., Any], name: str | None = None):
     """Install one compiled function while serializing shared definition state."""
@@ -877,10 +875,29 @@ def _install_define_locked(space: Any, fn: Callable[..., Any], name: str | None 
         defined_name=partial(_installed_callable_name, space),
         call_parameters=partial(call_parameter_names, space),
     )
+    classes = lazy('metta._declare.classes')
+    dependencies = compiled.class_dependencies | classes.callable_dependencies(fn)
+    if dependencies:
+        compiled = compiled._replace(class_dependencies=frozenset(dependencies))
+        return space.transaction(partial(_publish_define, space, fn, name, compiled))
+    return _publish_define(space, fn, name, compiled)
+
+
+def _publish_define(space: Any, fn: types.FunctionType, name: str, compiled: Any) -> Any:
+    """Publish a compiled clause together with any class declarations it uses."""
+    from metta._declare.classes import (  # noqa: PLC0415 -- class declarations share this installer
+        owner_of,
+    )
+
+    for cls in sorted(compiled.class_dependencies, key=lambda cls: cls.__qualname__):
+        install_type(space, cls)
+    class_owner = owner_of(space)
     # The equations lean on these shipped libraries (a dict literal needs
     # lib_dict's vocabulary); import! is idempotent per space, so the
     # dependency lands with the definition rather than ambiently.
-    if compiled.libraries:
+    if class_owner is not None:
+        class_owner.import_dependencies(compiled.libraries, (*compiled.equation_bodies, *compiled.aux))
+    elif compiled.libraries:
         from metta._atoms.library import (  # noqa: PLC0415 -- definition hooks run after execution and library initialization
             import_library,
             lib,
@@ -981,95 +998,6 @@ def _install_define_locked(space: Any, fn: Callable[..., Any], name: str | None 
     )
     return defined
 
-def _plain_initializer(
-    target: _builtins.type,
-    fields: tuple[str, ...],
-    defaults: dict[str, Any],
-) -> Callable[..., None]:
-    def initialize(self: Any, *args: Any, **kwargs: Any) -> None:
-        if len(args) > len(fields):
-            msg = (
-                f"{target.__name__}() takes at most {len(fields)} positional "
-                f"arguments, got {len(args)}"
-            )
-            raise TypeError(msg)
-        values: dict[str, Any] = {}
-        for position, name in enumerate(fields):
-            if position < len(args):
-                if name in kwargs:
-                    msg = f"{target.__name__}() got multiple values for {name!r}"
-                    raise TypeError(msg)
-                values[name] = args[position]
-            elif name in kwargs:
-                values[name] = kwargs.pop(name)
-            elif defaults[name] is not _MISSING_FIELD:
-                values[name] = defaults[name]
-            else:
-                msg = f"{target.__name__}() missing required argument {name!r}"
-                raise TypeError(msg)
-        if kwargs:
-            unexpected = next(iter(kwargs))
-            msg = f"{target.__name__}() got an unexpected argument {unexpected!r}"
-            raise TypeError(msg)
-        for name, value in values.items():
-            setattr(self, name, value)
-
-    return initialize
-
-def _plain_replacer(
-    target: _builtins.type, fields: tuple[str, ...]
-) -> Callable[..., Any]:
-    def replace(self: Any, /, **changes: Any) -> Any:
-        unknown = changes.keys() - fields
-        if unknown:
-            name = next(iter(unknown))
-            msg = f"{target.__name__}.__replace__ got unknown field {name!r}"
-            raise TypeError(msg)
-        return target(*(changes.get(name, getattr(self, name)) for name in fields))
-
-    return replace
-
-def _prepare_plain_data_class(target: _builtins.type, convert: Any) -> None:
-    """Register one otherwise-unmapped annotated class as constructor data."""
-    try:
-        convert.ensure_registered(target)
-    except TypeError:
-        pass
-    else:
-        return
-    hints = _typing.get_type_hints(target)
-    fields = tuple(
-        name
-        for name, annotation in hints.items()
-        if _typing.get_origin(annotation) is not _typing.ClassVar
-    )
-    if not fields:
-        return
-    defaults = {name: target.__dict__.get(name, _MISSING_FIELD) for name in fields}
-    _builtins.type.__setattr__(target, "__match_args__", fields)
-    if target.__dict__.get("__init__") is None:
-        _builtins.type.__setattr__(
-            target, "__init__", _plain_initializer(target, fields, defaults)
-        )
-    if "__replace__" not in target.__dict__:
-        _builtins.type.__setattr__(
-            target, "__replace__", _plain_replacer(target, fields)
-        )
-    if "__metta__" not in target.__dict__:
-        _builtins.type.__setattr__(
-            target, "__metta__", lambda value: convert.project(value).atom
-        )
-
-    def parts(value: Any) -> tuple[Any, ...]:
-        return tuple(getattr(value, name) for name in fields)
-
-    convert.register_type(
-        target,
-        to_atom=parts,
-        from_atom=target,
-        fields=fields,
-    )
-
 def install_type(
     space: Any,
     cls: _builtins.type | None = None,
@@ -1105,93 +1033,19 @@ def install_type(
     """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
 
     def apply(target: _builtins.type) -> _builtins.type:
-        convert = _convert_api()
-        _prepare_plain_data_class(target, convert)
-        # Its OWN registration, not the one the MRO would find: declaring a
-        # class into a space says it is a type there, so it answers its own
-        # name rather than restating its base's declaration.
-        registration = convert.ensure_own_registration(target)
-        for declaration in convert.declarations(target):
-            space.add(declaration)
-        for edge in _subtype_edges(space, target, convert):
-            if edge not in space:
-                space.add(edge)
-        if accessors and registration.image == "expression" and registration.fields:
-            constructor = registration.type_name
-            fields = registration.fields
-            _variables = [Variable(f"f{i}") for i in range(1, len(fields) + 1)]
-            for position, field_name in enumerate(fields):
-                head = Expression(
-                    [
-                        Symbol(f"{constructor}-{field_name}"),
-                        Expression([Symbol(constructor), *_variables]),
-                    ]
-                )
-                space.add(Expression([Symbol("="), head, _variables[position]]))
-        if methods:
-            _register_methods(space, target, registration.type_name)
-        documentation = documentation_atom(
-            registration.type_name,
-            target,
-            kind="record",
-            parameters=registration.fields,
-            annotations=_typing.get_type_hints(target),
-            parameter_descriptions=attribute_docstrings(target),
+        return lazy('metta._declare.classes').install(
+            space, target, accessors=accessors, methods=methods
         )
-        if documentation is not None and documentation not in space:
-            space.add(documentation)
-        return target
 
     return apply(cls) if cls is not None else apply
 
-def _subtype_edges(
-    space: Any, target: _builtins.type, convert: Any
-) -> list[Expression]:
-    """``(:< Sub Super)`` for the classes this space already knows as types.
-
-    Python's class hierarchy IS a subtype relation, so declaring a class
-    declares its place in one and the edge no longer has to be written by hand
-    beside it. Two rules keep it from naming things the program never wrote.
-
-    Only DECLARED classes count as supertypes. A base the space has not been
-    told about is not a MeTTa type here, which is what keeps `object`, `tuple`
-    under a NamedTuple and `Enum` under an enum out of the answer; a base that
-    IS declared is a type the program named itself.
-
-    Only REAL bases count, which `__mro__` gives for free:
-    ``abc.ABCMeta.register``'s virtual bases move ``isinstance`` alone and never
-    appear there, so a virtual registration states no subtype edge here either.
-
-    The walk is per DIRECT base, to its nearest declared ancestor, so
-    ``class C(A, B)`` with both declared answers both edges while a chain
-    answers one: `:<` widening is transitive, so a second edge to the same
-    ancestor would only duplicate a type in `get-type`'s answer. Declaring a
-    base AFTER its subclass fills the edge in then, because the whole set is
-    recomputed from what the space knows at the time.
-    """
-    declared = _DECLARED_TYPES.setdefault(space.name, [])
-    if target not in declared:
-        declared.append(target)
-    names = {cls: convert.ensure_own_registration(cls).type_name for cls in declared}
-    edges: list[Expression] = []
-    for sub in declared:
-        for base in sub.__bases__:
-            ancestor = next((c for c in base.__mro__ if c in names), None)
-            # A class with no image of its own keeps its base's registration
-            # and therefore its base's NAME; one name is not below itself.
-            if ancestor is None or names[ancestor] == names[sub]:
-                continue
-            edge = Expression([Symbol(":<"), Symbol(names[sub]), Symbol(names[ancestor])])
-            if edge not in edges:
-                edges.append(edge)
-    return edges
-
-def _register_methods(space: Any, target: _builtins.type, type_name: str) -> None:
+def _register_methods(plan: Any) -> None:
     """Every method the class itself defines, as a MeTTa function
     named {Type}-{method}: the instance argument accepts a
     constructor term (rebuilt through the translator) or a live
     handle, and results the translator knows project back to terms.
     """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+    target, type_name = plan.cls, plan.name
 
     def projectable(value: Any) -> Any:
         try:
@@ -1226,7 +1080,7 @@ def _register_methods(space: Any, target: _builtins.type, type_name: str) -> Non
         required = sum(1 for p in parameters if p.default is _inspect.Parameter.empty)
         arities = list(range(1 + required, len(parameters) + 2))
         operation_name = f"{type_name}-{method_name}"
-        space.op(
+        plan.operation(
             wrapper_for(fn),
             name=operation_name,
             effect=EffectClass.oracleIO,

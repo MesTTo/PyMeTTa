@@ -1,6 +1,8 @@
 """Purpose: pin the second P14 Python library-surface wave.
 
 Guarantees:
+  - an annotated plain class has mutable fields and a retained native identity
+    [tested: test_define_accepts_a_plain_annotated_data_class; commit=WORKTREE]
   - a tuple whose first element is its head is one subscript pattern, complete
     expression patterns form a join, mixed tuple mistakes refuse, list writes
     stream atoms, and deletion drains every occurrence or raises KeyError
@@ -29,7 +31,6 @@ Guarantees:
     test_declarations_use_settled_receiver_spellings; commit=42502e9d4a7fedd419856d5e6a1c291fc18ba644]
 """
 
-import copy
 import inspect
 from collections import Counter
 from typing import Any, get_overloads, get_type_hints
@@ -117,7 +118,7 @@ def test_query_single_unpack_pulls_at_most_two_answers() -> None:
 
 
 def test_define_accepts_a_plain_annotated_data_class() -> None:
-    """A plain annotated class gets constructor, fields, and replacement."""
+    """A plain annotated class gets constructor, mutable fields, and identity."""
     target = MeTTa().space()
 
     @target.define
@@ -126,18 +127,18 @@ def test_define_accepts_a_plain_annotated_data_class() -> None:
         quantity: int = 1
 
     one = InventoryLine("bolts")
-    two = one.__replace__(quantity=2)
+    two = InventoryLine("bolts", quantity=2)
+    receiver = one.__metta__()
 
     assert InventoryLine.__match_args__ == ("sku", "quantity")
     assert (one.sku, one.quantity) == ("bolts", 1)
     assert (two.sku, two.quantity) == ("bolts", 2)
-    assert str(one.__metta__()) == '(InventoryLine "bolts" 1)'
-    assert str(target.eval(S.InventoryLine(one.sku, one.quantity))[0]) == (
-        '(InventoryLine "bolts" 1)'
-    )
+    assert receiver.head == S.InventoryLine
+    assert receiver != two.__metta__()
     assert target.eval(S["InventoryLine-quantity"](two))[0] == 2
-    if hasattr(copy, "replace"):
-        assert copy.replace(two, quantity=3).quantity == 3
+    one.quantity = 3
+    assert one.__metta__() == receiver
+    assert target.eval(S["InventoryLine-quantity"](receiver)) == [3]
 
 
 def test_expression_position_superpose_and_match_use_the_ruled_doors() -> None:

@@ -275,7 +275,11 @@ def test_declaring_a_subclass_gives_it_its_own_type_name(metta):
 
     m.define(Base)
     m.define(Derived)
-    declared = {str(atom) for atom in m.atoms()}
-    assert "(: Derived (-> Number Derived))" in declared
-    assert "(: Base (-> Number Base))" in declared
+    from metta._declare.classes import declaration
+
+    declared = {str(atom) for cls in (Base, Derived) for atom in declaration(cls).space.atoms()}
+    assert "(: Derived (-> Atom Derived))" in declared
+    assert "(: Base (-> Atom Base))" in declared
+    assert "(: make-Derived (-> Number Derived))" in declared
+    assert "(: make-Base (-> Number Base))" in declared
     assert list(m.fn.get_type(Derived(3))) == [S.Derived, S.Base]

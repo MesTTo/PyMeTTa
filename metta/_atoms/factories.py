@@ -1,6 +1,9 @@
 """Purpose: expose MeTTa atoms, the S/V/G factories, parsing, and matching.
 
 Guarantees:
+  - operands honour an Atom subclass's explicit encoder, including a class
+    receiver retained by Scope [tested:
+    test_a_kept_receiver_keeps_its_scoped_class_program; commit=WORKTREE]
   - order_key matches the engine's msort across every public atom kind,
     including float/integer ties, strings, opaque values, and the empty-list
     atom [tested: test_order_key_matches_msort_across_kinds;
@@ -356,8 +359,6 @@ def _read_one(source: str) -> Atom:
 
 def _to_atom(value: Any) -> Atom:
     """Accept an Atom, MeTTa source text, or an encodable Python value."""
-    if isinstance(value, Atom):
-        return value
     if isinstance(value, str):
         return parse(value)
     return _encode(value)
