@@ -166,15 +166,20 @@ def twin(m):
 #: --rounds 3 examples/ch08-data/08-03-the-shipped-libraries/25-graph_lib.metta;
 #: fixture=lib_graph at its functional commit, artifacts purged before the run;
 #: commit=a5738e9390f2941d8f1c3207b5a28310a22e1f14].
-BUDGET = 92465
+#: RE-PINNED 2026-09-12, 92465 to 92402 (-63), the graph refusals now name the
+#: evaluation that reaches a vertex written as a function call, which is two
+#: fewer clauses reached on the refusal paths the example exercises [measured
+#: 2026-09-12: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 92402
 
-#: OVERRUN 2026-09-12, 2690: the example's `bind!` keeps its graph inside the
+#: OVERRUN 2026-09-12, 2649: the example's `bind!` keeps its graph inside the
 #: engine, where a Python name holds the VALUE and hands it back across the
 #: boundary on each of the sixteen calls that take it; a five-row graph is a
 #: nested expression, so each crossing converts it whole. Writing the nested
 #: calls as built terms took the distance from 5,991 to this, which is what is
-#: left of the value crossings: measured 92465 against a ceiling of 89775.4
+#: left of the value crossings: measured 92402 against a ceiling of 89753.4
 #: [measured 2026-09-12: min-of-3 serial fresh processes, the same command as
 #: the budget above, once with `transpose(tasks).one()` and once with
-#: `S.graph_transpose(tasks)`; commit=a5738e9390f2941d8f1c3207b5a28310a22e1f14].
-OVERRUN = 2690
+#: `S.graph_transpose(tasks)`; commit=WORKTREE].
+OVERRUN = 2649
