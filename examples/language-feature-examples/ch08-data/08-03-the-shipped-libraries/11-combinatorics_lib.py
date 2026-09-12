@@ -253,7 +253,7 @@ def twin(m):
 #: binomial and permutation-count, and gives its two weighted-subset heads
 #: declared modes, so the face is generated and the example proves 27 further
 #: claims [measured 2026-09-12: min-of-3 serial fresh processes; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+#: extensions/python/tools/twin_coverage.py --repin; commit=08b21037caed98b220eb50b39630b32bea62e535].
 BUDGET = 122318
 
 #: The declared OVERRUN went with the eight new heads: the twin used to cost
@@ -261,4 +261,4 @@ BUDGET = 122318
 #: now cost both sides more than that distance. Measured 122,318 against a
 #: ceiling of 130,191 without a declaration [measured 2026-09-12: min-of-3
 #: serial fresh processes; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+#: extensions/python/tools/twin_coverage.py --repin; commit=08b21037caed98b220eb50b39630b32bea62e535].
