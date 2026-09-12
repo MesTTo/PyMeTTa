@@ -1,7 +1,7 @@
 """Purpose: structured messages, topic controls and explicit capture handlers.
 
 Guarantees: the same 28 claims as 34-logging_lib.metta.
-[tested: python extensions/python/tools/twin_coverage.py examples/ch08-data/08-03-the-shipped-libraries/34-logging_lib.metta; commit=WORKTREE].
+[tested: python extensions/python/tools/twin_coverage.py examples/ch08-data/08-03-the-shipped-libraries/34-logging_lib.metta; commit=cf6b111ffad74477d9fa7169b215379dcabe721c].
 """
 
 import metta
@@ -73,5 +73,5 @@ def twin(m):
 #: command=python extensions/python/tools/twin_coverage.py --measure --rounds 3
 #: examples/ch08-data/08-03-the-shipped-libraries/34-logging_lib.metta;
 #: fixture=lib_logging at its functional commit with engine/lib QLF artifacts purged;
-#: commit=WORKTREE].
+#: commit=cf6b111ffad74477d9fa7169b215379dcabe721c].
 BUDGET = 54976
