@@ -262,6 +262,7 @@ HOST_SERVICES = {
     "metta_transaction/1",
     # Result-aware transactions and both generator context lifetimes are
     # engine execution doors shared by bindings and native callers.
+    "metta_transaction/2",
     "metta_with_trailed/3",
     "metta_with_trailed_enumeration/3",
     # Sagas need the durable transaction outcome before any post-commit
@@ -471,6 +472,7 @@ FLOOR_REASONS = {
     "metta_source_reset/1": "door",
     "metta_speculate/1": "door",
     "metta_transaction/1": "door",
+    "metta_transaction/2": "door",
     "metta_with_trailed/3": "door",
     "metta_with_trailed_enumeration/3": "door",
     "metta_transaction_notified/3": "door",

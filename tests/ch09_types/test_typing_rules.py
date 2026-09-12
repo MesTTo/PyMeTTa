@@ -22,7 +22,7 @@ Guarantees:
     different local declaration retain the runtime check
     [tested: test_a_consistent_chain_is_not_a_static_type_proof,
     test_an_inherited_clause_does_not_reuse_its_owners_parameter_proof;
-    commit=c00341f0ff9d83d1b9338ca86ad51708eaf07ebd]
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -399,7 +399,9 @@ def test_a_consistent_chain_is_not_a_static_type_proof():
     assert _answers(metta, "(p43-multichain p43-payload)") == [
         "p43-payload"
     ]
-    assert _answers(metta, "(p43-multichain p43-string)") == []
+    assert _answers(metta, "(p43-multichain p43-string)") == [
+        "(Error (p43-needs-payload p43-string) (BadArgType 1 P43Payload String))"
+    ]
 
 
 def test_an_inherited_clause_does_not_reuse_its_owners_parameter_proof():
