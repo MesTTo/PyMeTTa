@@ -65,6 +65,32 @@ def twin(m):
         S.pear,
     ]
 
+    # `dict-get` answers a value where `dict-values` answers nothing: a lookup
+    # that has to produce something takes its default with it.
+    get, update = m.fn["dict-get"], m.fn["dict-update"]
+    merge, pop = m.fn["dict-merge"], m.fn["dict-pop"]
+    assert get(stock, S.apple, 0) == [12]
+    assert get(stock, S.durian, 0) == [0]
+
+    # `dict-update` applies a function to the value that is there and puts the
+    # result back; an absent key leaves the dict alone.
+    add_six = S["|->"]((V.v,), V.v + 6)  # (|-> ($v) (+ $v 6))
+    assert get(update(stock, S.plum, add_six)[0], S.plum, 0) == [10]
+    assert get(update(stock, S.durian, add_six)[0], S.durian, S.absent) == [S.absent]
+
+    # `dict-merge` puts every pair of the second dict into the first, so the
+    # second's value wins on a key they share.
+    delivery = m.fn["dict-space"](((S.pear, 20), (S.fig, 2)))[0]
+    assert m.fn.sort_atom(pairs(merge(stock, delivery)[0])[0]) == [
+        ((S.apple, 12), (S.fig, 2), (S.pear, 20), (S.plum, 10)),
+    ]
+
+    # `dict-pop` reads and removes in one operation; an absent key has no
+    # answer, which is what tells it apart from a stored value.
+    assert pop(stock, S.fig) == [2]
+    assert has(stock, S.fig) == [False]
+    assert pop(stock, S.fig) == []
+
 
 #: MEASURED on this branch rather than inherited: this twin is new, so there is
 #: no earlier pin to move
@@ -212,4 +238,17 @@ def twin(m):
 #: that unchanged-cut baseline [measured 2026-09-11:
 #: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=3aaad3435292e4c7d5cc3a01bfda39430aacc6e8].
-BUDGET = 125362
+#: RE-PINNED 2026-09-12, 125362 to 127630 (+2268), lib_dict adds dict-get with
+#: a default, dict-update over the stored value, dict-merge and dict-pop, each
+#: an equation over the space operations the dict already is; the example
+#: proves them with eight further claims [measured 2026-09-12: min-of-3 serial
+#: fresh processes; command=python extensions/python/tools/twin_coverage.py
+#: --repin; commit=WORKTREE].
+#: RE-PINNED 2026-09-12, 127630 to 166909 (+39279), lib_dict adds dict-get with
+#: a default, dict-update over the stored value, dict-merge and dict-pop, each
+#: one equation over the space operations a dict already is; the example and
+#: the twin prove them with eight further claims each, and the two spaces hold
+#: the same atoms again [measured 2026-09-12: min-of-3 serial fresh processes;
+#: command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+BUDGET = 166909
