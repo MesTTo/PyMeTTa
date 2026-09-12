@@ -5,7 +5,7 @@ platform key is a symbol. A variable that is not set has no answer, which `list(
 reads as the empty list.
 
 Guarantees: the same claims as 31-system_lib.metta
-[tested: python extensions/python/tools/twin_coverage.py examples/ch08-data/08-03-the-shipped-libraries/31-system_lib.metta; commit=WORKTREE].
+[tested: python extensions/python/tools/twin_coverage.py examples/ch08-data/08-03-the-shipped-libraries/31-system_lib.metta; commit=b109f59a8095add8ecf264b011e683184274acbb].
 Open Obligations:
   To Do: None
   Hacks: None
@@ -104,5 +104,5 @@ def twin(m):
 #: extensions/python/tools/twin_coverage.py --measure --rounds 3
 #: examples/ch08-data/08-03-the-shipped-libraries/31-system_lib.metta;
 #: fixture=lib_system at its functional commit, artifacts purged before the run;
-#: commit=WORKTREE].
+#: commit=b109f59a8095add8ecf264b011e683184274acbb].
 BUDGET = 117508
