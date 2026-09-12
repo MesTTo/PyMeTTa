@@ -1,37 +1,47 @@
 % Purpose: measure engine execution and report predicate indexes.
 % Assumes: loaded through _binding/shim.pl in its host module.
+%   SWI-Prolog 10.1.13's profiler primitive `'$profile'/4` (src/pl-prof.c),
+%   the one library(prolog_profile) profile/2 runs: it resets the profiler,
+%   arms it, runs the goal and stops it, and nothing else.
 % Guarantees: compiled profile rows retain their source file through the
 %   reader's ownership journal [tested: test_a_profile_exports_as_pstats;
 %   commit=90ba93eb8f6e98ebfefc55416859bf13de6a8427].
+%   A profile whose sampler took no sample still answers the goal's answers,
+%   with zero samples and ticks and rows carrying their call counts
+%   [tested: test_a_profile_with_no_samples_still_answers; commit=WORKTREE].
 
 %%%%%%%%%% Profiling %%%%%%%%%%
 %
-% The statistical profiler around one wrapped call, its terminal report
-% swallowed and its data projected to plain values: the summary counters
-% and one row per predicate, self-ticks-descending. Sampling is
-% statistical, so a short program may carry few samples.
-%Absorb the profiler's own reporting failure and nothing else. Out is bound by
-%the goal's success, so a bound Out means the goal already answered and the
-%division came from the report; an unbound one means the profiled goal raised
-%it, and that is the caller's error to see rather than ours to swallow.
-metta_py_profile_report_fault(error(evaluation_error(zero_divisor), _), Out) :-
-    nonvar(Out), !.
-metta_py_profile_report_fault(Fault, _) :- throw(Fault).
-
+% The statistical profiler around one wrapped call, its data projected to
+% plain values: the summary counters and one row per predicate,
+% self-ticks-descending. Sampling is statistical, so a short program may
+% carry few samples, or none.
+%
+%Workaround: swi-profile-report-divides-by-zero-samples - run the profiler
+%primitive profile/2 runs, without profile/2's report.
+%
+%profile/2 is `call_cleanup('$profile'(Goal, How, Ports, Rate),
+%show_profile(Options))`, and the report divides by the total tick count
+%(library/prolog_profile.pl time_data/7 and the net time above it), so a
+%goal too short for the 5 ms sampling period raises
+%evaluation_error(zero_divisor) from the cleanup, AFTER the goal answered,
+%and the ball unwinds the goal's bindings on its way to any catcher: the
+%answer was gone by the time this door could look at it. Every profile door
+%read that as an EngineError on a quiet box, and the report also consults
+%prolog:show_profile_hook/1 first, the hook SWI autoloads from xpce whenever
+%DISPLAY is set. The primitive does the profiling and nothing else; the rows
+%come from profile_data/1 below, whose own division is guarded. An empty
+%profile is the honest answer when nothing was sampled
+%[measured 2026-09-12: eleven profile tests of the Python suite red on
+%c00465ae4 and on the pristine b1d175f13 with `//2: evaluation error:
+%zero_divisor` at loadavg 4, where a 3,000,000-inference loop profiles to
+%samples=6 ticks=26 and profile(true, [top(0)]) raises;
+%command=sh extensions/python/test.sh; commit=WORKTREE].
 metta_py_profiled(Pred, Ins, [Out, Samples, Ticks, Seconds, Nodes]) :-
     metta_py_wrapped_goal(Pred, Ins, Out, Goal),
-    %A zero-sample profile is a real outcome, not a fault: the comment above
-    %says so, and a short goal on a machine whose sampling timer never fires
-    %collects nothing. Some SWI versions divide by the total tick count while
-    %building the report or the data, so both raise
-    %evaluation_error(zero_divisor) on exactly that outcome. SWI 10.1.13
-    %answers samples=0 ticks=0 for `profile(true, [top(0)])` where the CI
-    %runner's does not, which failed four profile tests and every caller of
-    %aio.profile there while passing here. An empty profile is the honest
-    %answer when nothing was sampled; the goal has already run either way.
-    with_output_to(string(_),
-                   catch(profile(Goal, [top(0)]), Fault,
-                         metta_py_profile_report_fault(Fault, Out))),
+    current_prolog_flag(profile_ports, Ports),
+    current_prolog_flag(profile_sample_rate, Rate),
+    '$profile'(Goal, cputime, Ports, Rate),
     (   catch(metta_py_profile_rows(Samples, Ticks, Seconds, Nodes),
               error(evaluation_error(zero_divisor), _),
               fail)

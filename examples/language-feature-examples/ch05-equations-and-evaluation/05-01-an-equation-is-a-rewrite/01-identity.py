@@ -1109,7 +1109,12 @@ def twin(m):
 #: file_search_cache_time=9223372036854775807 set before child boot [measured
 #: 2026-09-11: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=57f84148ba2684015f052d533f3197eca07b1f7b].
-BUDGET = 2586
+#: RE-PINNED 2026-09-12, 2586 to 2500 (-86), the publication package's levers:
+#: installed typing witnesses compiled to indexed clauses (-60) and publication
+#: ownership resolved once per scope (-26) [measured 2026-09-12: min-of-3
+#: serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 2500
 #: BANDED 2026-09-06 rather than re-pinned an eighteenth time. Seventeen of
 #: the eighty-three re-pins above were written on 2026-09-05 and 2026-09-06
 #: alone, and every control taken with them left the MeTTa side of the same
