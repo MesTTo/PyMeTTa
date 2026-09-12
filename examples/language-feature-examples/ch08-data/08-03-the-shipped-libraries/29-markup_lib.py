@@ -6,7 +6,7 @@ are built terms whose parameter is held, so `S.descendant(S.item)` passes throug
 unevaluated. Every selector answers once per match, which `list()` collects.
 
 Guarantees: the same claims as 29-markup_lib.metta
-[tested: python extensions/python/tools/twin_coverage.py examples/ch08-data/08-03-the-shipped-libraries/29-markup_lib.metta; commit=WORKTREE].
+[tested: python extensions/python/tools/twin_coverage.py examples/ch08-data/08-03-the-shipped-libraries/29-markup_lib.metta; commit=ed976b0e70c1176a7ef9feabb0359313105c786e].
 Open Obligations:
   To Do: None
   Hacks: None
@@ -153,9 +153,9 @@ def twin(m):
 #: extensions/python/tools/twin_coverage.py --measure --rounds 3
 #: examples/ch08-data/08-03-the-shipped-libraries/29-markup_lib.metta;
 #: fixture=lib_markup at its functional commit, artifacts purged before the run;
-#: commit=WORKTREE].
+#: commit=ed976b0e70c1176a7ef9feabb0359313105c786e].
 #: RE-PINNED 2026-09-12, 110431 to 110488 (+57), every complaint from the host
 #: parser mapped to one refusal, which added the empty-document case [measured
 #: 2026-09-12: min-of-3 serial fresh processes; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+#: extensions/python/tools/twin_coverage.py --repin; commit=ed976b0e70c1176a7ef9feabb0359313105c786e].
 BUDGET = 110488
