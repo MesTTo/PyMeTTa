@@ -2,42 +2,34 @@
 % Assumes: loaded through _binding/shim.pl in its host module.
 % Guarantees: compiled profile rows retain their source file through the
 %   reader's ownership journal [tested: test_a_profile_exports_as_pstats;
-%   commit=90ba93eb8f6e98ebfefc55416859bf13de6a8427].
+%   commit=WORKTREE].
+% Guarantees: profiling returns data without invoking an interactive display
+%   [tested: test_profile_does_not_invoke_a_display_callback; commit=WORKTREE].
+% Owns resources: '$profile'/4 starts and stops the native sampler around its
+%   goal, including exception propagation [source:
+%   https://github.com/SWI-Prolog/swipl-devel/blob/fc7ef84b949378b729052c3ade79c90ce5416abb/src/pl-prof.c#L942-L970;
+%   commit=WORKTREE].
 
 %%%%%%%%%% Profiling %%%%%%%%%%
 %
-% The statistical profiler around one wrapped call, its terminal report
-% swallowed and its data projected to plain values: the summary counters
+% The statistical profiler around one wrapped call, with its data projected
+% to plain values: the summary counters
 % and one row per predicate, self-ticks-descending. Sampling is
 % statistical, so a short program may carry few samples.
-%Absorb the profiler's own reporting failure and nothing else. Out is bound by
-%the goal's success, so a bound Out means the goal already answered and the
-%division came from the report; an unbound one means the profiled goal raised
-%it, and that is the caller's error to see rather than ours to swallow.
-metta_py_profile_report_fault(error(evaluation_error(zero_divisor), _), Out) :-
-    nonvar(Out), !.
-metta_py_profile_report_fault(Fault, _) :- throw(Fault).
 
 metta_py_profiled(Pred, Ins, [Out, Samples, Ticks, Seconds, Nodes]) :-
-    metta_py_wrapped_goal(Pred, Ins, Out, Goal),
-    %A zero-sample profile is a real outcome, not a fault: the comment above
-    %says so, and a short goal on a machine whose sampling timer never fires
-    %collects nothing. Some SWI versions divide by the total tick count while
-    %building the report or the data, so both raise
-    %evaluation_error(zero_divisor) on exactly that outcome. SWI 10.1.13
-    %answers samples=0 ticks=0 for `profile(true, [top(0)])` where the CI
-    %runner's does not, which failed four profile tests and every caller of
-    %aio.profile there while passing here. An empty profile is the honest
-    %answer when nothing was sampled; the goal has already run either way.
-    with_output_to(string(_),
-                   catch(profile(Goal, [top(0)]), Fault,
-                         metta_py_profile_report_fault(Fault, Out))),
-    (   catch(metta_py_profile_rows(Samples, Ticks, Seconds, Nodes),
-              error(evaluation_error(zero_divisor), _),
-              fail)
-    ->  true
-    ;   Samples = 0, Ticks = 0, Seconds = 0.0, Nodes = []
-    ).
+    metta_py_wrapped_goal(Pred, Ins, Out, Goal0),
+    % profile/2 always reports, including through XPCE when it is installed.
+    % Use its sampler and flag validation; profile_data/1 needs no report and
+    % does not divide by a tick count when a short goal collected no samples.
+    % https://github.com/SWI-Prolog/swipl-devel/blob/fc7ef84b949378b729052c3ade79c90ce5416abb/library/prolog_profile.pl#L107-L118
+    current_prolog_flag(profile_ports, Ports),
+    current_prolog_flag(profile_sample_rate, Rate),
+    must_be(oneof([true,false,classic]), Ports),
+    must_be(between(1.0,1000), Rate),
+    expand_goal(Goal0, Goal),
+    '$profile'(Goal, cputime, Ports, Rate),
+    metta_py_profile_rows(Samples, Ticks, Seconds, Nodes).
 
 %The rows SWI's own profiler collected, read out of one profile_data/1.
 %

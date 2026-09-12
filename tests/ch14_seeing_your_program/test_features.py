@@ -1745,6 +1745,18 @@ def test_a_profile_is_the_same_table_every_other_door_answers(m):
     assert prof.nodes.predicate[0] == row.predicate, "and the column projects"
 
 
+def test_profile_does_not_invoke_a_display_callback(m):
+    """The data API must not open the host profiler's interactive viewer."""
+    m._rt.must("prolog_wrap:wrap_predicate(prolog:show_profile_hook(_), "
+               "class_profile_display, _, throw('$profile-display-test'))")
+    try:
+        groups, prof = m.profile("!(+ 2 3)")
+        assert groups == [[5]]
+        assert prof.samples >= 0
+    finally:
+        m._rt.must("prolog_wrap:unwrap_predicate(prolog:show_profile_hook(_), class_profile_display)")
+
+
 def test_a_profile_exports_as_pstats(m):
     """SWI's profile in the currency every Python profile viewer reads.
 
