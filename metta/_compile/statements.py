@@ -4,7 +4,7 @@ Guarantees:
     and segment value proofs [tested:
     test_structural_assignment_preserves_dictionary_and_star_bindings,
     test_starred_assignment_preserves_prefix_and_suffix_value_proofs;
-    commit=WORKTREE]
+    commit=8da7e0fc9ef57628ab8425766c54c6a057e0dc7f]
   - ordinary fallthrough and bare return produce None while loop and branch
     continuations retain their control scope [tested:
     test_none_returns_preserve_conditional_and_loop_exits,

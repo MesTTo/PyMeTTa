@@ -3,7 +3,7 @@ Guarantees:
   - sequence construction binds computed elements in source order, then
     retains their values as data [tested:
     test_computed_sequence_heads_remain_values_after_native_rewriting,
-    test_sequence_elements_run_once_in_source_order; commit=WORKTREE]
+    test_sequence_elements_run_once_in_source_order; commit=8da7e0fc9ef57628ab8425766c54c6a057e0dc7f]
   - a None literal denotes the existing grounded singleton, preserving its
     type and one-answer cardinality [tested:
     test_none_return_spellings_have_one_typed_answer; commit=dbe6c7de5f35e7c0c8ef5259ebfb6d67ee3ebbc0]

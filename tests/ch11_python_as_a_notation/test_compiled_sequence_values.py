@@ -4,7 +4,7 @@ Guarantees:
   - a computed callable head remains an element and observes native source
     edits on the next construction [tested:
     test_computed_sequence_heads_remain_values_after_native_rewriting;
-    commit=WORKTREE]
+    commit=8da7e0fc9ef57628ab8425766c54c6a057e0dc7f]
 """
 
 import pytest
