@@ -9,7 +9,7 @@ Guarantees:
     commit=8e2b7e3024713881f716e3d3a6a995bdf7231397]
   - adding the current lexical home retains the source lambda's contract
     [tested: test_native_callable_contracts_survive_lexical_wrapping;
-    commit=WORKTREE]
+    commit=c5a7c9efd83f8fbdf3e002de3864a07c5bdded3b]
 Owns resources:
   - the callable image contains its lexical home and captured receiver, so
     scope retention follows the ordinary native value graph [tested:

@@ -9,7 +9,7 @@ Guarantees:
     test_evaluated_native_lambdas_apply_their_assembled_arguments; commit=8e2b7e3024713881f716e3d3a6a995bdf7231397]
   - carrying an implicit lexical home preserves the original native signature
     [tested: test_native_callable_contracts_survive_lexical_wrapping;
-    commit=WORKTREE]
+    commit=c5a7c9efd83f8fbdf3e002de3864a07c5bdded3b]
 """
 
 import inspect
