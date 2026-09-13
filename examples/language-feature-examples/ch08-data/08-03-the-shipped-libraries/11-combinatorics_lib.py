@@ -4,7 +4,7 @@ Streams can be consumed a value at a time or collected. The existing collected
 choice forms use the same generators. Literal expressions remain data.
 
 Guarantees: the same claims as 11-combinatorics_lib.metta
-[tested: lib_combinatorics_surface; commit=WORKTREE].
+[tested: lib_combinatorics_surface; commit=6471fbad35eced5ed6440ebf2c25a053b20221f3].
 Open Obligations:
   To Do: None
   Hacks: None
@@ -288,13 +288,13 @@ def twin(m):
 #: compiler helpers. The example measures 850820 for the same claims
 #: [measured: 747785 inferences; command=python extensions/python/tools/twin_coverage.py --measure --rounds 3 examples/ch08-data/08-03-the-shipped-libraries/11-combinatorics_lib.metta;
 #: fixture=minimum of three serial fresh processes after purging engine/lib QLF;
-#: commit=WORKTREE].
+#: commit=6471fbad35eced5ed6440ebf2c25a053b20221f3].
 #: RE-PINNED 2026-09-13, 747785 to 749122 (+1337), The validated range
 #: continuation now lives in the private support file rather than appearing as
 #: a public library head. The import adds its measured loading cost without
 #: changing the continuation body [measured 2026-09-13: min-of-3 serial fresh
 #: processes; command=python extensions/python/tools/twin_coverage.py --repin;
-#: commit=WORKTREE].
+#: commit=6471fbad35eced5ed6440ebf2c25a053b20221f3].
 BUDGET = 749122
 
 #: The declared OVERRUN went with the eight new heads: the twin used to cost

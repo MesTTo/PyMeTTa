@@ -6,7 +6,7 @@ what `list()` collects, and no answer at all is the empty list the example's
 `collapse` compares against `()`.
 
 Guarantees: the same claims as 24-pairs_lib.metta
-[tested: python extensions/python/tools/twin_coverage.py examples/ch08-data/08-03-the-shipped-libraries/24-pairs_lib.metta; commit=WORKTREE].
+[tested: python extensions/python/tools/twin_coverage.py examples/ch08-data/08-03-the-shipped-libraries/24-pairs_lib.metta; commit=6471fbad35eced5ed6440ebf2c25a053b20221f3].
 Open Obligations:
   To Do: None
   Hacks: None
@@ -146,11 +146,11 @@ def twin(m):
 #: compiler helpers. The example measures 837557 for the same claims
 #: [measured: 813769 inferences; command=python extensions/python/tools/twin_coverage.py --measure --rounds 3 examples/ch08-data/08-03-the-shipped-libraries/24-pairs_lib.metta;
 #: fixture=minimum of three serial fresh processes after purging engine/lib QLF;
-#: commit=WORKTREE].
+#: commit=6471fbad35eced5ed6440ebf2c25a053b20221f3].
 #: RE-PINNED 2026-09-13, 813769 to 815106 (+1337), The validated range
 #: continuation now lives in the private support file rather than appearing as
 #: a public library head. The import adds its measured loading cost without
 #: changing the continuation body [measured 2026-09-13: min-of-3 serial fresh
 #: processes; command=python extensions/python/tools/twin_coverage.py --repin;
-#: commit=WORKTREE].
+#: commit=6471fbad35eced5ed6440ebf2c25a053b20221f3].
 BUDGET = 815106

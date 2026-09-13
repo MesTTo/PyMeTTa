@@ -5,7 +5,7 @@ A set is an expression, so it comes back as one and a tuple goes in as one;
 canonical. A refusal is what `if-error` reads, so it is caught as the error it is.
 
 Guarantees: the same claims as 23-sets_lib.metta
-[tested: python extensions/python/tools/twin_coverage.py examples/ch08-data/08-03-the-shipped-libraries/23-sets_lib.metta; commit=WORKTREE].
+[tested: python extensions/python/tools/twin_coverage.py examples/ch08-data/08-03-the-shipped-libraries/23-sets_lib.metta; commit=6471fbad35eced5ed6440ebf2c25a053b20221f3].
 Open Obligations:
   To Do: None
   Hacks: None
@@ -145,13 +145,13 @@ def twin(m):
 #: compiler helpers. The example measures 348761 for the same claims
 #: [measured: 366379 inferences; command=python extensions/python/tools/twin_coverage.py --measure --rounds 3 examples/ch08-data/08-03-the-shipped-libraries/23-sets_lib.metta;
 #: fixture=minimum of three serial fresh processes after purging engine/lib QLF;
-#: commit=WORKTREE].
+#: commit=6471fbad35eced5ed6440ebf2c25a053b20221f3].
 #: RE-PINNED 2026-09-13, 366379 to 367716 (+1337), The validated range
 #: continuation now lives in the private support file rather than appearing as
 #: a public library head. The import adds its measured loading cost without
 #: changing the continuation body [measured 2026-09-13: min-of-3 serial fresh
 #: processes; command=python extensions/python/tools/twin_coverage.py --repin;
-#: commit=WORKTREE].
+#: commit=6471fbad35eced5ed6440ebf2c25a053b20221f3].
 BUDGET = 367716
 
 #: OVERRUN 2026-09-12, 1399: the example nests its law claims in one evaluation

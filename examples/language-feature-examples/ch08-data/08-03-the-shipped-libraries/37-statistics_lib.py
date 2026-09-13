@@ -116,13 +116,13 @@ def twin(m):
 #: segments and folds. This example imports the changed provider directly or
 #: through its library dependencies [measured 2026-09-13: min-of-3 serial fresh
 #: processes; command=python extensions/python/tools/twin_coverage.py --repin;
-#: commit=WORKTREE].
+#: commit=6471fbad35eced5ed6440ebf2c25a053b20221f3].
 #: RE-PINNED 2026-09-13, 163787 to 165130 (+1343), The validated range
 #: continuation now lives in the private support file rather than appearing as
 #: a public library head. The import adds its measured loading cost without
 #: changing the continuation body [measured 2026-09-13: min-of-3 serial fresh
 #: processes; command=python extensions/python/tools/twin_coverage.py --repin;
-#: commit=WORKTREE].
+#: commit=6471fbad35eced5ed6440ebf2c25a053b20221f3].
 BUDGET = 165130
 
 #: OVERRUN: Python evaluates through fn/eval and reads numeric and collection

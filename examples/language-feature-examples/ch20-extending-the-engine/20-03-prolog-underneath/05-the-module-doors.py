@@ -312,5 +312,5 @@ def twin(m):
 #: Both consumers retain their claims and stored contents; their fresh counts
 #: move by 6 and 19 inferences [measured 2026-09-13: min-of-3 serial fresh
 #: processes; command=python extensions/python/tools/twin_coverage.py --repin;
-#: commit=WORKTREE].
+#: commit=6471fbad35eced5ed6440ebf2c25a053b20221f3].
 BUDGET = 158506

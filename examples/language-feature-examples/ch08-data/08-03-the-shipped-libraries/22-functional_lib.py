@@ -13,7 +13,7 @@ helpers take their arithmetic and comparisons by the engine's words, `fn.mul`,
 parameter would cross to the host once per element.
 
 Guarantees: the same claims as 22-functional_lib.metta
-[tested: python extensions/python/tools/twin_coverage.py examples/ch08-data/08-03-the-shipped-libraries/22-functional_lib.metta; commit=WORKTREE].
+[tested: python extensions/python/tools/twin_coverage.py examples/ch08-data/08-03-the-shipped-libraries/22-functional_lib.metta; commit=6471fbad35eced5ed6440ebf2c25a053b20221f3].
 Open Obligations:
   To Do: None
   Hacks: None
@@ -289,13 +289,13 @@ def twin(m):
 #: compiler helpers. The example measures 1074085 for the same claims
 #: [measured: 1091943 inferences; command=python extensions/python/tools/twin_coverage.py --measure --rounds 3 examples/ch08-data/08-03-the-shipped-libraries/22-functional_lib.metta;
 #: fixture=minimum of three serial fresh processes after purging engine/lib QLF;
-#: commit=WORKTREE].
+#: commit=6471fbad35eced5ed6440ebf2c25a053b20221f3].
 #: RE-PINNED 2026-09-13, 1091943 to 1093280 (+1337), The validated range
 #: continuation now lives in the private support file rather than appearing as
 #: a public library head. The import adds its measured loading cost without
 #: changing the continuation body [measured 2026-09-13: min-of-3 serial fresh
 #: processes; command=python extensions/python/tools/twin_coverage.py --repin;
-#: commit=WORKTREE].
+#: commit=6471fbad35eced5ed6440ebf2c25a053b20221f3].
 BUDGET = 1093280
 
 #: DIVERGED 2026-09-12, the example holds 1 atom the twin does not (1 =) and
@@ -314,5 +314,5 @@ BUDGET = 1093280
 #: to lambda_69 and lambda_68; the branch and literal claims verify both paths
 #: [measured 2026-09-13: the two stored-atom surpluses, one fresh process per
 #: side; command=python extensions/python/tools/twin_coverage.py --repin;
-#: commit=WORKTREE].
+#: commit=6471fbad35eced5ed6440ebf2c25a053b20221f3].
 DIVERGENCE = "657f0b5df5fb6e201a726937590d125fdbc13e415a6611d6956683c38278ae62"

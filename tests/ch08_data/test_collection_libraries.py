@@ -2,7 +2,7 @@
 
 Guarantees: itertools, arithmetic, slicing, stable sorting and set algebra cover
 literal occurrences, callback alternatives and variable argument counts.
-[tested: test_collection_libraries.py; commit=WORKTREE].
+[tested: test_collection_libraries.py; commit=6471fbad35eced5ed6440ebf2c25a053b20221f3].
 """
 
 from itertools import accumulate, combinations, permutations, product
