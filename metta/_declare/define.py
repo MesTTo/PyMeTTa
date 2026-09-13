@@ -51,7 +51,7 @@ Guarantees:
     rule variables retain their staged call terms [tested:
     test_python_call_values_preserve_expression_arguments,
     test_computed_receivers_preserve_their_stored_syntax,
-    test_the_staging_split_folds_ground_calls_and_stages_op_terms; commit=WORKTREE]
+    test_the_staging_split_folds_ground_calls_and_stages_op_terms; commit=310a9d8b547a77412a518a37ab79fba073eb22ac]
   - flat independent yield statements compile to separate equation bodies,
     while control-flow yields retain one superpose body [tested:
     test_flat_generator_emits_one_equation_per_yield,

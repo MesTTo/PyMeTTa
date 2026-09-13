@@ -3,14 +3,14 @@
 Guarantees:
   - defined functions and native callable values receive the existing record
     value across all three grains [tested:
-    test_computed_receivers_preserve_their_stored_syntax; commit=WORKTREE]
+    test_computed_receivers_preserve_their_stored_syntax; commit=310a9d8b547a77412a518a37ab79fba073eb22ac]
   - native input annotations inspect supplied syntax values after the Python
     call has computed them [tested:
-    test_python_call_values_preserve_expression_arguments; commit=WORKTREE]
+    test_python_call_values_preserve_expression_arguments; commit=310a9d8b547a77412a518a37ab79fba073eb22ac]
   - live scalar rules affect explicit source calls while Python calls carry
     their computed values [tested:
     test_python_call_values_preserve_symbols_with_live_scalar_rules;
-    commit=WORKTREE]
+    commit=310a9d8b547a77412a518a37ab79fba073eb22ac]
 """
 
 from collections.abc import Callable

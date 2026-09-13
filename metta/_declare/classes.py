@@ -13,10 +13,10 @@ Guarded by:
 Guarantees:
   - Python field setters preserve computed syntax values at typed native
     writers [tested: test_field_assignment_keeps_computed_syntax_values;
-    commit=WORKTREE]
+    commit=310a9d8b547a77412a518a37ab79fba073eb22ac]
   - constructor arguments reach typed entries as values after their source
     computations finish [tested:
-    test_constructor_arguments_preserve_values_and_run_factories; commit=WORKTREE]
+    test_constructor_arguments_preserve_values_and_run_factories; commit=310a9d8b547a77412a518a37ab79fba073eb22ac]
   - generated field and class-variable queries return the stored syntax
     rather than their lookup expression [tested:
     test_generated_syntax_field_queries_return_the_stored_value,

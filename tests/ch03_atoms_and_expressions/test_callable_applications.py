@@ -4,7 +4,7 @@ Guarantees:
   - carried applications preserve value frames in their own home or another
     home, retaining fixed, patterned and segment binders [tested:
     test_native_application_frames_preserve_values_in_carried_homes,
-    test_native_value_binding_keeps_lambda_parameter_patterns; commit=WORKTREE]
+    test_native_value_binding_keeps_lambda_parameter_patterns; commit=310a9d8b547a77412a518a37ab79fba073eb22ac]
   - native application facts preserve data, supplied arguments and lexical
     ownership [tested: test_native_application_frames_preserve_data_and_live_programs;
     test_native_application_frames_retain_scoped_streams; commit=1d6b29cc4c734796ba173ee06e3b20568a1acf85]

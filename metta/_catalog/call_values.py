@@ -6,9 +6,9 @@ Guarantees:
     test_python_call_values_preserve_expression_arguments,
     test_computed_receivers_preserve_their_stored_syntax,
     test_python_call_values_preserve_symbols_with_live_scalar_rules;
-    commit=WORKTREE]
+    commit=310a9d8b547a77412a518a37ab79fba073eb22ac]
   - nonsymbol literal arguments retain direct cursor application [tested:
-    test_function_calls_suspend_endless_producers; commit=WORKTREE]
+    test_function_calls_suspend_endless_producers; commit=310a9d8b547a77412a518a37ab79fba073eb22ac]
   - native application facts receive separate data frames, retaining supplied
     arguments, captures and live program edits [tested:
     test_native_application_frames_preserve_data_and_live_programs;
@@ -16,29 +16,29 @@ Guarantees:
     test_native_application_mapping_lookup_preserves_distinct_binders;
     test_native_application_keywords_do_not_bind_adapter_parameters;
     test_captured_application_parameters_keep_their_keyword_binding_rule;
-    commit=WORKTREE]
+    commit=310a9d8b547a77412a518a37ab79fba073eb22ac]
   - native references select their current call port and preserve captures
     and explicit contracts [tested:
     test_expanded_partial_references_preserve_capture_and_parameter_names;
     test_forwarding_contracts_preserve_explicit_cardinality_and_bound_captures;
-    test_native_references_observe_later_arity_changes; commit=WORKTREE]
+    test_native_references_observe_later_arity_changes; commit=310a9d8b547a77412a518a37ab79fba073eb22ac]
   - application evaluates the carried native value, including subsequent source
     rewrites [tested: test_native_callable_values_keep_their_lexical_program;
-    commit=WORKTREE]
+    commit=310a9d8b547a77412a518a37ab79fba073eb22ac]
   - segment applications execute the constructed call and preserve captured
     arguments [tested: test_evaluated_native_lambdas_apply_their_assembled_arguments;
-    commit=WORKTREE]
+    commit=310a9d8b547a77412a518a37ab79fba073eb22ac]
   - adding the current lexical home retains the source lambda's contract
     [tested: test_native_callable_contracts_survive_lexical_wrapping;
-    commit=WORKTREE]
+    commit=310a9d8b547a77412a518a37ab79fba073eb22ac]
   - contract lookup preserves distinct binders and references to authored
     heads [tested: test_contract_lookup_preserves_distinct_lambda_binders;
     test_callable_conversion_keeps_authored_heads_as_live_references;
-    commit=WORKTREE]
+    commit=310a9d8b547a77412a518a37ab79fba073eb22ac]
 Owns resources:
   - the callable image contains its lexical home and captured receiver, so
     scope retention follows the ordinary native value graph [tested:
-    test_a_kept_native_callable_retains_its_scoped_program; commit=WORKTREE]
+    test_a_kept_native_callable_retains_its_scoped_program; commit=310a9d8b547a77412a518a37ab79fba073eb22ac]
 """
 
 from __future__ import annotations
