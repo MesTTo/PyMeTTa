@@ -13,7 +13,7 @@ Guarded by:
 Guarantees:
   - constructor arguments reach typed entries as values after their source
     computations finish [tested:
-    test_constructor_arguments_preserve_values_and_run_factories; commit=WORKTREE]
+    test_constructor_arguments_preserve_values_and_run_factories; commit=6ff5033a6d52120cb7bce870f4a1fdbed5a0fbd0]
   - generated field and class-variable queries return the stored syntax
     rather than their lookup expression [tested:
     test_generated_syntax_field_queries_return_the_stored_value,

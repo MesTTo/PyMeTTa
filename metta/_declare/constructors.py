@@ -3,7 +3,7 @@
 Guarantees:
   - default computations finish before field input contracts inspect their
     resulting values [tested:
-    test_constructor_arguments_preserve_values_and_run_factories; commit=WORKTREE]
+    test_constructor_arguments_preserve_values_and_run_factories; commit=6ff5033a6d52120cb7bce870f4a1fdbed5a0fbd0]
   - defaults and factories run per construction and post-init reads the same
     field bindings as initialization [tested:
     test_class_value_post_init_and_write_refusal; commit=9b0a084e534ddf7dd67980ad84c27c8279b877f1]
