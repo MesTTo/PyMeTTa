@@ -1,5 +1,9 @@
 """Purpose: lower Python expressions into equivalent MeTTa atom trees.
 Guarantees:
+  - sequence construction binds computed elements in source order, then
+    retains their values as data [tested:
+    test_computed_sequence_heads_remain_values_after_native_rewriting,
+    test_sequence_elements_run_once_in_source_order; commit=WORKTREE]
   - a None literal denotes the existing grounded singleton, preserving its
     type and one-answer cardinality [tested:
     test_none_return_spellings_have_one_typed_answer; commit=dbe6c7de5f35e7c0c8ef5259ebfb6d67ee3ebbc0]
@@ -1687,10 +1691,28 @@ class ExpressionCompilerMixin(CompilerContext):
         return None
 
     def _x_Tuple(self, node: ast.Tuple) -> Atom:  # noqa: N802  -- the suffix mirrors ast node class names used by the translator's dynamic dispatch
-        return Expression([self.expression(e) for e in node.elts])
+        return self._sequence_value(node.elts)
 
     def _x_List(self, node: ast.List) -> Atom:  # noqa: N802  -- the suffix mirrors ast node class names used by the translator's dynamic dispatch
-        return Expression([self.expression(e) for e in node.elts])
+        return self._sequence_value(node.elts)
+
+    def _sequence_value(self, elements: list[ast.expr]) -> Atom:
+        """Evaluate the elements in order, then retain their expression as data."""
+        values = []
+        bindings = []
+        for element in elements:
+            value = self.expression(element)
+            if isinstance(value, Expression):
+                variable = Variable(self._temp("sequence-item"))
+                bindings.append((value, variable))
+                value = variable
+            values.append(value)
+        body = Expression(values)
+        if bindings:
+            body = Expression([Symbol("noeval"), body])
+        for value, variable in reversed(bindings):
+            body = Expression([Symbol("chain"), value, variable, body])
+        return body
 
     def _x_Dict(self, node: ast.Dict) -> Atom:  # noqa: N802  -- the suffix mirrors ast node class names used by the translator's dynamic dispatch
         """A literal mapping METTAFIES: a dict is a SPACE of (key value) atoms.

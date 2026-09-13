@@ -1,5 +1,10 @@
 """Purpose: lower Python statement blocks, lifted definitions, and yield blocks.
 Guarantees:
+  - unpacking follows temporary sequence bindings to retain known dictionary
+    and segment value proofs [tested:
+    test_structural_assignment_preserves_dictionary_and_star_bindings,
+    test_starred_assignment_preserves_prefix_and_suffix_value_proofs;
+    commit=WORKTREE]
   - ordinary fallthrough and bare return produce None while loop and branch
     continuations retain their control scope [tested:
     test_none_returns_preserve_conditional_and_loop_exits,
@@ -2157,6 +2162,16 @@ class _StatementPattern:
         image: Atom | None = None,
     ) -> Atom:
         """Read an unpacking target with the same sequence and capture vocabulary."""
+        # Follow the value graph through sequence evaluation. Its temporary
+        # bindings still prove which element is a dictionary or another space.
+        bindings = {}
+        while isinstance(image, Expression) and image.head == Symbol("chain") and len(image.args) == 3 and isinstance(image.args[1], Variable):
+            value, variable, image = image.args
+            bindings[variable] = value
+        if isinstance(image, Expression) and image.head == Symbol("noeval") and len(image.args) == 1:
+            image = image.args[0]
+        if bindings and image is not None:
+            image = image.subs(bindings)
         if isinstance(target, ast.Name):
             variable = self._capture(target.id)
             if image is not None:
