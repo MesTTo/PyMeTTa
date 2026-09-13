@@ -12,7 +12,7 @@ Guarded by:
     test_overlapping_transactions_cannot_publish_distinct_proxies; commit=9b0a084e534ddf7dd67980ad84c27c8279b877f1]
 Guarantees:
   - imports follow the declared package foundations [tested:
-    tests/checks/check_layering.py; commit=WORKTREE]
+    tests/checks/check_layering.py; commit=ab9d3489f87e0d7b7be4b3cd2025494cd62699fe]
   - mutable Python instances find their engine receiver through ordinary private
     proxy facts, including slotted and unhashable classes [tested:
     test_class_proxies_share_engine_fields; commit=9b0a084e534ddf7dd67980ad84c27c8279b877f1]

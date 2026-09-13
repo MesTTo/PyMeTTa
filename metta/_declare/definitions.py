@@ -1,7 +1,7 @@
 """Purpose: install compiled Python functions and class declarations into a space.
 Guarantees:
   - class installation imports its peer directly [tested:
-    tests/checks/check_layering.py; commit=WORKTREE]
+    tests/checks/check_layering.py; commit=ab9d3489f87e0d7b7be4b3cd2025494cd62699fe]
   - typing.overload stubs declare every distinct fixed-arity signature before
     their shared equation is published [tested:
     test_define_emits_each_overload_from_one_source,

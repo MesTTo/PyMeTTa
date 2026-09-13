@@ -5,7 +5,7 @@ annotations, and registers the whole thing with the engine through shim.pl.
 Guarantees:
   - class annotation dependencies use ordinary peer imports after module
     initialization [tested: tests/checks/check_layering.py,
-    test_each_module_imports_first_in_a_fresh_process; commit=WORKTREE]
+    test_each_module_imports_first_in_a_fresh_process; commit=ab9d3489f87e0d7b7be4b3cd2025494cd62699fe]
   - class declaration has no process-global ``record`` registry or second
     decorator spelling [tested:
     test_define_absorbs_class_declaration_and_frees_space_type;
