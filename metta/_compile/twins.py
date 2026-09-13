@@ -7,8 +7,16 @@ Guarantees:
     commit=19093dd75eda0102eb0329a71460e8a0c7a0c727]
   - TwinDispatcher selects the first literal head that admits the arguments
     [tested test_literal_defaults_are_head_patterns_and_clauses_stack]
-  - twin views see definitions added after an earlier twin was compiled
-    [tested test_existing_twin_sees_later_redefinition]
+  - each definition space owns its twin families by native head; aliases
+    resolve the exact source function and replacement updates that family
+    [tested: test_twin_families_follow_their_definition_space,
+    test_same_python_name_can_have_distinct_native_twin_heads,
+    test_twin_aliases_follow_exact_installed_functions,
+    test_existing_twin_sees_later_redefinition; commit=WORKTREE]
+  - pure compilation publishes no twin bindings, and a cleared definition
+    space leaves retained twins with their previous clauses [tested:
+    test_pure_compilation_does_not_publish_twin_bindings,
+    test_clear_starts_a_new_twin_family; commit=WORKTREE]
   - twin dispatch skips clauses whose callable arity cannot accept the call
     [tested: test_define_supports_one_name_at_multiple_arities;
     commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
@@ -19,8 +27,12 @@ Guarantees:
     test_no_type_check_keeps_annotations_as_a_compile_proof_only;
     commit=d0dfff1a3ee6c85472fd9b12d6e4aec007a9c301]
 Guarded by:
-  - _TWIN_LOCK serializes dispatcher creation, view publication, and clause
-    replacement [tested test_define_from_two_threads_is_serialized]
+  - _TWIN_LOCK serializes clause replacement and reference publication
+    [tested: test_define_from_two_threads_is_serialized; commit=WORKTREE]
+Owns resources:
+  - TwinNamespace owns its derived Python references until definition-space
+    release; no process registry retains retired namespaces [tested:
+    test_clear_starts_a_new_twin_family; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -33,6 +45,7 @@ import inspect
 import threading
 import types
 from collections.abc import Callable
+from functools import partial
 from typing import Any
 
 from metta._atoms.factories import Atom
@@ -135,13 +148,97 @@ class _ClauseMissError(LookupError):
     """A clause twin refusing arguments its head does not match."""
 
 
-# (id of a module's globals, name) -> the dispatcher every twin from that
-# module resolves the name to; and per module, every twin-globals view built,
-# so a later definition becomes visible to earlier twins, Python's own rule
-# that a call resolves its callee at call time.
-_TWIN_DISPATCHERS: dict[tuple[int, str], TwinDispatcher] = {}
-_TWIN_VIEWS: dict[int, list[dict[str, Any]]] = {}
 _TWIN_LOCK = threading.RLock()
+
+type _TwinBindings = list[tuple[types.FunctionType, Callable[[Callable[..., Any]], None]]]
+
+
+class TwinNamespace:
+    """Python reference bindings owned by one native definition space."""
+
+    def __init__(self, defined_twin: Callable[[object], Callable[..., Any] | None]) -> None:
+        self._defined_twin = defined_twin
+        self._families: dict[str, TwinDispatcher] = {}
+        self._sources: dict[types.FunctionType, TwinDispatcher] = {}
+        self._bindings: dict[types.FunctionType, list[Callable[[Callable[..., Any]], None]]] = {}
+
+    def dispatcher(self, fn: types.FunctionType, name: str) -> TwinDispatcher:
+        """Select the native family while preserving Python-name collisions."""
+        with _TWIN_LOCK:
+            family = self._families.get(name)
+            if family is not None and family.name == fn.__name__:
+                return family
+        return TwinDispatcher(fn.__name__)
+
+    def prepare(
+        self, fn: types.FunctionType, dispatcher: TwinDispatcher,
+        patterns: dict[str, Atom],
+    ) -> tuple[Callable[..., Any], _TwinBindings]:
+        """Build a clause view without publishing references or clauses."""
+        bindings: _TwinBindings = []
+
+        def reference(value: object, assign: Callable[[Callable[..., Any]], None]) -> None:
+            target: Callable[..., Any] | None
+            if isinstance(value, types.FunctionType):
+                bindings.append((value, assign))
+                with _TWIN_LOCK:
+                    target = self._sources.get(value)
+            else:
+                target = self._defined_twin(value)
+            if target is not None:
+                assign(target)
+
+        globals_ = dict(fn.__globals__)
+        for identifier, value in tuple(globals_.items()):
+            if identifier != fn.__name__:
+                reference(value, partial(globals_.__setitem__, identifier))
+        globals_[fn.__name__] = dispatcher
+        closure = []
+        for identifier, original in zip(fn.__code__.co_freevars, fn.__closure__ or (), strict=True):
+            cell = original
+            if identifier == fn.__name__:
+                cell = types.CellType(dispatcher)
+            else:
+                try:
+                    value = cell.cell_contents
+                except ValueError:
+                    closure.append(cell)
+                    continue
+                if isinstance(value, types.FunctionType) or self._defined_twin(value) is not None:
+                    cell = types.CellType(value)
+                    reference(value, partial(setattr, cell, "cell_contents"))
+            closure.append(cell)
+        twin = types.FunctionType(
+            fn.__code__, globals_, name=fn.__name__, argdefs=fn.__defaults__,
+            closure=tuple(closure) if fn.__closure__ is not None else None,
+        )
+        twin.__doc__ = fn.__doc__
+        twin.__annotations__ = fn.__annotations__
+        twin.__kwdefaults__ = fn.__kwdefaults__
+        setattr(  # noqa: B010 -- mypyc requires dynamic function attributes through setattr
+            twin, "__no_type_check__", getattr(fn, "__no_type_check__", False),
+        )
+        return _python_twin(twin, patterns), bindings
+
+    def publish(
+        self, fn: types.FunctionType, name: str, dispatcher: TwinDispatcher,
+        clause: Callable[..., Any], *, bindings: _TwinBindings, replaced: int | None,
+    ) -> None:
+        """Publish the clause and its exact function references together."""
+        with _TWIN_LOCK:
+            if replaced is None:
+                dispatcher._clauses.append(clause)
+            else:
+                dispatcher._clauses[replaced] = clause
+            self._families[name] = dispatcher
+            self._sources[fn] = dispatcher
+            for source, assign in bindings:
+                self._bindings.setdefault(source, []).append(assign)
+                target = self._sources.get(source)
+                if target is not None:
+                    assign(target)
+            for assign in self._bindings.get(fn, ()):
+                assign(dispatcher)
 
 
 def hazard_twin(
@@ -184,62 +281,12 @@ def select_clause_twin(
     return twin
 
 
-def twin_dispatcher(fn: types.FunctionType) -> TwinDispatcher:
-    """The dispatcher for fn's name in fn's module, created on first use and
-    pushed into every twin-globals view of that module.
-    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
-    mid, name = id(fn.__globals__), fn.__name__
-    with _TWIN_LOCK:
-        dispatcher = _TWIN_DISPATCHERS.get((mid, name))
-        if dispatcher is None:
-            dispatcher = _TWIN_DISPATCHERS[(mid, name)] = TwinDispatcher(name)
-            for view in _TWIN_VIEWS.get(mid, []):
-                view[name] = dispatcher
-        return dispatcher
-
-
 def _python_twin(
     fn: types.FunctionType, patterns: dict[str, Atom] | None = None
 ) -> Callable[..., Any]:
-    """One clause's Python twin, head guard included.
-
-    The twin's globals overlay every dispatcher this module has, its own
-    name's first of all, so recursion reaches the dispatcher rather than the
-    term builder, across clauses and across definitions. A clause with
-    literal head patterns raises a clause miss when an argument misses one,
-    and the dispatcher moves on.
-    """
-    globals_ = dict(fn.__globals__)
-    mid = id(fn.__globals__)
-    with _TWIN_LOCK:
-        for (module_id, other), dispatcher in _TWIN_DISPATCHERS.items():
-            if module_id == mid:
-                globals_[other] = dispatcher
-        _TWIN_VIEWS.setdefault(mid, []).append(globals_)
-
-        name = fn.__name__
-        own = twin_dispatcher(fn)
-        globals_[name] = own
-
-    closure = fn.__closure__
-    freevars = fn.__code__.co_freevars
-    if name in freevars and closure is not None:
-        cells = list(closure)
-        cell = types.CellType()
-        cell.cell_contents = own
-        cells[freevars.index(name)] = cell
-        closure = tuple(cells)
-
-    twin = types.FunctionType(
-        fn.__code__, globals_, name=name, argdefs=fn.__defaults__, closure=closure
-    )
-    twin.__doc__ = fn.__doc__
-    twin.__annotations__ = fn.__annotations__
-    setattr(  # noqa: B010 -- mypyc rejects this non-standard function attribute as direct assignment
-        twin, "__no_type_check__", getattr(fn, "__no_type_check__", False)
-    )
+    """Guard one source clause without publishing a namespace binding."""
     order = list(inspect.signature(fn).parameters)
-    return _guard_twin(twin, name, order, patterns)
+    return _guard_twin(fn, fn.__name__, order, patterns)
 
 
 def _guard_twin(
@@ -280,28 +327,11 @@ def _guard_twin(
     return guarded
 
 
-def append_twin_clause(dispatcher: TwinDispatcher, clause: Callable[..., Any]) -> None:
-    """Append one clause under the same lock used by twin dispatch."""
-    with _TWIN_LOCK:
-        dispatcher._clauses.append(clause)
-
-
-def replace_twin_clause(
-    dispatcher: TwinDispatcher, position: int, clause: Callable[..., Any]
-) -> None:
-    """Replace one clause atomically for concurrent twin calls."""
-    with _TWIN_LOCK:
-        dispatcher._clauses[position] = clause
-
-
 def dispatcher_owns_clause(dispatcher: TwinDispatcher, position: int) -> bool:
     """Whether this dispatcher installed the clause at the given position.
 
-    Space clause records key on the MeTTa head while dispatchers key on the
-    Python name, so a fresh Python function redefining an existing head
-    arrives with an empty dispatcher; the install path asks this before
-    replacing, and refuses with the collision named instead of the bare
-    IndexError the mismatch used to raise.
+    A different Python name claiming an installed head gets a fresh dispatcher.
+    The installer preserves its explicit collision refusal before publication.
     """
     with _TWIN_LOCK:
         return 0 <= position < len(dispatcher._clauses)

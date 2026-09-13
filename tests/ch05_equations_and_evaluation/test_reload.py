@@ -7,6 +7,11 @@ change detection, so a second import was skipped and the edit was ignored.
 Every test here drives the public surface and edits a real file on disk,
 because the thing under test is what happens between two loads.
 
+Guarantees: a different Python function name cannot replace an installed
+definition family [tested:
+test_a_fresh_python_name_redefining_a_head_is_refused_by_name;
+commit=WORKTREE].
+
 The two doors are SWI's own loading conditions and behave as they do:
 `load` is `consult/1`, always loading and replacing what the file put
 there before; `import!` is `if(changed)`, loading a file that is new or
@@ -362,10 +367,9 @@ def test_a_reload_replaces_the_file_in_every_space_that_holds_it(metta, source):
 def test_a_fresh_python_name_redefining_a_head_is_refused_by_name(metta):
     """A second Python function claiming an installed head refuses loudly.
 
-    The clause records key on the MeTTa head while twin dispatchers key on
-    the Python name, so this used to escape the collision guard and die as
-    a bare IndexError deep in the twin store; now the refusal names the
-    collision and the three remedies.
+    The native head owns its clause family. A different Python name must
+    receive the existing collision refusal before changing either its
+    equations or its Python twin.
     """
     import pytest
 

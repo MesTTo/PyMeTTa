@@ -1,5 +1,10 @@
 """Purpose: install compiled Python functions and class declarations into a space.
 Guarantees:
+  - each native definition space and head owns its Python twin family;
+    clearing the space retires its reference bindings [tested:
+    test_twin_families_follow_their_definition_space,
+    test_same_python_name_can_have_distinct_native_twin_heads,
+    test_clear_starts_a_new_twin_family; commit=WORKTREE]
   - native call contracts retain each definition's lexical home [tested:
     test_expanded_definition_contracts_keep_distinct_lexical_homes;
     commit=10ef2f6958af451bcc3e651e0e0ccc7cc8ec7ce8]
@@ -134,11 +139,9 @@ from metta._catalog import call_signatures
 from metta._catalog.declarations import inferred
 from metta._catalog.documentation import documentation_atom
 from metta._compile.twins import (
-    append_twin_clause,
+    TwinNamespace,
     dispatcher_owns_clause,
-    replace_twin_clause,
     select_clause_twin,
-    twin_dispatcher,
 )
 from metta._declare import call_syntax, classes
 from metta._declare import functions as _space_functions
@@ -148,6 +151,7 @@ from metta._spaces.execution import run_void_write
 from metta.vocabularies import EffectClass
 
 _DEFINE_CLAUSES: dict[tuple[str, str], list[dict[str, Any]]] = {}
+_DEFINE_TWINS: dict[str, TwinNamespace] = {}
 
 _DECLARED_DEFINES: dict[tuple[str, str], list[Expression]] = {}
 
@@ -204,6 +208,7 @@ def release_definitions(space: Any) -> None:
         for registry in (_DEFINE_CLAUSES, _DECLARED_DEFINES, _DEFINE_DOCUMENTATION):
             for key in [key for key in registry if key[0] == space.name]:
                 del registry[key]
+        _DEFINE_TWINS.pop(space.name, None)
         _DEFINED_GENERATORS.difference_update(
             {key for key in _DEFINED_GENERATORS if key[0] == space.name}
         )
@@ -483,8 +488,7 @@ def _store_clause(
     patterns: dict[str, Atom],
     equations: tuple[Expression, ...],
     compiled: _declare_define_module.Compiled,
-    dispatcher: Any,
-    clause_twin: Any,
+    publish_twin: Callable[[], None],
     replaced: int | None,
 ) -> None:
     record = _clause_record(patterns, equations, compiled)
@@ -507,12 +511,8 @@ def _store_clause(
             space.remove(added[0], *added[1:])
         space.add(*removed)
         raise
-    if replaced is None:
-        earlier[:] = prospective
-        append_twin_clause(dispatcher, clause_twin)
-    else:
-        earlier[:] = prospective
-        replace_twin_clause(dispatcher, replaced, clause_twin)
+    earlier[:] = prospective
+    publish_twin()
 
 def _physical_atoms(clauses: Sequence[dict[str, Any]]) -> list[Expression]:
     """Flatten the helper and materialized equations stored for clauses."""
@@ -899,6 +899,11 @@ def _install_define_locked(space: Any, fn: Callable[..., Any], name: str | None 
     return _publish_define(space, fn, name, compiled)
 
 
+def _defined_twin(value: object) -> Callable[..., Any] | None:
+    """Resolve a captured definition through its owned Python family."""
+    return value.py if isinstance(value, _declare_define_module.Defined) else None
+
+
 def _publish_define(space: Any, fn: types.FunctionType, name: str, compiled: Any) -> Any:
     """Publish a compiled clause together with any class declarations it uses."""
     from metta._declare.classes import (  # noqa: PLC0415 -- class declarations share this installer
@@ -934,19 +939,12 @@ def _publish_define(space: Any, fn: types.FunctionType, name: str, compiled: Any
     bodies = compiled.equation_bodies
     head = Expression([Symbol(name), *(patterns.get(p, Variable(p)) for p in params)])
     equations = tuple(Expression([Symbol("="), head, body]) for body in bodies)
-    dispatcher = twin_dispatcher(fn)
+    namespace = _DEFINE_TWINS.setdefault(space.name, TwinNamespace(_defined_twin))
+    dispatcher = namespace.dispatcher(fn, name)
     # Idempotence compares the main equation and all helper equations with
     # auxiliary names canonicalized. A loop-body-only or lifted-body-only
     # change must replace the old clause and its old helpers.
     canonical = _declare_define_module.canonical_aux_set((*equations, *compiled.aux), name)
-    clause_twin = select_clause_twin(
-        name,
-        compiled.twin,
-        compiled.hazards,
-        patterns,
-        params,
-    )
-    clause_twin.__doc__ = compiled.facts.doc
     duplicate, replaced = _locate_clause(
         earlier, patterns, len(params), canonical, name
     )
@@ -962,6 +960,13 @@ def _publish_define(space: Any, fn: types.FunctionType, name: str, compiled: Any
             msg,
             construct="name collision",
         )
+    twin, bindings = namespace.prepare(fn, dispatcher, patterns)
+    clause_twin = select_clause_twin(name, twin, compiled.hazards, patterns, params)
+    clause_twin.__doc__ = compiled.facts.doc
+    publish_twin = partial(
+        namespace.publish, fn, name, dispatcher, clause_twin,
+        bindings=bindings, replaced=replaced,
+    )
     if duplicate:
         # A re-run cell or module reload must not duplicate answers.
         if replaced is None:
@@ -973,7 +978,7 @@ def _publish_define(space: Any, fn: types.FunctionType, name: str, compiled: Any
         }
         _sync_definition_facts(space, name, prospective)
         earlier[replaced]["facts"] = compiled.facts
-        replace_twin_clause(dispatcher, replaced, clause_twin)
+        publish_twin()
         _document_definition(space, name, dispatcher)
         _remember_defined_callable(space, fn, name)
         _importlib.import_module('metta._spaces.intents').register_definition_crossings(
@@ -997,8 +1002,7 @@ def _publish_define(space: Any, fn: types.FunctionType, name: str, compiled: Any
             patterns=patterns,
             equations=equations,
             compiled=compiled,
-            dispatcher=dispatcher,
-            clause_twin=clause_twin,
+            publish_twin=publish_twin,
             replaced=replaced,
         )
     except BaseException:
