@@ -81,8 +81,8 @@ def test_a_library_reloads_after_its_first_scope_closes(tmp_path, metta):
         assert origins != reloaded
 
 
-def test_a_grounded_default_map_keeps_the_symbol_result_boundary(metta):
-    """A callable is accepted; its non-symbol answer names the refused head."""
+def test_a_grounded_default_map_refuses_an_invalid_target(metta):
+    """A callable is accepted; its numeric answer names the refused head."""
     with metta._new_space() as home, metta._new_space() as target:
         home.run("(= (reference-value) mapped)\n")
         mapper = Grounded(lambda _head: 42)

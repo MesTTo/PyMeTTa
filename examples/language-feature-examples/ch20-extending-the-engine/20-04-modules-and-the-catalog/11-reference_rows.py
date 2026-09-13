@@ -69,4 +69,11 @@ def twin(m):
 #: one rollback collection; ordinary call and row slopes stay unchanged
 #: [measured 2026-09-10: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=90ba93eb8f6e98ebfefc55416859bf13de6a8427].
-BUDGET = 66933
+#: RE-PINNED 2026-09-13, 66933 to 95712 (+28779). Reference publication
+#: retains its imported definitions and now canonicalizes argument patterns.
+#: The prior pin also fails at c75181adc, which measures 65601. Current source
+#: and twin still prove 13 claims and store the same atoms.
+#: [measured: 95712 inferences, min-of-3 fresh processes;
+#: command=python extensions/python/tools/twin_coverage.py --measure --rounds 3 examples/ch20-extending-the-engine/20-04-modules-and-the-catalog/11-reference_rows.metta;
+#: fixture=built native engine; commit=WORKTREE]
+BUDGET = 95712

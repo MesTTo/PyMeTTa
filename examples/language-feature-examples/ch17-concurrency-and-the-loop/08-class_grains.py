@@ -115,10 +115,17 @@ def twin(m):
 #: witnesses and scalar validation are unchanged [measured 2026-09-13: min-of-3
 #: serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=6c70946993db4811ebc46c618e8c68a18474694c].
-BUDGET = 14248453
-#: The verified lane reports a declaration and crossing gap of 11717661
-#: [measured: 14248453 twin and 2530792 native inferences;
-#: command=python extensions/python/tools/twin_coverage.py
+#: RE-PINNED 2026-09-13, 14248453 to 14263254 (+14801). Reference maps
+#: canonicalize argument constraints during class-space publication. The
+#: constructors, field operations and stored content remain the same.
+#: [measured: 14263254 twin inferences; command=python
+#: extensions/python/tools/twin_coverage.py --measure --rounds 3
 #: examples/ch17-concurrency-and-the-loop/08-class_grains.metta;
-#: fixture=serial fresh processes after deleting engine/lib QLF; commit=6c70946993db4811ebc46c618e8c68a18474694c].
-OVERRUN = 11717661
+#: fixture=serial fresh processes after deleting engine/lib QLF; commit=WORKTREE].
+BUDGET = 14263254
+#: The minimum measurements give a declaration and crossing gap of 11730385.
+#: [measured: 14263254 twin and 2532869 native inferences;
+#: command=python extensions/python/tools/twin_coverage.py --measure --rounds 3
+#: examples/ch17-concurrency-and-the-loop/08-class_grains.metta;
+#: fixture=serial fresh processes after deleting engine/lib QLF; commit=WORKTREE].
+OVERRUN = 11730385

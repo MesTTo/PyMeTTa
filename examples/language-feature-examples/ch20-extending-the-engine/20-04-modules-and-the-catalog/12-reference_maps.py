@@ -1,7 +1,7 @@
-"""Purpose: reference_maps.metta in Python using head maps as ordinary atoms.
+"""Purpose: reference_maps.metta in Python using name and call-pattern maps.
 
 from_ writes the row; the engine evaluates its map once per source head.
-[tested: examples/ch20-extending-the-engine/20-04-modules-and-the-catalog/12-reference_maps.metta; commit=90ba93eb8f6e98ebfefc55416859bf13de6a8427].
+[tested: examples/ch20-extending-the-engine/20-04-modules-and-the-catalog/12-reference_maps.metta; commit=WORKTREE].
 """
 
 from metta import S, V
@@ -23,6 +23,9 @@ def twin(m):
     assert m.fn.renamed(2) == [3]
     assert m.fn["module.map-value"](2) == [3]
     assert m.fn.map_label() == [S.label]
+
+    m.from_(PAYLOAD, S.rename(((S.map_value, S.only_two(2)),)))
+    assert m.fn.only_two(2) == [3]
 
     m.from_(PAYLOAD, S["|->"]((V.h,), S.if_(
         S["=="](V.h, S.map_value),
@@ -50,4 +53,11 @@ def twin(m):
 #: one rollback collection; ordinary call and row slopes stay unchanged
 #: [measured 2026-09-10: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=90ba93eb8f6e98ebfefc55416859bf13de6a8427].
-BUDGET = 227143
+#: RE-PINNED 2026-09-13, 227143 to 270967 (+43824). The call-pattern row
+#: installs another native alias and its declarations; later references
+#: include that binding in their published faces. Mapper results now carry
+#: canonical argument constraints. Native 260533; both spellings prove 12 claims.
+#: [measured: 270967 inferences, min-of-3 fresh processes;
+#: command=python extensions/python/tools/twin_coverage.py --measure --rounds 3 examples/ch20-extending-the-engine/20-04-modules-and-the-catalog/12-reference_maps.metta;
+#: fixture=built native engine; commit=WORKTREE]
+BUDGET = 270967
