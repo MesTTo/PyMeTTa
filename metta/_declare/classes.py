@@ -11,6 +11,10 @@ Guarded by:
     [tested: test_concurrent_reconstruction_publishes_one_python_proxy,
     test_overlapping_transactions_cannot_publish_distinct_proxies; commit=9b0a084e534ddf7dd67980ad84c27c8279b877f1]
 Guarantees:
+  - generated field and class-variable queries return the stored syntax
+    rather than their lookup expression [tested:
+    test_generated_syntax_field_queries_return_the_stored_value,
+    test_generated_class_variable_queries_return_the_stored_atom; commit=WORKTREE]
   - imports follow the declared package foundations [tested:
     tests/checks/check_layering.py; commit=ab9d3489f87e0d7b7be4b3cd2025494cd62699fe]
   - mutable Python instances find their engine receiver through ordinary private
@@ -565,7 +569,7 @@ class ClassDeclaration:
                 _expr(head, value),
                 _expr(S["="], _expr(self.accessor(name)), _expr(S.match, home, _expr(head, Variable("value")), Variable("value"))),
             ])
-            equations.extend(_expr(S[":"], self.accessor(name), _expr(S["->"], result_type))
+            equations.extend(_expr(S[":"], self.accessor(name), _expr(S["->"], field_values.query_result_type(result_type)))
                              for result_type in type_atoms_for(annotation))
         for head in dict.fromkeys(internal):
             self.space.add(_expr(S.internal, head))
@@ -587,8 +591,11 @@ class ClassDeclaration:
             row = _expr(*prefix, value)
             body = values[field.name] if self.grain == "value" else _expr(S.match, home, row, value)
             rows = [_expr(S["="], _expr(getter, pattern), body)]
+            result_types = self.field_types(field.annotation)
+            if self.grain != "value":
+                result_types = [field_values.query_result_type(type_) for type_ in result_types]
             rows.extend(_expr(S[":"], getter, _expr(S["->"], Symbol(self.name), type_))
-                        for type_ in self.field_types(field.annotation))
+                        for type_ in result_types)
             if self.grain != "value":
                 adopted = field_values.adopted(self, field, new)
                 stored = Variable("stored-value") if adopted is not new else new

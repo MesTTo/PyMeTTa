@@ -1,6 +1,9 @@
-"""Purpose: retain container identity at an entity or prototype field boundary.
+"""Purpose: project field values and their native read and write contracts.
 
 Guarantees:
+  - generated query outputs evaluate the lookup before returning stored atom
+    data [tested: test_generated_syntax_field_queries_return_the_stored_value,
+    test_generated_class_variable_queries_return_the_stored_atom; commit=WORKTREE]
   - container aliases survive reads and replacement; native expressions are
     adopted once on writing [tested: test_container_fields_keep_python_aliases,
     test_native_container_fields_are_adopted_once; commit=9b0a084e534ddf7dd67980ad84c27c8279b877f1]
@@ -65,6 +68,13 @@ def type_atoms(plan: Any, annotation: Any) -> list[Atom]:
                 alternatives.extend((hook.type_atom(candidate, type_atoms_for), S[kind.__name__]))
     unique = list(dict.fromkeys(alternatives))
     return [_expr(S["|"], *unique)] if len(unique) > 1 else unique
+
+
+def query_result_type(type_: Atom) -> Atom:
+    """Allow a generated query to run before returning an unconstrained atom."""
+    # Atom quotes an equation's body; Undefined admits the same values after
+    # evaluating that body. Field storage and writer input types stay intact.
+    return S["%Undefined%"] if type_ == S.Atom else type_
 
 
 def encode(plan: Any, value: Any) -> Atom:
