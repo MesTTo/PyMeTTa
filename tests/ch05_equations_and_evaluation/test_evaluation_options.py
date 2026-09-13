@@ -7,6 +7,10 @@ Guarantees: selecting a consumption shape preserves the engine's ordered bag,
   test_evaluation_options_preserve_undefined_truth; commit=b615b5a33b43252ef9826e5387da7c9bd7f6b543].
 Owns resources: fixtures close spaces; lazy results are consumed or closed;
   failure and abandonment tests check the source's release explicitly.
+  A conversion failure retains its simultaneous cleanup failure and permits
+  a cleanup retry [tested:
+  test_cursor_conversion_preserves_its_failure_and_cleanup_failure;
+  commit=WORKTREE].
 """
 
 from __future__ import annotations
@@ -379,6 +383,37 @@ def test_evaluation_selections_preserve_original_and_cleanup_failures(space, mon
     source.cleanup = None
     selected.close()
     assert source.closed
+
+
+def test_cursor_conversion_preserves_its_failure_and_cleanup_failure(space, monkeypatch):
+    """A rejected native value closes the cursor and retains both failures."""
+    @dataclass
+    class ProjectionRecord:
+        value: int
+
+        def __post_init__(self):
+            if self.value < 0:
+                msg = "projection rejected"
+                raise ValueError(msg)
+
+    source = TrackedSource([S.ProjectionRecord(-1)], cleanup=OSError("projection cleanup"))
+    _supply(monkeypatch, source)
+    selected = space.eval(S.x, answer="stream").into(ProjectionRecord, space=space)
+    with pytest.raises(BaseExceptionGroup) as failure:
+        next(selected)
+    assert [str(error) for error in failure.value.exceptions] == ["projection rejected", "projection cleanup"]
+    source.cleanup = None
+    selected.close()
+    assert source.closed
+
+
+def test_a_stream_selection_closes_with_its_scope(space):
+    """The scope retires the Python cursor alongside its native enumerator."""
+    space.run("(= (scoped-selection-values) (superpose (3 5 7)))")
+    with space.scope():
+        stream = space.eval(S["scoped-selection-values"](), answer="stream")
+        assert next(stream) == 3
+    assert list(stream) == []
 
 
 def test_a_zero_selection_never_pulls_its_source(space, monkeypatch):

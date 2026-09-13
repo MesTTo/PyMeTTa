@@ -1,5 +1,8 @@
 """Purpose: rebuild Python values from atoms using registrations and annotations.
 Guarantees:
+  - recursive annotation conversion carries a native callable's lexical
+    context through containers and record fields [tested:
+    test_callable_conversion_keeps_nested_lexical_context; commit=WORKTREE]
   - a concrete requested class remains build's static return type [tested
     test_target_type_overloads_preserve_the_requested_class]
   - registered projections round-trip without dropping fields [tested
@@ -31,9 +34,10 @@ import types
 import typing
 from collections import abc
 from enum import Enum
+from functools import partial
 from typing import Any, overload
 
-from metta._atoms.factories import Atom, Expression, Grounded, Symbol, _decode
+from metta._atoms.factories import Atom, Expression, Grounded, S, Symbol, _decode
 from metta._atoms.registry import (
     _class_label,
     _default_registration,
@@ -44,24 +48,25 @@ from metta._atoms.registry import (
     constructor_for,
     explicitly_registered,
 )
+from metta._catalog.call_values import rebuild as _callable_value
 from metta._catalog.containers import hook_for as _parameterized_hook
 
 _UNHANDLED = object()
 
 
 @overload
-def build[BuildT](atom: Atom, cls: type[BuildT]) -> BuildT: ...
+def build[BuildT](atom: Atom, cls: type[BuildT], *, space: Any = None) -> BuildT: ...
 
 
 @overload
-def build(atom: Atom, cls: None = None) -> Any: ...
+def build(atom: Atom, cls: None = None, *, space: Any = None) -> Any: ...
 
 
 @overload
-def build(atom: Atom, cls: Any) -> Any: ...
+def build(atom: Atom, cls: Any, *, space: Any = None) -> Any: ...
 
 
-def build(atom: Atom, cls: Any = None) -> Any:
+def build(atom: Atom, cls: Any = None, *, space: Any = None) -> Any:
     """Rebuild the Python value an atom describes, optionally by annotation.
 
     An atom this cannot rebuild comes back unchanged, which is how every
@@ -69,25 +74,40 @@ def build(atom: Atom, cls: Any = None) -> Any:
     The sentinel is module-private and must never reach a caller, so it is
     translated here rather than at each of the branches that produce it.
     """
+    callable_value = _build_callable(atom, cls, space)
+    if callable_value is not None:
+        return callable_value
     rebuilt = (
-        _build_annotated(atom, cls)
+        _build_annotated(atom, cls, space)
         if cls is not None
         and (_parameterized_hook(cls) is not None or not _is_plain_class(cls))
-        else _build_plain(atom, cls)
+        else _build_plain(atom, cls, space)
     )
     return atom if rebuilt is _UNHANDLED else rebuilt
 
 
-def _build_plain(atom: Atom, cls: type | None) -> Any:
+def _build_callable(atom: Atom, annotation: Any, space: Any) -> Any:
+    if typing.get_origin(annotation) is typing.Annotated:
+        return _build_callable(atom, typing.get_args(annotation)[0], space)
+    if typing.get_origin(annotation) is abc.Callable or annotation is abc.Callable or (
+        annotation in (None, Any, object) and isinstance(atom, Expression) and (
+            atom.head == S["|->"] or (atom.head == S.noeval and len(atom.args) == 1 and isinstance(atom.args[0], Expression) and atom.args[0].head == S["|->"])
+        )
+    ):
+        return _callable_value(atom, annotation, space)
+    return None
+
+
+def _build_plain(atom: Atom, cls: type | None, space: Any = None) -> Any:
     if isinstance(atom, Grounded):
         return _decode(atom)
     if isinstance(atom, Symbol):
         return _build_symbol(atom, cls) if cls is not None else atom
     if isinstance(atom, Expression):
-        rebuilt = _build_expression(atom, cls)
+        rebuilt = _build_expression(atom, cls, space)
         if rebuilt is not _UNHANDLED:
             return rebuilt
-        return _build_hook(atom, cls)
+        return _build_hook(atom, cls, space)
     return atom
 
 
@@ -104,7 +124,7 @@ def _build_symbol(atom: Symbol, cls: type) -> Any:
     return _UNHANDLED
 
 
-def _build_expression(atom: Expression, cls: type | None) -> Any:
+def _build_expression(atom: Expression, cls: type | None, space: Any) -> Any:
     if not atom.children or not isinstance(atom.head, Symbol):
         return _UNHANDLED
     if atom.head == Symbol("Buffer"):
@@ -113,7 +133,7 @@ def _build_expression(atom: Expression, cls: type | None) -> Any:
     if resolved is None:
         return _UNHANDLED
     target_cls, registration = resolved
-    return _rebuild_registered(atom, target_cls, registration)
+    return _rebuild_registered(atom, target_cls, registration, space)
 
 
 def _build_buffer(atom: Expression, cls: type | None) -> Any:
@@ -127,13 +147,13 @@ def _build_buffer(atom: Expression, cls: type | None) -> Any:
     return value
 
 
-def _build_hook(atom: Expression, cls: type | None) -> Any:
+def _build_hook(atom: Expression, cls: type | None, space: Any) -> Any:
     if cls is None:
         return atom
     hook = getattr(cls, "__from_metta__", None)
     if hook is None:
         return atom
-    return hook(*(build(child) for child in atom.args))
+    return hook(*(build(child, space=space) for child in atom.args))
 
 
 def _resolve_constructor(atom: Expression, cls: type | None) -> tuple[type, _Registration] | None:
@@ -171,10 +191,10 @@ def _require_requested_owner(head: Symbol, requested: type | None, owner: type) 
     )
 
 
-def _rebuild_registered(atom: Expression, target_cls: type, registration: _Registration) -> Any:
+def _rebuild_registered(atom: Expression, target_cls: type, registration: _Registration, space: Any) -> Any:
     _require_complete_parts(atom, target_cls, registration)
     kinds = registration.field_types or tuple(None for _ in atom.args)
-    parts = [build(child, kind) for child, kind in zip(atom.args, kinds, strict=True)]
+    parts = [build(child, kind, space=space) for child, kind in zip(atom.args, kinds, strict=True)]
     return _call_reverse(target_cls, registration, parts)
 
 
@@ -205,27 +225,29 @@ def _call_reverse(target_cls: type, registration: _Registration, parts: list[Any
     return hook(*parts)
 
 
-def _build_annotated(atom: Atom, annotation: Any) -> Any:
+def _build_annotated(atom: Atom, annotation: Any, space: Any) -> Any:
     origin = typing.get_origin(annotation)
     if origin is typing.Annotated:
-        return _build_annotated(atom, typing.get_args(annotation)[0])
+        return build(atom, typing.get_args(annotation)[0], space=space)
     if origin in (typing.Union, types.UnionType):
-        return _build_union(atom, typing.get_args(annotation))
+        return _build_union(atom, typing.get_args(annotation), space)
     hook = _parameterized_hook(annotation)
     if isinstance(atom, Expression) and hook is not None:
-        return hook.build(atom, annotation, build)
+        return hook.build(atom, annotation, partial(build, space=space))
     if isinstance(annotation, type):
-        return _build_plain(atom, annotation)
-    return build(atom)
+        return _build_plain(atom, annotation, space)
+    return build(atom, space=space)
 
 
-def _build_union(atom: Atom, members: tuple[Any, ...]) -> Any:
-    candidates = [
-        member
-        for member in members
-        if member is not type(None) and _annotation_matches(atom, member)
-    ]
-    return build(atom, candidates[0]) if candidates else build(atom)
+def _build_union(atom: Atom, members: tuple[Any, ...], space: Any) -> Any:
+    for member in members:
+        if member is not type(None):
+            callable_value = _build_callable(atom, member, space)
+            if callable_value is not None:
+                return callable_value
+            if _annotation_matches(atom, member):
+                return build(atom, member, space=space)
+    return build(atom, space=space)
 
 
 def _annotation_matches(atom: Atom, annotation: Any) -> bool:

@@ -14,6 +14,13 @@ Owns resources: each lazy selection owns its underlying Answers. Exhaustion,
   an error, or explicit close releases it; abandonment releases references so
   Answers' existing finalizer defers engine cleanup [tested:
   test_evaluation_selections_close_on_every_exit; commit=b615b5a33b43252ef9826e5387da7c9bd7f6b543].
+  Cursor conversion uses the ordinary value converter and preserves both a
+  conversion failure and a simultaneous cleanup failure [tested:
+  test_cursor_conversion_preserves_its_failure_and_cleanup_failure;
+  commit=WORKTREE].
+  Stream selections enrol their cleanup with the active scope so its native
+  enumerator and Python cursor retire together [tested:
+  test_a_stream_selection_closes_with_its_scope; commit=WORKTREE].
 """
 
 from __future__ import annotations
@@ -28,6 +35,7 @@ import metta._spaces.cursor as _spaces_cursor_module
 import metta._spaces.execution as _spaces_execution_module
 import metta._spaces.handle as _spaces_handle_module
 import metta._spaces.intents as _spaces_intents_module
+import metta._spaces.lifetime as _spaces_lifetime_module
 import metta._spaces.results as _spaces_results_module
 import metta._spaces.scope as _spaces_scope_module
 import metta._spaces.source as _spaces_source_module
@@ -47,6 +55,7 @@ from metta._atoms.factories import (
     unify,
 )
 from metta._atoms.templates import read_targets as _read_targets
+from metta._catalog.build import build
 from metta._catalog.project import auto_image, project
 from metta._errors.errors import EngineError, refuse
 from metta._lazy import lazy
@@ -194,13 +203,28 @@ class _Selection:
 class _Stream(Iterator[Any]):
     """A closable single-pass projection of one selection."""
 
-    __slots__ = ("_source",)
+    __slots__ = ("_conversion", "_source")
 
     def __init__(self, source: _Selection) -> None:
         self._source = source
+        self._conversion: tuple[Any, Any] | None = None
+        _spaces_lifetime_module.own("cleanup", self.close)
 
     def __next__(self) -> Any:
-        return next(self._source).value
+        value = next(self._source).value
+        if self._conversion is None:
+            return value
+        annotation, space = self._conversion
+        try:
+            return build(value, annotation, space=space)
+        except BaseException as error:
+            self.__exit__(type(error), error, None)
+            raise
+
+    def into(self, annotation: Any, *, space: Any = None) -> Self:
+        """Rebuild subsequent answers through the ordinary value converter."""
+        self._conversion = annotation, space
+        return self
 
     def close(self) -> None:
         """Release the held answer cursor."""
