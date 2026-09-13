@@ -7,6 +7,9 @@ Guarantees:
   - segment applications execute the constructed call and preserve captured
     arguments [tested: test_evaluated_native_lambdas_apply_their_assembled_arguments;
     commit=8e2b7e3024713881f716e3d3a6a995bdf7231397]
+  - adding the current lexical home retains the source lambda's contract
+    [tested: test_native_callable_contracts_survive_lexical_wrapping;
+    commit=WORKTREE]
 Owns resources:
   - the callable image contains its lexical home and captured receiver, so
     scope retention follows the ordinary native value graph [tested:
@@ -84,10 +87,14 @@ class NativeCallable:
     def contract(self) -> tuple[inspect.Signature, bool]:
         # Read stored program data through the occurrence relation. A written
         # match pattern would interpret the lambda's :seg binder as a query
-        # gap, although this consumer is looking up a callable value.
+        # gap, although this consumer is looking up a callable value. A
+        # lambda carried with its current home has the same contract as its
+        # written body in that home; both keys remain native program data.
         rows = self.space._rt.must(
-            "metta_py_decode_shared(Wire,_Value,_),"
+            "metta_py_decode_shared(Wire,_Scoped,_),"
             "findall([_Wire,_Cardinality,_Captured],("
+            "(_Scoped=['|->',_Parameters,[evalc,_Body,_Home]],_Home==Space -> "
+            "member(_Value,[_Scoped,['|->',_Parameters,_Body]]) ; _Value=_Scoped),"
             "(spaces:metta_space_pair(Space,['@python-callable',_Value,_Signature,_Cardinality],_,_),_Captured=0;"
             "spaces:metta_space_pair(Space,['@python-binding',_Value,_Canonical,_Captured],_,_),"
             "spaces:metta_space_pair(Space,['@python-callable',_Canonical,_Signature,_Cardinality],_,_)),"

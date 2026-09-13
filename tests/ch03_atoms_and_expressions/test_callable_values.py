@@ -7,6 +7,9 @@ Guarantees:
   - an evaluated anonymous function's segment application executes the
     assembled call, including captured arguments [tested:
     test_evaluated_native_lambdas_apply_their_assembled_arguments; commit=8e2b7e3024713881f716e3d3a6a995bdf7231397]
+  - carrying an implicit lexical home preserves the original native signature
+    [tested: test_native_callable_contracts_survive_lexical_wrapping;
+    commit=WORKTREE]
 """
 
 import inspect
@@ -202,3 +205,33 @@ def test_evaluated_native_lambdas_apply_their_assembled_arguments(captured):
         home.remove(original)
         home.add(S["="](S["anonymous-add"](V.base, V.value), S["+"](S["+"](V.base, V.value), 100)))
         assert callback(3) == 113
+
+
+@pytest.mark.parametrize("evaluated", (False, True))
+def test_native_callable_contracts_survive_lexical_wrapping(evaluated):
+    """A carried home retains the source contract and its later graph edits."""
+    with MeTTa() as context:
+        home = context.self
+        equation = S["="](S["lexical-pair"](V.left, V.right), S["+"](S["*"](V.left, 10), V.right))
+        home.add(equation)
+        image = S["|->"](Expression([V.left, V.right]), S["lexical-pair"](V.left, V.right))
+        signature = inspect.Signature([
+            inspect.Parameter("left", inspect.Parameter.POSITIONAL_OR_KEYWORD),
+            inspect.Parameter("right", inspect.Parameter.POSITIONAL_OR_KEYWORD, default=2),
+        ], return_annotation=int)
+        contract = S["@python-callable"](image, call_signatures.project(signature, G), S.one)
+        home.add(contract)
+        callback = convert.build(home.eval(image)[0] if evaluated else image, Callable[..., int], space=home)
+        assert callback(left=3) == 32
+        with home._new_space() as other:
+            other.add(S.callback(convert.project(callback).atom))
+            recovered = convert.build(other.match(S.callback(V.value))[0].value, Callable[..., int])
+            assert recovered(right=4, left=3) == 34
+            parameters = tuple(signature.parameters.values())
+            changed = signature.replace(parameters=[parameters[0], parameters[1].replace(default=9)])
+            home.remove(contract)
+            home.add(S["@python-callable"](image, call_signatures.project(changed, G), S.one))
+            assert callback(left=3) == recovered(left=3) == 39
+            home.remove(equation)
+            home.add(S["="](equation.args[0], S["+"](equation.args[1], 100)))
+            assert callback(left=3) == recovered(left=3) == 139
