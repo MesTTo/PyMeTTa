@@ -9,15 +9,16 @@ the crossing the three-lane model prices per value. `rows` reads a graph or an
 edge relation as a list of tuples, which is how a (Vertex Neighbours) pair and a
 (From To) edge both read.
 
-Guarantees: the same claims as 25-graph_lib.metta
-[tested: python extensions/python/tools/twin_coverage.py examples/ch08-data/08-03-the-shipped-libraries/25-graph_lib.metta; commit=a5738e9390f2941d8f1c3207b5a28310a22e1f14].
+Guarantees: the same claims as 25-graph_lib.metta, including reconstructed and
+specialized graph recipes and variable-sharing graphs.
+[tested: python extensions/python/tools/twin_coverage.py examples/ch08-data/08-03-the-shipped-libraries/25-graph_lib.metta; commit=WORKTREE].
 Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
 """
 
-from metta import S, lib
+from metta import S, V, lib
 from metta._errors.errors import MettaError
 
 
@@ -146,8 +147,8 @@ def twin(m):
     assert acyclic(S.graph_of((), ((S.a, S.a),))) == [False]
     assert elements(reachable(loop, S.a)) == [S.a, S.b, S.c]
 
-    # A value that is not a graph is refused by every head, and the message says
-    # what the shape is and which head builds one.
+    # A value that is not a graph is refused by every head; core assertions
+    # preserve the invalid shape in their message.
     assert refused(S.graph_vertices(((S.a, (S.b,)),)))
     # A number is refused by the DECLARATION rather than by the head, so it
     # answers the engine's own BadArgType where the others raise; if-error reads
@@ -157,29 +158,64 @@ def twin(m):
     ]
     assert refused(S.graph_add_edges(tasks, ((S.a,),)))
 
+    assert graph_rows(m.fn.graph_union().one()) == []
+    assert graph_rows(m.fn.graph_union(tasks).one()) == graph_rows(tasks)
+    assert elements(vertices(S.graph_union(tasks, loop, S.graph_of((S.nap,), ())))) == [
+        S.a, S.b, S.c, S.coffee, S.dress, S.lunch, S.nap, S.shower, S.wake,
+    ]
+    graphs = (tasks, loop)
+    assert elements(vertices(S.graph_union(*graphs))) == [
+        S.a, S.b, S.c, S.coffee, S.dress, S.lunch, S.shower, S.wake,
+    ]
+    choices = S.superpose((((S.a, S.b),), ((S.a, S.c),)))
+    assert [tuple(row) for row in neighbours(S.graph_of((), choices), S.a)] == [
+        (S.b,), (S.c,),
+    ]
 
-#: MEASURED on this branch rather than inherited: this twin is new, so there is
-#: no earlier pin to move. The 34 claims cover the fifteen heads, the two
-#: orderings and the refusals; the example pays 81,614 inferences for the same
-#: work [measured 2026-09-12: 92465 inferences, minimum of three serial fresh
-#: processes; command=python extensions/python/tools/twin_coverage.py --measure
-#: --rounds 3 examples/ch08-data/08-03-the-shipped-libraries/25-graph_lib.metta;
-#: fixture=lib_graph at its functional commit, artifacts purged before the run;
-#: commit=a5738e9390f2941d8f1c3207b5a28310a22e1f14].
-#: RE-PINNED 2026-09-12, 92465 to 92402 (-63), the graph refusals now name the
-#: evaluation that reaches a vertex written as a function call, which is two
-#: fewer clauses reached on the refusal paths the example exercises [measured
-#: 2026-09-12: min-of-3 serial fresh processes; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=4c053e8618569a08aa6bd54b0b72f67a0b544742].
-BUDGET = 92402
+    assert is_graph(S.quote(((S.a, (V.x,)), (S.b, ())))) == [False]
+    shared = ((V.x, (V.y,)), (V.y, ()))
+    assert is_graph(S.quote(shared)) == [True]
+    assert refused(S.graph_neighbours(tasks, V.missing))
+    made = graph_of(S.quote((V.x, V.y)), S.quote(((V.x, V.y),))).one()
+    assert len(made.vars) == 2 and graph_rows(made) == [
+        (made[0][0], [made[1][0]]), (made[1][0], []),
+    ]
+    closed = m.fn.graph_closure(S.quote(shared)).one()
+    assert len(closed.vars) == 2 and graph_rows(closed) == [
+        (closed[0][0], [closed[1][0]]), (closed[1][0], []),
+    ]
+    literal = S.graph_of((), S.quote(((S["+"](1, 2), S.Error(S.data, S.code)),)))
+    assert elements(neighbours(literal, S.quote(S["+"](1, 2)))) == [S.Error(S.data, S.code)]
+    assert graph_rows(remove_vertices(literal, S.quote((S["+"](1, 2),))).one()) == [
+        (S.Error(S.data, S.code), []),
+    ]
+    error_loop = S.graph_of((), S.quote(((S.Error(S.data, S.code), S.Error(S.data, S.code)),)))
+    assert acyclic(error_loop) == [False]
+    assert reachable(S.graph_of((), S.quote(((S.Error, S.a), (S.a, S.b)))), S.Error) == [
+        (S.Error, S.a, S.b),
+    ]
 
-#: OVERRUN 2026-09-12, 2649: the example's `bind!` keeps its graph inside the
-#: engine, where a Python name holds the VALUE and hands it back across the
-#: boundary on each of the sixteen calls that take it; a five-row graph is a
-#: nested expression, so each crossing converts it whole. Writing the nested
-#: calls as built terms took the distance from 5,991 to this, which is what is
-#: left of the value crossings: measured 92402 against a ceiling of 89753.4
-#: [measured 2026-09-12: min-of-3 serial fresh processes, the same command as
-#: the budget above, once with `transpose(tasks).one()` and once with
-#: `S.graph_transpose(tasks)`; commit=4c053e8618569a08aa6bd54b0b72f67a0b544742].
-OVERRUN = 2649
+    row = m.match(S["="](S.graph_reachable(V.graph, V.vertex), V.body)).one()
+    recipe = S["|->"]((row.graph, row.vertex), row.body)
+    walk = m.eval(recipe)[0]
+    assert list(m.eval((walk, tasks, S.wake))) == [(S.coffee, S.dress, S.shower, S.wake)]
+    row = m.match(S["="](S.graph_reachable(tasks, V.vertex), V.body)).one()
+    recipe = S["|->"]((row.vertex,), row.body)
+    walk = m.eval(recipe)[0]
+    assert list(m.eval((walk, S.shower))) == [(S.dress, S.shower)]
+
+    assert elements(order(S.graph_of((S.alone,), ((S.a, S.z), (S.b, S.c))))) == [
+        S.a, S.alone, S.b, S.c, S.z,
+    ]
+    assert acyclic(S.graph_of((), ((S.a, S.b), (S.b, S.a), (S.b, S.tail)))) == [False]
+
+
+#: The preceding 34-claim native graph fixture was pinned at 92402 and needed
+#: an overrun of 2649 for value crossings. The derived 52-claim fixture runs
+#: inside the ordinary ten-percent band, so that overrun is retired.
+#: [measured: 8975689 inferences; command=python
+#: extensions/python/tools/twin_coverage.py --measure --rounds 3
+#: examples/ch08-data/08-03-the-shipped-libraries/25-graph_lib.metta;
+#: fixture=52 claims, fresh serial processes after engine/lib QLF purge,
+#: MeTTa 8991153, equal stored contents; commit=WORKTREE].
+BUDGET = 8975689
