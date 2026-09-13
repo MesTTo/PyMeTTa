@@ -132,4 +132,9 @@ def twin(m):
 #: and Combinatorics retires its native probability provider [measured
 #: 2026-09-14: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=e1be99ea1c08f70444c1c35cada441e089777906].
-BUDGET = 181677
+#: RE-PINNED 2026-09-14, 181677 to 262887 (+81210), Encoding hex and UUID
+#: byte/name formulas are MeTTa recipes over shared strict boundaries;
+#: malformed codec classification preserves all unrelated exceptions [measured
+#: 2026-09-14: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 262887

@@ -1,10 +1,10 @@
 """Purpose: UUID generations, namespaces, complete names and byte round trips.
 
-Guarantees: the same 45 claims as 33-uuid_lib.metta.
-[tested: python extensions/python/tools/twin_coverage.py examples/ch08-data/08-03-the-shipped-libraries/33-uuid_lib.metta; commit=d5de00cc183b4b395b552f3aae7fca87752ef38c].
+Guarantees: the same 49 claims as 33-uuid_lib.metta.
+[tested: python extensions/python/tools/twin_coverage.py examples/ch08-data/08-03-the-shipped-libraries/33-uuid_lib.metta; commit=WORKTREE].
 """
 
-from metta import G, S, lib
+from metta import G, S, V, lib
 from metta._errors.errors import MettaError
 
 
@@ -16,7 +16,7 @@ def twin(m):
     m += lib.string
 
     def refused(call):
-        """Read a native refusal through the evaluation boundary."""
+        """Read a native or assertion refusal through the evaluation boundary."""
         try:
             list(m.eval(call))
         except MettaError:
@@ -87,10 +87,23 @@ def twin(m):
     assert refused(S.uuid_name(5, S.missing, G("name")))
     assert refused(S.uuid_name(5, G("broken"), G("name")))
 
+    row = m.match(S["="](S.uuid_version(V.id), V.body)).one()
+    inspector = m.eval(S["|->"]((row.id,), row.body))[0]
+    assert m.eval((inspector, S.uuid_nil())) == [0]
+    row = m.match(S["="](S.uuid_name(V.version, V.namespace, V.name), V.body)).one()
+    derive = m.eval(S["|->"]((row.version, row.namespace, row.name), row.body))[0]
+    assert m.eval((derive, 5, S.dns, G("example.com"))) == [G("cfbff0d1-9375-5685-968c-48ce8b15ae17")]
+    assert list(version(S.superpose((
+        G("00000000-0000-0000-0000-000000000000"), G("ffffffff-ffff-ffff-ffff-ffffffffffff"),
+    )))) == [0, 15]
+    assert name(3, S.dns, S.string_from_codes((97, 0, 98))) == [
+        G("002a0ada-f547-375a-bab5-896a11d1927e"),
+    ]
+
 
 #: MEASURED: all 45 claims, including full names, literal UUID separators and
 #: the explicit crypto import that demonstrates secure bytes beside identifiers.
-#: Field inspection validates digits natively instead of decoding random bytes.
+#: At this original measurement, field inspection used native digit validation.
 #: [measured 2026-09-12: 188846 inferences against the example's 190880, minimum
 #: of three fresh serial processes; command=python
 #: extensions/python/tools/twin_coverage.py --measure --rounds 3
@@ -109,4 +122,9 @@ def twin(m):
 #: consumers are measured after the provider change [measured 2026-09-14: min-
 #: of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=118b805aedbee6de22be4f6131d97c3d6b9156de].
-BUDGET = 211352
+#: RE-PINNED 2026-09-14, 211352 to 1291086 (+1079734), Encoding hex and UUID
+#: byte/name formulas are MeTTa recipes over shared strict boundaries;
+#: malformed codec classification preserves all unrelated exceptions [measured
+#: 2026-09-14: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 1291086

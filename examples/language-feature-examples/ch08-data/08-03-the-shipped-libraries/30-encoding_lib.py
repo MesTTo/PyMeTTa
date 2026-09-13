@@ -4,14 +4,14 @@ Bytes are a tuple of numbers and text is `G("...")`; an alphabet is a symbol. Th
 two heads that answer bytes answer an expression, which `list()` reads.
 
 Guarantees: the same claims as 30-encoding_lib.metta
-[tested: python extensions/python/tools/twin_coverage.py examples/ch08-data/08-03-the-shipped-libraries/30-encoding_lib.metta; commit=2b8c0afd38dcfe3994d5047dba2d035970311d0e].
+[tested: python extensions/python/tools/twin_coverage.py examples/ch08-data/08-03-the-shipped-libraries/30-encoding_lib.metta; commit=WORKTREE].
 Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
 """
 
-from metta import G, S, lib
+from metta import G, S, V, lib
 from metta._errors.errors import MettaError
 
 
@@ -100,6 +100,13 @@ def twin(m):
         S.Error(S.hex_decode(7), S.BadArgType(1, S.String, S.Number)),
     ]
 
+    row = m.match(S["="](S.hex_encode(V.bytes), V.body)).one()
+    formatter = m.eval(S["|->"]((row.bytes,), row.body))[0]
+    assert m.eval((formatter, (0, 255))) == [G("00ff")]
+    assert list(hex_of(S.superpose(((), (0, 255))))) == [G(""), G("00ff")]
+    assert hex_of(S.utf8_encode(S.string_from_codes((97, 0, 98)))) == [G("610062")]
+    assert refused(S.hex_decode(G("\U0001d7e20")))
+
 
 #: MEASURED on this branch rather than inherited: this twin is new, so there is
 #: no earlier pin to move. The 39 claims cover the six heads, the two alphabets,
@@ -122,4 +129,9 @@ def twin(m):
 #: consumers are measured after the provider change [measured 2026-09-14: min-
 #: of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=118b805aedbee6de22be4f6131d97c3d6b9156de].
-BUDGET = 170173
+#: RE-PINNED 2026-09-14, 170173 to 243765 (+73592), Encoding hex and UUID
+#: byte/name formulas are MeTTa recipes over shared strict boundaries;
+#: malformed codec classification preserves all unrelated exceptions [measured
+#: 2026-09-14: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 243765

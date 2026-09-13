@@ -146,4 +146,9 @@ def twin(m):
 #: consumers are measured after the provider change [measured 2026-09-14: min-
 #: of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=118b805aedbee6de22be4f6131d97c3d6b9156de].
-BUDGET = 346140
+#: RE-PINNED 2026-09-14, 346140 to 369064 (+22924), Encoding hex and UUID
+#: byte/name formulas are MeTTa recipes over shared strict boundaries;
+#: malformed codec classification preserves all unrelated exceptions [measured
+#: 2026-09-14: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 369064
