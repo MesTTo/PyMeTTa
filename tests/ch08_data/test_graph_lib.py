@@ -2,7 +2,7 @@
 
 Guarantees: generated edge sets exercise construction, edits, paths and topology;
 literal vertices, shared variables and reflected equations cross the Python door.
-[tested: test_graph_lib.py; commit=WORKTREE].
+[tested: test_graph_lib.py; commit=2951a00d660131f008c2779be828c97f53aa1555].
 """
 
 import pytest

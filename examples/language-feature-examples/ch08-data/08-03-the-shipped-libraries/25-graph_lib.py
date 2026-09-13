@@ -11,7 +11,7 @@ edge relation as a list of tuples, which is how a (Vertex Neighbours) pair and a
 
 Guarantees: the same claims as 25-graph_lib.metta, including reconstructed and
 specialized graph recipes and variable-sharing graphs.
-[tested: python extensions/python/tools/twin_coverage.py examples/ch08-data/08-03-the-shipped-libraries/25-graph_lib.metta; commit=WORKTREE].
+[tested: python extensions/python/tools/twin_coverage.py examples/ch08-data/08-03-the-shipped-libraries/25-graph_lib.metta; commit=2951a00d660131f008c2779be828c97f53aa1555].
 Open Obligations:
   To Do: None
   Hacks: None
@@ -217,5 +217,5 @@ def twin(m):
 #: extensions/python/tools/twin_coverage.py --measure --rounds 3
 #: examples/ch08-data/08-03-the-shipped-libraries/25-graph_lib.metta;
 #: fixture=52 claims, fresh serial processes after engine/lib QLF purge,
-#: MeTTa 8991153, equal stored contents; commit=WORKTREE].
+#: MeTTa 8991153, equal stored contents; commit=2951a00d660131f008c2779be828c97f53aa1555].
 BUDGET = 8975689
