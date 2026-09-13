@@ -12,9 +12,16 @@ Guarantees:
     [tested: test_the_four_metatypes_stay_distinct_across_the_seam;
      commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - full container parameters survive as matchable annotation atoms while
-    the runtime type stays MeTTa's Expression
-    [tested: test_the_four_containers_share_one_parameterised_treatment;
-     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
+    one runtime alternative admits their structural and borrowed images
+    [tested: test_container_parameters_accept_both_representations;
+     commit=WORKTREE]
+  - abstract container membership and outer refinements use native Predicate
+    and Annotated types [tested:
+    test_abstract_container_parameters_use_python_membership,
+    test_container_refinements_guard_each_representation; commit=WORKTREE]
+  - callable parameters and results compose the same runtime representation
+    contract [tested: test_callable_parameters_admit_container_representations,
+    test_callable_results_admit_container_representations; commit=WORKTREE]
   - advanced typing constructs retain a target type and a full annotation
     claim rather than collapsing to an undefined type
     [tested: test_every_advanced_annotation_reaches_metta_as_a_target_symbol;
@@ -225,15 +232,15 @@ def _union_type_atoms(annotation: Any) -> list[Atom]:
     return alternatives
 
 
-def _callable_type_atoms(annotation: Any) -> list[Atom]:
+def _callable_type_atoms(annotation: Any, recurse: Callable[[Any], list[Atom]]) -> list[Atom]:
     args = typing.get_args(annotation)
     if not args or args[0] is Ellipsis:
         return [S["%Undefined%"]]
     argument_types, return_type = list(args[0]), args[1]
     arrows: list[Atom] = []
     seen: set[str] = set()
-    argument_alternatives = [type_atoms_for(item) for item in argument_types]
-    argument_alternatives.append(type_atoms_for(return_type))
+    argument_alternatives = [recurse(item) for item in argument_types]
+    argument_alternatives.append(recurse(return_type))
     for combination in _bounded_product(
         argument_alternatives,
         f"the Callable annotation {annotation!r}",
@@ -322,13 +329,51 @@ def type_atoms_for(annotation: Any) -> list[Atom]:
     if origin in (typing.Union, types.UnionType):
         return _union_type_atoms(annotation)
     if origin is abc.Callable:
-        return _callable_type_atoms(annotation)
+        return _callable_type_atoms(annotation, type_atoms_for)
     hook = _parameterized_hook(annotation)
     if hook is not None:
         return [hook.type_atom(annotation, type_atoms_for)]
     if origin is tuple:
         return _tuple_type_atoms(annotation)
     return _generic_type_atoms(origin)
+
+
+def runtime_type_atoms(annotation: Any) -> list[Atom]:
+    """Admit the structural image and borrowed container at a call boundary."""
+    origin = typing.get_origin(annotation)
+    if origin in (typing.Required, typing.NotRequired):
+        return runtime_type_atoms(typing.get_args(annotation)[0])
+    if isinstance(annotation, typing.TypeVar):
+        if annotation.__constraints__:
+            return list(dict.fromkeys(atom for member in annotation.__constraints__
+                                      for atom in runtime_type_atoms(member)))
+        if annotation.__bound__ is not None:
+            return runtime_type_atoms(annotation.__bound__)
+    if origin is typing.Annotated:
+        base, *metadata = typing.get_args(annotation)
+        alternatives = runtime_type_atoms(base)
+        if alternatives != type_atoms_for(base) and len(alternatives) > 1:
+            alternatives = [_expr(S["|"], *alternatives)]
+        refinements = [atom for item in metadata if (atom := refinement_atom(item)) is not None]
+        return [_expr(S.Annotated, atom, *refinements) for atom in alternatives] if refinements else alternatives
+    if origin in (typing.Union, types.UnionType):
+        return list(dict.fromkeys(atom for member in typing.get_args(annotation)
+                                  for atom in runtime_type_atoms(member)))
+    if origin is abc.Callable:
+        return _callable_type_atoms(annotation, runtime_type_atoms)
+    alternatives = type_atoms_for(annotation)
+    hook = _parameterized_hook(annotation)
+    if hook is None:
+        return alternatives
+    kind = dict if typing.is_typeddict(annotation) else origin or annotation
+    # An ABC's conversion hook chooses a structural image, not its host
+    # members. Its own instance test includes registered virtual subclasses;
+    # the existing Predicate refinement applies that test to the held value.
+    retained = (_expr(S.Annotated, S.Grounded, _expr(S.Predicate, Grounded(kind.__instancecheck__)))
+                if inspect.isabstract(kind) else S[kind.__name__])
+    alternatives.extend((hook.type_atom(annotation, type_atoms_for), retained))
+    unique = list(dict.fromkeys(alternatives))
+    return [_expr(S["|"], *unique)] if len(unique) > 1 else unique
 
 
 def _type_predicate_origins() -> tuple[Any, ...]:
@@ -398,8 +443,8 @@ def _bounded_product(alternative_lists: list[list[Atom]], described: str):
 
 def declaration_exprs(name: str, arg_annotations: list, ret_annotation: Any) -> list[Expression]:
     """Build every bounded declaration alternative for one signature."""
-    arg_lists = [type_atoms_for(annotation) for annotation in arg_annotations]
-    return_types = type_atoms_for(ret_annotation)
+    arg_lists = [runtime_type_atoms(annotation) for annotation in arg_annotations]
+    return_types = runtime_type_atoms(ret_annotation)
     declarations: list[Expression] = []
     seen: set[str] = set()
     for combination in _bounded_product(

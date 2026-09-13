@@ -14,6 +14,10 @@ Guarantees:
     test_grounded_atoms_keep_values_but_stage_operators; commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
   - Python classes declare through ``Space.define`` [tested:
     test_define_decorator_declares_field_types; commit=9b0a084e534ddf7dd67980ad84c27c8279b877f1]
+  - container arrows admit structural and borrowed values in one declaration
+    while preserving type variables and tuple shapes [tested:
+    test_typevar_annotations_declare_parametrically,
+    test_callable_and_tuple_annotations_declare_structurally; commit=WORKTREE]
   - an unannotated weighted operation stays untyped without a typed flag
     [tested: test_a_weighted_relation_is_an_annotated_op; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - root ``metta.catalog`` is the ordinary queryable ``&metta`` reflection
@@ -206,9 +210,13 @@ def test_typevar_annotations_declare_parametrically(m):  # noqa: D103  -- pytest
     def first_of(items: Sequence[A]) -> A:
         return items[0]
 
-    declaration = Expression(S[":"], S["first-of"], Expression(S["->"], S.Expression, Variable("a")))
-    assert any(a.alpha_eq(declaration) for a in m.atoms())
+    declarations = [atom.args[1] for atom in m.atoms()
+                    if isinstance(atom, Expression) and atom.head == S[":"] and atom.args[0] == S["first-of"]]
+    assert len(declarations) == 1
+    assert declarations[0].args[-1].alpha_eq(Variable("a"))
     assert m.run("!(first-of (7 8 9))") == [[7]]
+    assert m.eval(S["first-of"](Grounded([7, 8, 9]))) == [7]
+    assert m.eval(S["first-of"](Grounded((7, 8, 9)))) == [7]
 
 
 def test_union_annotations_superpose_declarations(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -256,8 +264,9 @@ def test_callable_and_tuple_annotations_declare_structurally(m):  # noqa: D103  
         a, b = pair
         return (b, a)
 
-    assert _arrows_of(m, "swap") == {"(-> (Number String) (String Number))"}
+    assert _arrows_of(m, "swap") == {"(-> (| (Number String) tuple) (| (String Number) tuple))"}
     assert m.run('!(swap (7 "x"))') == [[Expression("x", 7)]]
+    assert m.eval(S.swap(Grounded((7, "x")))) == [Expression("x", 7)]
 
 
 def test_class_annotations_declare_the_class(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
