@@ -17,10 +17,10 @@ Owns resources: each lazy selection owns its underlying Answers. Exhaustion,
   Cursor conversion uses the ordinary value converter and preserves both a
   conversion failure and a simultaneous cleanup failure [tested:
   test_cursor_conversion_preserves_its_failure_and_cleanup_failure;
-  commit=WORKTREE].
+  commit=ec999c898a35a79e88d4d9d3e7192abfe043f928].
   Stream selections enrol their cleanup with the active scope so its native
   enumerator and Python cursor retire together [tested:
-  test_a_stream_selection_closes_with_its_scope; commit=WORKTREE].
+  test_a_stream_selection_closes_with_its_scope; commit=ec999c898a35a79e88d4d9d3e7192abfe043f928].
 """
 
 from __future__ import annotations

@@ -3,7 +3,7 @@
 Guarantees:
   - storage and reconstruction retain named or parametric lexical homes,
     and calls read subsequent native body edits [tested:
-    test_native_callable_values_keep_their_lexical_program; commit=WORKTREE]
+    test_native_callable_values_keep_their_lexical_program; commit=ec999c898a35a79e88d4d9d3e7192abfe043f928]
 """
 
 import inspect

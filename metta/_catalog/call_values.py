@@ -3,11 +3,11 @@
 Guarantees:
   - application evaluates the carried native value, including subsequent source
     rewrites [tested: test_native_callable_values_keep_their_lexical_program;
-    commit=WORKTREE]
+    commit=ec999c898a35a79e88d4d9d3e7192abfe043f928]
 Owns resources:
   - the callable image contains its lexical home and captured receiver, so
     scope retention follows the ordinary native value graph [tested:
-    test_a_kept_native_callable_retains_its_scoped_program; commit=WORKTREE]
+    test_a_kept_native_callable_retains_its_scoped_program; commit=ec999c898a35a79e88d4d9d3e7192abfe043f928]
 """
 
 from __future__ import annotations

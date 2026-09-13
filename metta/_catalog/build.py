@@ -2,7 +2,7 @@
 Guarantees:
   - recursive annotation conversion carries a native callable's lexical
     context through containers and record fields [tested:
-    test_callable_conversion_keeps_nested_lexical_context; commit=WORKTREE]
+    test_callable_conversion_keeps_nested_lexical_context; commit=ec999c898a35a79e88d4d9d3e7192abfe043f928]
   - a concrete requested class remains build's static return type [tested
     test_target_type_overloads_preserve_the_requested_class]
   - registered projections round-trip without dropping fields [tested

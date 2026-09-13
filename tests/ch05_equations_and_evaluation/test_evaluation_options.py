@@ -10,7 +10,7 @@ Owns resources: fixtures close spaces; lazy results are consumed or closed;
   A conversion failure retains its simultaneous cleanup failure and permits
   a cleanup retry [tested:
   test_cursor_conversion_preserves_its_failure_and_cleanup_failure;
-  commit=WORKTREE].
+  commit=ec999c898a35a79e88d4d9d3e7192abfe043f928].
 """
 
 from __future__ import annotations
