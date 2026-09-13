@@ -3,7 +3,7 @@
 Guarantees: generated scalar strings include NUL and supplementary characters;
 all native header dependencies and distributed checksums are verified
 [tested: test_string_unicode_oracles, test_string_exact_distance_oracle,
-test_string_native_manifest_covers_the_include_closure; commit=WORKTREE].
+test_string_native_manifest_covers_the_include_closure; commit=118b805aedbee6de22be4f6131d97c3d6b9156de].
 """
 
 from __future__ import annotations
