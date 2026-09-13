@@ -1,7 +1,7 @@
 """Purpose: inspect, rewrite and run sample programs through ordinary MeTTa control.
 
 Guarantees: the same 68 claims as 36-random_lib.metta.
-[tested: python extensions/python/tools/twin_coverage.py examples/ch08-data/08-03-the-shipped-libraries/36-random_lib.metta; commit=WORKTREE].
+[tested: python extensions/python/tools/twin_coverage.py examples/ch08-data/08-03-the-shipped-libraries/36-random_lib.metta; commit=1d0b78a359f58de49f2f98bed50a6480d56cd5f6].
 """
 
 from metta import G, S, V, lib
@@ -132,5 +132,5 @@ def twin(m):
 #: validation before drawing. min-of-3 serial fresh processes reads
 #: metta=1075529 and twin=1134846 [measured: 1134846;
 #: command=python extensions/python/tools/twin_coverage.py --measure --rounds 3 examples/ch08-data/08-03-the-shipped-libraries/36-random_lib.metta;
-#: fixture=68 Random example claims with core seeded entropy; commit=WORKTREE].
+#: fixture=68 Random example claims with core seeded entropy; commit=1d0b78a359f58de49f2f98bed50a6480d56cd5f6].
 BUDGET = 1134846

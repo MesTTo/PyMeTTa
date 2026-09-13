@@ -127,5 +127,5 @@ def twin(m):
 #: collection boundary declare their native effects. The engine reads late
 #: provider declarations and retains definition analysis for computed function
 #: heads [measured 2026-09-13: min-of-3 serial fresh processes; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+#: extensions/python/tools/twin_coverage.py --repin; commit=1d0b78a359f58de49f2f98bed50a6480d56cd5f6].
 BUDGET = 368014

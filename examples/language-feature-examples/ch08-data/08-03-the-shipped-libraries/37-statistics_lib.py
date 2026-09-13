@@ -144,7 +144,7 @@ def twin(m):
 #: late provider declarations and retains definition analysis for computed
 #: function heads [measured 2026-09-13: min-of-3 serial fresh processes;
 #: command=python extensions/python/tools/twin_coverage.py --repin;
-#: commit=WORKTREE].
+#: commit=1d0b78a359f58de49f2f98bed50a6480d56cd5f6].
 BUDGET = 40108091
 
 #: RETIRED: the former 1826-inference overrun. The 78-claim MeTTa recipe now

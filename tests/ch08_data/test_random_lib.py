@@ -2,7 +2,7 @@
 
 Guarantees: generated populations preserve multiplicities; exact affine models
 check rounding; program rewriting and recording use the ordinary Python doors.
-[tested: test_random_lib.py; commit=WORKTREE].
+[tested: test_random_lib.py; commit=1d0b78a359f58de49f2f98bed50a6480d56cd5f6].
 """
 
 import math
