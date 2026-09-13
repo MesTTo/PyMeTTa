@@ -1,5 +1,8 @@
 """Purpose: translate Python annotations into MeTTa type atoms and declarations.
 Guarantees:
+  - NoneType remains an explicit return alternative, including nullable
+    unions [tested: test_nullable_annotations_keep_both_result_alternatives;
+    commit=WORKTREE]
   - postponed annotations resolve before declaration generation [tested
     test_postponed_annotations_generate_declarations]
   - union expansion is bounded by the configured declaration limit and its
@@ -396,9 +399,7 @@ def _bounded_product(alternative_lists: list[list[Atom]], described: str):
 def declaration_exprs(name: str, arg_annotations: list, ret_annotation: Any) -> list[Expression]:
     """Build every bounded declaration alternative for one signature."""
     arg_lists = [type_atoms_for(annotation) for annotation in arg_annotations]
-    return_types = [atom for atom in type_atoms_for(ret_annotation) if atom != S.NoneType] or [
-        S["%Undefined%"]
-    ]
+    return_types = type_atoms_for(ret_annotation)
     declarations: list[Expression] = []
     seen: set[str] = set()
     for combination in _bounded_product(

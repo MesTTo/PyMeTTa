@@ -1,5 +1,12 @@
 """Purpose: lower Python statement blocks, lifted definitions, and yield blocks.
 Guarantees:
+  - ordinary fallthrough and bare return produce None while loop and branch
+    continuations retain their control scope [tested:
+    test_none_returns_preserve_conditional_and_loop_exits,
+    test_a_void_call_does_not_end_its_callers_bindings; commit=WORKTREE]
+  - an omitted yield value produces one None answer, independently of
+    generator exhaustion [tested:
+    test_yielded_none_is_an_answer_and_exhaustion_is_not; commit=WORKTREE]
   - compiled exception tests use the Python runtime's `py-except` name [tested:
     test_reference_except_and_compiled_exception_dispatch_coexist; commit=90ba93eb8f6e98ebfefc55416859bf13de6a8427]
   - assignments lower to ordered let* bindings [tested
@@ -248,8 +255,7 @@ class StatementCompilerMixin(CompilerContext):
         if not statements:
             if self.closer is not None:
                 return self.closer(self)
-            msg = f"{self.name} has no body to compile"
-            raise CompileError(msg, construct="body")
+            return Grounded(None)
         head, rest = statements[0], statements[1:]
 
         if isinstance(head, ast.Pass):
@@ -346,12 +352,7 @@ class StatementCompilerMixin(CompilerContext):
                 raise CompileError(msg_0, construct="constructor return", line=head.lineno)
             return self.constructor_return(self)
         if head.value is None:
-            msg = "a compiled function returns a value; a bare `return` has nothing to rewrite to"
-            raise CompileError(
-                msg,
-                construct="return",
-                line=head.lineno,
-            )
+            return Grounded(None)
         return self.expression(head.value)
 
     def _assert_statement(self, node: ast.Assert, rest: list[ast.stmt]) -> Atom:
@@ -1737,19 +1738,10 @@ class StatementCompilerMixin(CompilerContext):
             # `if c: return a` followed by more statements: the rest is the
             # else branch, Python's own early-return shape.
             otherwise = continue_with(self._fork(), rest)
-        elif self.closer is not None:
-            # Inside a loop body, falling past the `if` continues the loop.
-            otherwise = self.closer(self._fork())
         else:
-            msg = (
-                "an `if` with no `else` and nothing after it leaves one branch "
-                "without a value; MeTTa's two-armed `if` needs both"
-            )
-            raise CompileError(
-                msg,
-                construct="if",
-                line=node.lineno,
-            )
+            # The enclosing block decides whether fallthrough continues a
+            # loop or finishes the function with None.
+            otherwise = continue_with(self._fork(), [])
         return Expression([Symbol("if"), test, then, otherwise])
 
     def _lift_definition(self, node: ast.FunctionDef) -> None:
@@ -1842,14 +1834,8 @@ class StatementCompilerMixin(CompilerContext):
 
     def _yield_expression(self, head: ast.Expr, rest: list[ast.stmt]) -> list[Atom]:
         if isinstance(head.value, ast.Yield):
-            if head.value.value is None:
-                msg = "a bare `yield` has no value to answer"
-                raise CompileError(
-                    msg,
-                    construct="yield",
-                    line=head.lineno,
-                )
-            return [self.expression(head.value.value), *self._yield_tail(rest)]
+            answer = Grounded(None) if head.value.value is None else self.expression(head.value.value)
+            return [answer, *self._yield_tail(rest)]
         if isinstance(head.value, ast.YieldFrom):
             return [self._yield_from(head.value), *self._yield_tail(rest)]
         msg = (

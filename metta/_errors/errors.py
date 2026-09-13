@@ -586,8 +586,6 @@ _COMPILE_REFERENCE_BY_CONSTRUCT = (
 # closed-set: decides; policy=which constructs the expressions section governs, named rather than left to fall through to it; reads=none, it is the source the same drift test reads
 _EXPRESSION_CONSTRUCTS = frozenset(
     {
-        "None",
-        "body",
         "clause order",
         "host binding",
         "py host island",

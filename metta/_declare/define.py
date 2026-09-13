@@ -8,6 +8,8 @@ spelling; and a free identifier must be a parameter, a known function, or
 read as a data constructor. A compiled body is a complete atom tree, and any
 runtime-backed Python semantics it needs are declared as visible operations.
 Guarantees:
+  - None has the same literal head-pattern meaning as other function defaults
+    [tested: test_none_literal_is_also_a_default_head_pattern; commit=WORKTREE]
   - importing a declaration or library module first completes in both lazy
     and eager modes [tested: test_each_module_imports_first_in_a_fresh_process;
     commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e]
@@ -833,7 +835,8 @@ def _parameters(node: ast.FunctionDef) -> tuple[list[str], dict[str, Atom]]:
     patterns: dict[str, Atom] = {}
     for arg, default in zip(reversed(a.args), reversed(a.defaults), strict=False):
         if not (
-            isinstance(default, ast.Constant) and isinstance(default.value, (bool, int, float, str))
+            isinstance(default, ast.Constant)
+            and (default.value is None or isinstance(default.value, (bool, int, float, str)))
         ):
             msg = (
                 "a default here is a head pattern, so it must be a literal: "

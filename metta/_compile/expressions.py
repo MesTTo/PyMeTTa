@@ -1,5 +1,8 @@
 """Purpose: lower Python expressions into equivalent MeTTa atom trees.
 Guarantees:
+  - a None literal denotes the existing grounded singleton, preserving its
+    type and one-answer cardinality [tested:
+    test_none_return_spellings_have_one_typed_answer; commit=WORKTREE]
   - calls through standard ``math`` and ``operator`` module attributes lower
     through the shared callable mentions while adapters preserve Python call
     order and result kinds [tested:
@@ -266,18 +269,8 @@ class ExpressionCompilerMixin(CompilerContext):
         return method(node)
 
     def _x_Constant(self, node: ast.Constant) -> Atom:  # noqa: N802  -- the suffix mirrors ast node class names used by the translator's dynamic dispatch
-        if isinstance(node.value, (bool, int, float, str)):
+        if node.value is None or isinstance(node.value, (bool, int, float, str)):
             return Grounded(node.value)
-        if node.value is None:
-            msg = (
-                "None has no MeTTa value; answer nothing by yielding nothing, "
-                "or return a symbol such as Nil and match on it"
-            )
-            raise CompileError(
-                msg,
-                construct="None",
-                line=node.lineno,
-            )
         msg = f"the constant {node.value!r} has no grounded MeTTa form"
         raise CompileError(
             msg,
