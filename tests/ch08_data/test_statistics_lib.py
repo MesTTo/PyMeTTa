@@ -3,10 +3,10 @@
 Guarantees: generated observations retain exact moments, nearest roots and
 quantile interpolation; nominal modes preserve occurrence order and identity.
 [tested: test_statistics_exact_reductions, test_statistics_paired_reductions,
-test_statistics_quantiles_and_ranks; commit=WORKTREE].
+test_statistics_quantiles_and_ranks; commit=c7bacead4feb29b9761d026b52b952e91b26b10b].
 Guarantees: test_statistics_card_and_shared_root_visibility includes the two
 weighted subset heads transferred to Statistics [tested:
-test_statistics_card_and_shared_root_visibility; commit=WORKTREE].
+test_statistics_card_and_shared_root_visibility; commit=c7bacead4feb29b9761d026b52b952e91b26b10b].
 Owns resources: the shared engine fixture owns the imported library; generated
 numeric terms and reference calculations acquire no external resources.
 """

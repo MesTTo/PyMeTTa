@@ -73,5 +73,5 @@ def twin(m):
 #: claims. Native Math also imports the shared Vector kernels, so every MeTTa
 #: and native consumer is renewed [measured 2026-09-14: min-of-3 serial fresh
 #: processes; command=python extensions/python/tools/twin_coverage.py --repin;
-#: commit=WORKTREE].
+#: commit=c7bacead4feb29b9761d026b52b952e91b26b10b].
 BUDGET = 1757926

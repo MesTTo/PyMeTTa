@@ -3,7 +3,7 @@
 Guarantees: generated vectors retain exact finite reductions, nearest floating
 rounding, IEEE class/sign behavior and reusable rational results
 [tested: test_vector_exact_reductions, test_vector_rational_rounding,
-test_vector_ieee_arithmetic, test_vector_rationals_compose; commit=WORKTREE].
+test_vector_ieee_arithmetic, test_vector_rationals_compose; commit=c7bacead4feb29b9761d026b52b952e91b26b10b].
 Owns resources: the shared engine fixture owns the imported library; tests
 produce immutable numeric expressions and acquire no external resources.
 """

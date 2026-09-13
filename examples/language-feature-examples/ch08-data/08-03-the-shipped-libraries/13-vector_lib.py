@@ -6,7 +6,7 @@ applies to one.
 
 Guarantees: exact reductions, component arithmetic and both random arities
 carry the same claims as 13-vector_lib.metta
-[tested: python extensions/python/tools/twin_coverage.py examples/ch08-data/08-03-the-shipped-libraries/13-vector_lib.metta; commit=WORKTREE].
+[tested: python extensions/python/tools/twin_coverage.py examples/ch08-data/08-03-the-shipped-libraries/13-vector_lib.metta; commit=c7bacead4feb29b9761d026b52b952e91b26b10b].
 """
 
 import math
@@ -229,5 +229,5 @@ def twin(m):
 #: also imports the shared Vector kernels, so every MeTTa and native consumer
 #: is renewed [measured 2026-09-14: min-of-3 serial fresh processes;
 #: command=python extensions/python/tools/twin_coverage.py --repin;
-#: commit=WORKTREE].
+#: commit=c7bacead4feb29b9761d026b52b952e91b26b10b].
 BUDGET = 244365
