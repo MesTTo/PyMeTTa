@@ -21,6 +21,11 @@ Guarantees:
     directions, so an annotation cannot describe one image while carrying
     another [tested: test_a_typed_dict_annotation_agrees_with_its_value;
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
+  - structured argument conversion retains the calling program for native
+    callbacks, while explicit callable homes retain precedence [tested:
+    test_operation_callbacks_keep_the_calling_program,
+    test_operation_callbacks_preserve_an_explicit_home,
+    test_inverse_operations_receive_native_callbacks; commit=WORKTREE]
   - type_names removes every __metta_wire_value__ carrier before reading the
     MRO, so transport classes never become MeTTa types [tested:
     test_a_python_tuple_answers_the_same_through_both_doors;
@@ -99,6 +104,7 @@ from metta._atoms.factories import (
 )
 from metta._atoms.model import _is_primitive, _unbox_wire_value, boxed
 from metta._catalog.build import build
+from metta._catalog.call_values import lexical_space
 from metta._catalog.project import explicit_projection, project
 from metta._errors.errors import (
     MettaError,
@@ -299,7 +305,15 @@ def _decode_arg(wire: Any, pass_atoms: bool, annotation: Any = Any) -> Any:  # n
     if pass_atoms or _receives_atom(annotation):
         return atom
     if annotation is not Any and annotation is not inspect.Parameter.empty:
-        return build(atom, annotation)
+        space = None
+        if isinstance(atom, (Symbol, Expression)):
+            # The native value's symbols belong to the evaluating program,
+            # which can differ from the operation's registration space.
+            from metta._binding.runtime import runtime  # noqa: PLC0415 -- import cycle
+
+            row = runtime().must("current_metta_space(_Home),metta_py_encode(_Home,Wire)")
+            space = lexical_space(_atom_from_wire(row["Wire"]))
+        return build(atom, annotation, space=space)
     # Grounded values unwrap to Python; symbols, variables and expressions
     # stay atoms, which is the structure an operation may want to inspect.
     return _decode(atom) if isinstance(atom, Grounded) else atom
