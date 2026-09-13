@@ -17,7 +17,7 @@ Guarantees:
   - container arrows admit structural and borrowed values in one declaration
     while preserving type variables and tuple shapes [tested:
     test_typevar_annotations_declare_parametrically,
-    test_callable_and_tuple_annotations_declare_structurally; commit=WORKTREE]
+    test_callable_and_tuple_annotations_declare_structurally; commit=f56380690de29cf449cd42ef1471151a3a3f27f9]
   - an unannotated weighted operation stays untyped without a typed flag
     [tested: test_a_weighted_relation_is_an_annotated_op; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - root ``metta.catalog`` is the ordinary queryable ``&metta`` reflection

@@ -5,10 +5,10 @@ Guarantees:
     including abstract membership and refinements [tested:
     test_container_parameters_accept_both_representations,
     test_abstract_container_parameters_use_python_membership,
-    test_container_refinements_guard_each_representation; commit=WORKTREE]
+    test_container_refinements_guard_each_representation; commit=f56380690de29cf449cd42ef1471151a3a3f27f9]
   - callable parameters and results preserve that contract at a higher-order
     call [tested: test_callable_parameters_admit_container_representations,
-    test_callable_results_admit_container_representations; commit=WORKTREE]
+    test_callable_results_admit_container_representations; commit=f56380690de29cf449cd42ef1471151a3a3f27f9]
 """
 
 from collections import UserDict, UserList, abc
