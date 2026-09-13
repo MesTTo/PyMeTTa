@@ -1,7 +1,7 @@
 """Purpose: compose finite domains, traversal, assertions and first witnesses.
 
 Guarantees: every claim in 43-testing_lib.metta uses the same ordinary primitives.
-[tested: python extensions/python/tools/twin_coverage.py examples/ch08-data/08-03-the-shipped-libraries/43-testing_lib.metta; commit=WORKTREE].
+[tested: python extensions/python/tools/twin_coverage.py examples/ch08-data/08-03-the-shipped-libraries/43-testing_lib.metta; commit=7fad61bab72098722b27091a94282ff69989920e].
 """
 
 from metta import FALSE, TRUE, G, S, V, lib
@@ -104,5 +104,5 @@ def twin(m):
 #: [measured: 74003 inferences, minimum of three fresh serial processes;
 #: command=python extensions/python/tools/twin_coverage.py --measure --rounds 3
 #: examples/ch08-data/08-03-the-shipped-libraries/43-testing_lib.metta;
-#: fixture=lib_testing with engine/lib QLF artifacts purged; commit=WORKTREE].
+#: fixture=lib_testing with engine/lib QLF artifacts purged; commit=7fad61bab72098722b27091a94282ff69989920e].
 BUDGET = 74003
