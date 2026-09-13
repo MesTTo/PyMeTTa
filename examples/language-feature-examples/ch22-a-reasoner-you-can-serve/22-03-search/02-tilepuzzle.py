@@ -459,7 +459,7 @@ def twin(m):
 #: priority queues are MeTTa equations over the shared collection libraries,
 #: replacing the native tree adaptation [measured 2026-09-13: min-of-3 serial
 #: fresh processes; command=python extensions/python/tools/twin_coverage.py
-#: --repin; commit=WORKTREE].
+#: --repin; commit=9c9e60542491416e2c5e431a2672bb20f04264fa].
 BUDGET = 31583779
 
 #: DIVERGED 2026-09-07, the example holds 2 atoms the twin does not (2 =) and

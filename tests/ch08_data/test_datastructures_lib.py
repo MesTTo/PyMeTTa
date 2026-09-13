@@ -2,7 +2,7 @@
 
 Guarantees: generated edit sequences, stable queue order, multiplicity and
 immutable inputs are compared through public MeTTa calls; identity and quoted
-syntax remain data [tested: test_datastructures_lib.py; commit=WORKTREE].
+syntax remain data [tested: test_datastructures_lib.py; commit=9c9e60542491416e2c5e431a2672bb20f04264fa].
 """
 
 import pytest
