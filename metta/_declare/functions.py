@@ -1,7 +1,9 @@
 """Purpose: resolve engine functions and describe their live declarations.
 
 Guarded by: _BUILTINS_CACHE_LOCK protects the shared callable catalog cache
-[source: extensions/python/metta/_declare/functions.py:562; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
+[source: extensions/python/metta/_declare/functions.py:_space_builtins; commit=WORKTREE].
+Guarantees: catalogues keep a parametric space's native identity as their key
+[tested: test_a_parametric_namespace_lists_resolves_and_inherits_native_functions; commit=WORKTREE].
 """
 
 from __future__ import annotations
@@ -12,7 +14,7 @@ import json
 import threading
 import warnings
 import weakref
-from collections.abc import Mapping, Sequence
+from collections.abc import Hashable, Mapping, Sequence
 from difflib import get_close_matches
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
@@ -481,7 +483,7 @@ class _FunctionNamespace:
 _BUILTINS_CACHE_LOCK = threading.RLock()
 
 _BUILTINS_CACHE: weakref.WeakKeyDictionary[
-    Runtime, tuple[int, int, dict[str, tuple[str, ...]]]
+    Runtime, tuple[int, int, dict[Hashable, tuple[str, ...]]]
 ] = weakref.WeakKeyDictionary()
 
 _DEPRECATION_CACHE: weakref.WeakKeyDictionary[
@@ -561,7 +563,7 @@ def _function_generation(rt: Runtime) -> int:
     """
     return int(rt.apply_must("metta_py_function_generation"))
 
-def _space_builtins(rt: Runtime, space_name: str) -> list[str]:
+def _space_builtins(rt: Runtime, space_name: Hashable) -> list[str]:
     """Read one engine-generation-stamped per-space callable catalogue.
 
     Keyed by space because the answer differs by space: a head whose
@@ -614,7 +616,7 @@ def builtins(space: _root.Space) -> list[str]:
     which ``is_function`` answers) but is not callable here and is not
     listed here.
     """
-    return _space_builtins(space._rt, str(space._space))
+    return _space_builtins(space._rt, space._space)
 
 def _invalidate_builtins(space: _root.Space) -> None:
     """Discard cached catalogues after an engine-side mutation."""

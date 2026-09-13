@@ -2,6 +2,8 @@
 % Assumes: loaded through _binding/shim.pl in its host module.
 % Owns resources: anonymous space names; metta_py_release_space/1 clears and returns eligible names to the pool
 % [source: extensions/python/metta/_binding/lifecycle.pl:metta_py_release_space/1; commit=8358dfc233bf299bb23eceddd94593a62372fe4b].
+% Guarantees: declaration and release preserve native expression identities
+% [tested: test_a_parametric_namespace_lists_resolves_and_inherits_native_functions; commit=WORKTREE].
 
 %Run a Python callable inside one engine transaction: the same
 %metta_transaction/1 the MeTTa (transaction ...) form compiles to, so
@@ -133,7 +135,7 @@ metta_py_declare_space(restricted, Name0, Grants0) :-
     metta_declare_restricted_space(Name, Grants).
 
 metta_py_space_atom(Space0, Space) :-
-    ( atom(Space0) -> Space = Space0 ; atom_string(Space, Space0) ).
+    ( string(Space0) -> atom_string(Space, Space0) ; Space = Space0 ).
 
 %The anonymous door is that door with a fresh name in front of it. A refusal
 %returns the name to the anonymous pool, so a rejected request leaks no
@@ -190,22 +192,16 @@ metta_py_pool_space(Name) :-
     ( metta_py_free_space(Name) -> true ; asserta(metta_py_free_space(Name)) ).
 
 metta_py_space_releasable(Name0) :-
-    ( atom(Name0) -> Name = Name0
-    ; string(Name0) -> atom_string(Name, Name0)
-    ; Name = Name0 ),
+    metta_py_space_atom(Name0, Name),
     metta_assert_space_releasable(Name).
 
 % Drop a named life without putting its public name in the anonymous pool.
 metta_py_drop_space(Name0) :-
-    ( atom(Name0) -> Name = Name0
-    ; string(Name0) -> atom_string(Name, Name0)
-    ; Name = Name0 ),
+    metta_py_space_atom(Name0, Name),
     metta_release_space(Name).
 
 % Release an anonymous life: drop first, then pool the minted atom name.
 metta_py_release_space(Name0) :-
-    ( atom(Name0) -> Name = Name0
-    ; string(Name0) -> atom_string(Name, Name0)
-    ; Name = Name0 ),
+    metta_py_space_atom(Name0, Name),
     metta_py_drop_space(Name),
     ( atom(Name) -> metta_py_pool_space(Name) ; true ).

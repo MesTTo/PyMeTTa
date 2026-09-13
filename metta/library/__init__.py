@@ -26,6 +26,9 @@ Assumes:
     `import_prolog_function` is written down here
     [source: engine/metta/interop.pl, metta_string_registrations/2]
 Guarantees:
+  - a card sends an explicit sources scope to metta_py_head_claims, distinct
+    from a native parametric space identity [tested:
+    test_a_card_reads_the_loaded_library_home; commit=WORKTREE]
   - reading a library neither loads nor runs it: the sources are parsed, so a
     library whose Prolog half this build cannot load still describes itself,
     and asking for a card cannot register a head [tested:
@@ -657,7 +660,7 @@ def card(name: str, *, root: str | os.PathLike[str] | None = None) -> Card:
     claims = {
         str(head): tuple(_atom_from_wire(wire) for wire in properties)
         for head, properties in runtime().apply_must(
-            "metta_py_head_claims", [str(path) for path in files],
+            "metta_py_head_claims", ["sources", [str(path) for path in files]],
             [row.name for row in declared]
         )
     }

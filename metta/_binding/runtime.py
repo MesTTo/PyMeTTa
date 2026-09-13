@@ -8,6 +8,10 @@ Assumes:
     [source 2026-08-14:
     https://www.swi-prolog.org/pldoc/man?section=janus-thread-call-prolog]
 Guarantees:
+  - Runtime.builtins carries the supplied native space identity into the
+    catalogue query [tested:
+    test_a_parametric_namespace_lists_resolves_and_inherits_native_functions;
+    commit=WORKTREE].
   - runtime() with no configuration request reads the published runtime
     without acquiring the home-engine lock, so a child can finish while its
     scope joins on that engine [tested:
@@ -131,7 +135,7 @@ import sys
 import threading
 import traceback
 from collections import deque
-from collections.abc import Iterator, Mapping
+from collections.abc import Hashable, Iterator, Mapping
 from contextlib import AbstractContextManager, contextmanager, nullcontext, suppress
 from importlib import resources
 from pathlib import Path
@@ -1783,7 +1787,7 @@ class Runtime:
 
     # ------------------------------------------------------------------- helpers
 
-    def builtins(self, space: str | None = None) -> list[str]:
+    def builtins(self, space: Hashable | None = None) -> list[str]:
         """Function and special-form names, process-wide or callable from one space.
 
         Without a space this is every name the translator knows as a

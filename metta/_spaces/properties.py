@@ -3,6 +3,9 @@
 Guarantees: get_property and the library card use metta_py_head_claims,
 which projects metta_head_property/3 [tested:
 test_get_property_matches_metta_and_explain; commit=90ba93eb8f6e98ebfefc55416859bf13de6a8427].
+Native expression identities carry an explicit space scope, distinct from a
+library's source list [tested:
+test_a_parametric_namespace_lists_resolves_and_inherits_native_functions; commit=WORKTREE].
 """
 
 from __future__ import annotations
@@ -37,7 +40,7 @@ def get_property(space: _root.Space, head: str | Symbol, /) -> tuple[Atom, ...]:
     if not isinstance(head, (str, Symbol)):
         message = "get_property requires a head name as str or Symbol"
         raise TypeError(message)
-    rows = space._rt.apply_must("metta_py_head_claims", space._space, [str(head)])
+    rows = space._rt.apply_must("metta_py_head_claims", ["space", space._space], [str(head)])
     return tuple(_atom_from_wire(wire) for wire in rows[0][1])
 
 

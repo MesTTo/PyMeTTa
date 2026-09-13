@@ -1,5 +1,8 @@
 % Purpose: reflect library declarations and compiled definitions.
 % Assumes: loaded through _binding/shim.pl in its host module.
+% Guarantees: reflection reads a native space identity without converting its
+% expression to text or mistaking it for source paths [tested:
+% test_a_parametric_namespace_lists_resolves_and_inherits_native_functions; commit=WORKTREE].
 
 %%%%%%%%%% What a library says about itself %%%%%%%%%%
 %
@@ -123,7 +126,7 @@ metta_py_builtins(Names) :-
 %everywhere, a scoped one answers where its clauses are visible from, which is
 %its own module, a parent it inherits from, or &self.
 metta_py_builtins(Space0, Names) :-
-    ( atom(Space0) -> Space = Space0 ; atom_string(Space, Space0) ),
+    metta_py_space_atom(Space0, Space),
     metta_py_module(Space, Module),
     findall(N, metta_host_function_callable_from(Module, N), Functions),
     metta_py_special_form_names(SpecialForms),
@@ -157,7 +160,7 @@ metta_py_is_function(Name0) :-
 %first access after any definition where this probe is double digits
 %[measured 2026-08-24; consumer _FunctionNamespace._known].
 metta_py_catalogue_member(Space0, Name0) :-
-    ( atom(Space0) -> Space = Space0 ; atom_string(Space, Space0) ),
+    metta_py_space_atom(Space0, Space),
     ( atom(Name0) -> Name = Name0 ; atom_string(Name, Name0) ),
     (   fun(Name)
     ->  metta_py_module(Space, Module),
@@ -169,7 +172,7 @@ metta_py_catalogue_member(Space0, Name0) :-
 %see, its own or inherited from user. Another space's equations live in that
 %space's module and are invisible here, so they do not count.
 metta_py_function_visible(Space0, Name0) :-
-    ( atom(Space0) -> Space = Space0 ; atom_string(Space, Space0) ),
+    metta_py_space_atom(Space0, Space),
     ( atom(Name0) -> Name = Name0 ; atom_string(Name, Name0) ),
     fun(Name),
     %The question is about clauses, and a deferred function has none until
@@ -200,7 +203,7 @@ metta_py_function_visible(Space0, Name0) :-
 %evaluated yet [measured 2026-09-07: fun_in holds immediately after
 %space.run("(= (area $r) ...)") with no evaluation in between].
 metta_py_function_inherited(Space0, Name0) :-
-    ( atom(Space0) -> Space = Space0 ; atom_string(Space, Space0) ),
+    metta_py_space_atom(Space0, Space),
     ( atom(Name0) -> Name = Name0 ; atom_string(Name, Name0) ),
     fun(Name),
     metta_py_module(Space, Module),
@@ -249,18 +252,21 @@ metta_py_cost_declaration(Space, Name0, Claim) :-
     ).
 
 % One property bag per head, encoded by the existing atom wire. Context is a
-% space name or a library's source-path list; the engine resolves the home.
+% tagged space name or source-path list; the engine resolves the home.
 metta_py_head_claims(Names, Rows) :-
-    metta_py_head_claims('&self', Names, Rows).
+    metta_py_head_claims([space, '&self'], Names, Rows).
 metta_py_head_claims(Context, Names0, Rows) :-
     maplist(metta_py_claim_name, Names0, Names),
-    ( is_list(Context)
-    -> maplist(metta_py_claim_name, Context, Paths), Scope = sources(Paths)
-    ; metta_py_claim_name(Context, Space), Scope = space(Space) ),
+    metta_py_claim_scope(Context, Scope),
     metta_head_claims(Scope, Names, Claims),
     findall([NameS, Encoded],
             ( member([Name, Properties], Claims), atom_string(Name, NameS),
               maplist(metta_py_encode, Properties, Encoded) ), Rows).
+
+metta_py_claim_scope([space, Space0], space(Space)) :-
+    metta_py_space_atom(Space0, Space).
+metta_py_claim_scope([sources, Paths0], sources(Paths)) :-
+    maplist(metta_py_claim_name, Paths0, Paths).
 
 metta_py_claim_name(Value, Name) :-
     ( atom(Value) -> Name = Value ; atom_string(Name, Value) ).

@@ -1,6 +1,10 @@
 """Purpose: pin expression-named native spaces at the public MeTTa surface.
 
 Guarantees:
+  - callable catalogues, properties and inheritance keep the expression
+    identity through the Python binding [tested:
+    test_a_parametric_namespace_lists_resolves_and_inherits_native_functions;
+    commit=WORKTREE]
   - one ground expression identifies one isolated storage and execution
     context, and context-space exposes its parameters to local equations
     [tested: test_two_instances_of_a_parametric_space_answer_independently;
@@ -55,6 +59,23 @@ def test_python_space_factory_accepts_atom_valued_names(metta):
 
     with pytest.raises(ValueError, match=r"free variable.*open"):
         space(S.cache(V.base, 100))
+
+
+def test_a_parametric_namespace_lists_resolves_and_inherits_native_functions(metta):
+    """Reflection and inheritance use the same native identity as evaluation."""
+    home = space(S["namespace-home"](7))
+    try:
+        home.run("(: parametric-add (-> Number Number Number)) (= (parametric-add $x $y) (+ $x $y))")
+        assert "parametric-add" in home.builtins()
+        assert home.is_function_here("parametric-add")
+        assert home.fn.parametric_add(2, 3).one() == 5
+        assert len(home.fn.parametric_add.__signature__.parameters) == 2
+        assert home.get_property("parametric-add") == tuple(home.eval(S["get-property"](S["parametric-add"])))
+        with metta._new_space(inherits=home) as child:
+            assert "parametric-add" in child.builtins()
+            assert child.fn.parametric_add(4, 5).one() == 9
+    finally:
+        home.drop()
 
 
 def test_two_instances_of_a_parametric_space_answer_independently(metta):
