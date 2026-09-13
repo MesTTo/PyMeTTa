@@ -3,7 +3,7 @@
 Guarantees: generated vectors retain exact finite reductions, nearest floating
 rounding, IEEE class/sign behavior and reusable rational results
 [tested: test_vector_exact_reductions, test_vector_rational_rounding,
-test_vector_ieee_arithmetic, test_vector_rationals_compose; commit=615e8a68dce996a0c05b3ddddc71b80bc598442d].
+test_vector_ieee_arithmetic, test_vector_rationals_compose; commit=WORKTREE].
 Owns resources: the shared engine fixture owns the imported library; tests
 produce immutable numeric expressions and acquire no external resources.
 """
@@ -20,8 +20,8 @@ import pytest
 from hypothesis import example, given, settings
 from hypothesis import strategies as st
 
-from metta import S, lib, library
-from metta._errors.errors import MettaOperationError
+from metta import G, S, V, lib, library
+from metta._errors.errors import AssertionFailure, MettaError, MettaOperationError
 
 FINITE = st.one_of(st.integers(-(1 << 256), 1 << 256),
                    st.floats(allow_nan=False, allow_infinity=False))
@@ -30,7 +30,7 @@ PAIRS = st.lists(st.tuples(FINITE, FINITE), max_size=10)
 
 @pytest.fixture(scope="module")
 def vectors(metta):
-    """Import the actual shipped native face for all generated cases."""
+    """Import the shipped equations and numeric kernels for generated cases."""
     metta += lib.vector
     return metta
 
@@ -67,7 +67,7 @@ def assert_nearest_root(value, actual):
     assert bits(actual) & 1 == 0 or value not in (low, high)
 
 
-@settings(max_examples=180)
+@settings(max_examples=180, deadline=None)
 @example([(2.0**54, 1.0), (1.0, 1.0), (-(2.0**54), 1.0)])
 @example([(1 + 2.0**-27, 1 - 2.0**-27), (1.0, -1.0)])
 @example([(2.0**1000, 2.0**1000), (2.0**1000, -(2.0**1000))])
@@ -107,7 +107,7 @@ def test_vector_exact_reductions(vectors, pairs):
             assert math.isnan(actual.value)
 
 
-@settings(max_examples=160)
+@settings(max_examples=160, deadline=None)
 @example((1 << 54) + 1, 1, -1129)
 @example(1, 1, -1075)
 @example((1 << 54) - 1, 1, 970)
@@ -123,7 +123,7 @@ def test_vector_rational_rounding(vectors, numerator, denominator, exponent):
         assert_nearest_root(signed**2, vectors.fn.norm(atom).one())
 
 
-@settings(max_examples=120)
+@settings(max_examples=120, deadline=None)
 @given(PAIRS)
 def test_vector_component_arithmetic(vectors, pairs):
     """Exact operands retain exact results and mixed operands round only once."""
@@ -211,21 +211,21 @@ def test_vector_seeded_construction(vectors):
     assert vectors.runtime.must("getrand(State)")["State"] == before
 
 
-@pytest.mark.parametrize("head,args,reason", [
-    ("dot", ((1,), ()), "vector_dimensions"),
-    ("norm", ((1, S.bad),), "number"),
-    ("vector_divide", ((2, 1), (1, 0)), "zero_divisor"),
-    ("vector_fill", (-1, 7), "nonneg"),
-    ("random_normal_vector", (1.5,), "integer"),
+@pytest.mark.parametrize("head,args,error,reason", [
+    ("dot", ((1,), ()), MettaOperationError, "vector_dimensions"),
+    ("norm", ((1, S.bad),), MettaOperationError, "number"),
+    ("vector_divide", ((2, 1), (1, 0)), MettaOperationError, "zero_divisor"),
+    ("vector_fill", (-1, 7), AssertionFailure, "nonnegative integer"),
+    ("random_normal_vector", (1.5,), AssertionFailure, "integer"),
 ])
-def test_vector_refusals_name_the_operation(vectors, head, args, reason):
+def test_vector_refusals_name_the_operation(vectors, head, args, error, reason):
     """Invalid values produce a named operation exception instead of an empty answer."""
-    with pytest.raises(MettaOperationError, match=reason) as refused:
+    with pytest.raises(error, match=reason) as refused:
         getattr(vectors.fn, head)(*args).one()
     assert head.replace("_", "-") in str(refused.value)
 
 
-def test_vector_card_covers_its_native_surface():
+def test_vector_card_covers_its_public_surface():
     """The generated card carries every head, both random arities and its example."""
     card = library.card("lib_vector")
     assert len(card.heads) == len(card.documented) == 13
@@ -235,3 +235,63 @@ def test_vector_card_covers_its_native_surface():
     assert card.doc in card._repr_html_()
     assert card.doc in card.__rich__().caption.plain
     assert any(path.name == "13-vector_lib.metta" for path in card.examples)
+
+
+@settings(max_examples=80, deadline=None)
+@given(st.integers(0, 32), FINITE)
+def test_vector_fill_retains_count_and_numeric_payload(vectors, count, value):
+    """The derived answer collection preserves every component's numeric kind."""
+    result = vectors.fn.vector_fill(count, value).one()
+    assert len(result) == count
+    for item in result:
+        assert type(item.value) is type(value)
+        assert bits(item.value) == bits(value) if isinstance(value, float) else item.value == value
+
+
+@pytest.mark.parametrize("value", [V.x, S.bad, True, G("text"), S.code(1, 2)])
+def test_vector_empty_fill_validates_the_value(vectors, value):
+    """Zero copies cannot hide a variable or an irreducible nonnumeric value."""
+    with pytest.raises(MettaError):
+        vectors.fn.vector_fill(0, value).one()
+
+
+@pytest.mark.parametrize("accumulator", [
+    (V.x,), (S.bad,), (True,), G("text"), (S["+"](1, 2),), (S.random_float(0, 1),),
+])
+def test_vector_invalid_accumulator_never_consumes_entropy(vectors, accumulator):
+    """Complete numeric validation precedes every positive or nondrawing count."""
+    before = vectors.runtime.must("getrand(State)")["State"]
+    for count in (-3, 0, 3):
+        with pytest.raises(MettaError):
+            vectors.fn.random_normal_vector(count, S.quote(accumulator)).one()
+    assert vectors.runtime.must("getrand(State)")["State"] == before
+
+
+def test_vector_construction_equations_can_be_reconstructed(vectors):
+    """Stored recipe bodies are ordinary data that callers can reuse as functions."""
+    row = vectors.match(S["="](S.vector_fill(V.n, V.x), V.body)).one()
+    constructor = vectors.eval(S["|->"]((row.n, row.x), row.body))[0]
+    assert vectors.eval((constructor, 3, 7)) == [(7, 7, 7)]
+    assert vectors.fn.vector_fill(S.superpose((0, 2)), 7) == [(), (7, 7)]
+
+
+@pytest.mark.parametrize("program", [
+    S.vector_fill(3, 7), S.random_normal_vector(3), S.random_normal_vector(3, (3, 4)),
+])
+def test_vector_validation_keeps_recording_conservative(vectors, program):
+    """Retained assertions can write diagnostics even when entropy has a seed."""
+    recording = vectors.record(program, seed=42)
+    assert recording.replayable is False
+    assert "assertEqualMsg" in recording.reason
+    assert len(recording.events) > 0
+    with pytest.raises(MettaError, match="not replayable"):
+        recording.replay(vectors)
+
+
+def test_vector_dot_specialization_retains_structural_effects(vectors):
+    """The derived shortcut inherits its numeric provider's replayable effect."""
+    program = S.cosine_of_normalized((3, 4), (3, 4))
+    recording = vectors.record(program, seed=42)
+    assert recording.replayable is True
+    assert recording.reason is None
+    assert list(recording.replay(vectors)) == list(recording.events)

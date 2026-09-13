@@ -3,7 +3,10 @@
 Guarantees: generated observations retain exact moments, nearest roots and
 quantile interpolation; nominal modes preserve occurrence order and identity.
 [tested: test_statistics_exact_reductions, test_statistics_paired_reductions,
-test_statistics_quantiles_and_ranks; commit=6fa571d1b7059b610f73e9feed657711414251e5].
+test_statistics_quantiles_and_ranks; commit=WORKTREE].
+Guarantees: test_statistics_card_and_shared_root_visibility includes the two
+weighted subset heads transferred to Statistics [tested:
+test_statistics_card_and_shared_root_visibility; commit=WORKTREE].
 Owns resources: the shared engine fixture owns the imported library; generated
 numeric terms and reference calculations acquire no external resources.
 """
@@ -166,7 +169,7 @@ def test_statistics_rejects_every_nonfinite_or_nonnumeric_observation(stats, val
 def test_statistics_card_and_shared_root_visibility():
     """One domain owns sample recipes and finite laws; Math owns root rounding."""
     card = library.card("lib_statistics")
-    assert len(card.heads) == len(card.documented) == 29
+    assert len(card.heads) == len(card.documented) == 31
     assert any(path.name == "37-statistics_lib.metta" for path in card.examples)
     assert any(path.name == "12-distribution.metta" for path in card.examples)
     assert "lib_distribution" not in library.roster()

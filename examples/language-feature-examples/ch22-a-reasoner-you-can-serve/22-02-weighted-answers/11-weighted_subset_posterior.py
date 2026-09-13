@@ -66,4 +66,12 @@ def twin(m):
 #: --measure --rounds 3 examples/ch22-a-reasoner-you-can-serve/22-02-weighted-answers/11-weighted_subset_posterior.metta;
 #: fixture=Statistics MeTTa coefficient rows, QLFs purged before measurement;
 #: commit=e1be99ea1c08f70444c1c35cada441e089777906].
-BUDGET = 1755787
+#: RE-PINNED 2026-09-14, 1755787 to 1757926 (+2139), Vector derives fill,
+#: random construction and normalized-dot through MeTTa equations;
+#: Combinatorics supplies ranges, literal validation folds once before core
+#: seeded draws, and the Vector example adds nine construction and refusal
+#: claims. Native Math also imports the shared Vector kernels, so every MeTTa
+#: and native consumer is renewed [measured 2026-09-14: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+BUDGET = 1757926

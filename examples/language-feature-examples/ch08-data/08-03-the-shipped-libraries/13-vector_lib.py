@@ -6,12 +6,13 @@ applies to one.
 
 Guarantees: exact reductions, component arithmetic and both random arities
 carry the same claims as 13-vector_lib.metta
-[tested: python extensions/python/tools/twin_coverage.py examples/ch08-data/08-03-the-shipped-libraries/13-vector_lib.metta; commit=615e8a68dce996a0c05b3ddddc71b80bc598442d].
+[tested: python extensions/python/tools/twin_coverage.py examples/ch08-data/08-03-the-shipped-libraries/13-vector_lib.metta; commit=WORKTREE].
 """
 
 import math
 
-from metta import S, lib
+from metta import S, V, lib
+from metta._errors.errors import MettaError
 
 TOLERANCE = 1e-6
 
@@ -22,6 +23,14 @@ def twin(m):
     dot, norm = m.fn.dot, m.fn.norm
     cosine, quick = m.fn.cosine, m.fn.cosine_of_normalized
     draw = m.fn.random_normal_vector
+
+    def refused(call):
+        """Read a public refusal through the evaluation boundary."""
+        try:
+            list(m.eval(call))
+        except MettaError:
+            return True
+        return False
 
     # Dot validates dimensions and rounds the exact finite sum once.
     assert dot((1.0, 2.0), (3.0, 4.0)) == [11.0]
@@ -70,6 +79,21 @@ def twin(m):
     assert math.isinf(norm((math.inf,)).one())
     assert draw(0, (3, 4)) == [(0.6, 0.8)]
     assert draw(-2) == [()]
+
+    assert m.fn.vector_fill(S.superpose((0, 2)), 7) == [(), (7, 7)]
+    row = m.match(S["="](S.vector_fill(V.n, V.x), V.body)).one()
+    constructor = m.eval(S["|->"]((row.n, row.x), row.body))[0]
+    assert m.eval((constructor, 3, 7)) == [(7, 7, 7)]
+    rational = m.fn.vector_divide((1,), (3,)).one()[0]
+    assert m.fn.vector_scale(m.fn.vector_fill(3, rational).one(), 3) == [(1, 1, 1)]
+    assert m.fn.vector_fill(2, -0.0) == [(-0.0, -0.0)]
+    assert refused(S.vector_fill(-1, 7))
+    assert refused(S.vector_fill(0, S.bad))
+    assert refused(S.random_normal_vector(1.5))
+    assert refused(S.random_normal_vector(0, (S.bad,)))
+    held = S.random_normal_vector(3, S.quote((S.random_float(0, 1),)))
+    assert m.fn.with_seed(17, S.if_error(S.catch(held), S.random_float(0, 1), 0)) == m.fn.with_seed(
+        17, S.random_float(0, 1))
 
 
 #: MEASURED on this branch rather than inherited: this twin is new, so there is
@@ -198,4 +222,12 @@ def twin(m):
 #: provider declarations and retains definition analysis for computed function
 #: heads [measured 2026-09-13: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=1d0b78a359f58de49f2f98bed50a6480d56cd5f6].
-BUDGET = 62326
+#: RE-PINNED 2026-09-14, 62326 to 244365 (+182039), Vector derives fill, random
+#: construction and normalized-dot through MeTTa equations; Combinatorics
+#: supplies ranges, literal validation folds once before core seeded draws, and
+#: the Vector example adds nine construction and refusal claims. Native Math
+#: also imports the shared Vector kernels, so every MeTTa and native consumer
+#: is renewed [measured 2026-09-14: min-of-3 serial fresh processes;
+#: command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+BUDGET = 244365
