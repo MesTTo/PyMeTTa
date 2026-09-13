@@ -3,10 +3,10 @@
 Guarantees:
   - native arrow edits change which borrowed values a compiled function
     accepts [tested: test_native_union_edits_change_python_call_admission;
-    commit=WORKTREE]
+    commit=7e2de138f59cd8137f55dce9e7f2f955906c76d1]
   - native refined union results preserve admitted values and filter the
     other results [tested: test_native_union_results_check_the_returned_value;
-    commit=WORKTREE]
+    commit=7e2de138f59cd8137f55dce9e7f2f955906c76d1]
 """
 
 from collections import UserDict, UserList, abc
