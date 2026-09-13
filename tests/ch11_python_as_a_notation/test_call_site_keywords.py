@@ -6,7 +6,7 @@ Guarantees:
     commit=26d052a6179bc0e0a536b7d585e79d6beef266a2]
   - source operands run before their values enter native parameter order
     [tested: test_static_keyword_calls_evaluate_values_before_parameter_reordering;
-    commit=WORKTREE]
+    commit=10ef2f6958af451bcc3e651e0e0ccc7cc8ec7ce8]
   - a bare Symbol refuses keywords with a positional remedy while Grounded
     heads retain the Python-call transport [tested:
     test_unknown_symbol_keywords_refuse_with_the_positional_remedy;

@@ -2,7 +2,7 @@
 Guarantees:
   - computed and expanded calls retain their native stream or iterable
     contract at iteration [tested:
-    test_computed_calls_share_iteration_consumers; commit=WORKTREE]
+    test_computed_calls_share_iteration_consumers; commit=10ef2f6958af451bcc3e651e0e0ccc7cc8ec7ce8]
   - nested loops carry every outer state value they read [tested
     test_nested_loops_carry_the_outer_state]
   - compiled loops execute without growing the Python or Prolog stack

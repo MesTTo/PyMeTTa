@@ -6,7 +6,7 @@ Guarantees:
   - argument labels and cardinality follow native registration replacement
     and retirement [tested:
     test_expanded_operation_contracts_follow_replacement_and_retirement;
-    test_expanded_operations_use_each_registered_arity; commit=WORKTREE]
+    test_expanded_operations_use_each_registered_arity; commit=10ef2f6958af451bcc3e651e0e0ccc7cc8ec7ce8]
   - generated host return arrows exclude NoneType answer alternatives,
     including unions and refinements, while parameters and annotation
     claims preserve the declared values [tested:

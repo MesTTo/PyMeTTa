@@ -3,18 +3,18 @@
 Guarantees:
   - named and parametric keyword spaces supply their current native entries
     through the ordinary expanded-call binder [tested:
-    test_keyword_expansion_reads_native_space_entries; commit=WORKTREE]
+    test_keyword_expansion_reads_native_space_entries; commit=10ef2f6958af451bcc3e651e0e0ccc7cc8ec7ce8]
   - operand effects and mapping failures follow the Python oracle [tested:
     test_expanded_calls_match_python_operand_and_mapping_failure_order;
-    commit=WORKTREE]
+    commit=10ef2f6958af451bcc3e651e0e0ccc7cc8ec7ce8]
   - computed calls read native signatures and answer cardinality [tested:
     test_expanded_native_calls_read_the_live_contract;
-    test_computed_calls_share_iteration_consumers; commit=WORKTREE]
+    test_computed_calls_share_iteration_consumers; commit=10ef2f6958af451bcc3e651e0e0ccc7cc8ec7ce8]
   - named references retain current ports, captures and registration ownership
     [tested: test_expanded_operations_use_each_registered_arity;
     test_expanded_partial_references_preserve_capture_and_parameter_names;
     test_expanded_operation_contracts_follow_replacement_and_retirement;
-    commit=WORKTREE]
+    commit=10ef2f6958af451bcc3e651e0e0ccc7cc8ec7ce8]
 """
 
 import inspect

@@ -2,12 +2,12 @@
 
 Guarantees:
   - signature binding constructs a native application and never runs its body
-    [tested: test_expanded_native_calls_read_the_live_contract; commit=WORKTREE]
+    [tested: test_expanded_native_calls_read_the_live_contract; commit=10ef2f6958af451bcc3e651e0e0ccc7cc8ec7ce8]
 Owns resources:
   - consuming spaces own their ordinary operation registrations; keyword
     dictionaries are temporary values local to one call
     [tested: test_expanded_operation_contracts_follow_replacement_and_retirement;
-    commit=WORKTREE]
+    commit=10ef2f6958af451bcc3e651e0e0ccc7cc8ec7ce8]
 """
 
 from __future__ import annotations

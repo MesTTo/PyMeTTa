@@ -5,7 +5,7 @@ Guarantees:
     test_expanded_calls_match_python_operand_and_mapping_failure_order;
     test_computed_lambda_calls_bind_keywords_after_creating_the_value;
     test_static_keyword_calls_evaluate_values_before_parameter_reordering;
-    commit=WORKTREE]
+    commit=10ef2f6958af451bcc3e651e0e0ccc7cc8ec7ce8]
   - sequence construction binds computed elements in source order, then
     retains their values as data [tested:
     test_computed_sequence_heads_remain_values_after_native_rewriting,

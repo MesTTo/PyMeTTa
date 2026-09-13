@@ -3,7 +3,7 @@
 Guarantees:
   - expansion and keyword-group merge order follow Python's call construction
     [tested: test_expanded_calls_match_python_operand_and_mapping_failure_order;
-    commit=WORKTREE]
+    commit=10ef2f6958af451bcc3e651e0e0ccc7cc8ec7ce8]
 """
 
 from __future__ import annotations

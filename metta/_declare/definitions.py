@@ -2,7 +2,7 @@
 Guarantees:
   - native call contracts retain each definition's lexical home [tested:
     test_expanded_definition_contracts_keep_distinct_lexical_homes;
-    commit=WORKTREE]
+    commit=10ef2f6958af451bcc3e651e0e0ccc7cc8ec7ce8]
   - class installation imports its peer directly [tested:
     tests/checks/check_layering.py; commit=ab9d3489f87e0d7b7be4b3cd2025494cd62699fe]
   - typing.overload stubs declare every distinct fixed-arity signature before
