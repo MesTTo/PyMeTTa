@@ -13,10 +13,10 @@ Guarded by:
 Guarantees:
   - Python field setters preserve computed syntax values at typed native
     writers [tested: test_field_assignment_keeps_computed_syntax_values;
-    commit=2070690afe0f1e6c580ebdb86e418e5a85bcc02d]
+    commit=WORKTREE]
   - constructor arguments reach typed entries as values after their source
     computations finish [tested:
-    test_constructor_arguments_preserve_values_and_run_factories; commit=6ff5033a6d52120cb7bce870f4a1fdbed5a0fbd0]
+    test_constructor_arguments_preserve_values_and_run_factories; commit=WORKTREE]
   - generated field and class-variable queries return the stored syntax
     rather than their lookup expression [tested:
     test_generated_syntax_field_queries_return_the_stored_value,
@@ -50,6 +50,7 @@ from metta._atoms.names import attribute_name
 from metta._atoms.registry import _record_registration, _Registration
 from metta._catalog.annotations import referenced_classes, type_atoms_for
 from metta._catalog.build import build
+from metta._catalog.call_values import apply_sources
 from metta._catalog.documentation import attribute_docstrings, documentation_atom
 from metta._catalog.project import declarations, project
 from metta._declare import field_values, operations
@@ -493,7 +494,7 @@ class ClassDeclaration:
 
         def construct() -> None:
             if self.grain == "value":
-                receiver = self.answer(self.application(Symbol(f"_initialize-{self.name}"), sources))
+                receiver = self.answer(apply_sources(Symbol(f"_initialize-{self.name}"), sources))
                 for field, part in zip(self.stored_fields, receiver.args, strict=True):
                     object.__setattr__(instance, field.name, build(part, field.annotation))
                 return
@@ -502,18 +503,9 @@ class ClassDeclaration:
                 msg = f"minting {self.name} did not produce a constructor term: {receiver}"
                 raise EngineError(msg)
             self.attach(instance, receiver)
-            self.answer(self.application(Symbol(f"_initialize-{self.name}"), (_expr(S.noeval, receiver), *sources)))
+            self.answer(apply_sources(Symbol(f"_initialize-{self.name}"), (_expr(S.noeval, receiver), *sources)))
 
         self.space.transaction(construct)
-
-    @staticmethod
-    def application(head: Atom, sources: Sequence[Atom]) -> Atom:
-        """Evaluate each source before applying the typed entry to its values."""
-        parameters = tuple(fresh() for _ in sources)
-        body = _expr(head, *parameters)
-        for parameter, source in reversed(tuple(zip(parameters, sources, strict=True))):
-            body = _expr(S.let, parameter, source, body)
-        return body
 
     def argument_sources(self, supplied: dict[str, Any], encode: Any) -> tuple[Atom, ...]:
         """Quote supplied values; omitted parameters retain their default code."""
@@ -665,7 +657,7 @@ class ClassDeclaration:
 
             def write(instance: Any, value: Any, name: str = field.name) -> None:
                 actual = declaration(type(instance)) or plan
-                actual.answer(actual.application(actual.accessor(name, write=True), (
+                actual.answer(apply_sources(actual.accessor(name, write=True), (
                     _expr(S.noeval, actual.receiver(instance)),
                     _expr(S.noeval, actual.encode(value)),
                 )))

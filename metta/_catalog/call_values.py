@@ -1,6 +1,14 @@
 """Purpose: rebuild native callable values with their lexical space.
 
 Guarantees:
+  - Python calls preserve computed syntax and record arguments through native
+    source bindings [tested:
+    test_python_call_values_preserve_expression_arguments,
+    test_computed_receivers_preserve_their_stored_syntax,
+    test_python_call_values_preserve_symbols_with_live_scalar_rules;
+    commit=WORKTREE]
+  - nonsymbol literal arguments retain direct cursor application [tested:
+    test_function_calls_suspend_endless_producers; commit=WORKTREE]
   - native application facts receive separate data frames, retaining supplied
     arguments, captures and live program edits [tested:
     test_native_application_frames_preserve_data_and_live_programs;
@@ -8,36 +16,36 @@ Guarantees:
     test_native_application_mapping_lookup_preserves_distinct_binders;
     test_native_application_keywords_do_not_bind_adapter_parameters;
     test_captured_application_parameters_keep_their_keyword_binding_rule;
-    commit=1d6b29cc4c734796ba173ee06e3b20568a1acf85]
+    commit=WORKTREE]
   - native references select their current call port and preserve captures
     and explicit contracts [tested:
     test_expanded_partial_references_preserve_capture_and_parameter_names;
     test_forwarding_contracts_preserve_explicit_cardinality_and_bound_captures;
-    test_native_references_observe_later_arity_changes; commit=1d6b29cc4c734796ba173ee06e3b20568a1acf85]
+    test_native_references_observe_later_arity_changes; commit=WORKTREE]
   - application evaluates the carried native value, including subsequent source
     rewrites [tested: test_native_callable_values_keep_their_lexical_program;
-    commit=1d6b29cc4c734796ba173ee06e3b20568a1acf85]
+    commit=WORKTREE]
   - segment applications execute the constructed call and preserve captured
     arguments [tested: test_evaluated_native_lambdas_apply_their_assembled_arguments;
-    commit=1d6b29cc4c734796ba173ee06e3b20568a1acf85]
+    commit=WORKTREE]
   - adding the current lexical home retains the source lambda's contract
     [tested: test_native_callable_contracts_survive_lexical_wrapping;
-    commit=1d6b29cc4c734796ba173ee06e3b20568a1acf85]
+    commit=WORKTREE]
   - contract lookup preserves distinct binders and references to authored
     heads [tested: test_contract_lookup_preserves_distinct_lambda_binders;
     test_callable_conversion_keeps_authored_heads_as_live_references;
-    commit=1d6b29cc4c734796ba173ee06e3b20568a1acf85]
+    commit=WORKTREE]
 Owns resources:
   - the callable image contains its lexical home and captured receiver, so
     scope retention follows the ordinary native value graph [tested:
-    test_a_kept_native_callable_retains_its_scoped_program; commit=1d6b29cc4c734796ba173ee06e3b20568a1acf85]
+    test_a_kept_native_callable_retains_its_scoped_program; commit=WORKTREE]
 """
 
 from __future__ import annotations
 
 import inspect
 import typing
-from collections.abc import Collection
+from collections.abc import Collection, Sequence
 from typing import Any
 
 from metta._atoms.factories import (
@@ -62,6 +70,39 @@ from metta._lazy import lazy
 def argument(value: Any) -> Atom:
     """Borrow Python container arguments; their grain belongs to their storage."""
     return Grounded(value) if runtime_annotation(value) is not None else _encode(value)
+
+
+def apply_sources(head: Atom, sources: Sequence[Atom]) -> Atom:
+    """Evaluate source computations before applying their resulting values."""
+    if isinstance(head, Expression) and head.head == S["|->"] and len(head.args) == 2:
+        binders, body = head.args
+        if isinstance(body, Expression) and body.head == S.evalc and len(body.args) == 2:
+            # evalc compiles its supplied term in the target home. Rebind the
+            # matched values there so substitution cannot turn them into code.
+            # The original parameter pattern and home expression stay in place.
+            replacements = {Variable(name): fresh() for name in _variables(binders)}
+            if replacements:
+                held = body.args[0].subs(replacements)
+                for parameter, replacement in reversed(tuple(replacements.items())):
+                    held = _expr(S.let, replacement, _expr(S.noeval, parameter), held)
+                head = _expr(S["|->"], binders, _expr(S.evalc, held, body.args[1]))
+    operands, bindings = [], []
+    for source in sources:
+        value = (source.args[0] if isinstance(source, Expression)
+                 and source.head == S.noeval and len(source.args) == 1 else source)
+        # The wire decoder makes these tags native variables or nonsymbol
+        # literals, which eager argument translation already passes through.
+        # Boolean and space tags decode to atoms and can have scalar rules.
+        if not isinstance(value, Expression) and value.to_wire()[0] in ("v", "n", "g", "o", "h"):
+            operands.append(value)
+        else:
+            parameter = fresh()
+            operands.append(parameter)
+            bindings.append((parameter, source))
+    body = _expr(head, *operands)
+    for parameter, source in reversed(bindings):
+        body = _expr(S.let, parameter, source, body)
+    return body
 
 
 def is_parametric_space(atom: Expression) -> bool:
@@ -196,14 +237,15 @@ class NativeCallable:
         image, signature, stream, applicator = self._layout(len(args) + len(kwargs), kwargs)
         bound = signature.bind(*args, **kwargs)
         if applicator is not None:
-            positional, keywords = fresh(), fresh()
             # Bind the frames before application. An executable head inside a
             # positional vector is data, including when the applicator is an
             # untyped lambda rather than an Expression-typed native function.
-            expression = _expr(S.let, positional, _expr(S.noeval, Expression([argument(value) for value in args])),
-                               _expr(S.let, keywords, _expr(S.noeval, Expression([
-                                   Expression([Grounded(name), argument(value)]) for name, value in kwargs.items()
-                               ])), _expr(applicator, positional, keywords)))
+            expression = apply_sources(applicator, (
+                _expr(S.noeval, Expression([argument(value) for value in args])),
+                _expr(S.noeval, Expression([
+                    Expression([Grounded(name), argument(value)]) for name, value in kwargs.items()
+                ])),
+            ))
             return expression, signature, stream
         # A segment binder receives the native application's arguments. A
         # fixed binder receives one value per reflected Python parameter.
@@ -220,7 +262,7 @@ class NativeCallable:
             # A fixed binder holds one parameter value. BoundArguments.args
             # flattens *args and excludes keyword-only and **kwargs values.
             values = [argument(value) for value in bound.arguments.values()]
-        return _expr(image, *values), signature, stream
+        return apply_sources(image, tuple(_expr(S.noeval, value) for value in values)), signature, stream
 
     def __call__(self, /, *args: Any, **kwargs: Any) -> Any:
         expression, signature, stream = self.application(args, kwargs)

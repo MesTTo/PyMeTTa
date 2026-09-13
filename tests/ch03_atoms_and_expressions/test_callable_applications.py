@@ -1,6 +1,10 @@
 """Purpose: apply native callables through editable positional and keyword frames.
 
 Guarantees:
+  - carried applications preserve value frames in their own home or another
+    home, retaining fixed, patterned and segment binders [tested:
+    test_native_application_frames_preserve_values_in_carried_homes,
+    test_native_value_binding_keeps_lambda_parameter_patterns; commit=WORKTREE]
   - native application facts preserve data, supplied arguments and lexical
     ownership [tested: test_native_application_frames_preserve_data_and_live_programs;
     test_native_application_frames_retain_scoped_streams; commit=1d6b29cc4c734796ba173ee06e3b20568a1acf85]
@@ -179,3 +183,52 @@ def test_native_application_frames_retain_scoped_streams():
             assert list(cursor) == []
         with pytest.raises(MettaError, match="released_scope_space"):
             callback()
+
+
+@pytest.mark.parametrize("home_name", ("&carried-application-home", S["carried-application-home"](1)))
+@pytest.mark.parametrize("foreign", (False, True))
+def test_native_application_frames_preserve_values_in_carried_homes(home_name, foreign):
+    """Lexical application retains argument data while selecting its own home."""
+    with MeTTa() as context:
+        home = context.self
+        destination = Space(home_name) if foreign else home
+        try:
+            signature = inspect.Signature([
+                inspect.Parameter("values", inspect.Parameter.VAR_POSITIONAL),
+                inspect.Parameter("options", inspect.Parameter.VAR_KEYWORD),
+            ])
+            image = _declaration(home, signature)
+            destination.run("(: carried-frames (-> Expression Expression %Undefined%)) "
+                            "(= (carried-frames $positional $keywords) (noeval (received $positional $keywords)))")
+            applicator = S["|->"](Expression([V.positional, V.keywords]),
+                                  S.evalc(S["carried-frames"](V.positional, V.keywords), destination))
+            home.add(S["@python-application"](image, applicator))
+            callback = convert.build(image, Callable[..., Atom], space=home)
+            data = S["+"](1, 2)
+            assert callback(S["+"], 1, 2, syntax=data) == S.received(
+                data, Expression([Expression(["syntax", data])]),
+            )
+        finally:
+            if foreign:
+                destination.drop()
+
+
+@pytest.mark.parametrize("kind", ("fixed", "segment", "pattern"))
+def test_native_value_binding_keeps_lambda_parameter_patterns(kind):
+    """The original binder matches before values enter the lexical evaluator."""
+    data = S["+"](1, 2)
+    with MeTTa() as context:
+        home = context.self
+        home.run("(: syntax-frame (-> Expression %Undefined%)) "
+                 "(= (syntax-frame $value) $value)")
+        parameter = (S[":seg"](V.payload) if kind == "segment" else
+                     S.Box(V.payload) if kind == "pattern" else V.payload)
+        image = S["|->"](Expression([parameter]), S.evalc(S["syntax-frame"](V.payload), home))
+        signature = inspect.Signature([
+            inspect.Parameter("payload", inspect.Parameter.VAR_POSITIONAL
+                              if kind == "segment" else inspect.Parameter.POSITIONAL_ONLY),
+        ])
+        home.add(S["@python-callable"](image, call_signatures.project(signature, G), S.one))
+        callback = convert.build(image, Callable[..., Atom], space=home)
+        supplied = (S["+"], 1, 2) if kind == "segment" else (S.Box(data) if kind == "pattern" else data,)
+        assert callback(*supplied) == data

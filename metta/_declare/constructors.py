@@ -3,7 +3,7 @@
 Guarantees:
   - default computations finish before field input contracts inspect their
     resulting values [tested:
-    test_constructor_arguments_preserve_values_and_run_factories; commit=6ff5033a6d52120cb7bce870f4a1fdbed5a0fbd0]
+    test_constructor_arguments_preserve_values_and_run_factories; commit=WORKTREE]
   - defaults and factories run per construction and post-init reads the same
     field bindings as initialization [tested:
     test_class_value_post_init_and_write_refusal; commit=9b0a084e534ddf7dd67980ad84c27c8279b877f1]
@@ -25,6 +25,7 @@ import types
 from typing import Any
 
 from metta._atoms.factories import Atom, Expression, S, Symbol, Variable, _expr
+from metta._catalog.call_values import apply_sources
 from metta._compile.records import declared, field_key, value_receiver
 from metta._declare.classes import _ABSENT
 from metta._errors.errors import CompileError, with_coordinates
@@ -212,7 +213,7 @@ def install(plan: Any) -> None:
         if not all(name in plan.defaults for name in names[count:]):
             continue
         completed = (*arguments[:count], *(plan.defaults[name] for name in names[count:]))
-        plan.space.add(_expr(S["="], _expr(factory, *arguments[:count]), _expr(S.transaction, plan.application(factory, completed))))
+        plan.space.add(_expr(S["="], _expr(factory, *arguments[:count]), _expr(S.transaction, apply_sources(factory, completed))))
     alternatives = [
         [S.Expression] if parameter.kind is inspect.Parameter.VAR_POSITIONAL else
         [S.SpaceType] if parameter.kind is inspect.Parameter.VAR_KEYWORD else

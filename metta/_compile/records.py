@@ -8,7 +8,7 @@ Guarantees:
   - class calls evaluate supplied expressions before default computations and
     preserve their resulting atom values [tested:
     test_constructor_arguments_preserve_values_and_run_factories,
-    test_constructor_sources_finish_before_factories_and_post_init; commit=6ff5033a6d52120cb7bce870f4a1fdbed5a0fbd0]
+    test_constructor_sources_finish_before_factories_and_post_init; commit=WORKTREE]
   - annotations, constructor calls and declared fields carry receiver types;
     ordinary unknown host attributes keep their existing island meaning
     [tested: test_class_constructors_compile_fields; commit=9b0a084e534ddf7dd67980ad84c27c8279b877f1]
@@ -25,6 +25,7 @@ import inspect
 from typing import Any
 
 from metta._atoms.factories import Atom, S, Symbol, Variable, _expr
+from metta._catalog.call_values import apply_sources
 from metta._compile.context import CompilerContext
 from metta._errors.errors import CompileError
 from metta._lazy import lazy
@@ -194,7 +195,7 @@ def call(compiler: CompilerContext, node: ast.Call) -> Atom | None:
         supplied = {id(expression): Variable(compiler._temp("constructor-argument")) for expression in expressions}
         evaluated = [(compiler.expression(expression), supplied[id(expression)]) for expression in expressions]
         sources = owner.argument_sources(bound.arguments, lambda expression: supplied[id(expression)])
-        body = owner.application(Symbol(f"make-{owner.name}"), sources)
+        body = apply_sources(Symbol(f"make-{owner.name}"), sources)
         if any(name not in bound.arguments for name in owner.defaults):
             body = _expr(S.transaction, body)
         # Python evaluates supplied arguments in source order before entering

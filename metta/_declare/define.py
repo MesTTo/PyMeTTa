@@ -47,6 +47,11 @@ Guarantees:
     test_calling_a_defined_object_evaluates_and_an_unmatched_call_answers_itself,
     test_a_rules_generator_scopes_its_variables_to_its_parameters;
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
+  - Python argument values enter native functions after source binding, while
+    rule variables retain their staged call terms [tested:
+    test_python_call_values_preserve_expression_arguments,
+    test_computed_receivers_preserve_their_stored_syntax,
+    test_the_staging_split_folds_ground_calls_and_stages_op_terms; commit=WORKTREE]
   - flat independent yield statements compile to separate equation bodies,
     while control-flow yields retain one superpose body [tested:
     test_flat_generator_emits_one_equation_per_yield,
@@ -130,6 +135,7 @@ from metta._atoms.factories import (
 )
 from metta._atoms.names import resolve_known_name
 from metta._catalog.annotations import type_atoms_for
+from metta._catalog.call_values import apply_sources
 from metta._catalog.fn import fn as fn_namespace
 from metta._compile import records as _records
 from metta._compile.expressions import ExpressionCompilerMixin
@@ -338,8 +344,8 @@ def canonical_aux_set(equations: tuple[Expression, ...], name: str) -> tuple[Exp
 class Defined[**P, R]:
     """A function that exists twice: as MeTTa equations and as Python.
 
-    Calling the name evaluates its application and returns every engine
-    answer; applying ``S[name]`` stages the term explicitly. The Python body
+    Calling the name applies it to encoded argument values and returns every
+    engine answer; applying ``S[name]`` stages the term explicitly. The Python body
     stays reachable as ``.py``, with recursion inside it resolving to itself.
     That pair is a differential oracle carried in one object: ``fact(5)``
     against ``fact.py(5)``, for every ground input.
@@ -419,25 +425,22 @@ class Defined[**P, R]:
                     self.name,
                     caller,
                 )
-        term = Expression([Symbol(self.name), *(_encode(a) for a in args)])
-        if _declare_rules_module._defined_calls_are_staged():
-            # The staging split, stated in the design's own words: a call
-            # whose arguments include RULE VARIABLES stages, building the
-            # call term inside the law (`double(x)` yields `(double $x)`);
-            # a call with GROUND arguments RUNS NOW, at construction, and
-            # the law stores the RESULT (`fib(10)` embeds 55) - constant
-            # folding by construction, deliberate. A ground call answering
-            # zero or several results keeps the call term instead, because
-            # folding one answer of many would drop multiplicity the author
-            # wrote, and staging preserves it exactly.
-            if _variables(term):
-                return term
-            folded = list(self.space.answers(term))
+        head = Symbol(self.name)
+        term = Expression([head, *(_encode(a) for a in args)])
+        staged = _declare_rules_module._defined_calls_are_staged()
+        # Rule variables stage the written application. Ground calls evaluate
+        # their argument values; a single answer can be folded into the law.
+        if staged and _variables(term):
+            return term
+        application = apply_sources(head, tuple(Expression([S.noeval, value]) for value in term.args))
+        if staged:
+            folded = list(self.space.answers(application))
             if len(folded) == 1:
                 return _encode(folded[0])
+            # Keep the original term when folding would discard multiplicity.
             return term
         _functions._warn_deprecated(self.space, self.name, stacklevel=3)
-        return self.space.answers(term)
+        return self.space.answers(application)
 
     @property
     def py(self) -> Callable[P, R]:
