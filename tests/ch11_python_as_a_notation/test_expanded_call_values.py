@@ -1,6 +1,9 @@
 """Purpose: bind expanded calls from native values and live keyword spaces.
 
 Guarantees:
+  - positional expansion preserves native atom values in both sequence
+    representations [tested: test_expanded_arguments_preserve_native_atom_values;
+    commit=WORKTREE]
   - named and parametric keyword spaces supply their current native entries
     through the ordinary expanded-call binder [tested:
     test_keyword_expansion_reads_native_space_entries; commit=10ef2f6958af451bcc3e651e0e0ccc7cc8ec7ce8]
@@ -23,7 +26,7 @@ from typing import Any
 
 import pytest
 
-from metta import Expression, G, MeTTa, S, Space, V, convert
+from metta import Atom, Expression, G, MeTTa, S, Space, V, convert
 from metta._catalog import call_signatures
 
 
@@ -463,3 +466,76 @@ def test_expanded_stacked_clauses_keep_positional_dispatch(shared_names):
         else:
             with pytest.raises(Exception, match="missing a required argument"):
                 expanded(S["stacked-expanded"], (), {"value": 2}).one()
+
+
+@pytest.mark.parametrize("borrowed", (False, True))
+@pytest.mark.parametrize("mixed", (False, True))
+def test_expanded_arguments_preserve_native_atom_values(borrowed, mixed):
+    """Expansion preserves atoms in both native and borrowed argument sequences."""
+    with MeTTa() as context:
+        m = context.self
+
+        @m.define
+        def argument_image_pair(left: Atom, right: Atom) -> Any:
+            return S.observed(left, right)
+
+        @m.define
+        def argument_image_lone(values: Any) -> Any:
+            return argument_image_pair(*values)
+
+        @m.define
+        def argument_image_mixed(values: Any) -> Any:
+            return argument_image_pair(S.marker, *values)
+
+        left, right = S.Data(S.entry(3)), S.Kwargs(S.entry(4))
+        values = (right,) if mixed else (left, right)
+        sequence = G(values) if borrowed else Expression(values)
+        result = (argument_image_mixed if mixed else argument_image_lone)(sequence).one()
+        assert result == S.observed(S.marker if mixed else left, right)
+
+
+@pytest.mark.parametrize("mixed", (False, True))
+@pytest.mark.parametrize("hint", (0, 1, TypeError, ValueError))
+def test_expanded_arguments_follow_python_length_hint_effects(mixed, hint):
+    """The two Python call forms retain their materializer's length protocol."""
+    events = []
+
+    class Values:
+        def __iter__(self):
+            events.append("iterate")
+            return iter((3,))
+
+        def __len__(self):
+            events.append("length")
+            if isinstance(hint, type):
+                message = "length refused"
+                raise hint(message)
+            return hint
+
+    def mark(name, value):
+        events.append(name)
+        return value
+
+    def length_hint_target(*values, tail):
+        events.append("call")
+        return sum(values) + tail
+
+    with MeTTa() as context:
+        def length_hint_lone(values: Any) -> int:
+            return length_hint_target(*mark("args", values), tail=mark("keyword", 4))
+
+        def length_hint_mixed(values: Any) -> int:
+            return length_hint_target(1, *mark("args", values), tail=mark("keyword", 4))
+
+        source = length_hint_mixed if mixed else length_hint_lone
+        selected = context.self.define(source)
+        outcomes = []
+        for python in (True, False):
+            events.clear()
+            try:
+                answer = source(Values()) if python else selected(Values()).one()
+            except Exception as error:
+                assert "length refused" in str(error)
+                answer = "length refused"
+            outcomes.append((answer, events.copy()))
+        assert outcomes[0] == outcomes[1]

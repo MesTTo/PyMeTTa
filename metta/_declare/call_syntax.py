@@ -1,6 +1,9 @@
 """Purpose: link Python call-argument binding into native compiled programs.
 
 Guarantees:
+  - positional expansion preserves native atoms in native and borrowed
+    sequences [tested: test_expanded_arguments_preserve_native_atom_values;
+    commit=WORKTREE]
   - signature binding constructs a native application and never runs its body
     [tested: test_expanded_native_calls_read_the_live_contract; commit=10ef2f6958af451bcc3e651e0e0ccc7cc8ec7ce8]
 Owns resources:
@@ -16,7 +19,8 @@ import ctypes
 from typing import Any
 
 from metta._atoms.factories import Atom, Expression, Grounded, Handle, S, Symbol, _expr
-from metta._catalog import call_values
+from metta._catalog import call_signatures, call_values
+from metta._catalog.build import build
 from metta._declare import operations
 
 # Use the host's DICT_MERGE implementation. A Python loop adds key hashing
@@ -26,6 +30,12 @@ from metta._declare import operations
 _merge = ctypes.pythonapi._PyDict_MergeEx
 _merge.argtypes = (ctypes.py_object, ctypes.py_object, ctypes.c_int)
 _merge.restype = ctypes.c_int
+
+
+def expand_positional(value: Atom, materializer: Atom) -> Atom:
+    """Collect a call's positional values through the existing value codec."""
+    collect = call_signatures.annotation_value(materializer)
+    return Expression([call_values.argument(item) for item in collect(build(value))])
 
 
 def merge_keywords(frame: Atom, value: Atom) -> Atom:
@@ -105,6 +115,7 @@ def bind_call(home: Atom, function: Atom, positional: Atom, keywords: Atom, cons
 def link(space: Any, required: Any) -> None:
     """Link only the shared argument operations requested by compiled source."""
     for name, function, arity in (
+        ("_python-expand-positional", expand_positional, 2),
         ("_python-merge-keywords", merge_keywords, 2),
         ("_python-bind-call", bind_call, 5),
     ):

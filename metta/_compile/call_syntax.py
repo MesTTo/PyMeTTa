@@ -1,6 +1,11 @@
 """Purpose: construct native applications in Python's argument evaluation order.
 
 Guarantees:
+  - native and borrowed positional sequences retain their atom elements
+    [tested: test_expanded_arguments_preserve_native_atom_values; commit=WORKTREE]
+  - each Python call form retains its materializer's length effects
+    [tested: test_expanded_arguments_follow_python_length_hint_effects;
+    commit=WORKTREE]
   - expansion and keyword-group merge order follow Python's call construction
     [tested: test_expanded_calls_match_python_operand_and_mapping_failure_order;
     commit=10ef2f6958af451bcc3e651e0e0ccc7cc8ec7ce8]
@@ -11,6 +16,7 @@ from __future__ import annotations
 import ast
 
 from metta._atoms.factories import Atom, Expression, Grounded, S, Symbol, Variable, _expr
+from metta._catalog import call_signatures
 from metta._compile.context import CompilerContext
 
 
@@ -38,11 +44,13 @@ def application(compiler: CompilerContext, node: ast.Call, *, consumer: str = "v
     for source in node.args:
         spread = isinstance(source, ast.Starred)
         value = compiler.expression(source.value if isinstance(source, ast.Starred) else source)
-        if spread and not deferred:
-            compiler.runtime_ops.add("py-iter-once")
-            value = _expr(S.collapse, _expr(S["py-iter-once"], value))
         variable = Variable(compiler._temp("call-argument"))
         bindings.append((value, variable))
+        if spread and not deferred:
+            compiler.runtime_ops.add("_python-expand-positional")
+            materialized = Variable(compiler._temp("call-positionals"))
+            bindings.append((_expr(S["_python-expand-positional"], variable, call_signatures.annotation(list)), materialized))
+            variable = materialized
         pieces.append(variable if spread else _expr(S.noeval, Expression([variable])))
     positional: Atom = _expr(S.noeval, Expression([]))
     if deferred:
@@ -75,9 +83,9 @@ def application(compiler: CompilerContext, node: ast.Call, *, consumer: str = "v
     # group after all their values are read. These timings are observable.
     # https://github.com/python/cpython/blob/v3.14.4/Python/codegen.c#L4022-L4072
     if deferred:
-        compiler.runtime_ops.add("py-iter-once")
+        compiler.runtime_ops.add("_python-expand-positional")
         materialized = Variable(compiler._temp("call-positionals"))
-        bindings.append((_expr(S.collapse, _expr(S["py-iter-once"], arguments)), materialized))
+        bindings.append((_expr(S["_python-expand-positional"], arguments, call_signatures.annotation(tuple)), materialized))
         arguments = materialized
     assembled = Variable(compiler._temp("call-application"))
     bindings.append((_expr(S["_python-bind-call"], Symbol("&self"), function, arguments, keywords, Grounded(consumer)), assembled))
