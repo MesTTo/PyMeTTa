@@ -6,7 +6,7 @@ what `list()` collects, and no answer at all is the empty list the example's
 `collapse` compares against `()`.
 
 Guarantees: the same claims as 24-pairs_lib.metta
-[tested: python extensions/python/tools/twin_coverage.py examples/ch08-data/08-03-the-shipped-libraries/24-pairs_lib.metta; commit=40b3353b9ae721bf42b832fb953e93a5dc230e6c].
+[tested: python extensions/python/tools/twin_coverage.py examples/ch08-data/08-03-the-shipped-libraries/24-pairs_lib.metta; commit=WORKTREE].
 Open Obligations:
   To Do: None
   Hacks: None
@@ -97,8 +97,7 @@ def twin(m):
     # An absent key really is NO answer rather than an empty one.
     assert (S.none if list(lookup(sales, S.darwin)) == [] else S.found) == S.none
     assert (S.none if list(lookup(sales, S.perth)) == [] else S.found) == S.found
-    # A key is compared as a TERM, so a variable matches nothing, where a match
-    # against the same collection would have bound it to the first key.
+    # A key is compared as a term. A fresh variable does not match a city symbol.
     assert list(lookup(sales, V.city)) == []
 
     # The refusals name the element that is not a pair, which is the whole of the
@@ -113,6 +112,24 @@ def twin(m):
     ]
     assert refused(S.pairs_ungroup(((S.a, 1),)))
 
+    arithmetic, error_data = S["+"](1, 2), S.Error(S.a, S.b)
+    literal_rows = ((S.a, arithmetic), (S.b, error_data))
+    assert is_pairs(V.x) == [False]
+    assert is_pairs(S.quote(((S["+"], S.a), (S.Error, S.b)))) == [True]
+    assert keys(S.quote(((S["+"], S.a), (S.Error, S.b)))) == [(S["+"], S.Error)]
+    assert values(S.quote(literal_rows)) == [(arithmetic, error_data)]
+    assert rows(swap(S.quote(literal_rows))) == [(arithmetic, S.a), (error_data, S.b)]
+    assert group(S.quote(((S.b, arithmetic), (S.a, 2), (S.b, error_data)))) == [
+        ((S.a, (2,)), (S.b, (arithmetic, error_data))),
+    ]
+    assert rows(ungroup(S.quote(((S.a, ()), (S.b, (arithmetic, error_data)))))) == [
+        (S.b, arithmetic), (S.b, error_data),
+    ]
+    assert list(lookup(S.quote(((S.a, arithmetic), (S.a, error_data))), S.a)) == [
+        arithmetic, error_data,
+    ]
+    assert list(lookup(S.quote(((V.key, 7), (S.a, 8))), V.key)) == [7]
+
 
 #: MEASURED on this branch rather than inherited: this twin is new, so there is
 #: no earlier pin to move. The 28 claims cover the nine heads, the stability and
@@ -124,4 +141,16 @@ def twin(m):
 #: examples/ch08-data/08-03-the-shipped-libraries/24-pairs_lib.metta;
 #: fixture=lib_pairs at its functional commit, artifacts purged before the run;
 #: commit=40b3353b9ae721bf42b832fb953e93a5dc230e6c].
-BUDGET = 47584
+#: RE-PINNED 2026-09-13, 47584 to 813769: collection operations now compose
+#: MeTTa matching, folds and application; segment continuations are protected
+#: compiler helpers. The example measures 837557 for the same claims
+#: [measured: 813769 inferences; command=python extensions/python/tools/twin_coverage.py --measure --rounds 3 examples/ch08-data/08-03-the-shipped-libraries/24-pairs_lib.metta;
+#: fixture=minimum of three serial fresh processes after purging engine/lib QLF;
+#: commit=WORKTREE].
+#: RE-PINNED 2026-09-13, 813769 to 815106 (+1337), The validated range
+#: continuation now lives in the private support file rather than appearing as
+#: a public library head. The import adds its measured loading cost without
+#: changing the continuation body [measured 2026-09-13: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+BUDGET = 815106

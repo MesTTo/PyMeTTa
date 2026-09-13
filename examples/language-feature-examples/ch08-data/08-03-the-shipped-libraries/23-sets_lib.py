@@ -5,7 +5,7 @@ A set is an expression, so it comes back as one and a tuple goes in as one;
 canonical. A refusal is what `if-error` reads, so it is caught as the error it is.
 
 Guarantees: the same claims as 23-sets_lib.metta
-[tested: python extensions/python/tools/twin_coverage.py examples/ch08-data/08-03-the-shipped-libraries/23-sets_lib.metta; commit=e3e8c891065765765ee8fe567c5eb6864e79b652].
+[tested: python extensions/python/tools/twin_coverage.py examples/ch08-data/08-03-the-shipped-libraries/23-sets_lib.metta; commit=WORKTREE].
 Open Obligations:
   To Do: None
   Hacks: None
@@ -19,6 +19,7 @@ from metta._errors.errors import MettaError
 def twin(m):
     """Build, ask, insert, remove, merge, compare and refuse."""
     m += lib.sets
+    m += lib.functional
 
     def refused(call):
         """Whether evaluating a call raises, which is what if-error reads."""
@@ -36,7 +37,6 @@ def twin(m):
     member, insert, remove = m.fn.set_member, m.fn.set_insert, m.fn.set_remove
     union, intersection = m.fn.set_union, m.fn.set_intersection
     difference, symmetric = m.fn.set_difference, m.fn.set_symmetric_difference
-    union_all, intersection_all = m.fn.set_union_all, m.fn.set_intersection_all
     subset, disjoint = m.fn.set_subset, m.fn.set_disjoint
 
     # A set is an expression in the standard order of terms with no duplicates,
@@ -73,7 +73,7 @@ def twin(m):
     assert elements(insert(primes, 7)) == [2, 3, 5, 7]
     assert list(primes) == [2, 3, 5]
 
-    # The four merges, each one pass down both sets.
+    # The four combinations preserve the canonical representation.
     assert elements(union((1, 3), (2, 3))) == [1, 2, 3]
     assert elements(intersection((1, 2, 3), (2, 3, 4))) == [2, 3]
     assert elements(difference((1, 2, 3), (2, 3, 4))) == [1]
@@ -82,12 +82,12 @@ def twin(m):
     assert elements(union((), ())) == []
     assert elements(intersection((1, 2), (3, 4))) == []
 
-    # The merges over a whole collection of sets: the union of none is empty, and
-    # the intersection of none is refused, because it would be every term there is.
-    assert elements(union_all(((1, 2), (2, 3), (5,)))) == [1, 2, 3, 5]
-    assert elements(union_all(())) == []
-    assert elements(intersection_all(((1, 2, 3), (2, 3, 4), (3, 4, 5)))) == [3]
-    assert refused(S.set_intersection_all(()))
+    # The same operations take any number of sets. Union has an empty identity;
+    # intersection requires a set to supply its universe.
+    assert elements(union((1, 2), (2, 3), (5,))) == [1, 2, 3, 5]
+    assert elements(union()) == []
+    assert elements(intersection((1, 2, 3), (2, 3, 4), (3, 4, 5))) == [3]
+    assert refused(S.set_intersection())
 
     # The two questions between sets. A set is a subset of itself, the empty set
     # is a subset of everything and disjoint from everything, itself included.
@@ -112,7 +112,24 @@ def twin(m):
     # said, which is the wrong answer with no symptom this library exists to remove.
     assert refused(S.set_union((2, 1), (1,)))
     assert refused(S.set_member((1, 1), 1))
-    assert refused(S.set_union_all(((1,), (2, 1))))
+    assert refused(S.set_union((1,), (2, 1)))
+
+    arithmetic, error_data = S["+"](1, 2), S.Error(S.a, S.b)
+    assert set_of(S.quote((arithmetic, error_data, arithmetic))) == [(arithmetic, error_data)]
+    assert is_set(S.quote(error_data)) == [True]
+    # Iteration keeps Error-headed collections as data, as it does any answer.
+    assert list(union(S.quote(error_data), (S.a, S.c))) == [S.Error(S.a, S.b, S.c)]
+    assert list(intersection(S.quote(error_data), S.quote(S.Error(S.a)))) == [S.Error(S.a)]
+    assert member(S.quote((V.x,)), V.x) == [True]
+    assert len(set_of((1, 1.0)).one()) == 2
+    assert is_set(V.x) == [False]
+    assert refused(S.set_intersection((2, 1)))
+
+    assert elements(union((1, 2))) == [1, 2]
+    assert elements(intersection((1, 2))) == [1, 2]
+    assert elements(union((1,), (2,), (3,), (4,), (5,), (6,), (7,), (8,), (9,))) == list(range(1, 10))
+    assert elements(m.fn.apply_to(S.set_union, S.quote(((1, 2), (2, 3), (4,))))) == [1, 2, 3, 4]
+    assert elements(m.fn.apply_to(S.set_intersection, S.quote(((1, 2, 3), (2, 3, 4), (3,))))) == [3]
 
 
 #: MEASURED on this branch rather than inherited: this twin is new, so there is
@@ -123,7 +140,19 @@ def twin(m):
 #: --rounds 3 examples/ch08-data/08-03-the-shipped-libraries/23-sets_lib.metta;
 #: fixture=lib_sets at its functional commit, artifacts purged before the run;
 #: commit=e3e8c891065765765ee8fe567c5eb6864e79b652].
-BUDGET = 71496
+#: RE-PINNED 2026-09-13, 71496 to 366379: collection operations now compose
+#: MeTTa matching, folds and application; segment continuations are protected
+#: compiler helpers. The example measures 348761 for the same claims
+#: [measured: 366379 inferences; command=python extensions/python/tools/twin_coverage.py --measure --rounds 3 examples/ch08-data/08-03-the-shipped-libraries/23-sets_lib.metta;
+#: fixture=minimum of three serial fresh processes after purging engine/lib QLF;
+#: commit=WORKTREE].
+#: RE-PINNED 2026-09-13, 366379 to 367716 (+1337), The validated range
+#: continuation now lives in the private support file rather than appearing as
+#: a public library head. The import adds its measured loading cost without
+#: changing the continuation body [measured 2026-09-13: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+BUDGET = 367716
 
 #: OVERRUN 2026-09-12, 1399: the example nests its law claims in one evaluation
 #: each, where Python reads them as separate calls whose intermediate sets cross
@@ -134,4 +163,5 @@ BUDGET = 71496
 #: extensions/python/tools/twin_coverage.py --measure --rounds 3
 #: examples/ch08-data/08-03-the-shipped-libraries/23-sets_lib.metta;
 #: commit=e3e8c891065765765ee8fe567c5eb6864e79b652].
-OVERRUN = 1399
+#: RETIRED 2026-09-13: the new 366379 cost is within the example's 10% band;
+#: the measured composition above needs no additional allowance.

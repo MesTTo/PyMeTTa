@@ -104,4 +104,16 @@ def twin(m):
 #: examples/ch08-data/08-03-the-shipped-libraries/39-uri_lib.metta;
 #: fixture=lib_uri with engine/lib QLF artifacts purged;
 #: commit=24b96f8ec8468bc97cec35e1d71ce689ede7fdcf].
-BUDGET = 118602
+#: RE-PINNED 2026-09-13, 118602 to 180593 (+61991), Combinatorics, Functional,
+#: Pairs and Sets now derive collection operations through MeTTa equations,
+#: segments and folds. This example imports the changed provider directly or
+#: through its library dependencies [measured 2026-09-13: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+#: RE-PINNED 2026-09-13, 180593 to 181936 (+1343), The validated range
+#: continuation now lives in the private support file rather than appearing as
+#: a public library head. The import adds its measured loading cost without
+#: changing the continuation body [measured 2026-09-13: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+BUDGET = 181936

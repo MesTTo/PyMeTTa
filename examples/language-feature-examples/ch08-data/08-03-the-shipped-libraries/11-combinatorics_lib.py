@@ -1,9 +1,10 @@
 """Purpose: examples/ch08-data/08-03-the-shipped-libraries/11-combinatorics_lib.metta in Python: choosing from a finite collection.
 
-Each operation comes in two shapes, a nondeterministic one answering a choice
-per solution and an `l` one answering the whole tuple, and Python reads the
-first as a LIST of answers and the second as one answer that IS a list. That
-is the same distinction, written the way each language writes it.
+Streams can be consumed a value at a time or collected. The existing collected
+choice forms use the same generators. Literal expressions remain data.
+
+Guarantees: the same claims as 11-combinatorics_lib.metta
+[tested: lib_combinatorics_surface; commit=WORKTREE].
 Open Obligations:
   To Do: None
   Hacks: None
@@ -131,6 +132,34 @@ def twin(m):
     assert len(list(every(LETTERS))) == 2**3
     assert len(list(power((S.a, S.b), 3))) == 2**3
 
+    arithmetic, error_data = S["+"](1, 2), S.Error(S.a, S.b)
+    literal = (arithmetic, S.a)
+    assert two(S.quote(literal)) == [literal]
+    assert k_list(S.quote(literal), 1) == [((arithmetic,), (S.a,))]
+    assert prefix(1, S.quote(literal)) == [(arithmetic,)]
+    assert list(orderings(S.quote((arithmetic, error_data)))) == [
+        (arithmetic, error_data), (error_data, arithmetic),
+    ]
+    assert list(every(S.quote(literal))) == [literal, (S.a,), (arithmetic,), ()]
+    assert list(product(S.quote(((arithmetic, error_data), (S.a,))))) == [
+        (arithmetic, S.a), (error_data, S.a),
+    ]
+
+    # Taking the first answer does not collect the remaining combinations.
+    assert k_stream(tuple(range(100)), 50).first() == tuple(range(50))
+    assert list(power((), 9999999999999999999999999999999)) == []
+    assert refused(m, S.tuples(((), 3)))
+    assert refused(m, S.cartesian_power((0, 1), 1.0))
+    assert refused(m, S.factorial(1.0))
+    assert binomial(100, 50) == [100891344545564193334812497256]
+    assert list(step(0.5, 2.0, 1)) == [0.5, 1.5]
+    advancement = []
+    try:
+        advancement.extend(S.fine for _ in step(1.0e20, 1.0e21, 1))
+    except MettaError:
+        advancement.append(S.refused)
+    assert advancement == [S.fine, S.refused]
+
 
 #: MEASURED on this branch rather than inherited: this twin is new, so there is
 #: no earlier pin to move
@@ -254,7 +283,19 @@ def twin(m):
 #: declared modes, so the face is generated and the example proves 27 further
 #: claims [measured 2026-09-12: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=08b21037caed98b220eb50b39630b32bea62e535].
-BUDGET = 122318
+#: RE-PINNED 2026-09-13, 122318 to 747785: collection operations now compose
+#: MeTTa matching, folds and application; segment continuations are protected
+#: compiler helpers. The example measures 850820 for the same claims
+#: [measured: 747785 inferences; command=python extensions/python/tools/twin_coverage.py --measure --rounds 3 examples/ch08-data/08-03-the-shipped-libraries/11-combinatorics_lib.metta;
+#: fixture=minimum of three serial fresh processes after purging engine/lib QLF;
+#: commit=WORKTREE].
+#: RE-PINNED 2026-09-13, 747785 to 749122 (+1337), The validated range
+#: continuation now lives in the private support file rather than appearing as
+#: a public library head. The import adds its measured loading cost without
+#: changing the continuation body [measured 2026-09-13: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+BUDGET = 749122
 
 #: The declared OVERRUN went with the eight new heads: the twin used to cost
 #: more than the example's band allowed, and the enumerations and exact counts

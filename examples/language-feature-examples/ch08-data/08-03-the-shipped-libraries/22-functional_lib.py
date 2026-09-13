@@ -13,7 +13,7 @@ helpers take their arithmetic and comparisons by the engine's words, `fn.mul`,
 parameter would cross to the host once per element.
 
 Guarantees: the same claims as 22-functional_lib.metta
-[tested: python extensions/python/tools/twin_coverage.py examples/ch08-data/08-03-the-shipped-libraries/22-functional_lib.metta; commit=a2a80061cd8264d8f714b14c76b94d00f44a0755].
+[tested: python extensions/python/tools/twin_coverage.py examples/ch08-data/08-03-the-shipped-libraries/22-functional_lib.metta; commit=WORKTREE].
 Open Obligations:
   To Do: None
   Hacks: None
@@ -196,6 +196,72 @@ def twin(m):
     step = S["|->"](Expression((V.i, V.s)), V.s + V.i)
     assert m.fn.iterate(0, 3, 0, step) == [3]
 
+    @m.define
+    def branch_add(a, b):
+        yield fn.add(a, b)
+        yield fn.add(1, fn.add(a, b))
+
+    @m.define
+    def branch_key(x):
+        yield fn.mod(x, 2)
+        yield fn.add(2, fn.mod(x, 2))
+
+    @m.define
+    def branch_step(seed):
+        yield (seed, fn.add(seed, 1)) if fn.lt(seed, 2) else fn.empty()
+        yield (fn.add(seed, 10), fn.add(seed, 1)) if fn.lt(seed, 2) else fn.empty()
+
+    @m.define
+    def increment_function():
+        yield lambda x: fn.add(x, 1)
+        yield lambda x: fn.add(x, 2)
+
+    assert list(m.fn.scan(S.branch_add, 0, (1, 2))) == [
+        (0, 1, 3), (0, 1, 4), (0, 2, 4), (0, 2, 5),
+    ]
+    assert list(m.fn.unfold(S.branch_step, 0)) == [(0, 1), (0, 11), (10, 1), (10, 11)]
+    assert list(m.fn.group_by(S.branch_key, (0, 1))) == [
+        ((0, (0,)), (1, (1,))), ((0, (0,)), (3, (1,))),
+        ((2, (0,)), (1, (1,))), ((2, (0,)), (3, (1,))),
+    ]
+    assert list(m.fn.pipe((S.increment_function(), S.increment_function()), 0)) == [2, 3, 3, 4]
+    assert list(m.fn.apply_to(S.increment_function(), (1,))) == [2, 3]
+    both = S["|->"]((V.x,), S.superpose((FALSE, TRUE)))
+    none = S["|->"]((V.x,), S.empty())
+    assert rows(m.fn.partition(both, (1, 2))) == [(1, 2), ()]
+    assert rows(m.fn.partition(none, (1, 2))) == [(), (1, 2)]
+    assert list(m.fn.scan(S["|->"]((V.a, V.b), S.empty()), 0, (1,))) == []
+    malformed = S["|->"]((V.n,), if_(S.eq(V.n, 0), (1, 2, 3), S.empty()))
+    assert refused(S.unfold(malformed, 0))
+
+    arithmetic, error_data = S["+"](1, 2), S.Error(S.a, S.b)
+    literal = (arithmetic, error_data)
+    assert rows(m.fn.zip(S.quote(literal), (S.a, S.b))) == [
+        (arithmetic, S.a), (error_data, S.b),
+    ]
+    assert rows(m.fn.unzip(S.quote(((S["+"], S.a), (S.Error, S.b))))) == [
+        (S["+"], S.Error), (S.a, S.b),
+    ]
+    assert list(m.fn.flatten_once(S.quote(((arithmetic,), error_data))).one()) == [
+        arithmetic, S.Error, S.a, S.b,
+    ]
+    assert list(m.fn.flatten_deep(S.quote(((arithmetic,), error_data))).one()) == [
+        S["+"], 1, 2, S.Error, S.a, S.b,
+    ]
+    expression = S["|->"]((V.x,), S.eq(S.get_metatype(V.x), S.Expression))
+    assert rows(m.fn.partition(expression, S.quote((*literal, 3)))) == [literal, (3,)]
+    metatype = S["|->"]((V.x,), S.get_metatype(V.x))
+    assert m.fn.group_by(metatype, S.quote(literal)) == [((S.Expression, literal),)]
+    constant = S["|->"]((V.x,), 0)
+    assert m.fn.sort_by(constant, S.quote(literal)) == [literal]
+    item = S["|->"]((V.acc, V.item), S.quote(V.item))
+    assert m.fn.scan(item, S.a, S.quote(literal)) == [(S.a, *literal)]
+    assert rows(m.fn.chunk(S.quote(literal), 1)) == [(arithmetic,), (error_data,)]
+    assert rows(m.fn.window(S.quote(literal), 2)) == [literal]
+    identity = S["|->"]((V.data,), S.quote(V.data))
+    assert m.fn.apply_to(identity, S.quote((arithmetic,))) == [arithmetic]
+    assert m.fn.pipe((identity,), S.quote(arithmetic)) == [arithmetic]
+
 
 #: MEASURED on this branch rather than inherited: this twin is new, so there is
 #: no earlier pin to move. The 51 claims cover the fourteen registered heads,
@@ -218,7 +284,19 @@ def twin(m):
 #: lib_unicode import it needs [measured 2026-09-12: min-of-3 serial fresh
 #: processes; command=python extensions/python/tools/twin_coverage.py --repin;
 #: commit=b2a180eace9ff7e51677b1a40a8d6374ee05972b].
-BUDGET = 151546
+#: RE-PINNED 2026-09-13, 151546 to 1091943: collection operations now compose
+#: MeTTa matching, folds and application; segment continuations are protected
+#: compiler helpers. The example measures 1074085 for the same claims
+#: [measured: 1091943 inferences; command=python extensions/python/tools/twin_coverage.py --measure --rounds 3 examples/ch08-data/08-03-the-shipped-libraries/22-functional_lib.metta;
+#: fixture=minimum of three serial fresh processes after purging engine/lib QLF;
+#: commit=WORKTREE].
+#: RE-PINNED 2026-09-13, 1091943 to 1093280 (+1337), The validated range
+#: continuation now lives in the private support file rather than appearing as
+#: a public library head. The import adds its measured loading cost without
+#: changing the continuation body [measured 2026-09-13: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+BUDGET = 1093280
 
 #: DIVERGED 2026-09-12, the example holds 1 atom the twin does not (1 =) and
 #: the twin holds 1 atom the example does not (1 =): the loop's tick helper is
@@ -227,4 +305,14 @@ BUDGET = 151546
 #: bindings, the effects and the answer are the same [measured 2026-09-12: the
 #: two stored-atom surpluses, one fresh process per side; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=a2a80061cd8264d8f714b14c76b94d00f44a0755].
-DIVERGENCE = "0167fe4bbf5f60f3efd0ac18c36909cf44b3ca7c6917b67655c2889741fbc1d9"
+#: DIVERGED 2026-09-13, the example holds 5 atoms the twin does not (2 :, 3 =)
+#: and the twin holds 5 atoms the example does not (2 :, 3 =): The tick helper
+#: still compiles Python assignments to nested let* while the example writes
+#: nested let. The two Python lambda bodies yielded by increment_function
+#: consume two generated names before later calls, shifting the otherwise
+#: identical partition and unfold specializations from lambda_67 and lambda_66
+#: to lambda_69 and lambda_68; the branch and literal claims verify both paths
+#: [measured 2026-09-13: the two stored-atom surpluses, one fresh process per
+#: side; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+DIVERGENCE = "657f0b5df5fb6e201a726937590d125fdbc13e415a6611d6956683c38278ae62"

@@ -285,4 +285,10 @@ def twin(m):
 #: changes [measured 2026-09-13: min-of-3 serial fresh processes;
 #: command=python extensions/python/tools/twin_coverage.py --repin;
 #: commit=7b42d5ee5cecb82709617b7ed08dfa2c1441f268].
-BUDGET = 210166
+#: RE-PINNED 2026-09-13, 210166 to 210172 (+6), Exporting and protecting the
+#: shared segment body continuation changes the measured module setup cost.
+#: Both consumers retain their claims and stored contents; their fresh counts
+#: move by 6 and 19 inferences [measured 2026-09-13: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+BUDGET = 210172

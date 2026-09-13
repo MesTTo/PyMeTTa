@@ -105,4 +105,16 @@ def twin(m):
 #: command=python extensions/python/tools/twin_coverage.py --measure --rounds 3
 #: examples/ch08-data/08-03-the-shipped-libraries/43-testing_lib.metta;
 #: fixture=lib_testing with engine/lib QLF artifacts purged; commit=7fad61bab72098722b27091a94282ff69989920e].
-BUDGET = 74003
+#: RE-PINNED 2026-09-13, 74003 to 364240: collection operations now compose
+#: MeTTa matching, folds and application; segment continuations are protected
+#: compiler helpers. The example measures 390681 for the same claims
+#: [measured: 364240 inferences; command=python extensions/python/tools/twin_coverage.py --measure --rounds 3 examples/ch08-data/08-03-the-shipped-libraries/43-testing_lib.metta;
+#: fixture=minimum of three serial fresh processes after purging engine/lib QLF;
+#: commit=WORKTREE].
+#: RE-PINNED 2026-09-13, 364240 to 365541 (+1301), The validated range
+#: continuation now lives in the private support file rather than appearing as
+#: a public library head. The import adds its measured loading cost without
+#: changing the continuation body [measured 2026-09-13: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+BUDGET = 365541

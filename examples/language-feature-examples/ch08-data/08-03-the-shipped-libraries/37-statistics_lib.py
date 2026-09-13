@@ -111,7 +111,19 @@ def twin(m):
 #: command=python extensions/python/tools/twin_coverage.py --measure --rounds 3
 #: examples/ch08-data/08-03-the-shipped-libraries/37-statistics_lib.metta;
 #: fixture=lib_statistics with engine/lib QLF artifacts purged; commit=84824f5cf870f5cd7ac89d6580093d0459d91a9b].
-BUDGET = 157714
+#: RE-PINNED 2026-09-13, 157714 to 163787 (+6073), Combinatorics, Functional,
+#: Pairs and Sets now derive collection operations through MeTTa equations,
+#: segments and folds. This example imports the changed provider directly or
+#: through its library dependencies [measured 2026-09-13: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+#: RE-PINNED 2026-09-13, 163787 to 165130 (+1343), The validated range
+#: continuation now lives in the private support file rather than appearing as
+#: a public library head. The import adds its measured loading cost without
+#: changing the continuation body [measured 2026-09-13: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+BUDGET = 165130
 
 #: OVERRUN: Python evaluates through fn/eval and reads numeric and collection
 #: results across the boundary for its assertions. The example's test keeps

@@ -111,4 +111,16 @@ def twin(m):
 #: changes [measured 2026-09-13: min-of-3 serial fresh processes;
 #: command=python extensions/python/tools/twin_coverage.py --repin;
 #: commit=7b42d5ee5cecb82709617b7ed08dfa2c1441f268].
-BUDGET = 118039
+#: RE-PINNED 2026-09-13, 118039 to 200522 (+82483), Combinatorics, Functional,
+#: Pairs and Sets now derive collection operations through MeTTa equations,
+#: segments and folds. This example imports the changed provider directly or
+#: through its library dependencies [measured 2026-09-13: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+#: RE-PINNED 2026-09-13, 200522 to 201865 (+1343), The validated range
+#: continuation now lives in the private support file rather than appearing as
+#: a public library head. The import adds its measured loading cost without
+#: changing the continuation body [measured 2026-09-13: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+BUDGET = 201865
