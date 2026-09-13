@@ -1,4 +1,4 @@
-"""Purpose: grammars as values, and what running one over text answers.
+"""Purpose: compose grammar values and inspect their ordinary parser functions.
 
 A grammar is a built term, so every form is `S.<name>(...)` and the whole grammar
 is an ordinary Python value that can be named and reused. The grammar parameter
@@ -11,14 +11,14 @@ two that answer a GRAMMAR return the built term, which is what `ref` evaluates
 when the parse reaches it.
 
 Guarantees: the same claims as 27-parsing_lib.metta
-[tested: python extensions/python/tools/twin_coverage.py examples/ch08-data/08-03-the-shipped-libraries/27-parsing_lib.metta; commit=7bdd5ace3f8272c2806ac0b925e56a78dc0894a8].
+[tested: python extensions/python/tools/twin_coverage.py examples/ch08-data/08-03-the-shipped-libraries/27-parsing_lib.metta; commit=WORKTREE].
 Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
 """
 
-from metta import G, S, fn, lib
+from metta import G, S, V, fn, lib
 from metta._errors.errors import MettaError
 
 
@@ -210,6 +210,44 @@ def twin(m):
         S.Error(S.grammar_parse(S.digits(), 7), S.BadArgType(2, S.String, S.Number)),
     ]
 
+    assert is_grammar(S.alt()) == [True]
+    assert values(parse(S.alt(), G(""))) == []
+    assert parse(S.cat(), G("")) == [()]
+    assert prefix(S.many(S.any()), G("ab")) == [
+        ((G("a"), G("b")), G("")), ((G("a"),), G("b")), ((), G("ab")),
+    ]
+    assert parse(S.many(S.skip(S.lit(G("x")))), G("xx")) == [((), ())]
+    literal = S["+"](1, 2)
+    callback = S["|->"]((V.text,), S.quote(literal))
+    assert parse(S.map(callback, S.any()), G("x")) == [literal]
+    error = S.Error(S.data, S.code)
+    callback = S["|->"]((V.text,), S.quote(error))
+    assert parse(S.map(callback, S.any()), G("x")) == [error]
+    callback = S["|->"]((V.text,), S.quote(S.Empty))
+    assert parse(S.map(callback, S.any()), G("x")) == [S.Empty]
+    callback = S["|->"]((V.text,), S.quote((V.x, V.y, V.x)))
+    assert m.eval(S["=="](S.grammar_parse(S.map(callback, S.any()), G("x")),
+                          S.quote((V.x, V.y, V.x)))) == [True]
+
+    parser = m.fn.grammar_parser(S.any()).one()
+    assert m.fn.apply_to(parser, S.quote(((literal, S.Empty),))) == [((literal,), (S.Empty,))]
+    parser = m.fn.grammar_parser(S.lit(G("x"))).one()
+    assert m.fn.get_metatype(parser) == [S.Expression]
+    recipe = m.match(S["="](S.grammar_parser(V.grammar), V.body)).one()
+    compile_grammar = m.eval(S["|->"]((recipe.grammar,), recipe.body))[0]
+    parser = m.fn.apply_to(compile_grammar, (S.digits(),)).one()
+    assert m.fn.apply_to(parser, ((G("1"), G("2"), G("!")),)) == [((G("12"),), (G("!"),))]
+
+    m.add(S.parsing_form(S.pure_value, (S.Atom,), S.parsing_example_value))
+    m.add(S[":"](S.parsing_example_value, S["->"](S.Atom, S.Atom, S.Expression)))
+    m.add(S["="](S.parsing_example_value(V.value, V.input), S.quote(((V.value,), V.input))))
+    assert parse(S.pure_value(literal), G("")) == [literal]
+    assert len(forms().one()) == 27
+    # This assertion is literal code: grammar-is must not execute the ref target.
+    never = (S["|->"], (), (S.assertEqual, False, True))
+    assert is_grammar(S.ref(never)) == [True]
+    assert refused(S.grammar_parse(S.many(S.cat()), G("")))
+
 
 #: MEASURED on this branch rather than inherited: this twin is new, so there is
 #: no earlier pin to move. The 58 claims cover the fourteen primitives, the
@@ -227,4 +265,13 @@ def twin(m):
 #: through next(iter(...)) rather than a list slice, which stops draining the
 #: rest [measured 2026-09-12: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=7bdd5ace3f8272c2806ac0b925e56a78dc0894a8].
-BUDGET = 89855
+#: RE-PINNED 2026-09-14, 89855 to 4666804 (+4576949), Parsing derives written
+#: callable grammars and literal contributions in MeTTa, adding sixteen
+#: executable claims [measured 2026-09-14: min-of-3 serial fresh processes;
+#: command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+#: RE-PINNED 2026-09-14, 4666804 to 4666705 (-99), The parsing twin uses
+#: shared-context identity comparison and holds the ref assertion as literal
+#: code [measured 2026-09-14: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 4666705
