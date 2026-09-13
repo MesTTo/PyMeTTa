@@ -947,8 +947,8 @@ class _Compiler(
         # for inner defs; a call site prepends the lifted names' CURRENT
         # variables, which is Python's own late binding, resolved per call.
         self.lifted: dict[str, tuple[str, list[str], bool]] = _provided(lifted, {})
-        # What a block falling off its end means: None is the function-level
-        # reading (a missing return is a refusal); a loop body's closer
+        # What a block falling off its end means: an absent closer returns
+        # the Python None value; a loop body's closer
         # builds the recursive call from the scope at that point.
         self.closer = closer
         # The scope NAMES that closer reads, visible to state analysis: a
