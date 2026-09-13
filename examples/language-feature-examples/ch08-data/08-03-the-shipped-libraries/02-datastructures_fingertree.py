@@ -322,7 +322,12 @@ def twin(m):
 #: the native tree adaptation [measured 2026-09-13: min-of-3 serial fresh
 #: processes; command=python extensions/python/tools/twin_coverage.py --repin;
 #: commit=9c9e60542491416e2c5e431a2672bb20f04264fa].
-BUDGET = 323363
+#: RE-PINNED 2026-09-14, 323363 to 319361 (-4002), Functional applies finished
+#: callback arguments through reduce; Statistics derives exact coefficient rows
+#: and Combinatorics retires its native probability provider [measured
+#: 2026-09-14: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 319361
 
 #: The declared OVERRUN went with the map and queue face: the twin used to cost
 #: more than the example's band allowed because it asks the eleven ft-* functions

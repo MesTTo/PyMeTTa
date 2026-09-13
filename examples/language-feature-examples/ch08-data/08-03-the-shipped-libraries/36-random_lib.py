@@ -133,4 +133,9 @@ def twin(m):
 #: metta=1075529 and twin=1134846 [measured: 1134846;
 #: command=python extensions/python/tools/twin_coverage.py --measure --rounds 3 examples/ch08-data/08-03-the-shipped-libraries/36-random_lib.metta;
 #: fixture=68 Random example claims with core seeded entropy; commit=1d0b78a359f58de49f2f98bed50a6480d56cd5f6].
-BUDGET = 1134846
+#: RE-PINNED 2026-09-14, 1134846 to 1148657 (+13811), Functional applies
+#: finished callback arguments through reduce; Statistics derives exact
+#: coefficient rows and Combinatorics retires its native probability provider
+#: [measured 2026-09-14: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 1148657

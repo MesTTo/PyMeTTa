@@ -162,4 +162,9 @@ def twin(m):
 #: examples/ch08-data/08-03-the-shipped-libraries/21-datastructures_lib.metta;
 #: fixture=59 claims, fresh serial processes after engine/lib QLF purge,
 #: MeTTa 3172046; commit=9c9e60542491416e2c5e431a2672bb20f04264fa].
-BUDGET = 3062103
+#: RE-PINNED 2026-09-14, 3062103 to 3108074 (+45971), Functional applies
+#: finished callback arguments through reduce; Statistics derives exact
+#: coefficient rows and Combinatorics retires its native probability provider
+#: [measured 2026-09-14: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 3108074

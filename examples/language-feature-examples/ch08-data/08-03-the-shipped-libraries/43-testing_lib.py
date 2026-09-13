@@ -128,4 +128,9 @@ def twin(m):
 #: provider declarations and retains definition analysis for computed function
 #: heads [measured 2026-09-13: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=1d0b78a359f58de49f2f98bed50a6480d56cd5f6].
-BUDGET = 368014
+#: RE-PINNED 2026-09-14, 368014 to 363965 (-4049), Functional applies finished
+#: callback arguments through reduce; Statistics derives exact coefficient rows
+#: and Combinatorics retires its native probability provider [measured
+#: 2026-09-14: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 363965

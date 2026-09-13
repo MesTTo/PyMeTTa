@@ -307,7 +307,12 @@ def twin(m):
 #: provider declarations and retains definition analysis for computed function
 #: heads [measured 2026-09-13: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=1d0b78a359f58de49f2f98bed50a6480d56cd5f6].
-BUDGET = 1093269
+#: RE-PINNED 2026-09-14, 1093269 to 1189061 (+95792), Functional applies
+#: finished callback arguments through reduce; Statistics derives exact
+#: coefficient rows and Combinatorics retires its native probability provider
+#: [measured 2026-09-14: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 1189061
 
 #: DIVERGED 2026-09-12, the example holds 1 atom the twin does not (1 =) and
 #: the twin holds 1 atom the example does not (1 =): the loop's tick helper is
@@ -326,4 +331,12 @@ BUDGET = 1093269
 #: [measured 2026-09-13: the two stored-atom surpluses, one fresh process per
 #: side; command=python extensions/python/tools/twin_coverage.py --repin;
 #: commit=6471fbad35eced5ed6440ebf2c25a053b20221f3].
-DIVERGENCE = "657f0b5df5fb6e201a726937590d125fdbc13e415a6611d6956683c38278ae62"
+#: DIVERGED 2026-09-14, the example holds 3 atoms the twin does not (1 :, 2 =)
+#: and the twin holds 3 atoms the example does not (1 :, 2 =): the existing tick
+#: helper still lowers through let versus let*. The existing unfold
+#: specialization now calls apply-to; its two otherwise identical atoms name
+#: lambda_63 in the example and lambda_65 after Python's two generated lambdas
+#: [measured 2026-09-14: the two stored-atom surpluses, one fresh process per
+#: side; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+DIVERGENCE = "f83935b8ba7f257b7ae5f2adf13fca236bcbbbf7035606cfdc5786ba386a0267"

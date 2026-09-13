@@ -351,4 +351,9 @@ def twin(m):
 #: Strategy consumers pay the changed library declarations and derivations
 #: [measured 2026-09-13: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=505ce25b9384e782afa26f621527d4b1fd695924].
-BUDGET = 1256535
+#: RE-PINNED 2026-09-14, 1256535 to 1252300 (-4235), Functional applies
+#: finished callback arguments through reduce; Statistics derives exact
+#: coefficient rows and Combinatorics retires its native probability provider
+#: [measured 2026-09-14: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 1252300
