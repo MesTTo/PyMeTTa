@@ -3,14 +3,14 @@
 Guarantees:
   - application evaluates the carried native value, including subsequent source
     rewrites [tested: test_native_callable_values_keep_their_lexical_program;
-    commit=WORKTREE]
+    commit=8e2b7e3024713881f716e3d3a6a995bdf7231397]
   - segment applications execute the constructed call and preserve captured
     arguments [tested: test_evaluated_native_lambdas_apply_their_assembled_arguments;
-    commit=WORKTREE]
+    commit=8e2b7e3024713881f716e3d3a6a995bdf7231397]
 Owns resources:
   - the callable image contains its lexical home and captured receiver, so
     scope retention follows the ordinary native value graph [tested:
-    test_a_kept_native_callable_retains_its_scoped_program; commit=WORKTREE]
+    test_a_kept_native_callable_retains_its_scoped_program; commit=8e2b7e3024713881f716e3d3a6a995bdf7231397]
 """
 
 from __future__ import annotations

@@ -6,7 +6,7 @@ Guarantees:
     test_native_callable_values_keep_their_lexical_program; commit=ec999c898a35a79e88d4d9d3e7192abfe043f928]
   - an evaluated anonymous function's segment application executes the
     assembled call, including captured arguments [tested:
-    test_evaluated_native_lambdas_apply_their_assembled_arguments; commit=WORKTREE]
+    test_evaluated_native_lambdas_apply_their_assembled_arguments; commit=8e2b7e3024713881f716e3d3a6a995bdf7231397]
 """
 
 import inspect
