@@ -3,11 +3,14 @@
 Guarantees:
   - application evaluates the carried native value, including subsequent source
     rewrites [tested: test_native_callable_values_keep_their_lexical_program;
-    commit=ec999c898a35a79e88d4d9d3e7192abfe043f928]
+    commit=WORKTREE]
+  - segment applications execute the constructed call and preserve captured
+    arguments [tested: test_evaluated_native_lambdas_apply_their_assembled_arguments;
+    commit=WORKTREE]
 Owns resources:
   - the callable image contains its lexical home and captured receiver, so
     scope retention follows the ordinary native value graph [tested:
-    test_a_kept_native_callable_retains_its_scoped_program; commit=ec999c898a35a79e88d4d9d3e7192abfe043f928]
+    test_a_kept_native_callable_retains_its_scoped_program; commit=WORKTREE]
 """
 
 from __future__ import annotations
@@ -27,6 +30,7 @@ from metta._atoms.factories import (
     _atom_from_wire,
     _encode,
     _expr,
+    fresh,
 )
 from metta._catalog import call_signatures
 from metta._catalog.containers import runtime_annotation
@@ -200,7 +204,9 @@ def rebuild(atom: Atom, annotation: Any, space: Any) -> NativeCallable | None:
             binders = Expression([*variables, _expr(S[":seg"], tail)])
             for value in reversed(operands):
                 tail = _expr(S["cons-atom"], _expr(S.noeval, value), tail)
-            body = _expr(S.eval, _expr(S["cons-atom"], _expr(S.noeval, source), tail))
+            application = fresh()
+            body = _expr(S.chain, _expr(S["cons-atom"], _expr(S.noeval, source), tail),
+                         application, _expr(S.eval, application))
         atom = _expr(S["|->"], binders, _expr(S.evalc, body, space))
     if isinstance(atom, Expression) and atom.head == S["|->"] and len(atom.args) == 2:
         lambda_binders, lambda_body = atom.args

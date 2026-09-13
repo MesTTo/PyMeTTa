@@ -4,6 +4,9 @@ Guarantees:
   - storage and reconstruction retain named or parametric lexical homes,
     and calls read subsequent native body edits [tested:
     test_native_callable_values_keep_their_lexical_program; commit=ec999c898a35a79e88d4d9d3e7192abfe043f928]
+  - an evaluated anonymous function's segment application executes the
+    assembled call, including captured arguments [tested:
+    test_evaluated_native_lambdas_apply_their_assembled_arguments; commit=WORKTREE]
 """
 
 import inspect
@@ -180,3 +183,22 @@ def test_an_evaluated_bound_lambda_keeps_its_native_signature():
         home.remove(contract)
         home.add(S["@python-callable"](canonical, call_signatures.project(changed, G), S.one))
         assert callback() == 12
+
+
+@pytest.mark.parametrize("captured", (False, True))
+def test_evaluated_native_lambdas_apply_their_assembled_arguments(captured):
+    """An arrowless native closure applies its full call and keeps live lookup."""
+    with MeTTa() as context:
+        home = context.self
+        original = S["="](S["anonymous-add"](V.base, V.value), S["+"](V.base, V.value))
+        home.add(original)
+        written = ("(|-> ($base $value) (anonymous-add $base $value))" if captured
+                   else "(|-> ($value) (anonymous-add 10 $value))")
+        value = home.eval(home.parse(written))[0]
+        if captured:
+            value = home.eval(Expression([value, 10]))[0]
+        callback = convert.build(value, Callable[[int], int], space=home)
+        assert callback(3) == 13
+        home.remove(original)
+        home.add(S["="](S["anonymous-add"](V.base, V.value), S["+"](S["+"](V.base, V.value), 100)))
+        assert callback(3) == 113
