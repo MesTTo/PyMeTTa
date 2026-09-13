@@ -11,6 +11,9 @@ Guarded by:
     [tested: test_concurrent_reconstruction_publishes_one_python_proxy,
     test_overlapping_transactions_cannot_publish_distinct_proxies; commit=9b0a084e534ddf7dd67980ad84c27c8279b877f1]
 Guarantees:
+  - constructor arguments reach typed entries as values after their source
+    computations finish [tested:
+    test_constructor_arguments_preserve_values_and_run_factories; commit=WORKTREE]
   - generated field and class-variable queries return the stored syntax
     rather than their lookup expression [tested:
     test_generated_syntax_field_queries_return_the_stored_value,
@@ -39,7 +42,7 @@ from collections.abc import Sequence
 from enum import Enum, Flag
 from typing import Any
 
-from metta._atoms.factories import Atom, Expression, Grounded, S, Symbol, Variable, _expr
+from metta._atoms.factories import Atom, Expression, Grounded, S, Symbol, Variable, _expr, fresh
 from metta._atoms.names import attribute_name
 from metta._atoms.registry import _record_registration, _Registration
 from metta._catalog.annotations import referenced_classes, type_atoms_for
@@ -483,11 +486,11 @@ class ClassDeclaration:
 
     def initialize(self, instance: Any, *args: Any, **kwargs: Any) -> None:
         bound = self.signature.bind(*args, **kwargs)
-        arguments = self.arguments(bound.arguments, self.encode)
+        sources = self.argument_sources(bound.arguments, self.encode)
 
         def construct() -> None:
             if self.grain == "value":
-                receiver = self.answer(_expr(Symbol(f"_initialize-{self.name}"), *arguments))
+                receiver = self.answer(self.application(Symbol(f"_initialize-{self.name}"), sources))
                 for field, part in zip(self.stored_fields, receiver.args, strict=True):
                     object.__setattr__(instance, field.name, build(part, field.annotation))
                 return
@@ -496,23 +499,33 @@ class ClassDeclaration:
                 msg = f"minting {self.name} did not produce a constructor term: {receiver}"
                 raise EngineError(msg)
             self.attach(instance, receiver)
-            self.answer(_expr(Symbol(f"_initialize-{self.name}"), receiver, *arguments))
+            self.answer(self.application(Symbol(f"_initialize-{self.name}"), (_expr(S.noeval, receiver), *sources)))
 
         self.space.transaction(construct)
 
-    def arguments(self, supplied: dict[str, Any], encode: Any) -> tuple[Atom, ...]:
+    @staticmethod
+    def application(head: Atom, sources: Sequence[Atom]) -> Atom:
+        """Evaluate each source before applying the typed entry to its values."""
+        parameters = tuple(fresh() for _ in sources)
+        body = _expr(head, *parameters)
+        for parameter, source in reversed(tuple(zip(parameters, sources, strict=True))):
+            body = _expr(S.let, parameter, source, body)
+        return body
+
+    def argument_sources(self, supplied: dict[str, Any], encode: Any) -> tuple[Atom, ...]:
+        """Quote supplied values; omitted parameters retain their default code."""
         result: list[Atom] = []
         for name, parameter in self.signature.parameters.items():
             if name in supplied:
                 value = supplied[name]
                 if parameter.kind is inspect.Parameter.VAR_POSITIONAL:
-                    result.append(Expression([encode(part) for part in value]))
+                    result.append(_expr(S.noeval, Expression([encode(part) for part in value])))
                 elif parameter.kind is inspect.Parameter.VAR_KEYWORD:
                     result.append(self.keyword_arguments({key: encode(part) for key, part in value.items()}))
                 else:
-                    result.append(encode(value))
+                    result.append(_expr(S.noeval, encode(value)))
             elif parameter.kind is inspect.Parameter.VAR_POSITIONAL:
-                result.append(Expression([]))
+                result.append(_expr(S.noeval, Expression([])))
             elif parameter.kind is inspect.Parameter.VAR_KEYWORD:
                 result.append(self.keyword_arguments({}))
             else:
@@ -522,7 +535,9 @@ class ClassDeclaration:
     def keyword_arguments(self, values: dict[str, Atom]) -> Atom:
         """Build a keyword mapping through the class's private library import."""
         pairs = Expression([Expression([Grounded(key), value]) for key, value in values.items()])
-        return _expr(S.evalc, _expr(S["dict-space"], pairs), Symbol(self.space.name))
+        held = fresh()
+        return _expr(S.let, held, _expr(S.noeval, pairs),
+                     _expr(S.evalc, _expr(S["dict-space"], held), Symbol(self.space.name)))
 
     def install_storage(self) -> None:
         part = Variable("identity")

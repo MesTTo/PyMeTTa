@@ -1,6 +1,9 @@
 """Purpose: compile class initialization with the ordinary statement compiler.
 
 Guarantees:
+  - default computations finish before field input contracts inspect their
+    resulting values [tested:
+    test_constructor_arguments_preserve_values_and_run_factories; commit=WORKTREE]
   - defaults and factories run per construction and post-init reads the same
     field bindings as initialization [tested:
     test_class_value_post_init_and_write_refusal; commit=9b0a084e534ddf7dd67980ad84c27c8279b877f1]
@@ -51,13 +54,13 @@ def _prepare_defaults(plan: Any) -> None:
     for name, parameter in plan.signature.parameters.items():
         field = next((field for field in plan.fields if field.name == name), None)
         if parameter.kind is inspect.Parameter.VAR_POSITIONAL:
-            plan.defaults[name] = Expression([])
+            plan.defaults[name] = _expr(S.noeval, Expression([]))
         elif parameter.kind is inspect.Parameter.VAR_KEYWORD:
             plan.defaults[name] = plan.keyword_arguments({})
         elif plan.generated_init and field is not None and field.factory is not None:
             plan.defaults[name] = _factory(plan, name, field.factory)
         elif parameter.default is not inspect.Parameter.empty:
-            plan.defaults[name] = plan.encode(parameter.default)
+            plan.defaults[name] = _expr(S.noeval, plan.encode(parameter.default))
 
 
 def _compiler(plan: Any, fn: types.FunctionType | None, params: dict[str, str], closer: Any, shared: Any = None, *, receiver: str = "class-receiver", member: str = "__init__") -> Any:
@@ -157,9 +160,13 @@ def _generated_body(plan: Any, compiler: Any) -> Atom:
         ):
             value = _factory(plan, field.name, field.factory)
         elif field.default is not _ABSENT:
-            value = plan.encode(field.default)
+            value = _expr(S.noeval, plan.encode(field.default))
         else:
             continue
+        if not isinstance(value, Variable):
+            held = Variable(compiler._temp("field-value"))
+            steps.append((held, value))
+            value = held
         if plan.grain == "value":
             target = Variable(compiler._bind(field_key(field.name)))
             if field.annotation in (int, float):
@@ -205,7 +212,7 @@ def install(plan: Any) -> None:
         if not all(name in plan.defaults for name in names[count:]):
             continue
         completed = (*arguments[:count], *(plan.defaults[name] for name in names[count:]))
-        plan.space.add(_expr(S["="], _expr(factory, *arguments[:count]), _expr(S.transaction, _expr(factory, *completed))))
+        plan.space.add(_expr(S["="], _expr(factory, *arguments[:count]), _expr(S.transaction, plan.application(factory, completed))))
     alternatives = [
         [S.Expression] if parameter.kind is inspect.Parameter.VAR_POSITIONAL else
         [S.SpaceType] if parameter.kind is inspect.Parameter.VAR_KEYWORD else

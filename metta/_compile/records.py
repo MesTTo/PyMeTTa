@@ -1,6 +1,10 @@
 """Purpose: lower declared constructors and fields using static receiver types.
 
 Guarantees:
+  - class calls evaluate supplied expressions before default computations and
+    preserve their resulting atom values [tested:
+    test_constructor_arguments_preserve_values_and_run_factories,
+    test_constructor_sources_finish_before_factories_and_post_init; commit=WORKTREE]
   - annotations, constructor calls and declared fields carry receiver types;
     ordinary unknown host attributes keep their existing island meaning
     [tested: test_class_constructors_compile_fields; commit=9b0a084e534ddf7dd67980ad84c27c8279b877f1]
@@ -179,8 +183,8 @@ def call(compiler: CompilerContext, node: ast.Call) -> Atom | None:
         expressions = [*node.args, *(keyword.value for keyword in node.keywords)]
         supplied = {id(expression): Variable(compiler._temp("constructor-argument")) for expression in expressions}
         evaluated = [(compiler.expression(expression), supplied[id(expression)]) for expression in expressions]
-        arguments = owner.arguments(bound.arguments, lambda expression: supplied[id(expression)])
-        body = _expr(Symbol(f"make-{owner.name}"), *arguments)
+        sources = owner.argument_sources(bound.arguments, lambda expression: supplied[id(expression)])
+        body = owner.application(Symbol(f"make-{owner.name}"), sources)
         if any(name not in bound.arguments for name in owner.defaults):
             body = _expr(S.transaction, body)
         # Python evaluates supplied arguments in source order before entering
