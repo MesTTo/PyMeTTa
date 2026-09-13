@@ -1,4 +1,5 @@
 """Purpose: pin theory and full-interpreter selection on one answer ask.
+
 Guarantees:
   - theory data evaluates in isolated scratch state and an interpreter head
     receives target, expected type, and receiver without either selector
@@ -9,12 +10,12 @@ Guarantees:
     declaration for dispatch while get-type still reports it, including when
     a nested typed call makes its argument statically settled [tested:
     test_an_inherited_arrow_does_not_veto_a_local_definition;
-    commit=7b238053d2907cd514e3fd9a29927d43a53c5a3c]
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
-"""  # noqa: D205  -- the contract is one continuous invariant, not summary-and-body prose
+"""
 
 from __future__ import annotations
 
@@ -220,9 +221,9 @@ def test_an_inherited_arrow_does_not_veto_a_local_definition():
     assert completed.returncode == 0, completed.stderr
     assert completed.stdout.splitlines() == [
         "before [%Undefined%]",
-        "inherited-type [(-> Atom Atom Atom %Undefined%)]",
+        "inherited-type [(-> Atom (:seg Atom) %Undefined%)]",
         "inherited-call [(Error (choice) IncorrectNumberOfArguments)]",
-        "local-type [(-> Atom Atom Atom %Undefined%)]",
+        "local-type [(-> Atom (:seg Atom) %Undefined%)]",
         "local-call [base]",
         "theory-call [left, right]",
         "wrapper-before-remove [base]",

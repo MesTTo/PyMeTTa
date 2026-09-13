@@ -4,7 +4,9 @@ Every enumeration answers a name per solution, so a Python list IS the
 collapse and `len` is the count. The `engine-` enumeration predicates under
 the MeTTa names are the same operations. `origin-of` projects defining
 occurrences from the common property reader; `engine-origin` retains its
-implementation-tier classification [tested: twin; commit=90ba93eb8f6e98ebfefc55416859bf13de6a8427].
+implementation-tier classification. Literal replacement retains exact identity,
+root precedence, complete answer bags and shared variables [tested: twin;
+commit=WORKTREE].
 
 `surface-counts` moves as libraries are imported, so what is pinned here is
 the SHAPE rather than the numbers.
@@ -18,7 +20,7 @@ Open Obligations:
   Future Enhancements: None.
 """
 
-from metta import S, lib
+from metta import S, V, lib
 
 
 def twin(m):
@@ -91,6 +93,43 @@ def twin(m):
     assert len(m.fn["engine-function"]()) == len(functions())
     assert len(m.fn["engine-user-function"]()) == len(mine_only())
     assert len(m.fn["engine-extension-point"]()) == len(points())
+
+    replace, variables = m.fn.atom_replace, m.fn.atom_variables
+    assert replace(S["+"](1, 2), ((1, 10),)) == [S["+"](10, 2)]
+    assert replace(S.f(S.a), ((S.f(S.a), S.root), (S.a, S.child))) == [S.root]
+    assert replace((S.a, S.a), ((S.a, S.b), (S.b, S.c))) == [(S.b, S.b)]
+    assert replace((S.a, S.a), ((S.a, S.b), (S.a, S.c))) == [
+        (S.b, S.b), (S.b, S.c), (S.c, S.b), (S.c, S.c),
+    ]
+    assert replace(S.a, ((S.a, S.b), (S.a, S.b))) == [S.b, S.b]
+    assert replace(S.f(()), ((S.f, S.g), ((), S.empty_value))) == [S.g(S.empty_value)]
+    assert replace((), (((), S.f(S.a)),)) == [S.f(S.a)]
+    assert replace(S["+"](1, 2), ()) == [S["+"](1, 2)]
+    assert replace(S.a, ((S.a, S.Error(S.data, S.code)),)) == [S.Error(S.data, S.code)]
+    assert replace(S.a, ((S.a, S.Empty),)) == [S.Empty]
+    assert replace((S.a, S.a), ((S.a, S.Empty), (S.a, S.b))) == [
+        (S.Empty, S.Empty), (S.Empty, S.b), (S.b, S.Empty), (S.b, S.b),
+    ]
+    assert replace((1, 1.0), ((1, S.integer), (1.0, S.float))) == [(S.integer, S.float)]
+    assert m.eval(S["=="](S.atom_variables((V.x, (V.y, V.x), V.z, V.y)), S.quote((V.x, V.y, V.z)))) == [True]
+    # A binder is literal tuple data here, not a Python assignment to execute.
+    binder = (S.let, V.x, V.y, S.f(V.x, V.z))
+    assert m.eval(S["=="](S.atom_variables(binder), S.quote((V.x, V.y, V.z)))) == [True]
+    assert variables(S["+"](1, 2)) == [()]
+    assert m.eval(S["=="](S.atom_replace((V.x, V.y, V.x), ((V.x, V.z),)), S.quote((V.z, V.y, V.z)))) == [True]
+    assert m.eval(S["=="](S.atom_replace(S.p(V.x), ((S.p(V.y), S.wrong),)), S.quote(S.p(V.x)))) == [True]
+    m.add(S.reflect_rule(S.a, S.b), S.reflect_rule(S.a, S.c))
+    rules = tuple((row[0], row[1]) for row in m.match(S.reflect_rule(V["from"], V.to)))
+    assert replace(S.h(S.a), rules) == [S.h(S.b), S.h(S.c)]
+    assert m.fn.alltd(S.fail, S["+"](1, 2)) == [S["+"](1, 2)]
+    assert m.fn.seq(S["+"](1, 2)) == [S["+"](1, 2)]
+    assert m.fn.seq(S.id, S.id, S.id, S["+"](1, 2)) == [S["+"](1, 2)]
+    assert m.fn.choice(S["+"](1, 2)) == []
+    assert m.fn.repeat(3, S.noeval(S.token)) == [S.token, S.token, S.token]
+    assert m.eval(S.if_error(S.catch(S.atom_replace(S.a, ((S.a,),))), S.refused, S.accepted)) == [S.refused]
+    row = m.match(S["="](S.atom_variables(V.term), V.body)).one()
+    inspect = m.eval(S["|->"]((row.term,), row.body))[0]
+    assert m.eval(S["=="]((inspect, S.quote((V.x, V.x))), S.quote((V.x,)))) == [True]
 
 
 #: MEASURED on this branch rather than inherited: this twin is new, so there is
@@ -306,4 +345,10 @@ def twin(m):
 #: 531-inference load increase as the other native consumers [measured
 #: 2026-09-13: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=7b42d5ee5cecb82709617b7ed08dfa2c1441f268].
-BUDGET = 194191
+#: RE-PINNED 2026-09-13, 194191 to 1256535 (+1062344), Reflect composes exact
+#: literal replacement and variable inspection through the newly ordinary
+#: Strategy equations, variadic plans and binding-preserving topmost traversal;
+#: Strategy consumers pay the changed library declarations and derivations
+#: [measured 2026-09-13: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 1256535

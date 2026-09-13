@@ -274,9 +274,9 @@ if TYPE_CHECKING:
         parse: Symbol
         parse_command: Symbol
         pow: Symbol
-        "pow-math: (-> Number Number Number)\n\nPython's `**` operator. MeTTa answers a float where Python's integer power answers an integer, so the row raises a float."
+        "pow-math: (-> Number Number Number)\n\nPython's `**` operator. Both preserve integer powers for integer operands; this row uses a floating base and returns a float."
         pow_math: Symbol
-        "pow-math: (-> Number Number Number)\n\nPython's `**` operator. MeTTa answers a float where Python's integer power answers an integer, so the row raises a float."
+        "pow-math: (-> Number Number Number)\n\nPython's `**` operator. Both preserve integer powers for integer operands; this row uses a floating base and returns a float."
         pragma: Symbol
         prefix: Symbol
         pretty_atom: Symbol
@@ -1099,7 +1099,7 @@ _DOCUMENTATION = {
     "noreduce-eq": "noreduce-eq: (-> Atom Atom Bool)\n\nComparing two atoms WITHOUT reducing them is what Python's `==` on atoms already does: building a term never evaluates it.",
     "not": "not: (-> Bool Bool)\n\nPython's own keyword; `~` is the operator form on atoms.",
     "or": "or: (-> Bool Bool Bool)\n\nPython's own keyword; `|` is the operator form on atoms.",
-    "pow-math": "pow-math: (-> Number Number Number)\n\nPython's `**` operator. MeTTa answers a float where Python's integer power answers an integer, so the row raises a float.",
+    "pow-math": "pow-math: (-> Number Number Number)\n\nPython's `**` operator. Both preserve integer powers for integer operands; this row uses a floating base and returns a float.",
     "println!": "println!: (-> %Undefined% Bool)\n\nPython's `print`. It answers True rather than unit, which is upstream's own answer: `'println!'(Arg, true)` [source: PeTTa@ae66fa8 src/metta.pl:212].",
     "quote": "quote: (-> Atom Atom)\n\nThere is nothing to quote: building a term with `S[...]` never evaluates it, so the quoting question does not arise. `S.quote(x)` builds the term itself where a program needs the constructor.",
     "remove-atom": "remove-atom: (-> SpaceType Atom Bool)\n\nDrains every atom that unifies and answers True either way. `del space[pattern]` is this operation, and raises when the pattern matches nothing as Python's `del` does; `subtract-atom` is the one-occurrence grain beside it, which `space -= atom` and `space.remove(atom)` both spell.",
