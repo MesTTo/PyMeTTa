@@ -2,7 +2,7 @@
 
 Guarantees: generated grammars preserve answer order and multiplicity, and held
 callbacks, literal terms, metadata and reflected functions share the public
-parser contract [tested: test_parsing_lib.py; commit=WORKTREE].
+parser contract [tested: test_parsing_lib.py; commit=3c1d074a2069bc150a95cedc1946e0627a17a132].
 """
 
 import pytest
