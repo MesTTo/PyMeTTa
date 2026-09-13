@@ -3,11 +3,11 @@
 Guarantees:
   - native application facts preserve data, supplied arguments and lexical
     ownership [tested: test_native_application_frames_preserve_data_and_live_programs;
-    test_native_application_frames_retain_scoped_streams; commit=WORKTREE]
+    test_native_application_frames_retain_scoped_streams; commit=1d6b29cc4c734796ba173ee06e3b20568a1acf85]
   - forwarding retains captures and ambiguous application facts refuse
     [tested: test_forwarded_application_frames_preserve_captured_arguments;
     test_native_application_mapping_lookup_preserves_distinct_binders;
-    commit=WORKTREE]
+    commit=1d6b29cc4c734796ba173ee06e3b20568a1acf85]
 """
 
 import inspect

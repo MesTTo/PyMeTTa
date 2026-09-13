@@ -4,7 +4,7 @@ py-field reasoning in both modes, the reflector registry, integrate() over
 modules, and a real third-party library (networkx) integrated in a page.
 Owns resources: the uninspectable-callable witness unregisters its module
   operation in finally [tested: test_uninspectable_callable_errors_are_classified;
-  test_expanded_known_calls_keep_their_parameter_names; commit=WORKTREE]
+  test_expanded_known_calls_keep_their_parameter_names; commit=1d6b29cc4c734796ba173ee06e3b20568a1acf85]
 Guarantees:
   - dropping a space invalidates its integration installation records [tested
     test_dropped_space_name_reinstalls_integrations]
