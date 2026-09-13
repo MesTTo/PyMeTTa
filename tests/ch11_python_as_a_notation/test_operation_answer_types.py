@@ -5,7 +5,7 @@ Guarantees:
     parameters, contained values and full annotation claims remain [tested:
     test_host_answer_types_remove_only_empty_return_alternatives,
     test_nullable_host_operations_keep_parameters_and_annotation_claims;
-    commit=WORKTREE]
+    commit=835538c532668c8789b5d4d066422cd869d41958]
 """
 
 from typing import Annotated

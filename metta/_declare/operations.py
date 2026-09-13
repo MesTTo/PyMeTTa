@@ -8,7 +8,7 @@ Guarantees:
     claims preserve the declared values [tested:
     test_host_answer_types_remove_only_empty_return_alternatives,
     test_nullable_host_operations_keep_parameters_and_annotation_claims;
-    commit=WORKTREE]
+    commit=835538c532668c8789b5d4d066422cd869d41958]
   - class annotation dependencies use ordinary peer imports after module
     initialization [tested: tests/checks/check_layering.py,
     test_each_module_imports_first_in_a_fresh_process; commit=ab9d3489f87e0d7b7be4b3cd2025494cd62699fe]
@@ -47,7 +47,7 @@ Guarantees:
   - zero-parameter operations preserve result annotations when the host
     contract has no answer arrow [tested:
     test_nullary_host_operations_preserve_result_annotation_for_empty_answers;
-    commit=WORKTREE]
+    commit=835538c532668c8789b5d4d066422cd869d41958]
   - callable code flags, through partials, wrappers, bound methods, and
     callable objects, classify generators and route coroutine functions to
     future-space dispatch
