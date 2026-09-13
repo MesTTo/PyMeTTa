@@ -1,34 +1,43 @@
 """Purpose: rebuild native callable values with their lexical space.
 
 Guarantees:
+  - native application facts receive separate data frames, retaining supplied
+    arguments, captures and live program edits [tested:
+    test_native_application_frames_preserve_data_and_live_programs;
+    test_forwarded_application_frames_preserve_captured_arguments;
+    test_native_application_mapping_lookup_preserves_distinct_binders;
+    test_native_application_keywords_do_not_bind_adapter_parameters;
+    test_captured_application_parameters_keep_their_keyword_binding_rule;
+    commit=WORKTREE]
   - native references select their current call port and preserve captures
     and explicit contracts [tested:
     test_expanded_partial_references_preserve_capture_and_parameter_names;
     test_forwarding_contracts_preserve_explicit_cardinality_and_bound_captures;
-    test_native_references_observe_later_arity_changes; commit=10ef2f6958af451bcc3e651e0e0ccc7cc8ec7ce8]
+    test_native_references_observe_later_arity_changes; commit=WORKTREE]
   - application evaluates the carried native value, including subsequent source
     rewrites [tested: test_native_callable_values_keep_their_lexical_program;
-    commit=10ef2f6958af451bcc3e651e0e0ccc7cc8ec7ce8]
+    commit=WORKTREE]
   - segment applications execute the constructed call and preserve captured
     arguments [tested: test_evaluated_native_lambdas_apply_their_assembled_arguments;
-    commit=10ef2f6958af451bcc3e651e0e0ccc7cc8ec7ce8]
+    commit=WORKTREE]
   - adding the current lexical home retains the source lambda's contract
     [tested: test_native_callable_contracts_survive_lexical_wrapping;
-    commit=10ef2f6958af451bcc3e651e0e0ccc7cc8ec7ce8]
+    commit=WORKTREE]
   - contract lookup preserves distinct binders and references to authored
     heads [tested: test_contract_lookup_preserves_distinct_lambda_binders;
     test_callable_conversion_keeps_authored_heads_as_live_references;
-    commit=10ef2f6958af451bcc3e651e0e0ccc7cc8ec7ce8]
+    commit=WORKTREE]
 Owns resources:
   - the callable image contains its lexical home and captured receiver, so
     scope retention follows the ordinary native value graph [tested:
-    test_a_kept_native_callable_retains_its_scoped_program; commit=10ef2f6958af451bcc3e651e0e0ccc7cc8ec7ce8]
+    test_a_kept_native_callable_retains_its_scoped_program; commit=WORKTREE]
 """
 
 from __future__ import annotations
 
 import inspect
 import typing
+from collections.abc import Collection
 from typing import Any
 
 from metta._atoms.factories import (
@@ -84,6 +93,18 @@ def evaluate(space: Any, expression: Atom, annotation: Any, *, stream: bool) -> 
         return build(answers.one(), annotation, space=space)
 
 
+def _uncaptured(signature: inspect.Signature, captured: int, keywords: Collection[str]) -> inspect.Signature:
+    parameters = tuple(signature.parameters.values())
+    if not isinstance(captured, int) or not 0 <= captured <= len(parameters):
+        msg = "a native callable binding must name the number of captured parameters"
+        raise TypeError(msg)
+    for parameter in parameters[:captured]:
+        if parameter.kind is inspect.Parameter.POSITIONAL_OR_KEYWORD and parameter.name in keywords:
+            msg = f"multiple values for argument {parameter.name!r}"
+            raise TypeError(msg)
+    return signature.replace(parameters=parameters[captured:])
+
+
 class NativeCallable:
     """A Python application of a native callable value, with no host body."""
 
@@ -100,10 +121,10 @@ class NativeCallable:
         return self.contract()[0]
 
     def contract(self) -> tuple[inspect.Signature, bool]:
-        _, signature, stream = self._layout()
+        _, signature, stream, _application = self._layout()
         return signature, stream
 
-    def _declared_contract(self) -> tuple[inspect.Signature, bool] | None:
+    def _declared_contract(self, keywords: Collection[str] = ()) -> tuple[inspect.Signature, bool, Atom | None] | None:
         # Read stored program data through the occurrence relation. A written
         # match pattern would interpret the lambda's :seg binder as a query
         # gap, although this consumer is looking up a callable value. A
@@ -111,7 +132,7 @@ class NativeCallable:
         # written body in that home; both keys remain native program data.
         rows = self.space._rt.must(
             "metta_py_decode_shared(Wire,_Scoped,_),"
-            "findall([_Wire,_Cardinality,_Captured],("
+            "findall([_Wire,_Cardinality,_Captured,_ApplicationsWire],("
             "(_Scoped=['|->',_Parameters,[evalc,_Body,_Home]],_Home==Space -> "
             "member(_Value,[_Scoped,['|->',_Parameters,_Body]]) ; _Value=_Scoped),"
             "(_Contracts=Space ; Space\\=='&metta',_Contracts='&metta'),"
@@ -120,34 +141,45 @@ class NativeCallable:
             "spaces:metta_space_pair(_Contracts,['@python-binding',_Pattern,_Canonical,_Captured],_,_),"
             "subsumes_term(_Pattern,_Value),_Pattern=_Value,"
             "spaces:metta_space_pair(_Contracts,['@python-callable',_Canonical,_Signature,_Cardinality],_,_)),"
-            "metta_py_encode(_Signature,_Wire)),Contracts)",
+            "findall(_Application,("
+            "spaces:metta_space_pair(_Contracts,['@python-application',_ApplicationPattern,_Application],_,_),"
+            "subsumes_term(_ApplicationPattern,_Value),_ApplicationPattern=_Value),_Applications),"
+            "metta_py_encode(_Applications,_ApplicationsWire),metta_py_encode(_Signature,_Wire)),Contracts)",
             Space=self.space.name, Wire=self.atom.to_wire(),
         )
-        found = [(_atom_from_wire(wire), cardinality, captured) for wire, cardinality, captured in rows["Contracts"]]
+        found = rows["Contracts"]
         if found:
             if len(found) != 1 or found[0][1] not in ("one", "stream"):
                 msg = "a native callable needs one Python signature and answer-cardinality declaration"
                 raise TypeError(msg)
-            signature, cardinality, captured = call_signatures.build(found[0][0]), found[0][1], found[0][2]
-            complete = tuple(signature.parameters.values())
-            if not isinstance(captured, int) or not 0 <= captured <= len(complete):
-                msg = "a native callable binding must name the number of captured parameters"
+            signature = call_signatures.build(_atom_from_wire(found[0][0]))
+            cardinality, captured = found[0][1:3]
+            applications = _atom_from_wire(found[0][3]).children
+            if len(applications) > 1:
+                msg = "a native callable needs at most one native application declaration"
                 raise TypeError(msg)
-            return signature.replace(parameters=complete[captured:]), cardinality == "stream"
+            return _uncaptured(signature, captured, keywords), cardinality == "stream", next(iter(applications), None)
         return None
 
-    def _layout(self, arity: int | None = None) -> tuple[Atom, inspect.Signature, bool]:
-        if (declared := self._declared_contract()) is not None:
+    def _layout(self, arity: int | None = None, keyword_names: Collection[str] = ()) -> tuple[Atom, inspect.Signature, bool, Atom | None]:
+        if (declared := self._declared_contract(keyword_names)) is not None:
             return self.atom, *declared
         if arity is not None and (reference := _forwarded(self.atom, arity)) is not None:
             source, captures = reference
             canonical = _application_image(source, (), arity + len(captures), self.space)
-            if (declared := NativeCallable(canonical, self.space, Any)._declared_contract()) is not None:
-                signature, stream = declared
-                remaining = tuple(signature.parameters.values())[len(captures):]
-                return _application_image(source, captures, arity, self.space), signature.replace(parameters=remaining), stream
+            if (declared := NativeCallable(canonical, self.space, Any)._declared_contract(keyword_names)) is not None:
+                signature, stream, applicator = declared
+                remaining = _uncaptured(signature, len(captures), keyword_names)
+                if applicator is not None and captures:
+                    positional, keywords, complete = fresh(), fresh(), fresh()
+                    supplied: Atom = positional
+                    for capture in reversed(captures):
+                        supplied = _expr(S["cons-atom"], _expr(S.noeval, capture), supplied)
+                    applicator = _expr(S["|->"], Expression([positional, keywords]),
+                                       _expr(S.let, complete, supplied, _expr(applicator, complete, keywords)))
+                return _application_image(source, captures, arity, self.space), remaining, stream, applicator
         if isinstance(self.atom, Symbol):
-            return self.atom, self.space.fn[self.atom.name].__signature__, False
+            return self.atom, self.space.fn[self.atom.name].__signature__, False, None
         parameters = []
         for parameter in self.atom.args[0].children:
             if isinstance(parameter, Variable):
@@ -157,15 +189,24 @@ class NativeCallable:
             else:
                 msg = "a patterned native lambda has no Python keyword parameter names; apply its atom in a space"
                 raise TypeError(msg)
-        return self.atom, inspect.Signature(parameters, return_annotation=self.result_type), False
+        return self.atom, inspect.Signature(parameters, return_annotation=self.result_type), False, None
 
     def application(self, args: Any, kwargs: Any) -> tuple[Atom, inspect.Signature, bool]:
         """Bind call syntax without evaluating the resulting native term."""
-        image, signature, stream = self._layout(len(args) + len(kwargs))
+        image, signature, stream, applicator = self._layout(len(args) + len(kwargs), kwargs)
         bound = signature.bind(*args, **kwargs)
-        # The existing native Kwargs packet belongs to call syntax. A bound
-        # method's segment lambda passes it to the same signature binder as a
-        # directly written method call. A plain lambda has fixed parameters.
+        if applicator is not None:
+            positional, keywords = fresh(), fresh()
+            # Bind the frames before application. An executable head inside a
+            # positional vector is data, including when the applicator is an
+            # untyped lambda rather than an Expression-typed native function.
+            expression = _expr(S.let, positional, _expr(S.noeval, Expression([argument(value) for value in args])),
+                               _expr(S.let, keywords, _expr(S.noeval, Expression([
+                                   Expression([Grounded(name), argument(value)]) for name, value in kwargs.items()
+                               ])), _expr(applicator, positional, keywords)))
+            return expression, signature, stream
+        # A segment binder receives the native application's arguments. A
+        # fixed binder receives one value per reflected Python parameter.
         segmented = isinstance(image, Expression) and any(
             isinstance(parameter, Expression) and parameter.head == S[":seg"]
             for parameter in image.args[0].children
@@ -181,7 +222,7 @@ class NativeCallable:
             values = [argument(value) for value in bound.arguments.values()]
         return _expr(image, *values), signature, stream
 
-    def __call__(self, *args: Any, **kwargs: Any) -> Any:
+    def __call__(self, /, *args: Any, **kwargs: Any) -> Any:
         expression, signature, stream = self.application(args, kwargs)
         result_type = self.result_type
         if result_type is Any and signature.return_annotation is not inspect.Signature.empty:
