@@ -1,7 +1,7 @@
 """Purpose: persist metagraph syntax and compose selection and reconstruction.
 
 Guarantees: the same claims as 42-database_lib.metta.
-[tested: python extensions/python/tools/twin_coverage.py examples/ch08-data/08-03-the-shipped-libraries/42-database_lib.metta; commit=WORKTREE].
+[tested: python extensions/python/tools/twin_coverage.py examples/ch08-data/08-03-the-shipped-libraries/42-database_lib.metta; commit=24b9b7ee948564963a5c3455cd5b412d05afdd2c].
 Owns resources: explicit handles close below and in finally; scoped handles
 close when their answer streams end. Finally removes the temporary directory.
 """
@@ -160,5 +160,5 @@ def twin(m):
 #: [measured 2026-09-13: 226128 inferences, minimum of three fresh serial processes;
 #: command=python extensions/python/tools/twin_coverage.py --measure --rounds 3
 #: examples/ch08-data/08-03-the-shipped-libraries/42-database_lib.metta;
-#: fixture=lib_database with engine/lib QLF artifacts purged; commit=WORKTREE].
+#: fixture=lib_database with engine/lib QLF artifacts purged; commit=24b9b7ee948564963a5c3455cd5b412d05afdd2c].
 BUDGET = 226128
