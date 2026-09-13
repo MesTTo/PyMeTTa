@@ -3,6 +3,9 @@ signature for arities (defaults yield several), auto-detects nondeterminism
 (a generator function is one), derives a MeTTa type declaration from the
 annotations, and registers the whole thing with the engine through shim.pl.
 Guarantees:
+  - class annotation dependencies use ordinary peer imports after module
+    initialization [tested: tests/checks/check_layering.py,
+    test_each_module_imports_first_in_a_fresh_process; commit=WORKTREE]
   - class declaration has no process-global ``record`` registry or second
     decorator spelling [tested:
     test_define_absorbs_class_declaration_and_frees_space_type;
@@ -424,6 +427,8 @@ def _type_declarations(
     rather than %Undefined%, and TypeVars declare type variables, the
     parametric reading.
     """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+    from metta._declare.classes import declaration  # noqa: PLC0415 -- peer cycle
+
     declared: list[Expression] = []
     overloads = typing.get_overloads(fn)
     signatures = overloads or (fn,)
@@ -489,7 +494,7 @@ def _type_declarations(
                 if atom not in declared:
                     declared.append(atom)
     for cls in referenced_classes(all_annotations):
-        if lazy('metta._declare.classes').declaration(cls) is not None:
+        if declaration(cls) is not None:
             continue
         for extra in class_declarations(cls):
             if extra not in declared:
@@ -1098,7 +1103,9 @@ def register[**P, R](
         ),
         return_annotation=conversion_hints.get("return", Any),
     )
-    dependencies = lazy('metta._declare.classes').callable_dependencies(fn)
+    from metta._declare.classes import callable_dependencies  # noqa: PLC0415 -- peer cycle
+
+    dependencies = callable_dependencies(fn)
 
     def publish() -> None:
         if dependencies:

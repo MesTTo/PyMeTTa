@@ -1,5 +1,7 @@
 """Purpose: install compiled Python functions and class declarations into a space.
 Guarantees:
+  - class installation imports its peer directly [tested:
+    tests/checks/check_layering.py; commit=WORKTREE]
   - typing.overload stubs declare every distinct fixed-arity signature before
     their shared equation is published [tested:
     test_define_emits_each_overload_from_one_source,
@@ -133,6 +135,7 @@ from metta._compile.twins import (
     select_clause_twin,
     twin_dispatcher,
 )
+from metta._declare import classes
 from metta._declare import functions as _space_functions
 from metta._errors.errors import CompileError, EngineError, Remedy
 from metta._lazy import lazy
@@ -203,7 +206,7 @@ def release_definitions(space: Any) -> None:
             key for key in _DEFINED_FUNCTION_NAMES if key[0] == space.name
         ]:
             del _DEFINED_FUNCTION_NAMES[defined_key]
-        lazy('metta._declare.classes').release(space)
+        classes.release(space)
 
 def install_define(space: Any, fn: Callable[..., Any], name: str | None = None):
     """Install one compiled function while serializing shared definition state."""
@@ -875,7 +878,6 @@ def _install_define_locked(space: Any, fn: Callable[..., Any], name: str | None 
         defined_name=partial(_installed_callable_name, space),
         call_parameters=partial(call_parameter_names, space),
     )
-    classes = lazy('metta._declare.classes')
     dependencies = compiled.class_dependencies | classes.callable_dependencies(fn)
     if dependencies:
         compiled = compiled._replace(class_dependencies=frozenset(dependencies))
@@ -1033,7 +1035,7 @@ def install_type(
     """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
 
     def apply(target: _builtins.type) -> _builtins.type:
-        return lazy('metta._declare.classes').install(
+        return classes.install(
             space, target, accessors=accessors, methods=methods
         )
 

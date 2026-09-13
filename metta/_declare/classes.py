@@ -11,6 +11,8 @@ Guarded by:
     [tested: test_concurrent_reconstruction_publishes_one_python_proxy,
     test_overlapping_transactions_cannot_publish_distinct_proxies; commit=9b0a084e534ddf7dd67980ad84c27c8279b877f1]
 Guarantees:
+  - imports follow the declared package foundations [tested:
+    tests/checks/check_layering.py; commit=WORKTREE]
   - mutable Python instances find their engine receiver through ordinary private
     proxy facts, including slotted and unhashable classes [tested:
     test_class_proxies_share_engine_fields; commit=9b0a084e534ddf7dd67980ad84c27c8279b877f1]
@@ -40,9 +42,10 @@ from metta._catalog.annotations import referenced_classes, type_atoms_for
 from metta._catalog.build import build
 from metta._catalog.documentation import attribute_docstrings, documentation_atom
 from metta._catalog.project import declarations, project
-from metta._declare.operations import _record_registry_undo
+from metta._declare import field_values, operations
 from metta._errors.errors import EngineError
 from metta._lazy import lazy
+from metta._spaces.handle import SpaceHandle
 
 _DECLARATIONS: dict[type, ClassDeclaration] = {}
 _ABSENT = object()
@@ -318,17 +321,17 @@ class ClassDeclaration:
 
     def operation(self, fn: Any, *, name: str, **options: Any) -> Any:
         """Own a generated host implementation for the declaration's lifetime."""
-        operations = lazy('metta._declare.operations')
         if name in operations.REGISTRY:
             msg = f"class helper {name} is already registered; rename the class or unregister the conflicting operation"
             raise TypeError(msg)
         wrapped = self.space.op(fn, name=name, **options)
-        self.operations[name] = operations._registered_operation(wrapped).fn
+        registered = operations._registered_operation(wrapped)
+        assert registered is not None
+        self.operations[name] = registered.fn
         return wrapped
 
     def release_operations(self) -> None:
         """Retire generated implementations without erasing a later replacement."""
-        operations = lazy('metta._declare.operations')
         # The class space is being released or has already completed native
         # teardown. Forget its holdings before unregistering global callbacks.
         operations._forget_space(self.space._name)
@@ -339,10 +342,10 @@ class ClassDeclaration:
             del self.operations[name]
 
     def encode(self, value: Any) -> Atom:
-        return lazy('metta._declare.field_values').encode(self, value)
+        return field_values.encode(self, value)
 
     def field_types(self, annotation: Any) -> list[Atom]:
-        return lazy('metta._declare.field_values').type_atoms(self, annotation)
+        return field_values.type_atoms(self, annotation)
 
     def synchronize_bases(self) -> None:
         bases = tuple(plan for base in self.cls.__mro__[1:] if (plan := declaration(base)) is not None)
@@ -361,7 +364,7 @@ class ClassDeclaration:
             self.bases, self.references = previous, previous_references
             self.reference_rows, self.inherited_rows = previous_rows, previous_accessors
 
-        _record_registry_undo(undo, description=f"class hierarchy {self.name}")
+        operations._record_registry_undo(undo, description=f"class hierarchy {self.name}")
         _withdraw_rows(self.space._rt, self.reference_rows)
         self.reference_rows = []
         for owner in self.bases:
@@ -452,16 +455,17 @@ class ClassDeclaration:
 
         # Foreign callers own separate Prolog engines. Lock before opening the
         # snapshot; the outer commit check also covers pre-existing snapshots.
-        with lazy('metta._declare.definitions')._DEFINE_LOCK:
+        from metta._declare.definitions import _DEFINE_LOCK  # noqa: PLC0415 -- peer cycle
+
+        with _DEFINE_LOCK:
             return self.space.transaction(attach)
 
     def attach(self, instance: Any, receiver: Expression) -> None:
         self.space._rt.must("metta_py_attach_proxy(Space, Wire)", Space=self.space.name,
                             Wire=_expr(S["_python-proxy"], receiver, Grounded(instance)).to_wire())
         if self.grain == "prototype":
-            handle = lazy('metta._spaces.handle').SpaceHandle
-            part = receiver.args[0]
-            handle.__init__(instance, part, _runtime=self.space._rt)
+            part = typing.cast(Symbol | Expression, receiver.args[0])
+            SpaceHandle.__init__(instance, part, _runtime=self.space._rt)
 
     def answer(self, expression: Atom) -> Atom:
         answers = self.space.eval(expression)
@@ -586,7 +590,7 @@ class ClassDeclaration:
             rows.extend(_expr(S[":"], getter, _expr(S["->"], Symbol(self.name), type_))
                         for type_ in self.field_types(field.annotation))
             if self.grain != "value":
-                adopted = lazy('metta._declare.field_values').adopted(self, field, new)
+                adopted = field_values.adopted(self, field, new)
                 stored = Variable("stored-value") if adopted is not new else new
                 written = _sequence([
                     _expr(S["remove-atom"], home, row),
@@ -642,18 +646,18 @@ class ClassDeclaration:
         if "__match_args__" not in vars(self.cls):
             self.replace_attribute("__match_args__", tuple(field.name for field in self.stored_fields if not field.kw_only))
         if self.grain == "prototype":
-            base = lazy('metta._spaces.handle').SpaceHandle
+            space_property = inspect.getattr_static(SpaceHandle, "_space")
 
             def checked_space(instance: Any) -> Any:
                 plan.receiver(instance)
-                return base._space.fget(instance)
+                return space_property.fget(instance)
 
             def drop(instance: Any) -> None:
                 try:
                     receiver = plan.receiver(instance)
                 except ReferenceError:
                     return
-                base.drop(instance)
+                SpaceHandle.drop(instance)
                 plan.space.remove(_expr(Variable("field"), receiver, Variable("value")))
                 plan.space.remove(_expr(S["owned-by"], receiver))
 
@@ -663,14 +667,12 @@ class ClassDeclaration:
 
 def install(space: Any, cls: type, *, accessors: bool, methods: bool) -> type:
     """Publish one inspected class transactionally and retain its declaring space."""
-    from metta import (  # noqa: PLC0415 -- reuse the transaction's conversion preimage journal
-        integrate,
-    )
     from metta._declare import (  # noqa: PLC0415 -- shared installer lock owns this cycle
         constructors,
         definitions,
     )
 
+    integrate = lazy('metta.integrate')
     with definitions._DEFINE_LOCK:
         standing = declaration(cls)
         consumer = owner_of(space)
@@ -680,7 +682,7 @@ def install(space: Any, cls: type, *, accessors: bool, methods: bool) -> type:
         def publish() -> type:
             plan = standing or ClassDeclaration(cls, space, accessors=accessors)
             if standing is None:
-                _record_registry_undo(plan.restore, description=f"class instrumentation {plan.name}")
+                operations._record_registry_undo(plan.restore, description=f"class instrumentation {plan.name}")
                 _DECLARATIONS[cls] = plan
                 expected = integrate._enlist_type_preimage(cls)
                 names: tuple[str, ...]
@@ -722,11 +724,11 @@ def install(space: Any, cls: type, *, accessors: bool, methods: bool) -> type:
                                   _expr(S["drop-space"], Symbol(plan.space.name))))
             if consumer is not None:
                 previous = consumer.dependencies.copy()
-                _record_registry_undo(lambda: setattr(consumer, "dependencies", previous), description=f"class dependency {consumer.name} on {plan.name}")
+                operations._record_registry_undo(lambda: setattr(consumer, "dependencies", previous), description=f"class dependency {consumer.name} on {plan.name}")
                 consumer.dependencies.add(cls)
                 consumer.synchronize_bases()
             else:
-                _record_registry_undo(lambda: plan.borrowers.discard(space.name), description=f"class borrower {plan.name} in {space.name}")
+                operations._record_registry_undo(lambda: plan.borrowers.discard(space.name), description=f"class borrower {plan.name} in {space.name}")
                 plan.borrowers.add(space.name)
                 space.add(_expr(S["from"], Symbol(plan.space.name)))
             return cls
