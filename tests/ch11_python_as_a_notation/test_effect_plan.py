@@ -1,6 +1,10 @@
 """Purpose: pin read-only inspection of a target's composite effect plan.
 
 Guarantees:
+  - renamed and patterned reference plans inspect the defining body and read
+    current operation metadata without calling it [tested:
+    test_a_reference_plan_keeps_the_source_operation_and_its_live_effect;
+    commit=WORKTREE]
   - Space.effect_plan follows nested compiled calls, returns every named
     operation with the lattice join, and executes none of them [tested:
     test_effect_plan_reports_nested_calls_without_executing_them;
@@ -21,8 +25,10 @@ import asyncio
 import uuid
 from typing import get_type_hints
 
+import pytest
+
 import metta.aio as _aio_surface
-from metta import S
+from metta import Expression, S, V
 from metta._declare.operations import EffectPlan, registered
 from metta.vocabularies import EffectClass
 
@@ -142,3 +148,35 @@ def test_async_effect_plan_retains_the_sync_contract(metta):
     assert plan.operations == ((operation_name, EffectClass.readOnlyLookup),)
     assert plan.effect is EffectClass.readOnlyLookup
     assert called == []
+
+
+@pytest.mark.parametrize("self_reference", [False, True])
+@pytest.mark.parametrize("patterned", [False, True])
+def test_a_reference_plan_keeps_the_source_operation_and_its_live_effect(metta, self_reference, patterned):
+    """Inspect the shared body and observe reclassification without executing it."""
+    operation_name, body_name, alias_name = (_name(role) for role in ("source-op", "source-body", "alias"))
+    called = []
+
+    def implementation(value):
+        called.append(value)
+        return value
+
+    with metta._new_space() as home, metta._new_space() as peer:
+        target = home if self_reference else peer
+        home.op(implementation, name=operation_name, effect=EffectClass.readOnlyLookup)
+        try:
+            home.run(f"(: {body_name} (-> Number Number))\n(= ({body_name} $n) ({operation_name} $n))")
+            alias = S[alias_name](V.n) if patterned else S[alias_name]
+            target.from_(home, S.rename(Expression(S[body_name](alias))))
+            before = target.effect_plan(S[alias_name](4))
+            assert before.operations == ((operation_name, EffectClass.readOnlyLookup),)
+            assert before.effect is EffectClass.readOnlyLookup
+            home.unregister_op(operation_name)
+            home.op(implementation, name=operation_name, effect=EffectClass.oracleIO)
+            after = target.effect_plan(S[alias_name](4))
+            assert after.operations == ((operation_name, EffectClass.oracleIO),)
+            assert after.effect is EffectClass.oracleIO
+            assert called == []
+        finally:
+            if operation_name in registered():
+                home.unregister_op(operation_name)

@@ -122,10 +122,16 @@ def twin(m):
 #: extensions/python/tools/twin_coverage.py --measure --rounds 3
 #: examples/ch17-concurrency-and-the-loop/08-class_grains.metta;
 #: fixture=serial fresh processes after deleting engine/lib QLF; commit=a95e6c90c910db30c72311abadd58dee5349978c].
-BUDGET = 14263254
-#: The minimum measurements give a declaration and crossing gap of 11730385.
-#: [measured: 14263254 twin and 2532869 native inferences;
+#: RE-PINNED 2026-09-13, 14263254 to 14262547 (-707). The shared effect
+#: planner follows references through their defining modules and source bodies.
+#: [measured: 14262547 twin inferences, min-of-3 fresh processes;
 #: command=python extensions/python/tools/twin_coverage.py --measure --rounds 3
 #: examples/ch17-concurrency-and-the-loop/08-class_grains.metta;
-#: fixture=serial fresh processes after deleting engine/lib QLF; commit=a95e6c90c910db30c72311abadd58dee5349978c].
-OVERRUN = 11730385
+#: fixture=built native engine after deleting engine/lib QLF; commit=WORKTREE]
+BUDGET = 14262547
+#: The minimum measurements give a declaration and crossing gap of 11729673.
+#: [measured: 14262547 twin and 2532874 native inferences;
+#: command=python extensions/python/tools/twin_coverage.py --measure --rounds 3
+#: examples/ch17-concurrency-and-the-loop/08-class_grains.metta;
+#: fixture=serial fresh processes after deleting engine/lib QLF; commit=WORKTREE].
+OVERRUN = 11729673

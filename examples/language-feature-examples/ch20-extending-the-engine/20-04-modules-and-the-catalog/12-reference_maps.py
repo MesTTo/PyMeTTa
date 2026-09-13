@@ -60,4 +60,9 @@ def twin(m):
 #: [measured: 270967 inferences, min-of-3 fresh processes;
 #: command=python extensions/python/tools/twin_coverage.py --measure --rounds 3 examples/ch20-extending-the-engine/20-04-modules-and-the-catalog/12-reference_maps.metta;
 #: fixture=built native engine; commit=a95e6c90c910db30c72311abadd58dee5349978c]
-BUDGET = 270967
+#: RE-PINNED 2026-09-13, 270967 to 271057 (+90). Effect planning follows
+#: canonical reference bodies and keeps the defining module in its traversal.
+#: [measured: 271057 twin and 260623 native inferences, min-of-3 fresh processes;
+#: command=python extensions/python/tools/twin_coverage.py --measure --rounds 3 examples/ch20-extending-the-engine/20-04-modules-and-the-catalog/12-reference_maps.metta;
+#: fixture=built native engine after deleting engine/lib QLF; commit=WORKTREE]
+BUDGET = 271057
