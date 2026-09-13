@@ -82,7 +82,7 @@ Guarantees:
     the library's declarations, and refuses an undocumented head [tested:
     test_strategy_basis_reads_new_heads_and_descriptions_from_source,
     test_strategy_basis_refuses_an_undocumented_head,
-    test_strategy_forms_preserve_parameter_splices; commit=WORKTREE]
+    test_strategy_forms_preserve_parameter_splices; commit=505ce25b9384e782afa26f621527d4b1fd695924]
   - Python-first additions that have no stdlib declaration of their own are
     rendered in a separate exact-spelling table rather than corrupting coverage
     [tested: test_python_first_public_faces_are_in_the_phrasebook;

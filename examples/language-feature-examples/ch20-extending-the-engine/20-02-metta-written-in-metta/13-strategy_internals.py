@@ -8,7 +8,7 @@ The typed operations take a SORT, so the declarations below are the ordinary
 strategy runs.
 Guarantees: an undeclared subject declines exact type selection [tested:
 examples/ch20-extending-the-engine/20-02-metta-written-in-metta/13-strategy_internals.metta;
-commit=WORKTREE].
+commit=505ce25b9384e782afa26f621527d4b1fd695924].
 Open Obligations:
   To Do: None
   Hacks: None
@@ -307,5 +307,5 @@ def twin(m):
 #: example also exercises runtime collection choice with a literal operand and
 #: an empty strategy collection [measured 2026-09-13: min-of-3 serial fresh
 #: processes; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+#: extensions/python/tools/twin_coverage.py --repin; commit=505ce25b9384e782afa26f621527d4b1fd695924].
 BUDGET = 389508

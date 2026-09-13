@@ -6,7 +6,7 @@ the MeTTa names are the same operations. `origin-of` projects defining
 occurrences from the common property reader; `engine-origin` retains its
 implementation-tier classification. Literal replacement retains exact identity,
 root precedence, complete answer bags and shared variables [tested: twin;
-commit=WORKTREE].
+commit=505ce25b9384e782afa26f621527d4b1fd695924].
 
 `surface-counts` moves as libraries are imported, so what is pinned here is
 the SHAPE rather than the numbers.
@@ -350,5 +350,5 @@ def twin(m):
 #: Strategy equations, variadic plans and binding-preserving topmost traversal;
 #: Strategy consumers pay the changed library declarations and derivations
 #: [measured 2026-09-13: min-of-3 serial fresh processes; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+#: extensions/python/tools/twin_coverage.py --repin; commit=505ce25b9384e782afa26f621527d4b1fd695924].
 BUDGET = 1256535

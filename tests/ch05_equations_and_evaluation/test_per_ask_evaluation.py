@@ -10,7 +10,7 @@ Guarantees:
     declaration for dispatch while get-type still reports it, including when
     a nested typed call makes its argument statically settled [tested:
     test_an_inherited_arrow_does_not_veto_a_local_definition;
-    commit=WORKTREE]
+    commit=505ce25b9384e782afa26f621527d4b1fd695924]
 Open Obligations:
   To Do: None
   Hacks: None

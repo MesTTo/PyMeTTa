@@ -2,7 +2,7 @@
 
 Guarantees: generated trees exercise root precedence, duplicate alternatives,
 numeric key kinds, shared variables and literal syntax through the public
-library [tested: test_reflect_terms.py; commit=WORKTREE].
+library [tested: test_reflect_terms.py; commit=505ce25b9384e782afa26f621527d4b1fd695924].
 """
 
 from itertools import product

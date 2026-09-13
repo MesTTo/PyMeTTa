@@ -16,7 +16,7 @@ The Strategy table reads descriptions and variadic arrows from library rows
 and refuses missing descriptions [tested:
 test_strategy_basis_reads_new_heads_and_descriptions_from_source,
 test_strategy_basis_refuses_an_undocumented_head,
-test_strategy_forms_preserve_parameter_splices; commit=WORKTREE].
+test_strategy_forms_preserve_parameter_splices; commit=505ce25b9384e782afa26f621527d4b1fd695924].
 
 Open Obligations:
   To Do: None

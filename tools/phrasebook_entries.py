@@ -33,7 +33,7 @@ Guarantees:
     test_python_first_public_faces_are_in_the_phrasebook; commit=16ffc0beff1dff8e6d42cb6c50ff010a22cfa0c0]
   - strategy rows import lib_strategy on both surfaces and distinguish its
     held repeat plan from the direct strategy-repeat operation
-    [tested: python extensions/python/tools/phrasebook.py --gate; commit=WORKTREE]
+    [tested: python extensions/python/tools/phrasebook.py --gate; commit=505ce25b9384e782afa26f621527d4b1fd695924]
   - space write rows teach the scalar-atom versus fact-stream boundary shipped
     by ``Space +=`` [tested: test_the_phrasebook_page_is_up_to_date;
     commit=012413efb73b4dd27c71354c7f654862f349c03f]
