@@ -13,7 +13,7 @@ Guarantees:
   - reading a contract preserves binder identity and authored call references
     [tested: test_contract_lookup_preserves_distinct_lambda_binders;
     test_callable_conversion_keeps_authored_heads_as_live_references;
-    commit=WORKTREE]
+    commit=b839edac553486424fdded82e37784e4528ca606]
 """
 
 import inspect
