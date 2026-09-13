@@ -2,7 +2,7 @@
 Guarantees:
   - NoneType remains an explicit return alternative, including nullable
     unions [tested: test_nullable_annotations_keep_both_result_alternatives;
-    commit=WORKTREE]
+    commit=dbe6c7de5f35e7c0c8ef5259ebfb6d67ee3ebbc0]
   - postponed annotations resolve before declaration generation [tested
     test_postponed_annotations_generate_declarations]
   - union expansion is bounded by the configured declaration limit and its

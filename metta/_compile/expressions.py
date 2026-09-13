@@ -2,7 +2,7 @@
 Guarantees:
   - a None literal denotes the existing grounded singleton, preserving its
     type and one-answer cardinality [tested:
-    test_none_return_spellings_have_one_typed_answer; commit=WORKTREE]
+    test_none_return_spellings_have_one_typed_answer; commit=dbe6c7de5f35e7c0c8ef5259ebfb6d67ee3ebbc0]
   - calls through standard ``math`` and ``operator`` module attributes lower
     through the shared callable mentions while adapters preserve Python call
     order and result kinds [tested:

@@ -3,10 +3,10 @@ Guarantees:
   - ordinary fallthrough and bare return produce None while loop and branch
     continuations retain their control scope [tested:
     test_none_returns_preserve_conditional_and_loop_exits,
-    test_a_void_call_does_not_end_its_callers_bindings; commit=WORKTREE]
+    test_a_void_call_does_not_end_its_callers_bindings; commit=dbe6c7de5f35e7c0c8ef5259ebfb6d67ee3ebbc0]
   - an omitted yield value produces one None answer, independently of
     generator exhaustion [tested:
-    test_yielded_none_is_an_answer_and_exhaustion_is_not; commit=WORKTREE]
+    test_yielded_none_is_an_answer_and_exhaustion_is_not; commit=dbe6c7de5f35e7c0c8ef5259ebfb6d67ee3ebbc0]
   - compiled exception tests use the Python runtime's `py-except` name [tested:
     test_reference_except_and_compiled_exception_dispatch_coexist; commit=90ba93eb8f6e98ebfefc55416859bf13de6a8427]
   - assignments lower to ordered let* bindings [tested

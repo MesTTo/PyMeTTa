@@ -9,7 +9,7 @@ read as a data constructor. A compiled body is a complete atom tree, and any
 runtime-backed Python semantics it needs are declared as visible operations.
 Guarantees:
   - None has the same literal head-pattern meaning as other function defaults
-    [tested: test_none_literal_is_also_a_default_head_pattern; commit=WORKTREE]
+    [tested: test_none_literal_is_also_a_default_head_pattern; commit=dbe6c7de5f35e7c0c8ef5259ebfb6d67ee3ebbc0]
   - importing a declaration or library module first completes in both lazy
     and eager modes [tested: test_each_module_imports_first_in_a_fresh_process;
     commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e]

@@ -2,7 +2,7 @@
 
 Guarantees: a None answer survives calls, bindings, branches and cleanup,
 while an exhausted generator has zero answers [tested: test_none_results.py;
-commit=WORKTREE].
+commit=dbe6c7de5f35e7c0c8ef5259ebfb6d67ee3ebbc0].
 Owns resources: each scenario closes its MeTTa context and owned spaces.
 """
 
