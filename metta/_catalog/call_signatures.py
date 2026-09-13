@@ -3,10 +3,10 @@
 Guarantees:
   - parameter order, kinds and defaults rebuild one inspect.Signature from
     the current native record [tested:
-    test_native_call_contracts_preserve_python_argument_binding; commit=WORKTREE]
+    test_native_call_contracts_preserve_python_argument_binding; commit=7109d9bb91bfc41aa18bf5f766f20904a9598fcc]
   - named annotation references and generic applications are data; unnamed
     host annotation objects retain their identity through Grounded [source:
-    extensions/python/metta/_catalog/call_signatures.py:annotation; commit=WORKTREE]
+    extensions/python/metta/_catalog/call_signatures.py:annotation; commit=7109d9bb91bfc41aa18bf5f766f20904a9598fcc]
 """
 
 from __future__ import annotations

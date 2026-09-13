@@ -3,7 +3,7 @@
 Guarantees:
   - ordinary Python annotation species survive a native storage roundtrip
     without opaque Signature objects [tested:
-    test_native_call_contracts_preserve_annotation_species; commit=WORKTREE]
+    test_native_call_contracts_preserve_annotation_species; commit=7109d9bb91bfc41aa18bf5f766f20904a9598fcc]
 """
 
 import inspect
