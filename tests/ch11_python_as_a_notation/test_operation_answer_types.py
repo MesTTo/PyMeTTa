@@ -6,6 +6,11 @@ Guarantees:
     test_host_answer_types_remove_only_empty_return_alternatives,
     test_nullable_host_operations_keep_parameters_and_annotation_claims;
     commit=835538c532668c8789b5d4d066422cd869d41958]
+Owns resources: each test unregisters its host operation before closing its
+  context, including on assertion failure [tested:
+  test_host_answer_types_remove_only_empty_return_alternatives;
+  test_empty_match_subject_selects_only_the_empty_branch;
+  commit=WORKTREE]
 """
 
 from typing import Annotated
@@ -39,9 +44,12 @@ def test_host_answer_types_remove_only_empty_return_alternatives(annotation, exp
 
         absent.__annotations__["return"] = annotation
         space.op(absent, effect="pureStructural")
-        answers = [row.result for row in space.match(S[":"](S.absent, S["->"](S.Number, V.result)))]
-        assert answers == expected
-        assert space.eval(S.absent(0)) == []
+        try:
+            answers = [row.result for row in space.match(S[":"](S.absent, S["->"](S.Number, V.result)))]
+            assert answers == expected
+            assert space.eval(S.absent(0)) == []
+        finally:
+            space.unregister_op("absent")
 
 
 def test_nullable_host_operations_keep_parameters_and_annotation_claims():
@@ -53,13 +61,16 @@ def test_nullable_host_operations_keep_parameters_and_annotation_claims():
         def nullable_answer(key: int | None) -> Annotated[int | None, S.Gt(0)]:
             return key
 
-        arrows = [row.arrow for row in space.match(S[":"](S["nullable-answer"], V.arrow))]
-        result = S.Annotated(S.Number, S.Gt(0))
-        assert set(arrows) == {S["->"](S.Number, result), S["->"](S.NoneType, result)}
-        annotations = [row.type for row in space.match(S.annotation(S["nullable-answer"], S["return"](V.type)))]
-        assert annotations == [S.Annotated(S.Union(S.Number, S.NoneType), S.Gt(0))]
-        assert space.eval(S["nullable-answer"](3)) == [3]
-        assert space.eval(S["nullable-answer"](G(None))) == []
+        try:
+            arrows = [row.arrow for row in space.match(S[":"](S["nullable-answer"], V.arrow))]
+            result = S.Annotated(S.Number, S.Gt(0))
+            assert set(arrows) == {S["->"](S.Number, result), S["->"](S.NoneType, result)}
+            annotations = [row.type for row in space.match(S.annotation(S["nullable-answer"], S["return"](V.type)))]
+            assert annotations == [S.Annotated(S.Union(S.Number, S.NoneType), S.Gt(0))]
+            assert space.eval(S["nullable-answer"](3)) == [3]
+            assert space.eval(S["nullable-answer"](G(None))) == []
+        finally:
+            space.unregister_op("nullable-answer")
 
 
 def test_authored_operation_arrows_keep_their_explicit_return_type():
@@ -72,8 +83,11 @@ def test_authored_operation_arrows_keep_their_explicit_return_type():
         def authored_return(_key: int) -> int | None:
             return None
 
-        arrows = [row.arrow for row in space.match(S[":"](S["authored-return"], V.arrow))]
-        assert set(arrows) == {S["->"](S.Number, S.Number), supplied.args[1]}
+        try:
+            arrows = [row.arrow for row in space.match(S[":"](S["authored-return"], V.arrow))]
+            assert set(arrows) == {S["->"](S.Number, S.Number), supplied.args[1]}
+        finally:
+            space.unregister_op("authored-return")
 
 
 @pytest.mark.parametrize(("annotation", "answers", "full"), [
@@ -91,6 +105,9 @@ def test_nullary_host_operations_preserve_result_annotation_for_empty_answers(an
         absent_nullary.__annotations__["return"] = annotation
         space.op(absent_nullary, effect="pureStructural")
         name = S["absent-nullary"]
-        assert [row.type for row in space.match(S[":"](name, S["->"](V.type)))] == answers
-        assert [row.type for row in space.match(S.annotation(name, S["return"](V.type)))] == [full]
-        assert space.eval(name()) == []
+        try:
+            assert [row.type for row in space.match(S[":"](name, S["->"](V.type)))] == answers
+            assert [row.type for row in space.match(S.annotation(name, S["return"](V.type)))] == [full]
+            assert space.eval(name()) == []
+        finally:
+            space.unregister_op("absent-nullary")
