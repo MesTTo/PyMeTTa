@@ -1,5 +1,10 @@
 """Purpose: lower Python expressions into equivalent MeTTa atom trees.
 Guarantees:
+  - dictionary get selects its optional default only for an absent key;
+    operands run in source order and stored atoms retain their data meaning
+    [tested: test_dictionary_get_preserves_stored_values,
+    test_dictionary_get_evaluates_key_and_default_before_lookup,
+    test_dictionary_get_observes_native_relation_edits; commit=WORKTREE]
   - expanded and computed calls assemble operands in Python source order
     and retain native argument contracts [tested:
     test_expanded_calls_match_python_operand_and_mapping_failure_order;
@@ -1775,9 +1780,8 @@ class ExpressionCompilerMixin(CompilerContext):
         self.libraries.add("dict")
         return Expression([Symbol("dict-space"), pairs])
 
-    # A dict-local's Python methods, on lib_dict's own vocabulary: views
-    # answer one element per solution the way get-atoms does, and .get is
-    # get-value's own empty-on-absence contract.
+    # A dict-local's methods query lib_dict's space. get distinguishes the
+    # empty answer set from stored falsey values before selecting a default.
     _DICT_METHODS = {  # noqa: RUF012  -- class-level constant table, never mutated
         "keys": "get-keys",
         "values": "dict-values",
@@ -1800,9 +1804,29 @@ class ExpressionCompilerMixin(CompilerContext):
         if func.attr in self._DICT_METHODS and not node.args:
             self.libraries.add("dict")
             return Expression([Symbol(self._DICT_METHODS[func.attr]), holder])
-        if func.attr == "get" and len(node.args) == 1:
+        if func.attr == "get" and 1 <= len(node.args) <= 2:
             self.libraries.add("dict")
-            return Expression([Symbol("get-value"), holder, self.expression(node.args[0])])
+            key, default, answers, value, before, after = (
+                Variable(self._temp(f"dict-{part}"))
+                for part in ("key", "default", "answers", "value", "before", "after")
+            )
+            pattern = Expression([
+                Expression([Symbol(":seg"), before]), value,
+                Expression([Symbol(":seg"), after]),
+            ])
+            body = Expression([
+                Symbol("if"), Expression([Symbol("=="), answers, Expression([])]),
+                Expression([Symbol("noeval"), default]),
+                Expression([Symbol("let"), pattern, answers, Expression([Symbol("noeval"), value])]),
+            ])
+            bindings = (
+                (key, self.expression(node.args[0])),
+                (default, self.expression(node.args[1]) if len(node.args) == 2 else Grounded(None)),
+                (answers, Expression([Symbol("collapse"), Expression([Symbol("get-value"), holder, key])])),
+            )
+            for variable, expression in reversed(bindings):
+                body = Expression([Symbol("let"), variable, expression, body])
+            return body
         return None
 
     def _x_JoinedStr(self, node: ast.JoinedStr) -> Atom:  # noqa: N802  -- the suffix mirrors ast node class names used by the translator's dynamic dispatch
