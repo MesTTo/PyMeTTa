@@ -121,11 +121,11 @@ def twin(m):
 #: [measured: 14263254 twin inferences; command=python
 #: extensions/python/tools/twin_coverage.py --measure --rounds 3
 #: examples/ch17-concurrency-and-the-loop/08-class_grains.metta;
-#: fixture=serial fresh processes after deleting engine/lib QLF; commit=WORKTREE].
+#: fixture=serial fresh processes after deleting engine/lib QLF; commit=a95e6c90c910db30c72311abadd58dee5349978c].
 BUDGET = 14263254
 #: The minimum measurements give a declaration and crossing gap of 11730385.
 #: [measured: 14263254 twin and 2532869 native inferences;
 #: command=python extensions/python/tools/twin_coverage.py --measure --rounds 3
 #: examples/ch17-concurrency-and-the-loop/08-class_grains.metta;
-#: fixture=serial fresh processes after deleting engine/lib QLF; commit=WORKTREE].
+#: fixture=serial fresh processes after deleting engine/lib QLF; commit=a95e6c90c910db30c72311abadd58dee5349978c].
 OVERRUN = 11730385

@@ -75,5 +75,5 @@ def twin(m):
 #: and twin still prove 13 claims and store the same atoms.
 #: [measured: 95712 inferences, min-of-3 fresh processes;
 #: command=python extensions/python/tools/twin_coverage.py --measure --rounds 3 examples/ch20-extending-the-engine/20-04-modules-and-the-catalog/11-reference_rows.metta;
-#: fixture=built native engine; commit=WORKTREE]
+#: fixture=built native engine; commit=a95e6c90c910db30c72311abadd58dee5349978c]
 BUDGET = 95712

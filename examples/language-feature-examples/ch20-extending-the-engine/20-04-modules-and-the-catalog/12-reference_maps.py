@@ -1,7 +1,7 @@
 """Purpose: reference_maps.metta in Python using name and call-pattern maps.
 
 from_ writes the row; the engine evaluates its map once per source head.
-[tested: examples/ch20-extending-the-engine/20-04-modules-and-the-catalog/12-reference_maps.metta; commit=WORKTREE].
+[tested: examples/ch20-extending-the-engine/20-04-modules-and-the-catalog/12-reference_maps.metta; commit=a95e6c90c910db30c72311abadd58dee5349978c].
 """
 
 from metta import S, V
@@ -59,5 +59,5 @@ def twin(m):
 #: canonical argument constraints. Native 260533; both spellings prove 12 claims.
 #: [measured: 270967 inferences, min-of-3 fresh processes;
 #: command=python extensions/python/tools/twin_coverage.py --measure --rounds 3 examples/ch20-extending-the-engine/20-04-modules-and-the-catalog/12-reference_maps.metta;
-#: fixture=built native engine; commit=WORKTREE]
+#: fixture=built native engine; commit=a95e6c90c910db30c72311abadd58dee5349978c]
 BUDGET = 270967

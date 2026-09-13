@@ -3,7 +3,7 @@
 Guarantees: lazy aliases retain their source, shared bodies, type declarations
 and variable bindings [tested: test_patterned_references_load_lazily_and_report_their_source,
 test_a_patterned_alias_follows_its_providers_equations;
-commit=WORKTREE].
+commit=a95e6c90c910db30c72311abadd58dee5349978c].
 Owns resources: the space context managers release their native definitions.
 """
 
