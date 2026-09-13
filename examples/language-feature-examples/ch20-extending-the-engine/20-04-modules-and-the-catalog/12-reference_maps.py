@@ -64,5 +64,5 @@ def twin(m):
 #: canonical reference bodies and keeps the defining module in its traversal.
 #: [measured: 271057 twin and 260623 native inferences, min-of-3 fresh processes;
 #: command=python extensions/python/tools/twin_coverage.py --measure --rounds 3 examples/ch20-extending-the-engine/20-04-modules-and-the-catalog/12-reference_maps.metta;
-#: fixture=built native engine after deleting engine/lib QLF; commit=WORKTREE]
+#: fixture=built native engine after deleting engine/lib QLF; commit=89084b43ff1a758f703ce77cd96b026f56510116]
 BUDGET = 271057

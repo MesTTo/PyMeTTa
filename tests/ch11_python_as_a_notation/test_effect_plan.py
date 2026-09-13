@@ -4,7 +4,7 @@ Guarantees:
   - renamed and patterned reference plans inspect the defining body and read
     current operation metadata without calling it [tested:
     test_a_reference_plan_keeps_the_source_operation_and_its_live_effect;
-    commit=WORKTREE]
+    commit=89084b43ff1a758f703ce77cd96b026f56510116]
   - Space.effect_plan follows nested compiled calls, returns every named
     operation with the lattice join, and executes none of them [tested:
     test_effect_plan_reports_nested_calls_without_executing_them;
