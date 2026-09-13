@@ -3,7 +3,7 @@
 Guarantees:
   - positional expansion preserves native atom values in both sequence
     representations [tested: test_expanded_arguments_preserve_native_atom_values;
-    commit=WORKTREE]
+    commit=5f94e43542d3afd87776476e767f5fda661423bc]
   - named and parametric keyword spaces supply their current native entries
     through the ordinary expanded-call binder [tested:
     test_keyword_expansion_reads_native_space_entries; commit=10ef2f6958af451bcc3e651e0e0ccc7cc8ec7ce8]

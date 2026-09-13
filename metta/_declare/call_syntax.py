@@ -3,7 +3,7 @@
 Guarantees:
   - positional expansion preserves native atoms in native and borrowed
     sequences [tested: test_expanded_arguments_preserve_native_atom_values;
-    commit=WORKTREE]
+    commit=5f94e43542d3afd87776476e767f5fda661423bc]
   - signature binding constructs a native application and never runs its body
     [tested: test_expanded_native_calls_read_the_live_contract; commit=10ef2f6958af451bcc3e651e0e0ccc7cc8ec7ce8]
 Owns resources:

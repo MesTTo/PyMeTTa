@@ -2,10 +2,10 @@
 
 Guarantees:
   - native and borrowed positional sequences retain their atom elements
-    [tested: test_expanded_arguments_preserve_native_atom_values; commit=WORKTREE]
+    [tested: test_expanded_arguments_preserve_native_atom_values; commit=5f94e43542d3afd87776476e767f5fda661423bc]
   - each Python call form retains its materializer's length effects
     [tested: test_expanded_arguments_follow_python_length_hint_effects;
-    commit=WORKTREE]
+    commit=5f94e43542d3afd87776476e767f5fda661423bc]
   - expansion and keyword-group merge order follow Python's call construction
     [tested: test_expanded_calls_match_python_operand_and_mapping_failure_order;
     commit=10ef2f6958af451bcc3e651e0e0ccc7cc8ec7ce8]

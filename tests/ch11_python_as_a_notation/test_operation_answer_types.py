@@ -10,7 +10,7 @@ Owns resources: each test unregisters its host operation before closing its
   context, including on assertion failure [tested:
   test_host_answer_types_remove_only_empty_return_alternatives;
   test_empty_match_subject_selects_only_the_empty_branch;
-  commit=WORKTREE]
+  commit=5f94e43542d3afd87776476e767f5fda661423bc]
 """
 
 from typing import Annotated
