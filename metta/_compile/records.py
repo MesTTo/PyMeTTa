@@ -4,7 +4,7 @@ Guarantees:
   - field assignments preserve computed syntax values and evaluate the target
     once in Python order [tested:
     test_field_assignment_keeps_computed_syntax_values,
-    test_field_assignment_evaluates_its_target_once_in_python_order; commit=WORKTREE]
+    test_field_assignment_evaluates_its_target_once_in_python_order; commit=2070690afe0f1e6c580ebdb86e418e5a85bcc02d]
   - class calls evaluate supplied expressions before default computations and
     preserve their resulting atom values [tested:
     test_constructor_arguments_preserve_values_and_run_factories,

@@ -3,10 +3,10 @@
 Guarantees:
   - Python and compiled writes preserve syntax values and follow changes to
     the native source equation [tested:
-    test_field_assignment_keeps_computed_syntax_values; commit=WORKTREE]
+    test_field_assignment_keeps_computed_syntax_values; commit=2070690afe0f1e6c580ebdb86e418e5a85bcc02d]
   - assignment evaluates the right side before its target, while augmented
     assignment evaluates its target once before the right side [tested:
-    test_field_assignment_evaluates_its_target_once_in_python_order; commit=WORKTREE]
+    test_field_assignment_evaluates_its_target_once_in_python_order; commit=2070690afe0f1e6c580ebdb86e418e5a85bcc02d]
 """
 
 from collections.abc import Callable
