@@ -1,6 +1,10 @@
 """Purpose: lower declared constructors and fields using static receiver types.
 
 Guarantees:
+  - field assignments preserve computed syntax values and evaluate the target
+    once in Python order [tested:
+    test_field_assignment_keeps_computed_syntax_values,
+    test_field_assignment_evaluates_its_target_once_in_python_order; commit=WORKTREE]
   - class calls evaluate supplied expressions before default computations and
     preserve their resulting atom values [tested:
     test_constructor_arguments_preserve_values_and_run_factories,
@@ -160,13 +164,19 @@ def binding(compiler: CompilerContext, node: ast.Assign | ast.AnnAssign | ast.Au
         msg = "a field annotation needs a value to write"
         raise CompileError(msg, construct="field annotation", line=node.lineno)
     value = compiler.expression(node.value)
+    receiver_source = compiler.expression(target.value)
+    receiver = Variable(compiler._temp("field-receiver")) if isinstance(node, ast.AugAssign) else receiver_source
     if isinstance(node, ast.AugAssign):
         left = ast.copy_location(ast.Attribute(value=target.value, attr=target.attr, ctx=ast.Load()), target)
         value = compiler._binop_atom(
-            node.op, compiler.expression(left), value, node.lineno,
+            node.op, field_call(owner, field.name, receiver), value, node.lineno,
             native=field_number(compiler, left) and compiler._native_number(node.value),
         )
-    return Variable(compiler._temp("field-write")), field_call(owner, field.name, compiler.expression(target.value), value, write=True)
+    written = Variable(compiler._temp("field-value"))
+    body = _expr(S.let, written, value, field_call(owner, field.name, receiver, written, write=True))
+    if isinstance(node, ast.AugAssign):
+        body = _expr(S.let, receiver, receiver_source, body)
+    return Variable(compiler._temp("field-write")), body
 
 
 def call(compiler: CompilerContext, node: ast.Call) -> Atom | None:

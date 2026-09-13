@@ -11,6 +11,9 @@ Guarded by:
     [tested: test_concurrent_reconstruction_publishes_one_python_proxy,
     test_overlapping_transactions_cannot_publish_distinct_proxies; commit=9b0a084e534ddf7dd67980ad84c27c8279b877f1]
 Guarantees:
+  - Python field setters preserve computed syntax values at typed native
+    writers [tested: test_field_assignment_keeps_computed_syntax_values;
+    commit=WORKTREE]
   - constructor arguments reach typed entries as values after their source
     computations finish [tested:
     test_constructor_arguments_preserve_values_and_run_factories; commit=6ff5033a6d52120cb7bce870f4a1fdbed5a0fbd0]
@@ -662,7 +665,10 @@ class ClassDeclaration:
 
             def write(instance: Any, value: Any, name: str = field.name) -> None:
                 actual = declaration(type(instance)) or plan
-                actual.answer(_expr(actual.accessor(name, write=True), actual.receiver(instance), actual.encode(value)))
+                actual.answer(actual.application(actual.accessor(name, write=True), (
+                    _expr(S.noeval, actual.receiver(instance)),
+                    _expr(S.noeval, actual.encode(value)),
+                )))
 
             self.replace_attribute(field.name, property(read, write))
         if "__match_args__" not in vars(self.cls):
