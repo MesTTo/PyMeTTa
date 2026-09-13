@@ -25,7 +25,7 @@ Guarantees:
     callbacks, while explicit callable homes retain precedence [tested:
     test_operation_callbacks_keep_the_calling_program,
     test_operation_callbacks_preserve_an_explicit_home,
-    test_inverse_operations_receive_native_callbacks; commit=WORKTREE]
+    test_inverse_operations_receive_native_callbacks; commit=1c427f241bf7c3fa5fdc7156090420eb1dc69a60]
   - type_names removes every __metta_wire_value__ carrier before reading the
     MRO, so transport classes never become MeTTa types [tested:
     test_a_python_tuple_answers_the_same_through_both_doors;

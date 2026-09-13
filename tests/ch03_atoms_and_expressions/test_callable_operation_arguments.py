@@ -3,11 +3,11 @@
 Guarantees:
   - native callable arguments use the caller's space, including nested values
     and scheduled operations, and retain that home after the call [tested:
-    test_operation_callbacks_keep_the_calling_program; commit=WORKTREE]
+    test_operation_callbacks_keep_the_calling_program; commit=1c427f241bf7c3fa5fdc7156090420eb1dc69a60]
   - an explicit callable home takes precedence over the calling space [tested:
-    test_operation_callbacks_preserve_an_explicit_home; commit=WORKTREE]
+    test_operation_callbacks_preserve_an_explicit_home; commit=1c427f241bf7c3fa5fdc7156090420eb1dc69a60]
   - inverse operations receive the same lexical callback conversion [tested:
-    test_inverse_operations_receive_native_callbacks; commit=WORKTREE]
+    test_inverse_operations_receive_native_callbacks; commit=1c427f241bf7c3fa5fdc7156090420eb1dc69a60]
 """
 
 from collections.abc import Callable
