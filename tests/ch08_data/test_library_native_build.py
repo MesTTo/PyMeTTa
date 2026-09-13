@@ -6,7 +6,7 @@ publication and cleanup contracts; a wheel carries source and builds on import
 test_concurrent_processes_and_threads_publish_one_native_object,
 test_cancelled_build_waits_for_its_compiler_and_discards_the_stage,
 test_native_sources_build_after_wheel_install,
-test_warm_native_build_needs_no_process_library; commit=060bea3199e9f504c6d425f60841f229fc96e861].
+test_warm_native_build_needs_no_process_library; commit=WORKTREE].
 Owns resources: pytest owns the copied libraries and installations. Every child
 process is joined, and the cancellation fixture releases its compiler barrier.
 """
@@ -48,8 +48,9 @@ class NativeLibrary:
 
 PROVIDERS = {
     "database": ("support/lock.c", "support/native.pl",
-                 "setup_call_cleanup(open('probe.lock',append,Stream,[type(binary)]),"
-                 "lib_database_native:claim_stream(Stream,0),close(Stream))",
+                 "setup_call_cleanup(tmp_file_stream(binary,Probe,Stream),"
+                 "lib_database_native:claim_stream(Stream,0),"
+                 "call_cleanup(close(Stream),delete_file(Probe)))",
                  "SWI-Prolog development tools"),
     "regex": ("vendor/pcre4pl.c", "vendor/lib_regex_pcre.pl",
               "re_match('a', 'a')", "libpcre2-dev"),
@@ -407,7 +408,7 @@ with MeTTa() as engine:
             if opening == 0:
                 assert engine.fn["database-add!"](handle, S.row(G("a\0π🙂"))).one() is True
             else:
-                assert engine.fn.database_query(handle, S.row(V.value), V.value) == [(G("a\0π🙂"),)]
+                assert engine.fn.database_atoms(handle) == [(S.row(G("a\0π🙂")),)]
         finally:
             engine.fn["database-close!"](handle).one()
 assert list((runtime / "lib/lib_regex/.native").glob("pcre-*"))

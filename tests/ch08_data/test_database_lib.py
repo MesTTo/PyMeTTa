@@ -3,7 +3,7 @@
 Guarantees: generated action sequences agree with a Python ordered multiset;
 fresh processes contend for the same store and reopen its committed values.
 [tested: test_database_model, test_database_process_lock,
-test_database_invalid_journal_bytes; commit=060bea3199e9f504c6d425f60841f229fc96e861].
+test_database_invalid_journal_bytes; commit=WORKTREE].
 Owns resources: context managers close every store and temporary directory;
 subprocess.run joins each child before returning.
 """
@@ -66,9 +66,9 @@ def test_database_model(database, actions, sync):
                 else:
                     assert fn["database-add!"](handle, value).one() is True
                     expected.append(value)
-                assert fn.database_query(handle, V.value, V.value) == [tuple(expected)]
+                assert fn.database_atoms(handle) == [tuple(expected)]
         with store(database, directory) as reopened:
-            assert fn.database_query(reopened, V.value, V.value) == [tuple(expected)]
+            assert fn.database_atoms(reopened) == [tuple(expected)]
 
 
 def test_database_process_lock(database, tmp_path):
@@ -88,7 +88,7 @@ with MeTTa() as engine:
     else:
         try:
             assert sys.argv[2] == 'open'
-            assert engine.fn.database_query(handle, V.x, V.x) == [(S.parent,)]
+            assert engine.fn.database_atoms(handle) == [(S.parent,)]
             assert engine.fn['database-add!'](handle, S.child).one() is True
             print('open')
         finally:
@@ -106,7 +106,7 @@ with MeTTa() as engine:
     assert opened.returncode == 0, opened.stdout + opened.stderr
     assert opened.stdout.strip() == "open"
     with store(database, path) as reopened:
-        assert database.fn.database_query(reopened, V.x, V.x) == [(S.parent, S.child)]
+        assert database.fn.database_atoms(reopened) == [(S.parent, S.child)]
 
 
 @pytest.mark.parametrize("raw", [b"\xff", b"\xc0\x80", b"\xed\xa0\x80", b"\xf4\x90\x80\x80"])
@@ -124,10 +124,10 @@ def test_database_invalid_journal_bytes(database, tmp_path, raw):
 def test_database_foreign_python_values_refuse_before_writing(database, tmp_path):
     """A Python resource's printed representation is never persisted as data."""
     with store(database, tmp_path) as handle:
-        for value in [G(object()), S.row(G(object())), V.unbound]:
+        for value in [G(object()), S.row(G(object()))]:
             with pytest.raises(EngineError, match="persistent_value"):
                 database.fn["database-add!"](handle, value).one()
-        assert database.fn.database_query(handle, V.x, V.x) == [()]
+        assert database.fn.database_atoms(handle) == [()]
 
 
 def test_database_nul_and_numeric_values_keep_native_identity(database, tmp_path):
@@ -137,9 +137,37 @@ def test_database_nul_and_numeric_values_keep_native_identity(database, tmp_path
         for value in values:
             database.fn["database-add!"](handle, value).one()
     with store(database, tmp_path) as handle:
-        assert database.fn.database_query(handle, S.text(V.x), V.x) == [(G("a\0b"),)]
-        assert database.fn.database_query(handle, S.number(1), S.hit) == [(S.hit, S.hit)]
+        rows = database.fn.database_atoms(handle)[0]
+        assert rows[0] == S.text(G("a\0b"))
+        assert sum(row[1].value == 1 for row in rows[1:]) == 2
         assert database.fn["database-remove!"](handle, S.number(1)).one() is True
-        numbers = database.fn.database_query(handle, S.number(V.x), V.x).one()
+        numbers = tuple(row[1] for row in database.fn.database_atoms(handle)[0]
+                        if row[0] == S.number)
         assert type(numbers[0].value) is float
         assert numbers[1].value == 1 << 2000
+
+
+@settings(max_examples=80)
+@given(st.lists(st.integers(min_value=0, max_value=6), max_size=40),
+       st.sampled_from([S.none, S.flush, S.close]))
+def test_database_variable_graphs(database, indices, sync):
+    """Persist sharing graphs and remove by alpha identity after reopening."""
+    variables = tuple(V[f"node_{index}"] for index in range(7))
+    value = S.graph(tuple(variables[index] for index in indices), variables)
+    literal_tag = S["$metta_database_variable"](0)
+    with tempfile.TemporaryDirectory(prefix="database-variables-") as directory:
+        with store(database, directory, sync) as handle:
+            for row in (value, value, V.plain, literal_tag):
+                database.fn["database-add!"](handle, row).one()
+        with store(database, directory) as handle:
+            snapshot = database.fn.database_atoms(handle)[0]
+            assert snapshot[0].alpha_eq(value)
+            assert snapshot[1].alpha_eq(value)
+            assert len(snapshot.vars) == 15
+            assert snapshot[3] == literal_tag
+            assert database.fn["database-remove!"](handle, S.graph(V.x, V.y)).one() is False
+            assert database.fn["database-remove!"](handle, snapshot[0]).one() is True
+            assert database.fn["database-remove!"](handle, value).one() is True
+            assert database.fn["database-remove!"](handle, value).one() is False
+            assert database.fn["database-remove!"](handle, V.renamed).one() is True
+            assert database.fn.database_atoms(handle) == [(literal_tag,)]
