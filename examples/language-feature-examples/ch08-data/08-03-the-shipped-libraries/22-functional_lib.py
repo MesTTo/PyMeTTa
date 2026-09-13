@@ -302,7 +302,12 @@ def twin(m):
 #: finite expression boundary in lib/_support/collections_data.pl [measured
 #: 2026-09-13: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=6fa571d1b7059b610f73e9feed657711414251e5].
-BUDGET = 1093245
+#: RE-PINNED 2026-09-13, 1093245 to 1093269 (+24), Vector, Math and the shared
+#: collection boundary declare their native effects. The engine reads late
+#: provider declarations and retains definition analysis for computed function
+#: heads [measured 2026-09-13: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 1093269
 
 #: DIVERGED 2026-09-12, the example holds 1 atom the twin does not (1 =) and
 #: the twin holds 1 atom the example does not (1 =): the loop's tick helper is

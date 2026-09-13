@@ -301,7 +301,12 @@ def twin(m):
 #: finite expression boundary in lib/_support/collections_data.pl [measured
 #: 2026-09-13: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=6fa571d1b7059b610f73e9feed657711414251e5].
-BUDGET = 741230
+#: RE-PINNED 2026-09-13, 741230 to 741252 (+22), Vector, Math and the shared
+#: collection boundary declare their native effects. The engine reads late
+#: provider declarations and retains definition analysis for computed function
+#: heads [measured 2026-09-13: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 741252
 
 #: The declared OVERRUN went with the eight new heads: the twin used to cost
 #: more than the example's band allowed, and the enumerations and exact counts

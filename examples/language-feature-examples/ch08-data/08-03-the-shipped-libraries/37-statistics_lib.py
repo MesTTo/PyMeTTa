@@ -139,7 +139,13 @@ def twin(m):
 #: boundary in lib/_support/collections_data.pl [measured 2026-09-13: min-of-3
 #: serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=6fa571d1b7059b610f73e9feed657711414251e5].
-BUDGET = 40107888
+#: RE-PINNED 2026-09-13, 40107888 to 40108091 (+203), Vector, Math and the
+#: shared collection boundary declare their native effects. The engine reads
+#: late provider declarations and retains definition analysis for computed
+#: function heads [measured 2026-09-13: min-of-3 serial fresh processes;
+#: command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+BUDGET = 40108091
 
 #: RETIRED: the former 1826-inference overrun. The 78-claim MeTTa recipe now
 #: costs 40092306 and its twin 40107888, within the ordinary band.

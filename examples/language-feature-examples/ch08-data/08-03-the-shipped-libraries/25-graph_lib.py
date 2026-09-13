@@ -218,4 +218,9 @@ def twin(m):
 #: examples/ch08-data/08-03-the-shipped-libraries/25-graph_lib.metta;
 #: fixture=52 claims, fresh serial processes after engine/lib QLF purge,
 #: MeTTa 8991153, equal stored contents; commit=2951a00d660131f008c2779be828c97f53aa1555].
-BUDGET = 8975689
+#: RE-PINNED 2026-09-13, 8975689 to 8975711 (+22), Vector, Math and the shared
+#: collection boundary declare their native effects. The engine reads late
+#: provider declarations and retains definition analysis for computed function
+#: heads [measured 2026-09-13: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 8975711

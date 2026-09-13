@@ -193,4 +193,9 @@ def twin(m):
 #: implementations and MeTTa heads stay unchanged [measured 2026-09-12: min-
 #: of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=84824f5cf870f5cd7ac89d6580093d0459d91a9b].
-BUDGET = 62215
+#: RE-PINNED 2026-09-13, 62215 to 62326 (+111), Vector, Math and the shared
+#: collection boundary declare their native effects. The engine reads late
+#: provider declarations and retains definition analysis for computed function
+#: heads [measured 2026-09-13: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 62326

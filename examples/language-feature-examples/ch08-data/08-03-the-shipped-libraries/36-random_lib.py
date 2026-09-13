@@ -1,131 +1,136 @@
-"""Purpose: occurrence sampling, distribution values and seeded answer streams.
+"""Purpose: inspect, rewrite and run sample programs through ordinary MeTTa control.
 
-Guarantees: the same 59 claims as 36-random_lib.metta.
-[tested: python extensions/python/tools/twin_coverage.py examples/ch08-data/08-03-the-shipped-libraries/36-random_lib.metta; commit=505b45e1d9184608c818a8a4fdba5cf6406bf3e7].
+Guarantees: the same 68 claims as 36-random_lib.metta.
+[tested: python extensions/python/tools/twin_coverage.py examples/ch08-data/08-03-the-shipped-libraries/36-random_lib.metta; commit=WORKTREE].
 """
 
-from metta import FALSE, TRUE, G, S, lib
+from metta import G, S, V, lib
 from metta._errors.errors import MettaError
 
 
 def twin(m):
-    """Select occurrences and draw reproducible distribution samples."""
+    """Construct sample code, then use the existing evaluation and repetition doors."""
     m += lib.random
+    seed = m.fn.with_seed
+    choice = m.fn.random_choice
+    shuffle, sample = m.fn["random-shuffle!"], m.fn["random-sample!"]
+    normal, uniform = m.fn.random_normal, m.fn.random_uniform
+    lognormal, triangular = m.fn.random_lognormal, m.fn.random_triangular
+    bernoulli, exponential = m.fn.random_bernoulli, m.fn.random_exponential
+    gamma, beta = m.fn.random_gamma, m.fn.random_beta
+    pareto, weibull = m.fn.random_pareto, m.fn.random_weibull
 
     def refused(call):
-        """Read a native refusal through the evaluation boundary."""
+        """Read a refusal through the same catch and if-error boundary."""
         try:
-            list(m.eval(call))
+            return m.eval(S.if_error(S.catch(call), S.refused, S.fine)) == [S.refused]
         except MettaError:
             return True
-        return False
 
-    seed = m.fn.with_seed
-    choice, shuffle, sample = S["random-choice!"], S["random-shuffle!"], S["random-sample!"]
-    draw, draw_term = m.fn["random-draw!"], S["random-draw!"]
+    def drawn(program, count=1, seed_value=11):
+        """Use the existing seed and repeat forms on an already constructed program."""
+        return seed(seed_value, S.repeat(count, program))
 
-    def drawn(spec, count=1, seed_value=11):
-        """Evaluate a held distribution in the existing seed scope."""
-        return seed(seed_value, draw_term(spec, count))
+    assert m.fn.get_metatype(normal(0, 1)[0]) == [S.Expression]
+    assert m.fn.get_type(S.random_normal) == [S["->"](S.Number, S.Number, S.Expression)]
+    assert m.eval(choice((G("only"),))[0]) == [G("only")]
+    assert len(m.eval(choice((S["+"](1, 2),))[0])[0]) == 3
+    assert shuffle(()) == [()]
+    assert tuple(seed(42, S.sort_atom(S["random-shuffle!"]((1, 1, 2, 3)))).one()) == (1, 1, 2, 3)
+    assert seed(42, S["random-shuffle!"]((1, 2, 3, 4))) == seed(42, S["random-shuffle!"]((1, 2, 3, 4)))
+    assert sample((), 0) == [()]
+    assert tuple(seed(42, S.sort_atom(S["random-sample!"]((1, 1, 2, 3), 4))).one()) == (1, 1, 2, 3)
+    assert m.fn.repeat(3, choice((G("x"),))[0]) == [G("x"), G("x"), G("x")]
+    assert len(seed(42, S["random-sample!"]((1, 2, 3, 4, 5), 3)).one()) == 3
+    assert tuple(seed(42, S["random-sample!"]((G("x"), G("x")), 2)).one()) == (G("x"), G("x"))
+    choices = choice((1, 2, 3, 4))[0]
+    assert seed(9, choices) == seed(9, choices)
+    choices = choice((V.x,))[0]
+    repeated = m.fn.map_atom((0, 1, 2), V.i, S.eval(choices))[0]
+    assert len(repeated.vars) == 1 and tuple(repeated) == (repeated[0],) * 3
+    pair = seed(42, S["random-sample!"]((V.x, V.x), 2))[0]
+    assert len(pair.vars) == 1 and pair[0] == pair[1]
+    assert sample((S.Error(S.data, S.code),), 1)[0] == (S.Error(S.data, S.code),)
 
-    assert len(m.fn.random_distributions().one()) == 10
-    assert m.fn.random_distributions().one()[0] == S.random_distribution(S.uniform, (G("low"), G("high")))
-    assert m.fn["random-choice!"]((G("only"),)) == [G("only")]
-    assert len(m.fn["random-choice!"]((S["+"](1, 2),)).one()) == 3
-    assert tuple(m.fn["random-shuffle!"](()).one()) == ()
-    assert tuple(seed(42, S.sort_atom(shuffle((1, 1, 2, 3)))).one()) == (1, 1, 2, 3)
-    assert seed(42, shuffle((1, 2, 3, 4))) == seed(42, shuffle((1, 2, 3, 4)))
-    assert tuple(m.fn["random-sample!"]((), 0, TRUE).one()) == ()
-    assert tuple(m.fn["random-sample!"]((), 0, FALSE).one()) == ()
-    assert tuple(seed(42, S.sort_atom(sample((1, 1, 2, 3), 4, FALSE))).one()) == (1, 1, 2, 3)
-    assert tuple(seed(42, sample((G("x"),), 3, TRUE)).one()) == (G("x"), G("x"), G("x"))
-    assert len(seed(42, sample((1, 2, 3, 4, 5), 3, FALSE)).one()) == 3
-    assert tuple(seed(42, sample((G("x"), G("x")), 2, FALSE)).one()) == (G("x"), G("x"))
-    assert seed(9, choice((1, 2, 3, 4))) == seed(9, choice((1, 2, 3, 4)))
+    assert m.fn.repeat(0, normal(0, 1)[0]) == []
+    assert m.fn.repeat(3, uniform(4, 4)[0]) == [4.0, 4.0, 4.0]
+    assert m.eval(normal(7, 0)[0]) == [7.0]
+    assert m.eval(lognormal(0, 0)[0]) == [1.0]
+    assert m.eval(triangular(3, 3, 3)[0]) == [3.0]
+    assert m.fn.repeat(2, bernoulli(0)[0]) == [False, False]
+    assert m.fn.repeat(2, bernoulli(1)[0]) == [True, True]
+    gaussian = normal(0, 1)[0]
+    assert len(drawn(gaussian, 5, 42)) == 5
+    assert drawn(gaussian, 4, 42) == drawn(gaussian, 4, 42)
+    assert seed(42, S.once(S.repeat(100, gaussian))) == drawn(gaussian, 1, 42)
+    assert m.eval(normal(m.fn.math_rational(1, 2)[0], 0)[0]) == [0.5]
 
-    assert list(draw(S.normal(0, 1), 0)) == []
-    assert draw(S.uniform(4, 4), 3) == [4.0, 4.0, 4.0]
-    assert draw(S.normal(7, 0), 1) == [7.0]
-    assert draw(S.lognormal(0, 0), 1) == [1.0]
-    assert draw(S.triangular(3, 3, 3), 1) == [3.0]
-    assert draw(S.bernoulli(0), 2) == [False, False]
-    assert draw(S.bernoulli(1), 2) == [True, True]
-    assert len(drawn(S.normal(0, 1), 5, 42)) == 5
-    assert drawn(S.normal(0, 1), 4, 42) == drawn(S.normal(0, 1), 4, 42)
-    assert seed(42, S.once(draw_term(S.normal(0, 1), 100))) == drawn(S.normal(0, 1), 1, 42)
-    # Indexing keeps the native rational atom; one() decodes its Python payload.
-    mean = m.fn.math_rational(1, 2)[0]
-    assert draw(S.normal(mean, 0), 1) == [0.5]
+    u = drawn(uniform(-4, 9)[0]).one()
+    assert -4 <= u <= 9
+    assert m.fn.math_class(drawn(gaussian).one()) == [S.normal]
+    assert drawn(lognormal(0, 1)[0]).one() > 0
+    assert drawn(exponential(2)[0]).one() > 0
+    t = drawn(triangular(-4, 9, 2)[0]).one()
+    assert -4 <= t <= 9
+    assert drawn(gamma(2, 3)[0]).one() > 0
+    b = drawn(beta(2, 5)[0]).one()
+    assert 0 < b < 1
+    assert m.fn.get_type(drawn(bernoulli(0.25)[0])[0]) == [S.Bool]
+    assert drawn(pareto(3)[0]).one() >= 1
+    assert drawn(weibull(2, 3)[0]).one() > 0
+    assert drawn(gamma(1.0e308, 1)[0], seed_value=42) == [1.0e308]
+    assert drawn(beta(1.0e308, 1.0e308)[0], seed_value=42) == [0.5]
+    assert drawn(gamma(0.001, 1)[0], seed_value=2) == [0.0]
+    assert drawn(gamma(0.001, 1.0e300)[0], seed_value=2).one() > 0
+    assert drawn(weibull(1.0e308, 1.0e308)[0], seed_value=42) == [1.0e308]
+    assert m.fn.math_class(m.eval(lognormal(1000, 0)[0])[0]) == [S.infinite]
+    assert m.eval(lognormal(-1000, 0)[0]) == [0.0]
 
-    uniform = drawn(S.uniform(-4, 9)).one()
-    assert -4 <= uniform <= 9
-    assert m.fn.math_class(drawn(S.normal(0, 1)).one()) == [S.normal]
-    assert drawn(S.lognormal(0, 1)).one() > 0
-    assert drawn(S.exponential(2)).one() > 0
-    triangular = drawn(S.triangular(-4, 9, 2)).one()
-    assert -4 <= triangular <= 9
-    assert drawn(S.gamma(2, 3)).one() > 0
-    beta = drawn(S.beta(2, 5)).one()
-    assert 0 < beta < 1
-    assert m.fn.get_type(drawn(S.bernoulli(0.25)).one()) == [S.Bool]
-    assert drawn(S.pareto(3)).one() >= 1
-    assert drawn(S.weibull(2, 3)).one() > 0
-    assert drawn(S.gamma(1.0e308, 1), 1, 42) == [1.0e308]
-    assert drawn(S.beta(1.0e308, 1.0e308), 1, 42) == [0.5]
-    assert drawn(S.gamma(0.001, 1), 1, 2) == [0.0]
-    assert drawn(S.gamma(0.001, 1.0e300), 1, 2).one() > 0
-    assert drawn(S.weibull(1.0e308, 1.0e308), 1, 42) == [1.0e308]
-    assert m.fn.math_class(draw_term(S.lognormal(1000, 0), 1)) == [S.infinite]
+    m.add(S.saved_sampler(normal(12, 0)[0]))
+    stored = m.match(S.saved_sampler(V.code)).one().code
+    assert m.eval(stored) == [12.0]
+    head, _entropy, low, high = uniform(2, 10)[0]
+    assert m.eval((head, 0.25, low, high)) == [4.0]
+    row = m.match(S["="](S.random_normal(V.mean, V.deviation), V.body)).one()
+    constructor = m.eval(S["|->"]((row.mean, row.deviation), row.body))[0]
+    assert m.eval(m.eval((constructor, 9, 0))[0]) == [9.0]
+    alternatives = normal(S.superpose((1, 2)), 0)
+    assert [answer for program in alternatives for answer in m.eval(program)] == [1.0, 2.0]
+    assert m.fn.repeat(2, S.superpose((S.a, S.b))) == [S.a, S.b, S.a, S.b]
+    a, b = normal(2, 0)[0], uniform(3, 3)[0]
+    assert m.eval(S["+"](S.eval(a), S.eval(b))) == [5.0]
 
-    assert refused(choice(()))
-    assert refused(shuffle(G("text")))
-    assert refused(sample((), 1, TRUE))
-    assert refused(sample((1, 2), 3, FALSE))
-    assert refused(sample((1,), -1, TRUE))
-    assert refused(draw_term(S.missing(1), 0))
-    assert refused(draw_term(S.normal(0), 1))
-    assert refused(draw_term(S.normal(0, -1), 1))
-    assert refused(draw_term(S.uniform(2, 1), 1))
-    assert refused(draw_term(S.triangular(0, 1, 2), 1))
-    assert refused(draw_term(S.exponential(0), 1))
-    assert refused(draw_term(S.gamma(-1, 2), 1))
-    assert refused(draw_term(S.beta(2, 0), 1))
-    assert refused(draw_term(S.bernoulli(1.1), 1))
-    assert refused(draw_term(S.pareto(0), 1))
-    assert refused(draw_term(S.weibull(0, 1), 1))
-    assert refused(draw_term(S.normal(G("x"), 1), 1))
-    assert refused(draw_term(S.normal(0, 1), -1))
+    assert refused(S.random_choice(()))
+    assert refused(S["random-shuffle!"](G("text")))
+    assert refused(S["random-sample!"]((), 1))
+    assert refused(S["random-sample!"]((1, 2), 3))
+    assert refused(S["random-sample!"]((1,), -1))
+    assert refused(S["random-sample!"]((1,), 1.0))
+    assert refused(S.random_normal(0, -1))
+    assert refused(S.random_uniform(2, 1))
+    assert refused(S.random_triangular(0, 1, 2))
+    assert refused(S.random_exponential(0))
+    assert refused(S.random_gamma(-1, 2))
+    assert refused(S.random_beta(2, 0))
+    assert refused(S.random_bernoulli(1.1))
+    assert refused(S.random_pareto(0))
+    assert refused(S.random_weibull(0, 1))
+    assert refused(S.random_normal(G("x"), 1))
+    assert refused(S.random_normal(S.math_real(S.inf, ()), 1))
+    try:
+        invalid = normal(0, -1)[0]
+        m.fn.repeat(0, invalid)
+    except MettaError:
+        refused_before_repeat = True
+    else:
+        refused_before_repeat = False
+    assert refused_before_repeat
 
 
-#: MEASURED: all 59 claims, with every nondegenerate draw under an explicit
-#: seed. The example pays 122535 inferences.
-#: [measured 2026-09-12: 117876 inferences, minimum of three fresh serial processes;
-#: command=python extensions/python/tools/twin_coverage.py --measure --rounds 3
-#: examples/ch08-data/08-03-the-shipped-libraries/36-random_lib.metta;
-#: fixture=lib_random at its functional commit with engine/lib QLF artifacts purged;
-#: commit=505b45e1d9184608c818a8a4fdba5cf6406bf3e7].
-#: RE-PINNED 2026-09-12, 117876 to 117883 (+7), Vector now exports its existing
-#: fraction_sqrt native service; the additional module export moves each
-#: measured library import by seven inferences while the numerical
-#: implementations and MeTTa heads stay unchanged [measured 2026-09-12: min-
-#: of-3 serial fresh processes; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=84824f5cf870f5cd7ac89d6580093d0459d91a9b].
-#: RE-PINNED 2026-09-13, 117883 to 123955 (+6072), Combinatorics, Functional,
-#: Pairs and Sets now derive collection operations through MeTTa equations,
-#: segments and folds. This example imports the changed provider directly or
-#: through its library dependencies [measured 2026-09-13: min-of-3 serial fresh
-#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
-#: commit=6471fbad35eced5ed6440ebf2c25a053b20221f3].
-#: RE-PINNED 2026-09-13, 123955 to 125298 (+1343), The validated range
-#: continuation now lives in the private support file rather than appearing as
-#: a public library head. The import adds its measured loading cost without
-#: changing the continuation body [measured 2026-09-13: min-of-3 serial fresh
-#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
-#: commit=6471fbad35eced5ed6440ebf2c25a053b20221f3].
-#: RE-PINNED 2026-09-13, 125298 to 135480 (+10182), Math and Statistics derive
-#: their recipes from MeTTa equations; Statistics consolidates finite laws and
-#: adds reflective claims. Their collection dependencies share the proper
-#: finite expression boundary in lib/_support/collections_data.pl [measured
-#: 2026-09-13: min-of-3 serial fresh processes; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=6fa571d1b7059b610f73e9feed657711414251e5].
-BUDGET = 135480
+#: MEASURED 2026-09-13: 68 equal claims over inspectable sample programs,
+#: including variable sharing, reflection, exact extreme parameters and
+#: validation before drawing. min-of-3 serial fresh processes reads
+#: metta=1075529 and twin=1134846 [measured: 1134846;
+#: command=python extensions/python/tools/twin_coverage.py --measure --rounds 3 examples/ch08-data/08-03-the-shipped-libraries/36-random_lib.metta;
+#: fixture=68 Random example claims with core seeded entropy; commit=WORKTREE].
+BUDGET = 1134846

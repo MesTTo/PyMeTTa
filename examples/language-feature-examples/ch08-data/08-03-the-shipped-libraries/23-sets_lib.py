@@ -158,7 +158,12 @@ def twin(m):
 #: finite expression boundary in lib/_support/collections_data.pl [measured
 #: 2026-09-13: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=6fa571d1b7059b610f73e9feed657711414251e5].
-BUDGET = 363631
+#: RE-PINNED 2026-09-13, 363631 to 363653 (+22), Vector, Math and the shared
+#: collection boundary declare their native effects. The engine reads late
+#: provider declarations and retains definition analysis for computed function
+#: heads [measured 2026-09-13: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 363653
 
 #: OVERRUN 2026-09-12, 1399: the example nests its law claims in one evaluation
 #: each, where Python reads them as separate calls whose intermediate sets cross
