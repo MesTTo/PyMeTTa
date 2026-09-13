@@ -3,7 +3,7 @@
 Guarantees: generated repeats preserve the requested order and defaults;
 arbitrary String values retain every character through both argument forms.
 [tested: test_cli_occurrence_model, test_cli_literal_tokens,
-test_cli_process_arguments; commit=WORKTREE].
+test_cli_process_arguments; commit=83b7589a6766210414ceca14dfb9846b28c2ef78].
 Owns resources: the argv fixture joins its subprocess and captures its streams.
 """
 

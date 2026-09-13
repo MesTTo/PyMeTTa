@@ -1,7 +1,7 @@
 """Purpose: typed options, literal tokens, custom converters and generated help.
 
 Guarantees: the same 64 claims as 44-cli_lib.metta.
-[tested: python extensions/python/tools/twin_coverage.py examples/ch08-data/08-03-the-shipped-libraries/44-cli_lib.metta; commit=WORKTREE].
+[tested: python extensions/python/tools/twin_coverage.py examples/ch08-data/08-03-the-shipped-libraries/44-cli_lib.metta; commit=83b7589a6766210414ceca14dfb9846b28c2ef78].
 """
 
 from metta import FALSE, TRUE, G, S, V, arrow, lib, typed
@@ -149,5 +149,5 @@ def twin(m):
 #: [measured: 367784 inferences, minimum of three fresh serial processes;
 #: command=python extensions/python/tools/twin_coverage.py --measure --rounds 3
 #: examples/ch08-data/08-03-the-shipped-libraries/44-cli_lib.metta;
-#: fixture=lib_cli with engine/lib QLF artifacts purged; commit=WORKTREE].
+#: fixture=lib_cli with engine/lib QLF artifacts purged; commit=83b7589a6766210414ceca14dfb9846b28c2ef78].
 BUDGET = 367784
