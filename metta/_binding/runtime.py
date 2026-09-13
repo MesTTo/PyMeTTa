@@ -11,7 +11,7 @@ Guarantees:
   - Runtime.builtins carries the supplied native space identity into the
     catalogue query [tested:
     test_a_parametric_namespace_lists_resolves_and_inherits_native_functions;
-    commit=WORKTREE].
+    commit=349d40951e1412b91cb3b60aa476826cf4654e63].
   - runtime() with no configuration request reads the published runtime
     without acquiring the home-engine lock, so a child can finish while its
     scope joins on that engine [tested:

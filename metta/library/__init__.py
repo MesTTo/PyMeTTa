@@ -28,7 +28,7 @@ Assumes:
 Guarantees:
   - a card sends an explicit sources scope to metta_py_head_claims, distinct
     from a native parametric space identity [tested:
-    test_a_card_reads_the_loaded_library_home; commit=WORKTREE]
+    test_a_card_reads_the_loaded_library_home; commit=349d40951e1412b91cb3b60aa476826cf4654e63]
   - reading a library neither loads nor runs it: the sources are parsed, so a
     library whose Prolog half this build cannot load still describes itself,
     and asking for a card cannot register a head [tested:

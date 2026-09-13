@@ -3,7 +3,7 @@
 % Owns resources: anonymous space names; metta_py_release_space/1 clears and returns eligible names to the pool
 % [source: extensions/python/metta/_binding/lifecycle.pl:metta_py_release_space/1; commit=8358dfc233bf299bb23eceddd94593a62372fe4b].
 % Guarantees: declaration and release preserve native expression identities
-% [tested: test_a_parametric_namespace_lists_resolves_and_inherits_native_functions; commit=WORKTREE].
+% [tested: test_a_parametric_namespace_lists_resolves_and_inherits_native_functions; commit=349d40951e1412b91cb3b60aa476826cf4654e63].
 
 %Run a Python callable inside one engine transaction: the same
 %metta_transaction/1 the MeTTa (transaction ...) form compiles to, so

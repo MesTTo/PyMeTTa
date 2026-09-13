@@ -5,7 +5,7 @@ which projects metta_head_property/3 [tested:
 test_get_property_matches_metta_and_explain; commit=90ba93eb8f6e98ebfefc55416859bf13de6a8427].
 Native expression identities carry an explicit space scope, distinct from a
 library's source list [tested:
-test_a_parametric_namespace_lists_resolves_and_inherits_native_functions; commit=WORKTREE].
+test_a_parametric_namespace_lists_resolves_and_inherits_native_functions; commit=349d40951e1412b91cb3b60aa476826cf4654e63].
 """
 
 from __future__ import annotations

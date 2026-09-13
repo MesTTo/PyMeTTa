@@ -1,9 +1,9 @@
 """Purpose: resolve engine functions and describe their live declarations.
 
 Guarded by: _BUILTINS_CACHE_LOCK protects the shared callable catalog cache
-[source: extensions/python/metta/_declare/functions.py:_space_builtins; commit=WORKTREE].
+[source: extensions/python/metta/_declare/functions.py:_space_builtins; commit=349d40951e1412b91cb3b60aa476826cf4654e63].
 Guarantees: catalogues keep a parametric space's native identity as their key
-[tested: test_a_parametric_namespace_lists_resolves_and_inherits_native_functions; commit=WORKTREE].
+[tested: test_a_parametric_namespace_lists_resolves_and_inherits_native_functions; commit=349d40951e1412b91cb3b60aa476826cf4654e63].
 """
 
 from __future__ import annotations

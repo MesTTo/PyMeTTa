@@ -4,7 +4,7 @@ Guarantees:
   - callable catalogues, properties and inheritance keep the expression
     identity through the Python binding [tested:
     test_a_parametric_namespace_lists_resolves_and_inherits_native_functions;
-    commit=WORKTREE]
+    commit=349d40951e1412b91cb3b60aa476826cf4654e63]
   - one ground expression identifies one isolated storage and execution
     context, and context-space exposes its parameters to local equations
     [tested: test_two_instances_of_a_parametric_space_answer_independently;

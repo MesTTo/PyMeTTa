@@ -2,7 +2,7 @@
 % Assumes: loaded through _binding/shim.pl in its host module.
 % Guarantees: reflection reads a native space identity without converting its
 % expression to text or mistaking it for source paths [tested:
-% test_a_parametric_namespace_lists_resolves_and_inherits_native_functions; commit=WORKTREE].
+% test_a_parametric_namespace_lists_resolves_and_inherits_native_functions; commit=349d40951e1412b91cb3b60aa476826cf4654e63].
 
 %%%%%%%%%% What a library says about itself %%%%%%%%%%
 %
