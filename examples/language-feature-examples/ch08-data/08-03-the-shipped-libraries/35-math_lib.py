@@ -1,7 +1,7 @@
 """Purpose: exact number operations and native floating functions.
 
-Guarantees: the same 67 claims as 35-math_lib.metta.
-[tested: python extensions/python/tools/twin_coverage.py examples/ch08-data/08-03-the-shipped-libraries/35-math_lib.metta; commit=4d17f1af15fe125e3b8cd488502ba1e0e688fb3e].
+Guarantees: the same 74 claims as 35-math_lib.metta.
+[tested: python extensions/python/tools/twin_coverage.py examples/ch08-data/08-03-the-shipped-libraries/35-math_lib.metta; commit=WORKTREE].
 """
 
 from metta import G, S, lib
@@ -40,6 +40,7 @@ def twin(m):
     assert classify(S.math_rational(6, 3)) == [S.integer]
     assert classify(S.math_rational(1, 3)) == [S.rational]
     assert tuple(ratio(0.1).one()) == (3602879701896397, 36028797018963968)
+    assert tuple(ratio(S.math_rational(0.1)).one()) == (3602879701896397, 36028797018963968)
     assert tuple(ratio(-0.0).one()) == (0, 1)
     assert tuple(ratio(S.math_rationalize(0.1)).one()) == (1, 10)
     assert rationalize(42) == [42]
@@ -55,6 +56,14 @@ def twin(m):
     assert [tuple(pair) for pair in m.fn.math_factor_pairs(1)] == [(1, 1)]
     assert [tuple(pair) for pair in m.fn.math_factor_pairs(36)] == [(1, 36), (2, 18), (3, 12), (4, 9), (6, 6)]
     assert tuple(m.fn.once(S.math_factor_pairs(36)).one()) == (1, 36)
+
+    assert m.fn.math_sqrt(4) == [2.0]
+    assert m.fn.math_sqrt(S.bit_shift_left(1, 2000)) == m.fn.math_float(S.bit_shift_left(1, 1000))
+    assert m.fn.math_sqrt(S.math_rational(1, S.bit_shift_left(1, 2000))) == m.fn.math_float(
+        S.math_rational(1, S.bit_shift_left(1, 1000)))
+    assert real(S.copysign, (1.0, S.math_sqrt(-0.0))) == [-1.0]
+    assert refused(S.math_sqrt(-1))
+    assert refused(S.math_sqrt(S.math_real(S.inf, ())))
 
     assert m.fn.math_float(S.math_rational(1, 10)) == [0.1]
     assert classify(S.math_float(1)) == [S.normal]
@@ -124,4 +133,10 @@ def twin(m):
 #: changing the continuation body [measured 2026-09-13: min-of-3 serial fresh
 #: processes; command=python extensions/python/tools/twin_coverage.py --repin;
 #: commit=6471fbad35eced5ed6440ebf2c25a053b20221f3].
-BUDGET = 194299
+#: RE-PINNED 2026-09-13, 194299 to 361166 (+166867), Math and Statistics derive
+#: their recipes from MeTTa equations; Statistics consolidates finite laws and
+#: adds reflective claims. Their collection dependencies share the proper
+#: finite expression boundary in lib/_support/collections_data.pl [measured
+#: 2026-09-13: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 361166

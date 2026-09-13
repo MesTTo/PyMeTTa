@@ -295,7 +295,13 @@ def twin(m):
 #: changing the continuation body [measured 2026-09-13: min-of-3 serial fresh
 #: processes; command=python extensions/python/tools/twin_coverage.py --repin;
 #: commit=6471fbad35eced5ed6440ebf2c25a053b20221f3].
-BUDGET = 749122
+#: RE-PINNED 2026-09-13, 749122 to 741230 (-7892), Math and Statistics derive
+#: their recipes from MeTTa equations; Statistics consolidates finite laws and
+#: adds reflective claims. Their collection dependencies share the proper
+#: finite expression boundary in lib/_support/collections_data.pl [measured
+#: 2026-09-13: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 741230
 
 #: The declared OVERRUN went with the eight new heads: the twin used to cost
 #: more than the example's band allowed, and the enumerations and exact counts

@@ -1,10 +1,10 @@
 """Purpose: exact finite descriptive statistics and explicit sample domains.
 
-Guarantees: the same 76 claims as 37-statistics_lib.metta.
-[tested: python extensions/python/tools/twin_coverage.py examples/ch08-data/08-03-the-shipped-libraries/37-statistics_lib.metta; commit=84824f5cf870f5cd7ac89d6580093d0459d91a9b].
+Guarantees: the same 78 claims as 37-statistics_lib.metta.
+[tested: python extensions/python/tools/twin_coverage.py examples/ch08-data/08-03-the-shipped-libraries/37-statistics_lib.metta; commit=WORKTREE].
 """
 
-from metta import FALSE, TRUE, G, S, lib
+from metta import FALSE, TRUE, G, S, V, lib
 from metta._errors.errors import MettaError
 
 
@@ -80,6 +80,15 @@ def twin(m):
     assert fn.stats_regression((2,), (6,), TRUE) == [S.linear_fit(3, 0)]
     assert fn.stats_regression((0, 1, 2), (7, 7, 7), FALSE) == [S.linear_fit(0, 7)]
 
+    row = m.match(S["="](S.stats_variance(V.data, V.degrees), V.body)).one()
+    recipe = S["|->"]((row.data, row.degrees), row.body)
+    reconstructed = m.eval(recipe)[0]
+    assert list(m.eval((reconstructed, (1, 2, 3), 1))) == [G(1)]
+    row = m.match(S["="](S.stats_variance(V.data, 0), V.body)).one()
+    recipe = S["|->"]((row.data,), row.body)
+    specialized = m.eval(recipe)[0]
+    assert list(m.eval((specialized, (1, 2, 3)))) == [fn.math_rational(2, 3)[0]]
+
     assert refused(S.stats_mean(()))
     assert refused(S.stats_sum((1, G("bad"))))
     assert refused(S.stats_geometric_mean(()))
@@ -123,17 +132,18 @@ def twin(m):
 #: changing the continuation body [measured 2026-09-13: min-of-3 serial fresh
 #: processes; command=python extensions/python/tools/twin_coverage.py --repin;
 #: commit=6471fbad35eced5ed6440ebf2c25a053b20221f3].
-BUDGET = 165130
+#: RE-PINNED 2026-09-13, 165130 to 40107888 (+39942758), Math and Statistics
+#: derive their recipes from MeTTa equations; Statistics consolidates finite
+#: laws and adds reflective claims through Python space query and evaluation
+#: doors. Their collection dependencies share the proper finite expression
+#: boundary in lib/_support/collections_data.pl [measured 2026-09-13: min-of-3
+#: serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 40107888
 
-#: OVERRUN: Python evaluates through fn/eval and reads numeric and collection
-#: results across the boundary for its assertions. The example's test keeps
-#: those results in the engine. Its let also keeps the huge reciprocal pair
-#: inside one evaluation; the twin names and reinserts both values. A scoped
-#: term probe costs 950 against 1145 for those three warm calls, 195 of the
-#: total difference, so retain the direct Python values. Measured 157714 against
-#: the 1.1 ceiling 155888.7 leaves 1825.3 inferences above the band.
-#: [measured 2026-09-12: 1826 inference ceiling above the band;
+#: RETIRED: the former 1826-inference overrun. The 78-claim MeTTa recipe now
+#: costs 40092306 and its twin 40107888, within the ordinary band.
+#: [measured 2026-09-13: minimum of three fresh serial processes;
 #: command=python extensions/python/tools/twin_coverage.py --measure --rounds 3
 #: examples/ch08-data/08-03-the-shipped-libraries/37-statistics_lib.metta;
-#: fixture=the same 76 claims and ai-lib4-statistics-crossing-probe.py; commit=84824f5cf870f5cd7ac89d6580093d0459d91a9b].
-OVERRUN = 1826
+#: fixture=78 claims with engine/lib QLF artifacts purged; commit=WORKTREE].

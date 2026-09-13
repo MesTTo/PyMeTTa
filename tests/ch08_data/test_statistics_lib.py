@@ -3,7 +3,7 @@
 Guarantees: generated observations retain exact moments, nearest roots and
 quantile interpolation; nominal modes preserve occurrence order and identity.
 [tested: test_statistics_exact_reductions, test_statistics_paired_reductions,
-test_statistics_quantiles_and_ranks; commit=84824f5cf870f5cd7ac89d6580093d0459d91a9b].
+test_statistics_quantiles_and_ranks; commit=WORKTREE].
 Owns resources: the shared engine fixture owns the imported library; generated
 numeric terms and reference calculations acquire no external resources.
 """
@@ -18,6 +18,7 @@ from hypothesis import example, given, settings
 from hypothesis import strategies as st
 
 from metta import FALSE, TRUE, G, S, lib, library
+from metta._errors.errors import MettaError
 
 from .test_vector_lib import assert_nearest_root, bits, nearest
 
@@ -29,7 +30,7 @@ PAIRS = st.lists(st.tuples(FINITE, FINITE), min_size=2, max_size=10)
 
 @pytest.fixture(scope="module")
 def stats(metta):
-    """Load the generated face and its declared native numeric providers."""
+    """Load sample and finite-law equations with their shared numeric providers."""
     metta += lib.statistics
     return metta
 
@@ -58,8 +59,8 @@ def test_statistics_exact_reductions(stats, data):
     assert_numeric(fn.stats_mean(tuple(data)).one(), statistics.mean(exact), data)
     assert_numeric(fn.stats_median(tuple(data)).one(), statistics.median(exact), data)
     for ddof in range(len(data)):
-        # The oracle centers each observation; the native implementation uses
-        # one-pass exact moments, so cancellation bugs affect different paths.
+        # The oracle centers each observation; covariance uses exact raw
+        # moments, so cancellation bugs affect different paths.
         mean = statistics.mean(exact)
         variance = sum((value - mean) ** 2 for value in exact) / (len(data) - ddof)
         assert_numeric(fn.stats_variance(tuple(data), ddof).one(), variance, data)
@@ -154,10 +155,21 @@ def test_statistics_modes_keep_first_occurrence_order(stats, data):
     assert list(stats.fn.stats_mode(tuple(G(value) for value in data))) == expected
 
 
-def test_statistics_card_and_native_root_visibility():
-    """The shared native root adds no MeTTa head to either generated face."""
+@pytest.mark.parametrize("value", [G("bad"), TRUE, S.untyped_observation, (1, 2), (), math.inf, math.nan])
+def test_statistics_rejects_every_nonfinite_or_nonnumeric_observation(stats, value):
+    """Typed Error data and native refusals both stop the sample reduction."""
+    for function in (stats.fn.stats_sum, stats.fn.stats_mean, stats.fn.stats_ranks):
+        with pytest.raises(MettaError):
+            function((1, value)).one()
+
+
+def test_statistics_card_and_shared_root_visibility():
+    """One domain owns sample recipes and finite laws; Math owns root rounding."""
     card = library.card("lib_statistics")
-    assert len(card.heads) == len(card.documented) == 14
+    assert len(card.heads) == len(card.documented) == 29
     assert any(path.name == "37-statistics_lib.metta" for path in card.examples)
+    assert any(path.name == "12-distribution.metta" for path in card.examples)
+    assert "lib_distribution" not in library.roster()
+    assert any(row.name == "math-sqrt" for row in library.rows("lib_math"))
     vectors = library.card("lib_vector")
     assert len(vectors.heads) == len(vectors.documented) == 13

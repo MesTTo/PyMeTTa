@@ -122,4 +122,10 @@ def twin(m):
 #: changing the continuation body [measured 2026-09-13: min-of-3 serial fresh
 #: processes; command=python extensions/python/tools/twin_coverage.py --repin;
 #: commit=6471fbad35eced5ed6440ebf2c25a053b20221f3].
-BUDGET = 125298
+#: RE-PINNED 2026-09-13, 125298 to 135480 (+10182), Math and Statistics derive
+#: their recipes from MeTTa equations; Statistics consolidates finite laws and
+#: adds reflective claims. Their collection dependencies share the proper
+#: finite expression boundary in lib/_support/collections_data.pl [measured
+#: 2026-09-13: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 135480
