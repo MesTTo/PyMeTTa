@@ -10,6 +10,10 @@ Guarantees:
   - carrying an implicit lexical home preserves the original native signature
     [tested: test_native_callable_contracts_survive_lexical_wrapping;
     commit=c5a7c9efd83f8fbdf3e002de3864a07c5bdded3b]
+  - reading a contract preserves binder identity and authored call references
+    [tested: test_contract_lookup_preserves_distinct_lambda_binders;
+    test_callable_conversion_keeps_authored_heads_as_live_references;
+    commit=WORKTREE]
 """
 
 import inspect
@@ -235,3 +239,44 @@ def test_native_callable_contracts_survive_lexical_wrapping(evaluated):
             home.remove(equation)
             home.add(S["="](equation.args[0], S["+"](equation.args[1], 100)))
             assert callback(left=3) == recovered(left=3) == 139
+
+
+@pytest.mark.parametrize("evaluated", (False, True))
+def test_contract_lookup_preserves_distinct_lambda_binders(evaluated):
+    """Matching a signature cannot equate the arguments of a reordered body."""
+    with MeTTa() as context:
+        home = context.self
+        home.run("(= (native-pair $left $right) (+ (* $left 10) $right))")
+        canonical = S["|->"](Expression([V.left, V.right]), S["native-pair"](V.left, V.right))
+        signature = inspect.Signature([
+            inspect.Parameter("left", inspect.Parameter.POSITIONAL_OR_KEYWORD),
+            inspect.Parameter("right", inspect.Parameter.POSITIONAL_OR_KEYWORD),
+        ])
+        home.add(S["@python-callable"](canonical, call_signatures.project(signature, G), S.one))
+        swapped = S["|->"](Expression([V.left, V.right]), S["native-pair"](V.right, V.left))
+        callback = convert.build(home.eval(swapped)[0] if evaluated else swapped, Callable[[int, int], int], space=home)
+        assert callback(3, 4) == 43
+
+
+@pytest.mark.parametrize("warm", (False, True))
+def test_callable_conversion_keeps_authored_heads_as_live_references(warm):
+    """A matching contract for a callee does not inline its caller's body."""
+    with MeTTa() as context:
+        home = context.self
+        home.run("""
+          (= (declared-pair $left $right) (+ (* $left 10) $right))
+          (= (forward-pair $left $right) (declared-pair $left $right))
+        """)
+        canonical = S["|->"](Expression([V.left, V.right]), S["declared-pair"](V.left, V.right))
+        signature = inspect.Signature([
+            inspect.Parameter("left", inspect.Parameter.POSITIONAL_OR_KEYWORD),
+            inspect.Parameter("right", inspect.Parameter.POSITIONAL_OR_KEYWORD),
+        ])
+        home.add(S["@python-callable"](canonical, call_signatures.project(signature, G), S.one))
+        if warm:
+            assert home.eval(S["forward-pair"](3, 4)) == [34]
+        callback = convert.build(S["forward-pair"], Callable[[int, int], int], space=home)
+        assert callback(3, 4) == 34
+        home.remove(S["="](S["forward-pair"](V.left, V.right), V.body))
+        home.add(S["="](S["forward-pair"](V.left, V.right), 73))
+        assert callback(3, 4) == 73

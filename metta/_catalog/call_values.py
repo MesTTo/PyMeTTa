@@ -10,6 +10,10 @@ Guarantees:
   - adding the current lexical home retains the source lambda's contract
     [tested: test_native_callable_contracts_survive_lexical_wrapping;
     commit=c5a7c9efd83f8fbdf3e002de3864a07c5bdded3b]
+  - contract lookup preserves distinct binders and references to authored
+    heads [tested: test_contract_lookup_preserves_distinct_lambda_binders;
+    test_callable_conversion_keeps_authored_heads_as_live_references;
+    commit=WORKTREE]
 Owns resources:
   - the callable image contains its lexical home and captured receiver, so
     scope retention follows the ordinary native value graph [tested:
@@ -95,8 +99,10 @@ class NativeCallable:
             "findall([_Wire,_Cardinality,_Captured],("
             "(_Scoped=['|->',_Parameters,[evalc,_Body,_Home]],_Home==Space -> "
             "member(_Value,[_Scoped,['|->',_Parameters,_Body]]) ; _Value=_Scoped),"
-            "(spaces:metta_space_pair(Space,['@python-callable',_Value,_Signature,_Cardinality],_,_),_Captured=0;"
-            "spaces:metta_space_pair(Space,['@python-binding',_Value,_Canonical,_Captured],_,_),"
+            "(spaces:metta_space_pair(Space,['@python-callable',_Pattern,_Signature,_Cardinality],_,_),"
+            "subsumes_term(_Pattern,_Value),_Pattern=_Value,_Captured=0;"
+            "spaces:metta_space_pair(Space,['@python-binding',_Pattern,_Canonical,_Captured],_,_),"
+            "subsumes_term(_Pattern,_Value),_Pattern=_Value,"
             "spaces:metta_space_pair(Space,['@python-callable',_Canonical,_Signature,_Cardinality],_,_)),"
             "metta_py_encode(_Signature,_Wire)),Contracts)",
             Space=self.space.name, Wire=self.atom.to_wire(),
@@ -160,16 +166,20 @@ class NativeCallable:
 
 def _written_callable(space: Any, source: Symbol, captured: tuple[Atom, ...]) -> Atom | None:
     """Recover an evaluated lambda through its exact native source clause."""
+    # An occurrence token identifies authored code. Its head must remain a
+    # live reference; only the anonymous clause can recover a lambda body.
     row = space._rt.must(
         "metta_py_decode_shared(Captures,_Captured,_),space_module(Space,_Module),"
         "findall(_Wire,(current_predicate(_Module:Name/_Arity),"
         "functor(_Head,Name,_Arity),predicate_property(_Module:_Head,interpreted),"
         "clause(_Module:_Head,_,_Ref),"
+        "\\+filereader:'$metta_equation_token'(_,Name,_Ref,_),"
         "translated_from(_Ref,[=,[Name|_Parameters],_Body]),"
         "append(_Captured,_Remaining,_Parameters),_Written=['|->',_Remaining,_Body],"
         "(nonvar(_Body),_Body=[evalc,_,_Home] -> true ; _Home=Space),"
-        "(spaces:metta_space_pair(_Home,['@python-callable',_Written,_,_],_,_);"
-        "spaces:metta_space_pair(_Home,['@python-binding',_Written,_,_],_,_)),"
+        "(spaces:metta_space_pair(_Home,['@python-callable',_Pattern,_,_],_,_);"
+        "spaces:metta_space_pair(_Home,['@python-binding',_Pattern,_,_],_,_)),"
+        "subsumes_term(_Pattern,_Written),_Pattern=_Written,"
         "metta_py_encode(_Written,_Wire)),Written)",
         Space=space.name, Name=source.name, Captures=Expression(captured).to_wire(),
     )
