@@ -4,7 +4,7 @@ Guarantees:
   - field and class-variable queries evaluate their lookup and preserve the
     stored atom, including mutable replacement and native access [tested:
     test_generated_syntax_field_queries_return_the_stored_value,
-    test_generated_class_variable_queries_return_the_stored_atom; commit=WORKTREE]
+    test_generated_class_variable_queries_return_the_stored_atom; commit=397a0df18bea23dee8774a721c2bdcd7dfc38c5e]
 """
 
 from dataclasses import FrozenInstanceError, dataclass

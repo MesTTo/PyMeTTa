@@ -3,7 +3,7 @@
 Guarantees:
   - generated query outputs evaluate the lookup before returning stored atom
     data [tested: test_generated_syntax_field_queries_return_the_stored_value,
-    test_generated_class_variable_queries_return_the_stored_atom; commit=WORKTREE]
+    test_generated_class_variable_queries_return_the_stored_atom; commit=397a0df18bea23dee8774a721c2bdcd7dfc38c5e]
   - container aliases survive reads and replacement; native expressions are
     adopted once on writing [tested: test_container_fields_keep_python_aliases,
     test_native_container_fields_are_adopted_once; commit=9b0a084e534ddf7dd67980ad84c27c8279b877f1]

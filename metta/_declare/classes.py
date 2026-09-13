@@ -14,7 +14,7 @@ Guarantees:
   - generated field and class-variable queries return the stored syntax
     rather than their lookup expression [tested:
     test_generated_syntax_field_queries_return_the_stored_value,
-    test_generated_class_variable_queries_return_the_stored_atom; commit=WORKTREE]
+    test_generated_class_variable_queries_return_the_stored_atom; commit=397a0df18bea23dee8774a721c2bdcd7dfc38c5e]
   - imports follow the declared package foundations [tested:
     tests/checks/check_layering.py; commit=ab9d3489f87e0d7b7be4b3cd2025494cd62699fe]
   - mutable Python instances find their engine receiver through ordinary private
