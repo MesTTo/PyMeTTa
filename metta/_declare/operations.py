@@ -3,6 +3,12 @@ signature for arities (defaults yield several), auto-detects nondeterminism
 (a generator function is one), derives a MeTTa type declaration from the
 annotations, and registers the whole thing with the engine through shim.pl.
 Guarantees:
+  - generated host return arrows exclude NoneType answer alternatives,
+    including unions and refinements, while parameters and annotation
+    claims preserve the declared values [tested:
+    test_host_answer_types_remove_only_empty_return_alternatives,
+    test_nullable_host_operations_keep_parameters_and_annotation_claims;
+    commit=WORKTREE]
   - class annotation dependencies use ordinary peer imports after module
     initialization [tested: tests/checks/check_layering.py,
     test_each_module_imports_first_in_a_fresh_process; commit=ab9d3489f87e0d7b7be4b3cd2025494cd62699fe]
@@ -35,10 +41,13 @@ Guarantees:
   - overload stubs each contribute their declared arrow and annotation claims
     [tested: test_every_advanced_annotation_reaches_metta_as_a_target_symbol;
      commit=f88aa8be03cb64cb59d3307515ded8701f418321]
-  - unreachable **kwargs refuses and a typed zero-parameter operation still
-    emits its return arrow
+  - unreachable **kwargs refuses
     [tested: test_each_remaining_annotation_shape_refuses_or_carries;
      commit=f88aa8be03cb64cb59d3307515ded8701f418321]
+  - zero-parameter operations preserve result annotations when the host
+    contract has no answer arrow [tested:
+    test_nullary_host_operations_preserve_result_annotation_for_empty_answers;
+    commit=WORKTREE]
   - callable code flags, through partials, wrappers, bound methods, and
     callable objects, classify generators and route coroutine functions to
     future-space dispatch
@@ -689,6 +698,21 @@ def _partition_declarations(
 def _passes_atoms(name: str, catalog: tuple[Expression, ...]) -> bool:
     return _expr(S.arguments, S[name], S.atoms) in catalog
 
+def _host_answer_type(kind: Atom) -> Atom | None:
+    """Remove empty answer alternatives without descending into returned values."""
+    if kind == S.NoneType:
+        return None
+    if isinstance(kind, Expression):
+        if kind.head == S.Annotated and kind.args:
+            base = _host_answer_type(kind.args[0])
+            return _expr(S.Annotated, base, *kind.args[1:]) if base is not None else None
+        if kind.head == S["|"]:
+            alternatives = [answer for item in kind.args if (answer := _host_answer_type(item)) is not None]
+            if len(alternatives) == 1:
+                return alternatives[0]
+            return _expr(S["|"], *alternatives) if alternatives else None
+    return kind
+
 def _operation_declarations(
     name: str,
     params: list[inspect.Parameter],
@@ -713,6 +737,20 @@ def _operation_declarations(
         if has_annotations or result_type is not None
         else []
     )
+    # The host operation bridge consumes None as no answer. Compiled Python
+    # bodies retain None as a value and keep their separate NoneType arrow.
+    projected = []
+    for row in declarations:
+        candidate = row
+        if row.head == S[":"] and isinstance(row.args[1], Expression) and row.args[1].head == S["->"]:
+            arrow = row.args[1]
+            result = _host_answer_type(arrow.args[-1])
+            if result is None:
+                continue
+            candidate = _expr(S[":"], row.args[0], Expression([*arrow.children[:-1], result]))
+        if candidate not in projected:
+            projected.append(candidate)
+    declarations = projected
     for declaration in supplied:
         if declaration not in declarations:
             declarations.append(declaration)
