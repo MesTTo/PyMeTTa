@@ -167,7 +167,7 @@ def twin(m):
 #: callback arguments through reduce; Statistics derives exact coefficient rows
 #: and Combinatorics retires its native probability provider [measured
 #: 2026-09-14: min-of-3 serial fresh processes; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+#: extensions/python/tools/twin_coverage.py --repin; commit=e1be99ea1c08f70444c1c35cada441e089777906].
 BUDGET = 354572
 
 #: OVERRUN 2026-09-12, 1399: the example nests its law claims in one evaluation

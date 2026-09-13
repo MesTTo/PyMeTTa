@@ -149,7 +149,7 @@ def twin(m):
 #: finished callback arguments through reduce; Statistics derives exact
 #: coefficient rows and Combinatorics retires its native probability provider
 #: [measured 2026-09-14: min-of-3 serial fresh processes; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+#: extensions/python/tools/twin_coverage.py --repin; commit=e1be99ea1c08f70444c1c35cada441e089777906].
 BUDGET = 40973899
 
 #: RETIRED: the former 1826-inference overrun. The 78-claim MeTTa recipe now

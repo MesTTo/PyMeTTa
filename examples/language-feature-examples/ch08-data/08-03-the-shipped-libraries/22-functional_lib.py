@@ -311,7 +311,7 @@ def twin(m):
 #: finished callback arguments through reduce; Statistics derives exact
 #: coefficient rows and Combinatorics retires its native probability provider
 #: [measured 2026-09-14: min-of-3 serial fresh processes; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+#: extensions/python/tools/twin_coverage.py --repin; commit=e1be99ea1c08f70444c1c35cada441e089777906].
 BUDGET = 1189061
 
 #: DIVERGED 2026-09-12, the example holds 1 atom the twin does not (1 =) and
@@ -338,5 +338,5 @@ BUDGET = 1189061
 #: lambda_63 in the example and lambda_65 after Python's two generated lambdas
 #: [measured 2026-09-14: the two stored-atom surpluses, one fresh process per
 #: side; command=python extensions/python/tools/twin_coverage.py --repin;
-#: commit=WORKTREE].
+#: commit=e1be99ea1c08f70444c1c35cada441e089777906].
 DIVERGENCE = "f83935b8ba7f257b7ae5f2adf13fca236bcbbbf7035606cfdc5786ba386a0267"

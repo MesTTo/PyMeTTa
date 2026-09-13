@@ -7,17 +7,17 @@ mass and every marginal without copying or sharing implementation structure.
 Guarantees:
   - exact mass and all marginals agree with exhaustive Fraction arithmetic,
     preserve identity and order, and are invariant under one shared loss scale
-    [tested: test_weighted_subset_matches_exhaustive; commit=WORKTREE]
+    [tested: test_weighted_subset_matches_exhaustive; commit=e1be99ea1c08f70444c1c35cada441e089777906]
   - conditioning on an exact unit-loss total makes the sum of posterior
     inclusion marginals equal that total [tested:
-    test_unit_loss_marginals_sum_to_observation; commit=WORKTREE]
+    test_unit_loss_marginals_sum_to_observation; commit=e1be99ea1c08f70444c1c35cada441e089777906]
   - malformed identity, lattice, prior, and zero-mass inputs raise the binding's
     AssertionFailure with their own remedies [tested:
     test_weighted_subset_refusals_name_the_remedy;
-    commit=WORKTREE]
+    commit=e1be99ea1c08f70444c1c35cada441e089777906]
   - shadowed constructors preserve literal event IDs and large integer ratios
     remain exact [tested: test_weighted_rows_hold_constructor_names_and_literal_ids,
-    test_weighted_ratios_keep_arbitrary_integer_precision; commit=WORKTREE]
+    test_weighted_ratios_keep_arbitrary_integer_precision; commit=e1be99ea1c08f70444c1c35cada441e089777906]
 """
 
 from __future__ import annotations

@@ -2,7 +2,7 @@
 
 Guarantees: the example's exact masses, marginals, literal identities and
 alternative rows have matching answers and stored content [tested: twin;
-commit=WORKTREE].
+commit=e1be99ea1c08f70444c1c35cada441e089777906].
 """
 
 from metta import S, V, lib
@@ -65,5 +65,5 @@ def twin(m):
 #: serial fresh processes; command=python extensions/python/tools/twin_coverage.py
 #: --measure --rounds 3 examples/ch22-a-reasoner-you-can-serve/22-02-weighted-answers/11-weighted_subset_posterior.metta;
 #: fixture=Statistics MeTTa coefficient rows, QLFs purged before measurement;
-#: commit=WORKTREE].
+#: commit=e1be99ea1c08f70444c1c35cada441e089777906].
 BUDGET = 1755787
