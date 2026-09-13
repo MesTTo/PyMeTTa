@@ -4,7 +4,7 @@ Guarantees:
   - optional defaults preserve absence, stored data, evaluation order and
     native relation edits [tested: test_dictionary_get_preserves_stored_values,
     test_dictionary_get_evaluates_key_and_default_before_lookup,
-    test_dictionary_get_observes_native_relation_edits; commit=WORKTREE]
+    test_dictionary_get_observes_native_relation_edits; commit=7304175e9a55901e4cd281a83bf60a06ba3019f9]
 """
 
 from typing import Any

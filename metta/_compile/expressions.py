@@ -4,7 +4,7 @@ Guarantees:
     operands run in source order and stored atoms retain their data meaning
     [tested: test_dictionary_get_preserves_stored_values,
     test_dictionary_get_evaluates_key_and_default_before_lookup,
-    test_dictionary_get_observes_native_relation_edits; commit=WORKTREE]
+    test_dictionary_get_observes_native_relation_edits; commit=7304175e9a55901e4cd281a83bf60a06ba3019f9]
   - expanded and computed calls assemble operands in Python source order
     and retain native argument contracts [tested:
     test_expanded_calls_match_python_operand_and_mapping_failure_order;
