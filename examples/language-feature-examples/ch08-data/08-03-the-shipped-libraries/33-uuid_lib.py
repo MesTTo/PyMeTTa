@@ -103,4 +103,10 @@ def twin(m):
 #: changes [measured 2026-09-13: min-of-3 serial fresh processes;
 #: command=python extensions/python/tools/twin_coverage.py --repin;
 #: commit=7b42d5ee5cecb82709617b7ed08dfa2c1441f268].
-BUDGET = 189377
+#: RE-PINNED 2026-09-14, 189377 to 211352 (+21975), String now derives nine
+#: text recipes through MeTTa equations, with one function parameter for
+#: padding and complete validation before empty construction; all import
+#: consumers are measured after the provider change [measured 2026-09-14: min-
+#: of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 211352

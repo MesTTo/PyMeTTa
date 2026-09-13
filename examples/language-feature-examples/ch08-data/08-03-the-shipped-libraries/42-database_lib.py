@@ -161,4 +161,10 @@ def twin(m):
 #: command=python extensions/python/tools/twin_coverage.py --measure --rounds 3
 #: examples/ch08-data/08-03-the-shipped-libraries/42-database_lib.metta;
 #: fixture=lib_database with engine/lib QLF artifacts purged; commit=24b9b7ee948564963a5c3455cd5b412d05afdd2c].
-BUDGET = 226128
+#: RE-PINNED 2026-09-14, 226128 to 248018 (+21890), String now derives nine
+#: text recipes through MeTTa equations, with one function parameter for
+#: padding and complete validation before empty construction; all import
+#: consumers are measured after the provider change [measured 2026-09-14: min-
+#: of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 248018

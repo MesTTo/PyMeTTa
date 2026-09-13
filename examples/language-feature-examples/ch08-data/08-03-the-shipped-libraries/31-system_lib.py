@@ -139,4 +139,10 @@ def twin(m):
 #: and Combinatorics retires its native probability provider [measured
 #: 2026-09-14: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=e1be99ea1c08f70444c1c35cada441e089777906].
-BUDGET = 201793
+#: RE-PINNED 2026-09-14, 201793 to 217434 (+15641), String now derives nine
+#: text recipes through MeTTa equations, with one function parameter for
+#: padding and complete validation before empty construction; all import
+#: consumers are measured after the provider change [measured 2026-09-14: min-
+#: of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 217434

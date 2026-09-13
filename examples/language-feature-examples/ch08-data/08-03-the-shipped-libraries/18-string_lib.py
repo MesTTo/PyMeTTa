@@ -1,14 +1,14 @@
 """Purpose: use every String head through Python values and the typed library.
 
 Guarantees: this twin preserves every example claim and both optional forms
-[tested: python extensions/python/tools/twin_coverage.py examples/ch08-data/08-03-the-shipped-libraries/18-string_lib.metta; commit=3aaad3435292e4c7d5cc3a01bfda39430aacc6e8].
+[tested: python extensions/python/tools/twin_coverage.py examples/ch08-data/08-03-the-shipped-libraries/18-string_lib.metta; commit=WORKTREE].
 """
 
-from metta import G, S, lib
+from metta import G, S, V, lib
 
 
 def twin(m):
-    """Combine native text operations without assembling language source."""
+    """Combine text recipes and native boundaries through their typed face."""
     m += lib.string
     fn = m.fn
     assert fn.string_length(G("a🦊é")).one() == 3
@@ -60,9 +60,20 @@ def twin(m):
     assert fn.number_to_string(42) == [G("42")]
     assert list(fn.parse_number(G("not a number"))) == []
 
+    assert fn.string_repeat(42, 2) == [G("4242")]
+    assert fn.string_repeat(G(""), 10**24) == [G("")]
+    assert fn.string_center(12, 7, 3) == [G("3312333")]
+    assert fn.string_center(G("x"), 10**24, G("")) == [G("x")]
+    assert fn.string_ends_with(G("ab"), G("abc")).one() is False
+    assert fn.if_error(S.catch(S.string_repeat(G(""), 1.5)), True, False).one() is True  # noqa: FBT003 -- MeTTa calls take positional arguments.
+    assert fn.string_repeat(G("x"), S.superpose((0, 2))) == [G(""), G("xx")]
+    row = m.match(S["="](S.string_repeat(V.value, V.n), V.body)).one()
+    recipe = m.eval(S["|->"]((row.value, row.n), row.body))[0]
+    assert m.eval((recipe, G("ab"), 2)) == [G("abab")]
+
 
 #: All thirty-four String heads and thirty-seven typed arities preserve the
-#: example's forty-two claims through values and function calls.
+#: example's fifty claims through values, function calls and reflected equations.
 #: [measured 2026-09-11: 126928 inferences, minimum of three serial fresh processes;
 #: command=python extensions/python/tools/twin_coverage.py --measure --rounds 3
 #: examples/ch08-data/08-03-the-shipped-libraries/18-string_lib.metta;
@@ -73,4 +84,10 @@ def twin(m):
 #: changes [measured 2026-09-13: min-of-3 serial fresh processes;
 #: command=python extensions/python/tools/twin_coverage.py --repin;
 #: commit=7b42d5ee5cecb82709617b7ed08dfa2c1441f268].
-BUDGET = 127459
+#: RE-PINNED 2026-09-14, 127459 to 329461 (+202002), String now derives nine
+#: text recipes through MeTTa equations, with one function parameter for
+#: padding and complete validation before empty construction; all import
+#: consumers are measured after the provider change [measured 2026-09-14: min-
+#: of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 329461

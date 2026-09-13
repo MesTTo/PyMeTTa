@@ -274,4 +274,10 @@ def twin(m):
 #: shared-context identity comparison and holds the ref assertion as literal
 #: code [measured 2026-09-14: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=3c1d074a2069bc150a95cedc1946e0627a17a132].
-BUDGET = 4666705
+#: RE-PINNED 2026-09-14, 4666705 to 4701005 (+34300), String now derives nine
+#: text recipes through MeTTa equations, with one function parameter for
+#: padding and complete validation before empty construction; all import
+#: consumers are measured after the provider change [measured 2026-09-14: min-
+#: of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 4701005
