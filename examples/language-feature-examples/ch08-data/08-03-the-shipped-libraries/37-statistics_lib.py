@@ -1,7 +1,7 @@
 """Purpose: exact finite descriptive statistics and explicit sample domains.
 
 Guarantees: the same 78 claims as 37-statistics_lib.metta.
-[tested: python extensions/python/tools/twin_coverage.py examples/ch08-data/08-03-the-shipped-libraries/37-statistics_lib.metta; commit=WORKTREE].
+[tested: python extensions/python/tools/twin_coverage.py examples/ch08-data/08-03-the-shipped-libraries/37-statistics_lib.metta; commit=6fa571d1b7059b610f73e9feed657711414251e5].
 """
 
 from metta import FALSE, TRUE, G, S, V, lib
@@ -138,7 +138,7 @@ def twin(m):
 #: doors. Their collection dependencies share the proper finite expression
 #: boundary in lib/_support/collections_data.pl [measured 2026-09-13: min-of-3
 #: serial fresh processes; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+#: extensions/python/tools/twin_coverage.py --repin; commit=6fa571d1b7059b610f73e9feed657711414251e5].
 BUDGET = 40107888
 
 #: RETIRED: the former 1826-inference overrun. The 78-claim MeTTa recipe now
@@ -146,4 +146,4 @@ BUDGET = 40107888
 #: [measured 2026-09-13: minimum of three fresh serial processes;
 #: command=python extensions/python/tools/twin_coverage.py --measure --rounds 3
 #: examples/ch08-data/08-03-the-shipped-libraries/37-statistics_lib.metta;
-#: fixture=78 claims with engine/lib QLF artifacts purged; commit=WORKTREE].
+#: fixture=78 claims with engine/lib QLF artifacts purged; commit=6fa571d1b7059b610f73e9feed657711414251e5].

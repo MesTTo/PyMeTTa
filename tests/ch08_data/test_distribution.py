@@ -8,12 +8,12 @@ Guarantees:
   - normalization, unary map, independent product, threshold, strict win
     probability, exact joint conditioning, independent average, and Bernoulli
     addition satisfy their stated laws over 100 generated examples per property
-    [tested: this module with HYPOTHESIS_PROFILE=ci; commit=WORKTREE].
+    [tested: this module with HYPOTHESIS_PROFILE=ci; commit=6fa571d1b7059b610f73e9feed657711414251e5].
   - empty, zero, negative, and nonfinite mass expose exact remedy-bearing Error
     messages through normalization and every composition operation [tested:
     test_invalid_distributions_refuse_with_a_remedy,
     test_operations_preserve_the_normalization_refusal,
-    test_average_preserves_a_refusal_at_every_input_position; commit=WORKTREE].
+    test_average_preserves_a_refusal_at_every_input_position; commit=6fa571d1b7059b610f73e9feed657711414251e5].
 Owns resources:
   - distribution_space closes its module-scoped fresh Space when the fixture
     exits.

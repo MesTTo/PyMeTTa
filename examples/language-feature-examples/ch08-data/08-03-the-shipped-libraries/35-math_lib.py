@@ -1,7 +1,7 @@
 """Purpose: exact number operations and native floating functions.
 
 Guarantees: the same 74 claims as 35-math_lib.metta.
-[tested: python extensions/python/tools/twin_coverage.py examples/ch08-data/08-03-the-shipped-libraries/35-math_lib.metta; commit=WORKTREE].
+[tested: python extensions/python/tools/twin_coverage.py examples/ch08-data/08-03-the-shipped-libraries/35-math_lib.metta; commit=6fa571d1b7059b610f73e9feed657711414251e5].
 """
 
 from metta import G, S, lib
@@ -138,5 +138,5 @@ def twin(m):
 #: adds reflective claims. Their collection dependencies share the proper
 #: finite expression boundary in lib/_support/collections_data.pl [measured
 #: 2026-09-13: min-of-3 serial fresh processes; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+#: extensions/python/tools/twin_coverage.py --repin; commit=6fa571d1b7059b610f73e9feed657711414251e5].
 BUDGET = 361166
