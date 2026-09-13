@@ -1,6 +1,10 @@
 """Purpose: carry Python call contracts as inspectable native parameter records.
 
 Guarantees:
+  - each native port retains its labels and answer cardinality, while
+    repeated variadic labels remain positional [tested:
+    test_expanded_operations_use_each_registered_arity;
+    test_expanded_stacked_clauses_keep_positional_dispatch; commit=WORKTREE]
   - parameter order, kinds and defaults rebuild one inspect.Signature from
     the current native record [tested:
     test_native_call_contracts_preserve_python_argument_binding; commit=7109d9bb91bfc41aa18bf5f766f20904a9598fcc]
@@ -19,7 +23,7 @@ import typing
 from collections.abc import Callable
 from typing import Any
 
-from metta._atoms.factories import Atom, Expression, Grounded, S, Symbol, _expr
+from metta._atoms.factories import Atom, Expression, Grounded, S, Symbol, Variable, _expr
 from metta._atoms.registry import _lookup, constructor_for
 
 _ABSENT = object()
@@ -121,6 +125,22 @@ def project(signature: inspect.Signature, encode: Callable[[Any], Atom]) -> Atom
         for parameter in signature.parameters.values()
     ]
     return _expr(S.signature, Expression(parameters), annotation(signature.return_annotation))
+
+
+def native(name: str, parameters: tuple[str | None, ...], *, home: Atom | None = None, stream: bool = False) -> Expression:
+    """Describe the labels of one positional native call, without host defaults."""
+    named = None not in parameters and len(set(parameters)) == len(parameters)
+    labels = tuple(parameter if named and parameter is not None else f"x{index + 1}" for index, parameter in enumerate(parameters))
+    variables = tuple(Variable(parameter) for parameter in labels)
+    body = _expr(Symbol(name), *variables)
+    if home is not None:
+        body = _expr(S.evalc, body, home)
+    image = _expr(S["|->"], Expression(variables), body)
+    signature = inspect.Signature([
+        inspect.Parameter(parameter, inspect.Parameter.POSITIONAL_OR_KEYWORD if named else inspect.Parameter.POSITIONAL_ONLY)
+        for parameter in labels
+    ])
+    return _expr(S["@python-callable"], image, project(signature, Grounded), S.stream if stream else S.one)
 
 
 def build(atom: Atom) -> inspect.Signature:

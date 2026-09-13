@@ -2,9 +2,12 @@
 
 Guarantees: unknown foundations and cycles are refused before projections are
 computed [tested: tests/checks/check_layering_selftest.py; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
+The compiler shares the catalog's native call-contract representation [tested:
+test_computed_lambda_calls_bind_keywords_after_creating_the_value;
+tests/checks/check_layering_selftest.py; commit=WORKTREE].
 Decides: BUILDS_ON is the package dependency policy; import contracts, binding
 modes and published layer orders derive from it [source:
-extensions/python/metta/_layers.py:20; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
+extensions/python/metta/_layers.py:BUILDS_ON; commit=WORKTREE].
 """
 
 from __future__ import annotations
@@ -30,7 +33,7 @@ BUILDS_ON: Mapping[str, tuple[str, ...]] = MappingProxyType({
     "_catalog": ("vocabularies", "_atoms", "_errors", "seam"),
     "doors": ("_catalog", "vocabularies", "_atoms", "_layers"),
     "_binding": ("_catalog", "_atoms", "_errors", "seam"),
-    "_compile": ("_atoms", "_errors", "vocabularies"),
+    "_compile": ("_catalog", "_atoms", "_errors", "vocabularies"),
     "_spaces": ("_binding", "doors", "_catalog", "_atoms", "_errors", "seam", "_version"),
     "_declare": ("_spaces", "_compile", "doors", "_catalog", "_atoms", "_errors", "seam"),
     "_observe": ("_declare", "_spaces", "_binding", "_catalog", "_atoms", "_errors", "seam"),

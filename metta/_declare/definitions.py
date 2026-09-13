@@ -1,5 +1,8 @@
 """Purpose: install compiled Python functions and class declarations into a space.
 Guarantees:
+  - native call contracts retain each definition's lexical home [tested:
+    test_expanded_definition_contracts_keep_distinct_lexical_homes;
+    commit=WORKTREE]
   - class installation imports its peer directly [tested:
     tests/checks/check_layering.py; commit=ab9d3489f87e0d7b7be4b3cd2025494cd62699fe]
   - typing.overload stubs declare every distinct fixed-arity signature before
@@ -119,6 +122,7 @@ from metta._atoms.factories import (
     Symbol,
     Variable,
     _alpha_eq,
+    _atom_from_wire,
     _encode,
     _expr,
     _map_atoms,
@@ -126,6 +130,7 @@ from metta._atoms.factories import (
 )
 from metta._atoms.names import attribute_name
 from metta._binding.dispatch import REGISTRY
+from metta._catalog import call_signatures
 from metta._catalog.declarations import inferred
 from metta._catalog.documentation import documentation_atom
 from metta._compile.twins import (
@@ -135,7 +140,7 @@ from metta._compile.twins import (
     select_clause_twin,
     twin_dispatcher,
 )
-from metta._declare import classes
+from metta._declare import call_syntax, classes
 from metta._declare import functions as _space_functions
 from metta._errors.errors import CompileError, EngineError, Remedy
 from metta._lazy import lazy
@@ -552,6 +557,7 @@ def _clause_record(
         "bodies": tuple(compiled.equation_bodies),
         "aux": tuple(compiled.aux),
         "facts": compiled.facts,
+        "generator": compiled.generator,
     }
 
 def _materialize_clause_equations(name: str, clauses: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -671,7 +677,11 @@ def _definition_facts(
     if not clauses:
         return ()
     facts: list[Expression] = [Expression([Symbol("defined"), Symbol(space.name), Symbol(name)])]
+    home = _atom_from_wire(space.to_wire())
+    stream = any(clause["generator"] for clause in clauses)
+    rosters: dict[int, set[tuple[str, ...]]] = {}
     for clause in clauses:
+        rosters.setdefault(clause["arity"], set()).add(clause["params"])
         derived = clause["facts"]
         span = derived.source_span
         facts.append(
@@ -688,6 +698,10 @@ def _definition_facts(
                 ]
             )
         )
+    facts.extend(
+        call_signatures.native(name, next(iter(names)) if len(names) == 1 else (None,) * arity, home=home, stream=stream)
+        for arity, names in rosters.items()
+    )
     facts.extend(
         Expression(
             [
@@ -894,6 +908,7 @@ def _publish_define(space: Any, fn: types.FunctionType, name: str, compiled: Any
     for cls in sorted(compiled.class_dependencies, key=lambda cls: cls.__qualname__):
         install_type(space, cls)
     class_owner = owner_of(space)
+    call_syntax.link(space, compiled.runtime_ops)
     # The equations lean on these shipped libraries (a dict literal needs
     # lib_dict's vocabulary); import! is idempotent per space, so the
     # dependency lands with the definition rather than ambiently.

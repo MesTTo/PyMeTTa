@@ -4,6 +4,9 @@ Guarantees:
     in the target's declared positional order [tested:
     test_known_call_site_keywords_bind_to_positional_metta_arguments;
     commit=26d052a6179bc0e0a536b7d585e79d6beef266a2]
+  - source operands run before their values enter native parameter order
+    [tested: test_static_keyword_calls_evaluate_values_before_parameter_reordering;
+    commit=WORKTREE]
   - a bare Symbol refuses keywords with a positional remedy while Grounded
     heads retain the Python-call transport [tested:
     test_unknown_symbol_keywords_refuse_with_the_positional_remedy;
@@ -18,7 +21,7 @@ from __future__ import annotations
 
 import pytest
 
-from metta import G, S, fn
+from metta import G, MeTTa, S, V, fn
 from metta.vocabularies import EffectClass
 
 
@@ -44,9 +47,11 @@ def test_known_call_site_keywords_bind_to_positional_metta_arguments(metta):
     assert ordered_pair(right=S.R, left=S.L) == [S.pair(S.L, S.R)]
     assert space.fn.ordered_pair(right=S.R, left=S.L) == [S.pair(S.L, S.R)]
     assert compiled(S.value) == [S.pair(S.left(S.value), S.right(S.value))]
-    assert str(compiled.body) == "(ordered-pair (left $value) (right $value))"
+    expected = S.chain(S.right(V.value), V.right,
+                       S.chain(S.left(V.value), V.left, S["ordered-pair"](V.left, V.right)))
+    assert compiled.body.alpha_eq(expected)
     assert compiled_fn(S.value) == [S.pair(S.left(S.value), S.right(S.value))]
-    assert str(compiled_fn.body) == "(ordered-pair (left $value) (right $value))"
+    assert compiled_fn.body.alpha_eq(expected)
 
     @space.op(effect=EffectClass.pureStructural)
     def registered_pair(left, right):
@@ -64,3 +69,26 @@ def test_unknown_symbol_keywords_refuse_with_the_positional_remedy():
     assert str(python_head(3.14159, ndigits=2)) == (
         "(<builtin_function_or_method> 3.14159 (Kwargs (ndigits 2)))"
     )
+
+
+def test_static_keyword_calls_evaluate_values_before_parameter_reordering():
+    """Native positional layout does not reorder Python argument effects."""
+    events = []
+
+    def mark(name, value):
+        events.append(name)
+        return value
+
+    with MeTTa() as context:
+        m = context.self
+
+        @m.define
+        def target(left: int, right: int) -> int:
+            return left * 10 + right
+
+        @m.define
+        def ordered() -> int:
+            return target(right=mark("right", 2), left=mark("left", 1))
+
+        assert ordered().one() == 12
+        assert events == ["right", "left"]

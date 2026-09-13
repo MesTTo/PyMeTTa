@@ -1,5 +1,8 @@
 """Purpose: lower Python for and while statements into tail-recursive equations.
 Guarantees:
+  - computed and expanded calls retain their native stream or iterable
+    contract at iteration [tested:
+    test_computed_calls_share_iteration_consumers; commit=WORKTREE]
   - nested loops carry every outer state value they read [tested
     test_nested_loops_carry_the_outer_state]
   - compiled loops execute without growing the Python or Prolog stack
@@ -32,6 +35,7 @@ from __future__ import annotations
 import ast
 
 from metta._atoms.factories import Atom, Expression, Symbol, Variable
+from metta._compile import call_syntax
 from metta._compile.context import CompilerContext, next_aux_serial
 from metta._compile.expressions import _name_of
 from metta._compile.statements import _generator_live_names
@@ -177,6 +181,8 @@ class LoopCompilerMixin(CompilerContext):
         answers collapse into a tuple; every ordinary value crosses Python's
         iterator protocol before it becomes the tuple the loop peels.
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+        if isinstance(iter_node, ast.Call) and (call_syntax.dynamic(self, iter_node) or call_syntax.expanded(iter_node)):
+            return call_syntax.application(self, iter_node, consumer="iterable")
         if (
             isinstance(iter_node, ast.Call)
             and isinstance(iter_node.func, ast.Name)

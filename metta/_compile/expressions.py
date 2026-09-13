@@ -1,5 +1,11 @@
 """Purpose: lower Python expressions into equivalent MeTTa atom trees.
 Guarantees:
+  - expanded and computed calls assemble operands in Python source order
+    and retain native argument contracts [tested:
+    test_expanded_calls_match_python_operand_and_mapping_failure_order;
+    test_computed_lambda_calls_bind_keywords_after_creating_the_value;
+    test_static_keyword_calls_evaluate_values_before_parameter_reordering;
+    commit=WORKTREE]
   - sequence construction binds computed elements in source order, then
     retains their values as data [tested:
     test_computed_sequence_heads_remain_values_after_native_rewriting,
@@ -84,6 +90,7 @@ from __future__ import annotations
 import ast
 import builtins
 import functools
+import inspect
 import math
 import types
 from collections.abc import Callable
@@ -99,6 +106,8 @@ from metta._atoms.names import (
     resolve_known_name,
 )
 from metta._atoms.state import State
+from metta._catalog import call_signatures
+from metta._compile import call_syntax
 from metta._compile import records as _records
 from metta._compile.context import CompilerContext, next_aux_serial
 from metta._compile.islands import _HostIsland
@@ -873,9 +882,15 @@ class ExpressionCompilerMixin(CompilerContext):
             )
         params = [arg.arg for arg in a.args]
         inner = self._inner(params)
-        return Expression(
-            [Symbol("|->"), Expression([Variable(p) for p in params]), inner.expression(node.body)]
-        )
+        body = inner.expression(node.body)
+        value = Expression([Symbol("|->"), Expression([Variable(p) for p in params]), body])
+        signature = inspect.Signature([
+            inspect.Parameter(name, inspect.Parameter.POSITIONAL_OR_KEYWORD) for name in params
+        ])
+        self.aux.append(Expression([Symbol("@python-callable"), value, call_signatures.project(signature, Grounded), Symbol("one")]))
+        # A Python lambda creates a value. A bare MeTTa lambda at an equation's
+        # tail instead eta-expands that equation's arity and delays its body.
+        return Expression([Symbol("noeval"), value])
 
     def _x_ListComp(self, node: ast.ListComp) -> Atom:  # noqa: N802  -- the suffix mirrors ast node class names used by the translator's dynamic dispatch
         """[f(x) for x in xs] is (map-atom xs (|-> ($x) (f $x))), an
@@ -892,7 +907,10 @@ class ExpressionCompilerMixin(CompilerContext):
         var = _name_of(gen.target, line)
         # The source reads in THIS scope: a later clause's source may use an
         # earlier clause's variable, but never its own.
-        source = self.expression(gen.iter)
+        if isinstance(gen.iter, ast.Call) and (call_syntax.dynamic(self, gen.iter) or call_syntax.expanded(gen.iter)):
+            source = call_syntax.application(self, gen.iter, consumer="iterable")
+        else:
+            source = self.expression(gen.iter)
         inner = self._inner([var])
         inner.loop_depth += 1
         stages = [
@@ -965,6 +983,10 @@ class ExpressionCompilerMixin(CompilerContext):
         composite = self._composite_operator_call(node)
         if composite is not None:
             return composite
+        if call_syntax.expanded(node) or (
+            call_syntax.dynamic(self, node) and (node.keywords or not isinstance(node.func, ast.Name))
+        ):
+            return call_syntax.application(self, node)
         if node.keywords:
             return self._keyword_call(node)
         mentioned = self._mention(node.func)
@@ -1134,12 +1156,6 @@ class ExpressionCompilerMixin(CompilerContext):
 
     def _keyword_call(self, node: ast.Call) -> Atom:
         """Place keywords against a known signature before emitting the term."""
-        if any(isinstance(argument, ast.Starred) for argument in node.args) or any(
-            keyword.arg is None for keyword in node.keywords
-        ):
-            msg = "compiled call-site keywords do not accept *args or **kwargs expansion"
-            raise CompileError(msg, construct="keyword argument", line=node.lineno)
-
         display = ast.unparse(node.func)
         total = len(node.args) + len(node.keywords)
         parameters: tuple[str, ...] | None = None
@@ -1182,7 +1198,13 @@ class ExpressionCompilerMixin(CompilerContext):
             raise CompileError(
                 str(error), construct="keyword argument", line=node.lineno
             ) from error
-        return Expression([callee, *(self.expression(argument) for argument in ordered)])
+        sources = [*node.args, *(keyword.value for keyword in node.keywords)]
+        operands = {id(source): Variable(self._temp("call-operand")) for source in sources}
+        evaluated = [(self.expression(source), operands[id(source)]) for source in sources]
+        body = Expression([callee, *(operands[id(argument)] for argument in ordered)])
+        for value, variable in reversed(evaluated):
+            body = Expression([Symbol("chain"), value, variable, body])
+        return body
 
     @staticmethod
     def _builder_root(node: ast.expr) -> str | None:
@@ -1385,6 +1407,8 @@ class ExpressionCompilerMixin(CompilerContext):
         if self.host_value("list") is not builtins.list or len(node.args) != 1:
             return self._implicit_island(node)
         source = node.args[0]
+        if isinstance(source, ast.Call) and (call_syntax.dynamic(self, source) or call_syntax.expanded(source)):
+            return call_syntax.application(self, source, consumer="iterable")
         if not isinstance(source, ast.Call):
             return self._implicit_island(node)
         called: str | None = None

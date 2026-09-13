@@ -3,6 +3,10 @@ signature for arities (defaults yield several), auto-detects nondeterminism
 (a generator function is one), derives a MeTTa type declaration from the
 annotations, and registers the whole thing with the engine through shim.pl.
 Guarantees:
+  - argument labels and cardinality follow native registration replacement
+    and retirement [tested:
+    test_expanded_operation_contracts_follow_replacement_and_retirement;
+    test_expanded_operations_use_each_registered_arity; commit=WORKTREE]
   - generated host return arrows exclude NoneType answer alternatives,
     including unions and refinements, while parameters and annotation
     claims preserve the declared values [tested:
@@ -129,6 +133,7 @@ from metta._atoms.designation import _DEFAULT_SPACE, _P, _R, _OperationName, _Sp
 from metta._atoms.factories import Atom, Expression, S, Symbol, _encode, _expr, _to_atom, _variables
 from metta._atoms.names import attribute_name
 from metta._binding.dispatch import OPERATION_REGISTRATION, REGISTRY, Operation, live_registration
+from metta._catalog import call_signatures
 from metta._catalog.annotations import (
     annotation_atom_for,
     annotation_exprs,
@@ -193,6 +198,8 @@ def _op_facts(op: Operation) -> list[Expression]:
     the effect atom exactly as they treat the op atoms.
     """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
     facts = [_expr(S.op, S[op.name], arity, S[op.kind]) for arity in op.arities]
+    facts.extend(call_signatures.native(op.name, op.parameter_names[:arity], stream=op.kind in ("many", "raw_many"))
+                 for arity in op.arities)
     facts.extend(fact for fact in op.catalog if fact not in facts)
     if op.inverse is not None:
         facts.append(_expr(S.inverse, S[op.name]))
