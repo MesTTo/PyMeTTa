@@ -6,15 +6,15 @@ Guarantees:
     test_twin_families_follow_their_definition_space,
     test_same_python_name_can_have_distinct_native_twin_heads,
     test_twin_aliases_follow_exact_installed_functions,
-    test_clear_starts_a_new_twin_family; commit=WORKTREE]
+    test_clear_starts_a_new_twin_family; commit=54ca898ed3ce78464a4f2648b1ce92a985ec3db8]
   - recursive clause selection stays within its owner and released source
     functions are collectible [tested:
     test_recursive_twin_clauses_keep_their_definition_space,
     test_released_twin_namespace_does_not_retain_source_functions;
-    commit=WORKTREE]
+    commit=54ca898ed3ce78464a4f2648b1ce92a985ec3db8]
   - compiling source alone cannot publish a twin or alter installed twins
     [tested: test_pure_compilation_does_not_publish_twin_bindings;
-    commit=WORKTREE]
+    commit=54ca898ed3ce78464a4f2648b1ce92a985ec3db8]
 """
 
 import gc

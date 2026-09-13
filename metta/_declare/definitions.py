@@ -4,7 +4,7 @@ Guarantees:
     clearing the space retires its reference bindings [tested:
     test_twin_families_follow_their_definition_space,
     test_same_python_name_can_have_distinct_native_twin_heads,
-    test_clear_starts_a_new_twin_family; commit=WORKTREE]
+    test_clear_starts_a_new_twin_family; commit=54ca898ed3ce78464a4f2648b1ce92a985ec3db8]
   - native call contracts retain each definition's lexical home [tested:
     test_expanded_definition_contracts_keep_distinct_lexical_homes;
     commit=10ef2f6958af451bcc3e651e0e0ccc7cc8ec7ce8]

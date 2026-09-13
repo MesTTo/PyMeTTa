@@ -10,7 +10,7 @@ because the thing under test is what happens between two loads.
 Guarantees: a different Python function name cannot replace an installed
 definition family [tested:
 test_a_fresh_python_name_redefining_a_head_is_refused_by_name;
-commit=WORKTREE].
+commit=54ca898ed3ce78464a4f2648b1ce92a985ec3db8].
 
 The two doors are SWI's own loading conditions and behave as they do:
 `load` is `consult/1`, always loading and replacing what the file put
