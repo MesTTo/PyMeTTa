@@ -150,5 +150,5 @@ def twin(m):
 #: byte/name formulas are MeTTa recipes over shared strict boundaries;
 #: malformed codec classification preserves all unrelated exceptions [measured
 #: 2026-09-14: min-of-3 serial fresh processes; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+#: extensions/python/tools/twin_coverage.py --repin; commit=8fe20f1bdcde1af8b3e1753c545924f978246dba].
 BUDGET = 369064

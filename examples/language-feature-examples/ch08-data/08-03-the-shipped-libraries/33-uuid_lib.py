@@ -1,7 +1,7 @@
 """Purpose: UUID generations, namespaces, complete names and byte round trips.
 
 Guarantees: the same 49 claims as 33-uuid_lib.metta.
-[tested: python extensions/python/tools/twin_coverage.py examples/ch08-data/08-03-the-shipped-libraries/33-uuid_lib.metta; commit=WORKTREE].
+[tested: python extensions/python/tools/twin_coverage.py examples/ch08-data/08-03-the-shipped-libraries/33-uuid_lib.metta; commit=8fe20f1bdcde1af8b3e1753c545924f978246dba].
 """
 
 from metta import G, S, V, lib
@@ -126,5 +126,5 @@ def twin(m):
 #: byte/name formulas are MeTTa recipes over shared strict boundaries;
 #: malformed codec classification preserves all unrelated exceptions [measured
 #: 2026-09-14: min-of-3 serial fresh processes; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+#: extensions/python/tools/twin_coverage.py --repin; commit=8fe20f1bdcde1af8b3e1753c545924f978246dba].
 BUDGET = 1291086

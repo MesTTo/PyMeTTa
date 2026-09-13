@@ -2,7 +2,7 @@
 
 Guarantees: generated Unicode, NUL, byte values and arbitrary namespaces agree
 with independent standard-library oracles; recipes remain callable data
-[tested: test_encoding_python_oracles, test_uuid_python_oracles; commit=WORKTREE].
+[tested: test_encoding_python_oracles, test_uuid_python_oracles; commit=8fe20f1bdcde1af8b3e1753c545924f978246dba].
 """
 
 from __future__ import annotations
