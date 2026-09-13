@@ -2,6 +2,9 @@
 instance wrapping with the effect convention, protocol typing and printing,
 py-field reasoning in both modes, the reflector registry, integrate() over
 modules, and a real third-party library (networkx) integrated in a page.
+Owns resources: the uninspectable-callable witness unregisters its module
+  operation in finally [tested: test_uninspectable_callable_errors_are_classified;
+  test_expanded_known_calls_keep_their_parameter_names; commit=WORKTREE]
 Guarantees:
   - dropping a space invalidates its integration installation records [tested
     test_dropped_space_name_reinstalls_integrations]
@@ -68,21 +71,26 @@ def test_uninspectable_callable_errors_are_classified(metta):  # noqa: D103  -- 
 
     target = Uninspectable()
     module = types.SimpleNamespace(__name__="uninspectable", target=target)
-    assert pi.module_ops(
+    names = pi.module_ops(
         metta,
         module,
         ["target"],
         effect="pureStructural",
-    ) == ["target"]
-    assert metta.run("!(target 7)") == [[7]]
-    with pytest.raises(MettaError, match=r"pass arities=\[\.\.\.\]") as caught:
-        pi.wrap_callable(
-            metta,
-            "strict-target",
-            target,
-            effect="pureStructural",
-        )
-    assert isinstance(caught.value.__cause__, TypeError)
+    )
+    try:
+        assert names == ["target"]
+        assert metta.run("!(target 7)") == [[7]]
+        with pytest.raises(MettaError, match=r"pass arities=\[\.\.\.\]") as caught:
+            pi.wrap_callable(
+                metta,
+                "strict-target",
+                target,
+                effect="pureStructural",
+            )
+        assert isinstance(caught.value.__cause__, TypeError)
+    finally:
+        for name in names:
+            metta.unregister_op(name)
 
 
 def test_wrap_callable_rejects_required_keyword_only_parameters(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
