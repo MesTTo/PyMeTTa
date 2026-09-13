@@ -141,4 +141,9 @@ def twin(m):
 #: empirical envelopes are unchanged [measured 2026-09-10: min-of-3 serial
 #: fresh processes; command=python extensions/python/tools/twin_coverage.py
 #: --repin; commit=8358dfc233bf299bb23eceddd94593a62372fe4b].
-BUDGET = 23578
+#: RE-PINNED 2026-09-13, 23578 to 103861 (+80283), Immutable maps and priority
+#: queues are MeTTa equations over the shared collection libraries, replacing
+#: the native tree adaptation [measured 2026-09-13: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+BUDGET = 103861

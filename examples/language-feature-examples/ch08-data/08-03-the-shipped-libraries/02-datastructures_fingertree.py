@@ -317,7 +317,12 @@ def twin(m):
 #: use the finger tree, and their movement is that face [measured 2026-09-12:
 #: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=2072899a9f6ba36f92faabb92f9e0b12e6e0f666].
-BUDGET = 291869
+#: RE-PINNED 2026-09-13, 291869 to 323363 (+31494), Immutable maps and priority
+#: queues are MeTTa equations over the shared collection libraries, replacing
+#: the native tree adaptation [measured 2026-09-13: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+BUDGET = 323363
 
 #: The declared OVERRUN went with the map and queue face: the twin used to cost
 #: more than the example's band allowed because it asks the eleven ft-* functions

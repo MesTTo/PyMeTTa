@@ -5,14 +5,14 @@ whichever version it was given. A pair is a two-element tuple and a map or a
 queue is whatever the library answered, passed straight back.
 
 Guarantees: the same claims as 21-datastructures_lib.metta
-[tested: python extensions/python/tools/twin_coverage.py examples/ch08-data/08-03-the-shipped-libraries/21-datastructures_lib.metta; commit=2072899a9f6ba36f92faabb92f9e0b12e6e0f666].
+[tested: python extensions/python/tools/twin_coverage.py examples/ch08-data/08-03-the-shipped-libraries/21-datastructures_lib.metta; commit=WORKTREE].
 Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
 """
 
-from metta import S, lib
+from metta import S, V, lib
 from metta._errors.errors import MettaError
 
 
@@ -71,8 +71,7 @@ def twin(m):
     assert refused(S.map_from_pairs(((S.k, 1), (S.k, 2))))
     assert refused(S.map_get(42, S.k))
 
-    # A priority queue answers its smallest priority first, which is the one
-    # thing a space cannot do in less than a scan.
+    # Priority order retains every inserted occurrence.
     empty_queue, insert = m.fn["pq-empty"], m.fn["pq-insert"]
     queue_min, pop, queue_size = m.fn["pq-min"], m.fn["pq-pop"], m.fn["pq-size"]
     queue_pairs, queue_from = m.fn["pq-pairs"], m.fn["pq-from-pairs"]
@@ -83,8 +82,7 @@ def twin(m):
     assert tuple(queue_min(work).one()) == (1, S.wake)
     assert rows(queue_pairs(work)) == [(1, S.wake), (2, S.boil), (3, S.sweep)]
 
-    # pop answers the smallest entry AND the queue without it, because reading
-    # and removing separately would walk the queue twice.
+    # Pop decomposes the first entry and remaining queue together.
     priority, value, rest = pop(work).one()
     assert (priority, value) == (1, S.wake)
     assert queue_size(rest) == [2]
@@ -126,14 +124,42 @@ def twin(m):
     assert list(to_list(joined).one()) == [1, 2, 3, 4]
     assert m.fn["ft-is-empty"](m.fn["ft-empty"]().one()) == [True]
 
+    assert prices == S.SortedMap(((S.apple, 3), (S.pear, 5), (S.plum, 7)))
+    assert m.fn.pairs_lookup(prices[1], S.pear) == [5]
+    assert merge() == [empty_queue().one()]
+    assert merge(work) == [work]
+    assert queue_size(merge(work, work, work).one()) == [9]
+    queues = (work, work)
+    assert queue_size(merge(*queues).one()) == [6]
+    tied = queue_from(((1, S.a), (1, S.b), (1, S.c))).one()
+    assert rows(queue_pairs(tied)) == [(1, S.a), (1, S.b), (1, S.c)]
+    tied = insert(queue_from(((1, S.a), (1, S.b))).one(), 1, S.c).one()
+    assert rows(queue_pairs(tied)) == [(1, S.a), (1, S.b), (1, S.c)]
+    repeated = queue_from(((1, S.a), (1, S.a), (2, S.b))).one()
+    assert rows(queue_pairs(cancel(repeated, 1, S.a).one())) == [(1, S.a), (2, S.b)]
+    assert refused(S.map_from_pairs(S.quote(((V.x, S.a), (V.x, S.b)))))
+    assert refused(S.map_from_pairs(S.quote((V.pair,))))
+    shared = S.quote(((V.x, S.a), (V.y, S.b)))
+    assert get(S.map_from_pairs(shared), V.x) == [S.a]
+    literal = S.map_from_pairs(S.quote(((S["+"](1, 2), S.Error(S.data, S.code)),)))
+    assert get(literal, S.quote(S["+"](1, 2))) == [S.Error(S.data, S.code)]
+    assert refused(S.map_size(empty_queue().one()))
+    assert refused(S.pq_size(empty_map().one()))
+    choices = S.superpose((((S.a, 1),), ((S.a, 2),)))
+    assert get(S.map_from_pairs(choices), S.a) == [1, 2]
+    row = m.match(S["="](S.map_remove(V.map, V.key), V.body)).one()
+    recipe = m.eval(S["|->"]((row.map, row.key), row.body))[0]
+    assert rows(pairs(m.eval((recipe, prices, S.pear))[0])) == [(S.apple, 3), (S.plum, 7)]
+    row = m.match(S["="](S.map_remove(prices, V.key), V.body)).one()
+    recipe = m.eval(S["|->"]((row.key,), row.body))[0]
+    assert rows(pairs(m.eval((recipe, S.plum))[0])) == [(S.apple, 3), (S.pear, 5)]
 
-#: MEASURED on this branch rather than inherited: this twin is new, so there is
-#: no earlier pin to move. The 41 claims cover the 22 new map and queue heads
-#: and the queue and finger-tree heads that were already here; the example pays
-#: 229,830 inferences for the same work
-#: [measured 2026-09-12: 240981 inferences, minimum of three serial fresh
-#: processes; command=python extensions/python/tools/twin_coverage.py --measure
-#: --rounds 3 examples/ch08-data/08-03-the-shipped-libraries/21-datastructures_lib.metta;
-#: fixture=lib_datastructures at its functional commit, artifacts purged before
-#: the run; commit=2072899a9f6ba36f92faabb92f9e0b12e6e0f666].
-BUDGET = 240981
+
+#: The native 41-claim fixture was pinned at 240981. The derived fixture adds
+#: stable ties, variadic merge, literal values and reflection.
+#: [measured: 3062103 inferences; command=python
+#: extensions/python/tools/twin_coverage.py --measure --rounds 3
+#: examples/ch08-data/08-03-the-shipped-libraries/21-datastructures_lib.metta;
+#: fixture=59 claims, fresh serial processes after engine/lib QLF purge,
+#: MeTTa 3172046; commit=WORKTREE].
+BUDGET = 3062103
