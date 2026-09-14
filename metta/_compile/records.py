@@ -1,6 +1,9 @@
 """Purpose: lower declared constructors and fields using static receiver types.
 
 Guarantees:
+  - mutable field bindings expose a write status for statement continuation
+    selection [tested: test_refused_field_writes_stop_their_compiled_continuation;
+    commit=WORKTREE]
   - field assignments preserve computed syntax values and evaluate the target
     once in Python order [tested:
     test_field_assignment_keeps_computed_syntax_values,
@@ -126,7 +129,7 @@ def attribute(compiler: CompilerContext, node: ast.Attribute) -> Atom | None:
     return field_call(owner, field.name, compiler.expression(node.value))
 
 
-def binding(compiler: CompilerContext, node: ast.Assign | ast.AnnAssign | ast.AugAssign) -> tuple[Atom, Atom] | None:
+def binding(compiler: CompilerContext, node: ast.Assign | ast.AnnAssign | ast.AugAssign) -> tuple[Atom | None, Atom] | None:
     if isinstance(node, ast.Assign):
         if len(node.targets) != 1:
             return None
@@ -177,7 +180,7 @@ def binding(compiler: CompilerContext, node: ast.Assign | ast.AnnAssign | ast.Au
     body = _expr(S.let, written, value, field_call(owner, field.name, receiver, written, write=True))
     if isinstance(node, ast.AugAssign):
         body = _expr(S.let, receiver, receiver_source, body)
-    return Variable(compiler._temp("field-write")), body
+    return None, body
 
 
 def call(compiler: CompilerContext, node: ast.Call) -> Atom | None:

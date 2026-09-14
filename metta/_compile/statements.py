@@ -1,5 +1,12 @@
 """Purpose: lower Python statement blocks, lifted definitions, and yield blocks.
 Guarantees:
+  - storage writes select their continuation only after a successful status;
+    Error results stop ordinary, generator and finally blocks [tested:
+    test_refused_field_writes_stop_their_compiled_continuation,
+    test_live_writer_errors_stop_the_tail_for_every_error_width; commit=WORKTREE]
+  - real local bindings preserve Error data outside try [tested:
+    test_false_writer_status_and_local_error_data_keep_their_value_semantics,
+    test_structural_assignment_checks_errors_before_matching; commit=WORKTREE]
   - unpacking follows temporary sequence bindings to retain known dictionary
     and segment value proofs [tested:
     test_structural_assignment_preserves_dictionary_and_star_bindings,
@@ -854,32 +861,14 @@ class StatementCompilerMixin(CompilerContext):
         if isinstance(head, ast.Raise):
             return self._raise_statement(head, rest)
         if isinstance(head, ast.Expr):
-            # The probe READS the effect's answer, keeping it live (a
-            # binding nothing reads is eliminable) and producing a failure
-            # instead of burying it, Python's own finally-error rule.
-            effect = Variable(self._temp("effect"))
-            return Expression(
-                [
-                    Symbol("let*"),
-                    Expression([Expression([effect, self.expression(head.value)])]),
-                    Expression(
-                        [
-                            Symbol("if-error"),
-                            effect,
-                            Expression([Symbol("throw"), effect]),
-                            self._effect_block(rest, continuation),
-                        ]
-                    ),
-                ]
+            return self._binding_continuation(
+                None, self.expression(head.value),
+                self._effect_block(rest, continuation),
             )
         if isinstance(head, (ast.Assign, ast.AnnAssign, ast.AugAssign)):
             pattern, bound = self._binding(head)
-            return Expression(
-                [
-                    Symbol("let*"),
-                    Expression([Expression([pattern, bound])]),
-                    self._effect_block(rest, continuation),
-                ]
+            return self._binding_continuation(
+                pattern, bound, self._effect_block(rest, continuation),
             )
         msg = (
             f"{type(head).__name__} has no place in a compiled finally, "
@@ -962,7 +951,6 @@ class StatementCompilerMixin(CompilerContext):
                 bound,
             ]
         )
-        written = Variable(self._temp("global-written"))
         value = self.expression(value_node)
         if inplace_op is not None:
             current = self.expression(
@@ -974,37 +962,17 @@ class StatementCompilerMixin(CompilerContext):
                 value,
                 getattr(head, "lineno", None),
             )
-        return Expression(
-            [
-                Symbol("let*"),
-                Expression(
-                    [
-                        Expression([bound, value]),
-                        Expression([written, write]),
-                    ]
-                ),
-                Expression(
-                    [
-                        Symbol("if-error"),
-                        written,
-                        Expression([Symbol("throw"), written]),
-                        self.block(rest),
-                    ]
-                ),
-            ]
+        return self._binding_continuation(
+            bound, value,
+            self._binding_continuation(None, write, self.block(rest)),
         )
 
     def _delete_statement(self, node: ast.Delete, rest: list[ast.stmt]) -> Atom:
         """Sequence each pattern deletion before the block's continuation."""
         continuation = self.block(rest)
         for target in reversed(node.targets):
-            result = Variable(self._temp("delete-result"))
-            continuation = Expression(
-                [
-                    Symbol("let*"),
-                    Expression([Expression([result, self._delete_target(target)])]),
-                    Expression([Symbol("if-error"), result, result, continuation]),
-                ]
+            continuation = self._binding_continuation(
+                None, self._delete_target(target), continuation,
             )
         return continuation
 
@@ -1207,38 +1175,28 @@ class StatementCompilerMixin(CompilerContext):
             return removal
         pattern, value = self._binding(head)
         continuation = self.block(rest)
-        if self.in_try_body:
-            # Inside a try body, a binding whose right side answered error
-            # data produces it, so the arms see what Python's raise would
-            # have thrown instead of the tag carrying the error out.
-            if isinstance(pattern, Variable):
-                rows = Expression([Expression([pattern, value])])
-                probe: Atom = pattern
-            else:
-                held = Variable(self._temp("try-bound"))
-                rows = Expression([Expression([held, value])])
+        return self._binding_continuation(pattern, value, continuation)
+
+    def _binding_continuation(
+        self, pattern: Atom | None, value: Atom, continuation: Atom,
+    ) -> Expression:
+        """Bind a value or inspect a write status before continuing.
+
+        A write has no local variable destination. Its Error result stops the
+        block. A real binding retains Error data outside a try body; inside
+        try, inspect the result before a structural target can consume it.
+        """
+        if pattern is None or self.in_try_body:
+            result = pattern if isinstance(pattern, Variable) else Variable(self._temp("binding-result"))
+            if pattern is not None and not isinstance(pattern, Variable):
                 continuation = Expression(
-                    [Symbol("let*"), Expression([Expression([pattern, held])]), continuation]
+                    [Symbol("let*"), Expression([Expression([pattern, result])]), continuation]
                 )
-                # if-error returns branch operands; its current call mask
-                # evaluates both before selecting. A structural binding must
-                # select first, since an error cannot match the target shape.
-                trapped = _case_row(
-                    held,
-                    Expression([Symbol("Error"), Symbol("...")]),
-                    Expression([Symbol("throw"), held]),
-                    continuation,
-                )
-                return Expression([Symbol("let*"), rows, trapped])
-            trapped = Expression(
-                [
-                    Symbol("if-error"),
-                    probe,
-                    Expression([Symbol("throw"), probe]),
-                    continuation,
-                ]
+            continuation = _case_row(
+                result, Expression([Symbol("Error"), Symbol("...")]),
+                result, continuation,
             )
-            return Expression([Symbol("let*"), rows, trapped])
+            pattern = result
         return Expression(
             [Symbol("let*"), Expression([Expression([pattern, value])]), continuation]
         )
@@ -1281,15 +1239,8 @@ class StatementCompilerMixin(CompilerContext):
         else:
             value = self.expression(value_node)
         self.libraries.add("dict")
-        discard = Variable(self._bind("_"))
         write = Expression([Symbol("dict-put"), holder, key, value])
-        return Expression(
-            [
-                Symbol("let*"),
-                Expression([Expression([discard, write])]),
-                self.block(rest),
-            ]
-        )
+        return self._binding_continuation(None, write, self.block(rest))
 
     def _pragma_write_target(
         self, head: ast.Assign | ast.AnnAssign | ast.AugAssign
@@ -1329,9 +1280,8 @@ class StatementCompilerMixin(CompilerContext):
         the drain is `del space[pattern]` and `remove-atom`, and
         `space.remove(atom)` is the grain that also reports what it found.
 
-        The if-error still stands because a bad first argument is still an
-        error: `subtract-atom` refuses a non-space, and refuses an unbound
-        atom rather than reading it as every atom at once.
+        Inspect the write status before continuing: `subtract-atom` refuses
+        a non-space and an unbound atom.
         """
         if not (
             isinstance(head.target, ast.Name)
@@ -1340,7 +1290,6 @@ class StatementCompilerMixin(CompilerContext):
             and isinstance(head.op, ast.Sub)
         ):
             return None
-        result = Variable(self._temp("remove-result"))
         removal = Expression(
             [
                 Symbol("subtract-atom"),
@@ -1348,13 +1297,7 @@ class StatementCompilerMixin(CompilerContext):
                 self.expression(head.value),
             ]
         )
-        return Expression(
-            [
-                Symbol("let*"),
-                Expression([Expression([result, removal])]),
-                Expression([Symbol("if-error"), result, result, continuation]),
-            ]
-        )
+        return self._binding_continuation(None, removal, continuation)
 
     def _compound_statement(
         self,
@@ -1523,8 +1466,8 @@ class StatementCompilerMixin(CompilerContext):
     def _binding(
         self,
         head: ast.Assign | ast.AnnAssign | ast.AugAssign,
-    ) -> tuple[Atom, Atom]:
-        """One binding: the MeTTa variable to write and the value term.
+    ) -> tuple[Atom | None, Atom]:
+        """A local target and value, or no target and a storage write status.
 
         The value compiles BEFORE the target rebinds, so `x = x + 1` reads
         the old x on the right and writes a fresh variable on the left.
@@ -1560,8 +1503,7 @@ class StatementCompilerMixin(CompilerContext):
                         line=head.lineno,
                     )
                 state_value = self.expression(value_node)
-            discard = Variable(self._bind("_"))
-            return discard, Expression([Symbol("change-state!"), state_cell, state_value])
+            return None, Expression([Symbol("change-state!"), state_cell, state_value])
 
         value: Atom
         native_augassign = False
@@ -1871,7 +1813,7 @@ class StatementCompilerMixin(CompilerContext):
             return [removal]
         pattern, value = self._binding(head)
         tail = _superpose(self.yield_answers(rest))
-        return [Expression([Symbol("let*"), Expression([Expression([pattern, value])]), tail])]
+        return [self._binding_continuation(pattern, value, tail)]
 
     def _yield_if(self, head: ast.If, rest: list[ast.stmt]) -> list[Atom]:
         # A raising branch CLOSES the generator, so the statements after
