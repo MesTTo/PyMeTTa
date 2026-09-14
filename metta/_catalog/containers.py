@@ -12,8 +12,13 @@ Guarantees:
     full-annotation hooks as their builtin concrete forms
     [tested: test_each_remaining_annotation_shape_refuses_or_carries;
      commit=f88aa8be03cb64cb59d3307515ded8701f418321]
+  - mapping hooks reconstruct native key/value rows through their structural
+    inverse, refusing malformed rows and duplicate decoded keys [tested:
+    test_mapping_spaces_follow_annotations_and_native_edits,
+    test_mapping_images_refuse_keys_that_reconstruct_as_duplicates;
+    commit=WORKTREE]
 Decides:
-  - container values use MeTTa's one bare-expression image; mappings contain
+  - structural container values use bare expressions; mappings contain
     ``(entry key value)`` children and sets are ordered by the atom order for
     reproducibility. The distinct Python origin and parameters remain in the
     annotation claim and choose reconstruction on the return route.
@@ -32,18 +37,20 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
 
-from metta._atoms.factories import Atom, Expression, S, order_key
+from metta._atoms.factories import Atom, Expression, S, _decode, order_key
 
 
 @dataclass(frozen=True)
 class ParameterizedHook:
-    """The three directions owned by one full-annotation hook factory."""
+    """Annotation, value images and inverses owned by one container kind."""
 
     type_atom: Callable[[Any, Callable[[Any], list[Atom]]], Atom]
     annotation_atom: Callable[[Any, Callable[[Any], Atom]], Atom]
     project: Callable[[Any, Any, Callable[[Any, Any], Any]], Any]
     build: Callable[[Expression, Any, Callable[[Atom, Any], Any]], Any]
     declarations: Callable[[Any, Callable[[Any], list[Atom]]], tuple[Expression, ...]] | None = None
+    matches: Callable[[Expression, Any], bool] | None = None
+    space_image: Callable[[list[Atom], Any], Expression] | None = None
 
 
 def _arguments(annotation: Any) -> tuple[Any, ...]:
@@ -140,14 +147,39 @@ def _mapping_build(atom: Expression, annotation: Any, recurse: Callable) -> dict
     padded = (*_arguments(annotation), Any, Any)
     key_type, value_type = padded[:2]
     entries = atom.children
-    result = {}
+    result: dict[Any, Any] = {}
     for entry in entries:
         if not isinstance(entry, Expression) or entry.head != S.entry or len(entry.args) != 2:
             msg = f"{atom} is not a dict of (entry key value) expressions"
             raise TypeError(msg)
         key, value = entry.args
-        result[recurse(key, key_type)] = recurse(value, value_type)
+        decoded_key = recurse(key, key_type)
+        _require_unique_key(result, decoded_key)
+        result[decoded_key] = recurse(value, value_type)
     return result
+
+
+def _require_unique_key(mapping: dict, key: Any) -> None:
+    if key in mapping:
+        msg = f"duplicate reconstructed mapping key: {key!r}"
+        raise TypeError(msg)
+
+
+def _mapping_matches(atom: Expression, _annotation: Any) -> bool:
+    return all(isinstance(entry, Expression) and entry.head == S.entry
+               for entry in atom.children)
+
+
+def _mapping_row(row: Atom) -> tuple[Atom, Atom]:
+    if not isinstance(row, Expression) or len(row.children) != 2:
+        msg = f"{row} is not a key/value mapping row"
+        raise TypeError(msg)
+    key, value = row.children
+    return key, value
+
+
+def _mapping_space_image(rows: list[Atom], _annotation: Any) -> Expression:
+    return Expression([Expression([S.entry, *_mapping_row(row)]) for row in rows])
 
 
 def _set_build(atom: Expression, annotation: Any, recurse: Callable) -> set:
@@ -185,16 +217,36 @@ def _typed_dict_project(value: Any, annotation: Any, recurse: Callable) -> tuple
     if not isinstance(value, dict):
         msg = f"{annotation.__name__} requires a dict value"
         raise TypeError(msg)
+    _require_typed_dict_keys(annotation, names, value)
+    parts = [recurse(value[name], kind) for name, kind in fields]
+    return Expression([S[annotation.__name__], *(part.atom for part in parts)]), parts
+
+
+def _require_typed_dict_keys(annotation: Any, names: tuple[str, ...], value: dict) -> None:
     missing = sorted(set(names) - value.keys())
-    extra = sorted(value.keys() - set(names))
+    extra = sorted(value.keys() - set(names), key=repr)
     if missing or extra:
         msg = (
             f"{annotation.__name__} keys disagree with its annotation "
             f"(missing={missing}, extra={extra})"
         )
         raise TypeError(msg)
-    parts = [recurse(value[name], kind) for name, kind in fields]
-    return Expression([S[annotation.__name__], *(part.atom for part in parts)]), parts
+
+
+def _typed_dict_matches(atom: Expression, annotation: Any) -> bool:
+    return atom.head == S[annotation.__name__]
+
+
+def _typed_dict_space_image(rows: list[Atom], annotation: Any) -> Expression:
+    names = tuple(name for name, _kind in _typed_dict_fields(annotation))
+    entries: dict[Any, Atom] = {}
+    for row in rows:
+        key, value = _mapping_row(row)
+        decoded_key = _decode(key)
+        _require_unique_key(entries, decoded_key)
+        entries[decoded_key] = value
+    _require_typed_dict_keys(annotation, names, entries)
+    return Expression([S[annotation.__name__], *(entries[name] for name in names)])
 
 
 def _typed_dict_build(atom: Expression, annotation: Any, recurse: Callable) -> dict:
@@ -227,6 +279,8 @@ TYPED_DICT_HOOK = ParameterizedHook(
     _typed_dict_project,
     _typed_dict_build,
     _typed_dict_declarations,
+    matches=_typed_dict_matches,
+    space_image=_typed_dict_space_image,
 )
 
 
@@ -238,7 +292,8 @@ CONTAINER_HOOKS: dict[type, ParameterizedHook] = {
         _container_type, _container_annotation, _sequence_project, _sequence_build
     ),
     dict: ParameterizedHook(
-        _container_type, _container_annotation, _mapping_project, _mapping_build
+        _container_type, _container_annotation, _mapping_project, _mapping_build,
+        matches=_mapping_matches, space_image=_mapping_space_image,
     ),
     set: ParameterizedHook(
         _container_type, _container_annotation, _set_project, _set_build

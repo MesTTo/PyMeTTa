@@ -24,6 +24,10 @@ Guarantees:
   - callable parameters and results compose the same runtime representation
     contract [tested: test_callable_parameters_admit_container_representations,
     test_callable_results_admit_container_representations; commit=f56380690de29cf449cd42ef1471151a3a3f27f9]
+  - a container's native-space alternative is admitted only when its hook
+    supplies the inverse image [tested:
+    test_native_mapping_result_contract_composes_through_callable_types;
+    commit=WORKTREE]
   - advanced typing constructs retain a target type and a full annotation
     claim rather than collapsing to an undefined type
     [tested: test_every_advanced_annotation_reaches_metta_as_a_target_symbol;
@@ -342,7 +346,7 @@ def type_atoms_for(annotation: Any) -> list[Atom]:
 
 
 def runtime_type_atoms(annotation: Any) -> list[Atom]:
-    """Admit the structural image and borrowed container at a call boundary."""
+    """Admit the container hook's images and borrowed value at a call boundary."""
     origin = typing.get_origin(annotation)
     if origin in (typing.Required, typing.NotRequired):
         return runtime_type_atoms(typing.get_args(annotation)[0])
@@ -375,6 +379,8 @@ def runtime_type_atoms(annotation: Any) -> list[Atom]:
     retained = (_expr(S.Annotated, S.Grounded, _expr(S.Predicate, Grounded(kind.__instancecheck__)))
                 if inspect.isabstract(kind) else S[kind.__name__])
     alternatives.extend((hook.type_atom(annotation, type_atoms_for), retained))
+    if hook.space_image is not None:
+        alternatives.append(S.SpaceType)
     unique = list(dict.fromkeys(alternatives))
     return [_expr(S["|"], *unique)] if len(unique) > 1 else unique
 

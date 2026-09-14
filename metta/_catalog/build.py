@@ -25,6 +25,14 @@ Guarantees:
   - type annotations reconstruct a declared class from its canonical constructor
     image and keep ordinary factories distinct [tested:
     test_constructor_image_is_distinct_from_an_ordinary_factory; commit=ba819bfa2aa69d231d8ebae7d74b085f838840de]
+  - mapping annotations read registered namespaces without declaring names
+    or evaluating rows, retaining the caller's lexical context [tested:
+    test_mapping_space_images_use_native_identity,
+    test_mapping_space_conversion_preserves_nested_callable_context;
+    commit=WORKTREE]
+  - structural conversion does not start an engine and explicit spaces retain
+    their runtime owner [tested: test_mapping_conversion_keeps_runtime_ownership;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -40,7 +48,7 @@ from enum import Enum
 from functools import partial
 from typing import Any, overload
 
-from metta._atoms.factories import Atom, Expression, Grounded, S, Symbol, _decode
+from metta._atoms.factories import Atom, Expression, Grounded, S, Symbol, _atom_from_wire, _decode
 from metta._atoms.registry import (
     _class_label,
     _default_registration,
@@ -52,6 +60,7 @@ from metta._atoms.registry import (
     explicitly_registered,
 )
 from metta._catalog.call_values import rebuild as _callable_value
+from metta._catalog.containers import ParameterizedHook
 from metta._catalog.containers import hook_for as _parameterized_hook
 from metta._lazy import lazy
 
@@ -78,6 +87,10 @@ def build(atom: Atom, cls: Any = None, *, space: Any = None) -> Any:
     The sentinel is module-private and must never reach a caller, so it is
     translated here rather than at each of the branches that produce it.
     """
+    members = _annotation_members(cls)
+    if len(members) > 1:
+        return _build_union(atom, members, space)
+    cls = members[0]
     callable_value = _build_callable(atom, cls, space)
     if callable_value is not None:
         return callable_value
@@ -91,8 +104,6 @@ def build(atom: Atom, cls: Any = None, *, space: Any = None) -> Any:
 
 
 def _build_callable(atom: Atom, annotation: Any, space: Any) -> Any:
-    if typing.get_origin(annotation) is typing.Annotated:
-        return _build_callable(atom, typing.get_args(annotation)[0], space)
     if annotation is type or typing.get_origin(annotation) is type:
         native = _callable_value(atom, Any, space)
         if native is not None:
@@ -239,20 +250,58 @@ def _call_reverse(target_cls: type, registration: _Registration, parts: list[Any
     return hook(*parts)
 
 
-def _build_annotated(atom: Atom, annotation: Any, space: Any) -> Any:
+def _annotation_members(annotation: Any) -> tuple[Any, ...]:
+    """Select value annotations through wrappers and type-variable bounds."""
     origin = typing.get_origin(annotation)
-    if origin is type:
-        return _build_plain(atom, type, space)
-    if origin is typing.Annotated:
-        return build(atom, typing.get_args(annotation)[0], space=space)
+    if origin in (typing.Annotated, typing.Required, typing.NotRequired):
+        return _annotation_members(typing.get_args(annotation)[0])
+    if isinstance(annotation, typing.TypeVar):
+        if annotation.__constraints__:
+            return tuple(member for constraint in annotation.__constraints__
+                         for member in _annotation_members(constraint))
+        return _annotation_members(Any if annotation.__bound__ is None else annotation.__bound__)
     if origin in (typing.Union, types.UnionType):
-        return _build_union(atom, typing.get_args(annotation), space)
+        return tuple(member for option in typing.get_args(annotation)
+                     for member in _annotation_members(option))
+    return (annotation,)
+
+
+def _build_annotated(atom: Atom, annotation: Any, space: Any) -> Any:
+    if typing.get_origin(annotation) is type:
+        return _build_plain(atom, type, space)
     hook = _parameterized_hook(annotation)
-    if isinstance(atom, Expression) and hook is not None:
-        return hook.build(atom, annotation, partial(build, space=space))
+    if hook is not None:
+        image = _container_image(atom, annotation, hook, space)
+        if image is not None:
+            return hook.build(image, annotation, partial(build, space=space))
     if isinstance(annotation, type):
         return _build_plain(atom, annotation, space)
     return build(atom, space=space)
+
+
+def _container_image(atom: Atom, annotation: Any, hook: ParameterizedHook, space: Any) -> Expression | None:
+    if hook.space_image is not None:
+        rows = _space_rows(atom, space)
+        if rows is not None:
+            return hook.space_image(rows, annotation)
+    return atom if isinstance(atom, Expression) else None
+
+
+def _space_rows(atom: Atom, space: Any) -> list[Atom] | None:
+    handle = lazy('metta._spaces.handle').SpaceHandle
+    if isinstance(atom, handle):
+        return atom.atoms()
+    if not isinstance(atom, (Symbol, Expression)):
+        return None
+    runtime = space._rt if isinstance(space, handle) else lazy('metta._binding.runtime').active_runtime()
+    if runtime is None:
+        return None
+    row = runtime.once(
+        "metta_py_decode_shared(Wire,_Name,_),ground(_Name),"
+        "metta_space_registered(_Name),metta_py_atoms(_Name,Rows)",
+        Wire=atom.to_wire(),
+    )
+    return [_atom_from_wire(wire) for wire in row["Rows"]] if row else None
 
 
 def _build_union(atom: Atom, members: tuple[Any, ...], space: Any) -> Any:
@@ -261,29 +310,22 @@ def _build_union(atom: Atom, members: tuple[Any, ...], space: Any) -> Any:
             callable_value = _build_callable(atom, member, space)
             if callable_value is not None:
                 return callable_value
-            if _annotation_matches(atom, member):
+            hook = _parameterized_hook(member)
+            if hook is not None:
+                image = _container_image(atom, member, hook, space)
+                if image is not None:
+                    if hook.matches is None or hook.matches(image, member):
+                        return hook.build(image, member, partial(build, space=space))
+                    continue
+            kind = dict if typing.is_typeddict(member) else typing.get_origin(member) or member
+            if _class_matches(atom, kind):
                 return build(atom, member, space=space)
     return build(atom, space=space)
 
 
-def _annotation_matches(atom: Atom, annotation: Any) -> bool:
-    origin = typing.get_origin(annotation)
-    if origin is typing.Annotated:
-        return _annotation_matches(atom, typing.get_args(annotation)[0])
-    if origin in (typing.Union, types.UnionType):
-        return any(_annotation_matches(atom, member) for member in typing.get_args(annotation))
-    if origin is not None:
-        return _parameterized_matches(atom, origin)
-    return _class_matches(atom, annotation)
-
-
-def _parameterized_matches(atom: Atom, origin: Any) -> bool:
-    if not isinstance(atom, Expression) or not isinstance(origin, type):
-        return False
-    return origin in (tuple, list) or issubclass(origin, abc.Sequence)
-
-
 def _class_matches(atom: Atom, annotation: Any) -> bool:
+    if annotation in (Any, object):
+        return True
     if not isinstance(annotation, type):
         return False
     if isinstance(atom, Grounded):
