@@ -3,12 +3,12 @@
 Guarantees:
   - field write errors stop ordinary, generator and finally continuations
     while preserving storage and already delivered answers [tested:
-    test_refused_field_writes_stop_their_compiled_continuation; commit=WORKTREE]
+    test_refused_field_writes_stop_their_compiled_continuation; commit=9eebb619cb02f267e1d541a7d6e989b990f68982]
   - native write statuses distinguish Error expressions from false values,
     and ordinary bindings can still carry Error data [tested:
     test_live_writer_errors_stop_the_tail_for_every_error_width,
     test_false_writer_status_and_local_error_data_keep_their_value_semantics;
-    commit=WORKTREE]
+    commit=9eebb619cb02f267e1d541a7d6e989b990f68982]
 """
 
 from collections.abc import Iterator

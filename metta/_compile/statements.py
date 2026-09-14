@@ -3,10 +3,10 @@ Guarantees:
   - storage writes select their continuation only after a successful status;
     Error results stop ordinary, generator and finally blocks [tested:
     test_refused_field_writes_stop_their_compiled_continuation,
-    test_live_writer_errors_stop_the_tail_for_every_error_width; commit=WORKTREE]
+    test_live_writer_errors_stop_the_tail_for_every_error_width; commit=9eebb619cb02f267e1d541a7d6e989b990f68982]
   - real local bindings preserve Error data outside try [tested:
     test_false_writer_status_and_local_error_data_keep_their_value_semantics,
-    test_structural_assignment_checks_errors_before_matching; commit=WORKTREE]
+    test_structural_assignment_checks_errors_before_matching; commit=9eebb619cb02f267e1d541a7d6e989b990f68982]
   - unpacking follows temporary sequence bindings to retain known dictionary
     and segment value proofs [tested:
     test_structural_assignment_preserves_dictionary_and_star_bindings,

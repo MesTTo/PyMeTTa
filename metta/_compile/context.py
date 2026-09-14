@@ -3,7 +3,7 @@ Guarantees:
   - binding targets distinguish local values from storage-write statuses
     [tested: test_refused_field_writes_stop_their_compiled_continuation,
     test_false_writer_status_and_local_error_data_keep_their_value_semantics;
-    commit=WORKTREE]
+    commit=9eebb619cb02f267e1d541a7d6e989b990f68982]
   - incomplete collaborators are refused before lowering starts [tested:
     test_incomplete_compiler_is_refused_before_lowering; commit=9b0a084e534ddf7dd67980ad84c27c8279b877f1]
   - expression lowering can inspect an exact host binding without executing

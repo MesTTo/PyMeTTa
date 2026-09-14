@@ -3,7 +3,7 @@
 Guarantees:
   - mutable field bindings expose a write status for statement continuation
     selection [tested: test_refused_field_writes_stop_their_compiled_continuation;
-    commit=WORKTREE]
+    commit=9eebb619cb02f267e1d541a7d6e989b990f68982]
   - field assignments preserve computed syntax values and evaluate the target
     once in Python order [tested:
     test_field_assignment_keeps_computed_syntax_values,
