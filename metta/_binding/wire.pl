@@ -319,7 +319,7 @@ metta_py_decode_(p, [S], Space) :-
 % Index names once per term and retain the ordered answer bindings. The
 % engine's atom index trails updates with the decoded values and bounds its
 % native traversal independently of UUID hash collisions
-% [tested: shared_decode_index, atom_index; commit=WORKTREE].
+% [tested: shared_decode_index, atom_index; commit=dfd348d37d4cbe3d42d877bd6dcf415b54f82179].
 metta_py_decode_shared(Tagged, Term, Bindings) :-
     metta_py_decode_shared_(Tagged, Term, indexed([], Index), indexed(Bindings, Index)).
 
@@ -355,7 +355,7 @@ metta_py_decode_shared_tagged(T, Rest, Term, B, B) :-
 % The existing pair answers a singleton lookup without an index allocation.
 % On the second distinct name, move that first binding into the index once.
 % A supplied wide-query index remains complete even for a singleton query
-% [tested: shared_decode_index; commit=WORKTREE].
+% [tested: shared_decode_index; commit=dfd348d37d4cbe3d42d877bd6dcf415b54f82179].
 metta_py_index_variable(Name, Var, [], [Name-Var], Index) :- !,
     ( var(Index) -> true ; metta_atom_index_bind(Index, Name, Var, _) ).
 metta_py_index_variable(Name, Var, B0, B, Index) :-

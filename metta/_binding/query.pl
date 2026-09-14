@@ -1,7 +1,7 @@
 % Purpose: match patterns, project queries and explain their plans.
 % Assumes: loaded through _binding/shim.pl in its host module.
 % Guarantees: indexed projections read the original variable cells through
-% metta_atom_index_get/3 [tested: shared_decode_index; commit=WORKTREE].
+% metta_atom_index_get/3 [tested: shared_decode_index; commit=dfd348d37d4cbe3d42d877bd6dcf415b54f82179].
 
 %%%%%%%%%% Query %%%%%%%%%%
 %

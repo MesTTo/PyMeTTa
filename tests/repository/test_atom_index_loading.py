@@ -2,7 +2,7 @@
 
 Guarantees: runtime artifact presence selects a usable index even when the
 QLF was compiled with the C artifact [tested:
-test_atom_index_loads_with_runtime_artifact_presence; commit=WORKTREE].
+test_atom_index_loads_with_runtime_artifact_presence; commit=dfd348d37d4cbe3d42d877bd6dcf415b54f82179].
 Owns resources: pytest owns copied artifacts; every subprocess is joined.
 """
 

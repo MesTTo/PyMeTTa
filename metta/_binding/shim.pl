@@ -479,7 +479,7 @@
 % Resolve the name index's dependencies during bridge loading. Its first
 % insertion otherwise autoloads code during the caller's first decode
 % [tested: shared_decode_index:the_first_decode_does_not_pay_for_dependency_loading;
-% commit=WORKTREE]. The temporary backtrackable index retains no shared state.
+% commit=dfd348d37d4cbe3d42d877bd6dcf415b54f82179]. The temporary backtrackable index retains no shared state.
 :- metta_atom_index_new(Index), metta_atom_index_bind(Index, '', _, true).
 
 %translated_from/2 is engine/filereader.pl's, declared dynamic and exported
