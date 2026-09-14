@@ -21,6 +21,11 @@ Guarantees:
     test_provenance_retains_a_derivation_for_no_requery_reinterpretation,
     test_tagged_call_answers_use_the_carrier_without_hijacking_other_calls;
     commit=c7468b2789746bcf95c4bacc0e2d517ec4d972fa]
+  - reinterpreting a retained derivation under a carrier that reads stored
+    tags answers what direct evaluation under that carrier answers, including
+    the two whose zero is the symbol `infinity` [tested:
+    test_reinterpretation_under_a_raw_tag_carrier_answers_what_direct_evaluation_answers;
+    commit=WORKTREE]
   - the algebra satellite is its callable constructor while keeping module
     identity, and Space.sample uses random.choices vocabulary [tested:
     test_algebra_module_is_the_constructor_and_the_old_space_doors_are_retired,
@@ -64,7 +69,7 @@ import pytest
 
 import metta as metta_module
 import metta.aio as _aio_surface
-from metta import Answer, S, V, counting, prob, prov, ranked, tropical
+from metta import Answer, S, V, budget, counting, prob, prov, ranked, tropical
 from metta._declare import declarations as _space_declarations
 from metta.algebra import AlgebraDeclarationError
 from metta.foreign import SpaceProvider
@@ -392,6 +397,39 @@ def test_tagged_derivations_flow_through_match_and_reinterpret_without_requery(
         assert program.match(
             S.grandparent(S.tom, S.ann), under=counting
         ).one().annotation == 1
+
+
+# The four derivations cost 5, 7, 6 and 8 under +, and weigh 3, 5, 6 and 10
+# under *, so each carrier's answer is distinct and the comparison is not
+# vacuous. tropical and budget declare `infinity` as their zero, a symbol
+# outside min's domain that direct evaluation never hands to the operation;
+# reinterpretation used to seed its fold with it and raise
+# `algebra_operation_error(tropical, min): (Error (min infinity 0) ...)`.
+@pytest.mark.parametrize(
+    ("carrier", "expected"),
+    [(tropical, 5), (budget, 5), (prob, 24), (ranked, 10)],
+    ids=["tropical", "budget", "prob", "ranked"],
+)
+def test_reinterpretation_under_a_raw_tag_carrier_answers_what_direct_evaluation_answers(
+    metta, carrier, expected
+):
+    """A retained prov derivation reinterprets to the direct answer, no requery."""
+    with metta._new_space() as program:
+        for cost, slot in (
+            (1, S.slot(S.gym, S.morning)),
+            (2, S.slot(S.gym, S.evening)),
+            (3, S.slot(S.dinner, S.evening)),
+            (5, S.slot(S.dinner, S.morning)),
+        ):
+            program.add_tagged_fact(cost, slot)
+        program.add_tagged_rule(
+            1, S.day_ok(), S.slot(S.gym, V.a), S.slot(S.dinner, V.b)
+        )
+        retained = program.match(S.day_ok(), under=prov).one()
+        direct = program.match(S.day_ok(), under=carrier).one()
+        assert direct.annotation == expected
+        assert retained.under(carrier).annotation == expected
+        assert len(retained.why().alternatives) == 4
 
 
 def test_tagged_call_answers_use_the_carrier_without_hijacking_other_calls(metta):

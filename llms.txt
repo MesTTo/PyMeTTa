@@ -93,6 +93,9 @@ without declaring it in the answer's space or querying again. A same-name local
 declaration does not replace the supplied object. Inside combine, extend and
 `where=` callbacks, `metta.current_algebra()` observes the selected carrier,
 including an explicit `under=` that overrides an annotations row.
+`under=counting` is the one carrier that answers a single aggregate row,
+value `()` and annotation the number of derivations, instead of one row per
+conclusion; `bag` has the same operations and keeps the rows.
 
 `kb.match(q, under=metta.ranked, limit=2)` offers the provider the same bound
 as `kb.match(q, under=metta.ranked)[:2]` and the language's `(top 2 ...)`.

@@ -67,6 +67,12 @@ Guarantees:
     rerun the query [tested:
     test_tagged_derivations_flow_through_match_and_reinterpret_without_requery;
     commit=c7468b2789746bcf95c4bacc0e2d517ec4d972fa]
+  - reinterpretation folds a derivation's alternatives from the first one, as
+    direct evaluation fuses equal conclusions, so a carrier whose zero is
+    vocabulary outside its combine operation's domain (tropical's and budget's
+    `infinity`) reinterprets to exactly what it evaluates directly [tested:
+    test_reinterpretation_under_a_raw_tag_carrier_answers_what_direct_evaluation_answers;
+    commit=WORKTREE]
   - tagged counts share the positive-limit contract used by ordinary queries
     [tested: test_tagged_count_and_match_refuse_zero_with_the_same_message;
     commit=61e107a8105a5cdaea164f615812a684b12d8fe3]
@@ -1557,8 +1563,17 @@ def _interpret_alternatives(
     alternatives: Sequence[_Trace],
     resources: _EvaluationBudget,
 ) -> Atom:
-    value = declaration.zero
-    for trace in alternatives:
+    # Fold from the first alternative, as _fuse folds equal conclusions, and
+    # never hand the declared zero to the combine operation. A zero can be
+    # carrier vocabulary outside that operation's domain: tropical's and
+    # budget's `infinity` is exactly what `min` never sees in direct
+    # evaluation, and seeding this fold with it is what made under(tropical)
+    # raise `(min infinity 0)` where under=tropical answered 0. No alternative
+    # at all is the one case whose value is the zero itself.
+    if not alternatives:
+        return declaration.zero
+    value = _interpret_trace(metta, declaration, alternatives[0], resources)
+    for trace in alternatives[1:]:
         contribution = _interpret_trace(metta, declaration, trace, resources)
         value = declaration.combine_values(
             metta, value, contribution, resources=resources
