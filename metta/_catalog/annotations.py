@@ -27,7 +27,7 @@ Guarantees:
   - a container's native-space alternative is admitted only when its hook
     supplies the inverse image [tested:
     test_native_mapping_result_contract_composes_through_callable_types;
-    commit=WORKTREE]
+    commit=a8e3fc42306377adf7cae0a331f3d92fbf190304]
   - advanced typing constructs retain a target type and a full annotation
     claim rather than collapsing to an undefined type
     [tested: test_every_advanced_annotation_reaches_metta_as_a_target_symbol;

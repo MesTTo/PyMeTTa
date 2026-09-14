@@ -4,11 +4,11 @@ Guarantees:
   - mapping annotations admit stored spaces and reconstruct their current
     entries without evaluating them [tested:
     test_mapping_spaces_follow_annotations_and_native_edits;
-    test_mapping_space_values_preserve_syntax; commit=WORKTREE]
+    test_mapping_space_values_preserve_syntax; commit=a8e3fc42306377adf7cae0a331f3d92fbf190304]
   - malformed or duplicate entries refuse before a mapping loses data
-    [tested: test_mapping_spaces_refuse_non_mapping_rows; commit=WORKTREE]
+    [tested: test_mapping_spaces_refuse_non_mapping_rows; commit=a8e3fc42306377adf7cae0a331f3d92fbf190304]
   - compiled dictionary and keyword-collector results use the same conversion
-    [tested: test_compiled_methods_return_native_mapping_values; commit=WORKTREE]
+    [tested: test_compiled_methods_return_native_mapping_values; commit=a8e3fc42306377adf7cae0a331f3d92fbf190304]
 Owns resources: scopes release native stores, foreign owners unregister in
 finally, and the pure-import subprocess is joined before the test returns.
 """

@@ -29,10 +29,10 @@ Guarantees:
     or evaluating rows, retaining the caller's lexical context [tested:
     test_mapping_space_images_use_native_identity,
     test_mapping_space_conversion_preserves_nested_callable_context;
-    commit=WORKTREE]
+    commit=a8e3fc42306377adf7cae0a331f3d92fbf190304]
   - structural conversion does not start an engine and explicit spaces retain
     their runtime owner [tested: test_mapping_conversion_keeps_runtime_ownership;
-    commit=WORKTREE]
+    commit=a8e3fc42306377adf7cae0a331f3d92fbf190304]
 Open Obligations:
   To Do: None
   Hacks: None

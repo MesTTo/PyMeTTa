@@ -16,7 +16,7 @@ Guarantees:
     inverse, refusing malformed rows and duplicate decoded keys [tested:
     test_mapping_spaces_follow_annotations_and_native_edits,
     test_mapping_images_refuse_keys_that_reconstruct_as_duplicates;
-    commit=WORKTREE]
+    commit=a8e3fc42306377adf7cae0a331f3d92fbf190304]
 Decides:
   - structural container values use bare expressions; mappings contain
     ``(entry key value)`` children and sets are ordered by the atom order for
