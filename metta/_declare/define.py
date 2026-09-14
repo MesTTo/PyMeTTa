@@ -8,6 +8,9 @@ spelling; and a free identifier must be a parameter, a known function, or
 read as a data constructor. A compiled body is a complete atom tree, and any
 runtime-backed Python semantics it needs are declared as visible operations.
 Guarantees:
+  - source parameters and SSA bindings retain underscore identity in every
+    nested compiler scope [tested:
+    test_python_underscore_bindings_retain_their_values; commit=WORKTREE]
   - class methods use the ordinary body compiler with their written argument
     contract and explicit receiver [tested:
     test_class_methods_keep_full_python_signatures_and_native_bodies; commit=ba819bfa2aa69d231d8ebae7d74b085f838840de]
@@ -136,7 +139,7 @@ from metta._atoms.factories import (
     _map_atoms,
     _variables,
 )
-from metta._atoms.names import resolve_known_name
+from metta._atoms.names import binding_name, resolve_known_name
 from metta._catalog.annotations import type_atoms_for
 from metta._catalog.call_values import apply_sources
 from metta._catalog.fn import fn as fn_namespace
@@ -321,7 +324,7 @@ def _annotation_resolver(
 
 
 def _initial_scope(params: list[str] | dict[str, str]) -> dict[str, str]:
-    return params.copy() if isinstance(params, dict) else {param: param for param in params}
+    return params.copy() if isinstance(params, dict) else {param: binding_name(param) for param in params}
 
 
 def canonical_aux_set(equations: tuple[Expression, ...], name: str) -> tuple[Expression, ...]:
@@ -493,7 +496,7 @@ class Defined[**P, R]:
     @property
     def head(self) -> Expression:
         return Expression(
-            [Symbol(self.name), *(self.patterns.get(p, Variable(p)) for p in self.params)]
+            [Symbol(self.name), *(self.patterns.get(p, Variable(binding_name(p))) for p in self.params)]
         )
 
     def source(self) -> str:
@@ -1122,13 +1125,16 @@ class _Compiler(
 
     def _inner(self, extra: list[str]) -> _Compiler:
         """A compiler for a nested binder (lambda, comprehension): the outer
-        scope plus the binder's own parameters, shadowing by name.
+        scope plus fresh parameters. Native variables share by identity across
+        the whole term, so a shadow must not reuse the outer variable.
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
-        scope = self.scope.copy()
-        scope.update({p: p for p in extra})
-        nested = self._nested_compiler(scope)
+        nested = self._nested_compiler(self.scope.copy())
         nested.number_locals.difference_update(extra)
+        nested.space_locals.difference_update(extra)
+        nested.dict_locals.difference_update(extra)
         for name in extra:
+            nested._bind(name)
+            nested.container_locals.pop(name, None)
             nested.record_locals.pop(name, None)
         return nested
 
@@ -1249,13 +1255,14 @@ class _Compiler(
 
     def _bind(self, name: str) -> str:
         """The MeTTa variable a (re)binding of name writes to."""
-        if name not in self.scope and name not in self.used:
-            variable = name
+        base = binding_name(name)
+        if name not in self.scope and base not in self.used:
+            variable = base
         else:
             n = 2
-            while f"{name}-{n}" in self.used:
+            while f"{base}-{n}" in self.used:
                 n += 1
-            variable = f"{name}-{n}"
+            variable = f"{base}-{n}"
         self.scope[name] = variable
         self.used.add(variable)
         return variable

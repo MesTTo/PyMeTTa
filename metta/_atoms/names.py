@@ -1,5 +1,8 @@
-"""Purpose: define the one catalog-aware Python-to-MeTTa name map.
+"""Purpose: map Python name roles to their native spellings.
 Guarantees:
+  - Python binding labels preserve identity without changing native anonymous
+    variables [tested: test_python_underscore_bindings_retain_their_values,
+    test_native_underscore_patterns_remain_anonymous; commit=WORKTREE]
   - exact catalog names win before the underscore-to-hyphen and trailing-bang
     candidates [tested: test_bare_callees_ask_exact_then_mapped,
     test_banged_catalog_names_take_the_mechanical_fallback; commit=6b77b811c44e1819ed9cd99f3809c0667f289e2e]
@@ -96,6 +99,20 @@ def operator_attribute_target(identifier: str) -> str | OperatorRecipe | None:
         #from. The name is set because it is what was asked for.
         raise AttributeError(msg, name=identifier)
     return OPERATOR_WORDS.get(identifier)
+
+
+def binding_name(identifier: str) -> str:
+    """Keep a Python binder distinct from the native anonymous variable.
+
+    Python's `_` is an ordinary identifier outside a case pattern. Its native
+    name must therefore share occurrences, unlike `$_`. The hyphen keeps this
+    escape outside Python's identifier grammar and the existing SSA allocator
+    handles subsequent bindings. Explicit Variable atoms never use this map.
+    [source: https://docs.python.org/3.14/reference/lexical_analysis.html#reserved-classes-of-identifiers;
+    extensions/python/metta/_binding/wire.pl:metta_py_decode_shared_tagged/5;
+    commit=WORKTREE]
+    """
+    return "_-" if identifier == "_" else identifier
 
 
 def attribute_name(identifier: str) -> str:

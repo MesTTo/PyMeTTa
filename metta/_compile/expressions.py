@@ -1,5 +1,7 @@
 """Purpose: lower Python expressions into equivalent MeTTa atom trees.
 Guarantees:
+  - lambda and comprehension binders preserve Python underscore identity
+    [tested: test_python_underscore_bindings_retain_their_values; commit=WORKTREE]
   - dictionary get selects its optional default only for an absent key;
     operands run in source order and stored atoms retain their data meaning
     [tested: test_dictionary_get_preserves_stored_values,
@@ -891,11 +893,12 @@ class ExpressionCompilerMixin(CompilerContext):
             )
         params = [arg.arg for arg in a.args]
         inner = self._inner(params)
+        binders = Expression([Variable(inner.scope[name]) for name in params])
         body = inner.expression(node.body)
         home = _records.declared(self.class_context)
         if home is not None:
             body = Expression([Symbol("evalc"), body, Symbol(home.space.name)])
-        value = Expression([Symbol("|->"), Expression([Variable(p) for p in params]), body])
+        value = Expression([Symbol("|->"), binders, body])
         signature = inspect.Signature([
             inspect.Parameter(name, inspect.Parameter.POSITIONAL_OR_KEYWORD) for name in params
         ])
@@ -926,19 +929,20 @@ class ExpressionCompilerMixin(CompilerContext):
             if _records.answer_stream(self, gen.iter):
                 source = Expression([Symbol("collapse"), source])
         inner = self._inner([var])
+        binder = Variable(inner.scope[var])
         inner.loop_depth += 1
         stages = [
             self._stage(
                 "filter-atom",
-                Expression([Symbol("|->"), Expression([Variable(var)]), inner._truthy(condition)]),
+                Expression([Symbol("|->"), Expression([binder]), inner._truthy(condition)]),
             )
             for condition in gen.ifs
         ]
         if len(generators) == 1:
-            mapper = Expression([Symbol("|->"), Expression([Variable(var)]), inner.expression(elt)])
+            mapper = Expression([Symbol("|->"), Expression([binder]), inner.expression(elt)])
             return self._piped(source, [*stages, self._stage("map-atom", mapper)])
         nested = inner._comprehension(generators[1:], elt, line)
-        mapper = Expression([Symbol("|->"), Expression([Variable(var)]), nested])
+        mapper = Expression([Symbol("|->"), Expression([binder]), nested])
         return self._piped(
             source,
             [
@@ -1283,6 +1287,7 @@ class ExpressionCompilerMixin(CompilerContext):
                 raise CompileError(msg, construct="reduce lambda", line=reducer_node.lineno)
             accumulator, item = (argument.arg for argument in arguments.args)
             inner = self._inner([accumulator, item])
+            binders = [Variable(inner.scope[name]) for name in (accumulator, item)]
             body = inner.expression(reducer_node.body)
             return self._piped(
                 values,
@@ -1290,8 +1295,7 @@ class ExpressionCompilerMixin(CompilerContext):
                     self._stage(
                         "foldl-atom",
                         initial,
-                        Variable(accumulator),
-                        Variable(item),
+                        *binders,
                         body,
                     )
                 ],

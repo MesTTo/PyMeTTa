@@ -1,5 +1,7 @@
 """Purpose: translate Python annotations into MeTTa type atoms and declarations.
 Guarantees:
+  - repeated underscore type parameters retain one native variable [tested:
+    test_underscore_type_parameters_retain_shared_constraints; commit=WORKTREE]
   - NoneType remains an explicit return alternative, including nullable
     unions [tested: test_nullable_annotations_keep_both_result_alternatives;
     commit=dbe6c7de5f35e7c0c8ef5259ebfb6d67ee3ebbc0]
@@ -85,6 +87,7 @@ from metta._atoms.factories import (
     _encode,
     _expr,
 )
+from metta._atoms.names import binding_name
 from metta._atoms.registry import _lookup as _lookup_conversion
 from metta._catalog.bounds import config
 from metta._catalog.containers import hook_for as _parameterized_hook
@@ -154,7 +157,7 @@ def annotation_atom_for(annotation: Any) -> Atom:
             return Expression(
                 [
                     S.TypeVar,
-                    Variable(annotation.__name__.lower()),
+                    Variable(binding_name(annotation.__name__.lower())),
                     Expression([S["one_of"], *(annotation_atom_for(item) for item in annotation.__constraints__)]),
                 ]
             )
@@ -162,11 +165,11 @@ def annotation_atom_for(annotation: Any) -> Atom:
             return Expression(
                 [
                     S.TypeVar,
-                    Variable(annotation.__name__.lower()),
+                    Variable(binding_name(annotation.__name__.lower())),
                     Expression([S.bound, annotation_atom_for(annotation.__bound__)]),
                 ]
             )
-        return Variable(annotation.__name__.lower())
+        return Variable(binding_name(annotation.__name__.lower()))
     if _is_new_type(annotation):
         return Expression(
             [S.NewType, S[annotation.__name__], annotation_atom_for(annotation.__supertype__)]
@@ -211,7 +214,7 @@ def _direct_type_atoms(annotation: Any, origin: Any) -> list[Atom] | None:
             return _typevar_constraints(annotation)
         if annotation.__bound__ is not None:
             return type_atoms_for(annotation.__bound__)
-        return [Variable(annotation.__name__.lower())]
+        return [Variable(binding_name(annotation.__name__.lower()))]
     if origin is not None:
         return None
     if isinstance(annotation, type):

@@ -5,6 +5,8 @@ Owns resources:
     entries; bound values retain the receiver and its lexical space [tested:
     test_class_bound_methods_keep_the_receiver_and_program_alive; commit=ba819bfa2aa69d231d8ebae7d74b085f838840de]
 Guarantees:
+  - method receivers and packed parameters retain Python underscore identity
+    [tested: test_class_underscore_fields_receivers_and_packed_parameters; commit=WORKTREE]
   - Python invocation reads the live native equation and preserves the source
     function separately as py [tested:
     test_class_method_calls_observe_the_live_equation_graph; commit=ba819bfa2aa69d231d8ebae7d74b085f838840de]
@@ -28,7 +30,7 @@ from collections.abc import Iterator
 from typing import Any
 
 from metta._atoms.factories import Atom, Expression, Grounded, S, Symbol, Variable, _expr
-from metta._atoms.names import attribute_name
+from metta._atoms.names import attribute_name, binding_name
 from metta._catalog import call_signatures, call_values
 from metta._catalog.annotations import resolved_annotations
 from metta._catalog.build import build
@@ -134,7 +136,7 @@ class Method:
         return bodies[0] if len(bodies) == 1 else _expr(S.superpose, Expression(bodies))
 
     def live_equations(self) -> tuple[Expression, ...]:
-        head = _expr(Symbol(self.name), *(Variable(name) for name in self.signature.parameters))
+        head = _expr(Symbol(self.name), *(Variable(binding_name(name)) for name in self.signature.parameters))
         body = Variable("method-source-body")
         equation = _expr(S["="], head, body)
         return tuple(self.owner.space.eval(_expr(S.match, Symbol(self.owner.space.name), equation, _expr(S.noeval, equation))))
@@ -155,7 +157,7 @@ class Method:
 
     def bound_atom(self, receiver: Atom | None = None) -> Atom:
         arguments = Variable("method-arguments")
-        parameters = [] if receiver is not None else [Variable(self.receiver_name)]
+        parameters = [] if receiver is not None else [Variable(binding_name(self.receiver_name))]
         receiver = receiver if receiver is not None else parameters[0]
         positional = _expr(S["cons-atom"], _expr(S.noeval, receiver), arguments)
         call = call_syntax.member_application(self.owner, Symbol(attribute_name(self.python_name)),
@@ -191,7 +193,7 @@ class Method:
             owner.import_dependencies(compiled.libraries, (compiled.body, *compiled.aux, *arguments))
             call_syntax.link(owner.space, compiled.runtime_ops)
             body, auxiliary = compiled.body, tuple(compiled.aux)
-        head = _expr(Symbol(self.name), *(Variable(name) for name in self.signature.parameters))
+        head = _expr(Symbol(self.name), *(Variable(binding_name(name)) for name in self.signature.parameters))
         self.equations = (*auxiliary, _expr(S["="], head, body))
         self.projected = self.equations
         for equation in self.equations:
@@ -238,7 +240,7 @@ class Method:
                              arities=[len(self.signature.parameters)], effect=EffectClass.oracleIO,
                              declarations=[_expr(S.arguments, Symbol(head), S.atoms)])
         self.owner.space.add(_expr(S.internal, Symbol(head)))
-        return _expr(Symbol(head), *(Variable(name) for name in self.signature.parameters))
+        return _expr(Symbol(head), *(Variable(binding_name(name)) for name in self.signature.parameters))
 
     def install_binding(self) -> None:
         """Bind Python call syntax, then evaluate its ordinary native application."""
@@ -427,7 +429,7 @@ def synchronize(plans: tuple[Any, ...]) -> None:
     # them. Planning reads source and never executes a method to initialize it.
     for plan in plans:
         for method in plan.methods.values():
-            plan.space.effect_plan(_expr(Symbol(method.name), *(Variable(name) for name in method.signature.parameters)))
+            plan.space.effect_plan(_expr(Symbol(method.name), *(Variable(binding_name(name)) for name in method.signature.parameters)))
 
 
 def instrument(plan: Any) -> None:

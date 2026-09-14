@@ -1,5 +1,8 @@
 """Purpose: lower Python statement blocks, lifted definitions, and yield blocks.
 Guarantees:
+  - lifted definitions and continuations retain Python underscore binders
+    [tested: test_python_underscore_bindings_retain_their_values,
+    test_generator_underscore_bindings_cross_branches_and_iterations; commit=WORKTREE]
   - storage writes select their continuation only after a successful status;
     Error results stop ordinary, generator and finally blocks [tested:
     test_refused_field_writes_stop_their_compiled_continuation,
@@ -99,6 +102,7 @@ import ast
 from collections.abc import Callable
 
 from metta._atoms.factories import Atom, Expression, Grounded, Handle, Symbol, Variable
+from metta._atoms.names import binding_name
 from metta._compile import records as _records
 from metta._compile.context import CompilerContext, next_aux_serial
 from metta._compile.expressions import _NATIVE_BINOPS, _name_of
@@ -585,7 +589,7 @@ class StatementCompilerMixin(CompilerContext):
             equation_compiler = self._equation_compiler(k_params)
             equation_compiler.closer = self.closer
             equation_compiler.closer_names = self.closer_names.copy()
-            head = Expression([Symbol(helper), *(Variable(n) for n in k_params)])
+            head = Expression([Symbol(helper), *(Variable(binding_name(n)) for n in k_params)])
             self.aux.append(Expression([Symbol("="), head, equation_compiler.block(rest)]))
 
             def continue_to(compiler: CompilerContext) -> Atom:
@@ -1708,7 +1712,7 @@ class StatementCompilerMixin(CompilerContext):
         body: Atom = (
             _superpose(inner.yield_answers(node.body)) if generator else inner.block(node.body)
         )
-        head = Expression([Symbol(mangled), *(Variable(n) for n in lifted + params)])
+        head = Expression([Symbol(mangled), *(Variable(binding_name(n)) for n in lifted + params)])
         self.aux.append(Expression([Symbol("="), head, body]))
 
     def yield_answers(self, statements: list[ast.stmt]) -> list[Atom]:
@@ -2066,7 +2070,7 @@ class _GeneratorContinuation:
             if dictionary:
                 compiler.dict_locals.add(name)
         body = _superpose(compiler.yield_answers(self.rest))
-        head = Expression([Symbol(self.helper), *(Variable(name) for name in self.params)])
+        head = Expression([Symbol(self.helper), *(Variable(binding_name(name)) for name in self.params)])
         self.compiler.aux.append(Expression([Symbol("="), head, body]))
 
 

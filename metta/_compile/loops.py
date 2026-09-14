@@ -1,5 +1,7 @@
 """Purpose: lower Python for and while statements into tail-recursive equations.
 Guarantees:
+  - helper parameters preserve Python underscore loop state [tested:
+    test_python_underscore_bindings_retain_their_values; commit=WORKTREE]
   - computed and expanded calls retain their native stream or iterable
     contract at iteration [tested:
     test_computed_calls_share_iteration_consumers; commit=10ef2f6958af451bcc3e651e0e0ccc7cc8ec7ce8]
@@ -35,6 +37,7 @@ from __future__ import annotations
 import ast
 
 from metta._atoms.factories import Atom, Expression, Symbol, Variable
+from metta._atoms.names import binding_name
 from metta._compile import call_syntax
 from metta._compile import records as _records
 from metta._compile.context import CompilerContext, next_aux_serial
@@ -115,7 +118,7 @@ class LoopCompilerMixin(CompilerContext):
         test = test_compiler._truthy(node.test)
         body = body_compiler.block(node.body)
         exit_branch = exit_compiler.block(rest)
-        head = Expression([Symbol(helper), *(Variable(n) for n in state)])
+        head = Expression([Symbol(helper), *(Variable(binding_name(n)) for n in state)])
         self.aux.append(
             Expression([Symbol("="), head, Expression([Symbol("if"), test, body, exit_branch])])
         )
@@ -169,7 +172,7 @@ class LoopCompilerMixin(CompilerContext):
             ]
         )
         exit_branch = exit_compiler.block(rest)
-        head = Expression([Symbol(helper), Variable(sequence), *(Variable(n) for n in state)])
+        head = Expression([Symbol(helper), Variable(sequence), *(Variable(binding_name(n)) for n in state)])
         test = Expression([Symbol("=="), Variable(sequence), Expression([])])
         self.aux.append(
             Expression([Symbol("="), head, Expression([Symbol("if"), test, exit_branch, body])])

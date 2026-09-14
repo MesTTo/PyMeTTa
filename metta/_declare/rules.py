@@ -1,6 +1,8 @@
 """Purpose: implement the root equation and rules factories without a colliding submodule.
 
 Guarantees:
+  - Python rule parameters are named native binders even when spelled `_`
+    [tested: test_native_underscore_patterns_remain_anonymous; commit=WORKTREE]
   - ``Rules.lower`` stores equations, publishes lowering declarations, and
     registers each symbolic head through the engine bridge [tested:
     test_rules_lower_emits_queryable_declaration_and_registers_the_head,
@@ -38,6 +40,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from metta._atoms.factories import Expression, Symbol, Variable, _encode
+from metta._atoms.names import binding_name
 from metta._lazy import lazy
 from metta._spaces.intents import LintEvent, event_at_frame
 
@@ -194,7 +197,7 @@ def rules(fn: Callable[..., Iterator[Expression]]) -> Rules:
     positional: list[Variable] = []
     keywords: dict[str, Variable] = {}
     for parameter in inspect.signature(fn).parameters.values():
-        variable = Variable(parameter.name)
+        variable = Variable(binding_name(parameter.name))
         if parameter.kind in (
             inspect.Parameter.POSITIONAL_ONLY,
             inspect.Parameter.POSITIONAL_OR_KEYWORD,

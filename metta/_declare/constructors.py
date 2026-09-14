@@ -1,6 +1,8 @@
 """Purpose: compile class initialization with the ordinary statement compiler.
 
 Guarantees:
+  - constructor parameters retain Python underscore identity [tested:
+    test_class_underscore_fields_receivers_and_packed_parameters; commit=WORKTREE]
   - default computations finish before field input contracts inspect their
     resulting values [tested:
     test_constructor_arguments_preserve_values_and_run_factories; commit=310a9d8b547a77412a518a37ab79fba073eb22ac]
@@ -31,6 +33,7 @@ import types
 from typing import Any
 
 from metta._atoms.factories import Atom, Expression, S, Symbol, Variable, _expr
+from metta._atoms.names import binding_name
 from metta._catalog import call_signatures, call_values
 from metta._compile.records import declared, field_key, value_receiver
 from metta._declare import call_syntax, field_values
@@ -240,7 +243,7 @@ def install(plan: Any) -> None:
         msg = f"{plan.name}.__init__ has no Python source; declare an explicit factory operation"
         raise CompileError(msg, construct="constructor source", line=1)
     receiver = next(iter(inspect.signature(contextual_function(plan.cls, fn)).parameters)) if fn is not None else "class-receiver"
-    scope = {name: name for name in names} | {receiver: "class-receiver"}
+    scope = {name: binding_name(name) for name in names} | {receiver: "class-receiver"}
     compiler = _compiler(plan, fn, scope, lambda current: _post_init(plan, current), receiver=receiver)
     body = _generated_body(plan, compiler) if plan.generated_init else _source_body(compiler)
     plan.import_dependencies(compiler.libraries, (body, *compiler.aux, *plan.defaults.values()))
@@ -249,7 +252,7 @@ def install(plan: Any) -> None:
         plan.space.add(equation)
     initialized = Symbol(f"_initialize-{plan.name}")
     plan.space.add(_expr(S.internal, initialized))
-    arguments = tuple(Variable(name) for name in names)
+    arguments = tuple(Variable(binding_name(name)) for name in names)
     receiver_atom = Variable("class-receiver")
     params = (receiver_atom, *arguments) if plan.grain != "value" else arguments
     plan.space.add(_expr(S["="], _expr(initialized, *params), body))

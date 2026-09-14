@@ -1,6 +1,9 @@
 """Purpose: carry Python call contracts as inspectable native parameter records.
 
 Guarantees:
+  - callable images keep underscore parameters named while retaining the
+    original keyword label [tested:
+    test_underscore_callable_parameters_keep_python_keyword_labels; commit=WORKTREE]
   - each native port retains its labels and answer cardinality, while
     repeated variadic labels remain positional [tested:
     test_expanded_operations_use_each_registered_arity;
@@ -24,6 +27,7 @@ from collections.abc import Callable
 from typing import Any
 
 from metta._atoms.factories import Atom, Expression, Grounded, S, Symbol, Variable, _expr
+from metta._atoms.names import binding_name
 from metta._atoms.registry import _lookup, constructor_for
 
 _ABSENT = object()
@@ -131,7 +135,7 @@ def native(name: str, parameters: tuple[str | None, ...], *, home: Atom | None =
     """Describe the labels of one positional native call, without host defaults."""
     named = None not in parameters and len(set(parameters)) == len(parameters)
     labels = tuple(parameter if named and parameter is not None else f"x{index + 1}" for index, parameter in enumerate(parameters))
-    variables = tuple(Variable(parameter) for parameter in labels)
+    variables = tuple(Variable(binding_name(parameter)) for parameter in labels)
     body = _expr(Symbol(name), *variables)
     if home is not None:
         body = _expr(S.evalc, body, home)

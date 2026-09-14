@@ -1,5 +1,8 @@
 """Purpose: install compiled Python functions and class declarations into a space.
 Guarantees:
+  - equation heads and stacked clause renaming preserve Python underscore
+    parameters [tested: test_stacked_underscore_parameters_retain_order_and_binding,
+    test_underscore_callable_parameters_keep_python_keyword_labels; commit=WORKTREE]
   - each native definition space and head owns its Python twin family;
     clearing the space retires its reference bindings [tested:
     test_twin_families_follow_their_definition_space,
@@ -130,7 +133,7 @@ from metta._atoms.factories import (
     _map_atoms,
     _to_atom,
 )
-from metta._atoms.names import attribute_name
+from metta._atoms.names import attribute_name, binding_name
 from metta._binding.dispatch import REGISTRY
 from metta._catalog import call_signatures
 from metta._catalog.declarations import inferred
@@ -631,7 +634,7 @@ def _case_equation(name: str, clauses: list[dict[str, Any]]) -> Expression:
         }
         rename.update(
             {
-                param: f"{name}-clause-{serial}-{param}"
+                binding_name(param): f"{name}-clause-{serial}-{binding_name(param)}"
                 for param in params
                 if param not in clause["patterns"]
             }
@@ -643,7 +646,7 @@ def _case_equation(name: str, clauses: list[dict[str, Any]]) -> Expression:
             return atom
 
         row_parts = [
-            clause["patterns"][param] if param in clause["patterns"] else Variable(rename[param])
+            clause["patterns"][param] if param in clause["patterns"] else Variable(rename[binding_name(param)])
             for param in params
         ]
         pattern: Atom = row_parts[0] if len(row_parts) == 1 else Expression(row_parts)
@@ -934,7 +937,7 @@ def _publish_define(space: Any, fn: types.FunctionType, name: str, compiled: Any
     # equation. Keeping the authored bodies raw here lets replacement rebuild
     # the whole connected component without accumulating old guards.
     bodies = compiled.equation_bodies
-    head = Expression([Symbol(name), *(patterns.get(p, Variable(p)) for p in params)])
+    head = Expression([Symbol(name), *(patterns.get(p, Variable(binding_name(p))) for p in params)])
     equations = tuple(Expression([Symbol("="), head, body]) for body in bodies)
     namespace = _DEFINE_TWINS.setdefault(space.name, TwinNamespace(_defined_twin))
     dispatcher = namespace.dispatcher(fn, name)
