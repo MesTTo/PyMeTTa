@@ -1,18 +1,28 @@
 """Purpose: rebuild native callable values with their lexical space.
 
 Guarantees:
+  - named callable values select their live Python contract independently of
+    supplied argument count, retaining defaults and both variadic segments
+    [tested: test_named_callable_uses_its_complete_signature,
+    test_named_callable_binding_agrees_with_python,
+    test_named_callable_observes_signature_replacement; commit=WORKTREE]
+  - exact positional ports precede overlapping variadic layouts, whose
+    ambiguity requires an explicit native image [tested:
+    test_an_exact_positional_port_precedes_variadic_ports,
+    test_overlapping_variadic_ports_require_an_explicit_native_image;
+    commit=WORKTREE]
   - Python calls preserve computed syntax and record arguments through native
     source bindings [tested:
     test_python_call_values_preserve_expression_arguments,
     test_computed_receivers_preserve_their_stored_syntax,
     test_python_call_values_preserve_symbols_with_live_scalar_rules;
-    commit=310a9d8b547a77412a518a37ab79fba073eb22ac]
+    commit=WORKTREE]
   - nonsymbol literal arguments retain direct cursor application [tested:
-    test_function_calls_suspend_endless_producers; commit=310a9d8b547a77412a518a37ab79fba073eb22ac]
+    test_function_calls_suspend_endless_producers; commit=WORKTREE]
   - quoted variables retain their value boundary when callable templates
     capture receivers [tested:
     test_class_methods_keep_full_python_signatures_and_native_bodies,
-    test_class_generator_methods_return_owned_cursors; commit=ba819bfa2aa69d231d8ebae7d74b085f838840de]
+    test_class_generator_methods_return_owned_cursors; commit=WORKTREE]
   - native application facts receive separate data frames, retaining supplied
     arguments, captures and live program edits [tested:
     test_native_application_frames_preserve_data_and_live_programs;
@@ -20,29 +30,29 @@ Guarantees:
     test_native_application_mapping_lookup_preserves_distinct_binders;
     test_native_application_keywords_do_not_bind_adapter_parameters;
     test_captured_application_parameters_keep_their_keyword_binding_rule;
-    commit=310a9d8b547a77412a518a37ab79fba073eb22ac]
+    commit=WORKTREE]
   - native references select their current call port and preserve captures
     and explicit contracts [tested:
     test_expanded_partial_references_preserve_capture_and_parameter_names;
     test_forwarding_contracts_preserve_explicit_cardinality_and_bound_captures;
-    test_native_references_observe_later_arity_changes; commit=310a9d8b547a77412a518a37ab79fba073eb22ac]
+    test_native_references_observe_later_arity_changes; commit=WORKTREE]
   - application evaluates the carried native value, including subsequent source
     rewrites [tested: test_native_callable_values_keep_their_lexical_program;
-    commit=310a9d8b547a77412a518a37ab79fba073eb22ac]
+    commit=WORKTREE]
   - segment applications execute the constructed call and preserve captured
     arguments [tested: test_evaluated_native_lambdas_apply_their_assembled_arguments;
-    commit=310a9d8b547a77412a518a37ab79fba073eb22ac]
+    commit=WORKTREE]
   - adding the current lexical home retains the source lambda's contract
     [tested: test_native_callable_contracts_survive_lexical_wrapping;
-    commit=310a9d8b547a77412a518a37ab79fba073eb22ac]
+    commit=WORKTREE]
   - contract lookup preserves distinct binders and references to authored
     heads [tested: test_contract_lookup_preserves_distinct_lambda_binders;
     test_callable_conversion_keeps_authored_heads_as_live_references;
-    commit=310a9d8b547a77412a518a37ab79fba073eb22ac]
+    commit=WORKTREE]
 Owns resources:
   - the callable image contains its lexical home and captured receiver, so
     scope retention follows the ordinary native value graph [tested:
-    test_a_kept_native_callable_retains_its_scoped_program; commit=310a9d8b547a77412a518a37ab79fba073eb22ac]
+    test_a_kept_native_callable_retains_its_scoped_program; commit=WORKTREE]
 """
 
 from __future__ import annotations
@@ -210,20 +220,8 @@ class NativeCallable:
     def _layout(self, arity: int | None = None, keyword_names: Collection[str] = ()) -> tuple[Atom, inspect.Signature, bool, Atom | None]:
         if (declared := self._declared_contract(keyword_names)) is not None:
             return self.atom, *declared
-        if arity is not None and (reference := _forwarded(self.atom, arity)) is not None:
-            source, captures = reference
-            canonical = _application_image(source, (), arity + len(captures), self.space)
-            if (declared := NativeCallable(canonical, self.space, Any)._declared_contract(keyword_names)) is not None:
-                signature, stream, applicator = declared
-                remaining = _uncaptured(signature, len(captures), keyword_names)
-                if applicator is not None and captures:
-                    positional, keywords, complete = fresh(), fresh(), fresh()
-                    supplied: Atom = positional
-                    for capture in reversed(captures):
-                        supplied = _expr(S["cons-atom"], _expr(S.noeval, capture), supplied)
-                    applicator = _expr(S["|->"], Expression([positional, keywords]),
-                                       _expr(S.let, complete, supplied, _expr(applicator, complete, keywords)))
-                return _application_image(source, captures, arity, self.space), remaining, stream, applicator
+        if (layout := self._reference_layout(arity, keyword_names)) is not None:
+            return layout
         if isinstance(self.atom, Symbol):
             return self.atom, self.space.fn[self.atom.name].__signature__, False, None
         parameters = []
@@ -236,6 +234,65 @@ class NativeCallable:
                 msg = "a patterned native lambda has no Python keyword parameter names; apply its atom in a space"
                 raise TypeError(msg)
         return self.atom, inspect.Signature(parameters, return_annotation=self.result_type), False, None
+
+    def _reference_layout(self, arity: int | None, keywords: Collection[str]) -> tuple[Atom, inspect.Signature, bool, Atom | None] | None:
+        """Select a live native port by its argument grammar, not slot count."""
+        reference = _forwarded(self.atom, 0 if arity is None else arity)
+        if reference is None:
+            return None
+        source, captures = reference
+        layouts: list[tuple[Atom, inspect.Signature, bool, Atom | None]] = []
+        exact = None if arity is None else arity + len(captures)
+        if exact is not None and (layout := self._port_layout(source, captures, exact, keywords)) is not None:
+            layouts.append(layout)
+            # Native fixed-arity dispatch is the specific case. Preserve its
+            # direct lookup and single binding pass, including binding errors.
+            if all(parameter.kind in (
+                inspect.Parameter.POSITIONAL_ONLY, inspect.Parameter.POSITIONAL_OR_KEYWORD,
+            ) for parameter in layout[1].parameters.values()):
+                return layout
+        for native_arity in self.space.arities(source.name):
+            count = native_arity - 1
+            if (count >= len(captures) and count != exact
+                    and (layout := self._port_layout(source, captures, count, keywords)) is not None):
+                layouts.append(layout)
+        # A unique declaration needs no speculative binding pass. This also
+        # preserves effects from keyword keys and the declaration's diagnostics.
+        if len(layouts) == 1:
+            return layouts[0]
+        if not layouts or arity is None:
+            return None
+        accepted = []
+        for layout in layouts:
+            try:
+                layout[1].bind(*([None] * (arity - len(keywords))), **dict.fromkeys(keywords))
+            except TypeError:
+                continue
+            accepted.append(layout)
+        if len(accepted) > 1:
+            msg = f"{source.name}: more than one native call port accepts these arguments; carry the intended native lambda image"
+            raise TypeError(msg)
+        if accepted:
+            return accepted[0]
+        msg = f"{source.name}: no declared native call port accepts these arguments"
+        raise TypeError(msg)
+
+    def _port_layout(self, source: Symbol, captures: tuple[Atom, ...], count: int,
+                     keywords: Collection[str]) -> tuple[Atom, inspect.Signature, bool, Atom | None] | None:
+        canonical = _application_image(source, (), count, self.space)
+        declared = NativeCallable(canonical, self.space, Any)._declared_contract(keywords)
+        if declared is None:
+            return None
+        signature, stream, applicator = declared
+        remaining = _uncaptured(signature, len(captures), keywords)
+        if applicator is not None and captures:
+            positional, named, complete = fresh(), fresh(), fresh()
+            supplied: Atom = positional
+            for capture in reversed(captures):
+                supplied = _expr(S["cons-atom"], _expr(S.noeval, capture), supplied)
+            applicator = _expr(S["|->"], Expression([positional, named]),
+                               _expr(S.let, complete, supplied, _expr(applicator, complete, named)))
+        return _application_image(source, captures, count - len(captures), self.space), remaining, stream, applicator
 
     def application(self, args: Any, kwargs: Any) -> tuple[Atom, inspect.Signature, bool]:
         """Bind call syntax without evaluating the resulting native term."""

@@ -5,24 +5,27 @@ Guarantees:
     raw host codec [tested:
     test_compiled_host_calls_keep_data_out_of_keyword_control,
     test_reflected_host_application_frames_remain_editable,
-    test_host_call_frames_do_not_inspect_callable_signatures; commit=86756da11eade288973b0dfaab7486a29e598cfd]
+    test_host_call_frames_do_not_inspect_callable_signatures; commit=WORKTREE]
   - method and constructor values keep positional data separate from keyword
     entries [tested:
     test_keyword_named_atoms_remain_positional_method_and_constructor_values;
-    commit=86756da11eade288973b0dfaab7486a29e598cfd]
+    commit=WORKTREE]
   - qualified class applications carry their class identity through native
     dispatch and scope retention [tested:
-    test_kept_unbound_methods_retain_their_class_program; commit=86756da11eade288973b0dfaab7486a29e598cfd]
+    test_kept_unbound_methods_retain_their_class_program; commit=WORKTREE]
   - positional expansion preserves native atoms in native and borrowed
     sequences [tested: test_expanded_arguments_preserve_native_atom_values;
-    commit=5f94e43542d3afd87776476e767f5fda661423bc]
+    commit=WORKTREE]
   - signature binding constructs a native application and never runs its body
-    [tested: test_expanded_native_calls_read_the_live_contract; commit=86756da11eade288973b0dfaab7486a29e598cfd]
+    [tested: test_expanded_native_calls_read_the_live_contract; commit=WORKTREE]
+  - named references defer port selection to their live native call contracts
+    [source: extensions/python/metta/_catalog/call_values.py:NativeCallable._reference_layout;
+    commit=WORKTREE]
 Owns resources:
   - consuming spaces own their ordinary operation registrations; keyword
     dictionaries are temporary values local to one call
     [tested: test_expanded_operation_contracts_follow_replacement_and_retirement;
-    commit=10ef2f6958af451bcc3e651e0e0ccc7cc8ec7ce8]
+    commit=WORKTREE]
 """
 
 from __future__ import annotations
@@ -121,7 +124,7 @@ def bind_call(home: Atom, function: Atom, positional: Atom, keywords: Atom, cons
         ))
         stream = False
     else:
-        native = call_values.rebuild(function, Any, call_values.lexical_space(home), arity=len(positional.children) + len(named))
+        native = call_values.rebuild(function, Any, call_values.lexical_space(home))
         if native is None:
             msg = "the value has no native callable image"
             raise TypeError(msg)
