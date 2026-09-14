@@ -5,7 +5,7 @@ implementation's signature; native imports must have an engine service row
 [tested: test_binding_crossing_mutations_refuse; commit=8358dfc233bf299bb23eceddd94593a62372fe4b].
 The value and foreign-space length services are declared with their generated
 ownership providers [tested: python extensions/python/tools/bindinggen.py;
-commit=WORKTREE].
+commit=d336b911f0d727b50a5660eb86f5ed44b35303b5].
 Decides: dynamic object calls are capabilities of named predicates. A capability
 does not admit undeclared static callbacks or crossings in another predicate.
 """

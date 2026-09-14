@@ -4,7 +4,7 @@ Guarantees: live contents and owner metadata decide the contract; names and
 enumeration do not substitute for a length [tested:
 test_native_space_length_refinements_follow_live_contents,
 test_foreign_space_length_refinements_use_the_owner,
-test_foreign_space_length_failures_preserve_the_owner_error; commit=WORKTREE].
+test_foreign_space_length_failures_preserve_the_owner_error; commit=d336b911f0d727b50a5660eb86f5ed44b35303b5].
 Owns resources: fixtures explicitly drop named spaces and unregister providers.
 """
 

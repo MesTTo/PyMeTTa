@@ -2,9 +2,9 @@
 % Guarantees: a Python-backed space answers length refinements through its
 % Sized promise without enumeration [tested:
 % test_foreign_space_length_refinements_use_the_owner;
-% test_foreign_space_length_failures_preserve_the_owner_error; commit=WORKTREE].
+% test_foreign_space_length_failures_preserve_the_owner_error; commit=d336b911f0d727b50a5660eb86f5ed44b35303b5].
 % Open variables never choose a registered provider [tested:
-% test_foreign_space_length_does_not_choose_a_value_for_a_variable; commit=WORKTREE].
+% test_foreign_space_length_does_not_choose_a_value_for_a_variable; commit=d336b911f0d727b50a5660eb86f5ed44b35303b5].
 % Assumes: bindinggen projects each row into its declared load audience
 % and defining module.
 % Guarantees: every supplied head has this file's engine kind
