@@ -1,5 +1,8 @@
 """Purpose: lower Python expressions into equivalent MeTTa atom trees.
 Guarantees:
+  - ordinary carried calls and host islands keep completed values separate
+    from keyword control [tested:
+    test_compiled_host_calls_keep_data_out_of_keyword_control; commit=WORKTREE]
   - lambda and comprehension binders preserve Python underscore identity
     [tested: test_python_underscore_bindings_retain_their_values; commit=69d1511c099eb6aa80c38d898da49487c42470f0]
   - dictionary get selects its optional default only for an absent key;
@@ -12,7 +15,7 @@ Guarantees:
     test_expanded_calls_match_python_operand_and_mapping_failure_order;
     test_computed_lambda_calls_bind_keywords_after_creating_the_value;
     test_static_keyword_calls_evaluate_values_before_parameter_reordering;
-    commit=10ef2f6958af451bcc3e651e0e0ccc7cc8ec7ce8]
+    commit=WORKTREE]
   - sequence construction binds computed elements in source order, then
     retains their values as data [tested:
     test_computed_sequence_heads_remain_values_after_native_rewriting,
@@ -1001,9 +1004,7 @@ class ExpressionCompilerMixin(CompilerContext):
         composite = self._composite_operator_call(node)
         if composite is not None:
             return composite
-        if call_syntax.expanded(node) or (
-            call_syntax.dynamic(self, node) and (node.keywords or not isinstance(node.func, ast.Name))
-        ):
+        if call_syntax.expanded(node) or call_syntax.dynamic(self, node):
             return call_syntax.application(self, node)
         if node.keywords:
             return self._keyword_call(node)
@@ -1122,9 +1123,12 @@ class ExpressionCompilerMixin(CompilerContext):
             in_loop=self.loop_depth > 0,
             marked=marked,
         )
-        return Expression(
-            [Grounded(island), *(_records.host_operand(self, name) for name in runtime_names)]
-        )
+        values = [Variable(self._temp("island-value")) for _ in runtime_names]
+        body = call_syntax.bound_application(self, Grounded(island), Expression(values), Grounded({}))
+        for name, variable in reversed(tuple(zip(runtime_names, values, strict=True))):
+            source = call_syntax.value_source(_records.host_operand(self, name))
+            body = Expression([Symbol("let"), variable, source, body])
+        return body
 
     def _unknown_host_callee(
         self,

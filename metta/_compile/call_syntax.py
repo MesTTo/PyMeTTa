@@ -1,14 +1,17 @@
 """Purpose: construct native applications in Python's argument evaluation order.
 
 Guarantees:
+  - carried values and host-island locals remain data inside independent call
+    frames [tested: test_compiled_host_calls_keep_data_out_of_keyword_control,
+    test_carried_native_calls_hold_completed_operand_values; commit=WORKTREE]
   - native and borrowed positional sequences retain their atom elements
-    [tested: test_expanded_arguments_preserve_native_atom_values; commit=5f94e43542d3afd87776476e767f5fda661423bc]
+    [tested: test_expanded_arguments_preserve_native_atom_values; commit=WORKTREE]
   - each Python call form retains its materializer's length effects
     [tested: test_expanded_arguments_follow_python_length_hint_effects;
-    commit=5f94e43542d3afd87776476e767f5fda661423bc]
+    commit=WORKTREE]
   - expansion and keyword-group merge order follow Python's call construction
     [tested: test_expanded_calls_match_python_operand_and_mapping_failure_order;
-    commit=10ef2f6958af451bcc3e651e0e0ccc7cc8ec7ce8]
+    commit=WORKTREE]
 """
 
 from __future__ import annotations
@@ -32,20 +35,34 @@ def dynamic(compiler: CompilerContext, node: ast.Call) -> bool:
     return not isinstance(node.func, (ast.Name, ast.Attribute)) or (isinstance(node.func, ast.Name) and node.func.id in compiler.scope)
 
 
+def value_source(value: Atom) -> Atom:
+    """Read a completed atom; only a compiled expression describes computation."""
+    return value if isinstance(value, Expression) else _expr(S.noeval, value)
+
+
+def bound_application(compiler: CompilerContext, function: Atom, positional: Atom,
+                      keywords: Atom, *, consumer: str = "value") -> Atom:
+    """Execute the live application described by independent argument frames."""
+    compiler.runtime_ops.update(("_python-bind-call", "py-dict"))
+    assembled = Variable(compiler._temp("call-application"))
+    binding = _expr(S["_python-bind-call"], Symbol("&self"), function, positional, keywords, Grounded(consumer))
+    return _expr(S.let, assembled, binding, _expr(S.eval, assembled))
+
+
 def application(compiler: CompilerContext, node: ast.Call, *, consumer: str = "value", callee: Atom | None = None) -> Atom:
     """Evaluate operands, bind their syntax, then execute the assembled term."""
     compiler.runtime_ops.update(("_python-bind-call", "_python-merge-keywords", "py-dict"))
     if consumer == "iterable":
         compiler.runtime_ops.add("py-iter-once")
     function = Variable(compiler._temp("call-function"))
-    bindings = [(compiler.expression(node.func) if callee is None else callee, function)]
+    bindings = [(value_source(compiler.expression(node.func) if callee is None else callee), function)]
     deferred = len(node.args) == 1 and isinstance(node.args[0], ast.Starred)
     pieces = []
     for source in node.args:
         spread = isinstance(source, ast.Starred)
         value = compiler.expression(source.value if isinstance(source, ast.Starred) else source)
         variable = Variable(compiler._temp("call-argument"))
-        bindings.append((value, variable))
+        bindings.append((value_source(value), variable))
         if spread and not deferred:
             compiler.runtime_ops.add("_python-expand-positional")
             materialized = Variable(compiler._temp("call-positionals"))
@@ -57,7 +74,10 @@ def application(compiler: CompilerContext, node: ast.Call, *, consumer: str = "v
         positional = pieces[0]
     else:
         for piece in reversed(pieces):
-            positional = _expr(S.append, piece, positional)
+            # union-atom returns Atom: the assembled run is data, including
+            # executable-looking children. append's Undefined result re-enters
+            # reduction here. lib_builtin_types declares both contracts.
+            positional = _expr(S["union-atom"], piece, positional)
     arguments = Variable(compiler._temp("call-positionals"))
     bindings.append((positional, arguments))
     keywords = Variable(compiler._temp("call-keywords"))
@@ -66,7 +86,7 @@ def application(compiler: CompilerContext, node: ast.Call, *, consumer: str = "v
     mapping: Atom
     for index, keyword in enumerate(node.keywords):
         value = Variable(compiler._temp("call-keyword"))
-        bindings.append((compiler.expression(keyword.value), value))
+        bindings.append((value_source(compiler.expression(keyword.value)), value))
         if keyword.arg is not None:
             named.append(_expr(S.entry, Grounded(keyword.arg), value))
             if index + 1 < len(node.keywords) and node.keywords[index + 1].arg is not None:
@@ -87,9 +107,7 @@ def application(compiler: CompilerContext, node: ast.Call, *, consumer: str = "v
         materialized = Variable(compiler._temp("call-positionals"))
         bindings.append((_expr(S["_python-expand-positional"], arguments, call_signatures.annotation(tuple)), materialized))
         arguments = materialized
-    assembled = Variable(compiler._temp("call-application"))
-    bindings.append((_expr(S["_python-bind-call"], Symbol("&self"), function, arguments, keywords, Grounded(consumer)), assembled))
-    body = _expr(S.eval, assembled)
+    body = bound_application(compiler, function, arguments, keywords, consumer=consumer)
     for value, variable in reversed(bindings):
         # The pattern is the fresh variable. A callable value may contain a
         # segment binder; putting that syntax in chain's pattern position

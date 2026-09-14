@@ -1,18 +1,23 @@
 """Purpose: link Python call-argument binding into native compiled programs.
 
 Guarantees:
+  - host applications retain editable native argument frames and the existing
+    raw host codec [tested:
+    test_compiled_host_calls_keep_data_out_of_keyword_control,
+    test_reflected_host_application_frames_remain_editable,
+    test_host_call_frames_do_not_inspect_callable_signatures; commit=WORKTREE]
   - method and constructor values keep positional data separate from keyword
     entries [tested:
     test_keyword_named_atoms_remain_positional_method_and_constructor_values;
-    commit=ba819bfa2aa69d231d8ebae7d74b085f838840de]
+    commit=WORKTREE]
   - qualified class applications carry their class identity through native
     dispatch and scope retention [tested:
-    test_kept_unbound_methods_retain_their_class_program; commit=ba819bfa2aa69d231d8ebae7d74b085f838840de]
+    test_kept_unbound_methods_retain_their_class_program; commit=WORKTREE]
   - positional expansion preserves native atoms in native and borrowed
     sequences [tested: test_expanded_arguments_preserve_native_atom_values;
     commit=5f94e43542d3afd87776476e767f5fda661423bc]
   - signature binding constructs a native application and never runs its body
-    [tested: test_expanded_native_calls_read_the_live_contract; commit=10ef2f6958af451bcc3e651e0e0ccc7cc8ec7ce8]
+    [tested: test_expanded_native_calls_read_the_live_contract; commit=WORKTREE]
 Owns resources:
   - consuming spaces own their ordinary operation registrations; keyword
     dictionaries are temporary values local to one call
@@ -27,6 +32,7 @@ import inspect
 from typing import Any
 
 from metta._atoms.factories import Atom, Expression, Grounded, Handle, S, Symbol, Variable, _expr
+from metta._binding import host
 from metta._catalog import call_signatures, call_values
 from metta._catalog.build import build
 from metta._declare import operations
@@ -105,8 +111,14 @@ def bind_call(home: Atom, function: Atom, positional: Atom, keywords: Atom, cons
     named = {name: call_values.argument(value) for name, value in keywords.value.items()}
     application: Atom
     if isinstance(function, Grounded):
-        packet = _expr(S.Kwargs, *(Expression([Symbol(name), value]) for name, value in named.items()))
-        application = _expr(function, *positional.children, *((packet,) if named else ()))
+        pairs = Expression([Expression([Grounded(name), value]) for name, value in named.items()])
+        mapping = _expr(S["py-dict"], _expr(S.noeval, pairs)) if named else keywords
+        # host.apply already consumes separate frames. Expanding a positional
+        # term into the grounded-call syntax would reinterpret a last Kwargs
+        # value as control; its fields could also be evaluated a second time.
+        application = call_values.apply_sources(Grounded(host.apply), (
+            _expr(S.noeval, function), _expr(S.noeval, positional), mapping,
+        ))
         stream = False
     else:
         native = call_values.rebuild(function, Any, call_values.lexical_space(home), arity=len(positional.children) + len(named))

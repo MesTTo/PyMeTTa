@@ -6,7 +6,7 @@ Guarantees:
     test_py_host_island_executes_per_engine_application; commit=3f0a1d237a3c969b2d4ad0d48b2195ce196b631a]
   - exact marker identity prevents a parameter named ``py`` from silently
     becoming a host crossing [tested:
-    test_a_shadowed_py_name_remains_an_engine_callee; commit=3f0a1d237a3c969b2d4ad0d48b2195ce196b631a]
+    test_a_shadowed_py_name_remains_an_engine_callee; commit=WORKTREE]
   - for, while, and comprehension crossings each produce one loop lint
     finding while a crossing outside them does not [tested:
     test_py_host_island_inside_loops_emits_exact_findings; commit=3f0a1d237a3c969b2d4ad0d48b2195ce196b631a]
@@ -88,7 +88,8 @@ def test_a_shadowed_py_name_remains_an_engine_callee(m):
     def shadowed_py(py, value):
         return py(value)
 
-    assert str(shadowed_py.body) == "($py $value)"
+    m.run("(= (shadowed-py-target $value) (+ $value 3))")
+    assert list(shadowed_py(S["shadowed-py-target"], 4)) == [7]
     assert not any(finding.kind == "host-island-in-loop" for finding in m.lint())
 
 
