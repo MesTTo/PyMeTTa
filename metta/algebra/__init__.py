@@ -72,7 +72,7 @@ Guarantees:
     vocabulary outside its combine operation's domain (tropical's and budget's
     `infinity`) reinterprets to exactly what it evaluates directly [tested:
     test_reinterpretation_under_a_raw_tag_carrier_answers_what_direct_evaluation_answers;
-    commit=WORKTREE]
+    commit=54cdeb08d3f9b64d4920a779cd9a24ec257f6e54]
   - tagged counts share the positive-limit contract used by ordinary queries
     [tested: test_tagged_count_and_match_refuse_zero_with_the_same_message;
     commit=61e107a8105a5cdaea164f615812a684b12d8fe3]

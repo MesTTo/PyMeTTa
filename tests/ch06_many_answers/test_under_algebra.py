@@ -25,7 +25,7 @@ Guarantees:
     tags answers what direct evaluation under that carrier answers, including
     the two whose zero is the symbol `infinity` [tested:
     test_reinterpretation_under_a_raw_tag_carrier_answers_what_direct_evaluation_answers;
-    commit=WORKTREE]
+    commit=54cdeb08d3f9b64d4920a779cd9a24ec257f6e54]
   - the algebra satellite is its callable constructor while keeping module
     identity, and Space.sample uses random.choices vocabulary [tested:
     test_algebra_module_is_the_constructor_and_the_old_space_doors_are_retired,
