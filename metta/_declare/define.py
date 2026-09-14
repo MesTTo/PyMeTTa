@@ -8,6 +8,9 @@ spelling; and a free identifier must be a parameter, a known function, or
 read as a data constructor. A compiled body is a complete atom tree, and any
 runtime-backed Python semantics it needs are declared as visible operations.
 Guarantees:
+  - literal head parameters remain values in body scopes and independent
+    generator equations [tested: test_literal_head_values_reach_compiled_bodies;
+    test_each_generator_equation_binds_its_literal_head; commit=WORKTREE]
   - source parameters and SSA bindings retain underscore identity in every
     nested compiler scope [tested:
     test_python_underscore_bindings_retain_their_values; commit=69d1511c099eb6aa80c38d898da49487c42470f0]
@@ -665,9 +668,9 @@ def compile_function(
             _parameters(definition) if signature is None
             else (list(signature.parameters), {})
         )
-        # A literal-patterned position is fixed by the head, so it is not a
-        # variable in the body's scope; naming it there would shadow the match.
-        scope = [p for p in params if p not in patterns]
+        # The head fixes literal inputs; the body still has their local names.
+        # Bind those values after lowering so every nested scope sees them.
+        scope = params
         namespace = _function_namespace(fn)
         closure_names = set(fn.__code__.co_freevars)
         closure_values: dict[str, Any] = {}
@@ -802,6 +805,12 @@ def compile_function(
         else:
             body = compiler.block(definition.body)
             equation_bodies = (body,)
+        written_body = body
+        body = _bind_head_parameters(body, patterns)
+        equation_bodies = tuple(
+            body if equation is written_body else _bind_head_parameters(equation, patterns)
+            for equation in equation_bodies
+        )
     except CompileError as refusal:
         # Statement walls raise with the function-relative line alone;
         # the caret block is derived once here from the held source
@@ -887,6 +896,20 @@ def _parameters(node: ast.FunctionDef) -> tuple[list[str], dict[str, Atom]]:
             )
         patterns[arg.arg] = Grounded(default.value)
     return params, patterns
+
+
+def _bind_head_parameters(body: Atom, patterns: dict[str, Atom]) -> Atom:
+    """Give a body's referenced literal parameters their matched values."""
+    if not patterns:
+        return body
+    variables = set(_variables(body))
+    for name, value in reversed(patterns.items()):
+        variable = binding_name(name)
+        if variable in variables:
+            body = Expression([
+                S.let, Variable(variable), Expression([S.noeval, value]), body,
+            ])
+    return body
 
 
 class _Compiler(
