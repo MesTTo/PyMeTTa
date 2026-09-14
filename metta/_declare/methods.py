@@ -5,6 +5,11 @@ Owns resources:
     entries; bound values retain the receiver and its lexical space [tested:
     test_class_bound_methods_keep_the_receiver_and_program_alive; commit=ba819bfa2aa69d231d8ebae7d74b085f838840de]
 Guarantees:
+  - one canonical image owns the live parameter contract used by bound and
+    unbound entries, whose shared binder captures no Python method [tested:
+    test_method_defaults_are_read_from_one_native_signature;
+    test_class_methods_keep_full_python_signatures_and_native_bodies;
+    commit=WORKTREE]
   - method receivers and packed parameters retain Python underscore identity
     [tested: test_class_underscore_fields_receivers_and_packed_parameters; commit=69d1511c099eb6aa80c38d898da49487c42470f0]
   - Python invocation reads the live native equation and preserves the source
@@ -244,24 +249,24 @@ class Method:
 
     def install_binding(self) -> None:
         """Bind Python call syntax, then evaluate its ordinary native application."""
-        def bind(positional: Atom, keywords: Atom) -> Atom:
-            signature = call_values.NativeCallable(self.bound_atom(), self.owner.space, Any).__signature__
-            supplied = call_syntax.bind_arguments(signature, positional, keywords)
-            defaults = {
-                name: _expr(S.noeval, call_values.argument(parameter.default))
-                for name, parameter in signature.parameters.items()
-                if parameter.default is not inspect.Parameter.empty
-            }
-            sources = self.owner.argument_sources(supplied.arguments, call_values.argument, signature=signature, defaults=defaults)
-            return call_values.apply_sources(Symbol(self.name), sources)
-
-        call_syntax.publish_binding(self.owner, self.unbound_apply_name, bind, (S.Expression, S.Expression))
+        home = Symbol(self.owner.space.name)
+        parameters = Expression([Variable(f"call-parameter-{index}") for index, _ in enumerate(self.signature.parameters)])
+        canonical = _expr(S["|->"], parameters, _expr(S.evalc, _expr(Symbol(self.name), *parameters.children), home))
+        binder = S["_python-bind-parameters"]
+        call_syntax.link(self.owner.space, (binder.name,))
         member = Symbol(attribute_name(self.python_name))
         call_syntax.publish_member(self.owner, member, Symbol(self.unbound_apply_name))
         receiver = Variable("method-self")
         positional, keywords, complete = Variable("method-positionals"), Variable("method-keywords"), Variable("method-complete")
         apply = Symbol(self.apply_name)
         unbound = Symbol(self.unbound_apply_name)
+        binding = call_values.apply_sources(binder, tuple(
+            _expr(S.noeval, value) for value in (home, canonical, positional, keywords)
+        ))
+        call = Variable("method-bound-call")
+        self.owner.space.add(_expr(S["="], _expr(unbound, positional, keywords),
+                                   _expr(S.chain, binding, call, _expr(S.evalc, call, home))))
+        self.owner.space.add(_expr(S[":"], unbound, _expr(S["->"], S.Expression, S.Expression, S["%Undefined%"])))
         self.owner.space.add(_expr(S["="], _expr(apply, receiver, positional, keywords),
                                    _expr(S.let, complete, _expr(S["cons-atom"], _expr(S.noeval, receiver), positional),
                                          _expr(unbound, complete, keywords))))
@@ -270,11 +275,13 @@ class Method:
         self.owner.space.add(_expr(S["="], _expr(Symbol(self.bind_name), receiver),
                                    _expr(S.noeval, self.bound_atom(receiver))))
         self.owner.space.add(_expr(S[":"], Symbol(self.bind_name), _expr(S["->"], Symbol(self.owner.name), S.Atom)))
-        self.owner.space.add(_expr(S["@python-binding"], self.bound_atom(receiver), self.bound_atom(), Grounded(1)))
-        self.owner.space.add(_expr(S["@python-callable"], self.bound_atom(), call_signatures.project(self.signature, call_values.argument), S.stream if self.generator else S.one))
+        self.owner.space.add(_expr(S["@python-binding"], self.bound_atom(receiver), canonical, Grounded(1)))
+        self.owner.space.add(_expr(S["@python-binding"], self.bound_atom(), canonical, Grounded(0)))
+        self.owner.space.add(_expr(S["@python-callable"], canonical, call_signatures.project(self.signature, call_values.argument), S.stream if self.generator else S.one))
         for image, arguments in (
             (self.bound_atom(receiver), _expr(S["cons-atom"], _expr(S.noeval, receiver), positional)),
             (self.bound_atom(), _expr(S.noeval, positional)),
+            (canonical, _expr(S.noeval, positional)),
         ):
             application = call_syntax.member_application(self.owner, member, arguments, _expr(S.noeval, keywords))
             applicator = _expr(S["|->"], Expression([positional, keywords]), _expr(S.evalc, application, Symbol(self.owner.space.name)))

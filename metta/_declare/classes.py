@@ -11,6 +11,11 @@ Guarded by:
     [tested: test_concurrent_reconstruction_publishes_one_python_proxy,
     test_overlapping_transactions_cannot_publish_distinct_proxies; commit=9b0a084e534ddf7dd67980ad84c27c8279b877f1]
 Guarantees:
+  - constructor and method parameters use the same native packing while
+    constructor defaults remain source computations [tested:
+    test_constructor_defaults_follow_the_native_callable_contract;
+    test_class_methods_keep_full_python_signatures_and_native_bodies;
+    commit=WORKTREE]
   - Python field setters preserve computed syntax values at typed native
     writers [tested: test_field_assignment_keeps_computed_syntax_values;
     commit=310a9d8b547a77412a518a37ab79fba073eb22ac]
@@ -53,10 +58,11 @@ from enum import Enum, Flag
 from functools import partial
 from typing import Any
 
-from metta._atoms.factories import Atom, Expression, Grounded, S, Symbol, Variable, _expr, fresh
+from metta._atoms.factories import Atom, Expression, Grounded, S, Symbol, Variable, _expr
 from metta._atoms.model import _encode_register, _encode_value
 from metta._atoms.names import attribute_name
 from metta._atoms.registry import _record_registration, _Registration
+from metta._catalog import call_values
 from metta._catalog.annotations import (
     _written_annotations,
     referenced_classes,
@@ -573,7 +579,6 @@ class ClassDeclaration:
 
     def argument_sources(self, supplied: dict[str, Any], encode: Any, *, signature: inspect.Signature | None = None, defaults: dict[str, Atom] | None = None) -> tuple[Atom, ...]:
         """Quote supplied values; omitted parameters retain their default code."""
-        result: list[Atom] = []
         if defaults is None:
             defaults = self.defaults if signature is None else {
                 name: argument(parameter.default)
@@ -581,29 +586,11 @@ class ClassDeclaration:
                 if parameter.default is not inspect.Parameter.empty
             }
         signature = self.signature if signature is None else signature
-        for name, parameter in signature.parameters.items():
-            if name in supplied:
-                value = supplied[name]
-                if parameter.kind is inspect.Parameter.VAR_POSITIONAL:
-                    result.append(_expr(S.noeval, Expression([encode(part) for part in value])))
-                elif parameter.kind is inspect.Parameter.VAR_KEYWORD:
-                    result.append(self.keyword_arguments({key: encode(part) for key, part in value.items()}))
-                else:
-                    result.append(_expr(S.noeval, encode(value)))
-            elif parameter.kind is inspect.Parameter.VAR_POSITIONAL:
-                result.append(_expr(S.noeval, Expression([])))
-            elif parameter.kind is inspect.Parameter.VAR_KEYWORD:
-                result.append(self.keyword_arguments({}))
-            else:
-                result.append(defaults[name])
-        return tuple(result)
+        return call_values.argument_sources(signature, supplied, encode, Symbol(self.space.name), defaults)
 
     def keyword_arguments(self, values: dict[str, Atom]) -> Atom:
         """Build a keyword mapping through the class's private library import."""
-        pairs = Expression([Expression([Grounded(key), value]) for key, value in values.items()])
-        held = fresh()
-        return _expr(S.let, held, _expr(S.noeval, pairs),
-                     _expr(S.evalc, _expr(S["dict-space"], held), Symbol(self.space.name)))
+        return call_values.keyword_arguments(Symbol(self.space.name), values)
 
     def install_storage(self) -> None:
         part = Variable("identity")

@@ -13,7 +13,7 @@ from typing import Annotated
 
 import pytest
 
-from metta import MeTTa, S, Space, V, convert
+from metta import Atom, MeTTa, S, Space, V, convert
 from metta._declare.classes import declaration
 from metta._errors.errors import CompileError, MettaResultError
 from metta.vocabularies import EffectClass
@@ -82,11 +82,31 @@ def test_class_methods_keep_full_python_signatures_and_native_bodies():
         assert value.score(1, bonus=7) == 20
         assert value.invoke() == 44
         assert inspect.signature(value.score) == inspect.signature(value.score.py)
+        canonical = convert.build(S["MethodSignature-score"], Callable[..., int], space=declaration(MethodSignature).space)
+        assert canonical(value, 1, 4, 5, 6, scale=2, bonus=7) == 44
         assert "_host-" not in value.score.source()
         with pytest.raises(TypeError):
             value.score(self=1, bonus=7)
         with pytest.raises(TypeError):
             value.score(1, 2, amount=3, bonus=7)
+
+
+@pytest.mark.parametrize("value", (None, False, 0, "", S.scalar, S["+"](1, 2), V.held))
+def test_compiled_keyword_collectors_keep_atom_values(value):
+    """A method returns the native keyword collector with its supplied atoms."""
+    with MeTTa() as context:
+        home = context.self
+
+        @home.define
+        @dataclass(frozen=True)
+        class KeywordCollector:
+            def keep(self, **options: Atom) -> Atom:
+                return options
+
+        declaration(KeywordCollector).space.add(S["="](S.scalar, 97))
+        collector = KeywordCollector().keep(held=value)
+        (pair,) = Space(collector).atoms()
+        assert pair.args[0].alpha_eq(convert.project(value).atom)
 
 
 def test_class_open_recursion_and_cooperative_super_follow_c3():

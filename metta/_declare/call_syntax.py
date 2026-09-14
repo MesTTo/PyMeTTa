@@ -1,6 +1,10 @@
 """Purpose: link Python call-argument binding into native compiled programs.
 
 Guarantees:
+  - compiled parameter binding reads its home, image and frames as native
+    data and returns source without evaluating the body [tested:
+    test_native_parameter_binding_preserves_values_and_defers_the_body;
+    test_native_parameter_binding_observes_graph_rewrites; commit=WORKTREE]
   - host applications retain editable native argument frames and the existing
     raw host codec [tested:
     test_compiled_host_calls_keep_data_out_of_keyword_control,
@@ -141,6 +145,7 @@ def link(space: Any, required: Any) -> None:
         ("_python-expand-positional", expand_positional, 2),
         ("_python-merge-keywords", merge_keywords, 2),
         ("_python-bind-call", bind_call, 5),
+        ("_python-bind-parameters", bind_parameters, 4),
     ):
         if name not in required:
             continue
@@ -173,6 +178,19 @@ def bind_arguments(signature: inspect.Signature, positional: Atom, keywords: Ato
             raise TypeError(msg)
         named[key.value] = value
     return signature.bind(*arguments, **named)
+
+
+def bind_parameters(home: Atom, image: Atom, positional: Atom, keywords: Atom) -> Atom:
+    """Bind compiled slots from a native image and its current parameter record."""
+    signature = call_values.NativeCallable(image, call_values.lexical_space(home), Any).__signature__
+    supplied = bind_arguments(signature, positional, keywords)
+    defaults = {
+        name: _expr(S.noeval, call_values.argument(parameter.default))
+        for name, parameter in signature.parameters.items()
+        if parameter.default is not inspect.Parameter.empty
+    }
+    sources = call_values.argument_sources(signature, supplied.arguments, call_values.argument, home, defaults)
+    return call_values.apply_sources(image, sources)
 
 
 def publish_binding(owner: Any, name: str, bind: Any, inputs: tuple[Atom, ...]) -> None:
