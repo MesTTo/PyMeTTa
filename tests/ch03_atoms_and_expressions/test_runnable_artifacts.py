@@ -4,7 +4,7 @@ Guarantees:
   - publishing an atom-delivery operation preserves earlier native callable
     answers across segment arities [tested:
     test_operation_publication_preserves_cached_native_callables;
-    commit=WORKTREE]
+    commit=bdf3a42670d84dc9925c5db7e767415c1e8a5c19]
 """
 
 from collections.abc import Callable
