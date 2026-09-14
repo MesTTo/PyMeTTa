@@ -3,8 +3,9 @@
 Guarantees: bindinggen checks every crossing against these rows and the
 implementation's signature; native imports must have an engine service row
 [tested: test_binding_crossing_mutations_refuse; commit=8358dfc233bf299bb23eceddd94593a62372fe4b].
-The Sized length service is declared with the generated ownership provider
-[tested: python extensions/python/tools/bindinggen.py; commit=9b0a084e534ddf7dd67980ad84c27c8279b877f1].
+The value and foreign-space length services are declared with their generated
+ownership providers [tested: python extensions/python/tools/bindinggen.py;
+commit=WORKTREE].
 Decides: dynamic object calls are capabilities of named predicates. A capability
 does not admit undeclared static callbacks or crossings in another predicate.
 """
@@ -60,6 +61,7 @@ PYTHON_SERVICES = {
         "bound_row_changed", "bound_transaction_started", "bound_transaction_finished",
     ),
     "metta._errors.errors": ("is_transport_failure",),
+    "metta.foreign": ("_provider_length",),
     "metta.algebra": ("_carrier_type_accepts",),
     "builtins": ("id", "str", "type"),
     "importlib.util": ("module_from_spec", "spec_from_file_location"),

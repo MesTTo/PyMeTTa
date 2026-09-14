@@ -1,4 +1,10 @@
 % Purpose: supply the Python binding's ownership seam clauses.
+% Guarantees: a Python-backed space answers length refinements through its
+% Sized promise without enumeration [tested:
+% test_foreign_space_length_refinements_use_the_owner;
+% test_foreign_space_length_failures_preserve_the_owner_error; commit=WORKTREE].
+% Open variables never choose a registered provider [tested:
+% test_foreign_space_length_does_not_choose_a_value_for_a_variable; commit=WORKTREE].
 % Assumes: bindinggen projects each row into its declared load audience
 % and defining module.
 % Guarantees: every supplied head has this file's engine kind
@@ -307,6 +313,17 @@ seam:effect_operation_name(metta_py_dispatch_truthy(_, _), 'py-truthy', 1)
 )).
 
 provides_declaration(host, user, foreign_space/1).
+
+provides_declaration(host, user, grounded_length/2).
+
+provides(host, user, (
+seam:grounded_length(Space, Length) :-
+    atom(Space),
+    metta_py_foreign(Space),
+    py_call('metta.foreign':'_provider_length'(Space), Length),
+    integer(Length),
+    Length >= 0
+)).
 
 provides_declaration(host, user, foreign_match/3).
 

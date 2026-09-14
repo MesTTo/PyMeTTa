@@ -43,6 +43,8 @@
 
 :- multifile seam:grounded_algebra_type/3.
 
+:- multifile seam:grounded_length/2.
+
 :- multifile seam:grounded_type_names/2.
 
 :- multifile seam:host_add_hooks_idle/2.
@@ -105,6 +107,13 @@ seam:effect_operation_name(metta_py_dispatch(_, Name, Args, _), Name, Arity) :-
 seam:effect_operation_name(metta_py_dispatch_eq(_, _, _), 'py-eq', 2).
 
 seam:effect_operation_name(metta_py_dispatch_truthy(_, _), 'py-truthy', 1).
+
+seam:grounded_length(Space, Length) :-
+    atom(Space),
+    metta_py_foreign(Space),
+    py_call('metta.foreign':'_provider_length'(Space), Length),
+    integer(Length),
+    Length >= 0.
 
 seam:foreign_space(Space) :- metta_py_foreign(Space).
 
