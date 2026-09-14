@@ -1,5 +1,7 @@
 % Purpose: match patterns, project queries and explain their plans.
 % Assumes: loaded through _binding/shim.pl in its host module.
+% Guarantees: indexed projections read the original variable cells through
+% metta_atom_index_get/3 [tested: shared_decode_index; commit=WORKTREE].
 
 %%%%%%%%%% Query %%%%%%%%%%
 %
@@ -408,6 +410,6 @@ metta_py_row_indexed(Names, Index, Row) :-
 metta_py_row_indexed([], _, _, []).
 metta_py_row_indexed([Name0|Names], Index, N0, [Value|Values]) :-
     ( atom(Name0) -> Name = Name0 ; atom_string(Name, Name0) ),
-    ( ht_get(Index, Name, V) -> metta_py_encode(V, N0, N1, Value)
+    ( metta_atom_index_get(Index, Name, V) -> metta_py_encode(V, N0, N1, Value)
     ; Value = ["v", Name0], N1 = N0 ),
     metta_py_row_indexed(Names, Index, N1, Values).

@@ -316,11 +316,10 @@ metta_py_decode_(e, [Es], Term) :- maplist(metta_py_decode, Es, Term).
 metta_py_decode_(p, [S], Space) :-
     ( atom(S) -> Space = S ; string(S), atom_string(Space, S) ).
 
-% Index names once per term and retain the ordered answer bindings.
-% library(hashtable) uses backtrackable updates, so failure rolls back both
-% the index and the term. The existing wide-query decoder owns that frame
-% [source: extensions/python/metta/_binding/wire.pl:428;
-% commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
+% Index names once per term and retain the ordered answer bindings. The
+% engine's atom index trails updates with the decoded values and bounds its
+% native traversal independently of UUID hash collisions
+% [tested: shared_decode_index, atom_index; commit=WORKTREE].
 metta_py_decode_shared(Tagged, Term, Bindings) :-
     metta_py_decode_shared_(Tagged, Term, indexed([], Index), indexed(Bindings, Index)).
 
@@ -353,19 +352,21 @@ metta_py_decode_shared_tagged(e, [Es], Term, B0, B) :- !,
 metta_py_decode_shared_tagged(T, Rest, Term, B, B) :-
     metta_py_decode_(T, Rest, Term).
 
-% The existing pair answers a singleton lookup without a hash allocation.
+% The existing pair answers a singleton lookup without an index allocation.
 % On the second distinct name, move that first binding into the index once.
 % A supplied wide-query index remains complete even for a singleton query
-% [tested: shared_decode_index; commit=32650f9ff4d1c4aa0749d8eb8b153e5bb448ee5c].
+% [tested: shared_decode_index; commit=WORKTREE].
 metta_py_index_variable(Name, Var, [], [Name-Var], Index) :- !,
-    ( var(Index) -> true ; ht_put(Index, Name, Var) ).
+    ( var(Index) -> true ; metta_atom_index_bind(Index, Name, Var, _) ).
 metta_py_index_variable(Name, Var, B0, B, Index) :-
     B0 = [First-Shared|_],
     (   Name == First
     ->  Var = Shared, B = B0
-    ;   ( var(Index) -> ht_new(Index), ht_put(Index, First, Shared) ; true ),
-        ( ht_get(Index, Name, Known) -> Var = Known, B = B0
-        ; ht_put(Index, Name, Var), B = [Name-Var|B0] )
+    ;   ( var(Index)
+        -> metta_atom_index_new(Index), metta_atom_index_bind(Index, First, Shared, true)
+        ; true ),
+        metta_atom_index_bind(Index, Name, Var, New),
+        ( New == true -> B = [Name-Var|B0] ; B = B0 )
     ).
 
 foldl_decode([], [], B, B).
@@ -423,10 +424,10 @@ foldl_decode_target([E|Es], Space, [T|Ts], B0, B) :-
 %all, because the map stays [] and no name is ever minted.
 
 % A wide query retains first-appearance pairs for acyclicity and answer
-% semantics while using a backtrackable hash table for variable identity and
+% semantics while using the same backtrackable index for variable identity and
 % projection lookup.
 metta_py_decode_indexed(Tagged, Term, Bindings) :-
-    ht_new(Index),
+    metta_atom_index_new(Index),
     metta_py_decode_shared_(Tagged, Term, indexed([], Index), Bindings).
 
 %%%%%%%%%% The explicit answer form %%%%%%%%%%

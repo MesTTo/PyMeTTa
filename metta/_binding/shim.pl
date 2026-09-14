@@ -450,6 +450,8 @@
 %   Future Enhancements: None
 
 :- use_module(library(janus)).
+:- use_module('../../../../engine/atom_index',
+              [metta_atom_index_new/1, metta_atom_index_bind/4, metta_atom_index_get/3]).
 % Janus resolves maplist/2 lazily on its first failed text query. The native
 % file-search cache expires after ten seconds, making that import vary by
 % exactly 229 inferences under concurrent startup. Resolve this required
@@ -469,7 +471,6 @@
 :- use_module(library(lists)).
 :- use_module(library(apply)).
 :- use_module(library(pairs)).  % group_pairs_by_key/2, pairs_values/2
-:- use_module(library(hashtable), [ht_get/3, ht_new/1, ht_put/3]).
 :- use_module(library(time)).
 :- use_module(library(prolog_profile)).
 :- use_module(library(prolog_wrap), [wrap_predicate/4, unwrap_predicate/2]).
@@ -478,8 +479,8 @@
 % Resolve the name index's dependencies during bridge loading. Its first
 % insertion otherwise autoloads code during the caller's first decode
 % [tested: shared_decode_index:the_first_decode_does_not_pay_for_dependency_loading;
-% commit=32650f9ff4d1c4aa0749d8eb8b153e5bb448ee5c]. The temporary backtrackable table retains no shared state.
-:- ht_new(Index), ht_put(Index, '', _).
+% commit=WORKTREE]. The temporary backtrackable index retains no shared state.
+:- metta_atom_index_new(Index), metta_atom_index_bind(Index, '', _, true).
 
 %translated_from/2 is engine/filereader.pl's, declared dynamic and exported
 %there, so a read before the first equation finds nothing rather than raising.
