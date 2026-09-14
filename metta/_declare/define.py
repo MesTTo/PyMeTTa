@@ -8,6 +8,9 @@ spelling; and a free identifier must be a parameter, a known function, or
 read as a data constructor. A compiled body is a complete atom tree, and any
 runtime-backed Python semantics it needs are declared as visible operations.
 Guarantees:
+  - class methods use the ordinary body compiler with their written argument
+    contract and explicit receiver [tested:
+    test_class_methods_keep_full_python_signatures_and_native_bodies; commit=WORKTREE]
   - None has the same literal head-pattern meaning as other function defaults
     [tested: test_none_literal_is_also_a_default_head_pattern; commit=dbe6c7de5f35e7c0c8ef5259ebfb6d67ee3ebbc0]
   - importing a declaration or library module first completes in both lazy
@@ -586,6 +589,9 @@ def compile_function(
     returns_bool: Callable[[str], bool] | None = None,
     defined_name: Callable[[object], str | None] | None = None,
     call_parameters: Callable[[str, int], tuple[str, ...] | None] | None = None,
+    signature: inspect.Signature | None = None,
+    class_context: type | None = None,
+    method_receiver: str | None = None,
 ) -> Compiled:
     """Read a function's source into a Compiled clause.
 
@@ -649,7 +655,13 @@ def compile_function(
         source_path = str(Path(source_path).resolve())
 
     try:
-        params, patterns = _parameters(definition)
+        # A declaration that has already bound Python's call grammar supplies
+        # its complete positional layout. Literal defaults remain patterns
+        # only for the ordinary equation-definition notation.
+        params, patterns = (
+            _parameters(definition) if signature is None
+            else (list(signature.parameters), {})
+        )
         # A literal-patterned position is fixed by the head, so it is not a
         # variable in the body's scope; naming it there would shadow the match.
         scope = [p for p in params if p not in patterns]
@@ -687,9 +699,13 @@ def compile_function(
                 # annotation consumer below still owns strict diagnostics.
                 return False
 
+        arguments = [
+            *definition.args.posonlyargs, *definition.args.args,
+            *definition.args.kwonlyargs,
+        ]
         number_parameters = {
             argument.arg
-            for argument in definition.args.args
+            for argument in arguments
             if annotation_is_native_number(argument.annotation)
         }
         number_return = annotation_is_native_number(definition.returns)
@@ -713,11 +729,11 @@ def compile_function(
 
         space_parameters = {
             argument.arg
-            for argument in definition.args.args
+            for argument in arguments
             if argument.annotation is not None and annotation_names_space(argument.annotation)
         }
         record_parameters = {}
-        for argument in definition.args.args:
+        for argument in arguments:
             if argument.annotation is None:
                 continue
             try:
@@ -728,6 +744,16 @@ def compile_function(
                 continue
             if owner is not None:
                 record_parameters[argument.arg] = owner.cls
+        if class_context is not None and method_receiver is not None:
+            record_parameters[method_receiver] = class_context
+        containers = {} if signature is None else {
+            name: "tuple" if parameter.kind is inspect.Parameter.VAR_POSITIONAL else "dict"
+            for name, parameter in signature.parameters.items()
+            if parameter.kind in (
+                inspect.Parameter.VAR_POSITIONAL, inspect.Parameter.VAR_KEYWORD
+            )
+        }
+        dictionaries = {name for name, kind in containers.items() if kind == "dict"}
         compiler = _Compiler(
             metta_name or fn.__name__,
             scope,
@@ -752,6 +778,11 @@ def compile_function(
             number_return=number_return,
             annotation_alternatives=annotation_alternatives,
             record_locals=record_parameters,
+            class_context=class_context,
+            method_receiver=method_receiver,
+            container_locals=containers,
+            dict_locals=dictionaries,
+            libraries={"dict"} if dictionaries else set(),
         )
         compiler.class_dependencies.update(compiler.record_locals.values())
         generator = _is_generator(definition)
@@ -913,6 +944,7 @@ class _Compiler(
         class_dependencies: set[type] | None = None,
         construction: tuple[Any, str] | None = None,
         constructor_return: Callable[[_Compiler], Atom] | None = None,
+        method_receiver: str | None = None,
     ):
         self.name = name
         # The Python spelling of the definition's own name, for recursion
@@ -985,6 +1017,7 @@ class _Compiler(
         self.class_dependencies = _provided(class_dependencies, set())
         self.construction = construction
         self.constructor_return = constructor_return
+        self.method_receiver = method_receiver
         # Local names currently bound to a SPACE value: (context-space),
         # (new-space ...) or a closure handle. += and -= on one of these
         # are write operations, never arithmetic; forks copy the set the
@@ -1161,6 +1194,7 @@ class _Compiler(
             class_dependencies=self.class_dependencies,
             construction=self.construction,
             constructor_return=self.constructor_return,
+            method_receiver=self.method_receiver,
         )
 
     def _iteration(self, iter_node: ast.expr, var: str, body: Atom) -> Expression:
@@ -1170,11 +1204,7 @@ class _Compiler(
         forks once per answer. Anything else evaluates to an expression whose
         elements superpose.
         """
-        if (
-            isinstance(iter_node, ast.Call)
-            and isinstance(iter_node.func, ast.Name)
-            and self.nondet(self._resolved_call_name(iter_node.func.id))
-        ):
+        if _records.answer_stream(self, iter_node):
             return Expression([Symbol("let"), Variable(var), self.expression(iter_node), body])
         source = self.expression(iter_node)
         return Expression(
@@ -1193,6 +1223,8 @@ class _Compiler(
         named by the refusal.
         """
         value = node.value
+        if _records.answer_stream(self, value):
+            return self.expression(value)
         if isinstance(value, ast.Call) and isinstance(value.func, ast.Name):
             called = value.func.id
             resolved = self._resolved_call_name(called)

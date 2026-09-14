@@ -29,6 +29,13 @@ Guarantees:
     the engine's Literal refinement [tested:
     test_a_python_enum_reaches_the_coverage_check_without_extra_machinery;
     commit=9b0a084e534ddf7dd67980ad84c27c8279b877f1]
+  - class values project through their encoder, including native constructor
+    programs and explicit metaclass images [tested:
+    test_class_values_preserve_explicit_host_images;
+    test_operation_results_carry_declared_class_values; commit=WORKTREE]
+  - explicit field types supply constructor declarations without rereading
+    the class's deferred annotations [tested:
+    test_class_declaration_resolves_its_deferred_annotation_namespace; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -153,6 +160,8 @@ def _project_unregistered(value: Any) -> Projected:
     atom = explicit_metta_atom(value)
     if atom is not None:
         return Projected(atom, ())
+    if isinstance(value, type):
+        return Projected(_encode(value), ())
     buffer = _project_buffer(value)
     return buffer if buffer is not None else Projected(ground(value), ())
 
@@ -407,10 +416,13 @@ def _enum_declarations(cls: type[Enum]) -> tuple[Expression, ...]:
 
 def _expression_declarations(cls: type, registration: _Registration) -> tuple[Expression, ...]:
     fields = registration.fields or ()
-    hints = resolved_hints(cls)
+    kinds = registration.field_types
+    if not kinds and fields:
+        hints = resolved_hints(cls)
+        kinds = tuple(hints.get(field) for field in fields)
     alternative_lists: list[list[Atom]] = [
         type_atoms_for(kind) if kind is not None else [S["%Undefined%"]]
-        for kind in (registration.field_types or tuple(hints.get(field) for field in fields))
+        for kind in kinds
     ]
     return _declarations_for_alternatives(registration.type_name, alternative_lists)
 

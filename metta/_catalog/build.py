@@ -22,6 +22,9 @@ Guarantees:
   - a container annotation leaves unsupported symbols unchanged and unwraps
     grounded values without recursively retrying the same conversion [tested:
     test_container_build_handles_non_expression_atoms; commit=9b0a084e534ddf7dd67980ad84c27c8279b877f1]
+  - type annotations reconstruct a declared class from its canonical constructor
+    image and keep ordinary factories distinct [tested:
+    test_constructor_image_is_distinct_from_an_ordinary_factory; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -50,6 +53,7 @@ from metta._atoms.registry import (
 )
 from metta._catalog.call_values import rebuild as _callable_value
 from metta._catalog.containers import hook_for as _parameterized_hook
+from metta._lazy import lazy
 
 _UNHANDLED = object()
 
@@ -89,6 +93,13 @@ def build(atom: Atom, cls: Any = None, *, space: Any = None) -> Any:
 def _build_callable(atom: Atom, annotation: Any, space: Any) -> Any:
     if typing.get_origin(annotation) is typing.Annotated:
         return _build_callable(atom, typing.get_args(annotation)[0], space)
+    if annotation is type or typing.get_origin(annotation) is type:
+        native = _callable_value(atom, Any, space)
+        if native is not None:
+            owner = lazy('metta._declare.classes').declaration(native.__signature__.return_annotation)
+            if owner is not None and native.atom.alpha_eq(lazy('metta._declare.constructors').image(owner)):
+                return owner.cls
+        return None
     if typing.get_origin(annotation) is abc.Callable or annotation is abc.Callable or (
         annotation in (None, Any, object) and isinstance(atom, Expression) and (
             atom.head == S["|->"] or (atom.head == S.noeval and len(atom.args) == 1 and isinstance(atom.args[0], Expression) and atom.args[0].head == S["|->"])
@@ -112,6 +123,9 @@ def _build_plain(atom: Atom, cls: type | None, space: Any = None) -> Any:
 
 
 def _build_symbol(atom: Symbol, cls: type) -> Any:
+    if cls is type:
+        constructor = constructor_for(atom.name)
+        return constructor[0] if constructor is not None else _UNHANDLED
     if issubclass(cls, Enum):
         return cls[atom.name]
     registration = _lookup(cls)
@@ -227,6 +241,8 @@ def _call_reverse(target_cls: type, registration: _Registration, parts: list[Any
 
 def _build_annotated(atom: Atom, annotation: Any, space: Any) -> Any:
     origin = typing.get_origin(annotation)
+    if origin is type:
+        return _build_plain(atom, type, space)
     if origin is typing.Annotated:
         return build(atom, typing.get_args(annotation)[0], space=space)
     if origin in (typing.Union, types.UnionType):

@@ -123,13 +123,10 @@ from metta._atoms.factories import (
     Atom,
     Expression,
     Grounded,
-    S,
     Symbol,
     Variable,
     _alpha_eq,
     _atom_from_wire,
-    _encode,
-    _expr,
     _map_atoms,
     _to_atom,
 )
@@ -1059,57 +1056,6 @@ def install_type(
         )
 
     return apply(cls) if cls is not None else apply
-
-def _register_methods(plan: Any) -> None:
-    """Every method the class itself defines, as a MeTTa function
-    named {Type}-{method}: the instance argument accepts a
-    constructor term (rebuilt through the translator) or a live
-    handle, and results the translator knows project back to terms.
-    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
-    target, type_name = plan.cls, plan.name
-
-    def projectable(value: Any) -> Any:
-        try:
-            _convert_api().ensure_registered(_builtins.type(value))
-        except TypeError:
-            return value
-        return _convert_api().project(value).atom
-
-    def wrapper_for(fn):
-        def call(instance, *args):
-            subject = (
-                _convert_api().build(instance, target)
-                if isinstance(instance, Expression)
-                else (instance.value if isinstance(instance, Grounded) else instance)
-            )
-            values = [a.value if isinstance(a, Grounded) else a for a in args]
-            result = fn(subject, *values)
-            if result is None:
-                return None
-            if isinstance(result, Atom):
-                return result
-            if isinstance(result, (bool, int, float, str)):
-                return _encode(result)
-            return projectable(result)
-
-        return call
-
-    for method_name, fn in vars(target).items():
-        if method_name.startswith("_") or not _inspect.isfunction(fn):
-            continue
-        parameters = list(_inspect.signature(fn).parameters.values())[1:]
-        required = sum(1 for p in parameters if p.default is _inspect.Parameter.empty)
-        arities = list(range(1 + required, len(parameters) + 2))
-        operation_name = f"{type_name}-{method_name}"
-        plan.operation(
-            wrapper_for(fn),
-            name=operation_name,
-            effect=EffectClass.oracleIO,
-            declarations=[
-                _expr(S.arguments, S[operation_name], S.atoms)
-            ],
-            arities=arities,
-        )
 
 @overload
 @dataclass_transform(eq_default=False)

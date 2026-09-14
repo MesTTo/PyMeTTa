@@ -1,6 +1,13 @@
 """Purpose: link Python call-argument binding into native compiled programs.
 
 Guarantees:
+  - method and constructor values keep positional data separate from keyword
+    entries [tested:
+    test_keyword_named_atoms_remain_positional_method_and_constructor_values;
+    commit=WORKTREE]
+  - qualified class applications carry their class identity through native
+    dispatch and scope retention [tested:
+    test_kept_unbound_methods_retain_their_class_program; commit=WORKTREE]
   - positional expansion preserves native atoms in native and borrowed
     sequences [tested: test_expanded_arguments_preserve_native_atom_values;
     commit=5f94e43542d3afd87776476e767f5fda661423bc]
@@ -16,9 +23,10 @@ Owns resources:
 from __future__ import annotations
 
 import ctypes
+import inspect
 from typing import Any
 
-from metta._atoms.factories import Atom, Expression, Grounded, Handle, S, Symbol, _expr
+from metta._atoms.factories import Atom, Expression, Grounded, Handle, S, Symbol, Variable, _expr
 from metta._catalog import call_signatures, call_values
 from metta._catalog.build import build
 from metta._declare import operations
@@ -128,3 +136,55 @@ def link(space: Any, required: Any) -> None:
         space.op(function, name=name, arities=[arity], effect="oracleIO",
                  declarations=[_expr(S.arguments, Symbol(name), S.atoms)])
         space.add(_expr(S.internal, Symbol(name)))
+
+
+def bind_arguments(signature: inspect.Signature, positional: Atom, keywords: Atom) -> inspect.BoundArguments:
+    """Bind independent positional values and keyword entries."""
+    if not isinstance(positional, Expression) or not isinstance(keywords, Expression):
+        msg = "call arguments need a positional expression and a keyword-pair expression"
+        raise TypeError(msg)
+    named: dict[str, Atom] = {}
+    arguments = positional.children
+    for pair in keywords.children:
+        if not isinstance(pair, Expression) or len(pair.children) != 2:
+            msg = "keyword arguments need name/value pairs"
+            raise TypeError(msg)
+        key, value = pair.children
+        if not isinstance(key, Grounded) or not isinstance(key.value, str):
+            msg = "keyword names must be strings"
+            raise TypeError(msg)
+        if key.value in named:
+            msg = f"got multiple values for keyword argument {key.value!r}"
+            raise TypeError(msg)
+        named[key.value] = value
+    return signature.bind(*arguments, **named)
+
+
+def publish_binding(owner: Any, name: str, bind: Any, inputs: tuple[Atom, ...]) -> None:
+    """Publish an owned binding operation and its native evaluation equation."""
+    binder = Symbol(f"_{name}:bind")
+    owner.operation(bind, name=binder.name, arities=[len(inputs)], effect="readOnlyLookup",
+                    declarations=[_expr(S.arguments, binder, S.atoms)])
+    owner.space.add(_expr(S.internal, binder))
+    parameters = tuple(Variable(f"call-input-{index}") for index in range(len(inputs)))
+    call = Variable("bound-call")
+    owner.space.add(_expr(S["="], _expr(Symbol(name), *parameters),
+                          _expr(S.chain, _expr(binder, *parameters), call,
+                                _expr(S.evalc, call, owner.space))))
+    owner.space.add(_expr(S[":"], Symbol(name), _expr(S["->"], *inputs, S["%Undefined%"])))
+
+
+def member_application(owner: Any, member: Atom, positional: Atom, keywords: Atom) -> Atom:
+    """Apply a class member through its native qualified selector and call frames."""
+    return call_values.apply_sources(S["_class-apply"], (
+        _expr(S.noeval, Symbol(owner.name)), _expr(S.noeval, member), positional, keywords,
+    ))
+
+
+def publish_member(owner: Any, member: Atom, target: Symbol) -> None:
+    """Publish the class/member relation used by a carried constructor or method."""
+    positional, keywords = Variable("class-positionals"), Variable("class-keywords")
+    owner.space.add(_expr(S["="],
+                          _expr(S["_class-apply"], Symbol(owner.name), member, positional, keywords),
+                          _expr(target, positional, keywords)))
+    owner.space.add(_expr(S.internal, S["_class-apply"]))

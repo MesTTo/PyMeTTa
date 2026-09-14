@@ -1,6 +1,9 @@
-"""Purpose: lower declared constructors and fields using static receiver types.
+"""Purpose: lower declared constructors, fields and methods from receiver types.
 
 Guarantees:
+  - ordinary, qualified and super calls retain their original receiver and
+    lexical provider [tested:
+    test_unbound_private_and_super_values_keep_the_lexical_provider; commit=WORKTREE]
   - mutable field bindings expose a write status for statement continuation
     selection [tested: test_refused_field_writes_stop_their_compiled_continuation;
     commit=9eebb619cb02f267e1d541a7d6e989b990f68982]
@@ -23,12 +26,15 @@ Guarantees:
 from __future__ import annotations
 
 import ast
+import builtins
 import copy
 import inspect
+from dataclasses import dataclass
 from typing import Any
 
-from metta._atoms.factories import Atom, S, Symbol, Variable, _expr
+from metta._atoms.factories import Atom, Expression, Grounded, S, Symbol, Variable, _expr
 from metta._catalog.call_values import apply_sources
+from metta._compile import call_syntax
 from metta._compile.context import CompilerContext
 from metta._errors.errors import CompileError
 from metta._lazy import lazy
@@ -38,8 +44,41 @@ class _LiteralField(ast.Attribute):
     """A field whose name came from a string rather than an identifier."""
 
 
+@dataclass(frozen=True)
+class MethodReference:
+    """A lexical lookup; cooperative super can precede its eventual provider."""
+
+    method: Any
+    home: Any
+    name: str
+    receiver: ast.expr | None
+    after: type | None
+
+    @property
+    def result_type(self) -> Any:
+        return self.method.result_type if self.method is not None else Any
+
+    @property
+    def generator(self) -> bool:
+        return self.method is not None and self.method.generator
+
+    @property
+    def private(self) -> bool:
+        return self.name.startswith("_")
+
+
 def declared(value: Any) -> Any:
     return lazy('metta._declare.classes').declaration(value)
+
+
+def host_operand(compiler: CompilerContext, name: str) -> Atom:
+    """Project a declared local before an island consumes Python values."""
+    value = Variable(compiler.scope[name])
+    owner = declared(compiler.record_locals.get(name))
+    if owner is None:
+        return value
+    compiler.class_dependencies.add(owner.cls)
+    return owner.host_value(value)
 
 
 def field_name(compiler: CompilerContext, name: str) -> str:
@@ -62,7 +101,11 @@ def record_type(compiler: CompilerContext, node: ast.expr) -> Any:
     if isinstance(node, ast.Name):
         return declared(compiler.record_locals.get(node.id))
     if isinstance(node, ast.Call):
-        return declared(static_value(compiler, node.func))
+        constructor = declared(static_value(compiler, node.func))
+        if constructor is not None:
+            return constructor
+        member = method_reference(compiler, node.func)
+        return declared(member.result_type) if member is not None else None
     if isinstance(node, ast.Attribute):
         owner = record_type(compiler, node.value)
         field = owner.field(field_name(compiler, node.attr)) if owner is not None else None
@@ -71,6 +114,9 @@ def record_type(compiler: CompilerContext, node: ast.expr) -> Any:
 
 
 def field_number(compiler: CompilerContext, node: ast.expr) -> bool:
+    if isinstance(node, ast.Call):
+        member = method_reference(compiler, node.func)
+        return member is not None and member.result_type in (int, float)
     if not isinstance(node, ast.Attribute):
         return False
     owner = record_type(compiler, node.value)
@@ -107,14 +153,21 @@ def field_call(owner: Any, name: str, *arguments: Atom, write: bool = False) -> 
 def attribute(compiler: CompilerContext, node: ast.Attribute) -> Atom | None:
     owner = record_type(compiler, node.value)
     if owner is None:
-        owner = declared(static_value(compiler, node.value))
+        static_owner = declared(static_value(compiler, node.value))
         name = field_name(compiler, node.attr)
-        if owner is not None and name in owner.classvars:
-            return field_call(owner, name)
-        return None
-    field = owner.field(field_name(compiler, node.attr))
+        if static_owner is not None and name in static_owner.classvars:
+            return field_call(static_owner, name)
+    field = owner.field(field_name(compiler, node.attr)) if owner is not None else None
     if field is None:
-        return None
+        member = method_reference(compiler, node)
+        if member is None:
+            return None
+        method, home, receiver, after = member.method, member.home, member.receiver, member.after
+        if receiver is None:
+            return _expr(S.noeval, method.__metta__())
+        head = lazy('metta._declare.methods').selector(home, member.name, after=after, value=True)
+        result = _expr(head, compiler.expression(receiver))
+        return _expr(S.evalc, result, Symbol(home.space.name)) if member.private else result
     if compiler.construction is not None:
         plan, receiver = compiler.construction
         if plan.grain == "value" and isinstance(node.value, ast.Name) and node.value.id == receiver:
@@ -163,7 +216,8 @@ def binding(compiler: CompilerContext, node: ast.Assign | ast.AnnAssign | ast.Au
             rewritten.targets = [field_target]
         else:
             rewritten.target = field_target
-        return compiler._binding(rewritten)
+        binding_target, binding_value = compiler._binding(rewritten)
+        return binding_target, lazy('metta._declare.field_values').adopted(owner, field, binding_value)
     if node.value is None:
         msg = "a field annotation needs a value to write"
         raise CompileError(msg, construct="field annotation", line=node.lineno)
@@ -184,12 +238,64 @@ def binding(compiler: CompilerContext, node: ast.Assign | ast.AnnAssign | ast.Au
 
 
 def call(compiler: CompilerContext, node: ast.Call) -> Atom | None:
+    member = method_reference(compiler, node.func)
+    if member is not None:
+        method, home, receiver, after = member.method, member.home, member.receiver, member.after
+        if call_syntax.expanded(node):
+            return call_syntax.application(compiler, node)
+        arguments = node.args
+        qualified = receiver is None
+        if qualified:
+            if not arguments:
+                return call_syntax.application(compiler, node)
+            receiver, *arguments = arguments
+        sources = [receiver, *arguments, *(keyword.value for keyword in node.keywords)]
+        supplied = {id(source): Variable(compiler._temp("method-operand")) for source in sources}
+        evaluated = [(compiler.expression(source), supplied[id(source)]) for source in sources]
+        params = tuple(method.call_signature.parameters.values()) if method is not None else ()
+        direct = method is not None and not node.keywords and len(arguments) == len(params) and all(
+            parameter.kind in (inspect.Parameter.POSITIONAL_ONLY, inspect.Parameter.POSITIONAL_OR_KEYWORD)
+            for parameter in params
+        )
+        if qualified:
+            head = Symbol(method.name if direct else method.apply_name)
+        else:
+            head = lazy('metta._declare.methods').selector(home, member.name, after=after, applied=not direct)
+        operands: list[Atom] = [supplied[id(receiver)]]
+        values = [supplied[id(argument)] for argument in arguments]
+        if direct:
+            operands.extend(values)
+        else:
+            operands.extend((Expression(values), Expression([
+                Expression([Grounded(keyword.arg), supplied[id(keyword.value)]])
+                for keyword in node.keywords
+            ])))
+        body = _expr(head, *operands)
+        if member.private:
+            body = _expr(S.evalc, body, Symbol((method.owner if qualified else home).space.name))
+        for value, variable in reversed(evaluated):
+            body = _expr(S.chain, value, variable, body)
+        return body
+    if isinstance(node.func, ast.Name) and node.func.id not in compiler.scope:
+        function = compiler.host_value(node.func.id)
+        if function is builtins.type and len(node.args) == 1 and not node.keywords and record_type(compiler, node.args[0]) is not None:
+            return _expr(S["get-type"], compiler.expression(node.args[0]))
+        if function is builtins.isinstance and len(node.args) == 2 and not node.keywords:
+            target = declared(static_value(compiler, node.args[1]))
+            if target is not None:
+                compiler.class_dependencies.add(target.cls)
+                kind = Variable(compiler._temp("instance-type"))
+                matches = _expr(S.collapse, _expr(S.chain, _expr(S["get-type"], compiler.expression(node.args[0])), kind,
+                                               _expr(S["if"], _expr(S["=="], kind, Symbol(target.name)), Grounded(value=True), _expr(S.empty))))
+                return _expr(S["not"], _expr(S["=="], matches, Expression([])))
     owner = declared(static_value(compiler, node.func))
     if owner is not None:
-        if any(isinstance(arg, ast.Starred) for arg in node.args) or any(keyword.arg is None for keyword in node.keywords):
-            return None
+        if call_syntax.expanded(node):
+            compiler.class_dependencies.add(owner.cls)
+            image = lazy('metta._declare.constructors').image(owner)
+            return call_syntax.application(compiler, node, callee=_expr(S.noeval, image))
         try:
-            bound = owner.signature.bind(*node.args, **{keyword.arg: keyword.value for keyword in node.keywords if keyword.arg is not None})
+            owner.signature.bind(*node.args, **{keyword.arg: keyword.value for keyword in node.keywords if keyword.arg is not None})
         except TypeError as error:
             msg = f"{owner.name} constructor: {error}"
             raise CompileError(msg, construct="constructor arguments", line=node.lineno) from error
@@ -197,16 +303,75 @@ def call(compiler: CompilerContext, node: ast.Call) -> Atom | None:
         expressions = [*node.args, *(keyword.value for keyword in node.keywords)]
         supplied = {id(expression): Variable(compiler._temp("constructor-argument")) for expression in expressions}
         evaluated = [(compiler.expression(expression), supplied[id(expression)]) for expression in expressions]
-        sources = owner.argument_sources(bound.arguments, lambda expression: supplied[id(expression)])
-        body = apply_sources(Symbol(f"make-{owner.name}"), sources)
-        if any(name not in bound.arguments for name in owner.defaults):
-            body = _expr(S.transaction, body)
+        parameters = tuple(owner.signature.parameters.values())
+        direct = not node.keywords and len(node.args) == len(parameters) and all(
+            parameter.kind in (inspect.Parameter.POSITIONAL_ONLY, inspect.Parameter.POSITIONAL_OR_KEYWORD)
+            for parameter in parameters
+        )
+        constructor_args = [supplied[id(argument)] for argument in node.args]
+        if direct:
+            body = _expr(Symbol(f"make-{owner.name}"), *constructor_args)
+        else:
+            keywords = Expression([Expression([Grounded(keyword.arg), supplied[id(keyword.value)]])
+                                   for keyword in node.keywords])
+            application = apply_sources(Symbol(f"make-{owner.name}:apply"), (
+                _expr(S.noeval, Expression(constructor_args)), _expr(S.noeval, keywords),
+            ))
+            body = _expr(S.evalc, application, Symbol(owner.space.name))
         # Python evaluates supplied arguments in source order before entering
         # the constructor. Default factories belong to the constructor itself.
         for value, variable in reversed(evaluated):
             body = _expr(S.chain, value, variable, body)
         return body
     return None
+
+
+def method_reference(compiler: CompilerContext, node: ast.expr) -> Any:
+    """Resolve a descriptor from receiver structure and lexical class context."""
+    if not isinstance(node, ast.Attribute):
+        return None
+    after = None
+    receiver: ast.expr | None = node.value
+    if (
+        isinstance(node.value, ast.Call) and isinstance(node.value.func, ast.Name)
+        and node.value.func.id == "super" and not node.value.keywords
+        and compiler.host_value("super") is builtins.super
+    ):
+        if not node.value.args and compiler.class_context is not None and compiler.method_receiver is not None:
+            after = compiler.class_context
+            receiver = ast.copy_location(ast.Name(id=compiler.method_receiver, ctx=ast.Load()), node.value)
+        elif len(node.value.args) == 2 and declared(static_value(compiler, node.value.args[0])) is not None:
+            after = static_value(compiler, node.value.args[0])
+            receiver = node.value.args[1]
+        else:
+            return None
+        home = declared(after)
+    else:
+        home = record_type(compiler, node.value)
+        if home is None:
+            home = declared(static_value(compiler, node.value))
+            receiver = None
+    if home is None:
+        return None
+    name = field_name(compiler, node.attr)
+    method = lazy('metta._declare.methods').selected(home, name, after=after)
+    if method is None and after is None:
+        return None
+    compiler.class_dependencies.add(home.cls)
+    return MethodReference(method, home, name, receiver, after)
+
+
+def answer_stream(compiler: CompilerContext, node: ast.expr) -> bool:
+    """Read method cardinality beside the existing ordinary-call declaration."""
+    if not isinstance(node, ast.Call):
+        return False
+    member = method_reference(compiler, node.func)
+    if member is not None:
+        return member.generator
+    if isinstance(node.func, ast.Name):
+        return compiler.nondet(compiler._resolved_call_name(node.func.id))
+    mentioned = compiler._mention(node.func)
+    return isinstance(mentioned, Symbol) and compiler.nondet(mentioned.name)
 
 
 def initialization_assignment(compiler: CompilerContext, node: ast.expr) -> ast.Assign | None:

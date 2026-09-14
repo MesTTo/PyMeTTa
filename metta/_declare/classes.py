@@ -21,6 +21,13 @@ Guarantees:
     rather than their lookup expression [tested:
     test_generated_syntax_field_queries_return_the_stored_value,
     test_generated_class_variable_queries_return_the_stored_atom; commit=397a0df18bea23dee8774a721c2bdcd7dfc38c5e]
+  - declared class values encode to their native constructor program; explicit
+    type encoders and metaclass hooks retain precedence [tested:
+    test_class_values_retain_the_native_constructor;
+    test_class_values_preserve_explicit_host_images; commit=WORKTREE]
+  - field and callable annotations resolve against the completed class before
+    its decorator publishes the Python name [tested:
+    test_class_declaration_resolves_its_deferred_annotation_namespace; commit=WORKTREE]
   - imports follow the declared package foundations [tested:
     tests/checks/check_layering.py; commit=ab9d3489f87e0d7b7be4b3cd2025494cd62699fe]
   - mutable Python instances find their engine receiver through ordinary private
@@ -41,16 +48,23 @@ import sys
 import textwrap
 import types
 import typing
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from enum import Enum, Flag
+from functools import partial
 from typing import Any
 
 from metta._atoms.factories import Atom, Expression, Grounded, S, Symbol, Variable, _expr, fresh
+from metta._atoms.model import _encode_register, _encode_value
 from metta._atoms.names import attribute_name
 from metta._atoms.registry import _record_registration, _Registration
-from metta._catalog.annotations import referenced_classes, type_atoms_for
+from metta._catalog.annotations import (
+    _written_annotations,
+    referenced_classes,
+    resolved_annotations,
+    type_atoms_for,
+)
 from metta._catalog.build import build
-from metta._catalog.call_values import apply_sources
+from metta._catalog.call_values import NativeCallable, apply_sources, argument
 from metta._catalog.documentation import attribute_docstrings, documentation_atom
 from metta._catalog.project import declarations, project
 from metta._declare import field_values, operations
@@ -65,6 +79,19 @@ _ABSENT = object()
 def declaration(cls: Any) -> ClassDeclaration | None:
     """Read an exact class declaration; inherited conversion is not declaration."""
     return _DECLARATIONS.get(cls) if isinstance(cls, type) else None
+
+
+def _encode_class(cls: type, *, fallback: Callable[[Any], Atom]) -> Atom:
+    from metta._declare import constructors  # noqa: PLC0415 -- shared class types
+
+    owner = declaration(cls)
+    return constructors.image(owner) if owner is not None else fallback(cls)
+
+
+# Install the native class codec only when the author has not registered one.
+# The captured fallback preserves an inherited codec and survives module reload.
+if type not in _encode_value.registry:
+    _encode_register(type, partial(_encode_class, fallback=_encode_value.dispatch(type)))
 
 
 def owner_of(space: Any) -> ClassDeclaration | None:
@@ -102,12 +129,27 @@ def _user_bases(cls: type) -> tuple[type, ...]:
     return bases[:bases.index(space_class)] if space_class in bases else tuple(base for base in bases if base not in (object, tuple))
 
 
+def contextual_function(cls: type, fn: types.FunctionType) -> types.FunctionType:
+    """Read source annotations with the completed class and its type parameters."""
+    from metta._declare.define import _function_namespace  # noqa: PLC0415 -- shared source compiler
+
+    namespace = _function_namespace(fn) | {ancestor.__name__: ancestor for ancestor in cls.__mro__}
+    type_params = (*getattr(cls, "__type_params__", ()), *fn.__type_params__)
+    namespace.update({parameter.__name__: parameter for parameter in type_params})
+    source = types.FunctionType(fn.__code__, namespace, fn.__name__, fn.__defaults__, fn.__closure__)
+    source.__qualname__, source.__module__, source.__doc__ = fn.__qualname__, fn.__module__, fn.__doc__
+    source.__kwdefaults__, source.__type_params__ = fn.__kwdefaults__, type_params
+    source.__annotations__ = _written_annotations(fn)
+    source.__annotations__ = resolved_annotations(source)
+    return source
+
+
 def _hints(cls: type) -> dict[str, Any]:
     hints = {}
     for base in reversed(_user_bases(cls)):
         namespace = getattr(sys.modules.get(base.__module__), "__dict__", {}) | dict(vars(base))
         namespace.update({ancestor.__name__: ancestor for ancestor in cls.__mro__})
-        own = types.SimpleNamespace(__annotations__=inspect.get_annotations(base))
+        own = types.SimpleNamespace(__annotations__=_written_annotations(base))
         try:
             hints.update(typing.get_type_hints(own, globalns=namespace, localns=namespace, include_extras=True))
         except (NameError, TypeError) as error:
@@ -153,8 +195,9 @@ def _fields(cls: type, hints: dict[str, Any]) -> tuple[Field, ...]:
             node = ast.parse(textwrap.dedent(inspect.getsource(fn)))
         except (OSError, TypeError):
             continue
-        receiver = next(iter(inspect.signature(fn).parameters), "self")
-        parameter_hints = inspect.get_annotations(fn, eval_str=True)
+        contextual = contextual_function(base, fn)
+        receiver = next(iter(inspect.signature(contextual).parameters), "self")
+        parameter_hints = contextual.__annotations__
         for assignment in ast.walk(node):
             if not isinstance(assignment, (ast.Assign, ast.AnnAssign)):
                 continue
@@ -223,11 +266,14 @@ class ClassDeclaration:
         self.originals: dict[str, Any] = {}
         self.operations: dict[str, Any] = {}
         self.field_adopter: Symbol | None = None
+        self.host_converter: Symbol | None = None
         self.borrowers: set[str] = set()
         self.bases: tuple[ClassDeclaration, ...] = ()
         self.references: tuple[ClassDeclaration, ...] = ()
         self.reference_rows: list[tuple[str, int]] = []
         self.inherited_rows: dict[ClassDeclaration, list[tuple[str, int]]] = {}
+        self.methods: dict[str, Any] = {}
+        self.method_rows: dict[tuple[str, Atom], list[tuple[str, int]]] = {}
         self.public_accessors = accessors
         self.hints = _hints(cls)
         self.classvars = {
@@ -263,7 +309,7 @@ class ClassDeclaration:
         if self.enum:
             self.signature = inspect.Signature([inspect.Parameter("member", inspect.Parameter.POSITIONAL_ONLY)])
         elif inspect.isfunction(self.initializer):
-            signature = inspect.signature(self.initializer)
+            signature = inspect.signature(contextual_function(cls, self.initializer))
             parameters = list(signature.parameters.values())[1:]
             if self.generated_init:
                 fields = {field.name: field for field in self.fields}
@@ -356,7 +402,21 @@ class ClassDeclaration:
         return field_values.encode(self, value)
 
     def field_types(self, annotation: Any) -> list[Atom]:
-        return field_values.type_atoms(self, annotation)
+        return field_values.type_atoms(annotation, retained=self.grain != "value")
+
+    def host_value(self, receiver: Atom) -> Atom:
+        """Rebuild a declared local at an explicit host expression boundary."""
+        if self.host_converter is None:
+            name = f"_{self.name}-python-value"
+
+            def rebuild(atom: Atom) -> Atom:
+                return Grounded(build(atom, space=self.space))
+
+            self.operation(rebuild, name=name, arities=[1], effect="oracleIO",
+                           declarations=[_expr(S.arguments, Symbol(name), S.atoms)])
+            self.host_converter = Symbol(name)
+            self.space.add(_expr(S.internal, self.host_converter))
+        return _expr(S.evalc, _expr(self.host_converter, receiver), Symbol(self.space.name))
 
     def synchronize_bases(self) -> None:
         bases = tuple(plan for base in self.cls.__mro__[1:] if (plan := declaration(base)) is not None)
@@ -489,8 +549,12 @@ class ClassDeclaration:
         return answer
 
     def initialize(self, instance: Any, *args: Any, **kwargs: Any) -> None:
-        bound = self.signature.bind(*args, **kwargs)
-        sources = self.argument_sources(bound.arguments, self.encode)
+        from metta._declare import constructors  # noqa: PLC0415 -- shared class types
+
+        image = constructors.image(self)
+        signature = NativeCallable(image, self.space, Any).__signature__
+        bound = signature.bind(*args, **kwargs)
+        sources = self.argument_sources(bound.arguments, argument, signature=signature)
 
         def construct() -> None:
             if self.grain == "value":
@@ -507,10 +571,17 @@ class ClassDeclaration:
 
         self.space.transaction(construct)
 
-    def argument_sources(self, supplied: dict[str, Any], encode: Any) -> tuple[Atom, ...]:
+    def argument_sources(self, supplied: dict[str, Any], encode: Any, *, signature: inspect.Signature | None = None, defaults: dict[str, Atom] | None = None) -> tuple[Atom, ...]:
         """Quote supplied values; omitted parameters retain their default code."""
         result: list[Atom] = []
-        for name, parameter in self.signature.parameters.items():
+        if defaults is None:
+            defaults = self.defaults if signature is None else {
+                name: argument(parameter.default)
+                for name, parameter in signature.parameters.items()
+                if parameter.default is not inspect.Parameter.empty
+            }
+        signature = self.signature if signature is None else signature
+        for name, parameter in signature.parameters.items():
             if name in supplied:
                 value = supplied[name]
                 if parameter.kind is inspect.Parameter.VAR_POSITIONAL:
@@ -524,7 +595,7 @@ class ClassDeclaration:
             elif parameter.kind is inspect.Parameter.VAR_KEYWORD:
                 result.append(self.keyword_arguments({}))
             else:
-                result.append(self.defaults[name])
+                result.append(defaults[name])
         return tuple(result)
 
     def keyword_arguments(self, values: dict[str, Atom]) -> Atom:
@@ -691,6 +762,9 @@ def install(space: Any, cls: type, *, accessors: bool, methods: bool) -> type:
         constructors,
         definitions,
     )
+    from metta._declare import (  # noqa: PLC0415 -- methods consume class declarations
+        methods as method_declarations,
+    )
 
     integrate = lazy('metta.integrate')
     with definitions._DEFINE_LOCK:
@@ -725,13 +799,15 @@ def install(space: Any, cls: type, *, accessors: bool, methods: bool) -> type:
                 for row in declarations(cls):
                     plan.space.add(row)
                 plan.install_storage()
+                if methods:
+                    method_declarations.prepare(plan)
                 for known in tuple(_DECLARATIONS.values()):
                     known.synchronize_bases()
+                method_declarations.compile_methods(plan)
                 constructors.install(plan)
                 for known in tuple(_DECLARATIONS.values()):
                     known.synchronize_bases()
-                if methods:
-                    definitions._register_methods(plan)
+                method_declarations.synchronize(tuple(_DECLARATIONS.values()))
                 documentation = documentation_atom(
                     plan.name, cls, kind="record",
                     parameters=tuple(field.name for field in plan.stored_fields),
@@ -740,6 +816,7 @@ def install(space: Any, cls: type, *, accessors: bool, methods: bool) -> type:
                 if documentation is not None:
                     plan.space.add(documentation)
                 plan.instrument()
+                method_declarations.instrument(plan)
                 plan.answer(_expr(S["scope-defer"], Symbol(plan.name),
                                   _expr(S["drop-space"], Symbol(plan.space.name))))
             if consumer is not None:
@@ -785,6 +862,8 @@ def release(space: Any) -> None:
         pending.update({*plan.bases, *plan.references} - retained)
     retired = plans - retained
     for plan in retired:
+        for rows in plan.method_rows.values():
+            _withdraw_rows(plan.space._rt, [row for row in rows if row[0] != space._name])
         for rows in plan.inherited_rows.values():
             _withdraw_rows(plan.space._rt, [row for row in rows if row[0] != space._name])
     for plan in retired:
@@ -793,6 +872,11 @@ def release(space: Any) -> None:
         lazy('metta.integrate').unregister_type(plan.cls)
         if plan.previous_registration is not None:
             _record_registration(plan.cls, plan.previous_registration)
+    from metta._declare import projections  # noqa: PLC0415 -- only live declarations are refreshed
+
+    for plan in retained:
+        for method in plan.methods.values():
+            projections.refresh(method, tuple(retained))
     for plan in retired:
         if plan.space._name != space._name:
             plan.space.drop()

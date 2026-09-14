@@ -308,7 +308,7 @@ def type_atoms_for(annotation: Any) -> list[Atom]:
         return [Variable("t")]
     if annotation is typing.LiteralString:
         return [S["String"]]
-    if origin is type:
+    if origin is type or annotation is type:
         return [S["Type"]]
     if origin in (typing.Required, typing.NotRequired):
         return type_atoms_for(typing.get_args(annotation)[0])

@@ -1,5 +1,8 @@
 """Purpose: describe the state shared by compiler lowering bands.
 Guarantees:
+  - nested compiler scopes retain the method's receiver and declared field
+    types [tested:
+    test_method_field_projection_preserves_captures_and_rebinding; commit=WORKTREE]
   - binding targets distinguish local values from storage-write statuses
     [tested: test_refused_field_writes_stop_their_compiled_continuation,
     test_false_writer_status_and_local_error_data_keep_their_value_semantics;
@@ -124,6 +127,7 @@ class CompilerContext(ABC):
     class_dependencies: set[type]
     construction: tuple[Any, str] | None
     constructor_return: Callable[..., Atom] | None
+    method_receiver: str | None
     _annotation_value: Callable[[ast.expr], Any] | None
 
     @abstractmethod

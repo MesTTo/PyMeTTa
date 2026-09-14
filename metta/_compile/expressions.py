@@ -797,6 +797,10 @@ class ExpressionCompilerMixin(CompilerContext):
             return term
         if isinstance(node, ast.Constant) and isinstance(node.value, bool):
             return term
+        if isinstance(node, ast.Call):
+            member = _records.method_reference(self, node.func)
+            if member is not None and member.result_type is bool:
+                return term
         if (
             isinstance(term, Expression)
             and term.children
@@ -888,6 +892,9 @@ class ExpressionCompilerMixin(CompilerContext):
         params = [arg.arg for arg in a.args]
         inner = self._inner(params)
         body = inner.expression(node.body)
+        home = _records.declared(self.class_context)
+        if home is not None:
+            body = Expression([Symbol("evalc"), body, Symbol(home.space.name)])
         value = Expression([Symbol("|->"), Expression([Variable(p) for p in params]), body])
         signature = inspect.Signature([
             inspect.Parameter(name, inspect.Parameter.POSITIONAL_OR_KEYWORD) for name in params
@@ -916,6 +923,8 @@ class ExpressionCompilerMixin(CompilerContext):
             source = call_syntax.application(self, gen.iter, consumer="iterable")
         else:
             source = self.expression(gen.iter)
+            if _records.answer_stream(self, gen.iter):
+                source = Expression([Symbol("collapse"), source])
         inner = self._inner([var])
         inner.loop_depth += 1
         stages = [
@@ -1110,7 +1119,7 @@ class ExpressionCompilerMixin(CompilerContext):
             marked=marked,
         )
         return Expression(
-            [Grounded(island), *(Variable(self.scope[name]) for name in runtime_names)]
+            [Grounded(island), *(_records.host_operand(self, name) for name in runtime_names)]
         )
 
     def _unknown_host_callee(
@@ -1414,6 +1423,8 @@ class ExpressionCompilerMixin(CompilerContext):
         source = node.args[0]
         if isinstance(source, ast.Call) and (call_syntax.dynamic(self, source) or call_syntax.expanded(source)):
             return call_syntax.application(self, source, consumer="iterable")
+        if _records.answer_stream(self, source):
+            return Expression([Symbol("collapse"), self.expression(source)])
         if not isinstance(source, ast.Call):
             return self._implicit_island(node)
         called: str | None = None

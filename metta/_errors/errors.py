@@ -32,7 +32,7 @@ Guarantees:
     and every CompileError derives one from its construct [tested:
     extensions/python/tests/ch10_errors_and_refusals/test_refusal_grounds.py,
     tests/checks/check_refusal_grounds.py;
-    commit=9b0a084e534ddf7dd67980ad84c27c8279b877f1]
+    commit=WORKTREE]
   - a reified-world effect refusal carries the named EffectSafety law as its
     machine-readable ground [tested:
     test_an_uncovered_world_refuses_before_creating_scratch_or_running_the_operation;
@@ -553,7 +553,7 @@ _COMPILE_REFERENCE_BY_CONSTRUCT = (
     (("for", "while"), "Python Language Reference section 8.2-8.3, while and for statements"),
     (("with",), "Python Language Reference section 8.5, The with statement"),
     (("yield", "generator"), "Python Language Reference section 6.2.9, Yield expressions"),
-    (("call", "callee", "keyword", "function", "def", "twin", "argument", "overload"), "Python Language Reference section 6.3.4, Calls"),
+    (("call", "callee", "keyword", "function", "method", "def", "twin", "argument", "overload"), "Python Language Reference section 6.3.4, Calls"),
     (("attribute", "field"), "Python Language Reference section 6.3.2, Attribute references"),
     (("subscript", "slice"), "Python Language Reference section 6.3.3, Subscriptions"),
     (("compare", "boolop"), "Python Language Reference section 6.10-6.11, Comparisons and Boolean operations"),

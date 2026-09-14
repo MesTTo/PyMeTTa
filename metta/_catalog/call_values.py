@@ -9,6 +9,10 @@ Guarantees:
     commit=310a9d8b547a77412a518a37ab79fba073eb22ac]
   - nonsymbol literal arguments retain direct cursor application [tested:
     test_function_calls_suspend_endless_producers; commit=310a9d8b547a77412a518a37ab79fba073eb22ac]
+  - quoted variables retain their value boundary when callable templates
+    capture receivers [tested:
+    test_class_methods_keep_full_python_signatures_and_native_bodies,
+    test_class_generator_methods_return_owned_cursors; commit=WORKTREE]
   - native application facts receive separate data frames, retaining supplied
     arguments, captures and live program edits [tested:
     test_native_application_frames_preserve_data_and_live_programs;
@@ -90,10 +94,11 @@ def apply_sources(head: Atom, sources: Sequence[Atom]) -> Atom:
     for source in sources:
         value = (source.args[0] if isinstance(source, Expression)
                  and source.head == S.noeval and len(source.args) == 1 else source)
-        # The wire decoder makes these tags native variables or nonsymbol
-        # literals, which eager argument translation already passes through.
+        # The wire decoder makes these tags nonsymbol literals, which eager
+        # argument translation already passes through. A quoted variable can
+        # still be instantiated in a callable template, so retain its binding.
         # Boolean and space tags decode to atoms and can have scalar rules.
-        if not isinstance(value, Expression) and value.to_wire()[0] in ("v", "n", "g", "o", "h"):
+        if not isinstance(value, Expression) and value.to_wire()[0] in ("n", "g", "o", "h"):
             operands.append(value)
         else:
             parameter = fresh()

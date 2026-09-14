@@ -36,6 +36,7 @@ import ast
 
 from metta._atoms.factories import Atom, Expression, Symbol, Variable
 from metta._compile import call_syntax
+from metta._compile import records as _records
 from metta._compile.context import CompilerContext, next_aux_serial
 from metta._compile.expressions import _name_of
 from metta._compile.statements import _generator_live_names
@@ -183,11 +184,7 @@ class LoopCompilerMixin(CompilerContext):
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         if isinstance(iter_node, ast.Call) and (call_syntax.dynamic(self, iter_node) or call_syntax.expanded(iter_node)):
             return call_syntax.application(self, iter_node, consumer="iterable")
-        if (
-            isinstance(iter_node, ast.Call)
-            and isinstance(iter_node.func, ast.Name)
-            and self.nondet(self._resolved_call_name(iter_node.func.id))
-        ):
+        if _records.answer_stream(self, iter_node):
             return Expression([Symbol("collapse"), self.expression(iter_node)])
         self.runtime_ops.add("py-iter-once")
         return Expression(
