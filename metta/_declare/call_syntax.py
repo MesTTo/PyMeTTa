@@ -4,7 +4,7 @@ Guarantees:
   - compiled parameter binding reads its home, image and frames as native
     data and returns source without evaluating the body [tested:
     test_native_parameter_binding_preserves_values_and_defers_the_body;
-    test_native_parameter_binding_observes_graph_rewrites; commit=WORKTREE]
+    test_native_parameter_binding_observes_graph_rewrites; commit=71a6b9f41b19452d50934448a6d77432887f5193]
   - host applications retain editable native argument frames and the existing
     raw host codec [tested:
     test_compiled_host_calls_keep_data_out_of_keyword_control,

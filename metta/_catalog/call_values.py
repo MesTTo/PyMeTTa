@@ -6,7 +6,7 @@ Guarantees:
     test_native_parameter_binding_preserves_values_and_defers_the_body;
     test_compiled_keyword_collectors_keep_atom_values;
     test_constructor_arguments_preserve_values_and_run_factories;
-    commit=WORKTREE]
+    commit=71a6b9f41b19452d50934448a6d77432887f5193]
   - named callable values select their live Python contract independently of
     supplied argument count, retaining defaults and both variadic segments
     [tested: test_named_callable_uses_its_complete_signature,

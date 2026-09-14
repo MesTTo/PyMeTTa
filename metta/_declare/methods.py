@@ -9,7 +9,7 @@ Guarantees:
     unbound entries, whose shared binder captures no Python method [tested:
     test_method_defaults_are_read_from_one_native_signature;
     test_class_methods_keep_full_python_signatures_and_native_bodies;
-    commit=WORKTREE]
+    commit=71a6b9f41b19452d50934448a6d77432887f5193]
   - method receivers and packed parameters retain Python underscore identity
     [tested: test_class_underscore_fields_receivers_and_packed_parameters; commit=69d1511c099eb6aa80c38d898da49487c42470f0]
   - Python invocation reads the live native equation and preserves the source

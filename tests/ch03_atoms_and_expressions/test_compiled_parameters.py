@@ -4,10 +4,10 @@ Guarantees:
   - native binding holds values, separates both variadic segments and leaves
     body evaluation to its caller [tested:
     test_native_parameter_binding_preserves_values_and_defers_the_body;
-    commit=WORKTREE]
+    commit=71a6b9f41b19452d50934448a6d77432887f5193]
   - retained binding expressions read live signatures and canonical bodies
     [tested: test_native_parameter_binding_observes_graph_rewrites;
-    commit=WORKTREE]
+    commit=71a6b9f41b19452d50934448a6d77432887f5193]
 """
 
 import inspect
