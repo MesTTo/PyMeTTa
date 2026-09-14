@@ -2,8 +2,9 @@
 % Assumes: loaded through _binding/shim.pl in its host module.
 % Owns resources: anonymous space names; metta_py_release_space/1 clears and returns eligible names to the pool
 % [source: extensions/python/metta/_binding/lifecycle.pl:metta_py_release_space/1; commit=8358dfc233bf299bb23eceddd94593a62372fe4b].
-% Guarantees: declaration and release preserve native expression identities
-% [tested: test_a_parametric_namespace_lists_resolves_and_inherits_native_functions; commit=349d40951e1412b91cb3b60aa476826cf4654e63].
+% Guarantees: declaration, transport and release preserve native expression identities
+% [tested: test_parametric_names_preserve_their_native_fields,
+% test_parametric_names_follow_scope_release; commit=WORKTREE].
 
 %Run a Python callable inside one engine transaction: the same
 %metta_transaction/1 the MeTTa (transaction ...) form compiles to, so
@@ -145,9 +146,12 @@ metta_py_new_modelled_space(Model, Argument, Name) :-
     catch(metta_py_declare_space(Model, Name, Argument), Error,
           ( metta_py_pool_space(Name), throw(Error) )).
 
-metta_py_open_atom_space(NameWire, Space) :-
+% Janus prolog/1 preserves each native field, including string versus atom.
+% Raw list conversion loses that distinction on the next Python-to-Prolog call.
+metta_py_open_atom_space(NameWire, Fields) :-
     metta_py_decode_shared(NameWire, Space, _),
-    metta_declare_parametric_space(Space).
+    metta_declare_parametric_space(Space),
+    findall(prolog(Field), member(Field, Space), Fields).
 
 metta_py_space_capability(Capability, Capability) :- atom(Capability), !.
 metta_py_space_capability(Capability0, Capability) :-

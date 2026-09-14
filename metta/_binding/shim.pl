@@ -242,9 +242,10 @@
 %     public name to the anonymous pool [tested:
 %     test_a_named_space_drop_never_enters_the_anonymous_pool;
 %     commit=d843bb6d17a525c36afd21cab077d63b34447535]
-%   - metta_py_open_atom_space/2 decodes and declares a ground expression
-%     identity once for Python space handles [tested:
-%     test_python_space_factory_accepts_atom_valued_names; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
+%   - metta_py_open_atom_space/2 declares a ground expression identity and
+%     returns its fields through Janus prolog/1 carriers, preserving their
+%     native kinds on later input [tested:
+%     test_parametric_names_preserve_their_native_fields; commit=WORKTREE]
 %   - metta_py_new_modelled_space/3 rolls a failed declaration back to the
 %     anonymous-name pool [tested: test_restricted_constructor_validation_is_eager;
 %     commit=6a08901f4125c2536f5b4032daac9937f793870f]

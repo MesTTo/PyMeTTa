@@ -3,6 +3,10 @@
 Owns resources: SpaceHandle.drop releases owned backing state and subscriptions.
 Failed cleanup retains its state for retry before an anonymous name is pooled
 [source: extensions/python/metta/_spaces/handle.py:544; commit=cd62330ceacc8f1254eed9791c3f6203b48a1c9e].
+Guarantees: parametric names retain their exact native fields and immutable
+registry identity [tested: test_parametric_names_preserve_their_native_fields,
+test_parametric_aliases_share_batch_ownership,
+test_parametric_name_carriers_are_immutable; commit=WORKTREE].
 """
 
 from __future__ import annotations
@@ -12,7 +16,7 @@ import os
 from collections import abc as _abc
 from collections.abc import Callable, Mapping
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, NamedTuple, Self, cast
+from typing import TYPE_CHECKING, Any, NamedTuple, Never, Self, cast
 
 import metta._spaces.intents as _spaces_intents_module
 import metta._spaces.lifetime as _spaces_lifetime_module
@@ -203,15 +207,42 @@ def _inline_module_name(source: str) -> str:
     return f"metta_inline_{digest}"
 
 class _HashableSpaceTerm(list[Any]):
-    """A Janus list carrier that can also key Python's per-space registries."""
+    """An exact Janus term list keyed by its immutable expression identity."""
+
+    __slots__ = ("_image",)
+
+    def __init__(self, fields: list[Any], image: Expression) -> None:
+        super().__init__(fields)
+        self._image = image
+
+    def __metta__(self) -> Expression:
+        """Publish the original name through the ordinary value protocol."""
+        return self._image
+
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, _HashableSpaceTerm):
+            return NotImplemented
+        return self._image == other._image
+
+    def __ne__(self, other: object) -> bool:
+        return not self == other
 
     def __hash__(self) -> int:  # type: ignore[override]  # Janus requires a list carrier while per-space registries require a stable hash
-        def frozen(value: Any) -> Any:
-            if isinstance(value, list):
-                return tuple(frozen(item) for item in value)
-            return value
+        return hash(self._image)
 
-        return hash(frozen(self))
+    def __repr__(self) -> str:
+        return repr(self._image)
+
+    def __str__(self) -> str:
+        return str(self._image)
+
+    def _immutable(self, *_args: Any, **_kwargs: Any) -> Never:
+        """Keep the native term and its registry key in agreement."""
+        msg = "a space name is immutable; open a Space with a different expression"
+        raise TypeError(msg)
+
+    __setitem__ = __delitem__ = __iadd__ = __imul__ = _immutable
+    append = clear = extend = insert = pop = remove = reverse = sort = _immutable
 
 class SpaceHandle(Handle):
     """A space bound to the engine: the way in from Python.
@@ -278,6 +309,9 @@ class SpaceHandle(Handle):
             # correctly.
             self._name_atom = name._name_atom
             engine_name: str | _HashableSpaceTerm = name._space
+        elif isinstance(name, _HashableSpaceTerm):
+            self._name_atom = name.__metta__()
+            engine_name = name
         elif isinstance(name, Symbol):
             self._name_atom = name
             engine_name = (
@@ -295,7 +329,7 @@ class SpaceHandle(Handle):
                 raise ValueError(msg)
             self._name_atom = name
             engine_name = _HashableSpaceTerm(
-                self._rt.apply_must("metta_py_open_atom_space", name.to_wire())
+                self._rt.apply_must("metta_py_open_atom_space", name.to_wire()), name
             )
         else:
             engine_name = name
