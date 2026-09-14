@@ -1,6 +1,11 @@
 """Purpose: carry Python call contracts as inspectable native parameter records.
 
 Guarantees:
+  - generic annotation applications preserve Python subscription arity and
+    each constructor's own refusal [tested:
+    test_callable_annotation_records_preserve_subscription_arity;
+    test_callable_annotation_records_preserve_constructor_refusals;
+    commit=WORKTREE]
   - callable images keep underscore parameters named while retaining the
     original keyword label [tested:
     test_underscore_callable_parameters_keep_python_keyword_labels; commit=69d1511c099eb6aa80c38d898da49487c42470f0]
@@ -116,7 +121,7 @@ def annotation_value(atom: Atom) -> Any:
     if head == S["host-apply"] and len(arguments) == 2 and isinstance(arguments[1], Expression):
         origin = annotation_value(arguments[0])
         parameters = tuple(annotation_value(item) for item in arguments[1].children)
-        return origin[parameters]
+        return origin[parameters[0] if len(parameters) == 1 else parameters]
     msg = f"the native call annotation cannot be resolved: {atom}"
     raise TypeError(msg)
 
