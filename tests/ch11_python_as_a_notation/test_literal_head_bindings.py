@@ -3,7 +3,7 @@
 Guarantees:
   - matched literals remain readable across local scopes and each generator
     equation [tested: test_literal_head_values_reach_compiled_bodies;
-    test_each_generator_equation_binds_its_literal_head; commit=WORKTREE]
+    test_each_generator_equation_binds_its_literal_head; commit=5e3e9bce79f9ad71d61096256bbda8b249f8de8c]
 """
 
 import pytest
