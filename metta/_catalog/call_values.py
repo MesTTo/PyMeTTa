@@ -5,24 +5,24 @@ Guarantees:
     supplied argument count, retaining defaults and both variadic segments
     [tested: test_named_callable_uses_its_complete_signature,
     test_named_callable_binding_agrees_with_python,
-    test_named_callable_observes_signature_replacement; commit=WORKTREE]
+    test_named_callable_observes_signature_replacement; commit=bb0a3a3a43e5b9cd015c900df8a861f16a3af0ce]
   - exact positional ports precede overlapping variadic layouts, whose
     ambiguity requires an explicit native image [tested:
     test_an_exact_positional_port_precedes_variadic_ports,
     test_overlapping_variadic_ports_require_an_explicit_native_image;
-    commit=WORKTREE]
+    commit=bb0a3a3a43e5b9cd015c900df8a861f16a3af0ce]
   - Python calls preserve computed syntax and record arguments through native
     source bindings [tested:
     test_python_call_values_preserve_expression_arguments,
     test_computed_receivers_preserve_their_stored_syntax,
     test_python_call_values_preserve_symbols_with_live_scalar_rules;
-    commit=WORKTREE]
+    commit=bb0a3a3a43e5b9cd015c900df8a861f16a3af0ce]
   - nonsymbol literal arguments retain direct cursor application [tested:
-    test_function_calls_suspend_endless_producers; commit=WORKTREE]
+    test_function_calls_suspend_endless_producers; commit=bb0a3a3a43e5b9cd015c900df8a861f16a3af0ce]
   - quoted variables retain their value boundary when callable templates
     capture receivers [tested:
     test_class_methods_keep_full_python_signatures_and_native_bodies,
-    test_class_generator_methods_return_owned_cursors; commit=WORKTREE]
+    test_class_generator_methods_return_owned_cursors; commit=bb0a3a3a43e5b9cd015c900df8a861f16a3af0ce]
   - native application facts receive separate data frames, retaining supplied
     arguments, captures and live program edits [tested:
     test_native_application_frames_preserve_data_and_live_programs;
@@ -30,29 +30,29 @@ Guarantees:
     test_native_application_mapping_lookup_preserves_distinct_binders;
     test_native_application_keywords_do_not_bind_adapter_parameters;
     test_captured_application_parameters_keep_their_keyword_binding_rule;
-    commit=WORKTREE]
+    commit=bb0a3a3a43e5b9cd015c900df8a861f16a3af0ce]
   - native references select their current call port and preserve captures
     and explicit contracts [tested:
     test_expanded_partial_references_preserve_capture_and_parameter_names;
     test_forwarding_contracts_preserve_explicit_cardinality_and_bound_captures;
-    test_native_references_observe_later_arity_changes; commit=WORKTREE]
+    test_native_references_observe_later_arity_changes; commit=bb0a3a3a43e5b9cd015c900df8a861f16a3af0ce]
   - application evaluates the carried native value, including subsequent source
     rewrites [tested: test_native_callable_values_keep_their_lexical_program;
-    commit=WORKTREE]
+    commit=bb0a3a3a43e5b9cd015c900df8a861f16a3af0ce]
   - segment applications execute the constructed call and preserve captured
     arguments [tested: test_evaluated_native_lambdas_apply_their_assembled_arguments;
-    commit=WORKTREE]
+    commit=bb0a3a3a43e5b9cd015c900df8a861f16a3af0ce]
   - adding the current lexical home retains the source lambda's contract
     [tested: test_native_callable_contracts_survive_lexical_wrapping;
-    commit=WORKTREE]
+    commit=bb0a3a3a43e5b9cd015c900df8a861f16a3af0ce]
   - contract lookup preserves distinct binders and references to authored
     heads [tested: test_contract_lookup_preserves_distinct_lambda_binders;
     test_callable_conversion_keeps_authored_heads_as_live_references;
-    commit=WORKTREE]
+    commit=bb0a3a3a43e5b9cd015c900df8a861f16a3af0ce]
 Owns resources:
   - the callable image contains its lexical home and captured receiver, so
     scope retention follows the ordinary native value graph [tested:
-    test_a_kept_native_callable_retains_its_scoped_program; commit=WORKTREE]
+    test_a_kept_native_callable_retains_its_scoped_program; commit=bb0a3a3a43e5b9cd015c900df8a861f16a3af0ce]
 """
 
 from __future__ import annotations

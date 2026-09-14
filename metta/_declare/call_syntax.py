@@ -5,27 +5,27 @@ Guarantees:
     raw host codec [tested:
     test_compiled_host_calls_keep_data_out_of_keyword_control,
     test_reflected_host_application_frames_remain_editable,
-    test_host_call_frames_do_not_inspect_callable_signatures; commit=WORKTREE]
+    test_host_call_frames_do_not_inspect_callable_signatures; commit=bb0a3a3a43e5b9cd015c900df8a861f16a3af0ce]
   - method and constructor values keep positional data separate from keyword
     entries [tested:
     test_keyword_named_atoms_remain_positional_method_and_constructor_values;
-    commit=WORKTREE]
+    commit=bb0a3a3a43e5b9cd015c900df8a861f16a3af0ce]
   - qualified class applications carry their class identity through native
     dispatch and scope retention [tested:
-    test_kept_unbound_methods_retain_their_class_program; commit=WORKTREE]
+    test_kept_unbound_methods_retain_their_class_program; commit=bb0a3a3a43e5b9cd015c900df8a861f16a3af0ce]
   - positional expansion preserves native atoms in native and borrowed
     sequences [tested: test_expanded_arguments_preserve_native_atom_values;
-    commit=WORKTREE]
+    commit=bb0a3a3a43e5b9cd015c900df8a861f16a3af0ce]
   - signature binding constructs a native application and never runs its body
-    [tested: test_expanded_native_calls_read_the_live_contract; commit=WORKTREE]
+    [tested: test_expanded_native_calls_read_the_live_contract; commit=bb0a3a3a43e5b9cd015c900df8a861f16a3af0ce]
   - named references defer port selection to their live native call contracts
     [source: extensions/python/metta/_catalog/call_values.py:NativeCallable._reference_layout;
-    commit=WORKTREE]
+    commit=bb0a3a3a43e5b9cd015c900df8a861f16a3af0ce]
 Owns resources:
   - consuming spaces own their ordinary operation registrations; keyword
     dictionaries are temporary values local to one call
     [tested: test_expanded_operation_contracts_follow_replacement_and_retirement;
-    commit=WORKTREE]
+    commit=bb0a3a3a43e5b9cd015c900df8a861f16a3af0ce]
 """
 
 from __future__ import annotations

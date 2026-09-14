@@ -3,12 +3,12 @@
 Guarantees:
   - named references bind complete signatures independently of their native
     parameter count [tested: test_named_callable_uses_its_complete_signature;
-    commit=WORKTREE]
+    commit=bb0a3a3a43e5b9cd015c900df8a861f16a3af0ce]
   - native contract edits govern retained references, including ambiguity
     between overlapping variadic ports [tested:
     test_named_callable_observes_signature_replacement;
     test_overlapping_variadic_ports_require_an_explicit_native_image;
-    commit=WORKTREE]
+    commit=bb0a3a3a43e5b9cd015c900df8a861f16a3af0ce]
 """
 
 import inspect
