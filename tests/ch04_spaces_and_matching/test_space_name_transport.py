@@ -4,6 +4,8 @@ Guarantees: storage, rewriting, aliases and ownership retain each name's exact
 atom kinds [tested: test_parametric_names_preserve_their_native_fields,
 test_parametric_aliases_share_batch_ownership,
 test_parametric_names_follow_scope_release; commit=3f71a0b3af04a3ba4c88bf3906197a2a80d9080e].
+Cached evaluation addresses every coexisting sibling [tested:
+test_parametric_names_keep_atom_kinds_distinct; commit=WORKTREE].
 """
 
 from contextlib import ExitStack, contextmanager
@@ -79,7 +81,7 @@ def test_parametric_aliases_share_batch_ownership():
         assert home.atoms() == [S.entry(1)]
 
 
-def test_parametric_names_keep_atom_kinds_distinct():
+def test_parametric_names_keep_atom_kinds_distinct(metta):
     """String, symbol, boolean, numeric kind and signed zero stay separate."""
     parameters = ["tenant", S.tenant, True, 1, 1.0, 0.0, -0.0]
     with ExitStack() as stack:
@@ -91,6 +93,7 @@ def test_parametric_names_keep_atom_kinds_distinct():
             home.add(S.entry(index))
         for index, home in enumerate(homes):
             assert home.atoms() == [S.entry(index)]
+            assert metta.eval(S["get-atoms"](home)) == [S.entry(index)]
 
 
 @pytest.mark.parametrize("mutation", [
