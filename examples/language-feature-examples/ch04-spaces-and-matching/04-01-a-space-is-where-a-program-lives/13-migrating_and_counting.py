@@ -161,5 +161,5 @@ from metta import Expression  # noqa: E402  -- read after the claims it serves
 #: in MeTTa and loads those changed providers through every direct and
 #: transitive consumer [measured 2026-09-14: min-of-3 serial fresh processes;
 #: command=python extensions/python/tools/twin_coverage.py --repin;
-#: commit=WORKTREE].
+#: commit=b7866b4d874879ff0cb212eb1c6af60dddaa39c6].
 BUDGET = 18582

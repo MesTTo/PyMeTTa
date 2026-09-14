@@ -8,7 +8,7 @@ The pin is a temporary directory rather than the shipped one, through
 PETTA_PIN, so the proof runs on every checkout and needs no upstream.
 Guarantees: an exact recorded difference passes and further output drift fails
 [tested: test_a_recorded_ruling_passes_while_it_stays_exactly_that,
-test_a_recorded_ruling_blocks_when_its_output_drifts; commit=WORKTREE].
+test_a_recorded_ruling_blocks_when_its_output_drifts; commit=b7866b4d874879ff0cb212eb1c6af60dddaa39c6].
 Open Obligations:
   To Do: None
   Hacks: None

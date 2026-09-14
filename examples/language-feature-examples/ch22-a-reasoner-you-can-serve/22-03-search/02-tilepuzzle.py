@@ -470,7 +470,7 @@ def twin(m):
 #: annotates native protocol domains; every direct and transitive library
 #: consumer is measured again [measured 2026-09-14: min-of-3 serial fresh
 #: processes; command=python extensions/python/tools/twin_coverage.py --repin;
-#: commit=WORKTREE].
+#: commit=b7866b4d874879ff0cb212eb1c6af60dddaa39c6].
 BUDGET = 31579783
 
 #: DIVERGED 2026-09-07, the example holds 2 atoms the twin does not (2 =) and

@@ -356,7 +356,7 @@ def twin(m):
 #: recipes in MeTTa and loads those changed providers through every direct and
 #: transitive consumer [measured 2026-09-14: min-of-3 serial fresh processes;
 #: command=python extensions/python/tools/twin_coverage.py --repin;
-#: commit=WORKTREE].
+#: commit=b7866b4d874879ff0cb212eb1c6af60dddaa39c6].
 BUDGET = 11529371
 
 #: DIVERGED 2026-09-07, the example holds 0 atoms the twin does not (none) and

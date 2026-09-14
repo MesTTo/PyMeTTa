@@ -8,7 +8,7 @@ Guarantees:
     test_native_rational_sorts_before_an_opaque_numeric_subclass; commit=615e8a68dce996a0c05b3ddddc71b80bc598442d]
   - _type_atom defers annotation loading until a Python annotation is supplied,
     including in the optional compiled codec [tested:
-    test_the_codec_builds_under_mypyc_as_an_option; commit=WORKTREE]
+    test_the_codec_builds_under_mypyc_as_an_option; commit=b7866b4d874879ff0cb212eb1c6af60dddaa39c6]
   - expression order keys use a flat prefix encoding, so 600 nested levels
     retain childwise ordering without consuming Python frames [tested:
     test_deep_atom_ordering_uses_a_constant_python_call_stack,
