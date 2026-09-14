@@ -4,7 +4,7 @@
 % [source: extensions/python/metta/_binding/lifecycle.pl:metta_py_release_space/1; commit=8358dfc233bf299bb23eceddd94593a62372fe4b].
 % Guarantees: declaration, transport and release preserve native expression identities
 % [tested: test_parametric_names_preserve_their_native_fields,
-% test_parametric_names_follow_scope_release; commit=WORKTREE].
+% test_parametric_names_follow_scope_release; commit=3f71a0b3af04a3ba4c88bf3906197a2a80d9080e].
 
 %Run a Python callable inside one engine transaction: the same
 %metta_transaction/1 the MeTTa (transaction ...) form compiles to, so

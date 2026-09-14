@@ -6,7 +6,7 @@ Failed cleanup retains its state for retry before an anonymous name is pooled
 Guarantees: parametric names retain their exact native fields and immutable
 registry identity [tested: test_parametric_names_preserve_their_native_fields,
 test_parametric_aliases_share_batch_ownership,
-test_parametric_name_carriers_are_immutable; commit=WORKTREE].
+test_parametric_name_carriers_are_immutable; commit=3f71a0b3af04a3ba4c88bf3906197a2a80d9080e].
 """
 
 from __future__ import annotations

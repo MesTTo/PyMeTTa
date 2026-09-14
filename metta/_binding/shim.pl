@@ -245,7 +245,7 @@
 %   - metta_py_open_atom_space/2 declares a ground expression identity and
 %     returns its fields through Janus prolog/1 carriers, preserving their
 %     native kinds on later input [tested:
-%     test_parametric_names_preserve_their_native_fields; commit=WORKTREE]
+%     test_parametric_names_preserve_their_native_fields; commit=3f71a0b3af04a3ba4c88bf3906197a2a80d9080e]
 %   - metta_py_new_modelled_space/3 rolls a failed declaration back to the
 %     anonymous-name pool [tested: test_restricted_constructor_validation_is_eager;
 %     commit=6a08901f4125c2536f5b4032daac9937f793870f]
