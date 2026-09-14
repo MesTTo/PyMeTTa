@@ -4,10 +4,10 @@ Guarantees:
   - positional and keyword values retain their place without another
     evaluation, including native expressions headed by Kwargs [tested:
     test_compiled_host_calls_keep_data_out_of_keyword_control;
-    test_carried_native_calls_hold_completed_operand_values; commit=WORKTREE]
+    test_carried_native_calls_hold_completed_operand_values; commit=86756da11eade288973b0dfaab7486a29e598cfd]
   - reflected host applications read their current native argument frames
     [tested: test_reflected_host_application_frames_remain_editable;
-    commit=WORKTREE]
+    commit=86756da11eade288973b0dfaab7486a29e598cfd]
 """
 
 from collections.abc import Callable

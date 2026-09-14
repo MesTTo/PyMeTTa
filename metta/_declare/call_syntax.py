@@ -5,19 +5,19 @@ Guarantees:
     raw host codec [tested:
     test_compiled_host_calls_keep_data_out_of_keyword_control,
     test_reflected_host_application_frames_remain_editable,
-    test_host_call_frames_do_not_inspect_callable_signatures; commit=WORKTREE]
+    test_host_call_frames_do_not_inspect_callable_signatures; commit=86756da11eade288973b0dfaab7486a29e598cfd]
   - method and constructor values keep positional data separate from keyword
     entries [tested:
     test_keyword_named_atoms_remain_positional_method_and_constructor_values;
-    commit=WORKTREE]
+    commit=86756da11eade288973b0dfaab7486a29e598cfd]
   - qualified class applications carry their class identity through native
     dispatch and scope retention [tested:
-    test_kept_unbound_methods_retain_their_class_program; commit=WORKTREE]
+    test_kept_unbound_methods_retain_their_class_program; commit=86756da11eade288973b0dfaab7486a29e598cfd]
   - positional expansion preserves native atoms in native and borrowed
     sequences [tested: test_expanded_arguments_preserve_native_atom_values;
     commit=5f94e43542d3afd87776476e767f5fda661423bc]
   - signature binding constructs a native application and never runs its body
-    [tested: test_expanded_native_calls_read_the_live_contract; commit=WORKTREE]
+    [tested: test_expanded_native_calls_read_the_live_contract; commit=86756da11eade288973b0dfaab7486a29e598cfd]
 Owns resources:
   - consuming spaces own their ordinary operation registrations; keyword
     dictionaries are temporary values local to one call

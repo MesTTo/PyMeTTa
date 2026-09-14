@@ -3,15 +3,15 @@
 Guarantees:
   - carried values and host-island locals remain data inside independent call
     frames [tested: test_compiled_host_calls_keep_data_out_of_keyword_control,
-    test_carried_native_calls_hold_completed_operand_values; commit=WORKTREE]
+    test_carried_native_calls_hold_completed_operand_values; commit=86756da11eade288973b0dfaab7486a29e598cfd]
   - native and borrowed positional sequences retain their atom elements
-    [tested: test_expanded_arguments_preserve_native_atom_values; commit=WORKTREE]
+    [tested: test_expanded_arguments_preserve_native_atom_values; commit=86756da11eade288973b0dfaab7486a29e598cfd]
   - each Python call form retains its materializer's length effects
     [tested: test_expanded_arguments_follow_python_length_hint_effects;
-    commit=WORKTREE]
+    commit=86756da11eade288973b0dfaab7486a29e598cfd]
   - expansion and keyword-group merge order follow Python's call construction
     [tested: test_expanded_calls_match_python_operand_and_mapping_failure_order;
-    commit=WORKTREE]
+    commit=86756da11eade288973b0dfaab7486a29e598cfd]
 """
 
 from __future__ import annotations

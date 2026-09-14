@@ -2,7 +2,7 @@
 Guarantees:
   - ordinary carried calls and host islands keep completed values separate
     from keyword control [tested:
-    test_compiled_host_calls_keep_data_out_of_keyword_control; commit=WORKTREE]
+    test_compiled_host_calls_keep_data_out_of_keyword_control; commit=86756da11eade288973b0dfaab7486a29e598cfd]
   - lambda and comprehension binders preserve Python underscore identity
     [tested: test_python_underscore_bindings_retain_their_values; commit=69d1511c099eb6aa80c38d898da49487c42470f0]
   - dictionary get selects its optional default only for an absent key;
@@ -15,7 +15,7 @@ Guarantees:
     test_expanded_calls_match_python_operand_and_mapping_failure_order;
     test_computed_lambda_calls_bind_keywords_after_creating_the_value;
     test_static_keyword_calls_evaluate_values_before_parameter_reordering;
-    commit=WORKTREE]
+    commit=86756da11eade288973b0dfaab7486a29e598cfd]
   - sequence construction binds computed elements in source order, then
     retains their values as data [tested:
     test_computed_sequence_heads_remain_values_after_native_rewriting,
