@@ -2,7 +2,7 @@
 Guarantees:
   - equation heads and stacked clause renaming preserve Python underscore
     parameters [tested: test_stacked_underscore_parameters_retain_order_and_binding,
-    test_underscore_callable_parameters_keep_python_keyword_labels; commit=WORKTREE]
+    test_underscore_callable_parameters_keep_python_keyword_labels; commit=69d1511c099eb6aa80c38d898da49487c42470f0]
   - each native definition space and head owns its Python twin family;
     clearing the space retires its reference bindings [tested:
     test_twin_families_follow_their_definition_space,

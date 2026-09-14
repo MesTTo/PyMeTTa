@@ -3,7 +3,7 @@
 Guarantees:
   - ordinary underscore bindings and explicit anonymous patterns have distinct
     behavior [tested: test_python_underscore_bindings_retain_their_values,
-    test_native_underscore_patterns_remain_anonymous; commit=WORKTREE]
+    test_native_underscore_patterns_remain_anonymous; commit=69d1511c099eb6aa80c38d898da49487c42470f0]
 """
 
 from collections.abc import Callable

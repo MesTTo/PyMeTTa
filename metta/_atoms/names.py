@@ -2,7 +2,7 @@
 Guarantees:
   - Python binding labels preserve identity without changing native anonymous
     variables [tested: test_python_underscore_bindings_retain_their_values,
-    test_native_underscore_patterns_remain_anonymous; commit=WORKTREE]
+    test_native_underscore_patterns_remain_anonymous; commit=69d1511c099eb6aa80c38d898da49487c42470f0]
   - exact catalog names win before the underscore-to-hyphen and trailing-bang
     candidates [tested: test_bare_callees_ask_exact_then_mapped,
     test_banged_catalog_names_take_the_mechanical_fallback; commit=6b77b811c44e1819ed9cd99f3809c0667f289e2e]
@@ -110,7 +110,7 @@ def binding_name(identifier: str) -> str:
     handles subsequent bindings. Explicit Variable atoms never use this map.
     [source: https://docs.python.org/3.14/reference/lexical_analysis.html#reserved-classes-of-identifiers;
     extensions/python/metta/_binding/wire.pl:metta_py_decode_shared_tagged/5;
-    commit=WORKTREE]
+    commit=69d1511c099eb6aa80c38d898da49487c42470f0]
     """
     return "_-" if identifier == "_" else identifier
 

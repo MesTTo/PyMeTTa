@@ -6,7 +6,7 @@ Owns resources:
     test_class_bound_methods_keep_the_receiver_and_program_alive; commit=ba819bfa2aa69d231d8ebae7d74b085f838840de]
 Guarantees:
   - method receivers and packed parameters retain Python underscore identity
-    [tested: test_class_underscore_fields_receivers_and_packed_parameters; commit=WORKTREE]
+    [tested: test_class_underscore_fields_receivers_and_packed_parameters; commit=69d1511c099eb6aa80c38d898da49487c42470f0]
   - Python invocation reads the live native equation and preserves the source
     function separately as py [tested:
     test_class_method_calls_observe_the_live_equation_graph; commit=ba819bfa2aa69d231d8ebae7d74b085f838840de]

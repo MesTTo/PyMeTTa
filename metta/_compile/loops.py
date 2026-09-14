@@ -1,7 +1,7 @@
 """Purpose: lower Python for and while statements into tail-recursive equations.
 Guarantees:
   - helper parameters preserve Python underscore loop state [tested:
-    test_python_underscore_bindings_retain_their_values; commit=WORKTREE]
+    test_python_underscore_bindings_retain_their_values; commit=69d1511c099eb6aa80c38d898da49487c42470f0]
   - computed and expanded calls retain their native stream or iterable
     contract at iteration [tested:
     test_computed_calls_share_iteration_consumers; commit=10ef2f6958af451bcc3e651e0e0ccc7cc8ec7ce8]

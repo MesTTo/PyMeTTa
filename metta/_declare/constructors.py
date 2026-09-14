@@ -2,7 +2,7 @@
 
 Guarantees:
   - constructor parameters retain Python underscore identity [tested:
-    test_class_underscore_fields_receivers_and_packed_parameters; commit=WORKTREE]
+    test_class_underscore_fields_receivers_and_packed_parameters; commit=69d1511c099eb6aa80c38d898da49487c42470f0]
   - default computations finish before field input contracts inspect their
     resulting values [tested:
     test_constructor_arguments_preserve_values_and_run_factories; commit=310a9d8b547a77412a518a37ab79fba073eb22ac]

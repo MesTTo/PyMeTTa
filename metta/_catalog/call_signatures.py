@@ -3,7 +3,7 @@
 Guarantees:
   - callable images keep underscore parameters named while retaining the
     original keyword label [tested:
-    test_underscore_callable_parameters_keep_python_keyword_labels; commit=WORKTREE]
+    test_underscore_callable_parameters_keep_python_keyword_labels; commit=69d1511c099eb6aa80c38d898da49487c42470f0]
   - each native port retains its labels and answer cardinality, while
     repeated variadic labels remain positional [tested:
     test_expanded_operations_use_each_registered_arity;

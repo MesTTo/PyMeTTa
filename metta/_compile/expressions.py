@@ -1,7 +1,7 @@
 """Purpose: lower Python expressions into equivalent MeTTa atom trees.
 Guarantees:
   - lambda and comprehension binders preserve Python underscore identity
-    [tested: test_python_underscore_bindings_retain_their_values; commit=WORKTREE]
+    [tested: test_python_underscore_bindings_retain_their_values; commit=69d1511c099eb6aa80c38d898da49487c42470f0]
   - dictionary get selects its optional default only for an absent key;
     operands run in source order and stored atoms retain their data meaning
     [tested: test_dictionary_get_preserves_stored_values,

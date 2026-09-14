@@ -1,7 +1,7 @@
 """Purpose: translate Python annotations into MeTTa type atoms and declarations.
 Guarantees:
   - repeated underscore type parameters retain one native variable [tested:
-    test_underscore_type_parameters_retain_shared_constraints; commit=WORKTREE]
+    test_underscore_type_parameters_retain_shared_constraints; commit=69d1511c099eb6aa80c38d898da49487c42470f0]
   - NoneType remains an explicit return alternative, including nullable
     unions [tested: test_nullable_annotations_keep_both_result_alternatives;
     commit=dbe6c7de5f35e7c0c8ef5259ebfb6d67ee3ebbc0]

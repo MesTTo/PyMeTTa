@@ -2,7 +2,7 @@
 Guarantees:
   - lifted definitions and continuations retain Python underscore binders
     [tested: test_python_underscore_bindings_retain_their_values,
-    test_generator_underscore_bindings_cross_branches_and_iterations; commit=WORKTREE]
+    test_generator_underscore_bindings_cross_branches_and_iterations; commit=69d1511c099eb6aa80c38d898da49487c42470f0]
   - storage writes select their continuation only after a successful status;
     Error results stop ordinary, generator and finally blocks [tested:
     test_refused_field_writes_stop_their_compiled_continuation,

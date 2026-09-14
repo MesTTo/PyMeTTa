@@ -10,7 +10,7 @@ runtime-backed Python semantics it needs are declared as visible operations.
 Guarantees:
   - source parameters and SSA bindings retain underscore identity in every
     nested compiler scope [tested:
-    test_python_underscore_bindings_retain_their_values; commit=WORKTREE]
+    test_python_underscore_bindings_retain_their_values; commit=69d1511c099eb6aa80c38d898da49487c42470f0]
   - class methods use the ordinary body compiler with their written argument
     contract and explicit receiver [tested:
     test_class_methods_keep_full_python_signatures_and_native_bodies; commit=ba819bfa2aa69d231d8ebae7d74b085f838840de]

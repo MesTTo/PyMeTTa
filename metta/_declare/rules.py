@@ -2,7 +2,7 @@
 
 Guarantees:
   - Python rule parameters are named native binders even when spelled `_`
-    [tested: test_native_underscore_patterns_remain_anonymous; commit=WORKTREE]
+    [tested: test_native_underscore_patterns_remain_anonymous; commit=69d1511c099eb6aa80c38d898da49487c42470f0]
   - ``Rules.lower`` stores equations, publishes lowering declarations, and
     registers each symbolic head through the engine bridge [tested:
     test_rules_lower_emits_queryable_declaration_and_registers_the_head,
