@@ -5,7 +5,7 @@ Guarantees:
     them; data and quotation remain structural [tested:
     test_grounded_effect_plans_classify_calls_without_executing_them,
     test_grounded_effect_plans_keep_nonapplicable_and_quoted_values_structural;
-    commit=WORKTREE]
+    commit=84c73d0d703be50c3520b2e08488581e77a7ce3f]
 """
 
 import pytest
