@@ -421,10 +421,12 @@ run REPORT xenon       in_py "$PY" -m xenon metta --max-absolute D --max-modules
 run GATE   refurb      in_py "$PY" -m refurb metta bench.py
 # Both Bandit findings are the fixed swipl argv call with shell mode disabled.
 run GATE   bandit      in_py "$PY" -m bandit -q -c pyproject.toml -r metta ext
-# Deptry derives local modules from each source root, including tools' sibling
-# imports [source: https://github.com/osprey-oss/deptry/blob/0.25.1/python/deptry/core.py;
-# commit=801110debd5646a41c40391cee4075355a49d27b].
-run GATE   deptry      in_py "$PY" -m deptry . tools
+# Deptry derives local modules from each source root, including tools' siblings
+# and repository checker helpers used by generators. The latter root is
+# discovery-only because this manifest governs the Python package, not checkers
+# [source: https://github.com/osprey-oss/deptry/blob/0.25.1/python/deptry/core.py;
+# commit=WORKTREE].
+run GATE   deptry      in_py "$PY" -m deptry . tools ../../tests/checks
 run GATE   audit       in_py "$PY" -m pip_audit --progress-spinner off
 # ledger F: public API documentation is held above the 80% target
 run GATE   interrogate in_py "$PY" -m interrogate metta ext

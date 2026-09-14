@@ -362,4 +362,10 @@ def twin(m):
 #: consumers are measured after the provider change [measured 2026-09-14: min-
 #: of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=118b805aedbee6de22be4f6131d97c3d6b9156de].
-BUDGET = 1258064
+#: RE-PINNED 2026-09-14, 1258064 to 1258124 (+60), Closure publishes the shared
+#: rendering and IEEE services, refreshes the callable projection and annotates
+#: native protocol domains; every direct and transitive library consumer is
+#: measured again [measured 2026-09-14: min-of-3 serial fresh processes;
+#: command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+BUDGET = 1258124

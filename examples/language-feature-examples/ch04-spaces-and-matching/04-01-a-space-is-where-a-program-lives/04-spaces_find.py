@@ -256,7 +256,13 @@ def twin(m):
 #: are excluded from this point selection and keep their pins [measured
 #: 2026-09-09: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=8ca8a387fc61d0918484b19a1a3baf85b6523043].
-BUDGET = 10283
+#: RE-PINNED 2026-09-14, 10283 to 13197 (+2914), The completed standard-library
+#: package derives shared collection, numeric, parsing, text and byte recipes
+#: in MeTTa and loads those changed providers through every direct and
+#: transitive consumer [measured 2026-09-14: min-of-3 serial fresh processes;
+#: command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+BUDGET = 13197
 
 #: OVERRUN 2026-09-07, 600: it asks `find` a fourth time for the claim the
 #: example does not state, that one row comes back per solution bound. Measured

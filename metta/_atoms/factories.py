@@ -6,9 +6,9 @@ Guarantees:
     and the empty-list atom; opaque numeric subclasses keep their own kind
     [tested: test_order_key_matches_msort_across_kinds, test_native_number_order,
     test_native_rational_sorts_before_an_opaque_numeric_subclass; commit=615e8a68dce996a0c05b3ddddc71b80bc598442d]
-  - _type_atom defers annotation loading through an ordinary local import that
-    executes in the optional compiled codec [tested:
-    test_the_codec_builds_under_mypyc_as_an_option; commit=615e8a68dce996a0c05b3ddddc71b80bc598442d]
+  - _type_atom defers annotation loading until a Python annotation is supplied,
+    including in the optional compiled codec [tested:
+    test_the_codec_builds_under_mypyc_as_an_option; commit=WORKTREE]
   - expression order keys use a flat prefix encoding, so 600 nested levels
     retain childwise ordering without consuming Python frames [tested:
     test_deep_atom_ordering_uses_a_constant_python_call_stack,
@@ -211,13 +211,11 @@ def _type_atom(value: Any) -> Atom:
     if isinstance(value, Atom):
         return value
 
-    # Keep the runtime import visible to mypyc's type analysis:
+    # Resolve the higher layer at use, outside a TYPE_CHECKING/else split that
+    # mypyc compiles as unreachable:
     # https://github.com/python/mypy/blob/v2.3.0/mypyc/irbuild/statement.py#L142-L165
-    from metta._catalog.annotations import (  # noqa: PLC0415 -- annotations reads the atom factories
-        type_atom_for,
-    )
-
-    return type_atom_for(value)
+    annotations = lazy("metta._catalog.annotations")
+    return annotations.type_atom_for(value)
 
 
 def arrow(*positions: Any) -> Expression:

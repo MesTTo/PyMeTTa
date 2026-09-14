@@ -465,7 +465,13 @@ def twin(m):
 #: coefficient rows and Combinatorics retires its native probability provider
 #: [measured 2026-09-14: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=e1be99ea1c08f70444c1c35cada441e089777906].
-BUDGET = 31579777
+#: RE-PINNED 2026-09-14, 31579777 to 31579783 (+6), Closure publishes the
+#: shared rendering and IEEE services, refreshes the callable projection and
+#: annotates native protocol domains; every direct and transitive library
+#: consumer is measured again [measured 2026-09-14: min-of-3 serial fresh
+#: processes; command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+BUDGET = 31579783
 
 #: DIVERGED 2026-09-07, the example holds 2 atoms the twin does not (2 =) and
 #: the twin holds 5 the example does not (3 =, 2 @doc): the twin is an ordinary

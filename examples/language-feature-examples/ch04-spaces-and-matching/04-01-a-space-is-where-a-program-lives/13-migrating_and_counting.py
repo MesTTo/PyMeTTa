@@ -156,4 +156,10 @@ from metta import Expression  # noqa: E402  -- read after the claims it serves
 #: tree under the normalised protocol; these are this tree's measured prices
 #: [measured 2026-09-11: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=8ca8a387fc61d0918484b19a1a3baf85b6523043].
-BUDGET = 15647
+#: RE-PINNED 2026-09-14, 15647 to 18582 (+2935), The completed standard-library
+#: package derives shared collection, numeric, parsing, text and byte recipes
+#: in MeTTa and loads those changed providers through every direct and
+#: transitive consumer [measured 2026-09-14: min-of-3 serial fresh processes;
+#: command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+BUDGET = 18582

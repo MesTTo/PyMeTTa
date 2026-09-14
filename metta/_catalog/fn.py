@@ -106,6 +106,7 @@ if TYPE_CHECKING:
         "collapse: (-> Atom Atom)\n\n`list()` is the everyday spelling, materialising the answers; `tuple()` is the same act when you want MeTTa's own `( )` atom back, which is what collapse answers."
         collapse_bind: Symbol
         "collapse-bind: (-> Atom Expression)\ncollapse-bind: (TU Expression)\n\nThe deep-tier collapse that keeps each alternative's BINDINGS, `((a (bindings ...)) ...)`. It belongs to the bindings-carrying tier, never to the surface; MeTTa's engine has the bindings carrier (`answer_bindings`) but not this instruction."
+        collections_expression: Symbol
         cons: Symbol
         cons_atom: Symbol
         "cons-atom: (-> Atom Expression Atom)\n\nConstruction: call the head, or rebuild from head and tail with `*`."
@@ -126,6 +127,8 @@ if TYPE_CHECKING:
         documented_space: Symbol
         elapsed: Symbol
         empty: Symbol
+        encoding_bytes: Symbol
+        encoding_text: Symbol
         eq: Symbol
         "==: (-> $t $t Bool)\n\nPython's own operator, and atoms compare structurally under it."
         error_payload: Symbol
@@ -233,6 +236,15 @@ if TYPE_CHECKING:
         match: Symbol
         "match: (-> SpaceType Atom Atom %Undefined%)\n\n`space[pattern]` is the subscript form and `space.match(pattern)` the named method; the TEMPLATE is built in Python from the answer's bindings. `under=counting|tropical|prov|ranked` changes the annotation algebra; `answers(call, under=...)` is its call twin, `with metta.under(...)` scopes the default, and an annotated answer exposes `.annotation`, `.why()` and `.under(other)` without a re-query. `metta.algebra(...)` constructs arbitrary carriers while remaining their namespace."
         match_types: Symbol
+        math_class: Symbol
+        math_integer_root: Symbol
+        math_power_mod: Symbol
+        math_ratio: Symbol
+        math_rational: Symbol
+        math_rationalize: Symbol
+        math_real: Symbol
+        math_real_functions: Symbol
+        math_sqrt: Symbol
         max: Symbol
         max_atom: Symbol
         "max-atom: (-> %Undefined% Number)\n\nPython's builtin `max` over the children."
@@ -406,6 +418,14 @@ if TYPE_CHECKING:
         unquote: Symbol
         "unquote: (-> %Undefined% %Undefined%)\n\nReducing a quoted term is `m.eval`, primitive 4."
         unregister_token: Symbol
+        uuid_layout: Symbol
+        vector_add: Symbol
+        vector_distance: Symbol
+        vector_divide: Symbol
+        vector_multiply: Symbol
+        vector_normalize: Symbol
+        vector_scale: Symbol
+        vector_subtract: Symbol
         with_pragma: Symbol
         with_seed: Symbol
         xor: Symbol
@@ -499,6 +519,7 @@ _NAMES = frozenset(
         "check_prolog_function_names",
         "collapse",
         "collapse-bind",
+        "collections-expression",
         "cons",
         "cons-atom",
         "context-space",
@@ -516,6 +537,8 @@ _NAMES = frozenset(
         "documented-space",
         "elapsed",
         "empty",
+        "encoding-bytes",
+        "encoding-text",
         "error-payload",
         "eval",
         "evalc",
@@ -591,6 +614,15 @@ _NAMES = frozenset(
         "match",
         "match-type-or",
         "match-types",
+        "math-class",
+        "math-integer-root",
+        "math-power-mod",
+        "math-ratio",
+        "math-rational",
+        "math-rationalize",
+        "math-real",
+        "math-real-functions",
+        "math-sqrt",
         "max",
         "max-atom",
         "member",
@@ -717,6 +749,14 @@ _NAMES = frozenset(
         "unique-atom",
         "unquote",
         "unregister-token!",
+        "uuid-layout",
+        "vector-add",
+        "vector-distance",
+        "vector-divide",
+        "vector-multiply",
+        "vector-normalize",
+        "vector-scale",
+        "vector-subtract",
         "with-pragma!",
         "with-seed",
         "with_mutex",
@@ -781,6 +821,7 @@ _ALIASES.update(
         ("change_state", "change-state!"),
         ("collapse", "collapse"),
         ("collapse_bind", "collapse-bind"),
+        ("collections_expression", "collections-expression"),
         ("cons", "cons"),
         ("cons_atom", "cons-atom"),
         ("context_space", "context-space"),
@@ -797,6 +838,8 @@ _ALIASES.update(
         ("documented_space", "documented-space"),
         ("elapsed", "elapsed"),
         ("empty", "empty"),
+        ("encoding_bytes", "encoding-bytes"),
+        ("encoding_text", "encoding-text"),
         ("eq", "=="),
         ("error_payload", "error-payload"),
         ("eval", "eval"),
@@ -872,6 +915,15 @@ _ALIASES.update(
         ("match", "match"),
         ("match_type_or", "match-type-or"),
         ("match_types", "match-types"),
+        ("math_class", "math-class"),
+        ("math_integer_root", "math-integer-root"),
+        ("math_power_mod", "math-power-mod"),
+        ("math_ratio", "math-ratio"),
+        ("math_rational", "math-rational"),
+        ("math_rationalize", "math-rationalize"),
+        ("math_real", "math-real"),
+        ("math_real_functions", "math-real-functions"),
+        ("math_sqrt", "math-sqrt"),
         ("max", "max"),
         ("max_atom", "max-atom"),
         ("member", "member"),
@@ -1003,6 +1055,14 @@ _ALIASES.update(
         ("unique_atom", "unique-atom"),
         ("unquote", "unquote"),
         ("unregister_token", "unregister-token!"),
+        ("uuid_layout", "uuid-layout"),
+        ("vector_add", "vector-add"),
+        ("vector_distance", "vector-distance"),
+        ("vector_divide", "vector-divide"),
+        ("vector_multiply", "vector-multiply"),
+        ("vector_normalize", "vector-normalize"),
+        ("vector_scale", "vector-scale"),
+        ("vector_subtract", "vector-subtract"),
         ("with_pragma", "with-pragma!"),
         ("with_seed", "with-seed"),
         ("xor", "xor"),

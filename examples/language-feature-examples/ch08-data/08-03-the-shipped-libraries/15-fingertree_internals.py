@@ -221,4 +221,10 @@ def twin(m):
 #: and Combinatorics retires its native probability provider [measured
 #: 2026-09-14: min-of-3 serial fresh processes; command=python
 #: extensions/python/tools/twin_coverage.py --repin; commit=e1be99ea1c08f70444c1c35cada441e089777906].
-BUDGET = 289950
+#: RE-PINNED 2026-09-14, 289950 to 289956 (+6), Closure publishes the shared
+#: rendering and IEEE services, refreshes the callable projection and annotates
+#: native protocol domains; every direct and transitive library consumer is
+#: measured again [measured 2026-09-14: min-of-3 serial fresh processes;
+#: command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+BUDGET = 289956
