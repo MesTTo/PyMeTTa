@@ -5,7 +5,7 @@ atom kinds [tested: test_parametric_names_preserve_their_native_fields,
 test_parametric_aliases_share_batch_ownership,
 test_parametric_names_follow_scope_release; commit=3f71a0b3af04a3ba4c88bf3906197a2a80d9080e].
 Cached evaluation addresses every coexisting sibling [tested:
-test_parametric_names_keep_atom_kinds_distinct; commit=WORKTREE].
+test_parametric_names_keep_atom_kinds_distinct; commit=5f3c10af0d15efa2c5acce4cc659edd4a7b83beb].
 """
 
 from contextlib import ExitStack, contextmanager
