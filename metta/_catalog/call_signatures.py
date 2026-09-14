@@ -5,7 +5,7 @@ Guarantees:
     each constructor's own refusal [tested:
     test_callable_annotation_records_preserve_subscription_arity;
     test_callable_annotation_records_preserve_constructor_refusals;
-    commit=WORKTREE]
+    commit=f196706a3899127600c9eee3892067b40996bdfa]
   - callable images keep underscore parameters named while retaining the
     original keyword label [tested:
     test_underscore_callable_parameters_keep_python_keyword_labels; commit=69d1511c099eb6aa80c38d898da49487c42470f0]

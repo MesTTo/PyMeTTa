@@ -5,7 +5,7 @@ Guarantees:
     their original annotation constructors [tested:
     test_callable_annotation_records_preserve_subscription_arity;
     test_live_callable_annotation_edits_keep_single_argument_wrappers;
-    commit=WORKTREE]
+    commit=f196706a3899127600c9eee3892067b40996bdfa]
 """
 
 import inspect
