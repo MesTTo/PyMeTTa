@@ -33,7 +33,7 @@ Guarantees:
   - channel validates its answer's native space identity before opening it;
     unreduced calls cannot create a parametric store, and registered expression
     identities remain usable [tested: test_channel_creation_refuses_nonspace_answers;
-    test_channel_creation_preserves_registered_space_identity; commit=WORKTREE]
+    test_channel_creation_preserves_registered_space_identity; commit=1c2563615c2b0c9d4d26e75a7f767ddbc9804bae]
   - Scope, scope() and move_on_after() project lib_thread:scope_open/4,
     scope_keep/3, scope_cancel/2 and scope_close/4. That library owns child
     membership, cancellation, deadlines and cleanup policy [tested:

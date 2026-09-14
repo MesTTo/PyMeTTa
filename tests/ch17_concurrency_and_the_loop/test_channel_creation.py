@@ -2,12 +2,12 @@
 
 Guarantees:
   - unreduced or nonspace answers raise without declaring a new space
-    [tested: test_channel_creation_refuses_nonspace_answers; commit=WORKTREE]
+    [tested: test_channel_creation_refuses_nonspace_answers; commit=1c2563615c2b0c9d4d26e75a7f767ddbc9804bae]
   - a returned registered space retains its identity, including expression
     names [tested: test_channel_creation_preserves_registered_space_identity;
-    commit=WORKTREE]
+    commit=1c2563615c2b0c9d4d26e75a7f767ddbc9804bae]
 Owns resources: each fixture drops its spaces and restores the factory call
-through pytest's monkeypatch fixture [tested: test_channel_creation.py; commit=WORKTREE].
+through pytest's monkeypatch fixture [tested: test_channel_creation.py; commit=1c2563615c2b0c9d4d26e75a7f767ddbc9804bae].
 """
 
 import pytest
