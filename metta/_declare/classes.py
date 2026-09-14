@@ -190,6 +190,7 @@ def _fields(cls: type, hints: dict[str, Any]) -> tuple[Field, ...]:
             names.update(dict.fromkeys(field.name for field in owner.fields))
         slots = vars(base).get("__slots__", ())
         for name in (slots,) if isinstance(slots, str) else slots:
+            # policy-inventory-exempt: arbiter-owned-language-law; reason=Python reserves these slots for instance dictionaries and weak references rather than declared data fields; evidence=extensions/python/metta/_declare/classes.py:_fields
             if name not in {"__dict__", "__weakref__"}:
                 names.setdefault(_mangle(base, name))
         fn = vars(base).get("__init__")
