@@ -30,6 +30,10 @@ Assumes:
     process_metta_string in filereader.pl, and a per-function mutex in
     lib_memo.pl [source 2026-08-15]
 Guarantees:
+  - channel validates its answer's native space identity before opening it;
+    unreduced calls cannot create a parametric store, and registered expression
+    identities remain usable [tested: test_channel_creation_refuses_nonspace_answers;
+    test_channel_creation_preserves_registered_space_identity; commit=WORKTREE]
   - Scope, scope() and move_on_after() project lib_thread:scope_open/4,
     scope_keep/3, scope_cancel/2 and scope_close/4. That library owns child
     membership, cancellation, deadlines and cleanup policy [tested:
@@ -173,6 +177,7 @@ from metta._atoms.factories import (
     _to_atom,
 )
 from metta._binding.runtime import Runtime, engine_thread, forked, runtime
+from metta._catalog.call_values import is_parametric_space
 from metta._errors.errors import EngineError, MettaError, Timeout
 from metta._faces.metta import MeTTa
 from metta._faces.space import Space
@@ -1496,4 +1501,10 @@ def channel(*, max: int | None = None) -> Channel:  # noqa: A002 -- max is the r
     """Create a mailbox; max bounds queued terms and blocks full senders."""
     owner = _ambient_space()
     arguments = () if max is None else (max,)
-    return Channel(owner, _call(owner, "channel", *arguments).one())
+    result = _call(owner, "channel", *arguments).one()
+    if not isinstance(result, Space) and not (
+        isinstance(result, Expression) and is_parametric_space(result)
+    ):
+        msg = f"channel returned {result!r}; expected a native space"
+        raise MettaError(msg)
+    return Channel(owner, result)
