@@ -24,7 +24,7 @@ Guarantees:
     test_container_build_handles_non_expression_atoms; commit=9b0a084e534ddf7dd67980ad84c27c8279b877f1]
   - type annotations reconstruct a declared class from its canonical constructor
     image and keep ordinary factories distinct [tested:
-    test_constructor_image_is_distinct_from_an_ordinary_factory; commit=WORKTREE]
+    test_constructor_image_is_distinct_from_an_ordinary_factory; commit=ba819bfa2aa69d231d8ebae7d74b085f838840de]
 Open Obligations:
   To Do: None
   Hacks: None

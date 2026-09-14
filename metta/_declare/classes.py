@@ -24,10 +24,10 @@ Guarantees:
   - declared class values encode to their native constructor program; explicit
     type encoders and metaclass hooks retain precedence [tested:
     test_class_values_retain_the_native_constructor;
-    test_class_values_preserve_explicit_host_images; commit=WORKTREE]
+    test_class_values_preserve_explicit_host_images; commit=ba819bfa2aa69d231d8ebae7d74b085f838840de]
   - field and callable annotations resolve against the completed class before
     its decorator publishes the Python name [tested:
-    test_class_declaration_resolves_its_deferred_annotation_namespace; commit=WORKTREE]
+    test_class_declaration_resolves_its_deferred_annotation_namespace; commit=ba819bfa2aa69d231d8ebae7d74b085f838840de]
   - imports follow the declared package foundations [tested:
     tests/checks/check_layering.py; commit=ab9d3489f87e0d7b7be4b3cd2025494cd62699fe]
   - mutable Python instances find their engine receiver through ordinary private

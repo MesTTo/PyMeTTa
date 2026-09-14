@@ -2,15 +2,15 @@
 
 Guarantees:
   - one equation body retains its receiver across declared descendant layouts
-    [tested: test_method_field_projection_preserves_captures_and_rebinding; commit=WORKTREE]
+    [tested: test_method_field_projection_preserves_captures_and_rebinding; commit=ba819bfa2aa69d231d8ebae7d74b085f838840de]
   - changed field contracts retain their original accessor calls
-    [tested: test_method_projection_preserves_differing_field_contracts; commit=WORKTREE]
+    [tested: test_method_projection_preserves_differing_field_contracts; commit=ba819bfa2aa69d231d8ebae7d74b085f838840de]
   - a replaced native equation is never overwritten by declaration refresh
-    [tested: test_native_method_rewrite_survives_later_class_declarations; commit=WORKTREE]
+    [tested: test_native_method_rewrite_survives_later_class_declarations; commit=ba819bfa2aa69d231d8ebae7d74b085f838840de]
 Owns resources:
   - the method retains exact occurrence tokens for the equations it publishes;
     its declaring transaction owns replacement and rollback
-    [tested: test_method_projection_rolls_back_a_descendant_layout; commit=WORKTREE]
+    [tested: test_method_projection_rolls_back_a_descendant_layout; commit=ba819bfa2aa69d231d8ebae7d74b085f838840de]
 """
 
 from __future__ import annotations

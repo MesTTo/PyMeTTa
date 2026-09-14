@@ -4,10 +4,10 @@ Guarantees:
   - method and constructor values keep positional data separate from keyword
     entries [tested:
     test_keyword_named_atoms_remain_positional_method_and_constructor_values;
-    commit=WORKTREE]
+    commit=ba819bfa2aa69d231d8ebae7d74b085f838840de]
   - qualified class applications carry their class identity through native
     dispatch and scope retention [tested:
-    test_kept_unbound_methods_retain_their_class_program; commit=WORKTREE]
+    test_kept_unbound_methods_retain_their_class_program; commit=ba819bfa2aa69d231d8ebae7d74b085f838840de]
   - positional expansion preserves native atoms in native and borrowed
     sequences [tested: test_expanded_arguments_preserve_native_atom_values;
     commit=5f94e43542d3afd87776476e767f5fda661423bc]

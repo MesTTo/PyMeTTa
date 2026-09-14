@@ -32,7 +32,7 @@ Guarantees:
     and every CompileError derives one from its construct [tested:
     extensions/python/tests/ch10_errors_and_refusals/test_refusal_grounds.py,
     tests/checks/check_refusal_grounds.py;
-    commit=WORKTREE]
+    commit=ba819bfa2aa69d231d8ebae7d74b085f838840de]
   - a reified-world effect refusal carries the named EffectSafety law as its
     machine-readable ground [tested:
     test_an_uncovered_world_refuses_before_creating_scratch_or_running_the_operation;

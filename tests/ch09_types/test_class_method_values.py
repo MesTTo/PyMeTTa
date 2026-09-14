@@ -2,7 +2,7 @@
 
 Guarantees:
   - call syntax and Python projections preserve native method selection
-    [tested: test_method_call_expansions_preserve_native_dispatch; commit=WORKTREE]
+    [tested: test_method_call_expansions_preserve_native_dispatch; commit=ba819bfa2aa69d231d8ebae7d74b085f838840de]
 """
 
 from collections.abc import Callable, Iterator

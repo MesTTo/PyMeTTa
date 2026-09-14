@@ -12,7 +12,7 @@ Guarantees:
   - quoted variables retain their value boundary when callable templates
     capture receivers [tested:
     test_class_methods_keep_full_python_signatures_and_native_bodies,
-    test_class_generator_methods_return_owned_cursors; commit=WORKTREE]
+    test_class_generator_methods_return_owned_cursors; commit=ba819bfa2aa69d231d8ebae7d74b085f838840de]
   - native application facts receive separate data frames, retaining supplied
     arguments, captures and live program edits [tested:
     test_native_application_frames_preserve_data_and_live_programs;

@@ -3,7 +3,7 @@
 Guarantees:
   - ordinary, qualified and super calls retain their original receiver and
     lexical provider [tested:
-    test_unbound_private_and_super_values_keep_the_lexical_provider; commit=WORKTREE]
+    test_unbound_private_and_super_values_keep_the_lexical_provider; commit=ba819bfa2aa69d231d8ebae7d74b085f838840de]
   - mutable field bindings expose a write status for statement continuation
     selection [tested: test_refused_field_writes_stop_their_compiled_continuation;
     commit=9eebb619cb02f267e1d541a7d6e989b990f68982]

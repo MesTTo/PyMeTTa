@@ -32,10 +32,10 @@ Guarantees:
   - class values project through their encoder, including native constructor
     programs and explicit metaclass images [tested:
     test_class_values_preserve_explicit_host_images;
-    test_operation_results_carry_declared_class_values; commit=WORKTREE]
+    test_operation_results_carry_declared_class_values; commit=ba819bfa2aa69d231d8ebae7d74b085f838840de]
   - explicit field types supply constructor declarations without rereading
     the class's deferred annotations [tested:
-    test_class_declaration_resolves_its_deferred_annotation_namespace; commit=WORKTREE]
+    test_class_declaration_resolves_its_deferred_annotation_namespace; commit=ba819bfa2aa69d231d8ebae7d74b085f838840de]
 Open Obligations:
   To Do: None
   Hacks: None

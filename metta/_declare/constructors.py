@@ -14,10 +14,10 @@ Guarantees:
     commit=9b0a084e534ddf7dd67980ad84c27c8279b877f1]
   - a constructor image carries the class identity used by its native dispatch
     and deferred cleanup [tested: test_kept_class_values_own_their_constructor_program;
-    commit=WORKTREE]
+    commit=ba819bfa2aa69d231d8ebae7d74b085f838840de]
   - initialization retains its lexical class when deferred annotations are
     resolved [tested: test_class_declaration_resolves_its_deferred_annotation_namespace;
-    commit=WORKTREE]
+    commit=ba819bfa2aa69d231d8ebae7d74b085f838840de]
 """
 
 from __future__ import annotations

@@ -3,7 +3,7 @@
 Guarantees:
   - the method suite compares receivers, Python signatures, C3 selection and
     ownership through both notations [tested: extensions/python/tests/ch09_types/test_class_methods.py;
-    commit=WORKTREE]
+    commit=ba819bfa2aa69d231d8ebae7d74b085f838840de]
 """
 
 import inspect

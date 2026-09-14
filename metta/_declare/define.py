@@ -10,7 +10,7 @@ runtime-backed Python semantics it needs are declared as visible operations.
 Guarantees:
   - class methods use the ordinary body compiler with their written argument
     contract and explicit receiver [tested:
-    test_class_methods_keep_full_python_signatures_and_native_bodies; commit=WORKTREE]
+    test_class_methods_keep_full_python_signatures_and_native_bodies; commit=ba819bfa2aa69d231d8ebae7d74b085f838840de]
   - None has the same literal head-pattern meaning as other function defaults
     [tested: test_none_literal_is_also_a_default_head_pattern; commit=dbe6c7de5f35e7c0c8ef5259ebfb6d67ee3ebbc0]
   - importing a declaration or library module first completes in both lazy

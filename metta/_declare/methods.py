@@ -3,17 +3,17 @@
 Owns resources:
   - class declarations own method equations, application helpers and imported
     entries; bound values retain the receiver and its lexical space [tested:
-    test_class_bound_methods_keep_the_receiver_and_program_alive; commit=WORKTREE]
+    test_class_bound_methods_keep_the_receiver_and_program_alive; commit=ba819bfa2aa69d231d8ebae7d74b085f838840de]
 Guarantees:
   - Python invocation reads the live native equation and preserves the source
     function separately as py [tested:
-    test_class_method_calls_observe_the_live_equation_graph; commit=WORKTREE]
+    test_class_method_calls_observe_the_live_equation_graph; commit=ba819bfa2aa69d231d8ebae7d74b085f838840de]
   - dispatch selects a completed Python MRO while every defining method keeps
     one equation body [tested:
-    test_class_open_recursion_and_cooperative_super_follow_c3; commit=WORKTREE]
+    test_class_open_recursion_and_cooperative_super_follow_c3; commit=ba819bfa2aa69d231d8ebae7d74b085f838840de]
   - an unbound method retains its declaring program through the same native
     class/member relation as its constructor [tested:
-    test_kept_unbound_methods_retain_their_class_program; commit=WORKTREE]
+    test_kept_unbound_methods_retain_their_class_program; commit=ba819bfa2aa69d231d8ebae7d74b085f838840de]
 """
 
 from __future__ import annotations

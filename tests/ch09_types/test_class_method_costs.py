@@ -3,7 +3,7 @@
 Guarantees:
   - canonical and inherited method bodies cost their handwritten equivalents;
     the public dispatch entry adds one inference per call [tested:
-    test_method_entry_inferences_match_the_equivalent_native_body; commit=WORKTREE]
+    test_method_entry_inferences_match_the_equivalent_native_body; commit=ba819bfa2aa69d231d8ebae7d74b085f838840de]
 """
 
 from dataclasses import dataclass

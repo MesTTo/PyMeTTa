@@ -3,7 +3,7 @@
 Guarantees:
   - arguments retain their Python container identity until assignment selects
     the field's storage representation [tested:
-    test_constructor_arguments_are_borrowed_until_field_assignment; commit=WORKTREE]
+    test_constructor_arguments_are_borrowed_until_field_assignment; commit=ba819bfa2aa69d231d8ebae7d74b085f838840de]
   - generated query outputs evaluate the lookup before returning stored atom
     data [tested: test_generated_syntax_field_queries_return_the_stored_value,
     test_generated_class_variable_queries_return_the_stored_atom; commit=397a0df18bea23dee8774a721c2bdcd7dfc38c5e]

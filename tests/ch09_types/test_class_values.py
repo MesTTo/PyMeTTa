@@ -3,7 +3,7 @@
 Guarantees:
   - declared classes retain the same constructor program when passed, returned,
     stored or kept [tested: test_class_values_retain_the_native_constructor;
-    test_kept_class_values_own_their_constructor_program; commit=WORKTREE]
+    test_kept_class_values_own_their_constructor_program; commit=ba819bfa2aa69d231d8ebae7d74b085f838840de]
 """
 
 from collections.abc import Callable

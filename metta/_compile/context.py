@@ -2,7 +2,7 @@
 Guarantees:
   - nested compiler scopes retain the method's receiver and declared field
     types [tested:
-    test_method_field_projection_preserves_captures_and_rebinding; commit=WORKTREE]
+    test_method_field_projection_preserves_captures_and_rebinding; commit=ba819bfa2aa69d231d8ebae7d74b085f838840de]
   - binding targets distinguish local values from storage-write statuses
     [tested: test_refused_field_writes_stop_their_compiled_continuation,
     test_false_writer_status_and_local_error_data_keep_their_value_semantics;
