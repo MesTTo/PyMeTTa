@@ -20,10 +20,10 @@ Assumes:
 Guarantees:
   - every stdlib name has exactly one row, so the coverage denominator cannot
     quietly shrink [tested: test_the_phrasebook_carries_one_row_per_name;
-    commit=WORKTREE]
+    commit=2d09b82e3ea1565d10fd8206e3b3cc9808ce6cb1]
   - on-unwind's native failure outcome reaches an editable handler on both
     language surfaces [tested: python extensions/python/tools/phrasebook.py --gate;
-    commit=WORKTREE]
+    commit=2d09b82e3ea1565d10fd8206e3b3cc9808ce6cb1]
   - get-type, class declaration, and state rows use the consolidated R5 Python
     methods [tested: test_the_phrasebook_page_is_up_to_date; commit=c34c9bf3e55a8425d3f251c3ad06c33bc9755a22]
   - the matching, nondeterminism, fold, and state rows execute every public

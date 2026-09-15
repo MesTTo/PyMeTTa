@@ -3,7 +3,7 @@
 The handler is an ordinary stored equation. Deterministic completion skips it;
 failure and caller cut apply it once to the native outcome product [tested:
 python extensions/python/tools/twin_coverage.py examples/ch05-equations-and-evaluation/05-01-an-equation-is-a-rewrite/10-unwind_cleanup.metta;
-commit=WORKTREE].
+commit=2d09b82e3ea1565d10fd8206e3b3cc9808ce6cb1].
 """
 
 from metta import S, V
@@ -28,5 +28,5 @@ def twin(m):
 #: Both forms retain the same parameterized handler equation and final
 #: (unwound (!)) fact. The twin measures 5974 inferences; the native form 6964
 #: [measured: 5974 twin inferences; command=python extensions/python/tools/twin_coverage.py examples/ch05-equations-and-evaluation/05-01-an-equation-is-a-rewrite/10-unwind_cleanup.metta;
-#: fixture=SWI-Prolog 10.1.13, six assertions, empty source space; commit=WORKTREE].
+#: fixture=SWI-Prolog 10.1.13, six assertions, empty source space; commit=2d09b82e3ea1565d10fd8206e3b3cc9808ce6cb1].
 BUDGET = 5974
