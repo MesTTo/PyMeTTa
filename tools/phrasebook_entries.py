@@ -20,9 +20,9 @@ Assumes:
 Guarantees:
   - every stdlib name has exactly one row, so the coverage denominator cannot
     quietly shrink [tested: test_the_phrasebook_carries_one_row_per_name;
-    commit=WORKTREE]
+    commit=eec241dcf822db6c4c1d1ecdb6092a6a9f3c7851]
   - eval-one's row has matched native and Python results, 7 on both surfaces
-    [tested: python extensions/python/tools/phrasebook.py --gate; commit=WORKTREE]
+    [tested: python extensions/python/tools/phrasebook.py --gate; commit=eec241dcf822db6c4c1d1ecdb6092a6a9f3c7851]
   - on-unwind's native failure outcome reaches an editable handler on both
     language surfaces [tested: python extensions/python/tools/phrasebook.py --gate;
     commit=2d09b82e3ea1565d10fd8206e3b3cc9808ce6cb1]

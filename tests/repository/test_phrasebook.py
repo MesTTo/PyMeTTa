@@ -8,7 +8,7 @@ is checked the other way round: every stdlib name has exactly one row, so the
 denominator cannot quietly shrink.
 The native unwind and one-answer instructions have executable rows in that closed set
 [tested: test_the_phrasebook_carries_one_row_per_name,
-test_every_answered_row_has_a_recorded_answer; commit=WORKTREE].
+test_every_answered_row_has_a_recorded_answer; commit=eec241dcf822db6c4c1d1ecdb6092a6a9f3c7851].
 The supplemental table separately pins Python-first faces that have no stdlib
 name of their own [tested: test_python_first_public_faces_are_in_the_phrasebook;
 commit=5059173b1767600ce4df0f6b7841d88116ee62d3].

@@ -3,7 +3,7 @@
 Successful false, empty and Error values remain data; zero and multiple
 answers raise the native cardinality error [tested:
 sh extensions/python/test.sh tests/ch05_equations_and_evaluation/test_eval_one.py -n 0,
-eight cases; commit=WORKTREE].
+eight cases; commit=eec241dcf822db6c4c1d1ecdb6092a6a9f3c7851].
 """
 
 import pytest
