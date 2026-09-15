@@ -28,7 +28,7 @@ Guarantees:
   - a downstream checker reads a positional index as the value kind, a
     Variable or column projection as Answers, a record replay as the same
     value kind and Answers as unhashable, under mypy and ty alike [tested:
-    test_audit_owned_type_surface; commit=WORKTREE]
+    test_audit_owned_type_surface; commit=dadbf46932d66398832764c82384dfd0ecf1daa1]
   - Answers positions and slice bounds use Python's lossless index protocol
     without pulling beyond the selected prefix [tested:
     test_answers_accepts_index_protocol_like_rows,
