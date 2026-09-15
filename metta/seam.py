@@ -55,7 +55,7 @@ Guarantees:
     test_registration_inverse_retries_only_failed_actions,
     test_registration_compensates_observers_in_reverse_order,
     test_registration_retry_inside_a_caught_failure_retains_its_inverse,
-    test_transaction_rollback_replays_each_seam_mutation; commit=WORKTREE]
+    test_transaction_rollback_replays_each_seam_mutation; commit=7491c22b7db3c6a242dde38cebb597a0f179042c]
   - registered rows own a read-only copy of their field mapping and immutable
     registration metadata; field payloads retain their own ownership [tested:
     test_registered_rows_cannot_bypass_snapshot_generation; commit=23c1156bbecfa534f228853b06c9b4868ad1c645]
@@ -64,7 +64,7 @@ Guarantees:
     test_entry_point_collision_reports_both_owners; commit=4716ce2d8c4483d50fdb5146f296c019d7470dd4]
   - inverse sequences attempt both actions and retain every failure,
     including control exceptions [tested:
-    test_inverse_sequence_attempts_every_action; commit=WORKTREE]
+    test_inverse_sequence_attempts_every_action; commit=7491c22b7db3c6a242dde38cebb597a0f179042c]
   - registration listeners receive the exact point and registrant names,
     including quotes and the words " registration " [tested:
     test_registration_identity_is_not_parsed_from_prose; commit=56a8207a945675056312e206a000442b857ced03]
@@ -113,7 +113,7 @@ Guarantees:
 Owns:
   - _POINTS and _ROWS hold the process-wide seam; each _Inverse retains its
     failed actions until a caller retries it successfully [tested:
-    test_registration_inverse_retries_only_failed_actions; commit=WORKTREE]
+    test_registration_inverse_retries_only_failed_actions; commit=7491c22b7db3c6a242dde38cebb597a0f179042c]
 Guarded by:
   - _LOCK serializes declaration, registration publication, inverse actions
     and the one-shot discovery flag
