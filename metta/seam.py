@@ -58,9 +58,8 @@ Guarantees:
     test_a_discovery_wait_cycle_refuses_and_releases_its_entries,
     test_a_failed_entry_point_can_be_retried; commit=b615b5a33b43252ef9826e5387da7c9bd7f6b543]
   - a withdrawal notifies every registration listener with the inverse that
-    restores the row, as a registration does with the inverse that withdraws it
-    [tested: test_door_catalog_publication_is_atomic_and_idempotent;
-    commit=58bf75947fc58ec32b2372ef0d2c14a00aa2390a]
+    inserts the removed row at its original position [tested:
+    test_unregister_rollback_restores_each_position; commit=WORKTREE]
   - frame builders and accessor door contracts are separate registrations
     [tested: test_the_row_is_registered_against_the_frame_point; commit=b615b5a33b43252ef9826e5387da7c9bd7f6b543]
   - a point is declared once with one kind, and a second declaration of the
@@ -857,6 +856,12 @@ def _restore(name: str, position: int, row: Row) -> None:
             held[position] = row
 
 
+def _reinsert(name: str, position: int, row: Row) -> None:
+    """Undo deletion without replacing the row that followed it."""
+    with _LOCK:
+        _ROWS[name].insert(position, row)
+
+
 def on_registration(callback: Callable[[str, str, Callable[[], None]], None]) -> None:
     """Hear every registration, with the inverse that withdraws it.
 
@@ -894,7 +899,7 @@ def _unregister(declared: Point, name: str) -> bool:
     _enlist(
         declared.name,
         name,
-        functools.partial(_restore, declared.name, position, standing),
+        functools.partial(_reinsert, declared.name, position, standing),
     )
     return True
 
