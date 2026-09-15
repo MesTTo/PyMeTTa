@@ -4,10 +4,10 @@ Guarantees:
   - native binding holds values, separates both variadic segments and leaves
     body evaluation to its caller [tested:
     test_native_parameter_binding_preserves_values_and_defers_the_body;
-    commit=71a6b9f41b19452d50934448a6d77432887f5193]
+    commit=WORKTREE]
   - retained binding expressions read live signatures and canonical bodies
     [tested: test_native_parameter_binding_observes_graph_rewrites;
-    commit=71a6b9f41b19452d50934448a6d77432887f5193]
+    commit=WORKTREE]
 """
 
 import inspect
@@ -32,12 +32,12 @@ def _program(home, default=2):
     head = S["packed-parameters"](*parameters.children)
     image = S["|->"](parameters, S.evalc(head, home))
     contract = S["@python-callable"](image, call_signatures.project(signature, call_values.argument), S.one)
-    equation = S["="](head, S.progn(
+    equation = S["="](head, S.let(V.bound_options, S["dict-space"](V.options), S.progn(
         S["add-atom"](home, S.entered()),
-        S.noeval(S.received(V.value, V.offset, V.extra, V.scale, V.options)),
-    ))
+        S.noeval(S.received(V.value, V.offset, V.extra, V.scale, V.bound_options)),
+    )))
     home.run('!(import! &self (library lib_dict))')
-    home.add(equation, contract, S[":"](S["packed-parameters"], S["->"](S.Atom, S.Atom, S.Expression, S.Atom, S.SpaceType, S["%Undefined%"])))
+    home.add(equation, contract, S[":"](S["packed-parameters"], S["->"](S.Atom, S.Atom, S.Expression, S.Atom, S.Expression, S["%Undefined%"])))
     call_syntax.link(home, ("_python-bind-parameters",))
     return image, contract, equation
 

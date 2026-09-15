@@ -1,10 +1,15 @@
 """Purpose: link Python call-argument binding into native compiled programs.
 
 Guarantees:
+  - canonical keyword terms become one fresh dictionary per body activation
+    [tested: test_compiled_collectors_match_native_equation_heads;
+    test_compiled_generator_answers_share_one_keyword_dictionary; commit=WORKTREE]
+  - Atom results retain held syntax after entry work executes [tested:
+    test_compiled_collector_entry_preserves_held_result_syntax; commit=WORKTREE]
   - compiled parameter binding reads its home, image and frames as native
     data and returns source without evaluating the body [tested:
     test_native_parameter_binding_preserves_values_and_defers_the_body;
-    test_native_parameter_binding_observes_graph_rewrites; commit=71a6b9f41b19452d50934448a6d77432887f5193]
+    test_native_parameter_binding_observes_graph_rewrites; commit=WORKTREE]
   - host applications retain editable native argument frames and the existing
     raw host codec [tested:
     test_compiled_host_calls_keep_data_out_of_keyword_control,
@@ -38,7 +43,17 @@ import ctypes
 import inspect
 from typing import Any
 
-from metta._atoms.factories import Atom, Expression, Grounded, Handle, S, Symbol, Variable, _expr
+from metta._atoms.factories import (
+    Atom,
+    Expression,
+    Grounded,
+    Handle,
+    S,
+    Symbol,
+    Variable,
+    _expr,
+    fresh,
+)
 from metta._binding import host
 from metta._catalog import call_signatures, call_values
 from metta._catalog.build import build
@@ -189,8 +204,39 @@ def bind_parameters(home: Atom, image: Atom, positional: Atom, keywords: Atom) -
         for name, parameter in signature.parameters.items()
         if parameter.default is not inspect.Parameter.empty
     }
-    sources = call_values.argument_sources(signature, supplied.arguments, call_values.argument, home, defaults)
+    sources = call_values.argument_sources(signature, supplied.arguments, call_values.argument, defaults)
     return call_values.apply_sources(image, sources)
+
+
+def parameter_scope(signature: inspect.Signature, scope: dict[str, str]) -> dict[Variable, Atom]:
+    """Separate incoming keyword terms from their mutable body-local values."""
+    bindings: dict[Variable, Atom] = {}
+    for name, parameter in signature.parameters.items():
+        if parameter.kind is inspect.Parameter.VAR_KEYWORD:
+            incoming = Variable(scope[name])
+            entries = fresh()
+            local = fresh()
+            scope[name] = local.name
+            bindings[entries] = _expr(S.noeval, incoming)
+            bindings[local] = _expr(S["dict-space"], entries)
+    return bindings
+
+
+def parameter_body(body: Atom, bindings: dict[Variable, Atom], result_types: tuple[Atom, ...] = ()) -> Atom:
+    """Materialize parameters before the activation's shared computation."""
+    if not bindings:
+        return body
+    held = S.Atom in result_types
+    if held:
+        # The native function frame executes entry work while return retains
+        # the ordinary Atom-result quotation. Preserve an existing frame.
+        # [source: engine/translator/analysis.pl:translate_equation_body_result/4;
+        # commit=WORKTREE]
+        body = (body.args[0] if isinstance(body, Expression) and body.head == S.function and len(body.args) == 1
+                else _expr(S["return"], body))
+    for variable, source in reversed(tuple(bindings.items())):
+        body = _expr(S.let, variable, source, body)
+    return _expr(S.function, body) if held else body
 
 
 def publish_binding(owner: Any, name: str, bind: Any, inputs: tuple[Atom, ...]) -> None:

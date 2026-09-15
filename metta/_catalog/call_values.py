@@ -2,11 +2,11 @@
 
 Guarantees:
   - compiled parameter slots hold fixed values, positional expressions and
-    keyword dictionary spaces through one packing operation [tested:
+    ordered keyword-pair expressions through one packing operation [tested:
     test_native_parameter_binding_preserves_values_and_defers_the_body;
     test_compiled_keyword_collectors_keep_atom_values;
     test_constructor_arguments_preserve_values_and_run_factories;
-    commit=71a6b9f41b19452d50934448a6d77432887f5193]
+    commit=WORKTREE]
   - named callable values select their live Python contract independently of
     supplied argument count, retaining defaults and both variadic segments
     [tested: test_named_callable_uses_its_complete_signature,
@@ -93,7 +93,7 @@ def argument(value: Any) -> Atom:
 
 
 def argument_sources(signature: inspect.Signature, supplied: Mapping[str, Any],
-                     encode: Callable[[Any], Atom], home: Atom,
+                     encode: Callable[[Any], Atom],
                      defaults: Mapping[str, Atom]) -> tuple[Atom, ...]:
     """Pack canonical parameters, retaining the caller's default source policy."""
     result: list[Atom] = []
@@ -101,22 +101,16 @@ def argument_sources(signature: inspect.Signature, supplied: Mapping[str, Any],
         if parameter.kind is inspect.Parameter.VAR_POSITIONAL:
             result.append(_expr(S.noeval, Expression([encode(part) for part in supplied.get(name, ())])))
         elif parameter.kind is inspect.Parameter.VAR_KEYWORD:
-            result.append(keyword_arguments(home, {key: encode(part) for key, part in supplied.get(name, {}).items()}))
+            pairs = Expression([
+                Expression([Grounded(key), encode(part)])
+                for key, part in supplied.get(name, {}).items()
+            ])
+            result.append(_expr(S.noeval, pairs))
         elif name in supplied:
             result.append(_expr(S.noeval, encode(supplied[name])))
         else:
             result.append(defaults[name])
     return tuple(result)
-
-
-def keyword_arguments(home: Atom, values: Mapping[str, Atom]) -> Atom:
-    """Build a keyword-entry segment through its lexical dictionary library."""
-    pairs = Expression([Expression([Grounded(key), value]) for key, value in values.items()])
-    held = fresh()
-    # evalc compiles in its home after substitution. Hold the entries there,
-    # so a value such as (+ 1 2) cannot become dictionary-construction code.
-    return _expr(S.evalc, _expr(S.let, held, _expr(S.noeval, pairs),
-                              _expr(S["dict-space"], held)), home)
 
 
 def apply_sources(head: Atom, sources: Sequence[Atom]) -> Atom:

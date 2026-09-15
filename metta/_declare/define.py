@@ -8,6 +8,9 @@ spelling; and a free identifier must be a parameter, a known function, or
 read as a data constructor. A compiled body is a complete atom tree, and any
 runtime-backed Python semantics it needs are declared as visible operations.
 Guarantees:
+  - keyword collectors materialize once before a generator's shared answers
+    [tested: test_compiled_generator_answers_share_one_keyword_dictionary;
+    commit=WORKTREE]
   - literal head parameters remain values in body scopes and independent
     generator equations [tested: test_literal_head_values_reach_compiled_bodies;
     test_each_generator_equation_binds_its_literal_head; commit=5e3e9bce79f9ad71d61096256bbda8b249f8de8c]
@@ -153,6 +156,7 @@ from metta._compile.islands import py as _py_marker
 from metta._compile.loops import LoopCompilerMixin
 from metta._compile.statements import StatementCompilerMixin, _is_generator, _superpose
 from metta._compile.twins import _python_twin
+from metta._declare import call_syntax
 from metta._errors.errors import CompileError, with_coordinates
 from metta._spaces.intents import record_event_at_frame, record_sync_engine_call
 from metta._spaces.results import Answers
@@ -598,6 +602,7 @@ def compile_function(
     signature: inspect.Signature | None = None,
     class_context: type | None = None,
     method_receiver: str | None = None,
+    native_result_types: tuple[Atom, ...] = (),
 ) -> Compiled:
     """Read a function's source into a Compiled clause.
 
@@ -615,6 +620,10 @@ def compile_function(
     a call to it. `metta_name` is the equation's own name; it defaults to
     the Python name verbatim, since nothing here rewrites a name the
     author wrote.
+
+    `native_result_types` is the result contract the caller will publish.
+    Parameter entry work uses its Atom mask to execute allocation while
+    preserving the native result quotation.
     """
     if not isinstance(fn, types.FunctionType):
         msg = f"define expects a Python function, got {type(fn).__name__}"
@@ -670,7 +679,8 @@ def compile_function(
         )
         # The head fixes literal inputs; the body still has their local names.
         # Bind those values after lowering so every nested scope sees them.
-        scope = params
+        scope = _initial_scope(params)
+        entry_bindings = {} if signature is None else call_syntax.parameter_scope(signature, scope)
         namespace = _function_namespace(fn)
         closure_names = set(fn.__code__.co_freevars)
         closure_values: dict[str, Any] = {}
@@ -804,6 +814,9 @@ def compile_function(
             )
         else:
             body = compiler.block(definition.body)
+            equation_bodies = (body,)
+        if entry_bindings:
+            body = call_syntax.parameter_body(body, entry_bindings, native_result_types)
             equation_bodies = (body,)
         written_body = body
         body = _bind_head_parameters(body, patterns)

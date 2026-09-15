@@ -1,6 +1,9 @@
 """Purpose: compile class initialization with the ordinary statement compiler.
 
 Guarantees:
+  - canonical keyword-pair terms remain matchable before initialization binds
+    its dictionary [tested: test_constructor_keyword_terms_reach_native_initializers;
+    test_packed_constructor_parameters_keep_their_container_shapes; commit=WORKTREE]
   - constructor parameters retain Python underscore identity [tested:
     test_class_underscore_fields_receivers_and_packed_parameters; commit=69d1511c099eb6aa80c38d898da49487c42470f0]
   - default computations finish before field input contracts inspect their
@@ -64,10 +67,8 @@ def _factory(plan: Any, name: str, factory: Any) -> Atom:
 def _prepare_defaults(plan: Any) -> None:
     for name, parameter in plan.signature.parameters.items():
         field = next((field for field in plan.fields if field.name == name), None)
-        if parameter.kind is inspect.Parameter.VAR_POSITIONAL:
+        if parameter.kind in (inspect.Parameter.VAR_POSITIONAL, inspect.Parameter.VAR_KEYWORD):
             plan.defaults[name] = _expr(S.noeval, Expression([]))
-        elif parameter.kind is inspect.Parameter.VAR_KEYWORD:
-            plan.defaults[name] = plan.keyword_arguments({})
         elif plan.generated_init and field is not None and field.factory is not None:
             plan.defaults[name] = _factory(plan, name, field.factory)
         elif parameter.default is not inspect.Parameter.empty:
@@ -244,8 +245,10 @@ def install(plan: Any) -> None:
         raise CompileError(msg, construct="constructor source", line=1)
     receiver = next(iter(inspect.signature(contextual_function(plan.cls, fn)).parameters)) if fn is not None else "class-receiver"
     scope = {name: binding_name(name) for name in names} | {receiver: "class-receiver"}
+    entry_bindings = call_syntax.parameter_scope(plan.signature, scope)
     compiler = _compiler(plan, fn, scope, lambda current: _post_init(plan, current), receiver=receiver)
     body = _generated_body(plan, compiler) if plan.generated_init else _source_body(compiler)
+    body = call_syntax.parameter_body(body, entry_bindings)
     plan.import_dependencies(compiler.libraries, (body, *compiler.aux, *plan.defaults.values()))
     call_syntax.link(plan.space, compiler.runtime_ops)
     for equation in compiler.aux:
@@ -267,8 +270,7 @@ def install(plan: Any) -> None:
         ))
         plan.space.add(_expr(S["="], _expr(factory, *arguments[:count]), application))
     alternatives = [
-        [S.Expression] if parameter.kind is inspect.Parameter.VAR_POSITIONAL else
-        [S.SpaceType] if parameter.kind is inspect.Parameter.VAR_KEYWORD else
+        [S.Expression] if parameter.kind in (inspect.Parameter.VAR_POSITIONAL, inspect.Parameter.VAR_KEYWORD) else
         field_values.type_atoms(parameter.annotation if parameter.annotation is not inspect.Parameter.empty else Any, retained=True)
         for parameter in plan.signature.parameters.values()
     ]

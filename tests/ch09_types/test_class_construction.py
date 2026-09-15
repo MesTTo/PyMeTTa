@@ -1,6 +1,9 @@
 """Purpose: verify constructor arguments, private fields and declaration owners.
 
 Guarantees:
+  - canonical constructor collectors are structural expressions before their
+    body allocates a dictionary [tested:
+    test_packed_constructor_parameters_keep_their_container_shapes; commit=WORKTREE]
   - constructor defaults and field writes share rollback, while declaration
     references keep their providers alive [tested: sh extensions/python/test.sh
     tests/ch09_types/test_class_construction.py -n 0; commit=9b0a084e534ddf7dd67980ad84c27c8279b877f1]
@@ -88,9 +91,9 @@ def test_packed_constructor_parameters_keep_their_container_shapes():  # noqa: D
         assert ConstructionPacked(2, 3, bonus=4).total == 9
         assert convert.build(m.eval(S["packed-constructor"]())[0], ConstructionPacked).total == 9
         plan = declaration(ConstructionPacked)
-        native = plan.space.run('!(make-ConstructionPacked (2 3) (dict-space (("bonus" 4))))')[0][0]
+        native = plan.space.run('!(make-ConstructionPacked (2 3) (("bonus" 4)))')[0][0]
         assert convert.build(native, ConstructionPacked).total == 9
-        assert S[":"](S["make-ConstructionPacked"], S["->"](S.Expression, S.SpaceType, S.ConstructionPacked)) in plan.space
+        assert S[":"](S["make-ConstructionPacked"], S["->"](S.Expression, S.Expression, S.ConstructionPacked)) in plan.space
         assert S.internal(S["dict-space"]) in plan.space
         with pytest.raises(EngineError, match="internal"):
             m.from_(plan.space, S.only((S["dict-space"],)))

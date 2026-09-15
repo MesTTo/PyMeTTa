@@ -19,7 +19,7 @@ Guarantees:
     constructor defaults remain source computations [tested:
     test_constructor_defaults_follow_the_native_callable_contract;
     test_class_methods_keep_full_python_signatures_and_native_bodies;
-    commit=71a6b9f41b19452d50934448a6d77432887f5193]
+    commit=WORKTREE]
   - Python field setters preserve computed syntax values at typed native
     writers [tested: test_field_assignment_keeps_computed_syntax_values;
     commit=310a9d8b547a77412a518a37ab79fba073eb22ac]
@@ -591,11 +591,7 @@ class ClassDeclaration:
                 if parameter.default is not inspect.Parameter.empty
             }
         signature = self.signature if signature is None else signature
-        return call_values.argument_sources(signature, supplied, encode, Symbol(self.space.name), defaults)
-
-    def keyword_arguments(self, values: dict[str, Atom]) -> Atom:
-        """Build a keyword mapping through the class's private library import."""
-        return call_values.keyword_arguments(Symbol(self.space.name), values)
+        return call_values.argument_sources(signature, supplied, encode, defaults)
 
     def install_storage(self) -> None:
         part = Variable("identity")

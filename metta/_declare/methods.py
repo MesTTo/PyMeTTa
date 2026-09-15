@@ -5,6 +5,10 @@ Owns resources:
     entries; bound values retain the receiver and its lexical space [tested:
     test_class_bound_methods_keep_the_receiver_and_program_alive; commit=ba819bfa2aa69d231d8ebae7d74b085f838840de]
 Guarantees:
+  - compiled and refused bodies receive one dictionary after the canonical
+    head has matched ordered keyword terms [tested:
+    test_compiled_collectors_match_native_equation_heads;
+    test_refused_method_collectors_enter_the_host_body; commit=WORKTREE]
   - one canonical image owns the live parameter contract used by bound and
     unbound entries, whose shared binder captures no Python method [tested:
     test_method_defaults_are_read_from_one_native_signature;
@@ -172,6 +176,7 @@ class Method:
 
     def compile(self) -> None:
         owner = self.owner
+        result_types = tuple(field_values.type_atoms(self.result_type, retained=True))
         auxiliary: tuple[Expression, ...]
         try:
             compiled = define.compile_function(
@@ -181,21 +186,16 @@ class Method:
                 ) for plan in (owner, *owner.bases) for method in plan.methods.values()),
                 metta_name=self.name, signature=self.signature,
                 class_context=owner.cls, method_receiver=self.receiver_name,
+                native_result_types=result_types,
             )
         except CompileError as error:
             print(f"{owner.name}.{self.python_name}: {error}\nkept as a host equation with effect oracleIO", file=sys.stderr)
-            body = self.host_body()
+            body = self.host_body(result_types)
             auxiliary = ()
         else:
             self.compiled = compiled
             owner.dependencies.update(compiled.class_dependencies)
-            arguments = (*self.defaults.values(), *(
-                (owner.keyword_arguments({}),) if any(
-                    parameter.kind is inspect.Parameter.VAR_KEYWORD
-                    for parameter in self.call_signature.parameters.values()
-                ) else ()
-            ))
-            owner.import_dependencies(compiled.libraries, (compiled.body, *compiled.aux, *arguments))
+            owner.import_dependencies(compiled.libraries, (compiled.body, *compiled.aux, *self.defaults.values()))
             call_syntax.link(owner.space, compiled.runtime_ops)
             body, auxiliary = compiled.body, tuple(compiled.aux)
         head = _expr(Symbol(self.name), *(Variable(binding_name(name)) for name in self.signature.parameters))
@@ -204,11 +204,10 @@ class Method:
         for equation in self.equations:
             self.rows.extend(classes._owned_add(owner.space, equation))
         inputs = [[Symbol(owner.name)], *(
-            [S.Expression] if parameter.kind is inspect.Parameter.VAR_POSITIONAL else
-            [S.SpaceType] if parameter.kind is inspect.Parameter.VAR_KEYWORD else
+            [S.Expression] if parameter.kind in (inspect.Parameter.VAR_POSITIONAL, inspect.Parameter.VAR_KEYWORD) else
             field_values.type_atoms(parameter.annotation if parameter.annotation is not inspect.Parameter.empty else Any, retained=True)
             for parameter in self.call_signature.parameters.values()
-        ), field_values.type_atoms(self.result_type, retained=True)]
+        ), result_types]
         for chain in itertools.product(*inputs):
             owner.space.add(_expr(S[":"], Symbol(self.name), _expr(S["->"], *chain)))
         if self.private:
@@ -218,7 +217,7 @@ class Method:
             owner.space.add(documentation)
         self.install_binding()
 
-    def host_body(self) -> Atom:
+    def host_body(self, result_types: tuple[Atom, ...]) -> Atom:
         """A refused source uses the same equation and its owned host operation."""
         head = f"_host-{self.name}"
 
@@ -245,7 +244,13 @@ class Method:
                              arities=[len(self.signature.parameters)], effect=EffectClass.oracleIO,
                              declarations=[_expr(S.arguments, Symbol(head), S.atoms)])
         self.owner.space.add(_expr(S.internal, Symbol(head)))
-        return _expr(Symbol(head), *(Variable(binding_name(name)) for name in self.signature.parameters))
+        scope = {name: binding_name(name) for name in self.signature.parameters}
+        entry_bindings = call_syntax.parameter_scope(self.signature, scope)
+        body: Atom = _expr(Symbol(head), *(Variable(variable) for variable in scope.values()))
+        body = call_syntax.parameter_body(body, entry_bindings, result_types)
+        if entry_bindings:
+            self.owner.import_dependencies({"dict"}, (body,))
+        return body
 
     def install_binding(self) -> None:
         """Bind Python call syntax, then evaluate its ordinary native application."""
