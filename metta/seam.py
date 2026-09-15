@@ -50,7 +50,7 @@ Assumes:
 Guarantees:
   - registered rows own a read-only copy of their field mapping and immutable
     registration metadata; field payloads retain their own ownership [tested:
-    test_registered_rows_cannot_bypass_snapshot_generation; commit=WORKTREE]
+    test_registered_rows_cannot_bypass_snapshot_generation; commit=23c1156bbecfa534f228853b06c9b4868ad1c645]
   - colliding entry-point names refuse before any provider loads and name
     both distribution origins in a stable order [tested:
     test_entry_point_collision_reports_both_owners; commit=4716ce2d8c4483d50fdb5146f296c019d7470dd4]
