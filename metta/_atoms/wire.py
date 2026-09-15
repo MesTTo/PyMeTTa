@@ -11,7 +11,7 @@ Guarantees:
     test_atom_from_wire_rejects_undefined_truth]
   - nested undefined wrappers are refused before descending into their
     payload, independently of nesting depth [tested:
-    test_nested_undefined_wire_is_refused_before_descent; commit=WORKTREE]
+    test_nested_undefined_wire_is_refused_before_descent; commit=cfe153315da5cd78e53d64f28fec3c6004fe4777]
   - undefined truth has one value-and-delay frame with no optional constraint
     payload [tested:
     test_a_not_reducible_answer_is_the_unreduced_term_with_no_flag;

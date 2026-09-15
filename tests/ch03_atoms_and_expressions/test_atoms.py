@@ -1,7 +1,7 @@
 """Purpose: unit tests for the atom model and wire encoding, engine-free.
 Guarantees:
   - nested undefined wire wrappers fail before payload descent [tested:
-    test_nested_undefined_wire_is_refused_before_descent; commit=WORKTREE]
+    test_nested_undefined_wire_is_refused_before_descent; commit=cfe153315da5cd78e53d64f28fec3c6004fe4777]
   - the atom ordering expectation is elementwise for unequal expression
     lengths [tested: test_atoms_sort_in_prologs_standard_order;
     commit=cff2e7f319bd2212f0c2d74f8d5fe5be3ac693b5]
