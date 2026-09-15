@@ -1,0 +1,3579 @@
+{
+  "asdl": "cpython.asdl",
+  "journal": "journal.classes",
+  "journal_api_modules": [
+    "abc",
+    "builtins",
+    "contextlib",
+    "dataclasses",
+    "functools",
+    "typing"
+  ],
+  "reference": {
+    "end_line": 4006,
+    "section": "special-method-names",
+    "source": "cpython.datamodel",
+    "start_line": 1927
+  },
+  "required_apis": [
+    [
+      "typing",
+      "runtime_checkable"
+    ]
+  ],
+  "schema_version": 1,
+  "slots": "cpython.slots",
+  "source_revision": "23116f998f6789d8c2fbe5ed5b8146854c8c2a4f",
+  "source_tag": "v3.14.4",
+  "source_tag_object": "97af9512532f73e0af69b79098f6a9c147145c09",
+  "sources": [
+    {
+      "full_bytes": 13804,
+      "full_lines": 277,
+      "full_sha256": "b0e25a78cffb43f4d92de8b61ccfa1f1f98ecbc22330b54b5251e7b6ba010231",
+      "id": "cpython.license",
+      "kind": "license",
+      "path": "LICENSE",
+      "revision": "23116f998f6789d8c2fbe5ed5b8146854c8c2a4f",
+      "segments": [
+        {
+          "bytes": 13804,
+          "end_line": 277,
+          "offset": 0,
+          "path": "cpython/LICENSE",
+          "sha256": "b0e25a78cffb43f4d92de8b61ccfa1f1f98ecbc22330b54b5251e7b6ba010231",
+          "start_line": 1
+        }
+      ],
+      "url": "https://github.com/python/cpython/blob/23116f998f6789d8c2fbe5ed5b8146854c8c2a4f/LICENSE"
+    },
+    {
+      "full_bytes": 373996,
+      "full_lines": 12302,
+      "full_sha256": "66f3268235f49a4f930a22805e0af700590b3a9b8c73d39671eab8f1efe416d2",
+      "id": "cpython.slots",
+      "kind": "slots",
+      "path": "Objects/typeobject.c",
+      "revision": "23116f998f6789d8c2fbe5ed5b8146854c8c2a4f",
+      "segments": [
+        {
+          "bytes": 13210,
+          "end_line": 11149,
+          "offset": 0,
+          "path": "cpython/Objects/typeobject.c",
+          "sha256": "dc68b3833c717c1af1d31aa61eff1b45ab173de68688c9640e191438124012d8",
+          "start_line": 10914
+        }
+      ],
+      "url": "https://github.com/python/cpython/blob/23116f998f6789d8c2fbe5ed5b8146854c8c2a4f/Objects/typeobject.c"
+    },
+    {
+      "full_bytes": 373996,
+      "full_lines": 12302,
+      "full_sha256": "66f3268235f49a4f930a22805e0af700590b3a9b8c73d39671eab8f1efe416d2",
+      "id": "cpython.type-members",
+      "kind": "c_metadata",
+      "owner": "type",
+      "path": "Objects/typeobject.c",
+      "revision": "23116f998f6789d8c2fbe5ed5b8146854c8c2a4f",
+      "segments": [
+        {
+          "bytes": 531,
+          "end_line": 6622,
+          "offset": 0,
+          "path": "cpython/Objects/typeobject-members.c",
+          "sha256": "50eba838b3932bc8246a3cf03daa83aac67358e8c25a3f1513a1c9b79340875f",
+          "start_line": 6606
+        }
+      ],
+      "url": "https://github.com/python/cpython/blob/23116f998f6789d8c2fbe5ed5b8146854c8c2a4f/Objects/typeobject.c"
+    },
+    {
+      "full_bytes": 156724,
+      "full_lines": 4006,
+      "full_sha256": "f530e0e798578dd2c6e8d79df84d6ef7ed1babf41df3f89c6b47bd46fd9557ee",
+      "id": "cpython.datamodel",
+      "kind": "reference",
+      "path": "Doc/reference/datamodel.rst",
+      "revision": "23116f998f6789d8c2fbe5ed5b8146854c8c2a4f",
+      "segments": [
+        {
+          "bytes": 44,
+          "end_line": 581,
+          "offset": 0,
+          "path": "cpython/Doc/reference/datamodel.rst",
+          "sha256": "e3d5e6f4140e15d1eaa68ea622317c1773c44bbcd8cedfa70832b53081397d58",
+          "start_line": 581
+        },
+        {
+          "bytes": 43,
+          "end_line": 587,
+          "offset": 44,
+          "path": "cpython/Doc/reference/datamodel.rst",
+          "sha256": "e1c88c59664f2da832a44ada6b2f4e7c7551636fe75d01780560bec6ff9849d2",
+          "start_line": 587
+        },
+        {
+          "bytes": 43,
+          "end_line": 592,
+          "offset": 87,
+          "path": "cpython/Doc/reference/datamodel.rst",
+          "sha256": "287fb85bc704df61e90d7e8dd746a9218476ac5def88b85ca8d4bb573810264e",
+          "start_line": 592
+        },
+        {
+          "bytes": 39,
+          "end_line": 623,
+          "offset": 130,
+          "path": "cpython/Doc/reference/datamodel.rst",
+          "sha256": "5477a283f8af55d450cc63f6035a0c60ac33678fdf96ee079dba6f0c84680bca",
+          "start_line": 623
+        },
+        {
+          "bytes": 40,
+          "end_line": 626,
+          "offset": 169,
+          "path": "cpython/Doc/reference/datamodel.rst",
+          "sha256": "1e6471f332d61753a34ddb7b7fbc3735feb797ad8695d225945be2ff2dca7df2",
+          "start_line": 626
+        },
+        {
+          "bytes": 44,
+          "end_line": 630,
+          "offset": 209,
+          "path": "cpython/Doc/reference/datamodel.rst",
+          "sha256": "9dbb33e02781aae47cca40d08142c1877c757a8dda54fafd1d49b8de2d45dd53",
+          "start_line": 630
+        },
+        {
+          "bytes": 42,
+          "end_line": 636,
+          "offset": 253,
+          "path": "cpython/Doc/reference/datamodel.rst",
+          "sha256": "cc7811567208f7be50657b8c1f2ad4455b36b8600c392e2afb4431ed38090e32",
+          "start_line": 636
+        },
+        {
+          "bytes": 44,
+          "end_line": 640,
+          "offset": 295,
+          "path": "cpython/Doc/reference/datamodel.rst",
+          "sha256": "1d3e35dfe5491dd415008dcc1238e00883c0ee7cd5ceb7a9ac4ad2c074f80fe6",
+          "start_line": 640
+        },
+        {
+          "bytes": 40,
+          "end_line": 645,
+          "offset": 339,
+          "path": "cpython/Doc/reference/datamodel.rst",
+          "sha256": "021a08791b9b9357ec3c47d438d1dbc23bb4f67d97f9dec91b658ec708f4230c",
+          "start_line": 645
+        },
+        {
+          "bytes": 40,
+          "end_line": 649,
+          "offset": 379,
+          "path": "cpython/Doc/reference/datamodel.rst",
+          "sha256": "fea5e91597a2d9c9859a26d3d6669c85494c4dea5eb2c1383051f4b8c37ada35",
+          "start_line": 649
+        },
+        {
+          "bytes": 47,
+          "end_line": 653,
+          "offset": 419,
+          "path": "cpython/Doc/reference/datamodel.rst",
+          "sha256": "9247cd7ffe8afdf3fc498dda0eed4a25aa66f3cafac19c1fef3fbdd3781e053b",
+          "start_line": 653
+        },
+        {
+          "bytes": 44,
+          "end_line": 664,
+          "offset": 466,
+          "path": "cpython/Doc/reference/datamodel.rst",
+          "sha256": "8e577e44d813f6ff71c11c67b1c564dc889507ab6f8d32ff4149eb43eee85c3a",
+          "start_line": 664
+        },
+        {
+          "bytes": 46,
+          "end_line": 670,
+          "offset": 510,
+          "path": "cpython/Doc/reference/datamodel.rst",
+          "sha256": "f520583e25e1cb6d8a1b492d91e5364ab9354a372ffbc40a0442a0bf11ca0d98",
+          "start_line": 670
+        },
+        {
+          "bytes": 47,
+          "end_line": 674,
+          "offset": 556,
+          "path": "cpython/Doc/reference/datamodel.rst",
+          "sha256": "64c20473a1d1962d5b72e617f206dc8945fdbb6c7cc7caedafd16e17b754596e",
+          "start_line": 674
+        },
+        {
+          "bytes": 38,
+          "end_line": 720,
+          "offset": 603,
+          "path": "cpython/Doc/reference/datamodel.rst",
+          "sha256": "13439755040c3222d915081655eb4bb57df30d7df2282ffa2199b32d70022a20",
+          "start_line": 720
+        },
+        {
+          "bytes": 38,
+          "end_line": 724,
+          "offset": 641,
+          "path": "cpython/Doc/reference/datamodel.rst",
+          "sha256": "c481846f754214ccbd160b257023a219f4efec2a9d706dcd560f9bca36cbc85c",
+          "start_line": 724
+        },
+        {
+          "bytes": 37,
+          "end_line": 727,
+          "offset": 679,
+          "path": "cpython/Doc/reference/datamodel.rst",
+          "sha256": "53e488687ed055bdcc4db343f05d6590cbbe16e7050bcc5ca465df0ab94dd69a",
+          "start_line": 727
+        },
+        {
+          "bytes": 38,
+          "end_line": 733,
+          "offset": 716,
+          "path": "cpython/Doc/reference/datamodel.rst",
+          "sha256": "dc75892679f40ae4399cc70d7bda9424bcf6497dbb9ee7cac7cc7d85d72f63d7",
+          "start_line": 733
+        },
+        {
+          "bytes": 40,
+          "end_line": 737,
+          "offset": 754,
+          "path": "cpython/Doc/reference/datamodel.rst",
+          "sha256": "16c2783d8d43f43b038f51569020a92fde692173422548fad96e07a272f9e9f4",
+          "start_line": 737
+        },
+        {
+          "bytes": 31,
+          "end_line": 971,
+          "offset": 794,
+          "path": "cpython/Doc/reference/datamodel.rst",
+          "sha256": "d2cfd945d7986940ce8cd6639d7d9fbb018589f806ef50cd3fb192ca2ac6b283",
+          "start_line": 971
+        },
+        {
+          "bytes": 31,
+          "end_line": 980,
+          "offset": 825,
+          "path": "cpython/Doc/reference/datamodel.rst",
+          "sha256": "558f35d7ef24fc336fb309c4bfaba4759ee782b799759e891cbd8dcab3903c4a",
+          "start_line": 980
+        },
+        {
+          "bytes": 34,
+          "end_line": 989,
+          "offset": 856,
+          "path": "cpython/Doc/reference/datamodel.rst",
+          "sha256": "0935154d0e4997c4dd299084d1c3a7141213ec8c41eee5bea9b76c6358ee3b1d",
+          "start_line": 989
+        },
+        {
+          "bytes": 33,
+          "end_line": 1035,
+          "offset": 890,
+          "path": "cpython/Doc/reference/datamodel.rst",
+          "sha256": "0e9d0dc365baf10ccbe31c8c35ebbf1df8333019758d2c4ed89bf01efce5fed4",
+          "start_line": 1035
+        },
+        {
+          "bytes": 31,
+          "end_line": 1063,
+          "offset": 923,
+          "path": "cpython/Doc/reference/datamodel.rst",
+          "sha256": "ad509d30869d1050b40acbef140c8d3c826ecf374b47e5c1829093bd7eb6f1a5",
+          "start_line": 1063
+        },
+        {
+          "bytes": 64,
+          "end_line": 1075,
+          "offset": 954,
+          "path": "cpython/Doc/reference/datamodel.rst",
+          "sha256": "9d83600377a9c8be1dbe20344f42507b6a3cc17734a4305fdf41706f422290d0",
+          "start_line": 1074
+        },
+        {
+          "bytes": 30,
+          "end_line": 1118,
+          "offset": 1018,
+          "path": "cpython/Doc/reference/datamodel.rst",
+          "sha256": "1ac00fe58c0410560522c7203e099a16477bcc1b22b38d8c7cce786069ed1cef",
+          "start_line": 1118
+        },
+        {
+          "bytes": 38,
+          "end_line": 1123,
+          "offset": 1048,
+          "path": "cpython/Doc/reference/datamodel.rst",
+          "sha256": "bb0e632d11125d1a40d73435b59f25984c0c9433b3830f9014f55a5eeacf1989",
+          "start_line": 1123
+        },
+        {
+          "bytes": 35,
+          "end_line": 1133,
+          "offset": 1086,
+          "path": "cpython/Doc/reference/datamodel.rst",
+          "sha256": "9c3ae84e48c6d7bd7adda95e20db51410182136a9b677d93b271583847d0b5e9",
+          "start_line": 1133
+        },
+        {
+          "bytes": 31,
+          "end_line": 1146,
+          "offset": 1121,
+          "path": "cpython/Doc/reference/datamodel.rst",
+          "sha256": "e5e0931af81420c0d32af138df362c240dab7c07a6485d81dad3d15ebacf86dd",
+          "start_line": 1146
+        },
+        {
+          "bytes": 36,
+          "end_line": 1226,
+          "offset": 1152,
+          "path": "cpython/Doc/reference/datamodel.rst",
+          "sha256": "0bd7d7bc97fd60422fdcb67986f92fca6535d695fe21fb34fc53002ca7194f95",
+          "start_line": 1226
+        },
+        {
+          "bytes": 40,
+          "end_line": 1230,
+          "offset": 1188,
+          "path": "cpython/Doc/reference/datamodel.rst",
+          "sha256": "ba1e569d1e2327e619e11f6b83548b18758d1a2b66324119f75a064551850ab3",
+          "start_line": 1230
+        },
+        {
+          "bytes": 38,
+          "end_line": 1234,
+          "offset": 1228,
+          "path": "cpython/Doc/reference/datamodel.rst",
+          "sha256": "e6f6fc2859dacd813817a4e222e57df54a63a6cfe66563398f7c9043409f8432",
+          "start_line": 1234
+        },
+        {
+          "bytes": 36,
+          "end_line": 1237,
+          "offset": 1266,
+          "path": "cpython/Doc/reference/datamodel.rst",
+          "sha256": "63eb541fe78c9414647389dd15c59b446f0d975742794553cb1c0ef3714f4208",
+          "start_line": 1237
+        },
+        {
+          "bytes": 37,
+          "end_line": 1242,
+          "offset": 1302,
+          "path": "cpython/Doc/reference/datamodel.rst",
+          "sha256": "7038b2cd1e022dac0510caef87cbfecaba45855e4e9b7bddd28ca20916ede023",
+          "start_line": 1242
+        },
+        {
+          "bytes": 36,
+          "end_line": 1247,
+          "offset": 1339,
+          "path": "cpython/Doc/reference/datamodel.rst",
+          "sha256": "e7446a34c545abaf99ac59c17efa0d51dbe34385750c7dd30d4980f63d0977dc",
+          "start_line": 1247
+        },
+        {
+          "bytes": 35,
+          "end_line": 1254,
+          "offset": 1375,
+          "path": "cpython/Doc/reference/datamodel.rst",
+          "sha256": "e5b56911d66b2e6b6eb52bb547fe6ffdb6f1d98b965d563098a8dd44ff0e13a2",
+          "start_line": 1254
+        },
+        {
+          "bytes": 43,
+          "end_line": 1258,
+          "offset": 1410,
+          "path": "cpython/Doc/reference/datamodel.rst",
+          "sha256": "b4a8d43ba0ba1434cfe8b18d35b784bede53d470c23848dd2c7f29c53ebf49d3",
+          "start_line": 1258
+        },
+        {
+          "bytes": 37,
+          "end_line": 1285,
+          "offset": 1453,
+          "path": "cpython/Doc/reference/datamodel.rst",
+          "sha256": "a2e82d2a6dfe75d11e3161c5bbe9665a67d62a6952f88515c5ee43120f1dcd01",
+          "start_line": 1285
+        },
+        {
+          "bytes": 43,
+          "end_line": 1292,
+          "offset": 1490,
+          "path": "cpython/Doc/reference/datamodel.rst",
+          "sha256": "656d4ea78ce8eabe3756be2df965dacbedf9c07bf246d0c888b1e1a40592edcb",
+          "start_line": 1292
+        },
+        {
+          "bytes": 49,
+          "end_line": 1298,
+          "offset": 1533,
+          "path": "cpython/Doc/reference/datamodel.rst",
+          "sha256": "e542a08d5ee7e448b87dde766fa150020752ac8e0b3baac89e358fcfb93bea44",
+          "start_line": 1298
+        },
+        {
+          "bytes": 43,
+          "end_line": 1304,
+          "offset": 1582,
+          "path": "cpython/Doc/reference/datamodel.rst",
+          "sha256": "0d4f8cddd3e5c3aa6c68282e09d96d94e237a403134d64c75ceac9d7e101a8ee",
+          "start_line": 1304
+        },
+        {
+          "bytes": 35,
+          "end_line": 1312,
+          "offset": 1625,
+          "path": "cpython/Doc/reference/datamodel.rst",
+          "sha256": "a8625435aa57fed3586659e04f780a2366e322740753a05403307860f0bda5f2",
+          "start_line": 1312
+        },
+        {
+          "bytes": 32,
+          "end_line": 1329,
+          "offset": 1660,
+          "path": "cpython/Doc/reference/datamodel.rst",
+          "sha256": "8fe3e00d5a7756487ae546e89ef685ae56cc4d99c6d25fff09fb1d0520d69e39",
+          "start_line": 1329
+        },
+        {
+          "bytes": 32,
+          "end_line": 1387,
+          "offset": 1692,
+          "path": "cpython/Doc/reference/datamodel.rst",
+          "sha256": "e6105c4b403203c4b8b303f9ec7cf79d1c93ff7a3f88edd23fbc7b002aaac808",
+          "start_line": 1387
+        },
+        {
+          "bytes": 31,
+          "end_line": 1391,
+          "offset": 1724,
+          "path": "cpython/Doc/reference/datamodel.rst",
+          "sha256": "0a6f8c0f3eb30d403fccbddf60f8bbaefdc2a3357f45fee0bf9383025f4f6d3d",
+          "start_line": 1391
+        },
+        {
+          "bytes": 39,
+          "end_line": 1964,
+          "offset": 1755,
+          "path": "cpython/Doc/reference/datamodel.rst",
+          "sha256": "98cc580048ec2859c932d021ba1ba87535c89d82ca0eeb6162ac37de7dfca06d",
+          "start_line": 1964
+        },
+        {
+          "bytes": 41,
+          "end_line": 1993,
+          "offset": 1794,
+          "path": "cpython/Doc/reference/datamodel.rst",
+          "sha256": "4d225d16febb81b01b53416c07d053cd6627c0526bf30b920f7462401a30315a",
+          "start_line": 1993
+        },
+        {
+          "bytes": 33,
+          "end_line": 2010,
+          "offset": 1835,
+          "path": "cpython/Doc/reference/datamodel.rst",
+          "sha256": "1dc8e2ad2cf18557c42a9b7fd8a38da1c3bb6b9c7b50c2283a1bfb77fcf8165a",
+          "start_line": 2010
+        },
+        {
+          "bytes": 34,
+          "end_line": 2079,
+          "offset": 1868,
+          "path": "cpython/Doc/reference/datamodel.rst",
+          "sha256": "9afc85b4246ab1321aefc1ac2727d67682dcf1c9b5a4e049d4596c1c791adddb",
+          "start_line": 2079
+        },
+        {
+          "bytes": 33,
+          "end_line": 2100,
+          "offset": 1902,
+          "path": "cpython/Doc/reference/datamodel.rst",
+          "sha256": "6a4a2c087590cb1670462995d7c3b1b473a0e525a22fa757cfe13ca5a72583ea",
+          "start_line": 2100
+        },
+        {
+          "bytes": 35,
+          "end_line": 2117,
+          "offset": 1935,
+          "path": "cpython/Doc/reference/datamodel.rst",
+          "sha256": "9bb66f631e0a1a58845ded356eef747938d89ec0427a327b74e0f636dab92db9",
+          "start_line": 2117
+        },
+        {
+          "bytes": 49,
+          "end_line": 2131,
+          "offset": 1970,
+          "path": "cpython/Doc/reference/datamodel.rst",
+          "sha256": "b32d15320d8583ae931ee44dce925241ba6e5f0f5ad92cb725d243dbbc42def2",
+          "start_line": 2131
+        },
+        {
+          "bytes": 234,
+          "end_line": 2165,
+          "offset": 2019,
+          "path": "cpython/Doc/reference/datamodel.rst",
+          "sha256": "971ce879897953f6c8be558b7ebfdbb4a4d83cc813d963f24d3befb2f784940b",
+          "start_line": 2160
+        },
+        {
+          "bytes": 34,
+          "end_line": 2216,
+          "offset": 2253,
+          "path": "cpython/Doc/reference/datamodel.rst",
+          "sha256": "ad7dc4737989842e08f6b55748aa715851fb3df974ae49011c96170b5aa8f935",
+          "start_line": 2216
+        },
+        {
+          "bytes": 34,
+          "end_line": 2297,
+          "offset": 2287,
+          "path": "cpython/Doc/reference/datamodel.rst",
+          "sha256": "f6ce579d44699c55a1d70b93170ff9607a3d447c6eabe2ebce7ecb08ffaf38a6",
+          "start_line": 2297
+        },
+        {
+          "bytes": 43,
+          "end_line": 2320,
+          "offset": 2321,
+          "path": "cpython/Doc/reference/datamodel.rst",
+          "sha256": "3167bcdbd32edf51ac5fe450877464407aca5fea508c72ac7a097f454a7adb77",
+          "start_line": 2320
+        },
+        {
+          "bytes": 48,
+          "end_line": 2341,
+          "offset": 2364,
+          "path": "cpython/Doc/reference/datamodel.rst",
+          "sha256": "5613774901006c3ca99060c7802546cf2f95b9d83cc9eeb94c2c98d28220d595",
+          "start_line": 2341
+        },
+        {
+          "bytes": 50,
+          "end_line": 2366,
+          "offset": 2412,
+          "path": "cpython/Doc/reference/datamodel.rst",
+          "sha256": "518bab036e0679691c5ecb11d4789adfc78aecb8f3e3c62ca212d919c7bf9536",
+          "start_line": 2366
+        },
+        {
+          "bytes": 43,
+          "end_line": 2383,
+          "offset": 2462,
+          "path": "cpython/Doc/reference/datamodel.rst",
+          "sha256": "1e91b36fe390f43659dd3916f3e034f7a1d5f8176012aa9dfd4f04104656a0aa",
+          "start_line": 2383
+        },
+        {
+          "bytes": 33,
+          "end_line": 2395,
+          "offset": 2505,
+          "path": "cpython/Doc/reference/datamodel.rst",
+          "sha256": "06d9a181f2e42d8168bc830b0cd6f79dadf5a70a8cca66fa5bb4606cc17b78bf",
+          "start_line": 2395
+        },
+        {
+          "bytes": 58,
+          "end_line": 2410,
+          "offset": 2538,
+          "path": "cpython/Doc/reference/datamodel.rst",
+          "sha256": "c77c0adebe7dffe495ae84dc88b09e6b061fd0aa0d9b2e024427f7ea1f9ae8a0",
+          "start_line": 2409
+        },
+        {
+          "bytes": 32,
+          "end_line": 2425,
+          "offset": 2596,
+          "path": "cpython/Doc/reference/datamodel.rst",
+          "sha256": "8b15de8c2f1a09b96ae057608ac130b2e41620c54d21c674418b2498a1ef59e5",
+          "start_line": 2425
+        },
+        {
+          "bytes": 55,
+          "end_line": 2475,
+          "offset": 2628,
+          "path": "cpython/Doc/reference/datamodel.rst",
+          "sha256": "836d5773b9a95b28b944d43ce4d9f4eb71acfefdd8cd834224d1cfbfab08cfbb",
+          "start_line": 2475
+        },
+        {
+          "bytes": 50,
+          "end_line": 2493,
+          "offset": 2683,
+          "path": "cpython/Doc/reference/datamodel.rst",
+          "sha256": "1c3a680e23f54f86530883d0384d096118fd268735064501ea29f3fc35949452",
+          "start_line": 2493
+        },
+        {
+          "bytes": 46,
+          "end_line": 2502,
+          "offset": 2733,
+          "path": "cpython/Doc/reference/datamodel.rst",
+          "sha256": "472a65a931f74cc34432d53fd2f8945ebf44e34a31c92d3fead6ac6198018ffb",
+          "start_line": 2502
+        },
+        {
+          "bytes": 35,
+          "end_line": 2509,
+          "offset": 2779,
+          "path": "cpython/Doc/reference/datamodel.rst",
+          "sha256": "4cabba0d98486f9a60365fdc7d446d4a9be377235d69e4b199807f58e6e2a1b2",
+          "start_line": 2509
+        },
+        {
+          "bytes": 27,
+          "end_line": 2630,
+          "offset": 2814,
+          "path": "cpython/Doc/reference/datamodel.rst",
+          "sha256": "5eeb74545c2c64d6e5304a26a81b42de701d3a971281b3e4813dff95c813e569",
+          "start_line": 2630
+        },
+        {
+          "bytes": 47,
+          "end_line": 2715,
+          "offset": 2841,
+          "path": "cpython/Doc/reference/datamodel.rst",
+          "sha256": "7587ce3ccd2f51cab022152a39657aacdd20aad88f5c9eb48ae8c86413c94ee2",
+          "start_line": 2715
+        },
+        {
+          "bytes": 51,
+          "end_line": 2751,
+          "offset": 2888,
+          "path": "cpython/Doc/reference/datamodel.rst",
+          "sha256": "22eef133428a8c569a88279256cff9d63fce0467b1fa10c0dff0a4ba1741e616",
+          "start_line": 2751
+        },
+        {
+          "bytes": 48,
+          "end_line": 2818,
+          "offset": 2939,
+          "path": "cpython/Doc/reference/datamodel.rst",
+          "sha256": "3e0d6947a6e23cb9d83ab23a3bcb9b1a81c60597213557681d4c1852af4e5d15",
+          "start_line": 2818
+        },
+        {
+          "bytes": 51,
+          "end_line": 2983,
+          "offset": 2987,
+          "path": "cpython/Doc/reference/datamodel.rst",
+          "sha256": "0d4ee8c7e5deda99a43a38e61a345570ae4eda4958a17790590eca95309c0d91",
+          "start_line": 2983
+        },
+        {
+          "bytes": 51,
+          "end_line": 2990,
+          "offset": 3038,
+          "path": "cpython/Doc/reference/datamodel.rst",
+          "sha256": "8fde2e7e07bb2877a440b2d07e6204f0d04fff4876d2bc9a84f08bdafdb7478c",
+          "start_line": 2990
+        },
+        {
+          "bytes": 52,
+          "end_line": 3035,
+          "offset": 3089,
+          "path": "cpython/Doc/reference/datamodel.rst",
+          "sha256": "2f8b4be210fd1520bc350b65104249976b2ce32572a0565ddc282f417e4c9a3c",
+          "start_line": 3035
+        },
+        {
+          "bytes": 45,
+          "end_line": 3159,
+          "offset": 3141,
+          "path": "cpython/Doc/reference/datamodel.rst",
+          "sha256": "f946ca6ff5e7bca8aa7cb6c5232f8542a6731452f6ab12406391fa1e0bf6b677",
+          "start_line": 3159
+        },
+        {
+          "bytes": 33,
+          "end_line": 3213,
+          "offset": 3186,
+          "path": "cpython/Doc/reference/datamodel.rst",
+          "sha256": "c9aa9ba67d7a75ba66894e70ff351a40c5d746ef82b5d5493117571c45dc4c7d",
+          "start_line": 3213
+        },
+        {
+          "bytes": 41,
+          "end_line": 3233,
+          "offset": 3219,
+          "path": "cpython/Doc/reference/datamodel.rst",
+          "sha256": "74f5055cb68ef9d293a9556b1bb4de6015fe27780889a414d9fefa914f8d40eb",
+          "start_line": 3233
+        },
+        {
+          "bytes": 48,
+          "end_line": 3245,
+          "offset": 3260,
+          "path": "cpython/Doc/reference/datamodel.rst",
+          "sha256": "550e520c0712da5beb2b7eb60484c5a7fbdc435518cb3bc3b3c6c2e79039a001",
+          "start_line": 3245
+        },
+        {
+          "bytes": 49,
+          "end_line": 3297,
+          "offset": 3308,
+          "path": "cpython/Doc/reference/datamodel.rst",
+          "sha256": "3bdab013ce70d8ff96ec9b96d3de4d39ac2ff2915d3eb185343a5b427f1ad61a",
+          "start_line": 3297
+        },
+        {
+          "bytes": 42,
+          "end_line": 3306,
+          "offset": 3357,
+          "path": "cpython/Doc/reference/datamodel.rst",
+          "sha256": "f7cd668f42d1a837d590ecf0e487e3f63618db69e8178a5102e1f2b59f94b6ad",
+          "start_line": 3306
+        },
+        {
+          "bytes": 42,
+          "end_line": 3315,
+          "offset": 3399,
+          "path": "cpython/Doc/reference/datamodel.rst",
+          "sha256": "e3a9e7168aba513b49bb0769af9c1929f9b9de9c58cb2e7329a4a87d08da8723",
+          "start_line": 3315
+        },
+        {
+          "bytes": 34,
+          "end_line": 3321,
+          "offset": 3441,
+          "path": "cpython/Doc/reference/datamodel.rst",
+          "sha256": "744a3d9b140bdd153a0b0522e372f7099d95d71a4eba46240a904fd3b0b70f25",
+          "start_line": 3321
+        },
+        {
+          "bytes": 38,
+          "end_line": 3329,
+          "offset": 3475,
+          "path": "cpython/Doc/reference/datamodel.rst",
+          "sha256": "e4ed1eef888a7c4f8e1b7f1c1fc13b86778ac876e261953ae737f59a3e982602",
+          "start_line": 3329
+        },
+        {
+          "bytes": 44,
+          "end_line": 3347,
+          "offset": 3513,
+          "path": "cpython/Doc/reference/datamodel.rst",
+          "sha256": "b0b4bdec1abce254007fff1119785a4a17f94537a903fd945a7e263e8582eba2",
+          "start_line": 3347
+        },
+        {
+          "bytes": 590,
+          "end_line": 3383,
+          "offset": 3557,
+          "path": "cpython/Doc/reference/datamodel.rst",
+          "sha256": "0ab387c804f60ab3a46fe9af56e82dfcbcf592cccec9c9096b55024751ffc039",
+          "start_line": 3370
+        },
+        {
+          "bytes": 604,
+          "end_line": 3418,
+          "offset": 4147,
+          "path": "cpython/Doc/reference/datamodel.rst",
+          "sha256": "1173f1d2288d900a6aa19980731d7abb4ac359e13e2181e3f049a196d6ddb6eb",
+          "start_line": 3405
+        },
+        {
+          "bytes": 560,
+          "end_line": 3465,
+          "offset": 4751,
+          "path": "cpython/Doc/reference/datamodel.rst",
+          "sha256": "5d20d924a1b1690fee83f5eca0c52b0fdbc08b9f7b4d4d9c06db5f4514610ecd",
+          "start_line": 3453
+        },
+        {
+          "bytes": 135,
+          "end_line": 3486,
+          "offset": 5311,
+          "path": "cpython/Doc/reference/datamodel.rst",
+          "sha256": "aac9958478ea1c548ae121c1eaf749bea237a15fb8d79f51317fe67c3268b907",
+          "start_line": 3483
+        },
+        {
+          "bytes": 105,
+          "end_line": 3496,
+          "offset": 5446,
+          "path": "cpython/Doc/reference/datamodel.rst",
+          "sha256": "aeadbf818e4f30d57594ca6be6f875c1f4570de596aa60e01a748a9f0c3660d8",
+          "start_line": 3494
+        },
+        {
+          "bytes": 35,
+          "end_line": 3508,
+          "offset": 5551,
+          "path": "cpython/Doc/reference/datamodel.rst",
+          "sha256": "01bcbcacf29a0e574127da483cd015c434cac59c5bf283107693c5eca749a74e",
+          "start_line": 3508
+        },
+        {
+          "bytes": 151,
+          "end_line": 3524,
+          "offset": 5586,
+          "path": "cpython/Doc/reference/datamodel.rst",
+          "sha256": "d86218327d40ea1ee10f85e5c710bcbdc9f1b80a0be6315aaba532cd0edae032",
+          "start_line": 3521
+        },
+        {
+          "bytes": 35,
+          "end_line": 3561,
+          "offset": 5737,
+          "path": "cpython/Doc/reference/datamodel.rst",
+          "sha256": "941a3d55a993be4faa8db898be23e2cea2fb684d164fcaac1ae0b3db76bef595",
+          "start_line": 3561
+        },
+        {
+          "bytes": 66,
+          "end_line": 3568,
+          "offset": 5772,
+          "path": "cpython/Doc/reference/datamodel.rst",
+          "sha256": "d7fe64bca84f94529a7ddc9f8175c5f495cf7834b5e057bea2084e77fb3acce8",
+          "start_line": 3568
+        },
+        {
+          "bytes": 32,
+          "end_line": 3599,
+          "offset": 5838,
+          "path": "cpython/Doc/reference/datamodel.rst",
+          "sha256": "61aa30005dc768e8b51fb216f22b525b1751656ae9fe1e5d17fcef916609cee1",
+          "start_line": 3599
+        },
+        {
+          "bytes": 43,
+          "end_line": 3634,
+          "offset": 5870,
+          "path": "cpython/Doc/reference/datamodel.rst",
+          "sha256": "13de26eca9b9cc6c5fe35099317d206cd1de3a3c5679d9df775542aa1d75b402",
+          "start_line": 3634
+        },
+        {
+          "bytes": 52,
+          "end_line": 3650,
+          "offset": 5913,
+          "path": "cpython/Doc/reference/datamodel.rst",
+          "sha256": "ad4807ea4366c8372c72af6d843e601e94eb9666f0b1f3b5c04b297d1a047bb8",
+          "start_line": 3650
+        },
+        {
+          "bytes": 38,
+          "end_line": 3682,
+          "offset": 5965,
+          "path": "cpython/Doc/reference/datamodel.rst",
+          "sha256": "f2814907a243dd93c9e7587857911a7333cfe58d81c787bec43fe20b1c61750e",
+          "start_line": 3682
+        },
+        {
+          "bytes": 40,
+          "end_line": 3692,
+          "offset": 6003,
+          "path": "cpython/Doc/reference/datamodel.rst",
+          "sha256": "ba7824382b0a11e8765b4d7cb2e80b4c09811b5127a8fffc8b5b59e1d77fe6f3",
+          "start_line": 3692
+        },
+        {
+          "bytes": 35,
+          "end_line": 3816,
+          "offset": 6043,
+          "path": "cpython/Doc/reference/datamodel.rst",
+          "sha256": "4caa96d7695f46e59020209a92f783c2125734337a5651051d2554e933f038fd",
+          "start_line": 3816
+        },
+        {
+          "bytes": 35,
+          "end_line": 3911,
+          "offset": 6078,
+          "path": "cpython/Doc/reference/datamodel.rst",
+          "sha256": "b1f250be11320189bd9b4c7f24dbd550c317d71e04cd33ca1941f5cd253681e7",
+          "start_line": 3911
+        },
+        {
+          "bytes": 35,
+          "end_line": 3915,
+          "offset": 6113,
+          "path": "cpython/Doc/reference/datamodel.rst",
+          "sha256": "53275d33f443e1344cfeb3fa29b9f7b670272d8b573956f377aa4ced67693d48",
+          "start_line": 3915
+        },
+        {
+          "bytes": 36,
+          "end_line": 3959,
+          "offset": 6148,
+          "path": "cpython/Doc/reference/datamodel.rst",
+          "sha256": "c7e1ad45a8c0f03b1481228ca8179a85ba2a9a442c25f599654550d0b18e6ceb",
+          "start_line": 3959
+        },
+        {
+          "bytes": 67,
+          "end_line": 3964,
+          "offset": 6184,
+          "path": "cpython/Doc/reference/datamodel.rst",
+          "sha256": "9b301c4c3943266fa1769745fe6add46b865eab45cd0434493d8608bcd91b5be",
+          "start_line": 3964
+        }
+      ],
+      "url": "https://github.com/python/cpython/blob/23116f998f6789d8c2fbe5ed5b8146854c8c2a4f/Doc/reference/datamodel.rst"
+    },
+    {
+      "full_bytes": 6833,
+      "full_lines": 154,
+      "full_sha256": "d99947489df24a9a1121549e44138aa91408517755177dcb40ff54db1dae564a",
+      "id": "cpython.asdl",
+      "kind": "asdl",
+      "path": "Parser/Python.asdl",
+      "revision": "23116f998f6789d8c2fbe5ed5b8146854c8c2a4f",
+      "segments": [
+        {
+          "bytes": 6833,
+          "end_line": 154,
+          "offset": 0,
+          "path": "cpython/Parser/Python.asdl",
+          "sha256": "d99947489df24a9a1121549e44138aa91408517755177dcb40ff54db1dae564a",
+          "start_line": 1
+        }
+      ],
+      "url": "https://github.com/python/cpython/blob/23116f998f6789d8c2fbe5ed5b8146854c8c2a4f/Parser/Python.asdl"
+    },
+    {
+      "accelerator": "_operator",
+      "full_bytes": 11158,
+      "full_lines": 475,
+      "full_sha256": "a9f9910965c31f841caad0447ee47299ac539a371422aefe200c86c60f3b4697",
+      "id": "cpython.operator",
+      "kind": "python",
+      "module": "operator",
+      "path": "Lib/operator.py",
+      "revision": "23116f998f6789d8c2fbe5ed5b8146854c8c2a4f",
+      "segments": [
+        {
+          "bytes": 11158,
+          "end_line": 475,
+          "offset": 0,
+          "path": "cpython/Lib/operator.py",
+          "sha256": "a9f9910965c31f841caad0447ee47299ac539a371422aefe200c86c60f3b4697",
+          "start_line": 1
+        }
+      ],
+      "url": "https://github.com/python/cpython/blob/23116f998f6789d8c2fbe5ed5b8146854c8c2a4f/Lib/operator.py"
+    },
+    {
+      "accelerator": null,
+      "full_bytes": 32089,
+      "full_lines": 1167,
+      "full_sha256": "50beebb1f309d83fd3af45f0e4c98c9dbfe0edd2f40edc8dc79e5cf0072cfbea",
+      "id": "cpython.collections.abc",
+      "kind": "python",
+      "module": "collections.abc",
+      "path": "Lib/_collections_abc.py",
+      "revision": "23116f998f6789d8c2fbe5ed5b8146854c8c2a4f",
+      "segments": [
+        {
+          "bytes": 32089,
+          "end_line": 1167,
+          "offset": 0,
+          "path": "cpython/Lib/_collections_abc.py",
+          "sha256": "50beebb1f309d83fd3af45f0e4c98c9dbfe0edd2f40edc8dc79e5cf0072cfbea",
+          "start_line": 1
+        }
+      ],
+      "url": "https://github.com/python/cpython/blob/23116f998f6789d8c2fbe5ed5b8146854c8c2a4f/Lib/_collections_abc.py"
+    },
+    {
+      "accelerator": null,
+      "full_bytes": 71358,
+      "full_lines": 1804,
+      "full_sha256": "cd1435e8cd7b7fd8b0128e05c2583445ea3f76fb437b065d22cb7587206afca8",
+      "id": "cpython.dataclasses",
+      "kind": "python",
+      "module": "dataclasses",
+      "path": "Lib/dataclasses.py",
+      "revision": "23116f998f6789d8c2fbe5ed5b8146854c8c2a4f",
+      "segments": [
+        {
+          "bytes": 71358,
+          "end_line": 1804,
+          "offset": 0,
+          "path": "cpython/Lib/dataclasses.py",
+          "sha256": "cd1435e8cd7b7fd8b0128e05c2583445ea3f76fb437b065d22cb7587206afca8",
+          "start_line": 1
+        }
+      ],
+      "url": "https://github.com/python/cpython/blob/23116f998f6789d8c2fbe5ed5b8146854c8c2a4f/Lib/dataclasses.py"
+    },
+    {
+      "accelerator": "_functools",
+      "full_bytes": 43561,
+      "full_lines": 1165,
+      "full_sha256": "046ec9660146db48862c7b22c78e2ef3818eaed6920e5cbf35f551ef09fec6cd",
+      "id": "cpython.functools",
+      "kind": "python",
+      "module": "functools",
+      "path": "Lib/functools.py",
+      "revision": "23116f998f6789d8c2fbe5ed5b8146854c8c2a4f",
+      "segments": [
+        {
+          "bytes": 43561,
+          "end_line": 1165,
+          "offset": 0,
+          "path": "cpython/Lib/functools.py",
+          "sha256": "046ec9660146db48862c7b22c78e2ef3818eaed6920e5cbf35f551ef09fec6cd",
+          "start_line": 1
+        }
+      ],
+      "url": "https://github.com/python/cpython/blob/23116f998f6789d8c2fbe5ed5b8146854c8c2a4f/Lib/functools.py"
+    },
+    {
+      "accelerator": null,
+      "full_bytes": 27801,
+      "full_lines": 814,
+      "full_sha256": "c1e0d67b2007de11ae93cd36cf6faf38d9ab32656a832d592a49325eec579f96",
+      "id": "cpython.contextlib",
+      "kind": "python",
+      "module": "contextlib",
+      "path": "Lib/contextlib.py",
+      "revision": "23116f998f6789d8c2fbe5ed5b8146854c8c2a4f",
+      "segments": [
+        {
+          "bytes": 27801,
+          "end_line": 814,
+          "offset": 0,
+          "path": "cpython/Lib/contextlib.py",
+          "sha256": "c1e0d67b2007de11ae93cd36cf6faf38d9ab32656a832d592a49325eec579f96",
+          "start_line": 1
+        }
+      ],
+      "url": "https://github.com/python/cpython/blob/23116f998f6789d8c2fbe5ed5b8146854c8c2a4f/Lib/contextlib.py"
+    },
+    {
+      "accelerator": null,
+      "full_bytes": 6538,
+      "full_lines": 188,
+      "full_sha256": "e558702a95cdce3febd289da021715d2b92bc43995b8a1bc58dfa1c3d8010287",
+      "id": "cpython.abc",
+      "kind": "python",
+      "module": "abc",
+      "path": "Lib/abc.py",
+      "revision": "23116f998f6789d8c2fbe5ed5b8146854c8c2a4f",
+      "segments": [
+        {
+          "bytes": 6538,
+          "end_line": 188,
+          "offset": 0,
+          "path": "cpython/Lib/abc.py",
+          "sha256": "e558702a95cdce3febd289da021715d2b92bc43995b8a1bc58dfa1c3d8010287",
+          "start_line": 1
+        }
+      ],
+      "url": "https://github.com/python/cpython/blob/23116f998f6789d8c2fbe5ed5b8146854c8c2a4f/Lib/abc.py"
+    },
+    {
+      "accelerator": null,
+      "full_bytes": 135278,
+      "full_lines": 3854,
+      "full_sha256": "b474bb90d72d4ea28d0b4635a4fbc42ac54e459b8468a01034f2773656e47a00",
+      "id": "cpython.typing",
+      "kind": "python",
+      "module": "typing",
+      "path": "Lib/typing.py",
+      "revision": "23116f998f6789d8c2fbe5ed5b8146854c8c2a4f",
+      "segments": [
+        {
+          "bytes": 135278,
+          "end_line": 3854,
+          "offset": 0,
+          "path": "cpython/Lib/typing.py",
+          "sha256": "b474bb90d72d4ea28d0b4635a4fbc42ac54e459b8468a01034f2773656e47a00",
+          "start_line": 1
+        }
+      ],
+      "url": "https://github.com/python/cpython/blob/23116f998f6789d8c2fbe5ed5b8146854c8c2a4f/Lib/typing.py"
+    },
+    {
+      "full_bytes": 54636,
+      "full_lines": 2032,
+      "full_sha256": "ed0328cd2c57da1b95b23b66f8dde3baa378077bf023c69c251a95381a33bc07",
+      "headers": [
+        "cpython.operator-clinic"
+      ],
+      "id": "cpython.operator-c",
+      "kind": "c_module",
+      "module": "operator",
+      "path": "Modules/_operator.c",
+      "revision": "23116f998f6789d8c2fbe5ed5b8146854c8c2a4f",
+      "segments": [
+        {
+          "bytes": 382,
+          "end_line": 38,
+          "offset": 0,
+          "path": "cpython/Modules/_operator.c",
+          "sha256": "72a97d0868a4de0ac78b22c0f781a730ffa048f20b5cf553d6a3861899aed988",
+          "start_line": 31
+        },
+        {
+          "bytes": 125,
+          "end_line": 922,
+          "offset": 382,
+          "path": "cpython/Modules/_operator.c",
+          "sha256": "c51dec388925aa8bb74aec524d4ddd2b41c3050bcf2a0040c9252006139b4822",
+          "start_line": 918
+        },
+        {
+          "bytes": 141,
+          "end_line": 925,
+          "offset": 507,
+          "path": "cpython/Modules/_operator.c",
+          "sha256": "8561083d5d0e7640321eb313248d4b4242ff2b369185ef8b29fc0add0cd494b2",
+          "start_line": 924
+        },
+        {
+          "bytes": 1768,
+          "end_line": 1000,
+          "offset": 648,
+          "path": "cpython/Modules/_operator.c",
+          "sha256": "daf09fb98451a71bc98cd28323f3265119fadab6fb0cff79f5d4654dd21effca",
+          "start_line": 941
+        },
+        {
+          "bytes": 67,
+          "end_line": 1200,
+          "offset": 2416,
+          "path": "cpython/Modules/_operator.c",
+          "sha256": "80671a45dd9af06356e6a63f6ad19ef734da538b5c377ab8213e063dc7435950",
+          "start_line": 1200
+        },
+        {
+          "bytes": 275,
+          "end_line": 1217,
+          "offset": 2483,
+          "path": "cpython/Modules/_operator.c",
+          "sha256": "798c3a574552a6a418145238cabba4237d5cf249bc3dfc40ad1f8525c24d65f0",
+          "start_line": 1213
+        },
+        {
+          "bytes": 399,
+          "end_line": 1584,
+          "offset": 2758,
+          "path": "cpython/Modules/_operator.c",
+          "sha256": "2a71b2f0ed063455ca3f7ec36d704f50768222eb8f4351a9e8cada47479a5972",
+          "start_line": 1578
+        },
+        {
+          "bytes": 317,
+          "end_line": 1925,
+          "offset": 3157,
+          "path": "cpython/Modules/_operator.c",
+          "sha256": "5d863063177731b43a0517dc599d7742cf259c3bba45af841c4bab13492fa19a",
+          "start_line": 1920
+        }
+      ],
+      "table": "operator_methods",
+      "url": "https://github.com/python/cpython/blob/23116f998f6789d8c2fbe5ed5b8146854c8c2a4f/Modules/_operator.c"
+    },
+    {
+      "full_bytes": 35442,
+      "full_lines": 1510,
+      "full_sha256": "ded4e144134197607bb9a916b82769661af7c3fecd85210c0974d04acda6b7b5",
+      "id": "cpython.operator-clinic",
+      "kind": "clinic",
+      "path": "Modules/clinic/_operator.c.h",
+      "revision": "23116f998f6789d8c2fbe5ed5b8146854c8c2a4f",
+      "segments": [
+        {
+          "bytes": 121,
+          "end_line": 12,
+          "offset": 0,
+          "path": "cpython/Modules/clinic/_operator.c.h",
+          "sha256": "8b29e0ceafede7f5e6536035dbb23a9c6cb0c8db4d6e586951dd802e1062f1a2",
+          "start_line": 8
+        },
+        {
+          "bytes": 116,
+          "end_line": 15,
+          "offset": 121,
+          "path": "cpython/Modules/clinic/_operator.c.h",
+          "sha256": "3142f4212c94dc319142bc779951a67bb1e2e7338cf93891955b044066dc4531",
+          "start_line": 14
+        },
+        {
+          "bytes": 92,
+          "end_line": 40,
+          "offset": 237,
+          "path": "cpython/Modules/clinic/_operator.c.h",
+          "sha256": "90569f5f4d045df7fe67d7f0bb9626b9fb4d9f5c55dfd8cc895d7e062be8f43c",
+          "start_line": 36
+        },
+        {
+          "bytes": 121,
+          "end_line": 43,
+          "offset": 329,
+          "path": "cpython/Modules/clinic/_operator.c.h",
+          "sha256": "5e0c4e519e8e271083aad0be611f9cb236668b1a872dcaa834149e31b42af638",
+          "start_line": 42
+        },
+        {
+          "bytes": 92,
+          "end_line": 70,
+          "offset": 450,
+          "path": "cpython/Modules/clinic/_operator.c.h",
+          "sha256": "7454da42614560007d794b711d3142bcd05bfa6fd0392289b9ba8744701b89c7",
+          "start_line": 66
+        },
+        {
+          "bytes": 121,
+          "end_line": 73,
+          "offset": 542,
+          "path": "cpython/Modules/clinic/_operator.c.h",
+          "sha256": "f833b6c3b65f44b8bd6a14b6a865bc51545a13924f190b8fdc58c66bca4cfc21",
+          "start_line": 72
+        },
+        {
+          "bytes": 92,
+          "end_line": 100,
+          "offset": 663,
+          "path": "cpython/Modules/clinic/_operator.c.h",
+          "sha256": "d85f13fcf424752a5031c401a2273b004b2299148fe2bd4d50367de5335664d0",
+          "start_line": 96
+        },
+        {
+          "bytes": 121,
+          "end_line": 103,
+          "offset": 755,
+          "path": "cpython/Modules/clinic/_operator.c.h",
+          "sha256": "73834de715d34f270a2c549e12b463d1504b26060e11efb180ae11dbf28178fb",
+          "start_line": 102
+        },
+        {
+          "bytes": 98,
+          "end_line": 130,
+          "offset": 876,
+          "path": "cpython/Modules/clinic/_operator.c.h",
+          "sha256": "65721a4c09ca29ffdbf434e8e134ea84c43bec7896377ec0c091f8111206a15a",
+          "start_line": 126
+        },
+        {
+          "bytes": 133,
+          "end_line": 133,
+          "offset": 974,
+          "path": "cpython/Modules/clinic/_operator.c.h",
+          "sha256": "778a4ac46d4c8c74eac239b0c7425bd8aa5ceae670ee6a5d9a9d7e67a69b08c4",
+          "start_line": 132
+        },
+        {
+          "bytes": 103,
+          "end_line": 160,
+          "offset": 1107,
+          "path": "cpython/Modules/clinic/_operator.c.h",
+          "sha256": "7fd8a6acc120bf63d68977735003ebf66024b16c73fdb857c8a342a9b035771a",
+          "start_line": 156
+        },
+        {
+          "bytes": 141,
+          "end_line": 163,
+          "offset": 1210,
+          "path": "cpython/Modules/clinic/_operator.c.h",
+          "sha256": "543f96c47e5b7d1f14948a003f6b8e87b90a382c600873bb5313a6772e518460",
+          "start_line": 162
+        },
+        {
+          "bytes": 100,
+          "end_line": 190,
+          "offset": 1351,
+          "path": "cpython/Modules/clinic/_operator.c.h",
+          "sha256": "2349ed7d5009c07ad88ac6d3b5f853808ad16b01ff5badc1d6f9dbe0fcd8d551",
+          "start_line": 186
+        },
+        {
+          "bytes": 137,
+          "end_line": 193,
+          "offset": 1451,
+          "path": "cpython/Modules/clinic/_operator.c.h",
+          "sha256": "81a67103e5d78ee3b32878991044d15719fd12ac9bf4c9611c9ab537f1e85a64",
+          "start_line": 192
+        },
+        {
+          "bytes": 92,
+          "end_line": 220,
+          "offset": 1588,
+          "path": "cpython/Modules/clinic/_operator.c.h",
+          "sha256": "9d58986e0c4fc156c03dd76c01546688eecd5488ec45c7812ec8408c03e36ab3",
+          "start_line": 216
+        },
+        {
+          "bytes": 121,
+          "end_line": 223,
+          "offset": 1680,
+          "path": "cpython/Modules/clinic/_operator.c.h",
+          "sha256": "e28e6b15f0a92b97c17a3bc69035ac08081988650dbaf7f6bb93ca289f69711b",
+          "start_line": 222
+        },
+        {
+          "bytes": 86,
+          "end_line": 250,
+          "offset": 1801,
+          "path": "cpython/Modules/clinic/_operator.c.h",
+          "sha256": "a1da92f1cef424fa1a31722af2d8d7c0759ca8457cfc719d4f2dc7cbeb0143b1",
+          "start_line": 246
+        },
+        {
+          "bytes": 108,
+          "end_line": 253,
+          "offset": 1887,
+          "path": "cpython/Modules/clinic/_operator.c.h",
+          "sha256": "967878cfbdb266fad11963e7b7b3b6a17f6d8385e8f1202034ca9758d2d96a82",
+          "start_line": 252
+        },
+        {
+          "bytes": 86,
+          "end_line": 259,
+          "offset": 1995,
+          "path": "cpython/Modules/clinic/_operator.c.h",
+          "sha256": "fb1ab9c2e41f9fa90b0d66bf0f81609559b71c7726f4f523e36d045556197c83",
+          "start_line": 255
+        },
+        {
+          "bytes": 108,
+          "end_line": 262,
+          "offset": 2081,
+          "path": "cpython/Modules/clinic/_operator.c.h",
+          "sha256": "a3f73696a699ec90e4717a2bb33d34cbd03576308f1ab8a815db517b15469774",
+          "start_line": 261
+        },
+        {
+          "bytes": 90,
+          "end_line": 268,
+          "offset": 2189,
+          "path": "cpython/Modules/clinic/_operator.c.h",
+          "sha256": "c57ddacfc5168de745368bdfdbfb2e34c0c809e6ba5f50999ed49224c9e7554a",
+          "start_line": 264
+        },
+        {
+          "bytes": 108,
+          "end_line": 271,
+          "offset": 2279,
+          "path": "cpython/Modules/clinic/_operator.c.h",
+          "sha256": "90f8a897464ee606dbe52864ce7728e73c8ad334314f0f7af1077d41b59016ca",
+          "start_line": 270
+        },
+        {
+          "bytes": 86,
+          "end_line": 277,
+          "offset": 2387,
+          "path": "cpython/Modules/clinic/_operator.c.h",
+          "sha256": "2dab8db41f467a19165bbd35e5874bdce400fcac1a996bd6770555fc72d98b86",
+          "start_line": 273
+        },
+        {
+          "bytes": 108,
+          "end_line": 280,
+          "offset": 2473,
+          "path": "cpython/Modules/clinic/_operator.c.h",
+          "sha256": "432acb5a32a9e8f2bc14c84990b62b247624f85095c87354995f1ecaf4a228db",
+          "start_line": 279
+        },
+        {
+          "bytes": 92,
+          "end_line": 286,
+          "offset": 2581,
+          "path": "cpython/Modules/clinic/_operator.c.h",
+          "sha256": "90dfed0bcb6085c2b88d24725b0544ac39d6f7cc0e138b4b56c447a2dc3ce741",
+          "start_line": 282
+        },
+        {
+          "bytes": 120,
+          "end_line": 289,
+          "offset": 2673,
+          "path": "cpython/Modules/clinic/_operator.c.h",
+          "sha256": "7d4d1139a6fefde6c586f17812aa165c0e1a9b004b3cb6a37104c22c783bb528",
+          "start_line": 288
+        },
+        {
+          "bytes": 99,
+          "end_line": 295,
+          "offset": 2793,
+          "path": "cpython/Modules/clinic/_operator.c.h",
+          "sha256": "41af2e8fe909a38244699d2cd9f7fdc7f7a525f111527e760a99e18a25b24e88",
+          "start_line": 291
+        },
+        {
+          "bytes": 133,
+          "end_line": 298,
+          "offset": 2892,
+          "path": "cpython/Modules/clinic/_operator.c.h",
+          "sha256": "b644d8578effb3417176f3a1ec7101147077cd96402e34fc9a7532e69d8d0f4a",
+          "start_line": 297
+        },
+        {
+          "bytes": 99,
+          "end_line": 325,
+          "offset": 3025,
+          "path": "cpython/Modules/clinic/_operator.c.h",
+          "sha256": "75e90b5cd954f7925381bdf07617f9f706069a06572286b2986b12910fa1dd35",
+          "start_line": 321
+        },
+        {
+          "bytes": 133,
+          "end_line": 328,
+          "offset": 3124,
+          "path": "cpython/Modules/clinic/_operator.c.h",
+          "sha256": "c3db93a6caa1e0ff54109122938ad35db81c29e2337e6b37577b2ed2bef17d81",
+          "start_line": 327
+        },
+        {
+          "bytes": 91,
+          "end_line": 355,
+          "offset": 3257,
+          "path": "cpython/Modules/clinic/_operator.c.h",
+          "sha256": "3051b7e689200ac2002cd5a9da3f327f57a493167d2ec585605a0d2a353e774b",
+          "start_line": 351
+        },
+        {
+          "bytes": 112,
+          "end_line": 358,
+          "offset": 3348,
+          "path": "cpython/Modules/clinic/_operator.c.h",
+          "sha256": "af99746accdd26250d8c935eaa201006dee407a467baa4b4b88a5f05b439b12b",
+          "start_line": 357
+        },
+        {
+          "bytes": 94,
+          "end_line": 383,
+          "offset": 3460,
+          "path": "cpython/Modules/clinic/_operator.c.h",
+          "sha256": "2d5ca42b526ffc91b9b0686b26c82007f4c5c7aa43e05eec4b0b66db99552c13",
+          "start_line": 379
+        },
+        {
+          "bytes": 125,
+          "end_line": 386,
+          "offset": 3554,
+          "path": "cpython/Modules/clinic/_operator.c.h",
+          "sha256": "c9fac51af851c5502a041d14c0d78e7a2751b6b62e83a559573025da20b6f74d",
+          "start_line": 385
+        },
+        {
+          "bytes": 92,
+          "end_line": 413,
+          "offset": 3679,
+          "path": "cpython/Modules/clinic/_operator.c.h",
+          "sha256": "55186f7b7009b87d78c803fbb17f210da64e722ca7e4301aba42dfcbcea86f5e",
+          "start_line": 409
+        },
+        {
+          "bytes": 121,
+          "end_line": 416,
+          "offset": 3771,
+          "path": "cpython/Modules/clinic/_operator.c.h",
+          "sha256": "38a2f129b2d8e844346064fba5241dbe6608586e03f6d864c1a583cf0b401efe",
+          "start_line": 415
+        },
+        {
+          "bytes": 92,
+          "end_line": 443,
+          "offset": 3892,
+          "path": "cpython/Modules/clinic/_operator.c.h",
+          "sha256": "67044e39fea16a3db0842c8f56b99f1d3263cce404dc7f566f4c8305b8a4edc2",
+          "start_line": 439
+        },
+        {
+          "bytes": 121,
+          "end_line": 446,
+          "offset": 3984,
+          "path": "cpython/Modules/clinic/_operator.c.h",
+          "sha256": "428d36752ef86dfdd8d3fa62f0385c4254d0b4529a6e49c90857089d3f12fd1e",
+          "start_line": 445
+        },
+        {
+          "bytes": 95,
+          "end_line": 473,
+          "offset": 4105,
+          "path": "cpython/Modules/clinic/_operator.c.h",
+          "sha256": "4965b6d5c0bdbcfff93d44d488fb2b862645875fb415926ba1c7ecec36e59da7",
+          "start_line": 469
+        },
+        {
+          "bytes": 125,
+          "end_line": 476,
+          "offset": 4200,
+          "path": "cpython/Modules/clinic/_operator.c.h",
+          "sha256": "171172220d3e09adbbbebc58378e0c57664ddcf137404190dc2dc5ed9db8ad1d",
+          "start_line": 475
+        },
+        {
+          "bytes": 95,
+          "end_line": 503,
+          "offset": 4325,
+          "path": "cpython/Modules/clinic/_operator.c.h",
+          "sha256": "20381e5e83421cc626a2000b32f834ad461fe559384a7c7e68e0831c02cde3fa",
+          "start_line": 499
+        },
+        {
+          "bytes": 125,
+          "end_line": 506,
+          "offset": 4420,
+          "path": "cpython/Modules/clinic/_operator.c.h",
+          "sha256": "9f87b29e912ff427a85ab5edb06e2040aa338b5202930a5fe98a39d838fcc3ab",
+          "start_line": 505
+        },
+        {
+          "bytes": 95,
+          "end_line": 533,
+          "offset": 4545,
+          "path": "cpython/Modules/clinic/_operator.c.h",
+          "sha256": "5e637b6713526868d338a7d3b000445fd5904c90e434de9cfeada157b586813e",
+          "start_line": 529
+        },
+        {
+          "bytes": 125,
+          "end_line": 536,
+          "offset": 4640,
+          "path": "cpython/Modules/clinic/_operator.c.h",
+          "sha256": "e22e51e9a3eef13b896af2ed6d4228fca3ef2d6017e50ffa69f9b828f7f9d542",
+          "start_line": 535
+        },
+        {
+          "bytes": 101,
+          "end_line": 563,
+          "offset": 4765,
+          "path": "cpython/Modules/clinic/_operator.c.h",
+          "sha256": "dd4c7dbd3d0bc0eab681a26f1a81043a418cdb5fddce6421c3940b99752eda62",
+          "start_line": 559
+        },
+        {
+          "bytes": 137,
+          "end_line": 566,
+          "offset": 4866,
+          "path": "cpython/Modules/clinic/_operator.c.h",
+          "sha256": "9cd6e78facbc4649076410baf8787431c271d6d4fca77de081bc42d223e9c760",
+          "start_line": 565
+        },
+        {
+          "bytes": 106,
+          "end_line": 593,
+          "offset": 5003,
+          "path": "cpython/Modules/clinic/_operator.c.h",
+          "sha256": "ba9733e9fbde57dd995b9ba11b06f7cabc0aefcbe72877a7e5499ab378570d9f",
+          "start_line": 589
+        },
+        {
+          "bytes": 145,
+          "end_line": 596,
+          "offset": 5109,
+          "path": "cpython/Modules/clinic/_operator.c.h",
+          "sha256": "978102c34fc56e7da4fc7a3d9d55dbb5e3fabfc490db86d5c91eb185a93ee095",
+          "start_line": 595
+        },
+        {
+          "bytes": 103,
+          "end_line": 623,
+          "offset": 5254,
+          "path": "cpython/Modules/clinic/_operator.c.h",
+          "sha256": "525dea0804aa508686dcdf942bb128c1e69186ae133f6128aa1d8e578cd6cfa6",
+          "start_line": 619
+        },
+        {
+          "bytes": 141,
+          "end_line": 626,
+          "offset": 5357,
+          "path": "cpython/Modules/clinic/_operator.c.h",
+          "sha256": "1129cc209a9388b459476178ac10d67ebf5257d5ef776179953f2b70cc0cf431",
+          "start_line": 625
+        },
+        {
+          "bytes": 95,
+          "end_line": 653,
+          "offset": 5498,
+          "path": "cpython/Modules/clinic/_operator.c.h",
+          "sha256": "4a398f4bd737013592086cb4f1fbd59b5da33c48d9f3ddd96f99dafc56186018",
+          "start_line": 649
+        },
+        {
+          "bytes": 125,
+          "end_line": 656,
+          "offset": 5593,
+          "path": "cpython/Modules/clinic/_operator.c.h",
+          "sha256": "6e105b776a0063535a971d380dd51bff905b712ef9442df3af058de3e7c35451",
+          "start_line": 655
+        },
+        {
+          "bytes": 102,
+          "end_line": 683,
+          "offset": 5718,
+          "path": "cpython/Modules/clinic/_operator.c.h",
+          "sha256": "dcf5db6f8257dd09ae5e2ba3c3a29205a546f71347277646fd9e9cd3762bd801",
+          "start_line": 679
+        },
+        {
+          "bytes": 137,
+          "end_line": 686,
+          "offset": 5820,
+          "path": "cpython/Modules/clinic/_operator.c.h",
+          "sha256": "64cd07c4c434ba4af35413d3ddbaa9dd8a97d0e22779acc449f8eb3a8ff52d18",
+          "start_line": 685
+        },
+        {
+          "bytes": 102,
+          "end_line": 713,
+          "offset": 5957,
+          "path": "cpython/Modules/clinic/_operator.c.h",
+          "sha256": "909fc5c2c21914c6eb1bef5b6bc7b9a511369672271cf4e127917ff71eb81840",
+          "start_line": 709
+        },
+        {
+          "bytes": 137,
+          "end_line": 716,
+          "offset": 6059,
+          "path": "cpython/Modules/clinic/_operator.c.h",
+          "sha256": "6eb97e6a754d73525c6a0e663afb415da067e55e735eb1a2cd6a5014436a1410",
+          "start_line": 715
+        },
+        {
+          "bytes": 95,
+          "end_line": 743,
+          "offset": 6196,
+          "path": "cpython/Modules/clinic/_operator.c.h",
+          "sha256": "66b1107e26391acc8802d83221cac1560d07ab6e06add32b589797001769b7ed",
+          "start_line": 739
+        },
+        {
+          "bytes": 125,
+          "end_line": 746,
+          "offset": 6291,
+          "path": "cpython/Modules/clinic/_operator.c.h",
+          "sha256": "51f40f75a0c0b4b4cbd18a0ec040874795b4eedf66530898efa3137cf511cb1e",
+          "start_line": 745
+        },
+        {
+          "bytes": 95,
+          "end_line": 773,
+          "offset": 6416,
+          "path": "cpython/Modules/clinic/_operator.c.h",
+          "sha256": "a42de720b06f53d74249aadcd7c0429a2489b61a1bb5c0275eca5647c1e86812",
+          "start_line": 769
+        },
+        {
+          "bytes": 125,
+          "end_line": 776,
+          "offset": 6511,
+          "path": "cpython/Modules/clinic/_operator.c.h",
+          "sha256": "93d659197f98b8aa5dc09a3568989af2eb739ecfc0024b329aa444018fa46101",
+          "start_line": 775
+        },
+        {
+          "bytes": 93,
+          "end_line": 803,
+          "offset": 6636,
+          "path": "cpython/Modules/clinic/_operator.c.h",
+          "sha256": "5a05950e455cfc4469bef668df4508de2ced277c68eddc38fa3ca9fff2da6827",
+          "start_line": 799
+        },
+        {
+          "bytes": 121,
+          "end_line": 806,
+          "offset": 6729,
+          "path": "cpython/Modules/clinic/_operator.c.h",
+          "sha256": "d1f89a3377a2949bab0334175569029c983cec09c3a929c15f47c8c9287b138f",
+          "start_line": 805
+        },
+        {
+          "bytes": 121,
+          "end_line": 833,
+          "offset": 6850,
+          "path": "cpython/Modules/clinic/_operator.c.h",
+          "sha256": "c473a0cc8f85d6d82322bc62639b0f8ce47ebbf9ef7ead75385fa2ab739ae254",
+          "start_line": 829
+        },
+        {
+          "bytes": 133,
+          "end_line": 836,
+          "offset": 6971,
+          "path": "cpython/Modules/clinic/_operator.c.h",
+          "sha256": "96af194c70d9367cf3b52924d668399fd12c6813ab87c6ff947635cbacc9fe3a",
+          "start_line": 835
+        },
+        {
+          "bytes": 124,
+          "end_line": 863,
+          "offset": 7104,
+          "path": "cpython/Modules/clinic/_operator.c.h",
+          "sha256": "1f08674ae00f3cb5dcbae89d123bbcf8709586d839cc768e3ed2189a15aa0f4f",
+          "start_line": 859
+        },
+        {
+          "bytes": 137,
+          "end_line": 866,
+          "offset": 7228,
+          "path": "cpython/Modules/clinic/_operator.c.h",
+          "sha256": "d79492a0a746b9d129cd8146b1e915dcb9f9ff981074ffec521f46385812ac55",
+          "start_line": 865
+        },
+        {
+          "bytes": 128,
+          "end_line": 893,
+          "offset": 7365,
+          "path": "cpython/Modules/clinic/_operator.c.h",
+          "sha256": "847ebe812028410b51af6ef673df67036ef35a77d28e5a3206932299df063719",
+          "start_line": 889
+        },
+        {
+          "bytes": 141,
+          "end_line": 896,
+          "offset": 7493,
+          "path": "cpython/Modules/clinic/_operator.c.h",
+          "sha256": "5d40d6e7229955d5ef09e76dc429eb3a1bb3fc8cffbe90259f403c6027edc633",
+          "start_line": 895
+        },
+        {
+          "bytes": 119,
+          "end_line": 928,
+          "offset": 7634,
+          "path": "cpython/Modules/clinic/_operator.c.h",
+          "sha256": "cc72dbfdc458b70b3086d555c19ad02fe1ac2f9c81052088b511d30050d4fa8e",
+          "start_line": 924
+        },
+        {
+          "bytes": 137,
+          "end_line": 931,
+          "offset": 7753,
+          "path": "cpython/Modules/clinic/_operator.c.h",
+          "sha256": "c39abef8571f59df9ced8e04067a1392dd26b1617eb2bd7856bb70872400f956",
+          "start_line": 930
+        },
+        {
+          "bytes": 147,
+          "end_line": 963,
+          "offset": 7890,
+          "path": "cpython/Modules/clinic/_operator.c.h",
+          "sha256": "59cd72fa8bbea5b1dd55f01f7c49f440203c83deb11fd304429d5d1af0837b78",
+          "start_line": 959
+        },
+        {
+          "bytes": 137,
+          "end_line": 966,
+          "offset": 8037,
+          "path": "cpython/Modules/clinic/_operator.c.h",
+          "sha256": "d0f2afde8f8ed614f77fa16257812e47b39df237a4ec2402ed27eace3cf4a1a3",
+          "start_line": 965
+        },
+        {
+          "bytes": 99,
+          "end_line": 998,
+          "offset": 8174,
+          "path": "cpython/Modules/clinic/_operator.c.h",
+          "sha256": "db9b2fefc8f67f360238f6b56bb0f6340a27188020b881e57e6d8b9596e04ba5",
+          "start_line": 994
+        },
+        {
+          "bytes": 137,
+          "end_line": 1001,
+          "offset": 8273,
+          "path": "cpython/Modules/clinic/_operator.c.h",
+          "sha256": "1eef3894999beba4a60d74cc78c235adfbb08402e4b2d43b3b95557e69d14116",
+          "start_line": 1000
+        },
+        {
+          "bytes": 106,
+          "end_line": 1028,
+          "offset": 8410,
+          "path": "cpython/Modules/clinic/_operator.c.h",
+          "sha256": "86a15bca7a0d9fa58ce5aff7b847743202d3fd86ec36f63976daa01fdbc0dc5d",
+          "start_line": 1024
+        },
+        {
+          "bytes": 137,
+          "end_line": 1031,
+          "offset": 8516,
+          "path": "cpython/Modules/clinic/_operator.c.h",
+          "sha256": "e3b3fe05d3f01dbc27cb88b69703598725096841283432f0965a23f3f6121398",
+          "start_line": 1030
+        },
+        {
+          "bytes": 103,
+          "end_line": 1061,
+          "offset": 8653,
+          "path": "cpython/Modules/clinic/_operator.c.h",
+          "sha256": "3a96a9ee7596a435bf3666f62fcb006cc0ef7655e1c87448e2cb2004ace45dbd",
+          "start_line": 1057
+        },
+        {
+          "bytes": 137,
+          "end_line": 1064,
+          "offset": 8756,
+          "path": "cpython/Modules/clinic/_operator.c.h",
+          "sha256": "2e758c23ecbe699a915629d7d18c4cff53d62b08a280b241a3c74c4761769cf7",
+          "start_line": 1063
+        },
+        {
+          "bytes": 91,
+          "end_line": 1091,
+          "offset": 8893,
+          "path": "cpython/Modules/clinic/_operator.c.h",
+          "sha256": "2cb02e47e29a3cc115676057f2dd8edcbb802b56d11a88c98f867bbe01d75064",
+          "start_line": 1087
+        },
+        {
+          "bytes": 117,
+          "end_line": 1094,
+          "offset": 8984,
+          "path": "cpython/Modules/clinic/_operator.c.h",
+          "sha256": "1499c7107ce85d319335dff0c6df21d871d282ab85a24eceddca17991c617e05",
+          "start_line": 1093
+        },
+        {
+          "bytes": 91,
+          "end_line": 1121,
+          "offset": 9101,
+          "path": "cpython/Modules/clinic/_operator.c.h",
+          "sha256": "1b34a390c1f5c3b4a049d3cc799e387a383a147ed02e4a64384b4a90816d7fb4",
+          "start_line": 1117
+        },
+        {
+          "bytes": 117,
+          "end_line": 1124,
+          "offset": 9192,
+          "path": "cpython/Modules/clinic/_operator.c.h",
+          "sha256": "8943cf191e1d0c232ba94576f9e06c900cc7548b0ece24e13a65bc30e80c3122",
+          "start_line": 1123
+        },
+        {
+          "bytes": 90,
+          "end_line": 1151,
+          "offset": 9309,
+          "path": "cpython/Modules/clinic/_operator.c.h",
+          "sha256": "4f88a21075a3b4a55fe115c214f011c1f6f9eb0ccb0bc2a1e4eefd27851f18ee",
+          "start_line": 1147
+        },
+        {
+          "bytes": 117,
+          "end_line": 1154,
+          "offset": 9399,
+          "path": "cpython/Modules/clinic/_operator.c.h",
+          "sha256": "5d3fda62631d3983f27b69f303619f8cc61cae7baa5b0330979fc08ece87a13d",
+          "start_line": 1153
+        },
+        {
+          "bytes": 91,
+          "end_line": 1181,
+          "offset": 9516,
+          "path": "cpython/Modules/clinic/_operator.c.h",
+          "sha256": "525fc198b0bf6019646a58e04a599fcba552e2912c28d794513022a6d3346d57",
+          "start_line": 1177
+        },
+        {
+          "bytes": 117,
+          "end_line": 1184,
+          "offset": 9607,
+          "path": "cpython/Modules/clinic/_operator.c.h",
+          "sha256": "540330f84d70e28acaf22875c68cfccc6112706ee17e7a33b1b82b84b001f0ad",
+          "start_line": 1183
+        },
+        {
+          "bytes": 90,
+          "end_line": 1211,
+          "offset": 9724,
+          "path": "cpython/Modules/clinic/_operator.c.h",
+          "sha256": "ebebe99c78abca94a2587bdc5956d8c58243309a216b8ed9b6b8e46722225cd1",
+          "start_line": 1207
+        },
+        {
+          "bytes": 117,
+          "end_line": 1214,
+          "offset": 9814,
+          "path": "cpython/Modules/clinic/_operator.c.h",
+          "sha256": "9ceee003eb5271daf93da0d3df0246d681f8202beb72095eeee8af883fc1cdfa",
+          "start_line": 1213
+        },
+        {
+          "bytes": 91,
+          "end_line": 1241,
+          "offset": 9931,
+          "path": "cpython/Modules/clinic/_operator.c.h",
+          "sha256": "81d223687fe1a92fba3cf8d45e1ddd8cc0929e372d18558a1f1f989050b6067e",
+          "start_line": 1237
+        },
+        {
+          "bytes": 117,
+          "end_line": 1244,
+          "offset": 10022,
+          "path": "cpython/Modules/clinic/_operator.c.h",
+          "sha256": "ab11eac6d0ddacd5fb791f0eba6b3ab363ffbc5faf00e8c3645fcea8161f1ca5",
+          "start_line": 1243
+        },
+        {
+          "bytes": 93,
+          "end_line": 1271,
+          "offset": 10139,
+          "path": "cpython/Modules/clinic/_operator.c.h",
+          "sha256": "3fbd8e752221e3e19c25b41dc1e5797e53e4dd53d51ceea5c70cc1d8b57ec4b6",
+          "start_line": 1267
+        },
+        {
+          "bytes": 121,
+          "end_line": 1274,
+          "offset": 10232,
+          "path": "cpython/Modules/clinic/_operator.c.h",
+          "sha256": "4a52d6d8bb9fb4373b7b2600f0255af7ba34524f45ad991e1d4235d205cf154e",
+          "start_line": 1273
+        },
+        {
+          "bytes": 96,
+          "end_line": 1301,
+          "offset": 10353,
+          "path": "cpython/Modules/clinic/_operator.c.h",
+          "sha256": "0fcf884bab8d6447f73b136405761f89fbf8647756a9baec65e7f5aac53722ea",
+          "start_line": 1297
+        },
+        {
+          "bytes": 125,
+          "end_line": 1304,
+          "offset": 10449,
+          "path": "cpython/Modules/clinic/_operator.c.h",
+          "sha256": "b7ab4bdafbd5007e904cd44d4cb70532ef15df11ee8d8765cb787cb11607f33b",
+          "start_line": 1303
+        },
+        {
+          "bytes": 100,
+          "end_line": 1331,
+          "offset": 10574,
+          "path": "cpython/Modules/clinic/_operator.c.h",
+          "sha256": "92fb4ca3fa31501ea83fe2a54f90858e97323c9eaa795bdb8b61ca8b88ef7816",
+          "start_line": 1327
+        },
+        {
+          "bytes": 116,
+          "end_line": 1334,
+          "offset": 10674,
+          "path": "cpython/Modules/clinic/_operator.c.h",
+          "sha256": "88d99d948058591a9e2ce536af7e14bedacbac6d00d2da0a9e96b054d389f6a5",
+          "start_line": 1333
+        },
+        {
+          "bytes": 93,
+          "end_line": 1340,
+          "offset": 10790,
+          "path": "cpython/Modules/clinic/_operator.c.h",
+          "sha256": "d4a6791c804293e2544b1efaee4594f1ccad4a30ed2c20950d2457e8cbbc561d",
+          "start_line": 1336
+        },
+        {
+          "bytes": 121,
+          "end_line": 1343,
+          "offset": 10883,
+          "path": "cpython/Modules/clinic/_operator.c.h",
+          "sha256": "44683acf65216c520097f6f969d056c15425e57aef3520309cfaa6b69110db12",
+          "start_line": 1342
+        },
+        {
+          "bytes": 103,
+          "end_line": 1370,
+          "offset": 11004,
+          "path": "cpython/Modules/clinic/_operator.c.h",
+          "sha256": "ffbb009ef41cc9683844ba1499fe10c0bf264c8311c26069e2b8a048d6af27d7",
+          "start_line": 1366
+        },
+        {
+          "bytes": 133,
+          "end_line": 1373,
+          "offset": 11107,
+          "path": "cpython/Modules/clinic/_operator.c.h",
+          "sha256": "9d6cb6dd862c8277749172972e10e1ad0d28d1ce21a136a56d26b409acb2f6f5",
+          "start_line": 1372
+        },
+        {
+          "bytes": 101,
+          "end_line": 1400,
+          "offset": 11240,
+          "path": "cpython/Modules/clinic/_operator.c.h",
+          "sha256": "eeb4f1a9c1be41d8f51de82137be76e508e99f33a2723b54297a7306b8c245b2",
+          "start_line": 1396
+        },
+        {
+          "bytes": 124,
+          "end_line": 1403,
+          "offset": 11341,
+          "path": "cpython/Modules/clinic/_operator.c.h",
+          "sha256": "ff789083a64deae9d1a78e42ddb38b706c8247cd7f83005f138094d232924209",
+          "start_line": 1402
+        },
+        {
+          "bytes": 113,
+          "end_line": 1409,
+          "offset": 11465,
+          "path": "cpython/Modules/clinic/_operator.c.h",
+          "sha256": "b0e5a6b4fa2e531a8c591fcf5b677271cbce44b578485c5f9caa55eda5b4a8ad",
+          "start_line": 1405
+        },
+        {
+          "bytes": 140,
+          "end_line": 1412,
+          "offset": 11578,
+          "path": "cpython/Modules/clinic/_operator.c.h",
+          "sha256": "90d7a21732331f01929023312f4e4bd24842765c0c75848645cc51c73bcb15bb",
+          "start_line": 1411
+        },
+        {
+          "bytes": 409,
+          "end_line": 1424,
+          "offset": 11718,
+          "path": "cpython/Modules/clinic/_operator.c.h",
+          "sha256": "1a33c4a1261a03360bce9de93b8aab2af78be37d83aa759ebde22353ab0099e0",
+          "start_line": 1414
+        },
+        {
+          "bytes": 153,
+          "end_line": 1427,
+          "offset": 12127,
+          "path": "cpython/Modules/clinic/_operator.c.h",
+          "sha256": "4dc730999a722c8e39d54fff540b88012e91a8fa28bb9ef2d2310ba8c09afc39",
+          "start_line": 1426
+        },
+        {
+          "bytes": 544,
+          "end_line": 1485,
+          "offset": 12280,
+          "path": "cpython/Modules/clinic/_operator.c.h",
+          "sha256": "de1906e994a41aaa165d27f3da3aa8744e7eab4cae3fff2c59e4498b0e80087a",
+          "start_line": 1471
+        },
+        {
+          "bytes": 169,
+          "end_line": 1488,
+          "offset": 12824,
+          "path": "cpython/Modules/clinic/_operator.c.h",
+          "sha256": "d1c99f60444a7f2acd48d765542101db111058cd57a9be6b97346aff736c22d8",
+          "start_line": 1487
+        }
+      ],
+      "url": "https://github.com/python/cpython/blob/23116f998f6789d8c2fbe5ed5b8146854c8c2a4f/Modules/clinic/_operator.c.h"
+    },
+    {
+      "full_bytes": 133895,
+      "full_lines": 4201,
+      "full_sha256": "fb618164d4dd0ba5dc45062d3521f9c44e270ce513a40bbb8ba8aecf1e374179",
+      "headers": [
+        "cpython.math-clinic"
+      ],
+      "id": "cpython.math-c",
+      "kind": "c_module",
+      "module": "math",
+      "path": "Modules/mathmodule.c",
+      "revision": "23116f998f6789d8c2fbe5ed5b8146854c8c2a4f",
+      "segments": [
+        {
+          "bytes": 281,
+          "end_line": 1053,
+          "offset": 0,
+          "path": "cpython/Modules/mathmodule.c",
+          "sha256": "4ad6fc129d9f4f906bd110be7bebb0447a7d0d51e901c041788db89b5cea86c6",
+          "start_line": 1049
+        },
+        {
+          "bytes": 281,
+          "end_line": 1059,
+          "offset": 281,
+          "path": "cpython/Modules/mathmodule.c",
+          "sha256": "68c007729607a8471f7533e64bb6e24af29d670fdd62e41a2669146cd7a0d449",
+          "start_line": 1055
+        },
+        {
+          "bytes": 281,
+          "end_line": 1065,
+          "offset": 562,
+          "path": "cpython/Modules/mathmodule.c",
+          "sha256": "d37003844a470a641c8bed5a6cce755d85afd96e86c500dff0658c94c4d517c8",
+          "start_line": 1061
+        },
+        {
+          "bytes": 281,
+          "end_line": 1071,
+          "offset": 843,
+          "path": "cpython/Modules/mathmodule.c",
+          "sha256": "d61a636ca0728bd9286134acffe0a86c1d041be5db4803ae2991cbc2b89b86fb",
+          "start_line": 1067
+        },
+        {
+          "bytes": 256,
+          "end_line": 1077,
+          "offset": 1124,
+          "path": "cpython/Modules/mathmodule.c",
+          "sha256": "551745b4ca8a43f5c1f837ff77979177f68f77c14a1b6b0207f3e3521c8ff843",
+          "start_line": 1073
+        },
+        {
+          "bytes": 1346,
+          "end_line": 1110,
+          "offset": 1380,
+          "path": "cpython/Modules/mathmodule.c",
+          "sha256": "aa1319580a597bdd36da90498e4e0fcac9ba3a6168d73142b9685f5b047e2a93",
+          "start_line": 1079
+        },
+        {
+          "bytes": 629,
+          "end_line": 1146,
+          "offset": 2726,
+          "path": "cpython/Modules/mathmodule.c",
+          "sha256": "62a67ac84a2a9496438f753e6877750f09eee386b76ff4b153fdadfb37a508d9",
+          "start_line": 1124
+        },
+        {
+          "bytes": 1205,
+          "end_line": 1179,
+          "offset": 3355,
+          "path": "cpython/Modules/mathmodule.c",
+          "sha256": "f186c1f4360a51ef6dbab9f2f87bfd4e542901beba8e9ca90b0370dff0cab111",
+          "start_line": 1148
+        },
+        {
+          "bytes": 632,
+          "end_line": 1215,
+          "offset": 4560,
+          "path": "cpython/Modules/mathmodule.c",
+          "sha256": "e4ffbda31a94067eb371f78401a0e62bb7f89e64cab532ddff179cd3302b80ae",
+          "start_line": 1193
+        },
+        {
+          "bytes": 1600,
+          "end_line": 1253,
+          "offset": 5192,
+          "path": "cpython/Modules/mathmodule.c",
+          "sha256": "4dd18f50e3366aef0c4d317fd64d610e4bec930967de1762422e0359b075630f",
+          "start_line": 1217
+        },
+        {
+          "bytes": 542,
+          "end_line": 2082,
+          "offset": 6792,
+          "path": "cpython/Modules/mathmodule.c",
+          "sha256": "183a687960b35e48d5e36a4b3c2e487caeab75e5f781cfa3bbb4f39d1409a915",
+          "start_line": 2065
+        },
+        {
+          "bytes": 495,
+          "end_line": 2299,
+          "offset": 7334,
+          "path": "cpython/Modules/mathmodule.c",
+          "sha256": "5737964dc07e0ca8705d0de4cd2e0dd55dd08dac73201e3b49fc096382ee604a",
+          "start_line": 2277
+        },
+        {
+          "bytes": 181,
+          "end_line": 2304,
+          "offset": 7829,
+          "path": "cpython/Modules/mathmodule.c",
+          "sha256": "1b1cd0b511c47a7011c1c3e33259ac3be061129d27ce6adf3e25da6276800488",
+          "start_line": 2301
+        },
+        {
+          "bytes": 2878,
+          "end_line": 4175,
+          "offset": 8010,
+          "path": "cpython/Modules/mathmodule.c",
+          "sha256": "bab90d888e45692d0d7846cab7a1a4cc5f663d5b93d4577e6d9881ef6a97a149",
+          "start_line": 4116
+        },
+        {
+          "bytes": 118,
+          "end_line": 4186,
+          "offset": 10888,
+          "path": "cpython/Modules/mathmodule.c",
+          "sha256": "0b16152b85dd3e212f1df6e9d04fad1bdf3329c423a9d9790975cb6407383bc4",
+          "start_line": 4184
+        }
+      ],
+      "table": "math_methods",
+      "url": "https://github.com/python/cpython/blob/23116f998f6789d8c2fbe5ed5b8146854c8c2a4f/Modules/mathmodule.c"
+    },
+    {
+      "full_bytes": 27605,
+      "full_lines": 1113,
+      "full_sha256": "457d9bbf922126306ce546afaa83522bba3d0e935521b0d001518ca5be2a1ea2",
+      "id": "cpython.math-clinic",
+      "kind": "clinic",
+      "path": "Modules/clinic/mathmodule.c.h",
+      "revision": "23116f998f6789d8c2fbe5ed5b8146854c8c2a4f",
+      "segments": [
+        {
+          "bytes": 102,
+          "end_line": 15,
+          "offset": 0,
+          "path": "cpython/Modules/clinic/mathmodule.c.h",
+          "sha256": "8bf0aa61bd009d4e15d1bfac17e006627a5b18103431cc7b8e3d7529b177a2e0",
+          "start_line": 11
+        },
+        {
+          "bytes": 106,
+          "end_line": 18,
+          "offset": 102,
+          "path": "cpython/Modules/clinic/mathmodule.c.h",
+          "sha256": "db95248cef5a1b4dd75109230c08afb7586b4bdcd5dc00f8547b5cf8d76f4db5",
+          "start_line": 17
+        },
+        {
+          "bytes": 100,
+          "end_line": 42,
+          "offset": 208,
+          "path": "cpython/Modules/clinic/mathmodule.c.h",
+          "sha256": "342f5aa9ee0ca3b742450772f879f1c5080b0867f0cee1a4444b3681e3f54e1b",
+          "start_line": 38
+        },
+        {
+          "bytes": 106,
+          "end_line": 45,
+          "offset": 308,
+          "path": "cpython/Modules/clinic/mathmodule.c.h",
+          "sha256": "291f4f900d0f80fef447ca03511087254f31369b4b20765a47b7667b68c5ae17",
+          "start_line": 44
+        },
+        {
+          "bytes": 155,
+          "end_line": 71,
+          "offset": 414,
+          "path": "cpython/Modules/clinic/mathmodule.c.h",
+          "sha256": "bba5fd4c29c3e2dfd5e42264b76ab5346fc8bdebded28a650088c411b34cffb3",
+          "start_line": 65
+        },
+        {
+          "bytes": 97,
+          "end_line": 74,
+          "offset": 569,
+          "path": "cpython/Modules/clinic/mathmodule.c.h",
+          "sha256": "9630d170c9dddbc841328fdeeaaa2b29bd3cd1df53848106f6d4402f60134550",
+          "start_line": 73
+        },
+        {
+          "bytes": 154,
+          "end_line": 82,
+          "offset": 666,
+          "path": "cpython/Modules/clinic/mathmodule.c.h",
+          "sha256": "acd4c10ec4e81eb801f364ff1759c1d4180149f0b0ca7bd9dc818f005cb631ef",
+          "start_line": 76
+        },
+        {
+          "bytes": 101,
+          "end_line": 85,
+          "offset": 820,
+          "path": "cpython/Modules/clinic/mathmodule.c.h",
+          "sha256": "f0734badfe9e0b220c3242f12f0c1a285e23d37e4ee2eae97329b8ef72f8127b",
+          "start_line": 84
+        },
+        {
+          "bytes": 195,
+          "end_line": 93,
+          "offset": 921,
+          "path": "cpython/Modules/clinic/mathmodule.c.h",
+          "sha256": "406ac281fd1966319a523dd7195a47a3648d3c7119f6ab2a6d32799532e2ce1e",
+          "start_line": 87
+        },
+        {
+          "bytes": 97,
+          "end_line": 96,
+          "offset": 1116,
+          "path": "cpython/Modules/clinic/mathmodule.c.h",
+          "sha256": "31161c531170d18b18000796f15888c29e0a54f6299d0cce40c254fff0f5f201",
+          "start_line": 95
+        },
+        {
+          "bytes": 130,
+          "end_line": 102,
+          "offset": 1213,
+          "path": "cpython/Modules/clinic/mathmodule.c.h",
+          "sha256": "c1178b4b66e735b5c157c21318483d6c0f852c7e2a867fb43e6a2e27daed902d",
+          "start_line": 98
+        },
+        {
+          "bytes": 101,
+          "end_line": 105,
+          "offset": 1343,
+          "path": "cpython/Modules/clinic/mathmodule.c.h",
+          "sha256": "b91e5138f095e310aaf10a3842d54a57898332ce420b3be6d92cf64c826ab573",
+          "start_line": 104
+        },
+        {
+          "bytes": 90,
+          "end_line": 111,
+          "offset": 1444,
+          "path": "cpython/Modules/clinic/mathmodule.c.h",
+          "sha256": "dbb1e966d79a64c8dc57de0cb1360c285d3c698422b653b787e0c946b5388ee2",
+          "start_line": 107
+        },
+        {
+          "bytes": 117,
+          "end_line": 114,
+          "offset": 1534,
+          "path": "cpython/Modules/clinic/mathmodule.c.h",
+          "sha256": "7879e148108b2da388c240396a0b08e53250a0bc5d30ff13481baf5f778ba15f",
+          "start_line": 113
+        },
+        {
+          "bytes": 170,
+          "end_line": 122,
+          "offset": 1651,
+          "path": "cpython/Modules/clinic/mathmodule.c.h",
+          "sha256": "7171f17e30b3a9347ad2a82077169357a9eac7cae6f2c76dbda4834d65f14f69",
+          "start_line": 116
+        },
+        {
+          "bytes": 101,
+          "end_line": 125,
+          "offset": 1821,
+          "path": "cpython/Modules/clinic/mathmodule.c.h",
+          "sha256": "f1010d48b8bce313d9868a14b6cb4db1ea8f93b5430d55392e2e18f3557ff303",
+          "start_line": 124
+        },
+        {
+          "bytes": 254,
+          "end_line": 134,
+          "offset": 1922,
+          "path": "cpython/Modules/clinic/mathmodule.c.h",
+          "sha256": "746561dc57ce74883d3b98a569c87ca72aaac39f1880936ddc7ed1a24ccc056b",
+          "start_line": 127
+        },
+        {
+          "bytes": 101,
+          "end_line": 137,
+          "offset": 2176,
+          "path": "cpython/Modules/clinic/mathmodule.c.h",
+          "sha256": "6d4d53bb6be5a4f5d164a1e72e75a2f5af34ac02519396a37fdf18b50cb33b75",
+          "start_line": 136
+        },
+        {
+          "bytes": 148,
+          "end_line": 170,
+          "offset": 2277,
+          "path": "cpython/Modules/clinic/mathmodule.c.h",
+          "sha256": "d707537cfd869a4e8cd249a6cf7a2843fcc5866639a50219c7ae74c764aef475",
+          "start_line": 164
+        },
+        {
+          "bytes": 114,
+          "end_line": 173,
+          "offset": 2425,
+          "path": "cpython/Modules/clinic/mathmodule.c.h",
+          "sha256": "8e48e11d55372ecf6ac2f524cccf929967faf189af08bed14d86101f87bbac77",
+          "start_line": 172
+        },
+        {
+          "bytes": 175,
+          "end_line": 211,
+          "offset": 2539,
+          "path": "cpython/Modules/clinic/mathmodule.c.h",
+          "sha256": "5c585f7dfc4e3320f045f756f65da5bd1e3e204dac13cb89cae9d8247b80481d",
+          "start_line": 205
+        },
+        {
+          "bytes": 97,
+          "end_line": 214,
+          "offset": 2714,
+          "path": "cpython/Modules/clinic/mathmodule.c.h",
+          "sha256": "0f049df547dd25ac7bf2147c85db9c22b047cde9e06327a7240c0fa6aa5de01f",
+          "start_line": 213
+        },
+        {
+          "bytes": 105,
+          "end_line": 245,
+          "offset": 2811,
+          "path": "cpython/Modules/clinic/mathmodule.c.h",
+          "sha256": "bdfbdf67729b700094b479f6dd0e54af7144a4534a02424a56f5642f55da2249",
+          "start_line": 241
+        },
+        {
+          "bytes": 97,
+          "end_line": 248,
+          "offset": 2916,
+          "path": "cpython/Modules/clinic/mathmodule.c.h",
+          "sha256": "4adf7db74d062236dcd9ef5f60f34a2003ba3f802cb3468faf973793b6697ada",
+          "start_line": 247
+        },
+        {
+          "bytes": 108,
+          "end_line": 254,
+          "offset": 3013,
+          "path": "cpython/Modules/clinic/mathmodule.c.h",
+          "sha256": "5c50bfa42954a7bb98a9e16ae4bf41eee308f1f0ae9730fdbf548d7a25a894a9",
+          "start_line": 250
+        },
+        {
+          "bytes": 101,
+          "end_line": 257,
+          "offset": 3121,
+          "path": "cpython/Modules/clinic/mathmodule.c.h",
+          "sha256": "53b1fffa12aedb35f4ff77fa8a814fccb2ebe5192d60dcc1b6f99e64146d006f",
+          "start_line": 256
+        },
+        {
+          "bytes": 155,
+          "end_line": 265,
+          "offset": 3222,
+          "path": "cpython/Modules/clinic/mathmodule.c.h",
+          "sha256": "5f6b3d66aa4fba7284c304eed00e467bb50b5df3689395ca2c7c90c5b69aef10",
+          "start_line": 259
+        },
+        {
+          "bytes": 106,
+          "end_line": 268,
+          "offset": 3377,
+          "path": "cpython/Modules/clinic/mathmodule.c.h",
+          "sha256": "0ee8333f7dca04b96fbb32cfb28e2ac00bb5366d86a7f50c5af0300d3501d407",
+          "start_line": 267
+        },
+        {
+          "bytes": 145,
+          "end_line": 326,
+          "offset": 3483,
+          "path": "cpython/Modules/clinic/mathmodule.c.h",
+          "sha256": "2692ca4504fba908e73583f75068e369fa604f3da2b9e781453fab81690d9d08",
+          "start_line": 320
+        },
+        {
+          "bytes": 110,
+          "end_line": 329,
+          "offset": 3628,
+          "path": "cpython/Modules/clinic/mathmodule.c.h",
+          "sha256": "0e6a95da2d1d79f002f0fd8a4a9a7d655c45dd81d788981eda1372f5201c2902",
+          "start_line": 328
+        },
+        {
+          "bytes": 355,
+          "end_line": 380,
+          "offset": 3738,
+          "path": "cpython/Modules/clinic/mathmodule.c.h",
+          "sha256": "d4aa3fc7a44e34b637153528e7e4f657cf9c7560e55d0798918d785b4d7ce7ef",
+          "start_line": 370
+        },
+        {
+          "bytes": 110,
+          "end_line": 383,
+          "offset": 4093,
+          "path": "cpython/Modules/clinic/mathmodule.c.h",
+          "sha256": "d07d0f060806f05121f399b40dec44a7f79891fea4ca168d60eb05d89f7bcff2",
+          "start_line": 382
+        },
+        {
+          "bytes": 456,
+          "end_line": 421,
+          "offset": 4203,
+          "path": "cpython/Modules/clinic/mathmodule.c.h",
+          "sha256": "b5b244700d7bdaba820a3df3511c1140e7922dba785fcdfc9b6e3ae3ce24f5e1",
+          "start_line": 406
+        },
+        {
+          "bytes": 114,
+          "end_line": 424,
+          "offset": 4659,
+          "path": "cpython/Modules/clinic/mathmodule.c.h",
+          "sha256": "56f768151f6c4ec3b66e4eeb1c370b416db51b35626650b3a5f847d7f93c834e",
+          "start_line": 423
+        },
+        {
+          "bytes": 356,
+          "end_line": 455,
+          "offset": 4773,
+          "path": "cpython/Modules/clinic/mathmodule.c.h",
+          "sha256": "65bb58247137c9960002d68994cd62f7d18f879073b3b9ce945e8f987f134ed9",
+          "start_line": 444
+        },
+        {
+          "bytes": 122,
+          "end_line": 458,
+          "offset": 5129,
+          "path": "cpython/Modules/clinic/mathmodule.c.h",
+          "sha256": "493188519b7b3664d7c1fe05e563fcaa5b50464be759404690de4e64130a8abf",
+          "start_line": 457
+        },
+        {
+          "bytes": 107,
+          "end_line": 485,
+          "offset": 5251,
+          "path": "cpython/Modules/clinic/mathmodule.c.h",
+          "sha256": "3a84a13a5681d09de7811cfc44498dc285eab43a5befe340c56413db73fa29da",
+          "start_line": 481
+        },
+        {
+          "bytes": 106,
+          "end_line": 488,
+          "offset": 5358,
+          "path": "cpython/Modules/clinic/mathmodule.c.h",
+          "sha256": "15e1293e71e5541e7dd97a048ea3b84ef39628827849809ed88128c18ef9f9ce",
+          "start_line": 487
+        },
+        {
+          "bytes": 118,
+          "end_line": 533,
+          "offset": 5464,
+          "path": "cpython/Modules/clinic/mathmodule.c.h",
+          "sha256": "0340036af3275d2db7462b0b6c19654bd34467ba0b4dc0b39a59a70c0cf93a69",
+          "start_line": 529
+        },
+        {
+          "bytes": 109,
+          "end_line": 536,
+          "offset": 5582,
+          "path": "cpython/Modules/clinic/mathmodule.c.h",
+          "sha256": "519980247911f6570880a9df6460c46f7d47ec40e76892713fdfb3b0cac4f7f0",
+          "start_line": 535
+        },
+        {
+          "bytes": 118,
+          "end_line": 567,
+          "offset": 5691,
+          "path": "cpython/Modules/clinic/mathmodule.c.h",
+          "sha256": "017b0cc02c3c28615d3df825dd603ce0cf1affec1a067a166cff6c2c7d421a37",
+          "start_line": 563
+        },
+        {
+          "bytes": 109,
+          "end_line": 570,
+          "offset": 5809,
+          "path": "cpython/Modules/clinic/mathmodule.c.h",
+          "sha256": "5c55f7f313a7614a703acf38f9e4874c6e3765454863f21d40ba1964a9464398",
+          "start_line": 569
+        },
+        {
+          "bytes": 151,
+          "end_line": 601,
+          "offset": 5918,
+          "path": "cpython/Modules/clinic/mathmodule.c.h",
+          "sha256": "f78458fbb1982420dfc3cbe0b0a7ad1f943198e4401c484b2201abe8637a6e27",
+          "start_line": 597
+        },
+        {
+          "bytes": 113,
+          "end_line": 604,
+          "offset": 6069,
+          "path": "cpython/Modules/clinic/mathmodule.c.h",
+          "sha256": "0146390e022af2b20a3672e96bd0aa89c8cb69b83a36c4734b9d5ff3f66f0999",
+          "start_line": 603
+        },
+        {
+          "bytes": 136,
+          "end_line": 635,
+          "offset": 6182,
+          "path": "cpython/Modules/clinic/mathmodule.c.h",
+          "sha256": "3200d53b2b9d71588b182aa6576b833ef9afa01be3fcd4fe58420024ddfb2340",
+          "start_line": 631
+        },
+        {
+          "bytes": 101,
+          "end_line": 638,
+          "offset": 6318,
+          "path": "cpython/Modules/clinic/mathmodule.c.h",
+          "sha256": "476f7c46f74005906b44713f8532eb6d26246acdf3ed1e66eab0d14b0fa29899",
+          "start_line": 637
+        },
+        {
+          "bytes": 147,
+          "end_line": 669,
+          "offset": 6419,
+          "path": "cpython/Modules/clinic/mathmodule.c.h",
+          "sha256": "5b30063c7a095c73346aaec00d2f64a191cf47822e47f7096b73a6cd042209fc",
+          "start_line": 665
+        },
+        {
+          "bytes": 101,
+          "end_line": 672,
+          "offset": 6566,
+          "path": "cpython/Modules/clinic/mathmodule.c.h",
+          "sha256": "33cacc3a86ab4c19b5367fe38d021cd3f899d131c2c1f60ebdfbb147e981c7ae",
+          "start_line": 671
+        },
+        {
+          "bytes": 816,
+          "end_line": 719,
+          "offset": 6667,
+          "path": "cpython/Modules/clinic/mathmodule.c.h",
+          "sha256": "0e3acdc4650f226e0c2fdcc68f80b0e9af39d071a66c78dfc0feb4b51aca315c",
+          "start_line": 699
+        },
+        {
+          "bytes": 136,
+          "end_line": 722,
+          "offset": 7483,
+          "path": "cpython/Modules/clinic/mathmodule.c.h",
+          "sha256": "96b344ea3b2cfb3496adfcb6462ea6d7b9644699143d4043df1b5026df784a96",
+          "start_line": 721
+        },
+        {
+          "bytes": 381,
+          "end_line": 841,
+          "offset": 7619,
+          "path": "cpython/Modules/clinic/mathmodule.c.h",
+          "sha256": "253fd7b2c804173885ef464454a842f3c9d74ee08ba2daaf8efe469cea97d177",
+          "start_line": 831
+        },
+        {
+          "bytes": 124,
+          "end_line": 844,
+          "offset": 8000,
+          "path": "cpython/Modules/clinic/mathmodule.c.h",
+          "sha256": "0ee506e3ad10199c6efe99bd441044e13fccfb020755e9f829bcc9593d4387bd",
+          "start_line": 843
+        },
+        {
+          "bytes": 477,
+          "end_line": 915,
+          "offset": 8124,
+          "path": "cpython/Modules/clinic/mathmodule.c.h",
+          "sha256": "ed7a822ac40867785e74fc30faa591118488b51b095e00628207761c507c1871",
+          "start_line": 902
+        },
+        {
+          "bytes": 110,
+          "end_line": 918,
+          "offset": 8601,
+          "path": "cpython/Modules/clinic/mathmodule.c.h",
+          "sha256": "c5f4ac6b8409184bea03e4f3480d63202e6afa717054f82af0f9557361a50fdc",
+          "start_line": 917
+        },
+        {
+          "bytes": 550,
+          "end_line": 959,
+          "offset": 8711,
+          "path": "cpython/Modules/clinic/mathmodule.c.h",
+          "sha256": "d0d708106d3758c8c4ea0d2c89c10b46c3f0b7c4774858ac2a5c44a672b7b8b1",
+          "start_line": 945
+        },
+        {
+          "bytes": 110,
+          "end_line": 962,
+          "offset": 9261,
+          "path": "cpython/Modules/clinic/mathmodule.c.h",
+          "sha256": "43e1f2fa331861b3e506f8e9fb46225308ebad1b0798c281cafe20d826a7d602",
+          "start_line": 961
+        },
+        {
+          "bytes": 372,
+          "end_line": 994,
+          "offset": 9371,
+          "path": "cpython/Modules/clinic/mathmodule.c.h",
+          "sha256": "33d685d0035e2877a3ff8b6120addec5b4c320689064809bd34f8ce4915eae6a",
+          "start_line": 985
+        },
+        {
+          "bytes": 144,
+          "end_line": 997,
+          "offset": 9743,
+          "path": "cpython/Modules/clinic/mathmodule.c.h",
+          "sha256": "f08f1adf09ab7573d9fb4c03e78eb821d52df4567e4fc34b58ea7ab0884fb808",
+          "start_line": 996
+        },
+        {
+          "bytes": 131,
+          "end_line": 1079,
+          "offset": 9887,
+          "path": "cpython/Modules/clinic/mathmodule.c.h",
+          "sha256": "d2ec30df3a6b9ee10a42faf68c88a3e4bc484110b99beeb00645d570220b9452",
+          "start_line": 1075
+        },
+        {
+          "bytes": 93,
+          "end_line": 1082,
+          "offset": 10018,
+          "path": "cpython/Modules/clinic/mathmodule.c.h",
+          "sha256": "106efb3db89969370f1725cb1a48dcfa20aa988d499c90071a9989d8a7e421b9",
+          "start_line": 1081
+        }
+      ],
+      "url": "https://github.com/python/cpython/blob/23116f998f6789d8c2fbe5ed5b8146854c8c2a4f/Modules/clinic/mathmodule.c.h"
+    },
+    {
+      "full_bytes": 103849,
+      "full_lines": 3495,
+      "full_sha256": "afc4318a76da88a3f96b0be02bd4bf371763cd1302bd085286bff872aa3529ac",
+      "headers": [
+        "cpython.builtins-clinic"
+      ],
+      "id": "cpython.builtins-c",
+      "kind": "c_module",
+      "module": "builtins",
+      "path": "Python/bltinmodule.c",
+      "revision": "23116f998f6789d8c2fbe5ed5b8146854c8c2a4f",
+      "segments": [
+        {
+          "bytes": 164,
+          "end_line": 252,
+          "offset": 0,
+          "path": "cpython/Python/bltinmodule.c",
+          "sha256": "bbccbadab8b79e3a1feb8993621cb7967af60d2926dcb979071bd77690f6dec2",
+          "start_line": 249
+        },
+        {
+          "bytes": 247,
+          "end_line": 490,
+          "offset": 164,
+          "path": "cpython/Python/bltinmodule.c",
+          "sha256": "97a425c78e95065eaa79379acbbf927f1b568c8a87ed99fb6ba55003a9693d91",
+          "start_line": 483
+        },
+        {
+          "bytes": 68,
+          "end_line": 626,
+          "offset": 411,
+          "path": "cpython/Python/bltinmodule.c",
+          "sha256": "f5c3ed125faa41060a5af78a1619491ab4ac5007b8e954f29210a06eed15af5a",
+          "start_line": 626
+        },
+        {
+          "bytes": 214,
+          "end_line": 638,
+          "offset": 479,
+          "path": "cpython/Python/bltinmodule.c",
+          "sha256": "54b51e5b2071f4be69ded0227b2fac5aea7af9d266c236f14f1e8c4a5a891383",
+          "start_line": 633
+        },
+        {
+          "bytes": 694,
+          "end_line": 918,
+          "offset": 693,
+          "path": "cpython/Python/bltinmodule.c",
+          "sha256": "be713ac7ba66995a96ea19bcb595d4ad2443784d970aefa0049394c42a93dd67",
+          "start_line": 906
+        },
+        {
+          "bytes": 293,
+          "end_line": 1254,
+          "offset": 1387,
+          "path": "cpython/Python/bltinmodule.c",
+          "sha256": "d586ff46e1a26aec71e2ec8172bef430fd9a7e2bcf52eefcb71cbc510fd85418",
+          "start_line": 1249
+        },
+        {
+          "bytes": 69,
+          "end_line": 1593,
+          "offset": 1680,
+          "path": "cpython/Python/bltinmodule.c",
+          "sha256": "8e0e8bf081caaa5056bf31fb4ef83f7b311932b2c6c61654b6dfa36600e2d865",
+          "start_line": 1593
+        },
+        {
+          "bytes": 336,
+          "end_line": 1622,
+          "offset": 1749,
+          "path": "cpython/Python/bltinmodule.c",
+          "sha256": "fc9771864924c96cb80a04880d3e35853d111519642e7fb275a3fcf5b0b01e91",
+          "start_line": 1614
+        },
+        {
+          "bytes": 203,
+          "end_line": 1710,
+          "offset": 2085,
+          "path": "cpython/Python/bltinmodule.c",
+          "sha256": "8c2d433ef7543cd19aaeafc8edcead394e0f1de4e51f29fbd961b4552bbf019e",
+          "start_line": 1706
+        },
+        {
+          "bytes": 294,
+          "end_line": 1831,
+          "offset": 2288,
+          "path": "cpython/Python/bltinmodule.c",
+          "sha256": "f52b0544a3dd5cea8e0708036d1efbdfb17f40189e484edc00ebb91098cec7d2",
+          "start_line": 1825
+        },
+        {
+          "bytes": 370,
+          "end_line": 2084,
+          "offset": 2582,
+          "path": "cpython/Python/bltinmodule.c",
+          "sha256": "f73dc16d61ea4c79fbfc0540495bf8a96f28d4fa1878da6a820cd836247702df",
+          "start_line": 2077
+        },
+        {
+          "bytes": 368,
+          "end_line": 2101,
+          "offset": 2952,
+          "path": "cpython/Python/bltinmodule.c",
+          "sha256": "3ce4ff568381733d1e0956b3a8bec4f3f01f611b136e76e206035dc9c3b9ccc7",
+          "start_line": 2094
+        },
+        {
+          "bytes": 676,
+          "end_line": 2616,
+          "offset": 3320,
+          "path": "cpython/Python/bltinmodule.c",
+          "sha256": "ca6edbfb8f4ae34bb48b6f6c1213486f26e6b744d602b33c614fa7ac30e13d53",
+          "start_line": 2599
+        },
+        {
+          "bytes": 345,
+          "end_line": 2643,
+          "offset": 3996,
+          "path": "cpython/Python/bltinmodule.c",
+          "sha256": "e4ff5597d102fb3764a4b87b99d41bb08b36a1f03b39ed4b7ca65e6a82410973",
+          "start_line": 2636
+        },
+        {
+          "bytes": 143,
+          "end_line": 2646,
+          "offset": 4341,
+          "path": "cpython/Python/bltinmodule.c",
+          "sha256": "b2c25ea3812df612bf780bc143cac4cd0b4580c00f531e8596e26f05090de177",
+          "start_line": 2645
+        },
+        {
+          "bytes": 158,
+          "end_line": 2720,
+          "offset": 4484,
+          "path": "cpython/Python/bltinmodule.c",
+          "sha256": "56bb95f4b3d399f48658ad9190bb21f68308d4228d7e59df2adf4eb89e537874",
+          "start_line": 2716
+        },
+        {
+          "bytes": 538,
+          "end_line": 3301,
+          "offset": 4642,
+          "path": "cpython/Python/bltinmodule.c",
+          "sha256": "677f4be7ed4d3f27b9a4bb490d2c7e958f719bdf8eb620545f96eb3ca2dc2433",
+          "start_line": 3288
+        },
+        {
+          "bytes": 1799,
+          "end_line": 3395,
+          "offset": 5180,
+          "path": "cpython/Python/bltinmodule.c",
+          "sha256": "54b13a88ba8b8441a7581c9b2841737f3fd3669f9005f02810ed8a0695542f4d",
+          "start_line": 3348
+        },
+        {
+          "bytes": 484,
+          "end_line": 3407,
+          "offset": 6979,
+          "path": "cpython/Python/bltinmodule.c",
+          "sha256": "c42db698ab4eaa0c253b19ef7e8488f0906aff91a525c5c7af70a1969aaf81ba",
+          "start_line": 3397
+        }
+      ],
+      "table": "builtin_methods",
+      "url": "https://github.com/python/cpython/blob/23116f998f6789d8c2fbe5ed5b8146854c8c2a4f/Python/bltinmodule.c"
+    },
+    {
+      "full_bytes": 37973,
+      "full_lines": 1280,
+      "full_sha256": "226ec5e79633cb9b6b0495e4da71f81b97265ec92082c75e94ff131bfbe32c06",
+      "id": "cpython.builtins-clinic",
+      "kind": "clinic",
+      "path": "Python/clinic/bltinmodule.c.h",
+      "revision": "23116f998f6789d8c2fbe5ed5b8146854c8c2a4f",
+      "segments": [
+        {
+          "bytes": 1010,
+          "end_line": 30,
+          "offset": 0,
+          "path": "cpython/Python/clinic/bltinmodule.c.h",
+          "sha256": "63f4ae50f57b68797bce7b5c53aa5a274ae042841e69cbb44146c67dc3126823",
+          "start_line": 11
+        },
+        {
+          "bytes": 157,
+          "end_line": 33,
+          "offset": 1010,
+          "path": "cpython/Python/clinic/bltinmodule.c.h",
+          "sha256": "39563db367027855e96d29351754cc9d2f2f1edfe9553ac9861ad7c7378d0057",
+          "start_line": 32
+        },
+        {
+          "bytes": 115,
+          "end_line": 120,
+          "offset": 1167,
+          "path": "cpython/Python/clinic/bltinmodule.c.h",
+          "sha256": "fb0d04c18f3d4a85d192365167a5be11e0756cb8df38191f00aaa7b9f070fda8",
+          "start_line": 116
+        },
+        {
+          "bytes": 102,
+          "end_line": 123,
+          "offset": 1282,
+          "path": "cpython/Python/clinic/bltinmodule.c.h",
+          "sha256": "0fc4ec5aeab9f961fbbd6fb8279da82672196e7823f400e8abb6730c560e8e62",
+          "start_line": 122
+        },
+        {
+          "bytes": 192,
+          "end_line": 131,
+          "offset": 1384,
+          "path": "cpython/Python/clinic/bltinmodule.c.h",
+          "sha256": "33aa0efad5f4add0cefebb9b327a1713b36b0ea01cb63ea9eebd62286ab0c5d7",
+          "start_line": 125
+        },
+        {
+          "bytes": 102,
+          "end_line": 134,
+          "offset": 1576,
+          "path": "cpython/Python/clinic/bltinmodule.c.h",
+          "sha256": "29033e4d374df1c2f33557c248951311248b3e077b1b876602857e5a89d116b9",
+          "start_line": 133
+        },
+        {
+          "bytes": 186,
+          "end_line": 142,
+          "offset": 1678,
+          "path": "cpython/Python/clinic/bltinmodule.c.h",
+          "sha256": "7f3bf0f58e690dfb4c7bf46e8603ebe7d4702fdd32c28286a7cc2b2e44fa2cd2",
+          "start_line": 136
+        },
+        {
+          "bytes": 102,
+          "end_line": 145,
+          "offset": 1864,
+          "path": "cpython/Python/clinic/bltinmodule.c.h",
+          "sha256": "8594429b2468ac3c53b3540608ac5907183d5163cb5b786c2c3c327afe7a5f2b",
+          "start_line": 144
+        },
+        {
+          "bytes": 406,
+          "end_line": 156,
+          "offset": 1966,
+          "path": "cpython/Python/clinic/bltinmodule.c.h",
+          "sha256": "6b8d98e7aa5d64636d6efa5031810feccfb6e087b27934b1a1771e8a25e9cfb4",
+          "start_line": 147
+        },
+        {
+          "bytes": 110,
+          "end_line": 159,
+          "offset": 2372,
+          "path": "cpython/Python/clinic/bltinmodule.c.h",
+          "sha256": "439fa1e868f0a33cd2a85d38b91021e9b084c69f0e2291d4a608ae3421e03adc",
+          "start_line": 158
+        },
+        {
+          "bytes": 190,
+          "end_line": 168,
+          "offset": 2482,
+          "path": "cpython/Python/clinic/bltinmodule.c.h",
+          "sha256": "044dbd2c7e7da84e5c2e22eb872ecd42ff14c294adfc2e2b25b838419433b7ac",
+          "start_line": 161
+        },
+        {
+          "bytes": 102,
+          "end_line": 171,
+          "offset": 2672,
+          "path": "cpython/Python/clinic/bltinmodule.c.h",
+          "sha256": "40e25940cb5e5c23da5e5bab500c06e408a2955fc61cb16adc904bfc0a9656d1",
+          "start_line": 170
+        },
+        {
+          "bytes": 252,
+          "end_line": 180,
+          "offset": 2774,
+          "path": "cpython/Python/clinic/bltinmodule.c.h",
+          "sha256": "a60cd4e1f3d4feea6c59ac4a27e988bfce21f0f1552796188ba92b7cd08e2106",
+          "start_line": 173
+        },
+        {
+          "bytes": 122,
+          "end_line": 183,
+          "offset": 3026,
+          "path": "cpython/Python/clinic/bltinmodule.c.h",
+          "sha256": "5c2e6519125b80067d31a81164f4a0f8afde3ea0125af3f68d9888f7613399c0",
+          "start_line": 182
+        },
+        {
+          "bytes": 448,
+          "end_line": 196,
+          "offset": 3148,
+          "path": "cpython/Python/clinic/bltinmodule.c.h",
+          "sha256": "795566c860cb467fad3abb16137f2b1ada66197fccb8769179a602c405ba1665",
+          "start_line": 185
+        },
+        {
+          "bytes": 127,
+          "end_line": 199,
+          "offset": 3596,
+          "path": "cpython/Python/clinic/bltinmodule.c.h",
+          "sha256": "7c70c49c37ffa557e13322f8c16a59cc11654ea7d895e334775928b45b55b857",
+          "start_line": 198
+        },
+        {
+          "bytes": 149,
+          "end_line": 234,
+          "offset": 3723,
+          "path": "cpython/Python/clinic/bltinmodule.c.h",
+          "sha256": "c16a8d06914c32662df3d111ee614f8c989a7986e705eb539e4f1666e8ab5ade",
+          "start_line": 230
+        },
+        {
+          "bytes": 102,
+          "end_line": 237,
+          "offset": 3872,
+          "path": "cpython/Python/clinic/bltinmodule.c.h",
+          "sha256": "1eb6769f92d34e7ff1276dd244178a93799389b5228188dfe579bcbd2dd562b4",
+          "start_line": 236
+        },
+        {
+          "bytes": 933,
+          "end_line": 255,
+          "offset": 3974,
+          "path": "cpython/Python/clinic/bltinmodule.c.h",
+          "sha256": "0565e989395137259ca2bdf7607382e4d4777c237b09695fcd8105650606cba5",
+          "start_line": 239
+        },
+        {
+          "bytes": 145,
+          "end_line": 258,
+          "offset": 4907,
+          "path": "cpython/Python/clinic/bltinmodule.c.h",
+          "sha256": "51625b317447e5f4b0739d6b8f3ce97dc6d7c65899da86a737fd0b36d02c8496",
+          "start_line": 257
+        },
+        {
+          "bytes": 141,
+          "end_line": 380,
+          "offset": 5052,
+          "path": "cpython/Python/clinic/bltinmodule.c.h",
+          "sha256": "d793f7eb865474673384599375a2a1e5f4f7c1969a4ca8bb2a0877d85ba156da",
+          "start_line": 376
+        },
+        {
+          "bytes": 127,
+          "end_line": 383,
+          "offset": 5193,
+          "path": "cpython/Python/clinic/bltinmodule.c.h",
+          "sha256": "446703cefa3eff24782b97d9b6f38b76dd617365cdbee2761f4adabc634bc7cf",
+          "start_line": 382
+        },
+        {
+          "bytes": 457,
+          "end_line": 416,
+          "offset": 5320,
+          "path": "cpython/Python/clinic/bltinmodule.c.h",
+          "sha256": "c2a692863b3c2542f52015f206202635fc6a89230c4b24fb5b468cc977f64e5e",
+          "start_line": 406
+        },
+        {
+          "bytes": 133,
+          "end_line": 419,
+          "offset": 5777,
+          "path": "cpython/Python/clinic/bltinmodule.c.h",
+          "sha256": "ecd901707ba689ca7d31d5e4ed92b0b474e205c0bbafdcfa7e6ef80993524e71",
+          "start_line": 418
+        },
+        {
+          "bytes": 620,
+          "end_line": 497,
+          "offset": 5910,
+          "path": "cpython/Python/clinic/bltinmodule.c.h",
+          "sha256": "7055facd112799fa7ee7315496e4e8a318a1ebf0522257c3b5fbcbf1f1d1d315",
+          "start_line": 485
+        },
+        {
+          "bytes": 133,
+          "end_line": 500,
+          "offset": 6530,
+          "path": "cpython/Python/clinic/bltinmodule.c.h",
+          "sha256": "45fcd234fa25d7f98dd993dd8ab5dcabb73a787fa6526c6194ac70869ea825be",
+          "start_line": 499
+        },
+        {
+          "bytes": 266,
+          "end_line": 584,
+          "offset": 6663,
+          "path": "cpython/Python/clinic/bltinmodule.c.h",
+          "sha256": "fbcd83bd2e828c0a6350e9de4bfa8e5d406a5db6ce15d995537f46b066724e86",
+          "start_line": 577
+        },
+        {
+          "bytes": 123,
+          "end_line": 587,
+          "offset": 6929,
+          "path": "cpython/Python/clinic/bltinmodule.c.h",
+          "sha256": "c03851266bba4cddf61635a426f1e6e7f84a20ce3bd0785d25eb5abf716f2baa",
+          "start_line": 586
+        },
+        {
+          "bytes": 233,
+          "end_line": 604,
+          "offset": 7052,
+          "path": "cpython/Python/clinic/bltinmodule.c.h",
+          "sha256": "bee0d10797cf61df67de049248d2f934b4ecc7fa5c43011620ef1fb581c8e747",
+          "start_line": 598
+        },
+        {
+          "bytes": 131,
+          "end_line": 607,
+          "offset": 7285,
+          "path": "cpython/Python/clinic/bltinmodule.c.h",
+          "sha256": "32293fbca68fc6b20173a110f93b9ee197fcb0c95c9d4a15b5e6750e58120235",
+          "start_line": 606
+        },
+        {
+          "bytes": 235,
+          "end_line": 637,
+          "offset": 7416,
+          "path": "cpython/Python/clinic/bltinmodule.c.h",
+          "sha256": "181f9f4b213922dc24ed934e7e127352a88ef8175fc50946a27811dd73b87ba0",
+          "start_line": 630
+        },
+        {
+          "bytes": 98,
+          "end_line": 640,
+          "offset": 7651,
+          "path": "cpython/Python/clinic/bltinmodule.c.h",
+          "sha256": "ee7e878f0c5d1a5b0981c627a30bd2fc05edb67ee965838c5ec69925079b99b3",
+          "start_line": 639
+        },
+        {
+          "bytes": 223,
+          "end_line": 661,
+          "offset": 7749,
+          "path": "cpython/Python/clinic/bltinmodule.c.h",
+          "sha256": "39e2f216d4cc343a202c255934a072a33681f6f33c1f565ae517dbe3b8d16b37",
+          "start_line": 655
+        },
+        {
+          "bytes": 131,
+          "end_line": 664,
+          "offset": 7972,
+          "path": "cpython/Python/clinic/bltinmodule.c.h",
+          "sha256": "12c779fa5fd7b3f852320c94d170337702426124d0de89af7f8851847544e6be",
+          "start_line": 663
+        },
+        {
+          "bytes": 195,
+          "end_line": 696,
+          "offset": 8103,
+          "path": "cpython/Python/clinic/bltinmodule.c.h",
+          "sha256": "4990589887e0e913870060607bbb3dfedf5ebfab23c7be5f9afbc571a65fdfc6",
+          "start_line": 690
+        },
+        {
+          "bytes": 131,
+          "end_line": 699,
+          "offset": 8298,
+          "path": "cpython/Python/clinic/bltinmodule.c.h",
+          "sha256": "befa8673079b0d671598b30e8df747f6826488af038947419a06bc98f50b667a",
+          "start_line": 698
+        },
+        {
+          "bytes": 241,
+          "end_line": 729,
+          "offset": 8429,
+          "path": "cpython/Python/clinic/bltinmodule.c.h",
+          "sha256": "93f83b1c10f0042359c4b84c45af70169e3f8a8255a005c744cb9adf36d84e00",
+          "start_line": 722
+        },
+        {
+          "bytes": 106,
+          "end_line": 732,
+          "offset": 8670,
+          "path": "cpython/Python/clinic/bltinmodule.c.h",
+          "sha256": "25560a22e82b2fd6b925a179fddab8ffdff200656ac921c7e26360ca53ba2667",
+          "start_line": 731
+        },
+        {
+          "bytes": 180,
+          "end_line": 741,
+          "offset": 8776,
+          "path": "cpython/Python/clinic/bltinmodule.c.h",
+          "sha256": "bee418c1fa04c6c9bce026b084c7ffd8c45258c38c9cad3328e1283547063866",
+          "start_line": 734
+        },
+        {
+          "bytes": 102,
+          "end_line": 744,
+          "offset": 8956,
+          "path": "cpython/Python/clinic/bltinmodule.c.h",
+          "sha256": "9a59d493c4ec36d6f4fde82016894fc63143a526d5c132f5e31eed0e94ea90da",
+          "start_line": 743
+        },
+        {
+          "bytes": 142,
+          "end_line": 750,
+          "offset": 9058,
+          "path": "cpython/Python/clinic/bltinmodule.c.h",
+          "sha256": "5d428957aaa51345d8bbf6f113d64e4912d7135e7297d8bc6695e9cc3ec482bc",
+          "start_line": 746
+        },
+        {
+          "bytes": 110,
+          "end_line": 753,
+          "offset": 9200,
+          "path": "cpython/Python/clinic/bltinmodule.c.h",
+          "sha256": "10cf66d7cadb478c8ea9148cb12f79d9ed71f59b1f8bdb0070e148611c1beffd",
+          "start_line": 752
+        },
+        {
+          "bytes": 281,
+          "end_line": 762,
+          "offset": 9310,
+          "path": "cpython/Python/clinic/bltinmodule.c.h",
+          "sha256": "673abb53f6e27099cfd77cdec79c6dc5fa3a41d6ba7ab3cbe557a2296055339f",
+          "start_line": 755
+        },
+        {
+          "bytes": 123,
+          "end_line": 765,
+          "offset": 9591,
+          "path": "cpython/Python/clinic/bltinmodule.c.h",
+          "sha256": "c3d1bf2acf0b317964a5680099504a0befe2b79adb621c0bef9bb8112f2fdd33",
+          "start_line": 764
+        },
+        {
+          "bytes": 117,
+          "end_line": 797,
+          "offset": 9714,
+          "path": "cpython/Python/clinic/bltinmodule.c.h",
+          "sha256": "1409ddfff5c37c731f33ad6227a0ec4f8099fd958cd529c0b2a1c55127e2640b",
+          "start_line": 793
+        },
+        {
+          "bytes": 102,
+          "end_line": 800,
+          "offset": 9831,
+          "path": "cpython/Python/clinic/bltinmodule.c.h",
+          "sha256": "0fb5a5e85ce04c921174f2593e98d185ee401ad0d29b7eca4a0eceaedf78021f",
+          "start_line": 799
+        },
+        {
+          "bytes": 357,
+          "end_line": 810,
+          "offset": 9933,
+          "path": "cpython/Python/clinic/bltinmodule.c.h",
+          "sha256": "06b56f088919135313ac88e5d7a702b012066af5af69663655302bf052f99cfc",
+          "start_line": 802
+        },
+        {
+          "bytes": 119,
+          "end_line": 813,
+          "offset": 10290,
+          "path": "cpython/Python/clinic/bltinmodule.c.h",
+          "sha256": "7f38195ee018419b1ddabe00a6d9884c1d0b33d41b82d4af611183cf94f62f29",
+          "start_line": 812
+        },
+        {
+          "bytes": 173,
+          "end_line": 831,
+          "offset": 10409,
+          "path": "cpython/Python/clinic/bltinmodule.c.h",
+          "sha256": "f792292aacdf523f3004c8f6418cb64570bb2a6376d3d652fc131fe0c0f288a3",
+          "start_line": 824
+        },
+        {
+          "bytes": 102,
+          "end_line": 834,
+          "offset": 10582,
+          "path": "cpython/Python/clinic/bltinmodule.c.h",
+          "sha256": "54bba3fb8f1174d66bdf1461df56d5bad7e1c6a31825853bb86626172a118398",
+          "start_line": 833
+        },
+        {
+          "bytes": 329,
+          "end_line": 846,
+          "offset": 10684,
+          "path": "cpython/Python/clinic/bltinmodule.c.h",
+          "sha256": "a2e0f3ab31f6c18189f971cd5a4879c8d2f1c4b8cedb5a507ec6d1ac087f6d6a",
+          "start_line": 836
+        },
+        {
+          "bytes": 102,
+          "end_line": 849,
+          "offset": 11013,
+          "path": "cpython/Python/clinic/bltinmodule.c.h",
+          "sha256": "b2eaa24f8a9b88f2b9cb70a2c67fa93d41d484b0f0d11d893d4bb932d66f61a5",
+          "start_line": 848
+        },
+        {
+          "bytes": 293,
+          "end_line": 858,
+          "offset": 11115,
+          "path": "cpython/Python/clinic/bltinmodule.c.h",
+          "sha256": "322b6e8717d587419696681ac8cb985feac63dab1b3cf92b41fbff5b0500e9ba",
+          "start_line": 851
+        },
+        {
+          "bytes": 129,
+          "end_line": 861,
+          "offset": 11408,
+          "path": "cpython/Python/clinic/bltinmodule.c.h",
+          "sha256": "efceac280f99e4c50d43b3ae643b8c4e46f652f9d6929ab369748765741ad4e1",
+          "start_line": 860
+        },
+        {
+          "bytes": 477,
+          "end_line": 935,
+          "offset": 11537,
+          "path": "cpython/Python/clinic/bltinmodule.c.h",
+          "sha256": "c8cdbbad58cd73fbd2da7e695af6ee6d919d9662dcabb150fd1bffb2ddde7dba",
+          "start_line": 922
+        },
+        {
+          "bytes": 137,
+          "end_line": 938,
+          "offset": 12014,
+          "path": "cpython/Python/clinic/bltinmodule.c.h",
+          "sha256": "8a76261c712acee1d17ee857b0e8a64c967958ac4098c59b283386a3b2087829",
+          "start_line": 937
+        },
+        {
+          "bytes": 415,
+          "end_line": 1035,
+          "offset": 12151,
+          "path": "cpython/Python/clinic/bltinmodule.c.h",
+          "sha256": "f528b937b711f18f9aaa76c29e6874122aca3e68023cfb2baf3bbe87b9d9dc71",
+          "start_line": 1025
+        },
+        {
+          "bytes": 123,
+          "end_line": 1038,
+          "offset": 12566,
+          "path": "cpython/Python/clinic/bltinmodule.c.h",
+          "sha256": "5fce1a3f46f66319866030fc9dc5c4a44041f1001bb8e3c6f7f3fd3fe12d6116",
+          "start_line": 1037
+        },
+        {
+          "bytes": 215,
+          "end_line": 1069,
+          "offset": 12689,
+          "path": "cpython/Python/clinic/bltinmodule.c.h",
+          "sha256": "ceedf850e986d8ff6ac45668ad7ec9edcf438290921a861dd4754698c96886cf",
+          "start_line": 1063
+        },
+        {
+          "bytes": 106,
+          "end_line": 1072,
+          "offset": 12904,
+          "path": "cpython/Python/clinic/bltinmodule.c.h",
+          "sha256": "92f8ae86fa89529d03efeb4256c6a4461feeb42d29139d4e9ba60968fc9c8577",
+          "start_line": 1071
+        },
+        {
+          "bytes": 312,
+          "end_line": 1081,
+          "offset": 13010,
+          "path": "cpython/Python/clinic/bltinmodule.c.h",
+          "sha256": "a6373836ad6ba9e3569499d77d1d696df0085ea619b2deace6fe4b772ba585b5",
+          "start_line": 1074
+        },
+        {
+          "bytes": 137,
+          "end_line": 1084,
+          "offset": 13322,
+          "path": "cpython/Python/clinic/bltinmodule.c.h",
+          "sha256": "e88fcc22b6e55dff986f762f19179aed57dbcba8ed98a7f374aed1fc8815a87b",
+          "start_line": 1083
+        },
+        {
+          "bytes": 335,
+          "end_line": 1150,
+          "offset": 13459,
+          "path": "cpython/Python/clinic/bltinmodule.c.h",
+          "sha256": "5fc98d34e3b7b33e242e5fc04b69bd7e803c22993ad1705446d20b369aeded05",
+          "start_line": 1142
+        },
+        {
+          "bytes": 129,
+          "end_line": 1153,
+          "offset": 13794,
+          "path": "cpython/Python/clinic/bltinmodule.c.h",
+          "sha256": "1788fe4863f250a31c82525cdcf4eecff3d937c0e2903a740516c65073bfccc9",
+          "start_line": 1152
+        },
+        {
+          "bytes": 365,
+          "end_line": 1219,
+          "offset": 13923,
+          "path": "cpython/Python/clinic/bltinmodule.c.h",
+          "sha256": "e613a89bdc5e08efe1616c0dd1bcf6c72830b16ee68b0fe8574107fac7c2ba7b",
+          "start_line": 1211
+        },
+        {
+          "bytes": 143,
+          "end_line": 1222,
+          "offset": 14288,
+          "path": "cpython/Python/clinic/bltinmodule.c.h",
+          "sha256": "2d3b5e9e1476a1b78c8e78a8cd20d02b851a47c21c630813def1023a7304f949",
+          "start_line": 1221
+        },
+        {
+          "bytes": 359,
+          "end_line": 1254,
+          "offset": 14431,
+          "path": "cpython/Python/clinic/bltinmodule.c.h",
+          "sha256": "f042d4c13a0ab70a72fce065cfda7044c5dac5d90feb39b4fc3c74b69e9aedfd",
+          "start_line": 1246
+        },
+        {
+          "bytes": 143,
+          "end_line": 1257,
+          "offset": 14790,
+          "path": "cpython/Python/clinic/bltinmodule.c.h",
+          "sha256": "e353221a20a8fb6e1a98db4c26813b5a6601d4bdfaf86355f26b77e904b8e6e4",
+          "start_line": 1256
+        }
+      ],
+      "url": "https://github.com/python/cpython/blob/23116f998f6789d8c2fbe5ed5b8146854c8c2a4f/Python/clinic/bltinmodule.c.h"
+    },
+    {
+      "full_bytes": 59600,
+      "full_lines": 1952,
+      "full_sha256": "f4ca06145c11e202ed34c01986053cfb8cc3fbf75b55fc0a45e85e281c2ec858",
+      "headers": [
+        "cpython.functools-clinic"
+      ],
+      "id": "cpython.functools-c",
+      "kind": "c_module",
+      "module": "functools",
+      "path": "Modules/_functoolsmodule.c",
+      "revision": "23116f998f6789d8c2fbe5ed5b8146854c8c2a4f",
+      "segments": [
+        {
+          "bytes": 124,
+          "end_line": 60,
+          "offset": 0,
+          "path": "cpython/Modules/_functoolsmodule.c",
+          "sha256": "a8cb5b2f28463c63c45cba06d421028bea414420ca38d4a19fe3d898e898f917",
+          "start_line": 58
+        },
+        {
+          "bytes": 162,
+          "end_line": 585,
+          "offset": 124,
+          "path": "cpython/Modules/_functoolsmodule.c",
+          "sha256": "2365bff79f506a8c6c7466e734b030317ea9e9f97fc098f569976f6103ccbbdf",
+          "start_line": 582
+        },
+        {
+          "bytes": 523,
+          "end_line": 1772,
+          "offset": 286,
+          "path": "cpython/Modules/_functoolsmodule.c",
+          "sha256": "9850ed991c36a48823dc5ca230f5120e40ca3df43fed4f3fb437940434b8cd97",
+          "start_line": 1758
+        },
+        {
+          "bytes": 66,
+          "end_line": 1822,
+          "offset": 809,
+          "path": "cpython/Modules/_functoolsmodule.c",
+          "sha256": "6647d0bd1f8a52267349b3d37ca1f474efe3ec15cc6d912a191c26d89cf706e7",
+          "start_line": 1821
+        },
+        {
+          "bytes": 170,
+          "end_line": 1828,
+          "offset": 875,
+          "path": "cpython/Modules/_functoolsmodule.c",
+          "sha256": "97c9c7d0dcfd2a680d7f0a2b1a0ee4e9aba66c7bdd0f568aff1cbe39159d2bbf",
+          "start_line": 1824
+        }
+      ],
+      "table": "_functools_methods",
+      "url": "https://github.com/python/cpython/blob/23116f998f6789d8c2fbe5ed5b8146854c8c2a4f/Modules/_functoolsmodule.c"
+    },
+    {
+      "full_bytes": 6010,
+      "full_lines": 195,
+      "full_sha256": "24f8012d9300410d8df1c96b24d518285e586a050c29442e5c778de3e1769629",
+      "id": "cpython.functools-clinic",
+      "kind": "clinic",
+      "path": "Modules/clinic/_functoolsmodule.c.h",
+      "revision": "23116f998f6789d8c2fbe5ed5b8146854c8c2a4f",
+      "segments": [
+        {
+          "bytes": 200,
+          "end_line": 19,
+          "offset": 0,
+          "path": "cpython/Modules/clinic/_functoolsmodule.c.h",
+          "sha256": "61d748870134af60a4026bc97aa56d3ccd76eaec4951b396d46465a0abc8f573",
+          "start_line": 12
+        },
+        {
+          "bytes": 166,
+          "end_line": 22,
+          "offset": 200,
+          "path": "cpython/Modules/clinic/_functoolsmodule.c.h",
+          "sha256": "aa2691d7d693ca2ec6fc35b4abcd27a917308a163e5c92b169833bb1557b746e",
+          "start_line": 21
+        },
+        {
+          "bytes": 543,
+          "end_line": 84,
+          "offset": 366,
+          "path": "cpython/Modules/clinic/_functoolsmodule.c.h",
+          "sha256": "afc78e898678b131622f160466c049a6c369cbbb380b8284027140f9945826d1",
+          "start_line": 73
+        },
+        {
+          "bytes": 150,
+          "end_line": 87,
+          "offset": 909,
+          "path": "cpython/Modules/clinic/_functoolsmodule.c.h",
+          "sha256": "69e0389232e5fc9cb84ac7a4baadd9d8b4eb62317b4c283f40f05abec796b5b5",
+          "start_line": 86
+        },
+        {
+          "bytes": 127,
+          "end_line": 152,
+          "offset": 1059,
+          "path": "cpython/Modules/clinic/_functoolsmodule.c.h",
+          "sha256": "73b350c02e7dfff8f94307714b063e674d1df683337a0b80d896918ce018fd94",
+          "start_line": 148
+        },
+        {
+          "bytes": 201,
+          "end_line": 155,
+          "offset": 1186,
+          "path": "cpython/Modules/clinic/_functoolsmodule.c.h",
+          "sha256": "063e27a04079bdc93bef2d093584964b4e9891e07a6a6ce1ddfd92d3e8f5995f",
+          "start_line": 154
+        },
+        {
+          "bytes": 142,
+          "end_line": 176,
+          "offset": 1387,
+          "path": "cpython/Modules/clinic/_functoolsmodule.c.h",
+          "sha256": "d9312828140f11bfc619e8d5ff4f5627aeec0b915733a188b3e5070207317f50",
+          "start_line": 172
+        },
+        {
+          "bytes": 205,
+          "end_line": 179,
+          "offset": 1529,
+          "path": "cpython/Modules/clinic/_functoolsmodule.c.h",
+          "sha256": "9190d8fea21a7797304116d1e48fd8185f26b5ca0df1e82b87256ab6e7a5c16c",
+          "start_line": 178
+        }
+      ],
+      "url": "https://github.com/python/cpython/blob/23116f998f6789d8c2fbe5ed5b8146854c8c2a4f/Modules/clinic/_functoolsmodule.c.h"
+    },
+    {
+      "full_bytes": 103849,
+      "full_lines": 3495,
+      "full_sha256": "afc4318a76da88a3f96b0be02bd4bf371763cd1302bd085286bff872aa3529ac",
+      "id": "cpython.builtin-members",
+      "kind": "c_metadata",
+      "owner": "builtins",
+      "path": "Python/bltinmodule.c",
+      "revision": "23116f998f6789d8c2fbe5ed5b8146854c8c2a4f",
+      "segments": [
+        {
+          "bytes": 1751,
+          "end_line": 3484,
+          "offset": 0,
+          "path": "cpython/Python/builtin-members.c",
+          "sha256": "7d0071c7328c463071161ae805b09025ad7cd41bc1145cf3a265e3633fd4e734",
+          "start_line": 3454
+        }
+      ],
+      "url": "https://github.com/python/cpython/blob/23116f998f6789d8c2fbe5ed5b8146854c8c2a4f/Python/bltinmodule.c"
+    },
+    {
+      "full_bytes": 210369,
+      "full_lines": 2828,
+      "full_sha256": "83f959e13ce6ac2e2e697209da2c296152f7d925c28a274670ac508bbfbde929",
+      "id": "journal.classes",
+      "kind": "requirements",
+      "path": "docs/journal/2026-09-11-classes-on-metta.md",
+      "revision": "47cd8770eadfbfd183b602906537b99fd60b1f98",
+      "segments": [
+        {
+          "bytes": 14677,
+          "end_line": 199,
+          "offset": 0,
+          "path": "requirements/classes-journal.md",
+          "sha256": "ca1ce66be5a31d3cace5f67c73c09efebf1ebdbb5a1aa863f704585bc9f6539f",
+          "start_line": 118
+        }
+      ],
+      "url": null
+    }
+  ]
+}

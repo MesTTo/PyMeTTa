@@ -1,0 +1,370 @@
+PyDoc_STRVAR(builtin___import____doc__,
+"__import__($module, /, name, globals=None, locals=None, fromlist=(),\n"
+"           level=0)\n"
+"--\n"
+"\n"
+"Import a module.\n"
+"\n"
+"Because this function is meant for use by the Python\n"
+"interpreter and not for general use, it is better to use\n"
+"importlib.import_module() to programmatically import a module.\n"
+"\n"
+"The globals argument is only used to determine the context;\n"
+"they are not modified.  The locals argument is unused.  The fromlist\n"
+"should be a list of names to emulate ``from name import ...``, or an\n"
+"empty list to emulate ``import name``.\n"
+"When importing a module from a package, note that __import__(\'A.B\', ...)\n"
+"returns package A when fromlist is empty, but its submodule B when\n"
+"fromlist is not empty.  The level argument is used to determine whether to\n"
+"perform absolute or relative imports: 0 is absolute, while a positive number\n"
+"is the number of parent directories to search relative to the current module.");
+#define BUILTIN___IMPORT___METHODDEF    \
+    {"__import__", _PyCFunction_CAST(builtin___import__), METH_FASTCALL|METH_KEYWORDS, builtin___import____doc__},
+PyDoc_STRVAR(builtin_abs__doc__,
+"abs($module, x, /)\n"
+"--\n"
+"\n"
+"Return the absolute value of the argument.");
+#define BUILTIN_ABS_METHODDEF    \
+    {"abs", (PyCFunction)builtin_abs, METH_O, builtin_abs__doc__},
+PyDoc_STRVAR(builtin_all__doc__,
+"all($module, iterable, /)\n"
+"--\n"
+"\n"
+"Return True if bool(x) is True for all values x in the iterable.\n"
+"\n"
+"If the iterable is empty, return True.");
+#define BUILTIN_ALL_METHODDEF    \
+    {"all", (PyCFunction)builtin_all, METH_O, builtin_all__doc__},
+PyDoc_STRVAR(builtin_any__doc__,
+"any($module, iterable, /)\n"
+"--\n"
+"\n"
+"Return True if bool(x) is True for any x in the iterable.\n"
+"\n"
+"If the iterable is empty, return False.");
+#define BUILTIN_ANY_METHODDEF    \
+    {"any", (PyCFunction)builtin_any, METH_O, builtin_any__doc__},
+PyDoc_STRVAR(builtin_ascii__doc__,
+"ascii($module, obj, /)\n"
+"--\n"
+"\n"
+"Return an ASCII-only representation of an object.\n"
+"\n"
+"As repr(), return a string containing a printable representation of an\n"
+"object, but escape the non-ASCII characters in the string returned by\n"
+"repr() using \\\\x, \\\\u or \\\\U escapes. This generates a string similar\n"
+"to that returned by repr() in Python 2.");
+#define BUILTIN_ASCII_METHODDEF    \
+    {"ascii", (PyCFunction)builtin_ascii, METH_O, builtin_ascii__doc__},
+PyDoc_STRVAR(builtin_bin__doc__,
+"bin($module, number, /)\n"
+"--\n"
+"\n"
+"Return the binary representation of an integer.\n"
+"\n"
+"   >>> bin(2796202)\n"
+"   \'0b1010101010101010101010\'");
+#define BUILTIN_BIN_METHODDEF    \
+    {"bin", (PyCFunction)builtin_bin, METH_O, builtin_bin__doc__},
+PyDoc_STRVAR(builtin_callable__doc__,
+"callable($module, obj, /)\n"
+"--\n"
+"\n"
+"Return whether the object is callable (i.e., some kind of function).\n"
+"\n"
+"Note that classes are callable, as are instances of classes with a\n"
+"__call__() method.");
+#define BUILTIN_CALLABLE_METHODDEF    \
+    {"callable", (PyCFunction)builtin_callable, METH_O, builtin_callable__doc__},
+PyDoc_STRVAR(builtin_format__doc__,
+"format($module, value, format_spec=\'\', /)\n"
+"--\n"
+"\n"
+"Return type(value).__format__(value, format_spec)\n"
+"\n"
+"Many built-in types implement format_spec according to the\n"
+"Format Specification Mini-language. See help(\'FORMATTING\').\n"
+"\n"
+"If type(value) does not supply a method named __format__\n"
+"and format_spec is empty, then str(value) is returned.\n"
+"See also help(\'SPECIALMETHODS\').");
+#define BUILTIN_FORMAT_METHODDEF    \
+    {"format", _PyCFunction_CAST(builtin_format), METH_FASTCALL, builtin_format__doc__},
+PyDoc_STRVAR(builtin_chr__doc__,
+"chr($module, i, /)\n"
+"--\n"
+"\n"
+"Return a Unicode string of one character with ordinal i; 0 <= i <= 0x10ffff.");
+#define BUILTIN_CHR_METHODDEF    \
+    {"chr", (PyCFunction)builtin_chr, METH_O, builtin_chr__doc__},
+PyDoc_STRVAR(builtin_compile__doc__,
+"compile($module, /, source, filename, mode, flags=0,\n"
+"        dont_inherit=False, optimize=-1, *, _feature_version=-1)\n"
+"--\n"
+"\n"
+"Compile source into a code object that can be executed by exec() or eval().\n"
+"\n"
+"The source code may represent a Python module, statement or expression.\n"
+"The filename will be used for run-time error messages.\n"
+"The mode must be \'exec\' to compile a module, \'single\' to compile a\n"
+"single (interactive) statement, or \'eval\' to compile an expression.\n"
+"The flags argument, if present, controls which future statements influence\n"
+"the compilation of the code.\n"
+"The dont_inherit argument, if true, stops the compilation inheriting\n"
+"the effects of any future statements in effect in the code calling\n"
+"compile; if absent or false these statements do influence the compilation,\n"
+"in addition to any features explicitly specified.");
+#define BUILTIN_COMPILE_METHODDEF    \
+    {"compile", _PyCFunction_CAST(builtin_compile), METH_FASTCALL|METH_KEYWORDS, builtin_compile__doc__},
+PyDoc_STRVAR(builtin_divmod__doc__,
+"divmod($module, x, y, /)\n"
+"--\n"
+"\n"
+"Return the tuple (x//y, x%y).  Invariant: div*y + mod == x.");
+#define BUILTIN_DIVMOD_METHODDEF    \
+    {"divmod", _PyCFunction_CAST(builtin_divmod), METH_FASTCALL, builtin_divmod__doc__},
+PyDoc_STRVAR(builtin_eval__doc__,
+"eval($module, source, /, globals=None, locals=None)\n"
+"--\n"
+"\n"
+"Evaluate the given source in the context of globals and locals.\n"
+"\n"
+"The source may be a string representing a Python expression\n"
+"or a code object as returned by compile().\n"
+"The globals must be a dictionary and locals can be any mapping,\n"
+"defaulting to the current globals and locals.\n"
+"If only globals is given, locals defaults to it.");
+#define BUILTIN_EVAL_METHODDEF    \
+    {"eval", _PyCFunction_CAST(builtin_eval), METH_FASTCALL|METH_KEYWORDS, builtin_eval__doc__},
+PyDoc_STRVAR(builtin_exec__doc__,
+"exec($module, source, /, globals=None, locals=None, *, closure=None)\n"
+"--\n"
+"\n"
+"Execute the given source in the context of globals and locals.\n"
+"\n"
+"The source may be a string representing one or more Python statements\n"
+"or a code object as returned by compile().\n"
+"The globals must be a dictionary and locals can be any mapping,\n"
+"defaulting to the current globals and locals.\n"
+"If only globals is given, locals defaults to it.\n"
+"The closure must be a tuple of cellvars, and can only be used\n"
+"when source is a code object requiring exactly that many cellvars.");
+#define BUILTIN_EXEC_METHODDEF    \
+    {"exec", _PyCFunction_CAST(builtin_exec), METH_FASTCALL|METH_KEYWORDS, builtin_exec__doc__},
+PyDoc_STRVAR(builtin_globals__doc__,
+"globals($module, /)\n"
+"--\n"
+"\n"
+"Return the dictionary containing the current scope\'s global variables.\n"
+"\n"
+"NOTE: Updates to this dictionary *will* affect name lookups in the current\n"
+"global scope and vice-versa.");
+#define BUILTIN_GLOBALS_METHODDEF    \
+    {"globals", (PyCFunction)builtin_globals, METH_NOARGS, builtin_globals__doc__},
+PyDoc_STRVAR(builtin_hasattr__doc__,
+"hasattr($module, obj, name, /)\n"
+"--\n"
+"\n"
+"Return whether the object has an attribute with the given name.\n"
+"\n"
+"This is done by calling getattr(obj, name) and catching AttributeError.");
+#define BUILTIN_HASATTR_METHODDEF    \
+    {"hasattr", _PyCFunction_CAST(builtin_hasattr), METH_FASTCALL, builtin_hasattr__doc__},
+PyDoc_STRVAR(builtin_id__doc__,
+"id($module, obj, /)\n"
+"--\n"
+"\n"
+"Return the identity of an object.\n"
+"\n"
+"This is guaranteed to be unique among simultaneously existing objects.\n"
+"(CPython uses the object\'s memory address.)");
+#define BUILTIN_ID_METHODDEF    \
+    {"id", (PyCFunction)builtin_id, METH_O, builtin_id__doc__},
+PyDoc_STRVAR(builtin_setattr__doc__,
+"setattr($module, obj, name, value, /)\n"
+"--\n"
+"\n"
+"Sets the named attribute on the given object to the specified value.\n"
+"\n"
+"setattr(x, \'y\', v) is equivalent to ``x.y = v``");
+#define BUILTIN_SETATTR_METHODDEF    \
+    {"setattr", _PyCFunction_CAST(builtin_setattr), METH_FASTCALL, builtin_setattr__doc__},
+PyDoc_STRVAR(builtin_delattr__doc__,
+"delattr($module, obj, name, /)\n"
+"--\n"
+"\n"
+"Deletes the named attribute from the given object.\n"
+"\n"
+"delattr(x, \'y\') is equivalent to ``del x.y``");
+#define BUILTIN_DELATTR_METHODDEF    \
+    {"delattr", _PyCFunction_CAST(builtin_delattr), METH_FASTCALL, builtin_delattr__doc__},
+PyDoc_STRVAR(builtin_hash__doc__,
+"hash($module, obj, /)\n"
+"--\n"
+"\n"
+"Return the hash value for the given object.\n"
+"\n"
+"Two objects that compare equal must also have the same hash value, but the\n"
+"reverse is not necessarily true.");
+#define BUILTIN_HASH_METHODDEF    \
+    {"hash", (PyCFunction)builtin_hash, METH_O, builtin_hash__doc__},
+PyDoc_STRVAR(builtin_hex__doc__,
+"hex($module, number, /)\n"
+"--\n"
+"\n"
+"Return the hexadecimal representation of an integer.\n"
+"\n"
+"   >>> hex(12648430)\n"
+"   \'0xc0ffee\'");
+#define BUILTIN_HEX_METHODDEF    \
+    {"hex", (PyCFunction)builtin_hex, METH_O, builtin_hex__doc__},
+PyDoc_STRVAR(builtin_aiter__doc__,
+"aiter($module, async_iterable, /)\n"
+"--\n"
+"\n"
+"Return an AsyncIterator for an AsyncIterable object.");
+#define BUILTIN_AITER_METHODDEF    \
+    {"aiter", (PyCFunction)builtin_aiter, METH_O, builtin_aiter__doc__},
+PyDoc_STRVAR(builtin_anext__doc__,
+"anext($module, aiterator, default=<unrepresentable>, /)\n"
+"--\n"
+"\n"
+"Return the next item from the async iterator.\n"
+"\n"
+"If default is given and the async iterator is exhausted,\n"
+"it is returned instead of raising StopAsyncIteration.");
+#define BUILTIN_ANEXT_METHODDEF    \
+    {"anext", _PyCFunction_CAST(builtin_anext), METH_FASTCALL, builtin_anext__doc__},
+PyDoc_STRVAR(builtin_len__doc__,
+"len($module, obj, /)\n"
+"--\n"
+"\n"
+"Return the number of items in a container.");
+#define BUILTIN_LEN_METHODDEF    \
+    {"len", (PyCFunction)builtin_len, METH_O, builtin_len__doc__},
+PyDoc_STRVAR(builtin_locals__doc__,
+"locals($module, /)\n"
+"--\n"
+"\n"
+"Return a dictionary containing the current scope\'s local variables.\n"
+"\n"
+"NOTE: Whether or not updates to this dictionary will affect name lookups in\n"
+"the local scope and vice-versa is *implementation dependent* and not\n"
+"covered by any backwards compatibility guarantees.");
+#define BUILTIN_LOCALS_METHODDEF    \
+    {"locals", (PyCFunction)builtin_locals, METH_NOARGS, builtin_locals__doc__},
+PyDoc_STRVAR(builtin_oct__doc__,
+"oct($module, number, /)\n"
+"--\n"
+"\n"
+"Return the octal representation of an integer.\n"
+"\n"
+"   >>> oct(342391)\n"
+"   \'0o1234567\'");
+#define BUILTIN_OCT_METHODDEF    \
+    {"oct", (PyCFunction)builtin_oct, METH_O, builtin_oct__doc__},
+PyDoc_STRVAR(builtin_ord__doc__,
+"ord($module, character, /)\n"
+"--\n"
+"\n"
+"Return the ordinal value of a character.\n"
+"\n"
+"If the argument is a one-character string, return the Unicode code\n"
+"point of that character.\n"
+"\n"
+"If the argument is a bytes or bytearray object of length 1, return its\n"
+"single byte value.");
+#define BUILTIN_ORD_METHODDEF    \
+    {"ord", (PyCFunction)builtin_ord, METH_O, builtin_ord__doc__},
+PyDoc_STRVAR(builtin_pow__doc__,
+"pow($module, /, base, exp, mod=None)\n"
+"--\n"
+"\n"
+"Equivalent to base**exp with 2 arguments or base**exp % mod with 3 arguments\n"
+"\n"
+"Some types, such as ints, are able to use a more efficient algorithm when\n"
+"invoked using the three argument form.");
+#define BUILTIN_POW_METHODDEF    \
+    {"pow", _PyCFunction_CAST(builtin_pow), METH_FASTCALL|METH_KEYWORDS, builtin_pow__doc__},
+PyDoc_STRVAR(builtin_print__doc__,
+"print($module, /, *args, sep=\' \', end=\'\\n\', file=None, flush=False)\n"
+"--\n"
+"\n"
+"Prints the values to a stream, or to sys.stdout by default.\n"
+"\n"
+"  sep\n"
+"    string inserted between values, default a space.\n"
+"  end\n"
+"    string appended after the last value, default a newline.\n"
+"  file\n"
+"    a file-like object (stream); defaults to the current sys.stdout.\n"
+"  flush\n"
+"    whether to forcibly flush the stream.");
+#define BUILTIN_PRINT_METHODDEF    \
+    {"print", _PyCFunction_CAST(builtin_print), METH_FASTCALL|METH_KEYWORDS, builtin_print__doc__},
+PyDoc_STRVAR(builtin_input__doc__,
+"input($module, prompt=\'\', /)\n"
+"--\n"
+"\n"
+"Read a string from standard input.  The trailing newline is stripped.\n"
+"\n"
+"The prompt string, if given, is printed to standard output without a\n"
+"trailing newline before reading input.\n"
+"\n"
+"If the user hits EOF (*nix: Ctrl-D, Windows: Ctrl-Z+Return), raise EOFError.\n"
+"On *nix systems, readline is used if available.");
+#define BUILTIN_INPUT_METHODDEF    \
+    {"input", _PyCFunction_CAST(builtin_input), METH_FASTCALL, builtin_input__doc__},
+PyDoc_STRVAR(builtin_repr__doc__,
+"repr($module, obj, /)\n"
+"--\n"
+"\n"
+"Return the canonical string representation of the object.\n"
+"\n"
+"For many object types, including most builtins, eval(repr(obj)) == obj.");
+#define BUILTIN_REPR_METHODDEF    \
+    {"repr", (PyCFunction)builtin_repr, METH_O, builtin_repr__doc__},
+PyDoc_STRVAR(builtin_round__doc__,
+"round($module, /, number, ndigits=None)\n"
+"--\n"
+"\n"
+"Round a number to a given precision in decimal digits.\n"
+"\n"
+"The return value is an integer if ndigits is omitted or None.  Otherwise\n"
+"the return value has the same type as the number.  ndigits may be negative.");
+#define BUILTIN_ROUND_METHODDEF    \
+    {"round", _PyCFunction_CAST(builtin_round), METH_FASTCALL|METH_KEYWORDS, builtin_round__doc__},
+PyDoc_STRVAR(builtin_sum__doc__,
+"sum($module, iterable, /, start=0)\n"
+"--\n"
+"\n"
+"Return the sum of a \'start\' value (default: 0) plus an iterable of numbers\n"
+"\n"
+"When the iterable is empty, return the start value.\n"
+"This function is intended specifically for use with numeric values and may\n"
+"reject non-numeric types.");
+#define BUILTIN_SUM_METHODDEF    \
+    {"sum", _PyCFunction_CAST(builtin_sum), METH_FASTCALL|METH_KEYWORDS, builtin_sum__doc__},
+PyDoc_STRVAR(builtin_isinstance__doc__,
+"isinstance($module, obj, class_or_tuple, /)\n"
+"--\n"
+"\n"
+"Return whether an object is an instance of a class or of a subclass thereof.\n"
+"\n"
+"A tuple, as in ``isinstance(x, (A, B, ...))``, may be given as the target to\n"
+"check against. This is equivalent to ``isinstance(x, A) or isinstance(x, B)\n"
+"or ...`` etc.");
+#define BUILTIN_ISINSTANCE_METHODDEF    \
+    {"isinstance", _PyCFunction_CAST(builtin_isinstance), METH_FASTCALL, builtin_isinstance__doc__},
+PyDoc_STRVAR(builtin_issubclass__doc__,
+"issubclass($module, cls, class_or_tuple, /)\n"
+"--\n"
+"\n"
+"Return whether \'cls\' is derived from another class or is the same class.\n"
+"\n"
+"A tuple, as in ``issubclass(x, (A, B, ...))``, may be given as the target to\n"
+"check against. This is equivalent to ``issubclass(x, A) or issubclass(x, B)\n"
+"or ...``.");
+#define BUILTIN_ISSUBCLASS_METHODDEF    \
+    {"issubclass", _PyCFunction_CAST(builtin_issubclass), METH_FASTCALL, builtin_issubclass__doc__},
