@@ -4,6 +4,11 @@ A Rows is a mutable sequence of Row tuples, one per query answer, while
 Answers progressively caches one evaluation source for replay, projections,
 and exact-cardinality reads.
 Guarantees:
+  - one immutable record retains each value and caller row through replay,
+    slicing, source failure and asynchronous projection after close [tested:
+    test_answer_record_survives_replay_slice_and_async_projection,
+    test_closed_answer_record_replays_both_faces_without_resuming_source;
+    commit=WORKTREE]
   - context exit retains body and cleanup failures together, including
     cancellation, while single failures keep their identity [tested:
     test_owned_views_preserve_body_and_cleanup_errors,
@@ -479,10 +484,10 @@ def _raise_exit_errors(
     raise BaseExceptionGroup(message, failures) from None
 
 
-class _AnswerItem(NamedTuple):
+class _AnswerItem[T](NamedTuple):
     """One engine answer and the caller bindings produced alongside it."""
 
-    value: Any
+    value: T
     row: Row | None
 
 
@@ -1391,7 +1396,6 @@ class Answers[T](Sequence[T], _doors.DoorOwner):
         "_known_length",
         "_lock",
         "_query",
-        "_row_cache",
         "_source",
         "_space",
         "_target",
@@ -1400,7 +1404,7 @@ class Answers[T](Sequence[T], _doors.DoorOwner):
 
     def __init__(
         self,
-        source: Iterable[T | _AnswerItem],
+        source: Iterable[T | _AnswerItem[T]],
         *,
         columns: Iterable[str] = (),
         space: str | None = None,
@@ -1408,8 +1412,8 @@ class Answers[T](Sequence[T], _doors.DoorOwner):
         count: Callable[..., int | None] | None = None,
         query: _QueryContext | None = None,
         bound_source: Callable[
-            [int, Iterable[T | _AnswerItem]],
-            Iterable[T | _AnswerItem] | None,
+            [int, Iterable[T | _AnswerItem[T]]],
+            Iterable[T | _AnswerItem[T]] | None,
         ]
         | None = None,
     ) -> None:
@@ -1421,8 +1425,7 @@ class Answers[T](Sequence[T], _doors.DoorOwner):
         self._space = space
         self._target = target
         self._query = query
-        self._cache: list[T] = []
-        self._row_cache: list[Row | None] = []
+        self._cache: list[_AnswerItem[T]] = []
         self._done = False
         self._error: Exception | None = None
         # True once an iterator over these answers has been handed out, which
@@ -1458,12 +1461,9 @@ class Answers[T](Sequence[T], _doors.DoorOwner):
             while len(self._cache) <= index and not self._done:
                 try:
                     item = next(self._source)
-                    if isinstance(item, _AnswerItem):
-                        self._cache.append(item.value)
-                        self._row_cache.append(item.row)
-                    else:
-                        self._cache.append(item)
-                        self._row_cache.append(None)
+                    self._cache.append(
+                        item if isinstance(item, _AnswerItem) else _AnswerItem(item, None)
+                    )
                 except StopIteration:
                     self._done = True
                 except Exception as exc:  # noqa: BLE001 -- replay requires caching the source's terminal failure unchanged
@@ -1475,6 +1475,15 @@ class Answers[T](Sequence[T], _doors.DoorOwner):
                 raise self._error
             return False
 
+    def _cached_item(self, position: int) -> _AnswerItem[T] | None:
+        """Read an available record or terminal failure without advancing the source."""
+        with self._lock:
+            if position < len(self._cache):
+                return self._cache[position]
+            if self._error is not None:
+                raise self._error
+            return None
+
     def _at(self, index: int) -> T:
         if index < 0:
             self._materialize()
@@ -1482,18 +1491,18 @@ class Answers[T](Sequence[T], _doors.DoorOwner):
         if index < 0 or not self._pull(index):
             msg = "Answers index out of range"
             raise IndexError(msg)
-        return self._cache[index]
+        return self._cache[index].value
 
     def _materialize(self) -> tuple[T, ...]:
         position = len(self._cache)
         while self._pull(position):
             position += 1
-        return tuple(self._cache)
+        return tuple(item.value for item in self._cache)
 
     def _iterate(self) -> Iterator[T]:
         position = 0
         while self._pull(position):
-            yield self._cache[position]
+            yield self._cache[position].value
             position += 1
 
     def __iter__(self) -> Iterator[T]:
@@ -1537,12 +1546,12 @@ class Answers[T](Sequence[T], _doors.DoorOwner):
             del frame
         return reversed(self._materialize())
 
-    def _items(self) -> Iterator[_AnswerItem]:
+    def _items(self) -> Iterator[_AnswerItem[T]]:
         """Replay values together with their private caller-row metadata."""
         self._values_demanded = True
         position = 0
         while self._pull(position):
-            yield _AnswerItem(self._cache[position], self._row_cache[position])
+            yield self._cache[position]
             position += 1
 
     def __bool__(self) -> bool:
@@ -1674,11 +1683,11 @@ class Answers[T](Sequence[T], _doors.DoorOwner):
                     query=self._query,
                 )
 
-        def selected() -> Iterator[T | _AnswerItem]:
+        def selected() -> Iterator[_AnswerItem[T]]:
             if not nonnegative:
                 base._materialize()
                 for index in range(len(base._cache))[window]:
-                    yield _AnswerItem(base._cache[index], base._row_cache[index])
+                    yield base._cache[index]
                 return
             indices = itertools.islice(
                 itertools.count(),
@@ -1689,7 +1698,7 @@ class Answers[T](Sequence[T], _doors.DoorOwner):
             for index in indices:
                 if not base._pull(index):
                     return
-                yield _AnswerItem(base._cache[index], base._row_cache[index])
+                yield base._cache[index]
 
         return Answers(
             selected(), columns=self._columns, space=self._space, target=self._target
@@ -1720,10 +1729,11 @@ class Answers[T](Sequence[T], _doors.DoorOwner):
         def values() -> Iterator[Any]:
             position = 0
             while self._pull(position):
-                row = self._row_cache[position]
+                item = self._cache[position]
+                row = item.row
                 if row is None:
                     msg = (
-                        f"answer {self._cache[position]!r} carries no variable "
+                        f"answer {item.value!r} carries no variable "
                         f"row for {name!r}"
                     )
                     raise TypeError(msg)
@@ -1776,9 +1786,10 @@ class Answers[T](Sequence[T], _doors.DoorOwner):
         def values() -> Iterator[Row]:
             position = 0
             while self._pull(position):
-                row = self._row_cache[position]
+                item = self._cache[position]
+                row = item.row
                 if row is None:
-                    msg = f"answer {self._cache[position]!r} carries no variable row"
+                    msg = f"answer {item.value!r} carries no variable row"
                     raise TypeError(msg)
                 yield row
                 position += 1
@@ -1811,7 +1822,7 @@ class Answers[T](Sequence[T], _doors.DoorOwner):
         which keeps an empty match on the table face and with it the
         caption pointing at `why()`.
         """
-        return self._pull(0) and not isinstance(self._cache[0], Row)
+        return self._pull(0) and not isinstance(self._cache[0].value, Row)
 
     def _eager_rows(self) -> Rows:
         """Materialize this binding view as the eager Rows face.
@@ -1827,7 +1838,7 @@ class Answers[T](Sequence[T], _doors.DoorOwner):
         if self._answers_are_terms():
             msg = (
                 f"the table face needs caller bindings and these answers are "
-                f"terms; answer 0 is {self._cache[0]!r}. Ask .rows for the "
+                f"terms; answer 0 is {self._cache[0].value!r}. Ask .rows for the "
                 f"bindings behind each answer, or read the answers themselves "
                 f"as a sequence"
             )
@@ -2025,7 +2036,7 @@ class Answers[T](Sequence[T], _doors.DoorOwner):
         shown = config.display_rows
         values: list[T] = []
         while len(values) < shown and self._pull(len(values)):
-            values.append(self._cache[len(values)])
+            values.append(self._cache[len(values)].value)
         lines = [str(value) for value in values]
         if self._pull(shown):
             lines.append("… more answers")
@@ -2099,7 +2110,7 @@ class Answers[T](Sequence[T], _doors.DoorOwner):
                 return default
             msg = "one() expected exactly one answer, got 0"
             raise EngineError(msg)
-        first = self._cache[0]
+        first = self._cache[0].value
         raise_error_answers((first,), space=self._space, target=self._target)
         if self._pull(1):
             msg = "one() expected exactly one answer, got more than 1"
@@ -2123,7 +2134,7 @@ class Answers[T](Sequence[T], _doors.DoorOwner):
                 msg = "first() found no answers; pass default= for absence"
                 raise EngineError(msg)
             return default
-        first = self._cache[0]
+        first = self._cache[0].value
         raise_error_answers((first,), space=self._space, target=self._target)
         return self._scalar(first)
 
@@ -2143,7 +2154,7 @@ class Answers[T](Sequence[T], _doors.DoorOwner):
         for index in range(shown_items + 1):
             if not self._pull(index):
                 break
-            shown.append(self._cache[index])
+            shown.append(self._cache[index].value)
         if len(shown) > shown_items:
             inner = ", ".join(repr(value) for value in shown[:shown_items])
             return f"[{inner}, ...]"

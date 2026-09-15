@@ -4,6 +4,10 @@ Assumes: an evaluation returns Answers or a closable stream for each target.
 Guarantees: iteration, refusal and cleanup run on the owning worker; Answers
   replay their cached prefix while streams consume once [tested:
   test_async_evaluation_choices_preserve_demand_and_replay; commit=b615b5a33b43252ef9826e5387da7c9bd7f6b543].
+  Cached value and caller-row projections read the same immutable answer
+  record without advancing a closed source [tested:
+  test_closed_answer_record_replays_both_faces_without_resuming_source;
+  commit=WORKTREE].
   Context exit retains the body error, including cancellation, together
   with a failed release [tested:
   test_async_exit_preserves_cancellation_and_normal_exit; commit=4a3266c7354990618de5d9489f4e094f5a80c5b6].
@@ -115,16 +119,15 @@ class _EvaluationGroup:
     def _cached(self, index: int, position: int, *, rows: bool) -> Any:
         source = self.sources[index]
         if isinstance(source, Answers):
-            if position < len(source._cache):
+            item = source._cached_item(position)
+            if item is not None:
                 if rows:
-                    row = source._row_cache[position]
+                    row = item.row
                     if row is None:
-                        msg = f"answer {source._cache[position]!r} carries no variable row"
+                        msg = f"answer {item.value!r} carries no variable row"
                         raise TypeError(msg)
                     return row
-                return source._cache[position]
-            if source._error is not None:
-                raise source._error
+                return item.value
         return _END
 
     def _pull(self, index: int, position: int, *, rows: bool) -> Any:
