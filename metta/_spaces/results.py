@@ -804,16 +804,16 @@ class Rows(UserList[Row], _doors.DoorOwner):
         state=_doors.State.any,
     )
     def one(self, *, default: Any = _MISSING) -> Row | Any:
-        """THE row, when the query is asserted to have exactly one answer;
-        none or several raise naming the count, so a lookup that silently
-        picked an arbitrary row cannot hide.
-        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+        """Return the sole row, using an explicit default only for absence.
+
+        Several rows always raise with their count.
+        """
         if not self and default is not _MISSING:
             return default
         if len(self) != 1:
             msg = (
                 f"one() expected exactly one row, got {len(self)}; "
-                f"use first() for row-or-None, or iterate for all"
+                "use first(default=None) for row-or-None, or iterate for all"
             )
             raise EngineError(
                 msg
