@@ -8,7 +8,7 @@ Guarantees:
     slicing, source failure and asynchronous projection after close [tested:
     test_answer_record_survives_replay_slice_and_async_projection,
     test_closed_answer_record_replays_both_faces_without_resuming_source;
-    commit=WORKTREE]
+    commit=96b907668ca5afde3cdaddd29bbdbe7ca506c953]
   - context exit retains body and cleanup failures together, including
     cancellation, while single failures keep their identity [tested:
     test_owned_views_preserve_body_and_cleanup_errors,

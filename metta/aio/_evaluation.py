@@ -7,7 +7,7 @@ Guarantees: iteration, refusal and cleanup run on the owning worker; Answers
   Cached value and caller-row projections read the same immutable answer
   record without advancing a closed source [tested:
   test_closed_answer_record_replays_both_faces_without_resuming_source;
-  commit=WORKTREE].
+  commit=96b907668ca5afde3cdaddd29bbdbe7ca506c953].
   Context exit retains the body error, including cancellation, together
   with a failed release [tested:
   test_async_exit_preserves_cancellation_and_normal_exit; commit=4a3266c7354990618de5d9489f4e094f5a80c5b6].
