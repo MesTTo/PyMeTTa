@@ -50,7 +50,7 @@ Assumes:
 Guarantees:
   - registration listeners receive the exact point and registrant names,
     including quotes and the words " registration " [tested:
-    test_registration_identity_is_not_parsed_from_prose; commit=WORKTREE]
+    test_registration_identity_is_not_parsed_from_prose; commit=56a8207a945675056312e206a000442b857ced03]
   - concurrent discovery waits for registration to finish, failed entries
     remain retryable, and cycles among discovery waits refuse [tested:
     test_concurrent_discovery_waits_for_complete_registration,
