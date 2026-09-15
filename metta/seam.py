@@ -48,6 +48,9 @@ Assumes:
     the finder `extensions/python/_workspace.py` installs [source 2026-09-07:
     https://docs.python.org/3/library/importlib.metadata.html#entry-points]
 Guarantees:
+  - registered rows own a read-only copy of their field mapping and immutable
+    registration metadata; field payloads retain their own ownership [tested:
+    test_registered_rows_cannot_bypass_snapshot_generation; commit=WORKTREE]
   - colliding entry-point names refuse before any provider loads and name
     both distribution origins in a stable order [tested:
     test_entry_point_collision_reports_both_owners; commit=4716ce2d8c4483d50fdb5146f296c019d7470dd4]
@@ -120,7 +123,9 @@ import inspect
 import re
 import threading
 from collections.abc import Callable, Iterable, Mapping
+from dataclasses import dataclass
 from importlib import metadata
+from types import MappingProxyType
 from typing import TYPE_CHECKING, Any, Final, NamedTuple
 
 from metta._lazy import lazy
@@ -293,6 +298,7 @@ ARROW_KINDS: Final[tuple[str, str, str, str, str]] = (
 ARROW_FORMAT: Final[Mapping[str, str]] = {"l": "int64", "g": "float64", "b": "bool", "u": "text"}
 
 
+@dataclass(frozen=True, slots=True, eq=False)
 class Row:
     """One registration: a point, who registered, and the fields they gave.
 
@@ -301,7 +307,11 @@ class Row:
     mapping for a caller that has the name as data.
     """
 
-    __slots__ = ("fallback", "fields", "name", "point", "source")
+    point: str
+    name: str
+    fields: Mapping[str, Any]
+    source: str
+    fallback: bool
 
     def __init__(
         self,
@@ -313,11 +323,11 @@ class Row:
         fallback: bool = False,
     ) -> None:
         """Hold one registration against the named point, under `name`."""
-        self.point = against
-        self.name = name
-        self.fields = dict(fields)
-        self.source = source
-        self.fallback = fallback
+        object.__setattr__(self, "point", against)
+        object.__setattr__(self, "name", name)
+        object.__setattr__(self, "fields", MappingProxyType(dict(fields)))
+        object.__setattr__(self, "source", source)
+        object.__setattr__(self, "fallback", fallback)
 
     def __getattr__(self, field: str) -> Any:
         """One declared field, or a refusal naming what this row carries."""
