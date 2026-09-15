@@ -1,6 +1,9 @@
 """Purpose: preserve stored equations and their compiled bindings through fast images.
 
 Guarantees:
+  - a source rewrite that returns literal &self keeps that result through
+    admission [tested: test_equal_raw_and_resolved_source_can_still_own_a_binding;
+    commit=WORKTREE]
   - a withdrawn source token remains resolved through recompilation and
     successive fast-image generations
     [tested: test_fast_images_keep_withdrawn_bindings_across_generations;
@@ -24,6 +27,35 @@ import pytest
 
 from metta import MeTTa, S, V
 from metta._errors.errors import EngineError
+
+
+@pytest.mark.parametrize("precompiled", [False, True], ids=["first", "standing"])
+def test_equal_raw_and_resolved_source_can_still_own_a_binding(precompiled):
+    """Mapping the resolved home back to &self differs from the storage law."""
+    with MeTTa() as m, m.space() as source, m.space() as claimant:
+        expected = ["&self"]
+        if precompiled:
+            source.run("(= (binding-literal-self) Initial)")
+            assert list(map(str, source.eval(S.binding_literal_self()))) == ["Initial"]
+            expected.insert(0, "Initial")
+        with claimant.bind({"Target": S[source.name]}):
+            claimant.run(
+                '!(let $name Target (let $value (atom_concat "&" "self") '
+                '(bind! $name $value)))'
+            )
+        m.runtime.must(
+            "metta_engine:metta_token(Space, '&self'), "
+            "metta_engine:rewrite_parsed_form(Space, Text, "
+            "[=, ['binding-literal-self'], '&self'], "
+            "[=, ['binding-literal-self'], '&self'])",
+            Space=source.name, Text="(= (binding-literal-self) &self)",
+        )
+        source.run("(= (binding-literal-self) &self)")
+        assert list(map(str, source.eval(S.binding_literal_self()))) == expected
+        assert m.runtime.once(
+            "aggregate_all(count, filereader:translated_equation_binding(Space, _, _), Count)",
+            Space=source.name,
+        )["Count"] == 1
 
 
 @pytest.mark.parametrize("recompile", [False, True], ids=["restore", "recompile"])
