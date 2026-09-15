@@ -31,7 +31,7 @@ Guarantees:
     keep that syntax proof without publishing a source-absent arrow [tested:
     test_compiled_operators_follow_python_protocols_and_result_species,
     test_no_type_check_keeps_annotations_as_a_compile_proof_only;
-    commit=WORKTREE]
+    commit=2815d86074116a7b0f7d44277e708dd73c574049]
   - Defined renders its own escaped equation source in rich notebooks, and a
     Prolog-backed definition's source remains valid MeTTa text [tested:
     test_defined_rich_repr_shows_escaped_source,

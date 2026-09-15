@@ -55,7 +55,7 @@ Guarantees:
     commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
   - imported ``functools.reduce`` lowers named reducers to ``foldl-atom`` and
     lambdas to its explicit accumulator/item template [tested:
-    test_reduce_lowers_named_and_lambda_reducers; commit=WORKTREE]
+    test_reduce_lowers_named_and_lambda_reducers; commit=2815d86074116a7b0f7d44277e708dd73c574049]
   - a four-argument bare unify call lowers to the engine's protected special
     form rather than resolving as a host closure [tested:
     test_expression_position_unify_uses_the_engine_conditional_in_both_contexts;
@@ -80,7 +80,7 @@ Guarantees:
     annotations, including bare native comparison tests [tested:
     test_compiled_operators_follow_python_protocols_and_result_species,
     test_compiled_rich_comparisons_truth_test_only_in_boolean_contexts;
-    commit=WORKTREE]
+    commit=2815d86074116a7b0f7d44277e708dd73c574049]
   - list collects known engine answer streams through collapse and keeps host
     iterables as host lists [tested:
     test_list_collects_engine_answers_and_preserves_host_lists;
@@ -88,7 +88,7 @@ Guarantees:
   - Python operators receive one held operand frame after source expressions
     run in order [tested: test_compiled_operator_frames_evaluate_sources_once_in_order;
     test_compiled_operator_frames_remain_native_rewrite_patterns;
-    commit=WORKTREE]
+    commit=2815d86074116a7b0f7d44277e708dd73c574049]
   - unshadowed type queries use get-metatype and explicit py retains host
     type queries [tested:
     test_type_uses_engine_metatypes_with_an_explicit_host_boundary;

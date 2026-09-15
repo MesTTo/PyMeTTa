@@ -11,7 +11,7 @@ this runtime is visible rather than ambient.
 Guarantees:
   - the operator service consumes a structural operand frame and has one
     fixed native signature regardless of Python operand count [tested:
-    test_operator_frames_accept_many_operands_and_retain_values; commit=WORKTREE]
+    test_operator_frames_accept_many_operands_and_retain_values; commit=2815d86074116a7b0f7d44277e708dd73c574049]
   - Python exception classification leaves the engine's `except` reference map
     available [tested: test_reference_except_and_compiled_exception_dispatch_coexist;
     commit=90ba93eb8f6e98ebfefc55416859bf13de6a8427]
@@ -35,7 +35,7 @@ Guarantees:
   - compiled operators invoke the corresponding Python protocol exactly once
     and preserve set/dict space images at their boundary [tested:
     test_compiled_operators_follow_python_protocols_and_result_species;
-    commit=WORKTREE]
+    commit=2815d86074116a7b0f7d44277e708dd73c574049]
 Open Obligations:
   To Do: None
   Hacks: None
