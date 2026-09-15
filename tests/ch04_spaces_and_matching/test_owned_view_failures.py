@@ -135,10 +135,13 @@ def test_owned_exit_zero_one_or_two_failures(monkeypatch, owner, make, body_fail
     monkeypatch.setattr(owner, "close", close)
     view = make()
     caught = None
+    def fail():
+        if body is not None:
+            raise body
+
     try:
         with view:
-            if body is not None:
-                raise body  # noqa: TRY301 -- the test must fail inside the owned context
+            fail()
     except BaseException as error:
         caught = error
     if body is not None and cleanup is not None:
@@ -165,10 +168,13 @@ def test_async_exit_preserves_cancellation_and_normal_exit(body_fails, close_fai
 
     async def run():
         caught = None
+        def fail():
+            if body is not None:
+                raise body
+
         try:
             async with EvaluationView(Group(), 0):
-                if body is not None:
-                    raise body  # noqa: TRY301 -- the test must cancel inside the owned context
+                fail()
         except BaseException as error:
             caught = error
         if body is not None and cleanup is not None:

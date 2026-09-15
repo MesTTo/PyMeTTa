@@ -150,6 +150,7 @@ from metta._errors.errors import EngineError, refuse
 from metta._spaces.results import _raise_exit_errors
 from metta.convert import auto_image, project
 from metta.foreign import SpaceProvider
+from metta.vocabularies import RefusalKind
 
 _ATOM_CELL_PREFIX = "\x00metta-atom-v1\x00"
 _NO_GROUNDED_VALUE = object()
@@ -203,7 +204,7 @@ def add(space: SpaceLike, head: Any, data: Any) -> int:
                     Space=home._space, Capability=capability,
                 ):
                     raise refuse(
-                        "capability", message, space=home.name,  # noqa: EM101 -- the first argument is the catalog kind
+                        RefusalKind.capability, message, space=home.name,
                         operation="tables.add", capability=capability,
                     )
             home._rt.must("metta_enlist_foreign(Space)", Space=home._space)
@@ -235,6 +236,47 @@ def add(space: SpaceLike, head: Any, data: Any) -> int:
     return home.transaction(ingest)
 
 
+def _batches_of(
+    data: Any, acquire: Callable[[Iterable[Any]], Iterator[Any]],
+) -> Iterator[Iterable[Any]]:
+    """Batches of rows from whichever shape this input actually offers.
+
+    Every iterator this opens goes through `acquire`, so the caller owns the
+    release whichever shape answered. Declared frame readers come first: the
+    core reads no library's method name, and a reader answers None for a
+    source it does not claim.
+    """
+    rows = next((
+        selected
+        for provider in seam.frame.table().values()
+        if callable(extract := provider.fields.get("rows"))
+        and (selected := extract(data)) is not None
+    ), None)
+    if rows is not None:
+        return itertools.batched(acquire(rows), config.chunk_cap)
+    if isinstance(data, Mapping):
+        columns = [acquire(column) for column in data.values()]
+        return itertools.batched(zip(*columns, strict=True), config.chunk_cap)
+    if hasattr(data, "__arrow_c_stream__"):
+        from metta._catalog.arrow import (  # noqa: PLC0415 -- the optional Arrow extra
+            read_batches,
+        )
+
+        _names, source = read_batches(data)
+        return acquire(source)
+    if isinstance(data, Iterable):
+        return itertools.batched(acquire(data), config.chunk_cap)
+    msg = (
+        "tables.add reads a registered frame, a mapping of columns, "
+        "__arrow_c_stream__(), or an iterable of rows; "
+        f"{type(data).__name__} offers none. A frame library declares "
+        "its own row reader on the frame point, "
+        "seam.frame.register(<module>, ..., rows=<callable>), which "
+        "answers None for a source it does not claim"
+    )
+    raise TypeError(msg)
+
+
 @contextmanager
 def _row_batches(data: Any) -> Iterator[Iterator[Iterable[Any]]]:
     """Own acquired input iterators until their final transaction outcome."""
@@ -247,35 +289,7 @@ def _row_batches(data: Any) -> Iterator[Iterator[Iterable[Any]]]:
         return iterator
 
     try:
-        batches: Iterator[Iterable[Any]]
-        rows = next((
-            selected
-            for provider in seam.frame.table().values()
-            if callable(extract := provider.fields.get("rows"))
-            and (selected := extract(data)) is not None
-        ), None)
-        if rows is not None:
-            batches = itertools.batched(acquire(rows), config.chunk_cap)
-        elif isinstance(data, Mapping):
-            columns = [acquire(column) for column in data.values()]
-            batches = itertools.batched(zip(*columns, strict=True), config.chunk_cap)
-        elif hasattr(data, "__arrow_c_stream__"):
-            from metta._catalog.arrow import (  # noqa: PLC0415 -- the optional Arrow extra
-                read_batches,
-            )
-
-            _names, source = read_batches(data)
-            batches = acquire(source)
-        elif isinstance(data, Iterable):
-            batches = itertools.batched(acquire(data), config.chunk_cap)
-        else:
-            msg = (
-                "tables.add reads a registered frame, a mapping of columns, "
-                "__arrow_c_stream__(), or an iterable of rows; "
-                f"{type(data).__name__} offers none"
-            )
-            raise TypeError(msg)  # noqa: TRY301 -- extraction failures share the input cleanup scope
-        yield batches
+        yield _batches_of(data, acquire)
     except BaseException as error:
         body = error
         raise
