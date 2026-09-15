@@ -1,24 +1,60 @@
 """Purpose: preserve stored equations and their compiled bindings through fast images.
 
 Guarantees:
+  - a withdrawn source token remains resolved through recompilation and
+    successive fast-image generations
+    [tested: test_fast_images_keep_withdrawn_bindings_across_generations;
+    commit=WORKTREE]
   - an equation reads the space it is stored in through either door, reader
     or native, and reader, native and mixed occurrences retain their answer
     bags, source atoms and later recompilation behavior after relocation
     [tested: test_fast_images_preserve_each_equations_binding;
-    commit=856434d7c1d381b3f3d7cbbd008f46c0d41b61aa]
+    commit=WORKTREE]
   - a removal retires the clause of the occurrence it takes, whichever door
     wrote it, and a fast image carries that ownership
     [tested: test_removal_retires_the_same_stored_equation_after_recompilation;
-    commit=856434d7c1d381b3f3d7cbbd008f46c0d41b61aa]
+    commit=WORKTREE]
 """
 
 import hashlib
 from collections import Counter
+from contextlib import ExitStack
 
 import pytest
 
 from metta import MeTTa, S, V
 from metta._errors.errors import EngineError
+
+
+@pytest.mark.parametrize("recompile", [False, True], ids=["restore", "recompile"])
+def test_fast_images_keep_withdrawn_bindings_across_generations(tmp_path, recompile):
+    """Stored spelling and resolved meaning survive the original token claim."""
+    claim = (tmp_path / "claim.metta").resolve()
+    claim.write_text('!(let $name (atom_concat "BindingWritten" "") (bind! $name BindingResolved))\n')
+    with MeTTa() as m, ExitStack() as homes:
+        source = homes.enter_context(m.space())
+        source.load(claim)
+        source.run("(= (binding-retained-entry) (binding-retained-provider (BindingWritten 7)))")
+        m.runtime.must(
+            "filereader:withdraw_source_load(File, Space, _)",
+            File=str(claim), Space=source.name,
+        )
+        expected = ["(binding-retained-provider (BindingResolved 7))"]
+        if recompile:
+            source.run("(= (binding-retained-provider $x) (noeval (First $x)))")
+            source.run("(= (binding-retained-provider $x) (noeval (Second $x)))")
+            expected = ["(First (BindingResolved 7))", "(Second (BindingResolved 7))"]
+        written = source.source()
+        assert "(BindingWritten 7)" in written
+        for generation in range(3):
+            assert sorted(map(str, source.eval(S.binding_retained_entry()))) == expected
+            image = tmp_path / f"generation-{generation}.fast"
+            source.save(image, format="fast")
+            restored = homes.enter_context(m.space())
+            restored.load(image)
+            assert restored.source() == written
+            assert sorted(map(str, restored.eval(S.binding_retained_entry()))) == expected
+            source = restored
 
 
 @pytest.mark.parametrize(
